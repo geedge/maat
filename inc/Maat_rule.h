@@ -1,0 +1,177 @@
+
+/*
+*****************Maat Network Flow Rule Manage Framework********
+*	Maat is the Goddess of truth and justice in ancient Egyptian concept.
+*	Her feather was the measure that determined whether the souls (considered 
+*	to reside in the heart) of the departed would reach the paradise of afterlife
+*	successfully.
+*	Author: zhengchao@iie.ac.cn,MESA
+*	Version 2015-07-24 Maat_set_feather_opt
+*	NOTE: MUST compile with G++
+*	All right reserved by Institute of Infomation Engineering,Chinese Academic of Science 2014~2018
+*********************************************************
+*/
+#ifndef H_MAAT_RULE_H_INCLUDE
+#define H_MAAT_RULE_H_INCLUDE
+#include "stream.h"
+enum MAAT_CHARSET
+{
+	CHARSET_NONE=0,
+	CHARSET_GBK,
+	CHARSET_BIG5,
+	CHARSET_UNICODE,
+	CHARSET_UTF8,	// 4
+	CHARSET_BIN	//5
+};
+enum MAAT_ACTION
+{
+	MAAT_ACTION_BLOCK=0,
+	MAAT_ACTION_MONIT,
+	MAAT_ACTION_WHITE
+};
+enum MAAT_POS_TYPE
+{
+	MAAT_POSTYPE_EXPR=0,
+	MAAT_POSTYPE_REGEX
+};
+typedef	void*	scan_status_t;
+typedef	void*	stream_para_t;
+typedef	void*	Maat_feather_t;
+#define	MAX_SERVICE_DEFINE_LEN	128
+struct Maat_rule_t
+{
+	int 	config_id;
+	int		service_id;
+	char 	do_log;
+	char 	do_blacklist;
+	char	action;
+	char	resevered;
+	int		serv_def_len;
+	char 	service_defined[MAX_SERVICE_DEFINE_LEN];
+};
+#define	MAAT_RULE_UPDATE_TYPE_FULL	1
+#define	MAAT_RULE_UPDATE_TYPE_INC	2
+typedef void Maat_start_callback_t(int update_type,void* u_para);
+typedef void Maat_update_callback_t(int table_id,const char* table_line,void* u_para);
+typedef void Maat_finish_callback_t(void* u_para);
+
+
+
+
+
+//--------------------HITTING DETAIL DESCRIPTION BEGIN
+
+#define	MAAT_MAX_HIT_RULE_NUM		8
+#define MAAT_MAX_EXPR_ITEM_NUM		8
+#define	MAAT_MAX_HIT_POS_NUM		8
+#define	MAAT_MAX_REGEX_GROUP_NUM	8
+
+//NOTE position buffer as hitting_regex_pos and hit_pos,are ONLY valid before next scan or Maat_stream_scan_string_end
+struct regex_pos_t
+{
+	int group_num;
+	int hitting_regex_len;
+	const char* hitting_regex_pos;
+	int grouping_len[MAAT_MAX_REGEX_GROUP_NUM];
+	const char* grouping_pos[MAAT_MAX_REGEX_GROUP_NUM];
+};
+struct str_pos_t
+{
+	int hit_len;
+	const char* hit_pos;
+};
+struct sub_item_pos_t
+{
+	enum MAAT_POS_TYPE ruletype;
+	int hit_cnt;
+	union
+	{
+		struct regex_pos_t	regex_pos[MAAT_MAX_HIT_POS_NUM];
+		struct str_pos_t substr_pos[MAAT_MAX_HIT_POS_NUM];
+	};
+};
+
+struct Maat_region_pos_t
+{
+	
+	int region_id;
+	int sub_item_num;
+	struct sub_item_pos_t sub_item_pos[MAAT_MAX_EXPR_ITEM_NUM];	
+};
+
+struct Maat_hit_detail_t
+{
+	int config_id;//set <0 if half hit;
+	int hit_region_cnt;
+	struct Maat_region_pos_t region_pos[MAAT_MAX_HIT_RULE_NUM];	
+};
+//--------------------HITTING DETAIL DESCRIPTION END
+Maat_feather_t Maat_summon_feather(int max_thread_num,
+								const char* table_info_path,
+								const char* ful_cfg_dir,
+								const char* inc_cfg_dir,
+								void*logger);
+
+Maat_feather_t Maat_summon_feather_json(int max_thread_num,
+									const char* table_info_path,
+									const char* json_rule,
+									void* logger);
+
+void Maat_burn_feather(Maat_feather_t feather);
+
+//return table_id(>=0) if success,otherwise return -1;
+int Maat_table_register(Maat_feather_t feather,const char* table_name);
+//return 1 if success,otherwise return -1 incase invalid table_id or registed function number exceed 32;
+int Maat_table_callback_register(Maat_feather_t feather,short table_id,
+									Maat_start_callback_t *start,//MAAT_RULE_UPDATE_TYPE_*,u_para
+									Maat_update_callback_t *update,//table line ,u_para
+									Maat_finish_callback_t *finish,//u_para
+									void* u_para);
+
+
+
+//Return hit rule number, return -1 when error occurs,return -2 when hit current region
+//mid MUST set NULL before fist call
+int Maat_scan_intval(Maat_feather_t feather,int table_id
+						,unsigned int intval
+						,struct Maat_rule_t*result,int rule_num
+						,scan_status_t *mid,int thread_num);
+int Maat_scan_addr(Maat_feather_t feather,int table_id
+						,struct ipaddr* addr
+						,struct Maat_rule_t*result,int rule_num
+						,scan_status_t *mid,int thread_num);
+int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
+						,struct ipaddr* addr,unsigned short int proto
+						,struct Maat_rule_t*result,int rule_num
+						,scan_status_t *mid,int thread_num);
+int Maat_full_scan_string(Maat_feather_t feather,int table_id
+						,enum MAAT_CHARSET charset,const char* data,int data_len
+						,struct Maat_rule_t*result,int* found_pos,int rule_num
+						,scan_status_t* mid,int thread_num);
+//hite_detail could be NULL if unconcern
+int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
+						,enum MAAT_CHARSET charset,const char* data,int data_len
+						,struct Maat_rule_t*result,int rule_num,struct Maat_hit_detail_t *hit_detail,int detail_num
+						,int* detail_ret,scan_status_t* mid,int thread_num);
+
+stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,int thread_num);
+int Maat_stream_scan_string(stream_para_t* stream_para
+									,enum MAAT_CHARSET charset,const char* data,int data_len
+									,struct Maat_rule_t*result,int* found_pos,int rule_num
+									,scan_status_t* mid);
+//hite_detail could be NULL if unconcern
+int Maat_stream_scan_string_detail(stream_para_t* stream_para
+									,enum MAAT_CHARSET charset,const char* data,int data_len
+									,struct Maat_rule_t*result,int rule_num,struct Maat_hit_detail_t *hit_detail,int detail_num
+									,int* detail_ret,scan_status_t* mid);
+void Maat_stream_scan_string_end(stream_para_t* stream_para);
+
+void Maat_clean_status(scan_status_t* mid);
+
+#define	MAAT_OPT_SCANDIR_INTERVAL_MS		1	//opt value is interger,size=sizeof(int),1,000 milliseconds as default 
+#define	MAAT_OPT_EFFECT_INVERVAL_MS			2	//opt value is interger,size=sizeof(int),60,000 milliseconds as default 
+//return -1 if failed, return 0 on success;
+int Maat_set_feather_opt(Maat_feather_t feather,int type,void* value,int size);
+
+#endif	//	H_MAAT_RULE_H_INCLUDE
+
