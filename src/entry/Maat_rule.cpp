@@ -22,6 +22,7 @@
 #include "UniversalBoolMatch.h"
 
 int MAAT_FRAME_VERSION_1_2_20150724=1;
+const int a=1;
 const char *maat_module="MAAT Frame";
 const char* CHARSET_STRING[]={"CHARSET_NONE","GBK","BIG5","UNICODE","UTF-8"};
 
