@@ -21,7 +21,7 @@
 #include "rulescan.h"
 #include "UniversalBoolMatch.h"
 
-int MAAT_FRAME_VERSION_1_2_20150724=1;
+int MAAT_FRAME_VERSION_1_2_20151019
 const char *maat_module="MAAT Frame";
 const char* CHARSET_STRING[]={"CHARSET_NONE","GBK","BIG5","UNICODE","UTF-8"};
 
@@ -2589,6 +2589,10 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 	_Maat_table_info_t *p_table=_feather->p_table_info[table_id];
 	const char* lines=NULL;
 	if(p_table==NULL)
+	{
+		return -1;
+	}
+	if(p_table->table_type!=TABLE_TYPE_PLUGIN)
 	{
 		return -1;
 	}
