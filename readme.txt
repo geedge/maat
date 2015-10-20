@@ -33,3 +33,4 @@ gb2312;
 		2) use readdir_r in my_scandir;
 		3) fix segmentfault when have no config,again;
 		4) maat_json support plugin table;
+2015-10-19 check table_type in callback register;
