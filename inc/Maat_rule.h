@@ -37,6 +37,8 @@ enum MAAT_POS_TYPE
 typedef	void*	scan_status_t;
 typedef	void*	stream_para_t;
 typedef	void*	Maat_feather_t;
+
+
 #define	MAX_SERVICE_DEFINE_LEN	128
 struct Maat_rule_t
 {
@@ -165,6 +167,15 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 									,struct Maat_rule_t*result,int rule_num,struct Maat_hit_detail_t *hit_detail,int detail_num
 									,int* detail_ret,scan_status_t* mid);
 void Maat_stream_scan_string_end(stream_para_t* stream_para);
+
+stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,unsigned long long total_len,int thread_num);
+int Maat_stream_scan_digest(stream_para_t* stream_para
+									,const char* data,int data_len
+									,struct Maat_rule_t*result,int rule_num
+									,scan_status_t* mid);
+void Maat_stream_scan_digest_end(stream_para_t* stream_para);
+
+
 
 void Maat_clean_status(scan_status_t* mid);
 

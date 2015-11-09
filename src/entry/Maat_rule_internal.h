@@ -287,3 +287,4 @@ struct _maat_garbage_t
 };
 void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbage_q);
 void garbage_bury(MESA_lqueue_head garbage_q,void *logger);
+
