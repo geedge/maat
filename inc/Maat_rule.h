@@ -6,7 +6,7 @@
 *	to reside in the heart) of the departed would reach the paradise of afterlife
 *	successfully.
 *	Author: zhengchao@iie.ac.cn,MESA
-*	Version 2015-11-09 Maat_set_feather_opt
+*	Version 2015-11-09 digest scan
 *	NOTE: MUST compile with G++
 *	All right reserved by Institute of Infomation Engineering,Chinese Academic of Science 2014~2018
 *********************************************************
