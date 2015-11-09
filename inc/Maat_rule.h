@@ -6,7 +6,7 @@
 *	to reside in the heart) of the departed would reach the paradise of afterlife
 *	successfully.
 *	Author: zhengchao@iie.ac.cn,MESA
-*	Version 2015-07-24 Maat_set_feather_opt
+*	Version 2015-11-09 Maat_set_feather_opt
 *	NOTE: MUST compile with G++
 *	All right reserved by Institute of Infomation Engineering,Chinese Academic of Science 2014~2018
 *********************************************************
@@ -161,7 +161,7 @@ int Maat_stream_scan_string(stream_para_t* stream_para
 									,enum MAAT_CHARSET charset,const char* data,int data_len
 									,struct Maat_rule_t*result,int* found_pos,int rule_num
 									,scan_status_t* mid);
-//hite_detail could be NULL if unconcern
+//hited_detail could be NULL if unconcern
 int Maat_stream_scan_string_detail(stream_para_t* stream_para
 									,enum MAAT_CHARSET charset,const char* data,int data_len
 									,struct Maat_rule_t*result,int rule_num,struct Maat_hit_detail_t *hit_detail,int detail_num
