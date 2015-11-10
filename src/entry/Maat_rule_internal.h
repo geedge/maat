@@ -105,6 +105,15 @@ struct db_intval_rule_t
 	interval_rule_t intval;
 	int is_valid;
 };
+struct db_digest_rule_t
+{
+	int region_id;
+	int group_id;
+	unsigned long long orgin_len;
+	const char* digest_string;
+	short confidence_degree;
+	int is_valid;
+};
 struct _head_Maat_rule_t
 {
 	int 	config_id;
@@ -233,7 +242,8 @@ struct _stream_para_t
 	char* scan_buff;
 	void* rs_stream_para;
 	long acc_scan_len;
-	
+	unsigned long long total_len;
+	fuzzy_handle_t *fuzzy_hash_handle;
 };
 struct _Maat_scanner_t
 {
@@ -241,12 +251,15 @@ struct _Maat_scanner_t
 	time_t last_update_time;
 	int *ref_cnt;	//optimized for cache_alignment 64
 	rule_scanner_t region;
+	pthread_rwlock_t digest_rwlock[MAX_TABLE_NUM];
+	GIE_handle_t*	digest_handle[MAX_TABLE_NUM];
 	MESA_htable_handle region_hash;
 	MESA_htable_handle group_hash;
 	MESA_htable_handle compile_hash;
 	unsigned int cfg_num;
 	unsigned int exprid_generator;
 	MESA_lqueue_head region_update_q;
+	MESA_lqueue_head digest_update_q[MAX_TABLE_NUM];
 	void * expr_compiler;
 	scan_result_t *region_rslt_buff;
 	MESA_lqueue_head tomb_ref;//reference of feather->garbage_q

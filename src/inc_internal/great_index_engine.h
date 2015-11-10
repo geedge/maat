@@ -17,36 +17,40 @@ typedef struct
 typedef struct 
 {
 	unsigned int id;
-	unsigned long long orilen;
-	char * fh;
+	short operation;//GIE_INSERT_OPT or GIE_DELETE_OPT.if operation is GIE_DELETE_OPT, only id is needed;
+	short cfds_lvl;
+	unsigned long long origin_len;	
+	char * fuzzy_hash;
 	void * tag;
-}fuzzy_digest_t;
+}GIE_digest_t;
 
 
 typedef struct 
 {
 	unsigned int id;
-	int confidence_level;
-	unsigned long long orilen;
+	short cfds_lvl;
+	unsigned long long origin_len;
 	void * tag;
-}result_t;
+}GIE_result_t;
 
 
 typedef struct 
 {
-	unsigned long long precision;
-	int confidence_level_threshold;
+	unsigned long long index_interval;
+//	int confidence_level_threshold;
 	double query_accuracy;
 }GIE_create_para_t;
 
 
-GIE_handle_t * GIE_create(GIE_create_para_t * usrpara);
+GIE_handle_t * GIE_create(const GIE_create_para_t * para);
 
 
-int GIE_update(GIE_handle_t * handle, fuzzy_digest_t ** digests, int size, int opration);
+int GIE_update(GIE_handle_t * handle, GIE_digest_t ** digests, int size);
 
-
-int GIE_query(GIE_handle_t * handle, unsigned long long orilen, char * fuzzy_string, int strsize, result_t * results, int size);
+//return actual matched result count
+//return 0 when matched nothing;
+//return -1 when error occurs;
+int GIE_query(GIE_handle_t * handle, unsigned long long origin_len, const char * fuzzy_string, GIE_result_t * results, int result_size);
 
 
 void GIE_destory(GIE_handle_t * handle);
