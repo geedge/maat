@@ -49,9 +49,9 @@ void fuzzy_destroy_handle(fuzzy_handle_t * handle);
  * @param  data   [data that you want to fuzzy_hash]
  * @param  size   [data size]
  * @param  offset [offset]
- * @return        [return effective data length]
+ * @return        [return effective data length in current feed]
  */
-uint fuzzy_feed(fuzzy_handle_t * handle, const char* data, uint size, unsigned long offset);
+unsigned int fuzzy_feed(fuzzy_handle_t * handle, const char* data, unsigned int size, unsigned long long offset);
 
 /**
  * Obtain the fuzzy hash values.
@@ -62,7 +62,7 @@ uint fuzzy_feed(fuzzy_handle_t * handle, const char* data, uint size, unsigned l
  * @param  size    [@result size]
  * @return         [return zero on success, non-zero on error]
  */
-int fuzzy_digest(fuzzy_handle_t * handle, char* result, uint size);
+int fuzzy_digest(fuzzy_handle_t * handle, char* result, unsigned int size);
 
 /**
  * Obtain certain length of fuzzy hash status.
@@ -74,7 +74,7 @@ int fuzzy_digest(fuzzy_handle_t * handle, char* result, uint size);
      * HASH_LENGTH:Hash result length.
  * @return        [length value]
  */
-unsigned long fuzzy_status(fuzzy_handle_t * handle, int type);
+unsigned long long fuzzy_status(fuzzy_handle_t * handle, int type);
 
 
 #ifdef __cplusplus

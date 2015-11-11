@@ -46,6 +46,16 @@ typedef int atomic_t;
 #define MIN(a, b)  	(((a) < (b)) ? (a) : (b))
 #endif
 
+#ifndef offsetof
+#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+#endif
+
+#ifndef container_of
+#define container_of(ptr, type, member) ({			 \
+	const typeof( ((type *)0)->member ) *__mptr = (ptr); \
+	(type *)( (char *)__mptr - offsetof(type,member) );})
+#endif
+
 typedef	void*	rule_scanner_t;
 enum MAAT_TABLE_TYPE
 {	
@@ -244,6 +254,7 @@ struct _stream_para_t
 	long acc_scan_len;
 	unsigned long long total_len;
 	fuzzy_handle_t *fuzzy_hash_handle;
+	unsigned char query_point[8];
 };
 struct _Maat_scanner_t
 {

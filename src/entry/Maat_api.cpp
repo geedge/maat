@@ -80,7 +80,7 @@ int pickup_hit_region_from_compile(universal_bool_expr_t *compile_hit,const unsi
 	}
 	return k;
 }
-int region_compile(struct _scan_status_t *_mid,scan_result_t* region_hit,int region_hit_num,struct Maat_rule_t* result,_compile_result_t *rs_result, int size)
+int region_compile(struct _scan_status_t *_mid,void* region_hit,int region_type_size,int group_offset,int region_hit_num,struct Maat_rule_t* result,_compile_result_t *rs_result, int size)
 {
 
 	int scan_ret=0,result_cnt=0;
@@ -96,7 +96,7 @@ int region_compile(struct _scan_status_t *_mid,scan_result_t* region_hit,int reg
 	_mid->cur_hit_cnt=0;
 	for(i=0;i<region_hit_num;i++)
 	{
-		group_rule=(struct _Maat_group_rule_t*)(region_hit[i].tag);
+		group_rule=(struct _Maat_group_rule_t*)((char*)region_hit+region_type_size*i+group_offset);
 		if(group_rule->group_id<0)
 		{
 			continue;
@@ -584,7 +584,10 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 		{
 			_mid=(struct _scan_status_t*)(*mid);
 		}
-		compile_ret=region_compile(_mid,region_result,hit_region_cnt,result,compile_result,rule_num);
+		compile_ret=region_compile(_mid,
+									region_result,sizeof(scan_result_t),offsetof(scan_result_t, tag),
+									hit_region_cnt,
+									result,compile_result,rule_num);
 		if(hit_detail!=NULL)
 		{
 			*detail_ret=fill_region_hit_detail(data,_mid,										
@@ -663,7 +666,10 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 		{
 			_mid=(struct _scan_status_t*)(*mid);
 		}
-		compile_ret=region_compile(_mid,region_result,region_ret,result,compile_result,rule_num);
+		compile_ret=region_compile(_mid,
+									region_result,sizeof(scan_result_t),offsetof(scan_result_t, tag),
+									region_ret,
+									result,compile_result,rule_num);
 	}
 	
 	DEC_SCANNER_REF(my_scanner, int thread_num);
@@ -750,7 +756,10 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 		{
 			_mid=(struct _scan_status_t*)(*mid);
 		}
-		compile_ret=region_compile(_mid,region_result,region_ret,result,compile_result,rule_num);
+		compile_ret=region_compile(_mid,
+									region_result,sizeof(scan_result_t),offsetof(scan_result_t, tag),
+									region_ret,
+									result,compile_result,rule_num);
 	}
 	DEC_SCANNER_REF(my_scanner,thread_num);
 	
@@ -928,13 +937,17 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 		{
 			_mid=(struct _scan_status_t*)(*mid);
 		}
-		compile_ret=region_compile(_mid,region_result,hit_region_cnt,result,compile_result,rule_num);
+		compile_ret=region_compile(_mid,
+							region_result,sizeof(scan_result_t),offsetof(scan_result_t, tag),
+							hit_region_cnt,
+							result,compile_result,rule_num);
 		if(hit_detail!=NULL)
 		{
 			if(sp->scan_buff!=NULL)
 			{
 				*detail_ret=fill_region_hit_detail(sp->scan_buff,_mid,
-												region_result,hit_region_cnt,
+												region_result,sizeof(scan_result_t),offsetof(scan_result_t, tag),
+												hit_region_cnt,
 												compile_result,compile_ret,
 												hit_detail,detail_num);
 			}
@@ -1008,9 +1021,8 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 	struct _Maat_scanner_t* scanner=NULL;
 
 	struct _Maat_table_info_t *p_table=NULL;
-	int table_cfg_num=0;
-	table_cfg_num=acqurie_table(_feather, table_id, thread_num, TABLE_TYPE_EXPR);
-	if(table_cfg_num<0)
+	p_table=acqurie_table(_feather, table_id, thread_num, TABLE_TYPE_EXPR);
+	if(p_table==NULL)
 	{
 		return -1;
 	}
@@ -1023,17 +1035,110 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 	{
 		return sp;
 	}
-	int offset=(CPU_CACHE_ALIGMENT/sizeof(int))*thread_num;
-	scanner->ref_cnt[offset]++;
-	assert(table_id<256);
+	INC_SCANNER_REF(scanner, thread_num);
 	sp->table_id=table_id;
 	sp->thread_num=thread_num;
-	sp->max_cross_size=p_table->cross_cache_size;
-	sp->caching_size=0;
-	sp->scan_buff=NULL;
-	sp->last_cache=NULL;
+	sp->total_len=total_len;
+	sp->fuzzy_hash_handle=fuzzy_create_handle();
+	return sp;
 }
+#define	QUERY_MIN_RATE	(3)	//30%
+#define	QUERY_MIN_LEN	(1024*1024*4)
+inline int REACH_QUERY_THRESH(unsigned long long total_len,unsigned long long acc_len,unsigned char* query_point,int point_size)
+{
+//do query every 10 percent since 30%, e.g. 0.3/0.4/0.5/.../1.0
+	unsigned long long rate=(acc_len*10)/total_len;
+//	if(acc_len>QUERY_MIN_LEN)
+//	{
+//		return 1;
+//	}
+	assert(rate<point_size+QUERY_MIN_RATE);
+	if(rate>=QUERY_MIN_RATE&&query_point[rate-QUERY_MIN_RATE]==0)
+	{
+		query_point[rate-QUERY_MIN_RATE]=1;
+		return 1;
+	}
+	return 0;
+}
+int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int data_len, unsigned long long offset, struct Maat_rule_t * result, int rule_num, scan_status_t * mid)
+{
+	struct _stream_para_t* sp=(struct _stream_para_t*)stream_para;
+	int do_query=0;
+	GIE_result_t query_result[MAX_SCANNER_HIT_NUM];
+	int hit_region_cnt=0,compile_ret=0;
+	_compile_result_t compile_result[rule_num];//dynamic array
+	GIE_handle_t* GIE_handle=sp->feather->scanner->digest_handle[sp->table_id];
+	unsigned long long digest_len=0;
+	char* digest_buff=NULL;
+	struct _scan_status_t* _mid=(struct _scan_status_t*)(*mid);
+	pthread_rwlock_t GIE_rwlock=&(sp->feather->scanner->digest_rwlock[sp->table_id]);
+	sp->acc_scan_len+=fuzzy_feed(sp->fuzzy_hash_handle, data, (unsigned int)data_len,offset);
+	do_query=REACH_QUERY_THRESH(sp->total_len, sp->acc_len, sp->query_point,8);
+	if(do_query==0)
+	{
+		return 0;
+	}
+	digest_len=fuzzy_status(sp->fuzzy_hash_handle, HASH_LENGTH);
+	if(digest_len==0)
+	{
+		return 0;
+	}
+	digest_buff=(char*)malloc(sizeof(char)*digest_len);
+	fuzzy_digest(sp->fuzzy_hash_handle,digest_buff, digest_len);
+	if(0==pthread_rwlock_tryrdlock(GIE_rwlock))
+	{
+		hit_region_cnt=GIE_query(GIE_handle, sp->origin_len, digest_buff, query_result, MAX_SCANNER_HIT_NUM);
+		pthread_rwlock_unlock(GIE_rwlock);
+	}
+	free(digest_buff);
+	digest_buff=NULL;
+	if(hit_region_cnt<0)//error occurs
+	{
+		return -1;
+	}
+	if(hit_region_cnt==0)
+	{
+		return 0;
+	}
 
+	if(*mid==NULL)
+	{
+		_mid=_Maat_make_status(sp->feather,sp->thread_num);
+		*mid=_mid;
+	}
+	else
+	{
+		_mid=(struct _scan_status_t*)(*mid);
+	}
+	compile_ret=region_compile(_mid,
+							query_result,sizeof(GIE_result_t),offsetof(GIE_result_t, tag),
+							hit_region_cnt,
+							result,compile_result,rule_num);
+	if(compile_ret==0&&hit_region_cnt>0)
+	{
+		return -2;
+	}
+	return compile_ret;
+}
+void Maat_stream_scan_digest_end(stream_para_t* stream_para)
+{
+	struct _stream_para_t* sp=(struct _stream_para_t*)(*stream_para);
+	struct _Maat_scanner_t* scanner=sp->feather->scanner;
+
+	if(scanner!=NULL)
+	{
+		if(sp->version==sp->feather->maat_version)
+		{
+			DEC_SCANNER_REF(scanner, sp->thread_num);
+		}		
+	}
+	fuzzy_destroy_handle(sp->fuzzy_hash_handle);
+	assert(sp->last_cache==NULL);
+	assert(sp->scan_buff==NULL)
+	free(sp);
+	*stream_para=NULL;
+	return;
+}
 void Maat_clean_status(scan_status_t* mid)
 {
 	struct _scan_status_t* _mid=NULL;
