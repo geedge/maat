@@ -1,3 +1,6 @@
+#ifndef H_MAAT_RULE_INTERNAL_H_INCLUDE
+#define H_MAAT_RULE_INTERNAL_H_INCLUDE
+
 #include "Maat_rule.h"
 
 #include <MESA/MESA_htable.h>
@@ -6,8 +9,14 @@
 #include "UniversalBoolMatch.h"
 #include "rulescan.h"
 
+#include "mesa_fuzzy.h"
+#include "great_index_engine.h"
+
 #include <pthread.h>
 #include <iconv.h>
+
+extern const char *maat_module;
+
 
 #if(__GNUC__ * 100 + __GNUC_MINOR__ * 10 + __GNUC_PATCHLEVEL__ >= 411)
 #define atomic_inc(x) __sync_add_and_fetch((x),1)
@@ -311,4 +320,21 @@ struct _maat_garbage_t
 };
 void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbage_q);
 void garbage_bury(MESA_lqueue_head garbage_q,void *logger);
+void make_group_set(const struct _Maat_compile_rule_t* compile_rule,universal_bool_expr_t* a_set);
+int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path);
+void maat_start_cb(unsigned int new_version,int update_type,void*u_para);
+void maat_update_cb(const char* table_name,const char* line,void *u_para);
+void maat_finish_cb(void* u_para);
+void *thread_rule_monitor(void *arg);
+unsigned int make_sub_type(unsigned short table_id,enum MAAT_CHARSET charset,int do_charset_merge);
+inline void ipv6_ntoh(unsigned int *v6_addr)
+{
+	unsigned int i=0;
+	for(i=0;i<4;i++)
+	{
+		v6_addr[i]=ntohl(v6_addr[i]);
+	}
+	return;
+}
+#endif
 

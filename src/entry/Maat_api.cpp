@@ -1,9 +1,17 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
+#include <MESA/MESA_handle_logger.h>
+
 #include "rulescan.h"
 #include "UniversalBoolMatch.h"
 #include "Maat_rule.h"
 #include "Maat_rule_internal.h"
+#include "dynamic_array.h"
+#include "config_monitor.h"
+#include "map_str2int.h"
+#include "rulescan.h"
+#include "json2iris.h"
 
 struct _Maat_table_info_t * acqurie_table(struct _Maat_feather_t* _feather,int table_id,enum MAAT_TABLE_TYPE expect_type)
 {
@@ -35,6 +43,7 @@ inline void DEC_SCANNER_REF(_Maat_scanner_t*scanner,int thread_num)
 	scanner->ref_cnt[offset]--;
 	return;
 }
+
 //return 1 if insert a unique id
 //return 0 if id is duplicated
 //return -1 if set is full
@@ -648,11 +657,11 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 
 	region_result=my_scanner->region_rslt_buff+MAX_SCANNER_HIT_NUM*thread_num;
 	
-	INC_SCANNER_REF(my_scanner, int thread_num);
+	INC_SCANNER_REF(my_scanner,thread_num);
 	region_ret=rulescan_search(my_scanner->region, thread_num, &intval_scan_data, region_result, MAX_SCANNER_HIT_NUM);
 	if(region_ret<0)
 	{
-		DEC_SCANNER_REF(my_scanner, int thread_num);
+		DEC_SCANNER_REF(my_scanner, thread_num);
 		return -1;
 	}
 	else if(region_ret>0)
@@ -672,7 +681,7 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 									result,compile_result,rule_num);
 	}
 	
-	DEC_SCANNER_REF(my_scanner, int thread_num);
+	DEC_SCANNER_REF(my_scanner,thread_num);
 	if(compile_ret==0&&region_ret>0)
 	{
 		return -2;
@@ -691,7 +700,6 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	scan_data_t ip_scan_data;
 	scan_result_t *region_result=NULL;
 	_compile_result_t compile_result[rule_num];
-	int table_cfg_num=0;
 	_Maat_table_info_t* p_table=NULL;
 	
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
@@ -946,8 +954,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 			if(sp->scan_buff!=NULL)
 			{
 				*detail_ret=fill_region_hit_detail(sp->scan_buff,_mid,
-												region_result,sizeof(scan_result_t),offsetof(scan_result_t, tag),
-												hit_region_cnt,
+												region_result,hit_region_cnt,
 												compile_result,compile_ret,
 												hit_detail,detail_num);
 			}
@@ -1021,10 +1028,10 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 	struct _Maat_scanner_t* scanner=NULL;
 
 	struct _Maat_table_info_t *p_table=NULL;
-	p_table=acqurie_table(_feather, table_id, thread_num, TABLE_TYPE_EXPR);
+	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_EXPR);
 	if(p_table==NULL)
 	{
-		return -1;
+		return NULL;
 	}
 	struct _stream_para_t* sp=(struct _stream_para_t*)calloc(sizeof(struct _stream_para_t),1);
 	scanner=_feather->scanner;
@@ -1045,15 +1052,15 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 
 inline int REACH_QUERY_THRESH(unsigned long long total_len,unsigned long long acc_len,unsigned char* query_point,int point_size)
 {
-	const int QUERY_MIN_RATE=(3);	//30%
-	const int QUERY_MIN_LEN=(1024*1024*4);
+	const unsigned long long QUERY_MIN_RATE=(3);	//30%
+//	const unsigned long long QUERY_MIN_LEN=(1024*1024*4);
 //do query every 10 percent since 30%, e.g. 0.3/0.4/0.5/.../1.0
 	unsigned long long rate=(acc_len*10)/total_len;
 //	if(acc_len>QUERY_MIN_LEN)
 //	{
 //		return 1;
 //	}
-	assert(rate<point_size+QUERY_MIN_RATE);
+	assert(rate<(unsigned long long)(point_size+QUERY_MIN_RATE));
 	if(rate>=QUERY_MIN_RATE&&query_point[rate-QUERY_MIN_RATE]==0)
 	{
 		query_point[rate-QUERY_MIN_RATE]=1;
@@ -1072,9 +1079,9 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	unsigned long long digest_len=0;
 	char* digest_buff=NULL;
 	struct _scan_status_t* _mid=(struct _scan_status_t*)(*mid);
-	pthread_rwlock_t GIE_rwlock=&(sp->feather->scanner->digest_rwlock[sp->table_id]);
+	pthread_rwlock_t *GIE_rwlock=&(sp->feather->scanner->digest_rwlock[sp->table_id]);
 	sp->acc_scan_len+=fuzzy_feed(sp->fuzzy_hash_handle, data, (unsigned int)data_len,offset);
-	do_query=REACH_QUERY_THRESH(sp->total_len, sp->acc_len, sp->query_point,8);
+	do_query=REACH_QUERY_THRESH(sp->total_len, sp->acc_scan_len, sp->query_point,8);
 	if(do_query==0)
 	{
 		return 0;
@@ -1088,7 +1095,7 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	fuzzy_digest(sp->fuzzy_hash_handle,digest_buff, digest_len);
 	if(0==pthread_rwlock_tryrdlock(GIE_rwlock))
 	{
-		hit_region_cnt=GIE_query(GIE_handle, sp->origin_len, digest_buff, query_result, MAX_SCANNER_HIT_NUM);
+		hit_region_cnt=GIE_query(GIE_handle, sp->total_len, digest_buff, query_result, MAX_SCANNER_HIT_NUM);
 		pthread_rwlock_unlock(GIE_rwlock);
 	}
 	free(digest_buff);

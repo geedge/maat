@@ -17,12 +17,16 @@
 #include "json2iris.h"
 #include "dynamic_array.h"
 #include "config_monitor.h"
+
 #include "map_str2int.h"
 #include "rulescan.h"
 #include "UniversalBoolMatch.h"
+#include "mesa_fuzzy.h"
+#include "great_index_engine.h"
 
 int MAAT_FRAME_VERSION_1_2_20151103=1;
 const char *maat_module="MAAT Frame";
+
 const char* CHARSET_STRING[]={"CHARSET_NONE","GBK","BIG5","UNICODE","UTF-8"};
 
 int converHextoint(char srctmp)
@@ -213,15 +217,6 @@ int cnt_maskbits(struct in6_addr mask)
 		}
 	}
 	return bits_cnt;
-}
-inline void ipv6_ntoh(unsigned int *v6_addr)
-{
-	unsigned int i=0;
-	for(i=0;i<4;i++)
-	{
-		v6_addr[i]=ntohl(v6_addr[i]);
-	}
-	return;
 }
 int aligment_int_array_sum(int * array,int size)
 {	
@@ -635,7 +630,35 @@ void op_expr_add_rule(struct op_expr_t* op_expr,scan_rule_t* p_rule)
 	op_expr->p_expr->rnum++;
 	return;
 }
+GIE_digest_t* create_digest_rule(int id,short op,unsigned long long origin_len,const char* digest,
+						short cfds_lvl,struct _Maat_group_rule_t* tag)
+{
+	GIE_digest_t* rule=(GIE_digest_t*)calloc(sizeof(GIE_digest_t),1);
+	int digest_len=strlen(digest);
+	rule->id=id;
+	rule->operation=op;
+	rule->origin_len=origin_len;
+	if(digest!=NULL)
+	{
+		rule->fuzzy_hash=(char*)calloc(sizeof(char),digest_len+1);
+		memcpy(rule->fuzzy_hash,digest,digest_len);
 
+	}
+	rule->cfds_lvl=cfds_lvl;
+	rule->tag=(void*)tag;
+	return rule;
+}
+void destroy_digest_rule(GIE_digest_t*rule)
+{
+	if(rule->fuzzy_hash!=NULL)
+	{
+		free(rule->fuzzy_hash);
+		rule->fuzzy_hash=NULL;
+	}
+	free(rule);
+	rule=NULL;
+	return;
+}
 struct _Maat_scanner_t* create_maat_scanner(unsigned int version,int scan_thread_num,MESA_lqueue_head tomb)
 {
 	int i=0;
@@ -683,7 +706,7 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,int scan_thread
 	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
 		scanner->digest_update_q[i]=MESA_lqueue_create(0,0);
-		pthread_rwlock_init(&(scanner->digest_rwlock),NULL);
+		pthread_rwlock_init(&(scanner->digest_rwlock[i]),NULL);
 	}
 	return scanner;
 }
@@ -740,14 +763,14 @@ void destroy_maat_scanner(struct _Maat_scanner_t*scanner)
 			destroy_digest_rule(digest_rule);
 		}
 		MESA_lqueue_destroy(scanner->digest_update_q[i], lqueue_destroy_cb, NULL);
-		pthread_rwlock_destroy(&(scanner->digest_rwlock));
+		pthread_rwlock_destroy(&(scanner->digest_rwlock[i]));
 	}
 	free(scanner);
 	return;
 }
 
 
-inline unsigned int make_sub_type(unsigned short table_id,enum MAAT_CHARSET charset,int do_charset_merge)
+unsigned int make_sub_type(unsigned short table_id,enum MAAT_CHARSET charset,int do_charset_merge)
 {
 	unsigned int sub_type=0;
 	if(do_charset_merge==TRUE)
@@ -1938,35 +1961,7 @@ void update_compile_rule(struct _Maat_table_info_t* table,const char* table_line
 	
 	return;	
 }
-GIE_digest_t* create_digest_rule(int id,short op,unsigned long long origin_len,const char* digest,
-						short cfds_lvl,struct _Maat_group_rule_t* tag)
-{
-	GIE_digest_t* rule=calloc(sizeof(struct GIE_digest_t),1);
-	int digest_len=strlen(digest);
-	rule->id=id;
-	rule->operation=op;
-	rule->origin_len=origin_len;
-	if(digest!=NULL)
-	{
-		rule->fuzzy_hash=calloc(sizeof(char),digest_len+1);
-		memcpy(rule->fuzzy_hash,digest,digest_len);
 
-	}
-	rule->cfds_lvl=cfds_lvl;
-	rule->tag=(void*)tag;
-	return rule;
-}
-void destroy_digest_rule(GIE_digest_t*rule)
-{
-	if(rule->fuzzy_hash!=NULL)
-	{
-		free(rule->fuzzy_hash);
-		rule->fuzzy_hash=NULL;
-	}
-	free(rule);
-	rule=NULL;
-	return;
-}
 void update_digest_rule(struct _Maat_table_info_t* table,const char* table_line,struct _Maat_scanner_t *scanner,void* logger,int group_mode_on)
 {
 	struct db_digest_rule_t* digest_rule=(struct db_digest_rule_t*)calloc(sizeof(struct db_digest_rule_t),1);
@@ -2018,7 +2013,7 @@ void update_digest_rule(struct _Maat_table_info_t* table,const char* table_line,
 		if(ret<0)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"duplicate config of intval table %s config_id=%d",table->table_name,intval_rule->region_id);
+							"duplicate config of intval table %s config_id=%d",table->table_name,digest_rule->region_id);
 		}
 		else
 		{
@@ -2129,8 +2124,8 @@ void do_scanner_update(struct _Maat_scanner_t* scanner,MESA_lqueue_head garbage_
 	int i=0;
 	long q_cnt;
 	GIE_create_para_t para;
-	para->index_interval=100;
-	para->query_accuracy=0.1;
+	para.index_interval=100;
+	para.query_accuracy=0.1;
 	tmp1=create_bool_matcher(scanner->compile_hash,
 											scan_thread_num,
 											logger);
@@ -2155,9 +2150,9 @@ void do_scanner_update(struct _Maat_scanner_t* scanner,MESA_lqueue_head garbage_
 		pthread_rwlock_wrlock(&(scanner->digest_rwlock[i]));
 		if(scanner->digest_handle[i]==NULL)
 		{
-			scanner->digest_handle[i]=GIE_create(&para)
+			scanner->digest_handle[i]=GIE_create(&para);
 		}
-		digest_batch_update(scanner->digest_handle[i], scanner->digest_update_q[i],logger)
+		digest_batch_update(scanner->digest_handle[i], scanner->digest_update_q[i],logger);
 		pthread_rwlock_unlock(&(scanner->digest_rwlock[i]));
 	}
 	scanner->last_update_time=time(NULL);

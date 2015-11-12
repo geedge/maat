@@ -13,7 +13,7 @@ H_DIR			=-I$(G_H_DIR) -I../../inc
 LIBMAAT = libmaatframe.a
 LIBMAAT_SO = libmaatframe.so 
 
-OBJS=config_monitor.o Maat_rule.o UniversalBoolMatch.o dynamic_array.o cJSON.o json2iris.o map_str2int.o
+OBJS=config_monitor.o Maat_rule.o Maat_api.o UniversalBoolMatch.o dynamic_array.o cJSON.o json2iris.o map_str2int.o
 .c.o:
 	$(CC) -c $(CFLAGS) -I. $(H_DIR) $<
 

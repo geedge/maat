@@ -6,11 +6,13 @@
 #include <netinet/in.h>//inet_addr
 #include <arpa/inet.h>//inet_addr
 #include <net/if.h>
-#include <sys/types.h>
+#include <sys/types.h>//fstat
 #include <sys/ioctl.h>
 #include <string.h>
 #include <stdio.h>
 #include <MESA/stream.h>
+#include <sys/types.h>//fstat
+#include <sys/stat.h>//fstat
 
 void Maat_read_entry_start_cb(int update_type,void* u_para)
 {
@@ -207,7 +209,7 @@ int main()
 		printf("registe table FILE_DIGEST error.\n");
 		return 0;
 	}
-	ret=fstat(digest_test_file,&digest_fstat);
+	ret=stat(digest_test_file,&digest_fstat);
 	if(ret!=0)
 	{
 		printf("fstat %s error.\n",digest_test_file);
@@ -216,10 +218,10 @@ int main()
 	FILE* fp=fopen(digest_test_file,"r");
 	if(fp!=NULL)
 	{
-		sp=Maat_stream_scan_digest_start(feather, digest_scan_table_id, digest_fstat->off_t, 0);
+		sp=Maat_stream_scan_digest_start(feather, digest_scan_table_id, digest_fstat.st_size, 0);
 		while(0!=feof(fp))
 		{
-			read_size=fread(fp,digest_test_buff,sizeof(digest_test_buff));
+			read_size=fread(digest_test_buff,1,sizeof(digest_test_buff),fp);
 			ret=Maat_stream_scan_digest(&sp, digest_test_buff, read_size, scan_offset, result,4,&mid);
 			scan_offset+=read_size;
 			if(ret>0)
