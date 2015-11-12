@@ -37,7 +37,7 @@ void Maat_read_entry_finish_cb(void* u_para)
 int main()
 {
 	Maat_feather_t feather=NULL;
-	int cb_table_id=-1,url_scan_table_id=-1,size_scan_table_id=-1,ip_scan_table_id=-1;
+	int cb_table_id=-1,url_scan_table_id=-1,size_scan_table_id=-1,ip_scan_table_id=-1,digest_scan_table_id=-1;
 	int ret=-1;
 	int g_iThreadNum=4;
 	const char*	table_info_path="./table_info.conf";
@@ -46,6 +46,10 @@ int main()
 //	const char* inc_cfg_dir="./rules/inc/index";
 	const char* log_file="./test.log";
 	const char* scan_data="http://www.cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
+	const char* digest_test_file="./1.data";
+	struct stat digest_fstat;
+	unsigned long long read_size=0,scan_offset=0;
+	char digest_test_buff[4096]={0};
 	int scan_val=2015;
 	struct Maat_rule_t result[4];
 	int found_pos[4];
@@ -195,6 +199,43 @@ int main()
 
 		}
 	}
+	Maat_clean_status(&mid);
+
+	digest_scan_table_id=Maat_table_register(feather, "FILE_DIGEST");
+	if(digest_scan_table_id<0)
+	{
+		printf("registe table FILE_DIGEST error.\n");
+		return 0;
+	}
+	ret=fstat(digest_test_file,&digest_fstat);
+	if(ret!=0)
+	{
+		printf("fstat %s error.\n",digest_test_file);
+		return 0;
+	}
+	FILE* fp=fopen(digest_test_file,"r");
+	if(fp!=NULL)
+	{
+		sp=Maat_stream_scan_digest_start(feather, digest_scan_table_id, digest_fstat->off_t, 0);
+		while(0!=feof(fp))
+		{
+			read_size=fread(fp,digest_test_buff,sizeof(digest_test_buff));
+			ret=Maat_stream_scan_digest(&sp, digest_test_buff, read_size, scan_offset, result,4,&mid);
+			scan_offset+=read_size;
+			if(ret>0)
+			{
+				printf("digest scan hit %d.\n",result[0].config_id);
+
+			}
+		}
+		fclose(fp);
+	}
+	else
+	{
+		printf("fopen %s error.\n",digest_test_file);		
+	}
+	Maat_stream_scan_string_end(&sp);
+	Maat_clean_status(&mid);
 	Maat_burn_feather(feather);
 	free(hit_detail);
 	return 0;

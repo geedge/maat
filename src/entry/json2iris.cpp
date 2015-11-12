@@ -111,7 +111,8 @@ int set_iris_descriptor(const char* json_file,cJSON *json,struct iris_descriptio
 	map_register(iris_cfg->str2int_map, "ip",TABLE_TYPE_IP);
 	map_register(iris_cfg->str2int_map, "string",TABLE_TYPE_EXPR);
 	map_register(iris_cfg->str2int_map, "intval",TABLE_TYPE_INTVAL);
-
+	map_register(iris_cfg->str2int_map, "digest",TABLE_TYPE_DIGEST);
+	
 	map_register(iris_cfg->str2int_map, "ipv4",4);
 	map_register(iris_cfg->str2int_map, "ipv6",6);
 
@@ -432,6 +433,39 @@ int write_intval_rule(cJSON *region_json,struct iris_description_t *p_iris,const
 	return direct_write_rule(region_json, p_iris->str2int_map,json_cmd, cmd_cnt,path,logger);
 
 }
+int write_digest_rule(cJSON *region_json,struct iris_description_t *p_iris,const char* path,void * logger)
+{
+	struct traslate_command_t json_cmd[MAX_COLUMN_NUM];
+	int cmd_cnt=0;
+	memset(json_cmd,0,sizeof(json_cmd));
+	
+	json_cmd[cmd_cnt].json_string="region_id";
+	json_cmd[cmd_cnt].json_type=cJSON_Number;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string="group_id";
+	json_cmd[cmd_cnt].json_type=cJSON_Number;
+	cmd_cnt++;
+	
+	json_cmd[cmd_cnt].json_string="raw_len";
+	json_cmd[cmd_cnt].json_type=cJSON_String;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string="digest";
+	json_cmd[cmd_cnt].json_type=cJSON_String;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string="cfds_level";
+	json_cmd[cmd_cnt].json_type=cJSON_String;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string="is_valid";
+	json_cmd[cmd_cnt].json_type=cJSON_Number;
+	cmd_cnt++;
+	
+	return direct_write_rule(region_json, p_iris->str2int_map,json_cmd, cmd_cnt,path,logger);
+
+}
 struct iris_table_t* query_table_info(iris_description_t* p_iris,const char* table_name)
 {
 	struct iris_table_t* table_info=NULL;
@@ -572,6 +606,9 @@ int write_region_rule(cJSON* region_json,int compile_id,int group_id,iris_descri
 		case TABLE_TYPE_INTVAL:
 			ret=write_intval_rule(table_content, p_iris, table_info->table_path, logger);
 			break;
+		case TABLE_TYPE_DIGEST:
+			ret=write_digest_rule(table_content, p_iris, table_info->table_path, logger);
+			break;			
 		default:
 			assert(0);
 			break;

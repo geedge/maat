@@ -1039,13 +1039,14 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 	sp->table_id=table_id;
 	sp->thread_num=thread_num;
 	sp->total_len=total_len;
-	sp->fuzzy_hash_handle=fuzzy_create_handle();
+	sp->fuzzy_hash_handle=fuzzy_create_handle(total_len);
 	return sp;
 }
-#define	QUERY_MIN_RATE	(3)	//30%
-#define	QUERY_MIN_LEN	(1024*1024*4)
+
 inline int REACH_QUERY_THRESH(unsigned long long total_len,unsigned long long acc_len,unsigned char* query_point,int point_size)
 {
+	const int QUERY_MIN_RATE=(3);	//30%
+	const int QUERY_MIN_LEN=(1024*1024*4);
 //do query every 10 percent since 30%, e.g. 0.3/0.4/0.5/.../1.0
 	unsigned long long rate=(acc_len*10)/total_len;
 //	if(acc_len>QUERY_MIN_LEN)
@@ -1134,7 +1135,7 @@ void Maat_stream_scan_digest_end(stream_para_t* stream_para)
 	}
 	fuzzy_destroy_handle(sp->fuzzy_hash_handle);
 	assert(sp->last_cache==NULL);
-	assert(sp->scan_buff==NULL)
+	assert(sp->scan_buff==NULL);
 	free(sp);
 	*stream_para=NULL;
 	return;
