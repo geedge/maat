@@ -34,7 +34,7 @@ typedef struct
  * create a fuzzy hash handle and return it.
  * @return        [handle]
  */
-fuzzy_handle_t * fuzzy_create_handle(unsigned long long total_len);
+fuzzy_handle_t * fuzzy_create_handle(unsigned long long origin_len);
 
 /**
  * destroy context by a fuzzy hash handle.
@@ -82,3 +82,4 @@ unsigned long long fuzzy_status(fuzzy_handle_t * handle, int type);
 #endif
 
 #endif
+

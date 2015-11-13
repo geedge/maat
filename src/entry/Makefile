@@ -1,11 +1,11 @@
 #opt: OPTFLAGS = -O2
 #export OPTFLAGS
 
-CC		= g++
+CC		= gcc
 CCC		= g++
 CFLAGS		= -Wall -g -fPIC
 CFLAGS		+= $(OPTFLAGS)
-LDFLAGS		=	-lMESA_handle_logger  -lMESA_htable -lpthread
+LDFLAGS		=	-lMESA_handle_logger  -lMESA_htable -lpthread -lm
 MAILLIB = ../lib
 
 G_H_DIR			=../inc_internal
@@ -13,7 +13,8 @@ H_DIR			=-I$(G_H_DIR) -I../../inc
 LIBMAAT = libmaatframe.a
 LIBMAAT_SO = libmaatframe.so 
 
-OBJS=config_monitor.o Maat_rule.o Maat_api.o UniversalBoolMatch.o dynamic_array.o cJSON.o json2iris.o map_str2int.o
+OBJS=config_monitor.o Maat_rule.o Maat_api.o UniversalBoolMatch.o dynamic_array.o cJSON.o json2iris.o map_str2int.o\
+	 interval_index.o great_index_engine.o mesa_fuzzy.o
 .c.o:
 	$(CC) -c $(CFLAGS) -I. $(H_DIR) $<
 
