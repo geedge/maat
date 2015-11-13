@@ -24,7 +24,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_2_20151103=1;
+int MAAT_FRAME_VERSION_1_2_20151113=0;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"CHARSET_NONE","GBK","BIG5","UNICODE","UTF-8"};
@@ -665,14 +665,14 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,int scan_thread
 	
 	MESA_htable_create_args_t hargs;
 	memset(&hargs,0,sizeof(hargs));
-	hargs.thread_safe=512;
+	hargs.thread_safe=0;
 	hargs.hash_slot_size = 1024*1024;
 	hargs.max_elem_num = 0;
 	hargs.eliminate_type = HASH_ELIMINATE_ALGO_LRU;
 	hargs.expire_time = 0;
 	hargs.key_comp = NULL;
 	hargs.key2index = NULL;
-	hargs.recursive = 1; 
+	hargs.recursive = 0; 
 //	hargs.data_free = _void_destroy_compile_rule;
 	hargs.data_free = EMPTY_FREE;
 
