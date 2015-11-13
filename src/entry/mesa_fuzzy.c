@@ -186,6 +186,10 @@ void fuzzy_destroy_handle(fuzzy_handle_t * handle)
  */
 unsigned int fuzzy_feed(fuzzy_handle_t * handle, const char * data, unsigned int size, unsigned long long offset)
 {
+	if(data==NULL||size==0)
+	{
+		return 0;
+	}
     fuzzy_node * node = (fuzzy_node *)calloc(sizeof(fuzzy_node), 1);
     node->right_status_r = (struct roll_state *)calloc(sizeof (struct roll_state), 1);
     roll_init(node->right_status_r);

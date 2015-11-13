@@ -219,7 +219,7 @@ int main()
 	if(fp!=NULL)
 	{
 		sp=Maat_stream_scan_digest_start(feather, digest_scan_table_id, digest_fstat.st_size, 0);
-		while(0!=feof(fp))
+		while(0==feof(fp))
 		{
 			read_size=fread(digest_test_buff,1,sizeof(digest_test_buff),fp);
 			ret=Maat_stream_scan_digest(&sp, digest_test_buff, read_size, scan_offset, result,4,&mid);

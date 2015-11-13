@@ -448,7 +448,7 @@ int write_digest_rule(cJSON *region_json,struct iris_description_t *p_iris,const
 	cmd_cnt++;
 	
 	json_cmd[cmd_cnt].json_string="raw_len";
-	json_cmd[cmd_cnt].json_type=cJSON_String;
+	json_cmd[cmd_cnt].json_type=cJSON_Number;
 	cmd_cnt++;
 
 	json_cmd[cmd_cnt].json_string="digest";
@@ -456,7 +456,7 @@ int write_digest_rule(cJSON *region_json,struct iris_description_t *p_iris,const
 	cmd_cnt++;
 
 	json_cmd[cmd_cnt].json_string="cfds_level";
-	json_cmd[cmd_cnt].json_type=cJSON_String;
+	json_cmd[cmd_cnt].json_type=cJSON_Number;
 	cmd_cnt++;
 
 	json_cmd[cmd_cnt].json_string="is_valid";

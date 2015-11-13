@@ -321,7 +321,7 @@ struct _maat_garbage_t
 void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbage_q);
 void garbage_bury(MESA_lqueue_head garbage_q,void *logger);
 void make_group_set(const struct _Maat_compile_rule_t* compile_rule,universal_bool_expr_t* a_set);
-int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path);
+int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path,void*logger);
 void maat_start_cb(unsigned int new_version,int update_type,void*u_para);
 void maat_update_cb(const char* table_name,const char* line,void *u_para);
 void maat_finish_cb(void* u_para);

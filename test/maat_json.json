@@ -162,6 +162,32 @@
                     ]
                 }
             ]
+        },
+        {
+            "compile_id": 127,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "effective_rage": 0,
+            "user_region": "anything",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "group_7",
+                    "regions": [
+                        {
+                            "table_name": "FILE_DIGEST",
+                            "table_type": "digest",
+                            "table_content": {
+                                "raw_len": 46292790,
+                                "digest": "5nN+XW1badOlW7Odi6K[7203:46299992]",
+                                "cfds_level": 3
+                            }
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "plugin_table": [

@@ -105,7 +105,7 @@ int region_compile(struct _scan_status_t *_mid,void* region_hit,int region_type_
 	_mid->cur_hit_cnt=0;
 	for(i=0;i<region_hit_num;i++)
 	{
-		group_rule=(struct _Maat_group_rule_t*)((char*)region_hit+region_type_size*i+group_offset);
+		group_rule=*(struct _Maat_group_rule_t**)((char*)region_hit+region_type_size*i+group_offset);
 		if(group_rule->group_id<0)
 		{
 			continue;
@@ -359,7 +359,7 @@ Maat_feather_t Maat_summon_feather(int max_thread_num,
 {
 
 	_Maat_feather_t* feather=(_Maat_feather_t*)calloc(sizeof(struct _Maat_feather_t),1);
-	feather->table_cnt=read_table_info(feather->p_table_info, MAX_TABLE_NUM,table_info_path);
+	feather->table_cnt=read_table_info(feather->p_table_info, MAX_TABLE_NUM,table_info_path,logger);
 	feather->map_tablename2id=map_create();
 	int i=0;
 	for(i=0;i<MAX_TABLE_NUM;i++)
@@ -1028,7 +1028,7 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 	struct _Maat_scanner_t* scanner=NULL;
 
 	struct _Maat_table_info_t *p_table=NULL;
-	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_EXPR);
+	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_DIGEST);
 	if(p_table==NULL)
 	{
 		return NULL;

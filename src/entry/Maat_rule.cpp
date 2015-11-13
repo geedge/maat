@@ -253,7 +253,7 @@ int HASH_delete_by_id(MESA_htable_handle hash,int id)
 	ret=MESA_htable_del(hash,(unsigned char*)&id, sizeof(id), NULL);
 	return ret;
 }
-int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path)
+int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path,void* logger)
 {
 	FILE*fp=NULL;
 	char line[MAX_TABLE_LINE_SIZE];
@@ -268,6 +268,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 	map_register(string2int_map,"compile", TABLE_TYPE_COMPILE);
 	map_register(string2int_map,"plugin", TABLE_TYPE_PLUGIN);
 	map_register(string2int_map,"intval", TABLE_TYPE_INTVAL);
+	map_register(string2int_map,"digest", TABLE_TYPE_DIGEST);
 	map_register(string2int_map,"group", TABLE_TYPE_GROUP);
 	map_register(string2int_map,"bin", CHARSET_NONE);
 	map_register(string2int_map,"gbk", CHARSET_GBK);
@@ -281,6 +282,8 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 	if(fp==NULL)
 	{
 		fprintf(stderr,"Maat read table info %s error.\n",table_info_path);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
+								"Maat read table info %s error.\n",table_info_path);
 	}
 	while(NULL!=fgets(line,sizeof(line),fp))
 	{
@@ -307,6 +310,8 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 			if(ret[j]<0)
 			{
 				fprintf(stderr,"Maat read table info %s line %d error.\n",table_info_path,i);
+				MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
+								"Maat read table info %s line %d error.\n",table_info_path,i);
 				goto error_jump;
 			}
 		}
@@ -328,6 +333,8 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 			else
 			{
 				fprintf(stderr,"Maat read table info %s line %d error.\n",table_info_path,i);
+				MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
+								"Maat read table info %s line %d error.\n",table_info_path,i);
 				goto error_jump;
 			}
 			
@@ -335,11 +342,17 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 		if(p->table_id>=num)
 		{
 			fprintf(stderr,"Maat read table info %s line %d error: table id %uh > %d.\n",table_info_path,i,p->table_id,num);
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
+				"Maat read table info %s line %d error: table id %uh > %d.\n",table_info_path,i,p->table_id,num);
+
 			goto error_jump;
 		}
 		if(p_table_info[p->table_id]!=NULL)
 		{
 			fprintf(stderr,"Maat read table info %s line %d error:duplicated table id %d.\n",table_info_path,i,p->table_id);
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
+				"Maat read table info %s line %d error:duplicated table id %d.\n",table_info_path,i,p->table_id);
+
 			goto error_jump;
 		}
 		if(p->table_type==TABLE_TYPE_PLUGIN)
