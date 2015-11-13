@@ -5,7 +5,7 @@ CC		= gcc
 CCC		= g++
 CFLAGS		= -Wall -g -fPIC
 CFLAGS		+= $(OPTFLAGS)
-LDFLAGS		=	-lMESA_handle_logger  -lMESA_htable -lpthread -lm
+LDFLAGS		=	-lMESA_handle_logger  -lMESA_htable -lpthread -lm  -lrulescan -lpcre
 MAILLIB = ../lib
 
 G_H_DIR			=../inc_internal
