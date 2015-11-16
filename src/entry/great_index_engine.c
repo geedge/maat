@@ -723,8 +723,8 @@ int GIE_edit_distance_with_position(char * fh, const char * fuzzy_string, unsign
 			char numleft[100],numright[100];
 			int i = 0 , j = 0;
 			tmpstr ++;
-			memset(numleft, '\0', sizeof(char));
-			memset(numright, '\0', sizeof(char));
+			memset(numleft, '\0', sizeof(numleft));
+			memset(numright, '\0', sizeof(numright));
 			while(*tmpstr != '\0' && *tmpstr != ':')
 			{
 				numleft[i++] = *tmpstr;
