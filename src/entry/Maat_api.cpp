@@ -1070,7 +1070,7 @@ inline int REACH_QUERY_THRESH(unsigned long long total_len,unsigned long long ac
 }
 int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int data_len, unsigned long long offset, struct Maat_rule_t * result, int rule_num, scan_status_t * mid)
 {
-	struct _stream_para_t* sp=(struct _stream_para_t*)stream_para;
+	struct _stream_para_t* sp=(struct _stream_para_t*)(*stream_para);
 	int do_query=0;
 	GIE_result_t query_result[MAX_SCANNER_HIT_NUM];
 	int hit_region_cnt=0,compile_ret=0;
