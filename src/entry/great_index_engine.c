@@ -9,8 +9,6 @@
 int GIE_VERSION_1_0_20151109=1;
 #define HTABLE_SIZE 1024*1024
 #define MAX 10000
-#define FIRST_INSERT 1
-#define SECOND_INSERT 0
 #define TOLERENCE_SIZE 0
 #define CONF_MAX 10
 #define BLOCKSIZE_MIN 3
@@ -19,7 +17,6 @@ int GIE_VERSION_1_0_20151109=1;
 typedef struct 
 {
 	unsigned long long user_precision;
-	//int user_confidence_level_threshold;
 	double user_query_accuracy;
 	MESA_htable_handle id_table;
 	MESA_htable_handle index_table;
@@ -57,8 +54,7 @@ struct id_table_data
 	char * fh;
 	short cfds_lvl;
 	void * tag;
-	struct linklist_node * first_backtrack;
-	struct linklist_node * second_backtrack;
+	struct linklist_node * backtrack;
 };
 
 TAILQ_HEAD(TQ, linklist_node);
@@ -66,7 +62,7 @@ TAILQ_HEAD(VL, valuelist_node);
 
 void idtable_free(void * data);
 void indextable_free(void * data);
-int GIE_insert_indextable(GIE_handle_inner_t * handle, struct id_table_data * info, unsigned long long index_key, int flag);
+int GIE_insert_indextable(GIE_handle_inner_t * handle, struct id_table_data * info, unsigned long long index_key);
 int GIE_delete_from_indextable_by_key(GIE_handle_inner_t * handle, struct linklist_node * backtrack);
 int GIE_delete(GIE_handle_inner_t * handle, GIE_digest_t ** digests, int size);
 int GIE_union(struct TQ ** union_list, int list_num, struct id_table_data ** result,\
@@ -85,7 +81,6 @@ GIE_handle_t * GIE_create(const GIE_create_para_t * para)
 {
 	GIE_handle_inner_t * handle = (GIE_handle_inner_t *)malloc(sizeof(GIE_handle_inner_t));
 	handle->user_precision = para->index_interval;
-	//handle->user_confidence_level_threshold = para->confidence_level_threshold;
 	handle->user_query_accuracy = para->query_accuracy;
 
 	struct VL * head = (struct VL *)malloc(sizeof(struct VL));
@@ -181,7 +176,6 @@ unsigned long long calc_fh_blocksize(unsigned long long orilen)
 
 void print_item_iterate(const uchar * key, uint size, void * data, void * user)
 {
-	//unsigned long long index_key = (unsigned long long)(* key);
 	struct index_table_data * index_data = (struct index_table_data *)data;
 	struct linklist_node * first_node = TAILQ_FIRST(index_data->listhead);
 	printf("index_key = %llu\n", first_node->index_key);
@@ -209,7 +203,6 @@ int GIE_update(GIE_handle_t * handle, GIE_digest_t ** digests, int size)
 			case GIE_INSERT_OPT:
 			{
 				unsigned long long first_index_key = (digests[i]->origin_len)/(_handle->user_precision)*(_handle->user_precision);
-		        unsigned long long second_index_key = ((digests[i]->origin_len)/(_handle->user_precision) + 1)*(_handle->user_precision);
 				info = (struct id_table_data *)malloc(sizeof(struct id_table_data));
 				//printf("malloc id_table_data!\n");
 				input_fh_len=strlen(digests[i]->fuzzy_hash);
@@ -222,8 +215,7 @@ int GIE_update(GIE_handle_t * handle, GIE_digest_t ** digests, int size)
 				info->id = digests[i]->id;
 				info->cfds_lvl = digests[i]->cfds_lvl;
 
-				info->first_backtrack = NULL;
-				info->second_backtrack = NULL;
+				info->backtrack = NULL;
 				if(MESA_htable_add(_handle->id_table, (const uchar *)(&(digests[i]->id)), sizeof(digests[i]->id), (const void *)info) < 0)
 				{
 					printf("add %d id_table failed!",digests[i]->id);
@@ -231,7 +223,7 @@ int GIE_update(GIE_handle_t * handle, GIE_digest_t ** digests, int size)
 					free(info);
 					continue;
 				}				
-				if(GIE_insert_indextable(_handle, info, first_index_key, FIRST_INSERT) < 0)
+				if(GIE_insert_indextable(_handle, info, first_index_key) < 0)
 				{
 					printf("insert %d first failed\n",info->id);
 					assert(0);
@@ -240,16 +232,6 @@ int GIE_update(GIE_handle_t * handle, GIE_digest_t ** digests, int size)
 					continue;
 				}
 	    		//printf("(info->first_backtrack)->index_key = %llu\n", (info->first_backtrack)->index_key);
-
-				if(GIE_insert_indextable(_handle, info, second_index_key, SECOND_INSERT) < 0)
-				{
-					printf("insert %d second failed\n",info->id);
-					assert(0);
-					free(info->fh);
-					free(info);
-					continue;
-				}
-
 				success_cnt++;
 				break;
 			}
@@ -274,23 +256,16 @@ int GIE_update(GIE_handle_t * handle, GIE_digest_t ** digests, int size)
 }
 
 
-int GIE_insert_indextable(GIE_handle_inner_t * handle, struct id_table_data * info, unsigned long long index_key, int flag)
+int GIE_insert_indextable(GIE_handle_inner_t * handle, struct id_table_data * info, unsigned long long index_key)
 {		
 	struct linklist_node * node_data = (struct linklist_node *)malloc(sizeof(struct linklist_node));
-   // printf("linklist_node malloc success\n");
+    //printf("linklist_node malloc success\n");
 	node_data->basicinfo = info;
 	node_data->index_key = index_key;
 	node_data->listname = NULL;
 
-	if(flag == FIRST_INSERT)
-	{
-		info->first_backtrack = node_data;  //Backtracking pointer to index table, it is a pointer to a structure pointer
-	 //   printf("1: (info->first_backtrack)->index_key = %llu\n", (info->first_backtrack)->index_key);
-	}
-	else
-	{
-		info->second_backtrack = node_data;
-	}
+	info->backtrack = node_data;  //Backtracking pointer to index table, it is a pointer to a structure pointer
+	//printf("1: (info->first_backtrack)->index_key = %llu\n", (info->first_backtrack)->index_key);
 	
 	struct index_table_data * ret = (struct index_table_data *)(MESA_htable_search_cb(handle->index_table, (const uchar *)(&index_key), sizeof(index_key), NULL, NULL, NULL));
 	if(ret != NULL)
@@ -493,8 +468,7 @@ int GIE_delete(GIE_handle_inner_t * handle, GIE_digest_t ** digests, int i)
 	}
 	else
 	{
-		GIE_delete_from_indextable_by_key(handle, ret->first_backtrack);
-		GIE_delete_from_indextable_by_key(handle, ret->second_backtrack);
+		GIE_delete_from_indextable_by_key(handle, ret->backtrack);
 		success_cnt++;
 	}
 	if(MESA_htable_del(handle->id_table, (const uchar *)(&(digests[i]->id)), sizeof(digests[i]->id), idtable_free) < 0)
@@ -587,7 +561,8 @@ struct TQ * linklist_union(struct TQ * list_first, struct TQ * list_second, unsi
 			}
 			tmp_second = TAILQ_NEXT(tmp_second, listentry);
 		}
-		else
+		
+		/*else
 		{	
 			if(tmp_first->basicinfo->origin_len >= min && tmp_first->basicinfo->origin_len <= max && tmp_first->basicinfo->blocksize == query_blocksize)
 			{
@@ -599,7 +574,8 @@ struct TQ * linklist_union(struct TQ * list_first, struct TQ * list_second, unsi
 			}
 			tmp_first = TAILQ_NEXT(tmp_first, listentry);
 			tmp_second = TAILQ_NEXT(tmp_second, listentry);
-		}
+		}*/
+		
 	}
 
 	//The list is not linked to the end nodes remaining deposit to results
@@ -745,10 +721,13 @@ int GIE_edit_distance_with_position(char * fh, const char * fuzzy_string, unsign
 			//TODO: edit distance compare
 			int index = left/blocksize - TOLERENCE_SIZE > 0 ? left/blocksize - TOLERENCE_SIZE: 0;
 			int fh_size = right/blocksize + TOLERENCE_SIZE - index > fh_actual_len - index ? fh_actual_len - index: right/blocksize + TOLERENCE_SIZE - index; 
-			edit_distance += GIE_edit_distance(fh + index, fh_size, tmp_fuzzy, tmp_fuzzy_len);
+			if(tmp_fuzzy_len != 0)
+			{
+				edit_distance += GIE_edit_distance(fh + index, fh_size, tmp_fuzzy, tmp_fuzzy_len);
+			}
 			*fuzzy_actual_size += tmp_fuzzy_len;
 
-			if(*tmpstr !=']')
+			if(*tmpstr == ']')
 			{
 				tmp_fuzzy = tmpstr + 1;
 				tmp_fuzzy_len = 0;
@@ -777,7 +756,7 @@ int GIE_query(GIE_handle_t * handle, unsigned long long origin_len,	const char *
 	//find max_index
 	double max_tmp = (double)(origin_len * (1 + _handle->user_query_accuracy));
 	unsigned long long max_tmp_t = (unsigned long long)(floor(max_tmp));
-	unsigned long long max_index = (max_tmp_t/(_handle->user_precision) + 1)*(_handle->user_precision); 
+	unsigned long long max_index = max_tmp_t/(_handle->user_precision)*(_handle->user_precision); 
 	
 	unsigned long long tmp_size = (max_index - min_index)/(_handle->user_precision) + 1;
 	struct TQ * union_list[tmp_size];
@@ -825,10 +804,10 @@ int GIE_query(GIE_handle_t * handle, unsigned long long origin_len,	const char *
 	{	
 	    int fuzzy_actual_len;
 		unsigned long long calculate_len;
-	   	/*if(result_union[i]->id == 2391)
+	   	if(result_union[i]->id == 8885)
 		{
 			printf("right\n");
-		}*/
+		}
 		int edit_distance = GIE_edit_distance_with_position(result_union[i]->fh, fuzzy_string, origin_len, &fuzzy_actual_len, &calculate_len);
 		//printf("fuzzy_actual_len = %d\n", fuzzy_actual_len);
 		short conf_tmp;
@@ -859,6 +838,3 @@ int GIE_query(GIE_handle_t * handle, unsigned long long origin_len,	const char *
 	free(result_union);
 	return ret_size;
 } 
-	
-
-
