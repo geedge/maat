@@ -186,7 +186,7 @@ void fuzzy_destroy_handle(fuzzy_handle_t * handle)
  */
 unsigned int fuzzy_feed(fuzzy_handle_t * handle, const char * data, unsigned int size, unsigned long long offset)
 {
-	if(data==NULL||size==0)
+	if(data == NULL || size == 0)
 	{
 		return 0;
 	}
@@ -265,7 +265,7 @@ unsigned int segment_overlap(fuzzy_handle_t * handle, fuzzy_node * fnode, unsign
             }
             case CONTAIN:  //包含关系，将左边那部分直接插入，然后改变seg的左值，并将data移动到指定的位置
             {
-                if(overlap_segs[i]->left - 1 >= seg->left)
+                if(overlap_segs[i]->left >= 1 && overlap_segs[i]->left - 1 >= seg->left)
                 {
                     fuzzy_node * node = (fuzzy_node *)calloc(sizeof(fuzzy_node), 1);
                     memcpy(node, fnode, sizeof(fuzzy_node));
