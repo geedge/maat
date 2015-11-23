@@ -48,7 +48,7 @@ int main()
 //	const char* inc_cfg_dir="./rules/inc/index";
 	const char* log_file="./test.log";
 	const char* scan_data="http://www.cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
-	const char* digest_test_file="./1.data";
+	const char* digest_test_file="./digest_test.data";
 	struct stat digest_fstat;
 	unsigned long long read_size=0,scan_offset=0;
 	char digest_test_buff[4096]={0};

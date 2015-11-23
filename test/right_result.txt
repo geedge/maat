@@ -1,0 +1,8 @@
+Load entry id 101 SUCCESS.
+hit 1 rules
+hit current region,but not hit compile rule.
+ipv4 scan hit compile rule id 123.
+ipv6 scan hit region.
+digest scan hit 127.
+digest scan hit 127.
+digest scan hit 127.

@@ -180,8 +180,8 @@
                             "table_name": "FILE_DIGEST",
                             "table_type": "digest",
                             "table_content": {
-                                "raw_len": 46292790,
-                                "digest": "5nN+XW1badOlW7Odi6K[7203:46299992]",
+                                "raw_len": 1160164,
+                                "digest": "FsOmaK3utZafWYt/i[7203:46299992]",
                                 "cfds_level": 3
                             }
                         }
