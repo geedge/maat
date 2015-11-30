@@ -1026,10 +1026,15 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 {
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	struct _Maat_scanner_t* scanner=NULL;
-
+	fuzzy_handle_t * tmp_fuzzy_handle=NULL;
 	struct _Maat_table_info_t *p_table=NULL;
 	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_DIGEST);
 	if(p_table==NULL)
+	{
+		return NULL;
+	}
+	tmp_fuzzy_handle=fuzzy_create_handle(total_len);
+	if(tmp_fuzzy_handle==NULL)
 	{
 		return NULL;
 	}
@@ -1046,7 +1051,7 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 	sp->table_id=table_id;
 	sp->thread_num=thread_num;
 	sp->total_len=total_len;
-	sp->fuzzy_hash_handle=fuzzy_create_handle(total_len);
+	sp->fuzzy_hash_handle=tmp_fuzzy_handle;
 	return sp;
 }
 
@@ -1060,7 +1065,10 @@ inline int REACH_QUERY_THRESH(unsigned long long total_len,unsigned long long ac
 //	{
 //		return 1;
 //	}
-	assert(rate<(unsigned long long)(point_size+QUERY_MIN_RATE));
+	if(rate<(unsigned long long)(point_size+QUERY_MIN_RATE))
+	{
+		return 0;
+	}
 	if(rate>=QUERY_MIN_RATE&&query_point[rate-QUERY_MIN_RATE]==0)
 	{
 		query_point[rate-QUERY_MIN_RATE]=1;
@@ -1080,6 +1088,10 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	char* digest_buff=NULL;
 	struct _scan_status_t* _mid=(struct _scan_status_t*)(*mid);
 	pthread_rwlock_t *GIE_rwlock=&(sp->feather->scanner->digest_rwlock[sp->table_id]);
+	if(sp->acc_scan_len+(unsigned long long)data_len > sp->total_len)
+	{
+		return 0;
+	}
 	sp->acc_scan_len+=fuzzy_feed(sp->fuzzy_hash_handle, data, (unsigned int)data_len,offset);
 	do_query=REACH_QUERY_THRESH(sp->total_len, sp->acc_scan_len, sp->query_point,8);
 	if(do_query==0)
@@ -1095,7 +1107,10 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	fuzzy_digest(sp->fuzzy_hash_handle,digest_buff, digest_len);
 	if(0==pthread_rwlock_tryrdlock(GIE_rwlock))
 	{
-		hit_region_cnt=GIE_query(GIE_handle, sp->total_len, digest_buff, query_result, MAX_SCANNER_HIT_NUM);
+		if(GIE_handle!=NULL)
+		{
+			hit_region_cnt=GIE_query(GIE_handle, sp->total_len, digest_buff, query_result, MAX_SCANNER_HIT_NUM);
+		}
 		pthread_rwlock_unlock(GIE_rwlock);
 	}
 	free(digest_buff);
