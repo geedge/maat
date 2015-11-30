@@ -44,9 +44,10 @@ typedef struct
 
 typedef struct
 {
-    unsigned long long orilen;
-    IVI_t * ivi;  //每一个handle里面保存一个IVI指针，一个IVI里面保存的是一个文件里的片
-    unsigned long long effective_length;
+	unsigned long long orilen;
+	IVI_t * ivi;  //每一个handle里面保存一个IVI指针，一个IVI里面保存的是一个文件里的片
+	unsigned long long effective_length;
+	unsigned long long blocksize;
 }fuzzy_handle_inner_t;
 
 
@@ -78,6 +79,7 @@ void fuzzy_hash_merge(IVI_seg_t * seg, void * user_para);
 void fuzzy_hash_merge_new(IVI_seg_t * seg, void * user_para);
 void fuzzy_hash_length(IVI_seg_t * seg, void * user_para);
 unsigned long long fuzzy_status(fuzzy_handle_t * handle, int type);
+unsigned long long get_blocksize(unsigned long long orilen);
 
 char * b64 =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -136,11 +138,18 @@ static unsigned int sum_hash(unsigned char c, unsigned int h)
  */
 fuzzy_handle_t * fuzzy_create_handle(unsigned long long origin_len)
 {
-    fuzzy_handle_inner_t * handle = (fuzzy_handle_inner_t *)malloc(sizeof(fuzzy_handle_inner_t));
+	fuzzy_handle_inner_t * handle = NULL;
+	unsigned long long tmp_blksize=get_blocksize(origin_len);
+	if(tmp_blksize==0)
+	{
+		return NULL;
+	}
+	handle = (fuzzy_handle_inner_t *)malloc(sizeof(fuzzy_handle_inner_t));
 	handle->orilen = origin_len;
-    handle->ivi = IVI_create();
-    handle->effective_length = 0;
-    return (fuzzy_handle_t *)handle;
+	handle->ivi = IVI_create();
+	handle->effective_length = 0;
+	handle->blocksize=tmp_blksize;
+	return (fuzzy_handle_t *)handle;
 }
 
 
@@ -223,12 +232,12 @@ unsigned long long get_blocksize(unsigned long long orilen)
  */
 unsigned int segment_overlap(fuzzy_handle_t * handle, fuzzy_node * fnode, unsigned int size, unsigned long long offset, const char * data)
 {
-    IVI_seg_t ** overlap_segs = NULL;
-    IVI_seg_t * seg = IVI_seg_malloc(offset, offset + size -1, (void *)fnode);
-    int overlap_segnum = 0;
-    unsigned int effective_length = 0;
-    unsigned int total_length = 0;
-	unsigned long long blocksize = get_blocksize(((fuzzy_handle_inner_t *)handle)->orilen);
+	IVI_seg_t ** overlap_segs = NULL;
+	IVI_seg_t * seg = IVI_seg_malloc(offset, offset + size -1, (void *)fnode);
+	int overlap_segnum = 0;
+	unsigned int effective_length = 0;
+	unsigned int total_length = 0;
+	unsigned long long blocksize = ((fuzzy_handle_inner_t *)handle)->blocksize;
 
     /*查询是否有覆盖，如果有覆盖，返回覆盖的segment的片数，如果没有覆盖，返回0*/
     overlap_segnum = IVI_query(((fuzzy_handle_inner_t *)handle)->ivi, offset, offset + size - 1, &overlap_segs);
@@ -383,7 +392,7 @@ void fuzzy_calculate_self(IVI_seg_t * seg, const char * data, unsigned long long
     unsigned int FNV_hash_value = HASH_INIT;
 
     char * FNV_hash = (char *)malloc(sizeof(char)*size);
-    unsigned long long fnv_index = 0, i, last_slice_index;
+    unsigned long long fnv_index = 0, i=0, last_slice_index=0;
     unsigned int roll_hash_value;
     for(i = 0; i < size; i++)
     {
@@ -461,7 +470,7 @@ void fuzzy_calculate_self_with_prev(IVI_seg_t * prev_seg, IVI_seg_t * seg, const
 
 
     char * FNV_hash = (char *)malloc(sizeof(char)*size);
-    unsigned long long fnv_index = 0, i, last_slice_index;
+    unsigned long long fnv_index = 0, i=0, last_slice_index=0;
     unsigned int roll_hash_value;
     unsigned long long prev_len = get_prev_continous_length(prev_seg);
 
@@ -525,7 +534,7 @@ void fuzzy_modify_self_with_prev(IVI_seg_t * prev_seg, IVI_seg_t * seg, char * d
 
 
     char * FNV_hash = (char *)malloc(sizeof(char)*size);
-    unsigned long long fnv_index = 0, i, last_slice_index;
+    unsigned long long fnv_index = 0, i=0, last_slice_index=0;
     unsigned int roll_hash_value;
     unsigned long long prev_len = get_prev_continous_length(prev_seg);
     for(i = 0; i < size; i++)
@@ -757,34 +766,28 @@ void fuzzy_hash_merge_new(IVI_seg_t * seg, void * user_para)
  */
 unsigned long long fuzzy_status(fuzzy_handle_t * handle, int type)
 {
-    unsigned long long length;
-    fuzzy_handle_inner_t * _handle = (fuzzy_handle_inner_t *)(handle);
-    switch(type)
-    {
-        case TOTAL_LENGTH:  //已经计算过hash值的全部长度
-        {
-            length = IVI_seg_length(_handle->ivi);
-            break;
-        }
-        case EFFECTIVE_LENGTH:  //包含在计算hash值里面的有效长度
-        {
-            length = _handle->effective_length;
-            break;
-        }
-        case HASH_LENGTH:   //最后输出哈希结果的长度
-        {
-            final_length tmp_length;
-            tmp_length.hash_length = 0;
-            tmp_length.first_FNV_offset = 0;
-            tmp_length.last_FNV_offset = 0;
-            IVI_traverse(_handle->ivi, fuzzy_hash_length, (void *)&tmp_length);
-            length = tmp_length.hash_length + 1;
-            break;
-        }
-        default:
-            return 0;
-    }
-    return length;
+	unsigned long long length;
+	final_length tmp_length;
+	fuzzy_handle_inner_t * _handle = (fuzzy_handle_inner_t *)(handle);
+	switch(type)
+	{
+		case TOTAL_LENGTH:  //已经计算过hash值的全部长度
+			length = IVI_seg_length(_handle->ivi);
+			break;
+		case EFFECTIVE_LENGTH:  //包含在计算hash值里面的有效长度
+			length = _handle->effective_length;
+			break;
+		case HASH_LENGTH:   //最后输出哈希结果的长度
+			tmp_length.hash_length = 0;
+			tmp_length.first_FNV_offset = 0;
+			tmp_length.last_FNV_offset = 0;
+			IVI_traverse(_handle->ivi, fuzzy_hash_length, (void *)&tmp_length);
+			length = tmp_length.hash_length + 1;
+			break;
+		default:
+			return 0;
+	}
+	return length;
 }
 
 
