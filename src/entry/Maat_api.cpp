@@ -1052,6 +1052,7 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 	sp->thread_num=thread_num;
 	sp->total_len=total_len;
 	sp->fuzzy_hash_handle=tmp_fuzzy_handle;
+	pthread_mutex_init(&(sp->fuzzy_mutex),NULL);
 	return sp;
 }
 
@@ -1092,19 +1093,25 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	{
 		return 0;
 	}
+	pthread_mutex_lock(&(sp->fuzzy_mutex));
 	sp->acc_scan_len+=fuzzy_feed(sp->fuzzy_hash_handle, data, (unsigned int)data_len,offset);
+	pthread_mutex_unlock(&(sp->fuzzy_mutex));
 	do_query=REACH_QUERY_THRESH(sp->total_len, sp->acc_scan_len, sp->query_point,8);
 	if(do_query==0)
 	{
 		return 0;
 	}
+	pthread_mutex_lock(&(sp->fuzzy_mutex));
 	digest_len=fuzzy_status(sp->fuzzy_hash_handle, HASH_LENGTH);
+	pthread_mutex_unlock(&(sp->fuzzy_mutex));
 	if(digest_len==0)
 	{
 		return 0;
 	}
 	digest_buff=(char*)malloc(sizeof(char)*digest_len);
+	pthread_mutex_lock(&(sp->fuzzy_mutex));
 	fuzzy_digest(sp->fuzzy_hash_handle,digest_buff, digest_len);
+	pthread_mutex_unlock(&(sp->fuzzy_mutex));
 	if(0==pthread_rwlock_tryrdlock(GIE_rwlock))
 	{
 		if(GIE_handle!=NULL)
@@ -1156,6 +1163,7 @@ void Maat_stream_scan_digest_end(stream_para_t* stream_para)
 		}		
 	}
 	fuzzy_destroy_handle(sp->fuzzy_hash_handle);
+	pthread_mutex_destroy(&(sp->fuzzy_mutex));
 	assert(sp->last_cache==NULL);
 	assert(sp->scan_buff==NULL);
 	free(sp);

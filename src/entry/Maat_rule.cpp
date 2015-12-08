@@ -24,7 +24,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_3_20151119=0;
+int MAAT_FRAME_VERSION_1_3_20151208=0;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"CHARSET_NONE","GBK","BIG5","UNICODE","UTF-8"};

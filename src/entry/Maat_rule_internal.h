@@ -263,6 +263,7 @@ struct _stream_para_t
 	long acc_scan_len;
 	unsigned long long total_len;
 	fuzzy_handle_t *fuzzy_hash_handle;
+	pthread_mutex_t fuzzy_mutex;
 	unsigned char query_point[8];
 };
 struct _Maat_scanner_t
