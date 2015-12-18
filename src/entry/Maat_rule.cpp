@@ -704,7 +704,7 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,int scan_thread
 
 
 	scanner->region_hash=MESA_htable_create(&hargs, sizeof(hargs));
-	MESA_htable_print_crtl(scanner->group_hash,0);
+	MESA_htable_print_crtl(scanner->region_hash,0);
 	
 	scanner->version=version;
 	scanner->cfg_num=0;
