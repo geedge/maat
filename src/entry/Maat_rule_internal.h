@@ -179,6 +179,7 @@ struct _plugin_table_info
 	dynamic_array_t *cache_lines;
 	int line_num;
 	long cache_size;
+	pthread_mutex_t plugin_mutex;
 };
 struct _Maat_table_info_t
 {

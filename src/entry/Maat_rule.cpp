@@ -21,7 +21,7 @@
 #include "rulescan.h"
 #include "UniversalBoolMatch.h"
 
-int MAAT_FRAME_VERSION_1_2_20151113=0;
+int MAAT_FRAME_VERSION_1_2_20151224=1;
 const char *maat_module="MAAT Frame";
 const char* CHARSET_STRING[]={"CHARSET_NONE","GBK","BIG5","UNICODE","UTF-8"};
 
@@ -351,6 +351,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 		{
 			p->cb_info=(struct _plugin_table_info*)calloc(sizeof(struct _plugin_table_info),1);
 			p->cb_info->cache_lines=dynamic_array_create(1024,1024);
+			pthread_mutex_init(&(p->cb_info->plugin_mutex),NULL);
 		}
 		p_table_info[p->table_id]=p;
 		table_cnt++;
@@ -1905,15 +1906,24 @@ void plugin_table_callback(struct _Maat_table_info_t* table,const char* table_li
 	int i=0;
 	unsigned int len=strlen(table_line)+1;
 	struct _plugin_table_info* p_table_cb=table->cb_info;
-	for(i=0;i<p_table_cb->cb_plug_cnt;i++)
+	char *p=NULL;
+	pthread_mutex_lock(&(p_table_cb->plugin_mutex));
+	if(p_table_cb->cb_plug_cnt>0)
 	{
-		p_table_cb->cb_plug[i].update(table->table_id,table_line,p_table_cb->cb_plug[i].u_para);
+		for(i=0;i<p_table_cb->cb_plug_cnt;i++)
+		{
+			p_table_cb->cb_plug[i].update(table->table_id,table_line,p_table_cb->cb_plug[i].u_para);
+		}
 	}
-	char *p=(char*)calloc(len,1);
-	memcpy(p,table_line,len);
-	p_table_cb->cache_size+=len;
-	dynamic_array_write(p_table_cb->cache_lines,p_table_cb->line_num,p);
-	p_table_cb->line_num++;
+	else
+	{
+		p=(char*)calloc(len,1);
+		memcpy(p,table_line,len);
+		p_table_cb->cache_size+=len;
+		dynamic_array_write(p_table_cb->cache_lines,p_table_cb->line_num,p);
+		p_table_cb->line_num++;
+	}
+	pthread_mutex_unlock(&(p_table_cb->plugin_mutex));
 }
 void maat_start_cb(unsigned int new_version,int update_type,void*u_para)
 {
@@ -2592,13 +2602,11 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 	{
 		return -1;
 	}
-	if(p_table->table_type!=TABLE_TYPE_PLUGIN)
-	{
-		return -1;
-	}
+	pthread_mutex_lock(&(p_table->cb_info->plugin_mutex));
 	idx=p_table->cb_info->cb_plug_cnt;
 	if(idx==MAX_PLUGING_NUM)
 	{
+		pthread_mutex_unlock(&(p_table->cb_info->plugin_mutex));
 		return -1;
 	}
 	p_table->cb_info->cb_plug_cnt++;
@@ -2620,6 +2628,7 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 		}
 		finish(u_para);
 	}
+	pthread_mutex_unlock(&(p_table->cb_info->plugin_mutex));
 	return 1;
 }
 int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
