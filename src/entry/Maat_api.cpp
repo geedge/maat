@@ -489,9 +489,11 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 	{
 		return -1;
 	}
+	pthread_mutex_lock(&(p_table->cb_info->plugin_mutex));
 	idx=p_table->cb_info->cb_plug_cnt;
 	if(idx==MAX_PLUGING_NUM)
 	{
+		pthread_mutex_unlock(&(p_table->cb_info->plugin_mutex));
 		return -1;
 	}
 	p_table->cb_info->cb_plug_cnt++;
@@ -513,6 +515,7 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 		}
 		finish(u_para);
 	}
+	pthread_mutex_unlock(&(p_table->cb_info->plugin_mutex));
 	return 1;
 }
 int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
