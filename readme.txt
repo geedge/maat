@@ -33,4 +33,12 @@ gb2312;
 		2) use readdir_r in my_scandir;
 		3) fix segmentfault when have no config,again;
 		4) maat_json support plugin table;
+2015-07-03 1)print error when Maat_summon_feather  with a dir has no valid
+indexfile;
+		2)check AND_EXPR's match method;
+		3)remove restriction of IP table's protocol;
+		4)fix invalid write in insert_set_id function;
+2015-07-06 1)handle wrong expr format like "aa&&bb" and "aa&bb&";
+		2)iconv_convert performance optimized;
 2015-10-19 check table_type in callback register;
+2015-12-24 change plugin table update mechanism to save memory;
