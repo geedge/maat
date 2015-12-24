@@ -6,7 +6,7 @@ CCC		= g++
 CFLAGS		= -Wall -g -fPIC
 CFLAGS		+= $(OPTFLAGS)
 LDDICTATOR	= -Wl,-wrap,malloc -Wl,-wrap,calloc -Wl,-wrap,free -Wl,-wrap,realloc
-LDFLAGS		=	-lMESA_handle_logger  -lMESA_htable -lpthread
+LDFLAGS		= -lMESA_handle_logger -lMESA_htable -lpthread -lm -lrulescan -lpcre
 #LDFLAGS		+= $(LDDICTATOR)
 MAILLIB = ../lib
 
