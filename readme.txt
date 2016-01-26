@@ -42,3 +42,4 @@ indexfile;
 		2)iconv_convert performance optimized;
 2015-10-19 check table_type in callback register;
 2015-12-24 change plugin table update mechanism to save memory;
+2016-01-20 maat_finish_cb adapt empty inc callback on a NULL scanner;

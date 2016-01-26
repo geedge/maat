@@ -24,7 +24,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_3_20151224=1;
+int MAAT_FRAME_VERSION_1_3_20160120=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"CHARSET_NONE","GBK","BIG5","UNICODE","UTF-8"};
@@ -2258,7 +2258,7 @@ void maat_finish_cb(void* u_para)
 								"Full config version %u load %d entries complete.",
 								feather->update_tmp_scanner->version,feather->update_tmp_scanner->cfg_num);	
 	}
-	else
+	else if(feather->scanner!=NULL)
 	{
 		feather->scanner->cfg_num=total;
 		feather->scanner->version=feather->maat_version;
@@ -2275,7 +2275,7 @@ void maat_finish_cb(void* u_para)
 		else
 		{
 			MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
-									"Postpone config version %u %d entries load to rulescan.",
+									"Postpone config version %u (%d entries) load to rulescan.",
 									feather->scanner->version,feather->scanner->cfg_num);
 		}
 	}
