@@ -2197,7 +2197,7 @@ void maat_start_cb(unsigned int new_version,int update_type,void*u_para)
 	struct _Maat_feather_t *feather=(struct _Maat_feather_t *)u_para; 
 	struct _Maat_table_info_t* p_table=NULL;
 	struct _plugin_table_info* p_table_cb=NULL;
-	int i=0,j=0;
+	int i=0;
 	if(update_type==CM_UPDATE_TYPE_FULL)
 	{
 		feather->update_tmp_scanner=create_maat_scanner(new_version,feather->scan_thread_num,feather->garbage_q);
