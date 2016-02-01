@@ -24,7 +24,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_3_20160120=1;
+int MAAT_FRAME_VERSION_1_3_20160131=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"CHARSET_NONE","GBK","BIG5","UNICODE","UTF-8"};
@@ -2124,6 +2124,15 @@ void plugin_table_callback(struct _Maat_table_info_t* table,const char* table_li
 	struct _plugin_table_info* p_table_cb=table->cb_info;
 	char *p=NULL;
 	pthread_mutex_lock(&(p_table_cb->plugin_mutex));
+
+	if(p_table_cb->is_called_started==0)
+	{
+		for(i=0;i<p_table_cb->cb_plug_cnt;i++)
+		{
+			p_table_cb->cb_plug[i].start(p_table_cb->update_type,p_table_cb->cb_plug[i].u_para);
+		}
+		p_table_cb->is_called_started=1;
+	}
 	if(p_table_cb->cb_plug_cnt>0)
 	{
 		for(i=0;i<p_table_cb->cb_plug_cnt;i++)
@@ -2204,7 +2213,7 @@ void maat_start_cb(unsigned int new_version,int update_type,void*u_para)
 								feather->maat_version,new_version);
 		feather->maat_version=new_version;
 	}
-	for(i=0;i<feather->table_cnt;i++)
+	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
 		p_table=feather->p_table_info[i];
 		if(p_table==NULL||p_table->table_type!=TABLE_TYPE_PLUGIN)
@@ -2212,10 +2221,8 @@ void maat_start_cb(unsigned int new_version,int update_type,void*u_para)
 			continue;
 		}
 		p_table_cb=p_table->cb_info;
-		for(j=0;j<p_table_cb->cb_plug_cnt;j++)
-		{
-			p_table_cb->cb_plug[j].start(update_type,p_table_cb->cb_plug[j].u_para);
-		}
+		p_table_cb->update_type=update_type;
+		assert(p_table_cb->is_called_started==0);
 	}
 	return;
 }
@@ -2242,10 +2249,17 @@ void maat_finish_cb(void* u_para)
 			continue;
 		}
 		p_table_cb=p_table->cb_info;
+		if(p_table_cb->is_called_started==0)
+		{
+			continue;
+		}
+		p_table_cb->is_called_started=0;
+		pthread_mutex_lock(&(p_table_cb->plugin_mutex));
 		for(j=0;j<p_table_cb->cb_plug_cnt;j++)
 		{
 			p_table_cb->cb_plug[j].finish(p_table_cb->cb_plug[j].u_para);
 		}
+		pthread_mutex_unlock(&(p_table_cb->plugin_mutex));
 	}
 	if(feather->update_tmp_scanner!=NULL)
 	{

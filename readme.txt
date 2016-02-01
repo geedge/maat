@@ -41,5 +41,8 @@ indexfile;
 2015-07-06 1)handle wrong expr format like "aa&&bb" and "aa&bb&";
 		2)iconv_convert performance optimized;
 2015-10-19 check table_type in callback register;
+2015-11-09 1)add digest feature;
+		2) split some code from Maat_rule.cpp to Maat_api.cpp;
 2015-12-24 change plugin table update mechanism to save memory;
 2016-01-20 maat_finish_cb adapt empty inc callback on a NULL scanner;
+2016-01-31 trigger plugin table's callback ONLY on its table's changed;

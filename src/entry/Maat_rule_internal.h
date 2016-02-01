@@ -207,6 +207,8 @@ struct _plugin_table_info
 	struct _callback_plugin  cb_plug[MAX_PLUGING_NUM];
 	dynamic_array_t *cache_lines;
 	int line_num;
+	int update_type;
+	int is_called_started;
 	long cache_size;
 	pthread_mutex_t plugin_mutex;
 };
