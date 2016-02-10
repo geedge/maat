@@ -23,10 +23,21 @@ extern "C"
 {
 #endif
 
+	/* 定义不同的扫描类型 */
+	enum ScanType
+	{
+		SCANTYPE_DEFAULT		  = 0,
+		SCANTYPE_DETAIL_RESULT    = 1,
+		SCANTYPE_REGEX_GROUP      = 2
+	};
+
+	#define MAX_REGEX_GROUP_NUM 5		 /* 对于正则表达式，所支持的最大分组的个数 */	
+
 	#define MAX_EXPR_ITEM_NUM  (1U<<3)   /* 每条与表达式最多由MAX_EXPR_ITEM_NUM个规则组成 */
 	#define MAX_MATCH_POS_NUM  1024      /* 每条规则最多允许返回的命中位置的个数 */
+	#define MATCH_POS_NUM_INC  64		 /* 每条规则允许返回的命中位置的个数初始值与增量值 */
 
-	/* 定义不同的规则类型 */
+	/* 定义不同的规则类型  */
 	const unsigned int RULETYPE_STR  = 0; /* 字符串或二进制规则 */
 	const unsigned int RULETYPE_REG  = 1; /* 正则表达式规则 */
 	const unsigned int RULETYPE_INT  = 2; /* 数值区间规则 */
@@ -194,6 +205,17 @@ extern "C"
 		扫描器句柄；返回值为NULL时，表示初始化失败。
 	*/
 	void * rulescan_initialize(unsigned int max_thread_num);
+
+	/*
+	功能：
+		设置扫描参数，本函数在rulescan_update之前可多次调用，每次设置一种扫描类型
+	参数：
+		instance[in]:			扫描器对象指针；
+		scan_type_flag[in]:		扫描类型的标志信息，0代表不返回位置等信息；1代表返回位置等信息，但是不返回正则分组信息；2代表返回位置信息和正则分组信息
+	返回值：
+		1：正确设置，-1：设置失败。
+	*/
+	int rulescan_set_param(void * instance, int scan_type_flag);
 
 	/*
 	功能：动态注册一组与表达式，更新扫描器对象。对于同一个instance句柄，不允许同时有多个更新线程。

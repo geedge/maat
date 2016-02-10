@@ -13,6 +13,7 @@
 #include <MESA/stream.h>
 #include <sys/types.h>//fstat
 #include <sys/stat.h>//fstat
+#include <unistd.h>
 
 void Maat_read_entry_start_cb(int update_type,void* u_para)
 {
@@ -36,7 +37,7 @@ void Maat_read_entry_finish_cb(void* u_para)
 {
 	return;
 }
-int main()
+int main(int argc,char* argv[])
 {
 	Maat_feather_t feather=NULL;
 	int cb_table_id=-1,url_scan_table_id=-1,size_scan_table_id=-1,ip_scan_table_id=-1,digest_scan_table_id=-1;
@@ -49,20 +50,31 @@ int main()
 	const char* log_file="./test.log";
 	const char* scan_data="http://www.cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
 	const char* digest_test_file="./digest_test.data";
+	const char* stat_file="./scan_staus.log";
 	struct stat digest_fstat;
 	unsigned long long read_size=0,scan_offset=0;
 	char digest_test_buff[4096]={0};
 	int scan_val=2015;
 	struct Maat_rule_t result[4];
 	int found_pos[4];
+	int scan_detail=0;
 	scan_status_t mid=NULL;
-	
 	void *logger=MESA_create_runtime_log_handle(log_file,0);
-	feather=Maat_summon_feather_json(g_iThreadNum, 
+
+/*	feather=Maat_summon_feather_json(g_iThreadNum, 
 									table_info_path, 
 									json_path, 
 									logger);
+*/							
 //	feather=Maat_summon_feather(g_iThreadNum,table_info_path,ful_cfg_dir,inc_cfg_dir,logger);
+	feather=Maat_feather(g_iThreadNum, table_info_path, logger);
+	Maat_set_feather_opt(feather, MAAT_OPT_JSON_FILE_PATH, json_path, sizeof(json_path)+1);
+	Maat_set_feather_opt(feather, MAAT_OPT_STAT_FILE_PATH, stat_file, strlen(stat_file));
+	Maat_set_feather_opt(feather, MAAT_OPT_STAT_ON, NULL, 0);
+	Maat_set_feather_opt(feather, MAAT_OPT_PERF_ON, NULL, 0);
+	Maat_set_feather_opt(feather, MAAT_OPT_SCAN_DETAIL, &scan_detail, sizeof(scan_detail));
+	Maat_initiate_feather(feather);
+
 	if(feather==NULL)
 	{
 		printf("Maat initial error, see %s\n",log_file);
@@ -140,6 +152,7 @@ int main()
 				break;
 		}
 	}
+	sleep(2);
 	Maat_clean_status(&mid);
 	struct Maat_hit_detail_t *hit_detail=(struct Maat_hit_detail_t *)malloc(sizeof(struct Maat_hit_detail_t)*10);
 	stream_para_t sp=Maat_stream_scan_string_start(feather,url_scan_table_id,0);
@@ -202,7 +215,6 @@ int main()
 		}
 	}
 	Maat_clean_status(&mid);
-
 	digest_scan_table_id=Maat_table_register(feather, "FILE_DIGEST");
 	if(digest_scan_table_id<0)
 	{
@@ -238,6 +250,7 @@ int main()
 	}
 	Maat_stream_scan_string_end(&sp);
 	Maat_clean_status(&mid);
+	sleep(4);
 	Maat_burn_feather(feather);
 	free(hit_detail);
 	return 0;

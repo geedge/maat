@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+ #include <sys/time.h>
 #include <MESA/MESA_handle_logger.h>
 
 #include "rulescan.h"
@@ -101,7 +102,6 @@ int region_compile(struct _scan_status_t *_mid,void* region_hit,int region_type_
 	struct _Maat_compile_rule_t* array_mi_rule[MAX_SCANNER_HIT_NUM];
 	struct _Maat_compile_rule_t* _mi_rule=NULL;
 	int region_pos[MAX_SCANNER_HIT_NUM];
-
 	_mid->cur_hit_cnt=0;
 	for(i=0;i<region_hit_num;i++)
 	{
@@ -157,10 +157,12 @@ int region_compile(struct _scan_status_t *_mid,void* region_hit,int region_type_
 				result_cnt++;
 			}
 			pthread_rwlock_unlock(&(_mi_rule->rwlock));
-
-		}
-		
+		}		
 	}	
+	if(result_cnt>0)
+	{
+		_mid->feather->hit_cnt++;
+	}
 	return result_cnt;
 }
 
@@ -320,6 +322,7 @@ struct _scan_status_t* _Maat_make_status(struct _Maat_feather_t* feather,int thr
 	_mid->hit_group_cnt=0;
 	_mid->hit_group_size=4;
 	_mid->hitted_group_id=(unsigned int*)malloc(sizeof(unsigned int)*_mid->hit_group_size);
+	feather->mid_cnt++;
 	return _mid;
 }
 
@@ -350,14 +353,8 @@ int detain_last_data(char* buff,int buff_size,int detained_len,const char* data,
 	return ret_len;
 }
 
-
-Maat_feather_t Maat_summon_feather(int max_thread_num,
-									const char* table_info_path,
-									const char* ful_cfg_dir,
-									const char* inc_cfg_dir,
-									void* logger)
+Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void* logger)
 {
-
 	_Maat_feather_t* feather=(_Maat_feather_t*)calloc(sizeof(struct _Maat_feather_t),1);
 	feather->table_cnt=read_table_info(feather->p_table_info, MAX_TABLE_NUM,table_info_path,logger);
 	feather->map_tablename2id=map_create();
@@ -373,65 +370,25 @@ Maat_feather_t Maat_summon_feather(int max_thread_num,
 			map_register(feather->map_tablename2id,feather->p_table_info[i]->table_name,feather->p_table_info[i]->table_id);
 		}
 	}
-	memcpy(feather->inc_dir,inc_cfg_dir,strlen(inc_cfg_dir));
-	memcpy(feather->full_dir,ful_cfg_dir,strlen(ful_cfg_dir));
 	feather->logger=logger;
 	feather->scan_thread_num=max_thread_num;
 	feather->garbage_q=MESA_lqueue_create(0,0);
-	config_monitor_traverse(feather->maat_version,
-							ful_cfg_dir, 
-							maat_start_cb,
-							maat_update_cb,
-							maat_finish_cb,
-							feather,
-							logger);
-	if(feather->update_tmp_scanner==NULL)
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"At initiation: no valid index file in %s",ful_cfg_dir);
-	}
-	feather->scanner=feather->update_tmp_scanner;
-	feather->update_tmp_scanner=NULL;
-	feather->still_working=1;
-	if(feather->scanner!=NULL)
-	{
-		feather->maat_version=feather->scanner->version;
-	}
 	feather->effect_interval_ms=60*1000;
 	feather->scan_interval_ms=1*1000;
-	pthread_t cfg_mon_t;
-	pthread_create(&cfg_mon_t, NULL, thread_rule_monitor, (void*)feather);
 	return feather;
 }
-Maat_feather_t Maat_summon_feather_json(int max_thread_num,
-									const char* table_info_path,
-									const char* json_rule,
-									void* logger)
-{
-	Maat_feather_t feather;
-	char full_index_dir[256]={0};
-	int ret=-1;
-	MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"Maat initial with JSON file %s.",json_rule);
-
-	ret=json2iris(json_rule, full_index_dir,sizeof(full_index_dir),logger);
-	if(ret<0)
-	{
-		return NULL;
-	}
-	MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"generate index file %s OK.",full_index_dir);
-	feather=Maat_summon_feather(max_thread_num,table_info_path, full_index_dir, full_index_dir,logger);
-	return feather;
-}
-int Maat_set_feather_opt(Maat_feather_t feather,int type,void* value,int size)
+int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const void* value,int size)
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
-	int intval=0;
+	int intval=0,ret=-1;
+	if(_feather->still_working==1)// not allowed set after Maat_initiate_feather;
+	{
+		return -2;
+	}
 	switch(type)
 	{
 		case MAAT_OPT_EFFECT_INVERVAL_MS:
-			intval=*(int*)value;
+			intval=*(const int*)value;
 			if(size!=sizeof(int)||intval<=0)
 			{
 				return -1;
@@ -439,18 +396,168 @@ int Maat_set_feather_opt(Maat_feather_t feather,int type,void* value,int size)
 			_feather->effect_interval_ms=intval;
 			break;
 		case MAAT_OPT_SCANDIR_INTERVAL_MS:
-			intval=*(int*)value;
+			intval=*(const int*)value;
 			if(size!=sizeof(int)||intval<0)
 			{
 				return -1;
 			}
 			_feather->scan_interval_ms=intval;
 			break;
+		case MAAT_OPT_FULL_CFG_DIR:
+			if(size>(int)sizeof(_feather->full_dir))
+			{
+				return -1;
+			}
+			memcpy(_feather->full_dir,(const char*)value,size);
+			break;
+		case MAAT_OPT_INC_CFG_DIR:
+			if(size>(int)sizeof(_feather->inc_dir))
+			{
+				return -1;
+			}
+			memcpy(_feather->inc_dir,(const char*)value,size);
+			break;
+		case MAAT_OPT_JSON_FILE_PATH:
+			ret=json2iris((const char*)value, _feather->full_dir,sizeof(_feather->full_dir),_feather->logger);
+			if(ret<0)
+			{
+				return -1;
+			}
+			memcpy(_feather->inc_dir,_feather->full_dir,sizeof(_feather->inc_dir));
+			MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
+							"Maat initial with JSON file %s,generate index file %s OK."
+							,(const char*)value
+							,_feather->full_dir);
+			break;
+		case MAAT_OPT_STAT_ON:
+			_feather->stat_on=1;
+			_feather->stat_handle=FS_create_handle();
+			break;
+		case MAAT_OPT_PERF_ON:
+			_feather->perf_on=1;
+			break;
+		case MAAT_OPT_STAT_FILE_PATH:
+			if(size>(int)sizeof(_feather->stat_file))
+			{
+				return -1;
+			}
+			memcpy(_feather->stat_file,(const char*)value,size);
+			MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
+							"Maat performance statistic output to %s."
+							,(const char*)value);	
+			_feather->stat_on=1;
+			break;
+		case MAAT_OPT_SCAN_DETAIL:
+			intval=*(const int*)value;
+			_feather->rule_scan_type=intval;
+			break;
 		default:
 			return -1;
 	}
 	return 0;
 }
+int Maat_initiate_feather(Maat_feather_t feather)
+{
+	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	config_monitor_traverse(_feather->maat_version,
+							_feather->full_dir, 
+							maat_start_cb,
+							maat_update_cb,
+							maat_finish_cb,
+							_feather,
+							_feather->logger);
+	if(_feather->update_tmp_scanner==NULL)
+	{
+		MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
+							"At initiation: no valid index file in %s",_feather->full_dir);
+	}
+	_feather->scanner=_feather->update_tmp_scanner;
+	_feather->update_tmp_scanner=NULL;
+	_feather->still_working=1;
+	_feather->rule_scan_type=2;
+	if(_feather->scanner!=NULL)
+	{
+		_feather->maat_version=_feather->scanner->version;
+	}
+	if(strlen(_feather->stat_file)==0)
+	{
+		_feather->perf_on=0;
+		_feather->stat_on=0;
+	}
+	maat_stat_init(_feather);
+
+	pthread_t cfg_mon_t;
+	pthread_create(&cfg_mon_t, NULL, thread_rule_monitor, (void*)_feather);
+	return 0;
+
+}
+
+Maat_feather_t Maat_summon_feather(int max_thread_num,
+									const char* table_info_path,
+									const char* ful_cfg_dir,
+									const char* inc_cfg_dir,
+									void* logger)
+{
+	int ret=-1;
+	Maat_feather_t feather=NULL;
+	feather=Maat_feather(max_thread_num,table_info_path,logger);
+	if(feather==NULL)
+	{
+		return NULL;
+	}
+	ret=Maat_set_feather_opt(feather, MAAT_OPT_FULL_CFG_DIR, ful_cfg_dir, strlen(ful_cfg_dir)+1);
+	if(ret<0)
+	{
+		goto error_out;
+	}
+	ret=Maat_set_feather_opt(feather, MAAT_OPT_FULL_CFG_DIR, inc_cfg_dir, strlen(inc_cfg_dir)+1);
+	if(ret<0)
+	{
+		goto error_out;
+	}
+	ret=Maat_initiate_feather(feather);
+	if(ret<0)
+	{
+		goto error_out;
+	}
+	return feather;
+	
+error_out:
+	Maat_burn_feather(feather);
+	return NULL;
+
+
+}
+Maat_feather_t Maat_summon_feather_json(int max_thread_num,
+									const char* table_info_path,
+									const char* json_rule,
+									void* logger)
+{
+	int ret=-1;
+	Maat_feather_t feather=NULL;
+	feather=Maat_feather(max_thread_num,table_info_path,logger);
+	if(feather==NULL)
+	{
+		return NULL;
+	}
+	ret=Maat_set_feather_opt(feather, MAAT_OPT_JSON_FILE_PATH, json_rule, strlen(json_rule)+1);
+	if(ret<0)
+	{
+		goto error_out;
+	}
+	ret=Maat_initiate_feather(feather);
+	if(ret<0)
+	{
+		goto error_out;
+	}	return feather;
+	
+error_out:
+
+	Maat_burn_feather(feather);
+	return NULL;
+
+}
+
 void Maat_burn_feather(Maat_feather_t feather)
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
@@ -530,8 +637,12 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 
 	scan_result_t *region_result=NULL;
 	_compile_result_t compile_result[rule_num];//dynamic array
-	
 	struct _Maat_table_info_t *p_table=NULL;
+	struct timeval start,end;
+	if(_feather->perf_on==1)
+	{
+		gettimeofday(&start,NULL);
+	}
 	p_table=acqurie_table(_feather, table_id,TABLE_TYPE_EXPR);
 	if(p_table==NULL)
 	{
@@ -587,6 +698,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	}
 	if(hit_region_cnt>0)
 	{
+		p_table->hit_cnt++;
 		if(*mid==NULL)
 		{
 			_mid=_Maat_make_status(_feather,thread_num);
@@ -609,6 +721,11 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 		}
 	}
 	DEC_SCANNER_REF(my_scanner, thread_num);
+	if(_feather->perf_on==1)
+	{
+		gettimeofday(&end,NULL);
+		maat_stat_table(p_table,data_len,&start, &end);
+	}
 	if(compile_ret==0&&hit_region_cnt>0)
 	{
 		return -2;
@@ -643,6 +760,11 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 	intval_scan_data.sub_type=make_sub_type(table_id,CHARSET_NONE, 0);
 	intval_scan_data.int_data=intval;
 	_Maat_table_info_t* p_table=NULL;
+	struct timeval start,end;
+	if(_feather->perf_on==1)
+	{
+		gettimeofday(&start,NULL);
+	}
 	p_table=acqurie_table(_feather,table_id,TABLE_TYPE_INTVAL);
 	if(p_table==NULL)
 	{
@@ -669,6 +791,7 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 	}
 	else if(region_ret>0)
 	{
+		p_table->hit_cnt++;
 		if(*mid==NULL)
 		{
 			_mid=_Maat_make_status(_feather,thread_num);
@@ -685,6 +808,11 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 	}
 	
 	DEC_SCANNER_REF(my_scanner,thread_num);
+	if(_feather->perf_on==1)
+	{
+		gettimeofday(&end,NULL);
+		maat_stat_table(p_table,0,&start, &end);
+	}
 	if(compile_ret==0&&region_ret>0)
 	{
 		return -2;
@@ -707,6 +835,11 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	struct _Maat_scanner_t* my_scanner=NULL;
+	struct timeval start,end;
+	if(_feather->perf_on==1)
+	{
+		gettimeofday(&start,NULL);
+	}
 	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_IP);
 	if(p_table==NULL)
 	{
@@ -758,6 +891,7 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	}
 	else if(region_ret>0)
 	{
+		p_table->hit_cnt++;
 		if(*mid==NULL)
 		{
 			_mid=_Maat_make_status(_feather,thread_num);
@@ -773,7 +907,11 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 									result,compile_result,rule_num);
 	}
 	DEC_SCANNER_REF(my_scanner,thread_num);
-	
+	if(_feather->perf_on==1)
+	{
+		gettimeofday(&end,NULL);
+		maat_stat_table(p_table,0,&start, &end);
+	}
 	if(compile_ret==0&&region_ret>0)
 	{
 		return -2;
@@ -834,6 +972,7 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 	{
 		sp->do_regex=1;
 	}
+	p_table->stream_num++;
 	sp->rs_stream_para=rulescan_startstream(_feather->scanner->region,thread_num);
 	return sp;
 }
@@ -852,6 +991,11 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 	scan_result_t *region_result;
 	_compile_result_t compile_result[rule_num];//dynamic array
 	scan_data_t region_scan_data;
+	struct timeval start,end;
+	if(sp->feather->perf_on==1)
+	{
+		gettimeofday(&start,NULL);
+	}
 	if(data==NULL||data_len==0)
 	{
 		return 0;
@@ -939,6 +1083,8 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 	}
 	if(hit_region_cnt>0)
 	{
+		sp->feather->p_table_info[sp->table_id]->hit_cnt++;
+
 		if(*mid==NULL)
 		{
 			_mid=_Maat_make_status(sp->feather,sp->thread_num);
@@ -975,6 +1121,11 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 		free(sp->scan_buff);
 		sp->scan_buff=0;
 	}
+	if(sp->feather->perf_on==1)
+	{
+		gettimeofday(&end,NULL);
+		maat_stat_table(sp->feather->p_table_info[sp->table_id],data_len,&start, &end);
+	}
 	if(compile_ret==0&&hit_region_cnt>0)
 	{
 		return -2;
@@ -998,7 +1149,8 @@ void Maat_stream_scan_string_end(stream_para_t* stream_para)
 {
 	struct _stream_para_t* sp=(struct _stream_para_t*)(*stream_para);
 	struct _Maat_scanner_t* scanner=sp->feather->scanner;
-
+	struct _Maat_table_info_t * p_table=sp->feather->p_table_info[sp->table_id];
+	p_table->stream_num--;
 	if(scanner!=NULL)
 	{
 		if(sp->version==sp->feather->maat_version)
@@ -1056,6 +1208,8 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 	sp->total_len=total_len;
 	sp->fuzzy_hash_handle=tmp_fuzzy_handle;
 	pthread_mutex_init(&(sp->fuzzy_mutex),NULL);
+	p_table->stream_num++;
+
 	return sp;
 }
 
@@ -1092,6 +1246,11 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	char* digest_buff=NULL;
 	struct _scan_status_t* _mid=(struct _scan_status_t*)(*mid);
 	pthread_rwlock_t *GIE_rwlock=&(sp->feather->scanner->digest_rwlock[sp->table_id]);
+	struct timeval start,end;
+	if(sp->feather->perf_on==1)
+	{
+		gettimeofday(&start,NULL);
+	}
 	if(sp->acc_scan_len+(unsigned long long)data_len > sp->total_len)
 	{
 		return 0;
@@ -1129,24 +1288,30 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	{
 		return -1;
 	}
-	if(hit_region_cnt==0)
+	if(hit_region_cnt>0)
 	{
-		return 0;
+		sp->feather->p_table_info[sp->table_id]->hit_cnt++;
+		if(*mid==NULL)
+		{
+			_mid=_Maat_make_status(sp->feather,sp->thread_num);
+			*mid=_mid;
+		}
+		else
+		{
+			_mid=(struct _scan_status_t*)(*mid);
+		}
+		compile_ret=region_compile(_mid,
+								query_result,sizeof(GIE_result_t),offsetof(GIE_result_t, tag),
+								hit_region_cnt,
+								result,compile_result,rule_num);
+	
+	}
+	if(sp->feather->perf_on==1)
+	{
+		gettimeofday(&end,NULL);
+		maat_stat_table(sp->feather->p_table_info[sp->table_id],data_len,&start, &end);
 	}
 
-	if(*mid==NULL)
-	{
-		_mid=_Maat_make_status(sp->feather,sp->thread_num);
-		*mid=_mid;
-	}
-	else
-	{
-		_mid=(struct _scan_status_t*)(*mid);
-	}
-	compile_ret=region_compile(_mid,
-							query_result,sizeof(GIE_result_t),offsetof(GIE_result_t, tag),
-							hit_region_cnt,
-							result,compile_result,rule_num);
 	if(compile_ret==0&&hit_region_cnt>0)
 	{
 		return -2;
@@ -1157,7 +1322,8 @@ void Maat_stream_scan_digest_end(stream_para_t* stream_para)
 {
 	struct _stream_para_t* sp=(struct _stream_para_t*)(*stream_para);
 	struct _Maat_scanner_t* scanner=sp->feather->scanner;
-
+	struct _Maat_table_info_t * p_table=sp->feather->p_table_info[sp->table_id];
+	p_table->stream_num--;
 	if(scanner!=NULL)
 	{
 		if(sp->version==sp->feather->maat_version)
@@ -1171,6 +1337,7 @@ void Maat_stream_scan_digest_end(stream_para_t* stream_para)
 	assert(sp->scan_buff==NULL);
 	free(sp);
 	*stream_para=NULL;
+
 	return;
 }
 void Maat_clean_status(scan_status_t* mid)
@@ -1181,6 +1348,7 @@ void Maat_clean_status(scan_status_t* mid)
 		return;
 	}
 	_mid=(struct _scan_status_t*)(*mid);
+	_mid->feather->mid_cnt--;
 	free(_mid->hitted_group_id);
 	free(_mid);
 	*mid=NULL;

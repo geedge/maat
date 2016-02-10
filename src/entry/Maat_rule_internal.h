@@ -5,6 +5,7 @@
 
 #include <MESA/MESA_htable.h>
 #include <MESA/MESA_list_queue.h>
+#include <MESA/field_stat.h>
 #include "dynamic_array.h"
 #include "UniversalBoolMatch.h"
 #include "rulescan.h"
@@ -47,6 +48,7 @@ typedef int atomic_t;
 
 #define	MAX_FAILED_NUM		128
 
+#define	MAX_MAAT_STAT_NUM		64
 #ifndef MAX
 #define MAX(a, b)  	(((a) > (b)) ? (a) : (b))
 #endif
@@ -91,6 +93,7 @@ enum MAAT_MATCH_METHOD
 	MATCH_METHOD_LEFT,
 	MATCH_METHOD_FULL
 };
+
 struct db_str_rule_t
 {
 	int region_id;
@@ -224,6 +227,13 @@ struct _Maat_table_info_t
 	int expr_rule_cnt;	//expr_type=0,1,3
 	int regex_rule_cnt;	//expr_type=2
 	struct _plugin_table_info *cb_info;
+//for stat>>>>>>>>
+	int stat_line_id;
+	long long scan_cnt;
+	long long scan_cpu_time;	//microseconds
+	long long input_bytes;
+	long long stream_num;
+	long long hit_cnt;
 };
 struct _scan_status_t
 {
@@ -294,17 +304,28 @@ struct _Maat_feather_t
 	struct _Maat_scanner_t *update_tmp_scanner;
 	MESA_lqueue_head garbage_q;
 	int table_cnt;
+	int GROUP_MODE_ON;
+	int still_working;
+	int scan_interval_ms;
+	int effect_interval_ms;
+	int stat_on;
+	int perf_on;
 	struct _Maat_table_info_t *p_table_info[MAX_TABLE_NUM];
 	MESA_htable_handle map_tablename2id;
 	void* logger;
 	int maat_version;
 	int scan_thread_num;
+	int rule_scan_type;
 	char inc_dir[MAX_TABLE_NAME_LEN];
 	char full_dir[MAX_TABLE_NAME_LEN];
-	int GROUP_MODE_ON;
-	int still_working;
-	int scan_interval_ms;
-	int effect_interval_ms;
+	char stat_file[MAX_TABLE_NAME_LEN];
+//for stat>>>>
+	screen_stat_handle_t stat_handle;
+	int total_stat_id;
+	int fs_status_id[MAX_MAAT_STAT_NUM];
+	int fs_column_id[MAX_MAAT_STAT_NUM];
+	long long mid_cnt;
+	long long hit_cnt;
 };
 struct _maat_garbage_t
 {
@@ -338,5 +359,11 @@ inline void ipv6_ntoh(unsigned int *v6_addr)
 	}
 	return;
 }
+void maat_stat_init(struct _Maat_feather_t* feather);
+void maat_stat_table(struct _Maat_table_info_t* p_table,int scan_len,struct timeval* start, struct timeval* end);
+void maat_stat_output(struct _Maat_feather_t* feather);
+
+
+
 #endif
 

@@ -108,17 +108,36 @@ struct Maat_hit_detail_t
 	struct Maat_region_pos_t region_pos[MAAT_MAX_HIT_RULE_NUM];	
 };
 //--------------------HITTING DETAIL DESCRIPTION END
+
+//Abondon interface ,left for compatible.
 Maat_feather_t Maat_summon_feather(int max_thread_num,
 								const char* table_info_path,
 								const char* ful_cfg_dir,
 								const char* inc_cfg_dir,
-								void*logger);
-
+								void*logger);//MESA_handle_logger
+//Abondon interface ,left for compatible. 
 Maat_feather_t Maat_summon_feather_json(int max_thread_num,
 									const char* table_info_path,
 									const char* json_rule,
 									void* logger);
 
+Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void* logger);
+int Maat_initiate_feather(Maat_feather_t feather);
+
+enum MAAT_INIT_OPT{
+	MAAT_OPT_SCANDIR_INTERVAL_MS=1,	//VALUE is interger,SIZE=sizeof(int). DEFAULT:1,000 milliseconds.
+	MAAT_OPT_EFFECT_INVERVAL_MS,	//VALUE is interger,SIZE=sizeof(int). DEFAULT:60,000 milliseconds.
+	MAAT_OPT_FULL_CFG_DIR,			//VALUE is a const char*,MUST end with '\0',SIZE= strlen(string+'\0')+1.DEFAULT: no default.
+	MAAT_OPT_INC_CFG_DIR,			//VALUE is a const char*,MUST end with '\0',SIZE= strlen(string+'\0')+1.DEFAULT: no default.
+	MAAT_OPT_JSON_FILE_PATH,			//VALUE is a const char*,MUST end with '\0',SIZE= strlen(string+'\0')+1.DEFAULT: no default.
+	MAAT_OPT_STAT_ON,				//VALUE is indifferent,SIZE is indifferent.MAAT_OPT_STAT_FILE_PATH must be set.Default: stat OFF.
+	MAAT_OPT_PERF_ON,					//VALUE is indifferent,SIZE is indifferent.MAAT_OPT_STAT_FILE_PATH must be set.Default: stat OFF.
+	MAAT_OPT_STAT_FILE_PATH,			//VALUE is a const char*,MUST end with '\0',SIZE= strlen(string+'\0')+1.DEFAULT: no default.
+	MAAT_OPT_SCAN_DETAIL				//VALUE is interger,SIZE=sizeof(int). 0: not return any detail;1: return  hit pos, not include regex grouping;
+										//  2 return hit pos and regex grouping pos;DEFAULT:2
+};
+//return -1 if failed, return 0 on success;
+int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT  type,const void* value,int size);
 void Maat_burn_feather(Maat_feather_t feather);
 
 //return table_id(>=0) if success,otherwise return -1;
@@ -178,11 +197,6 @@ void Maat_stream_scan_digest_end(stream_para_t* stream_para);
 
 
 void Maat_clean_status(scan_status_t* mid);
-
-#define	MAAT_OPT_SCANDIR_INTERVAL_MS		1	//opt value is interger,size=sizeof(int),1,000 milliseconds as default 
-#define	MAAT_OPT_EFFECT_INVERVAL_MS			2	//opt value is interger,size=sizeof(int),60,000 milliseconds as default 
-//return -1 if failed, return 0 on success;
-int Maat_set_feather_opt(Maat_feather_t feather,int type,void* value,int size);
 
 #endif	//	H_MAAT_RULE_H_INCLUDE
 

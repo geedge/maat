@@ -11,6 +11,7 @@
 #include <MESA/MESA_htable.h>
 #include <MESA/MESA_list_queue.h>
 #include <MESA/MESA_handle_logger.h>
+#include <MESA/field_stat.h>
 
 #include "Maat_rule.h"
 #include "Maat_rule_internal.h"
@@ -24,11 +25,10 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_3_20151224=1;
+int MAAT_FRAME_VERSION_1_4_20160210=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"CHARSET_NONE","GBK","BIG5","UNICODE","UTF-8"};
-
 int converHextoint(char srctmp)
 {
 	if(isdigit(srctmp))
@@ -673,7 +673,7 @@ void destroy_digest_rule(GIE_digest_t*rule)
 	rule=NULL;
 	return;
 }
-struct _Maat_scanner_t* create_maat_scanner(unsigned int version,int scan_thread_num,MESA_lqueue_head tomb)
+struct _Maat_scanner_t* create_maat_scanner(unsigned int version,int scan_thread_num,MESA_lqueue_head tomb,int rs_scan_type)
 {
 	int i=0;
 	
@@ -714,6 +714,7 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,int scan_thread
 	scanner->ref_cnt=(int*)calloc(CPU_CACHE_ALIGMENT,scan_thread_num);
 	scanner->region_update_q=MESA_lqueue_create(0,0);
 	scanner->region=rulescan_initialize(scan_thread_num);
+	rulescan_set_param(scanner->region,rs_scan_type);
 	scanner->tomb_ref=tomb;
 	scanner->region_rslt_buff=(scan_result_t*)malloc(sizeof(scan_result_t)*MAX_SCANNER_HIT_NUM*scan_thread_num);
 
@@ -2191,7 +2192,7 @@ void maat_start_cb(unsigned int new_version,int update_type,void*u_para)
 	int i=0,j=0;
 	if(update_type==CM_UPDATE_TYPE_FULL)
 	{
-		feather->update_tmp_scanner=create_maat_scanner(new_version,feather->scan_thread_num,feather->garbage_q);
+		feather->update_tmp_scanner=create_maat_scanner(new_version,feather->scan_thread_num,feather->garbage_q,feather->rule_scan_type);
 		MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
 								"Full config version %u -> %u update start",
 								feather->maat_version,new_version);
@@ -2375,12 +2376,17 @@ void *thread_rule_monitor(void *arg)
 			}
 		}
 		garbage_bury(feather->garbage_q,feather->logger);
+		if(feather->stat_on==1)
+		{
+			maat_stat_output(feather);
+		}
 	}
 	
 	MESA_htable_destroy(feather->map_tablename2id,free);
 	destroy_maat_scanner(feather->scanner);
 	garbage_bury(feather->garbage_q,feather->logger);
 	MESA_lqueue_destroy(feather->garbage_q,lqueue_destroy_cb,NULL);
+	FS_stop(&(feather->stat_handle));
 
 	int i=0,j=0;
 	struct dynamic_array_t* d_array=NULL;
@@ -2406,3 +2412,4 @@ void *thread_rule_monitor(void *arg)
 	free(feather);
 	return NULL;
 }
+
