@@ -26,9 +26,17 @@ struct _Maat_table_info_t * acqurie_table(struct _Maat_feather_t* _feather,int t
 		return NULL;
 	}
 	p_table=_feather->p_table_info[table_id];
-	if(p_table==NULL||p_table->table_type!=expect_type)
+	if(p_table==NULL)
 	{
 		return NULL;
+	}
+	if(p_table->table_type!=expect_type)
+	{
+		if(expect_type!=TABLE_TYPE_EXPR||
+			p_table->table_type!=TABLE_TYPE_EXPR_PLUS)
+		{
+			return NULL;
+		}
 	}
 	return p_table;
 }
@@ -90,14 +98,14 @@ int pickup_hit_region_from_compile(universal_bool_expr_t *compile_hit,const unsi
 	}
 	return k;
 }
-int region_compile(struct _scan_status_t *_mid,void* region_hit,int region_type_size,int group_offset,int region_hit_num,struct Maat_rule_t* result,_compile_result_t *rs_result, int size)
+int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,void* region_hit,int region_type_size,int group_offset,int region_hit_num,struct Maat_rule_t* result,_compile_result_t *rs_result, int size)
 {
 
 	int scan_ret=0,result_cnt=0;
 	int ret=0,i=0,j=0;
 	int r_in_c_cnt=0;
-	void* expr_compiler=_mid->feather->scanner->expr_compiler;
 	int shortcut_avilable_cnt=0;
+	void* bool_matcher=feather->scanner->expr_compiler;
 	struct _Maat_group_rule_t* group_rule=NULL;
 	struct _Maat_compile_rule_t* array_mi_rule[MAX_SCANNER_HIT_NUM];
 	struct _Maat_compile_rule_t* _mi_rule=NULL;
@@ -130,7 +138,7 @@ int region_compile(struct _scan_status_t *_mid,void* region_hit,int region_type_
 	}
 	else
 	{
-		scan_ret=boolexpr_match(expr_compiler,_mid->thread_num, 
+		scan_ret=boolexpr_match(bool_matcher,_mid->thread_num, 
 										_mid->hitted_group_id,_mid->hit_group_cnt,
 										(void **)array_mi_rule, MAX_SCANNER_HIT_NUM);
 	}
@@ -161,14 +169,14 @@ int region_compile(struct _scan_status_t *_mid,void* region_hit,int region_type_
 	}	
 	if(result_cnt>0)
 	{
-		_mid->feather->hit_cnt++;
+		feather->hit_cnt++;
 	}
 	return result_cnt;
 }
 
-int exprid2region_id(struct _Maat_group_rule_t* group_rule,int expr_id)
+int exprid2region_id(struct _Maat_group_rule_t* group_rule,int expr_id,int* district_id)
 {
-	int i=0,region_id=-1;;
+	int i=0,region_id=-1;
 	struct _Maat_region_rule_t* region_rule=NULL;
 	assert(group_rule->group_id>=0);
 	pthread_mutex_lock(&(group_rule->mutex));
@@ -182,10 +190,33 @@ int exprid2region_id(struct _Maat_group_rule_t* group_rule,int expr_id)
 		if(region_rule->expr_id==expr_id)
 		{
 			region_id=region_rule->region_id;
+			*district_id=region_rule->district_id;
 		}
 	}
 	pthread_mutex_unlock(&(group_rule->mutex));
 	return region_id;
+}
+int match_district(struct _OUTER_scan_status_t *_mid,scan_result_t *region_hit,int region_hit_num)
+{
+	struct _Maat_group_rule_t* group_rule=NULL;
+	int i=0;
+	int district_id=-1,region_id=-1;
+	int ret_region_num=region_hit_num;
+	while(i<ret_region_num)
+	{
+		group_rule=(struct _Maat_group_rule_t*)(region_hit[i].tag);
+		region_id=exprid2region_id(group_rule, region_hit[i].expr_id,&district_id);
+		if(region_id>0&&district_id!=_mid->district_id)
+		{
+			ret_region_num--;
+			memmove(&(region_hit[i]),&(region_hit[i+1]),sizeof(scan_result_t)*(ret_region_num-i));
+		}
+		else
+		{
+			i++;
+		}
+	}
+	return ret_region_num;
 }
 
 
@@ -255,7 +286,7 @@ int hit_pos_RS2Maat(struct sub_item_pos_t* maat_sub_item,int size,rule_result_t*
 	}
 	return k;
 }
-int fill_region_hit_detail(const char* scan_buff,const _scan_status_t* _mid,
+int fill_region_hit_detail(const char* scan_buff,const _INNER_scan_status_t* _mid,
 							scan_result_t *region_hit,int region_cnt,
 							_compile_result_t *compile_hit,int compile_cnt,
 							struct Maat_hit_detail_t *hit_detail,int detail_num)
@@ -265,6 +296,7 @@ int fill_region_hit_detail(const char* scan_buff,const _scan_status_t* _mid,
 	int region_pos[MAX_SCANNER_HIT_NUM],pos=0;
 	int r_in_c_cnt=0;
 	int region_id=-1;
+	int district_id=-1; //Indifferenc
 	memset(r_in_c_flag,0,sizeof(r_in_c_flag));
 	memset(region_pos,0,sizeof(region_pos));
 	
@@ -281,7 +313,7 @@ int fill_region_hit_detail(const char* scan_buff,const _scan_status_t* _mid,
 			pos=region_pos[j];
 			r_in_c_flag[pos]=1;
 			group_rule=(struct _Maat_group_rule_t*)(region_hit[pos].tag);
-			region_id=exprid2region_id(group_rule,region_hit[pos].expr_id);
+			region_id=exprid2region_id(group_rule,region_hit[pos].expr_id,&district_id);
 			if(region_id<0)
 			{
 				continue;
@@ -303,7 +335,7 @@ int fill_region_hit_detail(const char* scan_buff,const _scan_status_t* _mid,
 			group_rule=(struct _Maat_group_rule_t*)(region_hit[k].tag);
 	 		hit_detail[j].config_id=-2;
 			hit_detail[j].hit_region_cnt=1;
-			hit_detail[j].region_pos[0].region_id=exprid2region_id(group_rule,region_hit[k].expr_id);
+			hit_detail[j].region_pos[0].region_id=exprid2region_id(group_rule,region_hit[k].expr_id,&district_id);
 			hit_detail[j].region_pos[0].sub_item_num=region_hit[k].rnum;
 			hit_pos_RS2Maat(hit_detail[j].region_pos[0].sub_item_pos,MAAT_MAX_EXPR_ITEM_NUM,
 						region_hit[k].result,region_hit[k].rnum,scan_buff);
@@ -312,20 +344,48 @@ int fill_region_hit_detail(const char* scan_buff,const _scan_status_t* _mid,
 	}
 	return j;
 }
-struct _scan_status_t* _Maat_make_status(struct _Maat_feather_t* feather,int thread_num)
+struct _INNER_scan_status_t* _make_inner_status(int thread_num)
 {
-	struct _scan_status_t* _mid=NULL;
-	_mid=(struct _scan_status_t*)calloc(sizeof(struct _scan_status_t),1);
-	_mid->feather=feather;
-	_mid->thread_num=thread_num;
-	_mid->cur_hit_cnt=0;
-	_mid->hit_group_cnt=0;
-	_mid->hit_group_size=4;
-	_mid->hitted_group_id=(unsigned int*)malloc(sizeof(unsigned int)*_mid->hit_group_size);
-	feather->mid_cnt++;
+	struct _INNER_scan_status_t* inner_mid=NULL;
+	inner_mid=(struct _INNER_scan_status_t*)calloc(sizeof(struct _INNER_scan_status_t),1);
+	inner_mid->thread_num=thread_num;
+	inner_mid->cur_hit_cnt=0;
+	inner_mid->hit_group_cnt=0;
+	inner_mid->hit_group_size=4;
+	inner_mid->hitted_group_id=(unsigned int*)malloc(sizeof(unsigned int)*inner_mid->hit_group_size);
+	return inner_mid;
+}
+struct _OUTER_scan_status_t* _make_outer_status(_Maat_feather_t *feather)
+{
+	struct _OUTER_scan_status_t* outer_mid=NULL;
+	outer_mid=(struct _OUTER_scan_status_t*)calloc(sizeof(struct _OUTER_scan_status_t),1);
+	outer_mid->feather=feather;
+	outer_mid->district_id=-1;
+	feather->outer_mid_cnt++;
+	return outer_mid;
+}
+struct _OUTER_scan_status_t* grab_mid(scan_status_t* raw_mid,_Maat_feather_t* feather,int thread_num,int is_hit_region)
+{
+	struct _OUTER_scan_status_t* _mid=NULL;
+	if(*raw_mid!=NULL)
+	{
+		_mid=(struct _OUTER_scan_status_t*)(*raw_mid);
+	}
+	if(is_hit_region==1)
+	{
+		if(_mid==NULL)
+		{
+			_mid=_make_outer_status(feather);
+			*raw_mid=_mid;
+		}
+		if(_mid->inner==NULL)
+		{
+			_mid->inner=_make_inner_status(thread_num);
+			feather->inner_mid_cnt++;
+		}
+	}
 	return _mid;
 }
-
 int detain_last_data(char* buff,int buff_size,int detained_len,const char* data,int data_len)
 {
 	int to_copy_size=0,foward_offset=0;
@@ -352,7 +412,6 @@ int detain_last_data(char* buff,int buff_size,int detained_len,const char* data,
 	}
 	return ret_len;
 }
-
 Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void* logger)
 {
 	_Maat_feather_t* feather=(_Maat_feather_t*)calloc(sizeof(struct _Maat_feather_t),1);
@@ -633,7 +692,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	int region_ret=0,compile_ret=0,hit_region_cnt=0;
 	unsigned int sub_type=0;
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
-	struct _scan_status_t* _mid=NULL;
+	struct _OUTER_scan_status_t* _mid=(struct _OUTER_scan_status_t*)(*mid);
 
 	scan_result_t *region_result=NULL;
 	_compile_result_t compile_result[rule_num];//dynamic array
@@ -643,6 +702,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	{
 		gettimeofday(&start,NULL);
 	}
+	_mid=grab_mid(mid,_feather, thread_num, 0);
 	p_table=acqurie_table(_feather, table_id,TABLE_TYPE_EXPR);
 	if(p_table==NULL)
 	{
@@ -651,6 +711,10 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	if(p_table->cfg_num==0)
 	{
 		return 0;
+	}
+	if(p_table->table_type==TABLE_TYPE_EXPR_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
+	{
+		return -1;
 	}
 	if(p_table->do_charset_merge==1)
 	{
@@ -696,25 +760,21 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 		}
 
 	}
+	if(hit_region_cnt>0&&p_table->table_type==TABLE_TYPE_EXPR_PLUS)
+	{
+		hit_region_cnt=match_district(_mid,region_result,hit_region_cnt);
+	}
 	if(hit_region_cnt>0)
 	{
 		p_table->hit_cnt++;
-		if(*mid==NULL)
-		{
-			_mid=_Maat_make_status(_feather,thread_num);
-			*mid=_mid;
-		}
-		else
-		{
-			_mid=(struct _scan_status_t*)(*mid);
-		}
-		compile_ret=region_compile(_mid,
+		_mid=grab_mid(mid,_feather,thread_num, 1);
+		compile_ret=region_compile(_feather,_mid->inner,
 									region_result,sizeof(scan_result_t),offsetof(scan_result_t, tag),
 									hit_region_cnt,
 									result,compile_result,rule_num);
 		if(hit_detail!=NULL)
 		{
-			*detail_ret=fill_region_hit_detail(data,_mid,										
+			*detail_ret=fill_region_hit_detail(data,_mid->inner,										
 											region_result,hit_region_cnt,
 											compile_result,compile_ret, 
 											hit_detail,detail_num);
@@ -750,7 +810,7 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 						,scan_status_t *mid,int thread_num)
 {
 	int region_ret=0,compile_ret=0;
-	struct _scan_status_t* _mid=NULL;
+	struct _OUTER_scan_status_t* _mid=NULL;
 	scan_data_t intval_scan_data;
 	scan_result_t *region_result=NULL;
 	_compile_result_t compile_result[rule_num];
@@ -792,16 +852,8 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 	else if(region_ret>0)
 	{
 		p_table->hit_cnt++;
-		if(*mid==NULL)
-		{
-			_mid=_Maat_make_status(_feather,thread_num);
-			*mid=_mid;
-		}
-		else
-		{
-			_mid=(struct _scan_status_t*)(*mid);
-		}
-		compile_ret=region_compile(_mid,
+		_mid=grab_mid(mid, _feather, thread_num, 1);
+		compile_ret=region_compile(_feather,_mid->inner,
 									region_result,sizeof(scan_result_t),offsetof(scan_result_t, tag),
 									region_ret,
 									result,compile_result,rule_num);
@@ -827,7 +879,7 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 						,scan_status_t *mid,int thread_num)
 {
 	int region_ret=0,compile_ret=0;
-	struct _scan_status_t* _mid=NULL;
+	struct _OUTER_scan_status_t* _mid=NULL;
 	scan_data_t ip_scan_data;
 	scan_result_t *region_result=NULL;
 	_compile_result_t compile_result[rule_num];
@@ -892,16 +944,8 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	else if(region_ret>0)
 	{
 		p_table->hit_cnt++;
-		if(*mid==NULL)
-		{
-			_mid=_Maat_make_status(_feather,thread_num);
-			*mid=_mid;
-		}
-		else
-		{
-			_mid=(struct _scan_status_t*)(*mid);
-		}
-		compile_ret=region_compile(_mid,
+		_mid=grab_mid(mid, _feather, thread_num, 1);
+		compile_ret=region_compile(_feather,_mid->inner,
 									region_result,sizeof(scan_result_t),offsetof(scan_result_t, tag),
 									region_ret,
 									result,compile_result,rule_num);
@@ -987,15 +1031,17 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 
 	int sub_type=0;
 	int region_ret=0,hit_region_cnt=0,compile_ret=0;
-	struct _scan_status_t* _mid=(struct _scan_status_t*)(*mid);
+	struct _OUTER_scan_status_t* _mid=NULL;
 	scan_result_t *region_result;
 	_compile_result_t compile_result[rule_num];//dynamic array
 	scan_data_t region_scan_data;
+	_Maat_table_info_t* p_table=NULL;
 	struct timeval start,end;
 	if(sp->feather->perf_on==1)
 	{
 		gettimeofday(&start,NULL);
 	}
+	_mid=grab_mid(mid, sp->feather, sp->thread_num,0);
 	if(data==NULL||data_len==0)
 	{
 		return 0;
@@ -1008,9 +1054,14 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 	{
 		return 0;
 	}
-	if(sp->feather->p_table_info[sp->table_id]->cfg_num==0)
+	p_table=sp->feather->p_table_info[sp->table_id];
+	if(p_table->cfg_num==0)
 	{
 		return 0;
+	}
+	if(p_table->table_type==TABLE_TYPE_EXPR_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
+	{
+		return -1;
 	}
 	region_result=scanner->region_rslt_buff+MAX_SCANNER_HIT_NUM*sp->thread_num;
 	*detail_ret=0;
@@ -1081,20 +1132,15 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 			hit_region_cnt+=region_ret;
 		}
 	}
+	if(hit_region_cnt>0&&p_table->table_type==TABLE_TYPE_EXPR_PLUS)
+	{
+		hit_region_cnt=match_district(_mid,region_result,hit_region_cnt);	
+	}
 	if(hit_region_cnt>0)
 	{
-		sp->feather->p_table_info[sp->table_id]->hit_cnt++;
-
-		if(*mid==NULL)
-		{
-			_mid=_Maat_make_status(sp->feather,sp->thread_num);
-			*mid=_mid;
-		}
-		else
-		{
-			_mid=(struct _scan_status_t*)(*mid);
-		}
-		compile_ret=region_compile(_mid,
+		p_table->hit_cnt++;
+		_mid=grab_mid(mid, sp->feather,sp->thread_num, 1);
+		compile_ret=region_compile(sp->feather,_mid->inner,
 							region_result,sizeof(scan_result_t),offsetof(scan_result_t, tag),
 							hit_region_cnt,
 							result,compile_result,rule_num);
@@ -1102,14 +1148,14 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 		{
 			if(sp->scan_buff!=NULL)
 			{
-				*detail_ret=fill_region_hit_detail(sp->scan_buff,_mid,
+				*detail_ret=fill_region_hit_detail(sp->scan_buff,_mid->inner,
 												region_result,hit_region_cnt,
 												compile_result,compile_ret,
 												hit_detail,detail_num);
 			}
 			else
 			{
-				*detail_ret=fill_region_hit_detail(data,_mid,
+				*detail_ret=fill_region_hit_detail(data,_mid->inner,
 												region_result,hit_region_cnt,
 												compile_result,compile_ret,
 												hit_detail,detail_num);
@@ -1119,7 +1165,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 	if(*detail_ret==0)
 	{
 		free(sp->scan_buff);
-		sp->scan_buff=0;
+		sp->scan_buff=NULL;
 	}
 	if(sp->feather->perf_on==1)
 	{
@@ -1244,7 +1290,7 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	GIE_handle_t* GIE_handle=sp->feather->scanner->digest_handle[sp->table_id];
 	unsigned long long digest_len=0;
 	char* digest_buff=NULL;
-	struct _scan_status_t* _mid=(struct _scan_status_t*)(*mid);
+	struct _OUTER_scan_status_t* _mid=NULL;
 	pthread_rwlock_t *GIE_rwlock=&(sp->feather->scanner->digest_rwlock[sp->table_id]);
 	struct timeval start,end;
 	if(sp->feather->perf_on==1)
@@ -1291,16 +1337,8 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	if(hit_region_cnt>0)
 	{
 		sp->feather->p_table_info[sp->table_id]->hit_cnt++;
-		if(*mid==NULL)
-		{
-			_mid=_Maat_make_status(sp->feather,sp->thread_num);
-			*mid=_mid;
-		}
-		else
-		{
-			_mid=(struct _scan_status_t*)(*mid);
-		}
-		compile_ret=region_compile(_mid,
+		_mid=grab_mid(mid,sp->feather, sp->thread_num,1);
+		compile_ret=region_compile(sp->feather,_mid->inner,
 								query_result,sizeof(GIE_result_t),offsetof(GIE_result_t, tag),
 								hit_region_cnt,
 								result,compile_result,rule_num);
@@ -1340,17 +1378,52 @@ void Maat_stream_scan_digest_end(stream_para_t* stream_para)
 
 	return;
 }
+int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCAN_OPT type,const void* value,int size)
+{
+	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	struct _OUTER_scan_status_t* _mid=NULL;
+	int ret=0,map_ret=-1;
+	_mid=grab_mid(mid,_feather, 0, 0);
+	if(*mid==NULL)
+	{
+		_mid=_make_outer_status(_feather);
+		*mid=_mid;
+	}
+	switch(type)
+	{
+		case	MAAT_SET_SCAN_DISTRICT:
+			map_ret=map_str2int(_feather->scanner->district_map,(const char*)value,&(_mid->district_id));
+			if(map_ret<0)
+			{
+				//May be the district have not effect yet.
+			}
+			_mid->is_set_district=1;
+			ret=0;
+			break;
+		default:
+			ret=-1;
+			break;
+	}
+	return ret;
+}
 void Maat_clean_status(scan_status_t* mid)
 {
-	struct _scan_status_t* _mid=NULL;
+	struct _OUTER_scan_status_t* _mid=NULL;
 	if(*mid==NULL)
 	{
 		return;
 	}
-	_mid=(struct _scan_status_t*)(*mid);
-	_mid->feather->mid_cnt--;
-	free(_mid->hitted_group_id);
+	_mid=(struct _OUTER_scan_status_t*)(*mid);
+	_mid->feather->outer_mid_cnt--;
+	if(_mid->inner!=NULL)
+	{
+		free(_mid->inner->hitted_group_id);
+		free(_mid->inner);
+		_mid->feather->inner_mid_cnt--;
+	}
+	_mid->feather=NULL;
 	free(_mid);
 	*mid=NULL;
 	return;
 }
+

@@ -188,6 +188,34 @@
                     ]
                 }
             ]
+        },
+        {
+            "compile_id": 128,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "effective_rage": 0,
+            "user_region": "anything",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "group_8",
+                    "regions": [
+                        {
+                            "table_name": "HTTP_REGION",
+                            "table_type": "expr_plus",
+                            "table_content": {
+                            		"district": "URL",
+                                "keywords": "abckkk&123",
+                                "expr_type": "and",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "plugin_table": [

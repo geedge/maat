@@ -40,6 +40,7 @@ typedef int atomic_t;
 #define	MAX_TABLE_NAME_LEN		256
 #define	MAX_TABLE_LINE_SIZE		(1024*4)
 #define	MAX_EXPR_KEYLEN			1024
+#define	MAX_DISTRICT_LEN			64
 #define	MAX_PLUGING_NUM			32
 
 #define	MAX_SCANNER_HIT_NUM		64
@@ -76,6 +77,7 @@ enum MAAT_TABLE_TYPE
 	TABLE_TYPE_PLUGIN,
 	TABLE_TYPE_INTVAL,
 	TABLE_TYPE_DIGEST,
+	TABLE_TYPE_EXPR_PLUS,
 	TABLE_TYPE_GROUP
 
 };
@@ -99,6 +101,7 @@ struct db_str_rule_t
 	int region_id;
 	int group_id;
 	char keywords[MAX_EXPR_KEYLEN];
+	char district[MAX_DISTRICT_LEN];
 	enum MAAT_EXPR_TYPE expr_type;
 	enum MAAT_MATCH_METHOD match_method;
 	int is_hexbin;
@@ -171,6 +174,7 @@ struct _Maat_region_rule_t
 {
 	int region_id;
 	int expr_id;
+	int district_id;
 	enum MAAT_TABLE_TYPE region_type;
 };
 struct _Maat_group_rule_t
@@ -235,15 +239,22 @@ struct _Maat_table_info_t
 	long long stream_num;
 	long long hit_cnt;
 };
-struct _scan_status_t
+
+struct _INNER_scan_status_t
 {
-	struct _Maat_feather_t* feather;
 	int thread_num;
 	int cur_hit_cnt;
 	int hit_group_cnt;
 	int hit_group_size;
 	unsigned int cur_hit_id[MAX_SCANNER_HIT_NUM];
 	unsigned int *hitted_group_id;
+};
+struct _OUTER_scan_status_t
+{
+	struct _Maat_feather_t* feather;
+	int is_set_district;
+	int district_id;
+	struct _INNER_scan_status_t* inner;
 };
 enum maat_garbage_type
 {
@@ -288,6 +299,8 @@ struct _Maat_scanner_t
 	MESA_htable_handle region_hash;
 	MESA_htable_handle group_hash;
 	MESA_htable_handle compile_hash;
+	MESA_htable_handle district_map;
+	unsigned int district_num;
 	unsigned int cfg_num;
 	unsigned int exprid_generator;
 	MESA_lqueue_head region_update_q;
@@ -324,7 +337,8 @@ struct _Maat_feather_t
 	int total_stat_id;
 	int fs_status_id[MAX_MAAT_STAT_NUM];
 	int fs_column_id[MAX_MAAT_STAT_NUM];
-	long long mid_cnt;
+	long long outer_mid_cnt;
+	long long inner_mid_cnt;
 	long long hit_cnt;
 };
 struct _maat_garbage_t

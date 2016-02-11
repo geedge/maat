@@ -25,7 +25,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_4_20160210=1;
+int MAAT_FRAME_VERSION_1_5_20160211=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"CHARSET_NONE","GBK","BIG5","UNICODE","UTF-8"};
@@ -269,6 +269,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 	map_register(string2int_map,"plugin", TABLE_TYPE_PLUGIN);
 	map_register(string2int_map,"intval", TABLE_TYPE_INTVAL);
 	map_register(string2int_map,"digest", TABLE_TYPE_DIGEST);
+	map_register(string2int_map,"expr_plus", TABLE_TYPE_EXPR_PLUS);
 	map_register(string2int_map,"group", TABLE_TYPE_GROUP);
 	map_register(string2int_map,"bin", CHARSET_NONE);
 	map_register(string2int_map,"gbk", CHARSET_GBK);
@@ -706,6 +707,8 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,int scan_thread
 
 	scanner->region_hash=MESA_htable_create(&hargs, sizeof(hargs));
 	MESA_htable_print_crtl(scanner->region_hash,0);
+
+	scanner->district_map=map_create();
 	
 	scanner->version=version;
 	scanner->cfg_num=0;
@@ -738,7 +741,7 @@ void destroy_maat_scanner(struct _Maat_scanner_t*scanner)
 	MESA_htable_destroy(scanner->compile_hash,NULL);
 	MESA_htable_destroy(scanner->group_hash, NULL);
 	MESA_htable_destroy(scanner->region_hash, NULL);
-
+	map_destroy(scanner->district_map);
 	destroy_bool_matcher((void*)scanner->expr_compiler);
 	q_cnt=MESA_lqueue_get_count(scanner->region_update_q);
 	for(i=0;i<q_cnt;i++)
@@ -918,11 +921,12 @@ void batch_update(struct _Maat_scanner_t *scanner,void*logger)
 	scanner->last_update_time=time(NULL);
 	return;
 }
-struct _Maat_group_rule_t* add_region_to_group(struct _Maat_group_rule_t* group,int region_id,int expr_id,enum MAAT_TABLE_TYPE region_type)
+struct _Maat_group_rule_t* add_region_to_group(struct _Maat_group_rule_t* group,int region_id,int district_id,int expr_id,enum MAAT_TABLE_TYPE region_type)
 {
 	struct _Maat_region_rule_t* region_rule=(struct _Maat_region_rule_t*)malloc(sizeof(struct _Maat_region_rule_t));
 	region_rule->region_id=region_id;
 	region_rule->expr_id=expr_id;
+	region_rule->district_id=district_id;
 	region_rule->region_type=region_type;
 	pthread_mutex_lock(&(group->mutex));
 	dynamic_array_write(group->region_rules,group->region_boundary,region_rule);
@@ -1076,12 +1080,24 @@ int sync_region(MESA_htable_handle region_hash,int region_id,const char* table_n
 	}
 	return 1;
 }
+int get_district_id(_Maat_scanner_t *scanner,const char* district_str)
+{
+	int map_ret=0,district_id=-1;
+	map_ret=map_str2int(scanner->district_map, district_str,&district_id);
+	if(map_ret<0)
+	{
+		district_id= scanner->district_num;
+		map_register(scanner->district_map,district_str, district_id);
+		scanner->district_num++;
+	}
+	return district_id;
+}
 int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule,struct _Maat_scanner_t *scanner,void* logger)
 {
 	unsigned int i=0,j=0;
 	char* p=NULL,*saveptr=NULL,*region_string=NULL;
 	int region_str_len=0,ret=0,k=0;
-	int expr_id=0;
+	int expr_id=0,district_id=-1;
 	
 	scan_rule_t*p_rule=NULL;
 	struct _Maat_group_rule_t* group_rule=NULL;
@@ -1096,7 +1112,12 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 	int sub_expr_cnt=0;
 	struct op_expr_t *op_expr=NULL;
 	struct _Maat_group_rule_t* u_para=NULL;
-	
+
+	if(table->table_type==TABLE_TYPE_EXPR_PLUS)
+	{
+		assert(strlen(db_rule->district)>0);
+		district_id=get_district_id(scanner, db_rule->district);
+	}
 	group_rule=(struct _Maat_group_rule_t*)HASH_fetch_by_id(scanner->group_hash, db_rule->group_id);
 	if(group_rule==NULL)
 	{
@@ -1168,7 +1189,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 			break;
 		case EXPR_TYPE_REGEX://it's easy,no need to charset convert
 			expr_id=scanner->exprid_generator++;
-			u_para=add_region_to_group(group_rule,db_rule->region_id,expr_id,TABLE_TYPE_EXPR);
+			u_para=add_region_to_group(group_rule,db_rule->region_id,district_id,expr_id,TABLE_TYPE_EXPR);
 			if(u_para==NULL)
 			{
 				return -1;
@@ -1234,7 +1255,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 				break;
 			}
 			expr_id=scanner->exprid_generator++;
-			u_para=add_region_to_group(group_rule, db_rule->region_id,expr_id, TABLE_TYPE_EXPR);
+			u_para=add_region_to_group(group_rule, db_rule->region_id,district_id,expr_id, table->table_type);
 			if(u_para==NULL)//duplicate
 			{
 				return -1;
@@ -1299,7 +1320,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 	else
 	{
 		expr_id=scanner->exprid_generator++;
-		u_para=add_region_to_group(group_rule, db_rule->region_id,expr_id, TABLE_TYPE_EXPR);
+		u_para=add_region_to_group(group_rule, db_rule->region_id,district_id,expr_id, table->table_type);
 		if(u_para==NULL)
 		{
 			return -1;
@@ -1335,7 +1356,7 @@ int add_ip_rule(struct _Maat_table_info_t* table,struct db_ip_rule_t* db_ip_rule
 	scan_rule_t* p_rule=NULL;
 	struct op_expr_t* op_expr=NULL;
 	struct _Maat_group_rule_t* u_para=NULL;
-	int expr_id=0;
+	int expr_id=0,district_id=-1;
 
 	group_rule=(struct _Maat_group_rule_t*)HASH_fetch_by_id(scanner->group_hash, db_ip_rule->group_id);
 	if(group_rule==NULL)
@@ -1345,7 +1366,7 @@ int add_ip_rule(struct _Maat_table_info_t* table,struct db_ip_rule_t* db_ip_rule
 	}
 
 	expr_id=scanner->exprid_generator++;
-	u_para=add_region_to_group(group_rule,db_ip_rule->region_id,expr_id,TABLE_TYPE_IP);
+	u_para=add_region_to_group(group_rule,db_ip_rule->region_id,district_id,expr_id,TABLE_TYPE_IP);
 	if(u_para==NULL)
 	{
 		return -1;
@@ -1366,8 +1387,8 @@ int add_intval_rule(struct _Maat_table_info_t* table,struct db_intval_rule_t* in
 	scan_rule_t* p_rule=NULL;
 	struct op_expr_t* op_expr=NULL;
 	struct _Maat_group_rule_t* u_para=NULL;
-	int expr_id=0;
-
+	int expr_id=0,district_id=-1;
+	
 	group_rule=(struct _Maat_group_rule_t*)HASH_fetch_by_id(scanner->group_hash, intval_rule->group_id);
 	if(group_rule==NULL)
 	{
@@ -1375,7 +1396,7 @@ int add_intval_rule(struct _Maat_table_info_t* table,struct db_intval_rule_t* in
 		HASH_add_by_id(scanner->group_hash, intval_rule->group_id, group_rule);
 	}
 	expr_id=scanner->exprid_generator++;
-	u_para=add_region_to_group(group_rule,intval_rule->region_id,expr_id,TABLE_TYPE_INTVAL);
+	u_para=add_region_to_group(group_rule,intval_rule->region_id,district_id,expr_id,TABLE_TYPE_INTVAL);
 	if(u_para==NULL)
 	{
 		return -1;
@@ -1395,7 +1416,7 @@ int add_digest_rule(struct _Maat_table_info_t* table,struct db_digest_rule_t* db
 	struct _Maat_group_rule_t* group_rule=NULL;
 	GIE_digest_t* digest_rule=NULL;
 	struct _Maat_group_rule_t* u_para=NULL;
-	int expr_id=0;
+	int expr_id=0,district_id=-1;
 
 	group_rule=(struct _Maat_group_rule_t*)HASH_fetch_by_id(scanner->group_hash, db_digest_rule->group_id);
 	if(group_rule==NULL)
@@ -1404,7 +1425,7 @@ int add_digest_rule(struct _Maat_table_info_t* table,struct db_digest_rule_t* db
 		HASH_add_by_id(scanner->group_hash, db_digest_rule->group_id, group_rule);
 	}
 	expr_id=scanner->exprid_generator++;
-	u_para=add_region_to_group(group_rule,db_digest_rule->region_id,expr_id,TABLE_TYPE_DIGEST);
+	u_para=add_region_to_group(group_rule,db_digest_rule->region_id,expr_id,district_id,TABLE_TYPE_DIGEST);
 	if(u_para==NULL)
 	{
 		return -1;
@@ -1643,20 +1664,46 @@ void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,st
 {
 	struct db_str_rule_t* maat_str_rule=(struct db_str_rule_t*)malloc(sizeof(struct db_str_rule_t));
 	int ret=0,db_hexbin=0;
-	ret=sscanf(table_line,"%d\t%d\t%s\t%d\t%d\t%d\t%d",&(maat_str_rule->region_id)
-													,&(maat_str_rule->group_id)
-													,maat_str_rule->keywords
-													,(int*)&(maat_str_rule->expr_type)
-													,(int*)&(maat_str_rule->match_method)
-													,&db_hexbin
-													,&(maat_str_rule->is_valid));
-	if(ret!=7)
+	switch(table->table_type)
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"update error,invalid format of expr table %s:%s",table->table_name,table_line);
-		free(maat_str_rule);
-		maat_str_rule=NULL;	
-		return;
+		case	TABLE_TYPE_EXPR:
+			ret=sscanf(table_line,"%d\t%d\t%s\t%d\t%d\t%d\t%d",&(maat_str_rule->region_id)
+															,&(maat_str_rule->group_id)
+															,maat_str_rule->keywords
+															,(int*)&(maat_str_rule->expr_type)
+															,(int*)&(maat_str_rule->match_method)
+															,&db_hexbin
+															,&(maat_str_rule->is_valid));
+			if(ret!=7)
+			{
+				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+									"update error,invalid format of expr table %s:%s",table->table_name,table_line);
+				free(maat_str_rule);
+				maat_str_rule=NULL;	
+				return;
+			}
+			break;
+		case	TABLE_TYPE_EXPR_PLUS:
+			ret=sscanf(table_line,"%d\t%d\t%s\t%s\t%d\t%d\t%d\t%d",&(maat_str_rule->region_id)
+															,&(maat_str_rule->group_id)
+															,maat_str_rule->district
+															,maat_str_rule->keywords
+															,(int*)&(maat_str_rule->expr_type)
+															,(int*)&(maat_str_rule->match_method)
+															,&db_hexbin
+															,&(maat_str_rule->is_valid));
+			if(ret!=8)
+			{
+				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+									"update error,invalid format of expr_plus table %s:%s",table->table_name,table_line);
+				free(maat_str_rule);
+				maat_str_rule=NULL;	
+				return;
+			}
+			break;
+		default:
+			assert(0);
+			break;
 	}
 	switch(db_hexbin)
 	{
@@ -2305,6 +2352,7 @@ void maat_update_cb(const char* table_name,const char* line,void *u_para)
 	switch(feather->p_table_info[table_id]->table_type)
 	{
 		case	TABLE_TYPE_EXPR:
+		case	TABLE_TYPE_EXPR_PLUS:
 			update_expr_rule(feather->p_table_info[table_id], line, scanner,feather->logger,feather->GROUP_MODE_ON);
 			break;
 		case	TABLE_TYPE_IP:

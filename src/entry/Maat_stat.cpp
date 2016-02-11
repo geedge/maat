@@ -3,7 +3,8 @@
 enum MAAT_FS_STATUS{
 	STATUS_VERSION=0,
 	STATUS_TABLE_NUM,
-	STATUS_MID_NUM,
+	STATUS_OUTER_MID_NUM,
+	STATUS_INNER_MID_NUM,
 	STATUS_GARBAGE_QSIZE,
 };
 
@@ -32,7 +33,8 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	
 	feather->fs_status_id[STATUS_VERSION]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"version");
 	feather->fs_status_id[STATUS_TABLE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"table_num");
-	feather->fs_status_id[STATUS_MID_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"mid_num");
+	feather->fs_status_id[STATUS_OUTER_MID_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"outer_mid");
+	feather->fs_status_id[STATUS_INNER_MID_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"inner_mid");
 	feather->fs_status_id[STATUS_GARBAGE_QSIZE]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"garbage_num");
 
 	feather->fs_column_id[COLUMN_TABLE_RULE_NUM]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT,"rule");
@@ -93,7 +95,8 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_VERSION], 0,FS_OP_SET,feather->maat_version);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_TABLE_NUM], 0,FS_OP_SET,feather->table_cnt);
-	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_MID_NUM], 0,FS_OP_SET,feather->mid_cnt);
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_OUTER_MID_NUM], 0,FS_OP_SET,feather->outer_mid_cnt);
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_INNER_MID_NUM], 0,FS_OP_SET,feather->inner_mid_cnt);
 
 	value=MESA_lqueue_get_count(feather->garbage_q);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_GARBAGE_QSIZE], 0,FS_OP_SET,value);

@@ -124,7 +124,8 @@ Maat_feather_t Maat_summon_feather_json(int max_thread_num,
 Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void* logger);
 int Maat_initiate_feather(Maat_feather_t feather);
 
-enum MAAT_INIT_OPT{
+enum MAAT_INIT_OPT
+{
 	MAAT_OPT_SCANDIR_INTERVAL_MS=1,	//VALUE is interger,SIZE=sizeof(int). DEFAULT:1,000 milliseconds.
 	MAAT_OPT_EFFECT_INVERVAL_MS,	//VALUE is interger,SIZE=sizeof(int). DEFAULT:60,000 milliseconds.
 	MAAT_OPT_FULL_CFG_DIR,			//VALUE is a const char*,MUST end with '\0',SIZE= strlen(string+'\0')+1.DEFAULT: no default.
@@ -149,7 +150,12 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 									Maat_finish_callback_t *finish,//u_para
 									void* u_para);
 
-
+enum MAAT_SCAN_OPT
+{
+	MAAT_SET_SCAN_DISTRICT=1		//VALUE is a const char*,MUST end with '\0',SIZE= strlen(string+'\0')+1.DEFAULT: no default.
+};
+//return 0 if success, return -1 when failed;
+int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCAN_OPT,const void* value,int size);
 
 //Return hit rule number, return -1 when error occurs,return -2 when hit current region
 //mid MUST set NULL before fist call
