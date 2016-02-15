@@ -518,6 +518,13 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 int Maat_initiate_feather(Maat_feather_t feather)
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	if(strlen(_feather->full_dir)==0)
+	{
+		MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
+							"At initiation: NO FULL_CFG_DIR or JSON_FILE_PATH. ");
+	
+		return -1;
+	}
 	config_monitor_traverse(_feather->maat_version,
 							_feather->full_dir, 
 							maat_start_cb,
@@ -540,8 +547,18 @@ int Maat_initiate_feather(Maat_feather_t feather)
 	}
 	if(strlen(_feather->stat_file)==0)
 	{
-		_feather->perf_on=0;
+		if(_feather->stat_on==1)
+		{
+			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
+								"At initiation: MAAT_OPT_STAT_FILE_PATH not set,TURN OFF STAT trigger.");
+		}
 		_feather->stat_on=0;
+	}
+	if(_feather->stat_on==0&&_feather->perf_on==1)
+	{
+		MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
+								"At initiation: STAT  tirigger OFF,  TURN OFF PERF trigger.");
+		_feather->perf_on=0;
 	}
 	maat_stat_init(_feather);
 
@@ -1382,7 +1399,7 @@ int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCA
 {
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	struct _OUTER_scan_status_t* _mid=NULL;
-	int ret=0,map_ret=-1;
+	int map_ret=-1;
 	_mid=grab_mid(mid,_feather, 0, 0);
 	if(*mid==NULL)
 	{
@@ -1395,16 +1412,15 @@ int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCA
 			map_ret=map_str2int(_feather->scanner->district_map,(const char*)value,&(_mid->district_id));
 			if(map_ret<0)
 			{
-				//May be the district have not effect yet.
+				//May be the district not effected yet.
 			}
 			_mid->is_set_district=1;
-			ret=0;
 			break;
 		default:
-			ret=-1;
+			return -1;
 			break;
 	}
-	return ret;
+	return 0;
 }
 void Maat_clean_status(scan_status_t* mid)
 {

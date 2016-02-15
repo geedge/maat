@@ -155,7 +155,7 @@ enum MAAT_SCAN_OPT
 	MAAT_SET_SCAN_DISTRICT=1		//VALUE is a const char*,MUST end with '\0',SIZE= strlen(string+'\0')+1.DEFAULT: no default.
 };
 //return 0 if success, return -1 when failed;
-int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCAN_OPT,const void* value,int size);
+int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCAN_OPT type,const void* value,int size);
 
 //Return hit rule number, return -1 when error occurs,return -2 when hit current region
 //mid MUST set NULL before fist call

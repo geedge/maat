@@ -275,7 +275,7 @@ int test_expr_plus(Maat_feather_t feather,const char* table_name,scan_status_t* 
 						mid, 0);
 	if(ret>0)
 	{
-		printf("Should not hit without set district.\n");
+		printf("Should not hit without setting district.\n");
 		return -1;
 	}
 	ret=Maat_set_scan_status(feather, mid, MAAT_SET_SCAN_DISTRICT,region_name,strlen(region_name)+1);
@@ -289,7 +289,7 @@ int test_expr_plus(Maat_feather_t feather,const char* table_name,scan_status_t* 
 						mid, 0);
 	if(ret>0)
 	{
-		printf("Hit expr_puls rule %d.\n",result[0].config_id);
+		printf("Hit expr_plus rule %d.\n",result[0].config_id);
 	}
 	return ret;
 
