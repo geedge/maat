@@ -49,7 +49,8 @@ void FS_stop(screen_stat_handle_t* handle);
 int FS_register(screen_stat_handle_t handle,enum field_dsp_style_t style,enum field_calc_algo calc_type,const char* name);
 
 //numerator_id and denominator_id must be column/field/status style.
-int FS_register_ratio(screen_stat_handle_t handle,int numerator_id,int denominator_id,enum field_dsp_style_t style,enum field_calc_algo calc_type,const char* name);
+//scaling: negative value: zoom in; positive value: zoom out;
+int FS_register_ratio(screen_stat_handle_t handle,int numerator_id,int denominator_id,int scaling,enum field_dsp_style_t style,enum field_calc_algo calc_type,const char* name);
 
 //id: when id's type is FIELD , column_id is ignore.
 int FS_operate(screen_stat_handle_t handle,int id,int column_id,enum field_op op,long long value);

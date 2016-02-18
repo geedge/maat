@@ -2384,9 +2384,11 @@ void *thread_rule_monitor(void *arg)
 	const char* inc_cfg_dir=(const char*)feather->inc_dir;
 	struct _Maat_scanner_t* old_scanner=NULL;
 	long expr_wait_q_cnt=0;
+	int scan_dir_cnt=0;
 	while(feather->still_working)
 	{
 		usleep(feather->scan_interval_ms*1000);
+		scan_dir_cnt++;
 		config_monitor_traverse(feather->maat_version,
 								inc_cfg_dir, 
 								maat_start_cb,
@@ -2424,7 +2426,7 @@ void *thread_rule_monitor(void *arg)
 			}
 		}
 		garbage_bury(feather->garbage_q,feather->logger);
-		if(feather->stat_on==1)
+		if(feather->stat_on==1&&scan_dir_cnt%2==0)//output every 2 seconds
 		{
 			maat_stat_output(feather);
 		}

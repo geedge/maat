@@ -1,5 +1,5 @@
 #include "Maat_rule_internal.h"
-#include "field_stat.h"
+#include <MESA/field_stat.h>
 enum MAAT_FS_STATUS{
 	STATUS_VERSION=0,
 	STATUS_TABLE_NUM,
@@ -40,7 +40,7 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	feather->fs_column_id[COLUMN_TABLE_RULE_NUM]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT,"rule");
 	feather->fs_column_id[COLUMN_TABLE_REGEX_NUM]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT,"regex");
 	feather->fs_column_id[COLUMN_TABLE_STREAM_NUM]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT,"stream");
-	feather->fs_column_id[COLUMN_TABLE_SCAN_CNT]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_SPEED,"scan_cps");
+	feather->fs_column_id[COLUMN_TABLE_SCAN_CNT]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_SPEED,"IN_Tps");
 	feather->fs_column_id[COLUMN_TABLE_SCAN_BYTES]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_SPEED,"IN_Bps");
 	if(feather->perf_on==1)
 	{
@@ -50,9 +50,17 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 		FS_register_ratio(feather->stat_handle,
 						feather->fs_column_id[COLUMN_TABLE_SCAN_BYTES], 
 						feather->fs_column_id[COLUMN_TABLE_CPU_TIME], 
+						1000000,		//microsecond to second
 						FS_STYLE_COLUMN,
 						FS_CALC_SPEED,
 						"PROC_Bps");
+		FS_register_ratio(feather->stat_handle,
+						feather->fs_column_id[COLUMN_TABLE_SCAN_CNT], 
+						feather->fs_column_id[COLUMN_TABLE_CPU_TIME], 
+						1000000,		//microsecond to second
+						FS_STYLE_COLUMN,
+						FS_CALC_SPEED,
+						"PROC_Tps");
 	}
 	feather->fs_column_id[COLUMN_TABLE_HIT_CNT]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_SPEED,"hit_cnt");
 	value=feather->fs_column_id[COLUMN_TABLE_HIT_CNT];
@@ -60,6 +68,7 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	FS_register_ratio(feather->stat_handle,
 					feather->fs_column_id[COLUMN_TABLE_HIT_CNT], 
 					feather->fs_column_id[COLUMN_TABLE_SCAN_CNT], 
+					1,
 					FS_STYLE_COLUMN,
 					FS_CALC_SPEED,
 					"hit_rate");
