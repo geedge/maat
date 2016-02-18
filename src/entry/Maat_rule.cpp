@@ -17,6 +17,7 @@
 #include "Maat_rule_internal.h"
 #include "json2iris.h"
 #include "dynamic_array.h"
+#include "aligment_int64.h"
 #include "config_monitor.h"
 
 #include "map_str2int.h"
@@ -218,17 +219,7 @@ int cnt_maskbits(struct in6_addr mask)
 	}
 	return bits_cnt;
 }
-int aligment_int_array_sum(int * array,int size)
-{	
-	int sum=0,i=0;
-	int offset=0;
-	for(i=0;i<size;i++)
-	{
-		offset=(CPU_CACHE_ALIGMENT/sizeof(int))*i;
-		sum+=array[offset];
-	}
-	return sum;
-}
+
 int lqueue_destroy_cb(void *data, long data_len, void *arg)
 {
 	assert(0);
@@ -714,7 +705,7 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,int scan_thread
 	scanner->cfg_num=0;
 	scanner->max_thread_num=scan_thread_num;
 	//optimized for CPU cache_alignment 64
-	scanner->ref_cnt=(int*)calloc(CPU_CACHE_ALIGMENT,scan_thread_num);
+	scanner->ref_cnt=aligment_int64_array_alloc(scan_thread_num);
 	scanner->region_update_q=MESA_lqueue_create(0,0);
 	scanner->region=rulescan_initialize(scan_thread_num);
 	rulescan_set_param(scanner->region,rs_scan_type);
@@ -2109,7 +2100,7 @@ void garbage_bury(MESA_lqueue_head garbage_q,void *logger)
 	long data_size=0;
 	const long q_cnt=MESA_lqueue_get_count(garbage_q);
 	int i=0,bury_cnt=0;
-	int ref_cnt=0;
+	long long ref_cnt=0;
 	int have_timeout=0;
 	time_t now=time(NULL);
 	for(i=0;i<q_cnt;i++)
@@ -2132,7 +2123,7 @@ void garbage_bury(MESA_lqueue_head garbage_q,void *logger)
 				destroy_group_rule(bag->group_rule);
 				break;
 			case GARBAGE_SCANNER:
-				ref_cnt=aligment_int_array_sum(bag->scanner->ref_cnt,bag->scanner->max_thread_num);
+				ref_cnt=aligment_int64_array_sum(bag->scanner->ref_cnt,bag->scanner->max_thread_num);
 				
 				if(ref_cnt==0)
 				{
@@ -2142,7 +2133,7 @@ void garbage_bury(MESA_lqueue_head garbage_q,void *logger)
 				else
 				{
 					MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module,
-							"scanner %p version %d force destroyed,ref_cnt %d.",
+							"scanner %p version %d force destroyed,ref_cnt %lld.",
 							bag->scanner,bag->scanner->version,ref_cnt);
 					
 				}
@@ -2459,6 +2450,7 @@ void *thread_rule_monitor(void *arg)
 		free(feather->p_table_info[i]);
 		feather->p_table_info[i]=NULL;
 	}
+	free(feather->thread_call_cnt);
 	free(feather);
 	return NULL;
 }

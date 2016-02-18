@@ -49,7 +49,7 @@ typedef int atomic_t;
 
 #define	MAX_FAILED_NUM		128
 
-#define	MAX_MAAT_STAT_NUM		64
+#define	MAX_MAAT_STAT_NUM	64
 #ifndef MAX
 #define MAX(a, b)  	(((a) > (b)) ? (a) : (b))
 #endif
@@ -234,7 +234,7 @@ struct _Maat_table_info_t
 //for stat>>>>>>>>
 	int stat_line_id;
 	long long scan_cnt;
-	long long scan_cpu_time;	//microseconds
+	long long scan_cpu_time;	//nano
 	long long input_bytes;
 	long long stream_num;
 	long long hit_cnt;
@@ -292,7 +292,7 @@ struct _Maat_scanner_t
 {
 	int version;
 	time_t last_update_time;
-	int *ref_cnt;	//optimized for cache_alignment 64
+	long long *ref_cnt;	//optimized for cache_alignment 64
 	rule_scanner_t region;
 	pthread_rwlock_t digest_rwlock[MAX_TABLE_NUM];
 	GIE_handle_t*	digest_handle[MAX_TABLE_NUM];
@@ -340,6 +340,7 @@ struct _Maat_feather_t
 	long long outer_mid_cnt;
 	long long inner_mid_cnt;
 	long long hit_cnt;
+	long long *thread_call_cnt;//size indicate by scan_thread_num, 
 };
 struct _maat_garbage_t
 {
@@ -374,7 +375,7 @@ inline void ipv6_ntoh(unsigned int *v6_addr)
 	return;
 }
 void maat_stat_init(struct _Maat_feather_t* feather);
-void maat_stat_table(struct _Maat_table_info_t* p_table,int scan_len,struct timeval* start, struct timeval* end);
+void maat_stat_table(struct _Maat_table_info_t* p_table,int scan_len,struct timespec* start, struct timespec* end);
 void maat_stat_output(struct _Maat_feather_t* feather);
 
 

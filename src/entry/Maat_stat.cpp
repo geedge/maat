@@ -1,7 +1,10 @@
 #include "Maat_rule_internal.h"
+#include "aligment_int64.h"
+#include <time.h>
 #include <MESA/field_stat.h>
 enum MAAT_FS_STATUS{
 	STATUS_VERSION=0,
+	STATUS_THRED_NUM,
 	STATUS_TABLE_NUM,
 	STATUS_OUTER_MID_NUM,
 	STATUS_INNER_MID_NUM,
@@ -32,6 +35,7 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	FS_set_para(feather->stat_handle, CREATE_THREAD, &value, sizeof(value));
 	
 	feather->fs_status_id[STATUS_VERSION]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"version");
+	feather->fs_status_id[STATUS_THRED_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"active_thread");
 	feather->fs_status_id[STATUS_TABLE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"table_num");
 	feather->fs_status_id[STATUS_OUTER_MID_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"outer_mid");
 	feather->fs_status_id[STATUS_INNER_MID_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"inner_mid");
@@ -40,7 +44,6 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	feather->fs_column_id[COLUMN_TABLE_RULE_NUM]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT,"rule");
 	feather->fs_column_id[COLUMN_TABLE_REGEX_NUM]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT,"regex");
 	feather->fs_column_id[COLUMN_TABLE_STREAM_NUM]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT,"stream");
-	feather->fs_column_id[COLUMN_TABLE_SCAN_CNT]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_SPEED,"IN_Tps");
 	feather->fs_column_id[COLUMN_TABLE_SCAN_BYTES]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_SPEED,"IN_Bps");
 	if(feather->perf_on==1)
 	{
@@ -54,6 +57,10 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 						FS_STYLE_COLUMN,
 						FS_CALC_SPEED,
 						"PROC_Bps");
+	}
+	feather->fs_column_id[COLUMN_TABLE_SCAN_CNT]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_SPEED,"IN_Tps");
+	if(feather->perf_on==1)
+	{	
 		FS_register_ratio(feather->stat_handle,
 						feather->fs_column_id[COLUMN_TABLE_SCAN_CNT], 
 						feather->fs_column_id[COLUMN_TABLE_CPU_TIME], 
@@ -87,22 +94,28 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	FS_start(feather->stat_handle);
 	return;
 }
-void maat_stat_table(struct _Maat_table_info_t* p_table,int scan_len,struct timeval* start, struct timeval* end)
+void maat_stat_table(struct _Maat_table_info_t* p_table,int scan_len,struct timespec* start, struct timespec* end)
 {
 	p_table->scan_cnt++;
 	p_table->input_bytes+=scan_len;
-	p_table->scan_cpu_time+=(end->tv_sec-start->tv_sec)*1000000+end->tv_usec-start->tv_usec;
+	if(start!=NULL&&end!=NULL)
+	{
+		p_table->scan_cpu_time+=(end->tv_sec-start->tv_sec)*1000000000+end->tv_nsec-start->tv_nsec;
+	}
 	return;
 }
 void maat_stat_output(struct _Maat_feather_t* feather)
 {
 	long value=0;
 	long long total_cfg_num=0, total_input_bytes=0, total_regex_num=0;
-	long long total_scan_cnt=0, total_cpu_time=0,total_stream_cnt=0;
+	long long total_scan_cnt=0, total_cpu_time=0,total_stream_cnt=0,active_thread_num=0;
 	int i=0;
+	time_t now;
 	struct _Maat_table_info_t* p_table=NULL;
-
+	time(&now);
+	active_thread_num=aligment_int64_array_cnt(feather->thread_call_cnt, feather->scan_thread_num);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_VERSION], 0,FS_OP_SET,feather->maat_version);
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_THRED_NUM], 0,FS_OP_SET,active_thread_num);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_TABLE_NUM], 0,FS_OP_SET,feather->table_cnt);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_OUTER_MID_NUM], 0,FS_OP_SET,feather->outer_mid_cnt);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_INNER_MID_NUM], 0,FS_OP_SET,feather->inner_mid_cnt);
@@ -161,7 +174,7 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 						p_table->stat_line_id,
 						feather->fs_column_id[COLUMN_TABLE_CPU_TIME],
 						FS_OP_ADD,
-						p_table->scan_cpu_time);
+						p_table->scan_cpu_time/1000);
 			total_cpu_time+=p_table->scan_cpu_time;
 			p_table->scan_cpu_time=0;
 		}
@@ -204,7 +217,8 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 					feather->total_stat_id, 
 					feather->fs_column_id[COLUMN_TABLE_CPU_TIME], 
 					FS_OP_ADD,
-					total_cpu_time);
+					total_cpu_time/1000);
+		printf("%lld us %s",total_cpu_time/1000,ctime(&now));
 	}
 	FS_operate(feather->stat_handle,
 				feather->total_stat_id, 
