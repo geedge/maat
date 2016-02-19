@@ -218,7 +218,6 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 					feather->fs_column_id[COLUMN_TABLE_CPU_TIME], 
 					FS_OP_ADD,
 					total_cpu_time/1000);
-		printf("%lld us %s",total_cpu_time/1000,ctime(&now));
 	}
 	FS_operate(feather->stat_handle,
 				feather->total_stat_id, 
