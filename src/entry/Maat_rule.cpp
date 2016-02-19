@@ -1620,7 +1620,8 @@ void update_group_rule(struct _Maat_table_info_t* table,const char* table_line,s
 	if(db_group_rule.is_valid==FALSE)
 	{
 		del_group_rule(table, &db_group_rule,scanner,logger);
-		table->cfg_num--;
+		//leave no trace for virtual group rule
+//		table->cfg_num--;
 	}
 	else
 	{
@@ -1636,7 +1637,7 @@ void update_group_rule(struct _Maat_table_info_t* table,const char* table_line,s
 		else
 		{
 			//no need to free db_group_rule,it was saved in scanner->compile_hash
-			table->cfg_num++;
+//			table->cfg_num++;
 		}
 	}
 	
