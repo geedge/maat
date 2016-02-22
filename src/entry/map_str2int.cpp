@@ -22,7 +22,7 @@ MESA_htable_handle map_create(void)
 	MESA_htable_handle string2int_map;
 	MESA_htable_create_args_t hargs;
 	memset(&hargs,0,sizeof(hargs));
-	hargs.thread_safe=1;
+	hargs.thread_safe=8;
 	hargs.hash_slot_size = 4*1024;
 	hargs.max_elem_num = 0;
 	hargs.eliminate_type = HASH_ELIMINATE_ALGO_LRU;
