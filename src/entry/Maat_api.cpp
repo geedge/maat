@@ -1428,7 +1428,7 @@ int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCA
 	struct _OUTER_scan_status_t* _mid=NULL;
 	int map_ret=-1;
 	_mid=grab_mid(mid,_feather, 0, 0);
-	if(*mid==NULL)
+	if(_mid==NULL)
 	{
 		_mid=_make_outer_status(_feather);
 		*mid=_mid;
@@ -1439,7 +1439,7 @@ int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCA
 			map_ret=map_str2int(_feather->scanner->district_map,(const char*)value,&(_mid->district_id));
 			if(map_ret<0)
 			{
-				//May be the district not effected yet.
+				//May be the district is not effected yet.
 			}
 			_mid->is_set_district=1;
 			break;
