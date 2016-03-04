@@ -13,6 +13,9 @@
 */
 #ifndef H_MAAT_RULE_H_INCLUDE
 #define H_MAAT_RULE_H_INCLUDE
+#ifndef __cplusplus
+#error("This file should be compiled with C++ compiler")
+#endif
 #include "stream.h"
 enum MAAT_CHARSET
 {
