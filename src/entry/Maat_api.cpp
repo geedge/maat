@@ -716,6 +716,10 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	_compile_result_t compile_result[rule_num];//dynamic array
 	struct _Maat_table_info_t *p_table=NULL;
 	struct timespec start,end;
+	if(data==NULL||data_len<=0)
+	{
+		return 0;
+	}
 	if(_feather->perf_on==1)
 	{
 		clock_gettime(CLOCK_MONOTONIC,&start);
@@ -1071,15 +1075,16 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 	scan_data_t region_scan_data;
 	_Maat_table_info_t* p_table=NULL;
 	struct timespec start,end;	
+	if(data==NULL||data_len<=0)
+	{
+		return 0;
+	}
 	if(sp->feather->perf_on==1)
 	{
 		clock_gettime(CLOCK_MONOTONIC,&start);
 	}
 	_mid=grab_mid(mid, sp->feather, sp->thread_num,0);
-	if(data==NULL||data_len==0)
-	{
-		return 0;
-	}
+
 	if(scanner==NULL)
 	{
 		return 0;
