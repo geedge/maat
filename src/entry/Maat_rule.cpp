@@ -1870,6 +1870,14 @@ void update_ip_rule(struct _Maat_table_info_t* table,const char* table_line,stru
 		if(ret>0)
 		{
 			table->cfg_num--;
+			if(ip_rule->addr_type==4)
+			{
+				table->ipv4_rule_cnt--;
+			}
+			else
+			{
+				table->ipv6_rule_cnt--;
+			}
 		}
 	}
 	else
@@ -1885,6 +1893,14 @@ void update_ip_rule(struct _Maat_table_info_t* table,const char* table_line,stru
 		else
 		{
 			table->cfg_num++;
+			if(ip_rule->addr_type==4)
+			{
+				table->ipv4_rule_cnt++;
+			}
+			else
+			{
+				table->ipv6_rule_cnt++;
+			}
 		}
 	}
 error_out:

@@ -933,6 +933,14 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	{
 		return 0;
 	}
+	if(p_table->ipv4_rule_cnt==0&&addr->addrtype==ADDR_TYPE_IPV4)
+	{
+		return 0;
+	}
+	if(p_table->ipv6_rule_cnt==0&&addr->addrtype==ADDR_TYPE_IPV6)
+	{
+		return 0;
+	}
 	my_scanner=_feather->scanner;
 	if(my_scanner==NULL)
 	{

@@ -228,8 +228,16 @@ struct _Maat_table_info_t
 	int do_charset_merge;
 	int cfg_num;
 	int cross_cache_size;
-	int expr_rule_cnt;	//expr_type=0,1,3
-	int regex_rule_cnt;	//expr_type=2
+	union
+	{
+		int expr_rule_cnt;	//expr_type=0,1,3
+		int ipv4_rule_cnt;
+	};
+	union
+	{
+		int regex_rule_cnt;	//expr_type=2
+		int ipv6_rule_cnt;
+	};
 	struct _plugin_table_info *cb_info;
 //for stat>>>>>>>>
 	int stat_line_id;
