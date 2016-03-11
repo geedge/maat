@@ -434,6 +434,7 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->garbage_q=MESA_lqueue_create(0,0);
 	feather->effect_interval_ms=60*1000;
 	feather->scan_interval_ms=1*1000;
+	feather->rule_scan_type=2;
 	feather->thread_call_cnt=aligment_int64_array_alloc(max_thread_num);
 	return feather;
 }
@@ -541,7 +542,6 @@ int Maat_initiate_feather(Maat_feather_t feather)
 	_feather->scanner=_feather->update_tmp_scanner;
 	_feather->update_tmp_scanner=NULL;
 	_feather->still_working=1;
-	_feather->rule_scan_type=2;
 	if(_feather->scanner!=NULL)
 	{
 		_feather->maat_version=_feather->scanner->version;
@@ -794,7 +794,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 									region_result,sizeof(scan_result_t),offsetof(scan_result_t, tag),
 									hit_region_cnt,
 									result,compile_result,rule_num);
-		if(hit_detail!=NULL)
+		if(hit_detail!=NULL||_feather->rule_scan_type==0)
 		{
 			*detail_ret=fill_region_hit_detail(data,_mid->inner,										
 											region_result,hit_region_cnt,
@@ -1193,7 +1193,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 							region_result,sizeof(scan_result_t),offsetof(scan_result_t, tag),
 							hit_region_cnt,
 							result,compile_result,rule_num);
-		if(hit_detail!=NULL)
+		if(hit_detail!=NULL||sp->feather->rule_scan_type==0)
 		{
 			if(sp->scan_buff!=NULL)
 			{
