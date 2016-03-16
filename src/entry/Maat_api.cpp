@@ -587,7 +587,7 @@ Maat_feather_t Maat_summon_feather(int max_thread_num,
 	{
 		goto error_out;
 	}
-	ret=Maat_set_feather_opt(feather, MAAT_OPT_FULL_CFG_DIR, inc_cfg_dir, strlen(inc_cfg_dir)+1);
+	ret=Maat_set_feather_opt(feather, MAAT_OPT_INC_CFG_DIR, inc_cfg_dir, strlen(inc_cfg_dir)+1);
 	if(ret<0)
 	{
 		goto error_out;
