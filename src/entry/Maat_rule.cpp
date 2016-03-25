@@ -674,7 +674,7 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,int scan_thread
 	hargs.thread_safe=0;
 	hargs.hash_slot_size = 1024*1024;
 	hargs.max_elem_num = 0;
-	hargs.eliminate_type = HASH_ELIMINATE_ALGO_LRU;
+	hargs.eliminate_type = HASH_ELIMINATE_ALGO_FIFO;
 	hargs.expire_time = 0;
 	hargs.key_comp = NULL;
 	hargs.key2index = NULL;
