@@ -11,7 +11,7 @@
 #include <MESA/MESA_htable.h>
 #include <MESA/MESA_list_queue.h>
 #include <MESA/MESA_handle_logger.h>
-#include <MESA/field_stat.h>
+#include <MESA/field_stat2.h>
 
 #include "Maat_rule.h"
 #include "Maat_rule_internal.h"
