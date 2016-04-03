@@ -29,7 +29,8 @@
 int MAAT_FRAME_VERSION_1_5_20160311=1;
 const char *maat_module="MAAT Frame";
 
-const char* CHARSET_STRING[]={"CHARSET_NONE","GBK","BIG5","UNICODE","UTF-8"};
+const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
+							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
 int converHextoint(char srctmp)
 {
 	if(isdigit(srctmp))
@@ -79,6 +80,7 @@ iconv_t maat_iconv_open(struct _Maat_scanner_t* scanner,enum MAAT_CHARSET to,enu
 	cd=scanner->iconv_handle[to][from];
 	return cd;
 }
+
 int iconv_convert(struct _Maat_scanner_t* scanner,enum MAAT_CHARSET from,enum MAAT_CHARSET to,char *src,int srclen,char *dst,int *dstlen)
 {
 	size_t ret;
@@ -104,7 +106,8 @@ int iconv_convert(struct _Maat_scanner_t* scanner,enum MAAT_CHARSET from,enum MA
 		if(ret!=(size_t)(-1))
 		{
 			
-			if(to==CHARSET_UNICODE)//jump unicode 2 bytes head 0xFF 0xFE
+			if(to==CHARSET_UNICODE&&
+				(*(unsigned short*)pOutBuff==0xFFFE||*(unsigned short*)pOutBuff==0XFEFF))//jump unicode 2 bytes BOM, 0xFF 0xFE
 			{
 				copy_len=iOutBuffLen-iLeftLen-2;
 				copy_buf=pOutBuff+2;
@@ -133,7 +136,137 @@ int iconv_convert(struct _Maat_scanner_t* scanner,enum MAAT_CHARSET from,enum MA
 	}
 
 }
+int URLEncode(const char* str, const int strSize, char* result, const int resultSize)  
+{  
+	int i;  
+	int j = 0;//for result index  
+	char ch;  
 
+	if ((str==NULL) || (result==NULL) || (strSize<=0) || (resultSize<=0)) 
+	{  
+		return -1;  
+	}  
+
+	for ( i=0; (i<strSize)&&(j<resultSize); ++i)
+	{  
+		ch = str[i];  
+		if (((ch>='A') && (ch<'Z')) ||  
+			((ch>='a') && (ch<'z')) ||  
+			((ch>='0') && (ch<'9')))
+		{  
+			result[j++] = ch;  
+		} 
+		else if (ch == ' ')
+		{  
+			result[j++] = '+';  
+		}
+		else if (ch == '.' || ch == '-' || ch == '_' || ch == '*')
+		{  
+			result[j++] = ch;  
+		}
+		else 
+		{  
+			if (j+3 < resultSize)
+			{  
+				sprintf(result+j, "%%%02X", (unsigned char)ch);  
+				j += 3;  
+			} 
+			else
+			{  
+				return -1;  
+			}  
+		}  
+	}  
+
+	result[j] = '\0';  
+	return j;  
+}  
+int uni2ascii(const char* fmt,const char* src, const int srclen, char* dst, const int dstsize) 
+{
+	int i=0,j=0;
+	assert(srclen%2==0);//unicode must be 2 bytes aligned.
+	while(i<srclen&&j<dstsize)
+	{
+		if(*(unsigned short*)(src+i)<0x7f)
+		{
+			dst[j]=*(unsigned short*)(src+i);
+			j++;
+		}
+		else
+		{
+			j+=snprintf(dst+j,dstsize-j,fmt,*(unsigned short*)(src+i));
+		}
+		i+=2;
+	}
+	return j;
+}
+int universal_charset_convert(struct _Maat_scanner_t* scanner,enum MAAT_CHARSET from,enum MAAT_CHARSET to,char *src,int srclen,char *dst,int *dstlen)
+{
+	int ret=0;
+	char* tmp_buff=NULL;
+	int tmp_buff_size=0;
+	MAAT_CHARSET tmp_dst_code=CHARSET_NONE;
+	const char* fmt=NULL;
+	switch(to)
+	{
+		case CHARSET_GBK:
+		case CHARSET_BIG5:
+		case CHARSET_UNICODE:
+		case CHARSET_UTF8:
+			ret=iconv_convert(scanner,from,to,src,srclen,dst,dstlen);
+			return ret;
+			break;
+		case CHARSET_UNICODE_ASCII_ESC:
+			tmp_dst_code=CHARSET_UNICODE;
+			fmt="\\u%x;";
+			break;
+		case CHARSET_UNICODE_ASCII_ALIGNED:
+			tmp_dst_code=CHARSET_UNICODE;
+			fmt="\\u%04x";
+			break;
+		case CHARSET_UNICODE_NCR_DEC:	
+			tmp_dst_code=CHARSET_UNICODE;
+			fmt="&#%u;";
+			break;
+		case CHARSET_UNICODE_NCR_HEX:
+			tmp_dst_code=CHARSET_UNICODE;
+			fmt="&#x%x;";
+			break;
+		case CHARSET_URL_ENCODE_GB2312:	
+			tmp_dst_code=CHARSET_GBK;
+			fmt=NULL;
+			break;
+		case CHARSET_URL_ENCODE_UTF8:
+			tmp_dst_code=CHARSET_UTF8;
+			fmt=NULL;
+			break;
+		default:
+			return -1;
+			break;
+	}
+	tmp_buff_size=*dstlen;
+	tmp_buff=(char*)malloc(tmp_buff_size);
+	ret=iconv_convert(scanner,from,tmp_dst_code,src,srclen,tmp_buff,&tmp_buff_size);
+	if(ret<0)
+	{
+		goto error_out;
+	}
+	if(fmt!=NULL)
+	{
+		ret=uni2ascii(fmt, tmp_buff, tmp_buff_size, dst,*dstlen);
+	}
+	else
+	{
+		ret=URLEncode(tmp_buff,tmp_buff_size,dst,*dstlen);
+	}
+	*dstlen=ret;
+error_out:
+
+	free(tmp_buff);
+	tmp_buff=NULL;
+	
+	return ret;
+}
 char* strlwr(char* string)
 {
 	int i=0;
@@ -249,7 +382,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 	FILE*fp=NULL;
 	char line[MAX_TABLE_LINE_SIZE];
 	int i=0,j=0,ret[4]={0},table_cnt=0;
-	char table_type[16],src_charset[16],dst_charset[64],merge[4];
+	char table_type[16],src_charset[256],dst_charset[256],merge[4];
 	MESA_htable_handle string2int_map=map_create();
 	char *token=NULL,*sub_token=NULL,*saveptr;
 	struct _Maat_table_info_t*p=NULL;
@@ -262,11 +395,26 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 	map_register(string2int_map,"digest", TABLE_TYPE_DIGEST);
 	map_register(string2int_map,"expr_plus", TABLE_TYPE_EXPR_PLUS);
 	map_register(string2int_map,"group", TABLE_TYPE_GROUP);
-	map_register(string2int_map,"bin", CHARSET_NONE);
+	for(i=0;i<MAX_CHARSET_NUM;i++)
+	{
+		if(strlen(CHARSET_STRING[i])>0)
+		{
+			map_register(string2int_map,CHARSET_STRING[i], i);
+		}
+		else
+		{
+			break;
+		}
+	}
+
+/*
 	map_register(string2int_map,"gbk", CHARSET_GBK);
 	map_register(string2int_map,"big5", CHARSET_BIG5);
 	map_register(string2int_map,"unicode", CHARSET_UNICODE);
 	map_register(string2int_map,"utf8", CHARSET_UTF8);
+	map_register(string2int_map,"unicode_hex", CHARSET_UNICODE_ASCII_ESC);
+	map_register(string2int_map,"unicode_hex", CHARSET_UNICODE_ASCII_ESC);
+*/
 	map_register(string2int_map,"yes", 1);
 	map_register(string2int_map,"no", 0);
 	
@@ -277,6 +425,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
 								"Maat read table info %s error.\n",table_info_path);
 	}
+	i=0;
 	while(NULL!=fgets(line,sizeof(line),fp))
 	{
 		i++;
@@ -301,9 +450,9 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 		{
 			if(ret[j]<0)
 			{
-				fprintf(stderr,"Maat read table info %s line %d error.\n",table_info_path,i);
+				fprintf(stderr,"Maat read table info %s line %d error:unknown column.\n",table_info_path,i);
 				MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
-								"Maat read table info %s line %d error.\n",table_info_path,i);
+								"Maat read table info %s line %d error:unknown column.\n",table_info_path,i);
 				goto error_jump;
 			}
 		}
@@ -324,9 +473,9 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 			}
 			else
 			{
-				fprintf(stderr,"Maat read table info %s line %d error.\n",table_info_path,i);
+				fprintf(stderr,"Maat read table info %s line %d error:unknown dest charset %s.\n",table_info_path,i,sub_token);
 				MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
-								"Maat read table info %s line %d error.\n",table_info_path,i);
+								"Maat read table info %s line %d error: unknown dest charset %s.\n",table_info_path,i,sub_token);
 				goto error_jump;
 			}
 			
@@ -1261,12 +1410,12 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 				{
 						continue;
 				}
-				region_str_len=strlen(sub_key_array[k])*2+1;
+				region_str_len=strlen(sub_key_array[k])*8+1; // 1 byte map to 8 bytes maximum, e.g. "&#x0627;" or "\u63221;"
 				region_string=(char*)calloc(sizeof(char),region_str_len);
 				if(table->src_charset!=dst_charset)//need convert
 				{
 
-					ret=iconv_convert(scanner,table->src_charset, dst_charset, 
+					ret=universal_charset_convert(scanner,table->src_charset, dst_charset, 
 										sub_key_array[k],strlen(sub_key_array[k]),
 										region_string, &region_str_len);
 					if(ret<0)
@@ -1279,7 +1428,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 						free(region_string);
 						continue;
 					}
-					//if convert take no effect
+					//if convert take no effect and src charset is one of the dst.
 					if(region_str_len==(int)strlen(sub_key_array[k])&&
 						0==memcmp(sub_key_array[k],region_string,region_str_len)&&
 						TRUE==table->src_charset_in_dst)

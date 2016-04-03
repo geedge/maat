@@ -97,7 +97,7 @@ GIE_handle_t * GIE_create(const GIE_create_para_t * para)
 	idtable_args.hash_slot_size = HTABLE_SIZE;
 	idtable_args.max_elem_num = 4 * HTABLE_SIZE;
 	idtable_args.expire_time = 0;
-	idtable_args.eliminate_type = HASH_ELIMINATE_ALGO_LRU;
+	idtable_args.eliminate_type = HASH_ELIMINATE_ALGO_FIFO;
 	idtable_args.key_comp = NULL;
 	idtable_args.key2index = NULL;
 	idtable_args.data_free = idtable_free;
@@ -108,7 +108,7 @@ GIE_handle_t * GIE_create(const GIE_create_para_t * para)
 	indextable_args.hash_slot_size = HTABLE_SIZE;
 	indextable_args.max_elem_num = 4 * HTABLE_SIZE;
 	indextable_args.expire_time = 0;
-	indextable_args.eliminate_type = HASH_ELIMINATE_ALGO_LRU;
+	indextable_args.eliminate_type = HASH_ELIMINATE_ALGO_FIFO;
 	indextable_args.key_comp = NULL;
 	indextable_args.key2index = NULL;
 	indextable_args.data_free = indextable_free;

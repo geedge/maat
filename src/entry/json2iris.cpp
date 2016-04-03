@@ -89,7 +89,7 @@ int set_iris_descriptor(const char* json_file,cJSON *json,struct iris_descriptio
 	hargs.thread_safe=1;
 	hargs.hash_slot_size = 1024;
 	hargs.max_elem_num = 0;
-	hargs.eliminate_type = HASH_ELIMINATE_ALGO_LRU;
+	hargs.eliminate_type = HASH_ELIMINATE_ALGO_FIFO;
 	hargs.expire_time = 0;
 	hargs.key_comp = NULL;
 	hargs.key2index = NULL;

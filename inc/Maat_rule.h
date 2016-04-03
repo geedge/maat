@@ -24,7 +24,13 @@ enum MAAT_CHARSET
 	CHARSET_BIG5,
 	CHARSET_UNICODE,
 	CHARSET_UTF8,	// 4
-	CHARSET_BIN	//5
+	CHARSET_BIN,	//5
+	CHARSET_UNICODE_ASCII_ESC,		// Unicode Escape format, prefix backslash-u hex, e.g. "\u627;"
+	CHARSET_UNICODE_ASCII_ALIGNED,//Unicode Escape format, prefix backslash-u with 4 bytes aligned, e.g. "\u0627"
+	CHARSET_UNICODE_NCR_DEC,		//SGML Numeric character reference,decimal base, e.g. "&#1575;"
+	CHARSET_UNICODE_NCR_HEX,		//SGML Numeric character reference,hexdecimal base, e.g. "&#x627;"
+	CHARSET_URL_ENCODE_GB2312,		//URL encode with GB2312, e.g. the chinese word "china" was encoded to %D6%D0%B9%FA
+	CHARSET_URL_ENCODE_UTF8		//11, URL encode with UTF8,e.g. the chinese word "china" was encoded to %E4%B8%AD%E5%9B%BD
 };
 enum MAAT_ACTION
 {

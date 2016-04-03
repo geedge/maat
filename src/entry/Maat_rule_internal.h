@@ -36,7 +36,7 @@ typedef int atomic_t;
 #define	FALSE	0
 
 #define	MAX_TABLE_NUM			256
-#define	MAX_CHARSET_NUM			6
+#define	MAX_CHARSET_NUM			16
 #define	MAX_TABLE_NAME_LEN		256
 #define	MAX_TABLE_LINE_SIZE		(1024*4)
 #define	MAX_EXPR_KEYLEN			1024

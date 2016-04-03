@@ -216,6 +216,60 @@
                     ]
                 }
             ]
+        },
+        {
+            "compile_id": 129,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "effective_rage": 0,
+            "user_region": "utf8_中文",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "group_9",
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "none",
+                            "table_content": {
+                                "keywords": "C#中国",
+                                "expr_type": "and",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 130,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "effective_rage": 0,
+            "user_region": "utf8_维语",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "group_10",
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "none",
+                            "table_content": {
+                                "keywords": "2010–يىلىدىكى",
+                                "expr_type": "and",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "plugin_table": [
