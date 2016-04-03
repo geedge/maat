@@ -14,7 +14,10 @@
 #include <sys/types.h>//fstat
 #include <sys/stat.h>//fstat
 #include <unistd.h>
-
+#include <dirent.h> 
+extern int my_scandir(const char *dir, struct dirent ***namelist,
+              int(*filter)(const struct dirent *),
+              int(*compar)(const void *, const void *));
 void Maat_read_entry_start_cb(int update_type,void* u_para)
 {
 	return;
@@ -55,6 +58,31 @@ void print_maat_ret(int ret)
 			break;
 	}
 	return;
+}
+const char* print_maat_rule(struct Maat_rule_t* result,int ret)
+{
+	static char buff[1024]={0};
+	int i=0,j=0;
+	switch(ret)
+	{
+		case -1:
+			snprintf(buff,sizeof(buff),"ret=%d,scan error.",ret);
+			break;
+		case -2:
+			snprintf(buff,sizeof(buff),"ret=%d,hit current region,but not hit compile rule.",ret);
+			break;
+		case 0:
+			snprintf(buff,sizeof(buff),"ret=0,nothing hit.");
+			break;
+		default://>0
+			j=snprintf(buff,sizeof(buff),"hit %d rules, hit ruleid=",ret);
+			for(i=0;i<ret;i++)
+			{
+				j+=snprintf(buff+j,sizeof(buff)-j,"%d ",result[i].config_id);
+			}
+			break;
+	}
+	return buff;
 }
 int test_string_full_scan(Maat_feather_t feather,const char* table_name,scan_status_t* mid)
 {
@@ -256,6 +284,99 @@ int test_plugin_table(Maat_feather_t feather,const char* table_name,void* logger
 	}
 	return ret;
 }
+int test_url_encode(Maat_feather_t feather,const char* table_name,scan_status_t* mid)
+{
+	const char* url_utf8="www.google.com/?q=C%23%E4%B8%AD%E5%9B%BD";
+	const char* url_gb2312="www.baidu.com/?wd=C%23%D6%D0%B9%FA";
+	int table_id=0,ret=0;
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+	table_id=Maat_table_register(feather,table_name);
+	if(table_id==-1)
+	{
+		printf("Database table %s register failed.",table_name);
+		return -1;
+	}
+	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, url_utf8, strlen(url_utf8), 
+						result,found_pos, 4,
+						mid, 0);
+	printf("URL encode scan utf8 url %s\n",print_maat_rule(result,ret));
+
+	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, url_gb2312, strlen(url_gb2312), 
+						result,found_pos, 4,
+						mid, 0);
+	printf("URL encode scan gb2312 url %s\n",print_maat_rule(result,ret));
+	
+	return 0;
+}
+int test_unicode_esc(Maat_feather_t feather,const char* table_name,scan_status_t* mid)
+{
+	const char* test_data_dir="./testdata_uni2ascii";
+	struct dirent **namelist;
+	FILE* fp=NULL;
+	char file_path[256]={0};
+	char buff[4096];
+	size_t read_len=0;
+	int table_id=0,ret=0;
+	struct Maat_rule_t result[4];
+	stream_para_t sp=NULL;
+	int found_pos[4];
+	int n=0,i=0;
+	table_id=Maat_table_register(feather,table_name);
+	if(table_id==-1)
+	{
+		printf("Database table %s register failed in function %s.\n",table_name,__FUNCTION__);
+		return -1;
+	}
+	n = my_scandir(test_data_dir, &namelist, NULL, (int (*)(const void*, const void*))alphasort);
+	if(n<0)
+	{
+		printf("%s open dir %s error.\n",__FUNCTION__,test_data_dir);
+		return -1;
+	}
+	for(i=0;i<n;i++)
+	{
+		if((strcmp(namelist[i]->d_name, ".") == 0) || (strcmp(namelist[i]->d_name, "..") == 0))
+		{
+			continue;
+		}
+		snprintf(file_path,sizeof(file_path),"%s/%s",test_data_dir,namelist[i]->d_name);
+		fp=fopen(file_path,"rb");
+		if(fp==NULL)
+		{
+			printf("fopen %s error.\n",file_path);;
+			continue;
+		}
+		printf("%s processing %s\n",__FUNCTION__,file_path);
+		sp=Maat_stream_scan_string_start(feather,table_id,0);
+		if(sp==NULL)
+		{
+			printf("stream scan start failed.\n");
+			continue;
+		}
+		read_len=fread(buff,1,sizeof(buff),fp);
+		while(read_len>0)
+		{
+
+			ret=Maat_stream_scan_string(&sp,CHARSET_NONE,buff,read_len
+								,result,found_pos,4,mid);
+			read_len=fread(buff,1,sizeof(buff),fp);
+			if(ret>0)
+			{
+				printf("UNI2ASCII file %s,%s\n",file_path,print_maat_rule(result,ret));
+			}
+		}
+		Maat_stream_scan_string_end(&sp);		
+		fclose(fp);
+
+	}
+	for(i=0;i<n;i++)
+	{
+		free(namelist[i]);
+	}
+	free(namelist);
+	return 0;
+}
 int test_expr_plus(Maat_feather_t feather,const char* table_name,scan_status_t* mid)
 {
 	int ret=0;
@@ -348,6 +469,12 @@ int main(int argc,char* argv[])
 	test_expr_plus(feather, "HTTP_REGION", &mid);
 	Maat_clean_status(&mid);
 
+	test_url_encode(feather, "HTTP_URL", &mid);
+	Maat_clean_status(&mid);
+
+	test_unicode_esc(feather,"KEYWORDS_TABLE",&mid);
+	Maat_clean_status(&mid);
+	
 	sleep(4);
 	
 	Maat_burn_feather(feather);

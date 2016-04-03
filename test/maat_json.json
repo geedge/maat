@@ -232,10 +232,10 @@
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
-                            "table_type": "none",
+                            "table_type": "string",
                             "table_content": {
                                 "keywords": "C#中国",
-                                "expr_type": "and",
+                                "expr_type": "none",
                                 "match_method": "sub",
                                 "format": "uncase plain"
                             }
@@ -259,9 +259,36 @@
                     "regions": [
                         {
                             "table_name": "KEYWORDS_TABLE",
-                            "table_type": "none",
+                            "table_type": "string",
                             "table_content": {
-                                "keywords": "2010–يىلىدىكى",
+                                "keywords": "2010&يىلىدىكى",
+                                "expr_type": "and",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 131,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "effective_rage": 0,
+            "user_region": "utf8_维语2",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "group_11",
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "string",
+                            "table_content": {
+                                "keywords": "سىياسىي",
                                 "expr_type": "and",
                                 "match_method": "sub",
                                 "format": "uncase plain"
