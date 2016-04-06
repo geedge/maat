@@ -1,7 +1,17 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include"interval_index.h"
-
+/*********************************************************************
+ *  File:
+ *		interval_index.c
+ *  Author:
+ *		TangQi
+ *	E-mail:
+ *		tangqi@iie.ac.cn 
+ *********************************************************************/
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include "interval_index.h"
+#include "rbtree.h"
+#include "rbtree_augmented.h"
 
 /**
  * There is a trick here. In order to hide specific
@@ -16,73 +26,113 @@
  * Structure of inner segment
  **/
 typedef struct __IVI_shadow_seg_t{
-    IVI_seg_t lightseg;
-    TAILQ_ENTRY(__IVI_shadow_seg_t) ENTRY;
+    IVI_seg_t lightseg;     /* interval for user, including left edge, right edge, and user's data */
+    struct rb_node rb;      /* node of rb-tree */
+    OFFSET_TYPE max;        /* max edge of subtree */
 }IVI_shadow_seg_t;
 
 
-TAILQ_HEAD(TQ, __IVI_shadow_seg_t);
-
 /* Structure of inner InterVal Index */
 typedef struct __IVI_shadow_t{
-    struct TQ ivi_queue;
+    struct rb_root root;
+
+    /* statistics */
     int segs_cnt;
     OFFSET_TYPE segs_length;
+    unsigned long long mem_occupy;  //do not include user data
 }IVI_shadow_t;
 
 
 
-/**
- *  new is closer to head or tail ?
- *  Return 1 if closer to head than tail
- *  Else return 0
- */
-int closer_to_head(IVI_shadow_seg_t * head, IVI_shadow_seg_t * tail, OFFSET_TYPE target)
+
+
+IVI_seg_t * IVI_first_seg(IVI_t * handler)
 {
-    if(head == NULL || tail == NULL)
-        return 1;
-    S_OFFSET_TYPE tmp1 = (S_OFFSET_TYPE)(target - head->lightseg.left);
-    S_OFFSET_TYPE tmp2 = (S_OFFSET_TYPE)(target - tail->lightseg.left);
-    S_OFFSET_TYPE distance_to_head = tmp1 > 0 ? tmp1 : -tmp1;
-    S_OFFSET_TYPE distance_to_tail = tmp2 > 0 ? tmp2 : -tmp2;
-    return (distance_to_tail - distance_to_head > 0);
+    assert(handler != NULL);
+    IVI_shadow_t * shadow_ivi = (IVI_shadow_t *)handler;
+    struct rb_node *first_node = rb_first(&(shadow_ivi->root));
+    if(first_node == NULL)
+        return NULL;
+    return (IVI_seg_t *)(rb_entry(first_node, IVI_shadow_seg_t, rb));
+}
+
+
+IVI_seg_t * IVI_last_seg(IVI_t * handler)
+{
+    assert(handler != NULL);
+    IVI_shadow_t * shadow_ivi = (IVI_shadow_t *)handler;
+    struct rb_node *last_node = rb_last(&(shadow_ivi->root));
+    if(last_node == NULL)
+        return NULL;
+    return (IVI_seg_t *)(rb_entry(last_node, IVI_shadow_seg_t, rb));
+}
+
+
+
+IVI_seg_t * IVI_prev_seg(IVI_seg_t * seg)
+{
+    assert(seg != NULL);
+    IVI_shadow_seg_t * shadow_seg = (IVI_shadow_seg_t *)seg;
+    struct rb_node * prev_node = rb_prev(&(shadow_seg->rb));
+    if(prev_node == NULL)
+        return NULL;
+    return (IVI_seg_t *)(rb_entry(prev_node, IVI_shadow_seg_t, rb));
+}
+
+
+
+IVI_seg_t * IVI_next_seg(IVI_seg_t * seg)
+{
+    assert(seg != NULL);
+    IVI_shadow_seg_t * shadow_seg = (IVI_shadow_seg_t *)seg;
+    struct rb_node * next_node = rb_next(&(shadow_seg->rb));
+    if(next_node == NULL)
+        return NULL;
+    return (IVI_seg_t *)(rb_entry(next_node, IVI_shadow_seg_t, rb));
 }
 
 
 IVI_seg_t * IVI_prev_continuous_seg(IVI_seg_t * seg)
 {
-    if(NULL == seg)
+    assert(seg != NULL);
+    IVI_shadow_seg_t * shadow_seg = (IVI_shadow_seg_t *)seg;
+    struct rb_node * prev_node = rb_prev(&(shadow_seg->rb));
+    if(prev_node == NULL)
     {
         return NULL;
     }
-
-    IVI_shadow_seg_t * _seg = (IVI_shadow_seg_t *)seg;
-    IVI_shadow_seg_t * prev = TAILQ_PREV(_seg, TQ, ENTRY);
-    if(NULL == prev)
+    IVI_seg_t * prev_seg = (IVI_seg_t *)(rb_entry(prev_node, IVI_shadow_seg_t, rb));
+    if(!continuous(prev_seg->right, seg->left))
     {
         return NULL;
     }
-    if(continuous((prev->lightseg).right, seg->left))
-        return (IVI_seg_t *)prev;
-    return NULL;
+    return prev_seg;
 }
 
 
 IVI_seg_t * IVI_next_continuous_seg(IVI_seg_t * seg)
 {
-    if(NULL == seg)
+    assert(seg != NULL);
+    IVI_shadow_seg_t * shadow_seg = (IVI_shadow_seg_t *)seg;
+    struct rb_node * next_node = rb_next(&(shadow_seg->rb));
+    if(next_node == NULL)
     {
         return NULL;
     }
-    IVI_shadow_seg_t * _seg = (IVI_shadow_seg_t *)seg;
-    IVI_shadow_seg_t * next = TAILQ_NEXT(_seg, ENTRY);
-    if(NULL == next)
+    IVI_seg_t * next_seg = (IVI_seg_t *)(rb_entry(next_node, IVI_shadow_seg_t, rb));
+    if(!continuous(seg->right, next_seg->left))
     {
         return NULL;
     }
-    if(continuous(seg->right, (next->lightseg).left))
-        return (IVI_seg_t *)next;
-    return NULL;
+    return next_seg;
+}
+
+
+static inline int __is_overlapped(OFFSET_TYPE left1, OFFSET_TYPE right1, OFFSET_TYPE left2, OFFSET_TYPE right2)
+{
+    if(!after(left1, right2) && !after(left2, right1))
+        return 1;
+    return 0;
 }
 
 
@@ -152,12 +202,41 @@ Relation_t IVI_relative_position(IVI_seg_t * seg1, IVI_seg_t * seg2)
 IVI_t * IVI_create(void)
 {
     IVI_shadow_t * shadow_ivi = (IVI_shadow_t *)malloc(sizeof(IVI_shadow_t));
-    TAILQ_INIT(&(shadow_ivi->ivi_queue));
+    shadow_ivi->root = RB_ROOT;      //init rb tree's root
     shadow_ivi->segs_cnt = 0;
     shadow_ivi->segs_length = 0;
+    shadow_ivi->mem_occupy = sizeof(IVI_shadow_t);
     return (IVI_t *)shadow_ivi;
 }
 
+
+
+static void __free_rb_tree(struct rb_node * root, IVI_callback_t cb, void * usr_para)
+{
+	if(root == NULL)
+	{
+		return;	
+	}
+	if(root->rb_left != NULL)
+	{
+		__free_rb_tree(root->rb_left, cb, usr_para);
+	}
+	if(root->rb_right != NULL)
+	{
+		__free_rb_tree(root->rb_right, cb, usr_para);
+	}
+    /* free user data */
+    IVI_shadow_seg_t * shadow_seg = rb_entry(root, IVI_shadow_seg_t, rb);
+	if(cb != NULL)
+	{
+		cb((IVI_seg_t *)shadow_seg, usr_para);
+	}
+
+    /* free seg */
+    free(shadow_seg);
+    shadow_seg = NULL;
+    return;
+}
 
 /**
  * Name:
@@ -177,26 +256,11 @@ void IVI_destroy(IVI_t * handler, IVI_callback_t cb, void * usr_para)
     {
         return;
     }
-
     IVI_shadow_t * shadow_ivi = (IVI_shadow_t *)handler;
-    IVI_shadow_seg_t * tmpseg = TAILQ_FIRST(&(shadow_ivi->ivi_queue));
-    IVI_shadow_seg_t * tmp;
-    /* Free each seg in IVI */
-    while(tmpseg != NULL)
-    {
-        tmp = TAILQ_NEXT(tmpseg, ENTRY);
-        /* Free *data in seg */
-        if(NULL != cb)
-        {
-            cb(&(tmpseg->lightseg), usr_para);
-        }
-        free(tmpseg);
-        tmpseg = tmp;
-    }
-
-    /* Free IVI */
+    __free_rb_tree(shadow_ivi->root.rb_node, cb, usr_para);
     free(shadow_ivi);
     handler = NULL;
+    return;
 }
 
 
@@ -224,6 +288,7 @@ IVI_seg_t * IVI_seg_malloc(OFFSET_TYPE left, OFFSET_TYPE right, void * data)
     shadow_seg->lightseg.left = left;
     shadow_seg->lightseg.right= right;
     shadow_seg->lightseg.data = data;
+    shadow_seg->max = 0;
 
     return (IVI_seg_t *)shadow_seg;
 }
@@ -244,6 +309,8 @@ IVI_seg_t * IVI_seg_malloc(OFFSET_TYPE left, OFFSET_TYPE right, void * data)
  **/
 void IVI_seg_free(IVI_seg_t * seg, IVI_callback_t cb, void * usr_para)
 {
+    assert(seg != NULL);
+
     /* Free user data first */
     if(cb != NULL)
     {
@@ -255,6 +322,70 @@ void IVI_seg_free(IVI_seg_t * seg, IVI_callback_t cb, void * usr_para)
     free(shadow_seg);
     seg = NULL;
 }
+
+
+
+
+static inline OFFSET_TYPE __interval_tree_get_subtree_max(IVI_shadow_seg_t * node)
+{
+    OFFSET_TYPE max = node->lightseg.right, subtree_max;
+    if(node->rb.rb_left)
+    {
+        subtree_max = (rb_entry(node->rb.rb_left, IVI_shadow_seg_t, rb))->max;
+        if(before(max, subtree_max))
+            max = subtree_max;
+    }
+    if(node->rb.rb_right)
+    {
+        subtree_max = (rb_entry(node->rb.rb_right, IVI_shadow_seg_t, rb))->max;
+        if(before(max, subtree_max))
+            max = subtree_max;
+    }
+    return max;
+}
+
+
+static void __interval_tree_augment_propagate(struct rb_node * rb, struct rb_node * stop)
+{
+    while(rb != stop)
+    {
+        IVI_shadow_seg_t * node = rb_entry(rb, IVI_shadow_seg_t, rb);
+        OFFSET_TYPE subtree_max = __interval_tree_get_subtree_max(node);
+        if(node->max == subtree_max)
+        {
+            break;
+        }
+        node->max = subtree_max;
+        rb = rb_parent(&node->rb);
+    }
+    return;
+}
+
+
+static void __interval_tree_augment_copy(struct rb_node * rb_old, struct rb_node * rb_new)
+{
+    IVI_shadow_seg_t * old = rb_entry(rb_old, IVI_shadow_seg_t, rb);
+    IVI_shadow_seg_t * new = rb_entry(rb_new, IVI_shadow_seg_t, rb);
+    new->max = old->max;
+    return;
+}
+
+
+static void __interval_tree_augment_rotate(struct rb_node * rb_old, struct rb_node * rb_new)
+{
+    IVI_shadow_seg_t * old = rb_entry(rb_old, IVI_shadow_seg_t, rb);
+    IVI_shadow_seg_t * new = rb_entry(rb_new, IVI_shadow_seg_t, rb);
+    new->max = old->max;
+    old->max = __interval_tree_get_subtree_max(old);
+    return;
+}
+
+
+static const struct rb_augment_callbacks __interval_tree_augment_callbacks = {
+    __interval_tree_augment_propagate,
+    __interval_tree_augment_copy,
+    __interval_tree_augment_rotate
+};
 
 
 /**
@@ -273,74 +404,49 @@ void IVI_seg_free(IVI_seg_t * seg, IVI_callback_t cb, void * usr_para)
  **/
 int IVI_insert(IVI_t * handler, IVI_seg_t * seg)
 {
-    IVI_shadow_t * shadow_ivi;
-    IVI_shadow_seg_t *head, *tail, *new_seg, *tmp_seg;
-
     if(NULL == handler || NULL == seg)
     {
         return -1;
     }
 
-    shadow_ivi = (IVI_shadow_t *)handler;
-    new_seg = (IVI_shadow_seg_t *)seg;
-    head = TAILQ_FIRST(&(shadow_ivi->ivi_queue));
-    tail = TAILQ_LAST(&(shadow_ivi->ivi_queue), TQ);
-
-    if(closer_to_head(head, tail, seg->left))
+    IVI_shadow_t * shadow_ivi = (IVI_shadow_t *)handler;
+    struct rb_root * root = &(shadow_ivi->root);
+    OFFSET_TYPE left = seg->left, right = seg->right;
+    struct rb_node **link = &root->rb_node, *rb_parent = NULL;
+    IVI_shadow_seg_t * parent = NULL;
+	IVI_shadow_seg_t * new_seg = (IVI_shadow_seg_t *)seg;
+    while(*link)
     {
-        TAILQ_FOREACH(tmp_seg, &(shadow_ivi->ivi_queue), ENTRY)
+        rb_parent = *link;
+        parent = rb_entry(rb_parent, IVI_shadow_seg_t, rb);
+		/* is overlapped */
+		if(__is_overlapped(left, right, parent->lightseg.left, parent->lightseg.right))	
+		{
+			//overlapped, return
+			return -1;	
+		}
+
+        if(before(parent->max, right))
         {
-            /* Find the first seg whose left is bigger than given seg's right, we will insert new seg before it */
-            if(after(tmp_seg->lightseg.left, new_seg->lightseg.right))
-            {
-                TAILQ_INSERT_BEFORE(tmp_seg, new_seg, ENTRY);
-                shadow_ivi->segs_cnt ++;
-                shadow_ivi->segs_length += (seg->right - seg->left + 1);
-                return 0;
-            }
-            else if(before(tmp_seg->lightseg.right, new_seg->lightseg.left))
-            {
-                continue;
-            }
-            else  /* Overlap */
-            {
-                return -1;
-            }
+            parent->max = right;
         }
-
-        /* If have searched to the end of list, we will inset it to the tail */
-        TAILQ_INSERT_TAIL(&(shadow_ivi->ivi_queue), new_seg, ENTRY);
-        shadow_ivi->segs_cnt ++;
-        shadow_ivi->segs_length += (seg->right - seg->left + 1);
-    }
-    else
-    {
-        TAILQ_FOREACH_REVERSE(tmp_seg, &(shadow_ivi->ivi_queue), TQ, ENTRY)
+        if(before(left, parent->lightseg.left))
         {
-            /* Find the first seg whose right is smaller than given seg's left, we will insert new seg after it */
-            if(before(tmp_seg->lightseg.right, new_seg->lightseg.left))
-            {
-                TAILQ_INSERT_AFTER(&(shadow_ivi->ivi_queue), tmp_seg, new_seg, ENTRY);
-                shadow_ivi->segs_cnt ++;
-                shadow_ivi->segs_length += (seg->right - seg->left + 1);
-                return 0;
-            }
-            else if(after(tmp_seg->lightseg.left, new_seg->lightseg.right))
-            {
-                continue;
-            }
-            else  /* Overlap */
-            {
-                return -1;
-            }
+            link = &parent->rb.rb_left;
         }
-
-        /* If have searched to the head of list, we will inset it to the head */
-        TAILQ_INSERT_HEAD(&(shadow_ivi->ivi_queue), new_seg, ENTRY);
-        shadow_ivi->segs_cnt ++;
-        shadow_ivi->segs_length += (seg->right - seg->left + 1);
+        else
+        {
+            link = &parent->rb.rb_right;
+        }
     }
+    new_seg->max = right;
+    rb_link_node(&new_seg->rb, rb_parent, link);
+    rb_insert_augmented(&new_seg->rb, root, &__interval_tree_augment_callbacks);
 
+    /*  updata statistics */
+    shadow_ivi->segs_cnt ++;
+    shadow_ivi->segs_length += seg->right - seg->left + 1;
+    shadow_ivi->mem_occupy += sizeof(IVI_shadow_seg_t);
     return 0;
 }
 
@@ -367,12 +473,52 @@ int IVI_remove(IVI_t * handler, IVI_seg_t * seg)
     }
 
     IVI_shadow_t * shadow_ivi = (IVI_shadow_t *)handler;
-    IVI_shadow_seg_t * shadow_seg = (IVI_shadow_seg_t *)seg;
+    struct rb_root * root = &(shadow_ivi->root);
+    IVI_shadow_seg_t * new_seg = (IVI_shadow_seg_t *)seg;
+    rb_erase_augmented(&new_seg->rb, root, &__interval_tree_augment_callbacks);
 
-    TAILQ_REMOVE(&(shadow_ivi->ivi_queue), shadow_seg, ENTRY);
+    /*  updata statistics */
     shadow_ivi->segs_cnt --;
-    shadow_ivi->segs_length -= (seg->right - seg->left + 1);
+    shadow_ivi->segs_length -= seg->right - seg->left + 1;
+    shadow_ivi->mem_occupy -= sizeof(IVI_shadow_seg_t);
+
     return 0;
+}
+
+
+
+static struct rb_node * __min_interval_search_from(struct rb_node * node, OFFSET_TYPE left, OFFSET_TYPE right)
+{
+	if(node == NULL)
+	{
+		return NULL;
+	}
+    IVI_shadow_seg_t * seg = rb_entry(node, IVI_shadow_seg_t, rb);
+    IVI_shadow_seg_t * left_seg = rb_entry(node->rb_left, IVI_shadow_seg_t, rb);
+    if(node->rb_left != NULL && !before(left_seg->max, left))
+    {
+        struct rb_node * ret = __min_interval_search_from(node->rb_left, left, right);
+        if(ret != NULL)
+        {
+            return ret;
+        }
+        else if(__is_overlapped(left, right, seg->lightseg.left, seg->lightseg.right))
+        {
+            return node;
+        }
+        else
+        {
+            return NULL;
+        }
+    }
+    else if(__is_overlapped(left, right, seg->lightseg.left, seg->lightseg.right))
+    {
+        return node;
+    }
+    else
+    {
+        return __min_interval_search_from(node->rb_right, left, right);
+    }
 }
 
 
@@ -397,115 +543,34 @@ int IVI_remove(IVI_t * handler, IVI_seg_t * seg)
  **/
 int IVI_query(IVI_t * handler, OFFSET_TYPE left, OFFSET_TYPE right, IVI_seg_t *** segs)
 {
-    IVI_shadow_t * shadow_ivi;
-    IVI_shadow_seg_t *head, *tail, *tmp, *left_tmp, *right_tmp;
-    int interval_cnt = 0, i;
-
     if(NULL == handler || after(left, right))
     {
+        //augments error
         return -1;
     }
 
-    shadow_ivi = (IVI_shadow_t *)handler;
-    head = TAILQ_FIRST(&(shadow_ivi->ivi_queue));
-    tail = TAILQ_LAST(&(shadow_ivi->ivi_queue), TQ);
+    int interval_cnt = 0, max_cnt = 8;
+    IVI_shadow_t * shadow_ivi = (IVI_shadow_t *)handler;
+    struct rb_node * root = shadow_ivi->root.rb_node;
+    struct rb_node * min_overlap = __min_interval_search_from(root, left, right);
+    struct rb_node * tmp_node = min_overlap;
 
-    /* Traverse from head or tail? We need to decide */
-    if(closer_to_head(head, tail, left))
+    *segs = (IVI_seg_t **)malloc(max_cnt * sizeof(IVI_seg_t *));
+    while (tmp_node != NULL)
     {
-        tmp = head;
-        while(tmp != NULL)
+        IVI_seg_t * tmp_seg = (IVI_seg_t *)(rb_entry(tmp_node, IVI_shadow_seg_t, rb));
+        if(!__is_overlapped(tmp_seg->left, tmp_seg->right, left, right))
         {
-            if(after(left, tmp->lightseg.right))
-            {
-                tmp = TAILQ_NEXT(tmp, ENTRY);
-            }
-            else
-            {
-                /* Get the seg which left is in or before*/
-                left_tmp = tmp;
-                break;
-            }
+            break;
         }
-        if(tmp == NULL)
+        if(interval_cnt > max_cnt)
         {
-            *segs = NULL;
-            return 0;
+            max_cnt *= 2;
+            *segs = (IVI_seg_t **)realloc(*segs, max_cnt * sizeof(IVI_seg_t *));
         }
-
-        /* Get the num of overlapped segs */
-        while(tmp != NULL)
-        {
-            if(!before(right, tmp->lightseg.left))
-            {
-                tmp = TAILQ_NEXT(tmp, ENTRY);
-                interval_cnt ++;
-            }
-            else
-            {
-                break;
-            }
-        }
-
-        tmp = left_tmp;
-        if(interval_cnt == 0)
-        {
-            *segs = NULL;
-            return 0;
-        }
-        *segs = (IVI_seg_t **)malloc(interval_cnt * sizeof(IVI_seg_t *));
-        for(i = 0; i < interval_cnt; i++)
-        {
-            (*segs)[i] = (IVI_seg_t *)tmp;
-            tmp = TAILQ_NEXT(tmp, ENTRY);
-        }
-    }
-    else
-    {
-        tmp = tail;
-        while(tmp != NULL)
-        {
-            if(before(right, tmp->lightseg.left))
-            {
-                tmp = TAILQ_PREV(tmp, TQ, ENTRY);
-            }
-            else
-            {
-                right_tmp = tmp;
-                break;
-            }
-        }
-        if(tmp == NULL)
-        {
-            *segs = NULL;
-            return 0;
-        }
-
-        /* Get the num of overlapped segs */
-        while(tmp != NULL)
-        {
-            if(!after(left, tmp->lightseg.right))
-            {
-                tmp = TAILQ_PREV(tmp, TQ, ENTRY);
-                interval_cnt ++;
-            }
-            else
-            {
-                break;
-            }
-        }
-        tmp = right_tmp;
-        if(interval_cnt == 0)
-        {
-            *segs = NULL;
-            return 0;
-        }
-        *segs = (IVI_seg_t **)malloc(interval_cnt * sizeof(IVI_seg_t *));
-        for(i = interval_cnt - 1; i >= 0; i--)
-        {
-            (*segs)[i] = (IVI_seg_t *)tmp;
-            tmp = TAILQ_PREV(tmp, TQ, ENTRY);
-        }
+        (*segs)[interval_cnt] = tmp_seg;
+        interval_cnt ++;
+        tmp_node = rb_next(tmp_node);
     }
     return interval_cnt;
 }
@@ -531,129 +596,41 @@ int IVI_query(IVI_t * handler, OFFSET_TYPE left, OFFSET_TYPE right, IVI_seg_t **
  **/
 int IVI_query_continuous(IVI_t * handler, OFFSET_TYPE left, OFFSET_TYPE right, IVI_seg_t *** segs)
 {
-    IVI_shadow_t * shadow_ivi;
-    IVI_shadow_seg_t *head, *tail, *tmp, *left_tmp, *right_tmp;
-    int interval_cnt = 0, i;
-
     if(NULL == handler || after(left, right))
     {
+        //augments error
         return -1;
     }
-    shadow_ivi = (IVI_shadow_t *)handler;
-    head = TAILQ_FIRST(&(shadow_ivi->ivi_queue));
-    tail = TAILQ_LAST(&(shadow_ivi->ivi_queue), TQ);
 
+    int interval_cnt = 0, max_cnt = 8;
+    IVI_shadow_t * shadow_ivi = (IVI_shadow_t *)handler;
+    struct rb_node * root = shadow_ivi->root.rb_node;
+    struct rb_node * min_overlap = __min_interval_search_from(root, left, right);
+    struct rb_node * tmp_node = min_overlap;
 
-
-    /* Traverse from head or tail? We need to decide */
-    if(closer_to_head(head, tail, left))
+    *segs = (IVI_seg_t **)malloc(max_cnt * sizeof(IVI_seg_t *));
+    while (tmp_node != NULL)
     {
-        tmp = head;
-        while(tmp != NULL)
+        IVI_seg_t * tmp_seg = (IVI_seg_t *)(rb_entry(tmp_node, IVI_shadow_seg_t, rb));
+        if(!__is_overlapped(tmp_seg->left, tmp_seg->right, left, right))
         {
-            if(after(left, tmp->lightseg.right))
-            {
-                tmp = TAILQ_NEXT(tmp, ENTRY);
-            }
-            else
-            {
-                /* Get the seg which left is in or before*/
-                left_tmp = tmp;
-                break;
-            }
+            break;
         }
-        if(tmp == NULL)
+        if(interval_cnt > max_cnt)
         {
-            *segs = NULL;
-            return 0;
+            max_cnt += 8;
+            *segs = (IVI_seg_t **)realloc(*segs, max_cnt * sizeof(IVI_seg_t *));
         }
-
-        /* Get the num of overlapped segs */
-        while(tmp != NULL)
+        (*segs)[interval_cnt] = tmp_seg;
+        interval_cnt ++;
+        tmp_node = rb_next(tmp_node);
+        IVI_seg_t * prev_tmp_seg = tmp_seg;
+        tmp_seg = (IVI_seg_t *)(rb_entry(tmp_node, IVI_shadow_seg_t, rb));
+        if(!continuous(prev_tmp_seg->right, tmp_seg->left))
         {
-            if(!before(right, tmp->lightseg.left))
-            {
-                tmp = TAILQ_NEXT(tmp, ENTRY);
-                interval_cnt ++;
-            }
-            else
-            {
-                break;
-            }
-
-            IVI_shadow_seg_t * prev = TAILQ_PREV(tmp, TQ, ENTRY);
-            if(tmp != NULL && !continuous(prev->lightseg.right, tmp->lightseg.left))
-            {
-                break;
-            }
-        }
-
-        tmp = left_tmp;
-        if(interval_cnt == 0)
-        {
-            *segs = NULL;
-            return 0;
-        }
-        *segs = (IVI_seg_t **)malloc(interval_cnt * sizeof(IVI_seg_t *));
-        for(i = 0; i < interval_cnt; i++)
-        {
-            (*segs)[i] = (IVI_seg_t *)tmp;
-            tmp = TAILQ_NEXT(tmp, ENTRY);
+            break;
         }
     }
-    else
-    {
-        tmp = tail;
-        while(tmp != NULL)
-        {
-            if(before(right, tmp->lightseg.left))
-            {
-                tmp = TAILQ_PREV(tmp, TQ, ENTRY);
-            }
-            else
-            {
-                right_tmp = tmp;
-                break;
-            }
-        }
-        if(tmp == NULL)
-        {
-            *segs = NULL;
-            return 0;
-        }
-
-        /* Get the num of overlapped segs */
-        while(tmp != NULL)
-        {
-            if(!after(left, tmp->lightseg.right))
-            {
-                tmp = TAILQ_PREV(tmp, TQ, ENTRY);
-                interval_cnt ++;
-            }
-            else
-            {
-                break;
-            }
-            IVI_shadow_seg_t * next = TAILQ_NEXT(tmp, ENTRY);
-            if(tmp != NULL && !continuous(tmp->lightseg.right, next->lightseg.left))
-            {
-                break;
-            }
-        }
-        tmp = right_tmp;
-        if(interval_cnt == 0)
-        {
-            *segs = NULL;
-            return 0;
-        }
-        *segs = (IVI_seg_t **)malloc(interval_cnt * sizeof(IVI_seg_t *));
-        for(i = interval_cnt - 1; i >= 0; i--)
-        {
-            (*segs)[i] = (IVI_seg_t *)tmp;
-            tmp = TAILQ_PREV(tmp, TQ, ENTRY);
-        }
-    }
-
     return interval_cnt;
 }
 
@@ -698,6 +675,41 @@ OFFSET_TYPE IVI_seg_length(IVI_t * handler)
 }
 
 
+/**
+ * Name:
+ *     IVI_mem_occupy
+ * Description:
+ *     Get the memory occupy of given interval index handler
+ * Params:
+ *     handler: The handler of InterVal Index created by IVI_create.
+ * Return:
+ *     Return the memory occupy of given interval index handler
+ **/
+unsigned long long IVI_mem_occupy(IVI_t * handler)
+{
+    if(handler == NULL)
+        return 0;
+    IVI_shadow_t * shadow_ivi = (IVI_shadow_t *)handler;
+    return shadow_ivi->mem_occupy;
+}
+
+
+static void __inorder_traverse(struct rb_node * root, IVI_callback_t cb, void * usr_para)
+{
+    if(root == NULL)
+    {
+        return;
+    }
+
+    /* save first in case of root is freed in callback */
+    struct rb_node * left_node = root->rb_left;
+    struct rb_node * right_node = root->rb_right;
+    __inorder_traverse(left_node, cb, usr_para);
+    IVI_seg_t * seg = (IVI_seg_t *)(rb_entry(root, IVI_shadow_seg_t, rb));
+    cb(seg, usr_para);
+    __inorder_traverse(right_node, cb, usr_para);
+    return;
+}
 
 /**
  * Name:
@@ -720,17 +732,6 @@ void IVI_traverse(IVI_t * handler, IVI_callback_t cb, void * usr_para)
     }
 
     IVI_shadow_t * shadow_ivi = (IVI_shadow_t *)handler;
-    IVI_shadow_seg_t * tmp_seg = TAILQ_FIRST(&(shadow_ivi->ivi_queue));
-    IVI_shadow_seg_t * tmp;
-    /* Traverse the IVI */
-    while(tmp_seg != NULL)
-    {
-        /*
-         * The place we can't use TAILQ_FOREACH because we
-         * do not no what will callback funciton does.
-         * */
-        tmp = TAILQ_NEXT(tmp_seg, ENTRY);
-        cb((IVI_seg_t *)tmp_seg, usr_para);
-        tmp_seg = tmp;
-    }
+    __inorder_traverse(shadow_ivi->root.rb_node, cb, usr_para);
+    return;
 }

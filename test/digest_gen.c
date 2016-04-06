@@ -6,7 +6,7 @@
 #include<sys/stat.h>
 #include<time.h>
 #include<math.h>
-#include "mesa_fuzzy.h"
+#include "../entry/mesa_fuzzy.h"
 
 void* entropy_start(void)
 {

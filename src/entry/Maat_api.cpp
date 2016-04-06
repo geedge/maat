@@ -1322,7 +1322,7 @@ inline int REACH_QUERY_THRESH(unsigned long long total_len,unsigned long long ac
 //	{
 //		return 1;
 //	}
-	if(rate<(unsigned long long)(point_size+QUERY_MIN_RATE))
+	if(rate>(unsigned long long)(point_size+QUERY_MIN_RATE))
 	{
 		return 0;
 	}
