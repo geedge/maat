@@ -794,7 +794,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 									region_result,sizeof(scan_result_t),offsetof(scan_result_t, tag),
 									hit_region_cnt,
 									result,compile_result,rule_num);
-		if(hit_detail!=NULL||_feather->rule_scan_type==0)
+		if(hit_detail!=NULL&&_feather->rule_scan_type!=0)
 		{
 			*detail_ret=fill_region_hit_detail(data,_mid->inner,										
 											region_result,hit_region_cnt,
@@ -1193,7 +1193,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 							region_result,sizeof(scan_result_t),offsetof(scan_result_t, tag),
 							hit_region_cnt,
 							result,compile_result,rule_num);
-		if(hit_detail!=NULL||sp->feather->rule_scan_type==0)
+		if(hit_detail!=NULL&&sp->feather->rule_scan_type!=0)
 		{
 			if(sp->scan_buff!=NULL)
 			{
