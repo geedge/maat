@@ -429,15 +429,9 @@ int main(int argc,char* argv[])
 	scan_status_t mid=NULL;
 	void *logger=MESA_create_runtime_log_handle(log_file,0);
 
-/*	feather=Maat_summon_feather_json(g_iThreadNum, 
-									table_info_path, 
-									json_path, 
-									logger);
-*/							
-//	feather=Maat_summon_feather(g_iThreadNum,table_info_path,ful_cfg_dir,inc_cfg_dir,logger);
 	feather=Maat_feather(g_iThreadNum, table_info_path, logger);
-	Maat_set_feather_opt(feather, MAAT_OPT_JSON_FILE_PATH, json_path, sizeof(json_path)+1);
-	Maat_set_feather_opt(feather, MAAT_OPT_STAT_FILE_PATH, stat_file, strlen(stat_file));
+	Maat_set_feather_opt(feather, MAAT_OPT_JSON_FILE_PATH, json_path, strlen(json_path)+1);
+	Maat_set_feather_opt(feather, MAAT_OPT_STAT_FILE_PATH, stat_file, strlen(stat_file)+1);
 	Maat_set_feather_opt(feather, MAAT_OPT_STAT_ON, NULL, 0);
 	Maat_set_feather_opt(feather, MAAT_OPT_PERF_ON, NULL, 0);
 	Maat_set_feather_opt(feather, MAAT_OPT_SCAN_DETAIL, &scan_detail, sizeof(scan_detail));
