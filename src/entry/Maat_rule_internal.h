@@ -12,7 +12,7 @@
 
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
-
+#include "aligment_int64.h"
 #include <pthread.h>
 #include <iconv.h>
 
@@ -31,7 +31,6 @@ typedef int atomic_t;
 #else 
 #include <alsa/iatomic.h>
 #endif 
-#define	CPU_CACHE_ALIGMENT	64
 #define	TRUE	1
 #define	FALSE	0
 
@@ -241,16 +240,15 @@ struct _Maat_table_info_t
 	struct _plugin_table_info *cb_info;
 //for stat>>>>>>>>
 	int stat_line_id;
-	long long scan_cnt;
-	long long scan_cpu_time;	//nano
-	long long input_bytes;
-	long long stream_num;
-	long long hit_cnt;
+	mcore_long_t  scan_cnt;
+	mcore_long_t  scan_cpu_time;	//nano
+	mcore_long_t  input_bytes;
+	mcore_long_t  stream_num;
+	mcore_long_t  hit_cnt;
 };
 
 struct _INNER_scan_status_t
 {
-	int thread_num;
 	int cur_hit_cnt;
 	int hit_group_cnt;
 	int hit_group_size;
@@ -260,7 +258,8 @@ struct _INNER_scan_status_t
 struct _OUTER_scan_status_t
 {
 	struct _Maat_feather_t* feather;
-	int is_set_district;
+	unsigned short thread_num;
+	unsigned short is_set_district;
 	int district_id;
 	struct _INNER_scan_status_t* inner;
 };
@@ -345,10 +344,10 @@ struct _Maat_feather_t
 	int total_stat_id;
 	int fs_status_id[MAX_MAAT_STAT_NUM];
 	int fs_column_id[MAX_MAAT_STAT_NUM];
-	long long outer_mid_cnt;
-	long long inner_mid_cnt;
-	long long hit_cnt;
-	long long *thread_call_cnt;//size indicate by scan_thread_num, 
+	mcore_long_t outer_mid_cnt;
+	mcore_long_t inner_mid_cnt;
+	mcore_long_t hit_cnt;
+	mcore_long_t thread_call_cnt;//size indicate by scan_thread_num, 
 };
 struct _maat_garbage_t
 {
@@ -367,7 +366,7 @@ struct _maat_garbage_t
 void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbage_q);
 void garbage_bury(MESA_lqueue_head garbage_q,void *logger);
 void make_group_set(const struct _Maat_compile_rule_t* compile_rule,universal_bool_expr_t* a_set);
-int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path,void*logger);
+int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger);
 void maat_start_cb(unsigned int new_version,int update_type,void*u_para);
 void maat_update_cb(const char* table_name,const char* line,void *u_para);
 void maat_finish_cb(void* u_para);
@@ -383,7 +382,7 @@ inline void ipv6_ntoh(unsigned int *v6_addr)
 	return;
 }
 void maat_stat_init(struct _Maat_feather_t* feather);
-void maat_stat_table(struct _Maat_table_info_t* p_table,int scan_len,struct timespec* start, struct timespec* end);
+void maat_stat_table(struct _Maat_table_info_t* p_table,int scan_len,struct timespec* start, struct timespec* end,int thread_num);
 void maat_stat_output(struct _Maat_feather_t* feather);
 
 

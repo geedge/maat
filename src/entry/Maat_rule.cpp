@@ -26,7 +26,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_7_20160425=1;
+int MAAT_FRAME_VERSION_1_7_20160509=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -377,7 +377,29 @@ int HASH_delete_by_id(MESA_htable_handle hash,int id)
 	ret=MESA_htable_del(hash,(unsigned char*)&id, sizeof(id), NULL);
 	return ret;
 }
-int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path,void* logger)
+_Maat_table_info_t* create_table_info(int max_thread_num)
+{
+	struct _Maat_table_info_t*p=NULL;
+	p=(struct _Maat_table_info_t*)calloc(sizeof(struct _Maat_table_info_t),1);
+	p->scan_cnt=aligment_int64_array_alloc(max_thread_num);
+	p->scan_cpu_time=aligment_int64_array_alloc(max_thread_num);
+	p->input_bytes=aligment_int64_array_alloc(max_thread_num);
+	p->stream_num=aligment_int64_array_alloc(max_thread_num);
+	p->hit_cnt=aligment_int64_array_alloc(max_thread_num);
+	p->cross_cache_size=0;
+	return p;
+}
+void destroy_table_info(struct _Maat_table_info_t*p)
+{
+	aligment_int64_array_free(p->scan_cnt);
+	aligment_int64_array_free(p->scan_cpu_time);
+	aligment_int64_array_free(p->input_bytes);
+	aligment_int64_array_free(p->stream_num);
+	aligment_int64_array_free(p->hit_cnt);
+	free(p);
+	return;
+}
+int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger)
 {
 	FILE*fp=NULL;
 	char line[MAX_TABLE_LINE_SIZE];
@@ -434,8 +456,8 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 		{
 			continue;
 		}
-		p=(struct _Maat_table_info_t*)calloc(sizeof(struct _Maat_table_info_t),1);
-		p->cross_cache_size=0;
+		p=create_table_info(max_thread_num);
+
 		sscanf(line,"%hu\t%s\t%s\t%s\t%s\t%s\t%d",&(p->table_id)
 											,p->table_name
 											,table_type
@@ -506,7 +528,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 		table_cnt++;
 		continue;
 error_jump:
-		free(p);
+		destroy_table_info(p);
 		p=NULL;
 	}
 	fclose(fp);
@@ -2613,10 +2635,13 @@ void *thread_rule_monitor(void *arg)
 				free(lines);
 			}
 		}
-		free(feather->p_table_info[i]);
+		destroy_table_info(feather->p_table_info[i]);
 		feather->p_table_info[i]=NULL;
 	}
-	free(feather->thread_call_cnt);
+	aligment_int64_array_free(feather->thread_call_cnt);
+	aligment_int64_array_free(feather->inner_mid_cnt);
+	aligment_int64_array_free(feather->outer_mid_cnt);
+	aligment_int64_array_free(feather->hit_cnt);
 	free(feather);
 	return NULL;
 }
