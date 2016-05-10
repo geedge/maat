@@ -116,8 +116,8 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	struct _Maat_table_info_t* p_table=NULL;
 	time(&now);
 	active_thread_num=aligment_int64_array_cnt(feather->thread_call_cnt, feather->scan_thread_num);
-	outer_mid_cnt=aligment_int64_array_cnt(feather->outer_mid_cnt,feather->scan_thread_num);
-	inner_mid_cnt=aligment_int64_array_cnt(feather->inner_mid_cnt,feather->scan_thread_num);
+	outer_mid_cnt=aligment_int64_array_sum(feather->outer_mid_cnt,feather->scan_thread_num);
+	inner_mid_cnt=aligment_int64_array_sum(feather->inner_mid_cnt,feather->scan_thread_num);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_VERSION], 0,FS_OP_SET,feather->maat_version);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_THRED_NUM], 0,FS_OP_SET,active_thread_num);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_TABLE_NUM], 0,FS_OP_SET,feather->table_cnt);
