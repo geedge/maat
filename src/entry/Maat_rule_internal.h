@@ -348,6 +348,8 @@ struct _Maat_feather_t
 	mcore_long_t inner_mid_cnt;
 	mcore_long_t hit_cnt;
 	mcore_long_t thread_call_cnt;//size indicate by scan_thread_num, 
+	long long total_scan_bytes;
+	long long total_scan_cnt;
 };
 struct _maat_garbage_t
 {

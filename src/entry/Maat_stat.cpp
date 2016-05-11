@@ -238,6 +238,8 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 				feather->fs_column_id[COLUMN_TABLE_HIT_CNT], 
 				FS_OP_SET,
 				total_hit_cnt);
+	feather->total_scan_bytes=total_input_bytes;
+	feather->total_scan_cnt=total_scan_cnt;
 	FS_passive_output(feather->stat_handle);
 	return;
 }
