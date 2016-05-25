@@ -26,7 +26,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_7_20160510=1;
+int MAAT_FRAME_VERSION_1_7_20160525=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -2441,7 +2441,10 @@ void maat_start_cb(unsigned int new_version,int update_type,void*u_para)
 		p_table_cb=p_table->cb_info;
 		for(j=0;j<p_table_cb->cb_plug_cnt;j++)
 		{
-			p_table_cb->cb_plug[j].start(update_type,p_table_cb->cb_plug[j].u_para);
+			if(p_table_cb->cb_plug[j].start!=NULL)
+			{
+				p_table_cb->cb_plug[j].start(update_type,p_table_cb->cb_plug[j].u_para);
+			}
 		}
 	}
 	return;
@@ -2471,7 +2474,10 @@ void maat_finish_cb(void* u_para)
 		p_table_cb=p_table->cb_info;
 		for(j=0;j<p_table_cb->cb_plug_cnt;j++)
 		{
-			p_table_cb->cb_plug[j].finish(p_table_cb->cb_plug[j].u_para);
+			if(p_table_cb->cb_plug[j].finish!=NULL)
+			{
+				p_table_cb->cb_plug[j].finish(p_table_cb->cb_plug[j].u_para);
+			}
 		}
 	}
 	if(feather->update_tmp_scanner!=NULL)
@@ -2485,7 +2491,7 @@ void maat_finish_cb(void* u_para)
 								"Full config version %u load %d entries complete.",
 								feather->update_tmp_scanner->version,feather->update_tmp_scanner->cfg_num);	
 	}
-	else
+	else if(feather->scanner!=NULL)
 	{
 		feather->scanner->cfg_num=total;
 		feather->scanner->version=feather->maat_version;
@@ -2505,6 +2511,12 @@ void maat_finish_cb(void* u_para)
 									"Postpone config version %u %d entries load to rulescan.",
 									feather->scanner->version,feather->scanner->cfg_num);
 		}
+	}
+	else
+	{
+		 MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
+                                                                        "Version %d have no valid scan rules, plugin callback complete.",
+                                                                        feather->maat_version);
 	}
 	return;
 }

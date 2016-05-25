@@ -690,7 +690,10 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 	p_table->cb_info->cb_plug[idx].u_para=u_para;
 	if(p_table->cb_info->line_num>0)
 	{
-		start(MAAT_RULE_UPDATE_TYPE_FULL,u_para);
+		if(start!=NULL)
+		{
+			start(MAAT_RULE_UPDATE_TYPE_FULL,u_para);
+		}
 		for(i=0;i<p_table->cb_info->line_num;i++)
 		{
 			lines=(const char*)dynamic_array_read(p_table->cb_info->cache_lines,i);
@@ -700,7 +703,10 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 			}
 			update(table_id,lines,u_para);
 		}
-		finish(u_para);
+		if(finish!=NULL)
+		{
+			finish(u_para);
+		}
 	}
 	pthread_mutex_unlock(&(p_table->cb_info->plugin_mutex));
 	return 1;
