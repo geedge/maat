@@ -1352,6 +1352,7 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	GIE_result_t query_result[MAX_SCANNER_HIT_NUM];
 	int hit_region_cnt=0,compile_ret=0;
 	_compile_result_t compile_result[rule_num];//dynamic array
+	//TODO: scanner ==NULL
 	GIE_handle_t* GIE_handle=sp->feather->scanner->digest_handle[sp->table_id];
 	unsigned long long digest_len=0;
 	char* digest_buff=NULL;
