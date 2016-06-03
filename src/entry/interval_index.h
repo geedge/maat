@@ -6,7 +6,7 @@
  *       (3) The interval supports rollback.
  *
  *   author: zhengchao@iie.ac.cn  tangqi@iie.ac.cn
- *   last modify time: 2015-08-29
+ *   last modify time: 2015-12-04
  *************************************************************************/
 
 #ifndef _INTERVAL_INDEX_H_
@@ -16,12 +16,11 @@
 extern "C"{
 #endif
 
-#include "queue.h"
 
 #define SIZE_8
 
 #ifdef  SIZE_8
-typedef unsigned long long  OFFSET_TYPE;
+typedef unsigned long long OFFSET_TYPE;
 typedef signed long long S_OFFSET_TYPE;
 #else
 typedef unsigned int OFFSET_TYPE;
@@ -61,6 +60,10 @@ static inline int continuous(OFFSET_TYPE prev, OFFSET_TYPE next)
 }
 
 
+IVI_seg_t * IVI_first_seg(IVI_t * handler);
+IVI_seg_t * IVI_last_seg(IVI_t * handler);
+IVI_seg_t * IVI_prev_seg(IVI_seg_t * seg);
+IVI_seg_t * IVI_next_seg(IVI_seg_t * seg);
 IVI_seg_t * IVI_prev_continuous_seg(IVI_seg_t * seg);
 IVI_seg_t * IVI_next_continuous_seg(IVI_seg_t * seg);
 
@@ -71,22 +74,22 @@ IVI_seg_t * IVI_next_continuous_seg(IVI_seg_t * seg);
 typedef enum __Relation_t{
     LEFT_NO_OVERLAP = 1,                //  |___A___|
                                         //             |___B___|
-                            
+
     LEFT_OVERLAP,                       //  |___A___|
                                         //        |___B___|
 
     CONTAINED,                          //   |___A___|
                                         // |_____B_____|
-                                        
+
     CONTAIN,                            // |_____A_____|
                                         //   |___B___|
-                                        
+
     RIGHT_OVERLAP,                      //        |___A___|
                                         //  |___B___|
-                                        
+
     RIGHT_NO_OVERLAP,                   //             |___A___|
                                         //  |___B___|
-    
+
     ERROR
 }Relation_t;
 
@@ -272,6 +275,18 @@ int IVI_seg_cnt(IVI_t * handler);
  **/
 OFFSET_TYPE IVI_seg_length(IVI_t * handler);
 
+
+/**
+ * Name:
+ *     IVI_mem_occupy
+ * Description:
+ *     Get the memory occupy of given interval index handler
+ * Params:
+ *     handler: The handler of InterVal Index created by IVI_create.
+ * Return:
+ *     Return the memory occupy of given interval index handler
+ **/
+unsigned long long IVI_mem_occupy(IVI_t * handler);
 
 
 /**

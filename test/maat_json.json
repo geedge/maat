@@ -181,8 +181,117 @@
                             "table_type": "digest",
                             "table_content": {
                                 "raw_len": 1160164,
-                                "digest": "FsOmaK3utZafWYt/i[7203:46299992]",
+                                "digest": "12288:UChtbFS6pypdTy4m2[0:1160163]",
                                 "cfds_level": 3
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 128,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "effective_rage": 0,
+            "user_region": "anything",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "group_8",
+                    "regions": [
+                        {
+                            "table_name": "HTTP_REGION",
+                            "table_type": "expr_plus",
+                            "table_content": {
+                            		"district": "URL",
+                                "keywords": "abckkk&123",
+                                "expr_type": "and",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 129,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "effective_rage": 0,
+            "user_region": "utf8_中文",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "group_9",
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "string",
+                            "table_content": {
+                                "keywords": "C#中国",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 130,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "effective_rage": 0,
+            "user_region": "utf8_维语",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "group_10",
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "string",
+                            "table_content": {
+                                "keywords": "2010&يىلىدىكى",
+                                "expr_type": "and",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 131,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "effective_rage": 0,
+            "user_region": "utf8_维语2",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "group_11",
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "string",
+                            "table_content": {
+                                "keywords": "سىياسىي",
+                                "expr_type": "and",
+                                "match_method": "sub",
+                                "format": "uncase plain"
                             }
                         }
                     ]

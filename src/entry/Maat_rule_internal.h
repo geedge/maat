@@ -5,13 +5,14 @@
 
 #include <MESA/MESA_htable.h>
 #include <MESA/MESA_list_queue.h>
+#include <MESA/field_stat2.h>
 #include "dynamic_array.h"
 #include "UniversalBoolMatch.h"
 #include "rulescan.h"
 
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
-
+#include "aligment_int64.h"
 #include <pthread.h>
 #include <iconv.h>
 
@@ -30,15 +31,15 @@ typedef int atomic_t;
 #else 
 #include <alsa/iatomic.h>
 #endif 
-#define	CPU_CACHE_ALIGMENT	64
 #define	TRUE	1
 #define	FALSE	0
 
 #define	MAX_TABLE_NUM			256
-#define	MAX_CHARSET_NUM			6
+#define	MAX_CHARSET_NUM			16
 #define	MAX_TABLE_NAME_LEN		256
 #define	MAX_TABLE_LINE_SIZE		(1024*4)
 #define	MAX_EXPR_KEYLEN			1024
+#define	MAX_DISTRICT_LEN			64
 #define	MAX_PLUGING_NUM			32
 
 #define	MAX_SCANNER_HIT_NUM		64
@@ -47,6 +48,7 @@ typedef int atomic_t;
 
 #define	MAX_FAILED_NUM		128
 
+#define	MAX_MAAT_STAT_NUM	64
 #ifndef MAX
 #define MAX(a, b)  	(((a) > (b)) ? (a) : (b))
 #endif
@@ -74,6 +76,7 @@ enum MAAT_TABLE_TYPE
 	TABLE_TYPE_PLUGIN,
 	TABLE_TYPE_INTVAL,
 	TABLE_TYPE_DIGEST,
+	TABLE_TYPE_EXPR_PLUS,
 	TABLE_TYPE_GROUP
 
 };
@@ -91,11 +94,13 @@ enum MAAT_MATCH_METHOD
 	MATCH_METHOD_LEFT,
 	MATCH_METHOD_FULL
 };
+
 struct db_str_rule_t
 {
 	int region_id;
 	int group_id;
 	char keywords[MAX_EXPR_KEYLEN];
+	char district[MAX_DISTRICT_LEN];
 	enum MAAT_EXPR_TYPE expr_type;
 	enum MAAT_MATCH_METHOD match_method;
 	int is_hexbin;
@@ -162,12 +167,14 @@ struct op_expr_t
 {
 	boolean_expr_t* p_expr;
 	scan_rule_t* p_rules[MAAT_MAX_EXPR_ITEM_NUM];
+	int no_effect_convert_cnt;
 };
 
 struct _Maat_region_rule_t
 {
 	int region_id;
 	int expr_id;
+	int district_id;
 	enum MAAT_TABLE_TYPE region_type;
 };
 struct _Maat_group_rule_t
@@ -223,19 +230,41 @@ struct _Maat_table_info_t
 	int do_charset_merge;
 	int cfg_num;
 	int cross_cache_size;
-	int expr_rule_cnt;	//expr_type=0,1,3
-	int regex_rule_cnt;	//expr_type=2
+	union
+	{
+		int expr_rule_cnt;	//expr_type=0,1,3
+		int ipv4_rule_cnt;
+	};
+	union
+	{
+		int regex_rule_cnt;	//expr_type=2
+		int ipv6_rule_cnt;
+	};
 	struct _plugin_table_info *cb_info;
+//for stat>>>>>>>>
+	int stat_line_id;
+	mcore_long_t  scan_cnt;
+	mcore_long_t  scan_cpu_time;	//nano
+	mcore_long_t  input_bytes;
+	mcore_long_t  stream_num;
+	mcore_long_t  hit_cnt;
 };
-struct _scan_status_t
+
+struct _INNER_scan_status_t
 {
-	struct _Maat_feather_t* feather;
-	int thread_num;
 	int cur_hit_cnt;
 	int hit_group_cnt;
 	int hit_group_size;
 	unsigned int cur_hit_id[MAX_SCANNER_HIT_NUM];
 	unsigned int *hitted_group_id;
+};
+struct _OUTER_scan_status_t
+{
+	struct _Maat_feather_t* feather;
+	unsigned short thread_num;
+	unsigned short is_set_district;
+	int district_id;
+	struct _INNER_scan_status_t* inner;
 };
 enum maat_garbage_type
 {
@@ -273,13 +302,15 @@ struct _Maat_scanner_t
 {
 	int version;
 	time_t last_update_time;
-	int *ref_cnt;	//optimized for cache_alignment 64
+	long long *ref_cnt;	//optimized for cache_alignment 64
 	rule_scanner_t region;
 	pthread_rwlock_t digest_rwlock[MAX_TABLE_NUM];
 	GIE_handle_t*	digest_handle[MAX_TABLE_NUM];
 	MESA_htable_handle region_hash;
 	MESA_htable_handle group_hash;
 	MESA_htable_handle compile_hash;
+	MESA_htable_handle district_map;
+	unsigned int district_num;
 	unsigned int cfg_num;
 	unsigned int exprid_generator;
 	MESA_lqueue_head region_update_q;
@@ -296,17 +327,32 @@ struct _Maat_feather_t
 	struct _Maat_scanner_t *update_tmp_scanner;
 	MESA_lqueue_head garbage_q;
 	int table_cnt;
+	int GROUP_MODE_ON;
+	int still_working;
+	int scan_interval_ms;
+	int effect_interval_ms;
+	int stat_on;
+	int perf_on;
 	struct _Maat_table_info_t *p_table_info[MAX_TABLE_NUM];
 	MESA_htable_handle map_tablename2id;
 	void* logger;
 	int maat_version;
 	int scan_thread_num;
+	int rule_scan_type;
 	char inc_dir[MAX_TABLE_NAME_LEN];
 	char full_dir[MAX_TABLE_NAME_LEN];
-	int GROUP_MODE_ON;
-	int still_working;
-	int scan_interval_ms;
-	int effect_interval_ms;
+	char stat_file[MAX_TABLE_NAME_LEN];
+//for stat>>>>
+	screen_stat_handle_t stat_handle;
+	int total_stat_id;
+	int fs_status_id[MAX_MAAT_STAT_NUM];
+	int fs_column_id[MAX_MAAT_STAT_NUM];
+	mcore_long_t outer_mid_cnt;
+	mcore_long_t inner_mid_cnt;
+	mcore_long_t hit_cnt;
+	mcore_long_t thread_call_cnt;//size indicate by scan_thread_num, 
+	long long total_scan_bytes;
+	long long total_scan_cnt;
 };
 struct _maat_garbage_t
 {
@@ -325,7 +371,7 @@ struct _maat_garbage_t
 void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbage_q);
 void garbage_bury(MESA_lqueue_head garbage_q,void *logger);
 void make_group_set(const struct _Maat_compile_rule_t* compile_rule,universal_bool_expr_t* a_set);
-int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path,void*logger);
+int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger);
 void maat_start_cb(unsigned int new_version,int update_type,void*u_para);
 void maat_update_cb(const char* table_name,const char* line,void *u_para);
 void maat_finish_cb(void* u_para);
@@ -340,5 +386,11 @@ inline void ipv6_ntoh(unsigned int *v6_addr)
 	}
 	return;
 }
+void maat_stat_init(struct _Maat_feather_t* feather);
+void maat_stat_table(struct _Maat_table_info_t* p_table,int scan_len,struct timespec* start, struct timespec* end,int thread_num);
+void maat_stat_output(struct _Maat_feather_t* feather);
+
+
+
 #endif
 

@@ -89,7 +89,7 @@ int set_iris_descriptor(const char* json_file,cJSON *json,struct iris_descriptio
 	hargs.thread_safe=1;
 	hargs.hash_slot_size = 1024;
 	hargs.max_elem_num = 0;
-	hargs.eliminate_type = HASH_ELIMINATE_ALGO_LRU;
+	hargs.eliminate_type = HASH_ELIMINATE_ALGO_FIFO;
 	hargs.expire_time = 0;
 	hargs.key_comp = NULL;
 	hargs.key2index = NULL;
@@ -110,8 +110,11 @@ int set_iris_descriptor(const char* json_file,cJSON *json,struct iris_descriptio
 	
 	map_register(iris_cfg->str2int_map, "ip",TABLE_TYPE_IP);
 	map_register(iris_cfg->str2int_map, "string",TABLE_TYPE_EXPR);
+	map_register(iris_cfg->str2int_map, "expr",TABLE_TYPE_EXPR);
+	map_register(iris_cfg->str2int_map, "expr_plus",TABLE_TYPE_EXPR_PLUS);
 	map_register(iris_cfg->str2int_map, "intval",TABLE_TYPE_INTVAL);
 	map_register(iris_cfg->str2int_map, "digest",TABLE_TYPE_DIGEST);
+
 	
 	map_register(iris_cfg->str2int_map, "ipv4",4);
 	map_register(iris_cfg->str2int_map, "ipv6",6);
@@ -364,7 +367,7 @@ int write_ip_rule(cJSON *region_json,struct iris_description_t *p_iris,const cha
 	
 	return direct_write_rule(region_json, p_iris->str2int_map,json_cmd, cmd_cnt,path,logger);
 }
-int write_expr_rule(cJSON *region_json,struct iris_description_t *p_iris,const char* path,void * logger)
+int write_expr_rule(cJSON *region_json,struct iris_description_t *p_iris,const char* path,enum MAAT_TABLE_TYPE table_type,void * logger)
 {
 	struct traslate_command_t json_cmd[MAX_COLUMN_NUM];
 	int cmd_cnt=0;
@@ -378,6 +381,13 @@ int write_expr_rule(cJSON *region_json,struct iris_description_t *p_iris,const c
 	json_cmd[cmd_cnt].json_type=cJSON_Number;
 	cmd_cnt++;
 	
+	if(table_type==TABLE_TYPE_EXPR_PLUS)
+	{
+		json_cmd[cmd_cnt].json_string="district";
+		json_cmd[cmd_cnt].json_type=cJSON_String;
+		cmd_cnt++;
+	}
+
 	json_cmd[cmd_cnt].json_string="keywords";
 	json_cmd[cmd_cnt].json_type=cJSON_String;
 	cmd_cnt++;
@@ -598,7 +608,8 @@ int write_region_rule(cJSON* region_json,int compile_id,int group_id,iris_descri
 	switch(table_type)
 	{
 		case TABLE_TYPE_EXPR:
-			ret=write_expr_rule(table_content, p_iris, table_info->table_path, logger);
+		case TABLE_TYPE_EXPR_PLUS:
+			ret=write_expr_rule(table_content, p_iris, table_info->table_path,table_type, logger);
 			break;
 		case TABLE_TYPE_IP:
 			ret=write_ip_rule(table_content, p_iris, table_info->table_path, logger);
