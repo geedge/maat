@@ -167,6 +167,7 @@ struct op_expr_t
 {
 	boolean_expr_t* p_expr;
 	scan_rule_t* p_rules[MAAT_MAX_EXPR_ITEM_NUM];
+	int no_effect_convert_cnt;
 };
 
 struct _Maat_region_rule_t

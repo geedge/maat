@@ -26,7 +26,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_7_20160525=1;
+int MAAT_FRAME_VERSION_1_8_20160603=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -764,6 +764,7 @@ struct op_expr_t* create_op_expr(unsigned int expr_id,int operation,void* u_para
 {
 	struct op_expr_t* op_expr=NULL;
 	op_expr=(struct op_expr_t*)calloc(sizeof(struct op_expr_t),1);
+	op_expr->no_effect_convert_cnt=0;
 	op_expr->p_expr=(boolean_expr_t*)calloc(sizeof(boolean_expr_t),1);
 	op_expr->p_expr->expr_id=expr_id;
 	op_expr->p_expr->operation=operation;
@@ -1450,13 +1451,10 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 						free(region_string);
 						continue;
 					}
-					//if convert take no effect and src charset is one of the dst.
 					if(region_str_len==(int)strlen(sub_key_array[k])&&
-						0==memcmp(sub_key_array[k],region_string,region_str_len)&&
-						TRUE==table->src_charset_in_dst)
+						0==memcmp(sub_key_array[k],region_string,region_str_len))
 					{
-						free(region_string);
-						continue;
+						op_expr->no_effect_convert_cnt++;;
 					}
 				}
 				else
@@ -1475,7 +1473,16 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 				free(region_string);
 				region_string=NULL;
 			}
-			MESA_lqueue_join_tail(scanner->region_update_q,&op_expr, sizeof(void*));
+			//if each sub string's convert take no effect and src charset is one of the dst.
+			if(TRUE==table->src_charset_in_dst&&op_expr->no_effect_convert_cnt==sub_expr_cnt)
+			{
+				destroy_op_expr(op_expr);
+				op_expr=NULL;
+			}
+			else
+			{
+				MESA_lqueue_join_tail(scanner->region_update_q,&op_expr, sizeof(void*));
+			}
 		}
 	
 	}
