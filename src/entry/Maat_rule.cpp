@@ -885,7 +885,7 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,int scan_thread
 	//1.Do NOT set this option,rulescan return no hit detail as default;
 	//2.Set all STR rule to QUICK;
 	//rulescan_set_param(scanner->region,RULESCAN_DETAIL_RESULT,);
-	rulescan_set_param(scanner->region,RULESCAN_QUICK_SUBTYPE,NULL,0);
+	rulescan_set_param(scanner->region,RULESCAN_QUICK_SCAN,NULL,0);
 	scanner->tomb_ref=tomb;
 	scanner->region_rslt_buff=(scan_result_t*)malloc(sizeof(scan_result_t)*MAX_SCANNER_HIT_NUM*scan_thread_num);
 

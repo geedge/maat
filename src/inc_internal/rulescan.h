@@ -26,9 +26,9 @@ extern "C"
 	/* rulescan_set_param函数可设置的参数类型 */
 	enum RULESCAN_PARA_NAME
 	{
-		RULESCAN_DETAIL_RESULT=1,   /* 本标志位表示：返回详细命中位置等信息 */
-		RULESCAN_REGEX_GROUP  =2,   /* 本标志位表示：返回正则表达式匹配的分组信息；开启本字段，需要先设置RULESCAN_DETAIL_RESULT标志位 */
-		RULESCAN_QUICK_SUBTYPE      /* 设置需要快速扫描的子类类型, 由用户自己定义，若设置了某个子类为快速扫描类型，则该子类不能再作为普通子类类型使用 */
+		RULESCAN_DETAIL_RESULT=1,   /* 本标志位表示：返回详细命中位置等信息, optval设为NULL，optlen设为0。默认不返回详细信息*/
+		RULESCAN_REGEX_GROUP  =2,   /* 本标志位表示：返回正则表达式匹配的分组信息；开启本字段，需要先设置RULESCAN_DETAIL_RESULT标志位,optval设为NULL，optlen设为0。默认不返回分组信息 */
+		RULESCAN_QUICK_SCAN         /* 设置需要快速扫描模式, 由用户自己定义，optval设为NULL，optlen设为0。默认设置是普通扫描模式。*/
 	};
 
 	#define MAX_REGEX_GROUP_NUM 5		 /* 对于正则表达式，所支持的最大分组的个数 */	
