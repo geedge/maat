@@ -1951,7 +1951,6 @@ void update_ip_rule(struct _Maat_table_info_t* table,const char* table_line,stru
 	char src_ip[40],mask_src_ip[40],dst_ip[40],mask_dst_ip[40];
 
 	unsigned short i_src_port,i_sport_mask,i_dst_port,i_dport_mask;
-	struct in6_addr v6_src_mask,v6_dst_mask;
 	int protocol=0,direction=0;
 	int ret=0;
 	int ret_array[8]={1},i=0;
@@ -2003,13 +2002,13 @@ void update_ip_rule(struct _Maat_table_info_t* table,const char* table_line,stru
 	{
 		ret_array[0]=inet_pton(AF_INET6,src_ip,&(ip_rule->ipv6_rule.saddr));
 		ipv6_ntoh(ip_rule->ipv6_rule.saddr);
-		ret_array[1]=inet_pton(AF_INET6,mask_src_ip,&(v6_src_mask));
-		ip_rule->ipv6_rule.smask_bits=128-cnt_maskbits(v6_src_mask);
-		
+		ret_array[1]=inet_pton(AF_INET6,mask_src_ip,&(ip_rule->ipv6_rule.smask));
+		ipv6_ntoh(ip_rule->ipv6_rule.smask);
+
 		ret_array[2]=inet_pton(AF_INET6,dst_ip,&(ip_rule->ipv6_rule.daddr));
 		ipv6_ntoh(ip_rule->ipv6_rule.daddr);
-		ret_array[3]=inet_pton(AF_INET6,mask_dst_ip,&(v6_dst_mask));
-		ip_rule->ipv6_rule.dmask_bits=128-cnt_maskbits(v6_dst_mask);
+		ret_array[3]=inet_pton(AF_INET6,mask_dst_ip,&(ip_rule->ipv6_rule.dmask));
+		ipv6_ntoh(ip_rule->ipv6_rule.dmask);
 		
 		ip_rule->ipv6_rule.min_sport=i_src_port&i_sport_mask;
 		ip_rule->ipv6_rule.max_sport=(i_src_port&i_sport_mask)+(~i_sport_mask);
