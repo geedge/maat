@@ -26,7 +26,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_8_20160603=1;
+int MAAT_FRAME_VERSION_1_8_20160607_PERF_TEST=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -880,7 +880,12 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,int scan_thread
 	scanner->ref_cnt=aligment_int64_array_alloc(scan_thread_num);
 	scanner->region_update_q=MESA_lqueue_create(0,0);
 	scanner->region=rulescan_initialize(scan_thread_num);
-	rulescan_set_param(scanner->region,rs_scan_type);
+	
+	//For best performance test:
+	//1.Do NOT set this option,rulescan return no hit detail as default;
+	//2.Set all STR rule to QUICK;
+	//rulescan_set_param(scanner->region,RULESCAN_DETAIL_RESULT,);
+	rulescan_set_param(scanner->region,RULESCAN_QUICK_SUBTYPE,NULL,0);
 	scanner->tomb_ref=tomb;
 	scanner->region_rslt_buff=(scan_result_t*)malloc(sizeof(scan_result_t)*MAX_SCANNER_HIT_NUM*scan_thread_num);
 

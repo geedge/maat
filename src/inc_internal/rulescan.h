@@ -7,7 +7,7 @@
  * All rights reserved
  *
  * Written by: LIU YANBING    (liuyanbing@iie.ac.cn)
- * Last modification: 2015-02-03
+ * Last modification: 2016-06-05
  *
  * This code is the exclusive and proprietary property of IIE-CAS and NELIST. 
  * Usage for direct or indirect commercial advantage is not allowed without 
@@ -23,12 +23,12 @@ extern "C"
 {
 #endif
 
-	/* 定义不同的扫描类型 */
-	enum ScanType
+	/* rulescan_set_param函数可设置的参数类型 */
+	enum RULESCAN_PARA_NAME
 	{
-		SCANTYPE_DEFAULT		  = 0,
-		SCANTYPE_DETAIL_RESULT    = 1,
-		SCANTYPE_REGEX_GROUP      = 2
+		RULESCAN_DETAIL_RESULT=1,   /* 本标志位表示：返回详细命中位置等信息 */
+		RULESCAN_REGEX_GROUP  =2,   /* 本标志位表示：返回正则表达式匹配的分组信息；开启本字段，需要先设置RULESCAN_DETAIL_RESULT标志位 */
+		RULESCAN_QUICK_SUBTYPE      /* 设置需要快速扫描的子类类型, 由用户自己定义，若设置了某个子类为快速扫描类型，则该子类不能再作为普通子类类型使用 */
 	};
 
 	#define MAX_REGEX_GROUP_NUM 5		 /* 对于正则表达式，所支持的最大分组的个数 */	
@@ -84,9 +84,9 @@ extern "C"
 	typedef struct _ipv6_rule_t
 	{
 		unsigned int       saddr[4];  /* 源IP地址；0表示忽略本字段 */
-		unsigned char      smask_bits;/* 源IP地址掩码位数；0表示固定IP=saddr */
+		unsigned int       smask[4];  /* 源IP地址掩码；0表示固定IP=saddr */
 		unsigned int       daddr[4];  /* 目的IP地址；0表示忽略本字段 */
-		unsigned char      dmask_bits;/* 目的IP地址掩码位数；0表示固定IP=daddr */
+		unsigned int       dmask[4];  /* 目的IP地址掩码；0表示固定IP=daddr */
 		unsigned short int min_sport; /* 源端口范围下界；0表示忽略本字段 */
 		unsigned short int max_sport; /* 源端口范围上界；0表示固定端口=min_sport */
 		unsigned short int min_dport; /* 目的端口范围下界；0表示忽略本字段 */
@@ -208,14 +208,16 @@ extern "C"
 
 	/*
 	功能：
-		设置扫描参数，本函数在rulescan_update之前可多次调用，每次设置一种扫描类型
+		设置扫描参数，本函数在rulescan_update之前可多次调用，每次设置一种扫描类型。Rulescan中默认不返回命中位置等详细信息
 	参数：
 		instance[in]:			扫描器对象指针；
-		scan_type_flag[in]:		扫描类型的标志信息，0代表不返回位置等信息；1代表返回位置等信息，但是不返回正则分组信息；2代表返回位置信息和正则分组信息
+		optname [in]:           参数类型；
+		optval [in]:            optval和optlen表示参数的具体内容；
+		optlen [in]:            optval和optlen表示参数的具体内容。
 	返回值：
 		1：正确设置，-1：设置失败。
 	*/
-	int rulescan_set_param(void * instance, int scan_type_flag);
+	int rulescan_set_param(void * instance, enum RULESCAN_PARA_NAME optname, const void * optval, unsigned int optlen);
 
 	/*
 	功能：动态注册一组与表达式，更新扫描器对象。对于同一个instance句柄，不允许同时有多个更新线程。
