@@ -1,0 +1,30 @@
+[URL50]			
+group_num       = {2}
+group_algor_0   = {AC}	
+group_algor_1   = {KRF}
+group_len_0     = {11}
+krf_scale_bits  = {5}
+[URL100]			
+group_num       = {2}
+group_algor_0   = {AC}	
+group_algor_1   = {KRF}
+group_len_0     = {11}
+krf_scale_bits  = {4}
+[URL200]			
+group_num       = {2}
+group_algor_0   = {AC}	
+group_algor_1   = {KRF}
+group_len_0     = {11}
+krf_scale_bits  = {3}
+[URL500]			
+group_num       = {2}
+group_algor_0   = {AC}	
+group_algor_1   = {KRF}
+group_len_0     = {11}
+krf_scale_bits  = {3}
+[URL1000]			
+group_num       = {2}
+group_algor_0   = {AC}	
+group_algor_1   = {KRF}
+group_len_0     = {10}
+krf_scale_bits  = {5}
