@@ -228,6 +228,7 @@ struct _Maat_table_info_t
 	int do_charset_merge;
 	int cfg_num;
 	int cross_cache_size;
+	int quick_expr_switch;
 	union
 	{
 		int expr_rule_cnt;	//expr_type=0,1,3

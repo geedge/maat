@@ -26,7 +26,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_8_20160607_PERF_TEST=1;
+int MAAT_FRAME_VERSION_1_8_20160617_PERF_TEST=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -387,6 +387,7 @@ _Maat_table_info_t* create_table_info(int max_thread_num)
 	p->stream_num=aligment_int64_array_alloc(max_thread_num);
 	p->hit_cnt=aligment_int64_array_alloc(max_thread_num);
 	p->cross_cache_size=0;
+	p->quick_expr_switch=0;
 	return p;
 }
 void destroy_table_info(struct _Maat_table_info_t*p)
@@ -458,13 +459,14 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 		}
 		p=create_table_info(max_thread_num);
 
-		sscanf(line,"%hu\t%s\t%s\t%s\t%s\t%s\t%d",&(p->table_id)
+		sscanf(line,"%hu\t%s\t%s\t%s\t%s\t%s\t%d\t%d",&(p->table_id)
 											,p->table_name
 											,table_type
 											,src_charset
 											,dst_charset
 											,merge
-											,&(p->cross_cache_size));
+											,&(p->cross_cache_size)
+											,&(p->quick_expr_switch));
 		ret[0]=map_str2int(string2int_map,strlwr(table_type),(int*)&(p->table_type));
 		ret[1]=map_str2int(string2int_map,strlwr(src_charset),(int*)&(p->src_charset));
 		ret[2]=map_str2int(string2int_map,strlwr(merge),&(p->do_charset_merge));
@@ -837,9 +839,17 @@ void destroy_digest_rule(GIE_digest_t*rule)
 	rule=NULL;
 	return;
 }
-struct _Maat_scanner_t* create_maat_scanner(unsigned int version,int scan_thread_num,MESA_lqueue_head tomb,int rs_scan_type)
+struct _Maat_scanner_t* create_maat_scanner(unsigned int version,_Maat_feather_t *feather)
 {
-	int i=0;
+	int scan_thread_num=feather->scan_thread_num;
+	MESA_lqueue_head tomb=feather->garbage_q;
+//	int rs_scan_type=feather->rule_scan_type;
+	struct _Maat_table_info_t ** pp_table=feather->p_table_info;
+	int table_cnt=feather->table_cnt;
+
+	int i=0,j=0;
+	unsigned int sub_type=0;
+	int ret=0;
 	
 	MESA_htable_create_args_t hargs;
 	memset(&hargs,0,sizeof(hargs));
@@ -883,16 +893,38 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,int scan_thread
 	
 	//For best performance test:
 	//1.Do NOT set this option,rulescan return no hit detail as default;
-	//2.Set all STR rule to QUICK;
+	//2.Set necessary STR rule to QUICK;
 	//rulescan_set_param(scanner->region,RULESCAN_DETAIL_RESULT,);
-	rulescan_set_param(scanner->region,RULESCAN_QUICK_SCAN,NULL,0);
 	scanner->tomb_ref=tomb;
 	scanner->region_rslt_buff=(scan_result_t*)malloc(sizeof(scan_result_t)*MAX_SCANNER_HIT_NUM*scan_thread_num);
 
-	for(i=0;i<MAX_TABLE_NUM;i++)
+	for(i=0;i<table_cnt;i++)
 	{
-		scanner->digest_update_q[i]=MESA_lqueue_create(0,0);
-		pthread_rwlock_init(&(scanner->digest_rwlock[i]),NULL);
+		switch(pp_table[i]->table_type)
+		{
+			case TABLE_TYPE_DIGEST:
+				scanner->digest_update_q[i]=MESA_lqueue_create(0,0);
+				pthread_rwlock_init(&(scanner->digest_rwlock[i]),NULL);
+				break;
+			case TABLE_TYPE_EXPR:
+			case TABLE_TYPE_EXPR_PLUS:
+				if(pp_table[i]->quick_expr_switch==1)
+				{
+					for(j=0;j<MAX_CHARSET_NUM&& pp_table[i]->dst_charset[j]!=CHARSET_NONE;j++)
+					{
+						sub_type=make_sub_type(pp_table[i]->table_id, pp_table[i]->dst_charset[j], pp_table[i]->do_charset_merge);
+						ret=rulescan_set_param(scanner->region,RULESCAN_QUICK_SCAN,&sub_type,sizeof(sub_type));
+						assert(ret==1);
+						if(pp_table[i]->do_charset_merge==1)
+						{
+							break;
+						}
+					}
+				}
+				break;
+			default:
+				break;
+		}
 	}
 	return scanner;
 }
@@ -1229,7 +1261,7 @@ int sync_region(MESA_htable_handle region_hash,int region_id,const char* table_n
 		if(ret<0)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-								"region id %d of table %s is not unique.",region_id,table_name);
+								"region id %d of table_char2matrix %s is not unique.",region_id,table_name);
 			return -1;
 		}
 		
@@ -1240,7 +1272,7 @@ int sync_region(MESA_htable_handle region_hash,int region_id,const char* table_n
 		if(ret==-1)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-								"region delete error,id %d in table %s does not exisit."
+								"region delete error,id %d in table_char2matrix %s does not exisit."
 								,region_id
 								,table_name);
 			return -1;
@@ -2429,7 +2461,7 @@ void maat_start_cb(unsigned int new_version,int update_type,void*u_para)
 	int i=0,j=0;
 	if(update_type==CM_UPDATE_TYPE_FULL)
 	{
-		feather->update_tmp_scanner=create_maat_scanner(new_version,feather->scan_thread_num,feather->garbage_q,feather->rule_scan_type);
+		feather->update_tmp_scanner=create_maat_scanner(new_version,feather);
 		MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
 								"Full config version %u -> %u update start",
 								feather->maat_version,new_version);
