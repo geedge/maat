@@ -110,7 +110,7 @@ int test_unescape_string_scan(Maat_feather_t feather,const char* table_name,scan
 	int table_id=0;
 	struct Maat_rule_t result[4];
 	int found_pos[4];
-	const char* scan_data="Batman\\:Take me Home&Batman";
+	const char* scan_data="Batman\\:Take me Home.Superman/:Fine,stay with me.";
 	table_id=Maat_table_register(feather,table_name);
 	if(table_id==-1)
 	{
