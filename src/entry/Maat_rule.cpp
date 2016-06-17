@@ -405,11 +405,10 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 	FILE*fp=NULL;
 	char line[MAX_TABLE_LINE_SIZE];
 	int i=0,j=0,ret[4]={0},table_cnt=0;
-	char table_type[16],src_charset[256],dst_charset[256],merge[4];
+	char table_type[16],src_charset[256],dst_charset[256],merge[4],quick_str_scan[32]={0};
 	MESA_htable_handle string2int_map=map_create();
 	char *token=NULL,*sub_token=NULL,*saveptr;
 	struct _Maat_table_info_t*p=NULL;
-	
 	map_register(string2int_map,"expr", TABLE_TYPE_EXPR);
 	map_register(string2int_map,"ip", TABLE_TYPE_IP);
 	map_register(string2int_map,"compile", TABLE_TYPE_COMPILE);
@@ -418,6 +417,8 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 	map_register(string2int_map,"digest", TABLE_TYPE_DIGEST);
 	map_register(string2int_map,"expr_plus", TABLE_TYPE_EXPR_PLUS);
 	map_register(string2int_map,"group", TABLE_TYPE_GROUP);
+	map_register(string2int_map,"quickoff",0);
+	map_register(string2int_map,"quickon",1);
 	for(i=0;i<MAX_CHARSET_NUM;i++)
 	{
 		if(strlen(CHARSET_STRING[i])>0)
@@ -459,18 +460,22 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 		}
 		p=create_table_info(max_thread_num);
 
-		sscanf(line,"%hu\t%s\t%s\t%s\t%s\t%s\t%d\t%d",&(p->table_id)
+		sscanf(line,"%hu\t%s\t%s\t%s\t%s\t%s\t%d\t%s",&(p->table_id)
 											,p->table_name
 											,table_type
 											,src_charset
 											,dst_charset
 											,merge
 											,&(p->cross_cache_size)
-											,&(p->quick_expr_switch));
+											,quick_str_scan);
 		ret[0]=map_str2int(string2int_map,strlwr(table_type),(int*)&(p->table_type));
 		ret[1]=map_str2int(string2int_map,strlwr(src_charset),(int*)&(p->src_charset));
 		ret[2]=map_str2int(string2int_map,strlwr(merge),&(p->do_charset_merge));
-		for(j=0;j<3;j++)
+		if(strlen(quick_str_scan)>0)
+		{
+			ret[3]=map_str2int(string2int_map,strlwr(quick_str_scan),&(p->quick_expr_switch));
+		}
+		for(j=0;j<4;j++)
 		{
 			if(ret[j]<0)
 			{
@@ -2435,6 +2440,10 @@ void do_scanner_update(struct _Maat_scanner_t* scanner,MESA_lqueue_head garbage_
 							logger);
 	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
+		if(scanner->digest_update_q[i]==NULL)
+		{
+			continue;
+		}
 		q_cnt=MESA_lqueue_get_count(scanner->digest_update_q[i]);
 		if(q_cnt==0)
 		{
