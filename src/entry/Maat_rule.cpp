@@ -338,6 +338,42 @@ char *str_unescape_and(char*s)
 	s[j]='\0';
 	return s;
 }
+char* str_unescape(char* s)
+{
+	int i=0,j=0;
+	int len=strlen(s);
+	for(i=0,j=0;i<len;i++)
+	{
+		if(s[i]=='\\')
+		{
+			switch(s[i+1])
+			{
+				case '&':
+					s[j]='&';
+					break;
+				case 'b':
+					s[j]=' ';//space,0x20;
+					break;
+				case '\\':
+					s[j]='\\';
+					break;
+				default:
+					s[j]=s[i];
+					i--;	//undo the followed i++
+					break;
+			}
+			i++;
+			j++;
+		}
+		else
+		{
+			s[j]=s[i];
+			j++;
+		}
+	}
+	s[j]='\0';
+	return s;
+}
 int cnt_maskbits(struct in6_addr mask)
 {
 	unsigned int i=0;
@@ -475,6 +511,8 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 		{
 			ret[3]=map_str2int(string2int_map,strlwr(quick_str_scan),&(p->quick_expr_switch));
 		}
+		memset(quick_str_scan,0,sizeof(quick_str_scan));
+
 		for(j=0;j<4;j++)
 		{
 			if(ret[j]<0)
@@ -1353,7 +1391,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 				{
 					break;
 				}
-				sub_key_array[i]=str_unescape_and(sub_key_array[i]);
+				sub_key_array[i]=str_unescape(sub_key_array[i]);
 			}
 			sub_expr_cnt=i;
 			table->expr_rule_cnt++;
@@ -1387,7 +1425,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 					return -1;
 				}
 				sub_key_array[i]++;//jump over ':'
-				sub_key_array[i]=str_unescape_and(sub_key_array[i]);
+				sub_key_array[i]=str_unescape(sub_key_array[i]);
 			}
 			sub_expr_cnt=i;
 			table->expr_rule_cnt++;
@@ -1415,7 +1453,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 				{
 					break;
 				}
-				sub_key_array[i]=str_unescape_and(sub_key_array[i]);
+				sub_key_array[i]=str_unescape_and(sub_key_array[i]);//regex remain use str_unescape_and
 				p_rule=create_rs_str_rule(make_sub_type(table->table_id,CHARSET_NONE,0)
 										,MATCH_METHOD_SUB//not care db_rule->match_method
 										,db_rule->is_case_sensitive
@@ -1434,7 +1472,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 		case EXPR_TYPE_STRING:
 			sub_expr_cnt=1;
 			sub_key_array[0]=db_rule->keywords;
-			sub_key_array[0]=str_unescape_and(sub_key_array[0]);
+			sub_key_array[0]=str_unescape(sub_key_array[0]);
 			table->expr_rule_cnt++;
 			break;
 		default:

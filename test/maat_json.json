@@ -297,6 +297,33 @@
                     ]
                 }
             ]
+        },
+        {
+            "compile_id": 132,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "effective_rage": 0,
+            "user_region": "string\\bunescape",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "group_12",
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "string",
+                            "table_content": {
+                                "keywords": "Take\\bme\\bHome&Batman\\",
+                                "expr_type": "and",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "plugin_table": [
