@@ -26,7 +26,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_8_20160617_PERF_TEST=1;
+int MAAT_FRAME_VERSION_1_8_20160623_PERF_TEST=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -941,8 +941,12 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,_Maat_feather_t
 	scanner->tomb_ref=tomb;
 	scanner->region_rslt_buff=(scan_result_t*)malloc(sizeof(scan_result_t)*MAX_SCANNER_HIT_NUM*scan_thread_num);
 
-	for(i=0;i<table_cnt;i++)
+	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
+		if(pp_table[i]==NULL)
+		{
+			continue;
+		}
 		switch(pp_table[i]->table_type)
 		{
 			case TABLE_TYPE_DIGEST:
@@ -2521,7 +2525,7 @@ void maat_start_cb(unsigned int new_version,int update_type,void*u_para)
 								feather->maat_version,new_version);
 		feather->maat_version=new_version;
 	}
-	for(i=0;i<feather->table_cnt;i++)
+	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
 		p_table=feather->p_table_info[i];
 		if(p_table==NULL||p_table->table_type!=TABLE_TYPE_PLUGIN)
