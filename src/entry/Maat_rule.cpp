@@ -1018,6 +1018,10 @@ void destroy_maat_scanner(struct _Maat_scanner_t*scanner)
 		{
 			GIE_destory(scanner->digest_handle[i]);
 		}
+		if(scanner->digest_update_q[i]==NULL)
+		{
+			continue;
+		}
 		q_cnt=MESA_lqueue_get_count(scanner->digest_update_q[i]);
 		for(j=0;j<q_cnt;j++)
 		{
