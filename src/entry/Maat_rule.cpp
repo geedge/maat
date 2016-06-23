@@ -888,7 +888,6 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,_Maat_feather_t
 	MESA_lqueue_head tomb=feather->garbage_q;
 //	int rs_scan_type=feather->rule_scan_type;
 	struct _Maat_table_info_t ** pp_table=feather->p_table_info;
-	int table_cnt=feather->table_cnt;
 
 	int i=0,j=0;
 	unsigned int sub_type=0;
