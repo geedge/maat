@@ -1312,7 +1312,7 @@ int sync_region(MESA_htable_handle region_hash,int region_id,const char* table_n
 		if(ret<0)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-								"region id %d of table_char2matrix %s is not unique.",region_id,table_name);
+								"region id %d of table %s is not unique.",region_id,table_name);
 			return -1;
 		}
 		
@@ -1323,7 +1323,7 @@ int sync_region(MESA_htable_handle region_hash,int region_id,const char* table_n
 		if(ret==-1)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-								"region delete error,id %d in table_char2matrix %s does not exisit."
+								"region delete error,id %d in table %s does not exisit."
 								,region_id
 								,table_name);
 			return -1;
