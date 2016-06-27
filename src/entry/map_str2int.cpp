@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <MESA/MESA_htable.h>
 
 void map_tmp_free(void* ptr)
@@ -81,7 +82,7 @@ void duplicate_func(const uchar * key, uint size, void * data, void * user)
 	int ret=0;
 	char* string=(char*)calloc(sizeof(char),(size+1));
 	memcpy(string,key,size);
-	ret=map_register(target,key,value);
+	ret=map_register(target,string,value);
 	assert(ret>0);
 }
 MESA_htable_handle map_duplicate(MESA_htable_handle origin_map)
