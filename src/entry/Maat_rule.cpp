@@ -26,7 +26,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_8_20160624_PERF_TEST=1;
+int MAAT_FRAME_VERSION_1_8_20160627_PERF_TEST=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -989,6 +989,8 @@ void destroy_maat_scanner(struct _Maat_scanner_t*scanner)
 	MESA_htable_destroy(scanner->group_hash, NULL);
 	MESA_htable_destroy(scanner->region_hash, NULL);
 	map_destroy(scanner->district_map);
+	scanner->district_map=NULL;
+	assert(scanner->tmp_district_map==NULL);
 	destroy_bool_matcher((void*)scanner->expr_compiler);
 	q_cnt=MESA_lqueue_get_count(scanner->region_update_q);
 	for(i=0;i<q_cnt;i++)
@@ -1337,8 +1339,12 @@ int get_district_id(_Maat_scanner_t *scanner,const char* district_str)
 	map_ret=map_str2int(scanner->district_map, district_str,&district_id);
 	if(map_ret<0)
 	{
+		if(scanner->tmp_district_map==NULL)
+		{
+			scanner->tmp_district_map=map_duplicate(scanner->district_map);
+		}
 		district_id= scanner->district_num;
-		map_register(scanner->district_map,district_str, district_id);
+		map_register(scanner->tmp_district_map,district_str, district_id);
 		scanner->district_num++;
 	}
 	return district_id;
@@ -2427,6 +2433,9 @@ void garbage_bury(MESA_lqueue_head garbage_q,void *logger)
 			case GARBAGE_BOOL_MATCHER:
 				destroy_bool_matcher(bag->bool_matcher);
 				break;
+			case GARBAGE_MAP_STR2INT:
+				map_destroy(bag->str2int_map);
+				break;
 			default:
 				assert(0);
 		}
@@ -2468,6 +2477,7 @@ void plugin_table_callback(struct _Maat_table_info_t* table,const char* table_li
 void do_scanner_update(struct _Maat_scanner_t* scanner,MESA_lqueue_head garbage_q,int scan_thread_num,void* logger)
 {
 	void *tmp1=NULL,*tmp2=NULL;
+	MESA_htable_handle tmp_map=NULL;
 	int i=0;
 	long q_cnt;
 	GIE_create_para_t para;
@@ -2505,6 +2515,13 @@ void do_scanner_update(struct _Maat_scanner_t* scanner,MESA_lqueue_head garbage_
 		}
 		digest_batch_update(scanner->digest_handle[i], scanner->digest_update_q[i],logger);
 		pthread_rwlock_unlock(&(scanner->digest_rwlock[i]));
+	}
+	if(scanner->tmp_district_map!=NULL)
+	{
+		tmp_map=scanner->district_map;
+		scanner->district_map=scanner->tmp_district_map;
+		scanner->tmp_district_map=NULL;
+		garbage_bagging(GARBAGE_MAP_STR2INT, tmp_map, garbage_q);
 	}
 	scanner->last_update_time=time(NULL);
 

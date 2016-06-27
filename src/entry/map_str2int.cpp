@@ -22,7 +22,7 @@ MESA_htable_handle map_create(void)
 	MESA_htable_handle string2int_map;
 	MESA_htable_create_args_t hargs;
 	memset(&hargs,0,sizeof(hargs));
-	hargs.thread_safe=8;
+	hargs.thread_safe=0;
 	hargs.hash_slot_size = 4*1024;
 	hargs.max_elem_num = 0;
 	hargs.eliminate_type = HASH_ELIMINATE_ALGO_FIFO;
@@ -73,5 +73,24 @@ int map_str2int(MESA_htable_handle handle,const char* string,int* value)
 	{
 		return -1;
 	}	
+}
+void duplicate_func(const uchar * key, uint size, void * data, void * user)
+{
+	MESA_htable_handle target=(MESA_htable_handle)user;
+	int value=*(int*)data;
+	int ret=0;
+	char* string=(char*)calloc(sizeof(char),(size+1));
+	memcpy(string,key,size);
+	ret=map_register(target,key,value);
+	assert(ret>0);
+}
+MESA_htable_handle map_duplicate(MESA_htable_handle origin_map)
+{
+	int ret=0;
+	MESA_htable_handle target=NULL;
+	target=map_create();
+	ret=MESA_htable_iterate(origin_map, duplicate_func, target);
+	assert(ret==0);
+	return target;
 }
 

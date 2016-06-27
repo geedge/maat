@@ -271,7 +271,8 @@ enum maat_garbage_type
 	GARBAGE_SCANNER=0,
 	GARBAGE_GROUP_RULE,
 	GARBAGE_COMPILE_RULE,
-	GARBAGE_BOOL_MATCHER
+	GARBAGE_BOOL_MATCHER,
+	GARBAGE_MAP_STR2INT
 };
 struct iconv_handle_t
 {
@@ -310,6 +311,7 @@ struct _Maat_scanner_t
 	MESA_htable_handle group_hash;
 	MESA_htable_handle compile_hash;
 	MESA_htable_handle district_map;
+	MESA_htable_handle tmp_district_map;
 	unsigned int district_num;
 	unsigned int cfg_num;
 	unsigned int exprid_generator;
@@ -366,6 +368,7 @@ struct _maat_garbage_t
 		struct _Maat_compile_rule_t* compile_rule;
 		void* bool_matcher;
 		void * raw;
+		MESA_htable_handle str2int_map;
 	};
 };
 void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbage_q);
