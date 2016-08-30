@@ -28,7 +28,7 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	int value=0;
 	int i=0,j=0,offset=0;
 	struct _Maat_table_info_t* p_table=NULL;
-	char conj_table_name[(MAX_TABLE_NAME_LEN+1)*MAX_CONJUNCTION_TABLE_NUM]={0}
+	char conj_table_name[(MAX_TABLE_NAME_LEN+1)*MAX_CONJUNCTION_TABLE_NUM]={0};
 
 	feather->stat_handle=FS_create_handle();
 	FS_set_para(feather->stat_handle, OUTPUT_DEVICE, feather->stat_file, strlen(feather->stat_file)+1);

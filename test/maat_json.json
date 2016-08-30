@@ -324,6 +324,61 @@
                     ]
                 }
             ]
+        },
+        {
+            "compile_id": 133,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "effective_rage": 0,
+            "user_region": "table_conjunction_test_part1",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "group_13",
+                    "regions": [
+                        {
+                            "table_name": "HTTP_HOST",
+                            "table_type": "string",
+                            "table_content": {
+                                "keywords": "www.3300av.com",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+,
+        {
+            "compile_id": 134,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "effective_rage": 0,
+            "user_region": "table_conjunction_test_part2",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "group_14",
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "string",
+                            "table_content": {
+                                "keywords": "novel&27122.txt",
+                                "expr_type": "and",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "plugin_table": [

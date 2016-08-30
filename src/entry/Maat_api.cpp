@@ -426,7 +426,7 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 			{
 				feather->GROUP_MODE_ON=1;
 			}
-			for(j=0;j<feather->p_table_info[i].conj_cnt;j++)
+			for(j=0;j<feather->p_table_info[i]->conj_cnt;j++)
 			{
 				ret=map_register(feather->map_tablename2id,feather->p_table_info[i]->table_name[j],feather->p_table_info[i]->table_id);
 				if(ret<0)

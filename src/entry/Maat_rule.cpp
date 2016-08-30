@@ -552,7 +552,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 		}
 		if(p->table_id>=num)
 		{
-			fprintf(stderr,"Maat read table info %s line %d error: table id %uh > %d.\n",table_info_path,i,p->table_id,num);
+			fprintf(stderr,"Maat read table info %s:%d error: table id %uh > %d.\n",table_info_path,i,p->table_id,num);
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
 				"Maat read table info %s line %d error: table id %uh > %d.\n",table_info_path,i,p->table_id,num);
 
@@ -571,7 +571,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 			memcpy(conj_table->table_name[conj_table->conj_cnt],p->table_name[0],MAX_TABLE_NAME_LEN);
 			conj_table->conj_cnt++;
 			MESA_handle_runtime_log(logger, RLOG_LV_INFO,maat_module,
-								"Maat read table info %s line %d error:conjunction %s with %s (id=%d,total=%d).\n"
+								"Maat read table info %s:%d:conjunction %s with %s (id=%d,total=%d).\n"
 								,table_info_path,i,p->table_name[0]
 								,conj_table->table_name[0],conj_table->table_id,conj_table->conj_cnt);
 			//use goto to free the conjunctioned table_info
@@ -2687,12 +2687,12 @@ void maat_update_cb(const char* table_name,const char* line,void *u_para)
 	p_table=feather->p_table_info[table_id];
 	for(i=0;i<p_table->conj_cnt;i++)
 	{
-		if(0==memcmp(p_table->table_name[i],table_name,strlen(table_name))
+		if(0==memcmp(p_table->table_name[i],table_name,strlen(table_name)))
 		{
 			p_table->updating_name=i;
 		}
 	}
-	assert(i<p_table->conj_cnt);
+	assert(i<=p_table->conj_cnt);
 
 	switch(feather->p_table_info[table_id]->table_type)
 	{

@@ -431,6 +431,31 @@ int test_expr_plus(Maat_feather_t feather,const char* table_name,scan_status_t* 
 	return ret;
 
 }
+int test_table_conjunction(Maat_feather_t feather,const char* table_name,const char* conj_table_name,scan_status_t* mid)
+{
+	int ret=0;
+	int table_id=0,conj_table_id=0;
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+	const char* scan_data="soq is using table conjunction function.http://www.3300av.com/novel/27122.txt";
+
+	table_id=Maat_table_register(feather,table_name);
+	if(table_id==-1)
+	{
+		printf("Database table %s register failed.\n",table_name);
+		return -1;
+	}
+	conj_table_id=Maat_table_register(feather,conj_table_name);
+	assert(conj_table_id==table_id);
+	ret=Maat_full_scan_string(feather, conj_table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
+						result,found_pos, 4,
+						mid, 0);
+	if(ret>=2)
+	{
+		printf("Table conjunction success %s\n",print_maat_result(result,ret));
+	}
+	return 0;
+}
 int main(int argc,char* argv[])
 {
 	Maat_feather_t feather=NULL;
@@ -486,6 +511,9 @@ int main(int argc,char* argv[])
 	Maat_clean_status(&mid);
 
 	test_unescape_string_scan(feather,"KEYWORDS_TABLE",&mid);
+	Maat_clean_status(&mid);
+
+	test_table_conjunction(feather, "HTTP_URL", "HTTP_HOST", &mid);
 	Maat_clean_status(&mid);
 
 	sleep(4);
