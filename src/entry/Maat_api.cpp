@@ -1057,6 +1057,10 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 	{
 		return NULL;
 	}
+	if(p_table->quick_expr_switch==1)
+	{
+		return NULL;
+	}
 	struct _stream_para_t* sp=(struct _stream_para_t*)calloc(sizeof(struct _stream_para_t),1);
 	scanner=_feather->scanner;
 	sp->feather=_feather;
