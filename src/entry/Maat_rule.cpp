@@ -522,7 +522,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 			{
 				fprintf(stderr,"Maat read table info %s line %d error:unknown column.\n",table_info_path,i);
 				MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
-								"Maat read table info %s line %d error:unknown column.\n",table_info_path,i);
+								"Maat read table info %s line %d error:unknown column.",table_info_path,i);
 				goto error_jump;
 			}
 		}
@@ -545,7 +545,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 			{
 				fprintf(stderr,"Maat read table info %s line %d error:unknown dest charset %s.\n",table_info_path,i,sub_token);
 				MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
-								"Maat read table info %s line %d error: unknown dest charset %s.\n",table_info_path,i,sub_token);
+								"Maat read table info %s line %d error: unknown dest charset %s.",table_info_path,i,sub_token);
 				goto error_jump;
 			}
 			
@@ -564,14 +564,14 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 			if(conj_table->conj_cnt==MAX_CONJUNCTION_TABLE_NUM)
 			{
 				MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
-								"Maat read table info %s line %d error:reach tableid %d conjunction upper limit.\n"
+								"Maat read table info %s line %d error:reach tableid %d conjunction upper limit."
 								,table_info_path,i,p->table_id);
 				goto error_jump;
 			}
 			memcpy(conj_table->table_name[conj_table->conj_cnt],p->table_name[0],MAX_TABLE_NAME_LEN);
 			conj_table->conj_cnt++;
 			MESA_handle_runtime_log(logger, RLOG_LV_INFO,maat_module,
-								"Maat read table info %s:%d:conjunction %s with %s (id=%d,total=%d).\n"
+								"Maat read table info %s:%d:conjunction %s with %s (id=%d,total=%d)."
 								,table_info_path,i,p->table_name[0]
 								,conj_table->table_name[0],conj_table->table_id,conj_table->conj_cnt);
 			//use goto to free the conjunctioned table_info
