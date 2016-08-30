@@ -35,6 +35,7 @@ typedef int atomic_t;
 #define	FALSE	0
 
 #define	MAX_TABLE_NUM			256
+#define	MAX_CONJUNCTION_TABLE_NUM	8
 #define	MAX_CHARSET_NUM			16
 #define	MAX_TABLE_NAME_LEN		256
 #define	MAX_TABLE_LINE_SIZE		(1024*4)
@@ -221,7 +222,9 @@ struct _plugin_table_info
 struct _Maat_table_info_t
 {
 	unsigned short table_id;
-	char table_name[MAX_TABLE_NAME_LEN];
+	unsigned short conj_cnt;
+	unsigned short updating_name;
+	char table_name[MAX_CONJUNCTION_TABLE_NUM][MAX_TABLE_NAME_LEN];
 	enum MAAT_TABLE_TYPE table_type;
 	enum MAAT_CHARSET src_charset;
 	enum MAAT_CHARSET dst_charset[MAX_CHARSET_NUM];

@@ -26,8 +26,9 @@ enum MAAT_FS_COLUMN
 void maat_stat_init(struct _Maat_feather_t* feather)
 {
 	int value=0;
-	int i=0;
+	int i=0,j=0,offset=0;
 	struct _Maat_table_info_t* p_table=NULL;
+	char conj_table_name[(MAX_TABLE_NAME_LEN+1)*MAX_CONJUNCTION_TABLE_NUM]={0}
 
 	feather->stat_handle=FS_create_handle();
 	FS_set_para(feather->stat_handle, OUTPUT_DEVICE, feather->stat_file, strlen(feather->stat_file)+1);
@@ -94,7 +95,16 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 		{
 			continue;
 		}
-		p_table->stat_line_id=FS_register(feather->stat_handle, FS_STYLE_LINE, FS_CALC_CURRENT,p_table->table_name);	
+		offset=0;
+		for(j=0;j<p_table->conj_cnt;j++)
+		{
+			offset+=snprintf(conj_table_name+offset,sizeof(conj_table_name)-offset
+							,"%s/",p_table->table_name[j]);
+		}
+		conj_table_name[j]='\0';//delete the last slash
+		p_table->stat_line_id=FS_register(feather->stat_handle
+										, FS_STYLE_LINE, FS_CALC_CURRENT
+										,conj_table_name);
 	}
 	FS_start(feather->stat_handle);
 	return;

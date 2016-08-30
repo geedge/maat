@@ -417,7 +417,7 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	_Maat_feather_t* feather=(_Maat_feather_t*)calloc(sizeof(struct _Maat_feather_t),1);
 	feather->table_cnt=read_table_info(feather->p_table_info, MAX_TABLE_NUM,table_info_path,max_thread_num,logger);
 	feather->map_tablename2id=map_create();
-	int i=0;
+	int i=0,j=0,ret=0;
 	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
 		if(feather->p_table_info[i]!=NULL)
@@ -426,7 +426,18 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 			{
 				feather->GROUP_MODE_ON=1;
 			}
-			map_register(feather->map_tablename2id,feather->p_table_info[i]->table_name,feather->p_table_info[i]->table_id);
+			for(j=0;j<feather->p_table_info[i].conj_cnt;j++)
+			{
+				ret=map_register(feather->map_tablename2id,feather->p_table_info[i]->table_name[j],feather->p_table_info[i]->table_id);
+				if(ret<0)
+				{
+					MESA_handle_runtime_log(feather->logger,RLOG_LV_FATAL,maat_module ,
+									"Duplicate table name %s of table id %d"
+									,feather->p_table_info[i]->table_name[j]
+									,feather->p_table_info[i]->table_id);
+					continue;
+				}
+			}
 		}
 	}
 	feather->logger=logger;
