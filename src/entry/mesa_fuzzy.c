@@ -12,7 +12,7 @@
 #define INIT_SIZE 128
 #define ENTROPY_THRESHOLD 0.5
 int count = 0;
-const char * b64 =
+const char * sfh_b64 =
 "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 
@@ -626,17 +626,17 @@ void sfh_output_state(IVI_seg_t * seg, void * user_para)
 	memset(hash_result,0,sizeof(hash_result));
 	if(seg->left == 0)
 	{
-		hash_result[j] = b64[zt_hash_code(&(node->ps)) & 0x3F];
+		hash_result[j] = sfh_b64[zt_hash_code(&(node->ps)) & 0x3F];
 		j++;
 	}
 	for(i = 0; i < node->s_cnt; i++,j++)
 	{
-		hash_result[j] = b64[(node->s_array[i].val) & 0x3F];
+		hash_result[j] = sfh_b64[(node->s_array[i].val) & 0x3F];
 	}
 	hash_result[j+1]='\0';
 	if(0!=memcmp(&(node->s_state),ZT_INIT_VAL,sizeof(ZT_INIT_VAL)))
 	{
-		result->last_char=b64[zt_hash_code(&(node->s_state)) & 0x3F];
+		result->last_char=sfh_b64[zt_hash_code(&(node->s_state)) & 0x3F];
 	}
 	else
 	{
