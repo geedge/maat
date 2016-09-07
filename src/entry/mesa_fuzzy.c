@@ -15,14 +15,6 @@
 const char * sfh_b64 =
 "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-
-struct entry
-{
-	unsigned int * r_array;
-	unsigned int r_index;
-	unsigned int r_size;
-};
-
 double get_rs_entropy(unsigned int * r_array, unsigned int r_index);
 int loop_cmp(const void * a, const void * b);
 void sfh_rs_entropy(IVI_seg_t * seg, void * user_para);
