@@ -1487,6 +1487,10 @@ int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCA
 	switch(type)
 	{
 		case	MAAT_SET_SCAN_DISTRICT:
+			if(value==NULL||size<=0)
+			{
+				return -1;
+			}
 			map_ret=map_str2int(_feather->scanner->district_map,(const char*)value,&(_mid->district_id));
 			if(map_ret<0)
 			{
