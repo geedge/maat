@@ -26,7 +26,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_8_20160907_TABLE_CONJ=1;
+int MAAT_FRAME_VERSION_1_8_20160909_TABLE_CONJ=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -1357,9 +1357,13 @@ int get_district_id(_Maat_scanner_t *scanner,const char* district_str)
 		{
 			scanner->tmp_district_map=map_duplicate(scanner->district_map);
 		}
-		district_id= scanner->district_num;
-		map_register(scanner->tmp_district_map,district_str, district_id);
-		scanner->district_num++;
+		map_ret=map_str2int(scanner->tmp_district_map, district_str,&district_id);
+		if(map_ret<0)
+		{
+			district_id= scanner->district_num;
+			map_register(scanner->tmp_district_map,district_str, district_id);
+			scanner->district_num++;
+		}
 	}
 	return district_id;
 }
