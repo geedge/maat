@@ -513,6 +513,9 @@ int main(int argc,char* argv[])
 	test_unescape_string_scan(feather,"KEYWORDS_TABLE",&mid);
 	Maat_clean_status(&mid);
 
+	test_str_stream_scan(feather,"HTTP_URL", &mid);
+	Maat_clean_status(&mid);
+
 	test_table_conjunction(feather, "HTTP_URL", "HTTP_HOST", &mid);
 	Maat_clean_status(&mid);
 
