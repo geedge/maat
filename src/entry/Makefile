@@ -4,10 +4,13 @@
 CC		= gcc
 CCC		= g++
 CFLAGS		= -Wall -g -fPIC
+GCOV_FLAGS	= -fprofile-arcs -ftest-coverage
 CFLAGS		+= $(OPTFLAGS)
+#CFLAGS		+= $(GCOV_FLAGS)
 LDDICTATOR	= -Wl,-wrap,malloc -Wl,-wrap,calloc -Wl,-wrap,free -Wl,-wrap,realloc
-LDFLAGS		= -lMESA_handle_logger -lMESA_htable -lpthread -lrt -lm -lrulescan -lpcre -lMESA_field_stat2
+LDFLAGS		= -lMESA_handle_logger -lMESA_htable -lpthread -lrt -lm -lrulescan -lpcre -lMESA_field_stat2 -lgcov
 #LDFLAGS		+= $(LDDICTATOR)
+LDFLAGS		+= $(GCOV_FLAGS)
 MAILLIB = ../lib
 
 G_H_DIR			=../inc_internal
@@ -34,7 +37,7 @@ $(LIBMAAT): $(OBJS)
 	cp $(LIBMAAT) ../../lib/
 
 clean:
-	rm -rf *.o $(LIBMAAT) *~
+	rm -rf *.o *.gcov *.gcno $(LIBMAAT) *~
 
 opt:
 	$(MAKE) all

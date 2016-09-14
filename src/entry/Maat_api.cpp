@@ -417,7 +417,7 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	_Maat_feather_t* feather=(_Maat_feather_t*)calloc(sizeof(struct _Maat_feather_t),1);
 	feather->table_cnt=read_table_info(feather->p_table_info, MAX_TABLE_NUM,table_info_path,max_thread_num,logger);
 	feather->map_tablename2id=map_create();
-	int i=0;
+	int i=0,j=0,ret=0;
 	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
 		if(feather->p_table_info[i]!=NULL)
@@ -426,7 +426,18 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 			{
 				feather->GROUP_MODE_ON=1;
 			}
-			map_register(feather->map_tablename2id,feather->p_table_info[i]->table_name,feather->p_table_info[i]->table_id);
+			for(j=0;j<feather->p_table_info[i]->conj_cnt;j++)
+			{
+				ret=map_register(feather->map_tablename2id,feather->p_table_info[i]->table_name[j],feather->p_table_info[i]->table_id);
+				if(ret<0)
+				{
+					MESA_handle_runtime_log(feather->logger,RLOG_LV_FATAL,maat_module ,
+									"Duplicate table name %s of table id %d"
+									,feather->p_table_info[i]->table_name[j]
+									,feather->p_table_info[i]->table_id);
+					continue;
+				}
+			}
 		}
 	}
 	feather->logger=logger;
@@ -434,7 +445,9 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->garbage_q=MESA_lqueue_create(0,0);
 	feather->effect_interval_ms=60*1000;
 	feather->scan_interval_ms=1*1000;
-	feather->rule_scan_type=2;
+	//Prepare for comptetion,return no hit detail as default for temporary.
+	feather->rule_scan_type=0;
+	//feather->rule_scan_type=2;
 	feather->thread_call_cnt=aligment_int64_array_alloc(max_thread_num);
 	feather->outer_mid_cnt=aligment_int64_array_alloc(max_thread_num);
 	feather->inner_mid_cnt=aligment_int64_array_alloc(max_thread_num);
@@ -1044,6 +1057,10 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 	{
 		return NULL;
 	}
+	if(p_table->quick_expr_switch==1)
+	{
+		return NULL;
+	}
 	struct _stream_para_t* sp=(struct _stream_para_t*)calloc(sizeof(struct _stream_para_t),1);
 	scanner=_feather->scanner;
 	sp->feather=_feather;
@@ -1470,6 +1487,10 @@ int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCA
 	switch(type)
 	{
 		case	MAAT_SET_SCAN_DISTRICT:
+			if(value==NULL||size<=0)
+			{
+				return -1;
+			}
 			map_ret=map_str2int(_feather->scanner->district_map,(const char*)value,&(_mid->district_id));
 			if(map_ret<0)
 			{

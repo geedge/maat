@@ -35,6 +35,7 @@ typedef int atomic_t;
 #define	FALSE	0
 
 #define	MAX_TABLE_NUM			256
+#define	MAX_CONJUNCTION_TABLE_NUM	8
 #define	MAX_CHARSET_NUM			16
 #define	MAX_TABLE_NAME_LEN		256
 #define	MAX_TABLE_LINE_SIZE		(1024*4)
@@ -167,6 +168,7 @@ struct op_expr_t
 {
 	boolean_expr_t* p_expr;
 	scan_rule_t* p_rules[MAAT_MAX_EXPR_ITEM_NUM];
+	int convert_failed;
 	int no_effect_convert_cnt;
 };
 
@@ -222,7 +224,9 @@ struct _plugin_table_info
 struct _Maat_table_info_t
 {
 	unsigned short table_id;
-	char table_name[MAX_TABLE_NAME_LEN];
+	unsigned short conj_cnt;
+	unsigned short updating_name;
+	char table_name[MAX_CONJUNCTION_TABLE_NUM][MAX_TABLE_NAME_LEN];
 	enum MAAT_TABLE_TYPE table_type;
 	enum MAAT_CHARSET src_charset;
 	enum MAAT_CHARSET dst_charset[MAX_CHARSET_NUM];
@@ -230,6 +234,7 @@ struct _Maat_table_info_t
 	int do_charset_merge;
 	int cfg_num;
 	int cross_cache_size;
+	int quick_expr_switch;
 	union
 	{
 		int expr_rule_cnt;	//expr_type=0,1,3
@@ -271,7 +276,8 @@ enum maat_garbage_type
 	GARBAGE_SCANNER=0,
 	GARBAGE_GROUP_RULE,
 	GARBAGE_COMPILE_RULE,
-	GARBAGE_BOOL_MATCHER
+	GARBAGE_BOOL_MATCHER,
+	GARBAGE_MAP_STR2INT
 };
 struct iconv_handle_t
 {
@@ -310,6 +316,7 @@ struct _Maat_scanner_t
 	MESA_htable_handle group_hash;
 	MESA_htable_handle compile_hash;
 	MESA_htable_handle district_map;
+	MESA_htable_handle tmp_district_map;
 	unsigned int district_num;
 	unsigned int cfg_num;
 	unsigned int exprid_generator;
@@ -366,6 +373,7 @@ struct _maat_garbage_t
 		struct _Maat_compile_rule_t* compile_rule;
 		void* bool_matcher;
 		void * raw;
+		MESA_htable_handle str2int_map;
 	};
 };
 void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbage_q);

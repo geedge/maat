@@ -11,20 +11,12 @@
 //#define	DEBUG_PRINT
 #define INIT_SIZE 128
 #define ENTROPY_THRESHOLD 0.5
-int count = 0;
-const char * b64 =
+
+const char * sfh_b64 =
 "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-
-struct entry
-{
-	unsigned int * r_array;
-	unsigned int r_index;
-	unsigned int r_size;
-};
-
 double get_rs_entropy(unsigned int * r_array, unsigned int r_index);
-int cmp(const void * a, const void * b);
+int loop_cmp(const void * a, const void * b);
 void sfh_rs_entropy(IVI_seg_t * seg, void * user_para);
 void sfh_tune_simulation(IVI_seg_t * seg, void * user_para);
 
@@ -339,7 +331,7 @@ unsigned int segment_overlap(fuzzy_handle_inner_t * _handle, unsigned int size, 
 	return effective_length;
 }
 
-int cmp(const void * a, const void * b)
+int loop_cmp(const void * a, const void * b)
 {
 	unsigned int tmp_a = *(unsigned int *)a;
 	unsigned int tmp_b = *(unsigned int *)b;
@@ -359,7 +351,7 @@ int cmp(const void * a, const void * b)
 
 double get_rs_entropy(unsigned int * r_array, unsigned int r_index)
 {
-	qsort(r_array, r_index, sizeof(unsigned int), cmp);
+	qsort(r_array, r_index, sizeof(unsigned int), loop_cmp);
 	unsigned int current_r = r_array[0];
 	unsigned int * tmp_r = r_array;
 	unsigned int count = 0;
@@ -626,17 +618,17 @@ void sfh_output_state(IVI_seg_t * seg, void * user_para)
 	memset(hash_result,0,sizeof(hash_result));
 	if(seg->left == 0)
 	{
-		hash_result[j] = b64[zt_hash_code(&(node->ps)) & 0x3F];
+		hash_result[j] = sfh_b64[zt_hash_code(&(node->ps)) & 0x3F];
 		j++;
 	}
 	for(i = 0; i < node->s_cnt; i++,j++)
 	{
-		hash_result[j] = b64[(node->s_array[i].val) & 0x3F];
+		hash_result[j] = sfh_b64[(node->s_array[i].val) & 0x3F];
 	}
 	hash_result[j+1]='\0';
 	if(0!=memcmp(&(node->s_state),ZT_INIT_VAL,sizeof(ZT_INIT_VAL)))
 	{
-		result->last_char=b64[zt_hash_code(&(node->s_state)) & 0x3F];
+		result->last_char=sfh_b64[zt_hash_code(&(node->s_state)) & 0x3F];
 	}
 	else
 	{
