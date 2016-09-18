@@ -161,7 +161,7 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 
 enum MAAT_SCAN_OPT
 {
-	MAAT_SET_SCAN_DISTRICT=1		//VALUE is a const char*,MUST end with '\0',SIZE= strlen(string+'\0')+1.DEFAULT: no default.
+	MAAT_SET_SCAN_DISTRICT=1		//VALUE is a const char*,SIZE= strlen(string).DEFAULT: no default.
 };
 //return 0 if success, return -1 when failed;
 int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCAN_OPT type,const void* value,int size);

@@ -75,6 +75,24 @@ int map_str2int(MESA_htable_handle handle,const char* string,int* value)
 		return -1;
 	}	
 }
+int map_unNullstr2int(MESA_htable_handle handle,const char* string,int len,int* value)
+{
+	int *data=NULL;
+	long cb_ret=0;
+	
+	data=(int*)MESA_htable_search_cb(handle,(unsigned char*)string,len,
+									read_map_val,value,&cb_ret);
+									
+//	data=(int*)MESA_htable_search(handle,(unsigned char*)string,len);
+	if(cb_ret>0)
+	{
+		return 1;
+	}
+	else
+	{
+		return -1;
+	}	
+}
 void duplicate_func(const uchar * key, uint size, void * data, void * user)
 {
 	MESA_htable_handle target=(MESA_htable_handle)user;

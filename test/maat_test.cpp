@@ -415,7 +415,7 @@ int test_expr_plus(Maat_feather_t feather,const char* table_name,scan_status_t* 
 		printf("Should not hit without setting district.\n");
 		return -1;
 	}
-	ret=Maat_set_scan_status(feather, mid, MAAT_SET_SCAN_DISTRICT,region_name,strlen(region_name)+1);
+	ret=Maat_set_scan_status(feather, mid, MAAT_SET_SCAN_DISTRICT,region_name,strlen(region_name));
 	if(ret<0)
 	{
 		printf("set MAAT_SET_SCAN_DISTRICT failed.\n");
