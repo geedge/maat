@@ -12,7 +12,8 @@
 #include "cJSON.h"
 #include "map_str2int.h"
 #include "Maat_rule_internal.h"
-const char* maat_json="maat json";
+const char* maat_json="MAAT JSON";
+const char* untitled_group_name="Untitled";
 const int json_version=1;
 #define	MAX_PATH_LINE	256
 #define	MAX_COLUMN_NUM	32
@@ -758,6 +759,7 @@ int write_iris(cJSON *json,struct iris_description_t *p_iris,void* logger)
 	cJSON *compile_rule=NULL,*group_rule=NULL,*region_rule=NULL,*each_plug_table=NULL;
 	const char* group_name=NULL;
 	struct group_info_t *group_info=NULL;
+	struct group_info_t untitled_group;
 	plug_tables=cJSON_GetObjectItem(json,"plugin_table");
 	if(NULL!=plug_tables)
 	{
@@ -813,11 +815,14 @@ int write_iris(cJSON *json,struct iris_description_t *p_iris,void* logger)
 			item=cJSON_GetObjectItem(group_rule,"group_name");
 			if(item==NULL||item->type!=cJSON_String)
 			{
-				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
-											"compile rule %d's group has no name.",compile_id);
-				return -1;
+				MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_json,
+											"compile rule %d's group has no name,regard as Untitled.",compile_id);
+				group_name=untitled_group_name;
 			}
-			group_name=item->valuestring;
+			else
+			{
+				group_name=item->valuestring;
+			}
 			group_info=(struct group_info_t*)MESA_htable_search(p_iris->group_name_map, (const unsigned char*)group_name, strlen(group_name));
 			if(group_info!=NULL)//exist group name ,region already read
 			{
@@ -837,11 +842,17 @@ int write_iris(cJSON *json,struct iris_description_t *p_iris,void* logger)
 				}
 				continue;
 			}
-			
-			group_info=(struct group_info_t*)malloc(sizeof(struct group_info_t));
-			group_info->group_id=p_iris->group_cnt++;
-			MESA_htable_add(p_iris->group_name_map,(const unsigned char*)group_name, strlen(group_name),group_info);
-			
+			if(0==strncasecmp(group_name,untitled_group_name,strlen(untitled_group_name)))
+			{
+				group_info=&untitled_group;
+				group_info->group_id=p_iris->group_cnt++;
+			}
+			else
+			{
+				group_info=(struct group_info_t*)malloc(sizeof(struct group_info_t));
+				group_info->group_id=p_iris->group_cnt++;
+				MESA_htable_add(p_iris->group_name_map,(const unsigned char*)group_name, strlen(group_name),group_info);
+			}
 			r_rules=cJSON_GetObjectItem(group_rule,"regions");
 			if(r_rules==NULL)
 			{

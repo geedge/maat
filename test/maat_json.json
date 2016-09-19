@@ -13,7 +13,7 @@
             "is_valid": "yes",
             "groups": [
                 {
-                    "group_name": "group_1",
+                    "group_name": "IP_group",
                     "regions": [
                         {
                             "table_name": "IP_CONFIG",
@@ -52,7 +52,7 @@
                     ]
                 },
                 {
-                    "group_name": "group_2",
+                    "group_name": "Untitled",
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -79,10 +79,10 @@
             "is_valid": "yes",
             "groups": [
                 {
-                    "group_name": "group_1"
+                    "group_name": "IP_group"
                 },
                 {
-                    "group_name": "group_3",
+                    "group_name": "Untitled",
                     "regions": [
                         {
                             "table_name": "CONTENT_SIZE",
@@ -107,7 +107,6 @@
             "is_valid": "yes",
             "groups": [
                 {
-                    "group_name": "group_4",
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -134,7 +133,7 @@
             "is_valid": "yes",
             "groups": [
                 {
-                    "group_name": "group_5",
+                    "group_name": "Untitled",
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -149,7 +148,7 @@
                     ]
                 },
                 {
-                    "group_name": "group_6",
+                    "group_name": "Untitled",
                     "regions": [
                         {
                             "table_name": "CONTENT_SIZE",
@@ -174,7 +173,7 @@
             "is_valid": "yes",
             "groups": [
                 {
-                    "group_name": "group_7",
+                    "group_name": "Untitled",
                     "regions": [
                         {
                             "table_name": "FILE_DIGEST",
@@ -200,7 +199,7 @@
             "is_valid": "yes",
             "groups": [
                 {
-                    "group_name": "group_8",
+                    "group_name": "Untitled",
                     "regions": [
                         {
                             "table_name": "HTTP_REGION",
@@ -228,7 +227,7 @@
             "is_valid": "yes",
             "groups": [
                 {
-                    "group_name": "group_9",
+                    "group_name": "Untitled",
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -255,7 +254,7 @@
             "is_valid": "yes",
             "groups": [
                 {
-                    "group_name": "group_10",
+                    "group_name": "Untitled",
                     "regions": [
                         {
                             "table_name": "KEYWORDS_TABLE",
@@ -282,7 +281,7 @@
             "is_valid": "yes",
             "groups": [
                 {
-                    "group_name": "group_11",
+                    "group_name": "Untitled",
                     "regions": [
                         {
                             "table_name": "KEYWORDS_TABLE",
@@ -309,7 +308,7 @@
             "is_valid": "yes",
             "groups": [
                 {
-                    "group_name": "group_12",
+                    "group_name": "Untitled",
                     "regions": [
                         {
                             "table_name": "KEYWORDS_TABLE",
@@ -336,7 +335,7 @@
             "is_valid": "yes",
             "groups": [
                 {
-                    "group_name": "group_13",
+                    "group_name": "Untitled",
                     "regions": [
                         {
                             "table_name": "HTTP_HOST",
@@ -364,7 +363,7 @@
             "is_valid": "yes",
             "groups": [
                 {
-                    "group_name": "group_14",
+                    "group_name": "Untitled",
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
