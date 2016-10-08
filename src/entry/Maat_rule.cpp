@@ -26,7 +26,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_8_20160922=1;
+int MAAT_FRAME_VERSION_1_8_20161008=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -1570,6 +1570,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 																					,CHARSET_STRING[dst_charset]);
 						free(region_string);
 						op_expr->convert_failed++;
+						table->iconv_err_cnt++;
 						break;
 					}
 					if(region_str_len==(int)strlen(sub_key_array[k])&&
@@ -1973,6 +1974,7 @@ void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,st
 									"update error,invalid format of expr table %s:%s",table->table_name[table->updating_name],table_line);
 				free(maat_str_rule);
 				maat_str_rule=NULL;	
+				table->udpate_err_cnt++;
 				return;
 			}
 			break;
@@ -1991,6 +1993,7 @@ void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,st
 									"update error,invalid format of expr_plus table %s:%s",table->table_name[table->updating_name],table_line);
 				free(maat_str_rule);
 				maat_str_rule=NULL;	
+				table->udpate_err_cnt++;
 				return;
 			}
 			break;
@@ -2016,6 +2019,7 @@ void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,st
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
 								"update error,invalid hexbin value of expr table %s:%s"
 								,table->table_name[table->updating_name],table_line);
+			table->udpate_err_cnt++;
 			goto error_out;
 	}
 	ret=sync_region(scanner->region_hash
@@ -2024,6 +2028,7 @@ void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,st
 					,maat_str_rule->is_valid,logger);
 	if(ret<0)
 	{
+		table->udpate_err_cnt++;
 		goto error_out;
 	}
 	if(group_mode_on==FALSE)//for compatible old version
@@ -2044,6 +2049,10 @@ void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,st
 		{
 			table->cfg_num--;
 		}
+		else
+		{
+			table->udpate_err_cnt++;
+		}
 	}
 	else
 	{
@@ -2054,7 +2063,7 @@ void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,st
 			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
 							"duplicate config of expr table %s region_id=%d"
 							,table->table_name[table->updating_name],maat_str_rule->region_id);
-			
+			table->udpate_err_cnt++;
 		}
 		else
 		{
@@ -2096,6 +2105,7 @@ void update_ip_rule(struct _Maat_table_info_t* table,const char* table_line,stru
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
 							"update error,invalid format of ip table %s:%s"
 							,table->table_name[table->updating_name],table_line);
+		table->udpate_err_cnt++;
 		goto error_out;
 	}
 	if(ip_rule->addr_type==4)
@@ -2147,6 +2157,7 @@ void update_ip_rule(struct _Maat_table_info_t* table,const char* table_line,stru
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
 								"update error,invalid format of ip table %s:%s"
 								,table->table_name[table->updating_name],table_line);
+			table->udpate_err_cnt++;
 			goto error_out;
 		}
 	}
@@ -2156,6 +2167,7 @@ void update_ip_rule(struct _Maat_table_info_t* table,const char* table_line,stru
 					,ip_rule->is_valid,logger);
 	if(ret<0)
 	{
+		table->udpate_err_cnt++;
 		goto error_out;
 	}
 	if(group_mode_on==FALSE)//for compatible old version
@@ -2183,6 +2195,10 @@ void update_ip_rule(struct _Maat_table_info_t* table,const char* table_line,stru
 				table->ipv6_rule_cnt--;
 			}
 		}
+		else
+		{
+			table->udpate_err_cnt++;
+		}
 	}
 	else
 	{
@@ -2193,7 +2209,7 @@ void update_ip_rule(struct _Maat_table_info_t* table,const char* table_line,stru
 			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
 							"duplicate config of ip table %s config_id=%d"
 							,table->table_name[table->updating_name],ip_rule->region_id);
-			
+			table->udpate_err_cnt++;
 		}
 		else
 		{
@@ -2228,6 +2244,7 @@ void update_intval_rule(struct _Maat_table_info_t* table,const char* table_line,
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
 							"update error,invalid format  of interval table %s:%s"
 							,table->table_name[table->updating_name],table_line);
+		table->udpate_err_cnt++;
 		goto error_out;
 	}
 	ret=sync_region(scanner->region_hash
@@ -2236,6 +2253,7 @@ void update_intval_rule(struct _Maat_table_info_t* table,const char* table_line,
 					,intval_rule->is_valid,logger);
 	if(ret<0)
 	{
+		table->udpate_err_cnt++;
 		goto error_out;
 	}
 	if(group_mode_on==FALSE)//for compatible old version
@@ -2256,6 +2274,10 @@ void update_intval_rule(struct _Maat_table_info_t* table,const char* table_line,
 		{
 			table->cfg_num--;
 		}
+		else
+		{
+			table->udpate_err_cnt++;
+		}
 	}
 	else
 	{
@@ -2265,6 +2287,7 @@ void update_intval_rule(struct _Maat_table_info_t* table,const char* table_line,
 			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
 							"duplicate config of intval table %s config_id=%d"
 							,table->table_name[table->updating_name],intval_rule->region_id);
+			table->udpate_err_cnt++;
 		}
 		else
 		{
@@ -2299,6 +2322,7 @@ void update_compile_rule(struct _Maat_table_info_t* table,const char* table_line
 							,table->table_name[table->updating_name],table_line);
 		free(p_compile);
 		p_compile=NULL;
+		table->udpate_err_cnt++;
 		return;
 	}
 	
@@ -2329,6 +2353,7 @@ void update_compile_rule(struct _Maat_table_info_t* table,const char* table_line
 			p_compile->service_defined=NULL;
 			free(p_compile);
 			p_compile=NULL;
+			table->udpate_err_cnt++;
 
 		}
 		else
@@ -2358,6 +2383,7 @@ void update_digest_rule(struct _Maat_table_info_t* table,const char* table_line,
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
 							"update error,invalid format  of digest table %s:%s"
 							,table->table_name[table->updating_name],table_line);
+		table->udpate_err_cnt++;
 		goto error_out;
 	}
 	ret=sync_region(scanner->region_hash
@@ -2366,6 +2392,7 @@ void update_digest_rule(struct _Maat_table_info_t* table,const char* table_line,
 					,digest_rule->is_valid,logger);
 	if(ret<0)
 	{
+		table->udpate_err_cnt++;
 		goto error_out;
 	}
 	if(group_mode_on==FALSE)//for compatible old version
@@ -2386,6 +2413,10 @@ void update_digest_rule(struct _Maat_table_info_t* table,const char* table_line,
 		{
 			table->cfg_num--;
 		}
+		else
+		{
+			table->udpate_err_cnt++;
+		}
 	}
 	else
 	{
@@ -2395,6 +2426,7 @@ void update_digest_rule(struct _Maat_table_info_t* table,const char* table_line,
 			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
 							"duplicate config of intval table %s config_id=%d"
 							,table->table_name[table->updating_name],digest_rule->region_id);
+			table->udpate_err_cnt++;
 		}
 		else
 		{

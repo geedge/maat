@@ -247,6 +247,8 @@ struct _Maat_table_info_t
 	};
 	struct _plugin_table_info *cb_info;
 //for stat>>>>>>>>
+	unsigned long long udpate_err_cnt;
+	unsigned long long iconv_err_cnt;
 	int stat_line_id;
 	mcore_long_t  scan_cnt;
 	mcore_long_t  scan_cpu_time;	//nano
@@ -360,6 +362,9 @@ struct _Maat_feather_t
 	mcore_long_t thread_call_cnt;//size indicate by scan_thread_num, 
 	long long total_scan_bytes;
 	long long total_scan_cnt;
+	long long update_err_cnt;//sum of the same name variable in each table
+	long long iconv_err_cnt;//sum of the same name variable in each table
+	long long scan_err_cnt;	
 };
 struct _maat_garbage_t
 {

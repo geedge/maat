@@ -750,6 +750,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	p_table=acqurie_table(_feather, table_id,TABLE_TYPE_EXPR);
 	if(p_table==NULL)
 	{
+		_feather->scan_err_cnt++;
 		return -1;
 	}
 	if(p_table->cfg_num==0)
@@ -758,6 +759,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	}
 	if(p_table->table_type==TABLE_TYPE_EXPR_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
 	{
+		_feather->scan_err_cnt++;
 		return -1;
 	}
 	if(p_table->do_charset_merge==1)
@@ -878,6 +880,7 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 	p_table=acqurie_table(_feather,table_id,TABLE_TYPE_INTVAL);
 	if(p_table==NULL)
 	{
+		_feather->scan_err_cnt++;
 		return -1;
 	}
 	if(p_table->cfg_num==0)
@@ -898,6 +901,7 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 	if(region_ret<0)
 	{
 		DEC_SCANNER_REF(my_scanner, thread_num);
+		_feather->scan_err_cnt++;
 		return -1;
 	}
 	else if(region_ret>0)
@@ -951,6 +955,7 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_IP);
 	if(p_table==NULL)
 	{
+		_feather->scan_err_cnt++;
 		return -1;
 	}
 	if(p_table->cfg_num==0)
@@ -994,6 +999,7 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 			ip_scan_data.ipv6_data.proto=proto;
 			break;
 		default:
+			_feather->scan_err_cnt++;
 			return -1;
 			break;
 	}
@@ -1005,6 +1011,7 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	if(region_ret<0)
 	{
 		DEC_SCANNER_REF(my_scanner,thread_num);
+		_feather->scan_err_cnt++;
 		return -1;
 	}
 	else if(region_ret>0)
@@ -1055,10 +1062,12 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_EXPR);
 	if(p_table==NULL)
 	{
+		_feather->scan_err_cnt++;
 		return NULL;
 	}
 	if(p_table->quick_expr_switch==1)
 	{
+		_feather->scan_err_cnt++;
 		return NULL;
 	}
 	struct _stream_para_t* sp=(struct _stream_para_t*)calloc(sizeof(struct _stream_para_t),1);
@@ -1137,6 +1146,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 	}
 	if(p_table->table_type==TABLE_TYPE_EXPR_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
 	{
+		sp->feather->scan_err_cnt++;
 		return -1;
 	}
 	aligment_int64_array_add(sp->feather->thread_call_cnt, sp->thread_num, 1);
@@ -1189,6 +1199,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 		region_ret=rulescan_searchstream(sp->rs_stream_para, &region_scan_data, region_result, MAX_SCANNER_HIT_NUM);
 		if(region_ret<0)
 		{
+			sp->feather->scan_err_cnt++;
 			return -1;
 		}
 		else if(region_ret>0)
@@ -1203,6 +1214,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 		region_ret=rulescan_searchstream(sp->rs_stream_para, &region_scan_data, region_result+hit_region_cnt, MAX_SCANNER_HIT_NUM-hit_region_cnt);
 		if(region_ret<0)
 		{
+			sp->feather->scan_err_cnt++;
 			return -1;
 		}
 		else if(region_ret>0)
@@ -1315,11 +1327,13 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_DIGEST);
 	if(p_table==NULL)
 	{
+		_feather->scan_err_cnt++;
 		return NULL;
 	}
 	tmp_fuzzy_handle=fuzzy_create_handle(total_len);
 	if(tmp_fuzzy_handle==NULL)
 	{
+		_feather->scan_err_cnt++;
 		return NULL;
 	}
 	struct _stream_para_t* sp=(struct _stream_para_t*)calloc(sizeof(struct _stream_para_t),1);
@@ -1423,6 +1437,7 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	digest_buff=NULL;
 	if(hit_region_cnt<0)//error occurs
 	{
+		sp->feather->scan_err_cnt++;
 		return -1;
 	}
 	if(hit_region_cnt>0)
@@ -1489,6 +1504,7 @@ int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCA
 		case	MAAT_SET_SCAN_DISTRICT:
 			if(value==NULL||size<=0)
 			{
+				_feather->scan_err_cnt++;
 				return -1;
 			}
 			map_ret=map_unNullstr2int(_feather->scanner->district_map,(const char*)value,size,&(_mid->district_id));
@@ -1499,6 +1515,7 @@ int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCA
 			_mid->is_set_district=1;
 			break;
 		default:
+			_feather->scan_err_cnt++;
 			return -1;
 			break;
 	}

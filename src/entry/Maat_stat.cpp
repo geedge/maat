@@ -11,6 +11,9 @@ enum MAAT_FS_STATUS{
 	STATUS_GARBAGE_QSIZE,
 	STATUS_TOTAL_SCAN_LEN,
 	STATUS_TOTAL_SCAN_CNT,
+	STATUS_UPDATE_ERR_CNT,
+	STATUS_ICONV_ERR_CNT,
+	STATUS_SCAN_ERR_CNT
 };
 
 enum MAAT_FS_COLUMN
@@ -46,7 +49,9 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	feather->fs_status_id[STATUS_GARBAGE_QSIZE]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"garbage_num");
 	feather->fs_status_id[STATUS_TOTAL_SCAN_LEN]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"scan_bytes");
 	feather->fs_status_id[STATUS_TOTAL_SCAN_CNT]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"scan_times");
-
+	feather->fs_status_id[STATUS_UPDATE_ERR_CNT]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"update_error");
+	feather->fs_status_id[STATUS_ICONV_ERR_CNT]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"iconv_error");
+	feather->fs_status_id[STATUS_SCAN_ERR_CNT]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"scan_error");
 
 	feather->fs_column_id[COLUMN_TABLE_RULE_NUM]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT,"rule");
 	feather->fs_column_id[COLUMN_TABLE_REGEX_NUM]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT,"regex");
@@ -131,6 +136,7 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	long long total_scan_cnt=0, total_cpu_time=0,total_stream_cnt=0,active_thread_num=0;
 	long long table_stream_num=0,table_scan_cnt=0,table_input_bytes=0,table_scan_cpu_time=0,table_hit_cnt=0;
 	long long outer_mid_cnt=0,inner_mid_cnt=0;
+	long long total_update_error=0,total_iconv_error=0;
 	int i=0;
 	time_t now;
 	struct _Maat_table_info_t* p_table=NULL;
@@ -146,7 +152,8 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 
 	value=MESA_lqueue_get_count(feather->garbage_q);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_GARBAGE_QSIZE], 0,FS_OP_SET,value);
-
+	feather->update_err_cnt=0;
+	feather->iconv_err_cnt=0;
 	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
 		table_stream_num=0;
@@ -216,9 +223,12 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 					feather->fs_column_id[COLUMN_TABLE_HIT_CNT],
 					FS_OP_SET,
 					table_hit_cnt);
+		total_update_error+=p_table->udpate_err_cnt;
+		total_iconv_error+=p_table->iconv_err_cnt;
 		//total hit count stat in region_compile
 
 	}
+
 	FS_operate(feather->stat_handle,
 				feather->total_stat_id, 
 				feather->fs_column_id[COLUMN_TABLE_RULE_NUM], 
@@ -262,6 +272,12 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	feather->total_scan_cnt=total_scan_cnt;
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_TOTAL_SCAN_LEN], 0,FS_OP_SET,feather->total_scan_bytes);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_TOTAL_SCAN_CNT], 0,FS_OP_SET,feather->total_scan_cnt);
+	feather->update_err_cnt=total_update_error;
+	feather->iconv_err_cnt=total_iconv_error;
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_UPDATE_ERR_CNT], 0,FS_OP_SET,feather->update_err_cnt);
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_ICONV_ERR_CNT], 0,FS_OP_SET,feather->iconv_err_cnt);
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_SCAN_ERR_CNT], 0,FS_OP_SET,feather->scan_err_cnt);
+
 	FS_passive_output(feather->stat_handle);
 	return;
 }
