@@ -1297,9 +1297,14 @@ void Maat_stream_scan_string_end(stream_para_t* stream_para)
 		if(sp->version==sp->feather->maat_version)
 		{
 			DEC_SCANNER_REF(scanner, sp->thread_num);
-		}
+			rulescan_endstream(sp->rs_stream_para);
 
-		rulescan_endstream(sp->rs_stream_para);
+		}
+		else
+		{
+			rulescan_endstream_simple(sp->rs_stream_para);
+			sp->feather->zombie_rs_stream--;
+		}
 		
 	}
 	if(sp->last_cache!=NULL)

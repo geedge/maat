@@ -365,6 +365,7 @@ struct _Maat_feather_t
 	long long update_err_cnt;//sum of the same name variable in each table
 	long long iconv_err_cnt;//sum of the same name variable in each table
 	long long scan_err_cnt;	
+	long long zombie_rs_stream;
 };
 struct _maat_garbage_t
 {

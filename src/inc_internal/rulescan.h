@@ -188,7 +188,7 @@ extern "C"
 		unsigned int length[MAX_MATCH_POS_NUM];   /* 该规则所有命中结果的长度；如果该命中结果是在以前的数据包中命中的，则设置对应的length=0, 对于整数区间与IP类，长度置为0*/
 	}rule_result_t;
 
-	/* 布尔表达式的扫描结果类型 */
+	/* 布尔表达式的扫描结果类型，quick模式下只有expr_id以及tag两项有效 */
 	typedef struct _scan_result_t
 	{
 		unsigned int  expr_id;                     /* 与表达式的ID */
@@ -280,13 +280,24 @@ extern "C"
 	int rulescan_computeresult(void * stream_param, scan_result_t * presults, unsigned int size);
 
 	/*
-	功能：结束流式扫描，释放流参数。
+	功能：结束流式扫描，释放流参数。正常流程情况下调用该接口释放流参数，正常流程指在结束流扫描之前还没有调用
+		  rulescan_destroy销毁rulescan句柄。
 	参数：
 		stream_param [in]: 流参数指针。
 	返回值：
 		无。
 	*/ 
 	void rulescan_endstream(void * stream_param);
+
+	/*
+	功能：结束流式扫描，释放流参数。对于先调用rulescan_destroy销毁了rulescan句柄之后再结束流扫描的情况，
+		  需要调用rulescan_endstream_simple来释放流参数，仅限于这种情况下才调用该接口。
+	参数：
+		stream_param [in]: 流参数指针。
+	返回值：
+		无。
+	*/ 
+	void rulescan_endstream_simple(void * stream_param);
 
 	/*
 	功能：非流式扫描接口，扫描结束后返回所有命中结果。

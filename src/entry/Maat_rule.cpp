@@ -26,7 +26,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_8_20161008=1;
+int MAAT_FRAME_VERSION_1_8_20161021_zombie_stream=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -2484,7 +2484,6 @@ void garbage_bury(MESA_lqueue_head garbage_q,void *logger)
 				break;
 			case GARBAGE_SCANNER:
 				ref_cnt=aligment_int64_array_sum(bag->scanner->ref_cnt,bag->scanner->max_thread_num);
-				
 				if(ref_cnt==0)
 				{
 					MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module,
@@ -2795,6 +2794,7 @@ void *thread_rule_monitor(void *arg)
 			{
 				assert(feather->scanner->version>old_scanner->version);
 				assert(old_scanner->tomb_ref==feather->garbage_q);
+				feather->zombie_rs_stream+=aligment_int64_array_sum(old_scanner->ref_cnt,old_scanner->max_thread_num);
 				garbage_bagging(GARBAGE_SCANNER, old_scanner, feather->garbage_q);
 			}
 			feather->update_tmp_scanner=NULL;

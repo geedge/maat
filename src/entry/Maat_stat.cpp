@@ -13,7 +13,8 @@ enum MAAT_FS_STATUS{
 	STATUS_TOTAL_SCAN_CNT,
 	STATUS_UPDATE_ERR_CNT,
 	STATUS_ICONV_ERR_CNT,
-	STATUS_SCAN_ERR_CNT
+	STATUS_SCAN_ERR_CNT,
+	STATUS_ZOMBIE_RS_STREAM
 };
 
 enum MAAT_FS_COLUMN
@@ -52,6 +53,8 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	feather->fs_status_id[STATUS_UPDATE_ERR_CNT]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"update_error");
 	feather->fs_status_id[STATUS_ICONV_ERR_CNT]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"iconv_error");
 	feather->fs_status_id[STATUS_SCAN_ERR_CNT]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"scan_error");
+	feather->fs_status_id[STATUS_ZOMBIE_RS_STREAM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"zombie_stream");
+
 
 	feather->fs_column_id[COLUMN_TABLE_RULE_NUM]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT,"rule");
 	feather->fs_column_id[COLUMN_TABLE_REGEX_NUM]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT,"regex");
@@ -277,6 +280,7 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_UPDATE_ERR_CNT], 0,FS_OP_SET,feather->update_err_cnt);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_ICONV_ERR_CNT], 0,FS_OP_SET,feather->iconv_err_cnt);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_SCAN_ERR_CNT], 0,FS_OP_SET,feather->scan_err_cnt);
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_ZOMBIE_RS_STREAM], 0,FS_OP_SET,feather->zombie_rs_stream);
 
 	FS_passive_output(feather->stat_handle);
 	return;
