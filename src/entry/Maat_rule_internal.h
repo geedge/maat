@@ -346,6 +346,7 @@ struct _Maat_feather_t
 	MESA_htable_handle map_tablename2id;
 	void* logger;
 	int maat_version;
+	int last_full_version;
 	int scan_thread_num;
 	int rule_scan_type;
 	char inc_dir[MAX_TABLE_NAME_LEN];

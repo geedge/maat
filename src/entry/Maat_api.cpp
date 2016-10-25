@@ -452,6 +452,8 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->outer_mid_cnt=aligment_int64_array_alloc(max_thread_num);
 	feather->inner_mid_cnt=aligment_int64_array_alloc(max_thread_num);
 	feather->hit_cnt=aligment_int64_array_alloc(max_thread_num);
+	feather->maat_version=0;
+	feather->last_full_version=0;
 	return feather;
 }
 int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const void* value,int size)
@@ -561,6 +563,7 @@ int Maat_initiate_feather(Maat_feather_t feather)
 	if(_feather->scanner!=NULL)
 	{
 		_feather->maat_version=_feather->scanner->version;
+		_feather->last_full_version=_feather->scanner->version;
 	}
 	if(strlen(_feather->stat_file)==0)
 	{
@@ -1075,6 +1078,7 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 	sp->feather=_feather;
 	sp->version=_feather->maat_version;
 	sp->acc_scan_len=0;
+	sp->rs_stream_para=NULL;
 	if(scanner==NULL)
 	{
 		return sp;
@@ -1294,18 +1298,27 @@ void Maat_stream_scan_string_end(stream_para_t* stream_para)
 	aligment_int64_array_add(p_table->stream_num,sp->thread_num,-1);
 	if(scanner!=NULL)
 	{
-		if(sp->version==sp->feather->maat_version)
+		if(sp->version>=sp->feather->last_full_version)
 		{
 			DEC_SCANNER_REF(scanner, sp->thread_num);
 			rulescan_endstream(sp->rs_stream_para);
-
+			
 		}
 		else
 		{
 			rulescan_endstream_simple(sp->rs_stream_para);
 			sp->feather->zombie_rs_stream--;
 		}
-		
+		sp->rs_stream_para=NULL;
+	}
+	else
+	{
+		if(sp->rs_stream_para!=NULL)
+		{
+			rulescan_endstream_simple(sp->rs_stream_para);
+			sp->feather->zombie_rs_stream--;
+			sp->rs_stream_para=NULL;
+		}
 	}
 	if(sp->last_cache!=NULL)
 	{

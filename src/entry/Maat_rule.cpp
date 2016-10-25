@@ -26,7 +26,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_8_20161021_zombie_stream=1;
+int MAAT_FRAME_VERSION_1_8_20161025_zombie_stream=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -2799,6 +2799,7 @@ void *thread_rule_monitor(void *arg)
 			}
 			feather->update_tmp_scanner=NULL;
 			feather->maat_version=feather->scanner->version;
+			feather->last_full_version=feather->scanner->version;
 		}
 		if(feather->scanner!=NULL)
 		{
