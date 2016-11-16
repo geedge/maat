@@ -26,7 +26,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_8_20161025_zombie_stream=1;
+int MAAT_FRAME_VERSION_1_8_20161116=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -1410,14 +1410,6 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 	switch(db_rule->expr_type)
 	{
 		case EXPR_TYPE_AND:
-			if(db_rule->match_method!=MATCH_METHOD_SUB)
-			{
-				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-				"Table %s region cfg %d is EXPR_TYPE_AND,but match method is not MATCH_METHOD_SUB,force fixed.",
-				table->table_name[table->updating_name],db_rule->region_id);
-				db_rule->match_method=MATCH_METHOD_SUB;
-					
-			}
 			for(i=0,p=db_rule->keywords;;i++,p=NULL)
 			{
 				if(i>=MAAT_MAX_EXPR_ITEM_NUM)
@@ -1971,7 +1963,7 @@ void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,st
 			if(ret!=7)
 			{
 				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-									"update error,invalid format of expr table %s:%s",table->table_name[table->updating_name],table_line);
+									"abandon config: invalid format of expr table %s:%s",table->table_name[table->updating_name],table_line);
 				free(maat_str_rule);
 				maat_str_rule=NULL;	
 				table->udpate_err_cnt++;
@@ -1990,7 +1982,7 @@ void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,st
 			if(ret!=8)
 			{
 				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-									"update error,invalid format of expr_plus table %s:%s",table->table_name[table->updating_name],table_line);
+									"abandon config: invalid format of expr_plus table %s:%s",table->table_name[table->updating_name],table_line);
 				free(maat_str_rule);
 				maat_str_rule=NULL;	
 				table->udpate_err_cnt++;
@@ -2017,7 +2009,7 @@ void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,st
 			break;
 		default:
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-								"update error,invalid hexbin value of expr table %s:%s"
+								"abandon config:update error,invalid hexbin value of expr table %s:%s"
 								,table->table_name[table->updating_name],table_line);
 			table->udpate_err_cnt++;
 			goto error_out;
@@ -2056,7 +2048,25 @@ void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,st
 	}
 	else
 	{
-
+		if(maat_str_rule->expr_type==EXPR_TYPE_AND
+			&&maat_str_rule->match_method!=MATCH_METHOD_SUB)
+		{
+			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+			"table %s region cfg %d is EXPR_TYPE_AND,but match method is not MATCH_METHOD_SUB,force fixed.",
+			table->table_name[table->updating_name],maat_str_rule->region_id);
+			maat_str_rule->match_method=MATCH_METHOD_SUB;
+				
+		}
+		if(maat_str_rule->expr_type==EXPR_TYPE_STRING
+			&&table->quick_expr_switch==1
+			&&maat_str_rule->match_method!=MATCH_METHOD_SUB)
+		{
+			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+			"abandon config: table %s scan mode is quickon, only support MATCH_METHOD_SUB, conflict with match method of region %d.",
+			table->table_name[table->updating_name],maat_str_rule->region_id);
+			table->udpate_err_cnt++;
+			goto error_out;
+		}
 		ret=add_expr_rule(table, maat_str_rule,scanner, logger);
 		if(ret<0)
 		{
