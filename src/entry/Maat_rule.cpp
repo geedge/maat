@@ -26,7 +26,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_8_20161116=1;
+int MAAT_FRAME_VERSION_1_8_20161121=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -1781,7 +1781,7 @@ int del_region_rule(struct _Maat_table_info_t* table,int region_id,int group_id,
 		HASH_delete_by_id(maat_scanner->group_hash,group_id);
 		garbage_bagging(GARBAGE_GROUP_RULE, group_rule, maat_scanner->tomb_ref);
 		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"last region rule of group id %d in table %s region id %d has been delete."
+							"Indirectly delete group %d,last region rule has been delete,table %s region id %d ."
 							,group_id
 							,table->table_name[table->updating_name]
 							,region_id);
@@ -1849,12 +1849,11 @@ void del_group_rule(struct _Maat_table_info_t* table,struct db_group_rule_t* db_
 		HASH_delete_by_id(scanner->compile_hash, db_group_rule->compile_id);
 		garbage_bagging(GARBAGE_COMPILE_RULE, compile_rule, scanner->tomb_ref);
 	}
+	//Directly delete group id will not destroyp group_rule,it 'll be destroyed when delete this group's last region.
 	if(group_rule->ref_cnt==0&&group_rule->region_cnt==0)
 	{
-		HASH_delete_by_id(scanner->group_hash,db_group_rule->group_id);
-		garbage_bagging(GARBAGE_GROUP_RULE, group_rule, scanner->tomb_ref);
 		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"table %s group id %d been eternal delete."
+							"Directly delete table %s group id %d, do this when delete its last region."
 							,table->table_name[table->updating_name]
 							,db_group_rule->group_id);
 	}
