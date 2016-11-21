@@ -1125,6 +1125,8 @@ void rulescan_batch_update(rule_scanner_t scanner,MESA_lqueue_head expr_queue,vo
 		destroy_op_expr(op_expr);
 		op_expr=NULL;
 	}
+	MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
+							"scanner %p rulescan_update %ld rules.",scanner,q_cnt);
 	ret=rulescan_update(scanner, to_update_expr,q_cnt, failed_ids,MAX_FAILED_NUM);
 
 	if(ret!=1)
@@ -1137,6 +1139,9 @@ void rulescan_batch_update(rule_scanner_t scanner,MESA_lqueue_head expr_queue,vo
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
 							"rulescan_update error,when batch update %ld rules,regex error %u.",q_cnt,failed_ids[0]);
 	}
+	MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
+							"scanner %p rulescan_update sucess.",scanner);
+
 	for(i=0;i<q_cnt;i++)
 	{
 		for(j=0;j<(int)to_update_expr[i].rnum;j++)
