@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <time.h>
 #include <MESA/MESA_htable.h>
 #include <MESA/MESA_list_queue.h>
 #include <MESA/MESA_handle_logger.h>
@@ -1097,6 +1098,8 @@ void rulescan_batch_update(rule_scanner_t scanner,MESA_lqueue_head expr_queue,vo
 	memset(failed_ids,0,sizeof(failed_ids));
 	memset(failed_info,0,sizeof(failed_info));
 	const long q_cnt=MESA_lqueue_get_count(expr_queue);
+	struct timespec start,end;
+	unsigned long long update_interval=0;
 	if(q_cnt==0)
 	{
 		return;
@@ -1127,8 +1130,9 @@ void rulescan_batch_update(rule_scanner_t scanner,MESA_lqueue_head expr_queue,vo
 	}
 	MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
 							"scanner %p rulescan_update %ld rules.",scanner,q_cnt);
+	clock_gettime(CLOCK_MONOTONIC,&start);
 	ret=rulescan_update(scanner, to_update_expr,q_cnt, failed_ids,MAX_FAILED_NUM);
-
+	clock_gettime(CLOCK_MONOTONIC,&end);
 	if(ret!=1)
 	{
 		p=failed_info;
@@ -1139,8 +1143,12 @@ void rulescan_batch_update(rule_scanner_t scanner,MESA_lqueue_head expr_queue,vo
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
 							"rulescan_update error,when batch update %ld rules,regex error %u.",q_cnt,failed_ids[0]);
 	}
+	update_interval=(end.tv_sec-start.tv_sec)*1000000000+end.tv_nsec-start.tv_nsec;
 	MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"scanner %p rulescan_update sucess.",scanner);
+							"scanner %p rulescan_update with %2.2e (%llu) ns."
+							,scanner
+							,(double)update_interval
+							,update_interval);
 
 	for(i=0;i<q_cnt;i++)
 	{

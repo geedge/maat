@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
- #include <sys/time.h>
+#include <time.h>
 #include <MESA/MESA_handle_logger.h>
 
 #include "rulescan.h"
