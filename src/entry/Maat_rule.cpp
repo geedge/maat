@@ -27,7 +27,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_8_20161121=1;
+int MAAT_FRAME_VERSION_1_8_20161123=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -151,9 +151,9 @@ int URLEncode(const char* str, const int strSize, char* result, const int result
 	for ( i=0; (i<strSize)&&(j<resultSize); ++i)
 	{  
 		ch = str[i];  
-		if (((ch>='A') && (ch<'Z')) ||  
-			((ch>='a') && (ch<'z')) ||  
-			((ch>='0') && (ch<'9')))
+		if (((ch>='A') && (ch<='Z')) ||  
+			((ch>='a') && (ch<='z')) ||  
+			((ch>='0') && (ch<='9')))
 		{  
 			result[j++] = ch;  
 		} 
@@ -688,12 +688,14 @@ void* create_bool_matcher(MESA_htable_handle compile_hash,int thread_num,void* l
 		free(one_set);
 		one_set=NULL;
 	}
+	MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module,
+								"build bool matcher start contain %ld compile rule",
+								q_cnt);	
 	bool_matcher=boolexpr_initialize(set_array, q_cnt, thread_num, &mem_size);
 	if(bool_matcher!=NULL)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module,
-								"build bool matcher contain %ld compile rule, use %u memory",
-								q_cnt,mem_size);
+								"build bool matcher use %u memory",mem_size);
 	}
 	else
 	{
@@ -943,6 +945,7 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,_Maat_feather_t
 	
 	scanner->version=version;
 	scanner->cfg_num=0;
+	scanner->dedup_expr_num=0;
 	scanner->max_thread_num=scan_thread_num;
 	//optimized for CPU cache_alignment 64
 	scanner->ref_cnt=aligment_int64_array_alloc(scan_thread_num);
@@ -1199,14 +1202,6 @@ void digest_batch_update(GIE_handle_t* handle,MESA_lqueue_head update_q,void*log
 	}
 	free(update_array);
 	update_array=NULL;
-	return;
-}
-void batch_update(struct _Maat_scanner_t *scanner,void*logger)
-{
-	rulescan_batch_update(scanner->region,
-							scanner->region_update_q,
-							logger);
-	scanner->last_update_time=time(NULL);
 	return;
 }
 struct _Maat_group_rule_t* add_region_to_group(struct _Maat_group_rule_t* group,int region_id,int district_id,int expr_id,enum MAAT_TABLE_TYPE region_type)
@@ -1581,7 +1576,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 					if(region_str_len==(int)strlen(sub_key_array[k])&&
 						0==memcmp(sub_key_array[k],region_string,region_str_len))
 					{
-						op_expr->no_effect_convert_cnt++;;
+						op_expr->no_effect_convert_cnt++;
 					}
 				}
 				else
@@ -1605,6 +1600,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 			if((TRUE==table->src_charset_in_dst&&op_expr->no_effect_convert_cnt==sub_expr_cnt)||
 				op_expr->convert_failed>0)
 			{
+				scanner->dedup_expr_num++;
 				destroy_op_expr(op_expr);
 				op_expr=NULL;
 			}
@@ -2584,6 +2580,9 @@ void do_scanner_update(struct _Maat_scanner_t* scanner,MESA_lqueue_head garbage_
 	{
 		garbage_bagging(GARBAGE_BOOL_MATCHER, tmp2, garbage_q);
 	}
+	MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
+							"Version %d dedup string rule %lu",scanner->version,scanner->dedup_expr_num);	
+	scanner->dedup_expr_num=0;
 	rulescan_batch_update(scanner->region,
 							scanner->region_update_q,
 							logger);
