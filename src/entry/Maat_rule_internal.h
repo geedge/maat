@@ -322,6 +322,7 @@ struct _Maat_scanner_t
 	unsigned int district_num;
 	unsigned int cfg_num;
 	unsigned int exprid_generator;
+	unsigned int dedup_expr_num;
 	MESA_lqueue_head region_update_q;
 	MESA_lqueue_head digest_update_q[MAX_TABLE_NUM];
 	void * expr_compiler;
