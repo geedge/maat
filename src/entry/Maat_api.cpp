@@ -704,13 +704,13 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 	p_table->cb_info->cb_plug[idx].update=update;
 	p_table->cb_info->cb_plug[idx].finish=finish;
 	p_table->cb_info->cb_plug[idx].u_para=u_para;
-	if(p_table->cb_info->line_num>0)
+	if(p_table->cb_info->cache_line_num>0)
 	{
 		if(start!=NULL)
 		{
 			start(MAAT_RULE_UPDATE_TYPE_FULL,u_para);
 		}
-		for(i=0;i<p_table->cb_info->line_num;i++)
+		for(i=0;i<p_table->cb_info->cache_line_num;i++)
 		{
 			lines=(const char*)dynamic_array_read(p_table->cb_info->cache_lines,i);
 			if(lines==NULL)

@@ -27,7 +27,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_8_20161123=1;
+int MAAT_FRAME_VERSION_1_8_20161215=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -1922,8 +1922,11 @@ void update_group_rule(struct _Maat_table_info_t* table,const char* table_line,s
 	if(db_group_rule.is_valid==FALSE)
 	{
 		del_group_rule(table, &db_group_rule,scanner,logger);
-		//leave no trace for virtual group rule
-//		table->cfg_num--;
+		//leave no trace when compatible_group_update calling
+		if(table->table_type==TABLE_TYPE_GROUP)
+		{
+			table->cfg_num--;
+		}
 	}
 	else
 	{
@@ -1939,7 +1942,10 @@ void update_group_rule(struct _Maat_table_info_t* table,const char* table_line,s
 		else
 		{
 			//no need to free db_group_rule,it was saved in scanner->compile_hash
-//			table->cfg_num++;
+			if(table->table_type==TABLE_TYPE_GROUP)
+			{
+				table->cfg_num++;
+			}
 		}
 	}
 	
@@ -2543,6 +2549,7 @@ void plugin_table_callback(struct _Maat_table_info_t* table,const char* table_li
 	struct _plugin_table_info* p_table_cb=table->cb_info;
 	char *p=NULL;
 	pthread_mutex_lock(&(p_table_cb->plugin_mutex));
+	p_table_cb->acc_line_num++;
 	if(p_table_cb->cb_plug_cnt>0)
 	{
 		for(i=0;i<p_table_cb->cb_plug_cnt;i++)
@@ -2555,8 +2562,8 @@ void plugin_table_callback(struct _Maat_table_info_t* table,const char* table_li
 		p=(char*)calloc(len,1);
 		memcpy(p,table_line,len);
 		p_table_cb->cache_size+=len;
-		dynamic_array_write(p_table_cb->cache_lines,p_table_cb->line_num,p);
-		p_table_cb->line_num++;
+		dynamic_array_write(p_table_cb->cache_lines,p_table_cb->cache_line_num,p);
+		p_table_cb->cache_line_num++;
 	}
 	pthread_mutex_unlock(&(p_table_cb->plugin_mutex));
 }
@@ -2825,12 +2832,14 @@ void *thread_rule_monitor(void *arg)
 		if(feather->scanner!=NULL)
 		{
 			expr_wait_q_cnt=MESA_lqueue_get_count(feather->scanner->region_update_q);
-			if(expr_wait_q_cnt>0&&time(NULL)-feather->scanner->last_update_time>feather->effect_interval_ms*1000)
+			feather->postpone_q_size=expr_wait_q_cnt;
+			if(expr_wait_q_cnt>0&&time(NULL)-feather->scanner->last_update_time>feather->effect_interval_ms/1000)
 			{
 				do_scanner_update(feather->scanner
 								,feather->garbage_q
 								,feather->scan_thread_num
 								,feather->logger);
+				feather->postpone_q_size=0;
 				MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
 										"Actual udpate config version %u %d entries load to rulescan after postpone.",
 										feather->scanner->version,feather->scanner->cfg_num);
@@ -2861,7 +2870,7 @@ void *thread_rule_monitor(void *arg)
 		if(feather->p_table_info[i]->table_type==TABLE_TYPE_PLUGIN)
 		{
 			d_array=feather->p_table_info[i]->cb_info->cache_lines;
-			for(j=0;j<feather->p_table_info[i]->cb_info->line_num;j++)
+			for(j=0;j<feather->p_table_info[i]->cb_info->cache_line_num;j++)
 			{
 				lines=(char*)dynamic_array_read(d_array, j);
 				free(lines);

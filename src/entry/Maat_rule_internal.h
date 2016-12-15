@@ -215,7 +215,8 @@ struct _plugin_table_info
 	int cb_plug_cnt;
 	struct _callback_plugin  cb_plug[MAX_PLUGING_NUM];
 	dynamic_array_t *cache_lines;
-	int line_num;
+	int cache_line_num;
+	int acc_line_num;
 	int update_type;
 	int is_called_started;
 	long cache_size;
@@ -368,6 +369,8 @@ struct _Maat_feather_t
 	long long iconv_err_cnt;//sum of the same name variable in each table
 	long long scan_err_cnt;	
 	long long zombie_rs_stream;
+	long long postpone_q_size;
+	long long compile_rule_num;
 };
 struct _maat_garbage_t
 {

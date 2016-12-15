@@ -6,6 +6,11 @@ enum MAAT_FS_STATUS{
 	STATUS_VERSION=0,
 	STATUS_THRED_NUM,
 	STATUS_TABLE_NUM,
+	STATUS_PLUGIN_CACHE_NUM,
+	STATUS_PLUGIN_ACC_NUM,
+	STATUS_GROUP_RULE_NUM,
+	STATUS_COMPILE_RULE_NUM,
+	STATUS_POSTPONE_QSIZE,
 	STATUS_OUTER_MID_NUM,
 	STATUS_INNER_MID_NUM,
 	STATUS_GARBAGE_QSIZE,
@@ -45,9 +50,19 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	feather->fs_status_id[STATUS_VERSION]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"version");
 	feather->fs_status_id[STATUS_THRED_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"active_thread");
 	feather->fs_status_id[STATUS_TABLE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"table_num");
+
+	feather->fs_status_id[STATUS_PLUGIN_CACHE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"plug_cache");
+	feather->fs_status_id[STATUS_PLUGIN_ACC_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"plug_acc");
+
+	feather->fs_status_id[STATUS_GROUP_RULE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"group_num");
+	feather->fs_status_id[STATUS_COMPILE_RULE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"compile_num");
+
+	feather->fs_status_id[STATUS_POSTPONE_QSIZE]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"postpone_num");
+	feather->fs_status_id[STATUS_GARBAGE_QSIZE]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"garbage_num");	
+
 	feather->fs_status_id[STATUS_OUTER_MID_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"outer_mid");
 	feather->fs_status_id[STATUS_INNER_MID_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"inner_mid");
-	feather->fs_status_id[STATUS_GARBAGE_QSIZE]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"garbage_num");
+
 	feather->fs_status_id[STATUS_TOTAL_SCAN_LEN]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"scan_bytes");
 	feather->fs_status_id[STATUS_TOTAL_SCAN_CNT]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"scan_times");
 	feather->fs_status_id[STATUS_UPDATE_ERR_CNT]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"update_error");
@@ -140,6 +155,7 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	long long table_stream_num=0,table_scan_cnt=0,table_input_bytes=0,table_scan_cpu_time=0,table_hit_cnt=0;
 	long long outer_mid_cnt=0,inner_mid_cnt=0;
 	long long total_update_error=0,total_iconv_error=0;
+	long long compile_rule_num=0,group_rule_num=0,plugin_cache_num=0,plugin_acc_num=0;
 	int i=0;
 	time_t now;
 	struct _Maat_table_info_t* p_table=NULL;
@@ -165,71 +181,83 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 		table_scan_cpu_time=0;
 		table_hit_cnt=0;
 		p_table=feather->p_table_info[i];
-		if(p_table==NULL||p_table->table_type==TABLE_TYPE_PLUGIN
-						||p_table->table_type==TABLE_TYPE_GROUP
-						||p_table->table_type==TABLE_TYPE_COMPILE)
+		if(p_table==NULL)
 		{
 			continue;
 		}
-		FS_operate(feather->stat_handle,
-					p_table->stat_line_id,
-					feather->fs_column_id[COLUMN_TABLE_RULE_NUM],
-					FS_OP_SET,
-					p_table->cfg_num);
-		total_cfg_num+=p_table->cfg_num;
-		
-		FS_operate(feather->stat_handle,
-					p_table->stat_line_id,
-					feather->fs_column_id[COLUMN_TABLE_REGEX_NUM],
-					FS_OP_SET,
-					p_table->regex_rule_cnt);
-		total_regex_num+= p_table->regex_rule_cnt;
-
-		table_stream_num=aligment_int64_array_sum(p_table->stream_num,feather->scan_thread_num);
-		FS_operate(feather->stat_handle,
-					p_table->stat_line_id,
-					feather->fs_column_id[COLUMN_TABLE_STREAM_NUM],
-					FS_OP_SET,
-					table_stream_num);
-		total_stream_cnt+= table_stream_num;
-
-		table_scan_cnt=aligment_int64_array_sum(p_table->scan_cnt,feather->scan_thread_num);
-		FS_operate(feather->stat_handle,
-					p_table->stat_line_id,
-					feather->fs_column_id[COLUMN_TABLE_SCAN_CNT],
-					FS_OP_SET,
-					table_scan_cnt);
-		total_scan_cnt+=table_scan_cnt;
-
-		table_input_bytes=aligment_int64_array_sum(p_table->input_bytes,feather->scan_thread_num);
-		FS_operate(feather->stat_handle,
-					p_table->stat_line_id,
-					feather->fs_column_id[COLUMN_TABLE_SCAN_BYTES],
-					FS_OP_SET,
-					table_input_bytes);
-		total_input_bytes+=table_input_bytes;
-		if(feather->perf_on==1)
+		switch(p_table->table_type)
 		{
-			table_scan_cpu_time=aligment_int64_array_sum(p_table->scan_cpu_time,feather->scan_thread_num);
-			table_scan_cpu_time/=1000;
-			FS_operate(feather->stat_handle,
-						p_table->stat_line_id,
-						feather->fs_column_id[COLUMN_TABLE_CPU_TIME],
-						FS_OP_SET,
-						table_scan_cpu_time);
-			total_cpu_time+=table_scan_cpu_time;
-		}
-		
-		table_hit_cnt=aligment_int64_array_sum(p_table->hit_cnt,feather->scan_thread_num);
-		FS_operate(feather->stat_handle,
-					p_table->stat_line_id,
-					feather->fs_column_id[COLUMN_TABLE_HIT_CNT],
-					FS_OP_SET,
-					table_hit_cnt);
-		total_update_error+=p_table->udpate_err_cnt;
-		total_iconv_error+=p_table->iconv_err_cnt;
-		//total hit count stat in region_compile
+			case TABLE_TYPE_PLUGIN:
+				plugin_cache_num+=p_table->cb_info->cache_line_num;
+				plugin_acc_num+=p_table->cb_info->acc_line_num;
+				break;
+			case TABLE_TYPE_GROUP:
+				group_rule_num+=p_table->cfg_num;
+				break;
+			case TABLE_TYPE_COMPILE:
+				compile_rule_num+=p_table->cfg_num;
+				break;
+			default:
+				FS_operate(feather->stat_handle,
+							p_table->stat_line_id,
+							feather->fs_column_id[COLUMN_TABLE_RULE_NUM],
+							FS_OP_SET,
+							p_table->cfg_num);
+				total_cfg_num+=p_table->cfg_num;
+				
+				FS_operate(feather->stat_handle,
+							p_table->stat_line_id,
+							feather->fs_column_id[COLUMN_TABLE_REGEX_NUM],
+							FS_OP_SET,
+							p_table->regex_rule_cnt);
+				total_regex_num+= p_table->regex_rule_cnt;
 
+				table_stream_num=aligment_int64_array_sum(p_table->stream_num,feather->scan_thread_num);
+				FS_operate(feather->stat_handle,
+							p_table->stat_line_id,
+							feather->fs_column_id[COLUMN_TABLE_STREAM_NUM],
+							FS_OP_SET,
+							table_stream_num);
+				total_stream_cnt+= table_stream_num;
+
+				table_scan_cnt=aligment_int64_array_sum(p_table->scan_cnt,feather->scan_thread_num);
+				FS_operate(feather->stat_handle,
+							p_table->stat_line_id,
+							feather->fs_column_id[COLUMN_TABLE_SCAN_CNT],
+							FS_OP_SET,
+							table_scan_cnt);
+				total_scan_cnt+=table_scan_cnt;
+
+				table_input_bytes=aligment_int64_array_sum(p_table->input_bytes,feather->scan_thread_num);
+				FS_operate(feather->stat_handle,
+							p_table->stat_line_id,
+							feather->fs_column_id[COLUMN_TABLE_SCAN_BYTES],
+							FS_OP_SET,
+							table_input_bytes);
+				total_input_bytes+=table_input_bytes;
+				if(feather->perf_on==1)
+				{
+					table_scan_cpu_time=aligment_int64_array_sum(p_table->scan_cpu_time,feather->scan_thread_num);
+					table_scan_cpu_time/=1000;
+					FS_operate(feather->stat_handle,
+								p_table->stat_line_id,
+								feather->fs_column_id[COLUMN_TABLE_CPU_TIME],
+								FS_OP_SET,
+								table_scan_cpu_time);
+					total_cpu_time+=table_scan_cpu_time;
+				}
+				
+				table_hit_cnt=aligment_int64_array_sum(p_table->hit_cnt,feather->scan_thread_num);
+				FS_operate(feather->stat_handle,
+							p_table->stat_line_id,
+							feather->fs_column_id[COLUMN_TABLE_HIT_CNT],
+							FS_OP_SET,
+							table_hit_cnt);
+				total_update_error+=p_table->udpate_err_cnt;
+				total_iconv_error+=p_table->iconv_err_cnt;
+				//total hit count stat in region_compile
+				break;
+		}
 	}
 
 	FS_operate(feather->stat_handle,
@@ -281,6 +309,13 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_ICONV_ERR_CNT], 0,FS_OP_SET,feather->iconv_err_cnt);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_SCAN_ERR_CNT], 0,FS_OP_SET,feather->scan_err_cnt);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_ZOMBIE_RS_STREAM], 0,FS_OP_SET,feather->zombie_rs_stream);
+
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_PLUGIN_CACHE_NUM], 0,FS_OP_SET,plugin_cache_num);
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_PLUGIN_ACC_NUM], 0,FS_OP_SET,plugin_acc_num);
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_GROUP_RULE_NUM], 0,FS_OP_SET,group_rule_num);
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_COMPILE_RULE_NUM], 0,FS_OP_SET,compile_rule_num);
+
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_POSTPONE_QSIZE], 0,FS_OP_SET,feather->postpone_q_size);
 
 	FS_passive_output(feather->stat_handle);
 	return;
