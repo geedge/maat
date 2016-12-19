@@ -78,8 +78,9 @@ int my_scandir(const char *dir, struct dirent ***namelist,
 }
  int filter_fn(const struct dirent * ent)
  {
-   if(ent->d_type != DT_REG)
-     return 0;
+//   files in xfs are not DT_REG.
+//   if(ent->d_type != DT_REG)
+//     return 0;
      
    return (strncmp(ent->d_name,"full_config_index",strlen("full_config_index")) == 0||
    	strncmp(ent->d_name,"inc_config_index",strlen("inc_config_index")) == 0);
