@@ -2023,10 +2023,31 @@ void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,st
 			break;
 		default:
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-								"abandon config:update error,invalid hexbin value of expr table %s:%s"
+								"abandon config %d:update error,invalid hexbin value of expr table %s:%s"
+								,maat_str_rule->region_id
 								,table->table_name[table->updating_name],table_line);
 			table->udpate_err_cnt++;
 			goto error_out;
+	}
+	if(maat_str_rule->match_method<MATCH_METHOD_SUB||maat_str_rule->match_method>MATCH_METHOD_FULL)
+	{
+		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+							"abandon config %d:update error,invalid match method=%d in expr table %s:%s"
+							,maat_str_rule->region_id
+							,maat_str_rule->match_method
+							,table->table_name[table->updating_name],table_line);
+		table->udpate_err_cnt++;
+		goto error_out;
+	}
+	if(maat_str_rule->expr_type<EXPR_TYPE_STRING||maat_str_rule->match_method>EXPR_TYPE_OFFSET)
+	{
+		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+							"abandon config %d:update error,invalid expr type=%d in expr table %s:%s"
+							,maat_str_rule->region_id
+							,maat_str_rule->expr_type
+							,table->table_name[table->updating_name],table_line);
+		table->udpate_err_cnt++;
+		goto error_out;
 	}
 	ret=sync_region(scanner->region_hash
 					,maat_str_rule->region_id
