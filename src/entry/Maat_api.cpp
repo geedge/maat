@@ -1511,6 +1511,10 @@ int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCA
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	struct _OUTER_scan_status_t* _mid=NULL;
 	int map_ret=-1;
+	if(_feather->scanner==NULL)
+	{
+		return 0;
+	}
 	_mid=grab_mid(mid,_feather, 0, 0);
 	if(_mid==NULL)
 	{
