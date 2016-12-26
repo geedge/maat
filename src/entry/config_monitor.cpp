@@ -207,7 +207,7 @@ int cm_read_cfg_index_file(const char* path,struct cm_table_info_t* idx,int size
 		ret=fscanf(fp,"%s\t%d\t%s",idx[i].table_name
 								,&(idx[i].cfg_num)
 								,idx[i].cfg_path);
-		if(ret==3&&idx[i].cfg_num>0)//jump over empty line
+		if(ret==3&&idx[i].cfg_num>=0)//jump over empty line
 		{
 			i++;
 		}
