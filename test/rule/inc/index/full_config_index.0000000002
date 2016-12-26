@@ -1,0 +1,10 @@
+COMPILE	12	./rule/inc/COMPILE.local
+GROUP	15	./rule/inc/GROUP.local
+HTTP_REGION	1	./rule/inc/HTTP_REGION.local
+IP_CONFIG	2	./rule/inc/IP_CONFIG.local
+CONTENT_SIZE	2	./rule/inc/CONTENT_SIZE.local
+HTTP_URL	5	./rule/inc/HTTP_URL.local
+HTTP_HOST	1	./rule/inc/HTTP_HOST.local
+QD_ENTRY_INFO	3	./rule/inc/QD_ENTRY_INFO.local
+FILE_DIGEST	1	./rule/inc/FILE_DIGEST.local
+KEYWORDS_TABLE	2	./rule/inc/KEYWORDS_TABLE.local

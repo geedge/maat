@@ -60,6 +60,32 @@ int  hex2bin(char *hex,int hex_len,char *binary,int size)
 	binary[resultlen]='\0';
 	return resultlen;
 }
+int is_valid_expr_type(enum MAAT_EXPR_TYPE expr_type)
+{
+	switch(expr_type)
+	{
+		case EXPR_TYPE_STRING:
+		case EXPR_TYPE_AND:
+		case EXPR_TYPE_REGEX:
+		case EXPR_TYPE_OFFSET:
+			return 1;
+		default:
+			return 0;
+	}
+}
+int is_valid_match_method(enum MAAT_MATCH_METHOD match_method)
+{
+	switch(match_method)
+	{
+		case MATCH_METHOD_SUB:
+		case MATCH_METHOD_RIGHT:
+		case MATCH_METHOD_LEFT:
+		case MATCH_METHOD_FULL:
+			return 1;
+		default:
+			return 0;
+	}
+}
 iconv_t maat_iconv_open(struct _Maat_scanner_t* scanner,enum MAAT_CHARSET to,enum MAAT_CHARSET from)
 {
 	const char *from_s=CHARSET_STRING[from];
@@ -1959,7 +1985,6 @@ void compatible_group_udpate(struct _Maat_table_info_t* table,int region_id,int 
 	update_group_rule(table, virtual_group_line,scanner,logger);
 	return;
 }
-
 void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,struct _Maat_scanner_t *scanner,void* logger,int group_mode_on)
 {
 	struct db_str_rule_t* maat_str_rule=(struct db_str_rule_t*)malloc(sizeof(struct db_str_rule_t));
@@ -2029,7 +2054,7 @@ void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,st
 			table->udpate_err_cnt++;
 			goto error_out;
 	}
-	if(maat_str_rule->match_method<MATCH_METHOD_SUB||maat_str_rule->match_method>MATCH_METHOD_FULL)
+	if(!is_valid_match_method(maat_str_rule->match_method))
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
 							"abandon config %d:update error,invalid match method=%d in expr table %s:%s"
@@ -2039,7 +2064,7 @@ void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,st
 		table->udpate_err_cnt++;
 		goto error_out;
 	}
-	if(maat_str_rule->expr_type<EXPR_TYPE_STRING||maat_str_rule->match_method>EXPR_TYPE_OFFSET)
+	if(!is_valid_expr_type(maat_str_rule->expr_type))
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
 							"abandon config %d:update error,invalid expr type=%d in expr table %s:%s"
@@ -2682,7 +2707,7 @@ void maat_start_cb(unsigned int new_version,int update_type,void*u_para)
 				continue;
 			}
 			p_table->cfg_num=0;
-			p_table->expr_rule_cn=0;
+			p_table->expr_rule_cnt=0;
 			p_table->regex_rule_cnt=0;
 			if(p_table->table_type==TABLE_TYPE_PLUGIN)
 			{

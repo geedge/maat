@@ -462,16 +462,26 @@ int main(int argc,char* argv[])
 	int g_iThreadNum=4;
 	const char*	table_info_path="./table_info.conf";
 	const char* json_path="./maat_json.json";
-//	const char* ful_cfg_dir="./maat_json.json_iris_tmp/index";
-//	const char* inc_cfg_dir="./rules/inc/index";
+	const char* ful_cfg_dir="./rule/full/index";
+	const char* inc_cfg_dir="./rule/inc/index";
 	const char* log_file="./test.log";
 	const char* stat_file="./scan_staus.log";
 	int scan_detail=0;
 	scan_status_t mid=NULL;
+	int wait_second=4;
 	void *logger=MESA_create_runtime_log_handle(log_file,0);
 
 	feather=Maat_feather(g_iThreadNum, table_info_path, logger);
-	Maat_set_feather_opt(feather, MAAT_OPT_JSON_FILE_PATH, json_path, strlen(json_path)+1);
+	if(argc>1&&0==strcmp(argv[1],"update"))
+	{
+		Maat_set_feather_opt(feather, MAAT_OPT_FULL_CFG_DIR, ful_cfg_dir, strlen(ful_cfg_dir)+1);
+		Maat_set_feather_opt(feather, MAAT_OPT_INC_CFG_DIR, inc_cfg_dir, strlen(inc_cfg_dir)+1);
+		wait_second=14;
+	}
+	else
+	{
+		Maat_set_feather_opt(feather, MAAT_OPT_JSON_FILE_PATH, json_path, strlen(json_path)+1);
+	}
 	Maat_set_feather_opt(feather, MAAT_OPT_STAT_FILE_PATH, stat_file, strlen(stat_file)+1);
 	Maat_set_feather_opt(feather, MAAT_OPT_STAT_ON, NULL, 0);
 	Maat_set_feather_opt(feather, MAAT_OPT_PERF_ON, NULL, 0);
@@ -519,7 +529,7 @@ int main(int argc,char* argv[])
 	test_table_conjunction(feather, "HTTP_URL", "HTTP_HOST", &mid);
 	Maat_clean_status(&mid);
 
-	sleep(4);
+	sleep(wait_second);
 	
 	Maat_burn_feather(feather);
 	
