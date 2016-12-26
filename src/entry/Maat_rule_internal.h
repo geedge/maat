@@ -218,7 +218,6 @@ struct _plugin_table_info
 	int cache_line_num;
 	int acc_line_num;
 	int update_type;
-	int is_called_started;
 	long cache_size;
 	pthread_mutex_t plugin_mutex;
 };

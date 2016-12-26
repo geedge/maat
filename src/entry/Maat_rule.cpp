@@ -27,7 +27,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_8_20161219=1;
+int MAAT_FRAME_VERSION_1_8_20161226=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -2645,6 +2645,23 @@ void do_scanner_update(struct _Maat_scanner_t* scanner,MESA_lqueue_head garbage_
 	return;
 
 }
+void clear_plugin_table_info(struct _plugin_table_info *cb_info)
+{
+	int i=0;
+	void *line=NULL;
+	pthread_mutex_lock(&(cb_info->plugin_mutex));
+	for(i=0;i<cb_info->cache_line_num;i++)
+	{
+		line=dynamic_array_read(cb_info->cache_lines,i);
+		free(line);
+		dynamic_array_write(cb_info->cache_lines,i,NULL);
+	}
+	cb_info->cache_line_num=0;
+	cb_info->cache_size=0;
+	cb_info->acc_line_num=0;
+	pthread_mutex_unlock(&(cb_info->plugin_mutex));
+	return;
+}
 void maat_start_cb(unsigned int new_version,int update_type,void*u_para)
 {
 	struct _Maat_feather_t *feather=(struct _Maat_feather_t *)u_para; 
@@ -2657,6 +2674,21 @@ void maat_start_cb(unsigned int new_version,int update_type,void*u_para)
 		MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
 								"Full config version %u -> %u update start",
 								feather->maat_version,new_version);
+		for(i=0;i<MAX_TABLE_NUM;i++)
+		{
+			p_table=feather->p_table_info[i];
+			if(p_table==NULL)
+			{
+				continue;
+			}
+			p_table->cfg_num=0;
+			p_table->expr_rule_cn=0;
+			p_table->regex_rule_cnt=0;
+			if(p_table->table_type==TABLE_TYPE_PLUGIN)
+			{
+				clear_plugin_table_info(p_table->cb_info);
+			}
+		}
 	}
 	else
 	{
