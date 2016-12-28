@@ -741,6 +741,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	_compile_result_t compile_result[rule_num];//dynamic array
 	struct _Maat_table_info_t *p_table=NULL;
 	struct timespec start,end;
+	_Maat_scanner_t* my_scanner=NULL;
 	if(data==NULL||data_len<=0)
 	{
 		return 0;
@@ -756,6 +757,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 		_feather->scan_err_cnt++;
 		return -1;
 	}
+
 	if(p_table->cfg_num==0)
 	{
 		return 0;
@@ -778,9 +780,14 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	scan_data.text_data.text=data;
 	scan_data.text_data.tlen=data_len;
 	scan_data.text_data.toffset=0;
-	_Maat_scanner_t* my_scanner=NULL;
 	my_scanner=_feather->scanner;
 	if(my_scanner==NULL)
+	{
+		return 0;
+	}
+	struct _region_stat_t * region_stat=NULL;
+	region_stat=&(my_scanner->region_counter[p_table->table_id]);
+	if(region_stat->cfg_num==0)
 	{
 		return 0;
 	}
@@ -788,7 +795,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	region_result=my_scanner->region_rslt_buff+MAX_SCANNER_HIT_NUM*thread_num;
 	
 	INC_SCANNER_REF(my_scanner, thread_num);
-	if(p_table->expr_rule_cnt>0)
+	if(region_stat->expr_rule_cnt>0)
 	{
 		scan_data.rule_type=RULETYPE_STR;
 		scan_data.sub_type=sub_type;
@@ -798,7 +805,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 			hit_region_cnt+=region_ret;
 		}
 	}
-	if(p_table->regex_rule_cnt>0)
+	if(region_stat->regex_rule_cnt>0)
 	{
 		scan_data.rule_type=RULETYPE_REG;
 		scan_data.sub_type=make_sub_type(table_id,CHARSET_NONE,0);
@@ -895,6 +902,12 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 	{
 		return 0;
 	}
+	struct _region_stat_t * region_stat=NULL;
+	region_stat=&(my_scanner->region_counter[p_table->table_id]);
+	if(region_stat->cfg_num==0)
+	{
+		return 0;
+	}
 	aligment_int64_array_add(_feather->thread_call_cnt, thread_num, 1);
 
 	region_result=my_scanner->region_rslt_buff+MAX_SCANNER_HIT_NUM*thread_num;
@@ -965,16 +978,22 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	{
 		return 0;
 	}
-	if(p_table->ipv4_rule_cnt==0&&addr->addrtype==ADDR_TYPE_IPV4)
-	{
-		return 0;
-	}
-	if(p_table->ipv6_rule_cnt==0&&addr->addrtype==ADDR_TYPE_IPV6)
-	{
-		return 0;
-	}
 	my_scanner=_feather->scanner;
 	if(my_scanner==NULL)
+	{
+		return 0;
+	}
+	struct _region_stat_t * region_stat=NULL;
+	region_stat=&(my_scanner->region_counter[p_table->table_id]);
+	if(region_stat->cfg_num==0)
+	{
+		return 0;
+	}
+	if(region_stat->ipv4_rule_cnt==0&&addr->addrtype==ADDR_TYPE_IPV4)
+	{
+		return 0;
+	}
+	if(region_stat->ipv6_rule_cnt==0&&addr->addrtype==ADDR_TYPE_IPV6)
 	{
 		return 0;
 	}
@@ -1083,7 +1102,8 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 	{
 		return sp;
 	}
-
+	struct _region_stat_t * region_stat=NULL;
+	region_stat=&(scanner->region_counter[p_table->table_id]);
 	INC_SCANNER_REF(scanner, thread_num);
 
 	sp->table_id=table_id;
@@ -1096,11 +1116,11 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 	{
 		sp->do_merge=1;
 	}
-	if(p_table->expr_rule_cnt>0)
+	if(region_stat->expr_rule_cnt>0)
 	{
 		sp->do_expr=1;
 	}
-	if(p_table->regex_rule_cnt>0)
+	if(region_stat->regex_rule_cnt>0)
 	{
 		sp->do_regex=1;
 	}
@@ -1144,10 +1164,9 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 		return 0;
 	}
 	p_table=sp->feather->p_table_info[sp->table_id];
-	if(p_table->cfg_num==0)
-	{
-		return 0;
-	}
+	//table rule num is already judged in Maat_stream_scan_string_start
+
+
 	if(p_table->table_type==TABLE_TYPE_EXPR_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
 	{
 		sp->feather->scan_err_cnt++;

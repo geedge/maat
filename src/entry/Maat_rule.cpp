@@ -27,7 +27,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_8_20161226=1;
+int MAAT_FRAME_VERSION_1_8_20161228=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -848,7 +848,7 @@ void destroy_rs_intval_rule(scan_rule_t* p)
 	free(p);
 }
 
-struct op_expr_t* create_op_expr(unsigned int expr_id,int operation,void* u_para)
+struct op_expr_t* create_op_expr(unsigned int expr_id,int operation,void* u_para,int table_id)
 {
 	struct op_expr_t* op_expr=NULL;
 	op_expr=(struct op_expr_t*)calloc(sizeof(struct op_expr_t),1);
@@ -860,6 +860,7 @@ struct op_expr_t* create_op_expr(unsigned int expr_id,int operation,void* u_para
 	op_expr->p_expr->rnum=0;
 	op_expr->p_expr->rules=NULL;
 	op_expr->p_expr->tag=u_para;
+	op_expr->table_id=table_id;
 	return op_expr;
 }
 void destroy_op_expr(struct op_expr_t*  op_expr)
@@ -1115,9 +1116,47 @@ void destroy_ip_expr(boolean_expr_t*p)
 	free(p);
 	return;
 }
+void count_rs_region(struct op_expr_t* op_expr,struct _region_stat_t* region_stat, int size)
+{
+	assert(op_expr->table_id<size);
+	int op=0;
+	if(op_expr->p_expr->operation==0)//add
+	{
+		op=1;
+	}
+	else if(op_expr->p_expr->operation==1)//delete
+	{
+		op=-1;
+	}
+	else
+	{
+		assert(0);
+	}
+	region_stat[op_expr->table_id].cfg_num+=op;
+	switch(op_expr->p_rules[0]->rule_type)
+	{
+		case RULETYPE_STR:
+			region_stat[op_expr->table_id].expr_rule_cnt+=op;
+			break;
+		case RULETYPE_REG:
+			region_stat[op_expr->table_id].regex_rule_cnt+=op;
+			break;
+		case RULETYPE_INT:
+			break;
+		case RULETYPE_IPv4:
+			region_stat[op_expr->table_id].ipv4_rule_cnt+=op;
+			break;
+		case RULETYPE_IPv6:
+			region_stat[op_expr->table_id].ipv6_rule_cnt+=op;
+			break;
+		default:
+			assert(0);
+			break;
+	}
+	return;
+}
 
-
-void rulescan_batch_update(rule_scanner_t scanner,MESA_lqueue_head expr_queue,void*logger)
+void rulescan_batch_update(rule_scanner_t rs_handle,MESA_lqueue_head expr_queue,void*logger,struct _Maat_scanner_t* maat_scanner)
 {
 	long i=0,data_size=0;
 	int j=0,ret=0;
@@ -1129,10 +1168,12 @@ void rulescan_batch_update(rule_scanner_t scanner,MESA_lqueue_head expr_queue,vo
 	const long q_cnt=MESA_lqueue_get_count(expr_queue);
 	struct timespec start,end;
 	unsigned long long update_interval=0;
+	struct _region_stat_t region_counter[MAX_TABLE_NUM];
 	if(q_cnt==0)
 	{
 		return;
 	}
+	memset(region_counter,0,sizeof(region_counter));
 	boolean_expr_t* to_update_expr=(boolean_expr_t*)calloc(sizeof(boolean_expr_t),q_cnt);
 	struct op_expr_t* op_expr=NULL;
 	for(i=0;i<q_cnt;i++)
@@ -1154,13 +1195,14 @@ void rulescan_batch_update(rule_scanner_t scanner,MESA_lqueue_head expr_queue,vo
 					,to_update_expr[i].rules[j].string_rule.len);
 			}
 		}
+		count_rs_region(op_expr,region_counter,MAX_TABLE_NUM);
 		destroy_op_expr(op_expr);
 		op_expr=NULL;
 	}
 	MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"scanner %p rulescan_update %ld rules.",scanner,q_cnt);
+							"rs_handle %p rulescan_update %ld rules.",rs_handle,q_cnt);
 	clock_gettime(CLOCK_MONOTONIC,&start);
-	ret=rulescan_update(scanner, to_update_expr,q_cnt, failed_ids,MAX_FAILED_NUM);
+	ret=rulescan_update(rs_handle, to_update_expr,q_cnt, failed_ids,MAX_FAILED_NUM);
 	clock_gettime(CLOCK_MONOTONIC,&end);
 	if(ret!=1)
 	{
@@ -1174,11 +1216,20 @@ void rulescan_batch_update(rule_scanner_t scanner,MESA_lqueue_head expr_queue,vo
 	}
 	update_interval=(end.tv_sec-start.tv_sec)*1000000000+end.tv_nsec-start.tv_nsec;
 	MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"scanner %p rulescan_update with %2.2e (%llu) ns."
-							,scanner
+							"rs_handle %p rulescan_update with %2.2e (%llu) ns."
+							,rs_handle
 							,(double)update_interval
 							,update_interval);
-
+	//update scanner's region cnt;
+	for(i=0;i<MAX_TABLE_NUM;i++)
+	{
+		maat_scanner->region_counter[i].cfg_num+=region_counter[i].cfg_num;
+		maat_scanner->region_counter[i].expr_rule_cnt+=region_counter[i].expr_rule_cnt;
+		maat_scanner->region_counter[i].regex_rule_cnt+=region_counter[i].regex_rule_cnt;
+		assert(maat_scanner->region_counter[i].cfg_num>=0);
+		assert(maat_scanner->region_counter[i].expr_rule_cnt>=0);
+		assert(maat_scanner->region_counter[i].regex_rule_cnt>=0);
+	}
 	for(i=0;i<q_cnt;i++)
 	{
 		for(j=0;j<(int)to_update_expr[i].rnum;j++)
@@ -1193,7 +1244,7 @@ void rulescan_batch_update(rule_scanner_t scanner,MESA_lqueue_head expr_queue,vo
 	free(to_update_expr);
 }
 
-void digest_batch_update(GIE_handle_t* handle,MESA_lqueue_head update_q,void*logger)
+void digest_batch_update(GIE_handle_t* handle,MESA_lqueue_head update_q,void*logger,struct _Maat_scanner_t* maat_scanner,int table_id)
 {
 	long i=0,data_size=0;
 	int ret=0;
@@ -1205,6 +1256,8 @@ void digest_batch_update(GIE_handle_t* handle,MESA_lqueue_head update_q,void*log
 	{
 		return;
 	}
+	struct _region_stat_t region_counter[MAX_TABLE_NUM];
+	memset(region_counter,0,sizeof(region_counter));
 	update_array=(GIE_digest_t** )calloc(sizeof(GIE_digest_t*),q_cnt);
 	for(i=0;i<q_cnt;i++)
 	{
@@ -1223,6 +1276,14 @@ void digest_batch_update(GIE_handle_t* handle,MESA_lqueue_head update_q,void*log
 	}
 	for(i=0;i<q_cnt;i++)
 	{
+		if(update_array[i]->operation==GIE_INSERT_OPT)
+		{
+			maat_scanner->region_counter[table_id].cfg_num++;
+		}
+		else
+		{
+			maat_scanner->region_counter[table_id].cfg_num--;
+		}
 		destroy_digest_rule(update_array[i]);
 		update_array[i]=NULL;
 	}
@@ -1505,7 +1566,8 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 			}
 			op_expr=create_op_expr(expr_id
 						,0
-						,u_para);
+						,u_para
+						,table->table_id);
 			for(i=0,p=db_rule->keywords;;i++,p=NULL)
 			{
 				if(i>=MAAT_MAX_EXPR_ITEM_NUM)
@@ -1572,6 +1634,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 			op_expr=create_op_expr(expr_id
 									,0	//add
 									,u_para
+									,table->table_id
 									);
 			for(k=0;k<sub_expr_cnt;k++)
 			{
@@ -1648,6 +1711,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 		op_expr=create_op_expr(expr_id
 								,0	//add
 								,u_para
+								,table->table_id
 								);
 		for(k=0;k<sub_expr_cnt;k++)
 		{
@@ -1694,6 +1758,7 @@ int add_ip_rule(struct _Maat_table_info_t* table,struct db_ip_rule_t* db_ip_rule
 	op_expr=create_op_expr(expr_id
 						,0
 						,u_para
+						,table->table_id
 						);
 	p_rule=create_rs_ip_rule(make_sub_type(table->table_id,CHARSET_NONE,0)
 						,db_ip_rule);
@@ -1724,6 +1789,7 @@ int add_intval_rule(struct _Maat_table_info_t* table,struct db_intval_rule_t* in
 	op_expr=create_op_expr(expr_id
 						,0
 						,u_para
+						,table->table_id
 						);
 	p_rule=create_rs_intval_rule(make_sub_type(table->table_id,CHARSET_NONE,0)
 						,intval_rule);
@@ -1794,7 +1860,7 @@ int del_region_rule(struct _Maat_table_info_t* table,int region_id,int group_id,
 		case	TABLE_TYPE_INTVAL:
 			for(i=0;i<expr_num;i++)
 			{
-				op_expr=create_op_expr(expr_id[i],1,NULL);//del expr
+				op_expr=create_op_expr(expr_id[i],1,NULL,table->table_id);//del expr
 				MESA_lqueue_join_tail(maat_scanner->region_update_q,&op_expr, sizeof(void*));
 			}
 			break;
@@ -2638,7 +2704,8 @@ void do_scanner_update(struct _Maat_scanner_t* scanner,MESA_lqueue_head garbage_
 	scanner->dedup_expr_num=0;
 	rulescan_batch_update(scanner->region,
 							scanner->region_update_q,
-							logger);
+							logger
+							,scanner);
 	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
 		if(scanner->digest_update_q[i]==NULL)
@@ -2655,7 +2722,11 @@ void do_scanner_update(struct _Maat_scanner_t* scanner,MESA_lqueue_head garbage_
 		{
 			scanner->digest_handle[i]=GIE_create(&para);
 		}
-		digest_batch_update(scanner->digest_handle[i], scanner->digest_update_q[i],logger);
+		digest_batch_update(scanner->digest_handle[i]
+							,scanner->digest_update_q[i]
+							,logger
+							,scanner
+							,i);
 		pthread_rwlock_unlock(&(scanner->digest_rwlock[i]));
 	}
 	if(scanner->tmp_district_map!=NULL)

@@ -170,6 +170,7 @@ struct op_expr_t
 	scan_rule_t* p_rules[MAAT_MAX_EXPR_ITEM_NUM];
 	int convert_failed;
 	int no_effect_convert_cnt;
+	int table_id;
 };
 
 struct _Maat_region_rule_t
@@ -220,6 +221,20 @@ struct _plugin_table_info
 	int update_type;
 	long cache_size;
 	pthread_mutex_t plugin_mutex;
+};
+struct _region_stat_t
+{
+	int cfg_num;
+	union
+	{
+		int expr_rule_cnt;	//expr_type=0,1,3
+		int ipv4_rule_cnt;
+	};
+	union
+	{
+		int regex_rule_cnt;	//expr_type=2
+		int ipv6_rule_cnt;
+	};
 };
 struct _Maat_table_info_t
 {
@@ -328,6 +343,7 @@ struct _Maat_scanner_t
 	void * expr_compiler;
 	scan_result_t *region_rslt_buff;
 	MESA_lqueue_head tomb_ref;//reference of feather->garbage_q
+	struct _region_stat_t region_counter[MAX_TABLE_NUM];
 	int max_thread_num;
 	iconv_t iconv_handle[MAX_CHARSET_NUM][MAX_CHARSET_NUM];//iconv_handle[to][from]
 };
