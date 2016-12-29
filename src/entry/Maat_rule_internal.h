@@ -369,6 +369,8 @@ struct _Maat_feather_t
 	char inc_dir[MAX_TABLE_NAME_LEN];
 	char full_dir[MAX_TABLE_NAME_LEN];
 	char stat_file[MAX_TABLE_NAME_LEN];
+	char instance_name[MAX_TABLE_NAME_LEN];
+	char table_info_fn[MAX_TABLE_NAME_LEN];
 //for stat>>>>
 	screen_stat_handle_t stat_handle;
 	int total_stat_id;

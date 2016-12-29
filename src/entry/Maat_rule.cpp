@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/prctl.h>
 #include <MESA/MESA_htable.h>
 #include <MESA/MESA_list_queue.h>
 #include <MESA/MESA_handle_logger.h>
@@ -2949,7 +2950,20 @@ void *thread_rule_monitor(void *arg)
 	const char* inc_cfg_dir=(const char*)feather->inc_dir;
 	struct _Maat_scanner_t* old_scanner=NULL;
 	long expr_wait_q_cnt=0;
-	int scan_dir_cnt=0;
+	int scan_dir_cnt=0,ret=0;
+	char maat_name[16];//Defined by prctl: The name can be up to 16 bytes long,and should 
+						// be null  terminated if it contains fewer bytes.
+	if(strlen(feather->instance_name)>0)
+	{
+		snprintf(maat_name,sizeof(maat_name),"MAAT_%s",feather->instance_name);
+	}
+	else
+	{
+		snprintf(maat_name,sizeof(maat_name),"MAAT");
+	}
+	//ret=prctl(PR_SET_NAME,(unsigned long long)maat_name,NULL,NULL,NULL);
+	ret=pthread_setname_np(pthread_self(),maat_name);
+	assert(ret>=0);
 	while(feather->still_working)
 	{
 		usleep(feather->scan_interval_ms*1000);

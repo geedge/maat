@@ -454,6 +454,7 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->hit_cnt=aligment_int64_array_alloc(max_thread_num);
 	feather->maat_version=0;
 	feather->last_full_version=0;
+	snprintf(feather->table_info_fn,sizeof(feather->table_info_fn),"%s",table_info_path);
 	return feather;
 }
 int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const void* value,int size)
@@ -529,6 +530,12 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 		case MAAT_OPT_SCAN_DETAIL:
 			intval=*(const int*)value;
 			_feather->rule_scan_type=intval;
+			break;
+		case MAAT_OPT_INSTANCE_NAME:
+			snprintf(_feather->instance_name
+					,sizeof(_feather->instance_name)
+					,"%s",
+					(const char*)value);
 			break;
 		default:
 			return -1;
