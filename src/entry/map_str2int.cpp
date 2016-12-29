@@ -58,11 +58,10 @@ int map_register(MESA_htable_handle handle,const char* string,int value)
 }
 int map_str2int(MESA_htable_handle handle,const char* string,int* value)
 {
-	int *data=NULL;
 	long cb_ret=0;
 	unsigned int size=strlen(string);
 	
-	data=(int*)MESA_htable_search_cb(handle,(unsigned char*)string,size,
+	MESA_htable_search_cb(handle,(unsigned char*)string,size,
 									read_map_val,value,&cb_ret);
 									
 //	data=(int*)MESA_htable_search(handle,(unsigned char*)string,size);
@@ -77,10 +76,9 @@ int map_str2int(MESA_htable_handle handle,const char* string,int* value)
 }
 int map_unNullstr2int(MESA_htable_handle handle,const char* string,int len,int* value)
 {
-	int *data=NULL;
 	long cb_ret=0;
 	
-	data=(int*)MESA_htable_search_cb(handle,(unsigned char*)string,len,
+	MESA_htable_search_cb(handle,(unsigned char*)string,len,
 									read_map_val,value,&cb_ret);
 									
 //	data=(int*)MESA_htable_search(handle,(unsigned char*)string,len);

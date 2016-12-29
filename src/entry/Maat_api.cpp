@@ -102,7 +102,7 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,voi
 {
 
 	int scan_ret=0,result_cnt=0;
-	int ret=0,i=0,j=0;
+	int ret=0,i=0;
 	int r_in_c_cnt=0;
 	int shortcut_avilable_cnt=0;
 	void* bool_matcher=feather->scanner->expr_compiler;
