@@ -142,7 +142,7 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,voi
 										_mid->hitted_group_id,_mid->hit_group_cnt,
 										(void **)array_mi_rule, MAX_SCANNER_HIT_NUM);
 	}
-	for(i=0,j=0;i<scan_ret&&result_cnt<size;i++)
+	for(i=0;i<scan_ret&&result_cnt<size;i++)
 	{
 		_mi_rule=array_mi_rule[i];
 		if(_mi_rule==NULL||_mi_rule->db_c_rule==NULL)
