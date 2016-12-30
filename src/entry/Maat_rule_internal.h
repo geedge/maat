@@ -171,6 +171,7 @@ struct op_expr_t
 	int convert_failed;
 	int no_effect_convert_cnt;
 	int table_id;
+	int rule_type;
 };
 
 struct _Maat_region_rule_t

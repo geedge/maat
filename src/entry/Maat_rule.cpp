@@ -897,6 +897,7 @@ void op_expr_add_rule(struct op_expr_t* op_expr,scan_rule_t* p_rule)
 	int idx=op_expr->p_expr->rnum;
 	op_expr->p_rules[idx]=p_rule;
 	op_expr->p_expr->rnum++;
+	op_expr->rule_type=p_rule->rule_type;
 	return;
 }
 GIE_digest_t* create_digest_rule(int id,short op,unsigned long long origin_len,const char* digest,
@@ -1134,7 +1135,7 @@ void count_rs_region(struct op_expr_t* op_expr,struct _region_stat_t* region_sta
 		assert(0);
 	}
 	region_stat[op_expr->table_id].cfg_num+=op;
-	switch(op_expr->p_rules[0]->rule_type)
+	switch(op_expr->rule_type)
 	{
 		case RULETYPE_STR:
 			region_stat[op_expr->table_id].expr_rule_cnt+=op;
@@ -1825,7 +1826,7 @@ int add_digest_rule(struct _Maat_table_info_t* table,struct db_digest_rule_t* db
 	MESA_lqueue_join_tail(scanner->digest_update_q[table->table_id], &digest_rule, sizeof(void*));
 	return 0;
 }
-int del_region_rule(struct _Maat_table_info_t* table,int region_id,int group_id,struct _Maat_scanner_t *maat_scanner,void* logger)
+int del_region_rule(struct _Maat_table_info_t* table,int region_id,int group_id,int rule_type,struct _Maat_scanner_t *maat_scanner,void* logger)
 {
 	int i=0;
 	unsigned int expr_id[MAAT_MAX_EXPR_ITEM_NUM*MAX_CHARSET_NUM]={0};
@@ -1858,10 +1859,12 @@ int del_region_rule(struct _Maat_table_info_t* table,int region_id,int group_id,
 	{
 		case	TABLE_TYPE_IP:
 		case	TABLE_TYPE_EXPR:
+		case	TABLE_TYPE_EXPR_PLUS:
 		case	TABLE_TYPE_INTVAL:
 			for(i=0;i<expr_num;i++)
 			{
 				op_expr=create_op_expr(expr_id[i],1,NULL,table->table_id);//del expr
+				op_expr->rule_type=rule_type;
 				MESA_lqueue_join_tail(maat_scanner->region_update_q,&op_expr, sizeof(void*));
 			}
 			break;
@@ -2055,7 +2058,7 @@ void compatible_group_udpate(struct _Maat_table_info_t* table,int region_id,int 
 void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,struct _Maat_scanner_t *scanner,void* logger,int group_mode_on)
 {
 	struct db_str_rule_t* maat_str_rule=(struct db_str_rule_t*)malloc(sizeof(struct db_str_rule_t));
-	int ret=0,db_hexbin=0;
+	int ret=0,db_hexbin=0,rule_type=0;
 	switch(table->table_type)
 	{
 		case	TABLE_TYPE_EXPR:
@@ -2163,7 +2166,17 @@ void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,st
 
 	if(maat_str_rule->is_valid==FALSE)
 	{
-		ret=del_region_rule(table,maat_str_rule->region_id,maat_str_rule->group_id, scanner, logger);
+		if(maat_str_rule->expr_type==EXPR_TYPE_REGEX)
+		{
+			rule_type=RULETYPE_REG;
+		}
+		else
+		{
+			rule_type=RULETYPE_STR;
+		}
+		ret=del_region_rule(table
+							,maat_str_rule->region_id,maat_str_rule->group_id,rule_type
+							,scanner, logger);
 		if(ret>0)
 		{
 			table->cfg_num--;
@@ -2218,7 +2231,7 @@ void update_ip_rule(struct _Maat_table_info_t* table,const char* table_line,stru
 
 	unsigned short i_src_port,i_sport_mask,i_dst_port,i_dport_mask;
 	int protocol=0,direction=0;
-	int ret=0;
+	int ret=0,rule_type=0;
 	int ret_array[8]={1},i=0;
 	ret=sscanf(table_line,"%d\t%d\t%d\t%s\t%s\t%hu\t%hu\t%s\t%s\t%hu\t%hu\t%d\t%d\t%d"
 													,&(ip_rule->region_id)
@@ -2265,6 +2278,7 @@ void update_ip_rule(struct _Maat_table_info_t* table,const char* table_line,stru
 		
 		ip_rule->ipv4_rule.proto=protocol;
 		ip_rule->ipv4_rule.direction=direction;
+		rule_type=RULETYPE_IPv4;
 	}
 	else
 	{
@@ -2286,6 +2300,7 @@ void update_ip_rule(struct _Maat_table_info_t* table,const char* table_line,stru
 		
 		ip_rule->ipv6_rule.proto=protocol;
 		ip_rule->ipv6_rule.direction=direction;
+		rule_type=RULETYPE_IPv6;
 	}
 	for(i=0;i<4;i++)
 	{
@@ -2319,7 +2334,9 @@ void update_ip_rule(struct _Maat_table_info_t* table,const char* table_line,stru
 	}
 	if(ip_rule->is_valid==FALSE)
 	{
-		ret=del_region_rule(table,ip_rule->region_id,ip_rule->group_id, scanner, logger);
+		ret=del_region_rule(table
+							,ip_rule->region_id,ip_rule->group_id,rule_type
+							,scanner, logger);
 		if(ret>0)
 		{
 			table->cfg_num--;
@@ -2406,7 +2423,9 @@ void update_intval_rule(struct _Maat_table_info_t* table,const char* table_line,
 
 	if(intval_rule->is_valid==FALSE)
 	{
-		ret=del_region_rule(table,intval_rule->region_id,intval_rule->group_id, scanner, logger);
+		ret=del_region_rule(table
+							,intval_rule->region_id,intval_rule->group_id,RULETYPE_INT
+							,scanner, logger);
 		if(ret>0)
 		{
 			table->cfg_num--;
@@ -2545,7 +2564,8 @@ void update_digest_rule(struct _Maat_table_info_t* table,const char* table_line,
 
 	if(digest_rule->is_valid==FALSE)
 	{
-		ret=del_region_rule(table,digest_rule->region_id,digest_rule->group_id, scanner, logger);
+		//digest rule is not build with rulescan, this rule type is useless in count_rs_region funciton.
+		ret=del_region_rule(table,digest_rule->region_id,digest_rule->group_id,0 ,scanner, logger);
 		if(ret>0)
 		{
 			table->cfg_num--;
