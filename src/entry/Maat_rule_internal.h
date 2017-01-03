@@ -221,7 +221,6 @@ struct _plugin_table_info
 	int acc_line_num;
 	int update_type;
 	long cache_size;
-	pthread_mutex_t plugin_mutex;
 };
 struct _region_stat_t
 {
@@ -372,6 +371,7 @@ struct _Maat_feather_t
 	char stat_file[MAX_TABLE_NAME_LEN];
 	char instance_name[MAX_TABLE_NAME_LEN];
 	char table_info_fn[MAX_TABLE_NAME_LEN];
+	pthread_mutex_t plugin_table_reg_mutex;
 //for stat>>>>
 	screen_stat_handle_t stat_handle;
 	int total_stat_id;

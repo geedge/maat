@@ -609,7 +609,6 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 		{
 			p->cb_info=(struct _plugin_table_info*)calloc(sizeof(struct _plugin_table_info),1);
 			p->cb_info->cache_lines=dynamic_array_create(1024,1024);
-			pthread_mutex_init(&(p->cb_info->plugin_mutex),NULL);
 		}
 		p_table_info[p->table_id]=p;
 		table_cnt++;
@@ -2681,7 +2680,6 @@ void plugin_table_callback(struct _Maat_table_info_t* table,const char* table_li
 	unsigned int len=strlen(table_line)+1;
 	struct _plugin_table_info* p_table_cb=table->cb_info;
 	char *p=NULL;
-	pthread_mutex_lock(&(p_table_cb->plugin_mutex));
 	p_table_cb->acc_line_num++;
 	if(p_table_cb->cb_plug_cnt>0)
 	{
@@ -2698,7 +2696,6 @@ void plugin_table_callback(struct _Maat_table_info_t* table,const char* table_li
 		dynamic_array_write(p_table_cb->cache_lines,p_table_cb->cache_line_num,p);
 		p_table_cb->cache_line_num++;
 	}
-	pthread_mutex_unlock(&(p_table_cb->plugin_mutex));
 }
 void do_scanner_update(struct _Maat_scanner_t* scanner,MESA_lqueue_head garbage_q,int scan_thread_num,void* logger)
 {
@@ -2766,7 +2763,6 @@ void clear_plugin_table_info(struct _plugin_table_info *cb_info)
 {
 	int i=0;
 	void *line=NULL;
-	pthread_mutex_lock(&(cb_info->plugin_mutex));
 	for(i=0;i<cb_info->cache_line_num;i++)
 	{
 		line=dynamic_array_read(cb_info->cache_lines,i);
@@ -2776,7 +2772,6 @@ void clear_plugin_table_info(struct _plugin_table_info *cb_info)
 	cb_info->cache_line_num=0;
 	cb_info->cache_size=0;
 	cb_info->acc_line_num=0;
-	pthread_mutex_unlock(&(cb_info->plugin_mutex));
 	return;
 }
 void maat_start_cb(unsigned int new_version,int update_type,void*u_para)
@@ -2988,6 +2983,8 @@ void *thread_rule_monitor(void *arg)
 	{
 		usleep(feather->scan_interval_ms*1000);
 		scan_dir_cnt++;
+		//plugin table register is not allowed during update;
+		pthread_mutex_lock(&(feather->plugin_table_reg_mutex));
 		config_monitor_traverse(feather->maat_version,
 								inc_cfg_dir, 
 								maat_start_cb,
@@ -2995,6 +2992,7 @@ void *thread_rule_monitor(void *arg)
 								maat_finish_cb,
 								feather,
 								feather->logger);
+		pthread_mutex_unlock(&(feather->plugin_table_reg_mutex));
 		if(feather->update_tmp_scanner!=NULL)
 		{
 			old_scanner=feather->scanner;

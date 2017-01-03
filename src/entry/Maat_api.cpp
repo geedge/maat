@@ -454,6 +454,7 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->hit_cnt=aligment_int64_array_alloc(max_thread_num);
 	feather->maat_version=0;
 	feather->last_full_version=0;
+	pthread_mutex_init(&(feather->plugin_table_reg_mutex),NULL);
 	snprintf(feather->table_info_fn,sizeof(feather->table_info_fn),"%s",table_info_path);
 	return feather;
 }
@@ -699,11 +700,11 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 	{
 		return -1;
 	}
-	pthread_mutex_lock(&(p_table->cb_info->plugin_mutex));
+	pthread_mutex_lock(&(_feather->plugin_table_reg_mutex));
 	idx=p_table->cb_info->cb_plug_cnt;
 	if(idx==MAX_PLUGING_NUM)
 	{
-		pthread_mutex_unlock(&(p_table->cb_info->plugin_mutex));
+		pthread_mutex_unlock(&(_feather->plugin_table_reg_mutex));
 		return -1;
 	}
 	p_table->cb_info->cb_plug_cnt++;
@@ -731,7 +732,7 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 			finish(u_para);
 		}
 	}
-	pthread_mutex_unlock(&(p_table->cb_info->plugin_mutex));
+	pthread_mutex_unlock(&(_feather->plugin_table_reg_mutex));
 	return 1;
 }
 int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
