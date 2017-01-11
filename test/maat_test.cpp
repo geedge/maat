@@ -472,6 +472,8 @@ int main(int argc,char* argv[])
 	void *logger=MESA_create_runtime_log_handle(log_file,0);
 
 	feather=Maat_feather(g_iThreadNum, table_info_path, logger);
+	Maat_set_feather_opt(feather,MAAT_OPT_INSTANCE_NAME,"demo", strlen("demo")+1);
+
 	if(argc>1&&0==strcmp(argv[1],"update"))
 	{
 		Maat_set_feather_opt(feather, MAAT_OPT_FULL_CFG_DIR, ful_cfg_dir, strlen(ful_cfg_dir)+1);

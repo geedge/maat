@@ -28,7 +28,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_8_20161228=1;
+int MAAT_FRAME_VERSION_1_8_20170111=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -2976,8 +2976,9 @@ void *thread_rule_monitor(void *arg)
 	{
 		snprintf(maat_name,sizeof(maat_name),"MAAT");
 	}
-	//ret=prctl(PR_SET_NAME,(unsigned long long)maat_name,NULL,NULL,NULL);
-	ret=pthread_setname_np(pthread_self(),maat_name);
+	ret=prctl(PR_SET_NAME,(unsigned long long)maat_name,NULL,NULL,NULL);
+	//pthread_setname_np are introduced in glibc2.12
+	//ret=pthread_setname_np(pthread_self(),maat_name); 
 	assert(ret>=0);
 	while(feather->still_working)
 	{
