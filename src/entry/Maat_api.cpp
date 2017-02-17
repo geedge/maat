@@ -1560,6 +1560,7 @@ int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCA
 			if(map_ret<0)
 			{
 				//May be the district is not effected yet.
+				_mid->district_id=-1;
 			}
 			_mid->is_set_district=1;
 			break;
