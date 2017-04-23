@@ -414,6 +414,13 @@ int detain_last_data(char* buff,int buff_size,int detained_len,const char* data,
 }
 Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void* logger)
 {
+	if(max_thread_num<=0)
+	{
+		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+						"Invalid max_thread_num=%d."
+						,max_thread_num);
+		return NULL;
+	}
 	_Maat_feather_t* feather=(_Maat_feather_t*)calloc(sizeof(struct _Maat_feather_t),1);
 	feather->table_cnt=read_table_info(feather->p_table_info, MAX_TABLE_NUM,table_info_path,max_thread_num,logger);
 	feather->map_tablename2id=map_create();
