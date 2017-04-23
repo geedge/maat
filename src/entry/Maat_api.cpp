@@ -1448,7 +1448,7 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	}
 	if(sp->acc_scan_len+(unsigned long long)data_len > sp->total_len)
 	{
-		return 0;
+		goto fast_out;
 	}
 	aligment_int64_array_add(sp->feather->thread_call_cnt, sp->thread_num, 1);
 	pthread_mutex_lock(&(sp->fuzzy_mutex));
@@ -1457,14 +1457,14 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	do_query=REACH_QUERY_THRESH(sp->total_len, sp->acc_scan_len, sp->query_point,8);
 	if(do_query==0)
 	{
-		return 0;
+		goto fast_out;
 	}
 	pthread_mutex_lock(&(sp->fuzzy_mutex));
 	digest_len=fuzzy_status(sp->fuzzy_hash_handle, HASH_LENGTH);
 	pthread_mutex_unlock(&(sp->fuzzy_mutex));
 	if(digest_len==0)
 	{
-		return 0;
+		goto fast_out;
 	}
 	digest_buff=(char*)malloc(sizeof(char)*digest_len);
 	pthread_mutex_lock(&(sp->fuzzy_mutex));
@@ -1483,7 +1483,8 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	if(hit_region_cnt<0)//error occurs
 	{
 		sp->feather->scan_err_cnt++;
-		return -1;
+		compile_ret=-1;
+        goto fast_out;
 	}
 	if(hit_region_cnt>0)
 	{
@@ -1496,6 +1497,7 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 								sp->thread_num);
 	
 	}
+fast_out:
 	if(sp->feather->perf_on==1)
 	{
 		clock_gettime(CLOCK_MONOTONIC,&end);
