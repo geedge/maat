@@ -28,7 +28,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_8_20170423=1;
+int MAAT_FRAME_VERSION_1_8_20170524=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -1310,12 +1310,12 @@ void cancel_last_region_from_group(struct _Maat_group_rule_t* group,int region_i
 {
 	struct _Maat_region_rule_t* region_rule=NULL;
 	pthread_mutex_lock(&(group->mutex));
-	region_rule=dynamic_array_read(group->region_rules,group->region_boundary);
+	group->region_boundary--;
+	region_rule=(struct _Maat_region_rule_t*)dynamic_array_read(group->region_rules,group->region_boundary);
 	assert(region_rule->expr_id==expr_id&&region_rule->region_id==region_id);
 	free(region_rule);
 	dynamic_array_write(group->region_rules,group->region_boundary,NULL);
 	group->region_cnt--;
-	group->region_boundary--;
 	pthread_mutex_unlock(&(group->mutex));
 	return;
 }
