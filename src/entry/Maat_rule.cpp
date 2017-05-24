@@ -1306,6 +1306,19 @@ struct _Maat_group_rule_t* add_region_to_group(struct _Maat_group_rule_t* group,
 	pthread_mutex_unlock(&(group->mutex));
 	return group;
 }
+void cancel_last_region_from_group(struct _Maat_group_rule_t* group,int region_id,int expr_id)
+{
+	struct _Maat_region_rule_t* region_rule=NULL;
+	pthread_mutex_lock(&(group->mutex));
+	region_rule=dynamic_array_read(group->region_rules,group->region_boundary);
+	assert(region_rule->expr_id==expr_id&&region_rule->region_id==region_id);
+	free(region_rule);
+	dynamic_array_write(group->region_rules,group->region_boundary,NULL);
+	group->region_cnt--;
+	group->region_boundary--;
+	pthread_mutex_unlock(&(group->mutex));
+	return;
+}
 unsigned int del_region_from_group(struct _Maat_group_rule_t* group,int region_id,unsigned int *output_expr_id,int output_size)
 {
 	int i=0,j=0;
@@ -1691,6 +1704,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 				op_expr->convert_failed>0)
 			{
 				scanner->dedup_expr_num++;
+				cancel_last_region_from_group(group_rule,db_rule->region_id,op_expr->p_expr->expr_id);
 				destroy_op_expr(op_expr);
 				op_expr=NULL;
 			}
