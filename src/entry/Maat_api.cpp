@@ -545,6 +545,10 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 					,"%s",
 					(const char*)value);
 			break;
+		case MAAT_OPT_DECRYPT_KEY:
+			_feather->decrypt_key=(unsigned char*)malloc(size*sizeof(unsigned char));
+			memcpy(_feather->decrypt_key,value,size);
+			break;
 		default:
 			return -1;
 	}
@@ -566,6 +570,7 @@ int Maat_initiate_feather(Maat_feather_t feather)
 							maat_update_cb,
 							maat_finish_cb,
 							_feather,
+							_feather->decrypt_key,
 							_feather->logger);
 	if(_feather->update_tmp_scanner==NULL)
 	{

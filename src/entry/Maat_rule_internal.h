@@ -372,6 +372,7 @@ struct _Maat_feather_t
 	char instance_name[MAX_TABLE_NAME_LEN];
 	char table_info_fn[MAX_TABLE_NAME_LEN];
 	pthread_mutex_t plugin_table_reg_mutex;
+	unsigned char* decrypt_key;
 //for stat>>>>
 	screen_stat_handle_t stat_handle;
 	int total_stat_id;

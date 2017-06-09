@@ -28,7 +28,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_8_20170524=1;
+int MAAT_FRAME_VERSION_1_9_20170609=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -3006,6 +3006,7 @@ void *thread_rule_monitor(void *arg)
 								maat_update_cb,
 								maat_finish_cb,
 								feather,
+								feather->decrypt_key,
 								feather->logger);
 		pthread_mutex_unlock(&(feather->plugin_table_reg_mutex));
 		if(feather->update_tmp_scanner!=NULL)

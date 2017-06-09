@@ -462,10 +462,11 @@ int main(int argc,char* argv[])
 	int g_iThreadNum=4;
 	const char*	table_info_path="./table_info.conf";
 	const char* json_path="./maat_json.json";
-	const char* ful_cfg_dir="./rule/full/index";
-	const char* inc_cfg_dir="./rule/inc/index";
+	const char* ful_cfg_dir="./rule/full/index/";
+	const char* inc_cfg_dir="./rule/inc/index/";
 	const char* log_file="./test.log";
 	const char* stat_file="./scan_staus.log";
+	const char* decrypt_key="mesa2017wy";
 	int scan_detail=0;
 	scan_status_t mid=NULL;
 	int wait_second=4;
@@ -473,6 +474,7 @@ int main(int argc,char* argv[])
 
 	feather=Maat_feather(g_iThreadNum, table_info_path, logger);
 	Maat_set_feather_opt(feather,MAAT_OPT_INSTANCE_NAME,"demo", strlen("demo")+1);
+	Maat_set_feather_opt(feather,MAAT_OPT_DECRYPT_KEY,decrypt_key, strlen(decrypt_key)+1);
 
 	if(argc>1&&0==strcmp(argv[1],"update"))
 	{
