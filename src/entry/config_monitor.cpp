@@ -324,6 +324,7 @@ int cm_read_cfg_index_file(const char* path,struct cm_table_info_t* idx,int size
 	char line[MAX_CONFIG_LINE];
 	while(!feof(fp))
 	{
+		memset(line,0,sizeof(line));
 		fgets(line,sizeof(line),fp);
 		ret=sscanf(line,"%s\t%d\t%s\t%s",idx[i].table_name
 								,&(idx[i].cfg_num)
