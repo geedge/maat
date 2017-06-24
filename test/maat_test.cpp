@@ -221,6 +221,8 @@ int test_ipv6_scan(Maat_feather_t feather,const char* table_name,scan_status_t* 
 	}
 	else
 	{
+		//for improving performance.
+		Maat_set_scan_status(feather, mid, MAAT_SET_SCAN_LAST_REGION,NULL, 0);
 		ret=Maat_scan_proto_addr(feather,table_id,&ipv6_addr,6,result,4, mid,0);
 		printf("IPv6 addr Scan:%s\n",print_maat_result(result,ret));
 

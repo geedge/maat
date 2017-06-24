@@ -98,7 +98,7 @@ int pickup_hit_region_from_compile(universal_bool_expr_t *compile_hit,const unsi
 	}
 	return k;
 }
-int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,void* region_hit,int region_type_size,int group_offset,int region_hit_num,struct Maat_rule_t* result,_compile_result_t *rs_result, int size,int thread_num)
+int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int is_last_region,void* region_hit,int region_type_size,int group_offset,int region_hit_num,struct Maat_rule_t* result,_compile_result_t *rs_result, int size,int thread_num)
 {
 
 	int scan_ret=0,result_cnt=0;
@@ -135,6 +135,14 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,voi
 	{
 		//short cut for rules contains one group
 		scan_ret=shortcut_avilable_cnt;
+		aligment_int64_array_add(feather->orphan_group_saving, thread_num, 1);
+	}
+	else if(shortcut_avilable_cnt==0&&region_hit_num==1&&is_last_region==1)
+	{
+		//short cut for last scan and combination rules
+		//One groups may belong to a statisfy a compile rule, so only region_hit_num=1 could use the short cut
+		scan_ret=0;
+		aligment_int64_array_add(feather->last_region_saving, thread_num, 1);
 	}
 	else
 	{
@@ -457,6 +465,8 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->outer_mid_cnt=aligment_int64_array_alloc(max_thread_num);
 	feather->inner_mid_cnt=aligment_int64_array_alloc(max_thread_num);
 	feather->hit_cnt=aligment_int64_array_alloc(max_thread_num);
+	feather->orphan_group_saving=aligment_int64_array_alloc(max_thread_num);
+	feather->last_region_saving=aligment_int64_array_alloc(max_thread_num);
 	feather->maat_version=0;
 	feather->last_full_version=0;
 	pthread_mutex_init(&(feather->plugin_table_reg_mutex),NULL);
@@ -843,10 +853,16 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 		aligment_int64_array_add(p_table->hit_cnt, thread_num,1);
 		_mid=grab_mid(mid,_feather,thread_num, 1);
 		compile_ret=region_compile(_feather,_mid->inner,
+									_mid->is_last_region,
 									region_result,sizeof(scan_result_t),offsetof(scan_result_t, tag),
 									hit_region_cnt,
 									result,compile_result,rule_num,
 									thread_num);
+		assert(_mid->is_last_region<2);
+		if(_mid->is_last_region==1)
+		{
+			_mid->is_last_region=2;
+		}
 		if(hit_detail!=NULL&&_feather->rule_scan_type!=0)
 		{
 			*detail_ret=fill_region_hit_detail(data,_mid->inner,										
@@ -943,10 +959,16 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 		aligment_int64_array_add(p_table->hit_cnt, thread_num,1);
 		_mid=grab_mid(mid, _feather, thread_num, 1);
 		compile_ret=region_compile(_feather,_mid->inner,
+									_mid->is_last_region,
 									region_result,sizeof(scan_result_t),offsetof(scan_result_t, tag),
 									region_ret,
 									result,compile_result,rule_num,
 									thread_num);
+		assert(_mid->is_last_region<2);
+		if(_mid->is_last_region==1)
+		{
+			_mid->is_last_region=2;
+		}
 	}
 	
 	DEC_SCANNER_REF(my_scanner,thread_num);
@@ -1058,11 +1080,18 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	{
 		aligment_int64_array_add(p_table->hit_cnt, thread_num,1);
 		_mid=grab_mid(mid, _feather, thread_num, 1);
+		
 		compile_ret=region_compile(_feather,_mid->inner,
+									_mid->is_last_region,
 									region_result,sizeof(scan_result_t),offsetof(scan_result_t, tag),
 									region_ret,
 									result,compile_result,rule_num,
 									thread_num);
+		assert(_mid->is_last_region<2);
+		if(_mid->is_last_region==1)
+		{
+			_mid->is_last_region=2;
+		}
 	}
 	DEC_SCANNER_REF(my_scanner,thread_num);
 	if(_feather->perf_on==1)
@@ -1272,10 +1301,16 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 		aligment_int64_array_add(p_table->hit_cnt, sp->thread_num,1);
 		_mid=grab_mid(mid, sp->feather,sp->thread_num, 1);
 		compile_ret=region_compile(sp->feather,_mid->inner,
+							_mid->is_last_region,
 							region_result,sizeof(scan_result_t),offsetof(scan_result_t, tag),
 							hit_region_cnt,
 							result,compile_result,rule_num,
 							sp->thread_num);
+		assert(_mid->is_last_region<2);
+		if(_mid->is_last_region==1)
+		{
+			_mid->is_last_region=2;
+		}
 		if(hit_detail!=NULL&&sp->feather->rule_scan_type!=0)
 		{
 			if(sp->scan_buff!=NULL)
@@ -1501,11 +1536,16 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 		sp->feather->p_table_info[sp->table_id]->hit_cnt++;
 		_mid=grab_mid(mid,sp->feather, sp->thread_num,1);
 		compile_ret=region_compile(sp->feather,_mid->inner,
+								_mid->is_last_region,
 								query_result,sizeof(GIE_result_t),offsetof(GIE_result_t, tag),
 								hit_region_cnt,
 								result,compile_result,rule_num,
 								sp->thread_num);
-	
+		assert(_mid->is_last_region<2);
+		if(_mid->is_last_region==1)
+		{
+			_mid->is_last_region=2;
+		}
 	}
 fast_out:
 	if(sp->feather->perf_on==1)
@@ -1575,6 +1615,9 @@ int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCA
 				_mid->district_id=-1;
 			}
 			_mid->is_set_district=1;
+			break;
+		case	MAAT_SET_SCAN_LAST_REGION:
+			_mid->is_last_region=1;
 			break;
 		default:
 			_feather->scan_err_cnt++;

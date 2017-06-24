@@ -265,11 +265,11 @@ struct _Maat_table_info_t
 	unsigned long long udpate_err_cnt;
 	unsigned long long iconv_err_cnt;
 	int stat_line_id;
-	mcore_long_t  scan_cnt;
-	mcore_long_t  scan_cpu_time;	//nano
-	mcore_long_t  input_bytes;
-	mcore_long_t  stream_num;
-	mcore_long_t  hit_cnt;
+	mcore_long_t	scan_cnt;
+	mcore_long_t	scan_cpu_time;	//nano
+	mcore_long_t	input_bytes;
+	mcore_long_t	stream_num;
+	mcore_long_t	hit_cnt;
 };
 
 struct _INNER_scan_status_t
@@ -284,7 +284,8 @@ struct _OUTER_scan_status_t
 {
 	struct _Maat_feather_t* feather;
 	unsigned short thread_num;
-	unsigned short is_set_district;
+	unsigned char is_set_district;
+	unsigned char is_last_region;
 	int district_id;
 	struct _INNER_scan_status_t* inner;
 };
@@ -382,6 +383,8 @@ struct _Maat_feather_t
 	mcore_long_t inner_mid_cnt;
 	mcore_long_t hit_cnt;
 	mcore_long_t thread_call_cnt;//size indicate by scan_thread_num, 
+	mcore_long_t orphan_group_saving;
+	mcore_long_t last_region_saving;
 	long long total_scan_bytes;
 	long long total_scan_cnt;
 	long long update_err_cnt;//sum of the same name variable in each table

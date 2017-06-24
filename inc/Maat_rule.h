@@ -163,7 +163,8 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 
 enum MAAT_SCAN_OPT
 {
-	MAAT_SET_SCAN_DISTRICT=1		//VALUE is a const char*,SIZE= strlen(string).DEFAULT: no default.
+	MAAT_SET_SCAN_DISTRICT=1,		//VALUE is a const char*,SIZE= strlen(string).DEFAULT: no default.
+	MAAT_SET_SCAN_LAST_REGION		//VALUE is NULL, SIZE=0. This option indicates that the follow scan is the last region of current scan cobination.
 };
 //return 0 if success, return -1 when failed;
 int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCAN_OPT type,const void* value,int size);

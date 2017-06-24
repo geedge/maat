@@ -28,7 +28,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_9_20170615=1;
+int MAAT_FRAME_VERSION_1_9_20170624=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -3080,6 +3080,8 @@ void *thread_rule_monitor(void *arg)
 	aligment_int64_array_free(feather->inner_mid_cnt);
 	aligment_int64_array_free(feather->outer_mid_cnt);
 	aligment_int64_array_free(feather->hit_cnt);
+	aligment_int64_array_free(feather->orphan_group_saving);
+	aligment_int64_array_free(feather->last_region_saving);
 	free(feather);
 	return NULL;
 }
