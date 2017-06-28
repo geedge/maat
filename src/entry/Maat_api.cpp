@@ -123,7 +123,7 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 			array_mi_rule[shortcut_avilable_cnt]=(struct _Maat_compile_rule_t*)(group_rule->compile_shortcut);
 			shortcut_avilable_cnt++;
 		}
-		_mid->cur_hit_id[_mid->cur_hit_cnt]=(int)group_rule->group_id;
+		_mid->cur_hit_id[_mid->cur_hit_cnt]=group_rule->group_id;
 		_mid->cur_hit_cnt++;
 		ret=insert_set_id(&(_mid->hitted_group_id),
 									&(_mid->hit_group_size),
@@ -137,10 +137,11 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 		scan_ret=shortcut_avilable_cnt;
 		aligment_int64_array_add(feather->orphan_group_saving, thread_num, 1);
 	}
-	else if(shortcut_avilable_cnt==0&&region_hit_num==1&&is_last_region==1)
+	else if(shortcut_avilable_cnt==0&&region_hit_num==1&&_mid->hit_group_cnt==1&&is_last_region==1)
 	{
 		//short cut for last scan and combination rules
-		//One groups may belong to a statisfy a compile rule, so only region_hit_num=1 could use the short cut
+		//region_hit_num==1 :  for current scan hitted rules, one and each other group may statisfy a compile rule.
+		//_mid->hit_group_cnt==1: With pre scan hitted group rules, one group may staisfy a compile rule
 		scan_ret=0;
 		aligment_int64_array_add(feather->last_region_saving, thread_num, 1);
 	}
