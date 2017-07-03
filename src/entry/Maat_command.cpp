@@ -788,9 +788,7 @@ int Maat_commit_command(Maat_feather_t feather)
 	redisReply* reply=NULL;
 	struct serial_rule_t* update_status=NULL;
 	int status_cnt=0;
-	struct timeval timeout;
-	timeout.tv_sec=0;
-	timeout.tv_usec=100*1000; // 100 ms
+
 	int ret=0,i=0,redis_ret=REDIS_ERR,retry=0;
 	long long maat_redis_version=0,new_region_num=0,new_group_num=0;
 	int serial_rule_num=0,serial_rule_idx=0;
@@ -803,7 +801,7 @@ int Maat_commit_command(Maat_feather_t feather)
 
 	if(_feather->redis_write_ctx==NULL)
 	{
-		_feather->redis_write_ctx=redisConnectWithTimeout(_feather->redis_ip, _feather->redis_port,timeout);
+		_feather->redis_write_ctx=redisConnectWithTimeout(_feather->redis_ip, _feather->redis_port,_feather->connect_timeout);
 		if(_feather->redis_write_ctx==NULL)
 		{
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module 

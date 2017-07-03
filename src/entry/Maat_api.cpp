@@ -476,6 +476,10 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->last_region_saving=aligment_int64_array_alloc(max_thread_num);
 	feather->maat_version=0;
 	feather->last_full_version=0;
+	feather->base_grp_seq=0;
+	feather->base_rgn_seq=0;
+	feather->connect_timeout.tv_sec=0;
+	feather->connect_timeout.tv_usec=100*1000; // 100 ms
 	pthread_mutex_init(&(feather->plugin_table_reg_mutex),NULL);
 	pthread_mutex_init(&(feather->redis_write_lock),NULL);
 	snprintf(feather->table_info_fn,sizeof(feather->table_info_fn),"%s",table_info_path);
@@ -590,13 +594,11 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 int Maat_initiate_feather(Maat_feather_t feather)
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
-	struct timeval timeout;
-	timeout.tv_sec=0;
-	timeout.tv_usec=100*1000; // 100 ms
+
 	if(strlen(_feather->redis_ip)>0&&_feather->redis_port!=0)
 	{
 		_feather->REDIS_MODE_ON=1;
-		_feather->redis_read_ctx=redisConnectWithTimeout(_feather->redis_ip,_feather->redis_port,timeout);
+		_feather->redis_read_ctx=redisConnectWithTimeout(_feather->redis_ip,_feather->redis_port,_feather->connect_timeout);
 		if(_feather->redis_read_ctx==NULL)
 		{
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module 
@@ -612,7 +614,7 @@ int Maat_initiate_feather(Maat_feather_t feather)
 								,maat_finish_cb
 								, _feather
 								,_feather->decrypt_key	//Not used.
-								,_feather->logger);
+								,_feather);
 	}
 	else
 	{

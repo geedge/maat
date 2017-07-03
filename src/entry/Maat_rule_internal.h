@@ -368,8 +368,10 @@ struct _Maat_feather_t
 	char group_tn[MAX_TABLE_NAME_LEN];
 	pthread_mutex_t plugin_table_reg_mutex;
 	unsigned char decrypt_key[MAX_TABLE_NAME_LEN];
-	unsigned char redis_ip[MAX_TABLE_NAME_LEN];;
+	
+	unsigned char redis_ip[MAX_TABLE_NAME_LEN];
 	int redis_port;
+	struct timeval connect_timeout;
 	redisContext *redis_read_ctx;
 	redisContext *redis_write_ctx;	// not thread safe.
 	int on_redis_writing;
