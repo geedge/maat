@@ -140,7 +140,6 @@ struct _head_Maat_rule_t
 };
 struct db_compile_rule_t
 {
-//	Maat_rule_t m_rule_head;
 	struct _head_Maat_rule_t m_rule_head;// fix len of Maat_rule_t
 	char* service_defined;
 	long long effective_range;
@@ -163,14 +162,16 @@ struct op_expr_t
 	int rule_type;
 };
 
-struct _Maat_region_rule_t
+struct _Maat_region_inner_t
 {
 	int region_id;
-	int expr_id;
+	int expr_id_cnt;
 	int district_id;
+	int expr_id_lb;
+	int expr_id_ub;
 	enum MAAT_TABLE_TYPE region_type;
 };
-struct _Maat_group_rule_t
+struct _Maat_group_inner_t
 {
 	int group_id;
 	int region_boundary;
@@ -180,10 +181,11 @@ struct _Maat_group_rule_t
 	void* compile_shortcut;
 	pthread_mutex_t mutex;
 };
-struct _Maat_compile_rule_t
+struct _Maat_compile_inner_t
 {
 	struct db_compile_rule_t *db_c_rule;
 	dynamic_array_t *groups;
+	int group_boundary;
 	int group_cnt;
 	int compile_id;//equal to db_c_rule->m_rule.config_id
 	pthread_rwlock_t rwlock;//reading compile rule is safe in update thread, rwlock lock called when delete or scan thread read
@@ -374,6 +376,7 @@ struct _Maat_feather_t
 	int cmd_num;
 	struct _Maat_cmd_t* cmd_qhead, *cmd_qtail;
 	pthread_mutex_t redis_write_lock; //protect redis_write_ctx
+	long long base_rgn_seq,base_grp_seq;
 //for stat>>>>
 	screen_stat_handle_t stat_handle;
 	int total_stat_id;
@@ -431,7 +434,13 @@ void maat_stat_init(struct _Maat_feather_t* feather);
 void maat_stat_table(struct _Maat_table_info_t* p_table,int scan_len,struct timespec* start, struct timespec* end,int thread_num);
 void maat_stat_output(struct _Maat_feather_t* feather);
 
-
+void redis_monitor_traverse(unsigned int version,redisContext *c,
+							void (*start)(unsigned int ,int ,void*),//vesion,CM_UPDATE_TYPE_*,u_para
+							void (*update)(const char* ,const char*,void* ),//table name ,line ,u_para
+							void (*finish)(void*),//u_para
+							void* u_para,
+							const unsigned char* dec_key,
+							_Maat_feather_t* feather);
 
 #endif
 

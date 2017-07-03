@@ -51,10 +51,10 @@ enum MAAT_ADDR_DIRECTION
 struct Maat_rgn_str_t
 {
 	const char *keywords;
-	const char *district;
+	const char *district;// optional for expr_plus, otherwise set to NULL.
 	enum MAAT_EXPR_TYPE expr_type;
 	enum MAAT_MATCH_METHOD match_method;
-	enum MAAT_CASE_TYPE case_type;
+	enum MAAT_CASE_TYPE hex_bin;
 };
 struct Maat_rgn_addr_t
 {
@@ -94,7 +94,7 @@ struct Maat_region_t
 	union
 	{
 		struct Maat_rgn_str_t expr_rule;
-		struct Maat_rgn_addr_t addr_rule;
+		struct Maat_rgn_addr_t ip_rule;
 		struct Maat_rgn_intv_t interval_rule;
 		struct Maat_rgn_digest_t digest_rule;
 		struct Maat_rgn_sim_t similarity_rule;
@@ -104,14 +104,12 @@ struct Maat_group_t
 {
 	int region_num;
 	int group_id;	//Any, maat will assigned one.
-	char* table_name;//optional, if not specified, maat will assigned to the first GROUP table in table_info.conf.
 	char* group_name;//optional, for group reuse.
 	struct Maat_region_t *regions;	
 };
 struct Maat_command_t
 {
 	struct Maat_rule_t compile;// for MAAT_OP_DEL, only compile.config_id is necessary.
-	char* table_name; 			//optional, if not specified, maat will assigned to the first COMPILE table in table_info.conf.
 	int group_num;				// for MAAT_OP_DEL, Any.
 	struct Maat_group_t* groups;// for MAAT_OP_DEL, SET to NULL.
 };

@@ -9,18 +9,14 @@ const char* maat_redis_monitor="MAAT_REDIS_MONITOR";
 const char* maat_redis_command="MAAT_REDIS_COMMAND";
 
 const char* rm_key_prefix[2]={"OBSOLETE_RULE","EFFECTIVE_RULE"};
-const char* redis_OK_reply="+OK\r\n";
-const char* PREFIX_COMPILE_INDEX="INDEX_COMPILE";
-const char* PREFIX_GROUP_INDEX="INDEX_GROUP";
-const char* PREFIX_REGION_INDEX="INDEX_REGION";
 
+const int MAAT_REDIS_SYNC_TIME=30*60;
 
 struct serial_rule_t		//rm= Redis Maat
 {
-	int op;//0: delete, 1: add.
+	enum MAAT_OPERATION op;//0: delete, 1: add.
 	int rule_id;
-	enum MAAT_TABLE_TYPE table_type;
-	char* table_name[256];
+	char table_name[256];
 	char* table_line;
 };
 
@@ -29,11 +25,9 @@ struct _Maat_cmd_t
 	struct Maat_command_t cmd;
 	enum MAAT_OPERATION op;
 	int ref_cnt;
-	int group_ref_cnt[MAAT_MAX_EXPR_ITEM_NUM];
-	int group_rgn_cnt[MAAT_MAX_EXPR_ITEM_NUM];
 	struct _Maat_cmd_t* next;
 };
-enum MAAT_TABLE_TYPE region_table_type(const struct Maat_region_t* p)
+enum MAAT_TABLE_TYPE type_region2table(const struct Maat_region_t* p)
 {
 	enum MAAT_TABLE_TYPE ret=0;
 	switch(p->region_type)
@@ -65,9 +59,76 @@ enum MAAT_TABLE_TYPE region_table_type(const struct Maat_region_t* p)
 	}
 	return ret;
 }
-void free_serial_rules(void* p)
+void serialize_region(const struct Maat_region_t* p,int group_id, char* buff,int size)
 {
-	struct serial_rule_t* rule=(struct serial_rule_t*)p;
+	int ret=0;
+	switch(p->region_type)
+	{
+		case REGION_IP:
+			ret=snprintf(buff,size,"%d\t%d\t%d\t%s\t%s\t%hu\t%hu\t%s\t%s\t%hu\t%hu\t%d\t%d\t1"
+													,p->ip_rule.region_id
+													,group_id
+													,p->ip_rule.addr_type
+													,p->ip_rule.src_ip
+													,p->ip_rule.mask_src_ip
+													,p->ip_rule.src_port
+													,p->ip_rule.mask_src_port
+													,p->ip_rule.dst_ip
+													,p->ip_rule.mask_dst_ip
+													,p->ip_rule.dst_port
+													,p->ip_rule.mask_dst_port
+													,p->ip_rule.protocol
+													,p->ip_rule.direction);	
+			break;
+		case REGION_EXPR:
+			if(p->expr_rule.district==NULL)
+			{
+				ret=snprintf(buff,size,"%d\t%d\t%s\t%d\t%d\t%d\t1"
+													,p->region_id
+													,group_id
+													,p->expr_rule.keywords
+													,p->expr_rule.expr_type
+													,p->expr_rule.match_method
+													,p->expr_rule.hex_bin);	
+			}
+			else	//expr_plus
+			{
+				ret=snprintf(buff,size,"%d\t%d\t%s\t%s\t%d\t%d\t%d\t1"
+													,p->region_id
+													,group_id
+													,p->expr_rule.keywords
+													,p->expr_rule.district
+													,p->expr_rule.expr_type
+													,p->expr_rule.match_method
+													,p->expr_rule.hex_bin);	
+			}
+			break;
+		case REGION_INTERVAL:
+			ret=snprintf(buff,size,"%d\t%d\t%u\t%u\t1"
+													,p->region_id
+													,group_id
+													,p->interval_rule.low_boundary
+													,p->interval_rule.up_boundary);
+			break;
+		case REGION_DIGEST:
+			ret=snprintf(buff,size,"%d\t%d\t%llu\t%s\t%hd\t1"
+													,p->region_id
+													,group_id
+													,p->digest_rule.orgin_len
+													,p->digest_rule.digest_string
+													,p->digest_rule.confidence_degree);
+			break;
+		case REGION_SIMILARITY://not support yet
+			assert(0);
+			break;
+		default:
+			assert(0);
+	}
+	assert(ret<size);
+	return;
+}
+void free_serial_rules(struct serial_rule_t* rule)
+{
 	if(rule->table_line!=NULL)
 	{
 		free(rule->table_line);
@@ -76,11 +137,10 @@ void free_serial_rules(void* p)
 	free(rule);
 	return;
 }
-void set_serial_rule(struct serial_rule_t* rule,enum MAAT_OPERATION op,enum MAAT_TABLE_TYPE table_type,int id,const char* table_name,const char* line)
+void set_serial_rule(struct serial_rule_t* rule,enum MAAT_OPERATION op,int rule_id,const char* table_name,const char* line)
 {
 	rule->op=op;
-	rule->rule_id=id;
-	rule->table_type=table_type;
+	rule->rule_id=rule_id;
 	assert(srtlen(table_name)<sizeof(rule->table_name));
 	memcpy(rule->table_name,table_name,strlen(table_name));
 	if(line!=NULL)
@@ -97,7 +157,7 @@ int get_rm_key_list(unsigned int version,redisContext *c,struct serial_rule_t** 
 	int rule_id;
 	long long version_in_redis=0;
 	int i=0,ret=0,retry=0;
-	struct serial_rule_t *p_rm_rule=NULL;
+	struct serial_rule_t *s_rule=NULL;
 
 	if(version==0)
 	{
@@ -166,26 +226,26 @@ int get_rm_key_list(unsigned int version,redisContext *c,struct serial_rule_t** 
 	}
 	freeReplyObject(data_reply);
 	data_reply=NULL;
-	p_rm_rule=(struct serial_rule_t*)calloc(ctrl_reply->elements,sizeof(struct serial_rule_t));
+	s_rule=(struct serial_rule_t*)calloc(ctrl_reply->elements,sizeof(struct serial_rule_t));
 	for(i=0;i<ctrl_reply->elements;i++)
 	{
 		assert(ctrl_reply->element[i]->type==REDIS_REPLY_STRING);
-		ret=sscanf(ctrl_reply->element[i]->str,"%s,%s,%d",op_str,p_rm_rule.table_name,&(p_rm_rule[i].rule_id));
+		ret=sscanf(ctrl_reply->element[i]->str,"%s,%s,%d",op_str,s_rule.table_name,&(s_rule[i].rule_id));
 		assert(ret==3);
 		if(strncmp(op_str,"ADD")==0)
 		{
-			p_rm_rule[i].op=1;
+			s_rule[i].op=MAAT_OP_ADD;
 		}
 		else if(strncmp(op_str,"DEL")==0)
 		{
-			p_rm_rule[i].op=0;
+			s_rule[i].op=MAAT_OP_DEL;
 		}
 		else
 		{
 			assert(0);
 		}
 	}
-	*list=p_rm_rule;
+	*list=s_rule;
 	*update_type=CM_UPDATE_TYPE_INC;
 	freeReplyObject(ctrl_reply);
 	return i;
@@ -194,15 +254,15 @@ FULL_UPDATE:
 								"Initiate full udpate from version %d to %lld.",version,version_in_redis);
 	data_reply=(redisReply*)redisCommand(c, "KEYS EFFECTIVE_RULE:*");
 	assert(data_reply->type==REDIS_REPLY_ARRAY);
-	p_rm_rule=(struct serial_rule_t*)calloc(ctrl_reply->elements,sizeof(struct serial_rule_t));
+	s_rule=(struct serial_rule_t*)calloc(ctrl_reply->elements,sizeof(struct serial_rule_t));
 	for(i=0;i<data_reply->elements;i++)
 	{
 		assert(ctrl_reply->element[i]->type==REDIS_REPLY_STRING);
-		ret=sscanf(ctrl_reply->element[i]->str,"EFFECTIVE_RULE:%s,%d",p_rm_rule[i].table_name,&(p_rm_rule[i].rule_id));
-		p_rm_rule[i].op=1;
+		ret=sscanf(ctrl_reply->element[i]->str,"EFFECTIVE_RULE:%s,%d",s_rule[i].table_name,&(s_rule[i].rule_id));
+		s_rule[i].op=1;
 		assert(ret==2);	
 	}
-	*list=p_rm_rule;
+	*list=s_rule;
 	*update_type=CM_UPDATE_TYPE_FULL;
 	freeReplyObject(ctrl_reply);
 	ctrl_reply=NULL;
@@ -216,14 +276,16 @@ void redis_monitor_traverse(unsigned int version,redisContext *c,
 							void (*finish)(void*),//u_para
 							void* u_para,
 							const unsigned char* dec_key,
-							void* logger)
+							_Maat_feather_t* feather)
 {
 	redisReply* ctrl_reply=NULL,*data_reply=NULL;
-	int rule_num=0,i=0;
+	int rule_num=0,i=0,table_id=0;
 	int ret=0;
 	struct serial_rule_t* rule_list=NULL;
 	int update_type=0;
 	unsigned int new_version=0;
+	enum MAAT_TABLE_TYPE table_type=0;
+	void* logger=feather->logger;
 	rule_num=get_rm_key_list(version, c, &rule_list, logger,&new_version, &update_type);
 	if(rule_num==0)
 	{
@@ -241,6 +303,16 @@ void redis_monitor_traverse(unsigned int version,redisContext *c,
 	start(new_version,update_type);
 	for(i=0;i<data_reply->elements;i++)
 	{
+		if(rule_list[i].op==MAAT_OP_DEL)
+		{
+			ret=feather->map_tablename2id(rule_list[i].table_name,&table_id);
+			if(ret<0)
+			{
+				continue;
+			}
+			table_type=feather->p_table_info[table_id].table_type;
+			invalidate_line(data_reply->element[i].str,table_type);
+		}
 		update(rule_list[i].table_name,data_reply->element[i].str,u_para);
 	}
 	finish(u_para);
@@ -259,17 +331,9 @@ struct Maat_command_t* Maat_create_comand(const struct Maat_rule_t* rule, int gr
 
 	return (struct Maat_command_t*)_cmd;
 }
-void Maat_cmd_set_group(struct Maat_command_t* cmd,int which_group,int region_num,const char* table_name,const char* group_name)
+void Maat_cmd_set_group(struct Maat_command_t* cmd,int which_group,int region_num,const char* group_name)
 {
 	assert(which_group<cmd->group_num);
-	if(table_name!=NULL)
-	{
-		if(cmd->groups[which_group].table_name!=NULL)
-		{
-			free(cmd->groups[which_group].table_name);
-		}
-		cmd->groups[which_group].table_name=_maat_strdup(table_name);
-	}
 	if(group_name!=NULL)
 	{
 		if(cmd->groups[which_group].group_name!=NULL)
@@ -292,10 +356,10 @@ void Maat_copy_region(struct Maat_region_t* dst,const struct Maat_region_t* src)
 	switch(dst->region_type)
 	{
 		case REGION_IP:
-			dst->addr_rule.src_ip=_maat_strdup(src->addr_rule.src_ip);
-			dst->addr_rule.mask_src_ip=_maat_strdup(src->addr_rule.mask_src_ip);
-			dst->addr_rule.dst_ip=_maat_strdup(src->addr_rule.dst_ip);
-			dst->addr_rule.mask_src_ip=_maat_strdup(src->addr_rule.mask_src_ip);
+			dst->ip_rule.src_ip=_maat_strdup(src->ip_rule.src_ip);
+			dst->ip_rule.mask_src_ip=_maat_strdup(src->ip_rule.mask_src_ip);
+			dst->ip_rule.dst_ip=_maat_strdup(src->ip_rule.dst_ip);
+			dst->ip_rule.mask_src_ip=_maat_strdup(src->ip_rule.mask_src_ip);
 			break;
 		case REGION_EXPR:
 			dst->expr_rule.keywords=_maat_strdup(src->expr_rule.keywords);
@@ -321,10 +385,10 @@ void Maat_empty_region(struct Maat_region_t* p)
 	switch(p->region_type)
 	{
 		case REGION_IP:
-			free(p->addr_rule.src_ip);
-			free(p->addr_rule.mask_src_ip);
-			free(p->addr_rule.dst_ip);
-			free(p->addr_rule.mask_src_ip);
+			free(p->ip_rule.src_ip);
+			free(p->ip_rule.mask_src_ip);
+			free(p->ip_rule.dst_ip);
+			free(p->ip_rule.mask_src_ip);
 			break;
 		case REGION_EXPR:
 			free(p->expr_rule.keywords);
@@ -371,7 +435,6 @@ void Maat_free_command(struct Maat_command_t* cmd)
 		{
 			Maat_empty_region(&(cmd.groups[i].regions[j]));
 		}
-		free(cmd.groups[i].table_name);
 		free(cmd.groups[i].group_name);
 		free(cmd.groups[i].regions);
 		cmd.groups[i].regions=NULL;
@@ -384,7 +447,8 @@ void Maat_free_command(struct Maat_command_t* cmd)
 }
 int Maat_format_command(struct Maat_command_t* rule, char* buffer, int size)
 {
-
+	//TODO
+	return 0;
 }
 int Maat_command(Maat_feather_t feather,struct Maat_command_t* raw_rule,enum MAAT_OPERATION op)
 {
@@ -397,28 +461,26 @@ int Maat_command(Maat_feather_t feather,struct Maat_command_t* raw_rule,enum MAA
 	ret=Maat_commit_command(feather);
 	return ret;
 }
-//functioned as strdup, for dictator compatible.
-char* _maat_strdup(const char* s)
-{
-	char*d=NULL;
-	if(s==NULL)
-	{
-		return NULL;
-	}
-	d=(char*)malloc(strlen(s)+1);
-	memcpy(d,s,strlen(s)+1));
-	return d;
-}
-void Maat_append_command(Maat_feather_t feather,struct Maat_command_t* cmd,enum MAAT_OPERATION op)
+
+int Maat_append_command(Maat_feather_t feather,struct Maat_command_t* cmd,enum MAAT_OPERATION op)
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	struct _Maat_cmd_t* _cmd=(struct _Maat_cmd_t*)cmd;
+	int i=0, ret=0;
 	_cmd->ref_cnt++;
 	_cmd->op=op;
 	assert(op==MAAT_OP_DEL||op==MAAT_OP_ADD);
-	if(cmd->table_name==NULL)
+	if(op==MAAT_OP_DEL)
 	{
-		cmd->table_name=_maat_strdup(_feather->compile_tn);
+		ret=reconstruct_cmd(_feather, _cmd)
+	}
+	else
+	{
+		ret=fix_table_name(_feather, cmd);
+	}
+	if(ret<0)
+	{
+		return -1;
 	}
 	if(_feather->cmd_num==0)
 	{
@@ -483,104 +545,89 @@ void invalidate_line(char* line, enum MAAT_TABLE_TYPE type)
 	line[i]='0';
 	return;
 }
-int calculate_serial_rule_num(struct Maat_command_t* cmd)
+int calculate_serial_rule_num(struct _Maat_cmd_t* _cmd,int * new_region_cnt, int* new_group_cnt)
 {
 	int serial_num=0;
-	int i=0,j=0;
+	int i=0;
+	struct Maat_command_t* cmd=&(_cmd->cmd);
 	serial_num++;//compile rule
 	for(i=0;i<cmd->group_num;i++)
 	{
 		serial_num++;
-		for(j=0;j<cmd->groups[i].region_num;j++)
+		if(cmd->groups[i].regions==NULL)
 		{
-			serial_num++;
+			continue;
+		}
+		if(_cmd->op==MAAT_OP_ADD)
+		{
+			*new_region_cnt+=cmd->groups[i].region_num;
+			*new_group_cnt++;
 		}
 	}
 	return serial_num;
 }
-int reconstruct_cmd(redisContext *ctx,struct _Maat_cmd_t* _cmd,void* logger)
+int reconstruct_cmd(struct _Maat_feather_t feather, struct _Maat_cmd_t* _cmd)
 {
-	int redis_ret=REDIS_ERR,ret=0;
+	int ret=0;
 	int i=0,j=0,grp_idx=0;
-	redisReply* compile_reply=NULL,*group_reply=NULL,*region_reply=NULL;
 	long long group_ref_cnt=0;
-	char table_name[MAX_TABLE_NAME_LEN];
 	struct Maat_command_t* cmd=&(_cmd->cmd);
-	struct Maat_group_t* p_group=NULL;
-	struct Maat_region_t* p_region=NULL;
+	struct Maat_group_t* group_cmd=NULL;
+	struct Maat_region_t* region_cmd=NULL;
 
-
+	struct _Maat_compile_inner_t *compile_inner=NULL;
+	struct _Maat_group_inner_t* group_inner=NULL;
+	struct _Maat_region_inner_t* region_inner=NULL;
+	void* logger=feather->logger;
+	
 	int config_id=cmd->compile.config_id;
-	compile_reply=redisCommand(ctx,"HKEYS %s:%d",PREFIX_COMPILE_INDEX,config_id);
-	if(compile_reply==NULL)
+	compile_inner=(struct _Maat_compile_inner_t *)HASH_fetch_by_id(feather->scanner->compile_hash, config_id);
+	if(compile_inner==NULL)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_command 
-							,"%s:%d not found."
-							,PREFIX_COMPILE_INDEX,config_id);
+							,"config %d not exist."
+							,config_id);
 		return -1;
 	}
-	cmd->group_num=compile_reply->elements;
-	assert(cmd->compile.declare_grp_num==cmd->group_num);
+	cmd->group_num=compile_inner->group_cnt;
 	assert(cmd->groups==NULL);
-	cmd->groups=calloc(sizeof(struct Maat_group_t),cmd->group_num);
-	for(i=0;i<compile_reply->elements;i++)
+	cmd->groups=(struct Maat_group_t*)calloc(sizeof(struct Maat_group_t),cmd->group_num);
+	for(i=0;i<compile_inner->group_boundary;i++)
 	{
-		if(strncmp(compile_reply->element[i].str,"GROUP:",strlen("GROUP:"))!=0)
+		group_inner=(struct _Maat_group_inner_t*)dynamic_array_read(compile_inner->groups,i);
+		if(group_inner==NULL)
 		{
 			continue;
 		}
-		p_group=&(cmd->groups[grp_idx]);
-		ret=sscanf(compile_reply->element[i].str,"GROUP:%s,%d",table_name,&(p_group->group_id));
-		assert(ret==2);
-		p_group->table_name=_maat_strdup(table_name);
+		group_cmd=&(cmd->groups[grp_idx]);
+		group_cmd->group_id=group_inner->group_id;
 		
-		group_reply=redisCommand(ctx,"HINCRBY %s:%s,%d REF_CNT -1",PREFIX_GROUP_INDEX
-													,p_group->table_name
-													,p_group->group_id);
-		freeReplyObject(group_reply);
-		group_reply=redisCommand(ctx,"HGET %s:%s,%d REF_CNT",PREFIX_GROUP_INDEX
-													,p_group->table_name
-													,p_group->group_id);
-		group_ref_cnt=group_reply->integer;
-		freeReplyObject(group_reply);
-		_cmd->group_ref_cnt[grp_idx]=group_ref_cnt;
-		grp_idx++;
-		if(group_ref_cnt>0)
+		if(group_inner->ref_cnt>0)
 		{
 			continue;
 		}
-		group_reply=redisCommand(ctx,"HKEYS %s:%s,%d",PREFIX_GROUP_INDEX
-													,p_group->table_name
-													,p_group->group_id);
-		p_group->region_num=group_reply->elements;
-		p_group->regions=(struct Maat_region_t*)calloc(sizeof(struct Maat_region_t),p_group->region_num);
-		for(j=0;j<group_reply->elements;j++)
+		group_cmd->region_num=group_inner->region_cnt;
+		group_cmd->regions=(struct Maat_region_t*)calloc(sizeof(struct Maat_region_t),group_cmd->region_num);
+		for(j=0;j<group_inner->region_boundary;j++)
 		{
-			if(strncmp(group_reply->element[j].str,"REGION:",strlen("REGION:"))!=0)
+			region_inner=(struct _Maat_region_inner_t*)dynamic_array_read(group_inner->regions,i);
+			if(region_inner==NULL)
 			{
 				continue;
 			}
-			p_region=&(p_group->regions[p_group->region_num]);
-			ret=sscanf(group_reply->element[j].str,"REGION:%s,%d",table_name,&(p_region->region_id));
-			assert(ret==2);
-			p_region->table_name=_maat_strdup(table_name);
-			region_reply=redisCommand(ctx,"HGET %s %s,%d",PREFIX_REGION_INDEX
-														,p_region->table_name
-														,p_region->region_id);
-			p_region->region_type=region_reply->integer;
-			p_group->region_num++;
-			
-			freeReplyObject(region_reply);
+			region_cmd=&(group_cmd->regions[group_cmd->region_num]);
+			region_cmd->table_name=_maat_strdup(feather->p_table_info[region_inner->table_id].table_name[0]);
+			region_cmd->region_id=region_inner->table_id;
+			//NOTICE: a table_type stored in region_type.
+			region_cmd->region_type=region_inner->table_type;
+			group_cmd->region_num++;
 		}
-		freeReplyObject(group_reply);
-		group_reply=NULL;
+		grp_idx++;
 	}
-	freeReplyObject(compile_reply);
-	compile_reply=NULL;
 	return 0;
 }
 
-int build_serial_rule_from_redis(redisContext *ctx,struct Maat_command_t* cmd,struct serial_rule_t* list, int size)
+int build_serial_rule_from_redis(_Maat_feather_t *feather,redisContext *ctx,struct Maat_command_t* cmd,struct serial_rule_t* list, int size)
 {
 	struct Maat_group_t* p_group=NULL;
 	struct Maat_region_t* p_region=NULL;
@@ -588,21 +635,14 @@ int build_serial_rule_from_redis(redisContext *ctx,struct Maat_command_t* cmd,st
 	redisReply* data_reply=NULL;
 	int rule_num=0;
 	int i=0,j=0;
-	data_reply=redisCommand(ctx,"GET %s:%s,%d",rm_key_prefix[MAAT_OP_ADD]
-												,cmd->table_name
-												,cmd->compile.config_id);
-	invalidate_line(data_reply->str, TABLE_TYPE_COMPILE);
-	set_serial_rule(list+rule_num,MAAT_OP_DEL,TABLE_TYPE_COMPILE,cmd->compile.config_id,cmd->table_name,data_reply->str);
+
+	set_serial_rule(list+rule_num,MAAT_OP_DEL,cmd->compile.config_id,feather->compile_tn,NULL);
 	rule_num++;
-	freeReplyObject(data_reply);
 	for(i=0;i<cmd->group_num;i++)
 	{
 		p_group=&(cmd->groups[i]);
-		data_reply=redisCommand(ctx,"GET %s:%s,%d",rm_key_prefix[MAAT_OP_ADD]
-												,p_group->table_name
-												,p_group->group_id);
-		invalidate_line(data_reply->str, TABLE_TYPE_GROUP);
-		set_serial_rule(list+rule_num,MAAT_OP_DEL,TABLE_TYPE_GROUP,p_group->group_id,p_group->table_name,data_reply->str);		
+
+		set_serial_rule(list+rule_num,MAAT_OP_DEL,p_group->group_id,feather->group_tn,NULL);		
 		rule_num++;
 		freeReplyObject(data_reply);
 		for(j=0;j<p_group->region_num;j++)
@@ -611,38 +651,87 @@ int build_serial_rule_from_redis(redisContext *ctx,struct Maat_command_t* cmd,st
 			data_reply=redisCommand(ctx,"GET %s:%s,%d",rm_key_prefix[MAAT_OP_ADD]
 													,p_region->table_name
 													,p_region->region_id);
-			table_type=region_table_type(p_region);
-			invalidate_line(data_reply->str, table_type);
+			table_type=type_region2table(p_region);
+			invalidate_line(data_reply->str, (enum MAAT_TABLE_TYPE)(p_region->region_type));
 			set_serial_rule(list+rule_num,MAAT_OP_DEL,p_region->region_id,p_region->table_name,data_reply->str);		
 			rule_num++;
 			freeReplyObject(data_reply);
 		}
 	}
 	assert(rule_num<size);
-	return 0;
+	return rule_num;
 }
-int build_serial_rule_from_cmd(struct Maat_command_t* cmd,struct serial_rule_t* list, int size)
+int build_serial_rule(_Maat_feather_t *feather,struct _Maat_cmd_t* _cmd,struct serial_rule_t* list, int size)
 {
 	struct Maat_group_t* p_group=NULL;
 	struct Maat_region_t* p_region=NULL;
 	struct Maat_rule_t* p_m_rule=NULL;
+	struct Maat_command_t* cmd=&(_cmd->cmd);
+	enum MAAT_OPERATION op=_cmd->op;
+	redisContext* ctx=feather->redis_write_ctx;
+	
 	redisReply* data_reply=NULL;
-	int rule_num=0,i=0;
+	int rule_num=0,i=0,j=0;
 	p_m_rule=&(cmd->compile);
 	char line[1024];
-	snprintf(line,sizeof(line),"%d\t%d\t%hhd\t%hhd\t%hhd\t0\t%s\t1\t%d",p_m_rule->config_id
-													,p_m_rule->service_id
-													,p_m_rule->action
-													,p_m_rule->do_blacklist
-													,p_m_rule->do_log
-													,p_m_rule->service_defined
-													,p_m_rule->declare_grp_num);
-	set_serial_rule(list+rule_num,MAAT_OP_ADD,cmd->compile.config_id,cmd->table_name,line);
+	if(op===MAAT_OP_ADD)
+	{
+		snprintf(line,sizeof(line),"%d\t%d\t%hhd\t%hhd\t%hhd\t0\t%s\t1\t%d",p_m_rule->config_id
+														,p_m_rule->service_id
+														,p_m_rule->action
+														,p_m_rule->do_blacklist
+														,p_m_rule->do_log
+														,p_m_rule->service_defined
+														,cmd->group_num);
+		set_serial_rule(list+rule_num,MAAT_OP_ADD,cmd->compile.config_id,feather->compile_tn,line);
+
+	}
+	else
+	{
+		set_serial_rule(list+rule_num,MAAT_OP_DEL,cmd->compile.config_id,feather->compile_tn,NULL);
+	}
 	rule_num++;
-	data_reply=redisCommand(ctx,"GET %s:%s,%d",rm_key_prefix[MAAT_OP_ADD]
-												,cmd->table_name
-												,cmd->compile.config_id);
-	return 0;
+	for(i=0;cmd->group_num;i++)
+	{		
+		p_group=&(cmd->groups[i]);
+		if(op===MAAT_OP_ADD)
+		{
+			p_group->group_id=feather->base_grp_seq;
+			feather->base_grp_seq++;
+			snprintf(line,sizeof(line),"%d\t%d\t1",p_group->group_id
+												,p_m_rule->config_id);
+			set_serial_rule(list+rule_num,MAAT_OP_ADD,p_group->group_id,feather->group_tn,line);
+		}
+		else
+		{
+			set_serial_rule(list+rule_num,MAAT_OP_DEL,p_group->group_id,feather->group_tn,NULL);
+		}
+		rule_num++;
+		if(p_group->regions==NULL)//group reuse.
+		{
+			continue;
+		}
+		for(j=0;j<p_group->region_num;j++)
+		{
+			if(op===MAAT_OP_ADD)
+			{
+				p_group->regions[j].region_id=feather->base_rgn_seq;
+				feather->base_rgn_seq++;
+				serialize_region(p_group->regions+j, p_group->group_id, line, sizeof(line));
+				set_serial_rule(list+rule_num,MAAT_OP_ADD
+								,p_group->regions[j].region_id,p_group->regions[j].table_name,line);
+			}
+			else
+			{
+				set_serial_rule(list+rule_num,MAAT_OP_DEL
+								,p_group->regions[j].region_id,p_group->regions[j].table_name,NULL);
+
+			}
+			rule_num++;
+		}
+	}
+	assert(rule_num<size);
+	return rule_num;
 }
 int mr_transaction_success(redisReply* data_reply)
 {
@@ -656,142 +745,43 @@ int mr_transaction_success(redisReply* data_reply)
 	}
 	return 1;
 }
-const int MAAT_REDIS_SYNC_TIME=30*60;
-int del_cmd_from_redis(redisContext *ctx,struct _Maat_cmd_t* _cmd,void* logger)
+int fix_table_name(_Maat_feather_t* feather,struct Maat_command_t* cmd)
 {
-	int serial_num=0;
-	int i=0;
-	int retry=0,ret=0;
-	long long maat_redis_version=0,group_num=0;
-	struct serial_rule_t *s_rule=NULL;
-	struct Maat_command_t* cmd=&(_cmd->cmd);
-	int redis_ret=REDIS_ERR,ret=0;
-	redisReply* data_reply=NULL;
-	reconstruct_cmd(ctx, _cmd, logger);
-	serial_num=calculate_serial_rule_num(cmd);
-	s_rule=(struct serial_rule_t*)calloc(sizeof(struct serial_rule_t),serial_num);
-	ret=build_serial_rule_from_redis(ctx, cmd, s_rule, serial_num);
-
-	
-	retry=0;
-	while(1)
+	int i=0,j=0,ret=0;
+	char *table_name=NULL;
+	int table_id=0;
+	enum MAAT_TABLE_TYPE table_type;
+	for(i=0;i<cmd->group_num;i++)
 	{
-	
-		data_reply=redisCommand(ctx, "WATCH MAAT_VERSION");
-		freeReplyObject(data_reply);
-		data_reply=redisCommand(ctx, "GET MAAT_VERSION");
-		freeReplyObject(data_reply);
-		maat_redis_version=data_reply->integer;
-		maat_redis_version++;
-  		data_reply=redisCommand(ctx,"MULTI");
-		freeReplyObject(data_reply);
-		for(i=0;i<serial_num;i++)
+		for(j=0;j<cmd->groups[i].region_num;j++)
 		{
-			data_reply=redisCommand(ctx,"DEL %s:%s,%d",rm_key_prefix[MAAT_OP_ADD]
-													,s_rule[i].table_name
-													,s_rule[i].rule_id);
-			freeReplyObject(data_reply);
-			
-			data_reply=redisCommand(ctx,"SET %s:%s,%d \"%s\"",rm_key_prefix[MAAT_OP_DEL]
-													,s_rule[i].table_name
-													,s_rule[i].rule_id
-													,s_rule[i].table_line);
-			freeReplyObject(data_reply);
-			data_reply=redisCommand(ctx,"EXPIRE %s:%s,%d %d",rm_key_prefix[MAAT_OP_DEL]
-													,s_rule[i].table_name
-													,s_rule[i].rule_id
-													,MAAT_REDIS_SYNC_TIME);
-			freeReplyObject(data_reply);
-			//NX: Don't update already exisiting elements. Always add new elements.
-			data_reply=redisCommand(ctx,"ZADD NX DEL,%s,%d %d",s_rule[i].table_name
-													,s_rule[i].rule_id
-													,maat_redis_version);
-			freeReplyObject(data_reply);
+			table_name=cmd->groups[i].regions[j].table_name;
+			ret=map_str2int(feather->map_tablename2id, table_name, &table_id);
+			if(ret<0)
+			{
+				MESA_handle_runtime_log(feather->logger,RLOG_LV_FATAL,maat_module 
+									,"Unknown table %s of Maat_command_t[%d]->group[%d]->region[%d]."
+									,table_name,cmd->compile.config_id,i,j);
 
-
-			data_reply=redisCommand(ctx,"INCRBY MAAT_VERSION 1");
-			freeReplyObject(data_reply);
-		}
-
-		data_reply=redisCommand(ctx,"EXEC");
-		if(1==mr_transaction_success(data_reply))
-		{
-			freeReplyObject(data_reply);
-			break;
-		}
-		else
-		{
-			retry++;
-			assert(retry<5);
-			freeReplyObject(data_reply);
+				return -1;
+			}
+			table_type=type_region2table(&(cmd->groups[i].regions[j]));
+			if(table_type!=feather->p_table_info[i].table_type)
+			{
+				MESA_handle_runtime_log(feather->logger,RLOG_LV_FATAL,maat_module 
+									,"Table %s not support region type %d of Maat_command_t[%d]->group[%d]->region[%d]."
+									,table_name
+									,cmd->groups[i].regions[j].region_type
+									,cmd->compile.config_id,i,j);
+				return -1;
+			}
+			free(cmd->groups[i].regions[j].table_name);
+			cmd->groups[i].regions[j].table_name=_maat_strdup(feather->p_table_info[i].table_name[0]);
 		}
 	}
-	for(i=0;i<serial_num;i++)
-	{
-		free_serial_rules(s_rule+i);
-		s_rule[i]=NULL;
-	}
-	free(s_rule);
+	return 0;
 }
-int add_cmd_to_redis(redisContext *ctx,struct _Maat_cmd_t* _cmd,void* logger)
-{
-	int ret=0,retry=0,i=0;
-	redisReply* data_reply=NULL;
-	long long maat_redis_version=0;
-	struct Maat_command_t* cmd=&(_cmd->cmd);
-	struct serial_rule_t *s_rule=NULL;
-	int serial_num=calculate_serial_rule_num(cmd);
-	s_rule=(struct serial_rule_t*)calloc(sizeof(struct serial_rule_t),serial_num);
-	ret=build_serial_rule_from_cmd(ctx, cmd, s_rule, serial_num);
 
-	retry=0;
-	while(1)
-	{
-	
-		data_reply=redisCommand(ctx, "WATCH MAAT_VERSION");
-		freeReplyObject(data_reply);
-		data_reply=redisCommand(ctx, "GET MAAT_VERSION");
-		freeReplyObject(data_reply);
-		maat_redis_version=data_reply->integer;
-		maat_redis_version++;
-  		data_reply=redisCommand(ctx,"MULTI");
-		freeReplyObject(data_reply);
-		for(i=0;i<serial_num;i++)
-		{
-			data_reply=redisCommand(ctx,"SET %s:%s,%d \"%s\"",rm_key_prefix[MAAT_OP_ADD]
-													,s_rule[i].table_name
-													,s_rule[i].rule_id
-													,s_rule[i].table_line);
-			freeReplyObject(data_reply);
-
-			//NX: Don't update already exisiting elements. Always add new elements.
-			data_reply=redisCommand(ctx,"ZADD NX ADD,%s,%d %d",s_rule[i].table_name
-													,s_rule[i].rule_id
-													,maat_redis_version);
-			freeReplyObject(data_reply);			
-		}
-
-		data_reply=redisCommand(ctx,"EXEC");
-		if(1==mr_transaction_success(data_reply))
-		{
-			freeReplyObject(data_reply);
-			break;
-		}
-		else
-		{
-			retry++;
-			assert(retry<5);
-			freeReplyObject(data_reply);
-		}
-	}
-	for(i=0;i<serial_num;i++)
-	{
-		free_serial_rules(s_rule+i);
-		s_rule[i]=NULL;
-	}
-	free(s_rule);
-
-}
 int Maat_commit_command(Maat_feather_t feather)
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
@@ -802,8 +792,15 @@ int Maat_commit_command(Maat_feather_t feather)
 	timeout.tv_sec=0;
 	timeout.tv_usec=100*1000; // 100 ms
 	int ret=0,i=0,redis_ret=REDIS_ERR,retry=0;
-	long long maat_redis_version=0,region_seq=0,group_seq=0;
+	long long maat_redis_version=0,new_region_num=0,new_group_num=0;
+	int serial_rule_num=0,serial_rule_idx=0;
 	struct _Maat_cmd_t* p=NULL,*n=NULL;
+
+	redisContext* ctx=NULL;
+	redisReply* data_reply=NULL;
+
+	struct serial_rule_t* s_rule=NULL;
+
 	if(_feather->redis_write_ctx==NULL)
 	{
 		_feather->redis_write_ctx=redisConnectWithTimeout(_feather->redis_ip, _feather->redis_port,timeout);
@@ -816,19 +813,94 @@ int Maat_commit_command(Maat_feather_t feather)
 			goto error_out;
 		}
 	}
-	p=feather->cmd_qhead;
-	for(i=0;i<feather->cmd_num;i++)
+	ctx=_feather->redis_write_ctx;
+
+	for(i=0,p=feather->cmd_qhead;i<feather->cmd_num;i++)
 	{
 		p=p->next;
-		if(p->op==MAAT_OP_DEL)
+		serial_rule_num+=calculate_serial_rule_num(&(p->cmd), &new_region_num, &new_group_num);
+	}
+
+	data_reply=redisCommand(ctx,"INCRBY SEQUENCE_REGION %d",new_region_num); 
+	_feather->base_rgn_seq=data_reply->integer-new_region_num;
+	freeReplyObject(data_reply);
+	
+	data_reply=redisCommand(ctx,"INCRBY SEQUENCE_GROUP %d",new_group_num); 
+	_feather->base_rgn_seq=data_reply->integer-new_group_num;
+	freeReplyObject(data_reply);
+	
+	s_rule=(struct serial_rule_t*)calloc(sizeof(struct serial_rule_t),serial_rule_num);
+
+	for(i=0,p=feather->cmd_qhead;i<feather->cmd_num;i++)
+	{
+		p=p->next;
+		serial_rule_idx+=build_serial_rule(feather,p,s_rule, serial_rule_num-serial_rule_idx);
+	}
+	assert(serial_rule_idx==serial_rule_num);
+	
+	while(1)
+	{
+		data_reply=redisCommand(ctx, "WATCH MAAT_VERSION");
+		freeReplyObject(data_reply);
+		data_reply=redisCommand(ctx, "GET MAAT_VERSION");
+		freeReplyObject(data_reply);
+		maat_redis_version=data_reply->integer;
+		maat_redis_version++;
+  		data_reply=redisCommand(ctx,"MULTI");
+		freeReplyObject(data_reply);
+		for(i=0;i<serial_rule_num;i++)
 		{
-			del_cmd_from_redis(_feather->redis_write_ctx, p, _feather->logger);
+			if(s_rule[i].op==MAAT_OP_ADD)
+			{
+				redisAppendCommand(ctx,"SET %s:%s,%d \"%s\"",rm_key_prefix[MAAT_OP_ADD]
+													,s_rule[i].table_name
+													,s_rule[i].rule_id
+													,s_rule[i].table_line);
+
+				//NX: Don't update already exisiting elements. Always add new elements.
+				redisAppendCommand(ctx,"ZADD NX ADD,%s,%d %d",s_rule[i].table_name
+													,s_rule[i].rule_id
+													,maat_redis_version);
+			}
+			else
+			{
+				
+				redisAppendCommand(ctx,"RENAME %s:%s,%d %s:%s,%d"
+														,rm_key_prefix[MAAT_OP_ADD]
+														,s_rule[i].table_name
+														,s_rule[i].rule_id
+														,rm_key_prefix[MAAT_OP_DEL]
+														,s_rule[i].table_name
+														,s_rule[i].rule_id
+														);
+				 
+				redisAppendCommand(ctx,"EXPIRE %s:%s,%d %d",rm_key_prefix[MAAT_OP_DEL]
+														,s_rule[i].table_name
+														,s_rule[i].rule_id
+														,MAAT_REDIS_SYNC_TIME);
+				 
+				//NX: Don't update already exisiting elements. Always add new elements.
+				redisAppendCommand(ctx,"ZADD NX DEL,%s,%d %d",s_rule[i].table_name
+														,s_rule[i].rule_id
+														,maat_redis_version);
+			}
+		}
+		redisAppendCommand(ctx,"INCRBY MAAT_VERSION 1"); 
+		redisAppendCommand(ctx,"EXEC");
+		redisGetReply(ctx, &data_reply);
+		if(1==mr_transaction_success(data_reply))
+		{
+			freeReplyObject(data_reply);
+			break;
 		}
 		else
 		{
-			add_cmd_to_redis(_feather->redis_write_ctx, p, _feather->logger);
-		}
+			retry++;
+			assert(retry<5);
+			freeReplyObject(data_reply);
+		}		
 	}
+
 error_out:
 	p=_feather->cmd_qhead;
 	for(i=0;i<_feather->cmd_num;i++)
@@ -839,6 +911,13 @@ error_out:
 	}
 	_feather->cmd_qhead=_feather->cmd_qtail=NULL;
 	_feather->cmd_num=0;
+	
+	for(i=0;i<serial_rule_num;i++)
+	{
+		free_serial_rules(s_rule+i);
+		s_rule[i]=NULL;
+	}
+	free(s_rule);
 	return ret;
 }
 

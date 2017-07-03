@@ -106,21 +106,21 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	int r_in_c_cnt=0;
 	int shortcut_avilable_cnt=0;
 	void* bool_matcher=feather->scanner->expr_compiler;
-	struct _Maat_group_rule_t* group_rule=NULL;
-	struct _Maat_compile_rule_t* array_mi_rule[MAX_SCANNER_HIT_NUM];
-	struct _Maat_compile_rule_t* _mi_rule=NULL;
+	struct _Maat_group_inner_t* group_rule=NULL;
+	struct _Maat_compile_inner_t* array_mi_rule[MAX_SCANNER_HIT_NUM];
+	struct _Maat_compile_inner_t* _mi_rule=NULL;
 	int region_pos[MAX_SCANNER_HIT_NUM];
 	_mid->cur_hit_cnt=0;
 	for(i=0;i<region_hit_num;i++)
 	{
-		group_rule=*(struct _Maat_group_rule_t**)((char*)region_hit+region_type_size*i+group_offset);
+		group_rule=*(struct _Maat_group_inner_t**)((char*)region_hit+region_type_size*i+group_offset);
 		if(group_rule->group_id<0)
 		{
 			continue;
 		}
 		if(group_rule->compile_shortcut!=NULL&&group_rule->ref_cnt==1&&shortcut_avilable_cnt<MAX_SCANNER_HIT_NUM)
 		{			
-			array_mi_rule[shortcut_avilable_cnt]=(struct _Maat_compile_rule_t*)(group_rule->compile_shortcut);
+			array_mi_rule[shortcut_avilable_cnt]=(struct _Maat_compile_inner_t*)(group_rule->compile_shortcut);
 			shortcut_avilable_cnt++;
 		}
 		_mid->cur_hit_id[_mid->cur_hit_cnt]=group_rule->group_id;
@@ -183,23 +183,24 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	return result_cnt;
 }
 
-int exprid2region_id(struct _Maat_group_rule_t* group_rule,int expr_id,int* district_id)
+int exprid2region_id(struct _Maat_group_inner_t* group_rule,int expr_id,int* district_id)
 {
-	int i=0,region_id=-1;
-	struct _Maat_region_rule_t* region_rule=NULL;
+	int i=0,j=0,region_id=-1;
+	struct _Maat_region_inner_t* region_rule=NULL;
 	assert(group_rule->group_id>=0);
 	pthread_mutex_lock(&(group_rule->mutex));
 	for(i=0;i<group_rule->region_boundary;i++)
 	{
-		region_rule=(struct _Maat_region_rule_t*)dynamic_array_read(group_rule->region_rules, i);
+		region_rule=(struct _Maat_region_inner_t*)dynamic_array_read(group_rule->regions, i);
 		if(region_rule==NULL)
 		{
 			continue;
 		}
-		if(region_rule->expr_id==expr_id)
+		if(expr_id>=region_rule->expr_id_lb&&expr_id<=region_rule->expr_id_ub)
 		{
 			region_id=region_rule->region_id;
 			*district_id=region_rule->district_id;
+			break;
 		}
 	}
 	pthread_mutex_unlock(&(group_rule->mutex));
@@ -207,13 +208,13 @@ int exprid2region_id(struct _Maat_group_rule_t* group_rule,int expr_id,int* dist
 }
 int match_district(struct _OUTER_scan_status_t *_mid,scan_result_t *region_hit,int region_hit_num)
 {
-	struct _Maat_group_rule_t* group_rule=NULL;
+	struct _Maat_group_inner_t* group_rule=NULL;
 	int i=0;
 	int district_id=-1,region_id=-1;
 	int ret_region_num=region_hit_num;
 	while(i<ret_region_num)
 	{
-		group_rule=(struct _Maat_group_rule_t*)(region_hit[i].tag);
+		group_rule=(struct _Maat_group_inner_t*)(region_hit[i].tag);
 		region_id=exprid2region_id(group_rule, region_hit[i].expr_id,&district_id);
 		if(region_id>0&&district_id!=_mid->district_id)
 		{
@@ -309,7 +310,7 @@ int fill_region_hit_detail(const char* scan_buff,const _INNER_scan_status_t* _mi
 	memset(r_in_c_flag,0,sizeof(r_in_c_flag));
 	memset(region_pos,0,sizeof(region_pos));
 	
-	struct _Maat_group_rule_t* group_rule=NULL;
+	struct _Maat_group_inner_t* group_rule=NULL;
 	//for each hitted compile cfg,find its region_ids
 	for(i=0;i<compile_cnt&&i<detail_num;i++)
 	{
@@ -321,7 +322,7 @@ int fill_region_hit_detail(const char* scan_buff,const _INNER_scan_status_t* _mi
 		{
 			pos=region_pos[j];
 			r_in_c_flag[pos]=1;
-			group_rule=(struct _Maat_group_rule_t*)(region_hit[pos].tag);
+			group_rule=(struct _Maat_group_inner_t*)(region_hit[pos].tag);
 			region_id=exprid2region_id(group_rule,region_hit[pos].expr_id,&district_id);
 			if(region_id<0)
 			{
@@ -341,7 +342,7 @@ int fill_region_hit_detail(const char* scan_buff,const _INNER_scan_status_t* _mi
 	{
 		if(r_in_c_flag[k]==0)
 		{
-			group_rule=(struct _Maat_group_rule_t*)(region_hit[k].tag);
+			group_rule=(struct _Maat_group_inner_t*)(region_hit[k].tag);
 	 		hit_detail[j].config_id=-2;
 			hit_detail[j].hit_region_cnt=1;
 			hit_detail[j].region_pos[0].region_id=exprid2region_id(group_rule,region_hit[k].expr_id,&district_id);

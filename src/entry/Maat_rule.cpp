@@ -62,6 +62,18 @@ int  hex2bin(char *hex,int hex_len,char *binary,int size)
 	binary[resultlen]='\0';
 	return resultlen;
 }
+//functioned as strdup, for dictator compatible.
+char* _maat_strdup(const char* s)
+{
+	char*d=NULL;
+	if(s==NULL)
+	{
+		return NULL;
+	}
+	d=(char*)malloc(strlen(s)+1);
+	memcpy(d,s,strlen(s)+1));
+	return d;
+}
 int is_valid_expr_type(enum MAAT_EXPR_TYPE expr_type)
 {
 	switch(expr_type)
@@ -622,19 +634,21 @@ error_jump:
 	map_destroy(string2int_map);
 	return table_cnt;
 }
-struct _Maat_group_rule_t* create_group_rule(int group_id)
+struct _Maat_group_inner_t* create_group_rule(int group_id)
 {
-	struct _Maat_group_rule_t* group=(struct _Maat_group_rule_t*)malloc(sizeof(struct _Maat_group_rule_t));
+	struct _Maat_group_inner_t* group=(struct _Maat_group_inner_t*)malloc(sizeof(struct _Maat_group_inner_t));
 	group->group_id=group_id;
 	group->region_cnt=0;
 	group->region_boundary=0;
 	group->ref_cnt=0;
-	group->region_rules=dynamic_array_create(1,8);
+	group->regions=dynamic_array_create(1,8);
 	group->compile_shortcut=NULL;
+	group->table_id=0;
+	group->group_name=NULL;
 	pthread_mutex_init(&(group->mutex), NULL);
 	return group;
 }
-void destroy_group_rule(struct _Maat_group_rule_t* group)
+void destroy_group_rule(struct _Maat_group_inner_t* group)
 {
 
 	if(group->ref_cnt>0||group->region_cnt>0)
@@ -642,25 +656,28 @@ void destroy_group_rule(struct _Maat_group_rule_t* group)
 		return;
 	}
 
-	dynamic_array_destroy(group->region_rules,free);
+	dynamic_array_destroy(group->regions,free);
 	group->region_cnt=0;
 	group->region_boundary=0;
-	group->region_rules=NULL;
+	group->regions=NULL;
 	group->ref_cnt=0;
 	group->group_id=-1;
+	group->table_id=-1;
+	free(group->group_name);
+	group->group_name=NULL;
 	pthread_mutex_destroy(&(group->mutex));
 	free(group);
 
 }
-void make_group_set(const struct _Maat_compile_rule_t* compile_rule,universal_bool_expr_t* a_set)
+void make_group_set(const struct _Maat_compile_inner_t* compile_rule,universal_bool_expr_t* a_set)
 {
 	int i=0,j=0;
 	a_set->bool_expr_id=(void*)compile_rule;
-	struct _Maat_group_rule_t*group=NULL;
-	assert(MAAT_MAX_EXPR_ITEM_NUM<=MAX_ITEMS_PER_BOOL_EXPR);
-	for(i=0,j=0;i<MAAT_MAX_EXPR_ITEM_NUM&&j<MAX_ITEMS_PER_BOOL_EXPR;i++)
+	struct _Maat_group_inner_t*group=NULL;
+	assert(compile_rule->group_cnt<=MAX_ITEMS_PER_BOOL_EXPR);
+	for(i=0,j=0;i<compile_rule->group_boundary&&j<MAX_ITEMS_PER_BOOL_EXPR;i++)
 	{
-		group=(struct _Maat_group_rule_t*)dynamic_array_read(compile_rule->groups,i);
+		group=(struct _Maat_group_inner_t*)dynamic_array_read(compile_rule->groups,i);
 		if(group==NULL)
 		{
 			continue;
@@ -674,7 +691,7 @@ void make_group_set(const struct _Maat_compile_rule_t* compile_rule,universal_bo
 void walk_compile_hash(const uchar * key, uint size, void * data, void * user)
 {
 	universal_bool_expr_t* one_set=NULL;
-	struct _Maat_compile_rule_t* compile_rule=(struct _Maat_compile_rule_t*)data;
+	struct _Maat_compile_inner_t* compile_rule=(struct _Maat_compile_inner_t*)data;
 	MESA_lqueue_head update_q=(MESA_lqueue_head)user;
 	if(compile_rule->db_c_rule==NULL)
 	{
@@ -746,24 +763,26 @@ void EMPTY_FREE(void*p)
 {
 	return;
 }
-struct _Maat_compile_rule_t * create_compile_rule(int compile_id)
+struct _Maat_compile_inner_t * create_compile_rule(int compile_id)
 {
-	struct _Maat_compile_rule_t* p=NULL;
-	p=(struct _Maat_compile_rule_t*)calloc(sizeof(struct _Maat_compile_rule_t),1);
+	struct _Maat_compile_inner_t* p=NULL;
+	p=(struct _Maat_compile_inner_t*)calloc(sizeof(struct _Maat_compile_inner_t),1);
 	p->compile_id=compile_id;
 	p->group_cnt=0;
+	p->table_id=0;
+	p->group_boundary=1;
 	p->groups=dynamic_array_create(1, 1);
 	pthread_rwlock_init(&(p->rwlock), NULL);
 	return p;
 }
-void destroy_compile_rule(struct _Maat_compile_rule_t * p)
+void destroy_compile_rule(struct _Maat_compile_inner_t * p)
 {
 	int i=0;
-	struct _Maat_compile_rule_t* p_group=NULL;
+	struct _Maat_compile_inner_t* p_group=NULL;
 	assert(p->group_cnt==0);
-	for(i=0;i<MAAT_MAX_EXPR_ITEM_NUM;i++)
+	for(i=0;i<p->group_boundary;i++)
 	{
-		p_group=(struct _Maat_compile_rule_t*)dynamic_array_read(p->groups,i);
+		p_group=(struct _Maat_compile_inner_t*)dynamic_array_read(p->groups,i);
 		assert(p_group==NULL);
 	}
 	p->compile_id=-1;
@@ -901,7 +920,7 @@ void op_expr_add_rule(struct op_expr_t* op_expr,scan_rule_t* p_rule)
 	return;
 }
 GIE_digest_t* create_digest_rule(int id,short op,unsigned long long origin_len,const char* digest,
-						short cfds_lvl,struct _Maat_group_rule_t* tag)
+						short cfds_lvl,struct _Maat_group_inner_t* tag)
 {
 	GIE_digest_t* rule=(GIE_digest_t*)calloc(sizeof(GIE_digest_t),1);
 	int digest_len=strlen(digest);
@@ -1293,133 +1312,176 @@ void digest_batch_update(GIE_handle_t* handle,MESA_lqueue_head update_q,void*log
 	update_array=NULL;
 	return;
 }
-struct _Maat_group_rule_t* add_region_to_group(struct _Maat_group_rule_t* group,int region_id,int district_id,int expr_id,enum MAAT_TABLE_TYPE region_type)
+struct _Maat_group_inner_t* add_region_to_group(struct _Maat_group_inner_t* group,int table_id,int region_id,int district_id,int expr_id,enum MAAT_TABLE_TYPE region_type)
 {
-	struct _Maat_region_rule_t* region_rule=(struct _Maat_region_rule_t*)malloc(sizeof(struct _Maat_region_rule_t));
-	region_rule->region_id=region_id;
-	region_rule->expr_id=expr_id;
-	region_rule->district_id=district_id;
-	region_rule->region_type=region_type;
-	pthread_mutex_lock(&(group->mutex));
-	dynamic_array_write(group->region_rules,group->region_boundary,region_rule);
-	group->region_cnt++;
-	group->region_boundary++;
-	pthread_mutex_unlock(&(group->mutex));
-	return group;
-}
-void cancel_last_region_from_group(struct _Maat_group_rule_t* group,int region_id,int expr_id)
-{
-	struct _Maat_region_rule_t* region_rule=NULL;
-	pthread_mutex_lock(&(group->mutex));
-	group->region_boundary--;
-	region_rule=(struct _Maat_region_rule_t*)dynamic_array_read(group->region_rules,group->region_boundary);
-	assert(region_rule->expr_id==expr_id&&region_rule->region_id==region_id);
-	free(region_rule);
-	dynamic_array_write(group->region_rules,group->region_boundary,NULL);
-	group->region_cnt--;
-	pthread_mutex_unlock(&(group->mutex));
-	return;
-}
-unsigned int del_region_from_group(struct _Maat_group_rule_t* group,int region_id,unsigned int *output_expr_id,int output_size)
-{
-	int i=0,j=0;
-	struct _Maat_region_rule_t* region_rule=NULL;
-	pthread_mutex_lock(&(group->mutex));
+	int i=0;
+	struct _Maat_region_inner_t* region_rule=NULL;
 	for(i=0;i<group->region_boundary;i++)
 	{
-		region_rule=(struct _Maat_region_rule_t*)dynamic_array_read(group->region_rules, i);
+		region_rule=(struct _Maat_region_inner_t*)dynamic_array_read(group->regions, i);
 		if(region_rule==NULL)
 		{
 			continue;
 		}
 		if(region_rule->region_id==region_id)
 		{
-			dynamic_array_write(group->region_rules, i, NULL);
-			output_expr_id[j]=region_rule->expr_id;
-			j++;
-			assert(j<=output_size);
-			
+			break;
+		}
+	}
+	if(i==group->region_boundary)//new region
+	{
+		region_rule=(struct _Maat_region_inner_t*)malloc(sizeof(struct _Maat_region_inner_t));
+		region_rule->region_id=region_id;
+		region_rule->expr_id_cnt=1;
+		region_rule->expr_id_ub=region_rule->expr_id_lb=expr_id;
+		region_rule->district_id=district_id;
+		region_rule->table_type=region_type;
+		region_rule->table_id=table_id;
+		pthread_mutex_lock(&(group->mutex));
+		dynamic_array_write(group->regions,group->region_boundary,region_rule);
+		group->region_cnt++;
+		group->region_boundary++;
+		pthread_mutex_unlock(&(group->mutex));
+	}
+	else
+	{
+		assert(expr_id==region_rule->expr_id_ub+1);
+		region_rule->expr_id_ub=expr_id;
+		region_rule->expr_id_cnt++;
+	}
+	return group;
+}
+void cancel_last_region_from_group(struct _Maat_group_inner_t* group,int region_id,int expr_id)
+{
+	struct _Maat_region_inner_t* region_rule=NULL;
+	pthread_mutex_lock(&(group->mutex));
+	region_rule=(struct _Maat_region_inner_t*)dynamic_array_read(group->regions,group->region_boundary);
+	assert(region_rule->expr_id_ub==expr_id&&region_rule->region_id==region_id);
+	if(region_rule->expr_id_cnt==1)
+	{
+		free(region_rule);
+		dynamic_array_write(group->regions,group->region_boundary,NULL);
+		group->region_cnt--;
+		group->region_boundary--;
+	}
+	else
+	{
+		region_rule->expr_id_ub--;
+		region_rule->region_cnt--;
+	}
+	pthread_mutex_unlock(&(group->mutex));
+	return;
+}
+unsigned int del_region_from_group(struct _Maat_group_inner_t* group,int region_id,unsigned int *output_expr_id,int output_size)
+{
+	int i=0,j=0;
+	struct _Maat_region_inner_t* region_rule=NULL;
+	pthread_mutex_lock(&(group->mutex));
+	for(i=0;i<group->region_boundary;i++)
+	{
+		region_rule=(struct _Maat_region_inner_t*)dynamic_array_read(group->regions, i);
+		if(region_rule==NULL)
+		{
+			continue;
+		}
+		if(region_rule->region_id==region_id)
+		{
+			dynamic_array_write(group->regions, i, NULL);
+			for(j=0;j<region_rule->expr_id_cnt;j++)
+			{
+				output_expr_id[j]=region_rule->expr_id_lb+j;
+			}
+			assert(j<=output_size);	
+			region_rule->region_id=0;
 			free(region_rule);
 			region_rule=NULL;
-			
 			group->region_cnt--;
+			break;
 		}
 	}
 	pthread_mutex_unlock(&(group->mutex));
 	return j;
 }
 
-int add_group_to_compile(struct _Maat_compile_rule_t*a_compile_rule,struct _Maat_group_rule_t* a_rule_group)
+int add_group_to_compile(struct _Maat_compile_inner_t*a_compile_rule,struct _Maat_group_inner_t* a_rule_group)
 {
 	int i=0,ret=-1;
-	struct _Maat_group_rule_t* p=NULL;
+	int write_pos=-1;
+	struct _Maat_group_inner_t* p=NULL;
 	pthread_rwlock_wrlock(&(a_compile_rule->rwlock));
 	if(a_compile_rule->db_c_rule!=NULL
 		&&a_compile_rule->group_cnt>=a_compile_rule->db_c_rule->declare_grp_num
 		&&a_compile_rule->db_c_rule->declare_grp_num!=0)
 	{
 		ret=-1;
+		goto error_out;
+	}
+
+	for(i=0;i<a_compile_rule->group_boundary;i++)
+	{
+		p=(struct _Maat_group_inner_t*)dynamic_array_read(a_compile_rule->groups,i);
+		if(p==NULL)
+		{
+			write_pos=i;
+		}
+		else
+		{
+			if(p->group_id==a_rule_group->group_id)//duplicate group
+			{
+				ret=-1;
+				goto error_out;
+			}
+		}
+	}
+	if(write_pos<0&&a_compile_rule->group_boundary==MAX_EXPR_ITEM_NUM)
+	{
+		ret=-1;
+		goto error_out;
+	}
+	if(write_pos<0)
+	{
+		write_pos=a_compile_rule->group_boundary;
+		a_compile_rule->group_boundary++;
+	}
+	dynamic_array_write(a_compile_rule->groups,write_pos, a_rule_group);
+	a_compile_rule->group_cnt++;
+	a_rule_group->ref_cnt++;
+	//member group->compile_shortcut may set to NULL and compile rule pointer repeatly,until rule build finish.
+	if(a_rule_group->ref_cnt==1&&a_compile_rule->group_cnt==1)
+	{
+		a_rule_group->compile_shortcut=a_compile_rule;
 	}
 	else
 	{
-		for(i=0;i<MAAT_MAX_EXPR_ITEM_NUM;i++)
+		a_rule_group->compile_shortcut=NULL;
+	}
+		
+	//update group's shortcut when compile has more than one group.
+	if(a_compile_rule->group_cnt!=1)
+	{
+		for(i=0;i<a_compile_rule->group_boundary;i++)
 		{
-			p=(struct _Maat_group_rule_t*)dynamic_array_read(a_compile_rule->groups,i);
-			if(p==NULL)
+			p=(struct _Maat_group_inner_t*)dynamic_array_read(a_compile_rule->groups,i);
+			if(p!=NULL)
 			{
-				dynamic_array_write(a_compile_rule->groups,i, a_rule_group);
-				a_compile_rule->group_cnt++;
-				a_rule_group->ref_cnt++;
-				//variable compile_shortcut may set to NULL and compile rule pointer repeatly,until rule build finish.
-				if(a_rule_group->ref_cnt==1&&a_compile_rule->group_cnt==1)
-				{
-					a_rule_group->compile_shortcut=a_compile_rule;
-				}
-				else
-				{
-					a_rule_group->compile_shortcut=NULL;
-				}
-				ret=1;
-				break;
-			}
-			else
-			{
-				if(p->group_id==a_rule_group->group_id)//duplicate group
-				{
-					ret=-1;
-					
-				}
-			}
-		}
-		if(i==MAAT_MAX_EXPR_ITEM_NUM)
-		{
-			ret=-1;
-		}
-		//update group's shortcut when compile has more than one group.
-		if(a_compile_rule->group_cnt!=1)
-		{
-			for(i=0;i<MAAT_MAX_EXPR_ITEM_NUM;i++)
-			{
-				p=(struct _Maat_group_rule_t*)dynamic_array_read(a_compile_rule->groups,i);
-				if(p!=NULL)
-				{
-					p->compile_shortcut=NULL;
-				}
+				p->compile_shortcut=NULL;
 			}
 		}
 	}
+	ret=1;
+error_out:
 	pthread_rwlock_unlock(&(a_compile_rule->rwlock));
 
 	return ret;
 }
-struct _Maat_group_rule_t* del_group_from_compile(struct _Maat_compile_rule_t*a_compile_rule,int group_id)
+struct _Maat_group_inner_t* del_group_from_compile(struct _Maat_compile_inner_t*a_compile_rule,int group_id)
 {
 	int i=0;
-	struct _Maat_group_rule_t* group_rule=NULL;
+	struct _Maat_group_inner_t* group_rule=NULL;
 	pthread_rwlock_wrlock(&(a_compile_rule->rwlock));
 	for(i=0;i<MAAT_MAX_EXPR_ITEM_NUM;i++)
 	{
-		group_rule=(struct _Maat_group_rule_t*)dynamic_array_read(a_compile_rule->groups,i);
+		group_rule=(struct _Maat_group_inner_t*)dynamic_array_read(a_compile_rule->groups,i);
 		if(group_rule==NULL)
 		{
 			continue;
@@ -1493,7 +1555,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 	int expr_id=0,district_id=-1;
 	
 	scan_rule_t*p_rule=NULL;
-	struct _Maat_group_rule_t* group_rule=NULL;
+	struct _Maat_group_inner_t* group_rule=NULL;
 	enum MAAT_CHARSET dst_charset=CHARSET_NONE;
 	char *sub_key_array[MAAT_MAX_EXPR_ITEM_NUM];
 	int key_left_offset[MAAT_MAX_EXPR_ITEM_NUM]={-1},key_right_offset[MAAT_MAX_EXPR_ITEM_NUM]={-1};
@@ -1504,14 +1566,14 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 	}
 	int sub_expr_cnt=0;
 	struct op_expr_t *op_expr=NULL;
-	struct _Maat_group_rule_t* u_para=NULL;
+	struct _Maat_group_inner_t* u_para=NULL;
 
 	if(table->table_type==TABLE_TYPE_EXPR_PLUS)
 	{
 		assert(strlen(db_rule->district)>0);
 		district_id=get_district_id(scanner, db_rule->district);
 	}
-	group_rule=(struct _Maat_group_rule_t*)HASH_fetch_by_id(scanner->group_hash, db_rule->group_id);
+	group_rule=(struct _Maat_group_inner_t*)HASH_fetch_by_id(scanner->group_hash, db_rule->group_id);
 	if(group_rule==NULL)
 	{
 		group_rule=create_group_rule(db_rule->group_id);
@@ -1574,7 +1636,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 			break;
 		case EXPR_TYPE_REGEX://it's easy,no need to charset convert
 			expr_id=scanner->exprid_generator++;
-			u_para=add_region_to_group(group_rule,db_rule->region_id,district_id,expr_id,TABLE_TYPE_EXPR);
+			u_para=add_region_to_group(group_rule,table->table_id,db_rule->region_id,district_id,expr_id,TABLE_TYPE_EXPR);
 			if(u_para==NULL)
 			{
 				return -1;
@@ -1641,7 +1703,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 				break;
 			}
 			expr_id=scanner->exprid_generator++;
-			u_para=add_region_to_group(group_rule, db_rule->region_id,district_id,expr_id, table->table_type);
+			u_para=add_region_to_group(group_rule,table->table_id, db_rule->region_id,district_id,expr_id, table->table_type);
 			if(u_para==NULL)//duplicate
 			{
 				return -1;
@@ -1719,7 +1781,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 	else
 	{
 		expr_id=scanner->exprid_generator++;
-		u_para=add_region_to_group(group_rule, db_rule->region_id,district_id,expr_id, table->table_type);
+		u_para=add_region_to_group(group_rule, table->table_id, db_rule->region_id,district_id,expr_id, table->table_type);
 		if(u_para==NULL)
 		{
 			return -1;
@@ -1752,13 +1814,13 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 }
 int add_ip_rule(struct _Maat_table_info_t* table,struct db_ip_rule_t* db_ip_rule,struct _Maat_scanner_t *scanner,void* logger)
 {
-	struct _Maat_group_rule_t* group_rule=NULL;
+	struct _Maat_group_inner_t* group_rule=NULL;
 	scan_rule_t* p_rule=NULL;
 	struct op_expr_t* op_expr=NULL;
-	struct _Maat_group_rule_t* u_para=NULL;
+	struct _Maat_group_inner_t* u_para=NULL;
 	int expr_id=0,district_id=-1;
 
-	group_rule=(struct _Maat_group_rule_t*)HASH_fetch_by_id(scanner->group_hash, db_ip_rule->group_id);
+	group_rule=(struct _Maat_group_inner_t*)HASH_fetch_by_id(scanner->group_hash, db_ip_rule->group_id);
 	if(group_rule==NULL)
 	{
 		group_rule=create_group_rule(db_ip_rule->group_id);
@@ -1766,7 +1828,7 @@ int add_ip_rule(struct _Maat_table_info_t* table,struct db_ip_rule_t* db_ip_rule
 	}
 
 	expr_id=scanner->exprid_generator++;
-	u_para=add_region_to_group(group_rule,db_ip_rule->region_id,district_id,expr_id,TABLE_TYPE_IP);
+	u_para=add_region_to_group(group_rule, table->table_id,db_ip_rule->region_id,district_id,expr_id,TABLE_TYPE_IP);
 	if(u_para==NULL)
 	{
 		return -1;
@@ -1784,20 +1846,20 @@ int add_ip_rule(struct _Maat_table_info_t* table,struct db_ip_rule_t* db_ip_rule
 }
 int add_intval_rule(struct _Maat_table_info_t* table,struct db_intval_rule_t* intval_rule,struct _Maat_scanner_t *scanner,void* logger)
 {
-	struct _Maat_group_rule_t* group_rule=NULL;
+	struct _Maat_group_inner_t* group_rule=NULL;
 	scan_rule_t* p_rule=NULL;
 	struct op_expr_t* op_expr=NULL;
-	struct _Maat_group_rule_t* u_para=NULL;
+	struct _Maat_group_inner_t* u_para=NULL;
 	int expr_id=0,district_id=-1;
 	
-	group_rule=(struct _Maat_group_rule_t*)HASH_fetch_by_id(scanner->group_hash, intval_rule->group_id);
+	group_rule=(struct _Maat_group_inner_t*)HASH_fetch_by_id(scanner->group_hash, intval_rule->group_id);
 	if(group_rule==NULL)
 	{
 		group_rule=create_group_rule(intval_rule->group_id);
 		HASH_add_by_id(scanner->group_hash, intval_rule->group_id, group_rule);
 	}
 	expr_id=scanner->exprid_generator++;
-	u_para=add_region_to_group(group_rule,intval_rule->region_id,district_id,expr_id,TABLE_TYPE_INTERVAL);
+	u_para=add_region_to_group(group_rule, table->table_id,intval_rule->region_id,district_id,expr_id,TABLE_TYPE_INTERVAL);
 	if(u_para==NULL)
 	{
 		return -1;
@@ -1815,19 +1877,19 @@ int add_intval_rule(struct _Maat_table_info_t* table,struct db_intval_rule_t* in
 }
 int add_digest_rule(struct _Maat_table_info_t* table,struct db_digest_rule_t* db_digest_rule,struct _Maat_scanner_t *scanner,void* logger)
 {
-	struct _Maat_group_rule_t* group_rule=NULL;
+	struct _Maat_group_inner_t* group_rule=NULL;
 	GIE_digest_t* digest_rule=NULL;
-	struct _Maat_group_rule_t* u_para=NULL;
+	struct _Maat_group_inner_t* u_para=NULL;
 	int expr_id=0,district_id=-1;
 
-	group_rule=(struct _Maat_group_rule_t*)HASH_fetch_by_id(scanner->group_hash, db_digest_rule->group_id);
+	group_rule=(struct _Maat_group_inner_t*)HASH_fetch_by_id(scanner->group_hash, db_digest_rule->group_id);
 	if(group_rule==NULL)
 	{
 		group_rule=create_group_rule(db_digest_rule->group_id);
 		HASH_add_by_id(scanner->group_hash, db_digest_rule->group_id, group_rule);
 	}
 	expr_id=scanner->exprid_generator++;
-	u_para=add_region_to_group(group_rule,db_digest_rule->region_id,expr_id,district_id,TABLE_TYPE_DIGEST);
+	u_para=add_region_to_group(group_rule,table->table_id,db_digest_rule->region_id,expr_id,district_id,TABLE_TYPE_DIGEST);
 	if(u_para==NULL)
 	{
 		return -1;
@@ -1845,10 +1907,10 @@ int del_region_rule(struct _Maat_table_info_t* table,int region_id,int group_id,
 	int i=0;
 	unsigned int expr_id[MAAT_MAX_EXPR_ITEM_NUM*MAX_CHARSET_NUM]={0};
 	int expr_num=0;
-	struct _Maat_group_rule_t* group_rule=NULL;
+	struct _Maat_group_inner_t* group_rule=NULL;
 	struct op_expr_t* op_expr=NULL;
 	GIE_digest_t* digest_rule=NULL;
-	group_rule=(struct _Maat_group_rule_t*)HASH_fetch_by_id(maat_scanner->group_hash, group_id);
+	group_rule=(struct _Maat_group_inner_t*)HASH_fetch_by_id(maat_scanner->group_hash, group_id);
 	if(group_rule==NULL)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
@@ -1909,18 +1971,20 @@ int del_region_rule(struct _Maat_table_info_t* table,int region_id,int group_id,
 }
 int add_group_rule(struct _Maat_table_info_t* table,struct db_group_rule_t* db_group_rule,struct _Maat_scanner_t *scanner,void* logger)
 {
-	struct _Maat_group_rule_t* group_rule=NULL;
-	struct _Maat_compile_rule_t*compile_rule=NULL;
+	struct _Maat_group_inner_t* group_rule=NULL;
+	struct _Maat_compile_inner_t*compile_rule=NULL;
 	int ret=0;
-	group_rule=(struct _Maat_group_rule_t*)HASH_fetch_by_id(scanner->group_hash, db_group_rule->group_id);
+	group_rule=(struct _Maat_group_inner_t*)HASH_fetch_by_id(scanner->group_hash, db_group_rule->group_id);
 	if(group_rule==NULL)
 	{
 		group_rule=create_group_rule(db_group_rule->group_id);
+		group_rule->table_id=table->table_id;
+			
 		ret=HASH_add_by_id(scanner->group_hash, db_group_rule->group_id,group_rule);
 		assert(ret>=0);
 	}
 	
-	compile_rule=(struct _Maat_compile_rule_t*)HASH_fetch_by_id(scanner->compile_hash, db_group_rule->compile_id);
+	compile_rule=(struct _Maat_compile_inner_t*)HASH_fetch_by_id(scanner->compile_hash, db_group_rule->compile_id);
 	if(compile_rule==NULL)
 	{
 		compile_rule=create_compile_rule(db_group_rule->compile_id);
@@ -1942,9 +2006,9 @@ int add_group_rule(struct _Maat_table_info_t* table,struct db_group_rule_t* db_g
 }
 void del_group_rule(struct _Maat_table_info_t* table,struct db_group_rule_t* db_group_rule,struct _Maat_scanner_t *scanner,void* logger)
 {
-	struct _Maat_compile_rule_t*compile_rule=NULL;
-	struct _Maat_group_rule_t* group_rule=NULL;
-	compile_rule=(struct _Maat_compile_rule_t*)HASH_fetch_by_id(scanner->compile_hash, db_group_rule->compile_id);
+	struct _Maat_compile_inner_t*compile_rule=NULL;
+	struct _Maat_group_inner_t* group_rule=NULL;
+	compile_rule=(struct _Maat_compile_inner_t*)HASH_fetch_by_id(scanner->compile_hash, db_group_rule->compile_id);
 	if(compile_rule==NULL)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
@@ -1980,12 +2044,13 @@ void del_group_rule(struct _Maat_table_info_t* table,struct db_group_rule_t* db_
 }
 int add_compile_rule(struct _Maat_table_info_t* table,struct db_compile_rule_t* db_compile_rule,struct _Maat_scanner_t *scanner,void* logger)
 {
-	struct _Maat_compile_rule_t *compile_rule=NULL;
+	struct _Maat_compile_inner_t *compile_rule=NULL;
 	struct _head_Maat_rule_t *p_maat_rule_head=&(db_compile_rule->m_rule_head);
-	compile_rule=(struct _Maat_compile_rule_t*)HASH_fetch_by_id(scanner->compile_hash, p_maat_rule_head->config_id);
+	compile_rule=(struct _Maat_compile_inner_t*)HASH_fetch_by_id(scanner->compile_hash, p_maat_rule_head->config_id);
 	if(compile_rule==NULL)
 	{
 		compile_rule=create_compile_rule(p_maat_rule_head->config_id);
+		compile_rule->table_id=table->table_id;
 		HASH_add_by_id(scanner->compile_hash,p_maat_rule_head->config_id,compile_rule);
 	}
 	if(compile_rule->db_c_rule!=NULL)//duplicate config
@@ -1998,8 +2063,8 @@ int add_compile_rule(struct _Maat_table_info_t* table,struct db_compile_rule_t* 
 }
 int del_compile_rule(struct _Maat_table_info_t* table,struct db_compile_rule_t* db_compile_rule,struct _Maat_scanner_t *scanner,void* logger)
 {
-	struct _Maat_compile_rule_t *compile_rule=NULL;
-	compile_rule=(struct _Maat_compile_rule_t*)HASH_fetch_by_id(scanner->compile_hash, db_compile_rule->m_rule_head.config_id);
+	struct _Maat_compile_inner_t *compile_rule=NULL;
+	compile_rule=(struct _Maat_compile_inner_t*)HASH_fetch_by_id(scanner->compile_hash, db_compile_rule->m_rule_head.config_id);
 	if(compile_rule==NULL)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
