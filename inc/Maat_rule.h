@@ -139,14 +139,16 @@ enum MAAT_INIT_OPT
 	MAAT_OPT_EFFECT_INVERVAL_MS,	//VALUE is interger,SIZE=sizeof(int). DEFAULT:60,000 milliseconds.
 	MAAT_OPT_FULL_CFG_DIR,			//VALUE is a const char*,MUST end with '\0',SIZE= strlen(string+'\0')+1.DEFAULT: no default.
 	MAAT_OPT_INC_CFG_DIR,			//VALUE is a const char*,MUST end with '\0',SIZE= strlen(string+'\0')+1.DEFAULT: no default.
-	MAAT_OPT_JSON_FILE_PATH,			//VALUE is a const char*,MUST end with '\0',SIZE= strlen(string+'\0')+1.DEFAULT: no default.
-	MAAT_OPT_STAT_ON,				//VALUE is indifferent,SIZE is indifferent.MAAT_OPT_STAT_FILE_PATH must be set.Default: stat OFF.
-	MAAT_OPT_PERF_ON,					//VALUE is indifferent,SIZE is indifferent.MAAT_OPT_STAT_FILE_PATH must be set.Default: stat OFF.
-	MAAT_OPT_STAT_FILE_PATH,			//VALUE is a const char*,MUST end with '\0',SIZE= strlen(string+'\0')+1.DEFAULT: no default.
-	MAAT_OPT_SCAN_DETAIL,				//VALUE is interger,SIZE=sizeof(int). 0: not return any detail;1: return  hit pos, not include regex grouping;
-										//  2 return hit pos and regex grouping pos;DEFAULT:0
+	MAAT_OPT_JSON_FILE_PATH,		//VALUE is a const char*,MUST end with '\0',SIZE= strlen(string+'\0')+1.DEFAULT: no default.
+	MAAT_OPT_STAT_ON,				//VALUE is  NULL,SIZE is 0.MAAT_OPT_STAT_FILE_PATH must be set.Default: stat OFF.
+	MAAT_OPT_PERF_ON,				//VALUE is NULL,SIZE is 0.MAAT_OPT_STAT_FILE_PATH must be set.Default: stat OFF.
+	MAAT_OPT_STAT_FILE_PATH,		//VALUE is a const char*,MUST end with '\0',SIZE= strlen(string+'\0')+1.DEFAULT: no default.
+	MAAT_OPT_SCAN_DETAIL,			//VALUE is interger *,SIZE=sizeof(int). 0: not return any detail;1: return  hit pos, not include regex grouping;
+									//  2 return hit pos and regex grouping pos;DEFAULT:0
 	MAAT_OPT_INSTANCE_NAME,			//VALUE is a const char*,MUST end with '\0',SIZE= strlen(string+'\0')+1,no more than 11 bytes.DEFAULT: MAAT_$tableinfo_path$.
-	MAAT_OPT_DECRYPT_KEY			//VALUE is a const char*,MUST end with '\0',SIZE= strlen(string+'\0')+1. No DEFAULT.
+	MAAT_OPT_DECRYPT_KEY,			//VALUE is a const char*,MUST end with '\0',SIZE= strlen(string+'\0')+1. No DEFAULT.
+	MAAT_OPT_REDIS_IP,				//VALUE is a const char*,MUST end with '\0',SIZE= strlen(string+'\0')+1. No DEFAULT.
+	MAAT_OPT_REDIS_PORT				//VALUE is a unsigned short, host order, SIZE= sizeof(unsigned short). No DEFAULT.
 };
 //return -1 if failed, return 0 on success;
 int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT  type,const void* value,int size);

@@ -113,7 +113,7 @@ int set_iris_descriptor(const char* json_file,cJSON *json,struct iris_descriptio
 	map_register(iris_cfg->str2int_map, "string",TABLE_TYPE_EXPR);
 	map_register(iris_cfg->str2int_map, "expr",TABLE_TYPE_EXPR);
 	map_register(iris_cfg->str2int_map, "expr_plus",TABLE_TYPE_EXPR_PLUS);
-	map_register(iris_cfg->str2int_map, "intval",TABLE_TYPE_INTVAL);
+	map_register(iris_cfg->str2int_map, "intval",TABLE_TYPE_INTERVAL);
 	map_register(iris_cfg->str2int_map, "digest",TABLE_TYPE_DIGEST);
 
 	
@@ -615,7 +615,7 @@ int write_region_rule(cJSON* region_json,int compile_id,int group_id,iris_descri
 		case TABLE_TYPE_IP:
 			ret=write_ip_rule(table_content, p_iris, table_info->table_path, logger);
 			break;
-		case TABLE_TYPE_INTVAL:
+		case TABLE_TYPE_INTERVAL:
 			ret=write_intval_rule(table_content, p_iris, table_info->table_path, logger);
 			break;
 		case TABLE_TYPE_DIGEST:

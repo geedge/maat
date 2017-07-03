@@ -441,6 +441,11 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 			if(feather->p_table_info[i]->table_type==TABLE_TYPE_GROUP)
 			{
 				feather->GROUP_MODE_ON=1;
+				memcpy(feather->group_tn,feather->p_table_info[i].table_name[0],sizeof(feather->group_tn));
+			}
+			if(feather->p_table_info[i]->table_type==TABLE_TYPE_COMPILE)
+			{
+				memcpy(feather->compile_tn,feather->p_table_info[i].table_name[0],sizeof(feather->compile_tn));
 			}
 			for(j=0;j<feather->p_table_info[i]->conj_cnt;j++)
 			{
@@ -471,6 +476,7 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->maat_version=0;
 	feather->last_full_version=0;
 	pthread_mutex_init(&(feather->plugin_table_reg_mutex),NULL);
+	pthread_mutex_init(&(feather->redis_write_lock),NULL);
 	snprintf(feather->table_info_fn,sizeof(feather->table_info_fn),"%s",table_info_path);
 	return feather;
 }
@@ -555,8 +561,25 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 					(const char*)value);
 			break;
 		case MAAT_OPT_DECRYPT_KEY:
-			_feather->decrypt_key=(unsigned char*)malloc(size*sizeof(unsigned char));
+			if(size>sizeof(_feather->decrypt_key))
+			{
+				return -1;
+			}
 			memcpy(_feather->decrypt_key,value,size);
+			break;
+		case MAAT_OPT_REDIS_IP:
+			if(size>sizeof(_feather->redis_ip))
+			{
+				return -1;
+			}
+			memcpy(_feather->redis_ip,value,size);
+			break;
+		case MAAT_OPT_REDIS_PORT:
+			if(size!=sizeof(unsigned short))
+			{
+				return -1;
+			}
+			_feather->redis_port=*((unsigned short*)value);
 			break;
 		default:
 			return -1;
@@ -566,21 +589,48 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 int Maat_initiate_feather(Maat_feather_t feather)
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
-	if(strlen(_feather->full_dir)==0)
+	struct timeval timeout;
+	timeout.tv_sec=0;
+	timeout.tv_usec=100*1000; // 100 ms
+	if(strlen(_feather->redis_ip)>0&&_feather->redis_port!=0)
 	{
-		MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
-							"At initiation: NO FULL_CFG_DIR or JSON_FILE_PATH. ");
-	
-		return -1;
+		_feather->REDIS_MODE_ON=1;
+		_feather->redis_read_ctx=redisConnectWithTimeout(_feather->redis_ip,_feather->redis_port,timeout);
+		if(_feather->redis_read_ctx==NULL)
+		{
+			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module 
+								,"Redis connect %s:%d failed."
+								,_feather->redis_ip,_feather->redis_port);
+			return -1;
+		}
+		redisEnableKeepAlive(_feather->redis_read_ctx);
+		redis_monitor_traverse(_feather->maat_version
+								,_feather->redis_read_ctx
+								,maat_start_cb
+								,maat_update_cb
+								,maat_finish_cb
+								, _feather
+								,_feather->decrypt_key	//Not used.
+								,_feather->logger);
 	}
-	config_monitor_traverse(_feather->maat_version,
-							_feather->full_dir, 
-							maat_start_cb,
-							maat_update_cb,
-							maat_finish_cb,
-							_feather,
-							_feather->decrypt_key,
-							_feather->logger);
+	else
+	{
+		if(strlen(_feather->full_dir)==0)
+		{
+			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
+								"At initiation: NO FULL_CFG_DIR or JSON_FILE_PATH. ");
+		
+			return -1;
+		}
+		config_monitor_traverse(_feather->maat_version,
+								_feather->full_dir, 
+								maat_start_cb,
+								maat_update_cb,
+								maat_finish_cb,
+								_feather,
+								_feather->decrypt_key,
+								_feather->logger);
+	}
 	if(_feather->update_tmp_scanner==NULL)
 	{
 		MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
@@ -922,7 +972,7 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 	{
 		clock_gettime(CLOCK_MONOTONIC,&start);
 	}
-	p_table=acqurie_table(_feather,table_id,TABLE_TYPE_INTVAL);
+	p_table=acqurie_table(_feather,table_id,TABLE_TYPE_INTERVAL);
 	if(p_table==NULL)
 	{
 		_feather->scan_err_cnt++;
@@ -1647,4 +1697,3 @@ void Maat_clean_status(scan_status_t* mid)
 	*mid=NULL;
 	return;
 }
-

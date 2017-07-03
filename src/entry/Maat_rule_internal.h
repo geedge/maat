@@ -2,6 +2,7 @@
 #define H_MAAT_RULE_INTERNAL_H_INCLUDE
 
 #include "Maat_rule.h"
+#include "Maat_command.h"
 
 #include <MESA/MESA_htable.h>
 #include <MESA/MESA_list_queue.h>
@@ -9,6 +10,7 @@
 #include "dynamic_array.h"
 #include "UniversalBoolMatch.h"
 #include "rulescan.h"
+#include "hiredis.h"
 
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
@@ -73,27 +75,14 @@ enum MAAT_TABLE_TYPE
 {	
 	TABLE_TYPE_EXPR=0,
 	TABLE_TYPE_IP,
-	TABLE_TYPE_COMPILE,
-	TABLE_TYPE_PLUGIN,
-	TABLE_TYPE_INTVAL,
+	TABLE_TYPE_INTERVAL,
 	TABLE_TYPE_DIGEST,
 	TABLE_TYPE_EXPR_PLUS,
-	TABLE_TYPE_GROUP
+	TABLE_TYPE_SIMILARITY,
+	TABLE_TYPE_GROUP,
+	TABLE_TYPE_COMPILE,
+	TABLE_TYPE_PLUGIN
 
-};
-enum MAAT_EXPR_TYPE
-{	
-	EXPR_TYPE_STRING=0,
-	EXPR_TYPE_AND,
-	EXPR_TYPE_REGEX,
-	EXPR_TYPE_OFFSET
-};
-enum MAAT_MATCH_METHOD
-{	
-	MATCH_METHOD_SUB=0,
-	MATCH_METHOD_RIGHT,
-	MATCH_METHOD_LEFT,
-	MATCH_METHOD_FULL
 };
 
 struct db_str_rule_t
@@ -355,6 +344,7 @@ struct _Maat_feather_t
 	MESA_lqueue_head garbage_q;
 	int table_cnt;
 	int GROUP_MODE_ON;
+	int REDIS_MODE_ON;
 	int still_working;
 	int scan_interval_ms;
 	int effect_interval_ms;
@@ -372,8 +362,18 @@ struct _Maat_feather_t
 	char stat_file[MAX_TABLE_NAME_LEN];
 	char instance_name[MAX_TABLE_NAME_LEN];
 	char table_info_fn[MAX_TABLE_NAME_LEN];
+	char compile_tn[MAX_TABLE_NAME_LEN];
+	char group_tn[MAX_TABLE_NAME_LEN];
 	pthread_mutex_t plugin_table_reg_mutex;
-	unsigned char* decrypt_key;
+	unsigned char decrypt_key[MAX_TABLE_NAME_LEN];
+	unsigned char redis_ip[MAX_TABLE_NAME_LEN];;
+	int redis_port;
+	redisContext *redis_read_ctx;
+	redisContext *redis_write_ctx;	// not thread safe.
+	int on_redis_writing;
+	int cmd_num;
+	struct _Maat_cmd_t* cmd_qhead, *cmd_qtail;
+	pthread_mutex_t redis_write_lock; //protect redis_write_ctx
 //for stat>>>>
 	screen_stat_handle_t stat_handle;
 	int total_stat_id;

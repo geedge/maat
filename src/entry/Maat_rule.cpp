@@ -17,6 +17,7 @@
 
 #include "Maat_rule.h"
 #include "Maat_rule_internal.h"
+#include "Maat_redis.h"
 #include "json2iris.h"
 #include "dynamic_array.h"
 #include "aligment_int64.h"
@@ -28,7 +29,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_9_20170626=1;
+int MAAT_FRAME_VERSION_2_0_20170701=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -81,7 +82,7 @@ int is_valid_match_method(enum MAAT_MATCH_METHOD match_method)
 		case MATCH_METHOD_SUB:
 		case MATCH_METHOD_RIGHT:
 		case MATCH_METHOD_LEFT:
-		case MATCH_METHOD_FULL:
+		case MATCH_METHOD_COMPLETE:
 			return 1;
 		default:
 			return 0;
@@ -480,7 +481,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 	map_register(string2int_map,"ip", TABLE_TYPE_IP);
 	map_register(string2int_map,"compile", TABLE_TYPE_COMPILE);
 	map_register(string2int_map,"plugin", TABLE_TYPE_PLUGIN);
-	map_register(string2int_map,"intval", TABLE_TYPE_INTVAL);
+	map_register(string2int_map,"intval", TABLE_TYPE_INTERVAL);
 	map_register(string2int_map,"digest", TABLE_TYPE_DIGEST);
 	map_register(string2int_map,"expr_plus", TABLE_TYPE_EXPR_PLUS);
 	map_register(string2int_map,"group", TABLE_TYPE_GROUP);
@@ -786,7 +787,7 @@ scan_rule_t* create_rs_str_rule(unsigned int sub_type,enum MAAT_MATCH_METHOD mat
 	p_rule->string_rule.r_offset=-1;
 	switch(match_method)
 	{
-		case MATCH_METHOD_FULL:
+		case MATCH_METHOD_COMPLETE:
 			p_rule->string_rule.match_mode=1;
 			break;
 		case MATCH_METHOD_LEFT:
@@ -1796,7 +1797,7 @@ int add_intval_rule(struct _Maat_table_info_t* table,struct db_intval_rule_t* in
 		HASH_add_by_id(scanner->group_hash, intval_rule->group_id, group_rule);
 	}
 	expr_id=scanner->exprid_generator++;
-	u_para=add_region_to_group(group_rule,intval_rule->region_id,district_id,expr_id,TABLE_TYPE_INTVAL);
+	u_para=add_region_to_group(group_rule,intval_rule->region_id,district_id,expr_id,TABLE_TYPE_INTERVAL);
 	if(u_para==NULL)
 	{
 		return -1;
@@ -1873,7 +1874,7 @@ int del_region_rule(struct _Maat_table_info_t* table,int region_id,int group_id,
 		case	TABLE_TYPE_IP:
 		case	TABLE_TYPE_EXPR:
 		case	TABLE_TYPE_EXPR_PLUS:
-		case	TABLE_TYPE_INTVAL:
+		case	TABLE_TYPE_INTERVAL:
 			for(i=0;i<expr_num;i++)
 			{
 				op_expr=create_op_expr(expr_id[i],1,NULL,table->table_id);//del expr
@@ -2953,7 +2954,7 @@ void maat_update_cb(const char* table_name,const char* line,void *u_para)
 		case	TABLE_TYPE_IP:
 			update_ip_rule(feather->p_table_info[table_id], line, scanner,feather->logger,feather->GROUP_MODE_ON);
 			break;
-		case	TABLE_TYPE_INTVAL:
+		case	TABLE_TYPE_INTERVAL:
 			update_intval_rule(feather->p_table_info[table_id], line, scanner,feather->logger,feather->GROUP_MODE_ON);
 			break;
 		case	TABLE_TYPE_DIGEST:
@@ -3000,14 +3001,28 @@ void *thread_rule_monitor(void *arg)
 		scan_dir_cnt++;
 		//plugin table register is not allowed during update;
 		pthread_mutex_lock(&(feather->plugin_table_reg_mutex));
-		config_monitor_traverse(feather->maat_version,
-								inc_cfg_dir, 
-								maat_start_cb,
-								maat_update_cb,
-								maat_finish_cb,
-								feather,
-								feather->decrypt_key,
-								feather->logger);
+		if(feather->REDIS_MODE_ON==1)
+		{
+			redis_monitor_traverse(feather->maat_version
+									,feather->redis_read_ctx
+									,maat_start_cb
+									,maat_update_cb
+									,maat_finish_cb
+									, feather
+									,feather->decrypt_key	//Not used.
+									,feather->logger);
+		}
+		else
+		{
+			config_monitor_traverse(feather->maat_version,
+									inc_cfg_dir, 
+									maat_start_cb,
+									maat_update_cb,
+									maat_finish_cb,
+									feather,
+									feather->decrypt_key,
+									feather->logger);
+		}
 		pthread_mutex_unlock(&(feather->plugin_table_reg_mutex));
 		if(feather->update_tmp_scanner!=NULL)
 		{
@@ -3082,6 +3097,13 @@ void *thread_rule_monitor(void *arg)
 	aligment_int64_array_free(feather->hit_cnt);
 	aligment_int64_array_free(feather->orphan_group_saving);
 	aligment_int64_array_free(feather->last_region_saving);
+	if(feather->REDIS_MODE_ON==1&&feather->redis_read_ctx!=NULL)
+	{
+		pthread_mutex_lock(&(feather->redis_write_lock));
+		redisFree(feather->redis_read_ctx);
+		feather->redis_read_ctx=NULL;
+		pthread_mutex_unlock(&(feather->redis_write_lock));
+	}
 	free(feather);
 	return NULL;
 }
