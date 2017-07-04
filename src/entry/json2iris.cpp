@@ -53,7 +53,7 @@ struct traslate_command_t
 	const char* default_string;
 	int default_int;
 };
-int set_iris_descriptor(const char* json_file,cJSON *json,struct iris_description_t *iris_cfg,void * logger)
+int set_iris_descriptor(const char* json_file,cJSON *json,const char*compile_tn,const char* group_tn,struct iris_description_t *iris_cfg,void * logger)
 {
 	cJSON* j=NULL;
 	char* table_name=NULL;
@@ -62,26 +62,12 @@ int set_iris_descriptor(const char* json_file,cJSON *json,struct iris_descriptio
 	snprintf(iris_cfg->tmp_iris_index_dir,sizeof(iris_cfg->tmp_iris_index_dir),"%s_iris_tmp/index",json_file);
 	snprintf(iris_cfg->index_path,sizeof(iris_cfg->index_path),"%s/full_config_index.%010d",iris_cfg->tmp_iris_index_dir,json_version);
 
-	j=cJSON_GetObjectItem(json, "compile_table");
-	if(j==NULL)
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
-								"compile_table not defined.");
-		return -1;
-	}
-	table_name=j->valuestring;
-	memcpy(iris_cfg->compile_table.table_name,table_name,strlen(table_name));
+
+	memcpy(iris_cfg->compile_table.table_name,compile_tn,strlen(compile_tn));
 	snprintf(iris_cfg->compile_table.table_path,sizeof(iris_cfg->compile_table.table_path),
 			"%s/%s.local",iris_cfg->tmp_iris_dir,iris_cfg->compile_table.table_name);
-	j=cJSON_GetObjectItem(json, "group_table");
-	if(j==NULL)
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
-								"group_table not defined.");
-		return -1;
-	}
-	table_name=j->valuestring;
-	memcpy(iris_cfg->group_table.table_name,table_name,strlen(table_name));
+
+	memcpy(iris_cfg->group_table.table_name,group_tn,strlen(group_tn));
 	snprintf(iris_cfg->group_table.table_path,sizeof(iris_cfg->group_table.table_name),
 			"%s/%s.local",iris_cfg->tmp_iris_dir,iris_cfg->group_table.table_name);
 	
@@ -895,7 +881,7 @@ int write_iris(cJSON *json,struct iris_description_t *p_iris,void* logger)
 	}
 	return 0;
 }
-int json2iris(const char* json_file,char* iris_dir_buf,int buf_len,void* logger)
+int json2iris(const char* json_file,const char*compile_tn,const char* group_tn,char* iris_dir_buf,int buf_len,void* logger)
 {
 	FILE* json_fp=NULL;
 	cJSON *json=NULL;
@@ -939,7 +925,7 @@ int json2iris(const char* json_file,char* iris_dir_buf,int buf_len,void* logger)
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,"Error before: %-200.200s",cJSON_GetErrorPtr());
 		goto error_out;
 	}
-	ret=set_iris_descriptor(json_file,json, &iris_cfg,logger);
+	ret=set_iris_descriptor(json_file,json,compile_tn,group_tn,&iris_cfg,logger);
 	if(ret<0)
 	{
 		goto error_out;
