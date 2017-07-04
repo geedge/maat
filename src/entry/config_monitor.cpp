@@ -82,6 +82,12 @@ int decrypt_open(FILE* in,const unsigned char* key, const char* algorithm,unsign
 		inlen = fread(inbuf, 1, MAX_CONFIG_LINE, in);
 		if (inlen <= 0)
 			break;
+		
+		if(out_buff_len-buff_offset<inlen+EVP_CIPHER_block_size(cipher)-1)
+		{
+			out_buff_len*=2;
+			*pp_out=(unsigned char*)realloc(*pp_out,out_buff_len);
+		}
 		out_blk_len=out_buff_len-buff_offset;
 		if (!EVP_CipherUpdate(ctx, *pp_out+buff_offset, &out_blk_len, inbuf, inlen))
 		{
@@ -90,11 +96,7 @@ int decrypt_open(FILE* in,const unsigned char* key, const char* algorithm,unsign
 			goto error_out;
 		}
 		buff_offset+=out_blk_len;
-		if(buff_offset==out_buff_len)
-		{
-		out_buff_len*=2;
-		*pp_out=(unsigned char*)realloc(*pp_out,out_buff_len);
-		}
+
 	}
 	if (!EVP_CipherFinal_ex(ctx, *pp_out+buff_offset, &out_blk_len))
 	{
