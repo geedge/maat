@@ -17,7 +17,6 @@
 
 #include "Maat_rule.h"
 #include "Maat_rule_internal.h"
-#include "Maat_redis.h"
 #include "json2iris.h"
 #include "dynamic_array.h"
 #include "aligment_int64.h"
@@ -71,7 +70,7 @@ char* _maat_strdup(const char* s)
 		return NULL;
 	}
 	d=(char*)malloc(strlen(s)+1);
-	memcpy(d,s,strlen(s)+1));
+	memcpy(d,s,strlen(s)+1);
 	return d;
 }
 int is_valid_expr_type(enum MAAT_EXPR_TYPE expr_type)
@@ -475,17 +474,77 @@ void destroy_table_info(struct _Maat_table_info_t*p)
 	aligment_int64_array_free(p->input_bytes);
 	aligment_int64_array_free(p->stream_num);
 	aligment_int64_array_free(p->hit_cnt);
+	if(p->cb_info!=NULL)
+	{
+		dynamic_array_destroy(p->cb_info->cache_lines, free);
+		p->cb_info->cache_lines=NULL;
+		free(p->cb_info);
+		p->cb_info=NULL;
+	}
 	free(p);
 	return;
+}
+int read_expr_table_info(const char* line,int line_num,struct _Maat_table_info_t* p,MESA_htable_handle string2int_map)
+{
+	int j=0,ret[4]={0};
+	char table_type[16],src_charset[256],dst_charset[256],merge[4],quick_str_scan[32]={0};
+	char *token=NULL,*sub_token=NULL,*saveptr;
+
+	sscanf(line,"%hu\t%s\t%s\t%s\t%s\t%s\t%d\t%s",&(p->table_id)
+											,p->table_name[0]
+											,table_type
+											,src_charset
+											,dst_charset
+											,merge
+											,&(p->cross_cache_size)
+											,quick_str_scan);
+	memset(ret,0,sizeof(ret));
+	ret[0]=map_str2int(string2int_map,strlwr(table_type),(int*)&(p->table_type));
+	ret[1]=map_str2int(string2int_map,strlwr(src_charset),(int*)&(p->src_charset));
+	ret[2]=map_str2int(string2int_map,strlwr(merge),&(p->do_charset_merge));
+	if(strlen(quick_str_scan)>0)
+	{
+		ret[3]=map_str2int(string2int_map,strlwr(quick_str_scan),&(p->quick_expr_switch));
+	}
+	memset(quick_str_scan,0,sizeof(quick_str_scan));
+
+	for(j=0;j<4;j++)
+	{
+		if(ret[j]<0)
+		{
+			return -1;
+		}
+	}
+	j=0;
+	for (token = dst_charset; ; token= NULL)
+	{
+		sub_token= strtok_r(token,"/", &saveptr);
+		if (sub_token == NULL)
+			break;
+		ret[3]=map_str2int(string2int_map,strlwr(sub_token),(int*)&(p->dst_charset[j]));
+		if(ret[3]>0)
+		{
+			if(p->dst_charset[j]==p->src_charset)
+			{
+				p->src_charset_in_dst=TRUE;
+			}
+			j++;
+		}
+		else
+		{
+			return -1;
+		}
+		
+	}
+	return 0;
 }
 int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger)
 {
 	FILE*fp=NULL;
 	char line[MAX_TABLE_LINE_SIZE];
-	int i=0,j=0,ret[4]={0},table_cnt=0;
-	char table_type[16],src_charset[256],dst_charset[256],merge[4],quick_str_scan[32]={0};
+	int i=0,ret=0,table_cnt=0;
+	char table_type_str[16],not_care[256];
 	MESA_htable_handle string2int_map=map_create();
-	char *token=NULL,*sub_token=NULL,*saveptr;
 	struct _Maat_table_info_t*p=NULL;
 	struct _Maat_table_info_t*conj_table=NULL;
 	
@@ -511,14 +570,6 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 		}
 	}
 
-/*
-	map_register(string2int_map,"gbk", CHARSET_GBK);
-	map_register(string2int_map,"big5", CHARSET_BIG5);
-	map_register(string2int_map,"unicode", CHARSET_UNICODE);
-	map_register(string2int_map,"utf8", CHARSET_UTF8);
-	map_register(string2int_map,"unicode_hex", CHARSET_UNICODE_ASCII_ESC);
-	map_register(string2int_map,"unicode_hex", CHARSET_UNICODE_ASCII_ESC);
-*/
 	map_register(string2int_map,"yes", 1);
 	map_register(string2int_map,"no", 0);
 	
@@ -540,57 +591,43 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 		}
 		p=create_table_info(max_thread_num);
 
-		sscanf(line,"%hu\t%s\t%s\t%s\t%s\t%s\t%d\t%s",&(p->table_id)
+		sscanf(line,"%hu\t%s\t%s\t%s",&(p->table_id)
 											,p->table_name[0]
-											,table_type
-											,src_charset
-											,dst_charset
-											,merge
-											,&(p->cross_cache_size)
-											,quick_str_scan);
-		ret[0]=map_str2int(string2int_map,strlwr(table_type),(int*)&(p->table_type));
-		ret[1]=map_str2int(string2int_map,strlwr(src_charset),(int*)&(p->src_charset));
-		ret[2]=map_str2int(string2int_map,strlwr(merge),&(p->do_charset_merge));
-		if(strlen(quick_str_scan)>0)
+											,table_type_str
+											,not_care);
+		ret=map_str2int(string2int_map,strlwr(table_type_str),(int*)&(p->table_type));
+		if(ret<0)
 		{
-			ret[3]=map_str2int(string2int_map,strlwr(quick_str_scan),&(p->quick_expr_switch));
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
+						"Maat read table info %s line %d error:invalid table type.",table_info_path,i);
+			goto error_jump;
 		}
-		memset(quick_str_scan,0,sizeof(quick_str_scan));
-
-		for(j=0;j<4;j++)
+		switch(p->table_type)
 		{
-			if(ret[j]<0)
-			{
-				fprintf(stderr,"Maat read table info %s line %d error:unknown column.\n",table_info_path,i);
-				MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
-								"Maat read table info %s line %d error:unknown column.",table_info_path,i);
-				goto error_jump;
-			}
-		}
-		j=0;
-		for (token = dst_charset; ; token= NULL)
-		{
-			sub_token= strtok_r(token,"/", &saveptr);
-			if (sub_token == NULL)
-				break;
-			ret[3]=map_str2int(string2int_map,strlwr(sub_token),(int*)&(p->dst_charset[j]));
-			if(ret[3]>0)
-			{
-				if(p->dst_charset[j]==p->src_charset)
+			case TABLE_TYPE_EXPR:
+			case TABLE_TYPE_EXPR_PLUS:
+				ret=read_expr_table_info(line, i, p, string2int_map);
+				if(ret<0)
 				{
-					p->src_charset_in_dst=TRUE;
+					fprintf(stderr,"Maat read table info %s line %d error:unknown column.\n",table_info_path,i);
+					MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
+									"Maat read table info %s line %d error:unknown column.",table_info_path,i);
+					goto error_jump;
 				}
-				j++;
-			}
-			else
-			{
-				fprintf(stderr,"Maat read table info %s line %d error:unknown dest charset %s.\n",table_info_path,i,sub_token);
-				MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
-								"Maat read table info %s line %d error: unknown dest charset %s.",table_info_path,i,sub_token);
-				goto error_jump;
-			}
-			
+				break;
+			case TABLE_TYPE_PLUGIN:
+				p->cb_info=(struct _plugin_table_info*)calloc(sizeof(struct _plugin_table_info),1);
+				p->cb_info->cache_lines=dynamic_array_create(1024,1024);
+				ret=sscanf(not_care,"%d",&(p->valid_flag_column));
+				if(ret==0||ret==EOF)
+				{
+					p->valid_flag_column=-1;
+				}
+				break;
+			default:
+				break;
 		}
+
 		if(p->table_id>=num)
 		{
 			fprintf(stderr,"Maat read table info %s:%d error: table id %uh > %d.\n",table_info_path,i,p->table_id,num);
@@ -618,11 +655,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 			//use goto to free the conjunctioned table_info
 			goto error_jump;
 		}
-		if(p->table_type==TABLE_TYPE_PLUGIN)
-		{
-			p->cb_info=(struct _plugin_table_info*)calloc(sizeof(struct _plugin_table_info),1);
-			p->cb_info->cache_lines=dynamic_array_create(1024,1024);
-		}
+
 		p_table_info[p->table_id]=p;
 		table_cnt++;
 		continue;
@@ -1357,7 +1390,7 @@ void cancel_last_region_from_group(struct _Maat_group_inner_t* group,int region_
 {
 	struct _Maat_region_inner_t* region_rule=NULL;
 	pthread_mutex_lock(&(group->mutex));
-	region_rule=(struct _Maat_region_inner_t*)dynamic_array_read(group->regions,group->region_boundary);
+	region_rule=(struct _Maat_region_inner_t*)dynamic_array_read(group->regions,group->region_boundary-1);
 	assert(region_rule->expr_id_ub==expr_id&&region_rule->region_id==region_id);
 	if(region_rule->expr_id_cnt==1)
 	{
@@ -1369,7 +1402,7 @@ void cancel_last_region_from_group(struct _Maat_group_inner_t* group,int region_
 	else
 	{
 		region_rule->expr_id_ub--;
-		region_rule->region_cnt--;
+		region_rule->expr_id_cnt--;
 	}
 	pthread_mutex_unlock(&(group->mutex));
 	return;
@@ -1771,6 +1804,8 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 				scanner->dedup_expr_num++;
 				cancel_last_region_from_group(group_rule,db_rule->region_id,op_expr->p_expr->expr_id);
 				destroy_op_expr(op_expr);
+				//redeem expr_id
+				scanner->exprid_generator--;
 				op_expr=NULL;
 			}
 			else
@@ -3075,9 +3110,9 @@ void *thread_rule_monitor(void *arg)
 									,maat_start_cb
 									,maat_update_cb
 									,maat_finish_cb
-									, feather
+									,feather
 									,feather->decrypt_key	//Not used.
-									,feather->logger);
+									,feather);
 		}
 		else
 		{
@@ -3094,7 +3129,7 @@ void *thread_rule_monitor(void *arg)
 		if(feather->update_tmp_scanner!=NULL)
 		{
 			old_scanner=feather->scanner;
-			//__sync_lock_test_and_set not work in some OS.
+			//Some OS doesn't have __sync_lock_test_and_set.
 			//feather->scanner=__sync_lock_test_and_set(&(feather->scanner),feather->update_tmp_scanner);
 			feather->scanner=feather->update_tmp_scanner;
 			if(old_scanner!=NULL)

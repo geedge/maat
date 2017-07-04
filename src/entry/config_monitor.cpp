@@ -52,7 +52,7 @@ int decrypt_open(FILE* in,const unsigned char* key, const char* algorithm,unsign
 	cipher=EVP_get_cipherbyname(algorithm);
 	if(cipher==NULL)
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"Not cipher:%s not supported.");
+		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"Not cipher:%s not supported.",algorithm);
 		return 0;
 	}
 	dgst=EVP_get_digestbyname("md5");

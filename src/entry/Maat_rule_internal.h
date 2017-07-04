@@ -165,19 +165,22 @@ struct op_expr_t
 struct _Maat_region_inner_t
 {
 	int region_id;
-	int expr_id_cnt;
 	int district_id;
+	int table_id;
+	int expr_id_cnt;
 	int expr_id_lb;
 	int expr_id_ub;
-	enum MAAT_TABLE_TYPE region_type;
+	enum MAAT_TABLE_TYPE table_type;
 };
 struct _Maat_group_inner_t
 {
 	int group_id;
+	int table_id;
 	int region_boundary;
 	int region_cnt;
 	int ref_cnt;
-	dynamic_array_t *region_rules;
+	char* group_name;
+	dynamic_array_t *regions;
 	void* compile_shortcut;
 	pthread_mutex_t mutex;
 };
@@ -185,9 +188,10 @@ struct _Maat_compile_inner_t
 {
 	struct db_compile_rule_t *db_c_rule;
 	dynamic_array_t *groups;
+	int compile_id;//equal to db_c_rule->m_rule.config_id
+	int table_id;
 	int group_boundary;
 	int group_cnt;
-	int compile_id;//equal to db_c_rule->m_rule.config_id
 	pthread_rwlock_t rwlock;//reading compile rule is safe in update thread, rwlock lock called when delete or scan thread read
 };
 struct _compile_result_t
@@ -252,6 +256,7 @@ struct _Maat_table_info_t
 		int ipv6_rule_cnt;
 	};
 	struct _plugin_table_info *cb_info;
+	int valid_flag_column;
 //for stat>>>>>>>>
 	unsigned long long udpate_err_cnt;
 	unsigned long long iconv_err_cnt;
@@ -369,14 +374,14 @@ struct _Maat_feather_t
 	pthread_mutex_t plugin_table_reg_mutex;
 	unsigned char decrypt_key[MAX_TABLE_NAME_LEN];
 	
-	unsigned char redis_ip[MAX_TABLE_NAME_LEN];
+	char redis_ip[MAX_TABLE_NAME_LEN];
 	int redis_port;
 	struct timeval connect_timeout;
 	redisContext *redis_read_ctx;
 	redisContext *redis_write_ctx;	// not thread safe.
 	int on_redis_writing;
 	int cmd_q_cnt;
-	struct _Maat_cmd_t* cmd_qhead, *cmd_qtail;
+	struct _Maat_cmd_inner_t* cmd_qhead, *cmd_qtail;
 	pthread_mutex_t redis_write_lock; //protect redis_write_ctx
 	long long base_rgn_seq,base_grp_seq;
 //for stat>>>>
@@ -408,8 +413,8 @@ struct _maat_garbage_t
 	union
 	{
 		struct _Maat_scanner_t* scanner;
-		struct _Maat_group_rule_t* group_rule;
-		struct _Maat_compile_rule_t* compile_rule;
+		struct _Maat_group_inner_t* group_rule;
+		struct _Maat_compile_inner_t* compile_rule;
 		void* bool_matcher;
 		void * raw;
 		MESA_htable_handle str2int_map;
@@ -417,7 +422,7 @@ struct _maat_garbage_t
 };
 void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbage_q);
 void garbage_bury(MESA_lqueue_head garbage_q,void *logger);
-void make_group_set(const struct _Maat_compile_rule_t* compile_rule,universal_bool_expr_t* a_set);
+void make_group_set(const struct _Maat_compile_inner_t* compile_rule,universal_bool_expr_t* a_set);
 int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger);
 void maat_start_cb(unsigned int new_version,int update_type,void*u_para);
 void maat_update_cb(const char* table_name,const char* line,void *u_para);
@@ -433,10 +438,13 @@ inline void ipv6_ntoh(unsigned int *v6_addr)
 	}
 	return;
 }
+void * HASH_fetch_by_id(MESA_htable_handle hash,int id);
+int HASH_add_by_id(MESA_htable_handle hash,int id,void*data);
+int HASH_delete_by_id(MESA_htable_handle hash,int id);
 void maat_stat_init(struct _Maat_feather_t* feather);
 void maat_stat_table(struct _Maat_table_info_t* p_table,int scan_len,struct timespec* start, struct timespec* end,int thread_num);
 void maat_stat_output(struct _Maat_feather_t* feather);
-
+char* _maat_strdup(const char* s);
 void redis_monitor_traverse(unsigned int version,redisContext *c,
 							void (*start)(unsigned int ,int ,void*),//vesion,CM_UPDATE_TYPE_*,u_para
 							void (*update)(const char* ,const char*,void* ),//table name ,line ,u_para

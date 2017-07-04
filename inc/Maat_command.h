@@ -1,5 +1,5 @@
-#ifndef H_MAAT_RULE_H_INCLUDE
-#define H_MAAT_RULE_H_INCLUDE
+#ifndef H_MAAT_COMMAND_H_INCLUDE
+#define H_MAAT_COMMAND_H_INCLUDE
 #ifndef __cplusplus
 #error("This file should be compiled with C++ compiler")
 #endif
@@ -59,10 +59,10 @@ struct Maat_rgn_str_t
 struct Maat_rgn_addr_t
 {
 	enum MAAT_ADDR_TYPE addr_type;
-	char* src_ip;
-	char* mask_src_ip;
-	char* dst_ip;
-	char* mask_dst_ip;
+	const char* src_ip;
+	const char* mask_src_ip;
+	const char* dst_ip;
+	const char* mask_dst_ip;
 	unsigned short src_port;
 	unsigned short mask_src_port;
 	unsigned short dst_port;
@@ -78,7 +78,7 @@ struct Maat_rgn_intv_t
 struct Maat_rgn_digest_t
 {
 	unsigned long long orgin_len;
-	char* digest_string;
+	const char* digest_string;
 	short confidence_degree;
 };
 struct Maat_rgn_sim_t
@@ -88,7 +88,7 @@ struct Maat_rgn_sim_t
 };
 struct Maat_region_t
 {
-	char* table_name;
+	const char* table_name;
 	int region_id;	//Any, maat will assigned one.
 	enum MAAT_REGION_TYPE region_type;
 	union
@@ -113,9 +113,8 @@ struct Maat_command_t
 	int group_num;				// for MAAT_OP_DEL, Any.
 	struct Maat_group_t* groups;// for MAAT_OP_DEL, SET to NULL.
 };
-struct Maat_command_t* Maat_create_comand(const struct Maat_rule_t* rule, const char*table_name, int group_num);
-int Maat_set_command(struct Maat_command_t* cmd,int which_group,const struct Maat_region_t* region);
-
+struct Maat_command_t* Maat_create_comand(const struct Maat_rule_t* rule, int group_num);
+void Maat_cmd_add_region(struct Maat_command_t* cmd,int which_group,const struct Maat_region_t* region);
 void Maat_free_command(struct Maat_command_t* cmd);
 int Maat_format_command(struct Maat_command_t* cmd, char* buffer, int size);
 

@@ -55,8 +55,6 @@ struct traslate_command_t
 };
 int set_iris_descriptor(const char* json_file,cJSON *json,const char*compile_tn,const char* group_tn,struct iris_description_t *iris_cfg,void * logger)
 {
-	cJSON* j=NULL;
-	char* table_name=NULL;
 	memset(iris_cfg,0,sizeof(struct iris_description_t));
 	snprintf(iris_cfg->tmp_iris_dir,sizeof(iris_cfg->tmp_iris_dir),"%s_iris_tmp",json_file);
 	snprintf(iris_cfg->tmp_iris_index_dir,sizeof(iris_cfg->tmp_iris_index_dir),"%s_iris_tmp/index",json_file);

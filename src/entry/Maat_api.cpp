@@ -185,7 +185,7 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 
 int exprid2region_id(struct _Maat_group_inner_t* group_rule,int expr_id,int* district_id)
 {
-	int i=0,j=0,region_id=-1;
+	int i=0,region_id=-1;
 	struct _Maat_region_inner_t* region_rule=NULL;
 	assert(group_rule->group_id>=0);
 	pthread_mutex_lock(&(group_rule->mutex));
@@ -442,11 +442,11 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 			if(feather->p_table_info[i]->table_type==TABLE_TYPE_GROUP)
 			{
 				feather->GROUP_MODE_ON=1;
-				memcpy(feather->group_tn,feather->p_table_info[i].table_name[0],sizeof(feather->group_tn));
+				strncpy(feather->group_tn,feather->p_table_info[i]->table_name[0],sizeof(feather->group_tn));
 			}
 			if(feather->p_table_info[i]->table_type==TABLE_TYPE_COMPILE)
 			{
-				memcpy(feather->compile_tn,feather->p_table_info[i].table_name[0],sizeof(feather->compile_tn));
+				strncpy(feather->compile_tn,feather->p_table_info[i]->table_name[0],sizeof(feather->compile_tn));
 			}
 			for(j=0;j<feather->p_table_info[i]->conj_cnt;j++)
 			{
@@ -526,8 +526,9 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			memcpy(_feather->inc_dir,(const char*)value,size);
 			break;
 		case MAAT_OPT_JSON_FILE_PATH:
-			ret=json2iris((const char*)value, _feather->full_dir
+			ret=json2iris((const char*)value
 				,_feather->compile_tn,_feather->group_tn
+				,_feather->full_dir
 				,sizeof(_feather->full_dir),_feather->logger);
 			if(ret<0)
 			{
@@ -568,21 +569,21 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 					(const char*)value);
 			break;
 		case MAAT_OPT_DECRYPT_KEY:
-			if(size>sizeof(_feather->decrypt_key))
+			if((size_t)size>sizeof(_feather->decrypt_key))
 			{
 				return -1;
 			}
 			memcpy(_feather->decrypt_key,value,size);
 			break;
 		case MAAT_OPT_REDIS_IP:
-			if(size>sizeof(_feather->redis_ip))
+			if((size_t)size>sizeof(_feather->redis_ip))
 			{
 				return -1;
 			}
 			memcpy(_feather->redis_ip,value,size);
 			break;
 		case MAAT_OPT_REDIS_PORT:
-			if(size!=sizeof(unsigned short))
+			if((size_t)size!=sizeof(unsigned short))
 			{
 				return -1;
 			}
