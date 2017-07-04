@@ -1,4 +1,5 @@
 #include "Maat_rule.h"
+#include "Maat_command.h"
 #include <MESA/MESA_handle_logger.h>
 #include <dlfcn.h>
 #include <assert.h>
@@ -458,6 +459,54 @@ int test_table_conjunction(Maat_feather_t feather,const char* table_name,const c
 	}
 	return 0;
 }
+int test_command(Maat_feather_t feather)
+{
+	const char* scan_data="Hiredis is a minimalistic C client library for the Redis database.\r\n";
+	const char* table_name="HTTP_URL";
+	int table_id;
+	scan_status_t mid=NULL;
+
+	struct Maat_command_t* cmd=NULL;
+	struct Maat_rule_t rule;
+	struct Maat_rule_t result;
+	struct Maat_region_t region;
+	int group_num=1,ret=0;
+	rule.config_id=201;
+	strcpy(rule.service_defined,"maat_command");
+	//MUST acqire by function, because Maat_command_t has some hidden members.
+	cmd=Maat_create_comand(&rule, group_num);
+	memset(&region,0,sizeof(region));
+	region.region_type=REGION_EXPR;
+	region.table_name=table_name;
+	region.expr_rule.district=NULL;
+	region.expr_rule.keywords="Hiredis&C\bClient";
+	region.expr_rule.expr_type=EXPR_TYPE_AND;
+	region.expr_rule.match_method=MATCH_METHOD_SUB;
+	region.expr_rule.hex_bin=UNCASE_PLAIN;
+	Maat_cmd_add_region(cmd, 0, &region);
+	//use pipeline model.
+	Maat_append_command(feather, cmd, MAAT_OP_ADD);
+	//cmd has been saved in feather, so free before commit is allowed.
+	Maat_free_command(cmd);
+	Maat_commit_command(feather);
+	sleep(3);//waiting for commands go into effect
+	table_id=Maat_table_register(feather,table_name);
+	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
+						&result,NULL, 1,
+						&mid, 0);
+
+	if(ret>0&&result.config_id==rule.config_id)
+	{
+		printf("Test Maat command success %s\n",print_maat_result(&result,ret));
+	}
+	else
+	{
+		printf("Test Maat command failed.\n");
+	}
+	Maat_clean_status(&mid);
+	return 0;
+
+}
 int main(int argc,char* argv[])
 {
 	Maat_feather_t feather=NULL;
@@ -469,6 +518,8 @@ int main(int argc,char* argv[])
 	const char* log_file="./test.log";
 	const char* stat_file="./scan_staus.log";
 	const char* decrypt_key="mesa2017wy";
+	const char* redis_ip="127.0.0.1";
+	unsigned short redis_port=6379;
 	int scan_detail=0;
 	scan_status_t mid=NULL;
 	int wait_second=4;
@@ -483,6 +534,11 @@ int main(int argc,char* argv[])
 		Maat_set_feather_opt(feather, MAAT_OPT_FULL_CFG_DIR, ful_cfg_dir, strlen(ful_cfg_dir)+1);
 		Maat_set_feather_opt(feather, MAAT_OPT_INC_CFG_DIR, inc_cfg_dir, strlen(inc_cfg_dir)+1);
 		wait_second=14;
+	}
+	else if(argc>1&&0==strcmp(argv[1],"redis"))
+	{
+		Maat_set_feather_opt(feather, MAAT_OPT_REDIS_IP, redis_ip, strlen(redis_ip)+1);
+		Maat_set_feather_opt(feather, MAAT_OPT_REDIS_PORT, &redis_port, sizeof(redis_port));
 	}
 	else
 	{
@@ -534,6 +590,8 @@ int main(int argc,char* argv[])
 
 	test_table_conjunction(feather, "HTTP_URL", "HTTP_HOST", &mid);
 	Maat_clean_status(&mid);
+
+	test_command(feather);
 
 	sleep(wait_second);
 	
