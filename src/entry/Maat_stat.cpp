@@ -21,7 +21,9 @@ enum MAAT_FS_STATUS{
 	STATUS_SCAN_ERR_CNT,
 	STATUS_ZOMBIE_RS_STREAM,
 	STATUS_ORPHAN_GROUP_SAVING,
-	STATUS_LAST_REGION_SAVING
+	STATUS_LAST_REGION_SAVING,
+	STATUS_CMD_NUM,
+	STATUS_CMD_Q_SIZE
 };
 
 enum MAAT_FS_COLUMN
@@ -73,6 +75,8 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	feather->fs_status_id[STATUS_ICONV_ERR_CNT]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"iconv_error");
 	feather->fs_status_id[STATUS_SCAN_ERR_CNT]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"scan_error");
 	feather->fs_status_id[STATUS_ZOMBIE_RS_STREAM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"zombie_stream");
+	feather->fs_status_id[STATUS_CMD_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"cmd_commit");
+	feather->fs_status_id[STATUS_CMD_Q_SIZE]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"cmd_in_q");
 
 	feather->fs_column_id[COLUMN_TABLE_RULE_NUM]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT,"rule");
 	feather->fs_column_id[COLUMN_TABLE_REGEX_NUM]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT,"regex");
@@ -177,6 +181,8 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_INNER_MID_NUM], 0,FS_OP_SET,inner_mid_cnt);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_ORPHAN_GROUP_SAVING], 0,FS_OP_SET,orphan_group_saving);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_LAST_REGION_SAVING], 0,FS_OP_SET,last_region_saving);
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_CMD_NUM], 0,FS_OP_SET,feather->cmd_acc_num);
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_CMD_Q_SIZE], 0,FS_OP_SET,feather->cmd_q_cnt);
 
 	value=MESA_lqueue_get_count(feather->garbage_q);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_GARBAGE_QSIZE], 0,FS_OP_SET,value);

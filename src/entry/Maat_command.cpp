@@ -482,7 +482,7 @@ int Maat_append_command(Maat_feather_t feather,struct Maat_command_t* cmd,enum M
 	{
 		return -1;
 	}
-	if(_feather->cmd_num==0)
+	if(_feather->cmd_q_cnt==0)
 	{
 		assert(_feather->cmd_qtail==_feather->cmd_qhead==NULL);
 		_feather->cmd_qhead=_feather->cmd_qtail=_cmd;
@@ -492,7 +492,7 @@ int Maat_append_command(Maat_feather_t feather,struct Maat_command_t* cmd,enum M
 		_feather->cmd_qtail->next=_cmd;
 		_feather->cmd_qtail=_cmd;
 	}
-	_feather->cmd_num++;
+	_feather->cmd_q_cnt++;
 	return;
 }
 //TODO: support plugin rule command.
@@ -898,17 +898,17 @@ int Maat_commit_command(Maat_feather_t feather)
 			freeReplyObject(data_reply);
 		}		
 	}
-
+	_feather->cmd_commit_num+=_feather->cmd_q_cnt;
 error_out:
 	p=_feather->cmd_qhead;
-	for(i=0;i<_feather->cmd_num;i++)
+	for(i=0;i<_feather->cmd_q_cnt;i++)
 	{
 		n=p->next;
 		Maat_free_command((struct Maat_command_t* )p);
 		p=n;
 	}
 	_feather->cmd_qhead=_feather->cmd_qtail=NULL;
-	_feather->cmd_num=0;
+	_feather->cmd_q_cnt=0;
 	
 	for(i=0;i<serial_rule_num;i++)
 	{

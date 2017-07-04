@@ -375,7 +375,7 @@ struct _Maat_feather_t
 	redisContext *redis_read_ctx;
 	redisContext *redis_write_ctx;	// not thread safe.
 	int on_redis_writing;
-	int cmd_num;
+	int cmd_q_cnt;
 	struct _Maat_cmd_t* cmd_qhead, *cmd_qtail;
 	pthread_mutex_t redis_write_lock; //protect redis_write_ctx
 	long long base_rgn_seq,base_grp_seq;
@@ -398,6 +398,7 @@ struct _Maat_feather_t
 	long long zombie_rs_stream;
 	long long postpone_q_size;
 	long long compile_rule_num;
+	long long cmd_acc_num;
 };
 struct _maat_garbage_t
 {
