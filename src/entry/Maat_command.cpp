@@ -791,7 +791,7 @@ int Maat_commit_command(Maat_feather_t feather)
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 
-	int ret=0,i=0,retry=0;
+	int ret=0,i=0,retry=0,append_cmd_cnt=0;
 	long long maat_redis_version=0;
 	int new_region_num=0,new_group_num=0;
 	int serial_rule_num=0,serial_rule_idx=0;
@@ -859,11 +859,12 @@ int Maat_commit_command(Maat_feather_t feather)
 													,s_rule[i].table_name
 													,s_rule[i].rule_id
 													,s_rule[i].table_line);
-
+				append_cmd_cnt++;
 				//NX: Don't update already exisiting elements. Always add new elements.
 				redisAppendCommand(ctx,"ZADD NX ADD,%s,%d %d",s_rule[i].table_name
 													,s_rule[i].rule_id
 													,maat_redis_version);
+				append_cmd_cnt++;
 			}
 			else
 			{
@@ -876,32 +877,38 @@ int Maat_commit_command(Maat_feather_t feather)
 														,s_rule[i].table_name
 														,s_rule[i].rule_id
 														);
-				 
+				append_cmd_cnt++;
 				redisAppendCommand(ctx,"EXPIRE %s:%s,%d %d",rm_key_prefix[MAAT_OP_DEL]
 														,s_rule[i].table_name
 														,s_rule[i].rule_id
 														,MAAT_REDIS_SYNC_TIME);
-				 
+				append_cmd_cnt++;
 				//NX: Don't update already exisiting elements. Always add new elements.
 				redisAppendCommand(ctx,"ZADD NX DEL,%s,%d %d",s_rule[i].table_name
 														,s_rule[i].rule_id
 														,maat_redis_version);
+				append_cmd_cnt++;
 			}
 		}
 		redisAppendCommand(ctx,"INCRBY MAAT_VERSION 1"); 
+		append_cmd_cnt++;
 		redisAppendCommand(ctx,"EXEC");
-		_wrap_redisGetReply(ctx, &data_reply);
-		if(1==mr_transaction_success(data_reply))
+		append_cmd_cnt++;
+		for(i=0;i<append_cmd_cnt;i++)
 		{
-			freeReplyObject(data_reply);
-			break;
+			_wrap_redisGetReply(ctx, &data_reply);
+			if(1==mr_transaction_success(data_reply))
+			{
+				freeReplyObject(data_reply);
+				break;
+			}
+			else
+			{
+				retry++;
+				assert(retry<5);
+				freeReplyObject(data_reply);
+			}
 		}
-		else
-		{
-			retry++;
-			assert(retry<5);
-			freeReplyObject(data_reply);
-		}		
 	}
 	_feather->cmd_acc_num+=_feather->cmd_q_cnt;
 error_out:
