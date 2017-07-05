@@ -471,6 +471,7 @@ int test_command(Maat_feather_t feather)
 	struct Maat_rule_t result;
 	struct Maat_region_t region;
 	int group_num=1,ret=0;
+	memset(&rule,0,sizeof(rule));
 	rule.config_id=201;
 	strcpy(rule.service_defined,"maat_command");
 	//MUST acqire by function, because Maat_command_t has some hidden members.
@@ -479,17 +480,28 @@ int test_command(Maat_feather_t feather)
 	region.region_type=REGION_EXPR;
 	region.table_name=table_name;
 	region.expr_rule.district=NULL;
-	region.expr_rule.keywords="Hiredis&C\bClient";
+	region.expr_rule.keywords="Hiredis&C\\bClient";
 	region.expr_rule.expr_type=EXPR_TYPE_AND;
 	region.expr_rule.match_method=MATCH_METHOD_SUB;
 	region.expr_rule.hex_bin=UNCASE_PLAIN;
 	Maat_cmd_add_region(cmd, 0, &region);
 	//use pipeline model.
-	Maat_append_command(feather, cmd, MAAT_OP_ADD);
+	ret=Maat_append_command(feather, cmd, MAAT_OP_ADD);
+	if(ret<0)
+	{
+		printf("Add Maat command %d failed.\n",rule.config_id);
+		Maat_free_command(cmd);
+		return 0;
+	}
 	//cmd has been saved in feather, so free before commit is allowed.
 	Maat_free_command(cmd);
-	Maat_commit_command(feather);
-	sleep(3);//waiting for commands go into effect
+	ret=Maat_commit_command(feather);
+	if(ret<0)
+	{
+		printf("Commit Maat command %d failed.\n",rule.config_id);
+		return 0;
+	}
+	sleep(1);//waiting for commands go into effect
 	table_id=Maat_table_register(feather,table_name);
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
 						&result,NULL, 1,
@@ -497,11 +509,36 @@ int test_command(Maat_feather_t feather)
 
 	if(ret>0&&result.config_id==rule.config_id)
 	{
-		printf("Test Maat command success %s\n",print_maat_result(&result,ret));
+		printf("Test Maat add command Success %s\n",print_maat_result(&result,ret));
 	}
 	else
 	{
-		printf("Test Maat command failed.\n");
+		printf("Test Maat add command failed.\n");
+	}
+	Maat_clean_status(&mid);
+	
+	memset(&rule,0,sizeof(rule));
+	rule.config_id=201;
+	cmd=Maat_create_comand(&rule, 0);
+	ret=Maat_command(feather, cmd, MAAT_OP_DEL);
+	if(ret<0)
+	{
+		printf("Delete Maat command %d failed.\n",rule.config_id);
+		Maat_free_command(cmd);
+		return 0;
+	}
+	Maat_free_command(cmd);
+	sleep(1);//waiting for commands go into effect
+	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
+						&result,NULL, 1,
+						&mid, 0);
+	if(ret>0)
+	{
+		printf("Test Maat delete command failed\n");
+	}
+	else
+	{
+		printf("Test Maat delete command Success.\n");
 	}
 	Maat_clean_status(&mid);
 	return 0;
@@ -518,11 +555,12 @@ int main(int argc,char* argv[])
 	const char* log_file="./test.log";
 	const char* stat_file="./scan_staus.log";
 	const char* decrypt_key="mesa2017wy";
+	int scan_interval_ms=10;
 	const char* redis_ip="127.0.0.1";
 	unsigned short redis_port=6379;
 	int scan_detail=0;
 	scan_status_t mid=NULL;
-	int wait_second=4;
+	int wait_second=400;
 	void *logger=MESA_create_runtime_log_handle(log_file,0);
 
 	feather=Maat_feather(g_iThreadNum, table_info_path, logger);
@@ -544,6 +582,7 @@ int main(int argc,char* argv[])
 	{
 		Maat_set_feather_opt(feather, MAAT_OPT_JSON_FILE_PATH, json_path, strlen(json_path)+1);
 	}
+	Maat_set_feather_opt(feather, MAAT_OPT_SCANDIR_INTERVAL_MS,&scan_interval_ms, sizeof(scan_interval_ms));
 	Maat_set_feather_opt(feather, MAAT_OPT_STAT_FILE_PATH, stat_file, strlen(stat_file)+1);
 	Maat_set_feather_opt(feather, MAAT_OPT_STAT_ON, NULL, 0);
 	Maat_set_feather_opt(feather, MAAT_OPT_PERF_ON, NULL, 0);

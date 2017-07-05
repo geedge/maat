@@ -601,6 +601,10 @@ int Maat_initiate_feather(Maat_feather_t feather)
 	if(strlen(_feather->redis_ip)>0&&_feather->redis_port!=0)
 	{
 		_feather->REDIS_MODE_ON=1;
+		MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
+							"Maat initiate from Redis %s:%hu"
+							,_feather->redis_ip
+							,_feather->redis_port);
 		_feather->redis_read_ctx=redisConnectWithTimeout(_feather->redis_ip,_feather->redis_port,_feather->connect_timeout);
 		if(_feather->redis_read_ctx==NULL)
 		{
@@ -639,8 +643,19 @@ int Maat_initiate_feather(Maat_feather_t feather)
 	}
 	if(_feather->update_tmp_scanner==NULL)
 	{
-		MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
+		if(_feather->REDIS_MODE_ON==1)
+		{
+			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
+							"At initiation: no avilable rule in redis in %s:%hu"
+							,_feather->redis_ip
+							,_feather->redis_port);
+
+		}
+		else
+		{
+			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
 							"At initiation: no valid index file in %s",_feather->full_dir);
+		}
 	}
 	_feather->scanner=_feather->update_tmp_scanner;
 	_feather->update_tmp_scanner=NULL;

@@ -100,7 +100,7 @@ int decrypt_open(FILE* in,const unsigned char* key, const char* algorithm,unsign
 	}
 	if (!EVP_CipherFinal_ex(ctx, *pp_out+buff_offset, &out_blk_len))
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"EVP_CipherFinal_ex failed.");
+		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"EVP_CipherFinal_ex failed. Maybe password is wrong?");
 		EVP_CIPHER_CTX_free(ctx);
 		goto error_out;
 	}
