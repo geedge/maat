@@ -1010,12 +1010,12 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,_Maat_feather_t
 	struct _Maat_scanner_t* scanner=NULL;
 	scanner=(struct _Maat_scanner_t*)calloc(sizeof(struct _Maat_scanner_t),1);
 
-	//Function Maat_append_command will access compile_hash in user thread.
+	//Function Maat_cmd_append will access compile_hash in user thread.
 	hargs.thread_safe=1;
 	scanner->compile_hash=MESA_htable_create(&hargs, sizeof(hargs));
 	MESA_htable_print_crtl(scanner->compile_hash,0);
 
-	hargs.thread_safe=0;
+	hargs.thread_safe=1;
 	hargs.data_free=EMPTY_FREE;
 	scanner->group_hash=MESA_htable_create(&hargs, sizeof(hargs));
 	MESA_htable_print_crtl(scanner->group_hash,0);

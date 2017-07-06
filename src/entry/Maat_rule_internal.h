@@ -376,6 +376,8 @@ struct _Maat_feather_t
 	
 	char redis_ip[MAX_TABLE_NAME_LEN];
 	int redis_port;
+	int redis_index;
+	int AUTO_NUMBERING_ON;
 	struct timeval connect_timeout;
 	redisContext *redis_read_ctx;
 	redisContext *redis_write_ctx;	// not thread safe.
@@ -383,7 +385,7 @@ struct _Maat_feather_t
 	int cmd_q_cnt;
 	struct _Maat_cmd_inner_t* cmd_qhead, *cmd_qtail;
 	pthread_mutex_t redis_write_lock; //protect redis_write_ctx
-	long long base_rgn_seq,base_grp_seq;
+	long long base_rgn_seq,base_grp_seq,server_time;
 //for stat>>>>
 	screen_stat_handle_t stat_handle;
 	int total_stat_id;

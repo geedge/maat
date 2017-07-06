@@ -478,6 +478,8 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->last_full_version=0;
 	feather->base_grp_seq=0;
 	feather->base_rgn_seq=0;
+	feather->redis_index=0;
+	feather->AUTO_NUMBERING_ON=1;
 	feather->connect_timeout.tv_sec=0;
 	feather->connect_timeout.tv_usec=100*1000; // 100 ms
 	pthread_mutex_init(&(feather->plugin_table_reg_mutex),NULL);
@@ -588,6 +590,20 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 				return -1;
 			}
 			_feather->redis_port=*((unsigned short*)value);
+			break;
+		case MAAT_OPT_REDIS_INDEX:
+			if((size_t)size!=sizeof(int))
+			{
+				return -1;
+			}
+			_feather->redis_index=*((int*)value);
+			break;
+		case MAAT_OPT_CMD_AUTO_NUMBERING:
+			if((size_t)size!=sizeof(int))
+			{
+				return -1;
+			}
+			_feather->AUTO_NUMBERING_ON=*((int*)value);
 			break;
 		default:
 			return -1;

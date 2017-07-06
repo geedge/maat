@@ -9,6 +9,7 @@ enum MAAT_OPERATION
 	MAAT_OP_DEL=0,
 	MAAT_OP_ADD
 };
+ 
 enum MAAT_REGION_TYPE
 {
 	REGION_EXPR,
@@ -89,7 +90,7 @@ struct Maat_rgn_sim_t
 struct Maat_region_t
 {
 	const char* table_name;
-	int region_id;	//Any, maat will assigned one.
+	int region_id;	//If MAAT_OPT_CMD_AUTO_NUMBERING==1, maat will assigned one. Or users must appoint a unique number.
 	enum MAAT_REGION_TYPE region_type;
 	union
 	{
@@ -103,26 +104,36 @@ struct Maat_region_t
 struct Maat_group_t
 {
 	int region_num;
-	int group_id;	//Any, maat will assigned one.
-	char* group_name;//optional, for group reuse.
+	int group_id;	//If MAAT_OPT_CMD_AUTO_NUMBERING==1, maat will assigned one. Or users must appoint a unique number.
 	struct Maat_region_t *regions;	
 };
-struct Maat_command_t
+struct Maat_cmd_t
 {
 	struct Maat_rule_t compile;// for MAAT_OP_DEL, only compile.config_id is necessary.
-	int group_num;				// for MAAT_OP_DEL, Any.
-	struct Maat_group_t* groups;// for MAAT_OP_DEL, SET to NULL.
+	int group_num;				// for MAAT_OP_DEL, set to 0.
+	int expire_after;			//expired after $timeout$ seconds, set to 0 for never timeout.
+	int label_id;					//>0, for Maat_cmd_select
+	struct Maat_group_t* groups;// for MAAT_OP_DEL, set to NULL.
 };
-struct Maat_command_t* Maat_create_comand(const struct Maat_rule_t* rule, int group_num);
-void Maat_cmd_add_region(struct Maat_command_t* cmd,int which_group,const struct Maat_region_t* region);
-void Maat_free_command(struct Maat_command_t* cmd);
-int Maat_format_command(struct Maat_command_t* cmd, char* buffer, int size);
+struct Maat_cmd_t* Maat_create_cmd(const struct Maat_rule_t* rule, int group_num, const char* label);
+void Maat_add_region2cmd(struct Maat_cmd_t* cmd,int which_group,const struct Maat_region_t* region);
 
-// The command functions are NOT thread safe.
-int Maat_command(Maat_feather_t feather,struct Maat_command_t* cmd,enum MAAT_OPERATION op);
+void Maat_free_cmd(struct Maat_cmd_t* cmd);
+int Maat_format_cmd(struct Maat_cmd_t* cmd, char* buffer, int size);
+
+// The below command functions are NOT thread safe.
+int Maat_cmd(Maat_feather_t feather,struct Maat_cmd_t* cmd,enum MAAT_OPERATION op);
 
 //pipeline model
-int Maat_append_command(Maat_feather_t feather,struct Maat_command_t* cmd,enum MAAT_OPERATION op);
-int Maat_commit_command(Maat_feather_t feather);
+int Maat_cmd_append(Maat_feather_t feather,struct Maat_cmd_t* cmd,enum MAAT_OPERATION op);
+int Maat_cmd_commit(Maat_feather_t feather);
+
+
+int Maat_cmd_set_group(Maat_feather_t feather, int group_id, const struct Maat_region_t* region, enum MAAT_OPERATION op);
+int Maat_cmd_set_line(Maat_feather_t feather, const char* table_name,int rule_id, const char* line, int timeout, enum MAAT_OPERATION op);
+
+//Return the value of key after the increment.
+long long Maat_cmd_incrby(Maat_feather_t feather,const char* key, int increment);
+int Maat_cmd_select(Maat_feather_t feather, int label, int * output_ids, int size);
 #endif
 
