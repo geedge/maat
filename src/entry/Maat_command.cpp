@@ -276,7 +276,11 @@ void serialize_region(const struct Maat_region_t* p,int group_id, char* buff,int
 													,p->digest_rule.confidence_degree);
 			break;
 		case REGION_SIMILARITY://not support yet
-			assert(0);
+			ret=snprintf(buff,size,"%d\t%d\t%s\t%hd\t1"
+													,p->region_id
+													,group_id
+													,p->similarity_rule.target
+													,p->similarity_rule.threshold);
 			break;
 		default:
 			assert(0);
@@ -852,7 +856,7 @@ void _maat_copy_region(struct Maat_region_t* dst,const struct Maat_region_t* src
 			dst->digest_rule.digest_string=_maat_strdup(src->digest_rule.digest_string);
 			break;
 		case REGION_SIMILARITY:
-			assert(0);
+			dst->similarity_rule.target=_maat_strdup(src->similarity_rule.target);
 			break;
 		default:
 			assert(0);
@@ -881,7 +885,7 @@ void _maat_empty_region(struct Maat_region_t* p)
 			free((char*)p->digest_rule.digest_string);
 			break;
 		case REGION_SIMILARITY:
-			assert(0);
+			free((char*)p->similarity_rule.target);
 			break;
 		default:
 			assert(0);

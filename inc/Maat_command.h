@@ -84,8 +84,8 @@ struct Maat_rgn_digest_t
 };
 struct Maat_rgn_sim_t
 {
-	char* target_string;
-	short confidence_degree;
+	char* target;
+	short threshold;
 };
 struct Maat_region_t
 {
