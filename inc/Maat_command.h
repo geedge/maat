@@ -104,7 +104,7 @@ struct Maat_region_t
 struct Maat_group_t
 {
 	int region_num;
-	int group_id;	//If MAAT_OPT_CMD_AUTO_NUMBERING==1, maat will assigned one. Or users must appoint a unique number.
+	int group_id;	//If MAAT_OPT_CMD_AUTO_NUMBERING==1, maat will assigned one. Or users must assign a unique number.
 	struct Maat_region_t *regions;	
 };
 struct Maat_cmd_t
@@ -113,9 +113,17 @@ struct Maat_cmd_t
 	int group_num;				// for MAAT_OP_DEL, set to 0.
 	int expire_after;			//expired after $timeout$ seconds, set to 0 for never timeout.
 	int label_id;					//>0, for Maat_cmd_select
-	struct Maat_group_t* groups;// for MAAT_OP_DEL, set to NULL.
+	struct Maat_group_t* groups;// Add regions with Maat_add_region2cmd 
 };
-struct Maat_cmd_t* Maat_create_cmd(const struct Maat_rule_t* rule, int group_num, const char* label);
+struct Maat_line_t
+{
+	const char* table_name;
+	const char* table_line;
+	int rule_id;
+	int label_id;
+	int expire_after;	//expired after $timeout$ seconds, set to 0 for never timeout.
+};
+struct Maat_cmd_t* Maat_create_cmd(const struct Maat_rule_t* rule, int group_num);
 void Maat_add_region2cmd(struct Maat_cmd_t* cmd,int which_group,const struct Maat_region_t* region);
 
 void Maat_free_cmd(struct Maat_cmd_t* cmd);
@@ -130,10 +138,10 @@ int Maat_cmd_commit(Maat_feather_t feather);
 
 
 int Maat_cmd_set_group(Maat_feather_t feather, int group_id, const struct Maat_region_t* region, enum MAAT_OPERATION op);
-int Maat_cmd_set_line(Maat_feather_t feather, const char* table_name,int rule_id, const char* line, int timeout, enum MAAT_OPERATION op);
+int Maat_cmd_set_line(Maat_feather_t feather,const struct Maat_line_t* line_rule, enum MAAT_OPERATION op);
 
 //Return the value of key after the increment.
 long long Maat_cmd_incrby(Maat_feather_t feather,const char* key, int increment);
-int Maat_cmd_select(Maat_feather_t feather, int label, int * output_ids, int size);
+int Maat_cmd_select(Maat_feather_t feather, int label_id, int * output_ids, unsigned int size);
 #endif
 
