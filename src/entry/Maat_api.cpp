@@ -1569,11 +1569,10 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	{
 		return 0;
 	}
-	GIE_handle_t* GIE_handle=sp->feather->scanner->digest_handle[sp->table_id];
+	GIE_handle_t* GIE_handle=sp->feather->scanner->gie_aux[sp->table_id].gie_handle;
 	unsigned long long digest_len=0;
 	char* digest_buff=NULL;
 	struct _OUTER_scan_status_t* _mid=NULL;
-	pthread_rwlock_t *GIE_rwlock=&(sp->feather->scanner->digest_rwlock[sp->table_id]);
 	struct timespec start,end;
 	if(sp->feather->perf_on==1)
 	{
@@ -1603,14 +1602,12 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	pthread_mutex_lock(&(sp->fuzzy_mutex));
 	fuzzy_digest(sp->fuzzy_hash_handle,digest_buff, digest_len);
 	pthread_mutex_unlock(&(sp->fuzzy_mutex));
-	if(0==pthread_rwlock_tryrdlock(GIE_rwlock))
+
+	if(GIE_handle!=NULL)
 	{
-		if(GIE_handle!=NULL)
-		{
-			hit_region_cnt=GIE_query(GIE_handle, sp->total_len, digest_buff, query_result, MAX_SCANNER_HIT_NUM);
-		}
-		pthread_rwlock_unlock(GIE_rwlock);
+		hit_region_cnt=GIE_query(GIE_handle, digest_buff,(int)strlen(digest_buff), query_result, MAX_SCANNER_HIT_NUM);
 	}
+
 	free(digest_buff);
 	digest_buff=NULL;
 	if(hit_region_cnt<0)//error occurs
@@ -1713,6 +1710,89 @@ int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCA
 			break;
 	}
 	return 0;
+}
+int Maat_similar_scan_string(Maat_feather_t feather,int table_id
+						,const char* data,int data_len
+						,struct Maat_rule_t*result,int rule_num
+						,scan_status_t* mid,int thread_num)
+{
+	int region_ret=0,compile_ret=0;
+	struct _OUTER_scan_status_t* _mid=NULL;
+	GIE_result_t region_result[MAX_SCANNER_HIT_NUM];
+	_compile_result_t compile_result[rule_num];
+	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	struct _Maat_scanner_t* my_scanner=NULL;
+	_Maat_table_info_t* p_table=NULL;
+	struct timespec start,end;
+	if(_feather->perf_on==1)
+	{
+		clock_gettime(CLOCK_MONOTONIC,&start);
+	}
+	p_table=acqurie_table(_feather,table_id,TABLE_TYPE_SIMILARITY);
+	if(p_table==NULL)
+	{
+		_feather->scan_err_cnt++;
+		return -1;
+	}
+	if(p_table->cfg_num==0)
+	{
+		return 0;
+	}
+	my_scanner=_feather->scanner;
+	if(my_scanner==NULL)
+	{
+		return 0;
+	}
+	GIE_handle_t* gie_handle=my_scanner->gie_aux[table_id].gie_handle;
+	struct _region_stat_t * region_stat=NULL;
+	region_stat=&(my_scanner->region_counter[p_table->table_id]);
+	if(region_stat->cfg_num==0)
+	{
+		return 0;
+	}
+	aligment_int64_array_add(_feather->thread_call_cnt, thread_num, 1);
+	
+	INC_SCANNER_REF(my_scanner,thread_num);
+	region_ret=GIE_query(gie_handle, data, data_len,region_result, MAX_SCANNER_HIT_NUM);
+	if(region_ret<0)
+	{
+		DEC_SCANNER_REF(my_scanner, thread_num);
+		_feather->scan_err_cnt++;
+		return -1;
+	}
+	else if(region_ret>0)
+	{
+		aligment_int64_array_add(p_table->hit_cnt, thread_num,1);
+		_mid=grab_mid(mid, _feather, thread_num, 1);
+		compile_ret=region_compile(_feather,_mid->inner,
+									_mid->is_last_region,
+									region_result,sizeof(GIE_result_t),offsetof(GIE_result_t, tag),
+									region_ret,
+									result,compile_result,rule_num,
+									thread_num);
+		assert(_mid->is_last_region<2);
+		if(_mid->is_last_region==1)
+		{
+			_mid->is_last_region=2;
+		}
+	}
+	
+	DEC_SCANNER_REF(my_scanner,thread_num);
+	if(_feather->perf_on==1)
+	{
+		clock_gettime(CLOCK_MONOTONIC,&end);
+		maat_stat_table(p_table,0,&start, &end,thread_num);
+	}
+	else
+	{
+		maat_stat_table(p_table,0,NULL, NULL,thread_num);
+	}
+	if(compile_ret==0&&region_ret>0)
+	{
+		return -2;
+	}
+	return compile_ret;
+
 }
 void Maat_clean_status(scan_status_t* mid)
 {

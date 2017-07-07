@@ -13,7 +13,7 @@
 #include "hiredis.h"
 
 #include "mesa_fuzzy.h"
-#include "great_index_engine.h"
+#include "gram_index_engine.h"
 #include "aligment_int64.h"
 #include <pthread.h>
 #include <iconv.h>
@@ -124,7 +124,7 @@ struct db_digest_rule_t
 	int region_id;
 	int group_id;
 	unsigned long long orgin_len;
-	const char* digest_string;
+	char* digest_string;
 	short confidence_degree;
 	int is_valid;
 };
@@ -318,14 +318,19 @@ struct _stream_para_t
 	pthread_mutex_t fuzzy_mutex;
 	unsigned char query_point[8];
 };
+struct GIE_aux_t
+{
+	enum MAAT_TABLE_TYPE table_type;
+	GIE_handle_t*	gie_handle;
+	MESA_lqueue_head update_q;
+};
 struct _Maat_scanner_t
 {
 	int version;
 	time_t last_update_time;
 	long long *ref_cnt;	//optimized for cache_alignment 64
 	rule_scanner_t region;
-	pthread_rwlock_t digest_rwlock[MAX_TABLE_NUM];
-	GIE_handle_t*	digest_handle[MAX_TABLE_NUM];
+	struct GIE_aux_t gie_aux[MAX_TABLE_NUM];
 	MESA_htable_handle region_hash;
 	MESA_htable_handle group_hash;
 	MESA_htable_handle compile_hash;
@@ -336,7 +341,6 @@ struct _Maat_scanner_t
 	unsigned int exprid_generator;
 	unsigned int dedup_expr_num;
 	MESA_lqueue_head region_update_q;
-	MESA_lqueue_head digest_update_q[MAX_TABLE_NUM];
 	void * expr_compiler;
 	scan_result_t *region_rslt_buff;
 	MESA_lqueue_head tomb_ref;//reference of feather->garbage_q

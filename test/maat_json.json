@@ -180,8 +180,8 @@
                             "table_type": "digest",
                             "table_content": {
                                 "raw_len": 1160164,
-                                "digest": "12288:UChtbFS6pypdTy4m2[0:1160163]",
-                                "cfds_level": 3
+                                "digest": "3072:Xk/maCm4yLYtRIFDFnVfHH+CAQI6VD5mekDmaa/4qCuFnqak1s3/+Gn1IJHa/AvybUsbGWcIAy9grTp2s5bbj/TaKxONfb[0:1160163]#12288:UChtbFS6pypdTy4m2[0:1160163]",
+                                "cfds_level": 70
                             }
                         }
                     ]
@@ -350,8 +350,7 @@
                     ]
                 }
             ]
-        }
-,
+        },
         {
             "compile_id": 134,
             "service": 1,
@@ -373,6 +372,31 @@
                                 "expr_type": "and",
                                 "match_method": "sub",
                                 "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 135,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "effective_rage": 0,
+            "user_region": "anything",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_name": "SIM_URL",
+                            "table_type": "similar",
+                            "table_content": {
+                                "target": "mwss.xiu.youku.com/live/hls/v1/0000000000000000000000001526a0a8/709.ts?&token=98765",
+                                "threshold": 90
                             }
                         }
                     ]

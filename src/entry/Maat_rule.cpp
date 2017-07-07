@@ -26,7 +26,7 @@
 #include "rulescan.h"
 #include "UniversalBoolMatch.h"
 #include "mesa_fuzzy.h"
-#include "great_index_engine.h"
+#include "gram_index_engine.h"
 
 int MAAT_FRAME_VERSION_2_0_20170701=1;
 const char *maat_module="MAAT Frame";
@@ -556,6 +556,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 	map_register(string2int_map,"digest", TABLE_TYPE_DIGEST);
 	map_register(string2int_map,"expr_plus", TABLE_TYPE_EXPR_PLUS);
 	map_register(string2int_map,"group", TABLE_TYPE_GROUP);
+	map_register(string2int_map,"similar", TABLE_TYPE_SIMILARITY);
 	map_register(string2int_map,"quickoff",0);
 	map_register(string2int_map,"quickon",1);
 	for(i=0;i<MAX_CHARSET_NUM;i++)
@@ -952,18 +953,18 @@ void op_expr_add_rule(struct op_expr_t* op_expr,scan_rule_t* p_rule)
 	op_expr->rule_type=p_rule->rule_type;
 	return;
 }
-GIE_digest_t* create_digest_rule(int id,short op,unsigned long long origin_len,const char* digest,
+GIE_digest_t* create_digest_rule(int id,short op,const char* digest,
 						short cfds_lvl,struct _Maat_group_inner_t* tag)
 {
 	GIE_digest_t* rule=(GIE_digest_t*)calloc(sizeof(GIE_digest_t),1);
 	int digest_len=strlen(digest);
 	rule->id=id;
 	rule->operation=op;
-	rule->origin_len=origin_len;
+	rule->sfh_length=digest_len;
 	if(digest!=NULL)
 	{
-		rule->fuzzy_hash=(char*)calloc(sizeof(char),digest_len+1);
-		memcpy(rule->fuzzy_hash,digest,digest_len);
+		rule->sfh=(char*)calloc(sizeof(char),digest_len+1);
+		memcpy(rule->sfh,digest,digest_len);
 
 	}
 	rule->cfds_lvl=cfds_lvl;
@@ -972,10 +973,10 @@ GIE_digest_t* create_digest_rule(int id,short op,unsigned long long origin_len,c
 }
 void destroy_digest_rule(GIE_digest_t*rule)
 {
-	if(rule->fuzzy_hash!=NULL)
+	if(rule->sfh!=NULL)
 	{
-		free(rule->fuzzy_hash);
-		rule->fuzzy_hash=NULL;
+		free(rule->sfh);
+		rule->sfh=NULL;
 	}
 	free(rule);
 	rule=NULL;
@@ -1059,8 +1060,9 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,_Maat_feather_t
 		switch(pp_table[i]->table_type)
 		{
 			case TABLE_TYPE_DIGEST:
-				scanner->digest_update_q[i]=MESA_lqueue_create(0,0);
-				pthread_rwlock_init(&(scanner->digest_rwlock[i]),NULL);
+			case TABLE_TYPE_SIMILARITY:
+				scanner->gie_aux[i].table_type=pp_table[i]->table_type;
+				scanner->gie_aux[i].update_q=MESA_lqueue_create(0,0);
 				break;
 			case TABLE_TYPE_EXPR:
 			case TABLE_TYPE_EXPR_PLUS:
@@ -1126,24 +1128,23 @@ void destroy_maat_scanner(struct _Maat_scanner_t*scanner)
 	}
 	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
-		if(scanner->digest_handle[i]!=NULL)
+		if(scanner->gie_aux[i].gie_handle!=NULL)
 		{
-			GIE_destory(scanner->digest_handle[i]);
+			GIE_destory(scanner->gie_aux[i].gie_handle);
 		}
-		if(scanner->digest_update_q[i]==NULL)
+		if(scanner->gie_aux[i].update_q==NULL)
 		{
 			continue;
 		}
-		q_cnt=MESA_lqueue_get_count(scanner->digest_update_q[i]);
+		q_cnt=MESA_lqueue_get_count(scanner->gie_aux[i].update_q);
 		for(j=0;j<q_cnt;j++)
 		{
 			data_size=sizeof(GIE_digest_t*);
-			q_ret=(MESA_queue_errno_t)MESA_lqueue_get_head(scanner->digest_update_q[i],&digest_rule,&data_size);
+			q_ret=(MESA_queue_errno_t)MESA_lqueue_get_head(scanner->gie_aux[i].update_q,&digest_rule,&data_size);
 			assert(data_size==sizeof(void*)&&q_ret==MESA_QUEUE_RET_OK);
 			destroy_digest_rule(digest_rule);
 		}
-		MESA_lqueue_destroy(scanner->digest_update_q[i], lqueue_destroy_cb, NULL);
-		pthread_rwlock_destroy(&(scanner->digest_rwlock[i]));
+		MESA_lqueue_destroy(scanner->gie_aux[i].update_q, lqueue_destroy_cb, NULL);
 	}
 	free(scanner);
 	return;
@@ -1931,12 +1932,15 @@ int add_digest_rule(struct _Maat_table_info_t* table,struct db_digest_rule_t* db
 	{
 		return -1;
 	}
-	digest_rule=create_digest_rule(expr_id, 0
-								,db_digest_rule->orgin_len
+	if(table->table_type==TABLE_TYPE_SIMILARITY)
+	{
+		db_digest_rule->digest_string=str_unescape(db_digest_rule->digest_string);
+	}
+	digest_rule=create_digest_rule(expr_id, GIE_INSERT_OPT
 								,db_digest_rule->digest_string
 								,db_digest_rule->confidence_degree
 								,group_rule);
-	MESA_lqueue_join_tail(scanner->digest_update_q[table->table_id], &digest_rule, sizeof(void*));
+	MESA_lqueue_join_tail(scanner->gie_aux[table->table_id].update_q, &digest_rule, sizeof(void*));
 	return 0;
 }
 int del_region_rule(struct _Maat_table_info_t* table,int region_id,int group_id,int rule_type,struct _Maat_scanner_t *maat_scanner,void* logger)
@@ -1981,14 +1985,14 @@ int del_region_rule(struct _Maat_table_info_t* table,int region_id,int group_id,
 				MESA_lqueue_join_tail(maat_scanner->region_update_q,&op_expr, sizeof(void*));
 			}
 			break;
+		case	TABLE_TYPE_SIMILARITY:
 		case	TABLE_TYPE_DIGEST:
 			assert(expr_num==1);
-			digest_rule=create_digest_rule(expr_id[0], 1	//del digest
-									,0
+			digest_rule=create_digest_rule(expr_id[0], GIE_DELETE_OPT	//del digest
 									,NULL
 									,0
 									,NULL);
-			MESA_lqueue_join_tail(maat_scanner->digest_update_q[table->table_id],&digest_rule, sizeof(void*));
+			MESA_lqueue_join_tail(maat_scanner->gie_aux[i].update_q,&digest_rule, sizeof(void*));
 			break;
 		default:
 			assert(0);
@@ -2643,14 +2647,30 @@ void update_digest_rule(struct _Maat_table_info_t* table,const char* table_line,
 	struct db_digest_rule_t* digest_rule=(struct db_digest_rule_t*)calloc(sizeof(struct db_digest_rule_t),1);
 	int ret=0;
 	char digest_buff[MAX_TABLE_LINE_SIZE]={'\0'};
-	ret=sscanf(table_line,"%d\t%d\t%llu\t%s\t%hd\t%d",&(digest_rule->region_id)
+	if(table->table_type==TABLE_TYPE_DIGEST)
+	{
+		ret=sscanf(table_line,"%d\t%d\t%llu\t%s\t%hd\t%d",&(digest_rule->region_id)
 											,&(digest_rule->group_id)
 											,&(digest_rule->orgin_len)
 											,digest_buff
 											,&(digest_rule->confidence_degree)
 											,&(digest_rule->is_valid));
+	}
+	else if(table->table_type==TABLE_TYPE_SIMILARITY)
+	{
+		digest_rule->orgin_len=0;
+		ret=sscanf(table_line,"%d\t%d\t%s\t%hd\t%d",&(digest_rule->region_id)
+											,&(digest_rule->group_id)
+											,digest_buff
+											,&(digest_rule->confidence_degree)
+											,&(digest_rule->is_valid));
+	}
+	else
+	{
+		assert(0);
+	}
 	digest_rule->digest_string=digest_buff;
-	if(ret!=6||digest_rule->confidence_degree>10||digest_rule->confidence_degree<0)
+	if(!(ret==6||ret==5)||digest_rule->confidence_degree>100||digest_rule->confidence_degree<0)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
 							"update error,invalid format  of digest table %s:%s"
@@ -2821,8 +2841,8 @@ void do_scanner_update(struct _Maat_scanner_t* scanner,MESA_lqueue_head garbage_
 	int i=0;
 	long q_cnt;
 	GIE_create_para_t para;
-	para.index_interval=100;
-	para.query_accuracy=0.1;
+	para.gram_value=7;
+	para.position_accuracy=10;
 	tmp1=create_bool_matcher(scanner->compile_hash,
 											scan_thread_num,
 											logger);
@@ -2843,26 +2863,34 @@ void do_scanner_update(struct _Maat_scanner_t* scanner,MESA_lqueue_head garbage_
 							,scanner);
 	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
-		if(scanner->digest_update_q[i]==NULL)
+		if(scanner->gie_aux[i].update_q==NULL)
 		{
 			continue;
 		}
-		q_cnt=MESA_lqueue_get_count(scanner->digest_update_q[i]);
+		q_cnt=MESA_lqueue_get_count(scanner->gie_aux[i].update_q);
 		if(q_cnt==0)
 		{
 			continue;
 		}
-		pthread_rwlock_wrlock(&(scanner->digest_rwlock[i]));
-		if(scanner->digest_handle[i]==NULL)
+		if(scanner->gie_aux[i].gie_handle==NULL)
 		{
-			scanner->digest_handle[i]=GIE_create(&para);
+			if(scanner->gie_aux[i].table_type==TABLE_TYPE_SIMILARITY)
+			{
+				para.ED_reexamine=1;
+				para.format=GIE_INPUT_FORMAT_PLAIN;
+			}
+			else
+			{
+				para.ED_reexamine=0;
+				para.format=GIE_INPUT_FORMAT_SFH;
+			}
+			scanner->gie_aux[i].gie_handle=GIE_create(&para);
 		}
-		digest_batch_update(scanner->digest_handle[i]
-							,scanner->digest_update_q[i]
+		digest_batch_update(scanner->gie_aux[i].gie_handle
+							,scanner->gie_aux[i].update_q
 							,logger
 							,scanner
 							,i);
-		pthread_rwlock_unlock(&(scanner->digest_rwlock[i]));
 	}
 	if(scanner->tmp_district_map!=NULL)
 	{
@@ -3060,6 +3088,7 @@ void maat_update_cb(const char* table_name,const char* line,void *u_para)
 			update_intval_rule(feather->p_table_info[table_id], line, scanner,feather->logger,feather->GROUP_MODE_ON);
 			break;
 		case	TABLE_TYPE_DIGEST:
+		case	TABLE_TYPE_SIMILARITY:
 			update_digest_rule(feather->p_table_info[table_id], line, scanner,feather->logger,feather->GROUP_MODE_ON);
 			break;
 		case	TABLE_TYPE_COMPILE:

@@ -46,17 +46,33 @@ typedef struct
 	char pad[8-ROLLING_WINDOW+1];
 	int slice_num;
 	unsigned int msize;
+
 	struct zt_state_t ps;		//partial strong hash value
-	struct zt_state_t s_state;//strong hash state
+	struct zt_state_t s_state; //strong hash state
+	struct roll_state_t r_state;
+
+	struct zt_state_t ps_t;
+	struct zt_state_t s_state_t;
+	struct roll_state_t r_state_t;
+
+
 	unsigned long long left_offset;
 	unsigned long long right_offset;
-	struct roll_state_t r_state;
+
 	unsigned int * r_array;		//array to store  rolling hash value
 	unsigned int r_cnt;
 	unsigned int r_size;
 	struct zt_state_t * s_array;		//array to store strong(Tillichi-Zemor) hash value
 	unsigned int s_cnt;		//always point to the next available position
-	unsigned int s_size;	
+	unsigned int s_size;
+
+	unsigned int * r_array_t;
+	unsigned int r_cnt_t;
+	unsigned int r_size_t;
+	struct zt_state_t * s_array_t;
+	unsigned int s_cnt_t;
+	unsigned int s_size_t;
+
 }sfh_seg_t;
 
 
@@ -104,3 +120,4 @@ void sfh_output_state(IVI_seg_t * seg, void * user_para);
 void fuzzy_hash_length(IVI_seg_t * seg, void * user_para);
 unsigned long long fuzzy_status(fuzzy_handle_t * handle, int type);
 #endif
+

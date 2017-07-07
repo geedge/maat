@@ -44,19 +44,19 @@ double entropy_stop(void* handle)
 void dir_digest(int argc, char * argv[])
 {
 
-    if(argc != 2)
-    {
-        printf("uasge: ./digest_gen [Dir]\n");
-        exit(-1);
-    }
+	if(argc != 2)
+	{
+		printf("uasge: ./digest_gen [Dir]\n");
+		exit(-1);
+	}
 
-    DIR * dir;
-    struct dirent * file;
-    char * dir_path = argv[1];
+	DIR * dir;
+	struct dirent * file;
+	char * dir_path = argv[1];
 	char read_buff[1024*4];
 	unsigned long long read_size=0,feed_offset=0;
-    dir = opendir(dir_path);
-    chdir(dir_path);
+	dir = opendir(dir_path);
+	chdir(dir_path);
 	int ret =0;
 	unsigned int file_id = 1;
 	unsigned long hash_length=0,file_effective_length=0;
@@ -72,29 +72,29 @@ void dir_digest(int argc, char * argv[])
 		printf("open file failed!");
 		exit(-1);
 	}
-    while((file = readdir(dir)) != NULL)
-    {
-        if(!strcmp(file->d_name, ".") ||!strcmp(file->d_name, "..")||file->d_type!=DT_REG)
-        {
-            continue;
-        }
+	while((file = readdir(dir)) != NULL)
+	{
+		if(!strcmp(file->d_name, ".") ||!strcmp(file->d_name, ".."))
+		{
+			continue;
+		}
 		ret=stat(file->d_name,&digest_fstat);
 		if(ret!=0)
 		{
 			printf("fstat %s error.\n",file->d_name);
 			continue;
 		}
-		
-        off_t file_size = digest_fstat.st_size;
-        fp = fopen(file->d_name, "r");
-        if(NULL == fp)
-        {
-            printf("Can't open file %s\n", file->d_name);
-            continue;
-        }
+
+		off_t file_size = digest_fstat.st_size;
+		fp = fopen(file->d_name, "r");
+		if(NULL == fp)
+		{
+			printf("Can't open file %s\n", file->d_name);
+			continue;
+		}
 		read_size=0;
 		feed_offset=0;
-        fuzzy_handle_t * fhandle = fuzzy_create_handle((unsigned long long)file_size);
+		fuzzy_handle_t * fhandle = fuzzy_create_handle((unsigned long long)file_size);
 		entropy_handle=entropy_start();
 		while(0==feof(fp))
 		{
@@ -104,24 +104,24 @@ void dir_digest(int argc, char * argv[])
 			entropy_feed(entropy_handle,(const unsigned char*) read_buff, read_size);
 		}
 		file_entropy=entropy_stop(entropy_handle);
-        hash_length = fuzzy_status(fhandle, HASH_LENGTH);
+		hash_length = fuzzy_status(fhandle, HASH_LENGTH);
 		file_effective_length = fuzzy_status(fhandle, EFFECTIVE_LENGTH);
-        digest_result_buff= (char *)malloc(sizeof(char) * (hash_length));
-        if(fuzzy_digest(fhandle, digest_result_buff, hash_length) != 0)
-        {
-            printf("error\n");
-            continue;
-        }
+		digest_result_buff= (char *)malloc(sizeof(char) * (hash_length));
+		if(fuzzy_digest(fhandle, digest_result_buff, hash_length) != 0)
+		{
+			printf("error\n");
+			continue;
+		}
 		fprintf(result_fp, "%u\t%s\t%llu\t%lu\t%lf\n", file_id, file->d_name,file_size, hash_length,file_entropy);
 		fprintf(result_fp, "%s\n", digest_result_buff);
 		printf("%u %s\n", file_id,file->d_name);
 		file_id++;
-        fuzzy_destroy_handle(fhandle);
-        fclose(fp);
+		fuzzy_destroy_handle(fhandle);
+		fclose(fp);
 		free(digest_result_buff);
-    }
+	}
 	fclose(result_fp);
-    closedir(dir);
+	closedir(dir);
 	printf("write result to %s\n", result_file);
 
 }
@@ -129,7 +129,7 @@ void dir_digest(int argc, char * argv[])
 
 int main(int argc, char * argv[])
 {
-    dir_digest(argc, argv);
-    //overlap_test(argc, argv);
-    return 0;
+	dir_digest(argc, argv);
+	//overlap_test(argc, argv);
+	return 0;
 }

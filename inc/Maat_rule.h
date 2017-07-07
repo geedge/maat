@@ -216,7 +216,10 @@ int Maat_stream_scan_digest(stream_para_t* stream_para
 									,scan_status_t* mid);
 void Maat_stream_scan_digest_end(stream_para_t* stream_para);
 
-
+int Maat_similar_scan_string(Maat_feather_t feather,int table_id
+						,const char* data,int data_len
+						,struct Maat_rule_t*result,int rule_num
+						,scan_status_t* mid,int thread_num);
 
 void Maat_clean_status(scan_status_t* mid);
 

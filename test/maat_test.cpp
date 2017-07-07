@@ -442,6 +442,25 @@ int test_expr_plus(Maat_feather_t feather,const char* table_name,scan_status_t* 
 	return ret;
 
 }
+int test_string_similar_scan(Maat_feather_t feather,const char* table_name,scan_status_t* mid)
+{
+	int ret=0;
+	int table_id=0;
+	struct Maat_rule_t result[4];
+	const char* scan_data="mwss.xiu.youku.com/live/hls/v1/0000000000000000000000001526a0a8/714.ts?&token=98765";
+	table_id=Maat_table_register(feather,table_name);
+	if(table_id==-1)
+	{
+		printf("Database table %s register failed.\n",table_name);
+		return -1;
+	}
+	
+	ret=Maat_similar_scan_string(feather, table_id, scan_data, strlen(scan_data), 
+						result, 4,
+						mid, 0);
+	printf("Similar String Scan:%s\n",print_maat_result(result,ret));
+	return ret;
+}
 int test_table_conjunction(Maat_feather_t feather,const char* table_name,const char* conj_table_name,scan_status_t* mid)
 {
 	int ret=0;
@@ -693,6 +712,9 @@ int main(int argc,char* argv[])
 	Maat_clean_status(&mid);
 
 	test_str_stream_scan(feather,"HTTP_URL", &mid);
+	Maat_clean_status(&mid);
+
+	test_string_similar_scan(feather,"SIM_URL",&mid);
 	Maat_clean_status(&mid);
 
 	test_table_conjunction(feather, "HTTP_URL", "HTTP_HOST", &mid);

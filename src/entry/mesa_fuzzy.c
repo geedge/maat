@@ -11,15 +11,24 @@
 //#define	DEBUG_PRINT
 #define INIT_SIZE 128
 #define ENTROPY_THRESHOLD 0.5
-
-const char * sfh_b64 =
+#define MULTIPLE 4
+int count = 0;
+const char * map_to64bytes =
 "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
+
+struct entry
+{
+	unsigned int * r_array;
+	unsigned int r_index;
+	unsigned int r_size;
+};
+
 double get_rs_entropy(unsigned int * r_array, unsigned int r_index);
-int loop_cmp(const void * a, const void * b);
+int cmp(const void * a, const void * b);
 void sfh_rs_entropy(IVI_seg_t * seg, void * user_para);
 void sfh_tune_simulation(IVI_seg_t * seg, void * user_para);
-
+void sfh_output_state_t(IVI_seg_t * seg, void * user_para);
 void write_uint_array(fuzzy_handle_inner_t * handle,unsigned int ** array, unsigned int *index,unsigned int *size,unsigned int value);
 /**
  * roll_state初始化
@@ -88,8 +97,9 @@ fuzzy_handle_t * fuzzy_create_handle(unsigned long long origin_len)
 		handle->effective_length = 0;
 		handle->length_increase = 0;
 		handle->sim_tuned_rs_cnt = 0;
-		handle->blocksize=tmp_blksize;
-		handle->do_tune=0;
+		//handle->blocksize=tmp_blksize;
+		handle->blocksize = 3;
+		handle->do_tune=1;
 		return (fuzzy_handle_t *)handle;
 }
 
@@ -126,23 +136,24 @@ unsigned int fuzzy_feed(fuzzy_handle_t * handle, const char * data, unsigned int
 	_handle->length_increase += length;
 	if(_handle->s_state_cnt>EXPECT_SIGNATURE_LEN&&_handle->do_tune==1)
 	{
-
-
+		//printf("s_state_cnt before:%d\n", _handle->s_state_cnt);
+		//printf("blocksize before:%llu\n", _handle->blocksize);
 		unsigned long long check_length = (_handle->effective_length/_handle->s_state_cnt)*EXPECT_SIGNATURE_LEN;
 
 		if(_handle->length_increase > check_length)
 		{
-
-			
 			IVI_traverse(_handle->ivi, sfh_tune_simulation, (void *)_handle);
+			//printf("sim_rs_cnt:%d\n", _handle->sim_tuned_rs_cnt);
 			if(_handle->sim_tuned_rs_cnt>EXPECT_SIGNATURE_LEN)
 			{
-				_handle->blocksize*=2;
+				_handle->blocksize*= MULTIPLE;
 				IVI_traverse(_handle->ivi, sfh_tune_seg, (void *)_handle);
 			}
 			_handle->sim_tuned_rs_cnt = 0;
 			_handle->length_increase = 0;
 		}
+		//printf("s_state_cnt after:%d\n", _handle->s_state_cnt);
+		//printf("blocksize after:%llu\n", _handle->blocksize);
 	}
 #if 0
 	fuzzy_digest(handle,result, sizeof(result));
@@ -157,7 +168,7 @@ void sfh_tune_simulation(IVI_seg_t * seg, void * user_para)
 	sfh_seg_t * tmp = (sfh_seg_t *)(seg->data);
 	int i = 0;
 	fuzzy_handle_inner_t * _handle = (fuzzy_handle_inner_t *)user_para;
-	unsigned long long blocksize = _handle->blocksize * 2;
+	unsigned long long blocksize = _handle->blocksize * MULTIPLE;
 	for(i = 0; i < tmp->r_cnt; i++)
 	{
 		if(tmp->r_array[i] % blocksize == blocksize -1)
@@ -331,7 +342,7 @@ unsigned int segment_overlap(fuzzy_handle_inner_t * _handle, unsigned int size, 
 	return effective_length;
 }
 
-int loop_cmp(const void * a, const void * b)
+int cmp(const void * a, const void * b)
 {
 	unsigned int tmp_a = *(unsigned int *)a;
 	unsigned int tmp_b = *(unsigned int *)b;
@@ -351,7 +362,7 @@ int loop_cmp(const void * a, const void * b)
 
 double get_rs_entropy(unsigned int * r_array, unsigned int r_index)
 {
-	qsort(r_array, r_index, sizeof(unsigned int), loop_cmp);
+	qsort(r_array, r_index, sizeof(unsigned int), cmp);
 	unsigned int current_r = r_array[0];
 	unsigned int * tmp_r = r_array;
 	unsigned int count = 0;
@@ -410,11 +421,33 @@ void sfh_tune_seg(IVI_seg_t * seg, void * user_para)
 	fuzzy_handle_inner_t * _handle = (fuzzy_handle_inner_t *)user_para;
 	unsigned long long blocksize = _handle->blocksize;
 
+/*	memcpy(&(p->ps_t),&(p->ps), sizeof(struct zt_state_t));
+	memcpy(&(p->s_state_t),&(p->s_state), sizeof(struct zt_state_t));
+	memcpy(&(p->r_state_t),&(p->r_state), sizeof(struct roll_state_t));
+	
+	if(p->r_array_t!=NULL)
+	{	
+		free(p->r_array_t);
+	}
+	p->r_cnt_t = p->r_cnt;
+	p->r_size_t = p->r_size;
+	p->r_array_t = (unsigned int *)malloc(sizeof(unsigned int)*(p->r_size_t));
+	memcpy(p->r_array_t, p->r_array, sizeof(unsigned int)*(p->r_cnt_t));
+
+	if(p->s_array_t!=NULL)
+	{
+		free(p->s_array_t);
+	}
+	p->s_cnt_t = p->s_cnt;
+	p->s_size_t = p->s_size;
+	p->s_array_t = (struct zt_state_t *)malloc(sizeof(struct zt_state_t)*(p->s_size_t));
+	memcpy(p->s_array_t, p->s_array, sizeof(struct zt_state_t)*(p->s_cnt_t));*/
+		
 	struct zt_state_t tmp_zt;
 	int new_zt_cnt=0;
 	zt_hash_initial(&tmp_zt);
 	_handle->s_state_cnt -= p->s_cnt;
-	
+
 	for(j = 0; j < p->r_cnt; j++)
 	{
 		if(j == 0)
@@ -591,12 +624,17 @@ int fuzzy_digest(fuzzy_handle_t * handle, char * result, unsigned int size)
 		final_result * temp = (final_result *)malloc(sizeof(final_result));
 		fuzzy_handle_inner_t* _handle=(fuzzy_handle_inner_t *)handle;
 		temp->data = result;
-		temp->size = size-1;
+		temp->size = size;
 		temp->offset = 0;
 		temp->first_ZTH_offset = 0;
 		temp->last_ZTH_offset = 0;
-		temp->offset+=snprintf(temp->data,temp->size,"%llu:",_handle->blocksize);
+		temp->offset += snprintf(temp->data,temp->size,"%llu:",_handle->blocksize);
 		IVI_traverse(_handle->ivi, sfh_output_state, (void *) temp);
+		_handle->blocksize*= MULTIPLE;
+		IVI_traverse(_handle->ivi, sfh_tune_seg, (void *)_handle);
+		temp->offset += snprintf(temp->data+temp->offset,temp->size,"#%llu:",_handle->blocksize);
+		IVI_traverse(_handle->ivi, sfh_output_state, (void *) temp);
+		//IVI_traverse(_handle->ivi, sfh_output_state_t, (void *) temp);
 		result[temp->offset] = '\0';
 		free(temp);
 		temp = NULL;
@@ -611,24 +649,24 @@ void sfh_output_state(IVI_seg_t * seg, void * user_para)
 	char hash_result[node->r_cnt + 1];
 	hash_result[node->r_cnt] = '\0';
 	int i = 0, j = 0, to_copy_len=0,this_len=0;
-	if(node->s_cnt==0&&!(seg->left==0&&node->s_cnt>0))
+	if(node->s_cnt==0&&!(seg->left==0&&node->s_cnt > 0))
 	{
 		return;
 	}
 	memset(hash_result,0,sizeof(hash_result));
 	if(seg->left == 0)
 	{
-		hash_result[j] = sfh_b64[zt_hash_code(&(node->ps)) & 0x3F];
+		hash_result[j] = map_to64bytes[zt_hash_code(&(node->ps)) & 0x3F];
 		j++;
 	}
 	for(i = 0; i < node->s_cnt; i++,j++)
 	{
-		hash_result[j] = sfh_b64[(node->s_array[i].val) & 0x3F];
+		hash_result[j] = map_to64bytes[(node->s_array[i].val) & 0x3F];
 	}
 	hash_result[j+1]='\0';
 	if(0!=memcmp(&(node->s_state),ZT_INIT_VAL,sizeof(ZT_INIT_VAL)))
 	{
-		result->last_char=sfh_b64[zt_hash_code(&(node->s_state)) & 0x3F];
+		result->last_char=map_to64bytes[zt_hash_code(&(node->s_state)) & 0x3F];
 	}
 	else
 	{
@@ -645,6 +683,52 @@ void sfh_output_state(IVI_seg_t * seg, void * user_para)
 	result->offset += to_copy_len-j;
 	return;
 }
+
+
+
+void sfh_output_state_t(IVI_seg_t * seg, void * user_para)
+{
+	char buffer[2000];
+	final_result * result = (final_result *)user_para;
+	sfh_seg_t * node = (sfh_seg_t *)(seg->data);
+	char hash_result[node->r_cnt_t + 1];
+	hash_result[node->r_cnt_t] = '\0';
+	int i = 0, j = 0, to_copy_len=0,this_len=0;
+	if(node->s_cnt_t==0&&!(seg->left==0&&node->s_cnt_t > 0))
+	{
+		return;
+	}
+	memset(hash_result,0,sizeof(hash_result));
+	if(seg->left == 0)
+	{
+		hash_result[j] = map_to64bytes[zt_hash_code(&(node->ps_t)) & 0x3F];
+		j++;
+	}
+	for(i = 0; i < node->s_cnt_t; i++,j++)
+	{
+		hash_result[j] = map_to64bytes[(node->s_array_t[i].val) & 0x3F];
+	}
+	hash_result[j+1]='\0';
+	if(0!=memcmp(&(node->s_state_t),ZT_INIT_VAL,sizeof(ZT_INIT_VAL)))
+	{
+		result->last_char=map_to64bytes[zt_hash_code(&(node->s_state_t)) & 0x3F];
+	}
+	else
+	{
+		result->last_char='\0';
+	}
+	hash_result[j+1] = '\0';
+	this_len=snprintf(buffer,sizeof(buffer), "[%llu:%llu]",seg->left, seg->right);
+	this_len+=j;
+//	this_len++;
+	to_copy_len=MIN(this_len,result->size-result->offset);
+	memcpy(result->data+result->offset,hash_result,j);
+	result->offset+=j;
+	memcpy(result->data+result->offset,buffer,to_copy_len-j);
+	result->offset += to_copy_len-j;
+	return;
+}
+
 
 /**
  * 计算fuzzy_hash的各种长度
@@ -685,10 +769,13 @@ void fuzzy_hash_length(IVI_seg_t * seg, void * user_para)
 	char buffer[100];
 	final_length * tmp = (final_length *)user_para;
 	sfh_seg_t * node = (sfh_seg_t *)(seg->data);
-
-	sprintf(buffer, "[%llu:%llu]", seg->left, seg->right);
-	
-	tmp->hash_length += node->r_cnt*sizeof(char) + strlen(buffer);
+	if(node->s_cnt==0&&!(seg->left==0&&node->r_cnt > 0))
+	{
+		return;
+	}
+	snprintf(buffer, sizeof(buffer), "[%llu:%llu]", seg->left, seg->right);
+	tmp->hash_length += 2*node->r_cnt*sizeof(char) + 2*strlen(buffer);
 	return;
 }
+
 
