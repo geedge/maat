@@ -107,7 +107,7 @@ void dir_digest(int argc, char * argv[])
 		hash_length = fuzzy_status(fhandle, HASH_LENGTH);
 		file_effective_length = fuzzy_status(fhandle, EFFECTIVE_LENGTH);
 		digest_result_buff= (char *)malloc(sizeof(char) * (hash_length));
-		if(fuzzy_digest(fhandle, digest_result_buff, hash_length) != 0)
+		if(fuzzy_digest(fhandle, digest_result_buff, hash_length) < 0)
 		{
 			printf("error\n");
 			continue;

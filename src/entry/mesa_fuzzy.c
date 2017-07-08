@@ -17,19 +17,13 @@ const char * map_to64bytes =
 "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 
-struct entry
-{
-	unsigned int * r_array;
-	unsigned int r_index;
-	unsigned int r_size;
-};
 
 double get_rs_entropy(unsigned int * r_array, unsigned int r_index);
 int cmp(const void * a, const void * b);
 void sfh_rs_entropy(IVI_seg_t * seg, void * user_para);
 void sfh_tune_simulation(IVI_seg_t * seg, void * user_para);
 void sfh_output_state_t(IVI_seg_t * seg, void * user_para);
-void write_uint_array(fuzzy_handle_inner_t * handle,unsigned int ** array, unsigned int *index,unsigned int *size,unsigned int value);
+int write_uint_array(unsigned int ** array, unsigned int *index,unsigned int *size,unsigned int value);
 /**
  * roll_state初始化
  */
@@ -147,7 +141,7 @@ unsigned int fuzzy_feed(fuzzy_handle_t * handle, const char * data, unsigned int
 			if(_handle->sim_tuned_rs_cnt>EXPECT_SIGNATURE_LEN)
 			{
 				_handle->blocksize*= MULTIPLE;
-				IVI_traverse(_handle->ivi, sfh_tune_seg, (void *)_handle);
+				IVI_traverse(_handle->ivi, sfh_tune_callback, (void *)_handle);
 			}
 			_handle->sim_tuned_rs_cnt = 0;
 			_handle->length_increase = 0;
@@ -195,42 +189,40 @@ unsigned long long get_blocksize(unsigned long long orilen)
 
 sfh_seg_t* create_sfh_seg(fuzzy_handle_inner_t * _handle)
 {
-	sfh_seg_t*p=calloc(sizeof(sfh_seg_t),1);
+	sfh_seg_t*p=(sfh_seg_t*)calloc(sizeof(sfh_seg_t),1);
 	roll_init(&(p->r_state));
 	p->s_size = INIT_SIZE;
+	p->s_cnt=0;
 	p->r_size = INIT_SIZE;
+	p->r_cnt=0;
 	p->r_array = (unsigned int*)malloc(sizeof(unsigned int)*(p->r_size));
+	_handle->fuzzy_node_memory+=sizeof(unsigned int)*(p->r_size);
 	p->s_array = (struct zt_state_t*)malloc(sizeof(struct zt_state_t)*(p->s_size));
+	_handle->fuzzy_node_memory+=sizeof(struct zt_state_t)*(p->s_size);
 	zt_hash_initial(&(p->s_state));
-	zt_hash_initial(&(p->ps));
-	_handle->fuzzy_node_memory += sizeof(sfh_seg_t) + sizeof(unsigned int)*(p->r_size) + sizeof(struct zt_state_t)*(p->s_size);
+	zt_hash_initial(&(p->p_state));
+	_handle->fuzzy_node_memory += sizeof(sfh_seg_t);
 	return p;
 }
 //return freed memory size
 int destroy_sfh_seg(sfh_seg_t*p)
 {
 	int ret_size=0;
-	//printf("before free p->s_array:\n");
 	if(p->s_array != NULL)
 	{
-		//printf("p->s_array is not NULL\n");
 		free(p->s_array);
 		p->s_array=NULL;
 		ret_size+=p->s_size*sizeof(struct zt_state_t);
 	}
-	//printf("after free p->s_array\n");
 	if(p->r_array != NULL)
 	{
 		free(p->r_array);
 		p->r_array=NULL;
 		ret_size+=p->r_size*sizeof(unsigned int);
 	}
-	//printf("after free p->r_array\n");
 	ret_size+=sizeof(sfh_seg_t);
-	//printf("before free p\n");
 	free(p);
 	p=NULL;
-	//printf("after free p\n");
 	return ret_size;
 }
 /**
@@ -318,11 +310,11 @@ unsigned int segment_overlap(fuzzy_handle_inner_t * _handle, unsigned int size, 
 			memset(&result_p,0,sizeof(result_p));
 			result_p.data=rp_buff;
 			result_p.size=sizeof(rp_buff);
-			sfh_output_state(target_seg,&result_p);
+			sfh_output_callback(target_seg,&result_p);
 			memset(&result_n,0,sizeof(result_n));
 			result_n.data=rn_buff;
 			result_n.size=sizeof(rn_buff);	
-			sfh_output_state(co_overlap_segs[i],&result_n);
+			sfh_output_callback(co_overlap_segs[i],&result_n);
 			printf("%s[%llu:%llu] %s[%llu:%llu]\n",rp_buff,target_seg->left,
 													target_seg->right,
 													rn_buff,co_overlap_segs[i]->left,
@@ -396,69 +388,24 @@ double get_rs_entropy(unsigned int * r_array, unsigned int r_index)
 
 }
 
-/*void sfh_rs_entropy(IVI_seg_t * seg, void * user_para)
-{
-	sfh_seg_t * tmp = (sfh_seg_t *)(seg->data);
-	int i  = 0;
-	for(i = 0; i < tmp->r_cnt; i++)
-	{
-		write_uint_array((unsigned int**)(&(((struct entry *)user_para)->r_array)), &(((struct entry *)user_para)->r_index),
-											&(((struct entry *)user_para)->r_size), tmp->r_array[i]);
-	}
-}*/
 
-
-
-void sfh_tune_seg(IVI_seg_t * seg, void * user_para)
+void sfh_tune_seg(sfh_seg_t * p, unsigned long long blocksize)
 {
 	int i = 0, j = 0;
-	sfh_seg_t * p = (sfh_seg_t *)(seg->data);
-	if(p->r_cnt== 0)
-	{
-		return;
-	}
-	
-	fuzzy_handle_inner_t * _handle = (fuzzy_handle_inner_t *)user_para;
-	unsigned long long blocksize = _handle->blocksize;
-
-/*	memcpy(&(p->ps_t),&(p->ps), sizeof(struct zt_state_t));
-	memcpy(&(p->s_state_t),&(p->s_state), sizeof(struct zt_state_t));
-	memcpy(&(p->r_state_t),&(p->r_state), sizeof(struct roll_state_t));
-	
-	if(p->r_array_t!=NULL)
-	{	
-		free(p->r_array_t);
-	}
-	p->r_cnt_t = p->r_cnt;
-	p->r_size_t = p->r_size;
-	p->r_array_t = (unsigned int *)malloc(sizeof(unsigned int)*(p->r_size_t));
-	memcpy(p->r_array_t, p->r_array, sizeof(unsigned int)*(p->r_cnt_t));
-
-	if(p->s_array_t!=NULL)
-	{
-		free(p->s_array_t);
-	}
-	p->s_cnt_t = p->s_cnt;
-	p->s_size_t = p->s_size;
-	p->s_array_t = (struct zt_state_t *)malloc(sizeof(struct zt_state_t)*(p->s_size_t));
-	memcpy(p->s_array_t, p->s_array, sizeof(struct zt_state_t)*(p->s_cnt_t));*/
-		
 	struct zt_state_t tmp_zt;
 	int new_zt_cnt=0;
 	zt_hash_initial(&tmp_zt);
-	_handle->s_state_cnt -= p->s_cnt;
 
 	for(j = 0; j < p->r_cnt; j++)
 	{
 		if(j == 0)
 		{
-			zt_hash_arymul(&tmp_zt, &(p->ps));
+			zt_hash_arymul(&tmp_zt, &(p->p_state));
 		}
 		else
 		{
 			zt_hash_arymul(&tmp_zt, &(p->s_array[j - 1]));
 		}
-//		if((p->r_array[j] &(blocksize-1)) == blocksize - 1)
 		if(p->r_array[j] % blocksize == blocksize - 1)
 		{
 			p->r_array[i]=p->r_array[j];
@@ -470,7 +417,7 @@ void sfh_tune_seg(IVI_seg_t * seg, void * user_para)
 			}
 			else
 			{
-				p->ps.val=tmp_zt.val;
+				p->p_state.val=tmp_zt.val;
 			}
 			zt_hash_initial(&tmp_zt);
 		}
@@ -478,28 +425,41 @@ void sfh_tune_seg(IVI_seg_t * seg, void * user_para)
 	zt_hash_arymul(&tmp_zt, &(p->s_state));
 	if(i == 0)
 	{
-		zt_hash_initial(&(p->ps));
+		zt_hash_initial(&(p->p_state));
 	}
 	p->s_state.val = tmp_zt.val;
 	p->s_cnt = new_zt_cnt;
 	p->r_cnt = i;
-	_handle->s_state_cnt += p->s_cnt;
 	assert(p->r_cnt>=p->s_cnt);
-
+}
+void sfh_tune_callback(IVI_seg_t * seg, void * user_para)
+{
+	sfh_seg_t * p = (sfh_seg_t *)(seg->data);
+	if(p->r_cnt== 0)
+	{
+		return;
+	}
+	
+	fuzzy_handle_inner_t * _handle = (fuzzy_handle_inner_t *)user_para;
+	unsigned long long blocksize = _handle->blocksize;
+	_handle->s_state_cnt-=p->s_cnt;
+	sfh_tune_seg(p, blocksize);
+	_handle->s_state_cnt+=p->s_cnt;
 	//printf("after state_cnt:%d,block:%llu\n",_handle->s_state_cnt,_handle->blocksize);
 }
 
-void write_uint_array(fuzzy_handle_inner_t *_handle,unsigned int ** array,unsigned int *index, unsigned int *size,unsigned int value)
+int write_uint_array(unsigned int ** array,unsigned int *index, unsigned int *size,unsigned int value)
 {
+	int mem_size=0;
 	if(*index==*size)
 	{
 		(*size)*=2;
+		mem_size+=*size;
 		*array=(unsigned int*)realloc(*array,sizeof(unsigned int)*(*size));
-		_handle->fuzzy_node_memory += (*size)/2;
 	}
 	(*array)[*index]=value;
 	(*index)++;
-	return;
+	return mem_size;
 }
 
 int sfh_update_seg(fuzzy_handle_inner_t * _handle, sfh_seg_t * p, const char * data, unsigned long data_size,unsigned long long blocksize)
@@ -522,13 +482,12 @@ int sfh_update_seg(fuzzy_handle_inner_t * _handle, sfh_seg_t * p, const char * d
 		roll_hash_value = roll_sum(&(p->r_state));			    		
 		
 		zt_hash(&(p->s_state),data[i]);        
-//		if((roll_hash_value & (blocksize-1)) == blocksize - 1)
 		if((roll_hash_value % (blocksize)) == blocksize - 1)
 		{
 			p->slice_num ++;
 			if(p->r_cnt==0)
 			{
-				p->ps.val=p->s_state.val;
+				p->p_state.val=p->s_state.val;
 			}
 			else
 			{
@@ -536,14 +495,14 @@ int sfh_update_seg(fuzzy_handle_inner_t * _handle, sfh_seg_t * p, const char * d
 				printf("p->s_cnt:%u\n",p->s_cnt);
 				printf("p->s_size:%u\n",p->s_size);
 #endif
-				write_uint_array(_handle,(unsigned int**)(&(p->s_array)), &(p->s_cnt),&(p->s_size),p->s_state.val);
+				_handle->fuzzy_node_memory+=write_uint_array((unsigned int**)(&(p->s_array)), &(p->s_cnt),&(p->s_size),p->s_state.val);
 				state_inc_cnt++;
 			}
 #ifdef DEBUG_PRINT			
 			printf("p->r_cnt:%u\n",p->s_cnt);
 			printf("p->r_size:%u\n",p->s_size);
 #endif	
-			write_uint_array(_handle,&(p->r_array),&(p->r_cnt),&(p->r_size),roll_hash_value); 
+			_handle->fuzzy_node_memory+=write_uint_array(&(p->r_array),&(p->r_cnt),&(p->r_size),roll_hash_value); 
 			zt_hash_initial(&(p->s_state));	
 		}
 	}
@@ -563,52 +522,49 @@ int sfh_merge_seg(fuzzy_handle_inner_t * _handle, sfh_seg_t * p, sfh_seg_t * n,u
 		roll_hash(rs, n->mbuf[i]);
 		roll_hash_value = roll_sum(rs);
 		zt_hash(&(p->s_state), n->mbuf[i]);
-//		if((roll_hash_value & (blocksize-1)) == blocksize - 1)
 		if(roll_hash_value % blocksize == blocksize - 1)
 		{
-			//printf("roll_value : %u\n",roll_hash_value);
 			p->slice_num ++;
-//			unsigned int * tmp = (unsigned int *)(p->s_array);
 			if(p->r_cnt == 0)
 			{
-				p->ps.val = p->s_state.val;
+				p->p_state.val = p->s_state.val;
 			}
 			else
 			{
-				write_uint_array(_handle,(unsigned int **)(&(p->s_array)), &(p->s_cnt), &(p->s_size), p->s_state.val);
+				_handle->fuzzy_node_memory+=write_uint_array((unsigned int **)(&(p->s_array)), &(p->s_cnt), &(p->s_size), p->s_state.val);
 				state_inc_cnt++;
 			}
-			write_uint_array(_handle,&(p->r_array),&(p->r_cnt), &(p->r_size), roll_hash_value);
+			_handle->fuzzy_node_memory+=write_uint_array(&(p->r_array),&(p->r_cnt), &(p->r_size), roll_hash_value);
 			zt_hash_initial(&(p->s_state));
 		}
 	}
 	if(n->r_cnt==0)
 	{
-		zt_hash_arymul(&(p->s_state),&(n->ps));
+		zt_hash_arymul(&(p->s_state),&(n->p_state));
 		zt_hash_arymul(&(p->s_state), &(n->s_state));
 	}
 	else
 	{
 		if(p->r_cnt==0)
 		{
-			zt_hash_arymul(&(p->s_state),&(n->ps));
-			p->ps.val=p->s_state.val;
+			zt_hash_arymul(&(p->s_state),&(n->p_state));
+			p->p_state.val=p->s_state.val;
 		}
 		else
 		{
-			zt_hash_arymul(&(p->s_state), &(n->ps));
-			write_uint_array(_handle,(unsigned int **)(&(p->s_array)), &(p->s_cnt), &(p->s_size), p->s_state.val);
+			zt_hash_arymul(&(p->s_state), &(n->p_state));
+			_handle->fuzzy_node_memory+=write_uint_array((unsigned int **)(&(p->s_array)), &(p->s_cnt), &(p->s_size), p->s_state.val);
 			state_inc_cnt++;
 		}
 		p->s_state.val=n->s_state.val;
 	}
 	for(i=0;i<n->r_cnt;i++)
 	{
-		write_uint_array(_handle,&(p->r_array),&(p->r_cnt), &(p->r_size), n->r_array[i]);
+		_handle->fuzzy_node_memory+=write_uint_array(&(p->r_array),&(p->r_cnt), &(p->r_size), n->r_array[i]);
 	}
 	for(i=0;i<n->s_cnt;i++)
 	{
-		write_uint_array(_handle, (unsigned int **)(&(p->s_array)), &(p->s_cnt), &(p->s_size), n->s_array[i].val);
+		_handle->fuzzy_node_memory+=write_uint_array((unsigned int **)(&(p->s_array)), &(p->s_cnt), &(p->s_size), n->s_array[i].val);
 	}
 	memcpy(&(p->r_state),&(n->r_state),sizeof(p->r_state));	
 	assert(p->r_cnt>=p->s_cnt);
@@ -619,115 +575,92 @@ int sfh_merge_seg(fuzzy_handle_inner_t * _handle, sfh_seg_t * p, sfh_seg_t * n,u
 /**
  * 取出区间链表里面的hash_result值，并进行拼接，形成最后的result输出，并且满足abc[1:100]def[200:300]这种格式
  */
-int fuzzy_digest(fuzzy_handle_t * handle, char * result, unsigned int size)
+int fuzzy_digest(fuzzy_handle_t * handle, char * hash_buffer, unsigned int size)
 {
-		final_result * temp = (final_result *)malloc(sizeof(final_result));
-		fuzzy_handle_inner_t* _handle=(fuzzy_handle_inner_t *)handle;
-		temp->data = result;
-		temp->size = size;
-		temp->offset = 0;
-		temp->first_ZTH_offset = 0;
-		temp->last_ZTH_offset = 0;
-		temp->offset += snprintf(temp->data,temp->size,"%llu:",_handle->blocksize);
-		IVI_traverse(_handle->ivi, sfh_output_state, (void *) temp);
-		_handle->blocksize*= MULTIPLE;
-		IVI_traverse(_handle->ivi, sfh_tune_seg, (void *)_handle);
-		temp->offset += snprintf(temp->data+temp->offset,temp->size,"#%llu:",_handle->blocksize);
-		IVI_traverse(_handle->ivi, sfh_output_state, (void *) temp);
-		//IVI_traverse(_handle->ivi, sfh_output_state_t, (void *) temp);
-		result[temp->offset] = '\0';
-		free(temp);
-		temp = NULL;
-		return 0;
-}
+	fuzzy_handle_inner_t* _handle=(fuzzy_handle_inner_t *)handle;
+	unsigned int estimate_len=_handle->s_state_cnt+IVI_seg_cnt(_handle->ivi)*24+1;
+	int actual_len=0;
+	sfh_output_t result;
+	memset(&result,0,sizeof(result));
+	result.size_b1 = estimate_len;
+	result.size_b2 = estimate_len;
+	result.hash_b1 = (char*)calloc(sizeof(char),estimate_len);
+	result.hash_b2 = (char*)calloc(sizeof(char),estimate_len);
+	result.offset_b1 = 0;
+	result.offset_b2 = 0;
+	result.b1=_handle->blocksize;
+	result.b2=_handle->blocksize*MULTIPLE;
+	
+	IVI_traverse(_handle->ivi, sfh_output_callback, (void *) &result);
+	/*
+	result.hash_b1[result.offset_b1]=result.last_char_b1;
+	result.offset_b1++;
+	result.hash_b2[result.offset_b2]=result.last_char_b2;
+	result.offset_b2++;
+	*/
+	actual_len=snprintf(hash_buffer,size,"%llu:%s#%llu:%s",result.b1,result.hash_b1,
+															result.b2,result.hash_b2);
 
-void sfh_output_state(IVI_seg_t * seg, void * user_para)
+	free(result.hash_b1);
+	result.hash_b1=NULL;
+	free(result.hash_b2);
+	result.hash_b2=NULL;
+	return actual_len;
+}
+sfh_seg_t* sfh_clone_seg(sfh_seg_t* origin)
 {
-	char buffer[2000];
-	final_result * result = (final_result *)user_para;
-	sfh_seg_t * node = (sfh_seg_t *)(seg->data);
-	char hash_result[node->r_cnt + 1];
-	hash_result[node->r_cnt] = '\0';
-	int i = 0, j = 0, to_copy_len=0,this_len=0;
+	sfh_seg_t* clone=NULL;
+	clone=(sfh_seg_t*)calloc(sizeof(sfh_seg_t),1);
+	memcpy(clone,origin,sizeof(sfh_seg_t));
+	clone->s_array=calloc(sizeof(struct zt_state_t),clone->s_size);
+	memcpy(clone->s_array,origin->s_array,sizeof(struct zt_state_t)*clone->s_size);
+	clone->r_array=calloc(sizeof(unsigned int),clone->r_size);
+	memcpy(clone->r_array,origin->r_array,sizeof(unsigned int)*clone->r_size);
+	return clone;
+}
+int sfh_print_seg(sfh_seg_t* p, char* hash_result, int size,char* last_char)
+{
+	int idx=0,i=0;
+	if(p->left_offset== 0)
+	{
+		hash_result[idx] = map_to64bytes[zt_hash_code(&(p->p_state)) & 0x3F];
+		idx++;
+	}
+	for(i = 0; i < p->s_cnt&&idx<size; i++,idx++)
+	{
+		hash_result[idx] = map_to64bytes[(p->s_array[i].val) & 0x3F];
+	}
+	if(p->s_state.val!=*((unsigned int*)ZT_INIT_VAL))
+	{
+		*last_char=map_to64bytes[zt_hash_code(&(p->s_state)) & 0x3F];
+	}
+	else
+	{
+		*last_char='\0';
+	}
+	// p->right_offset-1 to get a closed interval
+	idx+=snprintf(hash_result+idx,size-idx,"[%llu:%llu]",p->left_offset, p->right_offset-1);
+	assert(idx<size);
+	return idx;
+}
+void sfh_output_callback(IVI_seg_t * seg, void * user_para)
+{
+	sfh_output_t * result = (sfh_output_t *)user_para;
+	sfh_seg_t* node = (sfh_seg_t *)(seg->data);
+	sfh_seg_t* tmp;
 	if(node->s_cnt==0&&!(seg->left==0&&node->s_cnt > 0))
 	{
 		return;
 	}
-	memset(hash_result,0,sizeof(hash_result));
-	if(seg->left == 0)
-	{
-		hash_result[j] = map_to64bytes[zt_hash_code(&(node->ps)) & 0x3F];
-		j++;
-	}
-	for(i = 0; i < node->s_cnt; i++,j++)
-	{
-		hash_result[j] = map_to64bytes[(node->s_array[i].val) & 0x3F];
-	}
-	hash_result[j+1]='\0';
-	if(0!=memcmp(&(node->s_state),ZT_INIT_VAL,sizeof(ZT_INIT_VAL)))
-	{
-		result->last_char=map_to64bytes[zt_hash_code(&(node->s_state)) & 0x3F];
-	}
-	else
-	{
-		result->last_char='\0';
-	}
-	hash_result[j+1] = '\0';
-	this_len=snprintf(buffer,sizeof(buffer), "[%llu:%llu]",seg->left, seg->right);
-	this_len+=j;
-//	this_len++;
-	to_copy_len=MIN(this_len,result->size-result->offset);
-	memcpy(result->data+result->offset,hash_result,j);
-	result->offset+=j;
-	memcpy(result->data+result->offset,buffer,to_copy_len-j);
-	result->offset += to_copy_len-j;
+	result->offset_b1+=sfh_print_seg(node,result->hash_b1+result->offset_b1,result->size_b1-result->offset_b1,&(result->last_char_b1));
+	tmp=sfh_clone_seg(node);
+	sfh_tune_seg(tmp, result->b2);
+	result->offset_b2+=sfh_print_seg(tmp,result->hash_b2+result->offset_b2,result->size_b2-result->offset_b2,&(result->last_char_b2));
+	destroy_sfh_seg(tmp);
+	tmp=NULL;
 	return;
 }
 
-
-
-void sfh_output_state_t(IVI_seg_t * seg, void * user_para)
-{
-	char buffer[2000];
-	final_result * result = (final_result *)user_para;
-	sfh_seg_t * node = (sfh_seg_t *)(seg->data);
-	char hash_result[node->r_cnt_t + 1];
-	hash_result[node->r_cnt_t] = '\0';
-	int i = 0, j = 0, to_copy_len=0,this_len=0;
-	if(node->s_cnt_t==0&&!(seg->left==0&&node->s_cnt_t > 0))
-	{
-		return;
-	}
-	memset(hash_result,0,sizeof(hash_result));
-	if(seg->left == 0)
-	{
-		hash_result[j] = map_to64bytes[zt_hash_code(&(node->ps_t)) & 0x3F];
-		j++;
-	}
-	for(i = 0; i < node->s_cnt_t; i++,j++)
-	{
-		hash_result[j] = map_to64bytes[(node->s_array_t[i].val) & 0x3F];
-	}
-	hash_result[j+1]='\0';
-	if(0!=memcmp(&(node->s_state_t),ZT_INIT_VAL,sizeof(ZT_INIT_VAL)))
-	{
-		result->last_char=map_to64bytes[zt_hash_code(&(node->s_state_t)) & 0x3F];
-	}
-	else
-	{
-		result->last_char='\0';
-	}
-	hash_result[j+1] = '\0';
-	this_len=snprintf(buffer,sizeof(buffer), "[%llu:%llu]",seg->left, seg->right);
-	this_len+=j;
-//	this_len++;
-	to_copy_len=MIN(this_len,result->size-result->offset);
-	memcpy(result->data+result->offset,hash_result,j);
-	result->offset+=j;
-	memcpy(result->data+result->offset,buffer,to_copy_len-j);
-	result->offset += to_copy_len-j;
-	return;
-}
 
 
 /**

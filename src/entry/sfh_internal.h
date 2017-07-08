@@ -39,7 +39,6 @@ struct roll_state_t
 	unsigned int  n;
 };
 
-
 typedef struct
 {
 	char mbuf[ROLLING_WINDOW-1];
@@ -47,14 +46,9 @@ typedef struct
 	int slice_num;
 	unsigned int msize;
 
-	struct zt_state_t ps;		//partial strong hash value
+	struct zt_state_t p_state;		//partial strong hash value
 	struct zt_state_t s_state; //strong hash state
 	struct roll_state_t r_state;
-
-	struct zt_state_t ps_t;
-	struct zt_state_t s_state_t;
-	struct roll_state_t r_state_t;
-
 
 	unsigned long long left_offset;
 	unsigned long long right_offset;
@@ -65,14 +59,6 @@ typedef struct
 	struct zt_state_t * s_array;		//array to store strong(Tillichi-Zemor) hash value
 	unsigned int s_cnt;		//always point to the next available position
 	unsigned int s_size;
-
-	unsigned int * r_array_t;
-	unsigned int r_cnt_t;
-	unsigned int r_size_t;
-	struct zt_state_t * s_array_t;
-	unsigned int s_cnt_t;
-	unsigned int s_size_t;
-
 }sfh_seg_t;
 
 
@@ -93,13 +79,15 @@ typedef struct
 
 typedef struct
 {
-	char * data;  //最后输出结果的char数组
-	unsigned int size;
-	unsigned int offset;  //数组长度
+	char * hash_b1;  //最后输出结果的char数组
+	char * hash_b2;
+	unsigned int size_b1,size_b2;
+	unsigned int offset_b1,offset_b2;  //数组长度
 	unsigned long long first_ZTH_offset;
 	unsigned long long last_ZTH_offset;
-	char last_char;
-}final_result;
+	char last_char_b1, last_char_b2;
+	unsigned long long b1,b2;
+}sfh_output_t;
 
 
 typedef struct
@@ -115,8 +103,8 @@ unsigned long long get_blocksize(unsigned long long orilen);
 int sfh_merge_seg(fuzzy_handle_inner_t * _handle,sfh_seg_t * seg, sfh_seg_t * next_seg, unsigned long long blocksize);	
 int sfh_update_seg(fuzzy_handle_inner_t * _handle,sfh_seg_t * p, const char * data, unsigned long data_size, unsigned long long blocksize);
 unsigned int segment_overlap(fuzzy_handle_inner_t * handle, unsigned int size, unsigned long long offset, const char * data);
-void sfh_tune_seg(IVI_seg_t * seg, void * user_para);
-void sfh_output_state(IVI_seg_t * seg, void * user_para);
+void sfh_tune_callback(IVI_seg_t * seg, void * user_para);
+void sfh_output_callback(IVI_seg_t * seg, void * user_para);
 void fuzzy_hash_length(IVI_seg_t * seg, void * user_para);
 unsigned long long fuzzy_status(fuzzy_handle_t * handle, int type);
 #endif
