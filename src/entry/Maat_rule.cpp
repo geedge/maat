@@ -414,6 +414,39 @@ char* str_unescape(char* s)
 	s[j]='\0';
 	return s;
 }
+char* Maat_str_escape(char* dst,int size,const char*src)
+{
+	int i=0,j=0;
+	int len=strlen(src);
+	for(i=0,j=0;i<len&&j<size;i++)
+	{
+		switch(src[i])
+		{
+			case '&':
+				dst[j]='\\';
+				dst[j+1]='&';
+				j+=2;
+				break;
+			case ' ':
+				dst[j]='\\';
+				dst[j+1]='b';//space,0x20;
+				j+=2;
+				break;
+			case '\\':
+				dst[j]='\\';
+				dst[j+1]='\\';
+				j+=2;
+				break;
+			default:
+				dst[j]=src[i];
+				j++;	//undo the followed i++
+				break;
+
+		}
+	}
+	dst[j]='\0';
+	return dst;
+}
 int cnt_maskbits(struct in6_addr mask)
 {
 	unsigned int i=0;

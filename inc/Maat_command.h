@@ -128,8 +128,9 @@ void Maat_add_region2cmd(struct Maat_cmd_t* cmd,int which_group,const struct Maa
 
 void Maat_free_cmd(struct Maat_cmd_t* cmd);
 int Maat_format_cmd(struct Maat_cmd_t* cmd, char* buffer, int size);
+char* Maat_str_escape(char* dst,int size,const char*src);
 
-// The below command functions are NOT thread safe.
+// The following functions are NOT thread safe.
 int Maat_cmd(Maat_feather_t feather,struct Maat_cmd_t* cmd,enum MAAT_OPERATION op);
 
 //pipeline model

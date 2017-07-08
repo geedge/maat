@@ -565,7 +565,11 @@ void test_command(Maat_feather_t feather)
 {
 	const char* scan_data="Hiredis is a minimalistic C client library for the Redis database.\r\n";
 	const char* table_name="HTTP_URL";
-	const char* keywords="Hiredis&C\\bClient";
+	
+	const char* keywords1="Hiredis";
+	const char* keywords2="C Client";
+	char escape_buff1[256],escape_buff2[256];
+	char keywords[256];
 	scan_status_t mid=NULL;
 	int config_id=-1, table_id=0, ret=0;
 	int output_ids[4];
@@ -573,6 +577,9 @@ void test_command(Maat_feather_t feather)
 	struct Maat_rule_t result;
 	int timeout=0;//seconds
 	int label_id=5210;
+	Maat_str_escape(escape_buff1, sizeof(escape_buff1),keywords1);
+	Maat_str_escape(escape_buff2, sizeof(escape_buff2),keywords2);
+	snprintf(keywords,sizeof(keywords),"%s&%s",escape_buff1,escape_buff2);
 	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
 	test_add_command(feather,table_name,config_id, 0, label_id, keywords);
 	sleep(1);//waiting for commands go into effect
@@ -628,6 +635,7 @@ void test_command(Maat_feather_t feather)
 	{
 		printf("Test Maat command timeout success.\n");
 	}
+	Maat_clean_status(&mid);
 }
 int main(int argc,char* argv[])
 {

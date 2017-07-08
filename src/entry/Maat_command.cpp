@@ -855,7 +855,7 @@ void _maat_copy_region(struct Maat_region_t* dst,const struct Maat_region_t* src
 		case REGION_DIGEST:
 			dst->digest_rule.digest_string=_maat_strdup(src->digest_rule.digest_string);
 			break;
-		case REGION_SIMILARITY:
+		case REGION_SIMILARITY:	
 			dst->similarity_rule.target=_maat_strdup(src->similarity_rule.target);
 			break;
 		default:

@@ -451,6 +451,7 @@ void maat_stat_init(struct _Maat_feather_t* feather);
 void maat_stat_table(struct _Maat_table_info_t* p_table,int scan_len,struct timespec* start, struct timespec* end,int thread_num);
 void maat_stat_output(struct _Maat_feather_t* feather);
 char* _maat_strdup(const char* s);
+char* str_unescape(char* s);
 void redis_monitor_traverse(unsigned int version,redisContext *c,
 							void (*start)(unsigned int ,int ,void*),//vesion,CM_UPDATE_TYPE_*,u_para
 							void (*update)(const char* ,const char*,void* ),//table name ,line ,u_para
