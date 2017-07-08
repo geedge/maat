@@ -1291,15 +1291,15 @@ int GIE_query(GIE_handle_t * handle, const char * data, int data_len, GIE_result
 			
 			if(_handle->ED_reexamine == 1)
 			{
-					if(_handle->input_format == GIE_INPUT_FORMAT_SFH)
-					{
-						conf = GIE_comp_edit_distance(data, fuzzy_string_len, tmp_gram, length);
-					}
-					else
-					{
-						edit_distance = edit_distn(data, fuzzy_string_len,tmp_gram,length);
-						conf = 100-(edit_distance*100)/(fuzzy_string_len + length);
-					}
+				if(_handle->input_format == GIE_INPUT_FORMAT_SFH)
+				{
+					conf = GIE_comp_edit_distance(data, fuzzy_string_len, tmp_gram, length);
+				}
+				else
+				{
+					edit_distance = edit_distn(data, fuzzy_string_len,tmp_gram,length);
+					conf = 100-(edit_distance*100)/(fuzzy_string_len + length);
+				}
 			}
 			
 			if(conf >= ret_tmp->cfds_lvl)
@@ -1350,10 +1350,4 @@ unsigned long long GIE_status(GIE_handle_t * handle, int type)
 	}
 	return length;
 }
-
-
-
-
-
-	
 

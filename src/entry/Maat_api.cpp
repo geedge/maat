@@ -1543,6 +1543,11 @@ inline int REACH_QUERY_THRESH(unsigned long long total_len,unsigned long long ac
 //	{
 //		return 1;
 //	}
+	//TODO use a more thorough strategy.
+	if(total_len==0)
+	{
+		return 1;
+	}
 	if(rate>(unsigned long long)(point_size+QUERY_MIN_RATE))
 	{
 		return 0;
@@ -1578,10 +1583,7 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	{
 		clock_gettime(CLOCK_MONOTONIC,&start);
 	}
-	if(sp->acc_scan_len+(unsigned long long)data_len > sp->total_len)
-	{
-		goto fast_out;
-	}
+
 	aligment_int64_array_add(sp->feather->thread_call_cnt, sp->thread_num, 1);
 	pthread_mutex_lock(&(sp->fuzzy_mutex));
 	sp->acc_scan_len+=SFH_feed(sp->fuzzy_hash_handle, data, (unsigned int)data_len,offset);
