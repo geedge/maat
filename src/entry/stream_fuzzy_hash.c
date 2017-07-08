@@ -580,6 +580,7 @@ int SFH_digest(sfh_instance_t * handle, char * hash_buffer, unsigned int size)
 	fuzzy_handle_inner_t* _handle=(fuzzy_handle_inner_t *)handle;
 	unsigned int estimate_len=_handle->s_state_cnt+IVI_seg_cnt(_handle->ivi)*24+1;
 	int actual_len=0;
+	char* p=NULL;
 	sfh_output_t result;
 	memset(&result,0,sizeof(result));
 	result.size_b1 = estimate_len;
@@ -592,15 +593,25 @@ int SFH_digest(sfh_instance_t * handle, char * hash_buffer, unsigned int size)
 	result.b2=_handle->blocksize*MULTIPLE;
 	
 	IVI_traverse(_handle->ivi, sfh_output_callback, (void *) &result);
-	/*
-	result.hash_b1[result.offset_b1]=result.last_char_b1;
-	result.offset_b1++;
-	result.hash_b2[result.offset_b2]=result.last_char_b2;
-	result.offset_b2++;
-	*/
+
+	if(result.offset_b1==0||result.offset_b2==0)
+	{
+		hash_buffer[0]='\0';
+		goto fast_out;
+	}	
+	p =strrchr(result.hash_b1,'[');
+	assert(p!=NULL);
+	memmove(p+1,p,strlen(p));
+	*p=result.last_char_b1;
+	
+	p =strrchr(result.hash_b2,'[');
+	assert(p!=NULL);
+	memmove(p+1,p,strlen(p));
+	*p=result.last_char_b2;
+	
 	actual_len=snprintf(hash_buffer,size,"%llu:%s#%llu:%s",result.b1,result.hash_b1,
 															result.b2,result.hash_b2);
-
+fast_out:
 	free(result.hash_b1);
 	result.hash_b1=NULL;
 	free(result.hash_b2);
