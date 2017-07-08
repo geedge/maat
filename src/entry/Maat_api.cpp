@@ -1500,7 +1500,7 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 {
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	struct _Maat_scanner_t* scanner=NULL;
-	fuzzy_handle_t * tmp_fuzzy_handle=NULL;
+	sfh_instance_t * tmp_fuzzy_handle=NULL;
 	struct _Maat_table_info_t *p_table=NULL;
 	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_DIGEST);
 	if(p_table==NULL)
@@ -1508,7 +1508,7 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 		_feather->scan_err_cnt++;
 		return NULL;
 	}
-	tmp_fuzzy_handle=fuzzy_create_handle(total_len);
+	tmp_fuzzy_handle=SFH_instance(total_len);
 	if(tmp_fuzzy_handle==NULL)
 	{
 		_feather->scan_err_cnt++;
@@ -1584,7 +1584,7 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	}
 	aligment_int64_array_add(sp->feather->thread_call_cnt, sp->thread_num, 1);
 	pthread_mutex_lock(&(sp->fuzzy_mutex));
-	sp->acc_scan_len+=fuzzy_feed(sp->fuzzy_hash_handle, data, (unsigned int)data_len,offset);
+	sp->acc_scan_len+=SFH_feed(sp->fuzzy_hash_handle, data, (unsigned int)data_len,offset);
 	pthread_mutex_unlock(&(sp->fuzzy_mutex));
 	do_query=REACH_QUERY_THRESH(sp->total_len, sp->acc_scan_len, sp->query_point,8);
 	if(do_query==0)
@@ -1592,7 +1592,7 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 		goto fast_out;
 	}
 	pthread_mutex_lock(&(sp->fuzzy_mutex));
-	digest_len=fuzzy_status(sp->fuzzy_hash_handle, HASH_LENGTH);
+	digest_len=SFH_status(sp->fuzzy_hash_handle, HASH_LENGTH);
 	pthread_mutex_unlock(&(sp->fuzzy_mutex));
 	if(digest_len==0)
 	{
@@ -1600,7 +1600,7 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	}
 	digest_buff=(char*)malloc(sizeof(char)*digest_len);
 	pthread_mutex_lock(&(sp->fuzzy_mutex));
-	fuzzy_digest(sp->fuzzy_hash_handle,digest_buff, digest_len);
+	SFH_digest(sp->fuzzy_hash_handle,digest_buff, digest_len);
 	pthread_mutex_unlock(&(sp->fuzzy_mutex));
 
 	if(GIE_handle!=NULL)
@@ -1661,7 +1661,7 @@ void Maat_stream_scan_digest_end(stream_para_t* stream_para)
 			DEC_SCANNER_REF(scanner, sp->thread_num);
 		}		
 	}
-	fuzzy_destroy_handle(sp->fuzzy_hash_handle);
+	SFH_release(sp->fuzzy_hash_handle);
 	pthread_mutex_destroy(&(sp->fuzzy_mutex));
 	assert(sp->last_cache==NULL);
 	assert(sp->scan_buff==NULL);

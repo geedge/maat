@@ -72,7 +72,7 @@ static inline unsigned int sum_hash(unsigned char c, unsigned int h)
 /**
  * 创建handle
  */
-fuzzy_handle_t * fuzzy_create_handle(unsigned long long origin_len)
+sfh_instance_t * SFH_instance(unsigned long long origin_len)
 {
 		fuzzy_handle_inner_t * handle = NULL;
 		unsigned long long tmp_blksize = 0;
@@ -94,7 +94,7 @@ fuzzy_handle_t * fuzzy_create_handle(unsigned long long origin_len)
 		//handle->blocksize=tmp_blksize;
 		handle->blocksize = 3;
 		handle->do_tune=1;
-		return (fuzzy_handle_t *)handle;
+		return (sfh_instance_t *)handle;
 }
 
 
@@ -110,7 +110,7 @@ void fuzzy_node_free(IVI_seg_t * seg, void * usr_para)
 }
 
 
-void fuzzy_destroy_handle(fuzzy_handle_t * handle)
+void SFH_release(sfh_instance_t * handle)
 {		
 		IVI_destroy(((fuzzy_handle_inner_t *)handle)->ivi, fuzzy_node_free, (void *)handle);
 		((fuzzy_handle_inner_t *)handle)->fuzzy_node_memory -= sizeof(fuzzy_handle_inner_t);
@@ -118,7 +118,7 @@ void fuzzy_destroy_handle(fuzzy_handle_t * handle)
 		return;
 }
 
-unsigned int fuzzy_feed(fuzzy_handle_t * handle, const char * data, unsigned int size, unsigned long long offset)
+unsigned int SFH_feed(sfh_instance_t * handle, const char * data, unsigned int size, unsigned long long offset)
 {
 	fuzzy_handle_inner_t * _handle=(fuzzy_handle_inner_t *)handle;
 	if(data == NULL || size == 0)
@@ -150,7 +150,7 @@ unsigned int fuzzy_feed(fuzzy_handle_t * handle, const char * data, unsigned int
 		//printf("blocksize after:%llu\n", _handle->blocksize);
 	}
 #if 0
-	fuzzy_digest(handle,result, sizeof(result));
+	SFH_digest(handle,result, sizeof(result));
 	printf("%llu %s\n",offset,result);
 #endif
 	return length;
@@ -575,7 +575,7 @@ int sfh_merge_seg(fuzzy_handle_inner_t * _handle, sfh_seg_t * p, sfh_seg_t * n,u
 /**
  * 取出区间链表里面的hash_result值，并进行拼接，形成最后的result输出，并且满足abc[1:100]def[200:300]这种格式
  */
-int fuzzy_digest(fuzzy_handle_t * handle, char * hash_buffer, unsigned int size)
+int SFH_digest(sfh_instance_t * handle, char * hash_buffer, unsigned int size)
 {
 	fuzzy_handle_inner_t* _handle=(fuzzy_handle_inner_t *)handle;
 	unsigned int estimate_len=_handle->s_state_cnt+IVI_seg_cnt(_handle->ivi)*24+1;
@@ -666,7 +666,7 @@ void sfh_output_callback(IVI_seg_t * seg, void * user_para)
 /**
  * 计算fuzzy_hash的各种长度
  */
-unsigned long long fuzzy_status(fuzzy_handle_t * handle, int type)
+unsigned long long SFH_status(sfh_instance_t * handle, int type)
 {
 	unsigned long long length;
 	fuzzy_handle_inner_t * _handle = (fuzzy_handle_inner_t *)(handle);

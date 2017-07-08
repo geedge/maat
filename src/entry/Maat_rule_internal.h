@@ -12,7 +12,7 @@
 #include "rulescan.h"
 #include "hiredis.h"
 
-#include "mesa_fuzzy.h"
+#include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 #include "aligment_int64.h"
 #include <pthread.h>
@@ -314,7 +314,7 @@ struct _stream_para_t
 	void* rs_stream_para;
 	long acc_scan_len;
 	unsigned long long total_len;
-	fuzzy_handle_t *fuzzy_hash_handle;
+	sfh_instance_t *fuzzy_hash_handle;
 	pthread_mutex_t fuzzy_mutex;
 	unsigned char query_point[8];
 };

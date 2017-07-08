@@ -1,6 +1,6 @@
-#include<zt_hash.h>
-#include<interval_index.h>
-#include<mesa_fuzzy.h>
+#include "zt_hash.h"
+#include "interval_index.h"
+#include "stream_fuzzy_hash.h"
 
 #ifndef	__SFH_INTERNAL_H_INCLUDE_
 #define	__SFH_INTERNAL_H_INCLUDE_
@@ -106,6 +106,5 @@ unsigned int segment_overlap(fuzzy_handle_inner_t * handle, unsigned int size, u
 void sfh_tune_callback(IVI_seg_t * seg, void * user_para);
 void sfh_output_callback(IVI_seg_t * seg, void * user_para);
 void fuzzy_hash_length(IVI_seg_t * seg, void * user_para);
-unsigned long long fuzzy_status(fuzzy_handle_t * handle, int type);
 #endif
 
