@@ -598,17 +598,21 @@ int SFH_digest(sfh_instance_t * handle, char * hash_buffer, unsigned int size)
 	{
 		hash_buffer[0]='\0';
 		goto fast_out;
-	}	
-	p =strrchr(result.hash_b1,'[');
-	assert(p!=NULL);
-	memmove(p+1,p,strlen(p));
-	*p=result.last_char_b1;
-	
-	p =strrchr(result.hash_b2,'[');
-	assert(p!=NULL);
-	memmove(p+1,p,strlen(p));
-	*p=result.last_char_b2;
-	
+	}
+	if(result.last_char_b1!='\0')
+	{
+		p =strrchr(result.hash_b1,'[');
+		assert(p!=NULL);
+		memmove(p+1,p,strlen(p));
+		*p=result.last_char_b1;
+	}
+	if(result.last_char_b2!='\0')
+	{
+		p =strrchr(result.hash_b2,'[');
+		assert(p!=NULL);
+		memmove(p+1,p,strlen(p));
+		*p=result.last_char_b2;
+	}
 	actual_len=snprintf(hash_buffer,size,"%llu:%s#%llu:%s",result.b1,result.hash_b1,
 															result.b2,result.hash_b2);
 fast_out:
