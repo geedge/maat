@@ -29,7 +29,6 @@
 
 #define DEBUG (0)
 
-int hash_length;
 //int count = 0;
 struct roll_state_t
 {

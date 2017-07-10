@@ -51,9 +51,9 @@ typedef	void*	Maat_feather_t;
 #define	MAX_SERVICE_DEFINE_LEN	128
 struct Maat_rule_t
 {
-	int 	config_id;
+	int		config_id;
 	int		service_id;
-	char 	do_log;
+	char	do_log;
 	char 	do_blacklist;
 	char	action;
 	char	resevered;

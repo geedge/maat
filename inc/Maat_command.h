@@ -109,9 +109,9 @@ struct Maat_group_t
 };
 struct Maat_cmd_t
 {
-	struct Maat_rule_t compile;// for MAAT_OP_DEL, only compile.config_id is necessary.
+	struct Maat_rule_t compile; // for MAAT_OP_DEL, only compile.config_id is necessary.
 	int group_num;				// for MAAT_OP_DEL, set to 0.
-	int expire_after;			//expired after $timeout$ seconds, set to 0 for never timeout.
+	int expire_after;			//expired after $expire_after$ seconds, set to 0 for never timeout.
 	int label_id;					//>0, for Maat_cmd_select
 	struct Maat_group_t* groups;// Add regions with Maat_add_region2cmd 
 };
@@ -119,11 +119,13 @@ struct Maat_line_t
 {
 	const char* table_name;
 	const char* table_line;
-	int rule_id;
+	int rule_id;		// for MAAT_OP_DEL, only rule_id is necessary.
 	int label_id;
 	int expire_after;	//expired after $timeout$ seconds, set to 0 for never timeout.
 };
 struct Maat_cmd_t* Maat_create_cmd(const struct Maat_rule_t* rule, int group_num);
+//input: which_group 0~group_num
+//input: region can be freed after added.
 void Maat_add_region2cmd(struct Maat_cmd_t* cmd,int which_group,const struct Maat_region_t* region);
 
 void Maat_free_cmd(struct Maat_cmd_t* cmd);
