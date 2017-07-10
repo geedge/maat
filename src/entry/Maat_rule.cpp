@@ -25,7 +25,7 @@
 #include "map_str2int.h"
 #include "rulescan.h"
 #include "UniversalBoolMatch.h"
-#include "mesa_fuzzy.h"
+#include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
 int MAAT_FRAME_VERSION_2_0_20170701=1;
