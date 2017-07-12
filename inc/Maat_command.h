@@ -85,7 +85,7 @@ struct Maat_rgn_digest_t
 struct Maat_rgn_sim_t
 {
 	char* target;
-	short threshold;
+	short threshold;// 1~100
 };
 struct Maat_region_t
 {
@@ -112,7 +112,7 @@ struct Maat_cmd_t
 	struct Maat_rule_t compile; // for MAAT_OP_DEL, only compile.config_id is necessary.
 	int group_num;				// for MAAT_OP_DEL, set to 0.
 	int expire_after;			//expired after $expire_after$ seconds, set to 0 for never timeout.
-	int label_id;					//>0, for Maat_cmd_select
+	int label_id;					//>0, to be indexed and quried by Maat_cmd_select; =0 not index
 	struct Maat_group_t* groups;// Add regions with Maat_add_region2cmd 
 };
 struct Maat_line_t
@@ -145,6 +145,7 @@ int Maat_cmd_set_group(Maat_feather_t feather, int group_id, const struct Maat_r
 int Maat_cmd_set_line(Maat_feather_t feather,const struct Maat_line_t* line_rule, enum MAAT_OPERATION op);
 
 //Return the value of key after the increment.
+//If the key does not exist, it is set to 0 before performing the operation.
 long long Maat_cmd_incrby(Maat_feather_t feather,const char* key, int increment);
 int Maat_cmd_select(Maat_feather_t feather, int label_id, int * output_ids, unsigned int size);
 #endif
