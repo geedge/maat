@@ -305,6 +305,7 @@ void set_serial_rule(struct serial_rule_t* rule,enum MAAT_OPERATION op,int rule_
 	rule->label_id=label_id;
 	rule->timeout=timeout;
 	assert(strlen(table_name)<sizeof(rule->table_name));
+	memset(rule->table_name, 0, sizeof(rule->table_name));	
 	memcpy(rule->table_name,table_name,strlen(table_name));
 	if(line!=NULL)
 	{
