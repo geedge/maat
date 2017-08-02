@@ -28,7 +28,7 @@
 #include "mesa_fuzzy.h"
 #include "great_index_engine.h"
 
-int MAAT_FRAME_VERSION_1_9_20170626=1;
+int MAAT_FRAME_VERSION_1_9_20170802=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -630,7 +630,7 @@ struct _Maat_group_rule_t* create_group_rule(int group_id)
 	group->ref_cnt=0;
 	group->region_rules=dynamic_array_create(1,8);
 	group->compile_shortcut=NULL;
-	pthread_mutex_init(&(group->mutex), NULL);
+	pthread_rwlock_init(&(group->rwlock), NULL);
 	return group;
 }
 void destroy_group_rule(struct _Maat_group_rule_t* group)
@@ -647,7 +647,7 @@ void destroy_group_rule(struct _Maat_group_rule_t* group)
 	group->region_rules=NULL;
 	group->ref_cnt=0;
 	group->group_id=-1;
-	pthread_mutex_destroy(&(group->mutex));
+	pthread_rwlock_destroy(&(group->rwlock));
 	free(group);
 
 }
@@ -1299,31 +1299,31 @@ struct _Maat_group_rule_t* add_region_to_group(struct _Maat_group_rule_t* group,
 	region_rule->expr_id=expr_id;
 	region_rule->district_id=district_id;
 	region_rule->region_type=region_type;
-	pthread_mutex_lock(&(group->mutex));
+	pthread_rwlock_wrlock(&(group->rwlock));
 	dynamic_array_write(group->region_rules,group->region_boundary,region_rule);
 	group->region_cnt++;
 	group->region_boundary++;
-	pthread_mutex_unlock(&(group->mutex));
+	pthread_rwlock_unlock(&(group->rwlock));
 	return group;
 }
 void cancel_last_region_from_group(struct _Maat_group_rule_t* group,int region_id,int expr_id)
 {
 	struct _Maat_region_rule_t* region_rule=NULL;
-	pthread_mutex_lock(&(group->mutex));
+	pthread_rwlock_wrlock(&(group->rwlock));
 	group->region_boundary--;
 	region_rule=(struct _Maat_region_rule_t*)dynamic_array_read(group->region_rules,group->region_boundary);
 	assert(region_rule->expr_id==expr_id&&region_rule->region_id==region_id);
 	free(region_rule);
 	dynamic_array_write(group->region_rules,group->region_boundary,NULL);
 	group->region_cnt--;
-	pthread_mutex_unlock(&(group->mutex));
+	pthread_rwlock_unlock(&(group->rwlock));
 	return;
 }
 unsigned int del_region_from_group(struct _Maat_group_rule_t* group,int region_id,unsigned int *output_expr_id,int output_size)
 {
 	int i=0,j=0;
 	struct _Maat_region_rule_t* region_rule=NULL;
-	pthread_mutex_lock(&(group->mutex));
+	pthread_rwlock_wrlock(&(group->rwlock));
 	for(i=0;i<group->region_boundary;i++)
 	{
 		region_rule=(struct _Maat_region_rule_t*)dynamic_array_read(group->region_rules, i);
@@ -1344,7 +1344,7 @@ unsigned int del_region_from_group(struct _Maat_group_rule_t* group,int region_i
 			group->region_cnt--;
 		}
 	}
-	pthread_mutex_unlock(&(group->mutex));
+	pthread_rwlock_unlock(&(group->rwlock));
 	return j;
 }
 

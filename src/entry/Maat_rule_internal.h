@@ -189,7 +189,7 @@ struct _Maat_group_rule_t
 	int ref_cnt;
 	dynamic_array_t *region_rules;
 	void* compile_shortcut;
-	pthread_mutex_t mutex;
+	pthread_mutex_t rwlock;
 };
 struct _Maat_compile_rule_t
 {
