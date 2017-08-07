@@ -2779,7 +2779,7 @@ void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbag
 	MESA_lqueue_join_tail(garbage_q,&bag,sizeof(void*));
 	return;
 }
-void garbage_bury(MESA_lqueue_head garbage_q,void *logger)
+void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
 {
 	MESA_queue_errno_t q_ret=MESA_QUEUE_RET_OK;
 	_maat_garbage_t* bag=NULL;
@@ -2794,7 +2794,7 @@ void garbage_bury(MESA_lqueue_head garbage_q,void *logger)
 		data_size=sizeof(void*);
 		q_ret=(MESA_queue_errno_t)MESA_lqueue_get_head(garbage_q,&bag,&data_size);
 		assert(data_size==sizeof(void*)&&q_ret==MESA_QUEUE_RET_OK);
-		if(now-bag->create_time<10)
+		if(now-bag->create_time<timeout)
 		{
 			MESA_lqueue_join_tail(garbage_q,&bag,sizeof(void*));
 			continue;
@@ -3221,7 +3221,7 @@ void *thread_rule_monitor(void *arg)
 										feather->scanner->version,feather->scanner->cfg_num);
 			}
 		}
-		garbage_bury(feather->garbage_q,feather->logger);
+		garbage_bury(feather->garbage_q,feather->effect_interval_ms/1000+10,feather->logger);
 		if(feather->stat_on==1&&scan_dir_cnt%2==0)//output every 2 seconds
 		{
 			maat_stat_output(feather);
@@ -3230,7 +3230,7 @@ void *thread_rule_monitor(void *arg)
 	
 	MESA_htable_destroy(feather->map_tablename2id,free);
 	destroy_maat_scanner(feather->scanner);
-	garbage_bury(feather->garbage_q,feather->logger);
+	garbage_bury(feather->garbage_q,feather->effect_interval_ms/1000+10,feather->logger);
 	MESA_lqueue_destroy(feather->garbage_q,lqueue_destroy_cb,NULL);
 	FS_stop(&(feather->stat_handle));
 
