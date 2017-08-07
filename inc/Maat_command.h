@@ -133,6 +133,8 @@ int Maat_format_cmd(struct Maat_cmd_t* cmd, char* buffer, int size);
 // REGION_EXPR and REGION_SIMILARITY need to escape input string.
 char* Maat_str_escape(char* dst,int size,const char*src);
 
+//Deletion failed due to not complete synchronize with Redis.
+//To make sure the delete command is excecuted, user should try again after MAAT_OPT_SCANDIR_INTERVAL_MS ms.
 // The following functions are NOT thread safe.
 int Maat_cmd(Maat_feather_t feather,struct Maat_cmd_t* cmd,enum MAAT_OPERATION op);
 
