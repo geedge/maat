@@ -188,7 +188,7 @@ int exprid2region_id(struct _Maat_group_inner_t* group_rule,int expr_id,int* dis
 	int i=0,region_id=-1;
 	struct _Maat_region_inner_t* region_rule=NULL;
 	assert(group_rule->group_id>=0);
-	pthread_rwlock_rdlock(&(group_rule->rwlock));
+	pthread_mutex_lock(&(group_rule->mutex));
 	for(i=0;i<group_rule->region_boundary;i++)
 	{
 		region_rule=(struct _Maat_region_inner_t*)dynamic_array_read(group_rule->regions, i);
@@ -203,7 +203,7 @@ int exprid2region_id(struct _Maat_group_inner_t* group_rule,int expr_id,int* dis
 			break;
 		}
 	}
-	pthread_rwlock_unlock(&(group_rule->rwlock));
+	pthread_mutex_unlock(&(group_rule->mutex));
 	return region_id;
 }
 int match_district(struct _OUTER_scan_status_t *_mid,scan_result_t *region_hit,int region_hit_num)

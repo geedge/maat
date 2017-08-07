@@ -182,7 +182,7 @@ struct _Maat_group_inner_t
 	char* group_name;
 	dynamic_array_t *regions;
 	void* compile_shortcut;
-	pthread_rwlock_t rwlock;
+	pthread_mutex_t mutex;
 };
 struct _Maat_compile_inner_t
 {
