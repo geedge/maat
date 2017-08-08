@@ -714,23 +714,16 @@ void copy_indextable_item_iterate(const uchar * key, uint size, void * data, voi
 	}
 	MESA_htable_add(htable_copied_para->runtime_table, key, size, (const void *)index_data_copy);
 }
-
+//TODO: Using the orginal value instead of make a duplication to be faster.
 void copy_idtable_item_iterate(const uchar * key, uint size, void * data, void * user)
 {
 	struct id_table_data * id_data = (struct id_table_data *)data;
 	struct htable_handle * htable_para = (struct htable_handle *)user;
 	struct id_table_data * id_data_copy = (struct id_table_data *)calloc(1, sizeof(struct id_table_data));
-	id_data_copy->blocksize = id_data->blocksize;
-	id_data_copy->cfds_lvl = id_data->cfds_lvl;
-	id_data_copy->gram_cnt = id_data->gram_cnt;
-	id_data_copy->id = id_data->id;
-	id_data_copy->sfh_length = id_data->sfh_length;
+	memcpy(id_data_copy,id_data,sizeof(struct id_table_data));
 	id_data_copy->sfh = (char *)calloc(id_data_copy->sfh_length,sizeof(char));
 	memcpy(id_data_copy->sfh,id_data->sfh,id_data_copy->sfh_length);
 	
-	/*int tag_len = strlen(id_data->tag);
-	id_data_copy->tag = (char *)calloc(tag_len+1,sizeof(char));
-	memcpy(id_data_copy->tag,id_data->tag,tag_len);*/
 	MESA_htable_add(htable_para->runtime_table, (const uchar *)(&(id_data_copy->id)), sizeof(id_data_copy->id), (const void *)id_data_copy);
 }
 	
