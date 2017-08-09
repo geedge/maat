@@ -28,7 +28,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_0_20170807=1;
+int MAAT_FRAME_VERSION_2_0_20170809=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -3077,7 +3077,7 @@ void maat_finish_cb(void* u_para)
 	}
 	return;
 }
-void maat_update_cb(const char* table_name,const char* line,void *u_para)
+int maat_update_cb(const char* table_name,const char* line,void *u_para)
 {
 	struct _Maat_feather_t *feather=(struct _Maat_feather_t *)u_para; 
 	int ret=-1,i=0;
@@ -3096,7 +3096,7 @@ void maat_update_cb(const char* table_name,const char* line,void *u_para)
 	if(ret<0)
 	{
 		MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module ,"update warning,unknown table name %s",table_name);
-		return;	
+		return -1;	
 	}
 	p_table=feather->p_table_info[table_id];
 	for(i=0;i<p_table->conj_cnt;i++)
@@ -3136,7 +3136,7 @@ void maat_update_cb(const char* table_name,const char* line,void *u_para)
 			break;
 	
 	}
-	return;
+	return 0;
 }
 void *thread_rule_monitor(void *arg)
 {

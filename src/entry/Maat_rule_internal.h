@@ -431,7 +431,7 @@ void garbage_bury(MESA_lqueue_head garbage_q,void *logger);
 void make_group_set(const struct _Maat_compile_inner_t* compile_rule,universal_bool_expr_t* a_set);
 int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger);
 void maat_start_cb(unsigned int new_version,int update_type,void*u_para);
-void maat_update_cb(const char* table_name,const char* line,void *u_para);
+int maat_update_cb(const char* table_name,const char* line,void *u_para);
 void maat_finish_cb(void* u_para);
 void *thread_rule_monitor(void *arg);
 unsigned int make_sub_type(unsigned short table_id,enum MAAT_CHARSET charset,int do_charset_merge);
@@ -454,7 +454,7 @@ char* _maat_strdup(const char* s);
 char* str_unescape(char* s);
 void redis_monitor_traverse(unsigned int version,redisContext *c,
 							void (*start)(unsigned int ,int ,void*),//vesion,CM_UPDATE_TYPE_*,u_para
-							void (*update)(const char* ,const char*,void* ),//table name ,line ,u_para
+							int (*update)(const char* ,const char*,void* ),//table name ,line ,u_para
 							void (*finish)(void*),//u_para
 							void* u_para,
 							const unsigned char* dec_key,

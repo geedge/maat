@@ -6,7 +6,7 @@
 
 void config_monitor_traverse(unsigned int version,const char*idx_dir,
 							void (*start)(unsigned int ,int ,void*),//vesion,CM_UPDATE_TYPE_*,u_para
-							void (*update)(const char* ,const char*,void* ),//table name ,line ,u_para
+							int (*update)(const char* ,const char*,void* ),//table name ,line ,u_para
 							void (*finish)(void*),//u_para
 							void* u_para,
 							const unsigned char* dec_key,

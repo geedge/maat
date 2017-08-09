@@ -347,12 +347,13 @@ int cm_read_cfg_index_file(const char* path,struct cm_table_info_t* idx,int size
 }
 
 int cm_read_table_file(struct cm_table_info_t* index,
-							void (*update)(const char*,const char*,void*),
+							int (*update)(const char*,const char*,void*),
 							void* u_para,
 							const unsigned char* key,
 							void* logger)
 {
 	int cfg_num=0,i=0;
+	int ret=0;
 	char line[MAX_CONFIG_LINE]={0},*ret_str=NULL;
 	unsigned char* decrypt_buff=NULL;
 	int decrypt_len=0,do_decrypt=0,decrypt_offset=0;
@@ -414,7 +415,11 @@ int cm_read_table_file(struct cm_table_info_t* index,
 								sizeof(line),index->cfg_path,i);	
 			continue;
 		}
-		update(index->table_name,line,u_para);
+		ret=update(index->table_name,line,u_para);
+		if(ret<0)
+		{
+			break;
+		}
 	}
 	fclose(fp);
 	if(decrypt_buff!=NULL)
@@ -437,7 +442,7 @@ const char* path2filename(const char*path)
 }
 void config_monitor_traverse(unsigned int version,const char*idx_dir,
 							void (*start)(unsigned int ,int ,void*),
-							void (*update)(const char* ,const char*,void* ),
+							int (*update)(const char* ,const char*,void* ),
 							void (*finish)(void*),
 							void* u_para,
 							const unsigned char* dec_key,
