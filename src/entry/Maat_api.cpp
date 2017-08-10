@@ -599,7 +599,7 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			_feather->redis_index=*((int*)value);
 			break;
 		case MAAT_OPT_CMD_AUTO_NUMBERING:
-			if((size_t)size!=sizeof(int))
+			if((size_t)size!=sizeof(int)||*((int*)value)>15||*((int*)value)<0)
 			{
 				return -1;
 			}
@@ -613,6 +613,7 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 int Maat_initiate_feather(Maat_feather_t feather)
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	redisReply* reply=NULL;
 
 	if(strlen(_feather->redis_ip)>0&&_feather->redis_port!=0)
 	{
@@ -630,6 +631,8 @@ int Maat_initiate_feather(Maat_feather_t feather)
 			return -1;
 		}
 		redisEnableKeepAlive(_feather->redis_read_ctx);
+		reply=_wrap_redisCommand(_feather->redis_read_ctx, "select %d",_feather->redis_index);
+		freeReplyObject(reply);
 		redis_monitor_traverse(_feather->maat_version
 								,_feather->redis_read_ctx
 								,maat_start_cb
