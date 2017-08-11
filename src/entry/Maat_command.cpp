@@ -879,7 +879,8 @@ void cleanup_update_status(redisContext *ctx, void *logger)
 	version_upper_bound=read_redis_integer(sub_reply->element[sub_reply->elements-1]);
 	freeReplyObject(reply);	
 
-	reply=_wrap_redisCommand(ctx,"ZREMRANGEBYSCORE %s -inf %lld",rm_expire_sset,version_upper_bound);
+	//For maat_version reset, do NOT use -inf to upper bound intentionally.
+	reply=_wrap_redisCommand(ctx,"ZREMRANGEBYSCORE %s %lld %lld",rm_expire_sset,version_lower_bound,version_upper_bound);
 	entry_num=read_redis_integer(reply);
 	freeReplyObject(reply);	
 
