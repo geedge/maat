@@ -121,6 +121,7 @@ int main(int argc, char * argv[])
 			case '?':
 			default:
 				digest_gen_print_usage();
+				return 0;
 				break;
 		}
 	}
