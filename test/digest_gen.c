@@ -42,7 +42,7 @@ double entropy_stop(void* handle)
 	free(handle);
 	return (-sum);
 }
-void hash_file(const char* path)
+void hash_file(const char* path,double *p_entropy,off_t *file_size, char* sfh_buffer,int size)
 {
 	unsigned long long read_size=0,feed_offset=0;
 	char read_buff[1024*4];
@@ -71,21 +71,27 @@ void hash_file(const char* path)
 		entropy_feed(entropy_handle,(const unsigned char*) read_buff, read_size);
 	}
 	file_entropy=entropy_stop(entropy_handle);
+	*p_entropy=file_entropy;
 	hash_length = SFH_status(fhandle, HASH_LENGTH);
-	digest_result_buff= (char *)malloc(sizeof(char) * (hash_length));
-	SFH_digest(fhandle, digest_result_buff, hash_length);
-	printf("%s %u %lf %s\n",path,digest_fstat.st_size,file_entropy,digest_result_buff);
+	SFH_digest(fhandle, sfh_buffer, size);
+	//printf("%s %u %lf %s\n",path,digest_fstat.st_size,file_entropy,digest_result_buff);
 	SFH_release(fhandle);
-	free(digest_result_buff);
+	*file_size=digest_fstat.st_size;
 	fclose(fp);
+	return;
 }
 void digest_gen_print_usage(void)
 {
-	printf("digest_gen uasge:\n\t-f [FILE], caculate a file's SFH digest.\n");
-	printf("\t-s specify first string for comparing.\n");
-	printf("\t-d specify second string for comparing.\n");
-	printf("\t-c compare two simple string with similairity.\n");
-	printf("\t-m compare two SFH signature.\n");
+	printf("digest_gen dermines the similarity of two signatures/strings/files with a score in [0,100].\n");
+	printf("Higher score means more similar.\nUsage:\n");
+	printf("\t-f [FILE], caculate a file's SFH digest.\n");
+	printf("\t-s specify the first string/file for comparing.\n");
+	printf("\t-d specify the second string/file for comparing.\n");
+	printf("\t-c compare two simple strings that specified by -s and -d.\n");
+	printf("\t-m compare two SFH signatures that specified by -s and -d.\n");
+	printf("\t-p compare two files that specified by -s and -d.\n");
+	printf("example: ./digest_gen -p -s file1 -d file2\n");
+	
 	return;
 }
 int main(int argc, char * argv[])
@@ -95,21 +101,26 @@ int main(int argc, char * argv[])
 	int oc=0;
 	int confidence=0;
 	int model=0;
+	double file_entropy=0.0;
+	off_t file_size=0;
+	char sfh_buffer1[4096]={0},sfh_buffer2[4096]={0};
 	const char* b_opt_arg=NULL;
 	if(argc<2)
 	{
 		digest_gen_print_usage();
 		return 0;
 	}
-	while((oc=getopt(argc,argv,"f:cms:d:"))!=-1)
+	while((oc=getopt(argc,argv,"f:pcms:d:"))!=-1)
 	{
 		switch(oc)
 		{
 			case 'f':
+				model=oc;
 				strncpy(path,optarg,sizeof(path));
 				break;
 			case 'c':
 			case 'm':
+			case 'p':
 				model=oc;
 				break;
 			case 's':
@@ -128,15 +139,21 @@ int main(int argc, char * argv[])
 	switch(model)
 	{
 		case 'f':
-			hash_file(path);
+			hash_file(path,&file_entropy,&file_size,sfh_buffer1,sizeof(sfh_buffer1));
+			printf("%s %u %lf %s\n",path,file_size,file_entropy,sfh_buffer1);
 			break;
 		case 'c':
 			confidence=GIE_string_similiarity(str1, strlen(str1), str2, strlen(str2));
 			printf("%d\n",confidence);
 			break;
 		case 'm':
-			sscanf(optarg,"%s,%s",str1,str2);
 			confidence=GIE_sfh_similiarity(str1, strlen(str1), str2, strlen(str2));
+			printf("%d\n",confidence);
+			break;
+		case 'p':
+			hash_file(str1,&file_entropy,&file_size,sfh_buffer1,sizeof(sfh_buffer1));
+			hash_file(str2,&file_entropy,&file_size,sfh_buffer2,sizeof(sfh_buffer2));
+			confidence=GIE_sfh_similiarity(sfh_buffer1, strlen(sfh_buffer1), sfh_buffer2, strlen(sfh_buffer2));
 			printf("%d\n",confidence);
 			break;
 		default:
@@ -144,3 +161,4 @@ int main(int argc, char * argv[])
 	}
 	return 0;
 }
+
