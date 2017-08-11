@@ -1092,14 +1092,22 @@ inline unsigned long long get_blocksize_from_head(const char * fuzzy_string, uns
 	blocksize = (unsigned long long)atoi(blk);
 	return blocksize;
 }
+int GIE_string_similiarity(const char *str1, int len1, const char *str2, int len2)
+{
+	int edit_distance=0;
+	int conf=0;
+	edit_distance = edit_distn(str1, len1,str2,len2);
+	conf = 100-(edit_distance*100)/(len1 + len2);
+	return conf;
+}
 
-int GIE_comp_edit_distance(const char *query_str, int len1, const char *index_str, int len2)
+int GIE_sfh_similiarity(const char *sfh1, int len1, const char *sfh2, int len2)
 {
 	int j = 0, t = 0;
 	unsigned long long query_blocksize = 0, index_blocksize = 0;
 	unsigned int query_real_length = 0, index_real_length = 0;
-	const char *query_gram_begin = query_str;
-	const char *index_gram_begin = index_str;
+	const char *query_gram_begin = sfh1;
+	const char *index_gram_begin = sfh2;
 	char *splice_str = (char *)malloc(sizeof(char)*len1);
 	memset(splice_str,'\0',len1);
 	char *spli_str_begin = splice_str;
@@ -1121,7 +1129,7 @@ int GIE_comp_edit_distance(const char *query_str, int len1, const char *index_st
 			index_gram_begin++;
 		}
 		index_real_length = get_real_length(index_gram_begin, len2);
-		query_gram_begin = query_str;
+		query_gram_begin = sfh1;
 		for(t = 0; t < 2; t++)
 		{
 				query_blocksize = get_blocksize_from_head(query_gram_begin, len1);
@@ -1259,7 +1267,6 @@ int GIE_query(GIE_handle_t * handle, const char * data, int data_len, GIE_result
 	struct id_table_data * ret_tmp = NULL;
 	short conf = 0;
 	int ret_size = 0;
-	int edit_distance = 0;
 	for(i = 0; i <= union_index; i++)
 	{
 		if( i == union_index || *tmp_id != current_id )
@@ -1286,12 +1293,11 @@ int GIE_query(GIE_handle_t * handle, const char * data, int data_len, GIE_result
 			{
 				if(_handle->input_format == GIE_INPUT_FORMAT_SFH)
 				{
-					conf = GIE_comp_edit_distance(data, fuzzy_string_len, tmp_gram, length);
+					conf = GIE_sfh_similiarity(data, fuzzy_string_len, tmp_gram, length);
 				}
 				else
 				{
-					edit_distance = edit_distn(data, fuzzy_string_len,tmp_gram,length);
-					conf = 100-(edit_distance*100)/(fuzzy_string_len + length);
+					conf=GIE_string_similiarity(data, fuzzy_string_len, tmp_gram, length);
 				}
 			}
 			

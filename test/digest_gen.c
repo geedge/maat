@@ -6,7 +6,9 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <math.h>
+#include <assert.h>
 #include "stream_fuzzy_hash.h"
+#include "gram_index_engine.h"
 
 void* entropy_start(void)
 {
@@ -77,23 +79,67 @@ void hash_file(const char* path)
 	free(digest_result_buff);
 	fclose(fp);
 }
-
+void digest_gen_print_usage(void)
+{
+	printf("digest_gen uasge:\n\t-f [FILE], caculate a file's SFH digest.\n");
+	printf("\t-s specify first string for comparing.\n");
+	printf("\t-d specify second string for comparing.\n");
+	printf("\t-c compare two simple string with similairity.\n");
+	printf("\t-m compare two SFH signature.\n");
+	return;
+}
 int main(int argc, char * argv[])
 {
 	char path[256];
-	if(argc == 2)
+	char str1[4096],str2[4096];
+	int oc=0;
+	int confidence=0;
+	int model=0;
+	const char* b_opt_arg=NULL;
+	if(argc<2)
 	{
-		hash_file(argv[1]);
+		digest_gen_print_usage();
+		return 0;
 	}
-	else if(NULL!=fgets(path,sizeof(path),stdin))
+	while((oc=getopt(argc,argv,"f:cms:d:"))!=-1)
 	{
-		hash_file(path);
+		switch(oc)
+		{
+			case 'f':
+				strncpy(path,optarg,sizeof(path));
+				break;
+			case 'c':
+			case 'm':
+				model=oc;
+				break;
+			case 's':
+				strncpy(str1,optarg,sizeof(str1));
+				break;
+			case 'd':
+				strncpy(str2,optarg,sizeof(str2));
+				break;
+			case '?':
+			default:
+				digest_gen_print_usage();
+				break;
+		}
 	}
-	else
+	switch(model)
 	{
-		printf("SFH uasge: ./digest_gen [Dir]\n");
-		exit(-1);
+		case 'f':
+			hash_file(path);
+			break;
+		case 'c':
+			confidence=GIE_string_similiarity(str1, strlen(str1), str2, strlen(str2));
+			printf("%d\n",confidence);
+			break;
+		case 'm':
+			sscanf(optarg,"%s,%s",str1,str2);
+			confidence=GIE_sfh_similiarity(str1, strlen(str1), str2, strlen(str2));
+			printf("%d\n",confidence);
+			break;
+		default:
+			assert(0);
 	}
-	
 	return 0;
 }

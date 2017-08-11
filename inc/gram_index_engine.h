@@ -59,7 +59,8 @@ int GIE_update(GIE_handle_t * handle, GIE_digest_t ** digests, int size);
 int GIE_query(GIE_handle_t * handle, const char * data, int data_len, GIE_result_t * results, int result_size);
 
 void GIE_destory(GIE_handle_t * handle);
-
+int GIE_string_similiarity(const char *str1, int len1, const char *str2, int len2);
+int GIE_sfh_similiarity(const char *sfh1, int len1, const char *sfh2, int len2);
 
 #ifdef __cplusplus
 }
