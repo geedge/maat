@@ -619,21 +619,23 @@ int Maat_initiate_feather(Maat_feather_t feather)
 	{
 		_feather->REDIS_MODE_ON=1;
 		MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
-							"Maat initiate from Redis %s:%hu"
+							"Maat initiate from Redis %s:%hu db%d."
 							,_feather->redis_ip
-							,_feather->redis_port);
+							,_feather->redis_port
+							,_feather->redis_index);
 		_feather->redis_read_ctx=redisConnectWithTimeout(_feather->redis_ip,_feather->redis_port,_feather->connect_timeout);
 		if(_feather->redis_read_ctx==NULL)
 		{
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module 
 								,"Redis connect %s:%d failed."
 								,_feather->redis_ip,_feather->redis_port);
-			return -1;
 		}
-		redisEnableKeepAlive(_feather->redis_read_ctx);
-		reply=_wrap_redisCommand(_feather->redis_read_ctx, "select %d",_feather->redis_index);
-		freeReplyObject(reply);
-		redis_monitor_traverse(_feather->maat_version
+		else
+		{
+			redisEnableKeepAlive(_feather->redis_read_ctx);
+			reply=_wrap_redisCommand(_feather->redis_read_ctx, "select %d",_feather->redis_index);
+			freeReplyObject(reply);
+			redis_monitor_traverse(_feather->maat_version
 								,_feather->redis_read_ctx
 								,maat_start_cb
 								,maat_update_cb
@@ -641,6 +643,7 @@ int Maat_initiate_feather(Maat_feather_t feather)
 								, _feather
 								,_feather->decrypt_key	//Not used.
 								,_feather);
+		}
 	}
 	else
 	{

@@ -28,7 +28,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_0_20170810=1;
+int MAAT_FRAME_VERSION_2_0_20170811=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -3052,7 +3052,7 @@ void maat_finish_cb(void* u_para)
 	{
 		feather->scanner->cfg_num=total;
 		feather->scanner->version=feather->maat_version;
-		if(time(NULL)-feather->scanner->last_update_time>60)
+		if(time(NULL)-feather->scanner->last_update_time>feather->effect_interval_ms/1000)
 		{
 			do_scanner_update(feather->scanner
 							,feather->garbage_q
