@@ -330,6 +330,7 @@ struct _Maat_scanner_t
 	time_t last_update_time;
 	long long *ref_cnt;	//optimized for cache_alignment 64
 	rule_scanner_t region;
+	long gie_total_q_size;
 	struct GIE_aux_t gie_aux[MAX_TABLE_NUM];
 	MESA_htable_handle region_hash;
 	MESA_htable_handle group_hash;

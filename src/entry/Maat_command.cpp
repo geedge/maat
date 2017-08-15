@@ -48,6 +48,7 @@ redisReply *_wrap_redisCommand(redisContext *c, const char *format, ...)
 	va_start(ap,format);
 	reply = redisvCommand(c,format,ap);
 	va_end(ap);
+	
 	return (redisReply *)reply;
 }
 int connect_redis_for_write(_Maat_feather_t * feather)
@@ -391,6 +392,15 @@ int get_rm_key_list(unsigned int version,redisContext *c,struct serial_rule_t** 
 		return 0;
 	}
 	tmp_reply=_wrap_redisCommand(c, "ZSCORE %s %s",rm_status_sset,reply->element[0]->str);
+	if(tmp_reply->type!=REDIS_REPLY_STRING)
+	{
+		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor,
+					"ZSCORE %s %s failed Version: %d->%d",rm_status_sset,reply->element[0]->str,version, version_in_redis);
+		free(tmp_reply);
+		free(reply);
+		goto FULL_UPDATE;
+
+	}
 	nearest_rule_version=read_redis_integer(tmp_reply);
 	freeReplyObject(tmp_reply);
 	tmp_reply=NULL;
@@ -898,8 +908,8 @@ void cleanup_update_status(redisContext *ctx, void *logger)
 	version_upper_bound=read_redis_integer(sub_reply->element[sub_reply->elements-1]);
 	freeReplyObject(reply);	
 
-	//For maat_version reset, do NOT use -inf to upper bound intentionally.
-	reply=_wrap_redisCommand(ctx,"ZREMRANGEBYSCORE %s %lld %lld",rm_expire_sset,version_lower_bound,version_upper_bound);
+	//To deal with maat_version reset to 0, do NOT use -inf as lower bound intentionally.
+	reply=_wrap_redisCommand(ctx,"ZREMRANGEBYSCORE %s %lld %lld",rm_status_sset,version_lower_bound,version_upper_bound);
 	entry_num=read_redis_integer(reply);
 	freeReplyObject(reply);	
 
