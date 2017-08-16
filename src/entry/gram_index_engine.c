@@ -9,7 +9,7 @@
 #include "gram_index_engine.h"
 #include "queue.h"
 
-#define HTABLE_SIZE 32*1024
+#define HTABLE_SIZE 128*1024
 #define GRAM_CNT_MAX 2
 #define GRAM_MAX 128
 #define TOLERENCE_SIZE 0

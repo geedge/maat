@@ -28,7 +28,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_0_20170814_2=1;
+int MAAT_FRAME_VERSION_2_0_20170816=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -986,20 +986,21 @@ void op_expr_add_rule(struct op_expr_t* op_expr,scan_rule_t* p_rule)
 	op_expr->rule_type=p_rule->rule_type;
 	return;
 }
-GIE_digest_t* create_digest_rule(int id,short op,const char* digest,
+GIE_digest_t* create_digest_rule(unsigned int id,short op,const char* digest,
 						short cfds_lvl,struct _Maat_group_inner_t* tag)
 {
 	GIE_digest_t* rule=(GIE_digest_t*)calloc(sizeof(GIE_digest_t),1);
-	int digest_len=strlen(digest);
+	int digest_len=0;
 	rule->id=id;
 	rule->operation=op;
-	rule->sfh_length=digest_len;
 	if(digest!=NULL)
 	{
+		digest_len=strlen(digest);
 		rule->sfh=(char*)calloc(sizeof(char),digest_len+1);
 		memcpy(rule->sfh,digest,digest_len);
 
 	}
+	rule->sfh_length=digest_len;
 	rule->cfds_lvl=cfds_lvl;
 	rule->tag=(void*)tag;
 	return rule;
@@ -1459,6 +1460,7 @@ unsigned int del_region_from_group(struct _Maat_group_inner_t* group,int region_
 			for(j=0;j<region_rule->expr_id_cnt;j++)
 			{
 				output_expr_id[j]=region_rule->expr_id_lb+j;
+				assert(output_expr_id[j]>0);
 			}
 			assert(j<=output_size);	
 			region_rule->region_id=0;
@@ -1960,7 +1962,7 @@ int add_digest_rule(struct _Maat_table_info_t* table,struct db_digest_rule_t* db
 		HASH_add_by_id(scanner->group_hash, db_digest_rule->group_id, group_rule);
 	}
 	expr_id=scanner->exprid_generator++;
-	u_para=add_region_to_group(group_rule,table->table_id,db_digest_rule->region_id,expr_id,district_id,TABLE_TYPE_DIGEST);
+	u_para=add_region_to_group(group_rule,table->table_id,db_digest_rule->region_id,district_id,expr_id,TABLE_TYPE_DIGEST);
 	if(u_para==NULL)
 	{
 		return -1;
@@ -2026,7 +2028,7 @@ int del_region_rule(struct _Maat_table_info_t* table,int region_id,int group_id,
 									,NULL
 									,0
 									,NULL);
-			MESA_lqueue_join_tail(maat_scanner->gie_aux[i].update_q,&digest_rule, sizeof(void*));
+			MESA_lqueue_join_tail(maat_scanner->gie_aux[table->table_id].update_q,&digest_rule, sizeof(void*));
 			maat_scanner->gie_total_q_size++;
 			break;
 		default:
