@@ -1460,7 +1460,7 @@ unsigned int del_region_from_group(struct _Maat_group_inner_t* group,int region_
 			for(j=0;j<region_rule->expr_id_cnt;j++)
 			{
 				output_expr_id[j]=region_rule->expr_id_lb+j;
-				assert(output_expr_id[j]>0);
+				assert(output_expr_id[j]>=0);
 			}
 			assert(j<=output_size);	
 			region_rule->region_id=0;
