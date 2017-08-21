@@ -28,7 +28,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_0_20170816=1;
+int MAAT_FRAME_VERSION_2_0_20170821=1;
 const char *maat_module="MAAT Frame";
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
@@ -3168,6 +3168,10 @@ void *thread_rule_monitor(void *arg)
 	//pthread_setname_np are introduced in glibc2.12
 	//ret=pthread_setname_np(pthread_self(),maat_name); 
 	assert(ret>=0);
+	if(feather->DEFERRED_INIT_ON!=0)
+	{
+		maat_read_full_config(feather);
+	}
 	while(feather->still_working)
 	{
 		usleep(feather->scan_interval_ms*1000);

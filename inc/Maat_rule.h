@@ -150,7 +150,8 @@ enum MAAT_INIT_OPT
 	MAAT_OPT_REDIS_IP,				//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1. No DEFAULT.
 	MAAT_OPT_REDIS_PORT,			//VALUE is a unsigned short, host order, SIZE= sizeof(unsigned short). No DEFAULT.
 	MAAT_OPT_REDIS_INDEX,			//VALUE is interger *, 0~15, SIZE=sizeof(int). DEFAULT: 0.
-	MAAT_OPT_CMD_AUTO_NUMBERING		//VALUE is interger *, 1 or 0, SIZE=sizeof(int). DEFAULT: 1.
+	MAAT_OPT_CMD_AUTO_NUMBERING,		//VALUE is interger *, 1 or 0, SIZE=sizeof(int). DEFAULT: 1.
+	MAAT_OPT_DEFERRED_INIT			//VALUE is  NULL,SIZE is 0.  Default: Deffered initialization OFF.
 };
 //return -1 if failed, return 0 on success;
 int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT  type,const void* value,int size);

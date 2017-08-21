@@ -605,16 +605,17 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			}
 			_feather->AUTO_NUMBERING_ON=*((int*)value);
 			break;
+		case MAAT_OPT_DEFERRED_INIT:
+			_feather->DEFERRED_INIT_ON=1;
+			break;
 		default:
 			return -1;
 	}
 	return 0;
 }
-int Maat_initiate_feather(Maat_feather_t feather)
+void maat_read_full_config(_Maat_feather_t* _feather)
 {
-	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	redisReply* reply=NULL;
-
 	if(strlen(_feather->redis_ip)>0&&_feather->redis_port!=0)
 	{
 		_feather->REDIS_MODE_ON=1;
@@ -652,7 +653,7 @@ int Maat_initiate_feather(Maat_feather_t feather)
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
 								"At initiation: NO FULL_CFG_DIR or JSON_FILE_PATH. ");
 		
-			return -1;
+			return;
 		}
 		config_monitor_traverse(_feather->maat_version,
 								_feather->full_dir, 
@@ -686,6 +687,15 @@ int Maat_initiate_feather(Maat_feather_t feather)
 	{
 		_feather->maat_version=_feather->scanner->version;
 		_feather->last_full_version=_feather->scanner->version;
+	}
+	return;
+}
+int Maat_initiate_feather(Maat_feather_t feather)
+{
+	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	if(_feather->DEFERRED_INIT_ON==0)
+	{
+		maat_read_full_config(_feather);
 	}
 	if(strlen(_feather->stat_file)==0)
 	{

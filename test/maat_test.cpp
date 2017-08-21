@@ -660,23 +660,35 @@ int main(int argc,char* argv[])
 	feather=Maat_feather(g_iThreadNum, table_info_path, logger);
 	Maat_set_feather_opt(feather,MAAT_OPT_INSTANCE_NAME,"demo", strlen("demo")+1);
 	Maat_set_feather_opt(feather,MAAT_OPT_DECRYPT_KEY,decrypt_key, strlen(decrypt_key)+1);
+	int oc=0;
+	while((oc=getopt(argc,argv,"ujrd"))!=-1)
+	{
+		switch(oc)
+		{
+			case 'u'://update
+				Maat_set_feather_opt(feather, MAAT_OPT_FULL_CFG_DIR, ful_cfg_dir, strlen(ful_cfg_dir)+1);
+				Maat_set_feather_opt(feather, MAAT_OPT_INC_CFG_DIR, inc_cfg_dir, strlen(inc_cfg_dir)+1);
+				wait_second=14;
+				break;
+			case 'r'://redis
+				Maat_set_feather_opt(feather, MAAT_OPT_REDIS_IP, redis_ip, strlen(redis_ip)+1);
+				Maat_set_feather_opt(feather, MAAT_OPT_REDIS_PORT, &redis_port, sizeof(redis_port));
+				using_redis=1;
+				break;
+			case 'j'://json
+				Maat_set_feather_opt(feather, MAAT_OPT_JSON_FILE_PATH, json_path, strlen(json_path)+1);
+				break;
+			case 'd'://deferred
+				Maat_set_feather_opt(feather, MAAT_OPT_DEFERRED_INIT, NULL,0);
+				wait_second=14;
+				break;
 
-	if(argc>1&&0==strcmp(argv[1],"update"))
-	{
-		Maat_set_feather_opt(feather, MAAT_OPT_FULL_CFG_DIR, ful_cfg_dir, strlen(ful_cfg_dir)+1);
-		Maat_set_feather_opt(feather, MAAT_OPT_INC_CFG_DIR, inc_cfg_dir, strlen(inc_cfg_dir)+1);
-		wait_second=14;
+			default:
+				return 0;
+				break;
+		}
 	}
-	else if(argc>1&&0==strcmp(argv[1],"redis"))
-	{
-		Maat_set_feather_opt(feather, MAAT_OPT_REDIS_IP, redis_ip, strlen(redis_ip)+1);
-		Maat_set_feather_opt(feather, MAAT_OPT_REDIS_PORT, &redis_port, sizeof(redis_port));
-		using_redis=1;
-	}
-	else
-	{
-		Maat_set_feather_opt(feather, MAAT_OPT_JSON_FILE_PATH, json_path, strlen(json_path)+1);
-	}
+
 	Maat_set_feather_opt(feather, MAAT_OPT_SCANDIR_INTERVAL_MS,&scan_interval_ms, sizeof(scan_interval_ms));
 	Maat_set_feather_opt(feather, MAAT_OPT_STAT_FILE_PATH, stat_file, strlen(stat_file)+1);
 	Maat_set_feather_opt(feather, MAAT_OPT_STAT_ON, NULL, 0);
