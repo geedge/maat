@@ -3168,8 +3168,10 @@ void *thread_rule_monitor(void *arg)
 	//pthread_setname_np are introduced in glibc2.12
 	//ret=pthread_setname_np(pthread_self(),maat_name); 
 	assert(ret>=0);
-	if(feather->DEFERRED_INIT_ON!=0)
+	if(feather->DEFERRED_LOAD_ON!=0)
 	{
+		MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
+								"Deferred Loading ON, updating in %s.",__func__);
 		maat_read_full_config(feather);
 	}
 	while(feather->still_working)

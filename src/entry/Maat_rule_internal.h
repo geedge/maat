@@ -355,7 +355,7 @@ struct _Maat_feather_t
 	struct _Maat_scanner_t *update_tmp_scanner;
 	MESA_lqueue_head garbage_q;
 	int table_cnt;
-	int DEFERRED_INIT_ON;
+	int DEFERRED_LOAD_ON;
 	int GROUP_MODE_ON;
 	int REDIS_MODE_ON;
 	int still_working;

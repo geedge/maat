@@ -605,8 +605,8 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			}
 			_feather->AUTO_NUMBERING_ON=*((int*)value);
 			break;
-		case MAAT_OPT_DEFERRED_INIT:
-			_feather->DEFERRED_INIT_ON=1;
+		case MAAT_OPT_DEFERRED_LOAD:
+			_feather->DEFERRED_LOAD_ON=1;
 			break;
 		default:
 			return -1;
@@ -693,7 +693,7 @@ void maat_read_full_config(_Maat_feather_t* _feather)
 int Maat_initiate_feather(Maat_feather_t feather)
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
-	if(_feather->DEFERRED_INIT_ON==0)
+	if(_feather->DEFERRED_LOAD_ON==0)
 	{
 		maat_read_full_config(_feather);
 	}

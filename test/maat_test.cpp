@@ -15,7 +15,12 @@
 #include <sys/types.h>//fstat
 #include <sys/stat.h>//fstat
 #include <unistd.h>
-#include <dirent.h> 
+#include <dirent.h>
+const char* test_maat_redis_ip="127.0.0.1";
+unsigned short test_maat_redis_port=6379;
+const char* json_path="./maat_json.json";
+const char* ful_cfg_dir="./rule/full/index/";
+const char* inc_cfg_dir="./rule/inc/index/";
 extern int my_scandir(const char *dir, struct dirent ***namelist,
               int(*filter)(const struct dirent *),
               int(*compar)(const void *, const void *));
@@ -637,24 +642,40 @@ void test_command(Maat_feather_t feather)
 	}
 	Maat_clean_status(&mid);
 }
+void maat_test_print_usage(void)
+{
+	printf("Maat Test Usage:\n");
+	printf("\tSource:\n");
+	printf("\t\t-j Test updating from %s.\n",json_path);
+	printf("\t\t-u Load config from %s, and monitor %s. Need manually move inc index.\n",ful_cfg_dir,inc_cfg_dir);
+	printf("\t\t-r Read config redis %s:%u db0.\n",test_maat_redis_ip,test_maat_redis_port);
+	printf("\tOption:\n");
+	printf("\t\t-d Deferred Loading config.\n");
+	printf("example: ./maat_test -j -d\n");
+	
+	return;
+}
 int main(int argc,char* argv[])
 {
 	Maat_feather_t feather=NULL;
 	int g_iThreadNum=4;
 	const char*	table_info_path="./table_info.conf";
-	const char* json_path="./maat_json.json";
-	const char* ful_cfg_dir="./rule/full/index/";
-	const char* inc_cfg_dir="./rule/inc/index/";
+
 	const char* log_file="./test.log";
 	const char* stat_file="./scan_staus.log";
 	const char* decrypt_key="mesa2017wy";
 	int scan_interval_ms=10;
-	const char* redis_ip="127.0.0.1";
-	unsigned short redis_port=6379;
-	int scan_detail=0;
+
+	int scan_detail=0,deferred_load_on=0;
 	int using_redis=0;
 	scan_status_t mid=NULL;
 	int wait_second=400;
+
+	if(argc<2)
+	{
+		maat_test_print_usage();
+		return 0;
+	}
 	void *logger=MESA_create_runtime_log_handle(log_file,0);
 
 	feather=Maat_feather(g_iThreadNum, table_info_path, logger);
@@ -671,19 +692,20 @@ int main(int argc,char* argv[])
 				wait_second=14;
 				break;
 			case 'r'://redis
-				Maat_set_feather_opt(feather, MAAT_OPT_REDIS_IP, redis_ip, strlen(redis_ip)+1);
-				Maat_set_feather_opt(feather, MAAT_OPT_REDIS_PORT, &redis_port, sizeof(redis_port));
+				Maat_set_feather_opt(feather, MAAT_OPT_REDIS_IP, test_maat_redis_ip, strlen(test_maat_redis_ip)+1);
+				Maat_set_feather_opt(feather, MAAT_OPT_REDIS_PORT, &test_maat_redis_port, sizeof(test_maat_redis_port));
 				using_redis=1;
+				break;
+			case 'd'://deferred
+				Maat_set_feather_opt(feather, MAAT_OPT_DEFERRED_LOAD, NULL,0);
+				deferred_load_on=1;
 				break;
 			case 'j'://json
 				Maat_set_feather_opt(feather, MAAT_OPT_JSON_FILE_PATH, json_path, strlen(json_path)+1);
 				break;
-			case 'd'://deferred
-				Maat_set_feather_opt(feather, MAAT_OPT_DEFERRED_INIT, NULL,0);
-				wait_second=14;
-				break;
-
+			case '?':
 			default:
+				maat_test_print_usage();
 				return 0;
 				break;
 		}
@@ -700,6 +722,11 @@ int main(int argc,char* argv[])
 	{
 		printf("Maat initial error, see %s\n",log_file);
 		return -1;
+	}
+	if(deferred_load_on==1)
+	{
+		printf("Deferred Load ON, Waiting...\n");
+		sleep(1);
 	}
 	test_plugin_table(feather, "QD_ENTRY_INFO",logger);
 	
