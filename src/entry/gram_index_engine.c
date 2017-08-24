@@ -493,6 +493,7 @@ int GIE_update(GIE_handle_t * handle,GIE_digest_t * * digests,int size)
 		{
 			case GIE_INSERT_OPT:
 			{
+				assert(digests[i]->tag!=NULL);
 				if(_handle->input_format == GIE_INPUT_FORMAT_SFH)
 				{
 					grab_ret = sfh_grab_key_set(digests[i]->sfh,digests[i]->sfh_length,i,gram_value,&gram_cnt,to_process_list);
@@ -720,6 +721,7 @@ void copy_idtable_item_iterate(const uchar * key, uint size, void * data, void *
 	struct id_table_data * id_data = (struct id_table_data *)data;
 	struct htable_handle * htable_para = (struct htable_handle *)user;
 	struct id_table_data * id_data_copy = (struct id_table_data *)calloc(1, sizeof(struct id_table_data));
+	assert(id_data->tag!=NULL);
 	memcpy(id_data_copy,id_data,sizeof(struct id_table_data));
 	id_data_copy->sfh = (char *)calloc(id_data_copy->sfh_length,sizeof(char));
 	memcpy(id_data_copy->sfh,id_data->sfh,id_data_copy->sfh_length);
