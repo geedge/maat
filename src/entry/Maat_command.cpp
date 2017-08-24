@@ -973,8 +973,7 @@ void redis_monitor_traverse(unsigned int version,redisContext *c,
 		const unsigned char* dec_key,
 		_Maat_feather_t* feather)
 {
-	unsigned int rule_num=0,i=0;
-	int table_id=0;
+	int table_id=0,i=0,rule_num=0;
 	int ret=0;
 	struct serial_rule_t* rule_list=NULL;
 	int update_type=CM_UPDATE_TYPE_INC;
