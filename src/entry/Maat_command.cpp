@@ -231,12 +231,10 @@ int del_rule_from_redis(redisContext* ctx, struct serial_rule_t* s_rule, long lo
 			,s_rule->table_name
 			,s_rule->rule_id);
 	append_cmd_cnt++;
-	if(s_rule->label_id>0)
-	{
-		redisAppendCommand(ctx,"ZREM %s %d",rm_label_sset
-				,s_rule->rule_id);
-		append_cmd_cnt++;
-	}
+
+	redisAppendCommand(ctx,"ZREM %s %d",rm_label_sset
+			,s_rule->rule_id);
+	append_cmd_cnt++;
 
 	return 	append_cmd_cnt;
 }
