@@ -733,7 +733,7 @@ int mr_transaction_success(redisReply* data_reply)
 int _exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,int serial_rule_num, long long server_time);
 int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,int serial_rule_num, long long server_time)
 {
-	int max_redis_batch=8*1024,batch_cnt=0;
+	int max_redis_batch=1*1024,batch_cnt=0;
 	int success_cnt=0,ret=0;
 	while(success_cnt<serial_rule_num)
 	{
@@ -909,7 +909,7 @@ void check_maat_expiration(redisContext *ctx, void *logger)
 	else
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor 
-				,"Failed to expired %d rules in Redis, try later.", s_rule_num);
+				,"Failed to expired %d/%d rules in Redis, try later.", s_rule_num-success_cnt,s_rule_num);
 	}
 
 	free(s_rule);
