@@ -381,7 +381,6 @@ int get_rm_key_list(unsigned int version,redisContext *c,struct serial_rule_t** 
 		return -1;
 	}
 	version_in_redis=read_redis_integer(reply);
-	assert(version_in_redis>=version);
 	freeReplyObject(reply);
 	if(version_in_redis==version)
 	{		
@@ -389,8 +388,10 @@ int get_rm_key_list(unsigned int version,redisContext *c,struct serial_rule_t** 
 	}
 	*new_version=version_in_redis;
 
-	if(version==0)
+	if(version_in_redis<version)
 	{
+		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor,
+				"VERSION roll back MAAT: %d -> Redis: %lld.",version,version_in_redis);
 		goto FULL_UPDATE;
 	}
 
