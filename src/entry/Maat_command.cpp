@@ -388,6 +388,10 @@ int get_rm_key_list(unsigned int version,redisContext *c,struct serial_rule_t** 
 	}
 	*new_version=version_in_redis;
 
+	if(version==0)
+	{
+		goto FULL_UPDATE;
+	}
 	if(version_in_redis<version)
 	{
 		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor,
@@ -1123,51 +1127,70 @@ int Maat_cmd_set_group(Maat_feather_t feather,int group_id, const struct Maat_re
 	assert(0);
 	return 0;
 }
-int Maat_cmd_set_line(Maat_feather_t feather,const struct Maat_line_t* line_rule, enum MAAT_OPERATION op)
+int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_rule, int line_num ,enum MAAT_OPERATION op)
 {
+	int i=0;
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
-	int ret=0, table_id=0,retry=0;
-	struct serial_rule_t s_rule;
+	int ret=0, table_id=0,retry=0,success_cnt=0;
+	struct serial_rule_t *s_rule=NULL;
 	long long server_time=0,absolute_expire_time=0;
-	ret=map_str2int(_feather->map_tablename2id, line_rule->table_name, &table_id);
-	if(ret<0)
-	{
-		MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module 
-				,"Command set line id %d failed: unknown table %s."
-				, line_rule->rule_id
-				, line_rule->table_name);
-
-		return -1;
-	}
-	if(TABLE_TYPE_PLUGIN!=_feather->p_table_info[table_id]->table_type)
-	{
-		MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module 
-				,"Command set line id %d failed: table %s is not a plugin table."
-				, line_rule->rule_id
-				, line_rule->table_name);
-		return -1;
-	}
-
 	server_time=redis_server_time(_feather->redis_write_ctx);
-	if( line_rule->expire_after>0)
+	s_rule=(struct serial_rule_t *)calloc(sizeof(struct serial_rule_t),line_num);
+	for(i=0;i<line_num;i++)
 	{
-		absolute_expire_time=server_time+line_rule->expire_after;
+		ret=map_str2int(_feather->map_tablename2id, line_rule[i]->table_name, &table_id);
+		if(ret<0)
+		{
+			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module 
+					,"Command set line id %d failed: unknown table %s."
+					, line_rule[i]->rule_id
+					, line_rule[i]->table_name);
+			ret=-1;
+			goto error_out;
+		}
+		if(TABLE_TYPE_PLUGIN!=_feather->p_table_info[table_id]->table_type)
+		{
+			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module 
+					,"Command set line id %d failed: table %s is not a plugin table."
+					, line_rule[i]->rule_id
+					, line_rule[i]->table_name);
+			ret=-1;
+			goto error_out;
+		}
+
+		if(line_rule[i]->expire_after>0)
+		{
+			absolute_expire_time=server_time+line_rule[i]->expire_after;
+		}
+		set_serial_rule(s_rule+i, op,line_rule[i]->rule_id,line_rule[i]->label_id,line_rule[i]->table_name,line_rule[i]->table_line, absolute_expire_time);
 	}
-	set_serial_rule(&s_rule, op,line_rule->rule_id,line_rule->label_id,line_rule->table_name,line_rule->table_line, absolute_expire_time);
 	ret=0;
-	while(ret==0)
+	while(success_cnt<line_num)
 	{
-		ret=exec_serial_rule(_feather->redis_write_ctx,&s_rule, 1,server_time);
+		success_cnt+=exec_serial_rule(_feather->redis_write_ctx,s_rule+success_cnt, line_num-success_cnt,server_time);
 		retry++;
 	}
 	if(retry>10)
 	{
 		MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module 
 				,"Command set line id %d success after retry %d times."
-				, line_rule->rule_id
+				, line_rule[0]->rule_id
 				);
 	}
-	return 0;
+error_out:
+	for(i=0;i<line_num;i++)
+	{
+		empty_serial_rules(s_rule+i);
+	}
+	free(s_rule);
+	return ret;
+}
+
+int Maat_cmd_set_line(Maat_feather_t feather,const struct Maat_line_t* line_rule, enum MAAT_OPERATION op)
+{
+	int ret=0;
+	ret=Maat_cmd_set_lines(feather,&line_rule, 1, op);
+	return ret;
 }
 void Maat_add_region2cmd(struct Maat_cmd_t* cmd,int which_group,const struct Maat_region_t* region)
 {

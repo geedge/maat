@@ -491,20 +491,28 @@ int test_table_conjunction(Maat_feather_t feather,const char* table_name,const c
 	}
 	return 0;
 }
+#define	TEST_CMD_LINE_NUM	4
 void test_set_cmd_line(Maat_feather_t feather)
 {
-	struct Maat_line_t line_rule;
-	int ret=0;
+	const struct Maat_line_t *p_line[TEST_CMD_LINE_NUM];
+	struct Maat_line_t line_rule[TEST_CMD_LINE_NUM];
+	char table_line[TEST_CMD_LINE_NUM][128];
+	int ret=0,i=0;
 	memset(&line_rule,0,sizeof(line_rule));
-	line_rule.label_id=0;
-	line_rule.rule_id=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", 1);
-	line_rule.table_name="QD_ENTRY_INFO";
-	line_rule.table_line="1\t192.168.0.1\t101\t1";
-	line_rule.expire_after=0;
-	ret=Maat_cmd_set_line(feather, &line_rule, MAAT_OP_ADD);
+	for(i=0;i<4;i++)
+	{
+		line_rule[i].label_id=0;
+		line_rule[i].rule_id=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", 1);
+		line_rule[i].table_name="QD_ENTRY_INFO";
+		snprintf(table_line[i],sizeof(table_line[i]),"1\t192.168.0.1\t%d\t1",100+i);
+		line_rule[i].table_line=table_line[i];
+		line_rule[i].expire_after=0;
+		p_line[i]=line_rule+i;
+	}
+	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
 	assert(ret==0);
 	sleep(1);
-	ret=Maat_cmd_set_line(feather, &line_rule, MAAT_OP_DEL);
+	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_DEL);
 	assert(ret==0);
 	return;
 }
@@ -671,7 +679,7 @@ int main(int argc,char* argv[])
 	scan_status_t mid=NULL;
 	int wait_second=400;
 
-	if(argc<2)
+	if(argc<2||argv[1][0]!='-')
 	{
 		maat_test_print_usage();
 		return 0;
