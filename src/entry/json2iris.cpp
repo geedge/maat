@@ -12,7 +12,8 @@
 #include "cJSON.h"
 #include "map_str2int.h"
 #include "Maat_rule_internal.h"
-const char* maat_json="MAAT JSON";
+#define maat_json (module_name_str("MAAT_JSON"))
+
 const char* untitled_group_name="Untitled";
 const int json_version=1;
 #define	MAX_PATH_LINE	256

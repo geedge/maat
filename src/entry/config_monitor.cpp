@@ -1,11 +1,14 @@
 #include "MESA_handle_logger.h"
 #include "config_monitor.h"
+#include "Maat_rule_internal.h"
 #include <dirent.h> 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <openssl/evp.h>
-const char*	module_config_monitor="CONFIG_MONITOR";
+
+#define module_config_monitor (module_name_str("CONFIG_MONITOR"))
+
 
 #define	CM_UPDATE_TYPE_ERR	-1
 #define	CM_UPDATE_TYPE_NONE	0

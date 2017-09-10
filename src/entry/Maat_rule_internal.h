@@ -463,6 +463,9 @@ void redis_monitor_traverse(unsigned int version,redisContext *c,
 							void* u_para,
 							const unsigned char* dec_key,
 							_Maat_feather_t* feather);
+const char*	module_name_str(const char*name);
+#define maat_module	(module_name_str("MAAT_Frame"))
+
 
 #endif
 

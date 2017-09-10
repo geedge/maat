@@ -9,7 +9,7 @@
 #include <pthread.h>
 #include <assert.h>
 
-const char* maat_redis_monitor="MAAT_REDIS_MONITOR";
+#define maat_redis_monitor	(module_name_str("MAAT_REDIS_MONITOR"))
 const char* maat_redis_command="MAAT_REDIS_COMMAND";
 
 const char* rm_key_prefix[2]={"OBSOLETE_RULE","EFFECTIVE_RULE"};

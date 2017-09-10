@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include <time.h>
 #include <sys/prctl.h>
+#include <sys/syscall.h>
+
 #include <MESA/MESA_htable.h>
 #include <MESA/MESA_list_queue.h>
 #include <MESA/MESA_handle_logger.h>
@@ -28,11 +30,21 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_0_20170831=1;
-const char *maat_module="MAAT Frame";
+int MAAT_FRAME_VERSION_2_0_20170910=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
+pid_t gettid()
+{
+	return syscall(SYS_gettid);
+}
+const char*	module_name_str(const char*name)
+{
+	static __thread char module[64];
+	snprintf(module,sizeof(module),"%s(%d)", name, gettid());
+	return module;
+}
+
 int converHextoint(char srctmp)
 {
 	if(isdigit(srctmp))
