@@ -10,7 +10,7 @@
 #include <assert.h>
 
 #define maat_redis_monitor	(module_name_str("MAAT_REDIS_MONITOR"))
-const char* maat_redis_command="MAAT_REDIS_COMMAND";
+#define maat_command (module_name_str("MAAT_COMMAND"))
 
 const char* rm_key_prefix[2]={"OBSOLETE_RULE","EFFECTIVE_RULE"};
 const char* rm_status_sset="MAAT_UPDATE_STATUS";
@@ -606,14 +606,14 @@ int reconstruct_cmd(struct _Maat_feather_t *feather, struct _Maat_cmd_inner_t* _
 	int config_id=cmd->compile.config_id;
 	if(feather->scanner==NULL)
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_command 
+		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_command 
 				,"MAAT not ready.");
 		return -1;
 	}
 	compile_inner=(struct _Maat_compile_inner_t *)HASH_fetch_by_id(feather->scanner->compile_hash, config_id);
 	if(compile_inner==NULL)
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_command 
+		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_command 
 				,"config %d not exist."
 				,config_id);
 		return -1;
