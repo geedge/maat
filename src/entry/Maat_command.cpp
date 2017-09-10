@@ -145,7 +145,7 @@ enum MAAT_TABLE_TYPE type_region2table(const struct Maat_region_t* p)
 	}
 	return ret;
 }
-void invalidate_line(char* line, enum MAAT_TABLE_TYPE type,int valid_column_seq)
+int get_valid_flag_offset(const char* line, enum MAAT_TABLE_TYPE type,int valid_column_seq)
 {
 	unsigned int offset=0;
 	unsigned int i=0,j=0;
@@ -163,7 +163,7 @@ void invalidate_line(char* line, enum MAAT_TABLE_TYPE type,int valid_column_seq)
 		case	TABLE_TYPE_PLUGIN:
 			if(valid_column_seq<0)
 			{
-				return;
+				return -1;
 			}
 			offset=(unsigned int)valid_column_seq;
 			break;
@@ -197,10 +197,22 @@ void invalidate_line(char* line, enum MAAT_TABLE_TYPE type,int valid_column_seq)
 		}
 	}
 	i++;
-	assert(i<strlen(line));
-	assert(line[i]=='1');
+	if(i>=strlen(line)||line[i]!='1')
+	{
+		return -1;
+	}
+	return i;
+}
+int invalidate_line(char* line, enum MAAT_TABLE_TYPE type,int valid_column_seq)
+{
+	int i=0;
+	i=get_valid_flag_offset(line, type,valid_column_seq);
+	if(i<0)
+	{
+		return -1;
+	}
 	line[i]='0';
-	return;
+	return 0;
 }
 int del_rule_from_redis(redisContext* ctx, struct serial_rule_t* s_rule, long long new_version)
 {
@@ -1016,7 +1028,13 @@ void redis_monitor_traverse(unsigned int version,redisContext *c,
 		table_type=feather->p_table_info[table_id]->table_type;
 		if(rule_list[i].op==MAAT_OP_DEL)
 		{
-			invalidate_line(rule_list[i].table_line,table_type,feather->p_table_info[table_id]->valid_flag_column);
+			ret=invalidate_line(rule_list[i].table_line,table_type,feather->p_table_info[table_id]->valid_flag_column);
+			if(ret<0)
+			{
+				MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor,"Invaid format %s ."
+										,rule_list[i].table_line);
+				continue;
+			}
 		}
 		update(rule_list[i].table_name,rule_list[i].table_line,u_para);
 	}
@@ -1159,7 +1177,18 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 			ret=-1;
 			goto error_out;
 		}
-
+		ret=get_valid_flag_offset(line_rule[i]->table_line
+			, _feather->p_table_info[table_id]->table_type
+			, _feather->p_table_info[table_id]->valid_flag_column);
+		if(ret<0||
+			(op==MAAT_OP_ADD&&line_rule[i]->table_line[ret]!='1'))
+		{
+			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module 
+					,"Command set line id %d failed: illegal valid flag."
+					, line_rule[i]->rule_id);
+			ret=-1;
+			goto error_out;
+		}
 		if(line_rule[i]->expire_after>0)
 		{
 			absolute_expire_time=server_time+line_rule[i]->expire_after;
