@@ -368,6 +368,8 @@ int get_rm_key_list(unsigned int version,redisContext *c,struct serial_rule_t** 
 		if(reply->type==REDIS_REPLY_NIL||reply->type==REDIS_REPLY_ERROR)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,"GET MAAT_VERSION failed, maybe Redis is busy.");
+			freeReplyObject(reply);
+			reply=NULL;
 			return -1;
 		}
 	}

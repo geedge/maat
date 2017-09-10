@@ -499,7 +499,7 @@ void test_set_cmd_line(Maat_feather_t feather)
 	char table_line[TEST_CMD_LINE_NUM][128];
 	int ret=0,i=0;
 	memset(&line_rule,0,sizeof(line_rule));
-	for(i=0;i<4;i++)
+	for(i=0;i<TEST_CMD_LINE_NUM;i++)
 	{
 		line_rule[i].label_id=0;
 		line_rule[i].rule_id=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", 1);

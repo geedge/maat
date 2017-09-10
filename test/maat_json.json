@@ -8,7 +8,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_rage": 0,
+            "effective_range": 0,
             "user_region": "anything",
             "is_valid": "yes",
             "groups": [
@@ -74,7 +74,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_rage": 0,
+            "effective_range": 0,
             "user_region": "anything",
             "is_valid": "yes",
             "groups": [
@@ -102,7 +102,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_rage": 0,
+            "effective_range": 0,
             "user_region": "anything",
             "is_valid": "yes",
             "groups": [
@@ -128,7 +128,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_rage": 0,
+            "effective_range": 0,
             "user_region": "anything",
             "is_valid": "yes",
             "groups": [
@@ -168,7 +168,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_rage": 0,
+            "effective_range": 0,
             "user_region": "anything",
             "is_valid": "yes",
             "groups": [
@@ -194,7 +194,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_rage": 0,
+            "effective_range": 0,
             "user_region": "anything",
             "is_valid": "yes",
             "groups": [
@@ -222,7 +222,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_rage": 0,
+            "effective_range": 0,
             "user_region": "utf8_中文",
             "is_valid": "yes",
             "groups": [
@@ -249,7 +249,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_rage": 0,
+            "effective_range": 0,
             "user_region": "utf8_维语",
             "is_valid": "yes",
             "groups": [
@@ -276,7 +276,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_rage": 0,
+            "effective_range": 0,
             "user_region": "utf8_维语2",
             "is_valid": "yes",
             "groups": [
@@ -303,7 +303,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_rage": 0,
+            "effective_range": 0,
             "user_region": "string\\bunescape",
             "is_valid": "yes",
             "groups": [
@@ -330,7 +330,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_rage": 0,
+            "effective_range": 0,
             "user_region": "table_conjunction_test_part1",
             "is_valid": "yes",
             "groups": [
@@ -357,7 +357,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_rage": 0,
+            "effective_range": 0,
             "user_region": "table_conjunction_test_part2",
             "is_valid": "yes",
             "groups": [
@@ -384,7 +384,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_rage": 0,
+            "effective_range": 0,
             "user_region": "anything",
             "is_valid": "yes",
             "groups": [
