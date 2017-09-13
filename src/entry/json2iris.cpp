@@ -192,7 +192,8 @@ int direct_write_rule(cJSON* json,MESA_htable_handle str2int,struct traslate_com
 		if(item==NULL&&cmd[i].empty_allowed==1)
 		{
 			dummy.valuestring=(char*)cmd[i].default_string;
-			dummy.valueint=cmd[i].default_int;			
+			dummy.valueint=cmd[i].default_int;
+			dummy.valuedouble=cmd[i].default_int;
 			dummy.type=cmd[i].json_type;
 			
 			item=&dummy;

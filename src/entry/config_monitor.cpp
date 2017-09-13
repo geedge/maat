@@ -7,7 +7,7 @@
 #include <string.h>
 #include <openssl/evp.h>
 
-#define module_config_monitor (module_name_str("CONFIG_MONITOR"))
+#define module_config_monitor (module_name_str("MAAT_FILE_MONITOR"))
 
 
 #define	CM_UPDATE_TYPE_ERR	-1
