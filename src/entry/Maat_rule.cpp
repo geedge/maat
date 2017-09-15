@@ -3079,15 +3079,15 @@ void maat_finish_cb(void* u_para)
 							,feather->scan_thread_num
 							,feather->logger);
 			MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
-									"Inc config version %u build complete,%d entries in total.",
+									"Inc config version %u build complete, %d entries in total.",
 									feather->scanner->version,feather->scanner->cfg_num);
 			feather->postpone_q_size=0;
 		}
 		else
 		{
 			MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
-									"Postpone config version %u %d entries load to rulescan.",
-									feather->scanner->version,feather->scanner->cfg_num);
+									"Postpone %d entries of version %u load to rulescan.",
+									feather->scanner->cfg_num,feather->scanner->version);
 		}
 	}
 	else
@@ -3244,7 +3244,7 @@ void *thread_rule_monitor(void *arg)
 								,feather->logger);
 				feather->postpone_q_size=0;
 				MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
-										"Actual udpate config version %u %d entries load to rulescan after postpone.",
+										"Actual udpate config version %u, %d entries load to rulescan after postpone.",
 										feather->scanner->version,feather->scanner->cfg_num);
 			}
 		}
