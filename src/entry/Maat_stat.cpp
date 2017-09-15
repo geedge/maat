@@ -136,7 +136,7 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 		conj_table_name[offset-1]='\0';//delete the last slash
 		if(strlen(conj_table_name)>MAX_CONJ_NAME_LEN)
 		{
-			snprintf(conj_table_name+MAX_CONJ_NAME_LEN-2,sizeof(conj_table_name)-MAX_CONJ_NAME_LEN-2,"..");
+			conj_table_name[MAX_CONJ_NAME_LEN]='\0';
 		}
 		p_table->stat_line_id=FS_register(feather->stat_handle
 										, FS_STYLE_LINE, FS_CALC_CURRENT
