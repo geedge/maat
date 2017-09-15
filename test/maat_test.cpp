@@ -516,7 +516,7 @@ void test_set_cmd_line(Maat_feather_t feather)
 	assert(ret==0);
 	return;
 }
-int test_add_command(Maat_feather_t feather,const char* region_table,int config_id, int timeout,int label_id, const char* keywords)
+int test_add_expr_command(Maat_feather_t feather,const char* region_table,int config_id, int timeout,int label_id, const char* keywords)
 {
 	struct Maat_cmd_t* cmd=NULL;
 	struct Maat_rule_t rule;
@@ -558,6 +558,103 @@ int test_add_command(Maat_feather_t feather,const char* region_table,int config_
 	return 0;
 
 }
+int test_add_ip_command(Maat_feather_t feather,const char* region_table)
+{
+	struct Maat_cmd_t* cmd=NULL;
+	struct Maat_rule_t rule;
+	int config_id=0,timeout=2;
+	
+
+	
+
+	struct Maat_region_t region;
+	int group_num=1,ret=0;
+	memset(&rule,0,sizeof(rule));
+
+	//MUST acquire by Maat_cmd_incrby to guarantee a unique compile ID.
+	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	rule.config_id=config_id;
+	
+	strcpy(rule.service_defined,"maat_command");
+	//MUST acqire by function, because Maat_cmd_t has some hidden members.
+	cmd=Maat_create_cmd(&rule, group_num);
+	cmd->expire_after=timeout;
+	cmd->label_id=0;	//no lable
+	memset(&region,0,sizeof(region));
+	region.region_type=REGION_IP;
+	region.table_name=region_table;
+	region.ip_rule.addr_type=ADDR_TYPE_IPv4;
+	region.ip_rule.direction=ADDR_DIR_DOUBLE;
+	region.ip_rule.src_ip="172.0.0.1";
+	region.ip_rule.mask_src_ip="255.255.255.255";
+	region.ip_rule.src_port=53331;
+	region.ip_rule.mask_src_port=0;//means any port should hit.
+	
+	region.ip_rule.dst_ip="172.0.0.2";
+	region.ip_rule.mask_dst_ip="255.255.255.255";
+	region.ip_rule.dst_port=80;
+	region.ip_rule.mask_dst_port=65535;
+	region.ip_rule.protocol=0;//means any protocol should hit.
+	Maat_add_region2cmd(cmd, 0, &region);
+
+	ret=Maat_cmd(feather, cmd, MAAT_OP_ADD);
+	if(ret<0)
+	{
+		printf("Add Maat command %d failed.\n",rule.config_id);
+		Maat_free_cmd(cmd);
+		return 0;
+	}
+	Maat_free_cmd(cmd);
+
+	//TEST if the command go into effective.
+	sleep(1);	//waiting for commands go into effect
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
+	inet_pton(AF_INET,region.ip_rule.src_ip,&(v4_addr.saddr));
+	v4_addr.source=htons(region.ip_rule.src_port+1);//Not use the exactly port for testing port mask.
+	inet_pton(AF_INET,region.ip_rule.dst_ip,&(v4_addr.daddr));
+	v4_addr.dest=htons(region.ip_rule.dst_port);
+	ipv4_addr.v4=&v4_addr;
+	
+	int table_id=0;
+	struct Maat_rule_t result;
+	scan_status_t mid=NULL;
+	table_id=Maat_table_register(feather,region_table);
+	if(table_id<0)
+	{
+		printf("Database table %s register failed.\n",region_table);
+		
+	}
+	else
+	{
+		ret=Maat_scan_proto_addr(feather,table_id,&ipv4_addr,6,&result,1, &mid,0);
+		if(ret==1&&result.config_id==config_id)
+		{
+			printf("Test Maat add IP rule Success.\n");
+		}
+		else
+		{
+			printf("Test Maat add IP rule Failed.\n");
+		}
+	}
+	Maat_clean_status(&mid);
+
+	sleep(timeout+1);//wait for commands expired.
+	ret=Maat_scan_proto_addr(feather,table_id,&ipv4_addr,6,&result,1, &mid,0);
+	if(ret==0)
+	{
+		printf("Test Maat expired IP rule Success.\n");
+	}
+	else
+	{
+		printf("Test Maat expired IP rule Failed.\n");
+	}
+	Maat_clean_status(&mid);
+
+	return 0;
+
+}
 int test_del_command(Maat_feather_t feather,int config_id)
 {
 	struct Maat_cmd_t* cmd=NULL;
@@ -594,7 +691,7 @@ void test_command(Maat_feather_t feather)
 	Maat_str_escape(escape_buff2, sizeof(escape_buff2),keywords2);
 	snprintf(keywords,sizeof(keywords),"%s&%s",escape_buff1,escape_buff2);
 	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
-	test_add_command(feather,table_name,config_id, 0, label_id, keywords);
+	test_add_expr_command(feather,table_name,config_id, 0, label_id, keywords);
 	sleep(1);//waiting for commands go into effect
 	table_id=Maat_table_register(feather,table_name);
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
@@ -603,11 +700,11 @@ void test_command(Maat_feather_t feather)
 
 	if(ret>0&&result.config_id==config_id)
 	{
-		printf("Test Maat add command success %s\n",print_maat_result(&result,ret));
+		printf("Test Maat add EXPR rule success %s\n",print_maat_result(&result,ret));
 	}
 	else
 	{
-		printf("Test Maat add command failed.\n");
+		printf("Test Maat add EXPR rule failed.\n");
 	}
 	Maat_clean_status(&mid);
 	output_id_cnt=Maat_cmd_select(feather,label_id, output_ids, 4);
@@ -626,15 +723,15 @@ void test_command(Maat_feather_t feather)
 						&mid, 0);
 	if(ret>0)
 	{
-		printf("Test Maat delete command failed\n");
+		printf("Test Maat delete EXPR command failed\n");
 	}
 	else
 	{
-		printf("Test Maat delete command success.\n");
+		printf("Test Maat delete EXPR command success.\n");
 	}
 	Maat_clean_status(&mid);
 	timeout=1;
-	test_add_command(feather,table_name,config_id, timeout, label_id, keywords);
+	test_add_expr_command(feather,table_name,config_id, timeout, label_id, keywords);
 	sleep(timeout+1);
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
 						&result,NULL, 1,
@@ -642,11 +739,11 @@ void test_command(Maat_feather_t feather)
 
 	if(ret>0&&result.config_id==config_id)//should not hit
 	{
-		printf("Test Maat command timeout failed.");
+		printf("Test Maat command expire EXPR failed.");
 	}
 	else
 	{
-		printf("Test Maat command timeout success.\n");
+		printf("Test Maat command expire success.\n");
 	}
 	Maat_clean_status(&mid);
 }
@@ -673,6 +770,7 @@ int main(int argc,char* argv[])
 	const char* stat_file="./scan_staus.log";
 	const char* decrypt_key="mesa2017wy";
 	int scan_interval_ms=10;
+	int effective_interval_ms=10;
 
 	int scan_detail=0,deferred_load_on=0;
 	int using_redis=0;
@@ -720,6 +818,9 @@ int main(int argc,char* argv[])
 	}
 
 	Maat_set_feather_opt(feather, MAAT_OPT_SCANDIR_INTERVAL_MS,&scan_interval_ms, sizeof(scan_interval_ms));
+	//Set a short intevral for testing.
+	Maat_set_feather_opt(feather, MAAT_OPT_EFFECT_INVERVAL_MS,&effective_interval_ms, sizeof(scan_interval_ms));
+
 	Maat_set_feather_opt(feather, MAAT_OPT_STAT_FILE_PATH, stat_file, strlen(stat_file)+1);
 	Maat_set_feather_opt(feather, MAAT_OPT_STAT_ON, NULL, 0);
 	Maat_set_feather_opt(feather, MAAT_OPT_PERF_ON, NULL, 0);
@@ -778,6 +879,7 @@ int main(int argc,char* argv[])
 	{
 		test_command(feather);
 		test_set_cmd_line(feather);
+		test_add_ip_command(feather,"IP_CONFIG");
 	}
 	sleep(wait_second);
 	

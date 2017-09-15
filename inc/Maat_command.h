@@ -109,12 +109,13 @@ struct Maat_group_t
 };
 struct Maat_cmd_t
 {
+	//This Struct MUST alloced by Maat_create_cmd(), then released by Maat_free_cmd(). 
 	struct Maat_rule_t compile; // for MAAT_OP_DEL, only compile.config_id is necessary.
 	int group_num;				// for MAAT_OP_DEL, set to 0.
 	int expire_after;			//expired after $expire_after$ seconds, set to 0 for never timeout.
 	int label_id;					//>0, to be indexed and quried by Maat_cmd_select; =0 not index
 	struct Maat_group_t* groups;// Add regions with Maat_add_region2cmd 
-};
+};	
 struct Maat_line_t
 {
 	const char* table_name;
