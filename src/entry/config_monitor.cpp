@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <openssl/evp.h>
 
 #define module_config_monitor (module_name_str("MAAT_FILE_MONITOR"))
@@ -292,7 +293,7 @@ int  get_new_idx_path(unsigned int current_version,const char*file_dir,void* log
 		*idx_num=1;
 		update_type=CM_UPDATE_TYPE_FULL;
 	}
-	//inc update,it's possible that do inc after full update in this function,but we'll process it at next call.
+	//inc update,it's possible that do inc after full update in this function,but we'll process it at next loop.
 	else if(latest_inc_version>current_version)
 	{
 		
@@ -327,6 +328,7 @@ int cm_read_cfg_index_file(const char* path,struct cm_table_info_t* idx,int size
 	fp=fopen(path,"r");
 	int ret=0,i=0;
 	char line[MAX_CONFIG_LINE];
+	struct stat file_info;
 	while(!feof(fp))
 	{
 		memset(line,0,sizeof(line));
@@ -335,10 +337,19 @@ int cm_read_cfg_index_file(const char* path,struct cm_table_info_t* idx,int size
 								,&(idx[i].cfg_num)
 								,idx[i].cfg_path
 								,idx[i].encryp_algorithm);
-		if((ret==3||ret==4)&&idx[i].cfg_num>=0)//jump over empty line
+		if(!(ret==3||ret==4)||idx[i].cfg_num==0)//jump over empty line
 		{
-			i++;
+			continue;
 		}
+		ret=stat(idx[i].cfg_path,&file_info);
+		if(ret!=0)
+		{
+			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor ,"%s of %s not exisit",
+									idx[i].cfg_path,
+									path);
+			return -1;
+		}
+		i++;
 		if(i==size)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor ,"Too much lines in %s",path);
@@ -468,6 +479,12 @@ void config_monitor_traverse(unsigned int version,const char*idx_dir,
 			MESA_handle_runtime_log(logger,RLOG_LV_INFO,module_config_monitor ,
 								"load %s",idx_path_array[i]);
 			table_num=cm_read_cfg_index_file(idx_path_array[i],table_array, CM_MAX_TABLE_NUM,logger);
+			if(table_num<0)
+			{
+				MESA_handle_runtime_log(logger,RLOG_LV_INFO,module_config_monitor ,
+									"load %s faild, abandon udpate.",idx_path_array[i]);				
+				break;
+			}
 			table_filename=path2filename(idx_path_array[i]);
 			sscanf(table_filename,"%[a-zA-Z]_config_index.%u",str_not_care,&new_version);
 			start(new_version,update_type,u_para);
