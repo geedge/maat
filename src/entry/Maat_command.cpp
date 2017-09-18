@@ -78,7 +78,7 @@ int connect_redis_for_write(_Maat_feather_t * feather)
 	}
 	else
 	{
-		reply=_wrap_redisCommand(feather->redis_read_ctx, "select %d",feather->redis_index);
+		reply=_wrap_redisCommand(feather->redis_write_ctx, "select %d",feather->redis_index);
 		freeReplyObject(reply);
 	}
 	return ret;
@@ -1088,7 +1088,7 @@ void _maat_copy_region(struct Maat_region_t* dst,const struct Maat_region_t* src
 			dst->ip_rule.src_ip=_maat_strdup(src->ip_rule.src_ip);
 			dst->ip_rule.mask_src_ip=_maat_strdup(src->ip_rule.mask_src_ip);
 			dst->ip_rule.dst_ip=_maat_strdup(src->ip_rule.dst_ip);
-			dst->ip_rule.mask_src_ip=_maat_strdup(src->ip_rule.mask_src_ip);
+			dst->ip_rule.mask_dst_ip=_maat_strdup(src->ip_rule.mask_dst_ip);
 			break;
 		case REGION_EXPR:
 			dst->expr_rule.keywords=_maat_strdup(src->expr_rule.keywords);
@@ -1117,7 +1117,7 @@ void _maat_empty_region(struct Maat_region_t* p)
 			free((char*)p->ip_rule.src_ip);
 			free((char*)p->ip_rule.mask_src_ip);
 			free((char*)p->ip_rule.dst_ip);
-			free((char*)p->ip_rule.mask_src_ip);
+			free((char*)p->ip_rule.mask_dst_ip);
 			break;
 		case REGION_EXPR:
 			free((char*)p->expr_rule.keywords);
