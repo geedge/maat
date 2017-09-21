@@ -1410,8 +1410,12 @@ int Maat_cmd_commit(Maat_feather_t feather)
 		if(transection_success<serial_rule_num)
 		{
 			retry++;
-			assert(retry<5);			
 		}
+	}
+	if(retry>5)
+	{
+		MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_command
+                                ,"MAAT retry for %d times.", retry);
 	}
 	_feather->cmd_acc_num+=_feather->cmd_q_cnt;
 error_out:

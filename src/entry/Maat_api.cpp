@@ -1472,13 +1472,13 @@ void Maat_stream_scan_string_end(stream_para_t* stream_para)
 	struct _Maat_scanner_t* scanner=sp->feather->scanner;
 	struct _Maat_table_info_t * p_table=sp->feather->p_table_info[sp->table_id];
 	aligment_int64_array_add(p_table->stream_num,sp->thread_num,-1);
-	if(scanner!=NULL)
+	if(sp->rs_stream_para!=NULL)
 	{
-		if(sp->version>=sp->feather->last_full_version)
+		if(scanner!=NULL&&sp->version>=sp->feather->last_full_version)
 		{
+			
 			DEC_SCANNER_REF(scanner, sp->thread_num);
 			rulescan_endstream(sp->rs_stream_para);
-			
 		}
 		else
 		{
@@ -1486,15 +1486,6 @@ void Maat_stream_scan_string_end(stream_para_t* stream_para)
 			sp->feather->zombie_rs_stream--;
 		}
 		sp->rs_stream_para=NULL;
-	}
-	else
-	{
-		if(sp->rs_stream_para!=NULL)
-		{
-			rulescan_endstream_simple(sp->rs_stream_para);
-			sp->feather->zombie_rs_stream--;
-			sp->rs_stream_para=NULL;
-		}
 	}
 	if(sp->last_cache!=NULL)
 	{

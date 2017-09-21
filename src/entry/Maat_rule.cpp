@@ -30,7 +30,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_0_20170918=1;
+int MAAT_FRAME_VERSION_2_0_20170920=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -1316,6 +1316,7 @@ void rulescan_batch_update(rule_scanner_t rs_handle,MESA_lqueue_head expr_queue,
 		}
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
 							"rulescan_update error,when batch update %ld rules,regex error %u.",q_cnt,failed_ids[0]);
+		assert(0);
 	}
 	update_interval=(end.tv_sec-start.tv_sec)*1000000000+end.tv_nsec-start.tv_nsec;
 	MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
