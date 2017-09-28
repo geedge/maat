@@ -470,6 +470,7 @@ void config_monitor_traverse(unsigned int version,const char*idx_dir,
 	char str_not_care[256]={0};
 	int idx_num=0,table_num=0,i=0,j=0;
 	struct cm_table_info_t table_array[CM_MAX_TABLE_NUM];
+	memset(table_array,0,sizeof(table_array));
 	update_type=get_new_idx_path(version, idx_dir,logger, &idx_path_array, &idx_num);
 	if(update_type==CM_UPDATE_TYPE_FULL||update_type==CM_UPDATE_TYPE_INC)
 	{

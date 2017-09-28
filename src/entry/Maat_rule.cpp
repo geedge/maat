@@ -30,7 +30,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_0_20170920=1;
+int MAAT_FRAME_VERSION_2_0_20170927=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -1141,6 +1141,10 @@ void destroy_maat_scanner(struct _Maat_scanner_t*scanner)
 	int i=0,j=0,q_ret=0;
 	struct op_expr_t* op_expr=NULL;
 	GIE_digest_t* digest_rule=NULL;
+	if(scanner==NULL)
+	{
+		return;
+	}
 	rulescan_destroy(scanner->region);
 	MESA_htable_destroy(scanner->compile_hash,NULL);
 	MESA_htable_destroy(scanner->group_hash, NULL);
@@ -2052,7 +2056,7 @@ int del_region_rule(struct _Maat_table_info_t* table,int region_id,int group_id,
 	{
 		HASH_delete_by_id(maat_scanner->group_hash,group_id);
 		garbage_bagging(GARBAGE_GROUP_RULE, group_rule, maat_scanner->tomb_ref);
-		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
+		MESA_handle_runtime_log(logger,RLOG_LV_DEBUG,maat_module ,
 							"Indirectly delete group %d,last region rule has been delete,table %s region id %d ."
 							,group_id
 							,table->table_name[table->updating_name]
