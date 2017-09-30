@@ -148,7 +148,7 @@ enum MAAT_INIT_OPT
 	MAAT_OPT_INSTANCE_NAME,			//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1, no more than 11 bytes.DEFAULT: MAAT_$tableinfo_path$.
 	MAAT_OPT_DECRYPT_KEY,			//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1. No DEFAULT.
 	MAAT_OPT_REDIS_IP,				//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1. No DEFAULT.
-	MAAT_OPT_REDIS_PORT,			//VALUE is a unsigned short, host order, SIZE= sizeof(unsigned short). No DEFAULT.
+	MAAT_OPT_REDIS_PORT,			//VALUE is a unsigned short or a signed int, host order, SIZE= sizeof(unsigned short) or sizeof(int). No DEFAULT.
 	MAAT_OPT_REDIS_INDEX,			//VALUE is interger *, 0~15, SIZE=sizeof(int). DEFAULT: 0.
 	MAAT_OPT_CMD_AUTO_NUMBERING,		//VALUE is interger *, 1 or 0, SIZE=sizeof(int). DEFAULT: 1.
 	MAAT_OPT_DEFERRED_LOAD			//VALUE is  NULL,SIZE is 0.  Default: Deffered initialization OFF.

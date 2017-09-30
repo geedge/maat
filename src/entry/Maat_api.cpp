@@ -585,11 +585,18 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			memcpy(_feather->redis_ip,value,size);
 			break;
 		case MAAT_OPT_REDIS_PORT:
-			if((size_t)size!=sizeof(unsigned short))
+			if((size_t)size==sizeof(unsigned short))
+			{
+				_feather->redis_port=*((unsigned short*)value);
+			}
+			else if((size_t)size==sizeof(int))
+			{
+				_feather->redis_port=*((int*)value);
+			}
+			else
 			{
 				return -1;
 			}
-			_feather->redis_port=*((unsigned short*)value);
 			break;
 		case MAAT_OPT_REDIS_INDEX:
 			if((size_t)size!=sizeof(int))
