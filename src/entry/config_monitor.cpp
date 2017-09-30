@@ -347,6 +347,7 @@ int cm_read_cfg_index_file(const char* path,struct cm_table_info_t* idx,int size
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor ,"%s of %s not exisit",
 									idx[i].cfg_path,
 									path);
+			fclose(fp);
 			return -1;
 		}
 		i++;
