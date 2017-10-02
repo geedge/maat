@@ -19,15 +19,7 @@ const char* rm_label_sset="MAAT_LABEL_INDEX";
 const char* rm_version_sset="MAAT_VERSION_TIMER";
 const static int MAAT_REDIS_SYNC_TIME=30*60;
 
-struct serial_rule_t		//rm= Redis Maat
-{
-	enum MAAT_OPERATION op;//0: delete, 1: add.
-	int rule_id;
-	int label_id;
-	long long timeout;			// absolute unix time.
-	char table_name[256];
-	char* table_line;
-};
+
 
 struct _Maat_cmd_inner_t
 {
@@ -574,10 +566,11 @@ int _get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int ru
 	free(retry_ids);
 	return 0;
 }
-int get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int rule_num,void* logger)
+int get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int rule_num,void* logger,int print_process)
 {
 	int max_redis_batch=4*1024,batch_cnt=0;
 	int success_cnt=0,ret=0;
+	int next_print=10;
 	while(success_cnt<rule_num)
 	{
 		batch_cnt=MIN(rule_num-success_cnt,max_redis_batch);
@@ -590,6 +583,18 @@ int get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int rul
 		{
 			success_cnt+=batch_cnt;
 		}
+		if(print_process==1)
+		{
+			if((success_cnt*100)/rule_num>next_print)
+			{
+				printf(" >%d%%",next_print);
+				next_print+=10;
+			}
+		}
+	}
+	if(print_process==1)
+	{
+		printf(" >100%%\n");
 	}
 	return 0;
 }
@@ -657,7 +662,7 @@ int reconstruct_cmd(struct _Maat_feather_t *feather, struct _Maat_cmd_inner_t* _
 		group_cmd=&(cmd->groups[grp_idx]);
 		group_cmd->group_id=group_inner->group_id;
 
-		if(group_inner->ref_cnt>0)
+		if(group_inner->ref_cnt>1)
 		{
 			continue;
 		}
@@ -665,17 +670,16 @@ int reconstruct_cmd(struct _Maat_feather_t *feather, struct _Maat_cmd_inner_t* _
 		group_cmd->regions=(struct Maat_region_t*)calloc(sizeof(struct Maat_region_t),group_cmd->region_num);
 		for(j=0;j<group_inner->region_boundary;j++)
 		{
-			region_inner=(struct _Maat_region_inner_t*)dynamic_array_read(group_inner->regions,i);
+			region_inner=(struct _Maat_region_inner_t*)dynamic_array_read(group_inner->regions,j);
 			if(region_inner==NULL)
 			{
 				continue;
 			}
-			region_cmd=&(group_cmd->regions[group_cmd->region_num]);
+			region_cmd=&(group_cmd->regions[j]);
 			region_cmd->table_name=_maat_strdup(feather->p_table_info[region_inner->table_id]->table_name[0]);
-			region_cmd->region_id=region_inner->table_id;
+			region_cmd->region_id=region_inner->region_id;
 			//NOTICE: region_type only avilable when OP_ADD, 
 			region_cmd->region_type=REGION_EXPR;
-			group_cmd->region_num++;
 		}
 		grp_idx++;
 	}
@@ -1036,7 +1040,7 @@ void redis_monitor_traverse(unsigned int version,redisContext *c,
 	}
 	if(rule_num>0)
 	{
-		ret=get_maat_redis_value(c,rule_list,rule_num, logger);
+		ret=get_maat_redis_value(c,rule_list,rule_num, logger,0);
 		if(ret<0)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor,"Get Redis value failed, abandon update.");

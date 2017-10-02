@@ -30,7 +30,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_0_20170929=1;
+int MAAT_FRAME_VERSION_2_1_20171002=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -3298,6 +3298,8 @@ void *thread_rule_monitor(void *arg)
 		pthread_mutex_lock(&(feather->redis_write_lock));
 		redisFree(feather->redis_read_ctx);
 		feather->redis_read_ctx=NULL;
+		redisFree(feather->redis_write_ctx);
+		feather->redis_write_ctx=NULL;
 		pthread_mutex_unlock(&(feather->redis_write_lock));
 	}
 	free(feather);
