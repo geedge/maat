@@ -428,6 +428,15 @@ struct _maat_garbage_t
 		MESA_htable_handle str2int_map;
 	};
 };
+struct serial_rule_t		//rm= Redis Maat
+{
+	enum MAAT_OPERATION op;//0: delete, 1: add.
+	int rule_id;
+	int label_id;
+	long long timeout;			// absolute unix time.
+	char table_name[256];
+	char* table_line;
+};
 void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbage_q);
 void garbage_bury(MESA_lqueue_head garbage_q,void *logger);
 void make_group_set(const struct _Maat_compile_inner_t* compile_rule,universal_bool_expr_t* a_set);
@@ -456,6 +465,9 @@ void maat_stat_output(struct _Maat_feather_t* feather);
 char* _maat_strdup(const char* s);
 char* str_unescape(char* s);
 redisReply *_wrap_redisCommand(redisContext *c, const char *format, ...);
+int get_rm_key_list(unsigned int version,redisContext *c,struct serial_rule_t** list,void* logger, unsigned int* new_version,int *update_type);
+int get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int rule_num,void* logger,int print_process);
+void empty_serial_rules(struct serial_rule_t* rule);
 void redis_monitor_traverse(unsigned int version,redisContext *c,
 							void (*start)(unsigned int ,int ,void*),//vesion,CM_UPDATE_TYPE_*,u_para
 							int (*update)(const char* ,const char*,void* ),//table name ,line ,u_para
