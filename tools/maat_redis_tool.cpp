@@ -57,6 +57,11 @@ void read_rule_from_redis(const char*redis_ip, int redis_port, int redis_db,cons
 
 	printf("Reading key list from %s:%d db%d.\n",redis_ip,redis_port,redis_db);
 	rule_num=get_rm_key_list(0, ctx, &rule_list, logger,&version, &update_type);
+	if(rule_num==0)
+	{
+		printf("No Effective Rules.\n");
+		return;
+	}
 	assert(update_type==CM_UPDATE_TYPE_FULL);
 	printf("MAAT Version: %d, key number: %d\n", version, rule_num);
 	printf("Reading value: ");
@@ -104,7 +109,7 @@ void read_rule_from_redis(const char*redis_ip, int redis_port, int redis_db,cons
 			printf("Writing %s\n",table_path);
 			cur_table=rule_list[i].table_name;
 		}
-		fprintf(table_fp,"%s\tRID=%d\n",rule_list[i].table_line,rule_list[i].rule_id);
+		fprintf(table_fp,"%s\tkey=%d\n",rule_list[i].table_line,rule_list[i].rule_id);
 		line_count++;
 	}
 	fclose(table_fp);
