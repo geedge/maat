@@ -175,7 +175,7 @@ enum MAAT_SCAN_OPT
 int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCAN_OPT type,const void* value,int size);
 
 //Return hit rule number, return -1 when error occurs,return -2 when hit current region
-//mid MUST set NULL before fist call
+//mid MUST set to NULL before fist call
 int Maat_scan_intval(Maat_feather_t feather,int table_id
 						,unsigned int intval
 						,struct Maat_rule_t*result,int rule_num

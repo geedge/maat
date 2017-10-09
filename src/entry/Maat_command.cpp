@@ -419,6 +419,7 @@ int get_rm_key_list(unsigned int version,redisContext *c,struct serial_rule_t** 
 	assert(reply->type==REDIS_REPLY_ARRAY);
 	if(reply->elements==0)
 	{
+		//a duplicate rule_id would induce this error.
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,"Got nothing after ZRANGEBYSCORE %s (%d %d",rm_status_sset,version,version_in_redis);
 		freeReplyObject(reply);
 		return -1;
@@ -616,7 +617,7 @@ int calculate_serial_rule_num(struct _Maat_cmd_inner_t* _cmd,int * new_region_cn
 			*new_region_cnt+=cmd->groups[i].region_num;
 			(*new_group_cnt)++;		
 		}
-		//for MAAT_OP_DEL, if the group's refcnt>0, group->region_num=0.
+		//for MAAT_OP_DEL, if the group's refcnt>1, group->region_num=0.
 		//so it's OK to add.
 		serial_num+=cmd->groups[i].region_num;
 	}
