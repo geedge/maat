@@ -30,7 +30,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_1_20171002=1;
+int MAAT_FRAME_VERSION_2_1_20171010=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -3228,7 +3228,10 @@ void *thread_rule_monitor(void *arg)
 			feather->scanner=feather->update_tmp_scanner;
 			if(old_scanner!=NULL)
 			{
-				assert(feather->scanner->version>old_scanner->version);
+				//assert(feather->scanner->version>old_scanner->version);
+				MESA_handle_runtime_log(feather->logger,RLOG_LV_FATAL,maat_module,
+										"Maat version rool back %d -> %d.",
+										old_scanner->version, feather->scanner->version);
 				assert(old_scanner->tomb_ref==feather->garbage_q);
 				feather->zombie_rs_stream+=aligment_int64_array_sum(old_scanner->ref_cnt,old_scanner->max_thread_num);
 				garbage_bagging(GARBAGE_SCANNER, old_scanner, feather->garbage_q);
