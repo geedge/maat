@@ -466,19 +466,22 @@ int test_string_similar_scan(Maat_feather_t feather,const char* table_name,scan_
 	printf("Similar String Scan:%s\n",print_maat_result(result,ret));
 	return ret;
 }
-int test_offset_str_scan(Maat_feather_t feather,const char* table_name,scan_status_t* mid)
+
+int test_offset_str_scan_with_chunk(Maat_feather_t feather,const char* table_name,int chunk_size)
 {
 	int table_id=0,ret=0;
 	int read_size=0,pass_flag=0;
 	struct Maat_rule_t result[4];
-	const char* fn="./testdata/mesa_logo.jpg";
+	scan_status_t mid=NULL;
+	//const char* fn="./testdata/mesa_logo.jpg";
+	const char* fn="./testdata/100719.jpg";
 	FILE*fp=fopen(fn,"r");
 	if(fp==NULL)
 	{
 		printf("%s open %s failed.\n",__FUNCTION__, fn);
 		return -1;
 	}
-	char scan_data[64];
+	char scan_data[chunk_size];
 	table_id=Maat_table_register(feather,table_name);
 	if(table_id==-1)
 	{
@@ -498,10 +501,10 @@ int test_offset_str_scan(Maat_feather_t feather,const char* table_name,scan_stat
 		read_size=fread(scan_data,1,sizeof(scan_data),fp);
 		ret=Maat_stream_scan_string_detail(&sp,CHARSET_NONE,scan_data,read_size
 							,result,4,hit_detail,10
-							,&detail_ret,mid);
+							,&detail_ret,&mid);
 		if(ret>0)
 		{
-			printf("Test offset string Scan Success. String Scan:%s\n",print_maat_result(result,ret));
+			printf("Test offset string Scan chunk=%d Success. String Scan:%s\n",chunk_size,print_maat_result(result,ret));
 			pass_flag=1;
 			break;
 		}
@@ -513,7 +516,15 @@ int test_offset_str_scan(Maat_feather_t feather,const char* table_name,scan_stat
 	{
 		printf("Test offset string Scan Failed.\n");
 	}
+	Maat_clean_status(&mid);
 	return ret;
+}
+
+void test_offset_str_scan(Maat_feather_t feather,const char* table_name)
+{
+	test_offset_str_scan_with_chunk(feather,table_name,64);
+	test_offset_str_scan_with_chunk(feather,table_name,1460);
+	return;
 }
 
 int test_table_conjunction(Maat_feather_t feather,const char* table_name,const char* conj_table_name,scan_status_t* mid)
@@ -926,8 +937,7 @@ int main(int argc,char* argv[])
 	test_table_conjunction(feather, "HTTP_URL", "HTTP_HOST", &mid);
 	Maat_clean_status(&mid);
 	
-	test_offset_str_scan(feather,"IMAGE_FP",&mid);
-	Maat_clean_status(&mid);
+	test_offset_str_scan(feather,"IMAGE_FP");
 	
 	if(1==using_redis)
 	{

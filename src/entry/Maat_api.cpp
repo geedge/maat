@@ -420,7 +420,7 @@ int detain_last_data(char* buff,int buff_size,int detained_len,const char* data,
 	{
 		memcpy(buff,data+data_len-buff_size,buff_size);
 		ret_len=buff_size;
-		*cache_offset+=(data_len-buff_size);
+		*cache_offset+=(data_len-buff_size+detained_len);
 	}
 	return ret_len;
 }
