@@ -466,6 +466,56 @@ int test_string_similar_scan(Maat_feather_t feather,const char* table_name,scan_
 	printf("Similar String Scan:%s\n",print_maat_result(result,ret));
 	return ret;
 }
+int test_offset_str_scan(Maat_feather_t feather,const char* table_name,scan_status_t* mid)
+{
+	int table_id=0,ret=0;
+	int read_size=0,pass_flag=0;
+	struct Maat_rule_t result[4];
+	const char* fn="./testdata/mesa_logo.jpg";
+	FILE*fp=fopen(fn,"r");
+	if(fp==NULL)
+	{
+		printf("%s open %s failed.\n",__FUNCTION__, fn);
+		return -1;
+	}
+	char scan_data[64];
+	table_id=Maat_table_register(feather,table_name);
+	if(table_id==-1)
+	{
+		printf("Database table %s register failed.\n",table_name);
+		return -1;
+	}
+	struct Maat_hit_detail_t *hit_detail=(struct Maat_hit_detail_t *)malloc(sizeof(struct Maat_hit_detail_t)*10);
+	stream_para_t sp=Maat_stream_scan_string_start(feather,table_id,0);
+	int detail_ret=0;
+	if(sp==NULL)
+	{
+		printf("stream scan start failed.\n");
+		return -1;
+	}
+	while(0==feof(fp))
+	{
+		read_size=fread(scan_data,1,sizeof(scan_data),fp);
+		ret=Maat_stream_scan_string_detail(&sp,CHARSET_NONE,scan_data,read_size
+							,result,4,hit_detail,10
+							,&detail_ret,mid);
+		if(ret>0)
+		{
+			printf("Test offset string Scan Success. String Scan:%s\n",print_maat_result(result,ret));
+			pass_flag=1;
+			break;
+		}
+	}
+	Maat_stream_scan_string_end(&sp);
+	free(hit_detail);
+	fclose(fp);
+	if(!pass_flag)
+	{
+		printf("Test offset string Scan Failed.\n");
+	}
+	return ret;
+}
+
 int test_table_conjunction(Maat_feather_t feather,const char* table_name,const char* conj_table_name,scan_status_t* mid)
 {
 	int ret=0;
@@ -875,6 +925,10 @@ int main(int argc,char* argv[])
 
 	test_table_conjunction(feather, "HTTP_URL", "HTTP_HOST", &mid);
 	Maat_clean_status(&mid);
+	
+	test_offset_str_scan(feather,"IMAGE_FP",&mid);
+	Maat_clean_status(&mid);
+	
 	if(1==using_redis)
 	{
 		test_command(feather);

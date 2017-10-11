@@ -402,6 +402,33 @@
                     ]
                 }
             ]
+        },
+        {
+            "compile_id": 136,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "effective_range": 0,
+            "user_region": "offset_string",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_name": "IMAGE_FP",
+                            "table_type": "string",
+                            "table_content": {
+                                "keywords": "4362-4458:323031333A30333A30372032333A35363A313000323031333A30333A30372032333A35363A3130000000FFE20C584943435F50524F46494C4500010100000C484C696E6F021000006D6E74725247422058595A2007CE00020009000600310000",
+                                "expr_type": "offset",
+                                "match_method": "none",
+                                "format": "hexbin"
+                            }
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "plugin_table": [
