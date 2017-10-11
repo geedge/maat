@@ -396,7 +396,7 @@ struct _OUTER_scan_status_t* grab_mid(scan_status_t* raw_mid,_Maat_feather_t* fe
 	}
 	return _mid;
 }
-int detain_last_data(char* buff,int buff_size,int detained_len,const char* data,int data_len)
+int detain_last_data(char* buff,int buff_size,int detained_len,const char* data,int data_len, long* cache_offset)
 {
 	int to_copy_size=0,foward_offset=0;
 	int ret_len;
@@ -414,11 +414,13 @@ int detain_last_data(char* buff,int buff_size,int detained_len,const char* data,
 		
 		memcpy(buff+to_copy_size,data,data_len);
 		ret_len=buff_size;
+		*cache_offset+=foward_offset;
 	}
 	else//data_len>=buff_size
 	{
 		memcpy(buff,data+data_len-buff_size,buff_size);
 		ret_len=buff_size;
+		*cache_offset+=(data_len-buff_size);
 	}
 	return ret_len;
 }
@@ -1254,7 +1256,7 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 	scanner=_feather->scanner;
 	sp->feather=_feather;
 	sp->version=_feather->maat_version;
-	sp->acc_scan_len=0;
+	sp->process_offset=0;
 	sp->rs_stream_para=NULL;
 	if(scanner==NULL)
 	{
@@ -1331,7 +1333,6 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 		return -1;
 	}
 	aligment_int64_array_add(sp->feather->thread_call_cnt, sp->thread_num, 1);
-
 	region_result=scanner->region_rslt_buff+MAX_SCANNER_HIT_NUM*sp->thread_num;
 	*detail_ret=0;
 	if(sp->do_merge==1)
@@ -1360,7 +1361,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 		region_scan_data.text_data.text=data;
 		region_scan_data.text_data.tlen=data_len;
 	}
-
+	region_scan_data.text_data.toffset=(int)MIN(0xffffffff/2, sp->process_offset);//longger then int
 	if(sp->last_cache==NULL&&sp->max_cross_size>0)
 	{
 		assert(sp->caching_size==0);
@@ -1368,11 +1369,12 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 	}
 	if(sp->max_cross_size>0)
 	{
-		sp->caching_size=detain_last_data(sp->last_cache,sp->max_cross_size,sp->caching_size,data,data_len);
+		sp->caching_size=detain_last_data(sp->last_cache,sp->max_cross_size,sp->caching_size,data,data_len,&(sp->process_offset));
 	}
-
-	region_scan_data.text_data.toffset=(int)MIN(0xffffffff/2, sp->acc_scan_len);//longger then int
-	sp->acc_scan_len+=data_len;
+	else
+	{
+		sp->process_offset+=data_len;
+	}
 	if(sp->do_expr==1)
 	{
 		region_scan_data.rule_type=RULETYPE_STR;
@@ -1532,7 +1534,7 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 	scanner=_feather->scanner;
 	sp->feather=_feather;
 	sp->version=_feather->maat_version;
-	sp->acc_scan_len=0;
+	sp->process_offset=0;
 	if(scanner==NULL)
 	{
 		return sp;
@@ -1600,9 +1602,9 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 
 	aligment_int64_array_add(sp->feather->thread_call_cnt, sp->thread_num, 1);
 	pthread_mutex_lock(&(sp->fuzzy_mutex));
-	sp->acc_scan_len+=SFH_feed(sp->fuzzy_hash_handle, data, (unsigned int)data_len,offset);
+	sp->process_offset+=SFH_feed(sp->fuzzy_hash_handle, data, (unsigned int)data_len,offset);
 	pthread_mutex_unlock(&(sp->fuzzy_mutex));
-	do_query=REACH_QUERY_THRESH(sp->total_len, sp->acc_scan_len, sp->query_point,8);
+	do_query=REACH_QUERY_THRESH(sp->total_len, sp->process_offset, sp->query_point,8);
 	if(do_query==0)
 	{
 		goto fast_out;

@@ -312,7 +312,7 @@ struct _stream_para_t
 	char* last_cache;
 	char* scan_buff;
 	void* rs_stream_para;
-	long acc_scan_len;
+	long process_offset;
 	unsigned long long total_len;
 	sfh_instance_t *fuzzy_hash_handle;
 	pthread_mutex_t fuzzy_mutex;
