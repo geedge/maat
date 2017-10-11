@@ -488,6 +488,12 @@ FULL_UPDATE:
 		reply=NULL;
 	}
 	reply=_wrap_redisCommand(c,"EXEC");
+	if(reply==NULL)
+	{
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
+				"Redis Communication error: %s.",c->errstr);
+		return -1;
+	}
 	assert(reply->type==REDIS_REPLY_ARRAY);
 	*new_version=read_redis_integer(reply->element[0]);
 	sub_reply=reply->element[1];

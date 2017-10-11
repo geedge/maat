@@ -62,6 +62,12 @@ void read_rule_from_redis(const char*redis_ip, int redis_port, int redis_db,cons
 		printf("No Effective Rules.\n");
 		return;
 	}
+	if(rule_num<0)
+	{
+		printf("Read Redis Error.\n");
+		return;
+	}
+
 	assert(update_type==CM_UPDATE_TYPE_FULL);
 	printf("MAAT Version: %d, key number: %d\n", version, rule_num);
 	printf("Reading value: ");
@@ -70,6 +76,7 @@ void read_rule_from_redis(const char*redis_ip, int redis_port, int redis_db,cons
 	{
 		goto clean_up;
 	}
+	printf("Sorting.\n");
 	qsort(rule_list,rule_num, sizeof(struct serial_rule_t),
                   compare_serial_rule);
 	if((access(output_path,F_OK)) <0)
@@ -142,7 +149,7 @@ clean_up:
 int main(int argc, char * argv[])
 {
 	int oc=0;
-	char model='?';
+	//char model='?';
 	char redis_ip[64];
 	int redis_port=6379;
 	int redis_db=0;
@@ -156,7 +163,7 @@ int main(int argc, char * argv[])
 		switch(oc)
 		{
 			case 'm':
-				model=oc;
+				//model=oc;
 				break;
 			case 'h':
 				strncpy(redis_ip,optarg,sizeof(redis_ip));
