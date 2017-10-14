@@ -3228,10 +3228,18 @@ void *thread_rule_monitor(void *arg)
 			feather->scanner=feather->update_tmp_scanner;
 			if(old_scanner!=NULL)
 			{
-				//assert(feather->scanner->version>old_scanner->version);
-				MESA_handle_runtime_log(feather->logger,RLOG_LV_FATAL,maat_module,
-										"Maat version rool back %d -> %d.",
-										old_scanner->version, feather->scanner->version);
+				if(feather->scanner->version>old_scanner->version)
+				{
+					MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
+											"Maat version updated %d -> %d.",
+											old_scanner->version, feather->scanner->version);
+				}
+				else
+				{
+					MESA_handle_runtime_log(feather->logger,RLOG_LV_FATAL,maat_module,
+											"Maat version roll back %d -> %d.",
+											old_scanner->version, feather->scanner->version);
+				}
 				assert(old_scanner->tomb_ref==feather->garbage_q);
 				feather->zombie_rs_stream+=aligment_int64_array_sum(old_scanner->ref_cnt,old_scanner->max_thread_num);
 				garbage_bagging(GARBAGE_SCANNER, old_scanner, feather->garbage_q);

@@ -474,7 +474,7 @@ int test_offset_str_scan_with_chunk(Maat_feather_t feather,const char* table_nam
 	struct Maat_rule_t result[4];
 	scan_status_t mid=NULL;
 	//const char* fn="./testdata/mesa_logo.jpg";
-	const char* fn="./testdata/100719.jpg";
+	const char* fn="./testdata/mesa_logo.jpg";
 	FILE*fp=fopen(fn,"r");
 	if(fp==NULL)
 	{
