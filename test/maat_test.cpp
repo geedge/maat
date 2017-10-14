@@ -251,7 +251,7 @@ int test_ipv6_scan(Maat_feather_t feather,const char* table_name,scan_status_t* 
 int test_digest_scan(Maat_feather_t feather,const char* table_name,scan_status_t* mid)
 {
 	int table_id=0,ret=0;
-	const char* digest_test_file="./digest_test.data";
+	const char* digest_test_file="./testdata/digest_test.data";
 	struct stat digest_fstat;
 	unsigned long long read_size=0,scan_offset=0;
 	char digest_test_buff[4096]={0};
