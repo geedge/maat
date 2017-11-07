@@ -1,16 +1,9 @@
-#ifndef _MESA_FUZZY_
-#define _MESA_FUZZY_
+#ifndef _STREAM_FUZZY_HASH_
+#define _STREAM_FUZZY_HASH_
 
 /*
  * Copyright (C) MESA 2015
- *
- * These functions allow a programmer to compute the fuzzy hashes
- * (also called the context-triggered piecewise hashes) of
- * buffer[s] of text.
- *
- * See also:
- * ssdeep, and
- * Identifying almost identical files using context triggered piecewise hashing
+
  *
  */
 

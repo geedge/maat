@@ -1,4 +1,5 @@
 #include "Maat_rule.h"
+#include "stream_fuzzy_hash.h"
 #include "Maat_command.h"
 #include <MESA/MESA_handle_logger.h>
 #include <dlfcn.h>
@@ -248,10 +249,9 @@ int test_ipv6_scan(Maat_feather_t feather,const char* table_name,scan_status_t* 
 	}
 	return ret;
 }
-int test_digest_scan(Maat_feather_t feather,const char* table_name,scan_status_t* mid)
+int test_digest_scan(Maat_feather_t feather,const char* table_name,const char* file_name,scan_status_t* mid)
 {
 	int table_id=0,ret=0;
-	const char* digest_test_file="./testdata/digest_test.data";
 	struct stat digest_fstat;
 	unsigned long long read_size=0,scan_offset=0;
 	char digest_test_buff[4096]={0};
@@ -264,13 +264,13 @@ int test_digest_scan(Maat_feather_t feather,const char* table_name,scan_status_t
 		printf("registe table %s error.\n",table_name);
 		return 0;
 	}
-	ret=stat(digest_test_file,&digest_fstat);
+	ret=stat(file_name,&digest_fstat);
 	if(ret!=0)
 	{
-		printf("fstat %s error.\n",digest_test_file);
+		printf("fstat %s error.\n",file_name);
 		return 0;
 	}
-	FILE* fp=fopen(digest_test_file,"r");
+	FILE* fp=fopen(file_name,"r");
 	if(fp!=NULL)
 	{
 		sp=Maat_stream_scan_digest_start(feather, table_id, digest_fstat.st_size, 0);
@@ -289,7 +289,7 @@ int test_digest_scan(Maat_feather_t feather,const char* table_name,scan_status_t
 	}
 	else
 	{
-		printf("fopen %s error.\n",digest_test_file);		
+		printf("fopen %s error.\n",file_name);		
 	}
 	Maat_stream_scan_string_end(&sp);
 	return ret;
@@ -808,6 +808,95 @@ void test_command(Maat_feather_t feather)
 	}
 	Maat_clean_status(&mid);
 }
+#define	FILE_CHUNK_SIZE	4096
+void test_sfh_digest(const char* filename)
+{
+	char * file_buff=NULL,*sfh_ordered=NULL,*sfh_unorder=NULL;
+	int read_size=0,ret=0,chunk_num=0,i=0,idx=0;
+	unsigned long long *offset=NULL;
+	unsigned long long file_size=0,tmp=0,hash_length=0;
+	FILE* fp=fopen(filename,"r");
+	sfh_instance_t * fhandle = NULL;
+	struct stat file_info;
+	ret=stat(filename, &file_info);
+	if(ret!=0)
+	{
+		printf("%s stat file %s error.\n",__FUNCTION__,filename);
+		goto error_out;
+	}
+	file_size=file_info.st_size;
+	file_buff=(char*)malloc(file_size);
+	ret=fread(file_buff,1,file_size,fp);
+	if((unsigned long long)ret!=file_size)
+	{
+		printf("%s read file %s error.\n",__FUNCTION__,filename);
+		free(file_buff);
+		goto error_out;
+	}
+	chunk_num=file_size/FILE_CHUNK_SIZE;
+	if(file_size%FILE_CHUNK_SIZE==0)
+	{
+		chunk_num=file_size/FILE_CHUNK_SIZE;
+	}
+	else
+	{
+		chunk_num=file_size/FILE_CHUNK_SIZE+1;
+	}
+	offset=(unsigned long long*)malloc(sizeof(unsigned long long)*chunk_num);
+	for(i=0;i<chunk_num;i++)
+	{
+		offset[i]=FILE_CHUNK_SIZE*i;
+	}
+	fhandle=SFH_instance(0);
+	SFH_feed(fhandle,file_buff,file_size,0);
+	hash_length = SFH_status(fhandle, HASH_LENGTH);
+	sfh_ordered=(char*)malloc(hash_length);
+	SFH_digest(fhandle, sfh_ordered, hash_length);
+	SFH_release(fhandle);
+	fhandle=NULL;
+	
+	//shuffle file offsets
+	srand(5210);
+	for(i=0;i<chunk_num;i++)
+	{
+		idx=rand()%chunk_num;
+		tmp=offset[i];
+		offset[i]=offset[idx];
+		offset[idx]=tmp;		
+	}
+	fhandle=SFH_instance(0);
+	for(i=0;i<chunk_num;i++)
+	{
+		if(offset[i]+FILE_CHUNK_SIZE>file_size)
+		{
+			read_size=file_size-offset[i];
+		}
+		else
+		{
+			read_size=FILE_CHUNK_SIZE;
+		}
+		SFH_feed(fhandle,file_buff+offset[i],read_size,offset[i]);
+	}
+	hash_length = SFH_status(fhandle, HASH_LENGTH);
+	sfh_unorder=(char*)malloc(hash_length);
+	SFH_digest(fhandle, sfh_unorder, hash_length);
+	//printf("%s %u %lf %s\n",path,digest_fstat.st_size,file_entropy,digest_result_buff);
+	SFH_release(fhandle);
+	if(0==strcmp(sfh_ordered,sfh_unorder))
+	{
+		printf("Test SFH success.\n");
+	}
+	else
+	{
+		printf("Test SFH failed.\n");
+	}
+error_out:
+	fclose(fp);
+	free(file_buff);
+	free(sfh_ordered);
+	free(sfh_unorder);
+	free(offset);
+}
 void maat_test_print_usage(void)
 {
 	printf("Maat Test Usage:\n");
@@ -830,6 +919,7 @@ int main(int argc,char* argv[])
 	const char* log_file="./test.log";
 	const char* stat_file="./scan_staus.log";
 	const char* decrypt_key="mesa2017wy";
+	const char* test_digest_file="./testdata/digest_test.data";
 	int scan_interval_ms=10;
 	int effective_interval_ms=10;
 
@@ -913,7 +1003,7 @@ int main(int argc,char* argv[])
 	test_ipv6_scan(feather, "IP_CONFIG", &mid);
 	Maat_clean_status(&mid);
 
-	test_digest_scan(feather,"FILE_DIGEST", &mid);
+	test_digest_scan(feather,"FILE_DIGEST",test_digest_file,&mid);
 	Maat_clean_status(&mid);
 
 	test_expr_plus(feather, "HTTP_REGION", &mid);
@@ -945,6 +1035,7 @@ int main(int argc,char* argv[])
 		test_set_cmd_line(feather);
 		test_add_ip_command(feather,"IP_CONFIG");
 	}
+	test_sfh_digest(test_digest_file);
 	sleep(wait_second);
 	
 	Maat_burn_feather(feather);

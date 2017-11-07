@@ -21,7 +21,6 @@ const char * map_to64bytes =
 double get_rs_entropy(unsigned int * r_array, unsigned int r_index);
 int cmp(const void * a, const void * b);
 void sfh_rs_entropy(IVI_seg_t * seg, void * user_para);
-void sfh_tune_simulation(IVI_seg_t * seg, void * user_para);
 void sfh_output_state_t(IVI_seg_t * seg, void * user_para);
 int write_uint_array(unsigned int ** array, unsigned int *index,unsigned int *size,unsigned int value);
 /**
@@ -117,46 +116,6 @@ void SFH_release(sfh_instance_t * handle)
 		free((fuzzy_handle_inner_t *)handle);
 		return;
 }
-
-unsigned int SFH_feed(sfh_instance_t * handle, const char * data, unsigned int size, unsigned long long offset)
-{
-	fuzzy_handle_inner_t * _handle=(fuzzy_handle_inner_t *)handle;
-	if(data == NULL || size == 0)
-	{
-		return 0;
-	}
-	unsigned int length = segment_overlap(_handle, size, offset, data);
-	_handle->effective_length += length;
-	_handle->length_increase += length;
-	if(_handle->s_state_cnt>EXPECT_SIGNATURE_LEN&&_handle->do_tune==1)
-	{
-		//printf("s_state_cnt before:%d\n", _handle->s_state_cnt);
-		//printf("blocksize before:%llu\n", _handle->blocksize);
-		unsigned long long check_length = (_handle->effective_length/_handle->s_state_cnt)*EXPECT_SIGNATURE_LEN;
-
-		if(_handle->length_increase > check_length)
-		{
-			IVI_traverse(_handle->ivi, sfh_tune_simulation, (void *)_handle);
-			//printf("sim_rs_cnt:%d\n", _handle->sim_tuned_rs_cnt);
-			if(_handle->sim_tuned_rs_cnt>EXPECT_SIGNATURE_LEN)
-			{
-				_handle->blocksize*= MULTIPLE;
-				IVI_traverse(_handle->ivi, sfh_tune_callback, (void *)_handle);
-			}
-			_handle->sim_tuned_rs_cnt = 0;
-			_handle->length_increase = 0;
-		}
-		//printf("s_state_cnt after:%d\n", _handle->s_state_cnt);
-		//printf("blocksize after:%llu\n", _handle->blocksize);
-	}
-#if 0
-	SFH_digest(handle,result, sizeof(result));
-	printf("%llu %s\n",offset,result);
-#endif
-	return length;
-}
-
-
 void sfh_tune_simulation(IVI_seg_t * seg, void * user_para)
 {
 	sfh_seg_t * tmp = (sfh_seg_t *)(seg->data);
@@ -171,6 +130,113 @@ void sfh_tune_simulation(IVI_seg_t * seg, void * user_para)
 		}
 	}
 }
+void sfh_tune_seg(sfh_seg_t * p, unsigned long long blocksize)
+{
+	int i = 0, j = 0;
+	struct zt_state_t tmp_zt;
+	int new_zt_cnt=0;
+	zt_hash_initial(&tmp_zt);
+
+	for(j = 0; j < p->r_cnt; j++)
+	{
+		if(j == 0)
+		{
+			zt_hash_arymul(&tmp_zt, &(p->p_state));
+		}
+		else
+		{
+			zt_hash_arymul(&tmp_zt, &(p->s_array[j - 1]));
+		}
+		if(p->r_array[j] % blocksize == blocksize - 1)
+		{
+			p->r_array[i]=p->r_array[j];
+			i++;
+			if(i>1)
+			{
+				p->s_array[new_zt_cnt].val=tmp_zt.val;
+				new_zt_cnt++;
+			}
+			else
+			{
+				p->p_state.val=tmp_zt.val;
+			}
+			zt_hash_initial(&tmp_zt);
+		}
+	}
+	zt_hash_arymul(&tmp_zt, &(p->s_state));
+	if(i == 0)
+	{
+		zt_hash_initial(&(p->p_state));
+	}
+	p->s_state.val = tmp_zt.val;
+	p->s_cnt = new_zt_cnt;
+	p->r_cnt = i;
+	assert(p->r_cnt>=p->s_cnt);
+}
+void sfh_tune_callback(IVI_seg_t * seg, void * user_para)
+{
+	sfh_seg_t * p = (sfh_seg_t *)(seg->data);
+	if(p->r_cnt== 0)
+	{
+		return;
+	}
+	
+	fuzzy_handle_inner_t * _handle = (fuzzy_handle_inner_t *)user_para;
+	unsigned long long blocksize = _handle->blocksize;
+	_handle->s_state_cnt-=p->s_cnt;
+	sfh_tune_seg(p, blocksize);
+	_handle->s_state_cnt+=p->s_cnt;
+	//printf("after state_cnt:%d,block:%llu\n",_handle->s_state_cnt,_handle->blocksize);
+}
+
+void do_sfh_tune(sfh_instance_t * handle)
+{
+	fuzzy_handle_inner_t * _handle=(fuzzy_handle_inner_t *)handle;
+	do{
+		_handle->sim_tuned_rs_cnt = 0;
+		IVI_traverse(_handle->ivi, sfh_tune_simulation, (void *)_handle);
+		if(_handle->sim_tuned_rs_cnt>EXPECT_SIGNATURE_LEN)
+		{
+			_handle->blocksize*= MULTIPLE;
+			IVI_traverse(_handle->ivi, sfh_tune_callback, (void *)_handle);		
+		}
+		else
+		{
+			break;
+		}
+		
+	}while(_handle->s_state_cnt>EXPECT_SIGNATURE_LEN);
+	return;
+}
+unsigned int SFH_feed(sfh_instance_t * handle, const char * data, unsigned int size, unsigned long long offset)
+{
+	fuzzy_handle_inner_t * _handle=(fuzzy_handle_inner_t *)handle;
+	if(data == NULL || size == 0)
+	{
+		return 0;
+	}
+	unsigned int length = segment_overlap(_handle, size, offset, data);
+	_handle->effective_length += length;
+	_handle->length_increase += length;
+	if(_handle->s_state_cnt>EXPECT_SIGNATURE_LEN&&_handle->do_tune==1)
+	{
+		unsigned long long check_length = (_handle->effective_length/_handle->s_state_cnt)*EXPECT_SIGNATURE_LEN;
+
+		if(_handle->length_increase > check_length)
+		{
+			do_sfh_tune(handle);
+			_handle->length_increase = 0;
+		}
+	}
+#if 0
+	SFH_digest(handle,result, sizeof(result));
+	printf("%llu %s\n",offset,result);
+#endif
+	return length;
+}
+
+
+
 
 
 unsigned long long get_blocksize(unsigned long long orilen)
@@ -187,7 +253,7 @@ unsigned long long get_blocksize(unsigned long long orilen)
 //		return BLOCKSIZE_MIN;
 }
 
-sfh_seg_t* create_sfh_seg(fuzzy_handle_inner_t * _handle)
+sfh_seg_t* create_sfh_seg(fuzzy_handle_inner_t * _handle,unsigned long long offset)
 {
 	sfh_seg_t*p=(sfh_seg_t*)calloc(sizeof(sfh_seg_t),1);
 	roll_init(&(p->r_state));
@@ -195,6 +261,7 @@ sfh_seg_t* create_sfh_seg(fuzzy_handle_inner_t * _handle)
 	p->s_cnt=0;
 	p->r_size = INIT_SIZE;
 	p->r_cnt=0;
+	p->left_offset=p->right_offset=offset;
 	p->r_array = (unsigned int*)malloc(sizeof(unsigned int)*(p->r_size));
 	_handle->fuzzy_node_memory+=sizeof(unsigned int)*(p->r_size);
 	p->s_array = (struct zt_state_t*)malloc(sizeof(struct zt_state_t)*(p->s_size));
@@ -254,7 +321,7 @@ unsigned int segment_overlap(fuzzy_handle_inner_t * _handle, unsigned int size, 
 
 	if(overlap_segnum==0||offset<overlap_segs[0]->left)
 	{
-		sfh_seg=create_sfh_seg(_handle);
+		sfh_seg=create_sfh_seg(_handle,offset);
 		calc_begin=offset;
 		if(overlap_segnum == 0)
 		{
@@ -389,64 +456,7 @@ double get_rs_entropy(unsigned int * r_array, unsigned int r_index)
 }
 
 
-void sfh_tune_seg(sfh_seg_t * p, unsigned long long blocksize)
-{
-	int i = 0, j = 0;
-	struct zt_state_t tmp_zt;
-	int new_zt_cnt=0;
-	zt_hash_initial(&tmp_zt);
 
-	for(j = 0; j < p->r_cnt; j++)
-	{
-		if(j == 0)
-		{
-			zt_hash_arymul(&tmp_zt, &(p->p_state));
-		}
-		else
-		{
-			zt_hash_arymul(&tmp_zt, &(p->s_array[j - 1]));
-		}
-		if(p->r_array[j] % blocksize == blocksize - 1)
-		{
-			p->r_array[i]=p->r_array[j];
-			i++;
-			if(i>1)
-			{
-				p->s_array[new_zt_cnt].val=tmp_zt.val;
-				new_zt_cnt++;
-			}
-			else
-			{
-				p->p_state.val=tmp_zt.val;
-			}
-			zt_hash_initial(&tmp_zt);
-		}
-	}
-	zt_hash_arymul(&tmp_zt, &(p->s_state));
-	if(i == 0)
-	{
-		zt_hash_initial(&(p->p_state));
-	}
-	p->s_state.val = tmp_zt.val;
-	p->s_cnt = new_zt_cnt;
-	p->r_cnt = i;
-	assert(p->r_cnt>=p->s_cnt);
-}
-void sfh_tune_callback(IVI_seg_t * seg, void * user_para)
-{
-	sfh_seg_t * p = (sfh_seg_t *)(seg->data);
-	if(p->r_cnt== 0)
-	{
-		return;
-	}
-	
-	fuzzy_handle_inner_t * _handle = (fuzzy_handle_inner_t *)user_para;
-	unsigned long long blocksize = _handle->blocksize;
-	_handle->s_state_cnt-=p->s_cnt;
-	sfh_tune_seg(p, blocksize);
-	_handle->s_state_cnt+=p->s_cnt;
-	//printf("after state_cnt:%d,block:%llu\n",_handle->s_state_cnt,_handle->blocksize);
-}
 
 int write_uint_array(unsigned int ** array,unsigned int *index, unsigned int *size,unsigned int value)
 {
@@ -568,7 +578,7 @@ int sfh_merge_seg(fuzzy_handle_inner_t * _handle, sfh_seg_t * p, sfh_seg_t * n,u
 	}
 	memcpy(&(p->r_state),&(n->r_state),sizeof(p->r_state));	
 	assert(p->r_cnt>=p->s_cnt);
-
+	p->right_offset=n->right_offset;
 	return state_inc_cnt;		
 }
 
@@ -675,8 +685,6 @@ void sfh_output_callback(IVI_seg_t * seg, void * user_para)
 	tmp=NULL;
 	return;
 }
-
-
 
 /**
  * 计算fuzzy_hash的各种长度

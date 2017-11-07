@@ -96,7 +96,6 @@ typedef struct
 	unsigned long long hash_length;
 }final_length;
 
-sfh_seg_t* create_sfh_seg(fuzzy_handle_inner_t * _handle);
 int destroy_sfh_seg(sfh_seg_t*p);
 unsigned long long get_blocksize(unsigned long long orilen);
 int sfh_merge_seg(fuzzy_handle_inner_t * _handle,sfh_seg_t * seg, sfh_seg_t * next_seg, unsigned long long blocksize);	
