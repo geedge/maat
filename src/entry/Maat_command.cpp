@@ -1220,6 +1220,14 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 	int ret=0, table_id=0,retry=0,success_cnt=0;
 	struct serial_rule_t *s_rule=NULL;
 	long long server_time=0,absolute_expire_time=0;
+	if(_feather->redis_write_ctx==NULL)
+	{
+		ret=connect_redis_for_write(_feather);
+		if(ret!=0)
+		{
+			return -1;
+		}
+	}
 	server_time=redis_server_time(_feather->redis_write_ctx);
 	s_rule=(struct serial_rule_t *)calloc(sizeof(struct serial_rule_t),line_num);
 	for(i=0;i<line_num;i++)
