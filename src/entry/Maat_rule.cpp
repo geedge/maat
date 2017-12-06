@@ -30,7 +30,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_1_20171205=1;
+int MAAT_FRAME_VERSION_2_1_20171206_dev=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -2974,13 +2974,14 @@ void clear_plugin_table_info(struct _plugin_table_info *cb_info)
 	cb_info->acc_line_num=0;
 	return;
 }
-void maat_start_cb(unsigned int new_version,int update_type,void*u_para)
+void maat_start_cb(long long new_version,int update_type,void*u_para)
 {
 	struct _Maat_feather_t *feather=(struct _Maat_feather_t *)u_para; 
 	struct _Maat_table_info_t* p_table=NULL;
 	struct _plugin_table_info* p_table_cb=NULL;
 	int i=0,j=0;
 	feather->new_version=new_version;
+	
 	if(update_type==CM_UPDATE_TYPE_FULL)
 	{
 		feather->update_tmp_scanner=create_maat_scanner(new_version,feather);
@@ -3011,15 +3012,18 @@ void maat_start_cb(unsigned int new_version,int update_type,void*u_para)
 								feather->maat_version,new_version);
 		feather->maat_version=new_version;
 	}
+	feather->active_plugin_table_num=0;
 	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
 		p_table=feather->p_table_info[i];
-		if(p_table==NULL||p_table->table_type!=TABLE_TYPE_PLUGIN)
+		if(p_table==NULL||p_table->table_type!=TABLE_TYPE_PLUGIN||p_table->cb_info->cb_plug_cnt==0)
 		{
 			continue;
 		}
-		feather->active_plugin_table_num++;
 		p_table_cb=p_table->cb_info;
+
+		feather->active_plugin_table_num++;
+		
 		for(j=0;j<p_table_cb->cb_plug_cnt;j++)
 		{
 			if(p_table_cb->cb_plug[j].start!=NULL)
@@ -3045,16 +3049,18 @@ void maat_finish_cb(void* u_para)
 			total+=p_table->cfg_num;
 		}
 	}
+	int call_plugin_table_cnt=0;
 	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
 		p_table=feather->p_table_info[i];
 		
-		if(p_table==NULL||p_table->table_type!=TABLE_TYPE_PLUGIN)
+		if(p_table==NULL||p_table->table_type!=TABLE_TYPE_PLUGIN||p_table->cb_info->cb_plug_cnt==0)
 		{
 			continue;
 		}
+		call_plugin_table_cnt++;
 		p_table_cb=p_table->cb_info;
-		if(i==feather->active_plugin_table_num)
+		if(call_plugin_table_cnt==feather->active_plugin_table_num)
 		{
 			feather->is_last_plugin_table_updating=1;
 		}

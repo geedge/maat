@@ -326,7 +326,7 @@ struct GIE_aux_t
 };
 struct _Maat_scanner_t
 {
-	int version;
+	long long version;
 	time_t last_update_time;
 	long long *ref_cnt;	//optimized for cache_alignment 64
 	rule_scanner_t region;
@@ -361,13 +361,14 @@ struct _Maat_feather_t
 	int still_working;
 	int scan_interval_ms;
 	int effect_interval_ms;
+	int cumulative_update_off;
 	int stat_on;
 	int perf_on;
 	struct _Maat_table_info_t *p_table_info[MAX_TABLE_NUM];
 	MESA_htable_handle map_tablename2id;
 	void* logger;
-	int maat_version;
-	int last_full_version;
+	long long maat_version;
+	long long last_full_version;
 	int scan_thread_num;
 	int rule_scan_type;
 	char inc_dir[MAX_TABLE_NAME_LEN];
@@ -393,7 +394,7 @@ struct _Maat_feather_t
 	pthread_mutex_t redis_write_lock; //protect redis_write_ctx
 	long long base_rgn_seq,base_grp_seq,server_time;
 //internal states
-	int new_version;
+	long long new_version;
 	int active_plugin_table_num;
 	int is_last_plugin_table_updating;
 
@@ -446,7 +447,7 @@ void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbag
 void garbage_bury(MESA_lqueue_head garbage_q,void *logger);
 void make_group_set(const struct _Maat_compile_inner_t* compile_rule,universal_bool_expr_t* a_set);
 int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger);
-void maat_start_cb(unsigned int new_version,int update_type,void*u_para);
+void maat_start_cb(long long new_version,int update_type,void*u_para);
 int maat_update_cb(const char* table_name,const char* line,void *u_para);
 void maat_finish_cb(void* u_para);
 void *thread_rule_monitor(void *arg);
@@ -470,16 +471,17 @@ void maat_stat_output(struct _Maat_feather_t* feather);
 char* _maat_strdup(const char* s);
 char* str_unescape(char* s);
 redisReply *_wrap_redisCommand(redisContext *c, const char *format, ...);
-int get_rm_key_list(unsigned int version,redisContext *c,struct serial_rule_t** list,void* logger, unsigned int* new_version,int *update_type);
+int get_rm_key_list(long long version,redisContext *c,struct serial_rule_t** list,void* logger, long long* new_version,int *update_type, int cumulative_off);
 int get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int rule_num,void* logger,int print_process);
 void empty_serial_rules(struct serial_rule_t* rule);
-void redis_monitor_traverse(unsigned int version,redisContext *c,
-							void (*start)(unsigned int ,int ,void*),//vesion,CM_UPDATE_TYPE_*,u_para
-							int (*update)(const char* ,const char*,void* ),//table name ,line ,u_para
-							void (*finish)(void*),//u_para
-							void* u_para,
-							const unsigned char* dec_key,
-							_Maat_feather_t* feather);
+void redis_monitor_traverse(long        long version,redisContext *c,
+		void (*start)(long long,int ,void*),//vesion,CM_UPDATE_TYPE_*,u_para
+		int (*update)(const char* ,const char*,void* ),//table name ,line ,u_para
+		void (*finish)(void*),//u_para
+		void* u_para,
+		const unsigned char* dec_key,
+		_Maat_feather_t* feather);
+
 const char*	module_name_str(const char*name);
 #define maat_module	(module_name_str("MAAT_Frame"))
 

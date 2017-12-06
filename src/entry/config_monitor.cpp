@@ -210,14 +210,14 @@ int my_scandir(const char *dir, struct dirent ***namelist,
    return (strncmp(ent->d_name,"full_config_index",strlen("full_config_index")) == 0||
    	strncmp(ent->d_name,"inc_config_index",strlen("inc_config_index")) == 0);
  }
-int  get_new_idx_path(unsigned int current_version,const char*file_dir,void* logger,char*** idx_path,int*idx_num)
+int  get_new_idx_path(long long current_version,const char*file_dir,void* logger,char*** idx_path,int*idx_num)
 {
 	struct dirent **namelist;
 	int n=0,i=0,sscanf_ret;
 	
 	char update_str[32]={0};
-	unsigned int latest_ful_version=0,latest_inc_version=0;
-	unsigned int config_seq=0;
+	long long latest_ful_version=0,latest_inc_version=0;
+	long long config_seq=0;
 	int *inc_file_idx;
 	int full_file_idx=0,inc_idx_num=0,path_len=0;
 	
@@ -247,7 +247,7 @@ int  get_new_idx_path(unsigned int current_version,const char*file_dir,void* log
 										,namelist[i]->d_name);
 			continue;
 		}
-		sscanf_ret=sscanf(namelist[i]->d_name,"%[a-zA-Z]_config_index.%u",update_str,&config_seq);
+		sscanf_ret=sscanf(namelist[i]->d_name,"%[a-zA-Z]_config_index.%lld",update_str,&config_seq);
 		if(sscanf_ret!=2)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor 
@@ -455,17 +455,18 @@ const char* path2filename(const char*path)
 	}
 	return path+i+1;
 }
-void config_monitor_traverse(unsigned int version,const char*idx_dir,
-							void (*start)(unsigned int ,int ,void*),
-							int (*update)(const char* ,const char*,void* ),
-							void (*finish)(void*),
+void config_monitor_traverse(long long version,const char*idx_dir,
+							void (*start)(long long, int, void*),//vesion,CM_UPDATE_TYPE_*,u_para
+							int (*update)(const char*, const char*, void*),//table name ,line ,u_para
+							void (*finish)(void*),//u_para
 							void* u_para,
 							const unsigned char* dec_key,
 							void* logger)
+
 {
 
 	int update_type=CM_UPDATE_TYPE_NONE;
-	unsigned int new_version=0;
+	long long new_version=0;
 	char**idx_path_array=NULL;
 	const char* table_filename=NULL;
 	char str_not_care[256]={0};
@@ -488,7 +489,7 @@ void config_monitor_traverse(unsigned int version,const char*idx_dir,
 				break;
 			}
 			table_filename=path2filename(idx_path_array[i]);
-			sscanf(table_filename,"%[a-zA-Z]_config_index.%u",str_not_care,&new_version);
+			sscanf(table_filename,"%[a-zA-Z]_config_index.%lld",str_not_care,&new_version);
 			start(new_version,update_type,u_para);
 			for(j=0;j<table_num;j++)
 			{

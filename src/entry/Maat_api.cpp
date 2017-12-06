@@ -617,6 +617,8 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 		case MAAT_OPT_DEFERRED_LOAD:
 			_feather->DEFERRED_LOAD_ON=1;
 			break;
+		case	MAAT_OPT_CUMULATIVE_UPDATE_OFF:
+			_feather->cumulative_update_off=1;
 		default:
 			return -1;
 	}
@@ -721,6 +723,13 @@ int Maat_initiate_feather(Maat_feather_t feather)
 								"At initiation: STAT  tirigger OFF,  TURN OFF PERF trigger.");
 		_feather->perf_on=0;
 	}
+	if(_feather->cumulative_update_off==1)
+	{
+			MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
+								"Update with cumulative version OFF.");
+	}
+
+	
 	maat_stat_init(_feather);
 
 	pthread_t cfg_mon_t;
@@ -1832,3 +1841,34 @@ void Maat_clean_status(scan_status_t* mid)
 	*mid=NULL;
 	return;
 }
+int Maat_read_state(Maat_feather_t feather,enum MAAT_STATE_OPT  type, void* value,int size)
+{
+	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	int * int_val=(int *)value;
+	long long* longlong_val=(long long*)value;
+	switch(type)
+	{
+		case MAAT_STATE_VERSION:
+			if(size!=sizeof(long long))
+			{
+				return -1;
+			}
+			if(_feather->new_version!=-1)
+			{
+				*longlong_val=_feather->new_version;
+			}
+			else
+			{
+				*longlong_val=_feather->maat_version;
+			}
+			break;
+		case MAAT_STATE_LAST_UPDATING_TABLE:
+			*int_val=_feather->is_last_plugin_table_updating;
+			break;
+		default:
+			return -1;
+			break;
+	}
+	return 0;
+}
+

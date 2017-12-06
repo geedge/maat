@@ -53,6 +53,15 @@ void Maat_read_entry_cb(int table_id,const char* table_line,void* u_para)
 }
 void Maat_read_entry_finish_cb(void* u_para)
 {
+	Maat_feather_t feather=u_para;
+	long long version=0;
+	int ret=0,is_last_updating_table=0;
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version, sizeof(version));
+	assert(ret==0);
+	ret=Maat_read_state(feather,MAAT_STATE_LAST_UPDATING_TABLE, &is_last_updating_table, sizeof(is_last_updating_table));
+	assert(ret==0);
+	//printf("Maat Version %lld at plugin finish callback, is_last_update=%d.\n",version,is_last_updating_table);
+
 	return;
 }
 void print_maat_ret(int ret)
@@ -308,7 +317,7 @@ int test_plugin_table(Maat_feather_t feather,const char* table_name,void* logger
 								Maat_read_entry_start_cb,
 								Maat_read_entry_cb, 
 								Maat_read_entry_finish_cb,
-								logger);
+								feather);
 		if(ret<0)
 		{
 			printf("Maat callback register table %s error.\n",table_name);
@@ -559,6 +568,7 @@ void test_set_cmd_line(Maat_feather_t feather)
 	struct Maat_line_t line_rule[TEST_CMD_LINE_NUM];
 	char table_line[TEST_CMD_LINE_NUM][128];
 	int ret=0,i=0;
+	long long version=0;
 	memset(&line_rule,0,sizeof(line_rule));
 	for(i=0;i<TEST_CMD_LINE_NUM;i++)
 	{
@@ -572,9 +582,20 @@ void test_set_cmd_line(Maat_feather_t feather)
 	}
 	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
 	assert(ret==0);
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version, sizeof(version));
+	assert(ret==0);
+	printf("Maat Version %lld after add lines.\n",version);
 	sleep(1);
+	for(i=0;i<TEST_CMD_LINE_NUM;i++)
+	{
+		line_rule[i].table_line=NULL;
+	}
 	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_DEL);
 	assert(ret==0);
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version, sizeof(version));
+	assert(ret==0);
+	printf("Maat Version %lld after delete lines.\n",version);
+
 	return;
 }
 int test_add_expr_command(Maat_feather_t feather,const char* region_table,int config_id, int timeout,int label_id, const char* keywords)

@@ -37,7 +37,7 @@ void read_rule_from_redis(const char*redis_ip, int redis_port, int redis_db,cons
 	int rule_num=0,line_count=0;
 	int i=0,ret=0;
 	int update_type=CM_UPDATE_TYPE_INC;
-	unsigned int version=0;
+	long long version=0;
 	const char* cur_table=NULL;
 
 	char table_path[256],index_path[256];
@@ -56,7 +56,7 @@ void read_rule_from_redis(const char*redis_ip, int redis_port, int redis_db,cons
 	}
 
 	printf("Reading key list from %s:%d db%d.\n",redis_ip,redis_port,redis_db);
-	rule_num=get_rm_key_list(0, ctx, &rule_list, logger,&version, &update_type);
+	rule_num=get_rm_key_list(0, ctx, &rule_list, logger,&version, &update_type,0);
 	if(rule_num==0)
 	{
 		printf("No Effective Rules.\n");
@@ -69,7 +69,7 @@ void read_rule_from_redis(const char*redis_ip, int redis_port, int redis_db,cons
 	}
 
 	assert(update_type==CM_UPDATE_TYPE_FULL);
-	printf("MAAT Version: %d, key number: %d\n", version, rule_num);
+	printf("MAAT Version: %lld, key number: %d\n", version, rule_num);
 	printf("Reading value: ");
 	ret=get_maat_redis_value(ctx,rule_list,rule_num,logger,1);
 	if(ret<0)
@@ -85,7 +85,7 @@ void read_rule_from_redis(const char*redis_ip, int redis_port, int redis_db,cons
 		printf("mkdir %s error\n",output_path);
 
 	}
-	snprintf(index_path,sizeof(index_path),"%s/full_config_index.%010d",output_path,version);
+	snprintf(index_path,sizeof(index_path),"%s/full_config_index.%020lld",output_path,version);
 	index_fp=fopen(index_path,"w");
 	if(index_fp==NULL)
 	{
@@ -105,7 +105,7 @@ void read_rule_from_redis(const char*redis_ip, int redis_port, int redis_db,cons
 				set_file_rulenum(table_path,line_count, logger);
 				line_count=0;
 			}
-			snprintf(table_path,sizeof(table_path),"%s/%s.%010d",output_path,rule_list[i].table_name,version);
+			snprintf(table_path,sizeof(table_path),"%s/%s.%020lld",output_path,rule_list[i].table_name,version);
 			set_file_rulenum(table_path, 0, logger);
 			table_fp=fopen(table_path,"a");
 			if(table_fp==NULL)

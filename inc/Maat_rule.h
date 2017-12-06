@@ -151,16 +151,17 @@ enum MAAT_INIT_OPT
 	MAAT_OPT_REDIS_PORT,			//VALUE is a unsigned short or a signed int, host order, SIZE= sizeof(unsigned short) or sizeof(int). No DEFAULT.
 	MAAT_OPT_REDIS_INDEX,			//VALUE is interger *, 0~15, SIZE=sizeof(int). DEFAULT: 0.
 	MAAT_OPT_CMD_AUTO_NUMBERING,		//VALUE is interger *, 1 or 0, SIZE=sizeof(int). DEFAULT: 1.
-	MAAT_OPT_DEFERRED_LOAD			//VALUE is  NULL,SIZE is 0.  Default: Deffered initialization OFF.
+	MAAT_OPT_DEFERRED_LOAD,			//VALUE is  NULL,SIZE is 0.  Default: Deffered initialization OFF.
+	MAAT_OPT_CUMULATIVE_UPDATE_OFF	//VALUE is  NULL,SIZE is 0.  Default: CUMMULATIVE UPDATE OFF.
 };
 //return -1 if failed, return 0 on success;
 int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT  type,const void* value,int size);
 enum MAAT_STATE_OPT
 {
-	MAAT_STATE_VERSION=1,			//Get current maat version. VALUE is interger, SIZE=sizeof(int). 
+	MAAT_STATE_VERSION=1,			//Get current maat version. VALUE is long long, SIZE=sizeof(long long). 
 	MAAT_STATE_LAST_UPDATING_TABLE	//Query at Maat_finish_callback_t to determine whether this table is the last one to update. VALUE is interger, SIZE=sizeof(int), 1:yes, 0: no
 };
-int Maat_read_feather_state(Maat_feather_t feather,enum MAAT_STATE_OPT  type,const void* value,int size);
+int Maat_read_state(Maat_feather_t feather, enum MAAT_STATE_OPT  type, void* value, int size);
 
 void Maat_burn_feather(Maat_feather_t feather);
 
