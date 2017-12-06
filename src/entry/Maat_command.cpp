@@ -1251,17 +1251,20 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 			ret=-1;
 			goto error_out;
 		}
-		ret=get_valid_flag_offset(line_rule[i]->table_line
-			, _feather->p_table_info[table_id]->table_type
-			, _feather->p_table_info[table_id]->valid_flag_column);
-		if(ret<0||
-			(op==MAAT_OP_ADD&&line_rule[i]->table_line[ret]!='1'))
+		if(op==MAAT_OP_ADD)
 		{
-			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_command 
-					,"Command set line id %d failed: illegal valid flag."
-					, line_rule[i]->rule_id);
-			ret=-1;
-			goto error_out;
+			ret=get_valid_flag_offset(line_rule[i]->table_line
+				, _feather->p_table_info[table_id]->table_type
+				, _feather->p_table_info[table_id]->valid_flag_column);
+			if(ret<0||
+				(op==MAAT_OP_ADD&&line_rule[i]->table_line[ret]!='1'))
+			{
+				MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_command 
+						,"Command set line id %d failed: illegal valid flag."
+						, line_rule[i]->rule_id);
+				ret=-1;
+				goto error_out;
+			}
 		}
 		if(line_rule[i]->expire_after>0)
 		{

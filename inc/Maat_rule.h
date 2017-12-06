@@ -155,6 +155,13 @@ enum MAAT_INIT_OPT
 };
 //return -1 if failed, return 0 on success;
 int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT  type,const void* value,int size);
+enum MAAT_STATE_OPT
+{
+	MAAT_STATE_VERSION=1,			//Get current maat version. VALUE is interger, SIZE=sizeof(int). 
+	MAAT_STATE_LAST_UPDATING_TABLE	//Query at Maat_finish_callback_t to determine whether this table is the last one to update. VALUE is interger, SIZE=sizeof(int), 1:yes, 0: no
+};
+int Maat_read_feather_state(Maat_feather_t feather,enum MAAT_STATE_OPT  type,const void* value,int size);
+
 void Maat_burn_feather(Maat_feather_t feather);
 
 //return table_id(>=0) if success,otherwise return -1;

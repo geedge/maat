@@ -392,6 +392,11 @@ struct _Maat_feather_t
 	struct _Maat_cmd_inner_t* cmd_qhead, *cmd_qtail;
 	pthread_mutex_t redis_write_lock; //protect redis_write_ctx
 	long long base_rgn_seq,base_grp_seq,server_time;
+//internal states
+	int new_version;
+	int active_plugin_table_num;
+	int is_last_plugin_table_updating;
+
 //for stat>>>>
 	screen_stat_handle_t stat_handle;
 	int total_stat_id;

@@ -2980,6 +2980,7 @@ void maat_start_cb(unsigned int new_version,int update_type,void*u_para)
 	struct _Maat_table_info_t* p_table=NULL;
 	struct _plugin_table_info* p_table_cb=NULL;
 	int i=0,j=0;
+	feather->new_version=new_version;
 	if(update_type==CM_UPDATE_TYPE_FULL)
 	{
 		feather->update_tmp_scanner=create_maat_scanner(new_version,feather);
@@ -3017,6 +3018,7 @@ void maat_start_cb(unsigned int new_version,int update_type,void*u_para)
 		{
 			continue;
 		}
+		feather->active_plugin_table_num++;
 		p_table_cb=p_table->cb_info;
 		for(j=0;j<p_table_cb->cb_plug_cnt;j++)
 		{
@@ -3052,6 +3054,10 @@ void maat_finish_cb(void* u_para)
 			continue;
 		}
 		p_table_cb=p_table->cb_info;
+		if(i==feather->active_plugin_table_num)
+		{
+			feather->is_last_plugin_table_updating=1;
+		}
 		for(j=0;j<p_table_cb->cb_plug_cnt;j++)
 		{
 			if(p_table_cb->cb_plug[j].finish!=NULL)
@@ -3059,6 +3065,7 @@ void maat_finish_cb(void* u_para)
 				p_table_cb->cb_plug[j].finish(p_table_cb->cb_plug[j].u_para);
 			}
 		}
+		feather->is_last_plugin_table_updating=0;
 	}
 	if(feather->update_tmp_scanner!=NULL)
 	{
@@ -3101,6 +3108,8 @@ void maat_finish_cb(void* u_para)
                                                                         "Version %d have no valid scan rules, plugin callback complete.",
                                                                         feather->maat_version);
 	}
+	feather->new_version=-1;
+	feather->active_plugin_table_num=0;
 	return;
 }
 int maat_update_cb(const char* table_name,const char* line,void *u_para)
