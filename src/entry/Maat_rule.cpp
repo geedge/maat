@@ -30,7 +30,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_1_20171206_dev=1;
+int MAAT_FRAME_VERSION_2_1_20171221_dev=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -2056,11 +2056,7 @@ int del_region_rule(struct _Maat_table_info_t* table,int region_id,int group_id,
 	{
 		HASH_delete_by_id(maat_scanner->group_hash,group_id);
 		garbage_bagging(GARBAGE_GROUP_RULE, group_rule, maat_scanner->tomb_ref);
-		MESA_handle_runtime_log(logger,RLOG_LV_DEBUG,maat_module ,
-							"Indirectly delete group %d,last region rule has been delete,table %s region id %d ."
-							,group_id
-							,table->table_name[table->updating_name]
-							,region_id);
+
 	}
 	return 1;
 }
@@ -2130,10 +2126,7 @@ void del_group_rule(struct _Maat_table_info_t* table,struct db_group_rule_t* db_
 	//Directly delete group id will not destroyp group_rule,it 'll be destroyed when delete this group's last region.
 	if(group_rule->ref_cnt==0&&group_rule->region_cnt==0)
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"Directly delete table %s group id %d, do this when delete its last region."
-							,table->table_name[table->updating_name]
-							,db_group_rule->group_id);
+		//Directly delete table %s group id %d, do this when delete its last region.
 	}
 	return;
 }

@@ -382,13 +382,15 @@ int cm_read_table_file(struct cm_table_info_t* index,
 	{
 		if(key==NULL||strlen((const char*)key)==0)
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"update error,no key to decrypt %s.",index->cfg_path);
+			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"update error, no key to decrypt %s.",index->cfg_path);
+			fclose(fp);
 			return -1;
 		}
 		decrypt_len=decrypt_open(fp, key,index->encryp_algorithm, &decrypt_buff,logger);
 		if(decrypt_len==0)
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"update error,%s decrypt failed.",index->cfg_path);
+			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"update error, %s decrypt failed.",index->cfg_path);
+			fclose(fp);
 			return -1;
 		}
 		read_nxt_line_from_buff(decrypt_buff, decrypt_len, &decrypt_offset, line, sizeof(line));
