@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <MESA/MESA_htable.h>
 #include "cJSON.h"
+#include "hiredis.h"
 #include "map_str2int.h"
 #include "Maat_rule_internal.h"
 #define maat_json (module_name_str("MAAT_JSON"))
@@ -42,7 +43,7 @@ struct iris_description_t
 	MESA_htable_handle group_name_map;
 	MESA_htable_handle iris_table_map;
 	MESA_htable_handle str2int_map;
-	
+	redisContext *redis_write_ctx;
 };
 struct traslate_command_t
 {
@@ -54,7 +55,42 @@ struct traslate_command_t
 	const char* default_string;
 	int default_int;
 };
-int set_iris_descriptor(const char* json_file,cJSON *json,const char*compile_tn,const char* group_tn,struct iris_description_t *iris_cfg,void * logger)
+static int get_group_seq(struct iris_description_t* iris_cfg)
+{
+	redisReply* data_reply=NULL;
+	int sequence=0;
+	if(iris_cfg->redis_write_ctx==NULL)
+	{
+		sequence=iris_cfg->group_cnt;
+	}
+	else
+	{
+		data_reply=_wrap_redisCommand(iris_cfg->redis_write_ctx,"INCRBY SEQUENCE_GROUP 1");
+		sequence=(int)data_reply->integer-1;
+		freeReplyObject(data_reply);
+	}
+	iris_cfg->group_cnt++;
+	return sequence;
+}
+static int get_region_seq(struct iris_description_t* iris_cfg)
+{
+	redisReply* data_reply=NULL;
+	int sequence=0;
+	if(iris_cfg->redis_write_ctx==NULL)
+	{
+		sequence=iris_cfg->region_cnt;
+	}
+	else
+	{
+		data_reply=_wrap_redisCommand(iris_cfg->redis_write_ctx,"INCRBY SEQUENCE_REGION 1");
+		sequence=(int)data_reply->integer-1;
+		freeReplyObject(data_reply);
+	}
+	iris_cfg->region_cnt++;
+	return sequence;
+}
+
+int set_iris_descriptor(const char* json_file,cJSON *json,const char*compile_tn,const char* group_tn, redisContext *redis_write_ctx, struct iris_description_t *iris_cfg, void * logger)
 {
 	memset(iris_cfg,0,sizeof(struct iris_description_t));
 	snprintf(iris_cfg->tmp_iris_dir,sizeof(iris_cfg->tmp_iris_dir),"%s_iris_tmp",json_file);
@@ -69,7 +105,8 @@ int set_iris_descriptor(const char* json_file,cJSON *json,const char*compile_tn,
 	memcpy(iris_cfg->group_table.table_name,group_tn,strlen(group_tn));
 	snprintf(iris_cfg->group_table.table_path,sizeof(iris_cfg->group_table.table_name),
 			"%s/%s.local",iris_cfg->tmp_iris_dir,iris_cfg->group_table.table_name);
-	
+
+	iris_cfg->redis_write_ctx=redis_write_ctx;
 	MESA_htable_create_args_t hargs;
 	memset(&hargs,0,sizeof(hargs));
 	hargs.thread_safe=1;
@@ -617,7 +654,7 @@ int write_region_rule(cJSON* region_json,int compile_id,int group_id,iris_descri
 			return -1;
 		}
 	}
-	region_id=p_iris->region_cnt++;
+	region_id=get_region_seq(p_iris);
 	cJSON_AddNumberToObject(table_content, "region_id", region_id);
 	cJSON_AddNumberToObject(table_content, "group_id", group_id);
 	cJSON_AddNumberToObject(table_content, "is_valid", 1);
@@ -866,12 +903,12 @@ int write_iris(cJSON *json,struct iris_description_t *p_iris,void* logger)
 			if(0==strncasecmp(group_name,untitled_group_name,strlen(untitled_group_name)))
 			{
 				group_info=&untitled_group;
-				group_info->group_id=p_iris->group_cnt++;
+				group_info->group_id=get_group_seq(p_iris);
 			}
 			else
 			{
 				group_info=(struct group_info_t*)malloc(sizeof(struct group_info_t));
-				group_info->group_id=p_iris->group_cnt++;
+				group_info->group_id=get_group_seq(p_iris);
 				MESA_htable_add(p_iris->group_name_map,(const unsigned char*)group_name, strlen(group_name),group_info);
 			}
 			r_rules=cJSON_GetObjectItem(group_rule,"regions");
@@ -916,10 +953,10 @@ int write_iris(cJSON *json,struct iris_description_t *p_iris,void* logger)
 	}
 	return 0;
 }
-int json2iris(const char* json_file,const char*compile_tn,const char* group_tn,char* iris_dir_buf,int buf_len,void* logger)
+int json2iris(const char* json_file,const char*compile_tn,const char* group_tn,redisContext *redis_write_ctx,char* iris_dir_buf,int buf_len,void* logger)
 {
 	FILE* json_fp=NULL;
-	cJSON *json=NULL;
+	cJSON *json=NULL, *tmp_obj=NULL;
 	struct stat fstat_buf;
 	int ret=-1;
 	char* json_buff=NULL;
@@ -960,7 +997,17 @@ int json2iris(const char* json_file,const char*compile_tn,const char* group_tn,c
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,"Error before: %-200.200s",cJSON_GetErrorPtr());
 		goto error_out;
 	}
-	ret=set_iris_descriptor(json_file,json,compile_tn,group_tn,&iris_cfg,logger);
+	if(compile_tn==NULL)
+	{
+		tmp_obj=cJSON_GetObjectItem(json,"compile_table");
+		compile_tn=tmp_obj->valuestring;
+	}
+	if(group_tn==NULL)
+	{
+		tmp_obj=cJSON_GetObjectItem(json,"group_table");
+		group_tn=tmp_obj->valuestring;
+	}
+	ret=set_iris_descriptor(json_file,json,compile_tn,group_tn,redis_write_ctx,&iris_cfg,logger);
 	if(ret<0)
 	{
 		goto error_out;

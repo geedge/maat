@@ -532,8 +532,10 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 		case MAAT_OPT_JSON_FILE_PATH:
 			ret=json2iris((const char*)value
 				,_feather->compile_tn,_feather->group_tn
+				,NULL
 				,_feather->full_dir
-				,sizeof(_feather->full_dir),_feather->logger);
+				,sizeof(_feather->full_dir)
+				,_feather->logger);
 			if(ret<0)
 			{
 				return -1;

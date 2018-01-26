@@ -492,12 +492,18 @@ void config_monitor_traverse(long long version,const char*idx_dir,
 			}
 			table_filename=path2filename(idx_path_array[i]);
 			sscanf(table_filename,"%[a-zA-Z]_config_index.%lld",str_not_care,&new_version);
-			start(new_version,update_type,u_para);
+			if(start!=NULL)
+			{
+				start(new_version,update_type,u_para);
+			}
 			for(j=0;j<table_num;j++)
 			{
 				cm_read_table_file(table_array+j,update,u_para,dec_key,logger);
 			}
-			finish(u_para);
+			if(finish!=NULL)
+			{
+				finish(u_para);
+			}
 		}
 
 	}
