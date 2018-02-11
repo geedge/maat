@@ -193,7 +193,7 @@ int make_serial_rule(const char* table_name,const char* line,void *u_para)
 	{
 		buff[strlen(buff)-1]='\0';
 	}
-
+	//printf("Writing table %s, rule_id=%d, timeout=%lld, is_valid=%d\n", table_name, rule_id,absolute_expire_time,is_valid);
 	set_serial_rule(s_rule+line_idx, (enum MAAT_OPERATION)is_valid, rule_id, 0, table_name, buff, absolute_expire_time);
 	line_idx++;
 	free(str1);
@@ -311,7 +311,7 @@ int main(int argc, char * argv[])
 		}
 		total_line_cnt=0;
 		config_monitor_traverse(0, tmp_iris_path, NULL, count_line_num, NULL, &total_line_cnt,NULL, NULL);
-		printf("Serialize %s to %d lines.\nNote that group reuse is NOT supported.\n",json_file, total_line_cnt);
+		printf("Serialize %s to %d lines, write temp file to %s .\n",json_file, total_line_cnt, tmp_iris_path);
 		struct serial_rule_t * s_rule=(struct serial_rule_t *)calloc(sizeof(struct serial_rule_t),total_line_cnt);
 		server_time=redis_server_time(ctx);
 		if(timeout>0)
@@ -319,6 +319,7 @@ int main(int argc, char * argv[])
 			absolute_expire_time=server_time+timeout;
 		}
 		config_monitor_traverse(0, tmp_iris_path, NULL, make_serial_rule, NULL, s_rule,NULL, NULL);
+		printf("Timeout=%lld\n",absolute_expire_time);
 		ret=0;
 		while(success_cnt<total_line_cnt)
 		{
