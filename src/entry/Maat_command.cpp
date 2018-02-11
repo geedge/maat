@@ -360,7 +360,8 @@ int get_rm_key_list(long long version,redisContext *c,struct serial_rule_t** lis
 	redisReply* reply=NULL,*sub_reply=NULL,*tmp_reply=NULL;
 	char err_buff[256];
 	char op_str[4];
-	long long version_in_redis=0,nearest_rule_version=0;
+	long long version_in_redis=0,target_version=0,nearest_rule_version=0;
+	int rule_num=0;
 	int ret=0;
 	unsigned int i=0,full_idx =0,append_cmd_cnt=0;
 	struct serial_rule_t *s_rule=NULL;
@@ -405,26 +406,37 @@ int get_rm_key_list(long long version,redisContext *c,struct serial_rule_t** lis
 	}
 	if(version_in_redis>version&&cumulative_off==1)
 	{
-		version_in_redis=version+1;
+		target_version=version+1;
 	}
-
+	else
+	{
+		target_version=version_in_redis;
+	}
+	do{
 	//Returns all the elements in the sorted set at key with a score that version < score <= version_in_redis.
 	//The elements are considered to be ordered from low to high scores(version).
-	reply=(redisReply*)redisCommand(c, "ZRANGEBYSCORE %s (%lld %lld",rm_status_sset,version,version_in_redis);
+		reply=(redisReply*)redisCommand(c, "ZRANGEBYSCORE %s (%lld %lld",rm_status_sset,version,target_version);
 
-	if(reply==NULL)
+		if(reply==NULL)
+		{
+			__redis_strerror_r(errno,err_buff,sizeof(err_buff));
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
+					"GET %s failed %s.",rm_status_sset,err_buff);
+			return -1;
+		}	
+		assert(reply->type==REDIS_REPLY_ARRAY);
+		rule_num=reply->elements;
+		if(reply->elements==0)
+		{
+			//a duplicate rule_id would induce this error.
+			freeReplyObject(reply);
+		}
+		target_version++;
+	}while(rule_num==0&&target_version<=version_in_redis&&cumulative_off==1);
+	if(rule_num==0)
 	{
-		__redis_strerror_r(errno,err_buff,sizeof(err_buff));
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
-				"GET %s failed %s.",rm_status_sset,err_buff);
-		return -1;
-	}	
-	assert(reply->type==REDIS_REPLY_ARRAY);
-	if(reply->elements==0)
-	{
-		//a duplicate rule_id would induce this error.
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,"Got nothing after ZRANGEBYSCORE %s (%lld %lld",rm_status_sset,version,version_in_redis);
-		freeReplyObject(reply);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,"Got nothing after ZRANGEBYSCORE %s (%lld %lld, cumulative=%d"
+							,rm_status_sset,version,target_version-1,!cumulative_off);
 		return -1;
 	}
 	tmp_reply=_wrap_redisCommand(c, "ZSCORE %s %s",rm_status_sset,reply->element[0]->str);
