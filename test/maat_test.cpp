@@ -424,7 +424,7 @@ int test_expr_plus(Maat_feather_t feather,const char* table_name,scan_status_t* 
 	int table_id=0;
 	struct Maat_rule_t result[4];
 	int found_pos[4];
-	const char* region_name="URL";
+	const char* region_name="HTTP URL";
 	const char* scan_data="http://www.cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
 	table_id=Maat_table_register(feather,table_name);
 	if(table_id==-1)
@@ -452,6 +452,10 @@ int test_expr_plus(Maat_feather_t feather,const char* table_name,scan_status_t* 
 	if(ret>0)
 	{
 		printf("Hit expr_plus rule %d.\n",result[0].config_id);
+	}
+	else
+	{
+		printf("Test expr_plus failed.\n");
 	}
 	return ret;
 

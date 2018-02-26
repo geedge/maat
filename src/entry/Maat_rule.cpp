@@ -30,7 +30,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_1_20180209=1;
+int MAAT_FRAME_VERSION_2_1_20180226=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -1659,6 +1659,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 	if(table->table_type==TABLE_TYPE_EXPR_PLUS)
 	{
 		assert(strlen(db_rule->district)>0);
+		str_unescape(db_rule->district);
 		district_id=get_district_id(scanner, db_rule->district);
 	}
 	group_rule=(struct _Maat_group_inner_t*)HASH_fetch_by_id(scanner->group_hash, db_rule->group_id);

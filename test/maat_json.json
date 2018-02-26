@@ -205,7 +205,7 @@
                             "table_name": "HTTP_REGION",
                             "table_type": "expr_plus",
                             "table_content": {
-                            		"district": "URL",
+                            		"district": "HTTP\\bURL",
                                 "keywords": "abckkk&123",
                                 "expr_type": "and",
                                 "match_method": "sub",
