@@ -582,15 +582,23 @@ int _get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int ru
 				,rule_list[idx].table_name
 				,rule_list[idx].rule_id);
 		reply=_wrap_redisCommand(c, redis_cmd);
-		if(reply->type!=REDIS_REPLY_STRING)//Handle: "Loading Redis is loading the database in memory" or "nil"
+		if(reply->type==REDIS_REPLY_STRING)
+		{
+			rule_list[idx].table_line=_maat_strdup(reply->str);
+		}
+		else if(reply->type==REDIS_REPLY_ERROR)//Handle: "Loading Redis is loading the database in memory" 
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
-					,"Redis cmd=%s  Error, Reply type=%d, str=%s",redis_cmd, reply->type, reply->str);
+					,"Redis cmd=%s	Error, Reply type=%d, str=%s",redis_cmd, reply->type, reply->str);
 			freeReplyObject(reply);
 			free(retry_ids);
 			return -1;
 		}
-		rule_list[idx].table_line=_maat_strdup(reply->str);
+		else	//Handle type "nil"
+		{
+			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
+					,"Redis cmd=%s	Failed, Reply type=%d",redis_cmd, reply->type);
+		}
 		freeReplyObject(reply);
 	}
 	free(retry_ids);
@@ -1079,7 +1087,7 @@ void redis_monitor_traverse(long        long version,redisContext *c,
 		const unsigned char* dec_key,
 		_Maat_feather_t* feather)
 {
-	int table_id=0,i=0,rule_num=0;
+	int table_id=0,i=0,rule_num=0,empty_value_num=0;
 	int ret=0;
 	struct serial_rule_t* rule_list=NULL;
 	int update_type=CM_UPDATE_TYPE_INC;
@@ -1105,10 +1113,30 @@ void redis_monitor_traverse(long        long version,redisContext *c,
 			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor,"Get Redis value failed, abandon update.");
 			goto clean_up;
 		}
+		for(i=0;i<rule_num;i++)
+		{
+			if(rule_list[i].table_line==NULL)
+			{
+				empty_value_num++;
+			}
+		}
+		if(empty_value_num==rule_num)
+		{
+			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor,"All %d rules are empty, abandon update.",empty_value_num);
+			goto clean_up;
+		}
+		if(empty_value_num>0)
+		{
+			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor,"%d of %d rules are empty.",empty_value_num,rule_num);
+		}
 	}
 	start(new_version,update_type,u_para);
 	for(i=0;i<rule_num;i++)
 	{
+		if(rule_list[i].table_line==NULL)
+		{
+			continue;
+		}
 		ret=map_str2int(feather->map_tablename2id,rule_list[i].table_name,&table_id);
 		if(ret<0)//Unrecognized table.
 		{
