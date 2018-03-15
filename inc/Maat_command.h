@@ -151,5 +151,6 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 //If the key does not exist, it is set to 0 before performing the operation.
 long long Maat_cmd_incrby(Maat_feather_t feather,const char* key, int increment);
 int Maat_cmd_select(Maat_feather_t feather, int label_id, int * output_ids, unsigned int size);
+int Maat_cmd_flushDB(Maat_feather_t feather);
 #endif
 

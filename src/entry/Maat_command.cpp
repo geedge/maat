@@ -437,7 +437,7 @@ int get_rm_key_list(long long version,redisContext *c,struct serial_rule_t** lis
 	{
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,"Got nothing after ZRANGEBYSCORE %s (%lld %lld, cumulative=%d"
 							,rm_status_sset,version,target_version-1,!cumulative_off);
-		return -1;
+		goto FULL_UPDATE;
 	}
 	tmp_reply=_wrap_redisCommand(c, "ZSCORE %s %s",rm_status_sset,reply->element[0]->str);
 	if(tmp_reply->type!=REDIS_REPLY_STRING)
@@ -920,18 +920,19 @@ int _exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,int serial_
 int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,int serial_rule_num, long long server_time, void* logger)
 {
 	int max_redis_batch=1*1024,batch_cnt=0;
-	int success_cnt=0,ret=0;
-	while(success_cnt<serial_rule_num)
+	int success_cnt=0,ret=0, failed_batch=0;
+	while(success_cnt<serial_rule_num&&failed_batch<5)
 	{
 		batch_cnt=MIN(serial_rule_num-success_cnt,max_redis_batch);
 		ret=_exec_serial_rule(ctx,s_rule+success_cnt,batch_cnt, server_time,logger);
 		if(ret==1)
 		{
 			success_cnt+=batch_cnt;
+			failed_batch=0;
 		}
 		else
 		{
-			break;
+			failed_batch++;
 		}
 	}
 	return success_cnt;
@@ -1582,5 +1583,69 @@ int Maat_cmd_select(Maat_feather_t feather, int label_id, int * output_ids, unsi
 	}
 	freeReplyObject(data_reply);
 	return i;
+}
+int redis_flush_DB(redisContext* ctx, int db_index, void* logger)
+{
+	redisReply* data_reply=NULL;
+	long long maat_redis_version=0, dbsize=0;
+	int append_cmd_cnt=0, i=0;
+	int redis_transaction_success=1;
+
+	data_reply=_wrap_redisCommand(ctx, "WATCH MAAT_VERSION");
+	freeReplyObject(data_reply);
+	data_reply=_wrap_redisCommand(ctx, "GET MAAT_VERSION");
+	maat_redis_version=read_redis_integer(data_reply);
+	maat_redis_version++;
+	freeReplyObject(data_reply);
+	data_reply=_wrap_redisCommand(ctx, "DBSIZE");
+	dbsize=read_redis_integer(data_reply);
+	freeReplyObject(data_reply);
+	
+	data_reply=_wrap_redisCommand(ctx,"MULTI");
+	redisAppendCommand(ctx,"FLUSHDB");
+	append_cmd_cnt++;
+	redisAppendCommand(ctx,"SET MAAT_VERSION %lld",maat_redis_version);
+	append_cmd_cnt++;
+	redisAppendCommand(ctx,"SET SEQUENCE_REGION 1",maat_redis_version);
+	append_cmd_cnt++;
+	redisAppendCommand(ctx,"SET SEQUENCE_GROUP 1",maat_redis_version);
+	append_cmd_cnt++;
+	redisAppendCommand(ctx,"EXEC");
+	
+	for(i=0;i<append_cmd_cnt;i++)
+	{
+		_wrap_redisGetReply(ctx, &data_reply);
+		if(0==mr_transaction_success(data_reply))
+		{
+			redis_transaction_success=0;
+		}
+		freeReplyObject(data_reply);
+	}
+	if(redis_transaction_success==1)
+	{
+		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_command 
+				,"FlushDB %d, MAAT_VERSION=%llu, DBSize=%llu."
+				,db_index, maat_redis_version-1,dbsize
+				);
+	}
+	return redis_transaction_success;
+}
+int Maat_cmd_flushDB(Maat_feather_t feather)
+{
+	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	int ret=0;
+	if(_feather->redis_write_ctx==NULL)
+	{
+		ret=connect_redis_for_write(_feather);
+		if(ret!=0)
+		{
+			return -1;
+		}
+	}
+	do
+	{
+		ret=redis_flush_DB(_feather->redis_write_ctx, _feather->redis_index, _feather->logger);
+	}while(ret==0);
+	return 0;
 }
 
