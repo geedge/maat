@@ -1059,7 +1059,11 @@ int main(int argc,char* argv[])
 		test_command(feather);
 		test_set_cmd_line(feather);
 		test_add_ip_command(feather,"IP_CONFIG");
-		Maat_cmd_flushDB(feather);
+		if(0==Maat_cmd_flushDB(feather))
+		{
+			printf("Test empty Redis Success.\n");
+		}
+		test_set_cmd_line(feather);
 	}
 	test_sfh_digest(test_digest_file);
 	sleep(wait_second);

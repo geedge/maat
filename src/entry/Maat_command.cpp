@@ -1602,6 +1602,7 @@ int redis_flush_DB(redisContext* ctx, int db_index, void* logger)
 	freeReplyObject(data_reply);
 	
 	data_reply=_wrap_redisCommand(ctx,"MULTI");
+	
 	redisAppendCommand(ctx,"FLUSHDB");
 	append_cmd_cnt++;
 	redisAppendCommand(ctx,"SET MAAT_VERSION %lld",maat_redis_version);
@@ -1611,7 +1612,7 @@ int redis_flush_DB(redisContext* ctx, int db_index, void* logger)
 	redisAppendCommand(ctx,"SET SEQUENCE_GROUP 1",maat_redis_version);
 	append_cmd_cnt++;
 	redisAppendCommand(ctx,"EXEC");
-	
+	append_cmd_cnt++;
 	for(i=0;i<append_cmd_cnt;i++)
 	{
 		_wrap_redisGetReply(ctx, &data_reply);
