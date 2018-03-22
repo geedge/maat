@@ -19,6 +19,7 @@ void maat_tool_print_usage(void)
 	printf("Usage:\n");
 	printf("\t-h [host], redis IP, 127.0.0.1 as default.\n");
 	printf("\t-p [port], redis port, 6379 as default.\n");
+	printf("\t-n [db], redis db, 0 as default.\n");
 	printf("\t-d [dir], dump rules from redis to [dir], %s as default.\n",redis_dump_dir);
 	printf("\t-j [payload.json], add or delete rules as maat json. Must have field compile_table field, and plugin table's valid flag must be in the last column.\n");
 	printf("\t-t [timeout], timeout config after t seconds, default 0, not timeout.\n");	
@@ -41,6 +42,7 @@ static redisContext * connect_redis(const char*redis_ip, int redis_port, int red
 	struct timeval connect_timeout;
 	connect_timeout.tv_sec=0;
 	connect_timeout.tv_usec=100*1000; // 100 ms
+	redisReply* reply=NULL;
 
 	redisContext * ctx;
 	ctx=redisConnectWithTimeout(redis_ip, redis_port,connect_timeout);
@@ -49,6 +51,9 @@ static redisContext * connect_redis(const char*redis_ip, int redis_port, int red
 		printf("Unable to connect %s:%d db%d\n",redis_ip,redis_port,redis_db);
 		return NULL;
 	}
+	reply=_wrap_redisCommand(ctx, "select %d",redis_db);
+	freeReplyObject(reply);
+
 	return ctx;
 
 }
@@ -223,7 +228,7 @@ int main(int argc, char * argv[])
 	unsigned long json_file_size=0,read_size=0;
 	char* json_buff=NULL;
 
-	while((oc=getopt(argc,argv,"h:p:d:f:j:t:"))!=-1)
+	while((oc=getopt(argc,argv,"h:p:n:d:f:j:t:"))!=-1)
 	{
 		switch(oc)
 		{
@@ -232,6 +237,9 @@ int main(int argc, char * argv[])
 				break;
 			case 'p':
 				sscanf(optarg,"%d",&redis_port);
+				break;
+			case 'n':
+				sscanf(optarg,"%d",&redis_db);
 				break;
 			case 'd':
 				model=WORK_MODE_DUMP;
@@ -321,9 +329,13 @@ int main(int argc, char * argv[])
 		config_monitor_traverse(0, tmp_iris_path, NULL, make_serial_rule, NULL, s_rule,NULL, NULL);
 		printf("Timeout=%lld\n",absolute_expire_time);
 		ret=0;
-		while(success_cnt<total_line_cnt)
+		do
 		{
-			success_cnt+=exec_serial_rule(ctx,s_rule+success_cnt, total_line_cnt-success_cnt, server_time, NULL);
+			success_cnt=exec_serial_rule(ctx,s_rule, total_line_cnt, server_time, NULL);
+		}while(success_cnt<0);
+		if(success_cnt!=total_line_cnt)
+		{
+			printf("Only Add %d of %d, rule id maybe conflicts.\n",success_cnt,total_line_cnt);
 		}
 		for(i=0;i<total_line_cnt;i++)
 		{
