@@ -152,7 +152,7 @@ enum MAAT_INIT_OPT
 	MAAT_OPT_REDIS_INDEX,			//VALUE is interger *, 0~15, SIZE=sizeof(int). DEFAULT: 0.
 	MAAT_OPT_CMD_AUTO_NUMBERING,		//VALUE is interger *, 1 or 0, SIZE=sizeof(int). DEFAULT: 1.
 	MAAT_OPT_DEFERRED_LOAD,			//VALUE is  NULL,SIZE is 0.  Default: Deffered initialization OFF.
-	MAAT_OPT_CUMULATIVE_UPDATE_OFF	//VALUE is  NULL,SIZE is 0.  Default: CUMMULATIVE UPDATE OFF.
+	MAAT_OPT_CUMULATIVE_UPDATE_OFF	//VALUE is  NULL,SIZE is 0.  Default: CUMMULATIVE UPDATE ON.
 };
 //return -1 if failed, return 0 on success;
 int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT  type,const void* value,int size);

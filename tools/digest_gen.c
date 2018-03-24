@@ -84,6 +84,7 @@ void digest_gen_print_usage(void)
 {
 	printf("digest_gen dermines the similarity of two signatures/strings/files with a score in [0,100].\n");
 	printf("Higher score means more similar.\nUsage:\n");
+	printf("\t-h print this specification.\n");
 	printf("\t-f [FILE], caculate a file's SFH digest.\n");
 	printf("\t-s specify the first string/file for comparing.\n");
 	printf("\t-d specify the second string/file for comparing.\n");

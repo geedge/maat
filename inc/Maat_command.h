@@ -131,7 +131,7 @@ void Maat_add_region2cmd(struct Maat_cmd_t* cmd,int which_group,const struct Maa
 
 void Maat_free_cmd(struct Maat_cmd_t* cmd);
 int Maat_format_cmd(struct Maat_cmd_t* cmd, char* buffer, int size);
-// REGION_EXPR and REGION_SIMILARITY need to escape input string.
+//Input string of REGION_EXPR and REGION_SIMILARITY need to be escapeed.
 char* Maat_str_escape(char* dst,int size,const char*src);
 
 //Deletion failed due to not complete synchronize with Redis.
