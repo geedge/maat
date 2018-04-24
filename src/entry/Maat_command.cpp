@@ -206,42 +206,6 @@ int invalidate_line(char* line, enum MAAT_TABLE_TYPE type,int valid_column_seq)
 	line[i]='0';
 	return 0;
 }
-int del_rule_from_redis(redisContext* ctx, struct serial_rule_t* s_rule, long long new_version)
-{
-	int append_cmd_cnt=0;
-	redisAppendCommand(ctx,"RENAME %s:%s,%d %s:%s,%d"
-			,rm_key_prefix[MAAT_OP_ADD]
-			,s_rule->table_name
-			,s_rule->rule_id
-			,rm_key_prefix[MAAT_OP_DEL]
-			,s_rule->table_name
-			,s_rule->rule_id
-			);
-	append_cmd_cnt++;
-	redisAppendCommand(ctx,"EXPIRE %s:%s,%d %d",rm_key_prefix[MAAT_OP_DEL]
-			,s_rule->table_name
-			,s_rule->rule_id
-			,MAAT_REDIS_SYNC_TIME);
-	append_cmd_cnt++;
-	//NX: Don't update already exisiting elements. Always add new elements.
-	redisAppendCommand(ctx,"ZADD %s NX %d DEL,%s,%d",rm_status_sset
-			,new_version
-			,s_rule->table_name
-			,s_rule->rule_id);
-	append_cmd_cnt++;
-
-	// Try to remove from expiration sorted set, no matter wheather it exists or not.
-	redisAppendCommand(ctx,"ZREM %s %s,%d",rm_expire_sset
-			,s_rule->table_name
-			,s_rule->rule_id);
-	append_cmd_cnt++;
-
-	redisAppendCommand(ctx,"ZREM %s %d",rm_label_sset
-			,s_rule->rule_id);
-	append_cmd_cnt++;
-
-	return 	append_cmd_cnt;
-}
 void serialize_region(const struct Maat_region_t* p,int group_id, char* buff,int size)
 {
 	int ret=0;
@@ -854,7 +818,7 @@ redisReply* _exec_serial_rule_end(redisContext* ctx,long long maat_redis_version
 }
 void _exec_serial_rule(redisContext* ctx,	long long version, struct serial_rule_t* s_rule, int rule_num,  int* multi_cmd_seq, unsigned int *cnt, int offset)
 {
-	int i=0,j=0,ret=0;
+	int i=0;
 	redisReply* data_reply=NULL;
 	int append_cmd_cnt=0;
 	for(i=0;i<rule_num;i++)
@@ -894,12 +858,43 @@ void _exec_serial_rule(redisContext* ctx,	long long version, struct serial_rule_
 		}
 		else
 		{
-			ret=del_rule_from_redis(ctx,s_rule+i,version);
-			for(j=0;j<ret;j++)
-			{
-				multi_cmd_seq[(*cnt)++]=i+offset;
-			}
-			append_cmd_cnt+=ret;
+			redisAppendCommand(ctx,"RENAME %s:%s,%d %s:%s,%d"
+					,rm_key_prefix[MAAT_OP_ADD]
+					,s_rule[i].table_name
+					,s_rule[i].rule_id
+					,rm_key_prefix[MAAT_OP_DEL]
+					,s_rule[i].table_name
+					,s_rule[i].rule_id
+					);
+			multi_cmd_seq[(*cnt)++]=i+offset;
+			append_cmd_cnt++;
+			
+			redisAppendCommand(ctx,"EXPIRE %s:%s,%d %d",rm_key_prefix[MAAT_OP_DEL]
+					,s_rule[i].table_name
+					,s_rule[i].rule_id
+					,MAAT_REDIS_SYNC_TIME);
+			multi_cmd_seq[(*cnt)++]=i+offset;
+			append_cmd_cnt++;
+			
+			//NX: Don't update already exisiting elements. Always add new elements.
+			redisAppendCommand(ctx,"ZADD %s NX %d DEL,%s,%d",rm_status_sset
+					,version
+					,s_rule[i].table_name
+					,s_rule[i].rule_id);
+			multi_cmd_seq[(*cnt)++]=i+offset;
+			append_cmd_cnt++;
+			
+			// Try to remove from expiration sorted set, no matter wheather it exists or not.
+			redisAppendCommand(ctx,"ZREM %s %s,%d",rm_expire_sset
+					,s_rule[i].table_name
+					,s_rule[i].rule_id);
+			multi_cmd_seq[(*cnt)++]=-1;
+			append_cmd_cnt++;
+			
+			redisAppendCommand(ctx,"ZREM %s %d",rm_label_sset
+					,s_rule[i].rule_id);
+			multi_cmd_seq[(*cnt)++]=-1;
+			append_cmd_cnt++;
 			
 		}
 
@@ -940,12 +935,13 @@ int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,int serial_r
 		for(i=0;i<transaction_reply->elements;i++)
 		{
 			p=transaction_reply->element[i];
-			if(0==mr_operation_success(p))
-			{
-				j=multi_cmd_seq[i];
+			j=multi_cmd_seq[i];
+			if(j!=-1&&0==mr_operation_success(p))
+			{				
 				assert(j<serial_rule_num);
 				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_command 
-						,"exec rule %s, %d failed, rule id maybe conflicts.", s_rule[j].table_name,s_rule[j].rule_id);
+						,"%s %s %d failed, rule id maybe conflicts.",(s_rule[j].op==MAAT_OP_ADD)?"ADD":"DEL"
+						, s_rule[j].table_name,s_rule[j].rule_id);
 				success_cnt--;
 			}
 		}
@@ -1363,7 +1359,7 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 	{
 		MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_command 
 				,"Command set line id %d success after retry %d times."
-				, line_rule[0]->rule_id
+				, line_rule[0]->rule_id, retry
 				);
 	}
 error_out:

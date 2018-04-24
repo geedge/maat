@@ -22,7 +22,7 @@ void maat_tool_print_usage(void)
 	printf("\t-n [db], redis db, 0 as default.\n");
 	printf("\t-d [dir], dump rules from redis to [dir], %s as default.\n",redis_dump_dir);
 	printf("\t-j [payload.json], add or delete rules as maat json. Must have field compile_table field, and plugin table's valid flag must be in the last column.\n");
-	printf("\t-t [timeout], timeout config after t seconds, default 0, not timeout.\n");	
+	printf("\t-t [timeout], timeout config after t seconds, default is 0 which means never timeout.\n");	
 	printf("example: ./maat_redis_tool -h 127.0.0.1 -p 6379 -d %s\n",redis_dump_dir);
 	printf("	./maat_redis_tool -h 127.0.0.1 -p 6379 -j payload.json -t 300\n");
 	return;
