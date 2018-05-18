@@ -3282,7 +3282,7 @@ void *thread_rule_monitor(void *arg)
 	
 	MESA_htable_destroy(feather->map_tablename2id,free);
 	destroy_maat_scanner(feather->scanner);
-	garbage_bury(feather->garbage_q,feather->effect_interval_ms/1000+10,feather->logger);
+	garbage_bury(feather->garbage_q,0,feather->logger);
 	MESA_lqueue_destroy(feather->garbage_q,lqueue_destroy_cb,NULL);
 	FS_stop(&(feather->stat_handle));
 
