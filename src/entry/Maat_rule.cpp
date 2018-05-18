@@ -30,7 +30,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_1_20180424=1;
+int MAAT_FRAME_VERSION_2_1_20180518=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -3286,23 +3286,12 @@ void *thread_rule_monitor(void *arg)
 	MESA_lqueue_destroy(feather->garbage_q,lqueue_destroy_cb,NULL);
 	FS_stop(&(feather->stat_handle));
 
-	int i=0,j=0;
-	struct dynamic_array_t* d_array=NULL;
-	char* lines=NULL;
+	int i=0;
 	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
 		if(feather->p_table_info[i]==NULL)
 		{
 			continue;
-		}
-		if(feather->p_table_info[i]->table_type==TABLE_TYPE_PLUGIN)
-		{
-			d_array=feather->p_table_info[i]->cb_info->cache_lines;
-			for(j=0;j<feather->p_table_info[i]->cb_info->cache_line_num;j++)
-			{
-				lines=(char*)dynamic_array_read(d_array, j);
-				free(lines);
-			}
 		}
 		destroy_table_info(feather->p_table_info[i]);
 		feather->p_table_info[i]=NULL;
