@@ -796,9 +796,7 @@ long long _exec_serial_rule_begin(redisContext* ctx)
 {
 	long long maat_redis_version=0;
 	redisReply* data_reply=NULL;
-	data_reply=_wrap_redisCommand(ctx, "WATCH MAAT_VERSION");
-	freeReplyObject(data_reply);
-	data_reply=_wrap_redisCommand(ctx, "GET MAAT_VERSION");
+	data_reply=_wrap_redisCommand(ctx, "INCRBY MAAT_PRE_VER 1");
 	maat_redis_version=read_redis_integer(data_reply);
 	maat_redis_version++;
 	freeReplyObject(data_reply);
