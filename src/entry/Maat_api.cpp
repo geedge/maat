@@ -638,11 +638,16 @@ void maat_read_full_config(_Maat_feather_t* _feather)
 							,_feather->redis_port
 							,_feather->redis_index);
 		_feather->redis_read_ctx=redisConnectWithTimeout(_feather->redis_ip,_feather->redis_port,_feather->connect_timeout);
-		if(_feather->redis_read_ctx==NULL)
+		if(_feather->redis_read_ctx==NULL||_feather->redis_read_ctx->err)
 		{
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module 
-								,"Redis connect %s:%d failed."
-								,_feather->redis_ip,_feather->redis_port);
+								,"Redis connect %s:%d failed : %s."
+								,_feather->redis_ip,_feather->redis_port,_feather->redis_read_ctx==NULL?"Unkonwn":_feather->redis_read_ctx->errstr);
+			if(_feather->redis_read_ctx!=NULL)
+			{
+				redisFree(_feather->redis_write_ctx);
+				_feather->redis_write_ctx=NULL;
+			}
 		}
 		else
 		{

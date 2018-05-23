@@ -61,11 +61,16 @@ int connect_redis_for_write(_Maat_feather_t * feather)
 	redisReply* reply=NULL;
 	assert(feather->redis_write_ctx==NULL);
 	feather->redis_write_ctx=redisConnectWithTimeout(feather->redis_ip, feather->redis_port,feather->connect_timeout);
-	if(feather->redis_write_ctx==NULL)
+	if(feather->redis_write_ctx==NULL||feather->redis_write_ctx->err)
 	{
 		MESA_handle_runtime_log(feather->logger,RLOG_LV_FATAL,maat_module 
-				,"Redis connect %s:%d for write failed."
-				,feather->redis_ip,feather->redis_port);
+				,"Redis connect %s:%d for write failed: %s."
+				,feather->redis_ip,feather->redis_port,feather->redis_write_ctx==NULL?"Unkown":feather->redis_write_ctx->errstr);
+		if(feather->redis_write_ctx!=NULL)
+		{
+			redisFree(feather->redis_write_ctx);
+			feather->redis_write_ctx=NULL;
+		}
 		ret=-1;
 	}
 	else
@@ -1110,11 +1115,15 @@ void redis_monitor_traverse(long        long version,redisContext *c,
 	long long new_version=0;
 	enum MAAT_TABLE_TYPE table_type;
 	void* logger=feather->logger;
-	if(feather->redis_write_ctx!=NULL)//authorized to write
+	if(feather->redis_write_ctx!=NULL&&feather->redis_write_ctx->err==0)//authorized to write
 	{
 		//For thread safe, deliberately use redis_read_ctx but not redis_write_ctx.
 		check_maat_expiration(feather->redis_read_ctx, logger);
 		cleanup_update_status(feather->redis_read_ctx, logger);
+	}
+	if(c==NULL||c->err)
+	{
+		return;
 	}
 	rule_num=get_rm_key_list(version, c, &rule_list, logger,&new_version, &update_type,feather->cumulative_update_off);
 	if(rule_num<0||(rule_num==0&&update_type==CM_UPDATE_TYPE_INC))//error or nothing changed

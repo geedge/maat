@@ -46,9 +46,9 @@ static redisContext * connect_redis(const char*redis_ip, int redis_port, int red
 
 	redisContext * ctx;
 	ctx=redisConnectWithTimeout(redis_ip, redis_port,connect_timeout);
-	if(ctx==NULL)
+	if(ctx==NULL||ctx->err)
 	{
-		printf("Unable to connect %s:%d db%d\n",redis_ip,redis_port,redis_db);
+		printf("Unable to connect %s:%d db%d : %s\n",redis_ip,redis_port,redis_db, ctx==NULL?"Unknown":ctx->errstr);
 		return NULL;
 	}
 	reply=_wrap_redisCommand(ctx, "select %d",redis_db);
