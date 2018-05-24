@@ -418,6 +418,7 @@ struct _Maat_feather_t
 	long long postpone_q_size;
 	long long compile_rule_num;
 	long long cmd_acc_num;
+	long long line_cmd_acc_num;
 };
 struct _maat_garbage_t
 {

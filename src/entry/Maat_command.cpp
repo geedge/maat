@@ -17,6 +17,7 @@ const char* rm_status_sset="MAAT_UPDATE_STATUS";
 const char* rm_expire_sset="MAAT_EXPIRE_TIMER";
 const char* rm_label_sset="MAAT_LABEL_INDEX";
 const char* rm_version_sset="MAAT_VERSION_TIMER";
+const char* rm_expire_lock="EXPIRE_OP_LOCK";
 const static int MAAT_REDIS_SYNC_TIME=30*60;
 
 
@@ -552,7 +553,12 @@ int _get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int ru
 		snprintf(redis_cmd,sizeof(redis_cmd),"GET %s:%s,%d",rm_key_prefix[MAAT_OP_DEL]
 				,rule_list[idx].table_name
 				,rule_list[idx].rule_id);
-		reply=_wrap_redisCommand(c, redis_cmd);
+		ret=redisAppendCommand(c, redis_cmd);
+	}
+	for(i=0;i<failed_cnt;i++)
+	{
+		idx=retry_ids[i];
+		ret=_wrap_redisGetReply(c,&reply);
 		if(reply->type==REDIS_REPLY_STRING)
 		{
 			rule_list[idx].table_line=_maat_strdup(reply->str);
@@ -561,9 +567,6 @@ int _get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int ru
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
 					,"Redis cmd=%s	Error, Reply type=%d, str=%s",redis_cmd, reply->type, reply->str);
-			freeReplyObject(reply);
-			free(retry_ids);
-			return -1;
 		}
 		else	//Handle type "nil"
 		{
@@ -1046,7 +1049,7 @@ void check_maat_expiration(redisContext *ctx, void *logger)
 	else
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor 
-				,"Failed to expired %d/%d rules in Redis, try later.", s_rule_num-success_cnt,s_rule_num);
+				,"Failed to expired %d of %d rules in Redis, try later.", s_rule_num-success_cnt,s_rule_num);
 	}
 
 	free(s_rule);
@@ -1100,6 +1103,29 @@ void cleanup_update_status(redisContext *ctx, void *logger)
 			,entry_num);
 
 }
+int redlock_try_lock(redisContext *ctx, const char* lock_name, long long expire)
+{
+	redisReply* reply=NULL;
+	int ret=0;
+	reply=_wrap_redisCommand(ctx,"SET %s locked NX PX %lld", lock_name, expire);
+	if(reply->type==REDIS_REPLY_NIL)
+	{
+		ret=0;
+	}
+	else
+	{
+		ret=1;
+	}
+	freeReplyObject(reply);
+	return ret;
+}
+void redlock_unlock(redisContext * ctx, const char * lock_name)
+{
+	redisReply* reply=NULL;
+	reply=_wrap_redisCommand(ctx,"DEL %s", lock_name);
+	freeReplyObject(reply);
+
+}
 void redis_monitor_traverse(long        long version,redisContext *c,
 		void (*start)(long long,int ,void*),//vesion,CM_UPDATE_TYPE_*,u_para
 		int (*update)(const char* ,const char*,void* ),//table name ,line ,u_para
@@ -1118,8 +1144,12 @@ void redis_monitor_traverse(long        long version,redisContext *c,
 	if(feather->redis_write_ctx!=NULL&&feather->redis_write_ctx->err==0)//authorized to write
 	{
 		//For thread safe, deliberately use redis_read_ctx but not redis_write_ctx.
-		check_maat_expiration(feather->redis_read_ctx, logger);
-		cleanup_update_status(feather->redis_read_ctx, logger);
+		if(1==redlock_try_lock(feather->redis_read_ctx, rm_expire_lock, 300*1000))
+		{
+			check_maat_expiration(feather->redis_read_ctx, logger);
+			cleanup_update_status(feather->redis_read_ctx, logger);
+			redlock_unlock(feather->redis_read_ctx,rm_expire_lock);
+		}
 	}
 	if(c==NULL||c->err)
 	{
@@ -1362,6 +1392,7 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 		}
 		
 	}
+	_feather->line_cmd_acc_num+=success_cnt;
 	if(retry>5)
 	{
 		MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_command 
