@@ -1681,6 +1681,8 @@ int redis_flush_DB(redisContext* ctx, int db_index, void* logger)
 	append_cmd_cnt++;
 	redisAppendCommand(ctx,"SET MAAT_VERSION %lld",maat_redis_version);
 	append_cmd_cnt++;
+	redisAppendCommand(ctx,"SET MAAT_PRE_VER %lld",maat_redis_version);
+	append_cmd_cnt++;
 	redisAppendCommand(ctx,"SET SEQUENCE_REGION 1",maat_redis_version);
 	append_cmd_cnt++;
 	redisAppendCommand(ctx,"SET SEQUENCE_GROUP 1",maat_redis_version);
