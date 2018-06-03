@@ -393,6 +393,7 @@ struct _Maat_feather_t
 	struct _Maat_cmd_inner_t* cmd_qhead, *cmd_qtail;
 	pthread_mutex_t redis_write_lock; //protect redis_write_ctx
 	long long base_rgn_seq,base_grp_seq,server_time;
+	long long load_from_specific_version;
 //internal states
 	long long new_version;
 	int active_plugin_table_num;
@@ -472,7 +473,7 @@ void maat_stat_output(struct _Maat_feather_t* feather);
 char* _maat_strdup(const char* s);
 char* str_unescape(char* s);
 redisReply *_wrap_redisCommand(redisContext *c, const char *format, ...);
-int get_rm_key_list(long long version,redisContext *c,struct serial_rule_t** list,void* logger, long long* new_version,int *update_type, int cumulative_off);
+int get_rm_key_list(redisContext *c, long long instance_version, long long desired_version, long long* new_version, struct serial_rule_t** list,int *update_type, void* logger, int cumulative_off);
 int get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int rule_num,void* logger,int print_process);
 void set_serial_rule(struct serial_rule_t* rule,enum MAAT_OPERATION op,int rule_id,int label_id,const char* table_name,const char* line, long long timeout);
 void empty_serial_rules(struct serial_rule_t* rule);

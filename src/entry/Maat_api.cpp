@@ -621,6 +621,10 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			break;
 		case	MAAT_OPT_CUMULATIVE_UPDATE_OFF:
 			_feather->cumulative_update_off=1;
+			break;
+		case MAAT_OPT_LOAD_SPECIFIC_VERSION:
+			_feather->load_from_specific_version=*((long long*)value);
+			break;
 		default:
 			return -1;
 	}

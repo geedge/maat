@@ -21,6 +21,7 @@ void maat_tool_print_usage(void)
 	printf("\t-p [port], redis port, 6379 as default.\n");
 	printf("\t-n [db], redis db, 0 as default.\n");
 	printf("\t-d [dir], dump rules from redis to [dir], %s as default.\n",redis_dump_dir);
+	printf("\t-d [version], dump specific [version] from redis, dump latest version as default.\n");
 	printf("\t-j [payload.json], add or delete rules as maat json. Must have field compile_table field, and plugin table's valid flag must be in the last column.\n");
 	printf("\t-t [timeout], timeout config after t seconds, default is 0 which means never timeout.\n");	
 	printf("example: ./maat_redis_tool -h 127.0.0.1 -p 6379 -d %s\n",redis_dump_dir);
@@ -57,7 +58,7 @@ static redisContext * connect_redis(const char*redis_ip, int redis_port, int red
 	return ctx;
 
 }
-void read_rule_from_redis(redisContext * ctx,const char* output_path ,void*logger)
+void read_rule_from_redis(redisContext * ctx, long long desire_version, const char* output_path ,void*logger)
 {
 	struct serial_rule_t* rule_list;
 	int rule_num=0,line_count=0;
@@ -68,11 +69,18 @@ void read_rule_from_redis(redisContext * ctx,const char* output_path ,void*logge
 
 	char table_path[256],index_path[256];
 	FILE *table_fp=NULL, *index_fp=NULL;
-
-	rule_num=get_rm_key_list(0, ctx, &rule_list, logger,&version, &update_type,0);
+	rule_num=get_rm_key_list(ctx, 0, desire_version, &version, &rule_list, &update_type, logger,0);
+	if(desire_version!=0)
 	if(rule_num==0)
 	{
-		printf("No Effective Rules.\n");
+		if(desire_version!=0)
+		{
+			printf("Read desired version %lld failed.\n",desire_version);
+		}
+		else
+		{
+			printf("No Effective Rules.\n");
+		}
 		return;
 	}
 	if(rule_num<0)
@@ -226,9 +234,10 @@ int main(int argc, char * argv[])
 	cJSON *json=NULL, *tmp_obj=NULL;
 	struct stat fstat_buf;
 	unsigned long json_file_size=0,read_size=0;
+	long long desired_version=0;
 	char* json_buff=NULL;
 
-	while((oc=getopt(argc,argv,"h:p:n:d:f:j:t:"))!=-1)
+	while((oc=getopt(argc,argv,"h:p:n:d:v:f:j:t:"))!=-1)
 	{
 		switch(oc)
 		{
@@ -248,6 +257,9 @@ int main(int argc, char * argv[])
 				{
 					dump_dir[strlen(dump_dir)-1]='\0';
 				}
+				break;
+			case 'v':
+				sscanf(optarg,"%lld",&desired_version);
 				break;
 			case 'j':
 				strncpy(json_file, optarg,sizeof(json_file));
@@ -308,7 +320,7 @@ int main(int argc, char * argv[])
 	if(model==WORK_MODE_DUMP)
 	{
 		printf("Reading key list from %s:%d db%d.\n",redis_ip,redis_port,redis_db);
-		read_rule_from_redis(ctx,dump_dir, NULL);
+		read_rule_from_redis(ctx,desired_version,dump_dir, NULL);
 	}
 	else if(model==WORK_MODE_JSON)
 	{		
