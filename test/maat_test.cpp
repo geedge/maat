@@ -303,7 +303,10 @@ int test_digest_scan(Maat_feather_t feather,const char* table_name,const char* f
 	Maat_stream_scan_string_end(&sp);
 	return ret;
 }
-int test_plugin_table(Maat_feather_t feather,const char* table_name,void* logger)
+int test_plugin_table(Maat_feather_t feather,const char* table_name,
+							Maat_start_callback_t *start,Maat_update_callback_t *update,Maat_finish_callback_t *finish,
+							void *u_para,
+							void* logger)
 {
 	int table_id=0,ret=0;
 	table_id=Maat_table_register(feather,table_name);
@@ -314,10 +317,10 @@ int test_plugin_table(Maat_feather_t feather,const char* table_name,void* logger
 	else
 	{
 		ret=Maat_table_callback_register(feather, table_id,
-								Maat_read_entry_start_cb,
-								Maat_read_entry_cb, 
-								Maat_read_entry_finish_cb,
-								feather);
+								start,
+								update, 
+								finish,
+								u_para);
 		if(ret<0)
 		{
 			printf("Maat callback register table %s error.\n",table_name);
@@ -602,6 +605,19 @@ void test_set_cmd_line(Maat_feather_t feather)
 
 	return;
 }
+void history_matter_cb(int table_id,const char* table_line,void* u_para)
+{
+}
+void test_load_specific_version(Maat_feather_t feather, const char* redis_ip, unsigned short redis_port, int redis_db,void*logger)
+{
+	int ret=0;
+	long long version=0;
+	const char *table_name="HISTORY_MATTER_CB";
+	test_plugin_table(feather,table_name,NULL,history_matter_cb,NULL,NULL,logger);
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version, sizeof(version));
+	assert(ret==0);	
+	printf("Maat Version %lld.\n",version);
+}
 int test_add_expr_command(Maat_feather_t feather,const char* region_table,int config_id, int timeout,int label_id, const char* keywords)
 {
 	struct Maat_cmd_t* cmd=NULL;
@@ -831,7 +847,6 @@ void test_command(Maat_feather_t feather)
 	{
 		printf("Test Maat command expire success.\n");
 	}
-	Maat_clean_status(&mid);
 }
 #define	FILE_CHUNK_SIZE	4096
 void test_sfh_digest(const char* filename)
@@ -1013,7 +1028,12 @@ int main(int argc,char* argv[])
 		printf("Deferred Load ON, Waiting...\n");
 		sleep(1);
 	}
-	test_plugin_table(feather, "QD_ENTRY_INFO",logger);
+	test_plugin_table(feather, "QD_ENTRY_INFO",	
+								Maat_read_entry_start_cb,
+								Maat_read_entry_cb, 
+								Maat_read_entry_finish_cb,
+								feather,
+								logger);
 	
 	test_string_full_scan(feather, "HTTP_URL", &mid);
 	//not  clean status here, to test_ipv4_scan make  hit compile rule.
@@ -1053,7 +1073,7 @@ int main(int argc,char* argv[])
 	Maat_clean_status(&mid);
 	
 	test_offset_str_scan(feather,"IMAGE_FP");
-	
+
 	if(1==using_redis)
 	{
 		test_command(feather);
