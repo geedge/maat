@@ -496,7 +496,7 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 	int intval=0,ret=-1;
 	switch(type)
 	{
-		case MAAT_OPT_DISABLE_UPDATE:
+		case MAAT_OPT_ENABLE_UPDATE:
 			intval=*((int*)value);
 			if(_feather->backgroud_update_enabled!=intval)
 			{

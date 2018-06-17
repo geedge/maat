@@ -43,11 +43,11 @@ void Maat_read_entry_cb(int table_id,const char* table_line,void* u_para)
 	{
 		if(is_valid==1)
 		{
-			printf("Load entry id %d success.\n",entry_id);
+			//printf("Load entry id %d success.\n",entry_id);
 		}
 		else
 		{
-			printf("Offload entry id %d success.\n",entry_id);
+			//printf("Offload entry id %d success.\n",entry_id);
 		}
 	}
 	return;
@@ -1091,11 +1091,11 @@ int main(int argc,char* argv[])
 		test_set_cmd_line(feather);
 		test_add_ip_command(feather,"IP_CONFIG");
 	
-		Maat_set_feather_opt(feather, MAAT_OPT_DISABLE_UPDATE, &value, sizeof(value));
+		Maat_set_feather_opt(feather, MAAT_OPT_ENABLE_UPDATE, &value, sizeof(value));
 		printf("Disable background udpate.\n");
 		test_set_cmd_line(feather);
 		value=1;
-		Maat_set_feather_opt(feather, MAAT_OPT_DISABLE_UPDATE, &value, sizeof(value));
+		Maat_set_feather_opt(feather, MAAT_OPT_ENABLE_UPDATE, &value, sizeof(value));
 		printf("Enable background udpate.\n");
 	}
 	test_sfh_digest(test_digest_file);
