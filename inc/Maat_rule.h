@@ -153,7 +153,9 @@ enum MAAT_INIT_OPT
 	MAAT_OPT_CMD_AUTO_NUMBERING,	//VALUE is a interger *, 1 or 0, SIZE=sizeof(int). DEFAULT: 1.
 	MAAT_OPT_DEFERRED_LOAD,			//VALUE is NULL,SIZE is 0.  Default: Deffered initialization OFF.
 	MAAT_OPT_CUMULATIVE_UPDATE_OFF,	//VALUE is NULL,SIZE is 0.  Default: CUMMULATIVE UPDATE ON.
-	MAAT_OPT_LOAD_VERSION_FROM	//VALUE is a long long, SIZE=sizeof(long long). Default: Load the Latest. Only valid in redis mode, and maybe failed for too old. 
+	MAAT_OPT_LOAD_VERSION_FROM,		//VALUE is a long long, SIZE=sizeof(long long). Default: Load the Latest. Only valid in redis mode, and maybe failed for too old. 
+									//This option also disables background update.
+	MAAT_OPT_DISABLE_UPDATE			//VALUE is interger, SIZE=sizeof(int). 1: Enabled, 0:Disabled.  DEFAULT: Backgroud update is enabled. Runtime setting is allowed.
 };
 //return -1 if failed, return 0 on success;
 int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT  type,const void* value,int size);

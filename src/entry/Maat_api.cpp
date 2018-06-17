@@ -484,7 +484,8 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->AUTO_NUMBERING_ON=1;
 	feather->connect_timeout.tv_sec=0;
 	feather->connect_timeout.tv_usec=100*1000; // 100 ms
-	pthread_mutex_init(&(feather->plugin_table_reg_mutex),NULL);
+	feather->backgroud_update_enabled=1;
+	pthread_mutex_init(&(feather->backgroud_update_mutex),NULL);
 	pthread_mutex_init(&(feather->redis_write_lock),NULL);
 	snprintf(feather->table_info_fn,sizeof(feather->table_info_fn),"%s",table_info_path);
 	return feather;
@@ -493,7 +494,41 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	int intval=0,ret=-1;
-	if(_feather->still_working==1)// not allowed set after Maat_initiate_feather;
+	switch(type)
+	{
+		case MAAT_OPT_DISABLE_UPDATE:
+			intval=*((int*)value);
+			if(_feather->backgroud_update_enabled!=intval)
+			{
+				if(intval==0)
+				{
+					pthread_mutex_lock(&(_feather->backgroud_update_mutex));
+					MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
+							"Background update is disabled, current version %lld."
+							,_feather->maat_version);
+				}
+				else
+				{
+					pthread_mutex_unlock(&(_feather->backgroud_update_mutex));
+					MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
+							"Background update is enabled, current version %lld."
+							,_feather->maat_version);
+				}
+				_feather->backgroud_update_enabled=intval;
+			}
+			else
+			{
+				MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
+						"Duplicated operation, background update is ALREADY %s, current version %lld."
+						,_feather->backgroud_update_enabled?"enabled":"disabled"
+						,_feather->maat_version);
+
+			}
+			return 0;
+		default:
+			break;			
+	}
+	if(_feather->still_working==1)//The following options are not allowed to set after initiation;
 	{
 		return -2;
 	}
@@ -501,7 +536,7 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 	{
 		case MAAT_OPT_EFFECT_INVERVAL_MS:
 			intval=*(const int*)value;
-			if(size!=sizeof(int)||intval<=0)
+			if(size!=sizeof(int)||intval<0)
 			{
 				return -1;
 			}
@@ -623,7 +658,12 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			_feather->cumulative_update_off=1;
 			break;
 		case MAAT_OPT_LOAD_VERSION_FROM:
-			_feather->load_from_specific_version=*((long long*)value);
+			_feather->load_version_from=*((long long*)value);
+			_feather->backgroud_update_enabled=1;
+			pthread_mutex_lock((&_feather->backgroud_update_mutex));
+			MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
+							"Maat load version from %lld, stops backgroud update."
+							,_feather->load_version_from);
 			break;
 		default:
 			return -1;
@@ -853,11 +893,12 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 	{
 		return -1;
 	}
-	pthread_mutex_lock(&(_feather->plugin_table_reg_mutex));
+	//plugin table register blocks background update.
+	pthread_mutex_lock(&(_feather->backgroud_update_mutex));
 	idx=p_table->cb_info->cb_plug_cnt;
 	if(idx==MAX_PLUGING_NUM)
 	{
-		pthread_mutex_unlock(&(_feather->plugin_table_reg_mutex));
+		pthread_mutex_unlock(&(_feather->backgroud_update_mutex));
 		return -1;
 	}
 	p_table->cb_info->cb_plug_cnt++;
@@ -885,7 +926,7 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 			finish(u_para);
 		}
 	}
-	pthread_mutex_unlock(&(_feather->plugin_table_reg_mutex));
+	pthread_mutex_unlock(&(_feather->backgroud_update_mutex));
 	return 1;
 }
 int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id

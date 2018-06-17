@@ -552,7 +552,7 @@ int get_rm_key_list(redisContext *c, long long instance_version, long long desir
 		goto FULL_UPDATE;
 	}
 	MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor,
-			"Inc Update form instance_version %lld to %lld (%lld entries).",instance_version,target_version,rule_num);
+			"Inc Update form instance_version %lld to %lld (%d entries).",instance_version,target_version,rule_num);
 	*list=s_rule_array;
 	*update_type=CM_UPDATE_TYPE_INC;
 	*new_version=target_version;
@@ -935,7 +935,6 @@ long long _exec_serial_rule_begin(redisContext* ctx)
 	redisReply* data_reply=NULL;
 	data_reply=_wrap_redisCommand(ctx, "INCRBY MAAT_PRE_VER 1");
 	maat_redis_version=read_redis_integer(data_reply);
-	maat_redis_version++;
 	freeReplyObject(data_reply);
 	data_reply=_wrap_redisCommand(ctx,"MULTI");
 	return maat_redis_version;
@@ -1285,8 +1284,8 @@ void redis_monitor_traverse(long        long version,redisContext *c,
 		return;
 	}
 	
-	rule_num=get_rm_key_list(c, version, feather->load_from_specific_version, &new_version, &rule_list, &update_type, logger, feather->cumulative_update_off);
-	feather->load_from_specific_version=0;//only valid for one time.
+	rule_num=get_rm_key_list(c, version, feather->load_version_from, &new_version, &rule_list, &update_type, logger, feather->cumulative_update_off);
+	feather->load_version_from=0;//only valid for one time.
 	if(rule_num<0||(rule_num==0&&update_type==CM_UPDATE_TYPE_INC))//error or nothing changed
 	{
 		return;
@@ -1317,6 +1316,8 @@ void redis_monitor_traverse(long        long version,redisContext *c,
 		}
 	}
 	start(new_version,update_type,u_para);
+	MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor,"Start %s update: %lld->%lld (%d entries)\n",
+								update_type==CM_UPDATE_TYPE_INC?"INC":"FULL",version,new_version,rule_num);
 	for(i=0;i<rule_num;i++)
 	{
 		if(rule_list[i].table_line==NULL)
@@ -1340,8 +1341,10 @@ void redis_monitor_traverse(long        long version,redisContext *c,
 			}
 		}
 		update(rule_list[i].table_name,rule_list[i].table_line,u_para);
+		//printf("%s %s,%d\n", rule_list[i].op==MAAT_OP_DEL?"DEL":"ADD", rule_list[i].table_name, rule_list[i].rule_id);
 	}
 	finish(u_para);
+	//printf("Finish %s update: %lld->%lld\n",update_type==CM_UPDATE_TYPE_INC?"INC":"FULL",version,new_version);
 clean_up:
 	for(i=0;i<rule_num;i++)
 	{

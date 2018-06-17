@@ -378,7 +378,7 @@ struct _Maat_feather_t
 	char table_info_fn[MAX_TABLE_NAME_LEN];
 	char compile_tn[MAX_TABLE_NAME_LEN];
 	char group_tn[MAX_TABLE_NAME_LEN];
-	pthread_mutex_t plugin_table_reg_mutex;
+	pthread_mutex_t backgroud_update_mutex;
 	unsigned char decrypt_key[MAX_TABLE_NAME_LEN];
 	
 	char redis_ip[MAX_TABLE_NAME_LEN];
@@ -393,13 +393,14 @@ struct _Maat_feather_t
 	struct _Maat_cmd_inner_t* cmd_qhead, *cmd_qtail;
 	pthread_mutex_t redis_write_lock; //protect redis_write_ctx
 	long long base_rgn_seq,base_grp_seq,server_time;
-	long long load_from_specific_version;
+	long long load_version_from;
 //internal states
 	long long new_version;
 	int active_plugin_table_num;
 	int is_last_plugin_table_updating;
 
 //for stat>>>>
+	int backgroud_update_enabled;
 	screen_stat_handle_t stat_handle;
 	int total_stat_id;
 	int fs_status_id[MAX_MAAT_STAT_NUM];

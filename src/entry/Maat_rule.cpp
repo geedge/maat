@@ -30,7 +30,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_2_20180607=1;
+int MAAT_FRAME_VERSION_2_2_20180617=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -802,6 +802,12 @@ void* create_bool_matcher(MESA_htable_handle compile_hash,int thread_num,void* l
 	MESA_htable_iterate(compile_hash, walk_compile_hash, update_q);
 	
 	const long q_cnt=MESA_lqueue_get_count(update_q);
+	if(q_cnt==0)
+	{
+		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module,
+									"No compile rule to build a bool matcher."); 
+		return NULL;
+	}
 	set_array=(universal_bool_expr_t*)malloc(sizeof(universal_bool_expr_t)*q_cnt);
 	for(i=0;i<q_cnt;i++)
 	{
@@ -2087,7 +2093,7 @@ int add_group_rule(struct _Maat_table_info_t* table,struct db_group_rule_t* db_g
 	if(ret<0)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module,
-							"update error,add %s group %d to compile %d error,compile rule is full or duplicate group."
+							"update error,add group: %s %d to compile rule %d error, compile rule is full or duplicate group."
 																	,table->table_name[table->updating_name]
 																	,db_group_rule->group_id
 																	,db_group_rule->compile_id);
@@ -2163,9 +2169,12 @@ int del_compile_rule(struct _Maat_table_info_t* table,struct db_compile_rule_t* 
 		return -1;
 	}
 	pthread_rwlock_wrlock(&(compile_rule->rwlock));
-	free(compile_rule->db_c_rule->service_defined);
-	free(compile_rule->db_c_rule);
-	compile_rule->db_c_rule=NULL;
+	if(compile_rule->db_c_rule!=NULL)
+	{
+		free(compile_rule->db_c_rule->service_defined);
+		free(compile_rule->db_c_rule);
+		compile_rule->db_c_rule=NULL;
+	}
 	pthread_rwlock_unlock(&(compile_rule->rwlock));
 
 	if(compile_rule->group_cnt==0)
@@ -2198,7 +2207,7 @@ void update_group_rule(struct _Maat_table_info_t* table,const char* table_line,s
 		if(ret<0)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"duplicate config of group table %s group_id %d compile_id %d.",table->table_name[table->conj_cnt]
+							"duplicate config of group table %s group_id %d compile_id %d.",table->table_name[0]
 																							,db_group_rule.group_id
 																							,db_group_rule.compile_id);
 
@@ -3084,7 +3093,7 @@ void maat_finish_cb(void* u_para)
 		feather->scanner->version=feather->maat_version;
 		expr_wait_q_cnt=MESA_lqueue_get_count(feather->scanner->region_update_q);
 		feather->postpone_q_size=expr_wait_q_cnt+feather->scanner->gie_total_q_size;
-		if(time(NULL)-feather->scanner->last_update_time>feather->effect_interval_ms/1000)
+		if(time(NULL)-feather->scanner->last_update_time>=feather->effect_interval_ms/1000)
 		{
 			do_scanner_update(feather->scanner
 							,feather->garbage_q
@@ -3204,77 +3213,79 @@ void *thread_rule_monitor(void *arg)
 	{
 		usleep(feather->scan_interval_ms*1000);
 		scan_dir_cnt++;
-		//plugin table register is not allowed during update;
-		pthread_mutex_lock(&(feather->plugin_table_reg_mutex));
-		if(feather->REDIS_MODE_ON==1)
+		if(0==pthread_mutex_trylock(&(feather->backgroud_update_mutex)))
 		{
-			redis_monitor_traverse(feather->maat_version
-									,feather->redis_read_ctx
-									,maat_start_cb
-									,maat_update_cb
-									,maat_finish_cb
-									,feather
-									,feather->decrypt_key	//Not used.
-									,feather);
-		}
-		else
-		{
-			config_monitor_traverse(feather->maat_version,
-									inc_cfg_dir, 
-									maat_start_cb,
-									maat_update_cb,
-									maat_finish_cb,
-									feather,
-									feather->decrypt_key,
-									feather->logger);
-		}
-		pthread_mutex_unlock(&(feather->plugin_table_reg_mutex));
-		if(feather->update_tmp_scanner!=NULL)
-		{
-			old_scanner=feather->scanner;
-			//Some OS doesn't have __sync_lock_test_and_set.
-			//feather->scanner=__sync_lock_test_and_set(&(feather->scanner),feather->update_tmp_scanner);
-			feather->scanner=feather->update_tmp_scanner;
-			if(old_scanner!=NULL)
+			if(feather->REDIS_MODE_ON==1)
 			{
-				if(feather->scanner->version>old_scanner->version)
+				redis_monitor_traverse(feather->maat_version
+										,feather->redis_read_ctx
+										,maat_start_cb
+										,maat_update_cb
+										,maat_finish_cb
+										,feather
+										,feather->decrypt_key	//Not used.
+										,feather);
+			}
+			else
+			{
+				config_monitor_traverse(feather->maat_version,
+										inc_cfg_dir, 
+										maat_start_cb,
+										maat_update_cb,
+										maat_finish_cb,
+										feather,
+										feather->decrypt_key,
+										feather->logger);
+			}
+			
+			if(feather->update_tmp_scanner!=NULL)
+			{
+				old_scanner=feather->scanner;
+				//Some OS doesn't have __sync_lock_test_and_set.
+				//feather->scanner=__sync_lock_test_and_set(&(feather->scanner),feather->update_tmp_scanner);
+				feather->scanner=feather->update_tmp_scanner;
+				if(old_scanner!=NULL)
 				{
+					if(feather->scanner->version>old_scanner->version)
+					{
+						MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
+												"Maat version updated %d -> %d.",
+												old_scanner->version, feather->scanner->version);
+					}
+					else
+					{
+						MESA_handle_runtime_log(feather->logger,RLOG_LV_FATAL,maat_module,
+												"Maat version roll back %d -> %d.",
+												old_scanner->version, feather->scanner->version);
+					}
+					assert(old_scanner->tomb_ref==feather->garbage_q);
+					feather->zombie_rs_stream+=aligment_int64_array_sum(old_scanner->ref_cnt,old_scanner->max_thread_num);
+					garbage_bagging(GARBAGE_SCANNER, old_scanner, feather->garbage_q);
+				}
+				feather->update_tmp_scanner=NULL;
+				feather->maat_version=feather->scanner->version;
+				feather->last_full_version=feather->scanner->version;
+			}
+			if(feather->scanner!=NULL)
+			{
+				expr_wait_q_cnt=MESA_lqueue_get_count(feather->scanner->region_update_q);
+				feather->postpone_q_size=expr_wait_q_cnt+feather->scanner->gie_total_q_size;
+				if(feather->postpone_q_size>0&&time(NULL)-feather->scanner->last_update_time>=feather->effect_interval_ms/1000)
+				{
+					do_scanner_update(feather->scanner
+									,feather->garbage_q
+									,feather->scan_thread_num
+									,feather->logger);
+					feather->postpone_q_size=0;
 					MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
-											"Maat version updated %d -> %d.",
-											old_scanner->version, feather->scanner->version);
+											"Actual udpate config version %u, %d entries load to rulescan after postpone.",
+											feather->scanner->version,feather->scanner->cfg_num);
 				}
-				else
-				{
-					MESA_handle_runtime_log(feather->logger,RLOG_LV_FATAL,maat_module,
-											"Maat version roll back %d -> %d.",
-											old_scanner->version, feather->scanner->version);
-				}
-				assert(old_scanner->tomb_ref==feather->garbage_q);
-				feather->zombie_rs_stream+=aligment_int64_array_sum(old_scanner->ref_cnt,old_scanner->max_thread_num);
-				garbage_bagging(GARBAGE_SCANNER, old_scanner, feather->garbage_q);
 			}
-			feather->update_tmp_scanner=NULL;
-			feather->maat_version=feather->scanner->version;
-			feather->last_full_version=feather->scanner->version;
-		}
-		if(feather->scanner!=NULL)
-		{
-			expr_wait_q_cnt=MESA_lqueue_get_count(feather->scanner->region_update_q);
-			feather->postpone_q_size=expr_wait_q_cnt+feather->scanner->gie_total_q_size;
-			if(feather->postpone_q_size>0&&time(NULL)-feather->scanner->last_update_time>feather->effect_interval_ms/1000)
-			{
-				do_scanner_update(feather->scanner
-								,feather->garbage_q
-								,feather->scan_thread_num
-								,feather->logger);
-				feather->postpone_q_size=0;
-				MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
-										"Actual udpate config version %u, %d entries load to rulescan after postpone.",
-										feather->scanner->version,feather->scanner->cfg_num);
-			}
+			pthread_mutex_unlock(&(feather->backgroud_update_mutex));
 		}
 		garbage_bury(feather->garbage_q,feather->effect_interval_ms/1000+10,feather->logger);
-		if(feather->stat_on==1&&scan_dir_cnt%2==0)//output every 2 seconds
+		if(feather->stat_on==1&&time(NULL)%2==0)//output every 2 seconds
 		{
 			maat_stat_output(feather);
 		}
