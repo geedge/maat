@@ -806,7 +806,6 @@ long long _exec_serial_rule_begin(redisContext* ctx)
 	redisReply* data_reply=NULL;
 	data_reply=_wrap_redisCommand(ctx, "INCRBY MAAT_PRE_VER 1");
 	maat_redis_version=read_redis_integer(data_reply);
-	maat_redis_version++;
 	freeReplyObject(data_reply);
 	data_reply=_wrap_redisCommand(ctx,"MULTI");
 	return maat_redis_version;
