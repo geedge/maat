@@ -727,14 +727,8 @@ struct _Maat_group_inner_t* create_group_rule(int group_id)
 	pthread_mutex_init(&(group->mutex), NULL);
 	return group;
 }
-void destroy_group_rule(struct _Maat_group_inner_t* group)
+void force_destroy_group_rule(struct _Maat_group_inner_t* group)
 {
-
-	if(group->ref_cnt>0||group->region_cnt>0)
-	{
-		return;
-	}
-
 	dynamic_array_destroy(group->regions,free);
 	group->region_cnt=0;
 	group->region_boundary=0;
@@ -747,6 +741,15 @@ void destroy_group_rule(struct _Maat_group_inner_t* group)
 	pthread_mutex_destroy(&(group->mutex));
 	free(group);
 
+}
+void destroy_group_rule(struct _Maat_group_inner_t* group)
+{
+
+	if(group->ref_cnt>0||group->region_cnt>0)
+	{
+		return;
+	}
+	force_destroy_group_rule(group);
 }
 void make_group_set(const struct _Maat_compile_inner_t* compile_rule,universal_bool_expr_t* a_set)
 {
@@ -1069,7 +1072,6 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,_Maat_feather_t
 	MESA_htable_print_crtl(scanner->compile_hash,0);
 
 	hargs.thread_safe=1;
-	hargs.data_free=EMPTY_FREE;
 	scanner->group_hash=MESA_htable_create(&hargs, sizeof(hargs));
 	MESA_htable_print_crtl(scanner->group_hash,0);
 
@@ -1152,8 +1154,8 @@ void destroy_maat_scanner(struct _Maat_scanner_t*scanner)
 		return;
 	}
 	rulescan_destroy(scanner->region);
-	MESA_htable_destroy(scanner->compile_hash,NULL);
-	MESA_htable_destroy(scanner->group_hash, NULL);
+	MESA_htable_destroy(scanner->compile_hash,(void (*)(void*))destroy_compile_rule);
+	MESA_htable_destroy(scanner->group_hash, (void (*)(void*))force_destroy_group_rule);
 	MESA_htable_destroy(scanner->region_hash, NULL);
 	map_destroy(scanner->district_map);
 	scanner->district_map=NULL;
@@ -2636,7 +2638,7 @@ void update_compile_rule(struct _Maat_table_info_t* table,const char* table_line
 {
 	struct db_compile_rule_t *p_compile=(struct db_compile_rule_t*)calloc(sizeof(struct db_compile_rule_t ),1);
 	struct _head_Maat_rule_t* p_m_rule=&(p_compile->m_rule_head);
-	char user_region[128*2]={0};
+	char user_region[MAX_TABLE_LINE_SIZE]={0};
 	int ret=0;
 	p_compile->declare_grp_num=0;
 	ret=sscanf(table_line,"%d\t%d\t%hhd\t%hhd\t%hhd\t%lld\t%s\t%d\t%d",&(p_m_rule->config_id)
