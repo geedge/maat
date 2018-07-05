@@ -837,7 +837,7 @@ int build_serial_rule(_Maat_feather_t *feather,struct _Maat_cmd_inner_t* _cmd,st
 
 	int rule_num=0,i=0,j=0;
 	p_m_rule=&(cmd->compile);
-	char line[1024];
+	char line[MAX_TABLE_LINE_SIZE];
 	time_t timeout=0;
 	if(_cmd->cmd.expire_after>0)
 	{

@@ -40,7 +40,7 @@ typedef int atomic_t;
 #define	MAX_CONJUNCTION_TABLE_NUM	8
 #define	MAX_CHARSET_NUM			16
 #define	MAX_TABLE_NAME_LEN		256
-#define	MAX_TABLE_LINE_SIZE		(1024*4)
+#define	MAX_TABLE_LINE_SIZE		(1024*16)
 #define	MAX_EXPR_KEYLEN			1024
 #define	MAX_DISTRICT_LEN			64
 #define	MAX_PLUGING_NUM			32

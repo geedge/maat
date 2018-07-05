@@ -863,6 +863,17 @@ struct _Maat_compile_inner_t * create_compile_rule(int compile_id)
 	pthread_rwlock_init(&(p->rwlock), NULL);
 	return p;
 }
+void force_destroy_compile_rule(struct _Maat_compile_inner_t * p)
+{
+	p->compile_id=-1;
+	dynamic_array_destroy(p->groups,NULL);
+	if(p->db_c_rule!=NULL)
+	{
+		free(p->db_c_rule);
+	}
+	pthread_rwlock_destroy(&(p->rwlock));
+	free(p);
+}
 void destroy_compile_rule(struct _Maat_compile_inner_t * p)
 {
 	int i=0;
@@ -873,14 +884,7 @@ void destroy_compile_rule(struct _Maat_compile_inner_t * p)
 		p_group=(struct _Maat_compile_inner_t*)dynamic_array_read(p->groups,i);
 		assert(p_group==NULL);
 	}
-	p->compile_id=-1;
-	dynamic_array_destroy(p->groups,NULL);
-	if(p->db_c_rule!=NULL)
-	{
-		free(p->db_c_rule);
-	}
-	pthread_rwlock_destroy(&(p->rwlock));
-	free(p);
+	force_destroy_compile_rule(p);
 }
 scan_rule_t* create_rs_str_rule(unsigned int sub_type,enum MAAT_MATCH_METHOD match_method,int is_case_sensitive,const char* string,int len,int l_offset,int r_offset)
 {
@@ -1154,7 +1158,7 @@ void destroy_maat_scanner(struct _Maat_scanner_t*scanner)
 		return;
 	}
 	rulescan_destroy(scanner->region);
-	MESA_htable_destroy(scanner->compile_hash,(void (*)(void*))destroy_compile_rule);
+	MESA_htable_destroy(scanner->compile_hash,(void (*)(void*))force_destroy_compile_rule);
 	MESA_htable_destroy(scanner->group_hash, (void (*)(void*))force_destroy_group_rule);
 	MESA_htable_destroy(scanner->region_hash, NULL);
 	map_destroy(scanner->district_map);

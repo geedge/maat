@@ -16,7 +16,7 @@
 
 #define	CM_MAX_TABLE_NUM	256
 #define	MAX_CONFIG_FN_LEN	256
-#define	MAX_CONFIG_LINE		1024*4
+#define	MAX_CONFIG_LINE		(1024*16)
 
 #ifndef MAX
 #define MAX(a, b)  	(((a) > (b)) ? (a) : (b))
@@ -56,7 +56,7 @@ int decrypt_open(FILE* in,const unsigned char* key, const char* algorithm,unsign
 	cipher=EVP_get_cipherbyname(algorithm);
 	if(cipher==NULL)
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"Not cipher:%s not supported.",algorithm);
+		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"Cipher %s is not supported.",algorithm);
 		return 0;
 	}
 	dgst=EVP_get_digestbyname("md5");
