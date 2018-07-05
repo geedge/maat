@@ -56,7 +56,7 @@ struct Maat_rule_t
 	char	do_log;
 	char 	do_blacklist;
 	char	action;
-	char	resevered;
+	char	reserved;
 	int		serv_def_len;
 	char 	service_defined[MAX_SERVICE_DEFINE_LEN];
 };
@@ -234,6 +234,10 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 						,scan_status_t* mid,int thread_num);
 
 void Maat_clean_status(scan_status_t* mid);
-
+enum MAAT_RULE_OPT
+{
+	MAAT_RULE_SERV_DEFINE
+};
+int Maat_read_rule(Maat_feather_t feather, const struct Maat_rule_t* rule, enum MAAT_RULE_OPT type, void* value, int size);
 #endif	//	H_MAAT_RULE_H_INCLUDE
 

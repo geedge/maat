@@ -169,7 +169,8 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 				memcpy(&(result[result_cnt]),&(_mi_rule->db_c_rule->m_rule_head),sizeof(struct _head_Maat_rule_t));
 				memcpy(result[result_cnt].service_defined
 						,_mi_rule->db_c_rule->service_defined
-						,_mi_rule->db_c_rule->m_rule_head.serv_def_len);
+						,MIN(_mi_rule->db_c_rule->m_rule_head.serv_def_len,MAX_SERVICE_DEFINE_LEN));
+				
 				rs_result[result_cnt].compile_id=_mi_rule->compile_id;
 				result_cnt++;
 			}
@@ -1748,6 +1749,32 @@ void Maat_stream_scan_digest_end(stream_para_t* stream_para)
 	*stream_para=NULL;
 
 	return;
+}
+int Maat_read_rule(Maat_feather_t feather, const struct Maat_rule_t* rule, enum MAAT_RULE_OPT type, void* value, int size)
+{
+	int ret=0;
+	struct _Maat_feather_t *_feather=(struct _Maat_feather_t *)feather;
+	struct _Maat_compile_inner_t *compile_inner=NULL;
+	switch(type)
+	{
+		case	MAAT_RULE_SERV_DEFINE:
+			compile_inner=(struct _Maat_compile_inner_t *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule->config_id);
+			pthread_rwlock_rdlock(&(compile_inner->rwlock));
+			if(compile_inner==NULL)
+			{
+				ret=0;
+			}
+			else
+			{
+				ret=MIN(size,compile_inner->db_c_rule->m_rule_head.serv_def_len);
+				memcpy(value,compile_inner->db_c_rule->service_defined,ret);
+			}
+			pthread_rwlock_unlock(&(compile_inner->rwlock));		
+			break;
+		default:
+			ret=-1;
+	}
+	return ret;
 }
 int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCAN_OPT type,const void* value,int size)
 {

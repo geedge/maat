@@ -30,7 +30,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_2_20180617=1;
+int MAAT_FRAME_VERSION_2_2_20180705=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -2654,7 +2654,7 @@ void update_compile_rule(struct _Maat_table_info_t* table,const char* table_line
 													,user_region
 													,&(p_compile->is_valid)
 													,&(p_compile->declare_grp_num));
-	if((ret!=8&&ret!=9)||strlen(user_region)>MAX_SERVICE_DEFINE_LEN||p_compile->declare_grp_num>MAAT_MAX_EXPR_ITEM_NUM)
+	if((ret!=8&&ret!=9)||p_compile->declare_grp_num>MAAT_MAX_EXPR_ITEM_NUM)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
 							"update error,invalid format of compile table %s:%s"
@@ -2664,7 +2664,6 @@ void update_compile_rule(struct _Maat_table_info_t* table,const char* table_line
 		table->udpate_err_cnt++;
 		return;
 	}
-	
 	p_m_rule->serv_def_len=strlen(user_region)+1;
 	p_compile->service_defined=(char*)malloc(p_m_rule->serv_def_len*sizeof(char));
 	memcpy(p_compile->service_defined,user_region,p_m_rule->serv_def_len);

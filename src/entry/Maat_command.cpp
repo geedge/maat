@@ -783,6 +783,8 @@ int reconstruct_cmd(struct _Maat_feather_t *feather, struct _Maat_cmd_inner_t* _
 		return -1;
 	}
 	compile_inner=(struct _Maat_compile_inner_t *)HASH_fetch_by_id(feather->scanner->compile_hash, config_id);
+	//Operation on compile_inner is thread safe, no immediate memory free when delete a compile rule or a scanner.
+	//In another words, if the compile_inner is accessable from compile means, its was valid in at least 10 seconds (garbage bury).
 	if(compile_inner==NULL)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_command 
@@ -790,6 +792,7 @@ int reconstruct_cmd(struct _Maat_feather_t *feather, struct _Maat_cmd_inner_t* _
 				,config_id);
 		return -1;
 	}
+	pthread_rwlock_rdlock(&(compile_inner->rwlock));
 	cmd->group_num=compile_inner->group_cnt;
 	assert(cmd->groups==NULL);
 	cmd->groups=(struct Maat_group_t*)calloc(sizeof(struct Maat_group_t),cmd->group_num);
@@ -824,6 +827,7 @@ int reconstruct_cmd(struct _Maat_feather_t *feather, struct _Maat_cmd_inner_t* _
 		}
 		grp_idx++;
 	}
+	pthread_rwlock_unlock(&(compile_inner->rwlock));		
 	return 0;
 }
 

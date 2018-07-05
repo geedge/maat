@@ -543,7 +543,22 @@ void test_offset_str_scan(Maat_feather_t feather,const char* table_name)
 	test_offset_str_scan_with_chunk(feather,table_name,1460);
 	return;
 }
-
+void test_longer_service_define(Maat_feather_t feather, struct Maat_rule_t* rule)
+{
+	int ret=0;
+	char* buff=(char*)malloc(sizeof(char)*rule->serv_def_len);
+	ret=Maat_read_rule(feather, rule,MAAT_RULE_SERV_DEFINE, buff, rule->serv_def_len);
+	if(ret==rule->serv_def_len)
+	{
+		printf("Test read longer service define Success.\n");
+	}
+	else
+	{
+		printf("Test read longer service define Failed.\n");
+	}
+	assert(ret==rule->serv_def_len);
+	free(buff);	
+}
 int test_table_conjunction(Maat_feather_t feather,const char* table_name,const char* conj_table_name,scan_status_t* mid)
 {
 	int ret=0;
@@ -566,6 +581,7 @@ int test_table_conjunction(Maat_feather_t feather,const char* table_name,const c
 	if(ret>=2)
 	{
 		printf("Table conjunction success %s\n",print_maat_result(result,ret));
+		test_longer_service_define(feather, result);
 	}
 	return 0;
 }
