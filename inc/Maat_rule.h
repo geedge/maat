@@ -236,7 +236,7 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 void Maat_clean_status(scan_status_t* mid);
 enum MAAT_RULE_OPT
 {
-	MAAT_RULE_SERV_DEFINE
+	MAAT_RULE_SERV_DEFINE	//VALUE is a char* buffer,SIZE= buffer size. 
 };
 int Maat_read_rule(Maat_feather_t feather, const struct Maat_rule_t* rule, enum MAAT_RULE_OPT type, void* value, int size);
 #endif	//	H_MAAT_RULE_H_INCLUDE
