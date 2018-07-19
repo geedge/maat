@@ -195,7 +195,7 @@ int get_valid_flag_offset(const char* line, enum MAAT_TABLE_TYPE type,int valid_
 		}
 	}
 	i++;
-	if(i>=strlen(line)||line[i]!='1')
+	if(i>=strlen(line)||(line[i]!='1'&&line[i]!='0'))// 0 is also a valid value for some non-MAAT producer.
 	{
 		return -1;
 	}
