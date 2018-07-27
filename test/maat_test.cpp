@@ -636,7 +636,8 @@ int test_add_expr_command(Maat_feather_t feather,const char* region_table,int co
 {
 	struct Maat_cmd_t* cmd=NULL;
 	struct Maat_rule_t rule;
-
+	char huge_serv_def[1024*2];
+	memset(huge_serv_def,'s',sizeof(huge_serv_def));
 	struct Maat_region_t region;
 	int group_num=1,ret=0;
 	memset(&rule,0,sizeof(rule));
@@ -655,6 +656,7 @@ int test_add_expr_command(Maat_feather_t feather,const char* region_table,int co
 	region.expr_rule.expr_type=EXPR_TYPE_AND;
 	region.expr_rule.match_method=MATCH_METHOD_SUB;
 	region.expr_rule.hex_bin=UNCASE_PLAIN;
+	Maat_cmd_set_opt(cmd, MAAT_RULE_SERV_DEFINE, huge_serv_def, sizeof(huge_serv_def));
 	Maat_add_region2cmd(cmd, 0, &region);
 	//use pipeline model.
 	ret=Maat_cmd_append(feather, cmd, MAAT_OP_ADD);

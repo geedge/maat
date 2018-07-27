@@ -6,7 +6,7 @@
 *	to reside in the heart) of the departed would reach the paradise of afterlife
 *	successfully.
 *	Author: zhengchao@iie.ac.cn,MESA
-*	Version 2015-11-09 digest scan
+*	Version 2018-07-27 huge service_define
 *	NOTE: MUST compile with G++
 *	All right reserved by Institute of Infomation Engineering,Chinese Academic of Science 2014~2018
 *********************************************************
@@ -48,7 +48,8 @@ typedef	void*	stream_para_t;
 typedef	void*	Maat_feather_t;
 
 
-#define	MAX_SERVICE_DEFINE_LEN	128
+#define	MAX_SERVICE_DEFINE_LEN			128
+#define	MAX_HUGE_SERVICE_DEFINE_LEN		(1024*4)
 struct Maat_rule_t
 {
 	int		config_id;

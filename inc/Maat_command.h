@@ -125,6 +125,7 @@ struct Maat_line_t
 	int expire_after;	//expired after $timeout$ seconds, set to 0 for never timeout.
 };
 struct Maat_cmd_t* Maat_create_cmd(const struct Maat_rule_t* rule, int group_num);
+int Maat_cmd_set_opt(struct Maat_cmd_t* cmd, enum MAAT_RULE_OPT type, const char* val, int size);
 //input: which_group 0~group_num
 //input: region can be freed after added.
 void Maat_add_region2cmd(struct Maat_cmd_t* cmd,int which_group,const struct Maat_region_t* region);

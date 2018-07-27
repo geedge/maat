@@ -28,6 +28,7 @@ struct _Maat_cmd_inner_t
 	enum MAAT_OPERATION op;
 	int ref_cnt;
 	int region_size[MAX_EXPR_ITEM_NUM];
+	char* huge_service_defined;		//max to 4KB
 	struct _Maat_cmd_inner_t* next;
 };
 int _wrap_redisGetReply(redisContext *c, redisReply **reply)
@@ -854,7 +855,7 @@ int build_serial_rule(_Maat_feather_t *feather,struct _Maat_cmd_inner_t* _cmd,st
 				,p_m_rule->action
 				,p_m_rule->do_blacklist
 				,p_m_rule->do_log
-				,p_m_rule->service_defined
+				,(_cmd->huge_service_defined!=NULL)?(_cmd->huge_service_defined):(p_m_rule->service_defined)
 				,cmd->group_num);
 		set_serial_rule(list+rule_num,MAAT_OP_ADD,cmd->compile.config_id,cmd->label_id,feather->compile_tn,line,timeout);
 
@@ -1444,6 +1445,34 @@ struct Maat_cmd_t* Maat_create_cmd(const struct Maat_rule_t* rule, int group_num
 	}
 	return (struct Maat_cmd_t*)_cmd;
 }
+int Maat_cmd_set_opt(struct Maat_cmd_t* cmd, enum MAAT_RULE_OPT type, const char* val, int size)
+{
+	struct _Maat_cmd_inner_t* _cmd=(struct _Maat_cmd_inner_t* )cmd;
+	int ret=-1;
+	switch(type)
+	{
+		case	MAAT_RULE_SERV_DEFINE:
+			if(size>MAX_HUGE_SERVICE_DEFINE_LEN)
+			{
+				ret=-1;
+			}
+			else
+			{
+				if(_cmd->huge_service_defined!=NULL)
+				{
+					free(_cmd->huge_service_defined);
+				}
+				_cmd->huge_service_defined=(char*)calloc(sizeof(char),size+1);
+				memcpy(_cmd->huge_service_defined,val, size);
+				ret=0;
+			}
+			break;
+		default:
+			break;
+	}
+	return ret;
+}
+
 int Maat_cmd_set_group(Maat_feather_t feather,int group_id, const struct Maat_region_t* region, enum MAAT_OPERATION op)
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
@@ -1592,6 +1621,12 @@ void Maat_free_cmd(struct Maat_cmd_t* cmd)
 	}
 	free(cmd->groups);
 	cmd->groups=NULL;
+	if(_cmd->huge_service_defined!=NULL)
+	{
+		free(_cmd->huge_service_defined);
+		_cmd->huge_service_defined=NULL;
+	}
+
 	_cmd->next=NULL;
 	free(_cmd);
 	return;
