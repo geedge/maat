@@ -606,7 +606,7 @@ void test_set_cmd_line(Maat_feather_t feather)
 	
 
 	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
-	assert(ret==0);
+	assert(ret>0);
 	usleep(WAIT_FOR_EFFECTIVE_US);
 	
 	for(i=0;i<TEST_CMD_LINE_NUM;i++)
@@ -614,7 +614,7 @@ void test_set_cmd_line(Maat_feather_t feather)
 		line_rule[i].table_line=NULL;
 	}
 	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_DEL);
-	assert(ret==0);
+	assert(ret>0);
 
 
 	return;
@@ -680,7 +680,7 @@ int test_add_ip_command(Maat_feather_t feather,const char* region_table)
 {
 	struct Maat_cmd_t* cmd=NULL;
 	struct Maat_rule_t rule;
-	int config_id=0,timeout=2;
+	int config_id=0,timeout=4;
 	long long version_before=0,version_after=0;
 	
 	struct Maat_region_t region;
@@ -722,8 +722,9 @@ int test_add_ip_command(Maat_feather_t feather,const char* region_table)
 		return 0;
 	}
 	Maat_free_cmd(cmd);
-	//TEST if the command go into effective.
+	cmd=NULL;
 
+	//TEST if the command go into effective.
 	usleep(WAIT_FOR_EFFECTIVE_US);	//waiting for commands go into effect
 	
 	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_after, sizeof(version_after));
@@ -759,22 +760,29 @@ int test_add_ip_command(Maat_feather_t feather,const char* region_table)
 		}
 	}
 	Maat_clean_status(&mid);
-
-	usleep(timeout*1000*1000+WAIT_FOR_EFFECTIVE_US);//wait for commands expired.
+	//reset timeout.
+	cmd=Maat_create_cmd(&rule, 0);
+	cmd->expire_after=10;
+	ret=Maat_cmd(feather, cmd, MAAT_OP_RENEW_TIMEOUT);
+	assert(ret==1);
+	usleep(2*1000*1000+WAIT_FOR_EFFECTIVE_US);//wait for commands expired.
+	Maat_free_cmd(cmd);
+	cmd=NULL;
 	ret=Maat_scan_proto_addr(feather,table_id,&ipv4_addr,6,&result,1, &mid,0);
 	if(ret==0)
 	{
-		printf("Test expire IP rule Success.\n");
+		printf("Test RENEW timeout Failed.\n");
 	}
 	else
 	{
-		printf("Test expire IP rule Failed.\n");
+		printf("Test RENEW timeout Success.\n");
 	}
 	Maat_clean_status(&mid);
 
 	return 0;
 
 }
+
 int del_command(Maat_feather_t feather,int config_id)
 {
 	struct Maat_cmd_t* cmd=NULL;
