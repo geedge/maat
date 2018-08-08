@@ -231,6 +231,10 @@ struct _region_stat_t
 		int ipv6_rule_cnt;
 	};
 };
+#define	USER_REGION_ENCODE_NONE		0
+#define	USER_REGION_ENCODE_ESCAPE	1
+#define	USER_REGION_ENCODE_BASE64	2
+
 struct _Maat_table_info_t
 {
 	unsigned short table_id;
@@ -256,7 +260,8 @@ struct _Maat_table_info_t
 		int ipv6_rule_cnt;
 	};
 	struct _plugin_table_info *cb_info;
-	int valid_flag_column;
+	int valid_flag_column;		//for plugin table
+	int user_region_encoding;	//for compile table, USER_REGION_ENCODE_xx
 //for stat>>>>>>>>
 	unsigned long long udpate_err_cnt;
 	unsigned long long iconv_err_cnt;

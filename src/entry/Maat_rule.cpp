@@ -30,7 +30,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_2_20180801=1;
+int MAAT_FRAME_VERSION_2_2_20180808=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -588,7 +588,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 	FILE*fp=NULL;
 	char line[MAX_TABLE_LINE_SIZE];
 	int i=0,ret=0,table_cnt=0;
-	char table_type_str[16],not_care[256];
+	char table_type_str[16],not_care[1024], user_region_encoding[32];
 	MESA_htable_handle string2int_map=map_create();
 	struct _Maat_table_info_t*p=NULL;
 	struct _Maat_table_info_t*conj_table=NULL;
@@ -604,6 +604,9 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 	map_register(string2int_map,"similar", TABLE_TYPE_SIMILARITY);
 	map_register(string2int_map,"quickoff",0);
 	map_register(string2int_map,"quickon",1);
+	map_register(string2int_map,"escape",USER_REGION_ENCODE_ESCAPE);
+//	map_register(string2int_map,"base64",USER_REGION_ENCODE_BASE64); //NOT supported yet
+	
 	for(i=0;i<MAX_CHARSET_NUM;i++)
 	{
 		if(strlen(CHARSET_STRING[i])>0)
@@ -637,10 +640,16 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 		}
 		p=create_table_info(max_thread_num);
 
-		sscanf(line,"%hu\t%s\t%s\t%s",&(p->table_id)
+		ret=sscanf(line,"%hu\t%s\t%s\t%s",&(p->table_id)
 											,p->table_name[0]
 											,table_type_str
 											,not_care);
+		if(ret<3)
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
+									"Maat read table info %s line %d error: not enough column.",table_info_path,i);
+			continue;
+		}
 		ret=map_str2int(string2int_map,strlwr(table_type_str),(int*)&(p->table_type));
 		if(ret<0)
 		{
@@ -670,6 +679,16 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 					p->valid_flag_column=-1;
 				}
 				break;
+			case TABLE_TYPE_COMPILE:	
+				ret=sscanf(not_care,"%[a-z0-9]",user_region_encoding);
+				if(ret>0)
+				{	
+					ret=map_str2int(string2int_map,strlwr(user_region_encoding),(int*)&(p->user_region_encoding));
+				}
+				if(ret!=1)
+				{
+					p->user_region_encoding=USER_REGION_ENCODE_NONE;
+				}
 			default:
 				break;
 		}
@@ -2664,9 +2683,18 @@ void update_compile_rule(struct _Maat_table_info_t* table,const char* table_line
 		table->udpate_err_cnt++;
 		return;
 	}
+	switch(table->user_region_encoding)
+	{
+		case USER_REGION_ENCODE_ESCAPE:
+			str_unescape(user_region);
+			break;
+		default:
+			break;
+	}
 	p_m_rule->serv_def_len=strlen(user_region)+1;
 	p_compile->service_defined=(char*)malloc(p_m_rule->serv_def_len*sizeof(char));
 	memcpy(p_compile->service_defined,user_region,p_m_rule->serv_def_len);
+
 	if(p_compile->is_valid==FALSE)
 	{
 		ret=del_compile_rule(table,p_compile,scanner, logger);

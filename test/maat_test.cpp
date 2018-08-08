@@ -109,6 +109,20 @@ const char* print_maat_result(struct Maat_rule_t* result,int ret)
 	}
 	return buff;
 }
+void test_service_define_escape(struct Maat_rule_t* rule)
+{
+	char*p=strchr(rule->service_defined,' ');
+	if(p!=NULL)
+	{
+		printf("Test service define escape Success.\n");
+	}
+	else
+	{
+		printf("Test service define escape Failed.\n");
+	}
+
+}
+
 int test_string_full_scan(Maat_feather_t feather,const char* table_name,scan_status_t* mid)
 {
 	int ret=0;
@@ -220,6 +234,7 @@ int test_ipv4_scan(Maat_feather_t feather,const char* table_name,scan_status_t* 
 	else
 	{
 		ret=Maat_scan_proto_addr(feather,table_id,&ipv4_addr,6,result,4, mid,0);
+		test_service_define_escape(result+0);
 		printf("IPv4 addr Scan:%s\n",print_maat_result(result,ret));
 	}
 	return ret;
@@ -543,6 +558,7 @@ void test_offset_str_scan(Maat_feather_t feather,const char* table_name)
 	test_offset_str_scan_with_chunk(feather,table_name,1460);
 	return;
 }
+
 void test_longer_service_define(Maat_feather_t feather, struct Maat_rule_t* rule)
 {
 	int ret=0;

@@ -9,7 +9,7 @@
             "do_blacklist": 1,
             "do_log": 1,
             "effective_range": 0,
-            "user_region": "anything",
+            "user_region": "escaped\\bdata:have\\ba\\bspace\\band\\ba\\b\\&\\bsymbol.",
             "is_valid": "yes",
             "groups": [
                 {
