@@ -695,7 +695,7 @@ int _get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int ru
 		{
 			rule_list[idx].table_line=_maat_strdup(reply->str);
 		}
-		else if(reply->type==REDIS_REPLY_ERROR)//Handle: "Loading Redis is loading the database in memory" 
+		else if(reply->type==REDIS_REPLY_ERROR)//Deal with Redis response: "Loading Redis is loading the database in memory" 
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
 					,"Redis cmd=%s	Error, Reply type=%d, str=%s",redis_cmd, reply->type, reply->str);

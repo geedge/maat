@@ -558,7 +558,74 @@ void test_offset_str_scan(Maat_feather_t feather,const char* table_name)
 	test_offset_str_scan_with_chunk(feather,table_name,1460);
 	return;
 }
+void test_compile_accept_tags(Maat_feather_t feather)
+{
+	int ret1=0, ret2=0;
+	int table_id=0;
+	scan_status_t mid=NULL;
+	struct Maat_rule_t result[4];
+	const char* should_hit="string bbb should hit";
+	const char* should_not_hit="string aaa should not hit";
+	const char* table_name="HTTP_URL";
+	table_id=Maat_table_register(feather,table_name);
+	if(table_id==-1)
+	{
+		printf("Database table %s register failed.\n",table_name);
+		return;
+	}
+	
+	ret1=Maat_full_scan_string(feather, table_id,CHARSET_GBK, should_not_hit, strlen(should_not_hit), 
+						result,NULL, 4,
+						&mid, 0);
+	ret2=Maat_full_scan_string(feather, table_id,CHARSET_GBK, should_hit, strlen(should_hit), 
+						result,NULL, 4,
+						&mid, 0);
+	if(ret1<=0&&ret2>0)
+	{
+		printf("Test compile accept tags success.\n");
+	}
+	else
+	{
+		printf("Test compile accept tags failed.\n");
+	}
+	Maat_clean_status(&mid);
+	return;
+}
 
+void accept_tags_entry_cb(int table_id,const char* table_line,void* u_para)
+{
+	char status[32]={0};
+	int entry_id=-1,seq=-1;
+	int is_valid=0;
+	sscanf(table_line,"%d\t%s\t%d\t%d",&seq,status,&entry_id,&is_valid);
+	printf("Test plugin accept tags loading %d %s.\n",seq, status);
+	return;
+}
+
+
+void test_plugin_accept_tags(Maat_feather_t feather)
+{
+	int table_id=0,ret=0;
+	const char* table_name="TEST_EFFECTIVE_RANGE_TABLE";
+	table_id=Maat_table_register(feather,table_name);
+	if(table_id==-1)
+	{
+		printf("Database table %s register failed.\n",table_name);
+	}
+	else
+	{
+		ret=Maat_table_callback_register(feather, table_id,
+								NULL,
+								accept_tags_entry_cb, 
+								NULL,
+								NULL);
+		if(ret<0)
+		{
+			printf("Maat callback register table %s error.\n",table_name);
+		}
+	}
+	return;
+}
 void test_longer_service_define(Maat_feather_t feather, struct Maat_rule_t* rule)
 {
 	int ret=0;
@@ -1009,6 +1076,7 @@ int main(int argc,char* argv[])
 	const char* stat_file="./scan_staus.log";
 	const char* decrypt_key="mesa2017wy";
 	const char* test_digest_file="./testdata/digest_test.data";
+	const char* accept_tags="{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},{\"tag\":\"isp\",\"value\":\"移动\"}]}";
 	int scan_interval_ms=1;
 	int effective_interval_ms=0;
 
@@ -1065,6 +1133,7 @@ int main(int argc,char* argv[])
 	Maat_set_feather_opt(feather, MAAT_OPT_STAT_ON, NULL, 0);
 	Maat_set_feather_opt(feather, MAAT_OPT_PERF_ON, NULL, 0);
 	Maat_set_feather_opt(feather, MAAT_OPT_SCAN_DETAIL, &scan_detail, sizeof(scan_detail));
+	Maat_set_feather_opt(feather, MAAT_OPT_ACCEPT_TAGS, accept_tags, strlen(accept_tags)+1);
 	Maat_initiate_feather(feather);
 
 	if(feather==NULL)
@@ -1122,6 +1191,10 @@ int main(int argc,char* argv[])
 	Maat_clean_status(&mid);
 	
 	test_offset_str_scan(feather,"IMAGE_FP");
+	
+	test_plugin_accept_tags(feather);
+	test_compile_accept_tags(feather);
+
 	int value=0;
 	if(1==using_redis)
 	{

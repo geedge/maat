@@ -666,6 +666,13 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 							"Maat load version from %lld, stops backgroud update."
 							,_feather->load_version_from);
 			break;
+		case MAAT_OPT_ACCEPT_TAGS:
+			_feather->n_tags=parse_accept_tag((const char*) value, &_feather->accept_tags, _feather->logger);
+			if(_feather->n_tags==0)
+			{
+				return -1;
+			}
+			break;
 		default:
 			return -1;
 	}

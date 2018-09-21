@@ -8,7 +8,6 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_range": 0,
             "user_region": "escaped\\bdata:have\\ba\\bspace\\band\\ba\\b\\&\\bsymbol.",
             "is_valid": "yes",
             "groups": [
@@ -74,7 +73,6 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_range": 0,
             "user_region": "anything",
             "is_valid": "yes",
             "groups": [
@@ -102,7 +100,6 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_range": 0,
             "user_region": "anything",
             "is_valid": "yes",
             "groups": [
@@ -128,7 +125,6 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_range": 0,
             "user_region": "anything",
             "is_valid": "yes",
             "groups": [
@@ -168,7 +164,6 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_range": 0,
             "user_region": "anything",
             "is_valid": "yes",
             "groups": [
@@ -194,7 +189,6 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_range": 0,
             "user_region": "anything",
             "is_valid": "yes",
             "groups": [
@@ -222,7 +216,6 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_range": 0,
             "user_region": "utf8_中文",
             "is_valid": "yes",
             "groups": [
@@ -249,7 +242,6 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_range": 0,
             "user_region": "utf8_维语",
             "is_valid": "yes",
             "groups": [
@@ -276,7 +268,6 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_range": 0,
             "user_region": "utf8_维语2",
             "is_valid": "yes",
             "groups": [
@@ -303,7 +294,6 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_range": 0,
             "user_region": "string\\bunescape",
             "is_valid": "yes",
             "groups": [
@@ -330,7 +320,6 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_range": 0,
             "user_region": "13018_table_conjunction_test_part1\bnow_its_very_very_long0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz",
             "is_valid": "yes",
             "groups": [
@@ -357,7 +346,6 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_range": 0,
             "user_region": "table_conjunction_test_part2",
             "is_valid": "yes",
             "groups": [
@@ -384,7 +372,6 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_range": 0,
             "user_region": "anything",
             "is_valid": "yes",
             "groups": [
@@ -409,7 +396,6 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_range": 0,
             "user_region": "offset_string",
             "is_valid": "yes",
             "groups": [
@@ -436,7 +422,6 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "effective_range": 0,
             "user_region": "offset_string",
             "is_valid": "yes",
             "groups": [
@@ -451,6 +436,60 @@
                                 "expr_type": "offset",
                                 "match_method": "none",
                                 "format": "hexbin"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 138,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "effective_range": 0,
+            "tags":"{\"tag_sets\":[[{\"tag\":\"location\",\"value\":[\"北京/朝阳/华严北里\",\"上海/浦东/陆家嘴\"]},{\"tag\":\"isp\",\"value\":[\"电信\",\"联通\"]}],[{\"tag\":\"location\",\"value\":[\"北京\"]},{\"tag\":\"isp\",\"value\":[\"联通\"]}]]}",
+            "user_region": "Not\\baccepted\\btags",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "string",
+                            "table_content": {
+                                "keywords": "should&hit&aaa",
+                                "expr_type": "and",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 139,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "effective_range": 0,
+            "tags":"{\"tag_sets\":[[{\"tag\":\"location\",\"value\":[\"北京/朝阳/华严北里\"]},{\"tag\":\"isp\",\"value\":[\"电信\",\"移动\"]}]]}",
+            "user_region": "Accepted\\btags",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "string",
+                            "table_content": {
+                                "keywords": "should&hit&bbb",
+                                "expr_type": "and",
+                                "match_method": "sub",
+                                "format": "uncase plain"
                             }
                         }
                     ]
@@ -473,6 +512,14 @@
                 "1\t3388\t99\t1",
                 "2\t3355\t66\t1",
                 "3\tcccc\t11\t1"
+            ]
+        },
+        {
+            "table_name": "TEST_EFFECTIVE_RANGE_TABLE",
+            "table_content": [
+                "1\tSUCCESS\t99\t1\t{\"tag_sets\":[[{\"tag\":\"location\",\"value\":[\"北京/朝阳/华严北里\"]},{\"tag\":\"isp\",\"value\":[\"电信\",\"移动\"]}]]}",
+                "2\tSUCCESS\t66\t1\t0",
+                "3\tFAILED\t11\t1\t{\"tag_sets\":[[{\"tag\":\"location\",\"value\":[\"北京/朝阳/华严北里\",\"上海/浦东/陆家嘴\"]},{\"tag\":\"isp\",\"value\":[\"电信\",\"联通\"]}],[{\"tag\":\"location\",\"value\":[\"北京\"]},{\"tag\":\"isp\",\"value\":[\"联通\"]}]]}"
             ]
         }
     ]

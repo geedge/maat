@@ -8,13 +8,10 @@ CFLAGS		= -Wall -g -fPIC
 CFLAGS		+= $(OPTFLAGS)
 #CFLAGS		+= $(GCOV_FLAGS)
 LDDICTATOR	= -Wl,-wrap,malloc -Wl,-wrap,calloc -Wl,-wrap,free -Wl,-wrap,realloc
-LDFLAGS		= -lMESA_handle_logger -lMESA_htable -lpthread -lrt -lm -lrulescan -lpcre -lMESA_field_stat2 -lcrypto -lhiredis_vip
+LDFLAGS		+= -lMESA_handle_logger -lMESA_htable -lpthread -lrt -lm -lrulescan -lpcre -lMESA_field_stat2 -lcrypto -lhiredis_vip
 #LDFLAGS		+= $(LDDICTATOR)
 LDFLAGS		+= $(GCOV_FLAGS)
-MAILLIB = ../lib
-
-G_H_DIR			=../inc_internal
-H_DIR			=-I$(G_H_DIR) -I../../inc
+H_DIR			=-I../inc_internal -I../../inc -I/opt/MESA/include/
 LIBMAAT = libmaatframe.a
 LIBMAAT_SO = libmaatframe.so 
 
