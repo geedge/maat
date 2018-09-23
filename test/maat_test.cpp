@@ -1057,7 +1057,7 @@ void maat_test_print_usage(void)
 {
 	printf("Maat Test Usage:\n");
 	printf("\tSource:\n");
-	printf("\t\t-j Test updating from %s.\n",json_path);
+	printf("\t\t-j Test updating from %s. https://www.sojson.com/yasuo.html\n",json_path);
 	printf("\t\t-u Load config from %s, and monitor %s. Need manually move inc index.\n",ful_cfg_dir,inc_cfg_dir);
 	printf("\t\t-r Read config redis %s:%u db0.\n",test_maat_redis_ip,test_maat_redis_port);
 	printf("\tOption:\n");
@@ -1136,11 +1136,8 @@ int main(int argc,char* argv[])
 	Maat_set_feather_opt(feather, MAAT_OPT_ACCEPT_TAGS, accept_tags, strlen(accept_tags)+1);
 	Maat_initiate_feather(feather);
 
-	if(feather==NULL)
-	{
-		printf("Maat initial error, see %s\n",log_file);
-		return -1;
-	}
+	printf("Maat initiating, see %s\n",log_file);
+
 	if(deferred_load_on==1)
 	{
 		printf("Deferred Load ON, Waiting...\n");
