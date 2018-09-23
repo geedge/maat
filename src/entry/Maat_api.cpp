@@ -1226,20 +1226,20 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	switch(addr->addrtype)
 	{
 		case ADDR_TYPE_IPV4:
-			ip_scan_data.ipv4_data.saddr=ntohl(addr->paddr.v4->saddr);
-			ip_scan_data.ipv4_data.daddr=ntohl(addr->paddr.v4->daddr);
-			ip_scan_data.ipv4_data.sport=ntohs(addr->paddr.v4->source);
-			ip_scan_data.ipv4_data.dport=ntohs(addr->paddr.v4->dest);
+			ip_scan_data.ipv4_data.saddr=ntohl(addr->v4->saddr);
+			ip_scan_data.ipv4_data.daddr=ntohl(addr->v4->daddr);
+			ip_scan_data.ipv4_data.sport=ntohs(addr->v4->source);
+			ip_scan_data.ipv4_data.dport=ntohs(addr->v4->dest);
 			ip_scan_data.ipv4_data.proto=proto;
 			break;
 		case ADDR_TYPE_IPV6:
 			ip_scan_data.rule_type=RULETYPE_IPv6;
-			memcpy(ip_scan_data.ipv6_data.saddr,addr->paddr.v6->saddr,sizeof(ip_scan_data.ipv6_data.saddr));
+			memcpy(ip_scan_data.ipv6_data.saddr,addr->v6->saddr,sizeof(ip_scan_data.ipv6_data.saddr));
 			ipv6_ntoh(ip_scan_data.ipv6_data.saddr);
-			memcpy(ip_scan_data.ipv6_data.daddr,addr->paddr.v6->daddr,sizeof(ip_scan_data.ipv6_data.daddr));
+			memcpy(ip_scan_data.ipv6_data.daddr,addr->v6->daddr,sizeof(ip_scan_data.ipv6_data.daddr));
 			ipv6_ntoh(ip_scan_data.ipv6_data.daddr);
-			ip_scan_data.ipv6_data.sport=ntohs(addr->paddr.v6->source);
-			ip_scan_data.ipv6_data.dport=ntohs(addr->paddr.v6->dest);
+			ip_scan_data.ipv6_data.sport=ntohs(addr->v6->source);
+			ip_scan_data.ipv6_data.dport=ntohs(addr->v6->dest);
 			ip_scan_data.ipv6_data.proto=proto;
 			break;
 		default:
