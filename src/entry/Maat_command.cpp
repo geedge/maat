@@ -1463,6 +1463,7 @@ int get_foreign_keys(redisContext *ctx, struct serial_rule_t* rule_list, int rul
 	const char* foreign_key_prefix="__FILE_";
 	const char* p_foregin=NULL;
 	struct _Maat_table_info_t* p_table=NULL;
+	struct stat file_info;
 	for(i=0; i<rule_num; i++)
 	{
 		if(rule_list[i].table_line==NULL)
@@ -1511,21 +1512,29 @@ int get_foreign_keys(redisContext *ctx, struct serial_rule_t* rule_list, int rul
 			memcpy(rule_list[i].f_keys[j].key, p_foregin, foregin_key_size);
 
 			rule_list[i].f_keys[j].filename=get_foreign_cont_filename(rule_list[i].table_name, rule_list[i].rule_id, p_foregin, dir);
+			ret=stat(rule_list[i].f_keys[j].filename, &file_info);
+			if(ret==0)
+			{
+				rule_list[i].f_keys[j].is_existed=1;
+			}
 		}
 		rule_with_foreign_key++;
 	}
 	return rule_with_foreign_key;
 }
-
-void get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, void *logger)
+struct foreign_conts_track
+{
+	int rule_idx;
+	int foreign_idx;
+};
+void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, void *logger)
 {
 	int i=0, j=0, ret=0;
 	int key_num=0;
-	
+	struct foreign_conts_track* track=ALLOC(struct foreign_conts_track, rule_num*MAX_FOREIGN_CLMN_NUM); 
 	char redis_cmd[256];
 	redisReply* reply=NULL;
 	struct serial_rule_t*p=NULL;
-	char** filenames[MAX_FOREIGN_CLMN_NUM];
 	FILE* fp=NULL;
 	for(i=0;i<rule_num;i++)
 	{
@@ -1536,53 +1545,64 @@ void get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int r
 		}
 		for(j=0; j<p->n_foreign; j++)
 		{
+			if(p->f_keys[i].is_existed==1)
+			{
+				continue;
+			}
 			snprintf(redis_cmd,sizeof(redis_cmd),"GET %s", p->f_keys[j].key);
 			ret=redisAppendCommand(ctx, redis_cmd);
+			track[key_num].rule_idx=i;
+			track[key_num].foreign_idx=j;
 			key_num++;
 			assert(ret==REDIS_OK);
 		}
 	}
-	for(i=0;i<rule_num;i++)
+	for(i=0;i<key_num;i++)
 	{
-		p=rule_list+i;
-		if(p->op==MAAT_OP_DEL||p->n_foreign==0)
+		ret=_wrap_redisGetReply(ctx,&reply);
+		if(reply->type!=REDIS_REPLY_STRING)
 		{
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor
+					,"Get %s,%d foreign key %s content failed."
+					,rule_list[track[i].rule_idx].table_name
+					,rule_list[track[i].rule_idx].rule_id
+					,rule_list[track[i].rule_idx].f_keys[track[i].foreign_idx].key);
 			continue;
 		}
-		for(j=0; j<p->n_foreign; j++)
+		else
 		{
-			ret=_wrap_redisGetReply(ctx,&reply);
-			if(reply->type!=REDIS_REPLY_STRING)
+			p=rule_list+track[i].rule_idx;
+			fp=fopen(p->f_keys[track[i].foreign_idx].filename, "w");
+			if(fp==NULL)
 			{
 				MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor
-						,"Get %s,%d foreign key %s content failed."
-						,rule_list[i].table_name
-						,rule_list[i].rule_id
-						,p->f_keys[j].key);
-				continue;
+										, "Write foreign content failed: fopen %s error."
+										, p->f_keys[track[i].foreign_idx]);
 			}
 			else
 			{
-				fp=fopen(p->f_keys[j].filename, "w");
-				if(fp==NULL)
-				{
-					MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor
-											, "Write foreign content failed: fopen %s error."
-											, filenames[j]);
-				}
-				else
-				{
-					fwrite(reply->str, 1, reply->len, fp);
-					fclose(fp);
-					fp=NULL;
-				}
+				fwrite(reply->str, 1, reply->len, fp);
+				fclose(fp);
+				fp=NULL;
 			}
-			freeReplyObject(reply);
 		}
+		freeReplyObject(reply);
+	}
+	free(track);
+	return;
+}
+void get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, void *logger)
+{
+	int max_redis_batch=4*1024,batch_cnt=0;
+	int success_cnt=0;
+	while(success_cnt<rule_num)
+	{
+		batch_cnt=MIN(rule_num-success_cnt,max_redis_batch);
+		_get_foreign_conts(ctx,rule_list+success_cnt,batch_cnt,logger);
+		success_cnt+=batch_cnt;	
 	}
 	return;
 }
-
 void redis_monitor_traverse(long        long version,redisContext *c,
 		void (*start)(long long,int ,void*),//vesion,CM_UPDATE_TYPE_*,u_para
 		int (*update)(const char* ,const char*,void* ),//table name ,line ,u_para

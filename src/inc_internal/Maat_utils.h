@@ -2,6 +2,9 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <sys/types.h>//fstat
+#include <sys/types.h>//fstat
+#include <sys/stat.h>//fstat
 
 #define ALLOC(type, number) ((type *)calloc(sizeof(type), number))
 #define	FREE(p)	{free(*p);*p=NULL;}

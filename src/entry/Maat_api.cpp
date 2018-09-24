@@ -776,6 +776,7 @@ void maat_read_full_config(_Maat_feather_t* _feather)
 int Maat_initiate_feather(Maat_feather_t feather)
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	system_cmd_mkdir(_feather->foreign_cont_dir);
 	if(_feather->DEFERRED_LOAD_ON==0)
 	{
 		maat_read_full_config(_feather);

@@ -604,11 +604,11 @@ int _read_integer_arrary(char* string, int *array, int size)
 int read_plugin_table_info(const char* line, struct _Maat_table_info_t* p)
 {
 	int i=0,ret=0;
-	size_t j=0;
+	
+	cJSON* json=NULL, *tmp=NULL;
 	char* copy_line=NULL, *plug_info=NULL;
 	char *token=NULL,*sub_token=NULL,*saveptr;
-	const char* plug_info_prefix[]={"valid","tag","foreign"};
-	const int VALID_PREFIX_IDX=0, TAG_PREFIX_IDX=1, FOREIGN_PREFIX_IDX=2;
+
 	p->valid_flag_column=-1;
 	copy_line=_maat_strdup(line);
 	for (token = copy_line, i=0; ; token= NULL, i++)
@@ -620,9 +620,8 @@ int read_plugin_table_info(const char* line, struct _Maat_table_info_t* p)
 		{
 			break;
 		}
-	
 	}
-	if(i<3)
+	if(i<2)
 	{
 		goto error_out;
 	}
@@ -638,35 +637,28 @@ int read_plugin_table_info(const char* line, struct _Maat_table_info_t* p)
 		free(copy_line);
 		return 0;
 	}
-
-	for (token = plug_info; ; token= NULL)
+	json=cJSON_Parse(plug_info);
+	if(!json)
 	{
-		sub_token= strtok_r(token,";", &saveptr);
-		if (sub_token == NULL)
-			break;
-		for(j=0; j< sizeof(plug_info_prefix)/sizeof(const char*); j++)
-		{
-			if(0==strncasecmp(sub_token, plug_info_prefix[j], strlen(plug_info_prefix[j])))
-			{
-				break;
-			}
-		}
-		switch(j)
-		{
-			case VALID_PREFIX_IDX:
-				sscanf(sub_token+strlen(plug_info_prefix[j])+1,"%d",&(p->valid_flag_column));
-				break;
-			case TAG_PREFIX_IDX:
-				sscanf(sub_token+strlen(plug_info_prefix[j])+1,"%d",&(p->rule_tag_column));
-				break;
-			case FOREIGN_PREFIX_IDX:
-				p->n_foreign=_read_integer_arrary(sub_token+strlen(plug_info_prefix[j])+1, p->foreign_columns, MAX_FOREIGN_CLMN_NUM);
-				break;
-			default:
-				break;
-		}
+		goto error_out;
+	}
+	tmp=cJSON_GetObjectItem(json, "valid");
+	if(tmp!=NULL)
+	{
+		p->valid_flag_column=tmp->valueint;
+	}
+	tmp=cJSON_GetObjectItem(json, "tag");
+	if(tmp!=NULL)
+	{
+		p->rule_tag_column=tmp->valueint;
+	}
+	tmp=cJSON_GetObjectItem(json, "foreign");
+	if(tmp!=NULL)
+	{
+		_read_integer_arrary(tmp->string, p->foreign_columns, MAX_FOREIGN_CLMN_NUM);
+	}
+	cJSON_Delete(json);
 
-	}	
 	free(copy_line);
 	return 0;
 error_out:

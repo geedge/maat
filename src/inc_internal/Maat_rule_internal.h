@@ -462,6 +462,7 @@ struct _maat_garbage_t
 struct foreign_key
 {
 	int column;
+	int is_existed;
 	char* key;
 	char* filename;
 };
