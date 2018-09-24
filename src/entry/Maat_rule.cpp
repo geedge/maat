@@ -748,7 +748,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 	FILE*fp=NULL;
 	char line[MAX_TABLE_LINE_SIZE];
 	int i=0,ret=0,table_cnt=0;
-	char table_type_str[16],not_care[1024], user_region_encoding[32];
+	char table_type_str[16],not_care[1024], tmp_str[32];
 	MESA_htable_handle string2int_map=map_create();
 	struct _Maat_table_info_t*p=NULL;
 	struct _Maat_table_info_t*conj_table=NULL;
@@ -833,17 +833,17 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 			case TABLE_TYPE_PLUGIN:
 				p->cb_info=(struct _plugin_table_info*)calloc(sizeof(struct _plugin_table_info),1);
 				p->cb_info->cache_lines=dynamic_array_create(1024,1024);
-				ret=sscanf(not_care,"%d\t%d",&(p->valid_flag_column), &p->rule_tag_column);
+				ret=sscanf(not_care,"%d\t%d\t%[0-9,]",&(p->valid_flag_column), &p->rule_tag_column, tmp_str);
 				if(ret==0||ret==EOF)
 				{
 					p->valid_flag_column=-1;
 				}
 				break;
 			case TABLE_TYPE_COMPILE:	
-				ret=sscanf(not_care,"%[a-z0-9]",user_region_encoding);
+				ret=sscanf(not_care,"%[a-z0-9]",tmp_str);
 				if(ret>0)
 				{	
-					ret=map_str2int(string2int_map,str_tolower(user_region_encoding),(int*)&(p->user_region_encoding));
+					ret=map_str2int(string2int_map,str_tolower(tmp_str),(int*)&(p->user_region_encoding));
 				}
 				if(ret!=1)
 				{
@@ -3085,7 +3085,7 @@ void update_plugin_table(struct _Maat_table_info_t* table,const char* table_line
 	char* copy=NULL;
 	
 	char *token=NULL,*sub_token=NULL,*saveptr;
-	if(table->rule_tag_column!=0&&n_tags>0)
+	if(table->rule_tag_column>0&&n_tags>0)
 	{
 		copy=_maat_strdup(table_line);
 		for (token = copy, i=0; i<table->rule_tag_column ; token= NULL, i++)

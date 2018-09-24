@@ -11,4 +11,6 @@ file(COPY conf DESTINATION ./)
 file(COPY rule DESTINATION ./)
 file(COPY testdata DESTINATION ./)
 file(COPY testdata_uni2ascii DESTINATION ./)
-add_test(NAME MaatframeFunctionTest COMMAND test_maatframe)
+
+include(GoogleTest)
+gtest_discover_tests(test_maatframe)
