@@ -1,7 +1,0 @@
-COMPILE	4	./maat_json.json_iris_tmp/COMPILE.local
-GROUP	7	./maat_json.json_iris_tmp/GROUP.local
-TEST_PLUGIN_TABLE	3	./maat_json.json_iris_tmp/TEST_PLUGIN_TABLE.local
-IP_CONFIG	2	./maat_json.json_iris_tmp/IP_CONFIG.local
-CONTENT_SIZE	2	./maat_json.json_iris_tmp/CONTENT_SIZE.local
-HTTP_URL	3	./maat_json.json_iris_tmp/HTTP_URL.local
-QD_ENTRY_INFO	3	./maat_json.json_iris_tmp/QD_ENTRY_INFO.local

@@ -20,6 +20,7 @@
 #include "Maat_rule.h"
 #include "Maat_rule_internal.h"
 #include "json2iris.h"
+#include "cJSON.h"
 #include "dynamic_array.h"
 #include "aligment_int64.h"
 #include "config_monitor.h"
@@ -30,7 +31,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_2_20180808=1;
+int MAAT_FRAME_VERSION_2_2_20180921=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -319,7 +320,7 @@ error_out:
 	
 	return ret;
 }
-char* strlwr(char* string)
+char* str_tolower(char* string)
 {
 	int i=0;
 	for(i=0;i<(int)strlen(string);i++)
@@ -473,7 +474,166 @@ int cnt_maskbits(struct in6_addr mask)
 	}
 	return bits_cnt;
 }
+//@param value is a JSON, like {"tags":[{"tag":"location","value":"北京/朝阳/华严北里/甲22号},{"tag":"isp","value":"电信"}]}
+int parse_accept_tag(const char* value, struct rule_tag** result, void* logger)
+{
+	cJSON* json=NULL, *array=NULL,*tag=NULL, *tmp=NULL;
+	struct rule_tag* p=NULL;
+	int n_tags=0;
+	json=cJSON_Parse(value);
+	if(!json)
+	{
+		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module,
+			"MAAT_OPT_ACCEPT_TAGS Error before: %-200.200s",cJSON_GetErrorPtr());
+		return 0;
+	}
+	array=cJSON_GetObjectItem(json, "tags");
+	n_tags=cJSON_GetArraySize(array);
+	p=(struct rule_tag*)calloc(sizeof(struct rule_tag), n_tags);
+	for(int i=0;i<n_tags;i++)
+	{
+		tag=cJSON_GetArrayItem(array, i);
+		tmp=cJSON_GetObjectItem(tag, "tag");
+		p[i].tag_name=_maat_strdup(tmp->valuestring);
+		tmp=cJSON_GetObjectItem(tag, "value");
+		p[i].tag_val=_maat_strdup(tmp->valuestring);
+	}
+	cJSON_Delete(json);
+	*result=p;
+	return n_tags;
+}
+static int compare_each_tag(cJSON* tag_obj, const struct rule_tag* accept_tags, int n_accept)
+{
+	const char* tag_name;
+	const char* tag_val;
+	int n_val;
+	cJSON *tab_name_obj=NULL, *tag_vals_array=NULL, *tag_val_obj=NULL;
 
+	int i=0, j=0, name_matched=0;
+	tab_name_obj=cJSON_GetObjectItem(tag_obj,"tag");
+	if(!tab_name_obj||tab_name_obj->type!=cJSON_String)
+	{
+		goto error_out;
+	}
+	tag_name=tab_name_obj->valuestring;
+	tag_vals_array=cJSON_GetObjectItem(tag_obj,"value");
+	if(!tag_vals_array||tag_vals_array->type!=cJSON_Array)
+	{
+		goto error_out;
+	}
+	n_val=cJSON_GetArraySize(tag_vals_array);
+	for(i=0;i<n_accept;i++)
+	{
+		if(0!=strcmp(accept_tags[i].tag_name, tag_name))
+		{
+			continue;
+		}
+		name_matched++;
+
+		for(j=0; j<n_val; j++)
+		{
+			tag_val_obj=cJSON_GetArrayItem(tag_vals_array, j);
+			if(!tag_val_obj||tag_val_obj->type!=cJSON_String)
+			{
+				goto error_out;
+			}
+			tag_val=tag_val_obj->valuestring;
+			// compare a/b/c with a/b/c/d is a miss.
+			if(strlen(accept_tags[i].tag_val)<strlen(tag_val))
+			{
+				continue;
+			}
+			// compare a1a2/b1/c1 with a1a2/b/ is a miss.
+			//make sure the overlap is ended with a '/' 
+			if(0==strncmp(accept_tags[i].tag_val, tag_val, strlen(tag_val))&&
+				(strlen(accept_tags[i].tag_val)==strlen(tag_val)||accept_tags[i].tag_val[strlen(tag_val)]=='/'))
+			{
+				return 1;
+			}
+		}
+	}
+	//no matched name is considered as a 
+	if(name_matched>0)
+	{
+		return 0;
+	}
+	else
+	{
+		return 1;
+	}
+error_out:
+		return -1;
+
+}
+//@param tag_set likes [{"tag":"location","value":["北京/朝阳/华严北里","上海/浦东/陆家嘴"]},{"tag":"isp","value":["电信","移动"]}]
+static int compare_each_tag_set(cJSON* tag_set, const struct rule_tag* accept_tags, int n_accept)
+{
+	cJSON *tag_obj=NULL;
+	int  n_tag=0, ret=0, matched=0;	
+	n_tag=cJSON_GetArraySize(tag_set);
+	for(int i=0; i<n_tag; i++)
+	{
+		tag_obj=cJSON_GetArrayItem(tag_set, i);
+		if(!tag_obj||tag_obj->type!=cJSON_Object)
+		{
+			goto error_out;
+		}
+		ret=compare_each_tag(tag_obj,  accept_tags, n_accept);
+		if(ret<0)
+		{
+			return -1;
+		}
+		if(ret==1)
+		{
+			matched++;
+		}
+	}
+	if(matched==n_tag)
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+error_out:
+	return -1;
+}
+//@param value {"tag_sets":[[{"tag":"location","value":["北京/朝阳/华严北里","上海/浦东/陆家嘴"]},{"tag":"isp","value":["电信","移动"]}],[{"tag":"location","value":["北京"]},{"tag":"isp","value":["联通"]}]]}
+//@return 1 on match, 0 on not match, -1 on error.
+static int compare_accept_tag(const char* value,const struct rule_tag* accept_tags, int n_tags)
+{
+	cJSON *json=NULL;
+	cJSON *tag_set_array=NULL, *tag_set=NULL;
+	int ret=-1, n_set=0;
+	json=cJSON_Parse(value);
+	if(!json)
+	{
+		goto error_out;
+	}
+	tag_set_array=cJSON_GetObjectItem(json, "tag_sets");
+	if(!tag_set_array||tag_set_array->type!=cJSON_Array)
+	{
+		goto error_out;
+	}
+	n_set=cJSON_GetArraySize(tag_set_array);
+	for(int i=0; i<n_set; i++)
+	{
+		tag_set=cJSON_GetArrayItem(tag_set_array,i);
+		if(!tag_set||tag_set->type!=cJSON_Array)
+		{
+			goto error_out;
+		}
+		ret=compare_each_tag_set(tag_set, accept_tags, n_tags);
+		if(ret!=0)//match or error occurs.
+		{
+			break;
+		}
+	}
+error_out:
+	cJSON_Delete(json);
+	return ret;
+}
 int lqueue_destroy_cb(void *data, long data_len, void *arg)
 {
 	assert(0);
@@ -544,12 +704,12 @@ int read_expr_table_info(const char* line,int line_num,struct _Maat_table_info_t
 											,&(p->cross_cache_size)
 											,quick_str_scan);
 	memset(ret,0,sizeof(ret));
-	ret[0]=map_str2int(string2int_map,strlwr(table_type),(int*)&(p->table_type));
-	ret[1]=map_str2int(string2int_map,strlwr(src_charset),(int*)&(p->src_charset));
-	ret[2]=map_str2int(string2int_map,strlwr(merge),&(p->do_charset_merge));
+	ret[0]=map_str2int(string2int_map,str_tolower(table_type),(int*)&(p->table_type));
+	ret[1]=map_str2int(string2int_map,str_tolower(src_charset),(int*)&(p->src_charset));
+	ret[2]=map_str2int(string2int_map,str_tolower(merge),&(p->do_charset_merge));
 	if(strlen(quick_str_scan)>0)
 	{
-		ret[3]=map_str2int(string2int_map,strlwr(quick_str_scan),&(p->quick_expr_switch));
+		ret[3]=map_str2int(string2int_map,str_tolower(quick_str_scan),&(p->quick_expr_switch));
 	}
 	memset(quick_str_scan,0,sizeof(quick_str_scan));
 
@@ -566,7 +726,7 @@ int read_expr_table_info(const char* line,int line_num,struct _Maat_table_info_t
 		sub_token= strtok_r(token,"/", &saveptr);
 		if (sub_token == NULL)
 			break;
-		ret[3]=map_str2int(string2int_map,strlwr(sub_token),(int*)&(p->dst_charset[j]));
+		ret[3]=map_str2int(string2int_map,str_tolower(sub_token),(int*)&(p->dst_charset[j]));
 		if(ret[3]>0)
 		{
 			if(p->dst_charset[j]==p->src_charset)
@@ -588,7 +748,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 	FILE*fp=NULL;
 	char line[MAX_TABLE_LINE_SIZE];
 	int i=0,ret=0,table_cnt=0;
-	char table_type_str[16],not_care[1024], user_region_encoding[32];
+	char table_type_str[16],not_care[1024], tmp_str[32];
 	MESA_htable_handle string2int_map=map_create();
 	struct _Maat_table_info_t*p=NULL;
 	struct _Maat_table_info_t*conj_table=NULL;
@@ -640,7 +800,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 		}
 		p=create_table_info(max_thread_num);
 
-		ret=sscanf(line,"%hu\t%s\t%s\t%s",&(p->table_id)
+		ret=sscanf(line,"%hu\t%s\t%s\t%[a-z0-9\t ]",&(p->table_id)
 											,p->table_name[0]
 											,table_type_str
 											,not_care);
@@ -650,7 +810,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 									"Maat read table info %s line %d error: not enough column.",table_info_path,i);
 			continue;
 		}
-		ret=map_str2int(string2int_map,strlwr(table_type_str),(int*)&(p->table_type));
+		ret=map_str2int(string2int_map,str_tolower(table_type_str),(int*)&(p->table_type));
 		if(ret<0)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
@@ -673,17 +833,17 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 			case TABLE_TYPE_PLUGIN:
 				p->cb_info=(struct _plugin_table_info*)calloc(sizeof(struct _plugin_table_info),1);
 				p->cb_info->cache_lines=dynamic_array_create(1024,1024);
-				ret=sscanf(not_care,"%d",&(p->valid_flag_column));
+				ret=sscanf(not_care,"%d\t%d\t%[0-9,]",&(p->valid_flag_column), &p->rule_tag_column, tmp_str);
 				if(ret==0||ret==EOF)
 				{
 					p->valid_flag_column=-1;
 				}
 				break;
 			case TABLE_TYPE_COMPILE:	
-				ret=sscanf(not_care,"%[a-z0-9]",user_region_encoding);
+				ret=sscanf(not_care,"%[a-z0-9]",tmp_str);
 				if(ret>0)
 				{	
-					ret=map_str2int(string2int_map,strlwr(user_region_encoding),(int*)&(p->user_region_encoding));
+					ret=map_str2int(string2int_map,str_tolower(tmp_str),(int*)&(p->user_region_encoding));
 				}
 				if(ret!=1)
 				{
@@ -2657,19 +2817,20 @@ error_out:
 	intval_rule=NULL;		
 }
 
-void update_compile_rule(struct _Maat_table_info_t* table,const char* table_line,struct _Maat_scanner_t *scanner,void* logger)
+void update_compile_rule(struct _Maat_table_info_t* table,const char* table_line,struct _Maat_scanner_t *scanner, const struct rule_tag* tags, int n_tags,void* logger)
 {
 	struct db_compile_rule_t *p_compile=(struct db_compile_rule_t*)calloc(sizeof(struct db_compile_rule_t ),1);
 	struct _head_Maat_rule_t* p_m_rule=&(p_compile->m_rule_head);
 	char user_region[MAX_TABLE_LINE_SIZE]={0};
+	char tag_str[MAX_TABLE_LINE_SIZE]={0};
 	int ret=0;
 	p_compile->declare_grp_num=0;
-	ret=sscanf(table_line,"%d\t%d\t%hhd\t%hhd\t%hhd\t%lld\t%s\t%d\t%d",&(p_m_rule->config_id)
+	ret=sscanf(table_line,"%d\t%d\t%hhd\t%hhd\t%hhd\t%s\t%s\t%d\t%d",&(p_m_rule->config_id)
 													,&(p_m_rule->service_id)
 													,&(p_m_rule->action)
 													,&(p_m_rule->do_blacklist)
 													,&(p_m_rule->do_log)
-													,&(p_compile->effective_range)
+													,tag_str
 													,user_region
 													,&(p_compile->is_valid)
 													,&(p_compile->declare_grp_num));
@@ -2677,11 +2838,26 @@ void update_compile_rule(struct _Maat_table_info_t* table,const char* table_line
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
 							"update error,invalid format of compile table %s:%s"
-							,table->table_name[table->updating_name],table_line);
-		free(p_compile);
-		p_compile=NULL;
+							,table->table_name[table->updating_name],table_line);	
 		table->udpate_err_cnt++;
-		return;
+		goto no_save;
+	}
+	if(n_tags>0&&strlen(tag_str)>2)
+	{
+		ret=compare_accept_tag(tag_str, tags, n_tags);
+		if(ret<0)
+		{
+			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+						"update error,invalid tag format of compile table %s:%s"
+						,table->table_name[table->updating_name],table_line);
+			table->udpate_err_cnt++;
+			goto no_save;
+		}
+		if(ret==0)
+		{
+			table->unmatch_tag_cnt++;
+			goto no_save;
+		}
 	}
 	switch(table->user_region_encoding)
 	{
@@ -2702,10 +2878,7 @@ void update_compile_rule(struct _Maat_table_info_t* table,const char* table_line
 		{
 			table->cfg_num--;
 		}
-		free(p_compile->service_defined);
-		p_compile->service_defined=NULL;
-		free(p_compile);
-		p_compile=NULL;
+		goto no_save;
 	}
 	else
 	{
@@ -2714,13 +2887,9 @@ void update_compile_rule(struct _Maat_table_info_t* table,const char* table_line
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
 							"duplicate config of compile table %s config_id=%d"
-							,table->table_name[table->updating_name],p_m_rule->config_id);
-			free(p_compile->service_defined);
-			p_compile->service_defined=NULL;
-			free(p_compile);
-			p_compile=NULL;
+							,table->table_name[table->updating_name],p_m_rule->config_id);			
 			table->udpate_err_cnt++;
-
+			goto no_save;
 		}
 		else
 		{
@@ -2728,7 +2897,13 @@ void update_compile_rule(struct _Maat_table_info_t* table,const char* table_line
 			table->cfg_num++;
 		}
 	}
+	return;
 	
+no_save:
+	free(p_compile->service_defined);
+	p_compile->service_defined=NULL;
+	free(p_compile);
+	p_compile=NULL;
 	return;	
 }
 
@@ -2901,13 +3076,49 @@ void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
 							q_cnt,bury_cnt);
 	}
 }
-void plugin_table_callback(struct _Maat_table_info_t* table,const char* table_line,void* logger)
+void update_plugin_table(struct _Maat_table_info_t* table,const char* table_line, const struct rule_tag* tags, int n_tags, void* logger)
 {
-	int i=0;
+	int i=0, ret=1;
 	unsigned int len=strlen(table_line)+1;
 	struct _plugin_table_info* p_table_cb=table->cb_info;
 	char *p=NULL;
+	char* copy=NULL;
+	
+	char *token=NULL,*sub_token=NULL,*saveptr;
+	if(table->rule_tag_column>0&&n_tags>0)
+	{
+		copy=_maat_strdup(table_line);
+		for (token = copy, i=0; i<table->rule_tag_column ; token= NULL, i++)
+		{
+			sub_token= strtok_r(token,"\t", &saveptr);
+			if (sub_token == NULL)
+				break;
+		}
+		if(i==table->rule_tag_column&&strlen(sub_token)>2)
+		{
+			ret=compare_accept_tag(sub_token, tags, n_tags);
+			if(ret<0)
+			{
+				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+							"update error,invalid tag format of plugin table %s:%s"
+							,table->table_name[table->updating_name],table_line);
+				table->udpate_err_cnt++;
+			}
+			if(ret==0)
+			{
+				table->unmatch_tag_cnt++;
+			}
+		}
+		free(copy);
+		copy=NULL;
+		if(ret!=1)
+		{
+			return;
+		}
+	}
+
 	p_table_cb->acc_line_num++;
+
 	if(p_table_cb->cb_plug_cnt>0)
 	{
 		for(i=0;i<p_table_cb->cb_plug_cnt;i++)
@@ -3202,13 +3413,13 @@ int maat_update_cb(const char* table_name,const char* line,void *u_para)
 			update_digest_rule(feather->p_table_info[table_id], line, scanner,feather->logger,feather->GROUP_MODE_ON);
 			break;
 		case	TABLE_TYPE_COMPILE:
-			update_compile_rule(feather->p_table_info[table_id], line, scanner,feather->logger);
+			update_compile_rule(feather->p_table_info[table_id], line, scanner, feather->accept_tags, feather->n_tags, feather->logger);
 			break;
 		case	TABLE_TYPE_GROUP:
 			update_group_rule(feather->p_table_info[table_id], line, scanner,feather->logger);
 			break;
 		case	TABLE_TYPE_PLUGIN:
-			plugin_table_callback(feather->p_table_info[table_id], line,feather->logger);
+			update_plugin_table(feather->p_table_info[table_id], line, feather->accept_tags, feather->n_tags, feather->logger);
 		default:
 			break;
 	

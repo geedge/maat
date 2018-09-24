@@ -715,10 +715,11 @@ int write_compile_rule(cJSON *compile,struct iris_description_t *p_iris,void * l
 	compile_cmd[cmd_cnt].json_type=cJSON_Number;
 	cmd_cnt++;
 
-	compile_cmd[cmd_cnt].json_string="effective_range";
-	compile_cmd[cmd_cnt].json_type=cJSON_Number;
+
+	compile_cmd[cmd_cnt].json_string="tags";
+	compile_cmd[cmd_cnt].json_type=cJSON_String;
 	compile_cmd[cmd_cnt].empty_allowed=1;
-	compile_cmd[cmd_cnt].default_int=0;
+	compile_cmd[cmd_cnt].default_string="0";
 	cmd_cnt++;
 	
 	compile_cmd[cmd_cnt].json_string="user_region";

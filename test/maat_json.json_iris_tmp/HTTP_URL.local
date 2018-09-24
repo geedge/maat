@@ -1,4 +1,0 @@
-0000000003
-2	1	abckkk&123	1	0	0	1	
-4	3	action=search\&query=(.*)	2	0	0	1	
-5	4	should_not_hit_any_rule	0	0	0	1	

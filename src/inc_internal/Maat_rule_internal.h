@@ -261,9 +261,11 @@ struct _Maat_table_info_t
 	};
 	struct _plugin_table_info *cb_info;
 	int valid_flag_column;		//for plugin table
+	int rule_tag_column;		//for plugin table;
 	int user_region_encoding;	//for compile table, USER_REGION_ENCODE_xx
 //for stat>>>>>>>>
 	unsigned long long udpate_err_cnt;
+	unsigned long long unmatch_tag_cnt;
 	unsigned long long iconv_err_cnt;
 	int stat_line_id;
 	mcore_long_t	scan_cnt;
@@ -329,6 +331,11 @@ struct GIE_aux_t
 	GIE_handle_t*	gie_handle;
 	MESA_lqueue_head update_q;
 };
+struct rule_tag
+{
+	char* tag_name;
+	char* tag_val;
+};
 struct _Maat_scanner_t
 {
 	long long version;
@@ -349,7 +356,7 @@ struct _Maat_scanner_t
 	MESA_lqueue_head region_update_q;
 	void * expr_compiler;
 	scan_result_t *region_rslt_buff;
-	MESA_lqueue_head tomb_ref;//reference of feather->garbage_q
+	MESA_lqueue_head tomb_ref;//reference of g_feather->garbage_q
 	struct _region_stat_t region_counter[MAX_TABLE_NUM];
 	int max_thread_num;
 	iconv_t iconv_handle[MAX_CHARSET_NUM][MAX_CHARSET_NUM];//iconv_handle[to][from]
@@ -399,6 +406,9 @@ struct _Maat_feather_t
 	pthread_mutex_t redis_write_lock; //protect redis_write_ctx
 	long long base_rgn_seq,base_grp_seq,server_time;
 	long long load_version_from;
+
+	struct rule_tag *accept_tags;
+	int n_tags;
 //internal states
 	long long new_version;
 	int active_plugin_table_num;
@@ -451,6 +461,7 @@ struct serial_rule_t		//rm= Redis Maat
 	char table_name[256];
 	char* table_line;
 };
+int parse_accept_tag(const char* value, struct rule_tag** result, void* logger);
 void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbage_q);
 void garbage_bury(MESA_lqueue_head garbage_q,void *logger);
 void make_group_set(const struct _Maat_compile_inner_t* compile_rule,universal_bool_expr_t* a_set);

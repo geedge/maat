@@ -5,7 +5,7 @@
 #include <string.h>
 #include <assert.h>
 #include <math.h>
-#include <sfh_internal.h>
+#include "sfh_internal.h"
 #include "stream_fuzzy_hash.h"
 #include "interval_index.h"
 //#define	DEBUG_PRINT
