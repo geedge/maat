@@ -1,6 +1,6 @@
 #include "MESA_handle_logger.h"
 #include "config_monitor.h"
-#include "Maat_rule_internal.h"
+#include "Maat_utils.h"
 #include <dirent.h> 
 #include <stdlib.h>
 #include <stdio.h>
@@ -18,13 +18,7 @@
 #define	MAX_CONFIG_FN_LEN	256
 #define	MAX_CONFIG_LINE		(1024*16)
 
-#ifndef MAX
-#define MAX(a, b)  	(((a) > (b)) ? (a) : (b))
-#endif
 
-#ifndef MIN
-#define MIN(a, b)  	(((a) < (b)) ? (a) : (b))
-#endif
 //#define	USING_DICTATOR	1
 extern "C" void __real_free(void*p);
 struct cm_table_info_t
