@@ -356,7 +356,7 @@ struct _Maat_scanner_t
 	MESA_lqueue_head region_update_q;
 	void * expr_compiler;
 	scan_result_t *region_rslt_buff;
-	MESA_lqueue_head tomb_ref;//reference of feather->garbage_q
+	MESA_lqueue_head tomb_ref;//reference of g_feather->garbage_q
 	struct _region_stat_t region_counter[MAX_TABLE_NUM];
 	int max_thread_num;
 	iconv_t iconv_handle[MAX_CHARSET_NUM][MAX_CHARSET_NUM];//iconv_handle[to][from]

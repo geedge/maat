@@ -1062,7 +1062,7 @@ void maat_test_print_usage(void)
 	printf("\t\t-r Read config redis %s:%u db0.\n",test_maat_redis_ip,test_maat_redis_port);
 	printf("\tOption:\n");
 	printf("\t\t-d Deferred Loading config.\n");
-	printf("example: ./maat_test -j -d\n");
+	printf("example: ./maat_demo -j -d\n");
 	
 	return;
 }
