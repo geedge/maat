@@ -32,7 +32,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_2_20180921=1;
+int MAAT_FRAME_VERSION_2_2_20180925=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -613,7 +613,7 @@ int read_plugin_table_info(const char* line, struct _Maat_table_info_t* p)
 	copy_line=_maat_strdup(line);
 	for (token = copy_line, i=0; ; token= NULL, i++)
 	{
-		sub_token= strtok_r(token,"\t", &saveptr);
+		sub_token= strtok_r(token,"\t ", &saveptr);
 		if (sub_token == NULL)
 			break;
 		if(i==3)
@@ -621,7 +621,7 @@ int read_plugin_table_info(const char* line, struct _Maat_table_info_t* p)
 			break;
 		}
 	}
-	if(i<2)
+	if(i<3)
 	{
 		goto error_out;
 	}
@@ -655,7 +655,7 @@ int read_plugin_table_info(const char* line, struct _Maat_table_info_t* p)
 	tmp=cJSON_GetObjectItem(json, "foreign");
 	if(tmp!=NULL)
 	{
-		_read_integer_arrary(tmp->string, p->foreign_columns, MAX_FOREIGN_CLMN_NUM);
+		p->n_foreign=_read_integer_arrary(tmp->valuestring, p->foreign_columns, MAX_FOREIGN_CLMN_NUM);
 	}
 	cJSON_Delete(json);
 
@@ -3038,7 +3038,7 @@ void update_plugin_table(struct _Maat_table_info_t* table,const char* table_line
 		copy=_maat_strdup(table_line);
 		for (token = copy, i=0; i<table->rule_tag_column ; token= NULL, i++)
 		{
-			sub_token= strtok_r(token,"\t", &saveptr);
+			sub_token= strtok_r(token," \t", &saveptr);
 			if (sub_token == NULL)
 				break;
 		}

@@ -13,4 +13,4 @@ file(COPY testdata DESTINATION ./)
 file(COPY testdata_uni2ascii DESTINATION ./)
 
 include(GoogleTest)
-#gtest_discover_tests(test_maatframe)
+gtest_discover_tests(test_maatframe)

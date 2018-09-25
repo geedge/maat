@@ -23,6 +23,8 @@ const char* rm_expire_lock="EXPIRE_OP_LOCK";
 const long	rm_expire_lock_timeout=300*1000;
 const static int MAAT_REDIS_SYNC_TIME=30*60;
 const char* rm_op_str[]={"DEL","ADD","RENEW_TIMEOUT"};
+const char* foreign_source_prefix="redis://";
+const char* foreign_key_prefix="__FILE_";
 
 
 struct _Maat_cmd_inner_t
@@ -1386,17 +1388,18 @@ const char* find_Nth_column(const char* line, int Nth, int* column_len)
 	int start=0, end=0;
 	for(i=0;i<(int)strlen(line);i++)
 	{
-		if(line[i]==' '||line[i]=='\t')
+		if(line[i]!=' '&&line[i]!='\t')
 		{
-			j++;
+			continue;
 		}
+		j++;
 		if(j==Nth-1)
 		{
 			start=i+1;
 		}
 		if(j==Nth)
 		{
-			end=i+1;
+			end=i;
 			break;
 		}
 	}
@@ -1415,7 +1418,7 @@ char* get_foreign_cont_filename(const char* table_name, int rule_id, const char*
 {
 	char* filename=NULL;
 	char buffer[512];
-	snprintf(buffer, sizeof(buffer),"%s/%s/%d%s",dir, table_name, rule_id, foreign_key);
+	snprintf(buffer, sizeof(buffer),"%s/%s-%d-%s",dir, table_name, rule_id, foreign_key);
 	filename=(char*)calloc(sizeof(char), strlen(buffer)+1);
 	memcpy(filename, buffer, strlen(buffer));
 	return filename;
@@ -1442,13 +1445,12 @@ void rewrite_table_line_with_foreign(struct serial_rule_t*p)
 		origin_column=find_Nth_column(p->table_line, p->f_keys[i].column, &origin_column_size);
 		strncat(pos_rewrite_line, pos_origin_line, origin_column-pos_origin_line);
 		pos_rewrite_line+=origin_column-pos_origin_line;
-		pos_origin_line+=origin_column_size;
+		pos_origin_line=origin_column+origin_column_size;
 		
 		strncat(pos_rewrite_line, p->f_keys[i].filename, strlen(p->f_keys[i].filename));
 		pos_rewrite_line+=strlen(p->f_keys[i].filename);
 	}
 	strncat(pos_rewrite_line, pos_origin_line, strlen(p->table_line)-(pos_origin_line-p->table_line));
-	pos_rewrite_line+=strlen(p->f_keys[i].filename); 
 	
 	free(p->table_line);
 	p->table_line=rewrite_line;
@@ -1457,11 +1459,9 @@ void rewrite_table_line_with_foreign(struct serial_rule_t*p)
 int get_foreign_keys(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, _Maat_feather_t* feather, const char* dir,void *logger)
 {
 	int ret=0, table_id=0, i=0, j=0;
-	int foregin_key_size=0;
+	int foreign_key_size=0;
 	int rule_with_foreign_key=0;
-	const char* foreign_source_prefix="redis://";
-	const char* foreign_key_prefix="__FILE_";
-	const char* p_foregin=NULL;
+	const char* p_foreign=NULL;
 	struct _Maat_table_info_t* p_table=NULL;
 	struct stat file_info;
 	for(i=0; i<rule_num; i++)
@@ -1484,34 +1484,34 @@ int get_foreign_keys(redisContext *ctx, struct serial_rule_t* rule_list, int rul
 		rule_list[i].f_keys=(struct foreign_key*)calloc(sizeof(struct foreign_key), rule_list[i].n_foreign);
 		for(j=0;j<p_table->n_foreign;j++)
 		{
-			p_foregin=find_Nth_column(rule_list[i].table_line, p_table->foreign_columns[j], &foregin_key_size);
-			if(p_foregin==NULL)
+			p_foreign=find_Nth_column(rule_list[i].table_line, p_table->foreign_columns[j], &foreign_key_size);
+			if(p_foreign==NULL)
 			{
 				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
 										, "Get %s,%d foreign keys failed: No %dth column."
 										, rule_list[i].table_name, rule_list[i].rule_id, p_table->foreign_columns[j]);
 				continue;
 			}
-			if(0!=strncasecmp(p_foregin, foreign_source_prefix, strlen(foreign_source_prefix)))
+			if(0!=strncmp(p_foreign, foreign_source_prefix, strlen(foreign_source_prefix)))
 			{
 				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
 										,"Get %s,%d foreign key failed: Invalid source prefix %s."
-										, rule_list[i].table_name, rule_list[i].rule_id, p_foregin);
+										, rule_list[i].table_name, rule_list[i].rule_id, p_foreign);
 				continue;
 			}
 			rule_list[i].f_keys[j].column=p_table->foreign_columns[j];
-			foregin_key_size=foregin_key_size+1-strlen(foreign_source_prefix);
-			p_foregin+=strlen(foreign_source_prefix);
-			if(0!=strncasecmp(p_foregin, foreign_key_prefix, strlen(foreign_key_prefix)))
+			foreign_key_size=foreign_key_size-strlen(foreign_source_prefix);
+			p_foreign+=strlen(foreign_source_prefix);
+			if(0!=strncmp(p_foreign, foreign_key_prefix, strlen(foreign_key_prefix)))
 			{
 				MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor
 									,"%s,%d foreign key prefix %s is discouraged."
-									, rule_list[i].table_name, rule_list[i].rule_id, p_foregin);
+									, rule_list[i].table_name, rule_list[i].rule_id, p_foreign);
 			}
-			rule_list[i].f_keys[j].key=(char*)calloc(sizeof(char),foregin_key_size);
-			memcpy(rule_list[i].f_keys[j].key, p_foregin, foregin_key_size);
+			rule_list[i].f_keys[j].key=(char*)calloc(sizeof(char),foreign_key_size+1);
+			memcpy(rule_list[i].f_keys[j].key, p_foreign, foreign_key_size);
 
-			rule_list[i].f_keys[j].filename=get_foreign_cont_filename(rule_list[i].table_name, rule_list[i].rule_id, p_foregin, dir);
+			rule_list[i].f_keys[j].filename=get_foreign_cont_filename(rule_list[i].table_name, rule_list[i].rule_id, rule_list[i].f_keys[j].key, dir);
 			ret=stat(rule_list[i].f_keys[j].filename, &file_info);
 			if(ret==0)
 			{
@@ -1867,11 +1867,14 @@ int Maat_cmd_set_group(Maat_feather_t feather,int group_id, const struct Maat_re
 }
 int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_rule, int line_num ,enum MAAT_OPERATION op)
 {
-	int i=0;
+	int i=0, j=0;
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	int ret=0, table_id=0,success_cnt=0;
 	struct serial_rule_t *s_rule=NULL;
+	struct _Maat_table_info_t* p_table=NULL;
 	long long server_time=0,absolute_expire_time=0;
+	const char* p_foreign=NULL;	
+	int foreign_key_size=0;
 	if(_feather->redis_write_ctx==NULL)
 	{
 		ret=connect_redis_for_write(_feather);
@@ -1894,7 +1897,8 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 			ret=-1;
 			goto error_out;
 		}
-		if(TABLE_TYPE_PLUGIN!=_feather->p_table_info[table_id]->table_type)
+		p_table=_feather->p_table_info[table_id];
+		if(TABLE_TYPE_PLUGIN!=p_table->table_type)
 		{
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_command 
 					,"Command set line id %d failed: table %s is not a plugin table."
@@ -1906,14 +1910,14 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 		if(op==MAAT_OP_ADD)
 		{
 			ret=get_valid_flag_offset(line_rule[i]->table_line
-				, _feather->p_table_info[table_id]->table_type
-				, _feather->p_table_info[table_id]->valid_flag_column);
+				, p_table->table_type
+				, p_table->valid_flag_column);
 			if(ret<0||
 				(op==MAAT_OP_ADD&&line_rule[i]->table_line[ret]!='1'))
 			{
 				MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_command 
-						,"Command set line id %d failed: illegal valid flag."
-						, line_rule[i]->rule_id);
+						,"Command set line %s %d failed: illegal valid flag."
+						, line_rule[i]->table_name, line_rule[i]->rule_id);
 				ret=-1;
 				goto error_out;
 			}
@@ -1925,6 +1929,31 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 		if(line_rule[i]->expire_after>0)
 		{
 			absolute_expire_time=server_time+line_rule[i]->expire_after;
+		}
+		if(p_table->n_foreign>0)
+		{
+			for(j=0;j<p_table->n_foreign;j++)
+			{
+				p_foreign=find_Nth_column(line_rule[i]->table_line, p_table->foreign_columns[j], &foreign_key_size);
+				if(p_foreign==NULL)
+				{
+					MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL, maat_command
+											, "Command set line %s %d failed: No %dth column."
+											, line_rule[i]->table_name, line_rule[i]->rule_id
+											, p_table->foreign_columns[j]);
+					ret=-1;
+					goto error_out;
+				}
+				if(0!=strncmp(p_foreign, foreign_source_prefix, strlen(foreign_source_prefix)))
+				{
+					MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_redis_monitor
+											,"Command set line %s %d failed: Source prefix %s is mandatory."
+											, line_rule[i]->table_name, line_rule[i]->rule_id, foreign_source_prefix);
+					ret=-1;
+					goto error_out;
+				}
+			}
+
 		}
 		set_serial_rule(s_rule+i, op,line_rule[i]->rule_id,line_rule[i]->label_id,line_rule[i]->table_name,line_rule[i]->table_line, absolute_expire_time);
 	}
@@ -1947,6 +1976,49 @@ int Maat_cmd_set_line(Maat_feather_t feather,const struct Maat_line_t* line_rule
 	int ret=0;
 	ret=Maat_cmd_set_lines(feather,&line_rule, 1, op);
 	return ret;
+}
+int Maat_cmd_set_file(Maat_feather_t feather,const char* key, const char* value, size_t size, enum MAAT_OPERATION op)
+{
+	struct _Maat_feather_t* _feather=(struct _Maat_feather_t*)feather;
+	redisContext* ctx=_feather->redis_write_ctx;
+	const char *arg_vec[3];
+	size_t len_vec[3];
+	arg_vec[0] = "SET";
+	len_vec[0] = strlen("SET");
+
+	arg_vec[1] = key;
+	len_vec[1] = strlen(key);
+
+	arg_vec[2] = value;
+	len_vec[2] = size;
+
+	redisReply *reply=NULL;
+	if(0!=strncmp(key, foreign_key_prefix, strlen(foreign_key_prefix)))
+	{
+		MESA_handle_runtime_log(_feather->logger, RLOG_LV_FATAL, maat_command, "Invalid File key, prefix %s is mandatory.", foreign_key_prefix);
+		return -1;
+	}
+	switch(op)
+	{
+		case MAAT_OP_ADD:
+			reply= (redisReply *)redisCommandArgv(ctx, sizeof(arg_vec) / sizeof(arg_vec[0]), arg_vec, len_vec);
+			break;
+		case MAAT_OP_DEL:	
+			reply=_wrap_redisCommand(ctx,"EXPIRE %s %d", key, MAAT_REDIS_SYNC_TIME);
+			break;
+		default:
+			return -1;
+			break;
+	}
+	if(reply==NULL||reply->type==REDIS_REPLY_NIL||reply->type==REDIS_REPLY_ERROR)
+	{
+		MESA_handle_runtime_log(_feather->logger, RLOG_LV_FATAL, maat_command,"Set file failed, maybe Redis is busy.");
+		freeReplyObject(reply);
+		reply=NULL;
+		return -1;		
+	}
+	freeReplyObject(reply);
+	return 0;
 }
 void Maat_add_region2cmd(struct Maat_cmd_t* cmd,int which_group,const struct Maat_region_t* region)
 {

@@ -17,6 +17,7 @@
 #include <sys/stat.h>//fstat
 #include <unistd.h>
 #include <dirent.h>
+#include <openssl/md5.h>
 
 #include <gtest/gtest.h>
 const char* test_maat_redis_ip="127.0.0.1";
@@ -24,14 +25,14 @@ unsigned short test_maat_redis_port=6379;
 const char* json_path="./maat_json.json";
 const char* ful_cfg_dir="./rule/full/index/";
 const char* inc_cfg_dir="./rule/inc/index/";
-#define	WAIT_FOR_EFFECTIVE_US	1000*1000
+#define	WAIT_FOR_EFFECTIVE_US	1*1000*1000
 extern int my_scandir(const char *dir, struct dirent ***namelist,
               int(*filter)(const struct dirent *),
               int(*compar)(const void *, const void *));
 
 
 Maat_feather_t g_feather=NULL;
-void *logger=NULL;
+void *g_logger=NULL;
 int g_iThreadNum=4;
 const char* table_info_path="./table_info.conf";
 int scan_interval_ms=1;
@@ -103,7 +104,7 @@ TEST(PluginTable, Callback)
 								Maat_read_entry_cb, 
 								Maat_read_entry_finish_cb,
 								g_feather,
-								logger);
+								g_logger);
 
 }
 TEST(StringScan, Full)
@@ -527,7 +528,7 @@ TEST(RuleTags, Compile)
 						result,NULL, 4,
 						&mid, 0);
 	
-	EXPECT_LE(ret, 0);
+	EXPECT_EQ(ret, -2);
 	
 	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, should_hit, strlen(should_hit), 
 						result,NULL, 4,
@@ -660,8 +661,16 @@ protected:
 		Maat_set_feather_opt(_shared_feather, MAAT_OPT_SCANDIR_INTERVAL_MS,&scan_interval_ms, sizeof(scan_interval_ms));
 		//Set a short intevral for testing.
 		Maat_set_feather_opt(_shared_feather, MAAT_OPT_EFFECT_INVERVAL_MS,&effective_interval_ms, sizeof(effective_interval_ms));
-		Maat_initiate_feather(_shared_feather);
+		
+		const char* foregin_dir="./foreign_files/";	
+		Maat_set_feather_opt(_shared_feather, MAAT_OPT_FOREIGN_CONT_DIR,foregin_dir, strlen(foregin_dir)+1);
+
+		int linger_timeout=4;
+		Maat_set_feather_opt(_shared_feather, MAAT_OPT_FOREIGN_CONT_LINGER,&linger_timeout, sizeof(linger_timeout));
+
 		Maat_cmd_flushDB(_shared_feather);
+		Maat_initiate_feather(_shared_feather);
+
 	}
 	static void TearDownTestCase()
 	{
@@ -734,7 +743,7 @@ int del_command(Maat_feather_t feather,int config_id)
 	return 0;
 }
 
-TEST_F(MaatCmdTest, Expr)
+TEST_F(MaatCmdTest, SetExpr)
 {
 	const char* scan_data="Hiredis is a minimalistic C client library for the Redis database.\r\n";
 	const char* table_name="HTTP_URL";
@@ -764,8 +773,11 @@ TEST_F(MaatCmdTest, Expr)
 	
 	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_after, sizeof(version_after));
 	EXPECT_EQ(ret, 0);
+	EXPECT_GT(version_after, version_before);
+	
 	table_id=Maat_table_register(feather,table_name);
 	ASSERT_GT(table_id, 0);
+	memset(&result, 0, sizeof(result));
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
 						&result,NULL, 1,
 						&mid, 0);
@@ -777,7 +789,7 @@ TEST_F(MaatCmdTest, Expr)
 	EXPECT_EQ(output_id_cnt, 1);
 	EXPECT_EQ(output_ids[0], config_id);
 
-	
+	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect	
 	del_command(feather, config_id);
 	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
@@ -795,7 +807,7 @@ TEST_F(MaatCmdTest, Expr)
 						&mid, 0);
 	EXPECT_EQ(ret, 0);
 }
-TEST_F(MaatCmdTest, Lines)
+TEST_F(MaatCmdTest, SetLines)
 {
 	const int TEST_CMD_LINE_NUM=4;
 	const struct Maat_line_t *p_line[TEST_CMD_LINE_NUM];
@@ -830,7 +842,7 @@ TEST_F(MaatCmdTest, Lines)
 
 	return;
 }
-TEST_F(MaatCmdTest, IP)
+TEST_F(MaatCmdTest, SetIP)
 {
 	struct Maat_cmd_t* cmd=NULL;
 	struct Maat_rule_t rule;
@@ -961,6 +973,146 @@ TEST_F(MaatCmdTest, PauseUpdate)
 
 }
 
+void prepare_file_to_set(const char* filename, char** file_buff, size_t* file_size, char* file_key, size_t key_size)
+{
+	int ret=0, i=0;
+	FILE* fp=NULL;
+	struct stat file_info;
+	unsigned char md5[MD5_DIGEST_LENGTH];
+	char md5string[MD5_DIGEST_LENGTH+1];
+	memset(md5, 0, sizeof(md5));
+	memset(md5string, 0, sizeof(md5string));
+
+	ret=stat(filename, &file_info);
+	ASSERT_TRUE(ret==0);
+
+	fp=fopen(filename,"r");
+	ASSERT_FALSE(fp==NULL);
+
+	*file_size=file_info.st_size;
+	*file_buff=(char*)malloc(*file_size);
+	ret=fread(*file_buff,1,*file_size,fp);
+	fclose(fp);
+	
+	MD5((const unsigned char *)(*file_buff), (unsigned long)(*file_size), md5);
+	for(i = 0; i < MD5_DIGEST_LENGTH; ++i)
+	{
+		sprintf(&md5string[i*2], "%02x", (unsigned int)md5[i]);
+	}
+	snprintf(file_key, key_size, "__FILE_%s", md5string);
+	return;
+}
+char* md5_file(const char* filename, char* md5string)
+{
+	FILE* fp=NULL;
+	int i=0;
+	unsigned char md5[MD5_DIGEST_LENGTH];
+	struct stat file_info;	
+	stat(filename, &file_info);
+	size_t file_size=file_info.st_size;
+
+	fp=fopen(filename,"r");
+	if(fp==NULL)
+	{
+		return NULL;
+	}
+	char* file_buff=(char*)malloc(file_size);
+	fread(file_buff,1,file_size,fp);
+	fclose(fp);
+	
+	MD5((const unsigned char *)(file_buff), (unsigned long)(file_size), md5);
+	for(i = 0; i < MD5_DIGEST_LENGTH; ++i)
+	{
+		sprintf(&md5string[i*2], "%02x", (unsigned int)md5[i]);
+	}
+	free(file_buff);
+	return md5string;
+}
+int is_same_file(const char* filename1, const char* filename2)
+{
+	char md5string[2][MD5_DIGEST_LENGTH*2+1];
+	memset(md5string, 0, sizeof(md5string));
+	md5_file(filename1, md5string[0]);
+	md5_file(filename2, md5string[1]);
+	if(0==strcmp(md5string[0], md5string[1]))
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+int g_test_foregin_read_OK=0;
+void foreign_key_test_entry_cb(int table_id,const char* table_line,void* u_para)
+{
+	int rule_id=-1, not_care=0, tag=0;
+	int is_valid=0;
+	char file1_origin_name[256], file2_origin_name[256];
+	char file1_localname[256], file2_localname[256];
+	char end[16];
+
+	memset(file1_localname, 0, sizeof(file1_localname));
+	memset(file2_localname, 0, sizeof(file2_localname));
+	
+	sscanf(table_line, "%d\t%d\t%d\t%d\t%s\t%s\t\%s\t%s\t%s",&rule_id, &not_care, &tag, &is_valid
+												, file1_origin_name, file1_localname
+												, file2_origin_name, file2_localname
+												, end);
+	EXPECT_STREQ(end, "End");
+	EXPECT_TRUE(is_same_file(file1_origin_name, file1_localname));
+	EXPECT_TRUE(is_same_file(file2_origin_name, file2_localname));
+
+	g_test_foregin_read_OK=1;
+	return;
+}
+
+TEST_F(MaatCmdTest, SetFile)
+{
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+	int ret=0, table_id=0;
+	const char* table_name="TEST_FOREIGN_KEY";
+	table_id=Maat_table_register(feather, table_name);
+	ASSERT_GT(table_id, 0);
+	ret=Maat_table_callback_register(feather, table_id,
+							NULL,
+							foreign_key_test_entry_cb, 
+							NULL,
+							NULL);	
+	ASSERT_EQ(ret, 1);
+	const char* file1_name="./testdata/digest_test.data", *file2_name="./testdata/mesa_logo.jpg";	
+	char* file_buff=NULL, file1_key[256], file2_key[256];
+	size_t file_size=0;
+	
+	prepare_file_to_set(file1_name, &file_buff, &file_size, file1_key, sizeof(file1_key));
+	Maat_cmd_set_file(feather, file1_key, file_buff, file_size, MAAT_OP_ADD);
+	free(file_buff);
+	file_buff=NULL;
+	
+	prepare_file_to_set(file2_name, &file_buff, &file_size, file2_key, sizeof(file2_key));
+	Maat_cmd_set_file(feather, file2_key, file_buff, file_size, MAAT_OP_ADD);
+	free(file_buff);
+	file_buff=NULL;
+	g_test_foregin_read_OK=0;
+
+	char line[1024];
+	int tag=0;
+	struct Maat_line_t line_rule;
+	line_rule.label_id=0;
+	line_rule.rule_id=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", 1);
+	line_rule.table_name=table_name;
+	snprintf(line, sizeof(line),"%d\t2\t%d\t1\t%s\tredis://%s\t%s\tredis://%s\tEnd",line_rule.rule_id, tag
+																			,file1_name, file1_key
+																			,file2_name, file2_key);
+	line_rule.table_line=line;
+	line_rule.expire_after=0;
+	ret=Maat_cmd_set_line(feather, &line_rule, MAAT_OP_ADD);
+	EXPECT_EQ(ret, 1);
+	usleep(WAIT_FOR_EFFECTIVE_US);//wait for callback triggered.
+	EXPECT_EQ(g_test_foregin_read_OK, 1);
+	return;
+}
+
 int main(int argc, char ** argv)
 {
 
@@ -972,9 +1124,9 @@ int main(int argc, char ** argv)
 	int scan_detail=0;
 
 	::testing::InitGoogleTest(&argc, argv);
-	logger=MESA_create_runtime_log_handle(log_file,0);
+	g_logger=MESA_create_runtime_log_handle(log_file,0);
 
-	g_feather=Maat_feather(g_iThreadNum, table_info_path, logger);
+	g_feather=Maat_feather(g_iThreadNum, table_info_path, g_logger);
 	Maat_set_feather_opt(g_feather,MAAT_OPT_INSTANCE_NAME,"demo", strlen("demo")+1);
 	Maat_set_feather_opt(g_feather,MAAT_OPT_DECRYPT_KEY,decrypt_key, strlen(decrypt_key)+1);
 	Maat_set_feather_opt(g_feather, MAAT_OPT_JSON_FILE_PATH, json_path, strlen(json_path)+1);

@@ -677,10 +677,11 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			}
 			break;
 		case MAAT_OPT_FOREIGN_CONT_DIR:
+			memset(_feather->foreign_cont_dir, 0, sizeof(_feather->foreign_cont_dir));
 			strncpy(_feather->foreign_cont_dir, (char*)value, sizeof(_feather->foreign_cont_dir));
-			if(_feather->foreign_cont_dir[size-1]=='/')
+			if(_feather->foreign_cont_dir[strlen(_feather->foreign_cont_dir)-1]=='/')
 			{
-				_feather->foreign_cont_dir[size-1]='\0';
+				_feather->foreign_cont_dir[strlen(_feather->foreign_cont_dir)-1]='\0';
 			}
 			break;
 		case MAAT_OPT_FOREIGN_CONT_LINGER:
