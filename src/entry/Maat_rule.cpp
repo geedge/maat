@@ -19,6 +19,7 @@
 
 #include "Maat_rule.h"
 #include "Maat_rule_internal.h"
+#include "Maat_utils.h"
 #include "json2iris.h"
 #include "cJSON.h"
 #include "dynamic_array.h"
@@ -31,61 +32,11 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_2_20180921=1;
+int MAAT_FRAME_VERSION_2_2_20180925=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
-pid_t gettid()
-{
-	return syscall(SYS_gettid);
-}
-const char*	module_name_str(const char*name)
-{
-	static __thread char module[64];
-	snprintf(module,sizeof(module),"%s(%d)", name, gettid());
-	return module;
-}
 
-int converHextoint(char srctmp)
-{
-	if(isdigit(srctmp))
-	{
-		return srctmp-'0';
-	}
-	else
-	{
-		char temp=toupper(srctmp);
-		temp=temp-'A'+10;
-		return temp;
-	}
-}
-int  hex2bin(char *hex,int hex_len,char *binary,int size)
-{
-	int i=0;
-	int resultlen=0;
-	int high,low;
-	for(i=0;i<hex_len&&size>resultlen; i+=2,resultlen++)
-	{
-		high=converHextoint(hex[i]);
-		low=converHextoint(hex[i+1]);
-		binary[resultlen]=high*16+low;
-	}
-	size=resultlen;
-	binary[resultlen]='\0';
-	return resultlen;
-}
-//functioned as strdup, for dictator compatible.
-char* _maat_strdup(const char* s)
-{
-	char*d=NULL;
-	if(s==NULL)
-	{
-		return NULL;
-	}
-	d=(char*)malloc(strlen(s)+1);
-	memcpy(d,s,strlen(s)+1);
-	return d;
-}
 int is_valid_expr_type(enum MAAT_EXPR_TYPE expr_type)
 {
 	switch(expr_type)
@@ -320,113 +271,6 @@ error_out:
 	
 	return ret;
 }
-char* str_tolower(char* string)
-{
-	int i=0;
-	for(i=0;i<(int)strlen(string);i++)
-	{
-		string[i]=(char)tolower(string[i]);
-	}
-	return string;
-}
-char * strchr_esc(char* s,const char delim)
-{
-	char *token;
-	if(s==NULL)
-		return NULL;
-	for(token=s;*token!='\0';token++)
-	{
-		if(*token=='\\')
-		{
-			token++;
-			continue;
-		}
-		if(*token==delim)
-			break;
-	}
-	if (*token == '\0')
-	{ 
-		return NULL;
-	}
-	else
-	{
-		return token;
-	}
-}
-char *strtok_r_esc(char *s, const char delim, char **save_ptr) {  
-    char *token;  
-  
-    if (s == NULL) s = *save_ptr;  
-  
-    /* Scan leading delimiters.  */
-	token=strchr_esc(s,delim);
-	if(token==NULL)
-	{
-		*save_ptr=token;
-		return s;
-	}
-    /* Find the end of the token.  */  
-	*token='\0';
-	token++;
-	*save_ptr=token;
-
-    return s;  
-}   
-char *str_unescape_and(char*s)
-{
-	int i=0,j=0;
-	for(i=0,j=0;i<(int)strlen(s);i++)
-	{
-		if(s[i]=='\\'&&s[i+1]=='&')
-		{
-			s[j]='&';
-			i++;
-			j++;
-		}
-		else{
-			s[j]=s[i];
-			j++;
-		}
-	}
-	s[j]='\0';
-	return s;
-}
-char* str_unescape(char* s)
-{
-	int i=0,j=0;
-	int len=strlen(s);
-	for(i=0,j=0;i<len;i++)
-	{
-		if(s[i]=='\\')
-		{
-			switch(s[i+1])
-			{
-				case '&':
-					s[j]='&';
-					break;
-				case 'b':
-					s[j]=' ';//space,0x20;
-					break;
-				case '\\':
-					s[j]='\\';
-					break;
-				default:
-					s[j]=s[i];
-					i--;	//undo the followed i++
-					break;
-			}
-			i++;
-			j++;
-		}
-		else
-		{
-			s[j]=s[i];
-			j++;
-		}
-	}
-	s[j]='\0';
-	return s;
-}
 char* Maat_str_escape(char* dst,int size,const char*src)
 {
 	int i=0,j=0;
@@ -460,6 +304,7 @@ char* Maat_str_escape(char* dst,int size,const char*src)
 	dst[j]='\0';
 	return dst;
 }
+
 int cnt_maskbits(struct in6_addr mask)
 {
 	unsigned int i=0;
@@ -689,7 +534,7 @@ void destroy_table_info(struct _Maat_table_info_t*p)
 	free(p);
 	return;
 }
-int read_expr_table_info(const char* line,int line_num,struct _Maat_table_info_t* p,MESA_htable_handle string2int_map)
+int read_expr_table_info(const char* line, struct _Maat_table_info_t* p, MESA_htable_handle string2int_map)
 {
 	int j=0,ret[4]={0};
 	char table_type[16],src_charset[256],dst_charset[256],merge[4],quick_str_scan[32]={0};
@@ -742,6 +587,83 @@ int read_expr_table_info(const char* line,int line_num,struct _Maat_table_info_t
 		
 	}
 	return 0;
+}
+int _read_integer_arrary(char* string, int *array, int size)
+{
+	char *token=NULL,*sub_token=NULL,*saveptr;
+	int i=0;
+	for (token = string, i=0; i<size ; token= NULL, i++)
+	{
+		sub_token= strtok_r(token,",", &saveptr);
+		if (sub_token == NULL)
+			break;
+		sscanf(sub_token, "%d", array+i);
+	}
+	return i;
+}
+int read_plugin_table_info(const char* line, struct _Maat_table_info_t* p)
+{
+	int i=0,ret=0;
+	
+	cJSON* json=NULL, *tmp=NULL;
+	char* copy_line=NULL, *plug_info=NULL;
+	char *token=NULL,*sub_token=NULL,*saveptr;
+
+	p->valid_flag_column=-1;
+	copy_line=_maat_strdup(line);
+	for (token = copy_line, i=0; ; token= NULL, i++)
+	{
+		sub_token= strtok_r(token,"\t ", &saveptr);
+		if (sub_token == NULL)
+			break;
+		if(i==3)
+		{
+			break;
+		}
+	}
+	if(i<3)
+	{
+		goto error_out;
+	}
+	plug_info=sub_token;
+
+	if(strlen(plug_info)<4)//For old version compatible.
+	{
+		ret=sscanf(plug_info, "%d", &(p->valid_flag_column));
+		if(ret==0||ret==EOF)
+		{
+			p->valid_flag_column=-1;
+		}
+		free(copy_line);
+		return 0;
+	}
+	json=cJSON_Parse(plug_info);
+	if(!json)
+	{
+		goto error_out;
+	}
+	tmp=cJSON_GetObjectItem(json, "valid");
+	if(tmp!=NULL)
+	{
+		p->valid_flag_column=tmp->valueint;
+	}
+	tmp=cJSON_GetObjectItem(json, "tag");
+	if(tmp!=NULL)
+	{
+		p->rule_tag_column=tmp->valueint;
+	}
+	tmp=cJSON_GetObjectItem(json, "foreign");
+	if(tmp!=NULL)
+	{
+		p->n_foreign=_read_integer_arrary(tmp->valuestring, p->foreign_columns, MAX_FOREIGN_CLMN_NUM);
+	}
+	cJSON_Delete(json);
+
+	free(copy_line);
+	return 0;
+error_out:
+	free(copy_line);
+	return -1;
 }
 int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger)
 {
@@ -821,22 +743,25 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 		{
 			case TABLE_TYPE_EXPR:
 			case TABLE_TYPE_EXPR_PLUS:
-				ret=read_expr_table_info(line, i, p, string2int_map);
+				ret=read_expr_table_info(line, p, string2int_map);
 				if(ret<0)
 				{
-					fprintf(stderr,"Maat read table info %s line %d error:unknown column.\n",table_info_path,i);
+					fprintf(stderr,"Maat read table info %s line %d error:illegal column.\n",table_info_path,i);
 					MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
-									"Maat read table info %s line %d error:unknown column.",table_info_path,i);
+									"Maat read table info %s line %d error:illegal column.",table_info_path,i);
 					goto error_jump;
 				}
 				break;
 			case TABLE_TYPE_PLUGIN:
 				p->cb_info=(struct _plugin_table_info*)calloc(sizeof(struct _plugin_table_info),1);
 				p->cb_info->cache_lines=dynamic_array_create(1024,1024);
-				ret=sscanf(not_care,"%d\t%d\t%[0-9,]",&(p->valid_flag_column), &p->rule_tag_column, tmp_str);
-				if(ret==0||ret==EOF)
+				ret=read_plugin_table_info(line, p);
+				if(ret<0)
 				{
-					p->valid_flag_column=-1;
+					fprintf(stderr,"Maat read table info %s line %d error:illegal plugin info.\n",table_info_path,i);
+					MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
+									"Maat read table info %s line %d error:illegal plugin info.",table_info_path,i);
+					goto error_jump;
 				}
 				break;
 			case TABLE_TYPE_COMPILE:	
@@ -2997,7 +2922,7 @@ error_out:
 	free(digest_rule);
 	digest_rule=NULL;		
 }
-void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbage_q)
+void garbage_bagging_with_timeout(enum maat_garbage_type type,void *p, int timeout, MESA_lqueue_head garbage_q)
 {
 	if(p==NULL)
 	{
@@ -3008,7 +2933,13 @@ void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbag
 	bag->type=type;
 	bag->create_time=time(NULL);
 	bag->ok_times=0;
+	bag->expire_after=timeout;
 	MESA_lqueue_join_tail(garbage_q,&bag,sizeof(void*));
+	return;
+}
+void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbage_q)
+{
+	garbage_bagging_with_timeout(type, p, -1, garbage_q);
 	return;
 }
 void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
@@ -3017,16 +2948,25 @@ void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
 	_maat_garbage_t* bag=NULL;
 	long data_size=0;
 	const long q_cnt=MESA_lqueue_get_count(garbage_q);
-	int i=0,bury_cnt=0;
+	int i=0,bury_cnt=0, ret=0;
 	long long ref_cnt=0;
 	int have_timeout=0;
+	int override_timeout=0;
 	time_t now=time(NULL);
 	for(i=0;i<q_cnt;i++)
 	{
 		data_size=sizeof(void*);
 		q_ret=(MESA_queue_errno_t)MESA_lqueue_get_head(garbage_q,&bag,&data_size);
 		assert(data_size==sizeof(void*)&&q_ret==MESA_QUEUE_RET_OK);
-		if(now-bag->create_time<timeout)
+		if(bag->expire_after<0)
+		{
+			override_timeout=timeout;
+		}
+		else
+		{
+			override_timeout=bag->expire_after;
+		}
+		if(now-bag->create_time<override_timeout)
 		{
 			MESA_lqueue_join_tail(garbage_q,&bag,sizeof(void*));
 			continue;
@@ -3052,7 +2992,6 @@ void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
 					MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module,
 							"scanner %p version %d force destroyed,ref_cnt %lld.",
 							bag->scanner,bag->scanner->version,ref_cnt);
-					
 				}
 				destroy_maat_scanner(bag->scanner);
 				break;
@@ -3061,6 +3000,15 @@ void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
 				break;
 			case GARBAGE_MAP_STR2INT:
 				map_destroy(bag->str2int_map);
+				break;
+			case GARBAGE_FOREIGN_FILE:
+				ret=system_cmd_rm(bag->filename);
+				if(ret==-1)
+				{
+					MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module,
+							"Foreign content file %s remove failed.",
+							bag->filename);
+				}
 				break;
 			default:
 				assert(0);
@@ -3090,7 +3038,7 @@ void update_plugin_table(struct _Maat_table_info_t* table,const char* table_line
 		copy=_maat_strdup(table_line);
 		for (token = copy, i=0; i<table->rule_tag_column ; token= NULL, i++)
 		{
-			sub_token= strtok_r(token,"\t", &saveptr);
+			sub_token= strtok_r(token," \t", &saveptr);
 			if (sub_token == NULL)
 				break;
 		}

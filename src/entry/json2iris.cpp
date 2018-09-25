@@ -13,6 +13,8 @@
 #include "hiredis.h"
 #include "map_str2int.h"
 #include "Maat_rule_internal.h"
+#include "Maat_utils.h"
+
 #define maat_json (module_name_str("MAAT_JSON"))
 
 const char* untitled_group_name="Untitled";

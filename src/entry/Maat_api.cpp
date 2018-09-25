@@ -8,6 +8,7 @@
 #include "UniversalBoolMatch.h"
 #include "Maat_rule.h"
 #include "Maat_rule_internal.h"
+#include "Maat_utils.h"
 #include "dynamic_array.h"
 #include "aligment_int64.h"
 #include "config_monitor.h"
@@ -486,6 +487,8 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->connect_timeout.tv_sec=0;
 	feather->connect_timeout.tv_usec=100*1000; // 100 ms
 	feather->backgroud_update_enabled=1;
+	feather->foreign_cont_linger=0;
+	snprintf(feather->foreign_cont_dir, sizeof(feather->foreign_cont_dir), "%s_files", table_info_path);
 	pthread_mutex_init(&(feather->backgroud_update_mutex),NULL);
 	pthread_mutex_init(&(feather->redis_write_lock),NULL);
 	snprintf(feather->table_info_fn,sizeof(feather->table_info_fn),"%s",table_info_path);
@@ -673,6 +676,17 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 				return -1;
 			}
 			break;
+		case MAAT_OPT_FOREIGN_CONT_DIR:
+			memset(_feather->foreign_cont_dir, 0, sizeof(_feather->foreign_cont_dir));
+			strncpy(_feather->foreign_cont_dir, (char*)value, sizeof(_feather->foreign_cont_dir));
+			if(_feather->foreign_cont_dir[strlen(_feather->foreign_cont_dir)-1]=='/')
+			{
+				_feather->foreign_cont_dir[strlen(_feather->foreign_cont_dir)-1]='\0';
+			}
+			break;
+		case MAAT_OPT_FOREIGN_CONT_LINGER:
+			_feather->foreign_cont_linger=*(int*)value;
+			break;
 		default:
 			return -1;
 	}
@@ -763,6 +777,7 @@ void maat_read_full_config(_Maat_feather_t* _feather)
 int Maat_initiate_feather(Maat_feather_t feather)
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	system_cmd_mkdir(_feather->foreign_cont_dir);
 	if(_feather->DEFERRED_LOAD_ON==0)
 	{
 		maat_read_full_config(_feather);
@@ -904,7 +919,7 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 	//plugin table register blocks background update.
 	pthread_mutex_lock(&(_feather->backgroud_update_mutex));
 	idx=p_table->cb_info->cb_plug_cnt;
-	if(idx==MAX_PLUGING_NUM)
+	if(idx==MAX_PLUGIN_PER_TABLE)
 	{
 		pthread_mutex_unlock(&(_feather->backgroud_update_mutex));
 		return -1;

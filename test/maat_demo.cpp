@@ -22,7 +22,7 @@ unsigned short test_maat_redis_port=6379;
 const char* json_path="./maat_json.json";
 const char* ful_cfg_dir="./rule/full/index/";
 const char* inc_cfg_dir="./rule/inc/index/";
-#define	WAIT_FOR_EFFECTIVE_US	1000*1000
+#define	WAIT_FOR_EFFECTIVE_US	2*1000*1000
 extern int my_scandir(const char *dir, struct dirent ***namelist,
               int(*filter)(const struct dirent *),
               int(*compar)(const void *, const void *));

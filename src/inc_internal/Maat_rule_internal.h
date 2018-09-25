@@ -43,9 +43,9 @@ typedef int atomic_t;
 #define	MAX_TABLE_LINE_SIZE		(1024*16)
 #define	MAX_EXPR_KEYLEN			1024
 #define	MAX_DISTRICT_LEN			64
-#define	MAX_PLUGING_NUM			32
-
-#define	MAX_SCANNER_HIT_NUM		64
+#define	MAX_PLUGIN_PER_TABLE		32
+#define	MAX_FOREIGN_CLMN_NUM		8
+#define	MAX_SCANNER_HIT_NUM			64
 
 #define	MAX_GROUP_CACHE		128
 
@@ -210,7 +210,7 @@ struct _callback_plugin
 struct _plugin_table_info
 {
 	int cb_plug_cnt;
-	struct _callback_plugin  cb_plug[MAX_PLUGING_NUM];
+	struct _callback_plugin  cb_plug[MAX_PLUGIN_PER_TABLE];
 	dynamic_array_t *cache_lines;
 	int cache_line_num;
 	int acc_line_num;
@@ -262,6 +262,8 @@ struct _Maat_table_info_t
 	struct _plugin_table_info *cb_info;
 	int valid_flag_column;		//for plugin table
 	int rule_tag_column;		//for plugin table;
+	int foreign_columns[MAX_FOREIGN_CLMN_NUM];			//for plugin table;
+	int n_foreign;
 	int user_region_encoding;	//for compile table, USER_REGION_ENCODE_xx
 //for stat>>>>>>>>
 	unsigned long long udpate_err_cnt;
@@ -298,7 +300,8 @@ enum maat_garbage_type
 	GARBAGE_GROUP_RULE,
 	GARBAGE_COMPILE_RULE,
 	GARBAGE_BOOL_MATCHER,
-	GARBAGE_MAP_STR2INT
+	GARBAGE_MAP_STR2INT,
+	GARBAGE_FOREIGN_FILE
 };
 struct iconv_handle_t
 {
@@ -409,6 +412,8 @@ struct _Maat_feather_t
 
 	struct rule_tag *accept_tags;
 	int n_tags;
+	char foreign_cont_dir[MAX_TABLE_NAME_LEN];
+	int foreign_cont_linger;
 //internal states
 	long long new_version;
 	int active_plugin_table_num;
@@ -441,6 +446,7 @@ struct _maat_garbage_t
 {
 	enum maat_garbage_type type;
 	time_t create_time;
+	int expire_after;
 	int ok_times;
 	union
 	{
@@ -450,7 +456,15 @@ struct _maat_garbage_t
 		void* bool_matcher;
 		void * raw;
 		MESA_htable_handle str2int_map;
+		char* filename;
 	};
+};
+struct foreign_key
+{
+	int column;
+	int is_existed;
+	char* key;
+	char* filename;
 };
 struct serial_rule_t		//rm= Redis Maat
 {
@@ -460,9 +474,12 @@ struct serial_rule_t		//rm= Redis Maat
 	long long timeout;			// absolute unix time.
 	char table_name[256];
 	char* table_line;
+	int n_foreign;
+	struct foreign_key* f_keys;
 };
 int parse_accept_tag(const char* value, struct rule_tag** result, void* logger);
 void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbage_q);
+void garbage_bagging_with_timeout(enum maat_garbage_type type,void *p, int timeout, MESA_lqueue_head garbage_q);
 void garbage_bury(MESA_lqueue_head garbage_q,void *logger);
 void make_group_set(const struct _Maat_compile_inner_t* compile_rule,universal_bool_expr_t* a_set);
 int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger);
@@ -471,15 +488,7 @@ int maat_update_cb(const char* table_name,const char* line,void *u_para);
 void maat_finish_cb(void* u_para);
 void *thread_rule_monitor(void *arg);
 unsigned int make_sub_type(unsigned short table_id,enum MAAT_CHARSET charset,int do_charset_merge);
-inline void ipv6_ntoh(unsigned int *v6_addr)
-{
-	unsigned int i=0;
-	for(i=0;i<4;i++)
-	{
-		v6_addr[i]=ntohl(v6_addr[i]);
-	}
-	return;
-}
+
 void * HASH_fetch_by_id(MESA_htable_handle hash,int id);
 int HASH_add_by_id(MESA_htable_handle hash,int id,void*data);
 int HASH_delete_by_id(MESA_htable_handle hash,int id);
@@ -487,8 +496,7 @@ void maat_read_full_config(_Maat_feather_t* _feather);
 void maat_stat_init(struct _Maat_feather_t* feather);
 void maat_stat_table(struct _Maat_table_info_t* p_table,int scan_len,struct timespec* start, struct timespec* end,int thread_num);
 void maat_stat_output(struct _Maat_feather_t* feather);
-char* _maat_strdup(const char* s);
-char* str_unescape(char* s);
+
 redisReply *_wrap_redisCommand(redisContext *c, const char *format, ...);
 int get_rm_key_list(redisContext *c, long long instance_version, long long desired_version, long long* new_version, struct serial_rule_t** list,int *update_type, void* logger, int cumulative_off);
 int get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int rule_num,void* logger,int print_process);
@@ -505,8 +513,6 @@ void redis_monitor_traverse(long        long version,redisContext *c,
 		const unsigned char* dec_key,
 		_Maat_feather_t* feather);
 
-const char*	module_name_str(const char*name);
-#define maat_module	(module_name_str("MAAT_Frame"))
 
 
 #endif
