@@ -500,6 +500,11 @@ void maat_stat_output(struct _Maat_feather_t* feather);
 redisReply *_wrap_redisCommand(redisContext *c, const char *format, ...);
 int get_rm_key_list(redisContext *c, long long instance_version, long long desired_version, long long* new_version, struct serial_rule_t** list,int *update_type, void* logger, int cumulative_off);
 int get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int rule_num,void* logger,int print_process);
+int get_foreign_keys_by_prefix(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, const char* dir,void *logger);
+void get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, void *logger);
+void rewrite_table_line_with_foreign(struct serial_rule_t*p);
+
+
 void set_serial_rule(struct serial_rule_t* rule,enum MAAT_OPERATION op,int rule_id,int label_id,const char* table_name,const char* line, long long timeout);
 void empty_serial_rules(struct serial_rule_t* rule);
 int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,int serial_rule_num, long long server_time, void* logger);

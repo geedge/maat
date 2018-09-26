@@ -14,3 +14,15 @@ add_library(gtest STATIC IMPORTED GLOBAL)
 set_property(TARGET gtest PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/libgtest.a)
 set_property(TARGET gtest PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
 set_property(TARGET gtest PROPERTY INTERFACE_LINK_LIBRARIES pthread)
+
+#### hiredis-vip
+#ExternalProject_Add(hiredis-vip PREFIX hiredis-vip
+#        URL ${CMAKE_CURRENT_SOURCE_DIR}/hiredis-vip-0.3.0.tar.gz
+#        URL_MD5 e4d4a2928188b11f696d35ca1c52e9a4
+#        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})
+#
+#ExternalProject_Get_Property(hiredis-vip INSTALL_DIR)
+#file(MAKE_DIRECTORY ${INSTALL_DIR}/include)
+#
+#add_library(hiredisv STATIC IMPORTED GLOBAL)
+#set_property(TARGET gtest PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/libhiredis_vip.a)
