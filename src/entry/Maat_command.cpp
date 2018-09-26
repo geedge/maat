@@ -2054,7 +2054,7 @@ int Maat_cmd_set_file(Maat_feather_t feather,const char* key, const char* value,
 		return -1;		
 	}
 	freeReplyObject(reply);
-	return 0;
+	return 1;
 }
 void Maat_add_region2cmd(struct Maat_cmd_t* cmd,int which_group,const struct Maat_region_t* region)
 {

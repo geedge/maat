@@ -3009,6 +3009,8 @@ void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
 							"Foreign content file %s remove failed.",
 							bag->filename);
 				}
+				free(bag->filename);
+				bag->filename=NULL;
 				break;
 			default:
 				assert(0);
