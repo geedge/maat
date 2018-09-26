@@ -1563,7 +1563,7 @@ struct foreign_conts_track
 	int rule_idx;
 	int foreign_idx;
 };
-void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, void *logger)
+void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, int print_fn, void *logger)
 {
 	int i=0, j=0, ret=0;
 	int key_num=0;
@@ -1620,6 +1620,10 @@ void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int 
 				fwrite(reply->str, 1, reply->len, fp);
 				fclose(fp);
 				fp=NULL;
+				if(print_fn==1)
+				{
+					printf("Written foreign content %s\n",p->f_keys[track[i].foreign_idx].filename);
+				}
 			}
 		}
 		freeReplyObject(reply);
@@ -1627,14 +1631,14 @@ void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int 
 	free(track);
 	return;
 }
-void get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, void *logger)
+void get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, int print_fn, void *logger)
 {
 	int max_redis_batch=4*1024,batch_cnt=0;
 	int success_cnt=0;
 	while(success_cnt<rule_num)
 	{
 		batch_cnt=MIN(rule_num-success_cnt,max_redis_batch);
-		_get_foreign_conts(ctx,rule_list+success_cnt,batch_cnt,logger);
+		_get_foreign_conts(ctx,rule_list+success_cnt,batch_cnt,print_fn,logger);
 		success_cnt+=batch_cnt;	
 	}
 	return;
@@ -1702,7 +1706,7 @@ void redis_monitor_traverse(long        long version,redisContext *c,
 		ret=get_foreign_keys_define(c, rule_list, rule_num, feather, feather->foreign_cont_dir, logger);
 		if(ret>0)
 		{
-			get_foreign_conts(c, rule_list, rule_num, logger);
+			get_foreign_conts(c, rule_list, rule_num, 0, logger);
 		}
 	}
 	start(new_version,update_type,u_para);

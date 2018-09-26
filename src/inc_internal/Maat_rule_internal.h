@@ -501,7 +501,7 @@ redisReply *_wrap_redisCommand(redisContext *c, const char *format, ...);
 int get_rm_key_list(redisContext *c, long long instance_version, long long desired_version, long long* new_version, struct serial_rule_t** list,int *update_type, void* logger, int cumulative_off);
 int get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int rule_num,void* logger,int print_process);
 int get_foreign_keys_by_prefix(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, const char* dir,void *logger);
-void get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, void *logger);
+void get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, int print_fn, void *logger);
 void rewrite_table_line_with_foreign(struct serial_rule_t*p);
 
 

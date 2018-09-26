@@ -91,6 +91,10 @@ void read_rule_from_redis(redisContext * ctx, long long desire_version, const ch
 
 	assert(update_type==CM_UPDATE_TYPE_FULL);
 	printf("MAAT Version: %lld, key number: %d\n", version, rule_num);
+	if(rule_num==0)
+	{
+		goto clean_up;
+	}
 	printf("Reading value: ");
 	ret=get_maat_redis_value(ctx,rule_list,rule_num,logger,1);
 	if(ret<0)
@@ -117,8 +121,8 @@ void read_rule_from_redis(redisContext * ctx, long long desire_version, const ch
 	ret=get_foreign_keys_by_prefix(ctx, rule_list, rule_num, foreign_files_dir, logger);
 	if(ret>0)
 	{
-		printf("Getting %d foreign content.\n", ret);
-		get_foreign_conts(ctx, rule_list, rule_num, logger);
+		printf("%d lines has foreign content.\n", ret);
+		get_foreign_conts(ctx, rule_list, rule_num, 1, logger);
 	}
 	snprintf(index_path,sizeof(index_path),"%s/full_config_index.%020lld",output_path,version);
 	index_fp=fopen(index_path,"w");
@@ -143,6 +147,7 @@ void read_rule_from_redis(redisContext * ctx, long long desire_version, const ch
 				table_fp=NULL;
 				set_file_rulenum(table_path,line_count, logger);
 				line_count=0;
+				printf("Written table %s\n",table_path);
 			}
 			snprintf(table_path,sizeof(table_path),"%s/%s.%020lld",output_path,rule_list[i].table_name,version);
 			set_file_rulenum(table_path, 0, logger);
@@ -152,7 +157,7 @@ void read_rule_from_redis(redisContext * ctx, long long desire_version, const ch
 				printf("Open %s failed.\n",table_path);
 				goto clean_up;
 			}
-			printf("Writing %s\n",table_path);
+			
 			cur_table=rule_list[i].table_name;
 		}
 		fprintf(table_fp,"%s\tkey=%d\n",rule_list[i].table_line,rule_list[i].rule_id);
@@ -163,7 +168,7 @@ void read_rule_from_redis(redisContext * ctx, long long desire_version, const ch
 	fprintf(index_fp,"%s\t%d\t%s\n",cur_table,line_count,table_path);
 	set_file_rulenum(table_path,line_count, logger);
 	
-	printf("Writing complete: %s\n",index_path);
+	printf("Written complete: %s\n",index_path);
 clean_up:
 	for(i=0;i<rule_num;i++)
 	{

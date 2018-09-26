@@ -3009,6 +3009,13 @@ void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
 							"Foreign content file %s remove failed.",
 							bag->filename);
 				}
+				else
+				{
+
+					MESA_handle_runtime_log(logger,RLOG_LV_DEBUG,maat_module,
+							"Foreign content file %s remove success.",
+							bag->filename);				
+				}
 				free(bag->filename);
 				bag->filename=NULL;
 				break;
