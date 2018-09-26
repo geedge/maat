@@ -32,7 +32,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_2_20180925=1;
+int MAAT_FRAME_VERSION_2_2_20180926=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -3009,6 +3009,15 @@ void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
 							"Foreign content file %s remove failed.",
 							bag->filename);
 				}
+				else
+				{
+
+					MESA_handle_runtime_log(logger,RLOG_LV_DEBUG,maat_module,
+							"Foreign content file %s remove success.",
+							bag->filename);				
+				}
+				free(bag->filename);
+				bag->filename=NULL;
 				break;
 			default:
 				assert(0);

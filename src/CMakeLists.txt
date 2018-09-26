@@ -1,9 +1,9 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.5)
 project(maatframe)
 
 set(MAAT_FRAME_MAJOR_VERSION 2)
-set(MAAT_FRAME_MINOR_VERSION 2)
-set(MAAT_FRAME_PATCH_VERSION 20180923)
+set(MAAT_FRAME_MINOR_VERSION 3)
+set(MAAT_FRAME_PATCH_VERSION 20180926)
 set(MAAT_FRAME_VERSION ${MAAT_FRAME_MAJOR_VERSION}.${MAAT_FRAME_MINOR_VERSION}.${MAAT_FRAME_PATCH_VERSION})
 
 message(STATUS "Maat Frame, Version: ${MAAT_FRAME_VERSION}")
@@ -19,7 +19,8 @@ set_target_properties(maat_frame_static PROPERTIES LINKER_LANGUAGE CXX)
 set_target_properties(maat_frame_static PROPERTIES OUTPUT_NAME maatframe)
 set_target_properties(maat_frame_static PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 target_include_directories(maat_frame_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc_internal/)
-target_include_directories(maat_frame_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc_internal/hiredis)
+#target_include_directories(maat_frame_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc_internal/hiredis)
+target_link_libraries(maat_frame_static hiredis-vip-static)
 
 # Shared Library Output
 add_library(maat_frame_shared SHARED ${MAAT_SRC})
@@ -30,7 +31,7 @@ set_target_properties(maat_frame_shared PROPERTIES VERSION ${MAAT_FRAME_MAJOR_VE
 set_target_properties(maat_frame_shared PROPERTIES SOVERSION ${MAAT_FRAME_MAJOR_VERSION})
 target_include_directories(maat_frame_shared PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc_internal/)
 target_include_directories(maat_frame_shared PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc_internal/hiredis)
-target_link_libraries(maat_frame_shared MESA_handle_logger MESA_htable pcre rulescan pthread m pcre MESA_field_stat2 crypto hiredis_vip)
+target_link_libraries(maat_frame_shared hiredis-vip-static ${MAAT_DEPEND_DYN_LIB})
 
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/inc/ DESTINATION /opt/MESA/include/MESA/ FILES_MATCHING PATTERN "*.h")
 install(TARGETS maat_frame_shared DESTINATION /opt/MESA/lib/)

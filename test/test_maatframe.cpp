@@ -664,8 +664,7 @@ protected:
 		
 		const char* foregin_dir="./foreign_files/";	
 		Maat_set_feather_opt(_shared_feather, MAAT_OPT_FOREIGN_CONT_DIR,foregin_dir, strlen(foregin_dir)+1);
-
-		int linger_timeout=4;
+		linger_timeout=2;
 		Maat_set_feather_opt(_shared_feather, MAAT_OPT_FOREIGN_CONT_LINGER,&linger_timeout, sizeof(linger_timeout));
 
 		Maat_cmd_flushDB(_shared_feather);
@@ -678,10 +677,11 @@ protected:
 
 	}	
  	// Some expensive resource shared by all tests.
-	static Maat_feather_t _shared_feather;
+	static Maat_feather_t _shared_feather;	
+	static int linger_timeout;
 };
 Maat_feather_t MaatCmdTest::_shared_feather;
-
+int MaatCmdTest::linger_timeout;
 int test_add_expr_command(Maat_feather_t feather,const char* region_table,int config_id, int timeout,int label_id, const char* keywords)
 {
 	struct Maat_cmd_t* cmd=NULL;
@@ -1043,7 +1043,9 @@ int is_same_file(const char* filename1, const char* filename2)
 		return 0;
 	}
 }
-int g_test_foregin_read_OK=0;
+int g_test_foregin_read_OK=0, g_test_foreign_del_OK=0;
+char file1_to_del[256], file2_to_del[256];
+
 void foreign_key_test_entry_cb(int table_id,const char* table_line,void* u_para)
 {
 	int rule_id=-1, not_care=0, tag=0;
@@ -1060,10 +1062,19 @@ void foreign_key_test_entry_cb(int table_id,const char* table_line,void* u_para)
 												, file2_origin_name, file2_localname
 												, end);
 	EXPECT_STREQ(end, "End");
-	EXPECT_TRUE(is_same_file(file1_origin_name, file1_localname));
-	EXPECT_TRUE(is_same_file(file2_origin_name, file2_localname));
+	if(is_valid==1)
+	{
+		EXPECT_TRUE(is_same_file(file1_origin_name, file1_localname));
+		EXPECT_TRUE(is_same_file(file2_origin_name, file2_localname));
 
-	g_test_foregin_read_OK=1;
+		g_test_foregin_read_OK=1;
+	}
+	else
+	{
+		strcpy(file1_to_del, file1_localname);
+		strcpy(file2_to_del, file2_localname);
+		g_test_foreign_del_OK=1;
+	}
 	return;
 }
 
@@ -1085,12 +1096,14 @@ TEST_F(MaatCmdTest, SetFile)
 	size_t file_size=0;
 	
 	prepare_file_to_set(file1_name, &file_buff, &file_size, file1_key, sizeof(file1_key));
-	Maat_cmd_set_file(feather, file1_key, file_buff, file_size, MAAT_OP_ADD);
+	ret=Maat_cmd_set_file(feather, file1_key, file_buff, file_size, MAAT_OP_ADD);
+	EXPECT_EQ(ret, 1);
 	free(file_buff);
 	file_buff=NULL;
 	
 	prepare_file_to_set(file2_name, &file_buff, &file_size, file2_key, sizeof(file2_key));
-	Maat_cmd_set_file(feather, file2_key, file_buff, file_size, MAAT_OP_ADD);
+	ret=Maat_cmd_set_file(feather, file2_key, file_buff, file_size, MAAT_OP_ADD);
+	EXPECT_EQ(ret, 1);
 	free(file_buff);
 	file_buff=NULL;
 	g_test_foregin_read_OK=0;
@@ -1110,6 +1123,23 @@ TEST_F(MaatCmdTest, SetFile)
 	EXPECT_EQ(ret, 1);
 	usleep(WAIT_FOR_EFFECTIVE_US);//wait for callback triggered.
 	EXPECT_EQ(g_test_foregin_read_OK, 1);
+
+	g_test_foreign_del_OK=0;
+	ret=Maat_cmd_set_file(feather, file1_key, NULL, 0, MAAT_OP_DEL);
+	EXPECT_EQ(ret, 1);
+	ret=Maat_cmd_set_file(feather, file2_key, NULL, 0, MAAT_OP_DEL);
+	EXPECT_EQ(ret, 1);
+	
+	ret=Maat_cmd_set_line(feather, &line_rule, MAAT_OP_DEL);	
+	EXPECT_EQ(ret, 1);
+	sleep(MaatCmdTest::linger_timeout+1);
+	
+	struct stat file_info;	
+	ret=stat(file1_to_del, &file_info);
+	EXPECT_EQ(ret, -1);
+	ret=stat(file2_to_del, &file_info);
+	EXPECT_EQ(ret, -1);
+
 	return;
 }
 

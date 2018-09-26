@@ -1403,7 +1403,7 @@ const char* find_Nth_column(const char* line, int Nth, int* column_len)
 			break;
 		}
 	}
-	if(start==0)
+	if(start==end)
 	{
 		return NULL;
 	}
@@ -1456,14 +1456,57 @@ void rewrite_table_line_with_foreign(struct serial_rule_t*p)
 	p->table_line=rewrite_line;
 	return;
 }
-int get_foreign_keys(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, _Maat_feather_t* feather, const char* dir,void *logger)
+void _get_foregin_keys(struct serial_rule_t* p_rule, int* foreign_columns, int n_foreign, const char* dir, void* logger)
 {
-	int ret=0, table_id=0, i=0, j=0;
-	int foreign_key_size=0;
-	int rule_with_foreign_key=0;
+	int ret=0, i=0;
 	const char* p_foreign=NULL;
-	struct _Maat_table_info_t* p_table=NULL;
+	int foreign_key_size=0;
 	struct stat file_info;
+	p_rule->n_foreign=n_foreign;
+	p_rule->f_keys=(struct foreign_key*)calloc(sizeof(struct foreign_key),n_foreign);
+	for(i=0; i<n_foreign; i++)
+	{
+		p_foreign=find_Nth_column(p_rule->table_line, foreign_columns[i], &foreign_key_size);
+		if(p_foreign==NULL)
+		{
+			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
+									, "Get %s,%d foreign keys failed: No %dth column."
+									, p_rule->table_name, p_rule->rule_id, foreign_columns[i]);
+			continue;
+		}
+		if(0!=strncmp(p_foreign, foreign_source_prefix, strlen(foreign_source_prefix)))
+		{
+			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
+									,"Get %s,%d foreign key failed: Invalid source prefix %s."
+									, p_rule->table_name, p_rule->rule_id, foreign_columns[i]);
+			continue;
+		}
+		p_rule->f_keys[i].column=foreign_columns[i];
+		foreign_key_size=foreign_key_size-strlen(foreign_source_prefix);
+		p_foreign+=strlen(foreign_source_prefix);
+		if(0!=strncmp(p_foreign, foreign_key_prefix, strlen(foreign_key_prefix)))
+		{
+			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor
+								,"%s,%d foreign key prefix %s is discouraged."
+								,p_rule->table_name, p_rule->rule_id, foreign_columns[i]);
+		}
+		p_rule->f_keys[i].key=(char*)calloc(sizeof(char),foreign_key_size+1);
+		memcpy(p_rule->f_keys[i].key, p_foreign, foreign_key_size);
+	
+		p_rule->f_keys[i].filename=get_foreign_cont_filename(p_rule->table_name, p_rule->rule_id, p_rule->f_keys[i].key, dir);
+		ret=stat(p_rule->f_keys[i].filename, &file_info);
+		if(ret==0)
+		{
+			p_rule->f_keys[i].is_existed=1;
+		}
+	}
+	return;
+}
+int get_foreign_keys_define(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, _Maat_feather_t* feather, const char* dir,void *logger)
+{
+	int ret=0, table_id=0, i=0;
+	int rule_with_foreign_key=0;
+	struct _Maat_table_info_t* p_table=NULL;
 	for(i=0; i<rule_num; i++)
 	{
 		if(rule_list[i].table_line==NULL)
@@ -1480,54 +1523,47 @@ int get_foreign_keys(redisContext *ctx, struct serial_rule_t* rule_list, int rul
 		{
 			continue;
 		}
-		rule_list[i].n_foreign=p_table->n_foreign;
-		rule_list[i].f_keys=(struct foreign_key*)calloc(sizeof(struct foreign_key), rule_list[i].n_foreign);
-		for(j=0;j<p_table->n_foreign;j++)
-		{
-			p_foreign=find_Nth_column(rule_list[i].table_line, p_table->foreign_columns[j], &foreign_key_size);
-			if(p_foreign==NULL)
-			{
-				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
-										, "Get %s,%d foreign keys failed: No %dth column."
-										, rule_list[i].table_name, rule_list[i].rule_id, p_table->foreign_columns[j]);
-				continue;
-			}
-			if(0!=strncmp(p_foreign, foreign_source_prefix, strlen(foreign_source_prefix)))
-			{
-				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
-										,"Get %s,%d foreign key failed: Invalid source prefix %s."
-										, rule_list[i].table_name, rule_list[i].rule_id, p_foreign);
-				continue;
-			}
-			rule_list[i].f_keys[j].column=p_table->foreign_columns[j];
-			foreign_key_size=foreign_key_size-strlen(foreign_source_prefix);
-			p_foreign+=strlen(foreign_source_prefix);
-			if(0!=strncmp(p_foreign, foreign_key_prefix, strlen(foreign_key_prefix)))
-			{
-				MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor
-									,"%s,%d foreign key prefix %s is discouraged."
-									, rule_list[i].table_name, rule_list[i].rule_id, p_foreign);
-			}
-			rule_list[i].f_keys[j].key=(char*)calloc(sizeof(char),foreign_key_size+1);
-			memcpy(rule_list[i].f_keys[j].key, p_foreign, foreign_key_size);
-
-			rule_list[i].f_keys[j].filename=get_foreign_cont_filename(rule_list[i].table_name, rule_list[i].rule_id, rule_list[i].f_keys[j].key, dir);
-			ret=stat(rule_list[i].f_keys[j].filename, &file_info);
-			if(ret==0)
-			{
-				rule_list[i].f_keys[j].is_existed=1;
-			}
-		}
+		_get_foregin_keys(rule_list+i, p_table->foreign_columns, p_table->n_foreign, dir, logger);
 		rule_with_foreign_key++;
 	}
 	return rule_with_foreign_key;
 }
+int get_foreign_keys_by_prefix(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, const char* dir,void *logger)
+{
+	int i=0, j=0, foreign_key_size=0;
+	int rule_with_foreign_key=0;
+	const char* p_foreign=NULL;
+
+	int n_foreign=0;
+	int foreign_columns[MAX_FOREIGN_CLMN_NUM];
+	for(i=0; i<rule_num; i++)
+	{
+		j=1;
+		n_foreign=0;
+		do{
+			p_foreign=find_Nth_column(rule_list[i].table_line, j, &foreign_key_size);			
+			if(p_foreign!=NULL&&foreign_key_size>(int)strlen(foreign_source_prefix)&&0==strncmp(p_foreign,foreign_source_prefix, strlen(foreign_source_prefix)))
+			{
+				foreign_columns[n_foreign]=j;
+				n_foreign++;
+			}
+			j++;
+		}while(p_foreign!=NULL&&n_foreign<MAX_FOREIGN_CLMN_NUM);
+		if(n_foreign>0)
+		{
+			_get_foregin_keys(rule_list+i, foreign_columns, n_foreign,dir,logger);
+			rule_with_foreign_key++;
+		}
+	}
+	return rule_with_foreign_key;
+}
+
 struct foreign_conts_track
 {
 	int rule_idx;
 	int foreign_idx;
 };
-void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, void *logger)
+void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, int print_fn, void *logger)
 {
 	int i=0, j=0, ret=0;
 	int key_num=0;
@@ -1584,6 +1620,10 @@ void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int 
 				fwrite(reply->str, 1, reply->len, fp);
 				fclose(fp);
 				fp=NULL;
+				if(print_fn==1)
+				{
+					printf("Written foreign content %s\n",p->f_keys[track[i].foreign_idx].filename);
+				}
 			}
 		}
 		freeReplyObject(reply);
@@ -1591,14 +1631,14 @@ void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int 
 	free(track);
 	return;
 }
-void get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, void *logger)
+void get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, int print_fn, void *logger)
 {
 	int max_redis_batch=4*1024,batch_cnt=0;
 	int success_cnt=0;
 	while(success_cnt<rule_num)
 	{
 		batch_cnt=MIN(rule_num-success_cnt,max_redis_batch);
-		_get_foreign_conts(ctx,rule_list+success_cnt,batch_cnt,logger);
+		_get_foreign_conts(ctx,rule_list+success_cnt,batch_cnt,print_fn,logger);
 		success_cnt+=batch_cnt;	
 	}
 	return;
@@ -1663,10 +1703,10 @@ void redis_monitor_traverse(long        long version,redisContext *c,
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor,"%d of %d rules are empty.",empty_value_num,rule_num);
 		}
-		ret=get_foreign_keys(c, rule_list, rule_num, feather, feather->foreign_cont_dir, logger);
+		ret=get_foreign_keys_define(c, rule_list, rule_num, feather, feather->foreign_cont_dir, logger);
 		if(ret>0)
 		{
-			get_foreign_conts(c, rule_list, rule_num, logger);
+			get_foreign_conts(c, rule_list, rule_num, 0, logger);
 		}
 	}
 	start(new_version,update_type,u_para);
@@ -2018,7 +2058,7 @@ int Maat_cmd_set_file(Maat_feather_t feather,const char* key, const char* value,
 		return -1;		
 	}
 	freeReplyObject(reply);
-	return 0;
+	return 1;
 }
 void Maat_add_region2cmd(struct Maat_cmd_t* cmd,int which_group,const struct Maat_region_t* region)
 {

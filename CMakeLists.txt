@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 3.5)
 project (maatframe)
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -Wall)
+set(MAAT_DEPEND_DYN_LIB  MESA_handle_logger MESA_htable pcre rulescan pthread m pcre MESA_field_stat2 crypto)
 include_directories(${PROJECT_SOURCE_DIR}/inc/)
 include_directories(/opt/MESA/include/MESA/)
 
