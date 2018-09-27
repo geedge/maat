@@ -7,7 +7,8 @@
 enum MAAT_OPERATION
 {
 	MAAT_OP_DEL=0,
-	MAAT_OP_ADD
+	MAAT_OP_ADD,
+	MAAT_OP_RENEW_TIMEOUT	//Rule expire time is changed to now+cmd->expire_after
 };
  
 enum MAAT_REGION_TYPE
@@ -125,6 +126,7 @@ struct Maat_line_t
 	int expire_after;	//expired after $timeout$ seconds, set to 0 for never timeout.
 };
 struct Maat_cmd_t* Maat_create_cmd(const struct Maat_rule_t* rule, int group_num);
+int Maat_cmd_set_opt(struct Maat_cmd_t* cmd, enum MAAT_RULE_OPT type, const char* val, int size);
 //input: which_group 0~group_num
 //input: region can be freed after added.
 void Maat_add_region2cmd(struct Maat_cmd_t* cmd,int which_group,const struct Maat_region_t* region);
@@ -136,17 +138,26 @@ char* Maat_str_escape(char* dst,int size,const char*src);
 
 //Deletion failed due to not complete synchronize with Redis.
 //To make sure the delete command is excecuted, user should try again after MAAT_OPT_SCANDIR_INTERVAL_MS ms.
-// The following functions are NOT thread safe.
+//Returns nubmer of successfully updated rule.
+//The following functions are NOT thread safe.
 int Maat_cmd(Maat_feather_t feather,struct Maat_cmd_t* cmd,enum MAAT_OPERATION op);
 
 //pipeline model
 int Maat_cmd_append(Maat_feather_t feather,struct Maat_cmd_t* cmd,enum MAAT_OPERATION op);
+
+//Return nubmer of successfully updated rule.
+//Return -1 for failed.
 int Maat_cmd_commit(Maat_feather_t feather);
 
 
 int Maat_cmd_set_group(Maat_feather_t feather, int group_id, const struct Maat_region_t* region, enum MAAT_OPERATION op);
+
+//Returns nubmer of successfully updated rule.
+//Return -1 for failed.
 int Maat_cmd_set_line(Maat_feather_t feather,const struct Maat_line_t* line_rule, enum MAAT_OPERATION op);
 int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_rule, int line_num ,enum MAAT_OPERATION op);
+int Maat_cmd_set_file(Maat_feather_t feather,const char* key, const char* value, size_t size, enum MAAT_OPERATION op);
+
 //Return the value of key after the increment.
 //If the key does not exist, it is set to 0 before performing the operation.
 long long Maat_cmd_incrby(Maat_feather_t feather,const char* key, int increment);

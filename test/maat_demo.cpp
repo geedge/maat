@@ -22,6 +22,7 @@ unsigned short test_maat_redis_port=6379;
 const char* json_path="./maat_json.json";
 const char* ful_cfg_dir="./rule/full/index/";
 const char* inc_cfg_dir="./rule/inc/index/";
+#define	WAIT_FOR_EFFECTIVE_US	2*1000*1000
 extern int my_scandir(const char *dir, struct dirent ***namelist,
               int(*filter)(const struct dirent *),
               int(*compar)(const void *, const void *));
@@ -42,11 +43,11 @@ void Maat_read_entry_cb(int table_id,const char* table_line,void* u_para)
 	{
 		if(is_valid==1)
 		{
-			printf("Load entry id %d success.\n",entry_id);
+			//printf("Load entry id %d success.\n",entry_id);
 		}
 		else
 		{
-			printf("Offload entry id %d success.\n",entry_id);
+			//printf("Offload entry id %d success.\n",entry_id);
 		}
 	}
 	return;
@@ -108,6 +109,20 @@ const char* print_maat_result(struct Maat_rule_t* result,int ret)
 	}
 	return buff;
 }
+void test_service_define_escape(struct Maat_rule_t* rule)
+{
+	char*p=strchr(rule->service_defined,' ');
+	if(p!=NULL)
+	{
+		printf("Test service define escape Success.\n");
+	}
+	else
+	{
+		printf("Test service define escape Failed.\n");
+	}
+
+}
+
 int test_string_full_scan(Maat_feather_t feather,const char* table_name,scan_status_t* mid)
 {
 	int ret=0;
@@ -219,6 +234,7 @@ int test_ipv4_scan(Maat_feather_t feather,const char* table_name,scan_status_t* 
 	else
 	{
 		ret=Maat_scan_proto_addr(feather,table_id,&ipv4_addr,6,result,4, mid,0);
+		test_service_define_escape(result+0);
 		printf("IPv4 addr Scan:%s\n",print_maat_result(result,ret));
 	}
 	return ret;
@@ -303,7 +319,10 @@ int test_digest_scan(Maat_feather_t feather,const char* table_name,const char* f
 	Maat_stream_scan_string_end(&sp);
 	return ret;
 }
-int test_plugin_table(Maat_feather_t feather,const char* table_name,void* logger)
+int test_plugin_table(Maat_feather_t feather,const char* table_name,
+							Maat_start_callback_t *start,Maat_update_callback_t *update,Maat_finish_callback_t *finish,
+							void *u_para,
+							void* logger)
 {
 	int table_id=0,ret=0;
 	table_id=Maat_table_register(feather,table_name);
@@ -314,10 +333,10 @@ int test_plugin_table(Maat_feather_t feather,const char* table_name,void* logger
 	else
 	{
 		ret=Maat_table_callback_register(feather, table_id,
-								Maat_read_entry_start_cb,
-								Maat_read_entry_cb, 
-								Maat_read_entry_finish_cb,
-								feather);
+								start,
+								update, 
+								finish,
+								u_para);
 		if(ret<0)
 		{
 			printf("Maat callback register table %s error.\n",table_name);
@@ -539,7 +558,90 @@ void test_offset_str_scan(Maat_feather_t feather,const char* table_name)
 	test_offset_str_scan_with_chunk(feather,table_name,1460);
 	return;
 }
+void test_compile_accept_tags(Maat_feather_t feather)
+{
+	int ret1=0, ret2=0;
+	int table_id=0;
+	scan_status_t mid=NULL;
+	struct Maat_rule_t result[4];
+	const char* should_hit="string bbb should hit";
+	const char* should_not_hit="string aaa should not hit";
+	const char* table_name="HTTP_URL";
+	table_id=Maat_table_register(feather,table_name);
+	if(table_id==-1)
+	{
+		printf("Database table %s register failed.\n",table_name);
+		return;
+	}
+	
+	ret1=Maat_full_scan_string(feather, table_id,CHARSET_GBK, should_not_hit, strlen(should_not_hit), 
+						result,NULL, 4,
+						&mid, 0);
+	ret2=Maat_full_scan_string(feather, table_id,CHARSET_GBK, should_hit, strlen(should_hit), 
+						result,NULL, 4,
+						&mid, 0);
+	if(ret1<=0&&ret2>0)
+	{
+		printf("Test compile accept tags success.\n");
+	}
+	else
+	{
+		printf("Test compile accept tags failed.\n");
+	}
+	Maat_clean_status(&mid);
+	return;
+}
 
+void accept_tags_entry_cb(int table_id,const char* table_line,void* u_para)
+{
+	char status[32]={0};
+	int entry_id=-1,seq=-1;
+	int is_valid=0;
+	sscanf(table_line,"%d\t%s\t%d\t%d",&seq,status,&entry_id,&is_valid);
+	printf("Test plugin accept tags loading %d %s.\n",seq, status);
+	return;
+}
+
+
+void test_plugin_accept_tags(Maat_feather_t feather)
+{
+	int table_id=0,ret=0;
+	const char* table_name="TEST_EFFECTIVE_RANGE_TABLE";
+	table_id=Maat_table_register(feather,table_name);
+	if(table_id==-1)
+	{
+		printf("Database table %s register failed.\n",table_name);
+	}
+	else
+	{
+		ret=Maat_table_callback_register(feather, table_id,
+								NULL,
+								accept_tags_entry_cb, 
+								NULL,
+								NULL);
+		if(ret<0)
+		{
+			printf("Maat callback register table %s error.\n",table_name);
+		}
+	}
+	return;
+}
+void test_longer_service_define(Maat_feather_t feather, struct Maat_rule_t* rule)
+{
+	int ret=0;
+	char* buff=(char*)malloc(sizeof(char)*rule->serv_def_len);
+	ret=Maat_read_rule(feather, rule,MAAT_RULE_SERV_DEFINE, buff, rule->serv_def_len);
+	if(ret==rule->serv_def_len)
+	{
+		printf("Test read longer service define Success.\n");
+	}
+	else
+	{
+		printf("Test read longer service define Failed.\n");
+	}
+	assert(ret==rule->serv_def_len);
+	free(buff);	
+}
 int test_table_conjunction(Maat_feather_t feather,const char* table_name,const char* conj_table_name,scan_status_t* mid)
 {
 	int ret=0;
@@ -562,6 +664,7 @@ int test_table_conjunction(Maat_feather_t feather,const char* table_name,const c
 	if(ret>=2)
 	{
 		printf("Table conjunction success %s\n",print_maat_result(result,ret));
+		test_longer_service_define(feather, result);
 	}
 	return 0;
 }
@@ -572,7 +675,6 @@ void test_set_cmd_line(Maat_feather_t feather)
 	struct Maat_line_t line_rule[TEST_CMD_LINE_NUM];
 	char table_line[TEST_CMD_LINE_NUM][128];
 	int ret=0,i=0;
-	long long version=0;
 	memset(&line_rule,0,sizeof(line_rule));
 	for(i=0;i<TEST_CMD_LINE_NUM;i++)
 	{
@@ -584,29 +686,41 @@ void test_set_cmd_line(Maat_feather_t feather)
 		line_rule[i].expire_after=0;
 		p_line[i]=line_rule+i;
 	}
+	
+
 	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
-	assert(ret==0);
-	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version, sizeof(version));
-	assert(ret==0);
-	printf("Maat Version %lld after add lines.\n",version);
-	sleep(1);
+	assert(ret>0);
+	usleep(WAIT_FOR_EFFECTIVE_US);
+	
 	for(i=0;i<TEST_CMD_LINE_NUM;i++)
 	{
 		line_rule[i].table_line=NULL;
 	}
 	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_DEL);
-	assert(ret==0);
-	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version, sizeof(version));
-	assert(ret==0);
-	printf("Maat Version %lld after delete lines.\n",version);
+	assert(ret>0);
+
 
 	return;
+}
+void history_matter_cb(int table_id,const char* table_line,void* u_para)
+{
+}
+void test_load_specific_version(Maat_feather_t feather, const char* redis_ip, unsigned short redis_port, int redis_db,void*logger)
+{
+	int ret=0;
+	long long version=0;
+	const char *table_name="HISTORY_MATTER_CB";
+	test_plugin_table(feather,table_name,NULL,history_matter_cb,NULL,NULL,logger);
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version, sizeof(version));
+	assert(ret==0);	
+	printf("Maat Version %lld.\n",version);
 }
 int test_add_expr_command(Maat_feather_t feather,const char* region_table,int config_id, int timeout,int label_id, const char* keywords)
 {
 	struct Maat_cmd_t* cmd=NULL;
 	struct Maat_rule_t rule;
-
+	char huge_serv_def[1024*2];
+	memset(huge_serv_def,'s',sizeof(huge_serv_def));
 	struct Maat_region_t region;
 	int group_num=1,ret=0;
 	memset(&rule,0,sizeof(rule));
@@ -625,6 +739,7 @@ int test_add_expr_command(Maat_feather_t feather,const char* region_table,int co
 	region.expr_rule.expr_type=EXPR_TYPE_AND;
 	region.expr_rule.match_method=MATCH_METHOD_SUB;
 	region.expr_rule.hex_bin=UNCASE_PLAIN;
+	Maat_cmd_set_opt(cmd, MAAT_RULE_SERV_DEFINE, huge_serv_def, sizeof(huge_serv_def));
 	Maat_add_region2cmd(cmd, 0, &region);
 	//use pipeline model.
 	ret=Maat_cmd_append(feather, cmd, MAAT_OP_ADD);
@@ -648,11 +763,9 @@ int test_add_ip_command(Maat_feather_t feather,const char* region_table)
 {
 	struct Maat_cmd_t* cmd=NULL;
 	struct Maat_rule_t rule;
-	int config_id=0,timeout=2;
+	int config_id=0,timeout=4;
+	long long version_before=0,version_after=0;
 	
-
-	
-
 	struct Maat_region_t region;
 	int group_num=1,ret=0;
 	memset(&rule,0,sizeof(rule));
@@ -683,17 +796,22 @@ int test_add_ip_command(Maat_feather_t feather,const char* region_table)
 	region.ip_rule.protocol=0;//means any protocol should hit.
 	Maat_add_region2cmd(cmd, 0, &region);
 
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
 	ret=Maat_cmd(feather, cmd, MAAT_OP_ADD);
 	if(ret<0)
 	{
-		printf("Add Maat command %d failed.\n",rule.config_id);
+		printf("Add command %d failed.\n",rule.config_id);
 		Maat_free_cmd(cmd);
 		return 0;
 	}
 	Maat_free_cmd(cmd);
+	cmd=NULL;
 
 	//TEST if the command go into effective.
-	sleep(1);	//waiting for commands go into effect
+	usleep(WAIT_FOR_EFFECTIVE_US);	//waiting for commands go into effect
+	
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_after, sizeof(version_after));
+
 	struct ipaddr ipv4_addr;
 	struct stream_tuple4_v4 v4_addr;
 	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
@@ -721,27 +839,34 @@ int test_add_ip_command(Maat_feather_t feather,const char* region_table)
 		}
 		else
 		{
-			printf("Test Maat add IP rule Failed.\n");
+			printf("Test add IP rule Failed, version %lld->%lld.\n",version_before,version_after);
 		}
 	}
 	Maat_clean_status(&mid);
-
-	sleep(timeout+1);//wait for commands expired.
+	//reset timeout.
+	cmd=Maat_create_cmd(&rule, 0);
+	cmd->expire_after=10;
+	ret=Maat_cmd(feather, cmd, MAAT_OP_RENEW_TIMEOUT);
+	assert(ret==1);
+	usleep(2*1000*1000+WAIT_FOR_EFFECTIVE_US);//wait for commands expired.
+	Maat_free_cmd(cmd);
+	cmd=NULL;
 	ret=Maat_scan_proto_addr(feather,table_id,&ipv4_addr,6,&result,1, &mid,0);
 	if(ret==0)
 	{
-		printf("Test Maat expired IP rule Success.\n");
+		printf("Test RENEW timeout Failed.\n");
 	}
 	else
 	{
-		printf("Test Maat expired IP rule Failed.\n");
+		printf("Test RENEW timeout Success.\n");
 	}
 	Maat_clean_status(&mid);
 
 	return 0;
 
 }
-int test_del_command(Maat_feather_t feather,int config_id)
+
+int del_command(Maat_feather_t feather,int config_id)
 {
 	struct Maat_cmd_t* cmd=NULL;
 	struct Maat_rule_t rule;
@@ -757,7 +882,7 @@ int test_del_command(Maat_feather_t feather,int config_id)
 	Maat_free_cmd(cmd);
 	return 0;
 }
-void test_command(Maat_feather_t feather)
+void test_expr_command(Maat_feather_t feather)
 {
 	const char* scan_data="Hiredis is a minimalistic C client library for the Redis database.\r\n";
 	const char* table_name="HTTP_URL";
@@ -773,12 +898,18 @@ void test_command(Maat_feather_t feather)
 	struct Maat_rule_t result;
 	int timeout=0;//seconds
 	int label_id=5210;
+	long long version_before=0,version_after=0;
+
 	Maat_str_escape(escape_buff1, sizeof(escape_buff1),keywords1);
 	Maat_str_escape(escape_buff2, sizeof(escape_buff2),keywords2);
 	snprintf(keywords,sizeof(keywords),"%s&%s",escape_buff1,escape_buff2);
 	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
 	test_add_expr_command(feather,table_name,config_id, 0, label_id, keywords);
-	sleep(1);//waiting for commands go into effect
+	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
+	
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_after, sizeof(version_after));
 	table_id=Maat_table_register(feather,table_name);
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
 						&result,NULL, 1,
@@ -786,52 +917,52 @@ void test_command(Maat_feather_t feather)
 
 	if(ret>0&&result.config_id==config_id)
 	{
-		printf("Test Maat add EXPR rule success %s\n",print_maat_result(&result,ret));
+		printf("Test add EXPR rule success %s\n",print_maat_result(&result,ret));
 	}
 	else
 	{
-		printf("Test Maat add EXPR rule failed.\n");
+		printf("Test add EXPR rule failed, version %lld->%lld.\n",version_before,version_after);
 	}
 	Maat_clean_status(&mid);
 	output_id_cnt=Maat_cmd_select(feather,label_id, output_ids, 4);
 	if(output_id_cnt==1&&output_ids[0]==config_id)
 	{
-		printf("Test Maat select command success.\n");
+		printf("Test select command success.\n");
 	}
 	else
 	{
-		printf("Test Maat select command label %d failed.\n",label_id);
+		printf("Test select command label %d failed.\n",label_id);
 	}
-	test_del_command(feather, config_id);
-	sleep(1);//waiting for commands go into effect
+	del_command(feather, config_id);
+	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
 						&result,NULL, 1,
 						&mid, 0);
 	if(ret>0)
 	{
-		printf("Test Maat delete EXPR command failed\n");
+		printf("Test delete EXPR command failed.\n");
 	}
 	else
 	{
-		printf("Test Maat delete EXPR command success.\n");
+		printf("Test delete EXPR command success.\n");
 	}
 	Maat_clean_status(&mid);
 	timeout=1;
+	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
 	test_add_expr_command(feather,table_name,config_id, timeout, label_id, keywords);
-	sleep(timeout+1);
+	usleep(timeout*1000*1000+WAIT_FOR_EFFECTIVE_US);
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
 						&result,NULL, 1,
 						&mid, 0);
 
 	if(ret>0&&result.config_id==config_id)//should not hit
 	{
-		printf("Test Maat command expire EXPR failed.");
+		printf("Test command expire EXPR failed.\n");
 	}
 	else
 	{
-		printf("Test Maat command expire success.\n");
+		printf("Test command expire success.\n");
 	}
-	Maat_clean_status(&mid);
 }
 #define	FILE_CHUNK_SIZE	4096
 void test_sfh_digest(const char* filename)
@@ -926,12 +1057,12 @@ void maat_test_print_usage(void)
 {
 	printf("Maat Test Usage:\n");
 	printf("\tSource:\n");
-	printf("\t\t-j Test updating from %s.\n",json_path);
+	printf("\t\t-j Test updating from %s. https://www.sojson.com/yasuo.html\n",json_path);
 	printf("\t\t-u Load config from %s, and monitor %s. Need manually move inc index.\n",ful_cfg_dir,inc_cfg_dir);
 	printf("\t\t-r Read config redis %s:%u db0.\n",test_maat_redis_ip,test_maat_redis_port);
 	printf("\tOption:\n");
 	printf("\t\t-d Deferred Loading config.\n");
-	printf("example: ./maat_test -j -d\n");
+	printf("example: ./maat_demo -j -d\n");
 	
 	return;
 }
@@ -945,13 +1076,14 @@ int main(int argc,char* argv[])
 	const char* stat_file="./scan_staus.log";
 	const char* decrypt_key="mesa2017wy";
 	const char* test_digest_file="./testdata/digest_test.data";
-	int scan_interval_ms=10;
-	int effective_interval_ms=10;
+	const char* accept_tags="{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},{\"tag\":\"isp\",\"value\":\"移动\"}]}";
+	int scan_interval_ms=1;
+	int effective_interval_ms=0;
 
 	int scan_detail=0,deferred_load_on=0;
 	int using_redis=0;
 	scan_status_t mid=NULL;
-	int wait_second=400;
+	int rest_second=400;
 
 	if(argc<2||argv[1][0]!='-')
 	{
@@ -971,7 +1103,7 @@ int main(int argc,char* argv[])
 			case 'u'://update
 				Maat_set_feather_opt(feather, MAAT_OPT_FULL_CFG_DIR, ful_cfg_dir, strlen(ful_cfg_dir)+1);
 				Maat_set_feather_opt(feather, MAAT_OPT_INC_CFG_DIR, inc_cfg_dir, strlen(inc_cfg_dir)+1);
-				wait_second=14;
+				rest_second=14;
 				break;
 			case 'r'://redis
 				Maat_set_feather_opt(feather, MAAT_OPT_REDIS_IP, test_maat_redis_ip, strlen(test_maat_redis_ip)+1);
@@ -995,25 +1127,28 @@ int main(int argc,char* argv[])
 
 	Maat_set_feather_opt(feather, MAAT_OPT_SCANDIR_INTERVAL_MS,&scan_interval_ms, sizeof(scan_interval_ms));
 	//Set a short intevral for testing.
-	Maat_set_feather_opt(feather, MAAT_OPT_EFFECT_INVERVAL_MS,&effective_interval_ms, sizeof(scan_interval_ms));
+	Maat_set_feather_opt(feather, MAAT_OPT_EFFECT_INVERVAL_MS,&effective_interval_ms, sizeof(effective_interval_ms));
 
 	Maat_set_feather_opt(feather, MAAT_OPT_STAT_FILE_PATH, stat_file, strlen(stat_file)+1);
 	Maat_set_feather_opt(feather, MAAT_OPT_STAT_ON, NULL, 0);
 	Maat_set_feather_opt(feather, MAAT_OPT_PERF_ON, NULL, 0);
 	Maat_set_feather_opt(feather, MAAT_OPT_SCAN_DETAIL, &scan_detail, sizeof(scan_detail));
+	Maat_set_feather_opt(feather, MAAT_OPT_ACCEPT_TAGS, accept_tags, strlen(accept_tags)+1);
 	Maat_initiate_feather(feather);
 
-	if(feather==NULL)
-	{
-		printf("Maat initial error, see %s\n",log_file);
-		return -1;
-	}
+	printf("Maat initiating, see %s\n",log_file);
+
 	if(deferred_load_on==1)
 	{
 		printf("Deferred Load ON, Waiting...\n");
-		sleep(1);
+		usleep(WAIT_FOR_EFFECTIVE_US);
 	}
-	test_plugin_table(feather, "QD_ENTRY_INFO",logger);
+	test_plugin_table(feather, "QD_ENTRY_INFO",	
+								Maat_read_entry_start_cb,
+								Maat_read_entry_cb, 
+								Maat_read_entry_finish_cb,
+								feather,
+								logger);
 	
 	test_string_full_scan(feather, "HTTP_URL", &mid);
 	//not  clean status here, to test_ipv4_scan make  hit compile rule.
@@ -1054,19 +1189,29 @@ int main(int argc,char* argv[])
 	
 	test_offset_str_scan(feather,"IMAGE_FP");
 	
+	test_plugin_accept_tags(feather);
+	test_compile_accept_tags(feather);
+
+	int value=0;
 	if(1==using_redis)
 	{
-		test_command(feather);
-		test_set_cmd_line(feather);
-		test_add_ip_command(feather,"IP_CONFIG");
 		if(0==Maat_cmd_flushDB(feather))
 		{
-			printf("Test empty Redis Success.\n");
+			printf("Flush Redis Database.\n");
 		}
+		test_expr_command(feather);
 		test_set_cmd_line(feather);
+		test_add_ip_command(feather,"IP_CONFIG");
+	
+		Maat_set_feather_opt(feather, MAAT_OPT_ENABLE_UPDATE, &value, sizeof(value));
+		printf("Disable background udpate.\n");
+		test_set_cmd_line(feather);
+		value=1;
+		Maat_set_feather_opt(feather, MAAT_OPT_ENABLE_UPDATE, &value, sizeof(value));
+		printf("Enable background udpate.\n");
 	}
 	test_sfh_digest(test_digest_file);
-	sleep(wait_second);
+	sleep(rest_second);
 	
 	Maat_burn_feather(feather);
 	

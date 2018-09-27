@@ -1,6 +1,6 @@
 #include "MESA_handle_logger.h"
 #include "config_monitor.h"
-#include "Maat_rule_internal.h"
+#include "Maat_utils.h"
 #include <dirent.h> 
 #include <stdlib.h>
 #include <stdio.h>
@@ -16,15 +16,9 @@
 
 #define	CM_MAX_TABLE_NUM	256
 #define	MAX_CONFIG_FN_LEN	256
-#define	MAX_CONFIG_LINE		1024*4
+#define	MAX_CONFIG_LINE		(1024*16)
 
-#ifndef MAX
-#define MAX(a, b)  	(((a) > (b)) ? (a) : (b))
-#endif
 
-#ifndef MIN
-#define MIN(a, b)  	(((a) < (b)) ? (a) : (b))
-#endif
 //#define	USING_DICTATOR	1
 extern "C" void __real_free(void*p);
 struct cm_table_info_t
@@ -56,7 +50,7 @@ int decrypt_open(FILE* in,const unsigned char* key, const char* algorithm,unsign
 	cipher=EVP_get_cipherbyname(algorithm);
 	if(cipher==NULL)
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"Not cipher:%s not supported.",algorithm);
+		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"Cipher %s is not supported.",algorithm);
 		return 0;
 	}
 	dgst=EVP_get_digestbyname("md5");

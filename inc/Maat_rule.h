@@ -6,7 +6,7 @@
 *	to reside in the heart) of the departed would reach the paradise of afterlife
 *	successfully.
 *	Author: zhengchao@iie.ac.cn,MESA
-*	Version 2015-11-09 digest scan
+*	Version 2018-09-25 foreign key and rule tags.
 *	NOTE: MUST compile with G++
 *	All right reserved by Institute of Infomation Engineering,Chinese Academic of Science 2014~2018
 *********************************************************
@@ -48,7 +48,8 @@ typedef	void*	stream_para_t;
 typedef	void*	Maat_feather_t;
 
 
-#define	MAX_SERVICE_DEFINE_LEN	128
+#define	MAX_SERVICE_DEFINE_LEN			128
+#define	MAX_HUGE_SERVICE_DEFINE_LEN		(1024*4)
 struct Maat_rule_t
 {
 	int		config_id;
@@ -56,7 +57,7 @@ struct Maat_rule_t
 	char	do_log;
 	char 	do_blacklist;
 	char	action;
-	char	resevered;
+	char	reserved;
 	int		serv_def_len;
 	char 	service_defined[MAX_SERVICE_DEFINE_LEN];
 };
@@ -140,20 +141,26 @@ enum MAAT_INIT_OPT
 	MAAT_OPT_FULL_CFG_DIR,			//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1.DEFAULT: no default.
 	MAAT_OPT_INC_CFG_DIR,			//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1.DEFAULT: no default.
 	MAAT_OPT_JSON_FILE_PATH,		//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1.DEFAULT: no default.
-	MAAT_OPT_STAT_ON,				//VALUE is  NULL,SIZE is 0. MAAT_OPT_STAT_FILE_PATH must be set. Default: stat OFF.
-	MAAT_OPT_PERF_ON,				//VALUE is NULL,SIZE is 0. MAAT_OPT_STAT_FILE_PATH must be set. Default: stat OFF.
+	MAAT_OPT_STAT_ON,				//VALUE is NULL, SIZE is 0. MAAT_OPT_STAT_FILE_PATH must be set. Default: stat OFF.
+	MAAT_OPT_PERF_ON,				//VALUE is NULL, SIZE is 0. MAAT_OPT_STAT_FILE_PATH must be set. Default: stat OFF.
 	MAAT_OPT_STAT_FILE_PATH,		//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1. DEFAULT: no default.
-	MAAT_OPT_SCAN_DETAIL,			//VALUE is interger *, SIZE=sizeof(int). 0: not return any detail;1: return  hit pos, not include regex grouping;
+	MAAT_OPT_SCAN_DETAIL,			//VALUE is interger *, SIZE=sizeof(int). 0: not return any detail;1: return  hit pos, not include regex grouping.
 									//  2 return hit pos and regex grouping pos;DEFAULT:0
 	MAAT_OPT_INSTANCE_NAME,			//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1, no more than 11 bytes.DEFAULT: MAAT_$tableinfo_path$.
 	MAAT_OPT_DECRYPT_KEY,			//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1. No DEFAULT.
 	MAAT_OPT_REDIS_IP,				//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1. No DEFAULT.
 	MAAT_OPT_REDIS_PORT,			//VALUE is a unsigned short or a signed int, host order, SIZE= sizeof(unsigned short) or sizeof(int). No DEFAULT.
 	MAAT_OPT_REDIS_INDEX,			//VALUE is interger *, 0~15, SIZE=sizeof(int). DEFAULT: 0.
-	MAAT_OPT_CMD_AUTO_NUMBERING,		//VALUE is interger *, 1 or 0, SIZE=sizeof(int). DEFAULT: 1.
-	MAAT_OPT_DEFERRED_LOAD,			//VALUE is  NULL,SIZE is 0.  Default: Deffered initialization OFF.
-	MAAT_OPT_CUMULATIVE_UPDATE_OFF	//VALUE is  NULL,SIZE is 0.  Default: CUMMULATIVE UPDATE ON.
-};
+	MAAT_OPT_CMD_AUTO_NUMBERING,	//VALUE is a interger *, 1 or 0, SIZE=sizeof(int). DEFAULT: 1.
+	MAAT_OPT_DEFERRED_LOAD,			//VALUE is NULL,SIZE is 0.  Default: Deffered initialization OFF.
+	MAAT_OPT_CUMULATIVE_UPDATE_OFF,	//VALUE is NULL,SIZE is 0.  Default: CUMMULATIVE UPDATE ON.
+	MAAT_OPT_LOAD_VERSION_FROM,		//VALUE is a long long, SIZE=sizeof(long long). Default: Load the Latest. Only valid in redis mode, and maybe failed for too old. 
+									//This option also disables background update.
+	MAAT_OPT_ENABLE_UPDATE,			//VALUE is interger, SIZE=sizeof(int). 1: Enabled, 0:Disabled.  DEFAULT: Backgroud update is enabled. Runtime setting is allowed.
+	MAAT_OPT_ACCEPT_TAGS,			//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1. Format is a JSON, e.g.{"tags":[{"tag":"location","value":"Beijing/ChaoYang/Huayan/22A"},{"tag":"isp","value":"telecom"}]}
+	MAAT_OPT_FOREIGN_CONT_DIR,		//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1. Specifies a local diretory to store foreign content. Default: []table_info_path]_files
+ 	MAAT_OPT_FOREIGN_CONT_LINGER		//VALUE is interger *, SIZE=sizeof(int). Greater than 0: delete after VALUE seconds; 0: delete foreign content right after the notification callbacks;  Less than 0: NEVER delete. Default: 0.
+ };
 //return -1 if failed, return 0 on success;
 int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT  type,const void* value,int size);
 enum MAAT_STATE_OPT
@@ -231,6 +238,10 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 						,scan_status_t* mid,int thread_num);
 
 void Maat_clean_status(scan_status_t* mid);
-
+enum MAAT_RULE_OPT
+{
+	MAAT_RULE_SERV_DEFINE	//VALUE is a char* buffer,SIZE= buffer size. 
+};
+int Maat_read_rule(Maat_feather_t feather, const struct Maat_rule_t* rule, enum MAAT_RULE_OPT type, void* value, int size);
 #endif	//	H_MAAT_RULE_H_INCLUDE
 

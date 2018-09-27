@@ -21,6 +21,7 @@ void maat_tool_print_usage(void)
 	printf("\t-p [port], redis port, 6379 as default.\n");
 	printf("\t-n [db], redis db, 0 as default.\n");
 	printf("\t-d [dir], dump rules from redis to [dir], %s as default.\n",redis_dump_dir);
+	printf("\t-d [version], dump specific [version] from redis, dump latest version as default.\n");
 	printf("\t-j [payload.json], add or delete rules as maat json. Must have field compile_table field, and plugin table's valid flag must be in the last column.\n");
 	printf("\t-t [timeout], timeout config after t seconds, default is 0 which means never timeout.\n");	
 	printf("example: ./maat_redis_tool -h 127.0.0.1 -p 6379 -d %s\n",redis_dump_dir);
@@ -57,7 +58,7 @@ static redisContext * connect_redis(const char*redis_ip, int redis_port, int red
 	return ctx;
 
 }
-void read_rule_from_redis(redisContext * ctx,const char* output_path ,void*logger)
+void read_rule_from_redis(redisContext * ctx, long long desire_version, const char* output_path ,void*logger)
 {
 	struct serial_rule_t* rule_list;
 	int rule_num=0,line_count=0;
@@ -68,11 +69,18 @@ void read_rule_from_redis(redisContext * ctx,const char* output_path ,void*logge
 
 	char table_path[256],index_path[256];
 	FILE *table_fp=NULL, *index_fp=NULL;
-
-	rule_num=get_rm_key_list(0, ctx, &rule_list, logger,&version, &update_type,0);
+	rule_num=get_rm_key_list(ctx, 0, desire_version, &version, &rule_list, &update_type, logger,0);
+	if(desire_version!=0)
 	if(rule_num==0)
 	{
-		printf("No Effective Rules.\n");
+		if(desire_version!=0)
+		{
+			printf("Read desired version %lld failed.\n",desire_version);
+		}
+		else
+		{
+			printf("No Effective Rules.\n");
+		}
 		return;
 	}
 	if(rule_num<0)
@@ -83,6 +91,10 @@ void read_rule_from_redis(redisContext * ctx,const char* output_path ,void*logge
 
 	assert(update_type==CM_UPDATE_TYPE_FULL);
 	printf("MAAT Version: %lld, key number: %d\n", version, rule_num);
+	if(rule_num==0)
+	{
+		goto clean_up;
+	}
 	printf("Reading value: ");
 	ret=get_maat_redis_value(ctx,rule_list,rule_num,logger,1);
 	if(ret<0)
@@ -98,6 +110,20 @@ void read_rule_from_redis(redisContext * ctx,const char* output_path ,void*logge
 		printf("mkdir %s error\n",output_path);
 
 	}
+	char foreign_files_dir[256];
+	snprintf(foreign_files_dir, sizeof(foreign_files_dir), "%s/foreign_files/",output_path);
+	if((access(foreign_files_dir,F_OK)) <0)
+
+	{	if((mkdir(foreign_files_dir,S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH)) < 0)
+		printf("mkdir %s error\n",foreign_files_dir);
+
+	}
+	ret=get_foreign_keys_by_prefix(ctx, rule_list, rule_num, foreign_files_dir, logger);
+	if(ret>0)
+	{
+		printf("%d lines has foreign content.\n", ret);
+		get_foreign_conts(ctx, rule_list, rule_num, 1, logger);
+	}
 	snprintf(index_path,sizeof(index_path),"%s/full_config_index.%020lld",output_path,version);
 	index_fp=fopen(index_path,"w");
 	if(index_fp==NULL)
@@ -108,6 +134,10 @@ void read_rule_from_redis(redisContext * ctx,const char* output_path ,void*logge
 
 	for(i=0;i<rule_num;i++)
 	{
+		if(rule_list[i].n_foreign>0)
+		{
+			rewrite_table_line_with_foreign(rule_list+i);
+		}
 		if(cur_table==NULL||0!=strcmp(cur_table,rule_list[i].table_name))
 		{
 			if(table_fp!=NULL)
@@ -117,6 +147,7 @@ void read_rule_from_redis(redisContext * ctx,const char* output_path ,void*logge
 				table_fp=NULL;
 				set_file_rulenum(table_path,line_count, logger);
 				line_count=0;
+				printf("Written table %s\n",table_path);
 			}
 			snprintf(table_path,sizeof(table_path),"%s/%s.%020lld",output_path,rule_list[i].table_name,version);
 			set_file_rulenum(table_path, 0, logger);
@@ -126,7 +157,7 @@ void read_rule_from_redis(redisContext * ctx,const char* output_path ,void*logge
 				printf("Open %s failed.\n",table_path);
 				goto clean_up;
 			}
-			printf("Writing %s\n",table_path);
+			
 			cur_table=rule_list[i].table_name;
 		}
 		fprintf(table_fp,"%s\tkey=%d\n",rule_list[i].table_line,rule_list[i].rule_id);
@@ -137,7 +168,7 @@ void read_rule_from_redis(redisContext * ctx,const char* output_path ,void*logge
 	fprintf(index_fp,"%s\t%d\t%s\n",cur_table,line_count,table_path);
 	set_file_rulenum(table_path,line_count, logger);
 	
-	printf("Writing complete: %s\n",index_path);
+	printf("Written complete: %s\n",index_path);
 clean_up:
 	for(i=0;i<rule_num;i++)
 	{
@@ -215,8 +246,6 @@ int main(int argc, char * argv[])
 	int redis_port=6379;
 	int redis_db=0;
 	strncpy(redis_ip,"127.0.0.1",sizeof(redis_ip));
-	char table_info[128];
-	strncpy(table_info,"./table_info.conf",sizeof(table_info));
 	char dump_dir[128], json_file[128], tmp_iris_path[128];
 	strncpy(dump_dir,redis_dump_dir,sizeof(dump_dir));
 	redisContext * ctx=NULL;
@@ -226,9 +255,10 @@ int main(int argc, char * argv[])
 	cJSON *json=NULL, *tmp_obj=NULL;
 	struct stat fstat_buf;
 	unsigned long json_file_size=0,read_size=0;
+	long long desired_version=0;
 	char* json_buff=NULL;
 
-	while((oc=getopt(argc,argv,"h:p:n:d:f:j:t:"))!=-1)
+	while((oc=getopt(argc,argv,"h:p:n:d:v:f:j:t:"))!=-1)
 	{
 		switch(oc)
 		{
@@ -248,6 +278,9 @@ int main(int argc, char * argv[])
 				{
 					dump_dir[strlen(dump_dir)-1]='\0';
 				}
+				break;
+			case 'v':
+				sscanf(optarg,"%lld",&desired_version);
 				break;
 			case 'j':
 				strncpy(json_file, optarg,sizeof(json_file));
@@ -308,7 +341,7 @@ int main(int argc, char * argv[])
 	if(model==WORK_MODE_DUMP)
 	{
 		printf("Reading key list from %s:%d db%d.\n",redis_ip,redis_port,redis_db);
-		read_rule_from_redis(ctx,dump_dir, NULL);
+		read_rule_from_redis(ctx,desired_version,dump_dir, NULL);
 	}
 	else if(model==WORK_MODE_JSON)
 	{		
