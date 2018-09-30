@@ -2223,7 +2223,7 @@ int Maat_cmd_commit(Maat_feather_t feather)
 
 	for(i=0,p=_feather->cmd_qhead;i<_feather->cmd_q_cnt;i++)
 	{
-		serial_rule_idx+=build_serial_rule(_feather,p,s_rule, serial_rule_num-serial_rule_idx);
+		serial_rule_idx+=build_serial_rule(_feather,p,s_rule+serial_rule_idx, serial_rule_num-serial_rule_idx);
 		p=p->next;
 	}
 	assert(serial_rule_idx==serial_rule_num);

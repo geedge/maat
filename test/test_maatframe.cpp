@@ -718,11 +718,6 @@ int test_add_expr_command(Maat_feather_t feather,const char* region_table,int co
 	}
 	//cmd has been saved in feather, so free cmd before commit is allowed.
 	Maat_free_cmd(cmd);
-	ret=Maat_cmd_commit(feather);
-	if(ret<0)
-	{
-		printf("Commit Maat command %d failed.\n",rule.config_id);
-	}
 	return 0;
 
 }
@@ -765,10 +760,14 @@ TEST_F(MaatCmdTest, SetExpr)
 	Maat_str_escape(escape_buff1, sizeof(escape_buff1),keywords1);
 	Maat_str_escape(escape_buff2, sizeof(escape_buff2),keywords2);
 	snprintf(keywords,sizeof(keywords),"%s&%s",escape_buff1,escape_buff2);
-	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 2);
 	
 	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
+	test_add_expr_command(feather,table_name,config_id-1, 0, label_id, keywords);
 	test_add_expr_command(feather,table_name,config_id, 0, label_id, keywords);
+	
+	ret=Maat_cmd_commit(feather);
+	EXPECT_TRUE(ret>=0);
 	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
 	
 	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_after, sizeof(version_after));
@@ -782,15 +781,17 @@ TEST_F(MaatCmdTest, SetExpr)
 						&result,NULL, 1,
 						&mid, 0);
 	EXPECT_GT(ret, 0);
-	EXPECT_EQ(result.config_id, config_id);
+	EXPECT_TRUE(result.config_id==config_id||result.config_id==config_id-1);
 
 	Maat_clean_status(&mid);
 	output_id_cnt=Maat_cmd_select(feather,label_id, output_ids, 4);
-	EXPECT_EQ(output_id_cnt, 1);
-	EXPECT_EQ(output_ids[0], config_id);
+	EXPECT_EQ(output_id_cnt, 2);
+	EXPECT_TRUE(output_ids[0]==config_id||output_ids[0]==config_id-1);
 
 	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect	
+	del_command(feather, config_id-1);
 	del_command(feather, config_id);
+
 	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
 						&result,NULL, 1,
@@ -801,6 +802,9 @@ TEST_F(MaatCmdTest, SetExpr)
 	timeout=1;
 	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
 	test_add_expr_command(feather,table_name,config_id, timeout, label_id, keywords);
+	ret=Maat_cmd_commit(feather);
+	EXPECT_TRUE(ret>=0);
+
 	usleep(timeout*1000*1000+WAIT_FOR_EFFECTIVE_US);
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
 						&result,NULL, 1,
