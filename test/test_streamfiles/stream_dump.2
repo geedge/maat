@@ -1,0 +1,25 @@
+ == 13) {
+			search("searchInfo","theForm");
+		}
+	});
+*/
+ function togetherTop(){
+ 	var text = $("#searchInfo").val();
+ 	$("#searchAgain").val(text);
+ }
+  </script>
+
+  <div class=" header-backcolor">
+    <div class="conmon-header-con clear">  
+       <div class="ks-fl" id="login_status" style="display: none;"></div>
+       <div class="ks-fl" id="div_loginOut">
+       <span><!--您好 ，欢迎来到继教网！-->&nbsp;&nbsp;&nbsp;&nbsp;<a href="http://menhu.teacher.com.cn" target="_blank" style="text-decoration:underline">返回旧版</a></span>
+       <!--<a class="al btn-default btn-active" href="http://i.teacher.com.cn/login">登录</a> 
+       <a class="al btn-default" href="http://i.teacher.com.cn/register">注册</a>-->
+      </div>
+      <div class="input-search ks-fr">
+      <form id="theForm" action="" method="post">
+        <input id="searchInfo" style=" float:left; margin-top:10px;" value="请输入关键字" onfocus="if (value =='请输入关键字'){value =''}"onblur="if (value ==''){value='请输入关键字'}" onkeyup="togetherTop()"/>
+       <a class="search" href="javaScript:search('searchInfo','theForm');"> <img src="http://s.teachercdn.com.cn/oel_teacherportal_static/images/conmon-index-search.gif" alt="" /></a>
+        <ul class=" ks-fr">
+          <li><i class=" number"><img src="http://s.teachercdn.com.cn/oel_teacherportal_static/images/conmon-index-number.gif" alt="" /></i>&nbsp;<span>400-
