@@ -483,6 +483,79 @@ TEST(StringScan, OffsetChunk1460)
 	test_offset_str_scan_with_chunk(1460);
 	return;
 }
+TEST(StreamScan, StreamFiles)
+{
+#define StreamScan_StreamFiles
+
+	const char* test_data_dir="./test_streamfiles";
+	struct dirent **namelist;
+	FILE* fp=NULL;
+	char file_path[256]={0};
+	char *buff;
+	size_t read_len=0;
+	int table_id=0,ret=0;
+	struct Maat_rule_t result[4];
+	stream_para_t sp=NULL;
+	int n=0,i=0, hit_cnt=0;
+	const char* table_name="KEYWORDS_TABLE";	
+	scan_status_t mid=NULL;
+	
+	table_id=Maat_table_register(g_feather,table_name);
+	ASSERT_GT(table_id, 0);
+
+	n = my_scandir(test_data_dir, &namelist, NULL, (int (*)(const void*, const void*))alphasort);
+	ASSERT_GT(n, 0);
+	sp=Maat_stream_scan_string_start(g_feather,table_id,0);
+	ASSERT_FALSE(sp==NULL);
+	
+	struct stat file_info;
+	size_t file_size=0;
+	for(i=0;i<n;i++)
+	{
+		if((strcmp(namelist[i]->d_name, ".") == 0) || (strcmp(namelist[i]->d_name, "..") == 0))
+		{
+			continue;
+		}
+		snprintf(file_path,sizeof(file_path),"%s/%s",test_data_dir,namelist[i]->d_name);
+		
+		ret=stat(file_path, &file_info);
+		ASSERT_TRUE(ret==0);
+		
+		file_size=file_info.st_size;
+		buff=(char*)malloc(file_size);
+		fp=fopen(file_path,"rb");
+		
+		if(fp==NULL)
+		{
+			printf("fopen %s error.\n",file_path);;
+			continue;
+		}
+		read_len=fread(buff,1,file_size,fp);
+		ret=Maat_stream_scan_string(&sp,CHARSET_NONE,buff,read_len
+							,result, NULL, 4, &mid);
+		read_len=fread(buff,1,sizeof(buff),fp);
+		if(ret>0)
+		{
+			hit_cnt++;
+		}
+		printf("Stream Scan %s, ret=%d.\n",file_path,ret);
+		fclose(fp);
+		free(buff);
+		buff=NULL;
+	}
+	Maat_clean_status(&mid);
+	Maat_stream_scan_string_end(&sp);
+	EXPECT_GT(hit_cnt, 0);
+
+	for(i=0;i<n;i++)
+	{
+		free(namelist[i]);
+	}
+	free(namelist);
+
+	return;
+}
+
 void accept_tags_entry_cb(int table_id,const char* table_line,void* u_para)
 {
 	char status[32]={0};
@@ -494,9 +567,9 @@ void accept_tags_entry_cb(int table_id,const char* table_line,void* u_para)
 	return;
 }
 
-
 TEST(RuleTags, Plugin)
 {
+#define RuleTags_Plugin
 	int table_id=0,ret=0;
 	const char* table_name="TEST_EFFECTIVE_RANGE_TABLE";
 	table_id=Maat_table_register(g_feather,table_name);
@@ -514,6 +587,7 @@ TEST(RuleTags, Plugin)
 
 TEST(RuleTags, Compile)
 {
+#define RuleTags_Compile
 	int ret=0;
 	int table_id=0;
 	scan_status_t mid=NULL;
@@ -538,9 +612,10 @@ TEST(RuleTags, Compile)
 	return;
 }
 
-
 TEST(StreamFuzzyHash, Pure)
 {
+	
+#define	StreamFuzzyHash_Pure
 	const size_t FILE_CHUNK_SIZE=4096;
 	char * file_buff=NULL,*sfh_ordered=NULL,*sfh_unorder=NULL;
 	int read_size=0,ret=0,chunk_num=0,i=0,idx=0;
