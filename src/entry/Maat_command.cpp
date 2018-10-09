@@ -1478,7 +1478,7 @@ void _get_foregin_keys(struct serial_rule_t* p_rule, int* foreign_columns, int n
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
 									,"Get %s,%d foreign key failed: Invalid source prefix %s."
-									, p_rule->table_name, p_rule->rule_id, foreign_columns[i]);
+									, p_rule->table_name, p_rule->rule_id, p_foreign);
 			continue;
 		}
 		p_rule->f_keys[i].column=foreign_columns[i];
@@ -1488,7 +1488,7 @@ void _get_foregin_keys(struct serial_rule_t* p_rule, int* foreign_columns, int n
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor
 								,"%s,%d foreign key prefix %s is discouraged."
-								,p_rule->table_name, p_rule->rule_id, foreign_columns[i]);
+								,p_rule->table_name, p_rule->rule_id, p_foreign);
 		}
 		p_rule->f_keys[i].key=(char*)calloc(sizeof(char),foreign_key_size+1);
 		memcpy(p_rule->f_keys[i].key, p_foreign, foreign_key_size);
