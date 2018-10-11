@@ -7,9 +7,9 @@
 #include <MESA/MESA_htable.h>
 #include <MESA/MESA_list_queue.h>
 #include <MESA/field_stat2.h>
+#include <MESA/rulescan.h>
 #include "dynamic_array.h"
 #include "UniversalBoolMatch.h"
-#include "rulescan.h"
 #include "hiredis.h"
 
 #include "stream_fuzzy_hash.h"
