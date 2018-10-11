@@ -16,7 +16,7 @@
 #ifndef __cplusplus
 #error("This file should be compiled with C++ compiler")
 #endif
-#include "stream.h"
+#include <MESA/stream.h>
 enum MAAT_CHARSET
 {
 	CHARSET_NONE=0,

@@ -483,78 +483,6 @@ TEST(StringScan, OffsetChunk1460)
 	test_offset_str_scan_with_chunk(1460);
 	return;
 }
-TEST(StreamScan, StreamFiles)
-{
-#define StreamScan_StreamFiles
-
-	const char* test_data_dir="./test_streamfiles";
-	struct dirent **namelist;
-	FILE* fp=NULL;
-	char file_path[256]={0};
-	char *buff;
-	size_t read_len=0;
-	int table_id=0,ret=0;
-	struct Maat_rule_t result[4];
-	stream_para_t sp=NULL;
-	int n=0,i=0, hit_cnt=0;
-	const char* table_name="KEYWORDS_TABLE";	
-	scan_status_t mid=NULL;
-	
-	table_id=Maat_table_register(g_feather,table_name);
-	ASSERT_GT(table_id, 0);
-
-	n = my_scandir(test_data_dir, &namelist, NULL, (int (*)(const void*, const void*))alphasort);
-	ASSERT_GT(n, 0);
-	sp=Maat_stream_scan_string_start(g_feather,table_id,0);
-	ASSERT_FALSE(sp==NULL);
-	
-	struct stat file_info;
-	size_t file_size=0;
-	for(i=0;i<n;i++)
-	{
-		if((strcmp(namelist[i]->d_name, ".") == 0) || (strcmp(namelist[i]->d_name, "..") == 0))
-		{
-			continue;
-		}
-		snprintf(file_path,sizeof(file_path),"%s/%s",test_data_dir,namelist[i]->d_name);
-		
-		ret=stat(file_path, &file_info);
-		ASSERT_TRUE(ret==0);
-		
-		file_size=file_info.st_size;
-		buff=(char*)malloc(file_size);
-		fp=fopen(file_path,"rb");
-		
-		if(fp==NULL)
-		{
-			printf("fopen %s error.\n",file_path);;
-			continue;
-		}
-		read_len=fread(buff,1,file_size,fp);
-		ret=Maat_stream_scan_string(&sp,CHARSET_NONE,buff,read_len
-							,result, NULL, 4, &mid);
-		read_len=fread(buff,1,sizeof(buff),fp);
-		if(ret>0)
-		{
-			hit_cnt++;
-		}
-		printf("Stream Scan %s, ret=%d.\n",file_path,ret);
-		fclose(fp);
-		free(buff);
-		buff=NULL;
-	}
-	Maat_clean_status(&mid);
-	Maat_stream_scan_string_end(&sp);
-	EXPECT_GT(hit_cnt, 0);
-
-	for(i=0;i<n;i++)
-	{
-		free(namelist[i]);
-	}
-	free(namelist);
-
-	return;
-}
 
 void accept_tags_entry_cb(int table_id,const char* table_line,void* u_para)
 {
@@ -719,6 +647,113 @@ TEST(ScanResult, LongerServiceDefine)
 	free(buff);
 	return;
 }
+
+class MaatFileTest : public testing::Test 
+{
+
+protected:
+	
+	static void SetUpTestCase()
+	{
+		void *logger=NULL;
+		const char* rule_folder="./ntcrule/full/index";
+	  	logger=MESA_create_runtime_log_handle("test_maat_file.log",0);
+		const char* table_info="./t2_tableinfo.conf";
+		_shared_feather_f=Maat_feather(g_iThreadNum, table_info, logger);
+		Maat_set_feather_opt(_shared_feather_f,MAAT_OPT_INSTANCE_NAME,"files", strlen("files")+1);
+		Maat_set_feather_opt(_shared_feather_f, MAAT_OPT_FULL_CFG_DIR, rule_folder, strlen(rule_folder)+1);
+		Maat_set_feather_opt(_shared_feather_f, MAAT_OPT_INC_CFG_DIR, rule_folder, strlen(rule_folder)+1);
+
+
+		Maat_set_feather_opt(_shared_feather_f, MAAT_OPT_SCANDIR_INTERVAL_MS,&scan_interval_ms, sizeof(scan_interval_ms));
+		//Set a short intevral for testing.
+		Maat_set_feather_opt(_shared_feather_f, MAAT_OPT_EFFECT_INVERVAL_MS,&effective_interval_ms, sizeof(effective_interval_ms));
+
+		Maat_initiate_feather(_shared_feather_f);
+
+	}
+	static void TearDownTestCase()
+	{
+		Maat_burn_feather(_shared_feather_f);
+
+	}	
+ 	// Some expensive resource shared by all tests.
+	static Maat_feather_t _shared_feather_f;	
+};
+Maat_feather_t MaatFileTest::_shared_feather_f;
+TEST_F(MaatFileTest, StreamFiles)
+{
+#define StreamScan_StreamFiles
+	Maat_feather_t feather=MaatFileTest::_shared_feather_f;
+	const char* test_data_dir="./test_streamfiles";
+	struct dirent **namelist;
+	FILE* fp=NULL;
+	char file_path[256]={0};
+	char *buff;
+	size_t read_len=0;
+	int table_id=0,ret=0;
+	struct Maat_rule_t result[4];
+	stream_para_t sp=NULL;
+	int n=0,i=0, hit_cnt=0;
+	const char* table_name="NTC_HTTP_REQ_BODY";	
+	scan_status_t mid=NULL;
+	
+	table_id=Maat_table_register(feather,table_name);
+	ASSERT_GT(table_id, 0);
+
+	n = my_scandir(test_data_dir, &namelist, NULL, (int (*)(const void*, const void*))alphasort);
+	ASSERT_GT(n, 0);
+	sp=Maat_stream_scan_string_start(feather,table_id,0);
+	ASSERT_FALSE(sp==NULL);
+	
+	struct stat file_info;
+	size_t file_size=0;
+	for(i=0;i<n;i++)
+	{
+		if((strcmp(namelist[i]->d_name, ".") == 0) || (strcmp(namelist[i]->d_name, "..") == 0))
+		{
+			continue;
+		}
+		snprintf(file_path,sizeof(file_path),"%s/%s",test_data_dir,namelist[i]->d_name);
+		
+		ret=stat(file_path, &file_info);
+		ASSERT_TRUE(ret==0);
+		
+		file_size=file_info.st_size;
+		buff=(char*)malloc(file_size);
+		fp=fopen(file_path,"rb");
+		
+		if(fp==NULL)
+		{
+			printf("fopen %s error.\n",file_path);
+			continue;
+		}
+		read_len=fread(buff,1,file_size,fp);
+		ret=Maat_stream_scan_string(&sp,CHARSET_NONE,buff,read_len
+							,result, NULL, 4, &mid);
+		read_len=fread(buff,1,sizeof(buff),fp);
+		if(ret>0)
+		{
+			hit_cnt++;
+		}
+		printf("Stream Scan %s, ret=%d.\n",file_path,ret);
+		fclose(fp);
+		free(buff);
+		buff=NULL;
+	}
+	Maat_clean_status(&mid);
+	Maat_stream_scan_string_end(&sp);
+	EXPECT_GT(hit_cnt, 0);
+
+	for(i=0;i<n;i++)
+	{
+		free(namelist[i]);
+	}
+	free(namelist);
+
+	return;
+}
+
 class MaatCmdTest : public testing::Test 
 {
 
