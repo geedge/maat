@@ -912,7 +912,8 @@ void* create_bool_matcher(MESA_htable_handle compile_hash,int thread_num,void* l
 	if(q_cnt==0)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module,
-									"No compile rule to build a bool matcher."); 
+									"No compile rule to build a bool matcher.");
+		MESA_lqueue_destroy(update_q,lqueue_destroy_cb,NULL);
 		return NULL;
 	}
 	set_array=(universal_bool_expr_t*)malloc(sizeof(universal_bool_expr_t)*q_cnt);
