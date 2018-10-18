@@ -13,7 +13,7 @@
 
 #define maat_redis_monitor	(module_name_str("MAAT_REDIS_MONITOR"))
 #define maat_command (module_name_str("MAAT_COMMAND"))
-
+const time_t MAAT_REDIS_RECONNECT_INTERVAL=5;
 const char* rm_key_prefix[2]={"OBSOLETE_RULE","EFFECTIVE_RULE"};
 const char* rm_status_sset="MAAT_UPDATE_STATUS";
 const char* rm_expire_sset="MAAT_EXPIRE_TIMER";
@@ -44,8 +44,8 @@ redisReply *_wrap_redisCommand(redisContext *c, const char *format, ...)
 {
 	va_list ap;
 	void *reply = NULL;
-	int ret=0,retry=0;
-	while(reply==NULL&&retry<2)
+	int ret=REDIS_ERR, retry=0;
+	while(reply==NULL&&retry<2&&ret!=REDIS_OK)
 	{
 		va_start(ap,format);
 		reply = redisvCommand(c,format,ap);
@@ -54,10 +54,6 @@ redisReply *_wrap_redisCommand(redisContext *c, const char *format, ...)
 		{
 			ret=redisReconnect(c);
 			retry++;
-        		if(ret==REDIS_OK)
-			{
-				break;
-			}
 		}
 	}
 	return (redisReply *)reply;
@@ -102,7 +98,7 @@ long long read_redis_integer(const redisReply* reply)
 			return atoll(reply->str);
 			break;
 		default:
-			assert(0);
+			return -1;
 			break;
 	}	
 	return 0;
@@ -220,7 +216,7 @@ int invalidate_line(char* line, enum MAAT_TABLE_TYPE type,int valid_column_seq)
 }
 void serialize_region(const struct Maat_region_t* p,int group_id, char* buff,int size)
 {
-	int ret=0;
+	UNUSED int ret=0;
 	switch(p->region_type)
 	{
 		case REGION_IP:
@@ -343,7 +339,8 @@ int get_inc_key_list(long long instance_version, long long target_version, redis
 {
 	redisReply* reply=NULL,*tmp_reply=NULL;
 	char err_buff[256],	op_str[4];
-	int rule_num=0,ret=0;
+	int rule_num=0;
+	UNUSED int ret=0;
 	unsigned int  i=0;
 	long long nearest_rule_version;
 	struct serial_rule_t *s_rule=NULL;
@@ -354,7 +351,7 @@ int get_inc_key_list(long long instance_version, long long target_version, redis
 
 	if(reply==NULL)
 	{
-		__redis_strerror_r(errno,err_buff,sizeof(err_buff));
+		__redis_strerror_r(errno,err_buff,sizeof(err_buff)-1);
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
 				"GET %s failed %s.",rm_status_sset,err_buff);
 		return -1;
@@ -379,6 +376,10 @@ int get_inc_key_list(long long instance_version, long long target_version, redis
 	nearest_rule_version=read_redis_integer(tmp_reply);
 	freeReplyObject(tmp_reply);
 	tmp_reply=NULL;
+	if(nearest_rule_version<0)
+	{
+		return -1;
+	}
 	if(nearest_rule_version!=instance_version+1)
 	{
 		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor,
@@ -512,13 +513,22 @@ int get_rm_key_list(redisContext *c, long long instance_version, long long desir
 	else
 	{
 		memset(err_buff,0,sizeof(err_buff));
-		__redis_strerror_r(errno,err_buff,sizeof(err_buff));
+		__redis_strerror_r(errno,err_buff,sizeof(err_buff)-1);
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
 				"GET MAAT_VERSION failed %s. Reconnecting...",err_buff);
 		_wrap_redisReconnect(c,logger);
 		return -1;
 	}
 	redis_version=read_redis_integer(reply);
+	if(redis_version<0)
+	{
+		if(reply->type==REDIS_REPLY_ERROR)
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
+			"Redis Communication error: %s.",reply->str);
+		}
+		return -1;
+	}
 	freeReplyObject(reply);
 	if(redis_version==instance_version)
 	{		
@@ -647,7 +657,8 @@ FULL_UPDATE:
 
 int _get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int rule_num,void* logger)
 {
-	int i=0,ret=0,failed_cnt=0,idx=0;
+	int i=0,failed_cnt=0,idx=0;
+	UNUSED int ret=0;
 	int error_happened=0;
 	int *retry_ids=(int*)malloc(sizeof(int)*rule_num);
 	char redis_cmd[256];
@@ -983,7 +994,7 @@ struct expected_reply_t
 
 long long _exec_serial_rule_begin(redisContext* ctx,int rule_num, int renew_rule_num,int *renew_allowed, long long *maat_redis_version)
 {
-	int ret=0;
+	int ret=-1;
 	redisReply* data_reply=NULL;
 	if(renew_rule_num>0)
 	{
@@ -998,12 +1009,16 @@ long long _exec_serial_rule_begin(redisContext* ctx,int rule_num, int renew_rule
 		data_reply=_wrap_redisCommand(ctx, "INCRBY MAAT_PRE_VER 1");
 		*maat_redis_version=read_redis_integer(data_reply);
 		freeReplyObject(data_reply);
+		if(*maat_redis_version<0)
+		{
+			return -1;
+		}
 	}
 	if(*renew_allowed==1||rule_num>renew_rule_num)
 	{
 		data_reply=_wrap_redisCommand(ctx,"MULTI");
 		freeReplyObject(data_reply);
-		ret=1;
+		ret=0;
 	}
 	return ret;
 }
@@ -1180,8 +1195,9 @@ int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,int serial_r
 	}
 
 	ret=_exec_serial_rule_begin(ctx,serial_rule_num,renew_num, &renew_allowed, &new_version);
-	if(ret!=1)//Preconditions of transaction is not qualified.
+	if(ret!=0)//Preconditions of transaction is not qualified.
 	{
+		success_cnt=-1;
 		goto error_out;
 	}
 	while(success_cnt<serial_rule_num)
@@ -1296,7 +1312,7 @@ int fix_table_name(_Maat_feather_t* feather,struct Maat_cmd_t* cmd)
 void check_maat_expiration(redisContext *ctx, void *logger)
 {
 	unsigned int i=0,s_rule_num=0;
-	int ret=0;
+	UNUSED int ret=0;
 	int success_cnt=0;
 	redisReply* data_reply=NULL;
 	struct serial_rule_t* s_rule=NULL;
@@ -1357,14 +1373,19 @@ void cleanup_update_status(redisContext *ctx, void *logger)
 		reply=NULL;
 	}
 	reply=_wrap_redisCommand(ctx,"EXEC");
-	assert(reply->type==REDIS_REPLY_ARRAY);
+	if(reply->type!=REDIS_REPLY_ARRAY)
+	{
+		goto error_out;
+	}
 	sub_reply=reply->element[0];
-	assert(sub_reply->type==REDIS_REPLY_ARRAY);
+	if(sub_reply->type!=REDIS_REPLY_ARRAY)
+	{
+		goto error_out;
+	}
 	version_num=sub_reply->elements;
 	if(version_num==0)
 	{
-		freeReplyObject(reply);	
-		return;
+		goto error_out;
 	}
 	version_lower_bound=read_redis_integer(sub_reply->element[0]);
 	version_upper_bound=read_redis_integer(sub_reply->element[sub_reply->elements-1]);
@@ -1381,7 +1402,9 @@ void cleanup_update_status(redisContext *ctx, void *logger)
 			,version_upper_bound
 			,version_num
 			,entry_num);
-
+error_out:
+	freeReplyObject(reply);	
+	return;	
 }
 const char* find_Nth_column(const char* line, int Nth, int* column_len)
 {
@@ -1566,7 +1589,8 @@ struct foreign_conts_track
 };
 void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, int print_fn, void *logger)
 {
-	int i=0, j=0, ret=0;
+	int i=0, j=0;
+	UNUSED int ret=0;
 	int key_num=0;
 	struct foreign_conts_track* track=ALLOC(struct foreign_conts_track, rule_num*MAX_FOREIGN_CLMN_NUM); 
 	char redis_cmd[256];
@@ -1669,9 +1693,18 @@ void redis_monitor_traverse(long        long version,redisContext *c,
 			redlock_unlock(feather->redis_read_ctx,rm_expire_lock);
 		}
 	}
-	if(c==NULL||c->err)
+	if(c==NULL) return;
+	if(c->err)
 	{
-		return;
+		if(time(NULL)-feather->last_reconnect_time < MAAT_REDIS_RECONNECT_INTERVAL)
+		{
+			return;
+		}
+		feather->last_reconnect_time=time(NULL);		
+		if(0!=_wrap_redisReconnect(c, logger))
+		{
+			return;
+		}
 	}
 	
 	rule_num=get_rm_key_list(c, version, feather->load_version_from, &new_version, &rule_list, &update_type, logger, feather->cumulative_update_off);
@@ -1999,6 +2032,11 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 		set_serial_rule(s_rule+i, op,line_rule[i]->rule_id,line_rule[i]->label_id,line_rule[i]->table_name,line_rule[i]->table_line, absolute_expire_time);
 	}
 	success_cnt=exec_serial_rule(_feather->redis_write_ctx,s_rule, line_num,server_time,_feather->logger);
+	if(success_cnt<0)//error
+	{
+		ret=-1;
+		goto error_out;
+	}
 	assert(success_cnt==line_num);
 	ret=success_cnt;
 	_feather->line_cmd_acc_num+=success_cnt;
@@ -2176,7 +2214,7 @@ int Maat_cmd_commit(Maat_feather_t feather)
 	int ret=0,i=0;
 	int new_region_num=0,new_group_num=0;
 	int serial_rule_num=0,serial_rule_idx=0;
-	int transection_success=1;
+	UNUSED int transection_success=1;
 	struct _Maat_cmd_inner_t* p=NULL,*n=NULL;
 
 	redisContext* ctx=NULL;
@@ -2211,12 +2249,22 @@ int Maat_cmd_commit(Maat_feather_t feather)
 	if(_feather->AUTO_NUMBERING_ON==1)
 	{
 		data_reply=_wrap_redisCommand(ctx,"INCRBY SEQUENCE_REGION %d",new_region_num); 
-		assert(data_reply->type==REDIS_REPLY_INTEGER);
+		if(data_reply->type!=REDIS_REPLY_INTEGER)
+		{
+			freeReplyObject(data_reply);
+			ret=-1;
+			goto error_out;
+		}
 		_feather->base_rgn_seq=data_reply->integer-new_region_num;
 		freeReplyObject(data_reply);
 
 		data_reply=_wrap_redisCommand(ctx,"INCRBY SEQUENCE_GROUP %d",new_group_num); 
-		assert(data_reply->type==REDIS_REPLY_INTEGER);
+		if(data_reply->type!=REDIS_REPLY_INTEGER)
+		{
+			freeReplyObject(data_reply);
+			ret=-1;
+			goto error_out;
+		}
 		_feather->base_grp_seq=data_reply->integer-new_group_num;
 		freeReplyObject(data_reply);
 	}
@@ -2244,7 +2292,7 @@ error_out:
 	_feather->cmd_qhead=_feather->cmd_qtail=NULL;
 	_feather->cmd_q_cnt=0;
 
-	for(i=0;i<serial_rule_num;i++)
+	for(i=0;i<serial_rule_num && s_rule;i++)
 	{
 		empty_serial_rules(s_rule+i);
 	}
@@ -2266,8 +2314,14 @@ long long Maat_cmd_incrby(Maat_feather_t feather,const char* key, int increment)
 		}
 	}
 	data_reply=_wrap_redisCommand(_feather->redis_write_ctx,"INCRBY %s %d", key, increment); 
-	assert(data_reply->type==REDIS_REPLY_INTEGER);
-	result=data_reply->integer;
+	if(data_reply->type==REDIS_REPLY_INTEGER)
+	{
+		result=data_reply->integer;
+	}
+	else
+	{
+		result=-1;
+	}
 	freeReplyObject(data_reply);
 	return result;		
 }
