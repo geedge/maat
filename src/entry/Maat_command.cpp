@@ -376,6 +376,10 @@ int get_inc_key_list(long long instance_version, long long target_version, redis
 	nearest_rule_version=read_redis_integer(tmp_reply);
 	freeReplyObject(tmp_reply);
 	tmp_reply=NULL;
+	if(nearest_rule_version<0)
+	{
+		return -1;
+	}
 	if(nearest_rule_version!=instance_version+1)
 	{
 		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor,
@@ -516,6 +520,15 @@ int get_rm_key_list(redisContext *c, long long instance_version, long long desir
 		return -1;
 	}
 	redis_version=read_redis_integer(reply);
+	if(redis_version<0)
+	{
+		if(reply->type==REDIS_REPLY_ERROR)
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
+			"Redis Communication error: %s.",reply->str);
+		}
+		return -1;
+	}
 	freeReplyObject(reply);
 	if(redis_version==instance_version)
 	{		
