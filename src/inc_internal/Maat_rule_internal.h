@@ -402,6 +402,7 @@ struct _Maat_feather_t
 	int AUTO_NUMBERING_ON;
 	struct timeval connect_timeout;
 	redisContext *redis_read_ctx;
+	time_t last_reconnect_time;
 	redisContext *redis_write_ctx;	// not thread safe.
 	int on_redis_writing;
 	int cmd_q_cnt;

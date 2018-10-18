@@ -21,6 +21,7 @@
 #define MIN(a, b)  	(((a) < (b)) ? (a) : (b))
 #endif
 
+#define UNUSED	__attribute__((unused))
 const char*	module_name_str(const char*name);
 #define maat_module	(module_name_str("MAAT_Frame"))
 

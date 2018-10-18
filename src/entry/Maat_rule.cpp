@@ -482,6 +482,7 @@ error_out:
 int lqueue_destroy_cb(void *data, long data_len, void *arg)
 {
 	assert(0);
+	return 0;
 }
 void * HASH_fetch_by_id(MESA_htable_handle hash,int id)
 {
@@ -901,7 +902,7 @@ void* create_bool_matcher(MESA_htable_handle compile_hash,int thread_num,void* l
 	MESA_lqueue_head update_q=MESA_lqueue_create(0,0);;
 	long data_size=0;
 	unsigned int mem_size=0;
-	MESA_queue_errno_t q_ret=MESA_QUEUE_RET_OK; 	
+	UNUSED MESA_queue_errno_t q_ret=MESA_QUEUE_RET_OK; 	
 	data_size=sizeof(void*);
 	universal_bool_expr_t* one_set=NULL;
 	universal_bool_expr_t* set_array=NULL;
@@ -982,7 +983,7 @@ void force_destroy_compile_rule(struct _Maat_compile_inner_t * p)
 void destroy_compile_rule(struct _Maat_compile_inner_t * p)
 {
 	int i=0;
-	struct _Maat_compile_inner_t* p_group=NULL;
+	UNUSED struct _Maat_compile_inner_t* p_group=NULL;
 	assert(p->group_cnt==0);
 	for(i=0;i<p->group_boundary;i++)
 	{
@@ -1155,7 +1156,7 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,_Maat_feather_t
 
 	int i=0,j=0;
 	unsigned int sub_type=0;
-	int ret=0;
+	UNUSED int ret=0;
 	
 	MESA_htable_create_args_t hargs;
 	memset(&hargs,0,sizeof(hargs));
@@ -1255,7 +1256,8 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,_Maat_feather_t
 void destroy_maat_scanner(struct _Maat_scanner_t*scanner)
 {
 	long q_cnt=0,data_size=0;
-	int i=0,j=0,q_ret=0;
+	int i=0,j=0;
+	UNUSED int q_ret=0;
 	struct op_expr_t* op_expr=NULL;
 	GIE_digest_t* digest_rule=NULL;
 	if(scanner==NULL)
@@ -1386,7 +1388,7 @@ void rulescan_batch_update(rule_scanner_t rs_handle,MESA_lqueue_head expr_queue,
 	int j=0,ret=0;
 	unsigned int failed_ids[MAX_FAILED_NUM];
 	char failed_info[512],*p=NULL;
-	MESA_queue_errno_t q_ret=MESA_QUEUE_RET_OK; 
+	UNUSED	MESA_queue_errno_t q_ret=MESA_QUEUE_RET_OK; 
 	memset(failed_ids,0,sizeof(failed_ids));
 	memset(failed_info,0,sizeof(failed_info));
 	const long q_cnt=MESA_lqueue_get_count(expr_queue);
@@ -1475,7 +1477,7 @@ void digest_batch_update(GIE_handle_t* handle,MESA_lqueue_head update_q,void*log
 	int ret=0;
 	GIE_digest_t* digest_rule=NULL;
 	GIE_digest_t** update_array=NULL;
-	MESA_queue_errno_t q_ret=MESA_QUEUE_RET_OK; 
+	UNUSED	MESA_queue_errno_t q_ret=MESA_QUEUE_RET_OK; 
 	const long q_cnt=MESA_lqueue_get_count(update_q);
 	if(q_cnt==0)
 	{
@@ -2945,7 +2947,7 @@ void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbag
 }
 void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
 {
-	MESA_queue_errno_t q_ret=MESA_QUEUE_RET_OK;
+	UNUSED	MESA_queue_errno_t q_ret=MESA_QUEUE_RET_OK;
 	_maat_garbage_t* bag=NULL;
 	long data_size=0;
 	const long q_cnt=MESA_lqueue_get_count(garbage_q);
@@ -3390,7 +3392,8 @@ void *thread_rule_monitor(void *arg)
 	const char* inc_cfg_dir=(const char*)feather->inc_dir;
 	struct _Maat_scanner_t* old_scanner=NULL;
 	long expr_wait_q_cnt=0;
-	int scan_dir_cnt=0,ret=0;
+	int scan_dir_cnt=0;
+	UNUSED int ret=0;
 	char maat_name[16];//Defined by prctl: The name can be up to 16 bytes long,and should 
 						// be null  terminated if it contains fewer bytes.
 	if(strlen(feather->instance_name)>0)
