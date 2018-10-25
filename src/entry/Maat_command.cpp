@@ -341,7 +341,7 @@ int get_inc_key_list(long long instance_version, long long target_version, redis
 	char err_buff[256],	op_str[4];
 	int rule_num=0;
 	UNUSED int ret=0;
-	unsigned int  i=0;
+	unsigned int  i=0, j=0;
 	long long nearest_rule_version;
 	struct serial_rule_t *s_rule=NULL;
 	
@@ -388,25 +388,33 @@ int get_inc_key_list(long long instance_version, long long target_version, redis
 		return -1;
 	}
 	s_rule=(struct serial_rule_t*)calloc(reply->elements,sizeof(struct serial_rule_t));
-	for(i=0;i<reply->elements;i++)
+	for(i=0, j=0;i<reply->elements;i++)
 	{
 		assert(reply->element[i]->type==REDIS_REPLY_STRING);
-		ret=sscanf(reply->element[i]->str,"%[^,],%[^,],%d",op_str,s_rule[i].table_name,&(s_rule[i].rule_id));
-		assert(ret==3);
+		ret=sscanf(reply->element[i]->str,"%[^,],%[^,],%d",op_str,s_rule[j].table_name,&(s_rule[j].rule_id));
+		if(ret!=3||s_rule[i].rule_id<0)
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
+					"Invalid Redis Key: %s",reply->element[i]->str);
+			continue;
+		}
 		if(strncmp(op_str,"ADD",strlen("ADD"))==0)
 		{
-			s_rule[i].op=MAAT_OP_ADD;
+			s_rule[j].op=MAAT_OP_ADD;
 		}
 		else if(strncmp(op_str,"DEL",strlen("DEL"))==0)
 		{
-			s_rule[i].op=MAAT_OP_DEL;
+			s_rule[j].op=MAAT_OP_DEL;
 		}
 		else
 		{
-			assert(0);
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
+					"Invalid Redis Key: %s",reply->element[i]->str);
+			continue;
 		}
+		j++;
 	}	
-	rule_num=reply->elements;
+	rule_num=j;
 	*list=s_rule;
 	freeReplyObject(reply);
 	return rule_num;
@@ -607,19 +615,45 @@ FULL_UPDATE:
 				"Redis Communication error: %s.",c->errstr);
 		return -1;
 	}
-	assert(reply->type==REDIS_REPLY_ARRAY);
+	if(reply->type!=REDIS_REPLY_ARRAY)
+	{
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
+				"Invalid Redis Key List type %d", sub_reply->type);
+		freeReplyObject(reply);
+		reply=NULL;
+		return -1;
+	}
 	*new_version=read_redis_integer(reply->element[0]);
 	sub_reply=reply->element[1];
-	assert(sub_reply->type==REDIS_REPLY_ARRAY);
-	rule_num=sub_reply->elements;
-	s_rule_array=(struct serial_rule_t*)calloc(rule_num,sizeof(struct serial_rule_t));
-	for(full_idx=0;full_idx<sub_reply->elements;full_idx++)
+	if(sub_reply->type!=REDIS_REPLY_ARRAY)
 	{
-		assert(sub_reply->element[full_idx]->type==REDIS_REPLY_STRING);
-		ret=sscanf(sub_reply->element[full_idx]->str,"%*[^:]:%[^,],%d",s_rule_array[full_idx].table_name,&(s_rule_array[full_idx].rule_id));
-		s_rule_array[full_idx].op=MAAT_OP_ADD;
-		assert(ret==2);	
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
+				"Invalid Redis Key List type %d", sub_reply->type);
+		freeReplyObject(reply);
+		reply=NULL;
+		return -1;
 	}
+
+	s_rule_array=(struct serial_rule_t*)calloc(sub_reply->elements,sizeof(struct serial_rule_t));
+	for(i=0, full_idx=0; i<sub_reply->elements; i++)
+	{
+		if(sub_reply->element[i]->type!=REDIS_REPLY_STRING)
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
+											"Invalid Redis Key Type: %d", sub_reply->element[i]->type);
+			continue;
+		}
+		ret=sscanf(sub_reply->element[i]->str,"%*[^:]:%[^,],%d",s_rule_array[full_idx].table_name,&(s_rule_array[full_idx].rule_id));
+		s_rule_array[full_idx].op=MAAT_OP_ADD;
+		if(ret!=2||s_rule_array[full_idx].rule_id<0||strlen(s_rule_array[full_idx].table_name)==0)
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
+			"Invalid Redis Key Format: %s", sub_reply->element[i]->str);
+			continue;
+		}
+		full_idx++;
+	}
+	rule_num=full_idx;
 	freeReplyObject(reply);
 	if(desired_version!=0)
 	{
