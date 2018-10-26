@@ -470,7 +470,7 @@ struct foreign_key
 struct serial_rule_t		//rm= Redis Maat
 {
 	enum MAAT_OPERATION op;//0: delete, 1: add.
-	int rule_id;
+	long rule_id;
 	int label_id;
 	long long timeout;			// absolute unix time.
 	char table_name[256];

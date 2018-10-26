@@ -391,7 +391,7 @@ int get_inc_key_list(long long instance_version, long long target_version, redis
 	for(i=0, j=0;i<reply->elements;i++)
 	{
 		assert(reply->element[i]->type==REDIS_REPLY_STRING);
-		ret=sscanf(reply->element[i]->str,"%[^,],%[^,],%d",op_str,s_rule[j].table_name,&(s_rule[j].rule_id));
+		ret=sscanf(reply->element[i]->str,"%[^,],%[^,],%ld",op_str,s_rule[j].table_name,&(s_rule[j].rule_id));
 		if(ret!=3||s_rule[i].rule_id<0)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
@@ -464,14 +464,14 @@ int recovery_history_version(const struct serial_rule_t* current, int current_nu
 
 	for(i=0;i<current_num;i++)
 	{
-		snprintf(hkey,sizeof(hkey),"%d,%s",current[i].rule_id,current[i].table_name);
+		snprintf(hkey,sizeof(hkey),"%ld,%s",current[i].rule_id,current[i].table_name);
 		ret=MESA_htable_add(htable, (uchar*)hkey, strlen(hkey), current+i);
 		assert(ret>0);
 	}
 
 	for(i=changed_num-1;i>=0;i--)
 	{
-		snprintf(hkey,sizeof(hkey),"%d,%s",changed[i].rule_id,changed[i].table_name);
+		snprintf(hkey,sizeof(hkey),"%ld,%s",changed[i].rule_id,changed[i].table_name);
 		if(changed[i].op==MAAT_OP_ADD)//newly added rule is need to delete from current, so that history version can be recovered.
 		{
 			ret=MESA_htable_del(htable, (uchar*)hkey, strlen(hkey), NULL);
@@ -643,7 +643,7 @@ FULL_UPDATE:
 											"Invalid Redis Key Type: %d", sub_reply->element[i]->type);
 			continue;
 		}
-		ret=sscanf(sub_reply->element[i]->str,"%*[^:]:%[^,],%d",s_rule_array[full_idx].table_name,&(s_rule_array[full_idx].rule_id));
+		ret=sscanf(sub_reply->element[i]->str,"%*[^:]:%[^,],%ld",s_rule_array[full_idx].table_name,&(s_rule_array[full_idx].rule_id));
 		s_rule_array[full_idx].op=MAAT_OP_ADD;
 		if(ret!=2||s_rule_array[full_idx].rule_id<0||strlen(s_rule_array[full_idx].table_name)==0)
 		{
@@ -699,7 +699,7 @@ int _get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int ru
 	redisReply* reply=NULL;
 	for(i=0;i<rule_num;i++)
 	{
-		snprintf(redis_cmd,sizeof(redis_cmd),"GET %s:%s,%d",rm_key_prefix[rule_list[i].op]
+		snprintf(redis_cmd,sizeof(redis_cmd),"GET %s:%s,%ld",rm_key_prefix[rule_list[i].op]
 				,rule_list[i].table_name
 				,rule_list[i].rule_id);
 		ret=redisAppendCommand(c, redis_cmd);
@@ -739,7 +739,7 @@ int _get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int ru
 	for(i=0;i<failed_cnt;i++)
 	{
 		idx=retry_ids[i];
-		snprintf(redis_cmd,sizeof(redis_cmd),"GET %s:%s,%d",rm_key_prefix[MAAT_OP_DEL]
+		snprintf(redis_cmd,sizeof(redis_cmd),"GET %s:%s,%ld",rm_key_prefix[MAAT_OP_DEL]
 				,rule_list[idx].table_name
 				,rule_list[idx].rule_id);
 		ret=redisAppendCommand(c, redis_cmd);
@@ -1365,7 +1365,7 @@ void check_maat_expiration(redisContext *ctx, void *logger)
 	for(i=0;i<s_rule_num;i++)
 	{
 		s_rule[i].op=MAAT_OP_DEL;
-		ret=sscanf(data_reply->element[i]->str,"%[^,],%d",s_rule[i].table_name,&(s_rule[i].rule_id));
+		ret=sscanf(data_reply->element[i]->str,"%[^,],%ld",s_rule[i].table_name,&(s_rule[i].rule_id));
 		assert(ret==2);
 	}
 	freeReplyObject(data_reply);
