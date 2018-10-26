@@ -34,8 +34,8 @@ static int compare_serial_rule(const void *a, const void *b)
 	struct serial_rule_t *rb=(struct serial_rule_t *)b;
 
 	char p_str[256],q_str[256];
-	snprintf(p_str,sizeof(p_str),"%s.%d",ra->table_name,ra->rule_id);
-	snprintf(q_str,sizeof(q_str),"%s.%d",rb->table_name,rb->rule_id);
+	snprintf(p_str,sizeof(p_str),"%s.%ld",ra->table_name,ra->rule_id);
+	snprintf(q_str,sizeof(q_str),"%s.%ld",rb->table_name,rb->rule_id);
 	return strcmp(p_str,q_str);
 }
 static redisContext * connect_redis(const char*redis_ip, int redis_port, int redis_db)
@@ -160,7 +160,7 @@ void read_rule_from_redis(redisContext * ctx, long long desire_version, const ch
 			
 			cur_table=rule_list[i].table_name;
 		}
-		fprintf(table_fp,"%s\tkey=%d\n",rule_list[i].table_line,rule_list[i].rule_id);
+		fprintf(table_fp,"%s\tkey=%ld\n",rule_list[i].table_line,rule_list[i].rule_id);
 		line_count++;
 	}
 	fclose(table_fp);

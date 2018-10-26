@@ -24,8 +24,8 @@ ExternalProject_Add(hiredis-vip PREFIX hiredis-vip
         BUILD_IN_SOURCE 1)
 
 ExternalProject_Get_Property(hiredis-vip SOURCE_DIR)
-set(HTTP_PARSER_INCLUDE_DIRECTORIES ${SOURCE_DIR})
-file(MAKE_DIRECTORY ${HTTP_PARSER_INCLUDE_DIRECTORIES})
+set(HIREDIS_INCLUDE_DIRECTORIES ${SOURCE_DIR})
+file(MAKE_DIRECTORY ${HIREDIS_INCLUDE_DIRECTORIES})
 
 add_library(hiredis-vip-static STATIC IMPORTED GLOBAL)
 set_property(TARGET hiredis-vip-static PROPERTY IMPORTED_LOCATION ${SOURCE_DIR}/libhiredis_vip.a)
