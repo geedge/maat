@@ -240,11 +240,6 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 
 void Maat_clean_status(scan_status_t* mid);
 
-
-struct Maat_rule_ex_t
-{
-
-};
 typedef void*  MAAT_RULE_EX_DATA;
 // The idx parameter is the index: this will be the same value returned by Maat_rule_get_ex_new_index() when the functions were initially registered.
 // Finally the argl and argp parameters are the values originally passed to the same corresponding parameters when Maat_rule_get_ex_new_index() was called.
