@@ -243,13 +243,18 @@ void Maat_clean_status(scan_status_t* mid);
 typedef void*  MAAT_RULE_EX_DATA;
 // The idx parameter is the index: this will be the same value returned by Maat_rule_get_ex_new_index() when the functions were initially registered.
 // Finally the argl and argp parameters are the values originally passed to the same corresponding parameters when Maat_rule_get_ex_new_index() was called.
-typedef void Maat_rule_EX_new_func_t(int idx, const struct Maat_rule_t* rule, const char* srv_def_large, MAAT_RULE_EX_DATA* ad, long argl, void *argp);
-typedef void Maat_rule_EX_free_func_t(int idx, const struct Maat_rule_t* rule, const char* srv_def_large, MAAT_RULE_EX_DATA* ad, long argl, void *argp);
+typedef void Maat_rule_EX_new_func_t(int idx, const struct Maat_rule_t* rule, const char* srv_def_large,
+											MAAT_RULE_EX_DATA* ad, long argl, void *argp);
+typedef void Maat_rule_EX_free_func_t(int idx, const struct Maat_rule_t* rule, const char* srv_def_large,
+											MAAT_RULE_EX_DATA* ad, long argl, void *argp);
+typedef void Maat_rule_EX_dup_func_t(int idx,	MAAT_RULE_EX_DATA *to, MAAT_RULE_EX_DATA *from, long argl, void *argp);
 
 int Maat_rule_get_ex_new_index(Maat_feather_t feather, const char* compile_table_name,
-										 Maat_rule_EX_new_func_t *new_func,
+										 Maat_rule_EX_new_func_t* new_func,
 										 Maat_rule_EX_free_func_t* free_func,
+										 Maat_rule_EX_dup_func_t* dup_func,
 										 long argl, void *argp);
+//returned data is duplicated by dup_func of Maat_rule_get_ex_new_index,  caller is responsible to free the data.
 MAAT_RULE_EX_DATA Maat_rule_get_ex_data(Maat_feather_t feather, const struct Maat_rule_t* rule, int idx);
 
 

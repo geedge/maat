@@ -94,6 +94,7 @@ struct compile_ex_data_idx
 {
 	Maat_rule_EX_new_func_t *new_func;
 	Maat_rule_EX_free_func_t* free_func;
+	Maat_rule_EX_dup_func_t* dup_func;
 	long argl;
 	void *argp;
 	int idx;

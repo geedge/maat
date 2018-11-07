@@ -980,6 +980,7 @@ void rule_ex_data_new_cb(const uchar * key, uint size, void * data, void * user)
 int Maat_rule_get_ex_new_index(Maat_feather_t feather, const char* compile_table_name,
 										 Maat_rule_EX_new_func_t *new_func,
 										 Maat_rule_EX_free_func_t* free_func,
+										 Maat_rule_EX_dup_func_t* dup_func,
 										 long argl, void *argp)
 {
 	struct _Maat_feather_t *_feather=(struct _Maat_feather_t *)feather;
@@ -1008,6 +1009,8 @@ int Maat_rule_get_ex_new_index(Maat_feather_t feather, const char* compile_table
 	p_table->ex_desc[idx].argp=argp;
 	p_table->ex_desc[idx].new_func=new_func;
 	p_table->ex_desc[idx].free_func=free_func;
+	p_table->ex_desc[idx].dup_func=dup_func;
+
 	p_table->ex_data_num++;
 	MESA_htable_iterate(_feather->scanner->compile_hash, rule_ex_data_new_cb, p_table->ex_desc+idx);
 failed:
@@ -1019,15 +1022,18 @@ MAAT_RULE_EX_DATA Maat_rule_get_ex_data(Maat_feather_t feather, const struct Maa
 {
 	struct _Maat_feather_t *_feather=(struct _Maat_feather_t *)feather;
 	struct _Maat_compile_inner_t *compile_inner=NULL;
+	const struct compile_ex_data_idx* ex_desc=NULL;	
 	MAAT_RULE_EX_DATA ad=NULL;
+	
 	compile_inner=(struct _Maat_compile_inner_t *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule->config_id);
 	if(compile_inner==NULL)
 	{
 		return NULL;
 	}
 	pthread_rwlock_rdlock(&(compile_inner->rwlock));
-	assert(idx<compile_inner->ref_table->ex_data_num);
-	ad=compile_inner->ads[idx];
+	assert(idx<compile_inner->ref_table->ex_data_num);	
+	ex_desc=compile_inner->ref_table->ex_desc+idx;
+	ex_desc->dup_func(ex_desc->idx, &ad, compile_inner->ads+idx, ex_desc->argl,ex_desc->argp);
 	pthread_rwlock_unlock(&(compile_inner->rwlock));		
 	return ad;
 }
