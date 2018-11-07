@@ -1436,6 +1436,8 @@ void cleanup_update_status(redisContext *ctx, void *logger)
 			,version_upper_bound
 			,version_num
 			,entry_num);
+	return;
+	
 error_out:
 	freeReplyObject(reply);	
 	return;	
