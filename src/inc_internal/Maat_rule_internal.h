@@ -46,7 +46,7 @@ typedef int atomic_t;
 #define	MAX_PLUGIN_PER_TABLE		32
 #define	MAX_FOREIGN_CLMN_NUM		8
 #define	MAX_SCANNER_HIT_NUM			64
-
+#define	MAX_COMPILE_EX_DATA_NUM		8
 #define	MAX_GROUP_CACHE		128
 
 #define	MAX_FAILED_NUM		128
@@ -83,6 +83,66 @@ enum MAAT_TABLE_TYPE
 	TABLE_TYPE_COMPILE,
 	TABLE_TYPE_PLUGIN
 
+};
+enum USER_REGION_ENCODE
+{
+	USER_REGION_ENCODE_NONE=0,
+	USER_REGION_ENCODE_ESCAPE,
+	USER_REGION_ENCODE_BASE64
+};
+struct compile_ex_data_idx
+{
+	Maat_rule_EX_new_func_t *new_func;
+	Maat_rule_EX_free_func_t* free_func;
+	long argl;
+	void *argp;
+	int idx;
+	int table_id;
+};
+struct _Maat_table_info_t
+{
+	unsigned short table_id;
+	unsigned short conj_cnt;
+	unsigned short updating_name;
+	char table_name[MAX_CONJUNCTION_TABLE_NUM][MAX_TABLE_NAME_LEN];
+	enum MAAT_TABLE_TYPE table_type;
+	enum MAAT_CHARSET src_charset;
+	enum MAAT_CHARSET dst_charset[MAX_CHARSET_NUM];
+	int src_charset_in_dst;
+	int do_charset_merge;
+	int cfg_num;
+	int cross_cache_size;
+	int quick_expr_switch;
+	union
+	{
+		int expr_rule_cnt;	//expr_type=0,1,3
+		int ipv4_rule_cnt;
+	};
+	union
+	{
+		int regex_rule_cnt;	//expr_type=2
+		int ipv6_rule_cnt;
+	};
+	struct _plugin_table_info *cb_info;
+	int valid_flag_column;		//for plugin table
+	int rule_tag_column;		//for plugin table;
+	int foreign_columns[MAX_FOREIGN_CLMN_NUM];			//for plugin table;
+	int n_foreign;
+
+	//for compile table
+	enum USER_REGION_ENCODE user_region_encoding;
+	int ex_data_num;
+	struct compile_ex_data_idx ex_desc[MAX_COMPILE_EX_DATA_NUM];
+//for stat>>>>>>>>
+	unsigned long long udpate_err_cnt;
+	unsigned long long unmatch_tag_cnt;
+	unsigned long long iconv_err_cnt;
+	int stat_line_id;
+	mcore_long_t	scan_cnt;
+	mcore_long_t	scan_cpu_time;	//nano
+	mcore_long_t	input_bytes;
+	mcore_long_t	stream_num;
+	mcore_long_t	hit_cnt;
 };
 
 struct db_str_rule_t
@@ -188,10 +248,12 @@ struct _Maat_compile_inner_t
 {
 	struct db_compile_rule_t *db_c_rule;
 	dynamic_array_t *groups;
+	int is_valid;
 	int compile_id;//equal to db_c_rule->m_rule.config_id
-	int table_id;
+	const struct _Maat_table_info_t* ref_table;
 	int group_boundary;
 	int group_cnt;
+	MAAT_RULE_EX_DATA* ads;
 	pthread_rwlock_t rwlock;//reading compile rule is safe in update thread, rwlock lock called when delete or scan thread read
 };
 struct _compile_result_t
@@ -231,51 +293,8 @@ struct _region_stat_t
 		int ipv6_rule_cnt;
 	};
 };
-#define	USER_REGION_ENCODE_NONE		0
-#define	USER_REGION_ENCODE_ESCAPE	1
-#define	USER_REGION_ENCODE_BASE64	2
 
-struct _Maat_table_info_t
-{
-	unsigned short table_id;
-	unsigned short conj_cnt;
-	unsigned short updating_name;
-	char table_name[MAX_CONJUNCTION_TABLE_NUM][MAX_TABLE_NAME_LEN];
-	enum MAAT_TABLE_TYPE table_type;
-	enum MAAT_CHARSET src_charset;
-	enum MAAT_CHARSET dst_charset[MAX_CHARSET_NUM];
-	int src_charset_in_dst;
-	int do_charset_merge;
-	int cfg_num;
-	int cross_cache_size;
-	int quick_expr_switch;
-	union
-	{
-		int expr_rule_cnt;	//expr_type=0,1,3
-		int ipv4_rule_cnt;
-	};
-	union
-	{
-		int regex_rule_cnt;	//expr_type=2
-		int ipv6_rule_cnt;
-	};
-	struct _plugin_table_info *cb_info;
-	int valid_flag_column;		//for plugin table
-	int rule_tag_column;		//for plugin table;
-	int foreign_columns[MAX_FOREIGN_CLMN_NUM];			//for plugin table;
-	int n_foreign;
-	int user_region_encoding;	//for compile table, USER_REGION_ENCODE_xx
-//for stat>>>>>>>>
-	unsigned long long udpate_err_cnt;
-	unsigned long long unmatch_tag_cnt;
-	unsigned long long iconv_err_cnt;
-	int stat_line_id;
-	mcore_long_t	scan_cnt;
-	mcore_long_t	scan_cpu_time;	//nano
-	mcore_long_t	input_bytes;
-	mcore_long_t	stream_num;
-	mcore_long_t	hit_cnt;
-};
+
 
 struct _INNER_scan_status_t
 {
@@ -504,6 +523,10 @@ int get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int rul
 int get_foreign_keys_by_prefix(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, const char* dir,void *logger);
 void get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, int print_fn, void *logger);
 void rewrite_table_line_with_foreign(struct serial_rule_t*p);
+
+void fill_maat_rule(struct Maat_rule_t *rule, const struct _head_Maat_rule_t* rule_head, const char* srv_def, int srv_def_len);
+MAAT_RULE_EX_DATA rule_ex_data_new(const struct _head_Maat_rule_t * rule_head, const char* srv_def, const struct compile_ex_data_idx* ex_desc);
+void rule_ex_data_free(const struct _head_Maat_rule_t * rule_head, const char* srv_def, MAAT_RULE_EX_DATA *ad, const struct compile_ex_data_idx* ex_desc);
 
 
 void set_serial_rule(struct serial_rule_t* rule,enum MAAT_OPERATION op,int rule_id,int label_id,const char* table_name,const char* line, long long timeout);
