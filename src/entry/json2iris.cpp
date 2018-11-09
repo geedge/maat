@@ -695,8 +695,12 @@ int write_compile_rule(cJSON *compile,struct iris_description_t *p_iris,void * l
 {
 	int compile_id=-1,cmd_cnt=0,ret=-1;
 	cJSON* item=NULL;
+	struct iris_table_t* table_info=NULL;
+	
 	struct traslate_command_t compile_cmd[MAX_COLUMN_NUM];
 	memset(compile_cmd,0,sizeof(compile_cmd));
+
+
 	compile_cmd[cmd_cnt].json_string="compile_id";
 	compile_cmd[cmd_cnt].json_type=cJSON_Number;
 	cmd_cnt++;
@@ -733,16 +737,25 @@ int write_compile_rule(cJSON *compile,struct iris_description_t *p_iris,void * l
 	compile_cmd[cmd_cnt].str2int_flag=1;
 	cmd_cnt++;
 
-	
-	if(p_iris->compile_table.line_count==0)
+	item=cJSON_GetObjectItem(compile,"table_name");
+	if(item==NULL||item->type!=cJSON_String)
 	{
-		ret=set_file_rulenum(p_iris->compile_table.table_path, 0,logger);
+		table_info=&(p_iris->compile_table);
+	}
+	else
+	{
+		table_info=query_table_info(p_iris,item->valuestring);
+	}
+	
+	if(table_info->line_count==0)
+	{
+		ret=set_file_rulenum(table_info->table_path, 0,logger);
 		if(ret<0)
 		{
 			return -1;
 		}
 	}
-	ret=direct_write_rule(compile, p_iris->str2int_map,compile_cmd,cmd_cnt, p_iris->compile_table.table_path,logger);
+	ret=direct_write_rule(compile, p_iris->str2int_map,compile_cmd,cmd_cnt, table_info->table_path,logger);
 	if(ret<0)
 	{
 		return -1;
@@ -755,8 +768,8 @@ int write_compile_rule(cJSON *compile,struct iris_description_t *p_iris,void * l
 		return -1;
 	}
 	compile_id=item->valueint;
-	p_iris->compile_table.line_count++;
-	set_file_rulenum(p_iris->compile_table.table_path,p_iris->compile_table.line_count,logger);
+	table_info->line_count++;
+	set_file_rulenum(table_info->table_path,table_info->line_count,logger);
 	return compile_id;
 }
 int write_group_rule(int compile_id ,int group_id,struct iris_description_t *p_iris,void * logger)
@@ -1000,14 +1013,15 @@ int json2iris(const char* json_file,const char*compile_tn,const char* group_tn,r
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,"Error before: %-200.200s",cJSON_GetErrorPtr());
 		goto error_out;
 	}
-	if(compile_tn==NULL)
+	tmp_obj=cJSON_GetObjectItem(json,"compile_table");
+	if(tmp_obj)
 	{
-		tmp_obj=cJSON_GetObjectItem(json,"compile_table");
 		compile_tn=tmp_obj->valuestring;
 	}
-	if(group_tn==NULL)
+
+	tmp_obj=cJSON_GetObjectItem(json,"group_table");
+	if(tmp_obj)
 	{
-		tmp_obj=cJSON_GetObjectItem(json,"group_table");
 		group_tn=tmp_obj->valuestring;
 	}
 	ret=set_iris_descriptor(json_file,json,compile_tn,group_tn,redis_write_ctx,&iris_cfg,logger);

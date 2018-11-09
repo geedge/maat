@@ -4,6 +4,7 @@
     "rules": [
         {
             "compile_id": 123,
+            "table_name": "COMPILE_ALIAS",
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
