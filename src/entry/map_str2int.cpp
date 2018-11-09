@@ -95,7 +95,7 @@ void duplicate_func(const uchar * key, uint size, void * data, void * user)
 {
 	MESA_htable_handle target=(MESA_htable_handle)user;
 	int value=*(int*)data;
-	int ret=0;
+	__attribute__((unused))	int ret=0;
 	char* string=(char*)calloc(sizeof(char),(size+1));
 	memcpy(string,key,size);
 	ret=map_register(target,string,value);
@@ -103,7 +103,7 @@ void duplicate_func(const uchar * key, uint size, void * data, void * user)
 }
 MESA_htable_handle map_duplicate(MESA_htable_handle origin_map)
 {
-	int ret=0;
+	__attribute__((unused))	int ret=0;
 	MESA_htable_handle target=NULL;
 	target=map_create();
 	ret=MESA_htable_iterate(origin_map, duplicate_func, target);
