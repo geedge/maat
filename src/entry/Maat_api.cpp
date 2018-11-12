@@ -965,7 +965,8 @@ void rule_ex_data_new_cb(const uchar * key, uint size, void * data, void * user)
 	struct compile_ex_data_idx *ex_desc=(struct compile_ex_data_idx*)user;
 	struct _Maat_compile_inner_t *compile_inner=(struct _Maat_compile_inner_t *)data;
 	MAAT_RULE_EX_DATA ad=NULL;
-	if(compile_inner->ref_table->table_id!=ex_desc->table_id || compile_inner->db_c_rule==NULL)
+	
+	if(compile_inner->ref_table==NULL || compile_inner->ref_table->table_id!=ex_desc->table_id || compile_inner->db_c_rule==NULL)
 	{
 		return;
 	}

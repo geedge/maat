@@ -40,8 +40,8 @@ struct iris_description_t
 	char tmp_iris_index_dir[MAX_PATH_LINE];
 	char index_path[MAX_PATH_LINE];
 
-	struct iris_table_t group_table;
-	struct iris_table_t compile_table;
+	struct iris_table_t* group_table;
+	struct iris_table_t* compile_table;
 	MESA_htable_handle group_name_map;
 	MESA_htable_handle iris_table_map;
 	MESA_htable_handle str2int_map;
@@ -57,6 +57,21 @@ struct traslate_command_t
 	const char* default_string;
 	int default_int;
 };
+struct iris_table_t* query_table_info(iris_description_t* p_iris,const char* table_name)
+{
+	struct iris_table_t* table_info=NULL;
+	table_info=(struct iris_table_t*)MESA_htable_search(p_iris->iris_table_map, (const unsigned char*)table_name,strlen(table_name));
+	if(table_info==NULL)
+	{
+		table_info=(struct iris_table_t*)calloc(sizeof(struct iris_table_t),1);
+		table_info->line_count=0;
+		memcpy(table_info->table_name,table_name,MIN(sizeof(table_info->table_name)-1, strlen(table_name)));
+		snprintf(table_info->table_path,sizeof(table_info->table_path),"%s/%s.local",p_iris->tmp_iris_dir,table_info->table_name);
+		MESA_htable_add(p_iris->iris_table_map,(const unsigned char*)table_info->table_name,strlen(table_info->table_name),table_info);
+	}
+	return table_info;
+}
+
 static int get_group_seq(struct iris_description_t* iris_cfg)
 {
 	redisReply* data_reply=NULL;
@@ -98,15 +113,6 @@ int set_iris_descriptor(const char* json_file,cJSON *json,const char*compile_tn,
 	snprintf(iris_cfg->tmp_iris_dir,sizeof(iris_cfg->tmp_iris_dir),"%s_iris_tmp",json_file);
 	snprintf(iris_cfg->tmp_iris_index_dir,sizeof(iris_cfg->tmp_iris_index_dir),"%s_iris_tmp/index",json_file);
 	snprintf(iris_cfg->index_path,sizeof(iris_cfg->index_path),"%s/full_config_index.%010d",iris_cfg->tmp_iris_index_dir,json_version);
-
-
-	memcpy(iris_cfg->compile_table.table_name,compile_tn,strlen(compile_tn));
-	snprintf(iris_cfg->compile_table.table_path,sizeof(iris_cfg->compile_table.table_path),
-			"%s/%s.local",iris_cfg->tmp_iris_dir,iris_cfg->compile_table.table_name);
-
-	memcpy(iris_cfg->group_table.table_name,group_tn,strlen(group_tn));
-	snprintf(iris_cfg->group_table.table_path,sizeof(iris_cfg->group_table.table_name),
-			"%s/%s.local",iris_cfg->tmp_iris_dir,iris_cfg->group_table.table_name);
 
 	iris_cfg->redis_write_ctx=redis_write_ctx;
 	MESA_htable_create_args_t hargs;
@@ -162,6 +168,9 @@ int set_iris_descriptor(const char* json_file,cJSON *json,const char*compile_tn,
 	map_register(iris_cfg->str2int_map, "hexbin",1);
 	map_register(iris_cfg->str2int_map, "case plain",2);
 
+	iris_cfg->compile_table=query_table_info(iris_cfg, compile_tn);
+	iris_cfg->group_table=query_table_info(iris_cfg, group_tn);
+
 	return 0;
 }
 void clear_iris_descriptor(struct iris_description_t *iris_cfg)
@@ -174,6 +183,7 @@ void clear_iris_descriptor(struct iris_description_t *iris_cfg)
 	{
 		MESA_htable_destroy(iris_cfg->iris_table_map, NULL);
 	}
+	map_destroy(iris_cfg->str2int_map);
 	return;
 }
 int create_tmp_dir(struct iris_description_t *p)
@@ -532,20 +542,7 @@ int write_similar_rule(cJSON *region_json,struct iris_description_t *p_iris,cons
 	return direct_write_rule(region_json, p_iris->str2int_map,json_cmd, cmd_cnt,path,logger);
 
 }
-struct iris_table_t* query_table_info(iris_description_t* p_iris,const char* table_name)
-{
-	struct iris_table_t* table_info=NULL;
-	table_info=(struct iris_table_t*)MESA_htable_search(p_iris->iris_table_map, (const unsigned char*)table_name,strlen(table_name));
-	if(table_info==NULL)
-	{
-		table_info=(struct iris_table_t*)calloc(sizeof(struct iris_table_t),1);
-		table_info->line_count=0;
-		memcpy(table_info->table_name,table_name,MIN(sizeof(table_info->table_name)-1, strlen(table_name)));
-		snprintf(table_info->table_path,sizeof(table_info->table_path),"%s/%s.local",p_iris->tmp_iris_dir,table_info->table_name);
-		MESA_htable_add(p_iris->iris_table_map,(const unsigned char*)table_info->table_name,strlen(table_info->table_name),table_info);
-	}
-	return table_info;
-}
+
 int write_plugin_table(cJSON* plug_table_json,int sequence,iris_description_t* p_iris,void* logger)
 {
 	cJSON* item=NULL,*table_content=NULL,*each_line=NULL;
@@ -740,7 +737,7 @@ int write_compile_rule(cJSON *compile,struct iris_description_t *p_iris,void * l
 	item=cJSON_GetObjectItem(compile,"table_name");
 	if(item==NULL||item->type!=cJSON_String)
 	{
-		table_info=&(p_iris->compile_table);
+		table_info=p_iris->compile_table;
 	}
 	else
 	{
@@ -777,25 +774,25 @@ int write_group_rule(int compile_id ,int group_id,struct iris_description_t *p_i
 	FILE*fp=NULL;
 	int ret=0;
 
-	if(p_iris->group_table.line_count==0)
+	if(p_iris->group_table->line_count==0)
 	{
-		ret=set_file_rulenum(p_iris->group_table.table_path,0,logger);
+		ret=set_file_rulenum(p_iris->group_table->table_path,0,logger);
 		if(ret<0)
 		{
 			return -1;
 		}
 	}
-	fp=fopen(p_iris->group_table.table_path,"a");
+	fp=fopen(p_iris->group_table->table_path,"a");
 	if(fp==NULL)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
-										"fopen %s error %s.",p_iris->group_table.table_path,strerror(errno));
+										"fopen %s error %s.",p_iris->group_table->table_path,strerror(errno));
 		return -1;
 	}
 	fprintf(fp,"%d\t%d\t1\n",group_id,compile_id);
 	fclose(fp);
-	p_iris->group_table.line_count++;
-	ret=set_file_rulenum(p_iris->group_table.table_path,p_iris->group_table.line_count,logger);
+	p_iris->group_table->line_count++;
+	ret=set_file_rulenum(p_iris->group_table->table_path,p_iris->group_table->line_count,logger);
 	return 0;
 }
 void table_idx_write_cb(const uchar * key, uint size, void * data, void * user)
@@ -814,12 +811,6 @@ int write_index_file(struct iris_description_t *p_iris,void* logger)
 									"index file %s fopen error %s.",p_iris->index_path,strerror(errno));
 		return -1;
 	}
-	fprintf(fp,"%s\t%d\t%s\n",p_iris->compile_table.table_name
-						,p_iris->compile_table.line_count
-						,p_iris->compile_table.table_path);
-	fprintf(fp,"%s\t%d\t%s\n",p_iris->group_table.table_name
-						,p_iris->group_table.line_count
-						,p_iris->group_table.table_path);
 	MESA_htable_iterate(p_iris->iris_table_map, table_idx_write_cb, fp);
 	fclose(fp);
 	return 0;
@@ -889,8 +880,6 @@ int write_iris(cJSON *json,struct iris_description_t *p_iris,void* logger)
 			item=cJSON_GetObjectItem(group_rule,"group_name");
 			if(item==NULL||item->type!=cJSON_String)
 			{
-				MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_json,
-											"compile rule %d's group has no name,regard as Untitled.",compile_id);
 				group_name=untitled_group_name;
 			}
 			else
@@ -997,7 +986,7 @@ int json2iris(const char* json_file,const char*compile_tn,const char* group_tn,r
 	
 
 	json_file_size=fstat_buf.st_size;
-	json_buff=(char*)calloc(1,json_file_size);
+	json_buff=(char*)calloc(1,json_file_size+1);
 	read_size=fread(json_buff,1,json_file_size,json_fp);
 	if(read_size!=json_file_size)
 	{
