@@ -2346,7 +2346,14 @@ void update_group_rule(struct _Maat_table_info_t* table,const char* table_line,s
 	ret=sscanf(table_line,"%d\t%d\t%d",&(db_group_rule.group_id)
 										,&(db_group_rule.compile_id)
 										,&(db_group_rule.is_valid));
-	assert(ret==3);
+	if(ret!=3)
+	{
+		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
+							"update error,invalid format of group table %s:%s"
+							,table->table_name[table->updating_name], table_line);	
+		table->udpate_err_cnt++;
+		return;
+	}
 	if(db_group_rule.is_valid==FALSE)
 	{
 		del_group_rule(table, &db_group_rule,scanner,logger);

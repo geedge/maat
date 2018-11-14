@@ -1532,14 +1532,14 @@ void _get_foregin_keys(struct serial_rule_t* p_rule, int* foreign_columns, int n
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
 									, "Get %s,%d foreign keys failed: No %dth column."
 									, p_rule->table_name, p_rule->rule_id, foreign_columns[i]);
-			continue;
+			break;
 		}
 		if(0!=strncmp(p_foreign, foreign_source_prefix, strlen(foreign_source_prefix)))
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
 									,"Get %s,%d foreign key failed: Invalid source prefix %s."
 									, p_rule->table_name, p_rule->rule_id, p_foreign);
-			continue;
+			break;
 		}
 		p_rule->f_keys[i].column=foreign_columns[i];
 		foreign_key_size=foreign_key_size-strlen(foreign_source_prefix);
@@ -1560,7 +1560,13 @@ void _get_foregin_keys(struct serial_rule_t* p_rule, int* foreign_columns, int n
 			p_rule->f_keys[i].is_existed=1;
 		}
 	}
-	return;
+	if(i!=n_foreign)
+	{
+		p_rule->n_foreign=0;
+		free(p_rule->f_keys);
+		p_rule->f_keys=NULL;
+		p_rule->with_error=1;
+	}
 }
 int get_foreign_keys_define(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, _Maat_feather_t* feather, const char* dir,void *logger)
 {
@@ -1784,7 +1790,7 @@ void redis_monitor_traverse(long        long version,redisContext *c,
 								update_type==CM_UPDATE_TYPE_INC?"INC":"FULL",version,new_version,rule_num);
 	for(i=0;i<rule_num;i++)
 	{
-		if(rule_list[i].table_line==NULL)
+		if(rule_list[i].table_line==NULL||rule_list[i].with_error==1)
 		{
 			continue;
 		}

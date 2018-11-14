@@ -492,6 +492,7 @@ struct serial_rule_t		//rm= Redis Maat
 	enum MAAT_OPERATION op;//0: delete, 1: add.
 	long rule_id;
 	int label_id;
+	char with_error;
 	long long timeout;			// absolute unix time.
 	char table_name[256];
 	char* table_line;

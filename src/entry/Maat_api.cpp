@@ -1013,7 +1013,10 @@ int Maat_rule_get_ex_new_index(Maat_feather_t feather, const char* compile_table
 	p_table->ex_desc[idx].dup_func=dup_func;
 
 	p_table->ex_data_num++;
-	MESA_htable_iterate(_feather->scanner->compile_hash, rule_ex_data_new_cb, p_table->ex_desc+idx);
+	if(_feather->scanner!=NULL)
+	{
+		MESA_htable_iterate(_feather->scanner->compile_hash, rule_ex_data_new_cb, p_table->ex_desc+idx);
+	}
 failed:
 	pthread_mutex_unlock(&(_feather->backgroud_update_mutex));
 	return idx;
