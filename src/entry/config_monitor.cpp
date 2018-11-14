@@ -234,10 +234,10 @@ int  get_new_idx_path(long long current_version,const char*file_dir,void* logger
 		{
 			continue;
 		}
-		if(strlen(namelist[i]->d_name)>32)
+		if(strlen(namelist[i]->d_name)>42)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor 
-										,"config file %s filename too long,should like full_config_index.0000000001"
+										,"config file %s filename too long,should like full_config_index.00000000000000000001"
 										,namelist[i]->d_name);
 			continue;
 		}
@@ -245,7 +245,7 @@ int  get_new_idx_path(long long current_version,const char*file_dir,void* logger
 		if(sscanf_ret!=2)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor 
-										,"config file %s filename error,should like full_config_index.0000000001"
+										,"config file %s filename error,should like full_config_index.00000000000000000001"
 										,namelist[i]->d_name);
 			continue;
 		}
