@@ -4,7 +4,6 @@
     "rules": [
         {
             "compile_id": 123,
-            "table_name": "COMPILE_ALIAS",
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
@@ -514,6 +513,33 @@
                             "table_type": "string",
                             "table_content": {
                                 "keywords": "2018-10-05",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 141,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "Something:I\\bhave\\ba\\bname,7799",
+            "table_name":"COMPILE_ALIAS",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "string",
+                            "table_content": {
+                                "keywords": "i.ytimg.com",
                                 "expr_type": "none",
                                 "match_method": "sub",
                                 "format": "uncase plain"
