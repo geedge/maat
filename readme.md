@@ -16,6 +16,10 @@ Maat_command.h中描述了配置写入的API。
 
 `Make debug`
 
+安装
+
+`Make install`
+
 生成动态链接库 `./build/src/libmaatframe.so`
 
 生成静态链接库 `./build/src/libmaatframe.a`
