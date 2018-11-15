@@ -1,12 +1,12 @@
 
 /*
-*****************Maat Network Flow Rule Manage Framework********
+*****************Maat Deep Packet Inspection Policy Framework********
 *	Maat is the Goddess of truth and justice in ancient Egyptian concept.
 *	Her feather was the measure that determined whether the souls (considered 
 *	to reside in the heart) of the departed would reach the paradise of afterlife
 *	successfully.
-*	Author: zhengchao@iie.ac.cn,MESA
-*	Version 2018-09-25 foreign key and rule tags.
+*	Author: zhengchao@iie.ac.cn, MESA
+*	Version 2018-11-06 Maat Rule Extra Data.
 *	NOTE: MUST compile with G++
 *	All right reserved by Institute of Infomation Engineering,Chinese Academic of Science 2014~2018
 *********************************************************
@@ -181,6 +181,7 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 									Maat_finish_callback_t *finish,//u_para
 									void* u_para);
 
+
 enum MAAT_SCAN_OPT
 {
 	MAAT_SET_SCAN_DISTRICT=1,		//VALUE is a const char*,SIZE= strlen(string).DEFAULT: no default.
@@ -238,10 +239,31 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 						,scan_status_t* mid,int thread_num);
 
 void Maat_clean_status(scan_status_t* mid);
+
+typedef void*  MAAT_RULE_EX_DATA;
+// The idx parameter is the index: this will be the same value returned by Maat_rule_get_ex_new_index() when the functions were initially registered.
+// Finally the argl and argp parameters are the values originally passed to the same corresponding parameters when Maat_rule_get_ex_new_index() was called.
+typedef void Maat_rule_EX_new_func_t(int idx, const struct Maat_rule_t* rule, const char* srv_def_large,
+											MAAT_RULE_EX_DATA* ad, long argl, void *argp);
+typedef void Maat_rule_EX_free_func_t(int idx, const struct Maat_rule_t* rule, const char* srv_def_large,
+											MAAT_RULE_EX_DATA* ad, long argl, void *argp);
+typedef void Maat_rule_EX_dup_func_t(int idx,	MAAT_RULE_EX_DATA *to, MAAT_RULE_EX_DATA *from, long argl, void *argp);
+
+int Maat_rule_get_ex_new_index(Maat_feather_t feather, const char* compile_table_name,
+										 Maat_rule_EX_new_func_t* new_func,
+										 Maat_rule_EX_free_func_t* free_func,
+										 Maat_rule_EX_dup_func_t* dup_func,
+										 long argl, void *argp);
+//returned data is duplicated by dup_func of Maat_rule_get_ex_new_index,  caller is responsible to free the data.
+MAAT_RULE_EX_DATA Maat_rule_get_ex_data(Maat_feather_t feather, const struct Maat_rule_t* rule, int idx);
+
+
 enum MAAT_RULE_OPT
 {
 	MAAT_RULE_SERV_DEFINE	//VALUE is a char* buffer,SIZE= buffer size. 
 };
 int Maat_read_rule(Maat_feather_t feather, const struct Maat_rule_t* rule, enum MAAT_RULE_OPT type, void* value, int size);
+
+
 #endif	//	H_MAAT_RULE_H_INCLUDE
 

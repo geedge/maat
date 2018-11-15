@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <openssl/md5.h>
+#include <pthread.h>
 
 #include <gtest/gtest.h>
 const char* test_maat_redis_ip="127.0.0.1";
@@ -540,6 +541,96 @@ TEST(RuleTags, Compile)
 	return;
 }
 
+struct rule_ex_param
+{
+	int ref_cnt;
+	char name[128];
+	int id;
+	pthread_mutex_t lock;
+};
+
+void ex_param_new(int idx, const struct Maat_rule_t* rule, const char* srv_def_large, 
+												MAAT_RULE_EX_DATA* ad, long argl, void *argp)
+{
+	int *counter=(int*)argp;
+	*ad=NULL;
+	ASSERT_GT(rule->serv_def_len, 4);
+
+	struct rule_ex_param* param=(struct rule_ex_param*)calloc(sizeof(struct rule_ex_param), 1);
+	
+	param->ref_cnt=1;
+	pthread_mutex_init(&(param->lock), NULL);
+	
+	sscanf(srv_def_large,"%*[^:]:%[^,],%d",param->name,&(param->id));
+	(*counter)++;
+	*ad=param;
+	return;
+}
+void ex_param_free(int idx, const struct Maat_rule_t* rule, const char* srv_def_large, MAAT_RULE_EX_DATA* ad, long argl, void *argp)
+{
+	if(*ad==NULL)
+	{
+		return;
+	}
+	struct rule_ex_param* param=(struct rule_ex_param*)*ad;
+	pthread_mutex_lock(&(param->lock));
+	param->ref_cnt--;
+	if(param->ref_cnt>0)
+	{	
+		pthread_mutex_unlock(&(param->lock));
+		return;
+	}
+	free(param);
+	return;
+}
+void ex_param_dup(int idx,	MAAT_RULE_EX_DATA *to, MAAT_RULE_EX_DATA *from, long argl, void *argp)
+{
+	struct rule_ex_param* from_param=*((struct rule_ex_param**)from);
+	pthread_mutex_lock(&(from_param->lock));
+	from_param->ref_cnt++;
+	pthread_mutex_unlock(&(from_param->lock));
+	*((struct rule_ex_param**)to)=from_param;
+	return;
+}
+
+
+
+TEST(EX_DATA_INDEX, all)
+{
+#define EX_data_index
+
+	int ret=0;
+	int table_id=0, ex_data_counter=0;
+	scan_status_t mid=NULL;
+	struct Maat_rule_t result[4];
+	const char* url="i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
+	const char* table_name="HTTP_URL";
+	const char* expect_name="I have a name";
+	table_id=Maat_table_register(g_feather,table_name);
+	ASSERT_GT(table_id, 0);
+	
+	int ex_param_idx=Maat_rule_get_ex_new_index(g_feather, "COMPILE_ALIAS", 
+													ex_param_new, ex_param_free, ex_param_dup,
+													0, &ex_data_counter);
+	ASSERT_TRUE(ex_param_idx>=0);
+	EXPECT_EQ(ex_data_counter, 1);
+	
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, url, strlen(url), 
+						result,NULL, 4,
+						&mid, 0);
+	
+	EXPECT_EQ(ret, 1);
+	void *ex_data=Maat_rule_get_ex_data(g_feather, result, ex_param_idx);
+	ASSERT_TRUE(ex_data!=NULL);
+	struct rule_ex_param* param=(struct rule_ex_param*)ex_data;
+	EXPECT_EQ(param->id, 7799);
+	EXPECT_EQ(strcmp(param->name, expect_name),0);
+	ex_param_free(0, NULL, NULL, &ex_data, 0, NULL);
+	Maat_clean_status(&mid);
+	return;
+}
+
+
 TEST(StreamFuzzyHash, Pure)
 {
 	
@@ -736,7 +827,6 @@ TEST_F(MaatFileTest, StreamFiles)
 		{
 			hit_cnt++;
 		}
-		printf("Stream Scan %s, ret=%d.\n",file_path,ret);
 		fclose(fp);
 		free(buff);
 		buff=NULL;

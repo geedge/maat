@@ -58,9 +58,16 @@ void Maat_read_entry_finish_cb(void* u_para)
 	long long version=0;
 	int ret=0,is_last_updating_table=0;
 	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version, sizeof(version));
-	assert(ret==0);
+	if(ret!=0)
+	{
+		assert(0);
+	}
 	ret=Maat_read_state(feather,MAAT_STATE_LAST_UPDATING_TABLE, &is_last_updating_table, sizeof(is_last_updating_table));
-	assert(ret==0);
+	if(ret!=0)
+	{
+		assert(0);
+	}
+
 	//printf("Maat Version %lld at plugin finish callback, is_last_update=%d.\n",version,is_last_updating_table);
 
 	return;
@@ -674,7 +681,7 @@ void test_set_cmd_line(Maat_feather_t feather)
 	const struct Maat_line_t *p_line[TEST_CMD_LINE_NUM];
 	struct Maat_line_t line_rule[TEST_CMD_LINE_NUM];
 	char table_line[TEST_CMD_LINE_NUM][128];
-	int ret=0,i=0;
+	int i=0;
 	memset(&line_rule,0,sizeof(line_rule));
 	for(i=0;i<TEST_CMD_LINE_NUM;i++)
 	{
@@ -688,16 +695,14 @@ void test_set_cmd_line(Maat_feather_t feather)
 	}
 	
 
-	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
-	assert(ret>0);
+	Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
 	usleep(WAIT_FOR_EFFECTIVE_US);
 	
 	for(i=0;i<TEST_CMD_LINE_NUM;i++)
 	{
 		line_rule[i].table_line=NULL;
 	}
-	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_DEL);
-	assert(ret>0);
+	Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_DEL);
 
 
 	return;
@@ -707,12 +712,10 @@ void history_matter_cb(int table_id,const char* table_line,void* u_para)
 }
 void test_load_specific_version(Maat_feather_t feather, const char* redis_ip, unsigned short redis_port, int redis_db,void*logger)
 {
-	int ret=0;
 	long long version=0;
 	const char *table_name="HISTORY_MATTER_CB";
 	test_plugin_table(feather,table_name,NULL,history_matter_cb,NULL,NULL,logger);
-	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version, sizeof(version));
-	assert(ret==0);	
+	Maat_read_state(feather,MAAT_STATE_VERSION, &version, sizeof(version));
 	printf("Maat Version %lld.\n",version);
 }
 int test_add_expr_command(Maat_feather_t feather,const char* region_table,int config_id, int timeout,int label_id, const char* keywords)

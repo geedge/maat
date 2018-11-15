@@ -99,6 +99,13 @@ int pickup_hit_region_from_compile(universal_bool_expr_t *compile_hit,const unsi
 	}
 	return k;
 }
+void fill_maat_rule(struct Maat_rule_t *rule, const struct _head_Maat_rule_t* rule_head, const char* srv_def, int srv_def_len)
+{
+	memcpy(rule, rule_head, sizeof(struct _head_Maat_rule_t));
+	memcpy(rule->service_defined, srv_def, MIN(srv_def_len,MAX_SERVICE_DEFINE_LEN));
+	return;
+}
+
 int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int is_last_region,void* region_hit,int region_type_size,int group_offset,int region_hit_num,struct Maat_rule_t* result,_compile_result_t *rs_result, int size,int thread_num)
 {
 
@@ -155,25 +162,25 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	for(i=0;i<scan_ret&&result_cnt<size;i++)
 	{
 		_mi_rule=array_mi_rule[i];
-		if(_mi_rule==NULL||_mi_rule->db_c_rule==NULL)
+		if(_mi_rule==NULL)
 		{
 			continue;
 		}
 		
 		if(0==pthread_rwlock_tryrdlock(&(_mi_rule->rwlock)))
 		{
-			make_group_set(_mi_rule,&(rs_result[result_cnt].group_set));
-			r_in_c_cnt=pickup_hit_region_from_compile(&(rs_result[result_cnt].group_set),_mid->cur_hit_id,_mid->cur_hit_cnt,
-										region_pos, MAX_SCANNER_HIT_NUM);
-			if(r_in_c_cnt>0)//compile config hitted becasue of new reigon
+			if(_mi_rule->is_valid==1)
 			{
-				memcpy(&(result[result_cnt]),&(_mi_rule->db_c_rule->m_rule_head),sizeof(struct _head_Maat_rule_t));
-				memcpy(result[result_cnt].service_defined
-						,_mi_rule->db_c_rule->service_defined
-						,MIN(_mi_rule->db_c_rule->m_rule_head.serv_def_len,MAX_SERVICE_DEFINE_LEN));
-				
-				rs_result[result_cnt].compile_id=_mi_rule->compile_id;
-				result_cnt++;
+				make_group_set(_mi_rule,&(rs_result[result_cnt].group_set));
+				r_in_c_cnt=pickup_hit_region_from_compile(&(rs_result[result_cnt].group_set),_mid->cur_hit_id,_mid->cur_hit_cnt,
+											region_pos, MAX_SCANNER_HIT_NUM);
+				if(r_in_c_cnt>0)//compile config hitted becasue of new reigon
+				{
+					fill_maat_rule(&(result[result_cnt]), &(_mi_rule->db_c_rule->m_rule_head),
+								_mi_rule->db_c_rule->service_defined ,_mi_rule->db_c_rule->m_rule_head.serv_def_len);
+					rs_result[result_cnt].compile_id=_mi_rule->compile_id;
+					result_cnt++;
+				}
 			}
 			pthread_rwlock_unlock(&(_mi_rule->rwlock));
 		}		
@@ -880,7 +887,7 @@ error_out:
 
 void Maat_burn_feather(Maat_feather_t feather)
 {
-	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	_feather->still_working=0;//destroy will proceed in thread_rule_monitor
 	return;
 }
@@ -888,7 +895,7 @@ int Maat_table_register(Maat_feather_t feather,const char* table_name)
 {
 	struct _Maat_feather_t *_feather=(struct _Maat_feather_t *)feather;
 	int table_id=-1,ret=0;
-	ret=map_str2int(_feather->map_tablename2id, table_name,&table_id);
+	ret=map_str2int(_feather->map_tablename2id, table_name, &table_id);
 	if(ret>0)
 	{
 		return table_id;
@@ -906,7 +913,7 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 {
 	struct _Maat_feather_t *_feather=(struct _Maat_feather_t *)feather;
 	int idx=0,i=0;
-	_Maat_table_info_t *p_table=_feather->p_table_info[table_id];
+	struct _Maat_table_info_t *p_table=_feather->p_table_info[table_id];
 	const char* lines=NULL;
 	if(p_table==NULL)
 	{
@@ -951,6 +958,88 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 	}
 	pthread_mutex_unlock(&(_feather->backgroud_update_mutex));
 	return 1;
+}
+
+void rule_ex_data_new_cb(const uchar * key, uint size, void * data, void * user)
+{
+	struct compile_ex_data_idx *ex_desc=(struct compile_ex_data_idx*)user;
+	struct _Maat_compile_inner_t *compile_inner=(struct _Maat_compile_inner_t *)data;
+	MAAT_RULE_EX_DATA ad=NULL;
+	
+	if(compile_inner->ref_table==NULL || compile_inner->ref_table->table_id!=ex_desc->table_id || compile_inner->db_c_rule==NULL)
+	{
+		return;
+	}
+	pthread_rwlock_wrlock(&(compile_inner->rwlock));
+	ad=rule_ex_data_new(&(compile_inner->db_c_rule->m_rule_head),
+						compile_inner->db_c_rule->service_defined,
+						ex_desc);
+	compile_inner->ads[ex_desc->idx]=ad;
+	pthread_rwlock_unlock(&(compile_inner->rwlock));
+	return;
+}
+int Maat_rule_get_ex_new_index(Maat_feather_t feather, const char* compile_table_name,
+										 Maat_rule_EX_new_func_t *new_func,
+										 Maat_rule_EX_free_func_t* free_func,
+										 Maat_rule_EX_dup_func_t* dup_func,
+										 long argl, void *argp)
+{
+	struct _Maat_feather_t *_feather=(struct _Maat_feather_t *)feather;
+	int table_id=-1,ret=0, idx=-1;
+	ret=map_str2int(_feather->map_tablename2id, compile_table_name, &table_id);
+	if(ret<0)
+	{
+		return -1;
+	}
+	struct _Maat_table_info_t *p_table=_feather->p_table_info[table_id];
+	if(p_table->table_type!=TABLE_TYPE_COMPILE || new_func==NULL || free_func==NULL)
+	{
+		return -1;
+	}
+
+	pthread_mutex_lock(&(_feather->backgroud_update_mutex));
+	if(p_table->ex_data_num==MAX_COMPILE_EX_DATA_NUM)
+	{
+		ret=-1;
+		goto failed;
+	}
+	idx=p_table->ex_data_num;
+	p_table->ex_desc[idx].idx=idx;
+	p_table->ex_desc[idx].table_id=table_id;
+	p_table->ex_desc[idx].argl=argl;
+	p_table->ex_desc[idx].argp=argp;
+	p_table->ex_desc[idx].new_func=new_func;
+	p_table->ex_desc[idx].free_func=free_func;
+	p_table->ex_desc[idx].dup_func=dup_func;
+
+	p_table->ex_data_num++;
+	if(_feather->scanner!=NULL)
+	{
+		MESA_htable_iterate(_feather->scanner->compile_hash, rule_ex_data_new_cb, p_table->ex_desc+idx);
+	}
+failed:
+	pthread_mutex_unlock(&(_feather->backgroud_update_mutex));
+	return idx;
+
+}
+MAAT_RULE_EX_DATA Maat_rule_get_ex_data(Maat_feather_t feather, const struct Maat_rule_t* rule, int idx)
+{
+	struct _Maat_feather_t *_feather=(struct _Maat_feather_t *)feather;
+	struct _Maat_compile_inner_t *compile_inner=NULL;
+	const struct compile_ex_data_idx* ex_desc=NULL;	
+	MAAT_RULE_EX_DATA ad=NULL;
+	
+	compile_inner=(struct _Maat_compile_inner_t *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule->config_id);
+	if(compile_inner==NULL)
+	{
+		return NULL;
+	}
+	pthread_rwlock_rdlock(&(compile_inner->rwlock));
+	assert(idx<compile_inner->ref_table->ex_data_num);	
+	ex_desc=compile_inner->ref_table->ex_desc+idx;
+	ex_desc->dup_func(ex_desc->idx, &ad, compile_inner->ads+idx, ex_desc->argl,ex_desc->argp);
+	pthread_rwlock_unlock(&(compile_inner->rwlock));		
+	return ad;
 }
 int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 						,enum MAAT_CHARSET charset,const char* data,int data_len
@@ -1781,17 +1870,17 @@ int Maat_read_rule(Maat_feather_t feather, const struct Maat_rule_t* rule, enum 
 	{
 		case	MAAT_RULE_SERV_DEFINE:
 			compile_inner=(struct _Maat_compile_inner_t *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule->config_id);
-			pthread_rwlock_rdlock(&(compile_inner->rwlock));
 			if(compile_inner==NULL)
 			{
 				ret=0;
 			}
 			else
 			{
+				pthread_rwlock_rdlock(&(compile_inner->rwlock));
 				ret=MIN(size,compile_inner->db_c_rule->m_rule_head.serv_def_len);
 				memcpy(value,compile_inner->db_c_rule->service_defined,ret);
+				pthread_rwlock_unlock(&(compile_inner->rwlock));
 			}
-			pthread_rwlock_unlock(&(compile_inner->rwlock));		
 			break;
 		default:
 			ret=-1;
