@@ -1181,8 +1181,7 @@ void _exec_serial_rule(redisContext* ctx,	long long version, struct serial_rule_
 					continue;
 				}
 				//s_rule[i].timeout>0 was checked by caller.
-				//XX: Only update elements that already exist. Never add elements.
-				redisAppendCommand(ctx,"ZADD %s XX %lld %s,%d",rm_expire_sset	
+				redisAppendCommand(ctx,"ZADD %s %lld %s,%d",rm_expire_sset	
 						,s_rule[i].timeout
 						,s_rule[i].table_name
 						,s_rule[i].rule_id);
@@ -2074,12 +2073,11 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 		set_serial_rule(s_rule+i, op,line_rule[i]->rule_id,line_rule[i]->label_id,line_rule[i]->table_name,line_rule[i]->table_line, absolute_expire_time);
 	}
 	success_cnt=exec_serial_rule(_feather->redis_write_ctx,s_rule, line_num,server_time,_feather->logger);
-	if(success_cnt<0)//error
+	if(success_cnt<0||success_cnt!=line_num)//error
 	{
 		ret=-1;
 		goto error_out;
 	}
-	assert(success_cnt==line_num);
 	ret=success_cnt;
 	_feather->line_cmd_acc_num+=success_cnt;
 
