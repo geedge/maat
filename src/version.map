@@ -1,0 +1,11 @@
+VERS_2.4{
+global:
+	extern "C++" {
+		*Maat_*;
+		*SFH_*;
+		*GIE_*;
+#for test		
+		*my_scandir*;
+	};
+local: *;
+};
