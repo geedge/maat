@@ -46,7 +46,7 @@ typedef int atomic_t;
 #define	MAX_PLUGIN_PER_TABLE		32
 #define	MAX_FOREIGN_CLMN_NUM		8
 #define	MAX_SCANNER_HIT_NUM			64
-#define	MAX_COMPILE_EX_DATA_NUM		8
+#define	MAX_COMPILE_EX_DATA_NUM		2
 #define	MAX_GROUP_CACHE		128
 
 #define	MAX_FAILED_NUM		128

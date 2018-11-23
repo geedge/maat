@@ -1002,7 +1002,7 @@ void _destroy_compile_rule(struct _Maat_compile_inner_t * compile_rule)
 		free(db_compile_rule);
 		compile_rule->db_c_rule=NULL;
 	}
-	for(i=0; i<table->ex_data_num; i++)
+	for(i=0; table!=NULL && i<table->ex_data_num; i++)
 	{
 		rule_ex_data_free(&(db_compile_rule->m_rule_head), db_compile_rule->service_defined, compile_rule->ads+i, table->ex_desc+i);
 		compile_rule->ads[i]=NULL;
