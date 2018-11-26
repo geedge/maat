@@ -3576,6 +3576,10 @@ void *thread_rule_monitor(void *arg)
 		feather->redis_write_ctx=NULL;
 		pthread_mutex_unlock(&(feather->redis_write_lock));
 	}
+	if(feather->stat_on&& feather->stat_handle)
+	{
+		FS_stop(&(feather->stat_handle));
+	}
 	free(feather);
 	return NULL;
 }

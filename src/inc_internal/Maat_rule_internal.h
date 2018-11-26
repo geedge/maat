@@ -415,6 +415,7 @@ struct _Maat_feather_t
 	char group_tn[MAX_TABLE_NAME_LEN];
 	pthread_mutex_t backgroud_update_mutex;
 	unsigned char decrypt_key[MAX_TABLE_NAME_LEN];
+	pthread_t cfg_mon_t;
 	
 	char redis_ip[MAX_TABLE_NAME_LEN];
 	int redis_port;

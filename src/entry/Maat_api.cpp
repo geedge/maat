@@ -813,8 +813,8 @@ int Maat_initiate_feather(Maat_feather_t feather)
 	
 	maat_stat_init(_feather);
 
-	pthread_t cfg_mon_t;
-	pthread_create(&cfg_mon_t, NULL, thread_rule_monitor, (void*)_feather);
+
+	pthread_create(&(_feather->cfg_mon_t), NULL, thread_rule_monitor, (void*)_feather);
 	return 0;
 
 }
@@ -889,6 +889,8 @@ void Maat_burn_feather(Maat_feather_t feather)
 {
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	_feather->still_working=0;//destroy will proceed in thread_rule_monitor
+	void* ret=NULL;
+	pthread_join(_feather->cfg_mon_t, &ret);
 	return;
 }
 int Maat_table_register(Maat_feather_t feather,const char* table_name)
