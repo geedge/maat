@@ -2415,6 +2415,7 @@ int redis_flush_DB(redisContext* ctx, int db_index, void* logger)
 	freeReplyObject(data_reply);
 	
 	data_reply=_wrap_redisCommand(ctx,"MULTI");
+	freeReplyObject(data_reply);
 	
 	redisAppendCommand(ctx,"FLUSHDB");
 	append_cmd_cnt++;

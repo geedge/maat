@@ -323,7 +323,7 @@ int test_digest_scan(Maat_feather_t feather,const char* table_name,const char* f
 	{
 		printf("fopen %s error.\n",file_name);		
 	}
-	Maat_stream_scan_string_end(&sp);
+	Maat_stream_scan_digest_end(&sp);
 	return ret;
 }
 int test_plugin_table(Maat_feather_t feather,const char* table_name,

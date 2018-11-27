@@ -235,7 +235,7 @@ TEST(DigestScan, Pure)
 		}
 	}
 	fclose(fp);
-	Maat_stream_scan_string_end(&sp);
+	Maat_stream_scan_digest_end(&sp);
 	EXPECT_GE(hit_cnt, 1);
 	Maat_clean_status(&mid);
 	return;
@@ -743,10 +743,8 @@ class MaatFileTest : public testing::Test
 {
 
 protected:
-	
 	static void SetUpTestCase()
 	{
-		void *logger=NULL;
 		const char* rule_folder="./ntcrule/full/index";
 	  	logger=MESA_create_runtime_log_handle("test_maat_file.log",0);
 		const char* table_info="./t2_tableinfo.conf";
@@ -766,12 +764,16 @@ protected:
 	static void TearDownTestCase()
 	{
 		Maat_burn_feather(_shared_feather_f);
+		MESA_destroy_runtime_log_handle(logger);
 
 	}	
  	// Some expensive resource shared by all tests.
-	static Maat_feather_t _shared_feather_f;	
+	static Maat_feather_t _shared_feather_f;
+	static void *logger;
 };
 Maat_feather_t MaatFileTest::_shared_feather_f;
+void* MaatFileTest::logger;
+
 TEST_F(MaatFileTest, StreamFiles)
 {
 #define StreamScan_StreamFiles
@@ -851,7 +853,6 @@ protected:
 	
 	static void SetUpTestCase()
 	{
-		void *logger=NULL;
 	  	logger=MESA_create_runtime_log_handle("test_maat_redis.log",0);
 
 		_shared_feather=Maat_feather(g_iThreadNum, table_info_path, logger);
@@ -874,13 +875,17 @@ protected:
 	static void TearDownTestCase()
 	{
 		Maat_burn_feather(_shared_feather);
+		MESA_destroy_runtime_log_handle(logger);
 
 	}	
  	// Some expensive resource shared by all tests.
-	static Maat_feather_t _shared_feather;	
+	static Maat_feather_t _shared_feather;
+	static void *logger;
 	static int linger_timeout;
 };
 Maat_feather_t MaatCmdTest::_shared_feather;
+void* MaatCmdTest::logger;
+
 int MaatCmdTest::linger_timeout;
 int test_add_expr_command(Maat_feather_t feather,const char* region_table,int config_id, int timeout,int label_id, const char* keywords)
 {
@@ -1107,6 +1112,7 @@ TEST_F(MaatCmdTest, SetIP)
 	
 	int table_id=0;
 	struct Maat_rule_t result;
+	memset(&result, 0, sizeof(result));
 	scan_status_t mid=NULL;
 	table_id=Maat_table_register(feather,region_table);
 	ASSERT_GE(table_id, 0);
@@ -1377,6 +1383,9 @@ int main(int argc, char ** argv)
 	Maat_initiate_feather(g_feather);
 	printf("Maat initiating, see %s\n",log_file);
 
-	return RUN_ALL_TESTS();
+	int ret=RUN_ALL_TESTS();
+	Maat_burn_feather(g_feather);
+	MESA_destroy_runtime_log_handle(g_logger);
+	return ret;
 }
 
