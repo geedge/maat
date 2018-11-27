@@ -78,7 +78,7 @@ redisContext * connect_redis(const char*redis_ip, int redis_port, int redis_db, 
 		else
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
-							"Unable to connect redis server %s:%d db%d, error: %s\n",
+							"Unable to connect redis server %s:%d db%d, error: %s",
 							redis_ip, redis_port, redis_db, ctx==NULL ? "Unknown" : ctx->errstr);
 		}
 		if(ctx!=NULL) redisFree(ctx);
@@ -1765,8 +1765,12 @@ void redis_monitor_traverse(long        long version, struct maat_redis_ctx* mr_
 		{
 			redisFree(mr_ctx->read_ctx);
 		}
-		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor,"Reconnecting...");
+		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor, "Reconnecting...");
 		mr_ctx->read_ctx=connect_redis(mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db, feather->logger);
+		if(mr_ctx->read_ctx==NULL)
+		{
+			return;
+		}
 	}
 	
 	rule_num=get_rm_key_list(mr_ctx->read_ctx, version, feather->load_version_from, &new_version, &rule_list, &update_type, logger, feather->cumulative_update_off);
