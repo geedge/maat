@@ -359,6 +359,16 @@ struct rule_tag
 	char* tag_name;
 	char* tag_val;
 };
+struct maat_redis_ctx
+{
+	redisContext *read_ctx;
+	redisContext *write_ctx;
+	char redis_ip[64];
+	int redis_port;
+	int redis_db;
+	time_t last_reconnect_time;
+};
+
 struct _Maat_scanner_t
 {
 	long long version;
@@ -416,19 +426,14 @@ struct _Maat_feather_t
 	pthread_mutex_t backgroud_update_mutex;
 	unsigned char decrypt_key[MAX_TABLE_NAME_LEN];
 	pthread_t cfg_mon_t;
+	struct maat_redis_ctx mr_ctx;
 	
-	char redis_ip[MAX_TABLE_NAME_LEN];
-	int redis_port;
-	int redis_index;
 	int AUTO_NUMBERING_ON;
-	struct timeval connect_timeout;
-	redisContext *redis_read_ctx;
-	time_t last_reconnect_time;
-	redisContext *redis_write_ctx;	// not thread safe.
-	int on_redis_writing;
+
+//	redisContext *redis_write_ctx;	// not thread safe.
+
 	int cmd_q_cnt;
 	struct _Maat_cmd_inner_t* cmd_qhead, *cmd_qtail;
-	pthread_mutex_t redis_write_lock; //protect redis_write_ctx
 	long long base_rgn_seq,base_grp_seq,server_time;
 	long long load_version_from;
 
@@ -536,8 +541,9 @@ void set_serial_rule(struct serial_rule_t* rule,enum MAAT_OPERATION op,int rule_
 void empty_serial_rules(struct serial_rule_t* rule);
 int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,int serial_rule_num, long long server_time, void* logger);
 long long redis_server_time(redisContext* ctx);
+redisContext * connect_redis(const char*redis_ip, int redis_port, int redis_db, void* logger);
 
-void redis_monitor_traverse(long        long version,redisContext *c,
+void redis_monitor_traverse(long        long version, struct maat_redis_ctx* mr_ctx,
 		void (*start)(long long,int ,void*),//vesion,CM_UPDATE_TYPE_*,u_para
 		int (*update)(const char* ,const char*,void* ),//table name ,line ,u_para
 		void (*finish)(void*),//u_para
