@@ -23,7 +23,7 @@
 #include "json2iris.h"
 #include "cJSON.h"
 #include "dynamic_array.h"
-#include "aligment_int64.h"
+#include "alignment_int64.h"
 #include "config_monitor.h"
 
 #include "map_str2int.h"
@@ -32,7 +32,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_4_20181120=1;
+int MAAT_FRAME_VERSION_2_4_20181126=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -334,7 +334,7 @@ int parse_accept_tag(const char* value, struct rule_tag** result, void* logger)
 	}
 	array=cJSON_GetObjectItem(json, "tags");
 	n_tags=cJSON_GetArraySize(array);
-	p=(struct rule_tag*)calloc(sizeof(struct rule_tag), n_tags);
+	p=ALLOC(struct rule_tag, n_tags);
 	for(int i=0;i<n_tags;i++)
 	{
 		tag=cJSON_GetArrayItem(array, i);
@@ -523,25 +523,25 @@ void rule_ex_data_free(const struct _head_Maat_rule_t * rule_head, const char* s
 
 _Maat_table_info_t* create_table_info(int max_thread_num)
 {
-	struct _Maat_table_info_t*p=NULL;
-	p=(struct _Maat_table_info_t*)calloc(sizeof(struct _Maat_table_info_t),1);
+	struct _Maat_table_info_t*p=ALLOC(struct _Maat_table_info_t, 1);
+
 	p->conj_cnt=1;
-	p->scan_cnt=aligment_int64_array_alloc(max_thread_num);
-	p->scan_cpu_time=aligment_int64_array_alloc(max_thread_num);
-	p->input_bytes=aligment_int64_array_alloc(max_thread_num);
-	p->stream_num=aligment_int64_array_alloc(max_thread_num);
-	p->hit_cnt=aligment_int64_array_alloc(max_thread_num);
+	p->scan_cnt=alignment_int64_array_alloc(max_thread_num);
+	p->scan_cpu_time=alignment_int64_array_alloc(max_thread_num);
+	p->input_bytes=alignment_int64_array_alloc(max_thread_num);
+	p->stream_num=alignment_int64_array_alloc(max_thread_num);
+	p->hit_cnt=alignment_int64_array_alloc(max_thread_num);
 	p->cross_cache_size=0;
 	p->quick_expr_switch=0;
 	return p;
 }
 void destroy_table_info(struct _Maat_table_info_t*p)
 {
-	aligment_int64_array_free(p->scan_cnt);
-	aligment_int64_array_free(p->scan_cpu_time);
-	aligment_int64_array_free(p->input_bytes);
-	aligment_int64_array_free(p->stream_num);
-	aligment_int64_array_free(p->hit_cnt);
+	alignment_int64_array_free(p->scan_cnt);
+	alignment_int64_array_free(p->scan_cpu_time);
+	alignment_int64_array_free(p->input_bytes);
+	alignment_int64_array_free(p->stream_num);
+	alignment_int64_array_free(p->hit_cnt);
 	if(p->cb_info!=NULL)
 	{
 		dynamic_array_destroy(p->cb_info->cache_lines, free);
@@ -688,7 +688,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 	FILE*fp=NULL;
 	char line[MAX_TABLE_LINE_SIZE];
 	int i=0,ret=0,table_cnt=0;
-	char table_type_str[16],not_care[1024], tmp_str[32];
+	char table_type_str[16]={0},not_care[1024]={0}, tmp_str[32]={0};
 	MESA_htable_handle string2int_map=map_create();
 	struct _Maat_table_info_t*p=NULL;
 	struct _Maat_table_info_t*conj_table=NULL;
@@ -996,18 +996,19 @@ void _destroy_compile_rule(struct _Maat_compile_inner_t * compile_rule)
 
 	
 	pthread_rwlock_wrlock(&(compile_rule->rwlock));
+
 	if(db_compile_rule!=NULL)
 	{
+		for(i=0; i<table->ex_data_num; i++)
+		{
+			rule_ex_data_free(&(db_compile_rule->m_rule_head), db_compile_rule->service_defined, compile_rule->ads+i, table->ex_desc+i);
+			compile_rule->ads[i]=NULL;
+		}
+		
 		free(db_compile_rule->service_defined);
 		free(db_compile_rule);
 		compile_rule->db_c_rule=NULL;
-	}
-	for(i=0; table!=NULL && i<table->ex_data_num; i++)
-	{
-		rule_ex_data_free(&(db_compile_rule->m_rule_head), db_compile_rule->service_defined, compile_rule->ads+i, table->ex_desc+i);
-		compile_rule->ads[i]=NULL;
-	}
-	
+	}	
 	free(compile_rule->ads);
 	pthread_rwlock_unlock(&(compile_rule->rwlock));
 
@@ -1230,7 +1231,7 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,_Maat_feather_t
 	scanner->dedup_expr_num=0;
 	scanner->max_thread_num=scan_thread_num;
 	//optimized for CPU cache_alignment 64
-	scanner->ref_cnt=aligment_int64_array_alloc(scan_thread_num);
+	scanner->ref_cnt=alignment_int64_array_alloc(scan_thread_num);
 	scanner->region_update_q=MESA_lqueue_create(0,0);
 	scanner->region=rulescan_initialize(scan_thread_num);
 	
@@ -2396,7 +2397,7 @@ void compatible_group_udpate(struct _Maat_table_info_t* table,int region_id,int 
 }
 void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,struct _Maat_scanner_t *scanner,void* logger,int group_mode_on)
 {
-	struct db_str_rule_t* maat_str_rule=(struct db_str_rule_t*)malloc(sizeof(struct db_str_rule_t));
+	struct db_str_rule_t* maat_str_rule=ALLOC(struct db_str_rule_t, 1);
 	int ret=0,db_hexbin=0,rule_type=0;
 	switch(table->table_type)
 	{
@@ -3033,7 +3034,7 @@ void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
 				destroy_group_rule(bag->group_rule);
 				break;
 			case GARBAGE_SCANNER:
-				ref_cnt=aligment_int64_array_sum(bag->scanner->ref_cnt,bag->scanner->max_thread_num);
+				ref_cnt=alignment_int64_array_sum(bag->scanner->ref_cnt,bag->scanner->max_thread_num);
 				if(ref_cnt==0)
 				{
 					MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module,
@@ -3513,7 +3514,7 @@ void *thread_rule_monitor(void *arg)
 												old_scanner->version, feather->scanner->version);
 					}
 					assert(old_scanner->tomb_ref==feather->garbage_q);
-					feather->zombie_rs_stream+=aligment_int64_array_sum(old_scanner->ref_cnt,old_scanner->max_thread_num);
+					feather->zombie_rs_stream+=alignment_int64_array_sum(old_scanner->ref_cnt,old_scanner->max_thread_num);
 					garbage_bagging(GARBAGE_SCANNER, old_scanner, feather->garbage_q);
 				}
 				feather->update_tmp_scanner=NULL;
@@ -3549,8 +3550,6 @@ void *thread_rule_monitor(void *arg)
 	destroy_maat_scanner(feather->scanner);
 	garbage_bury(feather->garbage_q,0,feather->logger);
 	MESA_lqueue_destroy(feather->garbage_q,lqueue_destroy_cb,NULL);
-	FS_stop(&(feather->stat_handle));
-
 	int i=0;
 	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
@@ -3561,12 +3560,12 @@ void *thread_rule_monitor(void *arg)
 		destroy_table_info(feather->p_table_info[i]);
 		feather->p_table_info[i]=NULL;
 	}
-	aligment_int64_array_free(feather->thread_call_cnt);
-	aligment_int64_array_free(feather->inner_mid_cnt);
-	aligment_int64_array_free(feather->outer_mid_cnt);
-	aligment_int64_array_free(feather->hit_cnt);
-	aligment_int64_array_free(feather->orphan_group_saving);
-	aligment_int64_array_free(feather->last_region_saving);
+	alignment_int64_array_free(feather->thread_call_cnt);
+	alignment_int64_array_free(feather->inner_mid_cnt);
+	alignment_int64_array_free(feather->outer_mid_cnt);
+	alignment_int64_array_free(feather->hit_cnt);
+	alignment_int64_array_free(feather->orphan_group_saving);
+	alignment_int64_array_free(feather->last_region_saving);
 	if(feather->REDIS_MODE_ON==1&&feather->redis_read_ctx!=NULL)
 	{
 		pthread_mutex_lock(&(feather->redis_write_lock));
@@ -3576,6 +3575,12 @@ void *thread_rule_monitor(void *arg)
 		feather->redis_write_ctx=NULL;
 		pthread_mutex_unlock(&(feather->redis_write_lock));
 	}
+	for(i=0; i<feather->n_tags; i++)
+	{
+		free(feather->accept_tags[i].tag_name);
+		free(feather->accept_tags[i].tag_val);
+	}
+	free(feather->accept_tags);
 	if(feather->stat_on&& feather->stat_handle)
 	{
 		FS_stop(&(feather->stat_handle));

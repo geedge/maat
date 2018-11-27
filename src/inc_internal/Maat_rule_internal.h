@@ -14,7 +14,7 @@
 
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
-#include "aligment_int64.h"
+#include "alignment_int64.h"
 #include <pthread.h>
 #include <iconv.h>
 
