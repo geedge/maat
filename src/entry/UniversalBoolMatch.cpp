@@ -252,6 +252,7 @@ void boolexpr_destroy(void * instance)
 		for(unsigned int i=0; i<matcher->max_thread_num; i++)
 		{
 			delete [] matcher->thread_data[i].bitmap;
+			delete [] matcher->thread_data[i].matched_bitmap;
 		}
 		delete [] matcher->thread_data;
 		delete matcher;

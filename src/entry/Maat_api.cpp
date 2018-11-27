@@ -594,7 +594,6 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			break;
 		case MAAT_OPT_STAT_ON:
 			_feather->stat_on=1;
-			_feather->stat_handle=FS_create_handle();
 			break;
 		case MAAT_OPT_PERF_ON:
 			_feather->perf_on=1;
@@ -794,7 +793,7 @@ int Maat_initiate_feather(Maat_feather_t feather)
 		if(_feather->stat_on==1)
 		{
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
-								"At initiation: MAAT_OPT_STAT_FILE_PATH not set,TURN OFF STAT trigger.");
+								"At initiation: MAAT_OPT_STAT_FILE_PATH not set, TURN OFF STAT trigger.");
 		}
 		_feather->stat_on=0;
 	}
@@ -810,9 +809,10 @@ int Maat_initiate_feather(Maat_feather_t feather)
 								"Update with cumulative version OFF.");
 	}
 
-	
-	maat_stat_init(_feather);
-
+	if(_feather->stat_on==1)
+	{
+		maat_stat_init(_feather);
+	}
 
 	pthread_create(&(_feather->cfg_mon_t), NULL, thread_rule_monitor, (void*)_feather);
 	return 0;
@@ -1699,12 +1699,6 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 		_feather->scan_err_cnt++;
 		return NULL;
 	}
-	tmp_fuzzy_handle=SFH_instance(total_len);
-	if(tmp_fuzzy_handle==NULL)
-	{
-		_feather->scan_err_cnt++;
-		return NULL;
-	}
 	struct _stream_para_t* sp=(struct _stream_para_t*)calloc(sizeof(struct _stream_para_t),1);
 	scanner=_feather->scanner;
 	sp->feather=_feather;
@@ -1713,8 +1707,15 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 	if(scanner==NULL)
 	{
 		return sp;
+	}	
+	tmp_fuzzy_handle=SFH_instance(total_len);
+	if(tmp_fuzzy_handle==NULL)
+	{
+		_feather->scan_err_cnt++;
+		return NULL;
 	}
 	INC_SCANNER_REF(scanner, thread_num);
+
 	sp->table_id=table_id;
 	sp->thread_num=thread_num;
 	sp->total_len=total_len;

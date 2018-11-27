@@ -51,6 +51,8 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	FS_set_para(feather->stat_handle, PRINT_MODE, &value, sizeof(value));
 	value=0;
 	FS_set_para(feather->stat_handle, CREATE_THREAD, &value, sizeof(value));
+
+	FS_set_para(feather->stat_handle, APP_NAME, feather->instance_name, strlen(feather->instance_name)+1);
 	
 	feather->fs_status_id[STATUS_VERSION]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"version");
 	feather->fs_status_id[STATUS_THRED_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"thread");

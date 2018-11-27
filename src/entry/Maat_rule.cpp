@@ -3549,6 +3549,7 @@ void *thread_rule_monitor(void *arg)
 	MESA_htable_destroy(feather->map_tablename2id,free);
 	destroy_maat_scanner(feather->scanner);
 	garbage_bury(feather->garbage_q,0,feather->logger);
+	assert(0==MESA_lqueue_get_count(feather->garbage_q));
 	MESA_lqueue_destroy(feather->garbage_q,lqueue_destroy_cb,NULL);
 	int i=0;
 	for(i=0;i<MAX_TABLE_NUM;i++)

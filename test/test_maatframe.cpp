@@ -235,7 +235,7 @@ TEST(DigestScan, Pure)
 		}
 	}
 	fclose(fp);
-	Maat_stream_scan_string_end(&sp);
+	Maat_stream_scan_digest_end(&sp);
 	EXPECT_GE(hit_cnt, 1);
 	Maat_clean_status(&mid);
 	return;
@@ -772,7 +772,7 @@ protected:
 	static void *logger;
 };
 Maat_feather_t MaatFileTest::_shared_feather_f;
-Maat_feather_t MaatFileTest::logger;
+void* MaatFileTest::logger;
 
 TEST_F(MaatFileTest, StreamFiles)
 {
@@ -853,7 +853,6 @@ protected:
 	
 	static void SetUpTestCase()
 	{
-		void *logger=NULL;
 	  	logger=MESA_create_runtime_log_handle("test_maat_redis.log",0);
 
 		_shared_feather=Maat_feather(g_iThreadNum, table_info_path, logger);
@@ -876,13 +875,17 @@ protected:
 	static void TearDownTestCase()
 	{
 		Maat_burn_feather(_shared_feather);
+		MESA_destroy_runtime_log_handle(logger);
 
 	}	
  	// Some expensive resource shared by all tests.
-	static Maat_feather_t _shared_feather;	
+	static Maat_feather_t _shared_feather;
+	static void *logger;
 	static int linger_timeout;
 };
 Maat_feather_t MaatCmdTest::_shared_feather;
+void* MaatCmdTest::logger;
+
 int MaatCmdTest::linger_timeout;
 int test_add_expr_command(Maat_feather_t feather,const char* region_table,int config_id, int timeout,int label_id, const char* keywords)
 {
