@@ -58,30 +58,65 @@ redisReply *_wrap_redisCommand(redisContext *c, const char *format, ...)
 	}
 	return (redisReply *)reply;
 }
-int connect_redis_for_write(_Maat_feather_t * feather)
+redisContext * connect_redis(const char*redis_ip, int redis_port, int redis_db, void* logger)
 {
-	int ret=0;
+	struct timeval connect_timeout;
+	connect_timeout.tv_sec=0;
+	connect_timeout.tv_usec=100*1000; // 100 ms
 	redisReply* reply=NULL;
-	assert(feather->redis_write_ctx==NULL);
-	feather->redis_write_ctx=redisConnectWithTimeout(feather->redis_ip, feather->redis_port,feather->connect_timeout);
-	if(feather->redis_write_ctx==NULL||feather->redis_write_ctx->err)
+
+	redisContext * ctx;
+	ctx=redisConnectWithTimeout(redis_ip, redis_port,connect_timeout);
+	if(ctx==NULL||ctx->err)
 	{
-		MESA_handle_runtime_log(feather->logger,RLOG_LV_FATAL,maat_module 
-				,"Redis connect %s:%d for write failed: %s."
-				,feather->redis_ip,feather->redis_port,feather->redis_write_ctx==NULL?"Unkown":feather->redis_write_ctx->errstr);
-		if(feather->redis_write_ctx!=NULL)
+		if(logger==NULL)
 		{
-			redisFree(feather->redis_write_ctx);
-			feather->redis_write_ctx=NULL;
+			printf("Unable to connect redis server %s:%d db%d, error: %s\n",
+								redis_ip, redis_port, redis_db, ctx==NULL ? "Unknown" : ctx->errstr);
+
 		}
-		ret=-1;
+		else
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
+							"Unable to connect redis server %s:%d db%d, error: %s",
+							redis_ip, redis_port, redis_db, ctx==NULL ? "Unknown" : ctx->errstr);
+		}
+		if(ctx!=NULL) redisFree(ctx);
+		return NULL;
+	}
+	redisEnableKeepAlive(ctx);
+	reply=_wrap_redisCommand(ctx, "select %d",redis_db);
+	freeReplyObject(reply);
+
+	return ctx;
+
+}
+
+int connect_redis_for_write(struct maat_redis_ctx* mr_ctx, void* logger)
+{
+	assert(mr_ctx->write_ctx==NULL);
+	mr_ctx->write_ctx=connect_redis(mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db, logger);
+	if(mr_ctx->write_ctx==NULL)
+	{
+		return -1;
 	}
 	else
 	{
-		reply=_wrap_redisCommand(feather->redis_write_ctx, "select %d",feather->redis_index);
-		freeReplyObject(reply);
+		return 0;
 	}
-	return ret;
+}
+redisContext* get_redis_ctx_for_write(_Maat_feather_t * feather)
+{
+	int ret=0;
+	if(feather->mr_ctx.write_ctx==NULL)
+	{
+		ret=connect_redis_for_write(&(feather->mr_ctx), feather->logger);
+		if(ret!=0)
+		{
+			return NULL;
+		}
+	}
+	return feather->mr_ctx.write_ctx;
 }
 long long read_redis_integer(const redisReply* reply)
 {
@@ -319,22 +354,6 @@ void set_serial_rule(struct serial_rule_t* rule,enum MAAT_OPERATION op,int rule_
 	}
 	return;
 }
-int _wrap_redisReconnect(redisContext* c, void*logger)
-{
-	int ret=0;
-	ret=redisReconnect(c);
-	if(ret==REDIS_OK)
-	{
-	
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,"Reconnect success.");
-		return 0;
-	}
-	else
-	{
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,"Reconnect failed.");
-		return -1;
-	}
-}
 int get_inc_key_list(long long instance_version, long long target_version, redisContext *c, struct serial_rule_t** list,void* logger)
 {
 	redisReply* reply=NULL,*tmp_reply=NULL;
@@ -520,11 +539,10 @@ int get_rm_key_list(redisContext *c, long long instance_version, long long desir
 	}
 	else
 	{
-		memset(err_buff,0,sizeof(err_buff));
-		__redis_strerror_r(errno,err_buff,sizeof(err_buff)-1);
+		memset(err_buff, 0, sizeof(err_buff));
+		__redis_strerror_r(errno, err_buff, sizeof(err_buff)-1);
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
-				"GET MAAT_VERSION failed %s. Reconnecting...",err_buff);
-		_wrap_redisReconnect(c,logger);
+				"GET MAAT_VERSION failed %s.",err_buff);
 		return -1;
 	}
 	redis_version=read_redis_integer(reply);
@@ -1709,7 +1727,8 @@ void get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int r
 	}
 	return;
 }
-void redis_monitor_traverse(long        long version,redisContext *c,
+
+void redis_monitor_traverse(long        long version, struct maat_redis_ctx* mr_ctx,
 		void (*start)(long long,int ,void*),//vesion,CM_UPDATE_TYPE_*,u_para
 		int (*update)(const char* ,const char*,void* ),//table name ,line ,u_para
 		void (*finish)(void*),//u_para
@@ -1724,39 +1743,49 @@ void redis_monitor_traverse(long        long version,redisContext *c,
 	long long new_version=0;
 	enum MAAT_TABLE_TYPE table_type;
 	void* logger=feather->logger;
-	if(feather->redis_write_ctx!=NULL&&feather->redis_write_ctx->err==0)//authorized to write
+
+	if(mr_ctx->write_ctx!=NULL&&mr_ctx->write_ctx->err==0)//authorized to write
 	{
 		//For thread safe, deliberately use redis_read_ctx but not redis_write_ctx.
-		if(1==redlock_try_lock(feather->redis_read_ctx, rm_expire_lock, rm_expire_lock_timeout))
+		if(1==redlock_try_lock(mr_ctx->read_ctx, rm_expire_lock, rm_expire_lock_timeout))
 		{
-			check_maat_expiration(feather->redis_read_ctx, logger);
-			cleanup_update_status(feather->redis_read_ctx, logger);
-			redlock_unlock(feather->redis_read_ctx,rm_expire_lock);
+			check_maat_expiration(mr_ctx->read_ctx, logger);
+			cleanup_update_status(mr_ctx->read_ctx, logger);
+			redlock_unlock(mr_ctx->read_ctx, rm_expire_lock);
 		}
 	}
-	if(c==NULL) return;
-	if(c->err)
+	if(mr_ctx->read_ctx==NULL||mr_ctx->read_ctx->err)
 	{
-		if(time(NULL)-feather->last_reconnect_time < MAAT_REDIS_RECONNECT_INTERVAL)
+		if(time(NULL)-mr_ctx->last_reconnect_time < MAAT_REDIS_RECONNECT_INTERVAL)
 		{
 			return;
 		}
-		feather->last_reconnect_time=time(NULL);		
-		if(0!=_wrap_redisReconnect(c, logger))
+		mr_ctx->last_reconnect_time=time(NULL);
+		if(mr_ctx->read_ctx!=NULL)
+		{
+			redisFree(mr_ctx->read_ctx);
+		}
+		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor, "Reconnecting...");
+		mr_ctx->read_ctx=connect_redis(mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db, feather->logger);
+		if(mr_ctx->read_ctx==NULL)
 		{
 			return;
 		}
 	}
 	
-	rule_num=get_rm_key_list(c, version, feather->load_version_from, &new_version, &rule_list, &update_type, logger, feather->cumulative_update_off);
+	rule_num=get_rm_key_list(mr_ctx->read_ctx, version, feather->load_version_from, &new_version, &rule_list, &update_type, logger, feather->cumulative_update_off);
+	if(rule_num<0)//redis communication error
+	{
+		return;
+	}
 	feather->load_version_from=0;//only valid for one time.
-	if(rule_num<0||(rule_num==0&&update_type==CM_UPDATE_TYPE_INC))//error or nothing changed
+	if(rule_num==0&&update_type==CM_UPDATE_TYPE_INC)//error or nothing changed
 	{
 		return;
 	}
 	if(rule_num>0)
 	{
-		ret=get_maat_redis_value(c,rule_list,rule_num, logger,0);
+		ret=get_maat_redis_value(mr_ctx->read_ctx, rule_list, rule_num, logger, 0);
 		if(ret<0)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor,"Get Redis value failed, abandon update.");
@@ -1778,10 +1807,10 @@ void redis_monitor_traverse(long        long version,redisContext *c,
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor,"%d of %d rules are empty.",empty_value_num,rule_num);
 		}
-		ret=get_foreign_keys_define(c, rule_list, rule_num, feather, feather->foreign_cont_dir, logger);
+		ret=get_foreign_keys_define(mr_ctx->read_ctx, rule_list, rule_num, feather, feather->foreign_cont_dir, logger);
 		if(ret>0)
 		{
-			get_foreign_conts(c, rule_list, rule_num, 0, logger);
+			get_foreign_conts(mr_ctx->read_ctx, rule_list, rule_num, 0, logger);
 		}
 	}
 	start(new_version,update_type,u_para);
@@ -1990,15 +2019,12 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 	long long server_time=0,absolute_expire_time=0;
 	const char* p_foreign=NULL;	
 	int foreign_key_size=0;
-	if(_feather->redis_write_ctx==NULL)
+	redisContext* write_ctx=get_redis_ctx_for_write(_feather);
+	if(write_ctx==NULL)
 	{
-		ret=connect_redis_for_write(_feather);
-		if(ret!=0)
-		{
-			return -1;
-		}
+		return -1;
 	}
-	server_time=redis_server_time(_feather->redis_write_ctx);
+	server_time=redis_server_time(write_ctx);
 	s_rule=(struct serial_rule_t *)calloc(sizeof(struct serial_rule_t),line_num);
 	for(i=0;i<line_num;i++)
 	{
@@ -2072,7 +2098,7 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 		}
 		set_serial_rule(s_rule+i, op,line_rule[i]->rule_id,line_rule[i]->label_id,line_rule[i]->table_name,line_rule[i]->table_line, absolute_expire_time);
 	}
-	success_cnt=exec_serial_rule(_feather->redis_write_ctx,s_rule, line_num,server_time,_feather->logger);
+	success_cnt=exec_serial_rule(write_ctx,s_rule, line_num,server_time,_feather->logger);
 	if(success_cnt<0||success_cnt!=line_num)//error
 	{
 		ret=-1;
@@ -2099,7 +2125,7 @@ int Maat_cmd_set_line(Maat_feather_t feather,const struct Maat_line_t* line_rule
 int Maat_cmd_set_file(Maat_feather_t feather,const char* key, const char* value, size_t size, enum MAAT_OPERATION op)
 {
 	struct _Maat_feather_t* _feather=(struct _Maat_feather_t*)feather;
-	redisContext* ctx=_feather->redis_write_ctx;
+	redisContext* ctx=_feather->mr_ctx.write_ctx;
 	const char *arg_vec[3];
 	size_t len_vec[3];
 	arg_vec[0] = "SET";
@@ -2257,7 +2283,7 @@ int Maat_cmd_commit(Maat_feather_t feather)
 	UNUSED int transection_success=1;
 	struct _Maat_cmd_inner_t* p=NULL,*n=NULL;
 
-	redisContext* ctx=NULL;
+	redisContext* write_ctx=NULL;
 	redisReply* data_reply=NULL;
 
 	struct serial_rule_t* s_rule=NULL;
@@ -2269,26 +2295,22 @@ int Maat_cmd_commit(Maat_feather_t feather)
 	{
 		return 0;
 	}
-	if(_feather->redis_write_ctx==NULL)
+	write_ctx=get_redis_ctx_for_write(_feather);
+	if(write_ctx==NULL)
 	{
-		ret=connect_redis_for_write(_feather);
-		if(ret!=0)
-		{
-			ret=-1;
-			goto error_out;
-		}
+		goto error_out;
+
 	}
-	ctx=_feather->redis_write_ctx;
 	for(i=0,p=_feather->cmd_qhead;i<_feather->cmd_q_cnt;i++)
 	{
 		serial_rule_num+=calculate_serial_rule_num(p, &new_region_num, &new_group_num);
 		p=p->next;
 	}
-	_feather->server_time=redis_server_time(ctx);
+	_feather->server_time=redis_server_time(write_ctx);
 
 	if(_feather->AUTO_NUMBERING_ON==1)
 	{
-		data_reply=_wrap_redisCommand(ctx,"INCRBY SEQUENCE_REGION %d",new_region_num); 
+		data_reply=_wrap_redisCommand(write_ctx,"INCRBY SEQUENCE_REGION %d",new_region_num); 
 		if(data_reply->type!=REDIS_REPLY_INTEGER)
 		{
 			freeReplyObject(data_reply);
@@ -2298,7 +2320,7 @@ int Maat_cmd_commit(Maat_feather_t feather)
 		_feather->base_rgn_seq=data_reply->integer-new_region_num;
 		freeReplyObject(data_reply);
 
-		data_reply=_wrap_redisCommand(ctx,"INCRBY SEQUENCE_GROUP %d",new_group_num); 
+		data_reply=_wrap_redisCommand(write_ctx,"INCRBY SEQUENCE_GROUP %d",new_group_num); 
 		if(data_reply->type!=REDIS_REPLY_INTEGER)
 		{
 			freeReplyObject(data_reply);
@@ -2317,7 +2339,7 @@ int Maat_cmd_commit(Maat_feather_t feather)
 	}
 	assert(serial_rule_idx==serial_rule_num);
 	transection_success=0;
-	transection_success=exec_serial_rule(ctx, s_rule,serial_rule_num,_feather->server_time,_feather->logger);
+	transection_success=exec_serial_rule(write_ctx, s_rule,serial_rule_num,_feather->server_time,_feather->logger);
 	assert(transection_success==serial_rule_num);
 	ret=_feather->cmd_q_cnt;
 	_feather->cmd_acc_num+=_feather->cmd_q_cnt;
@@ -2344,16 +2366,13 @@ long long Maat_cmd_incrby(Maat_feather_t feather,const char* key, int increment)
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	redisReply* data_reply=NULL;
 	long long result=0;
-	int ret=0;
-	if(_feather->redis_write_ctx==NULL)
+	redisContext* write_ctx=get_redis_ctx_for_write(_feather);
+	
+	if(write_ctx==NULL)
 	{
-		ret=connect_redis_for_write(_feather);
-		if(ret!=0)
-		{
-			return -1;
-		}
+		return -1;
 	}
-	data_reply=_wrap_redisCommand(_feather->redis_write_ctx,"INCRBY %s %d", key, increment); 
+	data_reply=_wrap_redisCommand(write_ctx,"INCRBY %s %d", key, increment); 
 	if(data_reply->type==REDIS_REPLY_INTEGER)
 	{
 		result=data_reply->integer;
@@ -2370,16 +2389,13 @@ int Maat_cmd_select(Maat_feather_t feather, int label_id, int * output_ids, unsi
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	redisReply* data_reply=NULL;
 	unsigned int i=0;
-	int ret=0;
-	if(_feather->redis_write_ctx==NULL)
+	redisContext* write_ctx=get_redis_ctx_for_write(_feather);
+	if(write_ctx==NULL)
 	{
-		ret=connect_redis_for_write(_feather);
-		if(ret!=0)
-		{
-			return -1;
-		}
+		return -1;
 	}
-	data_reply=_wrap_redisCommand(_feather->redis_write_ctx,"ZRANGEBYSCORE %s %d %d"
+
+	data_reply=_wrap_redisCommand(write_ctx,"ZRANGEBYSCORE %s %d %d"
 			,rm_label_sset
 			,label_id
 			,label_id);
@@ -2451,17 +2467,14 @@ int Maat_cmd_flushDB(Maat_feather_t feather)
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	int ret=0;
-	if(_feather->redis_write_ctx==NULL)
+	redisContext* write_ctx=get_redis_ctx_for_write(_feather);
+	if(write_ctx==NULL)
 	{
-		ret=connect_redis_for_write(_feather);
-		if(ret!=0)
-		{
-			return -1;
-		}
+		return -1;
 	}
 	do
 	{
-		ret=redis_flush_DB(_feather->redis_write_ctx, _feather->redis_index, _feather->logger);
+		ret=redis_flush_DB(_feather->mr_ctx.write_ctx, _feather->mr_ctx.redis_db, _feather->logger);
 	}while(ret==0);
 	return 0;
 }

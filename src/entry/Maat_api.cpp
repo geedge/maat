@@ -442,7 +442,7 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 						,max_thread_num);
 		return NULL;
 	}
-	_Maat_feather_t* feather=(_Maat_feather_t*)calloc(sizeof(struct _Maat_feather_t),1);
+	_Maat_feather_t* feather=ALLOC(struct _Maat_feather_t, 1);
 	feather->table_cnt=read_table_info(feather->p_table_info, MAX_TABLE_NUM,table_info_path,max_thread_num,logger);
 	feather->map_tablename2id=map_create();
 	int i=0,j=0,ret=0;
@@ -489,15 +489,11 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->last_full_version=0;
 	feather->base_grp_seq=0;
 	feather->base_rgn_seq=0;
-	feather->redis_index=0;
 	feather->AUTO_NUMBERING_ON=1;
-	feather->connect_timeout.tv_sec=0;
-	feather->connect_timeout.tv_usec=100*1000; // 100 ms
 	feather->backgroud_update_enabled=1;
 	feather->foreign_cont_linger=0;
 	snprintf(feather->foreign_cont_dir, sizeof(feather->foreign_cont_dir), "%s_files", table_info_path);
 	pthread_mutex_init(&(feather->backgroud_update_mutex),NULL);
-	pthread_mutex_init(&(feather->redis_write_lock),NULL);
 	snprintf(feather->table_info_fn,sizeof(feather->table_info_fn),"%s",table_info_path);
 	return feather;
 }
@@ -627,20 +623,20 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			memcpy(_feather->decrypt_key,value,size);
 			break;
 		case MAAT_OPT_REDIS_IP:
-			if((size_t)size>sizeof(_feather->redis_ip))
+			if((size_t)size>sizeof(_feather->mr_ctx.redis_ip))
 			{
 				return -1;
 			}
-			memcpy(_feather->redis_ip,value,size);
+			memcpy(_feather->mr_ctx.redis_ip,value,size);
 			break;
 		case MAAT_OPT_REDIS_PORT:
 			if((size_t)size==sizeof(unsigned short))
 			{
-				_feather->redis_port=*((unsigned short*)value);
+				_feather->mr_ctx.redis_port=*((unsigned short*)value);
 			}
 			else if((size_t)size==sizeof(int))
 			{
-				_feather->redis_port=*((int*)value);
+				_feather->mr_ctx.redis_port=*((int*)value);
 			}
 			else
 			{
@@ -652,7 +648,7 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			{
 				return -1;
 			}
-			_feather->redis_index=*((int*)value);
+			_feather->mr_ctx.redis_db=*((int*)value);
 			break;
 		case MAAT_OPT_CMD_AUTO_NUMBERING:
 			if((size_t)size!=sizeof(int)||*((int*)value)>15||*((int*)value)<0)
@@ -700,34 +696,20 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 }
 void maat_read_full_config(_Maat_feather_t* _feather)
 {
-	redisReply* reply=NULL;
-	if(strlen(_feather->redis_ip)>0&&_feather->redis_port!=0)
+	struct maat_redis_ctx* mr_ctx=&(_feather->mr_ctx);
+	if(strlen(mr_ctx->redis_ip)>0&&mr_ctx->redis_port!=0)
 	{
 		_feather->REDIS_MODE_ON=1;
 		MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
 							"Maat initiate from Redis %s:%hu db%d."
-							,_feather->redis_ip
-							,_feather->redis_port
-							,_feather->redis_index);
-		_feather->redis_read_ctx=redisConnectWithTimeout(_feather->redis_ip,_feather->redis_port,_feather->connect_timeout);
-		if(_feather->redis_read_ctx==NULL||_feather->redis_read_ctx->err)
+							,mr_ctx->redis_ip
+							,mr_ctx->redis_port
+							,mr_ctx->redis_db);
+		mr_ctx->read_ctx=connect_redis(mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db, _feather->logger);
+		if(mr_ctx->read_ctx != NULL)
 		{
-			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module 
-								,"Redis connect %s:%d failed : %s."
-								,_feather->redis_ip,_feather->redis_port,_feather->redis_read_ctx==NULL?"Unkonwn":_feather->redis_read_ctx->errstr);
-			if(_feather->redis_read_ctx!=NULL)
-			{
-				redisFree(_feather->redis_write_ctx);
-				_feather->redis_write_ctx=NULL;
-			}
-		}
-		else
-		{
-			redisEnableKeepAlive(_feather->redis_read_ctx);
-			reply=_wrap_redisCommand(_feather->redis_read_ctx, "select %d",_feather->redis_index);
-			freeReplyObject(reply);
 			redis_monitor_traverse(_feather->maat_version
-								,_feather->redis_read_ctx
+								,mr_ctx
 								,maat_start_cb
 								,maat_update_cb
 								,maat_finish_cb
@@ -760,8 +742,8 @@ void maat_read_full_config(_Maat_feather_t* _feather)
 		{
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
 							"At initiation: no avilable rule in redis in %s:%hu"
-							,_feather->redis_ip
-							,_feather->redis_port);
+							,mr_ctx->redis_ip
+							,mr_ctx->redis_port);
 
 		}
 		else

@@ -38,26 +38,7 @@ static int compare_serial_rule(const void *a, const void *b)
 	snprintf(q_str,sizeof(q_str),"%s.%ld",rb->table_name,rb->rule_id);
 	return strcmp(p_str,q_str);
 }
-static redisContext * connect_redis(const char*redis_ip, int redis_port, int redis_db)
-{
-	struct timeval connect_timeout;
-	connect_timeout.tv_sec=0;
-	connect_timeout.tv_usec=100*1000; // 100 ms
-	redisReply* reply=NULL;
 
-	redisContext * ctx;
-	ctx=redisConnectWithTimeout(redis_ip, redis_port,connect_timeout);
-	if(ctx==NULL||ctx->err)
-	{
-		printf("Unable to connect %s:%d db%d : %s\n",redis_ip,redis_port,redis_db, ctx==NULL?"Unknown":ctx->errstr);
-		return NULL;
-	}
-	reply=_wrap_redisCommand(ctx, "select %d",redis_db);
-	freeReplyObject(reply);
-
-	return ctx;
-
-}
 void read_rule_from_redis(redisContext * ctx, long long desire_version, const char* output_path ,void*logger)
 {
 	struct serial_rule_t* rule_list;
@@ -333,7 +314,7 @@ int main(int argc, char * argv[])
 				break;
 		}
 	}
-	ctx=connect_redis(redis_ip,redis_port, redis_db);
+	ctx=connect_redis(redis_ip,redis_port, redis_db, NULL);
 	if(ctx==NULL)
 	{
 		return -1;

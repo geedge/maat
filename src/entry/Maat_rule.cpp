@@ -32,7 +32,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_4_20181126=1;
+int MAAT_FRAME_VERSION_2_4_20181127=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -3473,7 +3473,7 @@ void *thread_rule_monitor(void *arg)
 			if(feather->REDIS_MODE_ON==1)
 			{
 				redis_monitor_traverse(feather->maat_version
-										,feather->redis_read_ctx
+										,&(feather->mr_ctx)
 										,maat_start_cb
 										,maat_update_cb
 										,maat_finish_cb
@@ -3567,14 +3567,18 @@ void *thread_rule_monitor(void *arg)
 	alignment_int64_array_free(feather->hit_cnt);
 	alignment_int64_array_free(feather->orphan_group_saving);
 	alignment_int64_array_free(feather->last_region_saving);
-	if(feather->REDIS_MODE_ON==1&&feather->redis_read_ctx!=NULL)
+	if(feather->REDIS_MODE_ON==1)
 	{
-		pthread_mutex_lock(&(feather->redis_write_lock));
-		redisFree(feather->redis_read_ctx);
-		feather->redis_read_ctx=NULL;
-		redisFree(feather->redis_write_ctx);
-		feather->redis_write_ctx=NULL;
-		pthread_mutex_unlock(&(feather->redis_write_lock));
+		if(feather->mr_ctx.read_ctx)
+		{
+			redisFree(feather->mr_ctx.read_ctx);
+			feather->mr_ctx.read_ctx=NULL;
+		}
+		if(feather->mr_ctx.write_ctx)
+		{
+			redisFree(feather->mr_ctx.write_ctx);
+			feather->mr_ctx.write_ctx=NULL;
+		}
 	}
 	for(i=0; i<feather->n_tags; i++)
 	{
