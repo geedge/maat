@@ -1540,7 +1540,7 @@ void _get_foregin_keys(struct serial_rule_t* p_rule, int* foreign_columns, int n
 	int foreign_key_size=0;
 	struct stat file_info;
 	p_rule->n_foreign=n_foreign;
-	p_rule->f_keys=(struct foreign_key*)calloc(sizeof(struct foreign_key),n_foreign);
+	p_rule->f_keys=ALLOC(struct foreign_key, n_foreign);
 	for(i=0; i<n_foreign; i++)
 	{
 		p_foreign=find_Nth_column(p_rule->table_line, foreign_columns[i], &foreign_key_size);
@@ -1665,7 +1665,7 @@ void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int 
 		}
 		for(j=0; j<p->n_foreign; j++)
 		{
-			if(p->f_keys[i].is_existed==1)
+			if(p->f_keys[j].is_existed==1)
 			{
 				continue;
 			}
