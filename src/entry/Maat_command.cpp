@@ -92,7 +92,7 @@ redisContext * connect_redis(const char*redis_ip, int redis_port, int redis_db, 
 
 }
 
-int connect_redis_for_write(struct maat_redis_ctx* mr_ctx, void* logger)
+int connect_redis_for_write(struct source_redis_ctx* mr_ctx, void* logger)
 {
 	assert(mr_ctx->write_ctx==NULL);
 	mr_ctx->write_ctx=connect_redis(mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db, logger);
@@ -1728,7 +1728,7 @@ void get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int r
 	return;
 }
 
-void redis_monitor_traverse(long        long version, struct maat_redis_ctx* mr_ctx,
+void redis_monitor_traverse(long        long version, struct source_redis_ctx* mr_ctx,
 		void (*start)(long long,int ,void*),//vesion,CM_UPDATE_TYPE_*,u_para
 		int (*update)(const char* ,const char*,void* ),//table name ,line ,u_para
 		void (*finish)(void*),//u_para
@@ -2287,7 +2287,7 @@ int Maat_cmd_commit(Maat_feather_t feather)
 	redisReply* data_reply=NULL;
 
 	struct serial_rule_t* s_rule=NULL;
-	if(_feather->REDIS_MODE_ON==0)
+	if(_feather->input_mode!=SOURCE_REDIS)
 	{
 		return -1;
 	}

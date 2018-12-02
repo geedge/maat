@@ -499,7 +499,8 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 }
 int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const void* value,int size)
 {
-	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;	
+	struct stat attrib;
 	int intval=0,ret=-1;
 	switch(type)
 	{
@@ -557,36 +558,45 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			}
 			_feather->scan_interval_ms=intval;
 			break;
-		case MAAT_OPT_FULL_CFG_DIR:
-			if(size>(int)sizeof(_feather->full_dir))
+		case MAAT_OPT_FULL_CFG_DIR:			
+			assert(_feather->input_mode==SOURCE_NONE);
+			if(size>(int)sizeof(_feather->iris_ctx.full_dir))
 			{
 				return -1;
 			}
-			memcpy(_feather->full_dir,(const char*)value,size);
+			memcpy(_feather->iris_ctx.full_dir,(const char*)value,size);
+			_feather->input_mode=SOURCE_IRIS_FILE;
 			break;
 		case MAAT_OPT_INC_CFG_DIR:
-			if(size>(int)sizeof(_feather->inc_dir))
+			if(size>(int)sizeof(_feather->iris_ctx.inc_dir))
 			{
 				return -1;
 			}
-			memcpy(_feather->inc_dir,(const char*)value,size);
+			memcpy(_feather->iris_ctx.inc_dir,(const char*)value,size);
 			break;
 		case MAAT_OPT_JSON_FILE_PATH:
+			assert(_feather->input_mode==SOURCE_NONE);
 			ret=json2iris((const char*)value
 				,_feather->compile_tn,_feather->group_tn
 				,NULL
-				,_feather->full_dir
-				,sizeof(_feather->full_dir)
+				,_feather->json_ctx.iris_file
+				,sizeof(_feather->json_ctx.iris_file)
 				,_feather->logger);
 			if(ret<0)
 			{
 				return -1;
 			}
-			memcpy(_feather->inc_dir,_feather->full_dir,sizeof(_feather->inc_dir));
+			memcpy(_feather->json_ctx.json_file, value, size);
+			stat(_feather->json_ctx.json_file, &attrib);
+			_feather->json_ctx.last_md5_time=attrib.st_ctime;
+
+			md5_file(_feather->json_ctx.json_file, _feather->json_ctx.effective_json_md5);
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
-							"Maat initial with JSON file %s,generate index file %s OK."
-							,(const char*)value
-							,_feather->full_dir);
+							"Maat initial with JSON file %s md5: %s,generate index file %s OK.",
+							_feather->json_ctx.json_file,
+							_feather->json_ctx.effective_json_md5,
+							_feather->json_ctx.iris_file);
+			_feather->input_mode=SOURCE_JSON_FILE;
 			break;
 		case MAAT_OPT_STAT_ON:
 			_feather->stat_on=1;
@@ -623,11 +633,13 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			memcpy(_feather->decrypt_key,value,size);
 			break;
 		case MAAT_OPT_REDIS_IP:
+			assert(_feather->input_mode==SOURCE_NONE);
 			if((size_t)size>sizeof(_feather->mr_ctx.redis_ip))
 			{
 				return -1;
 			}
 			memcpy(_feather->mr_ctx.redis_ip,value,size);
+			_feather->input_mode=SOURCE_REDIS;
 			break;
 		case MAAT_OPT_REDIS_PORT:
 			if((size_t)size==sizeof(unsigned short))
@@ -696,61 +708,70 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 }
 void maat_read_full_config(_Maat_feather_t* _feather)
 {
-	struct maat_redis_ctx* mr_ctx=&(_feather->mr_ctx);
-	if(strlen(mr_ctx->redis_ip)>0&&mr_ctx->redis_port!=0)
+	struct source_redis_ctx* mr_ctx=NULL;
+	switch(_feather->input_mode)
 	{
-		_feather->REDIS_MODE_ON=1;
-		MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
-							"Maat initiate from Redis %s:%hu db%d."
-							,mr_ctx->redis_ip
-							,mr_ctx->redis_port
-							,mr_ctx->redis_db);
-		mr_ctx->read_ctx=connect_redis(mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db, _feather->logger);
-		if(mr_ctx->read_ctx != NULL)
-		{
-			redis_monitor_traverse(_feather->maat_version
-								,mr_ctx
-								,maat_start_cb
-								,maat_update_cb
-								,maat_finish_cb
-								, _feather
-								,_feather->decrypt_key	//Not used.
-								,_feather);
-		}
-	}
-	else
-	{
-		if(strlen(_feather->full_dir)==0)
-		{
-			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
-								"At initiation: NO FULL_CFG_DIR or JSON_FILE_PATH. ");
-		
-			return;
-		}
-		config_monitor_traverse(_feather->maat_version,
-								_feather->full_dir, 
-								maat_start_cb,
-								maat_update_cb,
-								maat_finish_cb,
-								_feather,
-								_feather->decrypt_key,
-								_feather->logger);
-	}
-	if(_feather->update_tmp_scanner==NULL)
-	{
-		if(_feather->REDIS_MODE_ON==1)
-		{
-			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
-							"At initiation: no avilable rule in redis in %s:%hu"
-							,mr_ctx->redis_ip
-							,mr_ctx->redis_port);
-
-		}
-		else
-		{
-			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
-							"At initiation: no valid index file in %s",_feather->full_dir);
-		}
+		case SOURCE_REDIS:			
+			mr_ctx=&(_feather->mr_ctx);
+			MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
+								"Maat initiate from Redis %s:%hu db%d."
+								,mr_ctx->redis_ip
+								,mr_ctx->redis_port
+								,mr_ctx->redis_db);
+			mr_ctx->read_ctx=connect_redis(mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db, _feather->logger);
+			if(mr_ctx->read_ctx != NULL)
+			{
+				redis_monitor_traverse(_feather->maat_version
+									,mr_ctx
+									,maat_start_cb
+									,maat_update_cb
+									,maat_finish_cb
+									, _feather
+									,_feather->decrypt_key	//Not used.
+									,_feather);
+			}
+			if(_feather->update_tmp_scanner)
+			{
+				MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
+					"At initiation: no avilable rule in redis in %s:%hu"
+					,mr_ctx->redis_ip
+					,mr_ctx->redis_port);
+			}
+			break;
+		case SOURCE_IRIS_FILE:
+			config_monitor_traverse(_feather->maat_version,
+									_feather->iris_ctx.full_dir, 
+									maat_start_cb,
+									maat_update_cb,
+									maat_finish_cb,
+									_feather,
+									_feather->decrypt_key,
+									_feather->logger);
+			if(!_feather->update_tmp_scanner)
+			{
+				MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
+								"At initiation: NO effective rule in %s.",
+								_feather->iris_ctx.full_dir);
+			}
+			break;
+		case SOURCE_JSON_FILE:
+			config_monitor_traverse(_feather->maat_version,
+									_feather->json_ctx.iris_file, 
+									maat_start_cb,
+									maat_update_cb,
+									maat_finish_cb,
+									_feather,
+									_feather->decrypt_key,
+									_feather->logger);
+			if(!_feather->update_tmp_scanner)
+			{
+				MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
+								"At initiation: NO efffective rule in JSON generate %s.",
+								_feather->json_ctx.iris_file);
+			}
+			break;
+		default:
+			break;
 	}
 	_feather->scanner=_feather->update_tmp_scanner;
 	_feather->update_tmp_scanner=NULL;

@@ -44,4 +44,7 @@ char* str_unescape(char* s);
 pid_t gettid(void);
 int system_cmd_mkdir(const char* path);
 int system_cmd_rm(const char* src_file);
+int system_cmd_mv(const char* src_file,const char*dst_file);
+int system_cmd_cp(const char* src_file,const char*dst_file);
+char* md5_file(const char* filename, char* md5string);
 
