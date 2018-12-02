@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <openssl/md5.h>
 
 #include "Maat_utils.h"
 pid_t gettid()
@@ -177,10 +178,43 @@ int system_cmd_mv(const char* src_file,const char*dst_file)
 	snprintf(cmd,sizeof(cmd), "mv %s %s", src_file, dst_file);
 	return  system(cmd);
 }
+int system_cmd_cp(const char* src_file,const char*dst_file)
+{
+	char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
+	snprintf(cmd,sizeof(cmd), "cp -f %s %s", src_file, dst_file);
+	return  system(cmd);
+}
+
 int system_cmd_rm(const char* src_file)
 {
 	char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
 	snprintf(cmd,sizeof(cmd), "rm %s -f", src_file);
 	return  system(cmd);
+}
+char* md5_file(const char* filename, char* md5string)
+{
+	FILE* fp=NULL;
+	int i=0;
+	unsigned char md5[MD5_DIGEST_LENGTH];
+	struct stat file_info;	
+	stat(filename, &file_info);
+	size_t file_size=file_info.st_size;
+
+	fp=fopen(filename,"r");
+	if(fp==NULL)
+	{
+		return NULL;
+	}
+	char* file_buff=(char*)malloc(file_size);
+	fread(file_buff,1,file_size,fp);
+	fclose(fp);
+	
+	MD5((const unsigned char *)(file_buff), (unsigned long)(file_size), md5);
+	for(i = 0; i < MD5_DIGEST_LENGTH; ++i)
+	{
+		sprintf(&md5string[i*2], "%02x", (unsigned int)md5[i]);
+	}
+	free(file_buff);
+	return md5string;
 }
 

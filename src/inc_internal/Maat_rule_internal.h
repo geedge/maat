@@ -17,6 +17,7 @@
 #include "alignment_int64.h"
 #include <pthread.h>
 #include <iconv.h>
+#include <openssl/md5.h>
 
 extern const char *maat_module;
 
@@ -359,16 +360,6 @@ struct rule_tag
 	char* tag_name;
 	char* tag_val;
 };
-struct maat_redis_ctx
-{
-	redisContext *read_ctx;
-	redisContext *write_ctx;
-	char redis_ip[64];
-	int redis_port;
-	int redis_db;
-	time_t last_reconnect_time;
-};
-
 struct _Maat_scanner_t
 {
 	long long version;
@@ -394,6 +385,34 @@ struct _Maat_scanner_t
 	int max_thread_num;
 	iconv_t iconv_handle[MAX_CHARSET_NUM][MAX_CHARSET_NUM];//iconv_handle[to][from]
 };
+enum data_source
+{
+	SOURCE_NONE=0,
+	SOURCE_REDIS,
+	SOURCE_IRIS_FILE,
+	SOURCE_JSON_FILE
+};
+struct source_iris_ctx
+{
+	char inc_dir[MAX_TABLE_NAME_LEN];
+	char full_dir[MAX_TABLE_NAME_LEN];
+};
+struct source_json_ctx
+{
+	char json_file[MAX_TABLE_NAME_LEN];
+	char iris_file[MAX_TABLE_NAME_LEN];
+	char effective_json_md5[MD5_DIGEST_LENGTH*2+1];
+	time_t last_md5_time;
+};
+struct source_redis_ctx
+{
+	redisContext *read_ctx;
+	redisContext *write_ctx;
+	char redis_ip[64];
+	int redis_port;
+	int redis_db;
+	time_t last_reconnect_time;
+};
 struct _Maat_feather_t
 {
 	struct _Maat_scanner_t *scanner;
@@ -403,6 +422,13 @@ struct _Maat_feather_t
 	int DEFERRED_LOAD_ON;
 	int GROUP_MODE_ON;
 	int REDIS_MODE_ON;
+	enum data_source input_mode;
+	union
+	{
+		struct source_iris_ctx iris_ctx;
+		struct source_json_ctx json_ctx;
+		struct source_redis_ctx mr_ctx;
+	};
 	int still_working;
 	int scan_interval_ms;
 	int effect_interval_ms;
@@ -416,8 +442,7 @@ struct _Maat_feather_t
 	long long last_full_version;
 	int scan_thread_num;
 	int rule_scan_type;
-	char inc_dir[MAX_TABLE_NAME_LEN];
-	char full_dir[MAX_TABLE_NAME_LEN];
+
 	char stat_file[MAX_TABLE_NAME_LEN];
 	char instance_name[MAX_TABLE_NAME_LEN];
 	char table_info_fn[MAX_TABLE_NAME_LEN];
@@ -426,8 +451,7 @@ struct _Maat_feather_t
 	pthread_mutex_t backgroud_update_mutex;
 	unsigned char decrypt_key[MAX_TABLE_NAME_LEN];
 	pthread_t cfg_mon_t;
-	struct maat_redis_ctx mr_ctx;
-	
+
 	int AUTO_NUMBERING_ON;
 
 //	redisContext *redis_write_ctx;	// not thread safe.
@@ -542,8 +566,9 @@ void empty_serial_rules(struct serial_rule_t* rule);
 int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,int serial_rule_num, long long server_time, void* logger);
 long long redis_server_time(redisContext* ctx);
 redisContext * connect_redis(const char*redis_ip, int redis_port, int redis_db, void* logger);
+char* md5_file(const char* filename, char* md5string);
 
-void redis_monitor_traverse(long        long version, struct maat_redis_ctx* mr_ctx,
+void redis_monitor_traverse(long        long version, struct source_redis_ctx* mr_ctx,
 		void (*start)(long long,int ,void*),//vesion,CM_UPDATE_TYPE_*,u_para
 		int (*update)(const char* ,const char*,void* ),//table name ,line ,u_para
 		void (*finish)(void*),//u_para

@@ -1,0 +1,31 @@
+{
+    "compile_table": "COMPILE",
+    "group_table": "GROUP",
+    "rules": [
+        {
+            "compile_id": 2,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "anything",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "string",
+                            "table_content": {
+                                "keywords": "MESA&Maat",
+                                "expr_type": "and",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
