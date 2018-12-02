@@ -30,14 +30,105 @@ const char* inc_cfg_dir="./rule/inc/index/";
 extern int my_scandir(const char *dir, struct dirent ***namelist,
               int(*filter)(const struct dirent *),
               int(*compar)(const void *, const void *));
-
-
+extern char* md5_file(const char* filename, char* md5string);
+extern int system_cmd_cp(const char* src_file,const char*dst_file);
 Maat_feather_t g_feather=NULL;
 void *g_logger=NULL;
 int g_iThreadNum=4;
 const char* table_info_path="./table_info.conf";
 int scan_interval_ms=1;
 int effective_interval_ms=0;
+
+void scan_with_old_or_new_cfg(Maat_feather_t feather, int hit_old)
+{
+	const char* hit_old_data="Hello world! I'm eve.";
+	const char* hit_new_data="Maat was borned in MESA.";
+
+	const char* table_name="HTTP_URL";
+	
+	scan_status_t mid=NULL;
+	int table_id=0, ret=0;
+
+	struct Maat_rule_t result;
+	
+	table_id=Maat_table_register(feather,table_name);
+	ASSERT_GT(table_id, 0);
+	memset(&result, 0, sizeof(result));
+	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, hit_old_data, strlen(hit_old_data), 
+						&result,NULL, 1,
+						&mid, 0);
+	if(hit_old)
+	{
+		EXPECT_EQ(ret, 1);
+		EXPECT_TRUE(result.config_id==1);
+	}
+	else
+	{
+		EXPECT_EQ(ret, 0);
+	}
+	Maat_clean_status(&mid);
+	
+	memset(&result, 0, sizeof(result));
+	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, hit_new_data, strlen(hit_new_data), 
+						&result,NULL, 1,
+						&mid, 0);
+	if(!hit_old)
+	{
+		EXPECT_EQ(ret, 1);
+		EXPECT_TRUE(result.config_id==2);
+	}
+	else
+	{
+		EXPECT_EQ(ret, 0);
+	}
+
+	Maat_clean_status(&mid);
+
+}
+
+const char* watched_json="./json_update/maat.json";
+const char* old_json="./json_update/old.json";
+const char* new_json="./json_update/new.json";
+const char* corrupted_json="./json_update/corrupted.json";
+
+class MaatJSONTest : public testing::Test 
+{
+
+protected:
+	static void SetUpTestCase()
+	{	
+		system_cmd_cp(old_json, watched_json);
+		_shared_feather_j=Maat_feather(g_iThreadNum, table_info_path, g_logger);
+		Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_JSON_FILE_PATH, watched_json, strlen(watched_json)+1);		
+		Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_SCANDIR_INTERVAL_MS,&scan_interval_ms, sizeof(scan_interval_ms));
+
+		Maat_initiate_feather(_shared_feather_j);
+
+	}
+	static void TearDownTestCase()
+	{
+		Maat_burn_feather(_shared_feather_j);
+	}	
+ 	// Some expensive resource shared by all tests.
+	static Maat_feather_t _shared_feather_j;
+	static void *logger;
+};
+Maat_feather_t MaatJSONTest::_shared_feather_j;
+
+
+TEST_F(MaatJSONTest, OldCfg)
+{
+	scan_with_old_or_new_cfg(MaatJSONTest::_shared_feather_j, 1);
+}
+TEST_F(MaatJSONTest, NewCfg)
+{
+	system_cmd_cp(corrupted_json, watched_json);
+	sleep(2);
+	scan_with_old_or_new_cfg(MaatJSONTest::_shared_feather_j, 1);
+	system_cmd_cp(new_json, watched_json);
+	sleep(2);
+	scan_with_old_or_new_cfg(MaatJSONTest::_shared_feather_j, 0);
+}
 
 void Maat_read_entry_start_cb(int update_type,void* u_para)
 {
@@ -1212,32 +1303,7 @@ void prepare_file_to_set(const char* filename, char** file_buff, size_t* file_si
 	snprintf(file_key, key_size, "__FILE_%s", md5string);
 	return;
 }
-char* md5_file(const char* filename, char* md5string)
-{
-	FILE* fp=NULL;
-	int i=0;
-	unsigned char md5[MD5_DIGEST_LENGTH];
-	struct stat file_info;	
-	stat(filename, &file_info);
-	size_t file_size=file_info.st_size;
 
-	fp=fopen(filename,"r");
-	if(fp==NULL)
-	{
-		return NULL;
-	}
-	char* file_buff=(char*)malloc(file_size);
-	fread(file_buff,1,file_size,fp);
-	fclose(fp);
-	
-	MD5((const unsigned char *)(file_buff), (unsigned long)(file_size), md5);
-	for(i = 0; i < MD5_DIGEST_LENGTH; ++i)
-	{
-		sprintf(&md5string[i*2], "%02x", (unsigned int)md5[i]);
-	}
-	free(file_buff);
-	return md5string;
-}
 int is_same_file(const char* filename1, const char* filename2)
 {
 	char md5string[2][MD5_DIGEST_LENGTH*2+1];

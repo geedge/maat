@@ -32,7 +32,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_4_20181129=1;
+int MAAT_FRAME_VERSION_2_4_20181202=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -3439,11 +3439,14 @@ int maat_update_cb(const char* table_name,const char* line,void *u_para)
 void *thread_rule_monitor(void *arg)
 {
 	struct _Maat_feather_t *feather=(struct _Maat_feather_t *)arg;
-	const char* inc_cfg_dir=(const char*)feather->inc_dir;
 	struct _Maat_scanner_t* old_scanner=NULL;
 	long expr_wait_q_cnt=0;
 	int scan_dir_cnt=0;
-	UNUSED int ret=0;
+	int ret=0;
+	char md5_tmp[MD5_DIGEST_LENGTH*2+1]={0};
+	char tmp_dir[MAX_TABLE_NAME_LEN]={0};
+	struct stat attrib;
+
 	char maat_name[16];//Defined by prctl: The name can be up to 16 bytes long,and should 
 						// be null  terminated if it contains fewer bytes.
 	if(strlen(feather->instance_name)>0)
@@ -3470,29 +3473,78 @@ void *thread_rule_monitor(void *arg)
 		scan_dir_cnt++;
 		if(0==pthread_mutex_trylock(&(feather->backgroud_update_mutex)))
 		{
-			if(feather->REDIS_MODE_ON==1)
+			switch(feather->input_mode)
 			{
-				redis_monitor_traverse(feather->maat_version
-										,&(feather->mr_ctx)
-										,maat_start_cb
-										,maat_update_cb
-										,maat_finish_cb
-										,feather
-										,feather->decrypt_key	//Not used.
-										,feather);
+				case SOURCE_REDIS:
+					redis_monitor_traverse(feather->maat_version,
+											&(feather->mr_ctx),
+											maat_start_cb,
+											maat_update_cb,
+											maat_finish_cb,
+											feather,
+											feather->decrypt_key,	//Not used.
+											feather);
+					break;
+				case SOURCE_IRIS_FILE:
+					config_monitor_traverse(feather->maat_version,
+											feather->iris_ctx.inc_dir, 
+											maat_start_cb,
+											maat_update_cb,
+											maat_finish_cb,
+											feather,
+											feather->decrypt_key,
+											feather->logger);
+					break;
+				case SOURCE_JSON_FILE:
+					memset(md5_tmp, 0, sizeof(md5_tmp));
+					memset(tmp_dir, 0, sizeof(tmp_dir));
+				    stat(feather->json_ctx.json_file, &attrib);
+					if(attrib.st_ctime!=feather->json_ctx.last_md5_time)
+					{
+						feather->json_ctx.last_md5_time=attrib.st_ctime;
+						md5_file(feather->json_ctx.json_file, md5_tmp);
+						if(0!=strcmp(md5_tmp,feather->json_ctx.effective_json_md5))
+						{
+							ret=json2iris(feather->json_ctx.json_file,
+											feather->compile_tn, feather->group_tn,
+											NULL,
+											tmp_dir,
+											sizeof(tmp_dir),
+											feather->logger);
+							if(ret<0)
+							{
+								MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module ,
+												"Maat re-initiate with JSON file %s failed, md5: %s",
+												feather->json_ctx.json_file,
+												md5_tmp);
+							}
+							else
+							{
+								strcpy(feather->json_ctx.effective_json_md5, md5_tmp);
+								strcpy(feather->json_ctx.iris_file, tmp_dir);
+								config_monitor_traverse(0,
+														feather->json_ctx.iris_file,
+														maat_start_cb,
+														maat_update_cb,
+														maat_finish_cb,
+														feather,
+														feather->decrypt_key,
+														feather->logger);
+								MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module ,
+												"Maat re-initiate with JSON file %s success, md5: %s",
+												feather->json_ctx.json_file,
+												md5_tmp);
+
+							}
+
+						}
+					}
+					break;
+				default:
+					assert(0);
+					break;
 			}
-			else
-			{
-				config_monitor_traverse(feather->maat_version,
-										inc_cfg_dir, 
-										maat_start_cb,
-										maat_update_cb,
-										maat_finish_cb,
-										feather,
-										feather->decrypt_key,
-										feather->logger);
-			}
-			
+
 			if(feather->update_tmp_scanner!=NULL)
 			{
 				old_scanner=feather->scanner;
@@ -3567,7 +3619,7 @@ void *thread_rule_monitor(void *arg)
 	alignment_int64_array_free(feather->hit_cnt);
 	alignment_int64_array_free(feather->orphan_group_saving);
 	alignment_int64_array_free(feather->last_region_saving);
-	if(feather->REDIS_MODE_ON==1)
+	if(feather->input_mode==SOURCE_REDIS)
 	{
 		if(feather->mr_ctx.read_ctx)
 		{
