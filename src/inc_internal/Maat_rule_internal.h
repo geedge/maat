@@ -123,18 +123,8 @@ struct plugin_table_ex_data_desc
 	Maat_plugin_EX_key2index_func_t* key2index_func;
 	long argl;
 	void *argp;
+	MESA_htable_handle key2ex_hash;
 };
-struct _plugin_table_info
-{
-	int cb_plug_cnt;
-	struct plugin_table_callback_desc  cb_plug[MAX_PLUGIN_PER_TABLE];
-	dynamic_array_t *cache_lines;
-	int cache_line_num;
-	int acc_line_num;
-	int update_type;
-	long cache_size;
-};
-
 struct plugin_table_desc
 {
 	int key_column;
@@ -143,9 +133,9 @@ struct plugin_table_desc
 	int n_foreign;
 	int foreign_columns[MAX_FOREIGN_CLMN_NUM];
 	int cb_plug_cnt;
+	long long estimate_size;
 	struct plugin_table_callback_desc cb_plug[MAX_PLUGIN_PER_TABLE];	
 	struct plugin_table_ex_data_desc ex_desc;
-	int acc_line_num;
 };
 struct expr_table_desc
 {
@@ -163,7 +153,7 @@ struct ip_table_desc
 	int ipv6_rule_cnt;
 };
 
-struct _Maat_table_info_t
+struct Maat_table_desc
 {
 	unsigned short table_id;
 	unsigned short conj_cnt;
@@ -317,7 +307,7 @@ struct _Maat_compile_inner_t
 	dynamic_array_t *groups;
 	int is_valid;
 	int compile_id;//equal to db_c_rule->m_rule.config_id
-	const struct _Maat_table_info_t* ref_table;
+	const struct Maat_table_desc* ref_table;
 	int group_boundary;
 	int group_cnt;
 	MAAT_RULE_EX_DATA* ads;
@@ -390,7 +380,7 @@ struct plugin_runtime
 	long long cache_line_num;
 	long long acc_line_num;
 	long long cache_size;
-	MESA_htable_handle ex_data_hash;
+	MESA_htable_handle key2ex_hash;
 };
 struct expr_runtime
 {
@@ -403,7 +393,7 @@ struct ip_runtime
 	long long ipv6_rule_cnt;
 
 };
-struct table_runtime
+struct Maat_table_runtime
 {
 	enum MAAT_TABLE_TYPE table_type;
 	long origin_rule_num;
@@ -434,7 +424,7 @@ struct _Maat_scanner_t
 	rule_scanner_t region;
 	long gie_total_q_size;
 	
-	struct table_runtime* table_rt[MAX_TABLE_NUM];
+	struct Maat_table_runtime* table_rt[MAX_TABLE_NUM];
 /*
 	struct similar_runtime gie_aux[MAX_TABLE_NUM];	
 	struct plugin_runtime plugin_aux[MAX_TABLE_NUM];
@@ -506,7 +496,7 @@ struct _Maat_feather_t
 	int cumulative_update_off;
 	int stat_on;
 	int perf_on;
-	struct _Maat_table_info_t *p_table_info[MAX_TABLE_NUM];
+	struct Maat_table_desc *p_table_info[MAX_TABLE_NUM];
 	MESA_htable_handle map_tablename2id;
 	void* logger;
 	long long maat_version;
@@ -605,7 +595,7 @@ void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbag
 void garbage_bagging_with_timeout(enum maat_garbage_type type,void *p, int timeout, MESA_lqueue_head garbage_q);
 void garbage_bury(MESA_lqueue_head garbage_q,void *logger);
 void make_group_set(const struct _Maat_compile_inner_t* compile_rule,universal_bool_expr_t* a_set);
-int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger);
+int read_table_info(struct Maat_table_desc** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger);
 void maat_start_cb(long long new_version,int update_type,void*u_para);
 int maat_update_cb(const char* table_name,const char* line,void *u_para);
 void maat_finish_cb(void* u_para);
@@ -617,7 +607,7 @@ int HASH_add_by_id(MESA_htable_handle hash,int id,void*data);
 int HASH_delete_by_id(MESA_htable_handle hash,int id);
 void maat_read_full_config(_Maat_feather_t* _feather);
 void maat_stat_init(struct _Maat_feather_t* feather);
-void maat_stat_table(struct table_runtime* p,int scan_len,struct timespec* start, struct timespec* end,int thread_num);
+void maat_stat_table(struct Maat_table_runtime* p,int scan_len,struct timespec* start, struct timespec* end,int thread_num);
 void maat_stat_output(struct _Maat_feather_t* feather);
 
 redisReply *_wrap_redisCommand(redisContext *c, const char *format, ...);

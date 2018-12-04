@@ -42,7 +42,7 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 {
 	int value=0;
 	int i=0,j=0,offset=0;
-	struct _Maat_table_info_t* p_table=NULL;
+	struct Maat_table_desc* p_table=NULL;
 	char conj_table_name[(MAX_TABLE_NAME_LEN+1)*MAX_CONJUNCTION_TABLE_NUM]={0};
 
 	feather->stat_handle=FS_create_handle();
@@ -84,7 +84,7 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	feather->fs_status_id[STATUS_CMD_LINE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_SPEED,"line_cmd/s");
 
 	feather->fs_column_id[COLUMN_TABLE_RULE_NUM]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT,"rule");
-	feather->fs_column_id[COLUMN_TABLE_REGEX_NUM]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT,"regex");
+	feather->fs_column_id[COLUMN_TABLE_REGEX_NUM]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT,"reg/v6");
 	feather->fs_column_id[COLUMN_TABLE_STREAM_NUM]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT,"stream");
 	feather->fs_column_id[COLUMN_TABLE_SCAN_BYTES]=FS_register(feather->stat_handle, FS_STYLE_COLUMN, FS_CALC_SPEED,"IN_Bps");
 	if(feather->perf_on==1)
@@ -149,7 +149,7 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	FS_start(feather->stat_handle);
 	return;
 }
-void maat_stat_table(struct table_runtime* p,int scan_len,struct timespec* start, struct timespec* end,int thread_num)
+void maat_stat_table(struct Maat_table_runtime* p,int scan_len,struct timespec* start, struct timespec* end,int thread_num)
 {
 	alignment_int64_array_add(p->scan_cnt,thread_num,1);
 	alignment_int64_array_add(p->input_bytes,thread_num,scan_len);
@@ -171,8 +171,8 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	long long compile_rule_num=0,group_rule_num=0,plugin_cache_num=0,plugin_acc_num=0;
 	int i=0;
 	time_t now;
-	struct _Maat_table_info_t* p_table=NULL;
-	struct table_runtime* table_aux=NULL;
+	struct Maat_table_desc* p_table=NULL;
+	struct Maat_table_runtime* table_rt=NULL;
 	time(&now);
 	active_thread_num=alignment_int64_array_cnt(feather->thread_call_cnt, feather->scan_thread_num);
 	outer_mid_cnt=alignment_int64_array_sum(feather->outer_mid_cnt,feather->scan_thread_num);
@@ -208,26 +208,26 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 		{
 			continue;
 		}
-		table_aux=feather->scanner->table_rt[i];
+		table_rt=feather->scanner->table_rt[i];
 		switch(p_table->table_type)
 		{
 			case TABLE_TYPE_PLUGIN:
-				plugin_cache_num+=table_aux->plugin.cache_line_num;
-				plugin_acc_num+=table_aux->plugin.acc_line_num;
+				plugin_cache_num+=table_rt->plugin.cache_line_num;
+				plugin_acc_num+=table_rt->plugin.acc_line_num;
 				break;
 			case TABLE_TYPE_GROUP:
-				group_rule_num+=table_aux->origin_rule_num;
+				group_rule_num+=table_rt->origin_rule_num;
 				break;
 			case TABLE_TYPE_COMPILE:
-				compile_rule_num+=table_aux->origin_rule_num;
+				compile_rule_num+=table_rt->origin_rule_num;
 				break;
 			case TABLE_TYPE_EXPR:
 			case TABLE_TYPE_EXPR_PLUS:
-				table_regex_ipv6_num=table_aux->expr.regex_rule_cnt;
+				table_regex_ipv6_num=table_rt->expr.regex_rule_cnt;
 				total_iconv_error=p_table->expr.iconv_err_cnt;
 				break;
 			case TABLE_TYPE_IP:
-				table_regex_ipv6_num=table_aux->ip.ipv6_rule_cnt;
+				table_regex_ipv6_num=table_rt->ip.ipv6_rule_cnt;
 				break;
 			default:
 				break;
@@ -242,8 +242,8 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 					p_table->stat_line_id,
 					feather->fs_column_id[COLUMN_TABLE_RULE_NUM],
 					FS_OP_SET,
-					table_aux->origin_rule_num);
-		total_cfg_num+=table_aux->origin_rule_num;
+					table_rt->origin_rule_num);
+		total_cfg_num+=table_rt->origin_rule_num;
 		
 		FS_operate(feather->stat_handle,
 					p_table->stat_line_id,
@@ -252,8 +252,8 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 					table_regex_ipv6_num);
 		total_regex_num+=table_regex_ipv6_num;
 
-		table_stream_num=alignment_int64_array_sum(table_aux->stream_num,feather->scan_thread_num);
-		alignment_int64_array_reset(table_aux->stream_num,feather->scan_thread_num);
+		table_stream_num=alignment_int64_array_sum(table_rt->stream_num,feather->scan_thread_num);
+		alignment_int64_array_reset(table_rt->stream_num,feather->scan_thread_num);
 		FS_operate(feather->stat_handle,
 					p_table->stat_line_id,
 					feather->fs_column_id[COLUMN_TABLE_STREAM_NUM],
@@ -262,8 +262,8 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 		total_stream_cnt+= table_stream_num;
 		
 
-		table_scan_cnt=alignment_int64_array_sum(table_aux->scan_cnt,feather->scan_thread_num);
-		alignment_int64_array_reset(table_aux->scan_cnt,feather->scan_thread_num);
+		table_scan_cnt=alignment_int64_array_sum(table_rt->scan_cnt,feather->scan_thread_num);
+		alignment_int64_array_reset(table_rt->scan_cnt,feather->scan_thread_num);
 		FS_operate(feather->stat_handle,
 					p_table->stat_line_id,
 					feather->fs_column_id[COLUMN_TABLE_SCAN_CNT],
@@ -271,8 +271,8 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 					table_scan_cnt);
 		total_scan_cnt+=table_scan_cnt;
 
-		table_input_bytes=alignment_int64_array_sum(table_aux->input_bytes,feather->scan_thread_num);
-		alignment_int64_array_reset(table_aux->input_bytes,feather->scan_thread_num);
+		table_input_bytes=alignment_int64_array_sum(table_rt->input_bytes,feather->scan_thread_num);
+		alignment_int64_array_reset(table_rt->input_bytes,feather->scan_thread_num);
 		FS_operate(feather->stat_handle,
 					p_table->stat_line_id,
 					feather->fs_column_id[COLUMN_TABLE_SCAN_BYTES],
@@ -281,8 +281,8 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 		total_input_bytes+=table_input_bytes;
 		if(feather->perf_on==1)
 		{
-			table_scan_cpu_time=alignment_int64_array_sum(table_aux->scan_cpu_time,feather->scan_thread_num);
-			alignment_int64_array_reset(table_aux->scan_cpu_time,feather->scan_thread_num);
+			table_scan_cpu_time=alignment_int64_array_sum(table_rt->scan_cpu_time,feather->scan_thread_num);
+			alignment_int64_array_reset(table_rt->scan_cpu_time,feather->scan_thread_num);
 			table_scan_cpu_time/=1000;
 			FS_operate(feather->stat_handle,
 						p_table->stat_line_id,
@@ -292,8 +292,8 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 			total_cpu_time+=table_scan_cpu_time;
 		}
 		
-		table_hit_cnt=alignment_int64_array_sum(table_aux->hit_cnt,feather->scan_thread_num);
-		alignment_int64_array_reset(table_aux->hit_cnt,feather->scan_thread_num);
+		table_hit_cnt=alignment_int64_array_sum(table_rt->hit_cnt,feather->scan_thread_num);
+		alignment_int64_array_reset(table_rt->hit_cnt,feather->scan_thread_num);
 		FS_operate(feather->stat_handle,
 					p_table->stat_line_id,
 					feather->fs_column_id[COLUMN_TABLE_HIT_CNT],

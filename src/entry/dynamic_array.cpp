@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 int dynamic_array_VERSION_20141202=0;
-struct dynamic_array_t* dynamic_array_create(int size,int step)
+struct dynamic_array_t* dynamic_array_create(long long init_size, long long step)
 {
 	struct dynamic_array_t* d_array=(struct dynamic_array_t*)calloc(sizeof(struct dynamic_array_t),1);
-	d_array->array=(void**)calloc(sizeof(void*),size);
-	d_array->size=size;
+	d_array->array=(void**)calloc(sizeof(void*),init_size);
+	d_array->size=init_size;
 	d_array->enlarge_step=step;
 	return d_array;
 }
@@ -23,7 +23,7 @@ void dynamic_array_destroy(struct dynamic_array_t* d_array,void (* free_data)(vo
 	free(d_array->array);
 	free(d_array);
 }
-void* dynamic_array_read(struct dynamic_array_t* d_array,int i)
+void* dynamic_array_read(struct dynamic_array_t* d_array, long long i)
 {
 	if(i<d_array->size)
 	{
@@ -34,7 +34,7 @@ void* dynamic_array_read(struct dynamic_array_t* d_array,int i)
 		return NULL;
 	}
 }
-void dynamic_array_write(struct dynamic_array_t* d_array,int i,void* data)
+void dynamic_array_write(struct dynamic_array_t* d_array, long long i, void* data)
 {
 	int new_size=0;
 	if(i<d_array->size)

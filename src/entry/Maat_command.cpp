@@ -182,61 +182,51 @@ enum MAAT_TABLE_TYPE type_region2table(const struct Maat_region_t* p)
 }
 int get_valid_flag_offset(const char* line, enum MAAT_TABLE_TYPE type,int valid_column_seq)
 {
-	unsigned int offset=0;
-	unsigned int i=0,j=0;
-	switch(type)
+ 	size_t offset=0, len=0;
+	unsigned int column_seq=0, ret=0;
+ 	switch(type)
 	{
 		case	TABLE_TYPE_EXPR:
-			offset=7;
+			column_seq=7;
 			break;
 		case	TABLE_TYPE_IP:
-			offset=14;
+			column_seq=14;
 			break;
 		case	TABLE_TYPE_COMPILE:
-			offset=8;
+			column_seq=8;
 			break;
 		case	TABLE_TYPE_PLUGIN:
 			if(valid_column_seq<0)
 			{
 				return -1;
 			}
-			offset=(unsigned int)valid_column_seq;
+			column_seq=(unsigned int)valid_column_seq;
 			break;
 		case	TABLE_TYPE_INTERVAL:
-			offset=5;
+			column_seq=5;
 			break;
 		case	TABLE_TYPE_DIGEST:
-			offset=6;
+			column_seq=6;
 			break;
 		case	TABLE_TYPE_SIMILARITY:
-			offset=5;
+			column_seq=5;
 			break;
 		case	TABLE_TYPE_EXPR_PLUS:
-			offset=8;
+			column_seq=8;
 			break;
 		case	TABLE_TYPE_GROUP:
-			offset=3;
+			column_seq=3;
 			break;
 		default:
 			assert(0);
 	}
-	for(i=0;i<strlen(line);i++)
-	{
-		if(line[i]==' '||line[i]=='\t')
-		{
-			j++;
-		}
-		if(j==offset-1)
-		{
-			break;
-		}
-	}
-	i++;
-	if(i>=strlen(line)||(line[i]!='1'&&line[i]!='0'))// 0 is also a valid value for some non-MAAT producer.
+	
+	ret=get_column_pos(const char* line, int column_seq, &offset, &len);
+	if(ret<0||offset>=strlen(line)||(line[offset]!='1'&&line[offset]!='0'))// 0 is also a valid value for some non-MAAT producer.
 	{
 		return -1;
 	}
-	return i;
+	return offset;
 }
 int invalidate_line(char* line, enum MAAT_TABLE_TYPE type,int valid_column_seq)
 {
@@ -1589,7 +1579,7 @@ int get_foreign_keys_define(redisContext *ctx, struct serial_rule_t* rule_list, 
 {
 	int ret=0, table_id=0, i=0;
 	int rule_with_foreign_key=0;
-	struct _Maat_table_info_t* p_table=NULL;
+	struct Maat_table_desc* p_table=NULL;
 	struct plugin_table_desc* plugin_desc=NULL;
 	for(i=0; i<rule_num; i++)
 	{
@@ -2027,7 +2017,7 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	int ret=0, table_id=0,success_cnt=0;
 	struct serial_rule_t *s_rule=NULL;
-	struct _Maat_table_info_t* p_table=NULL;
+	struct Maat_table_desc* p_table=NULL;
 	struct plugin_table_desc* plugin_desc=NULL;
 	long long server_time=0,absolute_expire_time=0;
 	const char* p_foreign=NULL;	
