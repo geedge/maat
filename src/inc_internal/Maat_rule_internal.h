@@ -101,7 +101,7 @@ struct compile_ex_data_idx
 	int idx;
 	int table_id;
 };
-struct compile_table_descr
+struct compile_table_desc
 {
 	enum USER_REGION_ENCODE user_region_encoding;
 	int ex_data_num;
@@ -135,7 +135,7 @@ struct _plugin_table_info
 	long cache_size;
 };
 
-struct plugin_table_descr
+struct plugin_table_desc
 {
 	int key_column;
 	int valid_flag_column;
@@ -147,7 +147,7 @@ struct plugin_table_descr
 	struct plugin_table_ex_data_desc ex_desc;
 	int acc_line_num;
 };
-struct expr_table_descr
+struct expr_table_desc
 {
 	enum MAAT_CHARSET src_charset;
 	enum MAAT_CHARSET dst_charset[MAX_CHARSET_NUM];
@@ -155,10 +155,9 @@ struct expr_table_descr
 	int do_charset_merge;
 	int cross_cache_size;
 	int quick_expr_switch;
-	int expr_rule_cnt;	//expr_type=0,1,3
-	int regex_rule_cnt; //expr_type=2
+	long long iconv_err_cnt;
 };
-struct ip_table_descr
+struct ip_table_desc
 {
 	int ipv4_rule_cnt;
 	int ipv6_rule_cnt;
@@ -173,17 +172,17 @@ struct _Maat_table_info_t
 	enum MAAT_TABLE_TYPE table_type;
 	union
 	{
-		struct compile_table_descr compile;		
-		struct expr_table_descr expr;
-		struct ip_table_descr ip;		
-		struct plugin_table_descr plugin;
+		struct compile_table_desc compile;		
+		struct expr_table_desc expr;
+		struct ip_table_desc ip;		
+		struct plugin_table_desc plugin;
 		void* others;//group, interval and digest don't have sperate description info.
-	};
+	};	
+/*
 	enum MAAT_CHARSET src_charset;
 	enum MAAT_CHARSET dst_charset[MAX_CHARSET_NUM];
 	int src_charset_in_dst;
 	int do_charset_merge;
-	int cfg_num;
 	int cross_cache_size;
 	int quick_expr_switch;
 	union
@@ -206,16 +205,11 @@ struct _Maat_table_info_t
 	enum USER_REGION_ENCODE user_region_encoding;
 	int ex_data_num;
 	struct compile_ex_data_idx ex_desc[MAX_COMPILE_EX_DATA_NUM];
+*/
 //for stat>>>>>>>>
 	unsigned long long udpate_err_cnt;
 	unsigned long long unmatch_tag_cnt;
-	unsigned long long iconv_err_cnt;
 	int stat_line_id;
-	mcore_long_t	scan_cnt;
-	mcore_long_t	scan_cpu_time;	//nano
-	mcore_long_t	input_bytes;
-	mcore_long_t	stream_num;
-	mcore_long_t	hit_cnt;
 };
 
 struct db_str_rule_t
@@ -334,24 +328,6 @@ struct _compile_result_t
 	int compile_id;
 	universal_bool_expr_t group_set;
 };
-
-struct _region_stat_t
-{
-	int cfg_num;
-	union
-	{
-		int expr_rule_cnt;	//expr_type=0,1,3
-		int ipv4_rule_cnt;
-	};
-	union
-	{
-		int regex_rule_cnt;	//expr_type=2
-		int ipv6_rule_cnt;
-	};
-};
-
-
-
 struct _INNER_scan_status_t
 {
 	int cur_hit_cnt;
@@ -403,19 +379,48 @@ struct _stream_para_t
 	pthread_mutex_t fuzzy_mutex;
 	unsigned char query_point[8];
 };
-struct digest_engine
+struct similar_runtime
 {
-	enum MAAT_TABLE_TYPE table_type;
 	GIE_handle_t*	gie_handle;
 	MESA_lqueue_head update_q;
 };
-struct plugin_engine
+struct plugin_runtime
 {
 	dynamic_array_t *cache_lines;
-	int cache_line_num;
-	long cache_size;
+	long long cache_line_num;
+	long long acc_line_num;
+	long long cache_size;
+	MESA_htable_handle ex_data_hash;
 };
+struct expr_runtime
+{
+	long long expr_rule_cnt;	//expr_type=0,1,3
+	long long regex_rule_cnt;	//expr_type=2
+};
+struct ip_runtime
+{
+	long long ipv4_rule_cnt;
+	long long ipv6_rule_cnt;
 
+};
+struct table_runtime
+{
+	enum MAAT_TABLE_TYPE table_type;
+	long origin_rule_num;
+	union
+	{	
+		struct similar_runtime similar;	//for digest and similarity
+		struct plugin_runtime plugin;		
+		struct expr_runtime expr;
+		struct ip_runtime ip;
+		void * other;
+	};
+	mcore_long_t	scan_cnt;
+	mcore_long_t	scan_cpu_time;	//nano
+	mcore_long_t	input_bytes;
+	mcore_long_t	stream_num;
+	mcore_long_t	hit_cnt;
+};
 struct rule_tag
 {
 	char* tag_name;
@@ -425,11 +430,15 @@ struct _Maat_scanner_t
 {
 	long long version;
 	time_t last_update_time;
-	long long *ref_cnt;	//optimized for cache_alignment 64
+	mcore_long_t ref_cnt;
 	rule_scanner_t region;
 	long gie_total_q_size;
-	struct digest_engine gie_aux[MAX_TABLE_NUM];	
-	struct plugin_engine plugin_aux[MAX_TABLE_NUM];
+	
+	struct table_runtime* table_rt[MAX_TABLE_NUM];
+/*
+	struct similar_runtime gie_aux[MAX_TABLE_NUM];	
+	struct plugin_runtime plugin_aux[MAX_TABLE_NUM];
+*/
 	MESA_htable_handle region_hash;
 	MESA_htable_handle group_hash;
 	MESA_htable_handle compile_hash;
@@ -443,7 +452,7 @@ struct _Maat_scanner_t
 	void * bool_macher_expr_compiler;
 	scan_result_t *region_rslt_buff;
 	MESA_lqueue_head tomb_ref;//reference of g_feather->garbage_q
-	struct _region_stat_t region_counter[MAX_TABLE_NUM];
+//	struct _region_stat_t region_counter[MAX_TABLE_NUM];
 	int max_thread_num;
 	iconv_t iconv_handle[MAX_CHARSET_NUM][MAX_CHARSET_NUM];//iconv_handle[to][from]
 };
@@ -608,7 +617,7 @@ int HASH_add_by_id(MESA_htable_handle hash,int id,void*data);
 int HASH_delete_by_id(MESA_htable_handle hash,int id);
 void maat_read_full_config(_Maat_feather_t* _feather);
 void maat_stat_init(struct _Maat_feather_t* feather);
-void maat_stat_table(struct _Maat_table_info_t* p_table,int scan_len,struct timespec* start, struct timespec* end,int thread_num);
+void maat_stat_table(struct table_runtime* p,int scan_len,struct timespec* start, struct timespec* end,int thread_num);
 void maat_stat_output(struct _Maat_feather_t* feather);
 
 redisReply *_wrap_redisCommand(redisContext *c, const char *format, ...);

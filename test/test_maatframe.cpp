@@ -480,7 +480,7 @@ TEST(SimilarScan, Pure)
 	const char* scan_data="mwss.xiu.youku.com/live/hls/v1/0000000000000000000000001526a0a8/714.ts?&token=98765";
 	const char* table_name="SIM_URL";	
 	scan_status_t mid=NULL;
-
+	memset(result, 0 , sizeof(result));
 	table_id=Maat_table_register(g_feather,table_name);
 	ASSERT_GT(table_id, 0);
 

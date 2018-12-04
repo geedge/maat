@@ -149,20 +149,20 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	FS_start(feather->stat_handle);
 	return;
 }
-void maat_stat_table(struct _Maat_table_info_t* p_table,int scan_len,struct timespec* start, struct timespec* end,int thread_num)
+void maat_stat_table(struct table_runtime* p,int scan_len,struct timespec* start, struct timespec* end,int thread_num)
 {
-	alignment_int64_array_add(p_table->scan_cnt,thread_num,1);
-	alignment_int64_array_add(p_table->input_bytes,thread_num,scan_len);
+	alignment_int64_array_add(p->scan_cnt,thread_num,1);
+	alignment_int64_array_add(p->input_bytes,thread_num,scan_len);
 	if(start!=NULL&&end!=NULL)
 	{
-		alignment_int64_array_add(p_table->scan_cpu_time,thread_num,(end->tv_sec-start->tv_sec)*1000000000+end->tv_nsec-start->tv_nsec);
+		alignment_int64_array_add(p->scan_cpu_time,thread_num,(end->tv_sec-start->tv_sec)*1000000000+end->tv_nsec-start->tv_nsec);
 	}
 	return;
 }
 void maat_stat_output(struct _Maat_feather_t* feather)
 {
 	long value=0;
-	long long total_cfg_num=0, total_input_bytes=0, total_regex_num=0,total_hit_cnt=0;
+	long long total_cfg_num=0, table_regex_ipv6_num=0, total_input_bytes=0, total_regex_num=0,total_hit_cnt=0;
 	long long total_scan_cnt=0, total_cpu_time=0,total_stream_cnt=0,active_thread_num=0;
 	long long table_stream_num=0,table_scan_cnt=0,table_input_bytes=0,table_scan_cpu_time=0,table_hit_cnt=0;
 	long long outer_mid_cnt=0,inner_mid_cnt=0;
@@ -172,6 +172,7 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	int i=0;
 	time_t now;
 	struct _Maat_table_info_t* p_table=NULL;
+	struct table_runtime* table_aux=NULL;
 	time(&now);
 	active_thread_num=alignment_int64_array_cnt(feather->thread_call_cnt, feather->scan_thread_num);
 	outer_mid_cnt=alignment_int64_array_sum(feather->outer_mid_cnt,feather->scan_thread_num);
@@ -201,86 +202,105 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 		table_input_bytes=0;
 		table_scan_cpu_time=0;
 		table_hit_cnt=0;
+		table_regex_ipv6_num=0;
 		p_table=feather->p_table_info[i];
 		if(p_table==NULL)
 		{
 			continue;
 		}
+		table_aux=feather->scanner->table_rt[i];
 		switch(p_table->table_type)
 		{
 			case TABLE_TYPE_PLUGIN:
-				plugin_cache_num+=p_table->cb_info->cache_line_num;
-				plugin_acc_num+=p_table->cb_info->acc_line_num;
+				plugin_cache_num+=table_aux->plugin.cache_line_num;
+				plugin_acc_num+=table_aux->plugin.acc_line_num;
 				break;
 			case TABLE_TYPE_GROUP:
-				group_rule_num+=p_table->cfg_num;
+				group_rule_num+=table_aux->origin_rule_num;
 				break;
 			case TABLE_TYPE_COMPILE:
-				compile_rule_num+=p_table->cfg_num;
+				compile_rule_num+=table_aux->origin_rule_num;
+				break;
+			case TABLE_TYPE_EXPR:
+			case TABLE_TYPE_EXPR_PLUS:
+				table_regex_ipv6_num=table_aux->expr.regex_rule_cnt;
+				total_iconv_error=p_table->expr.iconv_err_cnt;
+				break;
+			case TABLE_TYPE_IP:
+				table_regex_ipv6_num=table_aux->ip.ipv6_rule_cnt;
 				break;
 			default:
-				FS_operate(feather->stat_handle,
-							p_table->stat_line_id,
-							feather->fs_column_id[COLUMN_TABLE_RULE_NUM],
-							FS_OP_SET,
-							p_table->cfg_num);
-				total_cfg_num+=p_table->cfg_num;
-				
-				FS_operate(feather->stat_handle,
-							p_table->stat_line_id,
-							feather->fs_column_id[COLUMN_TABLE_REGEX_NUM],
-							FS_OP_SET,
-							p_table->regex_rule_cnt);
-				total_regex_num+= p_table->regex_rule_cnt;
-
-				table_stream_num=alignment_int64_array_sum(p_table->stream_num,feather->scan_thread_num);
-				FS_operate(feather->stat_handle,
-							p_table->stat_line_id,
-							feather->fs_column_id[COLUMN_TABLE_STREAM_NUM],
-							FS_OP_SET,
-							table_stream_num);
-				total_stream_cnt+= table_stream_num;
-
-				table_scan_cnt=alignment_int64_array_sum(p_table->scan_cnt,feather->scan_thread_num);
-				FS_operate(feather->stat_handle,
-							p_table->stat_line_id,
-							feather->fs_column_id[COLUMN_TABLE_SCAN_CNT],
-							FS_OP_SET,
-							table_scan_cnt);
-				total_scan_cnt+=table_scan_cnt;
-
-				table_input_bytes=alignment_int64_array_sum(p_table->input_bytes,feather->scan_thread_num);
-				FS_operate(feather->stat_handle,
-							p_table->stat_line_id,
-							feather->fs_column_id[COLUMN_TABLE_SCAN_BYTES],
-							FS_OP_SET,
-							table_input_bytes);
-				total_input_bytes+=table_input_bytes;
-				if(feather->perf_on==1)
-				{
-					table_scan_cpu_time=alignment_int64_array_sum(p_table->scan_cpu_time,feather->scan_thread_num);
-					table_scan_cpu_time/=1000;
-					FS_operate(feather->stat_handle,
-								p_table->stat_line_id,
-								feather->fs_column_id[COLUMN_TABLE_CPU_TIME],
-								FS_OP_SET,
-								table_scan_cpu_time);
-					total_cpu_time+=table_scan_cpu_time;
-				}
-				
-				table_hit_cnt=alignment_int64_array_sum(p_table->hit_cnt,feather->scan_thread_num);
-				FS_operate(feather->stat_handle,
-							p_table->stat_line_id,
-							feather->fs_column_id[COLUMN_TABLE_HIT_CNT],
-							FS_OP_SET,
-							table_hit_cnt);
-				total_update_error+=p_table->udpate_err_cnt;
-				total_iconv_error+=p_table->iconv_err_cnt;
-				//total hit count stat in region_compile
 				break;
 		}
-	}
+		if(p_table->table_type==TABLE_TYPE_PLUGIN||
+			p_table->table_type==TABLE_TYPE_GROUP||
+			p_table->table_type==TABLE_TYPE_COMPILE)
+		{
+			continue;
+		}
+		FS_operate(feather->stat_handle,
+					p_table->stat_line_id,
+					feather->fs_column_id[COLUMN_TABLE_RULE_NUM],
+					FS_OP_SET,
+					table_aux->origin_rule_num);
+		total_cfg_num+=table_aux->origin_rule_num;
+		
+		FS_operate(feather->stat_handle,
+					p_table->stat_line_id,
+					feather->fs_column_id[COLUMN_TABLE_REGEX_NUM],
+					FS_OP_SET,
+					table_regex_ipv6_num);
+		total_regex_num+=table_regex_ipv6_num;
 
+		table_stream_num=alignment_int64_array_sum(table_aux->stream_num,feather->scan_thread_num);
+		alignment_int64_array_reset(table_aux->stream_num,feather->scan_thread_num);
+		FS_operate(feather->stat_handle,
+					p_table->stat_line_id,
+					feather->fs_column_id[COLUMN_TABLE_STREAM_NUM],
+					FS_OP_ADD,
+					table_stream_num);
+		total_stream_cnt+= table_stream_num;
+		
+
+		table_scan_cnt=alignment_int64_array_sum(table_aux->scan_cnt,feather->scan_thread_num);
+		alignment_int64_array_reset(table_aux->scan_cnt,feather->scan_thread_num);
+		FS_operate(feather->stat_handle,
+					p_table->stat_line_id,
+					feather->fs_column_id[COLUMN_TABLE_SCAN_CNT],
+					FS_OP_ADD,
+					table_scan_cnt);
+		total_scan_cnt+=table_scan_cnt;
+
+		table_input_bytes=alignment_int64_array_sum(table_aux->input_bytes,feather->scan_thread_num);
+		alignment_int64_array_reset(table_aux->input_bytes,feather->scan_thread_num);
+		FS_operate(feather->stat_handle,
+					p_table->stat_line_id,
+					feather->fs_column_id[COLUMN_TABLE_SCAN_BYTES],
+					FS_OP_ADD,
+					table_input_bytes);
+		total_input_bytes+=table_input_bytes;
+		if(feather->perf_on==1)
+		{
+			table_scan_cpu_time=alignment_int64_array_sum(table_aux->scan_cpu_time,feather->scan_thread_num);
+			alignment_int64_array_reset(table_aux->scan_cpu_time,feather->scan_thread_num);
+			table_scan_cpu_time/=1000;
+			FS_operate(feather->stat_handle,
+						p_table->stat_line_id,
+						feather->fs_column_id[COLUMN_TABLE_CPU_TIME],
+						FS_OP_ADD,
+						table_scan_cpu_time);
+			total_cpu_time+=table_scan_cpu_time;
+		}
+		
+		table_hit_cnt=alignment_int64_array_sum(table_aux->hit_cnt,feather->scan_thread_num);
+		alignment_int64_array_reset(table_aux->hit_cnt,feather->scan_thread_num);
+		FS_operate(feather->stat_handle,
+					p_table->stat_line_id,
+					feather->fs_column_id[COLUMN_TABLE_HIT_CNT],
+					FS_OP_ADD,
+					table_hit_cnt);
+		total_update_error+=p_table->udpate_err_cnt;
+	}
 	FS_operate(feather->stat_handle,
 				feather->total_stat_id, 
 				feather->fs_column_id[COLUMN_TABLE_RULE_NUM], 
@@ -314,7 +334,7 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 					FS_OP_SET,
 					total_cpu_time);
 	}
-	total_hit_cnt=alignment_int64_array_sum(feather->hit_cnt,feather->scan_thread_num);
+	total_hit_cnt=alignment_int64_array_sum(feather->hit_cnt, feather->scan_thread_num);
 	FS_operate(feather->stat_handle,
 				feather->total_stat_id, 
 				feather->fs_column_id[COLUMN_TABLE_HIT_CNT], 
