@@ -257,6 +257,21 @@ int Maat_rule_get_ex_new_index(Maat_feather_t feather, const char* compile_table
 //returned data is duplicated by dup_func of Maat_rule_get_ex_new_index,  caller is responsible to free the data.
 MAAT_RULE_EX_DATA Maat_rule_get_ex_data(Maat_feather_t feather, const struct Maat_rule_t* rule, int idx);
 
+//Following functions are similar to Maat_rule_get_ex_data, except they are effective on plugin table.
+typedef void*  MAAT_PLUGIN_EX_DATA;
+typedef void Maat_plugin_EX_new_func_t(int table_id, const char* key, const char* table_line, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp);
+typedef void Maat_plugin_EX_free_func_t(int table_id, const char* key, const char* table_line, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp);
+typedef void Maat_plugin_EX_dup_func_t(int table_id,	MAAT_PLUGIN_EX_DATA *to, MAAT_PLUGIN_EX_DATA *from, long argl, void *argp);
+typedef int Maat_plugin_EX_key2index_func_t(const char* key);
+
+int Maat_plugin_EX_register(Maat_feather_t feather, int table_id,
+										Maat_plugin_EX_new_func_t* new_func,
+										Maat_plugin_EX_free_func_t* free_func,
+										Maat_plugin_EX_dup_func_t* dup_func,
+										Maat_plugin_EX_key2index_func_t* key2index_func,
+										long argl, void *argp);
+//Data is duplicated by dup_func of Maat_plugin_EX_register,  caller is responsible to free the data.
+MAAT_PLUGIN_EX_DATA Maat_plugin_get_EX_data(Maat_feather_t feather, int table_id, const char* key, int thread_num);
 
 enum MAAT_RULE_OPT
 {

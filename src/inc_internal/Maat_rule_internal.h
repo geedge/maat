@@ -101,6 +101,69 @@ struct compile_ex_data_idx
 	int idx;
 	int table_id;
 };
+struct compile_table_descr
+{
+	enum USER_REGION_ENCODE user_region_encoding;
+	int ex_data_num;
+	struct compile_ex_data_idx ex_desc[MAX_COMPILE_EX_DATA_NUM];
+};
+
+struct plugin_table_callback_desc
+{
+	Maat_start_callback_t 	*start;
+	Maat_update_callback_t	*update;
+	Maat_finish_callback_t	*finish;
+	void* u_para;
+};
+struct plugin_table_ex_data_desc
+{
+	Maat_plugin_EX_new_func_t* new_func;
+	Maat_plugin_EX_free_func_t* free_func;
+	Maat_plugin_EX_dup_func_t* dup_func;
+	Maat_plugin_EX_key2index_func_t* key2index_func;
+	long argl;
+	void *argp;
+};
+struct _plugin_table_info
+{
+	int cb_plug_cnt;
+	struct plugin_table_callback_desc  cb_plug[MAX_PLUGIN_PER_TABLE];
+	dynamic_array_t *cache_lines;
+	int cache_line_num;
+	int acc_line_num;
+	int update_type;
+	long cache_size;
+};
+
+struct plugin_table_descr
+{
+	int key_column;
+	int valid_flag_column;
+	int rule_tag_column;
+	int n_foreign;
+	int foreign_columns[MAX_FOREIGN_CLMN_NUM];
+	int cb_plug_cnt;
+	struct plugin_table_callback_desc cb_plug[MAX_PLUGIN_PER_TABLE];	
+	struct plugin_table_ex_data_desc ex_desc;
+	int acc_line_num;
+};
+struct expr_table_descr
+{
+	enum MAAT_CHARSET src_charset;
+	enum MAAT_CHARSET dst_charset[MAX_CHARSET_NUM];
+	int src_charset_in_dst;
+	int do_charset_merge;
+	int cross_cache_size;
+	int quick_expr_switch;
+	int expr_rule_cnt;	//expr_type=0,1,3
+	int regex_rule_cnt; //expr_type=2
+};
+struct ip_table_descr
+{
+	int ipv4_rule_cnt;
+	int ipv6_rule_cnt;
+};
+
 struct _Maat_table_info_t
 {
 	unsigned short table_id;
@@ -108,6 +171,14 @@ struct _Maat_table_info_t
 	unsigned short updating_name;
 	char table_name[MAX_CONJUNCTION_TABLE_NUM][MAX_TABLE_NAME_LEN];
 	enum MAAT_TABLE_TYPE table_type;
+	union
+	{
+		struct compile_table_descr compile;		
+		struct expr_table_descr expr;
+		struct ip_table_descr ip;		
+		struct plugin_table_descr plugin;
+		void* others;//group, interval and digest don't have sperate description info.
+	};
 	enum MAAT_CHARSET src_charset;
 	enum MAAT_CHARSET dst_charset[MAX_CHARSET_NUM];
 	int src_charset_in_dst;
@@ -263,24 +334,7 @@ struct _compile_result_t
 	int compile_id;
 	universal_bool_expr_t group_set;
 };
-struct _callback_plugin
-{
-	Maat_start_callback_t 	*start;
-	Maat_update_callback_t	*update;
-	Maat_finish_callback_t	*finish;
-	void* u_para;
-};
 
-struct _plugin_table_info
-{
-	int cb_plug_cnt;
-	struct _callback_plugin  cb_plug[MAX_PLUGIN_PER_TABLE];
-	dynamic_array_t *cache_lines;
-	int cache_line_num;
-	int acc_line_num;
-	int update_type;
-	long cache_size;
-};
 struct _region_stat_t
 {
 	int cfg_num;
@@ -349,12 +403,19 @@ struct _stream_para_t
 	pthread_mutex_t fuzzy_mutex;
 	unsigned char query_point[8];
 };
-struct GIE_aux_t
+struct digest_engine
 {
 	enum MAAT_TABLE_TYPE table_type;
 	GIE_handle_t*	gie_handle;
 	MESA_lqueue_head update_q;
 };
+struct plugin_engine
+{
+	dynamic_array_t *cache_lines;
+	int cache_line_num;
+	long cache_size;
+};
+
 struct rule_tag
 {
 	char* tag_name;
@@ -367,7 +428,8 @@ struct _Maat_scanner_t
 	long long *ref_cnt;	//optimized for cache_alignment 64
 	rule_scanner_t region;
 	long gie_total_q_size;
-	struct GIE_aux_t gie_aux[MAX_TABLE_NUM];
+	struct digest_engine gie_aux[MAX_TABLE_NUM];	
+	struct plugin_engine plugin_aux[MAX_TABLE_NUM];
 	MESA_htable_handle region_hash;
 	MESA_htable_handle group_hash;
 	MESA_htable_handle compile_hash;
@@ -378,7 +440,7 @@ struct _Maat_scanner_t
 	unsigned int exprid_generator;
 	unsigned int dedup_expr_num;
 	MESA_lqueue_head region_update_q;
-	void * expr_compiler;
+	void * bool_macher_expr_compiler;
 	scan_result_t *region_rslt_buff;
 	MESA_lqueue_head tomb_ref;//reference of g_feather->garbage_q
 	struct _region_stat_t region_counter[MAX_TABLE_NUM];

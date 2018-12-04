@@ -113,7 +113,7 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	int ret=0,i=0;
 	int r_in_c_cnt=0;
 	int shortcut_avilable_cnt=0;
-	void* bool_matcher=feather->scanner->expr_compiler;
+	void* bool_matcher=feather->scanner->bool_macher_expr_compiler;
 	struct _Maat_group_inner_t* group_rule=NULL;
 	struct _Maat_compile_inner_t* array_mi_rule[MAX_SCANNER_HIT_NUM];
 	struct _Maat_compile_inner_t* _mi_rule=NULL;
@@ -1046,6 +1046,17 @@ MAAT_RULE_EX_DATA Maat_rule_get_ex_data(Maat_feather_t feather, const struct Maa
 	pthread_rwlock_unlock(&(compile_inner->rwlock));		
 	return ad;
 }
+int Maat_plugin_EX_register(Maat_feather_t feather, int table_id,
+										Maat_plugin_EX_new_func_t* new_func,
+										Maat_plugin_EX_free_func_t* free_func,
+										Maat_plugin_EX_dup_func_t* dup_func,
+										Maat_plugin_EX_key2index_func_t* key2index_func,
+										long argl, void *argp)
+
+{
+
+}
+
 int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 						,enum MAAT_CHARSET charset,const char* data,int data_len
 						,struct Maat_rule_t*result,int rule_num,struct Maat_hit_detail_t *hit_detail,int detail_num

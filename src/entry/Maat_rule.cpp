@@ -1306,7 +1306,7 @@ void destroy_maat_scanner(struct _Maat_scanner_t*scanner)
 	map_destroy(scanner->district_map);
 	scanner->district_map=NULL;
 	assert(scanner->tmp_district_map==NULL);
-	destroy_bool_matcher((void*)scanner->expr_compiler);
+	destroy_bool_matcher((void*)scanner->bool_macher_expr_compiler);
 	q_cnt=MESA_lqueue_get_count(scanner->region_update_q);
 	for(i=0;i<q_cnt;i++)
 	{
@@ -3157,10 +3157,10 @@ void do_scanner_update(struct _Maat_scanner_t* scanner,MESA_lqueue_head garbage_
 	tmp1=create_bool_matcher(scanner->compile_hash,
 											scan_thread_num,
 											logger);
-	tmp2=scanner->expr_compiler;
+	tmp2=scanner->bool_macher_expr_compiler;
 	
 	//assume pinter = operation is thread safe 
-	scanner->expr_compiler=tmp1;
+	scanner->bool_macher_expr_compiler=tmp1;
 	if(tmp2!=NULL)
 	{
 		garbage_bagging(GARBAGE_BOOL_MATCHER, tmp2, garbage_q);
