@@ -640,7 +640,7 @@ struct rule_ex_param
 	pthread_mutex_t lock;
 };
 
-void ex_param_new(int idx, const struct Maat_rule_t* rule, const char* srv_def_large, 
+void compile_ex_param_new(int idx, const struct Maat_rule_t* rule, const char* srv_def_large, 
 												MAAT_RULE_EX_DATA* ad, long argl, void *argp)
 {
 	int *counter=(int*)argp;
@@ -657,7 +657,7 @@ void ex_param_new(int idx, const struct Maat_rule_t* rule, const char* srv_def_l
 	*ad=param;
 	return;
 }
-void ex_param_free(int idx, const struct Maat_rule_t* rule, const char* srv_def_large, MAAT_RULE_EX_DATA* ad, long argl, void *argp)
+void compile_ex_param_free(int idx, const struct Maat_rule_t* rule, const char* srv_def_large, MAAT_RULE_EX_DATA* ad, long argl, void *argp)
 {
 	if(*ad==NULL)
 	{
@@ -674,7 +674,7 @@ void ex_param_free(int idx, const struct Maat_rule_t* rule, const char* srv_def_
 	free(param);
 	return;
 }
-void ex_param_dup(int idx,	MAAT_RULE_EX_DATA *to, MAAT_RULE_EX_DATA *from, long argl, void *argp)
+void compile_ex_param_dup(int idx,	MAAT_RULE_EX_DATA *to, MAAT_RULE_EX_DATA *from, long argl, void *argp)
 {
 	struct rule_ex_param* from_param=*((struct rule_ex_param**)from);
 	pthread_mutex_lock(&(from_param->lock));
@@ -686,9 +686,9 @@ void ex_param_dup(int idx,	MAAT_RULE_EX_DATA *to, MAAT_RULE_EX_DATA *from, long 
 
 
 
-TEST(EX_DATA_INDEX, all)
+TEST(EX_DATA_INDEX, MaatRuleEXData)
 {
-#define EX_data_index
+#define rule_EX_data_index
 
 	int ret=0;
 	int table_id=0, ex_data_counter=0;
@@ -701,7 +701,7 @@ TEST(EX_DATA_INDEX, all)
 	ASSERT_GT(table_id, 0);
 	
 	int ex_param_idx=Maat_rule_get_ex_new_index(g_feather, "COMPILE_ALIAS", 
-													ex_param_new, ex_param_free, ex_param_dup,
+													compile_ex_param_new, compile_ex_param_free, compile_ex_param_dup,
 													0, &ex_data_counter);
 	ASSERT_TRUE(ex_param_idx>=0);
 	EXPECT_EQ(ex_data_counter, 1);
@@ -716,7 +716,7 @@ TEST(EX_DATA_INDEX, all)
 	struct rule_ex_param* param=(struct rule_ex_param*)ex_data;
 	EXPECT_EQ(param->id, 7799);
 	EXPECT_EQ(strcmp(param->name, expect_name),0);
-	ex_param_free(0, NULL, NULL, &ex_data, 0, NULL);
+	compile_ex_param_free(0, NULL, NULL, &ex_data, 0, NULL);
 	Maat_clean_status(&mid);
 	return;
 }
@@ -1415,6 +1415,98 @@ TEST_F(MaatCmdTest, SetFile)
 	EXPECT_EQ(ret, -1);
 	ret=stat(file2_to_del, &file_info);
 	EXPECT_EQ(ret, -1);
+
+	return;
+}
+struct user_info
+{
+	char name[256];
+	char ip_addr[32];
+	int id;
+	int ref_cnt;
+};
+void plugin_EX_new_cb(int table_id, const char* key, const char* table_line, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
+{
+	int *counter=(int *)argp;
+	struct user_info* u=(struct user_info*)calloc(sizeof(struct user_info), 1);
+	int valid=0, tag=0, ret;
+	ret=sscanf(table_line, "%d\t%s\t%s%d\t%d", &(u->id), u->ip_addr, u->name, &valid, &tag);
+	EXPECT_EQ(ret, 5);
+	u->ref_cnt=1;
+	*ad=u;
+	(*counter)++;
+	return;
+}
+void plugin_EX_free_cb(int table_id, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
+{
+	struct user_info* u=(struct user_info*)(*ad);
+	u->ref_cnt--;
+	if(u->ref_cnt>0) return;
+	free(u);
+	*ad=NULL;
+}
+void plugin_EX_dup_cb(int table_id,	MAAT_PLUGIN_EX_DATA *to, MAAT_PLUGIN_EX_DATA *from, long argl, void *argp)
+{
+	struct user_info* u=(struct user_info*)(*from);
+	u->ref_cnt++;
+	*to=u;
+}
+
+TEST_F(MaatCmdTest, PluginEXData)
+{
+#define plugin_EX_data_index
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+
+	int ret=0, i=0;
+	int table_id=0, ex_data_counter=0;
+	const char* table_name="TEST_PLUGIN_EXDATA_TABLE";
+
+
+	const int TEST_CMD_LINE_NUM=4;
+	const struct Maat_line_t *p_line[TEST_CMD_LINE_NUM];
+	struct Maat_line_t line_rule[TEST_CMD_LINE_NUM];
+	const char* table_line[TEST_CMD_LINE_NUM]={"1\t192.168.0.1\tmahuateng\t1\t0",
+							"2\t192.168.0.2\tliuqiangdong\t1\t0",
+							"3\t192.168.0.3\tmayun\t1\t0",
+							"4\t192.168.0.4\tliyanhong\t1\t0"};
+	table_id=Maat_table_register(feather, table_name);
+	ASSERT_GT(table_id, 0);
+	memset(&line_rule,0,sizeof(line_rule));
+	for(i=0;i<TEST_CMD_LINE_NUM;i++)
+	{
+		line_rule[i].label_id=0;
+		line_rule[i].rule_id=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", 1);
+		line_rule[i].table_name=table_name;
+		line_rule[i].table_line=table_line[i];
+		line_rule[i].expire_after=0;
+		p_line[i]=line_rule+i;
+	}
+	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
+	EXPECT_GT(ret, 0);
+
+	usleep(WAIT_FOR_EFFECTIVE_US);
+	ret=Maat_plugin_EX_register(feather, table_id,
+								plugin_EX_new_cb,
+								plugin_EX_free_cb,
+								plugin_EX_dup_cb,
+								NULL,
+								0, &ex_data_counter);
+	ASSERT_TRUE(ret>=0);
+	EXPECT_EQ(ex_data_counter, TEST_CMD_LINE_NUM);
+	
+	struct user_info* uinfo=NULL;
+	uinfo=(struct user_info*)Maat_plugin_get_EX_data(feather, table_id, "192.168.0.2");
+	ASSERT_TRUE(uinfo!=NULL);
+	EXPECT_EQ(0, strcmp(uinfo->name, "liuqiangdong"));
+	EXPECT_EQ(uinfo->id, 2);
+	plugin_EX_free_cb(table_id, (void**)&uinfo, 0, NULL);
+	
+	ret=Maat_cmd_set_lines(feather, p_line+1,1, MAAT_OP_DEL);
+	EXPECT_GT(ret, 0);
+	
+	usleep(WAIT_FOR_EFFECTIVE_US);
+	uinfo=(struct user_info*)Maat_plugin_get_EX_data(feather, table_id, "192.168.0.2");
+	ASSERT_TRUE(uinfo==NULL);
 
 	return;
 }

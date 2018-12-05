@@ -179,7 +179,7 @@ int get_column_pos(const char* line, int column_seq, size_t *offset, size_t *len
 		{
 			*offset=subtoken-dup_line;
 			*len=strlen(subtoken);
-			ret=0
+			ret=0;
 			break;
 		}
 		i++;

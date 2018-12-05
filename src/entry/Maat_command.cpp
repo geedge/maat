@@ -221,7 +221,7 @@ int get_valid_flag_offset(const char* line, enum MAAT_TABLE_TYPE type,int valid_
 			assert(0);
 	}
 	
-	ret=get_column_pos(const char* line, int column_seq, &offset, &len);
+	ret=get_column_pos(line, column_seq, &offset, &len);
 	if(ret<0||offset>=strlen(line)||(line[offset]!='1'&&line[offset]!='0'))// 0 is also a valid value for some non-MAAT producer.
 	{
 		return -1;
@@ -2131,6 +2131,11 @@ int Maat_cmd_set_file(Maat_feather_t feather,const char* key, const char* value,
 {
 	struct _Maat_feather_t* _feather=(struct _Maat_feather_t*)feather;
 	redisContext* ctx=_feather->mr_ctx.write_ctx;
+	if(ctx==NULL)
+	{
+		MESA_handle_runtime_log(_feather->logger, RLOG_LV_FATAL, maat_command, "%s failed: Redis is not connected.", __FUNCTION__);
+		return -1;
+	}
 	const char *arg_vec[3];
 	size_t len_vec[3];
 	arg_vec[0] = "SET";

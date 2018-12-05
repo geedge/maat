@@ -443,7 +443,7 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 		return NULL;
 	}
 	_Maat_feather_t* feather=ALLOC(struct _Maat_feather_t, 1);
-	feather->table_cnt=read_table_info(feather->p_table_info, MAX_TABLE_NUM,table_info_path,max_thread_num,logger);
+	feather->table_cnt=read_table_description(feather->p_table_info, MAX_TABLE_NUM,table_info_path,max_thread_num,logger);
 	feather->map_tablename2id=map_create();
 	int i=0,j=0,ret=0;
 	for(i=0;i<MAX_TABLE_NUM;i++)
@@ -930,7 +930,6 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 	{
 		return -1;
 	}
-	plugin_aux = &(_feather->scanner->table_rt[table_id]->plugin);
 	//plugin table register blocks background update.
 	pthread_mutex_lock(&(_feather->backgroud_update_mutex));
 	idx=plugin_desc->cb_plug_cnt;
@@ -944,6 +943,12 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 	plugin_desc->cb_plug[idx].update=update;
 	plugin_desc->cb_plug[idx].finish=finish;
 	plugin_desc->cb_plug[idx].u_para=u_para;
+	if(_feather->scanner==NULL)
+	{
+		pthread_mutex_unlock(&(_feather->backgroud_update_mutex));
+		return 1;
+	}
+	plugin_aux = &(_feather->scanner->table_rt[table_id]->plugin);
 	if(plugin_aux->cache_line_num>0)
 	{
 		if(start!=NULL)
@@ -1051,46 +1056,128 @@ MAAT_RULE_EX_DATA Maat_rule_get_ex_data(Maat_feather_t feather, const struct Maa
 	pthread_rwlock_unlock(&(compile_inner->rwlock));		
 	return ad;
 }
-MESA_htable_handle plugin_EX_htable_new(const struct plugin_table_desc* plugin_desc,
-								struct dynamic_array_t* lines, size_t line_cnt)
+struct wrap_plugin_EX_data
+{
+	MAAT_RULE_EX_DATA exdata;
+	const struct Maat_table_desc* ref_plugin_table;
+};
+void wrap_plugin_EX_data_free(void *data)
+{
+	struct wrap_plugin_EX_data* wrap_data=(struct wrap_plugin_EX_data*)data;
+	const struct plugin_table_ex_data_desc* ex_desc= &(wrap_data->ref_plugin_table->plugin.ex_desc);
+	ex_desc->free_func(wrap_data->ref_plugin_table->table_id, &(wrap_data->exdata), ex_desc->argl, ex_desc->argp);
+	wrap_data->ref_plugin_table=NULL;
+	free(wrap_data);
+	return;
+}
+MESA_htable_handle wrap_plugin_EX_hash_new(long long estimate_size, Maat_plugin_EX_key2index_func_t * key2index)
 {
 	MESA_htable_handle key2ex_hash=NULL;
 	unsigned int slot_size=1;
-	const char* line=NULL;
-	size_t key_offset=0, key_len=0;
-	long long estimate_size=plugin_desc->estimate_size, i=0;
-	int ret=0;
-	MAAT_RULE_EX_DATA exdata=NULL;
-	while(estimate_size>0)
+	while(estimate_size!=0)
 	{
-		estimate_size=estimate_size<<1;
+		estimate_size=estimate_size>>1;
 		slot_size*=2;
 	}
 	if(slot_size==1)
 	{
 		slot_size=4096;
 	}
+
 	MESA_htable_create_args_t hargs;
 	memset(&hargs,0,sizeof(hargs));
-	hargs.thread_safe=1;
+	hargs.thread_safe=0;
 	hargs.hash_slot_size = slot_size;
 	hargs.max_elem_num = 0;
 	hargs.eliminate_type = HASH_ELIMINATE_ALGO_FIFO;
 	hargs.expire_time = 0;
 	hargs.key_comp = NULL;
-	hargs.key2index = plugin_desc->ex_desc.key2index_func;
+	hargs.key2index = NULL;	//Not supported yet.
 	hargs.recursive = 1;
-	hargs.data_free = NULL	;
+	hargs.data_free = wrap_plugin_EX_data_free;
 	hargs.data_expire_with_condition = NULL;
 	key2ex_hash=MESA_htable_create(&hargs, sizeof(hargs));
 	MESA_htable_print_crtl(key2ex_hash, 0);
+	return key2ex_hash;
+}
+
+int plugin_EX_data_free(const struct Maat_table_desc* plugin_table, const char* line,
+								MESA_htable_handle key2ex_hash, void *logger)
+{
+	size_t key_offset=0, key_len=0;
+	const struct plugin_table_desc* plugin_desc= &(plugin_table->plugin);	
+	int ret=0;
+	ret=get_column_pos(line, plugin_desc->key_column, &key_offset, &key_len);
+	if(ret<0)
+	{
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+								"Plugin EX data del error: cannot find column %d of %s",
+								plugin_desc->key_column, line);
+		return -1;
+	}
+	ret=MESA_htable_del(key2ex_hash, (const unsigned char*)line+key_offset, key_len, NULL);
+	if(ret<0)
+	{
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+								"Plugin EX data del error: no such key %.*s of %s",
+								key_len, line+key_offset, line);
+		return -1;
+	}	
+	return 0;
+}
+
+int plugin_EX_data_new(const struct Maat_table_desc* plugin_table, const char* line,
+								MESA_htable_handle key2ex_hash, void *logger)
+{
+	char* key=NULL;
+	size_t key_offset=0, key_len=0;
+	MAAT_RULE_EX_DATA exdata=NULL;
+	struct wrap_plugin_EX_data* wrap_data=NULL;
+	const struct plugin_table_desc* plugin_desc= &(plugin_table->plugin);
+	int ret=0;
+	ret=get_column_pos(line, plugin_desc->key_column, &key_offset, &key_len);
+	if(ret<0)
+	{
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+								"Plugin EX data add error: cannot find column %d of %s",
+								plugin_desc->key_column, line);
+		return -1;
+	}
+	key=ALLOC(char, key_len+1);
+	memcpy(key, line+key_offset, key_len);
+	plugin_desc->ex_desc.new_func(plugin_table->table_id, key, line, &exdata, 
+								plugin_desc->ex_desc.argl, plugin_desc->ex_desc.argp);
+	wrap_data=ALLOC(struct wrap_plugin_EX_data, 1);
+	wrap_data->exdata=exdata;
+	wrap_data->ref_plugin_table=plugin_table;
+	ret=MESA_htable_add(key2ex_hash, (const unsigned char*)line+key_offset, key_len, wrap_data);
+	free(key);
+	if(ret<0)
+	{
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+								"Plugin EX data add error: duplicated key %.*s of %s",
+								key_len, line+key_offset, line);
+		wrap_plugin_EX_data_free(wrap_data);
+		return -1;
+	}
+	return 0;
+}
+MESA_htable_handle plugin_EX_htable_new(const struct Maat_table_desc* plugin_table,
+								struct dynamic_array_t* lines, size_t line_cnt, void* logger)
+{
+	MESA_htable_handle key2ex_hash=NULL;
+	size_t i=0;
+	const char* line=NULL;
+	const struct plugin_table_desc* plugin_desc= &(plugin_table->plugin);
+
+	key2ex_hash=wrap_plugin_EX_hash_new(plugin_desc->estimate_size, plugin_desc->ex_desc.key2index_func);
+
 	for(i=0; i< line_cnt; i++)
 	{
 		line=(const char*)dynamic_array_read(lines, i);
-		ret=get_column_pos(line, plugin_desc->key_column, &key_offset, &key_len);
-		exdata=plugin_desc->ex_desc.new_func(int table_id, const char* key, const char* table_line, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp);;
-		MESA_htable_add(key2ex_hash, line+key_offset, key_len, const void * data)
+		plugin_EX_data_new(plugin_table, line, key2ex_hash, logger);
 	}
+	return key2ex_hash;
 }
 int Maat_plugin_EX_register(Maat_feather_t feather, int table_id,
 										Maat_plugin_EX_new_func_t* new_func,
@@ -1103,25 +1190,70 @@ int Maat_plugin_EX_register(Maat_feather_t feather, int table_id,
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	struct Maat_table_desc *table_desc=_feather->p_table_info[table_id];
 	struct plugin_table_desc* plugin_desc=&(table_desc->plugin);
-	struct Maat_table_runtime* table_rt=_feather->scanner->table_rt[table_id];
-	MESA_htable_handle key2ex_hash=NULL;
-	if(table_desc->table_type!=TABLE_TYPE_PLUGIN || new_func==NULL || free_func==NULL || dup_func==NULL)
+	struct Maat_table_runtime* table_rt=NULL;	
+	if(new_func==NULL || free_func==NULL || dup_func==NULL )
 	{
 		assert(0);
+		MESA_handle_runtime_log(_feather->logger, RLOG_LV_FATAL, maat_module, "%s failed: invalid paramter", __FUNCTION__);
+		return -1;
+	}
+	if(table_desc->table_type!=TABLE_TYPE_PLUGIN ||	plugin_desc->have_exdata
+		|| plugin_desc->key_column==0 || plugin_desc->valid_flag_column==0)
+	{
+		assert(0);
+		MESA_handle_runtime_log(_feather->logger, RLOG_LV_FATAL, maat_module, 
+			"%s failed: key or valid flag column  are not specified", __FUNCTION__);
 		return -1;
 	}
 	plugin_desc->ex_desc.new_func=new_func;
 	plugin_desc->ex_desc.free_func=free_func;
 	plugin_desc->ex_desc.dup_func=dup_func;
-	plugin_desc->ex_desc.key2index_func=key2index_func;
+	plugin_desc->ex_desc.key2index_func=key2index_func;//Set but not used.
 	plugin_desc->ex_desc.argl=argl;
 	plugin_desc->ex_desc.argp=argp;
+	plugin_desc->have_exdata=1;
+	if(_feather->scanner==NULL)
+	{
+		return 0;
+	}
 	
 	pthread_mutex_lock(&(_feather->backgroud_update_mutex));
-	table_rt->plugin.key2ex_hash=plugin_EX_htable_new(plugin_desc,table_rt->plugin.cache_lines, table_rt->plugin.cache_line_num);
+	table_rt=_feather->scanner->table_rt[table_id];
+	assert(table_rt->plugin.key2ex_hash==NULL);
+	table_rt->plugin.key2ex_hash=plugin_EX_htable_new(table_desc, table_rt->plugin.cache_lines, 
+													table_rt->plugin.cache_line_num, _feather->logger);
 	pthread_mutex_unlock(&(_feather->backgroud_update_mutex));
 
 	return 0;
+}
+MAAT_PLUGIN_EX_DATA Maat_plugin_get_EX_data(Maat_feather_t feather, int table_id, const char* key)
+{
+	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	struct Maat_table_desc *table_desc=_feather->p_table_info[table_id];
+	struct Maat_table_runtime *table_rt= NULL;
+	struct plugin_table_desc* plugin_desc=&(table_desc->plugin);
+	struct wrap_plugin_EX_data* wrap_data=NULL;
+	MAAT_RULE_EX_DATA exdata=NULL;
+	if(table_desc->table_type!=TABLE_TYPE_PLUGIN || plugin_desc->have_exdata==0)
+	{
+		assert(0);
+		return NULL;
+	}
+	if(_feather->scanner==NULL)
+	{
+		return NULL;
+	}
+	table_rt= _feather->scanner->table_rt[table_id];
+	pthread_rwlock_rdlock(&table_rt->plugin.rwlock);
+	wrap_data=(struct wrap_plugin_EX_data*)MESA_htable_search(table_rt->plugin.key2ex_hash,
+													(const unsigned char*)key, strlen(key));
+	if(wrap_data!=NULL)
+	{
+		plugin_desc->ex_desc.dup_func(table_id, &(exdata), &(wrap_data->exdata), 
+			plugin_desc->ex_desc.argl, plugin_desc->ex_desc.argp);
+	}
+	pthread_rwlock_unlock(&table_rt->plugin.rwlock);
+	return exdata;
 }
 
 int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id

@@ -529,7 +529,7 @@ int read_expr_table_info(const char* line, struct Maat_table_desc* table, MESA_h
 	char table_type[16],src_charset[256],dst_charset[256],merge[4],quick_str_scan[32]={0};
 	char *token=NULL,*sub_token=NULL,*saveptr;
 	struct expr_table_desc* p=&(table->expr);
-	sscanf(line,"%hu\t%s\t%s\t%s\t%s\t%s\t%d\t%s",&(table->table_id)
+	sscanf(line,"%d\t%s\t%s\t%s\t%s\t%s\t%d\t%s",&(table->table_id)
 											,table->table_name[0]
 											,table_type
 											,src_charset
@@ -602,31 +602,21 @@ int _read_integer_arrary(char* string, int *array, int size)
 	return i;
 }
 
-int read_plugin_table_info(const char* line, struct Maat_table_desc* p)
+int read_plugin_table_description(const char* line, struct Maat_table_desc* p)
 {
 	int i=0,ret=0;
-	
+	size_t offset=0, len=0;
 	cJSON* json=NULL, *tmp=NULL, *array_item=NULL;
 	char* copy_line=NULL, *plug_info=NULL;
-	char *token=NULL,*sub_token=NULL,*saveptr;
 	struct plugin_table_desc* plugin_desc=&(p->plugin);
-	plugin_desc->valid_flag_column=-1;
 	copy_line=_maat_strdup(line);
-	for (token = copy_line, i=0; ; token= NULL, i++)
-	{
-		sub_token= strtok_r(token,"\t ", &saveptr);
-		if (sub_token == NULL)
-			break;
-		if(i==3)
-		{
-			break;
-		}
-	}
-	if(i<3)
+	ret=get_column_pos(copy_line, 4, &offset, &len);
+	if(i<0)
 	{
 		goto error_out;
 	}
-	plug_info=sub_token;
+	copy_line[offset+len+1]='\0';
+	plug_info=copy_line+offset;
 
 	if(strlen(plug_info)<4)//For old version compatible.
 	{
@@ -693,7 +683,7 @@ error_out:
 	free(copy_line);
 	return -1;
 }
-int read_table_info(struct Maat_table_desc** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger)
+int read_table_description(struct Maat_table_desc** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger)
 {
 	FILE*fp=NULL;
 	char line[MAX_TABLE_LINE_SIZE];
@@ -750,7 +740,7 @@ int read_table_info(struct Maat_table_desc** p_table_info,int num,const char* ta
 		}
 		p=table_info_new(max_thread_num);
 
-		ret=sscanf(line,"%hu\t%s\t%s\t%[a-z0-9\t ]",&(p->table_id)
+		ret=sscanf(line,"%d\t%s\t%s\t%[a-z0-9\t ]",&(p->table_id)
 											,p->table_name[0]
 											,table_type_str
 											,not_care);
@@ -781,7 +771,7 @@ int read_table_info(struct Maat_table_desc** p_table_info,int num,const char* ta
 				}
 				break;
 			case TABLE_TYPE_PLUGIN:
-				ret=read_plugin_table_info(line, p);
+				ret=read_plugin_table_description(line, p);
 				if(ret<0)
 				{
 					fprintf(stderr,"Maat read table info %s line %d error:illegal plugin info.\n",table_info_path,i);
@@ -1193,29 +1183,36 @@ void destroy_digest_rule(GIE_digest_t*rule)
 }
 
 
-struct Maat_table_runtime* table_runtime_new(enum MAAT_TABLE_TYPE type, int max_thread_num)
+struct Maat_table_runtime* table_runtime_new(const struct Maat_table_desc* table_desc, int max_thread_num)
 {
-	struct Maat_table_runtime* p= ALLOC(struct Maat_table_runtime, 1);
-	p->table_type=type;
-	switch(type)
+
+	struct Maat_table_runtime* table_rt= ALLOC(struct Maat_table_runtime, 1);
+	table_rt->table_type=table_desc->table_type;
+	switch(table_desc->table_type)
 	{
 		case TABLE_TYPE_DIGEST:
 		case TABLE_TYPE_SIMILARITY:
-			p->similar.update_q=MESA_lqueue_create(0,0);
+			table_rt->similar.update_q=MESA_lqueue_create(0,0);
 			break;
 		case TABLE_TYPE_PLUGIN:
-			p->plugin.cache_lines=dynamic_array_create(1, 1024);
+			table_rt->plugin.cache_lines=dynamic_array_create(1, 1024);
+			if(table_desc->plugin.have_exdata)
+			{
+				table_rt->plugin.key2ex_hash=wrap_plugin_EX_hash_new(table_desc->plugin.estimate_size, 
+										table_desc->plugin.ex_desc.key2index_func);
+				pthread_rwlock_init(&(table_rt->plugin.rwlock), NULL);
+			}
 			break;
 		default:
 			break;
 	}
 
-	p->scan_cnt=alignment_int64_array_alloc(max_thread_num);
-	p->scan_cpu_time=alignment_int64_array_alloc(max_thread_num);
-	p->input_bytes=alignment_int64_array_alloc(max_thread_num);
-	p->stream_num=alignment_int64_array_alloc(max_thread_num);
-	p->hit_cnt=alignment_int64_array_alloc(max_thread_num);
-	return p;
+	table_rt->scan_cnt=alignment_int64_array_alloc(max_thread_num);
+	table_rt->scan_cpu_time=alignment_int64_array_alloc(max_thread_num);
+	table_rt->input_bytes=alignment_int64_array_alloc(max_thread_num);
+	table_rt->stream_num=alignment_int64_array_alloc(max_thread_num);
+	table_rt->hit_cnt=alignment_int64_array_alloc(max_thread_num);
+	return table_rt;
 }
 void table_runtime_free(struct Maat_table_runtime* p)
 {
@@ -1344,7 +1341,7 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,_Maat_feather_t
 		{
 			continue;
 		}
-		table_rt=table_runtime_new(pp_table_desc[i]->table_type, feather->scan_thread_num);
+		table_rt=table_runtime_new(pp_table_desc[i], feather->scan_thread_num);
 		if(pp_table_desc[i]->table_type==TABLE_TYPE_EXPR||pp_table_desc[i]->table_type==TABLE_TYPE_EXPR_PLUS)
  		{
 			expr_desc=&(pp_table_desc[i]->expr);
@@ -3178,7 +3175,7 @@ void update_plugin_table(struct Maat_table_desc* table,const char* table_line,_M
 	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
 	char *p=NULL;
 	char* copy=NULL;
-	
+	size_t is_valid_offset=0, valid_len=0;
 	char *token=NULL,*sub_token=NULL,*saveptr;
 	if(plugin_desc->rule_tag_column>0&&n_tags>0)
 	{
@@ -3213,13 +3210,32 @@ void update_plugin_table(struct Maat_table_desc* table,const char* table_line,_M
 	}
 
 	table_rt->plugin.acc_line_num++;
-
-	if(plugin_desc->cb_plug_cnt>0)
+	if(plugin_desc->have_exdata || plugin_desc->cb_plug_cnt>0)
 	{
-		for(i=0;i<plugin_desc->cb_plug_cnt;i++)
+
+		if(plugin_desc->have_exdata)
 		{
-			plugin_desc->cb_plug[i].update(table->table_id,table_line,plugin_desc->cb_plug[i].u_para);
+			ret=get_column_pos(table_line, plugin_desc->valid_flag_column, &is_valid_offset, &valid_len);
+			
+			pthread_rwlock_wrlock(&(table_rt->plugin.rwlock));
+			if(atoi(table_line+is_valid_offset)==1)
+			{
+				plugin_EX_data_new(table, table_line, table_rt->plugin.key2ex_hash, logger);
+			}
+			else
+			{
+				plugin_EX_data_free(table, table_line, table_rt->plugin.key2ex_hash, logger);
+			}	
+			pthread_rwlock_unlock(&(table_rt->plugin.rwlock));
 		}
+		if(plugin_desc->cb_plug_cnt>0)
+		{
+			for(i=0;i<plugin_desc->cb_plug_cnt;i++)
+			{
+				plugin_desc->cb_plug[i].update(table->table_id,table_line,plugin_desc->cb_plug[i].u_para);
+			}
+		}
+
 	}
 	else
 	{
@@ -3227,7 +3243,7 @@ void update_plugin_table(struct Maat_table_desc* table,const char* table_line,_M
 		memcpy(p,table_line,len);
 		table_rt->plugin.cache_size+=len;
 		dynamic_array_write(table_rt->plugin.cache_lines,table_rt->plugin.cache_line_num,p);
-		table_rt->plugin.cache_line_num++;
+		table_rt->plugin.cache_line_num++;		
 	}
 }
 void do_scanner_update(struct _Maat_scanner_t* scanner,MESA_lqueue_head garbage_q,int scan_thread_num,void* logger)

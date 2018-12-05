@@ -9,9 +9,20 @@
 #define ALLOC(type, number) ((type *)calloc(sizeof(type), number))
 #define	FREE(p)	{free(*p);*p=NULL;}
 
-#define	ATOMIC_INC(x) 	__atomic_fetch_add(x,1,__ATOMIC_RELAXED)
-#define	ATOMIC_READ(x)	__atomic_fetch_add(x,0,__ATOMIC_RELAXED)
-
+#if(__GNUC__ * 100 + __GNUC_MINOR__ * 10 + __GNUC_PATCHLEVEL__ >= 411)
+#define atomic_inc(x) __sync_add_and_fetch((x),1)
+#define atomic_dec(x) __sync_sub_and_fetch((x),1)
+#define atomic_add(x,y) __sync_add_and_fetch((x),(y))
+#define atomic_sub(x,y) __sync_sub_and_fetch((x),(y))
+	typedef int atomic_t;
+#define ATOMIC_INIT(i)  { (i) }
+#define atomic_read(x) __sync_add_and_fetch((x),0)
+#define atomic_set(x,y) __sync_lock_test_and_set((x),y)
+#else 
+#include <alsa/iatomic.h>
+#endif 
+#define	TRUE	1
+#define	FALSE	0
 
 #ifndef MAX
 #define MAX(a, b)  	(((a) > (b)) ? (a) : (b))
@@ -19,6 +30,16 @@
 
 #ifndef MIN
 #define MIN(a, b)  	(((a) < (b)) ? (a) : (b))
+#endif
+
+#ifndef offsetof
+#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+#endif
+
+#ifndef container_of
+#define container_of(ptr, type, member) ({			 \
+	const typeof( ((type *)0)->member ) *__mptr = (ptr); \
+	(type *)( (char *)__mptr - offsetof(type,member) );})
 #endif
 
 #define UNUSED	__attribute__((unused))
