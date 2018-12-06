@@ -1213,21 +1213,21 @@ void _exec_serial_rule(redisContext* ctx,	long long version, struct serial_rule_
 	return;
 }
 
-int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,int serial_rule_num, long long server_time, void* logger)
+int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule, unsigned int serial_rule_num, long long server_time, void* logger)
 {
-	int max_redis_batch=1*1024,batch_cnt=0;
-	int success_cnt=0,j=0,renew_allowed=0,last_failed=-1;
+	unsigned int max_redis_batch=1*1024, batch_cnt=0;
+	int renew_allowed=0,last_failed=-1;
 	redisReply*transaction_reply=NULL,*p=NULL;
 	unsigned int i=0;
 
-	unsigned int multi_cmd_cnt=0;
+	unsigned int multi_cmd_cnt=0, success_cnt=0;
 	const int MAX_REDIS_OP_PER_SRULE=8;
 	unsigned int max_multi_cmd_num=MAX_REDIS_OP_PER_SRULE*serial_rule_num+2;// 2 for operation in _exec_serial_rule_end()
 	
 	struct expected_reply_t *expected_reply=(struct expected_reply_t*)calloc(sizeof(struct expected_reply_t), max_multi_cmd_num);
 	long long new_version=0;
 	int renew_num=0,ret=0;
-	for(i=0;i<(unsigned int)serial_rule_num;i++)
+	for(i=0;i<serial_rule_num;i++)
 	{
 		if(s_rule[i].op==MAAT_OP_RENEW_TIMEOUT)
 		{
@@ -1243,7 +1243,7 @@ int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,int serial_r
 	}
 	while(success_cnt<serial_rule_num)
 	{
-		batch_cnt=MIN(serial_rule_num-success_cnt,max_redis_batch);
+		batch_cnt=MIN(serial_rule_num-success_cnt, max_redis_batch);
 		_exec_serial_rule(ctx,new_version,s_rule+success_cnt,batch_cnt,expected_reply, &multi_cmd_cnt,success_cnt,renew_allowed);
 		assert(multi_cmd_cnt<max_multi_cmd_num);
 		success_cnt+=batch_cnt;
@@ -1262,11 +1262,11 @@ int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,int serial_r
 			{
 				continue;
 			}
-			assert(j<serial_rule_num);
+			assert(i<(unsigned int)serial_rule_num);
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_command 
 					,"%s %s %d failed, rule id maybe conflict or not exist."
-					,rm_op_str[s_rule[j].op]
-					,s_rule[j].table_name,s_rule[j].rule_id);
+					,rm_op_str[s_rule[i].op]
+					,s_rule[i].table_name,s_rule[i].rule_id);
 			success_cnt--;
 			last_failed=expected_reply[i].srule_seq;
 		}

@@ -165,8 +165,9 @@ enum MAAT_INIT_OPT
 int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT  type,const void* value,int size);
 enum MAAT_STATE_OPT
 {
-	MAAT_STATE_VERSION=1,			//Get current maat version. VALUE is long long, SIZE=sizeof(long long). 
-	MAAT_STATE_LAST_UPDATING_TABLE	//Query at Maat_finish_callback_t to determine whether this table is the last one to update. VALUE is interger, SIZE=sizeof(int), 1:yes, 0: no
+	MAAT_STATE_VERSION=1,			//Get current maat version, if maat is in update progress, the updating version is returned. VALUE is long long, SIZE=sizeof(long long). 
+	MAAT_STATE_LAST_UPDATING_TABLE,	//Query at Maat_finish_callback_t to determine whether this table is the last one to update. VALUE is interger, SIZE=sizeof(int), 1:yes, 0: no
+	MAAT_STATE_IN_UPDATING
 };
 int Maat_read_state(Maat_feather_t feather, enum MAAT_STATE_OPT  type, void* value, int size);
 

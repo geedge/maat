@@ -38,6 +38,19 @@ int g_iThreadNum=4;
 const char* table_info_path="./table_info.conf";
 int scan_interval_ms=1;
 int effective_interval_ms=0;
+void wait_for_cmd_effective(Maat_feather_t feather, long long version_before)
+{
+	long long	version_after=version_before;
+	int is_updating=1;
+	while(is_updating||version_before==version_after)
+	{
+		Maat_read_state(feather,MAAT_STATE_IN_UPDATING, &is_updating, sizeof(is_updating));
+		Maat_read_state(feather,MAAT_STATE_VERSION, &version_after, sizeof(version_after));
+
+		usleep(1000*100);//waiting for commands go into effect
+	}
+
+}
 
 void scan_with_old_or_new_cfg(Maat_feather_t feather, int hit_old)
 {
@@ -1033,6 +1046,95 @@ int del_command(Maat_feather_t feather,int config_id)
 	Maat_free_cmd(cmd);
 	return 0;
 }
+TEST_F(MaatCmdTest, SetIP)
+{
+	struct Maat_cmd_t* cmd=NULL;
+	struct Maat_rule_t rule;
+	int config_id=0,timeout=4;
+	long long version_before=0;
+	const char* region_table="IP_CONFIG";
+	struct Maat_region_t region;
+	int group_num=1,ret=0;
+	memset(&rule,0,sizeof(rule));
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+	
+	//MUST acquire by Maat_cmd_incrby to guarantee a unique compile ID.
+	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	rule.config_id=config_id;
+	
+	strcpy(rule.service_defined,"maat_command");
+	//MUST acqire by function, because Maat_cmd_t has some hidden members.
+	cmd=Maat_create_cmd(&rule, group_num);
+	cmd->expire_after=timeout;
+	cmd->label_id=0;	//no lable
+	memset(&region,0,sizeof(region));
+	region.region_type=REGION_IP;
+	region.table_name=region_table;
+	region.ip_rule.addr_type=ADDR_TYPE_IPv4;
+	region.ip_rule.direction=ADDR_DIR_DOUBLE;
+	region.ip_rule.src_ip="172.0.0.1";
+	region.ip_rule.mask_src_ip="255.255.255.255";
+	region.ip_rule.src_port=53331;
+	region.ip_rule.mask_src_port=0;//means any port should hit.
+	
+	region.ip_rule.dst_ip="172.0.0.2";
+	region.ip_rule.mask_dst_ip="255.255.255.255";
+	region.ip_rule.dst_port=80;
+	region.ip_rule.mask_dst_port=65535;
+	region.ip_rule.protocol=0;//means any protocol should hit.
+	Maat_add_region2cmd(cmd, 0, &region);
+
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
+	EXPECT_EQ(ret, 0);
+	ret=Maat_cmd(feather, cmd, MAAT_OP_ADD);
+	EXPECT_GE(ret, 0);
+	Maat_free_cmd(cmd);
+	cmd=NULL;
+	
+	wait_for_cmd_effective(feather, version_before);
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
+	inet_pton(AF_INET,region.ip_rule.src_ip,&(v4_addr.saddr));
+	v4_addr.source=htons(region.ip_rule.src_port+1);//Not use the exactly port for testing port mask.
+	inet_pton(AF_INET,region.ip_rule.dst_ip,&(v4_addr.daddr));
+	v4_addr.dest=htons(region.ip_rule.dst_port);
+	ipv4_addr.v4=&v4_addr;
+	
+	int table_id=0;
+	struct Maat_rule_t result;
+	memset(&result, 0, sizeof(result));
+	scan_status_t mid=NULL;
+	table_id=Maat_table_register(feather,region_table);
+	ASSERT_GE(table_id, 0);
+
+	ret=Maat_scan_proto_addr(feather,table_id,&ipv4_addr,6,&result,1, &mid,0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result.config_id, config_id);
+
+	Maat_clean_status(&mid);
+	
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
+
+	//reset timeout.
+	cmd=Maat_create_cmd(&rule, 0);
+	cmd->expire_after=10;
+	ret=Maat_cmd(feather, cmd, MAAT_OP_RENEW_TIMEOUT);
+	EXPECT_EQ(ret ,1);
+	
+	wait_for_cmd_effective(feather, version_before);
+	
+	Maat_free_cmd(cmd);
+	cmd=NULL;
+
+	ret=Maat_scan_proto_addr(feather,table_id,&ipv4_addr,6,&result,1, &mid,0);
+	EXPECT_EQ(ret, 1);
+
+	Maat_clean_status(&mid);
+
+	return;
+
+}
 
 TEST_F(MaatCmdTest, SetExpr)
 {
@@ -1107,6 +1209,56 @@ TEST_F(MaatCmdTest, SetExpr)
 						&mid, 0);
 	EXPECT_EQ(ret, 0);
 }
+
+TEST_F(MaatCmdTest, SetExpr20w)
+{
+	const int CMD_EXPR_NUM=200*1000;
+	const char* table_name="HTTP_URL";
+	
+	const char* keywords1="Hiredis";
+	const char* keywords2="C Client";
+	char escape_buff1[256],escape_buff2[256];
+	char keywords[256];
+
+	int label_id=5210, config_id=0,ret=0, output_id_cnt=0;
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+	long long version_before=0;
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
+	
+	Maat_str_escape(escape_buff1, sizeof(escape_buff1),keywords1);
+	Maat_str_escape(escape_buff2, sizeof(escape_buff2),keywords2);
+	snprintf(keywords,sizeof(keywords),"%s&%s",escape_buff1,escape_buff2);
+	
+	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", CMD_EXPR_NUM);
+	int i=0;
+	for(i=0; i<CMD_EXPR_NUM;i++)
+	{
+		test_add_expr_command(feather,table_name,config_id-i, 0, label_id, keywords);
+	}
+	ret=Maat_cmd_commit(feather);
+	EXPECT_TRUE(ret>=0);
+	wait_for_cmd_effective(feather, version_before);
+	struct Maat_cmd_t* cmd=NULL;
+	struct Maat_rule_t rule;
+	memset(&rule,0,sizeof(rule));
+	int *output_ids=(int*)malloc(sizeof(int)*CMD_EXPR_NUM);
+	output_id_cnt=Maat_cmd_select(feather,label_id, output_ids, CMD_EXPR_NUM);
+	EXPECT_EQ(output_id_cnt, CMD_EXPR_NUM);
+	for(i=0; i<CMD_EXPR_NUM;i++)
+	{
+		memset(&rule,0,sizeof(rule));
+		rule.config_id=output_ids[i];
+		cmd=Maat_create_cmd(&rule, 0);
+		ret=Maat_cmd_append(feather, cmd, MAAT_OP_DEL);
+		EXPECT_EQ(ret, 0);
+		Maat_free_cmd(cmd);
+	}
+	ret=Maat_cmd_commit(feather);
+	
+	EXPECT_EQ(ret, CMD_EXPR_NUM);
+	free(output_ids);
+}
+
 TEST_F(MaatCmdTest, SetLines)
 {
 	const int TEST_CMD_LINE_NUM=4;
@@ -1142,95 +1294,46 @@ TEST_F(MaatCmdTest, SetLines)
 
 	return;
 }
-TEST_F(MaatCmdTest, SetIP)
+TEST_F(MaatCmdTest, SetLines20w)
 {
-	struct Maat_cmd_t* cmd=NULL;
-	struct Maat_rule_t rule;
-	int config_id=0,timeout=4;
-	long long version_before=0,version_after=0;
-	const char* region_table="IP_CONFIG";
-	struct Maat_region_t region;
-	int group_num=1,ret=0;
-	memset(&rule,0,sizeof(rule));
+	const int TEST_CMD_LINE_NUM=200*1000;
 	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+
+	struct Maat_line_t **p_line=(struct Maat_line_t **)calloc(sizeof(struct Maat_line_t *), TEST_CMD_LINE_NUM);
+	struct Maat_line_t *line_rule=(struct Maat_line_t *)calloc(sizeof(struct Maat_line_t), TEST_CMD_LINE_NUM);
+	int i=0;
+	const char* line="1\t192.168.0.1\t4444444444\t1";
+	int seq=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", TEST_CMD_LINE_NUM);
+	for(i=0;i<TEST_CMD_LINE_NUM;i++)
+	{
+		line_rule[i].label_id=0;
+		line_rule[i].rule_id=seq-i;
+		line_rule[i].table_name="QD_ENTRY_INFO";
+		line_rule[i].table_line=line;
+//		asprintf(&(line_rule[i].table_line),"1\t192.168.0.1\t%d\t1",100+i);
+		line_rule[i].expire_after=0;
+		p_line[i]=line_rule+i;
+	}
 	
-	//MUST acquire by Maat_cmd_incrby to guarantee a unique compile ID.
-	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
-	rule.config_id=config_id;
+	long long version_before=0;
+	Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
+
+	Maat_cmd_set_lines(feather,(const struct Maat_line_t **)p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
 	
-	strcpy(rule.service_defined,"maat_command");
-	//MUST acqire by function, because Maat_cmd_t has some hidden members.
-	cmd=Maat_create_cmd(&rule, group_num);
-	cmd->expire_after=timeout;
-	cmd->label_id=0;	//no lable
-	memset(&region,0,sizeof(region));
-	region.region_type=REGION_IP;
-	region.table_name=region_table;
-	region.ip_rule.addr_type=ADDR_TYPE_IPv4;
-	region.ip_rule.direction=ADDR_DIR_DOUBLE;
-	region.ip_rule.src_ip="172.0.0.1";
-	region.ip_rule.mask_src_ip="255.255.255.255";
-	region.ip_rule.src_port=53331;
-	region.ip_rule.mask_src_port=0;//means any port should hit.
+	wait_for_cmd_effective(feather, version_before);
 	
-	region.ip_rule.dst_ip="172.0.0.2";
-	region.ip_rule.mask_dst_ip="255.255.255.255";
-	region.ip_rule.dst_port=80;
-	region.ip_rule.mask_dst_port=65535;
-	region.ip_rule.protocol=0;//means any protocol should hit.
-	Maat_add_region2cmd(cmd, 0, &region);
-
-	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
-	EXPECT_EQ(ret, 0);
-	ret=Maat_cmd(feather, cmd, MAAT_OP_ADD);
-	EXPECT_GE(ret, 0);
-	Maat_free_cmd(cmd);
-	cmd=NULL;
-
-	//TEST if the command go into effective.
-	usleep(WAIT_FOR_EFFECTIVE_US);	//waiting for commands go into effect
-	
-	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_after, sizeof(version_after));
-
-	struct ipaddr ipv4_addr;
-	struct stream_tuple4_v4 v4_addr;
-	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
-	inet_pton(AF_INET,region.ip_rule.src_ip,&(v4_addr.saddr));
-	v4_addr.source=htons(region.ip_rule.src_port+1);//Not use the exactly port for testing port mask.
-	inet_pton(AF_INET,region.ip_rule.dst_ip,&(v4_addr.daddr));
-	v4_addr.dest=htons(region.ip_rule.dst_port);
-	ipv4_addr.v4=&v4_addr;
-	
-	int table_id=0;
-	struct Maat_rule_t result;
-	memset(&result, 0, sizeof(result));
-	scan_status_t mid=NULL;
-	table_id=Maat_table_register(feather,region_table);
-	ASSERT_GE(table_id, 0);
-
-	ret=Maat_scan_proto_addr(feather,table_id,&ipv4_addr,6,&result,1, &mid,0);
-	EXPECT_EQ(ret, 1);
-	EXPECT_EQ(result.config_id, config_id);
-
-	Maat_clean_status(&mid);
-	//reset timeout.
-	cmd=Maat_create_cmd(&rule, 0);
-	cmd->expire_after=10;
-	ret=Maat_cmd(feather, cmd, MAAT_OP_RENEW_TIMEOUT);
-	EXPECT_EQ(ret ,1);
-	
-	usleep(2*1000*1000+WAIT_FOR_EFFECTIVE_US);//wait for commands expired.
-	Maat_free_cmd(cmd);
-	cmd=NULL;
-
-	ret=Maat_scan_proto_addr(feather,table_id,&ipv4_addr,6,&result,1, &mid,0);
-	EXPECT_EQ(ret, 1);
-
-	Maat_clean_status(&mid);
+	for(i=0;i<TEST_CMD_LINE_NUM;i++)
+	{
+		line_rule[i].table_line=NULL;
+	}
+	Maat_cmd_set_lines(feather, (const struct Maat_line_t **)p_line,TEST_CMD_LINE_NUM, MAAT_OP_DEL);
+	free(p_line);
+	free(line_rule);
 
 	return;
-
 }
+
+
 int g_test_update_paused=0;
 void pause_update_test_entry_cb(int table_id,const char* table_line,void* u_para)
 {

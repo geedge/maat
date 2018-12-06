@@ -468,7 +468,7 @@ int plugin_EX_data_free(const struct Maat_table_desc* plugin_table, const char* 
 
 void set_serial_rule(struct serial_rule_t* rule,enum MAAT_OPERATION op,int rule_id,int label_id,const char* table_name,const char* line, long long timeout);
 void empty_serial_rules(struct serial_rule_t* rule);
-int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,int serial_rule_num, long long server_time, void* logger);
+int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,unsigned int serial_rule_num, long long server_time, void* logger);
 long long redis_server_time(redisContext* ctx);
 redisContext * connect_redis(const char*redis_ip, int redis_port, int redis_db, void* logger);
 char* md5_file(const char* filename, char* md5string);

@@ -2260,6 +2260,20 @@ int Maat_read_state(Maat_feather_t feather,enum MAAT_STATE_OPT  type, void* valu
 		case MAAT_STATE_LAST_UPDATING_TABLE:
 			*int_val=_feather->is_last_plugin_table_updating;
 			break;
+		case MAAT_STATE_IN_UPDATING:
+			if(size!=sizeof(int))
+			{
+				return -1;
+			}
+			if(0==pthread_mutex_trylock(&(_feather->backgroud_update_mutex)))
+			{
+				*int_val=0;
+				pthread_mutex_unlock(&(_feather->backgroud_update_mutex));
+			}
+			else
+			{
+				*int_val=1;
+			}
 		default:
 			return -1;
 			break;
