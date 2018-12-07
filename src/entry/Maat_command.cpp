@@ -1268,7 +1268,6 @@ int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule, unsigned in
 			{
 				continue;
 			}
-			assert(i<(unsigned int)serial_rule_num);
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_command 
 					,"%s %s %d failed, rule id maybe conflict or not exist."
 					,rm_op_str[s_rule[i].op]
