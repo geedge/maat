@@ -38,6 +38,19 @@ int g_iThreadNum=4;
 const char* table_info_path="./table_info.conf";
 int scan_interval_ms=1;
 int effective_interval_ms=0;
+void wait_for_cmd_effective(Maat_feather_t feather, long long version_before)
+{
+	long long	version_after=version_before;
+	int is_updating=1;
+	while(is_updating||version_before==version_after)
+	{
+		Maat_read_state(feather,MAAT_STATE_IN_UPDATING, &is_updating, sizeof(is_updating));
+		Maat_read_state(feather,MAAT_STATE_VERSION, &version_after, sizeof(version_after));
+
+		usleep(1000*100);//waiting for commands go into effect
+	}
+
+}
 
 void scan_with_old_or_new_cfg(Maat_feather_t feather, int hit_old)
 {
@@ -480,7 +493,7 @@ TEST(SimilarScan, Pure)
 	const char* scan_data="mwss.xiu.youku.com/live/hls/v1/0000000000000000000000001526a0a8/714.ts?&token=98765";
 	const char* table_name="SIM_URL";	
 	scan_status_t mid=NULL;
-
+	memset(result, 0 , sizeof(result));
 	table_id=Maat_table_register(g_feather,table_name);
 	ASSERT_GT(table_id, 0);
 
@@ -640,7 +653,7 @@ struct rule_ex_param
 	pthread_mutex_t lock;
 };
 
-void ex_param_new(int idx, const struct Maat_rule_t* rule, const char* srv_def_large, 
+void compile_ex_param_new(int idx, const struct Maat_rule_t* rule, const char* srv_def_large, 
 												MAAT_RULE_EX_DATA* ad, long argl, void *argp)
 {
 	int *counter=(int*)argp;
@@ -657,7 +670,7 @@ void ex_param_new(int idx, const struct Maat_rule_t* rule, const char* srv_def_l
 	*ad=param;
 	return;
 }
-void ex_param_free(int idx, const struct Maat_rule_t* rule, const char* srv_def_large, MAAT_RULE_EX_DATA* ad, long argl, void *argp)
+void compile_ex_param_free(int idx, const struct Maat_rule_t* rule, const char* srv_def_large, MAAT_RULE_EX_DATA* ad, long argl, void *argp)
 {
 	if(*ad==NULL)
 	{
@@ -674,7 +687,7 @@ void ex_param_free(int idx, const struct Maat_rule_t* rule, const char* srv_def_
 	free(param);
 	return;
 }
-void ex_param_dup(int idx,	MAAT_RULE_EX_DATA *to, MAAT_RULE_EX_DATA *from, long argl, void *argp)
+void compile_ex_param_dup(int idx,	MAAT_RULE_EX_DATA *to, MAAT_RULE_EX_DATA *from, long argl, void *argp)
 {
 	struct rule_ex_param* from_param=*((struct rule_ex_param**)from);
 	pthread_mutex_lock(&(from_param->lock));
@@ -686,9 +699,9 @@ void ex_param_dup(int idx,	MAAT_RULE_EX_DATA *to, MAAT_RULE_EX_DATA *from, long 
 
 
 
-TEST(EX_DATA_INDEX, all)
+TEST(EX_DATA_INDEX, MaatRuleEXData)
 {
-#define EX_data_index
+#define rule_EX_data_index
 
 	int ret=0;
 	int table_id=0, ex_data_counter=0;
@@ -701,7 +714,7 @@ TEST(EX_DATA_INDEX, all)
 	ASSERT_GT(table_id, 0);
 	
 	int ex_param_idx=Maat_rule_get_ex_new_index(g_feather, "COMPILE_ALIAS", 
-													ex_param_new, ex_param_free, ex_param_dup,
+													compile_ex_param_new, compile_ex_param_free, compile_ex_param_dup,
 													0, &ex_data_counter);
 	ASSERT_TRUE(ex_param_idx>=0);
 	EXPECT_EQ(ex_data_counter, 1);
@@ -716,7 +729,7 @@ TEST(EX_DATA_INDEX, all)
 	struct rule_ex_param* param=(struct rule_ex_param*)ex_data;
 	EXPECT_EQ(param->id, 7799);
 	EXPECT_EQ(strcmp(param->name, expect_name),0);
-	ex_param_free(0, NULL, NULL, &ex_data, 0, NULL);
+	compile_ex_param_free(0, NULL, NULL, &ex_data, 0, NULL);
 	Maat_clean_status(&mid);
 	return;
 }
@@ -1033,6 +1046,95 @@ int del_command(Maat_feather_t feather,int config_id)
 	Maat_free_cmd(cmd);
 	return 0;
 }
+TEST_F(MaatCmdTest, SetIP)
+{
+	struct Maat_cmd_t* cmd=NULL;
+	struct Maat_rule_t rule;
+	int config_id=0,timeout=4;
+	long long version_before=0;
+	const char* region_table="IP_CONFIG";
+	struct Maat_region_t region;
+	int group_num=1,ret=0;
+	memset(&rule,0,sizeof(rule));
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+	
+	//MUST acquire by Maat_cmd_incrby to guarantee a unique compile ID.
+	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	rule.config_id=config_id;
+	
+	strcpy(rule.service_defined,"maat_command");
+	//MUST acqire by function, because Maat_cmd_t has some hidden members.
+	cmd=Maat_create_cmd(&rule, group_num);
+	cmd->expire_after=timeout;
+	cmd->label_id=0;	//no lable
+	memset(&region,0,sizeof(region));
+	region.region_type=REGION_IP;
+	region.table_name=region_table;
+	region.ip_rule.addr_type=ADDR_TYPE_IPv4;
+	region.ip_rule.direction=ADDR_DIR_DOUBLE;
+	region.ip_rule.src_ip="172.0.0.1";
+	region.ip_rule.mask_src_ip="255.255.255.255";
+	region.ip_rule.src_port=53331;
+	region.ip_rule.mask_src_port=0;//means any port should hit.
+	
+	region.ip_rule.dst_ip="172.0.0.2";
+	region.ip_rule.mask_dst_ip="255.255.255.255";
+	region.ip_rule.dst_port=80;
+	region.ip_rule.mask_dst_port=65535;
+	region.ip_rule.protocol=0;//means any protocol should hit.
+	Maat_add_region2cmd(cmd, 0, &region);
+
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
+	EXPECT_EQ(ret, 0);
+	ret=Maat_cmd(feather, cmd, MAAT_OP_ADD);
+	EXPECT_GE(ret, 0);
+	Maat_free_cmd(cmd);
+	cmd=NULL;
+	
+	wait_for_cmd_effective(feather, version_before);
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
+	inet_pton(AF_INET,region.ip_rule.src_ip,&(v4_addr.saddr));
+	v4_addr.source=htons(region.ip_rule.src_port+1);//Not use the exactly port for testing port mask.
+	inet_pton(AF_INET,region.ip_rule.dst_ip,&(v4_addr.daddr));
+	v4_addr.dest=htons(region.ip_rule.dst_port);
+	ipv4_addr.v4=&v4_addr;
+	
+	int table_id=0;
+	struct Maat_rule_t result;
+	memset(&result, 0, sizeof(result));
+	scan_status_t mid=NULL;
+	table_id=Maat_table_register(feather,region_table);
+	ASSERT_GE(table_id, 0);
+
+	ret=Maat_scan_proto_addr(feather,table_id,&ipv4_addr,6,&result,1, &mid,0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result.config_id, config_id);
+
+	Maat_clean_status(&mid);
+	
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
+
+	//reset timeout.
+	cmd=Maat_create_cmd(&rule, 0);
+	cmd->expire_after=10;
+	ret=Maat_cmd(feather, cmd, MAAT_OP_RENEW_TIMEOUT);
+	EXPECT_EQ(ret ,1);
+	
+//	wait_for_cmd_effective(feather, version_before);
+	
+	Maat_free_cmd(cmd);
+	cmd=NULL;
+	sleep(timeout+1);
+	ret=Maat_scan_proto_addr(feather,table_id,&ipv4_addr,6,&result,1, &mid,0);
+	EXPECT_EQ(ret, 1);
+
+	Maat_clean_status(&mid);
+
+	return;
+
+}
 
 TEST_F(MaatCmdTest, SetExpr)
 {
@@ -1107,6 +1209,8 @@ TEST_F(MaatCmdTest, SetExpr)
 						&mid, 0);
 	EXPECT_EQ(ret, 0);
 }
+
+
 TEST_F(MaatCmdTest, SetLines)
 {
 	const int TEST_CMD_LINE_NUM=4;
@@ -1142,95 +1246,96 @@ TEST_F(MaatCmdTest, SetLines)
 
 	return;
 }
-TEST_F(MaatCmdTest, SetIP)
+//Following tests must be coded/tested at last, for they stalled the maat update thread and interrupt other tests.
+TEST_F(MaatCmdTest, SetExprOneMillion)
 {
+	const int CMD_EXPR_NUM=1000*1000;
+	const char* table_name="HTTP_URL";
+	
+	const char* keywords1="Hiredis";
+	const char* keywords2="C Client";
+	char escape_buff1[256],escape_buff2[256];
+	char keywords[256];
+
+	int label_id=5210, config_id=0,ret=0, output_id_cnt=0;
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+	long long version_before=0;
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
+	
+	Maat_str_escape(escape_buff1, sizeof(escape_buff1),keywords1);
+	Maat_str_escape(escape_buff2, sizeof(escape_buff2),keywords2);
+	snprintf(keywords,sizeof(keywords),"%s&%s",escape_buff1,escape_buff2);
+	
+	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", CMD_EXPR_NUM);
+	int i=0;
+	for(i=0; i<CMD_EXPR_NUM;i++)
+	{
+		test_add_expr_command(feather,table_name,config_id-i, 0, label_id, keywords);
+	}
+	ret=Maat_cmd_commit(feather);
+	EXPECT_TRUE(ret>=0);
+	wait_for_cmd_effective(feather, version_before);
 	struct Maat_cmd_t* cmd=NULL;
 	struct Maat_rule_t rule;
-	int config_id=0,timeout=4;
-	long long version_before=0,version_after=0;
-	const char* region_table="IP_CONFIG";
-	struct Maat_region_t region;
-	int group_num=1,ret=0;
 	memset(&rule,0,sizeof(rule));
+	int *output_ids=(int*)malloc(sizeof(int)*CMD_EXPR_NUM);
+	output_id_cnt=Maat_cmd_select(feather,label_id, output_ids, CMD_EXPR_NUM);
+	EXPECT_EQ(output_id_cnt, CMD_EXPR_NUM);
+	for(i=0; i<CMD_EXPR_NUM;i++)
+	{
+		memset(&rule,0,sizeof(rule));
+		rule.config_id=output_ids[i];
+		cmd=Maat_create_cmd(&rule, 0);
+		ret=Maat_cmd_append(feather, cmd, MAAT_OP_DEL);
+		EXPECT_EQ(ret, 0);
+		Maat_free_cmd(cmd);
+	}
+	ret=Maat_cmd_commit(feather);
+	
+	EXPECT_EQ(ret, CMD_EXPR_NUM);
+	free(output_ids);
+}
+
+TEST_F(MaatCmdTest, SetLinesOneMillion)
+{
+	const int TEST_CMD_LINE_NUM=1000*1000;
 	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+
+	struct Maat_line_t **p_line=(struct Maat_line_t **)calloc(sizeof(struct Maat_line_t *), TEST_CMD_LINE_NUM);
+	struct Maat_line_t *line_rule=(struct Maat_line_t *)calloc(sizeof(struct Maat_line_t), TEST_CMD_LINE_NUM);
+	int i=0;
+	const char* line="1\t192.168.0.1\t4444444444\t1";
+	int seq=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", TEST_CMD_LINE_NUM);
+	for(i=0;i<TEST_CMD_LINE_NUM;i++)
+	{
+		line_rule[i].label_id=0;
+		line_rule[i].rule_id=seq-i;
+		line_rule[i].table_name="QD_ENTRY_INFO";
+		line_rule[i].table_line=line;
+//		asprintf(&(line_rule[i].table_line),"1\t192.168.0.1\t%d\t1",100+i);
+		line_rule[i].expire_after=0;
+		p_line[i]=line_rule+i;
+	}
 	
-	//MUST acquire by Maat_cmd_incrby to guarantee a unique compile ID.
-	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
-	rule.config_id=config_id;
+	long long version_before=0;
+	Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
+
+	Maat_cmd_set_lines(feather,(const struct Maat_line_t **)p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
 	
-	strcpy(rule.service_defined,"maat_command");
-	//MUST acqire by function, because Maat_cmd_t has some hidden members.
-	cmd=Maat_create_cmd(&rule, group_num);
-	cmd->expire_after=timeout;
-	cmd->label_id=0;	//no lable
-	memset(&region,0,sizeof(region));
-	region.region_type=REGION_IP;
-	region.table_name=region_table;
-	region.ip_rule.addr_type=ADDR_TYPE_IPv4;
-	region.ip_rule.direction=ADDR_DIR_DOUBLE;
-	region.ip_rule.src_ip="172.0.0.1";
-	region.ip_rule.mask_src_ip="255.255.255.255";
-	region.ip_rule.src_port=53331;
-	region.ip_rule.mask_src_port=0;//means any port should hit.
+	wait_for_cmd_effective(feather, version_before);
 	
-	region.ip_rule.dst_ip="172.0.0.2";
-	region.ip_rule.mask_dst_ip="255.255.255.255";
-	region.ip_rule.dst_port=80;
-	region.ip_rule.mask_dst_port=65535;
-	region.ip_rule.protocol=0;//means any protocol should hit.
-	Maat_add_region2cmd(cmd, 0, &region);
-
-	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
-	EXPECT_EQ(ret, 0);
-	ret=Maat_cmd(feather, cmd, MAAT_OP_ADD);
-	EXPECT_GE(ret, 0);
-	Maat_free_cmd(cmd);
-	cmd=NULL;
-
-	//TEST if the command go into effective.
-	usleep(WAIT_FOR_EFFECTIVE_US);	//waiting for commands go into effect
-	
-	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_after, sizeof(version_after));
-
-	struct ipaddr ipv4_addr;
-	struct stream_tuple4_v4 v4_addr;
-	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
-	inet_pton(AF_INET,region.ip_rule.src_ip,&(v4_addr.saddr));
-	v4_addr.source=htons(region.ip_rule.src_port+1);//Not use the exactly port for testing port mask.
-	inet_pton(AF_INET,region.ip_rule.dst_ip,&(v4_addr.daddr));
-	v4_addr.dest=htons(region.ip_rule.dst_port);
-	ipv4_addr.v4=&v4_addr;
-	
-	int table_id=0;
-	struct Maat_rule_t result;
-	memset(&result, 0, sizeof(result));
-	scan_status_t mid=NULL;
-	table_id=Maat_table_register(feather,region_table);
-	ASSERT_GE(table_id, 0);
-
-	ret=Maat_scan_proto_addr(feather,table_id,&ipv4_addr,6,&result,1, &mid,0);
-	EXPECT_EQ(ret, 1);
-	EXPECT_EQ(result.config_id, config_id);
-
-	Maat_clean_status(&mid);
-	//reset timeout.
-	cmd=Maat_create_cmd(&rule, 0);
-	cmd->expire_after=10;
-	ret=Maat_cmd(feather, cmd, MAAT_OP_RENEW_TIMEOUT);
-	EXPECT_EQ(ret ,1);
-	
-	usleep(2*1000*1000+WAIT_FOR_EFFECTIVE_US);//wait for commands expired.
-	Maat_free_cmd(cmd);
-	cmd=NULL;
-
-	ret=Maat_scan_proto_addr(feather,table_id,&ipv4_addr,6,&result,1, &mid,0);
-	EXPECT_EQ(ret, 1);
-
-	Maat_clean_status(&mid);
+	for(i=0;i<TEST_CMD_LINE_NUM;i++)
+	{
+		line_rule[i].table_line=NULL;
+	}
+	Maat_cmd_set_lines(feather, (const struct Maat_line_t **)p_line,TEST_CMD_LINE_NUM, MAAT_OP_DEL);
+	free(p_line);
+	free(line_rule);
 
 	return;
-
 }
+
+
 int g_test_update_paused=0;
 void pause_update_test_entry_cb(int table_id,const char* table_line,void* u_para)
 {
@@ -1415,6 +1520,98 @@ TEST_F(MaatCmdTest, SetFile)
 	EXPECT_EQ(ret, -1);
 	ret=stat(file2_to_del, &file_info);
 	EXPECT_EQ(ret, -1);
+
+	return;
+}
+struct user_info
+{
+	char name[256];
+	char ip_addr[32];
+	int id;
+	int ref_cnt;
+};
+void plugin_EX_new_cb(int table_id, const char* key, const char* table_line, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
+{
+	int *counter=(int *)argp;
+	struct user_info* u=(struct user_info*)calloc(sizeof(struct user_info), 1);
+	int valid=0, tag=0, ret;
+	ret=sscanf(table_line, "%d\t%s\t%s%d\t%d", &(u->id), u->ip_addr, u->name, &valid, &tag);
+	EXPECT_EQ(ret, 5);
+	u->ref_cnt=1;
+	*ad=u;
+	(*counter)++;
+	return;
+}
+void plugin_EX_free_cb(int table_id, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
+{
+	struct user_info* u=(struct user_info*)(*ad);
+	u->ref_cnt--;
+	if(u->ref_cnt>0) return;
+	free(u);
+	*ad=NULL;
+}
+void plugin_EX_dup_cb(int table_id,	MAAT_PLUGIN_EX_DATA *to, MAAT_PLUGIN_EX_DATA *from, long argl, void *argp)
+{
+	struct user_info* u=(struct user_info*)(*from);
+	u->ref_cnt++;
+	*to=u;
+}
+
+TEST_F(MaatCmdTest, PluginEXData)
+{
+#define plugin_EX_data_index
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+
+	int ret=0, i=0;
+	int table_id=0, ex_data_counter=0;
+	const char* table_name="TEST_PLUGIN_EXDATA_TABLE";
+
+
+	const int TEST_CMD_LINE_NUM=4;
+	const struct Maat_line_t *p_line[TEST_CMD_LINE_NUM];
+	struct Maat_line_t line_rule[TEST_CMD_LINE_NUM];
+	const char* table_line[TEST_CMD_LINE_NUM]={"1\t192.168.0.1\tmahuateng\t1\t0",
+							"2\t192.168.0.2\tliuqiangdong\t1\t0",
+							"3\t192.168.0.3\tmayun\t1\t0",
+							"4\t192.168.0.4\tliyanhong\t1\t0"};
+	table_id=Maat_table_register(feather, table_name);
+	ASSERT_GT(table_id, 0);
+	memset(&line_rule,0,sizeof(line_rule));
+	for(i=0;i<TEST_CMD_LINE_NUM;i++)
+	{
+		line_rule[i].label_id=0;
+		line_rule[i].rule_id=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", 1);
+		line_rule[i].table_name=table_name;
+		line_rule[i].table_line=table_line[i];
+		line_rule[i].expire_after=0;
+		p_line[i]=line_rule+i;
+	}
+	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
+	EXPECT_GT(ret, 0);
+
+	usleep(WAIT_FOR_EFFECTIVE_US);
+	ret=Maat_plugin_EX_register(feather, table_id,
+								plugin_EX_new_cb,
+								plugin_EX_free_cb,
+								plugin_EX_dup_cb,
+								NULL,
+								0, &ex_data_counter);
+	ASSERT_TRUE(ret>=0);
+	EXPECT_EQ(ex_data_counter, TEST_CMD_LINE_NUM);
+	
+	struct user_info* uinfo=NULL;
+	uinfo=(struct user_info*)Maat_plugin_get_EX_data(feather, table_id, "192.168.0.2");
+	ASSERT_TRUE(uinfo!=NULL);
+	EXPECT_EQ(0, strcmp(uinfo->name, "liuqiangdong"));
+	EXPECT_EQ(uinfo->id, 2);
+	plugin_EX_free_cb(table_id, (void**)&uinfo, 0, NULL);
+	
+	ret=Maat_cmd_set_lines(feather, p_line+1,1, MAAT_OP_DEL);
+	EXPECT_GT(ret, 0);
+	
+	usleep(WAIT_FOR_EFFECTIVE_US);
+	uinfo=(struct user_info*)Maat_plugin_get_EX_data(feather, table_id, "192.168.0.2");
+	ASSERT_TRUE(uinfo==NULL);
 
 	return;
 }

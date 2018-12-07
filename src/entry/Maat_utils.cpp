@@ -164,6 +164,30 @@ char* str_unescape(char* s)
 	s[j]='\0';
 	return s;
 }
+int get_column_pos(const char* line, int column_seq, size_t *offset, size_t *len)
+{
+	const char* seps=" \t";
+	char* saveptr=NULL, *subtoken=NULL, *str=NULL;
+	char* dup_line=_maat_strdup(line);
+	int i=0, ret=-1;
+	for (str = dup_line; ; str = NULL)
+	{
+		subtoken = strtok_r(str, seps, &saveptr);
+		if (subtoken == NULL)
+			break;
+		if(i==column_seq-1)
+		{
+			*offset=subtoken-dup_line;
+			*len=strlen(subtoken);
+			ret=0;
+			break;
+		}
+		i++;
+	}
+	free(dup_line);
+	return ret;
+}
+
 #define MAX_SYSTEM_CMD_LEN	512
 
 int system_cmd_mkdir(const char* path)

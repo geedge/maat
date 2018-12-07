@@ -4,12 +4,16 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define GIE_INSERT_OPT 0
-#define GIE_DELETE_OPT 1
-#define GIE_INPUT_FORMAT_SFH 1
-#define GIE_INPUT_FORMAT_PLAIN 0
-
+enum GIE_operation
+{
+	GIE_INSERT_OPT,
+	GIE_DELETE_OPT
+};
+enum GIE_INPUT_FORMAT
+{
+	GIE_INPUT_FORMAT_PLAIN,
+	GIE_INPUT_FORMAT_SFH
+};
 
 typedef struct 
 {
@@ -21,7 +25,7 @@ typedef struct
 {
 	unsigned int id;
 	unsigned int sfh_length;//size of fuzzy_hash
-	short operation;//GIE_INSERT_OPT or GIE_DELETE_OPT.if operation is GIE_DELETE_OPT, only id is needed;
+	enum GIE_operation operation;//GIE_INSERT_OPT or GIE_DELETE_OPT.if operation is GIE_DELETE_OPT, only id is needed;
 	short cfds_lvl;
 	char * sfh;
 	void * tag;
@@ -41,9 +45,9 @@ typedef struct
 	unsigned int gram_value;
 	//unsigned int htable_num;
 	unsigned int position_accuracy;
-	short format; //if format==GIE_INPUT_FORMAT_SFH, means the input string is a GIE_INPUT_FORMAT_SFH string 
+	enum GIE_INPUT_FORMAT format; //if format==GIE_INPUT_FORMAT_SFH, means the input string is a GIE_INPUT_FORMAT_SFH string 
 	                //else id format==PALIN, means the input string is common string
-	short ED_reexamine;//if ED_reexamine==1, calculate edit distance to verify the final result
+	int ED_reexamine;//if ED_reexamine==1, calculate edit distance to verify the final result
 }GIE_create_para_t;
 
 

@@ -182,61 +182,51 @@ enum MAAT_TABLE_TYPE type_region2table(const struct Maat_region_t* p)
 }
 int get_valid_flag_offset(const char* line, enum MAAT_TABLE_TYPE type,int valid_column_seq)
 {
-	unsigned int offset=0;
-	unsigned int i=0,j=0;
-	switch(type)
+ 	size_t offset=0, len=0;
+	unsigned int column_seq=0, ret=0;
+ 	switch(type)
 	{
 		case	TABLE_TYPE_EXPR:
-			offset=7;
+			column_seq=7;
 			break;
 		case	TABLE_TYPE_IP:
-			offset=14;
+			column_seq=14;
 			break;
 		case	TABLE_TYPE_COMPILE:
-			offset=8;
+			column_seq=8;
 			break;
 		case	TABLE_TYPE_PLUGIN:
 			if(valid_column_seq<0)
 			{
 				return -1;
 			}
-			offset=(unsigned int)valid_column_seq;
+			column_seq=(unsigned int)valid_column_seq;
 			break;
 		case	TABLE_TYPE_INTERVAL:
-			offset=5;
+			column_seq=5;
 			break;
 		case	TABLE_TYPE_DIGEST:
-			offset=6;
+			column_seq=6;
 			break;
 		case	TABLE_TYPE_SIMILARITY:
-			offset=5;
+			column_seq=5;
 			break;
 		case	TABLE_TYPE_EXPR_PLUS:
-			offset=8;
+			column_seq=8;
 			break;
 		case	TABLE_TYPE_GROUP:
-			offset=3;
+			column_seq=3;
 			break;
 		default:
 			assert(0);
 	}
-	for(i=0;i<strlen(line);i++)
-	{
-		if(line[i]==' '||line[i]=='\t')
-		{
-			j++;
-		}
-		if(j==offset-1)
-		{
-			break;
-		}
-	}
-	i++;
-	if(i>=strlen(line)||(line[i]!='1'&&line[i]!='0'))// 0 is also a valid value for some non-MAAT producer.
+	
+	ret=get_column_pos(line, column_seq, &offset, &len);
+	if(ret<0||offset>=strlen(line)||(line[offset]!='1'&&line[offset]!='0'))// 0 is also a valid value for some non-MAAT producer.
 	{
 		return -1;
 	}
-	return i;
+	return offset;
 }
 int invalidate_line(char* line, enum MAAT_TABLE_TYPE type,int valid_column_seq)
 {
@@ -1074,28 +1064,34 @@ long long _exec_serial_rule_begin(redisContext* ctx,int rule_num, int renew_rule
 	}
 	return ret;
 }
-redisReply* _exec_serial_rule_end(redisContext* ctx,long long maat_redis_version, long long server_time, int renew_allowed)
+redisReply* _exec_serial_rule_end(redisContext* ctx,long long maat_redis_version, long long server_time, int renew_allowed, struct expected_reply_t* expect_reply,  unsigned int *cnt)
 {
 	redisReply* data_reply=NULL;
 	if(renew_allowed==1)
 	{
 		redlock_unlock(ctx, rm_expire_lock);
+		expect_reply[*cnt].srule_seq=-1;
+		(*cnt)++;
 	}
 	if(maat_redis_version>0)
 	{
 		data_reply=_wrap_redisCommand(ctx,"ZADD %s NX %d %d",rm_version_sset,server_time,maat_redis_version); 
 		freeReplyObject(data_reply);
+		expect_reply[*cnt].srule_seq=-1;
+		(*cnt)++;
 		data_reply=_wrap_redisCommand(ctx,"INCRBY MAAT_VERSION 1"); 
 		freeReplyObject(data_reply);
+		expect_reply[*cnt].srule_seq=-1;
+		expect_reply[*cnt].reply.type=REDIS_REPLY_INTEGER;
+		(*cnt)++;
 	}
 	data_reply=_wrap_redisCommand(ctx,"EXEC");
 	return data_reply;
 }
-void _exec_serial_rule(redisContext* ctx,	long long version, struct serial_rule_t* s_rule, int rule_num,  struct expected_reply_t* expect_reply, unsigned int *cnt, int offset,int renew_allowed)
+void _exec_serial_rule(redisContext* ctx,	long long version, struct serial_rule_t* s_rule, unsigned int rule_num,  struct expected_reply_t* expect_reply, unsigned int *cnt, int offset,int renew_allowed)
 {
-	int i=0;
 	redisReply* data_reply=NULL;
-	int append_cmd_cnt=0;
+	unsigned int append_cmd_cnt=0, i=0;
 	for(i=0;i<rule_num;i++)
 	{
 		switch(s_rule[i].op)
@@ -1223,21 +1219,21 @@ void _exec_serial_rule(redisContext* ctx,	long long version, struct serial_rule_
 	return;
 }
 
-int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,int serial_rule_num, long long server_time, void* logger)
+int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule, unsigned int serial_rule_num, long long server_time, void* logger)
 {
-	int max_redis_batch=1*1024,batch_cnt=0;
-	int success_cnt=0,j=0,renew_allowed=0,last_failed=-1;
+	unsigned int max_redis_batch=1*1024, batch_cnt=0;
+	int renew_allowed=0,last_failed=-1;
 	redisReply*transaction_reply=NULL,*p=NULL;
 	unsigned int i=0;
 
-	unsigned int multi_cmd_cnt=0;
+	unsigned int multi_cmd_cnt=0, success_cnt=0;
 	const int MAX_REDIS_OP_PER_SRULE=8;
 	unsigned int max_multi_cmd_num=MAX_REDIS_OP_PER_SRULE*serial_rule_num+2;// 2 for operation in _exec_serial_rule_end()
 	
 	struct expected_reply_t *expected_reply=(struct expected_reply_t*)calloc(sizeof(struct expected_reply_t), max_multi_cmd_num);
 	long long new_version=0;
 	int renew_num=0,ret=0;
-	for(i=0;i<(unsigned int)serial_rule_num;i++)
+	for(i=0;i<serial_rule_num;i++)
 	{
 		if(s_rule[i].op==MAAT_OP_RENEW_TIMEOUT)
 		{
@@ -1253,15 +1249,15 @@ int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,int serial_r
 	}
 	while(success_cnt<serial_rule_num)
 	{
-		batch_cnt=MIN(serial_rule_num-success_cnt,max_redis_batch);
+		batch_cnt=MIN(serial_rule_num-success_cnt, max_redis_batch);
 		_exec_serial_rule(ctx,new_version,s_rule+success_cnt,batch_cnt,expected_reply, &multi_cmd_cnt,success_cnt,renew_allowed);
 		assert(multi_cmd_cnt<max_multi_cmd_num);
 		success_cnt+=batch_cnt;
 	}
-	transaction_reply=_exec_serial_rule_end(ctx,new_version,server_time, renew_allowed);
+	transaction_reply=_exec_serial_rule_end(ctx,new_version,server_time, renew_allowed, expected_reply, &multi_cmd_cnt);
 	if(1==mr_transaction_success(transaction_reply))
 	{
-		assert(transaction_reply->elements-2<=multi_cmd_cnt);
+		assert(transaction_reply->elements==multi_cmd_cnt);
 		for(i=0;i<multi_cmd_cnt;i++)
 		{
 			p=transaction_reply->element[i];
@@ -1272,11 +1268,11 @@ int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,int serial_r
 			{
 				continue;
 			}
-			assert(j<serial_rule_num);
+			assert(i<(unsigned int)serial_rule_num);
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_command 
 					,"%s %s %d failed, rule id maybe conflict or not exist."
-					,rm_op_str[s_rule[j].op]
-					,s_rule[j].table_name,s_rule[j].rule_id);
+					,rm_op_str[s_rule[i].op]
+					,s_rule[i].table_name,s_rule[i].rule_id);
 			success_cnt--;
 			last_failed=expected_reply[i].srule_seq;
 		}
@@ -1589,7 +1585,8 @@ int get_foreign_keys_define(redisContext *ctx, struct serial_rule_t* rule_list, 
 {
 	int ret=0, table_id=0, i=0;
 	int rule_with_foreign_key=0;
-	struct _Maat_table_info_t* p_table=NULL;
+	struct Maat_table_desc* p_table=NULL;
+	struct plugin_table_desc* plugin_desc=NULL;
 	for(i=0; i<rule_num; i++)
 	{
 		if(rule_list[i].table_line==NULL)
@@ -1602,11 +1599,12 @@ int get_foreign_keys_define(redisContext *ctx, struct serial_rule_t* rule_list, 
 			continue;
 		}
 		p_table=feather->p_table_info[table_id];
-		if(p_table->table_type!=TABLE_TYPE_PLUGIN||p_table->n_foreign==0)
+		plugin_desc= &(p_table->plugin);
+		if(p_table->table_type!=TABLE_TYPE_PLUGIN||plugin_desc->n_foreign==0)
 		{
 			continue;
 		}
-		_get_foregin_keys(rule_list+i, p_table->foreign_columns, p_table->n_foreign, dir, logger);
+		_get_foregin_keys(rule_list+i, plugin_desc->foreign_columns, plugin_desc->n_foreign, dir, logger);
 		rule_with_foreign_key++;
 	}
 	return rule_with_foreign_key;
@@ -1736,12 +1734,13 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 		const unsigned char* dec_key,
 		_Maat_feather_t* feather)
 {
-	int table_id=0,i=0, j=0, rule_num=0,empty_value_num=0;
+	int table_id=0,i=0, j=0, rule_num=0,empty_value_num=0, valid_column=-1;
 	int ret=0;
 	struct serial_rule_t* rule_list=NULL;
 	int update_type=CM_UPDATE_TYPE_INC;
 	long long new_version=0;
 	enum MAAT_TABLE_TYPE table_type;
+	const struct plugin_table_desc* plugin_desc=NULL;
 	void* logger=feather->logger;
 
 	if(mr_ctx->write_ctx!=NULL&&mr_ctx->write_ctx->err==0)//authorized to write
@@ -1830,7 +1829,16 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 		table_type=feather->p_table_info[table_id]->table_type;
 		if(rule_list[i].op==MAAT_OP_DEL)
 		{
-			ret=invalidate_line(rule_list[i].table_line,table_type,feather->p_table_info[table_id]->valid_flag_column);
+			if(table_type==TABLE_TYPE_PLUGIN)
+			{
+				plugin_desc=&(feather->p_table_info[table_id]->plugin);
+				valid_column=plugin_desc->valid_flag_column;
+			}
+			else
+			{
+				valid_column=-1;
+			}
+			ret=invalidate_line(rule_list[i].table_line, table_type, valid_column);
 			if(ret<0)
 			{
 				MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor,"Invaid format %s ."
@@ -2015,7 +2023,8 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	int ret=0, table_id=0,success_cnt=0;
 	struct serial_rule_t *s_rule=NULL;
-	struct _Maat_table_info_t* p_table=NULL;
+	struct Maat_table_desc* p_table=NULL;
+	struct plugin_table_desc* plugin_desc=NULL;
 	long long server_time=0,absolute_expire_time=0;
 	const char* p_foreign=NULL;	
 	int foreign_key_size=0;
@@ -2039,6 +2048,7 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 			goto error_out;
 		}
 		p_table=_feather->p_table_info[table_id];
+		plugin_desc=&(p_table->plugin);
 		if(TABLE_TYPE_PLUGIN!=p_table->table_type)
 		{
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_command 
@@ -2052,7 +2062,7 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 		{
 			ret=get_valid_flag_offset(line_rule[i]->table_line
 				, p_table->table_type
-				, p_table->valid_flag_column);
+				, plugin_desc->valid_flag_column);
 			if(ret<0||
 				(op==MAAT_OP_ADD&&line_rule[i]->table_line[ret]!='1'))
 			{
@@ -2071,17 +2081,17 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 		{
 			absolute_expire_time=server_time+line_rule[i]->expire_after;
 		}
-		if(p_table->n_foreign>0)
+		if(plugin_desc->n_foreign>0)
 		{
-			for(j=0;j<p_table->n_foreign;j++)
+			for(j=0;j<plugin_desc->n_foreign;j++)
 			{
-				p_foreign=find_Nth_column(line_rule[i]->table_line, p_table->foreign_columns[j], &foreign_key_size);
+				p_foreign=find_Nth_column(line_rule[i]->table_line, plugin_desc->foreign_columns[j], &foreign_key_size);
 				if(p_foreign==NULL)
 				{
 					MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL, maat_command
 											, "Command set line %s %d failed: No %dth column."
 											, line_rule[i]->table_name, line_rule[i]->rule_id
-											, p_table->foreign_columns[j]);
+											, plugin_desc->foreign_columns[j]);
 					ret=-1;
 					goto error_out;
 				}
@@ -2096,7 +2106,8 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 			}
 
 		}
-		set_serial_rule(s_rule+i, op,line_rule[i]->rule_id,line_rule[i]->label_id,line_rule[i]->table_name,line_rule[i]->table_line, absolute_expire_time);
+		set_serial_rule(s_rule+i, op,line_rule[i]->rule_id,line_rule[i]->label_id, line_rule[i]->table_name,
+						line_rule[i]->table_line, absolute_expire_time);
 	}
 	success_cnt=exec_serial_rule(write_ctx,s_rule, line_num,server_time,_feather->logger);
 	if(success_cnt<0||success_cnt!=line_num)//error
@@ -2126,6 +2137,11 @@ int Maat_cmd_set_file(Maat_feather_t feather,const char* key, const char* value,
 {
 	struct _Maat_feather_t* _feather=(struct _Maat_feather_t*)feather;
 	redisContext* ctx=_feather->mr_ctx.write_ctx;
+	if(ctx==NULL)
+	{
+		MESA_handle_runtime_log(_feather->logger, RLOG_LV_FATAL, maat_command, "%s failed: Redis is not connected.", __FUNCTION__);
+		return -1;
+	}
 	const char *arg_vec[3];
 	size_t len_vec[3];
 	arg_vec[0] = "SET";

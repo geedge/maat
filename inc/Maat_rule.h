@@ -6,7 +6,7 @@
 *	to reside in the heart) of the departed would reach the paradise of afterlife
 *	successfully.
 *	Author: zhengchao@iie.ac.cn, MESA
-*	Version 2018-11-06 Maat Rule Extra Data.
+*	Version 2018-12-07 Plugin Extra Data.
 *	NOTE: MUST compile with G++
 *	All right reserved by Institute of Infomation Engineering,Chinese Academic of Science 2014~2018
 *********************************************************
@@ -165,8 +165,9 @@ enum MAAT_INIT_OPT
 int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT  type,const void* value,int size);
 enum MAAT_STATE_OPT
 {
-	MAAT_STATE_VERSION=1,			//Get current maat version. VALUE is long long, SIZE=sizeof(long long). 
-	MAAT_STATE_LAST_UPDATING_TABLE	//Query at Maat_finish_callback_t to determine whether this table is the last one to update. VALUE is interger, SIZE=sizeof(int), 1:yes, 0: no
+	MAAT_STATE_VERSION=1,			//Get current maat version, if maat is in update progress, the updating version is returned. VALUE is long long, SIZE=sizeof(long long). 
+	MAAT_STATE_LAST_UPDATING_TABLE,	//Query at Maat_finish_callback_t to determine whether this table is the last one to update. VALUE is interger, SIZE=sizeof(int), 1:yes, 0: no
+	MAAT_STATE_IN_UPDATING
 };
 int Maat_read_state(Maat_feather_t feather, enum MAAT_STATE_OPT  type, void* value, int size);
 
@@ -257,6 +258,21 @@ int Maat_rule_get_ex_new_index(Maat_feather_t feather, const char* compile_table
 //returned data is duplicated by dup_func of Maat_rule_get_ex_new_index,  caller is responsible to free the data.
 MAAT_RULE_EX_DATA Maat_rule_get_ex_data(Maat_feather_t feather, const struct Maat_rule_t* rule, int idx);
 
+//Following functions are similar to Maat_rule_get_ex_data, except they are effective on plugin table.
+typedef void*  MAAT_PLUGIN_EX_DATA;
+typedef void Maat_plugin_EX_new_func_t(int table_id, const char* key, const char* table_line, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp);
+typedef void Maat_plugin_EX_free_func_t(int table_id, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp);
+typedef void Maat_plugin_EX_dup_func_t(int table_id,	MAAT_PLUGIN_EX_DATA *to, MAAT_PLUGIN_EX_DATA *from, long argl, void *argp);
+typedef int Maat_plugin_EX_key2index_func_t(const char* key);
+
+int Maat_plugin_EX_register(Maat_feather_t feather, int table_id,
+										Maat_plugin_EX_new_func_t* new_func,
+										Maat_plugin_EX_free_func_t* free_func,
+										Maat_plugin_EX_dup_func_t* dup_func,
+										Maat_plugin_EX_key2index_func_t* key2index_func,
+										long argl, void *argp);
+//Data is duplicated by dup_func of Maat_plugin_EX_register,  caller is responsible to free the data.
+MAAT_PLUGIN_EX_DATA Maat_plugin_get_EX_data(Maat_feather_t feather, int table_id, const char* key);
 
 enum MAAT_RULE_OPT
 {

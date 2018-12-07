@@ -173,7 +173,7 @@ clean_up:
 }
 int count_line_num(const char* table_name,const char* line,void *u_para)
 {
-	(*((int *)u_para))++;
+	(*((unsigned int *)u_para))++;
 	return 0;
 }
 int line_idx=0;
@@ -221,7 +221,7 @@ int make_serial_rule(const char* table_name,const char* line,void *u_para)
 #define WORK_MODE_JSON	1
 int main(int argc, char * argv[])
 {
-	int oc=0,ret=0, i=0,success_cnt=0;
+	int oc=0,ret=0;
 	int model=0;
 	char redis_ip[64];
 	int redis_port=6379;
@@ -230,7 +230,7 @@ int main(int argc, char * argv[])
 	char dump_dir[128], json_file[128], tmp_iris_path[128];
 	strncpy(dump_dir,redis_dump_dir,sizeof(dump_dir));
 	redisContext * ctx=NULL;
-	int total_line_cnt=0;
+	unsigned int total_line_cnt=0, success_cnt=0, i=0;
 	int timeout=0;
 	FILE* json_fp=NULL;
 	cJSON *json=NULL, *tmp_obj=NULL;

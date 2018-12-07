@@ -43,6 +43,11 @@ inline long long alignment_int64_array_cnt(mcore_long_t array,int size)
 	}
 	return cnt;
 }
+inline void alignment_int64_array_reset(mcore_long_t array,int size)
+{
+	memset(array, 0, CPU_CACHE_ALIGMENT*size);
+	return;
+}
 inline void alignment_int64_array_free(mcore_long_t array)
 {
 	free(array);

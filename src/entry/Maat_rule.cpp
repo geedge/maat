@@ -32,7 +32,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_4_20181202=1;
+int MAAT_FRAME_VERSION_2_5_20181205=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -63,6 +63,8 @@ int is_valid_match_method(enum MAAT_MATCH_METHOD match_method)
 			return 0;
 	}
 }
+
+
 iconv_t maat_iconv_open(struct _Maat_scanner_t* scanner,enum MAAT_CHARSET to,enum MAAT_CHARSET from)
 {
 	const char *from_s=CHARSET_STRING[from];
@@ -521,45 +523,14 @@ void rule_ex_data_free(const struct _head_Maat_rule_t * rule_head, const char* s
 }
 
 
-_Maat_table_info_t* create_table_info(int max_thread_num)
-{
-	struct _Maat_table_info_t*p=ALLOC(struct _Maat_table_info_t, 1);
-
-	p->conj_cnt=1;
-	p->scan_cnt=alignment_int64_array_alloc(max_thread_num);
-	p->scan_cpu_time=alignment_int64_array_alloc(max_thread_num);
-	p->input_bytes=alignment_int64_array_alloc(max_thread_num);
-	p->stream_num=alignment_int64_array_alloc(max_thread_num);
-	p->hit_cnt=alignment_int64_array_alloc(max_thread_num);
-	p->cross_cache_size=0;
-	p->quick_expr_switch=0;
-	return p;
-}
-void destroy_table_info(struct _Maat_table_info_t*p)
-{
-	alignment_int64_array_free(p->scan_cnt);
-	alignment_int64_array_free(p->scan_cpu_time);
-	alignment_int64_array_free(p->input_bytes);
-	alignment_int64_array_free(p->stream_num);
-	alignment_int64_array_free(p->hit_cnt);
-	if(p->cb_info!=NULL)
-	{
-		dynamic_array_destroy(p->cb_info->cache_lines, free);
-		p->cb_info->cache_lines=NULL;
-		free(p->cb_info);
-		p->cb_info=NULL;
-	}
-	free(p);
-	return;
-}
-int read_expr_table_info(const char* line, struct _Maat_table_info_t* p, MESA_htable_handle string2int_map)
+int read_expr_table_info(const char* line, struct Maat_table_desc* table, MESA_htable_handle string2int_map)
 {
 	int j=0,ret[4]={0};
 	char table_type[16],src_charset[256],dst_charset[256],merge[4],quick_str_scan[32]={0};
 	char *token=NULL,*sub_token=NULL,*saveptr;
-
-	sscanf(line,"%hu\t%s\t%s\t%s\t%s\t%s\t%d\t%s",&(p->table_id)
-											,p->table_name[0]
+	struct expr_table_desc* p=&(table->expr);
+	sscanf(line,"%d\t%s\t%s\t%s\t%s\t%s\t%d\t%s",&(table->table_id)
+											,table->table_name[0]
 											,table_type
 											,src_charset
 											,dst_charset
@@ -567,7 +538,7 @@ int read_expr_table_info(const char* line, struct _Maat_table_info_t* p, MESA_ht
 											,&(p->cross_cache_size)
 											,quick_str_scan);
 	memset(ret,0,sizeof(ret));
-	ret[0]=map_str2int(string2int_map,str_tolower(table_type),(int*)&(p->table_type));
+	ret[0]=map_str2int(string2int_map,str_tolower(table_type),(int*)&(table->table_type));
 	ret[1]=map_str2int(string2int_map,str_tolower(src_charset),(int*)&(p->src_charset));
 	ret[2]=map_str2int(string2int_map,str_tolower(merge),&(p->do_charset_merge));
 	if(strlen(quick_str_scan)>0)
@@ -606,6 +577,17 @@ int read_expr_table_info(const char* line, struct _Maat_table_info_t* p, MESA_ht
 	}
 	return 0;
 }
+Maat_table_desc* table_info_new(int max_thread_num)
+{
+	struct Maat_table_desc*p=ALLOC(struct Maat_table_desc, 1);
+	p->conj_cnt=1;
+	return p;
+}
+void table_info_free(struct Maat_table_desc*p)
+{
+	free(p);
+	return;
+}
 int _read_integer_arrary(char* string, int *array, int size)
 {
 	char *token=NULL,*sub_token=NULL,*saveptr;
@@ -619,38 +601,29 @@ int _read_integer_arrary(char* string, int *array, int size)
 	}
 	return i;
 }
-int read_plugin_table_info(const char* line, struct _Maat_table_info_t* p)
+
+int read_plugin_table_description(const char* line, struct Maat_table_desc* p)
 {
 	int i=0,ret=0;
-	
-	cJSON* json=NULL, *tmp=NULL;
+	size_t offset=0, len=0;
+	cJSON* json=NULL, *tmp=NULL, *array_item=NULL;
 	char* copy_line=NULL, *plug_info=NULL;
-	char *token=NULL,*sub_token=NULL,*saveptr;
-
-	p->valid_flag_column=-1;
+	struct plugin_table_desc* plugin_desc=&(p->plugin);
 	copy_line=_maat_strdup(line);
-	for (token = copy_line, i=0; ; token= NULL, i++)
-	{
-		sub_token= strtok_r(token,"\t ", &saveptr);
-		if (sub_token == NULL)
-			break;
-		if(i==3)
-		{
-			break;
-		}
-	}
-	if(i<3)
+	ret=get_column_pos(copy_line, 4, &offset, &len);
+	if(i<0)
 	{
 		goto error_out;
 	}
-	plug_info=sub_token;
+	copy_line[offset+len+1]='\0';
+	plug_info=copy_line+offset;
 
 	if(strlen(plug_info)<4)//For old version compatible.
 	{
-		ret=sscanf(plug_info, "%d", &(p->valid_flag_column));
+		ret=sscanf(plug_info, "%d", &(plugin_desc->valid_flag_column));
 		if(ret==0||ret==EOF)
 		{
-			p->valid_flag_column=-1;
+			plugin_desc->valid_flag_column=-1;
 		}
 		free(copy_line);
 		return 0;
@@ -660,20 +633,47 @@ int read_plugin_table_info(const char* line, struct _Maat_table_info_t* p)
 	{
 		goto error_out;
 	}
+	tmp=cJSON_GetObjectItem(json, "key");
+	if(tmp!=NULL)
+	{
+		assert(tmp->type==cJSON_Number);
+		plugin_desc->key_column=tmp->valueint;
+	}
 	tmp=cJSON_GetObjectItem(json, "valid");
 	if(tmp!=NULL)
 	{
-		p->valid_flag_column=tmp->valueint;
+		assert(tmp->type==cJSON_Number);
+		plugin_desc->valid_flag_column=tmp->valueint;
 	}
 	tmp=cJSON_GetObjectItem(json, "tag");
 	if(tmp!=NULL)
 	{
-		p->rule_tag_column=tmp->valueint;
+		assert(tmp->type==cJSON_Number);
+		plugin_desc->rule_tag_column=tmp->valueint;
+	}
+	tmp=cJSON_GetObjectItem(json, "estimate_size");
+	if(tmp!=NULL)
+	{
+		assert(tmp->type==cJSON_Number);
+		plugin_desc->estimate_size=tmp->valueint;
 	}
 	tmp=cJSON_GetObjectItem(json, "foreign");
 	if(tmp!=NULL)
 	{
-		p->n_foreign=_read_integer_arrary(tmp->valuestring, p->foreign_columns, MAX_FOREIGN_CLMN_NUM);
+		if(tmp->type==cJSON_String)
+		{
+			plugin_desc->n_foreign=_read_integer_arrary(tmp->valuestring, plugin_desc->foreign_columns, MAX_FOREIGN_CLMN_NUM);
+		}
+		else if(tmp->type==cJSON_Array)
+		{
+			plugin_desc->n_foreign= cJSON_GetArraySize(tmp);
+			for(i=0;i<plugin_desc->n_foreign; i++)
+			{
+				array_item=cJSON_GetArrayItem(tmp, i);
+				assert(array_item->type==cJSON_Number);
+				plugin_desc->foreign_columns[i]=array_item->valueint;
+			}
+		}
 	}
 	cJSON_Delete(json);
 
@@ -683,15 +683,15 @@ error_out:
 	free(copy_line);
 	return -1;
 }
-int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger)
+int read_table_description(struct Maat_table_desc** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger)
 {
 	FILE*fp=NULL;
 	char line[MAX_TABLE_LINE_SIZE];
 	int i=0,ret=0,table_cnt=0;
 	char table_type_str[16]={0},not_care[1024]={0}, tmp_str[32]={0};
 	MESA_htable_handle string2int_map=map_create();
-	struct _Maat_table_info_t*p=NULL;
-	struct _Maat_table_info_t*conj_table=NULL;
+	struct Maat_table_desc*p=NULL;
+	struct Maat_table_desc*conj_table=NULL;
 	
 	map_register(string2int_map,"expr", TABLE_TYPE_EXPR);
 	map_register(string2int_map,"ip", TABLE_TYPE_IP);
@@ -738,9 +738,9 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 		{
 			continue;
 		}
-		p=create_table_info(max_thread_num);
+		p=table_info_new(max_thread_num);
 
-		ret=sscanf(line,"%hu\t%s\t%s\t%[a-z0-9\t ]",&(p->table_id)
+		ret=sscanf(line,"%d\t%s\t%s\t%[a-z0-9\t ]",&(p->table_id)
 											,p->table_name[0]
 											,table_type_str
 											,not_care);
@@ -771,9 +771,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 				}
 				break;
 			case TABLE_TYPE_PLUGIN:
-				p->cb_info=(struct _plugin_table_info*)calloc(sizeof(struct _plugin_table_info),1);
-				p->cb_info->cache_lines=dynamic_array_create(1024,1024);
-				ret=read_plugin_table_info(line, p);
+				ret=read_plugin_table_description(line, p);
 				if(ret<0)
 				{
 					fprintf(stderr,"Maat read table info %s line %d error:illegal plugin info.\n",table_info_path,i);
@@ -786,11 +784,11 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 				ret=sscanf(not_care,"%[a-z0-9]",tmp_str);
 				if(ret>0)
 				{	
-					ret=map_str2int(string2int_map,str_tolower(tmp_str),(int*)&(p->user_region_encoding));
+					ret=map_str2int(string2int_map,str_tolower(tmp_str),(int*)&(p->compile.user_region_encoding));
 				}
 				if(ret!=1)
 				{
-					p->user_region_encoding=USER_REGION_ENCODE_NONE;
+					p->compile.user_region_encoding=USER_REGION_ENCODE_NONE;
 				}
 			default:
 				break;
@@ -828,7 +826,7 @@ int read_table_info(struct _Maat_table_info_t** p_table_info,int num,const char*
 		table_cnt++;
 		continue;
 error_jump:
-		destroy_table_info(p);
+		table_info_free(p);
 		p=NULL;
 	}
 	fclose(fp);
@@ -988,7 +986,8 @@ struct _Maat_compile_inner_t * create_compile_rule(int compile_id)
 }
 void _destroy_compile_rule(struct _Maat_compile_inner_t * compile_rule)
 {
-	const struct _Maat_table_info_t* table=compile_rule->ref_table;
+	const struct Maat_table_desc* table=compile_rule->ref_table;
+	const struct compile_table_desc* compile_desc=&(table->compile);
 	struct db_compile_rule_t* db_compile_rule=compile_rule->db_c_rule;
 	int i=0;
 	compile_rule->compile_id=-1;
@@ -999,9 +998,9 @@ void _destroy_compile_rule(struct _Maat_compile_inner_t * compile_rule)
 
 	if(db_compile_rule!=NULL)
 	{
-		for(i=0; i<table->ex_data_num; i++)
+		for(i=0; i<compile_desc->ex_data_num; i++)
 		{
-			rule_ex_data_free(&(db_compile_rule->m_rule_head), db_compile_rule->service_defined, compile_rule->ads+i, table->ex_desc+i);
+			rule_ex_data_free(&(db_compile_rule->m_rule_head), db_compile_rule->service_defined, compile_rule->ads+i, compile_desc->ex_desc+i);
 			compile_rule->ads[i]=NULL;
 		}
 		
@@ -1152,7 +1151,7 @@ void op_expr_add_rule(struct op_expr_t* op_expr,scan_rule_t* p_rule)
 	op_expr->rule_type=p_rule->rule_type;
 	return;
 }
-GIE_digest_t* create_digest_rule(unsigned int id,short op,const char* digest,
+GIE_digest_t* create_digest_rule(unsigned int id, enum GIE_operation op,const char* digest,
 						short cfds_lvl,struct _Maat_group_inner_t* tag)
 {
 	GIE_digest_t* rule=(GIE_digest_t*)calloc(sizeof(GIE_digest_t),1);
@@ -1182,13 +1181,99 @@ void destroy_digest_rule(GIE_digest_t*rule)
 	rule=NULL;
 	return;
 }
+
+
+struct Maat_table_runtime* table_runtime_new(const struct Maat_table_desc* table_desc, int max_thread_num)
+{
+
+	struct Maat_table_runtime* table_rt= ALLOC(struct Maat_table_runtime, 1);
+	table_rt->table_type=table_desc->table_type;
+	switch(table_desc->table_type)
+	{
+		case TABLE_TYPE_DIGEST:
+		case TABLE_TYPE_SIMILARITY:
+			table_rt->similar.update_q=MESA_lqueue_create(0,0);
+			break;
+		case TABLE_TYPE_PLUGIN:
+			table_rt->plugin.cache_lines=dynamic_array_create(1, 1024);
+			if(table_desc->plugin.have_exdata)
+			{
+				table_rt->plugin.key2ex_hash=wrap_plugin_EX_hash_new(table_desc->plugin.estimate_size, 
+										table_desc->plugin.ex_desc.key2index_func);
+				pthread_rwlock_init(&(table_rt->plugin.rwlock), NULL);
+			}
+			break;
+		default:
+			break;
+	}
+
+	table_rt->scan_cnt=alignment_int64_array_alloc(max_thread_num);
+	table_rt->scan_cpu_time=alignment_int64_array_alloc(max_thread_num);
+	table_rt->input_bytes=alignment_int64_array_alloc(max_thread_num);
+	table_rt->stream_num=alignment_int64_array_alloc(max_thread_num);
+	table_rt->hit_cnt=alignment_int64_array_alloc(max_thread_num);
+	return table_rt;
+}
+void table_runtime_free(struct Maat_table_runtime* p)
+{
+	long q_cnt=0,data_size=0;
+	int i=0;
+	UNUSED int q_ret=0;
+
+	GIE_digest_t* digest_rule=NULL;
+	if(p==NULL)
+	{
+		return;
+	}
+	switch(p->table_type)
+	{
+		case TABLE_TYPE_DIGEST:
+		case TABLE_TYPE_SIMILARITY:
+			if(p->similar.gie_handle!=NULL)
+			{
+				GIE_destory(p->similar.gie_handle);
+			}
+			if(p->similar.update_q!=NULL)
+			{
+				q_cnt=MESA_lqueue_get_count(p->similar.update_q);
+				for(i=0;i<q_cnt;i++)
+				{
+					data_size=sizeof(GIE_digest_t*);
+					q_ret=(MESA_queue_errno_t)MESA_lqueue_get_head(p->similar.update_q,&digest_rule,&data_size);
+					assert(data_size==sizeof(void*)&&q_ret==MESA_QUEUE_RET_OK);
+					destroy_digest_rule(digest_rule);
+				}
+				MESA_lqueue_destroy(p->similar.update_q, lqueue_destroy_cb, NULL);				
+			}
+			break;
+		case TABLE_TYPE_PLUGIN:
+			dynamic_array_destroy(p->plugin.cache_lines, free);
+			p->plugin.cache_lines=NULL;
+			if(p->plugin.key2ex_hash!=NULL)
+			{
+				MESA_htable_destroy(p->plugin.key2ex_hash, NULL);
+			}
+			break;
+		default:
+			break;
+	}
+
+	alignment_int64_array_free(p->scan_cnt);
+	alignment_int64_array_free(p->scan_cpu_time);
+	alignment_int64_array_free(p->input_bytes);
+	alignment_int64_array_free(p->stream_num);
+	alignment_int64_array_free(p->hit_cnt);
+	free(p);
+	return;
+}
+
 struct _Maat_scanner_t* create_maat_scanner(unsigned int version,_Maat_feather_t *feather)
 {
 	int scan_thread_num=feather->scan_thread_num;
-	MESA_lqueue_head tomb=feather->garbage_q;
 //	int rs_scan_type=feather->rule_scan_type;
-	struct _Maat_table_info_t ** pp_table=feather->p_table_info;
-
+	struct Maat_table_desc ** pp_table_desc=feather->p_table_info;
+	struct Maat_table_runtime* table_rt=NULL;
+	const struct expr_table_desc* expr_desc=NULL;
 	int i=0,j=0;
 	unsigned int sub_type=0;
 	UNUSED int ret=0;
@@ -1209,7 +1294,7 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,_Maat_feather_t
 	hargs.data_expire_with_condition = NULL;
 
 	struct _Maat_scanner_t* scanner=NULL;
-	scanner=(struct _Maat_scanner_t*)calloc(sizeof(struct _Maat_scanner_t),1);
+	scanner=ALLOC(struct _Maat_scanner_t, 1);
 
 	//Function Maat_cmd_append will access compile_hash in user thread.
 	hargs.thread_safe=1;
@@ -1232,7 +1317,7 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,_Maat_feather_t
 	scanner->max_thread_num=scan_thread_num;
 	//optimized for CPU cache_alignment 64
 	scanner->ref_cnt=alignment_int64_array_alloc(scan_thread_num);
-	scanner->region_update_q=MESA_lqueue_create(0,0);
+	scanner->region_update_q=MESA_lqueue_create(0, 0);
 	scanner->region=rulescan_initialize(scan_thread_num);
 	
 	//For best performance test:
@@ -1247,41 +1332,34 @@ struct _Maat_scanner_t* create_maat_scanner(unsigned int version,_Maat_feather_t
 		rulescan_set_param(scanner->region,RULESCAN_DETAIL_RESULT,NULL,0);
 		rulescan_set_param(scanner->region,RULESCAN_REGEX_GROUP,NULL,0);
 	}
-	scanner->tomb_ref=tomb;
-	scanner->region_rslt_buff=(scan_result_t*)malloc(sizeof(scan_result_t)*MAX_SCANNER_HIT_NUM*scan_thread_num);
+	scanner->tomb_ref=feather->garbage_q;
+	scanner->region_rslt_buff=ALLOC(scan_result_t, MAX_SCANNER_HIT_NUM*scan_thread_num);
 
 	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
-		if(pp_table[i]==NULL)
+		if(pp_table_desc[i]==NULL)
 		{
 			continue;
 		}
-		switch(pp_table[i]->table_type)
-		{
-			case TABLE_TYPE_DIGEST:
-			case TABLE_TYPE_SIMILARITY:
-				scanner->gie_aux[i].table_type=pp_table[i]->table_type;
-				scanner->gie_aux[i].update_q=MESA_lqueue_create(0,0);
-				break;
-			case TABLE_TYPE_EXPR:
-			case TABLE_TYPE_EXPR_PLUS:
-				if(pp_table[i]->quick_expr_switch==1)
+		table_rt=table_runtime_new(pp_table_desc[i], feather->scan_thread_num);
+		if(pp_table_desc[i]->table_type==TABLE_TYPE_EXPR||pp_table_desc[i]->table_type==TABLE_TYPE_EXPR_PLUS)
+ 		{
+			expr_desc=&(pp_table_desc[i]->expr);
+			if(expr_desc->quick_expr_switch==1)
+			{
+				for(j=0;j<MAX_CHARSET_NUM&& pp_table_desc[i]->expr.dst_charset[j]!=CHARSET_NONE;j++)
 				{
-					for(j=0;j<MAX_CHARSET_NUM&& pp_table[i]->dst_charset[j]!=CHARSET_NONE;j++)
+					sub_type=make_sub_type(pp_table_desc[i]->table_id, expr_desc->dst_charset[j], expr_desc->do_charset_merge);
+					ret=rulescan_set_param(scanner->region,RULESCAN_QUICK_SCAN,&sub_type,sizeof(sub_type));
+					assert(ret==1);
+					if(expr_desc->do_charset_merge==1)
 					{
-						sub_type=make_sub_type(pp_table[i]->table_id, pp_table[i]->dst_charset[j], pp_table[i]->do_charset_merge);
-						ret=rulescan_set_param(scanner->region,RULESCAN_QUICK_SCAN,&sub_type,sizeof(sub_type));
-						assert(ret==1);
-						if(pp_table[i]->do_charset_merge==1)
-						{
-							break;
-						}
+						break;
 					}
 				}
-				break;
-			default:
-				break;
+			}
 		}
+		scanner->table_rt[i]=table_rt;
 	}
 	return scanner;
 }
@@ -1294,7 +1372,6 @@ void destroy_maat_scanner(struct _Maat_scanner_t*scanner)
 	int i=0,j=0;
 	UNUSED int q_ret=0;
 	struct op_expr_t* op_expr=NULL;
-	GIE_digest_t* digest_rule=NULL;
 	if(scanner==NULL)
 	{
 		return;
@@ -1306,7 +1383,7 @@ void destroy_maat_scanner(struct _Maat_scanner_t*scanner)
 	map_destroy(scanner->district_map);
 	scanner->district_map=NULL;
 	assert(scanner->tmp_district_map==NULL);
-	destroy_bool_matcher((void*)scanner->expr_compiler);
+	destroy_bool_matcher((void*)scanner->bool_macher_expr_compiler);
 	q_cnt=MESA_lqueue_get_count(scanner->region_update_q);
 	for(i=0;i<q_cnt;i++)
 	{
@@ -1318,7 +1395,7 @@ void destroy_maat_scanner(struct _Maat_scanner_t*scanner)
 	MESA_lqueue_destroy(scanner->region_update_q, lqueue_destroy_cb, NULL);
 	free(scanner->region_rslt_buff);
 	scanner->region_rslt_buff=NULL;
-	free(scanner->ref_cnt);
+	alignment_int64_array_free(scanner->ref_cnt);
 	scanner->ref_cnt=NULL;
 	for(i=0;i<MAX_CHARSET_NUM;i++)
 	{
@@ -1332,23 +1409,7 @@ void destroy_maat_scanner(struct _Maat_scanner_t*scanner)
 	}
 	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
-		if(scanner->gie_aux[i].gie_handle!=NULL)
-		{
-			GIE_destory(scanner->gie_aux[i].gie_handle);
-		}
-		if(scanner->gie_aux[i].update_q==NULL)
-		{
-			continue;
-		}
-		q_cnt=MESA_lqueue_get_count(scanner->gie_aux[i].update_q);
-		for(j=0;j<q_cnt;j++)
-		{
-			data_size=sizeof(GIE_digest_t*);
-			q_ret=(MESA_queue_errno_t)MESA_lqueue_get_head(scanner->gie_aux[i].update_q,&digest_rule,&data_size);
-			assert(data_size==sizeof(void*)&&q_ret==MESA_QUEUE_RET_OK);
-			destroy_digest_rule(digest_rule);
-		}
-		MESA_lqueue_destroy(scanner->gie_aux[i].update_q, lqueue_destroy_cb, NULL);
+		table_runtime_free(scanner->table_rt[i]);
 	}
 	free(scanner);
 	return;
@@ -1377,6 +1438,20 @@ void destroy_ip_expr(boolean_expr_t*p)
 	free(p);
 	return;
 }
+struct _region_stat_t
+{
+	int cfg_num;
+	union
+	{
+		int expr_rule_cnt;	//expr_type=0,1,3
+		int ipv4_rule_cnt;
+	};
+	union
+	{
+		int regex_rule_cnt;	//expr_type=2
+		int ipv6_rule_cnt;
+	};
+};
 void count_rs_region(struct op_expr_t* op_expr,struct _region_stat_t* region_stat, int size)
 {
 	assert(op_expr->table_id<size);
@@ -1420,9 +1495,10 @@ void count_rs_region(struct op_expr_t* op_expr,struct _region_stat_t* region_sta
 void rulescan_batch_update(rule_scanner_t rs_handle,MESA_lqueue_head expr_queue,void*logger,struct _Maat_scanner_t* maat_scanner)
 {
 	long i=0,data_size=0;
-	int j=0,ret=0;
+	unsigned int j=0;
+	int ret=0;
 	unsigned int failed_ids[MAX_FAILED_NUM];
-	char failed_info[512],*p=NULL;
+	char failed_info[512], *p=NULL;
 	UNUSED	MESA_queue_errno_t q_ret=MESA_QUEUE_RET_OK; 
 	memset(failed_ids,0,sizeof(failed_ids));
 	memset(failed_info,0,sizeof(failed_info));
@@ -1430,12 +1506,13 @@ void rulescan_batch_update(rule_scanner_t rs_handle,MESA_lqueue_head expr_queue,
 	struct timespec start,end;
 	unsigned long long update_interval=0;
 	struct _region_stat_t region_counter[MAX_TABLE_NUM];
+	memset(region_counter, 0, sizeof(region_counter));
+	struct Maat_table_runtime* table_rt=NULL;
 	if(q_cnt==0)
 	{
 		return;
 	}
-	memset(region_counter,0,sizeof(region_counter));
-	boolean_expr_t* to_update_expr=(boolean_expr_t*)calloc(sizeof(boolean_expr_t),q_cnt);
+	boolean_expr_t* to_update_expr= ALLOC(boolean_expr_t, q_cnt);
 	struct op_expr_t* op_expr=NULL;
 	for(i=0;i<q_cnt;i++)
 	{
@@ -1444,8 +1521,8 @@ void rulescan_batch_update(rule_scanner_t rs_handle,MESA_lqueue_head expr_queue,
 		assert(data_size==sizeof(void*)&&q_ret==MESA_QUEUE_RET_OK);
 		memcpy(&(to_update_expr[i]),op_expr->p_expr,sizeof(boolean_expr_t));
 		//make a whole memory chunk
-		to_update_expr[i].rules=(scan_rule_t*)calloc(sizeof(scan_rule_t),op_expr->p_expr->rnum);
-		for(j=0;j<(int)op_expr->p_expr->rnum;j++)
+		to_update_expr[i].rules= ALLOC(scan_rule_t, op_expr->p_expr->rnum);
+		for(j=0;j<op_expr->p_expr->rnum;j++)
 		{
 			memcpy(&(to_update_expr[i].rules[j]),op_expr->p_rules[j],sizeof(scan_rule_t));
 			if(to_update_expr[i].rules[j].rule_type==RULETYPE_REG||to_update_expr[i].rules[j].rule_type==RULETYPE_STR)
@@ -1456,6 +1533,7 @@ void rulescan_batch_update(rule_scanner_t rs_handle,MESA_lqueue_head expr_queue,
 					,to_update_expr[i].rules[j].string_rule.len);
 			}
 		}
+		
 		count_rs_region(op_expr,region_counter,MAX_TABLE_NUM);
 		destroy_op_expr(op_expr);
 		op_expr=NULL;
@@ -1485,16 +1563,32 @@ void rulescan_batch_update(rule_scanner_t rs_handle,MESA_lqueue_head expr_queue,
 	//update scanner's region cnt;
 	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
-		maat_scanner->region_counter[i].cfg_num+=region_counter[i].cfg_num;
-		maat_scanner->region_counter[i].expr_rule_cnt+=region_counter[i].expr_rule_cnt;
-		maat_scanner->region_counter[i].regex_rule_cnt+=region_counter[i].regex_rule_cnt;
-		assert(maat_scanner->region_counter[i].cfg_num>=0);
-		assert(maat_scanner->region_counter[i].expr_rule_cnt>=0);
-		assert(maat_scanner->region_counter[i].regex_rule_cnt>=0);
+		table_rt=maat_scanner->table_rt[i];
+		if(table_rt==NULL)
+		{
+			continue;
+		}
+		switch(table_rt->table_type)
+		{
+			case TABLE_TYPE_EXPR:
+			case TABLE_TYPE_EXPR_PLUS:
+				table_rt->expr.expr_rule_cnt+=region_counter[i].expr_rule_cnt;
+				table_rt->expr.regex_rule_cnt+=region_counter[i].regex_rule_cnt;
+				assert(table_rt->expr.expr_rule_cnt>=0);
+				assert(table_rt->expr.regex_rule_cnt>=0);
+				break;
+			case TABLE_TYPE_IP:
+				table_rt->ip.ipv4_rule_cnt+=region_counter[i].ipv4_rule_cnt;
+				table_rt->ip.ipv6_rule_cnt+=region_counter[i].ipv6_rule_cnt;
+				break;
+			default:
+				break;
+		}
+		assert(table_rt->origin_rule_num>=0);
 	}
 	for(i=0;i<q_cnt;i++)
 	{
-		for(j=0;j<(int)to_update_expr[i].rnum;j++)
+		for(j=0;j<to_update_expr[i].rnum;j++)
 		{
 			if(to_update_expr[i].rules[j].rule_type==RULETYPE_REG||to_update_expr[i].rules[j].rule_type==RULETYPE_STR)
 			{
@@ -1518,8 +1612,7 @@ void digest_batch_update(GIE_handle_t* handle,MESA_lqueue_head update_q,void*log
 	{
 		return;
 	}
-	struct _region_stat_t region_counter[MAX_TABLE_NUM];
-	memset(region_counter,0,sizeof(region_counter));
+	struct Maat_table_runtime* table_rt=maat_scanner->table_rt[table_id];
 	update_array=(GIE_digest_t** )calloc(sizeof(GIE_digest_t*),q_cnt);
 	for(i=0;i<q_cnt;i++)
 	{
@@ -1540,11 +1633,11 @@ void digest_batch_update(GIE_handle_t* handle,MESA_lqueue_head update_q,void*log
 	{
 		if(update_array[i]->operation==GIE_INSERT_OPT)
 		{
-			maat_scanner->region_counter[table_id].cfg_num++;
+			table_rt->origin_rule_num++;
 		}
 		else
 		{
-			maat_scanner->region_counter[table_id].cfg_num--;
+			table_rt->origin_rule_num--;
 		}
 		destroy_digest_rule(update_array[i]);
 		update_array[i]=NULL;
@@ -1789,13 +1882,13 @@ int get_district_id(_Maat_scanner_t *scanner,const char* district_str)
 	}
 	return district_id;
 }
-int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule,struct _Maat_scanner_t *scanner,void* logger)
+int add_expr_rule(struct Maat_table_desc* table,struct db_str_rule_t* db_rule,struct _Maat_scanner_t *scanner,void* logger)
 {
 	unsigned int i=0,j=0;
 	char* p=NULL,*saveptr=NULL,*region_string=NULL;
 	int region_str_len=0,ret=0,k=0;
 	int expr_id=0,district_id=-1;
-	
+	struct expr_table_desc* expr_desc=&(table->expr);
 	scan_rule_t*p_rule=NULL;
 	struct _Maat_group_inner_t* group_rule=NULL;
 	enum MAAT_CHARSET dst_charset=CHARSET_NONE;
@@ -1841,7 +1934,6 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 				sub_key_array[i]=str_unescape(sub_key_array[i]);
 			}
 			sub_expr_cnt=i;
-			table->expr_rule_cnt++;
 			break;
 		case EXPR_TYPE_OFFSET:
 			for(i=0,p=db_rule->keywords;;i++,p=NULL)
@@ -1875,7 +1967,6 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 				sub_key_array[i]=str_unescape(sub_key_array[i]);
 			}
 			sub_expr_cnt=i;
-			table->expr_rule_cnt++;
 			break;
 		case EXPR_TYPE_REGEX://it's easy,no need to charset convert
 			expr_id=scanner->exprid_generator++;
@@ -1914,14 +2005,12 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 			
 			}
 			MESA_lqueue_join_tail(scanner->region_update_q,&op_expr, sizeof(void*));
-			table->regex_rule_cnt++;
 			return 0;//yes,we returned.
 			break;
 		case EXPR_TYPE_STRING:
 			sub_expr_cnt=1;
 			sub_key_array[0]=db_rule->keywords;
 			sub_key_array[0]=str_unescape(sub_key_array[0]);
-			table->expr_rule_cnt++;
 			break;
 		default:
 			break;
@@ -1940,7 +2029,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 	{
 		for(j=0;j<MAX_CHARSET_NUM;j++)
 		{
-			dst_charset=table->dst_charset[j];
+			dst_charset=expr_desc->dst_charset[j];
 			if(dst_charset==CHARSET_NONE)
 			{
 				break;
@@ -1964,10 +2053,10 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 				}
 				region_str_len=strlen(sub_key_array[k])*8+1; // 1 byte map to 8 bytes maximum, e.g. "&#x0627;" or "\u63221;"
 				region_string=(char*)calloc(sizeof(char),region_str_len);
-				if(table->src_charset!=dst_charset)//need convert
+				if(expr_desc->src_charset!=dst_charset)//need convert
 				{
 
-					ret=universal_charset_convert(scanner,table->src_charset, dst_charset, 
+					ret=universal_charset_convert(scanner,expr_desc->src_charset, dst_charset, 
 										sub_key_array[k],strlen(sub_key_array[k]),
 										region_string, &region_str_len);
 					if(ret<0)
@@ -1975,11 +2064,11 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 						MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
 								"Table %s region cfg %d charset convert from %s to %s failed.",table->table_name
 																					,db_rule->region_id
-																					,CHARSET_STRING[table->src_charset]
+																					,CHARSET_STRING[expr_desc->src_charset]
 																					,CHARSET_STRING[dst_charset]);
 						free(region_string);
 						op_expr->convert_failed++;
-						table->iconv_err_cnt++;
+						expr_desc->iconv_err_cnt++;
 						break;
 					}
 					if(region_str_len==(int)strlen(sub_key_array[k])&&
@@ -1993,7 +2082,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 					memcpy(region_string,sub_key_array[k],strlen(sub_key_array[k]));
 					region_str_len=strlen(sub_key_array[k]);
 				}
-				p_rule=create_rs_str_rule(make_sub_type(table->table_id,dst_charset,table->do_charset_merge)
+				p_rule=create_rs_str_rule(make_sub_type(table->table_id,dst_charset,expr_desc->do_charset_merge)
 										,db_rule->match_method
 										,db_rule->is_case_sensitive
 										,region_string
@@ -2006,7 +2095,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 			}
 			//if each sub string's convert take no effect and src charset is one of the dst.
 			//if any sub expr convert failed
-			if((TRUE==table->src_charset_in_dst&&op_expr->no_effect_convert_cnt==sub_expr_cnt)||
+			if((TRUE==expr_desc->src_charset_in_dst&&op_expr->no_effect_convert_cnt==sub_expr_cnt)||
 				op_expr->convert_failed>0)
 			{
 				scanner->dedup_expr_num++;
@@ -2042,7 +2131,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 			region_string=(char*)calloc(sizeof(char),region_str_len);
 			region_str_len=hex2bin(sub_key_array[0], strlen(sub_key_array[0]),region_string,region_str_len);
 			
-			p_rule=create_rs_str_rule(make_sub_type(table->table_id,dst_charset,table->do_charset_merge)
+			p_rule=create_rs_str_rule(make_sub_type(table->table_id,dst_charset,expr_desc->do_charset_merge)
 									,db_rule->match_method
 									,db_rule->is_case_sensitive
 									,region_string
@@ -2057,7 +2146,7 @@ int add_expr_rule(struct _Maat_table_info_t* table,struct db_str_rule_t* db_rule
 	}
 	return 0;
 }
-int add_ip_rule(struct _Maat_table_info_t* table,struct db_ip_rule_t* db_ip_rule,struct _Maat_scanner_t *scanner,void* logger)
+int add_ip_rule(struct Maat_table_desc* table,struct db_ip_rule_t* db_ip_rule,struct _Maat_scanner_t *scanner,void* logger)
 {
 	struct _Maat_group_inner_t* group_rule=NULL;
 	scan_rule_t* p_rule=NULL;
@@ -2089,7 +2178,7 @@ int add_ip_rule(struct _Maat_table_info_t* table,struct db_ip_rule_t* db_ip_rule
 	MESA_lqueue_join_tail(scanner->region_update_q, &op_expr, sizeof(void*));
 	return 0;
 }
-int add_intval_rule(struct _Maat_table_info_t* table,struct db_intval_rule_t* intval_rule,struct _Maat_scanner_t *scanner,void* logger)
+int add_intval_rule(struct Maat_table_desc* table,struct db_intval_rule_t* intval_rule,struct _Maat_scanner_t *scanner,void* logger)
 {
 	struct _Maat_group_inner_t* group_rule=NULL;
 	scan_rule_t* p_rule=NULL;
@@ -2120,11 +2209,12 @@ int add_intval_rule(struct _Maat_table_info_t* table,struct db_intval_rule_t* in
 	MESA_lqueue_join_tail(scanner->region_update_q, &op_expr, sizeof(void*));
 	return 0;
 }
-int add_digest_rule(struct _Maat_table_info_t* table,struct db_digest_rule_t* db_digest_rule,struct _Maat_scanner_t *scanner,void* logger)
+int add_digest_rule(struct Maat_table_desc* table,struct db_digest_rule_t* db_digest_rule,struct _Maat_scanner_t *scanner,void* logger)
 {
 	struct _Maat_group_inner_t* group_rule=NULL;
 	GIE_digest_t* digest_rule=NULL;
 	struct _Maat_group_inner_t* u_para=NULL;
+	struct Maat_table_runtime * table_rt=scanner->table_rt[table->table_id];
 	int expr_id=0,district_id=-1;
 
 	group_rule=(struct _Maat_group_inner_t*)HASH_fetch_by_id(scanner->group_hash, db_digest_rule->group_id);
@@ -2147,11 +2237,11 @@ int add_digest_rule(struct _Maat_table_info_t* table,struct db_digest_rule_t* db
 								,db_digest_rule->digest_string
 								,db_digest_rule->confidence_degree
 								,group_rule);
-	MESA_lqueue_join_tail(scanner->gie_aux[table->table_id].update_q, &digest_rule, sizeof(void*));
+	MESA_lqueue_join_tail(table_rt->similar.update_q, &digest_rule, sizeof(void*));
 	scanner->gie_total_q_size++;
 	return 0;
 }
-int del_region_rule(struct _Maat_table_info_t* table,int region_id,int group_id,int rule_type,struct _Maat_scanner_t *maat_scanner,void* logger)
+int del_region_rule(struct Maat_table_desc* table,int region_id,int group_id,int rule_type,struct _Maat_scanner_t *maat_scanner,void* logger)
 {
 	int i=0;
 	unsigned int expr_id[MAAT_MAX_EXPR_ITEM_NUM*MAX_CHARSET_NUM]={0};
@@ -2200,7 +2290,7 @@ int del_region_rule(struct _Maat_table_info_t* table,int region_id,int group_id,
 									,NULL
 									,0
 									,NULL);
-			MESA_lqueue_join_tail(maat_scanner->gie_aux[table->table_id].update_q,&digest_rule, sizeof(void*));
+			MESA_lqueue_join_tail(maat_scanner->table_rt[table->table_id]->similar.update_q,&digest_rule, sizeof(void*));
 			maat_scanner->gie_total_q_size++;
 			break;
 		default:
@@ -2213,9 +2303,9 @@ int del_region_rule(struct _Maat_table_info_t* table,int region_id,int group_id,
 		garbage_bagging(GARBAGE_GROUP_RULE, group_rule, maat_scanner->tomb_ref);
 
 	}
-	return 1;
+	return 0;
 }
-int add_group_rule(struct _Maat_table_info_t* table,struct db_group_rule_t* db_group_rule,struct _Maat_scanner_t *scanner,void* logger)
+int add_group_rule(struct Maat_table_desc* table,struct db_group_rule_t* db_group_rule,struct _Maat_scanner_t *scanner,void* logger)
 {
 	struct _Maat_group_inner_t* group_rule=NULL;
 	struct _Maat_compile_inner_t*compile_rule=NULL;
@@ -2250,7 +2340,7 @@ int add_group_rule(struct _Maat_table_info_t* table,struct db_group_rule_t* db_g
 	return 0;
 	
 }
-void del_group_rule(struct _Maat_table_info_t* table,struct db_group_rule_t* db_group_rule,struct _Maat_scanner_t *scanner,void* logger)
+void del_group_rule(struct Maat_table_desc* table,struct db_group_rule_t* db_group_rule,struct _Maat_scanner_t *scanner,void* logger)
 {
 	struct _Maat_compile_inner_t*compile_rule=NULL;
 	struct _Maat_group_inner_t* group_rule=NULL;
@@ -2285,7 +2375,7 @@ void del_group_rule(struct _Maat_table_info_t* table,struct db_group_rule_t* db_
 	}
 	return;
 }
-int add_compile_rule(struct _Maat_table_info_t* table,struct db_compile_rule_t* db_compile_rule,struct _Maat_scanner_t *scanner,void* logger)
+int add_compile_rule(struct Maat_table_desc* table,struct db_compile_rule_t* db_compile_rule,struct _Maat_scanner_t *scanner,void* logger)
 {
 	struct _Maat_compile_inner_t *compile_rule=NULL;
 	struct _head_Maat_rule_t *p_maat_rule_head=&(db_compile_rule->m_rule_head);
@@ -2307,9 +2397,9 @@ int add_compile_rule(struct _Maat_table_info_t* table,struct db_compile_rule_t* 
 	pthread_rwlock_wrlock(&(compile_rule->rwlock));		
 	compile_rule->ref_table=table;
 	compile_rule->db_c_rule=db_compile_rule;
-	for(i=0; i<table->ex_data_num; i++)
+	for(i=0; i<table->compile.ex_data_num; i++)
 	{
-		compile_rule->ads[i]=rule_ex_data_new(p_maat_rule_head, db_compile_rule->service_defined, table->ex_desc+i);
+		compile_rule->ads[i]=rule_ex_data_new(p_maat_rule_head, db_compile_rule->service_defined, table->compile.ex_desc+i);
 	}
 	compile_rule->is_valid=1;
 	pthread_rwlock_unlock(&(compile_rule->rwlock));
@@ -2317,7 +2407,7 @@ int add_compile_rule(struct _Maat_table_info_t* table,struct db_compile_rule_t* 
 	return 0;
 	
 }
-int del_compile_rule(struct _Maat_table_info_t* table,struct db_compile_rule_t* db_compile_rule,struct _Maat_scanner_t *scanner,void* logger)
+int del_compile_rule(struct Maat_table_desc* table,struct db_compile_rule_t* db_compile_rule,struct _Maat_scanner_t *scanner,void* logger)
 {
 	struct _Maat_compile_inner_t *compile_rule=NULL;
 	compile_rule=(struct _Maat_compile_inner_t*)HASH_fetch_by_id(scanner->compile_hash, db_compile_rule->m_rule_head.config_id);
@@ -2340,9 +2430,10 @@ int del_compile_rule(struct _Maat_table_info_t* table,struct db_compile_rule_t* 
 	}
 	return 1;
 }
-void update_group_rule(struct _Maat_table_info_t* table,const char* table_line,struct _Maat_scanner_t *scanner,void* logger)
+void update_group_rule(struct Maat_table_desc* table,const char* table_line,struct _Maat_scanner_t *scanner,void* logger)
 {
 	struct db_group_rule_t db_group_rule;
+	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
 	int ret=0;
 	ret=sscanf(table_line,"%d\t%d\t%d",&(db_group_rule.group_id)
 										,&(db_group_rule.compile_id)
@@ -2361,7 +2452,7 @@ void update_group_rule(struct _Maat_table_info_t* table,const char* table_line,s
 		//leave no trace when compatible_group_update calling
 		if(table->table_type==TABLE_TYPE_GROUP)
 		{
-			table->cfg_num--;
+			table_rt->origin_rule_num--;
 		}
 	}
 	else
@@ -2380,14 +2471,14 @@ void update_group_rule(struct _Maat_table_info_t* table,const char* table_line,s
 			//no need to free db_group_rule,it was saved in scanner->compile_hash
 			if(table->table_type==TABLE_TYPE_GROUP)
 			{
-				table->cfg_num++;
+				table_rt->origin_rule_num++;
 			}
 		}
 	}
 	
 	return;	
 }
-void compatible_group_udpate(struct _Maat_table_info_t* table,int region_id,int compile_id,int is_valid,struct _Maat_scanner_t *scanner,void* logger)
+void compatible_group_udpate(struct Maat_table_desc* table,int region_id,int compile_id,int is_valid,struct _Maat_scanner_t *scanner,void* logger)
 {
 	char virtual_group_line[256];
 	snprintf(virtual_group_line,sizeof(virtual_group_line),
@@ -2395,10 +2486,12 @@ void compatible_group_udpate(struct _Maat_table_info_t* table,int region_id,int 
 	update_group_rule(table, virtual_group_line,scanner,logger);
 	return;
 }
-void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,struct _Maat_scanner_t *scanner,void* logger,int group_mode_on)
+void update_expr_rule(struct Maat_table_desc* table,const char* table_line,struct _Maat_scanner_t *scanner,void* logger,int group_mode_on)
 {
 	struct db_str_rule_t* maat_str_rule=ALLOC(struct db_str_rule_t, 1);
 	int ret=0,db_hexbin=0,rule_type=0;
+	const struct expr_table_desc* expr_desc=&(table->expr);
+	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
 	switch(table->table_type)
 	{
 		case	TABLE_TYPE_EXPR:
@@ -2517,13 +2610,13 @@ void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,st
 		ret=del_region_rule(table
 							,maat_str_rule->region_id,maat_str_rule->group_id,rule_type
 							,scanner, logger);
-		if(ret>0)
+		if(ret<0)
 		{
-			table->cfg_num--;
+			table->udpate_err_cnt++;
 		}
 		else
 		{
-			table->udpate_err_cnt++;
+			table_rt->origin_rule_num--;
 		}
 	}
 	else
@@ -2538,7 +2631,7 @@ void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,st
 				
 		}
 		if(maat_str_rule->expr_type==EXPR_TYPE_STRING
-			&&table->quick_expr_switch==1
+			&&expr_desc->quick_expr_switch==1
 			&&maat_str_rule->match_method!=MATCH_METHOD_SUB)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
@@ -2557,18 +2650,19 @@ void update_expr_rule(struct _Maat_table_info_t* table,const char* table_line,st
 		}
 		else
 		{
-			table->cfg_num++;
+			table_rt->origin_rule_num++;
 		}
+
 	}
 error_out:
 	free(maat_str_rule);
 	maat_str_rule=NULL;
 }
-void update_ip_rule(struct _Maat_table_info_t* table,const char* table_line,struct _Maat_scanner_t *scanner,void* logger,int group_mode_on)
+void update_ip_rule(struct Maat_table_desc* table,const char* table_line,struct _Maat_scanner_t *scanner,void* logger,int group_mode_on)
 {
 	struct db_ip_rule_t* ip_rule=(struct db_ip_rule_t*)calloc(sizeof(struct db_ip_rule_t),1);
 	char src_ip[40],mask_src_ip[40],dst_ip[40],mask_dst_ip[40];
-
+	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
 	unsigned short i_src_port,i_sport_mask,i_dst_port,i_dport_mask;
 	int protocol=0,direction=0;
 	int ret=0,rule_type=0;
@@ -2677,21 +2771,13 @@ void update_ip_rule(struct _Maat_table_info_t* table,const char* table_line,stru
 		ret=del_region_rule(table
 							,ip_rule->region_id,ip_rule->group_id,rule_type
 							,scanner, logger);
-		if(ret>0)
+		if(ret<0)
 		{
-			table->cfg_num--;
-			if(ip_rule->addr_type==4)
-			{
-				table->ipv4_rule_cnt--;
-			}
-			else
-			{
-				table->ipv6_rule_cnt--;
-			}
+			table->udpate_err_cnt++;
 		}
 		else
 		{
-			table->udpate_err_cnt++;
+			table_rt->origin_rule_num--;
 		}
 	}
 	else
@@ -2707,25 +2793,19 @@ void update_ip_rule(struct _Maat_table_info_t* table,const char* table_line,stru
 		}
 		else
 		{
-			table->cfg_num++;
-			if(ip_rule->addr_type==4)
-			{
-				table->ipv4_rule_cnt++;
-			}
-			else
-			{
-				table->ipv6_rule_cnt++;
-			}
+			table_rt->origin_rule_num++;
 		}
+
 	}
 error_out:
 	free(ip_rule);
 	ip_rule=NULL;	
 }
 
-void update_intval_rule(struct _Maat_table_info_t* table,const char* table_line,struct _Maat_scanner_t *scanner,void* logger,int group_mode_on)
+void update_intval_rule(struct Maat_table_desc* table,const char* table_line,struct _Maat_scanner_t *scanner,void* logger,int group_mode_on)
 {
-	struct db_intval_rule_t* intval_rule=(struct db_intval_rule_t*)calloc(sizeof(struct db_intval_rule_t),1);
+	struct db_intval_rule_t* intval_rule=ALLOC(struct db_intval_rule_t, 1);
+	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
 	int ret=0;
 	ret=sscanf(table_line,"%d\t%d\t%u\t%u\t%d",&(intval_rule->region_id)
 											,&(intval_rule->group_id)
@@ -2766,14 +2846,15 @@ void update_intval_rule(struct _Maat_table_info_t* table,const char* table_line,
 		ret=del_region_rule(table
 							,intval_rule->region_id,intval_rule->group_id,RULETYPE_INT
 							,scanner, logger);
-		if(ret>0)
-		{
-			table->cfg_num--;
-		}
-		else
+		if(ret<0)
 		{
 			table->udpate_err_cnt++;
 		}
+		else
+		{
+			table_rt->origin_rule_num--;
+		}
+
 	}
 	else
 	{
@@ -2787,17 +2868,21 @@ void update_intval_rule(struct _Maat_table_info_t* table,const char* table_line,
 		}
 		else
 		{
-			table->cfg_num++;
+			table_rt->origin_rule_num++;
 		}
+
 	}
 error_out:
 	free(intval_rule);
 	intval_rule=NULL;		
 }
 
-void update_compile_rule(struct _Maat_table_info_t* table,const char* table_line,struct _Maat_scanner_t *scanner, const struct rule_tag* tags, int n_tags,void* logger)
+void update_compile_rule(struct Maat_table_desc* table,const char* table_line,struct _Maat_scanner_t *scanner, const struct rule_tag* tags, int n_tags,void* logger)
 {
-	struct db_compile_rule_t *p_compile=(struct db_compile_rule_t*)calloc(sizeof(struct db_compile_rule_t ),1);
+	struct compile_table_desc* compile_desc=&(table->compile);
+	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
+
+	struct db_compile_rule_t *p_compile=ALLOC(struct db_compile_rule_t, 1);
 	struct _head_Maat_rule_t* p_m_rule=&(p_compile->m_rule_head);
 	char user_region[MAX_TABLE_LINE_SIZE]={0};
 	char tag_str[MAX_TABLE_LINE_SIZE]={0};
@@ -2837,7 +2922,7 @@ void update_compile_rule(struct _Maat_table_info_t* table,const char* table_line
 			goto no_save;
 		}
 	}
-	switch(table->user_region_encoding)
+	switch(compile_desc->user_region_encoding)
 	{
 		case USER_REGION_ENCODE_ESCAPE:
 			str_unescape(user_region);
@@ -2846,16 +2931,13 @@ void update_compile_rule(struct _Maat_table_info_t* table,const char* table_line
 			break;
 	}
 	p_m_rule->serv_def_len=strlen(user_region)+1;
-	p_compile->service_defined=(char*)malloc(p_m_rule->serv_def_len*sizeof(char));
+	p_compile->service_defined= ALLOC(char, p_m_rule->serv_def_len);
 	memcpy(p_compile->service_defined,user_region,p_m_rule->serv_def_len);
 
 	if(p_compile->is_valid==FALSE)
 	{
 		ret=del_compile_rule(table,p_compile,scanner, logger);
-		if(ret>0)
-		{
-			table->cfg_num--;
-		}
+		table_rt->origin_rule_num--;
 		goto no_save;
 	}
 	else
@@ -2869,11 +2951,7 @@ void update_compile_rule(struct _Maat_table_info_t* table,const char* table_line
 			table->udpate_err_cnt++;
 			goto no_save;
 		}
-		else
-		{
-			//no need to free p_compile,it was saved in scanner->compile_hash
-			table->cfg_num++;
-		}
+		table_rt->origin_rule_num++;
 	}
 	return;
 	
@@ -2885,9 +2963,10 @@ no_save:
 	return;	
 }
 
-void update_digest_rule(struct _Maat_table_info_t* table,const char* table_line,struct _Maat_scanner_t *scanner,void* logger,int group_mode_on)
+void update_digest_rule(struct Maat_table_desc* table,const char* table_line,struct _Maat_scanner_t *scanner,void* logger,int group_mode_on)
 {
-	struct db_digest_rule_t* digest_rule=(struct db_digest_rule_t*)calloc(sizeof(struct db_digest_rule_t),1);
+	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
+	struct db_digest_rule_t* digest_rule=ALLOC(struct db_digest_rule_t, 1);
 	int ret=0;
 	char digest_buff[MAX_TABLE_LINE_SIZE]={'\0'};
 	if(table->table_type==TABLE_TYPE_DIGEST)
@@ -2945,14 +3024,15 @@ void update_digest_rule(struct _Maat_table_info_t* table,const char* table_line,
 	{
 		//digest rule is not build with rulescan, this rule type is useless in count_rs_region funciton.
 		ret=del_region_rule(table,digest_rule->region_id,digest_rule->group_id,0 ,scanner, logger);
-		if(ret>0)
-		{
-			table->cfg_num--;
-		}
-		else
+		if(ret<0)
 		{
 			table->udpate_err_cnt++;
 		}
+		else
+		{
+			table_rt->origin_rule_num--;
+		}
+
 	}
 	else
 	{
@@ -2966,8 +3046,9 @@ void update_digest_rule(struct _Maat_table_info_t* table,const char* table_line,
 		}
 		else
 		{
-			table->cfg_num++;
+			table_rt->origin_rule_num++;
 		}
+
 	}
 error_out:
 
@@ -3086,25 +3167,26 @@ void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
 							q_cnt,bury_cnt);
 	}
 }
-void update_plugin_table(struct _Maat_table_info_t* table,const char* table_line, const struct rule_tag* tags, int n_tags, void* logger)
+void update_plugin_table(struct Maat_table_desc* table,const char* table_line,_Maat_scanner_t* scanner, const struct rule_tag* tags, int n_tags, void* logger)
 {
 	int i=0, ret=1;
 	unsigned int len=strlen(table_line)+1;
-	struct _plugin_table_info* p_table_cb=table->cb_info;
+	struct plugin_table_desc* plugin_desc=&(table->plugin);
+	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
 	char *p=NULL;
 	char* copy=NULL;
-	
+	size_t is_valid_offset=0, valid_len=0;
 	char *token=NULL,*sub_token=NULL,*saveptr;
-	if(table->rule_tag_column>0&&n_tags>0)
+	if(plugin_desc->rule_tag_column>0&&n_tags>0)
 	{
 		copy=_maat_strdup(table_line);
-		for (token = copy, i=0; i<table->rule_tag_column ; token= NULL, i++)
+		for (token = copy, i=0; i<plugin_desc->rule_tag_column ; token= NULL, i++)
 		{
 			sub_token= strtok_r(token," \t", &saveptr);
 			if (sub_token == NULL)
 				break;
 		}
-		if(i==table->rule_tag_column&&strlen(sub_token)>2)
+		if(i==plugin_desc->rule_tag_column&&strlen(sub_token)>2)
 		{
 			ret=compare_accept_tag(sub_token, tags, n_tags);
 			if(ret<0)
@@ -3127,28 +3209,48 @@ void update_plugin_table(struct _Maat_table_info_t* table,const char* table_line
 		}
 	}
 
-	p_table_cb->acc_line_num++;
-
-	if(p_table_cb->cb_plug_cnt>0)
+	table_rt->plugin.acc_line_num++;
+	if(plugin_desc->have_exdata || plugin_desc->cb_plug_cnt>0)
 	{
-		for(i=0;i<p_table_cb->cb_plug_cnt;i++)
+
+		if(plugin_desc->have_exdata)
 		{
-			p_table_cb->cb_plug[i].update(table->table_id,table_line,p_table_cb->cb_plug[i].u_para);
+			ret=get_column_pos(table_line, plugin_desc->valid_flag_column, &is_valid_offset, &valid_len);
+			
+			pthread_rwlock_wrlock(&(table_rt->plugin.rwlock));
+			if(atoi(table_line+is_valid_offset)==1)
+			{
+				plugin_EX_data_new(table, table_line, table_rt->plugin.key2ex_hash, logger);
+			}
+			else
+			{
+				plugin_EX_data_free(table, table_line, table_rt->plugin.key2ex_hash, logger);
+			}	
+			pthread_rwlock_unlock(&(table_rt->plugin.rwlock));
 		}
+		if(plugin_desc->cb_plug_cnt>0)
+		{
+			for(i=0;i<plugin_desc->cb_plug_cnt;i++)
+			{
+				plugin_desc->cb_plug[i].update(table->table_id,table_line,plugin_desc->cb_plug[i].u_para);
+			}
+		}
+
 	}
 	else
 	{
-		p=(char*)calloc(len,1);
+		p=ALLOC(char, len);
 		memcpy(p,table_line,len);
-		p_table_cb->cache_size+=len;
-		dynamic_array_write(p_table_cb->cache_lines,p_table_cb->cache_line_num,p);
-		p_table_cb->cache_line_num++;
+		table_rt->plugin.cache_size+=len;
+		dynamic_array_write(table_rt->plugin.cache_lines,table_rt->plugin.cache_line_num,p);
+		table_rt->plugin.cache_line_num++;		
 	}
 }
 void do_scanner_update(struct _Maat_scanner_t* scanner,MESA_lqueue_head garbage_q,int scan_thread_num,void* logger)
 {
 	void *tmp1=NULL,*tmp2=NULL;
 	MESA_htable_handle tmp_map=NULL;
+	struct Maat_table_runtime* table_rt=NULL;
 	int i=0;
 	long q_cnt;
 	GIE_create_para_t para;
@@ -3157,10 +3259,10 @@ void do_scanner_update(struct _Maat_scanner_t* scanner,MESA_lqueue_head garbage_
 	tmp1=create_bool_matcher(scanner->compile_hash,
 											scan_thread_num,
 											logger);
-	tmp2=scanner->expr_compiler;
+	tmp2=scanner->bool_macher_expr_compiler;
 	
 	//assume pinter = operation is thread safe 
-	scanner->expr_compiler=tmp1;
+	scanner->bool_macher_expr_compiler=tmp1;
 	if(tmp2!=NULL)
 	{
 		garbage_bagging(GARBAGE_BOOL_MATCHER, tmp2, garbage_q);
@@ -3174,34 +3276,46 @@ void do_scanner_update(struct _Maat_scanner_t* scanner,MESA_lqueue_head garbage_
 							,scanner);
 	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
-		if(scanner->gie_aux[i].update_q==NULL)
+		table_rt=scanner->table_rt[i];
+		if(table_rt==NULL)
 		{
 			continue;
 		}
-		q_cnt=MESA_lqueue_get_count(scanner->gie_aux[i].update_q);
-		if(q_cnt==0)
+		switch(table_rt->table_type)
 		{
-			continue;
+			case TABLE_TYPE_DIGEST:
+			case TABLE_TYPE_SIMILARITY:
+				q_cnt=MESA_lqueue_get_count(table_rt->similar.update_q);
+				if(q_cnt==0)
+				{
+					continue;
+				}
+				if(table_rt->similar.gie_handle==NULL)
+				{
+					if(table_rt->table_type==TABLE_TYPE_SIMILARITY)
+					{
+						para.ED_reexamine=1;
+						para.format=GIE_INPUT_FORMAT_PLAIN;
+					}
+					else
+					{
+						para.ED_reexamine=0;
+						para.format=GIE_INPUT_FORMAT_SFH;
+					}
+					table_rt->similar.gie_handle=GIE_create(&para);
+				}
+				digest_batch_update(table_rt->similar.gie_handle,
+									table_rt->similar.update_q,
+									logger,
+									scanner,
+									i);
+				break;
+			case TABLE_TYPE_PLUGIN:
+				break;
+			default:
+				break;
 		}
-		if(scanner->gie_aux[i].gie_handle==NULL)
-		{
-			if(scanner->gie_aux[i].table_type==TABLE_TYPE_SIMILARITY)
-			{
-				para.ED_reexamine=1;
-				para.format=GIE_INPUT_FORMAT_PLAIN;
-			}
-			else
-			{
-				para.ED_reexamine=0;
-				para.format=GIE_INPUT_FORMAT_SFH;
-			}
-			scanner->gie_aux[i].gie_handle=GIE_create(&para);
-		}
-		digest_batch_update(scanner->gie_aux[i].gie_handle
-							,scanner->gie_aux[i].update_q
-							,logger
-							,scanner
-							,i);
+
 	}
 	scanner->gie_total_q_size=0;
 	if(scanner->tmp_district_map!=NULL)
@@ -3216,26 +3330,12 @@ void do_scanner_update(struct _Maat_scanner_t* scanner,MESA_lqueue_head garbage_
 	return;
 
 }
-void clear_plugin_table_info(struct _plugin_table_info *cb_info)
-{
-	int i=0;
-	void *line=NULL;
-	for(i=0;i<cb_info->cache_line_num;i++)
-	{
-		line=dynamic_array_read(cb_info->cache_lines,i);
-		free(line);
-		dynamic_array_write(cb_info->cache_lines,i,NULL);
-	}
-	cb_info->cache_line_num=0;
-	cb_info->cache_size=0;
-	cb_info->acc_line_num=0;
-	return;
-}
+
 void maat_start_cb(long long new_version,int update_type,void*u_para)
 {
 	struct _Maat_feather_t *feather=(struct _Maat_feather_t *)u_para; 
-	struct _Maat_table_info_t* p_table=NULL;
-	struct _plugin_table_info* p_table_cb=NULL;
+	struct Maat_table_desc* p_table=NULL;
+	struct plugin_table_desc* plugin_desc=NULL;
 	int i=0,j=0;
 	feather->new_version=new_version;
 	
@@ -3245,21 +3345,6 @@ void maat_start_cb(long long new_version,int update_type,void*u_para)
 		MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
 								"Full config version %u -> %u update start",
 								feather->maat_version,new_version);
-		for(i=0;i<MAX_TABLE_NUM;i++)
-		{
-			p_table=feather->p_table_info[i];
-			if(p_table==NULL)
-			{
-				continue;
-			}
-			p_table->cfg_num=0;
-			p_table->expr_rule_cnt=0;
-			p_table->regex_rule_cnt=0;
-			if(p_table->table_type==TABLE_TYPE_PLUGIN)
-			{
-				clear_plugin_table_info(p_table->cb_info);
-			}
-		}
 	}
 	else
 	{
@@ -3273,66 +3358,82 @@ void maat_start_cb(long long new_version,int update_type,void*u_para)
 	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
 		p_table=feather->p_table_info[i];
-		if(p_table==NULL||p_table->table_type!=TABLE_TYPE_PLUGIN||p_table->cb_info->cb_plug_cnt==0)
+		plugin_desc=&(p_table->plugin);
+		if(p_table==NULL||p_table->table_type!=TABLE_TYPE_PLUGIN||plugin_desc->cb_plug_cnt==0)
 		{
 			continue;
 		}
-		p_table_cb=p_table->cb_info;
 
 		feather->active_plugin_table_num++;
 		
-		for(j=0;j<p_table_cb->cb_plug_cnt;j++)
+		for(j=0;j<plugin_desc->cb_plug_cnt;j++)
 		{
-			if(p_table_cb->cb_plug[j].start!=NULL)
+			if(plugin_desc->cb_plug[j].start!=NULL)
 			{
-				p_table_cb->cb_plug[j].start(update_type,p_table_cb->cb_plug[j].u_para);
+				plugin_desc->cb_plug[j].start(update_type,plugin_desc->cb_plug[j].u_para);
 			}
 		}
 	}
 	return;
 }
+long long scanner_rule_num(struct _Maat_scanner_t *scanner)
+{
+	long long total=0;
+	struct Maat_table_runtime* table_rt=NULL;
+	int i=0;
+	for(i=0;i<MAX_TABLE_NUM;i++)
+	{
+		table_rt=scanner->table_rt[i];
+		if(table_rt!=NULL)
+		{
+			total+=table_rt->origin_rule_num;
+		}
+	}
+	return total;
+}
 void maat_finish_cb(void* u_para)
 {
 	struct _Maat_feather_t *feather=(struct _Maat_feather_t *)u_para; 
-	struct _Maat_table_info_t* p_table=NULL;
-	struct _plugin_table_info* p_table_cb=NULL;
+	struct Maat_table_desc* p_table=NULL;
+	struct plugin_table_desc* plugin_desc=NULL;
 	long expr_wait_q_cnt=0;
-	int i=0,j=0,total=0;
-	for(i=0;i<MAX_TABLE_NUM;i++)
-	{
-		p_table=feather->p_table_info[i];
-		if(p_table!=NULL)
-		{
-			total+=p_table->cfg_num;
-		}
-	}
+	int i=0, j=0;
+
 	int call_plugin_table_cnt=0;
 	for(i=0;i<MAX_TABLE_NUM;i++)
 	{
 		p_table=feather->p_table_info[i];
-		
-		if(p_table==NULL||p_table->table_type!=TABLE_TYPE_PLUGIN||p_table->cb_info->cb_plug_cnt==0)
+		if(p_table==NULL)
 		{
 			continue;
 		}
-		call_plugin_table_cnt++;
-		p_table_cb=p_table->cb_info;
-		if(call_plugin_table_cnt==feather->active_plugin_table_num)
+		switch(p_table->table_type)
 		{
-			feather->is_last_plugin_table_updating=1;
-		}
-		for(j=0;j<p_table_cb->cb_plug_cnt;j++)
-		{
-			if(p_table_cb->cb_plug[j].finish!=NULL)
-			{
-				p_table_cb->cb_plug[j].finish(p_table_cb->cb_plug[j].u_para);
-			}
-		}
-		feather->is_last_plugin_table_updating=0;
+			case TABLE_TYPE_PLUGIN:
+				plugin_desc=&(p_table->plugin);				
+				call_plugin_table_cnt++;
+				if(call_plugin_table_cnt==feather->active_plugin_table_num)
+				{
+					feather->is_last_plugin_table_updating=1;
+				}
+				for(j=0;j<plugin_desc->cb_plug_cnt;j++)
+				{
+					if(plugin_desc->cb_plug[j].finish!=NULL)
+					{
+						plugin_desc->cb_plug[j].finish(plugin_desc->cb_plug[j].u_para);
+					}
+				}
+				feather->is_last_plugin_table_updating=0;
+				break;
+			default:
+				break;
+		}		
 	}
+
+
 	if(feather->update_tmp_scanner!=NULL)
 	{
-		feather->update_tmp_scanner->cfg_num=total;
+		feather->update_tmp_scanner->cfg_num=scanner_rule_num(feather->update_tmp_scanner);
 		do_scanner_update(feather->update_tmp_scanner
 						,feather->garbage_q
 						,feather->scan_thread_num
@@ -3343,7 +3444,7 @@ void maat_finish_cb(void* u_para)
 	}
 	else if(feather->scanner!=NULL)
 	{
-		feather->scanner->cfg_num=total;
+		feather->scanner->cfg_num=scanner_rule_num(feather->scanner);
 		feather->scanner->version=feather->maat_version;
 		expr_wait_q_cnt=MESA_lqueue_get_count(feather->scanner->region_update_q);
 		feather->postpone_q_size=expr_wait_q_cnt+feather->scanner->gie_total_q_size;
@@ -3353,23 +3454,23 @@ void maat_finish_cb(void* u_para)
 							,feather->garbage_q
 							,feather->scan_thread_num
 							,feather->logger);
-			MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
-									"Inc config version %u build complete, %d entries in total.",
-									feather->scanner->version,feather->scanner->cfg_num);
+			MESA_handle_runtime_log(feather->logger, RLOG_LV_INFO, maat_module
+									,"Inc config version %u build complete, %d entries in total."
+									,feather->scanner->version,feather->scanner->cfg_num);
 			feather->postpone_q_size=0;
 		}
 		else
 		{
-			MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
+			MESA_handle_runtime_log(feather->logger, RLOG_LV_INFO, maat_module,
 									"Postpone %d entries of version %u load to rulescan.",
-									feather->scanner->cfg_num,feather->scanner->version);
+									feather->scanner->cfg_num, feather->scanner->version);
 		}
 	}
 	else
 	{
 		 MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
-                                                                        "Version %d have no valid scan rules, plugin callback complete.",
-                                                                        feather->maat_version);
+									"Version %d have no valid scan rules, plugin callback complete.",
+									feather->maat_version);
 	}
 	feather->new_version=-1;
 	feather->active_plugin_table_num=0;
@@ -3381,7 +3482,7 @@ int maat_update_cb(const char* table_name,const char* line,void *u_para)
 	int ret=-1,i=0;
 	int table_id=-1;
 	_Maat_scanner_t* scanner=NULL;
-	struct _Maat_table_info_t* p_table=NULL;
+	struct Maat_table_desc* p_table=NULL;
 	if(feather->update_tmp_scanner!=NULL)
 	{
 		scanner=feather->update_tmp_scanner;
@@ -3429,7 +3530,7 @@ int maat_update_cb(const char* table_name,const char* line,void *u_para)
 			update_group_rule(feather->p_table_info[table_id], line, scanner,feather->logger);
 			break;
 		case	TABLE_TYPE_PLUGIN:
-			update_plugin_table(feather->p_table_info[table_id], line, feather->accept_tags, feather->n_tags, feather->logger);
+			update_plugin_table(feather->p_table_info[table_id], line, scanner, feather->accept_tags, feather->n_tags, feather->logger);
 		default:
 			break;
 	
@@ -3610,7 +3711,7 @@ void *thread_rule_monitor(void *arg)
 		{
 			continue;
 		}
-		destroy_table_info(feather->p_table_info[i]);
+		table_info_free(feather->p_table_info[i]);
 		feather->p_table_info[i]=NULL;
 	}
 	alignment_int64_array_free(feather->thread_call_cnt);
