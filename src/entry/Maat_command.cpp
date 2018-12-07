@@ -1064,19 +1064,26 @@ long long _exec_serial_rule_begin(redisContext* ctx,int rule_num, int renew_rule
 	}
 	return ret;
 }
-redisReply* _exec_serial_rule_end(redisContext* ctx,long long maat_redis_version, long long server_time, int renew_allowed)
+redisReply* _exec_serial_rule_end(redisContext* ctx,long long maat_redis_version, long long server_time, int renew_allowed, struct expected_reply_t* expect_reply,  unsigned int *cnt)
 {
 	redisReply* data_reply=NULL;
 	if(renew_allowed==1)
 	{
 		redlock_unlock(ctx, rm_expire_lock);
+		expect_reply[*cnt].srule_seq=-1;
+		(*cnt)++;
 	}
 	if(maat_redis_version>0)
 	{
 		data_reply=_wrap_redisCommand(ctx,"ZADD %s NX %d %d",rm_version_sset,server_time,maat_redis_version); 
 		freeReplyObject(data_reply);
+		expect_reply[*cnt].srule_seq=-1;
+		(*cnt)++;
 		data_reply=_wrap_redisCommand(ctx,"INCRBY MAAT_VERSION 1"); 
 		freeReplyObject(data_reply);
+		expect_reply[*cnt].srule_seq=-1;
+		expect_reply[*cnt].reply.type=REDIS_REPLY_INTEGER;
+		(*cnt)++;
 	}
 	data_reply=_wrap_redisCommand(ctx,"EXEC");
 	return data_reply;
@@ -1247,10 +1254,10 @@ int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule, unsigned in
 		assert(multi_cmd_cnt<max_multi_cmd_num);
 		success_cnt+=batch_cnt;
 	}
-	transaction_reply=_exec_serial_rule_end(ctx,new_version,server_time, renew_allowed);
+	transaction_reply=_exec_serial_rule_end(ctx,new_version,server_time, renew_allowed, expected_reply, &multi_cmd_cnt);
 	if(1==mr_transaction_success(transaction_reply))
 	{
-		assert(transaction_reply->elements-2<=multi_cmd_cnt);
+		assert(transaction_reply->elements==multi_cmd_cnt);
 		for(i=0;i<multi_cmd_cnt;i++)
 		{
 			p=transaction_reply->element[i];
