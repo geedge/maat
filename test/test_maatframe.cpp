@@ -1122,11 +1122,11 @@ TEST_F(MaatCmdTest, SetIP)
 	ret=Maat_cmd(feather, cmd, MAAT_OP_RENEW_TIMEOUT);
 	EXPECT_EQ(ret ,1);
 	
-	wait_for_cmd_effective(feather, version_before);
+//	wait_for_cmd_effective(feather, version_before);
 	
 	Maat_free_cmd(cmd);
 	cmd=NULL;
-
+	sleep(timeout+1);
 	ret=Maat_scan_proto_addr(feather,table_id,&ipv4_addr,6,&result,1, &mid,0);
 	EXPECT_EQ(ret, 1);
 
@@ -1210,9 +1210,46 @@ TEST_F(MaatCmdTest, SetExpr)
 	EXPECT_EQ(ret, 0);
 }
 
-TEST_F(MaatCmdTest, SetExpr20w)
+
+TEST_F(MaatCmdTest, SetLines)
 {
-	const int CMD_EXPR_NUM=200*1000;
+	const int TEST_CMD_LINE_NUM=4;
+	const struct Maat_line_t *p_line[TEST_CMD_LINE_NUM];
+	struct Maat_line_t line_rule[TEST_CMD_LINE_NUM];
+	char table_line[TEST_CMD_LINE_NUM][128];
+	int ret=0,i=0;
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+	memset(&line_rule,0,sizeof(line_rule));
+	for(i=0;i<TEST_CMD_LINE_NUM;i++)
+	{
+		line_rule[i].label_id=0;
+		line_rule[i].rule_id=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", 1);
+		line_rule[i].table_name="QD_ENTRY_INFO";
+		snprintf(table_line[i],sizeof(table_line[i]),"1\t192.168.0.1\t%d\t1",100+i);
+		line_rule[i].table_line=table_line[i];
+		line_rule[i].expire_after=0;
+		p_line[i]=line_rule+i;
+	}
+	
+
+	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
+	EXPECT_GT(ret, 0);
+
+	usleep(WAIT_FOR_EFFECTIVE_US);
+	
+	for(i=0;i<TEST_CMD_LINE_NUM;i++)
+	{
+		line_rule[i].table_line=NULL;
+	}
+	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_DEL);
+	EXPECT_GT(ret, 0);
+
+	return;
+}
+//Following tests must be coded/tested at last, for they stalled the maat update thread and interrupt other tests.
+TEST_F(MaatCmdTest, SetExprOneMillion)
+{
+	const int CMD_EXPR_NUM=1000*1000;
 	const char* table_name="HTTP_URL";
 	
 	const char* keywords1="Hiredis";
@@ -1259,44 +1296,9 @@ TEST_F(MaatCmdTest, SetExpr20w)
 	free(output_ids);
 }
 
-TEST_F(MaatCmdTest, SetLines)
+TEST_F(MaatCmdTest, SetLinesOneMillion)
 {
-	const int TEST_CMD_LINE_NUM=4;
-	const struct Maat_line_t *p_line[TEST_CMD_LINE_NUM];
-	struct Maat_line_t line_rule[TEST_CMD_LINE_NUM];
-	char table_line[TEST_CMD_LINE_NUM][128];
-	int ret=0,i=0;
-	Maat_feather_t feather=MaatCmdTest::_shared_feather;
-	memset(&line_rule,0,sizeof(line_rule));
-	for(i=0;i<TEST_CMD_LINE_NUM;i++)
-	{
-		line_rule[i].label_id=0;
-		line_rule[i].rule_id=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", 1);
-		line_rule[i].table_name="QD_ENTRY_INFO";
-		snprintf(table_line[i],sizeof(table_line[i]),"1\t192.168.0.1\t%d\t1",100+i);
-		line_rule[i].table_line=table_line[i];
-		line_rule[i].expire_after=0;
-		p_line[i]=line_rule+i;
-	}
-	
-
-	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
-	EXPECT_GT(ret, 0);
-
-	usleep(WAIT_FOR_EFFECTIVE_US);
-	
-	for(i=0;i<TEST_CMD_LINE_NUM;i++)
-	{
-		line_rule[i].table_line=NULL;
-	}
-	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_DEL);
-	EXPECT_GT(ret, 0);
-
-	return;
-}
-TEST_F(MaatCmdTest, SetLines20w)
-{
-	const int TEST_CMD_LINE_NUM=200*1000;
+	const int TEST_CMD_LINE_NUM=1000*1000;
 	Maat_feather_t feather=MaatCmdTest::_shared_feather;
 
 	struct Maat_line_t **p_line=(struct Maat_line_t **)calloc(sizeof(struct Maat_line_t *), TEST_CMD_LINE_NUM);

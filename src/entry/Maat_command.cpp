@@ -1081,11 +1081,10 @@ redisReply* _exec_serial_rule_end(redisContext* ctx,long long maat_redis_version
 	data_reply=_wrap_redisCommand(ctx,"EXEC");
 	return data_reply;
 }
-void _exec_serial_rule(redisContext* ctx,	long long version, struct serial_rule_t* s_rule, int rule_num,  struct expected_reply_t* expect_reply, unsigned int *cnt, int offset,int renew_allowed)
+void _exec_serial_rule(redisContext* ctx,	long long version, struct serial_rule_t* s_rule, unsigned int rule_num,  struct expected_reply_t* expect_reply, unsigned int *cnt, int offset,int renew_allowed)
 {
-	int i=0;
 	redisReply* data_reply=NULL;
-	int append_cmd_cnt=0;
+	unsigned int append_cmd_cnt=0, i=0;
 	for(i=0;i<rule_num;i++)
 	{
 		switch(s_rule[i].op)
