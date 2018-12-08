@@ -1224,7 +1224,7 @@ int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule, unsigned in
 	unsigned int max_redis_batch=1*1024, batch_cnt=0;
 	int renew_allowed=0,last_failed=-1;
 	redisReply*transaction_reply=NULL,*p=NULL;
-	unsigned int i=0;
+	unsigned int i=0, rule_seq=0;
 
 	unsigned int multi_cmd_cnt=0, success_cnt=0;
 	const int MAX_REDIS_OP_PER_SRULE=8;
@@ -1268,12 +1268,13 @@ int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule, unsigned in
 			{
 				continue;
 			}
+			rule_seq=expected_reply[i].srule_seq;
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_command 
 					,"%s %s %d failed, rule id maybe conflict or not exist."
-					,rm_op_str[s_rule[i].op]
-					,s_rule[i].table_name,s_rule[i].rule_id);
+					,rm_op_str[s_rule[rule_seq].op]
+					,s_rule[rule_seq].table_name,s_rule[rule_seq].rule_id);
 			success_cnt--;
-			last_failed=expected_reply[i].srule_seq;
+			last_failed=rule_seq;
 		}
 	}
 	else
