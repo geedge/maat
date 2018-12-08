@@ -601,7 +601,7 @@ int _read_integer_arrary(char* string, int *array, int size)
 	}
 	return i;
 }
-
+#define COLUMN_PLUGIN_DESCR_JSON	4
 int read_plugin_table_description(const char* line, struct Maat_table_desc* p)
 {
 	int i=0,ret=0;
@@ -610,15 +610,18 @@ int read_plugin_table_description(const char* line, struct Maat_table_desc* p)
 	char* copy_line=NULL, *plug_info=NULL;
 	struct plugin_table_desc* plugin_desc=&(p->plugin);
 	copy_line=_maat_strdup(line);
-	ret=get_column_pos(copy_line, 4, &offset, &len);
+	ret=get_column_pos(copy_line, COLUMN_PLUGIN_DESCR_JSON, &offset, &len);
 	if(i<0)
 	{
 		goto error_out;
 	}
-	copy_line[offset+len+1]='\0';
+	if(offset+len<strlen(copy_line))
+	{
+		copy_line[offset+len+1]='\0';
+	}
 	plug_info=copy_line+offset;
 
-	if(strlen(plug_info)<4)//For old version compatible.
+	if(strlen(plug_info)<COLUMN_PLUGIN_DESCR_JSON)//For old version compatible.
 	{
 		ret=sscanf(plug_info, "%d", &(plugin_desc->valid_flag_column));
 		if(ret==0||ret==EOF)
