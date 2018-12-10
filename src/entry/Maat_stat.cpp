@@ -174,6 +174,10 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	struct Maat_table_desc* p_table=NULL;
 	struct Maat_table_runtime* table_rt=NULL;
 	time(&now);
+	if(feather->scanner==NULL)
+	{
+		return;
+	}
 	active_thread_num=alignment_int64_array_cnt(feather->thread_call_cnt, feather->scan_thread_num);
 	outer_mid_cnt=alignment_int64_array_sum(feather->outer_mid_cnt,feather->scan_thread_num);
 	inner_mid_cnt=alignment_int64_array_sum(feather->inner_mid_cnt,feather->scan_thread_num);
