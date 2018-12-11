@@ -1178,15 +1178,16 @@ void _exec_serial_rule(redisContext* ctx,	long long version, struct serial_rule_
 				append_cmd_cnt++;
 				
 				// Try to remove from expiration sorted set, no matter wheather it exists or not.
-				redisAppendCommand(ctx,"ZREM %s %s,%d",rm_expire_sset
-						,s_rule[i].table_name
-						,s_rule[i].rule_id);
+				redisAppendCommand(ctx,"ZREM %s %s,%d",rm_expire_sset,
+						s_rule[i].table_name,
+						s_rule[i].rule_id);
 				expect_reply[*cnt].srule_seq=-1;
 				(*cnt)++;
 				append_cmd_cnt++;
 				
-				redisAppendCommand(ctx,"ZREM %s %d",rm_label_sset
-						,s_rule[i].rule_id);
+				redisAppendCommand(ctx,"ZREM %s %s,%d",rm_label_sset,
+						s_rule[i].table_name,
+						s_rule[i].rule_id);
 				expect_reply[*cnt].srule_seq=-1;
 				(*cnt)++;
 				append_cmd_cnt++;
