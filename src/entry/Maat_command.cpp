@@ -2441,9 +2441,18 @@ int Maat_cmd_key_select(Maat_feather_t feather, int label_id, struct Maat_cmd_ke
 	{
 		result[i].table_name=_maat_strdup(data_reply->element[i]->str);
 		tmp=strchr(result[i].table_name, ',');
-		*tmp='\0';
-		tmp++;
-		result[i].rule_id=atoi(tmp);
+		if(tmp!=NULL)
+		{
+			*tmp='\0';
+			tmp++;
+			result[i].rule_id=atoi(tmp);
+		}
+		else// old version compatible
+		{
+			result[i].rule_id=atoi(result[i].table_name);
+			free(result[i].table_name);
+			result[i].table_name=NULL;
+		}
 	}
 	freeReplyObject(data_reply);
 	*keys=result;
