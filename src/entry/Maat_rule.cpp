@@ -621,7 +621,7 @@ int read_plugin_table_description(const char* line, struct Maat_table_desc* p)
 	}
 	plug_info=copy_line+offset;
 
-	if(strlen(plug_info)<COLUMN_PLUGIN_DESCR_JSON)//For old version compatible.
+	if(NULL==strchr(plug_info,'{'))//For old version compatible.
 	{
 		ret=sscanf(plug_info, "%d", &(plugin_desc->valid_flag_column));
 		if(ret==0||ret==EOF)

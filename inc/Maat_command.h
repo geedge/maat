@@ -161,6 +161,13 @@ int Maat_cmd_set_file(Maat_feather_t feather,const char* key, const char* value,
 //Return the value of key after the increment.
 //If the key does not exist, it is set to 0 before performing the operation.
 long long Maat_cmd_incrby(Maat_feather_t feather,const char* key, int increment);
+struct Maat_cmd_key
+{
+	char* table_name;
+	int rule_id;
+};
+void Maat_cmd_key_free(struct Maat_cmd_key**keys, int number);
+int Maat_cmd_key_select(Maat_feather_t feather, int label_id, struct Maat_cmd_key** keys);
 int Maat_cmd_select(Maat_feather_t feather, int label_id, int * output_ids, unsigned int size);
 int Maat_cmd_flushDB(Maat_feather_t feather);
 #endif
