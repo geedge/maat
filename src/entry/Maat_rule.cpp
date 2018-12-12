@@ -32,7 +32,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_5_20181205=1;
+int MAAT_FRAME_VERSION_2_5_20181211=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -621,7 +621,7 @@ int read_plugin_table_description(const char* line, struct Maat_table_desc* p)
 	}
 	plug_info=copy_line+offset;
 
-	if(strlen(plug_info)<COLUMN_PLUGIN_DESCR_JSON)//For old version compatible.
+	if(NULL==strchr(plug_info,'{'))//For old version compatible.
 	{
 		ret=sscanf(plug_info, "%d", &(plugin_desc->valid_flag_column));
 		if(ret==0||ret==EOF)

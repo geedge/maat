@@ -1129,9 +1129,11 @@ void _exec_serial_rule(redisContext* ctx,	long long version, struct serial_rule_
 				}
 				if(s_rule[i].label_id>0)
 				{
-					redisAppendCommand(ctx,"ZADD %s NX %d %d",rm_label_sset
-							,s_rule[i].label_id
-							,s_rule[i].rule_id);
+					redisAppendCommand(ctx,"ZADD %s NX %d %s,%d",
+							rm_label_sset,
+							s_rule[i].label_id,
+							s_rule[i].table_name,
+							s_rule[i].rule_id);
 					expect_reply[*cnt].srule_seq=i+offset;
 					expect_reply[*cnt].reply.type=REDIS_REPLY_INTEGER;
 					expect_reply[*cnt].reply.integer=1;
@@ -1176,15 +1178,16 @@ void _exec_serial_rule(redisContext* ctx,	long long version, struct serial_rule_
 				append_cmd_cnt++;
 				
 				// Try to remove from expiration sorted set, no matter wheather it exists or not.
-				redisAppendCommand(ctx,"ZREM %s %s,%d",rm_expire_sset
-						,s_rule[i].table_name
-						,s_rule[i].rule_id);
+				redisAppendCommand(ctx,"ZREM %s %s,%d",rm_expire_sset,
+						s_rule[i].table_name,
+						s_rule[i].rule_id);
 				expect_reply[*cnt].srule_seq=-1;
 				(*cnt)++;
 				append_cmd_cnt++;
 				
-				redisAppendCommand(ctx,"ZREM %s %d",rm_label_sset
-						,s_rule[i].rule_id);
+				redisAppendCommand(ctx,"ZREM %s %s,%d",rm_label_sset,
+						s_rule[i].table_name,
+						s_rule[i].rule_id);
 				expect_reply[*cnt].srule_seq=-1;
 				(*cnt)++;
 				append_cmd_cnt++;
@@ -2400,26 +2403,73 @@ long long Maat_cmd_incrby(Maat_feather_t feather,const char* key, int increment)
 	freeReplyObject(data_reply);
 	return result;		
 }
-int Maat_cmd_select(Maat_feather_t feather, int label_id, int * output_ids, unsigned int size)
+void Maat_cmd_key_free(struct Maat_cmd_key**keys, int size)
+{
+	int i=0;
+	struct Maat_cmd_key* p=*keys;
+	for(i=0; i<size; i++)
+	{
+		free(p->table_name);
+		p->table_name=NULL;
+		p->rule_id=0;
+	}
+	free(p);
+	*keys=NULL;
+	return;
+}
+
+int Maat_cmd_key_select(Maat_feather_t feather, int label_id, struct Maat_cmd_key** keys)
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	redisReply* data_reply=NULL;
+	char* tmp=NULL;
 	unsigned int i=0;
+	struct Maat_cmd_key* result=NULL;
+	int result_cnt=0;
 	redisContext* write_ctx=get_redis_ctx_for_write(_feather);
 	if(write_ctx==NULL)
 	{
 		return -1;
 	}
 
-	data_reply=_wrap_redisCommand(write_ctx,"ZRANGEBYSCORE %s %d %d"
-			,rm_label_sset
-			,label_id
-			,label_id);
-	for(i=0;i<data_reply->elements&&i<size;i++)
+	data_reply=_wrap_redisCommand(write_ctx,"ZRANGEBYSCORE %s %d %d",
+					rm_label_sset,
+					label_id,
+					label_id);
+	result_cnt=data_reply->elements;
+	result=ALLOC(struct Maat_cmd_key, data_reply->elements);
+	for(i=0;i<data_reply->elements;i++)
 	{
-		output_ids[i]=atoi(data_reply->element[i]->str);
+		result[i].table_name=_maat_strdup(data_reply->element[i]->str);
+		tmp=strchr(result[i].table_name, ',');
+		if(tmp!=NULL)
+		{
+			*tmp='\0';
+			tmp++;
+			result[i].rule_id=atoi(tmp);
+		}
+		else// old version compatible
+		{
+			result[i].rule_id=atoi(result[i].table_name);
+			free(result[i].table_name);
+			result[i].table_name=NULL;
+		}
 	}
 	freeReplyObject(data_reply);
+	*keys=result;
+	return result_cnt;	
+}
+
+int Maat_cmd_select(Maat_feather_t feather, int label_id, int * output_ids, unsigned int size)
+{
+	struct Maat_cmd_key* keys=NULL;
+	int result_cnt=0, i=0;
+	result_cnt=Maat_cmd_key_select(feather, label_id, &keys);
+	for(i=0; i<result_cnt && i<(int)size; i++)
+	{
+		output_ids[i]=keys[i].rule_id;
+	}
+	Maat_cmd_key_free(&keys, result_cnt);
 	return i;
 }
 int redis_flush_DB(redisContext* ctx, int db_index, void* logger)

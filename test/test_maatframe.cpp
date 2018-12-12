@@ -1185,7 +1185,11 @@ TEST_F(MaatCmdTest, SetExpr)
 	output_id_cnt=Maat_cmd_select(feather,label_id, output_ids, 4);
 	EXPECT_EQ(output_id_cnt, 2);
 	EXPECT_TRUE(output_ids[0]==config_id||output_ids[0]==config_id-1);
-
+	struct Maat_cmd_key* keys=NULL;
+	output_id_cnt=Maat_cmd_key_select(feather,label_id, &keys);
+	EXPECT_TRUE(keys[0].rule_id==config_id||keys[0].rule_id==config_id-1);
+	
+	Maat_cmd_key_free(&keys, output_id_cnt);
 	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect	
 	del_command(feather, config_id-1);
 	del_command(feather, config_id);
@@ -1246,6 +1250,7 @@ TEST_F(MaatCmdTest, SetLines)
 
 	return;
 }
+/*
 //Following tests must be coded/tested at last, for they stalled the maat update thread and interrupt other tests.
 TEST_F(MaatCmdTest, SetExprOneMillion)
 {
@@ -1335,7 +1340,7 @@ TEST_F(MaatCmdTest, SetLinesOneMillion)
 	return;
 }
 
-
+*/
 int g_test_update_paused=0;
 void pause_update_test_entry_cb(int table_id,const char* table_line,void* u_para)
 {
