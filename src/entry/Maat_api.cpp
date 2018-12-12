@@ -721,21 +721,22 @@ void maat_read_full_config(_Maat_feather_t* _feather)
 			mr_ctx->read_ctx=connect_redis(mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db, _feather->logger);
 			if(mr_ctx->read_ctx != NULL)
 			{
-				redis_monitor_traverse(_feather->maat_version
-									,mr_ctx
-									,maat_start_cb
-									,maat_update_cb
-									,maat_finish_cb
-									, _feather
-									,_feather->decrypt_key	//Not used.
-									,_feather);
+				redis_monitor_traverse(_feather->maat_version,
+									mr_ctx,
+									maat_start_cb,
+									maat_update_cb,
+									maat_finish_cb,
+									 _feather,
+									_feather->decrypt_key,	//Not used.
+									_feather);
 			}
 			if(_feather->update_tmp_scanner)
 			{
 				MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
-					"At initiation: no avilable rule in redis in %s:%hu"
-					,mr_ctx->redis_ip
-					,mr_ctx->redis_port);
+									"At initiation: no avilable rule in redis %s:%hu db%d",
+									mr_ctx->redis_ip,
+									mr_ctx->redis_port,
+									mr_ctx->redis_db);
 			}
 			break;
 		case SOURCE_IRIS_FILE:

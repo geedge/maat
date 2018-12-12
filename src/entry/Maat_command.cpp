@@ -763,12 +763,12 @@ int _get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int ru
 		else if(reply->type==REDIS_REPLY_ERROR)//Deal with Redis response: "Loading Redis is loading the database in memory" 
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
-					,"Redis cmd=%s	Error, Reply type=%d, str=%s",redis_cmd, reply->type, reply->str);
+					,"redis command %s error, reply type=%d, error str=%s",redis_cmd, reply->type, reply->str);
 		}
 		else	//Handle type "nil"
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
-					,"Redis cmd=%s	Failed, Reply type=%d",redis_cmd, reply->type);
+					,"redis command %s failed, reply type=%d",redis_cmd, reply->type);
 		}
 		freeReplyObject(reply);
 	}
