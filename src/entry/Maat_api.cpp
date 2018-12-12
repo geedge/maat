@@ -1642,7 +1642,7 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 	struct Maat_table_runtime* table_rt=scanner->table_rt[table_id];
 	if(table_rt->origin_rule_num==0)
 	{
-		return 0;
+		return sp;
 	}
 	INC_SCANNER_REF(scanner, thread_num);
 
