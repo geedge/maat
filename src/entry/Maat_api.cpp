@@ -493,7 +493,7 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->backgroud_update_enabled=1;
 	feather->foreign_cont_linger=0;
 	snprintf(feather->foreign_cont_dir, sizeof(feather->foreign_cont_dir), "%s_files", table_info_path);
-	pthread_mutex_init(&(feather->backgroud_update_mutex),NULL);
+	pthread_mutex_init(&(feather->background_update_mutex),NULL);
 	snprintf(feather->table_info_fn,sizeof(feather->table_info_fn),"%s",table_info_path);
 	return feather;
 }
@@ -510,14 +510,14 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			{
 				if(intval==0)
 				{
-					pthread_mutex_lock(&(_feather->backgroud_update_mutex));
+					pthread_mutex_lock(&(_feather->background_update_mutex));
 					MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
 							"Background update is disabled, current version %lld."
 							,_feather->maat_version);
 				}
 				else
 				{
-					pthread_mutex_unlock(&(_feather->backgroud_update_mutex));
+					pthread_mutex_unlock(&(_feather->background_update_mutex));
 					MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
 							"Background update is enabled, current version %lld."
 							,_feather->maat_version);
@@ -678,7 +678,7 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 		case MAAT_OPT_LOAD_VERSION_FROM:
 			_feather->load_version_from=*((long long*)value);
 			_feather->backgroud_update_enabled=1;
-			pthread_mutex_lock((&_feather->backgroud_update_mutex));
+			pthread_mutex_lock((&_feather->background_update_mutex));
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
 							"Maat load version from %lld, stops backgroud update."
 							,_feather->load_version_from);
@@ -932,11 +932,11 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 		return -1;
 	}
 	//plugin table register blocks background update.
-	pthread_mutex_lock(&(_feather->backgroud_update_mutex));
+	pthread_mutex_lock(&(_feather->background_update_mutex));
 	idx=plugin_desc->cb_plug_cnt;
 	if(idx==MAX_PLUGIN_PER_TABLE)
 	{
-		pthread_mutex_unlock(&(_feather->backgroud_update_mutex));
+		pthread_mutex_unlock(&(_feather->background_update_mutex));
 		return -1;
 	}
 	plugin_desc->cb_plug_cnt++;
@@ -946,7 +946,7 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 	plugin_desc->cb_plug[idx].u_para=u_para;
 	if(_feather->scanner==NULL)
 	{
-		pthread_mutex_unlock(&(_feather->backgroud_update_mutex));
+		pthread_mutex_unlock(&(_feather->background_update_mutex));
 		return 1;
 	}
 	plugin_aux = &(_feather->scanner->table_rt[table_id]->plugin);
@@ -970,7 +970,7 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 			finish(u_para);
 		}
 	}
-	pthread_mutex_unlock(&(_feather->backgroud_update_mutex));
+	pthread_mutex_unlock(&(_feather->background_update_mutex));
 	return 1;
 }
 
@@ -1011,7 +1011,7 @@ int Maat_rule_get_ex_new_index(Maat_feather_t feather, const char* compile_table
 		return -1;
 	}
 	struct compile_table_desc* compile_desc=&(p_table->compile);
-	pthread_mutex_lock(&(_feather->backgroud_update_mutex));
+	pthread_mutex_lock(&(_feather->background_update_mutex));
 	if(compile_desc->ex_data_num==MAX_COMPILE_EX_DATA_NUM)
 	{
 		ret=-1;
@@ -1032,7 +1032,7 @@ int Maat_rule_get_ex_new_index(Maat_feather_t feather, const char* compile_table
 		MESA_htable_iterate(_feather->scanner->compile_hash, rule_ex_data_new_cb, compile_desc->ex_desc+idx);
 	}
 failed:
-	pthread_mutex_unlock(&(_feather->backgroud_update_mutex));
+	pthread_mutex_unlock(&(_feather->background_update_mutex));
 	return idx;
 
 }
@@ -1206,6 +1206,9 @@ int Maat_plugin_EX_register(Maat_feather_t feather, int table_id,
 			"%s failed: key or valid flag column  are not specified", __FUNCTION__);
 		return -1;
 	}
+		
+	pthread_mutex_lock(&(_feather->background_update_mutex));
+
 	plugin_desc->ex_desc.new_func=new_func;
 	plugin_desc->ex_desc.free_func=free_func;
 	plugin_desc->ex_desc.dup_func=dup_func;
@@ -1213,17 +1216,14 @@ int Maat_plugin_EX_register(Maat_feather_t feather, int table_id,
 	plugin_desc->ex_desc.argl=argl;
 	plugin_desc->ex_desc.argp=argp;
 	plugin_desc->have_exdata=1;
-	if(_feather->scanner==NULL)
+	if(_feather->scanner!=NULL)
 	{
-		return 0;
+		table_rt=_feather->scanner->table_rt[table_id];
+		assert(table_rt->plugin.key2ex_hash==NULL);
+		table_rt->plugin.key2ex_hash=plugin_EX_htable_new(table_desc, table_rt->plugin.cache_lines, 
+														table_rt->plugin.cache_line_num, _feather->logger);
 	}
-	
-	pthread_mutex_lock(&(_feather->backgroud_update_mutex));
-	table_rt=_feather->scanner->table_rt[table_id];
-	assert(table_rt->plugin.key2ex_hash==NULL);
-	table_rt->plugin.key2ex_hash=plugin_EX_htable_new(table_desc, table_rt->plugin.cache_lines, 
-													table_rt->plugin.cache_line_num, _feather->logger);
-	pthread_mutex_unlock(&(_feather->backgroud_update_mutex));
+	pthread_mutex_unlock(&(_feather->background_update_mutex));
 
 	return 0;
 }
@@ -2266,10 +2266,10 @@ int Maat_read_state(Maat_feather_t feather,enum MAAT_STATE_OPT  type, void* valu
 			{
 				return -1;
 			}
-			if(0==pthread_mutex_trylock(&(_feather->backgroud_update_mutex)))
+			if(0==pthread_mutex_trylock(&(_feather->background_update_mutex)))
 			{
 				*int_val=0;
-				pthread_mutex_unlock(&(_feather->backgroud_update_mutex));
+				pthread_mutex_unlock(&(_feather->background_update_mutex));
 			}
 			else
 			{

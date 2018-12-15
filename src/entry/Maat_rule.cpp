@@ -32,7 +32,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_5_20181212=1;
+int MAAT_FRAME_VERSION_2_5_20181216=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -3565,17 +3565,20 @@ void *thread_rule_monitor(void *arg)
 	//pthread_setname_np are introduced in glibc2.12
 	//ret=pthread_setname_np(pthread_self(),maat_name); 
 	assert(ret>=0);
+	
+	pthread_mutex_lock(&(feather->background_update_mutex));
 	if(feather->DEFERRED_LOAD_ON!=0)
 	{
 		MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
 								"Deferred Loading ON, updating in %s.",__func__);
 		maat_read_full_config(feather);
 	}
+	pthread_mutex_unlock(&(feather->background_update_mutex));
 	while(feather->still_working)
 	{
 		usleep(feather->scan_interval_ms*1000);
 		scan_dir_cnt++;
-		if(0==pthread_mutex_trylock(&(feather->backgroud_update_mutex)))
+		if(0==pthread_mutex_trylock(&(feather->background_update_mutex)))
 		{
 			switch(feather->input_mode)
 			{
@@ -3693,7 +3696,7 @@ void *thread_rule_monitor(void *arg)
 											feather->scanner->version,feather->scanner->cfg_num);
 				}
 			}
-			pthread_mutex_unlock(&(feather->backgroud_update_mutex));
+			pthread_mutex_unlock(&(feather->background_update_mutex));
 		}
 		garbage_bury(feather->garbage_q,feather->effect_interval_ms/1000+10,feather->logger);
 		if(feather->stat_on==1&&time(NULL)%2==0)//output every 2 seconds

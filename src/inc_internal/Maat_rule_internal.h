@@ -350,7 +350,7 @@ struct _Maat_feather_t
 	char table_info_fn[MAX_TABLE_NAME_LEN];
 	char compile_tn[MAX_TABLE_NAME_LEN];
 	char group_tn[MAX_TABLE_NAME_LEN];
-	pthread_mutex_t backgroud_update_mutex;
+	pthread_mutex_t background_update_mutex;
 	unsigned char decrypt_key[MAX_TABLE_NAME_LEN];
 	pthread_t cfg_mon_t;
 
