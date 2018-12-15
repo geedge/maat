@@ -148,6 +148,7 @@ void read_rule_from_redis(redisContext * ctx, long long desire_version, const ch
 	table_fp=NULL;
 	fprintf(index_fp,"%s\t%d\t%s\n",cur_table,line_count,table_path);
 	set_file_rulenum(table_path,line_count, logger);
+	printf("Written table %s\n",table_path);
 	
 	printf("Written complete: %s\n",index_path);
 clean_up:
