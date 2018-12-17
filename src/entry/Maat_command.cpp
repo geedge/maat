@@ -588,9 +588,9 @@ int get_rm_key_list(redisContext *c, long long instance_version, long long desir
 	}while(rule_num==0&&target_version<=redis_version&&cumulative_off==1);
 	if(rule_num==0)
 	{
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,"Got nothing after ZRANGEBYSCORE %s (%lld %lld, cumulative %s"
+		MESA_handle_runtime_log(logger, RLOG_LV_DEBUG, maat_redis_monitor,"Got nothing after ZRANGEBYSCORE %s (%lld %lld, cumulative %s"
 							,rm_status_sset,instance_version,target_version-1,cumulative_off==1?"OFF":"ON");
-		goto FULL_UPDATE;
+		return 0;
 	}
 	MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor,
 			"Inc Update form instance_version %lld to %lld (%d entries).",instance_version,target_version,rule_num);
