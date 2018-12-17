@@ -730,7 +730,7 @@ void maat_read_full_config(_Maat_feather_t* _feather)
 									_feather->decrypt_key,	//Not used.
 									_feather);
 			}
-			if(_feather->update_tmp_scanner)
+			if(_feather->update_tmp_scanner==NULL)
 			{
 				MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
 									"At initiation: no avilable rule in redis %s:%hu db%d",
@@ -748,7 +748,7 @@ void maat_read_full_config(_Maat_feather_t* _feather)
 									_feather,
 									_feather->decrypt_key,
 									_feather->logger);
-			if(!_feather->update_tmp_scanner)
+			if(_feather->update_tmp_scanner==NULL)
 			{
 				MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
 								"At initiation: NO effective rule in %s.",
@@ -764,7 +764,7 @@ void maat_read_full_config(_Maat_feather_t* _feather)
 									_feather,
 									_feather->decrypt_key,
 									_feather->logger);
-			if(!_feather->update_tmp_scanner)
+			if(_feather->update_tmp_scanner==NULL)
 			{
 				MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_module ,
 								"At initiation: NO efffective rule in JSON generate %s.",
