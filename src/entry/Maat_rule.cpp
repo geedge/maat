@@ -32,7 +32,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_5_20181217=1;
+int MAAT_FRAME_VERSION_2_5_20181221=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -1849,7 +1849,6 @@ int sync_region(MESA_htable_handle region_hash,int region_id,const char* table_n
 								"region id %d of table %s is not unique.",region_id,table_name);
 			return -1;
 		}
-		
 	}
 	else
 	{
@@ -2366,7 +2365,7 @@ void del_group_rule(struct Maat_table_desc* table,struct db_group_rule_t* db_gro
 																	,db_group_rule->compile_id);
 		return;
 	}
-	if(compile_rule->group_cnt==0&&compile_rule->db_c_rule==NULL)
+	if(compile_rule->group_cnt==0&&compile_rule->is_valid==0)
 	{
 		HASH_delete_by_id(scanner->compile_hash, db_group_rule->compile_id);
 		garbage_bagging(GARBAGE_COMPILE_RULE, compile_rule, scanner->tomb_ref);

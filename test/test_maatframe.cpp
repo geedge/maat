@@ -36,7 +36,7 @@ Maat_feather_t g_feather=NULL;
 void *g_logger=NULL;
 int g_iThreadNum=4;
 const char* table_info_path="./table_info.conf";
-int scan_interval_ms=1;
+int scan_interval_ms=500;
 int effective_interval_ms=0;
 void wait_for_cmd_effective(Maat_feather_t feather, long long version_before)
 {
@@ -265,7 +265,6 @@ TEST(IPScan, IPv4)
 	return;
 }
 TEST(IPScan, IPv6)
-
 {
 	int table_id=0,ret=0;
 	struct Maat_rule_t result[4];
@@ -289,6 +288,23 @@ TEST(IPScan, IPv6)
 	EXPECT_EQ(ret, -2);
 	Maat_clean_status(&mid);
 	return;
+}
+TEST(Helper, ReadColumn)
+{
+	const char* ip="192.168.0.1";
+	const char* tmp="something";
+	char line[256];
+	snprintf(line, sizeof(line), "1\t%s\t%s",ip, tmp);
+	size_t offset=0, len=0;
+	int ret=0;
+	ret=Maat_helper_read_column(line, 2, &offset, &len);
+	EXPECT_EQ(ret, 0);
+	EXPECT_EQ(0, strncmp(ip, line+offset, len));
+	
+	ret=Maat_helper_read_column(line, 3, &offset, &len);
+	EXPECT_EQ(ret, 0);
+	EXPECT_EQ(0, strncmp(tmp, line+offset, len));
+
 }
 
 TEST(IntervalScan, Pure)
@@ -1211,7 +1227,58 @@ TEST_F(MaatCmdTest, SetExpr)
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
 						&result,NULL, 1,
 						&mid, 0);
+	EXPECT_EQ(ret, 0);	
+	Maat_clean_status(&mid);
+}
+TEST_F(MaatCmdTest,  RuleIDRecycle)
+{
+	const char* table_name="HTTP_URL";
+	const char* scan_data="Reuse rule ID is allowed.";
+	const char* keywords="Reuse&rule";
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+
+	struct Maat_rule_t result;
+	scan_status_t mid=NULL;
+
+	int table_id=0;
+	table_id=Maat_table_register(feather,table_name);
+	ASSERT_GT(table_id, 0);
+
+	int rule_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	int label_id=5211, ret=0;
+	test_add_expr_command(feather,table_name,rule_id, 0, label_id, keywords);
+	
+	ret=Maat_cmd_commit(feather);
+	EXPECT_TRUE(ret>=0);
+	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
+	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
+						&result, NULL, 1,
+						&mid, 0);
+	Maat_clean_status(&mid);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result.config_id, rule_id);
+
+	del_command(feather, rule_id);
+	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
+	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
+						&result, NULL, 1,
+						&mid, 0);
+	Maat_clean_status(&mid);
 	EXPECT_EQ(ret, 0);
+
+	test_add_expr_command(feather,table_name,rule_id, 0, label_id, keywords);
+	ret=Maat_cmd_commit(feather);
+	EXPECT_TRUE(ret>=0);
+
+	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
+	memset(&result, 0, sizeof(result));
+	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
+						&result, NULL, 1,
+						&mid, 0);
+	Maat_clean_status(&mid);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result.config_id, rule_id);
+	return;
 }
 
 
