@@ -393,8 +393,6 @@ int get_inc_key_list(long long instance_version, long long target_version, redis
 	{
 		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor,
 				"Noncontinuous VERSION Redis: %lld MAAT: %lld.",nearest_rule_version,instance_version);
-		freeReplyObject(reply);
-		return -1;
 	}
 	s_rule=(struct serial_rule_t*)calloc(reply->elements,sizeof(struct serial_rule_t));
 	for(i=0, j=0;i<reply->elements;i++)
