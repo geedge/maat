@@ -363,8 +363,10 @@ struct _Maat_feather_t
 	long long base_rgn_seq,base_grp_seq,server_time;
 	long long load_version_from;
 
+	char* accept_tags_raw;
 	struct rule_tag *accept_tags;
 	int n_tags;
+	
 	char foreign_cont_dir[MAX_TABLE_NAME_LEN];
 	int foreign_cont_linger;
 //internal states

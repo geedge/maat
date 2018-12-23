@@ -689,6 +689,7 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			{
 				return -1;
 			}
+			_feather->accept_tags_raw=_maat_strdup((const char*) value);
 			break;
 		case MAAT_OPT_FOREIGN_CONT_DIR:
 			memset(_feather->foreign_cont_dir, 0, sizeof(_feather->foreign_cont_dir));
@@ -809,10 +810,14 @@ int Maat_initiate_feather(Maat_feather_t feather)
 	}
 	if(_feather->cumulative_update_off==1)
 	{
-			MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
+		MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
 								"Update with cumulative version OFF.");
 	}
-
+	if(_feather->n_tags>0)
+	{
+		MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
+								"Accept tags: %s", _feather->accept_tags_raw);		
+	}
 	if(_feather->stat_on==1)
 	{
 		maat_stat_init(_feather);
