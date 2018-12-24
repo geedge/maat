@@ -360,10 +360,30 @@ TEST(DigestScan, Pure)
 	Maat_clean_status(&mid);
 	return;
 }
-TEST(StringScan, EncodedURL)
+TEST(StringScan, GBKEncodedURL)
+{
+	const char* url_gb2312="www.baidu.com/?wd=C%23%D6%D0%B9%FA";
+	int table_id=0,ret=0;
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+	
+	const char* table_name="HTTP_URL";	
+	scan_status_t mid=NULL;
+
+	table_id=Maat_table_register(g_feather,table_name);
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, url_gb2312, strlen(url_gb2312), 
+						result,found_pos, 4,
+						&mid, 0);
+	EXPECT_GE(ret, 1);
+	Maat_clean_status(&mid);
+	return;
+}
+TEST(StringScan, UTF8EncodedURL)
 {
 	const char* url_utf8="www.google.com/?q=C%23%E4%B8%AD%E5%9B%BD";
-	const char* url_gb2312="www.baidu.com/?wd=C%23%D6%D0%B9%FA";
+	const char* url_utf8_qs="googlevideo.com/qs?nh=%2CIgpwcjA0LnN2bzAzKgkxMjcuMC4wLjE";
 	int table_id=0,ret=0;
 	struct Maat_rule_t result[4];
 	int found_pos[4];
@@ -377,16 +397,17 @@ TEST(StringScan, EncodedURL)
 	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, url_utf8, strlen(url_utf8), 
 						result,found_pos, 4,
 						&mid, 0);
-	EXPECT_GE(ret, 1);
+	EXPECT_EQ(ret, 1);
 	Maat_clean_status(&mid);
 	
-	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, url_gb2312, strlen(url_gb2312), 
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, url_utf8_qs, strlen(url_utf8_qs), 
 						result,found_pos, 4,
 						&mid, 0);
-	EXPECT_GE(ret, 1);
+	EXPECT_GT(ret, 1);
 	Maat_clean_status(&mid);
 	return;
 }
+
 TEST(StringScan, UnicodeEscape)
 {
 	const char* test_data_dir="./testdata_uni2ascii";
