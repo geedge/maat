@@ -1038,7 +1038,6 @@ int test_add_expr_command(Maat_feather_t feather,const char* region_table,int co
 	int group_num=1,ret=0;
 	memset(&rule,0,sizeof(rule));
 	rule.config_id=config_id;
-	
 	strcpy(rule.service_defined,"maat_command");
 	//MUST acqire by function, because Maat_cmd_t has some hidden members.
 	cmd=Maat_create_cmd(&rule, group_num);
@@ -1299,6 +1298,46 @@ TEST_F(MaatCmdTest,  RuleIDRecycle)
 	Maat_clean_status(&mid);
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result.config_id, rule_id);
+	return;
+}
+TEST_F(MaatCmdTest,  ReturnRuleIDWithDescendingOrder)
+{
+	const char* table_name="HTTP_URL";
+	const char* scan_data="This string will hit mulptiple rules.";
+	const char* keywords="string\\bwill\\bhit";
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+
+
+	int table_id=0;
+	table_id=Maat_table_register(feather,table_name);
+	ASSERT_GT(table_id, 0);
+
+	int i=0, repeat_times=4;
+	struct Maat_rule_t result[8];
+	int expect_ruleid[8];
+	scan_status_t mid=NULL;
+
+	int rule_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", repeat_times);
+	int label_id=5211, ret=0;
+	for(i=0; i<repeat_times; i++)
+	{
+		//add in ascending order
+		expect_ruleid[i]=rule_id+1-repeat_times+i;
+		test_add_expr_command(feather,table_name,rule_id+1-repeat_times+i, 0, label_id, keywords);
+	}
+	ret=Maat_cmd_commit(feather);
+	EXPECT_TRUE(ret>=0);
+	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
+	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
+						result, NULL, 8,
+						&mid, 0);
+	Maat_clean_status(&mid);
+	EXPECT_EQ(ret, repeat_times);
+	for(i=0;i<repeat_times;i++)
+	{
+		//return in ascending order
+		EXPECT_EQ(result[i].config_id, expect_ruleid[repeat_times-i-1]);
+	}
 	return;
 }
 

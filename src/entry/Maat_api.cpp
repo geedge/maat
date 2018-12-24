@@ -105,6 +105,13 @@ void fill_maat_rule(struct Maat_rule_t *rule, const struct _head_Maat_rule_t* ru
 	memcpy(rule->service_defined, srv_def, MIN(srv_def_len,MAX_SERVICE_DEFINE_LEN));
 	return;
 }
+static int compare_compile_id(const void *a, const void *b)
+{
+	struct Maat_rule_t *ra=(struct Maat_rule_t *)a;
+	struct Maat_rule_t *rb=(struct Maat_rule_t *)b;
+
+	return (rb->config_id-ra->config_id);
+}
 
 int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int is_last_region,void* region_hit,int region_type_size,int group_offset,int region_hit_num,struct Maat_rule_t* result,_compile_result_t *rs_result, int size,int thread_num)
 {
@@ -187,6 +194,8 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	}	
 	if(result_cnt>0)
 	{
+		qsort(result, result_cnt, sizeof(struct Maat_rule_t),
+                  compare_compile_id);
 		alignment_int64_array_add(feather->hit_cnt,thread_num,1);
 	}
 	return result_cnt;
