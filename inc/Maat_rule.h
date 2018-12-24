@@ -259,9 +259,9 @@ int Maat_rule_get_ex_new_index(Maat_feather_t feather, const char* compile_table
 MAAT_RULE_EX_DATA Maat_rule_get_ex_data(Maat_feather_t feather, const struct Maat_rule_t* rule, int idx);
 
 //Helper function for parsing space or tab seperated line.
-//column_seq: column sequence is numberd from 1.
+//Nth_column: the Nth column is numberd from 1.
 //Return 0 if success.
-int Maat_helper_read_column(const char* line, int column_seq, size_t *column_offset, size_t *column_len);
+int Maat_helper_read_column(const char* line, int Nth_column, size_t *column_offset, size_t *column_len);
 
 
 //Following functions are similar to Maat_rule_get_ex_data, except they are effective on plugin table.

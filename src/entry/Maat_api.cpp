@@ -2286,8 +2286,8 @@ int Maat_read_state(Maat_feather_t feather,enum MAAT_STATE_OPT  type, void* valu
 	}
 	return 0;
 }
-int Maat_helper_read_column(const char* line, int column_seq, size_t *column_offset, size_t *column_len)
+int Maat_helper_read_column(const char* line, int Nth_column, size_t *column_offset, size_t *column_len)
 {
-	return get_column_pos(line, column_seq, column_offset, column_len);
+	return get_column_pos(line, Nth_column, column_offset, column_len);
 }
 
