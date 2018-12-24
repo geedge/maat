@@ -3178,19 +3178,25 @@ void update_plugin_table(struct Maat_table_desc* table,const char* table_line,_M
 	char *p=NULL;
 	char* copy=NULL;
 	size_t is_valid_offset=0, valid_len=0;
-	char *token=NULL,*sub_token=NULL,*saveptr;
+	size_t accept_tag_offset=0, accept_tag_len=0;
 	if(plugin_desc->rule_tag_column>0&&n_tags>0)
 	{
-		copy=_maat_strdup(table_line);
-		for (token = copy, i=0; i<plugin_desc->rule_tag_column ; token= NULL, i++)
+		ret=Maat_helper_read_column(table_line, plugin_desc->rule_tag_column, &accept_tag_offset, &accept_tag_len);
+		if(ret<0)
 		{
-			sub_token= strtok_r(token," \t", &saveptr);
-			if (sub_token == NULL)
-				break;
+			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+						"update error, could not locate tag in column %d of plugin table %s:%s",
+						plugin_desc->rule_tag_column,
+						table->table_name[table->updating_name],
+						table_line);
+			table->udpate_err_cnt++;
+			return;
 		}
-		if(i==plugin_desc->rule_tag_column&&strlen(sub_token)>2)
+		if(accept_tag_len>2)
 		{
-			ret=compare_accept_tag(sub_token, tags, n_tags);
+			copy=ALLOC(char, accept_tag_len+1);
+			memcpy(copy, table_line+accept_tag_offset, accept_tag_len);
+			ret=compare_accept_tag(copy, tags, n_tags);
 			if(ret<0)
 			{
 				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
@@ -3202,9 +3208,9 @@ void update_plugin_table(struct Maat_table_desc* table,const char* table_line,_M
 			{
 				table->unmatch_tag_cnt++;
 			}
+			free(copy);
+			copy=NULL;
 		}
-		free(copy);
-		copy=NULL;
 		if(ret!=1)
 		{
 			return;
@@ -3217,7 +3223,7 @@ void update_plugin_table(struct Maat_table_desc* table,const char* table_line,_M
 
 		if(plugin_desc->have_exdata)
 		{
-			ret=get_column_pos(table_line, plugin_desc->valid_flag_column, &is_valid_offset, &valid_len);
+			ret=Maat_helper_read_column(table_line, plugin_desc->valid_flag_column, &is_valid_offset, &valid_len);
 			
 			pthread_rwlock_wrlock(&(table_rt->plugin.rwlock));
 			if(atoi(table_line+is_valid_offset)==1)
