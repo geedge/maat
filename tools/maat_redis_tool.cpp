@@ -51,7 +51,6 @@ void read_rule_from_redis(redisContext * ctx, long long desire_version, const ch
 	char table_path[256],index_path[256];
 	FILE *table_fp=NULL, *index_fp=NULL;
 	rule_num=get_rm_key_list(ctx, 0, desire_version, &version, &rule_list, &update_type, logger,0);
-	if(desire_version!=0)
 	if(rule_num==0)
 	{
 		if(desire_version!=0)
