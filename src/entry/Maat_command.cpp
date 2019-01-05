@@ -836,8 +836,8 @@ int reconstruct_cmd(struct _Maat_feather_t *feather, struct _Maat_cmd_inner_t* _
 	struct Maat_group_t* group_cmd=NULL;
 	struct Maat_region_t* region_cmd=NULL;
 
-	struct _Maat_compile_inner_t *compile_inner=NULL;
-	struct _Maat_group_inner_t* group_inner=NULL;
+	struct Maat_compile_inner_t *compile_inner=NULL;
+	struct Maat_group_inner_t* group_inner=NULL;
 	struct _Maat_region_inner_t* region_inner=NULL;
 	void* logger=feather->logger;
 
@@ -848,7 +848,7 @@ int reconstruct_cmd(struct _Maat_feather_t *feather, struct _Maat_cmd_inner_t* _
 				,"MAAT not ready.");
 		return -1;
 	}
-	compile_inner=(struct _Maat_compile_inner_t *)HASH_fetch_by_id(feather->scanner->compile_hash, config_id);
+	compile_inner=(struct Maat_compile_inner_t *)HASH_fetch_by_id(feather->scanner->compile_hash, config_id);
 	//Operation on compile_inner is thread safe, no immediate memory free when delete a compile rule or a scanner.
 	//In another words, if the compile_inner is accessable from compile means, its was valid in at least 10 seconds (garbage bury).
 	if(compile_inner==NULL)
@@ -864,7 +864,7 @@ int reconstruct_cmd(struct _Maat_feather_t *feather, struct _Maat_cmd_inner_t* _
 	cmd->groups=(struct Maat_group_t*)calloc(sizeof(struct Maat_group_t),cmd->group_num);
 	for(i=0;i<compile_inner->group_boundary;i++)
 	{
-		group_inner=(struct _Maat_group_inner_t*)dynamic_array_read(compile_inner->groups,i);
+		group_inner=(struct Maat_group_inner_t*)dynamic_array_read(compile_inner->groups,i);
 		if(group_inner==NULL)
 		{
 			continue;
@@ -1337,10 +1337,10 @@ int fix_table_name(_Maat_feather_t* feather,struct Maat_cmd_t* cmd)
 	struct Maat_region_t* p_region=NULL;
 	enum MAAT_TABLE_TYPE table_type;
 
-	struct _Maat_compile_inner_t *compile_rule=NULL;
+	struct Maat_compile_inner_t *compile_rule=NULL;
 	if(feather->scanner!=NULL)
 	{
-		compile_rule=(struct _Maat_compile_inner_t*)HASH_fetch_by_id(feather->scanner->compile_hash, cmd->compile.config_id);
+		compile_rule=(struct Maat_compile_inner_t*)HASH_fetch_by_id(feather->scanner->compile_hash, cmd->compile.config_id);
 		if(compile_rule!=NULL)
 		{
 			MESA_handle_runtime_log(feather->logger,RLOG_LV_FATAL,maat_module 
@@ -2035,8 +2035,8 @@ int Maat_cmd_set_group(Maat_feather_t feather,int group_id, const struct Maat_re
 	{
 		return -1;
 	}
-	//struct _Maat_group_inner_t* group_inner=NULL;
-	//group_inner=(struct _Maat_group_inner_t*)HASH_fetch_by_id(_feather->scanner->group_hash, group_id);
+	//struct Maat_group_inner_t* group_inner=NULL;
+	//group_inner=(struct Maat_group_inner_t*)HASH_fetch_by_id(_feather->scanner->group_hash, group_id);
 	//NOT implemented yet.
 	assert(0);
 	return 0;
