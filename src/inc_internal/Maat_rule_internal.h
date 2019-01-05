@@ -108,6 +108,7 @@ struct db_group_rule_t
 	int group_id;
 	int compile_id;
 	int is_valid;
+	int not_flag;
 };
 struct op_expr_t
 {
@@ -144,7 +145,8 @@ struct _Maat_group_inner_t
 struct _Maat_compile_inner_t
 {
 	struct db_compile_rule_t *db_c_rule;
-	dynamic_array_t *groups;
+	dynamic_array_t *groups;	//element is struct _Maat_group_inner_t*
+	char not_flag[MAX_ITEMS_PER_BOOL_EXPR];
 	int is_valid;
 	int compile_id;//equal to db_c_rule->m_rule.config_id
 	const struct Maat_table_desc* ref_table;
@@ -234,6 +236,10 @@ struct ip_runtime
 	long long ipv6_rule_cnt;
 
 };
+struct group_runtime
+{
+	long long not_flag_group;
+};
 struct Maat_table_runtime
 {
 	enum MAAT_TABLE_TYPE table_type;
@@ -244,6 +250,7 @@ struct Maat_table_runtime
 		struct plugin_runtime plugin;		
 		struct expr_runtime expr;
 		struct ip_runtime ip;
+		struct group_runtime group;
 		void * other;
 	};
 	mcore_long_t	scan_cnt;
@@ -266,10 +273,7 @@ struct _Maat_scanner_t
 	long gie_total_q_size;
 	
 	struct Maat_table_runtime* table_rt[MAX_TABLE_NUM];
-/*
-	struct similar_runtime gie_aux[MAX_TABLE_NUM];	
-	struct plugin_runtime plugin_aux[MAX_TABLE_NUM];
-*/
+
 	MESA_htable_handle region_hash;
 	MESA_htable_handle group_hash;
 	MESA_htable_handle compile_hash;
@@ -283,7 +287,7 @@ struct _Maat_scanner_t
 	void * bool_macher_expr_compiler;
 	scan_result_t *region_rslt_buff;
 	MESA_lqueue_head tomb_ref;//reference of g_feather->garbage_q
-//	struct _region_stat_t region_counter[MAX_TABLE_NUM];
+
 	int max_thread_num;
 	iconv_t iconv_handle[MAX_CHARSET_NUM][MAX_CHARSET_NUM];//iconv_handle[to][from]
 };
@@ -374,7 +378,7 @@ struct _Maat_feather_t
 	int active_plugin_table_num;
 	int is_last_plugin_table_updating;
 
-//for stat>>>>
+//for scanner independent stat>>>>
 	int backgroud_update_enabled;
 	screen_stat_handle_t stat_handle;
 	int total_stat_id;

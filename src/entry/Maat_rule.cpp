@@ -977,8 +977,7 @@ void EMPTY_FREE(void*p)
 }
 struct _Maat_compile_inner_t * create_compile_rule(int compile_id)
 {
-	struct _Maat_compile_inner_t* p=NULL;
-	p=(struct _Maat_compile_inner_t*)calloc(sizeof(struct _Maat_compile_inner_t),1);
+	struct _Maat_compile_inner_t* p=ALLOC(struct _Maat_compile_inner_t,1);
 	p->compile_id=compile_id;
 	p->group_cnt=0;
 	p->group_boundary=1;
@@ -1741,7 +1740,7 @@ unsigned int del_region_from_group(struct _Maat_group_inner_t* group,int region_
 	return j;
 }
 
-int add_group_to_compile(struct _Maat_compile_inner_t*a_compile_rule,struct _Maat_group_inner_t* a_rule_group)
+int add_group_to_compile(struct _Maat_compile_inner_t*a_compile_rule,struct _Maat_group_inner_t* a_rule_group, int not_flag)
 {
 	int i=0,ret=-1;
 	int write_pos=-1;
@@ -1781,7 +1780,15 @@ int add_group_to_compile(struct _Maat_compile_inner_t*a_compile_rule,struct _Maa
 		write_pos=a_compile_rule->group_boundary;
 		a_compile_rule->group_boundary++;
 	}
-	dynamic_array_write(a_compile_rule->groups,write_pos, a_rule_group);
+	dynamic_array_write(a_compile_rule->groups, write_pos, a_rule_group);
+	if(not_flag)
+	{
+		a_compile_rule->not_flag[write_pos]=1;
+	}
+	else
+	{
+		a_compile_rule->not_flag[write_pos]=0;
+	}
 	a_compile_rule->group_cnt++;
 	a_rule_group->ref_cnt++;
 	//member group->compile_shortcut may set to NULL and compile rule pointer repeatly,until rule build finish.
@@ -2318,7 +2325,7 @@ int add_group_rule(struct Maat_table_desc* table,struct db_group_rule_t* db_grou
 		group_rule=create_group_rule(db_group_rule->group_id);
 		group_rule->table_id=table->table_id;
 			
-		ret=HASH_add_by_id(scanner->group_hash, db_group_rule->group_id,group_rule);
+		ret=HASH_add_by_id(scanner->group_hash, db_group_rule->group_id, group_rule);
 		assert(ret>=0);
 	}
 	
@@ -2326,10 +2333,10 @@ int add_group_rule(struct Maat_table_desc* table,struct db_group_rule_t* db_grou
 	if(compile_rule==NULL)
 	{
 		compile_rule=create_compile_rule(db_group_rule->compile_id);
-		ret=HASH_add_by_id(scanner->compile_hash,db_group_rule->compile_id, compile_rule);
+		ret=HASH_add_by_id(scanner->compile_hash, db_group_rule->compile_id, compile_rule);
 		assert(ret>=0);
 	}
-	ret=add_group_to_compile(compile_rule,group_rule);
+	ret=add_group_to_compile(compile_rule, group_rule, db_group_rule->not_flag);
 	if(ret<0)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module,
@@ -2437,35 +2444,40 @@ void update_group_rule(struct Maat_table_desc* table,const char* table_line,stru
 	struct db_group_rule_t db_group_rule;
 	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
 	int ret=0;
-	ret=sscanf(table_line,"%d\t%d\t%d",&(db_group_rule.group_id)
-										,&(db_group_rule.compile_id)
-										,&(db_group_rule.is_valid));
-	if(ret!=3)
+	ret=sscanf(table_line,"%d\t%d\t%d\t%d", &(db_group_rule.group_id),
+											&(db_group_rule.compile_id),
+											&(db_group_rule.is_valid),
+											&(db_group_rule.not_flag));
+	if(ret!=3&&ret!=4)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"update error,invalid format of group table %s:%s"
-							,table->table_name[table->updating_name], table_line);	
+							"update error,invalid format of group table %s:%s",
+							table->table_name[table->updating_name], table_line);	
 		table->udpate_err_cnt++;
 		return;
 	}
 	if(db_group_rule.is_valid==FALSE)
 	{
-		del_group_rule(table, &db_group_rule,scanner,logger);
+		del_group_rule(table, &db_group_rule, scanner, logger);
 		//leave no trace when compatible_group_update calling
 		if(table->table_type==TABLE_TYPE_GROUP)
 		{
 			table_rt->origin_rule_num--;
+			if(db_group_rule.not_flag)
+			{
+				table_rt->group.not_flag_group--;
+			}
 		}
 	}
 	else
 	{
-		ret=add_group_rule(table,&db_group_rule, scanner,logger);
+		ret=add_group_rule(table,&db_group_rule, scanner, logger);
 		if(ret<0)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"duplicate config of group table %s group_id %d compile_id %d.",table->table_name[0]
-																							,db_group_rule.group_id
-																							,db_group_rule.compile_id);
+							"duplicate config of group table %s group_id %d compile_id %d.", table->table_name[0],
+																							db_group_rule.group_id,
+																							db_group_rule.compile_id);
 
 		}
 		else
@@ -2474,6 +2486,10 @@ void update_group_rule(struct Maat_table_desc* table,const char* table_line,stru
 			if(table->table_type==TABLE_TYPE_GROUP)
 			{
 				table_rt->origin_rule_num++;
+				if(db_group_rule.not_flag)
+				{
+					table_rt->group.not_flag_group++;
+				}
 			}
 		}
 	}
