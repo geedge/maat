@@ -2463,6 +2463,7 @@ void update_group_rule(struct Maat_table_desc* table,const char* table_line,stru
 	struct db_group_rule_t db_group_rule;
 	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
 	int ret=0;
+	memset(&db_group_rule, 0, sizeof(db_group_rule));
 	ret=sscanf(table_line,"%d\t%d\t%d\t%d", &(db_group_rule.group_id),
 											&(db_group_rule.compile_id),
 											&(db_group_rule.is_valid),

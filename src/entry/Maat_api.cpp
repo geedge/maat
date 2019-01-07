@@ -604,7 +604,7 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 
 			md5_file(_feather->json_ctx.json_file, _feather->json_ctx.effective_json_md5);
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
-							"Maat initial with JSON file %s md5: %s,generate index file %s OK.",
+							"Maat initial with JSON file %s md5: %s, generate index file %s OK.",
 							_feather->json_ctx.json_file,
 							_feather->json_ctx.effective_json_md5,
 							_feather->json_ctx.iris_file);
