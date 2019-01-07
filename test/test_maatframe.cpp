@@ -289,6 +289,35 @@ TEST(IPScan, IPv6)
 	Maat_clean_status(&mid);
 	return;
 }
+TEST(Boolmatcher, NotFlagGroup)
+{
+	const char* string_should_hit="This string ONLY contains must-contained-string-11111.";
+	const char* string_should_not_hit="This string contains both must-contained-string-11111 and must-not-contained-string-22222.";
+
+	int ret=0;
+	int table_id=0;
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+	const char* table_name="HTTP_URL";
+	scan_status_t mid=NULL;
+	table_id=Maat_table_register(g_feather,table_name);
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_hit, strlen(string_should_hit), 
+						result,found_pos, 4, &mid, 0);
+						
+	EXPECT_GE(ret, 1);
+	Maat_clean_status(&mid);
+
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_not_hit, strlen(string_should_not_hit), 
+						result,found_pos, 4, &mid, 0);
+						
+	EXPECT_EQ(ret, -2);
+	Maat_clean_status(&mid);
+
+
+}
+
 TEST(Helper, ReadColumn)
 {
 	const char* ip="192.168.0.1";

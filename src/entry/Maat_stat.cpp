@@ -8,7 +8,8 @@ enum MAAT_FS_STATUS{
 	STATUS_TABLE_NUM,
 	STATUS_PLUGIN_CACHE_NUM,
 	STATUS_PLUGIN_ACC_NUM,
-	STATUS_GROUP_RULE_NUM,
+	STATUS_GROUP_REF_NUM,
+	STATUS_GROUP_REF_NOT_NUM,
 	STATUS_COMPILE_RULE_NUM,
 	STATUS_POSTPONE_QSIZE,
 	STATUS_OUTER_MID_NUM,
@@ -61,7 +62,8 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	feather->fs_status_id[STATUS_PLUGIN_CACHE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"plug_cache");
 	feather->fs_status_id[STATUS_PLUGIN_ACC_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"plug_acc");
 
-	feather->fs_status_id[STATUS_GROUP_RULE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"grp_num");
+	feather->fs_status_id[STATUS_GROUP_REF_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"grp_num");
+	feather->fs_status_id[STATUS_GROUP_REF_NOT_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"not_grp");
 	feather->fs_status_id[STATUS_COMPILE_RULE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"compile_num");
 
 	feather->fs_status_id[STATUS_POSTPONE_QSIZE]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"postponed");
@@ -168,7 +170,7 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	long long outer_mid_cnt=0,inner_mid_cnt=0;
 	long long orphan_group_saving=0, last_region_saving=0;
 	long long total_update_error=0,total_iconv_error=0;
-	long long compile_rule_num=0,group_rule_num=0,plugin_cache_num=0,plugin_acc_num=0;
+	long long compile_rule_num=0, group_rule_num=0, not_group_rule_num=0, plugin_cache_num=0, plugin_acc_num=0;
 	int i=0;
 	time_t now;
 	struct Maat_table_desc* p_table=NULL;
@@ -221,6 +223,7 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 				break;
 			case TABLE_TYPE_GROUP:
 				group_rule_num+=table_rt->origin_rule_num;
+				not_group_rule_num+=table_rt->group.not_flag_group;
 				break;
 			case TABLE_TYPE_COMPILE:
 				compile_rule_num+=table_rt->origin_rule_num;
@@ -357,7 +360,8 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_PLUGIN_CACHE_NUM], 0,FS_OP_SET,plugin_cache_num);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_PLUGIN_ACC_NUM], 0,FS_OP_SET,plugin_acc_num);
-	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_GROUP_RULE_NUM], 0,FS_OP_SET,group_rule_num);
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_GROUP_REF_NUM], 0,FS_OP_SET,group_rule_num);
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_GROUP_REF_NOT_NUM], 0,FS_OP_SET,not_group_rule_num);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_COMPILE_RULE_NUM], 0,FS_OP_SET,compile_rule_num);
 
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_POSTPONE_QSIZE], 0,FS_OP_SET,feather->postpone_q_size);

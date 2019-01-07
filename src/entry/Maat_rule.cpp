@@ -2468,7 +2468,8 @@ void update_group_rule(struct Maat_table_desc* table,const char* table_line,stru
 											&(db_group_rule.compile_id),
 											&(db_group_rule.is_valid),
 											&(db_group_rule.not_flag));
-	if(ret!=3&&ret!=4)
+	if((ret!=3&&ret!=4) || 
+		(db_group_rule.not_flag!=0&&db_group_rule.not_flag!=1))
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
 							"update error,invalid format of group table %s:%s",
