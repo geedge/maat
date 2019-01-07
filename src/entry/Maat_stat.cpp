@@ -56,10 +56,10 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	FS_set_para(feather->stat_handle, APP_NAME, feather->instance_name, strlen(feather->instance_name)+1);
 	
 	feather->fs_status_id[STATUS_VERSION]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"version");
-	feather->fs_status_id[STATUS_THRED_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"thread");
-	feather->fs_status_id[STATUS_TABLE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"table_num");
+	feather->fs_status_id[STATUS_THRED_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"threads");
+	feather->fs_status_id[STATUS_TABLE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"tables");
 
-	feather->fs_status_id[STATUS_PLUGIN_CACHE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"plug_cache");
+	feather->fs_status_id[STATUS_PLUGIN_CACHE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"plug_cached");
 	feather->fs_status_id[STATUS_PLUGIN_ACC_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"plug_acc");
 
 	feather->fs_status_id[STATUS_GROUP_REF_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"grp_num");
@@ -321,34 +321,34 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	FS_operate(feather->stat_handle,
 				feather->total_stat_id, 
 				feather->fs_column_id[COLUMN_TABLE_STREAM_NUM], 
-				FS_OP_SET,
+				FS_OP_ADD,
 				total_stream_cnt);
 	FS_operate(feather->stat_handle,
 				feather->total_stat_id, 
 				feather->fs_column_id[COLUMN_TABLE_SCAN_CNT], 
-				FS_OP_SET,
+				FS_OP_ADD,
 				total_scan_cnt);
 	FS_operate(feather->stat_handle,
 				feather->total_stat_id, 
 				feather->fs_column_id[COLUMN_TABLE_SCAN_BYTES], 
-				FS_OP_SET,
+				FS_OP_ADD,
 				total_input_bytes);
 	if(feather->perf_on==1)
 	{
 		FS_operate(feather->stat_handle,
 					feather->total_stat_id, 
 					feather->fs_column_id[COLUMN_TABLE_CPU_TIME], 
-					FS_OP_SET,
+					FS_OP_ADD,
 					total_cpu_time);
 	}
 	total_hit_cnt=alignment_int64_array_sum(feather->hit_cnt, feather->scan_thread_num);
 	FS_operate(feather->stat_handle,
 				feather->total_stat_id, 
 				feather->fs_column_id[COLUMN_TABLE_HIT_CNT], 
-				FS_OP_SET,
+				FS_OP_ADD,
 				total_hit_cnt);
-	feather->total_scan_bytes=total_input_bytes;
-	feather->total_scan_cnt=total_scan_cnt;
+	feather->total_scan_bytes+=total_input_bytes;
+	feather->total_scan_cnt+=total_scan_cnt;
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_TOTAL_SCAN_LEN], 0,FS_OP_SET,feather->total_scan_bytes);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_TOTAL_SCAN_CNT], 0,FS_OP_SET,feather->total_scan_cnt);
 	feather->update_err_cnt=total_update_error;
