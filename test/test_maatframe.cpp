@@ -104,7 +104,7 @@ const char* old_json="./json_update/old.json";
 const char* new_json="./json_update/new.json";
 const char* corrupted_json="./json_update/corrupted.json";
 
-class MaatJSONTest : public testing::Test 
+class JSONUpdate : public testing::Test 
 {
 
 protected:
@@ -126,21 +126,21 @@ protected:
 	static Maat_feather_t _shared_feather_j;
 	static void *logger;
 };
-Maat_feather_t MaatJSONTest::_shared_feather_j;
+Maat_feather_t JSONUpdate::_shared_feather_j;
 
 
-TEST_F(MaatJSONTest, OldCfg)
+TEST_F(JSONUpdate, OldCfg)
 {
-	scan_with_old_or_new_cfg(MaatJSONTest::_shared_feather_j, 1);
+	scan_with_old_or_new_cfg(JSONUpdate::_shared_feather_j, 1);
 }
-TEST_F(MaatJSONTest, NewCfg)
+TEST_F(JSONUpdate, NewCfg)
 {
 	system_cmd_cp(corrupted_json, watched_json);
 	sleep(2);
-	scan_with_old_or_new_cfg(MaatJSONTest::_shared_feather_j, 1);
+	scan_with_old_or_new_cfg(JSONUpdate::_shared_feather_j, 1);
 	system_cmd_cp(new_json, watched_json);
 	sleep(2);
-	scan_with_old_or_new_cfg(MaatJSONTest::_shared_feather_j, 0);
+	scan_with_old_or_new_cfg(JSONUpdate::_shared_feather_j, 0);
 }
 
 void Maat_read_entry_start_cb(int update_type,void* u_para)
@@ -289,10 +289,10 @@ TEST(IPScan, IPv6)
 	Maat_clean_status(&mid);
 	return;
 }
-TEST(Boolmatcher, NotFlagGroup)
+TEST(NOTLogic, OneRegion)
 {
-	const char* string_should_hit="This string ONLY contains must-contained-string-11111.";
-	const char* string_should_not_hit="This string contains both must-contained-string-11111 and must-not-contained-string-22222.";
+	const char* string_should_hit="This string ONLY contains must-contained-string-of-rule-143.";
+	const char* string_should_not_hit="This string contains both must-contained-string-of-rule-143 and must-not-contained-string-of-rule-143.";
 
 	int ret=0;
 	int table_id=0;
@@ -317,6 +317,65 @@ TEST(Boolmatcher, NotFlagGroup)
 	EXPECT_EQ(ret, -2);
 	Maat_clean_status(&mid);
 
+}
+TEST(NOTLogic, ScanNotAtLast)
+{
+	const char* string_should_hit="This string ONLY contains must-contained-string-of-rule-144.";
+	const char* string_should_not_hit="This string contains both must-contained-string-of-rule-144 and must-not-contained-string-of-rule-144.";
+	int ret=0;
+	int table_id=0;
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+	const char* hit_table_name="HTTP_URL", *not_hit_table_name="KEYWORDS_TABLE";
+	scan_status_t mid=NULL;
+	table_id=Maat_table_register(g_feather,hit_table_name);
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_hit, strlen(string_should_hit), 
+						result,found_pos, 4, &mid, 0);
+						
+	EXPECT_GE(ret, -2);
+	
+	table_id=Maat_table_register(g_feather,not_hit_table_name);
+	ASSERT_GT(table_id, 0);
+	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,  NULL, 0);
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_not_hit, strlen(string_should_not_hit), 
+						result,found_pos, 4, &mid, 0);
+	EXPECT_EQ(ret, -2);
+	Maat_clean_status(&mid);
+
+}
+
+TEST(NOTLogic, ScanIrrelavantAtLast)
+{
+	const char* string_should_hit="This string ONLY contains must-contained-string-of-rule-144.";
+	const char* string_should_not_hit="This string contains both must-contained-string-of-rule-144 and must-not-contained-string-of-rule-144.";
+	const char* string_irrelevant="This string contiains nothing to hit.";
+	int ret=0;
+	int table_id=0;
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+	const char* hit_table_name="HTTP_URL", *not_hit_table_name="KEYWORDS_TABLE";
+	scan_status_t mid=NULL;
+	table_id=Maat_table_register(g_feather,hit_table_name);
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_hit, strlen(string_should_hit), 
+						result,found_pos, 4, &mid, 0);						
+	EXPECT_GE(ret, -2);
+	/*
+	table_id=Maat_table_register(g_feather,not_hit_table_name);
+	ASSERT_GT(table_id, 0);
+
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_not_hit, strlen(string_should_not_hit), 
+						result,found_pos, 4, &mid, 0);
+	EXPECT_GE(ret, -2);*/
+	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,  NULL, 0);
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_irrelevant, strlen(string_irrelevant), 
+					result,found_pos, 4, &mid, 0);
+	
+	EXPECT_EQ(ret, 1);
+	Maat_clean_status(&mid);
 
 }
 
@@ -1790,16 +1849,16 @@ int main(int argc, char ** argv)
 	int scan_detail=0;
 
 	::testing::InitGoogleTest(&argc, argv);
-	g_logger=MESA_create_runtime_log_handle(log_file,0);
+	g_logger=MESA_create_runtime_log_handle(log_file, 0);
 
 	g_feather=Maat_feather(g_iThreadNum, table_info_path, g_logger);
-	Maat_set_feather_opt(g_feather,MAAT_OPT_INSTANCE_NAME,"demo", strlen("demo")+1);
-	Maat_set_feather_opt(g_feather,MAAT_OPT_DECRYPT_KEY,decrypt_key, strlen(decrypt_key)+1);
+	Maat_set_feather_opt(g_feather, MAAT_OPT_INSTANCE_NAME, "demo", strlen("demo")+1);
+	Maat_set_feather_opt(g_feather, MAAT_OPT_DECRYPT_KEY, decrypt_key, strlen(decrypt_key)+1);
 	Maat_set_feather_opt(g_feather, MAAT_OPT_JSON_FILE_PATH, json_path, strlen(json_path)+1);
 
-	Maat_set_feather_opt(g_feather, MAAT_OPT_SCANDIR_INTERVAL_MS,&scan_interval_ms, sizeof(scan_interval_ms));
+	Maat_set_feather_opt(g_feather, MAAT_OPT_SCANDIR_INTERVAL_MS, &scan_interval_ms, sizeof(scan_interval_ms));
 	//Set a short intevral for testing.
-	Maat_set_feather_opt(g_feather, MAAT_OPT_EFFECT_INVERVAL_MS,&effective_interval_ms, sizeof(effective_interval_ms));
+	Maat_set_feather_opt(g_feather, MAAT_OPT_EFFECT_INVERVAL_MS, &effective_interval_ms, sizeof(effective_interval_ms));
 
 	Maat_set_feather_opt(g_feather, MAAT_OPT_STAT_FILE_PATH, stat_file, strlen(stat_file)+1);
 	Maat_set_feather_opt(g_feather, MAAT_OPT_STAT_ON, NULL, 0);

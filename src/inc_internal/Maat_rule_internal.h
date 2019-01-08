@@ -147,12 +147,12 @@ struct Maat_compile_inner_t
 	struct db_compile_rule_t *db_c_rule;
 	dynamic_array_t *groups;	//element is struct Maat_group_inner_t*
 	char not_flag[MAX_ITEMS_PER_BOOL_EXPR];
-	char not_group_cnt;
 	char is_valid;
 	int compile_id;//equal to db_c_rule->m_rule.config_id
 	const struct Maat_table_desc* ref_table;
 	int group_boundary;
 	int group_cnt;
+ 	int not_group_cnt;
 	MAAT_RULE_EX_DATA* ads;
 	pthread_rwlock_t rwlock;//reading compile rule is safe in update thread, rwlock lock called when delete or scan thread read
 };
@@ -168,6 +168,7 @@ struct _INNER_scan_status_t
 	size_t hit_group_size;
 	unsigned long long cur_hit_id[MAX_SCANNER_HIT_NUM];
 	unsigned long long *hitted_group_id;
+	char not_grp_compile_hitted_flag;
 };
 struct _OUTER_scan_status_t
 {
@@ -285,7 +286,7 @@ struct Maat_scanner_t
 	unsigned int exprid_generator;
 	unsigned int dedup_expr_num;
 	MESA_lqueue_head region_update_q;
-	struct bool_matcher * bool_macher_expr_compiler;
+	struct bool_matcher * bool_matcher_expr_compiler;
 	scan_result_t *region_rslt_buff;
 	MESA_lqueue_head tomb_ref;//reference of g_feather->garbage_q
 

@@ -53,6 +53,40 @@ inline void DEC_SCANNER_REF(Maat_scanner_t*scanner,int thread_num)
 	alignment_int64_array_add(scanner->ref_cnt, thread_num, -1);
 	return;
 }
+void Maat_clean_status(scan_status_t* mid)
+{
+	struct _OUTER_scan_status_t* _mid=NULL;
+	if(*mid==NULL)
+	{
+		return;
+	}
+	_mid=(struct _OUTER_scan_status_t*)(*mid);
+	alignment_int64_array_add(_mid->feather->outer_mid_cnt,_mid->thread_num,-1);
+	if(_mid->inner!=NULL)
+	{
+		free(_mid->inner->hitted_group_id);
+		free(_mid->inner);
+		alignment_int64_array_add(_mid->feather->inner_mid_cnt,_mid->thread_num,-1);
+	}
+	_mid->feather=NULL;
+	free(_mid);
+	*mid=NULL;
+	return;
+}
+inline int scan_status_should_compile_NOT(struct _OUTER_scan_status_t* _mid)
+{
+	if( _mid &&
+		_mid->is_last_region==1 &&
+		_mid->inner &&
+		_mid->inner->not_grp_compile_hitted_flag)
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
 
 //return 1 if insert a unique id
 //return 0 if id is duplicated
@@ -123,7 +157,7 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	size_t r_in_c_cnt=0;
 	int shortcut_avilable_cnt=0;
 	unsigned char has_not_flag=0;
-	struct bool_matcher* bm=feather->scanner->bool_macher_expr_compiler;
+	struct bool_matcher* bm=feather->scanner->bool_matcher_expr_compiler;
 	struct Maat_group_inner_t* group_rule=NULL;
 	struct Maat_compile_inner_t* array_mi_rule[MAX_SCANNER_HIT_NUM];
 	struct Maat_compile_inner_t* _mi_rule=NULL;
@@ -149,7 +183,8 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 									group_rule->group_id);
 		_mid->hit_group_cnt+=ret;
 	}
-	if(shortcut_avilable_cnt==region_hit_num||shortcut_avilable_cnt==MAX_SCANNER_HIT_NUM)
+	if((region_hit_num>0 &&shortcut_avilable_cnt==region_hit_num) || 
+		shortcut_avilable_cnt==MAX_SCANNER_HIT_NUM)
 	{
 		//short cut for rules contains one group
 		scan_ret=shortcut_avilable_cnt;
@@ -180,19 +215,27 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 		
 		if(0==pthread_rwlock_tryrdlock(&(_mi_rule->rwlock)))
 		{
-			if(_mi_rule->is_valid==1 && !(_mi_rule->not_group_cnt>0 && !is_last_region))
-			{
-   				make_group_set(_mi_rule, &(rs_result[result_cnt].group_set), &has_not_flag);
-				r_in_c_cnt=pickup_hit_region_from_compile(&(rs_result[result_cnt].group_set), _mid->cur_hit_id, _mid->cur_hit_cnt,
-											region_pos, MAX_SCANNER_HIT_NUM);
-				if(r_in_c_cnt>0)//compile config hitted becasue of new reigon
+			if(_mi_rule->is_valid==1)
+			{			
+				if(_mi_rule->not_group_cnt>0 && !is_last_region)
 				{
-					fill_maat_rule(&(result[result_cnt]), &(_mi_rule->db_c_rule->m_rule_head),
-								_mi_rule->db_c_rule->service_defined ,_mi_rule->db_c_rule->m_rule_head.serv_def_len);
-					rs_result[result_cnt].compile_id=_mi_rule->compile_id;
-					result_cnt++;
+					_mid->not_grp_compile_hitted_flag=1;
 				}
-			}
+				else
+				{
+	   				make_group_set(_mi_rule, &(rs_result[result_cnt].group_set), &has_not_flag);
+					r_in_c_cnt=pickup_hit_region_from_compile(&(rs_result[result_cnt].group_set), _mid->cur_hit_id, _mid->cur_hit_cnt,
+												region_pos, MAX_SCANNER_HIT_NUM);
+					if(r_in_c_cnt>0 ||		//compile config hitted becasue of new reigon
+					_mid->cur_hit_cnt==0)	//or ever hit compile has not group
+					{
+						fill_maat_rule(&(result[result_cnt]), &(_mi_rule->db_c_rule->m_rule_head),
+									_mi_rule->db_c_rule->service_defined ,_mi_rule->db_c_rule->m_rule_head.serv_def_len);
+						rs_result[result_cnt].compile_id=_mi_rule->compile_id;
+						result_cnt++;
+					}
+				}		
+			}	
 			pthread_rwlock_unlock(&(_mi_rule->rwlock));
 		}		
 	}	
@@ -1364,9 +1407,12 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	{
 		hit_region_cnt=match_district(_mid,region_result,hit_region_cnt);
 	}
-	if(hit_region_cnt>0)
+	if(hit_region_cnt>0 || scan_status_should_compile_NOT(_mid))
 	{
-		alignment_int64_array_add(table_rt->hit_cnt, thread_num,1);
+		if(hit_region_cnt>0)
+		{
+			alignment_int64_array_add(table_rt->hit_cnt, thread_num, 1);
+		}
 		_mid=grab_mid(mid,_feather,thread_num, 1);
 		compile_ret=region_compile(_feather,_mid->inner,
 									_mid->is_last_region,
@@ -1379,7 +1425,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 		{
 			_mid->is_last_region=2;
 		}
-		if(hit_detail!=NULL&&_feather->rule_scan_type!=0)
+		if(hit_region_cnt>0&&hit_detail!=NULL&&_feather->rule_scan_type!=0)
 		{
 			*detail_ret=fill_region_hit_detail(data,_mid->inner,										
 											region_result,hit_region_cnt,
@@ -1464,9 +1510,12 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 		_feather->scan_err_cnt++;
 		return -1;
 	}
-	else if(region_ret>0)
+	else if(region_ret>0 || scan_status_should_compile_NOT(_mid))
 	{
-		alignment_int64_array_add(table_rt->hit_cnt, thread_num,1);
+		if(region_ret>0)
+		{
+			alignment_int64_array_add(table_rt->hit_cnt, thread_num,1);
+		}
 		_mid=grab_mid(mid, _feather, thread_num, 1);
 		compile_ret=region_compile(_feather,_mid->inner,
 									_mid->is_last_region,
@@ -2235,26 +2284,6 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 	return compile_ret;
 
 }
-void Maat_clean_status(scan_status_t* mid)
-{
-	struct _OUTER_scan_status_t* _mid=NULL;
-	if(*mid==NULL)
-	{
-		return;
-	}
-	_mid=(struct _OUTER_scan_status_t*)(*mid);
-	alignment_int64_array_add(_mid->feather->outer_mid_cnt,_mid->thread_num,-1);
-	if(_mid->inner!=NULL)
-	{
-		free(_mid->inner->hitted_group_id);
-		free(_mid->inner);
-		alignment_int64_array_add(_mid->feather->inner_mid_cnt,_mid->thread_num,-1);
-	}
-	_mid->feather=NULL;
-	free(_mid);
-	*mid=NULL;
-	return;
-}
 int Maat_read_state(Maat_feather_t feather,enum MAAT_STATE_OPT  type, void* value,int size)
 {
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
@@ -2299,6 +2328,7 @@ int Maat_read_state(Maat_feather_t feather,enum MAAT_STATE_OPT  type, void* valu
 	}
 	return 0;
 }
+
 int Maat_helper_read_column(const char* line, int Nth_column, size_t *column_offset, size_t *column_len)
 {
 	return get_column_pos(line, Nth_column, column_offset, column_len);

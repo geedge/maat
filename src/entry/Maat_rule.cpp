@@ -917,7 +917,8 @@ void walk_compile_hash(const uchar * key, uint size, void * data, void * user)
 	//make sure compile rule's each group has loadded.
 	if((compile_rule->group_cnt==compile_rule->db_c_rule->declare_grp_num
 		||compile_rule->db_c_rule->declare_grp_num==0)//for compatible old version
-		&&compile_rule->group_cnt>0)
+		&&compile_rule->group_cnt>0
+		&&compile_rule->group_cnt!=compile_rule->not_group_cnt)
 	{
 		one_set=ALLOC(struct bool_expr, 1);
 		//reading compile rule is safe in update thread, mutex lock called when modified
@@ -1403,7 +1404,7 @@ void destroy_maat_scanner(struct Maat_scanner_t*scanner)
 	map_destroy(scanner->district_map);
 	scanner->district_map=NULL;
 	assert(scanner->tmp_district_map==NULL);
-	destroy_bool_matcher(scanner->bool_macher_expr_compiler);
+	destroy_bool_matcher(scanner->bool_matcher_expr_compiler);
 	q_cnt=MESA_lqueue_get_count(scanner->region_update_q);
 	for(i=0;i<q_cnt;i++)
 	{
@@ -3309,10 +3310,10 @@ void do_scanner_update(struct Maat_scanner_t* scanner,MESA_lqueue_head garbage_q
 	tmp1=create_bool_matcher(scanner->compile_hash,
 							scan_thread_num,
 							logger);
-	tmp2=scanner->bool_macher_expr_compiler;
+	tmp2=scanner->bool_matcher_expr_compiler;
 	
 	//assume pinter = operation is thread safe 
-	scanner->bool_macher_expr_compiler=tmp1;
+	scanner->bool_matcher_expr_compiler=tmp1;
 	if(tmp2!=NULL)
 	{
 		garbage_bagging(GARBAGE_BOOL_MATCHER, tmp2, garbage_q);
