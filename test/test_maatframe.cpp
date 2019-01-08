@@ -303,12 +303,14 @@ TEST(Boolmatcher, NotFlagGroup)
 	table_id=Maat_table_register(g_feather,table_name);
 	ASSERT_GT(table_id, 0);
 	
+	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,  NULL, 0);
 	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_hit, strlen(string_should_hit), 
 						result,found_pos, 4, &mid, 0);
 						
 	EXPECT_GE(ret, 1);
 	Maat_clean_status(&mid);
 
+	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,  NULL, 0);
 	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_not_hit, strlen(string_should_not_hit), 
 						result,found_pos, 4, &mid, 0);
 						

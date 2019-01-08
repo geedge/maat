@@ -155,8 +155,9 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 		scan_ret=shortcut_avilable_cnt;
 		alignment_int64_array_add(feather->orphan_group_saving, thread_num, 1);
 	}
-	else if(shortcut_avilable_cnt==0&&region_hit_num==1&&_mid->hit_group_cnt==1&&is_last_region==1)
+	else if(0&&shortcut_avilable_cnt==0&&region_hit_num==1&&_mid->hit_group_cnt==1&&is_last_region==1)
 	{
+		//This shortcut is NO longger valid after bool macher support NOT-logic.
 		//short cut for last scan and combination rules
 		//region_hit_num==1 :  for current scan hitted rules, one and each other group may statisfy a compile rule.
 		//_mid->hit_group_cnt==1: With pre scan hitted group rules, one group may staisfy a compile rule
@@ -179,7 +180,7 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 		
 		if(0==pthread_rwlock_tryrdlock(&(_mi_rule->rwlock)))
 		{
-			if(_mi_rule->is_valid==1)
+			if(_mi_rule->is_valid==1 && !(_mi_rule->not_group_cnt>0 && !is_last_region))
 			{
    				make_group_set(_mi_rule, &(rs_result[result_cnt].group_set), &has_not_flag);
 				r_in_c_cnt=pickup_hit_region_from_compile(&(rs_result[result_cnt].group_set), _mid->cur_hit_id, _mid->cur_hit_cnt,

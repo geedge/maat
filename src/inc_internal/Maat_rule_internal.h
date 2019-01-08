@@ -147,7 +147,8 @@ struct Maat_compile_inner_t
 	struct db_compile_rule_t *db_c_rule;
 	dynamic_array_t *groups;	//element is struct Maat_group_inner_t*
 	char not_flag[MAX_ITEMS_PER_BOOL_EXPR];
-	int is_valid;
+	char not_group_cnt;
+	char is_valid;
 	int compile_id;//equal to db_c_rule->m_rule.config_id
 	const struct Maat_table_desc* ref_table;
 	int group_boundary;

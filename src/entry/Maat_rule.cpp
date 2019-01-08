@@ -1802,6 +1802,7 @@ int add_group_to_compile(struct Maat_compile_inner_t*a_compile_rule,struct Maat_
 	if(not_flag)
 	{
 		a_compile_rule->not_flag[write_pos]=1;
+		a_compile_rule->not_group_cnt++;
 	}
 	else
 	{
@@ -1853,7 +1854,11 @@ struct Maat_group_inner_t* del_group_from_compile(struct Maat_compile_inner_t*a_
 		{
 			group_rule->ref_cnt--;
 			dynamic_array_write(a_compile_rule->groups,i,NULL);
-			a_compile_rule->not_flag[i]=0;
+			if(a_compile_rule->not_flag[i]==1)
+			{
+				a_compile_rule->not_group_cnt--;
+				a_compile_rule->not_flag[i]=0;
+			}
 			a_compile_rule->group_cnt--;
 			pthread_rwlock_unlock(&(a_compile_rule->rwlock));
 			return group_rule;
