@@ -349,7 +349,6 @@ TEST(NOTLogic, ScanNotAtLast)
 TEST(NOTLogic, ScanIrrelavantAtLast)
 {
 	const char* string_should_hit="This string ONLY contains must-contained-string-of-rule-144.";
-	const char* string_should_not_hit="This string contains both must-contained-string-of-rule-144 and must-not-contained-string-of-rule-144.";
 	const char* string_irrelevant="This string contiains nothing to hit.";
 	int ret=0;
 	int table_id=0;
@@ -363,18 +362,51 @@ TEST(NOTLogic, ScanIrrelavantAtLast)
 	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_hit, strlen(string_should_hit), 
 						result,found_pos, 4, &mid, 0);						
 	EXPECT_GE(ret, -2);
-	/*
-	table_id=Maat_table_register(g_feather,not_hit_table_name);
-	ASSERT_GT(table_id, 0);
 
-	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_not_hit, strlen(string_should_not_hit), 
-						result,found_pos, 4, &mid, 0);
-	EXPECT_GE(ret, -2);*/
+	table_id=Maat_table_register(g_feather, not_hit_table_name);
+	ASSERT_GT(table_id, 0);
+	
 	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,  NULL, 0);
 	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_irrelevant, strlen(string_irrelevant), 
 					result,found_pos, 4, &mid, 0);
 	
 	EXPECT_EQ(ret, 1);
+	Maat_clean_status(&mid);
+
+}
+TEST(NOTLogic, ScanNotIP)
+{
+	const char* string_should_hit="This string ONLY contains must-contained-string-of-rule-145.";
+	int ret=0;
+	int table_id=0;
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+	const char* hit_table_name="HTTP_URL", *not_hit_table_name="IP_CONFIG";
+	scan_status_t mid=NULL;
+	table_id=Maat_table_register(g_feather,hit_table_name);
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_hit, strlen(string_should_hit), 
+						result,found_pos, 4, &mid, 0);						
+	EXPECT_GE(ret, -2);
+	
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
+	inet_pton(AF_INET,"10.0.6.205",&(v4_addr.saddr));
+	v4_addr.source=htons(50001);
+	inet_pton(AF_INET,"10.0.6.201",&(v4_addr.daddr));
+	v4_addr.dest=htons(80);
+	ipv4_addr.v4=&v4_addr;
+
+	table_id=Maat_table_register(g_feather, not_hit_table_name);
+	ASSERT_GT(table_id, 0);
+	
+	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,  NULL, 0);	
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid,0);
+	
+	
+	EXPECT_EQ(ret, -2);
 	Maat_clean_status(&mid);
 
 }
