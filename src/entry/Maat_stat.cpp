@@ -73,7 +73,7 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	feather->fs_status_id[STATUS_INNER_MID_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"inner_mid");
 	feather->fs_status_id[STATUS_ZOMBIE_RS_STREAM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"z_stream");
 
-	feather->fs_status_id[STATUS_ORPHAN_GROUP_SAVING]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"shutcut_sv");
+	feather->fs_status_id[STATUS_ORPHAN_GROUP_SAVING]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"shortcut_sv");
 	feather->fs_status_id[STATUS_NOT_GROUP_HIT]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"nt_grp_hit");
 
 	feather->fs_status_id[STATUS_TOTAL_SCAN_LEN]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"scan_bytes");
@@ -342,6 +342,7 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 					total_cpu_time);
 	}
 	total_hit_cnt=alignment_int64_array_sum(feather->hit_cnt, feather->scan_thread_num);
+	alignment_int64_array_reset(feather->hit_cnt,feather->scan_thread_num);
 	FS_operate(feather->stat_handle,
 				feather->total_stat_id, 
 				feather->fs_column_id[COLUMN_TABLE_HIT_CNT], 
