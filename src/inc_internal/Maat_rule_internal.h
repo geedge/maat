@@ -391,7 +391,7 @@ struct _Maat_feather_t
 	mcore_long_t hit_cnt;
 	mcore_long_t thread_call_cnt;//size indicate by scan_thread_num, 
 	mcore_long_t orphan_group_saving;
-	mcore_long_t last_region_saving;
+	mcore_long_t not_grp_hit_cnt;
 	long long total_scan_bytes;
 	long long total_scan_cnt;
 	long long update_err_cnt;//sum of the same name variable in each table

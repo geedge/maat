@@ -197,7 +197,6 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 		//region_hit_num==1 :  for current scan hitted rules, one and each other group may statisfy a compile rule.
 		//_mid->hit_group_cnt==1: With pre scan hitted group rules, one group may staisfy a compile rule
 		scan_ret=0;
-		alignment_int64_array_add(feather->last_region_saving, thread_num, 1);
 	}
 	else
 	{
@@ -226,8 +225,8 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	   				make_group_set(_mi_rule, &(rs_result[result_cnt].group_set), &has_not_flag);
 					r_in_c_cnt=pickup_hit_region_from_compile(&(rs_result[result_cnt].group_set), _mid->cur_hit_id, _mid->cur_hit_cnt,
 												region_pos, MAX_SCANNER_HIT_NUM);
-					if(r_in_c_cnt>0 ||		//compile config hitted becasue of new reigon
-					_mid->cur_hit_cnt==0)	//or ever hit compile has not group
+					if(r_in_c_cnt>0 ||			//compile config hitted becasue of new reigon
+						_mid->cur_hit_cnt==0)	//or ever hit a compile that refer a NOT-logic group
 					{
 						fill_maat_rule(&(result[result_cnt]), &(_mi_rule->db_c_rule->m_rule_head),
 									_mi_rule->db_c_rule->service_defined ,_mi_rule->db_c_rule->m_rule_head.serv_def_len);
@@ -244,6 +243,11 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 		qsort(result, result_cnt, sizeof(struct Maat_rule_t),
                   compare_compile_id);
 		alignment_int64_array_add(feather->hit_cnt,thread_num,1);
+	}
+	if(region_hit_num==0&&result_cnt>0)
+	{
+		alignment_int64_array_add(feather->not_grp_hit_cnt, thread_num, 1);
+
 	}
 	return result_cnt;
 }
@@ -540,7 +544,7 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->inner_mid_cnt=alignment_int64_array_alloc(max_thread_num);
 	feather->hit_cnt=alignment_int64_array_alloc(max_thread_num);
 	feather->orphan_group_saving=alignment_int64_array_alloc(max_thread_num);
-	feather->last_region_saving=alignment_int64_array_alloc(max_thread_num);
+	feather->not_grp_hit_cnt=alignment_int64_array_alloc(max_thread_num);
 	feather->maat_version=0;
 	feather->last_full_version=0;
 	feather->base_grp_seq=0;

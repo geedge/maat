@@ -3773,7 +3773,7 @@ void *thread_rule_monitor(void *arg)
 	alignment_int64_array_free(feather->outer_mid_cnt);
 	alignment_int64_array_free(feather->hit_cnt);
 	alignment_int64_array_free(feather->orphan_group_saving);
-	alignment_int64_array_free(feather->last_region_saving);
+	alignment_int64_array_free(feather->not_grp_hit_cnt);
 	if(feather->input_mode==SOURCE_REDIS)
 	{
 		if(feather->mr_ctx.read_ctx)
