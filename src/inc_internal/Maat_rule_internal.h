@@ -10,7 +10,7 @@
 #include <MESA/field_stat2.h>
 #include <MESA/rulescan.h>
 #include "dynamic_array.h"
-#include "UniversalBoolMatch.h"
+#include "bool_matcher.h"
 #include "hiredis.h"
 
 #include "stream_fuzzy_hash.h"
@@ -108,6 +108,7 @@ struct db_group_rule_t
 	int group_id;
 	int compile_id;
 	int is_valid;
+	int not_flag;
 };
 struct op_expr_t
 {
@@ -129,7 +130,7 @@ struct _Maat_region_inner_t
 	int expr_id_ub;
 	enum MAAT_TABLE_TYPE table_type;
 };
-struct _Maat_group_inner_t
+struct Maat_group_inner_t
 {
 	int group_id;
 	int table_id;
@@ -141,30 +142,33 @@ struct _Maat_group_inner_t
 	void* compile_shortcut;
 	pthread_mutex_t mutex;
 };
-struct _Maat_compile_inner_t
+struct Maat_compile_inner_t
 {
 	struct db_compile_rule_t *db_c_rule;
-	dynamic_array_t *groups;
-	int is_valid;
+	dynamic_array_t *groups;	//element is struct Maat_group_inner_t*
+	char not_flag[MAX_ITEMS_PER_BOOL_EXPR];
+	char is_valid;
 	int compile_id;//equal to db_c_rule->m_rule.config_id
 	const struct Maat_table_desc* ref_table;
 	int group_boundary;
 	int group_cnt;
+ 	int not_group_cnt;
 	MAAT_RULE_EX_DATA* ads;
 	pthread_rwlock_t rwlock;//reading compile rule is safe in update thread, rwlock lock called when delete or scan thread read
 };
 struct _compile_result_t
 {
 	int compile_id;
-	universal_bool_expr_t group_set;
+	struct bool_expr group_set;
 };
 struct _INNER_scan_status_t
 {
-	int cur_hit_cnt;
-	int hit_group_cnt;
-	int hit_group_size;
-	unsigned int cur_hit_id[MAX_SCANNER_HIT_NUM];
-	unsigned int *hitted_group_id;
+	size_t cur_hit_cnt;
+	size_t hit_group_cnt;
+	size_t hit_group_size;
+	unsigned long long cur_hit_id[MAX_SCANNER_HIT_NUM];
+	unsigned long long *hitted_group_id;
+	char not_grp_compile_hitted_flag;
 };
 struct _OUTER_scan_status_t
 {
@@ -234,6 +238,10 @@ struct ip_runtime
 	long long ipv6_rule_cnt;
 
 };
+struct group_runtime
+{
+	long long not_flag_group;
+};
 struct Maat_table_runtime
 {
 	enum MAAT_TABLE_TYPE table_type;
@@ -244,6 +252,7 @@ struct Maat_table_runtime
 		struct plugin_runtime plugin;		
 		struct expr_runtime expr;
 		struct ip_runtime ip;
+		struct group_runtime group;
 		void * other;
 	};
 	mcore_long_t	scan_cnt;
@@ -257,7 +266,7 @@ struct rule_tag
 	char* tag_name;
 	char* tag_val;
 };
-struct _Maat_scanner_t
+struct Maat_scanner_t
 {
 	long long version;
 	time_t last_update_time;
@@ -266,10 +275,7 @@ struct _Maat_scanner_t
 	long gie_total_q_size;
 	
 	struct Maat_table_runtime* table_rt[MAX_TABLE_NUM];
-/*
-	struct similar_runtime gie_aux[MAX_TABLE_NUM];	
-	struct plugin_runtime plugin_aux[MAX_TABLE_NUM];
-*/
+
 	MESA_htable_handle region_hash;
 	MESA_htable_handle group_hash;
 	MESA_htable_handle compile_hash;
@@ -280,10 +286,10 @@ struct _Maat_scanner_t
 	unsigned int exprid_generator;
 	unsigned int dedup_expr_num;
 	MESA_lqueue_head region_update_q;
-	void * bool_macher_expr_compiler;
+	struct bool_matcher * bool_matcher_expr_compiler;
 	scan_result_t *region_rslt_buff;
 	MESA_lqueue_head tomb_ref;//reference of g_feather->garbage_q
-//	struct _region_stat_t region_counter[MAX_TABLE_NUM];
+
 	int max_thread_num;
 	iconv_t iconv_handle[MAX_CHARSET_NUM][MAX_CHARSET_NUM];//iconv_handle[to][from]
 };
@@ -317,8 +323,8 @@ struct source_redis_ctx
 };
 struct _Maat_feather_t
 {
-	struct _Maat_scanner_t *scanner;
-	struct _Maat_scanner_t *update_tmp_scanner;
+	struct Maat_scanner_t *scanner;
+	struct Maat_scanner_t *update_tmp_scanner;
 	MESA_lqueue_head garbage_q;
 	int table_cnt;
 	int DEFERRED_LOAD_ON;
@@ -363,8 +369,10 @@ struct _Maat_feather_t
 	long long base_rgn_seq,base_grp_seq,server_time;
 	long long load_version_from;
 
+	char* accept_tags_raw;
 	struct rule_tag *accept_tags;
 	int n_tags;
+	
 	char foreign_cont_dir[MAX_TABLE_NAME_LEN];
 	int foreign_cont_linger;
 //internal states
@@ -372,7 +380,7 @@ struct _Maat_feather_t
 	int active_plugin_table_num;
 	int is_last_plugin_table_updating;
 
-//for stat>>>>
+//for scanner independent stat>>>>
 	int backgroud_update_enabled;
 	screen_stat_handle_t stat_handle;
 	int total_stat_id;
@@ -383,7 +391,7 @@ struct _Maat_feather_t
 	mcore_long_t hit_cnt;
 	mcore_long_t thread_call_cnt;//size indicate by scan_thread_num, 
 	mcore_long_t orphan_group_saving;
-	mcore_long_t last_region_saving;
+	mcore_long_t not_grp_hit_cnt;
 	long long total_scan_bytes;
 	long long total_scan_cnt;
 	long long update_err_cnt;//sum of the same name variable in each table
@@ -403,10 +411,10 @@ struct _maat_garbage_t
 	int ok_times;
 	union
 	{
-		struct _Maat_scanner_t* scanner;
-		struct _Maat_group_inner_t* group_rule;
-		struct _Maat_compile_inner_t* compile_rule;
-		void* bool_matcher;
+		struct Maat_scanner_t* scanner;
+		struct Maat_group_inner_t* group_rule;
+		struct Maat_compile_inner_t* compile_rule;
+		struct bool_matcher* bool_matcher;
 		void * raw;
 		MESA_htable_handle str2int_map;
 		char* filename;
@@ -435,7 +443,7 @@ int parse_accept_tag(const char* value, struct rule_tag** result, void* logger);
 void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbage_q);
 void garbage_bagging_with_timeout(enum maat_garbage_type type,void *p, int timeout, MESA_lqueue_head garbage_q);
 void garbage_bury(MESA_lqueue_head garbage_q,void *logger);
-void make_group_set(const struct _Maat_compile_inner_t* compile_rule,universal_bool_expr_t* a_set);
+void make_group_set(struct Maat_compile_inner_t* compile_rule, struct bool_expr* a_set, unsigned char *has_not);
 int read_table_description(struct Maat_table_desc** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger);
 void maat_start_cb(long long new_version,int update_type,void*u_para);
 int maat_update_cb(const char* table_name,const char* line,void *u_para);

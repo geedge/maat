@@ -770,7 +770,7 @@ int write_compile_rule(cJSON *compile,struct iris_description_t *p_iris,void * l
 	set_file_rulenum(table_info->table_path,table_info->line_count,logger);
 	return compile_id;
 }
-int write_group_rule(int compile_id ,int group_id,struct iris_description_t *p_iris,void * logger)
+int write_group_rule(int compile_id ,int group_id, int group_not_flag, struct iris_description_t *p_iris,void * logger)
 {
 	FILE*fp=NULL;
 	int ret=0;
@@ -790,7 +790,7 @@ int write_group_rule(int compile_id ,int group_id,struct iris_description_t *p_i
 										"fopen %s error %s.",p_iris->group_table->table_path,strerror(errno));
 		return -1;
 	}
-	fprintf(fp,"%d\t%d\t1\n",group_id,compile_id);
+	fprintf(fp,"%d\t%d\t1\t%d\n",group_id, compile_id, group_not_flag);
 	fclose(fp);
 	p_iris->group_table->line_count++;
 	ret=set_file_rulenum(p_iris->group_table->table_path,p_iris->group_table->line_count,logger);
@@ -821,6 +821,7 @@ int write_iris(cJSON *json,struct iris_description_t *p_iris,void* logger)
 	int i=0,j=0,k=0;
 	int compile_id=-1,compile_cnt=0,group_cnt=0,region_cnt=0,plug_table_cnt=0;
 	int ret=0;
+	int group_not_flag=0;
 	cJSON *c_rules=NULL,*g_rules=NULL,*r_rules=NULL,*item=NULL,*plug_tables=NULL;
 	cJSON *compile_rule=NULL,*group_rule=NULL,*region_rule=NULL,*each_plug_table=NULL;
 	const char* group_name=NULL;
@@ -878,6 +879,15 @@ int write_iris(cJSON *json,struct iris_description_t *p_iris,void* logger)
 		for(j=0;j<group_cnt;j++)
 		{
 			group_rule=cJSON_GetArrayItem(g_rules,j);
+			item=cJSON_GetObjectItem(group_rule,"not_flag");
+			if(item==NULL||item->type!=cJSON_Number)
+			{
+				group_not_flag=0;
+			}
+			else
+			{
+				group_not_flag=item->valueint;
+			}
 			item=cJSON_GetObjectItem(group_rule,"group_name");
 			if(item==NULL||item->type!=cJSON_String)
 			{
@@ -890,7 +900,7 @@ int write_iris(cJSON *json,struct iris_description_t *p_iris,void* logger)
 			group_info=(struct group_info_t*)MESA_htable_search(p_iris->group_name_map, (const unsigned char*)group_name, strlen(group_name));
 			if(group_info!=NULL)//exist group name ,region already read
 			{
-				ret=write_group_rule(compile_id, group_info->group_id, p_iris,  logger);
+				ret=write_group_rule(compile_id, group_info->group_id, group_not_flag, p_iris,  logger);
 				if(ret<0)
 				{
 					MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
@@ -942,7 +952,7 @@ int write_iris(cJSON *json,struct iris_description_t *p_iris,void* logger)
 					return -1;
 				}
 			}
-			ret=write_group_rule(compile_id, group_info->group_id, p_iris,  logger);
+			ret=write_group_rule(compile_id, group_info->group_id, group_not_flag, p_iris,  logger);
 			if(ret<0)
 			{
 				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,

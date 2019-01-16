@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.5)
 
 set(MAAT_FRAME_MAJOR_VERSION 2)
-set(MAAT_FRAME_MINOR_VERSION 5)
+set(MAAT_FRAME_MINOR_VERSION 6)
 set(MAAT_FRAME_PATCH_VERSION 0)
 set(MAAT_FRAME_VERSION ${MAAT_FRAME_MAJOR_VERSION}.${MAAT_FRAME_MINOR_VERSION}.${MAAT_FRAME_PATCH_VERSION})
 
 message(STATUS "Maat Frame, Version: ${MAAT_FRAME_VERSION}")
 
 add_definitions(-fPIC)
-set(MAAT_SRC entry/cJSON.c  entry/config_monitor.cpp  entry/dynamic_array.cpp  entry/gram_index_engine.c  entry/interval_index.c  entry/json2iris.cpp entry/Maat_utils.cpp entry/Maat_api.cpp  entry/Maat_command.cpp  entry/Maat_rule.cpp  entry/Maat_stat.cpp  entry/map_str2int.cpp  entry/rbtree.c  entry/stream_fuzzy_hash.c  entry/UniversalBoolMatch.cpp)
+set(MAAT_SRC entry/cJSON.c  entry/config_monitor.cpp  entry/dynamic_array.cpp  entry/gram_index_engine.c  entry/interval_index.c  entry/json2iris.cpp entry/Maat_utils.cpp entry/Maat_api.cpp  entry/Maat_command.cpp  entry/Maat_rule.cpp  entry/Maat_stat.cpp  entry/map_str2int.cpp  entry/rbtree.c  entry/stream_fuzzy_hash.c  entry/bool_matcher.cpp)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../inc/)
 include_directories(/opt/MESA/include/MESA/)
 

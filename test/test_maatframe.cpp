@@ -36,7 +36,7 @@ Maat_feather_t g_feather=NULL;
 void *g_logger=NULL;
 int g_iThreadNum=4;
 const char* table_info_path="./table_info.conf";
-int scan_interval_ms=1;
+int scan_interval_ms=500;
 int effective_interval_ms=0;
 void wait_for_cmd_effective(Maat_feather_t feather, long long version_before)
 {
@@ -104,7 +104,7 @@ const char* old_json="./json_update/old.json";
 const char* new_json="./json_update/new.json";
 const char* corrupted_json="./json_update/corrupted.json";
 
-class MaatJSONTest : public testing::Test 
+class JSONUpdate : public testing::Test 
 {
 
 protected:
@@ -126,21 +126,21 @@ protected:
 	static Maat_feather_t _shared_feather_j;
 	static void *logger;
 };
-Maat_feather_t MaatJSONTest::_shared_feather_j;
+Maat_feather_t JSONUpdate::_shared_feather_j;
 
 
-TEST_F(MaatJSONTest, OldCfg)
+TEST_F(JSONUpdate, OldCfg)
 {
-	scan_with_old_or_new_cfg(MaatJSONTest::_shared_feather_j, 1);
+	scan_with_old_or_new_cfg(JSONUpdate::_shared_feather_j, 1);
 }
-TEST_F(MaatJSONTest, NewCfg)
+TEST_F(JSONUpdate, NewCfg)
 {
 	system_cmd_cp(corrupted_json, watched_json);
 	sleep(2);
-	scan_with_old_or_new_cfg(MaatJSONTest::_shared_feather_j, 1);
+	scan_with_old_or_new_cfg(JSONUpdate::_shared_feather_j, 1);
 	system_cmd_cp(new_json, watched_json);
 	sleep(2);
-	scan_with_old_or_new_cfg(MaatJSONTest::_shared_feather_j, 0);
+	scan_with_old_or_new_cfg(JSONUpdate::_shared_feather_j, 0);
 }
 
 void Maat_read_entry_start_cb(int update_type,void* u_para)
@@ -265,7 +265,6 @@ TEST(IPScan, IPv4)
 	return;
 }
 TEST(IPScan, IPv6)
-
 {
 	int table_id=0,ret=0;
 	struct Maat_rule_t result[4];
@@ -289,6 +288,145 @@ TEST(IPScan, IPv6)
 	EXPECT_EQ(ret, -2);
 	Maat_clean_status(&mid);
 	return;
+}
+TEST(NOTLogic, OneRegion)
+{
+	const char* string_should_hit="This string ONLY contains must-contained-string-of-rule-143.";
+	const char* string_should_not_hit="This string contains both must-contained-string-of-rule-143 and must-not-contained-string-of-rule-143.";
+
+	int ret=0;
+	int table_id=0;
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+	const char* table_name="HTTP_URL";
+	scan_status_t mid=NULL;
+	table_id=Maat_table_register(g_feather,table_name);
+	ASSERT_GT(table_id, 0);
+	
+	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,  NULL, 0);
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_hit, strlen(string_should_hit), 
+						result,found_pos, 4, &mid, 0);
+						
+	EXPECT_GE(ret, 1);
+	Maat_clean_status(&mid);
+
+	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,  NULL, 0);
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_not_hit, strlen(string_should_not_hit), 
+						result,found_pos, 4, &mid, 0);
+						
+	EXPECT_EQ(ret, -2);
+	Maat_clean_status(&mid);
+
+}
+TEST(NOTLogic, ScanNotAtLast)
+{
+	const char* string_should_hit="This string ONLY contains must-contained-string-of-rule-144.";
+	const char* string_should_not_hit="This string contains both must-contained-string-of-rule-144 and must-not-contained-string-of-rule-144.";
+	int ret=0;
+	int table_id=0;
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+	const char* hit_table_name="HTTP_URL", *not_hit_table_name="KEYWORDS_TABLE";
+	scan_status_t mid=NULL;
+	table_id=Maat_table_register(g_feather,hit_table_name);
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_hit, strlen(string_should_hit), 
+						result,found_pos, 4, &mid, 0);
+						
+	EXPECT_GE(ret, -2);
+	
+	table_id=Maat_table_register(g_feather,not_hit_table_name);
+	ASSERT_GT(table_id, 0);
+	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,  NULL, 0);
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_not_hit, strlen(string_should_not_hit), 
+						result,found_pos, 4, &mid, 0);
+	EXPECT_EQ(ret, -2);
+	Maat_clean_status(&mid);
+
+}
+
+TEST(NOTLogic, ScanIrrelavantAtLast)
+{
+	const char* string_should_hit="This string ONLY contains must-contained-string-of-rule-144.";
+	const char* string_irrelevant="This string contiains nothing to hit.";
+	int ret=0;
+	int table_id=0;
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+	const char* hit_table_name="HTTP_URL", *not_hit_table_name="KEYWORDS_TABLE";
+	scan_status_t mid=NULL;
+	table_id=Maat_table_register(g_feather,hit_table_name);
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_hit, strlen(string_should_hit), 
+						result,found_pos, 4, &mid, 0);						
+	EXPECT_GE(ret, -2);
+
+	table_id=Maat_table_register(g_feather, not_hit_table_name);
+	ASSERT_GT(table_id, 0);
+	
+	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,  NULL, 0);
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_irrelevant, strlen(string_irrelevant), 
+					result,found_pos, 4, &mid, 0);
+	
+	EXPECT_EQ(ret, 1);
+	Maat_clean_status(&mid);
+
+}
+TEST(NOTLogic, ScanNotIP)
+{
+	const char* string_should_hit="This string ONLY contains must-contained-string-of-rule-145.";
+	int ret=0;
+	int table_id=0;
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+	const char* hit_table_name="HTTP_URL", *not_hit_table_name="IP_CONFIG";
+	scan_status_t mid=NULL;
+	table_id=Maat_table_register(g_feather,hit_table_name);
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_hit, strlen(string_should_hit), 
+						result,found_pos, 4, &mid, 0);						
+	EXPECT_GE(ret, -2);
+	
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
+	inet_pton(AF_INET,"10.0.6.205",&(v4_addr.saddr));
+	v4_addr.source=htons(50001);
+	inet_pton(AF_INET,"10.0.6.201",&(v4_addr.daddr));
+	v4_addr.dest=htons(80);
+	ipv4_addr.v4=&v4_addr;
+
+	table_id=Maat_table_register(g_feather, not_hit_table_name);
+	ASSERT_GT(table_id, 0);
+	
+	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,  NULL, 0);	
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid,0);
+	
+	
+	EXPECT_EQ(ret, -2);
+	Maat_clean_status(&mid);
+
+}
+
+TEST(Helper, ReadColumn)
+{
+	const char* ip="192.168.0.1";
+	const char* tmp="something";
+	char line[256];
+	snprintf(line, sizeof(line), "1\t%s\t%s",ip, tmp);
+	size_t offset=0, len=0;
+	int ret=0;
+	ret=Maat_helper_read_column(line, 2, &offset, &len);
+	EXPECT_EQ(ret, 0);
+	EXPECT_EQ(0, strncmp(ip, line+offset, len));
+	
+	ret=Maat_helper_read_column(line, 3, &offset, &len);
+	EXPECT_EQ(ret, 0);
+	EXPECT_EQ(0, strncmp(tmp, line+offset, len));
+
 }
 
 TEST(IntervalScan, Pure)
@@ -344,10 +482,30 @@ TEST(DigestScan, Pure)
 	Maat_clean_status(&mid);
 	return;
 }
-TEST(StringScan, EncodedURL)
+TEST(StringScan, GBKEncodedURL)
+{
+	const char* url_gb2312="www.baidu.com/?wd=C%23%D6%D0%B9%FA";
+	int table_id=0,ret=0;
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+	
+	const char* table_name="HTTP_URL";	
+	scan_status_t mid=NULL;
+
+	table_id=Maat_table_register(g_feather,table_name);
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, url_gb2312, strlen(url_gb2312), 
+						result,found_pos, 4,
+						&mid, 0);
+	EXPECT_GE(ret, 1);
+	Maat_clean_status(&mid);
+	return;
+}
+TEST(StringScan, UTF8EncodedURL)
 {
 	const char* url_utf8="www.google.com/?q=C%23%E4%B8%AD%E5%9B%BD";
-	const char* url_gb2312="www.baidu.com/?wd=C%23%D6%D0%B9%FA";
+	const char* url_utf8_qs="googlevideo.com/qs?nh=%2CIgpwcjA0LnN2bzAzKgkxMjcuMC4wLjE";
 	int table_id=0,ret=0;
 	struct Maat_rule_t result[4];
 	int found_pos[4];
@@ -361,16 +519,17 @@ TEST(StringScan, EncodedURL)
 	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, url_utf8, strlen(url_utf8), 
 						result,found_pos, 4,
 						&mid, 0);
-	EXPECT_GE(ret, 1);
+	EXPECT_EQ(ret, 1);
 	Maat_clean_status(&mid);
 	
-	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, url_gb2312, strlen(url_gb2312), 
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, url_utf8_qs, strlen(url_utf8_qs), 
 						result,found_pos, 4,
 						&mid, 0);
-	EXPECT_GE(ret, 1);
+	EXPECT_GT(ret, 1);
 	Maat_clean_status(&mid);
 	return;
 }
+
 TEST(StringScan, UnicodeEscape)
 {
 	const char* test_data_dir="./testdata_uni2ascii";
@@ -1001,7 +1160,6 @@ int test_add_expr_command(Maat_feather_t feather,const char* region_table,int co
 	int group_num=1,ret=0;
 	memset(&rule,0,sizeof(rule));
 	rule.config_id=config_id;
-	
 	strcpy(rule.service_defined,"maat_command");
 	//MUST acqire by function, because Maat_cmd_t has some hidden members.
 	cmd=Maat_create_cmd(&rule, group_num);
@@ -1211,7 +1369,98 @@ TEST_F(MaatCmdTest, SetExpr)
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
 						&result,NULL, 1,
 						&mid, 0);
+	EXPECT_EQ(ret, 0);	
+	Maat_clean_status(&mid);
+}
+TEST_F(MaatCmdTest,  RuleIDRecycle)
+{
+	const char* table_name="HTTP_URL";
+	const char* scan_data="Reuse rule ID is allowed.";
+	const char* keywords="Reuse&rule";
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+
+	struct Maat_rule_t result;
+	scan_status_t mid=NULL;
+
+	int table_id=0;
+	table_id=Maat_table_register(feather,table_name);
+	ASSERT_GT(table_id, 0);
+
+	int rule_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	int label_id=5211, ret=0;
+	test_add_expr_command(feather,table_name,rule_id, 0, label_id, keywords);
+	
+	ret=Maat_cmd_commit(feather);
+	EXPECT_TRUE(ret>=0);
+	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
+	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
+						&result, NULL, 1,
+						&mid, 0);
+	Maat_clean_status(&mid);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result.config_id, rule_id);
+
+	del_command(feather, rule_id);
+	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
+	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
+						&result, NULL, 1,
+						&mid, 0);
+	Maat_clean_status(&mid);
 	EXPECT_EQ(ret, 0);
+
+	test_add_expr_command(feather,table_name,rule_id, 0, label_id, keywords);
+	ret=Maat_cmd_commit(feather);
+	EXPECT_TRUE(ret>=0);
+
+	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
+	memset(&result, 0, sizeof(result));
+	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
+						&result, NULL, 1,
+						&mid, 0);
+	Maat_clean_status(&mid);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result.config_id, rule_id);
+	return;
+}
+TEST_F(MaatCmdTest,  ReturnRuleIDWithDescendingOrder)
+{
+	const char* table_name="HTTP_URL";
+	const char* scan_data="This string will hit mulptiple rules.";
+	const char* keywords="string\\bwill\\bhit";
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+
+
+	int table_id=0;
+	table_id=Maat_table_register(feather,table_name);
+	ASSERT_GT(table_id, 0);
+
+	int i=0, repeat_times=4;
+	struct Maat_rule_t result[8];
+	int expect_ruleid[8];
+	scan_status_t mid=NULL;
+
+	int rule_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", repeat_times);
+	int label_id=5211, ret=0;
+	for(i=0; i<repeat_times; i++)
+	{
+		//add in ascending order
+		expect_ruleid[i]=rule_id+1-repeat_times+i;
+		test_add_expr_command(feather,table_name,rule_id+1-repeat_times+i, 0, label_id, keywords);
+	}
+	ret=Maat_cmd_commit(feather);
+	EXPECT_TRUE(ret>=0);
+	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
+	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
+						result, NULL, 8,
+						&mid, 0);
+	Maat_clean_status(&mid);
+	EXPECT_EQ(ret, repeat_times);
+	for(i=0;i<repeat_times;i++)
+	{
+		//return in ascending order
+		EXPECT_EQ(result[i].config_id, expect_ruleid[repeat_times-i-1]);
+	}
+	return;
 }
 
 
@@ -1632,16 +1881,16 @@ int main(int argc, char ** argv)
 	int scan_detail=0;
 
 	::testing::InitGoogleTest(&argc, argv);
-	g_logger=MESA_create_runtime_log_handle(log_file,0);
+	g_logger=MESA_create_runtime_log_handle(log_file, 0);
 
 	g_feather=Maat_feather(g_iThreadNum, table_info_path, g_logger);
-	Maat_set_feather_opt(g_feather,MAAT_OPT_INSTANCE_NAME,"demo", strlen("demo")+1);
-	Maat_set_feather_opt(g_feather,MAAT_OPT_DECRYPT_KEY,decrypt_key, strlen(decrypt_key)+1);
+	Maat_set_feather_opt(g_feather, MAAT_OPT_INSTANCE_NAME, "demo", strlen("demo")+1);
+	Maat_set_feather_opt(g_feather, MAAT_OPT_DECRYPT_KEY, decrypt_key, strlen(decrypt_key)+1);
 	Maat_set_feather_opt(g_feather, MAAT_OPT_JSON_FILE_PATH, json_path, strlen(json_path)+1);
 
-	Maat_set_feather_opt(g_feather, MAAT_OPT_SCANDIR_INTERVAL_MS,&scan_interval_ms, sizeof(scan_interval_ms));
+	Maat_set_feather_opt(g_feather, MAAT_OPT_SCANDIR_INTERVAL_MS, &scan_interval_ms, sizeof(scan_interval_ms));
 	//Set a short intevral for testing.
-	Maat_set_feather_opt(g_feather, MAAT_OPT_EFFECT_INVERVAL_MS,&effective_interval_ms, sizeof(effective_interval_ms));
+	Maat_set_feather_opt(g_feather, MAAT_OPT_EFFECT_INVERVAL_MS, &effective_interval_ms, sizeof(effective_interval_ms));
 
 	Maat_set_feather_opt(g_feather, MAAT_OPT_STAT_FILE_PATH, stat_file, strlen(stat_file)+1);
 	Maat_set_feather_opt(g_feather, MAAT_OPT_STAT_ON, NULL, 0);

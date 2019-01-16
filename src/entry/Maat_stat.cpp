@@ -8,7 +8,8 @@ enum MAAT_FS_STATUS{
 	STATUS_TABLE_NUM,
 	STATUS_PLUGIN_CACHE_NUM,
 	STATUS_PLUGIN_ACC_NUM,
-	STATUS_GROUP_RULE_NUM,
+	STATUS_GROUP_REF_NUM,
+	STATUS_GROUP_REF_NOT_NUM,
 	STATUS_COMPILE_RULE_NUM,
 	STATUS_POSTPONE_QSIZE,
 	STATUS_OUTER_MID_NUM,
@@ -21,7 +22,7 @@ enum MAAT_FS_STATUS{
 	STATUS_SCAN_ERR_CNT,
 	STATUS_ZOMBIE_RS_STREAM,
 	STATUS_ORPHAN_GROUP_SAVING,
-	STATUS_LAST_REGION_SAVING,
+	STATUS_NOT_GROUP_HIT,
 	STATUS_CMD_NUM,
 	STATUS_CMD_Q_SIZE,
 	STATUS_CMD_LINE_NUM
@@ -55,14 +56,15 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	FS_set_para(feather->stat_handle, APP_NAME, feather->instance_name, strlen(feather->instance_name)+1);
 	
 	feather->fs_status_id[STATUS_VERSION]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"version");
-	feather->fs_status_id[STATUS_THRED_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"thread");
-	feather->fs_status_id[STATUS_TABLE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"table_num");
+	feather->fs_status_id[STATUS_THRED_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"threads");
+	feather->fs_status_id[STATUS_TABLE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"tables");
 
-	feather->fs_status_id[STATUS_PLUGIN_CACHE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"plug_cache");
+	feather->fs_status_id[STATUS_PLUGIN_CACHE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"plug_cached");
 	feather->fs_status_id[STATUS_PLUGIN_ACC_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"plug_acc");
 
-	feather->fs_status_id[STATUS_GROUP_RULE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"grp_num");
-	feather->fs_status_id[STATUS_COMPILE_RULE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"compile_num");
+	feather->fs_status_id[STATUS_GROUP_REF_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"group");
+	feather->fs_status_id[STATUS_GROUP_REF_NOT_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"not_grp");
+	feather->fs_status_id[STATUS_COMPILE_RULE_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"compile");
 
 	feather->fs_status_id[STATUS_POSTPONE_QSIZE]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"postponed");
 	feather->fs_status_id[STATUS_GARBAGE_QSIZE]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"garbage_num");	
@@ -71,8 +73,8 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	feather->fs_status_id[STATUS_INNER_MID_NUM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"inner_mid");
 	feather->fs_status_id[STATUS_ZOMBIE_RS_STREAM]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"z_stream");
 
-	feather->fs_status_id[STATUS_ORPHAN_GROUP_SAVING]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"only_grp_sv");
-	feather->fs_status_id[STATUS_LAST_REGION_SAVING]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"last_rgn_sv");
+	feather->fs_status_id[STATUS_ORPHAN_GROUP_SAVING]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"shortcut_sv");
+	feather->fs_status_id[STATUS_NOT_GROUP_HIT]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"nt_grp_hit");
 
 	feather->fs_status_id[STATUS_TOTAL_SCAN_LEN]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"scan_bytes");
 	feather->fs_status_id[STATUS_TOTAL_SCAN_CNT]=FS_register(feather->stat_handle, FS_STYLE_STATUS, FS_CALC_CURRENT,"scan_times");
@@ -166,9 +168,9 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	long long total_scan_cnt=0, total_cpu_time=0,total_stream_cnt=0,active_thread_num=0;
 	long long table_stream_num=0,table_scan_cnt=0,table_input_bytes=0,table_scan_cpu_time=0,table_hit_cnt=0;
 	long long outer_mid_cnt=0,inner_mid_cnt=0;
-	long long orphan_group_saving=0, last_region_saving=0;
+	long long orphan_group_saving=0, not_grp_hit_cnt=0;
 	long long total_update_error=0,total_iconv_error=0;
-	long long compile_rule_num=0,group_rule_num=0,plugin_cache_num=0,plugin_acc_num=0;
+	long long compile_rule_num=0, group_rule_num=0, not_group_rule_num=0, plugin_cache_num=0, plugin_acc_num=0;
 	int i=0;
 	time_t now;
 	struct Maat_table_desc* p_table=NULL;
@@ -182,7 +184,7 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	outer_mid_cnt=alignment_int64_array_sum(feather->outer_mid_cnt,feather->scan_thread_num);
 	inner_mid_cnt=alignment_int64_array_sum(feather->inner_mid_cnt,feather->scan_thread_num);
 	orphan_group_saving=alignment_int64_array_sum(feather->orphan_group_saving,feather->scan_thread_num);
-	last_region_saving=alignment_int64_array_sum(feather->last_region_saving,feather->scan_thread_num);
+	not_grp_hit_cnt=alignment_int64_array_sum(feather->not_grp_hit_cnt,feather->scan_thread_num);
 
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_VERSION], 0,FS_OP_SET,feather->maat_version);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_THRED_NUM], 0,FS_OP_SET,active_thread_num);
@@ -190,7 +192,7 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_OUTER_MID_NUM], 0,FS_OP_SET,outer_mid_cnt);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_INNER_MID_NUM], 0,FS_OP_SET,inner_mid_cnt);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_ORPHAN_GROUP_SAVING], 0,FS_OP_SET,orphan_group_saving);
-	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_LAST_REGION_SAVING], 0,FS_OP_SET,last_region_saving);
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_NOT_GROUP_HIT], 0,FS_OP_SET,not_grp_hit_cnt);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_CMD_NUM], 0,FS_OP_SET,feather->cmd_acc_num);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_CMD_Q_SIZE], 0,FS_OP_SET,feather->cmd_q_cnt);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_CMD_LINE_NUM], 0,FS_OP_SET,feather->line_cmd_acc_num);
@@ -221,6 +223,7 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 				break;
 			case TABLE_TYPE_GROUP:
 				group_rule_num+=table_rt->origin_rule_num;
+				not_group_rule_num+=table_rt->group.not_flag_group;
 				break;
 			case TABLE_TYPE_COMPILE:
 				compile_rule_num+=table_rt->origin_rule_num;
@@ -318,34 +321,35 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	FS_operate(feather->stat_handle,
 				feather->total_stat_id, 
 				feather->fs_column_id[COLUMN_TABLE_STREAM_NUM], 
-				FS_OP_SET,
+				FS_OP_ADD,
 				total_stream_cnt);
 	FS_operate(feather->stat_handle,
 				feather->total_stat_id, 
 				feather->fs_column_id[COLUMN_TABLE_SCAN_CNT], 
-				FS_OP_SET,
+				FS_OP_ADD,
 				total_scan_cnt);
 	FS_operate(feather->stat_handle,
 				feather->total_stat_id, 
 				feather->fs_column_id[COLUMN_TABLE_SCAN_BYTES], 
-				FS_OP_SET,
+				FS_OP_ADD,
 				total_input_bytes);
 	if(feather->perf_on==1)
 	{
 		FS_operate(feather->stat_handle,
 					feather->total_stat_id, 
 					feather->fs_column_id[COLUMN_TABLE_CPU_TIME], 
-					FS_OP_SET,
+					FS_OP_ADD,
 					total_cpu_time);
 	}
 	total_hit_cnt=alignment_int64_array_sum(feather->hit_cnt, feather->scan_thread_num);
+	alignment_int64_array_reset(feather->hit_cnt,feather->scan_thread_num);
 	FS_operate(feather->stat_handle,
 				feather->total_stat_id, 
 				feather->fs_column_id[COLUMN_TABLE_HIT_CNT], 
-				FS_OP_SET,
+				FS_OP_ADD,
 				total_hit_cnt);
-	feather->total_scan_bytes=total_input_bytes;
-	feather->total_scan_cnt=total_scan_cnt;
+	feather->total_scan_bytes+=total_input_bytes;
+	feather->total_scan_cnt+=total_scan_cnt;
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_TOTAL_SCAN_LEN], 0,FS_OP_SET,feather->total_scan_bytes);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_TOTAL_SCAN_CNT], 0,FS_OP_SET,feather->total_scan_cnt);
 	feather->update_err_cnt=total_update_error;
@@ -357,7 +361,8 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_PLUGIN_CACHE_NUM], 0,FS_OP_SET,plugin_cache_num);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_PLUGIN_ACC_NUM], 0,FS_OP_SET,plugin_acc_num);
-	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_GROUP_RULE_NUM], 0,FS_OP_SET,group_rule_num);
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_GROUP_REF_NUM], 0,FS_OP_SET,group_rule_num);
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_GROUP_REF_NOT_NUM], 0,FS_OP_SET,not_group_rule_num);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_COMPILE_RULE_NUM], 0,FS_OP_SET,compile_rule_num);
 
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_POSTPONE_QSIZE], 0,FS_OP_SET,feather->postpone_q_size);

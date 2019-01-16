@@ -159,8 +159,8 @@ enum MAAT_INIT_OPT
 	MAAT_OPT_ENABLE_UPDATE,			//VALUE is interger, SIZE=sizeof(int). 1: Enabled, 0:Disabled.  DEFAULT: Backgroud update is enabled. Runtime setting is allowed.
 	MAAT_OPT_ACCEPT_TAGS,			//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1. Format is a JSON, e.g.{"tags":[{"tag":"location","value":"Beijing/ChaoYang/Huayan/22A"},{"tag":"isp","value":"telecom"}]}
 	MAAT_OPT_FOREIGN_CONT_DIR,		//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1. Specifies a local diretory to store foreign content. Default: []table_info_path]_files
- 	MAAT_OPT_FOREIGN_CONT_LINGER		//VALUE is interger *, SIZE=sizeof(int). Greater than 0: delete after VALUE seconds; 0: delete foreign content right after the notification callbacks;  Less than 0: NEVER delete. Default: 0.
- };
+ 	MAAT_OPT_FOREIGN_CONT_LINGER	//VALUE is interger *, SIZE=sizeof(int). Greater than 0: delete after VALUE seconds; 0: delete foreign content right after the notification callbacks;  Less than 0: NEVER delete. Default: 0.
+};
 //return -1 if failed, return 0 on success;
 int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT  type,const void* value,int size);
 enum MAAT_STATE_OPT
@@ -257,6 +257,12 @@ int Maat_rule_get_ex_new_index(Maat_feather_t feather, const char* compile_table
 										 long argl, void *argp);
 //returned data is duplicated by dup_func of Maat_rule_get_ex_new_index,  caller is responsible to free the data.
 MAAT_RULE_EX_DATA Maat_rule_get_ex_data(Maat_feather_t feather, const struct Maat_rule_t* rule, int idx);
+
+//Helper function for parsing space or tab seperated line.
+//Nth_column: the Nth column is numberd from 1.
+//Return 0 if success.
+int Maat_helper_read_column(const char* line, int Nth_column, size_t *column_offset, size_t *column_len);
+
 
 //Following functions are similar to Maat_rule_get_ex_data, except they are effective on plugin table.
 typedef void*  MAAT_PLUGIN_EX_DATA;
