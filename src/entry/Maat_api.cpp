@@ -1759,22 +1759,18 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 	_compile_result_t compile_result[rule_num];//dynamic array
 	scan_data_t region_scan_data;
 	Maat_table_desc* p_table=NULL;
-	struct Maat_table_runtime* table_rt=scanner->table_rt[sp->table_id];
 	struct timespec start,end;	
-	if(data==NULL||data_len<=0)
+	if(data==NULL||data_len<=0||scanner==NULL)
 	{
 		return 0;
-	}
+	}	
+	struct Maat_table_runtime* table_rt=scanner->table_rt[sp->table_id];
 	if(sp->feather->perf_on==1)
 	{
 		clock_gettime(CLOCK_MONOTONIC,&start);
 	}
 	_mid=grab_mid(mid, sp->feather, sp->thread_num,0);
 
-	if(scanner==NULL)
-	{
-		return 0;
-	}
 	if(sp->version!=sp->feather->maat_version)
 	{
 		return 0;
