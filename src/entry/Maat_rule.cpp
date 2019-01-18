@@ -32,7 +32,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_6_20190110=1;
+int MAAT_FRAME_VERSION_2_6_20190118=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -2474,14 +2474,17 @@ void update_group_rule(struct Maat_table_desc* table,const char* table_line,stru
 											&(db_group_rule.compile_id),
 											&(db_group_rule.is_valid),
 											&(db_group_rule.not_flag));
-	if((ret!=3&&ret!=4) || 
-		(db_group_rule.not_flag!=0&&db_group_rule.not_flag!=1))
+	if(ret!=3&&ret!=4)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
 							"update error,invalid format of group table %s:%s",
 							table->table_name[table->updating_name], table_line);	
 		table->udpate_err_cnt++;
 		return;
+	}
+	if(db_group_rule.not_flag!=1)//compatible to old format that 4th column is op_time
+	{
+		db_group_rule.not_flag=0;
 	}
 	if(db_group_rule.is_valid==FALSE)
 	{

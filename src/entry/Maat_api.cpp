@@ -1934,8 +1934,13 @@ void Maat_stream_scan_string_end(stream_para_t* stream_para)
 {
 	struct _stream_para_t* sp=(struct _stream_para_t*)(*stream_para);
 	struct Maat_scanner_t* scanner=sp->feather->scanner;
-	struct Maat_table_runtime* table_rt=scanner->table_rt[sp->table_id];
-	alignment_int64_array_add(table_rt->stream_num, sp->thread_num, -1);
+	struct Maat_table_runtime* table_rt=NULL;
+	if(scanner!=NULL)
+	{
+		table_rt=scanner->table_rt[sp->table_id];
+		alignment_int64_array_add(table_rt->stream_num, sp->thread_num, -1);
+
+	}
 	if(sp->rs_stream_para!=NULL)
 	{
 		if(scanner!=NULL&&sp->version>=sp->feather->last_full_version)
