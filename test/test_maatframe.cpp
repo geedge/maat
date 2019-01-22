@@ -212,6 +212,7 @@ TEST(PluginTable, Callback)
 								g_logger);
 
 }
+
 TEST(StringScan, Full)
 {
 	int ret=0;
@@ -228,6 +229,25 @@ TEST(StringScan, Full)
 						result,found_pos, 4, &mid, 0);
 						
 	EXPECT_GE(ret, 1);
+	Maat_clean_status(&mid);
+}
+TEST(StringScan, Regex)
+{
+	int ret=0;
+	int table_id=0;
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+	const char* table_name="HTTP_URL";
+	scan_status_t mid=NULL;
+	const char* scan_data="Cookie: Txa123aheadBCAxd";
+	table_id=Maat_table_register(g_feather,table_name);
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
+						result,found_pos, 4, &mid, 0);
+						
+	EXPECT_GE(ret, 1);
+	EXPECT_EQ(result[0].config_id, 146);
 	Maat_clean_status(&mid);
 }
 
