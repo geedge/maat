@@ -526,6 +526,7 @@ TEST(StringScan, UTF8EncodedURL)
 {
 	const char* url_utf8="www.google.com/?q=C%23%E4%B8%AD%E5%9B%BD";
 	const char* url_utf8_qs="googlevideo.com/qs?nh=%2CIgpwcjA0LnN2bzAzKgkxMjcuMC4wLjE";
+	const char* url_utf8_long="https://r1---sn-35153iuxa-5a56.googlevideo.com/videoplayback?clen=14143675&sparams=clen%2Cdur%2Cei%2Cgir%2Cid%2Cinitcwndbps%2Cip%2Cipbits%2Citag%2Ckeepalive%2Clmt%2Cmime%2Cmm%2Cmn%2Cms%2Cmv%2Cpl%2Crequiressl%2Csource%2Cexpire&initcwndbps=11060000&ipbits=0&c=WEB&lmt=1545866423716040&source=youtube&dur=995.221&requiressl=yes&txp=5511222&mime=audio%2Fwebm&gir=yes&signature=D1BAE8D85C01B7761609D5143FEC67B33EA35A3E.BDBFB0F6E657EC8D5E9D42015378B885CA87364E&key=yt6&itag=251&expire=1548352912&fvip=1&ei=MKlJXJjUMY6p7QSx2p3gDA&ms=au%2Crdu&mt=1548331263&mv=m&pl=24&ip=178.89.4.220&keepalive=yes&id=o-AMlnrhwQnnM19Tz8lVnzpUT7bbAsrbPPZBl9M1Sx2sw2&mm=31%2C29&mn=sn-35153iuxa-5a56%2Csn-n8v7znz7&alr=yes&cpn=nCaBFGicSajzXMjH&cver=2.20190119&range=266995-528469&rn=17&rbuf=16106";
 	int table_id=0,ret=0;
 	struct Maat_rule_t result[4];
 	int found_pos[4];
@@ -535,18 +536,31 @@ TEST(StringScan, UTF8EncodedURL)
 
 	table_id=Maat_table_register(g_feather,table_name);
 	ASSERT_GT(table_id, 0);
-	
+	memset(result, 0, sizeof(result));
 	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, url_utf8, strlen(url_utf8), 
 						result,found_pos, 4,
 						&mid, 0);
 	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 129);
 	Maat_clean_status(&mid);
 	
+	memset(result, 0, sizeof(result));
 	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, url_utf8_qs, strlen(url_utf8_qs), 
 						result,found_pos, 4,
 						&mid, 0);
 	EXPECT_GT(ret, 1);
+	EXPECT_EQ(result[0].config_id, 142);
 	Maat_clean_status(&mid);
+
+	
+	memset(result, 0, sizeof(result));
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, url_utf8_long, strlen(url_utf8_long), 
+						result,found_pos, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 147);
+	Maat_clean_status(&mid);
+
 	return;
 }
 
