@@ -3217,7 +3217,7 @@ void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
 }
 void update_plugin_table(struct Maat_table_desc* table,const char* table_line,Maat_scanner_t* scanner, const struct rule_tag* tags, int n_tags, void* logger)
 {
-	int i=0, ret=1;
+	int i=0, ret=1, matched_tag=1;
 	unsigned int len=strlen(table_line)+1;
 	struct plugin_table_desc* plugin_desc=&(table->plugin);
 	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
@@ -3242,22 +3242,22 @@ void update_plugin_table(struct Maat_table_desc* table,const char* table_line,Ma
 		{
 			copy=ALLOC(char, accept_tag_len+1);
 			memcpy(copy, table_line+accept_tag_offset, accept_tag_len);
-			ret=compare_accept_tag(copy, tags, n_tags);
-			if(ret<0)
+			matched_tag=compare_accept_tag(copy, tags, n_tags);
+			if(matched_tag<0)
 			{
 				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
 							"update error,invalid tag format of plugin table %s:%s"
 							,table->table_name[table->updating_name],table_line);
 				table->udpate_err_cnt++;
 			}
-			if(ret==0)
+			if(matched_tag==0)
 			{
 				table->unmatch_tag_cnt++;
 			}
 			free(copy);
 			copy=NULL;
 		}
-		if(ret!=1)
+		if(!matched_tag)
 		{
 			return;
 		}

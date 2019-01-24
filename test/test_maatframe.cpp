@@ -784,30 +784,59 @@ TEST(StringScan, OffsetChunk1460)
 
 void accept_tags_entry_cb(int table_id,const char* table_line,void* u_para)
 {
+	int* callback_times=(int*)u_para;
 	char status[32]={0};
 	int entry_id=-1,seq=-1;
 	int is_valid=0;
 	sscanf(table_line,"%d\t%s\t%d\t%d",&seq,status,&entry_id,&is_valid);
 	EXPECT_STREQ(status ,"SUCCESS");
-
+	(*callback_times)++;
 	return;
 }
 
-TEST(RuleTags, Plugin)
+TEST(RuleTags, Plugin1)
 {
 #define RuleTags_Plugin
-	int table_id=0,ret=0;
-	const char* table_name="TEST_EFFECTIVE_RANGE_TABLE";
-	table_id=Maat_table_register(g_feather,table_name);
+	int ret=0;
+
+	int table_id=Maat_table_register(g_feather,"TEST_EFFECTIVE_RANGE_TABLE");
 	ASSERT_GT(table_id, 0);
 
+	int callback_times=0;
 	ret=Maat_table_callback_register(g_feather, table_id,
 							NULL,
 							accept_tags_entry_cb, 
 							NULL,
-							NULL);
+							&callback_times);
 	
 	ASSERT_GE(ret, 0);
+	EXPECT_EQ(callback_times, 3);
+	return;
+}
+void accept_tags_entry2_cb(int table_id,const char* table_line,void* u_para)
+{
+	int* callback_times=(int*)u_para;
+	(*callback_times)++;
+	return;
+}
+
+TEST(RuleTags, Plugin2)
+{
+#define RuleTags_Plugin2
+	int ret=0;
+
+	int table_id=Maat_table_register(g_feather,"IR_INTERCEPT_IP");
+	ASSERT_GT(table_id, 0);
+
+	int callback_times=0;
+	ret=Maat_table_callback_register(g_feather, table_id,
+							NULL,
+							accept_tags_entry2_cb, 
+							NULL,
+							&callback_times);
+	
+	ASSERT_GE(ret, 0);
+	EXPECT_EQ(callback_times, 2);
 	return;
 }
 
@@ -1910,8 +1939,8 @@ int main(int argc, char ** argv)
 	const char* log_file="./test.log";
 	const char* stat_file="./scan_staus.log";
 	const char* decrypt_key="mesa2017wy";
-	const char* accept_tags="{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},{\"tag\":\"isp\",\"value\":\"移动\"}]}";
-
+	const char* accept_tags="{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+//	const char* subsitute_acc_tags="{\"tags\":[{\"tag\":\"location\",\"value\":\"Astana\"}]}";
 	int scan_detail=0;
 
 	::testing::InitGoogleTest(&argc, argv);
