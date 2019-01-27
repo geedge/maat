@@ -735,7 +735,35 @@
                     ]
                 }
             ]
-        }
+        },
+				{
+				    "service": 0,
+				    "do_blacklist": 0,
+				    "groups": [
+				        {
+				            "regions": [
+				                {
+				                    "table_name": "APP_PAYLOAD",
+				                    "table_content": {
+				                        "format": "hexbin",
+				                        "match_method": "sub",
+				                        "district": "Payload",
+				                        "keywords": "1-1:03&9-10:2d&14-16:2d34&19-21:2d&24-25:2d",
+				                        "expr_type": "offset"
+				                    },
+				                    "table_type": "expr_plus"
+				                }
+				            ],
+				            "group_name": "Untitled"
+				        }
+				    ],
+				    "user_region": "APP_ID=100001;BEHAV_ID=100002",
+				    "is_valid": "yes",
+				    "do_log": 0,
+				    "effective_rage": 0,
+				    "action": 0,
+				    "compile_id": 148
+				}
     ],
     "plugin_table": [
         {

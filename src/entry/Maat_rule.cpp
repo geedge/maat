@@ -32,7 +32,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_6_20190118=1;
+int MAAT_FRAME_VERSION_2_6_20190127=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -1984,7 +1984,7 @@ int add_expr_rule(struct Maat_table_desc* table,struct db_str_rule_t* db_rule,st
 					break;
 				}
 				sscanf(sub_key_array[i],"%d-%d:",&(key_left_offset[i]),&(key_right_offset[i]));
-				if(!(key_left_offset[i]>=0&&key_right_offset[i]>0&&key_left_offset[i]<key_right_offset[i]))
+				if(!(key_left_offset[i]>=0&&key_right_offset[i]>0&&key_left_offset[i]<=key_right_offset[i]))
 				{
 					MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
 							"Table %s region cfg %d invalid offset.",table->table_name[table->updating_name],db_rule->region_id);
@@ -1994,7 +1994,7 @@ int add_expr_rule(struct Maat_table_desc* table,struct db_str_rule_t* db_rule,st
 				if(sub_key_array[i]==NULL)
 				{
 					MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"Table %s region cfg %d invalid keywords format.",table->table_name[table->updating_name],db_rule->region_id);
+							"Table %s region cfg %d invalid offset keyword format.",table->table_name[table->updating_name],db_rule->region_id);
 					return -1;
 				}
 				sub_key_array[i]++;//jump over ':'
