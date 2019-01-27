@@ -250,7 +250,64 @@ TEST(StringScan, Regex)
 	EXPECT_EQ(result[0].config_id, 146);
 	Maat_clean_status(&mid);
 }
+TEST(StringScan,   ExprPlus)
+{
+	int ret=0;
+	int table_id=0;
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+	const char* region_name="HTTP URL";
+	const char* scan_data="http://www.cyberessays.com/search_results.php?action=search&query=abckkk,1234567";
+	table_id=Maat_table_register(g_feather, "HTTP_REGION");
+	ASSERT_GT(table_id, 0);
+	scan_status_t mid=NULL;
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, scan_data, strlen(scan_data), 
+						result, found_pos, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, -1);//Should return error for district not setting.
 
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, region_name, strlen(region_name));
+	ASSERT_EQ(ret, 0);
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
+						result, found_pos, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 128);
+	return;
+}
+
+TEST(StringScan, ExprPlusWithOffset)
+{
+	int ret=0, table_id=0;
+	struct Maat_rule_t result[4];
+	scan_status_t mid=NULL;
+	const char* region_name="Payload";
+	unsigned char udp_payload[] = { /* Stun packet */
+							0x00, 0x03, 0x00, 0x4a, 0x21, 0x12, 0xa4, 0x42, 
+							0x4f, 0xc2, 0xc2, 0x70, 0xb3, 0xa8, 0x4e, 0x22, 
+							0xf5, 0x22, 0x87, 0x4c, 0x40, 0x00, 0x00, 0x46, 
+							0x03, 0x02, 0xab, 0x39, 0xbb, 0x97, 0xe5, 0x01, 
+							0x3a, 0x46, 0x1c, 0x28, 0x5b, 0xab, 0xfa, 0x9a, 
+							0xab, 0x2e, 0x71, 0x39, 0x66, 0xa0, 0xd7, 0xb9, 
+							0xd8, 0x41, 0xa7, 0xa0, 0x84, 0xa9, 0xf3, 0x1b, 
+							0x03, 0x7f, 0xa8, 0x28, 0xa2, 0xd3, 0x64, 0xc2, 
+							0x3d, 0x20, 0xe0, 0xb1, 0x41, 0x12, 0x6c, 0x2f, 
+							0xc5, 0xbb, 0xc3, 0xba, 0x69, 0x73, 0x52, 0x64, 
+							0xf6, 0x30, 0x81, 0xf4, 0x3f, 0xc2, 0x19, 0x6a, 
+							0x68, 0x61, 0x93, 0x08, 0xc0, 0x0a };
+	memset(&result, 0, sizeof(result));
+	table_id=Maat_table_register(g_feather, "APP_PAYLOAD");
+	ASSERT_GT(table_id, 0);
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, region_name, strlen(region_name));
+	EXPECT_EQ(ret, 0);
+
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, (char*)udp_payload, sizeof(udp_payload), 
+						result, NULL, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 148);
+	return;
+}
 TEST(IPScan, IPv4)
 {
 	int table_id=0,ret=0;
