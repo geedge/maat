@@ -2154,25 +2154,25 @@ int add_expr_rule(struct Maat_table_desc* table,struct db_str_rule_t* db_rule,st
 		{
 			return -1;
 		}
-		op_expr=create_op_expr(expr_id
-								,0	//add
-								,u_para
-								,table->table_id
+		op_expr=create_op_expr(expr_id,
+								0,	//add
+								u_para,
+								table->table_id
 								);
 		for(k=0;k<sub_expr_cnt;k++)
 		{
-			region_str_len=strlen(sub_key_array[0])+1;
-			region_string=(char*)calloc(sizeof(char),region_str_len);
-			region_str_len=hex2bin(sub_key_array[0], strlen(sub_key_array[0]),region_string,region_str_len);
+			region_str_len=strlen(sub_key_array[k])+1;
+			region_string=ALLOC(char, region_str_len);
+			region_str_len=hex2bin(sub_key_array[k], strlen(sub_key_array[k]), region_string, region_str_len);
 			
-			p_rule=create_rs_str_rule(make_sub_type(table->table_id,dst_charset,expr_desc->do_charset_merge)
-									,db_rule->match_method
-									,db_rule->is_case_sensitive
-									,region_string
-									,region_str_len
-									,key_left_offset[k]
-									,key_right_offset[k]);
-			op_expr_add_rule(op_expr,p_rule);
+			p_rule=create_rs_str_rule(make_sub_type(table->table_id,dst_charset,expr_desc->do_charset_merge),
+									db_rule->match_method,
+									db_rule->is_case_sensitive,
+									region_string,
+									region_str_len,
+									key_left_offset[k],
+									key_right_offset[k]);
+			op_expr_add_rule(op_expr, p_rule);
 			free(region_string);
 			region_string=NULL;
 		}
