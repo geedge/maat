@@ -885,7 +885,7 @@ TEST(RuleTags, Plugin1)
 							&callback_times);
 	
 	ASSERT_GE(ret, 0);
-	EXPECT_EQ(callback_times, 3);
+	EXPECT_EQ(callback_times, 5);
 	return;
 }
 void accept_tags_entry2_cb(int table_id,const char* table_line,void* u_para)
