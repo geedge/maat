@@ -1255,7 +1255,7 @@ int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule, unsigned in
 	unsigned int max_multi_cmd_num=MAX_REDIS_OP_PER_SRULE*serial_rule_num+2;// 2 for operation in _exec_serial_rule_end()
 	
 	struct expected_reply *expected_reply=(struct expected_reply*)calloc(sizeof(struct expected_reply), max_multi_cmd_num);
-	long long new_version=0;
+	long long new_version=0, transaction_finished_version=0;
 	int renew_num=0,ret=0;
 	for(i=0;i<serial_rule_num;i++)
 	{
@@ -1266,7 +1266,7 @@ int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule, unsigned in
 	}
 
 	ret=_exec_serial_rule_begin(ctx,serial_rule_num,renew_num, &renew_allowed, &new_version);
-	if(ret!=0)//Preconditions of transaction is not qualified.
+	if(ret!=0)//Preconditions for transaction are not satisfied.
 	{
 		success_cnt=-1;
 		goto error_out;
@@ -1293,10 +1293,10 @@ int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule, unsigned in
 				continue;
 			}
 			rule_seq=expected_reply[i].srule_seq;
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_command 
-					,"%s %s %d failed, rule id maybe conflict or not exist."
-					,mr_op_str[s_rule[rule_seq].op]
-					,s_rule[rule_seq].table_name,s_rule[rule_seq].rule_id);
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_command,
+					"%s %s %d failed, rule id maybe conflict or not exist.",
+					mr_op_str[s_rule[rule_seq].op],
+					s_rule[rule_seq].table_name,s_rule[rule_seq].rule_id);
 			success_cnt--;
 			last_failed=rule_seq;
 		}
@@ -1304,7 +1304,17 @@ int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule, unsigned in
 	else
 	{
 		success_cnt=-1;
-	}	
+	}
+	if(new_version>0)
+	{
+		transaction_finished_version=read_redis_integer(transaction_reply->element[multi_cmd_cnt-1]);
+		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_command,
+								"Redis transaction version: %lld, transaction finished version: %lld, status: %s",
+								new_version,
+								transaction_finished_version,
+								transaction_finished_version==new_version?"OK":"Weird");
+	}
+
 	freeReplyObject(transaction_reply);
 	
 error_out:
