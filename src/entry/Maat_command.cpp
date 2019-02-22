@@ -1056,7 +1056,7 @@ int mr_operation_success(redisReply* actual_reply, struct expected_reply* expect
 
 }
 
-long long _exec_serial_rule_begin(redisContext* ctx,int rule_num, int renew_rule_num,int *renew_allowed, long long *maat_redis_version)
+long long _exec_serial_rule_begin(redisContext* ctx,int rule_num, int renew_rule_num,int *renew_allowed, long long *transaction_version)
 {
 	int ret=-1;
 	redisReply* data_reply=NULL;
@@ -1071,9 +1071,9 @@ long long _exec_serial_rule_begin(redisContext* ctx,int rule_num, int renew_rule
 	if(rule_num>renew_rule_num)
 	{
 		data_reply=_wrap_redisCommand(ctx, "INCRBY MAAT_PRE_VER 1");
-		*maat_redis_version=read_redis_integer(data_reply);
+		*transaction_version=read_redis_integer(data_reply);
 		freeReplyObject(data_reply);
-		if(*maat_redis_version<0)
+		if(*transaction_version<0)
 		{
 			return -1;
 		}
@@ -1097,7 +1097,7 @@ if(maat_version~=transaction_version) then\
         redis.call(\'zadd\', KEYS[2], maat_version, v);\
     end;\
 end;\
-redis.call(\'zadd\', KEYS[3], maat_version, ARGV[2]);\
+redis.call(\'zadd\', KEYS[3], ARGV[2], maat_version);\
 return maat_version;\
 ";
 redisReply* _exec_serial_rule_end(redisContext* ctx,long long maat_redis_version, long long server_time, int renew_allowed, struct expected_reply* expect_reply,  unsigned int *cnt)
@@ -1323,11 +1323,13 @@ int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule, unsigned in
 	if(transaction_version>0)
 	{
 		transaction_finished_version=read_redis_integer(transaction_reply->element[multi_cmd_cnt-1]);
-		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_command,
-								"Redis transaction version: %lld, transaction finished version: %lld, status: %s",
+		if(transaction_finished_version!=transaction_version)
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_command,
+								"Race condition of redis transaction (MAAT_PRE_VER != MAAT_VERSION) : %lld != %lld , need manually intervention when occurrent frequently.",
 								transaction_version,
-								transaction_finished_version,
-								transaction_finished_version==transaction_version?"OK":"Weird");
+								transaction_finished_version);
+		}
 	}
 
 	freeReplyObject(transaction_reply);
