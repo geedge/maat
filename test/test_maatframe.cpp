@@ -1271,8 +1271,6 @@ protected:
 
 		Maat_cmd_flushDB(_shared_feather);
 		Maat_initiate_feather(_shared_feather);
-		//For simulating race condition.
-		Maat_cmd_incrby(_shared_feather, "MAAT_PRE_VER", 1);
 	}
 	static void TearDownTestCase()
 	{
