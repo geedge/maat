@@ -1342,6 +1342,11 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	{
 		return 0;
 	}
+	my_scanner=_feather->scanner;
+	if(my_scanner==NULL)
+	{
+		return 0;
+	}
 	if(_feather->perf_on==1)
 	{
 		clock_gettime(CLOCK_MONOTONIC,&start);
@@ -1372,11 +1377,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	scan_data.text_data.text=data;
 	scan_data.text_data.tlen=data_len;
 	scan_data.text_data.toffset=0;
-	my_scanner=_feather->scanner;
-	if(my_scanner==NULL)
-	{
-		return 0;
-	}
+
 	struct Maat_table_runtime* table_rt=my_scanner->table_rt[table_id];
 	if(table_rt->origin_rule_num==0)
 	{
