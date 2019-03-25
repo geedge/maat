@@ -138,21 +138,21 @@ char* Maat_str_escape(char* dst,int size,const char*src);
 
 //Deletion failed due to not complete synchronize with Redis.
 //To make sure the delete command is excecuted, user should try again after MAAT_OPT_SCANDIR_INTERVAL_MS ms.
-//Returns nubmer of successfully updated rule.
+//Returns number of successfully updated rule.
 //The following functions are NOT thread safe.
 int Maat_cmd(Maat_feather_t feather,struct Maat_cmd_t* cmd,enum MAAT_OPERATION op);
 
 //pipeline model
 int Maat_cmd_append(Maat_feather_t feather,struct Maat_cmd_t* cmd,enum MAAT_OPERATION op);
 
-//Return nubmer of successfully updated rule.
+//Return number of successfully updated rule.
 //Return -1 for failed.
 int Maat_cmd_commit(Maat_feather_t feather);
 
 
 int Maat_cmd_set_group(Maat_feather_t feather, int group_id, const struct Maat_region_t* region, enum MAAT_OPERATION op);
 
-//Returns nubmer of successfully updated rule.
+//Returns number of successfully updated rule.
 //Return -1 for failed.
 int Maat_cmd_set_line(Maat_feather_t feather,const struct Maat_line_t* line_rule, enum MAAT_OPERATION op);
 int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_rule, int line_num ,enum MAAT_OPERATION op);
