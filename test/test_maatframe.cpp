@@ -239,16 +239,70 @@ TEST(StringScan, Regex)
 	int found_pos[4];
 	const char* table_name="HTTP_URL";
 	scan_status_t mid=NULL;
-	const char* scan_data="Cookie: Txa123aheadBCAxd";
+	const char* cookie="Cookie: Txa123aheadBCAxd";
+	const char* sni_should_not_hit[]={"instagram.fbcdn.net","a.instagram.fbcdn.net"};
+	const char* sni_should_hit[]={"xx.fbcdn.net","ainstagram.fbcdn.net"};
 	table_id=Maat_table_register(g_feather,table_name);
 	ASSERT_GT(table_id, 0);
 	
-	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, cookie, strlen(cookie), 
 						result,found_pos, 4, &mid, 0);
 						
 	EXPECT_GE(ret, 1);
 	EXPECT_EQ(result[0].config_id, 146);
 	Maat_clean_status(&mid);
+	
+
+	size_t i=0;
+	for(i=0; i< sizeof(sni_should_not_hit)/sizeof(const char*); i++)
+	{
+		ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, sni_should_not_hit[i], strlen(sni_should_not_hit[i]), 
+							result,found_pos, 4, &mid, 0);
+		EXPECT_EQ(ret, 0);		
+		Maat_clean_status(&mid);
+	}
+	for(i=0; i<sizeof(sni_should_hit)/sizeof(const char*); i++)
+	{
+		ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, sni_should_hit[i], strlen(sni_should_hit[i]), 
+							result,found_pos, 4, &mid, 0);
+		EXPECT_GE(ret, 1);	
+		EXPECT_EQ(result[0].config_id, 149);
+		Maat_clean_status(&mid);
+	}	
+}
+TEST(StringScan, BugReport20190325)
+{
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+
+	unsigned char scan_data[] = { /* Packet 1 */
+	0x01, 0x00, 0x00, 0x00, 0x79, 0x00, 0x00, 0x00, 
+	0x00, 0xf4, 0x01, 0x00, 0x00, 0x32, 0x00, 0x00, 
+	0x00, 0xe8, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+	0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 
+	0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+	0xff, 0xff, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 
+	0x2d, 0x3d, 0x3d, 0x20, 0x48, 0x3d, 0x48, 0x20, 
+	0x3d, 0x3d, 0x2d, 0x3a, 0x00, 0x02, 0x00, 0x00, 
+	0x00, 0x07, 0x0e, 0x00, 0x00, 0xe8, 0x03, 0x00, 
+	0x00, 0x4c, 0x69, 0x6e, 0x75, 0x78, 0x20, 0x33, 
+	0x2e, 0x31, 0x39, 0x2e, 0x30, 0x2d, 0x31, 0x35, 
+	0x2d, 0x67, 0x65, 0x6e, 0x65, 0x72, 0x69, 0x63, 
+	0x00, 0x31, 0x3a, 0x47, 0x32, 0x2e, 0x34, 0x30, 
+	0x00 };
+
+	int table_id=Maat_table_register(g_feather, "TROJAN_PAYLOAD");
+	ASSERT_GT(table_id, 0);
+	scan_status_t mid=NULL;
+	int ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, (char*)scan_data, sizeof(scan_data), 
+						result, found_pos, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 150);
+
 }
 TEST(StringScan,   ExprPlus)
 {
