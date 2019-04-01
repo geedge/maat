@@ -1700,11 +1700,6 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 	}
 	
 	struct expr_table_desc* expr_desc=&(p_table->expr);
-	if(expr_desc->quick_expr_switch==1)
-	{
-		_feather->scan_err_cnt++;
-		return NULL;
-	}
 	struct _stream_para_t* sp=ALLOC(struct _stream_para_t ,1);
 	scanner=_feather->scanner;
 	sp->feather=_feather;

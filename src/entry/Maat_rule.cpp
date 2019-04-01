@@ -1294,9 +1294,7 @@ struct Maat_scanner_t* create_maat_scanner(unsigned int version,_Maat_feather_t 
 //	int rs_scan_type=feather->rule_scan_type;
 	struct Maat_table_desc ** pp_table_desc=feather->p_table_info;
 	struct Maat_table_runtime* table_rt=NULL;
-	const struct expr_table_desc* expr_desc=NULL;
-	int i=0,j=0;
-	unsigned int sub_type=0;
+	int i=0;
 	UNUSED int ret=0;
 	
 	MESA_htable_create_args_t hargs;
@@ -1363,23 +1361,6 @@ struct Maat_scanner_t* create_maat_scanner(unsigned int version,_Maat_feather_t 
 			continue;
 		}
 		table_rt=table_runtime_new(pp_table_desc[i], feather->scan_thread_num);
-		if(pp_table_desc[i]->table_type==TABLE_TYPE_EXPR||pp_table_desc[i]->table_type==TABLE_TYPE_EXPR_PLUS)
- 		{
-			expr_desc=&(pp_table_desc[i]->expr);
-			if(expr_desc->quick_expr_switch==1)
-			{
-				for(j=0;j<MAX_CHARSET_NUM&& pp_table_desc[i]->expr.dst_charset[j]!=CHARSET_NONE;j++)
-				{
-					sub_type=make_sub_type(pp_table_desc[i]->table_id, expr_desc->dst_charset[j], expr_desc->do_charset_merge);
-					ret=rulescan_set_param(scanner->region,RULESCAN_QUICK_SCAN,&sub_type,sizeof(sub_type));
-					assert(ret==1);
-					if(expr_desc->do_charset_merge==1)
-					{
-						break;
-					}
-				}
-			}
-		}
 		scanner->table_rt[i]=table_rt;
 	}
 	return scanner;
@@ -2538,7 +2519,6 @@ void update_expr_rule(struct Maat_table_desc* table,const char* table_line,struc
 {
 	struct db_str_rule_t* maat_str_rule=ALLOC(struct db_str_rule_t, 1);
 	int ret=0,db_hexbin=0,rule_type=0;
-	const struct expr_table_desc* expr_desc=&(table->expr);
 	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
 	switch(table->table_type)
 	{
@@ -2677,16 +2657,6 @@ void update_expr_rule(struct Maat_table_desc* table,const char* table_line,struc
 			table->table_name[table->updating_name],maat_str_rule->region_id);
 			maat_str_rule->match_method=MATCH_METHOD_SUB;
 				
-		}
-		if(maat_str_rule->expr_type==EXPR_TYPE_STRING
-			&&expr_desc->quick_expr_switch==1
-			&&maat_str_rule->match_method!=MATCH_METHOD_SUB)
-		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-			"abandon config: table %s scan mode is quickon, only support MATCH_METHOD_SUB, conflict with match method of region %d.",
-			table->table_name[table->updating_name],maat_str_rule->region_id);
-			table->udpate_err_cnt++;
-			goto error_out;
 		}
 		ret=add_expr_rule(table, maat_str_rule,scanner, logger);
 		if(ret<0)
