@@ -81,7 +81,7 @@ struct expr_table_desc
 	int src_charset_in_dst;
 	int do_charset_merge;
 	int cross_cache_size;
-	int quick_expr_switch;
+	int quick_expr_switch;//obsolete since 20190401
 	long long iconv_err_cnt;
 };
 struct ip_table_desc
