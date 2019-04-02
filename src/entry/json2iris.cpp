@@ -162,7 +162,9 @@ int set_iris_descriptor(const char* json_file,cJSON *json,const char*compile_tn,
 
 	map_register(iris_cfg->str2int_map, "sub",0);
 	map_register(iris_cfg->str2int_map, "right",1);
+	map_register(iris_cfg->str2int_map, "suffix",1);
 	map_register(iris_cfg->str2int_map, "left",2);
+	map_register(iris_cfg->str2int_map, "prefix",2);
 	map_register(iris_cfg->str2int_map, "complete",3);
 
 	map_register(iris_cfg->str2int_map, "uncase plain",0);
