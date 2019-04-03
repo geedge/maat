@@ -830,6 +830,60 @@
                     "group_name": "billgates_regist2"
                 }
             ]
+        },
+        {
+            "compile_id": 151,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "suffix_hit",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "expr",
+                            "table_name": "MAIL_ADDR",
+                            "table_content": {
+                                "keywords": "ceshi3@mailhost.cn",
+                                "expr_type": "none",
+                                "format": "uncase plain",
+                                "match_method": "suffix"
+                            }
+                        }
+                    ],
+                    "group_name": "Untitled"
+                }
+            ]
+        },
+        {
+            "compile_id": 152,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "prefix_hit",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "expr",
+                            "table_name": "MAIL_ADDR",
+                            "table_content": {
+                                "keywords": "ceshi3@mailhost.cn",
+                                "expr_type": "none",
+                                "format": "uncase plain",
+                                "match_method": "prefix"
+                            }
+                        }
+                    ],
+                    "group_name": "Untitled"
+                }
+            ]
         }
     ],
     "plugin_table": [
