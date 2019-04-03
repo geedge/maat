@@ -231,6 +231,7 @@ TEST(StringScan, Full)
 	EXPECT_GE(ret, 1);
 	Maat_clean_status(&mid);
 }
+
 TEST(StringScan, Regex)
 {
 	int ret=0;
@@ -304,6 +305,41 @@ TEST(StringScan, BugReport20190325)
 	EXPECT_EQ(result[0].config_id, 150);
 
 }
+TEST(StringScan, PrefixAndSuffix)
+{
+	int ret=0;
+	int table_id=0;
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+	const char* table_name="MAIL_ADDR";
+	scan_status_t mid=NULL;
+	const char* hit_twice="ceshi3@mailhost.cn";
+	const char* hit_suffix="11111111111ceshi3@mailhost.cn";
+	const char* hit_prefix="ceshi3@mailhost.cn11111111111";
+	table_id=Maat_table_register(g_feather,table_name);
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, hit_twice, strlen(hit_twice), 
+						result,found_pos, 4, &mid, 0);
+	EXPECT_EQ(ret, 2);
+	EXPECT_EQ(result[0].config_id, 152);
+	EXPECT_EQ(result[1].config_id, 151);
+	Maat_clean_status(&mid);
+	
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, hit_suffix, strlen(hit_suffix), 
+						result,found_pos, 4, &mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 151);
+	Maat_clean_status(&mid);
+
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, hit_prefix, strlen(hit_prefix), 
+						result,found_pos, 4, &mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 152);
+	Maat_clean_status(&mid);
+
+}
+
 TEST(StringScan,   ExprPlus)
 {
 	int ret=0;
@@ -353,7 +389,7 @@ TEST(StringScan, ExprPlusWithOffset)
 							0x00, 0x03, 0x00, 0x4a, 0x21, 0x12, 0xa4, 0x42, //1-1:03
 							0x4f, 0xc2, 0x2d, 0x70, 0xb3, 0xa8, 0x4e, 0x2d, //10-10:2d
 							0x34, 0x22, 0x87, 0x4c, 0x2d, 0x00, 0x00, 0x46, //15-16:2d34&20-20:2d
-							0x34, 0x34, 0xab, 0x39, 0xbb, 0x97, 0xe5, 0x01, //24-24:2d
+							0x2d, 0x34, 0xab, 0x39, 0xbb, 0x97, 0xe5, 0x01, //24-24:2d
 							0x03, 0x46, 0x1c, 0x28, 0x5b, 0xab, 0xfa, 0x9a, 
 							0xab, 0x2e, 0x71, 0x39, 0x66, 0xa0, 0xd7, 0xb9, 
 							0xd8, 0x41, 0xa7, 0xa0, 0x84, 0xa9, 0xf3, 0x1b, 
