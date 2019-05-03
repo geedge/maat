@@ -135,9 +135,9 @@ size_t pickup_hit_region_from_compile(struct bool_expr *compile_hit,
 	}
 	return k;
 }
-void fill_maat_rule(struct Maat_rule_t *rule, const struct _head_Maat_rule_t* rule_head, const char* srv_def, int srv_def_len)
+void fill_maat_rule(struct Maat_rule_t *rule, const struct _head_Maat_rule* rule_head, const char* srv_def, int srv_def_len)
 {
-	memcpy(rule, rule_head, sizeof(struct _head_Maat_rule_t));
+	memcpy(rule, rule_head, sizeof(struct _head_Maat_rule));
 	memcpy(rule->service_defined, srv_def, MIN(srv_def_len,MAX_SERVICE_DEFINE_LEN));
 	return;
 }
@@ -158,21 +158,21 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	int shortcut_avilable_cnt=0;
 	unsigned char has_not_flag=0;
 	struct bool_matcher* bm=feather->scanner->bool_matcher_expr_compiler;
-	struct Maat_group_inner_t* group_rule=NULL;
-	struct Maat_compile_inner_t* array_mi_rule[MAX_SCANNER_HIT_NUM];
-	struct Maat_compile_inner_t* _mi_rule=NULL;
+	struct Maat_group_inner* group_rule=NULL;
+	struct Maat_compile_inner* array_mi_rule[MAX_SCANNER_HIT_NUM];
+	struct Maat_compile_inner* _mi_rule=NULL;
 	int region_pos[MAX_SCANNER_HIT_NUM];
 	_mid->cur_hit_cnt=0;
 	for(i=0;i<region_hit_num;i++)
 	{
-		group_rule=*(struct Maat_group_inner_t**)((char*)region_hit+region_type_size*i+group_offset);
+		group_rule=*(struct Maat_group_inner**)((char*)region_hit+region_type_size*i+group_offset);
 		if(group_rule->group_id<0)
 		{
 			continue;
 		}
 		if(group_rule->compile_shortcut!=NULL&&group_rule->ref_cnt==1&&shortcut_avilable_cnt<MAX_SCANNER_HIT_NUM)
 		{			
-			array_mi_rule[shortcut_avilable_cnt]=(struct Maat_compile_inner_t*)(group_rule->compile_shortcut);
+			array_mi_rule[shortcut_avilable_cnt]=(struct Maat_compile_inner*)(group_rule->compile_shortcut);
 			shortcut_avilable_cnt++;
 		}
 		_mid->cur_hit_id[_mid->cur_hit_cnt]=group_rule->group_id;
@@ -252,15 +252,15 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	return result_cnt;
 }
 
-int exprid2region_id(struct Maat_group_inner_t* group_rule,int expr_id,int* district_id)
+int exprid2region_id(struct Maat_group_inner* group_rule,int expr_id,int* district_id)
 {
 	int i=0,region_id=-1;
-	struct _Maat_region_inner_t* region_rule=NULL;
+	struct Maat_region_inner* region_rule=NULL;
 	assert(group_rule->group_id>=0);
 	pthread_mutex_lock(&(group_rule->mutex));
 	for(i=0;i<group_rule->region_boundary;i++)
 	{
-		region_rule=(struct _Maat_region_inner_t*)dynamic_array_read(group_rule->regions, i);
+		region_rule=(struct Maat_region_inner*)dynamic_array_read(group_rule->regions, i);
 		if(region_rule==NULL)
 		{
 			continue;
@@ -277,13 +277,13 @@ int exprid2region_id(struct Maat_group_inner_t* group_rule,int expr_id,int* dist
 }
 int match_district(struct _OUTER_scan_status_t *_mid,scan_result_t *region_hit,int region_hit_num)
 {
-	struct Maat_group_inner_t* group_rule=NULL;
+	struct Maat_group_inner* group_rule=NULL;
 	int i=0;
 	int district_id=-1,region_id=-1;
 	int ret_region_num=region_hit_num;
 	while(i<ret_region_num)
 	{
-		group_rule=(struct Maat_group_inner_t*)(region_hit[i].tag);
+		group_rule=(struct Maat_group_inner*)(region_hit[i].tag);
 		region_id=exprid2region_id(group_rule, region_hit[i].expr_id,&district_id);
 		if(region_id>0&&district_id!=_mid->district_id)
 		{
@@ -379,7 +379,7 @@ int fill_region_hit_detail(const char* scan_buff,const _INNER_scan_status_t* _mi
 	memset(r_in_c_flag,0,sizeof(r_in_c_flag));
 	memset(region_pos,0,sizeof(region_pos));
 	
-	struct Maat_group_inner_t* group_rule=NULL;
+	struct Maat_group_inner* group_rule=NULL;
 	//for each hitted compile cfg,find its region_ids
 	for(i=0;i<compile_cnt&&i<detail_num;i++)
 	{
@@ -391,7 +391,7 @@ int fill_region_hit_detail(const char* scan_buff,const _INNER_scan_status_t* _mi
 		{
 			pos=region_pos[j];
 			r_in_c_flag[pos]=1;
-			group_rule=(struct Maat_group_inner_t*)(region_hit[pos].tag);
+			group_rule=(struct Maat_group_inner*)(region_hit[pos].tag);
 			region_id=exprid2region_id(group_rule,region_hit[pos].expr_id,&district_id);
 			if(region_id<0)
 			{
@@ -411,7 +411,7 @@ int fill_region_hit_detail(const char* scan_buff,const _INNER_scan_status_t* _mi
 	{
 		if(r_in_c_flag[k]==0)
 		{
-			group_rule=(struct Maat_group_inner_t*)(region_hit[k].tag);
+			group_rule=(struct Maat_group_inner*)(region_hit[k].tag);
 	 		hit_detail[j].config_id=-2;
 			hit_detail[j].hit_region_cnt=1;
 			hit_detail[j].region_pos[0].region_id=exprid2region_id(group_rule,region_hit[k].expr_id,&district_id);
@@ -1042,7 +1042,7 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 void rule_ex_data_new_cb(const uchar * key, uint size, void * data, void * user)
 {
 	struct compile_ex_data_idx *ex_desc=(struct compile_ex_data_idx*)user;
-	struct Maat_compile_inner_t *compile_inner=(struct Maat_compile_inner_t *)data;
+	struct Maat_compile_inner *compile_inner=(struct Maat_compile_inner *)data;
 	MAAT_RULE_EX_DATA ad=NULL;
 	
 	if(compile_inner->ref_table==NULL || compile_inner->ref_table->table_id!=ex_desc->table_id || compile_inner->db_c_rule==NULL)
@@ -1104,12 +1104,12 @@ failed:
 MAAT_RULE_EX_DATA Maat_rule_get_ex_data(Maat_feather_t feather, const struct Maat_rule_t* rule, int idx)
 {
 	struct _Maat_feather_t *_feather=(struct _Maat_feather_t *)feather;
-	struct Maat_compile_inner_t *compile_inner=NULL;
+	struct Maat_compile_inner *compile_inner=NULL;
 	const struct compile_table_desc* compile_desc=NULL;
 	const struct compile_ex_data_idx* ex_desc=NULL;
 	MAAT_RULE_EX_DATA ad=NULL;
 	
-	compile_inner=(struct Maat_compile_inner_t *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule->config_id);
+	compile_inner=(struct Maat_compile_inner *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule->config_id);
 	if(compile_inner==NULL)
 	{
 		return NULL;
@@ -2153,11 +2153,11 @@ int Maat_read_rule(Maat_feather_t feather, const struct Maat_rule_t* rule, enum 
 {
 	int ret=0;
 	struct _Maat_feather_t *_feather=(struct _Maat_feather_t *)feather;
-	struct Maat_compile_inner_t *compile_inner=NULL;
+	struct Maat_compile_inner *compile_inner=NULL;
 	switch(type)
 	{
 		case	MAAT_RULE_SERV_DEFINE:
-			compile_inner=(struct Maat_compile_inner_t *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule->config_id);
+			compile_inner=(struct Maat_compile_inner *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule->config_id);
 			if(compile_inner==NULL)
 			{
 				ret=0;

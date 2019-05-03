@@ -30,3 +30,19 @@ file(MAKE_DIRECTORY ${HIREDIS_INCLUDE_DIRECTORIES})
 add_library(hiredis-vip-static STATIC IMPORTED GLOBAL)
 set_property(TARGET hiredis-vip-static PROPERTY IMPORTED_LOCATION ${SOURCE_DIR}/libhiredis_vip.a)
 set_property(TARGET hiredis-vip-static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${SOURCE_DIR})
+
+ExternalProject_Add(igraph PREFIX igraph
+        URL ${CMAKE_CURRENT_SOURCE_DIR}/igraph-0.7.1.tar.gz
+        URL_MD5 4f6e7c16b45fce8ed423516a9786e4e8
+        CONFIGURE_COMMAND ./configure --prefix=<INSTALL_DIR> --disable-shared --with-pic
+        BUILD_COMMAND make
+        INSTALL_COMMAND make install
+        BUILD_IN_SOURCE 1)
+
+ExternalProject_Get_Property(igraph INSTALL_DIR)
+file(MAKE_DIRECTORY ${INSTALL_DIR}/include)
+
+add_library(igraph-static STATIC IMPORTED GLOBAL)
+add_dependencies(igraph-static igraph)
+set_property(TARGET igraph-static PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/libigraph.a)
+set_property(TARGET igraph-static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
