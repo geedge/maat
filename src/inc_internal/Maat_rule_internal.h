@@ -142,6 +142,8 @@ struct Maat_group_inner
 	int ref_cnt;
 	char* group_name;
 	int has_compile_neighbors;
+	int endpoint_cnt;
+	int* endpoints;
 	dynamic_array_t *regions;
 	void* compile_shortcut;
 	pthread_mutex_t mutex;

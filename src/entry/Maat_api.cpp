@@ -152,8 +152,8 @@ static int compare_compile_id(const void *a, const void *b)
 int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int is_last_region,void* region_hit,int region_type_size,int group_offset,int region_hit_num,struct Maat_rule_t* result,_compile_result_t *rs_result, int size,int thread_num)
 {
 
-	int scan_ret=0,result_cnt=0;
-	int ret=0,i=0;
+	int scan_ret=0, result_cnt=0;
+	int ret=0, i=0, j=0;
 	size_t r_in_c_cnt=0;
 	int shortcut_avilable_cnt=0;
 	unsigned char has_not_flag=0;
@@ -177,11 +177,14 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 		}
 		_mid->cur_hit_id[_mid->cur_hit_cnt]=group_rule->group_id;
 		_mid->cur_hit_cnt++;
-		ret=insert_set_id(&(_mid->hitted_group_id),
-									&(_mid->hit_group_size),
-									_mid->hit_group_cnt,
-									group_rule->group_id);
-		_mid->hit_group_cnt+=ret;
+		for(j=0; j<group_rule->endpoint_cnt; j++)
+		{
+			ret=insert_set_id(&(_mid->hitted_group_id),
+										&(_mid->hit_group_size),
+										_mid->hit_group_cnt,
+										group_rule->endpoints[j]);
+			_mid->hit_group_cnt+=ret;
+		}
 	}
 	if((region_hit_num>0 &&shortcut_avilable_cnt==region_hit_num) || 
 		shortcut_avilable_cnt==MAX_SCANNER_HIT_NUM)
@@ -195,7 +198,7 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 		//This shortcut is NO longger valid after bool macher support NOT-logic.
 		//short cut for last scan and combination rules
 		//region_hit_num==1 :  for current scan hitted rules, one and each other group may statisfy a compile rule.
-		//_mid->hit_group_cnt==1: With pre scan hitted group rules, one group may staisfy a compile rule
+		//_mid->hit_group_cnt==1: With previously scan hitted group rules, one group may staisfy a compile rule
 		scan_ret=0;
 	}
 	else

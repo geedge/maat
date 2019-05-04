@@ -838,7 +838,7 @@ error_jump:
 }
 struct Maat_group_inner* create_group_rule(int group_id)
 {
-	struct Maat_group_inner* group=(struct Maat_group_inner*)malloc(sizeof(struct Maat_group_inner));
+	struct Maat_group_inner* group=ALLOC(struct Maat_group_inner, 1);
 	group->group_id=group_id;
 	group->region_cnt=0;
 	group->region_boundary=0;
@@ -861,6 +861,8 @@ void _destroy_group_rule(struct Maat_group_inner* group)
 	group->table_id=-1;
 	free(group->group_name);
 	group->group_name=NULL;
+	free(group->endpoints);
+	group->endpoints=NULL;
 	pthread_mutex_destroy(&(group->mutex));
 	free(group);
 
@@ -996,7 +998,7 @@ void EMPTY_FREE(void*p)
 }
 struct Maat_compile_inner * create_compile_rule(int compile_id)
 {
-	struct Maat_compile_inner* p=ALLOC(struct Maat_compile_inner,1);
+	struct Maat_compile_inner* p=ALLOC(struct Maat_compile_inner, 1);
 	p->compile_id=compile_id;
 	p->group_cnt=0;
 	p->group_boundary=1;
@@ -3317,6 +3319,43 @@ void update_plugin_table(struct Maat_table_desc* table,const char* table_line,Ma
 		dynamic_array_write(table_rt->plugin.cache_lines,table_rt->plugin.cache_line_num,p);
 		table_rt->plugin.cache_line_num++;		
 	}
+}
+void walk_group_hash(const uchar * key, uint size, void * data, void * user)
+{
+	struct Maat_group_inner* group_rule=(struct Maat_group_inner*)data;
+	struct Maat_group_inner* parent_group=NULL;
+	struct Maat_scanner_t* scanner=(struct Maat_scanner_t*)user;
+	igraph_vector_t vids;
+	igraph_dfs(&(scanner->group_graph), group_rule->group_id, IGRAPH_OUT, 
+				/*NO search unreachable*/ 0, &vids, NULL, NULL, NULL, NULL, NULL, NULL);
+	long int i;
+	int* temp_group_ids=ALLOC(int, igraph_vector_size(&vids));
+	size_t path_endpoint_cnt=0;
+	for(i=0; i<igraph_vector_size(&vids); i++)
+	{
+		parent_group=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, (int) VECTOR(vids)[i]);
+		if(parent_group->has_compile_neighbors)//including itself?
+		{
+			temp_group_ids[path_endpoint_cnt]=parent_group->group_id;			
+			path_endpoint_cnt++;
+		}
+	}
+	pthread_mutex_lock(&(group_rule->mutex));
+	free(group_rule->endpoints);
+	group_rule->endpoint_cnt=path_endpoint_cnt;
+	group_rule->endpoints=ALLOC(int, group_rule->endpoint_cnt);
+	memcpy(group_rule->endpoints, temp_group_ids, sizeof(int)*group_rule->endpoint_cnt);	
+	pthread_mutex_unlock(&(group_rule->mutex));
+	igraph_vector_destroy(&vids);
+	free(temp_group_ids);
+	temp_group_ids=NULL;
+	return;
+}
+
+void find_group_paths(struct Maat_scanner_t* scanner)
+{
+	MESA_htable_iterate(scanner->group_hash, walk_group_hash, scanner);
+	return;
 }
 void do_scanner_update(struct Maat_scanner_t* scanner,MESA_lqueue_head garbage_q,int scan_thread_num,void* logger)
 {
