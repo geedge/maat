@@ -881,7 +881,44 @@
                             }
                         }
                     ],
-                    "group_name": "Untitled"
+                    "group_name": "152_mail_addr"
+                }
+            ]
+        },
+        {
+            "compile_id": 153,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "group_referer_group",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "expr",
+                            "table_name": "MAIL_ADDR",
+                            "table_content": {
+                                "keywords": "ceshi4@mailhost.cn",
+                                "expr_type": "none",
+                                "format": "uncase plain",
+                                "match_method": "prefix"
+                            }
+                        }
+                    ],
+                    "group_name": "Untitled",
+                    "sub_groups": [
+                    		{"group_name": "152_mail_addr"}
+                    ],
+                    "not_flag" : 0
+                },
+                {
+                    "group_name": "IP_group_refered",
+                    "sub_groups": [
+                    		{"group_name": "IP_group"}              		
+                    ]
                 }
             ]
         }

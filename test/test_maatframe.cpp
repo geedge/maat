@@ -959,7 +959,7 @@ void accept_tags_entry_cb(int table_id,const char* table_line,void* u_para)
 	return;
 }
 
-TEST(RuleTags, Plugin1)
+TEST(Policy, PluginRuleTags1)
 {
 #define RuleTags_Plugin
 	int ret=0;
@@ -985,7 +985,7 @@ void accept_tags_entry2_cb(int table_id,const char* table_line,void* u_para)
 	return;
 }
 
-TEST(RuleTags, Plugin2)
+TEST(Policy, PluginRuleTags2)
 {
 #define RuleTags_Plugin2
 	int ret=0;
@@ -1005,7 +1005,7 @@ TEST(RuleTags, Plugin2)
 	return;
 }
 
-TEST(RuleTags, Compile)
+TEST(Policy, CompileRuleTags)
 {
 #define RuleTags_Compile
 	int ret=0;
@@ -1086,7 +1086,7 @@ void compile_ex_param_dup(int idx,	MAAT_RULE_EX_DATA *to, MAAT_RULE_EX_DATA *fro
 
 
 
-TEST(EX_DATA_INDEX, MaatRuleEXData)
+TEST(Policy, CompileEXData)
 {
 #define rule_EX_data_index
 
@@ -1117,6 +1117,42 @@ TEST(EX_DATA_INDEX, MaatRuleEXData)
 	EXPECT_EQ(param->id, 7799);
 	EXPECT_EQ(strcmp(param->name, expect_name),0);
 	compile_ex_param_free(0, NULL, NULL, &ex_data, 0, NULL);
+	Maat_clean_status(&mid);
+	return;
+}
+TEST(Policy, SubGroup)
+{
+#define TestSubGroup
+	int ret=0, table_id=0;
+	const char* scan_string="ceshi3@mailhost.cn";
+	struct Maat_rule_t result[4];
+	memset(result, 0, sizeof(result));
+	
+	scan_status_t mid=NULL;
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
+	inet_pton(AF_INET,"10.0.6.205",&(v4_addr.saddr));
+	v4_addr.source=htons(50001);
+	inet_pton(AF_INET,"10.0.6.201",&(v4_addr.daddr));
+	v4_addr.dest=htons(80);
+	ipv4_addr.v4=&v4_addr;
+
+	table_id=Maat_table_register(g_feather,"MAIL_ADDR");
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, scan_string, strlen(scan_string), 
+						result,NULL, 4, &mid, 0);
+	EXPECT_EQ(ret, -2);
+	
+	table_id=Maat_table_register(g_feather, "IP_CONFIG");	
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_scan_proto_addr(g_feather,table_id,&ipv4_addr,6,result,4, &mid,0);	
+	
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 153);
+	
 	Maat_clean_status(&mid);
 	return;
 }
@@ -2105,7 +2141,7 @@ int main(int argc, char ** argv)
 	const char* decrypt_key="mesa2017wy";
 	const char* accept_tags="{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
 //	const char* subsitute_acc_tags="{\"tags\":[{\"tag\":\"location\",\"value\":\"Astana\"}]}";
-	int scan_detail=0;
+	int scan_detail=0, ret=0;
 
 	::testing::InitGoogleTest(&argc, argv);
 	g_logger=MESA_create_runtime_log_handle(log_file, 0);
@@ -2113,8 +2149,8 @@ int main(int argc, char ** argv)
 	g_feather=Maat_feather(g_iThreadNum, table_info_path, g_logger);
 	Maat_set_feather_opt(g_feather, MAAT_OPT_INSTANCE_NAME, "demo", strlen("demo")+1);
 	Maat_set_feather_opt(g_feather, MAAT_OPT_DECRYPT_KEY, decrypt_key, strlen(decrypt_key)+1);
-	Maat_set_feather_opt(g_feather, MAAT_OPT_JSON_FILE_PATH, json_path, strlen(json_path)+1);
-
+	ret=Maat_set_feather_opt(g_feather, MAAT_OPT_JSON_FILE_PATH, json_path, strlen(json_path)+1);
+	assert(ret==0);
 	Maat_set_feather_opt(g_feather, MAAT_OPT_SCANDIR_INTERVAL_MS, &scan_interval_ms, sizeof(scan_interval_ms));
 	//Set a short intevral for testing.
 	Maat_set_feather_opt(g_feather, MAAT_OPT_EFFECT_INVERVAL_MS, &effective_interval_ms, sizeof(effective_interval_ms));
@@ -2127,7 +2163,7 @@ int main(int argc, char ** argv)
 	Maat_initiate_feather(g_feather);
 	printf("Maat initiating, see %s\n",log_file);
 
-	int ret=RUN_ALL_TESTS();
+	ret=RUN_ALL_TESTS();
 	Maat_burn_feather(g_feather);
 	MESA_destroy_runtime_log_handle(g_logger);
 	return ret;
