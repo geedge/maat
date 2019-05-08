@@ -33,8 +33,8 @@ target_include_directories(maat_frame_shared PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 target_include_directories(maat_frame_shared PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc_internal/hiredis)
 target_link_libraries(maat_frame_shared hiredis-vip-static ${MAAT_DEPEND_DYN_LIB})
 
-install(FILES ${CMAKE_SOURCE_DIR}/inc/Maat_rule.h DESTINATION include/MESA/)
-install(FILES ${CMAKE_SOURCE_DIR}/inc/Maat_command.h DESTINATION include/MESA/)
-install(FILES ${CMAKE_SOURCE_DIR}/inc/stream_fuzzy_hash.h DESTINATION include/MESA/)
-install(FILES ${CMAKE_SOURCE_DIR}/inc/gram_index_engine.h DESTINATION include/MESA/)
+install(FILES ${PROJECT_SOURCE_DIR}/inc/Maat_rule.h DESTINATION include/MESA/)
+install(FILES ${PROJECT_SOURCE_DIR}/inc/Maat_command.h DESTINATION include/MESA/)
+install(FILES ${PROJECT_SOURCE_DIR}/inc/stream_fuzzy_hash.h DESTINATION include/MESA/)
+install(FILES ${PROJECT_SOURCE_DIR}/inc/gram_index_engine.h DESTINATION include/MESA/)
 install(TARGETS maat_frame_shared DESTINATION /opt/MESA/lib/)
