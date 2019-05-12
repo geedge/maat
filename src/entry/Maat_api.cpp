@@ -159,8 +159,9 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	unsigned char has_not_flag=0;
 	struct bool_matcher* bm=feather->scanner->bool_matcher_expr_compiler;
 	struct Maat_group_inner* group_rule=NULL;
-	struct Maat_compile_inner* array_mi_rule[MAX_SCANNER_HIT_NUM];
-	struct Maat_compile_inner* _mi_rule=NULL;
+	struct Maat_compile_inner* compile_arrary[MAX_SCANNER_HIT_NUM];
+	struct Maat_compile_inner* compile_rule=NULL;
+
 	int region_pos[MAX_SCANNER_HIT_NUM];
 	_mid->cur_hit_cnt=0;
 	for(i=0;i<region_hit_num;i++)
@@ -172,13 +173,13 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 		}
 		if(group_rule->compile_shortcut!=NULL&&group_rule->ref_cnt==1&&shortcut_avilable_cnt<MAX_SCANNER_HIT_NUM)
 		{			
-			array_mi_rule[shortcut_avilable_cnt]=(struct Maat_compile_inner*)(group_rule->compile_shortcut);
+			compile_arrary[shortcut_avilable_cnt]=(struct Maat_compile_inner*)(group_rule->compile_shortcut);
 			shortcut_avilable_cnt++;
 		}
-		_mid->cur_hit_id[_mid->cur_hit_cnt]=group_rule->group_id;
-		_mid->cur_hit_cnt++;
 		for(j=0; j<group_rule->endpoint_cnt; j++)
 		{
+			_mid->cur_hit_id[_mid->cur_hit_cnt]=group_rule->endpoints[j];
+			_mid->cur_hit_cnt++;
 			ret=insert_set_id(&(_mid->hitted_group_id),
 										&(_mid->hit_group_size),
 										_mid->hit_group_cnt,
@@ -205,40 +206,40 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	{
 		scan_ret=bool_matcher_match(bm, thread_num, 
 										_mid->hitted_group_id, _mid->hit_group_cnt,
-										(void **)array_mi_rule, MAX_SCANNER_HIT_NUM);
+										(void **)compile_arrary, MAX_SCANNER_HIT_NUM);
 	}
 	for(i=0;i<scan_ret&&result_cnt<size;i++)
 	{
-		_mi_rule=array_mi_rule[i];
-		if(_mi_rule==NULL)
+		compile_rule=compile_arrary[i];
+		if(compile_rule==NULL)
 		{
 			continue;
 		}
 		
-		if(0==pthread_rwlock_tryrdlock(&(_mi_rule->rwlock)))
+		if(0==pthread_rwlock_tryrdlock(&(compile_rule->rwlock)))
 		{
-			if(_mi_rule->is_valid==1)
+			if(compile_rule->is_valid==1)
 			{			
-				if(_mi_rule->not_group_cnt>0 && !is_last_region)
+				if(compile_rule->not_group_cnt>0 && !is_last_region)
 				{
 					_mid->not_grp_compile_hitted_flag=1;
 				}
 				else
 				{
-	   				make_group_set(_mi_rule, &(rs_result[result_cnt].group_set), &has_not_flag);
+	   				make_group_set(compile_rule, &(rs_result[result_cnt].group_set), &has_not_flag);
 					r_in_c_cnt=pickup_hit_region_from_compile(&(rs_result[result_cnt].group_set), _mid->cur_hit_id, _mid->cur_hit_cnt,
 												region_pos, MAX_SCANNER_HIT_NUM);
 					if(r_in_c_cnt>0 ||			//compile config hitted becasue of new reigon
 						_mid->cur_hit_cnt==0)	//or ever hit a compile that refer a NOT-logic group
 					{
-						fill_maat_rule(&(result[result_cnt]), &(_mi_rule->db_c_rule->m_rule_head),
-									_mi_rule->db_c_rule->service_defined ,_mi_rule->db_c_rule->m_rule_head.serv_def_len);
-						rs_result[result_cnt].compile_id=_mi_rule->compile_id;
+						fill_maat_rule(&(result[result_cnt]), &(compile_rule->db_c_rule->m_rule_head),
+									compile_rule->db_c_rule->service_defined ,compile_rule->db_c_rule->m_rule_head.serv_def_len);
+						rs_result[result_cnt].compile_id=compile_rule->compile_id;
 						result_cnt++;
 					}
 				}		
 			}	
-			pthread_rwlock_unlock(&(_mi_rule->rwlock));
+			pthread_rwlock_unlock(&(compile_rule->rwlock));
 		}		
 	}	
 	if(result_cnt>0)

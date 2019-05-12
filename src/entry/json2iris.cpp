@@ -849,7 +849,7 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 	{
 		group_not_flag=item->valueint;
 	}
-	if(parent_type!=PARENT_TYPE_GROUP)
+	if(parent_type==PARENT_TYPE_GROUP)
 	{
 		group_not_flag=0;
 	}

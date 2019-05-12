@@ -12,7 +12,7 @@
             "is_valid": "yes",
             "groups": [
                 {
-                    "group_name": "IP_group",
+                    "group_name": "123_IP_group",
                     "regions": [
                         {
                             "table_name": "IP_CONFIG",
@@ -77,7 +77,7 @@
             "is_valid": "yes",
             "groups": [
                 {
-                    "group_name": "IP_group"
+                    "group_name": "123_IP_group"
                 },
                 {
                     "group_name": "Untitled",
@@ -144,7 +144,7 @@
                     ]
                 },
                 {
-                    "group_name": "Untitled",
+                    "group_name": "126_interval_group",
                     "regions": [
                         {
                             "table_name": "CONTENT_SIZE",
@@ -595,7 +595,7 @@
                                 "match_method": "sub",
                                 "format": "uncase plain"
                             }
-                        }
+                        } 
                     ]
                 },
                 {
@@ -682,7 +682,7 @@
                 },
                 {
                     "not_flag":1,
-                     "group_name": "IP_group"
+                     "group_name": "123_IP_group"
                 }
             ]
         },
@@ -879,9 +879,25 @@
                                 "format": "uncase plain",
                                 "match_method": "prefix"
                             }
+                        },
+                        {
+                            "table_type": "expr",
+                            "table_name": "MAIL_ADDR",
+                            "table_content": {
+                                "keywords": "ceshi6@mailhost.cn",
+                                "expr_type": "none",
+                                "format": "uncase plain",
+                                "match_method": "prefix"
+                            }
                         }
                     ],
                     "group_name": "152_mail_addr"
+                },
+                {
+                    "group_name": "interval_group_refered",
+                    "sub_groups": [
+                    		{"group_name": "126_interval_group"}              		
+                    ]
                 }
             ]
         },
@@ -917,7 +933,7 @@
                 {
                     "group_name": "IP_group_refered",
                     "sub_groups": [
-                    		{"group_name": "IP_group"}              		
+                    		{"group_name": "123_IP_group"}              		
                     ]
                 }
             ]
