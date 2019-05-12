@@ -308,31 +308,37 @@ TEST(StringScan, BugReport20190325)
 TEST(StringScan, PrefixAndSuffix)
 {
 	int ret=0;
-	int table_id=0;
+	int mail_addr_table=0, cont_sz_table=0;
 	struct Maat_rule_t result[4];
 	int found_pos[4];
-	const char* table_name="MAIL_ADDR";
 	scan_status_t mid=NULL;
 	const char* hit_twice="ceshi3@mailhost.cn";
 	const char* hit_suffix="11111111111ceshi3@mailhost.cn";
 	const char* hit_prefix="ceshi3@mailhost.cn11111111111";
-	table_id=Maat_table_register(g_feather,table_name);
-	ASSERT_GT(table_id, 0);
+
 	
-	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, hit_twice, strlen(hit_twice), 
+	cont_sz_table=Maat_table_register(g_feather, "CONTENT_SIZE");
+	ret=Maat_scan_intval(g_feather, cont_sz_table, 2015, 
+					result, 4, &mid, 0);
+	mail_addr_table=Maat_table_register(g_feather, "MAIL_ADDR");
+	ASSERT_GT(mail_addr_table, 0);
+	ret=Maat_full_scan_string(g_feather, mail_addr_table,CHARSET_GBK, hit_twice, strlen(hit_twice), 
 						result,found_pos, 4, &mid, 0);
 	EXPECT_EQ(ret, 2);
 	EXPECT_EQ(result[0].config_id, 152);
 	EXPECT_EQ(result[1].config_id, 151);
 	Maat_clean_status(&mid);
 	
-	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, hit_suffix, strlen(hit_suffix), 
+	ret=Maat_full_scan_string(g_feather, mail_addr_table,CHARSET_GBK, hit_suffix, strlen(hit_suffix), 
 						result,found_pos, 4, &mid, 0);
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 151);
 	Maat_clean_status(&mid);
 
-	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, hit_prefix, strlen(hit_prefix), 
+	ret=Maat_scan_intval(g_feather, cont_sz_table, 2015, 
+					result, 4, &mid, 0);
+
+	ret=Maat_full_scan_string(g_feather, mail_addr_table,CHARSET_GBK, hit_prefix, strlen(hit_prefix), 
 						result,found_pos, 4, &mid, 0);
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 152);
@@ -489,15 +495,15 @@ TEST(NOTLogic, OneRegion)
 	ASSERT_GT(table_id, 0);
 	
 	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,  NULL, 0);
-	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_hit, strlen(string_should_hit), 
-						result,found_pos, 4, &mid, 0);
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, string_should_hit, strlen(string_should_hit), 
+						result, found_pos, 4, &mid, 0);
 						
 	EXPECT_GE(ret, 1);
 	Maat_clean_status(&mid);
 
 	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,  NULL, 0);
-	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_not_hit, strlen(string_should_not_hit), 
-						result,found_pos, 4, &mid, 0);
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, string_should_not_hit, strlen(string_should_not_hit), 
+						result, found_pos, 4, &mid, 0);
 						
 	EXPECT_EQ(ret, -2);
 	Maat_clean_status(&mid);
@@ -1124,7 +1130,7 @@ TEST(Policy, SubGroup)
 {
 #define TestSubGroup
 	int ret=0, table_id=0;
-	const char* scan_string="ceshi3@mailhost.cn";
+	const char* scan_string="ceshi6@mailhost.cn";
 	struct Maat_rule_t result[4];
 	memset(result, 0, sizeof(result));
 	
@@ -1141,14 +1147,14 @@ TEST(Policy, SubGroup)
 	table_id=Maat_table_register(g_feather,"MAIL_ADDR");
 	ASSERT_GT(table_id, 0);
 	
-	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, scan_string, strlen(scan_string), 
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, scan_string, strlen(scan_string), 
 						result,NULL, 4, &mid, 0);
 	EXPECT_EQ(ret, -2);
 	
 	table_id=Maat_table_register(g_feather, "IP_CONFIG");	
 	ASSERT_GT(table_id, 0);
 	
-	ret=Maat_scan_proto_addr(g_feather,table_id,&ipv4_addr,6,result,4, &mid,0);	
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid,0);	
 	
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 153);

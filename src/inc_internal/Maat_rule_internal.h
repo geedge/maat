@@ -142,6 +142,7 @@ struct Maat_group_inner
 	int ref_cnt;
 	char* group_name;
 	int has_compile_neighbors;
+	int vertex_id;
 	int endpoint_cnt;
 	int* endpoints;
 	dynamic_array_t *regions;
@@ -287,8 +288,11 @@ struct Maat_scanner_t
 	MESA_htable_handle compile_hash;
 	MESA_htable_handle district_map;
 	MESA_htable_handle tmp_district_map;
+	MESA_htable_handle vertex_id2group;
 
 	igraph_t group_graph;
+	int grp_vertex_id_generator;
+	
 	unsigned int district_num;
 	unsigned int cfg_num;
 	unsigned int exprid_generator;
