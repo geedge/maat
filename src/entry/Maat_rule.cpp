@@ -865,8 +865,8 @@ void _destroy_group_rule(struct Maat_group_inner* group)
 	group->table_id=-1;
 	free(group->group_name);
 	group->group_name=NULL;
-	free(group->endpoints);
-	group->endpoints=NULL;
+	free(group->top_groups);
+	group->top_groups=NULL;
 	pthread_mutex_destroy(&(group->mutex));
 	free(group);
 
@@ -3374,8 +3374,8 @@ void walk_group_hash(const uchar * key, uint size, void * data, void * user)
 	
 
 	long int i=0;
-	int* temp_group_ids=ALLOC(int, igraph_vector_size(&vids));
-	size_t path_endpoint_cnt=0;
+	long long* temp_group_ids=ALLOC(long long, igraph_vector_size(&vids));
+	size_t top_group_cnt=0;
 	for(i=0; i<igraph_vector_size(&vids); i++)
 	{
 		tmp_vid=(int) VECTOR(vids)[i];
@@ -3386,15 +3386,20 @@ void walk_group_hash(const uchar * key, uint size, void * data, void * user)
 		parent_group=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->vertex_id2group, tmp_vid);
 		if(parent_group->has_compile_neighbors)//including itself
 		{
-			temp_group_ids[path_endpoint_cnt]=parent_group->group_id;			
-			path_endpoint_cnt++;
+			temp_group_ids[top_group_cnt]=parent_group->group_id;			
+			top_group_cnt++;
 		}
 	}
 	pthread_mutex_lock(&(group_rule->mutex));
-	free(group_rule->endpoints);
-	group_rule->endpoint_cnt=path_endpoint_cnt;
-	group_rule->endpoints=ALLOC(int, group_rule->endpoint_cnt);
-	memcpy(group_rule->endpoints, temp_group_ids, sizeof(int)*group_rule->endpoint_cnt);	
+	free(group_rule->top_groups);
+	group_rule->top_group_cnt=top_group_cnt;
+	group_rule->top_groups=ALLOC(long long, group_rule->top_group_cnt);
+	memcpy(group_rule->top_groups, temp_group_ids, sizeof(long long)*group_rule->top_group_cnt);
+	if(group_rule->top_group_cnt>scanner->max_presented_top_group_cnt)
+	{
+		scanner->max_presented_top_group_cnt=group_rule->top_group_cnt;
+		scanner->most_popular_sub_group=group_rule->group_id;
+	}
 	pthread_mutex_unlock(&(group_rule->mutex));
 	igraph_vector_destroy(&vids);
 	free(temp_group_ids);
@@ -3431,7 +3436,11 @@ void do_scanner_update(struct Maat_scanner_t* scanner,MESA_lqueue_head garbage_q
 		garbage_bagging(GARBAGE_BOOL_MATCHER, tmp2, garbage_q);
 	}
 	MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"Version %d dedup string rule %lu",scanner->version,scanner->dedup_expr_num);	
+							"Version %d: dedup string rule %lu, sub group %d presents %d top groups",
+							scanner->version,
+							scanner->dedup_expr_num,
+							scanner->most_popular_sub_group,
+							scanner->max_presented_top_group_cnt);	
 	scanner->dedup_expr_num=0;
 	rulescan_batch_update(scanner->region,
 							scanner->region_update_q,

@@ -64,7 +64,8 @@ void Maat_clean_status(scan_status_t* mid)
 	alignment_int64_array_add(_mid->feather->outer_mid_cnt,_mid->thread_num,-1);
 	if(_mid->inner!=NULL)
 	{
-		free(_mid->inner->hitted_group_id);
+		dynamic_array_destroy(_mid->inner->cur_hit_groups, NULL);
+		free(_mid->inner->all_hit_group_array);
 		free(_mid->inner);
 		alignment_int64_array_add(_mid->feather->inner_mid_cnt,_mid->thread_num,-1);
 	}
@@ -117,15 +118,17 @@ int insert_set_id(unsigned long long **set, size_t* size, size_t cnt, unsigned l
 	}
 }
 size_t pickup_hit_region_from_compile(struct bool_expr *compile_hit, 
-						const unsigned long long* hitted_id, size_t hit_cnt, int* region_pos, size_t size)
+						struct dynamic_array_t* hitted_id, size_t hit_cnt, int* region_pos, size_t size)
 {
 	size_t i=0, j=0;
 	size_t k=0;
+	unsigned long long group_id=0;
 	for(i=0;i<hit_cnt;i++)
 	{
+		group_id=(unsigned long long)dynamic_array_read(hitted_id, i);
 		for(j=0; j<compile_hit->item_num; j++)
-		{
-			if(hitted_id[i]==compile_hit->items[j].item_id)
+		{		
+			if(group_id==compile_hit->items[j].item_id)
 			{
 				region_pos[k]=i;
 				k++;
@@ -141,12 +144,19 @@ void fill_maat_rule(struct Maat_rule_t *rule, const struct _head_Maat_rule* rule
 	memcpy(rule->service_defined, srv_def, MIN(srv_def_len,MAX_SERVICE_DEFINE_LEN));
 	return;
 }
-static int compare_compile_id(const void *a, const void *b)
+static int compare_compile_inner(const void *a, const void *b)
 {
-	struct Maat_rule_t *ra=(struct Maat_rule_t *)a;
-	struct Maat_rule_t *rb=(struct Maat_rule_t *)b;
+	const struct Maat_compile_inner *ra=*(const struct Maat_compile_inner **)a;
+	const struct Maat_compile_inner *rb=*(const struct Maat_compile_inner **)b;
 
-	return (rb->config_id-ra->config_id);
+	if(ra->group_cnt!=rb->group_cnt)
+	{
+		return (ra->group_cnt-rb->group_cnt);
+	}
+	else
+	{
+		return (rb->compile_id-ra->compile_id);
+	}
 }
 
 int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int is_last_region,void* region_hit,int region_type_size,int group_offset,int region_hit_num,struct Maat_rule_t* result,_compile_result_t *rs_result, int size,int thread_num)
@@ -163,7 +173,7 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	struct Maat_compile_inner* compile_rule=NULL;
 
 	int region_pos[MAX_SCANNER_HIT_NUM];
-	_mid->cur_hit_cnt=0;
+	_mid->cur_hit_group_cnt=0;
 	for(i=0;i<region_hit_num;i++)
 	{
 		group_rule=*(struct Maat_group_inner**)((char*)region_hit+region_type_size*i+group_offset);
@@ -176,15 +186,18 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 			compile_arrary[shortcut_avilable_cnt]=(struct Maat_compile_inner*)(group_rule->compile_shortcut);
 			shortcut_avilable_cnt++;
 		}
-		for(j=0; j<group_rule->endpoint_cnt; j++)
+		for(j=0; j<group_rule->top_group_cnt; j++)
 		{
-			_mid->cur_hit_id[_mid->cur_hit_cnt]=group_rule->endpoints[j];
-			_mid->cur_hit_cnt++;
-			ret=insert_set_id(&(_mid->hitted_group_id),
-										&(_mid->hit_group_size),
-										_mid->hit_group_cnt,
-										group_rule->endpoints[j]);
-			_mid->hit_group_cnt+=ret;
+			if(_mid->cur_hit_group_cnt<MAX_SCANNER_HIT_NUM)
+			{
+				dynamic_array_write(_mid->cur_hit_groups, _mid->cur_hit_group_cnt, (void*)group_rule->top_groups[j]);
+				_mid->cur_hit_group_cnt++;
+			}
+			ret=insert_set_id(&(_mid->all_hit_group_array),
+										&(_mid->all_hit_group_array_sz),
+										_mid->all_hit_group_cnt,
+										group_rule->top_groups[j]);
+			_mid->all_hit_group_cnt+=ret;
 		}
 	}
 	if((region_hit_num>0 &&shortcut_avilable_cnt==region_hit_num) || 
@@ -194,7 +207,7 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 		scan_ret=shortcut_avilable_cnt;
 		alignment_int64_array_add(feather->orphan_group_saving, thread_num, 1);
 	}
-	else if(0&&shortcut_avilable_cnt==0&&region_hit_num==1&&_mid->hit_group_cnt==1&&is_last_region==1)
+	else if(0&&shortcut_avilable_cnt==0&&region_hit_num==1&&_mid->all_hit_group_cnt==1&&is_last_region==1)
 	{
 		//This shortcut is NO longger valid after bool macher support NOT-logic.
 		//short cut for last scan and combination rules
@@ -205,8 +218,13 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	else
 	{
 		scan_ret=bool_matcher_match(bm, thread_num, 
-										_mid->hitted_group_id, _mid->hit_group_cnt,
+										_mid->all_hit_group_array, _mid->all_hit_group_cnt,
 										(void **)compile_arrary, MAX_SCANNER_HIT_NUM);
+	}
+	if(scan_ret>1)
+	{
+		qsort(compile_arrary, scan_ret, sizeof(struct Maat_compile_inner**),
+			  compare_compile_inner);
 	}
 	for(i=0;i<scan_ret&&result_cnt<size;i++)
 	{
@@ -227,10 +245,10 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 				else
 				{
 	   				make_group_set(compile_rule, &(rs_result[result_cnt].group_set), &has_not_flag);
-					r_in_c_cnt=pickup_hit_region_from_compile(&(rs_result[result_cnt].group_set), _mid->cur_hit_id, _mid->cur_hit_cnt,
+					r_in_c_cnt=pickup_hit_region_from_compile(&(rs_result[result_cnt].group_set), _mid->cur_hit_groups, _mid->cur_hit_group_cnt,
 												region_pos, MAX_SCANNER_HIT_NUM);
 					if(r_in_c_cnt>0 ||			//compile config hitted becasue of new reigon
-						_mid->cur_hit_cnt==0)	//or ever hit a compile that refer a NOT-logic group
+						_mid->cur_hit_group_cnt==0)	//or ever hit a compile that refer a NOT-logic group
 					{
 						fill_maat_rule(&(result[result_cnt]), &(compile_rule->db_c_rule->m_rule_head),
 									compile_rule->db_c_rule->service_defined ,compile_rule->db_c_rule->m_rule_head.serv_def_len);
@@ -244,9 +262,7 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	}	
 	if(result_cnt>0)
 	{
-		qsort(result, result_cnt, sizeof(struct Maat_rule_t),
-                  compare_compile_id);
-		alignment_int64_array_add(feather->hit_cnt,thread_num,1);
+		alignment_int64_array_add(feather->hit_cnt, thread_num, 1);
 	}
 	if(region_hit_num==0&&result_cnt>0)
 	{
@@ -388,7 +404,7 @@ int fill_region_hit_detail(const char* scan_buff,const _INNER_scan_status_t* _mi
 	for(i=0;i<compile_cnt&&i<detail_num;i++)
 	{
 		hit_detail[i].config_id=compile_hit[i].compile_id;
-		r_in_c_cnt=pickup_hit_region_from_compile(&(compile_hit[i].group_set), _mid->cur_hit_id, _mid->cur_hit_cnt,
+		r_in_c_cnt=pickup_hit_region_from_compile(&(compile_hit[i].group_set), _mid->cur_hit_groups, _mid->cur_hit_group_cnt,
 												region_pos, MAX_SCANNER_HIT_NUM);
 		assert(r_in_c_cnt>0);//previous hitted compile was elimited in region_compile
 		for(j=0,k=0;j<r_in_c_cnt&&k<MAAT_MAX_HIT_RULE_NUM;j++)
@@ -431,10 +447,11 @@ struct _INNER_scan_status_t* _make_inner_status(void)
 {
 	struct _INNER_scan_status_t* inner_mid=NULL;
 	inner_mid=ALLOC(struct _INNER_scan_status_t, 1);
-	inner_mid->cur_hit_cnt=0;
-	inner_mid->hit_group_cnt=0;
-	inner_mid->hit_group_size=4;
-	inner_mid->hitted_group_id= ALLOC(unsigned long long, inner_mid->hit_group_size);
+	inner_mid->cur_hit_group_cnt=0;
+	inner_mid->cur_hit_groups=dynamic_array_create(32, 32);
+	inner_mid->all_hit_group_cnt=0;
+	inner_mid->all_hit_group_array_sz=4;
+	inner_mid->all_hit_group_array= ALLOC(unsigned long long, inner_mid->all_hit_group_array_sz);
 	return inner_mid;
 }
 struct _OUTER_scan_status_t* _make_outer_status(_Maat_feather_t *feather, int thread_num)

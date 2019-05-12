@@ -325,8 +325,8 @@ TEST(StringScan, PrefixAndSuffix)
 	ret=Maat_full_scan_string(g_feather, mail_addr_table,CHARSET_GBK, hit_twice, strlen(hit_twice), 
 						result,found_pos, 4, &mid, 0);
 	EXPECT_EQ(ret, 2);
-	EXPECT_EQ(result[0].config_id, 152);
-	EXPECT_EQ(result[1].config_id, 151);
+	EXPECT_EQ(result[0].config_id, 151);//compile has more groups is priority
+	EXPECT_EQ(result[1].config_id, 152);
 	Maat_clean_status(&mid);
 	
 	ret=Maat_full_scan_string(g_feather, mail_addr_table,CHARSET_GBK, hit_suffix, strlen(hit_suffix), 
@@ -1650,7 +1650,7 @@ TEST_F(MaatCmdTest,  RuleIDRecycle)
 
 	struct Maat_rule_t result;
 	scan_status_t mid=NULL;
-
+	memset(&result, 0, sizeof(result));
 	int table_id=0;
 	table_id=Maat_table_register(feather,table_name);
 	ASSERT_GT(table_id, 0);
@@ -1719,6 +1719,7 @@ TEST_F(MaatCmdTest,  ReturnRuleIDWithDescendingOrder)
 	ret=Maat_cmd_commit(feather);
 	EXPECT_TRUE(ret>=0);
 	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
+	memset(&result, 0, sizeof(result));
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
 						result, NULL, 8,
 						&mid, 0);

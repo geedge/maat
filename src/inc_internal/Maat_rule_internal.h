@@ -143,8 +143,8 @@ struct Maat_group_inner
 	char* group_name;
 	int has_compile_neighbors;
 	int vertex_id;
-	int endpoint_cnt;
-	int* endpoints;
+	int top_group_cnt;
+	long long* top_groups;
 	dynamic_array_t *regions;
 	void* compile_shortcut;
 	pthread_mutex_t mutex;
@@ -170,11 +170,11 @@ struct _compile_result_t
 };
 struct _INNER_scan_status_t
 {
-	size_t cur_hit_cnt;
-	size_t hit_group_cnt;
-	size_t hit_group_size;
-	unsigned long long cur_hit_id[MAX_SCANNER_HIT_NUM];
-	unsigned long long *hitted_group_id;
+	size_t cur_hit_group_cnt;
+	size_t all_hit_group_cnt;
+	size_t all_hit_group_array_sz;
+	struct dynamic_array_t* cur_hit_groups;
+	unsigned long long *all_hit_group_array;
 	char not_grp_compile_hitted_flag;
 };
 struct _OUTER_scan_status_t
@@ -292,6 +292,8 @@ struct Maat_scanner_t
 
 	igraph_t group_graph;
 	int grp_vertex_id_generator;
+	int most_popular_sub_group;
+	long long max_presented_top_group_cnt;
 	
 	unsigned int district_num;
 	unsigned int cfg_num;
