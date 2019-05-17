@@ -692,10 +692,19 @@ int read_table_description(struct Maat_table_desc** p_table_info,int num,const c
 	char line[MAX_TABLE_LINE_SIZE];
 	int i=0,ret=0,table_cnt=0;
 	char table_type_str[16]={0},not_care[1024]={0}, tmp_str[32]={0};
-	MESA_htable_handle string2int_map=map_create();
+	MESA_htable_handle string2int_map=NULL;;
 	struct Maat_table_desc*p=NULL;
 	struct Maat_table_desc*conj_table=NULL;
+	fp=fopen(table_info_path,"r");
+	if(fp==NULL)
+	{
+		fprintf(stderr,"Maat read table info %s error.\n",table_info_path);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
+								"Maat read table info %s failed: %s.\n", table_info_path, strerror(errno));
+		return 0;
+	}
 	
+	string2int_map=map_create();
 	map_register(string2int_map,"expr", TABLE_TYPE_EXPR);
 	map_register(string2int_map,"ip", TABLE_TYPE_IP);
 	map_register(string2int_map,"compile", TABLE_TYPE_COMPILE);
@@ -725,13 +734,7 @@ int read_table_description(struct Maat_table_desc** p_table_info,int num,const c
 	map_register(string2int_map,"yes", 1);
 	map_register(string2int_map,"no", 0);
 	
-	fp=fopen(table_info_path,"r");
-	if(fp==NULL)
-	{
-		fprintf(stderr,"Maat read table info %s error.\n",table_info_path);
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
-								"Maat read table info %s error.\n",table_info_path);
-	}
+
 	i=0;
 	while(NULL!=fgets(line,sizeof(line),fp))
 	{
@@ -758,7 +761,7 @@ int read_table_description(struct Maat_table_desc** p_table_info,int num,const c
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
 						"Maat read table info %s line %d error:invalid table type.",table_info_path,i);
-			goto error_jump;
+			goto invalid_table;
 		}
 		switch(p->table_type)
 		{
@@ -770,7 +773,7 @@ int read_table_description(struct Maat_table_desc** p_table_info,int num,const c
 					fprintf(stderr,"Maat read table info %s line %d error:illegal column.\n",table_info_path,i);
 					MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
 									"Maat read table info %s line %d error:illegal column.",table_info_path,i);
-					goto error_jump;
+					goto invalid_table;
 				}
 				break;
 			case TABLE_TYPE_PLUGIN:
@@ -780,7 +783,7 @@ int read_table_description(struct Maat_table_desc** p_table_info,int num,const c
 					fprintf(stderr,"Maat read table info %s line %d error:illegal plugin info.\n",table_info_path,i);
 					MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
 									"Maat read table info %s line %d error:illegal plugin info.",table_info_path,i);
-					goto error_jump;
+					goto invalid_table;
 				}
 				break;
 			case TABLE_TYPE_COMPILE:	
@@ -803,7 +806,7 @@ int read_table_description(struct Maat_table_desc** p_table_info,int num,const c
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
 				"Maat read table info %s line %d error: table id %uh > %d.\n",table_info_path,i,p->table_id,num);
 
-			goto error_jump;
+			goto invalid_table;
 		}
 		if(p_table_info[p->table_id]!=NULL)//duplicate table_id,means conjunction table;
 		{
@@ -813,7 +816,7 @@ int read_table_description(struct Maat_table_desc** p_table_info,int num,const c
 				MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
 								"Maat read table info %s line %d error:reach tableid %d conjunction upper limit."
 								,table_info_path,i,p->table_id);
-				goto error_jump;
+				goto invalid_table;
 			}
 			memcpy(conj_table->table_name[conj_table->conj_cnt],p->table_name[0],MAX_TABLE_NAME_LEN);
 			conj_table->conj_cnt++;
@@ -822,13 +825,13 @@ int read_table_description(struct Maat_table_desc** p_table_info,int num,const c
 								,table_info_path,i,p->table_name[0]
 								,conj_table->table_name[0],conj_table->table_id,conj_table->conj_cnt);
 			//use goto to free the conjunctioned table_info
-			goto error_jump;
+			goto invalid_table;
 		}
 
 		p_table_info[p->table_id]=p;
 		table_cnt++;
 		continue;
-error_jump:
+invalid_table:
 		table_info_free(p);
 		p=NULL;
 	}
