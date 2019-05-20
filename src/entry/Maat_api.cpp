@@ -524,7 +524,12 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 		return NULL;
 	}
 	_Maat_feather_t* feather=ALLOC(struct _Maat_feather_t, 1);
-	feather->table_cnt=read_table_description(feather->p_table_info, MAX_TABLE_NUM,table_info_path,max_thread_num,logger);
+	feather->table_cnt=read_table_description(feather->p_table_info, MAX_TABLE_NUM, table_info_path, max_thread_num, logger);
+	if(feather->table_cnt==0)
+	{
+		free(feather);
+		return NULL;
+	}
 	feather->map_tablename2id=map_create();
 	int i=0,j=0,ret=0;
 	for(i=0;i<MAX_TABLE_NUM;i++)
