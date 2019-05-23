@@ -16,7 +16,7 @@
 #include "rulescan.h"
 #include "json2iris.h"
 
-struct Maat_table_desc * acqurie_table(struct _Maat_feather_t* _feather,int table_id,enum MAAT_TABLE_TYPE expect_type)
+struct Maat_table_desc * acqurie_table(struct _Maat_feather_t* _feather, int table_id, enum MAAT_TABLE_TYPE expect_type)
 {
 	struct Maat_table_desc *p_table=NULL;
 	if(table_id>MAX_TABLE_NUM)
@@ -34,8 +34,8 @@ struct Maat_table_desc * acqurie_table(struct _Maat_feather_t* _feather,int tabl
 	}
 	if(p_table->table_type!=expect_type)
 	{
-		if(expect_type!=TABLE_TYPE_EXPR||
-			p_table->table_type!=TABLE_TYPE_EXPR_PLUS)
+		if((expect_type==TABLE_TYPE_EXPR && p_table->table_type!=TABLE_TYPE_EXPR_PLUS)||
+			(expect_type==TABLE_TYPE_IP && p_table->table_type!=TABLE_TYPE_IP_PLUS))
 		{
 			return NULL;
 		}

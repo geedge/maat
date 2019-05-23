@@ -422,7 +422,7 @@ TEST(StringScan, ExprPlusWithOffset)
 	EXPECT_EQ(result[0].config_id, 148);
 	return;
 }
-TEST(IPScan, IPv4)
+TEST(IPScan, IPv4_mask)
 {
 	int table_id=0,ret=0;
 	const char* table_name="IP_CONFIG";
@@ -455,7 +455,7 @@ TEST(IPScan, IPv4)
 	Maat_clean_status(&mid);
 	return;
 }
-TEST(IPScan, IPv6)
+TEST(IPScan, IPv6_mask)
 {
 	int table_id=0,ret=0;
 	struct Maat_rule_t result[4];
@@ -480,6 +480,63 @@ TEST(IPScan, IPv6)
 	Maat_clean_status(&mid);
 	return;
 }
+TEST(IPScan, IPv4_range)
+{
+	int table_id=0,ret=0;
+	const char* table_name="IP_PLUS_CONFIG";
+	struct Maat_rule_t result[4];
+	scan_status_t mid=NULL;
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
+	inet_pton(AF_INET, "10.0.7.106", &(v4_addr.saddr));
+	v4_addr.source=htons(5000);
+	inet_pton(AF_INET, "123.56.104.254", &(v4_addr.daddr));
+	v4_addr.dest=htons(7400);
+	ipv4_addr.v4=&v4_addr;
+
+
+	table_id=Maat_table_register(g_feather, table_name);
+	
+	EXPECT_GT(table_id, 0);
+
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid, 0);
+	
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 154);
+
+	Maat_clean_status(&mid);
+	return;
+}
+
+TEST(IPScan, IPv6_range)
+{
+	int table_id=0,ret=0;
+	struct Maat_rule_t result[4];
+	struct ipaddr ipv6_addr;
+	struct stream_tuple4_v6 v6_addr;
+	scan_status_t mid=NULL;
+	
+	ipv6_addr.addrtype=ADDR_TYPE_IPV6;
+	inet_pton(AF_INET6,"1001:da8:205:1::151",&(v6_addr.saddr));
+	v6_addr.source=htons(5204);//5200~5299?
+	inet_pton(AF_INET6,"3001:da8:205:1::901",&(v6_addr.daddr));
+	v6_addr.dest=htons(80);//any
+	ipv6_addr.v6=&v6_addr;
+	const char* table_name="IP_PLUS_CONFIG";
+	table_id=Maat_table_register(g_feather,table_name);
+	EXPECT_GT(table_id, 0);
+
+	//for improving performance.
+	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,NULL, 0);
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv6_addr, 6, result,4, &mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 155);
+	Maat_clean_status(&mid);
+	return;
+
+}
+
 TEST(NOTLogic, OneRegion)
 {
 	const char* string_should_hit="This string ONLY contains must-contained-string-of-rule-143.";

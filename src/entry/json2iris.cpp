@@ -141,6 +141,7 @@ int set_iris_descriptor(const char* json_file,cJSON *json,const char*compile_tn,
 	map_register(iris_cfg->str2int_map, "no",0);
 	
 	map_register(iris_cfg->str2int_map, "ip",TABLE_TYPE_IP);
+	map_register(iris_cfg->str2int_map, "ip_plus",TABLE_TYPE_IP_PLUS);
 	map_register(iris_cfg->str2int_map, "string",TABLE_TYPE_EXPR);
 	map_register(iris_cfg->str2int_map, "expr",TABLE_TYPE_EXPR);
 	map_register(iris_cfg->str2int_map, "expr_plus",TABLE_TYPE_EXPR_PLUS);
@@ -407,6 +408,118 @@ int write_ip_line(cJSON *region_json, struct iris_description_t *p_iris, const c
 	
 	return direct_write_rule(region_json, p_iris->str2int_map,json_cmd, cmd_cnt,path,logger);
 }
+int write_ip_plus_line(cJSON *region_json, struct iris_description_t *p_iris, const char* path, void * logger)
+{
+	struct traslate_command_t json_cmd[MAX_COLUMN_NUM];
+	int cmd_cnt=0;
+	memset(json_cmd,0,sizeof(json_cmd));
+
+	json_cmd[cmd_cnt].json_string="region_id";
+	json_cmd[cmd_cnt].json_type=cJSON_Number;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string="group_id";
+	json_cmd[cmd_cnt].json_type=cJSON_Number;
+	cmd_cnt++;
+	
+	json_cmd[cmd_cnt].json_string="addr_type";
+	json_cmd[cmd_cnt].json_type=cJSON_String;
+	json_cmd[cmd_cnt].str2int_flag=1;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string="saddr_format";
+	json_cmd[cmd_cnt].json_type=cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed=1;
+	json_cmd[cmd_cnt].default_string="mask";	
+	cmd_cnt++;	
+
+	json_cmd[cmd_cnt].json_string="src_ip1";
+	json_cmd[cmd_cnt].json_type=cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed=1;
+	json_cmd[cmd_cnt].default_string="0.0.0.0";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string="src_ip2";
+	json_cmd[cmd_cnt].json_type=cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed=1;
+	json_cmd[cmd_cnt].default_string="255.255.255.255";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string="sport_format";
+	json_cmd[cmd_cnt].json_type=cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed=1;
+	json_cmd[cmd_cnt].default_string="mask";	
+	cmd_cnt++;	
+
+	json_cmd[cmd_cnt].json_string="src_port1";
+	json_cmd[cmd_cnt].json_type=cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed=1;
+	json_cmd[cmd_cnt].default_string="0";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string="src_port2";
+	json_cmd[cmd_cnt].json_type=cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed=1;
+	json_cmd[cmd_cnt].default_string="65535";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string="daddr_format";
+	json_cmd[cmd_cnt].json_type=cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed=1;
+	json_cmd[cmd_cnt].default_string="mask";	
+	cmd_cnt++;	
+
+	json_cmd[cmd_cnt].json_string="dst_ip1";
+	json_cmd[cmd_cnt].json_type=cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed=1;
+	json_cmd[cmd_cnt].default_string="0.0.0.0";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string="dst_ip2";
+	json_cmd[cmd_cnt].json_type=cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed=1;
+	json_cmd[cmd_cnt].default_string="255.255.255.255";
+	cmd_cnt++;
+	
+	json_cmd[cmd_cnt].json_string="dport_format";
+	json_cmd[cmd_cnt].json_type=cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed=1;
+	json_cmd[cmd_cnt].default_string="mask";	
+	cmd_cnt++;	
+
+	json_cmd[cmd_cnt].json_string="dst_port1";
+	json_cmd[cmd_cnt].json_type=cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed=1;
+	json_cmd[cmd_cnt].default_string="0";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string="dst_port2";
+	json_cmd[cmd_cnt].json_type=cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed=1;
+	json_cmd[cmd_cnt].default_string="65535";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string="protocol";
+	json_cmd[cmd_cnt].json_type=cJSON_Number;
+	json_cmd[cmd_cnt].empty_allowed=1;
+	json_cmd[cmd_cnt].default_int=0;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string="direction";
+	json_cmd[cmd_cnt].json_type=cJSON_String;
+	json_cmd[cmd_cnt].str2int_flag=1;
+	json_cmd[cmd_cnt].empty_allowed=1;
+	json_cmd[cmd_cnt].default_string="double";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string="is_valid";
+	json_cmd[cmd_cnt].json_type=cJSON_Number;
+	cmd_cnt++;
+
+	return direct_write_rule(region_json, p_iris->str2int_map,json_cmd, cmd_cnt,path,logger);
+
+}
+
 int write_expr_line(cJSON *region_json,struct iris_description_t *p_iris,const char* path,enum MAAT_TABLE_TYPE table_type,void * logger)
 {
 	struct traslate_command_t json_cmd[MAX_COLUMN_NUM];
@@ -669,6 +782,9 @@ int write_region_rule(cJSON* region_json,int compile_id,int group_id,iris_descri
 			break;
 		case TABLE_TYPE_IP:
 			ret=write_ip_line(table_content, p_iris, table_info->table_path, logger);
+			break;
+		case TABLE_TYPE_IP_PLUS:
+			write_ip_plus_line(table_content, p_iris, table_info->table_path, logger);
 			break;
 		case TABLE_TYPE_INTERVAL:
 			ret=write_intval_line(table_content, p_iris, table_info->table_path, logger);
