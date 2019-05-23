@@ -706,7 +706,8 @@ int read_table_description(struct Maat_table_desc** p_table_info,int num,const c
 	
 	string2int_map=map_create();
 	map_register(string2int_map,"expr", TABLE_TYPE_EXPR);
-	map_register(string2int_map,"ip", TABLE_TYPE_IP);
+	map_register(string2int_map,"ip", TABLE_TYPE_IP);	
+	map_register(string2int_map,"ip_plus", TABLE_TYPE_IP_PLUS);
 	map_register(string2int_map,"compile", TABLE_TYPE_COMPILE);
 	map_register(string2int_map,"plugin", TABLE_TYPE_PLUGIN);
 	map_register(string2int_map,"intval", TABLE_TYPE_INTERVAL);
@@ -1598,6 +1599,7 @@ void rulescan_batch_update(rule_scanner_t rs_handle,MESA_lqueue_head expr_queue,
 				assert(table_rt->expr.regex_rule_cnt>=0);
 				break;
 			case TABLE_TYPE_IP:
+			case TABLE_TYPE_IP_PLUS:
 				table_rt->ip.ipv4_rule_cnt+=region_counter[i].ipv4_rule_cnt;
 				table_rt->ip.ipv6_rule_cnt+=region_counter[i].ipv6_rule_cnt;
 				break;
@@ -2306,6 +2308,7 @@ int del_region_rule(struct Maat_table_desc* table,int region_id,int group_id,int
 	switch(table->table_type)
 	{
 		case	TABLE_TYPE_IP:
+		case	TABLE_TYPE_IP_PLUS:
 		case	TABLE_TYPE_EXPR:
 		case	TABLE_TYPE_EXPR_PLUS:
 		case	TABLE_TYPE_INTERVAL:
@@ -2761,90 +2764,269 @@ error_out:
 	free(maat_str_rule);
 	maat_str_rule=NULL;
 }
-void update_ip_rule(struct Maat_table_desc* table,const char* table_line,struct Maat_scanner_t *scanner,void* logger,int group_mode_on)
+enum MAAT_IP_FORMAT
+{
+	FORMAT_RANGE,
+	FORMAT_MASK,
+	FORMAT_UNKNOWN
+};
+enum MAAT_IP_FORMAT ip_format_str2int(const char* format)
+{
+	if(0==strcasecmp(format, "range"))
+	{
+		return FORMAT_RANGE;
+	}
+	else if(0==strcasecmp(format, "mask"))
+	{
+		return FORMAT_MASK;
+	}
+	else
+	{
+		assert(0);
+	}
+	return FORMAT_UNKNOWN;
+}
+void ipv6_mask2range(const unsigned int ip[], unsigned int mask[], unsigned int range_begin[], unsigned int range_end[])
+{
+	int i=0;
+	for(i=0; i<4; i++)
+	{
+		range_begin[i]=ip[i]&mask[i];	
+		range_end[i] = ip[i]|~mask[i];
+	}
+	return;
+}
+void update_ip_rule(struct Maat_table_desc* table, const char* table_line, struct Maat_scanner_t *scanner, void* logger, int group_mode_on)
 {
 	struct db_ip_rule_t* ip_rule=(struct db_ip_rule_t*)calloc(sizeof(struct db_ip_rule_t),1);
-	char src_ip[40],mask_src_ip[40],dst_ip[40],mask_dst_ip[40];
+	char src_ip1[40]={0}, src_ip2[40]={0}, dst_ip1[40]={0}, dst_ip2[40]={0};
+	char saddr_format[16]={0}, sport_format[16]={0}, daddr_format[16]={0}, dport_format[16]={0};
 	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
-	unsigned short i_src_port,i_sport_mask,i_dst_port,i_dport_mask;
+	unsigned short src_port1=0, src_port2=0, dst_port1=0, dst_port2=0;
 	int protocol=0,direction=0;
-	int ret=0,rule_type=0;
+	int ret=0;
 	int ret_array[8]={1},i=0;
-	ret=sscanf(table_line,"%d\t%d\t%d\t%s\t%s\t%hu\t%hu\t%s\t%s\t%hu\t%hu\t%d\t%d\t%d"
-													,&(ip_rule->region_id)
-													,&(ip_rule->group_id)
-													,&(ip_rule->addr_type)
-													,src_ip
-													,mask_src_ip
-													,&i_src_port
-													,&i_sport_mask
-													,dst_ip
-													,mask_dst_ip
-													,&i_dst_port
-													,&i_dport_mask
-													,&protocol
-													,&direction
-													,&(ip_rule->is_valid));
-	if(ret!=14||(ip_rule->addr_type!=4&&ip_rule->addr_type!=6)
-			||protocol>65535||protocol<0
-			||(direction!=0&&direction!=1))
+
+	unsigned int ipv4_addr1=0, ipv4_addr2=0, ipv6_addr1[4]={0}, ipv6_addr2[4]={0};
+	switch(table->table_type)
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"update error,invalid format of ip table %s:%s"
-							,table->table_name[table->updating_name],table_line);
+		case TABLE_TYPE_IP:
+			strncpy(saddr_format, "mask", sizeof(saddr_format));
+			strncpy(sport_format, "mask", sizeof(sport_format));
+			strncpy(daddr_format, "mask", sizeof(daddr_format));
+			strncpy(dport_format, "mask", sizeof(dport_format));
+
+			ret=sscanf(table_line,"%d\t%d\t%d\t%s\t%s\t%hu\t%hu\t%s\t%s\t%hu\t%hu\t%d\t%d\t%d",
+															&(ip_rule->region_id),
+															&(ip_rule->group_id),
+															&(ip_rule->addr_type),
+															src_ip1,
+															src_ip2,
+															&src_port1,
+															&src_port2,
+															dst_ip1,
+															dst_ip2,
+															&dst_port1,
+															&dst_port2,
+															&protocol,
+															&direction,
+															&(ip_rule->is_valid));
+			if(ret!=14)
+			{
+				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+									"update error, invalid column number of ip table %s:%s"
+									,table->table_name[table->updating_name],table_line);
+				table->udpate_err_cnt++;
+				goto error_out;
+			}
+			break;
+		case TABLE_TYPE_IP_PLUS:
+			ret=sscanf(table_line,"%d\t%d\t%d\t%s\t%s\t%s\t%s\t%hu\t%hu\t%s\t%s\t%s\t%s\t%hu\t%hu\t%d\t%d\t%d",
+															&(ip_rule->region_id),
+															&(ip_rule->group_id),
+															&(ip_rule->addr_type),
+															saddr_format,
+															src_ip1,
+															src_ip2,
+															sport_format,
+															&src_port1,
+															&src_port2,
+															daddr_format,
+															dst_ip1,
+															dst_ip2,
+															dport_format,
+															&dst_port1,
+															&dst_port2,
+															&protocol,
+															&direction,
+															&(ip_rule->is_valid));
+			if(ret!=18)
+			{
+				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+									"update error, invalid column number of ip_plus table %s:%s"
+									,table->table_name[table->updating_name],table_line);
+				table->udpate_err_cnt++;
+				goto error_out;
+			}
+			break;
+		default:
+			table->udpate_err_cnt++;
+			goto error_out;
+			break;
+	}
+	if(ip_rule->addr_type!=4&&ip_rule->addr_type!=6)
+	{
+		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module,
+							"update error, invalid addr type %d of ip/ip_plus table %s:%s",
+							ip_rule->addr_type,
+							table->table_name[table->updating_name], table_line);
+		table->udpate_err_cnt++;
+		goto error_out;
+	}
+	if(protocol>65535 || protocol<0)
+	{
+		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module,
+							"update error, invalid protocol value %d of ip/ip_plus table %s:%s",
+							protocol,
+							table->table_name[table->updating_name],table_line);
+		table->udpate_err_cnt++;
+		goto error_out;
+	}
+	if(direction!=0 && direction!=1)
+	{
+		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module,
+							"update error, invalid direction value %d of ip/ip_plus table %s:%s",
+							direction,
+							table->table_name[table->updating_name],table_line);
+		table->udpate_err_cnt++;
+		goto error_out;
+	}
+	if(FORMAT_UNKNOWN==ip_format_str2int(saddr_format)||
+		FORMAT_UNKNOWN==ip_format_str2int(sport_format)||
+		FORMAT_UNKNOWN==ip_format_str2int(daddr_format)||	
+		FORMAT_UNKNOWN==ip_format_str2int(dport_format))
+	{
+		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module,
+							"update error, invalid addr format of ip/ip_plus table %s:%s, should be range or mask",
+							table->table_name[table->updating_name],table_line);
 		table->udpate_err_cnt++;
 		goto error_out;
 	}
 	if(ip_rule->addr_type==4)
 	{
-		ret_array[0]=inet_pton(AF_INET,src_ip,&(ip_rule->ipv4_rule.saddr));
-		ip_rule->ipv4_rule.saddr=ntohl(ip_rule->ipv4_rule.saddr);
-		ret_array[1]=inet_pton(AF_INET,mask_src_ip,&(ip_rule->ipv4_rule.smask));
-		ip_rule->ipv4_rule.smask=ntohl(ip_rule->ipv4_rule.smask);
+		ret_array[0]=inet_pton(AF_INET, src_ip1, &ipv4_addr1);
+		ipv4_addr1=ntohl(ipv4_addr1);
+		ret_array[1]=inet_pton(AF_INET, src_ip2, &ipv4_addr2);
+		ipv4_addr2=ntohl(ipv4_addr2);
+		if(FORMAT_MASK==ip_format_str2int(saddr_format))
+		{
+			// min_saddr=(saddr&mask) max_saddr=(saddr|~mask)
+			ip_rule->ipv4_rule.min_saddr=ipv4_addr1&ipv4_addr2;
+			ip_rule->ipv4_rule.max_saddr=ipv4_addr1|~ipv4_addr2;
+		}
+		else
+		{
+			ip_rule->ipv4_rule.min_saddr=ipv4_addr1;
+			ip_rule->ipv4_rule.max_saddr=ipv4_addr2;
+		}
+		if(FORMAT_MASK==ip_format_str2int(sport_format))
+		{
+			ip_rule->ipv4_rule.min_sport=src_port1&src_port2;
+			ip_rule->ipv4_rule.max_sport=src_port1|~src_port2;			
+		}
+		else
+		{
+			ip_rule->ipv4_rule.min_sport=src_port1;
+			ip_rule->ipv4_rule.max_sport=src_port2;
+		}
 		
-		ret_array[2]=inet_pton(AF_INET,dst_ip,&(ip_rule->ipv4_rule.daddr));
-		ip_rule->ipv4_rule.daddr=ntohl(ip_rule->ipv4_rule.daddr);
-		ret_array[3]=inet_pton(AF_INET,mask_dst_ip,&(ip_rule->ipv4_rule.dmask));
-		ip_rule->ipv4_rule.dmask=ntohl(ip_rule->ipv4_rule.dmask);
-		
-		ip_rule->ipv4_rule.min_sport=i_src_port&i_sport_mask;
-		ip_rule->ipv4_rule.max_sport=(i_src_port&i_sport_mask)+(~i_sport_mask);
-		
-		ip_rule->ipv4_rule.min_dport=i_dst_port&i_dport_mask;
-		ip_rule->ipv4_rule.max_dport=(i_dst_port&i_dport_mask)+(~i_dport_mask);
-		
+		ret_array[2]=inet_pton(AF_INET, dst_ip1, &ipv4_addr1);
+		ipv4_addr1=ntohl(ipv4_addr1);
+		ret_array[3]=inet_pton(AF_INET, dst_ip2, &ipv4_addr2);
+		ipv4_addr2=ntohl(ipv4_addr2);	
+		if(FORMAT_MASK==ip_format_str2int(daddr_format))
+		{
+			ip_rule->ipv4_rule.min_daddr=ipv4_addr1&ipv4_addr2;
+			ip_rule->ipv4_rule.max_daddr=ipv4_addr1|~ipv4_addr2;
+		}
+		else
+		{
+			ip_rule->ipv4_rule.min_daddr=ipv4_addr1;
+			ip_rule->ipv4_rule.max_daddr=ipv4_addr2;
+		}		
+		if(FORMAT_MASK==ip_format_str2int(dport_format))
+		{
+			ip_rule->ipv4_rule.min_dport=dst_port1&dst_port2;
+			ip_rule->ipv4_rule.max_dport=dst_port1|~dst_port2;		
+		}
+		else
+		{
+			ip_rule->ipv4_rule.min_dport=dst_port1;
+			ip_rule->ipv4_rule.max_dport=dst_port2;
+		}		
 		ip_rule->ipv4_rule.proto=protocol;
 		ip_rule->ipv4_rule.direction=direction;
-		rule_type=RULETYPE_IPv4;
 	}
 	else
 	{
-		ret_array[0]=inet_pton(AF_INET6,src_ip,&(ip_rule->ipv6_rule.saddr));
-		ipv6_ntoh(ip_rule->ipv6_rule.saddr);
-		ret_array[1]=inet_pton(AF_INET6,mask_src_ip,&(ip_rule->ipv6_rule.smask));
-		ipv6_ntoh(ip_rule->ipv6_rule.smask);
+		ret_array[0]=inet_pton(AF_INET6, src_ip1, ipv6_addr1);
+		ipv6_ntoh(ipv6_addr1);
+		ret_array[1]=inet_pton(AF_INET6, src_ip2, ipv6_addr2);
+		ipv6_ntoh(ipv6_addr2);
+		if(FORMAT_MASK==ip_format_str2int(saddr_format))
+		{
+			// min_saddr=(saddr&mask) max_saddr=(saddr|~mask)
+			ipv6_mask2range(ipv6_addr1, ipv6_addr2, ip_rule->ipv6_rule.min_saddr, ip_rule->ipv6_rule.max_saddr);
+		}
+		else
+		{
+			memcpy(ip_rule->ipv6_rule.min_saddr, ipv6_addr1, sizeof(ip_rule->ipv6_rule.min_saddr));
+			memcpy(ip_rule->ipv6_rule.max_saddr, ipv6_addr2, sizeof(ip_rule->ipv6_rule.max_saddr));
+		}
+		if(FORMAT_MASK==ip_format_str2int(sport_format))
+		{
+			ip_rule->ipv6_rule.min_sport=src_port1&src_port2;
+			ip_rule->ipv6_rule.max_sport=src_port1|~src_port2;			
+		}
+		else
+		{
+			ip_rule->ipv6_rule.min_sport=src_port1;
+			ip_rule->ipv6_rule.max_sport=src_port2;
+		}
 
-		ret_array[2]=inet_pton(AF_INET6,dst_ip,&(ip_rule->ipv6_rule.daddr));
-		ipv6_ntoh(ip_rule->ipv6_rule.daddr);
-		ret_array[3]=inet_pton(AF_INET6,mask_dst_ip,&(ip_rule->ipv6_rule.dmask));
-		ipv6_ntoh(ip_rule->ipv6_rule.dmask);
-		
-		ip_rule->ipv6_rule.min_sport=i_src_port&i_sport_mask;
-		ip_rule->ipv6_rule.max_sport=(i_src_port&i_sport_mask)+(~i_sport_mask);
-		
-		ip_rule->ipv6_rule.min_dport=i_dst_port&i_dport_mask;
-		ip_rule->ipv6_rule.max_dport=(i_dst_port&i_dport_mask)+~(i_dport_mask);
-		
+		ret_array[2]=inet_pton(AF_INET6, dst_ip1, &ipv6_addr1);
+		ipv6_ntoh(ipv6_addr1);
+		ret_array[3]=inet_pton(AF_INET6, dst_ip2, &ipv6_addr2);
+		ipv6_ntoh(ipv6_addr2);
+		if(FORMAT_MASK==ip_format_str2int(daddr_format))
+		{
+			// min_saddr=(saddr&mask) max_saddr=(saddr|~mask)
+			ipv6_mask2range(ipv6_addr1, ipv6_addr2, ip_rule->ipv6_rule.min_daddr, ip_rule->ipv6_rule.max_daddr);
+		}
+		else
+		{
+			memcpy(ip_rule->ipv6_rule.min_daddr, ipv6_addr1, sizeof(ip_rule->ipv6_rule.min_daddr));
+			memcpy(ip_rule->ipv6_rule.max_daddr, ipv6_addr2, sizeof(ip_rule->ipv6_rule.max_daddr));
+		}
+		if(FORMAT_MASK==ip_format_str2int(dport_format))
+		{
+			ip_rule->ipv6_rule.min_dport=dst_port1&dst_port2;
+			ip_rule->ipv6_rule.max_dport=dst_port1|~dst_port2;			
+		}
+		else
+		{
+			ip_rule->ipv6_rule.min_sport=dst_port1;
+			ip_rule->ipv6_rule.max_sport=dst_port2;
+		}
 		ip_rule->ipv6_rule.proto=protocol;
 		ip_rule->ipv6_rule.direction=direction;
-		rule_type=RULETYPE_IPv6;
 	}
 	for(i=0;i<4;i++)
 	{
 		if(ret_array[i]<=0)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-								"update error,invalid format of ip table %s:%s"
+								"update error, invalid IP address format of ip table %s:%s"
 								,table->table_name[table->updating_name],table_line);
 			table->udpate_err_cnt++;
 			goto error_out;
@@ -2861,19 +3043,19 @@ void update_ip_rule(struct Maat_table_desc* table,const char* table_line,struct 
 	}
 	if(group_mode_on==FALSE)//for compatible old version
 	{
-		compatible_group_udpate(table
-								,ip_rule->region_id
-								,ip_rule->group_id
-								,ip_rule->is_valid
-								,scanner
-								,logger);
+		compatible_group_udpate(table,
+								ip_rule->region_id,
+								ip_rule->group_id,
+								ip_rule->is_valid,
+								scanner,
+								logger);
 		ip_rule->group_id=ip_rule->region_id;
 	}
 	if(ip_rule->is_valid==FALSE)
 	{
-		ret=del_region_rule(table
-							,ip_rule->region_id,ip_rule->group_id,rule_type
-							,scanner, logger);
+		ret=del_region_rule(table,
+							ip_rule->region_id, ip_rule->group_id, ip_rule->addr_type==6?RULETYPE_IPv6:RULETYPE_IPv4,
+							scanner, logger);
 		if(ret<0)
 		{
 			table->udpate_err_cnt++;
@@ -2886,7 +3068,7 @@ void update_ip_rule(struct Maat_table_desc* table,const char* table_line,struct 
 	else
 	{
 
-		ret=add_ip_rule(table, ip_rule,scanner, logger);
+		ret=add_ip_rule(table, ip_rule, scanner, logger);
 		if(ret<0)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
@@ -3689,6 +3871,7 @@ int maat_update_cb(const char* table_name,const char* line,void *u_para)
 			update_expr_rule(feather->p_table_info[table_id], line, scanner,feather->logger,feather->GROUP_MODE_ON);
 			break;
 		case	TABLE_TYPE_IP:
+		case	TABLE_TYPE_IP_PLUS:
 			update_ip_rule(feather->p_table_info[table_id], line, scanner,feather->logger,feather->GROUP_MODE_ON);
 			break;
 		case	TABLE_TYPE_INTERVAL:

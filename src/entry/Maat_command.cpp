@@ -192,6 +192,9 @@ int get_valid_flag_offset(const char* line, enum MAAT_TABLE_TYPE type,int valid_
 		case	TABLE_TYPE_IP:
 			column_seq=14;
 			break;
+		case	TABLE_TYPE_IP_PLUS:
+			column_seq=18;
+			break;
 		case	TABLE_TYPE_COMPILE:
 			column_seq=8;
 			break;

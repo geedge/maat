@@ -234,6 +234,7 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 				total_iconv_error=p_table->expr.iconv_err_cnt;
 				break;
 			case TABLE_TYPE_IP:
+			case TABLE_TYPE_IP_PLUS:
 				table_regex_ipv6_num=table_rt->ip.ipv6_rule_cnt;
 				break;
 			default:
