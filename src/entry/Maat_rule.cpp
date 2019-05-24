@@ -3597,7 +3597,7 @@ void find_group_paths(struct Maat_scanner_t* scanner)
 	MESA_htable_iterate(scanner->group_hash, walk_group_hash, scanner);
 	return;
 }
-void do_scanner_update(struct Maat_scanner_t* scanner,MESA_lqueue_head garbage_q,int scan_thread_num,void* logger)
+void do_scanner_update(struct Maat_scanner_t* scanner, MESA_lqueue_head garbage_q, int scan_thread_num, void* logger)
 {
 	struct bool_matcher *tmp1=NULL,*tmp2=NULL;
 	MESA_htable_handle tmp_map=NULL;
@@ -3607,6 +3607,15 @@ void do_scanner_update(struct Maat_scanner_t* scanner,MESA_lqueue_head garbage_q
 	GIE_create_para_t para;
 	para.gram_value=7;
 	para.position_accuracy=10;
+	igraph_bool_t is_dag;
+	igraph_is_dag(&(scanner->group_graph), &is_dag);
+	if(!is_dag)
+	{
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+								"Sub group cycle detected! Version %d",
+								scanner->version);
+		return;
+	}
 	find_group_paths(scanner);
 	
 	tmp1=create_bool_matcher(scanner->compile_hash,
