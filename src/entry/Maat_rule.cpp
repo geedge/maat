@@ -860,7 +860,7 @@ struct Maat_group_inner* create_group_rule(int group_id, struct Maat_scanner_t *
 }
 void _destroy_group_rule(struct Maat_group_inner* group)
 {
-	dynamic_array_destroy(group->regions,free);
+	if(group->regions) dynamic_array_destroy(group->regions,free);
 	group->region_cnt=0;
 	group->region_boundary=0;
 	group->regions=NULL;
