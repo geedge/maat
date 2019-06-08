@@ -864,7 +864,7 @@ int reconstruct_cmd(struct _Maat_feather_t *feather, struct _Maat_cmd_inner_t* _
 	pthread_rwlock_rdlock(&(compile_inner->rwlock));
 	cmd->group_num=compile_inner->group_cnt;
 	assert(cmd->groups==NULL);
-	cmd->groups=(struct Maat_group_t*)calloc(sizeof(struct Maat_group_t),cmd->group_num);
+	cmd->groups=ALLOC(struct Maat_group_t, cmd->group_num);
 	for(i=0;i<compile_inner->group_boundary;i++)
 	{
 		group_inner=(struct Maat_group_inner*)dynamic_array_read(compile_inner->groups,i);
@@ -875,12 +875,12 @@ int reconstruct_cmd(struct _Maat_feather_t *feather, struct _Maat_cmd_inner_t* _
 		group_cmd=&(cmd->groups[grp_idx]);
 		group_cmd->group_id=group_inner->group_id;
 
-		if(group_inner->ref_cnt>1)
+		if(group_inner->parent_ref_cnt>1)
 		{
 			continue;
 		}
 		group_cmd->region_num=group_inner->region_cnt;
-		group_cmd->regions=(struct Maat_region_t*)calloc(sizeof(struct Maat_region_t),group_cmd->region_num);
+		group_cmd->regions=ALLOC(struct Maat_region_t, group_cmd->region_num);
 		for(j=0;j<group_inner->region_boundary;j++)
 		{
 			region_inner=(struct Maat_region_inner*)dynamic_array_read(group_inner->regions,j);

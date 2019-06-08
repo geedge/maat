@@ -42,14 +42,16 @@ void wait_for_cmd_effective(Maat_feather_t feather, long long version_before)
 {
 	long long	version_after=version_before;
 	int is_updating=1;
+	long long wating_us=0, sleep_us=1000*100;
 	while(is_updating||version_before==version_after)
 	{
 		Maat_read_state(feather,MAAT_STATE_IN_UPDATING, &is_updating, sizeof(is_updating));
 		Maat_read_state(feather,MAAT_STATE_VERSION, &version_after, sizeof(version_after));
 
-		usleep(1000*100);//waiting for commands go into effect
+		usleep(sleep_us);//waiting for commands go into effect
+		wating_us+=sleep_us;
 	}
-
+//	printf("wait for %lld ms\n", wating_us/1000);
 }
 
 void scan_with_old_or_new_cfg(Maat_feather_t feather, int hit_old)
@@ -776,7 +778,7 @@ TEST(StringScan, UTF8EncodedURL)
 	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, url_utf8_qs, strlen(url_utf8_qs), 
 						result,found_pos, 4,
 						&mid, 0);
-	EXPECT_GT(ret, 1);
+	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 142);
 	Maat_clean_status(&mid);
 
@@ -1574,7 +1576,7 @@ TEST_F(MaatCmdTest, SetIP)
 	EXPECT_GE(ret, 0);
 	Maat_free_cmd(cmd);
 	cmd=NULL;
-	
+
 	wait_for_cmd_effective(feather, version_before);
 	struct ipaddr ipv4_addr;
 	struct stream_tuple4_v4 v4_addr;
@@ -1602,10 +1604,11 @@ TEST_F(MaatCmdTest, SetIP)
 
 	//reset timeout.
 	cmd=Maat_create_cmd(&rule, 0);
-	cmd->expire_after=10;
+	cmd->expire_after=timeout+5;
 	ret=Maat_cmd(feather, cmd, MAAT_OP_RENEW_TIMEOUT);
 	EXPECT_EQ(ret ,1);
-	
+
+//	RENEW_TIMEOUT doesn't change MAAT_VERSION, thus we cannot use wait_for_cmd_effective.
 //	wait_for_cmd_effective(feather, version_before);
 	
 	Maat_free_cmd(cmd);

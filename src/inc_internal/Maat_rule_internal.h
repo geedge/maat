@@ -139,7 +139,7 @@ struct Maat_group_inner
 	int table_id;
 	int region_boundary;
 	int region_cnt;
-	int ref_cnt;
+	int parent_ref_cnt;
 	char* group_name;
 	int has_compile_neighbors;
 	int vertex_id;

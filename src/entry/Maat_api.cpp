@@ -181,7 +181,7 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 		{
 			continue;
 		}
-		if(group_rule->compile_shortcut!=NULL&&group_rule->ref_cnt==1&&shortcut_avilable_cnt<MAX_SCANNER_HIT_NUM)
+		if(group_rule->compile_shortcut!=NULL&&group_rule->parent_ref_cnt==1&&shortcut_avilable_cnt<MAX_SCANNER_HIT_NUM)
 		{			
 			compile_arrary[shortcut_avilable_cnt]=(struct Maat_compile_inner*)(group_rule->compile_shortcut);
 			shortcut_avilable_cnt++;

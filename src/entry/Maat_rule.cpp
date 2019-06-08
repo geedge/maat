@@ -32,7 +32,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_7_20190512=1;
+int MAAT_FRAME_VERSION_2_7_20190608=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -840,21 +840,25 @@ invalid_table:
 	map_destroy(string2int_map);
 	return table_cnt;
 }
-struct Maat_group_inner* create_group_rule(int group_id, struct Maat_scanner_t *scanner)
+struct Maat_group_inner* create_group_rule(int group_id, int table_id, struct Maat_scanner_t *scanner)
 {
+	int ret=0;
 	struct Maat_group_inner* group=ALLOC(struct Maat_group_inner, 1);
 	group->group_id=group_id;
 	group->region_cnt=0;
 	group->region_boundary=0;
-	group->ref_cnt=0;
+	group->parent_ref_cnt=0;
 	group->regions=dynamic_array_create(1,8);
 	group->compile_shortcut=NULL;
-	group->table_id=0;
+	group->table_id=table_id;
 	group->group_name=NULL;
 	group->vertex_id=scanner->grp_vertex_id_generator++;
 	assert(igraph_vcount(&scanner->group_graph)==group->vertex_id);
 	igraph_add_vertices(&scanner->group_graph, 1, NULL);
-	HASH_add_by_id(scanner->vertex_id2group, group->vertex_id, group);
+	ret=HASH_add_by_id(scanner->vertex_id2group, group->vertex_id, group);
+	assert(ret>0);
+	ret=HASH_add_by_id(scanner->group_hash, group_id, group);
+	assert(ret>0);
 	pthread_mutex_init(&(group->mutex), NULL);
 	return group;
 }
@@ -864,7 +868,7 @@ void _destroy_group_rule(struct Maat_group_inner* group)
 	group->region_cnt=0;
 	group->region_boundary=0;
 	group->regions=NULL;
-	group->ref_cnt=0;
+	group->parent_ref_cnt=0;
 	group->group_id=-1;
 	group->table_id=-1;
 	free(group->group_name);
@@ -875,14 +879,30 @@ void _destroy_group_rule(struct Maat_group_inner* group)
 	free(group);
 
 }
-void destroy_group_rule(struct Maat_group_inner* group)
+#define	DESTROY_GROUP_BY_REGION	0
+#define	DESTROY_GROUP_BY_PARENT	1
+void destroy_group_rule(struct Maat_group_inner* group_rule, int by_whom, struct Maat_scanner_t* scanner)
 {
-
-	if(group->ref_cnt>0||group->region_cnt>0)
+	switch(by_whom)
 	{
-		return;
+		case	DESTROY_GROUP_BY_REGION:
+			group_rule->region_cnt--;
+			break;
+		case	DESTROY_GROUP_BY_PARENT:
+			group_rule->parent_ref_cnt--;
+			break;
+		default:
+			assert(0);
+			break;
 	}
-	_destroy_group_rule(group);
+	if(group_rule->parent_ref_cnt==0&&group_rule->region_cnt==0)
+	{
+		assert(group_rule->region_cnt==0);
+		HASH_delete_by_id(scanner->group_hash, group_rule->group_id);
+		//Calling _destroy_group_rule on garbage collection to free memory.
+		garbage_bagging(GARBAGE_GROUP_RULE, group_rule, scanner->tomb_ref);
+
+	}
 }
 void make_group_set(struct Maat_compile_inner* compile_rule, struct bool_expr* a_set, unsigned char *has_not)
 {
@@ -1004,8 +1024,9 @@ void EMPTY_FREE(void*p)
 {
 	return;
 }
-struct Maat_compile_inner * create_compile_rule(int compile_id)
+struct Maat_compile_inner * create_compile_rule(int compile_id, struct Maat_scanner_t *scanner)
 {
+	int ret=0;
 	struct Maat_compile_inner* p=ALLOC(struct Maat_compile_inner, 1);
 	p->compile_id=compile_id;
 	p->group_cnt=0;
@@ -1013,6 +1034,8 @@ struct Maat_compile_inner * create_compile_rule(int compile_id)
 	p->groups=dynamic_array_create(1, 1);
 	p->ads=ALLOC(MAAT_RULE_EX_DATA, MAX_COMPILE_EX_DATA_NUM);
 	pthread_rwlock_init(&(p->rwlock), NULL);
+	ret=HASH_add_by_id(scanner->compile_hash, compile_id, p);
+	assert(ret>0);
 	return p;
 }
 void _destroy_compile_rule(struct Maat_compile_inner * compile_rule)
@@ -1696,7 +1719,7 @@ struct Maat_group_inner* add_region_to_group(struct Maat_group_inner* group,int 
 		pthread_mutex_lock(&(group->mutex));
 		dynamic_array_write(group->regions,group->region_boundary,region_rule);
 		group->region_cnt++;
-		group->region_boundary++;
+		group->region_boundary++;		
 		pthread_mutex_unlock(&(group->mutex));
 	}
 	else
@@ -1811,9 +1834,8 @@ int add_group_to_compile(struct Maat_compile_inner*a_compile_rule,struct Maat_gr
 		a_compile_rule->not_flag[write_pos]=0;
 	}
 	a_compile_rule->group_cnt++;
-	a_rule_group->ref_cnt++;
 	//member group->compile_shortcut may set to NULL and compile rule pointer repeatly,until rule build finish.
-	if(a_rule_group->ref_cnt==1&&a_compile_rule->group_cnt==1)
+	if(a_rule_group->parent_ref_cnt==1&&a_compile_rule->group_cnt==1)
 	{
 		a_rule_group->compile_shortcut=a_compile_rule;
 	}
@@ -1821,7 +1843,7 @@ int add_group_to_compile(struct Maat_compile_inner*a_compile_rule,struct Maat_gr
 	{
 		a_rule_group->compile_shortcut=NULL;
 	}
-		
+	a_rule_group->parent_ref_cnt++;
 	//update group's shortcut when compile has more than one group.
 	if(a_compile_rule->group_cnt!=1)
 	{
@@ -1854,7 +1876,7 @@ struct Maat_group_inner* del_group_from_compile(struct Maat_compile_inner*a_comp
 		}
 		if(group_rule->group_id==group_id)
 		{
-			group_rule->ref_cnt--;
+			group_rule->parent_ref_cnt--;
 			dynamic_array_write(a_compile_rule->groups,i,NULL);
 			if(a_compile_rule->not_flag[i]==1)
 			{
@@ -1947,8 +1969,7 @@ int add_expr_rule(struct Maat_table_desc* table,struct db_str_rule_t* db_rule,st
 	group_rule=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_rule->group_id);
 	if(group_rule==NULL)
 	{
-		group_rule=create_group_rule(db_rule->group_id, scanner);
-		HASH_add_by_id(scanner->group_hash, db_rule->group_id, group_rule);
+		group_rule=create_group_rule(db_rule->group_id, 0, scanner);
 	}
 	switch(db_rule->expr_type)
 	{
@@ -2192,8 +2213,7 @@ int add_ip_rule(struct Maat_table_desc* table,struct db_ip_rule_t* db_ip_rule,st
 	group_rule=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_ip_rule->group_id);
 	if(group_rule==NULL)
 	{
-		group_rule=create_group_rule(db_ip_rule->group_id, scanner);
-		HASH_add_by_id(scanner->group_hash, db_ip_rule->group_id, group_rule);
+		group_rule=create_group_rule(db_ip_rule->group_id, 0, scanner);
 	}
 
 	expr_id=scanner->exprid_generator++;
@@ -2224,8 +2244,7 @@ int add_intval_rule(struct Maat_table_desc* table,struct db_intval_rule* intval_
 	group_rule=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, intval_rule->group_id);
 	if(group_rule==NULL)
 	{
-		group_rule=create_group_rule(intval_rule->group_id, scanner);
-		HASH_add_by_id(scanner->group_hash, intval_rule->group_id, group_rule);
+		group_rule=create_group_rule(intval_rule->group_id, 0, scanner);
 	}
 	expr_id=scanner->exprid_generator++;
 	u_para=add_region_to_group(group_rule, table->table_id,intval_rule->region_id,district_id,expr_id,TABLE_TYPE_INTERVAL);
@@ -2255,8 +2274,7 @@ int add_digest_rule(struct Maat_table_desc* table,struct db_digest_rule* db_dige
 	group_rule=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_digest_rule->group_id);
 	if(group_rule==NULL)
 	{
-		group_rule=create_group_rule(db_digest_rule->group_id, scanner);
-		HASH_add_by_id(scanner->group_hash, db_digest_rule->group_id, group_rule);
+		group_rule=create_group_rule(db_digest_rule->group_id, 0, scanner);
 	}
 	expr_id=scanner->exprid_generator++;
 	u_para=add_region_to_group(group_rule,table->table_id,db_digest_rule->region_id,district_id,expr_id,TABLE_TYPE_DIGEST);
@@ -2288,7 +2306,7 @@ int del_region_rule(struct Maat_table_desc* table,int region_id,int group_id,int
 	if(group_rule==NULL)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"update error,table %s group id %u not exist,while delete region id %d."
+							"update error, table %s group id %u not exist, while delete region id %d."
 							,table->table_name[table->updating_name]
 							,group_id
 							,region_id);
@@ -2299,7 +2317,7 @@ int del_region_rule(struct Maat_table_desc* table,int region_id,int group_id,int
 	if(expr_num==0)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"region delete error,id %d table %s region not in  group id %d."
+							"region delete error, id %d table %s region not in  group id %d."
 							,region_id
 							,table->table_name[table->updating_name]
 							,group_id);
@@ -2333,12 +2351,8 @@ int del_region_rule(struct Maat_table_desc* table,int region_id,int group_id,int
 			assert(0);
 			break;
 	}
-	if(group_rule->region_cnt==0&&group_rule->region_cnt==0)
-	{
-		HASH_delete_by_id(maat_scanner->group_hash,group_id);
-		garbage_bagging(GARBAGE_GROUP_RULE, group_rule, maat_scanner->tomb_ref);
+	destroy_group_rule(group_rule, DESTROY_GROUP_BY_REGION, maat_scanner);
 
-	}
 	return 0;
 }
 int add_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_group_rule, struct Maat_scanner_t *scanner, void* logger)
@@ -2349,10 +2363,7 @@ int add_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 	group_rule=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_group_rule->group_id);
 	if(group_rule==NULL)
 	{
-		group_rule=create_group_rule(db_group_rule->group_id, scanner);
-		group_rule->table_id=table->table_id;
-		ret=HASH_add_by_id(scanner->group_hash, group_rule->group_id, group_rule);
-		assert(ret>=0);
+		group_rule=create_group_rule(db_group_rule->group_id, table->table_id, scanner);
 	}
 	
 	if(db_group_rule->parent_type==PARENT_TYPE_GROUP)
@@ -2360,12 +2371,9 @@ int add_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 		parent_group=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_group_rule->parent_id);
 		if(parent_group==NULL)
 		{
-			parent_group=create_group_rule(db_group_rule->parent_id, scanner);
-			parent_group->table_id=table->table_id;
-			ret=HASH_add_by_id(scanner->group_hash, parent_group->group_id, parent_group);
-			assert(ret>=0);
+			parent_group=create_group_rule(db_group_rule->parent_id, parent_group->table_id, scanner);
 		}
-		group_rule->ref_cnt++;
+		group_rule->parent_ref_cnt++;		
 		igraph_add_edge(&scanner->group_graph, group_rule->vertex_id, parent_group->vertex_id);
 	}
 	else
@@ -2374,18 +2382,16 @@ int add_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 		compile_rule=(struct Maat_compile_inner*)HASH_fetch_by_id(scanner->compile_hash, db_group_rule->parent_id);
 		if(compile_rule==NULL)
 		{
-			compile_rule=create_compile_rule(db_group_rule->parent_id);
-			ret=HASH_add_by_id(scanner->compile_hash, db_group_rule->parent_id, compile_rule);
-			assert(ret>=0);
+			compile_rule=create_compile_rule(db_group_rule->parent_id, scanner);
 		}
 		ret=add_group_to_compile(compile_rule, group_rule, db_group_rule->not_flag);
 		if(ret<0)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-								"update error,add group: %s %d to compile rule %d error, compile rule is full or duplicate group."
-																		,table->table_name[table->updating_name]
-																		,db_group_rule->group_id
-																		,db_group_rule->parent_id);
+								"update error,add group: %s %d to compile rule %d error, compile rule is full or duplicate group.",
+																		table->table_name[table->updating_name],
+																		db_group_rule->group_id,
+																		db_group_rule->parent_id);
 			return -1;
 		}
 	}
@@ -2402,7 +2408,7 @@ void del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gr
 	if(db_group_rule->parent_type==PARENT_TYPE_GROUP)
 	{
 		group_rule=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_group_rule->group_id);
-		parent_group=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_group_rule->group_id);
+		parent_group=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_group_rule->parent_id);
 		if(group_rule==NULL)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module ,
@@ -2420,8 +2426,7 @@ void del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gr
 																		db_group_rule->group_id,
 																		db_group_rule->parent_id);
 			return;
-		}		
-		group_rule->ref_cnt--;
+		}
 		
 		igraph_es_pairs_small(&es, IGRAPH_DIRECTED, group_rule->vertex_id, parent_group->vertex_id);
 		ret=igraph_delete_edges(&scanner->group_graph, es);
@@ -2463,13 +2468,10 @@ void del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gr
 			garbage_bagging(GARBAGE_COMPILE_RULE, compile_rule, scanner->tomb_ref);
 		}
 	}
-	if(group_rule->ref_cnt==0&&group_rule->region_cnt==0)
-	{
-		garbage_bagging(GARBAGE_GROUP_RULE, group_rule, scanner->tomb_ref);
-	}
+	destroy_group_rule(group_rule, DESTROY_GROUP_BY_PARENT, scanner);
 	return;
 }
-int add_compile_rule(struct Maat_table_desc* table,struct db_compile_rule* db_compile_rule,struct Maat_scanner_t *scanner,void* logger)
+int add_compile_rule(struct Maat_table_desc* table, struct db_compile_rule* db_compile_rule, struct Maat_scanner_t *scanner, void* logger)
 {
 	struct Maat_compile_inner *compile_rule=NULL;
 	struct _head_Maat_rule *p_maat_rule_head=&(db_compile_rule->m_rule_head);
@@ -2477,8 +2479,7 @@ int add_compile_rule(struct Maat_table_desc* table,struct db_compile_rule* db_co
 	compile_rule=(struct Maat_compile_inner*)HASH_fetch_by_id(scanner->compile_hash, p_maat_rule_head->config_id);
 	if(compile_rule==NULL)
 	{
-		compile_rule=create_compile_rule(p_maat_rule_head->config_id);
-		HASH_add_by_id(scanner->compile_hash,p_maat_rule_head->config_id,compile_rule);
+		compile_rule=create_compile_rule(p_maat_rule_head->config_id, scanner);
 	}
 	else
 	{
@@ -3397,7 +3398,7 @@ void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
 				destroy_compile_rule(bag->compile_rule);
 				break;
 			case GARBAGE_GROUP_RULE:
-				destroy_group_rule(bag->group_rule);
+				_destroy_group_rule(bag->group_rule);
 				break;
 			case GARBAGE_SCANNER:
 				ref_cnt=alignment_int64_array_sum(bag->scanner->ref_cnt, bag->scanner->max_thread_num);
