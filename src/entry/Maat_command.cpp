@@ -2452,13 +2452,13 @@ void Maat_cmd_key_free(struct Maat_cmd_key**keys, int size)
 {
 	int i=0;
 	struct Maat_cmd_key* p=*keys;
-	for(i=0; i<size; i++)
+	for(i=0; i<size; i++, p++)
 	{
 		free(p->table_name);
 		p->table_name=NULL;
 		p->rule_id=0;
 	}
-	free(p);
+	free(*keys);
 	*keys=NULL;
 	return;
 }
