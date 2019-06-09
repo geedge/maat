@@ -2397,7 +2397,7 @@ int add_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 	}
 	return 0;
 }
-void del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_group_rule, struct Maat_scanner_t *scanner, void* logger)
+int del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_group_rule, struct Maat_scanner_t *scanner, void* logger)
 {
 	struct Maat_compile_inner*compile_rule=NULL;
 	struct Maat_group_inner* group_rule=NULL, *parent_group=NULL;
@@ -2416,7 +2416,7 @@ void del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gr
 																		table->table_name[table->updating_name],
 																		db_group_rule->group_id,
 																		db_group_rule->parent_id);
-			return;
+			return 0;
 		}
 		if(parent_group==NULL)
 		{
@@ -2425,7 +2425,7 @@ void del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gr
 																		table->table_name[table->updating_name],
 																		db_group_rule->group_id,
 																		db_group_rule->parent_id);
-			return;
+			return 0;
 		}
 		
 		igraph_es_pairs_small(&es, IGRAPH_DIRECTED, group_rule->vertex_id, parent_group->vertex_id);
@@ -2450,7 +2450,7 @@ void del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gr
 																		table->table_name[table->updating_name],
 																		db_group_rule->group_id,
 																		db_group_rule->parent_id);
-			return;
+			return 0;
 		}
 		group_rule=del_group_from_compile(compile_rule, db_group_rule->group_id);
 		if(group_rule==NULL)
@@ -2460,7 +2460,7 @@ void del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gr
 																		,table->table_name[table->updating_name]
 																		,db_group_rule->group_id
 																		,db_group_rule->parent_id);
-			return;
+			return 0;
 		}
 		if(compile_rule->group_cnt==0&&compile_rule->is_valid==0)
 		{
@@ -2469,7 +2469,7 @@ void del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gr
 		}
 	}
 	destroy_group_rule(group_rule, DESTROY_GROUP_BY_PARENT, scanner);
-	return;
+	return 1;
 }
 int add_compile_rule(struct Maat_table_desc* table, struct db_compile_rule* db_compile_rule, struct Maat_scanner_t *scanner, void* logger)
 {
@@ -2558,11 +2558,12 @@ void update_group_rule(struct Maat_table_desc* table,const char* table_line,stru
 	}
 	if(db_group_rule.is_valid==FALSE)
 	{
-		del_group_rule(table, &db_group_rule, scanner, logger);
+		ret=del_group_rule(table, &db_group_rule, scanner, logger);
 		//leave no trace when compatible_group_update calling
-		if(table->table_type==TABLE_TYPE_GROUP)
+		if(table->table_type==TABLE_TYPE_GROUP&&ret==1)
 		{
 			table_rt->origin_rule_num--;
+			assert(table_rt->origin_rule_num>=0);
 			if(db_group_rule.not_flag)
 			{
 				table_rt->group.not_flag_group--;
