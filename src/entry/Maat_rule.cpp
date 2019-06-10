@@ -2371,7 +2371,7 @@ int add_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 		parent_group=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_group_rule->parent_id);
 		if(parent_group==NULL)
 		{
-			parent_group=create_group_rule(db_group_rule->parent_id, parent_group->table_id, scanner);
+			parent_group=create_group_rule(db_group_rule->parent_id, table->table_id, scanner);
 		}
 		group_rule->parent_ref_cnt++;		
 		igraph_add_edge(&scanner->group_graph, group_rule->vertex_id, parent_group->vertex_id);
