@@ -138,16 +138,16 @@ size_t pickup_hit_region_from_compile(struct bool_expr *compile_hit,
 	}
 	return k;
 }
-void fill_maat_rule(struct Maat_rule_t *rule, const struct _head_Maat_rule* rule_head, const char* srv_def, int srv_def_len)
+void fill_maat_rule(struct Maat_rule_t *rule, const struct Maat_rule_head* rule_head, const char* srv_def, int srv_def_len)
 {
-	memcpy(rule, rule_head, sizeof(struct _head_Maat_rule));
+	memcpy(rule, rule_head, sizeof(struct Maat_rule_head));
 	memcpy(rule->service_defined, srv_def, MIN(srv_def_len,MAX_SERVICE_DEFINE_LEN));
 	return;
 }
 static int compare_compile_inner(const void *a, const void *b)
 {
-	const struct Maat_compile_inner *ra=*(const struct Maat_compile_inner **)a;
-	const struct Maat_compile_inner *rb=*(const struct Maat_compile_inner **)b;
+	const struct Maat_compile_group_relation *ra=*(const struct Maat_compile_group_relation **)a;
+	const struct Maat_compile_group_relation *rb=*(const struct Maat_compile_group_relation **)b;
 
 	if(ra->group_cnt!=rb->group_cnt)
 	{
@@ -169,8 +169,8 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	unsigned char has_not_flag=0;
 	struct bool_matcher* bm=feather->scanner->bool_matcher_expr_compiler;
 	struct Maat_group_inner* group_rule=NULL;
-	struct Maat_compile_inner* compile_arrary[MAX_SCANNER_HIT_NUM];
-	struct Maat_compile_inner* compile_rule=NULL;
+	struct Maat_compile_group_relation* relation_arrary[MAX_SCANNER_HIT_NUM];
+	struct Maat_compile_group_relation* relation=NULL;
 
 	int region_pos[MAX_SCANNER_HIT_NUM];
 	_mid->cur_hit_group_cnt=0;
@@ -183,7 +183,7 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 		}
 		if(group_rule->compile_shortcut!=NULL&&group_rule->parent_ref_cnt==1&&shortcut_avilable_cnt<MAX_SCANNER_HIT_NUM)
 		{			
-			compile_arrary[shortcut_avilable_cnt]=(struct Maat_compile_inner*)(group_rule->compile_shortcut);
+			relation_arrary[shortcut_avilable_cnt]=(struct Maat_compile_group_relation*)(group_rule->compile_shortcut);
 			shortcut_avilable_cnt++;
 		}
 		for(j=0; j<group_rule->top_group_cnt; j++)
@@ -219,45 +219,45 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	{
 		scan_ret=bool_matcher_match(bm, thread_num, 
 										_mid->all_hit_group_array, _mid->all_hit_group_cnt,
-										(void **)compile_arrary, MAX_SCANNER_HIT_NUM);
+										(void **)relation_arrary, MAX_SCANNER_HIT_NUM);
 	}
 	if(scan_ret>1)
 	{
-		qsort(compile_arrary, scan_ret, sizeof(struct Maat_compile_inner**),
+		qsort(relation_arrary, scan_ret, sizeof(struct Maat_compile_group_relation**),
 			  compare_compile_inner);
 	}
 	for(i=0;i<scan_ret&&result_cnt<size;i++)
 	{
-		compile_rule=compile_arrary[i];
-		if(compile_rule==NULL)
+		relation=relation_arrary[i];
+		if(relation==NULL)
 		{
 			continue;
 		}
 		
-		if(0==pthread_rwlock_tryrdlock(&(compile_rule->rwlock)))
+		if(0==pthread_rwlock_tryrdlock(&(relation->rwlock)))
 		{
-			if(compile_rule->is_valid==1)
+			if(relation->compile)
 			{			
-				if(compile_rule->not_group_cnt>0 && !is_last_region)
+				if(relation->not_group_cnt>0 && !is_last_region)
 				{
 					_mid->not_grp_compile_hitted_flag=1;
 				}
 				else
 				{
-	   				make_group_set(compile_rule, &(rs_result[result_cnt].group_set), &has_not_flag);
+	   				make_group_set(relation, &(rs_result[result_cnt].group_set), &has_not_flag);
 					r_in_c_cnt=pickup_hit_region_from_compile(&(rs_result[result_cnt].group_set), _mid->cur_hit_groups, _mid->cur_hit_group_cnt,
 												region_pos, MAX_SCANNER_HIT_NUM);
 					if(r_in_c_cnt>0 ||			//compile config hitted becasue of new reigon
 						_mid->cur_hit_group_cnt==0)	//or ever hit a compile that refer a NOT-logic group
 					{
-						fill_maat_rule(&(result[result_cnt]), &(compile_rule->db_c_rule->m_rule_head),
-									compile_rule->db_c_rule->service_defined ,compile_rule->db_c_rule->m_rule_head.serv_def_len);
-						rs_result[result_cnt].compile_id=compile_rule->compile_id;
+						fill_maat_rule(&(result[result_cnt]), &(relation->compile->head),
+									relation->compile->service_defined ,relation->compile->head.serv_def_len);
+						rs_result[result_cnt].compile_id=relation->compile_id;
 						result_cnt++;
 					}
 				}		
 			}	
-			pthread_rwlock_unlock(&(compile_rule->rwlock));
+			pthread_rwlock_unlock(&(relation->rwlock));
 		}		
 	}	
 	if(result_cnt>0)
@@ -1068,19 +1068,21 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 void rule_ex_data_new_cb(const uchar * key, uint size, void * data, void * user)
 {
 	struct compile_ex_data_idx *ex_desc=(struct compile_ex_data_idx*)user;
-	struct Maat_compile_inner *compile_inner=(struct Maat_compile_inner *)data;
+	struct Maat_compile_group_relation *relation=(struct Maat_compile_group_relation *)data;
+	struct Maat_compile_rule* compile_rule=relation->compile;
 	MAAT_RULE_EX_DATA ad=NULL;
 	
-	if(compile_inner->ref_table==NULL || compile_inner->ref_table->table_id!=ex_desc->table_id || compile_inner->db_c_rule==NULL)
+	if(compile_rule==NULL|| compile_rule->ref_table->table_id!=ex_desc->table_id)
 	{
 		return;
 	}
-	pthread_rwlock_wrlock(&(compile_inner->rwlock));
-	ad=rule_ex_data_new(&(compile_inner->db_c_rule->m_rule_head),
-						compile_inner->db_c_rule->service_defined,
+	
+	pthread_rwlock_wrlock(&(relation->rwlock));
+	ad=rule_ex_data_new(&(relation->compile->head),
+						relation->compile->service_defined,
 						ex_desc);
-	compile_inner->ads[ex_desc->idx]=ad;
-	pthread_rwlock_unlock(&(compile_inner->rwlock));
+	compile_rule->ads[ex_desc->idx]=ad;
+	pthread_rwlock_unlock(&(relation->rwlock));
 	return;
 }
 int Maat_rule_get_ex_new_index(Maat_feather_t feather, const char* compile_table_name,
@@ -1130,22 +1132,24 @@ failed:
 MAAT_RULE_EX_DATA Maat_rule_get_ex_data(Maat_feather_t feather, const struct Maat_rule_t* rule, int idx)
 {
 	struct _Maat_feather_t *_feather=(struct _Maat_feather_t *)feather;
-	struct Maat_compile_inner *compile_inner=NULL;
+	struct Maat_compile_group_relation *relation=NULL;
+	struct Maat_compile_rule* compile=NULL;
 	const struct compile_table_desc* compile_desc=NULL;
 	const struct compile_ex_data_idx* ex_desc=NULL;
 	MAAT_RULE_EX_DATA ad=NULL;
 	
-	compile_inner=(struct Maat_compile_inner *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule->config_id);
-	if(compile_inner==NULL)
+	relation=(struct Maat_compile_group_relation *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule->config_id);
+	if(relation==NULL||relation->compile==NULL)
 	{
 		return NULL;
 	}
-	pthread_rwlock_rdlock(&(compile_inner->rwlock));
-	compile_desc=&(compile_inner->ref_table->compile);
+	pthread_rwlock_rdlock(&(relation->rwlock));
+	compile=relation->compile;
+	compile_desc=&(compile->ref_table->compile);
 	assert(idx<compile_desc->ex_data_num);	
 	ex_desc=compile_desc->ex_desc+idx;
-	ex_desc->dup_func(ex_desc->idx, &ad, compile_inner->ads+idx, ex_desc->argl,ex_desc->argp);
-	pthread_rwlock_unlock(&(compile_inner->rwlock));		
+	ex_desc->dup_func(ex_desc->idx, &ad, compile->ads+idx, ex_desc->argl,ex_desc->argp);
+	pthread_rwlock_unlock(&(relation->rwlock));		
 	return ad;
 }
 struct wrap_plugin_EX_data
@@ -1178,7 +1182,7 @@ MESA_htable_handle wrap_plugin_EX_hash_new(long long estimate_size, Maat_plugin_
 
 	MESA_htable_create_args_t hargs;
 	memset(&hargs,0,sizeof(hargs));
-	hargs.thread_safe=0;
+	hargs.thread_safe=8;
 	hargs.hash_slot_size = slot_size;
 	hargs.max_elem_num = 0;
 	hargs.eliminate_type = HASH_ELIMINATE_ALGO_FIFO;
@@ -1336,7 +1340,6 @@ MAAT_PLUGIN_EX_DATA Maat_plugin_get_EX_data(Maat_feather_t feather, int table_id
 		return NULL;
 	}
 	table_rt= _feather->scanner->table_rt[table_id];
-	pthread_rwlock_rdlock(&table_rt->plugin.rwlock);
 	wrap_data=(struct wrap_plugin_EX_data*)MESA_htable_search(table_rt->plugin.key2ex_hash,
 													(const unsigned char*)key, strlen(key));
 	if(wrap_data!=NULL)
@@ -1344,7 +1347,6 @@ MAAT_PLUGIN_EX_DATA Maat_plugin_get_EX_data(Maat_feather_t feather, int table_id
 		plugin_desc->ex_desc.dup_func(table_id, &(exdata), &(wrap_data->exdata), 
 			plugin_desc->ex_desc.argl, plugin_desc->ex_desc.argp);
 	}
-	pthread_rwlock_unlock(&table_rt->plugin.rwlock);
 	return exdata;
 }
 
@@ -2179,11 +2181,11 @@ int Maat_read_rule(Maat_feather_t feather, const struct Maat_rule_t* rule, enum 
 {
 	int ret=0;
 	struct _Maat_feather_t *_feather=(struct _Maat_feather_t *)feather;
-	struct Maat_compile_inner *compile_inner=NULL;
+	struct Maat_compile_group_relation *compile_inner=NULL;
 	switch(type)
 	{
 		case	MAAT_RULE_SERV_DEFINE:
-			compile_inner=(struct Maat_compile_inner *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule->config_id);
+			compile_inner=(struct Maat_compile_group_relation *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule->config_id);
 			if(compile_inner==NULL)
 			{
 				ret=0;
@@ -2191,8 +2193,8 @@ int Maat_read_rule(Maat_feather_t feather, const struct Maat_rule_t* rule, enum 
 			else
 			{
 				pthread_rwlock_rdlock(&(compile_inner->rwlock));
-				ret=MIN(size,compile_inner->db_c_rule->m_rule_head.serv_def_len);
-				memcpy(value,compile_inner->db_c_rule->service_defined,ret);
+				ret=MIN(size,compile_inner->compile->head.serv_def_len);
+				memcpy(value,compile_inner->compile->service_defined,ret);
 				pthread_rwlock_unlock(&(compile_inner->rwlock));
 			}
 			break;

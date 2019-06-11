@@ -85,7 +85,7 @@ struct db_digest_rule
 	short confidence_degree;
 	int is_valid;
 };
-struct _head_Maat_rule
+struct Maat_rule_head
 {
 	int 	config_id;
 	int		service_id;
@@ -95,13 +95,14 @@ struct _head_Maat_rule
 	char	resevered;
 	int		serv_def_len;
 };
-struct db_compile_rule
+struct Maat_compile_rule
 {
-	struct _head_Maat_rule m_rule_head;// fix len of Maat_rule_t
+	struct Maat_rule_head head;// fix len of Maat_rule_t
 	char* service_defined;
-	long long effective_range;
 	int is_valid;
-	int declare_grp_num;
+	int declared_grp_num;
+	const struct Maat_table_desc* ref_table;
+	MAAT_RULE_EX_DATA* ads;
 };
 #define PARENT_TYPE_COMPILE	0
 #define PARENT_TYPE_GROUP	1
@@ -149,19 +150,17 @@ struct Maat_group_inner
 	void* compile_shortcut;
 	pthread_mutex_t mutex;
 };
-struct Maat_compile_inner
+struct Maat_compile_group_relation
 {
-	struct db_compile_rule *db_c_rule;
+	struct Maat_compile_rule *compile;
 	dynamic_array_t *groups;	//element is struct Maat_group_inner*
 	char not_flag[MAX_ITEMS_PER_BOOL_EXPR];
-	char is_valid;
-	int compile_id;//equal to db_c_rule->m_rule.config_id
-	const struct Maat_table_desc* ref_table;
+	int compile_id;//equal to compile->m_rule.config_id
 	int group_boundary;
 	int group_cnt;
  	int not_group_cnt;
-	MAAT_RULE_EX_DATA* ads;
 	pthread_rwlock_t rwlock;//reading compile rule is safe in update thread, rwlock lock called when delete or scan thread read
+
 };
 struct _compile_result_t
 {
@@ -225,13 +224,13 @@ struct similar_runtime
 	GIE_handle_t*	gie_handle;
 	MESA_lqueue_head update_q;
 };
+
 struct plugin_runtime
 {
 	dynamic_array_t *cache_lines;
 	long long cache_line_num;
 	long long acc_line_num;
 	long long cache_size;
-	pthread_rwlock_t rwlock;
 	MESA_htable_handle key2ex_hash;
 };
 struct expr_runtime
@@ -259,7 +258,7 @@ struct Maat_table_runtime
 		struct plugin_runtime plugin;		
 		struct expr_runtime expr;
 		struct ip_runtime ip;
-		struct group_runtime group;
+		struct group_runtime group;		
 		void * other;
 	};
 	mcore_long_t	scan_cnt;
@@ -286,6 +285,8 @@ struct Maat_scanner_t
 	MESA_htable_handle region_hash;
 	MESA_htable_handle group_hash;
 	MESA_htable_handle compile_hash;
+	MESA_htable_handle compile_group_relation_hash;
+
 	MESA_htable_handle district_map;
 	MESA_htable_handle tmp_district_map;
 	MESA_htable_handle vertex_id2group;
@@ -427,7 +428,7 @@ struct _maat_garbage_t
 	{
 		struct Maat_scanner_t* scanner;
 		struct Maat_group_inner* group_rule;
-		struct Maat_compile_inner* compile_rule;
+		struct Maat_compile_rule* compile_rule;
 		struct bool_matcher* bool_matcher;
 		void * raw;
 		MESA_htable_handle str2int_map;
@@ -457,7 +458,7 @@ int parse_accept_tag(const char* value, struct rule_tag** result, void* logger);
 void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbage_q);
 void garbage_bagging_with_timeout(enum maat_garbage_type type,void *p, int timeout, MESA_lqueue_head garbage_q);
 void garbage_bury(MESA_lqueue_head garbage_q,void *logger);
-void make_group_set(struct Maat_compile_inner* compile_rule, struct bool_expr* a_set, unsigned char *has_not);
+void make_group_set(struct Maat_compile_group_relation* compile_rule, struct bool_expr* a_set, unsigned char *has_not);
 int read_table_description(struct Maat_table_desc** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger);
 void maat_start_cb(long long new_version,int update_type,void*u_para);
 int maat_update_cb(const char* table_name,const char* line,void *u_para);
@@ -480,9 +481,9 @@ int get_foreign_keys_by_prefix(redisContext *ctx, struct serial_rule_t* rule_lis
 void get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, int print_fn, void *logger);
 void rewrite_table_line_with_foreign(struct serial_rule_t*p);
 
-void fill_maat_rule(struct Maat_rule_t *rule, const struct _head_Maat_rule* rule_head, const char* srv_def, int srv_def_len);
-MAAT_RULE_EX_DATA rule_ex_data_new(const struct _head_Maat_rule * rule_head, const char* srv_def, const struct compile_ex_data_idx* ex_desc);
-void rule_ex_data_free(const struct _head_Maat_rule * rule_head, const char* srv_def, MAAT_RULE_EX_DATA *ad, const struct compile_ex_data_idx* ex_desc);
+void fill_maat_rule(struct Maat_rule_t *rule, const struct Maat_rule_head* rule_head, const char* srv_def, int srv_def_len);
+MAAT_RULE_EX_DATA rule_ex_data_new(const struct Maat_rule_head * rule_head, const char* srv_def, const struct compile_ex_data_idx* ex_desc);
+void rule_ex_data_free(const struct Maat_rule_head * rule_head, const char* srv_def, MAAT_RULE_EX_DATA *ad, const struct compile_ex_data_idx* ex_desc);
 MESA_htable_handle wrap_plugin_EX_hash_new(long long estimate_size, Maat_plugin_EX_key2index_func_t * key2index);
 int plugin_EX_data_new(const struct Maat_table_desc* plugin_table, const char* line, MESA_htable_handle key2ex_hash, void *logger);
 int plugin_EX_data_free(const struct Maat_table_desc* plugin_table, const char* line, MESA_htable_handle key2ex_hash, void *logger);

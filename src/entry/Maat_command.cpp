@@ -839,7 +839,7 @@ int reconstruct_cmd(struct _Maat_feather_t *feather, struct _Maat_cmd_inner_t* _
 	struct Maat_group_t* group_cmd=NULL;
 	struct Maat_region_t* region_cmd=NULL;
 
-	struct Maat_compile_inner *compile_inner=NULL;
+	struct Maat_compile_group_relation *relation=NULL;
 	struct Maat_group_inner* group_inner=NULL;
 	struct Maat_region_inner* region_inner=NULL;
 	void* logger=feather->logger;
@@ -847,27 +847,27 @@ int reconstruct_cmd(struct _Maat_feather_t *feather, struct _Maat_cmd_inner_t* _
 	int config_id=cmd->compile.config_id;
 	if(feather->scanner==NULL)
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_command 
+		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_command 
 				,"MAAT not ready.");
 		return -1;
 	}
-	compile_inner=(struct Maat_compile_inner *)HASH_fetch_by_id(feather->scanner->compile_hash, config_id);
-	//Operation on compile_inner is thread safe, no immediate memory free when delete a compile rule or a scanner.
-	//In another words, if the compile_inner is accessable from compile means, its was valid in at least 10 seconds (garbage bury).
-	if(compile_inner==NULL)
+	relation=(struct Maat_compile_group_relation *)HASH_fetch_by_id(feather->scanner->compile_hash, config_id);
+	//Operation on relation is thread safe, no immediate memory free when delete a compile rule or a scanner.
+	//In another words, if the relation is accessable from compile means, its was valid in at least 10 seconds (garbage bury).
+	if(relation==NULL)
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_command 
+		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_command 
 				,"config %d not exist."
 				,config_id);
 		return -1;
 	}
-	pthread_rwlock_rdlock(&(compile_inner->rwlock));
-	cmd->group_num=compile_inner->group_cnt;
+	pthread_rwlock_rdlock(&(relation->rwlock));
+	cmd->group_num=relation->group_cnt;
 	assert(cmd->groups==NULL);
 	cmd->groups=ALLOC(struct Maat_group_t, cmd->group_num);
-	for(i=0;i<compile_inner->group_boundary;i++)
+	for(i=0;i<relation->group_boundary;i++)
 	{
-		group_inner=(struct Maat_group_inner*)dynamic_array_read(compile_inner->groups,i);
+		group_inner=(struct Maat_group_inner*)dynamic_array_read(relation->groups,i);
 		if(group_inner==NULL)
 		{
 			continue;
@@ -896,7 +896,7 @@ int reconstruct_cmd(struct _Maat_feather_t *feather, struct _Maat_cmd_inner_t* _
 		}
 		grp_idx++;
 	}
-	pthread_rwlock_unlock(&(compile_inner->rwlock));		
+	pthread_rwlock_unlock(&(relation->rwlock));		
 	return 0;
 }
 
@@ -1361,10 +1361,10 @@ int fix_table_name(_Maat_feather_t* feather,struct Maat_cmd_t* cmd)
 	struct Maat_region_t* p_region=NULL;
 	enum MAAT_TABLE_TYPE table_type;
 
-	struct Maat_compile_inner *compile_rule=NULL;
+	struct Maat_compile_group_relation *compile_rule=NULL;
 	if(feather->scanner!=NULL)
 	{
-		compile_rule=(struct Maat_compile_inner*)HASH_fetch_by_id(feather->scanner->compile_hash, cmd->compile.config_id);
+		compile_rule=(struct Maat_compile_group_relation*)HASH_fetch_by_id(feather->scanner->compile_hash, cmd->compile.config_id);
 		if(compile_rule!=NULL)
 		{
 			MESA_handle_runtime_log(feather->logger,RLOG_LV_FATAL,maat_module 
