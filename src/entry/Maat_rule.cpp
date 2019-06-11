@@ -854,7 +854,7 @@ struct Maat_group_inner* create_group_rule(int group_id, int table_id, struct Ma
 	group->group_name=NULL;
 	group->vertex_id=scanner->grp_vertex_id_generator++;
 	assert(igraph_vcount(&scanner->group_graph)==group->vertex_id);
-	igraph_add_vertices(&scanner->group_graph, 1, NULL);
+	igraph_add_vertices(&scanner->group_graph, 1, NULL);	//Add 1 vertice.
 	ret=HASH_add_by_id(scanner->vertex_id2group, group->vertex_id, group);
 	assert(ret>0);
 	ret=HASH_add_by_id(scanner->group_hash, group_id, group);
@@ -886,7 +886,6 @@ void destroy_group_rule(struct Maat_group_inner* group_rule, int by_whom, struct
 	switch(by_whom)
 	{
 		case	DESTROY_GROUP_BY_REGION:
-			group_rule->region_cnt--;
 			break;
 		case	DESTROY_GROUP_BY_PARENT:
 			group_rule->parent_ref_cnt--;
@@ -897,8 +896,8 @@ void destroy_group_rule(struct Maat_group_inner* group_rule, int by_whom, struct
 	}
 	if(group_rule->parent_ref_cnt==0&&group_rule->region_cnt==0)
 	{
-		assert(group_rule->region_cnt==0);
 		HASH_delete_by_id(scanner->group_hash, group_rule->group_id);
+		HASH_delete_by_id(scanner->vertex_id2group, group_rule->vertex_id);		
 		//Calling _destroy_group_rule on garbage collection to free memory.
 		garbage_bagging(GARBAGE_GROUP_RULE, group_rule, scanner->tomb_ref);
 
@@ -1776,6 +1775,7 @@ unsigned int del_region_from_group(struct Maat_group_inner* group,int region_id,
 			free(region_rule);
 			region_rule=NULL;
 			group->region_cnt--;
+			assert(group->region_cnt>=0);
 			break;
 		}
 	}
@@ -3224,7 +3224,10 @@ void update_compile_rule(struct Maat_table_desc* table,const char* table_line,st
 	if(p_compile->is_valid==FALSE)
 	{
 		ret=del_compile_rule(table,p_compile,scanner, logger);
-		table_rt->origin_rule_num--;
+		if(ret>0)
+		{
+			table_rt->origin_rule_num--;
+		}
 		goto no_save;
 	}
 	else
