@@ -83,7 +83,7 @@ static int get_group_seq(struct iris_description_t* iris_cfg)
 	}
 	else
 	{
-		data_reply=_wrap_redisCommand(iris_cfg->redis_write_ctx,"INCRBY SEQUENCE_GROUP 1");
+		data_reply=_wrap_redisCommand(iris_cfg->redis_write_ctx,"INCRBY %s 1", mr_group_id_var);
 		sequence=(int)data_reply->integer-1;
 		freeReplyObject(data_reply);
 	}
@@ -100,7 +100,7 @@ static int get_region_seq(struct iris_description_t* iris_cfg)
 	}
 	else
 	{
-		data_reply=_wrap_redisCommand(iris_cfg->redis_write_ctx,"INCRBY SEQUENCE_REGION 1");
+		data_reply=_wrap_redisCommand(iris_cfg->redis_write_ctx,"INCRBY %s 1", mr_region_id_var);
 		sequence=(int)data_reply->integer-1;
 		freeReplyObject(data_reply);
 	}
@@ -1098,6 +1098,7 @@ int write_iris(cJSON *json, struct iris_description_t *p_iris, void* logger)
 	}
 	return 0;
 }
+// redis_write_ctx is used by maat_redis_tool to write json to redis.
 int json2iris(const char* json_file,const char*compile_tn,const char* group_tn,redisContext *redis_write_ctx,char* iris_dir_buf,int buf_len,void* logger)
 {
 	FILE* json_fp=NULL;

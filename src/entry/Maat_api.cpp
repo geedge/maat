@@ -181,7 +181,7 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 		{
 			continue;
 		}
-		if(group_rule->compile_shortcut!=NULL&&group_rule->parent_ref_cnt==1&&shortcut_avilable_cnt<MAX_SCANNER_HIT_NUM)
+		if(group_rule->compile_shortcut!=NULL&&group_rule->ref_by_parent_cnt==1&&shortcut_avilable_cnt<MAX_SCANNER_HIT_NUM)
 		{			
 			relation_arrary[shortcut_avilable_cnt]=(struct Maat_compile_group_relation*)(group_rule->compile_shortcut);
 			shortcut_avilable_cnt++;
@@ -662,12 +662,12 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			break;
 		case MAAT_OPT_JSON_FILE_PATH:
 			assert(_feather->input_mode==SOURCE_NONE);
-			ret=json2iris((const char*)value
-				,_feather->compile_tn,_feather->group_tn
-				,NULL
-				,_feather->json_ctx.iris_file
-				,sizeof(_feather->json_ctx.iris_file)
-				,_feather->logger);
+			ret=json2iris((const char*)value,
+					_feather->compile_tn,_feather->group_tn,
+					NULL,
+					_feather->json_ctx.iris_file,
+					sizeof(_feather->json_ctx.iris_file),
+					_feather->logger);
 			if(ret<0)
 			{
 				return -1;
