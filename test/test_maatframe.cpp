@@ -1475,6 +1475,7 @@ protected:
 	static int linger_timeout;
 };
 Maat_feather_t MaatCmdTest::_shared_feather;
+
 void* MaatCmdTest::logger;
 
 int MaatCmdTest::linger_timeout;
@@ -1760,7 +1761,7 @@ TEST_F(MaatCmdTest,  ReturnRuleIDWithDescendingOrder)
 
 
 	int table_id=0;
-	table_id=Maat_table_register(feather,table_name);
+	table_id=Maat_table_register(feather, table_name);
 	ASSERT_GT(table_id, 0);
 
 	int i=0, repeat_times=4;
@@ -1792,8 +1793,121 @@ TEST_F(MaatCmdTest,  ReturnRuleIDWithDescendingOrder)
 	}
 	return;
 }
+#define MaatCmdTest_SubGroup	0
+TEST_F(MaatCmdTest,    SubGroup)
+{
 
+/*  compile1->group1--group2->region1
+                    \
+                     \group3->region2
 
+    compile2->group1
+*/
+	const char* table_name="HTTP_URL";
+	const char* group_table_name="GROUP";
+	const char* compile_table_name="COMPILE";
+	const char* scan_data1="www.v2ex.com/t/573028#程序员的核心竞争力是什么";
+	const char* keyword1="程序员&核心竞争力";
+
+	const char* scan_data2="https://ask.leju.com/bj/detail/12189672562229248/?bi=tg&type=sina-pc&pos=index-dbtlwzl&wt_campaign=M_5CE750003F393&wt_source=PDPS_514ACACFD9E770";
+//	const char* keyword2="ask.leju.com/bj/detail/12189672562229248/?bi=tg&type=sina-pc&pos=index-dbtlwzl&wt_campaign=M_5CE750003F393&wt_source=PDPS_514ACACFD9E770";
+	const char* keyword2="ask.leju.com/b&/detail/12189672562229248/?&?bi=tg\\&type=sina-pc\\&&\\&pos=index-dbtlwzl\\&&\\&type=sina-pc\\&pos=index-dbtlwzl\\&";
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+	int table_id=0;
+	table_id=Maat_table_register(feather, table_name);
+	struct Maat_rule_t compile1, compile2;
+	struct Maat_group_t group1, group2, group3;
+	struct Maat_region_t region1,region2;
+	memset(&compile1, 0, sizeof(compile1));
+	compile1.config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 1);
+
+	memset(&compile2, 0, sizeof(compile2));
+	compile2.config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile2, compile_table_name, NULL, 1);
+
+	
+	memset(&group1, 0, sizeof(group1));
+	group1.group_id=Maat_cmd_get_new_group_id(feather);
+	group1.table_name=group_table_name;
+	group1.parent_id=compile1.config_id;
+	group1.parent_type=PARENT_TYPE_COMPILE;
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group1);
+
+	group1.parent_id=compile2.config_id;
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group1);
+	
+	memset(&group2, 0, sizeof(group2));
+	group2.group_id=Maat_cmd_get_new_group_id(feather);
+	group2.table_name=group_table_name;
+	group2.parent_id=group1.group_id;
+	group2.parent_type=PARENT_TYPE_GROUP;
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group2);
+
+	memset(&region1, 0, sizeof(region1));
+	region1.region_id=Maat_cmd_get_new_region_id(feather);
+	region1.region_type=REGION_EXPR;
+	region1.table_name=table_name;
+	region1.expr_rule.keywords=keyword1;
+	region1.expr_rule.expr_type=EXPR_TYPE_AND;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region1, group2.group_id);
+	sleep(1);
+	struct Maat_rule_t result[4];
+	memset(&result, 0, sizeof(result));
+	
+	scan_status_t mid=NULL;
+	int ret=0;
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data1, strlen(scan_data1), 
+						result, NULL, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, 2);
+	EXPECT_EQ(result[0].config_id, compile2.config_id);
+	EXPECT_EQ(result[1].config_id, compile1.config_id);
+	Maat_clean_status(&mid);
+
+	Maat_command_raw_set_group(feather, MAAT_OP_DEL, &group1);
+	sleep(1);
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data1, strlen(scan_data1), 
+						result, NULL, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, compile1.config_id);
+	Maat_clean_status(&mid);
+
+	group1.parent_id=compile1.config_id;
+	Maat_command_raw_set_group(feather, MAAT_OP_DEL, &group1);
+	sleep(1);
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data1, strlen(scan_data1), 
+						result, NULL, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, -2);
+	Maat_clean_status(&mid);
+
+	memset(&group3, 0, sizeof(group3));
+	group3.group_id=Maat_cmd_get_new_group_id(feather);
+	group3.parent_id=group1.group_id;
+	group3.parent_type=PARENT_TYPE_GROUP;
+	group3.table_name=group_table_name;
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group3);
+
+	memset(&region2, 0, sizeof(region2));
+	region2.region_id=Maat_cmd_get_new_region_id(feather);
+	region2.region_type=REGION_EXPR;
+	region2.table_name=table_name;
+	region2.expr_rule.keywords=keyword2;
+	region2.expr_rule.expr_type=EXPR_TYPE_AND;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region2, group3.group_id);
+
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group1);
+	sleep(1);
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data2, strlen(scan_data2), 
+						result, NULL, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, compile1.config_id);	
+	Maat_clean_status(&mid);
+
+}
 TEST_F(MaatCmdTest, SetLines)
 {
 	const int TEST_CMD_LINE_NUM=4;

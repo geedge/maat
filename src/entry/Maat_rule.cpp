@@ -814,14 +814,14 @@ int read_table_description(struct Maat_table_desc** p_table_info,int num,const c
 			conj_table=p_table_info[p->table_id];
 			if(conj_table->conj_cnt==MAX_CONJUNCTION_TABLE_NUM)
 			{
-				MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
+				MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
 								"Maat read table info %s line %d error:reach tableid %d conjunction upper limit."
 								,table_info_path,i,p->table_id);
 				goto invalid_table;
 			}
 			memcpy(conj_table->table_name[conj_table->conj_cnt],p->table_name[0],MAX_TABLE_NAME_LEN);
 			conj_table->conj_cnt++;
-			MESA_handle_runtime_log(logger, RLOG_LV_INFO,maat_module,
+			MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_module,
 								"Maat read table info %s:%d:conjunction %s with %s (id=%d,total=%d)."
 								,table_info_path,i,p->table_name[0]
 								,conj_table->table_name[0],conj_table->table_id,conj_table->conj_cnt);
@@ -847,7 +847,7 @@ struct Maat_group_inner* create_group_rule(int group_id, int table_id, struct Ma
 	group->group_id=group_id;
 	group->region_cnt=0;
 	group->region_boundary=0;
-	group->parent_ref_cnt=0;
+	group->ref_by_parent_cnt=0;
 	group->regions=dynamic_array_create(1,8);
 	group->compile_shortcut=NULL;
 	group->table_id=table_id;
@@ -868,7 +868,7 @@ void _destroy_group_rule(struct Maat_group_inner* group)
 	group->region_cnt=0;
 	group->region_boundary=0;
 	group->regions=NULL;
-	group->parent_ref_cnt=0;
+	group->ref_by_parent_cnt=0;
 	group->group_id=-1;
 	group->table_id=-1;
 	free(group->group_name);
@@ -879,8 +879,18 @@ void _destroy_group_rule(struct Maat_group_inner* group)
 	free(group);
 
 }
+size_t print_igraph_vector(igraph_vector_t *v, char* buff, size_t sz) {
+  long int i;
+  int printed=0;
+  for (i=0; i<igraph_vector_size(v); i++) {
+    printed+=snprintf(buff+printed, sz-printed, " %li", (long int) VECTOR(*v)[i]);
+  }
+  return printed;
+}
+
 #define	DESTROY_GROUP_BY_REGION	0
 #define	DESTROY_GROUP_BY_PARENT	1
+#define	DESTROY_GROUP_BY_CHILD	2
 void destroy_group_rule(struct Maat_group_inner* group_rule, int by_whom, struct Maat_scanner_t* scanner)
 {
 	switch(by_whom)
@@ -888,16 +898,32 @@ void destroy_group_rule(struct Maat_group_inner* group_rule, int by_whom, struct
 		case	DESTROY_GROUP_BY_REGION:
 			break;
 		case	DESTROY_GROUP_BY_PARENT:
-			group_rule->parent_ref_cnt--;
+			group_rule->ref_by_parent_cnt--;
+			break;
+		case	DESTROY_GROUP_BY_CHILD:
+			group_rule->ref_by_children_cnt--;
 			break;
 		default:
 			assert(0);
 			break;
 	}
-	if(group_rule->parent_ref_cnt==0&&group_rule->region_cnt==0)
+	igraph_vector_t v; 
+	char buff[4096];
+	if(group_rule->ref_by_parent_cnt==0&&group_rule->ref_by_children_cnt==0&&group_rule->region_cnt==0)
 	{
 		HASH_delete_by_id(scanner->group_hash, group_rule->group_id);
-		HASH_delete_by_id(scanner->vertex_id2group, group_rule->vertex_id);		
+		HASH_delete_by_id(scanner->vertex_id2group, group_rule->vertex_id);	
+		igraph_vector_init(&v, 8);
+		igraph_neighbors(&scanner->group_graph, &v, group_rule->vertex_id, IGRAPH_ALL);
+		if(igraph_vector_size(&v)>0)
+		{
+			print_igraph_vector(&v, buff, sizeof(buff));
+			MESA_handle_runtime_log(scanner->logger_ref, RLOG_LV_FATAL, maat_module,
+							"Del group %d exception, still reached by %s.",
+							group_rule->vertex_id, buff);
+			assert(0);
+		}
+		igraph_vector_destroy(&v);
 		//Calling _destroy_group_rule on garbage collection to free memory.
 		garbage_bagging(GARBAGE_GROUP_RULE, group_rule, scanner->tomb_ref);
 
@@ -1413,6 +1439,7 @@ struct Maat_scanner_t* create_maat_scanner(unsigned int version,_Maat_feather_t 
 		rulescan_set_param(scanner->region,RULESCAN_REGEX_GROUP,NULL,0);
 	}
 	scanner->tomb_ref=feather->garbage_q;
+	scanner->logger_ref=feather->logger;
 	scanner->region_rslt_buff=ALLOC(scan_result_t, MAX_SCANNER_HIT_NUM*scan_thread_num);
 
 	for(i=0;i<MAX_TABLE_NUM;i++)
@@ -1859,7 +1886,7 @@ int add_group_to_compile(struct Maat_compile_group_relation*relation, struct Maa
 	}
 	relation->group_cnt++;
 	//member group->compile_shortcut may set to NULL and compile rule pointer repeatly,until rule build finish.
-	if(a_rule_group->parent_ref_cnt==1&&relation->group_cnt==1)
+	if(a_rule_group->ref_by_parent_cnt==1&&relation->group_cnt==1)
 	{
 		a_rule_group->compile_shortcut=relation;
 	}
@@ -1867,7 +1894,7 @@ int add_group_to_compile(struct Maat_compile_group_relation*relation, struct Maa
 	{
 		a_rule_group->compile_shortcut=NULL;
 	}
-	a_rule_group->parent_ref_cnt++;
+	a_rule_group->ref_by_parent_cnt++;
 	//update group's shortcut when compile has more than one group.
 	if(relation->group_cnt!=1)
 	{
@@ -1900,7 +1927,7 @@ struct Maat_group_inner* del_group_from_compile(struct Maat_compile_group_relati
 		}
 		if(group_rule->group_id==group_id)
 		{
-			group_rule->parent_ref_cnt--;
+			group_rule->ref_by_parent_cnt--;
 			dynamic_array_write(relation->groups,i,NULL);
 			if(relation->not_flag[i]==1)
 			{
@@ -2387,6 +2414,7 @@ int add_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 	struct Maat_group_inner* group_rule=NULL, *parent_group=NULL;
 	struct Maat_compile_group_relation*compile_rule=NULL;
 	int ret=0;
+	igraph_integer_t edge_id;
 	group_rule=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_group_rule->group_id);
 	if(group_rule==NULL)
 	{
@@ -2400,7 +2428,19 @@ int add_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 		{
 			parent_group=create_group_rule(db_group_rule->parent_id, table->table_id, scanner);
 		}
-		group_rule->parent_ref_cnt++;		
+		group_rule->ref_by_parent_cnt++;
+		parent_group->ref_by_children_cnt++;
+		ret=igraph_get_eid(&scanner->group_graph, &edge_id, group_rule->vertex_id, parent_group->vertex_id, IGRAPH_DIRECTED, /*error*/ 0);
+		if(edge_id>0)//if the edge was not found and error is false, then -1 will be assigned to eid.
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+								"update error, add sub group: %s %d to group %d error, sub group exist.",
+																		table->table_name[table->updating_name],
+																		db_group_rule->group_id,
+																		db_group_rule->parent_id);
+			return -1;
+		}
+		//igraph allow add multiple edges between two vetex, igraph_delete_edges removes one edge per call.
 		igraph_add_edge(&scanner->group_graph, group_rule->vertex_id, parent_group->vertex_id);
 	}
 	else
@@ -2422,7 +2462,7 @@ int add_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 			return -1;
 		}
 	}
-	return 0;
+	return 1;
 }
 int del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_group_rule, struct Maat_scanner_t *scanner, void* logger)
 {
@@ -2430,6 +2470,7 @@ int del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 	struct Maat_group_inner* group_rule=NULL, *parent_group=NULL;
 	igraph_es_t es;
 	int ret=0;
+	igraph_integer_t edge_num_before=0, edge_num_after=0;
 	
 	
 	if(db_group_rule->parent_type==PARENT_TYPE_GROUP)
@@ -2454,15 +2495,21 @@ int del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 																		db_group_rule->parent_id);
 			return 0;
 		}
+		edge_num_before=igraph_ecount(&scanner->group_graph);
 		// The edges between the given pairs of vertices will be included in the edge selection.
 		//The vertex pairs must be given as the arguments of the function call, the third argument 
 		//is the first vertex of the first edge, the fourth argument is the second vertex of the 
 		//first edge, the fifth is the first vertex of the second edge and so on. The last element
 		//of the argument list must be -1 to denote the end of the argument list.
 		//https://igraph.org/c/doc/igraph-Iterators.html#igraph_es_pairs_small
-		igraph_es_pairs_small(&es, IGRAPH_DIRECTED, group_rule->vertex_id, parent_group->vertex_id, -1);
+		ret=igraph_es_pairs_small(&es, IGRAPH_DIRECTED, group_rule->vertex_id, parent_group->vertex_id, -1);
+		assert(ret==IGRAPH_SUCCESS);
+		// ignore no such edge to abort().
+		igraph_set_error_handler(igraph_error_handler_ignore);
 		ret=igraph_delete_edges(&scanner->group_graph, es);
-		if(ret!=IGRAPH_SUCCESS)
+		edge_num_after=igraph_ecount(&scanner->group_graph);
+		
+		if(ret!=IGRAPH_SUCCESS||edge_num_before-edge_num_after!=1)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module ,
 								"update error, delete %s group %d from parent group %d error, not such relation before.",
@@ -2471,6 +2518,7 @@ int del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 																		db_group_rule->parent_id);
 		}
 		igraph_es_destroy(&es);
+		destroy_group_rule(parent_group, DESTROY_GROUP_BY_CHILD, scanner);
 	}
 	else
 	{
@@ -2478,7 +2526,7 @@ int del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 		if(relation==NULL)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-								"update error, delete %s group %d error : compile id %d does not exisit.",
+								"update error, delete %s group %d form compile %d error, compile does not exist.",
 																		table->table_name[table->updating_name],
 																		db_group_rule->group_id,
 																		db_group_rule->parent_id);
@@ -2488,13 +2536,13 @@ int del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 		if(group_rule==NULL)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-								"update error, delete %s group rule error : group id %d not in compile id %d."
-																		,table->table_name[table->updating_name]
-																		,db_group_rule->group_id
-																		,db_group_rule->parent_id);
+								"update error, delete %s group %d from compile %d error, target group does not in compile.",
+																		table->table_name[table->updating_name],
+																		db_group_rule->group_id,
+																		db_group_rule->parent_id);
 			return 0;
 		}
-		if(relation->group_cnt==0)
+		if(relation->group_cnt==0 && relation->compile==NULL)
 		{
 			destroy_compile_group_relation(relation, scanner);
 		}
@@ -2531,7 +2579,7 @@ int del_compile_rule(struct Maat_table_desc* table, int compile_id, struct Maat_
 	if(cg_relation==NULL || cg_relation->compile==NULL)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"update error, delete %s compile rule error : config id %d does not exist."
+							"update error, delete %s compile rule error : compile id %d does not exist."
 																	,table->table_name[table->updating_name]
 																	,compile_id);
 		return -1;
@@ -2542,7 +2590,7 @@ int del_compile_rule(struct Maat_table_desc* table, int compile_id, struct Maat_
 	cg_relation->compile=NULL;
 	pthread_rwlock_unlock(&(cg_relation->rwlock));
 
-	if(cg_relation->group_cnt==0)
+	if(cg_relation->group_cnt==0&&cg_relation->compile==NULL)
 	{
 		destroy_compile_group_relation(cg_relation, scanner);
 	}
@@ -3880,10 +3928,11 @@ int maat_update_cb(const char* table_name,const char* line,void *u_para)
 	{
 		scanner=feather->scanner;
 	}
+	MESA_handle_runtime_log(feather->logger, RLOG_LV_DEBUG, maat_module, "Maat table %s input: %s", table_name, line);
 	ret=map_str2int(feather->map_tablename2id,table_name,&table_id);
 	if(ret<0)
 	{
-		MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module ,"update warning,unknown table name %s",table_name);
+		MESA_handle_runtime_log(feather->logger, RLOG_LV_INFO, maat_module ,"update warning, unknown table name %s",table_name);
 		return -1;	
 	}
 	p_table=feather->p_table_info[table_id];

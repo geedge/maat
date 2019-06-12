@@ -23,6 +23,8 @@
 extern const char *maat_module;
 
 
+#define mr_region_id_var	"SEQUENCE_REGION"
+#define mr_group_id_var		"SEQUENCE_GROUP"
 
 
 #define	MAX_TABLE_NUM			256
@@ -104,8 +106,7 @@ struct Maat_compile_rule
 	const struct Maat_table_desc* ref_table;
 	MAAT_RULE_EX_DATA* ads;
 };
-#define PARENT_TYPE_COMPILE	0
-#define PARENT_TYPE_GROUP	1
+
 struct db_group_rule_t
 {
 	int group_id;
@@ -140,7 +141,8 @@ struct Maat_group_inner
 	int table_id;
 	int region_boundary;
 	int region_cnt;
-	int parent_ref_cnt;
+	int ref_by_parent_cnt;
+	int ref_by_children_cnt;
 	char* group_name;
 	int has_compile_neighbors;
 	int vertex_id;
@@ -303,6 +305,7 @@ struct Maat_scanner_t
 	MESA_lqueue_head region_update_q;
 	struct bool_matcher * bool_matcher_expr_compiler;
 	scan_result_t *region_rslt_buff;
+	void* logger_ref;
 	MESA_lqueue_head tomb_ref;//reference of g_feather->garbage_q
 
 	int max_thread_num;
