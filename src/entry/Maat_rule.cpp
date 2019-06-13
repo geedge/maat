@@ -1128,7 +1128,7 @@ void destroy_compile_group_relation(struct Maat_compile_group_relation * p, stru
 		assert(p_group==NULL);
 	}
 	HASH_delete_by_id(scanner->compile_hash, p->compile_id);
-	_destroy_compile_group_relation(p);
+	garbage_bagging(GARBAGE_COMPILE_GOURP_RELATION, p, scanner->tomb_ref);
 }
 scan_rule_t* create_rs_str_rule(unsigned int sub_type,enum MAAT_MATCH_METHOD match_method,int is_case_sensitive,const char* string,int len,int l_offset,int r_offset)
 {
@@ -3468,6 +3468,9 @@ void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
 		{
 			case GARBAGE_COMPILE_RULE:
 				destroy_compile_rule(bag->compile_rule);				
+				break;
+			case GARBAGE_COMPILE_GOURP_RELATION:
+				_destroy_compile_group_relation(bag->compile_group_relation);
 				break;
 			case GARBAGE_GROUP_RULE:
 				_destroy_group_rule(bag->group_rule);
