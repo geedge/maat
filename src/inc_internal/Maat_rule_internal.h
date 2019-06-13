@@ -192,6 +192,7 @@ enum maat_garbage_type
 	GARBAGE_SCANNER=0,
 	GARBAGE_GROUP_RULE,
 	GARBAGE_COMPILE_RULE,
+	GARBAGE_COMPILE_GOURP_RELATION,
 	GARBAGE_BOOL_MATCHER,
 	GARBAGE_MAP_STR2INT,
 	GARBAGE_FOREIGN_FILE
@@ -432,6 +433,7 @@ struct _maat_garbage_t
 		struct Maat_scanner_t* scanner;
 		struct Maat_group_inner* group_rule;
 		struct Maat_compile_rule* compile_rule;
+		struct Maat_compile_group_relation * compile_group_relation;
 		struct bool_matcher* bool_matcher;
 		void * raw;
 		MESA_htable_handle str2int_map;
