@@ -1797,12 +1797,6 @@ TEST_F(MaatCmdTest,  ReturnRuleIDWithDescendingOrder)
 TEST_F(MaatCmdTest,    SubGroup)
 {
 
-/*  compile1->group1--group2->region1
-                    \
-                     \group3->region2
-
-    compile2->group1
-*/
 	const char* table_name="HTTP_URL";
 	const char* group_table_name="GROUP";
 	const char* compile_table_name="COMPILE";
@@ -1826,7 +1820,7 @@ TEST_F(MaatCmdTest,    SubGroup)
 	compile2.config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
 	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile2, compile_table_name, NULL, 1);
 
-	
+	//group1->compile1
 	memset(&group1, 0, sizeof(group1));
 	group1.group_id=Maat_cmd_get_new_group_id(feather);
 	group1.table_name=group_table_name;
@@ -1834,9 +1828,14 @@ TEST_F(MaatCmdTest,    SubGroup)
 	group1.parent_type=PARENT_TYPE_COMPILE;
 	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group1);
 
+	//group1->compile2
 	group1.parent_id=compile2.config_id;
 	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group1);
-	
+
+	/*group2->group1->compile1
+	              \
+	               \__compile2
+	*/
 	memset(&group2, 0, sizeof(group2));
 	group2.group_id=Maat_cmd_get_new_group_id(feather);
 	group2.table_name=group_table_name;
@@ -1844,6 +1843,10 @@ TEST_F(MaatCmdTest,    SubGroup)
 	group2.parent_type=PARENT_TYPE_GROUP;
 	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group2);
 
+	/*region1->group2->group1->compile1
+	                        \
+	                         \_compile2
+	*/
 	memset(&region1, 0, sizeof(region1));
 	region1.region_id=Maat_cmd_get_new_region_id(feather);
 	region1.region_type=REGION_EXPR;
@@ -1865,6 +1868,11 @@ TEST_F(MaatCmdTest,    SubGroup)
 	EXPECT_EQ(result[1].config_id, compile1.config_id);
 	Maat_clean_status(&mid);
 
+
+	/*region1->group2->group1->compile1
+						\
+	                     \--X--compile2
+	*/
 	Maat_command_raw_set_group(feather, MAAT_OP_DEL, &group1);
 	sleep(1);
 	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data1, strlen(scan_data1), 
@@ -1874,14 +1882,32 @@ TEST_F(MaatCmdTest,    SubGroup)
 	EXPECT_EQ(result[0].config_id, compile1.config_id);
 	Maat_clean_status(&mid);
 
+
+	/*region1->group2->group1--X--
+				 \
+	              \->compile2
+	*/
 	group1.parent_id=compile1.config_id;
 	Maat_command_raw_set_group(feather, MAAT_OP_DEL, &group1);
+	Maat_command_raw_set_compile(feather, MAAT_OP_DEL, &compile1, compile_table_name, NULL, 1);
+	group2.parent_type=PARENT_TYPE_COMPILE;
+	group2.parent_id=compile2.config_id;
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group2);
+
 	sleep(1);
 	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data1, strlen(scan_data1), 
 						result, NULL, 4,
 						&mid, 0);
-	EXPECT_EQ(ret, -2);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, compile2.config_id);
 	Maat_clean_status(&mid);
+
+
+	/*region1->group2->group1--X--
+				 \
+	              \->compile2
+	  region2->group3
+	*/
 
 	memset(&group3, 0, sizeof(group3));
 	group3.group_id=Maat_cmd_get_new_group_id(feather);
@@ -1898,13 +1924,33 @@ TEST_F(MaatCmdTest,    SubGroup)
 	region2.expr_rule.expr_type=EXPR_TYPE_AND;
 	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region2, group3.group_id);
 
-	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group1);
 	sleep(1);
 	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data2, strlen(scan_data2), 
 						result, NULL, 4,
 						&mid, 0);
+	EXPECT_EQ(ret, -2);
+	Maat_clean_status(&mid);
+
+	/*region1->group2->group1--X--
+				 \
+	              \->compile2
+	  region2->group3
+	*/
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 1);
+	group1.parent_id=compile1.config_id;
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group1);
+
+	Maat_command_raw_set_compile(feather, MAAT_OP_DEL, &compile1, compile_table_name, NULL, 1);
+	group1.parent_id=compile1.config_id;
+	Maat_command_raw_set_group(feather, MAAT_OP_DEL, &group1);
+
+	sleep(1);
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data1, strlen(scan_data1), 
+						result, NULL, 4,
+						&mid, 0);
 	EXPECT_EQ(ret, 1);
-	EXPECT_EQ(result[0].config_id, compile1.config_id);	
+	EXPECT_EQ(result[0].config_id, compile2.config_id);
+
 	Maat_clean_status(&mid);
 
 }
