@@ -169,7 +169,7 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	unsigned char has_not_flag=0;
 	struct bool_matcher* bm=feather->scanner->bool_matcher_expr_compiler;
 	struct Maat_group_inner* group_rule=NULL;
-	struct Maat_compile_group_relation* relation_arrary[MAX_SCANNER_HIT_NUM];
+	struct Maat_compile_group_relation* relation_array[MAX_SCANNER_HIT_NUM];
 	struct Maat_compile_group_relation* relation=NULL;
 
 	int region_pos[MAX_SCANNER_HIT_NUM];
@@ -181,9 +181,11 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 		{
 			continue;
 		}
+		assert(group_rule->ref_by_children_cnt>=0);
+		assert(group_rule->ref_by_parent_cnt>=0);
 		if(group_rule->compile_shortcut!=NULL&&group_rule->ref_by_parent_cnt==1&&shortcut_avilable_cnt<MAX_SCANNER_HIT_NUM)
 		{			
-			relation_arrary[shortcut_avilable_cnt]=(struct Maat_compile_group_relation*)(group_rule->compile_shortcut);
+			relation_array[shortcut_avilable_cnt]=(struct Maat_compile_group_relation*)(group_rule->compile_shortcut);
 			shortcut_avilable_cnt++;
 		}
 		for(j=0; j<group_rule->top_group_cnt; j++)
@@ -219,21 +221,21 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	{
 		scan_ret=bool_matcher_match(bm, thread_num, 
 										_mid->all_hit_group_array, _mid->all_hit_group_cnt,
-										(void **)relation_arrary, MAX_SCANNER_HIT_NUM);
+										(void **)relation_array, MAX_SCANNER_HIT_NUM);
 	}
 	if(scan_ret>1)
 	{
-		qsort(relation_arrary, scan_ret, sizeof(struct Maat_compile_group_relation**),
+		qsort(relation_array, scan_ret, sizeof(struct Maat_compile_group_relation**),
 			  compare_compile_inner);
 	}
 	for(i=0;i<scan_ret&&result_cnt<size;i++)
 	{
-		relation=relation_arrary[i];
+		relation=relation_array[i];
 		if(relation==NULL)
 		{
 			continue;
 		}
-		
+		assert(relation->magic_num==COMPILE_RELATION_MAGIC);
 		if(0==pthread_rwlock_tryrdlock(&(relation->rwlock)))
 		{
 			if(relation->compile)

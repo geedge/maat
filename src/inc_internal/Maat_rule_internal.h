@@ -152,8 +152,10 @@ struct Maat_group_inner
 	void* compile_shortcut;
 	pthread_mutex_t mutex;
 };
+#define	COMPILE_RELATION_MAGIC	0x1a2b3c4d
 struct Maat_compile_group_relation
 {
+	long long magic_num;
 	struct Maat_compile_rule *compile;
 	dynamic_array_t *groups;	//element is struct Maat_group_inner*
 	char not_flag[MAX_ITEMS_PER_BOOL_EXPR];
@@ -288,7 +290,7 @@ struct Maat_scanner_t
 	MESA_htable_handle region_hash;
 	MESA_htable_handle group_hash;
 	MESA_htable_handle compile_hash;
-	MESA_htable_handle compile_group_relation_hash;
+
 
 	MESA_htable_handle district_map;
 	MESA_htable_handle tmp_district_map;

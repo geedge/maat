@@ -1095,6 +1095,7 @@ struct Maat_compile_group_relation * create_compile_group_relation(int compile_i
 {
 	int ret=0;
 	struct Maat_compile_group_relation* p=ALLOC(struct Maat_compile_group_relation, 1);
+	p->magic_num=COMPILE_RELATION_MAGIC;
 	p->compile_id=compile_id;
 	p->group_cnt=0;
 	p->group_boundary=1;
@@ -1107,6 +1108,7 @@ struct Maat_compile_group_relation * create_compile_group_relation(int compile_i
 
 void _destroy_compile_group_relation(struct Maat_compile_group_relation * cg_relation)
 {
+	assert(cg_relation->magic_num==COMPILE_RELATION_MAGIC);
 	pthread_rwlock_wrlock(&(cg_relation->rwlock));
 	cg_relation->compile_id=-1;
 	dynamic_array_destroy(cg_relation->groups, NULL);
@@ -1121,12 +1123,13 @@ void destroy_compile_group_relation(struct Maat_compile_group_relation * p, stru
 	int i=0;
 	UNUSED struct Maat_group_inner* p_group=NULL;
 	assert(p->group_cnt==0);
-	
+	assert(p->compile==NULL);
 	for(i=0;i<p->group_boundary;i++)
 	{
 		p_group=(struct Maat_group_inner*)dynamic_array_read(p->groups, i);
 		assert(p_group==NULL);
 	}
+	assert(p->magic_num==COMPILE_RELATION_MAGIC);
 	HASH_delete_by_id(scanner->compile_hash, p->compile_id);
 	garbage_bagging(GARBAGE_COMPILE_GOURP_RELATION, p, scanner->tomb_ref);
 }
@@ -1927,8 +1930,7 @@ struct Maat_group_inner* del_group_from_compile(struct Maat_compile_group_relati
 		}
 		if(group_rule->group_id==group_id)
 		{
-			group_rule->ref_by_parent_cnt--;
-			dynamic_array_write(relation->groups,i,NULL);
+			dynamic_array_write(relation->groups,i,NULL);			
 			if(relation->not_flag[i]==1)
 			{
 				relation->not_group_cnt--;
