@@ -2347,7 +2347,7 @@ int add_digest_rule(struct Maat_table_desc* table,struct db_digest_rule* db_dige
 								,db_digest_rule->confidence_degree
 								,group_rule);
 	MESA_lqueue_join_tail(table_rt->similar.update_q, &digest_rule, sizeof(void*));
-	scanner->gie_total_q_size++;
+	scanner->gie_update_q_size++;
 	return 0;
 }
 int del_region_rule(struct Maat_table_desc* table,int region_id,int group_id,int rule_type,struct Maat_scanner_t *maat_scanner,void* logger)
@@ -2401,7 +2401,7 @@ int del_region_rule(struct Maat_table_desc* table,int region_id,int group_id,int
 									,0
 									,NULL);
 			MESA_lqueue_join_tail(maat_scanner->table_rt[table->table_id]->similar.update_q,&digest_rule, sizeof(void*));
-			maat_scanner->gie_total_q_size++;
+			maat_scanner->gie_update_q_size++;
 			break;
 		default:
 			assert(0);
@@ -2464,6 +2464,7 @@ int add_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 			return -1;
 		}
 	}
+	scanner->to_update_group_cnt++;
 	return 1;
 }
 int del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_group_rule, struct Maat_scanner_t *scanner, void* logger)
@@ -2550,6 +2551,7 @@ int del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 		}
 	}
 	destroy_group_rule(group_rule, DESTROY_GROUP_BY_PARENT, scanner);
+	scanner->to_update_group_cnt++;
 	return 1;
 }
 int add_compile_rule(struct Maat_table_desc* table, struct Maat_compile_rule* db_compile_rule, struct Maat_scanner_t *scanner, void* logger)
@@ -2570,7 +2572,7 @@ int add_compile_rule(struct Maat_table_desc* table, struct Maat_compile_rule* db
 		}
 	}
 	cg_relation->compile=db_compile_rule;
-
+	scanner->to_update_compile_cnt++;
 	return 0;
 	
 }
@@ -2596,6 +2598,7 @@ int del_compile_rule(struct Maat_table_desc* table, int compile_id, struct Maat_
 	{
 		destroy_compile_group_relation(cg_relation, scanner);
 	}
+	scanner->to_update_compile_cnt++;
 	return 1;
 }
 void update_group_rule(struct Maat_table_desc* table,const char* table_line,struct Maat_scanner_t *scanner,void* logger)
@@ -3759,7 +3762,6 @@ void do_scanner_update(struct Maat_scanner_t* scanner, MESA_lqueue_head garbage_
 		}
 
 	}
-	scanner->gie_total_q_size=0;
 	if(scanner->tmp_district_map!=NULL)
 	{
 		tmp_map=scanner->district_map;
@@ -3768,7 +3770,9 @@ void do_scanner_update(struct Maat_scanner_t* scanner, MESA_lqueue_head garbage_
 		garbage_bagging(GARBAGE_MAP_STR2INT, tmp_map, garbage_q);
 	}
 	scanner->last_update_time=time(NULL);
-
+	scanner->gie_update_q_size=0;
+	scanner->to_update_group_cnt=0;
+	scanner->to_update_compile_cnt=0;
 	return;
 
 }
@@ -3889,7 +3893,7 @@ void maat_finish_cb(void* u_para)
 		feather->scanner->cfg_num=scanner_rule_num(feather->scanner);
 		feather->scanner->version=feather->maat_version;
 		expr_wait_q_cnt=MESA_lqueue_get_count(feather->scanner->region_update_q);
-		feather->postpone_q_size=expr_wait_q_cnt+feather->scanner->gie_total_q_size;
+		feather->postpone_q_size=expr_wait_q_cnt+feather->scanner->gie_update_q_size;
 		if(time(NULL)-feather->scanner->last_update_time>=feather->effect_interval_ms/1000)
 		{
 			do_scanner_update(feather->scanner
@@ -3991,6 +3995,7 @@ void *thread_rule_monitor(void *arg)
 	char md5_tmp[MD5_DIGEST_LENGTH*2+1]={0};
 	char tmp_dir[MAX_TABLE_NAME_LEN]={0};
 	struct stat attrib;
+	size_t total_wait_rule_cnt=0;
 
 	char maat_name[16];//Defined by prctl: The name can be up to 16 bytes long,and should 
 						// be null  terminated if it contains fewer bytes.
@@ -4124,8 +4129,9 @@ void *thread_rule_monitor(void *arg)
 			if(feather->scanner!=NULL)
 			{
 				expr_wait_q_cnt=MESA_lqueue_get_count(feather->scanner->region_update_q);
-				feather->postpone_q_size=expr_wait_q_cnt+feather->scanner->gie_total_q_size;
-				if(feather->postpone_q_size>0&&time(NULL)-feather->scanner->last_update_time>=feather->effect_interval_ms/1000)
+				feather->postpone_q_size=expr_wait_q_cnt+feather->scanner->gie_update_q_size;
+				total_wait_rule_cnt=feather->postpone_q_size+feather->scanner->to_update_compile_cnt+feather->scanner->to_update_group_cnt;
+				if(total_wait_rule_cnt>0&&time(NULL)-feather->scanner->last_update_time>=feather->effect_interval_ms/1000)
 				{
 					do_scanner_update(feather->scanner
 									,feather->garbage_q
