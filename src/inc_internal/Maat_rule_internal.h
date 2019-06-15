@@ -283,7 +283,9 @@ struct Maat_scanner_t
 	time_t last_update_time;
 	mcore_long_t ref_cnt;
 	rule_scanner_t region;
-	long gie_total_q_size;
+	size_t gie_update_q_size;
+	size_t to_update_group_cnt;
+	size_t to_update_compile_cnt;
 	
 	struct Maat_table_runtime* table_rt[MAX_TABLE_NUM];
 
