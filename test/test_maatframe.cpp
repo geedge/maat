@@ -347,7 +347,7 @@ TEST(StringScan, PrefixAndSuffix)
 	Maat_clean_status(&mid);
 
 }
-
+#define ExprPlusTest	1
 TEST(StringScan,   ExprPlus)
 {
 	int ret=0;
@@ -371,6 +371,8 @@ TEST(StringScan,   ExprPlus)
 						&mid, 0);
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 128);
+	
+	Maat_clean_status(&mid);
 	return;
 }
 
@@ -422,8 +424,34 @@ TEST(StringScan, ExprPlusWithOffset)
 						&mid, 0);
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 148);
+	
+	Maat_clean_status(&mid);
 	return;
 }
+
+TEST(StringScan, ExprPlusWithHex)
+{
+	int table_id=0,ret=0;
+	struct Maat_rule_t result[4];
+	const char* scan_data="text/html; charset=UTF-8";	
+	const char* region_name="Content-Type";
+	int found_pos[4];
+	table_id=Maat_table_register(g_feather, "HTTP_REGION");
+	ASSERT_GT(table_id, 0);
+	scan_status_t mid=NULL;
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, region_name, strlen(region_name));
+	ASSERT_EQ(ret, 0);
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
+						result, found_pos, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 156);
+	Maat_clean_status(&mid);
+
+	return;
+
+}
+
 TEST(IPScan, IPv4_mask)
 {
 	int table_id=0,ret=0;
@@ -908,6 +936,8 @@ TEST(StringScan, StreamInput)
 	Maat_clean_status(&mid);
 	return;
 }
+
+
 TEST(SimilarScan, Pure)
 {
 	int ret=0;
