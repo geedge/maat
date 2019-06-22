@@ -42,12 +42,12 @@ struct Maat_table_desc * acqurie_table(struct _Maat_feather_t* _feather, int tab
 	}
 	return p_table;
 }
-inline void INC_SCANNER_REF(Maat_scanner_t*scanner,int thread_num)
+inline void INC_SCANNER_REF(Maat_scanner*scanner,int thread_num)
 {
 	alignment_int64_array_add(scanner->ref_cnt, thread_num, 1);
 	return;
 }
-inline void DEC_SCANNER_REF(Maat_scanner_t*scanner,int thread_num)
+inline void DEC_SCANNER_REF(Maat_scanner*scanner,int thread_num)
 {
 
 	alignment_int64_array_add(scanner->ref_cnt, thread_num, -1);
@@ -274,30 +274,22 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	return result_cnt;
 }
 
-int exprid2region_id(struct Maat_group_inner* group_rule,int expr_id,int* district_id)
+int exprid2region_id(struct Maat_group_inner* group_rule,int expr_id,int* district_id, Maat_scanner* scanner)
 {
-	int i=0,region_id=-1;
+	int region_id=-1;
 	struct Maat_region_inner* region_rule=NULL;
 	assert(group_rule->group_id>=0);
-	pthread_mutex_lock(&(group_rule->mutex));
-	for(i=0;i<group_rule->region_boundary;i++)
-	{
-		region_rule=(struct Maat_region_inner*)dynamic_array_read(group_rule->regions, i);
-		if(region_rule==NULL)
-		{
-			continue;
-		}
-		if(expr_id>=region_rule->expr_id_lb&&expr_id<=region_rule->expr_id_ub)
-		{
-			region_id=region_rule->region_id;
-			*district_id=region_rule->district_id;
-			break;
-		}
-	}
+	int array_idx=(int)(long)HASH_fetch_by_id(scanner->exprid_hash, expr_id);
+	pthread_mutex_lock(&(group_rule->mutex));	
+	assert(array_idx<group_rule->region_boundary);
+	region_rule=(struct Maat_region_inner*)dynamic_array_read(group_rule->regions, array_idx);
+	assert(expr_id>=region_rule->expr_id_lb&&expr_id<=region_rule->expr_id_ub);
+	region_id=region_rule->region_id;
+	*district_id=region_rule->district_id;
 	pthread_mutex_unlock(&(group_rule->mutex));
 	return region_id;
 }
-int match_district(struct _OUTER_scan_status_t *_mid,scan_result_t *region_hit,int region_hit_num)
+int match_district(struct _OUTER_scan_status_t *_mid,scan_result_t *region_hit,int region_hit_num, Maat_scanner* scanner)
 {
 	struct Maat_group_inner* group_rule=NULL;
 	int i=0;
@@ -306,7 +298,7 @@ int match_district(struct _OUTER_scan_status_t *_mid,scan_result_t *region_hit,i
 	while(i<ret_region_num)
 	{
 		group_rule=(struct Maat_group_inner*)(region_hit[i].tag);
-		region_id=exprid2region_id(group_rule, region_hit[i].expr_id,&district_id);
+		region_id=exprid2region_id(group_rule, region_hit[i].expr_id,&district_id, scanner);
 		if(region_id>0&&district_id!=_mid->district_id)
 		{
 			ret_region_num--;
@@ -390,7 +382,8 @@ int hit_pos_RS2Maat(struct sub_item_pos_t* maat_sub_item,int size,rule_result_t*
 int fill_region_hit_detail(const char* scan_buff,const _INNER_scan_status_t* _mid,
 							scan_result_t *region_hit,int region_cnt,
 							_compile_result_t *compile_hit,int compile_cnt,
-							struct Maat_hit_detail_t *hit_detail,int detail_num)
+							struct Maat_hit_detail_t *hit_detail,int detail_num,
+							struct Maat_scanner* scanner)
 {
 	int i=0,j=0,k=0;
 	char r_in_c_flag[region_cnt];
@@ -414,7 +407,7 @@ int fill_region_hit_detail(const char* scan_buff,const _INNER_scan_status_t* _mi
 			pos=region_pos[j];
 			r_in_c_flag[pos]=1;
 			group_rule=(struct Maat_group_inner*)(region_hit[pos].tag);
-			region_id=exprid2region_id(group_rule,region_hit[pos].expr_id,&district_id);
+			region_id=exprid2region_id(group_rule,region_hit[pos].expr_id, &district_id, scanner);
 			if(region_id<0)
 			{
 				continue;
@@ -436,7 +429,7 @@ int fill_region_hit_detail(const char* scan_buff,const _INNER_scan_status_t* _mi
 			group_rule=(struct Maat_group_inner*)(region_hit[k].tag);
 	 		hit_detail[j].config_id=-2;
 			hit_detail[j].hit_region_cnt=1;
-			hit_detail[j].region_pos[0].region_id=exprid2region_id(group_rule,region_hit[k].expr_id,&district_id);
+			hit_detail[j].region_pos[0].region_id=exprid2region_id(group_rule,region_hit[k].expr_id,&district_id, scanner);
 			hit_detail[j].region_pos[0].sub_item_num=region_hit[k].rnum;
 			hit_pos_RS2Maat(hit_detail[j].region_pos[0].sub_item_pos,MAAT_MAX_EXPR_ITEM_NUM,
 						region_hit[k].result,region_hit[k].rnum,scan_buff);
@@ -1367,7 +1360,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	struct Maat_table_desc *p_table=NULL;
 	struct expr_table_desc* expr_desc=NULL;
 	struct timespec start,end;
-	Maat_scanner_t* my_scanner=NULL;
+	Maat_scanner* my_scanner=NULL;
 	if(data==NULL||data_len<=0)
 	{
 		return 0;
@@ -1440,7 +1433,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	}
 	if(hit_region_cnt>0&&p_table->table_type==TABLE_TYPE_EXPR_PLUS)
 	{
-		hit_region_cnt=match_district(_mid,region_result,hit_region_cnt);
+		hit_region_cnt=match_district(_mid,region_result,hit_region_cnt, my_scanner);
 	}
 	if(hit_region_cnt>0 || scan_status_should_compile_NOT(_mid))
 	{
@@ -1465,7 +1458,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 			*detail_ret=fill_region_hit_detail(data,_mid->inner,										
 											region_result,hit_region_cnt,
 											compile_result,compile_ret, 
-											hit_detail,detail_num);
+											hit_detail,detail_num, my_scanner);
 		}
 	}
 	if(_feather->perf_on==1)
@@ -1507,7 +1500,7 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 	scan_result_t *region_result=NULL;
 	_compile_result_t compile_result[rule_num];
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
-	struct Maat_scanner_t* my_scanner=NULL;
+	struct Maat_scanner* my_scanner=NULL;
 	intval_scan_data.rule_type=RULETYPE_INT;
 	intval_scan_data.sub_type=make_sub_type(table_id,CHARSET_NONE, 0);
 	intval_scan_data.int_data=intval;
@@ -1597,7 +1590,7 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	Maat_table_desc* p_table=NULL;
 	
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
-	struct Maat_scanner_t* my_scanner=NULL;
+	struct Maat_scanner* my_scanner=NULL;
 	struct timespec start,end;
 	if(_feather->perf_on==1)
 	{
@@ -1718,7 +1711,7 @@ int Maat_scan_addr(Maat_feather_t feather,int table_id
 stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,int thread_num)
 {
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
-	struct Maat_scanner_t* scanner=NULL;
+	struct Maat_scanner* scanner=NULL;
 
 	struct Maat_table_desc *p_table=NULL;
 	assert(thread_num<_feather->scan_thread_num);
@@ -1776,7 +1769,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 									,int* detail_ret,scan_status_t* mid)
 {
 	struct _stream_para_t* sp=(struct _stream_para_t*)(*stream_para);
-	struct Maat_scanner_t* scanner=sp->feather->scanner;
+	struct Maat_scanner* scanner=sp->feather->scanner;
 
 	int sub_type=0;
 	int region_ret=0,hit_region_cnt=0,compile_ret=0;
@@ -1885,7 +1878,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 	}
 	if(hit_region_cnt>0&&p_table->table_type==TABLE_TYPE_EXPR_PLUS)
 	{
-		hit_region_cnt=match_district(_mid,region_result,hit_region_cnt);	
+		hit_region_cnt=match_district(_mid, region_result, hit_region_cnt, scanner);	
 	}
 	if(hit_region_cnt>0 || scan_status_should_compile_NOT(_mid))
 	{
@@ -1912,14 +1905,14 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 				*detail_ret=fill_region_hit_detail(sp->scan_buff,_mid->inner,
 												region_result,hit_region_cnt,
 												compile_result,compile_ret,
-												hit_detail,detail_num);
+												hit_detail,detail_num, scanner);
 			}
 			else
 			{
 				*detail_ret=fill_region_hit_detail(data,_mid->inner,
 												region_result,hit_region_cnt,
 												compile_result,compile_ret,
-												hit_detail,detail_num);
+												hit_detail,detail_num, scanner);
 			}
 		}
 	}
@@ -1959,7 +1952,7 @@ int Maat_stream_scan_string(stream_para_t* stream_para
 void Maat_stream_scan_string_end(stream_para_t* stream_para)
 {
 	struct _stream_para_t* sp=(struct _stream_para_t*)(*stream_para);
-	struct Maat_scanner_t* scanner=sp->feather->scanner;
+	struct Maat_scanner* scanner=sp->feather->scanner;
 	struct Maat_table_runtime* table_rt=NULL;
 	if(scanner!=NULL)
 	{
@@ -2001,7 +1994,7 @@ void Maat_stream_scan_string_end(stream_para_t* stream_para)
 stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,unsigned long long total_len,int thread_num)
 {
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
-	struct Maat_scanner_t* scanner=NULL;
+	struct Maat_scanner* scanner=NULL;
 	sfh_instance_t * tmp_fuzzy_handle=NULL;
 	struct Maat_table_desc *p_table=NULL;
 	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_DIGEST);
@@ -2160,7 +2153,7 @@ fast_out:
 void Maat_stream_scan_digest_end(stream_para_t* stream_para)
 {
 	struct _stream_para_t* sp=(struct _stream_para_t*)(*stream_para);
-	struct Maat_scanner_t* scanner=sp->feather->scanner;
+	struct Maat_scanner* scanner=sp->feather->scanner;
 	struct Maat_table_runtime *table_rt=sp->feather->scanner->table_rt[sp->table_id];
 	alignment_int64_array_add(table_rt->stream_num, sp->thread_num,-1);
 	if(scanner!=NULL)
@@ -2257,7 +2250,7 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 	GIE_result_t region_result[MAX_SCANNER_HIT_NUM];
 	_compile_result_t compile_result[rule_num];
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
-	struct Maat_scanner_t* my_scanner=NULL;
+	struct Maat_scanner* my_scanner=NULL;
 	Maat_table_desc* p_table=NULL;
 	struct timespec start,end;
 	if(_feather->perf_on==1)

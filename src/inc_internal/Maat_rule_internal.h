@@ -277,7 +277,7 @@ struct rule_tag
 	char* tag_name;
 	char* tag_val;
 };
-struct Maat_scanner_t
+struct Maat_scanner
 {
 	long long version;
 	time_t last_update_time;
@@ -289,9 +289,10 @@ struct Maat_scanner_t
 	
 	struct Maat_table_runtime* table_rt[MAX_TABLE_NUM];
 
-	MESA_htable_handle region_hash;
-	MESA_htable_handle group_hash;
-	MESA_htable_handle compile_hash;
+	MESA_htable_handle region_hash;	//key: region_id, value: struct region_group_relation*
+	MESA_htable_handle exprid_hash;	//key: expr_id, value: int array_idx of Maat_group_inner->regions;
+	MESA_htable_handle group_hash;	//key: group_id, value: struct Maat_group_inner*
+	MESA_htable_handle compile_hash;//key: compile_id, value: struct Maat_compile_group_relation *
 
 
 	MESA_htable_handle district_map;
@@ -346,8 +347,8 @@ struct source_redis_ctx
 };
 struct _Maat_feather_t
 {
-	struct Maat_scanner_t *scanner;
-	struct Maat_scanner_t *update_tmp_scanner;
+	struct Maat_scanner *scanner;
+	struct Maat_scanner *update_tmp_scanner;
 	MESA_lqueue_head garbage_q;
 	int table_cnt;
 	int DEFERRED_LOAD_ON;
@@ -434,7 +435,7 @@ struct _maat_garbage_t
 	int ok_times;
 	union
 	{
-		struct Maat_scanner_t* scanner;
+		struct Maat_scanner* scanner;
 		struct Maat_group_inner* group_rule;
 		struct Maat_compile_rule* compile_rule;
 		struct Maat_compile_group_relation * compile_group_relation;
