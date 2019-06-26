@@ -283,9 +283,12 @@ int exprid2region_id(struct Maat_group_inner* group_rule,int expr_id,int* distri
 	pthread_mutex_lock(&(group_rule->mutex));	
 	assert(array_idx<group_rule->region_boundary);
 	region_rule=(struct Maat_region_inner*)dynamic_array_read(group_rule->regions, array_idx);
-	assert(expr_id>=region_rule->expr_id_lb&&expr_id<=region_rule->expr_id_ub);
-	region_id=region_rule->region_id;
-	*district_id=region_rule->district_id;
+	if(region_rule)
+	{
+		assert(expr_id>=region_rule->expr_id_lb&&expr_id<=region_rule->expr_id_ub);
+		region_id=region_rule->region_id;
+		*district_id=region_rule->district_id;
+	}
 	pthread_mutex_unlock(&(group_rule->mutex));
 	return region_id;
 }

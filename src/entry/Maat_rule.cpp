@@ -32,7 +32,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_7_20190612=1;
+int MAAT_FRAME_VERSION_2_7_20190626=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -1797,6 +1797,7 @@ struct Maat_group_inner* add_region_to_group(struct Maat_group_inner* group,int 
 	struct region_group_relation* relation=NULL;
 	relation=region_group_relation_get(scanner->region_hash, region_id);
 	int array_idx;
+	pthread_mutex_lock(&(group->mutex));
 	if(relation==NULL)
 	{
 		region_rule=ALLOC(struct Maat_region_inner, 1);
@@ -1806,13 +1807,12 @@ struct Maat_group_inner* add_region_to_group(struct Maat_group_inner* group,int 
 		region_rule->district_id=district_id;
 		region_rule->table_type=region_type;
 		region_rule->table_id=table_id;
-		pthread_mutex_lock(&(group->mutex));
-		dynamic_array_write(group->regions,group->region_boundary,region_rule);
+
+		dynamic_array_write(group->regions, group->region_boundary, region_rule);
 		array_idx=group->region_boundary;
 		region_group_relation_add(scanner->region_hash, region_id, group->group_id, array_idx);
-		HASH_add_by_id(scanner->exprid_hash, expr_id, (void*)(long long)group->region_boundary);
 		group->region_cnt++;
-		group->region_boundary++;		
+		group->region_boundary++;
 	}
 	else
 	{
@@ -1823,9 +1823,9 @@ struct Maat_group_inner* add_region_to_group(struct Maat_group_inner* group,int 
 		assert(expr_id==region_rule->expr_id_ub+1);
 		region_rule->expr_id_ub=expr_id;
 		region_rule->expr_id_cnt++;
-	}	
-	pthread_mutex_unlock(&(group->mutex));
+	}
 	HASH_add_by_id(scanner->exprid_hash, expr_id, (void*)(long long)array_idx);
+	pthread_mutex_unlock(&(group->mutex));
 
 	return group;
 }
@@ -1854,8 +1854,8 @@ void cancel_last_region_from_group(struct Maat_group_inner* group,int region_id,
 		region_rule->expr_id_ub--;
 		region_rule->expr_id_cnt--;
 	}
-	pthread_mutex_unlock(&(group->mutex));
 	HASH_delete_by_id(scanner->exprid_hash, expr_id);
+	pthread_mutex_unlock(&(group->mutex));	
 	return;
 }
 unsigned int del_region_from_group(struct Maat_group_inner* group,int region_id,unsigned int *output_expr_id, int output_size, struct Maat_scanner* scanner)
@@ -2007,7 +2007,7 @@ struct Maat_group_inner* del_group_from_compile(struct Maat_compile_group_relati
 	return group_rule;
 }
 
-int sync_region(MESA_htable_handle region_hash,int region_id, const char* table_name, int is_valid, void*logger)
+int sync_region(MESA_htable_handle region_hash,int region_id, int group_id, const char* table_name, int is_valid, void*logger)
 {
 	struct region_group_relation* relation=NULL;
 	relation=region_group_relation_get(region_hash, region_id);
@@ -2029,6 +2029,17 @@ int sync_region(MESA_htable_handle region_hash,int region_id, const char* table_
 								"region delete error, id %d in table %s does not exisit.",
 								region_id, table_name);
 			return -1;
+		}
+		else
+		{
+			if(group_id!=relation->group_id)
+			{
+				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+									"region delete error, id %d in table %s is already in group %d, but cmd want to delete from group %d.",
+									region_id, table_name,
+									relation->group_id, group_id);
+				return -1;
+			}
 		}
 	}
 	return 1;
@@ -2829,10 +2840,11 @@ void update_expr_rule(struct Maat_table_desc* table,const char* table_line,struc
 		table->udpate_err_cnt++;
 		goto error_out;
 	}
-	ret=sync_region(scanner->region_hash
-					,maat_str_rule->region_id
-					,table->table_name[table->updating_name]
-					,maat_str_rule->is_valid,logger);
+	ret=sync_region(scanner->region_hash,
+					maat_str_rule->region_id,
+					maat_str_rule->group_id,
+					table->table_name[table->updating_name],
+					maat_str_rule->is_valid,logger);
 	if(ret<0)
 	{
 		table->udpate_err_cnt++;
@@ -3168,10 +3180,11 @@ void update_ip_rule(struct Maat_table_desc* table, const char* table_line, struc
 			goto error_out;
 		}
 	}
-	ret=sync_region(scanner->region_hash
-					,ip_rule->region_id
-					,table->table_name[table->updating_name]
-					,ip_rule->is_valid,logger);
+	ret=sync_region(scanner->region_hash,
+					ip_rule->region_id,
+					ip_rule->group_id,
+					table->table_name[table->updating_name],
+					ip_rule->is_valid,logger);
 	if(ret<0)
 	{
 		table->udpate_err_cnt++;
@@ -3242,10 +3255,11 @@ void update_intval_rule(struct Maat_table_desc* table,const char* table_line,str
 		table->udpate_err_cnt++;
 		goto error_out;
 	}
-	ret=sync_region(scanner->region_hash
-					,intval_rule->region_id
-					,table->table_name[table->updating_name]
-					,intval_rule->is_valid,logger);
+	ret=sync_region(scanner->region_hash,
+					intval_rule->region_id,
+					intval_rule->group_id,
+					table->table_name[table->updating_name],
+					intval_rule->is_valid, logger);
 	if(ret<0)
 	{
 		table->udpate_err_cnt++;
@@ -3421,10 +3435,11 @@ void update_digest_rule(struct Maat_table_desc* table,const char* table_line,str
 		table->udpate_err_cnt++;
 		goto error_out;
 	}
-	ret=sync_region(scanner->region_hash
-					,digest_rule->region_id
-					,table->table_name[table->updating_name]
-					,digest_rule->is_valid,logger);
+	ret=sync_region(scanner->region_hash,
+					digest_rule->region_id,
+					digest_rule->group_id,
+					table->table_name[table->updating_name],
+					digest_rule->is_valid, logger);
 	if(ret<0)
 	{
 		table->udpate_err_cnt++;
