@@ -164,7 +164,6 @@ struct Maat_group_inner
 	int top_group_cnt;
 	long long* top_groups;
 	dynamic_array_t *regions;
-	struct Maat_compile_group_relation* compile_shortcut;
 	pthread_mutex_t mutex;
 };
 
@@ -416,7 +415,6 @@ struct _Maat_feather_t
 	mcore_long_t inner_mid_cnt;
 	mcore_long_t hit_cnt;
 	mcore_long_t thread_call_cnt;//size indicate by scan_thread_num, 
-	mcore_long_t orphan_group_saving;
 	mcore_long_t not_grp_hit_cnt;
 	long long total_scan_bytes;
 	long long total_scan_cnt;

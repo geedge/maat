@@ -32,7 +32,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_7_20190626=1;
+int MAAT_FRAME_VERSION_2_7_20190629=1;
 
 const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
 							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
@@ -849,7 +849,6 @@ struct Maat_group_inner* create_group_rule(int group_id, int table_id, struct Ma
 	group->region_boundary=0;
 	group->ref_by_parent_cnt=0;
 	group->regions=dynamic_array_create(1,8);
-	group->compile_shortcut=NULL;
 	group->table_id=table_id;
 	group->group_name=NULL;
 	group->vertex_id=scanner->grp_vertex_id_generator++;
@@ -1948,27 +1947,6 @@ int add_group_to_compile(struct Maat_compile_group_relation*relation, struct Maa
 	}
 	relation->group_cnt++;
 	a_rule_group->ref_by_parent_cnt++;
-	//member group->compile_shortcut may set to NULL and compile rule pointer repeatly,until rule build finish.
-	if(a_rule_group->ref_by_parent_cnt==1&&relation->group_cnt==1)
-	{
-		a_rule_group->compile_shortcut=relation;
-	}
-	else
-	{
-		a_rule_group->compile_shortcut=NULL;
-	}
-	//update group's shortcut when compile has more than one group.
-	if(relation->group_cnt!=1)
-	{
-		for(i=0;i<relation->group_boundary;i++)
-		{
-			p=(struct Maat_group_inner*)dynamic_array_read(relation->groups,i);
-			if(p!=NULL)
-			{
-				p->compile_shortcut=NULL;
-			}
-		}
-	}
 	ret=1;
 error_out:
 	pthread_rwlock_unlock(&(relation->rwlock));
@@ -1994,13 +1972,7 @@ struct Maat_group_inner* del_group_from_compile(struct Maat_compile_group_relati
 			{
 				relation->not_group_cnt--;
 				relation->not_flag[i]=0;
-			}
-			if(group_rule->compile_shortcut)
-			{
-				assert(group_rule->compile_shortcut==relation);
-				assert(group_rule->ref_by_parent_cnt==1&&relation->group_cnt==1);
-				group_rule->compile_shortcut=NULL;
-			}			
+			}		
 			relation->group_cnt--;
 			break;
 		}
@@ -2504,12 +2476,6 @@ int add_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 		if(parent_group==NULL)
 		{
 			parent_group=create_group_rule(db_group_rule->parent_id, table->table_id, scanner);
-		}
-		//A sub group is not possile to have a compile shortcut.
-		if(group_rule->compile_shortcut)
-		{
-			assert(group_rule->ref_by_parent_cnt==1);			
-			group_rule->compile_shortcut=NULL;
 		}	
 		group_rule->ref_by_parent_cnt++;
 		parent_group->ref_by_children_cnt++;
@@ -4256,7 +4222,6 @@ void *thread_rule_monitor(void *arg)
 	alignment_int64_array_free(feather->inner_mid_cnt);
 	alignment_int64_array_free(feather->outer_mid_cnt);
 	alignment_int64_array_free(feather->hit_cnt);
-	alignment_int64_array_free(feather->orphan_group_saving);
 	alignment_int64_array_free(feather->not_grp_hit_cnt);
 	if(feather->input_mode==SOURCE_REDIS)
 	{

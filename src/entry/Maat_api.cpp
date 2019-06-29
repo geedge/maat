@@ -165,7 +165,6 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 	int scan_ret=0, result_cnt=0;
 	int ret=0, i=0, j=0;
 	size_t r_in_c_cnt=0;
-	int shortcut_avilable_cnt=0;
 	unsigned char has_not_flag=0;
 	struct bool_matcher* bm=feather->scanner->bool_matcher_expr_compiler;
 	struct Maat_group_inner* group_rule=NULL;
@@ -183,11 +182,6 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 		}
 		assert(group_rule->ref_by_children_cnt>=0);
 		assert(group_rule->ref_by_parent_cnt>=0);
-		if(group_rule->compile_shortcut!=NULL&&group_rule->ref_by_parent_cnt==1&&shortcut_avilable_cnt<MAX_SCANNER_HIT_NUM)
-		{			
-			relation_array[shortcut_avilable_cnt]=(struct Maat_compile_group_relation*)(group_rule->compile_shortcut);
-			shortcut_avilable_cnt++;
-		}
 		for(j=0; j<group_rule->top_group_cnt; j++)
 		{
 			if(_mid->cur_hit_group_cnt<MAX_SCANNER_HIT_NUM)
@@ -202,27 +196,11 @@ int region_compile(_Maat_feather_t*feather,struct _INNER_scan_status_t *_mid,int
 			_mid->all_hit_group_cnt+=ret;
 		}
 	}
-	if((region_hit_num>0 &&shortcut_avilable_cnt==region_hit_num) || 
-		shortcut_avilable_cnt==MAX_SCANNER_HIT_NUM)
-	{
-		//short cut for rules contains one group
-		scan_ret=shortcut_avilable_cnt;
-		alignment_int64_array_add(feather->orphan_group_saving, thread_num, 1);
-	}
-	else if(0&&shortcut_avilable_cnt==0&&region_hit_num==1&&_mid->all_hit_group_cnt==1&&is_last_region==1)
-	{
-		//This shortcut is NO longger valid after bool macher support NOT-logic.
-		//short cut for last scan and combination rules
-		//region_hit_num==1 :  for current scan hitted rules, one and each other group may statisfy a compile rule.
-		//_mid->hit_group_cnt==1: With previously scan hitted group rules, one group may staisfy a compile rule
-		scan_ret=0;
-	}
-	else
-	{
-		scan_ret=bool_matcher_match(bm, thread_num, 
-										_mid->all_hit_group_array, _mid->all_hit_group_cnt,
-										(void **)relation_array, MAX_SCANNER_HIT_NUM);
-	}
+
+	scan_ret=bool_matcher_match(bm, thread_num, 
+								_mid->all_hit_group_array, _mid->all_hit_group_cnt,
+								(void **)relation_array, MAX_SCANNER_HIT_NUM);
+
 	if(scan_ret>1)
 	{
 		qsort(relation_array, scan_ret, sizeof(struct Maat_compile_group_relation**),
@@ -567,7 +545,6 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->outer_mid_cnt=alignment_int64_array_alloc(max_thread_num);
 	feather->inner_mid_cnt=alignment_int64_array_alloc(max_thread_num);
 	feather->hit_cnt=alignment_int64_array_alloc(max_thread_num);
-	feather->orphan_group_saving=alignment_int64_array_alloc(max_thread_num);
 	feather->not_grp_hit_cnt=alignment_int64_array_alloc(max_thread_num);
 	feather->maat_version=0;
 	feather->last_full_version=0;
