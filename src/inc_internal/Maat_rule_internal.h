@@ -135,23 +135,6 @@ struct Maat_region_inner
 	int expr_id_ub;
 	enum MAAT_TABLE_TYPE table_type;
 };
-struct Maat_group_inner
-{
-	int group_id;
-	int table_id;
-	int region_boundary;
-	int region_cnt;
-	int ref_by_parent_cnt;
-	int ref_by_children_cnt;
-	char* group_name;
-	int has_compile_neighbors;
-	int vertex_id;
-	int top_group_cnt;
-	long long* top_groups;
-	dynamic_array_t *regions;
-	void* compile_shortcut;
-	pthread_mutex_t mutex;
-};
 #define	COMPILE_RELATION_MAGIC	0x1a2b3c4d
 struct Maat_compile_group_relation
 {
@@ -166,6 +149,25 @@ struct Maat_compile_group_relation
 	pthread_rwlock_t rwlock;//reading compile rule is safe in update thread, rwlock lock called when delete or scan thread read
 
 };
+
+struct Maat_group_inner
+{
+	int group_id;
+	int table_id;
+	int region_boundary;
+	int region_cnt;
+	int ref_by_parent_cnt;
+	int ref_by_children_cnt;
+	char* group_name;
+	int has_compile_neighbors;
+	int vertex_id;
+	int top_group_cnt;
+	long long* top_groups;
+	dynamic_array_t *regions;
+	struct Maat_compile_group_relation* compile_shortcut;
+	pthread_mutex_t mutex;
+};
+
 struct _compile_result_t
 {
 	int compile_id;

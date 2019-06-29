@@ -1947,6 +1947,7 @@ int add_group_to_compile(struct Maat_compile_group_relation*relation, struct Maa
 		relation->not_flag[write_pos]=0;
 	}
 	relation->group_cnt++;
+	a_rule_group->ref_by_parent_cnt++;
 	//member group->compile_shortcut may set to NULL and compile rule pointer repeatly,until rule build finish.
 	if(a_rule_group->ref_by_parent_cnt==1&&relation->group_cnt==1)
 	{
@@ -1956,7 +1957,6 @@ int add_group_to_compile(struct Maat_compile_group_relation*relation, struct Maa
 	{
 		a_rule_group->compile_shortcut=NULL;
 	}
-	a_rule_group->ref_by_parent_cnt++;
 	//update group's shortcut when compile has more than one group.
 	if(relation->group_cnt!=1)
 	{
@@ -1995,6 +1995,12 @@ struct Maat_group_inner* del_group_from_compile(struct Maat_compile_group_relati
 				relation->not_group_cnt--;
 				relation->not_flag[i]=0;
 			}
+			if(group_rule->compile_shortcut)
+			{
+				assert(group_rule->compile_shortcut==relation);
+				assert(group_rule->ref_by_parent_cnt==1&&relation->group_cnt==1);
+				group_rule->compile_shortcut=NULL;
+			}			
 			relation->group_cnt--;
 			break;
 		}
@@ -2499,6 +2505,12 @@ int add_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 		{
 			parent_group=create_group_rule(db_group_rule->parent_id, table->table_id, scanner);
 		}
+		//A sub group is not possile to have a compile shortcut.
+		if(group_rule->compile_shortcut)
+		{
+			assert(group_rule->ref_by_parent_cnt==1);			
+			group_rule->compile_shortcut=NULL;
+		}	
 		group_rule->ref_by_parent_cnt++;
 		parent_group->ref_by_children_cnt++;
 		ret=igraph_get_eid(&scanner->group_graph, &edge_id, group_rule->vertex_id, parent_group->vertex_id, IGRAPH_DIRECTED, /*error*/ 0);
