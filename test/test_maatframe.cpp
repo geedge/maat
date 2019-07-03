@@ -307,6 +307,7 @@ TEST(StringScan, BugReport20190325)
 	EXPECT_EQ(result[0].config_id, 150);
 
 }
+#define PrefixAndSuffixTest
 TEST(StringScan, PrefixAndSuffix)
 {
 	int ret=0;
@@ -1039,6 +1040,51 @@ TEST(StringScan, OffsetChunk1460)
 {
 
 	test_offset_str_scan_with_chunk(1460);
+	return;
+}
+#define StringScan_StreamScanUTF8 1
+TEST(StringScan, StreamScanUTF8)
+{
+	//Bug report: https://mantis.mesalab.cn/view.php?id=712
+	int table_id=0,ret=0;
+	int read_size=0,pass_flag=0;
+	struct Maat_rule_t result[4];
+	scan_status_t mid=NULL;
+	const char* table_name="TROJAN_PAYLOAD";
+	const char* fn="./testdata/jd.com.html";
+	FILE* fp=fopen(fn,"r");
+	ASSERT_FALSE(fp==NULL);
+
+	char scan_data[2048];
+	table_id=Maat_table_register(g_feather,table_name);
+	ASSERT_GT(table_id, 0);
+	
+
+	struct Maat_hit_detail_t *hit_detail=(struct Maat_hit_detail_t *)malloc(sizeof(struct Maat_hit_detail_t)*10);
+	stream_para_t sp=Maat_stream_scan_string_start(g_feather,table_id,0);
+	int detail_ret=0;
+	
+	ASSERT_FALSE(sp==NULL);
+
+	while(0==feof(fp))
+	{
+		read_size=fread(scan_data,1,sizeof(scan_data),fp);
+		ret=Maat_stream_scan_string_detail(&sp,CHARSET_NONE,scan_data,read_size
+							,result,4,hit_detail,10
+							,&detail_ret,&mid);
+		if(ret>0)
+		{
+			pass_flag=1;
+			break;
+		}
+	}
+	EXPECT_EQ(pass_flag, 1);
+	EXPECT_EQ(result[0].config_id, 157);
+	
+	Maat_stream_scan_string_end(&sp);
+	free(hit_detail);
+	fclose(fp);
+	Maat_clean_status(&mid);
 	return;
 }
 

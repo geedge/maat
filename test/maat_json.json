@@ -555,7 +555,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "anything",
+            "user_region": "StringScan.UTF8EncodedURL",
             "is_valid": "yes",
             "groups": [
                 {
@@ -580,7 +580,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "NOT-logic-test1",
+            "user_region": "NOTLogic.OneRegion",
             "is_valid": "yes",
             "groups": [
                 {
@@ -621,7 +621,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "NOT-logic-test2",
+            "user_region": "NOTLogic.ScanNotAtLast",
             "is_valid": "yes",
             "groups": [
                 {
@@ -662,7 +662,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "NOT-logic-test3",
+            "user_region": "NOTLogic.ScanNotIP",
             "is_valid": "yes",
             "groups": [
                 {
@@ -692,7 +692,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "anything",
+            "user_region": "StringScan.Regex",
             "is_valid": "yes",
             "groups": [
                 {
@@ -717,7 +717,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "anything",
+            "user_region": "StringScan.UTF8EncodedURL",
             "is_valid": "yes",
             "groups": [
                 {
@@ -744,7 +744,7 @@
 				    "compile_id": 148,
 				    "service": 0,
 				    "do_blacklist": 0,
-				    "user_region": "APP_ID=100001;BEHAV_ID=100002",
+				    "user_region": "StringScan.ExprPlusWithOffset",
 				    "groups": [
 				        {
 				            "regions": [
@@ -770,7 +770,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "anything",
+            "user_region": "StringScan.Regex",
             "is_valid": "yes",
             "groups": [
                 {
@@ -796,7 +796,7 @@
             "do_blacklist": 0,
             "do_log": 0,
             "effective_rage": 0,
-            "user_region": "0",
+            "user_region": "StringScan.BugReport20190325",
             "is_valid": "yes",
             "groups": [
                 {
@@ -838,7 +838,7 @@
             "do_blacklist": 0,
             "do_log": 0,
             "effective_rage": 0,
-            "user_region": "suffix_hit",
+            "user_region": "StringScan.PrefixAndSuffix",
             "is_valid": "yes",
             "groups": [
                 {
@@ -865,7 +865,7 @@
             "do_blacklist": 0,
             "do_log": 0,
             "effective_rage": 0,
-            "user_region": "prefix_hit",
+            "user_region": "StringScan.PrefixAndSuffix",
             "is_valid": "yes",
             "groups": [
                 {
@@ -908,7 +908,7 @@
             "do_blacklist": 0,
             "do_log": 0,
             "effective_rage": 0,
-            "user_region": "group_referer_group",
+            "user_region": "Policy.SubGroup",
             "is_valid": "yes",
             "groups": [
                 {
@@ -1035,6 +1035,32 @@
                                 "expr_type": "none",
                                 "match_method": "sub",
                                 "format": "hexbin"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 157,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "StringScan.StreamScanUTF8",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "expr",
+                            "table_name": "TROJAN_PAYLOAD",
+                            "table_content": {
+                                "keywords": "我的订单",
+                                "expr_type": "none",
+                                "format": "none",
+                                "match_method": "sub"
                             }
                         }
                     ]
