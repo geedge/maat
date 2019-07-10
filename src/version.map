@@ -1,6 +1,7 @@
 VERS_2.4{
 global:
 	extern "C++" {
+		*MAAT_FRAME_VERSION_*;
 		*Maat_*;
 		*SFH_*;
 		*GIE_*;

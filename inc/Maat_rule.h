@@ -185,8 +185,8 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 
 enum MAAT_SCAN_OPT
 {
-	MAAT_SET_SCAN_DISTRICT=1,		//VALUE is a const char*,SIZE= strlen(string).DEFAULT: no default.
-	MAAT_SET_SCAN_LAST_REGION		//VALUE is NULL, SIZE=0. This option indicates that the follow scan is the last region of current scan cobination.
+	MAAT_SET_SCAN_DISTRICT=1,		//VALUE is a const char*,SIZE= strlen(string). DEFAULT: no default.
+	MAAT_SET_SCAN_LAST_REGION		//VALUE is NULL, SIZE=0. This option indicates that the follow scan is the last region of current scan combination.
 };
 //return 0 if success, return -1 when failed;
 int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCAN_OPT type,const void* value,int size);
@@ -209,7 +209,7 @@ int Maat_full_scan_string(Maat_feather_t feather,int table_id
 						,enum MAAT_CHARSET charset,const char* data,int data_len
 						,struct Maat_rule_t*result,int* found_pos,int rule_num
 						,scan_status_t* mid,int thread_num);
-//hite_detail could be NULL if unconcern
+//hit_detail could be NULL if not cared.
 int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 						,enum MAAT_CHARSET charset,const char* data,int data_len
 						,struct Maat_rule_t*result,int rule_num,struct Maat_hit_detail_t *hit_detail,int detail_num
@@ -220,7 +220,7 @@ int Maat_stream_scan_string(stream_para_t* stream_para
 									,enum MAAT_CHARSET charset,const char* data,int data_len
 									,struct Maat_rule_t*result,int* found_pos,int rule_num
 									,scan_status_t* mid);
-//hited_detail could be NULL if unconcern
+//hited_detail could be NULL if not cared.
 int Maat_stream_scan_string_detail(stream_para_t* stream_para
 									,enum MAAT_CHARSET charset,const char* data,int data_len
 									,struct Maat_rule_t*result,int rule_num,struct Maat_hit_detail_t *hit_detail,int detail_num

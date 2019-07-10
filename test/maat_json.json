@@ -1066,6 +1066,82 @@
                     ]
                 }
             ]
+        },
+        {
+            "compile_id": 158,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "IPScan.IPv4_CIDR",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "ip_plus",
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv4",
+                                "saddr_format": "CIDR",
+                                "src_ip1": "192.168.0.1",
+                                "src_ip2": "32",
+                                "sport_format": "range",
+                                "src_port1": "5210",
+                                "src_port2": "65520",
+                                "daddr_format": "CIDR",
+                                "dst_ip1": "10.0.6.1",
+                                "dst_ip2": "24",
+                                "dport_format": "mask",
+                                "dst_port1": "0",
+                                "dst_port2": "65535",
+                                "protocol": 6,
+                                "direction": "double"
+                            }
+                        }                      
+                    ],
+                    "not_flag" : 0
+                }
+            ]
+        },
+        {
+            "compile_id": 159,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "IPScan.IPv6_CIDR",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "ip_plus",
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv6",
+                                "saddr_format": "CIDR",
+                                "src_ip1": "2001:db8::",
+                                "src_ip2": "120",
+                                "sport_format": "mask",
+                                "src_port1": "5210",
+                                "src_port2": "65520",
+                                "daddr_format": "CIDR",
+                                "dst_ip1": "2001:4860:4860::8888",
+                                "dst_ip2": "65",
+                                "dport_format": "mask",
+                                "dst_port1": "0",
+                                "dst_port2": "65535",
+                                "protocol": 6,
+                                "direction": "double"
+                            }
+                        }                      
+                    ],
+                    "not_flag" : 0
+                }
+            ]
         }
     ],
     "plugin_table": [

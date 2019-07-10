@@ -452,7 +452,7 @@ TEST(StringScan, ExprPlusWithHex)
 	return;
 
 }
-
+#define	TEST_IPSCAN
 TEST(IPScan, IPv4_mask)
 {
 	int table_id=0,ret=0;
@@ -567,6 +567,62 @@ TEST(IPScan, IPv6_range)
 	return;
 
 }
+TEST(IPScan, IPv4_CIDR)
+{
+	int table_id=0,ret=0;
+	const char* table_name="IP_PLUS_CONFIG";
+	struct Maat_rule_t result[4];
+	scan_status_t mid=NULL;
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
+	inet_pton(AF_INET, "192.168.0.1", &(v4_addr.saddr));
+	v4_addr.source=htons(5210);
+	inet_pton(AF_INET, "10.0.6.210", &(v4_addr.daddr));
+	v4_addr.dest=htons(7400);
+	ipv4_addr.v4=&v4_addr;
+
+
+	table_id=Maat_table_register(g_feather, table_name);
+	
+	EXPECT_GT(table_id, 0);
+
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid, 0);
+	
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 158);
+
+	Maat_clean_status(&mid);
+	return;
+}
+TEST(IPScan, IPv6_CIDR)
+{
+	int table_id=0,ret=0;
+	struct Maat_rule_t result[4];
+	struct ipaddr ipv6_addr;
+	struct stream_tuple4_v6 v6_addr;
+	scan_status_t mid=NULL;
+	
+	ipv6_addr.addrtype=ADDR_TYPE_IPV6;
+	inet_pton(AF_INET6,"2001:db8::00fe",&(v6_addr.saddr));
+	v6_addr.source=htons(5204);//5200~5299?
+	inet_pton(AF_INET6,"2001:4860:4860::8888",&(v6_addr.daddr));
+	v6_addr.dest=htons(80);//any
+	ipv6_addr.v6=&v6_addr;
+	const char* table_name="IP_PLUS_CONFIG";
+	table_id=Maat_table_register(g_feather,table_name);
+	EXPECT_GT(table_id, 0);
+
+	//for improving performance.
+	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,NULL, 0);
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv6_addr, 6, result,4, &mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 159);
+	Maat_clean_status(&mid);
+	return;
+
+}
+#define	TEST_NOTLogic	1
 
 TEST(NOTLogic, OneRegion)
 {

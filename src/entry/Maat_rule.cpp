@@ -2894,6 +2894,7 @@ enum MAAT_IP_FORMAT
 {
 	FORMAT_RANGE,
 	FORMAT_MASK,
+	FORMAT_CIDR,
 	FORMAT_UNKNOWN
 };
 enum MAAT_IP_FORMAT ip_format_str2int(const char* format)
@@ -2906,21 +2907,124 @@ enum MAAT_IP_FORMAT ip_format_str2int(const char* format)
 	{
 		return FORMAT_MASK;
 	}
+	else if(0==strcasecmp(format, "CIDR"))
+	{
+		return FORMAT_CIDR;
+	}
 	else
 	{
 		assert(0);
 	}
 	return FORMAT_UNKNOWN;
 }
-void ipv6_mask2range(const unsigned int ip[], unsigned int mask[], unsigned int range_begin[], unsigned int range_end[])
+int ip_format2range(int ip_type, enum MAAT_IP_FORMAT format, const char* ip1, const char* ip2, unsigned int range_begin[], unsigned int range_end[])
 {
-	int i=0;
-	for(i=0; i<4; i++)
+	unsigned int ipv4_addr=0, ipv4_mask=0, ipv4_range_end=0;
+	unsigned int ipv6_addr[4]={0}, ipv6_mask[4]={0}, ipv6_range_end[4]={0};
+	int cidr=0, bit32=0;
+	int ret=0, i=0;
+	if(ip_type!=4 && ip_type!=6)
 	{
-		range_begin[i]=ip[i]&mask[i];	
-		range_end[i] = ip[i]|~mask[i];
+		assert(0);
+		return -1;
 	}
-	return;
+	if(ip_type==4)
+	{
+		ret=inet_pton(AF_INET, ip1, &ipv4_addr);
+		if(ret<=0)
+		{
+			return -1;
+		}
+		ipv4_addr=ntohl(ipv4_addr);
+		switch (format)
+		{
+			case FORMAT_RANGE:
+				range_begin[0]=ipv4_addr;
+				ret=inet_pton(AF_INET, ip2, &ipv4_range_end);
+				if(ret<=0)
+				{
+					return -1;
+				}				
+				ipv4_range_end=ntohl(ipv4_range_end);
+				range_end[0]=ipv4_range_end;
+				break;
+			case FORMAT_MASK:
+				ret=inet_pton(AF_INET, ip2, &ipv4_mask);
+				if(ret<=0)
+				{
+					return -1;
+				}
+				ipv4_mask=ntohl(ipv4_mask);
+				range_begin[0]=ipv4_addr&ipv4_mask;
+				range_end[0]=ipv4_addr|~ipv4_mask;
+				break;
+			case FORMAT_CIDR:
+				cidr=atoi(ip2);
+				if(cidr>32||cidr<0)
+				{
+					return -1;
+				}
+				ipv4_mask = (0xFFFFFFFFUL << (32 - cidr)) & 0xFFFFFFFFUL;
+				range_begin[0]=ipv4_addr&ipv4_mask;
+				range_end[0]=ipv4_addr|~ipv4_mask;
+				break;
+			default:
+				assert(0);
+		}
+	}
+	else	//ipv6
+	{
+		ret=inet_pton(AF_INET6, ip1, ipv6_addr);
+		if(ret<=0)
+		{
+			return -1;
+		}
+		ipv6_ntoh(ipv6_addr);
+		switch(format)
+		{
+			case FORMAT_RANGE:
+				ret=inet_pton(AF_INET6, ip2, ipv6_range_end);
+				if(ret<=0)
+				{
+					return -1;
+				}
+				ipv6_ntoh(ipv6_range_end);
+				memcpy(range_begin, ipv6_addr, sizeof(ipv6_addr));				
+				memcpy(range_end, ipv6_range_end, sizeof(ipv6_range_end));
+				break;
+			case FORMAT_MASK:
+				ret=inet_pton(AF_INET6, ip2, ipv6_mask);
+				if(ret<=0)
+				{
+					return -1;
+				}
+				ipv6_ntoh(ipv6_mask);
+				for(i=0; i<4; i++)
+				{
+					range_begin[i]=ipv6_addr[i]&ipv6_mask[i];	
+					range_end[i] = ipv6_addr[i]|~ipv6_mask[i];
+				}
+				break;
+			case FORMAT_CIDR:
+				cidr=atoi(ip2);
+				if(cidr>128||cidr<0)
+				{
+					return -1;
+				}
+				for(i=0; i<4; i++)
+				{
+					bit32=128-cidr-32*(3-i);
+					if(bit32<0) bit32=0;
+					ipv6_mask[i]=(0xFFFFFFFFUL << bit32) & 0xFFFFFFFFUL;
+					range_begin[i]=ipv6_addr[i]&ipv6_mask[i];	
+					range_end[i] = ipv6_addr[i]|~ipv6_mask[i];
+				}
+				break;
+			default:
+				assert(0);
+		}
+	}
+	return 0;
 }
 void update_ip_rule(struct Maat_table_desc* table, const char* table_line, struct Maat_scanner *scanner, void* logger, int group_mode_on)
 {
@@ -2933,7 +3037,6 @@ void update_ip_rule(struct Maat_table_desc* table, const char* table_line, struc
 	int ret=0;
 	int ret_array[8]={1},i=0;
 
-	unsigned int ipv4_addr1=0, ipv4_addr2=0, ipv6_addr1[4]={0}, ipv6_addr2[4]={0};
 	switch(table->table_type)
 	{
 		case TABLE_TYPE_IP:
@@ -3033,53 +3136,17 @@ void update_ip_rule(struct Maat_table_desc* table, const char* table_line, struc
 		FORMAT_UNKNOWN==ip_format_str2int(dport_format))
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module,
-							"update error, invalid addr format of ip/ip_plus table %s:%s, should be range or mask",
-							table->table_name[table->updating_name],table_line);
+							"update error, invalid addr format of ip/ip_plus table %s:%s, should be range, mask or CIDR",
+							table->table_name[table->updating_name], table_line);
 		table->udpate_err_cnt++;
 		goto error_out;
 	}
+
 	if(ip_rule->addr_type==4)
 	{
-		ret_array[0]=inet_pton(AF_INET, src_ip1, &ipv4_addr1);
-		ipv4_addr1=ntohl(ipv4_addr1);
-		ret_array[1]=inet_pton(AF_INET, src_ip2, &ipv4_addr2);
-		ipv4_addr2=ntohl(ipv4_addr2);
-		if(FORMAT_MASK==ip_format_str2int(saddr_format))
-		{
-			// min_saddr=(saddr&mask) max_saddr=(saddr|~mask)
-			ip_rule->ipv4_rule.min_saddr=ipv4_addr1&ipv4_addr2;
-			ip_rule->ipv4_rule.max_saddr=ipv4_addr1|~ipv4_addr2;
-		}
-		else
-		{
-			ip_rule->ipv4_rule.min_saddr=ipv4_addr1;
-			ip_rule->ipv4_rule.max_saddr=ipv4_addr2;
-		}
-		if(FORMAT_MASK==ip_format_str2int(sport_format))
-		{
-			ip_rule->ipv4_rule.min_sport=src_port1&src_port2;
-			ip_rule->ipv4_rule.max_sport=src_port1|~src_port2;			
-		}
-		else
-		{
-			ip_rule->ipv4_rule.min_sport=src_port1;
-			ip_rule->ipv4_rule.max_sport=src_port2;
-		}
+		ret_array[0]=ip_format2range(ip_rule->addr_type, ip_format_str2int(saddr_format), src_ip1, src_ip2, &ip_rule->ipv4_rule.min_saddr, &ip_rule->ipv4_rule.max_saddr);
+		ret_array[1]=ip_format2range(ip_rule->addr_type, ip_format_str2int(daddr_format), dst_ip1, dst_ip2, &ip_rule->ipv4_rule.min_daddr, &ip_rule->ipv4_rule.max_daddr);
 		
-		ret_array[2]=inet_pton(AF_INET, dst_ip1, &ipv4_addr1);
-		ipv4_addr1=ntohl(ipv4_addr1);
-		ret_array[3]=inet_pton(AF_INET, dst_ip2, &ipv4_addr2);
-		ipv4_addr2=ntohl(ipv4_addr2);	
-		if(FORMAT_MASK==ip_format_str2int(daddr_format))
-		{
-			ip_rule->ipv4_rule.min_daddr=ipv4_addr1&ipv4_addr2;
-			ip_rule->ipv4_rule.max_daddr=ipv4_addr1|~ipv4_addr2;
-		}
-		else
-		{
-			ip_rule->ipv4_rule.min_daddr=ipv4_addr1;
-			ip_rule->ipv4_rule.max_daddr=ipv4_addr2;
-		}		
 		if(FORMAT_MASK==ip_format_str2int(dport_format))
 		{
 			ip_rule->ipv4_rule.min_dport=dst_port1&dst_port2;
@@ -3095,45 +3162,9 @@ void update_ip_rule(struct Maat_table_desc* table, const char* table_line, struc
 	}
 	else
 	{
-		ret_array[0]=inet_pton(AF_INET6, src_ip1, ipv6_addr1);
-		ipv6_ntoh(ipv6_addr1);
-		ret_array[1]=inet_pton(AF_INET6, src_ip2, ipv6_addr2);
-		ipv6_ntoh(ipv6_addr2);
-		if(FORMAT_MASK==ip_format_str2int(saddr_format))
-		{
-			// min_saddr=(saddr&mask) max_saddr=(saddr|~mask)
-			ipv6_mask2range(ipv6_addr1, ipv6_addr2, ip_rule->ipv6_rule.min_saddr, ip_rule->ipv6_rule.max_saddr);
-		}
-		else
-		{
-			memcpy(ip_rule->ipv6_rule.min_saddr, ipv6_addr1, sizeof(ip_rule->ipv6_rule.min_saddr));
-			memcpy(ip_rule->ipv6_rule.max_saddr, ipv6_addr2, sizeof(ip_rule->ipv6_rule.max_saddr));
-		}
-		if(FORMAT_MASK==ip_format_str2int(sport_format))
-		{
-			ip_rule->ipv6_rule.min_sport=src_port1&src_port2;
-			ip_rule->ipv6_rule.max_sport=src_port1|~src_port2;			
-		}
-		else
-		{
-			ip_rule->ipv6_rule.min_sport=src_port1;
-			ip_rule->ipv6_rule.max_sport=src_port2;
-		}
+		ret_array[0]=ip_format2range(ip_rule->addr_type, ip_format_str2int(saddr_format), src_ip1, src_ip2, ip_rule->ipv6_rule.min_saddr, ip_rule->ipv6_rule.max_saddr);
+		ret_array[1]=ip_format2range(ip_rule->addr_type, ip_format_str2int(daddr_format), dst_ip1, dst_ip2, ip_rule->ipv6_rule.min_daddr, ip_rule->ipv6_rule.max_daddr);
 
-		ret_array[2]=inet_pton(AF_INET6, dst_ip1, &ipv6_addr1);
-		ipv6_ntoh(ipv6_addr1);
-		ret_array[3]=inet_pton(AF_INET6, dst_ip2, &ipv6_addr2);
-		ipv6_ntoh(ipv6_addr2);
-		if(FORMAT_MASK==ip_format_str2int(daddr_format))
-		{
-			// min_saddr=(saddr&mask) max_saddr=(saddr|~mask)
-			ipv6_mask2range(ipv6_addr1, ipv6_addr2, ip_rule->ipv6_rule.min_daddr, ip_rule->ipv6_rule.max_daddr);
-		}
-		else
-		{
-			memcpy(ip_rule->ipv6_rule.min_daddr, ipv6_addr1, sizeof(ip_rule->ipv6_rule.min_daddr));
-			memcpy(ip_rule->ipv6_rule.max_daddr, ipv6_addr2, sizeof(ip_rule->ipv6_rule.max_daddr));
-		}
 		if(FORMAT_MASK==ip_format_str2int(dport_format))
 		{
 			ip_rule->ipv6_rule.min_dport=dst_port1&dst_port2;
@@ -3149,7 +3180,7 @@ void update_ip_rule(struct Maat_table_desc* table, const char* table_line, struc
 	}
 	for(i=0;i<4;i++)
 	{
-		if(ret_array[i]<=0)
+		if(ret_array[i]<0)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
 								"update error, invalid IP address format of ip table %s:%s"
