@@ -42,14 +42,16 @@ void wait_for_cmd_effective(Maat_feather_t feather, long long version_before)
 {
 	long long	version_after=version_before;
 	int is_updating=1;
+	long long wating_us=0, sleep_us=1000*100;
 	while(is_updating||version_before==version_after)
 	{
 		Maat_read_state(feather,MAAT_STATE_IN_UPDATING, &is_updating, sizeof(is_updating));
 		Maat_read_state(feather,MAAT_STATE_VERSION, &version_after, sizeof(version_after));
 
-		usleep(1000*100);//waiting for commands go into effect
+		usleep(sleep_us);//waiting for commands go into effect
+		wating_us+=sleep_us;
 	}
-
+//	printf("wait for %lld ms\n", wating_us/1000);
 }
 
 void scan_with_old_or_new_cfg(Maat_feather_t feather, int hit_old)
@@ -305,41 +307,48 @@ TEST(StringScan, BugReport20190325)
 	EXPECT_EQ(result[0].config_id, 150);
 
 }
+#define PrefixAndSuffixTest
 TEST(StringScan, PrefixAndSuffix)
 {
 	int ret=0;
-	int table_id=0;
+	int mail_addr_table=0, cont_sz_table=0;
 	struct Maat_rule_t result[4];
 	int found_pos[4];
-	const char* table_name="MAIL_ADDR";
 	scan_status_t mid=NULL;
 	const char* hit_twice="ceshi3@mailhost.cn";
 	const char* hit_suffix="11111111111ceshi3@mailhost.cn";
 	const char* hit_prefix="ceshi3@mailhost.cn11111111111";
-	table_id=Maat_table_register(g_feather,table_name);
-	ASSERT_GT(table_id, 0);
+
 	
-	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, hit_twice, strlen(hit_twice), 
+	cont_sz_table=Maat_table_register(g_feather, "CONTENT_SIZE");
+	ret=Maat_scan_intval(g_feather, cont_sz_table, 2015, 
+					result, 4, &mid, 0);
+	mail_addr_table=Maat_table_register(g_feather, "MAIL_ADDR");
+	ASSERT_GT(mail_addr_table, 0);
+	ret=Maat_full_scan_string(g_feather, mail_addr_table,CHARSET_GBK, hit_twice, strlen(hit_twice), 
 						result,found_pos, 4, &mid, 0);
 	EXPECT_EQ(ret, 2);
-	EXPECT_EQ(result[0].config_id, 152);
-	EXPECT_EQ(result[1].config_id, 151);
+	EXPECT_EQ(result[0].config_id, 151);//compile has more groups is priority
+	EXPECT_EQ(result[1].config_id, 152);
 	Maat_clean_status(&mid);
 	
-	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, hit_suffix, strlen(hit_suffix), 
+	ret=Maat_full_scan_string(g_feather, mail_addr_table,CHARSET_GBK, hit_suffix, strlen(hit_suffix), 
 						result,found_pos, 4, &mid, 0);
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 151);
 	Maat_clean_status(&mid);
 
-	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, hit_prefix, strlen(hit_prefix), 
+	ret=Maat_scan_intval(g_feather, cont_sz_table, 2015, 
+					result, 4, &mid, 0);
+
+	ret=Maat_full_scan_string(g_feather, mail_addr_table,CHARSET_GBK, hit_prefix, strlen(hit_prefix), 
 						result,found_pos, 4, &mid, 0);
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 152);
 	Maat_clean_status(&mid);
 
 }
-
+#define ExprPlusTest	1
 TEST(StringScan,   ExprPlus)
 {
 	int ret=0;
@@ -363,6 +372,8 @@ TEST(StringScan,   ExprPlus)
 						&mid, 0);
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 128);
+	
+	Maat_clean_status(&mid);
 	return;
 }
 
@@ -414,9 +425,35 @@ TEST(StringScan, ExprPlusWithOffset)
 						&mid, 0);
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 148);
+	
+	Maat_clean_status(&mid);
 	return;
 }
-TEST(IPScan, IPv4)
+
+TEST(StringScan, ExprPlusWithHex)
+{
+	int table_id=0,ret=0;
+	struct Maat_rule_t result[4];
+	const char* scan_data="text/html; charset=UTF-8";	
+	const char* region_name="Content-Type";
+	int found_pos[4];
+	table_id=Maat_table_register(g_feather, "HTTP_REGION");
+	ASSERT_GT(table_id, 0);
+	scan_status_t mid=NULL;
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, region_name, strlen(region_name));
+	ASSERT_EQ(ret, 0);
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
+						result, found_pos, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 156);
+	Maat_clean_status(&mid);
+
+	return;
+
+}
+#define	TEST_IPSCAN
+TEST(IPScan, IPv4_mask)
 {
 	int table_id=0,ret=0;
 	const char* table_name="IP_CONFIG";
@@ -449,7 +486,7 @@ TEST(IPScan, IPv4)
 	Maat_clean_status(&mid);
 	return;
 }
-TEST(IPScan, IPv6)
+TEST(IPScan, IPv6_mask)
 {
 	int table_id=0,ret=0;
 	struct Maat_rule_t result[4];
@@ -474,6 +511,119 @@ TEST(IPScan, IPv6)
 	Maat_clean_status(&mid);
 	return;
 }
+TEST(IPScan, IPv4_range)
+{
+	int table_id=0,ret=0;
+	const char* table_name="IP_PLUS_CONFIG";
+	struct Maat_rule_t result[4];
+	scan_status_t mid=NULL;
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
+	inet_pton(AF_INET, "10.0.7.106", &(v4_addr.saddr));
+	v4_addr.source=htons(5000);
+	inet_pton(AF_INET, "123.56.104.254", &(v4_addr.daddr));
+	v4_addr.dest=htons(7400);
+	ipv4_addr.v4=&v4_addr;
+
+
+	table_id=Maat_table_register(g_feather, table_name);
+	
+	EXPECT_GT(table_id, 0);
+
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid, 0);
+	
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 154);
+
+	Maat_clean_status(&mid);
+	return;
+}
+
+TEST(IPScan, IPv6_range)
+{
+	int table_id=0,ret=0;
+	struct Maat_rule_t result[4];
+	struct ipaddr ipv6_addr;
+	struct stream_tuple4_v6 v6_addr;
+	scan_status_t mid=NULL;
+	
+	ipv6_addr.addrtype=ADDR_TYPE_IPV6;
+	inet_pton(AF_INET6,"1001:da8:205:1::151",&(v6_addr.saddr));
+	v6_addr.source=htons(5204);//5200~5299?
+	inet_pton(AF_INET6,"3001:da8:205:1::901",&(v6_addr.daddr));
+	v6_addr.dest=htons(80);//any
+	ipv6_addr.v6=&v6_addr;
+	const char* table_name="IP_PLUS_CONFIG";
+	table_id=Maat_table_register(g_feather,table_name);
+	EXPECT_GT(table_id, 0);
+
+	//for improving performance.
+	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,NULL, 0);
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv6_addr, 6, result,4, &mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 155);
+	Maat_clean_status(&mid);
+	return;
+
+}
+TEST(IPScan, IPv4_CIDR)
+{
+	int table_id=0,ret=0;
+	const char* table_name="IP_PLUS_CONFIG";
+	struct Maat_rule_t result[4];
+	scan_status_t mid=NULL;
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
+	inet_pton(AF_INET, "192.168.0.1", &(v4_addr.saddr));
+	v4_addr.source=htons(5210);
+	inet_pton(AF_INET, "10.0.6.210", &(v4_addr.daddr));
+	v4_addr.dest=htons(7400);
+	ipv4_addr.v4=&v4_addr;
+
+
+	table_id=Maat_table_register(g_feather, table_name);
+	
+	EXPECT_GT(table_id, 0);
+
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid, 0);
+	
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 158);
+
+	Maat_clean_status(&mid);
+	return;
+}
+TEST(IPScan, IPv6_CIDR)
+{
+	int table_id=0,ret=0;
+	struct Maat_rule_t result[4];
+	struct ipaddr ipv6_addr;
+	struct stream_tuple4_v6 v6_addr;
+	scan_status_t mid=NULL;
+	
+	ipv6_addr.addrtype=ADDR_TYPE_IPV6;
+	inet_pton(AF_INET6,"2001:db8::00fe",&(v6_addr.saddr));
+	v6_addr.source=htons(5204);//5200~5299?
+	inet_pton(AF_INET6,"2001:4860:4860::8888",&(v6_addr.daddr));
+	v6_addr.dest=htons(80);//any
+	ipv6_addr.v6=&v6_addr;
+	const char* table_name="IP_PLUS_CONFIG";
+	table_id=Maat_table_register(g_feather,table_name);
+	EXPECT_GT(table_id, 0);
+
+	//for improving performance.
+	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,NULL, 0);
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv6_addr, 6, result,4, &mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 159);
+	Maat_clean_status(&mid);
+	return;
+
+}
+#define	TEST_NOTLogic	1
+
 TEST(NOTLogic, OneRegion)
 {
 	const char* string_should_hit="This string ONLY contains must-contained-string-of-rule-143.";
@@ -489,15 +639,15 @@ TEST(NOTLogic, OneRegion)
 	ASSERT_GT(table_id, 0);
 	
 	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,  NULL, 0);
-	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_hit, strlen(string_should_hit), 
-						result,found_pos, 4, &mid, 0);
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, string_should_hit, strlen(string_should_hit), 
+						result, found_pos, 4, &mid, 0);
 						
 	EXPECT_GE(ret, 1);
 	Maat_clean_status(&mid);
 
 	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION,  NULL, 0);
-	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, string_should_not_hit, strlen(string_should_not_hit), 
-						result,found_pos, 4, &mid, 0);
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, string_should_not_hit, strlen(string_should_not_hit), 
+						result, found_pos, 4, &mid, 0);
 						
 	EXPECT_EQ(ret, -2);
 	Maat_clean_status(&mid);
@@ -713,7 +863,7 @@ TEST(StringScan, UTF8EncodedURL)
 	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, url_utf8_qs, strlen(url_utf8_qs), 
 						result,found_pos, 4,
 						&mid, 0);
-	EXPECT_GT(ret, 1);
+	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 142);
 	Maat_clean_status(&mid);
 
@@ -843,6 +993,8 @@ TEST(StringScan, StreamInput)
 	Maat_clean_status(&mid);
 	return;
 }
+
+
 TEST(SimilarScan, Pure)
 {
 	int ret=0;
@@ -946,6 +1098,51 @@ TEST(StringScan, OffsetChunk1460)
 	test_offset_str_scan_with_chunk(1460);
 	return;
 }
+#define StringScan_StreamScanUTF8 1
+TEST(StringScan, StreamScanUTF8)
+{
+	//Bug report: https://mantis.mesalab.cn/view.php?id=712
+	int table_id=0,ret=0;
+	int read_size=0,pass_flag=0;
+	struct Maat_rule_t result[4];
+	scan_status_t mid=NULL;
+	const char* table_name="TROJAN_PAYLOAD";
+	const char* fn="./testdata/jd.com.html";
+	FILE* fp=fopen(fn,"r");
+	ASSERT_FALSE(fp==NULL);
+
+	char scan_data[2048];
+	table_id=Maat_table_register(g_feather,table_name);
+	ASSERT_GT(table_id, 0);
+	
+
+	struct Maat_hit_detail_t *hit_detail=(struct Maat_hit_detail_t *)malloc(sizeof(struct Maat_hit_detail_t)*10);
+	stream_para_t sp=Maat_stream_scan_string_start(g_feather,table_id,0);
+	int detail_ret=0;
+	
+	ASSERT_FALSE(sp==NULL);
+
+	while(0==feof(fp))
+	{
+		read_size=fread(scan_data,1,sizeof(scan_data),fp);
+		ret=Maat_stream_scan_string_detail(&sp,CHARSET_NONE,scan_data,read_size
+							,result,4,hit_detail,10
+							,&detail_ret,&mid);
+		if(ret>0)
+		{
+			pass_flag=1;
+			break;
+		}
+	}
+	EXPECT_EQ(pass_flag, 1);
+	EXPECT_EQ(result[0].config_id, 157);
+	
+	Maat_stream_scan_string_end(&sp);
+	free(hit_detail);
+	fclose(fp);
+	Maat_clean_status(&mid);
+	return;
+}
 
 void accept_tags_entry_cb(int table_id,const char* table_line,void* u_para)
 {
@@ -959,7 +1156,7 @@ void accept_tags_entry_cb(int table_id,const char* table_line,void* u_para)
 	return;
 }
 
-TEST(RuleTags, Plugin1)
+TEST(Policy, PluginRuleTags1)
 {
 #define RuleTags_Plugin
 	int ret=0;
@@ -985,7 +1182,7 @@ void accept_tags_entry2_cb(int table_id,const char* table_line,void* u_para)
 	return;
 }
 
-TEST(RuleTags, Plugin2)
+TEST(Policy, PluginRuleTags2)
 {
 #define RuleTags_Plugin2
 	int ret=0;
@@ -1005,7 +1202,7 @@ TEST(RuleTags, Plugin2)
 	return;
 }
 
-TEST(RuleTags, Compile)
+TEST(Policy, CompileRuleTags)
 {
 #define RuleTags_Compile
 	int ret=0;
@@ -1086,7 +1283,7 @@ void compile_ex_param_dup(int idx,	MAAT_RULE_EX_DATA *to, MAAT_RULE_EX_DATA *fro
 
 
 
-TEST(EX_DATA_INDEX, MaatRuleEXData)
+TEST(Policy, CompileEXData)
 {
 #define rule_EX_data_index
 
@@ -1117,6 +1314,42 @@ TEST(EX_DATA_INDEX, MaatRuleEXData)
 	EXPECT_EQ(param->id, 7799);
 	EXPECT_EQ(strcmp(param->name, expect_name),0);
 	compile_ex_param_free(0, NULL, NULL, &ex_data, 0, NULL);
+	Maat_clean_status(&mid);
+	return;
+}
+TEST(Policy, SubGroup)
+{
+#define TestSubGroup
+	int ret=0, table_id=0;
+	const char* scan_string="ceshi6@mailhost.cn";
+	struct Maat_rule_t result[4];
+	memset(result, 0, sizeof(result));
+	
+	scan_status_t mid=NULL;
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
+	inet_pton(AF_INET,"10.0.6.205",&(v4_addr.saddr));
+	v4_addr.source=htons(50001);
+	inet_pton(AF_INET,"10.0.6.201",&(v4_addr.daddr));
+	v4_addr.dest=htons(80);
+	ipv4_addr.v4=&v4_addr;
+
+	table_id=Maat_table_register(g_feather,"MAIL_ADDR");
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, scan_string, strlen(scan_string), 
+						result,NULL, 4, &mid, 0);
+	EXPECT_EQ(ret, -2);
+	
+	table_id=Maat_table_register(g_feather, "IP_CONFIG");	
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid,0);	
+	
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 153);
+	
 	Maat_clean_status(&mid);
 	return;
 }
@@ -1374,6 +1607,7 @@ protected:
 	static int linger_timeout;
 };
 Maat_feather_t MaatCmdTest::_shared_feather;
+
 void* MaatCmdTest::logger;
 
 int MaatCmdTest::linger_timeout;
@@ -1475,7 +1709,7 @@ TEST_F(MaatCmdTest, SetIP)
 	EXPECT_GE(ret, 0);
 	Maat_free_cmd(cmd);
 	cmd=NULL;
-	
+
 	wait_for_cmd_effective(feather, version_before);
 	struct ipaddr ipv4_addr;
 	struct stream_tuple4_v4 v4_addr;
@@ -1503,10 +1737,11 @@ TEST_F(MaatCmdTest, SetIP)
 
 	//reset timeout.
 	cmd=Maat_create_cmd(&rule, 0);
-	cmd->expire_after=10;
+	cmd->expire_after=timeout+5;
 	ret=Maat_cmd(feather, cmd, MAAT_OP_RENEW_TIMEOUT);
 	EXPECT_EQ(ret ,1);
-	
+
+//	RENEW_TIMEOUT doesn't change MAAT_VERSION, thus we cannot use wait_for_cmd_effective.
 //	wait_for_cmd_effective(feather, version_before);
 	
 	Maat_free_cmd(cmd);
@@ -1608,7 +1843,7 @@ TEST_F(MaatCmdTest,  RuleIDRecycle)
 
 	struct Maat_rule_t result;
 	scan_status_t mid=NULL;
-
+	memset(&result, 0, sizeof(result));
 	int table_id=0;
 	table_id=Maat_table_register(feather,table_name);
 	ASSERT_GT(table_id, 0);
@@ -1658,7 +1893,7 @@ TEST_F(MaatCmdTest,  ReturnRuleIDWithDescendingOrder)
 
 
 	int table_id=0;
-	table_id=Maat_table_register(feather,table_name);
+	table_id=Maat_table_register(feather, table_name);
 	ASSERT_GT(table_id, 0);
 
 	int i=0, repeat_times=4;
@@ -1677,6 +1912,7 @@ TEST_F(MaatCmdTest,  ReturnRuleIDWithDescendingOrder)
 	ret=Maat_cmd_commit(feather);
 	EXPECT_TRUE(ret>=0);
 	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
+	memset(&result, 0, sizeof(result));
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
 						result, NULL, 8,
 						&mid, 0);
@@ -1689,7 +1925,256 @@ TEST_F(MaatCmdTest,  ReturnRuleIDWithDescendingOrder)
 	}
 	return;
 }
+#define MaatCmdTest_SubGroup	0
+TEST_F(MaatCmdTest,    SubGroup)
+{
 
+	const char* table_name="HTTP_URL";
+	const char* group_table_name="GROUP";
+	const char* compile_table_name="COMPILE";
+	const char* scan_data1="www.v2ex.com/t/573028#程序员的核心竞争力是什么";
+	const char* keyword1="程序员&核心竞争力";
+
+	const char* scan_data2="https://ask.leju.com/bj/detail/12189672562229248/?bi=tg&type=sina-pc&pos=index-dbtlwzl&wt_campaign=M_5CE750003F393&wt_source=PDPS_514ACACFD9E770";
+//	const char* keyword2="ask.leju.com/bj/detail/12189672562229248/?bi=tg&type=sina-pc&pos=index-dbtlwzl&wt_campaign=M_5CE750003F393&wt_source=PDPS_514ACACFD9E770";
+	const char* keyword2="ask.leju.com/b&/detail/12189672562229248/?&?bi=tg\\&type=sina-pc\\&&\\&pos=index-dbtlwzl\\&&\\&type=sina-pc\\&pos=index-dbtlwzl\\&";
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+	int table_id=0;
+	table_id=Maat_table_register(feather, table_name);
+	struct Maat_rule_t compile1, compile2;
+	struct Maat_group_t group1, group2, group3;
+	struct Maat_region_t region1,region2;
+	memset(&compile1, 0, sizeof(compile1));
+	compile1.config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 1);
+
+	memset(&compile2, 0, sizeof(compile2));
+	compile2.config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile2, compile_table_name, NULL, 1);
+
+	//group1->compile1
+	memset(&group1, 0, sizeof(group1));
+	group1.group_id=Maat_cmd_get_new_group_id(feather);
+	group1.table_name=group_table_name;
+	group1.parent_id=compile1.config_id;
+	group1.parent_type=PARENT_TYPE_COMPILE;
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group1);
+
+	//group1->compile2
+	group1.parent_id=compile2.config_id;
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group1);
+
+	/*group2->group1->compile1
+	              \
+	               \__compile2
+	*/
+	memset(&group2, 0, sizeof(group2));
+	group2.group_id=Maat_cmd_get_new_group_id(feather);
+	group2.table_name=group_table_name;
+	group2.parent_id=group1.group_id;
+	group2.parent_type=PARENT_TYPE_GROUP;
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group2);
+
+	/*region1->group2->group1->compile1
+	                        \
+	                         \_compile2
+	*/
+	memset(&region1, 0, sizeof(region1));
+	region1.region_id=Maat_cmd_get_new_region_id(feather);
+	region1.region_type=REGION_EXPR;
+	region1.table_name=table_name;
+	region1.expr_rule.keywords=keyword1;
+	region1.expr_rule.expr_type=EXPR_TYPE_AND;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region1, group2.group_id);
+	sleep(1);
+	struct Maat_rule_t result[4];
+	memset(&result, 0, sizeof(result));
+	
+	scan_status_t mid=NULL;
+	int ret=0;
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data1, strlen(scan_data1), 
+						result, NULL, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, 2);
+	EXPECT_EQ(result[0].config_id, compile2.config_id);
+	EXPECT_EQ(result[1].config_id, compile1.config_id);
+	Maat_clean_status(&mid);
+
+
+	/*region1->group2->group1->compile1
+						\
+	                     \--X--compile2
+	*/
+	Maat_command_raw_set_group(feather, MAAT_OP_DEL, &group1);
+	sleep(1);
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data1, strlen(scan_data1), 
+						result, NULL, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, compile1.config_id);
+	Maat_clean_status(&mid);
+
+
+	/*region1->group2->group1--X--
+				 \
+	              \->compile2
+	*/
+	group1.parent_id=compile1.config_id;
+	Maat_command_raw_set_group(feather, MAAT_OP_DEL, &group1);
+	Maat_command_raw_set_compile(feather, MAAT_OP_DEL, &compile1, compile_table_name, NULL, 1);
+	group2.parent_type=PARENT_TYPE_COMPILE;
+	group2.parent_id=compile2.config_id;
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group2);
+
+	sleep(1);
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data1, strlen(scan_data1), 
+						result, NULL, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, compile2.config_id);
+	Maat_clean_status(&mid);
+
+
+	/*region1->group2->group1--X--
+				 \
+	              \->compile2
+	  region2->group3
+	*/
+
+	memset(&group3, 0, sizeof(group3));
+	group3.group_id=Maat_cmd_get_new_group_id(feather);
+	group3.parent_id=group1.group_id;
+	group3.parent_type=PARENT_TYPE_GROUP;
+	group3.table_name=group_table_name;
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group3);
+
+	memset(&region2, 0, sizeof(region2));
+	region2.region_id=Maat_cmd_get_new_region_id(feather);
+	region2.region_type=REGION_EXPR;
+	region2.table_name=table_name;
+	region2.expr_rule.keywords=keyword2;
+	region2.expr_rule.expr_type=EXPR_TYPE_AND;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region2, group3.group_id);
+
+	sleep(1);
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data2, strlen(scan_data2), 
+						result, NULL, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, -2);
+	Maat_clean_status(&mid);
+
+	/*region1->group2->group1--X--
+				 \
+	              \->compile2
+	  region2->group3
+	*/
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 1);
+	group1.parent_id=compile1.config_id;
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group1);
+
+	Maat_command_raw_set_compile(feather, MAAT_OP_DEL, &compile1, compile_table_name, NULL, 1);
+	group1.parent_id=compile1.config_id;
+	Maat_command_raw_set_group(feather, MAAT_OP_DEL, &group1);
+
+	sleep(1);
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data1, strlen(scan_data1), 
+						result, NULL, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, compile2.config_id);
+
+	Maat_clean_status(&mid);
+
+}
+#define MaatCmdTest_RefGroup	0
+TEST_F(MaatCmdTest,    RefGroup)
+{
+
+	const char* table_name="HTTP_URL";
+	const char* group_table_name="GROUP";
+	const char* compile_table_name="COMPILE";
+	const char* scan_data1="m.facebook.com/help/2297503110373101?helpref=hc_nav&refid=69";
+	const char* keyword1="something-should-not-hit";
+	const char* keyword2="facebook.com/help/2297503110373101";
+
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+	int table_id=0;
+	table_id=Maat_table_register(feather, table_name);
+	struct Maat_rule_t compile1;
+	struct Maat_group_t group1, group2;
+	struct Maat_region_t region1, region2;
+	
+	int value=0;
+	Maat_set_feather_opt(feather, MAAT_OPT_ENABLE_UPDATE, &value, sizeof(value));
+
+	memset(&compile1, 0, sizeof(compile1));
+	compile1.config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 1);
+
+	//group1->compile1
+	memset(&group1, 0, sizeof(group1));
+	group1.group_id=Maat_cmd_get_new_group_id(feather);
+	group1.table_name=group_table_name;
+	group1.parent_id=compile1.config_id;
+	group1.parent_type=PARENT_TYPE_COMPILE;
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group1);
+
+
+	/*region1->group1->compile1
+	*/
+	memset(&region1, 0, sizeof(region1));
+	region1.region_id=Maat_cmd_get_new_region_id(feather);
+	region1.region_type=REGION_EXPR;
+	region1.table_name=table_name;
+	region1.expr_rule.keywords=keyword1;
+	region1.expr_rule.expr_type=EXPR_TYPE_AND;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region1, group1.group_id);
+	value=1;
+	Maat_set_feather_opt(feather, MAAT_OPT_ENABLE_UPDATE, &value, sizeof(value));
+
+	sleep(1);
+	
+	value=0;
+	Maat_set_feather_opt(feather, MAAT_OPT_ENABLE_UPDATE, &value, sizeof(value));
+	//region1->group1-X-compile1
+	//region2->group2->compile1
+	memset(&group2, 0, sizeof(group2));
+	group2.group_id=Maat_cmd_get_new_group_id(feather);
+	group2.table_name=group_table_name;
+	group2.parent_id=compile1.config_id;
+	group2.parent_type=PARENT_TYPE_COMPILE;
+
+	memset(&region2, 0, sizeof(region2));
+	region2.region_id=Maat_cmd_get_new_region_id(feather);
+	region2.region_type=REGION_EXPR;
+	region2.table_name=table_name;
+	region2.expr_rule.keywords=keyword2;
+	region2.expr_rule.expr_type=EXPR_TYPE_AND;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region2, group2.group_id);
+
+
+	Maat_command_raw_set_compile(feather, MAAT_OP_DEL, &compile1, compile_table_name, NULL, 1);	
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 1);	
+	Maat_command_raw_set_group(feather, MAAT_OP_DEL, &group1);
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group2);
+	value=1;
+	Maat_set_feather_opt(feather, MAAT_OPT_ENABLE_UPDATE, &value, sizeof(value));
+	
+	sleep(1);
+
+	struct Maat_rule_t result[4];
+	memset(&result, 0, sizeof(result));
+	
+	scan_status_t mid=NULL;
+	int ret=0;
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data1, strlen(scan_data1), 
+						result, NULL, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, compile1.config_id);
+	Maat_clean_status(&mid);
+
+}
 
 TEST_F(MaatCmdTest, SetLines)
 {
@@ -2105,7 +2590,7 @@ int main(int argc, char ** argv)
 	const char* decrypt_key="mesa2017wy";
 	const char* accept_tags="{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
 //	const char* subsitute_acc_tags="{\"tags\":[{\"tag\":\"location\",\"value\":\"Astana\"}]}";
-	int scan_detail=0;
+	int scan_detail=0, ret=0;
 
 	::testing::InitGoogleTest(&argc, argv);
 	g_logger=MESA_create_runtime_log_handle(log_file, 0);
@@ -2113,8 +2598,8 @@ int main(int argc, char ** argv)
 	g_feather=Maat_feather(g_iThreadNum, table_info_path, g_logger);
 	Maat_set_feather_opt(g_feather, MAAT_OPT_INSTANCE_NAME, "demo", strlen("demo")+1);
 	Maat_set_feather_opt(g_feather, MAAT_OPT_DECRYPT_KEY, decrypt_key, strlen(decrypt_key)+1);
-	Maat_set_feather_opt(g_feather, MAAT_OPT_JSON_FILE_PATH, json_path, strlen(json_path)+1);
-
+	ret=Maat_set_feather_opt(g_feather, MAAT_OPT_JSON_FILE_PATH, json_path, strlen(json_path)+1);
+	assert(ret==0);
 	Maat_set_feather_opt(g_feather, MAAT_OPT_SCANDIR_INTERVAL_MS, &scan_interval_ms, sizeof(scan_interval_ms));
 	//Set a short intevral for testing.
 	Maat_set_feather_opt(g_feather, MAAT_OPT_EFFECT_INVERVAL_MS, &effective_interval_ms, sizeof(effective_interval_ms));
@@ -2127,7 +2612,7 @@ int main(int argc, char ** argv)
 	Maat_initiate_feather(g_feather);
 	printf("Maat initiating, see %s\n",log_file);
 
-	int ret=RUN_ALL_TESTS();
+	ret=RUN_ALL_TESTS();
 	Maat_burn_feather(g_feather);
 	MESA_destroy_runtime_log_handle(g_logger);
 	return ret;

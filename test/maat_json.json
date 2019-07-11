@@ -12,7 +12,7 @@
             "is_valid": "yes",
             "groups": [
                 {
-                    "group_name": "IP_group",
+                    "group_name": "123_IP_group",
                     "regions": [
                         {
                             "table_name": "IP_CONFIG",
@@ -77,7 +77,7 @@
             "is_valid": "yes",
             "groups": [
                 {
-                    "group_name": "IP_group"
+                    "group_name": "123_IP_group"
                 },
                 {
                     "group_name": "Untitled",
@@ -144,7 +144,7 @@
                     ]
                 },
                 {
-                    "group_name": "Untitled",
+                    "group_name": "126_interval_group",
                     "regions": [
                         {
                             "table_name": "CONTENT_SIZE",
@@ -555,7 +555,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "anything",
+            "user_region": "StringScan.UTF8EncodedURL",
             "is_valid": "yes",
             "groups": [
                 {
@@ -580,7 +580,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "NOT-logic-test1",
+            "user_region": "NOTLogic.OneRegion",
             "is_valid": "yes",
             "groups": [
                 {
@@ -595,7 +595,7 @@
                                 "match_method": "sub",
                                 "format": "uncase plain"
                             }
-                        }
+                        } 
                     ]
                 },
                 {
@@ -621,7 +621,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "NOT-logic-test2",
+            "user_region": "NOTLogic.ScanNotAtLast",
             "is_valid": "yes",
             "groups": [
                 {
@@ -662,7 +662,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "NOT-logic-test3",
+            "user_region": "NOTLogic.ScanNotIP",
             "is_valid": "yes",
             "groups": [
                 {
@@ -682,7 +682,7 @@
                 },
                 {
                     "not_flag":1,
-                     "group_name": "IP_group"
+                     "group_name": "123_IP_group"
                 }
             ]
         },
@@ -692,7 +692,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "anything",
+            "user_region": "StringScan.Regex",
             "is_valid": "yes",
             "groups": [
                 {
@@ -717,7 +717,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "anything",
+            "user_region": "StringScan.UTF8EncodedURL",
             "is_valid": "yes",
             "groups": [
                 {
@@ -744,7 +744,7 @@
 				    "compile_id": 148,
 				    "service": 0,
 				    "do_blacklist": 0,
-				    "user_region": "APP_ID=100001;BEHAV_ID=100002",
+				    "user_region": "StringScan.ExprPlusWithOffset",
 				    "groups": [
 				        {
 				            "regions": [
@@ -770,7 +770,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "anything",
+            "user_region": "StringScan.Regex",
             "is_valid": "yes",
             "groups": [
                 {
@@ -796,7 +796,7 @@
             "do_blacklist": 0,
             "do_log": 0,
             "effective_rage": 0,
-            "user_region": "0",
+            "user_region": "StringScan.BugReport20190325",
             "is_valid": "yes",
             "groups": [
                 {
@@ -838,7 +838,7 @@
             "do_blacklist": 0,
             "do_log": 0,
             "effective_rage": 0,
-            "user_region": "suffix_hit",
+            "user_region": "StringScan.PrefixAndSuffix",
             "is_valid": "yes",
             "groups": [
                 {
@@ -865,7 +865,7 @@
             "do_blacklist": 0,
             "do_log": 0,
             "effective_rage": 0,
-            "user_region": "prefix_hit",
+            "user_region": "StringScan.PrefixAndSuffix",
             "is_valid": "yes",
             "groups": [
                 {
@@ -879,9 +879,267 @@
                                 "format": "uncase plain",
                                 "match_method": "prefix"
                             }
+                        },
+                        {
+                            "table_type": "expr",
+                            "table_name": "MAIL_ADDR",
+                            "table_content": {
+                                "keywords": "ceshi6@mailhost.cn",
+                                "expr_type": "none",
+                                "format": "uncase plain",
+                                "match_method": "prefix"
+                            }
                         }
                     ],
-                    "group_name": "Untitled"
+                    "group_name": "152_mail_addr"
+                },
+                {
+                    "group_name": "interval_group_refered",
+                    "sub_groups": [
+                    		{"group_name": "126_interval_group"}              		
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 153,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "Policy.SubGroup",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "expr",
+                            "table_name": "MAIL_ADDR",
+                            "table_content": {
+                                "keywords": "ceshi4@mailhost.cn",
+                                "expr_type": "none",
+                                "format": "uncase plain",
+                                "match_method": "prefix"
+                            }
+                        }
+                    ],
+                    "group_name": "Untitled",
+                    "sub_groups": [
+                    		{"group_name": "152_mail_addr"}
+                    ],
+                    "not_flag" : 0
+                },
+                {
+                    "group_name": "IP_group_refered",
+                    "sub_groups": [
+                    		{"group_name": "123_IP_group"}              		
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 154,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "ipv4_plus",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "ip_plus",
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv4",
+                                "saddr_format": "range",
+                                "src_ip1": "10.0.7.100",
+                                "src_ip2": "10.0.7.106",
+                                "sport_format": "range",
+                                "src_port1": "5000",
+                                "src_port2": "5001",
+                                "daddr_format": "mask",
+                                "dst_ip1": "123.56.104.218",
+                                "dst_ip2": "255.255.255.0",
+                                "dport_format": "range",
+                                "dst_port1": "7400",
+                                "dst_port2": "7400",
+                                "protocol": 6,
+                                "direction": "double"
+                            }
+                        }                       
+                    ],
+                    "not_flag" : 0
+                }
+            ]
+        },
+        {
+            "compile_id": 155,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "ipv6_plus",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "ip_plus",
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv6",
+                                "saddr_format": "range",
+                                "src_ip1": "1001:da8:205:1::101",
+                                "src_ip2": "1001:da8:205:1::201",
+                                "sport_format": "mask",
+                                "src_port1": "5210",
+                                "src_port2": "65520",
+                                "daddr_format": "mask",
+                                "dst_ip1": "3001:da8:205:1::401",
+                                "dst_ip2": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:0000",
+                                "dport_format": "mask",
+                                "dst_port1": "0",
+                                "dst_port2": "65535",
+                                "protocol": 6,
+                                "direction": "double"
+                            }
+                        }                      
+                    ],
+                    "not_flag" : 0
+                }
+            ]
+        },
+        {
+            "compile_id": 156,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "ExprPlusWithHex",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_name": "HTTP_REGION",
+                            "table_type": "expr_plus",
+                            "table_content": {
+                            		"district": "Content-Type",
+                                "keywords": "2f68746d6c",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "hexbin"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 157,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "StringScan.StreamScanUTF8",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "expr",
+                            "table_name": "TROJAN_PAYLOAD",
+                            "table_content": {
+                                "keywords": "我的订单",
+                                "expr_type": "none",
+                                "format": "none",
+                                "match_method": "sub"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 158,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "IPScan.IPv4_CIDR",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "ip_plus",
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv4",
+                                "saddr_format": "CIDR",
+                                "src_ip1": "192.168.0.1",
+                                "src_ip2": "32",
+                                "sport_format": "range",
+                                "src_port1": "5210",
+                                "src_port2": "65520",
+                                "daddr_format": "CIDR",
+                                "dst_ip1": "10.0.6.1",
+                                "dst_ip2": "24",
+                                "dport_format": "mask",
+                                "dst_port1": "0",
+                                "dst_port2": "65535",
+                                "protocol": 6,
+                                "direction": "double"
+                            }
+                        }                      
+                    ],
+                    "not_flag" : 0
+                }
+            ]
+        },
+        {
+            "compile_id": 159,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "IPScan.IPv6_CIDR",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "ip_plus",
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv6",
+                                "saddr_format": "CIDR",
+                                "src_ip1": "2001:db8::",
+                                "src_ip2": "120",
+                                "sport_format": "mask",
+                                "src_port1": "5210",
+                                "src_port2": "65520",
+                                "daddr_format": "CIDR",
+                                "dst_ip1": "2001:4860:4860::8888",
+                                "dst_ip2": "65",
+                                "dport_format": "mask",
+                                "dst_port1": "0",
+                                "dst_port2": "65535",
+                                "protocol": 6,
+                                "direction": "double"
+                            }
+                        }                      
+                    ],
+                    "not_flag" : 0
                 }
             ]
         }

@@ -1,6 +1,9 @@
 add_executable(maat_demo maat_demo.cpp)
 target_link_libraries(maat_demo maat_frame_shared)
 
+add_executable(test_igraph test_igraph.cpp)
+target_link_libraries(test_igraph igraph-static)
+
 add_executable(test_maatframe test_maatframe.cpp)
 target_link_libraries(test_maatframe maat_frame_shared gtest)
 

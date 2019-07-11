@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 
 set(MAAT_FRAME_MAJOR_VERSION 2)
-set(MAAT_FRAME_MINOR_VERSION 6)
+set(MAAT_FRAME_MINOR_VERSION 7)
 set(MAAT_FRAME_PATCH_VERSION 0)
 set(MAAT_FRAME_VERSION ${MAAT_FRAME_MAJOR_VERSION}.${MAAT_FRAME_MINOR_VERSION}.${MAAT_FRAME_PATCH_VERSION})
 
@@ -20,6 +20,7 @@ set_target_properties(maat_frame_static PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 target_include_directories(maat_frame_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc_internal/)
 #target_include_directories(maat_frame_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc_internal/hiredis)
 target_link_libraries(maat_frame_static hiredis-vip-static)
+target_link_libraries(maat_frame_static igraph-static)
 
 # Shared Library Output
 add_library(maat_frame_shared SHARED ${MAAT_SRC})
@@ -32,6 +33,7 @@ set_target_properties(maat_frame_shared PROPERTIES LINK_FLAGS "-Wl,--version-scr
 target_include_directories(maat_frame_shared PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc_internal/)
 target_include_directories(maat_frame_shared PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc_internal/hiredis)
 target_link_libraries(maat_frame_shared hiredis-vip-static ${MAAT_DEPEND_DYN_LIB})
+target_link_libraries(maat_frame_shared igraph-static ${MAAT_DEPEND_DYN_LIB})
 
 install(FILES ${PROJECT_SOURCE_DIR}/inc/Maat_rule.h DESTINATION include/MESA/)
 install(FILES ${PROJECT_SOURCE_DIR}/inc/Maat_command.h DESTINATION include/MESA/)

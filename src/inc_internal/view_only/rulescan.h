@@ -28,7 +28,9 @@ extern "C"
 	{
 		RULESCAN_DETAIL_RESULT=1,		/* 本标志位表示：返回详细命中位置等信息, optval设为NULL，optlen设为0。默认不返回详细信息*/
 		RULESCAN_REGEX_GROUP  =2,		/* 本标志位表示：返回正则表达式匹配的分组信息；开启本字段，需要先设置RULESCAN_DETAIL_RESULT标志位,optval设为NULL，optlen设为0。默认不返回分组信息 */
-		RULESCAN_QUICK_SCAN			    /* 设置需要快速扫描模式的sub_type, 由用户自己定义，optval的值为0-4096，optlen设为4。默认设置是普通扫描模式。*/
+		RULEACAN_ERRLOG_CLOSE,			/* 本标志位表示：关闭Rulescan错误日志输出，optval设为NULL，optlen设为0。不设置的话默认打开Rulescan错误日志输出 */
+		RULESCAN_ERRLOG_FILE_PATH,		/* 设置Rulescan错误日志的路径名（包含文件名），由用户传入，optval的值为包含文件名的日志路径，optlen为路径长度。如果没有设定，
+										则日志默认存储在可执行程序当前目录下的rulescan_tmp中 */
 	};
 
 	#define MAX_REGEX_GROUP_NUM 5		 /* 对于正则表达式，所支持的最大分组的个数 */	
@@ -45,7 +47,7 @@ extern "C"
 	const unsigned int RULETYPE_IPv6 = 4; /* IPv6规则 */
 
 	const unsigned int MAX_RULETYPE     = 5;          /* 规则类型数量 */
-	const unsigned int MAX_SUB_RULETYPE = 4096;        /* 规则子类型数量 */
+	const unsigned int MAX_SUB_RULETYPE = 4096;       /* 规则子类型数量 */
 
 	/* 字符串类型规则（可表示文本字符串、二进制字符串、正则表达式） */
 	typedef struct _string_rule_t
@@ -65,34 +67,34 @@ extern "C"
 		unsigned int ub; /* 数据区间的下界（包含ub），无限制默认为0 */
 	}interval_rule_t;
 
-	/* 带掩码的IPv4规则 */
+	/* IPv4规则 */
 	typedef struct _ipv4_rule_t
 	{
-		unsigned int       saddr;     /* 源IP地址；0表示忽略本字段 */
-		unsigned int       smask;     /* 源IP地址掩码；0表示固定IP=saddr */
-		unsigned int       daddr;     /* 目的IP地址；0表示忽略本字段 */
-		unsigned int       dmask;     /* 目的IP地址掩码；0表示固定IP=daddr */
-		unsigned short int min_sport; /* 源端口范围下界；0表示忽略本字段 */
-		unsigned short int max_sport; /* 源端口范围上界；0表示固定端口=min_sport */
-		unsigned short int min_dport; /* 目的端口范围下界；0表示忽略本字段 */
-		unsigned short int max_dport; /* 目的端口范围上界；0表示固定端口=min_dport */
-		unsigned short int proto;     /* 传输层协议，6表示TCP，17表示UDP；0表示忽略本字段 */
-		unsigned short int direction; /* 方向，0表示双向，1表示单向 */
+		unsigned int	min_saddr; /* 源地址下界；0表示忽略本字段 */     
+		unsigned int	max_saddr; /* 源地址上界；0表示固定IP=min_saddr */    
+		unsigned int    min_daddr; /* 目的地址下界；0表示忽略本字段 */      
+		unsigned int    max_daddr; /* 目的地址上界；0表示固定IP=min_daddr */ 
+		unsigned short	min_sport; /* 源端口范围下界；0表示忽略本字段 */
+		unsigned short	max_sport; /* 源端口范围上界；0表示固定端口=min_sport */
+		unsigned short	min_dport; /* 目的端口范围下界；0表示忽略本字段 */
+		unsigned short	max_dport; /* 目的端口范围上界；0表示固定端口=min_dport */
+		unsigned short	proto;     /* 传输层协议，6表示TCP，17表示UDP；0表示忽略本字段 */
+		unsigned short	direction; /* 方向，0表示双向，1表示单向 */
 	}ipv4_rule_t;
 
-	/* 带掩码的IPv6规则 */
+	/* IPv6规则 */
 	typedef struct _ipv6_rule_t
 	{
-		unsigned int       saddr[4];  /* 源IP地址；0表示忽略本字段 */
-		unsigned int       smask[4];  /* 源IP地址掩码；0表示固定IP=saddr */
-		unsigned int       daddr[4];  /* 目的IP地址；0表示忽略本字段 */
-		unsigned int       dmask[4];  /* 目的IP地址掩码；0表示固定IP=daddr */
-		unsigned short int min_sport; /* 源端口范围下界；0表示忽略本字段 */
-		unsigned short int max_sport; /* 源端口范围上界；0表示固定端口=min_sport */
-		unsigned short int min_dport; /* 目的端口范围下界；0表示忽略本字段 */
-		unsigned short int max_dport; /* 目的端口范围上界；0表示固定端口=min_dport */
-		unsigned short int proto;     /* 传输层协议，6表示TCP，17表示UDP，无限制默认为0 */
-		unsigned short int direction; /* 方向，0表示双向，1表示单向 */
+		unsigned int	min_saddr[4]; /* 源地址下界；全0表示忽略本字段 */     
+		unsigned int	max_saddr[4]; /* 源地址上界；全0表示固定IP=min_saddr */
+		unsigned int	min_daddr[4]; /* 目的地址下界；全0表示忽略本字段 */      
+		unsigned int	max_daddr[4]; /* 目的地址上界；全0表示固定IP=min_daddr */ 
+		unsigned short	min_sport;    /* 源端口范围下界；0表示忽略本字段 */
+		unsigned short	max_sport;    /* 源端口范围上界；0表示固定端口=min_sport */
+		unsigned short	min_dport;    /* 目的端口范围下界；0表示忽略本字段 */
+		unsigned short	max_dport;    /* 目的端口范围上界；0表示固定端口=min_dport */
+		unsigned short	proto;        /* 传输层协议，6表示TCP，17表示UDP，无限制默认为0 */
+		unsigned short	direction;    /* 方向，0表示双向，1表示单向 */
 	}ipv6_rule_t;
 
 	/* 通用的规则类型 */
@@ -188,7 +190,7 @@ extern "C"
 		unsigned int length[MAX_MATCH_POS_NUM];   /* 该规则所有命中结果的长度；如果该命中结果是在以前的数据包中命中的，则设置对应的length=0, 对于整数区间与IP类，长度置为0*/
 	}rule_result_t;
 
-	/* 布尔表达式的扫描结果类型，quick模式下只有expr_id以及tag两项有效 */
+	/* 布尔表达式的扫描结果类型 */
 	typedef struct _scan_result_t
 	{
 		unsigned int  expr_id;                     /* 与表达式的ID */

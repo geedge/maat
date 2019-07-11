@@ -10,7 +10,11 @@ enum MAAT_OPERATION
 	MAAT_OP_ADD,
 	MAAT_OP_RENEW_TIMEOUT	//Rule expire time is changed to now+cmd->expire_after
 };
- 
+enum MAAT_GROUP_RELATION
+{
+	PARENT_TYPE_COMPILE=0,
+	PARENT_TYPE_GROUP
+};
 enum MAAT_REGION_TYPE
 {
 	REGION_EXPR,
@@ -104,8 +108,12 @@ struct Maat_region_t
 };
 struct Maat_group_t
 {
-	int region_num;
+	const char* table_name;
 	int group_id;	//If MAAT_OPT_CMD_AUTO_NUMBERING==1, maat will assigned one. Or users must assign a unique number.
+	int parent_id;
+	int not_flag;
+	enum MAAT_GROUP_RELATION parent_type;
+	int region_num;
 	struct Maat_region_t *regions;	
 };
 struct Maat_cmd_t
@@ -170,5 +178,14 @@ void Maat_cmd_key_free(struct Maat_cmd_key**keys, int number);
 int Maat_cmd_key_select(Maat_feather_t feather, int label_id, struct Maat_cmd_key** keys);
 int Maat_cmd_select(Maat_feather_t feather, int label_id, int * output_ids, unsigned int size);
 int Maat_cmd_flushDB(Maat_feather_t feather);
+
+int Maat_command_raw_set_compile(Maat_feather_t feather, enum MAAT_OPERATION op, const struct Maat_rule_t* compile, const char* table_name, const char * huge_service_defined, int group_num);
+int Maat_command_raw_set_region(Maat_feather_t feather,  enum MAAT_OPERATION op, const struct Maat_region_t* region, int group_id);
+int Maat_command_raw_set_group(Maat_feather_t feather,  enum MAAT_OPERATION op, const struct Maat_group_t* group);
+
+int Maat_cmd_get_new_group_id(Maat_feather_t feather);
+int Maat_cmd_get_new_region_id(Maat_feather_t feather);
+
+
 #endif
 
