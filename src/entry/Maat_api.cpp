@@ -169,7 +169,7 @@ struct scan_region_hit_wraper
 };
 void scan_region_hit_wraper_build_with_rulescan(struct scan_region_hit_wraper* region_hit, scan_result_t* rulescan_rslt, size_t n_rslt, int is_last_region, int virual_table_id)
 {
-	memset(&region_hit, 0, sizeof(region_hit));
+	memset(region_hit, 0, sizeof(struct scan_region_hit_wraper));
 	region_hit->elem_array=rulescan_rslt;
 	region_hit->n_elem=n_rslt;
 	region_hit->elem_size=sizeof(scan_result_t);
@@ -180,7 +180,7 @@ void scan_region_hit_wraper_build_with_rulescan(struct scan_region_hit_wraper* r
 }
 void scan_region_hit_wraper_build_with_GIE(struct scan_region_hit_wraper* region_hit, GIE_result_t* GIE_rslt, size_t n_rslt, int is_last_region, int virual_table_id)
 {
-	memset(&region_hit, 0, sizeof(region_hit));
+	memset(region_hit, 0, sizeof(struct scan_region_hit_wraper));
 	region_hit->elem_array=GIE_rslt;
 	region_hit->n_elem=n_rslt;
 	region_hit->elem_size=sizeof(GIE_result_t);
@@ -1378,7 +1378,6 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	struct expr_table_desc* expr_desc=NULL;
 	struct timespec start,end;
 	Maat_scanner* my_scanner=NULL;
-	struct scan_region_hit_wraper region_hit;
 	if(data==NULL||data_len<=0)
 	{
 		return 0;
@@ -1459,10 +1458,11 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 		{
 			alignment_int64_array_add(table_rt->hit_cnt, thread_num, 1);
 		}
-		scan_region_hit_wraper_build_with_rulescan(&region_hit, region_result, hit_region_cnt, _mid->is_last_region, 0);
-		_mid=grab_mid(mid,_feather,thread_num, 1);
+		_mid=grab_mid(mid, _feather, thread_num, 1);
+		struct scan_region_hit_wraper region_hit_wraper;
+		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, hit_region_cnt, _mid->is_last_region, 0);
 		compile_ret=region_compile(_feather,_mid->inner,
-									&region_hit,
+									&region_hit_wraper,
 									result,compile_result,rule_num,
 									thread_num);
 		assert(_mid->is_last_region<2);
@@ -1523,7 +1523,6 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 	intval_scan_data.int_data=intval;
 	Maat_table_desc* p_table=NULL;
 	struct timespec start,end;
-	struct scan_region_hit_wraper region_hit;
 	if(_feather->perf_on==1)
 	{
 		clock_gettime(CLOCK_MONOTONIC,&start);
@@ -1563,9 +1562,10 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 			alignment_int64_array_add(table_rt->hit_cnt, thread_num,1);
 		}
 		_mid=grab_mid(mid, _feather, thread_num, 1);
-		scan_region_hit_wraper_build_with_rulescan(&region_hit, region_result, region_ret, _mid->is_last_region, 0);
+		struct scan_region_hit_wraper region_hit_wraper;
+		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, region_ret, _mid->is_last_region, 0);
 		compile_ret=region_compile(_feather,_mid->inner,
-									&region_hit,
+									&region_hit_wraper,
 									result,compile_result,rule_num,
 									thread_num);
 		assert(_mid->is_last_region<2);
@@ -1684,10 +1684,10 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 			alignment_int64_array_add(table_rt->hit_cnt, thread_num,1);
 		}
 		_mid=grab_mid(mid, _feather, thread_num, 1);
-		struct scan_region_hit_wraper region_hit;
-		scan_region_hit_wraper_build_with_rulescan(&region_hit, region_result, region_ret, _mid->is_last_region, 0);
+		struct scan_region_hit_wraper region_hit_wraper;
+		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, region_ret, _mid->is_last_region, 0);
 		compile_ret=region_compile(_feather,_mid->inner,
-									&region_hit,
+									&region_hit_wraper,
 									result,compile_result,rule_num,
 									thread_num);
 		assert(_mid->is_last_region<2);
@@ -1903,11 +1903,11 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 			alignment_int64_array_add(table_rt->hit_cnt, sp->thread_num,1);
 		}
 		_mid=grab_mid(mid, sp->feather,sp->thread_num, 1);
-		struct scan_region_hit_wraper region_hit;
-		scan_region_hit_wraper_build_with_rulescan(&region_hit, region_result, region_ret, _mid->is_last_region, 0);
+		struct scan_region_hit_wraper region_hit_wraper;
+		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, hit_region_cnt, _mid->is_last_region, 0);
 
 		compile_ret=region_compile(sp->feather,_mid->inner,
-							&region_hit,
+							&region_hit_wraper,
 							result,compile_result,rule_num,
 							sp->thread_num);
 		assert(_mid->is_last_region<2);
@@ -2139,10 +2139,10 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 			alignment_int64_array_add(table_rt->hit_cnt, sp->thread_num, 1);
 		}
 		_mid=grab_mid(mid,sp->feather, sp->thread_num,1);
-		struct scan_region_hit_wraper region_hit;
-		scan_region_hit_wraper_build_with_GIE(&region_hit, region_result, hit_region_cnt, _mid->is_last_region, 0);
+		struct scan_region_hit_wraper region_hit_wraper;
+		scan_region_hit_wraper_build_with_GIE(&region_hit_wraper, region_result, hit_region_cnt, _mid->is_last_region, 0);
 		compile_ret=region_compile(sp->feather,_mid->inner,
-								&region_hit,
+								&region_hit_wraper,
 								result,compile_result,rule_num,
 								sp->thread_num);
 		assert(_mid->is_last_region<2);
@@ -2305,10 +2305,10 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 	{
 		alignment_int64_array_add(table_rt->hit_cnt, thread_num,1);
 		_mid=grab_mid(mid, _feather, thread_num, 1);
-		struct scan_region_hit_wraper region_hit;
-		scan_region_hit_wraper_build_with_GIE(&region_hit, region_result, hit_region_cnt, _mid->is_last_region, 0);		
+		struct scan_region_hit_wraper region_hit_wraper;
+		scan_region_hit_wraper_build_with_GIE(&region_hit_wraper, region_result, hit_region_cnt, _mid->is_last_region, 0);		
 		compile_ret=region_compile(_feather,_mid->inner,
-									&region_hit,
+									&region_hit_wraper,
 									result,compile_result,rule_num,
 									thread_num);
 		assert(_mid->is_last_region<2);
