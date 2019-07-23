@@ -941,7 +941,7 @@ void make_group_set(struct Maat_compile_group_relation* relation, struct bool_ex
 		{
 			continue;
 		}
-		a_set->items[j].item_id=group->group_id;
+		a_set->items[j].item_id=(unsigned long long)relation->virtual_table_id[j]<<32|group->group_id;
 		a_set->items[j].not_flag=relation->not_flag[j];
 		if(a_set->items[j].not_flag)
 		{
@@ -1894,7 +1894,7 @@ unsigned int del_region_from_group(struct Maat_group_inner* group,int region_id,
 	return i;
 }
 
-int add_group_to_compile(struct Maat_compile_group_relation*relation, struct Maat_group_inner* a_rule_group, int not_flag)
+int add_group_to_compile(struct Maat_compile_group_relation*relation, struct Maat_group_inner* a_rule_group, int virual_table_id, int not_flag)
 {
 	int i=0,ret=-1;
 	int write_pos=-1;
@@ -1945,6 +1945,7 @@ int add_group_to_compile(struct Maat_compile_group_relation*relation, struct Maa
 	{
 		relation->not_flag[write_pos]=0;
 	}
+	relation->virtual_table_id[write_pos]=virual_table_id;
 	relation->group_cnt++;
 	a_rule_group->ref_by_parent_cnt++;
 	ret=1;
@@ -2500,7 +2501,7 @@ int add_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 		{
 			compile_rule=create_compile_group_relation(db_group_rule->parent_id, scanner);
 		}
-		ret=add_group_to_compile(compile_rule, group_rule, db_group_rule->not_flag);
+		ret=add_group_to_compile(compile_rule, group_rule, db_group_rule->virtual_table_id, db_group_rule->not_flag);
 		if(ret<0)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
@@ -2648,18 +2649,20 @@ int del_compile_rule(struct Maat_table_desc* table, int compile_id, struct Maat_
 	scanner->to_update_compile_cnt++;
 	return 1;
 }
-void update_group_rule(struct Maat_table_desc* table,const char* table_line,struct Maat_scanner *scanner,void* logger)
+void update_group_rule(struct Maat_table_desc* table,const char* table_line,struct Maat_scanner *scanner, MESA_htable_handle map_tablename2id, void* logger)
 {
 	struct db_group_rule_t db_group_rule;
 	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
 	int ret=0;
+	char virtual_table_name[MAX_TABLE_NAME_LEN]={0};
 	memset(&db_group_rule, 0, sizeof(db_group_rule));
-	ret=sscanf(table_line,"%d\t%d\t%d\t%d\t%d", &(db_group_rule.group_id),
+	ret=sscanf(table_line,"%d\t%d\t%d\t%d\t%d\t%s", &(db_group_rule.group_id),
 											&(db_group_rule.parent_id),
 											&(db_group_rule.is_valid),
 											&(db_group_rule.not_flag),
-											&(db_group_rule.parent_type));
-	if(ret!=3&&ret!=4&&ret!=5)
+											&(db_group_rule.parent_type),
+											virtual_table_name);
+	if(ret!=3&&ret!=4&&ret!=5&&ret!=6)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
 							"update error, invalid format of group table %s:%s",
@@ -2678,6 +2681,19 @@ void update_group_rule(struct Maat_table_desc* table,const char* table_line,stru
 							table->table_name[table->updating_name], table_line);	
 		table->udpate_err_cnt++;
 		return;		
+	}
+	if(strlen(virtual_table_name)>0)
+	{
+		ret=map_str2int(map_tablename2id, virtual_table_name, &(db_group_rule.virtual_table_id));
+		if(ret<0)
+		{
+			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
+								"update error, unknown virutal table name: %s of group table %s:%s.",
+								virtual_table_name,
+								table->table_name[table->updating_name], table_line);	
+			table->udpate_err_cnt++;
+			return;
+		}
 	}
 	if(db_group_rule.is_valid==FALSE)
 	{
@@ -2719,14 +2735,6 @@ void update_group_rule(struct Maat_table_desc* table,const char* table_line,stru
 	}
 	
 	return;	
-}
-void compatible_group_udpate(struct Maat_table_desc* table,int region_id,int compile_id,int is_valid,struct Maat_scanner *scanner,void* logger)
-{
-	char virtual_group_line[256];
-	snprintf(virtual_group_line,sizeof(virtual_group_line),
-				"%d\t%d\t%d",region_id,compile_id,is_valid);
-	update_group_rule(table, virtual_group_line,scanner,logger);
-	return;
 }
 void update_expr_rule(struct Maat_table_desc* table,const char* table_line,struct Maat_scanner *scanner,void* logger,int group_mode_on)
 {
@@ -2827,16 +2835,6 @@ void update_expr_rule(struct Maat_table_desc* table,const char* table_line,struc
 	{
 		table->udpate_err_cnt++;
 		goto error_out;
-	}
-	if(group_mode_on==FALSE)//for compatible old version
-	{
-		compatible_group_udpate(table
-								,maat_str_rule->region_id
-								,maat_str_rule->group_id
-								,maat_str_rule->is_valid
-								,scanner
-								,logger);
-		maat_str_rule->group_id=maat_str_rule->region_id;
 	}
 
 	if(maat_str_rule->is_valid==FALSE)
@@ -3199,16 +3197,6 @@ void update_ip_rule(struct Maat_table_desc* table, const char* table_line, struc
 		table->udpate_err_cnt++;
 		goto error_out;
 	}
-	if(group_mode_on==FALSE)//for compatible old version
-	{
-		compatible_group_udpate(table,
-								ip_rule->region_id,
-								ip_rule->group_id,
-								ip_rule->is_valid,
-								scanner,
-								logger);
-		ip_rule->group_id=ip_rule->region_id;
-	}
 	if(ip_rule->is_valid==FALSE)
 	{
 		ret=del_region_rule(table,
@@ -3273,16 +3261,6 @@ void update_intval_rule(struct Maat_table_desc* table,const char* table_line,str
 	{
 		table->udpate_err_cnt++;
 		goto error_out;
-	}
-	if(group_mode_on==FALSE)//for compatible old version
-	{
-		compatible_group_udpate(table
-								,intval_rule->region_id
-								,intval_rule->group_id
-								,intval_rule->is_valid
-								,scanner
-								,logger);
-		intval_rule->group_id=intval_rule->region_id;
 	}
 
 	if(intval_rule->is_valid==FALSE)
@@ -3453,16 +3431,6 @@ void update_digest_rule(struct Maat_table_desc* table,const char* table_line,str
 	{
 		table->udpate_err_cnt++;
 		goto error_out;
-	}
-	if(group_mode_on==FALSE)//for compatible old version
-	{
-		compatible_group_udpate(table
-								,digest_rule->region_id
-								,digest_rule->group_id
-								,digest_rule->is_valid
-								,scanner
-								,logger);
-		digest_rule->group_id=digest_rule->region_id;
 	}
 
 	if(digest_rule->is_valid==FALSE)
@@ -4057,7 +4025,7 @@ int maat_update_cb(const char* table_name,const char* line,void *u_para)
 			update_compile_rule(feather->p_table_info[table_id], line, scanner, feather->accept_tags, feather->n_tags, feather->logger);
 			break;
 		case	TABLE_TYPE_GROUP:
-			update_group_rule(feather->p_table_info[table_id], line, scanner,feather->logger);
+			update_group_rule(feather->p_table_info[table_id], line, scanner, feather->map_tablename2id, feather->logger);
 			break;
 		case	TABLE_TYPE_PLUGIN:
 			update_plugin_table(feather->p_table_info[table_id], line, scanner, feather->accept_tags, feather->n_tags, feather->logger);

@@ -23,10 +23,10 @@ enum MAAT_TABLE_TYPE
 	TABLE_TYPE_DIGEST,
 	TABLE_TYPE_EXPR_PLUS,
 	TABLE_TYPE_SIMILARITY,
+	TABLE_TYPE_VIRTUAL,
 	TABLE_TYPE_GROUP,
 	TABLE_TYPE_COMPILE,
 	TABLE_TYPE_PLUGIN
-
 };
 
 struct compile_ex_data_idx
@@ -90,7 +90,10 @@ struct ip_table_desc
 	int ipv4_rule_cnt;
 	int ipv6_rule_cnt;
 };
-
+struct virtual_table_desc
+{
+	int real_table_id;
+};
 struct Maat_table_desc
 {
 	int table_id;
@@ -103,7 +106,8 @@ struct Maat_table_desc
 		struct compile_table_desc compile;		
 		struct expr_table_desc expr;
 		struct ip_table_desc ip;		
-		struct plugin_table_desc plugin;
+		struct plugin_table_desc plugin;		
+		struct virtual_table_desc virtual_table;;
 		void* others;//group, interval and digest don't have sperate description info.
 	};	
 //for stat>>>>>>>>

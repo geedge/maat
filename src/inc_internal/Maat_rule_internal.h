@@ -114,6 +114,7 @@ struct db_group_rule_t
 	int is_valid;
 	int not_flag;
 	int parent_type;	//PARENT_TYPE_**, 0:compile, 1: group.
+	int virtual_table_id;
 };
 struct op_expr_t
 {
@@ -141,6 +142,7 @@ struct Maat_compile_group_relation
 	long long magic_num;
 	struct Maat_compile_rule *compile;
 	dynamic_array_t *groups;	//element is struct Maat_group_inner*
+	int virtual_table_id[MAX_ITEMS_PER_BOOL_EXPR];
 	char not_flag[MAX_ITEMS_PER_BOOL_EXPR];
 	int compile_id;//equal to compile->m_rule.config_id
 	int group_boundary;
@@ -161,7 +163,7 @@ struct Maat_group_inner
 	char* group_name;
 	int has_compile_neighbors;
 	int vertex_id;
-	int top_group_cnt;
+	size_t top_group_cnt;
 	long long* top_groups;
 	dynamic_array_t *regions;
 	pthread_mutex_t mutex;
@@ -303,7 +305,7 @@ struct Maat_scanner
 	igraph_t group_graph;
 	int grp_vertex_id_generator;
 	int most_popular_sub_group;
-	long long max_presented_top_group_cnt;
+	unsigned long long max_presented_top_group_cnt;
 	
 	unsigned int district_num;
 	unsigned int cfg_num;
