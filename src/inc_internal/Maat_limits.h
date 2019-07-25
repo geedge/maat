@@ -1,0 +1,12 @@
+#define	MAX_TABLE_NUM			256
+#define	MAX_TABLE_LINE_SIZE		(1024*16)
+#define	MAX_EXPR_KEYLEN			1024
+#define	MAX_DISTRICT_LEN			64
+
+#define	MAX_SCANNER_HIT_NUM			64
+#define	MAX_GROUP_CACHE		128
+
+#define	MAX_FAILED_NUM		128
+
+#define	MAX_MAAT_STAT_NUM	64
+

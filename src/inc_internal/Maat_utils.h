@@ -1,4 +1,5 @@
 #pragma once
+#include "Maat_rule.h"
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <sys/syscall.h>
@@ -69,5 +70,7 @@ int system_cmd_mv(const char* src_file,const char*dst_file);
 int system_cmd_cp(const char* src_file,const char*dst_file);
 char* md5_file(const char* filename, char* md5string);
 int get_column_pos(const char* line, int column_seq, size_t *offset, size_t *len);
+const char** charset_get_all_name(void);
+const char* charset_get_name(enum MAAT_CHARSET charset);
 
 

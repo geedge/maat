@@ -241,4 +241,14 @@ char* md5_file(const char* filename, char* md5string)
 	free(file_buff);
 	return md5string;
 }
+const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
+							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8",""};
 
+const char** charset_get_all_name(void)
+{
+	return CHARSET_STRING;
+}
+const char* charset_get_name(enum MAAT_CHARSET charset)
+{
+	return CHARSET_STRING[charset];
+}

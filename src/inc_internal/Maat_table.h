@@ -1,11 +1,15 @@
 #pragma once
+#include <MESA/MESA_htable.h>
 #include "Maat_rule.h"
+#include "Maat_limits.h"
+
 #define	MAX_COMPILE_EX_DATA_NUM		2
 #define	MAX_FOREIGN_CLMN_NUM		8
 #define	MAX_PLUGIN_PER_TABLE		32
 #define	MAX_CHARSET_NUM				16
 #define	MAX_CONJUNCTION_TABLE_NUM	8
 #define	MAX_TABLE_NAME_LEN			256	
+
 
 enum USER_REGION_ENCODE
 {
@@ -93,6 +97,7 @@ struct ip_table_desc
 struct virtual_table_desc
 {
 	int real_table_id;
+	char real_table_name[MAX_TABLE_NAME_LEN];
 };
 struct Maat_table_desc
 {
@@ -115,4 +120,7 @@ struct Maat_table_desc
 	unsigned long long unmatch_tag_cnt;
 	int stat_line_id;
 };
+int Maat_table_read_table_info(struct Maat_table_desc** p_table_info, size_t n_table, const char* table_info_path, void* logger);
+MESA_htable_handle Maat_table_build(struct Maat_table_desc** p_table_info, size_t n_table, char* compile_tn, size_t n_ctn, char* group_tn, size_t n_gtn, void* logger);
+void Maat_table_clear(struct Maat_table_desc** p_table_info, size_t n_table);
 

@@ -16,9 +16,9 @@
 #include "rulescan.h"
 #include "json2iris.h"
 
-struct Maat_table_desc * acqurie_table(struct _Maat_feather_t* _feather, int table_id, enum MAAT_TABLE_TYPE expect_type)
+struct Maat_table_desc * acqurie_table(struct _Maat_feather_t* _feather, int table_id, enum MAAT_TABLE_TYPE expect_type, int* virutal_table_id)
 {
-	struct Maat_table_desc *p_table=NULL;
+	struct Maat_table_desc *p_table=NULL, *p_real_table=NULL;
 	if(table_id>MAX_TABLE_NUM)
 	{
 		return NULL;
@@ -32,7 +32,17 @@ struct Maat_table_desc * acqurie_table(struct _Maat_feather_t* _feather, int tab
 	{
 		return NULL;
 	}
-	if(p_table->table_type!=expect_type)
+	if(p_table->table_type==TABLE_TYPE_VIRTUAL)
+	{
+		p_real_table=_feather->p_table_info[p_table->virtual_table.real_table_id];
+		*virutal_table_id=table_id;
+	}
+	else
+	{
+		p_real_table=p_table;
+		*virutal_table_id=0;
+	}
+	if(p_real_table->table_type!=expect_type)
 	{
 		if((expect_type==TABLE_TYPE_EXPR && p_table->table_type!=TABLE_TYPE_EXPR_PLUS)||
 			(expect_type==TABLE_TYPE_IP && p_table->table_type!=TABLE_TYPE_IP_PLUS))
@@ -40,7 +50,7 @@ struct Maat_table_desc * acqurie_table(struct _Maat_feather_t* _feather, int tab
 			return NULL;
 		}
 	}
-	return p_table;
+	return p_real_table;
 }
 inline void INC_SCANNER_REF(Maat_scanner*scanner,int thread_num)
 {
@@ -537,40 +547,18 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 		return NULL;
 	}
 	_Maat_feather_t* feather=ALLOC(struct _Maat_feather_t, 1);
-	feather->table_cnt=read_table_description(feather->p_table_info, MAX_TABLE_NUM, table_info_path, max_thread_num, logger);
+	feather->table_cnt=Maat_table_read_table_info(feather->p_table_info, MAX_TABLE_NUM, table_info_path, logger);
 	if(feather->table_cnt==0)
 	{
-		free(feather);
-		return NULL;
+		goto failed;
 	}
-	feather->map_tablename2id=map_create();
-	int i=0,j=0,ret=0;
-	for(i=0;i<MAX_TABLE_NUM;i++)
+	feather->map_tablename2id=Maat_table_build(feather->p_table_info, MAX_TABLE_NUM,
+													feather->compile_tn, sizeof(feather->compile_tn),
+													feather->group_tn, sizeof(feather->group_tn),
+													logger);
+	if(feather->map_tablename2id==NULL)
 	{
-		if(feather->p_table_info[i]!=NULL)
-		{
-			if(feather->p_table_info[i]->table_type==TABLE_TYPE_GROUP)
-			{
-				feather->GROUP_MODE_ON=1;
-				strncpy(feather->group_tn,feather->p_table_info[i]->table_name[0],sizeof(feather->group_tn));
-			}
-			if(feather->p_table_info[i]->table_type==TABLE_TYPE_COMPILE)
-			{
-				strncpy(feather->compile_tn,feather->p_table_info[i]->table_name[0],sizeof(feather->compile_tn));
-			}
-			for(j=0;j<feather->p_table_info[i]->conj_cnt;j++)
-			{
-				ret=map_register(feather->map_tablename2id,feather->p_table_info[i]->table_name[j],feather->p_table_info[i]->table_id);
-				if(ret<0)
-				{
-					MESA_handle_runtime_log(feather->logger,RLOG_LV_FATAL,maat_module ,
-									"Duplicate table name %s of table id %d"
-									,feather->p_table_info[i]->table_name[j]
-									,feather->p_table_info[i]->table_id);
-					continue;
-				}
-			}
-		}
+		goto failed;
 	}
 	feather->logger=logger;
 	feather->scan_thread_num=max_thread_num;
@@ -594,6 +582,9 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	pthread_mutex_init(&(feather->background_update_mutex),NULL);
 	snprintf(feather->table_info_fn,sizeof(feather->table_info_fn),"%s",table_info_path);
 	return feather;
+failed:
+	free(feather);
+	return NULL;
 }
 int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const void* value,int size)
 {
@@ -1369,6 +1360,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 {
 	int region_ret=0,compile_ret=0,hit_region_cnt=0;
 	unsigned int sub_type=0;
+	int virtual_table_id=0;
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	struct _OUTER_scan_status_t* _mid=(struct _OUTER_scan_status_t*)(*mid);
 
@@ -1392,7 +1384,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 		clock_gettime(CLOCK_MONOTONIC,&start);
 	}
 	_mid=grab_mid(mid,_feather, thread_num, 0);
-	p_table=acqurie_table(_feather, table_id,TABLE_TYPE_EXPR);
+	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_EXPR, &virtual_table_id);
 	if(p_table==NULL)
 	{
 		_feather->scan_err_cnt++;
@@ -1406,11 +1398,11 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	}
 	if(expr_desc->do_charset_merge==1)
 	{
-		sub_type=make_sub_type(table_id,CHARSET_NONE,0);
+		sub_type=make_sub_type(p_table->table_id, CHARSET_NONE,0);
 	}
 	else
 	{
-		sub_type=make_sub_type(table_id,charset,0);
+		sub_type=make_sub_type(p_table->table_id, charset,0);
 	}
 	alignment_int64_array_add(_feather->thread_call_cnt, thread_num, 1);
 	scan_data_t scan_data;
@@ -1418,7 +1410,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	scan_data.text_data.tlen=data_len;
 	scan_data.text_data.toffset=0;
 
-	struct Maat_table_runtime* table_rt=my_scanner->table_rt[table_id];
+	struct Maat_table_runtime* table_rt=my_scanner->table_rt[p_table->table_id];
 	if(table_rt->origin_rule_num==0)
 	{
 		return 0;
@@ -1440,7 +1432,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	if(table_rt->expr.regex_rule_cnt>0)
 	{
 		scan_data.rule_type=RULETYPE_REG;
-		scan_data.sub_type=make_sub_type(table_id,CHARSET_NONE,0);
+		scan_data.sub_type=make_sub_type(p_table->table_id, CHARSET_NONE,0);
 		region_ret=rulescan_search(my_scanner->region, thread_num, &scan_data, region_result+hit_region_cnt, MAX_SCANNER_HIT_NUM-hit_region_cnt);
 		if(region_ret>0)
 		{
@@ -1460,7 +1452,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 		}
 		_mid=grab_mid(mid, _feather, thread_num, 1);
 		struct scan_region_hit_wraper region_hit_wraper;
-		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, hit_region_cnt, _mid->is_last_region, 0);
+		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, hit_region_cnt, _mid->is_last_region, virtual_table_id);
 		compile_ret=region_compile(_feather,_mid->inner,
 									&region_hit_wraper,
 									result,compile_result,rule_num,
@@ -1518,16 +1510,15 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 	_compile_result_t compile_result[rule_num];
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	struct Maat_scanner* my_scanner=NULL;
-	intval_scan_data.rule_type=RULETYPE_INT;
-	intval_scan_data.sub_type=make_sub_type(table_id,CHARSET_NONE, 0);
-	intval_scan_data.int_data=intval;
+
 	Maat_table_desc* p_table=NULL;
 	struct timespec start,end;
 	if(_feather->perf_on==1)
 	{
 		clock_gettime(CLOCK_MONOTONIC,&start);
 	}
-	p_table=acqurie_table(_feather,table_id,TABLE_TYPE_INTERVAL);
+	int virutal_table_id=0;
+	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_INTERVAL, &virutal_table_id);
 	if(p_table==NULL)
 	{
 		_feather->scan_err_cnt++;
@@ -1538,11 +1529,15 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 	{
 		return 0;
 	}
-	struct Maat_table_runtime* table_rt=my_scanner->table_rt[table_id];
+	struct Maat_table_runtime* table_rt=my_scanner->table_rt[p_table->table_id];
 	if(table_rt->origin_rule_num==0)
 	{
 		return 0;
 	}
+	intval_scan_data.rule_type=RULETYPE_INT;
+	intval_scan_data.sub_type=make_sub_type(p_table->table_id, CHARSET_NONE, 0);
+	intval_scan_data.int_data=intval;
+
 	alignment_int64_array_add(_feather->thread_call_cnt, thread_num, 1);
 
 	region_result=my_scanner->region_rslt_buff+MAX_SCANNER_HIT_NUM*thread_num;
@@ -1563,7 +1558,7 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 		}
 		_mid=grab_mid(mid, _feather, thread_num, 1);
 		struct scan_region_hit_wraper region_hit_wraper;
-		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, region_ret, _mid->is_last_region, 0);
+		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, region_ret, _mid->is_last_region, virutal_table_id);
 		compile_ret=region_compile(_feather,_mid->inner,
 									&region_hit_wraper,
 									result,compile_result,rule_num,
@@ -1613,7 +1608,8 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	{
 		clock_gettime(CLOCK_MONOTONIC,&start);
 	}
-	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_IP);
+	int virtual_table_id=0;
+	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_IP, &virtual_table_id);
 	if(p_table==NULL)
 	{
 		_feather->scan_err_cnt++;
@@ -1624,7 +1620,7 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	{
 		return 0;
 	}
-	struct Maat_table_runtime* table_rt=my_scanner->table_rt[table_id];
+	struct Maat_table_runtime* table_rt=my_scanner->table_rt[p_table->table_id];
 	if(table_rt->origin_rule_num==0)
 	{
 		return 0;
@@ -1641,7 +1637,7 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	alignment_int64_array_add(_feather->thread_call_cnt, thread_num, 1);
 
 	ip_scan_data.rule_type=RULETYPE_IPv4;
-	ip_scan_data.sub_type=make_sub_type(table_id,CHARSET_NONE, 0);
+	ip_scan_data.sub_type=make_sub_type(p_table->table_id, CHARSET_NONE, 0);
 	switch(addr->addrtype)
 	{
 		case ADDR_TYPE_IPV4:
@@ -1685,7 +1681,7 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 		}
 		_mid=grab_mid(mid, _feather, thread_num, 1);
 		struct scan_region_hit_wraper region_hit_wraper;
-		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, region_ret, _mid->is_last_region, 0);
+		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, region_ret, _mid->is_last_region, virtual_table_id);
 		compile_ret=region_compile(_feather,_mid->inner,
 									&region_hit_wraper,
 									result,compile_result,rule_num,
@@ -1730,8 +1726,9 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 	struct Maat_scanner* scanner=NULL;
 
 	struct Maat_table_desc *p_table=NULL;
+	int virtual_table_id=0;
 	assert(thread_num<_feather->scan_thread_num);
-	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_EXPR);
+	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_EXPR, &virtual_table_id);
 	if(p_table==NULL)
 	{
 		_feather->scan_err_cnt++;
@@ -1742,6 +1739,8 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 	struct _stream_para_t* sp=ALLOC(struct _stream_para_t ,1);
 	scanner=_feather->scanner;
 	sp->feather=_feather;
+	sp->p_real_table=p_table;
+	sp->virtual_table_id=virtual_table_id;
 	sp->version=_feather->maat_version;
 	sp->process_offset=0;
 	sp->rs_stream_para=NULL;
@@ -1749,14 +1748,13 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 	{
 		return sp;
 	}
-	struct Maat_table_runtime* table_rt=scanner->table_rt[table_id];
+	struct Maat_table_runtime* table_rt=scanner->table_rt[sp->p_real_table->table_id];
 	if(table_rt->origin_rule_num==0)
 	{
 		return sp;
 	}
 	INC_SCANNER_REF(scanner, thread_num);
 
-	sp->table_id=table_id;
 	sp->thread_num=thread_num;
 	sp->max_cross_size=expr_desc->cross_cache_size;
 	sp->caching_size=0;
@@ -1793,16 +1791,15 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 	scan_result_t *region_result;
 	_compile_result_t compile_result[rule_num];//dynamic array
 	scan_data_t region_scan_data;
-	Maat_table_desc* p_table=NULL;
-	struct timespec start,end;	
+	struct timespec start,end;
 	if(data==NULL||data_len<=0||scanner==NULL)
 	{
 		return 0;
-	}	
-	struct Maat_table_runtime* table_rt=scanner->table_rt[sp->table_id];
+	}
+	struct Maat_table_runtime* table_rt=scanner->table_rt[sp->p_real_table->table_id];
 	if(sp->feather->perf_on==1)
 	{
-		clock_gettime(CLOCK_MONOTONIC,&start);
+		clock_gettime(CLOCK_MONOTONIC, &start);
 	}
 	_mid=grab_mid(mid, sp->feather, sp->thread_num,0);
 
@@ -1810,11 +1807,10 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 	{
 		return 0;
 	}
-	p_table=sp->feather->p_table_info[sp->table_id];
-	//table rule num is already judged in Maat_stream_scan_string_start
+	//table rule num is already  in Maat_stream_scan_string_start
 
 
-	if(p_table->table_type==TABLE_TYPE_EXPR_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
+	if(sp->p_real_table->table_type==TABLE_TYPE_EXPR_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
 	{
 		sp->feather->scan_err_cnt++;
 		return -1;
@@ -1824,11 +1820,11 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 	*detail_ret=0;
 	if(sp->do_merge==1)
 	{
-		sub_type=make_sub_type(sp->table_id,CHARSET_NONE,0);
+		sub_type=make_sub_type(sp->p_real_table->table_id, CHARSET_NONE, 0);
 	}
 	else
 	{
-		sub_type=make_sub_type(sp->table_id,charset,0);
+		sub_type=make_sub_type(sp->p_real_table->table_id, charset, 0);
 	}
 	if(sp->max_cross_size>0&&sp->caching_size>0)
 	{
@@ -1880,7 +1876,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 	if(sp->do_regex==1)
 	{
 		region_scan_data.rule_type=RULETYPE_REG;
-		region_scan_data.sub_type=make_sub_type(sp->table_id,CHARSET_NONE,0);
+		region_scan_data.sub_type=make_sub_type(sp->p_real_table->table_id, CHARSET_NONE,0);
 		region_ret=rulescan_searchstream(sp->rs_stream_para, &region_scan_data, region_result+hit_region_cnt, MAX_SCANNER_HIT_NUM-hit_region_cnt);
 		if(region_ret<0)
 		{
@@ -1892,7 +1888,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 			hit_region_cnt+=region_ret;
 		}
 	}
-	if(hit_region_cnt>0&&p_table->table_type==TABLE_TYPE_EXPR_PLUS)
+	if(hit_region_cnt>0&&sp->p_real_table->table_type==TABLE_TYPE_EXPR_PLUS)
 	{
 		hit_region_cnt=match_district(_mid, region_result, hit_region_cnt, scanner);	
 	}
@@ -1904,7 +1900,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 		}
 		_mid=grab_mid(mid, sp->feather,sp->thread_num, 1);
 		struct scan_region_hit_wraper region_hit_wraper;
-		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, hit_region_cnt, _mid->is_last_region, 0);
+		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, hit_region_cnt, _mid->is_last_region, sp->virtual_table_id);
 
 		compile_ret=region_compile(sp->feather,_mid->inner,
 							&region_hit_wraper,
@@ -1973,7 +1969,7 @@ void Maat_stream_scan_string_end(stream_para_t* stream_para)
 	struct Maat_table_runtime* table_rt=NULL;
 	if(scanner!=NULL)
 	{
-		table_rt=scanner->table_rt[sp->table_id];
+		table_rt=scanner->table_rt[sp->p_real_table->table_id];
 		alignment_int64_array_add(table_rt->stream_num, sp->thread_num, -1);
 
 	}
@@ -2014,7 +2010,8 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 	struct Maat_scanner* scanner=NULL;
 	sfh_instance_t * tmp_fuzzy_handle=NULL;
 	struct Maat_table_desc *p_table=NULL;
-	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_DIGEST);
+	int virtual_table_id=0;
+	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_DIGEST, &virtual_table_id);
 	if(p_table==NULL)
 	{
 		_feather->scan_err_cnt++;
@@ -2023,6 +2020,8 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 	struct _stream_para_t* sp=ALLOC(struct _stream_para_t, 1);
 	scanner=_feather->scanner;
 	sp->feather=_feather;
+	sp->p_real_table=p_table;
+	sp->virtual_table_id=virtual_table_id;
 	sp->version=_feather->maat_version;
 	sp->process_offset=0;
 	if(scanner==NULL)
@@ -2038,7 +2037,6 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 	}
 	INC_SCANNER_REF(scanner, thread_num);
 
-	sp->table_id=table_id;
 	sp->thread_num=thread_num;
 	sp->total_len=total_len;
 	sp->fuzzy_hash_handle=tmp_fuzzy_handle;
@@ -2088,7 +2086,7 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	{
 		return 0;
 	}
-	struct Maat_table_runtime *table_rt=sp->feather->scanner->table_rt[sp->table_id];
+	struct Maat_table_runtime *table_rt=sp->feather->scanner->table_rt[sp->p_real_table->table_id];
 	GIE_handle_t* GIE_handle=table_rt->similar.gie_handle;
 	unsigned long long digest_len=0;
 	char* digest_buff=NULL;
@@ -2140,7 +2138,7 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 		}
 		_mid=grab_mid(mid,sp->feather, sp->thread_num,1);
 		struct scan_region_hit_wraper region_hit_wraper;
-		scan_region_hit_wraper_build_with_GIE(&region_hit_wraper, region_result, hit_region_cnt, _mid->is_last_region, 0);
+		scan_region_hit_wraper_build_with_GIE(&region_hit_wraper, region_result, hit_region_cnt, _mid->is_last_region, sp->virtual_table_id);
 		compile_ret=region_compile(sp->feather,_mid->inner,
 								&region_hit_wraper,
 								result,compile_result,rule_num,
@@ -2171,7 +2169,7 @@ void Maat_stream_scan_digest_end(stream_para_t* stream_para)
 {
 	struct _stream_para_t* sp=(struct _stream_para_t*)(*stream_para);
 	struct Maat_scanner* scanner=sp->feather->scanner;
-	struct Maat_table_runtime *table_rt=sp->feather->scanner->table_rt[sp->table_id];
+	struct Maat_table_runtime *table_rt=sp->feather->scanner->table_rt[sp->p_real_table->table_id];
 	alignment_int64_array_add(table_rt->stream_num, sp->thread_num,-1);
 	if(scanner!=NULL)
 	{
@@ -2274,7 +2272,8 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 	{
 		clock_gettime(CLOCK_MONOTONIC,&start);
 	}
-	p_table=acqurie_table(_feather,table_id,TABLE_TYPE_SIMILARITY);
+	int virtual_table_id=0;
+	p_table=acqurie_table(_feather, table_id, TABLE_TYPE_SIMILARITY, &virtual_table_id);
 	if(p_table==NULL)
 	{
 		_feather->scan_err_cnt++;
@@ -2285,7 +2284,7 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 	{
 		return 0;
 	}
-	struct Maat_table_runtime* table_rt=my_scanner->table_rt[table_id];
+	struct Maat_table_runtime* table_rt=my_scanner->table_rt[p_table->table_id];
 	if(table_rt->origin_rule_num==0)
 	{
 		return 0;
@@ -2306,7 +2305,7 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 		alignment_int64_array_add(table_rt->hit_cnt, thread_num,1);
 		_mid=grab_mid(mid, _feather, thread_num, 1);
 		struct scan_region_hit_wraper region_hit_wraper;
-		scan_region_hit_wraper_build_with_GIE(&region_hit_wraper, region_result, hit_region_cnt, _mid->is_last_region, 0);		
+		scan_region_hit_wraper_build_with_GIE(&region_hit_wraper, region_result, hit_region_cnt, _mid->is_last_region, virtual_table_id);		
 		compile_ret=region_compile(_feather,_mid->inner,
 									&region_hit_wraper,
 									result,compile_result,rule_num,

@@ -1,9 +1,9 @@
-#ifndef H_MAAT_RULE_INTERNAL_H_INCLUDE
-#define H_MAAT_RULE_INTERNAL_H_INCLUDE
+#pragma once
 
 #include "Maat_rule.h"
 #include "Maat_command.h"
-#include "Maat_table_description.h"
+#include "Maat_limits.h"
+#include "Maat_table.h"
 
 #include <MESA/MESA_htable.h>
 #include <MESA/MESA_list_queue.h>
@@ -27,17 +27,7 @@ extern const char *maat_module;
 #define mr_group_id_var		"SEQUENCE_GROUP"
 
 
-#define	MAX_TABLE_NUM			256
-#define	MAX_TABLE_LINE_SIZE		(1024*16)
-#define	MAX_EXPR_KEYLEN			1024
-#define	MAX_DISTRICT_LEN			64
 
-#define	MAX_SCANNER_HIT_NUM			64
-#define	MAX_GROUP_CACHE		128
-
-#define	MAX_FAILED_NUM		128
-
-#define	MAX_MAAT_STAT_NUM	64
 
 
 typedef	void*	rule_scanner_t;
@@ -210,11 +200,12 @@ struct iconv_handle_t
 struct _stream_para_t
 {
 	struct _Maat_feather_t* feather;
+	const struct Maat_table_desc* p_real_table;
+	int virtual_table_id;
 	int version;
 	int thread_num;
 	int max_cross_size;
 	int caching_size;
-	unsigned short table_id;
 	char do_merge;
 	char do_expr:4;
 	char do_regex:4;
@@ -355,7 +346,6 @@ struct _Maat_feather_t
 	MESA_lqueue_head garbage_q;
 	int table_cnt;
 	int DEFERRED_LOAD_ON;
-	int GROUP_MODE_ON;
 	int REDIS_MODE_ON;
 	enum data_source input_mode;
 	union
@@ -471,7 +461,6 @@ void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbag
 void garbage_bagging_with_timeout(enum maat_garbage_type type,void *p, int timeout, MESA_lqueue_head garbage_q);
 void garbage_bury(MESA_lqueue_head garbage_q,void *logger);
 void make_group_set(struct Maat_compile_group_relation* compile_rule, struct bool_expr* a_set, unsigned char *has_not);
-int read_table_description(struct Maat_table_desc** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger);
 void maat_start_cb(long long new_version,int update_type,void*u_para);
 int maat_update_cb(const char* table_name,const char* line,void *u_para);
 void maat_finish_cb(void* u_para);
@@ -516,7 +505,4 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 		const unsigned char* dec_key,
 		_Maat_feather_t* feather);
 
-
-
-#endif
 
