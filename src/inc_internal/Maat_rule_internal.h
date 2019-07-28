@@ -249,6 +249,9 @@ struct Maat_scanner
 	MESA_htable_handle vertex_id2group;
 
 	igraph_t group_graph;
+	igraph_integer_t group_graph_vcount;
+	igraph_vector_t dfs_vids;
+
 	int grp_vertex_id_generator;
 	int most_popular_sub_group;
 	unsigned long long max_presented_top_group_cnt;

@@ -143,9 +143,11 @@ long long redis_server_time(redisContext* ctx)
 	long long server_time=0;
 	redisReply* data_reply=NULL;
 	data_reply=_wrap_redisCommand(ctx,"TIME"); 
-	assert(data_reply->type==REDIS_REPLY_ARRAY);
-	server_time=atoll(data_reply->element[0]->str);
-	freeReplyObject(data_reply);
+	if(data_reply->type==REDIS_REPLY_ARRAY)
+	{
+		server_time=atoll(data_reply->element[0]->str);
+		freeReplyObject(data_reply);
+	}
 	return server_time;
 }
 enum MAAT_TABLE_TYPE type_region2table(const struct Maat_region_t* p)
@@ -1434,7 +1436,10 @@ void check_maat_expiration(redisContext *ctx, void *logger)
 	long long server_time=0;
 
 	server_time=redis_server_time(ctx);
-
+	if(!server_time)
+	{
+		return;
+	}
 	data_reply=_wrap_redisCommand(ctx, "ZRANGEBYSCORE %s -inf %lld",mr_expire_sset,server_time);
 	if(data_reply->type!=REDIS_REPLY_ARRAY||data_reply->elements==0)
 	{
@@ -1473,7 +1478,10 @@ void cleanup_update_status(redisContext *ctx, void *logger)
 	long long server_time=0, version_upper_bound=0,version_lower_bound=0,version_num=0,entry_num=0;
 
 	server_time=redis_server_time(ctx);
-
+	if(!server_time)
+	{
+		return;
+	}
 	reply=_wrap_redisCommand(ctx,"MULTI");
 	freeReplyObject(reply);
 	redisAppendCommand(ctx, "ZRANGEBYSCORE %s -inf %lld",mr_version_sset,server_time-MAAT_REDIS_SYNC_TIME);
@@ -2103,6 +2111,10 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 		return -1;
 	}
 	server_time=redis_server_time(write_ctx);
+	if(!server_time)
+	{
+		return -1;
+	}
 	s_rule=(struct serial_rule_t *)calloc(sizeof(struct serial_rule_t),line_num);
 	for(i=0;i<line_num;i++)
 	{
@@ -2392,7 +2404,10 @@ int Maat_cmd_commit(Maat_feather_t feather)
 		p=p->next;
 	}
 	_feather->server_time=redis_server_time(write_ctx);
-
+	if(!_feather->server_time)
+	{
+		goto error_out;
+	}
 	if(_feather->AUTO_NUMBERING_ON==1)
 	{
 		data_reply=_wrap_redisCommand(write_ctx,"INCRBY %s %d", mr_region_id_var, new_region_num); 
@@ -2612,6 +2627,10 @@ static int _Maat_command_set_one_line(struct _Maat_feather_t* _feather, enum MAA
 {
 	redisContext* write_ctx=get_redis_ctx_for_write(_feather);
 	_feather->server_time=redis_server_time(write_ctx);
+	if(!_feather->server_time)
+	{
+		return -1;
+	}
 	struct serial_rule_t s_rule;
 	set_serial_rule(&s_rule, op, id, 0, table_name, line, 0);
 	int transaction_success=0;

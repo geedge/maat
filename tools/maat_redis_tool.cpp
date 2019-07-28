@@ -336,6 +336,10 @@ int main(int argc, char * argv[])
 		printf("Serialize %s to %d lines, write temp file to %s .\n",json_file, total_line_cnt, tmp_iris_path);
 		struct serial_rule_t * s_rule=(struct serial_rule_t *)calloc(sizeof(struct serial_rule_t),total_line_cnt);
 		server_time=redis_server_time(ctx);
+		if(!server_time)
+		{
+			printf("Get Redis Time failed.\n");
+		}
 		if(timeout>0)
 		{
 			absolute_expire_time=server_time+timeout;

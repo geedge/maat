@@ -1490,9 +1490,16 @@ TEST(VirtualTable, Test1)
 						result, NULL, 4, &mid, 0);
 
 	EXPECT_EQ(ret, 1);
-	EXPECT_EQ(result[0].config_id, 160);
-	
+	EXPECT_EQ(result[0].config_id, 160);	
 	Maat_clean_status(&mid);
+	const char* should_not_hit="2018-10-05 is a keywords of table KEYWORDS_TABLE. Should not hit.";
+
+	mid=NULL;
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, should_not_hit, strlen(should_not_hit), 
+						result, NULL, 4, &mid, 0);
+	EXPECT_EQ(ret, -2);
+	Maat_clean_status(&mid);
+
 	return;
 }
 
@@ -2245,97 +2252,7 @@ TEST_F(MaatCmdTest, SetLines)
 
 	return;
 }
-/*
-//Following tests must be coded/tested at last, for they stalled the maat update thread and interrupt other tests.
-TEST_F(MaatCmdTest, SetExprOneMillion)
-{
-	const int CMD_EXPR_NUM=1000*1000;
-	const char* table_name="HTTP_URL";
-	
-	const char* keywords1="Hiredis";
-	const char* keywords2="C Client";
-	char escape_buff1[256],escape_buff2[256];
-	char keywords[256];
 
-	int label_id=5210, config_id=0,ret=0, output_id_cnt=0;
-	Maat_feather_t feather=MaatCmdTest::_shared_feather;
-	long long version_before=0;
-	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
-	
-	Maat_str_escape(escape_buff1, sizeof(escape_buff1),keywords1);
-	Maat_str_escape(escape_buff2, sizeof(escape_buff2),keywords2);
-	snprintf(keywords,sizeof(keywords),"%s&%s",escape_buff1,escape_buff2);
-	
-	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", CMD_EXPR_NUM);
-	int i=0;
-	for(i=0; i<CMD_EXPR_NUM;i++)
-	{
-		test_add_expr_command(feather,table_name,config_id-i, 0, label_id, keywords);
-	}
-	ret=Maat_cmd_commit(feather);
-	EXPECT_TRUE(ret>=0);
-	wait_for_cmd_effective(feather, version_before);
-	struct Maat_cmd_t* cmd=NULL;
-	struct Maat_rule_t rule;
-	memset(&rule,0,sizeof(rule));
-	int *output_ids=(int*)malloc(sizeof(int)*CMD_EXPR_NUM);
-	output_id_cnt=Maat_cmd_select(feather,label_id, output_ids, CMD_EXPR_NUM);
-	EXPECT_EQ(output_id_cnt, CMD_EXPR_NUM);
-	for(i=0; i<CMD_EXPR_NUM;i++)
-	{
-		memset(&rule,0,sizeof(rule));
-		rule.config_id=output_ids[i];
-		cmd=Maat_create_cmd(&rule, 0);
-		ret=Maat_cmd_append(feather, cmd, MAAT_OP_DEL);
-		EXPECT_EQ(ret, 0);
-		Maat_free_cmd(cmd);
-	}
-	ret=Maat_cmd_commit(feather);
-	
-	EXPECT_EQ(ret, CMD_EXPR_NUM);
-	free(output_ids);
-}
-
-TEST_F(MaatCmdTest, SetLinesOneMillion)
-{
-	const int TEST_CMD_LINE_NUM=1000*1000;
-	Maat_feather_t feather=MaatCmdTest::_shared_feather;
-
-	struct Maat_line_t **p_line=(struct Maat_line_t **)calloc(sizeof(struct Maat_line_t *), TEST_CMD_LINE_NUM);
-	struct Maat_line_t *line_rule=(struct Maat_line_t *)calloc(sizeof(struct Maat_line_t), TEST_CMD_LINE_NUM);
-	int i=0;
-	const char* line="1\t192.168.0.1\t4444444444\t1";
-	int seq=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", TEST_CMD_LINE_NUM);
-	for(i=0;i<TEST_CMD_LINE_NUM;i++)
-	{
-		line_rule[i].label_id=0;
-		line_rule[i].rule_id=seq-i;
-		line_rule[i].table_name="QD_ENTRY_INFO";
-		line_rule[i].table_line=line;
-//		asprintf(&(line_rule[i].table_line),"1\t192.168.0.1\t%d\t1",100+i);
-		line_rule[i].expire_after=0;
-		p_line[i]=line_rule+i;
-	}
-	
-	long long version_before=0;
-	Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
-
-	Maat_cmd_set_lines(feather,(const struct Maat_line_t **)p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
-	
-	wait_for_cmd_effective(feather, version_before);
-	
-	for(i=0;i<TEST_CMD_LINE_NUM;i++)
-	{
-		line_rule[i].table_line=NULL;
-	}
-	Maat_cmd_set_lines(feather, (const struct Maat_line_t **)p_line,TEST_CMD_LINE_NUM, MAAT_OP_DEL);
-	free(p_line);
-	free(line_rule);
-
-	return;
-}
-
-*/
 int g_test_update_paused=0;
 void pause_update_test_entry_cb(int table_id,const char* table_line,void* u_para)
 {

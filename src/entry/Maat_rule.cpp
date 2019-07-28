@@ -33,7 +33,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_7_20190629=1;
+int MAAT_FRAME_VERSION_2_8_20190728=1;
 
 
 int is_valid_expr_type(enum MAAT_EXPR_TYPE expr_type)
@@ -3169,26 +3169,39 @@ void vector_print(igraph_vector_t *v) {
   }
   printf("\n");
 }
-
+static size_t effective_vertices_count(igraph_vector_t *vids)
+{
+	size_t i=0;
+	int tmp_vid=0;
+	for(i=0; i<(size_t)igraph_vector_size(vids); i++)
+	{
+		tmp_vid=(int) VECTOR(*vids)[i];
+		if(tmp_vid<0)
+		{
+			break;
+		}
+	}
+	return i;
+}
 void walk_group_hash(const uchar * key, uint size, void * data, void * user)
 {
 	struct Maat_group_inner* group_rule=(struct Maat_group_inner*)data;
 	struct Maat_group_inner* parent_group=NULL;
 	struct Maat_scanner* scanner=(struct Maat_scanner*)user;
 	int tmp_vid=0;
-	igraph_vector_t vids;
-	igraph_vector_init(&vids, 0);
+	igraph_vector_t *vids=&(scanner->dfs_vids);
 	
 	igraph_dfs(&(scanner->group_graph), group_rule->vertex_id, IGRAPH_OUT, 
-				 0, &vids, NULL, NULL, NULL, NULL, NULL, NULL);
+				 0, vids, NULL, NULL, NULL, NULL, NULL, NULL);
 	
 
-	long int i=0;
-	long long* temp_group_ids=ALLOC(long long, igraph_vector_size(&vids));
-	size_t top_group_cnt=0;
-	for(i=0; i<igraph_vector_size(&vids); i++)
+	size_t i=0, top_group_cnt=0;
+	size_t parent_group_cnt=effective_vertices_count(vids);
+	long long* temp_group_ids=ALLOC(long long, parent_group_cnt);
+
+	for(i=0; i<(size_t)igraph_vector_size(vids); i++)
 	{
-		tmp_vid=(int) VECTOR(vids)[i];
+		tmp_vid=(int) VECTOR(*vids)[i];
 		if(tmp_vid<0)
 		{
 			break;
@@ -3196,10 +3209,11 @@ void walk_group_hash(const uchar * key, uint size, void * data, void * user)
 		parent_group=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->vertex_id2group, tmp_vid);
 		if(parent_group->has_compile_neighbors)//including itself
 		{
-			temp_group_ids[top_group_cnt]=parent_group->group_id;			
+			temp_group_ids[top_group_cnt]=parent_group->group_id;
 			top_group_cnt++;
 		}
 	}
+
 	pthread_mutex_lock(&(group_rule->mutex));
 	free(group_rule->top_groups);
 	group_rule->top_group_cnt=top_group_cnt;
@@ -3211,7 +3225,6 @@ void walk_group_hash(const uchar * key, uint size, void * data, void * user)
 		scanner->most_popular_sub_group=group_rule->group_id;
 	}
 	pthread_mutex_unlock(&(group_rule->mutex));
-	igraph_vector_destroy(&vids);
 	free(temp_group_ids);
 	temp_group_ids=NULL;
 	return;
@@ -3219,7 +3232,10 @@ void walk_group_hash(const uchar * key, uint size, void * data, void * user)
 
 void find_group_paths(struct Maat_scanner* scanner)
 {
+	scanner->group_graph_vcount=igraph_vcount(&scanner->group_graph);
+	igraph_vector_init(&(scanner->dfs_vids), scanner->group_graph_vcount);
 	MESA_htable_iterate(scanner->group_hash, walk_group_hash, scanner);
+	igraph_vector_destroy(&scanner->dfs_vids);
 	return;
 }
 void do_scanner_update(struct Maat_scanner* scanner, MESA_lqueue_head garbage_q, int scan_thread_num, void* logger)
