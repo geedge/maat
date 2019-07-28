@@ -3,7 +3,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <openssl/md5.h>
-
+#include <assert.h>
 #include "Maat_utils.h"
 pid_t gettid()
 {
@@ -252,3 +252,9 @@ const char* charset_get_name(enum MAAT_CHARSET charset)
 {
 	return CHARSET_STRING[charset];
 }
+int lqueue_destroy_cb(void *data, long data_len, void *arg)
+{
+	assert(0);
+	return 0;
+}
+

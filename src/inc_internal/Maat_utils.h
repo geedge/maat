@@ -72,5 +72,6 @@ char* md5_file(const char* filename, char* md5string);
 int get_column_pos(const char* line, int column_seq, size_t *offset, size_t *len);
 const char** charset_get_all_name(void);
 const char* charset_get_name(enum MAAT_CHARSET charset);
+int lqueue_destroy_cb(void *data, long data_len, void *arg);
 
 

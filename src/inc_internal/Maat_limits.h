@@ -1,4 +1,3 @@
-#define	MAX_TABLE_NUM			256
 #define	MAX_TABLE_LINE_SIZE		(1024*16)
 #define	MAX_EXPR_KEYLEN			1024
 #define	MAX_DISTRICT_LEN			64

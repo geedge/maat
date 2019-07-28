@@ -4,6 +4,7 @@
 #include "Maat_command.h"
 #include "Maat_limits.h"
 #include "Maat_table.h"
+#include "Maat_table_runtime.h"
 
 #include <MESA/MESA_htable.h>
 #include <MESA/MESA_list_queue.h>
@@ -218,54 +219,7 @@ struct _stream_para_t
 	pthread_mutex_t fuzzy_mutex;
 	unsigned char query_point[8];
 };
-struct similar_runtime
-{
-	GIE_handle_t*	gie_handle;
-	MESA_lqueue_head update_q;
-};
 
-struct plugin_runtime
-{
-	dynamic_array_t *cache_lines;
-	long long cache_line_num;
-	long long acc_line_num;
-	long long cache_size;
-	MESA_htable_handle key2ex_hash;
-};
-struct expr_runtime
-{
-	long long expr_rule_cnt;	//expr_type=0,1,3
-	long long regex_rule_cnt;	//expr_type=2
-};
-struct ip_runtime
-{
-	long long ipv4_rule_cnt;
-	long long ipv6_rule_cnt;
-
-};
-struct group_runtime
-{
-	long long not_flag_group;
-};
-struct Maat_table_runtime
-{
-	enum MAAT_TABLE_TYPE table_type;
-	long origin_rule_num;
-	union
-	{	
-		struct similar_runtime similar;	//for digest and similarity
-		struct plugin_runtime plugin;		
-		struct expr_runtime expr;
-		struct ip_runtime ip;
-		struct group_runtime group;		
-		void * other;
-	};
-	mcore_long_t	scan_cnt;
-	mcore_long_t	scan_cpu_time;	//nano
-	mcore_long_t	input_bytes;
-	mcore_long_t	stream_num;
-	mcore_long_t	hit_cnt;
-};
 struct rule_tag
 {
 	char* tag_name;
@@ -280,9 +234,10 @@ struct Maat_scanner
 	size_t gie_update_q_size;
 	size_t to_update_group_cnt;
 	size_t to_update_compile_cnt;
-	
-	struct Maat_table_runtime* table_rt[MAX_TABLE_NUM];
 
+	struct Maat_table_runtime_manager*  table_rt_mgr;
+	size_t max_table_num;
+	
 	MESA_htable_handle region_hash;	//key: region_id, value: struct region_group_relation*
 	MESA_htable_handle exprid_hash;	//key: expr_id, value: int array_idx of Maat_group_inner->regions;
 	MESA_htable_handle group_hash;	//key: group_id, value: struct Maat_group_inner*
@@ -344,7 +299,8 @@ struct _Maat_feather_t
 	struct Maat_scanner *scanner;
 	struct Maat_scanner *update_tmp_scanner;
 	MESA_lqueue_head garbage_q;
-	int table_cnt;
+	struct Maat_table_manager* table_mgr;
+	
 	int DEFERRED_LOAD_ON;
 	int REDIS_MODE_ON;
 	enum data_source input_mode;
@@ -360,8 +316,7 @@ struct _Maat_feather_t
 	int cumulative_update_off;
 	int stat_on;
 	int perf_on;
-	struct Maat_table_desc *p_table_info[MAX_TABLE_NUM];
-	MESA_htable_handle map_tablename2id;
+	
 	void* logger;
 	long long maat_version;
 	long long last_full_version;
@@ -394,8 +349,6 @@ struct _Maat_feather_t
 	int foreign_cont_linger;
 //internal states
 	long long new_version;
-	int active_plugin_table_num;
-	int is_last_plugin_table_updating;
 
 //for scanner independent stat>>>>
 	int backgroud_update_enabled;

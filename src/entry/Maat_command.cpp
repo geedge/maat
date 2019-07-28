@@ -915,7 +915,7 @@ int reconstruct_cmd(struct _Maat_feather_t *feather, struct _Maat_cmd_inner_t* _
 				continue;
 			}
 			region_cmd=&(group_cmd->regions[j]);
-			region_cmd->table_name=_maat_strdup(feather->p_table_info[region_inner->table_id]->table_name[0]);
+			region_cmd->table_name=_maat_strdup(Maat_table_get_name_by_id(feather->table_mgr, region_inner->table_id));
 			region_cmd->region_id=region_inner->region_id;
 			//NOTICE: region_type only avilable when OP_ADD, 
 			region_cmd->region_type=REGION_EXPR;
@@ -1374,7 +1374,7 @@ error_out:
 
 int fix_table_name(_Maat_feather_t* feather,struct Maat_cmd_t* cmd)
 {
-	int i=0,j=0,ret=0;
+	int i=0, j=0;
 	const char *table_name=NULL;
 	int table_id=0;
 	struct Maat_group_t* p_group=NULL;
@@ -1399,8 +1399,8 @@ int fix_table_name(_Maat_feather_t* feather,struct Maat_cmd_t* cmd)
 		{
 			p_region=&(p_group->regions[j]);
 			table_name=p_region->table_name;
-			ret=map_str2int(feather->map_tablename2id, table_name, &table_id);
-			if(ret<0)
+			table_id=Maat_table_get_id_by_name(feather->table_mgr, table_name);
+			if(table_id<0)
 			{
 				MESA_handle_runtime_log(feather->logger,RLOG_LV_FATAL,maat_module 
 						,"Unknown table %s of Maat_cmd_t[%d]->group[%d]->region[%d]."
@@ -1409,7 +1409,7 @@ int fix_table_name(_Maat_feather_t* feather,struct Maat_cmd_t* cmd)
 				return -1;
 			}
 			table_type=type_region2table(p_region);
-			if(table_type!=feather->p_table_info[table_id]->table_type)
+			if(table_type!=Maat_table_get_type_by_id(feather->table_mgr, table_id))
 			{
 				MESA_handle_runtime_log(feather->logger,RLOG_LV_FATAL,maat_module 
 						,"Table %s not support region type %d of Maat_cmd_t[%d]->group[%d]->region[%d]."
@@ -1419,7 +1419,7 @@ int fix_table_name(_Maat_feather_t* feather,struct Maat_cmd_t* cmd)
 				return -1;
 			}
 			free((char*)p_region->table_name);
-			p_region->table_name=_maat_strdup(feather->p_table_info[table_id]->table_name[0]);
+			p_region->table_name=_maat_strdup(Maat_table_get_name_by_id(feather->table_mgr, table_id));
 		}
 	}
 	return 0;
@@ -1651,7 +1651,7 @@ void _get_foregin_keys(struct serial_rule_t* p_rule, int* foreign_columns, int n
 }
 int get_foreign_keys_define(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, _Maat_feather_t* feather, const char* dir,void *logger)
 {
-	int ret=0, table_id=0, i=0;
+	int i=0;
 	int rule_with_foreign_key=0;
 	struct Maat_table_desc* p_table=NULL;
 	struct plugin_table_desc* plugin_desc=NULL;
@@ -1661,14 +1661,13 @@ int get_foreign_keys_define(redisContext *ctx, struct serial_rule_t* rule_list, 
 		{
 			continue;
 		}
-		ret=map_str2int(feather->map_tablename2id, rule_list[i].table_name, &table_id);
-		if(ret<0)
+		p_table=Maat_table_get_desc_by_name(feather->table_mgr, rule_list[i].table_name);
+		if(!p_table||p_table->table_type!=TABLE_TYPE_PLUGIN)
 		{
 			continue;
 		}
-		p_table=feather->p_table_info[table_id];
 		plugin_desc= &(p_table->plugin);
-		if(p_table->table_type!=TABLE_TYPE_PLUGIN||plugin_desc->n_foreign==0)
+		if(plugin_desc->n_foreign==0)
 		{
 			continue;
 		}
@@ -1808,6 +1807,7 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 	int update_type=CM_UPDATE_TYPE_INC;
 	long long new_version=0;
 	enum MAAT_TABLE_TYPE table_type;
+	struct Maat_table_desc* table_desc=NULL;
 	const struct plugin_table_desc* plugin_desc=NULL;
 	void* logger=feather->logger;
 
@@ -1889,17 +1889,18 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 		{
 			continue;
 		}
-		ret=map_str2int(feather->map_tablename2id,rule_list[i].table_name,&table_id);
-		if(ret<0)//Unrecognized table.
+		table_id=Maat_table_get_id_by_name(feather->table_mgr, rule_list[i].table_name);
+		if(table_id<0)//Unrecognized table.
 		{
 			continue;
 		}
-		table_type=feather->p_table_info[table_id]->table_type;
+		table_type=Maat_table_get_type_by_id(feather->table_mgr, table_id);
 		if(rule_list[i].op==MAAT_OP_DEL)
 		{
 			if(table_type==TABLE_TYPE_PLUGIN)
 			{
-				plugin_desc=&(feather->p_table_info[table_id]->plugin);
+				table_desc=Maat_table_get_by_id(feather->table_mgr, table_id, TABLE_TYPE_PLUGIN, NULL);
+				plugin_desc=&(table_desc->plugin);
 				valid_column=plugin_desc->valid_flag_column;
 			}
 			else
@@ -2105,8 +2106,8 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 	s_rule=(struct serial_rule_t *)calloc(sizeof(struct serial_rule_t),line_num);
 	for(i=0;i<line_num;i++)
 	{
-		ret=map_str2int(_feather->map_tablename2id, line_rule[i]->table_name, &table_id);
-		if(ret<0)
+		table_id=Maat_table_get_id_by_name(_feather->table_mgr, line_rule[i]->table_name);
+		if(table_id<0)
 		{
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_command 
 					,"Command set line id %d failed: unknown table %s."
@@ -2115,9 +2116,8 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 			ret=-1;
 			goto error_out;
 		}
-		p_table=_feather->p_table_info[table_id];
-		plugin_desc=&(p_table->plugin);
-		if(TABLE_TYPE_PLUGIN!=p_table->table_type)
+		p_table=Maat_table_get_by_id(_feather->table_mgr, table_id, TABLE_TYPE_PLUGIN, NULL);
+		if(!p_table)
 		{
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_command 
 					,"Command set line id %d failed: table %s is not a plugin table."
@@ -2126,6 +2126,7 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 			ret=-1;
 			goto error_out;
 		}
+		plugin_desc=&(p_table->plugin);
 		if(op==MAAT_OP_ADD)
 		{
 			ret=get_valid_flag_offset(line_rule[i]->table_line

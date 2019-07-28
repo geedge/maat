@@ -11,6 +11,7 @@
 #include <time.h>
 #include <sys/prctl.h>
 #include <sys/syscall.h>
+#include <strings.h>
 
 #include <MESA/MESA_htable.h>
 #include <MESA/MESA_list_queue.h>
@@ -479,11 +480,7 @@ error_out:
 	cJSON_Delete(json);
 	return ret;
 }
-int lqueue_destroy_cb(void *data, long data_len, void *arg)
-{
-	assert(0);
-	return 0;
-}
+
 void * HASH_fetch_by_id(MESA_htable_handle hash,int id)
 {
 	return MESA_htable_search(hash,(unsigned char*)&(id),sizeof(id));
@@ -938,127 +935,10 @@ void op_expr_add_rule(struct op_expr_t* op_expr,scan_rule_t* p_rule)
 	op_expr->rule_type=p_rule->rule_type;
 	return;
 }
-GIE_digest_t* create_digest_rule(unsigned int id, enum GIE_operation op,const char* digest,
-						short cfds_lvl,struct Maat_group_inner* tag)
-{
-	GIE_digest_t* rule=(GIE_digest_t*)calloc(sizeof(GIE_digest_t),1);
-	int digest_len=0;
-	rule->id=id;
-	rule->operation=op;
-	if(digest!=NULL)
-	{
-		digest_len=strlen(digest);
-		rule->sfh=(char*)calloc(sizeof(char),digest_len+1);
-		memcpy(rule->sfh,digest,digest_len);
-
-	}
-	rule->sfh_length=digest_len;
-	rule->cfds_lvl=cfds_lvl;
-	rule->tag=(void*)tag;
-	return rule;
-}
-void destroy_digest_rule(GIE_digest_t*rule)
-{
-	if(rule->sfh!=NULL)
-	{
-		free(rule->sfh);
-		rule->sfh=NULL;
-	}
-	free(rule);
-	rule=NULL;
-	return;
-}
-
-
-struct Maat_table_runtime* table_runtime_new(const struct Maat_table_desc* table_desc, int max_thread_num)
-{
-
-	struct Maat_table_runtime* table_rt= ALLOC(struct Maat_table_runtime, 1);
-	table_rt->table_type=table_desc->table_type;
-	switch(table_desc->table_type)
-	{
-		case TABLE_TYPE_DIGEST:
-		case TABLE_TYPE_SIMILARITY:
-			table_rt->similar.update_q=MESA_lqueue_create(0,0);
-			break;
-		case TABLE_TYPE_PLUGIN:
-			table_rt->plugin.cache_lines=dynamic_array_create(1, 1024);
-			if(table_desc->plugin.have_exdata)
-			{
-				table_rt->plugin.key2ex_hash=wrap_plugin_EX_hash_new(table_desc->plugin.estimate_size, 
-										table_desc->plugin.ex_desc.key2index_func);
-			}
-			break;
-		default:
-			break;
-	}
-
-	table_rt->scan_cnt=alignment_int64_array_alloc(max_thread_num);
-	table_rt->scan_cpu_time=alignment_int64_array_alloc(max_thread_num);
-	table_rt->input_bytes=alignment_int64_array_alloc(max_thread_num);
-	table_rt->stream_num=alignment_int64_array_alloc(max_thread_num);
-	table_rt->hit_cnt=alignment_int64_array_alloc(max_thread_num);
-	return table_rt;
-}
-void table_runtime_free(struct Maat_table_runtime* p)
-{
-	long q_cnt=0,data_size=0;
-	int i=0;
-	UNUSED int q_ret=0;
-
-	GIE_digest_t* digest_rule=NULL;
-	if(p==NULL)
-	{
-		return;
-	}
-	switch(p->table_type)
-	{
-		case TABLE_TYPE_DIGEST:
-		case TABLE_TYPE_SIMILARITY:
-			if(p->similar.gie_handle!=NULL)
-			{
-				GIE_destory(p->similar.gie_handle);
-			}
-			if(p->similar.update_q!=NULL)
-			{
-				q_cnt=MESA_lqueue_get_count(p->similar.update_q);
-				for(i=0;i<q_cnt;i++)
-				{
-					data_size=sizeof(GIE_digest_t*);
-					q_ret=(MESA_queue_errno_t)MESA_lqueue_get_head(p->similar.update_q,&digest_rule,&data_size);
-					assert(data_size==sizeof(void*)&&q_ret==MESA_QUEUE_RET_OK);
-					destroy_digest_rule(digest_rule);
-				}
-				MESA_lqueue_destroy(p->similar.update_q, lqueue_destroy_cb, NULL);				
-			}
-			break;
-		case TABLE_TYPE_PLUGIN:
-			dynamic_array_destroy(p->plugin.cache_lines, free);
-			p->plugin.cache_lines=NULL;
-			if(p->plugin.key2ex_hash!=NULL)
-			{
-				MESA_htable_destroy(p->plugin.key2ex_hash, NULL);
-			}
-		default:
-			break;
-	}
-
-	alignment_int64_array_free(p->scan_cnt);
-	alignment_int64_array_free(p->scan_cpu_time);
-	alignment_int64_array_free(p->input_bytes);
-	alignment_int64_array_free(p->stream_num);
-	alignment_int64_array_free(p->hit_cnt);
-	free(p);
-	return;
-}
 
 struct Maat_scanner* create_maat_scanner(unsigned int version,_Maat_feather_t *feather)
 {
 	int scan_thread_num=feather->scan_thread_num;
-//	int rs_scan_type=feather->rule_scan_type;
-	struct Maat_table_desc ** pp_table_desc=feather->p_table_info;
-	struct Maat_table_runtime* table_rt=NULL;
-	int i=0;
 	UNUSED int ret=0;
 	
 	MESA_htable_create_args_t hargs;
@@ -1115,8 +995,8 @@ struct Maat_scanner* create_maat_scanner(unsigned int version,_Maat_feather_t *f
 	scanner->region_update_q=MESA_lqueue_create(0, 0);
 	scanner->region=rulescan_initialize(scan_thread_num);
 	
-	//For best performance test:
-	//1.Do NOT set this option,rulescan return no hit detail as default;
+	//For best scan performance:
+	//1.Do NOT set this option, rulescan return no hit detail as default;
 	//2.Set necessary STR rule to QUICK;
 	if(feather->rule_scan_type==1)
 	{
@@ -1130,16 +1010,8 @@ struct Maat_scanner* create_maat_scanner(unsigned int version,_Maat_feather_t *f
 	scanner->tomb_ref=feather->garbage_q;
 	scanner->logger_ref=feather->logger;
 	scanner->region_rslt_buff=ALLOC(scan_result_t, MAX_SCANNER_HIT_NUM*scan_thread_num);
-
-	for(i=0;i<MAX_TABLE_NUM;i++)
-	{
-		if(pp_table_desc[i]==NULL)
-		{
-			continue;
-		}
-		table_rt=table_runtime_new(pp_table_desc[i], feather->scan_thread_num);
-		scanner->table_rt[i]=table_rt;
-	}
+	scanner->table_rt_mgr=Maat_table_runtime_manager_create(feather->table_mgr, feather->scan_thread_num);
+	scanner->max_table_num=Maat_table_manager_get_size(feather->table_mgr);
 	return scanner;
 }
 
@@ -1189,10 +1061,9 @@ void destroy_maat_scanner(struct Maat_scanner*scanner)
 			}
 		}
 	}
-	for(i=0;i<MAX_TABLE_NUM;i++)
-	{
-		table_runtime_free(scanner->table_rt[i]);
-	}
+	Maat_table_rt_manager_destroy(scanner->table_rt_mgr);
+	scanner->table_rt_mgr=NULL;
+
 	igraph_destroy(&scanner->group_graph);
 	free(scanner);
 	return;
@@ -1235,9 +1106,8 @@ struct _region_stat_t
 		int ipv6_rule_cnt;
 	};
 };
-void count_rs_region(struct op_expr_t* op_expr,struct _region_stat_t* region_stat, int size)
+void count_rs_region(struct op_expr_t* op_expr,struct _region_stat_t* region_stat, size_t size)
 {
-	assert(op_expr->table_id<size);
 	int op=0;
 	if(op_expr->p_expr->operation==0)//add
 	{
@@ -1277,7 +1147,7 @@ void count_rs_region(struct op_expr_t* op_expr,struct _region_stat_t* region_sta
 
 void rulescan_batch_update(rule_scanner_t rs_handle,MESA_lqueue_head expr_queue,void*logger,struct Maat_scanner* maat_scanner)
 {
-	long i=0,data_size=0;
+	long data_size=0, i=0;
 	unsigned int j=0;
 	int ret=0;
 	unsigned int failed_ids[MAX_FAILED_NUM];
@@ -1288,7 +1158,8 @@ void rulescan_batch_update(rule_scanner_t rs_handle,MESA_lqueue_head expr_queue,
 	const long q_cnt=MESA_lqueue_get_count(expr_queue);
 	struct timespec start,end;
 	unsigned long long update_interval=0;
-	struct _region_stat_t region_counter[MAX_TABLE_NUM];
+	size_t max_table_num=maat_scanner->max_table_num;
+	struct _region_stat_t region_counter[max_table_num];
 	memset(region_counter, 0, sizeof(region_counter));
 	struct Maat_table_runtime* table_rt=NULL;
 	if(q_cnt==0)
@@ -1317,7 +1188,7 @@ void rulescan_batch_update(rule_scanner_t rs_handle,MESA_lqueue_head expr_queue,
 			}
 		}
 		
-		count_rs_region(op_expr,region_counter,MAX_TABLE_NUM);
+		count_rs_region(op_expr, region_counter, max_table_num);
 		destroy_op_expr(op_expr);
 		op_expr=NULL;
 	}
@@ -1344,9 +1215,9 @@ void rulescan_batch_update(rule_scanner_t rs_handle,MESA_lqueue_head expr_queue,
 							,(double)update_interval
 							,update_interval);
 	//update scanner's region cnt;
-	for(i=0;i<MAX_TABLE_NUM;i++)
+	for(i=0; (size_t)i<max_table_num; i++)
 	{
-		table_rt=maat_scanner->table_rt[i];
+		table_rt=Maat_table_runtime_get(maat_scanner->table_rt_mgr, i);
 		if(table_rt==NULL)
 		{
 			continue;
@@ -1384,52 +1255,6 @@ void rulescan_batch_update(rule_scanner_t rs_handle,MESA_lqueue_head expr_queue,
 	free(to_update_expr);
 }
 
-void digest_batch_update(GIE_handle_t* handle,MESA_lqueue_head update_q,void*logger,struct Maat_scanner* maat_scanner,int table_id)
-{
-	long i=0,data_size=0;
-	int ret=0;
-	GIE_digest_t* digest_rule=NULL;
-	GIE_digest_t** update_array=NULL;
-	UNUSED	MESA_queue_errno_t q_ret=MESA_QUEUE_RET_OK; 
-	const long q_cnt=MESA_lqueue_get_count(update_q);
-	if(q_cnt==0)
-	{
-		return;
-	}
-	struct Maat_table_runtime* table_rt=maat_scanner->table_rt[table_id];
-	update_array=(GIE_digest_t** )calloc(sizeof(GIE_digest_t*),q_cnt);
-	for(i=0;i<q_cnt;i++)
-	{
-		data_size=sizeof(void*);
-		q_ret=(MESA_queue_errno_t)MESA_lqueue_get_head(update_q,&digest_rule,&data_size);
-		assert(data_size==sizeof(void*)&&q_ret==MESA_QUEUE_RET_OK);
-		update_array[i]=digest_rule;
-		digest_rule=NULL;
-	}
-	ret=GIE_update(handle,update_array, (int)q_cnt);
-	if(ret!=(int)q_cnt)
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"GIE_update error,when batch update %d/%ld rules.",ret,q_cnt);
-
-	}
-	for(i=0;i<q_cnt;i++)
-	{
-		if(update_array[i]->operation==GIE_INSERT_OPT)
-		{
-			table_rt->origin_rule_num++;
-		}
-		else
-		{
-			table_rt->origin_rule_num--;
-		}
-		destroy_digest_rule(update_array[i]);
-		update_array[i]=NULL;
-	}
-	free(update_array);
-	update_array=NULL;
-	return;
-}
 struct region_group_relation
 {
 	int region_id;
@@ -2049,34 +1874,25 @@ int add_intval_rule(struct Maat_table_desc* table,struct db_intval_rule* intval_
 	MESA_lqueue_join_tail(scanner->region_update_q, &op_expr, sizeof(void*));
 	return 0;
 }
-int add_digest_rule(struct Maat_table_desc* table,struct db_digest_rule* db_digest_rule,struct Maat_scanner *scanner,void* logger)
+int add_digest_rule(struct Maat_table_desc* table, struct db_digest_rule* db_rule, struct Maat_scanner *scanner,void* logger)
 {
 	struct Maat_group_inner* group_rule=NULL;
-	GIE_digest_t* digest_rule=NULL;
 	struct Maat_group_inner* u_para=NULL;
-	struct Maat_table_runtime * table_rt=scanner->table_rt[table->table_id];
+	struct Maat_table_runtime * table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
 	int expr_id=0,district_id=-1;
 
-	group_rule=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_digest_rule->group_id);
+	group_rule=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_rule->group_id);
 	if(group_rule==NULL)
 	{
-		group_rule=create_group_rule(db_digest_rule->group_id, 0, scanner);
+		group_rule=create_group_rule(db_rule->group_id, 0, scanner);
 	}
 	expr_id=scanner->exprid_generator++;
-	u_para=add_region_to_group(group_rule, table->table_id, db_digest_rule->region_id, district_id, expr_id, TABLE_TYPE_DIGEST, scanner);
+	u_para=add_region_to_group(group_rule, table->table_id, db_rule->region_id, district_id, expr_id, TABLE_TYPE_DIGEST, scanner);
 	if(u_para==NULL)
 	{
 		return -1;
 	}
-	if(table->table_type==TABLE_TYPE_SIMILARITY)
-	{
-		db_digest_rule->digest_string=str_unescape(db_digest_rule->digest_string);
-	}
-	digest_rule=create_digest_rule(expr_id, GIE_INSERT_OPT
-								,db_digest_rule->digest_string
-								,db_digest_rule->confidence_degree
-								,group_rule);
-	MESA_lqueue_join_tail(table_rt->similar.update_q, &digest_rule, sizeof(void*));
+	Maat_table_runtime_digest_add(table_rt, expr_id, db_rule->digest_string, db_rule->confidence_degree, group_rule);
 	scanner->gie_update_q_size++;
 	return 0;
 }
@@ -2086,8 +1902,8 @@ int del_region_rule(struct Maat_table_desc* table,int region_id,int group_id,int
 	unsigned int expr_id[MAAT_MAX_EXPR_ITEM_NUM*MAX_CHARSET_NUM]={0};
 	int expr_num=0;
 	struct Maat_group_inner* group_rule=NULL;
+	struct Maat_table_runtime* table_rt=NULL;
 	struct op_expr_t* op_expr=NULL;
-	GIE_digest_t* digest_rule=NULL;
 	group_rule=(struct Maat_group_inner*)HASH_fetch_by_id(maat_scanner->group_hash, group_id);
 	if(group_rule==NULL)
 	{
@@ -2126,11 +1942,8 @@ int del_region_rule(struct Maat_table_desc* table,int region_id,int group_id,int
 		case	TABLE_TYPE_SIMILARITY:
 		case	TABLE_TYPE_DIGEST:
 			assert(expr_num==1);
-			digest_rule=create_digest_rule(expr_id[0], GIE_DELETE_OPT	//del digest
-									,NULL
-									,0
-									,NULL);
-			MESA_lqueue_join_tail(maat_scanner->table_rt[table->table_id]->similar.update_q,&digest_rule, sizeof(void*));
+			table_rt=Maat_table_runtime_get(maat_scanner->table_rt_mgr, table->table_id);
+			Maat_table_runtime_digest_del(table_rt, expr_id[0]);
 			maat_scanner->gie_update_q_size++;
 			break;
 		default:
@@ -2331,10 +2144,10 @@ int del_compile_rule(struct Maat_table_desc* table, int compile_id, struct Maat_
 	scanner->to_update_compile_cnt++;
 	return 1;
 }
-void update_group_rule(struct Maat_table_desc* table,const char* table_line,struct Maat_scanner *scanner, MESA_htable_handle map_tablename2id, void* logger)
+void update_group_rule(struct Maat_table_desc* table,const char* table_line,struct Maat_scanner *scanner, struct Maat_table_manager* table_mgr, void* logger)
 {
 	struct db_group_rule_t db_group_rule;
-	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
+	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
 	int ret=0;
 	char virtual_table_name[MAX_TABLE_NAME_LEN]={0};
 	memset(&db_group_rule, 0, sizeof(db_group_rule));
@@ -2364,10 +2177,10 @@ void update_group_rule(struct Maat_table_desc* table,const char* table_line,stru
 		table->udpate_err_cnt++;
 		return;		
 	}
-	if(strlen(virtual_table_name)>0)
+	if(strlen(virtual_table_name)>0&&!strcasecmp(virtual_table_name, "null"))
 	{
-		ret=map_str2int(map_tablename2id, virtual_table_name, &(db_group_rule.virtual_table_id));
-		if(ret<0)
+		db_group_rule.virtual_table_id=Maat_table_get_id_by_name(table_mgr, virtual_table_name);
+		if(db_group_rule.virtual_table_id<0)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
 								"update error, unknown virutal table name: %s of group table %s:%s.",
@@ -2381,7 +2194,8 @@ void update_group_rule(struct Maat_table_desc* table,const char* table_line,stru
 	{
 		ret=del_group_rule(table, &db_group_rule, scanner, logger);
 		//leave no trace when compatible_group_update calling
-		if(table->table_type==TABLE_TYPE_GROUP&&ret==1)
+		assert(table->table_type==TABLE_TYPE_GROUP);
+		if(ret==1)
 		{
 			table_rt->origin_rule_num--;
 			assert(table_rt->origin_rule_num>=0);
@@ -2422,7 +2236,7 @@ void update_expr_rule(struct Maat_table_desc* table,const char* table_line,struc
 {
 	struct db_str_rule_t* maat_str_rule=ALLOC(struct db_str_rule_t, 1);
 	int ret=0,db_hexbin=0,rule_type=0;
-	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
+	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
 	switch(table->table_type)
 	{
 		case	TABLE_TYPE_EXPR:
@@ -2711,7 +2525,7 @@ void update_ip_rule(struct Maat_table_desc* table, const char* table_line, struc
 	struct db_ip_rule_t* ip_rule=(struct db_ip_rule_t*)calloc(sizeof(struct db_ip_rule_t),1);
 	char src_ip1[40]={0}, src_ip2[40]={0}, dst_ip1[40]={0}, dst_ip2[40]={0};
 	char saddr_format[16]={0}, sport_format[16]={0}, daddr_format[16]={0}, dport_format[16]={0};
-	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
+	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
 	unsigned short src_port1=0, src_port2=0, dst_port1=0, dst_port2=0;
 	int protocol=0,direction=0;
 	int ret=0;
@@ -2918,7 +2732,7 @@ error_out:
 void update_intval_rule(struct Maat_table_desc* table, const char* table_line, struct Maat_scanner *scanner, void* logger)
 {
 	struct db_intval_rule* intval_rule=ALLOC(struct db_intval_rule, 1);
-	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
+	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
 	int ret=0;
 	ret=sscanf(table_line,"%d\t%d\t%u\t%u\t%d",&(intval_rule->region_id)
 											,&(intval_rule->group_id)
@@ -2984,7 +2798,7 @@ error_out:
 void update_compile_rule(struct Maat_table_desc* table,const char* table_line ,struct Maat_scanner *scanner, const struct rule_tag* tags, int n_tags,void* logger)
 {
 	struct compile_table_desc* compile_desc=&(table->compile);
-	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
+	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
 
 	struct Maat_compile_rule *p_compile=NULL;
 	struct Maat_rule_head m_rule_tmp;
@@ -3069,7 +2883,7 @@ error_out:
 
 void update_digest_rule(struct Maat_table_desc* table, const char* table_line, struct Maat_scanner *scanner, void* logger)
 {
-	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
+	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
 	struct db_digest_rule* digest_rule=ALLOC(struct db_digest_rule, 1);
 	int ret=0;
 	char digest_buff[MAX_TABLE_LINE_SIZE]={'\0'};
@@ -3270,7 +3084,7 @@ void update_plugin_table(struct Maat_table_desc* table,const char* table_line,Ma
 	int i=0, ret=1, matched_tag=1;
 	unsigned int len=strlen(table_line)+1;
 	struct plugin_table_desc* plugin_desc=&(table->plugin);
-	struct Maat_table_runtime* table_rt=scanner->table_rt[table->table_id];
+	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
 	char *p=NULL;
 	char* copy=NULL;
 	size_t is_valid_offset=0, valid_len=0;
@@ -3413,11 +3227,7 @@ void do_scanner_update(struct Maat_scanner* scanner, MESA_lqueue_head garbage_q,
 	struct bool_matcher *tmp1=NULL,*tmp2=NULL;
 	MESA_htable_handle tmp_map=NULL;
 	struct Maat_table_runtime* table_rt=NULL;
-	int i=0;
-	long q_cnt;
-	GIE_create_para_t para;
-	para.gram_value=7;
-	para.position_accuracy=10;
+	int i=0, ret=0;
 	igraph_bool_t is_dag;
 	igraph_is_dag(&(scanner->group_graph), &is_dag);
 	if(!is_dag)
@@ -3451,9 +3261,9 @@ void do_scanner_update(struct Maat_scanner* scanner, MESA_lqueue_head garbage_q,
 							scanner->region_update_q,
 							logger,
 							scanner);
-	for(i=0;i<MAX_TABLE_NUM;i++)
+	for(i=0; (size_t)i<scanner->max_table_num; i++)
 	{
-		table_rt=scanner->table_rt[i];
+		table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, i);
 		if(table_rt==NULL)
 		{
 			continue;
@@ -3462,30 +3272,13 @@ void do_scanner_update(struct Maat_scanner* scanner, MESA_lqueue_head garbage_q,
 		{
 			case TABLE_TYPE_DIGEST:
 			case TABLE_TYPE_SIMILARITY:
-				q_cnt=MESA_lqueue_get_count(table_rt->similar.update_q);
-				if(q_cnt==0)
+				
+				ret=Maat_table_runtime_digest_batch_udpate(table_rt);
+				if(ret<0)
 				{
-					continue;
+					MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+										"GIE_update error.");
 				}
-				if(table_rt->similar.gie_handle==NULL)
-				{
-					if(table_rt->table_type==TABLE_TYPE_SIMILARITY)
-					{
-						para.ED_reexamine=1;
-						para.format=GIE_INPUT_FORMAT_PLAIN;
-					}
-					else
-					{
-						para.ED_reexamine=0;
-						para.format=GIE_INPUT_FORMAT_SFH;
-					}
-					table_rt->similar.gie_handle=GIE_create(&para);
-				}
-				digest_batch_update(table_rt->similar.gie_handle,
-									table_rt->similar.update_q,
-									logger,
-									scanner,
-									i);
 				break;
 			case TABLE_TYPE_PLUGIN:
 				break;
@@ -3509,12 +3302,9 @@ void do_scanner_update(struct Maat_scanner* scanner, MESA_lqueue_head garbage_q,
 
 }
 
-void maat_start_cb(long long new_version,int update_type,void*u_para)
+void maat_start_cb(long long new_version, int update_type, void*u_para)
 {
-	struct _Maat_feather_t *feather=(struct _Maat_feather_t *)u_para; 
-	struct Maat_table_desc* p_table=NULL;
-	struct plugin_table_desc* plugin_desc=NULL;
-	int i=0,j=0;
+	struct _Maat_feather_t *feather=(struct _Maat_feather_t *)u_para;
 	feather->new_version=new_version;
 	
 	if(update_type==CM_UPDATE_TYPE_FULL)
@@ -3532,26 +3322,7 @@ void maat_start_cb(long long new_version,int update_type,void*u_para)
 								feather->maat_version,new_version);
 		feather->maat_version=new_version;
 	}
-	feather->active_plugin_table_num=0;
-	for(i=0;i<MAX_TABLE_NUM;i++)
-	{
-		p_table=feather->p_table_info[i];
-		plugin_desc=&(p_table->plugin);
-		if(p_table==NULL||p_table->table_type!=TABLE_TYPE_PLUGIN||plugin_desc->cb_plug_cnt==0)
-		{
-			continue;
-		}
-
-		feather->active_plugin_table_num++;
-		
-		for(j=0;j<plugin_desc->cb_plug_cnt;j++)
-		{
-			if(plugin_desc->cb_plug[j].start!=NULL)
-			{
-				plugin_desc->cb_plug[j].start(update_type,plugin_desc->cb_plug[j].u_para);
-			}
-		}
-	}
+	Maat_table_manager_all_plugin_cb_start(feather->table_mgr, update_type);
 	return;
 }
 long long scanner_rule_num(struct Maat_scanner *scanner)
@@ -3559,9 +3330,9 @@ long long scanner_rule_num(struct Maat_scanner *scanner)
 	long long total=0;
 	struct Maat_table_runtime* table_rt=NULL;
 	int i=0;
-	for(i=0;i<MAX_TABLE_NUM;i++)
+	for(i=0; (size_t)i<scanner->max_table_num; i++)
 	{
-		table_rt=scanner->table_rt[i];
+		table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, i);
 		if(table_rt!=NULL)
 		{
 			total+=table_rt->origin_rule_num;
@@ -3572,42 +3343,9 @@ long long scanner_rule_num(struct Maat_scanner *scanner)
 void maat_finish_cb(void* u_para)
 {
 	struct _Maat_feather_t *feather=(struct _Maat_feather_t *)u_para; 
-	struct Maat_table_desc* p_table=NULL;
-	struct plugin_table_desc* plugin_desc=NULL;
 	long expr_wait_q_cnt=0;
-	int i=0, j=0;
 
-	int call_plugin_table_cnt=0;
-	for(i=0;i<MAX_TABLE_NUM;i++)
-	{
-		p_table=feather->p_table_info[i];
-		if(p_table==NULL)
-		{
-			continue;
-		}
-		switch(p_table->table_type)
-		{
-			case TABLE_TYPE_PLUGIN:
-				plugin_desc=&(p_table->plugin);				
-				call_plugin_table_cnt++;
-				if(call_plugin_table_cnt==feather->active_plugin_table_num)
-				{
-					feather->is_last_plugin_table_updating=1;
-				}
-				for(j=0;j<plugin_desc->cb_plug_cnt;j++)
-				{
-					if(plugin_desc->cb_plug[j].finish!=NULL)
-					{
-						plugin_desc->cb_plug[j].finish(plugin_desc->cb_plug[j].u_para);
-					}
-				}
-				feather->is_last_plugin_table_updating=0;
-				break;
-			default:
-				break;
-		}		
-	}
-
+	Maat_table_manager_all_plugin_cb_finish(feather->table_mgr);
 
 	if(feather->update_tmp_scanner!=NULL)
 	{
@@ -3651,14 +3389,11 @@ void maat_finish_cb(void* u_para)
 									feather->maat_version);
 	}
 	feather->new_version=-1;
-	feather->active_plugin_table_num=0;
 	return;
 }
 int maat_update_cb(const char* table_name,const char* line,void *u_para)
 {
 	struct _Maat_feather_t *feather=(struct _Maat_feather_t *)u_para; 
-	int ret=-1,i=0;
-	int table_id=-1;
 	Maat_scanner* scanner=NULL;
 	struct Maat_table_desc* p_table=NULL;
 	if(feather->update_tmp_scanner!=NULL)
@@ -3670,47 +3405,39 @@ int maat_update_cb(const char* table_name,const char* line,void *u_para)
 		scanner=feather->scanner;
 	}
 //	MESA_handle_runtime_log(feather->logger, RLOG_LV_DEBUG, maat_module, "Maat table %s input: %s", table_name, line);
-	ret=map_str2int(feather->map_tablename2id,table_name,&table_id);
-	if(ret<0)
+	p_table=Maat_table_get_desc_by_name(feather->table_mgr, table_name);
+	if(!p_table)
 	{
-		MESA_handle_runtime_log(feather->logger, RLOG_LV_INFO, maat_module ,"update warning, unknown table name %s",table_name);
+		MESA_handle_runtime_log(feather->logger, RLOG_LV_INFO, maat_module ,"update warning, unknown table name %s", table_name);
 		return -1;	
 	}
-	p_table=feather->p_table_info[table_id];
-	for(i=0;i<p_table->conj_cnt;i++)
-	{
-		if(0==memcmp(p_table->table_name[i],table_name,strlen(table_name)))
-		{
-			p_table->updating_name=i;
-		}
-	}
-	assert(i<=p_table->conj_cnt);
+	Maat_table_set_updating_name(p_table, table_name);
 
-	switch(feather->p_table_info[table_id]->table_type)
+	switch(p_table->table_type)
 	{
 		case	TABLE_TYPE_EXPR:
 		case	TABLE_TYPE_EXPR_PLUS:
-			update_expr_rule(feather->p_table_info[table_id], line, scanner, feather->logger);
+			update_expr_rule(p_table, line, scanner, feather->logger);
 			break;
 		case	TABLE_TYPE_IP:
 		case	TABLE_TYPE_IP_PLUS:
-			update_ip_rule(feather->p_table_info[table_id], line, scanner, feather->logger);
+			update_ip_rule(p_table, line, scanner, feather->logger);
 			break;
 		case	TABLE_TYPE_INTERVAL:
-			update_intval_rule(feather->p_table_info[table_id], line, scanner,feather->logger);
+			update_intval_rule(p_table, line, scanner,feather->logger);
 			break;
 		case	TABLE_TYPE_DIGEST:
 		case	TABLE_TYPE_SIMILARITY:
-			update_digest_rule(feather->p_table_info[table_id], line, scanner,feather->logger);
+			update_digest_rule(p_table, line, scanner,feather->logger);
 			break;
 		case	TABLE_TYPE_COMPILE:
-			update_compile_rule(feather->p_table_info[table_id], line, scanner, feather->accept_tags, feather->n_tags, feather->logger);
+			update_compile_rule(p_table, line, scanner, feather->accept_tags, feather->n_tags, feather->logger);
 			break;
 		case	TABLE_TYPE_GROUP:
-			update_group_rule(feather->p_table_info[table_id], line, scanner, feather->map_tablename2id, feather->logger);
+			update_group_rule(p_table, line, scanner, feather->table_mgr, feather->logger);
 			break;
 		case	TABLE_TYPE_PLUGIN:
-			update_plugin_table(feather->p_table_info[table_id], line, scanner, feather->accept_tags, feather->n_tags, feather->logger);
+			update_plugin_table(p_table, line, scanner, feather->accept_tags, feather->n_tags, feather->logger);
 		default:
 			break;
 	
@@ -3884,12 +3611,11 @@ void *thread_rule_monitor(void *arg)
 		}
 	}
 	
-	MESA_htable_destroy(feather->map_tablename2id,free);
+	Maat_table_manager_destroy(feather->table_mgr);
 	destroy_maat_scanner(feather->scanner);
 	garbage_bury(feather->garbage_q,0,feather->logger);
 	assert(0==MESA_lqueue_get_count(feather->garbage_q));
 	MESA_lqueue_destroy(feather->garbage_q,lqueue_destroy_cb,NULL);
-	Maat_table_clear(feather->p_table_info, MAX_TABLE_NUM);
 	
 	alignment_int64_array_free(feather->thread_call_cnt);
 	alignment_int64_array_free(feather->inner_mid_cnt);
