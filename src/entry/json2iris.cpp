@@ -888,7 +888,7 @@ int write_compile_line(cJSON *compile, struct iris_description_t *p_iris, void *
 	set_file_rulenum(table_info->table_path,table_info->line_count,logger);
 	return compile_id;
 }
-int write_group_line(int group_id, int parent_id, int group_not_flag, int parent_type, struct iris_description_t *p_iris, void * logger)
+int write_group_line(int group_id, int parent_id, int group_not_flag, int parent_type, const char* virtual_table, struct iris_description_t *p_iris, void * logger)
 {
 	FILE*fp=NULL;
 	int ret=0;
@@ -908,7 +908,7 @@ int write_group_line(int group_id, int parent_id, int group_not_flag, int parent
 										"fopen %s error %s.",p_iris->group_table->table_path,strerror(errno));
 		return -1;
 	}
-	fprintf(fp,"%d\t%d\t1\t%d\t%d\n",group_id, parent_id, group_not_flag, parent_type);
+	fprintf(fp,"%d\t%d\t1\t%d\t%d\t%s\n",group_id, parent_id, group_not_flag, parent_type, virtual_table);
 	fclose(fp);
 	p_iris->group_table->line_count++;
 	ret=set_file_rulenum(p_iris->group_table->table_path,p_iris->group_table->line_count,logger);
@@ -943,7 +943,7 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 	int group_not_flag=0;
 	cJSON *region_json=NULL, *item=NULL;
 	cJSON *sub_groups=NULL, *region_rule=NULL;
-	const char* group_name=NULL;
+	const char* group_name=NULL, *virtual_table=NULL;
 	struct group_info_t *group_info=NULL;
 	struct group_info_t untitled_group;
 
@@ -955,6 +955,16 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 	else
 	{
 		group_name=item->valuestring;
+	}
+
+	item=cJSON_GetObjectItem(group_json, "virtual_table");
+	if(item==NULL||item->type!=cJSON_String)
+	{
+		virtual_table="null";
+	}
+	else
+	{
+		virtual_table=item->valuestring;
 	}
 	item=cJSON_GetObjectItem(group_json,"not_flag");
 	if(item==NULL||item->type!=cJSON_Number)
@@ -985,7 +995,7 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 			MESA_htable_add(p_iris->group_name_map,(const unsigned char*)group_name, strlen(group_name),group_info);
 		}
 	}	
-	ret=write_group_line(group_info->group_id, parent_id, group_not_flag, parent_type, p_iris,  logger);
+	ret=write_group_line(group_info->group_id, parent_id, group_not_flag, parent_type, virtual_table, p_iris,  logger);
 	if(ret<0)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,

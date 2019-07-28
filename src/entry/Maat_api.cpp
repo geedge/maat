@@ -103,7 +103,7 @@ size_t pickup_hit_region_from_compile(struct bool_expr *compile_hit,
 		group_id=(unsigned long long)dynamic_array_read(hitted_id, i);
 		for(j=0; j<compile_hit->item_num; j++)
 		{		
-			if(group_id==compile_hit->items[j].item_id)
+			if(group_id==(compile_hit->items[j].item_id&0x00000000ffffffff))
 			{
 				region_pos[k]=i;
 				k++;
@@ -204,7 +204,7 @@ int region_compile(_Maat_feather_t*feather, struct _INNER_scan_status_t *_mid, c
 			ret=insert_set_id(&(_mid->all_hit_group_array),
 										&(_mid->all_hit_group_array_sz),
 										_mid->all_hit_group_cnt,
-										group_rule->top_groups[j]);
+										(unsigned long long)region_hit_wraper->virtual_table_id<<32|group_rule->top_groups[j]);
 			_mid->all_hit_group_cnt+=ret;
 		}
 	}

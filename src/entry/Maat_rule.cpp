@@ -2177,7 +2177,7 @@ void update_group_rule(struct Maat_table_desc* table,const char* table_line,stru
 		table->udpate_err_cnt++;
 		return;		
 	}
-	if(strlen(virtual_table_name)>0&&!strcasecmp(virtual_table_name, "null"))
+	if(strlen(virtual_table_name)>0&&strcasecmp(virtual_table_name, "null"))
 	{
 		db_group_rule.virtual_table_id=Maat_table_get_id_by_name(table_mgr, virtual_table_name);
 		if(db_group_rule.virtual_table_id<0)
