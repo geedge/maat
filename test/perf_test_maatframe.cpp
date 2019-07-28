@@ -105,9 +105,9 @@ Maat_feather_t MaatCMDPerfTest::_shared_feather;
 void* MaatCMDPerfTest::logger;
 
 //Following tests must be coded/tested at last, for they stalled the maat update thread and interrupt other tests.
-TEST_F(MaatCMDPerfTest, SetExpr100K)
+TEST_F(MaatCMDPerfTest, SetExpr200K)
 {
-	const int CMD_EXPR_NUM=100*1000;
+	const int CMD_EXPR_NUM=200*1000;
 	const char* table_name="HTTP_URL";
 	
 	const char* keywords1="Hiredis";

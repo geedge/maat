@@ -1990,7 +1990,7 @@ int add_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 	}
 	else
 	{
-		group_rule->has_compile_neighbors=1;
+		group_rule->ref_by_compile_cnt++;
 		compile_rule=(struct Maat_compile_group_relation*)HASH_fetch_by_id(scanner->compile_hash, db_group_rule->parent_id);
 		if(compile_rule==NULL)
 		{
@@ -2092,6 +2092,7 @@ int del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 		{
 			destroy_compile_group_relation(relation, scanner);
 		}
+		group_rule->ref_by_compile_cnt--;
 	}
 	destroy_group_rule(group_rule, DESTROY_GROUP_BY_PARENT, scanner);
 	scanner->to_update_group_cnt++;
@@ -3189,31 +3190,38 @@ void walk_group_hash(const uchar * key, uint size, void * data, void * user)
 	struct Maat_group_inner* parent_group=NULL;
 	struct Maat_scanner* scanner=(struct Maat_scanner*)user;
 	int tmp_vid=0;
-	igraph_vector_t *vids=&(scanner->dfs_vids);
-	
-	igraph_dfs(&(scanner->group_graph), group_rule->vertex_id, IGRAPH_OUT, 
-				 0, vids, NULL, NULL, NULL, NULL, NULL, NULL);
-	
-
 	size_t i=0, top_group_cnt=0;
-	size_t parent_group_cnt=effective_vertices_count(vids);
-	long long* temp_group_ids=ALLOC(long long, parent_group_cnt);
-
-	for(i=0; i<(size_t)igraph_vector_size(vids); i++)
+	long long* temp_group_ids=NULL;
+	if(group_rule->ref_by_compile_cnt==group_rule->ref_by_parent_cnt)
 	{
-		tmp_vid=(int) VECTOR(*vids)[i];
-		if(tmp_vid<0)
+		//fast path, group is only referenced by compile rules.
+		top_group_cnt=1;
+		temp_group_ids=ALLOC(long long, top_group_cnt);
+		temp_group_ids[0]=group_rule->group_id;
+	}
+	else
+	{
+		igraph_vector_t *vids=&(scanner->dfs_vids);
+		igraph_dfs(&(scanner->group_graph), group_rule->vertex_id, IGRAPH_OUT, 
+					 0, vids, NULL, NULL, NULL, NULL, NULL, NULL);
+
+		temp_group_ids=ALLOC(long long, effective_vertices_count(vids));
+
+		for(i=0; i<(size_t)igraph_vector_size(vids); i++)
 		{
-			break;
-		}
-		parent_group=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->vertex_id2group, tmp_vid);
-		if(parent_group->has_compile_neighbors)//including itself
-		{
-			temp_group_ids[top_group_cnt]=parent_group->group_id;
-			top_group_cnt++;
+			tmp_vid=(int) VECTOR(*vids)[i];
+			if(tmp_vid<0)
+			{
+				break;
+			}
+			parent_group=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->vertex_id2group, tmp_vid);
+			if(parent_group->ref_by_compile_cnt>0)//including itself
+			{
+				temp_group_ids[top_group_cnt]=parent_group->group_id;
+				top_group_cnt++;
+			}
 		}
 	}
-
 	pthread_mutex_lock(&(group_rule->mutex));
 	free(group_rule->top_groups);
 	group_rule->top_group_cnt=top_group_cnt;

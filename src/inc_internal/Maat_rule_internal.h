@@ -152,7 +152,7 @@ struct Maat_group_inner
 	int ref_by_parent_cnt;
 	int ref_by_children_cnt;
 	char* group_name;
-	int has_compile_neighbors;
+	int ref_by_compile_cnt;
 	int vertex_id;
 	size_t top_group_cnt;
 	long long* top_groups;
