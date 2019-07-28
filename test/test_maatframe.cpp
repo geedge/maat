@@ -1462,6 +1462,40 @@ TEST(ScanResult, LongerServiceDefine)
 	free(buff);
 	return;
 }
+TEST(VirtualTable, Test1)
+{
+#define TestVirtualTable
+	int ret=0, table_id=0;
+	const char* http_content="Batman\\:Take me Home.Superman/:Fine,stay with me.";
+	const char* http_url="https://blog.csdn.net/littlefang/article/details/8213058";
+	
+	struct Maat_rule_t result[4];
+	memset(result, 0, sizeof(result));
+	
+	scan_status_t mid=NULL;
+
+	table_id=Maat_table_register(g_feather, "HTTP_URL");	
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, http_url, strlen(http_url), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, -2);
+	
+
+	table_id=Maat_table_register(g_feather, "HTTP_RESPONSE_KEYWORDS");
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, http_content, strlen(http_content), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 160);
+	
+	Maat_clean_status(&mid);
+	return;
+}
+
 
 class MaatFileTest : public testing::Test 
 {
