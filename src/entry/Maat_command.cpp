@@ -247,7 +247,7 @@ int invalidate_line(char* line, enum MAAT_TABLE_TYPE type,int valid_column_seq)
 void serialize_group(const struct Maat_group_t* p_group, enum MAAT_OPERATION op, char* buff, size_t sz)
 {
 	if(op==MAAT_OP_RENEW_TIMEOUT) op=MAAT_OP_ADD;
-	snprintf(buff, sz, "%d\t%d\t%d\t%d\t%d", p_group->group_id, 
+	snprintf(buff, sz, "%d\t%d\t%d\t%d\t%d\tnull", p_group->group_id, 
 									p_group->parent_id,
 									op,
 									p_group->not_flag,

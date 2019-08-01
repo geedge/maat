@@ -619,6 +619,7 @@ void make_group_set(struct Maat_compile_group_relation* relation, struct bool_ex
 		{
 			continue;
 		}
+		//high 32 bit is virtual table id, low 32 bit is group id.
 		a_set->items[j].item_id=(unsigned long long)relation->virtual_table_id[j]<<32|group->group_id;
 		a_set->items[j].not_flag=relation->not_flag[j];
 		if(a_set->items[j].not_flag)

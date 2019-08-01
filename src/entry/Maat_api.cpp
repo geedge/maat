@@ -209,10 +209,16 @@ int region_compile(_Maat_feather_t*feather, struct _INNER_scan_status_t *_mid, c
 		}
 	}
 
-	scan_ret=bool_matcher_match(bm, thread_num, 
+	if(bm)
+	{
+		scan_ret=bool_matcher_match(bm, thread_num, 
 								_mid->all_hit_group_array, _mid->all_hit_group_cnt,
 								(void **)relation_array, MAX_SCANNER_HIT_NUM);
-
+	}
+	else
+	{
+		scan_ret=0;
+	}
 	if(scan_ret>1)
 	{
 		qsort(relation_array, scan_ret, sizeof(struct Maat_compile_group_relation**),
