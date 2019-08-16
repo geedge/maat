@@ -631,6 +631,10 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			break;
 		case MAAT_OPT_JSON_FILE_PATH:
 			assert(_feather->input_mode==SOURCE_NONE);
+			MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
+							"Maat initial with JSON file %s, formating..",
+							(const char*)value);
+
 			ret=json2iris((const char*)value,
 					_feather->compile_tn,_feather->group_tn,
 					NULL,
@@ -647,7 +651,7 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 
 			md5_file(_feather->json_ctx.json_file, _feather->json_ctx.effective_json_md5);
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
-							"Maat initial with JSON file %s md5: %s, generate index file %s OK.",
+							"JSON file %s md5: %s, generate index file %s OK.",
 							_feather->json_ctx.json_file,
 							_feather->json_ctx.effective_json_md5,
 							_feather->json_ctx.iris_file);

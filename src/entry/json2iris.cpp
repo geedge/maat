@@ -937,8 +937,6 @@ int write_index_file(struct iris_description_t *p_iris,void* logger)
 int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int tracking_compile_id, struct iris_description_t *p_iris, void* logger)
 {
 	const char* _str_parent_type[2]={"compile", "group"};
-	int i=0;
-	int sub_group_cnt=0, region_cnt=0;
 	int ret=0;
 	int group_not_flag=0;
 	cJSON *region_json=NULL, *item=NULL;
@@ -1005,10 +1003,8 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 	region_json=cJSON_GetObjectItem(group_json,"regions");
 	if(region_json!=NULL)
 	{
-		region_cnt=cJSON_GetArraySize(region_json);
-		for(i=0; i<region_cnt; i++)
+		cJSON_ArrayForEach(region_rule, region_json)
 		{
-			region_rule=cJSON_GetArrayItem(region_json,i);
 			ret=write_region_rule(region_rule, tracking_compile_id,	group_info->group_id, p_iris, logger);
 			if(ret<0)
 			{
@@ -1022,10 +1018,9 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 	if(sub_groups!=NULL)
 	{
 		//recursively
-		sub_group_cnt=cJSON_GetArraySize(sub_groups);
-		for(i=0; i<sub_group_cnt; i++)
+		
+		cJSON_ArrayForEach(item, sub_groups)
 		{
-			item=cJSON_GetArrayItem(sub_groups, i);	
 			ret=write_group_rule(item, group_info->group_id, PARENT_TYPE_GROUP, tracking_compile_id, p_iris, logger);
 			if(ret<0)
 			{
@@ -1037,18 +1032,16 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 }
 int write_iris(cJSON *json, struct iris_description_t *p_iris, void* logger)
 {
-	int i=0,j=0;
-	int compile_id=-1, compile_cnt=0, group_cnt=0, plug_table_cnt=0;
+	int i=0;
+	int compile_id=-1, compile_cnt=0, group_cnt=0;
 	int ret=0;
 	cJSON *c_rules=NULL, *g_rules=NULL, *plug_tables=NULL;
 	cJSON *compile_rule=NULL,*group_rule=NULL, *each_plug_table=NULL;
 	plug_tables=cJSON_GetObjectItem(json,"plugin_table");
 	if(NULL!=plug_tables)
 	{
-		plug_table_cnt=cJSON_GetArraySize(plug_tables);
-		for(i=0;i<plug_table_cnt;i++)
+		cJSON_ArrayForEach(each_plug_table, plug_tables)
 		{
-			each_plug_table=cJSON_GetArrayItem(plug_tables,i);
 			write_plugin_line(each_plug_table, i, p_iris, logger);
 		}
 	}
@@ -1067,9 +1060,8 @@ int write_iris(cJSON *json, struct iris_description_t *p_iris, void* logger)
 									"have no rules.");
 		return -1;
 	}
-	for(i=0;i<compile_cnt;i++)
+	cJSON_ArrayForEach(compile_rule, c_rules)
 	{
-		compile_rule=cJSON_GetArrayItem(c_rules,i);
 		compile_id=write_compile_line(compile_rule,p_iris, logger);
 		if(compile_id<0)
 		{
@@ -1091,9 +1083,8 @@ int write_iris(cJSON *json, struct iris_description_t *p_iris, void* logger)
 										"compile rule %d have no groups.",compile_id);
 			return -1;
 		}
-		for(j=0;j<group_cnt;j++)
+		cJSON_ArrayForEach(group_rule, g_rules)
 		{
-			group_rule=cJSON_GetArrayItem(g_rules,j);
 			ret=write_group_rule(group_rule, compile_id, PARENT_TYPE_COMPILE, compile_id, p_iris, logger);
 			if(ret<0)
 			{

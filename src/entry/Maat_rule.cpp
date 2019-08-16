@@ -33,7 +33,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_8_20190728=1;
+int MAAT_FRAME_VERSION_2_8_20190816=1;
 
 
 int is_valid_expr_type(enum MAAT_EXPR_TYPE expr_type)

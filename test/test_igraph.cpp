@@ -19,7 +19,7 @@ int main() {
 	igraph_integer_t edge_num_before=0, edge_num_after=0;
 	int v[10];
 	int i=0;
-	for(i=0; i<sizeof(v)/sizeof(int); i++)
+	for(i=0; (unsigned int)i<sizeof(v)/sizeof(int); i++)
 	{
 		v[i]=i;
 		igraph_add_vertices(&g, 1, NULL);	//Add 1 vertice.
