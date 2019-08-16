@@ -35,7 +35,24 @@
 
 int MAAT_FRAME_VERSION_2_8_20190816=1;
 
-
+int is_valid_table_name(const char* str)
+{
+	size_t i=0, integer_cnt=0;
+	for(i=0; i<strlen(str); i++)
+	{
+		if(str[i]>='0'&&str[i]<='9')
+		{
+			integer_cnt++;
+		}
+	}
+	if(strlen(str)==0 ||
+		integer_cnt==strlen(str) ||
+		0==strcasecmp(str, "null"))
+	{
+		return 0;
+	}
+	return 1;
+}
 int is_valid_expr_type(enum MAAT_EXPR_TYPE expr_type)
 {
 	switch(expr_type)
@@ -2179,7 +2196,7 @@ void update_group_rule(struct Maat_table_desc* table,const char* table_line,stru
 		table->udpate_err_cnt++;
 		return;		
 	}
-	if(strlen(virtual_table_name)>0&&strcasecmp(virtual_table_name, "null"))
+	if(is_valid_table_name(virtual_table_name))
 	{
 		db_group_rule.virtual_table_id=Maat_table_get_id_by_name(table_mgr, virtual_table_name);
 		if(db_group_rule.virtual_table_id<0)
