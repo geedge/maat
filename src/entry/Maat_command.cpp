@@ -2374,7 +2374,7 @@ int Maat_cmd_commit(Maat_feather_t feather)
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 
-	int ret=0,i=0;
+	int ret=-1, i=0;
 	int new_region_num=0,new_group_num=0;
 	int serial_rule_num=0,serial_rule_idx=0;
 	UNUSED int transaction_success=1;
@@ -2386,7 +2386,7 @@ int Maat_cmd_commit(Maat_feather_t feather)
 	struct serial_rule_t* s_rule=NULL;
 	if(_feather->input_mode!=SOURCE_REDIS)
 	{
-		return -1;
+		return ret;
 	}
 	if(_feather->cmd_q_cnt==0)
 	{
@@ -2414,7 +2414,6 @@ int Maat_cmd_commit(Maat_feather_t feather)
 		if(data_reply->type!=REDIS_REPLY_INTEGER)
 		{
 			freeReplyObject(data_reply);
-			ret=-1;
 			goto error_out;
 		}
 		_feather->base_rgn_seq=data_reply->integer-new_region_num;
@@ -2424,7 +2423,6 @@ int Maat_cmd_commit(Maat_feather_t feather)
 		if(data_reply->type!=REDIS_REPLY_INTEGER)
 		{
 			freeReplyObject(data_reply);
-			ret=-1;
 			goto error_out;
 		}
 		_feather->base_grp_seq=data_reply->integer-new_group_num;

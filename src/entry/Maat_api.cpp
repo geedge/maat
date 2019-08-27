@@ -982,7 +982,11 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 		pthread_mutex_unlock(&(_feather->background_update_mutex));
 		return -1;
 	}
-
+	if(!_feather->scanner)
+	{
+		pthread_mutex_unlock(&(_feather->background_update_mutex));
+		return 1;
+	}
 	const char* line=NULL;
 	struct Maat_table_runtime* table_rt=NULL;
 	table_rt=Maat_table_runtime_get(_feather->scanner->table_rt_mgr, table_id);
