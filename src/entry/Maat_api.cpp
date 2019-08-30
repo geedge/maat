@@ -1878,7 +1878,6 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 {
 	struct _stream_para_t* sp=(struct _stream_para_t*)(*stream_para);
 	int do_query=0;
-	GIE_result_t region_result[MAX_SCANNER_HIT_NUM];
 	int hit_region_cnt=0,compile_ret=0;
 	_compile_result_t compile_result[rule_num];//dynamic array	
 	if(data==NULL||data_len<=0)
@@ -1889,6 +1888,8 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 	{
 		return 0;
 	}
+	GIE_result_t* region_result=sp->feather->scanner->gie_rslt_buff+MAX_SCANNER_HIT_NUM*sp->thread_num;
+
 	struct Maat_table_runtime *table_rt=Maat_table_runtime_get(sp->feather->scanner->table_rt_mgr, sp->p_real_table->table_id);
 	GIE_handle_t* GIE_handle=table_rt->similar.gie_handle;
 	unsigned long long digest_len=0;
@@ -2065,7 +2066,6 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 {
 	int hit_region_cnt=0,compile_ret=0;
 	struct _OUTER_scan_status_t* _mid=NULL;
-	GIE_result_t region_result[MAX_SCANNER_HIT_NUM];
 	_compile_result_t compile_result[rule_num];
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	struct Maat_scanner* my_scanner=NULL;
@@ -2087,6 +2087,8 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 	{
 		return 0;
 	}
+	GIE_result_t* region_result=my_scanner->gie_rslt_buff+MAX_SCANNER_HIT_NUM*thread_num;
+
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(my_scanner->table_rt_mgr, p_table->table_id);
 	if(table_rt->origin_rule_num==0)
 	{
@@ -2096,7 +2098,7 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 	INC_SCANNER_REF(my_scanner,thread_num);
 	alignment_int64_array_add(_feather->thread_call_cnt, thread_num, 1);
 	
-	hit_region_cnt=GIE_query(gie_handle, data, data_len,region_result, MAX_SCANNER_HIT_NUM);
+	hit_region_cnt=GIE_query(gie_handle, data, data_len, region_result, MAX_SCANNER_HIT_NUM);
 	if(hit_region_cnt<0)
 	{
 		DEC_SCANNER_REF(my_scanner, thread_num);

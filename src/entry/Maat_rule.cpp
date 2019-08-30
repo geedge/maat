@@ -1028,6 +1028,7 @@ struct Maat_scanner* create_maat_scanner(unsigned int version,_Maat_feather_t *f
 	scanner->tomb_ref=feather->garbage_q;
 	scanner->logger_ref=feather->logger;
 	scanner->region_rslt_buff=ALLOC(scan_result_t, MAX_SCANNER_HIT_NUM*scan_thread_num);
+	scanner->gie_rslt_buff=ALLOC(GIE_result_t, MAX_SCANNER_HIT_NUM*scan_thread_num);
 	scanner->table_rt_mgr=Maat_table_runtime_manager_create(feather->table_mgr, feather->scan_thread_num);
 	scanner->max_table_num=Maat_table_manager_get_size(feather->table_mgr);
 	return scanner;
@@ -1067,6 +1068,8 @@ void destroy_maat_scanner(struct Maat_scanner*scanner)
 	MESA_lqueue_destroy(scanner->region_update_q, lqueue_destroy_cb, NULL);
 	free(scanner->region_rslt_buff);
 	scanner->region_rslt_buff=NULL;
+	free(scanner->gie_rslt_buff);
+	scanner->gie_rslt_buff=NULL;
 	alignment_int64_array_free(scanner->ref_cnt);
 	scanner->ref_cnt=NULL;
 	for(i=0;i<MAX_CHARSET_NUM;i++)

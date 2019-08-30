@@ -263,6 +263,7 @@ struct Maat_scanner
 	MESA_lqueue_head region_update_q;
 	struct bool_matcher * bool_matcher_expr_compiler;
 	scan_result_t *region_rslt_buff;
+	GIE_result_t* gie_rslt_buff;
 	void* logger_ref;
 	MESA_lqueue_head tomb_ref;//reference of g_feather->garbage_q
 

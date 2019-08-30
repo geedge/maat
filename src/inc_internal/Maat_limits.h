@@ -2,7 +2,7 @@
 #define	MAX_EXPR_KEYLEN			1024
 #define	MAX_DISTRICT_LEN			64
 
-#define	MAX_SCANNER_HIT_NUM			64
+#define	MAX_SCANNER_HIT_NUM			4096
 #define	MAX_GROUP_CACHE		128
 
 #define	MAX_FAILED_NUM		128
