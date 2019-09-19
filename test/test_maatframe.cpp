@@ -1630,8 +1630,6 @@ protected:
 		
 		const char* foregin_dir="./foreign_files/";	
 		Maat_set_feather_opt(_shared_feather, MAAT_OPT_FOREIGN_CONT_DIR,foregin_dir, strlen(foregin_dir)+1);
-		linger_timeout=2;
-		Maat_set_feather_opt(_shared_feather, MAAT_OPT_FOREIGN_CONT_LINGER,&linger_timeout, sizeof(linger_timeout));
 
 		Maat_cmd_flushDB(_shared_feather);
 		Maat_initiate_feather(_shared_feather);

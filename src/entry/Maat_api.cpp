@@ -543,7 +543,6 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->base_rgn_seq=0;
 	feather->AUTO_NUMBERING_ON=1;
 	feather->backgroud_update_enabled=1;
-	feather->foreign_cont_linger=0;
 	snprintf(feather->foreign_cont_dir, sizeof(feather->foreign_cont_dir), "%s_files", table_info_path);
 	pthread_mutex_init(&(feather->background_update_mutex),NULL);
 	snprintf(feather->table_info_fn,sizeof(feather->table_info_fn),"%s",table_info_path);
@@ -757,9 +756,6 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			{
 				_feather->foreign_cont_dir[strlen(_feather->foreign_cont_dir)-1]='\0';
 			}
-			break;
-		case MAAT_OPT_FOREIGN_CONT_LINGER:
-			_feather->foreign_cont_linger=*(int*)value;
 			break;
 		default:
 			return -1;

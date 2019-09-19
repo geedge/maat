@@ -1732,22 +1732,38 @@ void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int 
 	for(i=0;i<rule_num;i++)
 	{
 		p=rule_list+i;
-		if(p->op==MAAT_OP_DEL||p->n_foreign==0)
+		if(p->n_foreign==0)
 		{
 			continue;
 		}
-		for(j=0; j<p->n_foreign; j++)
+		if(p->op==MAAT_OP_DEL)
 		{
-			if(p->f_keys[j].is_existed==1)
+			for(j=0; j<rule_list[i].n_foreign; j++)
 			{
-				continue;
+				ret=system_cmd_rm(rule_list[i].f_keys[j].filename);
+				if(ret==-1)
+				{
+					MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_module,
+							"Foreign content file %s remove failed.",
+							rule_list[i].f_keys[j].filename);
+				}
 			}
-			snprintf(redis_cmd,sizeof(redis_cmd),"GET %s", p->f_keys[j].key);
-			ret=redisAppendCommand(ctx, redis_cmd);
-			track[key_num].rule_idx=i;
-			track[key_num].foreign_idx=j;
-			key_num++;
-			assert(ret==REDIS_OK);
+		}	
+		else
+		{
+			for(j=0; j<p->n_foreign; j++)
+			{
+				if(p->f_keys[j].is_existed==1)
+				{
+					continue;
+				}
+				snprintf(redis_cmd,sizeof(redis_cmd),"GET %s", p->f_keys[j].key);
+				ret=redisAppendCommand(ctx, redis_cmd);
+				track[key_num].rule_idx=i;
+				track[key_num].foreign_idx=j;
+				key_num++;
+				assert(ret==REDIS_OK);
+			}
 		}
 	}
 	for(i=0;i<key_num;i++)
@@ -1809,7 +1825,7 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 		const unsigned char* dec_key,
 		_Maat_feather_t* feather)
 {
-	int table_id=0,i=0, j=0, rule_num=0,empty_value_num=0, valid_column=-1;
+	int table_id=0, i=0, rule_num=0, empty_value_num=0, valid_column=-1;
 	int ret=0;
 	struct serial_rule_t* rule_list=NULL;
 	int update_type=CM_UPDATE_TYPE_INC;
@@ -1928,33 +1944,6 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 			rewrite_table_line_with_foreign(rule_list+i);
 		}
 		update(rule_list[i].table_name,rule_list[i].table_line,u_para);
-		if(rule_list[i].n_foreign&&rule_list[i].op==MAAT_OP_DEL)
-		{
-			
-			for(j=0; j<rule_list[i].n_foreign; j++)
-			{
-				if(feather->foreign_cont_linger==0)
-				{
-					ret=system_cmd_rm(rule_list[i].f_keys[j].filename);
-					if(ret==-1)
-					{
-						MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module,
-								"Foreign content file %s remove failed.",
-								rule_list[i].f_keys[j].filename);
-					}
-				}
-				else if(feather->foreign_cont_linger>0)
-				{
-					garbage_bagging_with_timeout(GARBAGE_FOREIGN_FILE, rule_list[i].f_keys[j].filename, feather->foreign_cont_linger, feather->garbage_q);
-					rule_list[i].f_keys[j].filename=NULL;//transfer owner to garbage collection.
-				}
-				else
-				{
-					//Less than 0, don't delete.
-				}
-			}
-			
-		}
 	}
 	finish(u_para);
 

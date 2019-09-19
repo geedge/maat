@@ -350,7 +350,6 @@ struct _Maat_feather_t
 	int n_tags;
 	
 	char foreign_cont_dir[MAX_TABLE_NAME_LEN];
-	int foreign_cont_linger;
 //internal states
 	long long new_version;
 
