@@ -1607,10 +1607,9 @@ void rewrite_table_line_with_foreign(struct serial_rule_t*p)
 }
 void _get_foregin_keys(struct serial_rule_t* p_rule, int* foreign_columns, int n_foreign, const char* dir, void* logger)
 {
-	int ret=0, i=0;
+	int i=0;
 	const char* p_foreign=NULL;
 	int foreign_key_size=0;
-	struct stat file_info;
 	p_rule->n_foreign=n_foreign;
 	p_rule->f_keys=ALLOC(struct foreign_key, n_foreign);
 	for(i=0; i<n_foreign; i++)
@@ -1641,13 +1640,7 @@ void _get_foregin_keys(struct serial_rule_t* p_rule, int* foreign_columns, int n
 		}
 		p_rule->f_keys[i].key=(char*)calloc(sizeof(char),foreign_key_size+1);
 		memcpy(p_rule->f_keys[i].key, p_foreign, foreign_key_size);
-	
 		p_rule->f_keys[i].filename=get_foreign_cont_filename(p_rule->table_name, p_rule->rule_id, p_rule->f_keys[i].key, dir);
-		ret=stat(p_rule->f_keys[i].filename, &file_info);
-		if(ret==0)
-		{
-			p_rule->f_keys[i].is_existed=1;
-		}
 	}
 	if(i!=n_foreign)
 	{
@@ -1729,6 +1722,8 @@ void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int 
 	redisReply* reply=NULL;
 	struct serial_rule_t*p=NULL;
 	FILE* fp=NULL;
+	struct stat file_info;
+
 	for(i=0;i<rule_num;i++)
 	{
 		p=rule_list+i;
@@ -1753,7 +1748,8 @@ void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int 
 		{
 			for(j=0; j<p->n_foreign; j++)
 			{
-				if(p->f_keys[j].is_existed==1)
+				ret=stat(p->f_keys[i].filename, &file_info);
+				if(ret==0)
 				{
 					continue;
 				}
