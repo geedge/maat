@@ -46,7 +46,7 @@
 #define UNUSED	__attribute__((unused))
 const char*	module_name_str(const char*name);
 #define maat_module	(module_name_str("MAAT_Frame"))
-
+#define	TO_RELATION_ID(vid, gid)	((unsigned long long)vid<<32|gid)
 char* _maat_strdup(const char* s);
 char* str_unescape(char* s);
 inline void ipv6_ntoh(unsigned int *v6_addr)

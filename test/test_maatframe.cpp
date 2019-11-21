@@ -1491,7 +1491,7 @@ TEST(VirtualTable, Test1)
 
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 160);	
-	Maat_clean_status(&mid);
+
 	const char* should_not_hit="2018-10-05 is a keywords of table KEYWORDS_TABLE. Should not hit.";
 
 	mid=NULL;

@@ -551,8 +551,8 @@ struct Maat_table_desc * Maat_table_get_by_id(struct Maat_table_manager* table_m
 	}
 	if(p_real_table->table_type!=expect_type)
 	{
-		if((expect_type==TABLE_TYPE_EXPR && p_table->table_type!=TABLE_TYPE_EXPR_PLUS)||
-			(expect_type==TABLE_TYPE_IP && p_table->table_type!=TABLE_TYPE_IP_PLUS))
+		if((expect_type==TABLE_TYPE_EXPR && p_real_table->table_type!=TABLE_TYPE_EXPR_PLUS)||
+			(expect_type==TABLE_TYPE_IP && p_real_table->table_type!=TABLE_TYPE_IP_PLUS))
 		{
 			return NULL;
 		}
