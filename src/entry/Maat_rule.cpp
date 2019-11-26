@@ -33,7 +33,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_8_20191121=1;
+int MAAT_FRAME_VERSION_2_8_20191126=1;
 
 int is_valid_table_name(const char* str)
 {
@@ -1445,7 +1445,7 @@ int add_group_to_compile(struct Maat_compile_group_relation*relation, struct Maa
 		}
 		else
 		{
-			if(p->group_id==a_rule_group->group_id)//duplicate group
+			if(p->group_id==a_rule_group->group_id && relation->virtual_table_id[i]==virual_table_id)//duplicate group
 			{
 				ret=-1;
 				goto error_out;
@@ -2021,7 +2021,7 @@ int add_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 		if(ret<0)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-								"update error,add group: %s %d to compile rule %d error, compile rule is full or duplicate group.",
+								"update error, add group: %s %d to compile rule %d error, compile rule is full or duplicate group.",
 																		table->table_name[table->updating_name],
 																		db_group_rule->group_id,
 																		db_group_rule->parent_id);
@@ -2232,7 +2232,7 @@ void update_group_rule(struct Maat_table_desc* table,const char* table_line,stru
 		ret=add_group_rule(table,&db_group_rule, scanner, logger);
 		if(ret<0)
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
+			MESA_handle_runtime_log(logger,RLOG_LV_FATAL, maat_module,
 							"duplicate config of group table %s group_id %d compile_id %d.", table->table_name[0],
 																							db_group_rule.group_id,
 																							db_group_rule.parent_id);
@@ -2271,8 +2271,8 @@ void update_expr_rule(struct Maat_table_desc* table,const char* table_line,struc
 															,&(maat_str_rule->is_valid));
 			if(ret!=7)
 			{
-				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-									"abandon config: invalid format of expr table %s:%s",table->table_name[table->updating_name],table_line);
+				MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+									"abandon config: invalid format of expr table %s:%s", table->table_name[table->updating_name], table_line);
 				free(maat_str_rule);
 				maat_str_rule=NULL;	
 				table->udpate_err_cnt++;
@@ -2290,8 +2290,8 @@ void update_expr_rule(struct Maat_table_desc* table,const char* table_line,struc
 															,&(maat_str_rule->is_valid));
 			if(ret!=8)
 			{
-				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-									"abandon config: invalid format of expr_plus table %s:%s",table->table_name[table->updating_name],table_line);
+				MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+									"abandon config: invalid format of expr_plus table %s:%s", table->table_name[table->updating_name], table_line);
 				free(maat_str_rule);
 				maat_str_rule=NULL;	
 				table->udpate_err_cnt++;
@@ -2317,30 +2317,30 @@ void update_expr_rule(struct Maat_table_desc* table,const char* table_line,struc
 			maat_str_rule->is_case_sensitive=TRUE;
 			break;
 		default:
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-								"abandon config %d:update error,invalid hexbin value of expr table %s:%s"
-								,maat_str_rule->region_id
-								,table->table_name[table->updating_name],table_line);
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+								"abandon config %d:update error,invalid hexbin value of expr table %s:%s",
+								maat_str_rule->region_id,
+								table->table_name[table->updating_name], table_line);
 			table->udpate_err_cnt++;
 			goto error_out;
 	}
 	if(!is_valid_match_method(maat_str_rule->match_method))
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"abandon config %d:update error,invalid match method=%d in expr table %s:%s"
-							,maat_str_rule->region_id
-							,maat_str_rule->match_method
-							,table->table_name[table->updating_name],table_line);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+							"abandon config %d:update error,invalid match method=%d in expr table %s:%s",
+							maat_str_rule->region_id,
+							maat_str_rule->match_method,
+							table->table_name[table->updating_name],table_line);
 		table->udpate_err_cnt++;
 		goto error_out;
 	}
 	if(!is_valid_expr_type(maat_str_rule->expr_type))
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"abandon config %d:update error,invalid expr type=%d in expr table %s:%s"
-							,maat_str_rule->region_id
-							,maat_str_rule->expr_type
-							,table->table_name[table->updating_name],table_line);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+							"abandon config %d:update error,invalid expr type=%d in expr table %s:%s",
+							maat_str_rule->region_id,
+							maat_str_rule->expr_type,
+							table->table_name[table->updating_name], table_line);
 		table->udpate_err_cnt++;
 		goto error_out;
 	}
@@ -2365,9 +2365,8 @@ void update_expr_rule(struct Maat_table_desc* table,const char* table_line,struc
 		{
 			rule_type=RULETYPE_STR;
 		}
-		ret=del_region_rule(table
-							,maat_str_rule->region_id,maat_str_rule->group_id,rule_type
-							,scanner, logger);
+		ret=del_region_rule(table, maat_str_rule->region_id, maat_str_rule->group_id, rule_type,
+							scanner, logger);
 		if(ret<0)
 		{
 			table->udpate_err_cnt++;
@@ -2382,18 +2381,18 @@ void update_expr_rule(struct Maat_table_desc* table,const char* table_line,struc
 		if(maat_str_rule->expr_type==EXPR_TYPE_AND
 			&&maat_str_rule->match_method!=MATCH_METHOD_SUB)
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
 			"table %s region cfg %d is EXPR_TYPE_AND,but match method is not MATCH_METHOD_SUB,force fixed.",
-			table->table_name[table->updating_name],maat_str_rule->region_id);
+			table->table_name[table->updating_name], maat_str_rule->region_id);
 			maat_str_rule->match_method=MATCH_METHOD_SUB;
 				
 		}
-		ret=add_expr_rule(table, maat_str_rule,scanner, logger);
+		ret=add_expr_rule(table, maat_str_rule, scanner, logger);
 		if(ret<0)
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"duplicate config of expr table %s region_id=%d"
-							,table->table_name[table->updating_name],maat_str_rule->region_id);
+			MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_module,
+							"duplicate config of expr table %s region_id=%d",
+							table->table_name[table->updating_name], maat_str_rule->region_id);
 			table->udpate_err_cnt++;
 		}
 		else

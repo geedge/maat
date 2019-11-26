@@ -196,7 +196,7 @@
                     "group_name": "Untitled",
                     "regions": [
                         {
-                            "table_name": "HTTP_REGION",
+                            "table_name": "HTTP_SIGNATURE",
                             "table_type": "expr_plus",
                             "table_content": {
                             		"district": "HTTP\\bURL",
@@ -1027,7 +1027,7 @@
                     "group_name": "Untitled",
                     "regions": [
                         {
-                            "table_name": "HTTP_REGION",
+                            "table_name": "HTTP_SIGNATURE",
                             "table_type": "expr_plus",
                             "table_content": {
                             		"district": "Content-Type",
@@ -1150,7 +1150,7 @@
 		        "do_blacklist": 0,
 		        "do_log": 0,
 		        "effective_rage": 0,
-		        "user_region": "Virtual",
+		        "user_region": "VirtualWithPhysical",
 		        "is_valid": "yes",
 		        "groups": [
 		            {
@@ -1173,6 +1173,107 @@
 		                    }
 		                ]
 		            }               
+		        ]
+		    },
+				{
+		        "compile_id": 161,
+		        "service": 0,
+		        "action": 0,
+		        "do_blacklist": 0,
+		        "do_log": 0,
+		        "effective_rage": 0,
+		        "user_region": "virtual_table_test_temp",
+		        "is_valid": "yes",
+		        "groups": [
+		            {
+		            		"group_name":"vt_grp_http_sig1",
+		                "not_flag":0,
+		                "regions": [
+		                    {
+		                        "table_name": "HTTP_SIGNATURE",
+		                        "table_type": "expr_plus",
+		                        "table_content": {
+                            		"district": "User-Agent",
+                                "keywords": "Chrome/78.0.3904.108",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+		                    }
+		                ]
+		            },
+		            {
+		            		"group_name":"vt_grp_http_sig2",
+		                "not_flag":0,
+		                "regions": [
+		                    {
+		                        "table_name": "HTTP_SIGNATURE",
+		                        "table_type": "expr_plus",
+		                        "table_content": {
+                            		"district": "Cookie",
+                                "keywords": "uid=12345678",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+		                    },
+		                    {
+		                        "table_name": "HTTP_SIGNATURE",
+		                        "table_type": "expr_plus",
+		                        "table_content": {
+                            		"district": "Cookie",
+                                "keywords": "sessionid=888888",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+		                    }	                    
+		                ]
+		            }      
+		        ]
+		    },
+		    {
+		        "compile_id": 162,
+		        "service": 0,
+		        "action": 0,
+		        "do_blacklist": 0,
+		        "do_log": 0,
+		        "effective_rage": 0,
+		        "user_region": "VirtualWithVirtual",
+		        "is_valid": "yes",
+		        "groups": [
+		            {
+		            		"group_name":"vt_grp_http_sig1",
+		            		"virtual_table":"HTTP_REQUEST_HEADER",
+		                "not_flag":0                   
+		            },
+		            {
+		            		"group_name":"vt_grp_http_sig2",
+		            		"virtual_table":"HTTP_RESPONSE_HEADER",
+		                "not_flag":0                  
+		            }             
+		        ]
+		    },
+		    {
+		        "compile_id": 163,
+		        "service": 0,
+		        "action": 0,
+		        "do_blacklist": 0,
+		        "do_log": 0,
+		        "effective_rage": 0,
+		        "user_region": "OneGroupInTwoVirtual",
+		        "is_valid": "yes",
+		        "groups": [
+		            {
+		            		"group_name":"vt_grp_http_sig2",
+		            		"virtual_table":"HTTP_REQUEST_HEADER",
+		                "not_flag":0                   
+		            },
+		            {
+		            		"group_name":"vt_grp_http_sig2",
+		            		"virtual_table":"HTTP_RESPONSE_HEADER",
+		                "not_flag":0                  
+		            }             
 		        ]
 		    }
     ],

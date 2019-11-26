@@ -357,7 +357,7 @@ TEST(StringScan,   ExprPlus)
 	int found_pos[4];
 	const char* region_name="HTTP URL";
 	const char* scan_data="http://www.cyberessays.com/search_results.php?action=search&query=abckkk,1234567";
-	table_id=Maat_table_register(g_feather, "HTTP_REGION");
+	table_id=Maat_table_register(g_feather, "HTTP_SIGNATURE");
 	ASSERT_GT(table_id, 0);
 	scan_status_t mid=NULL;
 	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, scan_data, strlen(scan_data), 
@@ -437,7 +437,7 @@ TEST(StringScan, ExprPlusWithHex)
 	const char* scan_data="text/html; charset=UTF-8";	
 	const char* region_name="Content-Type";
 	int found_pos[4];
-	table_id=Maat_table_register(g_feather, "HTTP_REGION");
+	table_id=Maat_table_register(g_feather, "HTTP_SIGNATURE");
 	ASSERT_GT(table_id, 0);
 	scan_status_t mid=NULL;
 	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, region_name, strlen(region_name));
@@ -1462,9 +1462,9 @@ TEST(ScanResult, LongerServiceDefine)
 	free(buff);
 	return;
 }
-TEST(VirtualTable, Test1)
+TEST(VirtualTable, VirtualWithPhysical)
 {
-#define TestVirtualTable
+#define TestVirtualTable1
 	int ret=0, table_id=0;
 	const char* http_content="Batman\\:Take me Home.Superman/:Fine,stay with me.";
 	const char* http_url="https://blog.csdn.net/littlefang/article/details/8213058";
@@ -1498,6 +1498,85 @@ TEST(VirtualTable, Test1)
 	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, should_not_hit, strlen(should_not_hit), 
 						result, NULL, 4, &mid, 0);
 	EXPECT_EQ(ret, -2);
+	Maat_clean_status(&mid);
+
+	return;
+}
+TEST(VirtualTable, VirtualWithVirtual)
+{
+#define TestVirtualTable2
+	int ret=0, table_id=0;
+	const char* http_req_hdr_ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36";
+	const char* http_resp_hdr_cookie="uid=12345678;BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; sugstore=1;";
+	
+	struct Maat_rule_t result[4];
+	memset(result, 0, sizeof(result));
+	
+	scan_status_t mid=NULL;
+
+	table_id=Maat_table_register(g_feather, "HTTP_REQUEST_HEADER");	
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, "User-Agent", strlen("User-Agent"));
+	ASSERT_EQ(ret, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, http_req_hdr_ua, strlen(http_req_hdr_ua), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, -2);
+	
+
+	table_id=Maat_table_register(g_feather, "HTTP_RESPONSE_HEADER");
+	ASSERT_GT(table_id, 0);
+
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, "Cookie", strlen("Cookie"));
+	ASSERT_EQ(ret, 0);
+
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 162);	
+
+	Maat_clean_status(&mid);
+
+	return;
+}
+TEST(VirtualTable, OneGroupInTwoVirtual)
+{
+#define TestVirtualTable3
+	int ret=0, table_id=0;
+	const char* http_resp_hdr_cookie="sessionid=888888;BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; sugstore=1;";
+	
+	struct Maat_rule_t result[4];
+	memset(result, 0, sizeof(result));
+	
+	scan_status_t mid=NULL;
+
+	table_id=Maat_table_register(g_feather, "HTTP_REQUEST_HEADER");	
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, "Cookie", strlen("Cookie"));
+	ASSERT_EQ(ret, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, -2);
+	
+
+	table_id=Maat_table_register(g_feather, "HTTP_RESPONSE_HEADER");
+	ASSERT_GT(table_id, 0);
+
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, "Cookie", strlen("Cookie"));
+	ASSERT_EQ(ret, 0);
+
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 163);	
+
 	Maat_clean_status(&mid);
 
 	return;
