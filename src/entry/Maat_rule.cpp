@@ -2193,7 +2193,7 @@ void update_group_rule(struct Maat_table_desc* table,const char* table_line,stru
 	}
 	if(db_group_rule.parent_type==PARENT_TYPE_GROUP && db_group_rule.not_flag)
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
+		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_module ,
 							"update error, invalid format of group table %s:%s not operation is forbidden for non-compile parent.",
 							table->table_name[table->updating_name], table_line);	
 		table->udpate_err_cnt++;
@@ -2204,8 +2204,10 @@ void update_group_rule(struct Maat_table_desc* table,const char* table_line,stru
 		db_group_rule.virtual_table_id=Maat_table_get_id_by_name(table_mgr, virtual_table_name);
 		if(db_group_rule.virtual_table_id<0)
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-								"update error, unknown virutal table name: %s of group table %s:%s.",
+			//This happens when one data source (e.g. redis) is consumed by multiple Maat instance.
+			//Maat ignores unrealated groups.
+			MESA_handle_runtime_log(logger, RLOG_LV_DEBUG, maat_module,
+								"group table load abandon, unknown virtual table name: %s of group table %s:%s.",
 								virtual_table_name,
 								table->table_name[table->updating_name], table_line);	
 			table->udpate_err_cnt++;
