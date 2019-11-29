@@ -109,6 +109,7 @@ struct Maat_region_t
 struct Maat_group_t
 {
 	const char* table_name;
+	const char* virtual_table_name;
 	int group_id;	//If MAAT_OPT_CMD_AUTO_NUMBERING==1, maat will assigned one. Or users must assign a unique number.
 	int parent_id;
 	int not_flag;

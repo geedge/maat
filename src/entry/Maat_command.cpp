@@ -247,11 +247,17 @@ int invalidate_line(char* line, enum MAAT_TABLE_TYPE type,int valid_column_seq)
 void serialize_group(const struct Maat_group_t* p_group, enum MAAT_OPERATION op, char* buff, size_t sz)
 {
 	if(op==MAAT_OP_RENEW_TIMEOUT) op=MAAT_OP_ADD;
-	snprintf(buff, sz, "%d\t%d\t%d\t%d\t%d\tnull", p_group->group_id, 
+	const char* vt_name="null";
+	if(p_group->virtual_table_name!=NULL)
+	{
+		vt_name=p_group->virtual_table_name;
+	}
+	snprintf(buff, sz, "%d\t%d\t%d\t%d\t%d\t%s", p_group->group_id, 
 									p_group->parent_id,
 									op,
 									p_group->not_flag,
-									p_group->parent_type);
+									p_group->parent_type,
+									vt_name);
 	return;
 }
 void serialize_compile(const struct Maat_rule_t* p_m_rule, const char* huge_service_defined, int group_num, enum MAAT_OPERATION op, char* buff, size_t sz)
@@ -276,65 +282,65 @@ void serialize_region(const struct Maat_region_t* p, int group_id, char* buff, s
 	switch(p->region_type)
 	{
 		case REGION_IP:
-			ret=snprintf(buff,sz,"%d\t%d\t%d\t%s\t%s\t%hu\t%hu\t%s\t%s\t%hu\t%hu\t%d\t%d\t1"
-					,p->region_id
-					,group_id
-					,p->ip_rule.addr_type
-					,p->ip_rule.src_ip
-					,p->ip_rule.mask_src_ip
-					,p->ip_rule.src_port
-					,p->ip_rule.mask_src_port
-					,p->ip_rule.dst_ip
-					,p->ip_rule.mask_dst_ip
-					,p->ip_rule.dst_port
-					,p->ip_rule.mask_dst_port
-					,p->ip_rule.protocol
-					,p->ip_rule.direction);	
+			ret=snprintf(buff,sz,"%d\t%d\t%d\t%s\t%s\t%hu\t%hu\t%s\t%s\t%hu\t%hu\t%d\t%d\t1",
+					p->region_id,
+					group_id,
+					p->ip_rule.addr_type,
+					p->ip_rule.src_ip,
+					p->ip_rule.mask_src_ip,
+					p->ip_rule.src_port,
+					p->ip_rule.mask_src_port,
+					p->ip_rule.dst_ip,
+					p->ip_rule.mask_dst_ip,
+					p->ip_rule.dst_port,
+					p->ip_rule.mask_dst_port,
+					p->ip_rule.protocol,
+					p->ip_rule.direction);	
 			break;
 		case REGION_EXPR:
 			if(p->expr_rule.district==NULL)
 			{
-				ret=snprintf(buff,sz,"%d\t%d\t%s\t%d\t%d\t%d\t1"
-						,p->region_id
-						,group_id
-						,p->expr_rule.keywords
-						,p->expr_rule.expr_type
-						,p->expr_rule.match_method
-						,p->expr_rule.hex_bin);	
+				ret=snprintf(buff,sz,"%d\t%d\t%s\t%d\t%d\t%d\t1",
+						p->region_id,
+						group_id,
+						p->expr_rule.keywords,
+						p->expr_rule.expr_type,
+						p->expr_rule.match_method,
+						p->expr_rule.hex_bin);	
 			}
 			else	//expr_plus
 			{
-				ret=snprintf(buff,sz,"%d\t%d\t%s\t%s\t%d\t%d\t%d\t1"
-						,p->region_id
-						,group_id
-						,p->expr_rule.keywords
-						,p->expr_rule.district
-						,p->expr_rule.expr_type
-						,p->expr_rule.match_method
-						,p->expr_rule.hex_bin);	
+				ret=snprintf(buff,sz,"%d\t%d\t%s\t%s\t%d\t%d\t%d\t1",
+						p->region_id,
+						group_id,
+						p->expr_rule.district,
+						p->expr_rule.keywords,
+						p->expr_rule.expr_type,
+						p->expr_rule.match_method,
+						p->expr_rule.hex_bin);	
 			}
 			break;
 		case REGION_INTERVAL:
-			ret=snprintf(buff,sz,"%d\t%d\t%u\t%u\t1"
-					,p->region_id
-					,group_id
-					,p->interval_rule.low_boundary
-					,p->interval_rule.up_boundary);
+			ret=snprintf(buff,sz,"%d\t%d\t%u\t%u\t1",
+					p->region_id,
+					group_id,
+					p->interval_rule.low_boundary,
+					p->interval_rule.up_boundary);
 			break;
 		case REGION_DIGEST:
-			ret=snprintf(buff,sz,"%d\t%d\t%llu\t%s\t%hd\t1"
-					,p->region_id
-					,group_id
-					,p->digest_rule.orgin_len
-					,p->digest_rule.digest_string
-					,p->digest_rule.confidence_degree);
+			ret=snprintf(buff,sz,"%d\t%d\t%llu\t%s\t%hd\t1",
+					p->region_id,
+					group_id,
+					p->digest_rule.orgin_len,
+					p->digest_rule.digest_string,
+					p->digest_rule.confidence_degree);
 			break;
 		case REGION_SIMILARITY:
-			ret=snprintf(buff,sz,"%d\t%d\t%s\t%hd\t1"
-					,p->region_id
-					,group_id
-					,p->similarity_rule.target
-					,p->similarity_rule.threshold);
+			ret=snprintf(buff,sz,"%d\t%d\t%s\t%hd\t1",
+					p->region_id,
+					group_id,
+					p->similarity_rule.target,
+					p->similarity_rule.threshold);
 			break;
 		default:
 			assert(0);
