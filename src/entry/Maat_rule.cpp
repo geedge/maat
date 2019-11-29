@@ -33,7 +33,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_8_20191126=1;
+int MAAT_FRAME_VERSION_2_8_20191129=1;
 
 int is_valid_table_name(const char* str)
 {
@@ -637,8 +637,8 @@ void make_group_set(struct Maat_compile_group_relation* relation, struct bool_ex
 			continue;
 		}
 		//high 32 bit is virtual table id, low 32 bit is group id.
-		a_set->items[j].item_id=(unsigned long long)relation->virtual_table_id[j]<<32|group->group_id;
-		a_set->items[j].not_flag=relation->not_flag[j];
+		a_set->items[j].item_id=TO_RELATION_ID(relation->virtual_table_id[i], group->group_id);
+		a_set->items[j].not_flag=relation->not_flag[i];
 		if(a_set->items[j].not_flag)
 		{
 			*has_not=1;
@@ -1481,7 +1481,7 @@ error_out:
 
 	return ret;
 }
-struct Maat_group_inner* del_group_from_compile(struct Maat_compile_group_relation*relation, int group_id)
+struct Maat_group_inner* del_group_from_compile(struct Maat_compile_group_relation*relation, int group_id, int virual_table_id)
 {
 	int i=0;
 	struct Maat_group_inner* group_rule=NULL;
@@ -1493,14 +1493,15 @@ struct Maat_group_inner* del_group_from_compile(struct Maat_compile_group_relati
 		{
 			continue;
 		}
-		if(group_rule->group_id==group_id)
+		if(group_rule->group_id==group_id && relation->virtual_table_id[i]==virual_table_id)
 		{
 			dynamic_array_write(relation->groups,i,NULL);			
 			if(relation->not_flag[i]==1)
 			{
 				relation->not_group_cnt--;
 				relation->not_flag[i]=0;
-			}		
+			}
+			relation->virtual_table_id[i]=0;
 			relation->group_cnt--;
 			break;
 		}
@@ -2099,7 +2100,7 @@ int del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 																		db_group_rule->parent_id);
 			return 0;
 		}
-		group_rule=del_group_from_compile(relation, db_group_rule->group_id);
+		group_rule=del_group_from_compile(relation, db_group_rule->group_id, db_group_rule->virtual_table_id);
 		if(group_rule==NULL)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
