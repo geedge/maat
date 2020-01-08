@@ -235,6 +235,7 @@ int universal_charset_convert(struct Maat_scanner* scanner,enum MAAT_CHARSET fro
 		case CHARSET_BIG5:
 		case CHARSET_UNICODE:
 		case CHARSET_UTF8:
+		case CHARSET_WINDOWS1251:
 			ret=iconv_convert(scanner,from,to,src,srclen,dst,dstlen);
 			return ret;
 			break;
