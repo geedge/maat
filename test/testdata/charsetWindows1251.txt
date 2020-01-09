@@ -1,0 +1,48 @@
+ся авторизация!','JS_CORE_WINDOW_AUTH':'Войти','JS_CORE_IMAGE_FULL':'Полный размер'});</script>
+<script type="text/javascript">(window.BX||top.BX).message({'LANGUAGE_ID':'ru','FORMAT_DATE':'DD.MM.YYYY','FORMAT_DATETIME':'DD.MM.YYYY HH:MI:SS','COOKIE_PREFIX':'BITRIX_SM','USER_ID':'','SERVER_TIME':'1578340589','SERVER_TZ_OFFSET':'18000','USER_TZ_OFFSET':'0','USER_TZ_AUTO':'Y','bitrix_sessid':'fadf964e9f5bb819f212e5abf5ffb255','SITE_ID':'s1'});</script>
+
+
+<script type="text/javascript" src="/bitrix/cache/js/s1/web20/kernel_main/kernel_main.js?1402043622360126"></script>
+<script type="text/javascript" src="/bitrix/js/main/rsasecurity.js?136876011925044"></script>
+<script type="text/javascript">BX.setCSSList(['/bitrix/js/main/core/css/core.css','/bitrix/js/main/core/css/core_popup.css','/bitrix/js/main/core/css/core_date.css','/bitrix/js/main/core/css/core.css','/bitrix/js/main/core/css/core_popup.css','/bitrix/js/main/core/css/core_date.css']); </script>
+<script type="text/javascript">BX.setJSList(['/bitrix/js/main/core/core.js','/bitrix/js/main/core/core_ajax.js','/bitrix/js/main/session.js','/bitrix/js/main/json/json2.min.js','/bitrix/js/main/core/core_ls.js','/bitrix/js/main/core/core_window.js','/bitrix/js/main/utils.js','/bitrix/js/main/core/core_popup.js','/bitrix/js/main/core/core_date.js','/bitrix/js/main/dd.js']); </script>
+
+<script type="text/javascript">
+bxSession.Expand(1440, 'fadf964e9f5bb819f212e5abf5ffb255', false, '35a74b06af8f9ea55ffbda20075b0894');
+</script>
+<script>new Image().src='http://www.sgaice.ru/bitrix/spread.php?s=QklUUklYX1NNX0dVRVNUX0lEATY4MTg5NQExNjA5NDQ0NTg5AS8BAQECQklUUklYX1NNX0xBU1RfVklTSVQBMDcuMDEuMjAyMCAwMDo1NjoyOQExNjA5NDQ0NTg5AS8BAQEC&k=71d3b79b44f9716b27b47feab4a206cf';
+</script>
+
+<script type="text/javascript" src="/bitrix/cache/js/s1/web20/template_1e341eb2f86845c7519566374f51d35a/template_1e341eb2f86845c7519566374f51d35a_368c1a68876fd1c32b307a10695f3654.js?14010848191120"></script>
+<script type="text/javascript" src="/bitrix/js/imgzoom/thumb.js"></script>
+<meta name="google-site-verification" content="gL_64SaiDgQcX5z-pvPZmBJ-exN-wS6KZNoDMcPtYtM" />
+<title>ЗАО «Севергазвтоматика АйС»</title>
+</head>
+
+<body>
+
+
+<div id="maintop">
+    <table align="left1" width="100%" border="0" cellpadding="0" cellspacing="0">
+    <tr><td valign="top">
+		
+<script type="text/javascript">
+top.BX.defer(top.rsasec_form_bind)({'formid':'system_auth_form6zOUGO','key':{'M':'HazQxsgvQCIFPf30iHR40R22fp7P9YLPXFhQu6uus68RZxf2IpMo9v0KDpxkgg43WXaZaXrTRvjg1e2126IOo66vH5bphkMP/69MSPlEoaXYzWjTokd+Yzy30WR6HEOyB9tJwADGyjysqoE4+jUfHZQv2JMaVZS0U4SHWOUPwNU=','E':'AQAB','chunk':'128'},'rsa_rand':'5e1390ed8a8e19.17355178','params':['USER_PASSWORD']});
+</script>
+
+
+
+<div id="login-form-window">
+
+<a href="" onclick="return CloseLoginForm()" style="float:right;">Закрыть</a>
+
+<form method="post" target="_top" action="/index.php?login=yes">
+			<input type="hidden" name="backurl" value="/index.php" />
+			<input type="hidden" name="AUTH_FORM" value="Y" />
+	<input type="hidden" name="TYPE" value="AUTH" />
+
+	<table width="95%">
+			<tr>
+				<td colspan="2">
+				Логин:<br />
+				<input type="text" name="USER_LOGIN" maxlength="50" value="
