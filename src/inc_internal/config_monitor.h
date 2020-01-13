@@ -9,7 +9,7 @@ void config_monitor_traverse(long long version,const char*idx_dir,
 							int (*update)(const char*, const char*, void*),//table name ,line ,u_para
 							void (*finish)(void*),//u_para
 							void* u_para,
-							const unsigned char* dec_key,
+							const char* dec_key,
 							void* logger);
 #endif
 

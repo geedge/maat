@@ -1824,7 +1824,7 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 		int (*update)(const char* ,const char*,void* ),//table name ,line ,u_para
 		void (*finish)(void*),//u_para
 		void* u_para,
-		const unsigned char* dec_key,
+		const char* dec_key,
 		_Maat_feather_t* feather)
 {
 	int table_id=0, i=0, rule_num=0, empty_value_num=0, valid_column=-1;

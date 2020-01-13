@@ -1100,43 +1100,12 @@ int write_iris(cJSON *json, struct iris_description_t *p_iris, void* logger)
 	return 0;
 }
 // redis_write_ctx is used by maat_redis_tool to write json to redis.
-int json2iris(const char* json_file,const char*compile_tn,const char* group_tn,redisContext *redis_write_ctx,char* iris_dir_buf,int buf_len,void* logger)
+int json2iris(const char* json_buff, const char* json_filename, const char*compile_tn, const char* group_tn, redisContext *redis_write_ctx, char* iris_dir_buf, int buf_len, void* logger)
 {
-	FILE* json_fp=NULL;
 	cJSON *json=NULL, *tmp_obj=NULL;
-	struct stat fstat_buf;
 	int ret=-1;
-	char* json_buff=NULL;
-	unsigned long json_file_size=0,read_size=0;
 	struct iris_description_t iris_cfg;
 	memset(&iris_cfg,0,sizeof(iris_cfg));
-	ret=stat(json_file, &fstat_buf);
-	if(ret!=0)
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
-								"fstat file %s error.",json_file);
-		goto error_out;
-	}
-
-	json_fp=fopen(json_file,"r");
-	if(json_fp==NULL)
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
-								"fopen file %s error %s.",json_file,strerror(errno));
-		goto error_out;
-	}
-	
-
-	json_file_size=fstat_buf.st_size;
-	json_buff=(char*)calloc(1,json_file_size+1);
-	read_size=fread(json_buff,1,json_file_size,json_fp);
-	if(read_size!=json_file_size)
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
-								"fread file %s error.",json_file);
-		goto error_out;
-	}
-
 	
 	json=cJSON_Parse(json_buff);
 	if (!json)
@@ -1155,7 +1124,7 @@ int json2iris(const char* json_file,const char*compile_tn,const char* group_tn,r
 	{
 		group_tn=tmp_obj->valuestring;
 	}
-	ret=set_iris_descriptor(json_file,json,compile_tn,group_tn,redis_write_ctx,&iris_cfg,logger);
+	ret=set_iris_descriptor(json_filename, json, compile_tn, group_tn, redis_write_ctx, &iris_cfg, logger);
 	if(ret<0)
 	{
 		goto error_out;
@@ -1163,31 +1132,24 @@ int json2iris(const char* json_file,const char*compile_tn,const char* group_tn,r
 	ret=create_tmp_dir(&iris_cfg);
 	if(ret<0)
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_json,
 								"create tmp folder %s error",iris_cfg.tmp_iris_dir);
 		goto error_out;
 	}
-	ret=write_iris(json,&iris_cfg,logger);
+	ret=write_iris(json ,&iris_cfg, logger);
 	if(ret<0)
 	{
 		goto error_out;
 	}
-	memcpy(iris_dir_buf,iris_cfg.tmp_iris_index_dir,MIN(strlen(iris_cfg.tmp_iris_index_dir)+1,(unsigned int)buf_len));
+	memcpy(iris_dir_buf,iris_cfg.tmp_iris_index_dir, MIN(strlen(iris_cfg.tmp_iris_index_dir)+1, (unsigned int)buf_len));
 
 	cJSON_Delete(json);
-	fclose(json_fp);
-	free(json_buff);
 	clear_iris_descriptor(&iris_cfg);
 	return 0;	
 
 	
 error_out:
 	cJSON_Delete(json);
-	if(json_fp!=NULL)
-	{
-		fclose(json_fp);
-	}
-	free(json_buff);
 	clear_iris_descriptor(&iris_cfg);
 	return -1;
 }

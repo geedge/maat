@@ -508,6 +508,52 @@ int detain_last_data(char* buff,int buff_size,int detained_len,const char* data,
 	}
 	return ret_len;
 }
+int load_maat_json_file(_Maat_feather_t* feather, const char* maat_json_fn, char* err_str, size_t err_str_sz)
+{
+	int ret=0;
+	struct stat fstat_buf;
+	char* json_buff=NULL;
+	
+
+	MESA_handle_runtime_log(feather->logger, RLOG_LV_INFO, maat_module ,
+					"Maat initial with JSON file %s, formating..",
+					maat_json_fn);
+	if(strlen(feather->decrypt_key)&&strlen(feather->decrypt_algo))
+	{
+		ret=decrypt_open(maat_json_fn, feather->decrypt_key, feather->decrypt_algo, (unsigned char**)&json_buff, err_str, err_str_sz);
+	}
+	if(json_buff==NULL)//decryption failed or no decryption.
+	{	
+		ret=load_file_to_memory(maat_json_fn, &json_buff);
+	}
+	ret=json2iris(json_buff,
+			maat_json_fn,
+			feather->compile_tn, feather->group_tn,
+			NULL,
+			feather->json_ctx.iris_file,
+			sizeof(feather->json_ctx.iris_file),
+			feather->logger);
+	free(json_buff);
+	json_buff=NULL;
+	if(ret<0)
+	{
+		return -1;
+	}
+	strncpy(feather->json_ctx.json_file, maat_json_fn, sizeof(feather->json_ctx.json_file));
+	
+	ret=stat(maat_json_fn, &fstat_buf);
+	feather->json_ctx.last_md5_time=fstat_buf.st_ctim;
+	
+	md5_file(feather->json_ctx.json_file, feather->json_ctx.effective_json_md5);
+	MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO, maat_module,
+					"JSON file %s md5: %s, generate index file %s OK.",
+					feather->json_ctx.json_file,
+					feather->json_ctx.effective_json_md5,
+					feather->json_ctx.iris_file);
+	feather->input_mode=SOURCE_JSON_FILE;
+
+	return 0;	
+}
 Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void* logger)
 {
 	if(max_thread_num<=0)
@@ -543,6 +589,7 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->base_rgn_seq=0;
 	feather->AUTO_NUMBERING_ON=1;
 	feather->backgroud_update_enabled=1;
+	snprintf(feather->decrypt_algo, sizeof(feather->decrypt_algo), "aes-256-cbc");
 	snprintf(feather->foreign_cont_dir, sizeof(feather->foreign_cont_dir), "%s_files", table_info_path);
 	pthread_mutex_init(&(feather->background_update_mutex),NULL);
 	snprintf(feather->table_info_fn,sizeof(feather->table_info_fn),"%s",table_info_path);
@@ -554,8 +601,8 @@ failed:
 int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const void* value,int size)
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;	
-	struct stat attrib;
 	int intval=0,ret=-1;
+	char err_str[MAX_TABLE_NAME_LEN];
 	switch(type)
 	{
 		case MAAT_OPT_ENABLE_UPDATE:
@@ -630,31 +677,15 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			break;
 		case MAAT_OPT_JSON_FILE_PATH:
 			assert(_feather->input_mode==SOURCE_NONE);
-			MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
-							"Maat initial with JSON file %s, formating..",
-							(const char*)value);
-
-			ret=json2iris((const char*)value,
-					_feather->compile_tn,_feather->group_tn,
-					NULL,
-					_feather->json_ctx.iris_file,
-					sizeof(_feather->json_ctx.iris_file),
-					_feather->logger);
+			ret=load_maat_json_file(_feather, (const char *)value, err_str, sizeof(err_str));
 			if(ret<0)
 			{
+				MESA_handle_runtime_log(_feather->logger, RLOG_LV_FATAL, maat_module,
+								"Load maat json file %s failed: %s.",
+								(const char*)value, err_str);
 				return -1;
 			}
-			memcpy(_feather->json_ctx.json_file, value, size);
-			stat(_feather->json_ctx.json_file, &attrib);
-			_feather->json_ctx.last_md5_time=attrib.st_ctime;
 
-			md5_file(_feather->json_ctx.json_file, _feather->json_ctx.effective_json_md5);
-			MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
-							"JSON file %s md5: %s, generate index file %s OK.",
-							_feather->json_ctx.json_file,
-							_feather->json_ctx.effective_json_md5,
-							_feather->json_ctx.iris_file);
-			_feather->input_mode=SOURCE_JSON_FILE;
 			break;
 		case MAAT_OPT_STAT_ON:
 			_feather->stat_on=1;
@@ -667,10 +698,10 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			{
 				return -1;
 			}
-			memcpy(_feather->stat_file,(const char*)value,size);
-			MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
-							"Maat performance statistic output to %s."
-							,(const char*)value);	
+			memcpy(_feather->stat_file, (const char*)value, size);
+			MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module,
+							"Maat performance statistic output to %s.",
+							(const char*)value);	
 			_feather->stat_on=1;
 			break;
 		case MAAT_OPT_SCAN_DETAIL:
@@ -678,9 +709,9 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			_feather->rule_scan_type=intval;
 			break;
 		case MAAT_OPT_INSTANCE_NAME:
-			snprintf(_feather->instance_name
-					,sizeof(_feather->instance_name)
-					,"%s",
+			snprintf(_feather->instance_name,
+					sizeof(_feather->instance_name),
+					"%s",
 					(const char*)value);
 			break;
 		case MAAT_OPT_DECRYPT_KEY:

@@ -1,4 +1,5 @@
 #include "Maat_rule.h"
+#include "Maat_utils.h"
 #include "Maat_command.h"
 #include "Maat_rule_internal.h"
 #include "cJSON.h"
@@ -325,8 +326,13 @@ int main(int argc, char * argv[])
 		read_rule_from_redis(ctx,desired_version,dump_dir, NULL);
 	}
 	else if(model==WORK_MODE_JSON)
-	{		
-		ret=json2iris(json_file, NULL, NULL, ctx, tmp_iris_path, sizeof(tmp_iris_path), NULL);
+	{
+		ret=load_file_to_memory(json_file, &json_buff);
+		if(ret<0)
+		{
+			printf("open %s failed.\n", json_file);
+		}
+		ret=json2iris(json_buff, json_file, NULL, NULL, ctx, tmp_iris_path, sizeof(tmp_iris_path), NULL);
 		if(ret<0)
 		{
 			printf("Invalid json format.\n");

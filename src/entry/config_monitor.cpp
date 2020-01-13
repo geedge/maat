@@ -28,97 +28,15 @@ struct cm_table_info_t
 	int cfg_num;
 	char encryp_algorithm[MAX_CONFIG_FN_LEN];
 };
-int decrypt_open(FILE* in,const unsigned char* key, const char* algorithm,unsigned char**pp_out,void *logger)
-{
-
-	unsigned char inbuf[MAX_CONFIG_LINE];
-	int inlen, out_blk_len=0;
-	int out_buff_len=0,buff_offset=0;
-	EVP_CIPHER_CTX *ctx;
-
-	unsigned char cipher_key[EVP_MAX_KEY_LENGTH];
-	unsigned char cipher_iv[EVP_MAX_IV_LENGTH];
-	memset(cipher_key,0,sizeof(cipher_key));
-	memset(cipher_iv,0,sizeof(cipher_iv));
-
-	const EVP_CIPHER *cipher;
-	const EVP_MD *dgst=NULL;
-	const unsigned char *salt=NULL;
-	int ret=0;
-
-	OpenSSL_add_all_algorithms();
-	cipher=EVP_get_cipherbyname(algorithm);
-	if(cipher==NULL)
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"Cipher %s is not supported.",algorithm);
-		return 0;
-	}
-	dgst=EVP_get_digestbyname("md5");
-	if(dgst==NULL)
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"Get MD5 object failed.");
-		return 0;
-	}
-	ret=EVP_BytesToKey(cipher,dgst,salt,key,strlen((const char*)key),1,cipher_key,cipher_iv);
-	if(ret==0)
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"Key and IV generatioin failed.");
-		return 0;
-	}
-     /* Don't set key or IV right away; we want to check lengths */
-	ctx = EVP_CIPHER_CTX_new();
-	EVP_CipherInit_ex(ctx, cipher, NULL, NULL, NULL,0);
-	OPENSSL_assert(EVP_CIPHER_CTX_key_length(ctx) == 16);
-	OPENSSL_assert(EVP_CIPHER_CTX_iv_length(ctx) == 16);
-	 
-	/* Now we can set key and IV */
-	EVP_CipherInit_ex(ctx, NULL, NULL, cipher_key, cipher_iv, 0);
-	out_buff_len=16*1024;
-	*pp_out=(unsigned char*)malloc(out_buff_len*sizeof(unsigned char));
-	for (;;) 
-	{
-		inlen = fread(inbuf, 1, MAX_CONFIG_LINE, in);
-		if (inlen <= 0)
-			break;
-		
-		if(out_buff_len-buff_offset<inlen+EVP_CIPHER_block_size(cipher)-1)
-		{
-			out_buff_len*=2;
-			*pp_out=(unsigned char*)realloc(*pp_out,out_buff_len);
-		}
-		out_blk_len=out_buff_len-buff_offset;
-		if (!EVP_CipherUpdate(ctx, *pp_out+buff_offset, &out_blk_len, inbuf, inlen))
-		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"EVP_CipherUpdate failed.");
-			EVP_CIPHER_CTX_free(ctx);
-			goto error_out;
-		}
-		buff_offset+=out_blk_len;
-
-	}
-	if (!EVP_CipherFinal_ex(ctx, *pp_out+buff_offset, &out_blk_len))
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"EVP_CipherFinal_ex failed. Maybe password is wrong?");
-		EVP_CIPHER_CTX_free(ctx);
-		goto error_out;
-	}
-	buff_offset+=out_blk_len;
-	EVP_CIPHER_CTX_free(ctx);
-	return buff_offset;
-error_out:
-	free(*pp_out);
-	*pp_out=NULL;
-	return 0;
-}
-char* read_nxt_line_from_buff(const unsigned char* buff, int buff_size, int* offset, char*line ,int line_size)
+char* read_nxt_line_from_buff(const char* buff, int buff_size, int* offset, char*line ,int line_size)
 {
 	int this_offset=0;
-	const unsigned char* p;
+	const char* p;
 	//search for CRLF, aka '\r', '\n' or "\r\n"
-	p=(const unsigned char*)memchr(buff+*offset,'\r',buff_size-*offset);
+	p=(const char*)memchr(buff+*offset,'\r',buff_size-*offset);
 	if(p==NULL)
 	{
-		p=(const unsigned char*)memchr(buff+*offset,'\n',buff_size-*offset);
+		p=(const char*)memchr(buff+*offset,'\n',buff_size-*offset);
 	}
 	else
 	{
@@ -136,8 +54,9 @@ char* read_nxt_line_from_buff(const unsigned char* buff, int buff_size, int* off
 		p=buff+buff_size;
 	}
 	this_offset=p-(buff+*offset);
-	memcpy(line,buff+*offset,MIN(this_offset,line_size));
+	memcpy(line,buff+*offset, MIN(this_offset,line_size-1));
 	*offset+=this_offset;
+	line[MIN(this_offset,line_size-1)]='\0';
 	return line;
 }
 //replacement of glibc scandir, to adapt dictator malloc wrap
@@ -358,60 +277,56 @@ int cm_read_cfg_index_file(const char* path,struct cm_table_info_t* idx,int size
 int cm_read_table_file(struct cm_table_info_t* index,
 							int (*update)(const char*,const char*,void*),
 							void* u_para,
-							const unsigned char* key,
+							const char* key,
 							void* logger)
 {
 	int cfg_num=0,i=0;
 	int ret=0;
+	char error_string[MAX_CONFIG_FN_LEN];
 	char line[MAX_CONFIG_LINE]={0},*ret_str=NULL;
-	unsigned char* decrypt_buff=NULL;
-	int decrypt_len=0,do_decrypt=0,decrypt_offset=0;
-	FILE*fp=fopen(index->cfg_path,"r");
-	if(fp==NULL)
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"update error,open %s failed.",index->cfg_path);
-		return -1;
-	}
+	char* table_file_buff=NULL;
+	int file_sz=0, file_offset=0;
+
 	if(strlen(index->encryp_algorithm)>0)
 	{
 		if(key==NULL||strlen((const char*)key)==0)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"update error, no key to decrypt %s.",index->cfg_path);
-			fclose(fp);
 			return -1;
 		}
-		decrypt_len=decrypt_open(fp, key,index->encryp_algorithm, &decrypt_buff,logger);
-		if(decrypt_len==0)
+		file_sz=decrypt_open(index->cfg_path, key, index->encryp_algorithm, (unsigned char**)&table_file_buff, error_string, sizeof(error_string));
+		if(file_sz==0)
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"update error, %s decrypt failed.",index->cfg_path);
-			fclose(fp);
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, module_config_monitor, "update error, %s decrypt failed: %s",
+																				index->cfg_path, error_string);
 			return -1;
 		}
-		read_nxt_line_from_buff(decrypt_buff, decrypt_len, &decrypt_offset, line, sizeof(line));
-		sscanf(line,"%d\n",&cfg_num);
-		do_decrypt=1;
 	}
 	else
 	{
-		fscanf(fp,"%d\n",&cfg_num);
+		file_sz=load_file_to_memory(index->cfg_path, &table_file_buff);
+		if(file_sz==0)
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, module_config_monitor, "update error, %s decrypt failed: %s",
+																				index->cfg_path, error_string);
+			return -1;
+		}
+
 	}
+	read_nxt_line_from_buff(table_file_buff, file_sz, &file_offset, line, sizeof(line));
+	sscanf(line, "%d\n", &cfg_num);
+
 	if(cfg_num!=index->cfg_num)
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor ,"file %s config num not matched",index->cfg_path);
-		fclose(fp);
+		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor, "file %s config num not matched", index->cfg_path);
 		return -1;
 	}
 	for(i=0;i<cfg_num;i++)
 	{
 		line[sizeof(line)-1]='\0';
-		if(do_decrypt==1)
-		{
-			ret_str=read_nxt_line_from_buff(decrypt_buff, decrypt_len, &decrypt_offset, line, sizeof(line));
-		}
-		else
-		{
-			ret_str=fgets(line,sizeof(line),fp);
-		}
+
+		ret_str=read_nxt_line_from_buff(table_file_buff, file_sz, &file_offset, line, sizeof(line));
+		
 		if(ret_str==NULL)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor ,
@@ -432,11 +347,9 @@ int cm_read_table_file(struct cm_table_info_t* index,
 			break;
 		}
 	}
-	fclose(fp);
-	if(decrypt_buff!=NULL)
-	{
-		free(decrypt_buff);
-	}
+
+	free(table_file_buff);
+	
 	return 0;
 }
 const char* path2filename(const char*path)
@@ -456,7 +369,7 @@ void config_monitor_traverse(long long version,const char*idx_dir,
 							int (*update)(const char*, const char*, void*),//table name ,line ,u_para
 							void (*finish)(void*),//u_para
 							void* u_para,
-							const unsigned char* dec_key,
+							const char* dec_key,
 							void* logger)
 
 {
@@ -492,7 +405,7 @@ void config_monitor_traverse(long long version,const char*idx_dir,
 			}
 			for(j=0;j<table_num;j++)
 			{
-				cm_read_table_file(table_array+j,update,u_para,dec_key,logger);
+				cm_read_table_file(table_array+j, update, u_para, dec_key, logger);
 			}
 			if(finish!=NULL)
 			{
