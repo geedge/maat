@@ -2,6 +2,7 @@
 #include "Maat_rule.h"
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <stdio.h>
 #include <sys/syscall.h>
 #include <sys/types.h>//fstat
 #include <sys/types.h>//fstat
@@ -73,5 +74,7 @@ int get_column_pos(const char* line, int column_seq, size_t *offset, size_t *len
 const char** charset_get_all_name(void);
 const char* charset_get_name(enum MAAT_CHARSET charset);
 int lqueue_destroy_cb(void *data, long data_len, void *arg);
+int decrypt_open(const char* filename, const char* key, const char* algorithm, unsigned char**pp_out, char* err_str, size_t err_str_sz);
+int load_file_to_memory(const char* file_name, char**pp_out);
 
 

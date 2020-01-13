@@ -54,7 +54,7 @@ void wait_for_cmd_effective(Maat_feather_t feather, long long version_before)
 //	printf("wait for %lld ms\n", wating_us/1000);
 }
 
-void scan_with_old_or_new_cfg(Maat_feather_t feather, int hit_old)
+void scan_with_old_or_new_cfg(Maat_feather_t feather, int is_old)
 {
 	const char* hit_old_data="Hello world! I'm eve.";
 	const char* hit_new_data="Maat was borned in MESA.";
@@ -72,7 +72,7 @@ void scan_with_old_or_new_cfg(Maat_feather_t feather, int hit_old)
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, hit_old_data, strlen(hit_old_data), 
 						&result,NULL, 1,
 						&mid, 0);
-	if(hit_old)
+	if(is_old)
 	{
 		EXPECT_EQ(ret, 1);
 		EXPECT_TRUE(result.config_id==1);
@@ -87,7 +87,7 @@ void scan_with_old_or_new_cfg(Maat_feather_t feather, int hit_old)
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, hit_new_data, strlen(hit_new_data), 
 						&result,NULL, 1,
 						&mid, 0);
-	if(!hit_old)
+	if(!is_old)
 	{
 		EXPECT_EQ(ret, 1);
 		EXPECT_TRUE(result.config_id==2);
@@ -141,7 +141,7 @@ TEST_F(JSONUpdate, NewCfg)
 	sleep(2);
 	scan_with_old_or_new_cfg(JSONUpdate::_shared_feather_j, 1);
 	system_cmd_cp(new_json, watched_json);
-	sleep(2);
+	sleep(5);
 	scan_with_old_or_new_cfg(JSONUpdate::_shared_feather_j, 0);
 }
 

@@ -33,7 +33,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_8_20191129=1;
+int MAAT_FRAME_VERSION_2_8_20200113=1;
 
 int is_valid_table_name(const char* str)
 {
@@ -3500,7 +3500,8 @@ void *thread_rule_monitor(void *arg)
 	int scan_dir_cnt=0;
 	int ret=0;
 	char md5_tmp[MD5_DIGEST_LENGTH*2+1]={0};
-	char tmp_dir[MAX_TABLE_NAME_LEN]={0};
+	char err_str[MAX_TABLE_NAME_LEN]={0};
+
 	struct stat attrib;
 	size_t total_wait_rule_cnt=0;
 
@@ -3557,31 +3558,24 @@ void *thread_rule_monitor(void *arg)
 					break;
 				case SOURCE_JSON_FILE:
 					memset(md5_tmp, 0, sizeof(md5_tmp));
-					memset(tmp_dir, 0, sizeof(tmp_dir));
 				    stat(feather->json_ctx.json_file, &attrib);
-					if(attrib.st_ctime!=feather->json_ctx.last_md5_time)
+					if(memcmp(&attrib.st_ctim, &(feather->json_ctx.last_md5_time), sizeof(attrib.st_ctim)))
 					{
-						feather->json_ctx.last_md5_time=attrib.st_ctime;
+						feather->json_ctx.last_md5_time=attrib.st_ctim;
 						md5_file(feather->json_ctx.json_file, md5_tmp);
 						if(0!=strcmp(md5_tmp,feather->json_ctx.effective_json_md5))
 						{
-							ret=json2iris(feather->json_ctx.json_file,
-											feather->compile_tn, feather->group_tn,
-											NULL,
-											tmp_dir,
-											sizeof(tmp_dir),
-											feather->logger);
+							ret=load_maat_json_file(feather, feather->json_ctx.json_file, err_str, sizeof(err_str));
 							if(ret<0)
 							{
 								MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module ,
-												"Maat re-initiate with JSON file %s failed, md5: %s",
+												"Maat re-initiate with JSON file %s (md5=%s)failed: %s",
 												feather->json_ctx.json_file,
-												md5_tmp);
+												md5_tmp,
+												err_str);
 							}
 							else
 							{
-								strcpy(feather->json_ctx.effective_json_md5, md5_tmp);
-								strcpy(feather->json_ctx.iris_file, tmp_dir);
 								config_monitor_traverse(0,
 														feather->json_ctx.iris_file,
 														maat_start_cb,

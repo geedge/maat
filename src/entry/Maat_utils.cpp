@@ -1,9 +1,11 @@
 #include <string.h>
-#include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
-#include <openssl/md5.h>
 #include <assert.h>
+#include <openssl/md5.h>
+#include <sys/stat.h>
+#include <openssl/evp.h>
+
 #include "Maat_utils.h"
 pid_t gettid()
 {
@@ -257,4 +259,125 @@ int lqueue_destroy_cb(void *data, long data_len, void *arg)
 	assert(0);
 	return 0;
 }
+#define DECRYPT_BLOCK_SIZE	(16*1024)
+int decrypt_open(const char* filename, const char* key, const char* algorithm, unsigned char**pp_out, char* err_str, size_t err_str_sz)
+{
 
+	unsigned char inbuf[DECRYPT_BLOCK_SIZE];
+	int inlen, out_blk_len=0;
+	int out_buff_len=0,buff_offset=0;
+	EVP_CIPHER_CTX *ctx;
+
+	unsigned char cipher_key[EVP_MAX_KEY_LENGTH];
+	unsigned char cipher_iv[EVP_MAX_IV_LENGTH];
+	memset(cipher_key,0,sizeof(cipher_key));
+	memset(cipher_iv,0,sizeof(cipher_iv));
+
+	const EVP_CIPHER *cipher;
+	const EVP_MD *dgst=NULL;
+	const unsigned char *salt=NULL;
+	int ret=0;
+	
+	FILE*in=fopen(filename, "r");
+	if(in==NULL)
+	{
+		return -1;
+	}
+
+	OpenSSL_add_all_algorithms();
+	cipher=EVP_get_cipherbyname(algorithm);
+	if(cipher==NULL)
+	{
+		snprintf(err_str, err_str_sz, "Cipher %s is not supported.",algorithm);
+		return 0;
+	}
+	dgst=EVP_get_digestbyname("md5");
+	if(dgst==NULL)
+	{
+		snprintf(err_str, err_str_sz, "Get MD5 object failed.");
+		return 0;
+	}
+	ret=EVP_BytesToKey(cipher, dgst, salt, (unsigned char*)key, strlen((const char*)key), 1, cipher_key,  cipher_iv);
+	if(ret==0)
+	{
+		snprintf(err_str, err_str_sz, "Key and IV generatioin failed.");
+		return 0;
+	}
+     /* Don't set key or IV right away; we want to check lengths */
+	ctx = EVP_CIPHER_CTX_new();
+	EVP_CipherInit_ex(ctx, cipher, NULL, NULL, NULL,0);
+	OPENSSL_assert(EVP_CIPHER_CTX_key_length(ctx) % 16==0);
+	OPENSSL_assert(EVP_CIPHER_CTX_iv_length(ctx) == 16);
+	 
+	/* Now we can set key and IV */
+	EVP_CipherInit_ex(ctx, NULL, NULL, cipher_key, cipher_iv, 0);
+	out_buff_len=DECRYPT_BLOCK_SIZE;
+	*pp_out=(unsigned char*)malloc(out_buff_len*sizeof(unsigned char));
+	for (;;) 
+	{
+		inlen = fread(inbuf, 1, sizeof(inbuf), in);
+		if (inlen <= 0)
+			break;
+		
+		if(out_buff_len-buff_offset<inlen+EVP_CIPHER_block_size(cipher)-1)
+		{
+			out_buff_len*=2;
+			*pp_out=(unsigned char*)realloc(*pp_out, out_buff_len);
+		}
+		out_blk_len=out_buff_len-buff_offset;
+		if (!EVP_CipherUpdate(ctx, *pp_out+buff_offset, &out_blk_len, inbuf, inlen))
+		{
+			snprintf(err_str, err_str_sz, "EVP_CipherUpdate failed.");
+			EVP_CIPHER_CTX_free(ctx);
+			goto error_out;
+		}
+		buff_offset+=out_blk_len;
+
+	}
+	if (!EVP_CipherFinal_ex(ctx, *pp_out+buff_offset, &out_blk_len))
+	{
+		snprintf(err_str, err_str_sz, "EVP_CipherFinal_ex failed. Maybe password is wrong?");
+		EVP_CIPHER_CTX_free(ctx);
+		goto error_out;
+	}
+	buff_offset+=out_blk_len;
+	EVP_CIPHER_CTX_free(ctx);
+	fclose(in);
+	return buff_offset;
+error_out:
+	free(*pp_out);
+	*pp_out=NULL;	
+	fclose(in);
+	return 0;
+}
+int load_file_to_memory(const char* file_name, char**pp_out)
+{
+	int ret=0;
+	FILE* fp=NULL;		
+	struct stat fstat_buf;
+	size_t read_size=0;
+	
+	ret=stat(file_name, &fstat_buf);
+	if(ret!=0)
+	{
+		return -1;
+	}
+	fp=fopen(file_name, "r");
+	if(fp==NULL)
+	{
+		return -1;
+	}
+	
+	*pp_out=(char*)calloc(1, fstat_buf.st_size+1);
+	read_size=fread(*pp_out,1, fstat_buf.st_size, fp);
+	if(read_size!= (size_t)fstat_buf.st_size)
+	{
+		free(*pp_out);
+		pp_out=NULL;
+		return -1;
+	}	
+	
+	fclose(fp);
+	fp=NULL;	
+	return fstat_buf.st_size;
+}

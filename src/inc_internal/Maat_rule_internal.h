@@ -21,7 +21,6 @@
 #include <iconv.h>
 #include <openssl/md5.h>
 
-extern const char *maat_module;
 
 
 #define mr_region_id_var	"SEQUENCE_REGION"
@@ -287,7 +286,7 @@ struct source_json_ctx
 	char json_file[MAX_TABLE_NAME_LEN];
 	char iris_file[MAX_TABLE_NAME_LEN];
 	char effective_json_md5[MD5_DIGEST_LENGTH*2+1];
-	time_t last_md5_time;
+	struct timespec last_md5_time;
 };
 struct source_redis_ctx
 {
@@ -333,7 +332,8 @@ struct _Maat_feather_t
 	char compile_tn[MAX_TABLE_NAME_LEN];
 	char group_tn[MAX_TABLE_NAME_LEN];
 	pthread_mutex_t background_update_mutex;
-	unsigned char decrypt_key[MAX_TABLE_NAME_LEN];
+	char decrypt_key[MAX_TABLE_NAME_LEN];
+	char decrypt_algo[MAX_TABLE_NAME_LEN];
 	pthread_t cfg_mon_t;
 
 	int AUTO_NUMBERING_ON;
@@ -450,14 +450,14 @@ void empty_serial_rules(struct serial_rule_t* rule);
 int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,unsigned int serial_rule_num, long long server_time, void* logger);
 long long redis_server_time(redisContext* ctx);
 redisContext * connect_redis(const char*redis_ip, int redis_port, int redis_db, void* logger);
-char* md5_file(const char* filename, char* md5string);
 
+int load_maat_json_file(_Maat_feather_t* feather, const char* maat_json_fn, char* err_str, size_t err_str_sz);
 void redis_monitor_traverse(long        long version, struct source_redis_ctx* mr_ctx,
 		void (*start)(long long,int ,void*),//vesion,CM_UPDATE_TYPE_*,u_para
 		int (*update)(const char* ,const char*,void* ),//table name ,line ,u_para
 		void (*finish)(void*),//u_para
 		void* u_para,
-		const unsigned char* dec_key,
+		const char* dec_key,
 		_Maat_feather_t* feather);
 
 
