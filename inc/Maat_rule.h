@@ -31,7 +31,8 @@ enum MAAT_CHARSET
 	CHARSET_UNICODE_NCR_HEX,		//SGML Numeric character reference,hexdecimal base, e.g. "&#x627;"
 	CHARSET_URL_ENCODE_GB2312,		//URL encode with GB2312, e.g. the chinese word "china" was encoded to %D6%D0%B9%FA
 	CHARSET_URL_ENCODE_UTF8,		//11, URL encode with UTF8,e.g. the chinese word "china" was encoded to %E4%B8%AD%E5%9B%BD
-	CHARSET_WINDOWS1251
+	CHARSET_WINDOWS1251,
+	__CHARSET_MAX
 };
 enum MAAT_ACTION
 {
