@@ -1,4 +1,5 @@
 #include "Maat_rule_internal.h"
+#include "Maat_table.h"
 #include "alignment_int64.h"
 #include <time.h>
 #include <MESA/field_stat.h>
@@ -121,10 +122,11 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 					FS_STYLE_COLUMN,
 					FS_CALC_SPEED,
 					"hit_rate");
-	feather->total_stat_id=FS_register(feather->stat_handle, FS_STYLE_LINE, FS_CALC_CURRENT,"Sum");
-	for(i=0;i<MAX_TABLE_NUM;i++)
+	feather->total_stat_id=FS_register(feather->stat_handle, FS_STYLE_LINE, FS_CALC_CURRENT, "Sum");
+	size_t max_table_num=Maat_table_manager_get_size(feather->table_mgr);
+	for(i=0; i<(int)max_table_num; i++)
 	{
-		p_table=feather->p_table_info[i];
+		p_table=Maat_table_get_by_id_raw(feather->table_mgr, i);
 		if(p_table==NULL||p_table->table_type==TABLE_TYPE_PLUGIN
 						||p_table->table_type==TABLE_TYPE_GROUP
 						||p_table->table_type==TABLE_TYPE_COMPILE)
@@ -185,7 +187,8 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_VERSION], 0,FS_OP_SET,feather->maat_version);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_THRED_NUM], 0,FS_OP_SET,active_thread_num);
-	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_TABLE_NUM], 0,FS_OP_SET,feather->table_cnt);
+	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_TABLE_NUM], 0,FS_OP_SET,Maat_table_manager_get_count(feather->table_mgr));
+
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_OUTER_MID_NUM], 0,FS_OP_SET,outer_mid_cnt);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_INNER_MID_NUM], 0,FS_OP_SET,inner_mid_cnt);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_NOT_GROUP_HIT], 0,FS_OP_SET,not_grp_hit_cnt);
@@ -197,7 +200,8 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_GARBAGE_QSIZE], 0,FS_OP_SET,value);
 	feather->update_err_cnt=0;
 	feather->iconv_err_cnt=0;
-	for(i=0;i<MAX_TABLE_NUM;i++)
+	size_t max_table_num=Maat_table_manager_get_size(feather->table_mgr);
+	for(i=0; i<(int)max_table_num; i++)
 	{
 		table_stream_num=0;
 		table_scan_cnt=0;
@@ -205,12 +209,13 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 		table_scan_cpu_time=0;
 		table_hit_cnt=0;
 		table_regex_ipv6_num=0;
-		p_table=feather->p_table_info[i];
+		
+		p_table=Maat_table_get_by_id_raw(feather->table_mgr, i);
 		if(p_table==NULL)
 		{
 			continue;
 		}
-		table_rt=feather->scanner->table_rt[i];
+		table_rt=Maat_table_runtime_get(feather->scanner->table_rt_mgr, i);
 		switch(p_table->table_type)
 		{
 			case TABLE_TYPE_PLUGIN:

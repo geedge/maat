@@ -2,16 +2,42 @@
 #include "Maat_command.h"
 #include <MESA/MESA_handle_logger.h>
 
+#include <MESA/stream.h>
 #include <stdio.h>     /* for printf */
 #include <stdlib.h>    /* for exit */
 #include <getopt.h>
 #include <sys/stat.h>
+#include <arpa/inet.h>
 
+void debug_maat_result_print(const char* table_name, int scan_ret, struct Maat_rule_t* result)
+{
+	printf("Scan table %s ", table_name);
+	if(scan_ret==-1)
+	{
+		printf("error.\n");
+	}
+	else if(scan_ret==-2)
+	{
+		printf("hits group, but not compile.\n");
+	}
+	else if(scan_ret==0)
+	{
+		printf("not hit.");
+	}
+	else
+	{
+		printf("hits ");
+		for(int i=0; i<scan_ret; i++)
+		{
+			printf("%d, ", result[i].config_id);
+		}
+	}
+	printf("\n");
 
+}
 int debug_maat_str_scan(Maat_feather_t feather, const char* table_name, const char* district, char* data, size_t sz)
 {
 	int table_id=0,ret=0;
-	int i=0;
 	int scan_result_max=64;
 	struct Maat_rule_t result[scan_result_max];
 	scan_status_t mid=NULL;
@@ -35,33 +61,38 @@ int debug_maat_str_scan(Maat_feather_t feather, const char* table_name, const ch
 	ret=Maat_full_scan_string(feather, table_id, maat_charset, data, sz, 
 						result, NULL, scan_result_max,
 						&mid, 0);
-	printf("Scan table %s ", table_name);
-	if(ret==-1)
-	{
-		printf("error.\n");
-	}
-	else if(ret==-2)
-	{
-		printf("hits group, but not compile.\n");
-	}
-	else if(ret==0)
-	{
-		printf("not hit.");
-	}
-	else
-	{
-		printf("hits ");
-		for(i=0; i<ret; i++)
-		{
-			printf("%d, ", result[i].config_id);
-		}
-	}
-	printf("\n");
+	debug_maat_result_print(table_name, ret, result);
 
 	free(hit_detail);
 	Maat_clean_status(&mid);
 	return 0;
 }
+int debug_maat_ip_scan(Maat_feather_t feather, const char* table_name, const char* sip)
+{
+	int table_id=0,ret=0;
+	int scan_result_max=64;
+
+	struct Maat_rule_t result[scan_result_max];
+	scan_status_t mid=NULL;
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
+	inet_pton(AF_INET, sip, &(v4_addr.saddr));
+	v4_addr.source=htons(5210);
+	inet_pton(AF_INET, "127,0.0.1", &(v4_addr.daddr));
+	v4_addr.dest=htons(7400);
+	ipv4_addr.v4=&v4_addr;
+
+
+	table_id=Maat_table_register(feather, table_name);
+	ret=Maat_scan_proto_addr(feather, table_id, &ipv4_addr, 6, result, scan_result_max, &mid, 0);
+	
+	debug_maat_result_print(table_name, ret, result);
+
+	Maat_clean_status(&mid);
+	return 0;
+}
+
 enum tool_arg_type{
 	ARG_TABLE_INFO=0,
 	ARG_TABLE_NAME,
@@ -70,8 +101,10 @@ enum tool_arg_type{
 	ARG_SCAN_DISTRICT,
 	ARG_SCAN_CHARSET,
 	ARG_INPUT_JSON,
+	ARG_INPUT_FULL_INDEX,
 	ARG_DECRYPT_KEY,
 	ARG_ACCEPT_TAGS,
+	ARG_SCAN_IPv4,
 	__ARG_MAX
 };
 
@@ -87,21 +120,25 @@ int main(int argc, char ** argv)
 	{
 		return 0;
 	}
+	static struct option long_options[]={
+		{"table-info",		required_argument, 0, 0},
+		{"table-name",		required_argument, 0, 0},
+		{"scan-file",		optional_argument, 0, 0},
+		{"scan-string", optional_argument, 0, 0},
+		{"scan-district", optional_argument, 0, 0},
+		{"scan-charset",	optional_argument, 0, 0},
+		{"maat-json",		required_argument, 0, 0},
+		{"full-index",	required_argument, 0, 0},
+		{"decrypt-key", optional_argument, 0, 0},
+		{"accept-tags", optional_argument, 0, 0},
+		{"scan-ipv4", required_argument, 0, 0},	
+		{0, 0, 0, 0}
+	};
+
 	int c=0;
 	while (1) {
 		int option_index = 0;
-		static struct option long_options[]={
-			{"table-info",		required_argument, 0, 0},
-			{"table-name",		required_argument, 0, 0},
-			{"scan-file",		optional_argument, 0, 0},
-			{"scan-string",	optional_argument, 0, 0},
-			{"scan-district", optional_argument, 0, 0},
-			{"scan-charset",	optional_argument, 0, 0},
-			{"maat-json",		required_argument, 0, 0},
-			{"decrypt-key",	optional_argument, 0, 0},
-			{"accept-tags",	optional_argument, 0, 0},
-			{0, 0, 0, 0}
-		};
+
 
 		c = getopt_long(argc, argv, "ab", long_options, &option_index);
 		if (c == -1)
@@ -133,10 +170,29 @@ int main(int argc, char ** argv)
 	{
 		Maat_set_feather_opt(feather, MAAT_OPT_ACCEPT_TAGS, arg_value[ARG_ACCEPT_TAGS], strlen(arg_value[ARG_ACCEPT_TAGS])+1);
 	}
-	ret=Maat_set_feather_opt(feather, MAAT_OPT_JSON_FILE_PATH, arg_value[ARG_INPUT_JSON], strlen(arg_value[ARG_INPUT_JSON])+1);
-	if(ret!=0)
+	if(strlen(arg_value[ARG_INPUT_JSON])>0)
 	{
-		printf("Read %s failed, invalid maat json.\n", arg_value[ARG_INPUT_JSON]);
+		ret=Maat_set_feather_opt(feather, MAAT_OPT_JSON_FILE_PATH, arg_value[ARG_INPUT_JSON], strlen(arg_value[ARG_INPUT_JSON])+1);
+		if(ret!=0)
+		{
+			printf("Read %s failed, invalid maat json.\n", arg_value[ARG_INPUT_JSON]);
+			ret=-1;
+			goto clean_up;
+		}
+	}
+	else if(strlen(arg_value[ARG_INPUT_FULL_INDEX]))
+	{
+		ret=Maat_set_feather_opt(feather, MAAT_OPT_FULL_CFG_DIR, arg_value[ARG_INPUT_FULL_INDEX], strlen(arg_value[ARG_INPUT_FULL_INDEX])+1);
+		if(ret!=0)
+		{
+			printf("Set %s failed, invalid maat json.\n", arg_value[ARG_INPUT_FULL_INDEX]);
+			ret=-1;
+			goto clean_up;
+		}
+	}
+	else
+	{
+		printf("Error: One of --%s and --%s should be specified.\n", long_options[ARG_INPUT_JSON].name, long_options[ARG_INPUT_FULL_INDEX].name);
 		ret=-1;
 		goto clean_up;
 	}
@@ -164,6 +220,10 @@ int main(int argc, char ** argv)
 		
 		debug_maat_str_scan(feather, arg_value[ARG_TABLE_NAME], arg_value[ARG_SCAN_DISTRICT], file_buff, file_size);
 		free(file_buff);
+	}
+	if(strlen(arg_value[ARG_SCAN_IPv4])>0)
+	{
+		debug_maat_ip_scan(feather, arg_value[ARG_TABLE_NAME], arg_value[ARG_SCAN_IPv4]);
 	}
 clean_up:
 	Maat_burn_feather(feather);

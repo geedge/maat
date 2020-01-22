@@ -1,4 +1,5 @@
 #include "Maat_rule.h"
+#include "Maat_utils.h"
 #include "Maat_command.h"
 #include "Maat_rule_internal.h"
 #include "cJSON.h"
@@ -238,7 +239,7 @@ int main(int argc, char * argv[])
 	unsigned long json_file_size=0,read_size=0;
 	long long desired_version=0;
 	char* json_buff=NULL;
-
+	size_t json_buff_sz=0;
 	while((oc=getopt(argc,argv,"h:p:n:d:v:f:j:t:"))!=-1)
 	{
 		switch(oc)
@@ -325,8 +326,13 @@ int main(int argc, char * argv[])
 		read_rule_from_redis(ctx,desired_version,dump_dir, NULL);
 	}
 	else if(model==WORK_MODE_JSON)
-	{		
-		ret=json2iris(json_file, NULL, NULL, ctx, tmp_iris_path, sizeof(tmp_iris_path), NULL);
+	{
+		ret=load_file_to_memory(json_file, (unsigned char**)&json_buff, &json_buff_sz);
+		if(ret<0)
+		{
+			printf("open %s failed.\n", json_file);
+		}
+		ret=json2iris(json_buff, json_file, NULL, NULL, ctx, tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL, NULL);
 		if(ret<0)
 		{
 			printf("Invalid json format.\n");
@@ -336,6 +342,10 @@ int main(int argc, char * argv[])
 		printf("Serialize %s to %d lines, write temp file to %s .\n",json_file, total_line_cnt, tmp_iris_path);
 		struct serial_rule_t * s_rule=(struct serial_rule_t *)calloc(sizeof(struct serial_rule_t),total_line_cnt);
 		server_time=redis_server_time(ctx);
+		if(!server_time)
+		{
+			printf("Get Redis Time failed.\n");
+		}
 		if(timeout>0)
 		{
 			absolute_expire_time=server_time+timeout;

@@ -1,8 +1,10 @@
 #include <string.h>
-#include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <openssl/md5.h>
+#include <sys/stat.h>
+#include <openssl/evp.h>
 
 #include "Maat_utils.h"
 pid_t gettid()
@@ -164,6 +166,17 @@ char* str_unescape(char* s)
 	s[j]='\0';
 	return s;
 }
+size_t memcat(void**dest, size_t offset, size_t *n_dest, const void* src, size_t n_src)
+{
+	if(*n_dest<offset+n_src)
+	{
+		*n_dest=(offset+n_src)*2;
+		*dest=realloc(*dest, sizeof(char)*(*n_dest));
+	}
+	memcpy((char*)*dest+offset, src, n_src);
+	return n_src;
+}
+
 int get_column_pos(const char* line, int column_seq, size_t *offset, size_t *len)
 {
 	const char* seps=" \t";
@@ -199,16 +212,21 @@ int system_cmd_mkdir(const char* path)
 int system_cmd_mv(const char* src_file,const char*dst_file)
 {
 	char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
-	snprintf(cmd,sizeof(cmd), "mv %s %s", src_file, dst_file);
+	snprintf(cmd, sizeof(cmd), "mv %s %s", src_file, dst_file);
 	return  system(cmd);
 }
 int system_cmd_cp(const char* src_file,const char*dst_file)
 {
 	char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
-	snprintf(cmd,sizeof(cmd), "cp -f %s %s", src_file, dst_file);
+	snprintf(cmd, sizeof(cmd), "cp -f %s %s", src_file, dst_file);
 	return  system(cmd);
 }
-
+int system_cmd_encrypt(const char* src_file, const char* dst_file, const char* password)
+{
+	char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
+	snprintf(cmd,sizeof(cmd), "openssl enc -e -aes-256-cbc -k %s -p -nosalt -in %s -out %s", password, src_file, dst_file);
+	return  system(cmd);
+}
 int system_cmd_rm(const char* src_file)
 {
 	char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
@@ -240,5 +258,136 @@ char* md5_file(const char* filename, char* md5string)
 	}
 	free(file_buff);
 	return md5string;
+}
+const char* CHARSET_STRING[]={"NONE","gbk","big5","unicode","utf8","bin",
+							"unicode_ascii_esc","unicode_ascii_aligned","unicode_ncr_dec","unicode_ncr_hex","url_encode_gb2312","url_encode_utf8", "windows-1251", ""};
+
+const char** charset_get_all_name(void)
+{
+	return CHARSET_STRING;
+}
+const char* charset_get_name(enum MAAT_CHARSET charset)
+{
+	return CHARSET_STRING[charset];
+}
+int lqueue_destroy_cb(void *data, long data_len, void *arg)
+{
+	assert(0);
+	return 0;
+}
+
+int crypt_memory(const unsigned char* inbuf, size_t inlen, unsigned char** pp_out, size_t *out_sz, const char* key, const char* algorithm, int do_encrypt, char* err_str, size_t err_str_sz)
+{
+	int ret=0, out_blk_len=0;
+	int out_buff_len=0, out_buff_offset=0;
+	EVP_CIPHER_CTX *ctx;
+
+	unsigned char cipher_key[EVP_MAX_KEY_LENGTH];
+	unsigned char cipher_iv[EVP_MAX_IV_LENGTH];
+	memset(cipher_key,0,sizeof(cipher_key));
+	memset(cipher_iv,0,sizeof(cipher_iv));
+
+	const EVP_CIPHER *cipher;
+	const EVP_MD *dgst=NULL;
+	const unsigned char *salt=NULL;
+
+	OpenSSL_add_all_algorithms();
+	cipher=EVP_get_cipherbyname(algorithm);
+	if(cipher==NULL)
+	{
+		snprintf(err_str, err_str_sz, "Cipher %s is not supported.", algorithm);
+		return 0;
+	}
+	dgst=EVP_get_digestbyname("md5");
+	if(dgst==NULL)
+	{
+		snprintf(err_str, err_str_sz, "Get MD5 object failed.");
+		return 0;
+	}
+	ret=EVP_BytesToKey(cipher, dgst, salt, (unsigned char*)key, strlen((const char*)key), 1, cipher_key,  cipher_iv);
+	if(ret==0)
+	{
+		snprintf(err_str, err_str_sz, "Key and IV generatioin failed.");
+		return 0;
+	}
+     /* Don't set key or IV right away; we want to check lengths */
+	ctx = EVP_CIPHER_CTX_new();
+	EVP_CipherInit_ex(ctx, cipher, NULL, NULL, NULL, do_encrypt);
+	OPENSSL_assert(EVP_CIPHER_CTX_key_length(ctx) % 16==0);
+	OPENSSL_assert(EVP_CIPHER_CTX_iv_length(ctx) == 16);
+	 
+	/* Now we can set key and IV */
+	//It should be set to 1 for encryption, 0 for decryption and -1 to leave the value unchanged (the actual value of 'enc' being supplied in a previous call).
+	EVP_CipherInit_ex(ctx, NULL, NULL, cipher_key, cipher_iv, -1);
+	out_buff_len=inlen+EVP_CIPHER_block_size(cipher)-1;
+	*pp_out=(unsigned char*)malloc(out_buff_len*sizeof(unsigned char));
+	if (!EVP_CipherUpdate(ctx, *pp_out+out_buff_offset, &out_blk_len, inbuf, inlen))
+	{
+		snprintf(err_str, err_str_sz, "EVP_CipherUpdate failed.");
+		EVP_CIPHER_CTX_free(ctx);
+		goto error_out;
+	}
+	out_buff_offset+=out_blk_len;
+	if (!EVP_CipherFinal_ex(ctx, *pp_out+out_buff_offset, &out_blk_len))
+	{
+		snprintf(err_str, err_str_sz, "EVP_CipherFinal_ex failed. Maybe password is wrong?");
+		EVP_CIPHER_CTX_free(ctx);
+		goto error_out;
+	}
+	out_buff_offset+=out_blk_len;
+	EVP_CIPHER_CTX_free(ctx);
+	*out_sz=out_buff_offset;
+	return 0;	
+	
+error_out:	
+	free(*pp_out);
+	*pp_out=NULL;
+	return -1;
+}
+int load_file_to_memory(const char* file_name, unsigned char**pp_out, size_t *out_sz)
+{
+	int ret=0;
+	FILE* fp=NULL;		
+	struct stat fstat_buf;
+	size_t read_size=0;
+	
+	ret=stat(file_name, &fstat_buf);
+	if(ret!=0)
+	{
+		return -1;
+	}
+	fp=fopen(file_name, "r");
+	if(fp==NULL)
+	{
+		return -1;
+	}
+	*out_sz=fstat_buf.st_size;
+	*pp_out=(unsigned char*)calloc(1, *out_sz+1);
+	read_size=fread(*pp_out, 1, *out_sz, fp);
+	if(read_size!= *out_sz)
+	{
+		free(*pp_out);
+		pp_out=NULL;
+		return -1;
+	}	
+	
+	fclose(fp);
+	fp=NULL;
+	return 0;
+}
+int decrypt_open(const char* file_name, const char* key, const char* algorithm, unsigned char**pp_out, size_t *out_sz, char* err_str, size_t err_str_sz)
+{
+	int ret=0;
+	size_t file_sz=0;
+	unsigned char* file_buff=NULL;
+	ret=load_file_to_memory(file_name, &file_buff, &file_sz);
+	if(ret<0)
+	{
+		return -1;
+	}
+	ret=crypt_memory(file_buff, file_sz, pp_out, out_sz, key, algorithm, 0, err_str, err_str_sz);
+	free(file_buff);
+	file_buff=NULL;
+	return ret;
 }
 

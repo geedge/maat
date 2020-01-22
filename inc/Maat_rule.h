@@ -30,7 +30,9 @@ enum MAAT_CHARSET
 	CHARSET_UNICODE_NCR_DEC,		//SGML Numeric character reference,decimal base, e.g. "&#1575;"
 	CHARSET_UNICODE_NCR_HEX,		//SGML Numeric character reference,hexdecimal base, e.g. "&#x627;"
 	CHARSET_URL_ENCODE_GB2312,		//URL encode with GB2312, e.g. the chinese word "china" was encoded to %D6%D0%B9%FA
-	CHARSET_URL_ENCODE_UTF8		//11, URL encode with UTF8,e.g. the chinese word "china" was encoded to %E4%B8%AD%E5%9B%BD
+	CHARSET_URL_ENCODE_UTF8,		//11, URL encode with UTF8,e.g. the chinese word "china" was encoded to %E4%B8%AD%E5%9B%BD
+	CHARSET_WINDOWS1251,
+	__CHARSET_MAX
 };
 enum MAAT_ACTION
 {
@@ -158,8 +160,7 @@ enum MAAT_INIT_OPT
 									//This option also disables background update.
 	MAAT_OPT_ENABLE_UPDATE,			//VALUE is interger, SIZE=sizeof(int). 1: Enabled, 0:Disabled.  DEFAULT: Backgroud update is enabled. Runtime setting is allowed.
 	MAAT_OPT_ACCEPT_TAGS,			//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1. Format is a JSON, e.g.{"tags":[{"tag":"location","value":"Beijing/ChaoYang/Huayan/22A"},{"tag":"isp","value":"telecom"}]}
-	MAAT_OPT_FOREIGN_CONT_DIR,		//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1. Specifies a local diretory to store foreign content. Default: []table_info_path]_files
- 	MAAT_OPT_FOREIGN_CONT_LINGER	//VALUE is interger *, SIZE=sizeof(int). Greater than 0: delete after VALUE seconds; 0: delete foreign content right after the notification callbacks;  Less than 0: NEVER delete. Default: 0.
+	MAAT_OPT_FOREIGN_CONT_DIR		//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1. Specifies a local diretory to store foreign content. Default: []table_info_path]_files
 };
 //return -1 if failed, return 0 on success;
 int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT  type,const void* value,int size);

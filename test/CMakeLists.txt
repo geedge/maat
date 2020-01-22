@@ -7,6 +7,9 @@ target_link_libraries(test_igraph igraph-static)
 add_executable(test_maatframe test_maatframe.cpp)
 target_link_libraries(test_maatframe maat_frame_shared gtest)
 
+add_executable(perf_test_maatframe perf_test_maatframe.cpp)
+target_link_libraries(perf_test_maatframe maat_frame_shared gtest)
+
 configure_file(table_info.conf table_info.conf COPYONLY)
 configure_file(t2_tableinfo.conf t2_tableinfo.conf COPYONLY)
 configure_file(maat_json.json maat_json.json COPYONLY)

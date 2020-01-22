@@ -1,9 +1,10 @@
-#ifndef H_MAAT_RULE_INTERNAL_H_INCLUDE
-#define H_MAAT_RULE_INTERNAL_H_INCLUDE
+#pragma once
 
 #include "Maat_rule.h"
 #include "Maat_command.h"
-#include "Maat_table_description.h"
+#include "Maat_limits.h"
+#include "Maat_table.h"
+#include "Maat_table_runtime.h"
 
 #include <MESA/MESA_htable.h>
 #include <MESA/MESA_list_queue.h>
@@ -20,24 +21,13 @@
 #include <iconv.h>
 #include <openssl/md5.h>
 
-extern const char *maat_module;
 
 
 #define mr_region_id_var	"SEQUENCE_REGION"
 #define mr_group_id_var		"SEQUENCE_GROUP"
 
 
-#define	MAX_TABLE_NUM			256
-#define	MAX_TABLE_LINE_SIZE		(1024*16)
-#define	MAX_EXPR_KEYLEN			1024
-#define	MAX_DISTRICT_LEN			64
 
-#define	MAX_SCANNER_HIT_NUM			64
-#define	MAX_GROUP_CACHE		128
-
-#define	MAX_FAILED_NUM		128
-
-#define	MAX_MAAT_STAT_NUM	64
 
 
 typedef	void*	rule_scanner_t;
@@ -114,6 +104,7 @@ struct db_group_rule_t
 	int is_valid;
 	int not_flag;
 	int parent_type;	//PARENT_TYPE_**, 0:compile, 1: group.
+	int virtual_table_id;
 };
 struct op_expr_t
 {
@@ -141,6 +132,7 @@ struct Maat_compile_group_relation
 	long long magic_num;
 	struct Maat_compile_rule *compile;
 	dynamic_array_t *groups;	//element is struct Maat_group_inner*
+	int virtual_table_id[MAX_ITEMS_PER_BOOL_EXPR];
 	char not_flag[MAX_ITEMS_PER_BOOL_EXPR];
 	int compile_id;//equal to compile->m_rule.config_id
 	int group_boundary;
@@ -159,9 +151,9 @@ struct Maat_group_inner
 	int ref_by_parent_cnt;
 	int ref_by_children_cnt;
 	char* group_name;
-	int has_compile_neighbors;
+	int ref_by_compile_cnt;
 	int vertex_id;
-	int top_group_cnt;
+	size_t top_group_cnt;
 	long long* top_groups;
 	dynamic_array_t *regions;
 	pthread_mutex_t mutex;
@@ -208,11 +200,12 @@ struct iconv_handle_t
 struct _stream_para_t
 {
 	struct _Maat_feather_t* feather;
+	const struct Maat_table_desc* p_real_table;
+	int virtual_table_id;
 	int version;
 	int thread_num;
 	int max_cross_size;
 	int caching_size;
-	unsigned short table_id;
 	char do_merge;
 	char do_expr:4;
 	char do_regex:4;
@@ -225,54 +218,7 @@ struct _stream_para_t
 	pthread_mutex_t fuzzy_mutex;
 	unsigned char query_point[8];
 };
-struct similar_runtime
-{
-	GIE_handle_t*	gie_handle;
-	MESA_lqueue_head update_q;
-};
 
-struct plugin_runtime
-{
-	dynamic_array_t *cache_lines;
-	long long cache_line_num;
-	long long acc_line_num;
-	long long cache_size;
-	MESA_htable_handle key2ex_hash;
-};
-struct expr_runtime
-{
-	long long expr_rule_cnt;	//expr_type=0,1,3
-	long long regex_rule_cnt;	//expr_type=2
-};
-struct ip_runtime
-{
-	long long ipv4_rule_cnt;
-	long long ipv6_rule_cnt;
-
-};
-struct group_runtime
-{
-	long long not_flag_group;
-};
-struct Maat_table_runtime
-{
-	enum MAAT_TABLE_TYPE table_type;
-	long origin_rule_num;
-	union
-	{	
-		struct similar_runtime similar;	//for digest and similarity
-		struct plugin_runtime plugin;		
-		struct expr_runtime expr;
-		struct ip_runtime ip;
-		struct group_runtime group;		
-		void * other;
-	};
-	mcore_long_t	scan_cnt;
-	mcore_long_t	scan_cpu_time;	//nano
-	mcore_long_t	input_bytes;
-	mcore_long_t	stream_num;
-	mcore_long_t	hit_cnt;
-};
 struct rule_tag
 {
 	char* tag_name;
@@ -287,9 +233,10 @@ struct Maat_scanner
 	size_t gie_update_q_size;
 	size_t to_update_group_cnt;
 	size_t to_update_compile_cnt;
-	
-	struct Maat_table_runtime* table_rt[MAX_TABLE_NUM];
 
+	struct Maat_table_runtime_manager*  table_rt_mgr;
+	size_t max_table_num;
+	
 	MESA_htable_handle region_hash;	//key: region_id, value: struct region_group_relation*
 	MESA_htable_handle exprid_hash;	//key: expr_id, value: int array_idx of Maat_group_inner->regions;
 	MESA_htable_handle group_hash;	//key: group_id, value: struct Maat_group_inner*
@@ -301,9 +248,12 @@ struct Maat_scanner
 	MESA_htable_handle vertex_id2group;
 
 	igraph_t group_graph;
+	igraph_integer_t group_graph_vcount;
+	igraph_vector_t dfs_vids;
+
 	int grp_vertex_id_generator;
 	int most_popular_sub_group;
-	long long max_presented_top_group_cnt;
+	unsigned long long max_presented_top_group_cnt;
 	
 	unsigned int district_num;
 	unsigned int cfg_num;
@@ -312,6 +262,7 @@ struct Maat_scanner
 	MESA_lqueue_head region_update_q;
 	struct bool_matcher * bool_matcher_expr_compiler;
 	scan_result_t *region_rslt_buff;
+	GIE_result_t* gie_rslt_buff;
 	void* logger_ref;
 	MESA_lqueue_head tomb_ref;//reference of g_feather->garbage_q
 
@@ -335,7 +286,7 @@ struct source_json_ctx
 	char json_file[MAX_TABLE_NAME_LEN];
 	char iris_file[MAX_TABLE_NAME_LEN];
 	char effective_json_md5[MD5_DIGEST_LENGTH*2+1];
-	time_t last_md5_time;
+	struct timespec last_md5_time;
 };
 struct source_redis_ctx
 {
@@ -351,9 +302,9 @@ struct _Maat_feather_t
 	struct Maat_scanner *scanner;
 	struct Maat_scanner *update_tmp_scanner;
 	MESA_lqueue_head garbage_q;
-	int table_cnt;
+	struct Maat_table_manager* table_mgr;
+	
 	int DEFERRED_LOAD_ON;
-	int GROUP_MODE_ON;
 	int REDIS_MODE_ON;
 	enum data_source input_mode;
 	union
@@ -368,8 +319,7 @@ struct _Maat_feather_t
 	int cumulative_update_off;
 	int stat_on;
 	int perf_on;
-	struct Maat_table_desc *p_table_info[MAX_TABLE_NUM];
-	MESA_htable_handle map_tablename2id;
+	
 	void* logger;
 	long long maat_version;
 	long long last_full_version;
@@ -382,7 +332,8 @@ struct _Maat_feather_t
 	char compile_tn[MAX_TABLE_NAME_LEN];
 	char group_tn[MAX_TABLE_NAME_LEN];
 	pthread_mutex_t background_update_mutex;
-	unsigned char decrypt_key[MAX_TABLE_NAME_LEN];
+	char decrypt_key[MAX_TABLE_NAME_LEN];
+	char decrypt_algo[MAX_TABLE_NAME_LEN];
 	pthread_t cfg_mon_t;
 
 	int AUTO_NUMBERING_ON;
@@ -399,11 +350,8 @@ struct _Maat_feather_t
 	int n_tags;
 	
 	char foreign_cont_dir[MAX_TABLE_NAME_LEN];
-	int foreign_cont_linger;
 //internal states
 	long long new_version;
-	int active_plugin_table_num;
-	int is_last_plugin_table_updating;
 
 //for scanner independent stat>>>>
 	int backgroud_update_enabled;
@@ -448,7 +396,6 @@ struct _maat_garbage_t
 struct foreign_key
 {
 	int column;
-	int is_existed;
 	char* key;
 	char* filename;
 };
@@ -469,7 +416,6 @@ void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbag
 void garbage_bagging_with_timeout(enum maat_garbage_type type,void *p, int timeout, MESA_lqueue_head garbage_q);
 void garbage_bury(MESA_lqueue_head garbage_q,void *logger);
 void make_group_set(struct Maat_compile_group_relation* compile_rule, struct bool_expr* a_set, unsigned char *has_not);
-int read_table_description(struct Maat_table_desc** p_table_info,int num,const char* table_info_path,int max_thread_num,void* logger);
 void maat_start_cb(long long new_version,int update_type,void*u_para);
 int maat_update_cb(const char* table_name,const char* line,void *u_para);
 void maat_finish_cb(void* u_para);
@@ -504,17 +450,14 @@ void empty_serial_rules(struct serial_rule_t* rule);
 int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,unsigned int serial_rule_num, long long server_time, void* logger);
 long long redis_server_time(redisContext* ctx);
 redisContext * connect_redis(const char*redis_ip, int redis_port, int redis_db, void* logger);
-char* md5_file(const char* filename, char* md5string);
 
+int load_maat_json_file(_Maat_feather_t* feather, const char* maat_json_fn, char* err_str, size_t err_str_sz);
 void redis_monitor_traverse(long        long version, struct source_redis_ctx* mr_ctx,
 		void (*start)(long long,int ,void*),//vesion,CM_UPDATE_TYPE_*,u_para
 		int (*update)(const char* ,const char*,void* ),//table name ,line ,u_para
 		void (*finish)(void*),//u_para
 		void* u_para,
-		const unsigned char* dec_key,
+		const char* dec_key,
 		_Maat_feather_t* feather);
 
-
-
-#endif
 

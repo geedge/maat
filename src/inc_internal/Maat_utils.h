@@ -1,6 +1,8 @@
 #pragma once
+#include "Maat_rule.h"
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <stdio.h>
 #include <sys/syscall.h>
 #include <sys/types.h>//fstat
 #include <sys/types.h>//fstat
@@ -45,7 +47,7 @@
 #define UNUSED	__attribute__((unused))
 const char*	module_name_str(const char*name);
 #define maat_module	(module_name_str("MAAT_Frame"))
-
+#define	TO_RELATION_ID(vid, gid)	((unsigned long long)vid<<32|gid)
 char* _maat_strdup(const char* s);
 char* str_unescape(char* s);
 inline void ipv6_ntoh(unsigned int *v6_addr)
@@ -62,12 +64,23 @@ char* str_tolower(char* string);
 char *strtok_r_esc(char *s, const char delim, char **save_ptr);
 char *str_unescape_and(char*s);
 char* str_unescape(char* s);
+size_t memcat(void**dest, size_t offset, size_t *n_dest, const void* src, size_t n_src);
+
 pid_t gettid(void);
 int system_cmd_mkdir(const char* path);
 int system_cmd_rm(const char* src_file);
-int system_cmd_mv(const char* src_file,const char*dst_file);
-int system_cmd_cp(const char* src_file,const char*dst_file);
+int system_cmd_mv(const char* src_file, const char*dst_file);
+int system_cmd_cp(const char* src_file, const char*dst_file);
+int system_cmd_encrypt(const char* src_file, const char* dst_file, const char* password);
+
 char* md5_file(const char* filename, char* md5string);
 int get_column_pos(const char* line, int column_seq, size_t *offset, size_t *len);
+const char** charset_get_all_name(void);
+const char* charset_get_name(enum MAAT_CHARSET charset);
+int lqueue_destroy_cb(void *data, long data_len, void *arg);
+int decrypt_open(const char* file_name, const char* key, const char* algorithm, unsigned char**pp_out, size_t *out_sz, char* err_str, size_t err_str_sz);
+int load_file_to_memory(const char* file_name, unsigned char**pp_out, size_t *out_sz);
+//do_encrypt: 1 for encryption, 0 for decryption.
+int crypt_memory(const unsigned char* inbuf, size_t inlen, unsigned char** pp_out, size_t *out_sz, const char* key, const char* algorithm, int do_encrypt, char* err_str, size_t err_str_sz);
 
 

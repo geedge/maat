@@ -32,6 +32,7 @@ extern int my_scandir(const char *dir, struct dirent ***namelist,
               int(*compar)(const void *, const void *));
 extern char* md5_file(const char* filename, char* md5string);
 extern int system_cmd_cp(const char* src_file,const char*dst_file);
+extern int system_cmd_encrypt(const char* src_file, const char* dst_file, const char* password);
 Maat_feather_t g_feather=NULL;
 void *g_logger=NULL;
 int g_iThreadNum=4;
@@ -54,7 +55,7 @@ void wait_for_cmd_effective(Maat_feather_t feather, long long version_before)
 //	printf("wait for %lld ms\n", wating_us/1000);
 }
 
-void scan_with_old_or_new_cfg(Maat_feather_t feather, int hit_old)
+void scan_with_old_or_new_cfg(Maat_feather_t feather, int is_old)
 {
 	const char* hit_old_data="Hello world! I'm eve.";
 	const char* hit_new_data="Maat was borned in MESA.";
@@ -72,7 +73,7 @@ void scan_with_old_or_new_cfg(Maat_feather_t feather, int hit_old)
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, hit_old_data, strlen(hit_old_data), 
 						&result,NULL, 1,
 						&mid, 0);
-	if(hit_old)
+	if(is_old)
 	{
 		EXPECT_EQ(ret, 1);
 		EXPECT_TRUE(result.config_id==1);
@@ -87,7 +88,7 @@ void scan_with_old_or_new_cfg(Maat_feather_t feather, int hit_old)
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, hit_new_data, strlen(hit_new_data), 
 						&result,NULL, 1,
 						&mid, 0);
-	if(!hit_old)
+	if(!is_old)
 	{
 		EXPECT_EQ(ret, 1);
 		EXPECT_TRUE(result.config_id==2);
@@ -105,6 +106,7 @@ const char* watched_json="./json_update/maat.json";
 const char* old_json="./json_update/old.json";
 const char* new_json="./json_update/new.json";
 const char* corrupted_json="./json_update/corrupted.json";
+const char* json_decrypt_key="himaat!";
 
 class JSONUpdate : public testing::Test 
 {
@@ -112,10 +114,13 @@ class JSONUpdate : public testing::Test
 protected:
 	static void SetUpTestCase()
 	{	
-		system_cmd_cp(old_json, watched_json);
+		
+		system_cmd_encrypt(old_json, watched_json, json_decrypt_key);
+		
 		_shared_feather_j=Maat_feather(g_iThreadNum, table_info_path, g_logger);
+		Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_DECRYPT_KEY, json_decrypt_key, strlen(json_decrypt_key)+1);
 		Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_JSON_FILE_PATH, watched_json, strlen(watched_json)+1);		
-		Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_SCANDIR_INTERVAL_MS,&scan_interval_ms, sizeof(scan_interval_ms));
+		Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_SCANDIR_INTERVAL_MS, &scan_interval_ms, sizeof(scan_interval_ms));
 
 		Maat_initiate_feather(_shared_feather_j);
 
@@ -137,11 +142,12 @@ TEST_F(JSONUpdate, OldCfg)
 }
 TEST_F(JSONUpdate, NewCfg)
 {
-	system_cmd_cp(corrupted_json, watched_json);
+	system_cmd_encrypt(corrupted_json, watched_json, json_decrypt_key);
 	sleep(2);
 	scan_with_old_or_new_cfg(JSONUpdate::_shared_feather_j, 1);
-	system_cmd_cp(new_json, watched_json);
-	sleep(2);
+
+	system_cmd_encrypt(new_json, watched_json, json_decrypt_key);
+	sleep(5);
 	scan_with_old_or_new_cfg(JSONUpdate::_shared_feather_j, 0);
 }
 
@@ -357,7 +363,7 @@ TEST(StringScan,   ExprPlus)
 	int found_pos[4];
 	const char* region_name="HTTP URL";
 	const char* scan_data="http://www.cyberessays.com/search_results.php?action=search&query=abckkk,1234567";
-	table_id=Maat_table_register(g_feather, "HTTP_REGION");
+	table_id=Maat_table_register(g_feather, "HTTP_SIGNATURE");
 	ASSERT_GT(table_id, 0);
 	scan_status_t mid=NULL;
 	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, scan_data, strlen(scan_data), 
@@ -376,6 +382,7 @@ TEST(StringScan,   ExprPlus)
 	Maat_clean_status(&mid);
 	return;
 }
+
 
 TEST(StringScan, ExprPlusWithOffset)
 {
@@ -437,7 +444,7 @@ TEST(StringScan, ExprPlusWithHex)
 	const char* scan_data="text/html; charset=UTF-8";	
 	const char* region_name="Content-Type";
 	int found_pos[4];
-	table_id=Maat_table_register(g_feather, "HTTP_REGION");
+	table_id=Maat_table_register(g_feather, "HTTP_SIGNATURE");
 	ASSERT_GT(table_id, 0);
 	scan_status_t mid=NULL;
 	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, region_name, strlen(region_name));
@@ -653,6 +660,54 @@ TEST(NOTLogic, OneRegion)
 	Maat_clean_status(&mid);
 
 }
+
+TEST(StringScan,   CharsetWindows1251)
+{
+	int table_id=0,ret=0;
+	int read_size=0,pass_flag=0;
+	struct Maat_rule_t result[4];
+	scan_status_t mid=NULL;
+	//const char* fn="./testdata/mesa_logo.jpg";
+	const char* table_name="KEYWORDS_TABLE";
+	const char* fn="./testdata/charsetWindows1251.txt";
+	FILE* fp=fopen(fn,"r");
+	ASSERT_FALSE(fp==NULL);
+
+	char scan_data[4096]={0};
+	table_id=Maat_table_register(g_feather,table_name);
+	ASSERT_GT(table_id, 0);
+	
+
+	struct Maat_hit_detail_t *hit_detail=(struct Maat_hit_detail_t *)malloc(sizeof(struct Maat_hit_detail_t)*10);
+	stream_para_t sp=Maat_stream_scan_string_start(g_feather,table_id,0);
+	int detail_ret=0;
+	
+	ASSERT_FALSE(sp==NULL);
+
+	while(0==feof(fp))
+	{
+		read_size=fread(scan_data,1,sizeof(scan_data),fp);
+		ret=Maat_stream_scan_string_detail(&sp,CHARSET_NONE,scan_data,read_size
+							,result,4,hit_detail,10
+							,&detail_ret,&mid);
+		if(ret>0)
+		{
+			pass_flag=1;
+			break;
+		}
+	}
+	EXPECT_EQ(pass_flag, 1);
+	EXPECT_EQ(result[0].config_id, 164);
+	
+	Maat_stream_scan_string_end(&sp);
+	free(hit_detail);
+	fclose(fp);
+	Maat_clean_status(&mid);
+	return;
+
+}
+
+
 TEST(NOTLogic, ScanNotAtLast)
 {
 	const char* string_should_hit="This string ONLY contains must-contained-string-of-rule-144.";
@@ -1462,6 +1517,126 @@ TEST(ScanResult, LongerServiceDefine)
 	free(buff);
 	return;
 }
+TEST(VirtualTable, VirtualWithPhysical)
+{
+#define TestVirtualTable1
+	int ret=0, table_id=0;
+	const char* http_content="Batman\\:Take me Home.Superman/:Fine,stay with me.";
+	const char* http_url="https://blog.csdn.net/littlefang/article/details/8213058";
+	
+	struct Maat_rule_t result[4];
+	memset(result, 0, sizeof(result));
+	
+	scan_status_t mid=NULL;
+
+	table_id=Maat_table_register(g_feather, "HTTP_URL");	
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, http_url, strlen(http_url), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, -2);
+	
+
+	table_id=Maat_table_register(g_feather, "HTTP_RESPONSE_KEYWORDS");
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, http_content, strlen(http_content), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 160);	
+
+	const char* should_not_hit="2018-10-05 is a keywords of table KEYWORDS_TABLE. Should not hit.";
+
+	mid=NULL;
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, should_not_hit, strlen(should_not_hit), 
+						result, NULL, 4, &mid, 0);
+	EXPECT_EQ(ret, -2);
+	Maat_clean_status(&mid);
+
+	return;
+}
+TEST(VirtualTable, VirtualWithVirtual)
+{
+#define TestVirtualTable2
+	int ret=0, table_id=0;
+	const char* http_req_hdr_ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36";
+	const char* http_resp_hdr_cookie="uid=12345678;BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; sugstore=1;";
+	
+	struct Maat_rule_t result[4];
+	memset(result, 0, sizeof(result));
+	
+	scan_status_t mid=NULL;
+
+	table_id=Maat_table_register(g_feather, "HTTP_REQUEST_HEADER");	
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, "User-Agent", strlen("User-Agent"));
+	ASSERT_EQ(ret, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, http_req_hdr_ua, strlen(http_req_hdr_ua), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, -2);
+	
+
+	table_id=Maat_table_register(g_feather, "HTTP_RESPONSE_HEADER");
+	ASSERT_GT(table_id, 0);
+
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, "Cookie", strlen("Cookie"));
+	ASSERT_EQ(ret, 0);
+
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 162);	
+
+	Maat_clean_status(&mid);
+
+	return;
+}
+TEST(VirtualTable, OneGroupInTwoVirtual)
+{
+#define TestVirtualTable3
+	int ret=0, table_id=0;
+	const char* http_resp_hdr_cookie="sessionid=888888;BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; sugstore=1;";
+	
+	struct Maat_rule_t result[4];
+	memset(result, 0, sizeof(result));
+	
+	scan_status_t mid=NULL;
+
+	table_id=Maat_table_register(g_feather, "HTTP_REQUEST_HEADER");	
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, "Cookie", strlen("Cookie"));
+	ASSERT_EQ(ret, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, -2);
+	
+
+	table_id=Maat_table_register(g_feather, "HTTP_RESPONSE_HEADER");
+	ASSERT_GT(table_id, 0);
+
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, "Cookie", strlen("Cookie"));
+	ASSERT_EQ(ret, 0);
+
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 163);	
+
+	Maat_clean_status(&mid);
+
+	return;
+}
+
 
 class MaatFileTest : public testing::Test 
 {
@@ -1589,8 +1764,6 @@ protected:
 		
 		const char* foregin_dir="./foreign_files/";	
 		Maat_set_feather_opt(_shared_feather, MAAT_OPT_FOREIGN_CONT_DIR,foregin_dir, strlen(foregin_dir)+1);
-		linger_timeout=2;
-		Maat_set_feather_opt(_shared_feather, MAAT_OPT_FOREIGN_CONT_LINGER,&linger_timeout, sizeof(linger_timeout));
 
 		Maat_cmd_flushDB(_shared_feather);
 		Maat_initiate_feather(_shared_feather);
@@ -2175,6 +2348,123 @@ TEST_F(MaatCmdTest,    RefGroup)
 	Maat_clean_status(&mid);
 
 }
+#define MaatCmdTest_VirtualTable
+TEST_F(MaatCmdTest,   VirtualTable)
+{
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+	const char* group_table_name="GROUP";
+	const char* compile_table_name="COMPILE";
+	const char* region_table_name="HTTP_SIGNATURE";
+
+	struct Maat_rule_t compile1;
+	struct Maat_group_t group1, group2;
+	struct Maat_region_t region1, region2;
+
+	memset(&compile1, 0, sizeof(compile1));
+	compile1.config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 2);
+
+	
+	//group1->compile1
+	memset(&group1, 0, sizeof(group1));
+	group1.group_id=Maat_cmd_get_new_group_id(feather);
+	group1.table_name=group_table_name;
+	group1.virtual_table_name="HTTP_REQUEST_HEADER";
+	group1.parent_id=compile1.config_id;
+	group1.parent_type=PARENT_TYPE_COMPILE;
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group1);
+
+
+	/*region1->group1->compile1
+	*/
+	memset(&region1, 0, sizeof(region1));
+	region1.region_id=Maat_cmd_get_new_region_id(feather);
+	region1.region_type=REGION_EXPR;
+	region1.table_name=region_table_name;
+	region1.expr_rule.district="User-Agent";
+	region1.expr_rule.keywords="AppleWebKit";
+	region1.expr_rule.expr_type=EXPR_TYPE_STRING;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region1, group1.group_id);
+
+
+	//group2->compile1
+	memset(&group2, 0, sizeof(group2));
+	group2.group_id=Maat_cmd_get_new_group_id(feather);
+	group2.table_name=group_table_name;
+	group2.virtual_table_name="HTTP_RESPONSE_HEADER";
+	group2.parent_id=compile1.config_id;
+	group2.parent_type=PARENT_TYPE_COMPILE;
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group2);
+
+	//region2->group2
+	memset(&region2, 0, sizeof(region2));
+	region2.region_id=Maat_cmd_get_new_region_id(feather);
+	region2.region_type=REGION_EXPR;
+	region2.table_name=region_table_name;
+	region2.expr_rule.district="Cookie";
+	region2.expr_rule.keywords="uid=12345678;";
+	region2.expr_rule.expr_type=EXPR_TYPE_STRING;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region2, group2.group_id);
+
+	sleep(1);
+
+	int ret=0, table_id=0;
+	const char* http_req_hdr_ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36";
+	const char* http_resp_hdr_cookie="uid=12345678;BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; sugstore=1;";
+	
+	struct Maat_rule_t result[4];
+	memset(result, 0, sizeof(result));
+	
+	scan_status_t mid=NULL;
+
+	table_id=Maat_table_register(feather, "HTTP_REQUEST_HEADER");	
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_set_scan_status(feather, &mid, MAAT_SET_SCAN_DISTRICT, "User-Agent", strlen("User-Agent"));
+	ASSERT_EQ(ret, 0);
+	
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, http_req_hdr_ua, strlen(http_req_hdr_ua), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, -2);
+	
+
+	table_id=Maat_table_register(feather, "HTTP_RESPONSE_HEADER");
+	ASSERT_GT(table_id, 0);
+
+	ret=Maat_set_scan_status(feather, &mid, MAAT_SET_SCAN_DISTRICT, "Cookie", strlen("Cookie"));
+	ASSERT_EQ(ret, 0);
+
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, compile1.config_id);	
+
+	Maat_clean_status(&mid);
+
+	//Delete group1
+	Maat_command_raw_set_group(feather, MAAT_OP_DEL, &group1);
+	Maat_command_raw_set_compile(feather, MAAT_OP_DEL, &compile1, compile_table_name, NULL, 2);	
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 1);	
+
+	sleep(1);
+
+	table_id=Maat_table_register(feather, "HTTP_RESPONSE_HEADER");
+	ASSERT_GT(table_id, 0);
+
+	ret=Maat_set_scan_status(feather, &mid, MAAT_SET_SCAN_DISTRICT, "Cookie", strlen("Cookie"));
+	ASSERT_EQ(ret, 0);
+
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, compile1.config_id);	
+	Maat_clean_status(&mid);
+	return;
+
+}
 
 TEST_F(MaatCmdTest, SetLines)
 {
@@ -2211,97 +2501,7 @@ TEST_F(MaatCmdTest, SetLines)
 
 	return;
 }
-/*
-//Following tests must be coded/tested at last, for they stalled the maat update thread and interrupt other tests.
-TEST_F(MaatCmdTest, SetExprOneMillion)
-{
-	const int CMD_EXPR_NUM=1000*1000;
-	const char* table_name="HTTP_URL";
-	
-	const char* keywords1="Hiredis";
-	const char* keywords2="C Client";
-	char escape_buff1[256],escape_buff2[256];
-	char keywords[256];
 
-	int label_id=5210, config_id=0,ret=0, output_id_cnt=0;
-	Maat_feather_t feather=MaatCmdTest::_shared_feather;
-	long long version_before=0;
-	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
-	
-	Maat_str_escape(escape_buff1, sizeof(escape_buff1),keywords1);
-	Maat_str_escape(escape_buff2, sizeof(escape_buff2),keywords2);
-	snprintf(keywords,sizeof(keywords),"%s&%s",escape_buff1,escape_buff2);
-	
-	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", CMD_EXPR_NUM);
-	int i=0;
-	for(i=0; i<CMD_EXPR_NUM;i++)
-	{
-		test_add_expr_command(feather,table_name,config_id-i, 0, label_id, keywords);
-	}
-	ret=Maat_cmd_commit(feather);
-	EXPECT_TRUE(ret>=0);
-	wait_for_cmd_effective(feather, version_before);
-	struct Maat_cmd_t* cmd=NULL;
-	struct Maat_rule_t rule;
-	memset(&rule,0,sizeof(rule));
-	int *output_ids=(int*)malloc(sizeof(int)*CMD_EXPR_NUM);
-	output_id_cnt=Maat_cmd_select(feather,label_id, output_ids, CMD_EXPR_NUM);
-	EXPECT_EQ(output_id_cnt, CMD_EXPR_NUM);
-	for(i=0; i<CMD_EXPR_NUM;i++)
-	{
-		memset(&rule,0,sizeof(rule));
-		rule.config_id=output_ids[i];
-		cmd=Maat_create_cmd(&rule, 0);
-		ret=Maat_cmd_append(feather, cmd, MAAT_OP_DEL);
-		EXPECT_EQ(ret, 0);
-		Maat_free_cmd(cmd);
-	}
-	ret=Maat_cmd_commit(feather);
-	
-	EXPECT_EQ(ret, CMD_EXPR_NUM);
-	free(output_ids);
-}
-
-TEST_F(MaatCmdTest, SetLinesOneMillion)
-{
-	const int TEST_CMD_LINE_NUM=1000*1000;
-	Maat_feather_t feather=MaatCmdTest::_shared_feather;
-
-	struct Maat_line_t **p_line=(struct Maat_line_t **)calloc(sizeof(struct Maat_line_t *), TEST_CMD_LINE_NUM);
-	struct Maat_line_t *line_rule=(struct Maat_line_t *)calloc(sizeof(struct Maat_line_t), TEST_CMD_LINE_NUM);
-	int i=0;
-	const char* line="1\t192.168.0.1\t4444444444\t1";
-	int seq=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", TEST_CMD_LINE_NUM);
-	for(i=0;i<TEST_CMD_LINE_NUM;i++)
-	{
-		line_rule[i].label_id=0;
-		line_rule[i].rule_id=seq-i;
-		line_rule[i].table_name="QD_ENTRY_INFO";
-		line_rule[i].table_line=line;
-//		asprintf(&(line_rule[i].table_line),"1\t192.168.0.1\t%d\t1",100+i);
-		line_rule[i].expire_after=0;
-		p_line[i]=line_rule+i;
-	}
-	
-	long long version_before=0;
-	Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
-
-	Maat_cmd_set_lines(feather,(const struct Maat_line_t **)p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
-	
-	wait_for_cmd_effective(feather, version_before);
-	
-	for(i=0;i<TEST_CMD_LINE_NUM;i++)
-	{
-		line_rule[i].table_line=NULL;
-	}
-	Maat_cmd_set_lines(feather, (const struct Maat_line_t **)p_line,TEST_CMD_LINE_NUM, MAAT_OP_DEL);
-	free(p_line);
-	free(line_rule);
-
-	return;
-}
-
-*/
 int g_test_update_paused=0;
 void pause_update_test_entry_cb(int table_id,const char* table_line,void* u_para)
 {
