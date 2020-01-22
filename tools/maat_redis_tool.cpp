@@ -239,7 +239,7 @@ int main(int argc, char * argv[])
 	unsigned long json_file_size=0,read_size=0;
 	long long desired_version=0;
 	char* json_buff=NULL;
-
+	size_t json_buff_sz=0;
 	while((oc=getopt(argc,argv,"h:p:n:d:v:f:j:t:"))!=-1)
 	{
 		switch(oc)
@@ -327,12 +327,12 @@ int main(int argc, char * argv[])
 	}
 	else if(model==WORK_MODE_JSON)
 	{
-		ret=load_file_to_memory(json_file, &json_buff);
+		ret=load_file_to_memory(json_file, (unsigned char**)&json_buff, &json_buff_sz);
 		if(ret<0)
 		{
 			printf("open %s failed.\n", json_file);
 		}
-		ret=json2iris(json_buff, json_file, NULL, NULL, ctx, tmp_iris_path, sizeof(tmp_iris_path), NULL);
+		ret=json2iris(json_buff, json_file, NULL, NULL, ctx, tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL, NULL);
 		if(ret<0)
 		{
 			printf("Invalid json format.\n");

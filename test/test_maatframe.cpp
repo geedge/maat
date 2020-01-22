@@ -32,6 +32,7 @@ extern int my_scandir(const char *dir, struct dirent ***namelist,
               int(*compar)(const void *, const void *));
 extern char* md5_file(const char* filename, char* md5string);
 extern int system_cmd_cp(const char* src_file,const char*dst_file);
+extern int system_cmd_encrypt(const char* src_file, const char* dst_file, const char* password);
 Maat_feather_t g_feather=NULL;
 void *g_logger=NULL;
 int g_iThreadNum=4;
@@ -105,6 +106,7 @@ const char* watched_json="./json_update/maat.json";
 const char* old_json="./json_update/old.json";
 const char* new_json="./json_update/new.json";
 const char* corrupted_json="./json_update/corrupted.json";
+const char* json_decrypt_key="himaat!";
 
 class JSONUpdate : public testing::Test 
 {
@@ -112,10 +114,11 @@ class JSONUpdate : public testing::Test
 protected:
 	static void SetUpTestCase()
 	{	
-		const char* decrypt_key="himaat!";
-		system_cmd_cp(old_json, watched_json);
+		
+		system_cmd_encrypt(old_json, watched_json, json_decrypt_key);
+		
 		_shared_feather_j=Maat_feather(g_iThreadNum, table_info_path, g_logger);
-	//	Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_DECRYPT_KEY, decrypt_key, strlen(decrypt_key)+1);
+		Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_DECRYPT_KEY, json_decrypt_key, strlen(json_decrypt_key)+1);
 		Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_JSON_FILE_PATH, watched_json, strlen(watched_json)+1);		
 		Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_SCANDIR_INTERVAL_MS, &scan_interval_ms, sizeof(scan_interval_ms));
 
@@ -139,10 +142,11 @@ TEST_F(JSONUpdate, OldCfg)
 }
 TEST_F(JSONUpdate, NewCfg)
 {
-	system_cmd_cp(corrupted_json, watched_json);
+	system_cmd_encrypt(corrupted_json, watched_json, json_decrypt_key);
 	sleep(2);
 	scan_with_old_or_new_cfg(JSONUpdate::_shared_feather_j, 1);
-	system_cmd_cp(new_json, watched_json);
+
+	system_cmd_encrypt(new_json, watched_json, json_decrypt_key);
 	sleep(5);
 	scan_with_old_or_new_cfg(JSONUpdate::_shared_feather_j, 0);
 }

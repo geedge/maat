@@ -51,6 +51,9 @@ struct iris_description_t
 	MESA_htable_handle iris_table_map;
 	MESA_htable_handle str2int_map;
 	redisContext *redis_write_ctx;
+	char* encrypt_key;
+	char* encrypt_algo;
+	FILE* idx_fp;
 };
 struct traslate_command_t
 {
@@ -119,7 +122,7 @@ static int get_region_seq(struct iris_description_t* iris_cfg)
 	return sequence;
 }
 
-int set_iris_descriptor(const char* json_file,cJSON *json,const char*compile_tn,const char* group_tn, redisContext *redis_write_ctx, struct iris_description_t *iris_cfg, void * logger)
+int set_iris_descriptor(const char* json_file,cJSON *json, const char* encrypt_key, const char* encrypt_algo, const char*compile_tn,const char* group_tn, redisContext *redis_write_ctx, struct iris_description_t *iris_cfg, void * logger)
 {
 	memset(iris_cfg,0,sizeof(struct iris_description_t));
 	snprintf(iris_cfg->tmp_iris_dir,sizeof(iris_cfg->tmp_iris_dir),"%s_iris_tmp",json_file);
@@ -186,6 +189,12 @@ int set_iris_descriptor(const char* json_file,cJSON *json,const char*compile_tn,
 
 	iris_cfg->compile_table=query_table_info(iris_cfg, compile_tn, TABLE_TYPE_COMPILE);
 	iris_cfg->group_table=query_table_info(iris_cfg, group_tn, TABLE_TYPE_GROUP);
+	
+	if(encrypt_key && encrypt_algo)
+	{
+		iris_cfg->encrypt_key=_maat_strdup(encrypt_key);
+		iris_cfg->encrypt_algo=_maat_strdup(encrypt_algo);
+	}
 
 	return 0;
 }
@@ -200,6 +209,8 @@ void clear_iris_descriptor(struct iris_description_t *iris_cfg)
 		MESA_htable_destroy(iris_cfg->iris_table_map, NULL);
 	}
 	map_destroy(iris_cfg->str2int_map);
+	free(iris_cfg->encrypt_algo);
+	free(iris_cfg->encrypt_key);
 	return;
 }
 int create_tmp_dir(struct iris_description_t *p)
@@ -862,29 +873,50 @@ int write_group_line(int group_id, int parent_id, int group_not_flag, int parent
 }
 void table_idx_write_cb(const uchar * key, uint size, void * data, void * user)
 {
-	FILE* fp=NULL;
+	struct iris_description_t *p_iris=(struct iris_description_t *)user;
 	struct iris_table_t* table=(struct iris_table_t*)data;
-	fp=fopen(table->table_path, "w");
-	fprintf(fp,"%d\n", table->line_count);
-	fwrite(table->buff, table->write_pos, 1, fp);
-	fclose(fp);
-	
-	fp=(FILE*)user;
-	fprintf(fp,"%s\t%d\t%s\n", table->table_name, table->line_count, table->table_path);
+	FILE* table_fp=NULL;
+	char line_cnt_str[32], err_str[256];
+	snprintf(line_cnt_str, sizeof(line_cnt_str), "%010d\n", table->line_count);
 
+	int ret=0;
+	size_t table_file_sz=strlen(line_cnt_str)+table->write_pos;
+	unsigned char* buff=ALLOC(unsigned char, table_file_sz);
+	unsigned char* encrypt_buff=NULL;
+	size_t encrypt_buff_sz=0;
+	memcpy(buff, line_cnt_str, strlen(line_cnt_str));
+	memcpy(buff+strlen(line_cnt_str), table->buff, table->write_pos);
+	table_fp=fopen(table->table_path, "w");
+	if(p_iris->encrypt_key)
+	{
+		ret=crypt_memory(buff, table_file_sz, &encrypt_buff, &encrypt_buff_sz, p_iris->encrypt_key, p_iris->encrypt_algo, 1, err_str, sizeof(err_str));
+		assert(ret==0);
+		fwrite(encrypt_buff, encrypt_buff_sz, 1, table_fp);
+		fprintf(p_iris->idx_fp,"%s\t%d\t%s\t%s\n", table->table_name, table->line_count, table->table_path, p_iris->encrypt_algo);
+	}
+	else
+	{
+		fwrite(buff, table_file_sz, 1, table_fp);		
+		fprintf(p_iris->idx_fp,"%s\t%d\t%s\n", table->table_name, table->line_count, table->table_path);
+	}
+	fclose(table_fp);
+	free(buff);
+	buff=NULL;
+	
+	
 }
 int write_index_file(struct iris_description_t *p_iris,void* logger)
 {
-	FILE*fp=NULL;
-	fp=fopen(p_iris->index_path,"w");
-	if(fp==NULL)
+	p_iris->idx_fp=fopen(p_iris->index_path,"w");
+	if(p_iris->idx_fp==NULL)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
-									"index file %s fopen error %s.",p_iris->index_path,strerror(errno));
+									"index file %s fopen error %s.",p_iris->index_path, strerror(errno));
 		return -1;
 	}
-	MESA_htable_iterate(p_iris->iris_table_map, table_idx_write_cb, fp);
-	fclose(fp);
+	MESA_htable_iterate(p_iris->iris_table_map, table_idx_write_cb, p_iris);
+	fclose(p_iris->idx_fp);
+	p_iris->idx_fp=NULL;
 	return 0;
 }
 int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int tracking_compile_id, struct iris_description_t *p_iris, void* logger)
@@ -1053,31 +1085,30 @@ int write_iris(cJSON *json, struct iris_description_t *p_iris, void* logger)
 	return 0;
 }
 // redis_write_ctx is used by maat_redis_tool to write json to redis.
-int json2iris(const char* json_buff, const char* json_filename, const char*compile_tn, const char* group_tn, redisContext *redis_write_ctx, char* iris_dir_buf, int buf_len, void* logger)
+int json2iris(const char* json_buff, const char* json_filename, const char*compile_tn, const char* group_tn, redisContext *redis_write_ctx, char* iris_dir_buf, int buf_len, char* encrypt_key, char* encrypt_algo, void* logger)
 {
 	cJSON *json=NULL, *tmp_obj=NULL;
 	int ret=-1;
 	struct iris_description_t iris_cfg;
-	memset(&iris_cfg,0,sizeof(iris_cfg));
-	
+	memset(&iris_cfg, 0, sizeof(iris_cfg));
 	json=cJSON_Parse(json_buff);
 	if (!json)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,"Error before: %-200.200s",cJSON_GetErrorPtr());
 		goto error_out;
 	}
-	tmp_obj=cJSON_GetObjectItem(json,"compile_table");
+	tmp_obj=cJSON_GetObjectItem(json, "compile_table");
 	if(tmp_obj)
 	{
 		compile_tn=tmp_obj->valuestring;
 	}
 
-	tmp_obj=cJSON_GetObjectItem(json,"group_table");
+	tmp_obj=cJSON_GetObjectItem(json, "group_table");
 	if(tmp_obj)
 	{
 		group_tn=tmp_obj->valuestring;
 	}
-	ret=set_iris_descriptor(json_filename, json, compile_tn, group_tn, redis_write_ctx, &iris_cfg, logger);
+	ret=set_iris_descriptor(json_filename, json, encrypt_key, encrypt_algo, compile_tn, group_tn, redis_write_ctx, &iris_cfg, logger);
 	if(ret<0)
 	{
 		goto error_out;
@@ -1086,15 +1117,15 @@ int json2iris(const char* json_buff, const char* json_filename, const char*compi
 	if(ret<0)
 	{
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_json,
-								"create tmp folder %s error",iris_cfg.tmp_iris_dir);
+								"create tmp folder %s error", iris_cfg.tmp_iris_dir);
 		goto error_out;
 	}
-	ret=write_iris(json ,&iris_cfg, logger);
+	ret=write_iris(json, &iris_cfg, logger);
 	if(ret<0)
 	{
 		goto error_out;
 	}
-	memcpy(iris_dir_buf,iris_cfg.tmp_iris_index_dir, MIN(strlen(iris_cfg.tmp_iris_index_dir)+1, (unsigned int)buf_len));
+	memcpy(iris_dir_buf, iris_cfg.tmp_iris_index_dir, MIN(strlen(iris_cfg.tmp_iris_index_dir)+1, (unsigned int)buf_len));
 
 	cJSON_Delete(json);
 	clear_iris_descriptor(&iris_cfg);
