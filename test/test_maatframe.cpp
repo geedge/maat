@@ -112,10 +112,12 @@ class JSONUpdate : public testing::Test
 protected:
 	static void SetUpTestCase()
 	{	
+		const char* decrypt_key="himaat!";
 		system_cmd_cp(old_json, watched_json);
 		_shared_feather_j=Maat_feather(g_iThreadNum, table_info_path, g_logger);
+	//	Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_DECRYPT_KEY, decrypt_key, strlen(decrypt_key)+1);
 		Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_JSON_FILE_PATH, watched_json, strlen(watched_json)+1);		
-		Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_SCANDIR_INTERVAL_MS,&scan_interval_ms, sizeof(scan_interval_ms));
+		Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_SCANDIR_INTERVAL_MS, &scan_interval_ms, sizeof(scan_interval_ms));
 
 		Maat_initiate_feather(_shared_feather_j);
 

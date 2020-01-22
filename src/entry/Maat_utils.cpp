@@ -166,6 +166,17 @@ char* str_unescape(char* s)
 	s[j]='\0';
 	return s;
 }
+size_t memcat(void**dest, size_t offset, size_t *n_dest, const void* src, size_t n_src)
+{
+	if(*n_dest<offset+n_src)
+	{
+		*n_dest=(offset+n_src)*2;
+		*dest=realloc(*dest, sizeof(char)*(*n_dest));
+	}
+	memcpy(*dest+offset, src, n_src);
+	return n_src;
+}
+
 int get_column_pos(const char* line, int column_seq, size_t *offset, size_t *len)
 {
 	const char* seps=" \t";

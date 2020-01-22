@@ -64,6 +64,8 @@ char* str_tolower(char* string);
 char *strtok_r_esc(char *s, const char delim, char **save_ptr);
 char *str_unescape_and(char*s);
 char* str_unescape(char* s);
+size_t memcat(void**dest, size_t offset, size_t *n_dest, const void* src, size_t n_src);
+
 pid_t gettid(void);
 int system_cmd_mkdir(const char* path);
 int system_cmd_rm(const char* src_file);
