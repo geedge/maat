@@ -513,18 +513,18 @@ int load_maat_json_file(_Maat_feather_t* feather, const char* maat_json_fn, char
 	int ret=0;
 	struct stat fstat_buf;
 	char* json_buff=NULL;
-	
+	size_t buff_sz=0;
 
 	MESA_handle_runtime_log(feather->logger, RLOG_LV_INFO, maat_module ,
 					"Maat initial with JSON file %s, formating..",
 					maat_json_fn);
 	if(strlen(feather->decrypt_key)&&strlen(feather->decrypt_algo))
 	{
-		ret=decrypt_open(maat_json_fn, feather->decrypt_key, feather->decrypt_algo, (unsigned char**)&json_buff, err_str, err_str_sz);
+		ret=decrypt_open(maat_json_fn, feather->decrypt_key, feather->decrypt_algo, (unsigned char**)&json_buff, &buff_sz, err_str, err_str_sz);
 	}
 	if(json_buff==NULL)//decryption failed or no decryption.
 	{	
-		ret=load_file_to_memory(maat_json_fn, &json_buff);
+		ret=load_file_to_memory(maat_json_fn, (unsigned char**)&json_buff, &buff_sz);
 	}
 	ret=json2iris(json_buff,
 			maat_json_fn,
@@ -532,6 +532,8 @@ int load_maat_json_file(_Maat_feather_t* feather, const char* maat_json_fn, char
 			NULL,
 			feather->json_ctx.iris_file,
 			sizeof(feather->json_ctx.iris_file),
+			strlen(feather->decrypt_key)?feather->decrypt_key:NULL,
+			strlen(feather->decrypt_algo)?feather->decrypt_algo:NULL,
 			feather->logger);
 	free(json_buff);
 	json_buff=NULL;

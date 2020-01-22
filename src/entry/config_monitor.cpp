@@ -28,7 +28,7 @@ struct cm_table_info_t
 	int cfg_num;
 	char encryp_algorithm[MAX_CONFIG_FN_LEN];
 };
-char* read_nxt_line_from_buff(const char* buff, int buff_size, int* offset, char*line ,int line_size)
+char* read_nxt_line_from_buff(const char* buff, size_t buff_size, size_t* offset, char*line, int line_size)
 {
 	int this_offset=0;
 	const char* p;
@@ -40,7 +40,7 @@ char* read_nxt_line_from_buff(const char* buff, int buff_size, int* offset, char
 	}
 	else
 	{
-		if(p-buff<buff_size-1&&*(p+1)=='\n')
+		if((size_t)(p-buff)<buff_size-1 && *(p+1)=='\n')
 		{
 			p++;
 		}
@@ -285,7 +285,7 @@ int cm_read_table_file(struct cm_table_info_t* index,
 	char error_string[MAX_CONFIG_FN_LEN];
 	char line[MAX_CONFIG_LINE]={0},*ret_str=NULL;
 	char* table_file_buff=NULL;
-	int file_sz=0, file_offset=0;
+	size_t file_sz=0, file_offset=0;
 
 	if(strlen(index->encryp_algorithm)>0)
 	{
@@ -294,20 +294,20 @@ int cm_read_table_file(struct cm_table_info_t* index,
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,module_config_monitor,"update error, no key to decrypt %s.",index->cfg_path);
 			return -1;
 		}
-		file_sz=decrypt_open(index->cfg_path, key, index->encryp_algorithm, (unsigned char**)&table_file_buff, error_string, sizeof(error_string));
-		if(file_sz==0)
+		ret=decrypt_open(index->cfg_path, key, index->encryp_algorithm, (unsigned char**)&table_file_buff, &file_sz, error_string, sizeof(error_string));
+		if(ret<0)
 		{
-			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, module_config_monitor, "update error, %s decrypt failed: %s",
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, module_config_monitor, "update error, decrypt %s failed: %s",
 																				index->cfg_path, error_string);
 			return -1;
 		}
 	}
 	else
 	{
-		file_sz=load_file_to_memory(index->cfg_path, &table_file_buff);
-		if(file_sz==0)
+		ret=load_file_to_memory(index->cfg_path, (unsigned char**)&table_file_buff, &file_sz);
+		if(ret<0)
 		{
-			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, module_config_monitor, "update error, %s decrypt failed: %s",
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, module_config_monitor, "update error, open %s failed: %s",
 																				index->cfg_path, error_string);
 			return -1;
 		}
