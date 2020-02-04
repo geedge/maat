@@ -746,7 +746,7 @@ void EMPTY_FREE(void*p)
 	return;
 }
 
-struct Maat_compile_rule* create_compile_rule(struct Maat_rule_head* p_head, const char* service_define, int declared_grp_num, const struct Maat_table_desc* table)
+struct Maat_compile_rule* create_compile_rule(struct Maat_rule_head* p_head, const char* service_define, int declared_grp_num, double exec_seq, const struct Maat_table_desc* table)
 {
 	int i=0;
 	struct Maat_compile_rule*p=ALLOC(struct Maat_compile_rule, 1);
@@ -759,6 +759,7 @@ struct Maat_compile_rule* create_compile_rule(struct Maat_rule_head* p_head, con
 	p->head.serv_def_len=strlen(service_define)+1;
 	p->service_defined=ALLOC(char, p->head.serv_def_len);
 	memcpy(p->service_defined, service_define, p->head.serv_def_len);
+	p->exec_seq=exec_seq;
 
 	for(i=0; i<table->compile.ex_data_num; i++)
 	{
@@ -2833,7 +2834,8 @@ void update_compile_rule(struct Maat_table_desc* table,const char* table_line ,s
 	char tag_str[MAX_TABLE_LINE_SIZE]={0};
 	int ret=0;
 	int is_valid=0, declared_grp_num=0;
-	ret=sscanf(table_line,"%d\t%d\t%hhd\t%hhd\t%hhd\t%s\t%s\t%d\t%d",&(m_rule_tmp.config_id),
+	double exec_seq=0.0;
+	ret=sscanf(table_line,"%d\t%d\t%hhd\t%hhd\t%hhd\t%s\t%s\t%d\t%d\t%lf",&(m_rule_tmp.config_id),
 													&(m_rule_tmp.service_id),
 													&(m_rule_tmp.action),
 													&(m_rule_tmp.do_blacklist),
@@ -2841,8 +2843,9 @@ void update_compile_rule(struct Maat_table_desc* table,const char* table_line ,s
 													tag_str,
 													service_define,
 													&is_valid,
-													&declared_grp_num);
-	if((ret!=8&&ret!=9)||declared_grp_num>MAAT_MAX_EXPR_ITEM_NUM)
+													&declared_grp_num,
+													&exec_seq);
+	if((ret!=8&&ret!=9&&ret!=10)||declared_grp_num>MAAT_MAX_EXPR_ITEM_NUM)
 	{
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module ,
 							"update error, invalid format of compile table %s:%s"
@@ -2885,7 +2888,7 @@ void update_compile_rule(struct Maat_table_desc* table,const char* table_line ,s
 	}
 	else
 	{
-		p_compile=create_compile_rule(&m_rule_tmp, service_define, declared_grp_num, table);
+		p_compile=create_compile_rule(&m_rule_tmp, service_define, declared_grp_num, exec_seq, table);
 		ret=add_compile_rule(table, p_compile, scanner, logger);
 		if(ret<0)
 		{

@@ -116,22 +116,94 @@ size_t pickup_hit_region_from_compile(struct bool_expr *compile_hit,
 void fill_maat_rule(struct Maat_rule_t *rule, const struct Maat_rule_head* rule_head, const char* srv_def, int srv_def_len)
 {
 	memcpy(rule, rule_head, sizeof(struct Maat_rule_head));
-	memcpy(rule->service_defined, srv_def, MIN(srv_def_len,MAX_SERVICE_DEFINE_LEN));
+	memcpy(rule->service_defined, srv_def, MIN(srv_def_len, MAX_SERVICE_DEFINE_LEN));
 	return;
+}
+struct compile_sort_para
+{
+	double exec_seq;
+	int group_cnt;
+	int compile_id;
+	void* user;
+};
+static void compile_sort_para_set(struct compile_sort_para* para, const struct Maat_compile_group_relation* compile_relation, void* user)
+{
+	para->compile_id=compile_relation->compile_id;
+	para->exec_seq=compile_relation->compile->exec_seq;
+	para->group_cnt=compile_relation->group_cnt;
+	para->user=user;
+	return;
+}
+static int compile_sort_para_compare(const struct compile_sort_para* a, const struct compile_sort_para* b)
+{
+	//If both of compile rule's execute sequences are specified, compile rule with lower execute sequence is priority.
+	if(a->exec_seq!=0 && b->exec_seq!=0)
+	{
+		if(a->exec_seq - b->exec_seq <0)
+		{
+			return -1;
+		}
+		else if(a->exec_seq - b->exec_seq >0)
+		{
+			return 1;
+		}
+	}
+	//If compile rule's execute sequences are not specified or equal.
+	if(a->group_cnt!=b->group_cnt)
+	{
+		return (a->group_cnt-b->group_cnt);
+	}
+	else
+	{
+		return (b->compile_id-a->compile_id);
+	}
+
 }
 static int compare_compile_inner(const void *a, const void *b)
 {
 	const struct Maat_compile_group_relation *ra=*(const struct Maat_compile_group_relation **)a;
 	const struct Maat_compile_group_relation *rb=*(const struct Maat_compile_group_relation **)b;
+	
+	struct compile_sort_para sa, sb;
+	compile_sort_para_set(&sa, ra, NULL);
+	compile_sort_para_set(&sb, rb, NULL);
 
-	if(ra->group_cnt!=rb->group_cnt)
+	return compile_sort_para_compare(&sa, &sb);
+}
+static int compile_sort_para_compare_no_type(const void* a, const void* b)
+{
+	return compile_sort_para_compare((const struct compile_sort_para*) a, (const struct compile_sort_para*) b);
+
+}
+size_t Maat_rule_sort_by_exec_seq(Maat_feather_t feather, struct Maat_rule_t* rule_array, size_t n_rule)
+{
+	struct _Maat_feather_t *_feather=(struct _Maat_feather_t *)feather;
+	struct compile_sort_para sort_para[n_rule];
+	struct Maat_rule_t copy_rule_array[n_rule];
+	
+	memcpy(copy_rule_array, rule_array, sizeof(struct Maat_rule_t)*n_rule);
+
+	struct Maat_compile_group_relation *p=NULL;
+
+	size_t i=0, j=0;
+	for(i=0; i<n_rule; i++)
 	{
-		return (ra->group_cnt-rb->group_cnt);
+		p=(struct Maat_compile_group_relation *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule_array[i].config_id);
+		if(p && 0==pthread_rwlock_tryrdlock(&(p->rwlock)))//rule maybe already deleted.
+		{
+			compile_sort_para_set(sort_para+i, p, copy_rule_array+i);
+			j++;
+			pthread_rwlock_unlock(&(p->rwlock));
+		}
 	}
-	else
+	qsort(sort_para, j, sizeof(struct compile_sort_para),
+			  compile_sort_para_compare_no_type);
+	for(i=0; i<j; i++)
 	{
-		return (rb->compile_id-ra->compile_id);
+		memcpy(rule_array+i, sort_para[i].user, sizeof(struct Maat_rule_t));
 	}
+	return j;
+
 }
 struct scan_region_hit_wraper
 {
@@ -221,7 +293,7 @@ int region_compile(_Maat_feather_t*feather, struct _INNER_scan_status_t *_mid, c
 	}
 	if(scan_ret>1)
 	{
-		qsort(relation_array, scan_ret, sizeof(struct Maat_compile_group_relation**),
+		qsort(relation_array, scan_ret, sizeof(struct Maat_compile_group_relation*),
 			  compare_compile_inner);
 	}
 	for(i=0; i<(unsigned int)scan_ret&&result_cnt<size; i++)

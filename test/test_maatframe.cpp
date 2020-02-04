@@ -1349,7 +1349,7 @@ TEST(Policy, CompileEXData)
 	const char* url="i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
 	const char* table_name="HTTP_URL";
 	const char* expect_name="I have a name";
-	table_id=Maat_table_register(g_feather,table_name);
+	table_id=Maat_table_register(g_feather, table_name);
 	ASSERT_GT(table_id, 0);
 	
 	int ex_param_idx=Maat_rule_get_ex_new_index(g_feather, "COMPILE_ALIAS", 
@@ -1409,6 +1409,52 @@ TEST(Policy, SubGroup)
 	return;
 }
 
+TEST(Policy, ExecuteSequence)
+{
+#define TestExecuteSequence
+	int ret=0, table_id=0;
+	size_t i=0;
+	const char* url="cavemancircus.com/2019/12/27/pretty-girls-6/";
+	struct Maat_rule_t result[4];
+	memset(result, 0, sizeof(result));
+	scan_status_t mid=NULL;
+	
+	table_id=Maat_table_register(g_feather, "HTTP_URL");
+	ASSERT_GT(table_id, 0);
+
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, url, strlen(url), 
+						result+i, NULL, 4-i,
+						&mid, 0);
+	EXPECT_EQ(ret, 2);
+	EXPECT_EQ(result[i].config_id, 166);
+	i+=ret;
+
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
+	inet_pton(AF_INET,"192.168.23.23",&(v4_addr.saddr));
+	v4_addr.source=htons(50001);
+	inet_pton(AF_INET,"172.0.6.233",&(v4_addr.daddr));
+	v4_addr.dest=htons(80);
+	ipv4_addr.v4=&v4_addr;
+
+	table_id=Maat_table_register(g_feather, "IP_PLUS_CONFIG");	
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result+i, 4-i, &mid,0);	
+	
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[i].config_id, 165);
+	i+=ret;
+	
+	ret=Maat_rule_sort_by_exec_seq(g_feather, result, i);
+	EXPECT_EQ(ret, i);
+	EXPECT_EQ(result[0].config_id, 165);
+	EXPECT_EQ(result[1].config_id, 166);
+	EXPECT_EQ(result[2].config_id, 167);
+	Maat_clean_status(&mid);
+
+}
 
 TEST(StreamFuzzyHash, Pure)
 {
@@ -2797,7 +2843,7 @@ int main(int argc, char ** argv)
 
 	g_feather=Maat_feather(g_iThreadNum, table_info_path, g_logger);
 	Maat_set_feather_opt(g_feather, MAAT_OPT_INSTANCE_NAME, "demo", strlen("demo")+1);
-	Maat_set_feather_opt(g_feather, MAAT_OPT_DECRYPT_KEY, decrypt_key, strlen(decrypt_key)+1);
+//	Maat_set_feather_opt(g_feather, MAAT_OPT_DECRYPT_KEY, decrypt_key, strlen(decrypt_key)+1);
 	ret=Maat_set_feather_opt(g_feather, MAAT_OPT_JSON_FILE_PATH, json_path, strlen(json_path)+1);
 	assert(ret==0);
 	Maat_set_feather_opt(g_feather, MAAT_OPT_SCANDIR_INTERVAL_MS, &scan_interval_ms, sizeof(scan_interval_ms));

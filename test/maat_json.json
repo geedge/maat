@@ -1301,6 +1301,102 @@
                         ]
                     }
                 ]
+            },
+            {
+                "compile_id": 165,
+                "service": 1,
+                "action": 1,
+                "do_blacklist": 1,
+                "do_log": 1,
+                "user_region": "ExecuteSequence",
+                "is_valid": "yes",
+				"exec_seq":"2.111",
+                "groups": [
+                    {
+                        "group_name": "Untitled",
+                        "regions": [
+                            {
+                                "table_name": "HTTP_URL",
+                                "table_type": "string",
+                                "table_content": {
+                                    "keywords": "cavemancircus.com/",
+                                    "expr_type": "none",
+                                    "match_method": "sub",
+                                    "format": "uncase plain"
+                                }
+                            }
+                        ]
+                    },
+					{
+						"regions": [	
+							{
+								"table_type": "ip_plus",
+								"table_name": "IP_PLUS_CONFIG",
+								"table_content": {
+									"addr_type": "ipv4",
+									"saddr_format": "CIDR",
+									"src_ip1": "192.168.23.1",
+									"src_ip2": "24"
+								}
+							}                      
+						],
+						"not_flag" : 0
+					}
+                ]
+            },
+            {
+                "compile_id": 166,
+                "service": 1,
+                "action": 1,
+                "do_blacklist": 1,
+                "do_log": 1,
+                "user_region": "ExecuteSequence",
+                "is_valid": "yes",
+				"exec_seq":"100.233",
+                "groups": [
+                    {
+                        "group_name": "Untitled",
+                        "regions": [
+                            {
+                                "table_name": "HTTP_URL",
+                                "table_type": "string",
+                                "table_content": {
+                                    "keywords": "2019/12/27/pretty-girls-6",
+                                    "expr_type": "none",
+                                    "match_method": "sub",
+                                    "format": "uncase plain"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "compile_id": 167,
+                "service": 1,
+                "action": 1,
+                "do_blacklist": 1,
+                "do_log": 1,
+                "user_region": "ExecuteSequence",
+                "is_valid": "yes",
+				"exec_seq":"300.999",
+                "groups": [
+                    {
+                        "group_name": "Untitled",
+                        "regions": [
+                            {
+                                "table_name": "HTTP_URL",
+                                "table_type": "string",
+                                "table_content": {
+                                    "keywords": "2019/12/27",
+                                    "expr_type": "none",
+                                    "match_method": "sub",
+                                    "format": "uncase plain"
+                                }
+                            }
+                        ]
+                    }
+                ]
             }
     ],
     "plugin_table": [

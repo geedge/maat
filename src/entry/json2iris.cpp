@@ -796,7 +796,10 @@ int write_compile_line(cJSON *compile, struct iris_description_t *p_iris, void *
 	int compile_id=-1,cmd_cnt=0,ret=-1;
 	cJSON* item=NULL;
 	struct iris_table_t* table_info=NULL;
-	
+	cJSON* g_rules=cJSON_GetObjectItem(compile, "groups");
+	int	group_cnt=cJSON_GetArraySize(g_rules);
+	cJSON_AddNumberToObject(compile, "group_num", group_cnt);
+
 	struct traslate_command_t compile_cmd[MAX_COLUMN_NUM];
 	memset(compile_cmd,0,sizeof(compile_cmd));
 
@@ -836,6 +839,17 @@ int write_compile_line(cJSON *compile, struct iris_description_t *p_iris, void *
 	compile_cmd[cmd_cnt].json_type=cJSON_String;
 	compile_cmd[cmd_cnt].str2int_flag=1;
 	cmd_cnt++;
+	
+	compile_cmd[cmd_cnt].json_string="group_num";
+	compile_cmd[cmd_cnt].json_type=cJSON_Number;
+	cmd_cnt++;
+
+	compile_cmd[cmd_cnt].json_string="exec_seq";
+	compile_cmd[cmd_cnt].json_type=cJSON_String;
+	compile_cmd[cmd_cnt].empty_allowed=1;
+	compile_cmd[cmd_cnt].default_string="0.0";
+	cmd_cnt++;
+
 
 	item=cJSON_GetObjectItem(compile,"table_name");
 	if(item==NULL||item->type!=cJSON_String)
@@ -847,7 +861,7 @@ int write_compile_line(cJSON *compile, struct iris_description_t *p_iris, void *
 		table_info=query_table_info(p_iris, item->valuestring, TABLE_TYPE_COMPILE);
 	}
 	
-	ret=direct_write_rule(compile, p_iris->str2int_map,compile_cmd,cmd_cnt, table_info, logger);
+	ret=direct_write_rule(compile, p_iris->str2int_map, compile_cmd, cmd_cnt, table_info, logger);
 	if(ret<0)
 	{
 		return -1;
