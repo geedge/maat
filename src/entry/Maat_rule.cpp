@@ -33,7 +33,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_8_20200113=1;
+int MAAT_FRAME_VERSION_2_8_20200204=1;
 
 int is_valid_table_name(const char* str)
 {
@@ -759,7 +759,7 @@ struct Maat_compile_rule* create_compile_rule(struct Maat_rule_head* p_head, con
 	p->head.serv_def_len=strlen(service_define)+1;
 	p->service_defined=ALLOC(char, p->head.serv_def_len);
 	memcpy(p->service_defined, service_define, p->head.serv_def_len);
-	p->exec_seq=exec_seq;
+	p->evaluation_order=exec_seq;
 
 	for(i=0; i<table->compile.ex_data_num; i++)
 	{

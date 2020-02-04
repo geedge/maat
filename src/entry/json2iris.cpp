@@ -844,7 +844,7 @@ int write_compile_line(cJSON *compile, struct iris_description_t *p_iris, void *
 	compile_cmd[cmd_cnt].json_type=cJSON_Number;
 	cmd_cnt++;
 
-	compile_cmd[cmd_cnt].json_string="exec_seq";
+	compile_cmd[cmd_cnt].json_string="evaluation_order";
 	compile_cmd[cmd_cnt].json_type=cJSON_String;
 	compile_cmd[cmd_cnt].empty_allowed=1;
 	compile_cmd[cmd_cnt].default_string="0.0";

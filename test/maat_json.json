@@ -1308,9 +1308,9 @@
                 "action": 1,
                 "do_blacklist": 1,
                 "do_log": 1,
-                "user_region": "ExecuteSequence",
+                "user_region": "EvaluationOrder",
                 "is_valid": "yes",
-				"exec_seq":"2.111",
+				"evaluation_order":"2.111",
                 "groups": [
                     {
                         "group_name": "Untitled",
@@ -1350,9 +1350,9 @@
                 "action": 1,
                 "do_blacklist": 1,
                 "do_log": 1,
-                "user_region": "ExecuteSequence",
+                "user_region": "EvaluationOrder",
                 "is_valid": "yes",
-				"exec_seq":"100.233",
+				"evaluation_order":"100.233",
                 "groups": [
                     {
                         "group_name": "Untitled",
@@ -1377,9 +1377,9 @@
                 "action": 1,
                 "do_blacklist": 1,
                 "do_log": 1,
-                "user_region": "ExecuteSequence",
+                "user_region": "EvaluationOrder",
                 "is_valid": "yes",
-				"exec_seq":"300.999",
+				"evaluation_order":"300.999",
                 "groups": [
                     {
                         "group_name": "Untitled",
