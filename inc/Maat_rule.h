@@ -259,10 +259,10 @@ int Maat_rule_get_ex_new_index(Maat_feather_t feather, const char* compile_table
 //returned data is duplicated by dup_func of Maat_rule_get_ex_new_index,  caller is responsible to free the data.
 MAAT_RULE_EX_DATA Maat_rule_get_ex_data(Maat_feather_t feather, const struct Maat_rule_t* rule, int idx);
 
-//Sort rule by execute sequence.
+//Sort rules by their evaluation order.
 //rule_array will be modified with sorted rule.
 //Return sortted rule number, maybe less than n_rule if some rules are invalid.
-size_t Maat_rule_sort_by_exec_seq(Maat_feather_t feather, struct Maat_rule_t* rule_array, size_t n_rule);
+size_t Maat_rule_sort_by_evaluation_order(Maat_feather_t feather, struct Maat_rule_t* rule_array, size_t n_rule);
 
 
 //Helper function for parsing space or tab seperated line.

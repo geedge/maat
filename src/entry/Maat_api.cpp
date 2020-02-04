@@ -121,7 +121,7 @@ void fill_maat_rule(struct Maat_rule_t *rule, const struct Maat_rule_head* rule_
 }
 struct compile_sort_para
 {
-	double exec_seq;
+	double evaluation_order;
 	int group_cnt;
 	int compile_id;
 	void* user;
@@ -129,7 +129,7 @@ struct compile_sort_para
 static void compile_sort_para_set(struct compile_sort_para* para, const struct Maat_compile_group_relation* compile_relation, void* user)
 {
 	para->compile_id=compile_relation->compile_id;
-	para->exec_seq=compile_relation->compile->exec_seq;
+	para->evaluation_order=compile_relation->compile->evaluation_order;
 	para->group_cnt=compile_relation->group_cnt;
 	para->user=user;
 	return;
@@ -137,13 +137,13 @@ static void compile_sort_para_set(struct compile_sort_para* para, const struct M
 static int compile_sort_para_compare(const struct compile_sort_para* a, const struct compile_sort_para* b)
 {
 	//If both of compile rule's execute sequences are specified, compile rule with lower execute sequence is priority.
-	if(a->exec_seq!=0 && b->exec_seq!=0)
+	if(a->evaluation_order!=0 && b->evaluation_order!=0)
 	{
-		if(a->exec_seq - b->exec_seq <0)
+		if(a->evaluation_order - b->evaluation_order <0)
 		{
 			return -1;
 		}
-		else if(a->exec_seq - b->exec_seq >0)
+		else if(a->evaluation_order - b->evaluation_order >0)
 		{
 			return 1;
 		}
@@ -175,7 +175,7 @@ static int compile_sort_para_compare_no_type(const void* a, const void* b)
 	return compile_sort_para_compare((const struct compile_sort_para*) a, (const struct compile_sort_para*) b);
 
 }
-size_t Maat_rule_sort_by_exec_seq(Maat_feather_t feather, struct Maat_rule_t* rule_array, size_t n_rule)
+size_t Maat_rule_sort_by_evaluation_order(Maat_feather_t feather, struct Maat_rule_t* rule_array, size_t n_rule)
 {
 	struct _Maat_feather_t *_feather=(struct _Maat_feather_t *)feather;
 	struct compile_sort_para sort_para[n_rule];

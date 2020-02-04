@@ -1409,7 +1409,7 @@ TEST(Policy, SubGroup)
 	return;
 }
 
-TEST(Policy, ExecuteSequence)
+TEST(Policy, EvaluationOrder)
 {
 #define TestExecuteSequence
 	int ret=0, table_id=0;
@@ -1447,7 +1447,7 @@ TEST(Policy, ExecuteSequence)
 	EXPECT_EQ(result[i].config_id, 165);
 	i+=ret;
 	
-	ret=Maat_rule_sort_by_exec_seq(g_feather, result, i);
+	ret=Maat_rule_sort_by_evaluation_order(g_feather, result, i);
 	EXPECT_EQ(ret, i);
 	EXPECT_EQ(result[0].config_id, 165);
 	EXPECT_EQ(result[1].config_id, 166);

@@ -93,7 +93,7 @@ struct Maat_compile_rule
 	char* service_defined;
 	int is_valid;
 	int declared_grp_num;
-	double exec_seq;
+	double evaluation_order;
 	const struct Maat_table_desc* ref_table;
 	MAAT_RULE_EX_DATA* ads;
 };
