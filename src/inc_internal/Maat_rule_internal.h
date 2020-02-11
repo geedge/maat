@@ -215,7 +215,6 @@ struct _stream_para_t
 {
 	struct _Maat_feather_t* feather;
 	const struct Maat_table_desc* p_real_table;
-	int Nth_scan;
 	int virtual_table_id;
 	int version;
 	int thread_num;

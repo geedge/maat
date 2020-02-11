@@ -194,32 +194,7 @@ struct scan_region_hit_wraper
 	int virtual_table_id;
 	int is_last_region;
 };
-void scan_region_hit_wraper_build_with_rulescan(struct scan_region_hit_wraper* region_hit, scan_result_t* rulescan_rslt, size_t n_rslt, int is_last_region, int virual_table_id, int Nth_scan)
-{
-	memset(region_hit, 0, sizeof(struct scan_region_hit_wraper));
-	region_hit->elem_array=rulescan_rslt;
-	region_hit->n_elem=n_rslt;
-	region_hit->elem_size=sizeof(scan_result_t);
-	region_hit->expr_id_offset=offsetof(scan_result_t, expr_id);
-	region_hit->group_offset=offsetof(scan_result_t, tag);
-	region_hit->is_last_region=is_last_region;
-	region_hit->virtual_table_id=virual_table_id;
-	region_hit->Nth_scan=Nth_scan;
-	return;
-}
-void scan_region_hit_wraper_build_with_GIE(struct scan_region_hit_wraper* region_hit, GIE_result_t* GIE_rslt, size_t n_rslt, int is_last_region, int virual_table_id, int Nth_scan)
-{
-	memset(region_hit, 0, sizeof(struct scan_region_hit_wraper));
-	region_hit->elem_array=GIE_rslt;
-	region_hit->n_elem=n_rslt;
-	region_hit->elem_size=sizeof(GIE_result_t);
-	region_hit->expr_id_offset=offsetof(GIE_result_t, id);
-	region_hit->group_offset=offsetof(GIE_result_t, tag);
-	region_hit->is_last_region=is_last_region;
-	region_hit->virtual_table_id=virual_table_id;
-	region_hit->Nth_scan=Nth_scan;
-	return;
-}
+
 struct scan_hit_status* scan_hit_status_new(void)
 {
 	struct scan_hit_status* inner_mid=NULL;
@@ -241,9 +216,16 @@ void scan_hit_status_free(struct scan_hit_status* p)
 	free(p->all_hit_group_array);
 	p->all_hit_group_array=NULL;
 	free(p);
-	
 }
-
+void hit_path_init(struct Maat_hit_path_t* hit_path)
+{
+	hit_path->Nth_scan=-1;
+	hit_path->region_id=-1;
+	hit_path->sub_group_id=-1;
+	hit_path->top_group_id=-1;
+	hit_path->virtual_table_id=-1;
+	hit_path->compile_id=-1;
+}
 void scan_hit_status_update_by_group(struct scan_hit_status* hit_status, struct Maat_group_inner* group_rule, int region_id, int virtual_table_id, int Nth_scan, int Nth_region_result)
 {
 	size_t i=0;
@@ -253,9 +235,9 @@ void scan_hit_status_update_by_group(struct scan_hit_status* hit_status, struct 
 	for(i=0; i<group_rule->top_group_cnt; i++)
 	{
 		hit_path=ALLOC(struct Maat_hit_path_inner, 1);
+		hit_path_init(&(hit_path->path));
 		hit_path->Nth_hit_region=Nth_region_result;
 		hit_path->path.Nth_scan=Nth_scan;
-		hit_path->path.compile_id=-1;
 		hit_path->path.region_id=region_id;
 		hit_path->path.sub_group_id=group_rule->group_id;
 		hit_path->path.top_group_id=group_rule->top_groups[i];
@@ -277,7 +259,7 @@ size_t scan_hit_status_update_by_compile(struct scan_hit_status* hit_status, str
 	struct bool_expr a_set;
 	unsigned char has_not=0;
 	make_group_set(compile_rule, &a_set, &has_not);
-	TAILQ_FOREACH(p, &hit_status->hit_path_qhead,  entries)
+	TAILQ_FOREACH(p, &hit_status->hit_path_qhead, entries)
 	{
 		for(i=0; i<a_set.item_num; i++)
 		{
@@ -312,25 +294,53 @@ size_t scan_hit_status_read_group_ids(const struct scan_hit_status* hit_status, 
 	return hit_status->all_hit_group_cnt;
 }
 //Maybe select?
-size_t scan_hit_status_read_hit_path_inner(const struct scan_hit_status* hit_status, int Nth_scan,int compile_id, 
+size_t scan_hit_status_select_hit_path_inner(const struct scan_hit_status* hit_status, struct Maat_hit_path_t* condition, 
 															struct Maat_hit_path_inner* hit_paths, size_t n_path)
 {
 	struct Maat_hit_path_inner* p=NULL;
 	size_t i=0;
 	TAILQ_FOREACH(p, &hit_status->hit_path_qhead, entries)
 	{
-		if(p->path.Nth_scan!=Nth_scan||p->path.compile_id!=compile_id)
+		if((condition->compile_id==p->path.compile_id||condition->compile_id<0)
+			&& (condition->Nth_scan==p->path.Nth_scan||condition->Nth_scan<0)
+			&& (condition->region_id=p->path.region_id||condition->region_id<0))
 		{
-			continue;
+			if(i<n_path)
+			{
+				hit_paths[i]=*p;
+				i++;
+			}
 		}
-		if(i<n_path)
-		{
-			hit_paths[i]=*p;
-			i++;
-		}
+
 	}
 	return i;
 
+}
+void scan_region_hit_wraper_build_with_rulescan(struct scan_region_hit_wraper* region_hit, scan_result_t* rulescan_rslt, size_t n_rslt, int is_last_region, int virtual_table_id, int Nth_scan)
+{
+	memset(region_hit, 0, sizeof(struct scan_region_hit_wraper));
+	region_hit->elem_array=rulescan_rslt;
+	region_hit->n_elem=n_rslt;
+	region_hit->elem_size=sizeof(scan_result_t);
+	region_hit->expr_id_offset=offsetof(scan_result_t, expr_id);
+	region_hit->group_offset=offsetof(scan_result_t, tag);
+	region_hit->is_last_region=is_last_region;
+	region_hit->virtual_table_id=virtual_table_id;
+	region_hit->Nth_scan=Nth_scan;
+	return;
+}
+void scan_region_hit_wraper_build_with_GIE(struct scan_region_hit_wraper* region_hit, GIE_result_t* GIE_rslt, size_t n_rslt, int is_last_region, int virtual_table_id, int Nth_scan)
+{
+	memset(region_hit, 0, sizeof(struct scan_region_hit_wraper));
+	region_hit->elem_array=GIE_rslt;
+	region_hit->n_elem=n_rslt;
+	region_hit->elem_size=sizeof(GIE_result_t);
+	region_hit->expr_id_offset=offsetof(GIE_result_t, id);
+	region_hit->group_offset=offsetof(GIE_result_t, tag);
+	region_hit->is_last_region=is_last_region;
+	region_hit->virtual_table_id=virtual_table_id;
+	region_hit->Nth_scan=Nth_scan;
+	return;
 }
 
 int region_compile(_Maat_feather_t*feather, struct scan_hit_status *_mid, const struct scan_region_hit_wraper* region_hit_wraper, struct Maat_rule_t* result, int size,int thread_num)
@@ -539,6 +549,7 @@ int fill_region_hit_detail(const char* scan_buff, const scan_hit_status* _mid,
 
 
 	struct Maat_hit_path_inner hit_paths[MAX_SCANNER_HIT_NUM];
+	struct Maat_hit_path_t condition;
 	size_t hit_path_cnt=0;
 	int Nth_hit_region=0;
 	
@@ -546,7 +557,10 @@ int fill_region_hit_detail(const char* scan_buff, const scan_hit_status* _mid,
 	for(i=0; i<compile_cnt&&i<detail_num; i++)
 	{
 		hit_detail[i].config_id=compile[i].config_id;
-		hit_path_cnt=scan_hit_status_read_hit_path_inner(_mid, Nth_scan, compile[i].config_id, hit_paths, MAX_SCANNER_HIT_NUM);
+		hit_path_init(&condition);
+		condition.Nth_scan=Nth_scan;
+		condition.compile_id=compile[i].config_id;
+		hit_path_cnt=scan_hit_status_select_hit_path_inner(_mid, &condition, hit_paths, MAX_SCANNER_HIT_NUM);
 		for(j=0; j<hit_path_cnt && j<MAAT_MAX_HIT_RULE_NUM; j++)
 		{		
 			Nth_hit_region=hit_paths[j].Nth_hit_region;
@@ -896,7 +910,7 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			_feather->backgroud_update_enabled=1;
 			pthread_mutex_lock((&_feather->background_update_mutex));
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_INFO,maat_module ,
-							"Maat load version from %lld, stops backgroud update."
+							"Maat load version from %lld, backgroud update stopped."
 							,_feather->load_version_from);
 			break;
 		case MAAT_OPT_ACCEPT_TAGS:
@@ -1479,8 +1493,8 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 	_mid=grab_mid(mid, _feather, thread_num, 0);
 	_mid->scan_cnt++;
 
-	int virutal_table_id=0;
-	p_table=Maat_table_get_by_id(_feather->table_mgr, table_id, TABLE_TYPE_INTERVAL, &virutal_table_id);
+	int virtual_table_id=0;
+	p_table=Maat_table_get_by_id(_feather->table_mgr, table_id, TABLE_TYPE_INTERVAL, &virtual_table_id);
 	if(p_table==NULL)
 	{
 		_feather->scan_err_cnt++;
@@ -1521,7 +1535,7 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 		_mid=grab_mid(mid, _feather, thread_num, 1);
 		struct scan_region_hit_wraper region_hit_wraper;
 		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, region_ret,
-											_mid->is_last_region, virutal_table_id, _mid->scan_cnt);
+											_mid->is_last_region, virtual_table_id, _mid->scan_cnt);
 		compile_ret=region_compile(_feather,_mid->inner,
 									&region_hit_wraper,
 									result, rule_num,
@@ -1846,11 +1860,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 		clock_gettime(CLOCK_MONOTONIC, &start);
 	}
 	_mid=grab_mid(mid, sp->feather, sp->thread_num, 0);
-	if(sp->Nth_scan==0)
-	{
-		_mid->scan_cnt++;
-		sp->Nth_scan=_mid->scan_cnt;
-	}
+	_mid->scan_cnt++;
 	if(data==NULL||data_len<=0||scanner==NULL)
 	{
 		return 0;
@@ -1956,7 +1966,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 		_mid=grab_mid(mid, sp->feather,sp->thread_num, 1);
 		struct scan_region_hit_wraper region_hit_wraper;
 		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, hit_region_cnt, 
-										_mid->is_last_region, sp->virtual_table_id, sp->Nth_scan);
+										_mid->is_last_region, sp->virtual_table_id, _mid->scan_cnt);
 
 		compile_ret=region_compile(sp->feather,_mid->inner,
 							&region_hit_wraper,
@@ -1974,7 +1984,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 				*detail_ret=fill_region_hit_detail(sp->scan_buff, _mid->inner,
 												region_result, hit_region_cnt,
 												result, compile_ret,
-												sp->Nth_scan,
+												_mid->scan_cnt,
 												hit_detail, detail_num, scanner);
 			}
 			else
@@ -1982,7 +1992,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 				*detail_ret=fill_region_hit_detail(data, _mid->inner,
 												region_result, hit_region_cnt,
 												result, compile_ret,
-												sp->Nth_scan,
+												_mid->scan_cnt,
 												hit_detail, detail_num, scanner);
 			}
 		}
@@ -2142,11 +2152,7 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 		clock_gettime(CLOCK_MONOTONIC,&start);
 	}
 	_mid=grab_mid(mid, sp->feather, sp->thread_num, 0);
-	if(sp->Nth_scan==0)
-	{
-		_mid->scan_cnt++;
-		sp->Nth_scan=_mid->scan_cnt;
-	}
+	_mid->scan_cnt++;
 
 	if(data==NULL||data_len<=0)
 	{
@@ -2206,7 +2212,7 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 		_mid=grab_mid(mid,sp->feather, sp->thread_num,1);
 		struct scan_region_hit_wraper region_hit_wraper;
 		scan_region_hit_wraper_build_with_GIE(&region_hit_wraper, region_result, hit_region_cnt, 
-											_mid->is_last_region, sp->virtual_table_id, sp->Nth_scan);
+											_mid->is_last_region, sp->virtual_table_id, _mid->scan_cnt);
 		compile_ret=region_compile(sp->feather,_mid->inner,
 								&region_hit_wraper,
 								result, rule_num,
@@ -2328,8 +2334,13 @@ int Maat_get_scan_status(Maat_feather_t feather, scan_status_t* mid, enum MAAT_S
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	struct _OUTER_scan_status_t* _mid=NULL;
 	struct Maat_hit_path_t* paths;
+	struct Maat_hit_path_t condition;
+	struct Maat_hit_path_inner *path_inner;
+	size_t n_read=0, i=0;
+	int ret=0;
 	_mid=grab_mid(mid, _feather, 0, 0);
-	if(_mid==NULL||_mid->inner==NULL)
+
+	if(_mid->inner==NULL)
 	{
 		return 0;
 	}
@@ -2341,11 +2352,21 @@ int Maat_get_scan_status(Maat_feather_t feather, scan_status_t* mid, enum MAAT_S
 				return -1;
 			}
 			paths=(struct Maat_hit_path_t*)value;
+			n_read=size/sizeof(struct Maat_hit_path_t);
+			path_inner=ALLOC(struct Maat_hit_path_inner, n_read);
+			hit_path_init(&condition);
+			n_read=scan_hit_status_select_hit_path_inner(_mid->inner, &condition, path_inner, n_read);
+			for(i=0; i<n_read; i++)
+			{
+				paths[i]=path_inner[i].path;
+			}
+			free(path_inner);
+			ret=n_read;
 			break;
 		default:
 			return -1;
 	}
-	return 0;
+	return ret;
 }
 
 int Maat_read_state(Maat_feather_t feather, enum MAAT_STATE_OPT  type, void* value, int size)

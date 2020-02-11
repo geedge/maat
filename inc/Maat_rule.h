@@ -184,34 +184,22 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 									void* u_para);
 
 #define MAX_HIT_REGION_NUM_PER_GROUP 	128
-struct Maat_hit_group_id_t
-{
-	int compile_id;
-	int group_id;
-	size_t n_hit_region;
-	int region_id[MAX_HIT_REGION_NUM_PER_GROUP];
-};
+
 struct Maat_hit_path_t
 {
-	int Nth_scan;//Maat_stream_scan_**_start is a individual scan.
+	int Nth_scan;
 	int region_id;
 	int sub_group_id;
 	int top_group_id;
-	int virtual_table_id;
+	int virtual_table_id; // 0 is not a virtual table.
 	int compile_id;
-};
-struct Maat_hit_compile_id_t
-{
-	int config_id;
-	size_t n_hit_group;
-	struct Maat_hit_group_id_t *group_ids;
 };
 enum MAAT_SCAN_OPT
 {
 	MAAT_SET_SCAN_DISTRICT=1,		//VALUE is a const char*, SIZE= strlen(string). DEFAULT: no default.
 	MAAT_SET_SCAN_LAST_REGION,		//VALUE is NULL, SIZE=0. This option indicates that the follow scan is the last region of current scan combination.
 	MAAT_GET_SCAN_HIT_PATH			//VALUE is struct Maat_hit_path_t*, an array of struct Maat_hit_path_t, SIZE= sizeof(struct Maat_hit_path_t)*N,
-									//Maat_get_scan_status returns actual filled number.
+									//Maat_get_scan_status returns actual got number.
 };
 //return 0 if success, return -1 when failed;
 int Maat_set_scan_status(Maat_feather_t feather, scan_status_t* mid, enum MAAT_SCAN_OPT type, const void* value, int size);
