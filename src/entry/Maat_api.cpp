@@ -114,7 +114,7 @@ static void compile_sort_para_set(struct compile_sort_para* para, const struct M
 }
 static int compile_sort_para_compare(const struct compile_sort_para* a, const struct compile_sort_para* b)
 {
-	//If both of compile rule's execute sequences are specified, compile rule with lower execute sequence is priority.
+	//If both of compile rule's evaluation order are specified, compile rule with small evaluation order is priority.
 	if(a->evaluation_order!=0 && b->evaluation_order!=0)
 	{
 		if(a->evaluation_order - b->evaluation_order <0)
@@ -125,6 +125,11 @@ static int compile_sort_para_compare(const struct compile_sort_para* a, const st
 		{
 			return 1;
 		}
+	}
+	//If one of compile rule's evaluation order is zero, compile rule with big evaluation order is priority.
+	else if(a->evaluation_order + b->evaluation_order!= 0)
+	{
+		return (a->evaluation_order - b->evaluation_order >0) ? -1 : 1;
 	}
 	//If compile rule's execute sequences are not specified or equal.
 	if(a->group_cnt!=b->group_cnt)

@@ -1397,6 +1397,33 @@
                         ]
                     }
                 ]
+            },
+            {
+                "compile_id": 168,
+                "service": 1,
+                "action": 1,
+                "do_blacklist": 1,
+                "do_log": 1,
+                "user_region": "EvaluationOrder",
+                "is_valid": "yes",
+				"evaluation_order":"0",
+                "groups": [
+                    {
+                        "group_name": "Untitled",
+                        "regions": [
+                            {
+                                "table_name": "HTTP_URL",
+                                "table_type": "string",
+                                "table_content": {
+                                    "keywords": "2019/12/27",
+                                    "expr_type": "none",
+                                    "match_method": "sub",
+                                    "format": "uncase plain"
+                                }
+                            }
+                        ]
+                    }
+                ]
             }
     ],
     "plugin_table": [

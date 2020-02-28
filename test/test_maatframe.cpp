@@ -1417,7 +1417,7 @@ TEST(Policy, SubGroup)
 
 TEST(Policy, EvaluationOrder)
 {
-#define TestExecuteSequence
+#define EvaluationOrder
 	int ret=0, table_id=0;
 	size_t i=0;
 	const char* url="cavemancircus.com/2019/12/27/pretty-girls-6/";
@@ -1431,8 +1431,10 @@ TEST(Policy, EvaluationOrder)
 	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, url, strlen(url), 
 						result+i, NULL, 4-i,
 						&mid, 0);
-	EXPECT_EQ(ret, 2);
+	EXPECT_EQ(ret, 3);
 	EXPECT_EQ(result[i].config_id, 166);
+	EXPECT_EQ(result[i+1].config_id, 167);
+	EXPECT_EQ(result[i+2].config_id, 168);
 	i+=ret;
 
 	struct ipaddr ipv4_addr;
@@ -1458,6 +1460,7 @@ TEST(Policy, EvaluationOrder)
 	EXPECT_EQ(result[0].config_id, 165);
 	EXPECT_EQ(result[1].config_id, 166);
 	EXPECT_EQ(result[2].config_id, 167);
+	EXPECT_EQ(result[3].config_id, 168);
 	Maat_clean_status(&mid);
 
 }
