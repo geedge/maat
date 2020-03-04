@@ -681,6 +681,28 @@ TEST(IPScan, IPv6_CIDR)
 	return;
 
 }
+TEST(IPScan, IPv4_Port)
+{
+	int table_id=0,ret=0;
+	const char* table_name="IP_PLUS_CONFIG";
+	struct Maat_rule_t result[4];
+	scan_status_t mid=NULL;
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr_set(&ipv4_addr, &v4_addr, "192.168.244.1", 20304, "0.0.0.0", 0);
+
+	table_id=Maat_table_register(g_feather, table_name);
+	
+	EXPECT_GT(table_id, 0);
+
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid, 0);
+	
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 169);
+
+	Maat_clean_status(&mid);
+	return;
+}
 
 #define	TEST_NOTLogic	1
 

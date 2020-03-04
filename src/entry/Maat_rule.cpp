@@ -33,7 +33,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_2_8_20200211=1;
+int MAAT_FRAME_VERSION_2_8_20200304=1;
 
 int is_valid_table_name(const char* str)
 {
@@ -2667,6 +2667,17 @@ void update_ip_rule(struct Maat_table_desc* table, const char* table_line, struc
 		ret_array[0]=ip_format2range(ip_rule->addr_type, ip_format_str2int(saddr_format), src_ip1, src_ip2, &ip_rule->ipv4_rule.min_saddr, &ip_rule->ipv4_rule.max_saddr);
 		ret_array[1]=ip_format2range(ip_rule->addr_type, ip_format_str2int(daddr_format), dst_ip1, dst_ip2, &ip_rule->ipv4_rule.min_daddr, &ip_rule->ipv4_rule.max_daddr);
 		
+		if(FORMAT_MASK==ip_format_str2int(sport_format))
+		{
+			ip_rule->ipv4_rule.min_sport=src_port1&src_port2;
+			ip_rule->ipv4_rule.max_sport=src_port1|~src_port2;		
+		}
+		else
+		{
+			ip_rule->ipv4_rule.min_sport=src_port1;
+			ip_rule->ipv4_rule.max_sport=src_port2;
+		}
+
 		if(FORMAT_MASK==ip_format_str2int(dport_format))
 		{
 			ip_rule->ipv4_rule.min_dport=dst_port1&dst_port2;
@@ -2676,7 +2687,8 @@ void update_ip_rule(struct Maat_table_desc* table, const char* table_line, struc
 		{
 			ip_rule->ipv4_rule.min_dport=dst_port1;
 			ip_rule->ipv4_rule.max_dport=dst_port2;
-		}		
+		}
+
 		ip_rule->ipv4_rule.proto=protocol;
 		ip_rule->ipv4_rule.direction=direction;
 	}
@@ -2684,6 +2696,17 @@ void update_ip_rule(struct Maat_table_desc* table, const char* table_line, struc
 	{
 		ret_array[0]=ip_format2range(ip_rule->addr_type, ip_format_str2int(saddr_format), src_ip1, src_ip2, ip_rule->ipv6_rule.min_saddr, ip_rule->ipv6_rule.max_saddr);
 		ret_array[1]=ip_format2range(ip_rule->addr_type, ip_format_str2int(daddr_format), dst_ip1, dst_ip2, ip_rule->ipv6_rule.min_daddr, ip_rule->ipv6_rule.max_daddr);
+	
+		if(FORMAT_MASK==ip_format_str2int(sport_format))
+		{
+			ip_rule->ipv6_rule.min_sport=src_port1&src_port2;
+			ip_rule->ipv6_rule.max_sport=src_port1|~src_port2;		
+		}
+		else
+		{
+			ip_rule->ipv6_rule.min_sport=src_port1;
+			ip_rule->ipv6_rule.max_sport=src_port2;
+		}
 
 		if(FORMAT_MASK==ip_format_str2int(dport_format))
 		{
@@ -2692,9 +2715,10 @@ void update_ip_rule(struct Maat_table_desc* table, const char* table_line, struc
 		}
 		else
 		{
-			ip_rule->ipv6_rule.min_sport=dst_port1;
-			ip_rule->ipv6_rule.max_sport=dst_port2;
+			ip_rule->ipv6_rule.min_dport=dst_port1;
+			ip_rule->ipv6_rule.max_dport=dst_port2;
 		}
+
 		ip_rule->ipv6_rule.proto=protocol;
 		ip_rule->ipv6_rule.direction=direction;
 	}
