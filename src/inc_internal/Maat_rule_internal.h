@@ -20,6 +20,7 @@
 #include <pthread.h>
 #include <iconv.h>
 #include <openssl/md5.h>
+#include <sys/queue.h>
 
 
 
@@ -165,13 +166,24 @@ struct _compile_result_t
 	int compile_id;
 	struct bool_expr group_set;
 };
-struct _INNER_scan_status_t
+struct Maat_hit_path_inner
 {
-	size_t cur_hit_group_cnt;
+	int Nth_hit_region;
+	struct Maat_hit_path_t path;
+	TAILQ_ENTRY(Maat_hit_path_inner) entries;
+};
+
+TAILQ_HEAD(hit_path_q, Maat_hit_path_inner);
+
+struct scan_hit_status
+{
+	size_t hit_path_cnt;
+	struct hit_path_q hit_path_qhead;
+	
 	size_t all_hit_group_cnt;
 	size_t all_hit_group_array_sz;
-	struct dynamic_array_t* cur_hit_groups;
 	unsigned long long *all_hit_group_array;
+
 	char not_grp_compile_hitted_flag;
 };
 struct _OUTER_scan_status_t
@@ -181,7 +193,8 @@ struct _OUTER_scan_status_t
 	unsigned char is_set_district;
 	unsigned char is_last_region;
 	int district_id;
-	struct _INNER_scan_status_t* inner;
+	int scan_cnt;
+	struct scan_hit_status* inner;
 };
 enum maat_garbage_type
 {

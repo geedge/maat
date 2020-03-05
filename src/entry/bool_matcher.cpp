@@ -160,7 +160,7 @@ struct bool_matcher * bool_matcher_new(struct bool_expr * exprs, size_t expr_num
 	return matcher;
 }
 
-int bool_matcher_match(struct bool_matcher * matcher, unsigned int thread_id, unsigned long long * item_ids, size_t item_num, void ** result, size_t size)
+int bool_matcher_match(struct bool_matcher * matcher, unsigned int thread_id, const unsigned long long * item_ids, size_t item_num, void ** result, size_t size)
 {
 	if(matcher==NULL) return -1;
 	if(thread_id>=matcher->max_thread_num) return -1;

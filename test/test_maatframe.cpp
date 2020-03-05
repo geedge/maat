@@ -54,7 +54,17 @@ void wait_for_cmd_effective(Maat_feather_t feather, long long version_before)
 	}
 //	printf("wait for %lld ms\n", wating_us/1000);
 }
-
+void ipv4_addr_set(struct ipaddr *ipv4_addr, struct stream_tuple4_v4* v4_addr,
+						const char* src_ip, unsigned short sport, const char* dest_ip, unsigned short dport)
+{
+	ipv4_addr->addrtype=ADDR_TYPE_IPV4;
+	inet_pton(AF_INET, src_ip, &(v4_addr->saddr));
+	v4_addr->source=htons(sport);
+	inet_pton(AF_INET, dest_ip, &(v4_addr->daddr));
+	v4_addr->dest=htons(dport);
+	ipv4_addr->v4=v4_addr;
+	return;
+}
 void scan_with_old_or_new_cfg(Maat_feather_t feather, int is_old)
 {
 	const char* hit_old_data="Hello world! I'm eve.";
@@ -70,7 +80,7 @@ void scan_with_old_or_new_cfg(Maat_feather_t feather, int is_old)
 	table_id=Maat_table_register(feather,table_name);
 	ASSERT_GT(table_id, 0);
 	memset(&result, 0, sizeof(result));
-	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, hit_old_data, strlen(hit_old_data), 
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, hit_old_data, strlen(hit_old_data), 
 						&result,NULL, 1,
 						&mid, 0);
 	if(is_old)
@@ -459,6 +469,53 @@ TEST(StringScan, ExprPlusWithHex)
 	return;
 
 }
+
+TEST(StringScan,   CharsetWindows1251)
+{
+	int table_id=0,ret=0;
+	int read_size=0,pass_flag=0;
+	struct Maat_rule_t result[4];
+	scan_status_t mid=NULL;
+	//const char* fn="./testdata/mesa_logo.jpg";
+	const char* table_name="KEYWORDS_TABLE";
+	const char* fn="./testdata/charsetWindows1251.txt";
+	FILE* fp=fopen(fn,"r");
+	ASSERT_FALSE(fp==NULL);
+
+	char scan_data[4096]={0};
+	table_id=Maat_table_register(g_feather,table_name);
+	ASSERT_GT(table_id, 0);
+	
+
+	struct Maat_hit_detail_t *hit_detail=(struct Maat_hit_detail_t *)malloc(sizeof(struct Maat_hit_detail_t)*10);
+	stream_para_t sp=Maat_stream_scan_string_start(g_feather,table_id,0);
+	int detail_ret=0;
+	
+	ASSERT_FALSE(sp==NULL);
+
+	while(0==feof(fp))
+	{
+		read_size=fread(scan_data,1,sizeof(scan_data),fp);
+		ret=Maat_stream_scan_string_detail(&sp,CHARSET_NONE,scan_data,read_size
+							,result,4,hit_detail,10
+							,&detail_ret,&mid);
+		if(ret>0)
+		{
+			pass_flag=1;
+			break;
+		}
+	}
+	EXPECT_EQ(pass_flag, 1);
+	EXPECT_EQ(result[0].config_id, 164);
+	
+	Maat_stream_scan_string_end(&sp);
+	free(hit_detail);
+	fclose(fp);
+	Maat_clean_status(&mid);
+	return;
+
+}
+
 #define	TEST_IPSCAN
 TEST(IPScan, IPv4_mask)
 {
@@ -468,12 +525,7 @@ TEST(IPScan, IPv4_mask)
 	scan_status_t mid=NULL;
 	struct ipaddr ipv4_addr;
 	struct stream_tuple4_v4 v4_addr;
-	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
-	inet_pton(AF_INET,"10.0.6.205",&(v4_addr.saddr));
-	v4_addr.source=htons(50001);
-	inet_pton(AF_INET,"10.0.6.201",&(v4_addr.daddr));
-	v4_addr.dest=htons(80);
-	ipv4_addr.v4=&v4_addr;
+	ipv4_addr_set(&ipv4_addr, &v4_addr, "10.0.6.205", 50001, "10.0.6.201", 80);
 
 	const char* scan_data="http://www.cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
 	table_id=Maat_table_register(g_feather,"HTTP_URL");
@@ -629,6 +681,29 @@ TEST(IPScan, IPv6_CIDR)
 	return;
 
 }
+TEST(IPScan, IPv4_Port)
+{
+	int table_id=0,ret=0;
+	const char* table_name="IP_PLUS_CONFIG";
+	struct Maat_rule_t result[4];
+	scan_status_t mid=NULL;
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr_set(&ipv4_addr, &v4_addr, "192.168.244.1", 20304, "0.0.0.0", 0);
+
+	table_id=Maat_table_register(g_feather, table_name);
+	
+	EXPECT_GT(table_id, 0);
+
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid, 0);
+	
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 169);
+
+	Maat_clean_status(&mid);
+	return;
+}
+
 #define	TEST_NOTLogic	1
 
 TEST(NOTLogic, OneRegion)
@@ -660,53 +735,6 @@ TEST(NOTLogic, OneRegion)
 	Maat_clean_status(&mid);
 
 }
-
-TEST(StringScan,   CharsetWindows1251)
-{
-	int table_id=0,ret=0;
-	int read_size=0,pass_flag=0;
-	struct Maat_rule_t result[4];
-	scan_status_t mid=NULL;
-	//const char* fn="./testdata/mesa_logo.jpg";
-	const char* table_name="KEYWORDS_TABLE";
-	const char* fn="./testdata/charsetWindows1251.txt";
-	FILE* fp=fopen(fn,"r");
-	ASSERT_FALSE(fp==NULL);
-
-	char scan_data[4096]={0};
-	table_id=Maat_table_register(g_feather,table_name);
-	ASSERT_GT(table_id, 0);
-	
-
-	struct Maat_hit_detail_t *hit_detail=(struct Maat_hit_detail_t *)malloc(sizeof(struct Maat_hit_detail_t)*10);
-	stream_para_t sp=Maat_stream_scan_string_start(g_feather,table_id,0);
-	int detail_ret=0;
-	
-	ASSERT_FALSE(sp==NULL);
-
-	while(0==feof(fp))
-	{
-		read_size=fread(scan_data,1,sizeof(scan_data),fp);
-		ret=Maat_stream_scan_string_detail(&sp,CHARSET_NONE,scan_data,read_size
-							,result,4,hit_detail,10
-							,&detail_ret,&mid);
-		if(ret>0)
-		{
-			pass_flag=1;
-			break;
-		}
-	}
-	EXPECT_EQ(pass_flag, 1);
-	EXPECT_EQ(result[0].config_id, 164);
-	
-	Maat_stream_scan_string_end(&sp);
-	free(hit_detail);
-	fclose(fp);
-	Maat_clean_status(&mid);
-	return;
-
-}
-
 
 TEST(NOTLogic, ScanNotAtLast)
 {
@@ -1411,7 +1439,7 @@ TEST(Policy, SubGroup)
 
 TEST(Policy, EvaluationOrder)
 {
-#define TestExecuteSequence
+#define EvaluationOrder
 	int ret=0, table_id=0;
 	size_t i=0;
 	const char* url="cavemancircus.com/2019/12/27/pretty-girls-6/";
@@ -1425,8 +1453,10 @@ TEST(Policy, EvaluationOrder)
 	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, url, strlen(url), 
 						result+i, NULL, 4-i,
 						&mid, 0);
-	EXPECT_EQ(ret, 2);
+	EXPECT_EQ(ret, 3);
 	EXPECT_EQ(result[i].config_id, 166);
+	EXPECT_EQ(result[i+1].config_id, 167);
+	EXPECT_EQ(result[i+2].config_id, 168);
 	i+=ret;
 
 	struct ipaddr ipv4_addr;
@@ -1452,6 +1482,7 @@ TEST(Policy, EvaluationOrder)
 	EXPECT_EQ(result[0].config_id, 165);
 	EXPECT_EQ(result[1].config_id, 166);
 	EXPECT_EQ(result[2].config_id, 167);
+	EXPECT_EQ(result[3].config_id, 168);
 	Maat_clean_status(&mid);
 
 }
@@ -2826,6 +2857,258 @@ TEST_F(MaatCmdTest, PluginEXData)
 	ASSERT_TRUE(uinfo==NULL);
 
 	return;
+}
+#define TEST_HIT_PATH
+TEST_F(MaatCmdTest,    HitPath)
+{
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+	const char* group_table_name="GROUP";
+	const char* compile_table_name="COMPILE";
+	const char* table_http_sig="HTTP_SIGNATURE";
+	const char* table_ip="IP_CONFIG";
+	const char* table_keywords="KEYWORDS_TABLE";
+
+	struct Maat_rule_t compile1;
+	struct Maat_group_t group1, group2, group21, group3, group4;
+	struct Maat_region_t region1, region2, region3, region4;
+
+	memset(&compile1, 0, sizeof(compile1));
+	compile1.config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 2);
+
+	
+	//group1->compile1
+	memset(&group1, 0, sizeof(group1));
+	group1.group_id=Maat_cmd_get_new_group_id(feather);
+	group1.table_name=group_table_name;
+	group1.virtual_table_name="HTTP_REQUEST_HEADER";
+	group1.parent_id=compile1.config_id;
+	group1.parent_type=PARENT_TYPE_COMPILE;
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group1);
+
+
+	/*region1->group1->compile1
+	*/
+	memset(&region1, 0, sizeof(region1));
+	region1.region_id=Maat_cmd_get_new_region_id(feather);
+	region1.region_type=REGION_EXPR;
+	region1.table_name=table_http_sig;
+	region1.expr_rule.district="URL";
+	region1.expr_rule.keywords="graph_theory";
+	region1.expr_rule.expr_type=EXPR_TYPE_STRING;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region1, group1.group_id);
+
+	/*
+		region1->group1->compile1
+						/
+				group21/
+	*/
+	memset(&group21, 0, sizeof(group21));
+	group21.group_id=Maat_cmd_get_new_group_id(feather);
+	group21.table_name=group_table_name;
+	group21.virtual_table_name="HTTP_RESPONSE_HEADER";
+	group21.parent_id=compile1.config_id;
+	group21.parent_type=PARENT_TYPE_COMPILE;
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group21);
+
+	/*
+		region1->group1->compile1
+						/
+		group2->group21/
+	*/
+
+	memset(&group2, 0, sizeof(group2));
+	group2.group_id=Maat_cmd_get_new_group_id(feather);
+	group2.table_name=group_table_name;
+	group2.parent_id=group21.group_id;
+	group2.parent_type=PARENT_TYPE_GROUP;
+	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group2);
+
+
+	/*
+			region1->group1->compile1
+							 /
+	region2->group2->group21/
+	*/
+
+	memset(&region2, 0, sizeof(region2));
+	region2.region_id=Maat_cmd_get_new_region_id(feather);
+	region2.region_type=REGION_EXPR;
+	region2.table_name=table_http_sig;
+	region2.expr_rule.district="Cookie";
+	region2.expr_rule.keywords="time=2020-02-11";
+	region2.expr_rule.expr_type=EXPR_TYPE_STRING;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region2, group2.group_id);
+
+	//region3->group3, group3 is not referenced by any compile.
+	memset(&region3, 0, sizeof(region3));
+	region3.region_id=Maat_cmd_get_new_region_id(feather);
+	region3.region_type=REGION_IP;
+	region3.table_name=table_ip;
+	region3.ip_rule.addr_type=ADDR_TYPE_IPv4;
+	region3.ip_rule.direction=ADDR_DIR_DOUBLE;
+	region3.ip_rule.src_ip="220.181.38.148";
+	region3.ip_rule.mask_src_ip="255.255.255.254";
+	region3.ip_rule.src_port=53331;
+	region3.ip_rule.mask_src_port=0;//means any port should hit.
+	
+	region3.ip_rule.dst_ip="47.93.59.84";
+	region3.ip_rule.mask_dst_ip="255.255.255.255";
+	region3.ip_rule.dst_port=80;
+	region3.ip_rule.mask_dst_port=65535;
+	region3.ip_rule.protocol=0;//means any protocol should hit.
+
+	group3.group_id=Maat_cmd_get_new_group_id(feather);
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region3, group3.group_id);
+
+	char temp[1024]={0};
+	//region4->group4, group4 is not referenced by any compile.
+	memset(&region4, 0, sizeof(region4));
+	region4.region_id=Maat_cmd_get_new_region_id(feather);
+	region4.region_type=REGION_EXPR;
+	region4.table_name=table_keywords;
+	region4.expr_rule.district=NULL;
+	region4.expr_rule.keywords= Maat_str_escape(temp, sizeof(temp), "a finite or infinite");
+	region4.expr_rule.expr_type=EXPR_TYPE_STRING;
+	
+	group4.group_id=Maat_cmd_get_new_group_id(feather);
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region4, group4.group_id);
+
+
+	sleep(1);
+
+	int ret=0, table_id=0;
+	const char* http_url="en.wikipedia.org/wiki/Path_(graph_theory)";
+	const char* http_resp_hdr_cookie="laptop=thinkpad X1 extrem;time=2020-02-11T15:34:00;main[XWJOKE]=hoho; Hm_lvt_bbac0322e6ee13093f98d5c4b5a10912=1578874808;";
+
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr_set(&ipv4_addr, &v4_addr, "220.181.38.148", 17272, "47.93.59.84", 80);
+	
+
+	struct Maat_rule_t result[4];
+	memset(result, 0, sizeof(result));
+
+	scan_status_t mid=NULL;
+	int path_idx=0, Nth_scan=0;
+
+	table_id=Maat_table_register(feather, "HTTP_REQUEST_HEADER");	
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_set_scan_status(feather, &mid, MAAT_SET_SCAN_DISTRICT, "URL", strlen("URL"));
+	ASSERT_EQ(ret, 0);
+
+	Nth_scan++;
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, http_url, strlen(http_url), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, -2);
+	
+	struct Maat_hit_path_t hit_path[128];
+	int n_read=0;
+	n_read=Maat_get_scan_status(feather, &mid, MAAT_GET_SCAN_HIT_PATH, hit_path, sizeof(hit_path));
+	EXPECT_EQ(n_read, 1);
+	ASSERT_EQ(path_idx, 0);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].region_id, region1.region_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1.group_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group1.group_id);
+	EXPECT_EQ(hit_path[path_idx].virtual_table_id, table_id);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+	
+
+	table_id=Maat_table_register(feather, "HTTP_RESPONSE_HEADER");
+	ASSERT_GT(table_id, 0);
+
+	ret=Maat_set_scan_status(feather, &mid, MAAT_SET_SCAN_DISTRICT, "Cookie", strlen("Cookie"));
+	ASSERT_EQ(ret, 0);
+
+	Nth_scan++;
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_UTF8, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, compile1.config_id);	
+
+	n_read=Maat_get_scan_status(feather, &mid, MAAT_GET_SCAN_HIT_PATH, hit_path, sizeof(hit_path));
+	EXPECT_EQ(n_read, 2);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan-1);
+	EXPECT_EQ(hit_path[path_idx].region_id, region1.region_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1.group_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group1.group_id);
+	//virtual_table_id was compared in previous.
+	EXPECT_EQ(hit_path[path_idx].compile_id, compile1.config_id);
+
+	path_idx++;
+	ASSERT_EQ(path_idx, 1);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].region_id, region2.region_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2.group_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group21.group_id);
+	EXPECT_EQ(hit_path[path_idx].virtual_table_id, table_id);
+	EXPECT_EQ(hit_path[path_idx].compile_id, compile1.config_id);
+
+	const char* keywords1="In graph theory, a path in a graph is a finite or infinite \
+sequence of edges which joins a sequence of vertices which, by most definitions,\
+are all distinct (and since the vertices are distinct, so are the edges). ";
+	const char* keywords2="A directed path in a directed graph is a finite or infinite\
+sequence of edges which joins a sequence of distinct vertices, but with the added restriction\
+that the edges be all directed in the same direction.";
+	table_id=Maat_table_register(feather, table_keywords);
+	ASSERT_GT(table_id, 0);
+	stream_para_t stream_para;
+	stream_para=Maat_stream_scan_string_start(feather, table_id, 0);
+	Nth_scan++;
+	ret=Maat_stream_scan_string(&stream_para, CHARSET_UTF8, keywords1, strlen(keywords1), result, NULL, 4, &mid);
+	EXPECT_EQ(ret, -2);
+	n_read=Maat_get_scan_status(feather, &mid, MAAT_GET_SCAN_HIT_PATH, hit_path, sizeof(hit_path));
+	EXPECT_EQ(n_read, 3);
+	path_idx++;
+	ASSERT_EQ(path_idx, 2);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].region_id, region4.region_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4.group_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group4.group_id);
+	EXPECT_EQ(hit_path[path_idx].virtual_table_id, 0);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);	
+	
+	table_id=Maat_table_register(feather, table_ip);
+	ASSERT_GT(table_id, 0);
+
+	Nth_scan++;
+	ret=Maat_scan_proto_addr(feather, table_id, &ipv4_addr, 6, result, 4, &mid, 0);
+	EXPECT_EQ(ret, -2);
+
+	n_read=Maat_get_scan_status(feather, &mid, MAAT_GET_SCAN_HIT_PATH, hit_path, sizeof(hit_path));
+	EXPECT_EQ(n_read, 4);
+	path_idx++;
+	ASSERT_EQ(path_idx, 3);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].region_id, region3.region_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3.group_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group3.group_id);
+	EXPECT_EQ(hit_path[path_idx].virtual_table_id, 0);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
+	Nth_scan++;
+	ret=Maat_stream_scan_string(&stream_para, CHARSET_UTF8, keywords2, strlen(keywords2), result, NULL, 4, &mid);
+	EXPECT_EQ(ret, -2);
+	n_read=Maat_get_scan_status(feather, &mid, MAAT_GET_SCAN_HIT_PATH, hit_path, sizeof(hit_path));
+	EXPECT_EQ(n_read, 5);
+	path_idx++;
+	ASSERT_EQ(path_idx, 4);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].region_id, region4.region_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4.group_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group4.group_id);
+	EXPECT_EQ(hit_path[path_idx].virtual_table_id, 0);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+	Maat_stream_scan_string_end(&stream_para);
+
+	Maat_clean_status(&mid);
+
+	return;
+
 }
 
 int main(int argc, char ** argv)
