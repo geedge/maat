@@ -231,6 +231,35 @@ void hit_path_init(struct Maat_hit_path_t* hit_path)
 	hit_path->virtual_table_id=-1;
 	hit_path->compile_id=-1;
 }
+size_t scan_hit_status_select_hit_path_inner(const struct hit_path_q *hit_path_qhead, struct Maat_hit_path_t* condition, 
+															struct Maat_hit_path_inner* hit_paths, size_t n_path)
+{
+	struct Maat_hit_path_inner* p=NULL;
+	size_t i=0;
+	TAILQ_FOREACH(p, hit_path_qhead, entries)
+	{
+		if((condition->compile_id==p->path.compile_id||condition->compile_id<0)
+			&& (condition->Nth_scan==p->path.Nth_scan||condition->Nth_scan<0)
+			&& (condition->region_id=p->path.region_id||condition->region_id<0)
+			&& (condition->sub_group_id=p->path.sub_group_id||condition->sub_group_id<0)
+			&& (condition->top_group_id=p->path.top_group_id||condition->top_group_id<0))
+		{
+			if(i<n_path)
+			{
+				hit_paths[i]=*p;
+				i++;
+			}
+			else if(hit_paths==NULL)//count only
+			{
+				i++;
+			}
+		}
+
+	}
+	return i;
+
+}
+
 void scan_hit_status_update_by_group(struct scan_hit_status* hit_status, struct Maat_group_inner* group_rule, int region_id, int virtual_table_id, int Nth_scan, int Nth_region_result)
 {
 	size_t i=0;
@@ -263,10 +292,15 @@ size_t scan_hit_status_update_by_compile(struct scan_hit_status* hit_status, str
 	struct Maat_hit_path_inner* p=NULL, *q=NULL;
 	struct bool_expr a_set;
 	unsigned char has_not=0;
+
+	struct Maat_hit_path_t condition;
+	size_t n_exsited_path=0;
+	struct hit_path_q shared_path_qhead;
+	TAILQ_INIT(&shared_path_qhead);
 	make_group_set(compile_rule, &a_set, &has_not);
-	TAILQ_FOREACH(p, &hit_status->hit_path_qhead, entries)
+	for(i=0; i<a_set.item_num; i++)
 	{
-		for(i=0; i<a_set.item_num; i++)
+		TAILQ_FOREACH(p, &hit_status->hit_path_qhead, entries)
 		{
 			if(TO_RELATION_ID(p->path.virtual_table_id, p->path.top_group_id)==a_set.items[i].item_id
 				&& p->path.compile_id!=compile_rule->compile_id)
@@ -277,19 +311,32 @@ size_t scan_hit_status_update_by_compile(struct scan_hit_status* hit_status, str
 				}
 				else	//current path already have a compile as endpoint, so we duplicate a new path.
 				{
-					q=ALLOC(struct Maat_hit_path_inner, 1);
-					*q=*p;
-					q->path.compile_id=compile_rule->compile_id;
-					TAILQ_INSERT_HEAD(&hit_status->hit_path_qhead, q, entries);
-					hit_status->hit_path_cnt++;
+					condition=p->path;
+					condition.compile_id=compile_rule->compile_id;
+					n_exsited_path=scan_hit_status_select_hit_path_inner(&shared_path_qhead, &condition, NULL, 0);
+					if(n_exsited_path==0)
+					{
+						q=ALLOC(struct Maat_hit_path_inner, 1);
+						*q=*p;
+						q->path.compile_id=compile_rule->compile_id;
+						TAILQ_INSERT_TAIL(&shared_path_qhead, q, entries);
+						hit_status->hit_path_cnt++;
+					}
 				}
-				if(p->path.Nth_scan==Nth_scan)//Compile was satisfied by new region hits.
+				if(p->path.Nth_scan==Nth_scan && n_exsited_path==0)//Compile was satisfied by new region hits.
 				{
 					j++;
 				}
-			}
+			}		
 		}
 	}
+	p = TAILQ_FIRST(&shared_path_qhead);
+	while(p != NULL)
+	{
+		TAILQ_REMOVE(&shared_path_qhead, p, entries);
+		TAILQ_INSERT_TAIL(&hit_status->hit_path_qhead, p, entries);
+		p = TAILQ_FIRST(&shared_path_qhead);
+	}	
 	return j;
 }
 
@@ -298,29 +345,8 @@ size_t scan_hit_status_read_group_ids(const struct scan_hit_status* hit_status, 
 	*grp_ids=hit_status->all_hit_group_array;
 	return hit_status->all_hit_group_cnt;
 }
-//Maybe select?
-size_t scan_hit_status_select_hit_path_inner(const struct scan_hit_status* hit_status, struct Maat_hit_path_t* condition, 
-															struct Maat_hit_path_inner* hit_paths, size_t n_path)
-{
-	struct Maat_hit_path_inner* p=NULL;
-	size_t i=0;
-	TAILQ_FOREACH(p, &hit_status->hit_path_qhead, entries)
-	{
-		if((condition->compile_id==p->path.compile_id||condition->compile_id<0)
-			&& (condition->Nth_scan==p->path.Nth_scan||condition->Nth_scan<0)
-			&& (condition->region_id=p->path.region_id||condition->region_id<0))
-		{
-			if(i<n_path)
-			{
-				hit_paths[i]=*p;
-				i++;
-			}
-		}
 
-	}
-	return i;
 
-}
 void scan_region_hit_wraper_build_with_rulescan(struct scan_region_hit_wraper* region_hit, scan_result_t* rulescan_rslt, size_t n_rslt, int is_last_region, int virtual_table_id, int Nth_scan)
 {
 	memset(region_hit, 0, sizeof(struct scan_region_hit_wraper));
@@ -565,7 +591,7 @@ int fill_region_hit_detail(const char* scan_buff, const scan_hit_status* _mid,
 		hit_path_init(&condition);
 		condition.Nth_scan=Nth_scan;
 		condition.compile_id=compile[i].config_id;
-		hit_path_cnt=scan_hit_status_select_hit_path_inner(_mid, &condition, hit_paths, MAX_SCANNER_HIT_NUM);
+		hit_path_cnt=scan_hit_status_select_hit_path_inner(&_mid->hit_path_qhead, &condition, hit_paths, MAX_SCANNER_HIT_NUM);
 		for(j=0; j<hit_path_cnt && j<MAAT_MAX_HIT_RULE_NUM; j++)
 		{		
 			Nth_hit_region=hit_paths[j].Nth_hit_region;
@@ -2360,7 +2386,7 @@ int Maat_get_scan_status(Maat_feather_t feather, scan_status_t* mid, enum MAAT_S
 			n_read=size/sizeof(struct Maat_hit_path_t);
 			path_inner=ALLOC(struct Maat_hit_path_inner, n_read);
 			hit_path_init(&condition);
-			n_read=scan_hit_status_select_hit_path_inner(_mid->inner, &condition, path_inner, n_read);
+			n_read=scan_hit_status_select_hit_path_inner(&_mid->inner->hit_path_qhead, &condition, path_inner, n_read);
 			for(i=0; i<n_read; i++)
 			{
 				paths[i]=path_inner[i].path;
