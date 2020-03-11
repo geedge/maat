@@ -29,6 +29,7 @@ enum MAAT_TABLE_TYPE
 	TABLE_TYPE_EXPR_PLUS,
 	TABLE_TYPE_SIMILARITY,
 	TABLE_TYPE_VIRTUAL,
+	TABLE_TYPE_COMPOSITION,
 	TABLE_TYPE_GROUP,
 	TABLE_TYPE_COMPILE,
 	TABLE_TYPE_PLUGIN
@@ -44,14 +45,14 @@ struct compile_ex_data_idx
 	int idx;
 	int table_id;
 };
-struct compile_table_desc
+struct compile_table_schema
 {
 	enum USER_REGION_ENCODE user_region_encoding;
 	int ex_data_num;
 	struct compile_ex_data_idx ex_desc[MAX_COMPILE_EX_DATA_NUM];
 };
 
-struct expr_table_desc
+struct expr_table_schema
 {
 	enum MAAT_CHARSET src_charset;
 	enum MAAT_CHARSET dst_charset[MAX_CHARSET_NUM];
@@ -61,19 +62,23 @@ struct expr_table_desc
 	int quick_expr_switch;//obsolete since 20190401
 	long long iconv_err_cnt;
 };
-struct virtual_table_desc
+struct virtual_table_schema
 {
 	int real_table_id;
 	char real_table_name[MAX_TABLE_NAME_LEN];
 };
-struct plugin_table_callback_desc
+struct composition_table_schema
+{	
+	struct virtual_table_schema source_table, destination_table, session_table;
+};
+struct plugin_table_callback_schema
 {
 	Maat_start_callback_t 	*start;
 	Maat_update_callback_t	*update;
 	Maat_finish_callback_t	*finish;
 	void* u_para;
 };
-struct plugin_table_ex_data_desc
+struct plugin_table_ex_data_schema
 {
 	Maat_plugin_EX_new_func_t* new_func;
 	Maat_plugin_EX_free_func_t* free_func;
@@ -82,7 +87,7 @@ struct plugin_table_ex_data_desc
 	long argl;
 	void *argp;
 };
-struct plugin_table_desc
+struct plugin_table_schema
 {
 	int key_column;
 	int valid_flag_column;
@@ -92,11 +97,11 @@ struct plugin_table_desc
 	int cb_plug_cnt;
 	int have_exdata;
 	long long estimate_size;
-	struct plugin_table_callback_desc cb_plug[MAX_PLUGIN_PER_TABLE];	
-	struct plugin_table_ex_data_desc ex_desc;
+	struct plugin_table_callback_schema cb_plug[MAX_PLUGIN_PER_TABLE];	
+	struct plugin_table_ex_data_schema ex_desc;
 };
 
-struct Maat_table_desc
+struct Maat_table_schema
 {
 	int table_id;
 	int conj_cnt;
@@ -105,12 +110,13 @@ struct Maat_table_desc
 	enum MAAT_TABLE_TYPE table_type;
 	union
 	{
-		struct compile_table_desc compile;		
-		struct expr_table_desc expr;
-		struct plugin_table_desc plugin;		
-		struct virtual_table_desc virtual_table;;
+		struct compile_table_schema compile;		
+		struct expr_table_schema expr;
+		struct plugin_table_schema plugin;		
+		struct virtual_table_schema virtual_table;
+		struct composition_table_schema composition;
 		void* others;//group, ip, interval and digest don't have sperate description info.
-	};	
+	};
 //for stat>>>>>>>>
 	unsigned long long udpate_err_cnt;
 	unsigned long long unmatch_tag_cnt;
@@ -122,8 +128,8 @@ void Maat_table_manager_destroy(struct Maat_table_manager* table_mgr);
 size_t Maat_table_manager_get_size(struct Maat_table_manager* table_mgr);
 size_t Maat_table_manager_get_count(struct Maat_table_manager* table_mgr);
 
-struct Maat_table_desc * Maat_table_get_by_id(struct Maat_table_manager* table_mgr, int table_id, enum MAAT_TABLE_TYPE expect_type, int* virutal_table_id);
-struct Maat_table_desc * Maat_table_get_by_id_raw(struct Maat_table_manager* table_mgr, int table_id);
+struct Maat_table_schema * Maat_table_get_scan_by_id(struct Maat_table_manager* table_mgr, int table_id, enum MAAT_TABLE_TYPE expect_type, int* virutal_table_id);
+struct Maat_table_schema * Maat_table_get_by_id_raw(struct Maat_table_manager* table_mgr, int table_id);
 
 int Maat_table_get_id_by_name(struct Maat_table_manager* table_mgr, const char* table_name);
 int Maat_table_add_callback_func(struct Maat_table_manager* table_mgr,
@@ -153,6 +159,14 @@ void Maat_table_manager_all_plugin_cb_start(struct Maat_table_manager* table_mgr
 void Maat_table_manager_all_plugin_cb_finish(struct Maat_table_manager* table_mgr);
 
 int Maat_table_manager_is_last_plugin_table_updating(struct Maat_table_manager* table_mgr);
-struct Maat_table_desc* Maat_table_get_desc_by_name(struct Maat_table_manager* table_mgr, const char* table_name);
-void Maat_table_set_updating_name(struct Maat_table_desc* p_table, const char* table_name);
+struct Maat_table_schema* Maat_table_get_desc_by_name(struct Maat_table_manager* table_mgr, const char* table_name);
+void Maat_table_set_updating_name(struct Maat_table_schema* p_table, const char* table_name);
+enum MAAT_TABLE_CHILD_TYPE
+{	
+	CHILD_TABLE_TYPE_NONE=-1,
+	CHILD_TABLE_TYPE_SOURCE_IP=0,
+	CHILD_TABLE_TYPE_DESTINATION_IP,
+	CHILD_TABLE_TYPE_SESSION
+};
+int Maat_table_get_child_id(struct Maat_table_schema* p_table, enum MAAT_TABLE_CHILD_TYPE type);
 

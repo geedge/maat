@@ -25,6 +25,7 @@ const int json_version=1;
 struct group_info_t
 {
 	int group_id;
+	char group_name[MAX_PATH_LINE];
 };
 struct iris_table_t
 {
@@ -978,7 +979,7 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 	}
 
 	group_info=(struct group_info_t*)MESA_htable_search(p_iris->group_name_map, (const unsigned char*)group_name, strlen(group_name));
-	if(group_info==NULL)//exist group name, region already read
+	if(group_info==NULL)//exist group name, regions and sub groups will be ommit.
 	{
 		if(0==strncasecmp(group_name, untitled_group_name, strlen(untitled_group_name)))
 		{
@@ -989,9 +990,43 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 		{
 			group_info=ALLOC(struct group_info_t, 1);
 			group_info->group_id=get_group_seq(p_iris);
+			strncpy(group_info->group_name, group_name, sizeof(group_info->group_name));
 			MESA_htable_add(p_iris->group_name_map, (const unsigned char*)group_name, strlen(group_name), group_info);
 		}
-	}	
+		region_json=cJSON_GetObjectItem(group_json,"regions");
+		if(region_json!=NULL)
+		{
+			cJSON_ArrayForEach(region_rule, region_json)
+			{
+				ret=write_region_rule(region_rule, tracking_compile_id,	group_info->group_id, p_iris, logger);
+				if(ret<0)
+				{
+					MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
+												"compile rule %d write region error.", tracking_compile_id);
+					return -1;
+				}
+			}
+		}
+		sub_groups=cJSON_GetObjectItem(group_json,"sub_groups");
+		if(sub_groups!=NULL)
+		{
+			//recursively
+			
+			cJSON_ArrayForEach(item, sub_groups)
+			{
+				ret=write_group_rule(item, group_info->group_id, PARENT_TYPE_GROUP, tracking_compile_id, p_iris, logger);
+				if(ret<0)
+				{
+					return -1;
+				}
+			}
+		}
+		if(region_json==NULL && sub_groups==NULL)
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_json,
+										"A group of compile rule %d has neither regions, sub groups, nor refered another exisited group.", tracking_compile_id);
+		}
+	}
 	ret=write_group_line(group_info->group_id, parent_id, group_not_flag, parent_type, virtual_table, p_iris, logger);
 	if(ret<0)
 	{
@@ -999,34 +1034,7 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 									"%s rule %d write group error.", _str_parent_type[parent_type], parent_id);
 		return -1;
 	}
-	region_json=cJSON_GetObjectItem(group_json,"regions");
-	if(region_json!=NULL)
-	{
-		cJSON_ArrayForEach(region_rule, region_json)
-		{
-			ret=write_region_rule(region_rule, tracking_compile_id,	group_info->group_id, p_iris, logger);
-			if(ret<0)
-			{
-				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
-											"compile rule %d write region error.", tracking_compile_id);
-				return -1;
-			}
-		}
-	}	
-	sub_groups=cJSON_GetObjectItem(group_json,"sub_groups");
-	if(sub_groups!=NULL)
-	{
-		//recursively
-		
-		cJSON_ArrayForEach(item, sub_groups)
-		{
-			ret=write_group_rule(item, group_info->group_id, PARENT_TYPE_GROUP, tracking_compile_id, p_iris, logger);
-			if(ret<0)
-			{
-				return -1;
-			}
-		}
-	}
+
 	return 0;
 }
 int write_iris(cJSON *json, struct iris_description_t *p_iris, void* logger)

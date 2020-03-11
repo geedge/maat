@@ -746,7 +746,7 @@ void EMPTY_FREE(void*p)
 	return;
 }
 
-struct Maat_compile_rule* create_compile_rule(struct Maat_rule_head* p_head, const char* service_define, int declared_grp_num, double exec_seq, const struct Maat_table_desc* table)
+struct Maat_compile_rule* create_compile_rule(struct Maat_rule_head* p_head, const char* service_define, int declared_grp_num, double exec_seq, const struct Maat_table_schema* table)
 {
 	int i=0;
 	struct Maat_compile_rule*p=ALLOC(struct Maat_compile_rule, 1);
@@ -772,7 +772,7 @@ struct Maat_compile_rule* create_compile_rule(struct Maat_rule_head* p_head, con
 void destroy_compile_rule(struct Maat_compile_rule* compile_rule)
 {
 	int i=0;
-	const struct compile_table_desc* compile_desc= &(compile_rule->ref_table->compile);
+	const struct compile_table_schema* compile_desc= &(compile_rule->ref_table->compile);
 
 	for(i=0; i<compile_desc->ex_data_num; i++)
 	{
@@ -1573,13 +1573,13 @@ int get_district_id(Maat_scanner *scanner,const char* district_str)
 	}
 	return district_id;
 }
-int add_expr_rule(struct Maat_table_desc* table,struct db_str_rule_t* db_rule,struct Maat_scanner *scanner,void* logger)
+int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,struct Maat_scanner *scanner,void* logger)
 {
 	unsigned int i=0,j=0;
 	char* p=NULL,*saveptr=NULL,*region_string=NULL;
 	int region_str_len=0,ret=0,k=0;
 	int expr_id=0,district_id=-1;
-	struct expr_table_desc* expr_desc=&(table->expr);
+	struct expr_table_schema* expr_desc=&(table->expr);
 	scan_rule_t*p_rule=NULL;
 	struct Maat_group_inner* group_rule=NULL;
 	enum MAAT_CHARSET dst_charset=CHARSET_NONE;
@@ -1837,7 +1837,7 @@ int add_expr_rule(struct Maat_table_desc* table,struct db_str_rule_t* db_rule,st
 	}
 	return 0;
 }
-int add_ip_rule(struct Maat_table_desc* table,struct db_ip_rule_t* db_ip_rule,struct Maat_scanner *scanner,void* logger)
+int add_ip_rule(struct Maat_table_schema* table,struct db_ip_rule_t* db_ip_rule,struct Maat_scanner *scanner,void* logger)
 {
 	struct Maat_group_inner* group_rule=NULL;
 	scan_rule_t* p_rule=NULL;
@@ -1868,7 +1868,7 @@ int add_ip_rule(struct Maat_table_desc* table,struct db_ip_rule_t* db_ip_rule,st
 	MESA_lqueue_join_tail(scanner->region_update_q, &op_expr, sizeof(void*));
 	return 0;
 }
-int add_intval_rule(struct Maat_table_desc* table,struct db_intval_rule* intval_rule,struct Maat_scanner *scanner,void* logger)
+int add_intval_rule(struct Maat_table_schema* table,struct db_intval_rule* intval_rule,struct Maat_scanner *scanner,void* logger)
 {
 	struct Maat_group_inner* group_rule=NULL;
 	scan_rule_t* p_rule=NULL;
@@ -1898,7 +1898,7 @@ int add_intval_rule(struct Maat_table_desc* table,struct db_intval_rule* intval_
 	MESA_lqueue_join_tail(scanner->region_update_q, &op_expr, sizeof(void*));
 	return 0;
 }
-int add_digest_rule(struct Maat_table_desc* table, struct db_digest_rule* db_rule, struct Maat_scanner *scanner,void* logger)
+int add_digest_rule(struct Maat_table_schema* table, struct db_digest_rule* db_rule, struct Maat_scanner *scanner,void* logger)
 {
 	struct Maat_group_inner* group_rule=NULL;
 	struct Maat_group_inner* u_para=NULL;
@@ -1920,7 +1920,7 @@ int add_digest_rule(struct Maat_table_desc* table, struct db_digest_rule* db_rul
 	scanner->gie_update_q_size++;
 	return 0;
 }
-int del_region_rule(struct Maat_table_desc* table,int region_id,int group_id,int rule_type,struct Maat_scanner *maat_scanner,void* logger)
+int del_region_rule(struct Maat_table_schema* table,int region_id,int group_id,int rule_type,struct Maat_scanner *maat_scanner,void* logger)
 {
 	int i=0;
 	unsigned int expr_id[MAAT_MAX_EXPR_ITEM_NUM*MAX_CHARSET_NUM]={0};
@@ -1978,7 +1978,7 @@ int del_region_rule(struct Maat_table_desc* table,int region_id,int group_id,int
 
 	return 0;
 }
-int add_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_group_rule, struct Maat_scanner *scanner, void* logger)
+int add_group_rule(struct Maat_table_schema* table, struct db_group_rule_t* db_group_rule, struct Maat_scanner *scanner, void* logger)
 {
 	struct Maat_group_inner* group_rule=NULL, *parent_group=NULL;
 	struct Maat_compile_group_relation*compile_rule=NULL;
@@ -2034,7 +2034,7 @@ int add_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 	scanner->to_update_group_cnt++;
 	return 1;
 }
-int del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_group_rule, struct Maat_scanner *scanner, void* logger)
+int del_group_rule(struct Maat_table_schema* table, struct db_group_rule_t* db_group_rule, struct Maat_scanner *scanner, void* logger)
 {
 	struct Maat_compile_group_relation* relation=NULL;
 	struct Maat_group_inner* group_rule=NULL, *parent_group=NULL;
@@ -2122,7 +2122,7 @@ int del_group_rule(struct Maat_table_desc* table, struct db_group_rule_t* db_gro
 	scanner->to_update_group_cnt++;
 	return 1;
 }
-int add_compile_rule(struct Maat_table_desc* table, struct Maat_compile_rule* db_compile_rule, struct Maat_scanner *scanner, void* logger)
+int add_compile_rule(struct Maat_table_schema* table, struct Maat_compile_rule* db_compile_rule, struct Maat_scanner *scanner, void* logger)
 {
 	struct Maat_compile_group_relation *cg_relation=NULL;
 	struct Maat_rule_head *p_maat_rule_head=&(db_compile_rule->head);
@@ -2144,7 +2144,7 @@ int add_compile_rule(struct Maat_table_desc* table, struct Maat_compile_rule* db
 	return 0;
 	
 }
-int del_compile_rule(struct Maat_table_desc* table, int compile_id, struct Maat_scanner *scanner, void* logger)
+int del_compile_rule(struct Maat_table_schema* table, int compile_id, struct Maat_scanner *scanner, void* logger)
 {
 	struct Maat_compile_group_relation *cg_relation=NULL;
 	cg_relation=(struct Maat_compile_group_relation*)HASH_fetch_by_id(scanner->compile_hash, compile_id);
@@ -2169,7 +2169,7 @@ int del_compile_rule(struct Maat_table_desc* table, int compile_id, struct Maat_
 	scanner->to_update_compile_cnt++;
 	return 1;
 }
-void update_group_rule(struct Maat_table_desc* table,const char* table_line,struct Maat_scanner *scanner, struct Maat_table_manager* table_mgr, void* logger)
+void update_group_rule(struct Maat_table_schema* table,const char* table_line,struct Maat_scanner *scanner, struct Maat_table_manager* table_mgr, void* logger)
 {
 	struct db_group_rule_t db_group_rule;
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
@@ -2259,7 +2259,7 @@ void update_group_rule(struct Maat_table_desc* table,const char* table_line,stru
 	
 	return;	
 }
-void update_expr_rule(struct Maat_table_desc* table,const char* table_line,struct Maat_scanner *scanner,void* logger)
+void update_expr_rule(struct Maat_table_schema* table,const char* table_line,struct Maat_scanner *scanner,void* logger)
 {
 	struct db_str_rule_t* maat_str_rule=ALLOC(struct db_str_rule_t, 1);
 	int ret=0,db_hexbin=0,rule_type=0;
@@ -2546,7 +2546,7 @@ int ip_format2range(int ip_type, enum MAAT_IP_FORMAT format, const char* ip1, co
 	}
 	return 0;
 }
-void update_ip_rule(struct Maat_table_desc* table, const char* table_line, struct Maat_scanner *scanner, void* logger)
+void update_ip_rule(struct Maat_table_schema* table, const char* table_line, struct Maat_scanner *scanner, void* logger)
 {
 	struct db_ip_rule_t* ip_rule=(struct db_ip_rule_t*)calloc(sizeof(struct db_ip_rule_t),1);
 	char src_ip1[40]={0}, src_ip2[40]={0}, dst_ip1[40]={0}, dst_ip2[40]={0};
@@ -2779,7 +2779,7 @@ error_out:
 	ip_rule=NULL;	
 }
 
-void update_intval_rule(struct Maat_table_desc* table, const char* table_line, struct Maat_scanner *scanner, void* logger)
+void update_intval_rule(struct Maat_table_schema* table, const char* table_line, struct Maat_scanner *scanner, void* logger)
 {
 	struct db_intval_rule* intval_rule=ALLOC(struct db_intval_rule, 1);
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
@@ -2845,9 +2845,9 @@ error_out:
 	intval_rule=NULL;		
 }
 
-void update_compile_rule(struct Maat_table_desc* table,const char* table_line ,struct Maat_scanner *scanner, const struct rule_tag* tags, int n_tags,void* logger)
+void update_compile_rule(struct Maat_table_schema* table,const char* table_line ,struct Maat_scanner *scanner, const struct rule_tag* tags, int n_tags,void* logger)
 {
-	struct compile_table_desc* compile_desc=&(table->compile);
+	struct compile_table_schema* compile_desc=&(table->compile);
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
 
 	struct Maat_compile_rule *p_compile=NULL;
@@ -2933,7 +2933,7 @@ error_out:
 	return;	
 }
 
-void update_digest_rule(struct Maat_table_desc* table, const char* table_line, struct Maat_scanner *scanner, void* logger)
+void update_digest_rule(struct Maat_table_schema* table, const char* table_line, struct Maat_scanner *scanner, void* logger)
 {
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
 	struct db_digest_rule* digest_rule=ALLOC(struct db_digest_rule, 1);
@@ -3131,11 +3131,11 @@ void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
 							q_cnt,bury_cnt);
 	}
 }
-void update_plugin_table(struct Maat_table_desc* table,const char* table_line,Maat_scanner* scanner, const struct rule_tag* tags, int n_tags, void* logger)
+void update_plugin_table(struct Maat_table_schema* table,const char* table_line,Maat_scanner* scanner, const struct rule_tag* tags, int n_tags, void* logger)
 {
 	int i=0, ret=1, matched_tag=1;
 	unsigned int len=strlen(table_line)+1;
-	struct plugin_table_desc* plugin_desc=&(table->plugin);
+	struct plugin_table_schema* plugin_desc=&(table->plugin);
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
 	char *p=NULL;
 	char* copy=NULL;
@@ -3470,7 +3470,7 @@ int maat_update_cb(const char* table_name,const char* line,void *u_para)
 {
 	struct _Maat_feather_t *feather=(struct _Maat_feather_t *)u_para; 
 	Maat_scanner* scanner=NULL;
-	struct Maat_table_desc* p_table=NULL;
+	struct Maat_table_schema* p_table=NULL;
 	if(feather->update_tmp_scanner!=NULL)
 	{
 		scanner=feather->update_tmp_scanner;

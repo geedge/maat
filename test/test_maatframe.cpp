@@ -725,6 +725,29 @@ TEST(IPScan, IPv4_virtual)
 	Maat_clean_status(&mid);
 	return;
 }
+TEST(IPScan, IPv4_composition)
+{
+	int table_id=0,ret=0;
+	const char* table_name="COMPOSITION_IP";
+	struct Maat_rule_t result[4];
+	scan_status_t mid=NULL;
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr_set(&ipv4_addr, &v4_addr, "192.168.40.11", 443, "192.168.231.47", 25715);
+
+	table_id=Maat_table_register(g_feather, table_name);
+	
+	EXPECT_GT(table_id, 0);
+
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid, 0);
+	
+	EXPECT_EQ(ret, 2);
+	EXPECT_EQ(result[0].config_id, 177);
+	EXPECT_EQ(result[1].config_id, 175);
+
+	Maat_clean_status(&mid);
+	return;
+}
 
 #define	TEST_NOTLogic	1
 

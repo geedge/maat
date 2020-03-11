@@ -43,7 +43,7 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 {
 	int value=0;
 	int i=0,j=0,offset=0;
-	struct Maat_table_desc* p_table=NULL;
+	struct Maat_table_schema* p_table=NULL;
 	char conj_table_name[(MAX_TABLE_NAME_LEN+1)*MAX_CONJUNCTION_TABLE_NUM]={0};
 
 	feather->stat_handle=FS_create_handle();
@@ -173,7 +173,7 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	long long compile_rule_num=0, group_rule_num=0, not_group_rule_num=0, plugin_cache_num=0, plugin_acc_num=0;
 	int i=0;
 	time_t now;
-	struct Maat_table_desc* p_table=NULL;
+	struct Maat_table_schema* p_table=NULL;
 	struct Maat_table_runtime* table_rt=NULL;
 	time(&now);
 	if(feather->scanner==NULL)

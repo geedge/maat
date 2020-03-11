@@ -60,8 +60,8 @@ struct Maat_table_runtime* Maat_table_runtime_get(struct Maat_table_runtime_mana
 long long Maat_table_runtime_plugin_cached_line_count(struct Maat_table_runtime* table_rt);
 const char* Maat_table_runtime_plugin_get_cached_line(struct Maat_table_runtime* table_rt, long long Nth_line);
 
-int Maat_table_runtime_plugin_new_ex_idx(struct Maat_table_runtime* table_rt, struct Maat_table_desc* table_desc, void* logger);
-MAAT_PLUGIN_EX_DATA Maat_table_runtime_plugin_get_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_desc* table_desc, const char* key);
+int Maat_table_runtime_plugin_new_ex_idx(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_desc, void* logger);
+MAAT_PLUGIN_EX_DATA Maat_table_runtime_plugin_get_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_desc, const char* key);
 void Maat_table_runtime_digest_add(struct Maat_table_runtime* table_rt, int expr_id, const char* digest, short confidence_degree, void* tag);
 void Maat_table_runtime_digest_del(struct Maat_table_runtime* table_rt, int expr_id);
 int Maat_table_runtime_digest_batch_udpate(struct Maat_table_runtime* table_rt);
