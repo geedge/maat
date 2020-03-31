@@ -9,12 +9,12 @@
 struct wrap_plugin_EX_data
 {
 	MAAT_RULE_EX_DATA exdata;
-	const struct Maat_table_desc* ref_plugin_table;
+	const struct Maat_table_schema* ref_plugin_table;
 };
 void wrap_plugin_EX_data_free(void *data)
 {
 	struct wrap_plugin_EX_data* wrap_data=(struct wrap_plugin_EX_data*)data;
-	const struct plugin_table_ex_data_desc* ex_desc= &(wrap_data->ref_plugin_table->plugin.ex_desc);
+	const struct plugin_table_ex_data_schema* ex_desc= &(wrap_data->ref_plugin_table->plugin.ex_desc);
 	ex_desc->free_func(wrap_data->ref_plugin_table->table_id, &(wrap_data->exdata), ex_desc->argl, ex_desc->argp);
 	wrap_data->ref_plugin_table=NULL;
 	free(wrap_data);
@@ -51,11 +51,11 @@ MESA_htable_handle wrap_plugin_EX_hash_new(long long estimate_size, Maat_plugin_
 	return key2ex_hash;
 }
 
-int plugin_EX_data_free(const struct Maat_table_desc* plugin_table, const char* line,
+int plugin_EX_data_free(const struct Maat_table_schema* plugin_table, const char* line,
 								MESA_htable_handle key2ex_hash, void *logger)
 {
 	size_t key_offset=0, key_len=0;
-	const struct plugin_table_desc* plugin_desc= &(plugin_table->plugin);	
+	const struct plugin_table_schema* plugin_desc= &(plugin_table->plugin);	
 	int ret=0;
 	ret=get_column_pos(line, plugin_desc->key_column, &key_offset, &key_len);
 	if(ret<0)
@@ -76,14 +76,14 @@ int plugin_EX_data_free(const struct Maat_table_desc* plugin_table, const char* 
 	return 0;
 }
 
-int plugin_EX_data_new(const struct Maat_table_desc* plugin_table, const char* line,
+int plugin_EX_data_new(const struct Maat_table_schema* plugin_table, const char* line,
 								MESA_htable_handle key2ex_hash, void *logger)
 {
 	char* key=NULL;
 	size_t key_offset=0, key_len=0;
 	MAAT_RULE_EX_DATA exdata=NULL;
 	struct wrap_plugin_EX_data* wrap_data=NULL;
-	const struct plugin_table_desc* plugin_desc= &(plugin_table->plugin);
+	const struct plugin_table_schema* plugin_desc= &(plugin_table->plugin);
 	int ret=0;
 	ret=get_column_pos(line, plugin_desc->key_column, &key_offset, &key_len);
 	if(ret<0)
@@ -149,7 +149,7 @@ static void destroy_digest_rule(GIE_digest_t*rule)
 	return;
 }
 
-static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_desc* table_desc, int max_thread_num)
+static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_schema* table_desc, int max_thread_num)
 {
 
 	struct Maat_table_runtime* table_rt= ALLOC(struct Maat_table_runtime, 1);
@@ -233,7 +233,7 @@ static void table_runtime_free(struct Maat_table_runtime* p)
 
 struct Maat_table_runtime_manager* Maat_table_runtime_manager_create(struct Maat_table_manager* table_manager, int max_thread_num)
 {	
-	const struct Maat_table_desc* table_desc=NULL;
+	const struct Maat_table_schema* table_desc=NULL;
 	struct Maat_table_runtime* table_rt=NULL;
 	struct Maat_table_runtime_manager* table_rt_mgr=ALLOC(struct Maat_table_runtime_manager, 1);
 	size_t i=0;
@@ -281,13 +281,13 @@ const char* Maat_table_runtime_plugin_get_cached_line(struct Maat_table_runtime*
 	line=(const char*)dynamic_array_read(plugin_rt->cache_lines, Nth_line);
 	return line;
 }
-MESA_htable_handle plugin_EX_htable_new(const struct Maat_table_desc* plugin_table,
+MESA_htable_handle plugin_EX_htable_new(const struct Maat_table_schema* plugin_table,
 								struct dynamic_array_t* lines, size_t line_cnt, void* logger)
 {
 	MESA_htable_handle key2ex_hash=NULL;
 	size_t i=0;
 	const char* line=NULL;
-	const struct plugin_table_desc* plugin_desc= &(plugin_table->plugin);
+	const struct plugin_table_schema* plugin_desc= &(plugin_table->plugin);
 
 	key2ex_hash=wrap_plugin_EX_hash_new(plugin_desc->estimate_size, plugin_desc->ex_desc.key2index_func);
 
@@ -298,7 +298,7 @@ MESA_htable_handle plugin_EX_htable_new(const struct Maat_table_desc* plugin_tab
 	}
 	return key2ex_hash;
 }
-int Maat_table_runtime_plugin_new_ex_idx(struct Maat_table_runtime* table_rt, struct Maat_table_desc* table_desc, void* logger)
+int Maat_table_runtime_plugin_new_ex_idx(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_desc, void* logger)
 {
 	assert(table_rt->plugin.key2ex_hash==NULL);
 	if(table_rt->plugin.key2ex_hash)
@@ -309,9 +309,9 @@ int Maat_table_runtime_plugin_new_ex_idx(struct Maat_table_runtime* table_rt, st
 													table_rt->plugin.cache_line_num, logger);
 	return 0;
 }
-MAAT_PLUGIN_EX_DATA Maat_table_runtime_plugin_get_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_desc* table_desc, const char* key)
+MAAT_PLUGIN_EX_DATA Maat_table_runtime_plugin_get_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_desc, const char* key)
 {
-	struct plugin_table_desc* plugin_desc=NULL;
+	struct plugin_table_schema* plugin_desc=NULL;
 	struct wrap_plugin_EX_data* wrap_data=NULL;
 	MAAT_RULE_EX_DATA exdata=NULL;
 

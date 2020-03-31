@@ -1275,75 +1275,75 @@
 		                "not_flag":0                  
 		            }             
 		        ]
-            },
-            {
-                "compile_id": 164,
-                "service": 1,
-                "action": 1,
-                "do_blacklist": 1,
-                "do_log": 1,
-                "user_region": "CharsetWindows1251",
-                "is_valid": "yes",
-                "groups": [
-                    {
-                        "group_name": "Untitled",
-                        "regions": [
-                            {
-                                "table_name": "KEYWORDS_TABLE",
-                                "table_type": "string",
-                                "table_content": {
-                                    "keywords": ">ЗАО\\b«Севергазвтоматика\\bАйС»<",
-                                    "expr_type": "none",
-                                    "match_method": "sub",
-                                    "format": "uncase plain"
-                                }
+		    },
+        {
+            "compile_id": 164,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "CharsetWindows1251",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "string",
+                            "table_content": {
+                                "keywords": ">ЗАО\\b«Севергазвтоматика\\bАйС»<",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
                             }
-                        ]
-                    }
-                ]
-            },
-            {
-                "compile_id": 165,
-                "service": 1,
-                "action": 1,
-                "do_blacklist": 1,
-                "do_log": 1,
-                "user_region": "EvaluationOrder",
-                "is_valid": "yes",
-				"evaluation_order":"2.111",
-                "groups": [
-                    {
-                        "group_name": "Untitled",
-                        "regions": [
-                            {
-                                "table_name": "HTTP_URL",
-                                "table_type": "string",
-                                "table_content": {
-                                    "keywords": "cavemancircus.com/",
-                                    "expr_type": "none",
-                                    "match_method": "sub",
-                                    "format": "uncase plain"
-                                }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 165,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "EvaluationOrder",
+            "is_valid": "yes",
+						"evaluation_order":"2.111",
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "string",
+                            "table_content": {
+                                "keywords": "cavemancircus.com/",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
                             }
-                        ]
-                    },
-					{
-						"regions": [	
-							{
-								"table_type": "ip_plus",
-								"table_name": "IP_PLUS_CONFIG",
-								"table_content": {
-									"addr_type": "ipv4",
-									"saddr_format": "CIDR",
-									"src_ip1": "192.168.23.1",
-									"src_ip2": "24"
+                        }
+                    ]
+                },
+								{
+									"regions": [	
+										{
+											"table_type": "ip_plus",
+											"table_name": "IP_PLUS_CONFIG",
+											"table_content": {
+												"addr_type": "ipv4",
+												"saddr_format": "CIDR",
+												"src_ip1": "192.168.23.1",
+												"src_ip2": "24"
+											}
+										}                      
+									],
+									"not_flag" : 0
 								}
-							}                      
-						],
-						"not_flag" : 0
-					}
-                ]
-            },
+            ]
+       	},
             {
                 "compile_id": 166,
                 "service": 1,
@@ -1352,7 +1352,7 @@
                 "do_log": 1,
                 "user_region": "EvaluationOrder",
                 "is_valid": "yes",
-				"evaluation_order":"100.233",
+								"evaluation_order":"100.233",
                 "groups": [
                     {
                         "group_name": "Untitled",
@@ -1379,7 +1379,7 @@
                 "do_log": 1,
                 "user_region": "EvaluationOrder",
                 "is_valid": "yes",
-				"evaluation_order":"300.999",
+								"evaluation_order":"300.999",
                 "groups": [
                     {
                         "group_name": "Untitled",
@@ -1406,7 +1406,7 @@
                 "do_log": 1,
                 "user_region": "EvaluationOrder",
                 "is_valid": "yes",
-				"evaluation_order":"0",
+								"evaluation_order":"0",
                 "groups": [
                     {
                         "group_name": "Untitled",
@@ -1462,7 +1462,263 @@
                     "not_flag" : 0
                 }
             ]
-        }
+        },
+        {
+            "compile_id": 170,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "IPScan.IPv4_virtual.source",
+            "is_valid": "no",
+            "groups": [
+                {
+                		"group_name": "ipv4_virtual.source",
+                    "regions": [
+                        {
+                            "table_type": "ip_plus",
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv4",
+                                "saddr_format": "CIDR",
+                                "src_ip1": "192.168.40.10",
+                                "src_ip2": "32",
+                                "sport_format": "mask",
+                                "src_port1": "443",
+                                "src_port2": "65535",
+                                "daddr_format": "CIDR",
+                                "dst_ip1": "0.0.0.0",
+                                "dst_ip2": "0",
+                                "dport_format": "range",
+                                "dst_port1": "0",
+                                "dst_port2": "0",
+                                "protocol": 6,
+                                "direction": "double"
+                            }
+                        }                      
+                    ],
+                    "not_flag" : 0
+                }
+            ]
+        },
+        {
+            "compile_id": 171,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "IPScan.IPv4_virtual.destination",
+            "is_valid": "no",
+            "groups": [
+                {
+										"group_name": "ipv4_virtual.destination",
+                    "regions": [
+                        {
+                            "table_type": "ip_plus",
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv4",
+                                "saddr_format": "CIDR",
+                                "src_ip1": "192.168.231.46",
+                                "src_ip2": "32",
+                                "sport_format": "mask",
+                                "src_port1": "25705",
+                                "src_port2": "65535",
+                                "daddr_format": "CIDR",
+                                "dst_ip1": "0.0.0.0",
+                                "dst_ip2": "0",
+                                "dport_format": "range",
+                                "dst_port1": "0",
+                                "dst_port2": "0",
+                                "protocol": 6,
+                                "direction": "double"
+                            }
+                        }                      
+                    ],
+                    "not_flag" : 0
+                }
+            ]
+        },
+		    {
+		        "compile_id": 172,
+		        "service": 0,
+		        "action": 0,
+		        "do_blacklist": 0,
+		        "do_log": 0,
+		        "effective_rage": 0,
+		        "user_region": "ipv4_virtual.match",
+		        "is_valid": "yes",
+		        "groups": [
+		            {
+		            		"group_name":"ipv4_virtual.source",
+		            		"virtual_table":"VIRTUAL_IP_PLUS_SOURCE",
+		                "not_flag":0                   
+		            },
+		            {
+		            		"group_name":"ipv4_virtual.destination",
+		            		"virtual_table":"VIRTUAL_IP_PLUS_DESTINATION",
+		                "not_flag":0                  
+		            }             
+		        ]
+		    },
+        {
+            "compile_id": 173,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "IPScan.IPv4_composition.source",
+            "is_valid": "no",
+            "groups": [
+                {
+                		"group_name": "ipv4_composition.source",
+                    "regions": [
+                        {
+                            "table_type": "ip_plus",
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv4",
+                                "saddr_format": "CIDR",
+                                "src_ip1": "192.168.40.11",
+                                "src_ip2": "32",
+                                "sport_format": "mask",
+                                "src_port1": "443",
+                                "src_port2": "65535",
+                                "daddr_format": "CIDR",
+                                "dst_ip1": "0.0.0.0",
+                                "dst_ip2": "0",
+                                "dport_format": "range",
+                                "dst_port1": "0",
+                                "dst_port2": "0",
+                                "protocol": 6,
+                                "direction": "double"
+                            }
+                        }                      
+                    ],
+                    "not_flag" : 0
+                }
+            ]
+        },
+        {
+            "compile_id": 174,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "IPScan.IPv4_composition.destination",
+            "is_valid": "no",
+            "groups": [
+                {
+										"group_name": "ipv4_composition.destination",
+                    "regions": [
+                        {
+                            "table_type": "ip_plus",
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv4",
+                                "saddr_format": "CIDR",
+                                "src_ip1": "192.168.231.47",
+                                "src_ip2": "32",
+                                "sport_format": "mask",
+                                "src_port1": "25715",
+                                "src_port2": "65535",
+                                "daddr_format": "CIDR",
+                                "dst_ip1": "0.0.0.0",
+                                "dst_ip2": "0",
+                                "dport_format": "range",
+                                "dst_port1": "0",
+                                "dst_port2": "0",
+                                "protocol": 6,
+                                "direction": "double"
+                            }
+                        }                      
+                    ],
+                    "not_flag" : 0
+                }
+            ]
+        },
+		    {
+		        "compile_id": 175,
+		        "service": 0,
+		        "action": 0,
+		        "do_blacklist": 0,
+		        "do_log": 0,
+		        "effective_rage": 0,
+		        "user_region": "ipv4_composition.match",
+		        "is_valid": "yes",
+		        "groups": [
+		            {
+		            		"group_name":"ipv4_composition.source",
+		            		"virtual_table":"COMPOSITION_IP_SOURCE",
+		                "not_flag":0                   
+		            },
+		            {
+		            		"group_name":"ipv4_composition.destination",
+		            		"virtual_table":"COMPOSITION_IP_DESTINATION",
+		                "not_flag":0                  
+		            }             
+		        ]
+		    },
+        {
+            "compile_id": 176,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "IPScan.IPv4_composition.session",
+            "is_valid": "no",
+            "groups": [
+                {
+										"group_name": "ipv4_composition.session",
+                    "regions": [
+                        {
+                            "table_type": "ip_plus",
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv4",
+                                "saddr_format": "CIDR",
+                                "src_ip1": "192.168.40.11",
+                                "src_ip2": "2",
+                                "sport_format": "mask",
+                                "src_port1": "443",
+                                "src_port2": "65535",
+                                "daddr_format": "CIDR",
+                                "dst_ip1": "192.168.231.47",
+                                "dst_ip2": "32",
+                                "dport_format": "range",
+                                "dst_port1": "25715",
+                                "dst_port2": "25715",
+                                "protocol": 6,
+                                "direction": "single"
+                            }
+                        }                  
+                    ],
+                    "not_flag" : 0
+                }
+            ]
+        },
+		    {
+		        "compile_id": 177,
+		        "service": 0,
+		        "action": 0,
+		        "do_blacklist": 0,
+		        "do_log": 0,
+		        "effective_rage": 0,
+		        "user_region": "ipv4_composition.session.match",
+		        "is_valid": "yes",
+		        "groups": [
+		            {
+		            		"group_name":"ipv4_composition.session",
+		            		"virtual_table":"COMPOSITION_IP_SESSION",
+		                "not_flag":0                   
+		            }          
+		        ]
+		    }
     ],
     "plugin_table": [
         {

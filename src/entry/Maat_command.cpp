@@ -1660,8 +1660,8 @@ int get_foreign_keys_define(redisContext *ctx, struct serial_rule_t* rule_list, 
 {
 	int i=0;
 	int rule_with_foreign_key=0;
-	struct Maat_table_desc* p_table=NULL;
-	struct plugin_table_desc* plugin_desc=NULL;
+	struct Maat_table_schema* p_table=NULL;
+	struct plugin_table_schema* plugin_desc=NULL;
 	for(i=0; i<rule_num; i++)
 	{
 		if(rule_list[i].table_line==NULL)
@@ -1833,8 +1833,8 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 	int update_type=CM_UPDATE_TYPE_INC;
 	long long new_version=0;
 	enum MAAT_TABLE_TYPE table_type;
-	struct Maat_table_desc* table_desc=NULL;
-	const struct plugin_table_desc* plugin_desc=NULL;
+	struct Maat_table_schema* table_desc=NULL;
+	const struct plugin_table_schema* plugin_desc=NULL;
 	void* logger=feather->logger;
 
 	if(mr_ctx->write_ctx!=NULL&&mr_ctx->write_ctx->err==0)//authorized to write
@@ -1925,7 +1925,7 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 		{
 			if(table_type==TABLE_TYPE_PLUGIN)
 			{
-				table_desc=Maat_table_get_by_id(feather->table_mgr, table_id, TABLE_TYPE_PLUGIN, NULL);
+				table_desc=Maat_table_get_scan_by_id(feather->table_mgr, table_id, TABLE_TYPE_PLUGIN, NULL);
 				plugin_desc=&(table_desc->plugin);
 				valid_column=plugin_desc->valid_flag_column;
 			}
@@ -2091,8 +2091,8 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	int ret=0, table_id=0,success_cnt=0;
 	struct serial_rule_t *s_rule=NULL;
-	struct Maat_table_desc* p_table=NULL;
-	struct plugin_table_desc* plugin_desc=NULL;
+	struct Maat_table_schema* p_table=NULL;
+	struct plugin_table_schema* plugin_desc=NULL;
 	long long server_time=0,absolute_expire_time=0;
 	const char* p_foreign=NULL;	
 	int foreign_key_size=0;
@@ -2119,7 +2119,7 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_ru
 			ret=-1;
 			goto error_out;
 		}
-		p_table=Maat_table_get_by_id(_feather->table_mgr, table_id, TABLE_TYPE_PLUGIN, NULL);
+		p_table=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, TABLE_TYPE_PLUGIN, NULL);
 		if(!p_table)
 		{
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_command 

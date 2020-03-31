@@ -32,18 +32,11 @@ char* read_nxt_line_from_buff(const char* buff, size_t buff_size, size_t* offset
 {
 	int this_offset=0;
 	const char* p;
-	//search for CRLF, aka '\r', '\n' or "\r\n"
-	p=(const char*)memchr(buff+*offset,'\r',buff_size-*offset);
-	if(p==NULL)
+	//search for CRLF, aka CR '\r'(old Mac), LF '\n'(UNIX) or CRLF"\r\n" (Windows)
+	p=(const char*)memchr(buff+*offset,'\n',buff_size-*offset);
+	if(p==NULL)// NOT "\n" or "\r\n"
 	{
-		p=(const char*)memchr(buff+*offset,'\n',buff_size-*offset);
-	}
-	else
-	{
-		if((size_t)(p-buff)<buff_size-1 && *(p+1)=='\n')
-		{
-			p++;
-		}
+		p=(const char*)memchr(buff+*offset,'\r',buff_size-*offset);
 	}
 	if(p!=NULL)//point to next character
 	{
