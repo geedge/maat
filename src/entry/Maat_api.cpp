@@ -267,7 +267,7 @@ void scan_hit_status_update_by_group(struct scan_hit_status* hit_status, struct 
 	int ret=0;
 	struct Maat_hit_path_inner* hit_path=NULL;
 
-	for(i=0; i<group_rule->top_group_cnt; i++)
+	if(group_rule->top_group_cnt==0)
 	{
 		hit_path=ALLOC(struct Maat_hit_path_inner, 1);
 		hit_path_init(&(hit_path->path));
@@ -275,15 +275,30 @@ void scan_hit_status_update_by_group(struct scan_hit_status* hit_status, struct 
 		hit_path->path.Nth_scan=Nth_scan;
 		hit_path->path.region_id=region_id;
 		hit_path->path.sub_group_id=group_rule->group_id;
-		hit_path->path.top_group_id=group_rule->top_groups[i];
 		hit_path->path.virtual_table_id=virtual_table_id;
 		TAILQ_INSERT_TAIL(&hit_status->hit_path_qhead, hit_path, entries);
 		hit_status->hit_path_cnt++;
-		ret=insert_set_id(&(hit_status->all_hit_group_array),
-							&(hit_status->all_hit_group_array_sz),
-							hit_status->all_hit_group_cnt,
-							TO_RELATION_ID(virtual_table_id, group_rule->top_groups[i]));
-		hit_status->all_hit_group_cnt+=ret;
+	}
+	else
+	{
+		for(i=0; i<group_rule->top_group_cnt; i++)
+		{
+			hit_path=ALLOC(struct Maat_hit_path_inner, 1);
+			hit_path_init(&(hit_path->path));
+			hit_path->Nth_hit_region=Nth_region_result;
+			hit_path->path.Nth_scan=Nth_scan;
+			hit_path->path.region_id=region_id;
+			hit_path->path.sub_group_id=group_rule->group_id;
+			hit_path->path.top_group_id=group_rule->top_groups[i];
+			hit_path->path.virtual_table_id=virtual_table_id;
+			TAILQ_INSERT_TAIL(&hit_status->hit_path_qhead, hit_path, entries);
+			hit_status->hit_path_cnt++;
+			ret=insert_set_id(&(hit_status->all_hit_group_array),
+								&(hit_status->all_hit_group_array_sz),
+								hit_status->all_hit_group_cnt,
+								TO_RELATION_ID(virtual_table_id, group_rule->top_groups[i]));
+			hit_status->all_hit_group_cnt+=ret;
+		}
 	}
 	return;
 }
