@@ -745,6 +745,18 @@ TEST(IPScan, IPv4_composition)
 	EXPECT_EQ(result[0].config_id, 177);
 	EXPECT_EQ(result[1].config_id, 175);
 
+
+	struct Maat_hit_path_t hit_path[128];
+	int n_read=0;
+	n_read=Maat_get_scan_status(g_feather, &mid, MAAT_GET_SCAN_HIT_PATH, hit_path, sizeof(hit_path));
+	int i=0, c175=0, c177=0;
+	for(i=0; i<n_read; i++)
+	{
+		if(hit_path[i].compile_id==177) c177++;
+		if(hit_path[i].compile_id==175) c175++;
+	}
+	EXPECT_EQ(c177, 1);
+	EXPECT_EQ(c175, 2);//two paths for source IP hit and destination IP hit
 	Maat_clean_status(&mid);
 	return;
 }
