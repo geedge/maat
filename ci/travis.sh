@@ -33,7 +33,7 @@ env | sort
 : "${COMPILER_IS_GNUCXX:=OFF}"
 
 # Install dependency from YUM
-yum install -y MESA_handle_logger  MESA_htable pcre rulescan MESA_field_stat2 crypto
+yum install -y MESA_handle_logger-devel  MESA_htable-devel libpcre-devel rulescan-devel MESA_field_stat2-devel libcrypto-devel
 
 mkdir build || true
 cd build
