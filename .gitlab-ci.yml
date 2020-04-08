@@ -3,6 +3,7 @@ variables:
   GIT_STRATEGY: "clone"
   BUILD_PADDING_PREFIX: /tmp/padding_for_CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX_PREFIX_PREFIX_PREFIX_PREFIX_PREFIX/
   INSTALL_PREFIX: "/opt/MESA/lib/"
+  INSTALL_DEPENDENCY_LIBRARY: libMESA_handle_logger-devel  libMESA_htable-devel pcre-devel librulescan-devel libMESA_field_stat2-devel crypto-devel
 
 stages:
 - build
