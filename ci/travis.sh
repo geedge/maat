@@ -33,8 +33,9 @@ env | sort
 : "${COMPILER_IS_GNUCXX:=OFF}"
 
 # Install dependency from YUM
-yum install -y libMESA_handle_logger-devel  libMESA_htable-devel pcre-devel librulescan-devel libMESA_field_stat2-devel crypto-devel
-
+if [ -n "${UPLOAD}" ]; then
+	yum install -y $INSTALL_DEPENDENCY_LIBRARY 
+fi
 mkdir build || true
 cd build
 

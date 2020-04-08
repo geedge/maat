@@ -10,6 +10,7 @@ IF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 ENDIF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -Wall)
 set(MAAT_DEPEND_DYN_LIB  MESA_handle_logger MESA_htable pcre rulescan pthread m pcre MESA_field_stat2 crypto)
+set(INSTALL_DEPENDENCY_LIBRARY libMESA_handle_logger-devel  libMESA_htable-devel pcre-devel librulescan-devel libMESA_field_stat2-devel crypto-devel)
 include_directories(${PROJECT_SOURCE_DIR}/inc/)
 include_directories(/opt/MESA/include/)
 
