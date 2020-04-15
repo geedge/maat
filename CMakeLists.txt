@@ -1,5 +1,10 @@
-cmake_minimum_required (VERSION 3.5)
+cmake_minimum_required (VERSION 2.8)
+set(lib_name maatframe)
 project (maatframe)
+
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+include(Version)
+
 IF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   SET(CMAKE_INSTALL_PREFIX /opt/MESA/  CACHE PATH "default install path" FORCE )
 ENDIF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -14,3 +19,5 @@ add_subdirectory (vendor)
 add_subdirectory (src) 
 add_subdirectory (test)
 add_subdirectory (tools)
+
+include(Package)
