@@ -318,6 +318,7 @@ size_t scan_hit_status_update_by_compile(struct scan_hit_status* hit_status, str
 	{
 		TAILQ_FOREACH(p, &hit_status->hit_path_qhead, entries)
 		{
+			n_exsited_path=0;
 			if(TO_RELATION_ID(p->path.virtual_table_id, p->path.top_group_id)==a_set.items[i].item_id
 				&& p->path.compile_id!=compile_rule->compile_id)
 			{
