@@ -5,18 +5,22 @@
 #include <MESA/MESA_handle_logger.h>
 #include <MESA/MESA_list_queue.h>
 #include <assert.h>
+#include <sys/queue.h>
 
 struct wrap_plugin_EX_data
 {
 	MAAT_RULE_EX_DATA exdata;
-	const struct Maat_table_schema* ref_plugin_table;
+	int table_id;
+	const struct plugin_table_ex_data_schema* ex_desc;
+	struct ip_rule range_rule;//for ip_plugin
+	TAILQ_ENTRY(wrap_plugin_EX_data) entries;
 };
 void wrap_plugin_EX_data_free(void *data)
 {
 	struct wrap_plugin_EX_data* wrap_data=(struct wrap_plugin_EX_data*)data;
-	const struct plugin_table_ex_data_schema* ex_desc= &(wrap_data->ref_plugin_table->plugin.ex_desc);
-	ex_desc->free_func(wrap_data->ref_plugin_table->table_id, &(wrap_data->exdata), ex_desc->argl, ex_desc->argp);
-	wrap_data->ref_plugin_table=NULL;
+	wrap_data->ex_desc->free_func(wrap_data->table_id, &(wrap_data->exdata), wrap_data->ex_desc->argl, wrap_data->ex_desc->argp);
+	wrap_data->ex_desc=NULL;
+	wrap_data->table_id=-1;
 	free(wrap_data);
 	return;
 }
@@ -51,66 +55,130 @@ MESA_htable_handle wrap_plugin_EX_hash_new(long long estimate_size, Maat_plugin_
 	return key2ex_hash;
 }
 
-int plugin_EX_data_free(const struct Maat_table_schema* plugin_table, const char* line,
+int plugin_EX_data_free(const char* line, int key_column,
 								MESA_htable_handle key2ex_hash, void *logger)
 {
 	size_t key_offset=0, key_len=0;
-	const struct plugin_table_schema* plugin_desc= &(plugin_table->plugin);	
 	int ret=0;
-	ret=get_column_pos(line, plugin_desc->key_column, &key_offset, &key_len);
+	ret=get_column_pos(line, key_column, &key_offset, &key_len);
 	if(ret<0)
 	{
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-								"Plugin EX data del error: cannot find column %d of %s",
-								plugin_desc->key_column, line);
+								"plugin/ip_plugin EX data del error: cannot find column %d of %s",
+								key_column, line);
 		return -1;
 	}
 	ret=MESA_htable_del(key2ex_hash, (const unsigned char*)line+key_offset, key_len, NULL);
 	if(ret<0)
 	{
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-								"Plugin EX data del error: no such key %.*s of %s",
+								"plugin/ip_plugin EX data del error: no such key %.*s of %s",
 								key_len, line+key_offset, line);
 		return -1;
 	}	
 	return 0;
 }
+int ip_plugin_line_read(const struct ip_plugin_table_schema* schema, const char* line, struct ip_rule* range_rule)
+{
+	int ret[4]={0};
+	size_t column_offset=0, column_len=0;
+	char start_ip[128]={0}, end_ip[128]={0};
+	ret[0]=get_column_pos(line, schema->row_id_column, &column_offset, &column_len);
+	range_rule->rule_id=atoi(line+column_offset);
+	
+	ret[1]=get_column_pos(line, schema->ip_type_column, &column_offset, &column_len);
+	int ip_type=atoi(line+column_offset);
 
-int plugin_EX_data_new(const struct Maat_table_schema* plugin_table, const char* line,
+	ret[2]=get_column_pos(line, schema->start_ip_column, &column_offset, &column_len);
+	strncpy(start_ip, line+column_offset, MIN(column_len, sizeof(start_ip)));
+
+	ret[3]=get_column_pos(line, schema->end_ip_column, &column_offset, &column_len);
+	strncpy(end_ip, line+column_offset, MIN(column_len, sizeof(end_ip)));
+	if(ret[0]<0||ret[1]<0||ret[2]<0||ret[3]<0)
+	{
+		return -1;
+	}
+
+	if(ip_type==4)
+	{
+		ret[0]=ip_format2range(ip_type, FORMAT_RANGE, start_ip, end_ip, &(range_rule->ipv4_rule.start_ip), &(range_rule->ipv4_rule.end_ip));
+		range_rule->type=IPv4;
+	}
+	else if(ip_type==6)
+	{
+		ret[0]=ip_format2range(ip_type, FORMAT_RANGE, start_ip, end_ip, range_rule->ipv6_rule.start_ip, range_rule->ipv6_rule.end_ip);
+		range_rule->type=IPv6;
+	}
+	else
+	{
+		return -1;
+	}
+	if(ret[0]<0)
+	{
+		return -1;
+	}
+	range_rule->rule_id=(unsigned int)atoi(line+column_offset);
+	range_rule->user_tag=NULL;
+	return 0;
+}
+int plugin_EX_data_new(const struct Maat_table_schema* table_schema,
+								const char* line,
 								MESA_htable_handle key2ex_hash, void *logger)
 {
 	char* key=NULL;
 	size_t key_offset=0, key_len=0;
 	MAAT_RULE_EX_DATA exdata=NULL;
-	struct wrap_plugin_EX_data* wrap_data=NULL;
-	const struct plugin_table_schema* plugin_desc= &(plugin_table->plugin);
+	const struct plugin_table_ex_data_schema* ex_desc=NULL;
+	int key_column=-1;
+	struct wrap_plugin_EX_data* wrap_data=ALLOC(struct wrap_plugin_EX_data, 1);
+	switch(table_schema->table_type)
+	{
+		case TABLE_TYPE_PLUGIN:
+			ex_desc=&(table_schema->plugin.ex_desc);
+			key_column=table_schema->plugin.key_column;
+			break;
+		case TABLE_TYPE_IP_PLUGIN:
+			ex_desc=&(table_schema->ip_plugin.ex_desc);
+			key_column=table_schema->ip_plugin.row_id_column;
+			ip_plugin_line_read(&table_schema->ip_plugin, line, &(wrap_data->range_rule));
+			wrap_data->range_rule.user_tag=wrap_data;
+			break;
+		default:
+			assert(0);
+			break;
+	}
+
 	int ret=0;
-	ret=get_column_pos(line, plugin_desc->key_column, &key_offset, &key_len);
+	ret=get_column_pos(line, key_column, &key_offset, &key_len);
 	if(ret<0)
 	{
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-								"Plugin EX data add error: cannot find column %d of %s",
-								plugin_desc->key_column, line);
-		return -1;
+								"plugin/ip_plugin EX data add error: cannot find column %d of %s",
+								key_column, line);
+		goto error_out;
 	}
 	key=ALLOC(char, key_len+1);
 	memcpy(key, line+key_offset, key_len);
-	plugin_desc->ex_desc.new_func(plugin_table->table_id, key, line, &exdata, 
-								plugin_desc->ex_desc.argl, plugin_desc->ex_desc.argp);
-	wrap_data=ALLOC(struct wrap_plugin_EX_data, 1);
+	ex_desc->new_func(table_schema->table_id, key, line, &exdata, 
+						ex_desc->argl, ex_desc->argp);
 	wrap_data->exdata=exdata;
-	wrap_data->ref_plugin_table=plugin_table;
+	wrap_data->ex_desc=ex_desc;
+	wrap_data->table_id=table_schema->table_id;
 	ret=MESA_htable_add(key2ex_hash, (const unsigned char*)line+key_offset, key_len, wrap_data);
 	free(key);
 	if(ret<0)
 	{
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-								"Plugin EX data add error: duplicated key %.*s of %s",
+								"plugin/ip_plugin EX data add error: duplicated key %.*s of %s",
 								key_len, line+key_offset, line);
 		wrap_plugin_EX_data_free(wrap_data);
 		return -1;
 	}
 	return 0;
+error_out:
+	free(wrap_data);
+	free(key);
+	return -1;
 }
 
 struct Maat_table_runtime_manager
@@ -168,6 +236,10 @@ static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_sche
 										table_desc->plugin.ex_desc.key2index_func);
 			}
 			break;
+		case TABLE_TYPE_IP_PLUGIN:
+			table_rt->ip_plugin.rowid2ex_hash=wrap_plugin_EX_hash_new(table_desc->ip_plugin.estimate_size, 
+										NULL);
+			break;
 		default:
 			break;
 	}
@@ -218,6 +290,12 @@ static void table_runtime_free(struct Maat_table_runtime* p)
 			{
 				MESA_htable_destroy(p->plugin.key2ex_hash, NULL);
 			}
+			break;
+		case TABLE_TYPE_IP_PLUGIN:
+			MESA_htable_destroy(p->ip_plugin.rowid2ex_hash, NULL);
+			ip_matcher_free(p->ip_plugin.ip_matcher);
+			p->ip_plugin.row_num=0;
+			break;
 		default:
 			break;
 	}
@@ -331,6 +409,22 @@ MAAT_PLUGIN_EX_DATA Maat_table_runtime_plugin_get_ex_data(struct Maat_table_runt
 	return exdata;
 
 }
+int Maat_table_runtime_ip_plugin_get_N_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const struct ip_address* ip, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t size)
+{
+	struct ip_plugin_table_schema* ip_plugin_desc=NULL;
+	struct scan_result results[size];
+	int n_result=0, i=0;
+
+	ip_plugin_desc=&(table_schema->ip_plugin);
+	n_result=ip_matcher_match(table_rt->ip_plugin.ip_matcher, (struct ip_data*)ip, results, size);
+	for(i=0; i<n_result; i++)
+	{
+		
+		ip_plugin_desc->ex_desc.dup_func(table_schema->table_id, &(ex_data_array[i]), &(results[i].tag), 
+			ip_plugin_desc->ex_desc.argl, ip_plugin_desc->ex_desc.argp);
+	}
+	return n_result;
+}
 
 void Maat_table_runtime_digest_add(struct Maat_table_runtime* table_rt, int expr_id, const char* digest, short confidence_degree, void* tag)
 {
@@ -422,6 +516,47 @@ int Maat_table_runtime_digest_batch_udpate(struct Maat_table_runtime* table_rt)
 		return -1;
 	}
 	return q_cnt;
+}
+
+TAILQ_HEAD(ip_range_rule_q,      wrap_plugin_EX_data);
+
+void walk_ip_plugin_hash(const uchar * key, uint size, void * data, void * user)
+{
+	struct wrap_plugin_EX_data* wrap_plugin_ex=(struct wrap_plugin_EX_data*)data;
+	struct ip_range_rule_q* queue=(struct ip_range_rule_q*)user;
+	TAILQ_INSERT_TAIL(queue, wrap_plugin_ex, entries);
+	return;
+}
+
+int Maat_table_runtime_rebuild_ip_matcher(struct Maat_table_runtime* table_rt)
+{
+	struct ip_matcher* new_ip_matcher=NULL;
+	struct ip_range_rule_q queue;//This is for index, no need to free.
+	size_t rule_cnt=0;
+	size_t i=0, mem_use=0;
+	struct ip_rule *rules=NULL;
+	struct wrap_plugin_EX_data *p=NULL;
+	TAILQ_INIT(&queue);
+	MESA_htable_iterate(table_rt->ip_plugin.rowid2ex_hash, walk_ip_plugin_hash, &queue);
+	rule_cnt=(size_t)MESA_htable_get_elem_num(table_rt->ip_plugin.rowid2ex_hash);
+	rules=ALLOC(struct ip_rule, rule_cnt);
+	TAILQ_FOREACH(p, &queue, entries)
+	{
+		rules[i]=p->range_rule;
+		i++;
+	}
+	assert(i==rule_cnt);
+	new_ip_matcher=ip_matcher_new(rules, rule_cnt, &mem_use);
+	table_rt->ip_plugin.old_ip_matcher=table_rt->ip_plugin.ip_matcher;
+	table_rt->ip_plugin.ip_matcher=new_ip_matcher;
+	return 0;
+}
+struct ip_matcher* Maat_table_runtime_dettach_old_ip_matcher(struct Maat_table_runtime* table_rt)
+{
+	struct ip_matcher* old_one=table_rt->ip_plugin.old_ip_matcher;
+	assert(table_rt->table_type==TABLE_TYPE_IP_PLUGIN);
+	table_rt->ip_plugin.old_ip_matcher=NULL;
+	return old_one;
 }
 
 

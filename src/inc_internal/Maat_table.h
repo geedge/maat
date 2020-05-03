@@ -32,7 +32,8 @@ enum MAAT_TABLE_TYPE
 	TABLE_TYPE_COMPOSITION,
 	TABLE_TYPE_GROUP,
 	TABLE_TYPE_COMPILE,
-	TABLE_TYPE_PLUGIN
+	TABLE_TYPE_PLUGIN,
+	TABLE_TYPE_IP_PLUGIN
 };
 
 struct compile_ex_data_idx
@@ -100,7 +101,17 @@ struct plugin_table_schema
 	struct plugin_table_callback_schema cb_plug[MAX_PLUGIN_PER_TABLE];	
 	struct plugin_table_ex_data_schema ex_desc;
 };
-
+struct ip_plugin_table_schema
+{
+	int row_id_column;
+	int ip_type_column;
+	int start_ip_column;
+	int end_ip_column;
+	int valid_flag_column;
+	int rule_tag_column;
+	long long estimate_size;
+	struct plugin_table_ex_data_schema ex_desc;
+};
 struct Maat_table_schema
 {
 	int table_id;
@@ -113,9 +124,10 @@ struct Maat_table_schema
 		struct compile_table_schema compile;		
 		struct expr_table_schema expr;
 		struct plugin_table_schema plugin;		
+		struct ip_plugin_table_schema ip_plugin;
 		struct virtual_table_schema virtual_table;
 		struct composition_table_schema composition;
-		void* others;//group, ip, interval and digest don't have sperate description info.
+		void* others;//group, ip, interval and digest don't have any special schema.
 	};
 //for stat>>>>>>>>
 	unsigned long long udpate_err_cnt;

@@ -13,6 +13,7 @@
 #include "dynamic_array.h"
 #include "bool_matcher.h"
 #include "hiredis.h"
+#include "IPMatcher.h"
 #include "igraph/igraph.h"
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
@@ -204,7 +205,8 @@ enum maat_garbage_type
 	GARBAGE_COMPILE_GOURP_RELATION,
 	GARBAGE_BOOL_MATCHER,
 	GARBAGE_MAP_STR2INT,
-	GARBAGE_FOREIGN_FILE
+	GARBAGE_FOREIGN_FILE,
+	GARBAGE_IP_MATCHER
 };
 struct iconv_handle_t
 {
@@ -402,6 +404,7 @@ struct _maat_garbage_t
 		struct Maat_compile_rule* compile_rule;
 		struct Maat_compile_group_relation * compile_group_relation;
 		struct bool_matcher* bool_matcher;
+		struct ip_matcher* a_ip_matcher;
 		void * raw;
 		MESA_htable_handle str2int_map;
 		char* filename;
@@ -456,7 +459,7 @@ MAAT_RULE_EX_DATA rule_ex_data_new(const struct Maat_rule_head * rule_head, cons
 void rule_ex_data_free(const struct Maat_rule_head * rule_head, const char* srv_def, MAAT_RULE_EX_DATA *ad, const struct compile_ex_data_idx* ex_desc);
 MESA_htable_handle wrap_plugin_EX_hash_new(long long estimate_size, Maat_plugin_EX_key2index_func_t * key2index);
 int plugin_EX_data_new(const struct Maat_table_schema* plugin_table, const char* line, MESA_htable_handle key2ex_hash, void *logger);
-int plugin_EX_data_free(const struct Maat_table_schema* plugin_table, const char* line, MESA_htable_handle key2ex_hash, void *logger);
+int plugin_EX_data_free(const char* line, int key_column, MESA_htable_handle key2ex_hash, void *logger);
 
 
 void set_serial_rule(struct serial_rule_t* rule,enum MAAT_OPERATION op,int rule_id,int label_id,const char* table_name,const char* line, long long timeout);

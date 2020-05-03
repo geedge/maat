@@ -1380,6 +1380,27 @@ MAAT_PLUGIN_EX_DATA Maat_plugin_get_EX_data(Maat_feather_t feather, int table_id
 	exdata=Maat_table_runtime_plugin_get_ex_data(table_rt, table_desc, key);
 	return exdata;
 }
+int Maat_IP_plugin_get_EX_data(Maat_feather_t feather, int table_id, const struct ip_address* ip, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t n_ex_data)
+{
+	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	struct Maat_table_schema *table_desc=NULL;
+	struct Maat_table_runtime *table_rt=NULL;
+	int n_get=0;
+	if(_feather->scanner==NULL)
+	{
+		return 0;
+	}
+	table_desc=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, TABLE_TYPE_PLUGIN, NULL);
+	table_rt=Maat_table_runtime_get(_feather->scanner->table_rt_mgr, table_id);
+	if(table_rt->table_type!=TABLE_TYPE_IP_PLUGIN)
+	{
+		return -1;
+	}
+	
+	n_get=Maat_table_runtime_ip_plugin_get_N_ex_data(table_rt, table_desc, ip, ex_data_array, n_ex_data);
+	return n_get;
+
+}
 
 int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 						,enum MAAT_CHARSET charset,const char* data,int data_len

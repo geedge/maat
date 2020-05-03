@@ -46,3 +46,18 @@ add_library(igraph-static STATIC IMPORTED GLOBAL)
 add_dependencies(igraph-static igraph)
 set_property(TARGET igraph-static PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/libigraph.a)
 set_property(TARGET igraph-static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
+
+ExternalProject_Add(ipmatcher PREFIX ipmatcher
+        URL ${CMAKE_CURRENT_SOURCE_DIR}/IPMatcher-20200503.zip
+		CONFIGURE_COMMAND ""
+        BUILD_COMMAND make
+		INSTALL_COMMAND make DESTDIR=<INSTALL_DIR> install
+        BUILD_IN_SOURCE 1)
+
+ExternalProject_Get_Property(ipmatcher INSTALL_DIR)
+file(MAKE_DIRECTORY ${INSTALL_DIR}/include)
+
+add_library(ipmatcher-static STATIC IMPORTED GLOBAL)
+add_dependencies(ipmatcher-static ipmatcher)
+set_property(TARGET ipmatcher-static PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/ipmatcher.a)
+set_property(TARGET ipmatcher-static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)

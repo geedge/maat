@@ -2410,142 +2410,7 @@ error_out:
 	free(maat_str_rule);
 	maat_str_rule=NULL;
 }
-enum MAAT_IP_FORMAT
-{
-	FORMAT_RANGE,
-	FORMAT_MASK,
-	FORMAT_CIDR,
-	FORMAT_UNKNOWN
-};
-enum MAAT_IP_FORMAT ip_format_str2int(const char* format)
-{
-	if(0==strcasecmp(format, "range"))
-	{
-		return FORMAT_RANGE;
-	}
-	else if(0==strcasecmp(format, "mask"))
-	{
-		return FORMAT_MASK;
-	}
-	else if(0==strcasecmp(format, "CIDR"))
-	{
-		return FORMAT_CIDR;
-	}
-	else
-	{
-		assert(0);
-	}
-	return FORMAT_UNKNOWN;
-}
-int ip_format2range(int ip_type, enum MAAT_IP_FORMAT format, const char* ip1, const char* ip2, unsigned int range_begin[], unsigned int range_end[])
-{
-	unsigned int ipv4_addr=0, ipv4_mask=0, ipv4_range_end=0;
-	unsigned int ipv6_addr[4]={0}, ipv6_mask[4]={0}, ipv6_range_end[4]={0};
-	int cidr=0, bit32=0;
-	int ret=0, i=0;
-	if(ip_type!=4 && ip_type!=6)
-	{
-		assert(0);
-		return -1;
-	}
-	if(ip_type==4)
-	{
-		ret=inet_pton(AF_INET, ip1, &ipv4_addr);
-		if(ret<=0)
-		{
-			return -1;
-		}
-		ipv4_addr=ntohl(ipv4_addr);
-		switch (format)
-		{
-			case FORMAT_RANGE:
-				range_begin[0]=ipv4_addr;
-				ret=inet_pton(AF_INET, ip2, &ipv4_range_end);
-				if(ret<=0)
-				{
-					return -1;
-				}				
-				ipv4_range_end=ntohl(ipv4_range_end);
-				range_end[0]=ipv4_range_end;
-				break;
-			case FORMAT_MASK:
-				ret=inet_pton(AF_INET, ip2, &ipv4_mask);
-				if(ret<=0)
-				{
-					return -1;
-				}
-				ipv4_mask=ntohl(ipv4_mask);
-				range_begin[0]=ipv4_addr&ipv4_mask;
-				range_end[0]=ipv4_addr|~ipv4_mask;
-				break;
-			case FORMAT_CIDR:
-				cidr=atoi(ip2);
-				if(cidr>32||cidr<0)
-				{
-					return -1;
-				}
-				ipv4_mask = (0xFFFFFFFFUL << (32 - cidr)) & 0xFFFFFFFFUL;
-				range_begin[0]=ipv4_addr&ipv4_mask;
-				range_end[0]=ipv4_addr|~ipv4_mask;
-				break;
-			default:
-				assert(0);
-		}
-	}
-	else	//ipv6
-	{
-		ret=inet_pton(AF_INET6, ip1, ipv6_addr);
-		if(ret<=0)
-		{
-			return -1;
-		}
-		ipv6_ntoh(ipv6_addr);
-		switch(format)
-		{
-			case FORMAT_RANGE:
-				ret=inet_pton(AF_INET6, ip2, ipv6_range_end);
-				if(ret<=0)
-				{
-					return -1;
-				}
-				ipv6_ntoh(ipv6_range_end);
-				memcpy(range_begin, ipv6_addr, sizeof(ipv6_addr));				
-				memcpy(range_end, ipv6_range_end, sizeof(ipv6_range_end));
-				break;
-			case FORMAT_MASK:
-				ret=inet_pton(AF_INET6, ip2, ipv6_mask);
-				if(ret<=0)
-				{
-					return -1;
-				}
-				ipv6_ntoh(ipv6_mask);
-				for(i=0; i<4; i++)
-				{
-					range_begin[i]=ipv6_addr[i]&ipv6_mask[i];	
-					range_end[i] = ipv6_addr[i]|~ipv6_mask[i];
-				}
-				break;
-			case FORMAT_CIDR:
-				cidr=atoi(ip2);
-				if(cidr>128||cidr<0)
-				{
-					return -1;
-				}
-				for(i=0; i<4; i++)
-				{
-					bit32=128-cidr-32*(3-i);
-					if(bit32<0) bit32=0;
-					ipv6_mask[i]=(0xFFFFFFFFUL << bit32) & 0xFFFFFFFFUL;
-					range_begin[i]=ipv6_addr[i]&ipv6_mask[i];	
-					range_end[i] = ipv6_addr[i]|~ipv6_mask[i];
-				}
-				break;
-			default:
-				assert(0);
-		}
-	}
-	return 0;
-}
+
 void update_ip_rule(struct Maat_table_schema* table, const char* table_line, struct Maat_scanner *scanner, void* logger)
 {
 	struct db_ip_rule_t* ip_rule=(struct db_ip_rule_t*)calloc(sizeof(struct db_ip_rule_t),1);
@@ -3032,12 +2897,12 @@ void garbage_bagging_with_timeout(enum maat_garbage_type type,void *p, int timeo
 	MESA_lqueue_join_tail(garbage_q,&bag,sizeof(void*));
 	return;
 }
-void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbage_q)
+void garbage_bagging(enum maat_garbage_type type, void *p, MESA_lqueue_head garbage_q)
 {
 	garbage_bagging_with_timeout(type, p, -1, garbage_q);
 	return;
 }
-void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
+void garbage_bury(MESA_lqueue_head garbage_q, int timeout, void *logger)
 {
 	UNUSED	MESA_queue_errno_t q_ret=MESA_QUEUE_RET_OK;
 	_maat_garbage_t* bag=NULL;
@@ -3117,6 +2982,10 @@ void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
 				free(bag->filename);
 				bag->filename=NULL;
 				break;
+			case GARBAGE_IP_MATCHER:
+				ip_matcher_free(bag->a_ip_matcher);
+				bag->a_ip_matcher=NULL;
+				break;
 			default:
 				assert(0);
 		}
@@ -3131,7 +3000,7 @@ void garbage_bury(MESA_lqueue_head garbage_q,int timeout,void *logger)
 							q_cnt,bury_cnt);
 	}
 }
-void update_plugin_table(struct Maat_table_schema* table,const char* table_line,Maat_scanner* scanner, const struct rule_tag* tags, int n_tags, void* logger)
+void update_plugin_table(struct Maat_table_schema* table, const char* table_line, Maat_scanner* scanner, const struct rule_tag* tags, int n_tags, void* logger)
 {
 	int i=0, ret=1, matched_tag=1;
 	unsigned int len=strlen(table_line)+1;
@@ -3193,14 +3062,14 @@ void update_plugin_table(struct Maat_table_schema* table,const char* table_line,
 			}
 			else
 			{
-				plugin_EX_data_free(table, table_line, table_rt->plugin.key2ex_hash, logger);
+				plugin_EX_data_free(table_line, plugin_desc->key_column, table_rt->plugin.key2ex_hash, logger);
 			}	
 		}
 		if(plugin_desc->cb_plug_cnt>0)
 		{
 			for(i=0;i<plugin_desc->cb_plug_cnt;i++)
 			{
-				plugin_desc->cb_plug[i].update(table->table_id,table_line,plugin_desc->cb_plug[i].u_para);
+				plugin_desc->cb_plug[i].update(table->table_id, table_line, plugin_desc->cb_plug[i].u_para);
 			}
 		}
 
@@ -3210,10 +3079,77 @@ void update_plugin_table(struct Maat_table_schema* table,const char* table_line,
 		p=ALLOC(char, len);
 		memcpy(p,table_line,len);
 		table_rt->plugin.cache_size+=len;
-		dynamic_array_write(table_rt->plugin.cache_lines,table_rt->plugin.cache_line_num,p);
+		dynamic_array_write(table_rt->plugin.cache_lines, table_rt->plugin.cache_line_num, p);
 		table_rt->plugin.cache_line_num++;		
 	}
 }
+void update_ip_plugin_table(struct Maat_table_schema* table,const char* table_line,Maat_scanner* scanner, const struct rule_tag* tags, int n_tags, void* logger)
+{
+	int ret=1, matched_tag=1;
+	struct ip_plugin_table_schema* ip_plugin_schema=&(table->ip_plugin);
+	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
+	struct ip_plugin_runtime* ip_plugin_rt=&(table_rt->ip_plugin);
+	char* copy=NULL;
+	size_t is_valid_offset=0, valid_len=0;
+	size_t accept_tag_offset=0, accept_tag_len=0;
+	if(ip_plugin_schema->rule_tag_column>0&&n_tags>0)
+	{
+		ret=Maat_helper_read_column(table_line, ip_plugin_schema->rule_tag_column, &accept_tag_offset, &accept_tag_len);
+		if(ret<0)
+		{
+			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+						"update error, could not locate tag in column %d of plugin table %s:%s",
+						ip_plugin_schema->rule_tag_column,
+						table->table_name[table->updating_name],
+						table_line);
+			table->udpate_err_cnt++;
+			return;
+		}
+		if(accept_tag_len>2)
+		{
+			copy=ALLOC(char, accept_tag_len+1);
+			memcpy(copy, table_line+accept_tag_offset, accept_tag_len);
+			matched_tag=compare_accept_tag(copy, tags, n_tags);
+			if(matched_tag<0)
+			{
+				MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+							"update error, invalid tag format of ip_plugin table %s:%s",
+							table->table_name[table->updating_name], table_line);
+				table->udpate_err_cnt++;
+			}
+			if(matched_tag==0)
+			{
+				table->unmatch_tag_cnt++;
+			}
+			free(copy);
+			copy=NULL;
+		}
+		if(!matched_tag)
+		{
+			return;
+		}
+	}
+	ret=Maat_helper_read_column(table_line, ip_plugin_schema->valid_flag_column, &is_valid_offset, &valid_len);
+	//thread safe is protected by background_update_mutex
+	if(atoi(table_line+is_valid_offset)==1)
+	{
+		ret=plugin_EX_data_new(table, table_line, ip_plugin_rt->rowid2ex_hash, logger);
+		if(ret==0)
+		{
+			ip_plugin_rt->row_num++;
+		}
+	}
+	else
+	{
+		ret=plugin_EX_data_free(table_line, ip_plugin_schema->row_id_column, ip_plugin_rt->rowid2ex_hash, logger);
+		if(ret==0)
+		{
+			ip_plugin_rt->row_num--;
+		}
+
+	}
+}
+
 void vector_print(igraph_vector_t *v) {
   long int i;
   for (i=0; i<igraph_vector_size(v); i++) {
@@ -3302,6 +3238,7 @@ void do_scanner_update(struct Maat_scanner* scanner, MESA_lqueue_head garbage_q,
 	struct bool_matcher *tmp1=NULL,*tmp2=NULL;
 	MESA_htable_handle tmp_map=NULL;
 	struct Maat_table_runtime* table_rt=NULL;
+	struct ip_matcher* old_ip_matcher=NULL;
 	int i=0, ret=0;
 	igraph_bool_t is_dag;
 	igraph_is_dag(&(scanner->group_graph), &is_dag);
@@ -3355,7 +3292,10 @@ void do_scanner_update(struct Maat_scanner* scanner, MESA_lqueue_head garbage_q,
 										"GIE_update error.");
 				}
 				break;
-			case TABLE_TYPE_PLUGIN:
+			case TABLE_TYPE_IP_PLUGIN:
+				Maat_table_runtime_rebuild_ip_matcher(table_rt);
+				old_ip_matcher=Maat_table_runtime_dettach_old_ip_matcher(table_rt);
+				garbage_bagging(GARBAGE_IP_MATCHER, old_ip_matcher, garbage_q);
 				break;
 			default:
 				break;
@@ -3513,6 +3453,10 @@ int maat_update_cb(const char* table_name,const char* line,void *u_para)
 			break;
 		case	TABLE_TYPE_PLUGIN:
 			update_plugin_table(p_table, line, scanner, feather->accept_tags, feather->n_tags, feather->logger);
+			break;
+		case	TABLE_TYPE_IP_PLUGIN:
+			update_ip_plugin_table(p_table, line, scanner, feather->accept_tags, feather->n_tags, feather->logger);
+			break;		
 		default:
 			break;
 	

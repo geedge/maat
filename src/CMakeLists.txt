@@ -21,6 +21,7 @@ target_include_directories(maat_frame_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 #target_include_directories(maat_frame_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc_internal/hiredis)
 target_link_libraries(maat_frame_static hiredis-vip-static)
 target_link_libraries(maat_frame_static igraph-static)
+target_link_libraries(maat_frame_static ipmatcher-static)
 
 # Shared Library Output
 add_library(maat_frame_shared SHARED ${MAAT_SRC})
@@ -34,6 +35,7 @@ target_include_directories(maat_frame_shared PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 target_include_directories(maat_frame_shared PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc_internal/hiredis)
 target_link_libraries(maat_frame_shared hiredis-vip-static ${MAAT_DEPEND_DYN_LIB})
 target_link_libraries(maat_frame_shared igraph-static ${MAAT_DEPEND_DYN_LIB})
+target_link_libraries(maat_frame_shared ipmatcher-static)
 
 install(FILES ${PROJECT_SOURCE_DIR}/inc/Maat_rule.h DESTINATION /opt/MESA/include/MESA/ COMPONENT HEADER)
 install(FILES ${PROJECT_SOURCE_DIR}/inc/Maat_command.h DESTINATION /opt/MESA/include/MESA/ COMPONENT HEADER)

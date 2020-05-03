@@ -82,5 +82,14 @@ int decrypt_open(const char* file_name, const char* key, const char* algorithm, 
 int load_file_to_memory(const char* file_name, unsigned char**pp_out, size_t *out_sz);
 //do_encrypt: 1 for encryption, 0 for decryption.
 int crypt_memory(const unsigned char* inbuf, size_t inlen, unsigned char** pp_out, size_t *out_sz, const char* key, const char* algorithm, int do_encrypt, char* err_str, size_t err_str_sz);
+enum MAAT_IP_FORMAT
+{
+	FORMAT_RANGE,
+	FORMAT_MASK,
+	FORMAT_CIDR,
+	FORMAT_UNKNOWN
+};
+enum MAAT_IP_FORMAT ip_format_str2int(const char* format);
+int ip_format2range(int ip_type, enum MAAT_IP_FORMAT format, const char* ip1, const char* ip2, unsigned int range_begin[], unsigned int range_end[]);
 
 
