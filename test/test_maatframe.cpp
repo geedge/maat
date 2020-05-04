@@ -101,7 +101,7 @@ void scan_with_old_or_new_cfg(Maat_feather_t feather, int is_old)
 	if(!is_old)
 	{
 		EXPECT_EQ(ret, 1);
-		EXPECT_TRUE(result.config_id==2);
+		EXPECT_EQ(result.config_id, 2);
 	}
 	else
 	{
@@ -219,7 +219,7 @@ void test_plugin_table(Maat_feather_t feather,const char* table_name,
 	ASSERT_GT(ret, 0);
 
 }
-
+#define Plugin_callback
 TEST(PluginTable, Callback)
 {
 	test_plugin_table(g_feather, "QD_ENTRY_INFO",	
@@ -228,6 +228,85 @@ TEST(PluginTable, Callback)
 								Maat_read_entry_finish_cb,
 								g_feather,
 								g_logger);
+
+}
+#define IP_PLUGIN_EX_DATA
+struct ip_plugin_ud
+{
+	int rule_id;
+	char* buffer;
+	int ref_cnt;
+};
+void ip_plugin_EX_new_cb(int table_id, const char* key, const char* table_line, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
+{
+	int *counter=(int *)argp, ret=0;
+	size_t column_offset=0, column_len=0;
+	struct ip_plugin_ud* ud=(struct ip_plugin_ud*)calloc(sizeof(struct ip_plugin_ud), 1);
+	ret=Maat_helper_read_column(table_line, 1, &column_offset, &column_len);
+	EXPECT_EQ(ret, 0);
+	ud->rule_id=atoi(table_line+column_offset);
+	ret=Maat_helper_read_column(table_line, 5, &column_offset, &column_len);	
+	EXPECT_EQ(ret, 0);
+	ud->buffer=(char*)calloc(sizeof(char), column_len+1);
+	strncpy(ud->buffer, table_line+column_offset, column_len);
+	ud->ref_cnt=1;
+	*ad=ud;
+	(*counter)++;
+	return;
+}
+void ip_plugin_EX_free_cb(int table_id, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
+{
+	struct ip_plugin_ud* u=(struct ip_plugin_ud*)(*ad);
+	u->ref_cnt--;
+	if(u->ref_cnt>0) return;
+	free(u->buffer);
+	free(u);
+	*ad=NULL;
+}
+void ip_plugin_EX_dup_cb(int table_id,	MAAT_PLUGIN_EX_DATA *to, MAAT_PLUGIN_EX_DATA *from, long argl, void *argp)
+{
+	struct ip_plugin_ud* u=(struct ip_plugin_ud*)(*from);
+	u->ref_cnt++;
+	*to=u;
+}
+
+TEST(IP_Plugin_Table, EX_DATA)
+{
+	
+	int ip_plugin_ex_data_counter=0, i=0;
+	const char* table_name="TEST_IP_PLUGIN_WITH_EXDATA";
+	int table_id=0, ret=0;
+	table_id=Maat_table_register(g_feather, table_name);
+	ASSERT_GT(table_id, 0);
+	ret=Maat_ip_plugin_EX_register(g_feather, table_id,
+								ip_plugin_EX_new_cb,
+								ip_plugin_EX_free_cb,
+								ip_plugin_EX_dup_cb,
+								0, &ip_plugin_ex_data_counter);
+	ASSERT_TRUE(ret>=0);
+	EXPECT_EQ(ip_plugin_ex_data_counter, 4);
+	struct ip_address ipv4, ipv6;
+	struct ip_plugin_ud* result[4];
+	ipv4.ip_type=4;
+	inet_pton(AF_INET, "192.168.30.100", &(ipv4.ipv4));
+	ret=Maat_ip_plugin_get_EX_data(g_feather, table_id, &ipv4, (void**)result, 4);
+	ASSERT_EQ(ret, 2);
+	EXPECT_EQ(result[0]->rule_id, 101);
+	EXPECT_EQ(result[1]->rule_id, 102);
+	for(i=0; i<ret; i++)
+	{
+		ip_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
+	ipv6.ip_type=6;
+	inet_pton(AF_INET6,"2001:db8:1234::5210",&(ipv6.ipv6));
+	ret=Maat_ip_plugin_get_EX_data(g_feather, table_id, &ipv6, (void**)result, 4);
+	ASSERT_EQ(ret, 2);
+	EXPECT_EQ(result[0]->rule_id, 104);
+	EXPECT_EQ(result[1]->rule_id, 103);
+	for(i=0; i<ret; i++)
+	{
+		ip_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
 
 }
 

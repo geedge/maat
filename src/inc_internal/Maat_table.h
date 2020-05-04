@@ -79,7 +79,7 @@ struct plugin_table_callback_schema
 	Maat_finish_callback_t	*finish;
 	void* u_para;
 };
-struct plugin_table_ex_data_schema
+struct EX_data_schema
 {
 	Maat_plugin_EX_new_func_t* new_func;
 	Maat_plugin_EX_free_func_t* free_func;
@@ -99,7 +99,7 @@ struct plugin_table_schema
 	int have_exdata;
 	long long estimate_size;
 	struct plugin_table_callback_schema cb_plug[MAX_PLUGIN_PER_TABLE];	
-	struct plugin_table_ex_data_schema ex_desc;
+	struct EX_data_schema ex_schema;
 };
 struct ip_plugin_table_schema
 {
@@ -110,7 +110,8 @@ struct ip_plugin_table_schema
 	int valid_flag_column;
 	int rule_tag_column;
 	long long estimate_size;
-	struct plugin_table_ex_data_schema ex_desc;
+	int have_exdata;
+	struct EX_data_schema ex_schema;
 };
 struct Maat_table_schema
 {
@@ -161,12 +162,21 @@ int Maat_table_new_compile_rule_ex_index(struct Maat_table_manager* table_mgr, c
 										 Maat_rule_EX_dup_func_t* dup_func,
 										 long argl, void *argp);
 struct compile_ex_data_idx* Maat_table_get_compile_rule_ex_desc(struct Maat_table_manager* table_mgr, const char* compile_table_name, int idx);
-int Maat_table_plugin_new_ex_index(struct Maat_table_manager* table_mgr, int table_id,
+int Maat_table_plugin_EX_data_schema_set(struct Maat_table_schema *table_schema,
 										Maat_plugin_EX_new_func_t* new_func,
 										Maat_plugin_EX_free_func_t* free_func,
 										Maat_plugin_EX_dup_func_t* dup_func,
 										Maat_plugin_EX_key2index_func_t* key2index_func,
-										long argl, void *argp);
+										long argl, void *argp,
+										void* logger);
+int Maat_table_ip_plugin_EX_data_schema_set(struct Maat_table_schema *table_schema,
+										Maat_plugin_EX_new_func_t* new_func,
+										Maat_plugin_EX_free_func_t* free_func,
+										Maat_plugin_EX_dup_func_t* dup_func,
+										Maat_plugin_EX_key2index_func_t* key2index_func,
+										long argl, void *argp,
+										void* logger);
+
 void Maat_table_manager_all_plugin_cb_start(struct Maat_table_manager* table_mgr, int update_type);
 void Maat_table_manager_all_plugin_cb_finish(struct Maat_table_manager* table_mgr);
 

@@ -285,11 +285,11 @@ int read_ip_plugin_table_schema(const char* line, struct Maat_table_schema* p)
 	free(copy_line);
 	if(read_cnt<5)
 	{
-		return 0;
+		return -1;
 	}
 	else
 	{
-		return -1;
+		return 0;
 	}
 error_out:
 	free(copy_line);
@@ -869,32 +869,89 @@ int Maat_table_new_compile_rule_ex_index(struct Maat_table_manager* table_mgr, c
 
 	return idx;
 } 
-int Maat_table_plugin_new_ex_index(struct Maat_table_manager* table_mgr, int table_id,
+void Maat_table_EX_data_schema_set(struct EX_data_schema* ex_schema,
 										Maat_plugin_EX_new_func_t* new_func,
 										Maat_plugin_EX_free_func_t* free_func,
 										Maat_plugin_EX_dup_func_t* dup_func,
 										Maat_plugin_EX_key2index_func_t* key2index_func,
 										long argl, void *argp)
-
 {
-	struct Maat_table_schema *table_desc=NULL;;
-	table_desc=Maat_table_get_scan_by_id(table_mgr, table_id, TABLE_TYPE_PLUGIN, NULL);
-	struct plugin_table_schema* plugin_desc=&(table_desc->plugin);
-	
-	if(plugin_desc->have_exdata
-		|| plugin_desc->key_column==0 || plugin_desc->valid_flag_column==0)
+	ex_schema->new_func=new_func;
+	ex_schema->free_func=free_func;
+	ex_schema->dup_func=dup_func;
+	ex_schema->key2index_func=key2index_func;//Set but not used.
+	ex_schema->argl=argl;
+	ex_schema->argp=argp;
+	return;
+}
+int Maat_table_plugin_EX_data_schema_set(struct Maat_table_schema *table_schema,
+										Maat_plugin_EX_new_func_t* new_func,
+										Maat_plugin_EX_free_func_t* free_func,
+										Maat_plugin_EX_dup_func_t* dup_func,
+										Maat_plugin_EX_key2index_func_t* key2index_func,
+										long argl, void *argp,
+										void* logger)
+{
+	if(new_func==NULL || free_func==NULL || dup_func==NULL )
 	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "%s failed: invalid paramter", __FUNCTION__);
 		return -1;
 	}
-	plugin_desc->ex_desc.new_func=new_func;
-	plugin_desc->ex_desc.free_func=free_func;
-	plugin_desc->ex_desc.dup_func=dup_func;
-	plugin_desc->ex_desc.key2index_func=key2index_func;//Set but not used.
-	plugin_desc->ex_desc.argl=argl;
-	plugin_desc->ex_desc.argp=argp;
-	plugin_desc->have_exdata=1;
+	if(table_schema->table_type!=TABLE_TYPE_PLUGIN)
+	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, Regist target is not a plugin table.", __FUNCTION__);
+		return -1;
+	}
+	if(table_schema->plugin.have_exdata)
+	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, EX data already registed.", __FUNCTION__);
+		return -1;
+	}
+	if(table_schema->plugin.key_column==0 || table_schema->plugin.valid_flag_column==0)
+	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, not enough schema information.", __FUNCTION__);
+		return -1;
+	}
+	Maat_table_EX_data_schema_set(&table_schema->plugin.ex_schema,
+									new_func, free_func, dup_func, key2index_func, argl, argp);
+	table_schema->plugin.have_exdata=1;
 	return 0;
 }
+int Maat_table_ip_plugin_EX_data_schema_set(struct Maat_table_schema *table_schema,
+										Maat_plugin_EX_new_func_t* new_func,
+										Maat_plugin_EX_free_func_t* free_func,
+										Maat_plugin_EX_dup_func_t* dup_func,
+										Maat_plugin_EX_key2index_func_t* key2index_func,
+										long argl, void *argp,
+										void* logger)
+{
+	if(new_func==NULL || free_func==NULL || dup_func==NULL )
+	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "%s failed: invalid paramter", __FUNCTION__);
+		return -1;
+	}
+	if(table_schema->table_type!=TABLE_TYPE_IP_PLUGIN)
+	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, target table is not a ip_plugin table.", __FUNCTION__);
+		return -1;
+	}
+	if(table_schema->ip_plugin.have_exdata)
+	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, EX data already registed.", __FUNCTION__);
+		return -1;
+	}
+	Maat_table_EX_data_schema_set(&table_schema->ip_plugin.ex_schema,
+									new_func, free_func, dup_func, key2index_func, argl, argp);
+	table_schema->ip_plugin.have_exdata=1;
+	return 0;
+}										
 void Maat_table_manager_all_plugin_cb_start(struct Maat_table_manager* table_mgr, int update_type)
 {
 	table_mgr->active_plugin_table_num=0;

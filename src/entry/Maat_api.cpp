@@ -1331,38 +1331,24 @@ int Maat_plugin_EX_register(Maat_feather_t feather, int table_id,
 
 {
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
-	int idx=-1;
+	int ret=0;
+	struct Maat_table_schema *table_schema=Maat_table_get_by_id_raw(_feather->table_mgr, table_id);
 
-	if(new_func==NULL || free_func==NULL || dup_func==NULL )
-	{
-		assert(0);
-		MESA_handle_runtime_log(_feather->logger, RLOG_LV_FATAL, maat_module, "%s failed: invalid paramter", __FUNCTION__);
-		return -1;
-	}
 	pthread_mutex_lock(&(_feather->background_update_mutex));
+	ret=Maat_table_plugin_EX_data_schema_set(table_schema, new_func, free_func, dup_func, key2index_func,argl, argp, _feather->logger);
 
-	idx=Maat_table_plugin_new_ex_index(_feather->table_mgr, table_id,
-										new_func,
-										free_func,
-										dup_func,
-										key2index_func,
-										argl, argp);
-	if(idx<0)
+	if(ret<0)
 	{	
 		pthread_mutex_unlock(&(_feather->background_update_mutex));
 		return -1;
 	}
-	struct Maat_table_schema *table_desc=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, TABLE_TYPE_PLUGIN, NULL);
 	struct Maat_table_runtime* table_rt=NULL;	
-
-
 	if(_feather->scanner!=NULL)
 	{
 		table_rt=Maat_table_runtime_get(_feather->scanner->table_rt_mgr, table_id);
-		Maat_table_runtime_plugin_new_ex_idx(table_rt, table_desc, _feather->logger);
+		Maat_table_runtime_plugin_commit_ex_schema(table_rt, table_schema, _feather->logger);
 	}
 	pthread_mutex_unlock(&(_feather->background_update_mutex));
-
 	return 0;
 }
 MAAT_PLUGIN_EX_DATA Maat_plugin_get_EX_data(Maat_feather_t feather, int table_id, const char* key)
@@ -1380,24 +1366,62 @@ MAAT_PLUGIN_EX_DATA Maat_plugin_get_EX_data(Maat_feather_t feather, int table_id
 	exdata=Maat_table_runtime_plugin_get_ex_data(table_rt, table_desc, key);
 	return exdata;
 }
-int Maat_IP_plugin_get_EX_data(Maat_feather_t feather, int table_id, const struct ip_address* ip, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t n_ex_data)
+int Maat_ip_plugin_EX_register(Maat_feather_t feather, int table_id,
+										Maat_plugin_EX_new_func_t* new_func,
+										Maat_plugin_EX_free_func_t* free_func,
+										Maat_plugin_EX_dup_func_t* dup_func,
+										long argl, void *argp)
+
 {
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
-	struct Maat_table_schema *table_desc=NULL;
+	int ret=-1;
+	struct Maat_table_schema *table_schema=Maat_table_get_by_id_raw(_feather->table_mgr, table_id);
+	pthread_mutex_lock(&(_feather->background_update_mutex));
+	ret=Maat_table_ip_plugin_EX_data_schema_set(table_schema, new_func, free_func, dup_func, NULL, argl, argp, _feather->logger);
+
+	if(ret<0)
+	{	
+		pthread_mutex_unlock(&(_feather->background_update_mutex));
+		return -1;
+	}
+
+	struct Maat_table_runtime* table_rt=NULL;	
+	if(_feather->scanner!=NULL)
+	{
+		table_rt=Maat_table_runtime_get(_feather->scanner->table_rt_mgr, table_id);
+		Maat_table_runtime_ip_plugin_commit_ex_schema(table_rt, table_schema, _feather->logger);
+	}
+	pthread_mutex_unlock(&(_feather->background_update_mutex));
+
+	return 0;
+}
+
+int Maat_ip_plugin_get_EX_data(Maat_feather_t feather, int table_id, const struct ip_address* ip, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t n_ex_data)
+{
+	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	struct Maat_table_schema *table_schema=NULL;
 	struct Maat_table_runtime *table_rt=NULL;
 	int n_get=0;
 	if(_feather->scanner==NULL)
 	{
 		return 0;
 	}
-	table_desc=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, TABLE_TYPE_PLUGIN, NULL);
+	table_schema=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, TABLE_TYPE_PLUGIN, NULL);
 	table_rt=Maat_table_runtime_get(_feather->scanner->table_rt_mgr, table_id);
 	if(table_rt->table_type!=TABLE_TYPE_IP_PLUGIN)
 	{
 		return -1;
 	}
-	
-	n_get=Maat_table_runtime_ip_plugin_get_N_ex_data(table_rt, table_desc, ip, ex_data_array, n_ex_data);
+	struct ip_data ip_data=*(const struct ip_data*)ip;
+	if(ip_data.type==IPv4)
+	{
+		ip_data.ipv4=ntohl(ip_data.ipv4);
+	}
+	else
+	{
+		ipv6_ntoh(ip_data.ipv6);
+	}
+	n_get=Maat_table_runtime_ip_plugin_get_N_ex_data(table_rt, table_schema, &ip_data, ex_data_array, n_ex_data);
 	return n_get;
 
 }

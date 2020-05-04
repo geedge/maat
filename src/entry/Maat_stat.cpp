@@ -219,7 +219,7 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 		switch(p_table->table_type)
 		{
 			case TABLE_TYPE_PLUGIN:
-				plugin_cache_num+=table_rt->plugin.cache_line_num;
+				plugin_cache_num+=table_rt->plugin.ex_data_rt->cache_row_num;
 				plugin_acc_num+=table_rt->plugin.acc_line_num;
 				break;
 			case TABLE_TYPE_GROUP:

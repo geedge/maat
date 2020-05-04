@@ -3000,44 +3000,41 @@ void garbage_bury(MESA_lqueue_head garbage_q, int timeout, void *logger)
 							q_cnt,bury_cnt);
 	}
 }
-void update_plugin_table(struct Maat_table_schema* table, const char* table_line, Maat_scanner* scanner, const struct rule_tag* tags, int n_tags, void* logger)
+void update_plugin_table(struct Maat_table_schema* table_schema, const char* row, Maat_scanner* scanner, const struct rule_tag* tags, int n_tags, void* logger)
 {
-	int i=0, ret=1, matched_tag=1;
-	unsigned int len=strlen(table_line)+1;
-	struct plugin_table_schema* plugin_desc=&(table->plugin);
-	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
-	char *p=NULL;
+	int ret=1, matched_tag=1;
+	struct plugin_table_schema* plugin_desc=&(table_schema->plugin);
+	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table_schema->table_id);
 	char* copy=NULL;
-	size_t is_valid_offset=0, valid_len=0;
 	size_t accept_tag_offset=0, accept_tag_len=0;
 	if(plugin_desc->rule_tag_column>0&&n_tags>0)
 	{
-		ret=Maat_helper_read_column(table_line, plugin_desc->rule_tag_column, &accept_tag_offset, &accept_tag_len);
+		ret=Maat_helper_read_column(row, plugin_desc->rule_tag_column, &accept_tag_offset, &accept_tag_len);
 		if(ret<0)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-						"update error, could not locate tag in column %d of plugin table %s:%s",
+						"update error, could not locate tag in column %d of plugin table_schema %s:%s",
 						plugin_desc->rule_tag_column,
-						table->table_name[table->updating_name],
-						table_line);
-			table->udpate_err_cnt++;
+						table_schema->table_name[table_schema->updating_name],
+						row);
+			table_schema->udpate_err_cnt++;
 			return;
 		}
 		if(accept_tag_len>2)
 		{
 			copy=ALLOC(char, accept_tag_len+1);
-			memcpy(copy, table_line+accept_tag_offset, accept_tag_len);
+			memcpy(copy, row+accept_tag_offset, accept_tag_len);
 			matched_tag=compare_accept_tag(copy, tags, n_tags);
 			if(matched_tag<0)
 			{
 				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"update error,invalid tag format of plugin table %s:%s"
-							,table->table_name[table->updating_name],table_line);
-				table->udpate_err_cnt++;
+							"update error,invalid tag format of plugin table_schema %s:%s"
+							,table_schema->table_name[table_schema->updating_name],row);
+				table_schema->udpate_err_cnt++;
 			}
 			if(matched_tag==0)
 			{
-				table->unmatch_tag_cnt++;
+				table_schema->unmatch_tag_cnt++;
 			}
 			free(copy);
 			copy=NULL;
@@ -3047,79 +3044,43 @@ void update_plugin_table(struct Maat_table_schema* table, const char* table_line
 			return;
 		}
 	}
-
-	table_rt->plugin.acc_line_num++;
-	if(plugin_desc->have_exdata || plugin_desc->cb_plug_cnt>0)
-	{
-
-		if(plugin_desc->have_exdata)
-		{
-			ret=Maat_helper_read_column(table_line, plugin_desc->valid_flag_column, &is_valid_offset, &valid_len);
-			//thread safe is protected by background_update_mutex
-			if(atoi(table_line+is_valid_offset)==1)
-			{
-				plugin_EX_data_new(table, table_line, table_rt->plugin.key2ex_hash, logger);
-			}
-			else
-			{
-				plugin_EX_data_free(table_line, plugin_desc->key_column, table_rt->plugin.key2ex_hash, logger);
-			}	
-		}
-		if(plugin_desc->cb_plug_cnt>0)
-		{
-			for(i=0;i<plugin_desc->cb_plug_cnt;i++)
-			{
-				plugin_desc->cb_plug[i].update(table->table_id, table_line, plugin_desc->cb_plug[i].u_para);
-			}
-		}
-
-	}
-	else
-	{
-		p=ALLOC(char, len);
-		memcpy(p,table_line,len);
-		table_rt->plugin.cache_size+=len;
-		dynamic_array_write(table_rt->plugin.cache_lines, table_rt->plugin.cache_line_num, p);
-		table_rt->plugin.cache_line_num++;		
-	}
+	Maat_table_runtime_plugin_new_row(table_rt, table_schema, row, logger);
 }
-void update_ip_plugin_table(struct Maat_table_schema* table,const char* table_line,Maat_scanner* scanner, const struct rule_tag* tags, int n_tags, void* logger)
+void update_ip_plugin_table(struct Maat_table_schema* table_schema, const char* table_row, Maat_scanner* scanner, const struct rule_tag* tags, int n_tags, void* logger)
 {
 	int ret=1, matched_tag=1;
-	struct ip_plugin_table_schema* ip_plugin_schema=&(table->ip_plugin);
-	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
-	struct ip_plugin_runtime* ip_plugin_rt=&(table_rt->ip_plugin);
+	struct ip_plugin_table_schema* ip_plugin_schema=&(table_schema->ip_plugin);
+	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table_schema->table_id);
 	char* copy=NULL;
-	size_t is_valid_offset=0, valid_len=0;
 	size_t accept_tag_offset=0, accept_tag_len=0;
 	if(ip_plugin_schema->rule_tag_column>0&&n_tags>0)
 	{
-		ret=Maat_helper_read_column(table_line, ip_plugin_schema->rule_tag_column, &accept_tag_offset, &accept_tag_len);
+		ret=Maat_helper_read_column(table_row, ip_plugin_schema->rule_tag_column, &accept_tag_offset, &accept_tag_len);
 		if(ret<0)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-						"update error, could not locate tag in column %d of plugin table %s:%s",
+						"update error, could not locate tag in column %d of plugin table_schema %s:%s",
 						ip_plugin_schema->rule_tag_column,
-						table->table_name[table->updating_name],
-						table_line);
-			table->udpate_err_cnt++;
+						table_schema->table_name[table_schema->updating_name],
+						table_row);
+			table_schema->udpate_err_cnt++;
 			return;
 		}
 		if(accept_tag_len>2)
 		{
 			copy=ALLOC(char, accept_tag_len+1);
-			memcpy(copy, table_line+accept_tag_offset, accept_tag_len);
+			memcpy(copy, table_row+accept_tag_offset, accept_tag_len);
 			matched_tag=compare_accept_tag(copy, tags, n_tags);
 			if(matched_tag<0)
 			{
 				MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-							"update error, invalid tag format of ip_plugin table %s:%s",
-							table->table_name[table->updating_name], table_line);
-				table->udpate_err_cnt++;
+							"update error, invalid tag format of ip_plugin table_schema %s:%s",
+							table_schema->table_name[table_schema->updating_name], table_row);
+				table_schema->udpate_err_cnt++;
 			}
 			if(matched_tag==0)
 			{
-				table->unmatch_tag_cnt++;
+				table_schema->unmatch_tag_cnt++;
 			}
 			free(copy);
 			copy=NULL;
@@ -3129,25 +3090,8 @@ void update_ip_plugin_table(struct Maat_table_schema* table,const char* table_li
 			return;
 		}
 	}
-	ret=Maat_helper_read_column(table_line, ip_plugin_schema->valid_flag_column, &is_valid_offset, &valid_len);
-	//thread safe is protected by background_update_mutex
-	if(atoi(table_line+is_valid_offset)==1)
-	{
-		ret=plugin_EX_data_new(table, table_line, ip_plugin_rt->rowid2ex_hash, logger);
-		if(ret==0)
-		{
-			ip_plugin_rt->row_num++;
-		}
-	}
-	else
-	{
-		ret=plugin_EX_data_free(table_line, ip_plugin_schema->row_id_column, ip_plugin_rt->rowid2ex_hash, logger);
-		if(ret==0)
-		{
-			ip_plugin_rt->row_num--;
-		}
-
-	}
+	Maat_table_runtime_ip_plugin_new_row(table_rt, table_schema, table_row, logger);
+	return;
 }
 
 void vector_print(igraph_vector_t *v) {
@@ -3293,7 +3237,7 @@ void do_scanner_update(struct Maat_scanner* scanner, MESA_lqueue_head garbage_q,
 				}
 				break;
 			case TABLE_TYPE_IP_PLUGIN:
-				Maat_table_runtime_rebuild_ip_matcher(table_rt);
+				Maat_table_runtime_ip_plugin_rebuild_ip_matcher(table_rt);
 				old_ip_matcher=Maat_table_runtime_dettach_old_ip_matcher(table_rt);
 				garbage_bagging(GARBAGE_IP_MATCHER, old_ip_matcher, garbage_q);
 				break;

@@ -457,9 +457,6 @@ void rewrite_table_line_with_foreign(struct serial_rule_t*p);
 void fill_maat_rule(struct Maat_rule_t *rule, const struct Maat_rule_head* rule_head, const char* srv_def, int srv_def_len);
 MAAT_RULE_EX_DATA rule_ex_data_new(const struct Maat_rule_head * rule_head, const char* srv_def, const struct compile_ex_data_idx* ex_desc);
 void rule_ex_data_free(const struct Maat_rule_head * rule_head, const char* srv_def, MAAT_RULE_EX_DATA *ad, const struct compile_ex_data_idx* ex_desc);
-MESA_htable_handle wrap_plugin_EX_hash_new(long long estimate_size, Maat_plugin_EX_key2index_func_t * key2index);
-int plugin_EX_data_new(const struct Maat_table_schema* plugin_table, const char* line, MESA_htable_handle key2ex_hash, void *logger);
-int plugin_EX_data_free(const char* line, int key_column, MESA_htable_handle key2ex_hash, void *logger);
 
 
 void set_serial_rule(struct serial_rule_t* rule,enum MAAT_OPERATION op,int rule_id,int label_id,const char* table_name,const char* line, long long timeout);
