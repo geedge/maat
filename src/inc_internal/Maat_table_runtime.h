@@ -1,4 +1,6 @@
 #include "Maat_table.h"
+#include "Maat_ex_data.h"
+#include "IPMatcher.h"
 #include "gram_index_engine.h"
 #include "alignment_int64.h"
 #include "dynamic_array.h"
@@ -13,11 +15,15 @@ struct similar_runtime
 
 struct plugin_runtime
 {
-	dynamic_array_t *cache_lines;
-	long long cache_line_num;
+	struct EX_data_rt* ex_data_rt;
 	long long acc_line_num;
-	long long cache_size;
-	MESA_htable_handle key2ex_hash;
+};
+
+struct ip_plugin_runtime
+{
+	struct EX_data_rt* ex_data_rt;
+	struct ip_matcher* ip_matcher;
+	struct ip_matcher* old_ip_matcher;
 };
 struct expr_runtime
 {
@@ -42,6 +48,7 @@ struct Maat_table_runtime
 	{	
 		struct similar_runtime similar;	//for digest and similarity
 		struct plugin_runtime plugin;		
+		struct ip_plugin_runtime ip_plugin;
 		struct expr_runtime expr;
 		struct ip_runtime ip;
 		struct group_runtime group;		
@@ -60,10 +67,18 @@ struct Maat_table_runtime* Maat_table_runtime_get(struct Maat_table_runtime_mana
 long long Maat_table_runtime_plugin_cached_line_count(struct Maat_table_runtime* table_rt);
 const char* Maat_table_runtime_plugin_get_cached_line(struct Maat_table_runtime* table_rt, long long Nth_line);
 
-int Maat_table_runtime_plugin_new_ex_idx(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_desc, void* logger);
+int Maat_table_runtime_plugin_commit_ex_schema(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_desc, void* logger);
 MAAT_PLUGIN_EX_DATA Maat_table_runtime_plugin_get_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_desc, const char* key);
 void Maat_table_runtime_digest_add(struct Maat_table_runtime* table_rt, int expr_id, const char* digest, short confidence_degree, void* tag);
 void Maat_table_runtime_digest_del(struct Maat_table_runtime* table_rt, int expr_id);
 int Maat_table_runtime_digest_batch_udpate(struct Maat_table_runtime* table_rt);
+
+void Maat_table_runtime_plugin_new_row(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* row, void *logger);
+void Maat_table_runtime_ip_plugin_new_row(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* row, void *logger);
+
+int Maat_table_runtime_ip_plugin_commit_ex_schema(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, void* logger);
+int Maat_table_runtime_ip_plugin_get_N_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const struct ip_data* ip, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t size);
+int Maat_table_runtime_ip_plugin_rebuild_ip_matcher(struct Maat_table_runtime* table_rt);
+struct ip_matcher* Maat_table_runtime_dettach_old_ip_matcher(struct Maat_table_runtime* table_rt);
 
 

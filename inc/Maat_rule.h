@@ -299,8 +299,28 @@ int Maat_plugin_EX_register(Maat_feather_t feather, int table_id,
 										Maat_plugin_EX_dup_func_t* dup_func,
 										Maat_plugin_EX_key2index_func_t* key2index_func,
 										long argl, void *argp);
-//Data is duplicated by dup_func of Maat_plugin_EX_register,  caller is responsible to free the data.
+//Data is duplicated by dup_func of Maat_plugin_EX_register,  caller is responsible to FREE the data.
 MAAT_PLUGIN_EX_DATA Maat_plugin_get_EX_data(Maat_feather_t feather, int table_id, const char* key);
+
+
+int Maat_ip_plugin_EX_register(Maat_feather_t feather, int table_id,
+										Maat_plugin_EX_new_func_t* new_func,
+										Maat_plugin_EX_free_func_t* free_func,
+										Maat_plugin_EX_dup_func_t* dup_func,
+										long argl, void *argp);
+
+struct ip_address
+{
+	int ip_type;		//4: IPv4, 6: IPv6
+	union
+	{
+		unsigned int ipv4;	//network order
+		unsigned int ipv6[4];
+	};
+};
+
+int Maat_ip_plugin_get_EX_data(Maat_feather_t feather, int table_id, const struct ip_address* ip, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t n_ex_data);
+
 
 enum MAAT_RULE_OPT
 {

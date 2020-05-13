@@ -74,7 +74,7 @@ int read_expr_table_info(const char* line, struct Maat_table_schema* table, MESA
 	}
 	return 0;
 }
-int read_virtual_table_info(const char* line, struct Maat_table_schema* table, MESA_htable_handle string2int_map)
+int read_virtual_table_schema(const char* line, struct Maat_table_schema* table, MESA_htable_handle string2int_map)
 {
 	int ret=0;
 	char table_type[16];
@@ -117,8 +117,11 @@ int _read_integer_arrary(char* string, int *array, int size)
 	}
 	return i;
 }
-#define COLUMN_PLUGIN_DESCR_JSON	4
-int read_plugin_table_description(const char* line, struct Maat_table_schema* p)
+#define COLUMN_PLUGIN_SCHEMA_JSON	4
+#define COLUMN_IP_PLUGIN_SCHEMA_JSON	4
+#define COLUMN_COMPOSITION_SCHEMA_JSON	4
+
+int read_plugin_table_schema(const char* line, struct Maat_table_schema* p)
 {
 	int i=0,ret=0;
 	size_t offset=0, len=0;
@@ -126,7 +129,7 @@ int read_plugin_table_description(const char* line, struct Maat_table_schema* p)
 	char* copy_line=NULL, *plug_info=NULL;
 	struct plugin_table_schema* plugin_desc=&(p->plugin);
 	copy_line=_maat_strdup(line);
-	ret=get_column_pos(copy_line, COLUMN_PLUGIN_DESCR_JSON, &offset, &len);
+	ret=get_column_pos(copy_line, COLUMN_PLUGIN_SCHEMA_JSON, &offset, &len);
 	if(ret<0)
 	{
 		goto error_out;
@@ -202,7 +205,97 @@ error_out:
 	free(copy_line);
 	return -1;
 }
-#define COLUMN_COMPOSITION_SCHEMA_JSON	4
+int read_ip_plugin_table_schema(const char* line, struct Maat_table_schema* p)
+{
+	int ret=0, read_cnt=0;
+	size_t offset=0, len=0;
+	cJSON* json=NULL, *tmp=NULL;
+	char* copy_line=NULL, *ip_plugin_info=NULL;
+	struct ip_plugin_table_schema* ip_plugin_schema=&(p->ip_plugin);
+	copy_line=_maat_strdup(line);
+	ret=get_column_pos(copy_line, COLUMN_IP_PLUGIN_SCHEMA_JSON, &offset, &len);
+	if(ret<0)
+	{
+		goto error_out;
+	}
+	if(offset+len<strlen(copy_line))
+	{
+		copy_line[offset+len+1]='\0';
+	}
+	ip_plugin_info=copy_line+offset;
+
+	json=cJSON_Parse(ip_plugin_info);
+	if(!json)
+	{
+		goto error_out;
+	}
+	tmp=cJSON_GetObjectItem(json, "row_id");
+	if(tmp!=NULL && tmp->type==cJSON_Number)
+	{
+		ip_plugin_schema->row_id_column=tmp->valueint;
+		read_cnt++;
+	}
+
+	tmp=cJSON_GetObjectItem(json, "ip_type");
+	if(tmp!=NULL && tmp->type==cJSON_Number)
+	{
+		ip_plugin_schema->ip_type_column=tmp->valueint;
+		read_cnt++;
+	}
+	tmp=cJSON_GetObjectItem(json, "start_ip");
+	if(tmp!=NULL && tmp->type==cJSON_Number)
+	{
+		ip_plugin_schema->start_ip_column=tmp->valueint;
+		read_cnt++;
+	}
+	tmp=cJSON_GetObjectItem(json, "end_ip");
+	if(tmp!=NULL && tmp->type==cJSON_Number)
+	{
+		ip_plugin_schema->end_ip_column=tmp->valueint;
+		read_cnt++;
+	}
+
+	tmp=cJSON_GetObjectItem(json, "valid");
+	if(tmp!=NULL)
+	{
+		assert(tmp->type==cJSON_Number);
+		ip_plugin_schema->valid_flag_column=tmp->valueint;
+		read_cnt++;
+	}
+	ip_plugin_schema->rule_tag_column=-1;
+	tmp=cJSON_GetObjectItem(json, "tag");
+	if(tmp!=NULL)
+	{
+		assert(tmp->type==cJSON_Number);
+		ip_plugin_schema->rule_tag_column=tmp->valueint;
+		//read_cnt++; Tag is optional, so NOT ++ intentionally.
+	}
+
+	ip_plugin_schema->estimate_size=4096;
+	tmp=cJSON_GetObjectItem(json, "estimate_size");
+	if(tmp!=NULL)
+	{
+		assert(tmp->type==cJSON_Number);
+		ip_plugin_schema->estimate_size=tmp->valueint;
+		//read_cnt++; estimate_size is optional, so NOT ++ intentionally.
+	}
+
+	cJSON_Delete(json);
+
+	free(copy_line);
+	if(read_cnt<5)
+	{
+		return -1;
+	}
+	else
+	{
+		return 0;
+	}
+error_out:
+	free(copy_line);
+	return -1;
+
+}
 
 int read_composition_table_schema(const char* line, struct Maat_table_schema* p, MESA_htable_handle string2int_map)
 {
@@ -397,6 +490,7 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 	map_register(string2int_map,"ip_plus", TABLE_TYPE_IP_PLUS);
 	map_register(string2int_map,"compile", TABLE_TYPE_COMPILE);
 	map_register(string2int_map,"plugin", TABLE_TYPE_PLUGIN);
+	map_register(string2int_map,"ip_plugin", TABLE_TYPE_IP_PLUGIN);
 	map_register(string2int_map,"intval", TABLE_TYPE_INTERVAL);
 	map_register(string2int_map,"digest", TABLE_TYPE_DIGEST);
 	map_register(string2int_map,"expr_plus", TABLE_TYPE_EXPR_PLUS);
@@ -468,7 +562,7 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 				}
 				break;
 			case TABLE_TYPE_PLUGIN:
-				ret=read_plugin_table_description(line, p);
+				ret=read_plugin_table_schema(line, p);
 				if(ret<0)
 				{
 					fprintf(stderr,"Maat read table info %s line %d error:illegal plugin info.\n", table_info_path,i);
@@ -477,6 +571,16 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 					goto invalid_table;
 				}
 				break;
+			case TABLE_TYPE_IP_PLUGIN:
+				ret=read_ip_plugin_table_schema(line, p);
+				if(ret<0)
+				{
+					fprintf(stderr,"Maat read table info %s line %d error:illegal ip_plugin info.\n", table_info_path,i);
+					MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
+									"Maat read table info %s line %d error:illegal ip_plugin info.", table_info_path,i);
+					goto invalid_table;
+				}
+				break;				
 			case TABLE_TYPE_COMPOSITION:
 				ret=read_composition_table_schema(line, p, string2int_map);
 				if(ret<0)
@@ -488,7 +592,7 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 				}
 				break;
 			case TABLE_TYPE_VIRTUAL:
-				ret=read_virtual_table_info(line, p, string2int_map);
+				ret=read_virtual_table_schema(line, p, string2int_map);
 				if(ret<0)
 				{
 					fprintf(stderr,"Maat read table info %s line %d error:illegal virtual info.\n", table_info_path,i);
@@ -765,32 +869,89 @@ int Maat_table_new_compile_rule_ex_index(struct Maat_table_manager* table_mgr, c
 
 	return idx;
 } 
-int Maat_table_plugin_new_ex_index(struct Maat_table_manager* table_mgr, int table_id,
+void Maat_table_EX_data_schema_set(struct EX_data_schema* ex_schema,
 										Maat_plugin_EX_new_func_t* new_func,
 										Maat_plugin_EX_free_func_t* free_func,
 										Maat_plugin_EX_dup_func_t* dup_func,
 										Maat_plugin_EX_key2index_func_t* key2index_func,
 										long argl, void *argp)
-
 {
-	struct Maat_table_schema *table_desc=NULL;;
-	table_desc=Maat_table_get_scan_by_id(table_mgr, table_id, TABLE_TYPE_PLUGIN, NULL);
-	struct plugin_table_schema* plugin_desc=&(table_desc->plugin);
-	
-	if(plugin_desc->have_exdata
-		|| plugin_desc->key_column==0 || plugin_desc->valid_flag_column==0)
+	ex_schema->new_func=new_func;
+	ex_schema->free_func=free_func;
+	ex_schema->dup_func=dup_func;
+	ex_schema->key2index_func=key2index_func;//Set but not used.
+	ex_schema->argl=argl;
+	ex_schema->argp=argp;
+	return;
+}
+int Maat_table_plugin_EX_data_schema_set(struct Maat_table_schema *table_schema,
+										Maat_plugin_EX_new_func_t* new_func,
+										Maat_plugin_EX_free_func_t* free_func,
+										Maat_plugin_EX_dup_func_t* dup_func,
+										Maat_plugin_EX_key2index_func_t* key2index_func,
+										long argl, void *argp,
+										void* logger)
+{
+	if(new_func==NULL || free_func==NULL || dup_func==NULL )
 	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "%s failed: invalid paramter", __FUNCTION__);
 		return -1;
 	}
-	plugin_desc->ex_desc.new_func=new_func;
-	plugin_desc->ex_desc.free_func=free_func;
-	plugin_desc->ex_desc.dup_func=dup_func;
-	plugin_desc->ex_desc.key2index_func=key2index_func;//Set but not used.
-	plugin_desc->ex_desc.argl=argl;
-	plugin_desc->ex_desc.argp=argp;
-	plugin_desc->have_exdata=1;
+	if(table_schema->table_type!=TABLE_TYPE_PLUGIN)
+	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, Regist target is not a plugin table.", __FUNCTION__);
+		return -1;
+	}
+	if(table_schema->plugin.have_exdata)
+	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, EX data already registed.", __FUNCTION__);
+		return -1;
+	}
+	if(table_schema->plugin.key_column==0 || table_schema->plugin.valid_flag_column==0)
+	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, not enough schema information.", __FUNCTION__);
+		return -1;
+	}
+	Maat_table_EX_data_schema_set(&table_schema->plugin.ex_schema,
+									new_func, free_func, dup_func, key2index_func, argl, argp);
+	table_schema->plugin.have_exdata=1;
 	return 0;
 }
+int Maat_table_ip_plugin_EX_data_schema_set(struct Maat_table_schema *table_schema,
+										Maat_plugin_EX_new_func_t* new_func,
+										Maat_plugin_EX_free_func_t* free_func,
+										Maat_plugin_EX_dup_func_t* dup_func,
+										Maat_plugin_EX_key2index_func_t* key2index_func,
+										long argl, void *argp,
+										void* logger)
+{
+	if(new_func==NULL || free_func==NULL || dup_func==NULL )
+	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "%s failed: invalid paramter", __FUNCTION__);
+		return -1;
+	}
+	if(table_schema->table_type!=TABLE_TYPE_IP_PLUGIN)
+	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, target table is not a ip_plugin table.", __FUNCTION__);
+		return -1;
+	}
+	if(table_schema->ip_plugin.have_exdata)
+	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, EX data already registed.", __FUNCTION__);
+		return -1;
+	}
+	Maat_table_EX_data_schema_set(&table_schema->ip_plugin.ex_schema,
+									new_func, free_func, dup_func, key2index_func, argl, argp);
+	table_schema->ip_plugin.have_exdata=1;
+	return 0;
+}										
 void Maat_table_manager_all_plugin_cb_start(struct Maat_table_manager* table_mgr, int update_type)
 {
 	table_mgr->active_plugin_table_num=0;

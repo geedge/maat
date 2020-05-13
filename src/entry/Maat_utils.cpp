@@ -390,4 +390,133 @@ int decrypt_open(const char* file_name, const char* key, const char* algorithm, 
 	file_buff=NULL;
 	return ret;
 }
+enum MAAT_IP_FORMAT ip_format_str2int(const char* format)
+{
+	if(0==strcasecmp(format, "range"))
+	{
+		return FORMAT_RANGE;
+	}
+	else if(0==strcasecmp(format, "mask"))
+	{
+		return FORMAT_MASK;
+	}
+	else if(0==strcasecmp(format, "CIDR"))
+	{
+		return FORMAT_CIDR;
+	}
+	else
+	{
+		assert(0);
+	}
+	return FORMAT_UNKNOWN;
+}
+int ip_format2range(int ip_type, enum MAAT_IP_FORMAT format, const char* ip1, const char* ip2, unsigned int range_begin[], unsigned int range_end[])
+{
+	unsigned int ipv4_addr=0, ipv4_mask=0, ipv4_range_end=0;
+	unsigned int ipv6_addr[4]={0}, ipv6_mask[4]={0}, ipv6_range_end[4]={0};
+	int cidr=0, bit32=0;
+	int ret=0, i=0;
+	if(ip_type!=4 && ip_type!=6)
+	{
+		assert(0);
+		return -1;
+	}
+	if(ip_type==4)
+	{
+		ret=inet_pton(AF_INET, ip1, &ipv4_addr);
+		if(ret<=0)
+		{
+			return -1;
+		}
+		ipv4_addr=ntohl(ipv4_addr);
+		switch (format)
+		{
+			case FORMAT_RANGE:
+				range_begin[0]=ipv4_addr;
+				ret=inet_pton(AF_INET, ip2, &ipv4_range_end);
+				if(ret<=0)
+				{
+					return -1;
+				}				
+				ipv4_range_end=ntohl(ipv4_range_end);
+				range_end[0]=ipv4_range_end;
+				break;
+			case FORMAT_MASK:
+				ret=inet_pton(AF_INET, ip2, &ipv4_mask);
+				if(ret<=0)
+				{
+					return -1;
+				}
+				ipv4_mask=ntohl(ipv4_mask);
+				range_begin[0]=ipv4_addr&ipv4_mask;
+				range_end[0]=ipv4_addr|~ipv4_mask;
+				break;
+			case FORMAT_CIDR:
+				cidr=atoi(ip2);
+				if(cidr>32||cidr<0)
+				{
+					return -1;
+				}
+				ipv4_mask = (0xFFFFFFFFUL << (32 - cidr)) & 0xFFFFFFFFUL;
+				range_begin[0]=ipv4_addr&ipv4_mask;
+				range_end[0]=ipv4_addr|~ipv4_mask;
+				break;
+			default:
+				assert(0);
+		}
+	}
+	else	//ipv6
+	{
+		ret=inet_pton(AF_INET6, ip1, ipv6_addr);
+		if(ret<=0)
+		{
+			return -1;
+		}
+		ipv6_ntoh(ipv6_addr);
+		switch(format)
+		{
+			case FORMAT_RANGE:
+				ret=inet_pton(AF_INET6, ip2, ipv6_range_end);
+				if(ret<=0)
+				{
+					return -1;
+				}
+				ipv6_ntoh(ipv6_range_end);
+				memcpy(range_begin, ipv6_addr, sizeof(ipv6_addr));				
+				memcpy(range_end, ipv6_range_end, sizeof(ipv6_range_end));
+				break;
+			case FORMAT_MASK:
+				ret=inet_pton(AF_INET6, ip2, ipv6_mask);
+				if(ret<=0)
+				{
+					return -1;
+				}
+				ipv6_ntoh(ipv6_mask);
+				for(i=0; i<4; i++)
+				{
+					range_begin[i]=ipv6_addr[i]&ipv6_mask[i];	
+					range_end[i] = ipv6_addr[i]|~ipv6_mask[i];
+				}
+				break;
+			case FORMAT_CIDR:
+				cidr=atoi(ip2);
+				if(cidr>128||cidr<0)
+				{
+					return -1;
+				}
+				for(i=0; i<4; i++)
+				{
+					bit32=128-cidr-32*(3-i);
+					if(bit32<0) bit32=0;
+					ipv6_mask[i]=(0xFFFFFFFFUL << bit32) & 0xFFFFFFFFUL;
+					range_begin[i]=ipv6_addr[i]&ipv6_mask[i];	
+					range_end[i] = ipv6_addr[i]|~ipv6_mask[i];
+				}
+				break;
+			default:
+				assert(0);
+		}
+	}
+	return 0;
+}
 
