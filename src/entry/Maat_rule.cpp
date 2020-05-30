@@ -624,7 +624,7 @@ void destroy_group_rule(struct Maat_group_inner* group_rule, int by_whom, struct
 
 	}
 }
-void make_group_set(struct Maat_compile_group_relation* relation, struct bool_expr* a_set, unsigned char *has_not)
+void make_group_set(struct Maat_compile_inner* relation, struct bool_expr* a_set, unsigned char *has_not)
 {
 	int i=0,j=0;
 	a_set->user_tag=relation;
@@ -657,23 +657,23 @@ struct compile_walker
 void walk_compile_hash(const uchar * key, uint size, void * data, void * user)
 {
 	struct bool_expr* one_set=NULL;
-	struct Maat_compile_group_relation* relation=(struct Maat_compile_group_relation*)data;
+	struct Maat_compile_inner* compile_inner=(struct Maat_compile_inner*)data;
 	struct compile_walker* walker=(struct compile_walker*)user;
 	unsigned char has_not_flag=0;
 	MESA_lqueue_head update_q=walker->update_q;
-	if(relation->compile==NULL)
+	if(compile_inner->compile==NULL)
 	{
 		return;
 	}
 	//make sure compile rule's each group has loadded.
-	if((relation->group_cnt==relation->compile->declared_grp_num
-		|| relation->compile->declared_grp_num==0)//for compatible old version
-		&& relation->group_cnt>0
-		&& relation->group_cnt!=relation->not_group_cnt)
+	if((compile_inner->group_cnt==compile_inner->compile->declared_grp_num
+		|| compile_inner->compile->declared_grp_num==0)//for compatible old version
+		&& compile_inner->group_cnt>0
+		&& compile_inner->group_cnt!=compile_inner->not_group_cnt)
 	{
 		one_set=ALLOC(struct bool_expr, 1);
 		//reading compile rule is safe in update thread, mutex lock called when modified
-		make_group_set(relation, one_set, &has_not_flag);
+		make_group_set(compile_inner, one_set, &has_not_flag);
 		if(has_not_flag)
 		{
 			walker->compile_has_not_flag++;
@@ -788,10 +788,10 @@ void destroy_compile_rule(struct Maat_compile_rule* compile_rule)
 	free(compile_rule);
 	return;
 }
-struct Maat_compile_group_relation * create_compile_group_relation(int compile_id, struct Maat_scanner *scanner)
+struct Maat_compile_inner * create_compile_group_relation(int compile_id, struct Maat_scanner *scanner)
 {
 	int ret=0;
-	struct Maat_compile_group_relation* p=ALLOC(struct Maat_compile_group_relation, 1);
+	struct Maat_compile_inner* p=ALLOC(struct Maat_compile_inner, 1);
 	p->magic_num=COMPILE_RELATION_MAGIC;
 	p->compile_id=compile_id;
 	p->group_cnt=0;
@@ -803,7 +803,7 @@ struct Maat_compile_group_relation * create_compile_group_relation(int compile_i
 	return p;
 }
 
-void _destroy_compile_group_relation(struct Maat_compile_group_relation * cg_relation)
+void _destroy_compile_group_relation(struct Maat_compile_inner * cg_relation)
 {
 	assert(cg_relation->magic_num==COMPILE_RELATION_MAGIC);
 	pthread_rwlock_wrlock(&(cg_relation->rwlock));
@@ -815,7 +815,7 @@ void _destroy_compile_group_relation(struct Maat_compile_group_relation * cg_rel
 
 	free(cg_relation);
 }
-void destroy_compile_group_relation(struct Maat_compile_group_relation * p, struct Maat_scanner *scanner)
+void destroy_compile_group_relation(struct Maat_compile_inner * p, struct Maat_scanner *scanner)
 {
 	int i=0;
 	UNUSED struct Maat_group_inner* p_group=NULL;
@@ -1278,12 +1278,6 @@ void rulescan_batch_update(rule_scanner_t rs_handle,MESA_lqueue_head expr_queue,
 	free(to_update_expr);
 }
 
-struct region_group_relation
-{
-	int region_id;
-	int group_id;
-	int array_idx;
-};
 int region_group_relation_add(MESA_htable_handle region_hash, int region_id, int group_id, int array_idx)
 {
 	struct region_group_relation* relation=ALLOC(struct region_group_relation, 1);
@@ -1423,67 +1417,68 @@ unsigned int del_region_from_group(struct Maat_group_inner* group,int region_id,
 	return i;
 }
 
-int add_group_to_compile(struct Maat_compile_group_relation*relation, struct Maat_group_inner* a_rule_group, int virual_table_id, int not_flag)
+int add_group_to_compile(struct Maat_compile_inner* compile_inner, struct Maat_group_inner* a_rule_group, int virual_table_id, int not_flag)
 {
 	int i=0,ret=-1;
 	int write_pos=-1;
 	struct Maat_group_inner* p=NULL;
 	
-	pthread_rwlock_wrlock(&(relation->rwlock));
-	if(relation->compile!=NULL
-		&& relation->group_cnt>=relation->compile->declared_grp_num
-		&& relation->compile->declared_grp_num!=0)
+	pthread_rwlock_wrlock(&(compile_inner->rwlock));
+	if(compile_inner->compile!=NULL
+		&& compile_inner->group_cnt>=compile_inner->compile->declared_grp_num
+		&& compile_inner->compile->declared_grp_num!=0)
 	{
 		ret=-1;
 		goto error_out;
 	}
 
-	for(i=0;i<relation->group_boundary;i++)
+	for(i=0;i<compile_inner->group_boundary;i++)
 	{
-		p=(struct Maat_group_inner*)dynamic_array_read(relation->groups,i);
+		p=(struct Maat_group_inner*)dynamic_array_read(compile_inner->groups,i);
 		if(p==NULL)
 		{
 			write_pos=i;
 		}
 		else
 		{
-			if(p->group_id==a_rule_group->group_id && relation->virtual_table_id[i]==virual_table_id)//duplicate group
+			if(p->group_id==a_rule_group->group_id && compile_inner->virtual_table_id[i]==virual_table_id)//duplicate group
 			{
 				ret=-1;
 				goto error_out;
 			}
 		}
 	}
-	if(write_pos<0&&relation->group_boundary==MAX_EXPR_ITEM_NUM)
+	if(write_pos<0&&compile_inner->group_boundary==MAX_EXPR_ITEM_NUM)
 	{
 		ret=-1;
 		goto error_out;
 	}
 	if(write_pos<0)
 	{
-		write_pos=relation->group_boundary;
-		relation->group_boundary++;
+		write_pos=compile_inner->group_boundary;
+		compile_inner->group_boundary++;
 	}
-	dynamic_array_write(relation->groups, write_pos, a_rule_group);
+	dynamic_array_write(compile_inner->groups, write_pos, a_rule_group);
 	if(not_flag)
 	{
-		relation->not_flag[write_pos]=1;
-		relation->not_group_cnt++;
+		compile_inner->not_flag[write_pos]=1;
+		compile_inner->not_group_cnt++;
 	}
 	else
 	{
-		relation->not_flag[write_pos]=0;
+		compile_inner->not_flag[write_pos]=0;
 	}
-	relation->virtual_table_id[write_pos]=virual_table_id;
-	relation->group_cnt++;
+	compile_inner->virtual_table_id[write_pos]=virual_table_id;
+	compile_inner->group_cnt++;
 	a_rule_group->ref_by_parent_cnt++;
+	a_rule_group->ref_by_compile_cnt++;
 	ret=1;
 error_out:
-	pthread_rwlock_unlock(&(relation->rwlock));
+	pthread_rwlock_unlock(&(compile_inner->rwlock));
 
 	return ret;
 }
-struct Maat_group_inner* del_group_from_compile(struct Maat_compile_group_relation*relation, int group_id, int virual_table_id)
+struct Maat_group_inner* del_group_from_compile(struct Maat_compile_inner*relation, int group_id, int virual_table_id)
 {
 	int i=0;
 	struct Maat_group_inner* group_rule=NULL;
@@ -1513,6 +1508,7 @@ struct Maat_group_inner* del_group_from_compile(struct Maat_compile_group_relati
 		}
 	}
 	pthread_rwlock_unlock(&(relation->rwlock));
+	group_rule->ref_by_compile_cnt--;
 	return group_rule;
 }
 
@@ -1981,7 +1977,7 @@ int del_region_rule(struct Maat_table_schema* table,int region_id,int group_id,i
 int add_group_rule(struct Maat_table_schema* table, struct db_group_rule_t* db_group_rule, struct Maat_scanner *scanner, void* logger)
 {
 	struct Maat_group_inner* group_rule=NULL, *parent_group=NULL;
-	struct Maat_compile_group_relation*compile_rule=NULL;
+	struct Maat_compile_inner*compile_rule=NULL;
 	int ret=0;
 	igraph_integer_t edge_id;
 	group_rule=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_group_rule->group_id);
@@ -2014,8 +2010,7 @@ int add_group_rule(struct Maat_table_schema* table, struct db_group_rule_t* db_g
 	}
 	else
 	{
-		group_rule->ref_by_compile_cnt++;
-		compile_rule=(struct Maat_compile_group_relation*)HASH_fetch_by_id(scanner->compile_hash, db_group_rule->parent_id);
+		compile_rule=(struct Maat_compile_inner*)HASH_fetch_by_id(scanner->compile_hash, db_group_rule->parent_id);
 		if(compile_rule==NULL)
 		{
 			compile_rule=create_compile_group_relation(db_group_rule->parent_id, scanner);
@@ -2036,7 +2031,7 @@ int add_group_rule(struct Maat_table_schema* table, struct db_group_rule_t* db_g
 }
 int del_group_rule(struct Maat_table_schema* table, struct db_group_rule_t* db_group_rule, struct Maat_scanner *scanner, void* logger)
 {
-	struct Maat_compile_group_relation* relation=NULL;
+	struct Maat_compile_inner* relation=NULL;
 	struct Maat_group_inner* group_rule=NULL, *parent_group=NULL;
 	igraph_es_t es;
 	int ret=0;
@@ -2092,7 +2087,7 @@ int del_group_rule(struct Maat_table_schema* table, struct db_group_rule_t* db_g
 	}
 	else
 	{
-		relation=(struct Maat_compile_group_relation*)HASH_fetch_by_id(scanner->compile_hash, db_group_rule->parent_id);
+		relation=(struct Maat_compile_inner*)HASH_fetch_by_id(scanner->compile_hash, db_group_rule->parent_id);
 		if(relation==NULL)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
@@ -2116,7 +2111,7 @@ int del_group_rule(struct Maat_table_schema* table, struct db_group_rule_t* db_g
 		{
 			destroy_compile_group_relation(relation, scanner);
 		}
-		group_rule->ref_by_compile_cnt--;
+		
 	}
 	destroy_group_rule(group_rule, DESTROY_GROUP_BY_PARENT, scanner);
 	scanner->to_update_group_cnt++;
@@ -2124,10 +2119,10 @@ int del_group_rule(struct Maat_table_schema* table, struct db_group_rule_t* db_g
 }
 int add_compile_rule(struct Maat_table_schema* table, struct Maat_compile_rule* db_compile_rule, struct Maat_scanner *scanner, void* logger)
 {
-	struct Maat_compile_group_relation *cg_relation=NULL;
+	struct Maat_compile_inner *cg_relation=NULL;
 	struct Maat_rule_head *p_maat_rule_head=&(db_compile_rule->head);
 
-	cg_relation=(struct Maat_compile_group_relation*)HASH_fetch_by_id(scanner->compile_hash, p_maat_rule_head->config_id);
+	cg_relation=(struct Maat_compile_inner*)HASH_fetch_by_id(scanner->compile_hash, p_maat_rule_head->config_id);
 	if(cg_relation==NULL)
 	{
 		cg_relation=create_compile_group_relation(p_maat_rule_head->config_id, scanner);
@@ -2146,8 +2141,8 @@ int add_compile_rule(struct Maat_table_schema* table, struct Maat_compile_rule* 
 }
 int del_compile_rule(struct Maat_table_schema* table, int compile_id, struct Maat_scanner *scanner, void* logger)
 {
-	struct Maat_compile_group_relation *cg_relation=NULL;
-	cg_relation=(struct Maat_compile_group_relation*)HASH_fetch_by_id(scanner->compile_hash, compile_id);
+	struct Maat_compile_inner *cg_relation=NULL;
+	cg_relation=(struct Maat_compile_inner*)HASH_fetch_by_id(scanner->compile_hash, compile_id);
 	if(cg_relation==NULL || cg_relation->compile==NULL)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,

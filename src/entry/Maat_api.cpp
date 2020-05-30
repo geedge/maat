@@ -104,7 +104,7 @@ struct compile_sort_para
 	int compile_id;
 	void* user;
 };
-static void compile_sort_para_set(struct compile_sort_para* para, const struct Maat_compile_group_relation* compile_relation, void* user)
+static void compile_sort_para_set(struct compile_sort_para* para, const struct Maat_compile_inner* compile_relation, void* user)
 {
 	para->compile_id=compile_relation->compile_id;
 	para->evaluation_order=compile_relation->compile->evaluation_order;
@@ -144,8 +144,8 @@ static int compile_sort_para_compare(const struct compile_sort_para* a, const st
 }
 static int compare_compile_inner(const void *a, const void *b)
 {
-	const struct Maat_compile_group_relation *ra=*(const struct Maat_compile_group_relation **)a;
-	const struct Maat_compile_group_relation *rb=*(const struct Maat_compile_group_relation **)b;
+	const struct Maat_compile_inner *ra=*(const struct Maat_compile_inner **)a;
+	const struct Maat_compile_inner *rb=*(const struct Maat_compile_inner **)b;
 	
 	struct compile_sort_para sa, sb;
 	compile_sort_para_set(&sa, ra, NULL);
@@ -166,12 +166,12 @@ size_t Maat_rule_sort_by_evaluation_order(Maat_feather_t feather, struct Maat_ru
 	
 	memcpy(copy_rule_array, rule_array, sizeof(struct Maat_rule_t)*n_rule);
 
-	struct Maat_compile_group_relation *p=NULL;
+	struct Maat_compile_inner *p=NULL;
 
 	size_t i=0, j=0;
 	for(i=0; i<n_rule; i++)
 	{
-		p=(struct Maat_compile_group_relation *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule_array[i].config_id);
+		p=(struct Maat_compile_inner *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule_array[i].config_id);
 		if(p && 0==pthread_rwlock_tryrdlock(&(p->rwlock)))//rule maybe already deleted.
 		{
 			compile_sort_para_set(sort_para+i, p, copy_rule_array+i);
@@ -302,7 +302,7 @@ void scan_hit_status_update_by_group(struct scan_hit_status* hit_status, struct 
 	}
 	return;
 }
-size_t scan_hit_status_update_by_compile(struct scan_hit_status* hit_status, struct Maat_compile_group_relation* compile_rule, int Nth_scan)
+size_t scan_hit_status_update_by_compile(struct scan_hit_status* hit_status, struct Maat_compile_inner* compile_rule, int Nth_scan)
 {
 	size_t i=0, j=0;
 	struct Maat_hit_path_inner* p=NULL, *q=NULL;
@@ -410,8 +410,8 @@ int region_compile(_Maat_feather_t*feather, struct scan_hit_status *_mid, const 
 	size_t r_in_c_cnt=0;
 	struct bool_matcher* bm=feather->scanner->bool_matcher_expr_compiler;
 	struct Maat_group_inner* group_rule=NULL;
-	struct Maat_compile_group_relation* relation_array[MAX_SCANNER_HIT_NUM];
-	struct Maat_compile_group_relation* relation=NULL;
+	struct Maat_compile_inner* relation_array[MAX_SCANNER_HIT_NUM];
+	struct Maat_compile_inner* relation=NULL;
 	int virtual_table_id=0;
 	const unsigned long long* hit_group_ids=NULL;
 	size_t hit_group_id_cnt=0;
@@ -452,7 +452,7 @@ int region_compile(_Maat_feather_t*feather, struct scan_hit_status *_mid, const 
 	}
 	if(scan_ret>1)
 	{
-		qsort(relation_array, scan_ret, sizeof(struct Maat_compile_group_relation*),
+		qsort(relation_array, scan_ret, sizeof(struct Maat_compile_inner*),
 			  compare_compile_inner);
 	}
 	for(i=0; i<(unsigned int)scan_ret&&result_cnt<size; i++)
@@ -1245,7 +1245,7 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 void rule_ex_data_new_cb(const uchar * key, uint size, void * data, void * user)
 {
 	struct compile_ex_data_idx *ex_desc=(struct compile_ex_data_idx*)user;
-	struct Maat_compile_group_relation *relation=(struct Maat_compile_group_relation *)data;
+	struct Maat_compile_inner *relation=(struct Maat_compile_inner *)data;
 	struct Maat_compile_rule* compile_rule=relation->compile;
 	MAAT_RULE_EX_DATA ad=NULL;
 	
@@ -1301,13 +1301,13 @@ int Maat_rule_get_ex_new_index(Maat_feather_t feather, const char* compile_table
 MAAT_RULE_EX_DATA Maat_rule_get_ex_data(Maat_feather_t feather, const struct Maat_rule_t* rule, int idx)
 {
 	struct _Maat_feather_t *_feather=(struct _Maat_feather_t *)feather;
-	struct Maat_compile_group_relation *relation=NULL;
+	struct Maat_compile_inner *relation=NULL;
 	struct Maat_compile_rule* compile=NULL;
 	const struct compile_table_schema* compile_desc=NULL;
 	const struct compile_ex_data_idx* ex_desc=NULL;
 	MAAT_RULE_EX_DATA ad=NULL;
 	
-	relation=(struct Maat_compile_group_relation *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule->config_id);
+	relation=(struct Maat_compile_inner *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule->config_id);
 	if(relation==NULL||relation->compile==NULL)
 	{
 		return NULL;
@@ -2478,11 +2478,11 @@ int Maat_read_rule(Maat_feather_t feather, const struct Maat_rule_t* rule, enum 
 {
 	int ret=0;
 	struct _Maat_feather_t *_feather=(struct _Maat_feather_t *)feather;
-	struct Maat_compile_group_relation *compile_inner=NULL;
+	struct Maat_compile_inner *compile_inner=NULL;
 	switch(type)
 	{
 		case	MAAT_RULE_SERV_DEFINE:
-			compile_inner=(struct Maat_compile_group_relation *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule->config_id);
+			compile_inner=(struct Maat_compile_inner *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule->config_id);
 			if(compile_inner==NULL)
 			{
 				ret=0;

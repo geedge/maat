@@ -1,6 +1,42 @@
 {
     "compile_table": "COMPILE",
     "group_table": "GROUP",
+    "groups": [		
+			{
+				"group_name": "ASN1234",
+				"parent_group": "SRC_IP_ASN_1234",
+        "virtual_table":"SOURCE_IP_ASN",
+        "regions": [
+          {
+            "table_name": "AS_NUMBER",
+            "table_type": "string",
+            "table_content": {
+                "keywords": "AS1234",
+                "expr_type": "none",
+                "match_method": "exact",
+                "format": "uncase plain"
+            }
+          }
+        ]
+      },
+      {
+          "group_name": "ASN2345",
+          "parent_group": "DEST_IP_ASN_2345",
+          "virtual_table":"DESTINATION_IP_ASN",
+          "regions": [
+              {
+                  "table_name": "AS_NUMBER",
+                  "table_type": "string",
+                  "table_content": {
+                      "keywords": "AS2345",
+                      "expr_type": "none",
+                      "match_method": "exact",
+                      "format": "uncase plain"
+                  }
+              }
+          ]
+      }
+    ],
     "rules": [
         {
             "compile_id": 123,
@@ -1718,7 +1754,26 @@
 		                "not_flag":0                   
 		            }          
 		        ]
-		    }
+		    },
+        {
+            "compile_id": 178,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "non-top-object-as-virtual",
+            "is_valid": "yes",
+            "groups": [
+		            {
+		            		"group_name":"SRC_IP_ASN_1234",
+		                "not_flag":0                   
+		            },          	
+		            {
+		            		"group_name":"DEST_IP_ASN_2345",
+		                "not_flag":0                   
+		            }
+            ]
+        }
     ],
     "plugin_table": [
         {

@@ -183,6 +183,7 @@ int set_iris_descriptor(const char* json_file,cJSON *json, const char* encrypt_k
 	map_register(iris_cfg->str2int_map, "left",2);
 	map_register(iris_cfg->str2int_map, "prefix",2);
 	map_register(iris_cfg->str2int_map, "complete",3);
+	map_register(iris_cfg->str2int_map, "exact",3);
 
 	map_register(iris_cfg->str2int_map, "uncase plain",0);
 	map_register(iris_cfg->str2int_map, "hexbin",1);
@@ -934,6 +935,28 @@ int write_index_file(struct iris_description_t *p_iris,void* logger)
 	p_iris->idx_fp=NULL;
 	return 0;
 }
+static struct group_info_t* group_info_read(MESA_htable_handle table, const char* group_name)
+{
+	return (struct group_info_t*)MESA_htable_search(table, (const unsigned char*)group_name, strlen(group_name));
+}
+static struct group_info_t* group_info_add_unsafe(struct iris_description_t* p_iris, MESA_htable_handle table, const char* group_name)
+{
+	static struct group_info_t untitled_group;
+	struct group_info_t *group_info=NULL;
+	if(0==strncasecmp(group_name, untitled_group_name, strlen(untitled_group_name)))
+	{
+		group_info=&untitled_group;
+		group_info->group_id=get_group_seq(p_iris);
+	}
+	else
+	{
+		group_info=ALLOC(struct group_info_t, 1);
+		group_info->group_id=get_group_seq(p_iris);
+		strncpy(group_info->group_name, group_name, sizeof(group_info->group_name));
+		MESA_htable_add(p_iris->group_name_map, (const unsigned char*)group_name, strlen(group_name), group_info);
+	}
+	return group_info;
+}
 int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int tracking_compile_id, struct iris_description_t *p_iris, void* logger)
 {
 	const char* _str_parent_type[2]={"compile", "group"};
@@ -943,7 +966,6 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 	cJSON *sub_groups=NULL, *region_rule=NULL;
 	const char* group_name=NULL, *virtual_table=NULL;
 	struct group_info_t *group_info=NULL;
-	struct group_info_t untitled_group;
 
 	item=cJSON_GetObjectItem(group_json, "group_name");
 	if(item==NULL||item->type!=cJSON_String)
@@ -977,22 +999,10 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 	{
 		group_not_flag=0;
 	}
-
-	group_info=(struct group_info_t*)MESA_htable_search(p_iris->group_name_map, (const unsigned char*)group_name, strlen(group_name));
+	group_info=group_info_read(p_iris->group_name_map, group_name);
 	if(group_info==NULL)//exist group name, regions and sub groups will be ommit.
 	{
-		if(0==strncasecmp(group_name, untitled_group_name, strlen(untitled_group_name)))
-		{
-			group_info=&untitled_group;
-			group_info->group_id=get_group_seq(p_iris);
-		}
-		else
-		{
-			group_info=ALLOC(struct group_info_t, 1);
-			group_info->group_id=get_group_seq(p_iris);
-			strncpy(group_info->group_name, group_name, sizeof(group_info->group_name));
-			MESA_htable_add(p_iris->group_name_map, (const unsigned char*)group_name, strlen(group_name), group_info);
-		}
+		group_info=group_info_add_unsafe(p_iris, p_iris->group_name_map, group_name);
 		region_json=cJSON_GetObjectItem(group_json,"regions");
 		if(region_json!=NULL)
 		{
@@ -1043,7 +1053,10 @@ int write_iris(cJSON *json, struct iris_description_t *p_iris, void* logger)
 	int compile_id=-1, compile_cnt=0, group_cnt=0;
 	int ret=0;
 	cJSON *c_rules=NULL, *g_rules=NULL, *plug_tables=NULL;
-	cJSON *compile_rule=NULL,*group_rule=NULL, *each_plug_table=NULL;
+	cJSON *compile_rule=NULL,*group_rule=NULL, *each_plug_table=NULL, *item=NULL;
+	static struct group_info_t* parent_group=NULL;
+	const char* parent_group_name=NULL;
+
 	plug_tables=cJSON_GetObjectItem(json,"plugin_table");
 	if(NULL!=plug_tables)
 	{
@@ -1051,6 +1064,34 @@ int write_iris(cJSON *json, struct iris_description_t *p_iris, void* logger)
 		{
 			write_plugin_line(each_plug_table, i, p_iris, logger);
 		}
+	}
+	g_rules=cJSON_GetObjectItem(json, "groups");//sub-group to group
+	if(g_rules!=NULL)
+	{
+		cJSON_ArrayForEach(group_rule, g_rules)
+		{
+			item=cJSON_GetObjectItem(group_rule, "parent_group");
+			if(item==NULL || item->type!=cJSON_String)
+			{
+				parent_group_name=untitled_group_name;
+				
+			}
+			else
+			{
+				parent_group_name=item->string;
+			}
+			parent_group=group_info_read(p_iris->group_name_map, parent_group_name);
+			if(parent_group==NULL)
+			{
+				parent_group=group_info_add_unsafe(p_iris, p_iris->group_name_map, item->string);
+			}
+			ret=write_group_rule(group_rule, parent_group->group_id, PARENT_TYPE_GROUP, 0, p_iris, logger);
+			if(ret<0)
+			{
+				return -1;
+			}
+		}
+		
 	}
 	c_rules=cJSON_GetObjectItem(json,"rules");
 	if(c_rules==NULL)
