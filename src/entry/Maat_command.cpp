@@ -873,7 +873,7 @@ int reconstruct_cmd(struct _Maat_feather_t *feather, struct _Maat_cmd_inner_t* _
 	struct Maat_group_t* group_cmd=NULL;
 	struct Maat_region_t* region_cmd=NULL;
 
-	struct Maat_compile_group_relation *relation=NULL;
+	struct Maat_compile_inner *relation=NULL;
 	struct Maat_group_inner* group_inner=NULL;
 	struct Maat_region_inner* region_inner=NULL;
 	void* logger=feather->logger;
@@ -885,7 +885,7 @@ int reconstruct_cmd(struct _Maat_feather_t *feather, struct _Maat_cmd_inner_t* _
 				,"MAAT not ready.");
 		return -1;
 	}
-	relation=(struct Maat_compile_group_relation *)HASH_fetch_by_id(feather->scanner->compile_hash, config_id);
+	relation=(struct Maat_compile_inner *)HASH_fetch_by_id(feather->scanner->compile_hash, config_id);
 	//Operation on relation is thread safe, no immediate memory free when delete a compile rule or a scanner.
 	//In another words, if the relation is accessable from compile means, its was valid in at least 10 seconds (garbage bury).
 	if(relation==NULL)
@@ -1389,10 +1389,10 @@ int fix_table_name(_Maat_feather_t* feather,struct Maat_cmd_t* cmd)
 	struct Maat_region_t* p_region=NULL;
 	enum MAAT_TABLE_TYPE table_type;
 
-	struct Maat_compile_group_relation *compile_rule=NULL;
+	struct Maat_compile_inner *compile_rule=NULL;
 	if(feather->scanner!=NULL)
 	{
-		compile_rule=(struct Maat_compile_group_relation*)HASH_fetch_by_id(feather->scanner->compile_hash, cmd->compile.config_id);
+		compile_rule=(struct Maat_compile_inner*)HASH_fetch_by_id(feather->scanner->compile_hash, cmd->compile.config_id);
 		if(compile_rule!=NULL)
 		{
 			MESA_handle_runtime_log(feather->logger,RLOG_LV_FATAL,maat_module 

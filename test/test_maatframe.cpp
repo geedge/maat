@@ -1732,7 +1732,7 @@ TEST(ScanResult, LongerServiceDefine)
 }
 TEST(VirtualTable, VirtualWithPhysical)
 {
-#define TestVirtualTable1
+#define VT_VirtualWithPhysical
 	int ret=0, table_id=0;
 	const char* http_content="Batman\\:Take me Home.Superman/:Fine,stay with me.";
 	const char* http_url="https://blog.csdn.net/littlefang/article/details/8213058";
@@ -1772,7 +1772,7 @@ TEST(VirtualTable, VirtualWithPhysical)
 }
 TEST(VirtualTable, VirtualWithVirtual)
 {
-#define TestVirtualTable2
+#define VT_VirtualWithVirtual
 	int ret=0, table_id=0;
 	const char* http_req_hdr_ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36";
 	const char* http_resp_hdr_cookie="uid=12345678;BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; sugstore=1;";
@@ -1812,7 +1812,7 @@ TEST(VirtualTable, VirtualWithVirtual)
 }
 TEST(VirtualTable, OneGroupInTwoVirtual)
 {
-#define TestVirtualTable3
+#define VT_OneGroupInTwoVirtual
 	int ret=0, table_id=0;
 	const char* http_resp_hdr_cookie="sessionid=888888;BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; sugstore=1;";
 	
@@ -1844,6 +1844,36 @@ TEST(VirtualTable, OneGroupInTwoVirtual)
 
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 163);	
+
+	Maat_clean_status(&mid);
+
+	return;
+}
+TEST(VirtualTable, VirtualAsNonTopObject)
+{
+#define VT_AsNonTopObject
+	int ret=0, table_id=0;
+
+	const char* src_asn="AS1234", *dst_asn="AS2345";
+	
+	struct Maat_rule_t result[4];
+	memset(result, 0, sizeof(result));
+	
+	scan_status_t mid=NULL;
+
+	table_id=Maat_table_register(g_feather, "SOURCE_IP_ASN");	
+	ASSERT_GT(table_id, 0);
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, src_asn, strlen(src_asn), 
+						result, NULL, 4, &mid, 0);
+	EXPECT_EQ(ret, -2);
+	
+
+	table_id=Maat_table_register(g_feather, "DESTINATION_IP_ASN");	
+	ASSERT_GT(table_id, 0);
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, dst_asn, strlen(dst_asn), 
+						result, NULL, 4, &mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 178);	
 
 	Maat_clean_status(&mid);
 

@@ -108,6 +108,7 @@ struct db_group_rule_t
 	int not_flag;
 	int parent_type;	//PARENT_TYPE_**, 0:compile, 1: group.
 	int virtual_table_id;
+	int clause_id;
 };
 struct op_expr_t
 {
@@ -117,6 +118,13 @@ struct op_expr_t
 	int no_effect_convert_cnt;
 	int table_id;
 	int rule_type;
+};
+
+struct region_group_relation
+{
+	int region_id;
+	int group_id;
+	int array_idx;
 };
 
 struct Maat_region_inner
@@ -129,22 +137,6 @@ struct Maat_region_inner
 	int expr_id_ub;
 	enum MAAT_TABLE_TYPE table_type;
 };
-#define	COMPILE_RELATION_MAGIC	0x1a2b3c4d
-struct Maat_compile_group_relation
-{
-	long long magic_num;
-	struct Maat_compile_rule *compile;
-	dynamic_array_t *groups;	//element is struct Maat_group_inner*
-	int virtual_table_id[MAX_ITEMS_PER_BOOL_EXPR];
-	char not_flag[MAX_ITEMS_PER_BOOL_EXPR];
-	int compile_id;//equal to compile->m_rule.config_id
-	int group_boundary;
-	int group_cnt;
- 	int not_group_cnt;
-	pthread_rwlock_t rwlock;//reading compile rule is safe in update thread, rwlock lock called when delete or scan thread read
-
-};
-
 struct Maat_group_inner
 {
 	int group_id;
@@ -161,6 +153,35 @@ struct Maat_group_inner
 	dynamic_array_t *regions;
 	pthread_mutex_t mutex;
 };
+
+#define	COMPILE_RELATION_MAGIC	0x1a2b3c4d
+struct Maat_group_reference
+{
+	struct Maat_group_inner* ref_group;
+	char not_flag;
+	int virtual_table_id;
+	int clause_id;
+	TAILQ_ENTRY(Maat_group_reference) entries;
+};
+TAILQ_HEAD(ref_group_q, Maat_group_reference);
+
+struct Maat_compile_inner
+{
+	long long magic_num;
+	struct Maat_compile_rule *compile;
+	struct ref_group_q ref_group_qhead;
+	
+	dynamic_array_t *groups;	//element is struct Maat_group_inner*
+	int virtual_table_id[MAX_ITEMS_PER_BOOL_EXPR];
+	char not_flag[MAX_ITEMS_PER_BOOL_EXPR];
+	int compile_id;//equal to compile->m_rule.config_id
+	int group_boundary;
+	int group_cnt;
+ 	int not_group_cnt;
+	pthread_rwlock_t rwlock;//reading compile rule is safe in update thread, rwlock lock called when delete or scan thread read
+
+};
+
 
 struct _compile_result_t
 {
@@ -253,10 +274,14 @@ struct Maat_scanner
 	struct Maat_table_runtime_manager*  table_rt_mgr;
 	size_t max_table_num;
 	
-	MESA_htable_handle region_hash;	//key: region_id, value: struct region_group_relation*
+	//Access in both UPDATE thread and SCAN thread
 	MESA_htable_handle exprid_hash;	//key: expr_id, value: int array_idx of Maat_group_inner->regions;
+	MESA_htable_handle compile_hash;//key: compile_id, value: struct Maat_compile_inner *
+	MESA_htable_handle clause_hash;	//key: global_clause_id, value: 
+		
+	//Access in UPDATE thread ONLY.	
+	MESA_htable_handle region_hash;	//key: region_id, value: struct region_group_relation*
 	MESA_htable_handle group_hash;	//key: group_id, value: struct Maat_group_inner*
-	MESA_htable_handle compile_hash;//key: compile_id, value: struct Maat_compile_group_relation *
 
 
 	MESA_htable_handle district_map;
@@ -402,7 +427,7 @@ struct _maat_garbage_t
 		struct Maat_scanner* scanner;
 		struct Maat_group_inner* group_rule;
 		struct Maat_compile_rule* compile_rule;
-		struct Maat_compile_group_relation * compile_group_relation;
+		struct Maat_compile_inner * compile_group_relation;
 		struct bool_matcher* bool_matcher;
 		struct ip_matcher* a_ip_matcher;
 		void * raw;
@@ -432,7 +457,7 @@ int parse_accept_tag(const char* value, struct rule_tag** result, void* logger);
 void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbage_q);
 void garbage_bagging_with_timeout(enum maat_garbage_type type,void *p, int timeout, MESA_lqueue_head garbage_q);
 void garbage_bury(MESA_lqueue_head garbage_q,void *logger);
-void make_group_set(struct Maat_compile_group_relation* compile_rule, struct bool_expr* a_set, unsigned char *has_not);
+void make_group_set(struct Maat_compile_inner* compile_rule, struct bool_expr* a_set, unsigned char *has_not);
 void maat_start_cb(long long new_version,int update_type,void*u_para);
 int maat_update_cb(const char* table_name,const char* line,void *u_para);
 void maat_finish_cb(void* u_para);
