@@ -792,7 +792,7 @@ struct Maat_compile_inner * create_compile_group_relation(int compile_id, struct
 {
 	int ret=0;
 	struct Maat_compile_inner* p=ALLOC(struct Maat_compile_inner, 1);
-	p->magic_num=COMPILE_RELATION_MAGIC;
+	p->magic_num=COMPILE_INNER_MAGIC;
 	p->compile_id=compile_id;
 	p->group_cnt=0;
 	p->group_boundary=1;
@@ -803,9 +803,9 @@ struct Maat_compile_inner * create_compile_group_relation(int compile_id, struct
 	return p;
 }
 
-void _destroy_compile_group_relation(struct Maat_compile_inner * cg_relation)
+void _destroy_compile_inner(struct Maat_compile_inner * cg_relation)
 {
-	assert(cg_relation->magic_num==COMPILE_RELATION_MAGIC);
+	assert(cg_relation->magic_num==COMPILE_INNER_MAGIC);
 	pthread_rwlock_wrlock(&(cg_relation->rwlock));
 	cg_relation->compile_id=-1;
 	dynamic_array_destroy(cg_relation->groups, NULL);
@@ -815,7 +815,7 @@ void _destroy_compile_group_relation(struct Maat_compile_inner * cg_relation)
 
 	free(cg_relation);
 }
-void destroy_compile_group_relation(struct Maat_compile_inner * p, struct Maat_scanner *scanner)
+void destroy_compile_inner(struct Maat_compile_inner * p, struct Maat_scanner *scanner)
 {
 	int i=0;
 	UNUSED struct Maat_group_inner* p_group=NULL;
@@ -826,9 +826,9 @@ void destroy_compile_group_relation(struct Maat_compile_inner * p, struct Maat_s
 		p_group=(struct Maat_group_inner*)dynamic_array_read(p->groups, i);
 		assert(p_group==NULL);
 	}
-	assert(p->magic_num==COMPILE_RELATION_MAGIC);
+	assert(p->magic_num==COMPILE_INNER_MAGIC);
 	HASH_delete_by_id(scanner->compile_hash, p->compile_id);
-	garbage_bagging(GARBAGE_COMPILE_GOURP_RELATION, p, scanner->tomb_ref);
+	garbage_bagging(GARBAGE_COMPILE_INNER, p, scanner->tomb_ref);
 }
 scan_rule_t* create_rs_str_rule(unsigned int sub_type,enum MAAT_MATCH_METHOD match_method,int is_case_sensitive,const char* string,int len,int l_offset,int r_offset)
 {
@@ -1049,7 +1049,7 @@ void destroy_maat_scanner(struct Maat_scanner*scanner)
 		return;
 	}
 	rulescan_destroy(scanner->region);
-	MESA_htable_destroy(scanner->compile_hash,(void (*)(void*))_destroy_compile_group_relation);
+	MESA_htable_destroy(scanner->compile_hash,(void (*)(void*))_destroy_compile_inner);
 	MESA_htable_destroy(scanner->group_hash, (void (*)(void*))_destroy_group_rule);
 	MESA_htable_destroy(scanner->exprid_hash, NULL);
 	MESA_htable_destroy(scanner->region_hash, NULL);
@@ -2109,7 +2109,7 @@ int del_group_rule(struct Maat_table_schema* table, struct db_group_rule_t* db_g
 		}
 		if(relation->group_cnt==0 && relation->compile==NULL)
 		{
-			destroy_compile_group_relation(relation, scanner);
+			destroy_compile_inner(relation, scanner);
 		}
 		
 	}
@@ -2159,7 +2159,7 @@ int del_compile_rule(struct Maat_table_schema* table, int compile_id, struct Maa
 
 	if(cg_relation->group_cnt==0&&cg_relation->compile==NULL)
 	{
-		destroy_compile_group_relation(cg_relation, scanner);
+		destroy_compile_inner(cg_relation, scanner);
 	}
 	scanner->to_update_compile_cnt++;
 	return 1;
@@ -2932,8 +2932,8 @@ void garbage_bury(MESA_lqueue_head garbage_q, int timeout, void *logger)
 			case GARBAGE_COMPILE_RULE:
 				destroy_compile_rule(bag->compile_rule);				
 				break;
-			case GARBAGE_COMPILE_GOURP_RELATION:
-				_destroy_compile_group_relation(bag->compile_group_relation);
+			case GARBAGE_COMPILE_INNER:
+				_destroy_compile_inner(bag->compile_group_relation);
 				break;
 			case GARBAGE_GROUP_RULE:
 				_destroy_group_rule(bag->group_rule);
@@ -2958,24 +2958,6 @@ void garbage_bury(MESA_lqueue_head garbage_q, int timeout, void *logger)
 				break;
 			case GARBAGE_MAP_STR2INT:
 				map_destroy(bag->str2int_map);
-				break;
-			case GARBAGE_FOREIGN_FILE:
-				ret=system_cmd_rm(bag->filename);
-				if(ret==-1)
-				{
-					MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module,
-							"Foreign content file %s remove failed.",
-							bag->filename);
-				}
-				else
-				{
-
-					MESA_handle_runtime_log(logger,RLOG_LV_DEBUG,maat_module,
-							"Foreign content file %s remove success.",
-							bag->filename);				
-				}
-				free(bag->filename);
-				bag->filename=NULL;
 				break;
 			case GARBAGE_IP_MATCHER:
 				ip_matcher_free(bag->a_ip_matcher);
