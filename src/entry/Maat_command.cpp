@@ -1741,7 +1741,8 @@ void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int 
 		{
 			for(j=0; j<rule_list[i].n_foreign; j++)
 			{
-				ret=system_cmd_rm(rule_list[i].f_keys[j].filename);
+				//ret=system_cmd_rm(rule_list[i].f_keys[j].filename);
+				ret=remove(rule_list[i].f_keys[j].filename);
 				if(ret==-1)
 				{
 					MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_module,

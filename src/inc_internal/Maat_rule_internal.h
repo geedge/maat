@@ -153,14 +153,14 @@ struct Maat_group_inner
 	dynamic_array_t *regions;
 	pthread_mutex_t mutex;
 };
-
-#define	COMPILE_RELATION_MAGIC	0x1a2b3c4d
+#define	COMPILE_INNER_MAGIC	0x1a2b3c4d
 struct Maat_group_reference
 {
 	struct Maat_group_inner* ref_group;
 	char not_flag;
 	int virtual_table_id;
-	int clause_id;
+	int local_clause_id;
+	int global_clause_id;
 	TAILQ_ENTRY(Maat_group_reference) entries;
 };
 TAILQ_HEAD(ref_group_q, Maat_group_reference);
@@ -223,10 +223,9 @@ enum maat_garbage_type
 	GARBAGE_SCANNER=0,
 	GARBAGE_GROUP_RULE,
 	GARBAGE_COMPILE_RULE,
-	GARBAGE_COMPILE_GOURP_RELATION,
+	GARBAGE_COMPILE_INNER,
 	GARBAGE_BOOL_MATCHER,
 	GARBAGE_MAP_STR2INT,
-	GARBAGE_FOREIGN_FILE,
 	GARBAGE_IP_MATCHER
 };
 struct iconv_handle_t

@@ -410,8 +410,8 @@ int region_compile(_Maat_feather_t*feather, struct scan_hit_status *_mid, const 
 	size_t r_in_c_cnt=0;
 	struct bool_matcher* bm=feather->scanner->bool_matcher_expr_compiler;
 	struct Maat_group_inner* group_rule=NULL;
-	struct Maat_compile_inner* relation_array[MAX_SCANNER_HIT_NUM];
-	struct Maat_compile_inner* relation=NULL;
+	struct Maat_compile_inner* compile_inner_array[MAX_SCANNER_HIT_NUM];
+	struct Maat_compile_inner* compile_inner=NULL;
 	int virtual_table_id=0;
 	const unsigned long long* hit_group_ids=NULL;
 	size_t hit_group_id_cnt=0;
@@ -444,7 +444,7 @@ int region_compile(_Maat_feather_t*feather, struct scan_hit_status *_mid, const 
 		hit_group_id_cnt=scan_hit_status_read_group_ids(_mid, &hit_group_ids);
 		scan_ret=bool_matcher_match(bm, thread_num, 
 								hit_group_ids, hit_group_id_cnt,
-								(void **)relation_array, MAX_SCANNER_HIT_NUM);
+								(void **)compile_inner_array, MAX_SCANNER_HIT_NUM);
 	}
 	else
 	{
@@ -452,38 +452,38 @@ int region_compile(_Maat_feather_t*feather, struct scan_hit_status *_mid, const 
 	}
 	if(scan_ret>1)
 	{
-		qsort(relation_array, scan_ret, sizeof(struct Maat_compile_inner*),
+		qsort(compile_inner_array, scan_ret, sizeof(struct Maat_compile_inner*),
 			  compare_compile_inner);
 	}
 	for(i=0; i<(unsigned int)scan_ret&&result_cnt<size; i++)
 	{
-		relation=relation_array[i];
-		if(relation==NULL)
+		compile_inner=compile_inner_array[i];
+		if(compile_inner==NULL)
 		{
 			continue;
 		}
-		assert(relation->magic_num==COMPILE_RELATION_MAGIC);
-		if(0==pthread_rwlock_tryrdlock(&(relation->rwlock)))
+		assert(compile_inner->magic_num==COMPILE_INNER_MAGIC);
+		if(0==pthread_rwlock_tryrdlock(&(compile_inner->rwlock)))
 		{
-			if(relation->compile)
+			if(compile_inner->compile)
 			{			
-				if(relation->not_group_cnt>0 && !is_last_region)
+				if(compile_inner->not_group_cnt>0 && !is_last_region)
 				{
 					_mid->not_grp_compile_hitted_flag=1;
 				}
 				else
 				{
-					r_in_c_cnt=scan_hit_status_update_by_compile(_mid, relation, region_hit_wraper->Nth_scan);
+					r_in_c_cnt=scan_hit_status_update_by_compile(_mid, compile_inner, region_hit_wraper->Nth_scan);
 					if(r_in_c_cnt>0 ||	//compile hitted becasue of new reigon
 					region_hit_num==0)	//or hit a compile that refer a NOT-logic group in previous scan.
 					{
-						fill_maat_rule(&(result[result_cnt]), &(relation->compile->head),
-									relation->compile->service_defined, relation->compile->head.serv_def_len);
+						fill_maat_rule(&(result[result_cnt]), &(compile_inner->compile->head),
+									compile_inner->compile->service_defined, compile_inner->compile->head.serv_def_len);
 						result_cnt++;
 					}
 				}		
 			}	
-			pthread_rwlock_unlock(&(relation->rwlock));
+			pthread_rwlock_unlock(&(compile_inner->rwlock));
 		}		
 	}	
 
