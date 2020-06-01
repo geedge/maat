@@ -94,7 +94,7 @@ struct Maat_compile_rule
 	struct Maat_rule_head head;// fix len of Maat_rule_t
 	char* service_defined;
 	int is_valid;
-	int declared_grp_num;
+	int declared_clause_num;
 	double evaluation_order;
 	const struct Maat_table_schema* ref_table;
 	MAAT_RULE_EX_DATA* ads;
@@ -137,6 +137,8 @@ struct Maat_region_inner
 	int expr_id_ub;
 	enum MAAT_TABLE_TYPE table_type;
 };
+
+
 struct Maat_group_inner
 {
 	int group_id;
@@ -153,23 +155,16 @@ struct Maat_group_inner
 	dynamic_array_t *regions;
 	pthread_mutex_t mutex;
 };
-#define	COMPILE_INNER_MAGIC	0x1a2b3c4d
-struct Maat_group_reference
-{
-	struct Maat_group_inner* ref_group;
-	char not_flag;
-	int virtual_table_id;
-	int local_clause_id;
-	int global_clause_id;
-	TAILQ_ENTRY(Maat_group_reference) entries;
-};
-TAILQ_HEAD(ref_group_q, Maat_group_reference);
 
+
+
+#define	COMPILE_INNER_MAGIC	0x1a2b3c4d
 struct Maat_compile_inner
 {
-	long long magic_num;
+	long long magic_num;	//shoulde be COMPILE_INNER_MAGIC
 	struct Maat_compile_rule *compile;
-	struct ref_group_q ref_group_qhead;
+
+
 	
 	dynamic_array_t *groups;	//element is struct Maat_group_inner*
 	int virtual_table_id[MAX_ITEMS_PER_BOOL_EXPR];
@@ -276,18 +271,19 @@ struct Maat_scanner
 	//Access in both UPDATE thread and SCAN thread
 	MESA_htable_handle exprid_hash;	//key: expr_id, value: int array_idx of Maat_group_inner->regions;
 	MESA_htable_handle compile_hash;//key: compile_id, value: struct Maat_compile_inner *
-	MESA_htable_handle clause_hash;	//key: global_clause_id, value: 
+	MESA_htable_handle grp_and_vt2clause_id_hash;	//key: virtual_table<<32|group_id, value: struct Maat_clause_id_list*
 		
 	//Access in UPDATE thread ONLY.	
 	MESA_htable_handle region_hash;	//key: region_id, value: struct region_group_relation*
 	MESA_htable_handle group_hash;	//key: group_id, value: struct Maat_group_inner*
 
 
+
 	MESA_htable_handle district_map;
 	MESA_htable_handle tmp_district_map;
-	MESA_htable_handle vertex_id2group;
+	MESA_htable_handle vertex_id2group;//key:vertex_id, value: struct Maat_hierarchy_element*
 
-	igraph_t group_graph;
+	igraph_t hierarchy_graph;
 	igraph_integer_t group_graph_vcount;
 	igraph_vector_t dfs_vids;
 

@@ -548,8 +548,8 @@ struct Maat_group_inner* create_group_rule(int group_id, int table_id, struct Ma
 	group->table_id=table_id;
 	group->group_name=NULL;
 	group->vertex_id=scanner->grp_vertex_id_generator++;
-	assert(igraph_vcount(&scanner->group_graph)==group->vertex_id);
-	igraph_add_vertices(&scanner->group_graph, 1, NULL);	//Add 1 vertice.
+	assert(igraph_vcount(&scanner->hierarchy_graph)==group->vertex_id);
+	igraph_add_vertices(&scanner->hierarchy_graph, 1, NULL);	//Add 1 vertice.
 	ret=HASH_add_by_id(scanner->vertex_id2group, group->vertex_id, group);
 	assert(ret>0);
 	ret=HASH_add_by_id(scanner->group_hash, group_id, group);
@@ -609,7 +609,7 @@ void destroy_group_rule(struct Maat_group_inner* group_rule, int by_whom, struct
 		HASH_delete_by_id(scanner->group_hash, group_rule->group_id);
 		HASH_delete_by_id(scanner->vertex_id2group, group_rule->vertex_id);	
 		igraph_vector_init(&v, 8);
-		igraph_neighbors(&scanner->group_graph, &v, group_rule->vertex_id, IGRAPH_ALL);
+		igraph_neighbors(&scanner->hierarchy_graph, &v, group_rule->vertex_id, IGRAPH_ALL);
 		if(igraph_vector_size(&v)>0)
 		{
 			print_igraph_vector(&v, buff, sizeof(buff));
@@ -666,8 +666,8 @@ void walk_compile_hash(const uchar * key, uint size, void * data, void * user)
 		return;
 	}
 	//make sure compile rule's each group has loadded.
-	if((compile_inner->group_cnt==compile_inner->compile->declared_grp_num
-		|| compile_inner->compile->declared_grp_num==0)//for compatible old version
+	if((compile_inner->group_cnt==compile_inner->compile->declared_clause_num
+		|| compile_inner->compile->declared_clause_num==0)//for compatible old version
 		&& compile_inner->group_cnt>0
 		&& compile_inner->group_cnt!=compile_inner->not_group_cnt)
 	{
@@ -751,7 +751,7 @@ struct Maat_compile_rule* create_compile_rule(struct Maat_rule_head* p_head, con
 	int i=0;
 	struct Maat_compile_rule*p=ALLOC(struct Maat_compile_rule, 1);
 	p->head=*p_head;
-	p->declared_grp_num=declared_grp_num;
+	p->declared_clause_num=declared_grp_num;
 	p->ads=ALLOC(MAAT_RULE_EX_DATA, MAX_COMPILE_EX_DATA_NUM);
 
 	//protect by feather->background_update_mutex
@@ -782,13 +782,13 @@ void destroy_compile_rule(struct Maat_compile_rule* compile_rule)
 	free(compile_rule->ads);
 
 	compile_rule->is_valid=0;
-	compile_rule->declared_grp_num=-1;
+	compile_rule->declared_clause_num=-1;
 	free(compile_rule->service_defined);
 	compile_rule->service_defined=NULL;
 	free(compile_rule);
 	return;
 }
-struct Maat_compile_inner * create_compile_group_relation(int compile_id, struct Maat_scanner *scanner)
+struct Maat_compile_inner * create_compile_inner(int compile_id, struct Maat_scanner *scanner)
 {
 	int ret=0;
 	struct Maat_compile_inner* p=ALLOC(struct Maat_compile_inner, 1);
@@ -1001,7 +1001,7 @@ struct Maat_scanner* create_maat_scanner(unsigned int version,_Maat_feather_t *f
 	scanner->region_hash=MESA_htable_create(&hargs, sizeof(hargs));
 	MESA_htable_print_crtl(scanner->region_hash,0);
 
-	ret=igraph_empty(&scanner->group_graph, 0, IGRAPH_DIRECTED);
+	ret=igraph_empty(&scanner->hierarchy_graph, 0, IGRAPH_DIRECTED);
 	assert(ret==IGRAPH_SUCCESS);
 
 	scanner->district_map=map_create();
@@ -1087,7 +1087,7 @@ void destroy_maat_scanner(struct Maat_scanner*scanner)
 	Maat_table_rt_manager_destroy(scanner->table_rt_mgr);
 	scanner->table_rt_mgr=NULL;
 
-	igraph_destroy(&scanner->group_graph);
+	igraph_destroy(&scanner->hierarchy_graph);
 	free(scanner);
 	return;
 }
@@ -1417,21 +1417,56 @@ unsigned int del_region_from_group(struct Maat_group_inner* group,int region_id,
 	return i;
 }
 
-int add_group_to_compile(struct Maat_compile_inner* compile_inner, struct Maat_group_inner* a_rule_group, int virual_table_id, int not_flag)
+int add_group_to_compile(struct Maat_compile_inner* compile_inner, struct Maat_group_inner* a_rule_group, int virual_table_id, int not_flag, int local_clause_id)
 {
 	int i=0,ret=-1;
 	int write_pos=-1;
 	struct Maat_group_inner* p=NULL;
-	
+	struct Maat_CNF_clause* clause=NULL;
+	struct Maat_CNF_character* character=NULL;
 	pthread_rwlock_wrlock(&(compile_inner->rwlock));
 	if(compile_inner->compile!=NULL
-		&& compile_inner->group_cnt>=compile_inner->compile->declared_grp_num
-		&& compile_inner->compile->declared_grp_num!=0)
+		&& local_clause_id>MAX_ITEMS_PER_BOOL_EXPR
+		&& compile_inner->clause_cnt>=compile_inner->compile->declared_clause_num
+		&& compile_inner->compile->declared_clause_num!=0)
 	{
 		ret=-1;
 		goto error_out;
 	}
+	size_t i=0;
+	if(local_clause_id==0)
+	{
+		local_clause_id=compile_inner->clause_cnt;
+		compile_inner->clause_cnt++
+	}
+	clause=&(compile_inner->clause[local_clause_id-1]);
+	if(clause->inuse_flag==0)
+	{
+		clause->inuse_flag=1;
+		clause->not_flag=not_flag;
+		TAILQ_INIT(&clause->char_q);
+	}
+	else
+	{
+		assert(clause->not_flag==not_flag);
+	}
+	character=ALLOC(struct Maat_CNF_character, 1);
+	character->group_id=a_rule_group->group_id;
+	character->ref_group=a_rule_group;
+	character->virtual_table_id=virual_table_id;
+	TAILQ_INSERT_TAIL(&clause->char_q, character, entries);
+	clause->char_num++;
 
+	else
+	{
+		TAILQ_FOREACH(clause, &compile_inner->clause_q, entries)
+		{
+			if(clause->local_clause_id==local_clause_id)
+			{
+				TAILQ_FOREACH(clause, &compile_inner->clause_q, entries)
+			}
+		}
+	}
 	for(i=0;i<compile_inner->group_boundary;i++)
 	{
 		p=(struct Maat_group_inner*)dynamic_array_read(compile_inner->groups,i);
@@ -1976,14 +2011,14 @@ int del_region_rule(struct Maat_table_schema* table,int region_id,int group_id,i
 }
 int add_group_rule(struct Maat_table_schema* table, struct db_group_rule_t* db_group_rule, struct Maat_scanner *scanner, void* logger)
 {
-	struct Maat_group_inner* group_rule=NULL, *parent_group=NULL;
-	struct Maat_compile_inner*compile_rule=NULL;
-	int ret=0;
+	struct Maat_group_inner* group_inner=NULL, *parent_group=NULL;
+	struct Maat_compile_inner*compile_inner=NULL;
+	int ret=0, global_clause_id=0;
 	igraph_integer_t edge_id;
-	group_rule=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_group_rule->group_id);
-	if(group_rule==NULL)
+	group_inner=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_group_rule->group_id);
+	if(group_inner==NULL)
 	{
-		group_rule=create_group_rule(db_group_rule->group_id, table->table_id, scanner);
+		group_inner=create_group_rule(db_group_rule->group_id, table->table_id, scanner);
 	}
 	
 	if(db_group_rule->parent_type==PARENT_TYPE_GROUP)
@@ -1993,10 +2028,11 @@ int add_group_rule(struct Maat_table_schema* table, struct db_group_rule_t* db_g
 		{
 			parent_group=create_group_rule(db_group_rule->parent_id, table->table_id, scanner);
 		}	
-		group_rule->ref_by_parent_cnt++;
+		group_inner->ref_by_parent_cnt++;
 		parent_group->ref_by_children_cnt++;
-		ret=igraph_get_eid(&scanner->group_graph, &edge_id, group_rule->vertex_id, parent_group->vertex_id, IGRAPH_DIRECTED, /*error*/ 0);
-		if(edge_id>0)//if the edge was not found and error is false, then -1 will be assigned to eid.
+		//if the edge was not found and error is false, then -1 will be assigned to eid.
+		ret=igraph_get_eid(&scanner->hierarchy_graph, &edge_id, group_inner->vertex_id, parent_group->vertex_id, IGRAPH_DIRECTED, /*error*/ 0);
+		if(edge_id>0)//The edge was found.
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
 								"update error, add sub group: %s %d to group %d error, sub group exist.",
@@ -2006,17 +2042,17 @@ int add_group_rule(struct Maat_table_schema* table, struct db_group_rule_t* db_g
 			return -1;
 		}
 		//igraph allow add multiple edges between two vetex, igraph_delete_edges removes one edge per call.
-		igraph_add_edge(&scanner->group_graph, group_rule->vertex_id, parent_group->vertex_id);
+		igraph_add_edge(&scanner->hierarchy_graph, group_inner->vertex_id, parent_group->vertex_id);
 	}
 	else
 	{
-		compile_rule=(struct Maat_compile_inner*)HASH_fetch_by_id(scanner->compile_hash, db_group_rule->parent_id);
-		if(compile_rule==NULL)
+		compile_inner=(struct Maat_compile_inner*)HASH_fetch_by_id(scanner->compile_hash, db_group_rule->parent_id);
+		if(compile_inner==NULL)
 		{
-			compile_rule=create_compile_group_relation(db_group_rule->parent_id, scanner);
+			compile_inner=create_compile_inner(db_group_rule->parent_id, scanner);
 		}
-		ret=add_group_to_compile(compile_rule, group_rule, db_group_rule->virtual_table_id, db_group_rule->not_flag);
-		if(ret<0)
+		global_clause_id=add_group_to_compile(compile_inner, group_inner, db_group_rule->virtual_table_id, db_group_rule->not_flag, db_group_rule->clause_id);
+		if(global_clause_id<0)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
 								"update error, add group: %s %d to compile rule %d error, compile rule is full or duplicate group.",
@@ -2025,6 +2061,8 @@ int add_group_rule(struct Maat_table_schema* table, struct db_group_rule_t* db_g
 																		db_group_rule->parent_id);
 			return -1;
 		}
+		//add character edge to hierarchy graph
+		//add clause edge to hierarchy graph
 	}
 	scanner->to_update_group_cnt++;
 	return 1;
@@ -2060,7 +2098,7 @@ int del_group_rule(struct Maat_table_schema* table, struct db_group_rule_t* db_g
 																		db_group_rule->parent_id);
 			return 0;
 		}
-		edge_num_before=igraph_ecount(&scanner->group_graph);
+		edge_num_before=igraph_ecount(&scanner->hierarchy_graph);
 		// The edges between the given pairs of vertices will be included in the edge selection.
 		//The vertex pairs must be given as the arguments of the function call, the third argument 
 		//is the first vertex of the first edge, the fourth argument is the second vertex of the 
@@ -2071,8 +2109,8 @@ int del_group_rule(struct Maat_table_schema* table, struct db_group_rule_t* db_g
 		assert(ret==IGRAPH_SUCCESS);
 		// ignore no such edge to abort().
 		igraph_set_error_handler(igraph_error_handler_ignore);
-		ret=igraph_delete_edges(&scanner->group_graph, es);
-		edge_num_after=igraph_ecount(&scanner->group_graph);
+		ret=igraph_delete_edges(&scanner->hierarchy_graph, es);
+		edge_num_after=igraph_ecount(&scanner->hierarchy_graph);
 		
 		if(ret!=IGRAPH_SUCCESS||edge_num_before-edge_num_after!=1)
 		{
@@ -2125,7 +2163,7 @@ int add_compile_rule(struct Maat_table_schema* table, struct Maat_compile_rule* 
 	cg_relation=(struct Maat_compile_inner*)HASH_fetch_by_id(scanner->compile_hash, p_maat_rule_head->config_id);
 	if(cg_relation==NULL)
 	{
-		cg_relation=create_compile_group_relation(p_maat_rule_head->config_id, scanner);
+		cg_relation=create_compile_inner(p_maat_rule_head->config_id, scanner);
 	}
 	else
 	{
@@ -3110,7 +3148,7 @@ void walk_group_hash(const uchar * key, uint size, void * data, void * user)
 	else
 	{
 		igraph_vector_t *vids=&(scanner->dfs_vids);
-		igraph_dfs(&(scanner->group_graph), group_rule->vertex_id, IGRAPH_OUT, 
+		igraph_dfs(&(scanner->hierarchy_graph), group_rule->vertex_id, IGRAPH_OUT, 
 					 0, vids, NULL, NULL, NULL, NULL, NULL, NULL);
 
 		temp_group_ids=ALLOC(long long, effective_vertices_count(vids));
@@ -3148,7 +3186,7 @@ void walk_group_hash(const uchar * key, uint size, void * data, void * user)
 
 void find_group_paths(struct Maat_scanner* scanner)
 {
-	scanner->group_graph_vcount=igraph_vcount(&scanner->group_graph);
+	scanner->group_graph_vcount=igraph_vcount(&scanner->hierarchy_graph);
 	igraph_vector_init(&(scanner->dfs_vids), scanner->group_graph_vcount);
 	MESA_htable_iterate(scanner->group_hash, walk_group_hash, scanner);
 	igraph_vector_destroy(&scanner->dfs_vids);
@@ -3162,7 +3200,7 @@ void do_scanner_update(struct Maat_scanner* scanner, MESA_lqueue_head garbage_q,
 	struct ip_matcher* old_ip_matcher=NULL;
 	int i=0, ret=0;
 	igraph_bool_t is_dag;
-	igraph_is_dag(&(scanner->group_graph), &is_dag);
+	igraph_is_dag(&(scanner->hierarchy_graph), &is_dag);
 	if(!is_dag)
 	{
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
