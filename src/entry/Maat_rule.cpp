@@ -2267,7 +2267,7 @@ void update_expr_rule(struct Maat_table_schema* table,const char* table_line,str
 	switch(table->table_type)
 	{
 		case	TABLE_TYPE_EXPR:
-			ret=sscanf(table_line,"%d\t%d\t%s\t%d\t%d\t%d\t%d",&(maat_str_rule->region_id)
+			ret=sscanf(table_line,"%d\t%d\t%1024s\t%d\t%d\t%d\t%d",&(maat_str_rule->region_id)
 															,&(maat_str_rule->group_id)
 															,maat_str_rule->keywords
 															,(int*)&(maat_str_rule->expr_type)
@@ -2285,7 +2285,7 @@ void update_expr_rule(struct Maat_table_schema* table,const char* table_line,str
 			}
 			break;
 		case	TABLE_TYPE_EXPR_PLUS:
-			ret=sscanf(table_line,"%d\t%d\t%s\t%s\t%d\t%d\t%d\t%d",&(maat_str_rule->region_id)
+			ret=sscanf(table_line,"%d\t%d\t%64s\t%1024s\t%d\t%d\t%d\t%d",&(maat_str_rule->region_id)
 															,&(maat_str_rule->group_id)
 															,maat_str_rule->district
 															,maat_str_rule->keywords
