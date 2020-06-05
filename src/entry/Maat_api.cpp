@@ -513,6 +513,7 @@ int match_district(struct _OUTER_scan_status_t *_mid,scan_result_t *region_hit,i
 		if(region_id>0&&district_id!=_mid->district_id)
 		{
 			ret_region_num--;
+			//todo: replace memmove with high performance solution.
 			memmove(&(region_hit[i]),&(region_hit[i+1]),sizeof(scan_result_t)*(ret_region_num-i));
 		}
 		else
