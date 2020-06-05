@@ -440,13 +440,13 @@ int Maat_table_runtime_ip_plugin_rebuild_ip_matcher(struct Maat_table_runtime* t
 		i++;
 	}
 	assert(i==rule_cnt);
-	if(rule_cnt==0)
+	if(rule_cnt>0)
 	{
-		return 0;
+		new_ip_matcher=ip_matcher_new(rules, rule_cnt, &mem_use);
+		table_rt->ip_plugin.old_ip_matcher=table_rt->ip_plugin.ip_matcher;
+		table_rt->ip_plugin.ip_matcher=new_ip_matcher;
 	}
-	new_ip_matcher=ip_matcher_new(rules, rule_cnt, &mem_use);
-	table_rt->ip_plugin.old_ip_matcher=table_rt->ip_plugin.ip_matcher;
-	table_rt->ip_plugin.ip_matcher=new_ip_matcher;
+	free(rules);
 	return 0;
 }
 struct ip_matcher* Maat_table_runtime_dettach_old_ip_matcher(struct Maat_table_runtime* table_rt)
