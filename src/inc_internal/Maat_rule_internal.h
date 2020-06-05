@@ -40,8 +40,8 @@ struct db_str_rule_t
 {
 	int region_id;
 	int group_id;
-	char keywords[MAX_EXPR_KEYLEN];
-	char district[MAX_DISTRICT_LEN];
+	char keywords[MAX_EXPR_KEYLEN+1];
+	char district[MAX_DISTRICT_LEN+1];
 	enum MAAT_EXPR_TYPE expr_type;
 	enum MAAT_MATCH_METHOD match_method;
 	int is_hexbin;
