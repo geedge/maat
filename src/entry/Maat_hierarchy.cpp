@@ -2,6 +2,36 @@
 
 #define module_maat_hierarchy	"MAAT_HIERARCHY"
 
+const char* sql_create_hier_table[]={"create table MAAT_HIERARCHY_REGION(region_id interger PRIMARY KEY, group_id interger, district_id interger, table_id interger, expr_id_lb interger, expr_id_ub interger)",
+									"create table MAAT_HIERARCHY_GROUP(group_id interger PRIMARY KEY, vertex_id interger)",
+									"create table MAAT_HIERARCHY_COMPILE(compile_id interger PRIMARY KEY, declared_clause_num interger, user_data_pointer interger)",
+									"create table MAAT_HIERARCHY_CLAUSE(clause_id interger PRIMARY KEY, compile_id interger, nth_clause interger, not_flag interger)",
+									"create table MAAT_HIERARCHY_LITERAL(group_id interger, virtual_table_id interger, clause_id interger)",
+									NULL,
+								};
+
+struct Maat_hierarchy_region
+{
+	int region_id;
+	int group_id;
+	int district_id;
+	int table_id;
+	int expr_id_cnt;
+	int expr_id_lb;
+	int expr_id_ub;
+};
+struct Maat_hierarchy_group
+{
+	igraph_integer_t vertex_id;
+	int group_id;
+	int ref_by_compile_cnt;
+	int ref_by_group_cnt;
+
+	pthread_mutex_t mutex;
+	int top_group_cnt;
+	int* top_groups;
+};
+
 struct Maat_CNF_literal
 {
 	int group_id;
@@ -22,9 +52,7 @@ struct Maat_clause_list
 	size_t clause_id_count;
 	Maat_clause_q clause_q;
 };
-
-
-struct _CNF_clause
+struct Maat_hierarchy_clause
 {
 	char not_flag;
 	char in_use;
@@ -33,22 +61,31 @@ struct _CNF_clause
 	int vt_id;
 	int group_id;
 };
-struct Maat_CNF
+struct Maat_hierarchy_compile
 {
 	int compile_id;
 	int declared_clause_number;
-	struct _CNF_clause clauses[MAX_ITEMS_PER_BOOL_EXPR];
+	struct Maat_hierarchy_clause clauses[MAX_ITEMS_PER_BOOL_EXPR];
 	void* user_tag;
 };
 
 struct Maat_hierarchy
 {
 	struct bool_matcher* bm;
-	MESA_htable_handle literal2clause_list_hash;		//key: virtual_table<<32|group_id, aka literal_id, value: struct Maat_clause_list*
-	MESA_htable_handle cnf_hash;		//key: compile_id, value: struct Maat_CNF *
-	MESA_htable_handle group_hash;		//key: group_id, value: struct Maat_group_vertex*
-	MESA_htable_handle vertex_id2group_hash;	//key:vetex_id, value: struct Maat_group_vertex* (reference of group hash, do NOT free)
+
+
+	sqlite3* sqlite_db;
+
+
+
 	
+	MESA_htable_handle literal2clause_list_hash;		//key: virtual_table<<32|group_id, aka literal_id, value: struct Maat_clause_list*
+	MESA_htable_handle cnf_hash;		//key: compile_id, value: struct Maat_hierarchy_compile *
+	MESA_htable_handle group_hash;		//key: group_id, value: struct Maat_hierarchy_group*
+	MESA_htable_handle vertex_id2group_hash;	//key:vetex_id, value: struct Maat_hierarchy_group* (reference of group hash, do NOT free)
+
+	MESA_htable_handle region_hash;		//key: region_id, vaule: struct Maat_hierarchy_region* 
+	MESA_htable_handle expr_id2region;	//key: expr_id, value: struct Maat_hierarchy_region*
 	igraph_t group_graph;
 	igraph_integer_t group_graph_vcount;
 	igraph_vector_t dfs_vids;
@@ -67,6 +104,21 @@ struct Maat_hierarchy* Maat_hierarchy_new(int thread_num, struct Maat_garbage_bi
 	hier->logger=mesa_handle_logger;
 	hier->garbage_bin=garbage_bin;
 	hier->thread_num=thread_num;
+	char* errmsg=NULL;
+	sqlite3_open(":memory:", &hier->sqlite_db);
+	int i=0;
+	while(sql_create_hier_table[i]!=NULL)
+	{
+		ret=sqlite3_exec(hier->sqlite_db, sql_create_hier_table[i], NULL, NULL, &errmsg);
+		if(ret)
+		{		
+			MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, maat_module, "<%s>%d: sqlite3_exec failed. sql: %s, errmsg:%s", __FILE__, __LINE__, sql_create_hier_table[i], errmsg);
+			sqlite3_free(errmsg);		
+			assert(0);
+		}
+		i++;
+	}
+
 	
 	MESA_htable_create_args_t hargs;
 	memset(&hargs,0,sizeof(hargs));
@@ -128,13 +180,16 @@ void Maat_hierarchy_free(struct Maat_hierarchy* hier)
 
 int Maat_hierarchy_add_compile(struct Maat_hierarchy* hier, int compile_id, int clause_num, void* user)
 {
-	struct Maat_CNF* cnf=NULL;
+	struct Maat_hierarchy_compile* cnf=NULL;
 	cnf=MESA_htable_search(hier->cnf_hash, &compile_id, sizeof(compile_id));
 	if(cnf)//duplicated
 	{
+		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, maat_module,
+				"Add compile %d failed, compile is already exisited.",
+				compile_id);
 		return -1;
 	}
-	cnf=ALLOC(struct Maat_CNF, 1);
+	cnf=ALLOC(struct Maat_hierarchy_compile, 1);
 	cnf->compile_id=compile_id;
 	cnf->declared_clause_number=clause_num;
 	cnf->user_tag=user;
@@ -143,10 +198,13 @@ int Maat_hierarchy_add_compile(struct Maat_hierarchy* hier, int compile_id, int 
 }
 int Maat_hierarchy_remove_compile(struct Maat_hierarchy * hier, int compile_id)
 {
-	struct Maat_CNF* cnf=NULL;
+	struct Maat_hierarchy_compile* cnf=NULL;
 	cnf=MESA_htable_search(hier->cnf_hash, &compile_id, sizeof(compile_id));
 	if(!cnf)
 	{
+		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, maat_module,
+				"Remove compile %d failed, compile is not exisited.",
+				compile_id);
 		return -1;
 	}
 	cnf=MESA_htable_del(hier->cnf_hash, &compile_id, sizeof(compile_id), NULL);
@@ -156,8 +214,8 @@ int Maat_hierarchy_add_group_to_compile(struct Maat_hierarchy* hier, int group_i
 {
 	struct Maat_clause_list* clause_list=NULL;
 	struct Maat_CNF_clause* p=NULL;
-	struct Maat_group_vertex* group=NULL;
-	group=(struct Maat_group_vertex*)MESA_htable_search(hier->group_hash, &group_id, sizeof(group_id));
+	struct Maat_hierarchy_group* group=NULL;
+	group=(struct Maat_hierarchy_group*)MESA_htable_search(hier->group_hash, &group_id, sizeof(group_id));
 	if(!group)
 	{
 		group=Maat_hierarchy_group_vertex_new(hier, group_id);
@@ -174,6 +232,9 @@ int Maat_hierarchy_add_group_to_compile(struct Maat_hierarchy* hier, int group_i
 	{
 		if(p->compile_id==compile_id && p->not_flag==not_flag && p->Nth_clause==Nth_clause)
 		{
+			MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, maat_module,
+						"Add group %d to clause %d of compile %d failed, group is already exisited.",
+						group_id, Nth_clause, compile_id);
 			return -1; //duplicated
 		}
 	}
@@ -190,43 +251,57 @@ int Maat_hierarchy_add_group_to_compile(struct Maat_hierarchy* hier, int group_i
 int Maat_hierarchy_remove_group_from_compile(struct Maat_hierarchy* hier, int group_id, int vt_id, int not_flag, int Nth_clause, int compile_id)
 {
 	struct Maat_clause_list* clause_list=NULL;
-	struct Maat_CNF_clause* p=NULL, *tmp=NULL;
+	struct Maat_CNF_clause* p=NULL;
 	int found=0;
+	struct Maat_hierarchy_group* group=NULL;
+	group=(struct Maat_hierarchy_group*)MESA_htable_search(hier->group_hash, &group_id, sizeof(group_id));
+	if(!group)
+	{
+		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, maat_module,
+						"Remove group %d from compile %d failed, group is not exisited.",
+						group_id, compile_id);
+
+		return -1;
+	}
+	group->ref_by_compile_cnt--;
 	clause_list=(struct Maat_clause_list*)MESA_htable_search(hier->literal2clause_list_hash, TO_LITERAL_ID(vt_id, group_id), sizeof(long long));
 	if(!clause_list)
 	{
+		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, maat_module,
+						"Remove group %d from compile %d failed, literal is not exisited.",
+						group_id, compile_id);
 		return -1;
 	}
-	for(p=TAILQ_FIRST(&clause_list->clause_q); p!=NULL; p=tmp)
+	
+	TAILQ_FOREACH(p, &clause_list->clause_q, entries)
 	{
-		tmp=TAILQ_NEXT(p, entries);
 		if(p->compile_id==compile_id && p->not_flag==not_flag && p->Nth_clause==Nth_clause)
 		{
-			TAILQ_REMOVE(clause_list->clause_q, p, entries);
-			clause_list->clause_id_count--;
-			free(p);
-			return 0;
+			found=1
+			break;
 		}
-
 	}
-	return -1;
+	if(found)
+	{
+		TAILQ_REMOVE(clause_list->clause_q, p, entries);
+		clause_list->clause_id_count--;
+		free(p);
+		return 0;
+	}
+	else
+	{
+		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, maat_module,
+					"Remove group %d from compile %d failed, clause is not exisited.",
+					group_id, compile_id);
+		return -1;
+	}
 }
-struct Maat_group_vertex
-{
-	igraph_integer_t vertex_id;
-	int group_id;
-	int ref_by_compile_cnt;
-	int ref_by_group_cnt;
 
-	pthread_mutex_t mutex;
-	int top_group_cnt;
-	int* top_groups;
-};
-struct Maat_group_vertex* Maat_hierarchy_group_vertex_new(struct Maat_hierarchy* hier, int group_id)
+struct Maat_hierarchy_group* Maat_hierarchy_group_vertex_new(struct Maat_hierarchy* hier, int group_id)
 {
 	int ret=0;
-	struct Maat_group_vertex* group=NULL;
-	group=ALLOC(struct Maat_group_vertex, 1);
+	struct Maat_hierarchy_group* group=NULL;
+	group=ALLOC(struct Maat_hierarchy_group, 1);
 	group->group_id=group_id;
 	group->vertex_id=hier->grp_vertex_id_generator++;
 	assert(igraph_vcount(&hier->group_graph)==group->vertex_id);
@@ -239,15 +314,15 @@ struct Maat_group_vertex* Maat_hierarchy_group_vertex_new(struct Maat_hierarchy*
 	assert(ret>0);
 	return group;
 }
-static void group_vertex_free(struct Maat_group_vertex* group)
+static void _group_vertex_free(struct Maat_hierarchy_group* group)
 {
 	free(group->top_groups);
 	free(group);
 }
 void Maat_hierarchy_group_vertex_free(struct Maat_hierarchy* hier, int group_id)
 {
-	struct Maat_group_vertex* group=NULL, superior_group=NULL;
-	group=(struct Maat_group_vertex*)MESA_htable_search(hier->group_graph, &group_id, sizeof(group));
+	struct Maat_hierarchy_group* group=NULL, superior_group=NULL;
+	group=(struct Maat_hierarchy_group*)MESA_htable_search(hier->group_graph, &group_id, sizeof(group));
 	assert(group!=NULL);
 	int ret=0;
 	igraph_vector_t v; 
@@ -271,7 +346,7 @@ void Maat_hierarchy_group_vertex_free(struct Maat_hierarchy* hier, int group_id)
 	assert(ret==0);
 	ret=MESA_htable_del(hier->group_hash, &group_id, sizeof(group_id), NULL); //group is freed by MESA_htable
 	assert(ret==0);
-	Maat_garbage_bag(hier->garbage_bin, group, group_vertex_free);
+	Maat_garbage_bag(hier->garbage_bin, group, _group_vertex_free);
 	return;
 }
 
@@ -279,19 +354,19 @@ int Maat_hierarchy_add_group_to_group(struct Maat_hierarchy* hier, int group_id,
 {
 	int ret=0;
 	igraph_integer_t edge_id;
-	struct Maat_group_vertex* group=NULL, superior_group=NULL;
-	group=(struct Maat_group_vertex*)MESA_htable_search(hier->group_graph, &group_id, sizeof(group_id));
+	struct Maat_hierarchy_group* group=NULL, superior_group=NULL;
+	group=(struct Maat_hierarchy_group*)MESA_htable_search(hier->group_graph, &group_id, sizeof(group_id));
 	if(!group)
 	{
 		group=Maat_hierarchy_group_vertex_new(hier, group_id);
 	}
-	superior_group=(struct Maat_group_vertex*)MESA_htable_search(hier->group_graph, &superior_group_id, sizeof(superior_group_id));
+	superior_group=(struct Maat_hierarchy_group*)MESA_htable_search(hier->group_graph, &superior_group_id, sizeof(superior_group_id));
 	if(!superior_group)
 	{
 		superior_group=Maat_hierarchy_group_vertex_new(hier, superior_group_id);
 	}
 	ret=igraph_get_eid(&hier->group_graph, &edge_id, group->vertex_id, superior_group->vertex_id, IGRAPH_DIRECTED, /*error*/ 0);
-	if(edge_id>0)//The edge was found. Only one edge between two groups.
+	if(edge_id>0)//No duplicated edges between two groups.
 	{
 		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, maat_module,
 						"Add group %d to group %d failed, relation already exisited.",
@@ -307,8 +382,8 @@ int Maat_hierarchy_remove_group_from_group(struct Maat_hierarchy* hier, int grou
 {
 	int ret=0;
 	igraph_integer_t edge_id;
-	struct Maat_group_vertex* group=NULL, superior_group=NULL;
-	group=(struct Maat_group_vertex*)MESA_htable_search(hier->group_graph, &group_id, sizeof(group_id));
+	struct Maat_hierarchy_group* group=NULL, superior_group=NULL;
+	group=(struct Maat_hierarchy_group*)MESA_htable_search(hier->group_graph, &group_id, sizeof(group_id));
 	if(group==NULL)
 	{
 		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, maat_module,
@@ -316,7 +391,7 @@ int Maat_hierarchy_remove_group_from_group(struct Maat_hierarchy* hier, int grou
 						group_id, superior_group_id, group_id);
 		return -1;	
 	}
-	superior_group=(struct Maat_group_vertex*)MESA_htable_search(hier->group_graph, &superior_group_id, sizeof(superior_group_id));
+	superior_group=(struct Maat_hierarchy_group*)MESA_htable_search(hier->group_graph, &superior_group_id, sizeof(superior_group_id));
 	if(superior_group==NULL)
 	{
 		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, maat_module,
@@ -356,7 +431,7 @@ int Maat_hierarchy_remove_group_from_group(struct Maat_hierarchy* hier, int grou
 
 static void reset_cnf_hash(const uchar * key, uint size, void * data, void * user)
 {
-	struct Maat_CNF* cnf=(struct Maat_CNF*)data;
+	struct Maat_hierarchy_compile* cnf=(struct Maat_hierarchy_compile*)data;
 	memset(cnf->clauses, 0, sizeof(cnf->clauses));
 	(*(size_t*)user)++;
 	return;
@@ -373,7 +448,7 @@ static void walk_literal2clause_list_hash(const uchar * key, uint size, void * d
 	struct Maat_clause_list* clause_list=(struct Maat_clause_list*)data;
 	struct Maat_CNF_clause* p=NULL;
 	struct clause_list_walker* walker=(struct clause_list_walker*)user;
-	struct Maat_CNF* cnf=NULL;
+	struct Maat_hierarchy_compile* cnf=NULL;
 	walker->n_literal++;
 	TAILQ_FOREACH(p, &clause_list->clause_q, entries)
 	{
@@ -412,7 +487,7 @@ struct cnf_walker
 };
 static void walk_cnf_hash(const uchar * key, uint size, void * data, void * user)
 {
-	struct Maat_CNF* cnf=(struct Maat_CNF*)data;
+	struct Maat_hierarchy_compile* cnf=(struct Maat_hierarchy_compile*)data;
 	struct cnf_walker* walker=(struct cnf_walker*)walker;
 	struct bool_expr* a_expr=walker->bool_expr_array[walker->cnt];
 	int i=0, j=0;
@@ -471,14 +546,15 @@ static struct bool_matcher*  Maat_CNF_build_bool_matcher(struct Maat_hierarchy* 
 	return bm;
 }
 
-int Maat_hierarchy_add_region(struct Maat_hierarchy* hier, int region_id, int group_id)
+int Maat_hierarchy_add_region_to_group(struct Maat_hierarchy* hier, int group_id, int region_id, int table_id, int district_id, int expr_id)
 {
+	struct Maat_hierarchy
 }
 static void _walk_group_hash(const uchar * key, uint size, void * data, void * user)
 {
 	struct Maat_hierarchy* hier=(struct Maat_hierarchy*)user;
-	struct Maat_group_vertex* group=(struct Maat_group_vertex*)data;
-	struct Maat_group_vertex* superior_group=NULL;
+	struct Maat_hierarchy_group* group=(struct Maat_hierarchy_group*)data;
+	struct Maat_hierarchy_group* superior_group=NULL;
 	int tmp_vid=0;
 	size_t i=0, top_group_cnt=0;
 	long long* temp_group_ids=NULL;
@@ -488,7 +564,7 @@ static void _walk_group_hash(const uchar * key, uint size, void * data, void * u
 		free(group->top_groups);
 		Maat_hierarchy_group_vertex_free(hier, group->group_id);
 	}
-	if(group->ref_by_group_cnt==0)
+	if(group->ref_by_group_cnt==0 && group->ref_by_compile_cnt>0)
 	{
 		//fast path, group is only referenced by compile rules.
 		top_group_cnt=1;
@@ -510,7 +586,7 @@ static void _walk_group_hash(const uchar * key, uint size, void * data, void * u
 			{
 				break;
 			}
-			superior_group=(struct Maat_group_vertex*)MESA_htable_search(hier->vertex_id2group_hash, tmp_vid, sizeof(tmp_vid));
+			superior_group=(struct Maat_hierarchy_group*)MESA_htable_search(hier->vertex_id2group_hash, tmp_vid, sizeof(tmp_vid));
 			if(superior_group->ref_by_compile_cnt>0)//including itself
 			{
 				temp_group_ids[top_group_cnt]=superior_group->group_id;
@@ -530,18 +606,14 @@ static void _walk_group_hash(const uchar * key, uint size, void * data, void * u
 	return;
 }
 
-static void Maat_hierarchy_build_top_group(struct Maat_hierarchy* hier)
-{
-	MESA_htable_iterate(hier->group_hash, _walk_group_hash, &n_cnf);
-
-}
-int Maat_hierarchy_rebuild(struct Maat_hierarchy* hier)
+Maat_hierarchy_rebuild(struct Maat_hierarchy* hier)
 {
 	struct bool_matcher* bm=NULL;
 	bm=Maat_CNF_build_bool_matcher(hier);
 	Maat_garbage_bag(hier->garbage_bin, hier->bm, 10, bool_matcher_free);
 	hier->bm=bm;
-	
+	//build top group
+	MESA_htable_iterate(hier->group_hash, _walk_group_hash, &hier);
 		
 }
 
