@@ -5,10 +5,9 @@
 const char* sql_create_hier_table[]={"create table MAAT_HIERARCHY_REGION(region_id interger PRIMARY KEY, group_id interger, district_id interger, table_id interger, expr_id_lb interger, expr_id_ub interger)",
 									"create table MAAT_HIERARCHY_GROUP(group_id interger PRIMARY KEY, vertex_id interger)",
 									"create table MAAT_HIERARCHY_COMPILE(compile_id interger PRIMARY KEY, declared_clause_num interger, user_data_pointer interger)",
-									"create table MAAT_HIERARCHY_CLAUSE(clause_id interger PRIMARY KEY, compile_id interger, nth_clause interger, not_flag interger)",
+									"create table MAAT_HIERARCHY_CLAUSE(compile_id interger, nth_clause interger, not_flag interger, UNIQUE(compile_id, nth_clause))",
 									"create table MAAT_HIERARCHY_LITERAL(group_id interger, virtual_table_id interger, clause_id interger)",
-									NULL,
-								};
+									NULL};
 
 struct Maat_hierarchy_region
 {
@@ -65,9 +64,21 @@ struct Maat_hierarchy_compile
 {
 	int compile_id;
 	int declared_clause_number;
-	struct Maat_hierarchy_clause clauses[MAX_ITEMS_PER_BOOL_EXPR];
 	void* user_tag;
 };
+int wrap_sqlite_exec(sqlite3* db, const char* sql, void* logger)
+{
+	char* errmsg;
+
+	int ret = sqlite3_exec(db, sql, NULL, NULL, &errmsg);
+	
+	if(ret!=SQLITE_OK)
+	{
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, module_maat_hierarchy, "sqlite3_exec %s failed, err: %s", sql, errmsg);
+		sqlite3_free(errmsg);
+	}
+	return ret;
+}
 
 struct Maat_hierarchy
 {
@@ -164,6 +175,10 @@ struct Maat_hierarchy* Maat_hierarchy_new(int thread_num, struct Maat_garbage_bi
 }
 void Maat_hierarchy_free(struct Maat_hierarchy* hier)
 {
+	int ret=0;
+	//todo free memory of compile user data;
+	ret=sqlite3_close(hier->sqlite_db);
+	assert(ret==SQLITE_OK);
 
 	MESA_htable_destroy(hier->literal2clause_list_hash, NULL);
 	MESA_htable_destroy(hier->cnf_hash, NULL);
@@ -178,8 +193,76 @@ void Maat_hierarchy_free(struct Maat_hierarchy* hier)
 #define	TO_CLAUSE_ID_COMPATBILE(vid, gid)	((unsigned long long)vid<<32|gid)
 #define	TO_LITERAL_ID(vt_id, group_id)	((long long)vt_id<<32|group_id)
 
+static const char* sql_compile_query="SELECT compile_id, declared_clause_num, user_data_pointer FROM MAAT_HIERARCHY_COMPILE"
+									"WHERE compile_id = %d";
+static const char* sql_compile_add= "INSERT INTO MAAT_HIERARCHY_COMPILE (compile_id,declared_clause_num,user_data_pointer) " \
+         							"VALUES (%d, %d, %s); ";
+static const char* sql_compile_is_exisit="SELECT COUNT(*) FROM MAAT_HIERARCHY_COMPILE"\
+										"WHERE compile_id=%d";
+typedef int (*sqlite3_callback)(
+   void*,    /* Data provided in the 4th argument of sqlite3_exec() */
+   int,      /* The number of columns in row */
+   char**,   /* An array of strings representing fields in the row */
+   char**    /* An array of strings representing column names */
+);
+static int sqlite_cb_get_compile(void* user_data, int column_num, char** column_val, char** column_name)
+{
+	struct Maat_hierarchy_compile* compile=(struct Maat_hierarchy_compile*)user_data;
+	assert(column_num==3);
+	sscanf(column_val[0], "%d", &compile->compile_id);
+	return 0;
+}
 int Maat_hierarchy_add_compile(struct Maat_hierarchy* hier, int compile_id, int clause_num, void* user)
 {
+	int ret=0;
+	char sql[1024];
+	char *err_msg = 0;
+	sqlite3_stmt *stmt;
+	snprinf(sql, sizeof(sql), sql_compile_is_exisit, compile_id);
+	ret=sqlite3_prepare_v2(hier->sqlite_db, sql, -1, &stmt, NULL);
+	assert(ret=SQLITE_OK);
+	if(SQLITE_DONE!=sqlite3_step(stmt))
+	while (sqlite3_step(stmt) != SQLITE_DONE)
+	{
+	
+		int i;
+		int num_cols = sqlite3_column_count(stmt);
+		
+		for (i = 0; i < num_cols; i++)
+		{
+			switch (sqlite3_column_type(stmt, i))
+			{
+			case (SQLITE3_TEXT):
+				printf("%s, ", sqlite3_column_text(stmt, i));
+				break;
+			case (SQLITE_INTEGER):
+				printf("%d, ", sqlite3_column_int(stmt, i));
+				break;
+			case (SQLITE_FLOAT):
+				printf("%g, ", sqlite3_column_double(stmt, i));
+				break;
+			default:
+				break;
+			}
+		}
+		printf("\n");
+
+	}
+
+
+
+
+	
+	ret=sqlite3_exec(hier->sqlite_db, hier_sql, sqlite_cb_get_compile, &compile, &err_msg);
+	assert(ret==SQLITE_OK);
+	if(compile->compile_id>0)
+	{
+		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, maat_module,
+				"Add compile %d failed, compile is already exisited.",
+				compile_id);
+		return -1;
+	}
+	
 	struct Maat_hierarchy_compile* cnf=NULL;
 	cnf=MESA_htable_search(hier->cnf_hash, &compile_id, sizeof(compile_id));
 	if(cnf)//duplicated
