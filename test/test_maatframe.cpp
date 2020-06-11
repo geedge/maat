@@ -3179,7 +3179,7 @@ TEST_F(MaatCmdTest,    HitPath)
 	EXPECT_EQ(hit_path[path_idx].region_id, region1.region_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1.group_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group1.group_id);
-	EXPECT_EQ(hit_path[path_idx].virtual_table_id, table_id);
+	EXPECT_EQ(hit_path[path_idx].vt_id, table_id);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
 	
 
@@ -3211,7 +3211,7 @@ TEST_F(MaatCmdTest,    HitPath)
 	EXPECT_EQ(hit_path[path_idx].region_id, region2.region_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2.group_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21.group_id);
-	EXPECT_EQ(hit_path[path_idx].virtual_table_id, table_id);
+	EXPECT_EQ(hit_path[path_idx].vt_id, table_id);
 	EXPECT_EQ(hit_path[path_idx].compile_id, compile1.config_id);
 
 	const char* keywords1="In graph theory, a path in a graph is a finite or infinite \
@@ -3235,7 +3235,7 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].region_id, region4.region_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4.group_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group4.group_id);
-	EXPECT_EQ(hit_path[path_idx].virtual_table_id, 0);
+	EXPECT_EQ(hit_path[path_idx].vt_id, 0);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);	
 	
 	table_id=Maat_table_register(feather, table_ip);
@@ -3253,7 +3253,7 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].region_id, region3.region_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3.group_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group3.group_id);
-	EXPECT_EQ(hit_path[path_idx].virtual_table_id, 0);
+	EXPECT_EQ(hit_path[path_idx].vt_id, 0);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
 
 	Nth_scan++;
@@ -3267,7 +3267,7 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].region_id, region4.region_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4.group_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group4.group_id);
-	EXPECT_EQ(hit_path[path_idx].virtual_table_id, 0);
+	EXPECT_EQ(hit_path[path_idx].vt_id, 0);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
 	Maat_stream_scan_string_end(&stream_para);
 

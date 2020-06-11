@@ -224,7 +224,7 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 				break;
 			case TABLE_TYPE_GROUP:
 				group_rule_num+=table_rt->origin_rule_num;
-				not_group_rule_num+=table_rt->group.not_flag_group;
+				not_group_rule_num+=table_rt->group2compile.not_flag_group;
 				break;
 			case TABLE_TYPE_COMPILE:
 				compile_rule_num+=table_rt->origin_rule_num;

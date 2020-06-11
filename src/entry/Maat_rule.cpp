@@ -535,212 +535,6 @@ void rule_ex_data_free(const struct Maat_rule_head * rule_head, const char* srv_
 	return;
 }
 
-
-struct Maat_group_inner* create_group_rule(int group_id, int table_id, struct Maat_scanner *scanner)
-{
-	int ret=0;
-	struct Maat_group_inner* group=ALLOC(struct Maat_group_inner, 1);
-	group->group_id=group_id;
-	group->region_cnt=0;
-	group->region_boundary=0;
-	group->ref_by_parent_cnt=0;
-	group->regions=dynamic_array_create(1,8);
-	group->table_id=table_id;
-	group->group_name=NULL;
-	group->vertex_id=scanner->grp_vertex_id_generator++;
-	assert(igraph_vcount(&scanner->hierarchy_graph)==group->vertex_id);
-	igraph_add_vertices(&scanner->hierarchy_graph, 1, NULL);	//Add 1 vertice.
-	ret=HASH_add_by_id(scanner->vertex_id2group, group->vertex_id, group);
-	assert(ret>0);
-	ret=HASH_add_by_id(scanner->group_hash, group_id, group);
-	assert(ret>0);
-	pthread_mutex_init(&(group->mutex), NULL);
-	return group;
-}
-void _destroy_group_rule(struct Maat_group_inner* group)
-{
-	if(group->regions) dynamic_array_destroy(group->regions,free);
-	group->region_cnt=0;
-	group->region_boundary=0;
-	group->regions=NULL;
-	group->ref_by_parent_cnt=0;
-	group->group_id=-1;
-	group->table_id=-1;
-	free(group->group_name);
-	group->group_name=NULL;
-	free(group->top_groups);
-	group->top_groups=NULL;
-	pthread_mutex_destroy(&(group->mutex));
-	free(group);
-
-}
-size_t print_igraph_vector(igraph_vector_t *v, char* buff, size_t sz) {
-  long int i;
-  int printed=0;
-  for (i=0; i<igraph_vector_size(v); i++) {
-    printed+=snprintf(buff+printed, sz-printed, " %li", (long int) VECTOR(*v)[i]);
-  }
-  return printed;
-}
-
-#define	DESTROY_GROUP_BY_REGION	0
-#define	DESTROY_GROUP_BY_PARENT	1
-#define	DESTROY_GROUP_BY_CHILD	2
-void destroy_group_rule(struct Maat_group_inner* group_rule, int by_whom, struct Maat_scanner* scanner)
-{
-	switch(by_whom)
-	{
-		case	DESTROY_GROUP_BY_REGION:
-			break;
-		case	DESTROY_GROUP_BY_PARENT:
-			group_rule->ref_by_parent_cnt--;
-			break;
-		case	DESTROY_GROUP_BY_CHILD:
-			group_rule->ref_by_children_cnt--;
-			break;
-		default:
-			assert(0);
-			break;
-	}
-	igraph_vector_t v; 
-	char buff[4096];
-	if(group_rule->ref_by_parent_cnt==0&&group_rule->ref_by_children_cnt==0&&group_rule->region_cnt==0)
-	{
-		HASH_delete_by_id(scanner->group_hash, group_rule->group_id);
-		HASH_delete_by_id(scanner->vertex_id2group, group_rule->vertex_id);	
-		igraph_vector_init(&v, 8);
-		igraph_neighbors(&scanner->hierarchy_graph, &v, group_rule->vertex_id, IGRAPH_ALL);
-		if(igraph_vector_size(&v)>0)
-		{
-			print_igraph_vector(&v, buff, sizeof(buff));
-			MESA_handle_runtime_log(scanner->logger_ref, RLOG_LV_FATAL, maat_module,
-							"Del group %d exception, still reached by %s.",
-							group_rule->vertex_id, buff);
-			assert(0);
-		}
-		igraph_vector_destroy(&v);
-		//Calling _destroy_group_rule on garbage collection to free memory.
-		garbage_bagging(GARBAGE_GROUP_RULE, group_rule, scanner->tomb_ref);
-
-	}
-}
-void make_group_set(struct Maat_compile_inner* relation, struct bool_expr* a_set, unsigned char *has_not)
-{
-	int i=0,j=0;
-	a_set->user_tag=relation;
-	struct Maat_group_inner*group=NULL;
-	assert(relation->group_cnt<=MAX_ITEMS_PER_BOOL_EXPR);
-	for(i=0,j=0;i<relation->group_boundary&&j<MAX_ITEMS_PER_BOOL_EXPR;i++)
-	{
-		group=(struct Maat_group_inner*)dynamic_array_read(relation->groups, i);
-		if(group==NULL)
-		{
-			continue;
-		}
-		//high 32 bit is virtual table id, low 32 bit is group id.
-		a_set->items[j].item_id=TO_RELATION_ID(relation->virtual_table_id[i], group->group_id);
-		a_set->items[j].not_flag=relation->not_flag[i];
-		if(a_set->items[j].not_flag)
-		{
-			*has_not=1;
-		}
-		j++;
-	}
-	assert(j==relation->group_cnt);
-	a_set->item_num=j;
-}
-struct compile_walker
-{
-	MESA_lqueue_head update_q;
-	long long compile_has_not_flag;
-};
-void walk_compile_hash(const uchar * key, uint size, void * data, void * user)
-{
-	struct bool_expr* one_set=NULL;
-	struct Maat_compile_inner* compile_inner=(struct Maat_compile_inner*)data;
-	struct compile_walker* walker=(struct compile_walker*)user;
-	unsigned char has_not_flag=0;
-	MESA_lqueue_head update_q=walker->update_q;
-	if(compile_inner->compile==NULL)
-	{
-		return;
-	}
-	//make sure compile rule's each group has loadded.
-	if((compile_inner->group_cnt==compile_inner->compile->declared_clause_num
-		|| compile_inner->compile->declared_clause_num==0)//for compatible old version
-		&& compile_inner->group_cnt>0
-		&& compile_inner->group_cnt!=compile_inner->not_group_cnt)
-	{
-		one_set=ALLOC(struct bool_expr, 1);
-		//reading compile rule is safe in update thread, mutex lock called when modified
-		make_group_set(compile_inner, one_set, &has_not_flag);
-		if(has_not_flag)
-		{
-			walker->compile_has_not_flag++;
-		}
-		MESA_lqueue_join_tail(update_q, &one_set, sizeof(one_set));//put the pointer into queue
-	}
-	return;
-}
-struct bool_matcher* create_bool_matcher(MESA_htable_handle compile_hash, int thread_num, void* logger)
-{
-	struct bool_matcher* bm=NULL;
-	struct compile_walker walker={NULL, 0};
-	walker.update_q=MESA_lqueue_create(0,0);
-	MESA_lqueue_head update_q=walker.update_q;
-	long data_size=0;
-	size_t mem_size=0;
-	UNUSED MESA_queue_errno_t q_ret=MESA_QUEUE_RET_OK; 	
-	data_size=sizeof(void*);
-	struct bool_expr* one_set=NULL;
-	struct bool_expr* set_array=NULL;
-	int i=0;
-	MESA_htable_iterate(compile_hash, walk_compile_hash, &walker);
-	
-	const long q_cnt=MESA_lqueue_get_count(update_q);
-	if(q_cnt==0)
-	{
-		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_module,
-									"No compile rule to build a bool matcher.");
-		MESA_lqueue_destroy(update_q, lqueue_destroy_cb, NULL);
-		return NULL;
-	}
-	set_array=ALLOC(struct bool_expr, q_cnt);
-	for(i=0; i<q_cnt; i++)
-	{
-		q_ret=(MESA_queue_errno_t)MESA_lqueue_get_head(update_q, &one_set, &data_size);
-		assert(data_size==sizeof(struct bool_expr*) && q_ret==MESA_QUEUE_RET_OK);
-		set_array[i]=*one_set;
-		free(one_set);
-		one_set=NULL;
-	}
-	MESA_handle_runtime_log(logger, RLOG_LV_INFO,maat_module,
-								"build bool matcher start: compile count %ld, NOT-logic count %lld",
-								q_cnt, walker.compile_has_not_flag);
-	bm=bool_matcher_new(set_array, q_cnt, thread_num, &mem_size);
-	if(bm!=NULL)
-	{
-		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_module,
-								"build bool matcher use %zu memory", mem_size);
-	}
-	else
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module,
-								"build bool matcher failed!",
-								q_cnt);
-	}
-	free(set_array);
-	set_array=NULL;
-	MESA_lqueue_destroy(update_q, lqueue_destroy_cb, NULL);
-	return bm;
-
-}
-void destroy_bool_matcher(struct bool_matcher * bm)
-{
-	bool_matcher_free(bm);
-	return;
-
-}
 void EMPTY_FREE(void*p)
 {
 	return;
@@ -750,6 +544,7 @@ struct Maat_compile_rule* create_compile_rule(struct Maat_rule_head* p_head, con
 {
 	int i=0;
 	struct Maat_compile_rule*p=ALLOC(struct Maat_compile_rule, 1);
+	p->magic_num=COMPILE_RULE_MAGIC;
 	p->head=*p_head;
 	p->declared_clause_num=declared_grp_num;
 	p->ads=ALLOC(MAAT_RULE_EX_DATA, MAX_COMPILE_EX_DATA_NUM);
@@ -766,6 +561,8 @@ struct Maat_compile_rule* create_compile_rule(struct Maat_rule_head* p_head, con
 		p->ads[i]=rule_ex_data_new(&p->head, p->service_defined, table->compile.ex_desc+i);
 	}
 	p->is_valid=1;
+	p->compile_id=p_head->config_id;
+	pthread_rwlock_init(&p->rwlock, NULL);
 	return p;
 }
 
@@ -773,7 +570,7 @@ void destroy_compile_rule(struct Maat_compile_rule* compile_rule)
 {
 	int i=0;
 	const struct compile_table_schema* compile_desc= &(compile_rule->ref_table->compile);
-
+	assert(compile_rule->magic_num==COMPILE_RULE_MAGIC);
 	for(i=0; i<compile_desc->ex_data_num; i++)
 	{
 		rule_ex_data_free(&(compile_rule->head), compile_rule->service_defined, compile_rule->ads+i, compile_desc->ex_desc+i);
@@ -788,48 +585,8 @@ void destroy_compile_rule(struct Maat_compile_rule* compile_rule)
 	free(compile_rule);
 	return;
 }
-struct Maat_compile_inner * create_compile_inner(int compile_id, struct Maat_scanner *scanner)
-{
-	int ret=0;
-	struct Maat_compile_inner* p=ALLOC(struct Maat_compile_inner, 1);
-	p->magic_num=COMPILE_INNER_MAGIC;
-	p->compile_id=compile_id;
-	p->group_cnt=0;
-	p->group_boundary=1;
-	p->groups=dynamic_array_create(1, 1);
-	pthread_rwlock_init(&(p->rwlock), NULL);
-	ret=HASH_add_by_id(scanner->compile_hash, compile_id, p);
-	assert(ret>0);
-	return p;
-}
 
-void _destroy_compile_inner(struct Maat_compile_inner * cg_relation)
-{
-	assert(cg_relation->magic_num==COMPILE_INNER_MAGIC);
-	pthread_rwlock_wrlock(&(cg_relation->rwlock));
-	cg_relation->compile_id=-1;
-	dynamic_array_destroy(cg_relation->groups, NULL);
-	pthread_rwlock_unlock(&(cg_relation->rwlock));
 
-	pthread_rwlock_destroy(&(cg_relation->rwlock));
-
-	free(cg_relation);
-}
-void destroy_compile_inner(struct Maat_compile_inner * p, struct Maat_scanner *scanner)
-{
-	int i=0;
-	UNUSED struct Maat_group_inner* p_group=NULL;
-	assert(p->group_cnt==0);
-	assert(p->compile==NULL);
-	for(i=0;i<p->group_boundary;i++)
-	{
-		p_group=(struct Maat_group_inner*)dynamic_array_read(p->groups, i);
-		assert(p_group==NULL);
-	}
-	assert(p->magic_num==COMPILE_INNER_MAGIC);
-	HASH_delete_by_id(scanner->compile_hash, p->compile_id);
-	garbage_bagging(GARBAGE_COMPILE_INNER, p, scanner->tomb_ref);
-}
 scan_rule_t* create_rs_str_rule(unsigned int sub_type,enum MAAT_MATCH_METHOD match_method,int is_case_sensitive,const char* string,int len,int l_offset,int r_offset)
 {
 	scan_rule_t* p_rule=(scan_rule_t* )calloc(sizeof(scan_rule_t),1);
@@ -956,53 +713,16 @@ void op_expr_add_rule(struct op_expr_t* op_expr,scan_rule_t* p_rule)
 	return;
 }
 
-struct Maat_scanner* create_maat_scanner(unsigned int version,_Maat_feather_t *feather)
+struct Maat_scanner* create_maat_scanner(unsigned int version, _Maat_feather_t *feather)
 {
 	int scan_thread_num=feather->scan_thread_num;
 	UNUSED int ret=0;
 	
-	MESA_htable_create_args_t hargs;
-	memset(&hargs,0,sizeof(hargs));
-	hargs.thread_safe=0;
-	hargs.hash_slot_size = 1024*1024;
-	hargs.max_elem_num = 0;
-	hargs.eliminate_type = HASH_ELIMINATE_ALGO_FIFO;
-	hargs.expire_time = 0;
-	hargs.key_comp = NULL;
-	hargs.key2index = NULL;
-	hargs.recursive = 0; 
-//	hargs.data_free = _void_destroy_compile_rule;
-	hargs.data_free = EMPTY_FREE;
-
-	hargs.data_expire_with_condition = NULL;
-
 	struct Maat_scanner* scanner=NULL;
 	scanner=ALLOC(struct Maat_scanner, 1);
-
-	//Function Maat_cmd_append will access compile_hash in user thread.
-	hargs.thread_safe=8;
-	scanner->compile_hash=MESA_htable_create(&hargs, sizeof(hargs));
-	MESA_htable_print_crtl(scanner->compile_hash,0);
-
-	hargs.thread_safe=8;
-	scanner->group_hash=MESA_htable_create(&hargs, sizeof(hargs));
-	MESA_htable_print_crtl(scanner->group_hash,0);
-
-	scanner->vertex_id2group=MESA_htable_create(&hargs, sizeof(hargs));
-	MESA_htable_print_crtl(scanner->vertex_id2group,0);
-
-	hargs.thread_safe=8;
-	scanner->exprid_hash=MESA_htable_create(&hargs, sizeof(hargs));
-	MESA_htable_print_crtl(scanner->exprid_hash, 0);
-
-
-	hargs.thread_safe=0;
-	hargs.data_free = free;
-	scanner->region_hash=MESA_htable_create(&hargs, sizeof(hargs));
-	MESA_htable_print_crtl(scanner->region_hash,0);
-
-	ret=igraph_empty(&scanner->hierarchy_graph, 0, IGRAPH_DIRECTED);
-	assert(ret==IGRAPH_SUCCESS);
+	scanner->hier=Maat_hierarchy_new(scan_thread_num, feather->logger);
+	Maat_hierarchy_set_compile_user_data_free_func(scanner->hier, destroy_compile_rule);
+	Maat_hierarchy_set_region_user_data_free_func(scanner->hier, Maat_region_inner_free);
 
 	scanner->district_map=map_create();
 	
@@ -1027,7 +747,7 @@ struct Maat_scanner* create_maat_scanner(unsigned int version,_Maat_feather_t *f
 		rulescan_set_param(scanner->region,RULESCAN_DETAIL_RESULT,NULL,0);
 		rulescan_set_param(scanner->region,RULESCAN_REGEX_GROUP,NULL,0);
 	}
-	scanner->tomb_ref=feather->garbage_q;
+	scanner->ref_garbage_bin=feather->garbage_bin;
 	scanner->logger_ref=feather->logger;
 	scanner->region_rslt_buff=ALLOC(scan_result_t, MAX_SCANNER_HIT_NUM*scan_thread_num);
 	scanner->gie_rslt_buff=ALLOC(GIE_result_t, MAX_SCANNER_HIT_NUM*scan_thread_num);
@@ -1049,16 +769,11 @@ void destroy_maat_scanner(struct Maat_scanner*scanner)
 		return;
 	}
 	rulescan_destroy(scanner->region);
-	MESA_htable_destroy(scanner->compile_hash,(void (*)(void*))_destroy_compile_inner);
-	MESA_htable_destroy(scanner->group_hash, (void (*)(void*))_destroy_group_rule);
-	MESA_htable_destroy(scanner->exprid_hash, NULL);
-	MESA_htable_destroy(scanner->region_hash, NULL);
-	MESA_htable_destroy(scanner->vertex_id2group, NULL);
 
 	map_destroy(scanner->district_map);
 	scanner->district_map=NULL;
 	assert(scanner->tmp_district_map==NULL);
-	destroy_bool_matcher(scanner->bool_matcher_expr_compiler);
+
 	q_cnt=MESA_lqueue_get_count(scanner->region_update_q);
 	for(i=0;i<q_cnt;i++)
 	{
@@ -1086,8 +801,8 @@ void destroy_maat_scanner(struct Maat_scanner*scanner)
 	}
 	Maat_table_rt_manager_destroy(scanner->table_rt_mgr);
 	scanner->table_rt_mgr=NULL;
-
-	igraph_destroy(&scanner->hierarchy_graph);
+	Maat_hierarchy_free(scanner->hier);
+	scanner->hier=NULL;
 	free(scanner);
 	return;
 }
@@ -1278,312 +993,8 @@ void rulescan_batch_update(rule_scanner_t rs_handle,MESA_lqueue_head expr_queue,
 	free(to_update_expr);
 }
 
-int region_group_relation_add(MESA_htable_handle region_hash, int region_id, int group_id, int array_idx)
-{
-	struct region_group_relation* relation=ALLOC(struct region_group_relation, 1);
-	relation->region_id=region_id;
-	relation->group_id=group_id;
-	relation->array_idx=array_idx;
-	int ret=HASH_add_by_id(region_hash, region_id, relation);
-	if(ret<0)
-	{
-		free(relation);
-		return -1;
-	}
-	else
-	{
-		return 0;
-	}
-}
-struct region_group_relation* region_group_relation_get(MESA_htable_handle region_hash, int region_id)
-{
-	struct region_group_relation* relation=NULL;
-	relation=(struct region_group_relation*)HASH_fetch_by_id(region_hash, region_id);
-	return relation;
-}
-int region_group_relation_del(MESA_htable_handle region_hash, int region_id)
-{
-	int	ret=HASH_delete_by_id(region_hash,region_id);
-	if(ret==-1)
-	{
-		return -1;
-	}
-	else
-	{
-		return 0;
-	}
-}
-struct Maat_group_inner* add_region_to_group(struct Maat_group_inner* group,int table_id,int region_id,int district_id,int expr_id,enum MAAT_TABLE_TYPE region_type, struct Maat_scanner* scanner)
-{
-	struct Maat_region_inner* region_rule=NULL;
-	struct region_group_relation* relation=NULL;
-	relation=region_group_relation_get(scanner->region_hash, region_id);
-	int array_idx;
-	pthread_mutex_lock(&(group->mutex));
-	if(relation==NULL)
-	{
-		region_rule=ALLOC(struct Maat_region_inner, 1);
-		region_rule->region_id=region_id;
-		region_rule->expr_id_cnt=1;
-		region_rule->expr_id_ub=region_rule->expr_id_lb=expr_id;
-		region_rule->district_id=district_id;
-		region_rule->table_type=region_type;
-		region_rule->table_id=table_id;
 
-		dynamic_array_write(group->regions, group->region_boundary, region_rule);
-		array_idx=group->region_boundary;
-		region_group_relation_add(scanner->region_hash, region_id, group->group_id, array_idx);
-		group->region_cnt++;
-		group->region_boundary++;
-	}
-	else
-	{
-		assert(relation->group_id==group->group_id);
-		assert(relation->array_idx<group->region_boundary);
-		array_idx=relation->array_idx;
-		region_rule=(struct Maat_region_inner*)dynamic_array_read(group->regions, array_idx);
-		assert(expr_id==region_rule->expr_id_ub+1);
-		region_rule->expr_id_ub=expr_id;
-		region_rule->expr_id_cnt++;
-	}
-	HASH_add_by_id(scanner->exprid_hash, expr_id, (void*)(long long)array_idx);
-	pthread_mutex_unlock(&(group->mutex));
 
-	return group;
-}
-void cancel_last_region_from_group(struct Maat_group_inner* group,int region_id,int expr_id, struct Maat_scanner* scanner)
-{
-	struct Maat_region_inner* region_rule=NULL;
-	struct region_group_relation* relation=NULL;
-	relation=region_group_relation_get(scanner->region_hash, region_id);
-	assert(relation->group_id==group->group_id);
-	assert(relation->array_idx==group->region_boundary-1);
-	int array_idx=relation->array_idx;
-	pthread_mutex_lock(&(group->mutex));
-	region_rule=(struct Maat_region_inner*)dynamic_array_read(group->regions, array_idx);
-	assert(region_rule->expr_id_ub==expr_id&&region_rule->region_id==region_id);
-	if(region_rule->expr_id_cnt==1)
-	{
-		free(region_rule);
-		dynamic_array_write(group->regions, group->region_boundary, NULL);
-		group->region_cnt--;
-		group->region_boundary--;
-		relation=NULL;
-		region_group_relation_del(scanner->region_hash, region_id);
-	}
-	else
-	{
-		region_rule->expr_id_ub--;
-		region_rule->expr_id_cnt--;
-	}
-	HASH_delete_by_id(scanner->exprid_hash, expr_id);
-	pthread_mutex_unlock(&(group->mutex));	
-	return;
-}
-unsigned int del_region_from_group(struct Maat_group_inner* group,int region_id,unsigned int *output_expr_id, int output_size, struct Maat_scanner* scanner)
-{
-	int i=0, j=0, ret=0;
-	struct Maat_region_inner* region_rule=NULL;
-	struct region_group_relation* relation=NULL;
-	relation=region_group_relation_get(scanner->region_hash, region_id);
-	if(relation)
-	{	
-		pthread_mutex_lock(&(group->mutex));
-		assert(relation->group_id==group->group_id);
-		region_rule=(struct Maat_region_inner*)dynamic_array_read(group->regions, relation->array_idx);
-		dynamic_array_write(group->regions, relation->array_idx, NULL);
-		for(i=0;i<region_rule->expr_id_cnt;i++)
-		{
-			output_expr_id[i]=region_rule->expr_id_lb+i;			
-			assert(output_expr_id[i]>=0);
-		}
-		assert(i<=output_size); 
-		region_rule->region_id=0;
-		free(region_rule);
-		region_rule=NULL;
-		group->region_cnt--;
-		assert(group->region_cnt>=0);
-		relation=NULL;
-		ret=region_group_relation_del(scanner->region_hash, region_id);
-		assert(ret==0);		
-		pthread_mutex_unlock(&(group->mutex));
-	}
-	for(j=0; j<i; j++)
-	{
-		ret=HASH_delete_by_id(scanner->exprid_hash, output_expr_id[j]);
-		assert(ret==0);
-	}
-
-	return i;
-}
-
-int add_group_to_compile(struct Maat_compile_inner* compile_inner, struct Maat_group_inner* a_rule_group, int virual_table_id, int not_flag, int local_clause_id)
-{
-	int i=0,ret=-1;
-	int write_pos=-1;
-	struct Maat_group_inner* p=NULL;
-	struct Maat_CNF_clause* clause=NULL;
-	struct Maat_CNF_character* character=NULL;
-	pthread_rwlock_wrlock(&(compile_inner->rwlock));
-	if(compile_inner->compile!=NULL
-		&& local_clause_id>MAX_ITEMS_PER_BOOL_EXPR
-		&& compile_inner->clause_cnt>=compile_inner->compile->declared_clause_num
-		&& compile_inner->compile->declared_clause_num!=0)
-	{
-		ret=-1;
-		goto error_out;
-	}
-	size_t i=0;
-	if(local_clause_id==0)
-	{
-		local_clause_id=compile_inner->clause_cnt;
-		compile_inner->clause_cnt++
-	}
-	clause=&(compile_inner->clause[local_clause_id-1]);
-	if(clause->inuse_flag==0)
-	{
-		clause->inuse_flag=1;
-		clause->not_flag=not_flag;
-		TAILQ_INIT(&clause->char_q);
-	}
-	else
-	{
-		assert(clause->not_flag==not_flag);
-	}
-	character=ALLOC(struct Maat_CNF_character, 1);
-	character->group_id=a_rule_group->group_id;
-	character->ref_group=a_rule_group;
-	character->virtual_table_id=virual_table_id;
-	TAILQ_INSERT_TAIL(&clause->char_q, character, entries);
-	clause->char_num++;
-
-	else
-	{
-		TAILQ_FOREACH(clause, &compile_inner->clause_q, entries)
-		{
-			if(clause->local_clause_id==local_clause_id)
-			{
-				TAILQ_FOREACH(clause, &compile_inner->clause_q, entries)
-			}
-		}
-	}
-	for(i=0;i<compile_inner->group_boundary;i++)
-	{
-		p=(struct Maat_group_inner*)dynamic_array_read(compile_inner->groups,i);
-		if(p==NULL)
-		{
-			write_pos=i;
-		}
-		else
-		{
-			if(p->group_id==a_rule_group->group_id && compile_inner->virtual_table_id[i]==virual_table_id)//duplicate group
-			{
-				ret=-1;
-				goto error_out;
-			}
-		}
-	}
-	if(write_pos<0&&compile_inner->group_boundary==MAX_EXPR_ITEM_NUM)
-	{
-		ret=-1;
-		goto error_out;
-	}
-	if(write_pos<0)
-	{
-		write_pos=compile_inner->group_boundary;
-		compile_inner->group_boundary++;
-	}
-	dynamic_array_write(compile_inner->groups, write_pos, a_rule_group);
-	if(not_flag)
-	{
-		compile_inner->not_flag[write_pos]=1;
-		compile_inner->not_group_cnt++;
-	}
-	else
-	{
-		compile_inner->not_flag[write_pos]=0;
-	}
-	compile_inner->virtual_table_id[write_pos]=virual_table_id;
-	compile_inner->group_cnt++;
-	a_rule_group->ref_by_parent_cnt++;
-	a_rule_group->ref_by_compile_cnt++;
-	ret=1;
-error_out:
-	pthread_rwlock_unlock(&(compile_inner->rwlock));
-
-	return ret;
-}
-struct Maat_group_inner* del_group_from_compile(struct Maat_compile_inner*relation, int group_id, int virual_table_id)
-{
-	int i=0;
-	struct Maat_group_inner* group_rule=NULL;
-	pthread_rwlock_wrlock(&(relation->rwlock));
-	for(i=0;i<MAAT_MAX_EXPR_ITEM_NUM;i++)
-	{
-		group_rule=(struct Maat_group_inner*)dynamic_array_read(relation->groups,i);
-		if(group_rule==NULL)
-		{
-			continue;
-		}
-		if(group_rule->group_id==group_id && relation->virtual_table_id[i]==virual_table_id)
-		{
-			dynamic_array_write(relation->groups,i,NULL);			
-			if(relation->not_flag[i]==1)
-			{
-				relation->not_group_cnt--;
-				relation->not_flag[i]=0;
-			}
-			relation->virtual_table_id[i]=0;
-			relation->group_cnt--;
-			break;
-		}
-		else
-		{
-			group_rule=NULL;
-		}
-	}
-	pthread_rwlock_unlock(&(relation->rwlock));
-	group_rule->ref_by_compile_cnt--;
-	return group_rule;
-}
-
-int sync_region(MESA_htable_handle region_hash,int region_id, int group_id, const char* table_name, int is_valid, void*logger)
-{
-	struct region_group_relation* relation=NULL;
-	relation=region_group_relation_get(region_hash, region_id);
-	if(is_valid==TRUE)
-	{
-		if(relation)
-		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-								"region id %d of table %s is already in group %d.",
-								region_id, table_name, relation->group_id);
-			return -1;
-		}
-	}
-	else
-	{
-		if(!relation)
-		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-								"region delete error, id %d in table %s does not exisit.",
-								region_id, table_name);
-			return -1;
-		}
-		else
-		{
-			if(group_id!=relation->group_id)
-			{
-				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-									"region delete error, id %d in table %s is already in group %d, but cmd want to delete from group %d.",
-									region_id, table_name,
-									relation->group_id, group_id);
-				return -1;
-			}
-		}
-	}
-	return 1;
-}
 int get_district_id(Maat_scanner *scanner,const char* district_str)
 {
 	int map_ret=0,district_id=-1;
@@ -1604,6 +1015,42 @@ int get_district_id(Maat_scanner *scanner,const char* district_str)
 	}
 	return district_id;
 }
+struct Maat_region_inner* Maat_region_inner_new(int group_id, int region_id, int table_id, int district_id)
+{
+	struct Maat_region_inner* region=ALLOC(struct Maat_region_inner, 1);
+	region->region_id=region_id;
+	region->group_id=group_id;
+	region->table_id=table_id;
+	region->district_id=district_id;
+	return region;
+}
+void Maat_region_inner_add_expr_id(struct Maat_region_inner* region, int expr_id)
+{
+	if(region->expr_id_cnt==0)
+	{
+		region->expr_id_lb=region->expr_id_ub=expr_id;
+	}
+	else
+	{
+		assert(region->expr_id_ub+1==expr_id);
+		region->expr_id_ub=expr_id;
+	}
+	region->expr_id_cnt++;
+	return;
+}
+void Maat_region_inner_free(struct Maat_region_inner* region)
+{
+	free(region);
+}
+
+void Maat_region_inner_cancel_last_expr_id(struct Maat_region_inner* region)
+{
+	assert(region->expr_id_cnt==region->expr_id_ub-region->expr_id_lb);
+	region->expr_id_ub--;
+	region->expr_id_cnt--;
+	return;
+}
+
 int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,struct Maat_scanner *scanner,void* logger)
 {
 	unsigned int i=0,j=0;
@@ -1612,7 +1059,7 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 	int expr_id=0,district_id=-1;
 	struct expr_table_schema* expr_desc=&(table->expr);
 	scan_rule_t*p_rule=NULL;
-	struct Maat_group_inner* group_rule=NULL;
+
 	enum MAAT_CHARSET dst_charset=CHARSET_NONE;
 	char *sub_key_array[MAAT_MAX_EXPR_ITEM_NUM];
 	int key_left_offset[MAAT_MAX_EXPR_ITEM_NUM]={-1},key_right_offset[MAAT_MAX_EXPR_ITEM_NUM]={-1};
@@ -1623,7 +1070,8 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 	}
 	int sub_expr_cnt=0;
 	struct op_expr_t *op_expr=NULL;
-	struct Maat_group_inner* u_para=NULL;
+
+	struct Maat_region_inner* u_para=NULL;
 
 	if(table->table_type==TABLE_TYPE_EXPR_PLUS)
 	{
@@ -1631,11 +1079,8 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 		str_unescape(db_rule->district);
 		district_id=get_district_id(scanner, db_rule->district);
 	}
-	group_rule=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_rule->group_id);
-	if(group_rule==NULL)
-	{
-		group_rule=create_group_rule(db_rule->group_id, 0, scanner);
-	}
+
+
 	switch(db_rule->expr_type)
 	{
 		case EXPR_TYPE_AND:
@@ -1691,11 +1136,6 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 			break;
 		case EXPR_TYPE_REGEX://it's easy,no need to charset convert
 			expr_id=scanner->exprid_generator++;
-			u_para=add_region_to_group(group_rule, table->table_id, db_rule->region_id, district_id, expr_id, TABLE_TYPE_EXPR, scanner);
-			if(u_para==NULL)
-			{
-				return -1;
-			}
 			op_expr=create_op_expr(expr_id
 						,0
 						,u_para
@@ -1714,19 +1154,7 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 					break;
 				}
 				sub_key_array[i]=str_unescape_and(sub_key_array[i]);//regex remain use str_unescape_and
-				p_rule=create_rs_str_rule(make_sub_type(table->table_id,CHARSET_NONE,0)
-										,MATCH_METHOD_SUB//not care db_rule->match_method
-										,db_rule->is_case_sensitive
-										,sub_key_array[i]
-										,strlen(sub_key_array[i])
-										,-1
-										,-1);
-				p_rule->rule_type=RULETYPE_REG;
-				op_expr_add_rule(op_expr, p_rule);
-			
 			}
-			MESA_lqueue_join_tail(scanner->region_update_q,&op_expr, sizeof(void*));
-			return 0;//yes,we returned.
 			break;
 		case EXPR_TYPE_STRING:
 			sub_expr_cnt=1;
@@ -1743,9 +1171,19 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
 					"Table %s region cfg %d has an empty sub string.",
 					table->table_name[table->updating_name],db_rule->region_id);
-			//this sub string will jump over before iconv_convert
+			//this sub string will be skipped before iconv_convert
 		}
 	}
+	
+	u_para=Maat_region_inner_new(db_rule->group_id, db_rule->region_id, table->table_id, district_id);
+	ret=Maat_hierarchy_add_region_to_group(scanner->hier, db_rule->group_id, db_rule->region_id, table->table_id, u_para);
+	if(ret!=0)
+	{
+		Maat_region_inner_free(u_para);
+		u_para=NULL;
+		return -1;
+	}
+
 	if(db_rule->is_hexbin==FALSE)
 	{
 		for(j=0;j<MAX_CHARSET_NUM;j++)
@@ -1756,11 +1194,7 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 				break;
 			}
 			expr_id=scanner->exprid_generator++;
-			u_para=add_region_to_group(group_rule,table->table_id, db_rule->region_id,district_id,expr_id, table->table_type, scanner);
-			if(u_para==NULL)//duplicate
-			{
-				return -1;
-			}
+			Maat_region_inner_add_expr_id(u_para, expr_id);
 			op_expr=create_op_expr(expr_id
 									,0	//add
 									,u_para
@@ -1811,6 +1245,10 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 										,region_str_len
 										,key_left_offset[k]
 										,key_right_offset[k]);
+				if(db_rule->expr_type==EXPR_TYPE_REGEX)
+				{
+					p_rule->rule_type=RULETYPE_REG;
+				}
 				op_expr_add_rule(op_expr, p_rule);
 				free(region_string);
 				region_string=NULL;
@@ -1821,7 +1259,7 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 				op_expr->convert_failed>0)
 			{
 				scanner->dedup_expr_num++;
-				cancel_last_region_from_group(group_rule,db_rule->region_id,op_expr->p_expr->expr_id, scanner);
+				Maat_region_inner_cancel_last_expr_id(u_para);
 				destroy_op_expr(op_expr);
 				//redeem expr_id
 				scanner->exprid_generator--;
@@ -1837,11 +1275,7 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 	else
 	{
 		expr_id=scanner->exprid_generator++;
-		u_para=add_region_to_group(group_rule, table->table_id, db_rule->region_id,district_id,expr_id, table->table_type, scanner);
-		if(u_para==NULL)
-		{
-			return -1;
-		}
+		Maat_region_inner_add_expr_id(u_para, expr_id);
 		op_expr=create_op_expr(expr_id,
 								0,	//add
 								u_para,
@@ -1868,26 +1302,24 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 	}
 	return 0;
 }
-int add_ip_rule(struct Maat_table_schema* table,struct db_ip_rule_t* db_ip_rule,struct Maat_scanner *scanner,void* logger)
+int add_ip_rule(struct Maat_table_schema* table, struct db_ip_rule_t* db_ip_rule, struct Maat_scanner *scanner, void* logger)
 {
-	struct Maat_group_inner* group_rule=NULL;
 	scan_rule_t* p_rule=NULL;
 	struct op_expr_t* op_expr=NULL;
-	struct Maat_group_inner* u_para=NULL;
-	int expr_id=0,district_id=-1;
+	struct Maat_region_inner* u_para=NULL;
+	int expr_id=0, district_id=-1, ret=0;
 
-	group_rule=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_ip_rule->group_id);
-	if(group_rule==NULL)
+	u_para=Maat_region_inner_new(db_ip_rule->group_id, db_ip_rule->region_id, table->table_id, -1);
+	ret=Maat_hierarchy_add_region_to_group(scanner->hier, db_ip_rule->group_id, db_ip_rule->region_id, table->table_id, u_para);
+	if(ret!=0)
 	{
-		group_rule=create_group_rule(db_ip_rule->group_id, 0, scanner);
-	}
-
-	expr_id=scanner->exprid_generator++;
-	u_para=add_region_to_group(group_rule, table->table_id, db_ip_rule->region_id, district_id, expr_id, TABLE_TYPE_IP, scanner);
-	if(u_para==NULL)
-	{
+		Maat_region_inner_free(u_para);
+		u_para=NULL;
 		return -1;
 	}
+	
+	expr_id=scanner->exprid_generator++;
+	Maat_region_inner_add_expr_id(u_para, expr_id);
 	op_expr=create_op_expr(expr_id
 						,0
 						,u_para
@@ -1895,29 +1327,29 @@ int add_ip_rule(struct Maat_table_schema* table,struct db_ip_rule_t* db_ip_rule,
 						);
 	p_rule=create_rs_ip_rule(make_sub_type(table->table_id,CHARSET_NONE,0)
 						,db_ip_rule);
-	op_expr_add_rule(op_expr,p_rule);
+	op_expr_add_rule(op_expr, p_rule);
 	MESA_lqueue_join_tail(scanner->region_update_q, &op_expr, sizeof(void*));
 	return 0;
 }
 int add_intval_rule(struct Maat_table_schema* table,struct db_intval_rule* intval_rule,struct Maat_scanner *scanner,void* logger)
 {
-	struct Maat_group_inner* group_rule=NULL;
 	scan_rule_t* p_rule=NULL;
 	struct op_expr_t* op_expr=NULL;
-	struct Maat_group_inner* u_para=NULL;
-	int expr_id=0,district_id=-1;
-	
-	group_rule=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, intval_rule->group_id);
-	if(group_rule==NULL)
+	struct Maat_region_inner* u_para=NULL;
+	int expr_id=0, ret=0;
+
+	u_para=Maat_region_inner_new(intval_rule->group_id, intval_rule->region_id, table->table_id, -1);
+	ret=Maat_hierarchy_add_region_to_group(scanner->hier, intval_rule->group_id, intval_rule->region_id, table->table_id, u_para);
+	if(ret!=0)
 	{
-		group_rule=create_group_rule(intval_rule->group_id, 0, scanner);
-	}
-	expr_id=scanner->exprid_generator++;
-	u_para=add_region_to_group(group_rule, table->table_id, intval_rule->region_id, district_id, expr_id, TABLE_TYPE_INTERVAL, scanner);
-	if(u_para==NULL)
-	{
+		Maat_region_inner_free(u_para);
+		u_para=NULL;
 		return -1;
 	}
+	
+	expr_id=scanner->exprid_generator++;
+	Maat_region_inner_add_expr_id(u_para, expr_id);
+
 	op_expr=create_op_expr(expr_id
 						,0
 						,u_para
@@ -1931,55 +1363,44 @@ int add_intval_rule(struct Maat_table_schema* table,struct db_intval_rule* intva
 }
 int add_digest_rule(struct Maat_table_schema* table, struct db_digest_rule* db_rule, struct Maat_scanner *scanner,void* logger)
 {
-	struct Maat_group_inner* group_rule=NULL;
-	struct Maat_group_inner* u_para=NULL;
+	struct Maat_region_inner* u_para=NULL;
 	struct Maat_table_runtime * table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
-	int expr_id=0,district_id=-1;
+	int expr_id=0, ret=0;
 
-	group_rule=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_rule->group_id);
-	if(group_rule==NULL)
+	u_para=Maat_region_inner_new(db_rule->group_id, db_rule->region_id, table->table_id, -1);
+	ret=Maat_hierarchy_add_region_to_group(scanner->hier, db_rule->group_id, db_rule->region_id, table->table_id, u_para);
+	if(ret!=0)
 	{
-		group_rule=create_group_rule(db_rule->group_id, 0, scanner);
-	}
-	expr_id=scanner->exprid_generator++;
-	u_para=add_region_to_group(group_rule, table->table_id, db_rule->region_id, district_id, expr_id, TABLE_TYPE_DIGEST, scanner);
-	if(u_para==NULL)
-	{
+		Maat_region_inner_free(u_para);
+		u_para=NULL;
 		return -1;
 	}
-	Maat_table_runtime_digest_add(table_rt, expr_id, db_rule->digest_string, db_rule->confidence_degree, group_rule);
+	
+	expr_id=scanner->exprid_generator++;
+	Maat_region_inner_add_expr_id(u_para, expr_id);
+
+	Maat_table_runtime_digest_add(table_rt, expr_id, db_rule->digest_string, db_rule->confidence_degree, u_para);
 	scanner->gie_update_q_size++;
 	return 0;
 }
-int del_region_rule(struct Maat_table_schema* table,int region_id,int group_id,int rule_type,struct Maat_scanner *maat_scanner,void* logger)
+int del_region_rule(struct Maat_table_schema* table, int region_id, int group_id, int rule_type, struct Maat_scanner *maat_scanner, void* logger)
 {
 	int i=0;
-	unsigned int expr_id[MAAT_MAX_EXPR_ITEM_NUM*MAX_CHARSET_NUM]={0};
 	int expr_num=0;
-	struct Maat_group_inner* group_rule=NULL;
 	struct Maat_table_runtime* table_rt=NULL;
 	struct op_expr_t* op_expr=NULL;
-	group_rule=(struct Maat_group_inner*)HASH_fetch_by_id(maat_scanner->group_hash, group_id);
-	if(group_rule==NULL)
+
+	int ret=0;
+	struct Maat_region_inner* region=NULL;
+	region=(struct Maat_region_inner*)Maat_hierarchy_region_dettach_user_data(maat_scanner->hier, region_id);
+	if(region==NULL)
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"update error, table %s group id %u not exist, while delete region id %d."
-							,table->table_name[table->updating_name]
-							,group_id
-							,region_id);
 		return -1;
 	}
-	assert(group_id==group_rule->group_id);
-	expr_num=del_region_from_group(group_rule,region_id, expr_id, sizeof(expr_id)/sizeof(unsigned int), maat_scanner);
-	if(expr_num==0)
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"region delete error, id %d table %s region not in  group id %d."
-							,region_id
-							,table->table_name[table->updating_name]
-							,group_id);
-		return -1;
-	}
+	ret=Maat_hierarchy_remove_region_from_group(maat_scanner->hier, group_id, region_id);
+	assert(ret==0);
+	assert(group_id==region->group_id);
+	
 	switch(table->table_type)
 	{
 		case	TABLE_TYPE_IP:
@@ -1987,310 +1408,134 @@ int del_region_rule(struct Maat_table_schema* table,int region_id,int group_id,i
 		case	TABLE_TYPE_EXPR:
 		case	TABLE_TYPE_EXPR_PLUS:
 		case	TABLE_TYPE_INTERVAL:
-			for(i=0;i<expr_num;i++)
+			for(i=0;i<region->expr_id_cnt;i++)
 			{
-				op_expr=create_op_expr(expr_id[i],1,NULL,table->table_id);//del expr
+				op_expr=create_op_expr(region->expr_id_ub+i, 1, NULL, table->table_id);//del expr
 				op_expr->rule_type=rule_type;
-				MESA_lqueue_join_tail(maat_scanner->region_update_q,&op_expr, sizeof(void*));
+				MESA_lqueue_join_tail(maat_scanner->region_update_q, &op_expr, sizeof(void*));
 			}
 			break;
 		case	TABLE_TYPE_SIMILARITY:
 		case	TABLE_TYPE_DIGEST:
-			assert(expr_num==1);
+			assert(region->expr_id_cnt==1);
 			table_rt=Maat_table_runtime_get(maat_scanner->table_rt_mgr, table->table_id);
-			Maat_table_runtime_digest_del(table_rt, expr_id[0]);
+			Maat_table_runtime_digest_del(table_rt, region->expr_id_lb);
 			maat_scanner->gie_update_q_size++;
 			break;
 		default:
 			assert(0);
 			break;
 	}
-	destroy_group_rule(group_rule, DESTROY_GROUP_BY_REGION, maat_scanner);
+	Maat_garbage_bag(maat_scanner->ref_garbage_bin, region, Maat_region_inner_free);
 
 	return 0;
 }
-int add_group_rule(struct Maat_table_schema* table, struct db_group_rule_t* db_group_rule, struct Maat_scanner *scanner, void* logger)
+void update_group2compile_rule(struct Maat_table_schema* table, const char* table_line, struct Maat_scanner *scanner, struct Maat_table_manager* table_mgr, void* logger)
 {
-	struct Maat_group_inner* group_inner=NULL, *parent_group=NULL;
-	struct Maat_compile_inner*compile_inner=NULL;
-	int ret=0, global_clause_id=0;
-	igraph_integer_t edge_id;
-	group_inner=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_group_rule->group_id);
-	if(group_inner==NULL)
-	{
-		group_inner=create_group_rule(db_group_rule->group_id, table->table_id, scanner);
-	}
-	
-	if(db_group_rule->parent_type==PARENT_TYPE_GROUP)
-	{
-		parent_group=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_group_rule->parent_id);
-		if(parent_group==NULL)
-		{
-			parent_group=create_group_rule(db_group_rule->parent_id, table->table_id, scanner);
-		}	
-		group_inner->ref_by_parent_cnt++;
-		parent_group->ref_by_children_cnt++;
-		//if the edge was not found and error is false, then -1 will be assigned to eid.
-		ret=igraph_get_eid(&scanner->hierarchy_graph, &edge_id, group_inner->vertex_id, parent_group->vertex_id, IGRAPH_DIRECTED, /*error*/ 0);
-		if(edge_id>0)//The edge was found.
-		{
-			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-								"update error, add sub group: %s %d to group %d error, sub group exist.",
-																		table->table_name[table->updating_name],
-																		db_group_rule->group_id,
-																		db_group_rule->parent_id);
-			return -1;
-		}
-		//igraph allow add multiple edges between two vetex, igraph_delete_edges removes one edge per call.
-		igraph_add_edge(&scanner->hierarchy_graph, group_inner->vertex_id, parent_group->vertex_id);
-	}
-	else
-	{
-		compile_inner=(struct Maat_compile_inner*)HASH_fetch_by_id(scanner->compile_hash, db_group_rule->parent_id);
-		if(compile_inner==NULL)
-		{
-			compile_inner=create_compile_inner(db_group_rule->parent_id, scanner);
-		}
-		global_clause_id=add_group_to_compile(compile_inner, group_inner, db_group_rule->virtual_table_id, db_group_rule->not_flag, db_group_rule->clause_id);
-		if(global_clause_id<0)
-		{
-			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-								"update error, add group: %s %d to compile rule %d error, compile rule is full or duplicate group.",
-																		table->table_name[table->updating_name],
-																		db_group_rule->group_id,
-																		db_group_rule->parent_id);
-			return -1;
-		}
-		//add character edge to hierarchy graph
-		//add clause edge to hierarchy graph
-	}
-	scanner->to_update_group_cnt++;
-	return 1;
-}
-int del_group_rule(struct Maat_table_schema* table, struct db_group_rule_t* db_group_rule, struct Maat_scanner *scanner, void* logger)
-{
-	struct Maat_compile_inner* relation=NULL;
-	struct Maat_group_inner* group_rule=NULL, *parent_group=NULL;
-	igraph_es_t es;
-	int ret=0;
-	igraph_integer_t edge_num_before=0, edge_num_after=0;
-	
-	
-	if(db_group_rule->parent_type==PARENT_TYPE_GROUP)
-	{
-		group_rule=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_group_rule->group_id);
-		parent_group=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->group_hash, db_group_rule->parent_id);
-		if(group_rule==NULL)
-		{
-			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module ,
-								"update error, delete %s group %d from parent group %d error, target group not exisit.",
-																		table->table_name[table->updating_name],
-																		db_group_rule->group_id,
-																		db_group_rule->parent_id);
-			return 0;
-		}
-		if(parent_group==NULL)
-		{
-			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module ,
-								"update error, delete %s group %d from parent group %d error, parent group not exisit.",
-																		table->table_name[table->updating_name],
-																		db_group_rule->group_id,
-																		db_group_rule->parent_id);
-			return 0;
-		}
-		edge_num_before=igraph_ecount(&scanner->hierarchy_graph);
-		// The edges between the given pairs of vertices will be included in the edge selection.
-		//The vertex pairs must be given as the arguments of the function call, the third argument 
-		//is the first vertex of the first edge, the fourth argument is the second vertex of the 
-		//first edge, the fifth is the first vertex of the second edge and so on. The last element
-		//of the argument list must be -1 to denote the end of the argument list.
-		//https://igraph.org/c/doc/igraph-Iterators.html#igraph_es_pairs_small
-		ret=igraph_es_pairs_small(&es, IGRAPH_DIRECTED, group_rule->vertex_id, parent_group->vertex_id, -1);
-		assert(ret==IGRAPH_SUCCESS);
-		// ignore no such edge to abort().
-		igraph_set_error_handler(igraph_error_handler_ignore);
-		ret=igraph_delete_edges(&scanner->hierarchy_graph, es);
-		edge_num_after=igraph_ecount(&scanner->hierarchy_graph);
-		
-		if(ret!=IGRAPH_SUCCESS||edge_num_before-edge_num_after!=1)
-		{
-			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module ,
-								"update error, delete %s group %d from parent group %d error, not such relation before.",
-																		table->table_name[table->updating_name],
-																		db_group_rule->group_id,
-																		db_group_rule->parent_id);
-		}
-		igraph_es_destroy(&es);
-		destroy_group_rule(parent_group, DESTROY_GROUP_BY_CHILD, scanner);
-	}
-	else
-	{
-		relation=(struct Maat_compile_inner*)HASH_fetch_by_id(scanner->compile_hash, db_group_rule->parent_id);
-		if(relation==NULL)
-		{
-			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-								"update error, delete %s group %d form compile %d error, compile does not exist.",
-																		table->table_name[table->updating_name],
-																		db_group_rule->group_id,
-																		db_group_rule->parent_id);
-			return 0;
-		}
-		group_rule=del_group_from_compile(relation, db_group_rule->group_id, db_group_rule->virtual_table_id);
-		if(group_rule==NULL)
-		{
-			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-								"update error, delete %s group %d from compile %d error, target group does not in compile.",
-																		table->table_name[table->updating_name],
-																		db_group_rule->group_id,
-																		db_group_rule->parent_id);
-			return 0;
-		}
-		if(relation->group_cnt==0 && relation->compile==NULL)
-		{
-			destroy_compile_inner(relation, scanner);
-		}
-		
-	}
-	destroy_group_rule(group_rule, DESTROY_GROUP_BY_PARENT, scanner);
-	scanner->to_update_group_cnt++;
-	return 1;
-}
-int add_compile_rule(struct Maat_table_schema* table, struct Maat_compile_rule* db_compile_rule, struct Maat_scanner *scanner, void* logger)
-{
-	struct Maat_compile_inner *cg_relation=NULL;
-	struct Maat_rule_head *p_maat_rule_head=&(db_compile_rule->head);
-
-	cg_relation=(struct Maat_compile_inner*)HASH_fetch_by_id(scanner->compile_hash, p_maat_rule_head->config_id);
-	if(cg_relation==NULL)
-	{
-		cg_relation=create_compile_inner(p_maat_rule_head->config_id, scanner);
-	}
-	else
-	{
-		if(cg_relation->compile!=NULL)//duplicate config
-		{
-			return -1;
-		}
-	}
-	cg_relation->compile=db_compile_rule;
-	scanner->to_update_compile_cnt++;
-	return 0;
-	
-}
-int del_compile_rule(struct Maat_table_schema* table, int compile_id, struct Maat_scanner *scanner, void* logger)
-{
-	struct Maat_compile_inner *cg_relation=NULL;
-	cg_relation=(struct Maat_compile_inner*)HASH_fetch_by_id(scanner->compile_hash, compile_id);
-	if(cg_relation==NULL || cg_relation->compile==NULL)
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"update error, delete %s compile rule error : compile id %d does not exist."
-																	,table->table_name[table->updating_name]
-																	,compile_id);
-		return -1;
-	}
-
-	pthread_rwlock_wrlock(&(cg_relation->rwlock));
-	garbage_bagging(GARBAGE_COMPILE_RULE, cg_relation->compile, scanner->tomb_ref);	
-	cg_relation->compile=NULL;
-	pthread_rwlock_unlock(&(cg_relation->rwlock));
-
-	if(cg_relation->group_cnt==0&&cg_relation->compile==NULL)
-	{
-		destroy_compile_inner(cg_relation, scanner);
-	}
-	scanner->to_update_compile_cnt++;
-	return 1;
-}
-void update_group_rule(struct Maat_table_schema* table,const char* table_line,struct Maat_scanner *scanner, struct Maat_table_manager* table_mgr, void* logger)
-{
-	struct db_group_rule_t db_group_rule;
+	struct db_group2compile_rule db_g2c_rule;
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
 	int ret=0;
 	char virtual_table_name[MAX_TABLE_NAME_LEN]={0};
-	memset(&db_group_rule, 0, sizeof(db_group_rule));
-	ret=sscanf(table_line,"%d\t%d\t%d\t%d\t%d\t%s", &(db_group_rule.group_id),
-											&(db_group_rule.parent_id),
-											&(db_group_rule.is_valid),
-											&(db_group_rule.not_flag),
-											&(db_group_rule.parent_type),
-											virtual_table_name);
-	if(ret!=3&&ret!=4&&ret!=5&&ret!=6)
+	memset(&db_g2c_rule, 0, sizeof(db_g2c_rule));
+	ret=sscanf(table_line,"%d\t%d\t%d\t%d\t%d\t%s", &(db_g2c_rule.group_id),
+											&(db_g2c_rule.compile_id),
+											&(db_g2c_rule.is_valid),
+											&(db_g2c_rule.not_flag),
+											virtual_table_name,
+											&(db_g2c_rule.Nth_clause));
+	if(ret!=5)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"update error, invalid format of group table %s:%s",
+							"update error, invalid format of group2compile table %s:%s",
 							table->table_name[table->updating_name], table_line);	
 		table->udpate_err_cnt++;
 		return;
 	}
-	if(db_group_rule.not_flag!=1)//compatible to old format that 4th column is op_time
-	{
-		db_group_rule.not_flag=0;
-	}
-	if(db_group_rule.parent_type==PARENT_TYPE_GROUP && db_group_rule.not_flag)
-	{
-		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_module ,
-							"update error, invalid format of group table %s:%s not operation is forbidden for non-compile parent.",
-							table->table_name[table->updating_name], table_line);	
-		table->udpate_err_cnt++;
-		return;		
-	}
 	if(is_valid_table_name(virtual_table_name))
 	{
-		db_group_rule.virtual_table_id=Maat_table_get_id_by_name(table_mgr, virtual_table_name);
-		if(db_group_rule.virtual_table_id<0)
+		db_g2c_rule.virtual_table_id=Maat_table_get_id_by_name(table_mgr, virtual_table_name);
+		if(db_g2c_rule.virtual_table_id<0)
 		{
 			//This happens when one data source (e.g. redis) is consumed by multiple Maat instance.
 			//Maat ignores unrealated groups.
 			MESA_handle_runtime_log(logger, RLOG_LV_DEBUG, maat_module,
-								"group table load abandon, unknown virtual table name: %s of group table %s:%s.",
+								"group2compile table load abandon, unknown virtual table name: %s of group table %s:%s.",
 								virtual_table_name,
 								table->table_name[table->updating_name], table_line);	
 			table->udpate_err_cnt++;
 			return;
 		}
 	}
-	if(db_group_rule.is_valid==FALSE)
+	if(db_g2c_rule.is_valid==FALSE)
 	{
-		ret=del_group_rule(table, &db_group_rule, scanner, logger);
-		//leave no trace when compatible_group_update calling
-		assert(table->table_type==TABLE_TYPE_GROUP);
-		if(ret==1)
+		ret=Maat_hierarchy_remove_group_from_compile(scanner->hier, db_g2c_rule.group_id,db_g2c_rule.virtual_table_id, db_g2c_rule.not_flag, db_g2c_rule.Nth_clause, db_g2c_rule.compile_id);
+		if(ret==0)
 		{
 			table_rt->origin_rule_num--;
 			assert(table_rt->origin_rule_num>=0);
-			if(db_group_rule.not_flag)
+			if(db_g2c_rule.not_flag)
 			{
-				table_rt->group.not_flag_group--;
+				table_rt->group2compile.not_flag_group--;
 			}
+			scanner->to_update_group_cnt++;
 		}
 	}
 	else
 	{
-		ret=add_group_rule(table,&db_group_rule, scanner, logger);
-		if(ret<0)
+		ret=Maat_hierarchy_add_group_to_compile(scanner->hier, db_g2c_rule.group_id,db_g2c_rule.virtual_table_id, db_g2c_rule.not_flag, db_g2c_rule.Nth_clause, db_g2c_rule.compile_id);
+		if(ret==0)
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL, maat_module,
-							"duplicate config of group table %s group_id %d compile_id %d.", table->table_name[0],
-																							db_group_rule.group_id,
-																							db_group_rule.parent_id);
-
-		}
-		else
-		{
-			//no need to free db_group_rule,it was saved in scanner->compile_hash
-			if(table->table_type==TABLE_TYPE_GROUP)
+			table_rt->origin_rule_num++;
+			if(db_group2compile_rule.not_flag)
 			{
-				table_rt->origin_rule_num++;
-				if(db_group_rule.not_flag)
-				{
-					table_rt->group.not_flag_group++;
-				}
+				table_rt->group2compile.not_flag_group++;
 			}
+			scanner->to_update_group_cnt++;
 		}
 	}
-	
-	return;	
+	return;
+}
+void update_group2group_rule(struct Maat_table_schema* table, const char* table_line, struct Maat_scanner *scanner, struct Maat_table_manager* table_mgr, void* logger)
+{
+	struct db_group2group_rule db_g2g_rule;
+	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
+	int ret=0;
+	memset(&db_g2g_rule, 0, sizeof(db_g2g_rule));
+	ret=sscanf(table_line,"%d\t%d\t%d", &(db_g2g_rule.group_id),
+											&(db_g2g_rule.superior_group_id),
+											&(db_g2g_rule.is_valid));
+	if(ret!=3)
+	{
+		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
+							"update error, invalid format of group2group table %s:%s",
+							table->table_name[table->updating_name], table_line);	
+		table->udpate_err_cnt++;
+		return;
+	}
+	if(db_g2g_rule.is_valid==FALSE)
+	{
+		ret=Maat_hierarchy_remove_group_from_group(scanner->hier, db_g2g_rule.group_id, db_g2g_rule.superior_group_id);
+		if(ret==0)
+		{
+			table_rt->origin_rule_num--;
+			assert(table_rt->origin_rule_num>=0);
+			scanner->to_update_group_cnt++;
+		}
+	}
+	else
+	{
+		ret=Maat_hierarchy_add_group_to_group(scanner->hier, db_g2g_rule.group_id, db_g2g_rule.superior_group_id);
+		if(ret==0)
+		{
+			table_rt->origin_rule_num++;
+			if(db_group2compile_rule.not_flag)
+			{
+				table_rt->group2compile.not_flag_group++;
+			}
+			scanner->to_update_group_cnt++;
+		}
+	}
+
 }
 void update_expr_rule(struct Maat_table_schema* table,const char* table_line,struct Maat_scanner *scanner,void* logger)
 {
@@ -2696,17 +1941,6 @@ void update_intval_rule(struct Maat_table_schema* table, const char* table_line,
 		table->udpate_err_cnt++;
 		goto error_out;
 	}
-	ret=sync_region(scanner->region_hash,
-					intval_rule->region_id,
-					intval_rule->group_id,
-					table->table_name[table->updating_name],
-					intval_rule->is_valid, logger);
-	if(ret<0)
-	{
-		table->udpate_err_cnt++;
-		goto error_out;
-	}
-
 	if(intval_rule->is_valid==FALSE)
 	{
 		ret=del_region_rule(table
@@ -2772,17 +2006,21 @@ void update_compile_rule(struct Maat_table_schema* table,const char* table_line 
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module ,
 							"update error, invalid format of compile table %s:%s"
 							,table->table_name[table->updating_name],table_line);	
-		goto error_out;
+		table->udpate_err_cnt++;
+		return;
+
 	}
 	if(n_tags>0&&strlen(tag_str)>2)
 	{
 		ret=compare_accept_tag(tag_str, tags, n_tags);
 		if(ret<0)
 		{
-			MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module ,
-						"update error, invalid tag format of compile table %s:%s"
-						,table->table_name[table->updating_name],table_line);
-			goto error_out;
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+						"update error, invalid tag format of compile table %s:%s",
+						table->table_name[table->updating_name],table_line);
+			table->udpate_err_cnt++;
+			return;
+
 		}
 		if(ret==0)
 		{
@@ -2801,34 +2039,39 @@ void update_compile_rule(struct Maat_table_schema* table,const char* table_line 
 
 	if(is_valid==FALSE)
 	{
-		ret=del_compile_rule(table, m_rule_tmp.config_id, scanner, logger);
-		if(ret>0)
+		p_compile=(struct Maat_compile_rule*)Maat_hierarchy_compile_dettach_user_data(scanner->hier, m_rule_tmp.config_id);
+		if(p_compile)
 		{
+			ret=Maat_hierarchy_compile_remove(scanner->hier, m_rule_tmp.config_id);
+			assert(ret==0);
 			table_rt->origin_rule_num--;
+			Maat_garbage_bag(scanner->ref_garbage_bin, p_compile, destroy_compile_rule);
 		}
-		goto error_out;
+		else
+		{
+			table->udpate_err_cnt++;
+		}
 	}
 	else
 	{
 		p_compile=create_compile_rule(&m_rule_tmp, service_define, declared_grp_num, exec_seq, table);
-		ret=add_compile_rule(table, p_compile, scanner, logger);
-		if(ret<0)
+		ret=Maat_hierarchy_compile_add(scanner->hier, m_rule_tmp.config_id, declared_grp_num, p_compile);
+		if(ret==0)
+		{
+			table_rt->origin_rule_num++;
+		}
+		else
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_module,
-							"duplicate config of compile table %s config_id=%d",
+							"duplicate config of compile table %s compile_id %d",
 							table->table_name[table->updating_name], m_rule_tmp.config_id);			
 			table->udpate_err_cnt++;			
 			destroy_compile_rule(p_compile);			
 			p_compile=NULL;
-			goto error_out;
+			table->udpate_err_cnt++;
 		}
-		table_rt->origin_rule_num++;
 	}
 	return;
-	
-error_out:
-	table->udpate_err_cnt++;
-	return;	
 }
 
 void update_digest_rule(struct Maat_table_schema* table, const char* table_line, struct Maat_scanner *scanner, void* logger)
@@ -2868,16 +2111,6 @@ void update_digest_rule(struct Maat_table_schema* table, const char* table_line,
 		table->udpate_err_cnt++;
 		goto error_out;
 	}
-	ret=sync_region(scanner->region_hash,
-					digest_rule->region_id,
-					digest_rule->group_id,
-					table->table_name[table->updating_name],
-					digest_rule->is_valid, logger);
-	if(ret<0)
-	{
-		table->udpate_err_cnt++;
-		goto error_out;
-	}
 
 	if(digest_rule->is_valid==FALSE)
 	{
@@ -2909,112 +2142,14 @@ void update_digest_rule(struct Maat_table_schema* table, const char* table_line,
 		}
 
 	}
+	
 error_out:
-
 	digest_rule->digest_string=NULL;
 	free(digest_rule);
-	digest_rule=NULL;		
-}
-void garbage_bagging_with_timeout(enum maat_garbage_type type,void *p, int timeout, MESA_lqueue_head garbage_q)
-{
-	if(p==NULL)
-	{
-		return;
-	}
-	struct _maat_garbage_t* bag=(struct _maat_garbage_t*)malloc(sizeof(struct _maat_garbage_t));
-	bag->raw=p;
-	bag->type=type;
-	bag->create_time=time(NULL);
-	bag->ok_times=0;
-	bag->expire_after=timeout;
-	MESA_lqueue_join_tail(garbage_q,&bag,sizeof(void*));
+	digest_rule=NULL;
 	return;
 }
-void garbage_bagging(enum maat_garbage_type type, void *p, MESA_lqueue_head garbage_q)
-{
-	garbage_bagging_with_timeout(type, p, -1, garbage_q);
-	return;
-}
-void garbage_bury(MESA_lqueue_head garbage_q, int timeout, void *logger)
-{
-	UNUSED	MESA_queue_errno_t q_ret=MESA_QUEUE_RET_OK;
-	_maat_garbage_t* bag=NULL;
-	long data_size=0;
-	const long q_cnt=MESA_lqueue_get_count(garbage_q);
-	int i=0,bury_cnt=0, ret=0;
-	long long ref_cnt=0;
-	int have_timeout=0;
-	int override_timeout=0;
-	time_t now=time(NULL);
-	for(i=0;i<q_cnt;i++)
-	{
-		data_size=sizeof(void*);
-		q_ret=(MESA_queue_errno_t)MESA_lqueue_get_head(garbage_q,&bag,&data_size);
-		assert(data_size==sizeof(void*)&&q_ret==MESA_QUEUE_RET_OK);
-		if(bag->expire_after<0)
-		{
-			override_timeout=timeout;
-		}
-		else
-		{
-			override_timeout=bag->expire_after;
-		}
-		if(now-bag->create_time<override_timeout)
-		{
-			MESA_lqueue_join_tail(garbage_q,&bag,sizeof(void*));
-			continue;
-		}
-		have_timeout=1;
-		switch(bag->type)
-		{
-			case GARBAGE_COMPILE_RULE:
-				destroy_compile_rule(bag->compile_rule);				
-				break;
-			case GARBAGE_COMPILE_INNER:
-				_destroy_compile_inner(bag->compile_group_relation);
-				break;
-			case GARBAGE_GROUP_RULE:
-				_destroy_group_rule(bag->group_rule);
-				break;
-			case GARBAGE_SCANNER:
-				ref_cnt=alignment_int64_array_sum(bag->scanner->ref_cnt, bag->scanner->max_thread_num);
-				if(ref_cnt==0)
-				{
-					MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module,
-							"scanner %p version %d has no reference peacefully destroyed.", bag->scanner, bag->scanner->version);
-				}
-				else
-				{
-					MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module,
-							"scanner %p version %d force destroyed, ref_cnt %lld.",
-							bag->scanner, bag->scanner->version, ref_cnt);
-				}
-				destroy_maat_scanner(bag->scanner);
-				break;
-			case GARBAGE_BOOL_MATCHER:
-				destroy_bool_matcher(bag->bool_matcher);
-				break;
-			case GARBAGE_MAP_STR2INT:
-				map_destroy(bag->str2int_map);
-				break;
-			case GARBAGE_IP_MATCHER:
-				ip_matcher_free(bag->a_ip_matcher);
-				bag->a_ip_matcher=NULL;
-				break;
-			default:
-				assert(0);
-		}
-		free(bag);
-		bag=NULL;
-		bury_cnt++;
-	}
-	if(q_cnt>0&&have_timeout==1)
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module,
-							"Garbage queue size %ld, bury %d",
-							q_cnt,bury_cnt);
-	}
-}
+
 void update_plugin_table(struct Maat_table_schema* table_schema, const char* row, Maat_scanner* scanner, const struct rule_tag* tags, int n_tags, void* logger)
 {
 	int ret=1, matched_tag=1;
@@ -3109,125 +2244,31 @@ void update_ip_plugin_table(struct Maat_table_schema* table_schema, const char* 
 	return;
 }
 
-void vector_print(igraph_vector_t *v) {
-  long int i;
-  for (i=0; i<igraph_vector_size(v); i++) {
-    printf(" %li", (long int) VECTOR(*v)[i]);
-  }
-  printf("\n");
-}
-static size_t effective_vertices_count(igraph_vector_t *vids)
-{
-	size_t i=0;
-	int tmp_vid=0;
-	for(i=0; i<(size_t)igraph_vector_size(vids); i++)
-	{
-		tmp_vid=(int) VECTOR(*vids)[i];
-		if(tmp_vid<0)
-		{
-			break;
-		}
-	}
-	return i;
-}
-void walk_group_hash(const uchar * key, uint size, void * data, void * user)
-{
-	struct Maat_group_inner* group_rule=(struct Maat_group_inner*)data;
-	struct Maat_group_inner* parent_group=NULL;
-	struct Maat_scanner* scanner=(struct Maat_scanner*)user;
-	int tmp_vid=0;
-	size_t i=0, top_group_cnt=0;
-	long long* temp_group_ids=NULL;
-	if(group_rule->ref_by_compile_cnt==group_rule->ref_by_parent_cnt)
-	{
-		//fast path, group is only referenced by compile rules.
-		top_group_cnt=1;
-		temp_group_ids=ALLOC(long long, top_group_cnt);
-		temp_group_ids[0]=group_rule->group_id;
-	}
-	else
-	{
-		igraph_vector_t *vids=&(scanner->dfs_vids);
-		igraph_dfs(&(scanner->hierarchy_graph), group_rule->vertex_id, IGRAPH_OUT, 
-					 0, vids, NULL, NULL, NULL, NULL, NULL, NULL);
-
-		temp_group_ids=ALLOC(long long, effective_vertices_count(vids));
-
-		for(i=0; i<(size_t)igraph_vector_size(vids); i++)
-		{
-			tmp_vid=(int) VECTOR(*vids)[i];
-			if(tmp_vid<0)
-			{
-				break;
-			}
-			parent_group=(struct Maat_group_inner*)HASH_fetch_by_id(scanner->vertex_id2group, tmp_vid);
-			if(parent_group->ref_by_compile_cnt>0)//including itself
-			{
-				temp_group_ids[top_group_cnt]=parent_group->group_id;
-				top_group_cnt++;
-			}
-		}
-	}
-	pthread_mutex_lock(&(group_rule->mutex));
-	free(group_rule->top_groups);
-	group_rule->top_group_cnt=top_group_cnt;
-	group_rule->top_groups=ALLOC(long long, group_rule->top_group_cnt);
-	memcpy(group_rule->top_groups, temp_group_ids, sizeof(long long)*group_rule->top_group_cnt);
-	if(group_rule->top_group_cnt>scanner->max_presented_top_group_cnt)
-	{
-		scanner->max_presented_top_group_cnt=group_rule->top_group_cnt;
-		scanner->most_popular_sub_group=group_rule->group_id;
-	}
-	pthread_mutex_unlock(&(group_rule->mutex));
-	free(temp_group_ids);
-	temp_group_ids=NULL;
-	return;
-}
-
-void find_group_paths(struct Maat_scanner* scanner)
-{
-	scanner->group_graph_vcount=igraph_vcount(&scanner->hierarchy_graph);
-	igraph_vector_init(&(scanner->dfs_vids), scanner->group_graph_vcount);
-	MESA_htable_iterate(scanner->group_hash, walk_group_hash, scanner);
-	igraph_vector_destroy(&scanner->dfs_vids);
-	return;
-}
-void do_scanner_update(struct Maat_scanner* scanner, MESA_lqueue_head garbage_q, int scan_thread_num, void* logger)
+void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* logger)
 {
 	struct bool_matcher *tmp1=NULL,*tmp2=NULL;
 	MESA_htable_handle tmp_map=NULL;
 	struct Maat_table_runtime* table_rt=NULL;
 	struct ip_matcher* old_ip_matcher=NULL;
 	int i=0, ret=0;
-	igraph_bool_t is_dag;
-	igraph_is_dag(&(scanner->hierarchy_graph), &is_dag);
-	if(!is_dag)
+
+	ret=Maat_hierarchy_rebuild(scanner->hier);
+	if(ret!=0)
 	{
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-								"Sub group cycle detected! Version %d",
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module ,
+								"Version %d hierarchy rebuild failed.",
 								scanner->version);
 		return;
 	}
-	find_group_paths(scanner);
-	
-	tmp1=create_bool_matcher(scanner->compile_hash,
-							scan_thread_num,
-							logger);
-	tmp2=scanner->bool_matcher_expr_compiler;
-	
-	//assume pinter = operation is thread safe 
-	scanner->bool_matcher_expr_compiler=tmp1;
-	if(tmp2!=NULL)
+	else
 	{
-		garbage_bagging(GARBAGE_BOOL_MATCHER, tmp2, garbage_q);
-	}
-	MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"Version %d: dedup string rule %lu, sub group %d presents %d top groups",
+		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
+							"Version %d hierarchy rebuild success, dedup string rule %lu.",
 							scanner->version,
-							scanner->dedup_expr_num,
-							scanner->most_popular_sub_group,
-							scanner->max_presented_top_group_cnt);	
+							scanner->dedup_expr_num);	
+	}
 	scanner->dedup_expr_num=0;
+	
 	rulescan_batch_update(scanner->region,
 							scanner->region_update_q,
 							logger,
@@ -3254,7 +2295,7 @@ void do_scanner_update(struct Maat_scanner* scanner, MESA_lqueue_head garbage_q,
 			case TABLE_TYPE_IP_PLUGIN:
 				Maat_table_runtime_ip_plugin_rebuild_ip_matcher(table_rt);
 				old_ip_matcher=Maat_table_runtime_dettach_old_ip_matcher(table_rt);
-				garbage_bagging(GARBAGE_IP_MATCHER, old_ip_matcher, garbage_q);
+				Maat_garbage_bag(scanner->ref_garbage_bin, old_ip_matcher, ip_matcher_free);
 				break;
 			default:
 				break;
@@ -3266,7 +2307,7 @@ void do_scanner_update(struct Maat_scanner* scanner, MESA_lqueue_head garbage_q,
 		tmp_map=scanner->district_map;
 		scanner->district_map=scanner->tmp_district_map;
 		scanner->tmp_district_map=NULL;
-		garbage_bagging(GARBAGE_MAP_STR2INT, tmp_map, garbage_q);
+		Maat_garbage_bag(scanner->ref_garbage_bin, tmp_map, map_destroy)
 	}
 	scanner->last_update_time=time(NULL);
 	scanner->gie_update_q_size=0;
@@ -3324,10 +2365,9 @@ void maat_finish_cb(void* u_para)
 	if(feather->update_tmp_scanner!=NULL)
 	{
 		feather->update_tmp_scanner->cfg_num=scanner_rule_num(feather->update_tmp_scanner);
-		do_scanner_update(feather->update_tmp_scanner
-						,feather->garbage_q
-						,feather->scan_thread_num
-						,feather->logger);
+		do_scanner_update(feather->update_tmp_scanner,
+						feather->scan_thread_num,
+						feather->logger);
 		MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
 								"Full config version %u load %d entries complete.",
 								feather->update_tmp_scanner->version,feather->update_tmp_scanner->cfg_num);	
@@ -3340,10 +2380,9 @@ void maat_finish_cb(void* u_para)
 		feather->postpone_q_size=expr_wait_q_cnt+feather->scanner->gie_update_q_size;
 		if(time(NULL)-feather->scanner->last_update_time>=feather->effect_interval_ms/1000)
 		{
-			do_scanner_update(feather->scanner
-							,feather->garbage_q
-							,feather->scan_thread_num
-							,feather->logger);
+			do_scanner_update(feather->scanner,
+							feather->scan_thread_num,
+							feather->logger);
 			MESA_handle_runtime_log(feather->logger, RLOG_LV_INFO, maat_module
 									,"Inc config version %u build complete, %d entries in total."
 									,feather->scanner->version,feather->scanner->cfg_num);
@@ -3407,8 +2446,11 @@ int maat_update_cb(const char* table_name,const char* line,void *u_para)
 		case	TABLE_TYPE_COMPILE:
 			update_compile_rule(p_table, line, scanner, feather->accept_tags, feather->n_tags, feather->logger);
 			break;
-		case	TABLE_TYPE_GROUP:
-			update_group_rule(p_table, line, scanner, feather->table_mgr, feather->logger);
+		case	TABLE_TYPE_GROUP2COMPILE:
+			update_group2compile_rule(p_table, line, scanner, feather->table_mgr, feather->logger);
+			break;
+		case	TABLE_TYPE_GROUP2GROUP:
+			update_group2group_rule(p_table, line, scanner, feather->table_mgr, feather->logger);
 			break;
 		case	TABLE_TYPE_PLUGIN:
 			update_plugin_table(p_table, line, scanner, feather->accept_tags, feather->n_tags, feather->logger);
@@ -3549,9 +2591,8 @@ void *thread_rule_monitor(void *arg)
 												"Maat version roll back %d -> %d.",
 												old_scanner->version, feather->scanner->version);
 					}
-					assert(old_scanner->tomb_ref==feather->garbage_q);
 					feather->zombie_rs_stream+=alignment_int64_array_sum(old_scanner->ref_cnt,old_scanner->max_thread_num);
-					garbage_bagging(GARBAGE_SCANNER, old_scanner, feather->garbage_q);
+					Maat_garbage_bag(feather->garbage_bin, old_scanner, destroy_maat_scanner);
 				}
 				feather->update_tmp_scanner=NULL;
 				feather->maat_version=feather->scanner->version;
@@ -3564,10 +2605,9 @@ void *thread_rule_monitor(void *arg)
 				total_wait_rule_cnt=feather->postpone_q_size+feather->scanner->to_update_compile_cnt+feather->scanner->to_update_group_cnt;
 				if(total_wait_rule_cnt>0&&time(NULL)-feather->scanner->last_update_time>=feather->effect_interval_ms/1000)
 				{
-					do_scanner_update(feather->scanner
-									,feather->garbage_q
-									,feather->scan_thread_num
-									,feather->logger);
+					do_scanner_update(feather->scanner,
+									feather->scan_thread_num,
+									feather->logger);
 					feather->postpone_q_size=0;
 					MESA_handle_runtime_log(feather->logger,RLOG_LV_INFO,maat_module,
 											"Actual udpate config version %u, %d entries load to rulescan after postpone.",
@@ -3576,7 +2616,7 @@ void *thread_rule_monitor(void *arg)
 			}
 			pthread_mutex_unlock(&(feather->background_update_mutex));
 		}
-		garbage_bury(feather->garbage_q,feather->effect_interval_ms/1000+10,feather->logger);
+		Maat_garbage_collect_routine(feather->garbage_bin);
 		if(feather->stat_on==1&&time(NULL)%2==0)//output every 2 seconds
 		{
 			maat_stat_output(feather);
@@ -3585,9 +2625,7 @@ void *thread_rule_monitor(void *arg)
 	
 	Maat_table_manager_destroy(feather->table_mgr);
 	destroy_maat_scanner(feather->scanner);
-	garbage_bury(feather->garbage_q,0,feather->logger);
-	assert(0==MESA_lqueue_get_count(feather->garbage_q));
-	MESA_lqueue_destroy(feather->garbage_q,lqueue_destroy_cb,NULL);
+	Maat_garbage_bin_free(feather->garbage_bin);
 	
 	alignment_int64_array_free(feather->thread_call_cnt);
 	alignment_int64_array_free(feather->inner_mid_cnt);
