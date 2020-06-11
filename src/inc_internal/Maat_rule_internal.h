@@ -89,8 +89,11 @@ struct Maat_rule_head
 	char	resevered;
 	int		serv_def_len;
 };
+
+#define	COMPILE_RULE_MAGIC	0x1a2b3c4d
 struct Maat_compile_rule
 {
+	long long magic_num;
 	struct Maat_rule_head head;// fix len of Maat_rule_t
 	char* service_defined;
 	int is_valid;
@@ -98,8 +101,24 @@ struct Maat_compile_rule
 	double evaluation_order;
 	const struct Maat_table_schema* ref_table;
 	MAAT_RULE_EX_DATA* ads;
+	int compile_id;
+	pthread_rwlock_t rwlock;
 };
-
+struct db_group2group_rule
+{
+	int group_id;
+	int superior_group_id;
+	int is_valid;
+};
+struct db_group2compile_rule
+{
+	int group_id;
+	int compile_id;
+	int is_valid;
+	int not_flag;
+	int virtual_table_id;
+	int Nth_clause;
+};
 struct db_group_rule_t
 {
 	int group_id;
@@ -130,6 +149,7 @@ struct region_group_relation
 struct Maat_region_inner
 {
 	int region_id;
+	int group_id;
 	int district_id;
 	int table_id;
 	int expr_id_cnt;
@@ -157,25 +177,6 @@ struct Maat_group_inner
 };
 
 
-
-#define	COMPILE_INNER_MAGIC	0x1a2b3c4d
-struct Maat_compile_inner
-{
-	long long magic_num;	//shoulde be COMPILE_INNER_MAGIC
-	struct Maat_compile_rule *compile;
-
-
-	
-	dynamic_array_t *groups;	//element is struct Maat_group_inner*
-	int virtual_table_id[MAX_ITEMS_PER_BOOL_EXPR];
-	char not_flag[MAX_ITEMS_PER_BOOL_EXPR];
-	int compile_id;//equal to compile->m_rule.config_id
-	int group_boundary;
-	int group_cnt;
- 	int not_group_cnt;
-	pthread_rwlock_t rwlock;//reading compile rule is safe in update thread, rwlock lock called when delete or scan thread read
-
-};
 
 
 struct _compile_result_t
@@ -211,6 +212,7 @@ struct _OUTER_scan_status_t
 	unsigned char is_last_region;
 	int district_id;
 	int scan_cnt;
+	struct Maat_hierarchy_compile_mid* compile_mid;
 	struct scan_hit_status* inner;
 };
 enum maat_garbage_type
@@ -267,27 +269,15 @@ struct Maat_scanner
 
 	struct Maat_table_runtime_manager*  table_rt_mgr;
 	size_t max_table_num;
-	
-	//Access in both UPDATE thread and SCAN thread
-	MESA_htable_handle exprid_hash;	//key: expr_id, value: int array_idx of Maat_group_inner->regions;
-	MESA_htable_handle compile_hash;//key: compile_id, value: struct Maat_compile_inner *
-	MESA_htable_handle grp_and_vt2clause_id_hash;	//key: virtual_table<<32|group_id, value: struct Maat_clause_id_list*
-		
-	//Access in UPDATE thread ONLY.	
-	MESA_htable_handle region_hash;	//key: region_id, value: struct region_group_relation*
-	MESA_htable_handle group_hash;	//key: group_id, value: struct Maat_group_inner*
 
+	struct Maat_hierarchy * hier;
+	struct Maat_garbage_bin* ref_garbage_bin;
 
 
 	MESA_htable_handle district_map;
 	MESA_htable_handle tmp_district_map;
-	MESA_htable_handle vertex_id2group;//key:vertex_id, value: struct Maat_hierarchy_element*
 
-	igraph_t hierarchy_graph;
-	igraph_integer_t group_graph_vcount;
-	igraph_vector_t dfs_vids;
 
-	int grp_vertex_id_generator;
 	int most_popular_sub_group;
 	unsigned long long max_presented_top_group_cnt;
 	
@@ -296,11 +286,10 @@ struct Maat_scanner
 	unsigned int exprid_generator;
 	unsigned int dedup_expr_num;
 	MESA_lqueue_head region_update_q;
-	struct bool_matcher * bool_matcher_expr_compiler;
+
 	scan_result_t *region_rslt_buff;
 	GIE_result_t* gie_rslt_buff;
 	void* logger_ref;
-	MESA_lqueue_head tomb_ref;//reference of g_feather->garbage_q
 
 	int max_thread_num;
 	iconv_t iconv_handle[MAX_CHARSET_NUM][MAX_CHARSET_NUM];//iconv_handle[to][from]
@@ -338,6 +327,7 @@ struct _Maat_feather_t
 	struct Maat_scanner *scanner;
 	struct Maat_scanner *update_tmp_scanner;
 	MESA_lqueue_head garbage_q;
+	struct Maat_garbage_bin * garbage_bin;
 	struct Maat_table_manager* table_mgr;
 	
 	int DEFERRED_LOAD_ON;

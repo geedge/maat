@@ -36,7 +36,7 @@ struct ip_runtime
 	long long ipv6_rule_cnt;
 
 };
-struct group_runtime
+struct group2compile_runtime
 {
 	long long not_flag_group;
 };
@@ -51,7 +51,7 @@ struct Maat_table_runtime
 		struct ip_plugin_runtime ip_plugin;
 		struct expr_runtime expr;
 		struct ip_runtime ip;
-		struct group_runtime group;		
+		struct group2compile_runtime group2compile;		
 		void * other;
 	};
 	mcore_long_t	scan_cnt;

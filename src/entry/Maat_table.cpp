@@ -495,6 +495,8 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 	map_register(string2int_map,"digest", TABLE_TYPE_DIGEST);
 	map_register(string2int_map,"expr_plus", TABLE_TYPE_EXPR_PLUS);
 	map_register(string2int_map,"group", TABLE_TYPE_GROUP);
+	map_register(string2int_map,"group2group", TABLE_TYPE_GROUP2GROUP);
+	map_register(string2int_map,"group2compile", TABLE_TYPE_GROUP2COMPILE);
 	map_register(string2int_map,"similar", TABLE_TYPE_SIMILARITY);
 	map_register(string2int_map,"virtual", TABLE_TYPE_VIRTUAL);
 	map_register(string2int_map,"composition", TABLE_TYPE_COMPOSITION);
