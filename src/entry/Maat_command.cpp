@@ -1755,7 +1755,7 @@ void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int 
 		{
 			for(j=0; j<p->n_foreign; j++)
 			{
-				ret=stat(p->f_keys[i].filename, &file_info);
+				ret=stat(p->f_keys[j].filename, &file_info);
 				if(ret==0)
 				{
 					continue;
