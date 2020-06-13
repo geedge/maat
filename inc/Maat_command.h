@@ -1,7 +1,7 @@
 #ifndef H_MAAT_COMMAND_H_INCLUDE
 #define H_MAAT_COMMAND_H_INCLUDE
-#ifndef __cplusplus
-#error("This file should be compiled with C++ compiler")
+#ifdef __cplusplus
+extern "C"{
 #endif
 #include "Maat_rule.h"
 enum MAAT_OPERATION
@@ -106,17 +106,22 @@ struct Maat_region_t
 		struct Maat_rgn_sim_t similarity_rule;
 	};
 };
-struct Maat_group_t
+struct Maat_cmd_region
 {
 	const char* table_name;
-	const char* virtual_table_name;
-	int group_id;	//If MAAT_OPT_CMD_AUTO_NUMBERING==1, maat will assigned one. Or users must assign a unique number.
-	int parent_id;
-	int not_flag;
-	enum MAAT_GROUP_RELATION parent_type;
-	int region_num;
-	struct Maat_region_t *regions;	
+	int region_id;	//If MAAT_OPT_CMD_AUTO_NUMBERING==1, maat will assigned one. Or users must appoint a unique number.
+	enum MAAT_REGION_TYPE region_type;
+	union
+	{
+		struct Maat_rgn_str_t expr_rule;
+		struct Maat_rgn_addr_t ip_rule;
+		struct Maat_rgn_intv_t interval_rule;
+		struct Maat_rgn_digest_t digest_rule;
+		struct Maat_rgn_sim_t similarity_rule;
+	};
 };
+
+
 struct Maat_cmd_t
 {
 	//This Struct MUST alloced by Maat_create_cmd(), then released by Maat_free_cmd(). 
@@ -125,8 +130,8 @@ struct Maat_cmd_t
 	int expire_after;			//expired after $expire_after$ seconds, set to 0 for never timeout.
 	int label_id;					//>0, to be indexed and quried by Maat_cmd_select; =0 not index
 	struct Maat_group_t* groups;// Add regions with Maat_add_region2cmd 
-};	
-struct Maat_line_t
+};
+struct Maat_cmd_line
 {
 	const char* table_name;
 	const char* table_line;
@@ -134,37 +139,15 @@ struct Maat_line_t
 	int label_id;
 	int expire_after;	//expired after $timeout$ seconds, set to 0 for never timeout.
 };
-struct Maat_cmd_t* Maat_create_cmd(const struct Maat_rule_t* rule, int group_num);
-int Maat_cmd_set_opt(struct Maat_cmd_t* cmd, enum MAAT_RULE_OPT type, const char* val, int size);
-//input: which_group 0~group_num
-//input: region can be freed after added.
-void Maat_add_region2cmd(struct Maat_cmd_t* cmd,int which_group,const struct Maat_region_t* region);
 
-void Maat_free_cmd(struct Maat_cmd_t* cmd);
-int Maat_format_cmd(struct Maat_cmd_t* cmd, char* buffer, int size);
 //Input string of REGION_EXPR and REGION_SIMILARITY need to be escapeed.
 char* Maat_str_escape(char* dst,int size,const char*src);
 
-//Deletion failed due to not complete synchronize with Redis.
-//To make sure the delete command is excecuted, user should try again after MAAT_OPT_SCANDIR_INTERVAL_MS ms.
-//Returns number of successfully updated rule.
-//The following functions are NOT thread safe.
-int Maat_cmd(Maat_feather_t feather,struct Maat_cmd_t* cmd,enum MAAT_OPERATION op);
-
-//pipeline model
-int Maat_cmd_append(Maat_feather_t feather,struct Maat_cmd_t* cmd,enum MAAT_OPERATION op);
-
-//Return number of successfully updated rule.
-//Return -1 for failed.
-int Maat_cmd_commit(Maat_feather_t feather);
-
-
-int Maat_cmd_set_group(Maat_feather_t feather, int group_id, const struct Maat_region_t* region, enum MAAT_OPERATION op);
 
 //Returns number of successfully updated rule.
 //Return -1 for failed.
-int Maat_cmd_set_line(Maat_feather_t feather,const struct Maat_line_t* line_rule, enum MAAT_OPERATION op);
-int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_line_t** line_rule, int line_num ,enum MAAT_OPERATION op);
+int Maat_cmd_set_line(Maat_feather_t feather,const struct Maat_cmd_line* line_rule, enum MAAT_OPERATION op);
+int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_cmd_line** line_rule, int line_num ,enum MAAT_OPERATION op);
 int Maat_cmd_set_file(Maat_feather_t feather,const char* key, const char* value, size_t size, enum MAAT_OPERATION op);
 
 //Return the value of key after the increment.
@@ -180,12 +163,37 @@ int Maat_cmd_key_select(Maat_feather_t feather, int label_id, struct Maat_cmd_ke
 int Maat_cmd_select(Maat_feather_t feather, int label_id, int * output_ids, unsigned int size);
 int Maat_cmd_flushDB(Maat_feather_t feather);
 
-int Maat_command_raw_set_compile(Maat_feather_t feather, enum MAAT_OPERATION op, const struct Maat_rule_t* compile, const char* table_name, const char * huge_service_defined, int group_num);
-int Maat_command_raw_set_region(Maat_feather_t feather,  enum MAAT_OPERATION op, const struct Maat_region_t* region, int group_id);
-int Maat_command_raw_set_group(Maat_feather_t feather,  enum MAAT_OPERATION op, const struct Maat_group_t* group);
+struct Maat_cmd_group2group
+{
+	const char* table_name;
+	int group_id;	//If MAAT_OPT_CMD_AUTO_NUMBERING==1, maat will assigned one. Or users must assign a unique number.
+	int superior_group_id;
+};
+struct Maat_cmd_group2compile
+{
+	const char* table_name;
+	const char* virtual_table_name;
+	int group_id;
+	int compile_id;
+	int Nth_clause;
+	int not_flag;
+};
+
+int Maat_command_raw_set_region(Maat_feather_t feather,  enum MAAT_OPERATION op, const struct Maat_cmd_region* region, int group_id);
+int Maat_command_raw_set_group2group(Maat_feather_t feather, enum MAAT_OPERATION op, const struct Maat_cmd_group2group* g2g);
+int Maat_command_raw_set_group2compile(Maat_feather_t feather, enum MAAT_OPERATION op, const struct Maat_cmd_group2compile* g2c);
+
+//@param expire_after: expired after $expire_after$ seconds, set to 0 for never timeout.
+//@param label_id: bigger than 0 means this compile rule is to be indexed and quried by Maat_cmd_select; =0 not index
+int Maat_command_raw_set_compile(Maat_feather_t feather, enum MAAT_OPERATION op, const struct Maat_rule_t* compile, const char* table_name, const char * huge_service_defined, int clause_num, int label_id, int expire_after);
+
 
 int Maat_cmd_get_new_group_id(Maat_feather_t feather);
 int Maat_cmd_get_new_region_id(Maat_feather_t feather);
+
+#ifdef __cplusplus
+} //end extern"C"
+#endif
 
 
 #endif

@@ -154,7 +154,9 @@ int Maat_table_add_callback_func(struct Maat_table_manager* table_mgr,
 									Maat_finish_callback_t *finish,//u_para
 									void* u_para);
 int Maat_table_get_compile_table_name(struct Maat_table_manager* table_mgr, char* buff, size_t sz);
-int Maat_table_get_group_table_name(struct Maat_table_manager* table_mgr, char* buff, size_t sz);
+int Maat_table_get_group2compile_table_name(struct Maat_table_manager* table_mgr, char* buff, size_t sz);
+int Maat_table_get_group2group_table_name(struct Maat_table_manager* table_mgr, char* buff, size_t sz);
+
 const char* Maat_table_get_name_by_id(struct Maat_table_manager* table_mgr, int table_id);
 enum MAAT_TABLE_TYPE Maat_table_get_type_by_id(struct Maat_table_manager* table_mgr, int table_id);
 

@@ -11,10 +11,8 @@
 #include <MESA/field_stat2.h>
 #include <MESA/rulescan.h>
 #include "dynamic_array.h"
-#include "bool_matcher.h"
 #include "hiredis.h"
 #include "IPMatcher.h"
-#include "igraph/igraph.h"
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 #include "alignment_int64.h"
@@ -139,13 +137,6 @@ struct op_expr_t
 	int rule_type;
 };
 
-struct region_group_relation
-{
-	int region_id;
-	int group_id;
-	int array_idx;
-};
-
 struct Maat_region_inner
 {
 	int region_id;
@@ -159,51 +150,6 @@ struct Maat_region_inner
 };
 
 
-struct Maat_group_inner
-{
-	int group_id;
-	int table_id;
-	int region_boundary;
-	int region_cnt;
-	int ref_by_parent_cnt;
-	int ref_by_children_cnt;
-	char* group_name;
-	int ref_by_compile_cnt;
-	int vertex_id;
-	size_t top_group_cnt;
-	long long* top_groups;
-	dynamic_array_t *regions;
-	pthread_mutex_t mutex;
-};
-
-
-
-
-struct _compile_result_t
-{
-	int compile_id;
-	struct bool_expr group_set;
-};
-struct Maat_hit_path_inner
-{
-	int Nth_hit_region;
-	struct Maat_hit_path_t path;
-	TAILQ_ENTRY(Maat_hit_path_inner) entries;
-};
-
-TAILQ_HEAD(hit_path_q, Maat_hit_path_inner);
-
-struct scan_hit_status
-{
-	size_t hit_path_cnt;
-	struct hit_path_q hit_path_qhead;
-	
-	size_t all_hit_group_cnt;
-	size_t all_hit_group_array_sz;
-	unsigned long long *all_hit_group_array;
-
-	char not_grp_compile_hitted_flag;
-};
 struct _OUTER_scan_status_t
 {
 	struct _Maat_feather_t* feather;
@@ -213,18 +159,8 @@ struct _OUTER_scan_status_t
 	int district_id;
 	int scan_cnt;
 	struct Maat_hierarchy_compile_mid* compile_mid;
-	struct scan_hit_status* inner;
 };
-enum maat_garbage_type
-{
-	GARBAGE_SCANNER=0,
-	GARBAGE_GROUP_RULE,
-	GARBAGE_COMPILE_RULE,
-	GARBAGE_COMPILE_INNER,
-	GARBAGE_BOOL_MATCHER,
-	GARBAGE_MAP_STR2INT,
-	GARBAGE_IP_MATCHER
-};
+
 struct iconv_handle_t
 {
 	int is_initialized;
@@ -356,6 +292,8 @@ struct _Maat_feather_t
 	char instance_name[MAX_TABLE_NAME_LEN];
 	char table_info_fn[MAX_TABLE_NAME_LEN];
 	char compile_tn[MAX_TABLE_NAME_LEN];
+	char group2compile_tn[MAX_TABLE_NAME_LEN];
+	char group2group_tn[MAX_TABLE_NAME_LEN];
 	char group_tn[MAX_TABLE_NAME_LEN];
 	pthread_mutex_t background_update_mutex;
 	char decrypt_key[MAX_TABLE_NAME_LEN];
@@ -386,7 +324,7 @@ struct _Maat_feather_t
 	int fs_status_id[MAX_MAAT_STAT_NUM];
 	int fs_column_id[MAX_MAAT_STAT_NUM];
 	mcore_long_t outer_mid_cnt;
-	mcore_long_t inner_mid_cnt;
+	mcore_long_t  compile_mid_cnt;
 	mcore_long_t hit_cnt;
 	mcore_long_t thread_call_cnt;//size indicate by scan_thread_num, 
 	mcore_long_t not_grp_hit_cnt;
@@ -401,25 +339,7 @@ struct _Maat_feather_t
 	long long cmd_acc_num;
 	long long line_cmd_acc_num;
 };
-struct _maat_garbage_t
-{
-	enum maat_garbage_type type;
-	time_t create_time;
-	int expire_after;
-	int ok_times;
-	union
-	{
-		struct Maat_scanner* scanner;
-		struct Maat_group_inner* group_rule;
-		struct Maat_compile_rule* compile_rule;
-		struct Maat_compile_inner * compile_group_relation;
-		struct bool_matcher* bool_matcher;
-		struct ip_matcher* a_ip_matcher;
-		void * raw;
-		MESA_htable_handle str2int_map;
-		char* filename;
-	};
-};
+
 struct foreign_key
 {
 	int column;
@@ -439,10 +359,7 @@ struct serial_rule_t		//rm= Redis Maat
 	struct foreign_key* f_keys;
 };
 int parse_accept_tag(const char* value, struct rule_tag** result, void* logger);
-void garbage_bagging(enum maat_garbage_type type,void *p,MESA_lqueue_head garbage_q);
-void garbage_bagging_with_timeout(enum maat_garbage_type type,void *p, int timeout, MESA_lqueue_head garbage_q);
-void garbage_bury(MESA_lqueue_head garbage_q,void *logger);
-void make_group_set(struct Maat_compile_inner* compile_rule, struct bool_expr* a_set, unsigned char *has_not);
+
 void maat_start_cb(long long new_version,int update_type,void*u_para);
 int maat_update_cb(const char* table_name,const char* line,void *u_para);
 void maat_finish_cb(void* u_para);

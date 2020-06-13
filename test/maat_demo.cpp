@@ -678,8 +678,8 @@ int test_table_conjunction(Maat_feather_t feather,const char* table_name,const c
 #define	TEST_CMD_LINE_NUM	200*1000
 void test_set_cmd_line(Maat_feather_t feather)
 {
-	struct Maat_line_t **p_line=(struct Maat_line_t **)calloc(sizeof(struct Maat_line_t *), TEST_CMD_LINE_NUM);
-	struct Maat_line_t *line_rule=(struct Maat_line_t *)calloc(sizeof(struct Maat_line_t), TEST_CMD_LINE_NUM);
+	struct Maat_cmd_line **p_line=(struct Maat_cmd_line **)calloc(sizeof(struct Maat_cmd_line *), TEST_CMD_LINE_NUM);
+	struct Maat_cmd_line *line_rule=(struct Maat_cmd_line *)calloc(sizeof(struct Maat_cmd_line), TEST_CMD_LINE_NUM);
 	int i=0;
 	const char* line="1\t192.168.0.1\t4444444444\t1";
 	memset(&line_rule,0,sizeof(line_rule));
@@ -695,14 +695,14 @@ void test_set_cmd_line(Maat_feather_t feather)
 	}
 	
 
-	Maat_cmd_set_lines(feather,(const struct Maat_line_t **)p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
+	Maat_cmd_set_lines(feather,(const struct Maat_cmd_line **)p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
 	usleep(WAIT_FOR_EFFECTIVE_US);
 	
 	for(i=0;i<TEST_CMD_LINE_NUM;i++)
 	{
 		line_rule[i].table_line=NULL;
 	}
-	Maat_cmd_set_lines(feather, (const struct Maat_line_t **)p_line,TEST_CMD_LINE_NUM, MAAT_OP_DEL);
+	Maat_cmd_set_lines(feather, (const struct Maat_cmd_line **)p_line,TEST_CMD_LINE_NUM, MAAT_OP_DEL);
 	free(p_line);
 	free(line_rule);
 

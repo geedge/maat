@@ -47,6 +47,8 @@ struct iris_description_t
 	char index_path[MAX_PATH_LINE];
 
 	struct iris_table_t* group_table;
+	struct iris_table_t* group2group_table;
+	struct iris_table_t* group2compile_table;
 	struct iris_table_t* compile_table;
 	MESA_htable_handle group_name_map;
 	MESA_htable_handle iris_table_map;
@@ -123,7 +125,7 @@ static int get_region_seq(struct iris_description_t* iris_cfg)
 	return sequence;
 }
 
-int set_iris_descriptor(const char* json_file,cJSON *json, const char* encrypt_key, const char* encrypt_algo, const char*compile_tn,const char* group_tn, redisContext *redis_write_ctx, struct iris_description_t *iris_cfg, void * logger)
+int set_iris_descriptor(const char* json_file,cJSON *json, const char* encrypt_key, const char* encrypt_algo, const char*compile_tn, const char* group2compile_tn, const char* group2group_tn, redisContext *redis_write_ctx, struct iris_description_t *iris_cfg, void * logger)
 {
 	memset(iris_cfg,0,sizeof(struct iris_description_t));
 	snprintf(iris_cfg->tmp_iris_dir,sizeof(iris_cfg->tmp_iris_dir),"%s_iris_tmp",json_file);
@@ -190,7 +192,8 @@ int set_iris_descriptor(const char* json_file,cJSON *json, const char* encrypt_k
 	map_register(iris_cfg->str2int_map, "case plain",2);
 
 	iris_cfg->compile_table=query_table_info(iris_cfg, compile_tn, TABLE_TYPE_COMPILE);
-	iris_cfg->group_table=query_table_info(iris_cfg, group_tn, TABLE_TYPE_GROUP);
+	iris_cfg->group2compile_table=query_table_info(iris_cfg, group2compile_tn, TABLE_TYPE_GROUP2COMPILE);
+	iris_cfg->group2group_table=query_table_info(iris_cfg, group2compile_tn, TABLE_TYPE_GROUP2GROUP);
 	
 	if(encrypt_key && encrypt_algo)
 	{
@@ -795,12 +798,42 @@ int write_region_rule(cJSON* region_json, int compile_id, int group_id, iris_des
 
 int write_compile_line(cJSON *compile, struct iris_description_t *p_iris, void * logger)
 {
-	int compile_id=-1,cmd_cnt=0,ret=-1;
+	int compile_id=-1,cmd_cnt=0,ret=-1, clause_num=0, group_num=0, i=0, nth_clause=0;
 	cJSON* item=NULL;
 	struct iris_table_t* table_info=NULL;
-	cJSON* g_rules=cJSON_GetObjectItem(compile, "groups");
-	int	group_cnt=cJSON_GetArraySize(g_rules);
-	cJSON_AddNumberToObject(compile, "group_num", group_cnt);
+	cJSON* group_array=NULL, *group_obj=NULL;
+	int* clause_ids=NULL;
+	group_array=cJSON_GetObjectItem(compile, "groups");
+	group_num=cJSON_GetArraySize(group_array);
+	clause_ids=ALLOC(int, group_num);
+	cJSON_ArrayForEach(group_obj, group_array);
+	{
+		item=cJSON_GetObjectItem(compile,"nth_clause");
+		if(item)
+		{
+			nth_clause=item->valueint;
+			for(i=0; i<clause_num; i++)
+			{
+				if(clause_ids[i]==nth_clause)
+				{
+					break;
+				}
+			}
+			if(i==clause_num)
+			{
+				clause_ids[clause_num]=nth_clause;
+				clause_num++;
+			}			
+		}
+	}
+	free(clause_ids);
+	clause_ids=NULL;
+	if(clause_num==0)
+	{
+		clause_num=cJSON_GetArraySize(group_array);
+	}
+
+	cJSON_AddNumberToObject(compile, "clause_num", clause_num);
 
 	struct traslate_command_t compile_cmd[MAX_COLUMN_NUM];
 	memset(compile_cmd,0,sizeof(compile_cmd));
@@ -842,7 +875,7 @@ int write_compile_line(cJSON *compile, struct iris_description_t *p_iris, void *
 	compile_cmd[cmd_cnt].str2int_flag=1;
 	cmd_cnt++;
 	
-	compile_cmd[cmd_cnt].json_string="group_num";
+	compile_cmd[cmd_cnt].json_string="clause_num";
 	compile_cmd[cmd_cnt].json_type=cJSON_Number;
 	cmd_cnt++;
 
@@ -878,15 +911,25 @@ int write_compile_line(cJSON *compile, struct iris_description_t *p_iris, void *
 	compile_id=item->valueint;
 	return compile_id;
 }
-int write_group_line(int group_id, int parent_id, int group_not_flag, int parent_type, const char* virtual_table, struct iris_description_t *p_iris, void * logger)
+int write_group2compile_line(int group_id, int compile_id, int group_not_flag, int Nth_clause, const char* virtual_table, struct iris_description_t *p_iris, void * logger)
 {
 	char buff[1024*4];
-	struct iris_table_t* table=p_iris->group_table;
-	snprintf(buff, sizeof(buff), "%d\t%d\t1\t%d\t%d\t%s\n", group_id, parent_id, group_not_flag, parent_type, virtual_table);
+	struct iris_table_t* table=p_iris->group2compile_table;
+	snprintf(buff, sizeof(buff), "%d\t%d\t1\t%d\t%s\t%d\n", group_id, compile_id, group_not_flag, virtual_table, Nth_clause);
 	table->write_pos+=memcat(&(table->buff), table->write_pos, &(table->buff_sz), buff, strlen(buff));
 	table->line_count++;
 	return 0;
 }
+int write_group2group_line(int group_id, int superior_gorup_id, struct iris_description_t *p_iris, void * logger)
+{
+	char buff[1024*4];
+	struct iris_table_t* table=p_iris->group2group_table;
+	snprintf(buff, sizeof(buff), "%d\t%d\t1\n", group_id, superior_gorup_id);
+	table->write_pos+=memcat(&(table->buff), table->write_pos, &(table->buff_sz), buff, strlen(buff));
+	table->line_count++;
+	return 0;
+}
+
 void table_idx_write_cb(const uchar * key, uint size, void * data, void * user)
 {
 	struct iris_description_t *p_iris=(struct iris_description_t *)user;
@@ -957,11 +1000,12 @@ static struct group_info_t* group_info_add_unsafe(struct iris_description_t* p_i
 	}
 	return group_info;
 }
-int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int tracking_compile_id, struct iris_description_t *p_iris, void* logger)
+
+int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int tracking_compile_id, int Nth_group, struct iris_description_t *p_iris, void* logger)
 {
 	const char* _str_parent_type[2]={"compile", "group"};
-	int ret=0;
-	int group_not_flag=0;
+	int ret=0, i=0;
+	int group_not_flag=0, Nth_clause=0;
 	cJSON *region_json=NULL, *item=NULL;
 	cJSON *sub_groups=NULL, *region_rule=NULL;
 	const char* group_name=NULL, *virtual_table=NULL;
@@ -976,26 +1020,37 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 	{
 		group_name=item->valuestring;
 	}
-
-	item=cJSON_GetObjectItem(group_json, "virtual_table");
-	if(item==NULL||item->type!=cJSON_String)
+	if(parent_type==PARENT_TYPE_COMPILE)
 	{
-		virtual_table="null";
+		item=cJSON_GetObjectItem(group_json, "virtual_table");
+		if(item==NULL||item->type!=cJSON_String)
+		{
+			virtual_table="null";
+		}
+		else
+		{
+			virtual_table=item->valuestring;
+		}
+		item=cJSON_GetObjectItem(group_json,"not_flag");
+		if(item==NULL||item->type!=cJSON_Number)
+		{
+			group_not_flag=0;
+		}
+		else
+		{
+			group_not_flag=item->valueint;
+		}
+		item=cJSON_GetObjectItem(group_json,"Nth_clause");
+		if(item==NULL||item->type!=cJSON_Number)
+		{
+			Nth_clause=Nth_group;
+		}
+		else
+		{
+			Nth_clause=item->valueint;
+		}
 	}
 	else
-	{
-		virtual_table=item->valuestring;
-	}
-	item=cJSON_GetObjectItem(group_json,"not_flag");
-	if(item==NULL||item->type!=cJSON_Number)
-	{
-		group_not_flag=0;
-	}
-	else
-	{
-		group_not_flag=item->valueint;
-	}
-	if(parent_type==PARENT_TYPE_GROUP)
 	{
 		group_not_flag=0;
 	}
@@ -1021,14 +1076,16 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 		if(sub_groups!=NULL)
 		{
 			//recursively
-			
+			i=0;
 			cJSON_ArrayForEach(item, sub_groups)
 			{
-				ret=write_group_rule(item, group_info->group_id, PARENT_TYPE_GROUP, tracking_compile_id, p_iris, logger);
+				i++;
+				ret=write_group_rule(item, group_info->group_id, PARENT_TYPE_GROUP, tracking_compile_id, i, p_iris, logger);
 				if(ret<0)
 				{
 					return -1;
 				}
+				
 			}
 		}
 		if(region_json==NULL && sub_groups==NULL)
@@ -1037,7 +1094,14 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 										"A group of compile rule %d has neither regions, sub groups, nor refered another exisited group.", tracking_compile_id);
 		}
 	}
-	ret=write_group_line(group_info->group_id, parent_id, group_not_flag, parent_type, virtual_table, p_iris, logger);
+	if(parent_type==PARENT_TYPE_COMPILE)
+	{
+		ret=write_group2compile_line(group_info->group_id, parent_id, group_not_flag, Nth_clause, virtual_table, p_iris, logger);
+	}
+	else
+	{
+		ret=write_group2group_line(group_info->group_id, parent_id, p_iris, logger);
+	}
 	if(ret<0)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
@@ -1052,25 +1116,27 @@ int write_iris(cJSON *json, struct iris_description_t *p_iris, void* logger)
 	int i=0;
 	int compile_id=-1, compile_cnt=0, group_cnt=0;
 	int ret=0;
-	cJSON *c_rules=NULL, *g_rules=NULL, *plug_tables=NULL;
-	cJSON *compile_rule=NULL,*group_rule=NULL, *each_plug_table=NULL, *item=NULL;
+	cJSON *compile_array=NULL, *group_array=NULL, *plug_tables=NULL;
+	cJSON *compile_obj=NULL, *group_obj=NULL, *each_plug_table=NULL, *item=NULL;
 	static struct group_info_t* parent_group=NULL;
 	const char* parent_group_name=NULL;
 
 	plug_tables=cJSON_GetObjectItem(json,"plugin_table");
 	if(NULL!=plug_tables)
 	{
+		i=0;
 		cJSON_ArrayForEach(each_plug_table, plug_tables)
 		{
 			write_plugin_line(each_plug_table, i, p_iris, logger);
+			i++;
 		}
 	}
-	g_rules=cJSON_GetObjectItem(json, "groups");//sub-group to group
-	if(g_rules!=NULL)
+	group_array=cJSON_GetObjectItem(json, "groups");//sub-group to group
+	if(group_array!=NULL)
 	{
-		cJSON_ArrayForEach(group_rule, g_rules)
+		cJSON_ArrayForEach(group_obj, group_array)
 		{
-			item=cJSON_GetObjectItem(group_rule, "parent_group");
+			item=cJSON_GetObjectItem(group_obj, "parent_group");
 			if(item==NULL || item->type!=cJSON_String)
 			{
 				parent_group_name=untitled_group_name;
@@ -1085,7 +1151,7 @@ int write_iris(cJSON *json, struct iris_description_t *p_iris, void* logger)
 			{
 				parent_group=group_info_add_unsafe(p_iris, p_iris->group_name_map, item->string);
 			}
-			ret=write_group_rule(group_rule, parent_group->group_id, PARENT_TYPE_GROUP, 0, p_iris, logger);
+			ret=write_group_rule(group_obj, parent_group->group_id, PARENT_TYPE_GROUP, 0, 0, p_iris, logger);
 			if(ret<0)
 			{
 				return -1;
@@ -1093,47 +1159,48 @@ int write_iris(cJSON *json, struct iris_description_t *p_iris, void* logger)
 		}
 		
 	}
-	c_rules=cJSON_GetObjectItem(json,"rules");
-	if(c_rules==NULL)
+	compile_array=cJSON_GetObjectItem(json,"rules");
+	if(compile_array==NULL)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
 									"have no rules.");
 		return -1;
 		
 	}
-	compile_cnt=cJSON_GetArraySize(c_rules);
+	compile_cnt=cJSON_GetArraySize(compile_array);
 	if(compile_cnt<=0)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
 									"have no rules.");
 		return -1;
 	}
-	cJSON_ArrayForEach(compile_rule, c_rules)
+	cJSON_ArrayForEach(compile_obj, compile_array)
 	{
-		compile_id=write_compile_line(compile_rule,p_iris, logger);
+		compile_id=write_compile_line(compile_obj,p_iris, logger);
 		if(compile_id<0)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
 									"In %d compile rule.",i);
 			return -1;
 		}
-		g_rules=cJSON_GetObjectItem(compile_rule,"groups");
-		if(g_rules==NULL)
+		group_array=cJSON_GetObjectItem(compile_obj, "groups");
+		if(group_array==NULL)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
 									"compile rule %d have no group.",compile_id);
 			return -1;
 		}
-		group_cnt=cJSON_GetArraySize(g_rules);
+		group_cnt=cJSON_GetArraySize(group_array);
 		if(group_cnt<=0)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
 										"compile rule %d have no groups.",compile_id);
 			return -1;
 		}
-		cJSON_ArrayForEach(group_rule, g_rules)
+		i=1;
+		cJSON_ArrayForEach(group_obj, group_array)
 		{
-			ret=write_group_rule(group_rule, compile_id, PARENT_TYPE_COMPILE, compile_id, p_iris, logger);
+			ret=write_group_rule(group_obj, PARENT_TYPE_COMPILE, compile_id, compile_id, i, p_iris, logger);
 			if(ret<0)
 			{
 				return -1;
@@ -1148,7 +1215,7 @@ int write_iris(cJSON *json, struct iris_description_t *p_iris, void* logger)
 	return 0;
 }
 // redis_write_ctx is used by maat_redis_tool to write json to redis.
-int json2iris(const char* json_buff, const char* json_filename, const char*compile_tn, const char* group_tn, redisContext *redis_write_ctx, char* iris_dir_buf, int buf_len, char* encrypt_key, char* encrypt_algo, void* logger)
+int json2iris(const char* json_buff, const char* json_filename, const char*compile_tn, const char* group2compile_tn, const char* group2group_tn, redisContext *redis_write_ctx, char* iris_dir_buf, int buf_len, char* encrypt_key, char* encrypt_algo, void* logger)
 {
 	cJSON *json=NULL, *tmp_obj=NULL;
 	int ret=-1;
@@ -1166,12 +1233,17 @@ int json2iris(const char* json_buff, const char* json_filename, const char*compi
 		compile_tn=tmp_obj->valuestring;
 	}
 
-	tmp_obj=cJSON_GetObjectItem(json, "group_table");
+	tmp_obj=cJSON_GetObjectItem(json, "group2compile_table");
 	if(tmp_obj)
 	{
-		group_tn=tmp_obj->valuestring;
+		group2compile_tn=tmp_obj->valuestring;
 	}
-	ret=set_iris_descriptor(json_filename, json, encrypt_key, encrypt_algo, compile_tn, group_tn, redis_write_ctx, &iris_cfg, logger);
+	tmp_obj=cJSON_GetObjectItem(json, "group2group_table");
+	if(tmp_obj)
+	{
+		group2group_tn=tmp_obj->valuestring;
+	}	
+	ret=set_iris_descriptor(json_filename, json, encrypt_key, encrypt_algo, compile_tn, group2compile_tn, group2group_tn, redis_write_ctx, &iris_cfg, logger);
 	if(ret<0)
 	{
 		goto error_out;

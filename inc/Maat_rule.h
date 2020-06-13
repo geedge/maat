@@ -5,16 +5,14 @@
 *	Her feather was the measure that determined whether the souls (considered 
 *	to reside in the heart) of the departed would reach the paradise of afterlife
 *	successfully.
-*	Author: zhengchao@iie.ac.cn, MESA
-*	Version 2018-12-07 Plugin Extra Data.
-*	NOTE: MUST compile with G++
-*	All right reserved by Institute of Infomation Engineering,Chinese Academic of Science 2014~2018
+*	Author: zhengchao, MESA
+*	Version 2020-06-13 version 3.0.0
 *********************************************************
 */
 #ifndef H_MAAT_RULE_H_INCLUDE
 #define H_MAAT_RULE_H_INCLUDE
-#ifndef __cplusplus
-#error("This file should be compiled with C++ compiler")
+#ifdef __cplusplus
+extern "C"{
 #endif
 #include <MESA/stream.h>
 enum MAAT_CHARSET
@@ -56,10 +54,10 @@ struct Maat_rule_t
 {
 	int		config_id;
 	int		service_id;
-	char	do_log;
-	char 	do_blacklist;
-	char	action;
-	char	reserved;
+	unsigned char	do_log;
+	unsigned char 	do_blacklist;
+	unsigned char	action;
+	unsigned char	reserved;
 	int		serv_def_len;
 	char 	service_defined[MAX_SERVICE_DEFINE_LEN];
 };
@@ -327,6 +325,10 @@ enum MAAT_RULE_OPT
 	MAAT_RULE_SERV_DEFINE	//VALUE is a char* buffer,SIZE= buffer size. 
 };
 int Maat_read_rule(Maat_feather_t feather, const struct Maat_rule_t* rule, enum MAAT_RULE_OPT type, void* value, int size);
+
+#ifdef __cplusplus 
+}//end extern "C"
+#endif
 
 
 #endif	//	H_MAAT_RULE_H_INCLUDE

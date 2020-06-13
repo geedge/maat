@@ -21,6 +21,9 @@
 #include "Maat_rule.h"
 #include "Maat_rule_internal.h"
 #include "Maat_utils.h"
+#include "Maat_hierarchy.h"
+#include "Maat_garbage_collection.h"
+
 #include "json2iris.h"
 #include "cJSON.h"
 #include "dynamic_array.h"
@@ -28,8 +31,6 @@
 #include "config_monitor.h"
 
 #include "map_str2int.h"
-#include "rulescan.h"
-#include "bool_matcher.h"
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
@@ -712,6 +713,18 @@ void op_expr_add_rule(struct op_expr_t* op_expr,scan_rule_t* p_rule)
 	op_expr->rule_type=p_rule->rule_type;
 	return;
 }
+void Maat_region_inner_free(struct Maat_region_inner* region)
+{
+	free(region);
+}
+
+void Maat_region_inner_cancel_last_expr_id(struct Maat_region_inner* region)
+{
+	assert(region->expr_id_cnt==region->expr_id_ub-region->expr_id_lb);
+	region->expr_id_ub--;
+	region->expr_id_cnt--;
+	return;
+}
 
 struct Maat_scanner* create_maat_scanner(unsigned int version, _Maat_feather_t *feather)
 {
@@ -721,8 +734,8 @@ struct Maat_scanner* create_maat_scanner(unsigned int version, _Maat_feather_t *
 	struct Maat_scanner* scanner=NULL;
 	scanner=ALLOC(struct Maat_scanner, 1);
 	scanner->hier=Maat_hierarchy_new(scan_thread_num, feather->logger);
-	Maat_hierarchy_set_compile_user_data_free_func(scanner->hier, destroy_compile_rule);
-	Maat_hierarchy_set_region_user_data_free_func(scanner->hier, Maat_region_inner_free);
+	Maat_hierarchy_set_compile_user_data_free_func(scanner->hier, (void (*)(void*))destroy_compile_rule);
+	Maat_hierarchy_set_region_user_data_free_func(scanner->hier, (void (*)(void*))Maat_region_inner_free);
 
 	scanner->district_map=map_create();
 	
@@ -1038,18 +1051,7 @@ void Maat_region_inner_add_expr_id(struct Maat_region_inner* region, int expr_id
 	region->expr_id_cnt++;
 	return;
 }
-void Maat_region_inner_free(struct Maat_region_inner* region)
-{
-	free(region);
-}
 
-void Maat_region_inner_cancel_last_expr_id(struct Maat_region_inner* region)
-{
-	assert(region->expr_id_cnt==region->expr_id_ub-region->expr_id_lb);
-	region->expr_id_ub--;
-	region->expr_id_cnt--;
-	return;
-}
 
 int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,struct Maat_scanner *scanner,void* logger)
 {
@@ -1307,7 +1309,7 @@ int add_ip_rule(struct Maat_table_schema* table, struct db_ip_rule_t* db_ip_rule
 	scan_rule_t* p_rule=NULL;
 	struct op_expr_t* op_expr=NULL;
 	struct Maat_region_inner* u_para=NULL;
-	int expr_id=0, district_id=-1, ret=0;
+	int expr_id=0, ret=0;
 
 	u_para=Maat_region_inner_new(db_ip_rule->group_id, db_ip_rule->region_id, table->table_id, -1);
 	ret=Maat_hierarchy_add_region_to_group(scanner->hier, db_ip_rule->group_id, db_ip_rule->region_id, table->table_id, u_para);
@@ -1386,7 +1388,6 @@ int add_digest_rule(struct Maat_table_schema* table, struct db_digest_rule* db_r
 int del_region_rule(struct Maat_table_schema* table, int region_id, int group_id, int rule_type, struct Maat_scanner *maat_scanner, void* logger)
 {
 	int i=0;
-	int expr_num=0;
 	struct Maat_table_runtime* table_rt=NULL;
 	struct op_expr_t* op_expr=NULL;
 
@@ -1426,7 +1427,7 @@ int del_region_rule(struct Maat_table_schema* table, int region_id, int group_id
 			assert(0);
 			break;
 	}
-	Maat_garbage_bag(maat_scanner->ref_garbage_bin, region, Maat_region_inner_free);
+	Maat_garbage_bagging(maat_scanner->ref_garbage_bin, region, (void (*)(void*))Maat_region_inner_free);
 
 	return 0;
 }
@@ -1437,7 +1438,7 @@ void update_group2compile_rule(struct Maat_table_schema* table, const char* tabl
 	int ret=0;
 	char virtual_table_name[MAX_TABLE_NAME_LEN]={0};
 	memset(&db_g2c_rule, 0, sizeof(db_g2c_rule));
-	ret=sscanf(table_line,"%d\t%d\t%d\t%d\t%d\t%s", &(db_g2c_rule.group_id),
+	ret=sscanf(table_line,"%d\t%d\t%d\t%d\t%s\t%d", &(db_g2c_rule.group_id),
 											&(db_g2c_rule.compile_id),
 											&(db_g2c_rule.is_valid),
 											&(db_g2c_rule.not_flag),
@@ -1486,7 +1487,7 @@ void update_group2compile_rule(struct Maat_table_schema* table, const char* tabl
 		if(ret==0)
 		{
 			table_rt->origin_rule_num++;
-			if(db_group2compile_rule.not_flag)
+			if(db_g2c_rule.not_flag)
 			{
 				table_rt->group2compile.not_flag_group++;
 			}
@@ -1528,10 +1529,6 @@ void update_group2group_rule(struct Maat_table_schema* table, const char* table_
 		if(ret==0)
 		{
 			table_rt->origin_rule_num++;
-			if(db_group2compile_rule.not_flag)
-			{
-				table_rt->group2compile.not_flag_group++;
-			}
 			scanner->to_update_group_cnt++;
 		}
 	}
@@ -1624,16 +1621,6 @@ void update_expr_rule(struct Maat_table_schema* table,const char* table_line,str
 							maat_str_rule->region_id,
 							maat_str_rule->expr_type,
 							table->table_name[table->updating_name], table_line);
-		table->udpate_err_cnt++;
-		goto error_out;
-	}
-	ret=sync_region(scanner->region_hash,
-					maat_str_rule->region_id,
-					maat_str_rule->group_id,
-					table->table_name[table->updating_name],
-					maat_str_rule->is_valid,logger);
-	if(ret<0)
-	{
 		table->udpate_err_cnt++;
 		goto error_out;
 	}
@@ -1876,16 +1863,6 @@ void update_ip_rule(struct Maat_table_schema* table, const char* table_line, str
 			goto error_out;
 		}
 	}
-	ret=sync_region(scanner->region_hash,
-					ip_rule->region_id,
-					ip_rule->group_id,
-					table->table_name[table->updating_name],
-					ip_rule->is_valid,logger);
-	if(ret<0)
-	{
-		table->udpate_err_cnt++;
-		goto error_out;
-	}
 	if(ip_rule->is_valid==FALSE)
 	{
 		ret=del_region_rule(table,
@@ -2045,7 +2022,7 @@ void update_compile_rule(struct Maat_table_schema* table,const char* table_line 
 			ret=Maat_hierarchy_compile_remove(scanner->hier, m_rule_tmp.config_id);
 			assert(ret==0);
 			table_rt->origin_rule_num--;
-			Maat_garbage_bag(scanner->ref_garbage_bin, p_compile, destroy_compile_rule);
+			Maat_garbage_bagging(scanner->ref_garbage_bin, p_compile, (void (*)(void*))destroy_compile_rule);
 		}
 		else
 		{
@@ -2246,7 +2223,6 @@ void update_ip_plugin_table(struct Maat_table_schema* table_schema, const char* 
 
 void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* logger)
 {
-	struct bool_matcher *tmp1=NULL,*tmp2=NULL;
 	MESA_htable_handle tmp_map=NULL;
 	struct Maat_table_runtime* table_rt=NULL;
 	struct ip_matcher* old_ip_matcher=NULL;
@@ -2295,7 +2271,7 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 			case TABLE_TYPE_IP_PLUGIN:
 				Maat_table_runtime_ip_plugin_rebuild_ip_matcher(table_rt);
 				old_ip_matcher=Maat_table_runtime_dettach_old_ip_matcher(table_rt);
-				Maat_garbage_bag(scanner->ref_garbage_bin, old_ip_matcher, ip_matcher_free);
+				Maat_garbage_bagging(scanner->ref_garbage_bin, old_ip_matcher, (void (*)(void*))ip_matcher_free);
 				break;
 			default:
 				break;
@@ -2307,7 +2283,7 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 		tmp_map=scanner->district_map;
 		scanner->district_map=scanner->tmp_district_map;
 		scanner->tmp_district_map=NULL;
-		Maat_garbage_bag(scanner->ref_garbage_bin, tmp_map, map_destroy)
+		Maat_garbage_bagging(scanner->ref_garbage_bin, tmp_map, (void (*)(void*))map_destroy);
 	}
 	scanner->last_update_time=time(NULL);
 	scanner->gie_update_q_size=0;
@@ -2592,7 +2568,7 @@ void *thread_rule_monitor(void *arg)
 												old_scanner->version, feather->scanner->version);
 					}
 					feather->zombie_rs_stream+=alignment_int64_array_sum(old_scanner->ref_cnt,old_scanner->max_thread_num);
-					Maat_garbage_bag(feather->garbage_bin, old_scanner, destroy_maat_scanner);
+					Maat_garbage_bagging(feather->garbage_bin, old_scanner, (void (*)(void*))destroy_maat_scanner);
 				}
 				feather->update_tmp_scanner=NULL;
 				feather->maat_version=feather->scanner->version;
@@ -2628,7 +2604,7 @@ void *thread_rule_monitor(void *arg)
 	Maat_garbage_bin_free(feather->garbage_bin);
 	
 	alignment_int64_array_free(feather->thread_call_cnt);
-	alignment_int64_array_free(feather->inner_mid_cnt);
+	alignment_int64_array_free(feather-> compile_mid_cnt);
 	alignment_int64_array_free(feather->outer_mid_cnt);
 	alignment_int64_array_free(feather->hit_cnt);
 	alignment_int64_array_free(feather->not_grp_hit_cnt);

@@ -332,7 +332,7 @@ int main(int argc, char * argv[])
 		{
 			printf("open %s failed.\n", json_file);
 		}
-		ret=json2iris(json_buff, json_file, NULL, NULL, ctx, tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL, NULL);
+		ret=json2iris(json_buff, json_file, NULL, NULL, NULL, ctx, tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL, NULL);
 		if(ret<0)
 		{
 			printf("Invalid json format.\n");
