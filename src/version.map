@@ -1,4 +1,4 @@
-VERS_2.4{
+VERS_3.0{
 global:
 	extern "C++" {
 		*MAAT_FRAME_VERSION_*;

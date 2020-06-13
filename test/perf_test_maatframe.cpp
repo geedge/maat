@@ -157,8 +157,8 @@ TEST_F(MaatCMDPerfTest, SetLinesOneMillion)
 	const int TEST_CMD_LINE_NUM=1000*1000;
 	Maat_feather_t feather=MaatCMDPerfTest::_shared_feather;
 
-	struct Maat_line_t **p_line=(struct Maat_line_t **)calloc(sizeof(struct Maat_line_t *), TEST_CMD_LINE_NUM);
-	struct Maat_line_t *line_rule=(struct Maat_line_t *)calloc(sizeof(struct Maat_line_t), TEST_CMD_LINE_NUM);
+	struct Maat_cmd_line **p_line=(struct Maat_cmd_line **)calloc(sizeof(struct Maat_cmd_line *), TEST_CMD_LINE_NUM);
+	struct Maat_cmd_line *line_rule=(struct Maat_cmd_line *)calloc(sizeof(struct Maat_cmd_line), TEST_CMD_LINE_NUM);
 	int i=0;
 	const char* line="1\t192.168.0.1\t4444444444\t1";
 	int seq=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", TEST_CMD_LINE_NUM);
@@ -176,7 +176,7 @@ TEST_F(MaatCMDPerfTest, SetLinesOneMillion)
 	long long version_before=0;
 	Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
 
-	Maat_cmd_set_lines(feather,(const struct Maat_line_t **)p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
+	Maat_cmd_set_lines(feather,(const struct Maat_cmd_line **)p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
 	
 	wait_for_cmd_effective_copy(feather, version_before);
 	
@@ -184,7 +184,7 @@ TEST_F(MaatCMDPerfTest, SetLinesOneMillion)
 	{
 		line_rule[i].table_line=NULL;
 	}
-	Maat_cmd_set_lines(feather, (const struct Maat_line_t **)p_line,TEST_CMD_LINE_NUM, MAAT_OP_DEL);
+	Maat_cmd_set_lines(feather, (const struct Maat_cmd_line **)p_line,TEST_CMD_LINE_NUM, MAAT_OP_DEL);
 	free(p_line);
 	free(line_rule);
 

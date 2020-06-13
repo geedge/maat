@@ -9,6 +9,8 @@
 #include "Maat_rule.h"
 #include "Maat_rule_internal.h"
 #include "Maat_utils.h"
+#include "Maat_garbage_collection.h"
+#include "Maat_hierarchy.h"
 #include "dynamic_array.h"
 #include "alignment_int64.h"
 #include "config_monitor.h"
@@ -33,8 +35,8 @@ inline int scan_status_should_compile_NOT(struct _OUTER_scan_status_t* _mid)
 {
 	if( _mid &&
 		_mid->is_last_region==1 &&
-		_mid->inner &&
-		_mid->inner->not_grp_compile_hitted_flag)
+		_mid->compile_mid &&
+		Maat_hierarchy_compile_mid_has_NOT_clause(_mid->compile_mid))
 	{
 		return 1;
 	}
@@ -43,24 +45,7 @@ inline int scan_status_should_compile_NOT(struct _OUTER_scan_status_t* _mid)
 		return 0;
 	}
 }
-int exprid2region_id(struct Maat_group_inner* group_rule, int expr_id, int* district_id, struct Maat_scanner* scanner)
-{
-	int region_id=-1;
-	struct Maat_region_inner* region_rule=NULL;
-	assert(group_rule->group_id>=0);
-	int array_idx=(int)(long)HASH_fetch_by_id(scanner->exprid_hash, expr_id);
-	pthread_mutex_lock(&(group_rule->mutex));	
-	assert(array_idx<group_rule->region_boundary);
-	region_rule=(struct Maat_region_inner*)dynamic_array_read(group_rule->regions, array_idx);
-	if(region_rule)
-	{
-		assert(expr_id>=region_rule->expr_id_lb&&expr_id<=region_rule->expr_id_ub);
-		region_id=region_rule->region_id;
-		*district_id=region_rule->district_id;
-	}
-	pthread_mutex_unlock(&(group_rule->mutex));
-	return region_id;
-}
+
 
 //return 1 if insert a unique id
 //return 0 if id is duplicated
@@ -166,17 +151,16 @@ size_t Maat_rule_sort_by_evaluation_order(Maat_feather_t feather, struct Maat_ru
 	
 	memcpy(copy_rule_array, rule_array, sizeof(struct Maat_rule_t)*n_rule);
 
-	struct Maat_compile_inner *p=NULL;
+	struct Maat_compile_rule *p=NULL;
 
 	size_t i=0, j=0;
 	for(i=0; i<n_rule; i++)
 	{
-		p=(struct Maat_compile_inner *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule_array[i].config_id);
-		if(p && 0==pthread_rwlock_tryrdlock(&(p->rwlock)))//rule maybe already deleted.
+		p=(struct Maat_compile_rule*)Maat_hierarchy_compile_read_user_data(_feather->scanner->hier, rule_array[i].config_id);
+		if(p)
 		{
-			compile_sort_para_set(sort_para+i, p, copy_rule_array+i);
+			compile_sort_para_set(sort_para+j, p, copy_rule_array+j);
 			j++;
-			pthread_rwlock_unlock(&(p->rwlock));
 		}
 	}
 	qsort(sort_para, j, sizeof(struct compile_sort_para),
@@ -195,173 +179,11 @@ struct scan_region_hit_wraper
 	int* virtual_table_ids;
 	size_t elem_size;
 	size_t n_elem;
-	size_t group_offset;
+	size_t user_data_offset;
 	size_t expr_id_offset;
 	int virtual_table_id;
 	int is_last_region;
 };
-
-struct scan_hit_status* scan_hit_status_new(void)
-{
-	struct scan_hit_status* inner_mid=NULL;
-	inner_mid=ALLOC(struct scan_hit_status, 1);
-	TAILQ_INIT(&inner_mid->hit_path_qhead);
-	return inner_mid;
-}
-void scan_hit_status_free(struct scan_hit_status* p)
-{
-	struct Maat_hit_path_inner * tmp = TAILQ_FIRST(&p->hit_path_qhead);
-	while(tmp != NULL)
-	{
-		TAILQ_REMOVE(&p->hit_path_qhead, tmp, entries);
-		free(tmp);
-		p->hit_path_cnt--;
-		tmp = TAILQ_FIRST(&p->hit_path_qhead);
-	}
-	assert(p->hit_path_cnt==0);
-	free(p->all_hit_group_array);
-	p->all_hit_group_array=NULL;
-	free(p);
-}
-void hit_path_init(struct Maat_hit_path_t* hit_path)
-{
-	hit_path->Nth_scan=-1;
-	hit_path->region_id=-1;
-	hit_path->sub_group_id=-1;
-	hit_path->top_group_id=-1;
-	hit_path->vt_id=-1;
-	hit_path->compile_id=-1;
-}
-size_t scan_hit_status_select_hit_path_inner(const struct hit_path_q *hit_path_qhead, struct Maat_hit_path_t* condition, 
-															struct Maat_hit_path_inner* hit_paths, size_t n_path)
-{
-	struct Maat_hit_path_inner* p=NULL;
-	size_t i=0;
-	TAILQ_FOREACH(p, hit_path_qhead, entries)
-	{
-		if((condition->compile_id==p->path.compile_id||condition->compile_id<0)
-			&& (condition->Nth_scan==p->path.Nth_scan||condition->Nth_scan<0)
-			&& (condition->region_id=p->path.region_id||condition->region_id<0)
-			&& (condition->sub_group_id=p->path.sub_group_id||condition->sub_group_id<0)
-			&& (condition->top_group_id=p->path.top_group_id||condition->top_group_id<0))
-		{
-			if(i<n_path)
-			{
-				hit_paths[i]=*p;
-				i++;
-			}
-			else if(hit_paths==NULL)//count only
-			{
-				i++;
-			}
-		}
-
-	}
-	return i;
-
-}
-
-void scan_hit_status_update_by_group(struct scan_hit_status* hit_status, struct Maat_group_inner* group_rule, int region_id, int virtual_table_id, int Nth_scan, int Nth_region_result)
-{
-	size_t i=0;
-	int ret=0;
-	struct Maat_hit_path_inner* hit_path=NULL;
-
-	if(group_rule->top_group_cnt==0)
-	{
-		hit_path=ALLOC(struct Maat_hit_path_inner, 1);
-		hit_path_init(&(hit_path->path));
-		hit_path->Nth_hit_region=Nth_region_result;
-		hit_path->path.Nth_scan=Nth_scan;
-		hit_path->path.region_id=region_id;
-		hit_path->path.sub_group_id=group_rule->group_id;
-		hit_path->path.vt_id=virtual_table_id;
-		TAILQ_INSERT_TAIL(&hit_status->hit_path_qhead, hit_path, entries);
-		hit_status->hit_path_cnt++;
-	}
-	else
-	{
-		for(i=0; i<group_rule->top_group_cnt; i++)
-		{
-			hit_path=ALLOC(struct Maat_hit_path_inner, 1);
-			hit_path_init(&(hit_path->path));
-			hit_path->Nth_hit_region=Nth_region_result;
-			hit_path->path.Nth_scan=Nth_scan;
-			hit_path->path.region_id=region_id;
-			hit_path->path.sub_group_id=group_rule->group_id;
-			hit_path->path.top_group_id=group_rule->top_groups[i];
-			hit_path->path.vt_id=virtual_table_id;
-			TAILQ_INSERT_TAIL(&hit_status->hit_path_qhead, hit_path, entries);
-			hit_status->hit_path_cnt++;
-			ret=insert_set_id(&(hit_status->all_hit_group_array),
-								&(hit_status->all_hit_group_array_sz),
-								hit_status->all_hit_group_cnt,
-								TO_RELATION_ID(virtual_table_id, group_rule->top_groups[i]));
-			hit_status->all_hit_group_cnt+=ret;
-		}
-	}
-	return;
-}
-size_t scan_hit_status_update_by_compile(struct scan_hit_status* hit_status, struct Maat_compile_inner* compile_rule, int Nth_scan)
-{
-	size_t i=0, j=0;
-	struct Maat_hit_path_inner* p=NULL, *q=NULL;
-	struct bool_expr a_set;
-	unsigned char has_not=0;
-
-	struct Maat_hit_path_t condition;
-	size_t n_exsited_path=0;
-	struct hit_path_q shared_path_qhead;
-	TAILQ_INIT(&shared_path_qhead);
-	make_group_set(compile_rule, &a_set, &has_not);
-	for(i=0; i<a_set.item_num; i++)
-	{
-		TAILQ_FOREACH(p, &hit_status->hit_path_qhead, entries)
-		{
-			n_exsited_path=0;
-			if(TO_RELATION_ID(p->path.vt_id, p->path.top_group_id)==a_set.items[i].item_id
-				&& p->path.compile_id!=compile_rule->compile_id)
-			{
-				if(p->path.compile_id<0)
-				{
-					p->path.compile_id=compile_rule->compile_id;
-				}
-				else	//current path already have a compile as endpoint, so we duplicate a new path.
-				{
-					condition=p->path;
-					condition.compile_id=compile_rule->compile_id;
-					n_exsited_path=scan_hit_status_select_hit_path_inner(&shared_path_qhead, &condition, NULL, 0);
-					if(n_exsited_path==0)
-					{
-						q=ALLOC(struct Maat_hit_path_inner, 1);
-						*q=*p;
-						q->path.compile_id=compile_rule->compile_id;
-						TAILQ_INSERT_TAIL(&shared_path_qhead, q, entries);
-						hit_status->hit_path_cnt++;
-					}
-				}
-				if(p->path.Nth_scan==Nth_scan && n_exsited_path==0)//Compile was satisfied by new region hits.
-				{
-					j++;
-				}
-			}		
-		}
-	}
-	p = TAILQ_FIRST(&shared_path_qhead);
-	while(p != NULL)
-	{
-		TAILQ_REMOVE(&shared_path_qhead, p, entries);
-		TAILQ_INSERT_TAIL(&hit_status->hit_path_qhead, p, entries);
-		p = TAILQ_FIRST(&shared_path_qhead);
-	}	
-	return j;
-}
-
-size_t scan_hit_status_read_group_ids(const struct scan_hit_status* hit_status, const unsigned long long** const grp_ids)
-{
-	*grp_ids=hit_status->all_hit_group_array;
-	return hit_status->all_hit_group_cnt;
-}
 
 
 void scan_region_hit_wraper_build_with_rulescan(struct scan_region_hit_wraper* region_hit, scan_result_t* rulescan_rslt, size_t n_rslt, int is_last_region, int virtual_table_id, int Nth_scan)
@@ -371,7 +193,7 @@ void scan_region_hit_wraper_build_with_rulescan(struct scan_region_hit_wraper* r
 	region_hit->n_elem=n_rslt;
 	region_hit->elem_size=sizeof(scan_result_t);
 	region_hit->expr_id_offset=offsetof(scan_result_t, expr_id);
-	region_hit->group_offset=offsetof(scan_result_t, tag);
+	region_hit->user_data_offset=offsetof(scan_result_t, tag);
 	region_hit->is_last_region=is_last_region;
 	region_hit->virtual_table_id=virtual_table_id;
 	region_hit->Nth_scan=Nth_scan;
@@ -385,7 +207,7 @@ void scan_region_hit_wraper_build_with_GIE(struct scan_region_hit_wraper* region
 	region_hit->n_elem=n_rslt;
 	region_hit->elem_size=sizeof(GIE_result_t);
 	region_hit->expr_id_offset=offsetof(GIE_result_t, id);
-	region_hit->group_offset=offsetof(GIE_result_t, tag);
+	region_hit->user_data_offset=offsetof(GIE_result_t, tag);
 	region_hit->is_last_region=is_last_region;
 	region_hit->virtual_table_id=virtual_table_id;
 	region_hit->Nth_scan=Nth_scan;
@@ -393,35 +215,26 @@ void scan_region_hit_wraper_build_with_GIE(struct scan_region_hit_wraper* region
 	return;
 }
 
-int region_compile(_Maat_feather_t*feather, struct scan_hit_status *_mid, struct Maat_hierarchy_compile_mid* compile_mid, const struct scan_region_hit_wraper* region_hit_wraper, struct Maat_rule_t* result, int size,int thread_num)
+int region_compile(_Maat_feather_t*feather, struct Maat_hierarchy_compile_mid* compile_mid, const struct scan_region_hit_wraper* region_hit_wraper, struct Maat_rule_t* result, int size,int thread_num)
 {
 	int is_last_region=region_hit_wraper->is_last_region;
 	void* region_hit=region_hit_wraper->elem_array;
 	size_t region_type_size=region_hit_wraper->elem_size;
-	size_t expr_id_offset=region_hit_wraper->expr_id_offset;
-	size_t group_offset=region_hit_wraper->group_offset;
+	size_t user_data_offset=region_hit_wraper->user_data_offset;
 	size_t region_hit_num=region_hit_wraper->n_elem;
 
-	unsigned int expr_id=0;
-	int region_id=0;
-	int scan_ret=0, result_cnt=0;
-	int tmp=0;
-	size_t i=0;
-	size_t r_in_c_cnt=0;
+	int scan_ret=0;
+	int i=0;
 
 	struct Maat_compile_rule* compile_rule_array[MAX_SCANNER_HIT_NUM];
 	struct Maat_compile_rule* compile_rule=NULL;
 	int virtual_table_id=0;
-	const unsigned long long* hit_group_ids=NULL;
-	size_t hit_group_id_cnt=0;
 
 	struct Maat_region_inner* region=NULL;
-	int region_ids[MAX_SCANNER_HIT_NUM];
 	
-	for(i=0;i<region_hit_num;i++)
+	for(i=0; (size_t)i<region_hit_num;i++)
 	{
-		region=*(struct Maat_region_inner**)((char*)region_hit+region_type_size*i+group_offset);
-		region_ids[i]=region->region_id;
+		region=*(struct Maat_region_inner**)((char*)region_hit+region_type_size*i+user_data_offset);
 		if(region_hit_wraper->virtual_table_ids)
 		{
 			virtual_table_id=region_hit_wraper->virtual_table_ids[i];
@@ -430,64 +243,48 @@ int region_compile(_Maat_feather_t*feather, struct scan_hit_status *_mid, struct
 		{
 			virtual_table_id=region_hit_wraper->virtual_table_id;
 		}
-		Maat_hierarchy_compile_mid_udpate(compile_mid, region_id, virtual_table_id, region_hit_wraper->Nth_scan, i);
+		Maat_hierarchy_compile_mid_udpate(compile_mid, region->region_id, virtual_table_id, region_hit_wraper->Nth_scan, i);
 		
 	}
-	scan_ret=Maat_hierarchy_region_compile(compile_mid, int * region_ids, int * virtual_tables, size_t n_region, int Nth_scan, compile_rule_array, MAX_SCANNER_HIT_NUM);
+	scan_ret=Maat_hierarchy_region_compile(compile_mid, is_last_region, (void**)compile_rule_array, MAX_SCANNER_HIT_NUM);
 	
 	if(scan_ret>1)
 	{
 		qsort(compile_rule_array, scan_ret, sizeof(struct Maat_compile_rule*),
 			  compare_compile_rule);
 	}
-	for(i=0; i<(unsigned int)scan_ret&&result_cnt<size; i++)
+	for(i=0; i<scan_ret&&i<size; i++)
 	{
 		compile_rule=compile_rule_array[i];
 		assert(compile_rule->magic_num==COMPILE_RULE_MAGIC);
-
-		if(compile_rule->not_group_cnt>0 && !is_last_region)
-		{
-			_mid->not_grp_compile_hitted_flag=1;
-		}
-		else
-		{
-			r_in_c_cnt=scan_hit_status_update_by_compile(_mid, compile_rule, region_hit_wraper->Nth_scan);
-			if(r_in_c_cnt>0 ||	//compile hitted becasue of new reigon
-			region_hit_num==0)	//or hit a compile that refer a NOT-logic group in previous scan.
-			{
-				fill_maat_rule(&(result[result_cnt]), &(compile_rule->compile->head),
-							compile_rule->compile->service_defined, compile_rule->compile->head.serv_def_len);
-				result_cnt++;
-			}
-		}		
-	
+		
+		fill_maat_rule(&(result[i]), &(compile_rule->head),
+					compile_rule->service_defined, compile_rule->head.serv_def_len);
 		
 	}	
 
-	if(result_cnt>0)
+	if(scan_ret>0)
 	{
 		alignment_int64_array_add(feather->hit_cnt, thread_num, 1);
 	}
-	if(region_hit_num==0&&result_cnt>0)
+	if(region_hit_num==0&&scan_ret>0)
 	{
 		alignment_int64_array_add(feather->not_grp_hit_cnt, thread_num, 1);
 
 	}
-	return result_cnt;
+	return scan_ret;
 }
 
 
-int match_district(struct _OUTER_scan_status_t *_mid,scan_result_t *region_hit,int region_hit_num, Maat_scanner* scanner)
+int match_district(struct _OUTER_scan_status_t *_mid, scan_result_t *region_hit, int region_hit_num)
 {
-	struct Maat_group_inner* group_rule=NULL;
+	struct Maat_region_inner* region=NULL;
 	int i=0;
-	int district_id=-1,region_id=-1;
 	int ret_region_num=region_hit_num;
 	while(i<ret_region_num)
 	{
-		group_rule=(struct Maat_group_inner*)(region_hit[i].tag);
-		region_id=exprid2region_id(group_rule, region_hit[i].expr_id,&district_id, scanner);
-		if(region_id>0&&district_id!=_mid->district_id)
+		region=(struct Maat_region_inner*)(region_hit[i].tag);
+		if(region->district_id!=_mid->district_id)
 		{
 			ret_region_num--;
 			//todo: replace memmove with high performance solution.
@@ -568,7 +365,7 @@ int hit_pos_RS2Maat(struct sub_item_pos_t* maat_sub_item,int size,rule_result_t*
 	}
 	return k;
 }
-int fill_region_hit_detail(const char* scan_buff, const scan_hit_status* _mid,
+int fill_region_hit_detail(const char* scan_buff, const Maat_hierarchy_compile_mid* mid,
 							scan_result_t *region_hit, int region_cnt,
 							struct Maat_rule_t* compile, int compile_cnt,
 							int Nth_scan,
@@ -578,13 +375,12 @@ int fill_region_hit_detail(const char* scan_buff, const scan_hit_status* _mid,
 	int i=0;
 	size_t j=0;
 	char r_in_c_flag[region_cnt];
-	int district_id=-1; //Indifference
+
 	memset(r_in_c_flag, 0, sizeof(r_in_c_flag));
 	
-	struct Maat_group_inner* group_rule=NULL;
+	struct Maat_region_inner* region=NULL;
 
-
-	struct Maat_hit_path_inner hit_paths[MAX_SCANNER_HIT_NUM];
+	struct Maat_hierarchy_hit_path* hit_paths[MAX_SCANNER_HIT_NUM];
 	struct Maat_hit_path_t condition;
 	size_t hit_path_cnt=0;
 	int Nth_hit_region=0;
@@ -593,14 +389,14 @@ int fill_region_hit_detail(const char* scan_buff, const scan_hit_status* _mid,
 	for(i=0; i<compile_cnt&&i<detail_num; i++)
 	{
 		hit_detail[i].config_id=compile[i].config_id;
-		hit_path_init(&condition);
+		Maat_hit_path_init(&condition);
 		condition.Nth_scan=Nth_scan;
 		condition.compile_id=compile[i].config_id;
-		hit_path_cnt=scan_hit_status_select_hit_path_inner(&_mid->hit_path_qhead, &condition, hit_paths, MAX_SCANNER_HIT_NUM);
+		hit_path_cnt=Maat_hierarchy_hit_path_select0(mid, &condition, hit_paths, MAX_SCANNER_HIT_NUM);
 		for(j=0; j<hit_path_cnt && j<MAAT_MAX_HIT_RULE_NUM; j++)
 		{		
-			Nth_hit_region=hit_paths[j].Nth_hit_region;
-			hit_detail[i].region_pos[j].region_id=hit_paths[j].path.region_id;
+			Nth_hit_region=hit_paths[j]->Nth_hit_region;
+			hit_detail[i].region_pos[j].region_id=hit_paths[j]->path.region_id;
 			hit_detail[i].region_pos[j].sub_item_num=region_hit[Nth_hit_region].rnum;
 			hit_pos_RS2Maat(hit_detail[i].region_pos[j].sub_item_pos, MAAT_MAX_EXPR_ITEM_NUM,
 							region_hit[Nth_hit_region].result, region_hit[Nth_hit_region].rnum, scan_buff);
@@ -613,10 +409,10 @@ int fill_region_hit_detail(const char* scan_buff, const scan_hit_status* _mid,
 	{
 		if(r_in_c_flag[j]==0)
 		{
-			group_rule=(struct Maat_group_inner*)(region_hit[j].tag);
+			region=(struct Maat_region_inner*)(region_hit[j].tag);
 	 		hit_detail[i].config_id=-2;
 			hit_detail[i].hit_region_cnt=1;
-			hit_detail[i].region_pos[0].region_id=exprid2region_id(group_rule, region_hit[j].expr_id, &district_id, scanner);
+			hit_detail[i].region_pos[0].region_id=region->region_id;
 			hit_detail[i].region_pos[0].sub_item_num=region_hit[j].rnum;
 			hit_pos_RS2Maat(hit_detail[i].region_pos[0].sub_item_pos,MAAT_MAX_EXPR_ITEM_NUM,
 						region_hit[j].result, region_hit[j].rnum, scan_buff);
@@ -647,11 +443,10 @@ struct _OUTER_scan_status_t* grab_mid(scan_status_t* raw_mid,_Maat_feather_t* fe
 
 	if(is_hit_region==1)
 	{
-		if(_mid->inner==NULL)
+		if(_mid->compile_mid==NULL)
 		{
 			_mid->compile_mid=Maat_hierarchy_compile_mid_new(feather->scanner->hier, thread_num);
-			_mid->inner=scan_hit_status_new();
-			alignment_int64_array_add(feather->inner_mid_cnt,thread_num,1);
+			alignment_int64_array_add(feather->compile_mid_cnt, thread_num, 1);
 		}
 	}
 	return _mid;
@@ -704,7 +499,7 @@ int load_maat_json_file(_Maat_feather_t* feather, const char* maat_json_fn, char
 	}
 	ret=json2iris(json_buff,
 			maat_json_fn,
-			feather->compile_tn, feather->group_tn,
+			feather->compile_tn, feather->group2compile_tn, feather->group2group_tn,
 			NULL,
 			feather->json_ctx.iris_file,
 			sizeof(feather->json_ctx.iris_file),
@@ -748,7 +543,8 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 		goto failed;
 	}
 	Maat_table_get_compile_table_name(feather->table_mgr, feather->compile_tn, sizeof(feather->compile_tn));
-	Maat_table_get_group_table_name(feather->table_mgr, feather->group_tn, sizeof(feather->group_tn));
+	Maat_table_get_group2compile_table_name(feather->table_mgr, feather->group2compile_tn, sizeof(feather->group2compile_tn));
+	Maat_table_get_group2group_table_name(feather->table_mgr, feather->group2group_tn, sizeof(feather->group2group_tn));
 	
 	feather->logger=logger;
 	feather->scan_thread_num=max_thread_num;
@@ -759,7 +555,7 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->rule_scan_type=2;
 	feather->thread_call_cnt=alignment_int64_array_alloc(max_thread_num);
 	feather->outer_mid_cnt=alignment_int64_array_alloc(max_thread_num);
-	feather->inner_mid_cnt=alignment_int64_array_alloc(max_thread_num);
+	feather-> compile_mid_cnt=alignment_int64_array_alloc(max_thread_num);
 	feather->hit_cnt=alignment_int64_array_alloc(max_thread_num);
 	feather->not_grp_hit_cnt=alignment_int64_array_alloc(max_thread_num);
 	feather->maat_version=0;
@@ -1223,24 +1019,20 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 	return 1;
 }
 
-void rule_ex_data_new_cb(const uchar * key, uint size, void * data, void * user)
+void rule_ex_data_new_cb(void * user_data, void * param)
 {
-	struct compile_ex_data_idx *ex_desc=(struct compile_ex_data_idx*)user;
-	struct Maat_compile_inner *relation=(struct Maat_compile_inner *)data;
-	struct Maat_compile_rule* compile_rule=relation->compile;
+	struct compile_ex_data_idx *ex_desc=(struct compile_ex_data_idx*)param;
+	struct Maat_compile_rule* compile=(struct Maat_compile_rule*)user_data;
 	MAAT_RULE_EX_DATA ad=NULL;
 	
-	if(compile_rule==NULL|| compile_rule->ref_table->table_id!=ex_desc->table_id)
+	if(compile->ref_table->table_id!=ex_desc->table_id)
 	{
 		return;
 	}
-	
-	pthread_rwlock_wrlock(&(relation->rwlock));
-	ad=rule_ex_data_new(&(relation->compile->head),
-						relation->compile->service_defined,
+	ad=rule_ex_data_new(&(compile->head),
+						compile->service_defined,
 						ex_desc);
-	compile_rule->ads[ex_desc->idx]=ad;
-	pthread_rwlock_unlock(&(relation->rwlock));
+	compile->ads[ex_desc->idx]=ad;
 	return;
 }
 int Maat_rule_get_ex_new_index(Maat_feather_t feather, const char* compile_table_name,
@@ -1272,7 +1064,7 @@ int Maat_rule_get_ex_new_index(Maat_feather_t feather, const char* compile_table
 	
 	if(_feather->scanner!=NULL)
 	{
-		MESA_htable_iterate(_feather->scanner->compile_hash, rule_ex_data_new_cb, compile_ex_desc);
+		Maat_hierarchy_compile_user_data_iterate(_feather->scanner->hier, rule_ex_data_new_cb, compile_ex_desc);
 	}
 
 	pthread_mutex_unlock(&(_feather->background_update_mutex));
@@ -1282,24 +1074,19 @@ int Maat_rule_get_ex_new_index(Maat_feather_t feather, const char* compile_table
 MAAT_RULE_EX_DATA Maat_rule_get_ex_data(Maat_feather_t feather, const struct Maat_rule_t* rule, int idx)
 {
 	struct _Maat_feather_t *_feather=(struct _Maat_feather_t *)feather;
-	struct Maat_compile_inner *relation=NULL;
 	struct Maat_compile_rule* compile=NULL;
 	const struct compile_table_schema* compile_desc=NULL;
 	const struct compile_ex_data_idx* ex_desc=NULL;
 	MAAT_RULE_EX_DATA ad=NULL;
-	
-	relation=(struct Maat_compile_inner *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule->config_id);
-	if(relation==NULL||relation->compile==NULL)
+	compile=(struct Maat_compile_rule*)Maat_hierarchy_compile_read_user_data(_feather->scanner->hier, rule->config_id);
+	if(compile==NULL)
 	{
 		return NULL;
 	}
-	pthread_rwlock_rdlock(&(relation->rwlock));
-	compile=relation->compile;
 	compile_desc=&(compile->ref_table->compile);
 	assert(idx<compile_desc->ex_data_num);	
 	ex_desc=compile_desc->ex_desc+idx;
 	ex_desc->dup_func(ex_desc->idx, &ad, compile->ads+idx, ex_desc->argl,ex_desc->argp);
-	pthread_rwlock_unlock(&(relation->rwlock));		
 	return ad;
 }
 
@@ -1498,7 +1285,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	}
 	if(hit_region_cnt>0&&p_table->table_type==TABLE_TYPE_EXPR_PLUS)
 	{
-		hit_region_cnt=match_district(_mid,region_result,hit_region_cnt, my_scanner);
+		hit_region_cnt=match_district(_mid, region_result, hit_region_cnt);
 	}
 	if(hit_region_cnt>0 || scan_status_should_compile_NOT(_mid))
 	{
@@ -1510,11 +1297,10 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 		struct scan_region_hit_wraper region_hit_wraper;
 		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, hit_region_cnt, 
 												_mid->is_last_region, virtual_table_id, _mid->scan_cnt);
-		compile_ret=region_compile(_feather,_mid->inner,
+		compile_ret=region_compile(_feather, _mid->compile_mid,
 									&region_hit_wraper,
 									result, rule_num,
 									thread_num);
-		Maat_hierarchy_region_compile(struct Maat_hierarchy_compile_mid * mid, int * region_ids, int * virtual_tables, size_t n_region, int Nth_scan, void * * user_data_array, size_t ud_array_sz)
 		assert(_mid->is_last_region<2);
 		if(_mid->is_last_region==1)
 		{
@@ -1522,7 +1308,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 		}
 		if(hit_region_cnt>0&&hit_detail!=NULL&&_feather->rule_scan_type!=0)
 		{
-			*detail_ret=fill_region_hit_detail(data, _mid->inner,										
+			*detail_ret=fill_region_hit_detail(data, _mid->compile_mid,										
 											region_result, hit_region_cnt,
 											result, compile_ret,
 											_mid->scan_cnt,
@@ -1621,7 +1407,7 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 		struct scan_region_hit_wraper region_hit_wraper;
 		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, region_ret,
 											_mid->is_last_region, virtual_table_id, _mid->scan_cnt);
-		compile_ret=region_compile(_feather,_mid->inner,
+		compile_ret=region_compile(_feather,_mid->compile_mid,
 									&region_hit_wraper,
 									result, rule_num,
 									thread_num);
@@ -1706,7 +1492,7 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 		struct scan_region_hit_wraper region_hit_wraper;
 		scan_region_hit_wraper_build_with_GIE(&region_hit_wraper, region_result, hit_region_cnt, 
 										_mid->is_last_region, virtual_table_id, _mid->scan_cnt);		
-		compile_ret=region_compile(_feather,_mid->inner,
+		compile_ret=region_compile(_feather,_mid->compile_mid,
 									&region_hit_wraper,
 									result, rule_num,
 									thread_num);
@@ -1940,7 +1726,7 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 		{
 			region_hit_wraper.virtual_table_ids=region_rslt_virtual_table_id;
 		}
-		compile_ret=region_compile(_feather,_mid->inner,
+		compile_ret=region_compile(_feather,_mid->compile_mid,
 									&region_hit_wraper,
 									result, rule_num,
 									thread_num);
@@ -2150,7 +1936,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 	}
 	if(hit_region_cnt>0&&sp->p_real_table->table_type==TABLE_TYPE_EXPR_PLUS)
 	{
-		hit_region_cnt=match_district(_mid, region_result, hit_region_cnt, scanner);	
+		hit_region_cnt=match_district(_mid, region_result, hit_region_cnt);	
 	}
 	if(hit_region_cnt>0 || scan_status_should_compile_NOT(_mid))
 	{
@@ -2163,7 +1949,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, hit_region_cnt, 
 										_mid->is_last_region, sp->virtual_table_id, _mid->scan_cnt);
 
-		compile_ret=region_compile(sp->feather,_mid->inner,
+		compile_ret=region_compile(sp->feather, _mid->compile_mid,
 							&region_hit_wraper,
 							result, rule_num,
 							sp->thread_num);
@@ -2176,7 +1962,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 		{
 			if(sp->scan_buff!=NULL)
 			{
-				*detail_ret=fill_region_hit_detail(sp->scan_buff, _mid->inner,
+				*detail_ret=fill_region_hit_detail(sp->scan_buff, _mid->compile_mid,
 												region_result, hit_region_cnt,
 												result, compile_ret,
 												_mid->scan_cnt,
@@ -2184,7 +1970,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 			}
 			else
 			{
-				*detail_ret=fill_region_hit_detail(data, _mid->inner,
+				*detail_ret=fill_region_hit_detail(data, _mid->compile_mid,
 												region_result, hit_region_cnt,
 												result, compile_ret,
 												_mid->scan_cnt,
@@ -2408,7 +2194,7 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 		struct scan_region_hit_wraper region_hit_wraper;
 		scan_region_hit_wraper_build_with_GIE(&region_hit_wraper, region_result, hit_region_cnt, 
 											_mid->is_last_region, sp->virtual_table_id, _mid->scan_cnt);
-		compile_ret=region_compile(sp->feather,_mid->inner,
+		compile_ret=region_compile(sp->feather, _mid->compile_mid,
 								&region_hit_wraper,
 								result, rule_num,
 								sp->thread_num);
@@ -2460,21 +2246,19 @@ int Maat_read_rule(Maat_feather_t feather, const struct Maat_rule_t* rule, enum 
 {
 	int ret=0;
 	struct _Maat_feather_t *_feather=(struct _Maat_feather_t *)feather;
-	struct Maat_compile_inner *compile_inner=NULL;
+	struct Maat_compile_rule* compile=NULL;
 	switch(type)
 	{
 		case	MAAT_RULE_SERV_DEFINE:
-			compile_inner=(struct Maat_compile_inner *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule->config_id);
-			if(compile_inner==NULL)
+			compile=(struct Maat_compile_rule*)Maat_hierarchy_compile_read_user_data(_feather->scanner->hier, rule->config_id);
+			if(compile)
 			{
-				ret=0;
+				ret=MIN(size, compile->head.serv_def_len);
+				memcpy(value, compile->service_defined, ret);
 			}
 			else
 			{
-				pthread_rwlock_rdlock(&(compile_inner->rwlock));
-				ret=MIN(size,compile_inner->compile->head.serv_def_len);
-				memcpy(value,compile_inner->compile->service_defined,ret);
-				pthread_rwlock_unlock(&(compile_inner->rwlock));
+				ret=0;
 			}
 			break;
 		default:
@@ -2491,7 +2275,7 @@ int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCA
 	{
 		return 0;
 	}
-	_mid=grab_mid(mid,_feather, 0, 0);
+	_mid=grab_mid(mid, _feather, 0, 0);
 	if(_mid==NULL)
 	{
 		_mid=_make_outer_status(_feather,0);
@@ -2530,12 +2314,12 @@ int Maat_get_scan_status(Maat_feather_t feather, scan_status_t* mid, enum MAAT_S
 	struct _OUTER_scan_status_t* _mid=NULL;
 	struct Maat_hit_path_t* paths;
 	struct Maat_hit_path_t condition;
-	struct Maat_hit_path_inner *path_inner;
+	struct Maat_hierarchy_hit_path **path_inner=NULL;
 	size_t n_read=0, i=0;
 	int ret=0;
 	_mid=grab_mid(mid, _feather, 0, 0);
 
-	if(_mid->inner==NULL)
+	if(_mid->compile_mid==NULL)
 	{
 		return 0;
 	}
@@ -2548,12 +2332,12 @@ int Maat_get_scan_status(Maat_feather_t feather, scan_status_t* mid, enum MAAT_S
 			}
 			paths=(struct Maat_hit_path_t*)value;
 			n_read=size/sizeof(struct Maat_hit_path_t);
-			path_inner=ALLOC(struct Maat_hit_path_inner, n_read);
-			hit_path_init(&condition);
-			n_read=scan_hit_status_select_hit_path_inner(&_mid->inner->hit_path_qhead, &condition, path_inner, n_read);
+			path_inner=ALLOC(struct Maat_hierarchy_hit_path*, n_read);
+			Maat_hit_path_init(&condition);
+			n_read=Maat_hierarchy_hit_path_select0(_mid->compile_mid, &condition, path_inner, n_read);
 			for(i=0; i<n_read; i++)
 			{
-				paths[i]=path_inner[i].path;
+				paths[i]=path_inner[i]->path;
 			}
 			free(path_inner);
 			ret=n_read;
@@ -2618,11 +2402,11 @@ void Maat_clean_status(scan_status_t* mid)
 	}
 	_mid=(struct _OUTER_scan_status_t*)(*mid);
 	alignment_int64_array_add(_mid->feather->outer_mid_cnt,_mid->thread_num,-1);
-	if(_mid->inner!=NULL)
+	if(_mid->compile_mid!=NULL)
 	{
-		scan_hit_status_free(_mid->inner);
-		_mid->inner=NULL;
-		alignment_int64_array_add(_mid->feather->inner_mid_cnt, _mid->thread_num, -1);
+		Maat_hierarchy_compile_mid_free(_mid->compile_mid);
+		_mid->compile_mid=NULL;
+		alignment_int64_array_add(_mid->feather->compile_mid_cnt, _mid->thread_num, -1);
 	}
 	_mid->feather=NULL;
 	free(_mid);

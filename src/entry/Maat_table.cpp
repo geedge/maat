@@ -682,12 +682,12 @@ int Maat_table_get_compile_table_name(struct Maat_table_manager* table_mgr, char
 	}
 	return 0;
 }
-int Maat_table_get_group_table_name(struct Maat_table_manager* table_mgr, char* buff, size_t sz)
+int Maat_table_get_group2compile_table_name(struct Maat_table_manager* table_mgr, char* buff, size_t sz)
 {
 	int i=0;
 	for(i=0; i< MAX_TABLE_NUM; i++)
 	{
-		if(table_mgr->p_table_info[i] && table_mgr->p_table_info[i]->table_type==TABLE_TYPE_GROUP)
+		if(table_mgr->p_table_info[i] && table_mgr->p_table_info[i]->table_type==TABLE_TYPE_GROUP2COMPILE)
 		{
 			strncpy(buff, table_mgr->p_table_info[i]->table_name[0], sz);
 			return 1;
@@ -695,6 +695,20 @@ int Maat_table_get_group_table_name(struct Maat_table_manager* table_mgr, char* 
 	}
 	return 0;
 }
+int Maat_table_get_group2group_table_name(struct Maat_table_manager* table_mgr, char* buff, size_t sz)
+{
+	int i=0;
+	for(i=0; i< MAX_TABLE_NUM; i++)
+	{
+		if(table_mgr->p_table_info[i] && table_mgr->p_table_info[i]->table_type==TABLE_TYPE_GROUP2GROUP)
+		{
+			strncpy(buff, table_mgr->p_table_info[i]->table_name[0], sz);
+			return 1;
+		}
+	}
+	return 0;
+}
+
 const char* Maat_table_get_name_by_id(struct Maat_table_manager* table_mgr, int table_id)
 {
 	if(table_id>MAX_TABLE_NUM)

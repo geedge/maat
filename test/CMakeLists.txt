@@ -1,5 +1,5 @@
-add_executable(maat_demo maat_demo.cpp)
-target_link_libraries(maat_demo maat_frame_shared)
+#add_executable(maat_demo maat_demo.cpp)
+#target_link_libraries(maat_demo maat_frame_shared)
 
 add_executable(test_igraph test_igraph.cpp)
 target_link_libraries(test_igraph igraph-static)
@@ -7,8 +7,8 @@ target_link_libraries(test_igraph igraph-static)
 add_executable(test_maatframe test_maatframe.cpp)
 target_link_libraries(test_maatframe maat_frame_shared gtest)
 
-add_executable(perf_test_maatframe perf_test_maatframe.cpp)
-target_link_libraries(perf_test_maatframe maat_frame_shared gtest)
+#add_executable(perf_test_maatframe perf_test_maatframe.cpp)
+#target_link_libraries(perf_test_maatframe maat_frame_shared gtest)
 
 configure_file(table_info.conf table_info.conf COPYONLY)
 configure_file(t2_tableinfo.conf t2_tableinfo.conf COPYONLY)

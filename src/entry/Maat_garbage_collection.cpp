@@ -1,4 +1,10 @@
+
+#include "Maat_utils.h"
+
+#include <time.h>
+#include <stdlib.h>
 #include <sys/queue.h>
+#include <assert.h>
 
 struct Maat_garbage_bag
 {
@@ -9,7 +15,7 @@ struct Maat_garbage_bag
 	void (* garbage_free)(void *garbage);
 	TAILQ_ENTRY(Maat_garbage_bag) entries;
 };
-TAILQ_HEAD(Maat_garbage_bag, Maat_garbage_q);
+TAILQ_HEAD(Maat_garbage_q, Maat_garbage_bag);
 
 struct Maat_garbage_bin
 {
@@ -20,7 +26,7 @@ struct Maat_garbage_bin
 struct Maat_garbage_bin* Maat_garbage_bin_new(int default_timeout)
 {
 	struct Maat_garbage_bin* bin=ALLOC(struct Maat_garbage_bin, 1);
-	TAILQ_INIT(bin->garbage_q);
+	TAILQ_INIT(&bin->garbage_q);
 	bin->timeout_seconds=default_timeout;
 	return bin;
 }
@@ -37,7 +43,7 @@ void Maat_garbage_bin_free(struct Maat_garbage_bin* bin)
 	free(bin);
 	return;
 }
-void Maat_garbage_bag(struct Maat_garbage_bin* bin, void* garbage, void (* func)(void *))
+void Maat_garbage_bagging(struct Maat_garbage_bin* bin, void* garbage, void (* func)(void *))
 {
 	struct Maat_garbage_bag* bag=ALLOC(	struct Maat_garbage_bag, 1);
 	bag->create_time=time(NULL);
@@ -47,10 +53,10 @@ void Maat_garbage_bag(struct Maat_garbage_bin* bin, void* garbage, void (* func)
 	TAILQ_INSERT_TAIL(&bin->garbage_q, bag, entries);
 	bin->bag_cnt++;
 }
-void Maat_garbage_collect(struct Maat_garbage_bin* bin)
+void Maat_garbage_collect_routine(struct Maat_garbage_bin* bin)
 {
 	struct Maat_garbage_bag* p=NULL, *tmp=NULL;
-	int n_clollected=0, n_bag=0;
+	size_t n_clollected=0, n_bag=0;
 	time_t now=time(NULL);
 
 	for(p=TAILQ_FIRST(&bin->garbage_q); p!=NULL; p=tmp)
