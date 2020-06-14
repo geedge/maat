@@ -193,7 +193,7 @@ int set_iris_descriptor(const char* json_file,cJSON *json, const char* encrypt_k
 
 	iris_cfg->compile_table=query_table_info(iris_cfg, compile_tn, TABLE_TYPE_COMPILE);
 	iris_cfg->group2compile_table=query_table_info(iris_cfg, group2compile_tn, TABLE_TYPE_GROUP2COMPILE);
-	iris_cfg->group2group_table=query_table_info(iris_cfg, group2compile_tn, TABLE_TYPE_GROUP2GROUP);
+	iris_cfg->group2group_table=query_table_info(iris_cfg, group2group_tn, TABLE_TYPE_GROUP2GROUP);
 	
 	if(encrypt_key && encrypt_algo)
 	{
@@ -1200,11 +1200,12 @@ int write_iris(cJSON *json, struct iris_description_t *p_iris, void* logger)
 		i=1;
 		cJSON_ArrayForEach(group_obj, group_array)
 		{
-			ret=write_group_rule(group_obj, PARENT_TYPE_COMPILE, compile_id, compile_id, i, p_iris, logger);
+			ret=write_group_rule(group_obj, compile_id, PARENT_TYPE_COMPILE, compile_id, i, p_iris, logger);
 			if(ret<0)
 			{
 				return -1;
 			}
+			i++;
 		}
 	}
 	ret=write_index_file(p_iris, logger);
