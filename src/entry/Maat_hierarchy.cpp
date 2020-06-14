@@ -26,7 +26,8 @@ struct Maat_hierarchy_group
 	igraph_integer_t vertex_id;
 	int group_id;
 	int ref_by_compile_cnt;
-	int ref_by_group_cnt;
+	int ref_by_superior_group_cnt;
+	int ref_by_subordinate_group_cnt;
 	int ref_by_region_cnt;
 
 	int top_group_cnt;
@@ -187,7 +188,12 @@ int compare_literal_id(const void *pa, const void *pb)
 {
 	struct Maat_hierarchy_literal_id *la=(struct Maat_hierarchy_literal_id *)pa;
 	struct Maat_hierarchy_literal_id *lb=(struct Maat_hierarchy_literal_id *)pb;
-	return TO_LITERAL_ID(la->virtual_table_id, la->group_id)-TO_LITERAL_ID(lb->virtual_table_id, lb->group_id);
+	int ret=la->virtual_table_id-lb->virtual_table_id;
+	if(ret==0)
+	{
+		ret=la->group_id-lb->group_id;
+	}
+	return ret;
 
 }
 
@@ -453,7 +459,7 @@ static void Maat_hierarchy_group_free(struct Maat_hierarchy* hier, struct Maat_h
 {
 	igraph_vector_t v; 
 	char buff[4096];
-	assert(group->ref_by_compile_cnt==0&&group->ref_by_group_cnt==0);
+	assert(group->ref_by_compile_cnt==0&&group->ref_by_superior_group_cnt==0);
 	igraph_vector_init(&v, 8);
 	igraph_neighbors(&hier->group_graph, &v, group->vertex_id, IGRAPH_ALL);
 	if(igraph_vector_size(&v)>0)
@@ -496,7 +502,6 @@ int Maat_hierarchy_add_group_to_compile(struct Maat_hierarchy* hier, int group_i
 		literal=Maat_hierarchy_literal_new(hier, group_id, vt_id);
 	}
 	ret=Maat_hierarchy_literal_join_clause(literal, not_flag, Nth_clause, compile_id);	
-	pthread_rwlock_unlock(&hier->rwlock);
 	if(ret<0)
 	{
 		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, module_maat_hierarchy,
@@ -582,7 +587,8 @@ int Maat_hierarchy_add_group_to_group(struct Maat_hierarchy* hier, int group_id,
 	else
 	{
 		igraph_add_edge(&hier->group_graph, group->vertex_id, superior_group->vertex_id);
-		group->ref_by_group_cnt++;
+		group->ref_by_superior_group_cnt++;
+		superior_group->ref_by_subordinate_group_cnt++;
 		ret=0;
 	}
 	pthread_rwlock_unlock(&hier->rwlock);
@@ -636,7 +642,8 @@ int Maat_hierarchy_remove_group_from_group(struct Maat_hierarchy* hier, int grou
 		return -1;
 	}
 
-	group->ref_by_group_cnt--;
+	group->ref_by_superior_group_cnt--;
+	superior_group->ref_by_subordinate_group_cnt--;
 	return 0;
 
 }
@@ -823,27 +830,32 @@ static int Maat_hierarchy_build_top_groups(struct Maat_hierarchy* hier)
 								"Sub group cycle detected!");
 		return -1;
 	}
-
+	hier->group_graph_vcount=igraph_vcount(&hier->group_graph);
+	igraph_vector_init(&(hier->dfs_vids), hier->group_graph_vcount);
 	
 	HASH_ITER(hh_group_id, hier->hash_group_by_id, group, tmp)
 	{
 		top_group_cnt=0;
 		temp_group_ids=NULL;
 		//Orphan, Not reference by any one, free it.
-		if(group->ref_by_compile_cnt==0 && group->ref_by_group_cnt==0 && group->ref_by_region_cnt==0)
+		if(group->ref_by_compile_cnt==0
+			&& group->ref_by_superior_group_cnt==0
+			&& group->ref_by_subordinate_group_cnt==0
+			&& group->ref_by_region_cnt==0)
 		{
 		
 			pthread_rwlock_wrlock(&hier->rwlock);
 			free(group->top_group_ids);
+			group->top_group_ids=NULL;
 			Maat_hierarchy_group_free(hier, group);
 			pthread_rwlock_unlock(&hier->rwlock);
 			continue;
 		}
 
 		//A group is need to build top groups when it has regions and referenced by superior groups or compiles.
-		if(group->ref_by_region_cnt>0 && (group->ref_by_compile_cnt>0 || group->ref_by_group_cnt>0))
+		if(group->ref_by_region_cnt>0 && (group->ref_by_compile_cnt>0 || group->ref_by_superior_group_cnt>0))
 		{
-			if(group->ref_by_group_cnt==0)
+			if(group->ref_by_superior_group_cnt==0)
 			{
 				//fast path, group is only referenced by compile rules.
 				top_group_cnt=1;
@@ -885,7 +897,8 @@ static int Maat_hierarchy_build_top_groups(struct Maat_hierarchy* hier)
 
 		free(temp_group_ids);
 		temp_group_ids=NULL;
-	}
+	}	
+	igraph_vector_destroy(&hier->dfs_vids);
 	return 0;
 }
 
@@ -912,7 +925,7 @@ struct Maat_hierarchy_compile_mid
 	struct Maat_hierarchy* ref_hier;
 	int thread_num;
 	int Nth_scan;
-	size_t this_scan_region_hits;
+	size_t this_scan_region_hit_cnt;
 	int	not_clause_hitted_flag;
 	size_t hit_path_cnt;
 	struct hit_path_q hit_path_qhead;
@@ -1042,9 +1055,10 @@ void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy_compile_mid* mid, i
 	struct Maat_hierarchy* hier=mid->ref_hier;
 	if(mid->Nth_scan!=Nth_scan)
 	{
-		assert(mid->this_scan_region_hits==0);
+		assert(mid->this_scan_region_hit_cnt==0);
 		mid->Nth_scan=Nth_scan;
 	}
+	mid->this_scan_region_hit_cnt++;
 	pthread_rwlock_rdlock(&hier->rwlock);
 	HASH_FIND_INT(hier->hash_region_by_id, &region_id, region);
 	group=region->ref_parent_group;
@@ -1099,7 +1113,7 @@ static size_t Maat_hierarchy_compile_mid_update_by_compile(struct Maat_hierarchy
 {
 	size_t r_in_c_cnt=0, this_scan_hit_region_cnt=0;
 	struct Maat_hierarchy_hit_path* p=NULL, *q=NULL;
-	struct Maat_hierarchy_literal_id literal_id={0,0}, *l=NULL;
+	struct Maat_hierarchy_literal_id literal_id={0, 0}, *l=NULL;
 	struct Maat_hit_path_t condition;
 
 	size_t n_exsited_path=0;
@@ -1152,8 +1166,7 @@ static size_t Maat_hierarchy_compile_mid_update_by_compile(struct Maat_hierarchy
 		}
 		
 	}
-	assert(this_scan_hit_region_cnt==mid->this_scan_region_hits);
-	mid->this_scan_region_hits=0;
+	assert(this_scan_hit_region_cnt>=mid->this_scan_region_hit_cnt);
 	
 	p = TAILQ_FIRST(&new_path_qhead);
 	while(p != NULL)
@@ -1172,13 +1185,13 @@ int Maat_hierarchy_region_compile(struct Maat_hierarchy_compile_mid* mid, int is
 	struct Maat_hierarchy* hier=mid->ref_hier;
 	struct Maat_hierarchy_compile* compile_array[ud_array_sz];
 
-	size_t r_in_c_cnt=0, this_scan_region_hits=mid->this_scan_region_hits;
+	size_t r_in_c_cnt=0, this_scan_region_hits=mid->this_scan_region_hit_cnt;
 	size_t ud_result_cnt=0;
 	if(!hier->bm)
 	{
+		mid->this_scan_region_hit_cnt=0;
 		return 0;
 	}
-	
 	pthread_rwlock_rdlock(&hier->rwlock);
 	bool_match_ret=bool_matcher_match(hier->bm, mid->thread_num, 
 						mid->all_hit_clause_array, mid->all_hit_clause_cnt,
@@ -1201,6 +1214,8 @@ int Maat_hierarchy_region_compile(struct Maat_hierarchy_compile_mid* mid, int is
 		}
 	}
 	pthread_rwlock_unlock(&hier->rwlock);
+	
+	mid->this_scan_region_hit_cnt=0;
 	return ud_result_cnt;
 }
 

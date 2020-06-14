@@ -318,7 +318,7 @@ TEST(StringScan, Full)
 	int found_pos[4];
 	const char* table_name="HTTP_URL";
 	scan_status_t mid=NULL;
-	const char* scan_data="http://www.cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
+	const char* scan_data="http://www.cyberessays.com/search_results.php?action=search&query=username,abckkk,1234567";
 	table_id=Maat_table_register(g_feather,table_name);
 	ASSERT_GT(table_id, 0);
 	
@@ -326,6 +326,7 @@ TEST(StringScan, Full)
 						result,found_pos, 4, &mid, 0);
 						
 	EXPECT_GE(ret, 1);
+	EXPECT_EQ(result[0].config_id, 125);
 	Maat_clean_status(&mid);
 }
 

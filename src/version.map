@@ -1,6 +1,6 @@
 VERS_3.0{
 global:
-	extern "C++" {
+	extern "C" {
 		*MAAT_FRAME_VERSION_*;
 		*Maat_*;
 		*SFH_*;

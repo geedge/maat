@@ -720,7 +720,7 @@ void Maat_region_inner_free(struct Maat_region_inner* region)
 
 void Maat_region_inner_cancel_last_expr_id(struct Maat_region_inner* region)
 {
-	assert(region->expr_id_cnt==region->expr_id_ub-region->expr_id_lb);
+	assert(region->expr_id_cnt==region->expr_id_ub-region->expr_id_lb+1);
 	region->expr_id_ub--;
 	region->expr_id_cnt--;
 	return;
@@ -1086,6 +1086,7 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 	switch(db_rule->expr_type)
 	{
 		case EXPR_TYPE_AND:
+		case EXPR_TYPE_REGEX:
 			for(i=0,p=db_rule->keywords;;i++,p=NULL)
 			{
 				if(i>=MAAT_MAX_EXPR_ITEM_NUM)
@@ -1099,7 +1100,14 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 				{
 					break;
 				}
-				sub_key_array[i]=str_unescape(sub_key_array[i]);
+				if(db_rule->expr_type==EXPR_TYPE_REGEX)
+				{
+					sub_key_array[i]=str_unescape_and(sub_key_array[i]);//regex remain use str_unescape_and
+				}
+				else
+				{
+					sub_key_array[i]=str_unescape(sub_key_array[i]);
+				}
 			}
 			sub_expr_cnt=i;
 			break;
@@ -1136,28 +1144,6 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 			}
 			sub_expr_cnt=i;
 			break;
-		case EXPR_TYPE_REGEX://it's easy,no need to charset convert
-			expr_id=scanner->exprid_generator++;
-			op_expr=create_op_expr(expr_id
-						,0
-						,u_para
-						,table->table_id);
-			for(i=0,p=db_rule->keywords;;i++,p=NULL)
-			{
-				if(i>=MAAT_MAX_EXPR_ITEM_NUM)
-				{
-					MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"Table %s region cfg %d too many expr.",table->table_name[table->updating_name],db_rule->region_id);
-					return -1;
-				}
-				sub_key_array[i]=strtok_r_esc(p,'&',&saveptr);
-				if(sub_key_array[i]==NULL)
-				{
-					break;
-				}
-				sub_key_array[i]=str_unescape_and(sub_key_array[i]);//regex remain use str_unescape_and
-			}
-			break;
 		case EXPR_TYPE_STRING:
 			sub_expr_cnt=1;
 			sub_key_array[0]=db_rule->keywords;
@@ -1185,8 +1171,8 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 		u_para=NULL;
 		return -1;
 	}
-
-	if(db_rule->is_hexbin==FALSE)
+	
+	if(db_rule->is_hexbin==FALSE && db_rule->expr_type!=EXPR_TYPE_REGEX)
 	{
 		for(j=0;j<MAX_CHARSET_NUM;j++)
 		{
@@ -1247,10 +1233,6 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 										,region_str_len
 										,key_left_offset[k]
 										,key_right_offset[k]);
-				if(db_rule->expr_type==EXPR_TYPE_REGEX)
-				{
-					p_rule->rule_type=RULETYPE_REG;
-				}
 				op_expr_add_rule(op_expr, p_rule);
 				free(region_string);
 				region_string=NULL;
@@ -1274,7 +1256,7 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 		}
 	
 	}
-	else
+	else //For hexbin and regex, no need to do charset conversion.
 	{
 		expr_id=scanner->exprid_generator++;
 		Maat_region_inner_add_expr_id(u_para, expr_id);
@@ -1285,20 +1267,35 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 								);
 		for(k=0;k<sub_expr_cnt;k++)
 		{
-			region_str_len=strlen(sub_key_array[k])+1;
-			region_string=ALLOC(char, region_str_len);
-			region_str_len=hex2bin(sub_key_array[k], strlen(sub_key_array[k]), region_string, region_str_len);
-			
-			p_rule=create_rs_str_rule(make_sub_type(table->table_id,dst_charset,expr_desc->do_charset_merge),
-									db_rule->match_method,
-									db_rule->is_case_sensitive,
-									region_string,
-									region_str_len,
-									key_left_offset[k],
-									key_right_offset[k]);
+			if(db_rule->expr_type==EXPR_TYPE_REGEX)
+			{
+				p_rule=create_rs_str_rule(make_sub_type(table->table_id,dst_charset,expr_desc->do_charset_merge),
+										db_rule->match_method,
+										db_rule->is_case_sensitive,
+										sub_key_array[k],
+										strlen(sub_key_array[k]),
+										key_left_offset[k],
+										key_right_offset[k]);
+				p_rule->rule_type=RULETYPE_REG;
+			}
+			else
+			{
+				region_str_len=strlen(sub_key_array[k])+1;
+				region_string=ALLOC(char, region_str_len);
+				region_str_len=hex2bin(sub_key_array[k], strlen(sub_key_array[k]), region_string, region_str_len);
+				
+				p_rule=create_rs_str_rule(make_sub_type(table->table_id,dst_charset,expr_desc->do_charset_merge),
+										db_rule->match_method,
+										db_rule->is_case_sensitive,
+										region_string,
+										region_str_len,
+										key_left_offset[k],
+										key_right_offset[k]);
+				
+				free(region_string);
+				region_string=NULL;
+			}
 			op_expr_add_rule(op_expr, p_rule);
-			free(region_string);
-			region_string=NULL;
 		}
 		MESA_lqueue_join_tail(scanner->region_update_q,&op_expr, sizeof(void*));
 	}
@@ -1444,7 +1441,7 @@ void update_group2compile_rule(struct Maat_table_schema* table, const char* tabl
 											&(db_g2c_rule.not_flag),
 											virtual_table_name,
 											&(db_g2c_rule.Nth_clause));
-	if(ret!=5)
+	if(ret!=6)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
 							"update error, invalid format of group2compile table %s:%s",
