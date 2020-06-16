@@ -115,7 +115,7 @@ struct db_group2compile_rule
 	int is_valid;
 	int not_flag;
 	int virtual_table_id;
-	int Nth_clause;
+	int clause_index;
 };
 struct db_group_rule_t
 {

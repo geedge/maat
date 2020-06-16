@@ -38,8 +38,8 @@ void* Maat_hierarchy_compile_read_user_data(struct Maat_hierarchy* hier, int com
 void* Maat_hierarchy_region_dettach_user_data(struct Maat_hierarchy* hier, int region_id);
 
 
-int Maat_hierarchy_add_group_to_compile(struct Maat_hierarchy* hier, int group_id, int vt_id, int not_flag, int Nth_clause, int compile_id);
-int Maat_hierarchy_remove_group_from_compile(struct Maat_hierarchy* hier, int group_id, int vt_id, int not_flag, int Nth_clause, int compile_id);
+int Maat_hierarchy_add_group_to_compile(struct Maat_hierarchy* hier, int group_id, int vt_id, int not_flag, int clause_index, int compile_id);
+int Maat_hierarchy_remove_group_from_compile(struct Maat_hierarchy* hier, int group_id, int vt_id, int not_flag, int clause_index, int compile_id);
 int Maat_hierarchy_add_group_to_group(struct Maat_hierarchy* hier, int group_id, int superior_group_id);
 int Maat_hierarchy_remove_group_from_group(struct Maat_hierarchy* hier, int group_id, int superior_group_id);
 

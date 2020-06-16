@@ -1786,7 +1786,7 @@
 		            	"group_name":"ipv4_composition.session",
 		            	"virtual_table":"COMPOSITION_IP_SESSION",
 		                "not_flag":0,
-						"nth_clause":1
+						"clause_index":1
 						
 		            }          
 		        ]
@@ -1804,25 +1804,25 @@
 		            		"group_name":"ASN1234",
 										"virtual_table":"SOURCE_IP_ASN",
 		                "not_flag":0,
-		                "nth_clause":1
+		                "clause_index":0
 		            },
 		            {
 		            		"group_name":"financial-department-ip",
 										"virtual_table":"null",
 		                "not_flag":0,
-		                "nth_clause":1
+		                "clause_index":0
 		            },
 		            {
 		            		"group_name":"Country-Sparta-IP",
 										"virtual_table":"SOURCE_IP_GEO",
 		                "not_flag":0,
-		                "nth_clause":1           
+		                "clause_index":0           
 		            }, 		  		             		                  	
 		            {
 		            		"group_name":"ASN2345",
 		            		"virtual_table":"DESTINATION_IP_ASN",
 		                "not_flag":0,
-		                "nth_clause":2                   
+		                "clause_index":1                   
 		            }
             ]
         }

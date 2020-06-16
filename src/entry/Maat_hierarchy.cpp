@@ -15,7 +15,7 @@
 #define module_maat_hierarchy	"MAAT_HIERARCHY"
 
 
-#define	TO_CLAUSE_ID(Nth_clause, compile_id)	((long long)Nth_clause<<32|compile_id)
+#define	TO_CLAUSE_ID(clause_index, compile_id)	((long long)clause_index<<32|compile_id)
 #define	TO_CLAUSE_ID_COMPATBILE(vid, gid)	((unsigned long long)vid<<32|gid)
 #define	TO_LITERAL_ID(vt_id, group_id)	((long long)vt_id<<32|group_id)
 
@@ -54,7 +54,7 @@ struct Maat_hierarchy_literal_id
 };
 struct Maat_hierarchy_clause_id
 {
-	int Nth_clause;
+	int clause_index;
 	int compile_id;
 };
 struct Maat_hierarchy_clause
@@ -153,10 +153,10 @@ static void Maat_hierarchy_literal_free(struct Maat_hierarchy* hier, struct Maat
 	HASH_DELETE(hh, hier->hash_literal_by_id, literal);	
 	free(literal);	
 }
-static int Maat_hierarchy_literal_join_clause(struct Maat_hierarchy_literal* literal, int not_flag, int Nth_clause, int compile_id)
+static int Maat_hierarchy_literal_join_clause(struct Maat_hierarchy_literal* literal, int not_flag, int clause_index, int compile_id)
 {
 	struct Maat_hierarchy_clause* clause=NULL;
-	struct Maat_hierarchy_clause_id clause_id={Nth_clause, compile_id};
+	struct Maat_hierarchy_clause_id clause_id={clause_index, compile_id};
 	HASH_FIND(hh, literal->hash_clause_by_id, &clause_id, sizeof(clause_id), clause);
 	if(clause)
 	{
@@ -169,10 +169,10 @@ static int Maat_hierarchy_literal_join_clause(struct Maat_hierarchy_literal* lit
 	HASH_ADD(hh, literal->hash_clause_by_id, clause_id, sizeof(clause->clause_id), clause);
 	return 0;
 }
-static int Maat_hierarchy_literal_leave_clause(struct Maat_hierarchy_literal* literal, int Nth_clause, int compile_id)
+static int Maat_hierarchy_literal_leave_clause(struct Maat_hierarchy_literal* literal, int clause_index, int compile_id)
 {
 	struct Maat_hierarchy_clause* clause=NULL;
-	struct Maat_hierarchy_clause_id clause_id={Nth_clause, compile_id};
+	struct Maat_hierarchy_clause_id clause_id={clause_index, compile_id};
 	HASH_FIND(hh, literal->hash_clause_by_id, &clause_id, sizeof(clause_id), clause);
 	if(!clause)
 	{
@@ -485,7 +485,7 @@ static void Maat_hierarchy_group_free(struct Maat_hierarchy* hier, struct Maat_h
 	return;
 }
 
-int Maat_hierarchy_add_group_to_compile(struct Maat_hierarchy* hier, int group_id, int vt_id, int not_flag, int Nth_clause, int compile_id)
+int Maat_hierarchy_add_group_to_compile(struct Maat_hierarchy* hier, int group_id, int vt_id, int not_flag, int clause_index, int compile_id)
 {
 	int ret=0;
 	struct Maat_hierarchy_group* group=NULL;
@@ -503,12 +503,12 @@ int Maat_hierarchy_add_group_to_compile(struct Maat_hierarchy* hier, int group_i
 	{
 		literal=Maat_hierarchy_literal_new(hier, group_id, vt_id);
 	}
-	ret=Maat_hierarchy_literal_join_clause(literal, not_flag, Nth_clause, compile_id);	
+	ret=Maat_hierarchy_literal_join_clause(literal, not_flag, clause_index, compile_id);	
 	if(ret<0)
 	{
 		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, module_maat_hierarchy,
 					"Add group %d vt_id %d to clause %d of compile %d failed, group is already exisited.",
-					group_id, vt_id, Nth_clause, compile_id);
+					group_id, vt_id, clause_index, compile_id);
 		ret=-1;
 	}
 	else
@@ -519,7 +519,7 @@ int Maat_hierarchy_add_group_to_compile(struct Maat_hierarchy* hier, int group_i
 	pthread_rwlock_unlock(&hier->rwlock);
 	return ret;
 }
-int Maat_hierarchy_remove_group_from_compile(struct Maat_hierarchy* hier, int group_id, int vt_id, int not_flag, int Nth_clause, int compile_id)
+int Maat_hierarchy_remove_group_from_compile(struct Maat_hierarchy* hier, int group_id, int vt_id, int not_flag, int clause_index, int compile_id)
 {
 	struct Maat_hierarchy_group* group=NULL;
 	struct Maat_hierarchy_literal* literal=NULL;
@@ -543,12 +543,12 @@ int Maat_hierarchy_remove_group_from_compile(struct Maat_hierarchy* hier, int gr
 						group_id, compile_id);
 		goto error_out;
 	}
-	ret=Maat_hierarchy_literal_leave_clause(literal, Nth_clause, compile_id);
+	ret=Maat_hierarchy_literal_leave_clause(literal, clause_index, compile_id);
 	if(ret<0)
 	{
 		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, module_maat_hierarchy,
 					"Remove group %d vt_id %d from clause %d of compile %d failed, clause is not exisited.",
-					group_id, vt_id, Nth_clause, compile_id);
+					group_id, vt_id, clause_index, compile_id);
 		goto error_out;
 	}
 	pthread_rwlock_unlock(&hier->rwlock);
@@ -754,18 +754,18 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 	{
 		HASH_ITER(hh, literal->hash_clause_by_id, clause, tmp_clause)
 		{
-			assert(clause->clause_id.Nth_clause<MAX_ITEMS_PER_BOOL_EXPR);
+			assert(clause->clause_id.clause_index<MAX_ITEMS_PER_BOOL_EXPR);
 			HASH_FIND(hh, hier->hash_compile_by_id, &clause->clause_id.compile_id, sizeof(clause->clause_id.compile_id), compile);
 			if(compile)
 			{
-				if(compile->clause_states[clause->clause_id.Nth_clause].in_use==1)
+				if(compile->clause_states[clause->clause_id.clause_index].in_use==1)
 				{
-					assert(compile->clause_states[clause->clause_id.Nth_clause].not_flag==clause->not_flag);
+					assert(compile->clause_states[clause->clause_id.clause_index].not_flag==clause->not_flag);
 				}
 				else
 				{
-					compile->clause_states[clause->clause_id.Nth_clause].in_use=1;
-					compile->clause_states[clause->clause_id.Nth_clause].not_flag=clause->not_flag;
+					compile->clause_states[clause->clause_id.clause_index].in_use=1;
+					compile->clause_states[clause->clause_id.clause_index].not_flag=clause->not_flag;
 				}
 				utarray_push_back(compile->literal_ids, &literal->literal_id);
 			}
@@ -1101,7 +1101,7 @@ void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy_compile_mid* mid, i
 			}
 			HASH_ITER(hh, literal->hash_clause_by_id, clause, tmp_clause)
 			{
-				ret=insert_clause_id(&mid->all_hit_clause_array, &mid->all_hit_clause_array_sz, mid->all_hit_clause_cnt, TO_CLAUSE_ID(clause->clause_id.Nth_clause, clause->clause_id.compile_id));
+				ret=insert_clause_id(&mid->all_hit_clause_array, &mid->all_hit_clause_array_sz, mid->all_hit_clause_cnt, TO_CLAUSE_ID(clause->clause_id.clause_index, clause->clause_id.compile_id));
 				mid->all_hit_clause_cnt+=ret;
 			}
 		}
