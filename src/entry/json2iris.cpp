@@ -952,6 +952,7 @@ void table_idx_write_cb(const uchar * key, uint size, void * data, void * user)
 		assert(ret==0);
 		fwrite(encrypt_buff, encrypt_buff_sz, 1, table_fp);
 		fprintf(p_iris->idx_fp,"%s\t%d\t%s\t%s\n", table->table_name, table->line_count, table->table_path, p_iris->encrypt_algo);
+		free(encrypt_buff);
 	}
 	else
 	{
@@ -1149,7 +1150,7 @@ int write_iris(cJSON *json, struct iris_description_t *p_iris, void* logger)
 			parent_group=group_info_read(p_iris->group_name_map, parent_group_name);
 			if(parent_group==NULL)
 			{
-				parent_group=group_info_add_unsafe(p_iris, p_iris->group_name_map, item->string);
+				parent_group=group_info_add_unsafe(p_iris, p_iris->group_name_map, parent_group_name);
 			}
 			ret=write_group_rule(group_obj, parent_group->group_id, PARENT_TYPE_GROUP, 0, 0, p_iris, logger);
 			if(ret<0)

@@ -1,12 +1,10 @@
 {
-    "compile_table": "COMPILE",
-    "group2compile_table": "GROUP2COMPILE",
+	"compile_table": "COMPILE",
+	"group2compile_table": "GROUP2COMPILE",
 	"group2group_table": "GROUP2GROUP",
     "groups": [		
 			{
 				"group_name": "ASN1234",
-				"parent_group": "SRC_IP_ASN_1234",
-        "virtual_table":"SOURCE_IP_ASN",
         "regions": [
           {
             "table_name": "AS_NUMBER",
@@ -22,14 +20,49 @@
       },
       {
           "group_name": "ASN2345",
-          "parent_group": "DEST_IP_ASN_2345",
-          "virtual_table":"DESTINATION_IP_ASN",
           "regions": [
               {
                   "table_name": "AS_NUMBER",
                   "table_type": "string",
                   "table_content": {
                       "keywords": "AS2345",
+                      "expr_type": "none",
+                      "match_method": "exact",
+                      "format": "uncase plain"
+                  }
+              }
+          ]
+      },
+			{
+	      "group_name": "financial-department-ip",
+	      "regions": [
+	          {
+	              "table_name": "IP_CONFIG",
+	              "table_type": "ip",
+	              "table_content": {
+	                  "addr_type": "ipv4",
+	                  "src_ip": "192.168.40.88",
+	                  "mask_src_ip": "255.255.255.255",
+	                  "src_port": "0",
+	                  "mask_src_port": "65535",
+	                  "dst_ip": "0.0.0.0",
+	                  "mask_dst_ip": "255.255.255.255",
+	                  "dst_port": "0",
+	                  "mask_dst_port": "65535",
+	                  "protocol": 6,
+	                  "direction": "double"
+	              }
+	          }
+	      ]
+	    },
+      {
+          "group_name": "Country-Sparta-IP",
+          "regions": [
+              {
+                  "table_name": "GeoLocation",
+                  "table_type": "string",
+                  "table_content": {
+                      "keywords": "Greece.Sparta",
                       "expr_type": "none",
                       "match_method": "exact",
                       "format": "uncase plain"
@@ -1764,16 +1797,32 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "non-top-object-as-virtual",
+            "user_region": "Hierarchy.TwoVirtualInOneClause",
             "is_valid": "yes",
             "groups": [
 		            {
-		            		"group_name":"SRC_IP_ASN_1234",
-		                "not_flag":0                   
-		            },          	
+		            		"group_name":"ASN1234",
+										"virtual_table":"SOURCE_IP_ASN",
+		                "not_flag":0,
+		                "nth_clause":1
+		            },
 		            {
-		            		"group_name":"DEST_IP_ASN_2345",
-		                "not_flag":0                   
+		            		"group_name":"financial-department-ip",
+										"virtual_table":"null",
+		                "not_flag":0,
+		                "nth_clause":1
+		            },
+		            {
+		            		"group_name":"Country-Sparta-IP",
+										"virtual_table":"SOURCE_IP_GEO",
+		                "not_flag":0,
+		                "nth_clause":1           
+		            }, 		  		             		                  	
+		            {
+		            		"group_name":"ASN2345",
+		            		"virtual_table":"DESTINATION_IP_ASN",
+		                "not_flag":0,
+		                "nth_clause":2                   
 		            }
             ]
         }

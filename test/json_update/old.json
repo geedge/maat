@@ -1,6 +1,7 @@
 {
     "compile_table": "COMPILE",
-    "group_table": "GROUP",
+    "group2compile_table": "GROUP2COMPILE",
+    "group2group_table": "GROUP2GROUP",
     "rules": [
         {
             "compile_id": 1,

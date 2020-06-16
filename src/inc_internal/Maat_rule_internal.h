@@ -262,7 +262,6 @@ struct _Maat_feather_t
 {
 	struct Maat_scanner *scanner;
 	struct Maat_scanner *update_tmp_scanner;
-	MESA_lqueue_head garbage_q;
 	struct Maat_garbage_bin * garbage_bin;
 	struct Maat_table_manager* table_mgr;
 	

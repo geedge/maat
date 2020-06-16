@@ -2596,12 +2596,12 @@ void *thread_rule_monitor(void *arg)
 		}
 	}
 	
-	Maat_table_manager_destroy(feather->table_mgr);
 	destroy_maat_scanner(feather->scanner);
 	Maat_garbage_bin_free(feather->garbage_bin);
+	Maat_table_manager_destroy(feather->table_mgr);//Table manager MUST be freed at last.
 	
 	alignment_int64_array_free(feather->thread_call_cnt);
-	alignment_int64_array_free(feather-> compile_mid_cnt);
+	alignment_int64_array_free(feather->compile_mid_cnt);
 	alignment_int64_array_free(feather->outer_mid_cnt);
 	alignment_int64_array_free(feather->hit_cnt);
 	alignment_int64_array_free(feather->not_grp_hit_cnt);

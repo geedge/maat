@@ -549,13 +549,12 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->logger=logger;
 	feather->scan_thread_num=max_thread_num;
 	
-	feather->garbage_q=MESA_lqueue_create(0,0);
 	feather->effect_interval_ms=60*1000;
 	feather->scan_interval_ms=1*1000;
 	feather->rule_scan_type=2;
 	feather->thread_call_cnt=alignment_int64_array_alloc(max_thread_num);
 	feather->outer_mid_cnt=alignment_int64_array_alloc(max_thread_num);
-	feather-> compile_mid_cnt=alignment_int64_array_alloc(max_thread_num);
+	feather->compile_mid_cnt=alignment_int64_array_alloc(max_thread_num);
 	feather->hit_cnt=alignment_int64_array_alloc(max_thread_num);
 	feather->not_grp_hit_cnt=alignment_int64_array_alloc(max_thread_num);
 	feather->maat_version=0;
