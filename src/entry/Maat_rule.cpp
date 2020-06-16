@@ -1440,7 +1440,7 @@ void update_group2compile_rule(struct Maat_table_schema* table, const char* tabl
 											&(db_g2c_rule.is_valid),
 											&(db_g2c_rule.not_flag),
 											virtual_table_name,
-											&(db_g2c_rule.Nth_clause));
+											&(db_g2c_rule.clause_index));
 	if(ret!=6)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
@@ -1466,7 +1466,7 @@ void update_group2compile_rule(struct Maat_table_schema* table, const char* tabl
 	}
 	if(db_g2c_rule.is_valid==FALSE)
 	{
-		ret=Maat_hierarchy_remove_group_from_compile(scanner->hier, db_g2c_rule.group_id,db_g2c_rule.virtual_table_id, db_g2c_rule.not_flag, db_g2c_rule.Nth_clause, db_g2c_rule.compile_id);
+		ret=Maat_hierarchy_remove_group_from_compile(scanner->hier, db_g2c_rule.group_id,db_g2c_rule.virtual_table_id, db_g2c_rule.not_flag, db_g2c_rule.clause_index, db_g2c_rule.compile_id);
 		if(ret==0)
 		{
 			table_rt->origin_rule_num--;
@@ -1480,7 +1480,7 @@ void update_group2compile_rule(struct Maat_table_schema* table, const char* tabl
 	}
 	else
 	{
-		ret=Maat_hierarchy_add_group_to_compile(scanner->hier, db_g2c_rule.group_id,db_g2c_rule.virtual_table_id, db_g2c_rule.not_flag, db_g2c_rule.Nth_clause, db_g2c_rule.compile_id);
+		ret=Maat_hierarchy_add_group_to_compile(scanner->hier, db_g2c_rule.group_id,db_g2c_rule.virtual_table_id, db_g2c_rule.not_flag, db_g2c_rule.clause_index, db_g2c_rule.compile_id);
 		if(ret==0)
 		{
 			table_rt->origin_rule_num++;

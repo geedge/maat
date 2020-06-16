@@ -798,30 +798,40 @@ int write_region_rule(cJSON* region_json, int compile_id, int group_id, iris_des
 
 int write_compile_line(cJSON *compile, struct iris_description_t *p_iris, void * logger)
 {
-	int compile_id=-1,cmd_cnt=0,ret=-1, clause_num=0, group_num=0, i=0, nth_clause=0;
+	int compile_id=-1,cmd_cnt=0,ret=-1, clause_num=0, group_num=0, i=0, clause_index=0;
 	cJSON* item=NULL;
 	struct iris_table_t* table_info=NULL;
 	cJSON* group_array=NULL, *group_obj=NULL;
 	int* clause_ids=NULL;
+	
+	item=cJSON_GetObjectItem(compile,"compile_id");
+	if(item->type!=cJSON_Number)
+	{
+		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
+								"compile_id format not number.");
+		return -1;
+	}
+	compile_id=item->valueint;
+
 	group_array=cJSON_GetObjectItem(compile, "groups");
 	group_num=cJSON_GetArraySize(group_array);
 	clause_ids=ALLOC(int, group_num);
-	cJSON_ArrayForEach(group_obj, group_array);
+	cJSON_ArrayForEach(group_obj, group_array)
 	{
-		item=cJSON_GetObjectItem(compile,"nth_clause");
+		item=cJSON_GetObjectItem(group_obj, "clause_index");
 		if(item)
 		{
-			nth_clause=item->valueint;
+			clause_index=item->valueint;
 			for(i=0; i<clause_num; i++)
 			{
-				if(clause_ids[i]==nth_clause)
+				if(clause_ids[i]==clause_index)
 				{
 					break;
 				}
 			}
 			if(i==clause_num)
 			{
-				clause_ids[clause_num]=nth_clause;
+				clause_ids[clause_num]=clause_index;
 				clause_num++;
 			}			
 		}
@@ -830,7 +840,7 @@ int write_compile_line(cJSON *compile, struct iris_description_t *p_iris, void *
 	clause_ids=NULL;
 	if(clause_num==0)
 	{
-		clause_num=cJSON_GetArraySize(group_array);
+		clause_num=group_num;
 	}
 
 	cJSON_AddNumberToObject(compile, "clause_num", clause_num);
@@ -901,21 +911,13 @@ int write_compile_line(cJSON *compile, struct iris_description_t *p_iris, void *
 	{
 		return -1;
 	}
-	item=cJSON_GetObjectItem(compile,"compile_id");
-	if(item->type!=cJSON_Number)
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
-								"compile_id format not number.");
-		return -1;
-	}
-	compile_id=item->valueint;
 	return compile_id;
 }
-int write_group2compile_line(int group_id, int compile_id, int group_not_flag, int Nth_clause, const char* virtual_table, struct iris_description_t *p_iris, void * logger)
+int write_group2compile_line(int group_id, int compile_id, int group_not_flag, int clause_index, const char* virtual_table, struct iris_description_t *p_iris, void * logger)
 {
 	char buff[1024*4];
 	struct iris_table_t* table=p_iris->group2compile_table;
-	snprintf(buff, sizeof(buff), "%d\t%d\t1\t%d\t%s\t%d\n", group_id, compile_id, group_not_flag, virtual_table, Nth_clause);
+	snprintf(buff, sizeof(buff), "%d\t%d\t1\t%d\t%s\t%d\n", group_id, compile_id, group_not_flag, virtual_table, clause_index);
 	table->write_pos+=memcat(&(table->buff), table->write_pos, &(table->buff_sz), buff, strlen(buff));
 	table->line_count++;
 	return 0;
@@ -1006,7 +1008,7 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 {
 	const char* _str_parent_type[2]={"compile", "group"};
 	int ret=0, i=0;
-	int group_not_flag=0, Nth_clause=0;
+	int group_not_flag=0, clause_index=0;
 	cJSON *region_json=NULL, *item=NULL;
 	cJSON *sub_groups=NULL, *region_rule=NULL;
 	const char* group_name=NULL, *virtual_table=NULL;
@@ -1041,14 +1043,14 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 		{
 			group_not_flag=item->valueint;
 		}
-		item=cJSON_GetObjectItem(group_json,"Nth_clause");
+		item=cJSON_GetObjectItem(group_json,"clause_index");
 		if(item==NULL||item->type!=cJSON_Number)
 		{
-			Nth_clause=Nth_group;
+			clause_index=Nth_group;
 		}
 		else
 		{
-			Nth_clause=item->valueint;
+			clause_index=item->valueint;
 		}
 	}
 	else
@@ -1097,7 +1099,7 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 	}
 	if(parent_type==PARENT_TYPE_COMPILE)
 	{
-		ret=write_group2compile_line(group_info->group_id, parent_id, group_not_flag, Nth_clause, virtual_table, p_iris, logger);
+		ret=write_group2compile_line(group_info->group_id, parent_id, group_not_flag, clause_index, virtual_table, p_iris, logger);
 	}
 	else
 	{

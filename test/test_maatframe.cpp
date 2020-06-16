@@ -2103,7 +2103,7 @@ int test_add_expr_command(Maat_feather_t feather,const char* region_table,int co
 	g2c.group_id=Maat_cmd_get_new_group_id(feather);
 	g2c.table_name="GROUP2COMPILE";
 	g2c.compile_id=config_id;
-	g2c.Nth_clause=1;
+	g2c.clause_index=1;
 	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &g2c);
 	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region, g2c.group_id);
 	return 0;
@@ -2140,7 +2140,7 @@ TEST_F(MaatCmdTest, SetIP)
 	memset(&g2c, 0, sizeof(g2c));
 	g2c.group_id=Maat_cmd_get_new_group_id(feather);
 	g2c.compile_id=compile.config_id;
-	g2c.Nth_clause=1;
+	g2c.clause_index=1;
 	g2c.table_name="GROUP2COMPILE";
 	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &g2c);
 
@@ -2401,7 +2401,7 @@ TEST_F(MaatCmdTest,    SubGroup)
 	group1.group_id=Maat_cmd_get_new_group_id(feather);
 	group1.table_name=g2c_tn;
 	group1.compile_id=compile1.config_id;
-	group1.Nth_clause=1;
+	group1.clause_index=1;
 	group1.not_flag=0;
 	group1.virtual_table_name="null";
 	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group1);
@@ -2651,7 +2651,7 @@ TEST_F(MaatCmdTest,   VirtualTable)
 	group1.table_name=g2c_tn;
 	group1.virtual_table_name="HTTP_REQUEST_HEADER";
 	group1.compile_id=compile1.config_id;
-	group1.Nth_clause=1;
+	group1.clause_index=1;
 	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group1);
 
 
@@ -2673,7 +2673,7 @@ TEST_F(MaatCmdTest,   VirtualTable)
 	group2.table_name=g2c_tn;
 	group2.virtual_table_name="HTTP_RESPONSE_HEADER";
 	group2.compile_id=compile1.config_id;
-	group2.Nth_clause=2;
+	group2.clause_index=2;
 	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group2);
 
 
@@ -3094,7 +3094,7 @@ TEST_F(MaatCmdTest,    HitPath)
 	group1.table_name=g2c_tn;
 	group1.virtual_table_name="HTTP_REQUEST_HEADER";
 	group1.compile_id=compile1.config_id;
-	group1.Nth_clause=1;
+	group1.clause_index=1;
 	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group1);
 
 
@@ -3119,7 +3119,7 @@ TEST_F(MaatCmdTest,    HitPath)
 	group21.table_name=g2c_tn;
 	group21.virtual_table_name="HTTP_RESPONSE_HEADER";
 	group21.compile_id=compile1.config_id;
-	group21.Nth_clause=2;
+	group21.clause_index=2;
 	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group21);
 
 	

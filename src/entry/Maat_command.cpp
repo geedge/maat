@@ -260,7 +260,7 @@ void serialize_group2compile(enum MAAT_OPERATION op, const struct Maat_cmd_group
 								op,
 								g2c->not_flag,
 								g2c->virtual_table_name?g2c->virtual_table_name:"null",
-								g2c->Nth_clause==0?1:g2c->Nth_clause);
+								g2c->clause_index);
 	return;
 }
 void serialize_compile(const struct Maat_rule_t* p_m_rule, const char* huge_service_defined, int clause_num, enum MAAT_OPERATION op, char* buff, size_t sz)

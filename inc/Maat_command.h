@@ -175,7 +175,7 @@ struct Maat_cmd_group2compile
 	const char* virtual_table_name;
 	int group_id;
 	int compile_id;
-	int Nth_clause;
+	int clause_index;
 	int not_flag;
 };
 
