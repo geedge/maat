@@ -71,6 +71,7 @@ void EX_data_rt_free(struct EX_data_rt* p)
 		p->cache_rows=NULL;
 	}
 	MESA_htable_destroy(p->key2ex_hash, NULL);
+	free(p);
 	return;
 }
 void EX_data_rt_cache_row(struct EX_data_rt* p, const char* row)

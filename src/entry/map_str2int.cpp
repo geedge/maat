@@ -100,6 +100,7 @@ void duplicate_func(const uchar * key, uint size, void * data, void * user)
 	memcpy(string,key,size);
 	ret=map_register(target,string,value);
 	assert(ret>0);
+	free(string);
 }
 MESA_htable_handle map_duplicate(MESA_htable_handle origin_map)
 {

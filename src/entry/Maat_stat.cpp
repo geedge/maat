@@ -1,5 +1,6 @@
 #include "Maat_rule_internal.h"
 #include "Maat_table.h"
+#include "Maat_garbage_collection.h"
 #include "alignment_int64.h"
 #include <time.h>
 #include <MESA/field_stat.h>
@@ -196,7 +197,7 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_CMD_Q_SIZE], 0,FS_OP_SET,feather->cmd_q_cnt);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_CMD_LINE_NUM], 0,FS_OP_SET,feather->line_cmd_acc_num);
 
-	value=MESA_lqueue_get_count(feather->garbage_q);
+	value=Maat_garbage_bin_get_size(feather->garbage_bin);
 	FS_operate(feather->stat_handle, feather->fs_status_id[STATUS_GARBAGE_QSIZE], 0,FS_OP_SET,value);
 	feather->update_err_cnt=0;
 	feather->iconv_err_cnt=0;

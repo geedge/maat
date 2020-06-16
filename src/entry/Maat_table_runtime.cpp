@@ -343,6 +343,7 @@ void Maat_table_runtime_digest_add(struct Maat_table_runtime* table_rt, int expr
 								confidence_degree,
 								tag);
 	MESA_lqueue_join_tail(table_rt->similar.update_q, &digest_rule, sizeof(void*));
+	free(dup_digest);
 	return;
 }
 void Maat_table_runtime_digest_del(struct Maat_table_runtime* table_rt, int expr_id)

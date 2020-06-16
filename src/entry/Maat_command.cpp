@@ -219,7 +219,8 @@ int get_valid_flag_offset(const char* line, enum MAAT_TABLE_TYPE type,int valid_
 		case	TABLE_TYPE_EXPR_PLUS:
 			column_seq=8;
 			break;
-		case	TABLE_TYPE_GROUP:
+		case	TABLE_TYPE_GROUP2COMPILE:
+		case	TABLE_TYPE_GROUP2GROUP:
 			column_seq=3;
 			break;
 		default:
@@ -262,12 +263,12 @@ void serialize_group2compile(enum MAAT_OPERATION op, const struct Maat_cmd_group
 								g2c->Nth_clause==0?1:g2c->Nth_clause);
 	return;
 }
-void serialize_compile(const struct Maat_rule_t* p_m_rule, const char* huge_service_defined, int group_num, enum MAAT_OPERATION op, char* buff, size_t sz)
+void serialize_compile(const struct Maat_rule_t* p_m_rule, const char* huge_service_defined, int clause_num, enum MAAT_OPERATION op, char* buff, size_t sz)
 {
 	if(op==MAAT_OP_RENEW_TIMEOUT) op=MAAT_OP_ADD;
 	const char* service_define=huge_service_defined?huge_service_defined:(strlen(p_m_rule->service_defined)?p_m_rule->service_defined:"null");
 
-	snprintf(buff, sz,"%d\t%d\t%hhd\t%hhd\t%hhd\t0\t%s\t%d\t%d", 
+	snprintf(buff, sz, "%d\t%d\t%hhu\t%hhu\t%hhu\t0\t%s\t%d\t%d", 
 		p_m_rule->config_id,
 		p_m_rule->service_id,
 		p_m_rule->action,
@@ -275,7 +276,7 @@ void serialize_compile(const struct Maat_rule_t* p_m_rule, const char* huge_serv
 		p_m_rule->do_log,
 		service_define,
 		op,
-		group_num);
+		clause_num);
 	return;
 }
 void serialize_region(const struct Maat_cmd_region* p, int group_id, char* buff, size_t sz)
@@ -1807,7 +1808,65 @@ void _maat_empty_region(struct Maat_region_t* p)
 	return;
 
 }
+int Maat_cmd_raw_set_lines(Maat_feather_t feather,const struct Maat_cmd_line** line_rule, int line_num ,enum MAAT_OPERATION op)
+{
+	int i=0;
+	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	int ret=0, table_id=0,success_cnt=0;
+	struct serial_rule_t *s_rule=NULL;
+	long long server_time=0,absolute_expire_time=0;
+	redisContext* write_ctx=get_redis_ctx_for_write(_feather);
+	if(write_ctx==NULL)
+	{
+		return -1;
+	}
+	server_time=redis_server_time(write_ctx);
+	if(!server_time)
+	{
+		return -1;
+	}
+	s_rule=ALLOC(struct serial_rule_t, line_num);
+	for(i=0;i<line_num;i++)
+	{
+		table_id=Maat_table_get_id_by_name(_feather->table_mgr, line_rule[i]->table_name);
+		if(table_id<0)
+		{
+			MESA_handle_runtime_log(_feather->logger, RLOG_LV_FATAL, maat_command,
+					"Command raw set line id %d failed: unknown table %s.",
+					line_rule[i]->rule_id,
+					line_rule[i]->table_name);
+			ret=-1;
+			goto error_out;
+		}
+		if(op==MAAT_OP_RENEW_TIMEOUT)
+		{
+			assert(line_rule[i]->expire_after>0);
+		}
+		if(line_rule[i]->expire_after>0)
+		{
+			absolute_expire_time=server_time+line_rule[i]->expire_after;
+		}
+		set_serial_rule(s_rule+i, op,line_rule[i]->rule_id,line_rule[i]->label_id, line_rule[i]->table_name,
+						line_rule[i]->table_line, absolute_expire_time);
+	}
+	success_cnt=exec_serial_rule(write_ctx,s_rule, line_num,server_time,_feather->logger);
+	if(success_cnt<0||success_cnt!=line_num)//error
+	{
+		ret=-1;
+		goto error_out;
+	}
+	ret=success_cnt;
+	_feather->line_cmd_acc_num+=success_cnt;
 
+error_out:
+	for(i=0;i<line_num;i++)
+	{
+		empty_serial_rules(s_rule+i);
+	}
+	free(s_rule);
+	return ret;
+
+}
 int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_cmd_line** line_rule, int line_num ,enum MAAT_OPERATION op)
 {
 	int i=0, j=0;
@@ -2142,6 +2201,7 @@ int redis_flush_DB(redisContext* ctx, int db_index, void* logger)
 int Maat_command_raw_set_compile(Maat_feather_t feather, enum MAAT_OPERATION op, const struct Maat_rule_t* compile, const char* table_name, const char * huge_service_defined, int clause_num,  int label_id, int expire_after)
 {
 	struct Maat_cmd_line line_cmd;
+	const struct Maat_cmd_line *p=NULL;
 	char line[MAX_TABLE_LINE_SIZE];
 	serialize_compile(compile, huge_service_defined, clause_num, op, line, sizeof(line));
 	memset(&line_cmd, 0, sizeof(line_cmd));
@@ -2150,12 +2210,15 @@ int Maat_command_raw_set_compile(Maat_feather_t feather, enum MAAT_OPERATION op,
 	line_cmd.table_line=line;
 	line_cmd.label_id=label_id;
 	line_cmd.expire_after=expire_after;
-	int ret=Maat_cmd_set_line(feather, &line_cmd, op);
+	p=&line_cmd;
+	int ret=Maat_cmd_raw_set_lines(feather, &p, 1, op);
 	return ret;
 }
 int Maat_command_raw_set_region(Maat_feather_t feather,  enum MAAT_OPERATION op, const struct Maat_cmd_region* region, int group_id)
 {
 	struct Maat_cmd_line line_cmd;
+	const struct Maat_cmd_line *p=NULL;
+
 	char line[MAX_TABLE_LINE_SIZE];
 
 	serialize_region(region, group_id, line, sizeof(line));
@@ -2163,12 +2226,15 @@ int Maat_command_raw_set_region(Maat_feather_t feather,  enum MAAT_OPERATION op,
 	line_cmd.table_name=region->table_name;
 	line_cmd.rule_id=region->region_id;
 	line_cmd.table_line=line;
-	int ret=Maat_cmd_set_line(feather, &line_cmd, op);
+	p=&line_cmd;
+	int ret=Maat_cmd_raw_set_lines(feather, &p, 1, op);
 	return ret;
 }
 int Maat_command_raw_set_group2compile(Maat_feather_t feather, enum MAAT_OPERATION op, const struct Maat_cmd_group2compile* g2c)
 {
 	struct Maat_cmd_line line_cmd;
+	const struct Maat_cmd_line *p=NULL;
+
 	char line[MAX_TABLE_LINE_SIZE];
 
 	serialize_group2compile(op, g2c, line, sizeof(line));	
@@ -2177,12 +2243,14 @@ int Maat_command_raw_set_group2compile(Maat_feather_t feather, enum MAAT_OPERATI
 	line_cmd.table_name=g2c->table_name;
 	line_cmd.rule_id=g2c->compile_id*1024*1024+g2c->group_id;
 	line_cmd.table_line=line;
-	int ret=Maat_cmd_set_line(feather, &line_cmd, op);
+	p=&line_cmd;
+	int ret=Maat_cmd_raw_set_lines(feather, &p, 1, op);
 	return ret;
 }
 int Maat_command_raw_set_group2group(Maat_feather_t feather, enum MAAT_OPERATION op, const struct Maat_cmd_group2group* g2g)
 {
 	struct Maat_cmd_line line_cmd;
+	const struct Maat_cmd_line *p=NULL;
 	char line[MAX_TABLE_LINE_SIZE];
 
 	assert(g2g->group_id<1024*1024);
@@ -2191,7 +2259,8 @@ int Maat_command_raw_set_group2group(Maat_feather_t feather, enum MAAT_OPERATION
 	line_cmd.table_name=g2g->table_name;
 	line_cmd.rule_id=g2g->superior_group_id*1024*1024+g2g->group_id;
 	line_cmd.table_line=line;
-	int ret=Maat_cmd_set_line(feather, &line_cmd, op);
+	p=&line_cmd;
+	int ret=Maat_cmd_raw_set_lines(feather, &p, 1, op);
 	return ret;
 }
 

@@ -209,7 +209,7 @@ static struct Maat_hierarchy_compile* Maat_hierarchy_compile_new(struct Maat_hie
 static void Maat_hierarchy_compile_free(struct Maat_hierarchy* hier, struct Maat_hierarchy_compile* compile)
 {
 	HASH_DEL(hier->hash_compile_by_id, compile);
-	if(hier->compile_user_data_free)
+	if(hier->compile_user_data_free && compile->user_data)
 	{
 		hier->compile_user_data_free(compile->user_data);
 	}
@@ -234,7 +234,7 @@ static void Maat_hierarchy_region_free(struct Maat_hierarchy* hier, struct Maat_
 {
 	HASH_DELETE(hh, hier->hash_region_by_id, region);
 	region->ref_parent_group->ref_by_region_cnt--;
-	if(region->user_data)
+	if(hier->region_user_data_free && region->user_data)
 	{
 		hier->region_user_data_free(region->user_data);
 		region->user_data=NULL;
@@ -281,14 +281,6 @@ void Maat_hierarchy_free(struct Maat_hierarchy* hier)
 		Maat_hierarchy_compile_free(hier, compile);
 	}
 	assert(hier->hash_compile_by_id==NULL);
-
-	HASH_CLEAR(hh_vertex_id, hier->hash_group_by_vertex);//No need group memory clean up.
-	HASH_ITER(hh_group_id, hier->hash_group_by_id, group, tmp_group)
-	{
-		HASH_DELETE(hh_group_id, hier->hash_group_by_id, group);
-		_group_vertex_free(group);
-	}
-	assert(hier->hash_group_by_id==NULL);	
 	
 	HASH_ITER(hh, hier->hash_literal_by_id, literal, tmp_literal)
 	{
@@ -301,9 +293,19 @@ void Maat_hierarchy_free(struct Maat_hierarchy* hier)
 		Maat_hierarchy_region_free(hier, region);
 	}
 
+
+	//Free group as the last.
+	HASH_CLEAR(hh_vertex_id, hier->hash_group_by_vertex);//No need group memory clean up.
+	HASH_ITER(hh_group_id, hier->hash_group_by_id, group, tmp_group)
+	{
+		HASH_DELETE(hh_group_id, hier->hash_group_by_id, group);
+		_group_vertex_free(group);
+	}
+	assert(hier->hash_group_by_id==NULL);	
 	
 	igraph_destroy(&hier->group_graph);
-	
+	bool_matcher_free(hier->bm);
+	hier->bm=NULL;
 	pthread_rwlock_unlock(&hier->rwlock);
 	free(hier);
 }
@@ -352,7 +354,7 @@ int Maat_hierarchy_compile_remove(struct Maat_hierarchy * hier, int compile_id)
 	
 	pthread_rwlock_wrlock(&hier->rwlock);
 	HASH_FIND_INT(hier->hash_compile_by_id, &compile_id, compile);
-	if(!compile)
+	if(compile)
 	{
 		Maat_hierarchy_compile_free(hier, compile);
 		ret=0;
@@ -368,7 +370,7 @@ int Maat_hierarchy_compile_remove(struct Maat_hierarchy * hier, int compile_id)
 	pthread_rwlock_unlock(&hier->rwlock);
 	return ret;
 }
-static void* Maat_hier_get_user_data(struct Maat_hierarchy* hier, int compile_id, int is_dettach)
+static void* Maat_hier_compile_get_user_data(struct Maat_hierarchy* hier, int compile_id, int is_dettach)
 {
 	struct Maat_hierarchy_compile* compile=NULL;
 	void* ret=NULL;
@@ -390,13 +392,13 @@ static void* Maat_hier_get_user_data(struct Maat_hierarchy* hier, int compile_id
 void* Maat_hierarchy_compile_dettach_user_data(struct Maat_hierarchy* hier, int compile_id)
 {
 	void* user_data=NULL;
-	user_data=Maat_hier_get_user_data(hier, compile_id, 1);
+	user_data=Maat_hier_compile_get_user_data(hier, compile_id, 1);
 	return user_data;
 }
 void* Maat_hierarchy_compile_read_user_data(struct Maat_hierarchy* hier, int compile_id)
 {
 	void* user_data=NULL;
-	user_data=Maat_hier_get_user_data(hier, compile_id, 0);
+	user_data=Maat_hier_compile_get_user_data(hier, compile_id, 0);
 	return user_data;
 
 }

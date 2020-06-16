@@ -38,10 +38,15 @@ void Maat_garbage_bin_free(struct Maat_garbage_bin* bin)
 		p->garbage_free(p->garbage);
 		TAILQ_REMOVE(&bin->garbage_q, p, entries);
 		free(p);
+		bin->bag_cnt--;
 	}
 
 	free(bin);
 	return;
+}
+size_t  Maat_garbage_bin_get_size(struct Maat_garbage_bin* bin)
+{
+	return bin->bag_cnt;
 }
 void Maat_garbage_bagging(struct Maat_garbage_bin* bin, void* garbage, void (* func)(void *))
 {

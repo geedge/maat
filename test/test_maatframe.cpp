@@ -401,7 +401,7 @@ TEST(StringScan, BugReport20190325)
 						&mid, 0);
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 150);
-
+	Maat_clean_status(&mid);
 }
 #define PrefixAndSuffixTest
 TEST(StringScan, PrefixAndSuffix)
@@ -1731,9 +1731,9 @@ TEST(ScanResult, LongerServiceDefine)
 	free(buff);
 	return;
 }
-TEST(VirtualTable, VirtualWithPhysical)
+TEST(Hierarchy, VirtualWithPhysical)
 {
-#define VT_VirtualWithPhysical
+#define  Hierarchy_VirtualWithPhysical
 	int ret=0, table_id=0;
 	const char* http_content="Batman\\:Take me Home.Superman/:Fine,stay with me.";
 	const char* http_url="https://blog.csdn.net/littlefang/article/details/8213058";
@@ -1760,6 +1760,7 @@ TEST(VirtualTable, VirtualWithPhysical)
 
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 160);	
+	Maat_clean_status(&mid);
 
 	const char* should_not_hit="2018-10-05 is a keywords of table KEYWORDS_TABLE. Should not hit.";
 
@@ -1771,9 +1772,9 @@ TEST(VirtualTable, VirtualWithPhysical)
 
 	return;
 }
-TEST(VirtualTable, VirtualWithVirtual)
+TEST(Hierarchy, VirtualWithVirtual)
 {
-#define VT_VirtualWithVirtual
+#define  Hierarchy_VirtualWithVirtual
 	int ret=0, table_id=0;
 	const char* http_req_hdr_ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36";
 	const char* http_resp_hdr_cookie="uid=12345678;BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; sugstore=1;";
@@ -1811,9 +1812,9 @@ TEST(VirtualTable, VirtualWithVirtual)
 
 	return;
 }
-TEST(VirtualTable, OneGroupInTwoVirtual)
+TEST(Hierarchy, OneGroupInTwoVirtual)
 {
-#define VT_OneGroupInTwoVirtual
+#define Hierarchy_OneGroupInTwoVirtual
 	int ret=0, table_id=0;
 	const char* http_resp_hdr_cookie="sessionid=888888;BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; sugstore=1;";
 	
@@ -1850,31 +1851,78 @@ TEST(VirtualTable, OneGroupInTwoVirtual)
 
 	return;
 }
-TEST(VirtualTable, VirtualAsNonTopObject)
+TEST(Hierarchy, TwoVirtualInOneClause)
 {
-#define VT_AsNonTopObject
+#define Hierarchy_TwoVirtualInOneClause
 	int ret=0, table_id=0;
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
 
 	const char* src_asn="AS1234", *dst_asn="AS2345";
+	const char* my_county="Greece.Sparta";
 	
 	struct Maat_rule_t result[4];
 	memset(result, 0, sizeof(result));
 	
 	scan_status_t mid=NULL;
 
+
+	//--------------------------------------
+	//			Source ASN & Dest ASN
+	//--------------------------------------
+
 	table_id=Maat_table_register(g_feather, "SOURCE_IP_ASN");	
 	ASSERT_GT(table_id, 0);
-	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, src_asn, strlen(src_asn), 
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_UTF8, src_asn, strlen(src_asn), 
 						result, NULL, 4, &mid, 0);
 	EXPECT_EQ(ret, -2);
-	
 
 	table_id=Maat_table_register(g_feather, "DESTINATION_IP_ASN");	
 	ASSERT_GT(table_id, 0);
-	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, dst_asn, strlen(dst_asn), 
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_UTF8, dst_asn, strlen(dst_asn), 
 						result, NULL, 4, &mid, 0);
 	EXPECT_EQ(ret, 1);
-	EXPECT_EQ(result[0].config_id, 178);	
+	EXPECT_EQ(result[0].config_id, 178);
+
+	Maat_clean_status(&mid);
+
+	
+	//--------------------------------------
+	//			Source IP & Dest ASN
+	//--------------------------------------
+	ipv4_addr_set(&ipv4_addr, &v4_addr, "192.168.40.88", 8888, "47.92.55.81", 443);
+	
+	table_id=Maat_table_register(g_feather, "IP_CONFIG");	
+	ASSERT_GT(table_id, 0);
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid, 0);
+
+	EXPECT_EQ(ret, -2);
+
+	table_id=Maat_table_register(g_feather, "DESTINATION_IP_ASN");	
+	ASSERT_GT(table_id, 0);
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_UTF8, dst_asn, strlen(dst_asn), 
+						result, NULL, 4, &mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 178);
+	
+	Maat_clean_status(&mid);	
+
+	//--------------------------------------
+	//			Source Geo & Dest ASN
+	//--------------------------------------
+
+	table_id=Maat_table_register(g_feather, "SOURCE_IP_GEO");	
+	ASSERT_GT(table_id, 0);
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_UTF8, my_county, strlen(my_county), 
+						result, NULL, 4, &mid, 0);
+	EXPECT_EQ(ret, -2);
+
+	table_id=Maat_table_register(g_feather, "DESTINATION_IP_ASN");	
+	ASSERT_GT(table_id, 0);
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_UTF8, dst_asn, strlen(dst_asn), 
+						result, NULL, 4, &mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 178);
 
 	Maat_clean_status(&mid);
 
@@ -1890,7 +1938,7 @@ protected:
 	{
 		const char* rule_folder="./ntcrule/full/index";
 	  	logger=MESA_create_runtime_log_handle("test_maat_file.log",0);
-		const char* table_info="./t2_tableinfo.conf";
+		const char* table_info="./file_test_tableinfo.conf";
 		_shared_feather_f=Maat_feather(g_iThreadNum, table_info, logger);
 		Maat_set_feather_opt(_shared_feather_f,MAAT_OPT_INSTANCE_NAME,"files", strlen("files")+1);
 		Maat_set_feather_opt(_shared_feather_f, MAAT_OPT_FULL_CFG_DIR, rule_folder, strlen(rule_folder)+1);
@@ -2032,11 +2080,11 @@ int test_add_expr_command(Maat_feather_t feather,const char* region_table,int co
 {
 	char huge_serv_def[1024*2];
 	memset(huge_serv_def,'s',sizeof(huge_serv_def)-1);
-	
+	huge_serv_def[sizeof(huge_serv_def)-1]='\0';
 	struct Maat_rule_t compile;
-	memset(&compile,0,sizeof(compile));
+	memset(&compile, 0, sizeof(compile));
 	compile.config_id=config_id;
-	strcpy(compile.service_defined,"maat_command");
+	strcpy(compile.service_defined, "maat_command");
 	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile, "COMPILE", huge_serv_def, 1, label_id, timeout);
 
 	struct Maat_cmd_region region;
@@ -2053,7 +2101,7 @@ int test_add_expr_command(Maat_feather_t feather,const char* region_table,int co
 	struct Maat_cmd_group2compile g2c;
 	memset(&g2c, 0, sizeof(g2c));
 	g2c.group_id=Maat_cmd_get_new_group_id(feather);
-	g2c.table_name="GROUP";
+	g2c.table_name="GROUP2COMPILE";
 	g2c.compile_id=config_id;
 	g2c.Nth_clause=1;
 	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &g2c);
@@ -2079,7 +2127,7 @@ TEST_F(MaatCmdTest, SetIP)
 	int ret=0;
 	memset(&compile, 0, sizeof(compile));
 	Maat_feather_t feather=MaatCmdTest::_shared_feather;
-	
+
 	//MUST acquire by Maat_cmd_incrby to guarantee a unique compile ID.
 	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
 	compile.config_id=config_id;
@@ -2093,10 +2141,13 @@ TEST_F(MaatCmdTest, SetIP)
 	g2c.group_id=Maat_cmd_get_new_group_id(feather);
 	g2c.compile_id=compile.config_id;
 	g2c.Nth_clause=1;
+	g2c.table_name="GROUP2COMPILE";
 	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &g2c);
+
 
 	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
 	EXPECT_EQ(ret, 0);
+	
 
 	struct Maat_cmd_region region;
 	memset(&region, 0, sizeof(region));
@@ -2143,9 +2194,9 @@ TEST_F(MaatCmdTest, SetIP)
 	
 	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
 
-	Maat_command_raw_set_compile(feather, MAAT_OP_RENEW_TIMEOUT, &compile, "COMPILE", NULL, 1, 0, timeout+5);
+	Maat_command_raw_set_compile(feather, MAAT_OP_RENEW_TIMEOUT, &compile, "COMPILE", NULL, 1, 0, timeout);
 	
-	sleep(timeout+5);
+	sleep(timeout-1);
 	ret=Maat_scan_proto_addr(feather,table_id,&ipv4_addr,6,&result,1, &mid,0);
 	EXPECT_EQ(ret, 1);
 
@@ -2215,7 +2266,7 @@ TEST_F(MaatCmdTest, SetExpr)
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
 						&result,NULL, 1,
 						&mid, 0);
-	EXPECT_EQ(ret, 0);
+	EXPECT_EQ(ret, -2); //compile is deleted, but region and groups are still there.
 	Maat_clean_status(&mid);
 	
 	timeout=1;
@@ -2226,7 +2277,7 @@ TEST_F(MaatCmdTest, SetExpr)
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
 						&result,NULL, 1,
 						&mid, 0);
-	EXPECT_EQ(ret, 0);	
+	EXPECT_EQ(ret, -2);	
 	Maat_clean_status(&mid);
 }
 TEST_F(MaatCmdTest,   RuleIDRecycle)
@@ -2262,7 +2313,7 @@ TEST_F(MaatCmdTest,   RuleIDRecycle)
 						&result, NULL, 1,
 						&mid, 0);
 	Maat_clean_status(&mid);
-	EXPECT_EQ(ret, 0);
+	EXPECT_EQ(ret, -2);
 
 	test_add_expr_command(feather,table_name,rule_id, 0, label_id, keywords);
 
@@ -2320,7 +2371,8 @@ TEST_F(MaatCmdTest,    SubGroup)
 {
 
 	const char* table_name="HTTP_URL";
-	const char* group_table_name="GROUP";
+	const char* g2c_tn="GROUP2COMPILE";
+	const char* g2g_tn="GROUP2GROUP";
 	const char* compile_table_name="COMPILE";
 	const char* scan_data1="www.v2ex.com/t/573028#程序员的核心竞争力是什么";
 	const char* keyword1="程序员&核心竞争力";
@@ -2347,7 +2399,7 @@ TEST_F(MaatCmdTest,    SubGroup)
 	//group1->compile1
 	memset(&group1, 0, sizeof(group1));
 	group1.group_id=Maat_cmd_get_new_group_id(feather);
-	group1.table_name=group_table_name;
+	group1.table_name=g2c_tn;
 	group1.compile_id=compile1.config_id;
 	group1.Nth_clause=1;
 	group1.not_flag=0;
@@ -2364,7 +2416,7 @@ TEST_F(MaatCmdTest,    SubGroup)
 	*/
 	memset(&group2, 0, sizeof(group2));
 	group2.group_id=Maat_cmd_get_new_group_id(feather);
-	group2.table_name=group_table_name;
+	group2.table_name=g2g_tn;
 	group2.superior_group_id=group1.group_id;
 
 	Maat_command_raw_set_group2group(feather, MAAT_OP_ADD, &group2);
@@ -2420,7 +2472,7 @@ TEST_F(MaatCmdTest,    SubGroup)
 
 	memset(&group2_g2c, 0, sizeof(group2_g2c));
 	group2_g2c.group_id=group2.group_id;
-	group2_g2c.table_name=group2.table_name;
+	group2_g2c.table_name=g2c_tn;
 	group2_g2c.compile_id=compile2.config_id;
 	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group2_g2c);
 
@@ -2444,7 +2496,7 @@ TEST_F(MaatCmdTest,    SubGroup)
 	memset(&group3, 0, sizeof(group3));
 	group3.group_id=Maat_cmd_get_new_group_id(feather);
 	group3.superior_group_id=group1.group_id;
-	group3.table_name=group_table_name;
+	group3.table_name=g2g_tn;
 	Maat_command_raw_set_group2group(feather, MAAT_OP_ADD, &group3);
 
 	memset(&region2, 0, sizeof(region2));
@@ -2486,12 +2538,11 @@ TEST_F(MaatCmdTest,    SubGroup)
 
 }
 #define MaatCmdTest_RefGroup	0
-/*
 TEST_F(MaatCmdTest,    RefGroup)
 {
 
 	const char* table_name="HTTP_URL";
-	const char* group_table_name="GROUP";
+	const char* g2c_tn="GROUP2COMPILE";
 	const char* compile_table_name="COMPILE";
 	const char* scan_data1="m.facebook.com/help/2297503110373101?helpref=hc_nav&refid=69";
 	const char* keyword1="something-should-not-hit";
@@ -2501,23 +2552,23 @@ TEST_F(MaatCmdTest,    RefGroup)
 	int table_id=0;
 	table_id=Maat_table_register(feather, table_name);
 	struct Maat_rule_t compile1;
-	struct Maat_group_t group1, group2;
-	struct Maat_region_t region1, region2;
+	struct Maat_cmd_group2compile group1, group2;
+
+	struct Maat_cmd_region region1, region2;
 	
 	int value=0;
 	Maat_set_feather_opt(feather, MAAT_OPT_ENABLE_UPDATE, &value, sizeof(value));
 
 	memset(&compile1, 0, sizeof(compile1));
 	compile1.config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
-	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 1);
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 1, 0, 0);
 
 	//group1->compile1
 	memset(&group1, 0, sizeof(group1));
 	group1.group_id=Maat_cmd_get_new_group_id(feather);
-	group1.table_name=group_table_name;
-	group1.parent_id=compile1.config_id;
-	group1.parent_type=PARENT_TYPE_COMPILE;
-	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group1);
+	group1.table_name=g2c_tn;
+	group1.compile_id=compile1.config_id;
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group1);
 
 
 	//region1->group1->compile1
@@ -2537,12 +2588,13 @@ TEST_F(MaatCmdTest,    RefGroup)
 	value=0;
 	Maat_set_feather_opt(feather, MAAT_OPT_ENABLE_UPDATE, &value, sizeof(value));
 	//region1->group1-X-compile1
-	//region2->group2->compile1
+	//                   /
+	//                  / 
+	//    region2->group2
 	memset(&group2, 0, sizeof(group2));
 	group2.group_id=Maat_cmd_get_new_group_id(feather);
-	group2.table_name=group_table_name;
-	group2.parent_id=compile1.config_id;
-	group2.parent_type=PARENT_TYPE_COMPILE;
+	group2.table_name=g2c_tn;
+	group2.compile_id=compile1.config_id;
 
 	memset(&region2, 0, sizeof(region2));
 	region2.region_id=Maat_cmd_get_new_region_id(feather);
@@ -2553,10 +2605,10 @@ TEST_F(MaatCmdTest,    RefGroup)
 	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region2, group2.group_id);
 
 
-	Maat_command_raw_set_compile(feather, MAAT_OP_DEL, &compile1, compile_table_name, NULL, 1);	
-	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 1);	
-	Maat_command_raw_set_group(feather, MAAT_OP_DEL, &group1);
-	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group2);
+	Maat_command_raw_set_compile(feather, MAAT_OP_DEL, &compile1, compile_table_name, NULL, 1, 0, 0);	
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 1, 0, 0);	
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_DEL, &group1);
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group2);
 	value=1;
 	Maat_set_feather_opt(feather, MAAT_OPT_ENABLE_UPDATE, &value, sizeof(value));
 	
@@ -2575,31 +2627,32 @@ TEST_F(MaatCmdTest,    RefGroup)
 	Maat_clean_status(&mid);
 
 }
+
 #define MaatCmdTest_VirtualTable
 TEST_F(MaatCmdTest,   VirtualTable)
 {
 	Maat_feather_t feather=MaatCmdTest::_shared_feather;
-	const char* group_table_name="GROUP";
+	const char* g2c_tn="GROUP2COMPILE";
 	const char* compile_table_name="COMPILE";
 	const char* region_table_name="HTTP_SIGNATURE";
 
 	struct Maat_rule_t compile1;
-	struct Maat_group_t group1, group2;
-	struct Maat_region_t region1, region2;
+	struct Maat_cmd_group2compile group1, group2;
+	struct Maat_cmd_region region1, region2;
 
 	memset(&compile1, 0, sizeof(compile1));
 	compile1.config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
-	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 2);
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 2, 0, 0);
 
 	
 	//group1->compile1
 	memset(&group1, 0, sizeof(group1));
 	group1.group_id=Maat_cmd_get_new_group_id(feather);
-	group1.table_name=group_table_name;
+	group1.table_name=g2c_tn;
 	group1.virtual_table_name="HTTP_REQUEST_HEADER";
-	group1.parent_id=compile1.config_id;
-	group1.parent_type=PARENT_TYPE_COMPILE;
-	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group1);
+	group1.compile_id=compile1.config_id;
+	group1.Nth_clause=1;
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group1);
 
 
 	//region1->group1->compile1
@@ -2612,17 +2665,22 @@ TEST_F(MaatCmdTest,   VirtualTable)
 	region1.expr_rule.expr_type=EXPR_TYPE_STRING;
 	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region1, group1.group_id);
 
-
-	//group2->compile1
+	//	region1->group1->compile1
+	//						/
+	//				group2-/
 	memset(&group2, 0, sizeof(group2));
 	group2.group_id=Maat_cmd_get_new_group_id(feather);
-	group2.table_name=group_table_name;
+	group2.table_name=g2c_tn;
 	group2.virtual_table_name="HTTP_RESPONSE_HEADER";
-	group2.parent_id=compile1.config_id;
-	group2.parent_type=PARENT_TYPE_COMPILE;
-	Maat_command_raw_set_group(feather, MAAT_OP_ADD, &group2);
+	group2.compile_id=compile1.config_id;
+	group2.Nth_clause=2;
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group2);
 
-	//region2->group2
+
+	//region1->group1->compile1
+	//					  /
+	//   region2->group2-/
+
 	memset(&region2, 0, sizeof(region2));
 	region2.region_id=Maat_cmd_get_new_region_id(feather);
 	region2.region_type=REGION_EXPR;
@@ -2670,9 +2728,9 @@ TEST_F(MaatCmdTest,   VirtualTable)
 	Maat_clean_status(&mid);
 
 	//Delete group1
-	Maat_command_raw_set_group(feather, MAAT_OP_DEL, &group1);
-	Maat_command_raw_set_compile(feather, MAAT_OP_DEL, &compile1, compile_table_name, NULL, 2);	
-	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 1);	
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_DEL, &group1);
+	Maat_command_raw_set_compile(feather, MAAT_OP_DEL, &compile1, compile_table_name, NULL, 2, 0, 0);	
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 1, 0, 0);	
 
 	sleep(1);
 
@@ -2691,7 +2749,8 @@ TEST_F(MaatCmdTest,   VirtualTable)
 	return;
 
 }
-*/
+
+
 TEST_F(MaatCmdTest, SetLines)
 {
 	const int TEST_CMD_LINE_NUM=4;
@@ -3011,7 +3070,9 @@ TEST_F(MaatCmdTest, PluginEXData)
 TEST_F(MaatCmdTest,    HitPath)
 {
 	Maat_feather_t feather=MaatCmdTest::_shared_feather;
-	const char* group_table_name="GROUP";
+
+	const char* g2g_tn="GROUP2GROUP";
+	const char* g2c_tn="GROUP2COMPILE";
 	const char* compile_table_name="COMPILE";
 	const char* table_http_sig="HTTP_SIGNATURE";
 	const char* table_ip="IP_CONFIG";
@@ -3030,9 +3091,10 @@ TEST_F(MaatCmdTest,    HitPath)
 	//group1->compile1
 	memset(&group1, 0, sizeof(group1));
 	group1.group_id=Maat_cmd_get_new_group_id(feather);
-	group1.table_name=group_table_name;
+	group1.table_name=g2c_tn;
 	group1.virtual_table_name="HTTP_REQUEST_HEADER";
 	group1.compile_id=compile1.config_id;
+	group1.Nth_clause=1;
 	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group1);
 
 
@@ -3049,14 +3111,15 @@ TEST_F(MaatCmdTest,    HitPath)
 
 	
 	//	region1->group1->compile1
-	//					/
-	//			group21/
+	//                   /
+	//			 group21/
 	
 	memset(&group21, 0, sizeof(group21));
 	group21.group_id=Maat_cmd_get_new_group_id(feather);
-	group21.table_name=group_table_name;
+	group21.table_name=g2c_tn;
 	group21.virtual_table_name="HTTP_RESPONSE_HEADER";
 	group21.compile_id=compile1.config_id;
+	group21.Nth_clause=2;
 	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group21);
 
 	
@@ -3066,7 +3129,7 @@ TEST_F(MaatCmdTest,    HitPath)
 
 	memset(&group2, 0, sizeof(group2));
 	group2.group_id=Maat_cmd_get_new_group_id(feather);
-	group2.table_name=group_table_name;
+	group2.table_name=g2g_tn;
 	group2.superior_group_id=group21.group_id;
 	Maat_command_raw_set_group2group(feather, MAAT_OP_ADD, &group2);
 
@@ -3150,6 +3213,7 @@ TEST_F(MaatCmdTest,    HitPath)
 	EXPECT_EQ(ret, -2);
 	
 	struct Maat_hit_path_t hit_path[128];
+	memset(hit_path, 0, sizeof(hit_path));
 	int n_read=0;
 	n_read=Maat_get_scan_status(feather, &mid, MAAT_GET_SCAN_HIT_PATH, hit_path, sizeof(hit_path));
 	EXPECT_EQ(n_read, 1);
@@ -3213,7 +3277,7 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
 	EXPECT_EQ(hit_path[path_idx].region_id, region4.region_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4.group_id);
-	EXPECT_EQ(hit_path[path_idx].top_group_id, group4.group_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].virtual_table_id, 0);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);	
 	
@@ -3231,7 +3295,7 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
 	EXPECT_EQ(hit_path[path_idx].region_id, region3.region_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3.group_id);
-	EXPECT_EQ(hit_path[path_idx].top_group_id, group3.group_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].virtual_table_id, 0);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
 
@@ -3245,7 +3309,7 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
 	EXPECT_EQ(hit_path[path_idx].region_id, region4.region_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4.group_id);
-	EXPECT_EQ(hit_path[path_idx].top_group_id, group4.group_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].virtual_table_id, 0);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
 	Maat_stream_scan_string_end(&stream_para);

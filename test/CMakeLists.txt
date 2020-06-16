@@ -11,7 +11,7 @@ target_link_libraries(test_maatframe maat_frame_shared gtest)
 #target_link_libraries(perf_test_maatframe maat_frame_shared gtest)
 
 configure_file(table_info.conf table_info.conf COPYONLY)
-configure_file(t2_tableinfo.conf t2_tableinfo.conf COPYONLY)
+configure_file(file_test_tableinfo.conf file_test_tableinfo.conf COPYONLY)
 configure_file(maat_json.json maat_json.json COPYONLY)
 configure_file(reset_redis4maat.sh reset_redis4maat.sh COPYONLY)
 file(COPY conf DESTINATION ./)

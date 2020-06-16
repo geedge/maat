@@ -10,11 +10,11 @@
 #id	name			type	src_charset	dst_charset	do_merge cross_cache quickswitch
 0	NTC_COMPILE	compile	UTF8	UTF8	no	0
 0	WHITE_LIST_COMPILE	compile	UTF8	UTF8	no	0
-1	NTC_GROUP	group	UTF8	UTF8	no	0
-1	WHITE_LIST_GROUP	group	UTF8	UTF8	no	0
-2	NTC_UNIVERSAL_IP	ip	UTF8	UTF8	no	0
+1	NTC_GROUP2GROUP	group2group	--
+2	NTC_GROUP2COMPILE	group2compile	--
+3	NTC_UNIVERSAL_IP	ip	UTF8	UTF8	no	0
 3	NTC_UNIVERSAL_PROTO_TYPE	intval	UTF8	UTF8	no	0
-4	WHITE_LIST_IP	ip	UTF8	UTF8	no	0
+5	WHITE_LIST_IP	ip	UTF8	UTF8	no	0
 7	NTC_HTTP_URL	expr	UTF8	UTF8	yes	0	quickoff
 7	WHITE_LIST_DOMAIN	expr	UTF8	UTF8	yes	0	quickoff
 8	NTC_HTTP_REQ_HDR	expr_plus	UTF8	UTF8	yes	0	quickoff
