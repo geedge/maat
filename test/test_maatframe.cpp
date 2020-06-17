@@ -2217,7 +2217,6 @@ TEST_F(MaatCmdTest, SetExpr)
 	char keywords[256];
 	scan_status_t mid=NULL;
 	int config_id=-1, table_id=0, ret=0;
-	int output_ids[4];
 	int output_id_cnt=0;
 	struct Maat_rule_t result;
 	int timeout=0;//seconds
@@ -2250,9 +2249,7 @@ TEST_F(MaatCmdTest, SetExpr)
 	EXPECT_TRUE(result.config_id==config_id||result.config_id==config_id-1);
 
 	Maat_clean_status(&mid);
-	output_id_cnt=Maat_cmd_select(feather,label_id, output_ids, 4);
-	EXPECT_EQ(output_id_cnt, 2);
-	EXPECT_TRUE(output_ids[0]==config_id||output_ids[0]==config_id-1);
+
 	struct Maat_cmd_key* keys=NULL;
 	output_id_cnt=Maat_cmd_key_select(feather,label_id, &keys);
 	EXPECT_TRUE(keys[0].rule_id==config_id||keys[0].rule_id==config_id-1);

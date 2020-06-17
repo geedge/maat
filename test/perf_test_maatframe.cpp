@@ -5,19 +5,21 @@
 #include <gtest/gtest.h>
 int test_add_expr_command_copy(Maat_feather_t feather,const char* region_table,int config_id, int timeout,int label_id, const char* keywords)
 {
-	struct Maat_cmd_t* cmd=NULL;
+	struct Maat_cmd_group2compile g2c;
+	struct Maat_cmd_group2group g2g;
 	struct Maat_rule_t rule;
-	char huge_serv_def[1024*2];
-	memset(huge_serv_def,'s',sizeof(huge_serv_def));
-	struct Maat_region_t region;
+	struct Maat_cmd_region region;
 	int group_num=1,ret=0;
 	memset(&rule,0,sizeof(rule));
 	rule.config_id=config_id;
 	strcpy(rule.service_defined,"maat_command");
-	//MUST acqire by function, because Maat_cmd_t has some hidden members.
-	cmd=Maat_create_cmd(&rule, group_num);
-	cmd->expire_after=timeout;
-	cmd->label_id=label_id;
+
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &rule, "COMPILE", NULL, 1, timeout, label_id);
+	memset(g2c, 0, sizeof(g2c));
+	g2c.group_id=config_id;
+	g2c.compile_id=config_id;
+	g2c.table_name="GROUP2COMPILE";
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &g2c);
 	memset(&region,0,sizeof(region));
 	region.region_type=REGION_EXPR;
 	region.table_name=region_table;
@@ -26,18 +28,7 @@ int test_add_expr_command_copy(Maat_feather_t feather,const char* region_table,i
 	region.expr_rule.expr_type=EXPR_TYPE_AND;
 	region.expr_rule.match_method=MATCH_METHOD_SUB;
 	region.expr_rule.hex_bin=UNCASE_PLAIN;
-	Maat_cmd_set_opt(cmd, MAAT_RULE_SERV_DEFINE, huge_serv_def, sizeof(huge_serv_def));
-	Maat_add_region2cmd(cmd, 0, &region);
-	//use pipeline model.
-	ret=Maat_cmd_append(feather, cmd, MAAT_OP_ADD);
-	if(ret<0)
-	{
-		printf("Add Maat command %d failed.\n",rule.config_id);
-		Maat_free_cmd(cmd);
-		return 0;
-	}
-	//cmd has been saved in feather, so free cmd before commit is allowed.
-	Maat_free_cmd(cmd);
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region, g2c->group_id);
 	return 0;
 
 }
@@ -128,15 +119,9 @@ TEST_F(MaatCMDPerfTest, SetExpr200K)
 	{
 		test_add_expr_command_copy(feather,table_name,config_id-i, 0, label_id, keywords);
 	}
-	ret=Maat_cmd_commit(feather);
-	EXPECT_TRUE(ret>=0);
-	wait_for_cmd_effective_copy(feather, version_before);
-	struct Maat_cmd_t* cmd=NULL;
 	struct Maat_rule_t rule;
 	memset(&rule,0,sizeof(rule));
-	int *output_ids=(int*)malloc(sizeof(int)*CMD_EXPR_NUM);
-	output_id_cnt=Maat_cmd_select(feather,label_id, output_ids, CMD_EXPR_NUM);
-	EXPECT_EQ(output_id_cnt, CMD_EXPR_NUM);
+
 	for(i=0; i<CMD_EXPR_NUM;i++)
 	{
 		memset(&rule,0,sizeof(rule));
