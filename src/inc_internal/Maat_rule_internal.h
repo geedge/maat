@@ -356,6 +356,7 @@ struct serial_rule_t		//rm= Redis Maat
 	char* table_line;
 	int n_foreign;
 	struct foreign_key* f_keys;
+	TAILQ_ENTRY(serial_rule_t) entries;
 };
 int parse_accept_tag(const char* value, struct rule_tag** result, void* logger);
 

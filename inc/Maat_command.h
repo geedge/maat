@@ -120,17 +120,6 @@ struct Maat_cmd_region
 		struct Maat_rgn_sim_t similarity_rule;
 	};
 };
-
-
-struct Maat_cmd_t
-{
-	//This Struct MUST alloced by Maat_create_cmd(), then released by Maat_free_cmd(). 
-	struct Maat_rule_t compile; // for MAAT_OP_DEL, only compile.config_id is necessary.
-	int group_num;				// for MAAT_OP_DEL, set to 0.
-	int expire_after;			//expired after $expire_after$ seconds, set to 0 for never timeout.
-	int label_id;					//>0, to be indexed and quried by Maat_cmd_select; =0 not index
-	struct Maat_group_t* groups;// Add regions with Maat_add_region2cmd 
-};
 struct Maat_cmd_line
 {
 	const char* table_name;
@@ -187,6 +176,14 @@ int Maat_command_raw_set_group2compile(Maat_feather_t feather, enum MAAT_OPERATI
 //@param label_id: bigger than 0 means this compile rule is to be indexed and quried by Maat_cmd_select; =0 not index
 int Maat_command_raw_set_compile(Maat_feather_t feather, enum MAAT_OPERATION op, const struct Maat_rule_t* compile, const char* table_name, const char * huge_service_defined, int clause_num, int label_id, int expire_after);
 
+struct Maat_command_batch;
+struct Maat_command_batch* Maat_command_batch_new(Maat_feather_t feather);
+
+int Maat_command_batch_set_region(struct Maat_command_batch* batch, enum MAAT_OPERATION op, const struct Maat_cmd_region* region, int group_id);
+int Maat_command_batch_set_group2group(struct Maat_command_batch* batch, enum MAAT_OPERATION op, const struct Maat_cmd_group2group* g2g);
+int Maat_command_batch_set_group2compile(struct Maat_command_batch* batch, enum MAAT_OPERATION op, const struct Maat_cmd_group2compile* g2c);
+int Maat_command_batch_set_compile(struct Maat_command_batch* batch, enum MAAT_OPERATION op, const struct Maat_rule_t* compile, const char* table_name, const char * huge_service_defined, int clause_num, int label_id, int expire_after);
+int Maat_command_batch_commit(struct Maat_command_batch* batch);
 
 int Maat_cmd_get_new_group_id(Maat_feather_t feather);
 int Maat_cmd_get_new_region_id(Maat_feather_t feather);
