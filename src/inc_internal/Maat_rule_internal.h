@@ -348,7 +348,7 @@ struct foreign_key
 struct serial_rule_t		//rm= Redis Maat
 {
 	enum MAAT_OPERATION op;//0: delete, 1: add.
-	long rule_id;
+	unsigned long rule_id;
 	int label_id;
 	char with_error;
 	long long timeout;			// absolute unix time.
@@ -386,7 +386,7 @@ MAAT_RULE_EX_DATA rule_ex_data_new(const struct Maat_rule_head * rule_head, cons
 void rule_ex_data_free(const struct Maat_rule_head * rule_head, const char* srv_def, MAAT_RULE_EX_DATA *ad, const struct compile_ex_data_idx* ex_desc);
 
 
-void set_serial_rule(struct serial_rule_t* rule,enum MAAT_OPERATION op,int rule_id,int label_id,const char* table_name,const char* line, long long timeout);
+void set_serial_rule(struct serial_rule_t* rule,enum MAAT_OPERATION op, unsigned long rule_id,int label_id,const char* table_name,const char* line, long long timeout);
 void empty_serial_rules(struct serial_rule_t* rule);
 int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule,unsigned int serial_rule_num, long long server_time, void* logger);
 long long redis_server_time(redisContext* ctx);

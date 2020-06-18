@@ -1200,7 +1200,7 @@ int write_iris(cJSON *json, struct iris_description_t *p_iris, void* logger)
 										"compile rule %d have no groups.",compile_id);
 			return -1;
 		}
-		i=1;
+		i=0;
 		cJSON_ArrayForEach(group_obj, group_array)
 		{
 			ret=write_group_rule(group_obj, compile_id, PARENT_TYPE_COMPILE, compile_id, i, p_iris, logger);

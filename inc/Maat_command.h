@@ -185,8 +185,8 @@ int Maat_command_batch_set_group2compile(struct Maat_command_batch* batch, enum 
 int Maat_command_batch_set_compile(struct Maat_command_batch* batch, enum MAAT_OPERATION op, const struct Maat_rule_t* compile, const char* table_name, const char * huge_service_defined, int clause_num, int label_id, int expire_after);
 int Maat_command_batch_commit(struct Maat_command_batch* batch);
 
-int Maat_cmd_get_new_group_id(Maat_feather_t feather);
-int Maat_cmd_get_new_region_id(Maat_feather_t feather);
+int Maat_command_get_new_group_id(Maat_feather_t feather);
+int Maat_command_get_new_region_id(Maat_feather_t feather);
 
 #ifdef __cplusplus
 } //end extern"C"

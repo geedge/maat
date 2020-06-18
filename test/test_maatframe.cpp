@@ -2076,7 +2076,7 @@ Maat_feather_t MaatCmdTest::_shared_feather;
 void* MaatCmdTest::logger;
 
 int MaatCmdTest::linger_timeout;
-int test_add_expr_command(Maat_feather_t feather,const char* region_table,int config_id, int timeout,int label_id, const char* keywords)
+int test_add_expr_command(struct Maat_command_batch* batch, Maat_feather_t feather, const char* region_table, int config_id, int timeout, int label_id, const char* keywords)
 {
 	char huge_serv_def[1024*2];
 	memset(huge_serv_def,'s',sizeof(huge_serv_def)-1);
@@ -2085,11 +2085,11 @@ int test_add_expr_command(Maat_feather_t feather,const char* region_table,int co
 	memset(&compile, 0, sizeof(compile));
 	compile.config_id=config_id;
 	strcpy(compile.service_defined, "maat_command");
-	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile, "COMPILE", huge_serv_def, 1, label_id, timeout);
+	Maat_command_batch_set_compile(batch, MAAT_OP_ADD, &compile, "COMPILE", huge_serv_def, 1, label_id, timeout);
 
 	struct Maat_cmd_region region;
 	memset(&region,0,sizeof(region));
-	region.region_id=Maat_cmd_get_new_region_id(feather);
+	region.region_id=Maat_command_get_new_region_id(feather);
 	region.region_type=REGION_EXPR;
 	region.table_name=region_table;
 	region.expr_rule.district=NULL;
@@ -2100,15 +2100,24 @@ int test_add_expr_command(Maat_feather_t feather,const char* region_table,int co
 
 	struct Maat_cmd_group2compile g2c;
 	memset(&g2c, 0, sizeof(g2c));
-	g2c.group_id=Maat_cmd_get_new_group_id(feather);
+	g2c.group_id=Maat_command_get_new_group_id(feather);;
 	g2c.table_name="GROUP2COMPILE";
 	g2c.compile_id=config_id;
 	g2c.clause_index=1;
-	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &g2c);
-	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region, g2c.group_id);
+	Maat_command_batch_set_group2compile(batch, MAAT_OP_ADD, &g2c);
+	Maat_command_batch_set_region(batch, MAAT_OP_ADD, &region, g2c.group_id);
 	return 0;
 
 }
+int test_add_expr_command_simple(Maat_feather_t feather, const char* region_table, int config_id, int timeout, int label_id, const char* keywords)
+{
+	struct Maat_command_batch* batch=NULL;
+	batch=Maat_command_batch_new(feather);
+	test_add_expr_command(batch, feather, region_table, config_id, timeout, label_id, keywords);
+	Maat_command_batch_commit(batch);
+	return 0;
+}
+
 int del_command(Maat_feather_t feather, int config_id)
 {
 	int ret=0;
@@ -2133,20 +2142,21 @@ TEST_F(MaatCmdTest, SetIP)
 	compile.config_id=config_id;
 	
 	strcpy(compile.service_defined, "maat_command");
+	struct Maat_command_batch* batch=NULL;
+	batch=Maat_command_batch_new(feather);
 	//MUST acqire by function, because Maat_cmd_t has some hidden members.
-	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile, "COMPILE", NULL, 1, 0, timeout);
+	Maat_command_batch_set_compile(batch, MAAT_OP_ADD, &compile, "COMPILE", NULL, 1, 0, timeout);
 
 	struct Maat_cmd_group2compile g2c;
 	memset(&g2c, 0, sizeof(g2c));
-	g2c.group_id=Maat_cmd_get_new_group_id(feather);
+	g2c.group_id=Maat_command_get_new_group_id(feather);
 	g2c.compile_id=compile.config_id;
 	g2c.clause_index=1;
 	g2c.table_name="GROUP2COMPILE";
-	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &g2c);
+	Maat_command_batch_set_group2compile(batch, MAAT_OP_ADD, &g2c);
 
 
-	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
-	EXPECT_EQ(ret, 0);
+
 	
 
 	struct Maat_cmd_region region;
@@ -2165,8 +2175,13 @@ TEST_F(MaatCmdTest, SetIP)
 	region.ip_rule.dst_port=80;
 	region.ip_rule.mask_dst_port=65535;
 	region.ip_rule.protocol=0;//means any protocol should hit.
-	ret=Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region, g2c.group_id);
+	ret=Maat_command_batch_set_region(batch, MAAT_OP_ADD, &region, g2c.group_id);
 	EXPECT_GE(ret, 0);
+
+
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
+	EXPECT_EQ(ret, 0);
+	Maat_command_batch_commit(batch);
 
 	wait_for_cmd_effective(feather, version_before);
 	
@@ -2221,7 +2236,7 @@ TEST_F(MaatCmdTest, SetExpr)
 	struct Maat_rule_t result;
 	int timeout=0;//seconds
 	int label_id=5210;
-	long long version_before=0,version_after=0;
+	long long version_before=0;
 	Maat_feather_t feather=MaatCmdTest::_shared_feather;
 	
 	Maat_str_escape(escape_buff1, sizeof(escape_buff1),keywords1);
@@ -2230,16 +2245,17 @@ TEST_F(MaatCmdTest, SetExpr)
 	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 2);
 	
 	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
-	test_add_expr_command(feather,table_name,config_id-1, 0, label_id, keywords);
-	test_add_expr_command(feather,table_name,config_id, 0, label_id, keywords);
+	struct Maat_command_batch* batch=NULL;
+	batch=Maat_command_batch_new(feather);
 	
-	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
+	test_add_expr_command(batch, feather, table_name, config_id-1, 0, label_id, keywords);
+	test_add_expr_command(batch, feather, table_name, config_id, 0, label_id, keywords);
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
+	Maat_command_batch_commit(batch);
 	
-	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_after, sizeof(version_after));
-	EXPECT_EQ(ret, 0);
-	EXPECT_GT(version_after, version_before);
+	wait_for_cmd_effective(feather, version_before);
 	
-	table_id=Maat_table_register(feather,table_name);
+	table_id=Maat_table_register(feather, table_name);
 	ASSERT_GT(table_id, 0);
 	memset(&result, 0, sizeof(result));
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
@@ -2268,7 +2284,9 @@ TEST_F(MaatCmdTest, SetExpr)
 	
 	timeout=1;
 	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
-	test_add_expr_command(feather,table_name,config_id, timeout, label_id, keywords);
+	batch=Maat_command_batch_new(feather);
+	test_add_expr_command(batch, feather, table_name, config_id, timeout, label_id, keywords);
+	Maat_command_batch_commit(batch);
 
 	usleep(timeout*1000*1000+WAIT_FOR_EFFECTIVE_US);
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
@@ -2293,7 +2311,8 @@ TEST_F(MaatCmdTest,   RuleIDRecycle)
 
 	int rule_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
 	int label_id=5211, ret=0;
-	test_add_expr_command(feather,table_name,rule_id, 0, label_id, keywords);
+	
+	test_add_expr_command_simple(feather,table_name,rule_id, 0, label_id, keywords);
 	
 
 	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
@@ -2312,7 +2331,7 @@ TEST_F(MaatCmdTest,   RuleIDRecycle)
 	Maat_clean_status(&mid);
 	EXPECT_EQ(ret, -2);
 
-	test_add_expr_command(feather,table_name,rule_id, 0, label_id, keywords);
+	test_add_expr_command_simple(feather,table_name,rule_id, 0, label_id, keywords);
 
 	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
 	memset(&result, 0, sizeof(result));
@@ -2343,12 +2362,16 @@ TEST_F(MaatCmdTest,   ReturnRuleIDWithDescendingOrder)
 
 	int rule_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", repeat_times);
 	int label_id=5211, ret=0;
+	struct Maat_command_batch* batch=NULL;
+	batch=Maat_command_batch_new(feather);
 	for(i=0; i<repeat_times; i++)
 	{
 		//add in ascending order
 		expect_ruleid[i]=rule_id+1-repeat_times+i;
-		test_add_expr_command(feather,table_name,rule_id+1-repeat_times+i, 0, label_id, keywords);
+		test_add_expr_command(batch, feather, table_name,rule_id+1-repeat_times+i, 0, label_id, keywords);
 	}
+	Maat_command_batch_commit(batch);
+	
 	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
 	memset(&result, 0, sizeof(result));
 	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
@@ -2395,7 +2418,7 @@ TEST_F(MaatCmdTest,    SubGroup)
 
 	//group1->compile1
 	memset(&group1, 0, sizeof(group1));
-	group1.group_id=Maat_cmd_get_new_group_id(feather);
+	group1.group_id=Maat_command_get_new_group_id(feather);
 	group1.table_name=g2c_tn;
 	group1.compile_id=compile1.config_id;
 	group1.clause_index=1;
@@ -2412,7 +2435,7 @@ TEST_F(MaatCmdTest,    SubGroup)
 	               \__compile2
 	*/
 	memset(&group2, 0, sizeof(group2));
-	group2.group_id=Maat_cmd_get_new_group_id(feather);
+	group2.group_id=Maat_command_get_new_group_id(feather);
 	group2.table_name=g2g_tn;
 	group2.superior_group_id=group1.group_id;
 
@@ -2424,13 +2447,13 @@ TEST_F(MaatCmdTest,    SubGroup)
 	                         \_compile2
 	*/
 	memset(&region1, 0, sizeof(region1));
-	region1.region_id=Maat_cmd_get_new_region_id(feather);
+	region1.region_id=Maat_command_get_new_region_id(feather);
 	region1.region_type=REGION_EXPR;
 	region1.table_name=table_name;
 	region1.expr_rule.keywords=keyword1;
 	region1.expr_rule.expr_type=EXPR_TYPE_AND;
 	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region1, group2.group_id);
-	sleep(1);
+	sleep(4);
 	struct Maat_rule_t result[4];
 	memset(&result, 0, sizeof(result));
 	
@@ -2491,13 +2514,13 @@ TEST_F(MaatCmdTest,    SubGroup)
 	*/
 
 	memset(&group3, 0, sizeof(group3));
-	group3.group_id=Maat_cmd_get_new_group_id(feather);
+	group3.group_id=Maat_command_get_new_group_id(feather);
 	group3.superior_group_id=group1.group_id;
 	group3.table_name=g2g_tn;
 	Maat_command_raw_set_group2group(feather, MAAT_OP_ADD, &group3);
 
 	memset(&region2, 0, sizeof(region2));
-	region2.region_id=Maat_cmd_get_new_region_id(feather);
+	region2.region_id=Maat_command_get_new_region_id(feather);
 	region2.region_type=REGION_EXPR;
 	region2.table_name=table_name;
 	region2.expr_rule.keywords=keyword2;
@@ -2562,7 +2585,7 @@ TEST_F(MaatCmdTest,    RefGroup)
 
 	//group1->compile1
 	memset(&group1, 0, sizeof(group1));
-	group1.group_id=Maat_cmd_get_new_group_id(feather);
+	group1.group_id=Maat_command_get_new_group_id(feather);
 	group1.table_name=g2c_tn;
 	group1.compile_id=compile1.config_id;
 	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group1);
@@ -2571,7 +2594,7 @@ TEST_F(MaatCmdTest,    RefGroup)
 	//region1->group1->compile1
 
 	memset(&region1, 0, sizeof(region1));
-	region1.region_id=Maat_cmd_get_new_region_id(feather);
+	region1.region_id=Maat_command_get_new_region_id(feather);
 	region1.region_type=REGION_EXPR;
 	region1.table_name=table_name;
 	region1.expr_rule.keywords=keyword1;
@@ -2589,12 +2612,12 @@ TEST_F(MaatCmdTest,    RefGroup)
 	//                  / 
 	//    region2->group2
 	memset(&group2, 0, sizeof(group2));
-	group2.group_id=Maat_cmd_get_new_group_id(feather);
+	group2.group_id=Maat_command_get_new_group_id(feather);
 	group2.table_name=g2c_tn;
 	group2.compile_id=compile1.config_id;
 
 	memset(&region2, 0, sizeof(region2));
-	region2.region_id=Maat_cmd_get_new_region_id(feather);
+	region2.region_id=Maat_command_get_new_region_id(feather);
 	region2.region_type=REGION_EXPR;
 	region2.table_name=table_name;
 	region2.expr_rule.keywords=keyword2;
@@ -2644,7 +2667,7 @@ TEST_F(MaatCmdTest,   VirtualTable)
 	
 	//group1->compile1
 	memset(&group1, 0, sizeof(group1));
-	group1.group_id=Maat_cmd_get_new_group_id(feather);
+	group1.group_id=Maat_command_get_new_group_id(feather);
 	group1.table_name=g2c_tn;
 	group1.virtual_table_name="HTTP_REQUEST_HEADER";
 	group1.compile_id=compile1.config_id;
@@ -2654,7 +2677,7 @@ TEST_F(MaatCmdTest,   VirtualTable)
 
 	//region1->group1->compile1
 	memset(&region1, 0, sizeof(region1));
-	region1.region_id=Maat_cmd_get_new_region_id(feather);
+	region1.region_id=Maat_command_get_new_region_id(feather);
 	region1.region_type=REGION_EXPR;
 	region1.table_name=region_table_name;
 	region1.expr_rule.district="User-Agent";
@@ -2666,7 +2689,7 @@ TEST_F(MaatCmdTest,   VirtualTable)
 	//						/
 	//				group2-/
 	memset(&group2, 0, sizeof(group2));
-	group2.group_id=Maat_cmd_get_new_group_id(feather);
+	group2.group_id=Maat_command_get_new_group_id(feather);
 	group2.table_name=g2c_tn;
 	group2.virtual_table_name="HTTP_RESPONSE_HEADER";
 	group2.compile_id=compile1.config_id;
@@ -2679,7 +2702,7 @@ TEST_F(MaatCmdTest,   VirtualTable)
 	//   region2->group2-/
 
 	memset(&region2, 0, sizeof(region2));
-	region2.region_id=Maat_cmd_get_new_region_id(feather);
+	region2.region_id=Maat_command_get_new_region_id(feather);
 	region2.region_type=REGION_EXPR;
 	region2.table_name=region_table_name;
 	region2.expr_rule.district="Cookie";
@@ -3087,7 +3110,7 @@ TEST_F(MaatCmdTest,    HitPath)
 	
 	//group1->compile1
 	memset(&group1, 0, sizeof(group1));
-	group1.group_id=Maat_cmd_get_new_group_id(feather);
+	group1.group_id=Maat_command_get_new_group_id(feather);
 	group1.table_name=g2c_tn;
 	group1.virtual_table_name="HTTP_REQUEST_HEADER";
 	group1.compile_id=compile1.config_id;
@@ -3098,7 +3121,7 @@ TEST_F(MaatCmdTest,    HitPath)
 	//region1->group1->compile1
 	
 	memset(&region1, 0, sizeof(region1));
-	region1.region_id=Maat_cmd_get_new_region_id(feather);
+	region1.region_id=Maat_command_get_new_region_id(feather);
 	region1.region_type=REGION_EXPR;
 	region1.table_name=table_http_sig;
 	region1.expr_rule.district="URL";
@@ -3112,7 +3135,7 @@ TEST_F(MaatCmdTest,    HitPath)
 	//			 group21/
 	
 	memset(&group21, 0, sizeof(group21));
-	group21.group_id=Maat_cmd_get_new_group_id(feather);
+	group21.group_id=Maat_command_get_new_group_id(feather);
 	group21.table_name=g2c_tn;
 	group21.virtual_table_name="HTTP_RESPONSE_HEADER";
 	group21.compile_id=compile1.config_id;
@@ -3125,7 +3148,7 @@ TEST_F(MaatCmdTest,    HitPath)
 	//	group2->group21/	
 
 	memset(&group2, 0, sizeof(group2));
-	group2.group_id=Maat_cmd_get_new_group_id(feather);
+	group2.group_id=Maat_command_get_new_group_id(feather);
 	group2.table_name=g2g_tn;
 	group2.superior_group_id=group21.group_id;
 	Maat_command_raw_set_group2group(feather, MAAT_OP_ADD, &group2);
@@ -3137,7 +3160,7 @@ TEST_F(MaatCmdTest,    HitPath)
 	//region2->group2->group21/
 
 	memset(&region2, 0, sizeof(region2));
-	region2.region_id=Maat_cmd_get_new_region_id(feather);
+	region2.region_id=Maat_command_get_new_region_id(feather);
 	region2.region_type=REGION_EXPR;
 	region2.table_name=table_http_sig;
 	region2.expr_rule.district="Cookie";
@@ -3147,7 +3170,7 @@ TEST_F(MaatCmdTest,    HitPath)
 
 	//region3->group3, group3 is not referenced by any compile.
 	memset(&region3, 0, sizeof(region3));
-	region3.region_id=Maat_cmd_get_new_region_id(feather);
+	region3.region_id=Maat_command_get_new_region_id(feather);
 	region3.region_type=REGION_IP;
 	region3.table_name=table_ip;
 	region3.ip_rule.addr_type=ADDR_TYPE_IPv4;
@@ -3163,20 +3186,20 @@ TEST_F(MaatCmdTest,    HitPath)
 	region3.ip_rule.mask_dst_port=65535;
 	region3.ip_rule.protocol=0;//means any protocol should hit.
 
-	group3.group_id=Maat_cmd_get_new_group_id(feather);
+	group3.group_id=Maat_command_get_new_group_id(feather);
 	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region3, group3.group_id);
 
 	char temp[1024]={0};
 	//region4->group4, group4 is not referenced by any compile.
 	memset(&region4, 0, sizeof(region4));
-	region4.region_id=Maat_cmd_get_new_region_id(feather);
+	region4.region_id=Maat_command_get_new_region_id(feather);
 	region4.region_type=REGION_EXPR;
 	region4.table_name=table_keywords;
 	region4.expr_rule.district=NULL;
 	region4.expr_rule.keywords= Maat_str_escape(temp, sizeof(temp), "a finite or infinite");
 	region4.expr_rule.expr_type=EXPR_TYPE_STRING;
 	
-	group4.group_id=Maat_cmd_get_new_group_id(feather);
+	group4.group_id=Maat_command_get_new_group_id(feather);
 	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region4, group4.group_id);
 
 
