@@ -55,6 +55,7 @@ int test_add_ip_command(struct Maat_command_batch* batch, const char* region_tab
 
 	struct Maat_cmd_region region;
 	memset(&region, 0, sizeof(region));
+	region.region_id=config_id;
 	region.region_type=REGION_IP;
 	region.table_name=region_table;
 	region.ip_rule.addr_type=ADDR_TYPE_IPv4;
@@ -144,7 +145,7 @@ protected:
 		const char* foregin_dir="./foreign_files/";	
 		Maat_set_feather_opt(_shared_feather, MAAT_OPT_FOREIGN_CONT_DIR, foregin_dir, strlen(foregin_dir)+1);
 	
-		Maat_cmd_flushDB(_shared_feather);
+	//	Maat_cmd_flushDB(_shared_feather);
 		Maat_initiate_feather(_shared_feather);
 	}
 	static void TearDownTestCase()
@@ -164,11 +165,12 @@ void* MaatCMDPerfTest::logger;
 //Following tests must be coded/tested at last, for they stalled the maat update thread and interrupt other tests.
 TEST_F(MaatCMDPerfTest, SetExpr200K)
 {
-	const int CMD_EXPR_NUM=1*1000*1000;
-	const int CMD_IP_NUM=1*1000*1000;
+	const int CMD_EXPR_NUM=2*1000*1000;
+	const int CMD_IP_NUM=2*1000*1000;
 	const char* expr_table_name="HTTP_URL";
 	const char* ip_table_name="IP_CONFIG";
-	
+
+	int srand_keyword=171, srand_ip=73;
 	char keyword_buf[128];
 	char src_ip_buff[32], dst_ip_buff[32];
 	
@@ -178,23 +180,27 @@ TEST_F(MaatCMDPerfTest, SetExpr200K)
 	ret=Maat_read_state(feather, MAAT_STATE_VERSION, &version_before, sizeof(version_before));
 
 	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", CMD_EXPR_NUM+CMD_IP_NUM);
+	config_id-=CMD_EXPR_NUM+CMD_IP_NUM;
 	int i=0;
+	/*
 	struct Maat_command_batch* batch=NULL;
 	batch=Maat_command_batch_new(feather);
+	srand(srand_keyword);
 	for(i=0; i<CMD_EXPR_NUM;i++)
 	{
 		random_keyword_generate(keyword_buf, sizeof(keyword_buf));
-		test_add_expr_command_copy(batch, expr_table_name, config_id-i, keyword_buf);
+		test_add_expr_command_copy(batch, expr_table_name, config_id+i, keyword_buf);
 	}
+	srand(srand_ip);
 	for(i=0; i<CMD_IP_NUM; i++)
 	{
 		random_ipv4_addr_generate(src_ip_buff, sizeof(src_ip_buff));
 		random_ipv4_addr_generate(dst_ip_buff, sizeof(dst_ip_buff));
-		test_add_ip_command(batch, ip_table_name, src_ip_buff, dst_ip_buff, config_id-CMD_EXPR_NUM-i);
+		test_add_ip_command(batch, ip_table_name, src_ip_buff, dst_ip_buff, config_id+CMD_EXPR_NUM+i);
 	}
 	Maat_command_batch_commit(batch);
 	wait_for_cmd_effective_copy(feather, version_before);
-
+*/
 	struct Maat_rule_t result;
 	scan_status_t mid=NULL;
 
@@ -202,6 +208,7 @@ TEST_F(MaatCMDPerfTest, SetExpr200K)
 	table_id=Maat_table_register(feather, expr_table_name);
 	ASSERT_GT(table_id, 0);
 	memset(&result, 0, sizeof(result));
+	
 	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, keyword_buf, strlen(keyword_buf), 
 						&result, NULL, 1,
 						&mid, 0);	
