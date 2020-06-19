@@ -3,7 +3,7 @@
 #include "Maat_garbage_collection.h"
 #include "alignment_int64.h"
 #include <time.h>
-#include <MESA/field_stat.h>
+#include <MESA/field_stat2.h>
 enum MAAT_FS_STATUS{
 	STATUS_VERSION=0,
 	STATUS_THRED_NUM,
