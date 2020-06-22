@@ -145,7 +145,7 @@ protected:
 		const char* foregin_dir="./foreign_files/";	
 		Maat_set_feather_opt(_shared_feather, MAAT_OPT_FOREIGN_CONT_DIR, foregin_dir, strlen(foregin_dir)+1);
 	
-	//	Maat_cmd_flushDB(_shared_feather);
+		Maat_cmd_flushDB(_shared_feather);
 		Maat_initiate_feather(_shared_feather);
 	}
 	static void TearDownTestCase()
@@ -166,7 +166,7 @@ void* MaatCMDPerfTest::logger;
 TEST_F(MaatCMDPerfTest, SetExpr200K)
 {
 	const int CMD_EXPR_NUM=2*1000*1000;
-	const int CMD_IP_NUM=2*1000*1000;
+	const int CMD_IP_NUM=13*1000*1000;
 	const char* expr_table_name="HTTP_URL";
 	const char* ip_table_name="IP_CONFIG";
 
@@ -182,7 +182,7 @@ TEST_F(MaatCMDPerfTest, SetExpr200K)
 	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", CMD_EXPR_NUM+CMD_IP_NUM);
 	config_id-=CMD_EXPR_NUM+CMD_IP_NUM;
 	int i=0;
-	/*
+	
 	struct Maat_command_batch* batch=NULL;
 	batch=Maat_command_batch_new(feather);
 	srand(srand_keyword);
@@ -200,7 +200,7 @@ TEST_F(MaatCMDPerfTest, SetExpr200K)
 	}
 	Maat_command_batch_commit(batch);
 	wait_for_cmd_effective_copy(feather, version_before);
-*/
+
 	struct Maat_rule_t result;
 	scan_status_t mid=NULL;
 
