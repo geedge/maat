@@ -724,7 +724,7 @@ FULL_UPDATE:
 	*list=s_rule_array;
 	*update_type=CM_UPDATE_TYPE_FULL;
 	MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor,
-				"Full update %d keys of version %lldd.", rule_num, new_version);
+				"Full update %d keys of version %lld.", rule_num, new_version);
 
 	return rule_num ;
 }
