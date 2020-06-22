@@ -137,8 +137,8 @@ static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_sche
 			break;
 		case TABLE_TYPE_IP_PLUGIN:
 			table_rt->ip_plugin.ex_data_rt=EX_data_rt_new(table_schema->table_id, 
-										table_schema->plugin.estimate_size, 
-										table_schema->plugin.ex_schema.key2index_func,
+										table_schema->ip_plugin.estimate_size, 
+										table_schema->ip_plugin.ex_schema.key2index_func,
 										free);
 			if(table_schema->ip_plugin.have_exdata)
 			{			
