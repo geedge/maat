@@ -247,28 +247,28 @@ struct Maat_table_runtime* Maat_table_runtime_get(struct Maat_table_runtime_mana
 	assert(table_id<(int)table_rt_mgr->n_table_rt);
 	return table_rt_mgr->table_rt[table_id];
 }
-long long Maat_table_runtime_plugin_cached_line_count(struct Maat_table_runtime* table_rt)
+size_t Maat_table_runtime_plugin_cached_row_count(struct Maat_table_runtime* table_rt)
 {
 	struct plugin_runtime* plugin_rt=&(table_rt->plugin);
-	return plugin_rt->ex_data_rt->cache_row_num;
+	assert(table_rt->table_type==TABLE_TYPE_PLUGIN);
+	return EX_data_rt_get_cached_row_num(plugin_rt->ex_data_rt);
 }
-const char* Maat_table_runtime_plugin_get_cached_line(struct Maat_table_runtime* table_rt, long long Nth_line)
+const char* Maat_table_runtime_plugin_get_cached_row(struct Maat_table_runtime* table_rt, size_t Nth_row)
 {
 	const char* line=NULL;
 	struct plugin_runtime* plugin_rt=&(table_rt->plugin);
-
-	line=(const char*)dynamic_array_read(plugin_rt->ex_data_rt->cache_rows, Nth_line);
+	line=EX_data_rt_cached_row_get(plugin_rt->ex_data_rt, Nth_row);
 	return line;
 }
 int Maat_table_runtime_plugin_commit_ex_schema(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, void* logger)
 {
-	int i=0;
+	size_t i=0;
 	const char* row=NULL;
 	EX_data_rt_set_schema(table_rt->plugin.ex_data_rt, &table_schema->plugin.ex_schema);
 
-	for(i=0; i<EX_data_rt_get_row_num(table_rt->plugin.ex_data_rt); i++)
+	for(i=0; i<EX_data_rt_get_cached_row_num(table_rt->plugin.ex_data_rt); i++)
 	{
-		row=EX_data_rt_get_cached_row(table_rt->plugin.ex_data_rt, i);
+		row=EX_data_rt_cached_row_get(table_rt->plugin.ex_data_rt, i);
 		Maat_table_runtime_plugin_new_row(table_rt, table_schema, row, logger);
 	}
 	return 0;
@@ -323,7 +323,7 @@ void Maat_table_runtime_plugin_new_row(struct Maat_table_runtime* table_rt, stru
 	}
 	if(!plugin_schema->have_exdata && !plugin_schema->cb_plug_cnt)
 	{
-		EX_data_rt_cache_row(plugin_rt->ex_data_rt, row);
+		EX_data_rt_cache_row_put(plugin_rt->ex_data_rt, row);
 	}
 
 	return;
@@ -425,22 +425,19 @@ int Maat_table_runtime_digest_batch_udpate(struct Maat_table_runtime* table_rt)
 int Maat_table_runtime_ip_plugin_rebuild_ip_matcher(struct Maat_table_runtime* table_rt)
 {
 	struct ip_matcher* new_ip_matcher=NULL;
-	struct EX_data_container_q queue;//This is for index, no need to free.
 	size_t rule_cnt=0;
 	size_t i=0, mem_use=0;
 	struct ip_rule *rules=NULL;
-	struct EX_data_container *p=NULL;
-	TAILQ_INIT(&queue);
-	rule_cnt=EX_data_rt_list_all(table_rt->ip_plugin.ex_data_rt, &queue);
+	struct EX_data_container **exc_array=NULL;
+	assert(table_rt->table_type==TABLE_TYPE_IP_PLUGIN);	
+	rule_cnt=EX_data_rt_list_all_ex_container(table_rt->ip_plugin.ex_data_rt, &exc_array);
 	rules=ALLOC(struct ip_rule, rule_cnt);
-	TAILQ_FOREACH(p, &queue, entries)
+	for(i=0; i<rule_cnt; i++)
 	{
-		rules[i]=*((struct ip_rule *)(p->user_data));
-		assert(rules[i].user_tag==p||rules[i].user_tag==NULL);
-		rules[i].user_tag=p;
-		i++;
+		rules[i]=*((struct ip_rule *)(EX_data_container_get_user_data(exc_array[i])));
+		assert(rules[i].user_tag==exc_array[i]||rules[i].user_tag==NULL);
+		rules[i].user_tag=exc_array[i];
 	}
-	assert(i==rule_cnt);
 	if(rule_cnt>0)
 	{
 		new_ip_matcher=ip_matcher_new(rules, rule_cnt, &mem_use);
@@ -448,6 +445,8 @@ int Maat_table_runtime_ip_plugin_rebuild_ip_matcher(struct Maat_table_runtime* t
 		table_rt->ip_plugin.ip_matcher=new_ip_matcher;
 	}
 	free(rules);
+	free(exc_array);
+	exc_array=NULL;
 	return 0;
 }
 struct ip_matcher* Maat_table_runtime_dettach_old_ip_matcher(struct Maat_table_runtime* table_rt)
@@ -503,21 +502,22 @@ void Maat_table_runtime_ip_plugin_new_row(struct Maat_table_runtime* table_rt, s
 	}
 	else
 	{
-		EX_data_rt_cache_row(ip_plugin_rt->ex_data_rt,  row);
+		EX_data_rt_cache_row_put(ip_plugin_rt->ex_data_rt,  row);
 	}
 	return;
 }
 int Maat_table_runtime_ip_plugin_commit_ex_schema(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, void* logger)
 {
-	int i=0;
+	size_t i=0;
 	const char* row=NULL;
-	EX_data_rt_set_schema(table_rt->ip_plugin.ex_data_rt, &table_schema->ip_plugin.ex_schema);
-	for(i=0; i<EX_data_rt_get_row_num(table_rt->plugin.ex_data_rt); i++)
+	struct ip_plugin_runtime* ip_plugin_rt=&(table_rt->ip_plugin);
+	EX_data_rt_set_schema(ip_plugin_rt->ex_data_rt, &table_schema->ip_plugin.ex_schema);
+	for(i=0; i<EX_data_rt_get_cached_row_num(ip_plugin_rt->ex_data_rt); i++)
 	{
-		row=EX_data_rt_get_cached_row(table_rt->plugin.ex_data_rt, i);
+		row=EX_data_rt_cached_row_get(ip_plugin_rt->ex_data_rt, i);
 		Maat_table_runtime_ip_plugin_new_row(table_rt, table_schema, row, logger);
 	}
-	EX_data_rt_clear_row_cache(table_rt->plugin.ex_data_rt);
+	EX_data_rt_clear_row_cache(ip_plugin_rt->ex_data_rt);
 	Maat_table_runtime_ip_plugin_rebuild_ip_matcher(table_rt);
 
 	return 0;

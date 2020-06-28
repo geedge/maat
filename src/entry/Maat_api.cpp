@@ -992,7 +992,7 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 	const char* line=NULL;
 	struct Maat_table_runtime* table_rt=NULL;
 	table_rt=Maat_table_runtime_get(_feather->scanner->table_rt_mgr, table_id);
-	long long line_cnt=Maat_table_runtime_plugin_cached_line_count(table_rt);
+	long long line_cnt=Maat_table_runtime_plugin_cached_row_count(table_rt);
 		
 	if(line_cnt>0)
 	{
@@ -1002,7 +1002,7 @@ int Maat_table_callback_register(Maat_feather_t feather,short table_id,
 		}
 		for(i=0; i<line_cnt; i++)
 		{
-			line=Maat_table_runtime_plugin_get_cached_line(table_rt, i);
+			line=Maat_table_runtime_plugin_get_cached_row(table_rt, i);
 			if(line==NULL)
 			{
 				break;
