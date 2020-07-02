@@ -1206,7 +1206,7 @@ int Maat_hierarchy_region_compile(struct Maat_hierarchy_compile_mid* mid, int is
 		{
 			mid->not_clause_hitted_flag=1;
 		}
-		else
+		else if(compile_array[i]->user_data)//For compile may be dettached by Maat_hierarchy_compile_dettach_user_data, only return non-NULL userdata.
 		{		
 			if(r_in_c_cnt>0 ||				//compile hitted becasue of new reigon
 				this_scan_region_hits==0)	//or hit a compile that refer a NOT-logic group in previous scan.

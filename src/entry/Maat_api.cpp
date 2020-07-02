@@ -247,7 +247,7 @@ int region_compile(_Maat_feather_t*feather, struct Maat_hierarchy_compile_mid* c
 		
 	}
 	scan_ret=Maat_hierarchy_region_compile(compile_mid, is_last_region, (void**)compile_rule_array, MAX_SCANNER_HIT_NUM);
-	
+	//Maat_hierarchy is rwlock protected, it always returns non-NULL compile_rule.
 	if(scan_ret>1)
 	{
 		qsort(compile_rule_array, scan_ret, sizeof(struct Maat_compile_rule*),
