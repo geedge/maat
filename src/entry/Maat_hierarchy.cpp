@@ -474,7 +474,8 @@ static void Maat_hierarchy_group_free(struct Maat_hierarchy* hier, struct Maat_h
 	}
 	igraph_vector_destroy(&v);
 	assert(group->top_group_ids==NULL);
-	igraph_delete_vertices(&hier->group_graph, igraph_vss_1(group->vertex_id));
+	//We should not call igraph_delete_vertices, because this is function changes the ids of the vertices.
+	//igraph_delete_vertices(&hier->group_graph, igraph_vss_1(group->vertex_id));
 
 	
 	HASH_DELETE(hh_group_id, hier->hash_group_by_id, group);
