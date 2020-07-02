@@ -142,17 +142,6 @@ static int compile_sort_para_compare(const struct compile_sort_para* a, const st
 	}
 
 }
-static int compare_compile_inner(const void *a, const void *b)
-{
-	const struct Maat_compile_group_relation *ra=*(const struct Maat_compile_group_relation **)a;
-	const struct Maat_compile_group_relation *rb=*(const struct Maat_compile_group_relation **)b;
-	
-	struct compile_sort_para sa, sb;
-	compile_sort_para_set(&sa, ra, NULL);
-	compile_sort_para_set(&sb, rb, NULL);
-
-	return compile_sort_para_compare(&sa, &sb);
-}
 static int compile_sort_para_compare_no_type(const void* a, const void* b)
 {
 	return compile_sort_para_compare((const struct compile_sort_para*) a, (const struct compile_sort_para*) b);
@@ -174,8 +163,11 @@ size_t Maat_rule_sort_by_evaluation_order(Maat_feather_t feather, struct Maat_ru
 		p=(struct Maat_compile_group_relation *)HASH_fetch_by_id(_feather->scanner->compile_hash, rule_array[i].config_id);
 		if(p && 0==pthread_rwlock_tryrdlock(&(p->rwlock)))//rule maybe already deleted.
 		{
-			compile_sort_para_set(sort_para+i, p, copy_rule_array+i);
-			j++;
+			if(p->compile)
+			{
+				compile_sort_para_set(sort_para+i, p, copy_rule_array+i);
+				j++;
+			}
 			pthread_rwlock_unlock(&(p->rwlock));
 		}
 	}
@@ -450,11 +442,6 @@ int region_compile(_Maat_feather_t*feather, struct scan_hit_status *_mid, const 
 	{
 		scan_ret=0;
 	}
-	if(scan_ret>1)
-	{
-		qsort(relation_array, scan_ret, sizeof(struct Maat_compile_group_relation*),
-			  compare_compile_inner);
-	}
 	for(i=0; i<(unsigned int)scan_ret&&result_cnt<size; i++)
 	{
 		relation=relation_array[i];
@@ -486,9 +473,9 @@ int region_compile(_Maat_feather_t*feather, struct scan_hit_status *_mid, const 
 			pthread_rwlock_unlock(&(relation->rwlock));
 		}		
 	}	
-
 	if(result_cnt>0)
 	{
+		Maat_rule_sort_by_evaluation_order((Maat_feather_t)feather, result, result_cnt);
 		alignment_int64_array_add(feather->hit_cnt, thread_num, 1);
 	}
 	if(region_hit_num==0&&result_cnt>0)
