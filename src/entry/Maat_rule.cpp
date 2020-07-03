@@ -34,7 +34,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_3_0_20200702=1;
+int MAAT_FRAME_VERSION_3_0_20200703=1;
 
 int is_valid_table_name(const char* str)
 {

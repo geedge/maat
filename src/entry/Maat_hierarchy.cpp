@@ -15,7 +15,7 @@
 #define module_maat_hierarchy	"MAAT_HIERARCHY"
 
 
-#define	TO_CLAUSE_ID(clause_index, compile_id)	((long long)clause_index<<32|compile_id)
+#define	TO_CLAUSE_ID(clause_index, compile_id)	((unsigned long long)clause_index<<32|compile_id)
 #define	TO_CLAUSE_ID_COMPATBILE(vid, gid)	((unsigned long long)vid<<32|gid)
 #define	TO_LITERAL_ID(vt_id, group_id)	((long long)vt_id<<32|group_id)
 
@@ -933,17 +933,17 @@ struct Maat_hierarchy_compile_mid
 	size_t hit_path_cnt;
 	struct hit_path_q hit_path_qhead;
 	
-	size_t all_hit_clause_cnt;
-	size_t all_hit_clause_array_sz;
-	unsigned long long *all_hit_clause_array;
-
+	UT_array* _all_hit_clause_array;
 };
+UT_icd ut_hit_clauses_icd = {sizeof(unsigned long long), NULL, NULL, NULL};
+
 struct Maat_hierarchy_compile_mid* Maat_hierarchy_compile_mid_new(struct Maat_hierarchy* hier, int thread_num)
 {
 	struct Maat_hierarchy_compile_mid* mid=ALLOC(struct Maat_hierarchy_compile_mid, 1);
 	TAILQ_INIT(&mid->hit_path_qhead);
 	mid->thread_num=thread_num;
-	mid->ref_hier=hier;
+	mid->ref_hier=hier;	
+	utarray_new(mid->_all_hit_clause_array, &ut_hit_clauses_icd);
 	return mid;
 }
 void Maat_hierarchy_compile_mid_free(struct Maat_hierarchy_compile_mid* mid)
@@ -957,9 +957,8 @@ void Maat_hierarchy_compile_mid_free(struct Maat_hierarchy_compile_mid* mid)
 		tmp = TAILQ_FIRST(&mid->hit_path_qhead);
 	}
 	assert(mid->hit_path_cnt==0);
-	free(mid->all_hit_clause_array);
-	mid->all_hit_clause_array=NULL;
 	mid->ref_hier=NULL;
+	utarray_free(mid->_all_hit_clause_array);
 	free(mid);
 }
 int  Maat_hierarchy_compile_mid_has_NOT_clause(struct Maat_hierarchy_compile_mid* mid)
@@ -967,34 +966,6 @@ int  Maat_hierarchy_compile_mid_has_NOT_clause(struct Maat_hierarchy_compile_mid
 	return mid->not_clause_hitted_flag;
 }
 
-//return 1 if insert a unique id
-//return 0 if id is duplicated
-//return -1 if set is full
-int insert_clause_id(unsigned long long **set, size_t* size, size_t cnt, unsigned long long id)
-{
-	size_t i=0;
-	for(i=0; i<cnt; i++)
-	{
-		if((*set)[i]==id)
-		{
-			break;
-		}
-	}
-	if(i==cnt)
-	{
-		if(cnt==*size)
-		{
-			*size+=16;
-			*set=(unsigned long long*)realloc(*set, (*size)*sizeof(unsigned long long));
-		}
-		(*set)[cnt]=id;
-		return 1;
-	}
-	else
-	{
-		return 0;
-	}
-}
 void Maat_hit_path_init(struct Maat_hit_path_t* hit_path)
 {
 	hit_path->Nth_scan=-1;
@@ -1042,10 +1013,27 @@ size_t Maat_hierarchy_hit_path_select0(const struct Maat_hierarchy_compile_mid* 
 	ret=hit_path_select(&mid->hit_path_qhead, condition, hit_paths, n_path);
 	return ret;
 }
-
+static inline int compare_clause_id(const void* a, const void* b)
+{
+	long long ret=*(const unsigned long long *)a - *(const unsigned long long *)b;
+	if(ret==0)
+	{
+		return 0;
+	}
+	else if(ret<0)
+	{
+		return -1;
+	}
+	else
+	{
+		return 1;
+	}
+}
 void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy_compile_mid* mid, int region_id, int virtual_table_id, int Nth_scan, int Nth_region_result)
 {
-	int ret=0, i=0;
+	int i=0;
+	void* tmp=NULL;
+	unsigned long long clause_id=0;
 	struct Maat_hierarchy_hit_path* hit_path=NULL;
 	struct Maat_hierarchy_region* region=NULL;
 	struct Maat_hierarchy_group* group=NULL;
@@ -1102,8 +1090,18 @@ void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy_compile_mid* mid, i
 			}
 			HASH_ITER(hh, literal->hash_clause_by_id, clause, tmp_clause)
 			{
-				ret=insert_clause_id(&mid->all_hit_clause_array, &mid->all_hit_clause_array_sz, mid->all_hit_clause_cnt, TO_CLAUSE_ID(clause->clause_id.clause_index, clause->clause_id.compile_id));
-				mid->all_hit_clause_cnt+=ret;
+				clause_id=TO_CLAUSE_ID(clause->clause_id.clause_index, clause->clause_id.compile_id);
+			//	ret=insert_clause_id(&mid->all_hit_clause_array, &mid->all_hit_clause_array_sz, mid->all_hit_clause_cnt, TO_CLAUSE_ID(clause->clause_id.clause_index, clause->clause_id.compile_id));
+				tmp=utarray_find(mid->_all_hit_clause_array, &clause_id, compare_clause_id);
+				if(tmp)
+				{
+					assert(*(unsigned long long*)tmp == clause_id);
+				}
+				else
+				{
+					utarray_push_back(mid->_all_hit_clause_array, &clause_id);
+					utarray_sort(mid->_all_hit_clause_array, compare_clause_id);
+				}
 			}
 		}
 	}
@@ -1197,7 +1195,8 @@ int Maat_hierarchy_region_compile(struct Maat_hierarchy_compile_mid* mid, int is
 	}
 	pthread_rwlock_rdlock(&hier->rwlock);
 	bool_match_ret=bool_matcher_match(hier->bm, mid->thread_num, 
-						mid->all_hit_clause_array, mid->all_hit_clause_cnt,
+						(unsigned long long*)utarray_eltptr(mid->_all_hit_clause_array, 0), utarray_len(mid->_all_hit_clause_array),
+						//mid->all_hit_clause_array, mid->all_hit_clause_cnt,
 						(void**)compile_array, ud_array_sz);
 	for(i=0; i<bool_match_ret; i++)
 	{
