@@ -34,7 +34,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_3_0_20200703=1;
+int MAAT_FRAME_VERSION_3_0_20200706=1;
 
 int is_valid_table_name(const char* str)
 {
@@ -715,6 +715,8 @@ void op_expr_add_rule(struct op_expr_t* op_expr,scan_rule_t* p_rule)
 }
 void Maat_region_inner_free(struct Maat_region_inner* region)
 {
+	assert(region->magic_num==REGION_RULE_MAGIC);
+	region->magic_num=0;
 	free(region);
 }
 
@@ -1031,6 +1033,7 @@ int get_district_id(Maat_scanner *scanner,const char* district_str)
 struct Maat_region_inner* Maat_region_inner_new(int group_id, int region_id, int table_id, int district_id)
 {
 	struct Maat_region_inner* region=ALLOC(struct Maat_region_inner, 1);
+	region->magic_num=REGION_RULE_MAGIC;
 	region->region_id=region_id;
 	region->group_id=group_id;
 	region->table_id=table_id;

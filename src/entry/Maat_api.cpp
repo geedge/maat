@@ -235,6 +235,7 @@ int region_compile(_Maat_feather_t*feather, struct Maat_hierarchy_compile_mid* c
 	for(i=0; (size_t)i<region_hit_num;i++)
 	{
 		region=*(struct Maat_region_inner**)((char*)region_hit+region_type_size*i+user_data_offset);
+		assert(region->magic_num==REGION_RULE_MAGIC);
 		if(region_hit_wraper->virtual_table_ids)
 		{
 			virtual_table_id=region_hit_wraper->virtual_table_ids[i];

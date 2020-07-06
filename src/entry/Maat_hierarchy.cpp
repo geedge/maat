@@ -1052,6 +1052,12 @@ void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy_compile_mid* mid, i
 	mid->this_scan_region_hit_cnt++;
 	pthread_rwlock_rdlock(&hier->rwlock);
 	HASH_FIND_INT(hier->hash_region_by_id, &region_id, region);
+	if(!region)
+	{
+		pthread_rwlock_unlock(&hier->rwlock);
+		return;
+	}
+	
 	group=region->ref_parent_group;
 	
 	if(group->top_group_cnt==0)

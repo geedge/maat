@@ -136,9 +136,10 @@ struct op_expr_t
 	int table_id;
 	int rule_type;
 };
-
+#define	REGION_RULE_MAGIC	0x4d3c2b1a
 struct Maat_region_inner
 {
+	long long magic_num;
 	int region_id;
 	int group_id;
 	int district_id;
