@@ -127,6 +127,8 @@ struct db_group_rule_t
 	int virtual_table_id;
 	int clause_id;
 };
+#define	RULESCAN_OP_ADD	0
+#define	RULESCAN_OP_DEL	1
 struct op_expr_t
 {
 	boolean_expr_t* p_expr;

@@ -715,7 +715,8 @@ void op_expr_add_rule(struct op_expr_t* op_expr,scan_rule_t* p_rule)
 }
 void Maat_region_inner_free(struct Maat_region_inner* region)
 {
-	assert(region->magic_num==REGION_RULE_MAGIC);
+	assert(region->magic_num==REGION_RULE_MAGIC);	
+	assert(region->expr_id_cnt==region->expr_id_ub-region->expr_id_lb+1);
 	region->magic_num=0;
 	free(region);
 }
@@ -1186,11 +1187,11 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 			}
 			expr_id=scanner->exprid_generator++;
 			Maat_region_inner_add_expr_id(u_para, expr_id);
-			op_expr=create_op_expr(expr_id
-									,0	//add
-									,u_para
-									,table->table_id
-									);
+			op_expr=create_op_expr(expr_id,
+									RULESCAN_OP_ADD,
+									u_para,
+									table->table_id);
+			
 			for(k=0;k<sub_expr_cnt;k++)
 			{
 				if(strlen(sub_key_array[k])==0)
@@ -1322,11 +1323,10 @@ int add_ip_rule(struct Maat_table_schema* table, struct db_ip_rule_t* db_ip_rule
 	
 	expr_id=scanner->exprid_generator++;
 	Maat_region_inner_add_expr_id(u_para, expr_id);
-	op_expr=create_op_expr(expr_id
-						,0
-						,u_para
-						,table->table_id
-						);
+	op_expr=create_op_expr(expr_id,
+						RULESCAN_OP_ADD,
+						u_para,
+						table->table_id);
 	p_rule=create_rs_ip_rule(make_sub_type(table->table_id,CHARSET_NONE,0)
 						,db_ip_rule);
 	op_expr_add_rule(op_expr, p_rule);
@@ -1352,11 +1352,11 @@ int add_intval_rule(struct Maat_table_schema* table,struct db_intval_rule* intva
 	expr_id=scanner->exprid_generator++;
 	Maat_region_inner_add_expr_id(u_para, expr_id);
 
-	op_expr=create_op_expr(expr_id
-						,0
-						,u_para
-						,table->table_id
-						);
+	op_expr=create_op_expr(expr_id,
+						RULESCAN_OP_ADD,
+						u_para,
+						table->table_id);
+	
 	p_rule=create_rs_intval_rule(make_sub_type(table->table_id,CHARSET_NONE,0)
 						,intval_rule);
 	op_expr_add_rule(op_expr,p_rule);
@@ -1411,7 +1411,7 @@ int del_region_rule(struct Maat_table_schema* table, int region_id, int group_id
 		case	TABLE_TYPE_INTERVAL:
 			for(i=0;i<region->expr_id_cnt;i++)
 			{
-				op_expr=create_op_expr(region->expr_id_ub+i, 1, NULL, table->table_id);//del expr
+				op_expr=create_op_expr(region->expr_id_lb+i, RULESCAN_OP_DEL, NULL, table->table_id);//del expr
 				op_expr->rule_type=rule_type;
 				MESA_lqueue_join_tail(maat_scanner->region_update_q, &op_expr, sizeof(void*));
 			}
