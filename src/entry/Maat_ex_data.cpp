@@ -135,13 +135,14 @@ int EX_data_rt_row2EX_data(struct EX_data_rt* ex_rt,
 		return -1;
 	}
 	ex_container=ALLOC(struct EX_data_container, 1);
-	ex_schema->new_func(ex_rt->table_id, key, row, &ex_data, 
+	ex_container->key=ALLOC(char, key_len+1);
+	memcpy(ex_container->key, key, key_len);
+	ex_schema->new_func(ex_rt->table_id, ex_container->key, row, &ex_data, 
 						ex_schema->argl, ex_schema->argp);
 	ex_container->ex_data=ex_data;
 	ex_container->rt=ex_rt;
 	ex_container->user_data=user_data;
-	ex_container->key=ALLOC(char, key_len);
-	memcpy(ex_container->key, key, key_len);
+
 	ex_container->key_len=key_len;
 	HASH_ADD_KEYPTR(hh, ex_rt->hash_key2ex, ex_container->key, ex_container->key_len, ex_container);
 	return 0;
