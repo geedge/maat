@@ -715,8 +715,8 @@ void op_expr_add_rule(struct op_expr_t* op_expr,scan_rule_t* p_rule)
 }
 void Maat_region_inner_free(struct Maat_region_inner* region)
 {
-	assert(region->magic_num==REGION_RULE_MAGIC);	
-	assert(region->expr_id_cnt==region->expr_id_ub-region->expr_id_lb+1);
+	assert(region->magic_num==REGION_RULE_MAGIC);
+	assert(region->expr_id_cnt==0||region->expr_id_cnt==region->expr_id_ub-region->expr_id_lb+1);
 	region->magic_num=0;
 	free(region);
 }
