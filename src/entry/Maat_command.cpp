@@ -193,6 +193,7 @@ int get_valid_flag_offset(const char* line, enum MAAT_TABLE_TYPE type,int valid_
 			column_seq=8;
 			break;
 		case	TABLE_TYPE_PLUGIN:
+		case	TABLE_TYPE_IP_PLUGIN:
 			if(valid_column_seq<0)
 			{
 				return -1;
@@ -1614,7 +1615,6 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 	long long new_version=0;
 	enum MAAT_TABLE_TYPE table_type;
 	struct Maat_table_schema* table_desc=NULL;
-	const struct plugin_table_schema* plugin_desc=NULL;
 	void* logger=feather->logger;
 
 	if(mr_ctx->write_ctx!=NULL&&mr_ctx->write_ctx->err==0)//authorized to write
@@ -1703,11 +1703,17 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 		table_type=Maat_table_get_type_by_id(feather->table_mgr, table_id);
 		if(rule_list[i].op==MAAT_OP_DEL)
 		{
-			if(table_type==TABLE_TYPE_PLUGIN)
+			if(table_type==TABLE_TYPE_PLUGIN||table_type==TABLE_TYPE_IP_PLUGIN)
 			{
-				table_desc=Maat_table_get_scan_by_id(feather->table_mgr, table_id, TABLE_TYPE_PLUGIN, NULL);
-				plugin_desc=&(table_desc->plugin);
-				valid_column=plugin_desc->valid_flag_column;
+				table_desc=Maat_table_get_scan_by_id(feather->table_mgr, table_id, table_type, NULL);
+				if(table_type==TABLE_TYPE_PLUGIN)
+				{
+					valid_column=table_desc->plugin.valid_flag_column;
+				}
+				else
+				{
+					valid_column=table_desc->ip_plugin.valid_flag_column;
+				}
 			}
 			else
 			{
