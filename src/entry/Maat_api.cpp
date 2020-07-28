@@ -4,6 +4,7 @@
 #include <time.h>
 #include <MESA/MESA_handle_logger.h>
 
+#include "uthash/utarray.h"
 #include "rulescan.h"
 #include "bool_matcher.h"
 #include "Maat_rule.h"
@@ -193,24 +194,44 @@ struct scan_region_hit_wraper
 	int is_last_region;
 };
 
-struct scan_hit_status* scan_hit_status_new(void)
+UT_icd ut_ulonglong_id_icd = {sizeof(unsigned long long), NULL, NULL, NULL};
+struct scan_hit_status* scan_hit_status_new(int enable_hit_path)
 {
 	struct scan_hit_status* inner_mid=NULL;
 	inner_mid=ALLOC(struct scan_hit_status, 1);
-	TAILQ_INIT(&inner_mid->hit_path_qhead);
+	if(enable_hit_path)
+	{
+		inner_mid->enable_hit_path=1;
+		TAILQ_INIT(&inner_mid->hit_path_qhead);
+	}
+	else
+	{
+		inner_mid->enable_hit_path=0;
+		utarray_new(inner_mid->cur_hit_relation_ids, &ut_ulonglong_id_icd);
+		utarray_reserve(inner_mid->cur_hit_relation_ids, 4);
+	}
 	return inner_mid;
 }
 void scan_hit_status_free(struct scan_hit_status* p)
 {
-	struct Maat_hit_path_inner * tmp = TAILQ_FIRST(&p->hit_path_qhead);
-	while(tmp != NULL)
+	struct Maat_hit_path_inner * tmp=NULL;
+	if(p->enable_hit_path)
 	{
-		TAILQ_REMOVE(&p->hit_path_qhead, tmp, entries);
-		free(tmp);
-		p->hit_path_cnt--;
 		tmp = TAILQ_FIRST(&p->hit_path_qhead);
+		while(tmp != NULL)
+		{
+			TAILQ_REMOVE(&p->hit_path_qhead, tmp, entries);
+			free(tmp);
+			p->hit_path_cnt--;
+			tmp = TAILQ_FIRST(&p->hit_path_qhead);
+		}
+		assert(p->hit_path_cnt==0);
 	}
-	assert(p->hit_path_cnt==0);
+	else
+	{
+		utarray_free(p->cur_hit_relation_ids);
+		p->cur_hit_relation_ids=NULL;
+	}
 	free(p->all_hit_group_array);
 	p->all_hit_group_array=NULL;
 	free(p);
@@ -252,28 +273,25 @@ size_t scan_hit_status_select_hit_path_inner(const struct hit_path_q *hit_path_q
 	return i;
 
 }
+void scan_hit_status_reset_current_hit(struct scan_hit_status* hit_status)
+{
+	if(!hit_status->enable_hit_path)
+	{
+		utarray_clear(hit_status->cur_hit_relation_ids);
+		hit_status->is_sortted=0;
+	}
+	return;
+}
 
 void scan_hit_status_update_by_group(struct scan_hit_status* hit_status, struct Maat_group_inner* group_rule, int region_id, int virtual_table_id, int Nth_scan, int Nth_region_result)
 {
 	size_t i=0;
 	int ret=0;
 	struct Maat_hit_path_inner* hit_path=NULL;
-
+	unsigned long long relation_id=0;
 	if(group_rule->top_group_cnt==0)
 	{
-		hit_path=ALLOC(struct Maat_hit_path_inner, 1);
-		hit_path_init(&(hit_path->path));
-		hit_path->Nth_hit_region=Nth_region_result;
-		hit_path->path.Nth_scan=Nth_scan;
-		hit_path->path.region_id=region_id;
-		hit_path->path.sub_group_id=group_rule->group_id;
-		hit_path->path.virtual_table_id=virtual_table_id;
-		TAILQ_INSERT_TAIL(&hit_status->hit_path_qhead, hit_path, entries);
-		hit_status->hit_path_cnt++;
-	}
-	else
-	{
-		for(i=0; i<group_rule->top_group_cnt; i++)
+		if(hit_status->enable_hit_path)
 		{
 			hit_path=ALLOC(struct Maat_hit_path_inner, 1);
 			hit_path_init(&(hit_path->path));
@@ -281,19 +299,62 @@ void scan_hit_status_update_by_group(struct scan_hit_status* hit_status, struct 
 			hit_path->path.Nth_scan=Nth_scan;
 			hit_path->path.region_id=region_id;
 			hit_path->path.sub_group_id=group_rule->group_id;
-			hit_path->path.top_group_id=group_rule->top_groups[i];
 			hit_path->path.virtual_table_id=virtual_table_id;
 			TAILQ_INSERT_TAIL(&hit_status->hit_path_qhead, hit_path, entries);
 			hit_status->hit_path_cnt++;
+		}
+	}
+	else
+	{
+		for(i=0; i<group_rule->top_group_cnt; i++)
+		{
+			relation_id=TO_RELATION_ID(virtual_table_id, group_rule->top_groups[i]);
 			ret=insert_set_id(&(hit_status->all_hit_group_array),
 								&(hit_status->all_hit_group_array_sz),
 								hit_status->all_hit_group_cnt,
-								TO_RELATION_ID(virtual_table_id, group_rule->top_groups[i]));
+								relation_id);
 			hit_status->all_hit_group_cnt+=ret;
+
+			if(hit_status->enable_hit_path)
+			{
+				hit_path=ALLOC(struct Maat_hit_path_inner, 1);
+				hit_path_init(&(hit_path->path));
+				hit_path->Nth_hit_region=Nth_region_result;
+				hit_path->path.Nth_scan=Nth_scan;
+				hit_path->path.region_id=region_id;
+				hit_path->path.sub_group_id=group_rule->group_id;
+				hit_path->path.top_group_id=group_rule->top_groups[i];
+				hit_path->path.virtual_table_id=virtual_table_id;
+				TAILQ_INSERT_TAIL(&hit_status->hit_path_qhead, hit_path, entries);
+				hit_status->hit_path_cnt++;
+			}
+			else
+			{
+				utarray_push_back(hit_status->cur_hit_relation_ids, &relation_id);
+			}
+
 		}
 	}
 	return;
 }
+int relation_id_compare(const void *a, const void *b)
+{
+	unsigned long long* ull_a=(unsigned long long*)a;
+	unsigned long long* ull_b=(unsigned long long*)b;
+	if(*ull_a<*ull_b)
+	{
+		return -1;
+	}
+	else if(*ull_a==*ull_b)
+	{
+		return 0;
+	}
+	else
+	{
+		return 1;
+	}
+}
+
 size_t scan_hit_status_update_by_compile(struct scan_hit_status* hit_status, struct Maat_compile_group_relation* compile_rule, int Nth_scan)
 {
 	size_t i=0, j=0;
@@ -301,51 +362,73 @@ size_t scan_hit_status_update_by_compile(struct scan_hit_status* hit_status, str
 	struct bool_expr a_set;
 	unsigned char has_not=0;
 
+	void* tmp=NULL;
+	
 	struct Maat_hit_path_t condition;
 	size_t n_exsited_path=0;
-	struct hit_path_q shared_path_qhead;
-	TAILQ_INIT(&shared_path_qhead);
+	struct hit_path_q shared_path_qhead;	
 	make_group_set(compile_rule, &a_set, &has_not);
-	for(i=0; i<a_set.item_num; i++)
+	if(hit_status->enable_hit_path)
 	{
-		TAILQ_FOREACH(p, &hit_status->hit_path_qhead, entries)
+		TAILQ_INIT(&shared_path_qhead);
+		for(i=0; i<a_set.item_num; i++)
 		{
-			n_exsited_path=0;
-			if(TO_RELATION_ID(p->path.virtual_table_id, p->path.top_group_id)==a_set.items[i].item_id
-				&& p->path.compile_id!=compile_rule->compile_id)
+			TAILQ_FOREACH(p, &hit_status->hit_path_qhead, entries)
 			{
-				if(p->path.compile_id<0)
+				n_exsited_path=0;
+				if(TO_RELATION_ID(p->path.virtual_table_id, p->path.top_group_id)==a_set.items[i].item_id
+					&& p->path.compile_id!=compile_rule->compile_id)
 				{
-					p->path.compile_id=compile_rule->compile_id;
-				}
-				else	//current path already have a compile as endpoint, so we duplicate a new path.
-				{
-					condition=p->path;
-					condition.compile_id=compile_rule->compile_id;
-					n_exsited_path=scan_hit_status_select_hit_path_inner(&shared_path_qhead, &condition, NULL, 0);
-					if(n_exsited_path==0)
+					if(p->path.compile_id<0)
 					{
-						q=ALLOC(struct Maat_hit_path_inner, 1);
-						*q=*p;
-						q->path.compile_id=compile_rule->compile_id;
-						TAILQ_INSERT_TAIL(&shared_path_qhead, q, entries);
-						hit_status->hit_path_cnt++;
+						p->path.compile_id=compile_rule->compile_id;
 					}
-				}
-				if(p->path.Nth_scan==Nth_scan && n_exsited_path==0)//Compile was satisfied by new region hits.
-				{
-					j++;
-				}
-			}		
+					else	//current path already have a compile as endpoint, so we duplicate a new path.
+					{
+						condition=p->path;
+						condition.compile_id=compile_rule->compile_id;
+						n_exsited_path=scan_hit_status_select_hit_path_inner(&shared_path_qhead, &condition, NULL, 0);
+						if(n_exsited_path==0)
+						{
+							q=ALLOC(struct Maat_hit_path_inner, 1);
+							*q=*p;
+							q->path.compile_id=compile_rule->compile_id;
+							TAILQ_INSERT_TAIL(&shared_path_qhead, q, entries);
+							hit_status->hit_path_cnt++;
+						}
+					}
+					if(p->path.Nth_scan==Nth_scan && n_exsited_path==0)//Compile was satisfied by new region hits.
+					{
+						j++;
+					}
+				}		
+			}
+		}
+		p = TAILQ_FIRST(&shared_path_qhead);
+		while(p != NULL)
+		{
+			TAILQ_REMOVE(&shared_path_qhead, p, entries);
+			TAILQ_INSERT_TAIL(&hit_status->hit_path_qhead, p, entries);
+			p = TAILQ_FIRST(&shared_path_qhead);
 		}
 	}
-	p = TAILQ_FIRST(&shared_path_qhead);
-	while(p != NULL)
+	else
 	{
-		TAILQ_REMOVE(&shared_path_qhead, p, entries);
-		TAILQ_INSERT_TAIL(&hit_status->hit_path_qhead, p, entries);
-		p = TAILQ_FIRST(&shared_path_qhead);
-	}	
+		if(!hit_status->is_sortted)
+		{
+			utarray_sort(hit_status->cur_hit_relation_ids, relation_id_compare);
+			hit_status->is_sortted=1;
+		}
+		for(i=0; i<a_set.item_num; i++)
+		{
+			tmp=utarray_find(hit_status->cur_hit_relation_ids, &a_set.items[i].item_id, relation_id_compare);
+			if(tmp)
+			{
+				assert(*(unsigned long long*)tmp==a_set.items[i].item_id);
+				j++;
+			}
+		}
+	}
 	return j;
 }
 
@@ -430,7 +513,6 @@ int region_compile(_Maat_feather_t*feather, struct scan_hit_status *_mid, const 
 		scan_hit_status_update_by_group(_mid, group_rule, region_id, 
 									virtual_table_id, region_hit_wraper->Nth_scan, i);
 	}
-
 	if(bm)
 	{
 		hit_group_id_cnt=scan_hit_status_read_group_ids(_mid, &hit_group_ids);
@@ -483,6 +565,7 @@ int region_compile(_Maat_feather_t*feather, struct scan_hit_status *_mid, const 
 		alignment_int64_array_add(feather->not_grp_hit_cnt, thread_num, 1);
 
 	}
+	scan_hit_status_reset_current_hit(_mid);
 	return result_cnt;
 }
 
@@ -658,7 +741,7 @@ struct _OUTER_scan_status_t* grab_mid(scan_status_t* raw_mid,_Maat_feather_t* fe
 	{
 		if(_mid->inner==NULL)
 		{
-			_mid->inner=scan_hit_status_new();
+			_mid->inner=scan_hit_status_new(feather->hitpath_on);
 			alignment_int64_array_add(feather->inner_mid_cnt,thread_num,1);
 		}
 	}
@@ -820,6 +903,9 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 
 			}
 			return 0;
+		case MAAT_OPT_HITPATH_ON:
+			_feather->hitpath_on=1;
+			break;
 		default:
 			break;			
 	}
@@ -2547,7 +2633,7 @@ int Maat_get_scan_status(Maat_feather_t feather, scan_status_t* mid, enum MAAT_S
 	switch(type)
 	{
 		case	MAAT_GET_SCAN_HIT_PATH:
-			if(value==NULL||size<=0||size%sizeof(struct Maat_hit_path_t)!=0)
+			if(value==NULL||size<=0||size%sizeof(struct Maat_hit_path_t)!=0|| !_feather->hitpath_on)
 			{
 				return -1;
 			}

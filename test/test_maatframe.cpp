@@ -812,6 +812,8 @@ TEST(IPScan, IPv4_composition)
 	scan_status_t mid=NULL;
 	struct ipaddr ipv4_addr;
 	struct stream_tuple4_v4 v4_addr;
+	
+	Maat_set_feather_opt(g_feather, MAAT_OPT_HITPATH_ON, NULL, 0); //Do NOT do this in production code!!! This is for test.
 	ipv4_addr_set(&ipv4_addr, &v4_addr, "192.168.40.11", 443, "192.168.231.47", 25715);
 
 	table_id=Maat_table_register(g_feather, table_name);
@@ -1977,7 +1979,7 @@ protected:
 		
 		const char* foregin_dir="./foreign_files/";	
 		Maat_set_feather_opt(_shared_feather, MAAT_OPT_FOREIGN_CONT_DIR,foregin_dir, strlen(foregin_dir)+1);
-
+		Maat_set_feather_opt(_shared_feather, MAAT_OPT_HITPATH_ON, NULL, 0);
 		Maat_cmd_flushDB(_shared_feather);
 		Maat_initiate_feather(_shared_feather);
 	}
@@ -3272,6 +3274,7 @@ int main(int argc, char ** argv)
 	Maat_set_feather_opt(g_feather, MAAT_OPT_STAT_FILE_PATH, stat_file, strlen(stat_file)+1);
 	Maat_set_feather_opt(g_feather, MAAT_OPT_STAT_ON, NULL, 0);
 	Maat_set_feather_opt(g_feather, MAAT_OPT_PERF_ON, NULL, 0);
+	
 	Maat_set_feather_opt(g_feather, MAAT_OPT_SCAN_DETAIL, &scan_detail, sizeof(scan_detail));
 	Maat_set_feather_opt(g_feather, MAAT_OPT_ACCEPT_TAGS, accept_tags, strlen(accept_tags)+1);
 	Maat_initiate_feather(g_feather);

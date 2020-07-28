@@ -5,6 +5,7 @@
 #include "Maat_limits.h"
 #include "Maat_table.h"
 #include "Maat_table_runtime.h"
+#include "uthash/utarray.h"
 
 #include <MESA/MESA_htable.h>
 #include <MESA/MESA_list_queue.h>
@@ -178,14 +179,20 @@ TAILQ_HEAD(hit_path_q, Maat_hit_path_inner);
 
 struct scan_hit_status
 {
+	char not_grp_compile_hitted_flag;
+	char enable_hit_path;
+
 	size_t hit_path_cnt;
 	struct hit_path_q hit_path_qhead;
+
+	int is_sortted;
+	UT_array *cur_hit_relation_ids;
 	
 	size_t all_hit_group_cnt;
 	size_t all_hit_group_array_sz;
 	unsigned long long *all_hit_group_array;
 
-	char not_grp_compile_hitted_flag;
+
 };
 struct _OUTER_scan_status_t
 {
@@ -335,6 +342,7 @@ struct _Maat_feather_t
 	int cumulative_update_off;
 	int stat_on;
 	int perf_on;
+	int hitpath_on;
 	
 	void* logger;
 	long long maat_version;
