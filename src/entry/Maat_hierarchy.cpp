@@ -331,7 +331,7 @@ int Maat_hierarchy_compile_add(struct Maat_hierarchy* hier, int compile_id, int 
 	HASH_FIND_INT(hier->hash_compile_by_id, &compile_id, compile);
 	if(!compile)
 	{
-		assert(declared_clause_num>0);
+		assert(declared_clause_num>=0);
 		compile=Maat_hierarchy_compile_new(hier, compile_id);
 		compile->declared_clause_num=declared_clause_num;
 		compile->user_data=user_data;
@@ -791,7 +791,8 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 				j++;
 			}
 		}
-		if(j==compile->declared_clause_num)
+		//some compile may have zero groups, e.g. default policy.
+		if(j==compile->declared_clause_num&&j>0)
 		{
 			bool_expr_array[expr_cnt].user_tag=compile;
 			bool_expr_array[expr_cnt].item_num=j;
@@ -802,6 +803,12 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 
 	//Final STEP, build the bool matcher.
 	size_t mem_size=0;
+	if(expr_cnt==0)
+	{
+		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, module_maat_hierarchy,
+								"No expr to build.");
+		return NULL;
+	}
 	bm=bool_matcher_new(bool_expr_array, expr_cnt, hier->thread_num, &mem_size);
 	if(bm!=NULL)
 	{
