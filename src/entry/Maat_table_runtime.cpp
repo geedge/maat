@@ -526,6 +526,10 @@ int Maat_table_runtime_ip_plugin_get_N_ex_data(struct Maat_table_runtime* table_
 {
 	struct scan_result results[size];
 	int n_result=0, i=0;
+	if(!table_rt->ip_plugin.ip_matcher)
+	{
+		return 0;	
+	}
 	n_result=ip_matcher_match(table_rt->ip_plugin.ip_matcher, (struct ip_data*)ip, results, size);
 	for(i=0; i<n_result; i++)
 	{
