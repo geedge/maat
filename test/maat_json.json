@@ -1825,6 +1825,31 @@
 		                "clause_index":1                   
 		            }
             ]
+        },
+        {
+            "compile_id": 179,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "anything",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_name": "INTERGER_PLUS",
+                            "table_type": "intval_plus",
+                            "table_content": {
+                                "district": "intval.plus",
+                                "low_boundary": 2020,
+                                "up_boundary": 2020
+                            }
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "plugin_table": [

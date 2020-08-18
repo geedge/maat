@@ -1381,6 +1381,13 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 	{
 		return 0;
 	}
+
+	if(table_rt->table_type==TABLE_TYPE_INTERVAL_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
+	{
+		_feather->scan_err_cnt++;
+		return -1;
+	}
+	
 	intval_scan_data.rule_type=RULETYPE_INT;
 	intval_scan_data.sub_type=make_sub_type(p_table->table_id, CHARSET_NONE, 0);
 	intval_scan_data.int_data=intval;
@@ -1391,6 +1398,10 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 	
 	INC_SCANNER_REF(my_scanner,thread_num);
 	region_ret=rulescan_search(my_scanner->region, thread_num, &intval_scan_data, region_result, MAX_SCANNER_HIT_NUM);
+	if(region_ret>0&&p_table->table_type==TABLE_TYPE_INTERVAL_PLUS)
+	{
+		region_ret=match_district(_mid, region_result, region_ret);
+	}
 	if(region_ret<0)
 	{
 		DEC_SCANNER_REF(my_scanner, thread_num);
