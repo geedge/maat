@@ -1931,7 +1931,7 @@ void update_intval_rule(struct Maat_table_schema* table, const char* table_line,
 			}
 			break;
 		case	TABLE_TYPE_INTERVAL_PLUS:
-			ret=sscanf(table_line,"%d\t%d\t%s%u\t%u\t%d",&(intval_rule->region_id)
+			ret=sscanf(table_line,"%d\t%d\t%s\t%u\t%u\t%d",&(intval_rule->region_id)
 														,&(intval_rule->group_id)
 														,intval_rule->district
 														,&(intval_rule->intval.lb)
