@@ -3030,7 +3030,7 @@ void plugin_EX_dup_cb(int table_id,	MAAT_PLUGIN_EX_DATA *to, MAAT_PLUGIN_EX_DATA
 
 TEST_F(MaatCmdTest, PluginEXData)
 {
-#define plugin_EX_data_index
+#define plugin_EX_data
 	Maat_feather_t feather=MaatCmdTest::_shared_feather;
 
 	int ret=0, i=0;
@@ -3086,6 +3086,84 @@ TEST_F(MaatCmdTest, PluginEXData)
 
 	return;
 }
+TEST_F(MaatCmdTest, IPPluginEXData)
+{
+#define ip_plugin_EX_data
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+
+	int ret=0, i=0;
+	int table_id=0, ip_plugin_ex_data_counter=0;
+	const char* table_name="TEST_IP_PLUGIN_WITH_EXDATA";
+
+
+	const int TEST_CMD_LINE_NUM=4;
+	const struct Maat_cmd_line *p_line[TEST_CMD_LINE_NUM];
+	struct Maat_cmd_line line_rule[TEST_CMD_LINE_NUM];
+	const char* table_line[TEST_CMD_LINE_NUM]={
+                "101\t4\t192.168.30.99\t192.168.30.101\tSomething-like-json\t1",
+				"102\t4\t192.168.30.90\t192.168.30.128\tBigger-range-should-in-the-back\t1",
+                "103\t6\t2001:db8:1234::\t2001:db8:1235::\tBigger-range-should-in-the-back\t1",
+				"104\t6\t2001:db8:1234::1\t2001:db8:1234::5210\tSomething-like-json\t1"
+		};
+	table_id=Maat_table_register(feather, table_name);
+	ASSERT_GT(table_id, 0);
+	memset(&line_rule,0,sizeof(line_rule));
+	for(i=0;i<TEST_CMD_LINE_NUM;i++)
+	{
+		line_rule[i].label_id=0;
+		line_rule[i].rule_id=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", 1);
+		line_rule[i].table_name=table_name;
+		line_rule[i].table_line=table_line[i];
+		line_rule[i].expire_after=0;
+		p_line[i]=line_rule+i;
+	}
+	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
+	EXPECT_GT(ret, 0);
+
+	usleep(WAIT_FOR_EFFECTIVE_US);
+
+	ret=Maat_ip_plugin_EX_register(feather, table_id,
+								ip_plugin_EX_new_cb,
+								ip_plugin_EX_free_cb,
+								ip_plugin_EX_dup_cb,
+								0, &ip_plugin_ex_data_counter);
+	ASSERT_TRUE(ret>=0);
+	EXPECT_EQ(ip_plugin_ex_data_counter, 4);
+	struct ip_address ipv4, ipv6;
+	struct ip_plugin_ud* result[4];
+	ipv4.ip_type=4;
+	inet_pton(AF_INET, "192.168.30.100", &(ipv4.ipv4));	
+	memset(&result, 0, sizeof(result));
+	ret=Maat_ip_plugin_get_EX_data(feather, table_id, &ipv4, (void**)result, 4);
+	ASSERT_EQ(ret, 2);
+	EXPECT_EQ(result[0]->rule_id, 101);
+	EXPECT_EQ(result[1]->rule_id, 102);
+	for(i=0; i<ret; i++)
+	{
+		ip_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
+	ipv6.ip_type=6;
+	inet_pton(AF_INET6,"2001:db8:1234::5210",&(ipv6.ipv6));
+	memset(&result, 0, sizeof(result));
+	ret=Maat_ip_plugin_get_EX_data(feather, table_id, &ipv6, (void**)result, 4);
+	ASSERT_EQ(ret, 2);
+	EXPECT_EQ(result[0]->rule_id, 104);
+	EXPECT_EQ(result[1]->rule_id, 103);
+	for(i=0; i<ret; i++)
+	{
+		ip_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
+	
+	ret=Maat_cmd_set_lines(feather, p_line , TEST_CMD_LINE_NUM, MAAT_OP_DEL);
+	EXPECT_GT(ret, 0);
+	
+	usleep(WAIT_FOR_EFFECTIVE_US);
+	ret=Maat_ip_plugin_get_EX_data(feather, table_id, &ipv4, (void**)result, 4);
+	ASSERT_EQ(ret, 0);
+
+	return;
+}
+
 #define TEST_HIT_PATH
 TEST_F(MaatCmdTest,    HitPath)
 {

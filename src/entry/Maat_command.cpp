@@ -1901,22 +1901,36 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_cmd_line** line_
 			ret=-1;
 			goto error_out;
 		}
-		p_table=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, TABLE_TYPE_PLUGIN, NULL);
+		p_table=Maat_table_get_by_id_raw(_feather->table_mgr, table_id);
 		if(!p_table)
 		{
-			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_command 
-					,"Command set line id %d failed: table %s is not a plugin table."
-					, line_rule[i]->rule_id
-					, line_rule[i]->table_name);
 			ret=-1;
 			goto error_out;
 		}
-		plugin_desc=&(p_table->plugin);
+		int valid_flag_column=0;
+		switch(p_table->table_type)
+		{
+			case TABLE_TYPE_PLUGIN:
+				valid_flag_column=p_table->plugin.valid_flag_column;
+				plugin_desc=&(p_table->plugin);	
+				break;
+			case TABLE_TYPE_IP_PLUGIN:
+				valid_flag_column=p_table->ip_plugin.valid_flag_column;
+				break;
+			default:
+				MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_command 
+						,"Command set line id %d failed: table %s is not a plugin or ip_plugin table."
+						, line_rule[i]->rule_id
+						, line_rule[i]->table_name);
+				ret=-1;
+				goto error_out;
+		}
+
 		if(op==MAAT_OP_ADD)
 		{
 			ret=get_valid_flag_offset(line_rule[i]->table_line
 				, p_table->table_type
-				, plugin_desc->valid_flag_column);
+				, valid_flag_column);
 			if(ret<0||
 				(op==MAAT_OP_ADD&&line_rule[i]->table_line[ret]!='1'))
 			{
@@ -1935,7 +1949,7 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_cmd_line** line_
 		{
 			absolute_expire_time=server_time+line_rule[i]->expire_after;
 		}
-		if(plugin_desc->n_foreign>0)
+		if(plugin_desc && plugin_desc->n_foreign>0)
 		{
 			for(j=0;j<plugin_desc->n_foreign;j++)
 			{

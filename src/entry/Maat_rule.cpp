@@ -34,7 +34,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_3_0_20200731=1;
+int MAAT_FRAME_VERSION_3_0_20200819=1;
 
 int is_valid_table_name(const char* str)
 {
@@ -2119,7 +2119,6 @@ void update_digest_rule(struct Maat_table_schema* table, const char* table_line,
 		}
 
 	}
-	
 error_out:
 	digest_rule->digest_string=NULL;
 	free(digest_rule);
@@ -2218,6 +2217,7 @@ void update_ip_plugin_table(struct Maat_table_schema* table_schema, const char* 
 		}
 	}
 	Maat_table_runtime_ip_plugin_new_row(table_rt, table_schema, table_row, logger);
+	scanner->ip_plugin_update_q_size++;
 	return;
 }
 
@@ -2269,9 +2269,12 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 				}
 				break;
 			case TABLE_TYPE_IP_PLUGIN:
-				Maat_table_runtime_ip_plugin_rebuild_ip_matcher(table_rt);
-				old_ip_matcher=Maat_table_runtime_dettach_old_ip_matcher(table_rt);
-				Maat_garbage_bagging(scanner->ref_garbage_bin, old_ip_matcher, (void (*)(void*))ip_matcher_free);
+				Maat_table_runtime_ip_plugin_build_new_ip_matcher(table_rt);
+				old_ip_matcher=Maat_table_runtime_apply_new_ip_matcher(table_rt);
+				if(old_ip_matcher)
+				{
+					Maat_garbage_bagging(scanner->ref_garbage_bin, old_ip_matcher, (void (*)(void*))ip_matcher_free);
+				}
 				break;
 			default:
 				break;
@@ -2353,7 +2356,7 @@ void maat_finish_cb(void* u_para)
 		feather->scanner->cfg_num=scanner_rule_num(feather->scanner);
 		feather->scanner->version=feather->maat_version;
 		expr_wait_q_cnt=MESA_lqueue_get_count(feather->scanner->region_update_q);
-		feather->postpone_q_size=expr_wait_q_cnt+feather->scanner->gie_update_q_size;
+		feather->postpone_q_size=expr_wait_q_cnt+feather->scanner->gie_update_q_size+feather->scanner->ip_plugin_update_q_size;
 		if(time(NULL)-feather->scanner->last_update_time>=feather->effect_interval_ms/1000)
 		{
 			do_scanner_update(feather->scanner,

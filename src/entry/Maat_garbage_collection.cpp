@@ -67,7 +67,7 @@ void Maat_garbage_collect_routine(struct Maat_garbage_bin* bin)
 	for(p=TAILQ_FIRST(&bin->garbage_q); p!=NULL; p=tmp)
 	{
 		tmp=TAILQ_NEXT(p, entries);
-		if(now-p->create_time>p->timeout)
+		if(now-p->create_time>p->timeout || p->timeout==0)
 		{
 			p->garbage_free(p->garbage);
 			TAILQ_REMOVE(&bin->garbage_q, p, entries);
