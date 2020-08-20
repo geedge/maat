@@ -2023,6 +2023,7 @@ void update_compile_rule(struct Maat_table_schema* table,const char* table_line 
 			assert(ret==0);
 			table_rt->origin_rule_num--;
 			Maat_garbage_bagging(scanner->ref_garbage_bin, p_compile, (void (*)(void*))destroy_compile_rule);
+			scanner->to_update_compile_cnt++;
 		}
 		else
 		{
@@ -2036,6 +2037,7 @@ void update_compile_rule(struct Maat_table_schema* table,const char* table_line 
 		if(ret==0)
 		{
 			table_rt->origin_rule_num++;
+			scanner->to_update_compile_cnt++;
 		}
 		else
 		{
@@ -2048,6 +2050,7 @@ void update_compile_rule(struct Maat_table_schema* table,const char* table_line 
 			table->udpate_err_cnt++;
 		}
 	}
+	
 	return;
 }
 
@@ -2228,27 +2231,29 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 	struct ip_matcher* old_ip_matcher=NULL;
 	int i=0, ret=0;
 
-	ret=Maat_hierarchy_rebuild(scanner->hier);
-	if(ret!=0)
+	if(scanner->to_update_compile_cnt+scanner->to_update_group_cnt>0)
 	{
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module ,
-								"Version %d hierarchy rebuild failed.",
-								scanner->version);
-		return;
-	}
-	else
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"Version %d hierarchy rebuild success, dedup string rule %lu.",
-							scanner->version,
-							scanner->dedup_expr_num);	
+		ret=Maat_hierarchy_rebuild(scanner->hier);
+		if(ret!=0)
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module ,
+									"Version %d hierarchy rebuild failed.",
+									scanner->version);
+		}
+		else
+		{
+			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
+								"Version %d hierarchy rebuild success, dedup string rule %lu.",
+								scanner->version,
+								scanner->dedup_expr_num);	
+		}
 	}
 	scanner->dedup_expr_num=0;
-	
 	rulescan_batch_update(scanner->region,
 							scanner->region_update_q,
 							logger,
 							scanner);
+
 	for(i=0; (size_t)i<scanner->max_table_num; i++)
 	{
 		table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, i);
@@ -2292,6 +2297,7 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 	scanner->gie_update_q_size=0;
 	scanner->to_update_group_cnt=0;
 	scanner->to_update_compile_cnt=0;
+	scanner->ip_plugin_update_q_size=0;
 	return;
 
 }
