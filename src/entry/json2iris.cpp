@@ -164,7 +164,9 @@ int set_iris_descriptor(const char* json_file,cJSON *json, const char* encrypt_k
 	map_register(iris_cfg->str2int_map, "expr",TABLE_TYPE_EXPR);
 	map_register(iris_cfg->str2int_map, "expr_plus",TABLE_TYPE_EXPR_PLUS);
 	map_register(iris_cfg->str2int_map, "intval",TABLE_TYPE_INTERVAL);
+	map_register(iris_cfg->str2int_map, "interval",TABLE_TYPE_INTERVAL);
 	map_register(iris_cfg->str2int_map, "intval_plus",TABLE_TYPE_INTERVAL_PLUS);
+	map_register(iris_cfg->str2int_map, "interval_plus",TABLE_TYPE_INTERVAL_PLUS);
 	map_register(iris_cfg->str2int_map, "digest",TABLE_TYPE_DIGEST);
 	map_register(iris_cfg->str2int_map, "similar",TABLE_TYPE_SIMILARITY);
 
