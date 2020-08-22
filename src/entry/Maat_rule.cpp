@@ -34,7 +34,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_3_0_20200819=1;
+int MAAT_FRAME_VERSION_3_0_20200822=1;
 
 int is_valid_table_name(const char* str)
 {
@@ -1338,9 +1338,16 @@ int add_intval_rule(struct Maat_table_schema* table,struct db_intval_rule* intva
 	scan_rule_t* p_rule=NULL;
 	struct op_expr_t* op_expr=NULL;
 	struct Maat_region_inner* u_para=NULL;
-	int expr_id=0, ret=0;
+	int expr_id=0, ret=0,district_id=-1;
 
-	u_para=Maat_region_inner_new(intval_rule->group_id, intval_rule->region_id, table->table_id, -1);
+	if(table->table_type==TABLE_TYPE_EXPR_PLUS)
+	{
+		assert(strlen(intval_rule->district)>0);
+		str_unescape(intval_rule->district);
+		district_id=get_district_id(scanner, intval_rule->district);
+	}
+
+	u_para=Maat_region_inner_new(intval_rule->group_id, intval_rule->region_id, table->table_id, district_id);
 	ret=Maat_hierarchy_add_region_to_group(scanner->hier, intval_rule->group_id, intval_rule->region_id, table->table_id, u_para);
 	if(ret!=0)
 	{
@@ -1409,6 +1416,7 @@ int del_region_rule(struct Maat_table_schema* table, int region_id, int group_id
 		case	TABLE_TYPE_EXPR:
 		case	TABLE_TYPE_EXPR_PLUS:
 		case	TABLE_TYPE_INTERVAL:
+		case	TABLE_TYPE_INTERVAL_PLUS:
 			for(i=0;i<region->expr_id_cnt;i++)
 			{
 				op_expr=create_op_expr(region->expr_id_lb+i, RULESCAN_OP_DEL, NULL, table->table_id);//del expr
@@ -1904,20 +1912,47 @@ void update_intval_rule(struct Maat_table_schema* table, const char* table_line,
 	struct db_intval_rule* intval_rule=ALLOC(struct db_intval_rule, 1);
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
 	int ret=0;
-	ret=sscanf(table_line,"%d\t%d\t%u\t%u\t%d",&(intval_rule->region_id)
-											,&(intval_rule->group_id)
-											,&(intval_rule->intval.lb)
-											,&(intval_rule->intval.ub)
-											,&(intval_rule->is_valid));
-
-	if(ret!=5||intval_rule->intval.ub<intval_rule->intval.lb)
+	switch(table->table_type)
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"update error,invalid format  of interval table %s:%s"
-							,table->table_name[table->updating_name],table_line);
-		table->udpate_err_cnt++;
-		goto error_out;
+		case	TABLE_TYPE_INTERVAL:
+			ret=sscanf(table_line,"%d\t%d\t%u\t%u\t%d",&(intval_rule->region_id)
+														,&(intval_rule->group_id)
+														,&(intval_rule->intval.lb)
+														,&(intval_rule->intval.ub)
+														,&(intval_rule->is_valid));
+
+			if(ret!=5||intval_rule->intval.ub<intval_rule->intval.lb)
+			{
+				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+									"update error,invalid format  of interval table %s:%s"
+									,table->table_name[table->updating_name],table_line);
+				table->udpate_err_cnt++;
+				goto error_out;
+			}
+			break;
+		case	TABLE_TYPE_INTERVAL_PLUS:
+			ret=sscanf(table_line,"%d\t%d\t%s\t%u\t%u\t%d",&(intval_rule->region_id)
+														,&(intval_rule->group_id)
+														,intval_rule->district
+														,&(intval_rule->intval.lb)
+														,&(intval_rule->intval.ub)
+														,&(intval_rule->is_valid));
+
+			if(ret!=6||intval_rule->intval.ub<intval_rule->intval.lb)
+			{
+				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+									"update error,invalid format  of interval table %s:%s"
+									,table->table_name[table->updating_name],table_line);
+				table->udpate_err_cnt++;
+				goto error_out;
+			}
+			break;
+		default:
+			assert(0);
+			break;
 	}
+
+
 	if(intval_rule->is_valid==FALSE)
 	{
 		ret=del_region_rule(table
@@ -2422,6 +2457,7 @@ int maat_update_cb(const char* table_name,const char* line,void *u_para)
 			update_ip_rule(p_table, line, scanner, feather->logger);
 			break;
 		case	TABLE_TYPE_INTERVAL:
+		case	TABLE_TYPE_INTERVAL_PLUS:
 			update_intval_rule(p_table, line, scanner,feather->logger);
 			break;
 		case	TABLE_TYPE_DIGEST:

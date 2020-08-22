@@ -78,6 +78,7 @@ struct Maat_rgn_addr_t
 };
 struct Maat_rgn_intv_t
 {
+	const char *district;// optional for expr_plus, otherwise set to NULL.
 	unsigned int low_boundary;
 	unsigned int up_boundary;
 };

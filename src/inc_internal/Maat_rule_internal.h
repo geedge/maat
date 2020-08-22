@@ -67,6 +67,7 @@ struct db_intval_rule
 	int group_id;
 	interval_rule_t intval;
 	int is_valid;
+	char district[MAX_DISTRICT_LEN+1];
 };
 struct db_digest_rule
 {

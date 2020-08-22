@@ -492,6 +492,9 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 	map_register(string2int_map,"plugin", TABLE_TYPE_PLUGIN);
 	map_register(string2int_map,"ip_plugin", TABLE_TYPE_IP_PLUGIN);
 	map_register(string2int_map,"intval", TABLE_TYPE_INTERVAL);
+	map_register(string2int_map,"interval", TABLE_TYPE_INTERVAL);
+	map_register(string2int_map,"intval_plus", TABLE_TYPE_INTERVAL_PLUS);
+	map_register(string2int_map,"interval_plus", TABLE_TYPE_INTERVAL_PLUS);
 	map_register(string2int_map,"digest", TABLE_TYPE_DIGEST);
 	map_register(string2int_map,"expr_plus", TABLE_TYPE_EXPR_PLUS);
 	map_register(string2int_map,"group", TABLE_TYPE_GROUP);

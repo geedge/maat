@@ -70,27 +70,26 @@ develop_build_release:
     - /^master.*$/i
 
 
-release_build_release:
+release_build_debug:
   stage: build
   variables:
-    BUILD_TYPE: RelWithDebInfo
+    BUILD_TYPE: Debug
     PACKAGE: 1
     UPLOAD: 1
     PULP3_REPO_NAME: framework-stable-x86_64.el7
     PULP3_DIST_NAME: framework-stable-x86_64.el7
   extends: .build_by_travis
   artifacts:
-    name: "maatframe-$CI_COMMIT_REF_NAME-release"
+    name: "maatframe-$CI_COMMIT_REF_NAME-debug"
     paths:
       - build/*.rpm
   only:
     - tags
 
-release_build_release_devel:
+release_build_release:
   stage: build
   variables:
     BUILD_TYPE: RelWithDebInfo
-    ENABLE_DEVEL_SWITCH: "ON"
     PACKAGE: 1
     UPLOAD: 1
     PULP3_REPO_NAME: framework-stable-x86_64.el7

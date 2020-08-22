@@ -161,7 +161,14 @@ enum MAAT_TABLE_TYPE type_region2table(const struct Maat_region_t* p)
 			}
 			break;
 		case REGION_INTERVAL:
-			ret=TABLE_TYPE_INTERVAL;
+			if(p->interval_rule.district==NULL)
+			{
+				ret=TABLE_TYPE_INTERVAL;
+			}
+			else
+			{
+				ret=TABLE_TYPE_INTERVAL_PLUS;
+			}
 			break;
 		case REGION_DIGEST:
 			ret=TABLE_TYPE_DIGEST;
@@ -202,6 +209,9 @@ int get_valid_flag_offset(const char* line, enum MAAT_TABLE_TYPE type,int valid_
 			break;
 		case	TABLE_TYPE_INTERVAL:
 			column_seq=5;
+			break;
+		case	TABLE_TYPE_INTERVAL_PLUS:
+			column_seq=6;
 			break;
 		case	TABLE_TYPE_DIGEST:
 			column_seq=6;

@@ -444,6 +444,30 @@ TEST(StringScan, PrefixAndSuffix)
 	Maat_clean_status(&mid);
 
 }
+
+#define IntvalPlusTest	1
+TEST(IntvalScan,   IntvalPlusPlus)
+{
+	int table_id=0,ret=0;
+	int scan_val=2020;
+	scan_status_t mid=NULL;
+	struct Maat_rule_t result[4];
+	
+	table_id=Maat_table_register(g_feather, "INTERGER_PLUS");
+	ASSERT_GT(table_id, 0);
+
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, "intval.plus", strlen("intval.plus"));
+	ASSERT_EQ(ret, 0);
+	
+	ret=Maat_scan_intval(g_feather, table_id, scan_val, result,4, &mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 179);
+	
+	Maat_clean_status(&mid);
+	
+	return ;
+}
+
 #define ExprPlusTest	1
 TEST(StringScan,   ExprPlus)
 {
