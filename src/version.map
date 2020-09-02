@@ -3,6 +3,7 @@ global:
 	extern "C" {
 		*MAAT_FRAME_VERSION_*;
 		*Maat_*;
+		*bool_matcher_*;
 		*SFH_*;
 		*GIE_*;
 #for test		
