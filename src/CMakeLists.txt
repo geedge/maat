@@ -41,4 +41,4 @@ install(FILES ${PROJECT_SOURCE_DIR}/inc/Maat_rule.h DESTINATION /opt/MESA/includ
 install(FILES ${PROJECT_SOURCE_DIR}/inc/Maat_command.h DESTINATION /opt/MESA/include/MESA/ COMPONENT HEADER)
 install(FILES ${PROJECT_SOURCE_DIR}/inc/stream_fuzzy_hash.h DESTINATION /opt/MESA/include/MESA/ COMPONENT HEADER)
 install(FILES ${PROJECT_SOURCE_DIR}/inc/gram_index_engine.h DESTINATION /opt/MESA/include/MESA/ COMPONENT HEADER)
-install(TARGETS maat_frame_shared LIBRARY DESTINATION /opt/MESA/lib/ COMPONENT LIBRARY)
+install(TARGETS maat_frame_shared LIBRARY DESTINATION /opt/MESA/lib/ COMPONENT LIBRARIES)
