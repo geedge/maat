@@ -1392,6 +1392,11 @@ int add_digest_rule(struct Maat_table_schema* table, struct db_digest_rule* db_r
 	scanner->gie_update_q_size++;
 	return 0;
 }
+int add_fqdn_rule(struct Maat_table_schema* table, struct db_digest_rule* db_rule, struct Maat_scanner *scanner,void* logger)
+{
+
+}
+
 int del_region_rule(struct Maat_table_schema* table, int region_id, int group_id, int rule_type, struct Maat_scanner *maat_scanner, void* logger)
 {
 	int i=0;
@@ -1430,6 +1435,10 @@ int del_region_rule(struct Maat_table_schema* table, int region_id, int group_id
 			table_rt=Maat_table_runtime_get(maat_scanner->table_rt_mgr, table->table_id);
 			Maat_table_runtime_digest_del(table_rt, region->expr_id_lb);
 			maat_scanner->gie_update_q_size++;
+			break;
+		case TABLE_TYPE_FQDN:
+		case TABLE_TYPE_FQDN_PLUGIN:
+			
 			break;
 		default:
 			assert(0);
@@ -2161,6 +2170,65 @@ error_out:
 	digest_rule->digest_string=NULL;
 	free(digest_rule);
 	digest_rule=NULL;
+	return;
+}
+void update_fqdn_rule(struct Maat_table_schema* table, const char* table_line, struct Maat_scanner *scanner, void* logger)
+{
+	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
+	struct db_fqdn_rule* fqdn_rule=ALLOC(struct db_fqdn_rule, 1);
+	int ret=0;
+	char fqdn_buff[MAX_TABLE_LINE_SIZE]={'\0'};
+
+	ret=sscanf(table_line,"%d\t%d\t%llu\t%s\t%hd\t%d", &(fqdn_rule->region_id),
+														&(fqdn_rule->group_id),
+														&(fqdn_rule->is_suffix_match),
+														fqdn_buff,
+														&(fqdn_rule->is_valid));
+
+	fqdn_rule->fqdn=fqdn_buff;
+	if(ret!=5)
+	{
+		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+							"update error, invalid format of fqdn table %s:%s"
+							,table->table_name[table->updating_name],table_line);
+		table->udpate_err_cnt++;
+		goto error_out;
+	}
+
+	if(fqdn_rule->is_valid==FALSE)
+	{
+		//digest rule is not build with rulescan, this rule type is useless in count_rs_region funciton.
+		ret=del_region_rule(table, fqdn_rule->region_id, fqdn_rule->group_id, 0, scanner, logger);
+		if(ret<0)
+		{
+			table->udpate_err_cnt++;
+		}
+		else
+		{
+			table_rt->origin_rule_num--;
+		}
+
+	}
+	else
+	{
+		ret=add_fqdn_rule(table, digest_rule,scanner,logger);
+		if(ret<0)
+		{
+			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
+							"duplicate config of intval table %s config_id=%d"
+							,table->table_name[table->updating_name],digest_rule->region_id);
+			table->udpate_err_cnt++;
+		}
+		else
+		{
+			table_rt->origin_rule_num++;
+		}
+
+	}
+error_out:
+	fqdn_rule->fqdn=NULL;
+	free(fqdn_rule);
+	fqdn_rule=NULL;
 	return;
 }
 

@@ -4,6 +4,7 @@
 
 #include "IPMatcher.h"
 #include "gram_index_engine.h"
+#include "FQDN_engine.h"
 #include "alignment_int64.h"
 #include "dynamic_array.h"
 #include <MESA/MESA_htable.h>
@@ -14,7 +15,14 @@ struct similar_runtime
 	GIE_handle_t*	gie_handle;
 	MESA_lqueue_head update_q;
 };
-
+struct fqdn_runtime
+{
+	struct FQDN_engine* fqdn_engine;
+	struct FQDN_engine* old_fqdn_engine;
+	struct EX_data_rt* ex_data_rt;	//for fqdn_plugin ONLY
+	struct Maat_garbage_bin* bin;
+	int changed_flag;
+};
 struct plugin_runtime
 {
 	struct EX_data_rt* ex_data_rt;
@@ -51,6 +59,7 @@ struct Maat_table_runtime
 	union
 	{	
 		struct similar_runtime similar;	//for digest and similarity
+		struct fqdn_runtime fqdn;//for fqdn and fqdn_plugin
 		struct plugin_runtime plugin;		
 		struct ip_plugin_runtime ip_plugin;
 		struct expr_runtime expr;

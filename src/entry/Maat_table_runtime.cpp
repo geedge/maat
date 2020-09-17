@@ -358,6 +358,10 @@ void Maat_table_runtime_digest_del(struct Maat_table_runtime* table_rt, int expr
 	MESA_lqueue_join_tail(table_rt->similar.update_q,&digest_rule, sizeof(void*));
 	return;
 }
+void Maat_table_runtime_fqdn_add(struct Maat_table_runtime* table_rt, int expr_id, const char* fqdn, int is_suffix_match, void* tag)
+{
+
+}
 int Maat_table_runtime_digest_batch_udpate(struct Maat_table_runtime* table_rt)
 {
 	long i=0,data_size=0;

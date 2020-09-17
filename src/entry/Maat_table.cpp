@@ -491,6 +491,8 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 	map_register(string2int_map,"compile", TABLE_TYPE_COMPILE);
 	map_register(string2int_map,"plugin", TABLE_TYPE_PLUGIN);
 	map_register(string2int_map,"ip_plugin", TABLE_TYPE_IP_PLUGIN);
+	map_register(string2int_map,"fqdn", TABLE_TYPE_FQDN);
+	map_register(string2int_map,"fqdn_plugin", TABLE_TYPE_FQDN_PLUGIN);
 	map_register(string2int_map,"intval", TABLE_TYPE_INTERVAL);
 	map_register(string2int_map,"interval", TABLE_TYPE_INTERVAL);
 	map_register(string2int_map,"intval_plus", TABLE_TYPE_INTERVAL_PLUS);
@@ -616,6 +618,9 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 				{
 					p->compile.user_region_encoding=USER_REGION_ENCODE_NONE;
 				}
+				break
+			case TABLE_TYPE_FQDN:
+				
 			default:
 				break;
 		}

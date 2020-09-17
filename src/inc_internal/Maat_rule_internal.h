@@ -16,6 +16,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 #include "alignment_int64.h"
+#include "FQDN_engine.h"
 #include <pthread.h>
 #include <iconv.h>
 #include <openssl/md5.h>
@@ -78,6 +79,15 @@ struct db_digest_rule
 	short confidence_degree;
 	int is_valid;
 };
+struct db_fqdn_rule
+{
+	int region_id;
+	int group_id;
+	int is_suffix_match;
+	char* fqdn;
+	int is_valid;
+};
+
 struct Maat_rule_head
 {
 	int 	config_id;
