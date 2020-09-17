@@ -34,7 +34,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_3_0_20200822=1;
+int MAAT_FRAME_VERSION_3_0_20200917=1;
 
 int is_valid_table_name(const char* str)
 {
@@ -2309,11 +2309,14 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 				}
 				break;
 			case TABLE_TYPE_IP_PLUGIN:
-				Maat_table_runtime_ip_plugin_build_new_ip_matcher(table_rt);
-				old_ip_matcher=Maat_table_runtime_apply_new_ip_matcher(table_rt);
-				if(old_ip_matcher)
+				ret=Maat_table_runtime_ip_plugin_build_new_ip_matcher(table_rt);
+				if(ret)
 				{
-					Maat_garbage_bagging(scanner->ref_garbage_bin, old_ip_matcher, (void (*)(void*))ip_matcher_free);
+					old_ip_matcher=Maat_table_runtime_apply_new_ip_matcher(table_rt);
+					if(old_ip_matcher)
+					{
+						Maat_garbage_bagging(scanner->ref_garbage_bin, old_ip_matcher, (void (*)(void*))ip_matcher_free);
+					}
 				}
 				break;
 			default:

@@ -457,7 +457,7 @@ int Maat_table_runtime_ip_plugin_build_new_ip_matcher(struct Maat_table_runtime*
 	free(exc_array);
 	exc_array=NULL;
 	ip_plugin->changed_flag=0;
-	return 0;
+	return 1;
 }
 struct ip_matcher* Maat_table_runtime_apply_new_ip_matcher(struct Maat_table_runtime* table_rt)
 {
