@@ -37,7 +37,6 @@ enum MAAT_TABLE_TYPE
 	TABLE_TYPE_PLUGIN,
 	TABLE_TYPE_IP_PLUGIN,
 	TABLE_TYPE_INTERVAL_PLUS,
-	TABLE_TYPE_FQDN,
 	TABLE_TYPE_FQDN_PLUGIN
 };
 
@@ -102,7 +101,6 @@ struct plugin_table_schema
 	int foreign_columns[MAX_FOREIGN_CLMN_NUM];
 	int cb_plug_cnt;
 	int have_exdata;
-	long long estimate_size;
 	struct plugin_table_callback_schema cb_plug[MAX_PLUGIN_PER_TABLE];	
 	struct EX_data_schema ex_schema;
 };
@@ -114,7 +112,17 @@ struct ip_plugin_table_schema
 	int end_ip_column;
 	int valid_flag_column;
 	int rule_tag_column;
-	long long estimate_size;
+	int have_exdata;
+	struct EX_data_schema ex_schema;
+};
+struct fqdn_plugin_table_schema
+{
+
+	int row_id_column;
+	int is_suffix_flag_column;	
+	int fqdn_column;
+	int valid_flag_column;
+	int rule_tag_column;
 	int have_exdata;
 	struct EX_data_schema ex_schema;
 };
@@ -131,6 +139,7 @@ struct Maat_table_schema
 		struct expr_table_schema expr;
 		struct plugin_table_schema plugin;		
 		struct ip_plugin_table_schema ip_plugin;
+		struct fqdn_plugin_table_schema fqdn_plugin;
 		struct virtual_table_schema virtual_table;
 		struct composition_table_schema composition;
 		void* others;//group, ip, interval and digest don't have any special schema.
@@ -183,6 +192,13 @@ int Maat_table_ip_plugin_EX_data_schema_set(struct Maat_table_schema *table_sche
 										Maat_plugin_EX_key2index_func_t* key2index_func,
 										long argl, void *argp,
 										void* logger);
+int Maat_table_fqdn_plugin_EX_data_schema_set(struct Maat_table_schema *table_schema,
+										Maat_plugin_EX_new_func_t* new_func,
+										Maat_plugin_EX_free_func_t* free_func,
+										Maat_plugin_EX_dup_func_t* dup_func,
+										Maat_plugin_EX_key2index_func_t* key2index_func,
+										long argl, void *argp,
+										void* logger);
 
 void Maat_table_manager_all_plugin_cb_start(struct Maat_table_manager* table_mgr, int update_type);
 void Maat_table_manager_all_plugin_cb_finish(struct Maat_table_manager* table_mgr);
@@ -198,4 +214,5 @@ enum MAAT_TABLE_CHILD_TYPE
 	CHILD_TABLE_TYPE_SESSION
 };
 int Maat_table_get_child_id(struct Maat_table_schema* p_table, enum MAAT_TABLE_CHILD_TYPE type);
+int Maat_table_xx_plugin_table_get_valid_flag_column(struct Maat_table_schema* p_table);
 

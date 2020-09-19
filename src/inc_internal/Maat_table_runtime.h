@@ -15,10 +15,10 @@ struct similar_runtime
 	GIE_handle_t*	gie_handle;
 	MESA_lqueue_head update_q;
 };
-struct fqdn_runtime
+struct fqdn_plugin_runtime
 {
 	struct FQDN_engine* fqdn_engine;
-	struct FQDN_engine* old_fqdn_engine;
+	struct FQDN_engine* new_fqdn_engine;
 	struct EX_data_rt* ex_data_rt;	//for fqdn_plugin ONLY
 	struct Maat_garbage_bin* bin;
 	int changed_flag;
@@ -59,7 +59,7 @@ struct Maat_table_runtime
 	union
 	{	
 		struct similar_runtime similar;	//for digest and similarity
-		struct fqdn_runtime fqdn;//for fqdn and fqdn_plugin
+		struct fqdn_plugin_runtime fqdn_plugin;//for fqdn_plugin and fqdn_plugin
 		struct plugin_runtime plugin;		
 		struct ip_plugin_runtime ip_plugin;
 		struct expr_runtime expr;
@@ -94,5 +94,13 @@ int Maat_table_runtime_ip_plugin_commit_ex_schema(struct Maat_table_runtime* tab
 int Maat_table_runtime_ip_plugin_get_N_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const struct ip_data* ip, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t size);
 int Maat_table_runtime_ip_plugin_build_new_ip_matcher(struct Maat_table_runtime* table_rt);
 struct ip_matcher* Maat_table_runtime_apply_new_ip_matcher(struct Maat_table_runtime* table_rt);
+
+int Maat_table_runtime_fqdn_plugin_build_new_fqdn_engine(struct Maat_table_runtime* table_rt);
+
+void Maat_table_runtime_fqdn_plugin_new_row(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* row, void *logger);
+int Maat_table_runtime_fqdn_plugin_build_new_fqdn_engine(struct Maat_table_runtime* table_rt);
+struct FQDN_engine* Maat_table_runtime_apply_new_fqdn_engine(struct Maat_table_runtime* table_rt);
+int Maat_table_runtime_fqdn_plugin_commit_ex_schema(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, void* logger);
+int Maat_table_runtime_fqdn_plugin_get_N_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* query_fqdn, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t size);
 
 

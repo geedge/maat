@@ -201,6 +201,7 @@ int get_valid_flag_offset(const char* line, enum MAAT_TABLE_TYPE type,int valid_
 			break;
 		case	TABLE_TYPE_PLUGIN:
 		case	TABLE_TYPE_IP_PLUGIN:
+		case	TABLE_TYPE_FQDN_PLUGIN:
 			if(valid_column_seq<0)
 			{
 				return -1;
@@ -1624,7 +1625,7 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 	int update_type=CM_UPDATE_TYPE_INC;
 	long long new_version=0;
 	enum MAAT_TABLE_TYPE table_type;
-	struct Maat_table_schema* table_desc=NULL;
+	struct Maat_table_schema* table_schema=NULL;
 	void* logger=feather->logger;
 
 	if(mr_ctx->write_ctx!=NULL&&mr_ctx->write_ctx->err==0)//authorized to write
@@ -1713,26 +1714,12 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 		table_type=Maat_table_get_type_by_id(feather->table_mgr, table_id);
 		if(rule_list[i].op==MAAT_OP_DEL)
 		{
-			if(table_type==TABLE_TYPE_PLUGIN||table_type==TABLE_TYPE_IP_PLUGIN)
-			{
-				table_desc=Maat_table_get_scan_by_id(feather->table_mgr, table_id, table_type, NULL);
-				if(table_type==TABLE_TYPE_PLUGIN)
-				{
-					valid_column=table_desc->plugin.valid_flag_column;
-				}
-				else
-				{
-					valid_column=table_desc->ip_plugin.valid_flag_column;
-				}
-			}
-			else
-			{
-				valid_column=-1;
-			}
+			table_schema=Maat_table_get_scan_by_id(feather->table_mgr, table_id, table_type, NULL);
+			valid_column=Maat_table_xx_plugin_table_get_valid_flag_column(table_schema);
 			ret=invalidate_line(rule_list[i].table_line, table_type, valid_column);
 			if(ret<0)
 			{
-				MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor,"Invaid format %s ."
+				MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor,"Invalidate line failed, invaid format %s ."
 										,rule_list[i].table_line);
 				continue;
 			}
@@ -1918,22 +1905,17 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_cmd_line** line_
 			goto error_out;
 		}
 		int valid_flag_column=0;
-		switch(p_table->table_type)
+		
+		valid_flag_column=Maat_table_xx_plugin_table_get_valid_flag_column(p_table);
+		if(valid_flag_column<0)
 		{
-			case TABLE_TYPE_PLUGIN:
-				valid_flag_column=p_table->plugin.valid_flag_column;
-				plugin_desc=&(p_table->plugin);	
-				break;
-			case TABLE_TYPE_IP_PLUGIN:
-				valid_flag_column=p_table->ip_plugin.valid_flag_column;
-				break;
-			default:
-				MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_command 
-						,"Command set line id %d failed: table %s is not a plugin or ip_plugin table."
-						, line_rule[i]->rule_id
-						, line_rule[i]->table_name);
-				ret=-1;
-				goto error_out;
+			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_command 
+					,"Command set line id %d failed: table %s is not a plugin or ip_plugin table."
+					, line_rule[i]->rule_id
+					, line_rule[i]->table_name);
+			ret=-1;
+			goto error_out;
+
 		}
 
 		if(op==MAAT_OP_ADD)

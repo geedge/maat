@@ -7,7 +7,7 @@
  * All rights reserved
  *
  * Written by: LIU YANBING    (liuyanbing@iie.ac.cn)
- * Last modification: 2020-09-01
+ * Last modification: 2020-09-19
  *
  * This code is the exclusive and proprietary property of IIE-CAS and NELIST. 
  * Usage for direct or indirect commercial advantage is not allowed without 
@@ -23,8 +23,10 @@
 #include <string.h>
 
 /*************************************************************************************/
-#include <nmmintrin.h>
-#define popcnt_u64 _mm_popcnt_u64
+//#include <nmmintrin.h>
+//#define popcnt_u64 _mm_popcnt_u64
+//Use gcc builtin function to replace SSE4.2 instruction for portability
+#define popcnt_u64 __builtin_popcountl 
 
 #define FOR(i, n) for(int i=0, _n=(int)(n); i<_n; i++)
 
@@ -241,7 +243,7 @@ int CHashTrieFQDN::initialize(const struct FQDN_rule * rules, size_t n_rule)
 		m_matched[idx]=&(m_domains[k]);
 	}
 
-	printf("mem_bytes=%u(MB)\n", mem_bytes/(1U<<20));
+//	printf("mem_bytes=%ll(MB)\n", mem_bytes/(1U<<20));
 
 	return 1;
 }
@@ -260,7 +262,7 @@ int CHashTrieFQDN::search(const char * FQDN, size_t FQDN_len, struct FQDN_match 
 {
 	if(m_num==0 || FQDN_len==0 || FQDN==NULL || n_result==0) return -1;
 
-	int match_num=0;
+	size_t match_num=0;
 	const unsigned char * pb=(unsigned char *)FQDN;
 	unsigned long long HASH[16]; /*假设域名级数不超过16*/
 	unsigned int P[16];

@@ -34,7 +34,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
-int MAAT_FRAME_VERSION_3_0_20200917=1;
+int MAAT_FRAME_VERSION_3_0_20200919=1;
 
 int is_valid_table_name(const char* str)
 {
@@ -1392,10 +1392,7 @@ int add_digest_rule(struct Maat_table_schema* table, struct db_digest_rule* db_r
 	scanner->gie_update_q_size++;
 	return 0;
 }
-int add_fqdn_rule(struct Maat_table_schema* table, struct db_digest_rule* db_rule, struct Maat_scanner *scanner,void* logger)
-{
 
-}
 
 int del_region_rule(struct Maat_table_schema* table, int region_id, int group_id, int rule_type, struct Maat_scanner *maat_scanner, void* logger)
 {
@@ -1435,10 +1432,6 @@ int del_region_rule(struct Maat_table_schema* table, int region_id, int group_id
 			table_rt=Maat_table_runtime_get(maat_scanner->table_rt_mgr, table->table_id);
 			Maat_table_runtime_digest_del(table_rt, region->expr_id_lb);
 			maat_scanner->gie_update_q_size++;
-			break;
-		case TABLE_TYPE_FQDN:
-		case TABLE_TYPE_FQDN_PLUGIN:
-			
 			break;
 		default:
 			assert(0);
@@ -2172,66 +2165,6 @@ error_out:
 	digest_rule=NULL;
 	return;
 }
-void update_fqdn_rule(struct Maat_table_schema* table, const char* table_line, struct Maat_scanner *scanner, void* logger)
-{
-	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
-	struct db_fqdn_rule* fqdn_rule=ALLOC(struct db_fqdn_rule, 1);
-	int ret=0;
-	char fqdn_buff[MAX_TABLE_LINE_SIZE]={'\0'};
-
-	ret=sscanf(table_line,"%d\t%d\t%llu\t%s\t%hd\t%d", &(fqdn_rule->region_id),
-														&(fqdn_rule->group_id),
-														&(fqdn_rule->is_suffix_match),
-														fqdn_buff,
-														&(fqdn_rule->is_valid));
-
-	fqdn_rule->fqdn=fqdn_buff;
-	if(ret!=5)
-	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"update error, invalid format of fqdn table %s:%s"
-							,table->table_name[table->updating_name],table_line);
-		table->udpate_err_cnt++;
-		goto error_out;
-	}
-
-	if(fqdn_rule->is_valid==FALSE)
-	{
-		//digest rule is not build with rulescan, this rule type is useless in count_rs_region funciton.
-		ret=del_region_rule(table, fqdn_rule->region_id, fqdn_rule->group_id, 0, scanner, logger);
-		if(ret<0)
-		{
-			table->udpate_err_cnt++;
-		}
-		else
-		{
-			table_rt->origin_rule_num--;
-		}
-
-	}
-	else
-	{
-		ret=add_fqdn_rule(table, digest_rule,scanner,logger);
-		if(ret<0)
-		{
-			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"duplicate config of intval table %s config_id=%d"
-							,table->table_name[table->updating_name],digest_rule->region_id);
-			table->udpate_err_cnt++;
-		}
-		else
-		{
-			table_rt->origin_rule_num++;
-		}
-
-	}
-error_out:
-	fqdn_rule->fqdn=NULL;
-	free(fqdn_rule);
-	fqdn_rule=NULL;
-	return;
-}
-
 void update_plugin_table(struct Maat_table_schema* table_schema, const char* row, Maat_scanner* scanner, const struct rule_tag* tags, int n_tags, void* logger)
 {
 	int ret=1, matched_tag=1;
@@ -2278,21 +2211,34 @@ void update_plugin_table(struct Maat_table_schema* table_schema, const char* row
 	}
 	Maat_table_runtime_plugin_new_row(table_rt, table_schema, row, logger);
 }
-void update_ip_plugin_table(struct Maat_table_schema* table_schema, const char* table_row, Maat_scanner* scanner, const struct rule_tag* tags, int n_tags, void* logger)
+void update_xx_plugin_table(struct Maat_table_schema* table_schema, const char* table_row, Maat_scanner* scanner, const struct rule_tag* tags, int n_tags, void* logger)
 {
 	int ret=1, matched_tag=1;
-	struct ip_plugin_table_schema* ip_plugin_schema=&(table_schema->ip_plugin);
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table_schema->table_id);
 	char* copy=NULL;
 	size_t accept_tag_offset=0, accept_tag_len=0;
-	if(ip_plugin_schema->rule_tag_column>0&&n_tags>0)
+	int rule_tag_column=-1;
+	if(table_schema->table_type==TABLE_TYPE_IP_PLUGIN)
 	{
-		ret=Maat_helper_read_column(table_row, ip_plugin_schema->rule_tag_column, &accept_tag_offset, &accept_tag_len);
+		rule_tag_column=table_schema->ip_plugin.rule_tag_column;
+	}
+	else if(table_schema->table_type==TABLE_TYPE_FQDN_PLUGIN)
+	{
+		rule_tag_column=table_schema->fqdn_plugin.rule_tag_column;
+	}
+	else
+	{
+		assert(0);
+		return;
+	}
+	if(rule_tag_column>0&&n_tags>0)
+	{
+		ret=Maat_helper_read_column(table_row, rule_tag_column, &accept_tag_offset, &accept_tag_len);
 		if(ret<0)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-						"update error, could not locate tag in column %d of plugin table_schema %s:%s",
-						ip_plugin_schema->rule_tag_column,
+						"update error, could not locate tag in column %d of table %s:%s",
+						rule_tag_column,
 						table_schema->table_name[table_schema->updating_name],
 						table_row);
 			table_schema->udpate_err_cnt++;
@@ -2322,8 +2268,15 @@ void update_ip_plugin_table(struct Maat_table_schema* table_schema, const char* 
 			return;
 		}
 	}
-	Maat_table_runtime_ip_plugin_new_row(table_rt, table_schema, table_row, logger);
-	scanner->ip_plugin_update_q_size++;
+	if(table_schema->table_type==TABLE_TYPE_IP_PLUGIN)
+	{
+		Maat_table_runtime_ip_plugin_new_row(table_rt, table_schema, table_row, logger);
+	}
+	else //TABLE_TYPE_FQDN_PLUGIN
+	{
+		Maat_table_runtime_fqdn_plugin_new_row(table_rt, table_schema, table_row, logger);
+	}
+	scanner->xx_plugin_update_q_size++;
 	return;
 }
 
@@ -2331,9 +2284,9 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 {
 	MESA_htable_handle tmp_map=NULL;
 	struct Maat_table_runtime* table_rt=NULL;
-	struct ip_matcher* old_ip_matcher=NULL;
 	int i=0, ret=0;
-
+	struct ip_matcher* old_ip_matcher=NULL;
+	struct FQDN_engine* old_fqdn_engine=NULL;
 	if(scanner->to_update_compile_cnt+scanner->to_update_group_cnt>0)
 	{
 		ret=Maat_hierarchy_rebuild(scanner->hier);
@@ -2367,8 +2320,7 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 		switch(table_rt->table_type)
 		{
 			case TABLE_TYPE_DIGEST:
-			case TABLE_TYPE_SIMILARITY:
-				
+			case TABLE_TYPE_SIMILARITY:				
 				ret=Maat_table_runtime_digest_batch_udpate(table_rt);
 				if(ret<0)
 				{
@@ -2376,7 +2328,7 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 										"GIE_update error.");
 				}
 				break;
-			case TABLE_TYPE_IP_PLUGIN:
+			case TABLE_TYPE_IP_PLUGIN:				
 				ret=Maat_table_runtime_ip_plugin_build_new_ip_matcher(table_rt);
 				if(ret)
 				{
@@ -2384,6 +2336,18 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 					if(old_ip_matcher)
 					{
 						Maat_garbage_bagging(scanner->ref_garbage_bin, old_ip_matcher, (void (*)(void*))ip_matcher_free);
+					}
+				}
+				break;
+			case TABLE_TYPE_FQDN_PLUGIN:
+
+				ret=Maat_table_runtime_fqdn_plugin_build_new_fqdn_engine(table_rt);
+				if(ret)
+				{
+					old_fqdn_engine=Maat_table_runtime_apply_new_fqdn_engine(table_rt);
+					if(old_fqdn_engine)
+					{
+						Maat_garbage_bagging(scanner->ref_garbage_bin, old_fqdn_engine, (void (*)(void*))FQDN_engine_free);
 					}
 				}
 				break;
@@ -2403,7 +2367,7 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 	scanner->gie_update_q_size=0;
 	scanner->to_update_group_cnt=0;
 	scanner->to_update_compile_cnt=0;
-	scanner->ip_plugin_update_q_size=0;
+	scanner->xx_plugin_update_q_size=0;
 	return;
 
 }
@@ -2468,7 +2432,7 @@ void maat_finish_cb(void* u_para)
 		feather->scanner->cfg_num=scanner_rule_num(feather->scanner);
 		feather->scanner->version=feather->maat_version;
 		expr_wait_q_cnt=MESA_lqueue_get_count(feather->scanner->region_update_q);
-		feather->postpone_q_size=expr_wait_q_cnt+feather->scanner->gie_update_q_size+feather->scanner->ip_plugin_update_q_size;
+		feather->postpone_q_size=expr_wait_q_cnt+feather->scanner->gie_update_q_size+feather->scanner->xx_plugin_update_q_size;
 		if(time(NULL)-feather->scanner->last_update_time>=feather->effect_interval_ms/1000)
 		{
 			do_scanner_update(feather->scanner,
@@ -2548,8 +2512,9 @@ int maat_update_cb(const char* table_name,const char* line,void *u_para)
 			update_plugin_table(p_table, line, scanner, feather->accept_tags, feather->n_tags, feather->logger);
 			break;
 		case	TABLE_TYPE_IP_PLUGIN:
-			update_ip_plugin_table(p_table, line, scanner, feather->accept_tags, feather->n_tags, feather->logger);
-			break;		
+		case	TABLE_TYPE_FQDN_PLUGIN:
+			update_xx_plugin_table(p_table, line, scanner, feather->accept_tags, feather->n_tags, feather->logger);
+			break;
 		default:
 			break;
 	
