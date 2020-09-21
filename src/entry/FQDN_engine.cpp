@@ -30,7 +30,7 @@
 
 #ifdef _MSC_VER
 #include <intrin.h>
-#define __builtin_popcount __popcnt
+#define popcnt_u64 __popcnt
 #else
 #define popcnt_u64 __builtin_popcountl 
 #endif
