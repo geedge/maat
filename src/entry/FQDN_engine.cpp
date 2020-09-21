@@ -27,7 +27,13 @@
 //#include <nmmintrin.h>
 //#define popcnt_u64 _mm_popcnt_u64
 //Use gcc builtin function to replace SSE4.2 instruction for portability
+
+#ifdef _MSC_VER
+#include <intrin.h>
+#define __builtin_popcount __popcnt
+#else
 #define popcnt_u64 __builtin_popcountl 
+#endif
 
 #define FOR(i, n) for(int i=0, _n=(int)(n); i<_n; i++)
 
@@ -263,7 +269,7 @@ int CHashTrieFQDN::search(const char * FQDN, size_t FQDN_len, struct FQDN_match 
 {
 	if(m_num==0 || FQDN_len==0 || FQDN==NULL || n_result==0) return -1;
 
-	int match_num=0;
+	size_t match_num=0;
 	const unsigned char * pb=(unsigned char *)FQDN;
 	unsigned long long HASH[16]; /*假设域名级数不超过16*/
 	unsigned int P[16];
