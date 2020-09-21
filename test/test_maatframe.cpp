@@ -380,6 +380,8 @@ TEST(FQDN_Plugin_Table, EX_DATA)
 
 	ret=Maat_fqdn_plugin_get_EX_data(g_feather, table_id, "r3---sn-i3belne6.example2.com", (void**)result, 4);
 	ASSERT_EQ(ret, 2);
+	EXPECT_EQ(result[0]->rule_id, 205);
+	EXPECT_EQ(result[1]->rule_id, 204);
 	for(i=0; i<ret; i++)
 	{
 		fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
