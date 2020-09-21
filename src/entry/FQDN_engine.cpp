@@ -7,7 +7,7 @@
  * All rights reserved
  *
  * Written by: LIU YANBING    (liuyanbing@iie.ac.cn)
- * Last modification: 2020-09-19
+ * Last modification: 2020-09-01
  *
  * This code is the exclusive and proprietary property of IIE-CAS and NELIST. 
  * Usage for direct or indirect commercial advantage is not allowed without 
@@ -23,6 +23,7 @@
 #include <string.h>
 
 /*************************************************************************************/
+
 //#include <nmmintrin.h>
 //#define popcnt_u64 _mm_popcnt_u64
 //Use gcc builtin function to replace SSE4.2 instruction for portability
@@ -243,7 +244,7 @@ int CHashTrieFQDN::initialize(const struct FQDN_rule * rules, size_t n_rule)
 		m_matched[idx]=&(m_domains[k]);
 	}
 
-//	printf("mem_bytes=%ll(MB)\n", mem_bytes/(1U<<20));
+//	printf("mem_bytes=%u(MB)\n", mem_bytes/(1U<<20));
 
 	return 1;
 }
@@ -262,7 +263,7 @@ int CHashTrieFQDN::search(const char * FQDN, size_t FQDN_len, struct FQDN_match 
 {
 	if(m_num==0 || FQDN_len==0 || FQDN==NULL || n_result==0) return -1;
 
-	size_t match_num=0;
+	int match_num=0;
 	const unsigned char * pb=(unsigned char *)FQDN;
 	unsigned long long HASH[16]; /*假设域名级数不超过16*/
 	unsigned int P[16];
@@ -299,7 +300,7 @@ int CHashTrieFQDN::search(const char * FQDN, size_t FQDN_len, struct FQDN_match 
 				if(P[t]!=0 && pt->suf_match==0) continue;
 				if(pt->len+P[t]==FQDN_len && pt->hash==HASH[t])
 				{
-					if(match_num>0 && P[t]!=results[match_num-1].offset) return match_num;
+					//if(match_num>0 && P[t]!=results[match_num-1].offset) return match_num;
 					results[match_num].id=pt->id;
 					results[match_num].offset=P[t];
 					results[match_num].user_tag=pt->utag;

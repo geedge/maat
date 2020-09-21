@@ -116,6 +116,16 @@ static void destroy_digest_rule(GIE_digest_t*rule)
 struct FQDN_rule* fqdn_rule_new(unsigned int id, const char* fqdn, size_t fqdn_len, int is_suffix_match)
 {
 	struct FQDN_rule* fqdn_rule=ALLOC(struct FQDN_rule, 1);
+	//Todo: check FQDN format with regex ^([a-zA-Z0-9._-])+$
+	if(fqdn[0]=='.')
+	{
+		fqdn++;
+		fqdn_len--;
+	}
+	if(fqdn[fqdn_len]=='/')
+	{
+		fqdn_len--;
+	}	
 	fqdn_rule->FQDN=ALLOC(char, fqdn_len+1);
 	memcpy(fqdn_rule->FQDN, fqdn, fqdn_len);
 	fqdn_rule->len=fqdn_len;
