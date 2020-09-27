@@ -17,6 +17,28 @@ enum USER_REGION_ENCODE
 	USER_REGION_ENCODE_ESCAPE,
 	USER_REGION_ENCODE_BASE64
 };
+enum MAAT_SCAN_TYPE
+{
+	SCAN_TYPE_INVALID=-1,
+	SCAN_TYPE_NONE=0,
+	SCAN_TYPE_PLUGIN,
+	SCAN_TYPE_IP_PLUGIN,
+	SCAN_TYPE_FQDN_PLUGIN,
+	SCAN_TYPE_IP,
+	SCAN_TYPE_INTERVAL,
+	SCAN_TYPE_STRING,
+	__SCAN_TYPE_MAX
+};
+
+enum MAAT_TABLE_COMPONENT_TYPE
+{	
+	COMPONENT_TABLE_TYPE_NONE=-1,
+	COMPONENT_TABLE_TYPE_SOURCE_IP=0,
+	COMPONENT_TABLE_TYPE_DESTINATION_IP,
+	COMPONENT_TABLE_TYPE_SESSION,
+	__COMPONENT_TABLE_TYPE_MAX
+};
+
 
 enum MAAT_TABLE_TYPE
 {	
@@ -28,6 +50,8 @@ enum MAAT_TABLE_TYPE
 	TABLE_TYPE_DIGEST,
 	TABLE_TYPE_EXPR_PLUS,
 	TABLE_TYPE_SIMILARITY,
+	TABLE_TYPE_INTERVAL_PLUS,
+	//Above are physical table for scan
 	TABLE_TYPE_VIRTUAL,
 	TABLE_TYPE_COMPOSITION,
 	TABLE_TYPE_GROUP2GROUP,
@@ -36,7 +60,6 @@ enum MAAT_TABLE_TYPE
 	TABLE_TYPE_COMPILE,
 	TABLE_TYPE_PLUGIN,
 	TABLE_TYPE_IP_PLUGIN,
-	TABLE_TYPE_INTERVAL_PLUS,
 	TABLE_TYPE_FQDN_PLUGIN
 };
 
@@ -69,12 +92,11 @@ struct expr_table_schema
 };
 struct virtual_table_schema
 {
-	int real_table_id;
-	char real_table_name[MAX_TABLE_NAME_LEN];
+	int physical_table_id[__SCAN_TYPE_MAX];
 };
 struct composition_table_schema
 {	
-	struct virtual_table_schema source_table, destination_table, session_table;
+	int component_table_id[__COMPONENT_TABLE_TYPE_MAX];
 };
 struct plugin_table_callback_schema
 {
@@ -155,8 +177,9 @@ void Maat_table_manager_destroy(struct Maat_table_manager* table_mgr);
 size_t Maat_table_manager_get_size(struct Maat_table_manager* table_mgr);
 size_t Maat_table_manager_get_count(struct Maat_table_manager* table_mgr);
 
-struct Maat_table_schema * Maat_table_get_scan_by_id(struct Maat_table_manager* table_mgr, int table_id, enum MAAT_TABLE_TYPE expect_type, int* virutal_table_id);
+struct Maat_table_schema * Maat_table_get_scan_by_id(struct Maat_table_manager* table_mgr, int table_id, enum MAAT_SCAN_TYPE scan_type, int* virutal_table_id);
 struct Maat_table_schema * Maat_table_get_by_id_raw(struct Maat_table_manager* table_mgr, int table_id);
+enum MAAT_SCAN_TYPE Maat_table_get_scan_type(enum MAAT_TABLE_TYPE table_type);
 
 int Maat_table_get_id_by_name(struct Maat_table_manager* table_mgr, const char* table_name);
 int Maat_table_add_callback_func(struct Maat_table_manager* table_mgr,
@@ -206,13 +229,7 @@ void Maat_table_manager_all_plugin_cb_finish(struct Maat_table_manager* table_mg
 int Maat_table_manager_is_last_plugin_table_updating(struct Maat_table_manager* table_mgr);
 struct Maat_table_schema* Maat_table_get_desc_by_name(struct Maat_table_manager* table_mgr, const char* table_name);
 void Maat_table_set_updating_name(struct Maat_table_schema* p_table, const char* table_name);
-enum MAAT_TABLE_CHILD_TYPE
-{	
-	CHILD_TABLE_TYPE_NONE=-1,
-	CHILD_TABLE_TYPE_SOURCE_IP=0,
-	CHILD_TABLE_TYPE_DESTINATION_IP,
-	CHILD_TABLE_TYPE_SESSION
-};
-int Maat_table_get_child_id(struct Maat_table_schema* p_table, enum MAAT_TABLE_CHILD_TYPE type);
+
+int Maat_table_get_child_id(struct Maat_table_manager* table_mgr, int parent_table_id, enum MAAT_TABLE_COMPONENT_TYPE type);
 int Maat_table_xx_plugin_table_get_valid_flag_column(struct Maat_table_schema* p_table);
 

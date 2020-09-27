@@ -1625,6 +1625,7 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 	int update_type=CM_UPDATE_TYPE_INC;
 	long long new_version=0;
 	enum MAAT_TABLE_TYPE table_type;
+	enum MAAT_SCAN_TYPE scan_type;
 	struct Maat_table_schema* table_schema=NULL;
 	void* logger=feather->logger;
 
@@ -1714,7 +1715,9 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 		table_type=Maat_table_get_type_by_id(feather->table_mgr, table_id);
 		if(rule_list[i].op==MAAT_OP_DEL)
 		{
-			table_schema=Maat_table_get_scan_by_id(feather->table_mgr, table_id, table_type, NULL);
+			
+		 	scan_type=Maat_table_get_scan_type(table_type);
+			table_schema=Maat_table_get_scan_by_id(feather->table_mgr, table_id, scan_type, NULL);
 			valid_column=Maat_table_xx_plugin_table_get_valid_flag_column(table_schema);
 			ret=invalidate_line(rule_list[i].table_line, table_type, valid_column);
 			if(ret<0)

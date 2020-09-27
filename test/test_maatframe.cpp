@@ -1835,9 +1835,9 @@ TEST(ScanResult, LongerServiceDefine)
 	free(buff);
 	return;
 }
-TEST(Hierarchy, VirtualWithPhysical)
+TEST(Hierarchy, VirtualOfOnePhysical)
 {
-#define  Hierarchy_VirtualWithPhysical
+#define  Hierarchy_VirtualOfOnePhysical
 	int ret=0, table_id=0;
 	const char* http_content="Batman\\:Take me Home.Superman/:Fine,stay with me.";
 	const char* http_url="https://blog.csdn.net/littlefang/article/details/8213058";
@@ -1876,6 +1876,42 @@ TEST(Hierarchy, VirtualWithPhysical)
 
 	return;
 }
+TEST(Hierarchy, VirtualOfTwoPhysical)
+{
+#define  Hierarchy_VirtualWithTwoPhysical
+	int ret=0, table_id=0;
+	const char* sni="sports.example.com";
+	int cat_id=1724;
+	
+	
+	struct Maat_rule_t result[4];
+	memset(result, 0, sizeof(result));
+	
+	scan_status_t mid=NULL;
+
+	table_id=Maat_table_register(g_feather, "VIRTUAL_SSL_SNI");	
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_UTF8, sni, strlen(sni), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 180);
+	Maat_clean_status(&mid);
+	
+	memset(result, 0, sizeof(result));
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, "fqdn_cat_id", strlen("fqdn_cat_id"));
+	ASSERT_EQ(ret, 0);
+	
+	ret=Maat_scan_intval(g_feather, table_id, cat_id, result,4, &mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 180);
+	
+	Maat_clean_status(&mid);
+
+	return;
+}
+
 TEST(Hierarchy, VirtualWithVirtual)
 {
 #define  Hierarchy_VirtualWithVirtual
@@ -1916,6 +1952,7 @@ TEST(Hierarchy, VirtualWithVirtual)
 
 	return;
 }
+
 TEST(Hierarchy, OneGroupInTwoVirtual)
 {
 #define Hierarchy_OneGroupInTwoVirtual
