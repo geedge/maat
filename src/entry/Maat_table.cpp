@@ -18,7 +18,45 @@ struct Maat_table_manager
 	MESA_htable_handle map_tablename2id;
 	int active_plugin_table_num;
 	int is_last_plugin_table_updating;
+	void* logger;
 };
+enum MAAT_SCAN_TYPE Maat_table_get_scan_type(enum MAAT_TABLE_TYPE table_type)
+{
+	enum MAAT_SCAN_TYPE ret=SCAN_TYPE_INVALID;
+	switch(table_type)
+	{
+		case TABLE_TYPE_EXPR:
+		case TABLE_TYPE_EXPR_PLUS:
+		case TABLE_TYPE_SIMILARITY:
+		case TABLE_TYPE_DIGEST:
+			ret=SCAN_TYPE_STRING;
+			break;
+		case TABLE_TYPE_INTERVAL:
+		case TABLE_TYPE_INTERVAL_PLUS:
+			ret=SCAN_TYPE_INTERVAL;
+			break;
+		case TABLE_TYPE_IP:
+		case TABLE_TYPE_IP_PLUS:
+		case TABLE_TYPE_COMPOSITION:
+			ret=SCAN_TYPE_IP;
+			break;
+		case TABLE_TYPE_PLUGIN:
+			ret=SCAN_TYPE_PLUGIN;
+			break;
+		case TABLE_TYPE_IP_PLUGIN:
+			ret=SCAN_TYPE_IP;
+			break;
+		case TABLE_TYPE_FQDN_PLUGIN:
+			ret=SCAN_TYPE_FQDN_PLUGIN;
+			break;
+		case TABLE_TYPE_COMPILE:			
+			ret=SCAN_TYPE_NONE;
+			break;
+		default:
+			break;
+	}
+	return ret;
+}
 
 int read_expr_table_info(const char* line, struct Maat_table_schema* table, MESA_htable_handle string2int_map)
 {
@@ -74,25 +112,7 @@ int read_expr_table_info(const char* line, struct Maat_table_schema* table, MESA
 	}
 	return 0;
 }
-int read_virtual_table_schema(const char* line, struct Maat_table_schema* table, MESA_htable_handle string2int_map)
-{
-	int ret=0;
-	char table_type[16];
-	ret=sscanf(line, "%d\t%s\t%s\t%s", &(table->table_id),
-									table->table_name[0],
-									table_type,
-									table->virtual_table.real_table_name);
-	if(ret!=4)
-	{
-		return -1;
-	}	
-	ret=map_str2int(string2int_map,str_tolower(table_type),(int*)&(table->table_type));
-	if(ret<0)
-	{
-		return -1;
-	}
-	return 0;
-}
+
 Maat_table_schema* table_info_new(void)
 {
 	struct Maat_table_schema*p=ALLOC(struct Maat_table_schema, 1);
@@ -119,7 +139,83 @@ int _read_integer_arrary(char* string, int *array, int size)
 }
 #define COLUMN_PLUGIN_SCHEMA_JSON	4
 #define COLUMN_IP_PLUGIN_SCHEMA_JSON	4
+#define COLUMN_FQDN_PLUGIN_SHCEMA_JSON	4
 #define COLUMN_COMPOSITION_SCHEMA_JSON	4
+#define	COLUMN_VIRUTAL_SCHEMA_JSON	4
+int read_virtual_table_schema(struct Maat_table_manager* table_mgr, const char* line, struct Maat_table_schema* table, MESA_htable_handle reserved_word_map)
+{
+	int ret=0, tmp_table_id=0;
+	enum MAAT_TABLE_TYPE physical_table_type=TABLE_TYPE_INVALID;
+	enum MAAT_SCAN_TYPE physical_table_scan_type=SCAN_TYPE_INVALID;
+	cJSON* json=NULL, *tmp=NULL;
+	char *json_str;
+
+	
+	size_t offset=0, len=0;
+	char* copy_line=NULL;
+	copy_line=_maat_strdup(line);
+	ret=get_column_pos(copy_line, COLUMN_VIRUTAL_SCHEMA_JSON, &offset, &len);
+	if(ret<0)
+	{
+		goto error_out;
+	}
+	if(offset+len<strlen(copy_line))
+	{
+		copy_line[offset+len]='\0';
+	}
+	json_str=copy_line+offset;
+	if(strchr(json_str,'{')||strchr(json_str,'['))//This is a json, mostly.
+	{
+		json=cJSON_Parse(json_str);
+		if(!json)
+		{
+			goto error_out;
+		}
+		if(json->type!=cJSON_Array)
+		{
+			goto error_out;
+		}
+		cJSON_ArrayForEach(tmp, json)
+		{
+			if(tmp->type!=cJSON_String)
+			{
+				goto error_out;
+			}
+			ret=map_str2int(table_mgr->map_tablename2id, tmp->valuestring, &tmp_table_id);
+			if(ret<0)
+			{
+				goto error_out;		
+			}
+			physical_table_type=table_mgr->p_table_info[tmp_table_id]->table_type;
+			physical_table_scan_type=Maat_table_get_scan_type(physical_table_type);
+			if(physical_table_scan_type<SCAN_TYPE_IP)
+			{
+				goto error_out;
+			}
+			table->virtual_table.physical_table_id[physical_table_scan_type]=tmp_table_id;
+		}		
+	}
+	else	//For compatible non-json physical description
+	{
+		ret=map_str2int(table_mgr->map_tablename2id, json_str, &tmp_table_id);
+		if(ret<0)
+		{
+			goto error_out;
+		}
+		physical_table_type=table_mgr->p_table_info[tmp_table_id]->table_type;
+		physical_table_scan_type=Maat_table_get_scan_type(physical_table_type);
+		table->virtual_table.physical_table_id[physical_table_scan_type]=tmp_table_id;
+	}
+	cJSON_Delete(json);
+	free(copy_line);
+	return 0;
+
+error_out:
+	if(json) cJSON_Delete(json);	
+	free(copy_line);
+	return -1;
+
+}
 
 int read_plugin_table_schema(const char* line, struct Maat_table_schema* p)
 {
@@ -136,7 +232,7 @@ int read_plugin_table_schema(const char* line, struct Maat_table_schema* p)
 	}
 	if(offset+len<strlen(copy_line))
 	{
-		copy_line[offset+len+1]='\0';
+		copy_line[offset+len]='\0';
 	}
 	plug_info=copy_line+offset;
 
@@ -172,12 +268,6 @@ int read_plugin_table_schema(const char* line, struct Maat_table_schema* p)
 	{
 		assert(tmp->type==cJSON_Number);
 		plugin_desc->rule_tag_column=tmp->valueint;
-	}
-	tmp=cJSON_GetObjectItem(json, "estimate_size");
-	if(tmp!=NULL)
-	{
-		assert(tmp->type==cJSON_Number);
-		plugin_desc->estimate_size=tmp->valueint;
 	}
 	tmp=cJSON_GetObjectItem(json, "foreign");
 	if(tmp!=NULL)
@@ -220,7 +310,7 @@ int read_ip_plugin_table_schema(const char* line, struct Maat_table_schema* p)
 	}
 	if(offset+len<strlen(copy_line))
 	{
-		copy_line[offset+len+1]='\0';
+		copy_line[offset+len]='\0';
 	}
 	ip_plugin_info=copy_line+offset;
 
@@ -271,15 +361,6 @@ int read_ip_plugin_table_schema(const char* line, struct Maat_table_schema* p)
 		//read_cnt++; Tag is optional, so NOT ++ intentionally.
 	}
 
-	ip_plugin_schema->estimate_size=4096;
-	tmp=cJSON_GetObjectItem(json, "estimate_size");
-	if(tmp!=NULL)
-	{
-		assert(tmp->type==cJSON_Number);
-		ip_plugin_schema->estimate_size=tmp->valueint;
-		//read_cnt++; estimate_size is optional, so NOT ++ intentionally.
-	}
-
 	cJSON_Delete(json);
 
 	free(copy_line);
@@ -296,8 +377,85 @@ error_out:
 	return -1;
 
 }
+int read_fqdn_plugin_table_schema(const char* line, struct Maat_table_schema* p)
+{
+	int ret=0, read_cnt=0;
+	size_t offset=0, len=0;
+	cJSON* json=NULL, *tmp=NULL;
+	char* copy_line=NULL, *fqnd_plugin_schema_json=NULL;
+	struct fqdn_plugin_table_schema* fqdn_plugin_schema=&(p->fqdn_plugin);
 
-int read_composition_table_schema(const char* line, struct Maat_table_schema* p, MESA_htable_handle string2int_map)
+	copy_line=_maat_strdup(line);
+	ret=get_column_pos(copy_line, COLUMN_FQDN_PLUGIN_SHCEMA_JSON, &offset, &len);
+	if(ret<0)
+	{
+		goto error_out;
+	}
+	if(offset+len<strlen(copy_line))
+	{
+		copy_line[offset+len]='\0';
+	}
+	fqnd_plugin_schema_json=copy_line+offset;
+
+	json=cJSON_Parse(fqnd_plugin_schema_json);
+	if(!json)
+	{
+		goto error_out;
+	}
+	tmp=cJSON_GetObjectItem(json, "row_id");
+	if(tmp!=NULL && tmp->type==cJSON_Number)
+	{
+		fqdn_plugin_schema->row_id_column=tmp->valueint;
+		read_cnt++;
+	}
+
+	tmp=cJSON_GetObjectItem(json, "is_suffix_match");
+	if(tmp!=NULL && tmp->type==cJSON_Number)
+	{
+		fqdn_plugin_schema->is_suffix_flag_column=tmp->valueint;
+		read_cnt++;
+	}
+	tmp=cJSON_GetObjectItem(json, "fqdn");
+	if(tmp!=NULL && tmp->type==cJSON_Number)
+	{
+		fqdn_plugin_schema->fqdn_column=tmp->valueint;
+		read_cnt++;
+	}
+
+	tmp=cJSON_GetObjectItem(json, "valid");
+	if(tmp!=NULL)
+	{
+		assert(tmp->type==cJSON_Number);
+		fqdn_plugin_schema->valid_flag_column=tmp->valueint;
+		read_cnt++;
+	}
+	fqdn_plugin_schema->rule_tag_column=-1;
+	tmp=cJSON_GetObjectItem(json, "tag");
+	if(tmp!=NULL)
+	{
+		assert(tmp->type==cJSON_Number);
+		fqdn_plugin_schema->rule_tag_column=tmp->valueint;
+		//read_cnt++; Tag is optional, so NOT ++ intentionally.
+	}
+
+	cJSON_Delete(json);
+
+	free(copy_line);
+	if(read_cnt<4)
+	{
+		return -1;
+	}
+	else
+	{
+		return 0;
+	}
+error_out:
+	free(copy_line);
+	return -1;
+
+}
+
+int read_composition_table_schema(struct Maat_table_manager* table_mgr, const char* line, struct Maat_table_schema* p, MESA_htable_handle string2int_map)
 {
 	int ret=0;
 	size_t offset=0, len=0;
@@ -312,7 +470,7 @@ int read_composition_table_schema(const char* line, struct Maat_table_schema* p,
 	}
 	if(offset+len<strlen(copy_line))
 	{
-		copy_line[offset+len+1]='\0';
+		copy_line[offset+len]='\0';
 	}
 	composition_info=copy_line+offset;
 
@@ -325,126 +483,55 @@ int read_composition_table_schema(const char* line, struct Maat_table_schema* p,
 	tmp=cJSON_GetObjectItem(json, "source");
 	if(tmp!=NULL && tmp->type==cJSON_String)
 	{
-		strncpy(composition_schema->source_table.real_table_name, tmp->valuestring, sizeof(composition_schema->source_table.real_table_name));
+		ret=map_str2int(table_mgr->map_tablename2id, tmp->valuestring, &(composition_schema->component_table_id[COMPONENT_TABLE_TYPE_SOURCE_IP]));
+		if(ret<0)
+		{
+			MESA_handle_runtime_log(table_mgr->logger, RLOG_LV_FATAL, maat_module,
+							"Child table %s of table %s (id=%d) are not defined.",
+							tmp->valuestring,
+							p->table_name[0],
+							p->table_id);
+			goto error_out;
+		}
 	}
 	tmp=cJSON_GetObjectItem(json, "destination");
 	if(tmp!=NULL && tmp->type==cJSON_String)
 	{
-		strncpy(composition_schema->destination_table.real_table_name, tmp->valuestring, sizeof(composition_schema->destination_table.real_table_name));
+		ret=map_str2int(table_mgr->map_tablename2id, tmp->valuestring, &(composition_schema->component_table_id[COMPONENT_TABLE_TYPE_DESTINATION_IP]));
+		if(ret<0)
+		{
+			MESA_handle_runtime_log(table_mgr->logger, RLOG_LV_FATAL, maat_module,
+							"Child table %s of table %s (id=%d) are not defined.",
+							tmp->valuestring,
+							p->table_name[0],
+							p->table_id);
+			goto error_out;
+		}
+
 	}
 	tmp=cJSON_GetObjectItem(json, "session");
 	if(tmp!=NULL && tmp->type==cJSON_String)
 	{
-		strncpy(composition_schema->session_table.real_table_name, tmp->valuestring, sizeof(composition_schema->session_table.real_table_name));
+		ret=map_str2int(table_mgr->map_tablename2id, tmp->valuestring, &(composition_schema->component_table_id[COMPONENT_TABLE_TYPE_SESSION]));
+		if(ret<0)
+		{
+			MESA_handle_runtime_log(table_mgr->logger, RLOG_LV_FATAL, maat_module,
+							"Child table %s of table %s (id=%d) are not defined.",
+							tmp->valuestring,
+							p->table_name[0],
+							p->table_id);
+			goto error_out;
+		}
 	}
 	cJSON_Delete(json);
-
 	free(copy_line);
 	return 0;
+	
 error_out:
 	free(copy_line);
 	return -1;
 
 }
-static int Maat_table_build_map(struct Maat_table_manager* table_mgr, void* logger)
-{
-	struct Maat_table_schema** p_table_info=table_mgr->p_table_info;
-	size_t n_table=MAX_TABLE_NUM;
-
-	MESA_htable_handle map_tablename2id=map_create();
-	size_t i=0;
-	int j=0, ret=0;
-	for(i=0;i<n_table;i++)
-	{
-		if(p_table_info[i]==NULL)
-		{
-			continue;
-		}
-		
-		switch(p_table_info[i]->table_type)
-		{
-			case TABLE_TYPE_VIRTUAL:
-				ret=map_str2int(map_tablename2id, p_table_info[i]->virtual_table.real_table_name, &(p_table_info[i]->virtual_table.real_table_id));
-				if(ret<0)
-				{
-					MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-									"Undefined real table %s, virtual table %s of table id %d.",
-									p_table_info[i]->virtual_table.real_table_name,
-									p_table_info[i]->table_name[0],
-									p_table_info[i]->table_id);
-					goto failed;
-				}
-				break;
-			case TABLE_TYPE_COMPOSITION:
-				if(strlen(p_table_info[i]->composition.source_table.real_table_name)>0)
-				{
-					ret=map_str2int(map_tablename2id, p_table_info[i]->composition.source_table.real_table_name,
-						&(p_table_info[i]->composition.source_table.real_table_id));
-					if(ret<0)
-					{
-						MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-										"Child table %s of table %s (id=%d) are not defined.",
-										p_table_info[i]->composition.source_table.real_table_name,
-										p_table_info[i]->table_name[0],
-										p_table_info[i]->table_id);
-						goto failed;
-					}
-				}
-				
-				if(strlen(p_table_info[i]->composition.destination_table.real_table_name)>0)
-				{
-					ret=map_str2int(map_tablename2id, p_table_info[i]->composition.destination_table.real_table_name,
-						&(p_table_info[i]->composition.destination_table.real_table_id));
-					if(ret<0)
-					{
-						MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-										"Child table %s of table %s (id=%d) are not defined.",
-										p_table_info[i]->composition.destination_table.real_table_name,
-										p_table_info[i]->table_name[0],
-										p_table_info[i]->table_id);
-						goto failed;
-					}
-				}
-				if(strlen(p_table_info[i]->composition.session_table.real_table_name)>0)
-				{
-					ret=map_str2int(map_tablename2id, p_table_info[i]->composition.session_table.real_table_name,
-						&(p_table_info[i]->composition.session_table.real_table_id));
-					if(ret<0)
-					{
-						MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-										"Child table %s of table %s (id=%d) are not defined.",
-										p_table_info[i]->composition.session_table.real_table_name,
-										p_table_info[i]->table_name[0],
-										p_table_info[i]->table_id);
-						goto failed;
-					}
-				}
-			default:
-				break;
-		}
-
-		
-		for(j=0; j<p_table_info[i]->conj_cnt; j++)
-		{
-			ret=map_register(map_tablename2id, p_table_info[i]->table_name[j], p_table_info[i]->table_id);
-			if(ret<0)
-			{
-				MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-								"Duplicate table %s of table id %d",
-								p_table_info[i]->table_name[j],
-								p_table_info[i]->table_id);
-				continue;
-			}
-		}
-		
-	}
-	table_mgr->map_tablename2id=map_tablename2id;
-	return 0;
-failed:
-	map_destroy(map_tablename2id);
-	return -1;
-}
-
 void Maat_table_manager_destroy(struct Maat_table_manager* table_mgr)
 {
 	size_t i=0;
@@ -469,7 +556,7 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 	char line[MAX_TABLE_LINE_SIZE];
 	int i=0, ret=0;
 	char table_type_str[16]={0},not_care[1024]={0}, tmp_str[32]={0};
-	MESA_htable_handle string2int_map=NULL;;
+	MESA_htable_handle reserved_word_map=NULL;;
 	struct Maat_table_schema*p=NULL;
 	struct Maat_table_schema*conj_table=NULL;
 	fp=fopen(table_info_path,"r");
@@ -483,37 +570,40 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 	table_mgr=ALLOC(struct Maat_table_manager, 1);
 	struct Maat_table_schema** p_table_info=table_mgr->p_table_info;
 	size_t n_table=MAX_TABLE_NUM;
+	table_mgr->logger=logger;
+	table_mgr->map_tablename2id=map_create();
 
-	string2int_map=map_create();
-	map_register(string2int_map,"expr", TABLE_TYPE_EXPR);
-	map_register(string2int_map,"ip", TABLE_TYPE_IP);	
-	map_register(string2int_map,"ip_plus", TABLE_TYPE_IP_PLUS);
-	map_register(string2int_map,"compile", TABLE_TYPE_COMPILE);
-	map_register(string2int_map,"plugin", TABLE_TYPE_PLUGIN);
-	map_register(string2int_map,"ip_plugin", TABLE_TYPE_IP_PLUGIN);
-	map_register(string2int_map,"intval", TABLE_TYPE_INTERVAL);
-	map_register(string2int_map,"interval", TABLE_TYPE_INTERVAL);
-	map_register(string2int_map,"intval_plus", TABLE_TYPE_INTERVAL_PLUS);
-	map_register(string2int_map,"interval_plus", TABLE_TYPE_INTERVAL_PLUS);
-	map_register(string2int_map,"digest", TABLE_TYPE_DIGEST);
-	map_register(string2int_map,"expr_plus", TABLE_TYPE_EXPR_PLUS);
-	map_register(string2int_map,"group", TABLE_TYPE_GROUP);
-	map_register(string2int_map,"group2group", TABLE_TYPE_GROUP2GROUP);
-	map_register(string2int_map,"group2compile", TABLE_TYPE_GROUP2COMPILE);
-	map_register(string2int_map,"similar", TABLE_TYPE_SIMILARITY);
-	map_register(string2int_map,"virtual", TABLE_TYPE_VIRTUAL);
-	map_register(string2int_map,"composition", TABLE_TYPE_COMPOSITION);
-	map_register(string2int_map,"quickoff", 0);
-	map_register(string2int_map,"quickon", 1);
-	map_register(string2int_map,"escape", USER_REGION_ENCODE_ESCAPE);
-//	map_register(string2int_map,"base64",USER_REGION_ENCODE_BASE64); //NOT supported yet
+	reserved_word_map=map_create();
+	map_register(reserved_word_map, "expr", TABLE_TYPE_EXPR);
+	map_register(reserved_word_map, "ip", TABLE_TYPE_IP);	
+	map_register(reserved_word_map, "ip_plus", TABLE_TYPE_IP_PLUS);
+	map_register(reserved_word_map, "compile", TABLE_TYPE_COMPILE);
+	map_register(reserved_word_map, "plugin", TABLE_TYPE_PLUGIN);
+	map_register(reserved_word_map, "ip_plugin", TABLE_TYPE_IP_PLUGIN);
+	map_register(reserved_word_map, "fqdn_plugin", TABLE_TYPE_FQDN_PLUGIN);
+	map_register(reserved_word_map, "intval", TABLE_TYPE_INTERVAL);
+	map_register(reserved_word_map, "interval", TABLE_TYPE_INTERVAL);
+	map_register(reserved_word_map, "intval_plus", TABLE_TYPE_INTERVAL_PLUS);
+	map_register(reserved_word_map, "interval_plus", TABLE_TYPE_INTERVAL_PLUS);
+	map_register(reserved_word_map, "digest", TABLE_TYPE_DIGEST);
+	map_register(reserved_word_map, "expr_plus", TABLE_TYPE_EXPR_PLUS);
+	map_register(reserved_word_map, "group", TABLE_TYPE_GROUP);
+	map_register(reserved_word_map, "group2group", TABLE_TYPE_GROUP2GROUP);
+	map_register(reserved_word_map, "group2compile", TABLE_TYPE_GROUP2COMPILE);
+	map_register(reserved_word_map, "similar", TABLE_TYPE_SIMILARITY);
+	map_register(reserved_word_map, "virtual", TABLE_TYPE_VIRTUAL);
+	map_register(reserved_word_map, "composition", TABLE_TYPE_COMPOSITION);
+	map_register(reserved_word_map, "quickoff", 0);
+	map_register(reserved_word_map, "quickon", 1);
+	map_register(reserved_word_map, "escape", USER_REGION_ENCODE_ESCAPE);
+//	map_register(reserved_word_map,"base64",USER_REGION_ENCODE_BASE64); //NOT supported yet
 
 	const char** charset_name_list=charset_get_all_name();
 	for(i=0;i<MAX_CHARSET_NUM;i++)
 	{
 		if(strlen(charset_name_list[i])>0)
 		{
-			map_register(string2int_map, charset_name_list[i], i);
+			map_register(reserved_word_map, charset_name_list[i], i);
 		}
 		else
 		{
@@ -521,8 +611,8 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 		}
 	}
 
-	map_register(string2int_map,"yes", 1);
-	map_register(string2int_map,"no", 0);
+	map_register(reserved_word_map,"yes", 1);
+	map_register(reserved_word_map,"no", 0);
 	
 
 	i=0;
@@ -546,7 +636,7 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 									"Maat read table info %s line %d error: not enough column.",table_info_path,i);
 			continue;
 		}
-		ret=map_str2int(string2int_map,str_tolower(table_type_str),(int*)&(p->table_type));
+		ret=map_str2int(reserved_word_map,str_tolower(table_type_str),(int*)&(p->table_type));
 		if(ret<0)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
@@ -557,7 +647,7 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 		{
 			case TABLE_TYPE_EXPR:
 			case TABLE_TYPE_EXPR_PLUS:
-				ret=read_expr_table_info(line, p, string2int_map);
+				ret=read_expr_table_info(line, p, reserved_word_map);
 				if(ret<0)
 				{
 					fprintf(stderr,"Maat read table info %s line %d error:illegal column.\n",table_info_path,i);
@@ -570,9 +660,9 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 				ret=read_plugin_table_schema(line, p);
 				if(ret<0)
 				{
-					fprintf(stderr,"Maat read table info %s line %d error:illegal plugin info.\n", table_info_path,i);
+					fprintf(stderr,"Maat read table info %s line %d error:illegal plugin table schema.\n", table_info_path,i);
 					MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
-									"Maat read table info %s line %d error:illegal plugin info.", table_info_path,i);
+									"Maat read table info %s line %d error:illegal plugin table schema.", table_info_path,i);
 					goto invalid_table;
 				}
 				break;
@@ -580,29 +670,39 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 				ret=read_ip_plugin_table_schema(line, p);
 				if(ret<0)
 				{
-					fprintf(stderr,"Maat read table info %s line %d error:illegal ip_plugin info.\n", table_info_path,i);
+					fprintf(stderr,"Maat read table info %s line %d error:illegal ip_plugin table schema.\n", table_info_path,i);
 					MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
-									"Maat read table info %s line %d error:illegal ip_plugin info.", table_info_path,i);
+									"Maat read table info %s line %d error:illegal ip_plugin table schema.", table_info_path,i);
 					goto invalid_table;
 				}
-				break;				
-			case TABLE_TYPE_COMPOSITION:
-				ret=read_composition_table_schema(line, p, string2int_map);
+				break;
+			case TABLE_TYPE_FQDN_PLUGIN:
+				ret=read_fqdn_plugin_table_schema(line, p);
 				if(ret<0)
 				{
-					fprintf(stderr,"Maat read table info %s line %d error:illegal composition info.\n", table_info_path,i);
+					fprintf(stderr,"Maat read table info %s line %d error:illegal fqdn_plugin table schema.\n", table_info_path,i);
 					MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
-									"Maat read table info %s line %d error:illegal composition info.", table_info_path,i);
+									"Maat read table info %s line %d error:illegal fqdn_plugin table schema.", table_info_path,i);
+					goto invalid_table;
+				}
+				break;
+			case TABLE_TYPE_COMPOSITION:
+				ret=read_composition_table_schema(table_mgr, line, p, reserved_word_map);
+				if(ret<0)
+				{
+					fprintf(stderr,"Maat read table info %s line %d error:illegal composition table schema.\n", table_info_path,i);
+					MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
+									"Maat read table info %s line %d error:illegal composition table schema.", table_info_path,i);
 					goto invalid_table;
 				}
 				break;
 			case TABLE_TYPE_VIRTUAL:
-				ret=read_virtual_table_schema(line, p, string2int_map);
+				ret=read_virtual_table_schema(table_mgr, line, p, reserved_word_map);
 				if(ret<0)
 				{
-					fprintf(stderr,"Maat read table info %s line %d error:illegal virtual info.\n", table_info_path,i);
+					fprintf(stderr,"Maat read table info %s line %d error:illegal virtual table schema.\n", table_info_path,i);
 					MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
-									"Maat read table info %s line %d error:illegal virtual info.", table_info_path,i);
+									"Maat read table info %s line %d error:illegal virtual table schema.", table_info_path,i);
 					goto invalid_table;
 				}
 				break;
@@ -610,12 +710,13 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 				ret=sscanf(not_care,"%[a-z0-9]",tmp_str);
 				if(ret>0)
 				{	
-					ret=map_str2int(string2int_map,str_tolower(tmp_str),(int*)&(p->compile.user_region_encoding));
+					ret=map_str2int(reserved_word_map,str_tolower(tmp_str),(int*)&(p->compile.user_region_encoding));
 				}
 				if(ret!=1)
 				{
 					p->compile.user_region_encoding=USER_REGION_ENCODE_NONE;
 				}
+				break;
 			default:
 				break;
 		}
@@ -626,6 +727,15 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL,maat_module,
 				"Maat read table info %s line %d error: table id %uh > %d.\n",table_info_path,i,p->table_id,n_table);
 
+			goto invalid_table;
+		}
+		ret=map_register(table_mgr->map_tablename2id, p->table_name[0], p->table_id);
+		if(ret<0)
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+							"Duplicate table %s of table id %d",
+							p->table_name[0],
+							p->table_id);
 			goto invalid_table;
 		}
 		if(p_table_info[p->table_id]!=NULL)//duplicate table_id,means conjunction table;
@@ -647,21 +757,16 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 			//use goto to free the conjunctioned table_info
 			goto invalid_table;
 		}
-
 		p_table_info[p->table_id]=p;
 		table_mgr->table_cnt++;
 		continue;
+		
 invalid_table:
 		table_info_free(p);
 		p=NULL;
 	}
 	fclose(fp);
-	ret=Maat_table_build_map(table_mgr, logger);
-	if(ret<0)
-	{
-		return NULL;
-	}
-	map_destroy(string2int_map);
+	map_destroy(reserved_word_map);
 	return table_mgr;
 }
 size_t Maat_table_manager_get_size(struct Maat_table_manager* table_mgr)
@@ -747,13 +852,13 @@ struct Maat_table_schema * Maat_table_get_by_id_raw(struct Maat_table_manager* t
 	return table_mgr->p_table_info[table_id];
 }
 
-struct Maat_table_schema * Maat_table_get_scan_by_id(struct Maat_table_manager* table_mgr, int table_id, enum MAAT_TABLE_TYPE expect_type, int* virutal_table_id)
+struct Maat_table_schema * Maat_table_get_scan_by_id(struct Maat_table_manager* table_mgr, int table_id, enum MAAT_SCAN_TYPE scan_type, int* virutal_table_id)
 {
-
+	enum MAAT_SCAN_TYPE tab_scan_type;
 	struct Maat_table_schema **p_table_info=table_mgr->p_table_info;
 	size_t n_table=MAX_TABLE_NUM;
 
-	struct Maat_table_schema *p_table=NULL, *p_real_table=NULL;
+	struct Maat_table_schema *p_table=NULL, *p_physical_table=NULL;
 	if((unsigned int) table_id>n_table)
 	{
 		return NULL;
@@ -769,23 +874,20 @@ struct Maat_table_schema * Maat_table_get_scan_by_id(struct Maat_table_manager* 
 	}
 	if(p_table->table_type==TABLE_TYPE_VIRTUAL)
 	{
-		p_real_table=p_table_info[p_table->virtual_table.real_table_id];
+		p_physical_table=p_table_info[p_table->virtual_table.physical_table_id[scan_type]];
 		*virutal_table_id=table_id;
 	}
 	else
 	{
-		p_real_table=p_table;
+		p_physical_table=p_table;
 		if(virutal_table_id) *virutal_table_id=0;
 	}
-	if(p_real_table->table_type!=expect_type)
+	tab_scan_type=Maat_table_get_scan_type(p_physical_table->table_type);
+	if(tab_scan_type!=scan_type)
 	{
-		if((expect_type==TABLE_TYPE_EXPR && p_real_table->table_type!=TABLE_TYPE_EXPR_PLUS)||
-			(expect_type==TABLE_TYPE_IP && p_real_table->table_type!=TABLE_TYPE_IP_PLUS))
-		{
-			return NULL;
-		}
+			return NULL;	
 	}
-	return p_real_table;
+	return p_physical_table;
 }
 int Maat_table_get_id_by_name(struct Maat_table_manager* table_mgr, const char* table_name)
 {
@@ -808,7 +910,7 @@ int Maat_table_add_callback_func(struct Maat_table_manager* table_mgr,
 									void* u_para)
 {
 	int idx=0;
-	struct Maat_table_schema *p_table=Maat_table_get_scan_by_id(table_mgr, table_id, TABLE_TYPE_PLUGIN, NULL);
+	struct Maat_table_schema *p_table=Maat_table_get_scan_by_id(table_mgr, table_id, SCAN_TYPE_PLUGIN, NULL);
 	struct plugin_table_schema *plugin_desc=&(p_table->plugin);
 	if(p_table==NULL)
 	{
@@ -838,7 +940,7 @@ struct compile_ex_data_idx* Maat_table_get_compile_rule_ex_desc(struct Maat_tabl
 	{
 		return NULL;
 	}
-	p_table=Maat_table_get_scan_by_id(table_mgr, table_id, TABLE_TYPE_COMPILE, NULL);
+	p_table=Maat_table_get_scan_by_id(table_mgr, table_id, SCAN_TYPE_NONE, NULL);
 	if(!p_table)
 	{
 		return NULL;
@@ -863,7 +965,7 @@ int Maat_table_new_compile_rule_ex_index(struct Maat_table_manager* table_mgr, c
 	{
 		return -1;
 	}
-	p_table=Maat_table_get_scan_by_id(table_mgr, table_id, TABLE_TYPE_COMPILE, NULL);
+	p_table=Maat_table_get_scan_by_id(table_mgr, table_id, SCAN_TYPE_NONE, NULL);
 	if(!p_table)
 	{
 		return -1;
@@ -970,7 +1072,40 @@ int Maat_table_ip_plugin_EX_data_schema_set(struct Maat_table_schema *table_sche
 									new_func, free_func, dup_func, key2index_func, argl, argp);
 	table_schema->ip_plugin.have_exdata=1;
 	return 0;
-}										
+}	
+int Maat_table_fqdn_plugin_EX_data_schema_set(struct Maat_table_schema *table_schema,
+										Maat_plugin_EX_new_func_t* new_func,
+										Maat_plugin_EX_free_func_t* free_func,
+										Maat_plugin_EX_dup_func_t* dup_func,
+										Maat_plugin_EX_key2index_func_t* key2index_func,
+										long argl, void *argp,
+										void* logger)
+{
+	if(new_func==NULL || free_func==NULL || dup_func==NULL )
+	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "%s failed: invalid paramter", __FUNCTION__);
+		return -1;
+	}
+	if(table_schema->table_type!=TABLE_TYPE_FQDN_PLUGIN)
+	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, target table is not a fqdn_plugin table.", __FUNCTION__);
+		return -1;
+	}
+	if(table_schema->fqdn_plugin.have_exdata)
+	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, EX data already registed.", __FUNCTION__);
+		return -1;
+	}
+	Maat_table_EX_data_schema_set(&table_schema->fqdn_plugin.ex_schema,
+									new_func, free_func, dup_func, key2index_func, argl, argp);
+	table_schema->fqdn_plugin.have_exdata=1;
+	return 0;
+}
+
+										
 void Maat_table_manager_all_plugin_cb_start(struct Maat_table_manager* table_mgr, int update_type)
 {
 	table_mgr->active_plugin_table_num=0;
@@ -1067,28 +1202,35 @@ void Maat_table_set_updating_name(struct Maat_table_schema* p_table, const char*
 	assert(i<=p_table->conj_cnt);
 }
 
-int Maat_table_get_child_id(struct Maat_table_schema* p_table, enum MAAT_TABLE_CHILD_TYPE type)
+int Maat_table_get_child_id(struct Maat_table_manager* table_mgr, int parent_table_id, enum MAAT_TABLE_COMPONENT_TYPE type)
 {
 	int ret=-1;
+	struct Maat_table_schema* p_table=Maat_table_get_by_id_raw(table_mgr, parent_table_id);
 	if(p_table->table_type!=TABLE_TYPE_COMPOSITION)
 	{
 		return -1;
 	}
-	switch (type)
+	ret=p_table->composition.component_table_id[type];
+	return ret;
+}
+int Maat_table_xx_plugin_table_get_valid_flag_column(struct Maat_table_schema* p_table)
+{
+	int valid_flag_column=-1;
+	switch(p_table->table_type)
 	{
-		case CHILD_TABLE_TYPE_SOURCE_IP:
-			ret=p_table->composition.source_table.real_table_id;
+		case TABLE_TYPE_PLUGIN:
+			valid_flag_column=p_table->plugin.valid_flag_column;
 			break;
-		case CHILD_TABLE_TYPE_DESTINATION_IP:
-			ret=p_table->composition.destination_table.real_table_id;
-			break;
-		case CHILD_TABLE_TYPE_SESSION:
-			ret=p_table->composition.session_table.real_table_id;
+		case TABLE_TYPE_IP_PLUGIN:
+			valid_flag_column=p_table->ip_plugin.valid_flag_column;
+			break;			
+		case TABLE_TYPE_FQDN_PLUGIN:
+			valid_flag_column=p_table->fqdn_plugin.valid_flag_column;
 			break;
 		default:
-			assert(0);
+			valid_flag_column=-1;
 			break;
 	}
-	return ret;
+	return valid_flag_column;
 }
 
