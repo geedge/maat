@@ -60,12 +60,41 @@
           "regions": [
               {
                   "table_name": "GeoLocation",
-                  "table_type": "string",
+                  "table_type": "expr",
                   "table_content": {
                       "keywords": "Greece.Sparta",
                       "expr_type": "none",
                       "match_method": "exact",
                       "format": "uncase plain"
+                  }
+              }
+          ]
+      },
+      {
+          "group_name": "FQDN_OBJ1",
+          "regions": [
+              {
+                  "table_name": "KEYWORDS_TABLE",
+                  "table_type": "expr",
+                  "table_content": {
+                      "keywords": "sports.example.com",
+                      "expr_type": "none",
+                      "match_method": "exact",
+                      "format": "uncase plain"
+                  }
+              }
+          ]
+      },
+      {
+          "group_name": "FQDN_CAT1",
+          "regions": [
+              {
+                  "table_name": "INTERGER_PLUS",
+                  "table_type": "intval_plus",
+                  "table_content": {
+                      "district": "fqdn_cat_id",
+                      "low_boundary": 1724,
+                      "up_boundary": 1724
                   }
               }
           ]
@@ -1220,7 +1249,7 @@
 		        "do_blacklist": 0,
 		        "do_log": 0,
 		        "effective_rage": 0,
-		        "user_region": "VirtualWithPhysical",
+		        "user_region": "VirtualWithOnePhysical",
 		        "is_valid": "yes",
 		        "groups": [
 		            {
@@ -1850,50 +1879,84 @@
                     ]
                 }
             ]
-        }
+        },
+		    {
+		        "compile_id": 180,
+		        "service": 0,
+		        "action": 0,
+		        "do_blacklist": 0,
+		        "do_log": 0,
+		        "effective_rage": 0,
+		        "user_region": "Hierarchy_VirtualWithTwoPhysical",
+		        "is_valid": "yes",
+		        "groups": [
+		            {
+		            		"group_name":"FQDN_OBJ1",
+		            		"virtual_table":"VIRTUAL_SSL_SNI",
+		            		"not_flag" : 0,
+		            		"clause_index":0
+		            },
+		            {
+		            		"group_name":"FQDN_CAT1",
+		            		"virtual_table":"VIRTUAL_SSL_SNI",
+		            		"not_flag" : 0,
+		            		"clause_index":0
+		            }        
+		        ]
+		    }
     ],
     "plugin_table": [
         {
             "table_name": "QD_ENTRY_INFO",
             "table_content": [
-                "1\t192.168.0.1\t101\t1",
-                "2\t192.168.0.2\t101\t1",
-                "3\t192.168.1.1\t102\t1"
+				"1\t192.168.0.1\t101\t1",
+				"2\t192.168.0.2\t101\t1",
+				"3\t192.168.1.1\t102\t1"
             ]
         },
         {
             "table_name": "TEST_PLUGIN_TABLE",
             "table_content": [
-                "1\t3388\t99\t1",
-                "2\t3355\t66\t1",
-                "3\tcccc\t11\t1"
+				"1\t3388\t99\t1",
+				"2\t3355\t66\t1",
+				"3\tcccc\t11\t1"
             ]
         },
         {
             "table_name": "TEST_EFFECTIVE_RANGE_TABLE",
             "table_content": [
-                "1\tSUCCESS\t99\t1\t{\"tag_sets\":[[{\"tag\":\"location\",\"value\":[\"北京/朝阳/华严北里\"]},{\"tag\":\"isp\",\"value\":[\"电信\",\"移动\"]}]]}\t1111",
-                "2\tSUCCESS\t66\t1\t0\t222",
-                "3\tFAILED\t11\t1\t{\"tag_sets\":[[{\"tag\":\"location\",\"value\":[\"北京/朝阳/华严北里\",\"上海/浦东/陆家嘴\"]},{\"tag\":\"isp\",\"value\":[\"电信\",\"联通\"]}],[{\"tag\":\"location\",\"value\":[\"北京\"]},{\"tag\":\"isp\",\"value\":[\"联通\"]}]]}\t333",
-                "4\tSUCCESS\t66\t1\t{}\t444",
-                "5\tSUCCESS\t66\t1\t{\"tag_sets\":[[{\"tag\":\"location\",\"value\":[\"北京\"]}]]}\t444",
-                "6\tSUCCESS\t66\t1\t{\"tag_sets\":[[{\"tag\":\"weather\",\"value\":[\"hot\"]}]]}\t444"
+				"1\tSUCCESS\t99\t1\t{\"tag_sets\":[[{\"tag\":\"location\",\"value\":[\"北京/朝阳/华严北里\"]},{\"tag\":\"isp\",\"value\":[\"电信\",\"移动\"]}]]}\t1111",
+				"2\tSUCCESS\t66\t1\t0\t222",
+				"3\tFAILED\t11\t1\t{\"tag_sets\":[[{\"tag\":\"location\",\"value\":[\"北京/朝阳/华严北里\",\"上海/浦东/陆家嘴\"]},{\"tag\":\"isp\",\"value\":[\"电信\",\"联通\"]}],[{\"tag\":\"location\",\"value\":[\"北京\"]},{\"tag\":\"isp\",\"value\":[\"联通\"]}]]}\t333",
+				"4\tSUCCESS\t66\t1\t{}\t444",
+				"5\tSUCCESS\t66\t1\t{\"tag_sets\":[[{\"tag\":\"location\",\"value\":[\"北京\"]}]]}\t444",
+				"6\tSUCCESS\t66\t1\t{\"tag_sets\":[[{\"tag\":\"weather\",\"value\":[\"hot\"]}]]}\t444"
             ]
         },
         {
             "table_name": "IR_INTERCEPT_IP",
             "table_content": [
-                "1000000130\t1000000130\t4\t192.168.10.99\t255.255.255.255\t0\t65535\t0.0.0.0\t255.255.255.255\t0\t65535\t0\t1\t1\t96\t1\tuser_region\t{}\t2019/1/24/18:0:34",
-                "161\t161\t4\t0.0.0.0\t255.255.255.255\t0\t65535\t61.135.169.121\t255.255.255.255\t0\t65535\t0\t0\t1\t96\t832\t0\t0\t2019/1/24/18:48:42"
+				"1000000130\t1000000130\t4\t192.168.10.99\t255.255.255.255\t0\t65535\t0.0.0.0\t255.255.255.255\t0\t65535\t0\t1\t1\t96\t1\tuser_region\t{}\t2019/1/24/18:0:34",
+				"161\t161\t4\t0.0.0.0\t255.255.255.255\t0\t65535\t61.135.169.121\t255.255.255.255\t0\t65535\t0\t0\t1\t96\t832\t0\t0\t2019/1/24/18:48:42"
             ]
         },
         {
             "table_name": "TEST_IP_PLUGIN_WITH_EXDATA",
             "table_content": [
-                "101\t4\t192.168.30.99\t192.168.30.101\tSomething-like-json\t1",
+				"101\t4\t192.168.30.99\t192.168.30.101\tSomething-like-json\t1",
 				"102\t4\t192.168.30.90\t192.168.30.128\tBigger-range-should-in-the-back\t1",
-                "103\t6\t2001:db8:1234::\t2001:db8:1235::\tBigger-range-should-in-the-back\t1",
+				"103\t6\t2001:db8:1234::\t2001:db8:1235::\tBigger-range-should-in-the-back\t1",
 				"104\t6\t2001:db8:1234::1\t2001:db8:1234::5210\tSomething-like-json\t1"
+            ]
+        },
+        {
+            "table_name": "TEST_FQDN_PLUGIN_WITH_EXDATA",
+            "table_content": [
+				"201\t0\twww.example1.com\tcatid=1\t1",
+				"202\t1\t.example1.com\tcatid=1\t1",
+				"203\t0\tnews.example1.com\tcatid=2\t1",
+				"204\t0\tr3---sn-i3belne6.example2.com\tcatid=3\t1",
+				"205\t0\tr3---sn-i3belne6.example2.com\tcatid=3\t1"
             ]
         }
     ]

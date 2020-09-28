@@ -310,6 +310,86 @@ TEST(IP_Plugin_Table, EX_DATA)
 
 }
 
+#define FQDN_PLUGIN_EX_DATA
+struct fqdn_plugin_ud
+{
+	int rule_id;
+	int catid;
+	int ref_cnt;
+};
+void fqdn_plugin_EX_new_cb(int table_id, const char* key, const char* table_line, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
+{
+	int *counter=(int *)argp, ret=0;
+	size_t column_offset=0, column_len=0;
+	struct fqdn_plugin_ud* ud=(struct fqdn_plugin_ud*)calloc(sizeof(struct fqdn_plugin_ud), 1);
+	ret=Maat_helper_read_column(table_line, 1, &column_offset, &column_len);
+	EXPECT_EQ(ret, 0);
+	ud->rule_id=atoi(table_line+column_offset);
+	ret=Maat_helper_read_column(table_line, 4, &column_offset, &column_len);	
+	EXPECT_EQ(ret, 0);
+	sscanf(table_line+column_offset, "catid=%d",&ud->catid);
+	ud->ref_cnt=1;
+	*ad=ud;
+	(*counter)++;
+	return;
+}
+void fqdn_plugin_EX_free_cb(int table_id, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
+{
+	struct fqdn_plugin_ud* u=(struct fqdn_plugin_ud*)(*ad);
+	u->ref_cnt--;
+	if(u->ref_cnt>0) return;
+	free(u);
+	*ad=NULL;
+}
+void fqdn_plugin_EX_dup_cb(int table_id,	MAAT_PLUGIN_EX_DATA *to, MAAT_PLUGIN_EX_DATA *from, long argl, void *argp)
+{
+	struct fqdn_plugin_ud* u=(struct fqdn_plugin_ud*)(*from);
+	u->ref_cnt++;
+	*to=u;
+}
+TEST(FQDN_Plugin_Table, EX_DATA)
+{
+	
+	int fqdn_plugin_ex_data_counter=0, i=0;
+	const char* table_name="TEST_FQDN_PLUGIN_WITH_EXDATA";
+	int table_id=0, ret=0;
+	table_id=Maat_table_register(g_feather, table_name);
+	ASSERT_GT(table_id, 0);
+	ret=Maat_fqdn_plugin_EX_register(g_feather, table_id,
+								fqdn_plugin_EX_new_cb,
+								fqdn_plugin_EX_free_cb,
+								fqdn_plugin_EX_dup_cb,
+								0, &fqdn_plugin_ex_data_counter);
+	ASSERT_TRUE(ret>=0);
+	EXPECT_EQ(fqdn_plugin_ex_data_counter, 5);
+
+	struct fqdn_plugin_ud* result[4];
+
+	ret=Maat_fqdn_plugin_get_EX_data(g_feather, table_id, "www.example1.com", (void**)result, 4);
+	ASSERT_EQ(ret, 2);
+	EXPECT_EQ(result[0]->rule_id, 201);
+	EXPECT_EQ(result[1]->rule_id, 202);
+
+	for(i=0; i<ret; i++)
+	{
+		fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
+
+	ret=Maat_fqdn_plugin_get_EX_data(g_feather, table_id, "www.example3.com", (void**)result, 4);
+	EXPECT_EQ(ret, 0);
+
+	ret=Maat_fqdn_plugin_get_EX_data(g_feather, table_id, "r3---sn-i3belne6.example2.com", (void**)result, 4);
+	ASSERT_EQ(ret, 2);
+	EXPECT_EQ(result[0]->rule_id, 205);
+	EXPECT_EQ(result[1]->rule_id, 204);
+	for(i=0; i<ret; i++)
+	{
+		fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
+
+}
+
+
 TEST(StringScan, Full)
 {
 	int ret=0;
@@ -1755,9 +1835,9 @@ TEST(ScanResult, LongerServiceDefine)
 	free(buff);
 	return;
 }
-TEST(Hierarchy, VirtualWithPhysical)
+TEST(Hierarchy, VirtualOfOnePhysical)
 {
-#define  Hierarchy_VirtualWithPhysical
+#define  Hierarchy_VirtualOfOnePhysical
 	int ret=0, table_id=0;
 	const char* http_content="Batman\\:Take me Home.Superman/:Fine,stay with me.";
 	const char* http_url="https://blog.csdn.net/littlefang/article/details/8213058";
@@ -1796,6 +1876,42 @@ TEST(Hierarchy, VirtualWithPhysical)
 
 	return;
 }
+TEST(Hierarchy, VirtualOfTwoPhysical)
+{
+#define  Hierarchy_VirtualWithTwoPhysical
+	int ret=0, table_id=0;
+	const char* sni="sports.example.com";
+	int cat_id=1724;
+	
+	
+	struct Maat_rule_t result[4];
+	memset(result, 0, sizeof(result));
+	
+	scan_status_t mid=NULL;
+
+	table_id=Maat_table_register(g_feather, "VIRTUAL_SSL_SNI");	
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_UTF8, sni, strlen(sni), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 180);
+	Maat_clean_status(&mid);
+	
+	memset(result, 0, sizeof(result));
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, "fqdn_cat_id", strlen("fqdn_cat_id"));
+	ASSERT_EQ(ret, 0);
+	
+	ret=Maat_scan_intval(g_feather, table_id, cat_id, result,4, &mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 180);
+	
+	Maat_clean_status(&mid);
+
+	return;
+}
+
 TEST(Hierarchy, VirtualWithVirtual)
 {
 #define  Hierarchy_VirtualWithVirtual
@@ -1836,6 +1952,7 @@ TEST(Hierarchy, VirtualWithVirtual)
 
 	return;
 }
+
 TEST(Hierarchy, OneGroupInTwoVirtual)
 {
 #define Hierarchy_OneGroupInTwoVirtual
@@ -3110,9 +3227,9 @@ TEST_F(MaatCmdTest, PluginEXData)
 
 	return;
 }
-TEST_F(MaatCmdTest, IPPluginEXData)
+TEST_F(MaatCmdTest, UpdateIPPlugin)
 {
-#define ip_plugin_EX_data
+#define IP_Plugin_EX_data
 	Maat_feather_t feather=MaatCmdTest::_shared_feather;
 
 	int ret=0, i=0;
@@ -3178,7 +3295,7 @@ TEST_F(MaatCmdTest, IPPluginEXData)
 		ip_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
 	}
 	
-	ret=Maat_cmd_set_lines(feather, p_line , TEST_CMD_LINE_NUM, MAAT_OP_DEL);
+	ret=Maat_cmd_set_lines(feather, p_line, TEST_CMD_LINE_NUM, MAAT_OP_DEL);
 	EXPECT_GT(ret, 0);
 	
 	usleep(WAIT_FOR_EFFECTIVE_US);
@@ -3187,6 +3304,75 @@ TEST_F(MaatCmdTest, IPPluginEXData)
 
 	return;
 }
+
+
+TEST_F(MaatCmdTest, UpdateFQDNPlugin)
+{
+#define FQDN_Plugin_EX_data
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+
+	int ret=0, i=0;
+	int table_id=0, fqdn_plugin_ex_data_counter=0;
+	const char* table_name="TEST_FQDN_PLUGIN_WITH_EXDATA";
+
+
+	const int TEST_CMD_LINE_NUM=5;
+	const struct Maat_cmd_line *p_line[TEST_CMD_LINE_NUM];
+	struct Maat_cmd_line line_rule[TEST_CMD_LINE_NUM];
+	const char* table_line[TEST_CMD_LINE_NUM]={
+				"201\t0\twww.example1.com\tcatid=1\t1",
+				"202\t1\t.example1.com\tcatid=1\t1",
+				"203\t0\tnews.example1.com\tcatid=2\t1",
+				"204\t0\tr3---sn-i3belne6.example2.com\tcatid=3\t1",
+				"205\t0\tr3---sn-i3belne6.example2.com\tcatid=3\t1"
+		};
+	table_id=Maat_table_register(feather, table_name);
+	ASSERT_GT(table_id, 0);
+	memset(&line_rule,0,sizeof(line_rule));
+	for(i=0;i<TEST_CMD_LINE_NUM;i++)
+	{
+		line_rule[i].label_id=0;
+		line_rule[i].rule_id=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", 1);
+		line_rule[i].table_name=table_name;
+		line_rule[i].table_line=table_line[i];
+		line_rule[i].expire_after=0;
+		p_line[i]=line_rule+i;
+	}
+	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
+	EXPECT_GT(ret, 0);
+
+	usleep(WAIT_FOR_EFFECTIVE_US);
+
+	ret=Maat_fqdn_plugin_EX_register(feather, table_id,
+								fqdn_plugin_EX_new_cb,
+								fqdn_plugin_EX_free_cb,
+								fqdn_plugin_EX_dup_cb,
+								0, &fqdn_plugin_ex_data_counter);
+
+	ASSERT_TRUE(ret>=0);
+	EXPECT_EQ(fqdn_plugin_ex_data_counter, 5);
+
+
+	struct fqdn_plugin_ud* result[4];
+
+	ret=Maat_fqdn_plugin_get_EX_data(g_feather, table_id, "r3---sn-i3belne6.example2.com", (void**)result, 4);
+	ASSERT_EQ(ret, 2);
+	for(i=0; i<ret; i++)
+	{
+		fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
+	
+	ret=Maat_cmd_set_lines(feather, p_line+3, TEST_CMD_LINE_NUM-3, MAAT_OP_DEL);
+	EXPECT_GT(ret, 0);
+	
+	usleep(WAIT_FOR_EFFECTIVE_US*5);
+	ret=Maat_fqdn_plugin_get_EX_data(feather, table_id, "r3---sn-i3belne6.example2.com", (void**)result, 4);
+	ASSERT_EQ(ret, 0);
+
+	return;
+}
+
+
 
 #define TEST_HIT_PATH
 TEST_F(MaatCmdTest,    HitPath)

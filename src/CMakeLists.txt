@@ -8,7 +8,7 @@ set(MAAT_FRAME_VERSION ${MAAT_FRAME_MAJOR_VERSION}.${MAAT_FRAME_MINOR_VERSION}.$
 message(STATUS "Maat Frame, Version: ${MAAT_FRAME_VERSION}")
 
 add_definitions(-fPIC)
-set(MAAT_SRC entry/cJSON.c  entry/config_monitor.cpp  entry/dynamic_array.cpp  entry/gram_index_engine.c  entry/interval_index.c  entry/json2iris.cpp entry/Maat_utils.cpp entry/Maat_api.cpp  entry/Maat_command.cpp  entry/Maat_rule.cpp entry/Maat_table.cpp entry/Maat_table_runtime.cpp entry/Maat_stat.cpp  entry/map_str2int.cpp  entry/rbtree.c  entry/stream_fuzzy_hash.c  entry/bool_matcher.cpp entry/Maat_ex_data.cpp entry/Maat_hierarchy.cpp entry/Maat_garbage_collection.cpp entry/Maat_command.cpp)
+set(MAAT_SRC entry/cJSON.c  entry/config_monitor.cpp  entry/dynamic_array.cpp  entry/gram_index_engine.c  entry/interval_index.c  entry/json2iris.cpp entry/Maat_utils.cpp entry/Maat_api.cpp  entry/Maat_command.cpp  entry/Maat_rule.cpp entry/Maat_table.cpp entry/Maat_table_runtime.cpp entry/Maat_stat.cpp  entry/map_str2int.cpp  entry/rbtree.c  entry/stream_fuzzy_hash.c  entry/bool_matcher.cpp entry/Maat_ex_data.cpp entry/Maat_hierarchy.cpp entry/Maat_garbage_collection.cpp entry/Maat_command.cpp entry/FQDN_engine.cpp)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../inc/)
 include_directories(/opt/MESA/include/MESA/)
 

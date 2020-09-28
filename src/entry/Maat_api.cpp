@@ -1125,13 +1125,30 @@ MAAT_PLUGIN_EX_DATA Maat_plugin_get_EX_data(Maat_feather_t feather, int table_id
 	struct Maat_table_schema *table_desc=NULL;
 	struct Maat_table_runtime *table_rt=NULL;
 	MAAT_RULE_EX_DATA exdata=NULL;
+	struct timespec start,end;
+	if(_feather->perf_on==1)
+	{
+		clock_gettime(CLOCK_MONOTONIC,&start);
+	}
+
 	if(_feather->scanner==NULL)
 	{
 		return NULL;
 	}
-	table_desc=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, TABLE_TYPE_PLUGIN, NULL);
+	table_desc=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, SCAN_TYPE_PLUGIN, NULL);
 	table_rt=Maat_table_runtime_get(_feather->scanner->table_rt_mgr, table_id);
 	exdata=Maat_table_runtime_plugin_get_ex_data(table_rt, table_desc, key);
+
+	if(_feather->perf_on==1)
+	{
+		clock_gettime(CLOCK_MONOTONIC,&end);
+		maat_stat_table(table_rt, 0, &start, &end, 0);
+	}
+	else
+	{
+		maat_stat_table(table_rt, 0, NULL, NULL, 0);
+	}
+
 	return exdata;
 }
 int Maat_ip_plugin_EX_register(Maat_feather_t feather, int table_id,
@@ -1163,6 +1180,35 @@ int Maat_ip_plugin_EX_register(Maat_feather_t feather, int table_id,
 
 	return 0;
 }
+int Maat_fqdn_plugin_EX_register(Maat_feather_t feather, int table_id,
+										Maat_plugin_EX_new_func_t* new_func,
+										Maat_plugin_EX_free_func_t* free_func,
+										Maat_plugin_EX_dup_func_t* dup_func,
+										long argl, void *argp)
+{
+	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	int ret=-1;
+	struct Maat_table_schema *table_schema=Maat_table_get_by_id_raw(_feather->table_mgr, table_id);
+	pthread_mutex_lock(&(_feather->background_update_mutex));
+	ret=Maat_table_fqdn_plugin_EX_data_schema_set(table_schema, new_func, free_func, dup_func, NULL, argl, argp, _feather->logger);
+
+	if(ret<0)
+	{	
+		pthread_mutex_unlock(&(_feather->background_update_mutex));
+		return -1;
+	}
+
+	struct Maat_table_runtime* table_rt=NULL;	
+	if(_feather->scanner!=NULL)
+	{
+		table_rt=Maat_table_runtime_get(_feather->scanner->table_rt_mgr, table_id);
+		Maat_table_runtime_fqdn_plugin_commit_ex_schema(table_rt, table_schema, _feather->logger);
+	}
+	pthread_mutex_unlock(&(_feather->background_update_mutex));
+
+	return 0;
+
+}
 
 int Maat_ip_plugin_get_EX_data(Maat_feather_t feather, int table_id, const struct ip_address* ip, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t n_ex_data)
 {
@@ -1170,11 +1216,18 @@ int Maat_ip_plugin_get_EX_data(Maat_feather_t feather, int table_id, const struc
 	struct Maat_table_schema *table_schema=NULL;
 	struct Maat_table_runtime *table_rt=NULL;
 	int n_get=0;
+
+	struct timespec start,end;
+	if(_feather->perf_on==1)
+	{
+		clock_gettime(CLOCK_MONOTONIC,&start);
+	}
 	if(_feather->scanner==NULL)
 	{
 		return 0;
 	}
-	table_schema=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, TABLE_TYPE_PLUGIN, NULL);
+
+	table_schema=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, SCAN_TYPE_IP_PLUGIN, NULL);
 	table_rt=Maat_table_runtime_get(_feather->scanner->table_rt_mgr, table_id);
 	if(table_rt->table_type!=TABLE_TYPE_IP_PLUGIN)
 	{
@@ -1190,8 +1243,56 @@ int Maat_ip_plugin_get_EX_data(Maat_feather_t feather, int table_id, const struc
 		ipv6_ntoh(ip_data.ipv6);
 	}
 	n_get=Maat_table_runtime_ip_plugin_get_N_ex_data(table_rt, table_schema, &ip_data, ex_data_array, n_ex_data);
+
+	if(_feather->perf_on==1)
+	{
+		clock_gettime(CLOCK_MONOTONIC,&end);
+		maat_stat_table(table_rt, 0, &start, &end, 0);
+	}
+	else
+	{
+		maat_stat_table(table_rt, 0, NULL, NULL, 0);
+	}
+
 	return n_get;
 
+}
+int Maat_fqdn_plugin_get_EX_data(Maat_feather_t feather, int table_id, const char* fqdn, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t n_ex_data)
+{
+	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	struct Maat_table_schema *table_schema=NULL;
+	struct Maat_table_runtime *table_rt=NULL;
+	int n_get=0;
+
+	struct timespec start,end;
+	if(_feather->perf_on==1)
+	{
+		clock_gettime(CLOCK_MONOTONIC,&start);
+	}
+	if(_feather->scanner==NULL)
+	{
+		return 0;
+	}
+	table_schema=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, SCAN_TYPE_FQDN_PLUGIN, NULL);
+	table_rt=Maat_table_runtime_get(_feather->scanner->table_rt_mgr, table_id);
+	if(table_rt->table_type!=TABLE_TYPE_FQDN_PLUGIN)
+	{
+		return -1;
+	}
+	n_get=Maat_table_runtime_fqdn_plugin_get_N_ex_data(table_rt, table_schema, fqdn, ex_data_array, n_ex_data);
+
+
+	if(_feather->perf_on==1)
+	{
+		clock_gettime(CLOCK_MONOTONIC,&end);
+		maat_stat_table(table_rt, 0, &start, &end, 0);
+	}
+	else
+	{
+		maat_stat_table(table_rt, 0, NULL, NULL, 0);
+	}
+
+	return n_get;
 }
 
 int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
@@ -1227,7 +1328,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 		return 0;
 	}
 
-	p_table=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, TABLE_TYPE_EXPR, &virtual_table_id);
+	p_table=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, SCAN_TYPE_STRING, &virtual_table_id);
 	if(p_table==NULL)
 	{
 		_feather->scan_err_cnt++;
@@ -1365,7 +1466,7 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 	_mid->scan_cnt++;
 
 	int virtual_table_id=0;
-	p_table=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, TABLE_TYPE_INTERVAL, &virtual_table_id);
+	p_table=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, SCAN_TYPE_INTERVAL, &virtual_table_id);
 	if(p_table==NULL)
 	{
 		_feather->scan_err_cnt++;
@@ -1467,7 +1568,7 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 	_mid->scan_cnt++;
 	
 	int virtual_table_id=0;
-	p_table=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, TABLE_TYPE_SIMILARITY, &virtual_table_id);
+	p_table=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, SCAN_TYPE_STRING, &virtual_table_id);
 	if(p_table==NULL)
 	{
 		_feather->scan_err_cnt++;
@@ -1531,7 +1632,7 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 	return compile_ret;
 
 }
-static int ip_scan_data_set(scan_data_t* scan_data, const struct ipaddr* addr, unsigned short int proto, enum MAAT_TABLE_CHILD_TYPE child_type, int table_id)
+static int ip_scan_data_set(scan_data_t* scan_data, const struct ipaddr* addr, unsigned short int proto, enum MAAT_TABLE_COMPONENT_TYPE child_type, int table_id)
 {
 	memset(scan_data, 0, sizeof(scan_data_t));
 	scan_data->sub_type=make_sub_type(table_id, CHARSET_NONE, 0);
@@ -1542,15 +1643,15 @@ static int ip_scan_data_set(scan_data_t* scan_data, const struct ipaddr* addr, u
 			scan_data->ipv4_data.proto=proto;
 			switch(child_type)
 			{
-				case CHILD_TABLE_TYPE_SOURCE_IP:
+				case COMPONENT_TABLE_TYPE_SOURCE_IP:
 					scan_data->ipv4_data.saddr=ntohl(addr->v4->saddr);
 					scan_data->ipv4_data.sport=ntohs(addr->v4->source);
 					break;
-				case CHILD_TABLE_TYPE_DESTINATION_IP:
+				case COMPONENT_TABLE_TYPE_DESTINATION_IP:
 					scan_data->ipv4_data.saddr=ntohl(addr->v4->daddr);
 					scan_data->ipv4_data.sport=ntohs(addr->v4->dest);
 					break;
-				case CHILD_TABLE_TYPE_SESSION:
+				case COMPONENT_TABLE_TYPE_SESSION:
 					scan_data->ipv4_data.saddr=ntohl(addr->v4->saddr);
 					scan_data->ipv4_data.sport=ntohs(addr->v4->source);
 					scan_data->ipv4_data.daddr=ntohl(addr->v4->daddr);
@@ -1566,17 +1667,17 @@ static int ip_scan_data_set(scan_data_t* scan_data, const struct ipaddr* addr, u
 			scan_data->ipv6_data.proto=proto;
 			switch(child_type)
 			{
-				case CHILD_TABLE_TYPE_SOURCE_IP:
+				case COMPONENT_TABLE_TYPE_SOURCE_IP:
 					memcpy(scan_data->ipv6_data.saddr, addr->v6->saddr, sizeof(scan_data->ipv6_data.saddr));
 					ipv6_ntoh(scan_data->ipv6_data.saddr);
 					scan_data->ipv6_data.sport=ntohs(addr->v6->source);
 					break;
-				case CHILD_TABLE_TYPE_DESTINATION_IP:
+				case COMPONENT_TABLE_TYPE_DESTINATION_IP:
 					memcpy(scan_data->ipv6_data.saddr, addr->v6->daddr, sizeof(scan_data->ipv6_data.saddr));
 					ipv6_ntoh(scan_data->ipv6_data.saddr);
 					scan_data->ipv6_data.sport=ntohs(addr->v6->dest);
 					break;
-				case CHILD_TABLE_TYPE_SESSION:
+				case COMPONENT_TABLE_TYPE_SESSION:
 					memcpy(scan_data->ipv6_data.saddr, addr->v6->saddr, sizeof(scan_data->ipv6_data.saddr));
 					ipv6_ntoh(scan_data->ipv6_data.saddr);
 					scan_data->ipv6_data.sport=ntohs(addr->v6->source);
@@ -1596,7 +1697,7 @@ static int ip_scan_data_set(scan_data_t* scan_data, const struct ipaddr* addr, u
 	}
 	return 0;
 }
-static int IP_composition_scan(const struct ipaddr* addr, unsigned short int proto, Maat_table_schema* parent_table, enum MAAT_TABLE_CHILD_TYPE child_type,
+static int IP_composition_scan(const struct ipaddr* addr, unsigned short int proto, int parent_table_id, enum MAAT_TABLE_COMPONENT_TYPE child_type,
 						scan_result_t *region_result, unsigned int result_num,
 						int* virtual_table_id,
 						rule_scanner_t ip_scanner, struct Maat_table_manager* table_mgr, struct Maat_table_runtime_manager* table_rt_mgr,
@@ -1604,21 +1705,21 @@ static int IP_composition_scan(const struct ipaddr* addr, unsigned short int pro
 {
 	int child_table_id=0;
 
-	if(child_type==CHILD_TABLE_TYPE_NONE)
+	if(child_type==COMPONENT_TABLE_TYPE_NONE)
 	{
-		child_table_id=parent_table->table_id;
-		child_type=CHILD_TABLE_TYPE_SESSION;
+		child_table_id=parent_table_id;
+		child_type=COMPONENT_TABLE_TYPE_SESSION;
 	}
 	else
 	{
-		child_table_id=Maat_table_get_child_id(parent_table, child_type);
+		child_table_id=Maat_table_get_child_id(table_mgr, parent_table_id, child_type);
 	}
 	if(child_table_id<0)
 	{
 		return 0;
 	}
 
-	Maat_table_schema* real_table=Maat_table_get_scan_by_id(table_mgr, child_table_id, TABLE_TYPE_IP, virtual_table_id);
+	Maat_table_schema* real_table=Maat_table_get_scan_by_id(table_mgr, child_table_id, SCAN_TYPE_IP, virtual_table_id);
 	if(real_table==NULL)
 	{
 		return 0;
@@ -1659,7 +1760,6 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	int region_ret=0, compile_ret=0;
 	struct _OUTER_scan_status_t* _mid=NULL;
 	scan_result_t *region_result=NULL;
-	Maat_table_schema* p_table=NULL;
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	struct Maat_scanner* my_scanner=NULL;
 	struct timespec start,end;
@@ -1670,8 +1770,9 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	_mid=grab_mid(mid, _feather, thread_num, 0);
 	_mid->scan_cnt++;
 	int virtual_table_id=0;
-	p_table=Maat_table_get_by_id_raw(_feather->table_mgr, table_id);
-	if(p_table==NULL)
+	enum MAAT_TABLE_TYPE table_type=TABLE_TYPE_INVALID;
+	table_type=Maat_table_get_type_by_id(_feather->table_mgr, table_id);
+	if(table_type==TABLE_TYPE_INVALID)
 	{
 		_feather->scan_err_cnt++;
 		return -1;
@@ -1690,12 +1791,12 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	alignment_int64_array_add(_feather->thread_call_cnt, thread_num, 1);
 	INC_SCANNER_REF(my_scanner, thread_num);
 
-	if(p_table->table_type==TABLE_TYPE_COMPOSITION)
+	if(table_type==TABLE_TYPE_COMPOSITION)
 	{
-		enum MAAT_TABLE_CHILD_TYPE childs[3]={CHILD_TABLE_TYPE_SOURCE_IP, CHILD_TABLE_TYPE_DESTINATION_IP, CHILD_TABLE_TYPE_SESSION};
+		enum MAAT_TABLE_COMPONENT_TYPE childs[3]={COMPONENT_TABLE_TYPE_SOURCE_IP, COMPONENT_TABLE_TYPE_DESTINATION_IP, COMPONENT_TABLE_TYPE_SESSION};
 		for(int i=0; i<3; i++)
 		{
-			region_ret=IP_composition_scan(addr, proto, p_table, childs[i], 
+			region_ret=IP_composition_scan(addr, proto, table_id, childs[i], 
 								region_result+region_hit_cnt, MAX_SCANNER_HIT_NUM-region_hit_cnt, &virtual_table_id,
 								my_scanner->region, _feather->table_mgr, _feather->scanner->table_rt_mgr, thread_num);
 			if(region_ret<0)
@@ -1713,7 +1814,7 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	}
 	else
 	{
-		region_ret=IP_composition_scan(addr, proto, p_table, CHILD_TABLE_TYPE_NONE, 
+		region_ret=IP_composition_scan(addr, proto, table_id, COMPONENT_TABLE_TYPE_NONE, 
 						region_result+region_hit_cnt, MAX_SCANNER_HIT_NUM-region_hit_cnt, &virtual_table_id,
 						my_scanner->region, _feather->table_mgr, _feather->scanner->table_rt_mgr, thread_num);
 		if(region_ret<0)
@@ -1733,7 +1834,7 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 		_mid=grab_mid(mid, _feather, thread_num, 1);
 		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, region_hit_cnt,
 												_mid->is_last_region, virtual_table_id, _mid->scan_cnt);
-		if(p_table->table_type==TABLE_TYPE_COMPOSITION)
+		if(table_type==TABLE_TYPE_COMPOSITION)
 		{
 			region_hit_wraper.virtual_table_ids=region_rslt_virtual_table_id;
 		}
@@ -1783,7 +1884,7 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 	struct Maat_table_schema *p_table=NULL;
 	int virtual_table_id=0;
 	assert(thread_num<_feather->scan_thread_num);
-	p_table=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, TABLE_TYPE_EXPR, &virtual_table_id);
+	p_table=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, SCAN_TYPE_STRING, &virtual_table_id);
 	if(p_table==NULL)
 	{
 		_feather->scan_err_cnt++;
@@ -2071,7 +2172,7 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 	sfh_instance_t * tmp_fuzzy_handle=NULL;
 	struct Maat_table_schema *p_table=NULL;
 	int virtual_table_id=0;
-	p_table=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, TABLE_TYPE_DIGEST, &virtual_table_id);
+	p_table=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, SCAN_TYPE_STRING, &virtual_table_id);
 	if(p_table==NULL)
 	{
 		_feather->scan_err_cnt++;

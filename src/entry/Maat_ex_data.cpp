@@ -57,7 +57,7 @@ void cache_row_free(void*p)
 }
 UT_icd ut_cache_row_icd = {sizeof(char*), NULL, NULL, cache_row_free};
 
-struct EX_data_rt* EX_data_rt_new(int table_id, long long estimate_size, Maat_plugin_EX_key2index_func_t * key2index, void (* user_data_free)(void *user_data))
+struct EX_data_rt* EX_data_rt_new(int table_id, Maat_plugin_EX_key2index_func_t * key2index, void (* user_data_free)(void *user_data))
 {
 	struct EX_data_rt* p=ALLOC(struct EX_data_rt, 1);
 	p->hash_key2ex=NULL;
@@ -206,4 +206,8 @@ size_t EX_data_rt_list_all_ex_container(struct EX_data_rt* ex_rt, struct EX_data
 void* EX_data_container_get_user_data(struct EX_data_container* ex_container)
 {
 	return ex_container->user_data;
+}
+size_t EX_data_rt_get_ex_container_count(struct EX_data_rt* ex_rt)
+{
+	return HASH_COUNT(ex_rt->hash_key2ex);
 }
