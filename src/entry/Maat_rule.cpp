@@ -1667,6 +1667,13 @@ void update_expr_rule(struct Maat_table_schema* table,const char* table_line,str
 			maat_str_rule->match_method=MATCH_METHOD_SUB;
 				
 		}
+		if(strlen(maat_str_rule->keywords)<4)
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_module ,
+										"Table %s region cfg %d has a expr less than 4 bytes.",
+										table->table_name,
+										maat_str_rule->region_id);
+		}
 		ret=add_expr_rule(table, maat_str_rule, scanner, logger);
 		if(ret<0)
 		{

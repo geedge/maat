@@ -34,10 +34,12 @@ static int compare_serial_rule(const void *a, const void *b)
 	struct serial_rule_t *ra=(struct serial_rule_t *)a;
 	struct serial_rule_t *rb=(struct serial_rule_t *)b;
 
-	char p_str[256],q_str[256];
-	snprintf(p_str,sizeof(p_str),"%s.%ld",ra->table_name,ra->rule_id);
-	snprintf(q_str,sizeof(q_str),"%s.%ld",rb->table_name,rb->rule_id);
-	return strcmp(p_str,q_str);
+	int ret=strcmp(ra->table_name, rb->table_name);
+	if(ret==0)
+	{
+		ret= ra->rule_id - rb->rule_id;
+	}
+	return ret;
 }
 
 void read_rule_from_redis(redisContext * ctx, long long desire_version, const char* output_path ,void*logger)
@@ -51,7 +53,7 @@ void read_rule_from_redis(redisContext * ctx, long long desire_version, const ch
 
 	char table_path[256],index_path[256];
 	FILE *table_fp=NULL, *index_fp=NULL;
-	rule_num=get_rm_key_list(ctx, 0, desire_version, &version, &rule_list, &update_type, logger,0);
+	rule_num=get_rm_key_list(ctx, 0, desire_version, &version, NULL, &rule_list, &update_type, logger,0);
 	if(rule_num==0)
 	{
 		if(desire_version!=0)

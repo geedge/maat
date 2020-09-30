@@ -390,7 +390,7 @@ void maat_stat_table(struct Maat_table_runtime* p,int scan_len,struct timespec* 
 void maat_stat_output(struct _Maat_feather_t* feather);
 
 redisReply *_wrap_redisCommand(redisContext *c, const char *format, ...);
-int get_rm_key_list(redisContext *c, long long instance_version, long long desired_version, long long* new_version, struct serial_rule_t** list,int *update_type, void* logger, int cumulative_off);
+int get_rm_key_list(redisContext *c, long long instance_version, long long desired_version, long long* new_version, struct Maat_table_manager* table_mgr, struct serial_rule_t** list,int *update_type, void* logger, int cumulative_off);
 int get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int rule_num,void* logger,int print_process);
 int get_foreign_keys_by_prefix(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, const char* dir,void *logger);
 void get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, int print_fn, void *logger);
