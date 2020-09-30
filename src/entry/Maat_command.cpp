@@ -547,12 +547,13 @@ error_out:
 	MESA_htable_destroy(htable, NULL);
 	return ret;
 }
-int get_rm_key_list(redisContext *c, long long instance_version, long long desired_version, long long* new_version, struct serial_rule_t** list,int *update_type, void* logger, int cumulative_off)
+
+int get_rm_key_list(redisContext *c, long long instance_version, long long desired_version, long long* new_version, struct Maat_table_manager* table_mgr, struct serial_rule_t** list,int *update_type, void* logger, int cumulative_off)
 {
 	redisReply* reply=NULL,*sub_reply=NULL;
 	char err_buff[256];
 	long long redis_version=0,target_version=0;
-	int rule_num=0, changed_rule_num=0;
+	int rule_num=0, changed_rule_num=0, table_id=0;
 	int ret=0;
 	unsigned int i=0,full_idx =0,append_cmd_cnt=0;
 	struct serial_rule_t *s_rule_array=NULL, *changed_rule_array=NULL, *history_rule_array=NULL;
@@ -700,6 +701,14 @@ FULL_UPDATE:
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
 			"Invalid Redis Key Format: %s", sub_reply->element[i]->str);
 			continue;
+		}
+		if(table_mgr)
+		{
+			table_id=Maat_table_get_id_by_name(table_mgr, s_rule_array[full_idx].table_name);
+			if(table_id<0)//Unrecognized table.
+			{
+				continue;
+			}
 		}
 		full_idx++;
 	}
@@ -1330,9 +1339,11 @@ error_out:
 }
 const char* find_Nth_column(const char* line, int Nth, int* column_len)
 {
-	int i=0, j=0;
+	size_t i=0;
+	int j=0;
 	int start=0, end=0;
-	for(i=0;i<(int)strlen(line);i++)
+	size_t line_len= strlen(line);
+	for(i=0;i<line_len;i++)
 	{
 		if(line[i]!=' '&&line[i]!='\t')
 		{
@@ -1658,7 +1669,7 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 		}
 	}
 	
-	rule_num=get_rm_key_list(mr_ctx->read_ctx, version, feather->load_version_from, &new_version, &rule_list, &update_type, logger, feather->cumulative_update_off);
+	rule_num=get_rm_key_list(mr_ctx->read_ctx, version, feather->load_version_from, &new_version, feather->table_mgr, &rule_list, &update_type, logger, feather->cumulative_update_off);
 	if(rule_num<0)//redis communication error
 	{
 		return;
