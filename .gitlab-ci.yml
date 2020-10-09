@@ -3,7 +3,7 @@ variables:
   GIT_STRATEGY: "clone"
   BUILD_PADDING_PREFIX: /tmp/padding_for_CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX_PREFIX_PREFIX_PREFIX_PREFIX_PREFIX/
   INSTALL_PREFIX: "/opt/MESA/lib/"
-  INSTALL_DEPENDENCY_LIBRARY: libMESA_handle_logger-devel  libMESA_htable-devel pcre-devel librulescan-devel libMESA_field_stat2-devel crypto-devel libMESA_field_stat-devel sapp-devel framework_env openssl-devel
+  INSTALL_DEPENDENCY_LIBRARY: libMESA_handle_logger-devel  libMESA_htable-devel pcre-devel librulescan-devel libMESA_field_stat2-devel crypto-devel libMESA_field_stat-devel sapp-devel framework_env openssl-devel libasan
 
 stages:
 - build
@@ -47,6 +47,12 @@ develop_build_debug:
   variables:
     BUILD_TYPE: Debug
     PACKAGE: 1
+    UPLOAD_RPM: 1
+    ASAN_OPTION: ADDRESS
+    TESTING_VERSION_BUILD: 1
+    INSTALL_DEPENDENCY_LIBRARY:  libasan
+    PULP3_REPO_NAME: framework-testing-x86_64.el7
+    PULP3_DIST_NAME: framework-testing-x86_64.el7
   artifacts:
     name: "maatframe-$CI_COMMIT_REF_NAME-debug"
     paths:
@@ -61,6 +67,12 @@ develop_build_release:
   variables:
     BUILD_TYPE: RelWithDebInfo
     PACKAGE: 1
+    UPLOAD_RPM: 1
+    ASAN_OPTION: ADDRESS
+    TESTING_VERSION_BUILD: 1
+    INSTALL_DEPENDENCY_LIBRARY:  libasan
+    PULP3_REPO_NAME: framework-testing-x86_64.el7
+    PULP3_DIST_NAME: framework-testing-x86_64.el7
   artifacts:
     name: "maatframe-$CI_COMMIT_REF_NAME-release"
     paths:
@@ -69,18 +81,17 @@ develop_build_release:
     - /^develop.*$/i
     - /^master.*$/i
 
-
 release_build_debug:
   stage: build
   variables:
     BUILD_TYPE: Debug
     PACKAGE: 1
-    UPLOAD: 1
+    UPLOAD_RPM: 1
     PULP3_REPO_NAME: framework-stable-x86_64.el7
     PULP3_DIST_NAME: framework-stable-x86_64.el7
   extends: .build_by_travis
   artifacts:
-    name: "maatframe-$CI_COMMIT_REF_NAME-debug"
+    name: "maatframe-$CI_COMMIT_REF_NAME-release"
     paths:
       - build/*.rpm
   only:
@@ -91,7 +102,9 @@ release_build_release:
   variables:
     BUILD_TYPE: RelWithDebInfo
     PACKAGE: 1
-    UPLOAD: 1
+    UPLOAD_RPM: 1
+    UPLOAD_SYMBOL_FILES: 1
+    SYMBOL_TARGET: libmaatframe
     PULP3_REPO_NAME: framework-stable-x86_64.el7
     PULP3_DIST_NAME: framework-stable-x86_64.el7
   extends: .build_by_travis

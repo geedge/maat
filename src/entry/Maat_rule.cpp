@@ -34,6 +34,28 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
+
+#define GIT_VERSION_CATTER(v) __attribute__((__used__)) const char * GIT_VERSION_##v = NULL
+#define GIT_VERSION_EXPEND(v) GIT_VERSION_CATTER(v)
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+    /* VERSION TAG */
+#ifdef GIT_VERSION
+    GIT_VERSION_EXPEND(GIT_VERSION);
+#else
+    static __attribute__((__used__)) const char * GIT_VERSION_UNKNOWN = NULL;
+#endif
+#undef GIT_VERSION_CATTER
+#undef GIT_VERSION_EXPEND
+
+#ifdef __cplusplus
+}
+#endif
+
 int MAAT_FRAME_VERSION_3_0_20200927=1;
 
 int is_valid_table_name(const char* str)
