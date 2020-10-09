@@ -50,7 +50,6 @@ develop_build_debug:
     UPLOAD_RPM: 1
     ASAN_OPTION: ADDRESS
     TESTING_VERSION_BUILD: 1
-    INSTALL_DEPENDENCY_LIBRARY:  libasan
     PULP3_REPO_NAME: framework-testing-x86_64.el7
     PULP3_DIST_NAME: framework-testing-x86_64.el7
   artifacts:
@@ -70,7 +69,6 @@ develop_build_release:
     UPLOAD_RPM: 1
     ASAN_OPTION: ADDRESS
     TESTING_VERSION_BUILD: 1
-    INSTALL_DEPENDENCY_LIBRARY:  libasan
     PULP3_REPO_NAME: framework-testing-x86_64.el7
     PULP3_DIST_NAME: framework-testing-x86_64.el7
   artifacts:
