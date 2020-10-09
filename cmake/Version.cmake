@@ -19,6 +19,11 @@ include(${__VERSION_CONFIG})
 string(REGEX REPLACE "^v([0-9]+)\\..*" "\\1" VERSION_MAJOR "${VCS_TAG}")
 string(REGEX REPLACE "^v[0-9]+\\.([0-9]+).*" "\\1" VERSION_MINOR "${VCS_TAG}")
 string(REGEX REPLACE "^v[0-9]+\\.[0-9]+\\.([0-9]+).*" "\\1" VERSION_PATCH "${VCS_TAG}")
+string(REGEX REPLACE "[T\\:\\+\\-]" "" VERSION_DATE "${VCS_DATE}")
+
+if(VERSION_DAILY_BUILD)
+	set(VERSION_PATCH ${VERSION_PATCH}.${VERSION_DATE})
+endif()
 
 if(NOT VERSION_MAJOR)
     set(VERSION_MAJOR 1)
@@ -38,16 +43,12 @@ set(VERSION_BUILD "${VCS_SHORT_HASH}")
 # print information
 message(STATUS "Version: ${VERSION}-${VERSION_BUILD}")
 
-if(NOT DEFINE_GIT_VERSION)
-    option(DEFINE_GIT_VERSION "Set DEFINE_GIT_VERSION to OFF" OFF)
-
-set(GIT_VERSION
-    "${VERSION}-${CMAKE_BUILD_TYPE}-${VERSION_BUILD}-${VCS_BRANCH}-${VCS_TAG}-${VCS_DATE}")
-string(REGEX REPLACE "[-:+/\\.]" "_" GIT_VERSION ${GIT_VERSION})
+option(DEFINE_GIT_VERSION "Set DEFINE_GIT_VERSION to TRUE or FALSE" TRUE)
 
 if(DEFINE_GIT_VERSION)
-    add_definitions(-DGIT_VERSION=${GIT_VERSION})
-    option(DEFINE_GIT_VERSION "Set DEFINE_GIT_VERSION to OFF" ON)
-endif()
+	set(GIT_VERSION
+			"${VERSION}-${CMAKE_BUILD_TYPE}-${VERSION_BUILD}-${VCS_BRANCH}-${VCS_TAG}-${VCS_DATE}")
+	string(REGEX REPLACE "[-:+/\\.]" "_" GIT_VERSION ${GIT_VERSION})
 
+	add_definitions(-DGIT_VERSION=${GIT_VERSION})
 endif()
