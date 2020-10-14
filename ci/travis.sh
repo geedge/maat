@@ -37,6 +37,11 @@ if [ -n "${INSTALL_DEPENDENCY_LIBRARY}" ]; then
 	yum install -y $INSTALL_DEPENDENCY_LIBRARY
 	source /etc/profile.d/framework.sh
 fi
+
+if [ $ASAN_OPTION ];then
+	source /opt/rh/devtoolset-7/enable
+fi
+
 mkdir build || true
 cd build
 
