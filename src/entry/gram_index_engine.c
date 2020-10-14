@@ -924,7 +924,7 @@ int GIE_cmp(const void * a, const void * b)
 }
 
 
-inline unsigned int get_real_length(const char * string, unsigned int length)
+static inline unsigned int get_real_length(const char * string, unsigned int length)
 {
 	unsigned int ret = 0;
 	const char * tmp_str = string;
@@ -941,7 +941,7 @@ inline unsigned int get_real_length(const char * string, unsigned int length)
 }
 
 
-inline int GIE_part_query(GIE_handle_inner_t * _handle, const char * query_string, int index_begin, int part_query_len,unsigned int ** id_union, unsigned int * union_index, unsigned int * union_size, unsigned long long blocksize)
+static inline int GIE_part_query(GIE_handle_inner_t * _handle, const char * query_string, int index_begin, int part_query_len,unsigned int ** id_union, unsigned int * union_index, unsigned int * union_size, unsigned long long blocksize)
 {
 	unsigned int gram_value = _handle->user_gram_value;
 	
@@ -1011,7 +1011,7 @@ inline int GIE_part_query(GIE_handle_inner_t * _handle, const char * query_strin
 	return chunk_count_max;
 }
 
-inline int GIE_gram_with_position(GIE_handle_inner_t * _handle, unsigned long long query_blocksize, const char * fuzzy_string, unsigned int ** id_union, 
+static inline int GIE_gram_with_position(GIE_handle_inner_t * _handle, unsigned long long query_blocksize, const char * fuzzy_string, unsigned int ** id_union, 
 									unsigned int * union_index,unsigned int * union_size, unsigned int * chunk_cnt)
 {
 	const char * tmpstr = fuzzy_string;
@@ -1078,7 +1078,7 @@ inline unsigned long long calc_fh_blocksize(unsigned long long orilen)
 	return blocksize;
 }
 
-inline unsigned long long get_blocksize_from_head(const char * fuzzy_string, unsigned int str_len)
+static inline unsigned long long get_blocksize_from_head(const char * fuzzy_string, unsigned int str_len)
 {
 	const char * tmp_str = fuzzy_string;
 	char blk[100];

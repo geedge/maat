@@ -205,7 +205,7 @@ void zt_hash_destroy_table()
 }*/
 
 
-inline void zt_hash(struct zt_state_t* array, unsigned char c)
+static inline void zt_hash(struct zt_state_t* array, unsigned char c)
 {
     zt_hash_arymul(array, (struct zt_state_t *)(zt_multi_table[c]));
 }
