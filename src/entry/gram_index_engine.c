@@ -108,10 +108,10 @@ int GIE_insert_indextable(MESA_htable_handle handle, struct id_table_data * info
 int GIE_delete_from_indextable_by_key(MESA_htable_handle handle, char * key, unsigned int id);
 int GIE_delete(GIE_handle_inner_t * handle, GIE_digest_t * digest);
 int GIE_cmp(const void * a, const void * b);
-inline unsigned int get_real_length(const char * string, unsigned int length);
+static inline unsigned int get_real_length(const char * string, unsigned int length);
 void print_item_iterate(const uchar * key, unsigned int size, void * data, void * user);
 inline unsigned long long calc_fh_blocksize(unsigned long long orilen);
-inline unsigned long long get_blocksize_from_head(const char * fuzzy_string, unsigned int str_len);
+static inline unsigned long long get_blocksize_from_head(const char * fuzzy_string, unsigned int str_len);
 
 MESA_htable_handle copy_htable(void * htable_para,void (* func)(const uchar * key, uint size, void * data, void *user),void (*free_fuc)(void * data));
 void copy_idtable_item_iterate(const uchar * key, uint size, void * data, void * user);
