@@ -56,7 +56,7 @@ extern "C"
 }
 #endif
 
-int MAAT_FRAME_VERSION_3_0_20200927=1;
+int MAAT_FRAME_VERSION_3_0_20201019=1;
 
 int is_valid_table_name(const char* str)
 {

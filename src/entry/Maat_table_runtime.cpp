@@ -469,11 +469,10 @@ void Maat_table_runtime_fqdn_plugin_new_row(struct Maat_table_runtime* table_rt,
 									fqdn_plugin_schema->fqdn_column, row);
 			return;
 		}
-		fqdn_rule=fqdn_rule_new((unsigned int)atoi(row+row_id_offset), row+fqdn_offset, fqdn_len, atoi(row+is_suffix_flag_offset));
 		
 		if(atoi(row+is_valid_offset)==1)//add
 		{
-			
+			fqdn_rule=fqdn_rule_new((unsigned int)atoi(row+row_id_offset), row+fqdn_offset, fqdn_len, atoi(row+is_suffix_flag_offset));
 			EX_data_rt_row2EX_data(fqdn_plugin_rt->ex_data_rt, row, row+row_id_offset, row_id_len, fqdn_rule, logger);
 		}
 		else

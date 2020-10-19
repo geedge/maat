@@ -775,6 +775,12 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 
 	//STEP 3, serial clause states to a bool expression array.
 	compile_num=HASH_COUNT(hier->hash_compile_by_id);
+	if(compile_num==0)
+	{
+		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, module_maat_hierarchy,
+								"No compile to build.");
+		return NULL;
+	}
 	bool_expr_array=ALLOC(struct bool_expr, compile_num);
 	HASH_ITER(hh, hier->hash_compile_by_id, compile, tmp_compile)
 	{
@@ -806,7 +812,7 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 	if(expr_cnt==0)
 	{
 		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, module_maat_hierarchy,
-								"No expr to build.");
+								"No bool expression to build.");
 		return NULL;
 	}
 	bm=bool_matcher_new(bool_expr_array, expr_cnt, hier->thread_num, &mem_size);
