@@ -552,7 +552,7 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	
 	feather->effect_interval_ms=60*1000;
 	feather->scan_interval_ms=1*1000;
-	feather->rule_scan_type=2;
+	feather->rule_scan_type=0;
 	feather->thread_call_cnt=alignment_int64_array_alloc(max_thread_num);
 	feather->outer_mid_cnt=alignment_int64_array_alloc(max_thread_num);
 	feather->compile_mid_cnt=alignment_int64_array_alloc(max_thread_num);
