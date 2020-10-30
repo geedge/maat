@@ -67,7 +67,7 @@ develop_build_release:
     BUILD_TYPE: RelWithDebInfo
     PACKAGE: 1
     UPLOAD_RPM: 1
-    ASAN_OPTION: ADDRESS
+    ASAN_OPTION: "OFF"
     TESTING_VERSION_BUILD: 1
     PULP3_REPO_NAME: framework-testing-x86_64.el7
     PULP3_DIST_NAME: framework-testing-x86_64.el7
