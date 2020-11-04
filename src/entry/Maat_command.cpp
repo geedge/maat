@@ -1440,7 +1440,7 @@ void _get_foregin_keys(struct serial_rule_t* p_rule, int* foreign_columns, int n
 									p_rule->table_name, p_rule->rule_id, p_foreign);
 			continue;
 		}
-		p_rule->f_keys[i].column=foreign_columns[i];
+		p_rule->f_keys[p_rule->n_foreign].column=foreign_columns[i];
 		foreign_key_size=foreign_key_size-strlen(foreign_source_prefix);
 		p_foreign+=strlen(foreign_source_prefix);
 		if(0!=strncmp(p_foreign, foreign_key_prefix, strlen(foreign_key_prefix)))
@@ -1449,14 +1449,13 @@ void _get_foregin_keys(struct serial_rule_t* p_rule, int* foreign_columns, int n
 								"%s, %d foreign key prefix %s is not recommended.",
 								p_rule->table_name, p_rule->rule_id, p_foreign);
 		}
-		p_rule->f_keys[i].key=(char*)calloc(sizeof(char),foreign_key_size+1);
-		memcpy(p_rule->f_keys[i].key, p_foreign, foreign_key_size);
-		p_rule->f_keys[i].filename=get_foreign_cont_filename(p_rule->table_name, p_rule->rule_id, p_rule->f_keys[i].key, dir);
+		p_rule->f_keys[p_rule->n_foreign].key=ALLOC(char, foreign_key_size+1);
+		memcpy(p_rule->f_keys[p_rule->n_foreign].key, p_foreign, foreign_key_size);
+		p_rule->f_keys[p_rule->n_foreign].filename=get_foreign_cont_filename(p_rule->table_name, p_rule->rule_id, p_rule->f_keys[p_rule->n_foreign].key, dir);
 		p_rule->n_foreign++;
 	}
-	if(i==0)
+	if(p_rule->n_foreign==0)
 	{
-		p_rule->n_foreign=0;
 		free(p_rule->f_keys);
 		p_rule->f_keys=NULL;
 	}
