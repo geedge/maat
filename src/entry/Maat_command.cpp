@@ -1418,45 +1418,49 @@ void _get_foregin_keys(struct serial_rule_t* p_rule, int* foreign_columns, int n
 	int i=0;
 	const char* p_foreign=NULL;
 	int foreign_key_size=0;
-	p_rule->n_foreign=n_foreign;
 	p_rule->f_keys=ALLOC(struct foreign_key, n_foreign);
 	for(i=0; i<n_foreign; i++)
 	{
 		p_foreign=find_Nth_column(p_rule->table_line, foreign_columns[i], &foreign_key_size);
 		if(p_foreign==NULL)
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
-									, "Get %s,%d foreign keys failed: No %dth column."
-									, p_rule->table_name, p_rule->rule_id, foreign_columns[i]);
-			break;
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
+									"Get %s,%d foreign keys failed: No %dth column.",
+									p_rule->table_name, p_rule->rule_id, foreign_columns[i]);
+			continue;
+		}
+		if(0==strncasecmp(p_foreign, "null", strlen("null")))
+		{//emtpy file
+			continue;
 		}
 		if(0!=strncmp(p_foreign, foreign_source_prefix, strlen(foreign_source_prefix)))
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
-									,"Get %s,%d foreign key failed: Invalid source prefix %s."
-									, p_rule->table_name, p_rule->rule_id, p_foreign);
-			break;
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
+									"Get %s,%d foreign key failed: Invalid source prefix %s.",
+									p_rule->table_name, p_rule->rule_id, p_foreign);
+			continue;
 		}
 		p_rule->f_keys[i].column=foreign_columns[i];
 		foreign_key_size=foreign_key_size-strlen(foreign_source_prefix);
 		p_foreign+=strlen(foreign_source_prefix);
 		if(0!=strncmp(p_foreign, foreign_key_prefix, strlen(foreign_key_prefix)))
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor
-								,"%s,%d foreign key prefix %s is discouraged."
-								,p_rule->table_name, p_rule->rule_id, p_foreign);
+			MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor,
+								"%s, %d foreign key prefix %s is not recommended.",
+								p_rule->table_name, p_rule->rule_id, p_foreign);
 		}
 		p_rule->f_keys[i].key=(char*)calloc(sizeof(char),foreign_key_size+1);
 		memcpy(p_rule->f_keys[i].key, p_foreign, foreign_key_size);
 		p_rule->f_keys[i].filename=get_foreign_cont_filename(p_rule->table_name, p_rule->rule_id, p_rule->f_keys[i].key, dir);
+		p_rule->n_foreign++;
 	}
-	if(i!=n_foreign)
+	if(i==0)
 	{
 		p_rule->n_foreign=0;
 		free(p_rule->f_keys);
 		p_rule->f_keys=NULL;
-		p_rule->with_error=1;
 	}
+	return;
 }
 int get_foreign_keys_define(redisContext *ctx, struct serial_rule_t* rule_list, int rule_num, _Maat_feather_t* feather, const char* dir,void *logger)
 {
@@ -1543,6 +1547,10 @@ void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int 
 		{
 			for(j=0; j<rule_list[i].n_foreign; j++)
 			{
+				if(rule_list[i].f_keys[j].filename==NULL)
+				{
+					continue;
+				}
 				//ret=system_cmd_rm(rule_list[i].f_keys[j].filename);
 				ret=remove(rule_list[i].f_keys[j].filename);
 				if(ret==-1)
@@ -1557,6 +1565,10 @@ void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int 
 		{
 			for(j=0; j<p->n_foreign; j++)
 			{
+				if(rule_list[i].f_keys[j].filename==NULL)
+				{
+					continue;
+				}
 				ret=stat(p->f_keys[j].filename, &file_info);
 				if(ret==0)
 				{

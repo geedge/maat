@@ -3038,7 +3038,7 @@ int is_same_file(const char* filename1, const char* filename2)
 }
 int g_test_foregin_read_OK=0, g_test_foreign_del_OK=0;
 char file1_to_del[256], file2_to_del[256];
-
+const char* empty_file_name="An_empty_file";
 void foreign_key_test_entry_cb(int table_id,const char* table_line,void* u_para)
 {
 	int rule_id=-1, not_care=0, tag=0;
@@ -3056,10 +3056,16 @@ void foreign_key_test_entry_cb(int table_id,const char* table_line,void* u_para)
 												, end);
 	EXPECT_STREQ(end, "End");
 	if(is_valid==1)
-	{
+	{		
 		EXPECT_TRUE(is_same_file(file1_origin_name, file1_localname));
-		EXPECT_TRUE(is_same_file(file2_origin_name, file2_localname));
-
+		if(0==strncmp(file2_origin_name, empty_file_name, strlen(empty_file_name)))
+		{
+			EXPECT_TRUE(0==strncasecmp(file2_localname, "null", strlen("null")));
+		}
+		else
+		{
+			EXPECT_TRUE(is_same_file(file2_origin_name, file2_localname));
+		}
 		g_test_foregin_read_OK=1;
 	}
 	else
@@ -3132,6 +3138,26 @@ TEST_F(MaatCmdTest, SetFile)
 	EXPECT_EQ(ret, -1);
 	ret=stat(file2_to_del, &file_info);
 	EXPECT_EQ(ret, -1);
+
+
+// Test empty file, file key is a string "null".
+	line_rule.label_id=0;
+	line_rule.rule_id=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", 1);
+	line_rule.table_name=table_name;
+	snprintf(line, sizeof(line),"%d\t2\t%d\t1\t%s\tredis://%s\t%s\t%s\tEnd",line_rule.rule_id, tag
+																			,file1_name, file1_key
+																			,empty_file_name, "null");
+	line_rule.table_line=line;
+	line_rule.expire_after=0;
+
+	g_test_foregin_read_OK=0;
+	
+	ret=Maat_cmd_set_line(feather, &line_rule, MAAT_OP_ADD);
+	EXPECT_EQ(ret, 1);
+	usleep(WAIT_FOR_EFFECTIVE_US);//wait for callback triggered.
+
+
+	EXPECT_EQ(g_test_foregin_read_OK, 1);
 
 	return;
 }
