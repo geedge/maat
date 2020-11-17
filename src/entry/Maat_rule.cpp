@@ -1230,7 +1230,7 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 										region_string, &region_str_len);
 					if(ret<0)
 					{
-						MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+						MESA_handle_runtime_log(logger, RLOG_LV_DEBUG, maat_module ,
 								"Table %s region cfg %d charset convert from %s to %s failed.",
 																					table->table_name,
 																					db_rule->region_id,
