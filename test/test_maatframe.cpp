@@ -942,6 +942,24 @@ TEST(IPScan, IPv4_composition)
 	EXPECT_EQ(c177, 1);
 	EXPECT_EQ(c175, 2);//two paths for source IP hit and destination IP hit
 	Maat_clean_status(&mid);
+
+	//rule source IP 192.168.50.24, source port 1-40000
+	ipv4_addr_set(&ipv4_addr, &v4_addr, "192.168.50.24", 30000, "23.78.217.119", 443);
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 181);
+	Maat_clean_status(&mid);
+
+	ipv4_addr_set(&ipv4_addr, &v4_addr, "192.168.50.25", 30000, "23.78.217.119", 443);
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid, 0);
+	EXPECT_EQ(ret, 0);//Rule source ip is 192.168.50.24, should not match
+	Maat_clean_status(&mid);
+
+
+	ipv4_addr_set(&ipv4_addr, &v4_addr, "192.168.50.24", 56486, "23.78.217.119", 443);
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid, 0);
+	EXPECT_EQ(ret, 0);//Rule source port is 0-40000, should not match
+	Maat_clean_status(&mid);
 	return;
 }
 
@@ -3381,7 +3399,7 @@ TEST_F(MaatCmdTest, UpdateFQDNPlugin)
 
 	struct fqdn_plugin_ud* result[4];
 
-	ret=Maat_fqdn_plugin_get_EX_data(g_feather, table_id, "r3---sn-i3belne6.example2.com", (void**)result, 4);
+	ret=Maat_fqdn_plugin_get_EX_data(feather, table_id, "r3---sn-i3belne6.example2.com", (void**)result, 4);
 	ASSERT_EQ(ret, 2);
 	for(i=0; i<ret; i++)
 	{
