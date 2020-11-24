@@ -1,6 +1,7 @@
 
 #include "Maat_hierarchy.h"
 #include "Maat_utils.h"
+#include "Maat_limits.h"
 
 #include "uthash/uthash.h"
 #include "uthash/utarray.h"
@@ -1118,8 +1119,11 @@ void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy_compile_mid* mid, i
 				}
 				else
 				{
-					utarray_push_back(mid->_all_hit_clause_array, &clause_id);
-					utarray_sort(mid->_all_hit_clause_array, compare_clause_id);
+					if(utarray_len(mid->_all_hit_clause_array)<MAX_GROUP_CACHE)
+					{
+						utarray_push_back(mid->_all_hit_clause_array, &clause_id);
+						utarray_sort(mid->_all_hit_clause_array, compare_clause_id);
+					}
 				}
 			}
 		}
