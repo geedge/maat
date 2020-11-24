@@ -273,7 +273,7 @@ int region_compile(_Maat_feather_t*feather, struct Maat_hierarchy_compile_mid* c
 		alignment_int64_array_add(feather->not_grp_hit_cnt, thread_num, 1);
 
 	}
-	return scan_ret;
+	return MIN(scan_ret, size);
 }
 
 
