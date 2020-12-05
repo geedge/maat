@@ -923,10 +923,10 @@ int Maat_hierarchy_rebuild(struct Maat_hierarchy* hier)
 {
 	int ret=0;
 	struct bool_matcher* new_bm=NULL, *old_bm=NULL;
+	pthread_rwlock_wrlock(&hier->rwlock);
 	new_bm=Maat_hierarchy_build_bool_matcher(hier);
 	old_bm=hier->bm;
 	
-	pthread_rwlock_wrlock(&hier->rwlock);
 	hier->bm=new_bm;
 	pthread_rwlock_unlock(&hier->rwlock);
 	
