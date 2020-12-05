@@ -53,44 +53,44 @@ struct Maat_hierarchy_literal_id
 	int group_id;
 	int virtual_table_id;
 };
-struct Maat_hierarchy_clause_id
+struct Maat_hierarchy_literal_usage_key
 {
 	int clause_index;
 	int compile_id;
 };
-struct Maat_hierarchy_clause
+struct Maat_hierarchy_literal_usage
 {
-	struct Maat_hierarchy_clause_id clause_id;
+	struct Maat_hierarchy_literal_usage_key literal_usage_key;
 	char not_flag;
 	UT_hash_handle hh;
 };
 
 struct Maat_hierarchy_literal
 {
-	struct Maat_hierarchy_literal_id literal_id;	
-	struct Maat_hierarchy_clause* hash_clause_by_id;
+	struct Maat_hierarchy_literal_id literal_id;
+	UT_array *clause_ids;
 	UT_hash_handle hh;	//index to 
 };
 struct Maat_hierarchy_clause_state
 {
+
+	unsigned long long clause_id;
 	char not_flag;
 	char in_use;
-	
- 	//Following varibles are used when no Nth clause is given, another word, this is forward compatible.
-	int vt_id;
-	int group_id;
+	UT_array *literal_ids;
 };
 UT_icd ut_literal_id_icd = {sizeof(struct Maat_hierarchy_literal_id), NULL, NULL, NULL};
+UT_icd ut_clause_id_icd = {sizeof(unsigned long long), NULL, NULL, NULL};
 
 struct Maat_hierarchy_compile
 {
 	int compile_id;
+	int actual_clause_num;
 	int declared_clause_num;
 	int not_clause_cnt;
 	void* user_data;
-	UT_hash_handle hh;	
+	UT_hash_handle hh;
 	struct Maat_hierarchy_clause_state clause_states[MAX_ITEMS_PER_BOOL_EXPR];
-	UT_array *literal_ids;
 };
 
 static void _group_vertex_free(struct Maat_hierarchy_group* group)
@@ -132,59 +132,6 @@ struct Maat_hierarchy
 	void* logger;
 };
 
-
-static struct Maat_hierarchy_literal* Maat_hierarchy_literal_new(struct Maat_hierarchy* hier, int group_id, int vt_id)
-{
-	struct Maat_hierarchy_literal* literal=ALLOC(struct Maat_hierarchy_literal, 1);
-	literal->literal_id.group_id=group_id;
-	literal->literal_id.virtual_table_id=vt_id;
-	literal->hash_clause_by_id=NULL;
-	
-	HASH_ADD(hh, hier->hash_literal_by_id, literal_id, sizeof(literal->literal_id), literal);	
-	return literal;
-}
-static void Maat_hierarchy_literal_free(struct Maat_hierarchy* hier, struct Maat_hierarchy_literal* literal)
-{
-	struct Maat_hierarchy_clause* clause=NULL, *tmp=NULL;	
-	HASH_ITER(hh, literal->hash_clause_by_id, clause, tmp)
-	{
-		HASH_DELETE(hh, literal->hash_clause_by_id, clause);
-		free(clause);
-	}
-	HASH_DELETE(hh, hier->hash_literal_by_id, literal);	
-	free(literal);	
-}
-static int Maat_hierarchy_literal_join_clause(struct Maat_hierarchy_literal* literal, int not_flag, int clause_index, int compile_id)
-{
-	struct Maat_hierarchy_clause* clause=NULL;
-	struct Maat_hierarchy_clause_id clause_id={clause_index, compile_id};
-	HASH_FIND(hh, literal->hash_clause_by_id, &clause_id, sizeof(clause_id), clause);
-	if(clause)
-	{
-		return -1;
-	}
-	clause=ALLOC(struct Maat_hierarchy_clause, 1);
-	clause->clause_id=clause_id;
-	clause->not_flag=not_flag;
-	
-	HASH_ADD(hh, literal->hash_clause_by_id, clause_id, sizeof(clause->clause_id), clause);
-	return 0;
-}
-static int Maat_hierarchy_literal_leave_clause(struct Maat_hierarchy_literal* literal, int clause_index, int compile_id)
-{
-	struct Maat_hierarchy_clause* clause=NULL;
-	struct Maat_hierarchy_clause_id clause_id={clause_index, compile_id};
-	HASH_FIND(hh, literal->hash_clause_by_id, &clause_id, sizeof(clause_id), clause);
-	if(!clause)
-	{
-		return -1;
-	}
-	HASH_DELETE(hh, literal->hash_clause_by_id, clause);
-	free(clause);
-	return 0;
-}
-
-
 int compare_literal_id(const void *pa, const void *pb)
 {
 	struct Maat_hierarchy_literal_id *la=(struct Maat_hierarchy_literal_id *)pa;
@@ -197,24 +144,135 @@ int compare_literal_id(const void *pa, const void *pb)
 	return ret;
 
 }
-
+static inline int compare_clause_id(const void* a, const void* b)
+{
+	long long ret=*(const unsigned long long *)a - *(const unsigned long long *)b;
+	if(ret==0)
+	{
+		return 0;
+	}
+	else if(ret<0)
+	{
+		return -1;
+	}
+	else
+	{
+		return 1;
+	}
+}
+static struct Maat_hierarchy_literal* Maat_hierarchy_literal_new(struct Maat_hierarchy_literal** hash_table, int group_id, int vt_id)
+{
+	struct Maat_hierarchy_literal* literal=ALLOC(struct Maat_hierarchy_literal, 1);
+	literal->literal_id.group_id=group_id;
+	literal->literal_id.virtual_table_id=vt_id;
+	utarray_new(literal->clause_ids, &ut_clause_id_icd);
+	
+	HASH_ADD(hh, *hash_table, literal_id, sizeof(literal->literal_id), literal);	
+	return literal;
+}
+static void Maat_hierarchy_literal_free(struct Maat_hierarchy_literal** hash_table, struct Maat_hierarchy_literal* literal)
+{
+	utarray_free(literal->clause_ids);
+	literal->clause_ids=NULL;
+	HASH_DELETE(hh, *hash_table, literal);
+	free(literal);	
+}
+static int Maat_hierarchy_compile_has_literal(struct Maat_hierarchy_compile* compile, struct Maat_hierarchy_literal_id* literal_id)
+{
+	int i=0;
+	struct Maat_hierarchy_literal_id* tmp=NULL;
+	struct Maat_hierarchy_clause_state* clause_state=NULL;
+	for(i=0; i<MAX_ITEMS_PER_BOOL_EXPR; i++)
+	{
+		clause_state=compile->clause_states+i;
+		if(!clause_state->in_use)
+		{
+			continue;
+		}
+		tmp=(struct Maat_hierarchy_literal_id*)utarray_find(clause_state->literal_ids, literal_id, compare_literal_id);
+		if(tmp)
+		{
+			assert(tmp->group_id==literal_id->group_id && tmp->virtual_table_id==literal_id->virtual_table_id);
+			return 1;
+		}
+	}
+	return 0;
+}
+static int Maat_hierarchy_compile_add_literal(struct Maat_hierarchy_compile* compile, struct Maat_hierarchy_literal_id* literal_id, int not_flag, int clause_index)
+{
+	struct Maat_hierarchy_clause_state* clause_state=compile->clause_states+clause_index;
+	struct Maat_hierarchy_literal_id* tmp=NULL;
+	clause_state->not_flag=not_flag;
+	if(!clause_state->in_use)
+	{
+		clause_state->in_use=1;
+		compile->actual_clause_num++;
+	}
+	tmp=(struct Maat_hierarchy_literal_id*)utarray_find(clause_state->literal_ids, literal_id, compare_literal_id);
+	if(tmp)
+	{
+		assert(*(unsigned long long*)tmp == *(unsigned long long*)(literal_id));
+		return -1;
+	}
+	else
+	{
+		utarray_push_back(clause_state->literal_ids, literal_id);
+		utarray_sort(clause_state->literal_ids, compare_literal_id);
+	}
+	return 0;
+}
+static int Maat_hierarchy_compile_remove_literal(struct Maat_hierarchy_compile* compile, struct Maat_hierarchy_literal_id* literal_id, int clause_index)
+{
+	struct Maat_hierarchy_clause_state* clause_state=compile->clause_states+clause_index;
+	struct Maat_hierarchy_literal_id* tmp=NULL;
+	size_t remove_idx=0;
+	tmp=(struct Maat_hierarchy_literal_id*)utarray_find(clause_state->literal_ids, literal_id , compare_literal_id);
+	if(tmp)
+	{
+		assert(*(unsigned long long*)tmp == *(unsigned long long*)(literal_id));
+	}
+	else
+	{
+		return -1;
+	}
+	remove_idx=utarray_eltidx(clause_state->literal_ids, tmp);
+	utarray_erase(clause_state->literal_ids, remove_idx, 1);
+	if(0==utarray_len(clause_state->literal_ids))
+	{
+		clause_state->in_use=0;
+		compile->actual_clause_num--;
+	}
+	return 0;
+}
 static struct Maat_hierarchy_compile* Maat_hierarchy_compile_new(struct Maat_hierarchy* hier, int compile_id)
 {
+	int i=0;
 	struct Maat_hierarchy_compile* compile=NULL;
 	compile=ALLOC(struct Maat_hierarchy_compile, 1);
 	compile->compile_id=compile_id;
 	HASH_ADD_INT(hier->hash_compile_by_id, compile_id, compile);
-	utarray_new(compile->literal_ids, &ut_literal_id_icd);
+	for(i=0; i<MAX_ITEMS_PER_BOOL_EXPR; i++)
+	{	
+		utarray_new(compile->clause_states[i].literal_ids, &ut_literal_id_icd);
+		compile->clause_states[i].in_use=0;
+	}	
 	return compile;
 }
 static void Maat_hierarchy_compile_free(struct Maat_hierarchy* hier, struct Maat_hierarchy_compile* compile)
 {
+	int i=0;
 	HASH_DEL(hier->hash_compile_by_id, compile);
-	if(hier->compile_user_data_free && compile->user_data)
+	if(compile->user_data && hier->compile_user_data_free)
 	{
 		hier->compile_user_data_free(compile->user_data);
+		compile->user_data=NULL;
 	}
-	utarray_free(compile->literal_ids);
+	for(i=0; i<MAX_ITEMS_PER_BOOL_EXPR; i++)
+	{		
+		utarray_free(compile->clause_states[i].literal_ids);
+		compile->clause_states[i].literal_ids=NULL;
+		compile->clause_states[i].in_use=0;
+	}
 	free(compile);
 }
 
@@ -285,7 +343,7 @@ void Maat_hierarchy_free(struct Maat_hierarchy* hier)
 	
 	HASH_ITER(hh, hier->hash_literal_by_id, literal, tmp_literal)
 	{
-		Maat_hierarchy_literal_free(hier, literal);
+		Maat_hierarchy_literal_free(&hier->hash_literal_by_id, literal);
 	}
 	assert(hier->hash_literal_by_id==NULL);
 
@@ -338,12 +396,19 @@ int Maat_hierarchy_compile_add(struct Maat_hierarchy* hier, int compile_id, int 
 		compile->user_data=user_data;
 	}
 	else
-	{		
-		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, module_maat_hierarchy,
+	{
+		if(compile->user_data!=NULL)
+		{
+			MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, module_maat_hierarchy,
 				"Add compile %d failed, compile is already exisited.",
 				compile_id);
-		ret=-1;
-
+			ret=-1;
+		}
+		else
+		{
+			compile->declared_clause_num=declared_clause_num;
+			compile->user_data=user_data;
+		}
 	}
 	pthread_rwlock_unlock(&hier->rwlock);
 	return ret;
@@ -357,7 +422,15 @@ int Maat_hierarchy_compile_remove(struct Maat_hierarchy * hier, int compile_id)
 	HASH_FIND_INT(hier->hash_compile_by_id, &compile_id, compile);
 	if(compile)
 	{
-		Maat_hierarchy_compile_free(hier, compile);
+		if(hier->compile_user_data_free && compile->user_data)
+		{
+			hier->compile_user_data_free(compile->user_data);
+			compile->user_data=NULL;
+		}
+		if(compile->actual_clause_num==0)
+		{
+			Maat_hierarchy_compile_free(hier, compile);
+		}
 		ret=0;
 	}
 	else
@@ -409,7 +482,10 @@ void Maat_hierarchy_compile_user_data_iterate(struct Maat_hierarchy* hier, void 
 	pthread_rwlock_rdlock(&hier->rwlock);
 	HASH_ITER(hh, hier->hash_compile_by_id, compile, tmp_compile)
 	{
-		callback(compile->user_data, param);
+		if(compile->user_data)
+		{
+			callback(compile->user_data, param);
+		}
 	}
 	pthread_rwlock_unlock(&hier->rwlock);
 	return;
@@ -491,8 +567,8 @@ int Maat_hierarchy_add_group_to_compile(struct Maat_hierarchy* hier, int group_i
 {
 	int ret=0;
 	struct Maat_hierarchy_group* group=NULL;
-	struct Maat_hierarchy_literal* literal=NULL;
 	struct Maat_hierarchy_literal_id literal_id={group_id, vt_id};
+	struct Maat_hierarchy_compile* compile=NULL;
 	
 	pthread_rwlock_wrlock(&hier->rwlock);
 	HASH_FIND(hh_group_id, hier->hash_group_by_id, &group_id, sizeof(group_id), group);
@@ -500,12 +576,14 @@ int Maat_hierarchy_add_group_to_compile(struct Maat_hierarchy* hier, int group_i
 	{
 		group=Maat_hierarchy_group_new(hier, group_id);
 	}
-	HASH_FIND(hh, hier->hash_literal_by_id, &literal_id, sizeof(literal_id), literal);
-	if(!literal)
+
+	HASH_FIND(hh, hier->hash_compile_by_id, &compile_id, sizeof(compile_id), compile);
+	if(!compile)
 	{
-		literal=Maat_hierarchy_literal_new(hier, group_id, vt_id);
+		compile=Maat_hierarchy_compile_new(hier, compile_id);
 	}
-	ret=Maat_hierarchy_literal_join_clause(literal, not_flag, clause_index, compile_id);	
+	
+	ret=Maat_hierarchy_compile_add_literal(compile, &literal_id, not_flag, clause_index);	
 	if(ret<0)
 	{
 		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, module_maat_hierarchy,
@@ -524,8 +602,8 @@ int Maat_hierarchy_add_group_to_compile(struct Maat_hierarchy* hier, int group_i
 int Maat_hierarchy_remove_group_from_compile(struct Maat_hierarchy* hier, int group_id, int vt_id, int not_flag, int clause_index, int compile_id)
 {
 	struct Maat_hierarchy_group* group=NULL;
-	struct Maat_hierarchy_literal* literal=NULL;
-	struct Maat_hierarchy_literal_id literal_id={group_id, vt_id};
+	struct Maat_hierarchy_literal_id literal_id={group_id, vt_id};	
+	struct Maat_hierarchy_compile* compile=NULL;
 	int ret=0;
 	
 	pthread_rwlock_wrlock(&hier->rwlock);
@@ -537,21 +615,26 @@ int Maat_hierarchy_remove_group_from_compile(struct Maat_hierarchy* hier, int gr
 						group_id, compile_id);
 		goto error_out;
 	}
-	HASH_FIND(hh, hier->hash_literal_by_id, &literal_id, sizeof(literal_id), literal);
-	if(!literal)
+	HASH_FIND(hh, hier->hash_compile_by_id, &compile_id, sizeof(compile_id), compile);
+	if(!compile)
 	{
 		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, module_maat_hierarchy,
-						"Remove group %d from compile %d failed, literal is not exisited.",
+						"Remove group %d from compile %d failed, compile is not exisited.",
 						group_id, compile_id);
-		goto error_out;
+		goto error_out;		
 	}
-	ret=Maat_hierarchy_literal_leave_clause(literal, clause_index, compile_id);
+
+	ret=Maat_hierarchy_compile_remove_literal(compile, &literal_id, clause_index);
 	if(ret<0)
 	{
 		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, module_maat_hierarchy,
-					"Remove group %d vt_id %d from clause %d of compile %d failed, clause is not exisited.",
+					"Remove group %d vt_id %d from clause %d of compile %d failed, literal is not in compile.",
 					group_id, vt_id, clause_index, compile_id);
 		goto error_out;
+	}
+	if(compile->actual_clause_num==0 && !compile->user_data)
+	{
+		Maat_hierarchy_compile_free(hier, compile);
 	}
 	pthread_rwlock_unlock(&hier->rwlock);
 	return 0;
@@ -732,56 +815,88 @@ error_out:
 	pthread_rwlock_unlock(&hier->rwlock);
 	return -1;
 }
-
+struct clause_entry
+{
+	long long clause_id;
+	const UT_array *literal_ids;//a reference of struct Maat_hierarchy_clause_state->literal_ids
+	UT_hash_handle hh;
+};
 static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierarchy* hier)
 {
 	struct bool_matcher* bm=NULL;
 	size_t compile_num=0, expr_cnt=0;
 	struct bool_expr* bool_expr_array=NULL;
 	struct Maat_hierarchy_compile* compile=NULL, *tmp_compile=NULL;
-	struct Maat_hierarchy_literal* literal=NULL, *tmp_literal=NULL;
-	struct Maat_hierarchy_clause* clause=NULL, *tmp_clause=NULL;
-	int i=0, j=0;
 	
-	//STEP 1, for building a new bool matcher, we need to reset previous clause states of each compile.
-	HASH_ITER(hh, hier->hash_compile_by_id, compile, tmp_compile)
-	{
-		memset(compile->clause_states, 0, sizeof(compile->clause_states));
-		utarray_clear(compile->literal_ids);
-	}
-
+	struct Maat_hierarchy_clause_state* clause_state=NULL;
+	size_t i=0, j=0;
+	int has_clause_num=0;
+	compile_num=HASH_COUNT(hier->hash_compile_by_id);	
+	size_t all_clause_num=compile_num*MAX_ITEMS_PER_BOOL_EXPR;
 	
-	//STEP 2, iterate literal hash to udpate the compile clause state.
-	HASH_ITER(hh, hier->hash_literal_by_id, literal, tmp_literal)
-	{
-		HASH_ITER(hh, literal->hash_clause_by_id, clause, tmp_clause)
-		{
-			assert(clause->clause_id.clause_index<MAX_ITEMS_PER_BOOL_EXPR);
-			HASH_FIND(hh, hier->hash_compile_by_id, &clause->clause_id.compile_id, sizeof(clause->clause_id.compile_id), compile);
-			if(compile)
-			{
-				if(compile->clause_states[clause->clause_id.clause_index].in_use==1)
-				{
-					assert(compile->clause_states[clause->clause_id.clause_index].not_flag==clause->not_flag);
-				}
-				else
-				{
-					compile->clause_states[clause->clause_id.clause_index].in_use=1;
-					compile->clause_states[clause->clause_id.clause_index].not_flag=clause->not_flag;
-				}
-				utarray_push_back(compile->literal_ids, &literal->literal_id);
-			}
-		}
-	}
-
-	//STEP 3, serial clause states to a bool expression array.
-	compile_num=HASH_COUNT(hier->hash_compile_by_id);
 	if(compile_num==0)
 	{
 		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, module_maat_hierarchy,
 								"No compile to build.");
 		return NULL;
 	}
+
+	//STEP 1, create a clause hash by literals it contains
+	unsigned long long clause_id_generator=0;
+	struct Maat_hierarchy_literal_id* literal_ids=NULL;
+	size_t n_literal_id=0;
+	struct clause_entry* clause_entry_array=ALLOC(struct clause_entry, all_clause_num);
+	struct clause_entry* clause_dedup_hash=NULL, *clause_entry=NULL, *tmp_clause_entry=NULL;
+	HASH_ITER(hh, hier->hash_compile_by_id, compile, tmp_compile)
+	{
+		has_clause_num=0;
+		for(i=0; i<MAX_ITEMS_PER_BOOL_EXPR; i++)
+		{
+			clause_state=compile->clause_states+i;
+			clause_state->clause_id=0;
+			if(!clause_state->in_use)
+			{
+				continue;
+			}
+			has_clause_num++;
+			literal_ids=(struct Maat_hierarchy_literal_id*)utarray_eltptr(clause_state->literal_ids, 0);
+			n_literal_id=utarray_len(clause_state->literal_ids);
+			HASH_FIND(hh, clause_dedup_hash, literal_ids, 
+					n_literal_id*sizeof(struct Maat_hierarchy_literal_id), clause_entry);
+			if(!clause_entry)
+			{
+				clause_entry_array[clause_id_generator].clause_id=clause_id_generator;
+				clause_entry_array[clause_id_generator].literal_ids=clause_state->literal_ids;
+				HASH_ADD_KEYPTR(hh, clause_dedup_hash, literal_ids, 
+					n_literal_id*sizeof(struct Maat_hierarchy_literal_id), 
+					clause_entry_array+clause_id_generator);
+				clause_id_generator++;
+			}
+		}
+		assert(has_clause_num==compile->actual_clause_num);
+	}
+	
+	//STEP 2, update clause_id of each compile and literal
+	HASH_ITER(hh, hier->hash_compile_by_id, compile, tmp_compile)
+	{
+		for(i=0; i<MAX_ITEMS_PER_BOOL_EXPR; i++)
+		{
+			clause_state=compile->clause_states+i;
+			if(!clause_state->in_use)
+			{
+				continue;
+			}
+			literal_ids=(struct Maat_hierarchy_literal_id*)utarray_eltptr(clause_state->literal_ids, 0);
+			n_literal_id=utarray_len(clause_state->literal_ids);
+			HASH_FIND(hh, clause_dedup_hash, literal_ids, 
+					n_literal_id*sizeof(struct Maat_hierarchy_literal_id), clause_entry);
+			assert(clause_entry);
+			clause_state->clause_id=clause_entry->clause_id;
+		}
+	}
+	
+	//STEP 3, serial compile clause states to a bool expression array.
+	compile_num=HASH_COUNT(hier->hash_compile_by_id);
 	bool_expr_array=ALLOC(struct bool_expr, compile_num);
 	HASH_ITER(hh, hier->hash_compile_by_id, compile, tmp_compile)
 	{
@@ -793,22 +908,21 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 				{
 					compile->not_clause_cnt++;
 				}
-				bool_expr_array[expr_cnt].items[j].item_id=TO_CLAUSE_ID(i, compile->compile_id);
+				bool_expr_array[expr_cnt].items[j].item_id=compile->clause_states[i].clause_id;
 				bool_expr_array[expr_cnt].items[j].not_flag=compile->clause_states[i].not_flag;
 				j++;
 			}
 		}
 		//some compile may have zero groups, e.g. default policy.
-		if(j==compile->declared_clause_num&&j>0)
+		if(j==(size_t)compile->declared_clause_num&&j>0)
 		{
 			bool_expr_array[expr_cnt].user_tag=compile;
 			bool_expr_array[expr_cnt].item_num=j;
 			expr_cnt++;
 		}
-		utarray_sort(compile->literal_ids, compare_literal_id);
 	}
 
-	//Final STEP, build the bool matcher.
+	//STEP 4, build the bool matcher.
 	size_t mem_size=0;
 	if(expr_cnt==0)
 	{
@@ -827,9 +941,16 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, module_maat_hierarchy,
 								"Build bool matcher failed!");
 	}
-	free(bool_expr_array);
-	return bm;
 
+	//STEP 5, release resources
+	HASH_ITER(hh, clause_dedup_hash, clause_entry, tmp_clause_entry)
+	{
+		HASH_DELETE(hh, clause_dedup_hash, clause_entry);
+	}
+	free(clause_entry_array);
+	free(bool_expr_array);
+
+	return bm;
 }
 static int Maat_hierarchy_build_top_groups(struct Maat_hierarchy* hier)
 {
@@ -918,17 +1039,70 @@ static int Maat_hierarchy_build_top_groups(struct Maat_hierarchy* hier)
 	igraph_vector_destroy(&hier->dfs_vids);
 	return 0;
 }
+struct Maat_hierarchy_literal* Maat_hierarchy_build_literal_hash(struct Maat_hierarchy* hier)
+{
+	size_t i=0, j=0;
+	struct Maat_hierarchy_compile* compile=NULL, *tmp_compile=NULL;
+	struct Maat_hierarchy_literal* literal=NULL;
+	struct Maat_hierarchy_literal_id* literal_id=NULL;
+	struct Maat_hierarchy_literal* literal_hash=NULL;
+	struct Maat_hierarchy_clause_state* clause_state=NULL;
+	unsigned long long* tmp_clause_id=NULL;
+	
+	HASH_ITER(hh, hier->hash_compile_by_id, compile, tmp_compile)
+	{
+		for(i=0; i<MAX_ITEMS_PER_BOOL_EXPR; i++)
+		{
+			clause_state=compile->clause_states+i;
+			if(!clause_state->in_use)
+			{
+				continue;
+			}
+			for(j=0; j<utarray_len(clause_state->literal_ids); j++)
+			{
+				literal_id=(struct Maat_hierarchy_literal_id*)utarray_eltptr(clause_state->literal_ids, j);
+				HASH_FIND(hh, literal_hash, literal_id, sizeof(*literal_id), literal);
+				if(!literal)
+				{
+					literal=Maat_hierarchy_literal_new(&literal_hash, literal_id->group_id, literal_id->virtual_table_id);
+				}
+				tmp_clause_id=(unsigned long long*)utarray_find(literal->clause_ids, &(clause_state->clause_id), compare_clause_id);
+				if(tmp_clause_id)//literal already in this clause.
+				{
+					continue;
+				}
+				utarray_push_back(literal->clause_ids, &clause_state->clause_id);
+				utarray_sort(literal->clause_ids, compare_clause_id);
+			}
+		}
+
+	}
+	return literal_hash;
+}
 
 int Maat_hierarchy_rebuild(struct Maat_hierarchy* hier)
 {
 	int ret=0;
 	struct bool_matcher* new_bm=NULL, *old_bm=NULL;
+	struct Maat_hierarchy_literal* new_literal_hash=NULL, *old_literal_hash=NULL;	
+	struct Maat_hierarchy_literal* literal=NULL, *tmp_literal=NULL;
+	
 	new_bm=Maat_hierarchy_build_bool_matcher(hier);
 	old_bm=hier->bm;
 	
+	new_literal_hash=Maat_hierarchy_build_literal_hash(hier);
+	old_literal_hash=hier->hash_literal_by_id;
+
+	
 	pthread_rwlock_wrlock(&hier->rwlock);
 	hier->bm=new_bm;
+	hier->hash_literal_by_id=new_literal_hash;
 	pthread_rwlock_unlock(&hier->rwlock);
+	
+	HASH_ITER(hh, old_literal_hash, literal, tmp_literal)
+	{
+		Maat_hierarchy_literal_free(&old_literal_hash, literal);
+	}
 	
 	bool_matcher_free(old_bm);
 	ret=Maat_hierarchy_build_top_groups(hier);
@@ -949,7 +1123,6 @@ struct Maat_hierarchy_compile_mid
 	
 	UT_array* _all_hit_clause_array;
 };
-UT_icd ut_hit_clauses_icd = {sizeof(unsigned long long), NULL, NULL, NULL};
 
 struct Maat_hierarchy_compile_mid* Maat_hierarchy_compile_mid_new(struct Maat_hierarchy* hier, int thread_num)
 {
@@ -957,7 +1130,7 @@ struct Maat_hierarchy_compile_mid* Maat_hierarchy_compile_mid_new(struct Maat_hi
 	TAILQ_INIT(&mid->hit_path_qhead);
 	mid->thread_num=thread_num;
 	mid->ref_hier=hier;	
-	utarray_new(mid->_all_hit_clause_array, &ut_hit_clauses_icd);
+	utarray_new(mid->_all_hit_clause_array, &ut_clause_id_icd);
 	return mid;
 }
 void Maat_hierarchy_compile_mid_free(struct Maat_hierarchy_compile_mid* mid)
@@ -1027,35 +1200,17 @@ size_t Maat_hierarchy_hit_path_select0(const struct Maat_hierarchy_compile_mid* 
 	ret=hit_path_select(&mid->hit_path_qhead, condition, hit_paths, n_path);
 	return ret;
 }
-static inline int compare_clause_id(const void* a, const void* b)
-{
-	long long ret=*(const unsigned long long *)a - *(const unsigned long long *)b;
-	if(ret==0)
-	{
-		return 0;
-	}
-	else if(ret<0)
-	{
-		return -1;
-	}
-	else
-	{
-		return 1;
-	}
-}
+
 void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy_compile_mid* mid, int region_id, int virtual_table_id, int Nth_scan, int Nth_region_result)
 {
-	int i=0;
-	void* tmp=NULL;
-	unsigned long long clause_id=0;
+	size_t i=0, j=0;
+	unsigned long long *clause_id=0;
 	struct Maat_hierarchy_hit_path* hit_path=NULL;
 	struct Maat_hierarchy_region* region=NULL;
 	struct Maat_hierarchy_group* group=NULL;
 
 	struct Maat_hierarchy_literal_id literal_id={0,0};
 	struct Maat_hierarchy_literal* literal=NULL;
-	struct Maat_hierarchy_clause* clause=NULL, *tmp_clause=NULL;
-
 	
 	struct Maat_hierarchy* hier=mid->ref_hier;
 	if(mid->Nth_scan!=Nth_scan)
@@ -1088,7 +1243,7 @@ void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy_compile_mid* mid, i
 	}
 	else
 	{
-		for(i=0; i<group->top_group_cnt; i++)
+		for(i=0; i<(size_t)group->top_group_cnt; i++)
 		{
 			hit_path=ALLOC(struct Maat_hierarchy_hit_path, 1);
 			Maat_hit_path_init(&(hit_path->path));
@@ -1108,26 +1263,15 @@ void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy_compile_mid* mid, i
 			{
 				continue;
 			}
-			HASH_ITER(hh, literal->hash_clause_by_id, clause, tmp_clause)
+			for(j=0; j<utarray_len(literal->clause_ids); j++)
 			{
-				clause_id=TO_CLAUSE_ID(clause->clause_id.clause_index, clause->clause_id.compile_id);
-			//	ret=insert_clause_id(&mid->all_hit_clause_array, &mid->all_hit_clause_array_sz, mid->all_hit_clause_cnt, TO_CLAUSE_ID(clause->clause_id.clause_index, clause->clause_id.compile_id));
-				tmp=utarray_find(mid->_all_hit_clause_array, &clause_id, compare_clause_id);
-				if(tmp)
+				clause_id=(unsigned long long*)utarray_eltptr(literal->clause_ids, j);
+				if(utarray_find(mid->_all_hit_clause_array, clause_id, compare_clause_id))
 				{
-					assert(*(unsigned long long*)tmp == clause_id);
+					continue;
 				}
-				else
-				{
-					if(utarray_len(mid->_all_hit_clause_array)> MAX_GROUP_CACHE)
-					{					
-						pthread_rwlock_unlock(&hier->rwlock);
-						return;
-					}
-					utarray_push_back(mid->_all_hit_clause_array, &clause_id);
-					utarray_sort(mid->_all_hit_clause_array, compare_clause_id);
-
-				}
+				utarray_push_back(mid->_all_hit_clause_array, clause_id);
+				utarray_sort(mid->_all_hit_clause_array, compare_clause_id);
 			}
 		}
 	}
@@ -1140,7 +1284,7 @@ static size_t Maat_hierarchy_compile_mid_update_by_compile(struct Maat_hierarchy
 {
 	size_t r_in_c_cnt=0, this_scan_hit_region_cnt=0;
 	struct Maat_hierarchy_hit_path* p=NULL, *q=NULL;
-	struct Maat_hierarchy_literal_id literal_id={0, 0}, *l=NULL;
+	struct Maat_hierarchy_literal_id literal_id={0, 0};
 	struct Maat_hit_path_t condition;
 
 	size_t n_exsited_path=0;
@@ -1161,12 +1305,10 @@ static size_t Maat_hierarchy_compile_mid_update_by_compile(struct Maat_hierarchy
 		}
 		literal_id.group_id=p->path.top_group_id;
 		literal_id.virtual_table_id=p->path.virtual_table_id;
-		l=(struct Maat_hierarchy_literal_id*)utarray_find(compile->literal_ids, &literal_id, compare_literal_id);
-		if(!l)
+		if(!Maat_hierarchy_compile_has_literal(compile, &literal_id))
 		{
 			continue;
 		}
-		assert(l->group_id==literal_id.group_id && l->virtual_table_id==literal_id.virtual_table_id);
 		if(p->path.compile_id<0)
 		{
 			p->path.compile_id=compile->compile_id;
