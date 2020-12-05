@@ -226,7 +226,7 @@ int region_compile(_Maat_feather_t*feather, struct Maat_hierarchy_compile_mid* c
 	int scan_ret=0;
 	int i=0;
 
-	struct Maat_compile_rule* compile_rule_array[MAX_SCANNER_HIT_NUM];
+	struct Maat_compile_rule* compile_rule_array[size];
 	struct Maat_compile_rule* compile_rule=NULL;
 	int virtual_table_id=0;
 
@@ -247,7 +247,7 @@ int region_compile(_Maat_feather_t*feather, struct Maat_hierarchy_compile_mid* c
 		Maat_hierarchy_compile_mid_udpate(compile_mid, region->region_id, virtual_table_id, region_hit_wraper->Nth_scan, i);
 		
 	}
-	scan_ret=Maat_hierarchy_region_compile(compile_mid, is_last_region, (void**)compile_rule_array, MAX_SCANNER_HIT_NUM);
+	scan_ret=Maat_hierarchy_region_compile(compile_mid, is_last_region, (void**)compile_rule_array, size);
 	//Maat_hierarchy is rwlock protected, it always returns non-NULL compile_rule.
 	if(scan_ret>1)
 	{

@@ -3509,7 +3509,9 @@ TEST_F(MaatCmdTest, GroupInMassCompiles)
 	sleep(1);
 	
 	int ret=0, url_table_id=0, appid_table_id=0;
-	const char* http_url="https://www.baidu.com/s?wd=zhengzhou&rsv_spt=1&rsv_iqid=0x8b4cae8100000560&issp=1&f=8&rsv_bp=1";
+	
+	const char* http_url1="https://www.baidu.com/s?wd=tsg";
+	const char* http_url2="https://www.baidu.com/s?wd=zhengzhou&rsv_spt=1&rsv_iqid=0x8b4cae8100000560&issp=1&f=8&rsv_bp=1";
 
 	struct Maat_rule_t result[4];
 	scan_status_t mid=NULL;
@@ -3522,7 +3524,7 @@ TEST_F(MaatCmdTest, GroupInMassCompiles)
 	ASSERT_GT(appid_table_id, 0);
 
 	
-	ret=Maat_full_scan_string(feather, url_table_id, CHARSET_GBK, http_url, strlen(http_url), 
+	ret=Maat_full_scan_string(feather, url_table_id, CHARSET_GBK, http_url2, strlen(http_url2), 
 						result, NULL, 4, &mid, 0);
 	EXPECT_EQ(ret, -2);
 
@@ -3531,6 +3533,17 @@ TEST_F(MaatCmdTest, GroupInMassCompiles)
 	EXPECT_EQ(result[0].config_id, target_compile.config_id);
 	
 	Maat_clean_status(&mid);
+
+
+	ret=Maat_full_scan_string(feather, url_table_id, CHARSET_GBK, http_url1, strlen(http_url1), 
+						result, NULL, 4, &mid, 0);
+	EXPECT_EQ(ret, -2);
+
+	ret=Maat_scan_intval(feather, appid_table_id, 100, result, 4, &mid, 0);
+	EXPECT_EQ(ret, 4);
+	
+	Maat_clean_status(&mid);
+	
 }
 
 

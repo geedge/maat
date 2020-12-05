@@ -16,11 +16,6 @@
 #define module_maat_hierarchy	"MAAT_HIERARCHY"
 
 
-#define	TO_CLAUSE_ID(clause_index, compile_id)	((unsigned long long)clause_index<<32|compile_id)
-#define	TO_CLAUSE_ID_COMPATBILE(vid, gid)	((unsigned long long)vid<<32|gid)
-#define	TO_LITERAL_ID(vt_id, group_id)	((long long)vt_id<<32|group_id)
-
-
 
 struct Maat_hierarchy_group
 {
@@ -52,17 +47,6 @@ struct Maat_hierarchy_literal_id
 {
 	int group_id;
 	int virtual_table_id;
-};
-struct Maat_hierarchy_literal_usage_key
-{
-	int clause_index;
-	int compile_id;
-};
-struct Maat_hierarchy_literal_usage
-{
-	struct Maat_hierarchy_literal_usage_key literal_usage_key;
-	char not_flag;
-	UT_hash_handle hh;
 };
 
 struct Maat_hierarchy_literal
@@ -98,10 +82,6 @@ static void _group_vertex_free(struct Maat_hierarchy_group* group)
 	free(group->top_group_ids);
 	free(group);
 }
-
-
-
-
 
 
 struct Maat_hierarchy
@@ -301,7 +281,6 @@ static void Maat_hierarchy_region_free(struct Maat_hierarchy* hier, struct Maat_
 	free(region);
 	return;
 }
-
 
 
 struct Maat_hierarchy* Maat_hierarchy_new(int thread_num, void* mesa_handle_logger)
@@ -1364,7 +1343,6 @@ int Maat_hierarchy_region_compile(struct Maat_hierarchy_compile_mid* mid, int is
 	pthread_rwlock_rdlock(&hier->rwlock);
 	bool_match_ret=bool_matcher_match(hier->bm, mid->thread_num, 
 						(unsigned long long*)utarray_eltptr(mid->_all_hit_clause_array, 0), utarray_len(mid->_all_hit_clause_array),
-						//mid->all_hit_clause_array, mid->all_hit_clause_cnt,
 						(void**)compile_array, ud_array_sz);
 	for(i=0; i<bool_match_ret; i++)
 	{
