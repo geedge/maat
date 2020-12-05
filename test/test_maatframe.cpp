@@ -3415,7 +3415,123 @@ TEST_F(MaatCmdTest, UpdateFQDNPlugin)
 
 	return;
 }
+#define TEST_GROUP_IN_MASS_COMPILES
+TEST_F(MaatCmdTest, GroupInMassCompiles)
+{
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
 
+	const char* g2c_tn="GROUP2COMPILE";
+	const char* compile_table_name="COMPILE";
+	const char* table_url="HTTP_URL";
+	const char* table_appid="APP_ID";
+	int compile_cnt=1000, i=0;
+	struct Maat_cmd_group2compile group1, group2, group3;
+	struct Maat_rule_t compile[compile_cnt], target_compile;
+	struct Maat_cmd_region region_url1, region_url2, region_appid;
+
+	memset(&group1, 0, sizeof(group1));
+	group1.group_id=Maat_command_get_new_group_id(feather);
+	group1.table_name=g2c_tn;
+	group1.clause_index=0;
+
+	memset(&group2, 0, sizeof(group2));
+	group2.group_id=Maat_command_get_new_group_id(feather);
+	group2.table_name=g2c_tn;
+	group2.clause_index=1;
+
+	memset(&group3, 0, sizeof(group3));
+	group3.group_id=Maat_command_get_new_group_id(feather);
+	group3.table_name=g2c_tn;
+	group3.clause_index=2;
+
+
+	//region_url1->group1
+	memset(&region_url1, 0, sizeof(region_url1));
+	region_url1.region_id=Maat_command_get_new_region_id(feather);
+	region_url1.region_type=REGION_EXPR;
+	region_url1.table_name=table_url;
+	region_url1.expr_rule.district=NULL;
+	region_url1.expr_rule.keywords="baidu.com&tsg";
+	region_url1.expr_rule.expr_type=EXPR_TYPE_AND;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region_url1, group1.group_id);
+
+
+	//region_url2->group2
+	memset(&region_url1, 0, sizeof(region_url1));
+	region_url2.region_id=Maat_command_get_new_region_id(feather);
+	region_url2.region_type=REGION_EXPR;
+	region_url2.table_name=table_url;
+	region_url2.expr_rule.district=NULL;
+	region_url2.expr_rule.keywords="baidu.com&zhengzhou";
+	region_url2.expr_rule.expr_type=EXPR_TYPE_AND;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region_url2, group2.group_id);
+
+
+	//region_appid->group3
+	memset(&region_appid, 0, sizeof(region_appid));
+	region_appid.region_id=Maat_command_get_new_region_id(feather);
+	region_appid.region_type=REGION_INTERVAL;
+	region_appid.table_name=table_appid;
+	region_appid.interval_rule.low_boundary=100;
+	region_appid.interval_rule.up_boundary=100;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region_appid, group3.group_id);
+
+	
+	//region_url1->group1->compile[0~compile_cnt]
+	//						/
+	//region_appid->group3-/
+	memset(&compile, 0, sizeof(compile));
+	for(i=0; i<compile_cnt; i++)
+	{
+		compile[i].config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+		Maat_command_raw_set_compile(feather, MAAT_OP_ADD, compile+i, compile_table_name, NULL, 2, 0, 0);
+	}
+	for(i=0; i<compile_cnt; i++)
+	{
+		group1.compile_id=compile[i].config_id;
+		group3.compile_id=compile[i].config_id;
+		Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group1);
+		Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group3);
+	}
+
+	//region_url2->group2->target_compile
+	//						/
+	//region_appid->group3-/
+	memset(&target_compile, 0, sizeof(target_compile));
+	target_compile.config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &target_compile, compile_table_name, NULL, 2, 0, 0);
+	group2.compile_id=target_compile.config_id;
+	group3.compile_id=target_compile.config_id;
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group2);
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group3);
+
+	
+	sleep(1);
+	
+	int ret=0, url_table_id=0, appid_table_id=0;
+	const char* http_url="https://www.baidu.com/s?wd=zhengzhou&rsv_spt=1&rsv_iqid=0x8b4cae8100000560&issp=1&f=8&rsv_bp=1";
+
+	struct Maat_rule_t result[4];
+	scan_status_t mid=NULL;
+
+
+	url_table_id=Maat_table_register(feather, table_url);	
+	ASSERT_GT(url_table_id, 0);
+
+	appid_table_id=Maat_table_register(feather, table_appid);	
+	ASSERT_GT(appid_table_id, 0);
+
+	
+	ret=Maat_full_scan_string(feather, url_table_id, CHARSET_GBK, http_url, strlen(http_url), 
+						result, NULL, 4, &mid, 0);
+	EXPECT_EQ(ret, -2);
+
+	ret=Maat_scan_intval(feather, appid_table_id, 100, result, 4, &mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, target_compile.config_id);
+	
+	Maat_clean_status(&mid);
+}
 
 
 #define TEST_HIT_PATH
