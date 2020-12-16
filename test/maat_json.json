@@ -1906,47 +1906,72 @@
                 }
             ]
         },
-		    {
-		        "compile_id": 180,
-		        "service": 0,
-		        "action": 0,
-		        "do_blacklist": 0,
-		        "do_log": 0,
-		        "effective_rage": 0,
-		        "user_region": "Hierarchy_VirtualWithTwoPhysical",
-		        "is_valid": "yes",
-		        "groups": [
-		            {
-		            		"group_name":"FQDN_OBJ1",
-		            		"virtual_table":"VIRTUAL_SSL_SNI",
-		            		"not_flag" : 0,
-		            		"clause_index":0
-		            },
-		            {
-		            		"group_name":"FQDN_CAT1",
-		            		"virtual_table":"VIRTUAL_SSL_SNI",
-		            		"not_flag" : 0,
-		            		"clause_index":0
-		            }        
-		        ]
-		    },
-		    {
-		        "compile_id": 181,
-		        "service": 0,
-		        "action": 0,
-		        "do_blacklist": 0,
-		        "do_log": 0,
-		        "effective_rage": 0,
-		        "user_region": "ipv4_composition.match",
-		        "is_valid": "yes",
-		        "groups": [
-		            {
-		            		"group_name":"IPv4-composition-source-only",
-		            		"virtual_table":"COMPOSITION_IP_SOURCE",
-		                "not_flag":0                   
-		            }           
-		        ]
-		    }
+		{
+			"compile_id": 180,
+			"service": 0,
+			"action": 0,
+			"do_blacklist": 0,
+			"do_log": 0,
+			"effective_rage": 0,
+			"user_region": "Hierarchy_VirtualWithTwoPhysical",
+			"is_valid": "yes",
+			"groups": [
+				{
+						"group_name":"FQDN_OBJ1",
+						"virtual_table":"VIRTUAL_SSL_SNI",
+						"not_flag" : 0,
+						"clause_index":0
+				},
+				{
+						"group_name":"FQDN_CAT1",
+						"virtual_table":"VIRTUAL_SSL_SNI",
+						"not_flag" : 0,
+						"clause_index":0
+				}        
+			]
+		},
+		{
+			"compile_id": 181,
+			"service": 0,
+			"action": 0,
+			"do_blacklist": 0,
+			"do_log": 0,
+			"effective_rage": 0,
+			"user_region": "ipv4_composition.match",
+			"is_valid": "yes",
+			"groups": [
+				{
+						"group_name":"IPv4-composition-source-only",
+						"virtual_table":"COMPOSITION_IP_SOURCE",
+					"not_flag":0                   
+				}           
+			]
+		},
+        {
+            "compile_id": 182,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "8-expr",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "string",
+                            "table_content": {
+                                "keywords": "string1&string2&string3&string4&string5&string6&string7&string8",
+                                "expr_type": "and",
+                                "match_method": "expr",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
     ],
     "plugin_table": [
         {

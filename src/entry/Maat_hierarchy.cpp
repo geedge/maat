@@ -913,7 +913,10 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 	if(bm!=NULL)
 	{
 		MESA_handle_runtime_log(hier->logger, RLOG_LV_INFO, module_maat_hierarchy,
-								"Build bool matcher with %zu expression use %zu bytes memory", expr_cnt, mem_size);
+								"Build bool matcher of %zu expressions and %llu clauses, use %zu bytes memory.",
+								expr_cnt,
+								HASH_COUNT(clause_dedup_hash),
+								mem_size);
 	}
 	else
 	{
@@ -1056,6 +1059,10 @@ struct Maat_hierarchy_literal* Maat_hierarchy_build_literal_hash(struct Maat_hie
 		}
 
 	}
+	MESA_handle_runtime_log(hier->logger, RLOG_LV_INFO, module_maat_hierarchy,
+								"Build literal hash with %llu literals.",
+								HASH_COUNT(literal_hash));
+
 	return literal_hash;
 }
 

@@ -56,7 +56,7 @@ extern "C"
 }
 #endif
 
-int MAAT_FRAME_VERSION_3_1_5_20201205=1;
+int MAAT_FRAME_VERSION_3_1_5_20201216=1;
 
 int is_valid_table_name(const char* str)
 {
@@ -1089,7 +1089,7 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 	scan_rule_t*p_rule=NULL;
 
 	enum MAAT_CHARSET dst_charset=CHARSET_NONE;
-	char *sub_key_array[MAAT_MAX_EXPR_ITEM_NUM];
+	char *sub_key_array[MAAT_MAX_EXPR_ITEM_NUM], *tmp=NULL;
 	int key_left_offset[MAAT_MAX_EXPR_ITEM_NUM]={-1},key_right_offset[MAAT_MAX_EXPR_ITEM_NUM]={-1};
 	for(i=0;i<MAAT_MAX_EXPR_ITEM_NUM;i++)
 	{
@@ -1115,20 +1115,21 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 		case EXPR_TYPE_REGEX:
 			for(i=0,p=db_rule->keywords;;i++,p=NULL)
 			{
-				if(i>=MAAT_MAX_EXPR_ITEM_NUM)
-				{
-					MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"Table %s region cfg %d too many expr.",table->table_name[table->updating_name],db_rule->region_id);
-					return -1;
-				}
-				sub_key_array[i]=strtok_r_esc(p,'&',&saveptr);
-				if(sub_key_array[i]==NULL)
+				tmp=strtok_r_esc(p, '&', &saveptr);
+				if(tmp==NULL)
 				{
 					break;
 				}
+				if(i>=MAAT_MAX_EXPR_ITEM_NUM)
+				{
+					MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+							"Table %s region cfg %d too many expr.", table->table_name[table->updating_name], db_rule->region_id);
+					return -1;
+				}
+				sub_key_array[i]=tmp;
 				if(db_rule->expr_type==EXPR_TYPE_REGEX)
 				{
-					sub_key_array[i]=str_unescape_and(sub_key_array[i]);//regex remain use str_unescape_and
+					sub_key_array[i]=str_unescape_and(sub_key_array[i]);//regex should use str_unescape_and
 				}
 				else
 				{
@@ -1140,29 +1141,30 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 		case EXPR_TYPE_OFFSET:
 			for(i=0,p=db_rule->keywords;;i++,p=NULL)
 			{
-				if(i>=MAAT_MAX_EXPR_ITEM_NUM)
-				{
-					MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"Table %s region cfg %d too many expr.",table->table_name[table->updating_name],db_rule->region_id);
-					return -1;
-				}
-				sub_key_array[i]=strtok_r_esc(p,'&',&saveptr);
-				if(sub_key_array[i]==NULL)
+				tmp=strtok_r_esc(p, '&', &saveptr);				
+				if(tmp==NULL)
 				{
 					break;
 				}
-				sscanf(sub_key_array[i],"%d-%d:",&(key_left_offset[i]),&(key_right_offset[i]));
+				if(i>=MAAT_MAX_EXPR_ITEM_NUM)
+				{
+					MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+							"Table %s region cfg %d too many expr.", table->table_name[table->updating_name], db_rule->region_id);
+					return -1;
+				}
+				sub_key_array[i]=tmp;
+				sscanf(sub_key_array[i], "%d-%d:", &(key_left_offset[i]),&(key_right_offset[i]));
 				if(!(key_left_offset[i]>=0&&key_right_offset[i]>0&&key_left_offset[i]<=key_right_offset[i]))
 				{
 					MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"Table %s region cfg %d invalid offset.",table->table_name[table->updating_name],db_rule->region_id);
+							"Table %s region cfg %d invalid offset.", table->table_name[table->updating_name], db_rule->region_id);
 					return -1;
 				}
-				sub_key_array[i]=(char*)memchr(sub_key_array[i],':',strlen(sub_key_array[i]));
+				sub_key_array[i]=(char*)memchr(sub_key_array[i], ':', strlen(sub_key_array[i]));
 				if(sub_key_array[i]==NULL)
 				{
 					MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"Table %s region cfg %d invalid offset keyword format.",table->table_name[table->updating_name],db_rule->region_id);
+							"Table %s region cfg %d invalid offset keyword format.", table->table_name[table->updating_name], db_rule->region_id);
 					return -1;
 				}
 				sub_key_array[i]++;//jump over ':'

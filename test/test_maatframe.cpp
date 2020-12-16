@@ -1305,6 +1305,28 @@ TEST(StringScan, MaatUnescape)
 
 	return;
 }
+TEST(StringScan, Expr8)
+{
+	int ret=0;
+	int table_id=0;
+	struct Maat_rule_t result[4];
+	const char* scan_data="string1, string2, string3, string4, string5, string6, string7, string8";
+	const char* table_name="KEYWORDS_TABLE";	
+	scan_status_t mid=NULL;
+
+	table_id=Maat_table_register(g_feather,table_name);
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, scan_data, strlen(scan_data), 
+						result, NULL, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 182);
+	Maat_clean_status(&mid);
+
+	return;
+}
+
 TEST(StringScan, StreamInput)
 {
 	int table_id=0,ret=0;
