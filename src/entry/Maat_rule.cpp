@@ -968,11 +968,11 @@ void rulescan_batch_update(rule_scanner_t rs_handle,MESA_lqueue_head expr_queue,
 		destroy_op_expr(op_expr);
 		op_expr=NULL;
 	}
-	MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"rs_handle %p rulescan_update %ld rules.",rs_handle,q_cnt);
-	clock_gettime(CLOCK_MONOTONIC,&start);
-	ret=rulescan_update(rs_handle, to_update_expr,q_cnt, failed_ids,MAX_FAILED_NUM);
-	clock_gettime(CLOCK_MONOTONIC,&end);
+	MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_module ,
+							"rs_handle %p rulescan_update %ld rules.", rs_handle, q_cnt);
+	clock_gettime(CLOCK_MONOTONIC, &start);
+	ret=rulescan_update(rs_handle, to_update_expr,q_cnt, failed_ids, MAX_FAILED_NUM);
+	clock_gettime(CLOCK_MONOTONIC, &end);
 	if(ret!=1)
 	{
 		p=failed_info;

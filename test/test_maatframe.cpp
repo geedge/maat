@@ -2476,6 +2476,83 @@ TEST_F(MaatCmdTest, SetExpr)
 	EXPECT_EQ(ret, -2);	
 	Maat_clean_status(&mid);
 }
+TEST_F(MaatCmdTest, SetExpr8)
+{
+	const char* scan_data8="string1, string2, string3, string4, string5, string6, string7, string8";
+	const char* scan_data7="string1, string2, string3, string4, string5, string6, string7";
+	
+	const char* compile_table_name="COMPILE";
+	const char* table_name="KEYWORDS_TABLE";
+	const char* g2c_tn="GROUP2COMPILE";
+	
+	const char* keywords8="string1&string2&string3&string4&string5&string6&string7&string8";
+	const char* keywords7="string1&string2&string3&string4&string5&string6&string7";
+
+	struct Maat_rule_t compile1;
+	struct Maat_cmd_group2compile group1;
+	struct Maat_cmd_region region1;
+
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+
+
+	memset(&compile1, 0, sizeof(compile1));
+	compile1.config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 1, 0, 0);
+
+	
+	//group1->compile1
+	memset(&group1, 0, sizeof(group1));
+	group1.group_id=Maat_command_get_new_group_id(feather);
+	group1.table_name=g2c_tn;
+	group1.virtual_table_name="null";
+	group1.compile_id=compile1.config_id;
+	group1.clause_index=1;
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group1);
+
+
+	//region1->group1->compile1
+	
+	memset(&region1, 0, sizeof(region1));
+	region1.region_id=Maat_command_get_new_region_id(feather);
+	region1.region_type=REGION_EXPR;
+	region1.table_name=table_name;
+	region1.expr_rule.keywords=keywords8;
+	region1.expr_rule.expr_type=EXPR_TYPE_AND;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region1, group1.group_id);
+
+	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
+
+	struct Maat_rule_t result;
+	scan_status_t mid=NULL;
+	int table_id=0, ret=0;
+	table_id=Maat_table_register(feather, table_name);
+	ASSERT_GT(table_id, 0);
+	memset(&result, 0, sizeof(result));
+
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data8, strlen(scan_data8), 
+						&result, NULL, 1,
+						&mid, 0);	
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result.config_id, compile1.config_id);
+	Maat_clean_status(&mid);
+
+
+	Maat_command_raw_set_region(feather, MAAT_OP_DEL, &region1, group1.group_id);
+	region1.expr_rule.keywords=keywords7;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region1, group1.group_id);
+
+	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
+
+	memset(&result, 0, sizeof(result));
+	mid=NULL;
+	ret=Maat_full_scan_string(feather, table_id,CHARSET_GBK, scan_data7, strlen(scan_data7), 
+						&result, NULL, 1,
+						&mid, 0);	
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result.config_id, compile1.config_id);
+	Maat_clean_status(&mid);
+}
+
 TEST_F(MaatCmdTest,   RuleIDRecycle)
 {
 	const char* table_name="HTTP_URL";
