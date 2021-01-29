@@ -1268,7 +1268,7 @@ void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy_compile_mid* mid, i
 
 static size_t Maat_hierarchy_compile_mid_update_by_compile(struct Maat_hierarchy_compile_mid* mid, struct Maat_hierarchy_compile* compile)
 {
-	size_t r_in_c_cnt=0, this_scan_hit_region_cnt=0;
+	size_t r_in_c_cnt=0;
 	struct Maat_hierarchy_hit_path* p=NULL, *q=NULL;
 	struct Maat_hierarchy_literal_id literal_id={0, 0};
 	struct Maat_hit_path_t condition;
@@ -1281,10 +1281,6 @@ static size_t Maat_hierarchy_compile_mid_update_by_compile(struct Maat_hierarchy
 	TAILQ_FOREACH(p, &mid->hit_path_qhead, entries)
 	{		
 		n_exsited_path=0;
-		if(p->path.Nth_scan==mid->Nth_scan)
-		{
-			this_scan_hit_region_cnt++;
-		}
 		if(p->path.compile_id==compile->compile_id)
 		{
 			continue;
@@ -1321,7 +1317,6 @@ static size_t Maat_hierarchy_compile_mid_update_by_compile(struct Maat_hierarchy
 		}
 		
 	}
-	assert(this_scan_hit_region_cnt>=mid->this_scan_region_hit_cnt);
 	
 	p = TAILQ_FIRST(&new_path_qhead);
 	while(p != NULL)
