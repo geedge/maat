@@ -280,23 +280,17 @@ int region_compile(_Maat_feather_t*feather, struct Maat_hierarchy_compile_mid* c
 int match_district(struct _OUTER_scan_status_t *_mid, scan_result_t *region_hit, int region_hit_num)
 {
 	struct Maat_region_inner* region=NULL;
-	int i=0;
-	int ret_region_num=region_hit_num;
-	while(i<ret_region_num)
+	int i=0, j=0;
+	for(i=0; i<region_hit_num; i++)
 	{
 		region=(struct Maat_region_inner*)(region_hit[i].tag);
-		if(region->district_id!=_mid->district_id)
+		if(region->district_id==_mid->district_id)
 		{
-			ret_region_num--;
-			//todo: replace memmove with high performance solution.
-			memmove(&(region_hit[i]),&(region_hit[i+1]),sizeof(scan_result_t)*(ret_region_num-i));
-		}
-		else
-		{
-			i++;
+			memcpy(region_hit+j, region_hit+i, sizeof(scan_result_t));
+			j++;
 		}
 	}
-	return ret_region_num;
+	return j;
 }
 
 
