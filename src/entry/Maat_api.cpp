@@ -286,7 +286,10 @@ int match_district(struct _OUTER_scan_status_t *_mid, scan_result_t *region_hit,
 		region=(struct Maat_region_inner*)(region_hit[i].tag);
 		if(region->district_id==_mid->district_id)
 		{
-			memcpy(region_hit+j, region_hit+i, sizeof(scan_result_t));
+			if(j!=i)
+			{
+				memcpy(region_hit+j, region_hit+i, sizeof(scan_result_t));
+			}
 			j++;
 		}
 	}
