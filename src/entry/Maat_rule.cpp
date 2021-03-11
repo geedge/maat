@@ -2057,6 +2057,7 @@ void update_compile_rule(struct Maat_table_schema* table,const char* table_line 
 	}
 	if(n_tags>0&&strlen(tag_str)>2)
 	{
+		str_unescape(tag_str);
 		ret=compare_accept_tag(tag_str, tags, n_tags);
 		if(ret<0)
 		{
