@@ -34,6 +34,7 @@
 #include "stream_fuzzy_hash.h"
 #include "gram_index_engine.h"
 
+#include "bool_matcher.h"
 
 #define GIT_VERSION_CATTER(v) __attribute__((__used__)) const char * GIT_VERSION_##v = NULL
 #define GIT_VERSION_EXPEND(v) GIT_VERSION_CATTER(v)
@@ -1482,6 +1483,14 @@ void update_group2compile_rule(struct Maat_table_schema* table, const char* tabl
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
 							"update error, invalid format of group2compile table %s:%s",
+							table->table_name[table->updating_name], table_line);	
+		table->udpate_err_cnt++;
+		return;
+	}
+	if(db_g2c_rule.clause_index>=MAX_ITEMS_PER_BOOL_EXPR)
+	{
+		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
+							"update error, invalid clause index of group2compile table %s:%s",
 							table->table_name[table->updating_name], table_line);	
 		table->udpate_err_cnt++;
 		return;
