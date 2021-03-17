@@ -103,6 +103,7 @@ static int get_group_seq(struct iris_description_t* iris_cfg)
 		data_reply=_wrap_redisCommand(iris_cfg->redis_write_ctx,"INCRBY %s 1", mr_group_id_var);
 		sequence=(int)data_reply->integer-1;
 		freeReplyObject(data_reply);
+		data_reply=NULL;
 	}
 	iris_cfg->group_cnt++;
 	return sequence;
@@ -117,9 +118,10 @@ static int get_region_seq(struct iris_description_t* iris_cfg)
 	}
 	else
 	{
-		data_reply=_wrap_redisCommand(iris_cfg->redis_write_ctx,"INCRBY %s 1", mr_region_id_var);
+		data_reply=_wrap_redisCommand(iris_cfg->redis_write_ctx, "INCRBY %s 1", mr_region_id_var);
 		sequence=(int)data_reply->integer-1;
 		freeReplyObject(data_reply);
+		data_reply=NULL;
 	}
 	iris_cfg->region_cnt++;
 	return sequence;

@@ -79,6 +79,7 @@ redisContext * connect_redis(const char*redis_ip, int redis_port, int redis_db, 
 	redisEnableKeepAlive(ctx);
 	reply=_wrap_redisCommand(ctx, "select %d",redis_db);
 	freeReplyObject(reply);
+	reply=NULL;
 
 	return ctx;
 
@@ -139,6 +140,7 @@ long long redis_server_time(redisContext* ctx)
 	{
 		server_time=atoll(data_reply->element[0]->str);
 		freeReplyObject(data_reply);
+		data_reply=NULL;
 	}
 	return server_time;
 }
@@ -414,6 +416,7 @@ int get_inc_key_list(long long instance_version, long long target_version, redis
 	if(reply->elements==0)
 	{
 		freeReplyObject(reply);
+		reply=NULL;
 		return 0;
 	}
 
@@ -423,7 +426,9 @@ int get_inc_key_list(long long instance_version, long long target_version, redis
 		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor,
 					"ZSCORE %s %s failed Version: %lld->%lld",mr_status_sset,reply->element[0]->str,instance_version, target_version);
 		freeReplyObject(tmp_reply);
+		tmp_reply=NULL;
 		freeReplyObject(reply);
+		reply=NULL;
 		return -1;
 	}
 	nearest_rule_version=read_redis_integer(tmp_reply);
@@ -468,6 +473,8 @@ int get_inc_key_list(long long instance_version, long long target_version, redis
 	rule_num=j;
 	*list=s_rule;
 	freeReplyObject(reply);
+	reply=NULL;
+	
 	return rule_num;
 }
 struct s_rule_array_t
@@ -589,6 +596,7 @@ int get_rm_key_list(redisContext *c, long long instance_version, long long desir
 		return -1;
 	}
 	freeReplyObject(reply);
+	reply=NULL;
 	if(redis_version==instance_version)
 	{		
 		return 0;
@@ -669,7 +677,7 @@ FULL_UPDATE:
 	if(reply->type!=REDIS_REPLY_ARRAY)
 	{
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
-				"Invalid Redis Key List type %d", sub_reply->type);
+				"Invalid Redis Key List type %d", reply->type);
 		freeReplyObject(reply);
 		reply=NULL;
 		return -1;
@@ -714,6 +722,7 @@ FULL_UPDATE:
 	}
 	rule_num=full_idx;
 	freeReplyObject(reply);
+	reply=NULL;
 	if(desired_version!=0)
 	{
 		changed_rule_num=get_inc_key_list(desired_version, redis_version, c, &changed_rule_array, logger);
@@ -750,7 +759,7 @@ FULL_UPDATE:
 	return rule_num ;
 }
 
-int _get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int rule_num,void* logger)
+int _get_maat_redis_value(redisContext *c, struct serial_rule_t* rule_list, int rule_num, void* logger)
 {
 	int i=0,failed_cnt=0,idx=0;
 	UNUSED int ret=0;
@@ -769,6 +778,15 @@ int _get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int ru
 	for(i=0;i<rule_num;i++)
 	{
 		ret=_wrap_redisGetReply(c,&reply);
+		if(ret==REDIS_ERR)
+		{
+			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor,
+							"Redis GET %s:%s,%d failed, redis server error.", mr_key_prefix[rule_list[i].op],
+							rule_list[i].table_name,
+							rule_list[i].rule_id);
+			error_happened=1;
+			break;			
+		}
 		if(reply->type==REDIS_REPLY_STRING)
 		{
 			rule_list[i].table_line=_maat_strdup(reply->str);
@@ -790,6 +808,7 @@ int _get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int ru
 			}
 		}
 		freeReplyObject(reply);
+		reply=NULL;
 	}
 	if(error_happened==1)
 	{
@@ -809,21 +828,31 @@ int _get_maat_redis_value(redisContext *c,struct serial_rule_t* rule_list,int ru
 	{
 		idx=retry_ids[i];
 		ret=_wrap_redisGetReply(c,&reply);
+		if(ret==REDIS_ERR)
+		{
+			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
+						,"redis command %s failed, redis server error.", redis_cmd);
+			free(retry_ids);
+			return -1;
+		}
 		if(reply->type==REDIS_REPLY_STRING)
 		{
 			rule_list[idx].table_line=_maat_strdup(reply->str);
 		}
 		else if(reply->type==REDIS_REPLY_ERROR)//Deal with Redis response: "Loading Redis is loading the database in memory" 
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
-					,"redis command %s error, reply type=%d, error str=%s",redis_cmd, reply->type, reply->str);
+			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor,
+					"redis command %s error, reply type=%d, error str=%s", redis_cmd, reply->type, reply->str);
 		}
 		else	//Handle type "nil"
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
-					,"redis command %s failed, reply type=%d",redis_cmd, reply->type);
+			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor,
+					"redis command %s failed, reply type=%d", redis_cmd, reply->type);
 		}
+	
 		freeReplyObject(reply);
+		reply=NULL;
+
 	}
 	free(retry_ids);
 	return 0;
@@ -887,6 +916,8 @@ int redlock_try_lock(redisContext *ctx, const char* lock_name, long long expire)
 		ret=1;
 	}
 	freeReplyObject(reply);
+	reply=NULL;
+	
 	return ret;
 }
 void redlock_unlock(redisContext * ctx, const char * lock_name)
@@ -894,6 +925,7 @@ void redlock_unlock(redisContext * ctx, const char * lock_name)
 	redisReply* reply=NULL;
 	reply=_wrap_redisCommand(ctx,"DEL %s", lock_name);
 	freeReplyObject(reply);
+	reply=NULL;
 
 }
 #define	POSSIBLE_REDIS_REPLY_SIZE	2
@@ -955,6 +987,7 @@ long long _exec_serial_rule_begin(redisContext* ctx,int rule_num, int renew_rule
 		data_reply=_wrap_redisCommand(ctx, "INCRBY MAAT_PRE_VER 1");
 		*transaction_version=read_redis_integer(data_reply);
 		freeReplyObject(data_reply);
+		data_reply=NULL;
 		if(*transaction_version<0)
 		{
 			return -1;
@@ -964,6 +997,7 @@ long long _exec_serial_rule_begin(redisContext* ctx,int rule_num, int renew_rule
 	{
 		data_reply=_wrap_redisCommand(ctx,"MULTI");
 		freeReplyObject(data_reply);
+		data_reply=NULL;
 		ret=0;
 	}
 	return ret;
@@ -996,6 +1030,7 @@ redisReply* _exec_serial_rule_end(redisContext* ctx, const char* transaction_lis
 											transaction_list,
 											server_time);
 		freeReplyObject(data_reply);
+		data_reply=NULL;
 		expected_reply_add(expect_reply+*cnt, -1, REDIS_REPLY_INTEGER, 0);
 		(*cnt)++;
 	}
@@ -1129,6 +1164,7 @@ void _exec_serial_rule(redisContext* ctx,	const char* transaction_list, struct s
 	{
 		_wrap_redisGetReply(ctx, &data_reply);
 		freeReplyObject(data_reply);
+		data_reply=NULL;
 	}
 	return;
 }
@@ -1209,6 +1245,7 @@ int exec_serial_rule(redisContext* ctx,struct serial_rule_t* s_rule, unsigned in
 	}
 
 	freeReplyObject(transaction_reply);
+	transaction_reply=NULL;
 	
 error_out:
 	if(renew_num>0&&renew_allowed!=1)
@@ -1250,6 +1287,7 @@ void check_maat_expiration(redisContext *ctx, void *logger)
 	if(data_reply->type!=REDIS_REPLY_ARRAY||data_reply->elements==0)
 	{
 		freeReplyObject(data_reply);
+		data_reply=NULL;
 		return;
 	}
 	s_rule_num=data_reply->elements;
@@ -1261,6 +1299,7 @@ void check_maat_expiration(redisContext *ctx, void *logger)
 		assert(ret==2);
 	}
 	freeReplyObject(data_reply);
+	data_reply=NULL;
 	success_cnt=exec_serial_rule(ctx,s_rule, s_rule_num,server_time, logger);
 
 	if(success_cnt==(int)s_rule_num)
@@ -1290,6 +1329,7 @@ void cleanup_update_status(redisContext *ctx, void *logger)
 	}
 	reply=_wrap_redisCommand(ctx,"MULTI");
 	freeReplyObject(reply);
+	reply=NULL;
 	redisAppendCommand(ctx, "ZRANGEBYSCORE %s -inf %lld",mr_version_sset,server_time-MAAT_REDIS_SYNC_TIME);
 	append_cmd_cnt++;
 	redisAppendCommand(ctx, "ZREMRANGEBYSCORE %s -inf %lld",mr_version_sset,server_time-MAAT_REDIS_SYNC_TIME);
@@ -1319,11 +1359,13 @@ void cleanup_update_status(redisContext *ctx, void *logger)
 	version_lower_bound=read_redis_integer(sub_reply->element[0]);
 	version_upper_bound=read_redis_integer(sub_reply->element[sub_reply->elements-1]);
 	freeReplyObject(reply);	
+	reply=NULL;
 
 	//To deal with maat_version reset to 0, do NOT use -inf as lower bound intentionally.
 	reply=_wrap_redisCommand(ctx,"ZREMRANGEBYSCORE %s %lld %lld",mr_status_sset,version_lower_bound,version_upper_bound);
 	entry_num=read_redis_integer(reply);
 	freeReplyObject(reply);	
+	reply=NULL;
 
 	MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor 
 			,"Clean up update status from version %lld to %lld (%lld versions, %lld entries)."
@@ -1334,7 +1376,8 @@ void cleanup_update_status(redisContext *ctx, void *logger)
 	return;
 	
 error_out:
-	freeReplyObject(reply);	
+	freeReplyObject(reply);
+	reply=NULL;
 	return;	
 }
 const char* find_Nth_column(const char* line, int Nth, int* column_len)
@@ -1585,6 +1628,16 @@ void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int 
 	for(i=0;i<key_num;i++)
 	{
 		ret=_wrap_redisGetReply(ctx,&reply);
+		if(ret==REDIS_ERR)
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor
+						,"Get %s,%d foreign key %s content failed, redis server error."
+						,rule_list[track[i].rule_idx].table_name
+						,rule_list[track[i].rule_idx].rule_id
+						,rule_list[track[i].rule_idx].f_keys[track[i].foreign_idx].key);
+			break;
+		}
+		
 		if(reply->type!=REDIS_REPLY_STRING)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor
@@ -1616,7 +1669,9 @@ void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int 
 			}
 		}
 		freeReplyObject(reply);
+		reply=NULL;	
 	}
+	
 	free(track);
 	return;
 }
@@ -2064,6 +2119,7 @@ int Maat_cmd_set_file(Maat_feather_t feather,const char* key, const char* value,
 		return -1;		
 	}
 	freeReplyObject(reply);
+	reply=NULL;
 	return 1;
 }
 
@@ -2088,6 +2144,7 @@ long long Maat_cmd_incrby(Maat_feather_t feather,const char* key, int increment)
 		result=-1;
 	}
 	freeReplyObject(data_reply);
+	data_reply=NULL;
 	return result;		
 }
 int Maat_command_get_new_group_id(Maat_feather_t feather)
@@ -2156,6 +2213,8 @@ int Maat_cmd_key_select(Maat_feather_t feather, int label_id, struct Maat_cmd_ke
 		}
 	}
 	freeReplyObject(data_reply);
+	data_reply=NULL;
+	
 	*keys=result;
 	return result_cnt;	
 }
@@ -2164,11 +2223,12 @@ int redis_flush_DB(redisContext* ctx, int db_index, void* logger)
 {
 	redisReply* data_reply=NULL;
 	long long maat_redis_version=0, dbsize=0;
-	int append_cmd_cnt=0, i=0;
+	int append_cmd_cnt=0, i=0,ret=0;
 	int redis_transaction_success=1;
 
 	data_reply=_wrap_redisCommand(ctx, "WATCH MAAT_VERSION");
 	freeReplyObject(data_reply);
+	data_reply=NULL;
 	data_reply=_wrap_redisCommand(ctx, "GET MAAT_VERSION");
 	if(data_reply->type==REDIS_REPLY_NIL)
 	{
@@ -2179,13 +2239,16 @@ int redis_flush_DB(redisContext* ctx, int db_index, void* logger)
 		maat_redis_version=read_redis_integer(data_reply);
 		maat_redis_version++;
 		freeReplyObject(data_reply);
+		data_reply=NULL;
 	}
 	data_reply=_wrap_redisCommand(ctx, "DBSIZE");
 	dbsize=read_redis_integer(data_reply);
 	freeReplyObject(data_reply);
-	
+	data_reply=NULL;
+
 	data_reply=_wrap_redisCommand(ctx,"MULTI");
 	freeReplyObject(data_reply);
+	data_reply=NULL;
 	
 	redisAppendCommand(ctx,"FLUSHDB");
 	append_cmd_cnt++;
@@ -2201,12 +2264,16 @@ int redis_flush_DB(redisContext* ctx, int db_index, void* logger)
 	append_cmd_cnt++;
 	for(i=0;i<append_cmd_cnt;i++)
 	{
-		_wrap_redisGetReply(ctx, &data_reply);
-		if(0==mr_transaction_success(data_reply))
+		ret=_wrap_redisGetReply(ctx, &data_reply);
+		if(ret==REDIS_OK)
 		{
-			redis_transaction_success=0;
+			if(0==mr_transaction_success(data_reply))
+			{
+				redis_transaction_success=0;
+			}
+			freeReplyObject(data_reply);
+			data_reply=NULL;
 		}
-		freeReplyObject(data_reply);
 	}
 	if(redis_transaction_success==1)
 	{
