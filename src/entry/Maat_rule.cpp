@@ -57,7 +57,7 @@ extern "C"
 }
 #endif
 
-int MAAT_FRAME_VERSION_3_1_12_20210308=1;
+int MAAT_FRAME_VERSION_3_1_16_20210320=1;
 
 int is_valid_table_name(const char* str)
 {
@@ -2368,6 +2368,9 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 					MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
 										"GIE_update error.");
 				}
+				break;
+			case TABLE_TYPE_PLUGIN:
+				Maat_table_runtime_plugin_garbage_collection(table_rt);
 				break;
 			case TABLE_TYPE_IP_PLUGIN:				
 				ret=Maat_table_runtime_ip_plugin_build_new_ip_matcher(table_rt);

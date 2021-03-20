@@ -7,30 +7,6 @@
 #include <assert.h>
 #include <sys/queue.h>
 
-
-int plugin_EX_data_free(const char* row, int key_column,
-								MESA_htable_handle key2ex_hash, void *logger)
-{
-	size_t key_offset=0, key_len=0;
-	int ret=0;
-	ret=get_column_pos(row, key_column, &key_offset, &key_len);
-	if(ret<0)
-	{
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-								"plugin/ip_plugin EX data del error: cannot find column %d of %s",
-								key_column, row);
-		return -1;
-	}
-	ret=MESA_htable_del(key2ex_hash, (const unsigned char*)row+key_offset, key_len, NULL);
-	if(ret<0)
-	{
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-								"plugin/ip_plugin EX data del error: no such key %.*s of %s",
-								key_len, row+key_offset, row);
-		return -1;
-	}	
-	return 0;
-}
 struct ip_rule*  ip_plugin_row2ip_rule(const struct ip_plugin_table_schema* schema, const char* row)
 {
 	struct ip_rule* range_rule=ALLOC(struct ip_rule, 1);
@@ -146,25 +122,6 @@ void _notype_fqdn_rule_free(void* p)
 	fqdn_rule_free((struct FQDN_rule*)p);
 	return;
 }
-struct xx_plugin_ex_free_wrapper
-{
-	struct EX_data_rt* ex_data_rt;
-	char* row;
-	size_t key_offset;
-	size_t key_len;
-	void* logger;
-};
-void xx_plugin_ex_data_wrapper_free(void* ex_data)
-{
-	struct xx_plugin_ex_free_wrapper* wrapper=(struct xx_plugin_ex_free_wrapper*)ex_data;
-	EX_data_rt_delete_by_row(wrapper->ex_data_rt, wrapper->row, wrapper->row + wrapper->key_offset, wrapper->key_len, wrapper->logger);
-	free(wrapper->row);
-	wrapper->key_offset=0;
-	wrapper->key_len=0;
-	free(wrapper);
-	return;
-}
-
 static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_schema* table_schema, int max_thread_num)
 {
 
@@ -193,7 +150,6 @@ static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_sche
 			{			
 				EX_data_rt_set_schema(table_rt->ip_plugin.ex_data_rt, &table_schema->ip_plugin.ex_schema);
 			}
-			table_rt->ip_plugin.bin=Maat_garbage_bin_new(0);		
 			break;
 		case TABLE_TYPE_FQDN_PLUGIN:
 			table_rt->fqdn_plugin.ex_data_rt=EX_data_rt_new(table_schema->table_id, 									
@@ -203,7 +159,6 @@ static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_sche
 			{			
 				EX_data_rt_set_schema(table_rt->fqdn_plugin.ex_data_rt, &table_schema->fqdn_plugin.ex_schema);
 			}
-			table_rt->fqdn_plugin.bin=Maat_garbage_bin_new(0);				
 			break;
 		default:
 			break;
@@ -251,13 +206,11 @@ static void table_runtime_free(struct Maat_table_runtime* p)
 
 		case TABLE_TYPE_IP_PLUGIN:
 			ip_matcher_free(p->ip_plugin.ip_matcher);
-			Maat_garbage_bin_free(p->ip_plugin.bin);
 			EX_data_rt_free(p->ip_plugin.ex_data_rt);			
 			assert(p->ip_plugin.new_ip_matcher==NULL);
 			break;
 		case TABLE_TYPE_FQDN_PLUGIN:
 			FQDN_engine_free(p->fqdn_plugin.fqdn_engine);
-			Maat_garbage_bin_free(p->fqdn_plugin.bin);
 			EX_data_rt_free(p->fqdn_plugin.ex_data_rt);			
 			assert(p->fqdn_plugin.new_fqdn_engine==NULL);
 			break;
@@ -395,7 +348,10 @@ void Maat_table_runtime_plugin_new_row(struct Maat_table_runtime* table_rt, stru
 
 	return;
 }
-
+void Maat_table_runtime_plugin_garbage_collection(struct Maat_table_runtime* table_rt)
+{
+	EX_data_rt_garbage_collection(table_rt->plugin.ex_data_rt);
+};
 void Maat_table_runtime_digest_add(struct Maat_table_runtime* table_rt, int expr_id, const char* digest, short confidence_degree, void* tag)
 {
 	GIE_digest_t* digest_rule=NULL;
@@ -434,7 +390,6 @@ void Maat_table_runtime_fqdn_plugin_new_row(struct Maat_table_runtime* table_rt,
 	size_t fqdn_offset=0, fqdn_len=0;
 	struct FQDN_rule* fqdn_rule=NULL;
 	int ret=0;	
-	struct xx_plugin_ex_free_wrapper* wrapper_for_free=NULL;
 	if(fqdn_plugin_schema->have_exdata)
 	{
 		ret=Maat_helper_read_column(row, fqdn_plugin_schema->valid_flag_column, &is_valid_offset, &valid_len);
@@ -477,18 +432,12 @@ void Maat_table_runtime_fqdn_plugin_new_row(struct Maat_table_runtime* table_rt,
 		}
 		else
 		{
-			wrapper_for_free=ALLOC(struct xx_plugin_ex_free_wrapper, 1);
-			wrapper_for_free->row=_maat_strdup(row);
-			wrapper_for_free->ex_data_rt=fqdn_plugin_rt->ex_data_rt;
-			wrapper_for_free->key_len=row_id_len;
-			wrapper_for_free->key_offset=row_id_offset;
-			wrapper_for_free->logger=logger;
-			Maat_garbage_bagging(fqdn_plugin_rt->bin, wrapper_for_free, xx_plugin_ex_data_wrapper_free);
+			EX_data_rt_delete_by_row(fqdn_plugin_rt->ex_data_rt, row, row+row_id_offset, row_id_len, logger);
 		}
 	}
 	else
 	{
-		EX_data_rt_cache_row_put(fqdn_plugin_rt->ex_data_rt,  row);
+		EX_data_rt_cache_row_put(fqdn_plugin_rt->ex_data_rt, row);
 	}
 	fqdn_plugin_rt->changed_flag=1;
 	return;
@@ -500,12 +449,10 @@ int Maat_table_runtime_fqdn_plugin_build_new_fqdn_engine(struct Maat_table_runti
 	struct 	fqdn_plugin_runtime* fqdn_rt=&table_rt->fqdn_plugin;
 	assert(table_rt->table_type==TABLE_TYPE_FQDN_PLUGIN);
 	struct EX_data_container **exc_array=NULL;
-	Maat_garbage_collect_routine(fqdn_rt->bin);
 	struct FQDN_rule* rules=NULL;
 	size_t rule_cnt=0, i=0;
 	if(!fqdn_rt->changed_flag)
 	{
-		assert(0==Maat_garbage_bin_get_size(fqdn_rt->bin));
 		return 0;
 	}
 
@@ -532,6 +479,7 @@ struct FQDN_engine* Maat_table_runtime_apply_new_fqdn_engine(struct Maat_table_r
 	table_rt->fqdn_plugin.fqdn_engine=table_rt->fqdn_plugin.new_fqdn_engine;
 	assert(table_rt->table_type==TABLE_TYPE_FQDN_PLUGIN);
 	table_rt->fqdn_plugin.new_fqdn_engine=NULL;
+	EX_data_rt_garbage_collection(table_rt->fqdn_plugin.ex_data_rt);
 	table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(table_rt->fqdn_plugin.ex_data_rt);
 	return old_one;
 }
@@ -649,10 +597,8 @@ int Maat_table_runtime_ip_plugin_build_new_ip_matcher(struct Maat_table_runtime*
 	assert(table_rt->table_type==TABLE_TYPE_IP_PLUGIN);
 	if(!ip_plugin->changed_flag)
 	{
-		assert(0==Maat_garbage_bin_get_size(ip_plugin->bin));
 		return 0;
 	}
-	Maat_garbage_collect_routine(ip_plugin->bin);
 	rule_cnt=EX_data_rt_list_all_ex_container(ip_plugin->ex_data_rt, &exc_array);
 	rules=ALLOC(struct ip_rule, rule_cnt);
 	for(i=0; i<rule_cnt; i++)
@@ -683,6 +629,7 @@ struct ip_matcher* Maat_table_runtime_apply_new_ip_matcher(struct Maat_table_run
 	assert(table_rt->table_type==TABLE_TYPE_IP_PLUGIN);
 	table_rt->ip_plugin.new_ip_matcher=NULL;
 	table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(table_rt->ip_plugin.ex_data_rt);
+	EX_data_rt_garbage_collection(table_rt->ip_plugin.ex_data_rt);
 	return old_one;
 }
 
@@ -694,7 +641,6 @@ void Maat_table_runtime_ip_plugin_new_row(struct Maat_table_runtime* table_rt, s
 	size_t row_id_offset=0, row_id_len=0;
 	struct ip_rule* ip_rule=NULL;
 	int ret=0;	
-	struct xx_plugin_ex_free_wrapper* wrapper_for_free=NULL;
 	if(ip_plugin_schema->have_exdata)
 	{
 		ret=Maat_helper_read_column(row, ip_plugin_schema->valid_flag_column, &is_valid_offset, &valid_len);
@@ -728,19 +674,14 @@ void Maat_table_runtime_ip_plugin_new_row(struct Maat_table_runtime* table_rt, s
 		}
 		else
 		{
-			wrapper_for_free=ALLOC(struct xx_plugin_ex_free_wrapper, 1);
-			wrapper_for_free->row=_maat_strdup(row);
-			wrapper_for_free->ex_data_rt=ip_plugin_rt->ex_data_rt;
-			wrapper_for_free->key_len=row_id_len;
-			wrapper_for_free->key_offset=row_id_offset;
-			wrapper_for_free->logger=logger;
-			Maat_garbage_bagging(ip_plugin_rt->bin, wrapper_for_free, xx_plugin_ex_data_wrapper_free);
+		
+			EX_data_rt_delete_by_row(ip_plugin_rt->ex_data_rt, row, row+row_id_offset, row_id_len, logger);
 			free(ip_rule);
 		}
 	}
 	else
 	{
-		EX_data_rt_cache_row_put(ip_plugin_rt->ex_data_rt,  row);
+		EX_data_rt_cache_row_put(ip_plugin_rt->ex_data_rt, row);
 	}
 	ip_plugin_rt->changed_flag=1;
 	return;

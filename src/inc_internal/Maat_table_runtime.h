@@ -1,6 +1,5 @@
 #include "Maat_table.h"
 #include "Maat_ex_data.h"
-#include "Maat_garbage_collection.h"
 
 #include "IPMatcher.h"
 #include "gram_index_engine.h"
@@ -19,8 +18,7 @@ struct fqdn_plugin_runtime
 {
 	struct FQDN_engine* fqdn_engine;
 	struct FQDN_engine* new_fqdn_engine;
-	struct EX_data_rt* ex_data_rt;	//for fqdn_plugin ONLY
-	struct Maat_garbage_bin* bin;
+	struct EX_data_rt* ex_data_rt;
 	int changed_flag;
 };
 struct plugin_runtime
@@ -34,7 +32,6 @@ struct ip_plugin_runtime
 	struct EX_data_rt* ex_data_rt;
 	struct ip_matcher* ip_matcher;
 	struct ip_matcher* new_ip_matcher;
-	struct Maat_garbage_bin* bin;
 	int changed_flag;
 };
 struct expr_runtime
@@ -88,6 +85,8 @@ void Maat_table_runtime_digest_del(struct Maat_table_runtime* table_rt, int expr
 int Maat_table_runtime_digest_batch_udpate(struct Maat_table_runtime* table_rt);
 
 void Maat_table_runtime_plugin_new_row(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* row, void *logger);
+void Maat_table_runtime_plugin_garbage_collection(struct Maat_table_runtime* table_rt);
+
 void Maat_table_runtime_ip_plugin_new_row(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* row, void *logger);
 
 int Maat_table_runtime_ip_plugin_commit_ex_schema(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, void* logger);

@@ -24,4 +24,6 @@ MAAT_RULE_EX_DATA  EX_data_rt_get_EX_data_by_container(struct EX_data_rt* ex_rt,
 size_t EX_data_rt_list_all_ex_container(struct EX_data_rt* ex_rt, struct EX_data_container*** ex_container_array);
 void* EX_data_container_get_user_data(struct EX_data_container* ex_container);
 size_t EX_data_rt_get_ex_container_count(struct EX_data_rt* ex_rt);
+void EX_data_rt_garbage_collection(struct EX_data_rt* ex_rt);
+
 
