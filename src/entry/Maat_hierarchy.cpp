@@ -895,6 +895,7 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 		//some compile may have zero groups, e.g. default policy.
 		if(j==(size_t)compile->declared_clause_num&&j>0)
 		{
+			bool_expr_array[expr_cnt].expr_id=compile->compile_id;
 			bool_expr_array[expr_cnt].user_tag=compile;
 			bool_expr_array[expr_cnt].item_num=j;
 			expr_cnt++;
@@ -1338,6 +1339,7 @@ int Maat_hierarchy_region_compile(struct Maat_hierarchy_compile_mid* mid, int is
 	int bool_match_ret=0, i=0;
 	struct Maat_hierarchy* hier=mid->ref_hier;
 	struct Maat_hierarchy_compile* compile_array[ud_array_sz];
+	struct bool_expr_match expr_match[ud_array_sz];
 
 	size_t r_in_c_cnt=0, this_scan_region_hits=mid->this_scan_region_hit_cnt;
 	size_t ud_result_cnt=0;
@@ -1349,9 +1351,11 @@ int Maat_hierarchy_region_compile(struct Maat_hierarchy_compile_mid* mid, int is
 	pthread_rwlock_rdlock(&hier->rwlock);
 	bool_match_ret=bool_matcher_match(hier->bm, mid->thread_num, 
 						(unsigned long long*)utarray_eltptr(mid->_all_hit_clause_array, 0), utarray_len(mid->_all_hit_clause_array),
-						(void**)compile_array, ud_array_sz);
+						expr_match, ud_array_sz);
 	for(i=0; i<bool_match_ret; i++)
 	{
+		compile_array[i]=(struct Maat_hierarchy_compile*)expr_match[i].user_tag;
+		assert((unsigned long long)compile_array[i]->compile_id==expr_match[i].expr_id);
 		r_in_c_cnt=Maat_hierarchy_compile_mid_update_by_compile(mid, compile_array[i]);
 		if(compile_array[i]->not_clause_cnt>0 && !is_last_compile)
 		{
