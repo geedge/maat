@@ -904,10 +904,10 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 	//STEP 4, build the bool matcher.
 	size_t mem_size=0;
 	if(expr_cnt==0)
-	{
+	{		
 		MESA_handle_runtime_log(hier->logger, RLOG_LV_FATAL, module_maat_hierarchy,
 								"No bool expression to build.");
-		return NULL;
+		goto error_out;
 	}
 	bm=bool_matcher_new(bool_expr_array, expr_cnt, hier->thread_num, &mem_size);
 	if(bm!=NULL)
@@ -929,8 +929,12 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 	{
 		HASH_DELETE(hh, clause_dedup_hash, clause_entry);
 	}
+error_out:
 	free(clause_entry_array);
+	clause_entry_array=NULL;
+	
 	free(bool_expr_array);
+	bool_expr_array=NULL;
 
 	return bm;
 }
