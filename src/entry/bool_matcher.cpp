@@ -194,7 +194,7 @@ int bool_matcher_match(struct bool_matcher * matcher, unsigned int thread_id, co
 
 		for(unsigned int j=matcher->mapped_ptr[h]; j<matcher->mapped_ptr[h+1]; j++)
 		{
-			if(ids_num==MAX_ARRAY_SIZE) return -1;
+			if(ids_num==MAX_ARRAY_SIZE) continue;
 			mapped_ids[ids_num++]=matcher->mapped_ids[j];
 		}
 	}
@@ -203,7 +203,7 @@ int bool_matcher_match(struct bool_matcher * matcher, unsigned int thread_id, co
 	unsigned int used_num=0;
 	for(unsigned int i=0; i<ids_num; i++)
 	{
-		if(used_num==MAX_ARRAY_SIZE) return -1;
+		if(used_num==MAX_ARRAY_SIZE) continue;
 		used_cells[used_num++]=(mapped_ids[i]>>3);
 	}
 
