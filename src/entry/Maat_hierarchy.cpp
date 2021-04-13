@@ -110,7 +110,7 @@ struct Maat_hierarchy
 	int thread_num;
 	struct Maat_garbage_bin* garbage_bin;
 	void* logger;
-	struct bool_expr_match *expr_match_buff;
+	void **expr_match_buff;
 };
 
 int compare_literal_id(const void *pa, const void *pb)
@@ -297,7 +297,7 @@ struct Maat_hierarchy* Maat_hierarchy_new(int thread_num, void* mesa_handle_logg
 	hier->hash_literal_by_id=NULL;
 	hier->hash_region_by_id=NULL;
 
-	hier->expr_match_buff=ALLOC(struct bool_expr_match, thread_num*MAX_SCANNER_HIT_NUM);
+	hier->expr_match_buff=ALLOC(void*, thread_num*MAX_SCANNER_HIT_NUM);
 
 	ret=igraph_empty(&hier->group_graph, 0, IGRAPH_DIRECTED);
 	assert(ret==IGRAPH_SUCCESS);
@@ -899,7 +899,6 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 		//some compile may have zero groups, e.g. default policy.
 		if(j==(size_t)compile->declared_clause_num&&j>0)
 		{
-			bool_expr_array[expr_cnt].expr_id=compile->compile_id;
 			bool_expr_array[expr_cnt].user_tag=compile;
 			bool_expr_array[expr_cnt].item_num=j;
 			expr_cnt++;
@@ -1343,7 +1342,7 @@ int Maat_hierarchy_region_compile(struct Maat_hierarchy_compile_mid* mid, int is
 	int bool_match_ret=0, i=0;
 	struct Maat_hierarchy* hier=mid->ref_hier;
 	struct Maat_hierarchy_compile* compile_array=NULL;
-	struct bool_expr_match *expr_match=hier->expr_match_buff+mid->thread_num*MAX_SCANNER_HIT_NUM;
+	void **expr_match=hier->expr_match_buff+mid->thread_num*MAX_SCANNER_HIT_NUM;
 
 	size_t r_in_c_cnt=0, this_scan_region_hits=mid->this_scan_region_hit_cnt;
 	size_t ud_result_cnt=0;
@@ -1358,8 +1357,7 @@ int Maat_hierarchy_region_compile(struct Maat_hierarchy_compile_mid* mid, int is
 						expr_match, MAX_SCANNER_HIT_NUM);
 	for(i=0; i<bool_match_ret && ud_result_cnt<ud_array_sz; i++)
 	{
-		compile_array=(struct Maat_hierarchy_compile*)expr_match[i].user_tag;
-		assert((unsigned long long)compile_array->compile_id==expr_match[i].expr_id);
+		compile_array=(struct Maat_hierarchy_compile*)expr_match[i];
 		r_in_c_cnt=Maat_hierarchy_compile_mid_update_by_compile(mid, compile_array);
 		if(compile_array->not_clause_cnt>0 && !is_last_compile)
 		{

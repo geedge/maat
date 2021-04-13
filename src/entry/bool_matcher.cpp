@@ -12,7 +12,7 @@ struct thread_local_data_t
 {
 	unsigned int    mapped_ids[MAX_ARRAY_SIZE];
 	unsigned int    used_cells[MAX_ARRAY_SIZE];
-	bool_expr_match cached_results[MAX_ARRAY_SIZE];
+	void *          cached_results[MAX_ARRAY_SIZE];
 	unsigned char * multiexpr_bitmap;
 	unsigned int *  singlexpr_bitmap;
 };
@@ -22,7 +22,7 @@ struct bool_matcher
 	unsigned int          max_thread_num;
 	unsigned int          bool_expr_num;
 	unsigned int          multi_expr_num;
-	bool_expr_match *     bool_expr_ids;
+	void **               bool_expr_ids;
 	unsigned char *       multi_expr_size;
 	unsigned char *       multi_expr_mask;
 	unsigned int          bool_item_id_num;
@@ -78,8 +78,8 @@ struct bool_matcher * bool_matcher_new(struct bool_expr * exprs, size_t expr_num
 	matcher->bool_expr_num=(unsigned int)expr_num;
 	matcher->multi_expr_num=I;
 
-	matcher->bool_expr_ids=new bool_expr_match[expr_num];
-	mem_bytes+=(unsigned int)expr_num*sizeof(bool_expr_match);
+	matcher->bool_expr_ids=new void *[expr_num];
+	mem_bytes+=(unsigned int)expr_num*sizeof(void *);
 
 	matcher->multi_expr_size=new unsigned char[matcher->multi_expr_num+1];
 	mem_bytes+=(matcher->multi_expr_num+1)*sizeof(unsigned char);
@@ -105,8 +105,7 @@ struct bool_matcher * bool_matcher_new(struct bool_expr * exprs, size_t expr_num
 	unsigned int count=0;
 	for(unsigned int i=0; i<expr_num; i++)
 	{
-		matcher->bool_expr_ids[i].expr_id=exprs[i].expr_id;
-		matcher->bool_expr_ids[i].user_tag=exprs[i].user_tag;
+		matcher->bool_expr_ids[i]=exprs[i].user_tag;
 		if(i<matcher->multi_expr_num)
 		{
 			matcher->multi_expr_size[i]=(unsigned int)exprs[i].item_num;
@@ -161,14 +160,7 @@ struct bool_matcher * bool_matcher_new(struct bool_expr * exprs, size_t expr_num
 	return matcher;
 }
 
-int res_comp(const void * lhs, const void * rhs)
-{
-	bool_expr_match * _lhs=(bool_expr_match *)lhs;
-	bool_expr_match * _rhs=(bool_expr_match *)rhs;
-	return (_lhs->expr_id<_rhs->expr_id) ? 1 : -1;
-}
-
-int bool_matcher_match(struct bool_matcher * matcher, unsigned int thread_id, const unsigned long long * item_ids, size_t item_num, struct bool_expr_match * results, size_t n_result)
+int bool_matcher_match(struct bool_matcher * matcher, unsigned int thread_id, const unsigned long long * item_ids, size_t item_num, void ** result, size_t size)
 {
 	if(matcher==NULL) return -1;
 	if(thread_id>=matcher->max_thread_num) return -1;
@@ -194,7 +186,7 @@ int bool_matcher_match(struct bool_matcher * matcher, unsigned int thread_id, co
 
 		for(unsigned int j=matcher->mapped_ptr[h]; j<matcher->mapped_ptr[h+1]; j++)
 		{
-			if(ids_num==MAX_ARRAY_SIZE) continue;
+			if(ids_num==MAX_ARRAY_SIZE) return -1;
 			mapped_ids[ids_num++]=matcher->mapped_ids[j];
 		}
 	}
@@ -203,7 +195,7 @@ int bool_matcher_match(struct bool_matcher * matcher, unsigned int thread_id, co
 	unsigned int used_num=0;
 	for(unsigned int i=0; i<ids_num; i++)
 	{
-		if(used_num==MAX_ARRAY_SIZE) continue;
+		if(used_num==MAX_ARRAY_SIZE) return -1;
 		used_cells[used_num++]=(mapped_ids[i]>>3);
 	}
 
@@ -246,7 +238,7 @@ int bool_matcher_match(struct bool_matcher * matcher, unsigned int thread_id, co
 	}
 
 	unsigned int r=0;
-	bool_expr_match * cached_results=matcher->thread_data[thread_id].cached_results;
+	void ** cached_results=matcher->thread_data[thread_id].cached_results;
 
 	for(unsigned int i=0; i<used_num; i++)
 	{
@@ -268,15 +260,15 @@ int bool_matcher_match(struct bool_matcher * matcher, unsigned int thread_id, co
 		}
 	}
 
-	qsort(cached_results, r, sizeof(bool_expr_match), res_comp);
+	sort(cached_results, cached_results+r);
 
 	int I=0;
 	for(unsigned int J=0; J<r; ++J)
 	{
-		if(I==0 || cached_results[J].expr_id!=results[I-1].expr_id)
+		if(I==0 || cached_results[J]!=result[I-1])
 		{
-			if(I==(int)n_result) return I;
-			results[I++]=cached_results[J];
+			if(I==(int)size) return I;
+			result[I++]=cached_results[J];
 		}
 	}
 
