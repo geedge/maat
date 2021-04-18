@@ -1162,9 +1162,9 @@ static size_t hit_path_select(const struct hit_path_q *hit_path_qhead, struct Ma
 	{
 		if((condition->compile_id==p->path.compile_id||condition->compile_id<0)
 			&& (condition->Nth_scan==p->path.Nth_scan||condition->Nth_scan<0)
-			&& (condition->region_id=p->path.region_id||condition->region_id<0)
-			&& (condition->sub_group_id=p->path.sub_group_id||condition->sub_group_id<0)
-			&& (condition->top_group_id=p->path.top_group_id||condition->top_group_id<0))
+			&& (condition->region_id==p->path.region_id||condition->region_id<0)
+			&& (condition->sub_group_id==p->path.sub_group_id||condition->sub_group_id<0)
+			&& (condition->top_group_id==p->path.top_group_id||condition->top_group_id<0))
 		{
 			if(i<n_path)
 			{
