@@ -3899,6 +3899,105 @@ that the edges be all directed in the same direction.";
 	return;
 
 }
+#define Update_DeadLock_Detection
+TEST_F(MaatCmdTest,    UpdateDeadLockDetection)
+{
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+
+	const char* g2c_tn="GROUP2COMPILE";
+	const char* compile_table_name="COMPILE";
+	const char* table_http_url="HTTP_URL";
+
+	struct Maat_rule_t compile1, compile2;
+	struct Maat_cmd_group2compile group1, group2;
+	struct Maat_cmd_region region1, region2;
+
+	memset(&compile1, 0, sizeof(compile1));
+	compile1.config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 1, 0, 0);
+
+	
+	//group1->compile1
+	memset(&group1, 0, sizeof(group1));
+	group1.group_id=Maat_command_get_new_group_id(feather);
+	group1.table_name=g2c_tn;
+	group1.compile_id=compile1.config_id;
+	group1.clause_index=0;
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group1);
+
+
+	//region1->group1->compile1
+	
+	memset(&region1, 0, sizeof(region1));
+	region1.region_id=Maat_command_get_new_region_id(feather);
+	region1.region_type=REGION_EXPR;
+	region1.table_name=table_http_url;
+	region1.expr_rule.keywords="part-1";
+	region1.expr_rule.expr_type=EXPR_TYPE_STRING;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region1, group1.group_id);
+
+	sleep(1);
+
+	const char* scan_data1="scan string part-1.";
+	const char* scan_data2="scan string part-2.";
+	struct Maat_rule_t result[4];
+	memset(result, 0, sizeof(result));
+
+	scan_status_t mid=NULL;
+	int ret=0, table_id=0;
+
+	table_id=Maat_table_register(feather, table_http_url);
+	ASSERT_GT(table_id, 0);
+
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data1, strlen(scan_data1), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, compile1.config_id);
+
+
+	memset(&compile2, 0, sizeof(compile2));
+	compile2.config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile2, compile_table_name, NULL, 1, 0, 0);
+
+	
+	//group2->compile2
+	memset(&group2, 0, sizeof(group2));
+	group2.group_id=Maat_command_get_new_group_id(feather);
+	group2.table_name=g2c_tn;
+	group2.compile_id=compile2.config_id;
+	group2.clause_index=0;
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group2);
+
+
+	//region2->group2->compile2
+	
+	memset(&region2, 0, sizeof(region2));
+	region2.region_id=Maat_command_get_new_region_id(feather);
+	region2.region_type=REGION_EXPR;
+	region2.table_name=table_http_url;
+	region2.expr_rule.keywords="part-2";
+	region2.expr_rule.expr_type=EXPR_TYPE_STRING;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region2, group2.group_id);
+
+	//DON'T DO THIS!!!
+	//Roll back version, trigger full udpate.
+	Maat_cmd_incrby(feather, "MAAT_VERSION", -100);
+
+	//Wating for scanner garbage collect expiration.
+	sleep(20);
+
+	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data2, strlen(scan_data2), 
+						result, NULL, 4, &mid, 0);
+
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, compile2.config_id);
+	
+	Maat_clean_status(&mid);
+
+
+	return;
+}
 
 int main(int argc, char ** argv)
 {
