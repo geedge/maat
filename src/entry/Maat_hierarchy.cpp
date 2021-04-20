@@ -1107,7 +1107,6 @@ TAILQ_HEAD(hit_path_q, Maat_hierarchy_hit_path);
 
 struct Maat_hierarchy_compile_mid
 {
-	struct Maat_hierarchy* ref_hier;
 	int thread_num;
 	int Nth_scan;
 	size_t this_scan_region_hit_cnt;
@@ -1123,7 +1122,6 @@ struct Maat_hierarchy_compile_mid* Maat_hierarchy_compile_mid_new(struct Maat_hi
 	struct Maat_hierarchy_compile_mid* mid=ALLOC(struct Maat_hierarchy_compile_mid, 1);
 	TAILQ_INIT(&mid->hit_path_qhead);
 	mid->thread_num=thread_num;
-	mid->ref_hier=hier;	
 	utarray_new(mid->_all_hit_clause_array, &ut_clause_id_icd);
 	return mid;
 }
@@ -1138,7 +1136,6 @@ void Maat_hierarchy_compile_mid_free(struct Maat_hierarchy_compile_mid* mid)
 		tmp = TAILQ_FIRST(&mid->hit_path_qhead);
 	}
 	assert(mid->hit_path_cnt==0);
-	mid->ref_hier=NULL;
 	utarray_free(mid->_all_hit_clause_array);
 	free(mid);
 }
@@ -1195,7 +1192,7 @@ size_t Maat_hierarchy_hit_path_select0(const struct Maat_hierarchy_compile_mid* 
 	return ret;
 }
 
-void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy_compile_mid* mid, int region_id, int virtual_table_id, int Nth_scan, int Nth_region_result)
+void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy* hier, struct Maat_hierarchy_compile_mid* mid, int region_id, int virtual_table_id, int Nth_scan, int Nth_region_result)
 {
 	size_t i=0, j=0;
 	unsigned long long *clause_id=0;
@@ -1206,7 +1203,6 @@ void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy_compile_mid* mid, i
 	struct Maat_hierarchy_literal_id literal_id={0,0};
 	struct Maat_hierarchy_literal* literal=NULL;
 	
-	struct Maat_hierarchy* hier=mid->ref_hier;
 	if(mid->Nth_scan!=Nth_scan)
 	{
 		assert(mid->this_scan_region_hit_cnt==0);
@@ -1274,7 +1270,7 @@ void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy_compile_mid* mid, i
 }
 
 
-static size_t Maat_hierarchy_compile_mid_update_by_compile(struct Maat_hierarchy_compile_mid* mid, struct Maat_hierarchy_compile* compile)
+static size_t Maat_hierarchy_compile_mid_update_by_compile(struct Maat_hierarchy* hier, struct Maat_hierarchy_compile_mid* mid, struct Maat_hierarchy_compile* compile)
 {
 	size_t r_in_c_cnt=0;
 	struct Maat_hierarchy_hit_path* p=NULL, *q=NULL;
@@ -1337,10 +1333,9 @@ static size_t Maat_hierarchy_compile_mid_update_by_compile(struct Maat_hierarchy
 }
 
 
-int Maat_hierarchy_region_compile(struct Maat_hierarchy_compile_mid* mid, int is_last_compile, void** user_data_array, size_t ud_array_sz)
+int Maat_hierarchy_region_compile(struct Maat_hierarchy* hier, struct Maat_hierarchy_compile_mid* mid, int is_last_compile, void** user_data_array, size_t ud_array_sz)
 {
 	int bool_match_ret=0, i=0;
-	struct Maat_hierarchy* hier=mid->ref_hier;
 	struct Maat_hierarchy_compile* compile_array=NULL;
 	void **expr_match=hier->expr_match_buff+mid->thread_num*MAX_SCANNER_HIT_NUM;
 
@@ -1358,7 +1353,7 @@ int Maat_hierarchy_region_compile(struct Maat_hierarchy_compile_mid* mid, int is
 	for(i=0; i<bool_match_ret && ud_result_cnt<ud_array_sz; i++)
 	{
 		compile_array=(struct Maat_hierarchy_compile*)expr_match[i];
-		r_in_c_cnt=Maat_hierarchy_compile_mid_update_by_compile(mid, compile_array);
+		r_in_c_cnt=Maat_hierarchy_compile_mid_update_by_compile(hier, mid, compile_array);
 		if(compile_array->not_clause_cnt>0 && !is_last_compile)
 		{
 			mid->not_clause_hitted_flag=1;

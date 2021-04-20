@@ -14,7 +14,7 @@ void Maat_hierarchy_set_region_user_data_free_func(struct Maat_hierarchy* hier, 
 struct Maat_hierarchy_compile_mid;
 struct Maat_hierarchy_compile_mid* Maat_hierarchy_compile_mid_new(struct Maat_hierarchy* hier, int thread_num);
 void Maat_hierarchy_compile_mid_free(struct Maat_hierarchy_compile_mid* mid);
-void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy_compile_mid* mid, int region_id, int virtual_table_id, int Nth_scan, int Nth_region_result);
+void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy* hier, struct Maat_hierarchy_compile_mid* mid, int region_id, int virtual_table_id, int Nth_scan, int Nth_region_result);
 void Maat_hierarchy_compile_user_data_iterate(struct Maat_hierarchy* hier, void (*callback)(void *user_data, void* apram), void* param);
 
 int Maat_hierarchy_compile_mid_has_NOT_clause(struct Maat_hierarchy_compile_mid* mid);
@@ -47,6 +47,6 @@ int Maat_hierarchy_add_region_to_group(struct Maat_hierarchy* hier, int group_id
 int Maat_hierarchy_remove_region_from_group(struct Maat_hierarchy* hier, int group_id, int region_id);
 
 int Maat_hierarchy_rebuild(struct Maat_hierarchy* hier);
-int Maat_hierarchy_region_compile(struct Maat_hierarchy_compile_mid* mid, int is_last_compile, void** user_data_array, size_t ud_array_sz);
+int Maat_hierarchy_region_compile(struct Maat_hierarchy* hier, struct Maat_hierarchy_compile_mid* mid, int is_last_compile, void** user_data_array, size_t ud_array_sz);
 
 

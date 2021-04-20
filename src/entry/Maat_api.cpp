@@ -244,10 +244,10 @@ int region_compile(_Maat_feather_t*feather, struct Maat_hierarchy_compile_mid* c
 		{
 			virtual_table_id=region_hit_wraper->virtual_table_id;
 		}
-		Maat_hierarchy_compile_mid_udpate(compile_mid, region->region_id, virtual_table_id, region_hit_wraper->Nth_scan, i);
+		Maat_hierarchy_compile_mid_udpate(feather->scanner->hier, compile_mid, region->region_id, virtual_table_id, region_hit_wraper->Nth_scan, i);
 		
 	}
-	scan_ret=Maat_hierarchy_region_compile(compile_mid, is_last_region, (void**)compile_rule_array, size);
+	scan_ret=Maat_hierarchy_region_compile(feather->scanner->hier, compile_mid, is_last_region, (void**)compile_rule_array, size);
 	//Maat_hierarchy is rwlock protected, it always returns non-NULL compile_rule.
 	if(scan_ret>1)
 	{
