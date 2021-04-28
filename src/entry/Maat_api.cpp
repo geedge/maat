@@ -547,8 +547,9 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->logger=logger;
 	feather->scan_thread_num=max_thread_num;
 	
-	feather->effect_interval_ms=60*1000;
-	feather->scan_interval_ms=1*1000;
+	feather->rule_effect_interval_ms=60*1000;
+	feather->rule_update_checking_interval_ms=1*1000;
+	feather->garbage_collection_timeout_ms=10*1000;
 	feather->rule_scan_type=0;
 	feather->thread_call_cnt=alignment_int64_array_alloc(max_thread_num);
 	feather->outer_mid_cnt=alignment_int64_array_alloc(max_thread_num);
@@ -621,7 +622,7 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			{
 				return -1;
 			}
-			_feather->effect_interval_ms=intval;
+			_feather->rule_effect_interval_ms=intval;
 			break;
 		case MAAT_OPT_SCANDIR_INTERVAL_MS:
 			intval=*(const int*)value;
@@ -629,8 +630,17 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			{
 				return -1;
 			}
-			_feather->scan_interval_ms=intval;
+			_feather->rule_update_checking_interval_ms=intval;
 			break;
+		case MAAT_OPT_GARBAGE_COLLECTION_TIMEOUT_MS:
+			intval=*(const int*)value;
+			if(size!=sizeof(int)||intval<0)
+			{
+				return -1;
+			}
+			_feather->garbage_collection_timeout_ms=intval;
+			break;
+
 		case MAAT_OPT_FULL_CFG_DIR:			
 			assert(_feather->input_mode==SOURCE_NONE);
 			if(size>(int)sizeof(_feather->iris_ctx.full_dir))
@@ -846,8 +856,9 @@ void maat_read_full_config(_Maat_feather_t* _feather)
 int Maat_initiate_feather(Maat_feather_t feather)
 {
 	_Maat_feather_t* _feather=(_Maat_feather_t*)feather;
-	_feather->garbage_bin=Maat_garbage_bin_new(_feather->effect_interval_ms/1000+10);
-	system_cmd_mkdir(_feather->foreign_cont_dir);
+	system_cmd_mkdir(_feather->foreign_cont_dir);	
+	_feather->garbage_bin=Maat_garbage_bin_new(_feather->rule_effect_interval_ms/1000+_feather->garbage_collection_timeout_ms/1000);
+	
 	if(_feather->DEFERRED_LOAD_ON==0)
 	{
 		maat_read_full_config(_feather);

@@ -290,8 +290,9 @@ struct _Maat_feather_t
 		struct source_redis_ctx mr_ctx;
 	};
 	int still_working;
-	int scan_interval_ms;
-	int effect_interval_ms;
+	int rule_update_checking_interval_ms;
+	int rule_effect_interval_ms;
+	int garbage_collection_timeout_ms;
 	int cumulative_update_off;
 	int stat_on;
 	int perf_on;

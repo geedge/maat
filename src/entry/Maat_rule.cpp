@@ -2477,7 +2477,7 @@ void maat_finish_cb(void* u_para)
 		feather->scanner->version=feather->maat_version;
 		expr_wait_q_cnt=MESA_lqueue_get_count(feather->scanner->region_update_q);
 		feather->postpone_q_size=expr_wait_q_cnt+feather->scanner->gie_update_q_size+feather->scanner->xx_plugin_update_q_size;
-		if(time(NULL)-feather->scanner->last_update_time>=feather->effect_interval_ms/1000)
+		if(time(NULL)-feather->scanner->last_update_time>=feather->rule_effect_interval_ms/1000)
 		{
 			do_scanner_update(feather->scanner,
 							feather->scan_thread_num,
@@ -2603,7 +2603,7 @@ void *thread_rule_monitor(void *arg)
 	pthread_mutex_unlock(&(feather->background_update_mutex));
 	while(feather->still_working)
 	{
-		usleep(feather->scan_interval_ms*1000);
+		usleep(feather->rule_update_checking_interval_ms*1000);
 		scan_dir_cnt++;
 		if(0==pthread_mutex_trylock(&(feather->background_update_mutex)))
 		{
@@ -2704,7 +2704,7 @@ void *thread_rule_monitor(void *arg)
 				expr_wait_q_cnt=MESA_lqueue_get_count(feather->scanner->region_update_q);
 				feather->postpone_q_size=expr_wait_q_cnt+feather->scanner->gie_update_q_size;
 				total_wait_rule_cnt=feather->postpone_q_size+feather->scanner->to_update_compile_cnt+feather->scanner->to_update_group_cnt;
-				if(total_wait_rule_cnt>0&&time(NULL)-feather->scanner->last_update_time>=feather->effect_interval_ms/1000)
+				if(total_wait_rule_cnt>0&&time(NULL)-feather->scanner->last_update_time>=feather->rule_effect_interval_ms/1000)
 				{
 					do_scanner_update(feather->scanner,
 									feather->scan_thread_num,
