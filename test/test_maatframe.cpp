@@ -1326,6 +1326,35 @@ TEST(StringScan, Expr8)
 
 	return;
 }
+TEST(StringScan, RegexWithNotContains)
+{
+	int ret=0;
+	int table_id=0;
+	struct Maat_rule_t result[4];
+	//The rule is contains
+	const char* should_NOT_hit_scan_data="new.qq.com/rain/a/TWF2021042600418000";
+	const char* should_hit_scan_data="fakesina.com/rain/a/TWF2021042600418000";
+	const char* table_name="HTTP_URL";	
+	scan_status_t mid=NULL;
+
+	table_id=Maat_table_register(g_feather,table_name);
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, should_NOT_hit_scan_data, strlen(should_NOT_hit_scan_data), 
+						result, NULL, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, 0);
+	Maat_clean_status(&mid);
+
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, should_hit_scan_data, strlen(should_hit_scan_data), 
+						result, NULL, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 183);
+	Maat_clean_status(&mid);
+
+	return;
+}
 
 TEST(StringScan, StreamInput)
 {
@@ -3985,7 +4014,7 @@ TEST_F(MaatCmdTest,    UpdateDeadLockDetection)
 	Maat_cmd_incrby(feather, "MAAT_VERSION", -100);
 
 	//Wating for scanner garbage collect expiration.
-	sleep(20);
+	sleep(10);
 
 	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data2, strlen(scan_data2), 
 						result, NULL, 4, &mid, 0);
@@ -4020,6 +4049,11 @@ int main(int argc, char ** argv)
 	Maat_set_feather_opt(g_feather, MAAT_OPT_SCANDIR_INTERVAL_MS, &scan_interval_ms, sizeof(scan_interval_ms));
 	//Set a short intevral for testing.
 	Maat_set_feather_opt(g_feather, MAAT_OPT_EFFECT_INVERVAL_MS, &effective_interval_ms, sizeof(effective_interval_ms));
+
+	//Set a short intevral for testing.
+	int tmp=0;
+	Maat_set_feather_opt(g_feather, MAAT_OPT_GARBAGE_COLLECTION_TIMEOUT_MS, &tmp, sizeof(tmp));
+
 
 	Maat_set_feather_opt(g_feather, MAAT_OPT_STAT_FILE_PATH, stat_file, strlen(stat_file)+1);
 	Maat_set_feather_opt(g_feather, MAAT_OPT_STAT_ON, NULL, 0);

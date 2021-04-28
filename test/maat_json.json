@@ -1971,6 +1971,32 @@
                     ]
                 }
             ]
+        },
+        {
+            "compile_id": 183,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "StringScan.RegexWithNotContains",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "string",
+                            "table_content": {
+                                "keywords": "^(?=.*/rain/a/TWF2021042600418000)(?!new.qq.com).*",
+                                "expr_type": "regex",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "plugin_table": [
