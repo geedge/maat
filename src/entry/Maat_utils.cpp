@@ -5,7 +5,7 @@
 #include <openssl/md5.h>
 #include <sys/stat.h>
 #include <openssl/evp.h>
-
+#include <zlib.h>
 #include "Maat_utils.h"
 pid_t gettid()
 {
@@ -221,6 +221,13 @@ int system_cmd_cp(const char* src_file,const char*dst_file)
 	snprintf(cmd, sizeof(cmd), "cp -f %s %s", src_file, dst_file);
 	return  system(cmd);
 }
+int system_cmd_gzip(const char* src_file, const char* dst_file)
+{
+	char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
+	snprintf(cmd,sizeof(cmd), "gzip -9 < %s > %s", src_file, dst_file);
+	return  system(cmd);
+}
+
 int system_cmd_encrypt(const char* src_file, const char* dst_file, const char* password)
 {
 	char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
@@ -390,6 +397,71 @@ int decrypt_open(const char* file_name, const char* key, const char* algorithm, 
 	file_buff=NULL;
 	return ret;
 }
+
+int gzip_uncompress_one_try(const unsigned char *in_compressed_data, size_t in_compressed_sz, unsigned char **out_uncompressed_data,
+		size_t *out_uncompressed_sz)
+{
+	z_stream strm;
+	strm.zalloc = NULL;
+	strm.zfree = NULL;
+	strm.opaque = NULL;
+
+	strm.avail_in = in_compressed_sz;
+	strm.avail_out = *out_uncompressed_sz;
+	strm.next_in = (Bytef*) in_compressed_data;
+	strm.next_out = *out_uncompressed_data;
+
+	int ret = -1;
+	ret = inflateInit2(&strm, MAX_WBITS+16);
+	if (ret == Z_OK)
+	{
+		ret = inflate(&strm, Z_FINISH);
+		if (ret == Z_STREAM_END)
+		{
+			*out_uncompressed_sz = strm.total_out;
+			ret = inflateEnd(&strm);
+			return ret;
+		}
+	}
+	inflateEnd(&strm);
+	return ret;
+}
+int gzip_uncompress(const unsigned char *in_compressed_data, size_t in_compressed_sz, unsigned char **out_uncompressed_data,
+		size_t *out_uncompressed_sz)
+{
+
+
+	int z_result;
+	int ret=-1;
+	size_t buffer_sz=in_compressed_sz*2;	
+	*out_uncompressed_data = (unsigned char*) malloc(buffer_sz);
+	do{
+		*out_uncompressed_sz=buffer_sz;
+		z_result = gzip_uncompress_one_try(
+			in_compressed_data,			
+			in_compressed_sz,
+			out_uncompressed_data,		
+			out_uncompressed_sz);
+
+		switch( z_result )
+		{
+			case Z_OK:
+				ret=0;
+				break;			
+			case Z_BUF_ERROR:
+				buffer_sz*=2;
+				*out_uncompressed_data=(unsigned char*) realloc(*out_uncompressed_data, buffer_sz);
+				break;
+			default:
+				ret=-1;
+				break;
+		}
+
+	}while(z_result==Z_BUF_ERROR);
+	return ret;
+}
+
+
 enum MAAT_IP_FORMAT ip_format_str2int(const char* format)
 {
 	if(0==strcasecmp(format, "range"))

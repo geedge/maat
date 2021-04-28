@@ -72,12 +72,17 @@ int system_cmd_rm(const char* src_file);
 int system_cmd_mv(const char* src_file, const char*dst_file);
 int system_cmd_cp(const char* src_file, const char*dst_file);
 int system_cmd_encrypt(const char* src_file, const char* dst_file, const char* password);
+int system_cmd_gzip(const char* src_file, const char* dst_file);
 
 char* md5_file(const char* filename, char* md5string);
 int get_column_pos(const char* line, int column_seq, size_t *offset, size_t *len);
 const char** charset_get_all_name(void);
 const char* charset_get_name(enum MAAT_CHARSET charset);
 int lqueue_destroy_cb(void *data, long data_len, void *arg);
+
+//Caller is responsible to free the out_uncompressed_data buffer.
+int gzip_uncompress(const unsigned char *in_compressed_data, size_t in_compressed_sz, unsigned char **out_uncompressed_data,	size_t *out_uncompressed_sz);
+
 int decrypt_open(const char* file_name, const char* key, const char* algorithm, unsigned char**pp_out, size_t *out_sz, char* err_str, size_t err_str_sz);
 int load_file_to_memory(const char* file_name, unsigned char**pp_out, size_t *out_sz);
 //do_encrypt: 1 for encryption, 0 for decryption.

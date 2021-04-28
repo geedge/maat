@@ -313,6 +313,7 @@ struct _Maat_feather_t
 	pthread_mutex_t background_update_mutex;
 	char decrypt_key[MAX_TABLE_NAME_LEN];
 	char decrypt_algo[MAX_TABLE_NAME_LEN];
+	int maat_json_is_gzipped;
 	pthread_t cfg_mon_t;
 
 	int AUTO_NUMBERING_ON;

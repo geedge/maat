@@ -481,21 +481,50 @@ int load_maat_json_file(_Maat_feather_t* feather, const char* maat_json_fn, char
 {
 	int ret=0;
 	struct stat fstat_buf;
-	char* json_buff=NULL;
-	size_t buff_sz=0;
+	unsigned char* json_buff=NULL, *decrypted_buff=NULL, *uncompressed_buff=NULL;
+	size_t json_buff_sz=0, decrypted_buff_sz=0, uncompressed_buff_sz=0;
 
 	MESA_handle_runtime_log(feather->logger, RLOG_LV_INFO, maat_module ,
 					"Maat initial with JSON file %s, formating..",
 					maat_json_fn);
+
 	if(strlen(feather->decrypt_key)&&strlen(feather->decrypt_algo))
 	{
-		ret=decrypt_open(maat_json_fn, feather->decrypt_key, feather->decrypt_algo, (unsigned char**)&json_buff, &buff_sz, err_str, err_str_sz);
+		ret=decrypt_open(maat_json_fn, feather->decrypt_key, feather->decrypt_algo, (unsigned char**)&decrypted_buff, &decrypted_buff_sz, err_str, err_str_sz);
+		if(ret<0)
+		{
+			MESA_handle_runtime_log(feather->logger, RLOG_LV_FATAL, maat_module,
+							"Decrypt Maat JSON file %s failed.", maat_json_fn);
+			return -1;
+		}
+		json_buff=decrypted_buff;
+		json_buff_sz=decrypted_buff_sz;
+
 	}
+	if(feather->maat_json_is_gzipped)
+	{
+		ret=gzip_uncompress(json_buff, json_buff_sz, &uncompressed_buff, &uncompressed_buff_sz);
+		free(json_buff);
+		if(ret<0)
+		{
+			MESA_handle_runtime_log(feather->logger, RLOG_LV_FATAL, maat_module,
+							"Uncompress Maat JSON file %s failed.", maat_json_fn);
+			return -1;
+		}
+		json_buff=uncompressed_buff;
+		json_buff_sz=uncompressed_buff_sz;
+	}	
 	if(json_buff==NULL)//decryption failed or no decryption.
 	{	
-		ret=load_file_to_memory(maat_json_fn, (unsigned char**)&json_buff, &buff_sz);
+		ret=load_file_to_memory(maat_json_fn, &json_buff, &json_buff_sz);
+		if(ret<0)
+		{
+			MESA_handle_runtime_log(feather->logger, RLOG_LV_FATAL, maat_module,
+							"Read Maat JSON file %s failed.", maat_json_fn);
+			return -1;
+		}
 	}
-	ret=json2iris(json_buff,
+	ret=json2iris((const char*)json_buff,
 			maat_json_fn,
 			feather->compile_tn, feather->group2compile_tn, feather->group2group_tn,
 			NULL,
@@ -562,6 +591,8 @@ Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void*
 	feather->base_rgn_seq=0;
 	feather->AUTO_NUMBERING_ON=1;
 	feather->backgroud_update_enabled=1;
+	feather->maat_json_is_gzipped=0;
+
 	snprintf(feather->decrypt_algo, sizeof(feather->decrypt_algo), "aes-256-cbc");
 	snprintf(feather->foreign_cont_dir, sizeof(feather->foreign_cont_dir), "%s_files", table_info_path);
 	pthread_mutex_init(&(feather->background_update_mutex),NULL);
@@ -640,7 +671,22 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			}
 			_feather->garbage_collection_timeout_ms=intval;
 			break;
-
+		
+		case MAAT_OPT_JSON_IS_GZIPPED:
+			intval=*(const int*)value;
+			if(size!=sizeof(int)||intval<0)
+			{
+				return -1;
+			}
+			if(intval>0)
+			{
+				_feather->maat_json_is_gzipped=1;
+			}
+			else
+			{
+				_feather->maat_json_is_gzipped=0;
+			}
+			break;
 		case MAAT_OPT_FULL_CFG_DIR:			
 			assert(_feather->input_mode==SOURCE_NONE);
 			if(size>(int)sizeof(_feather->iris_ctx.full_dir))
@@ -667,7 +713,6 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 								(const char*)value, err_str);
 				return -1;
 			}
-
 			break;
 		case MAAT_OPT_STAT_ON:
 			_feather->stat_on=1;
