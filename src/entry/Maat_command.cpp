@@ -1733,6 +1733,10 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 		{
 			return;
 		}
+		else
+		{
+			version=0;//Trigger full update when reconnect to redis.
+		}
 	}
 	
 	rule_num=get_rm_key_list(mr_ctx->read_ctx, version, feather->load_version_from, &new_version, feather->table_mgr, &rule_list, &update_type, logger, feather->cumulative_update_off);
