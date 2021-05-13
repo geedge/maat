@@ -1950,9 +1950,11 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 	sp->feather=_feather;
 	sp->p_real_table=p_table;
 	sp->virtual_table_id=virtual_table_id;
-	sp->version=_feather->maat_version;
+	sp->last_full_version=_feather->last_full_version;
+	sp->ref_scanner=_feather->scanner;
 	sp->process_offset=0;
 	sp->rs_stream_para=NULL;
+	
 	if(scanner==NULL)
 	{
 		return sp;
@@ -2014,7 +2016,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, sp->p_real_table->table_id);
 
 
-	if(sp->version!=sp->feather->maat_version)
+	if(sp->last_full_version!=sp->feather->last_full_version||sp->ref_scanner!=sp->feather->scanner)
 	{
 		return 0;
 	}
@@ -2189,7 +2191,7 @@ void Maat_stream_scan_string_end(stream_para_t* stream_para)
 	}
 	if(sp->rs_stream_para!=NULL)
 	{
-		if(scanner!=NULL&&sp->version>=sp->feather->last_full_version)
+		if(scanner!=NULL&&sp->last_full_version==sp->feather->last_full_version&&sp->ref_scanner==sp->feather->scanner)
 		{
 			
 			DEC_SCANNER_REF(scanner, sp->thread_num);
@@ -2213,6 +2215,8 @@ void Maat_stream_scan_string_end(stream_para_t* stream_para)
 		free(sp->scan_buff);
 		sp->scan_buff=NULL;
 	}
+	sp->ref_scanner=NULL;
+	sp->feather=NULL;
 	free(sp);
 	*stream_para=NULL;
 	return;
@@ -2234,9 +2238,10 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 	struct _stream_para_t* sp=ALLOC(struct _stream_para_t, 1);
 	scanner=_feather->scanner;
 	sp->feather=_feather;
+	sp->ref_scanner=_feather->scanner;
 	sp->p_real_table=p_table;
 	sp->virtual_table_id=virtual_table_id;
-	sp->version=_feather->maat_version;
+	sp->last_full_version=_feather->last_full_version;
 	sp->process_offset=0;
 	if(scanner==NULL)
 	{
@@ -2393,7 +2398,7 @@ void Maat_stream_scan_digest_end(stream_para_t* stream_para)
 	alignment_int64_array_add(table_rt->stream_num, sp->thread_num,-1);
 	if(scanner!=NULL)
 	{
-		if(sp->version==sp->feather->maat_version)
+		if(sp->last_full_version==sp->feather->last_full_version)
 		{
 			DEC_SCANNER_REF(scanner, sp->thread_num);
 		}		
@@ -2402,6 +2407,8 @@ void Maat_stream_scan_digest_end(stream_para_t* stream_para)
 	pthread_mutex_destroy(&(sp->fuzzy_mutex));
 	assert(sp->last_cache==NULL);
 	assert(sp->scan_buff==NULL);
+	sp->ref_scanner=NULL;
+	sp->feather=NULL;
 	free(sp);
 	*stream_para=NULL;
 

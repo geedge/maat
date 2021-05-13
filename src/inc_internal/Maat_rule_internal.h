@@ -185,7 +185,9 @@ struct _stream_para_t
 	struct _Maat_feather_t* feather;
 	const struct Maat_table_schema* p_real_table;
 	int virtual_table_id;
-	int version;
+	int last_full_version;
+	struct Maat_scanner *ref_scanner;
+	
 	int thread_num;
 	int max_cross_size;
 	int caching_size;

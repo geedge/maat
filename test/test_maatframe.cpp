@@ -4035,6 +4035,78 @@ TEST_F(MaatCmdTest,    UpdateDeadLockDetection)
 
 	return;
 }
+#define VersionRollBack_SegFault
+TEST_F(MaatCmdTest, StreamScanSegfaultWhenVersionRollBack_TSG_6324)
+{
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+
+	const char* g2c_tn="GROUP2COMPILE";
+	const char* compile_table_name="COMPILE";
+	const char* scan_table_name="KEYWORDS_TABLE";
+
+	struct Maat_rule_t compile1;
+	struct Maat_cmd_group2compile group1;
+	struct Maat_cmd_region region1;
+
+	memset(&compile1, 0, sizeof(compile1));
+	compile1.config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 1, 0, 0);
+
+	
+	//group1->compile1
+	memset(&group1, 0, sizeof(group1));
+	group1.group_id=Maat_command_get_new_group_id(feather);
+	group1.table_name=g2c_tn;
+	group1.compile_id=compile1.config_id;
+	group1.clause_index=0;
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group1);
+
+
+	//region1->group1->compile1
+	
+	memset(&region1, 0, sizeof(region1));
+	region1.region_id=Maat_command_get_new_region_id(feather);
+	region1.region_type=REGION_EXPR;
+	region1.table_name=scan_table_name;
+	region1.expr_rule.keywords="stream-keywords-001";
+	region1.expr_rule.expr_type=EXPR_TYPE_STRING;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region1, group1.group_id);
+
+	sleep(1);
+
+	const char* scan_data="Here is a stream-keywords-001, this should hit.";
+	stream_para_t sp=NULL;
+	scan_status_t mid=NULL;
+	int ret=0, table_id=0;
+	struct Maat_rule_t result[4];
+	memset(result, 0, sizeof(result));
+	
+	table_id=Maat_table_register(feather, scan_table_name);
+	ASSERT_GT(table_id, 0);
+
+	
+	sp=Maat_stream_scan_string_start(feather, table_id, 0);
+	ret=Maat_stream_scan_string(&sp, CHARSET_NONE, scan_data, strlen(scan_data),
+						result, NULL, 4, &mid);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, compile1.config_id);
+
+	//DON'T DO THIS!!!
+	//Roll back version, trigger full udpate.
+	Maat_cmd_incrby(feather, "MAAT_VERSION", -100);
+
+	//Wating for scanner garbage collect expiration.
+	sleep(10);
+
+	ret=Maat_stream_scan_string(&sp, CHARSET_NONE, scan_data, strlen(scan_data),
+						result, NULL, 4, &mid);
+	EXPECT_EQ(ret, 0); //Scan was interupted after full update.
+
+	Maat_stream_scan_string_end(&sp);
+
+	Maat_clean_status(&mid);
+
+}
 
 int main(int argc, char ** argv)
 {
