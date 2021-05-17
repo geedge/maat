@@ -292,7 +292,7 @@ TEST(IP_Plugin_Table, EX_DATA)
 								ip_plugin_EX_dup_cb,
 								0, &ip_plugin_ex_data_counter);
 	ASSERT_TRUE(ret>=0);
-	EXPECT_EQ(ip_plugin_ex_data_counter, 4);
+	EXPECT_EQ(ip_plugin_ex_data_counter, 5);
 	struct ip_address ipv4, ipv6;
 	struct ip_plugin_ud* result[4];
 	ipv4.ip_type=4;
@@ -315,6 +315,10 @@ TEST(IP_Plugin_Table, EX_DATA)
 	{
 		ip_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
 	}
+	//Reproduce BugReport-Liumengyan-20210515
+	inet_pton(AF_INET6,"240e:97c:4010:104::17",&(ipv6.ipv6));
+	ret=Maat_ip_plugin_get_EX_data(g_feather, table_id, &ipv6, (void**)result, 4);
+	ASSERT_EQ(ret, 0);
 
 }
 
@@ -967,6 +971,30 @@ TEST(IPScan, IPv4_composition)
 	ipv4_addr_set(&ipv4_addr, &v4_addr, "192.168.50.24", 56486, "23.78.217.119", 443);
 	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid, 0);
 	EXPECT_EQ(ret, 0);//Rule source port is 0-40000, should not match
+	Maat_clean_status(&mid);
+	return;
+}
+TEST(IPScan, BugReport20210515)
+{
+	//By Liu Mengyan 2021-5-15
+	int table_id=0,ret=0;
+	struct Maat_rule_t result[4];
+	struct ipaddr ipv6_addr;
+	struct stream_tuple4_v6 v6_addr;
+	scan_status_t mid=NULL;
+	
+	ipv6_addr.addrtype=ADDR_TYPE_IPV6;
+	inet_pton(AF_INET6,"2409:8915:3430:7e7:8c9b:ff2a:7aa1:e74",&(v6_addr.saddr));
+	v6_addr.source=htons(41159);
+	inet_pton(AF_INET6,"240e:97c:4010:104::17",&(v6_addr.daddr));
+	v6_addr.dest=htons(7706);
+	ipv6_addr.v6=&v6_addr;
+	const char* table_name="IP_CONFIG";
+	table_id=Maat_table_register(g_feather, table_name);
+	EXPECT_GT(table_id, 0);
+
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv6_addr, 6, result, 4, &mid, 0);
+	EXPECT_EQ(ret, 0);
 	Maat_clean_status(&mid);
 	return;
 }

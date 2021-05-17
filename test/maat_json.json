@@ -1997,6 +1997,41 @@
                     ]
                 }
             ]
+        },
+        {
+            "compile_id": 184,
+            "user_region": "APP_ID=6006740;Liumengyan-Bugreport-20210515",
+            "description": "Hulu",
+            "is_valid": "yes",
+            "do_blacklist": 0,
+            "do_log": 0,
+            "action": 0,
+            "service": 0,
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+
+                        {
+                            "table_name": "IP_CONFIG",
+                            "table_type": "ip",
+                            "table_content": {
+                                "protocol": 0,
+                                "addr_type": "ipv6",
+                                "direction": "double",
+                                "src_ip": "::",
+                                "dst_ip": "2620:100:3000::",
+                                "src_port": "0",
+                                "dst_port": "0",
+                                "mask_src_port": "65535",
+                                "mask_src_ip": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+                                "mask_dst_port": "65535",
+                                "mask_dst_ip": "ffff:ffff:ff00:0000:0000:0000:0000:0000"
+                            }
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "plugin_table": [
@@ -2040,7 +2075,8 @@
 				"101\t4\t192.168.30.99\t192.168.30.101\tSomething-like-json\t1",
 				"102\t4\t192.168.30.90\t192.168.30.128\tBigger-range-should-in-the-back\t1",
 				"103\t6\t2001:db8:1234::\t2001:db8:1235::\tBigger-range-should-in-the-back\t1",
-				"104\t6\t2001:db8:1234::1\t2001:db8:1234::5210\tSomething-like-json\t1"
+				"104\t6\t2001:db8:1234::1\t2001:db8:1234::5210\tSomething-like-json\t1",
+				"105\t6\t2620:100:3000::\t2620:0100:30ff:ffff:ffff:ffff:ffff:ffff\tBugreport-liumengyan-20210517\t1"
             ]
         },
         {
