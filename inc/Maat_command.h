@@ -19,6 +19,7 @@ enum MAAT_REGION_TYPE
 {
 	REGION_EXPR,
 	REGION_IP,
+	REGION_IP_PLUS,
 	REGION_INTERVAL,
 	REGION_DIGEST,
 	REGION_SIMILARITY
@@ -62,7 +63,7 @@ struct Maat_rgn_str_t
 	enum MAAT_MATCH_METHOD match_method;
 	enum MAAT_CASE_TYPE hex_bin;
 };
-struct Maat_rgn_addr_t
+struct Maat_rgn_ip_t
 {
 	enum MAAT_ADDR_TYPE addr_type;
 	const char* src_ip;
@@ -73,6 +74,27 @@ struct Maat_rgn_addr_t
 	unsigned short mask_src_port;
 	unsigned short dst_port;
 	unsigned short mask_dst_port;
+	unsigned short protocol;
+	enum MAAT_ADDR_DIRECTION direction;
+};
+struct Maat_rgn_ip_plus_t
+{
+	enum MAAT_ADDR_TYPE addr_type;
+	
+	const char* saddr_format;//mask, range or CIDR
+	const char* src_ip1;
+	const char* src_ip2;
+	const char* sport_format;//mask or range
+	unsigned short src_port1;
+	unsigned short src_port2;
+	
+	const char* daddr_format;//mask, range or CIDR
+	const char* dst_ip1;
+	const char* dst_ip2;
+	const char* dport_format;//mask or range
+	unsigned short dst_port1;
+	unsigned short dst_port2;
+
 	unsigned short protocol;
 	enum MAAT_ADDR_DIRECTION direction;
 };
@@ -101,7 +123,7 @@ struct Maat_region_t
 	union
 	{
 		struct Maat_rgn_str_t expr_rule;
-		struct Maat_rgn_addr_t ip_rule;
+		struct Maat_rgn_ip_t ip_rule;
 		struct Maat_rgn_intv_t interval_rule;
 		struct Maat_rgn_digest_t digest_rule;
 		struct Maat_rgn_sim_t similarity_rule;
@@ -115,7 +137,8 @@ struct Maat_cmd_region
 	union
 	{
 		struct Maat_rgn_str_t expr_rule;
-		struct Maat_rgn_addr_t ip_rule;
+		struct Maat_rgn_ip_t ip_rule;		
+		struct Maat_rgn_ip_plus_t ip_plus_rule;
 		struct Maat_rgn_intv_t interval_rule;
 		struct Maat_rgn_digest_t digest_rule;
 		struct Maat_rgn_sim_t similarity_rule;

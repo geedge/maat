@@ -291,7 +291,7 @@ void serialize_region(const struct Maat_cmd_region* p, int group_id, char* buff,
 	switch(p->region_type)
 	{
 		case REGION_IP:
-			ret=snprintf(buff,sz,"%d\t%d\t%d\t%s\t%s\t%hu\t%hu\t%s\t%s\t%hu\t%hu\t%d\t%d\t1",
+			ret=snprintf(buff, sz, "%d\t%d\t%d\t%s\t%s\t%hu\t%hu\t%s\t%s\t%hu\t%hu\t%d\t%d\t1",
 					p->region_id,
 					group_id,
 					p->ip_rule.addr_type,
@@ -305,6 +305,26 @@ void serialize_region(const struct Maat_cmd_region* p, int group_id, char* buff,
 					p->ip_rule.mask_dst_port,
 					p->ip_rule.protocol,
 					p->ip_rule.direction);	
+			break;
+		case REGION_IP_PLUS:
+			ret=snprintf(buff, sz, "%d\t%d\t%d\t%s\t%s\t%s\t%s\t%hu\t%hu\t%s\t%s\t%s\t%s\t%hu\t%hu\t%d\t%d\t1",
+												p->region_id,
+												group_id,
+												p->ip_plus_rule.addr_type,
+												p->ip_plus_rule.saddr_format,
+												p->ip_plus_rule.src_ip1,
+												p->ip_plus_rule.src_ip2,
+												p->ip_plus_rule.sport_format,
+												p->ip_plus_rule.src_port1,
+												p->ip_plus_rule.src_port2,
+												p->ip_plus_rule.daddr_format,
+												p->ip_plus_rule.dst_ip1,
+												p->ip_plus_rule.dst_ip2,
+												p->ip_plus_rule.dport_format,
+												p->ip_plus_rule.dst_port1,
+												p->ip_plus_rule.dst_port2,
+												p->ip_plus_rule.protocol,
+												p->ip_plus_rule.direction);
 			break;
 		case REGION_EXPR:
 			if(p->expr_rule.district==NULL)
