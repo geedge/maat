@@ -3965,7 +3965,7 @@ that the edges be all directed in the same direction.";
 
 }
 #define ScanStatusCompileUpdate_MissMatch
-TEST_F(MaatCmdTest, MissMatchAfterCompileUpdate_TSG6419)
+TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419)
 {
 	Maat_feather_t feather=MaatCmdTest::_shared_feather;
 
@@ -3973,139 +3973,59 @@ TEST_F(MaatCmdTest, MissMatchAfterCompileUpdate_TSG6419)
 	const char* compile_table_name="COMPILE";
 	const char* ip_table_name="IP_PLUS_CONFIG", *app_id_table_name="APP_ID";
 
-	struct Maat_rule_t compile1, compile2;
-	struct Maat_cmd_group2compile group1, group2, group3, group4;
-	struct Maat_cmd_region region1, region2, region3;
-	struct Maat_cmd_region region4, region5, region6;
+	struct Maat_rule_t compile1;
+	struct Maat_cmd_group2compile group11, group21, group22;
+	struct Maat_cmd_region region11, region21, region22;
 
-	//---------------Start Compile1 Initialization----------------------------
 
 	memset(&compile1, 0, sizeof(compile1));
 	compile1.config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
 	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 2, 0, 0);
 
 	
-	//group1->compile1
-	//		   /
-	//group2--/
-
-	memset(&group1, 0, sizeof(group1));
-	group1.group_id=Maat_command_get_new_group_id(feather);
-	group1.table_name=g2c_tn;
-	group1.compile_id=compile1.config_id;
-	group1.clause_index=0;
-	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group1);
-
-	memset(&group2, 0, sizeof(group2));
-	group2.group_id=Maat_command_get_new_group_id(feather);
-	group2.table_name=g2c_tn;
-	group2.compile_id=compile1.config_id;
-	group2.clause_index=1;
-	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group2);
-
-	//region1->group1->compile1
-	//		   		   /
-	//		  group2--/
-	
-	memset(&region1, 0, sizeof(region1));
-	region1.region_id=Maat_command_get_new_region_id(feather);
-	region1.region_type=REGION_IP_PLUS;
-	region1.table_name=ip_table_name;
-	region1.ip_plus_rule.addr_type=ADDR_TYPE_IPv4;
-	region1.ip_plus_rule.saddr_format="range";
-	region1.ip_plus_rule.src_ip1="192.168.2.1";
-	region1.ip_plus_rule.src_ip2="192.168.2.4";
-	region1.ip_plus_rule.sport_format="range";
-	region1.ip_plus_rule.src_port1=region1.ip_plus_rule.src_port2=0;
-
-	region1.ip_plus_rule.daddr_format="mask";
-	region1.ip_plus_rule.dst_ip1="0.0.0.0";
-	region1.ip_plus_rule.dst_ip2="255.255.255.255";
-	region1.ip_plus_rule.dport_format="range";
-	region1.ip_plus_rule.dst_port1=region1.ip_plus_rule.dst_port2=0;
-	
-	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region1, group1.group_id);
+	//region11->group11--clause0-->compile1
+	//					    	   /    
+	//region21->group21--clause1--/
 
 
-	//region1->group1->compile1
-	//		   		    /
-	//region2->group2--/
+	memset(&group11, 0, sizeof(group11));
+	group11.group_id=Maat_command_get_new_group_id(feather);
+	group11.table_name=g2c_tn;
+	group11.compile_id=compile1.config_id;
+	group11.clause_index=1;
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group11);
 
-	region2.region_id=Maat_command_get_new_region_id(feather);
-	region2.region_type=REGION_INTERVAL;
-	region2.table_name=app_id_table_name;
-	region2.interval_rule.up_boundary=region2.interval_rule.low_boundary=31;
-	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region2, group2.group_id);
+	memset(&region11, 0, sizeof(region11));
+	region11.region_id=Maat_command_get_new_region_id(feather);
+	region11.region_type=REGION_IP_PLUS;
+	region11.table_name=ip_table_name;
+	region11.ip_plus_rule.addr_type=ADDR_TYPE_IPv4;
+	region11.ip_plus_rule.saddr_format="range";
+	region11.ip_plus_rule.src_ip1="192.168.2.1";
+	region11.ip_plus_rule.src_ip2="192.168.2.4";
+	region11.ip_plus_rule.sport_format="range";
+	region11.ip_plus_rule.src_port1=region11.ip_plus_rule.src_port2=0;
 
-	//---------------End Compile1 Initialization----------------------------
-
-
-	//---------------Start Compile2 Initialization----------------------------
-
-	memset(&compile2, 0, sizeof(compile2));
-	compile2.config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
-	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile2, compile_table_name, NULL, 2, 0, 0);
-
-	
-	//group3->compile2
-	//		   /
-	//group4--/
-
-	memset(&group3, 0, sizeof(group1));
-	group3.group_id=Maat_command_get_new_group_id(feather);
-	group3.table_name=g2c_tn;
-	group3.compile_id=compile2.config_id;
-	group3.clause_index=0;
-	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group3);
-
-	memset(&group4, 0, sizeof(group4));
-	group4.group_id=Maat_command_get_new_group_id(feather);
-	group4.table_name=g2c_tn;
-	group4.compile_id=compile2.config_id;
-	group4.clause_index=1;
-	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group4);
-
-	//region4->group3->compile2
-	//		   		   /
-	//		  group4--/
-	
-	memset(&region4, 0, sizeof(region1));
-	region4.region_id=Maat_command_get_new_region_id(feather);
-	region4.region_type=REGION_IP_PLUS;
-	region4.table_name=ip_table_name;
-	region4.ip_plus_rule.addr_type=ADDR_TYPE_IPv4;
-	region4.ip_plus_rule.saddr_format="range";
-	region4.ip_plus_rule.src_ip1="10.100.2.1";
-	region4.ip_plus_rule.src_ip2="10.100.2.254";
-	region4.ip_plus_rule.sport_format="range";
-	region4.ip_plus_rule.src_port1=region1.ip_plus_rule.src_port2=0;
-
-	region4.ip_plus_rule.daddr_format="mask";
-	region4.ip_plus_rule.dst_ip1="0.0.0.0";
-	region4.ip_plus_rule.dst_ip2="255.255.255.255";
-	region4.ip_plus_rule.dport_format="range";
-	region4.ip_plus_rule.dst_port1=region4.ip_plus_rule.dst_port2=0;
-	
-	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region4, group3.group_id);
+	region11.ip_plus_rule.daddr_format="mask";
+	region11.ip_plus_rule.dst_ip1="0.0.0.0";
+	region11.ip_plus_rule.dst_ip2="255.255.255.255";
+	region11.ip_plus_rule.dport_format="range";
+	region11.ip_plus_rule.dst_port1=region11.ip_plus_rule.dst_port2=0;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region11, group11.group_id);
 
 
-	//region4->group3->compile2
-	//		   		    /
-	//region5->group4--/
-	//           /
-	//region6---/
-	region5.region_id=Maat_command_get_new_region_id(feather);
-	region5.region_type=REGION_INTERVAL;
-	region5.table_name=app_id_table_name;
-	region5.interval_rule.up_boundary=region5.interval_rule.low_boundary=31;
-	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region5, group4.group_id);
+	memset(&group21, 0, sizeof(group21));
+	group21.group_id=Maat_command_get_new_group_id(feather);
+	group21.table_name=g2c_tn;
+	group21.compile_id=compile1.config_id;
+	group21.clause_index=2;
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group21);
 
-	region6.region_id=Maat_command_get_new_region_id(feather);
-	region6.region_type=REGION_INTERVAL;
-	region6.table_name=app_id_table_name;
-	region6.interval_rule.up_boundary=region6.interval_rule.low_boundary=32;
-	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region6, group4.group_id);
-
+	region21.region_id=Maat_command_get_new_region_id(feather);
+	region21.region_type=REGION_INTERVAL;
+	region21.table_name=app_id_table_name;
+	region21.interval_rule.up_boundary=region21.interval_rule.low_boundary=31;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region21, group21.group_id);
 
 	sleep(1);
 
@@ -4114,40 +4034,44 @@ TEST_F(MaatCmdTest, MissMatchAfterCompileUpdate_TSG6419)
 	scan_status_t mid=NULL;
 	struct ipaddr ipv4_addr;
 	struct stream_tuple4_v4 v4_addr;
-	ipv4_addr_set(&ipv4_addr, &v4_addr, "192.168.2.5", 50001, "10.0.6.201", 80);
+	ipv4_addr_set(&ipv4_addr, &v4_addr, "192.168.2.2", 50001, "10.0.6.201", 80);
 
-	int scan_app_id=31;
-	
+	int scan_app_id=32;
+	memset(result, 0, sizeof(result));
 	table_id=Maat_table_register(feather, ip_table_name);
 	ret=Maat_scan_proto_addr(feather,table_id, &ipv4_addr, 6, result, 4, &mid,0);
-	EXPECT_EQ(ret, 0);
+	EXPECT_EQ(ret, -2);
 
 	table_id=Maat_table_register(feather, app_id_table_name);
 	ret=Maat_scan_intval(feather, table_id, scan_app_id, result, 4, &mid, 0);
-	EXPECT_EQ(ret, -2);
+	EXPECT_EQ(ret, 0);
 
 
-	//    region1->group1->compile1
-	//		   		        /
-	//    region2->group2--/
-	//               /
-	//region3(new)--/
+	//region11->group11--clause1-->compile1
+	//					    	   /    
+	//region21->group21--clause2--/
+	//					   /
+	//region22->group22---/
 
-	region3.region_id=Maat_command_get_new_region_id(feather);
-	region3.region_type=REGION_INTERVAL;
-	region3.table_name=app_id_table_name;
-	region3.interval_rule.up_boundary=region3.interval_rule.low_boundary=32;
-	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region3, group2.group_id);
+	memset(&group22, 0, sizeof(group22));
+	group22.group_id=Maat_command_get_new_group_id(feather);
+	group22.table_name=g2c_tn;
+	group22.compile_id=compile1.config_id;
+	group22.clause_index=2;
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group22);
 
+	region22.region_id=Maat_command_get_new_region_id(feather);
+	region22.region_type=REGION_INTERVAL;
+	region22.table_name=app_id_table_name;
+	region22.interval_rule.up_boundary=region22.interval_rule.low_boundary=32;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region22, group22.group_id);
+	
 	sleep(1);
 
-	table_id=Maat_table_register(feather, ip_table_name);
-	ret=Maat_scan_proto_addr(feather, table_id, &ipv4_addr, 6, result, 4, &mid,0);
-	EXPECT_EQ(ret, 0);
-
 	table_id=Maat_table_register(feather, app_id_table_name);
 	ret=Maat_scan_intval(feather, table_id, scan_app_id, result, 4, &mid, 0);
-	EXPECT_EQ(ret, -2);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, compile1.config_id);
 
 	Maat_clean_status(&mid);
 
@@ -4236,20 +4160,19 @@ TEST_F(MaatCmdTest,    UpdateDeadLockDetection)
 
 	//DON'T DO THIS!!!
 	//Roll back version, trigger full udpate.
+	//This operation generates some FATAL logs in test_maat_redis.log.yyyy-mm-dd.
 	Maat_cmd_incrby(feather, "MAAT_VERSION", -100);
 
 	//Wating for scanner garbage collect expiration.
 	sleep(10);
-
+	
+	memset(result, 0, sizeof(result));
 	ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, scan_data2, strlen(scan_data2), 
 						result, NULL, 4, &mid, 0);
 
-	EXPECT_EQ(ret, 1);
-	EXPECT_EQ(result[0].config_id, compile2.config_id);
+	EXPECT_EQ(ret, -2);	//After full update, clause ids are re-orgnized, therefore mid are not compatible to the new scanner (hierarchy).
 	
 	Maat_clean_status(&mid);
-	Maat_cmd_incrby(feather, "MAAT_VERSION", 100);
-
 
 	return;
 }
@@ -4310,7 +4233,9 @@ TEST_F(MaatCmdTest, StreamScanSegfaultWhenVersionRollBack_TSG6324)
 	EXPECT_EQ(result[0].config_id, compile1.config_id);
 
 	//DON'T DO THIS!!!
-	//Roll back version, trigger full udpate.
+	//Roll back version, trigger full udpate.	
+	//This operation generates FATAL logs in test_maat_redis.log.yyyy-mm-dd.
+	//For example: Add group 22 vt_id 0 to clause 2 of compile 979 failed, group is already exisited
 	Maat_cmd_incrby(feather, "MAAT_VERSION", -100);
 
 	//Wating for scanner garbage collect expiration.
@@ -4323,7 +4248,6 @@ TEST_F(MaatCmdTest, StreamScanSegfaultWhenVersionRollBack_TSG6324)
 	Maat_stream_scan_string_end(&sp);
 
 	Maat_clean_status(&mid);
-	Maat_cmd_incrby(feather, "MAAT_VERSION", 100);
 
 }
 

@@ -83,10 +83,18 @@ static void _group_vertex_free(struct Maat_hierarchy_group* group)
 	free(group);
 }
 
+struct Maat_hierarchy_clause
+{
+	long long clause_id;
+	size_t n_literal_id;
+	struct Maat_hierarchy_literal_id* literal_ids;
+	UT_hash_handle hh;
+};
 
 struct Maat_hierarchy
 {
 	pthread_rwlock_t rwlock;
+	time_t version;
 	struct bool_matcher* bm;
 
 	struct Maat_hierarchy_compile* hash_compile_by_id;		//key: compile_id, value: struct Maat_hierarchy_compile*.
@@ -98,6 +106,10 @@ struct Maat_hierarchy
 	struct Maat_hierarchy_literal* hash_literal_by_id;		//key: virtual_table<<32|group_id, aka literal_id, value: struct Maat_hierarchy_literal*.
 
 	struct Maat_hierarchy_region* hash_region_by_id;		//key: region_id, value: struct Maat_hierarchy_region*.
+
+	struct Maat_hierarchy_clause* hash_dedup_clause_by_literals;		//key: literal combination, value: struct Maat_hierarchy_clause*. For generating unique clause_id.
+	unsigned long long clause_id_generator;					//Increasing number.
+	
 	void (* region_user_data_free)(void *region_ud);	
 
 
@@ -140,6 +152,37 @@ static inline int compare_clause_id(const void* a, const void* b)
 	{
 		return 1;
 	}
+}
+
+static struct Maat_hierarchy_clause* Maat_hierarchy_clause_fetch(struct Maat_hierarchy* hier, struct Maat_hierarchy_literal_id* literal_ids, size_t n_literal_id)
+{
+	static struct Maat_hierarchy_clause* clause=NULL;
+
+	HASH_FIND(hh, hier->hash_dedup_clause_by_literals, literal_ids, 
+			n_literal_id*sizeof(struct Maat_hierarchy_literal_id), clause);
+
+	if(!clause)
+	{
+		clause=ALLOC(struct Maat_hierarchy_clause, 1);
+		clause->clause_id=hier->clause_id_generator;
+		clause->n_literal_id=n_literal_id;
+		clause->literal_ids=ALLOC(struct Maat_hierarchy_literal_id, n_literal_id);
+		memcpy(clause->literal_ids, literal_ids, n_literal_id*sizeof(struct Maat_hierarchy_literal_id));
+		
+		hier->clause_id_generator++;
+		HASH_ADD_KEYPTR(hh, hier->hash_dedup_clause_by_literals, literal_ids, 
+			n_literal_id*sizeof(struct Maat_hierarchy_literal_id), 
+			clause);
+	}
+	return clause;
+}
+static void Maat_hierarchy_clause_free(struct Maat_hierarchy* hier, struct Maat_hierarchy_clause* clause)
+{
+	HASH_DELETE(hh, hier->hash_dedup_clause_by_literals, clause);
+	free(clause->literal_ids);
+	clause->n_literal_id=0;
+	free(clause);
+	return;
 }
 static struct Maat_hierarchy_literal* Maat_hierarchy_literal_new(struct Maat_hierarchy_literal** hash_table, int group_id, int vt_id)
 {
@@ -242,6 +285,7 @@ static struct Maat_hierarchy_compile* Maat_hierarchy_compile_new(struct Maat_hie
 static void Maat_hierarchy_compile_free(struct Maat_hierarchy* hier, struct Maat_hierarchy_compile* compile)
 {
 	int i=0;
+	struct Maat_hierarchy_clause_state* clause_state=NULL;
 	HASH_DEL(hier->hash_compile_by_id, compile);
 	if(compile->user_data && hier->compile_user_data_free)
 	{
@@ -249,10 +293,11 @@ static void Maat_hierarchy_compile_free(struct Maat_hierarchy* hier, struct Maat
 		compile->user_data=NULL;
 	}
 	for(i=0; i<MAX_ITEMS_PER_BOOL_EXPR; i++)
-	{		
-		utarray_free(compile->clause_states[i].literal_ids);
-		compile->clause_states[i].literal_ids=NULL;
-		compile->clause_states[i].in_use=0;
+	{
+		clause_state=compile->clause_states+i;
+		utarray_free(clause_state->literal_ids);
+		clause_state->literal_ids=NULL;
+		clause_state->in_use=0;
 	}
 	free(compile);
 }
@@ -290,13 +335,16 @@ struct Maat_hierarchy* Maat_hierarchy_new(int thread_num, void* mesa_handle_logg
 	int ret=0;
 	hier->logger=mesa_handle_logger;
 	hier->thread_num=thread_num;
+	hier->version=time(NULL);
 
 	hier->hash_group_by_id=NULL;
 	hier->hash_group_by_vertex=NULL;
 	hier->hash_compile_by_id=NULL;
 	hier->hash_literal_by_id=NULL;
 	hier->hash_region_by_id=NULL;
-
+	hier->hash_dedup_clause_by_literals=NULL;
+	hier->clause_id_generator=0;
+	
 	hier->expr_match_buff=ALLOC(void*, thread_num*MAX_SCANNER_HIT_NUM);
 
 	ret=igraph_empty(&hier->group_graph, 0, IGRAPH_DIRECTED);
@@ -309,6 +357,7 @@ void Maat_hierarchy_free(struct Maat_hierarchy* hier)
 	struct Maat_hierarchy_group* group=NULL, *tmp_group=NULL;
 	struct Maat_hierarchy_literal* literal=NULL, *tmp_literal=NULL;
 	struct Maat_hierarchy_region* region=NULL, *tmp_region=NULL;
+	struct Maat_hierarchy_clause* clause=NULL, *tmp_clause=NULL;
 	pthread_rwlock_wrlock(&hier->rwlock);
 
 	//Reference: https://troydhanson.github.io/uthash/userguide.html#_what_can_it_do
@@ -333,6 +382,10 @@ void Maat_hierarchy_free(struct Maat_hierarchy* hier)
 		Maat_hierarchy_region_free(hier, region);
 	}
 
+	HASH_ITER(hh, hier->hash_dedup_clause_by_literals, clause, tmp_clause)
+	{
+		Maat_hierarchy_clause_free(hier, clause);
+	}
 
 	//Free group as the last.
 	HASH_CLEAR(hh_vertex_id, hier->hash_group_by_vertex);//No need group memory clean up.
@@ -798,12 +851,7 @@ error_out:
 	pthread_rwlock_unlock(&hier->rwlock);
 	return -1;
 }
-struct clause_entry
-{
-	long long clause_id;
-	const UT_array *literal_ids;//a reference of struct Maat_hierarchy_clause_state->literal_ids
-	UT_hash_handle hh;
-};
+
 static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierarchy* hier)
 {
 	struct bool_matcher* bm=NULL;
@@ -812,10 +860,10 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 	struct Maat_hierarchy_compile* compile=NULL, *tmp_compile=NULL;
 	
 	struct Maat_hierarchy_clause_state* clause_state=NULL;
+	struct Maat_hierarchy_clause* clause=NULL;
 	size_t i=0, j=0;
 	int has_clause_num=0;
 	compile_num=HASH_COUNT(hier->hash_compile_by_id);	
-	size_t all_clause_num=compile_num*MAX_ITEMS_PER_BOOL_EXPR;
 	
 	if(compile_num==0)
 	{
@@ -824,12 +872,9 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 		return NULL;
 	}
 
-	//STEP 1, create a clause hash by literals it contains
-	unsigned long long clause_id_generator=0;
+	//STEP 1, update clause_id of each compile and literal
 	struct Maat_hierarchy_literal_id* literal_ids=NULL;
 	size_t n_literal_id=0;
-	struct clause_entry* clause_entry_array=ALLOC(struct clause_entry, all_clause_num);
-	struct clause_entry* clause_dedup_hash=NULL, *clause_entry=NULL, *tmp_clause_entry=NULL;
 	HASH_ITER(hh, hier->hash_compile_by_id, compile, tmp_compile)
 	{
 		has_clause_num=0;
@@ -844,41 +889,13 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 			has_clause_num++;
 			literal_ids=(struct Maat_hierarchy_literal_id*)utarray_eltptr(clause_state->literal_ids, 0);
 			n_literal_id=utarray_len(clause_state->literal_ids);
-			HASH_FIND(hh, clause_dedup_hash, literal_ids, 
-					n_literal_id*sizeof(struct Maat_hierarchy_literal_id), clause_entry);
-			if(!clause_entry)
-			{
-				clause_entry_array[clause_id_generator].clause_id=clause_id_generator;
-				clause_entry_array[clause_id_generator].literal_ids=clause_state->literal_ids;
-				HASH_ADD_KEYPTR(hh, clause_dedup_hash, literal_ids, 
-					n_literal_id*sizeof(struct Maat_hierarchy_literal_id), 
-					clause_entry_array+clause_id_generator);
-				clause_id_generator++;
-			}
+			clause=Maat_hierarchy_clause_fetch(hier, literal_ids, n_literal_id);
+			clause_state->clause_id=clause->clause_id;
 		}
 		assert(has_clause_num==compile->actual_clause_num);
 	}
 	
-	//STEP 2, update clause_id of each compile and literal
-	HASH_ITER(hh, hier->hash_compile_by_id, compile, tmp_compile)
-	{
-		for(i=0; i<MAX_ITEMS_PER_BOOL_EXPR; i++)
-		{
-			clause_state=compile->clause_states+i;
-			if(!clause_state->in_use)
-			{
-				continue;
-			}
-			literal_ids=(struct Maat_hierarchy_literal_id*)utarray_eltptr(clause_state->literal_ids, 0);
-			n_literal_id=utarray_len(clause_state->literal_ids);
-			HASH_FIND(hh, clause_dedup_hash, literal_ids, 
-					n_literal_id*sizeof(struct Maat_hierarchy_literal_id), clause_entry);
-			assert(clause_entry);
-			clause_state->clause_id=clause_entry->clause_id;
-		}
-	}
-	
-	//STEP 3, serial compile clause states to a bool expression array.
+	//STEP 2, serial compile clause states to a bool expression array.
 	compile_num=HASH_COUNT(hier->hash_compile_by_id);
 	bool_expr_array=ALLOC(struct bool_expr, compile_num);
 	HASH_ITER(hh, hier->hash_compile_by_id, compile, tmp_compile)
@@ -905,7 +922,7 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 		}
 	}
 
-	//STEP 4, build the bool matcher.
+	//STEP 3, build the bool matcher.
 	size_t mem_size=0;
 	if(expr_cnt==0)
 	{		
@@ -917,9 +934,8 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 	if(bm!=NULL)
 	{
 		MESA_handle_runtime_log(hier->logger, RLOG_LV_INFO, module_maat_hierarchy,
-								"Build bool matcher of %zu expressions and %llu clauses, use %zu bytes memory.",
+								"Build bool matcher of %zu expressions with %zu bytes memory.",
 								expr_cnt,
-								HASH_COUNT(clause_dedup_hash),
 								mem_size);
 	}
 	else
@@ -928,14 +944,8 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 								"Build bool matcher failed!");
 	}
 
-	//STEP 5, release resources
-	HASH_ITER(hh, clause_dedup_hash, clause_entry, tmp_clause_entry)
-	{
-		HASH_DELETE(hh, clause_dedup_hash, clause_entry);
-	}
 error_out:
-	free(clause_entry_array);
-	clause_entry_array=NULL;
+
 	
 	free(bool_expr_array);
 	bool_expr_array=NULL;
@@ -1109,6 +1119,7 @@ struct Maat_hierarchy_compile_mid
 {
 	int thread_num;
 	int Nth_scan;
+	time_t hier_ver;
 	size_t this_scan_region_hit_cnt;
 	int	not_clause_hitted_flag;
 	size_t hit_path_cnt;
@@ -1122,6 +1133,7 @@ struct Maat_hierarchy_compile_mid* Maat_hierarchy_compile_mid_new(struct Maat_hi
 	struct Maat_hierarchy_compile_mid* mid=ALLOC(struct Maat_hierarchy_compile_mid, 1);
 	TAILQ_INIT(&mid->hit_path_qhead);
 	mid->thread_num=thread_num;
+	mid->hier_ver=hier->version;
 	utarray_new(mid->_all_hit_clause_array, &ut_clause_id_icd);
 	return mid;
 }
@@ -1341,7 +1353,7 @@ int Maat_hierarchy_region_compile(struct Maat_hierarchy* hier, struct Maat_hiera
 
 	size_t r_in_c_cnt=0, this_scan_region_hits=mid->this_scan_region_hit_cnt;
 	size_t ud_result_cnt=0;
-	if(!hier->bm)
+	if(!hier->bm||0==utarray_len(mid->_all_hit_clause_array)||hier->version!=mid->hier_ver)
 	{
 		mid->this_scan_region_hit_cnt=0;
 		return 0;
