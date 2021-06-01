@@ -2,7 +2,6 @@
 #include "Maat_hierarchy.h"
 #include "Maat_utils.h"
 #include "Maat_limits.h"
-
 #include "uthash/uthash.h"
 #include "uthash/utarray.h"
 #include "igraph/igraph.h"
@@ -122,7 +121,7 @@ struct Maat_hierarchy
 	igraph_integer_t grp_vertex_id_generator;
 
 	int thread_num;
-	struct Maat_garbage_bin* garbage_bin;
+	struct Maat_garbage_bin* ref_garbage_bin;
 	void* logger;
 	void **expr_match_buff;
 };
@@ -285,16 +284,12 @@ static struct Maat_hierarchy_compile* Maat_hierarchy_compile_new(struct Maat_hie
 	}	
 	return compile;
 }
-static void Maat_hierarchy_compile_free(struct Maat_hierarchy* hier, struct Maat_hierarchy_compile* compile)
+static void Maat_hierarchy_compile_free(struct Maat_hierarchy_compile* compile)
 {
 	int i=0;
 	struct Maat_hierarchy_clause_state* clause_state=NULL;
-	HASH_DEL(hier->hash_compile_by_id, compile);
-	if(compile->user_data && hier->compile_user_data_free)
-	{
-		hier->compile_user_data_free(compile->user_data);
-		compile->user_data=NULL;
-	}
+	//user_data must be freed before calling this function.
+	assert(compile->user_data==NULL);
 	for(i=0; i<MAX_ITEMS_PER_BOOL_EXPR; i++)
 	{
 		clause_state=compile->clause_states+i;
@@ -333,7 +328,7 @@ static void Maat_hierarchy_region_free(struct Maat_hierarchy* hier, struct Maat_
 }
 
 
-struct Maat_hierarchy* Maat_hierarchy_new(int thread_num, void* mesa_handle_logger)
+struct Maat_hierarchy* Maat_hierarchy_new(int thread_num, void* mesa_handle_logger, struct Maat_garbage_bin* bin)
 {
 	struct Maat_hierarchy* hier=ALLOC(struct Maat_hierarchy, 1);
 	int ret=0;
@@ -348,7 +343,7 @@ struct Maat_hierarchy* Maat_hierarchy_new(int thread_num, void* mesa_handle_logg
 	hier->hash_region_by_id=NULL;
 	hier->hash_dedup_clause_by_literals=NULL;
 	hier->clause_id_generator=0;
-	
+	hier->ref_garbage_bin=bin;	
 	hier->expr_match_buff=ALLOC(void*, thread_num*MAX_SCANNER_HIT_NUM);
 
 	ret=igraph_empty(&hier->group_graph, 0, IGRAPH_DIRECTED);
@@ -371,7 +366,13 @@ void Maat_hierarchy_free(struct Maat_hierarchy* hier)
 	//and sets its pointer to NULL.
 	HASH_ITER(hh, hier->hash_compile_by_id, compile, tmp_compile)
 	{
-		Maat_hierarchy_compile_free(hier, compile);
+		if(hier->compile_user_data_free && compile->user_data)
+		{
+			hier->compile_user_data_free(compile->user_data);
+			compile->user_data=NULL;
+		}		
+		HASH_DEL(hier->hash_compile_by_id, compile);
+		Maat_hierarchy_compile_free(compile);
 	}
 	assert(hier->hash_compile_by_id==NULL);
 	
@@ -468,8 +469,9 @@ int Maat_hierarchy_compile_remove(struct Maat_hierarchy * hier, int compile_id)
 			compile->user_data=NULL;
 		}
 		if(compile->actual_clause_num==0)
-		{
-			Maat_hierarchy_compile_free(hier, compile);
+		{		
+			HASH_DEL(hier->hash_compile_by_id, compile);
+			Maat_garbage_bagging(hier->ref_garbage_bin, compile, (void (*)(void*))Maat_hierarchy_compile_free);
 		}
 		ret=0;
 	}
@@ -673,8 +675,9 @@ int Maat_hierarchy_remove_group_from_compile(struct Maat_hierarchy* hier, int gr
 		goto error_out;
 	}
 	if(compile->actual_clause_num==0 && !compile->user_data)
-	{
-		Maat_hierarchy_compile_free(hier, compile);
+	{		
+		HASH_DEL(hier->hash_compile_by_id, compile);
+		Maat_garbage_bagging(hier->ref_garbage_bin, compile, (void (*)(void*))Maat_hierarchy_compile_free);
 	}
 	pthread_rwlock_unlock(&hier->rwlock);
 	return 0;
@@ -1370,6 +1373,10 @@ int Maat_hierarchy_region_compile(struct Maat_hierarchy* hier, struct Maat_hiera
 	{
 		compile=(struct Maat_hierarchy_compile*)expr_match[i];
 		assert(compile->magic==MAAT_HIER_COMPILE_MAGIC);
+		if(compile->actual_clause_num==0)
+		{
+			continue;
+		}
 		r_in_c_cnt=Maat_hierarchy_compile_mid_update_by_compile(hier, mid, compile);
 		if(compile->not_clause_cnt>0 && !is_last_compile)
 		{

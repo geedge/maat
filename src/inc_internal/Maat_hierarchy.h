@@ -1,10 +1,11 @@
 #pragma once
 
 #include "Maat_rule.h"
+#include "Maat_garbage_collection.h"
 #include <sys/queue.h>
 
 struct Maat_hierarchy;
-struct Maat_hierarchy* Maat_hierarchy_new(int thread_num, void* mesa_handle_logger);
+struct Maat_hierarchy* Maat_hierarchy_new(int thread_num, void* mesa_handle_logger, struct Maat_garbage_bin* bin);
 void Maat_hierarchy_free(struct Maat_hierarchy* hier);
 void Maat_hierarchy_set_compile_user_data_free_func(struct Maat_hierarchy* hier,  void (* func)(void *));
 void Maat_hierarchy_set_region_user_data_free_func(struct Maat_hierarchy* hier,  void (* func)(void *));

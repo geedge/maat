@@ -759,7 +759,7 @@ struct Maat_scanner* create_maat_scanner(unsigned int version, _Maat_feather_t *
 	
 	struct Maat_scanner* scanner=NULL;
 	scanner=ALLOC(struct Maat_scanner, 1);
-	scanner->hier=Maat_hierarchy_new(scan_thread_num, feather->logger);
+	scanner->hier=Maat_hierarchy_new(scan_thread_num, feather->logger, feather->garbage_bin);
 	Maat_hierarchy_set_compile_user_data_free_func(scanner->hier, (void (*)(void*))destroy_compile_rule);
 	Maat_hierarchy_set_region_user_data_free_func(scanner->hier, (void (*)(void*))Maat_region_inner_free);
 

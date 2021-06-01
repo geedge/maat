@@ -4145,7 +4145,7 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548)
 
 	time_t update_time=time(NULL);
 	time_t now=update_time;
-	while(now-update_time<60)
+	while(now-update_time<3)
 	{
 		ret=Maat_scan_proto_addr(feather,table_id, &ipv4_addr, 6, result, 4, &mid, 0);
 		if(ret>0)
