@@ -66,8 +66,10 @@ struct Maat_hierarchy_clause_state
 UT_icd ut_literal_id_icd = {sizeof(struct Maat_hierarchy_literal_id), NULL, NULL, NULL};
 UT_icd ut_clause_id_icd = {sizeof(unsigned long long), NULL, NULL, NULL};
 
+#define MAAT_HIER_COMPILE_MAGIC	0x4a5b6c7d
 struct Maat_hierarchy_compile
 {
+	unsigned int magic;
 	int compile_id;
 	int actual_clause_num;
 	int declared_clause_num;
@@ -273,6 +275,7 @@ static struct Maat_hierarchy_compile* Maat_hierarchy_compile_new(struct Maat_hie
 	int i=0;
 	struct Maat_hierarchy_compile* compile=NULL;
 	compile=ALLOC(struct Maat_hierarchy_compile, 1);
+	compile->magic=MAAT_HIER_COMPILE_MAGIC;
 	compile->compile_id=compile_id;
 	HASH_ADD_INT(hier->hash_compile_by_id, compile_id, compile);
 	for(i=0; i<MAX_ITEMS_PER_BOOL_EXPR; i++)
@@ -299,6 +302,7 @@ static void Maat_hierarchy_compile_free(struct Maat_hierarchy* hier, struct Maat
 		clause_state->literal_ids=NULL;
 		clause_state->in_use=0;
 	}
+	compile->magic=0;
 	free(compile);
 }
 
@@ -1348,7 +1352,7 @@ static size_t Maat_hierarchy_compile_mid_update_by_compile(struct Maat_hierarchy
 int Maat_hierarchy_region_compile(struct Maat_hierarchy* hier, struct Maat_hierarchy_compile_mid* mid, int is_last_compile, void** user_data_array, size_t ud_array_sz)
 {
 	int bool_match_ret=0, i=0;
-	struct Maat_hierarchy_compile* compile_array=NULL;
+	struct Maat_hierarchy_compile* compile=NULL;
 	void **expr_match=hier->expr_match_buff+mid->thread_num*MAX_SCANNER_HIT_NUM;
 
 	size_t r_in_c_cnt=0, this_scan_region_hits=mid->this_scan_region_hit_cnt;
@@ -1364,18 +1368,19 @@ int Maat_hierarchy_region_compile(struct Maat_hierarchy* hier, struct Maat_hiera
 						expr_match, MAX_SCANNER_HIT_NUM);
 	for(i=0; i<bool_match_ret && ud_result_cnt<ud_array_sz; i++)
 	{
-		compile_array=(struct Maat_hierarchy_compile*)expr_match[i];
-		r_in_c_cnt=Maat_hierarchy_compile_mid_update_by_compile(hier, mid, compile_array);
-		if(compile_array->not_clause_cnt>0 && !is_last_compile)
+		compile=(struct Maat_hierarchy_compile*)expr_match[i];
+		assert(compile->magic==MAAT_HIER_COMPILE_MAGIC);
+		r_in_c_cnt=Maat_hierarchy_compile_mid_update_by_compile(hier, mid, compile);
+		if(compile->not_clause_cnt>0 && !is_last_compile)
 		{
 			mid->not_clause_hitted_flag=1;
 		}
-		else if(compile_array->user_data)//For compile may be dettached by Maat_hierarchy_compile_dettach_user_data, only return non-NULL userdata.
+		else if(compile->user_data)//For compile may be dettached by Maat_hierarchy_compile_dettach_user_data, only return non-NULL userdata.
 		{		
 			if(r_in_c_cnt>0 ||				//compile hitted becasue of new reigon
 				this_scan_region_hits==0)	//or hit a compile that refer a NOT-logic group in previous scan.
 			{
-				user_data_array[ud_result_cnt]=compile_array->user_data;
+				user_data_array[ud_result_cnt]=compile->user_data;
 				ud_result_cnt++;
 			}
 		}

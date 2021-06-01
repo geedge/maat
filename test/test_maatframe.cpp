@@ -3983,9 +3983,9 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419)
 	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 2, 0, 0);
 
 	
-	//region11->group11--clause0-->compile1
+	//region11->group11--clause1-->compile1
 	//					    	   /    
-	//region21->group21--clause1--/
+	//region21->group21--clause2--/
 
 
 	memset(&group11, 0, sizeof(group11));
@@ -4075,6 +4075,94 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419)
 
 	Maat_clean_status(&mid);
 
+}
+TEST_F(MaatCmdTest, CompileDelete_TSG6548)
+{
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+
+	const char* g2c_tn="GROUP2COMPILE";
+	const char* compile_table_name="COMPILE";
+	const char* ip_table_name="IP_PLUS_CONFIG";
+
+	struct Maat_rule_t compile1;
+	struct Maat_cmd_group2compile group11;
+	struct Maat_cmd_region region11;
+
+
+	memset(&compile1, 0, sizeof(compile1));
+	compile1.config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 1, 0, 0);
+
+	
+	//region11->group11--clause1-->compile1
+
+
+
+	memset(&group11, 0, sizeof(group11));
+	group11.group_id=Maat_command_get_new_group_id(feather);
+	group11.table_name=g2c_tn;
+	group11.compile_id=compile1.config_id;
+	group11.clause_index=1;
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group11);
+
+	memset(&region11, 0, sizeof(region11));
+	region11.region_id=Maat_command_get_new_region_id(feather);
+	region11.region_type=REGION_IP_PLUS;
+	region11.table_name=ip_table_name;
+	region11.ip_plus_rule.addr_type=ADDR_TYPE_IPv4;
+	region11.ip_plus_rule.saddr_format="range";
+	region11.ip_plus_rule.src_ip1="192.168.73.163";
+	region11.ip_plus_rule.src_ip2="192.168.73.180";
+	region11.ip_plus_rule.sport_format="range";
+	region11.ip_plus_rule.src_port1=region11.ip_plus_rule.src_port2=0;
+
+	region11.ip_plus_rule.daddr_format="mask";
+	region11.ip_plus_rule.dst_ip1="0.0.0.0";
+	region11.ip_plus_rule.dst_ip2="255.255.255.255";
+	region11.ip_plus_rule.dport_format="range";
+	region11.ip_plus_rule.dst_port1=region11.ip_plus_rule.dst_port2=0;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region11, group11.group_id);
+
+	sleep(1);
+
+	int table_id=0, ret=0, hit_cnt=0, miss_cnt=0;
+	struct Maat_rule_t result[4];
+	scan_status_t mid=NULL;
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr_set(&ipv4_addr, &v4_addr, "192.168.73.169", 50001, "10.0.6.201", 80);
+
+	memset(result, 0, sizeof(result));
+	table_id=Maat_table_register(feather, ip_table_name);
+	ret=Maat_scan_proto_addr(feather,table_id, &ipv4_addr, 6, result, 4, &mid,0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, compile1.config_id);
+
+	
+
+	Maat_command_raw_set_compile(feather, MAAT_OP_DEL, &compile1, compile_table_name, NULL, 1, 0, 0);
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_DEL, &group11);
+
+	time_t update_time=time(NULL);
+	time_t now=update_time;
+	while(now-update_time<60)
+	{
+		ret=Maat_scan_proto_addr(feather,table_id, &ipv4_addr, 6, result, 4, &mid, 0);
+		if(ret>0)
+		{
+			hit_cnt++;
+			EXPECT_EQ(result[0].config_id, compile1.config_id);
+		}
+		else
+		{
+			EXPECT_EQ(ret, -2);
+			miss_cnt++;
+		}
+		now=time(NULL);
+	}
+	//scan hit for at most 1 second (rule updating latency), miss for at least 2 seconds.
+	EXPECT_LE(hit_cnt, miss_cnt);
+	Maat_clean_status(&mid);
 }
 
 #define Update_DeadLock_Detection
