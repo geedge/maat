@@ -123,7 +123,7 @@ struct Maat_hierarchy
 	int thread_num;
 	struct Maat_garbage_bin* ref_garbage_bin;
 	void* logger;
-	void **expr_match_buff;
+	struct bool_expr_match *expr_match_buff;
 };
 
 int compare_literal_id(const void *pa, const void *pb)
@@ -344,7 +344,7 @@ struct Maat_hierarchy* Maat_hierarchy_new(int thread_num, void* mesa_handle_logg
 	hier->hash_dedup_clause_by_literals=NULL;
 	hier->clause_id_generator=0;
 	hier->ref_garbage_bin=bin;	
-	hier->expr_match_buff=ALLOC(void*, thread_num*MAX_SCANNER_HIT_NUM);
+	hier->expr_match_buff=ALLOC(struct bool_expr_match, thread_num*MAX_SCANNER_HIT_NUM);
 
 	ret=igraph_empty(&hier->group_graph, 0, IGRAPH_DIRECTED);
 	assert(ret==IGRAPH_SUCCESS);
@@ -923,6 +923,7 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 		//some compile may have zero groups, e.g. default policy.
 		if(j==(size_t)compile->declared_clause_num&&j>0)
 		{
+			bool_expr_array[expr_cnt].expr_id=compile->compile_id;
 			bool_expr_array[expr_cnt].user_tag=compile;
 			bool_expr_array[expr_cnt].item_num=j;
 			expr_cnt++;
@@ -1356,7 +1357,7 @@ int Maat_hierarchy_region_compile(struct Maat_hierarchy* hier, struct Maat_hiera
 {
 	int bool_match_ret=0, i=0;
 	struct Maat_hierarchy_compile* compile=NULL;
-	void **expr_match=hier->expr_match_buff+mid->thread_num*MAX_SCANNER_HIT_NUM;
+	struct bool_expr_match *expr_match=hier->expr_match_buff+mid->thread_num*MAX_SCANNER_HIT_NUM;
 
 	size_t r_in_c_cnt=0, this_scan_region_hits=mid->this_scan_region_hit_cnt;
 	size_t ud_result_cnt=0;
@@ -1371,8 +1372,9 @@ int Maat_hierarchy_region_compile(struct Maat_hierarchy* hier, struct Maat_hiera
 						expr_match, MAX_SCANNER_HIT_NUM);
 	for(i=0; i<bool_match_ret && ud_result_cnt<ud_array_sz; i++)
 	{
-		compile=(struct Maat_hierarchy_compile*)expr_match[i];
+		compile=(struct Maat_hierarchy_compile*)expr_match[i].user_tag;
 		assert(compile->magic==MAAT_HIER_COMPILE_MAGIC);
+		assert((unsigned long long)compile->compile_id==expr_match[i].expr_id);
 		if(compile->actual_clause_num==0)
 		{
 			continue;

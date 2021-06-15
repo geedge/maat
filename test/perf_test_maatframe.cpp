@@ -1,10 +1,141 @@
 #include "Maat_rule.h"
+#include "bool_matcher.h"
 #include "stream_fuzzy_hash.h"
 #include "Maat_command.h"
 #include <MESA/MESA_handle_logger.h>
 #include <gtest/gtest.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <sys/queue.h>
+struct bool_expr_wrapper
+{
+	struct bool_expr expr;
+	TAILQ_ENTRY(bool_expr_wrapper) entries;
+};
+TAILQ_HEAD(bool_expr_q,    bool_expr_wrapper);
+
+TEST(BoolMatcher, Match)
+{
+	struct bool_matcher * bm=NULL;
+	struct bool_expr *expr_array=NULL;
+	struct bool_expr_wrapper *p=NULL;
+	bool_expr_q expr_queue;
+	unsigned long long i=0;
+	TAILQ_INIT(&expr_queue);
+	const char* bool_expr_filename="./testdata/bool-matcher-test-exprs.txt";
+	char line[512]={0};
+	int ret=0, expr_num=0;
+	FILE* fp=fopen(bool_expr_filename, "r");
+	memset(line, 0, sizeof(line));
+	while(NULL!=fgets(line,sizeof(line),fp))
+	{
+		if(line[0]=='#'||line[0]==' '||line[0]=='\t'||strlen(line)<4)
+		{
+			continue;
+		}
+		p=(struct bool_expr_wrapper*)calloc(sizeof(struct bool_expr_wrapper), 1);
+		ret=sscanf(line, "%lld %lld %lld %lld %lld %lld %lld %lld %lld", 
+			&p->expr.expr_id,
+			&p->expr.items[0].item_id,
+			&p->expr.items[1].item_id,
+			&p->expr.items[2].item_id,
+			&p->expr.items[3].item_id,
+			&p->expr.items[4].item_id,
+			&p->expr.items[5].item_id,
+			&p->expr.items[6].item_id,
+			&p->expr.items[7].item_id);
+		if(ret<2)
+		{
+			free(p);
+			continue;
+		}
+		p->expr.item_num=ret-1;
+		p->expr.user_tag=NULL;
+		TAILQ_INSERT_TAIL(&expr_queue, p, entries);
+		expr_num++;	
+		memset(line, 0, sizeof(line));
+	}	
+	fclose(fp);
+	expr_array=(struct bool_expr*)malloc(sizeof(struct bool_expr)*expr_num);
+	p=TAILQ_FIRST(&expr_queue);
+	while(p != NULL)
+	{
+		TAILQ_REMOVE(&expr_queue, p, entries);
+		memcpy(expr_array+i, &(p->expr), sizeof(p->expr));
+		free(p);
+		p = TAILQ_FIRST(&expr_queue);
+		i++;
+	}
+	size_t mem_size=0;
+	bm=bool_matcher_new(expr_array, expr_num, 4, &mem_size);
+	unsigned long long test_count=2*1000*1000, match_count=0, unmatch_count=0;
+	long int j=0;
+	size_t k=0;
+	unsigned long long input_item_ids[256], time_elapse_ms=0, scan_per_second=0;
+	size_t input_item_num=0;
+	struct bool_expr_match result_array[1024];
+	srand(19);
+	struct timespec start,end;
+	clock_gettime(CLOCK_MONOTONIC, &start);
+
+	for(i=0; i<test_count;i++)
+	{
+		input_item_num=0;
+		j=random()%expr_num;
+		for(k=0; k<expr_array[j].item_num; k++)
+		{
+			input_item_ids[k]=expr_array[j].items[k].item_id;
+			input_item_num++;
+		}
+		for(k=0; k<8; k++)
+		{
+			input_item_ids[input_item_num]=random();
+			input_item_num++;
+		}
+		ret=bool_matcher_match(bm, 1, input_item_ids, input_item_num, result_array, 1024);
+		if(ret>0)
+		{
+			match_count++;
+		}
+	}
+	EXPECT_EQ(match_count, test_count);
+	input_item_ids[0]=123;
+	input_item_ids[1]=124;
+	input_item_ids[2]=125;
+	input_item_ids[3]=7;
+	input_item_ids[4]=3;
+	input_item_ids[5]=128;
+	input_item_ids[6]=129;
+	input_item_ids[7]=130;
+	input_item_ids[8]=131;
+	input_item_ids[9]=132;
+	input_item_ids[10]=133;
+	input_item_ids[11]=777;
+	input_item_ids[12]=999;
+	input_item_ids[13]=788;
+	input_item_ids[14]=222;
+	input_item_ids[15]=333;
+	input_item_num=8;
+	for(i=0; i<test_count; i++)
+	{
+		ret=bool_matcher_match(bm, 1, input_item_ids, input_item_num, result_array, 1024);
+		if(ret==0)
+		{
+			unmatch_count++;
+		}
+	}
+	EXPECT_EQ(unmatch_count, test_count);	
+	clock_gettime(CLOCK_MONOTONIC, &end);
+	time_elapse_ms=(end.tv_sec-start.tv_sec)*1000+(end.tv_nsec-start.tv_nsec)/1000000;
+	scan_per_second=test_count*2*1000/time_elapse_ms;
+	//At least 1 million scan per second
+	EXPECT_GT(scan_per_second, 1000000);
+	printf("Bool matcher memsize %zu, speed %lld lookups/s\n", mem_size, scan_per_second);
+	free(expr_array);
+	expr_array=NULL;
+	bool_matcher_free(bm);
+}
+
 #define WAIT_FOR_EFFECTIVE_SECOND 4
 
 void ipv4_addr_set_copy(struct ipaddr *ipv4_addr, struct stream_tuple4_v4* v4_addr,
@@ -436,8 +567,8 @@ TEST_F(MaatCMDPerfTest, UpdateFQDNPlugin)
 		fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
 	}
 	
-	printf("ready to sleep\n");
-	sleep(300);
+//	printf("ready to sleep\n");
+//	sleep(300);
 
 	return;
 }
