@@ -1961,11 +1961,11 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 	}
 	
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, sp->p_real_table->table_id);
+	INC_SCANNER_REF(scanner, thread_num);
 	if(table_rt->origin_rule_num==0)
 	{
 		return sp;
 	}
-	INC_SCANNER_REF(scanner, thread_num);
 
 	sp->thread_num=thread_num;
 	sp->max_cross_size=expr_desc->cross_cache_size;
@@ -2243,6 +2243,7 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 	sp->virtual_table_id=virtual_table_id;
 	sp->last_full_version=_feather->last_full_version;
 	sp->process_offset=0;
+	INC_SCANNER_REF(scanner, thread_num);
 	if(scanner==NULL)
 	{
 		return sp;
@@ -2254,7 +2255,6 @@ stream_para_t Maat_stream_scan_digest_start(Maat_feather_t feather,int table_id,
 		_feather->scan_err_cnt++;
 		return NULL;
 	}
-	INC_SCANNER_REF(scanner, thread_num);
 
 	sp->thread_num=thread_num;
 	sp->total_len=total_len;
