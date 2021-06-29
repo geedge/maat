@@ -57,7 +57,7 @@ extern "C"
 }
 #endif
 
-int MAAT_FRAME_VERSION_3_2_1_20210613=1;
+int MAAT_FRAME_VERSION_3_2_2_20210629=1;
 
 int is_valid_table_name(const char* str)
 {
@@ -1425,7 +1425,7 @@ int del_region_rule(struct Maat_table_schema* table, int region_id, int group_id
 	struct Maat_table_runtime* table_rt=NULL;
 	struct op_expr_t* op_expr=NULL;
 
-	int ret=0;
+	UNUSED int ret=0;
 	struct Maat_region_inner* region=NULL;
 	region=(struct Maat_region_inner*)Maat_hierarchy_region_dettach_user_data(maat_scanner->hier, region_id);
 	if(region==NULL)

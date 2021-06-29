@@ -3,6 +3,7 @@
 #include "stream_fuzzy_hash.h"
 #include "Maat_command.h"
 #include <MESA/MESA_handle_logger.h>
+using namespace std;
 #include <gtest/gtest.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
@@ -92,6 +93,7 @@ TEST(BoolMatcher, Match)
 			input_item_ids[input_item_num]=random();
 			input_item_num++;
 		}
+		sort(input_item_ids, input_item_ids+input_item_num);
 		ret=bool_matcher_match(bm, 1, input_item_ids, input_item_num, result_array, 1024);
 		if(ret>0)
 		{
@@ -116,6 +118,7 @@ TEST(BoolMatcher, Match)
 	input_item_ids[14]=222;
 	input_item_ids[15]=333;
 	input_item_num=8;
+	sort(input_item_ids, input_item_ids+input_item_num);
 	for(i=0; i<test_count; i++)
 	{
 		ret=bool_matcher_match(bm, 1, input_item_ids, input_item_num, result_array, 1024);

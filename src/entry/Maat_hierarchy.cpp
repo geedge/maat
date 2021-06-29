@@ -331,7 +331,7 @@ static void Maat_hierarchy_region_free(struct Maat_hierarchy* hier, struct Maat_
 struct Maat_hierarchy* Maat_hierarchy_new(int thread_num, void* mesa_handle_logger, struct Maat_garbage_bin* bin)
 {
 	struct Maat_hierarchy* hier=ALLOC(struct Maat_hierarchy, 1);
-	int ret=0;
+	UNUSED int ret=0;
 	hier->logger=mesa_handle_logger;
 	hier->thread_num=thread_num;
 	hier->version=time(NULL);

@@ -52,7 +52,7 @@ extern "C"
 	struct bool_matcher * bool_matcher_new(struct bool_expr * exprs, size_t expr_num, unsigned int max_thread_num, size_t * mem_size);
 
 	/* Returned results are sorted by expr_id in descending order. */
-	/* 本函数将对数组item_ids进行排序，会改变item_ids中元素的顺序 */
+	//Input item_ids MUST be ASCENDING order and NO duplication.
 	int bool_matcher_match(struct bool_matcher * matcher, unsigned int thread_id, unsigned long long * item_ids, size_t item_num, struct bool_expr_match * results, size_t n_result);
 
 	void bool_matcher_free(struct bool_matcher * matcher);

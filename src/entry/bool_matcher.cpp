@@ -150,13 +150,13 @@ int bool_matcher_match(struct bool_matcher * matcher, unsigned int thread_id, un
 	if(matcher==NULL) return -1;
 	if(item_num==0) return 0;
 
-	sort(item_ids, item_ids+item_num);
-	size_t J=0;
-	for(unsigned int i=1; i<item_num; i++)
-	{
-		if(item_ids[i]!=item_ids[J]) item_ids[++J]=item_ids[i];
-	}
-	item_num=J+1;
+//	sort(item_ids, item_ids+item_num);
+//	size_t J=0;
+//	for(unsigned int i=1; i<item_num; i++)
+//	{
+//		if(item_ids[i]!=item_ids[J]) item_ids[++J]=item_ids[i];
+//	}
+//	item_num=J+1;
 
 	unsigned int r=0;
 
