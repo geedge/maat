@@ -48,7 +48,7 @@ set_property(TARGET igraph-static PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/
 set_property(TARGET igraph-static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
 
 ExternalProject_Add(ipmatcher PREFIX ipmatcher
-        URL ${CMAKE_CURRENT_SOURCE_DIR}/IPMatcher-20200513.zip
+        URL ${CMAKE_CURRENT_SOURCE_DIR}/ipmatcher-v1.1.zip
 		CONFIGURE_COMMAND ""
         BUILD_COMMAND make
 		INSTALL_COMMAND make DESTDIR=<INSTALL_DIR> install
