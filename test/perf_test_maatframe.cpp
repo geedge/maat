@@ -663,7 +663,7 @@ static void* ip_plugin_get_thread(void* arg)
 	struct perf_ip_plugin_ud* result[4];
 	struct ip_address ip;
 	ip.ip_type=4;
-	inet_pton(AF_INET, "191.70.72.1", &(ip.ipv4));	
+	inet_pton(AF_INET, "8.8.8.8", &(ip.ipv4));	
 
 	for(i=0; i<test_times; i++)
 	{
