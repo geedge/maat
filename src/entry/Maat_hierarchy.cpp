@@ -95,7 +95,7 @@ struct Maat_hierarchy_clause
 struct Maat_hierarchy
 {
 	pthread_rwlock_t rwlock;
-	time_t version;
+	time_t version;				//After full update, clause id may indicate a different clause. Comparing hier->version and mid->hier_ver can prevent false positive match.
 	struct bool_matcher* bm;
 
 	struct Maat_hierarchy_compile* hash_compile_by_id;		//key: compile_id, value: struct Maat_hierarchy_compile*.

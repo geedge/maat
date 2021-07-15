@@ -4048,16 +4048,19 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419)
 
 
 	//region11->group11--clause1-->compile1
-	//					    	   /    
-	//region21->group21--clause2--/
-	//					   /
-	//region22->group22---/
+	//					    	    /    
+	//region21->group21--clause2---/
+	//					          /
+	//region22->group22--clause3-/
+
+	Maat_command_raw_set_compile(feather, MAAT_OP_DEL, &compile1, compile_table_name, NULL, 2, 0, 0);
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile1, compile_table_name, NULL, 3, 0, 0);
 
 	memset(&group22, 0, sizeof(group22));
 	group22.group_id=Maat_command_get_new_group_id(feather);
 	group22.table_name=g2c_tn;
 	group22.compile_id=compile1.config_id;
-	group22.clause_index=2;
+	group22.clause_index=3;
 	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group22);
 
 	region22.region_id=Maat_command_get_new_region_id(feather);
@@ -4069,6 +4072,10 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419)
 	sleep(1);
 
 	table_id=Maat_table_register(feather, app_id_table_name);
+	
+	ret=Maat_scan_intval(feather, table_id, 31, result, 4, &mid, 0);
+	EXPECT_EQ(ret, -2);
+	
 	ret=Maat_scan_intval(feather, table_id, scan_app_id, result, 4, &mid, 0);
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, compile1.config_id);

@@ -160,7 +160,6 @@ struct Maat_region_inner
 	int expr_id_cnt;
 	int expr_id_lb;	//low boundary
 	int expr_id_ub;	//up boundary
-	enum MAAT_TABLE_TYPE table_type;
 };
 
 
