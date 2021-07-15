@@ -1215,6 +1215,7 @@ size_t Maat_hierarchy_hit_path_select0(const struct Maat_hierarchy_compile_mid* 
 void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy* hier, struct Maat_hierarchy_compile_mid* mid, int region_id, int virtual_table_id, int Nth_scan, int Nth_region_result)
 {
 	size_t i=0, j=0;
+	size_t n_exsited_path=0;
 	unsigned long long *clause_id=0;
 	struct Maat_hierarchy_hit_path* hit_path=NULL;
 	struct Maat_hierarchy_region* region=NULL;
@@ -1248,8 +1249,16 @@ void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy* hier, struct Maat_
 		hit_path->path.region_id=region_id;
 		hit_path->path.sub_group_id=group->group_id;
 		hit_path->path.virtual_table_id=virtual_table_id;
-		TAILQ_INSERT_TAIL(&mid->hit_path_qhead, hit_path, entries);
-		mid->hit_path_cnt++;
+		n_exsited_path=hit_path_select(&mid->hit_path_qhead, &hit_path->path, NULL, 0);
+		if(n_exsited_path)
+		{
+			free(hit_path);
+		}
+		else
+		{
+			TAILQ_INSERT_TAIL(&mid->hit_path_qhead, hit_path, entries);
+			mid->hit_path_cnt++;
+		}
 	}
 	else
 	{
@@ -1263,6 +1272,12 @@ void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy* hier, struct Maat_
 			hit_path->path.sub_group_id=group->group_id;
 			hit_path->path.top_group_id=group->top_group_ids[i];
 			hit_path->path.virtual_table_id=virtual_table_id;
+			n_exsited_path=hit_path_select(&mid->hit_path_qhead, &hit_path->path, NULL, 0);
+			if(n_exsited_path)
+			{
+				free(hit_path);
+				continue;
+			}
 			TAILQ_INSERT_TAIL(&mid->hit_path_qhead, hit_path, entries);
 			mid->hit_path_cnt++;
 

@@ -198,8 +198,9 @@ enum MAAT_SCAN_OPT
 {
 	MAAT_SET_SCAN_DISTRICT=1,		//VALUE is a const char*, SIZE= strlen(string). DEFAULT: no default.
 	MAAT_SET_SCAN_LAST_REGION,		//VALUE is NULL, SIZE=0. This option indicates that the follow scan is the last region of current scan combination.
-	MAAT_GET_SCAN_HIT_PATH			//VALUE is struct Maat_hit_path_t*, an array of struct Maat_hit_path_t, SIZE= sizeof(struct Maat_hit_path_t)*N,
+	MAAT_GET_SCAN_HIT_PATH,			//VALUE is struct Maat_hit_path_t*, an array of struct Maat_hit_path_t, SIZE= sizeof(struct Maat_hit_path_t)*N,
 									//Maat_get_scan_status returns actual got number.
+	MAAT_SET_SCAN_NO_COUNT			//VALUE is NULL, SIZE=0. This option indicates taht follow scan is a duplication of previous scan.
 };
 //return 0 if success, return -1 when failed;
 int Maat_set_scan_status(Maat_feather_t feather, scan_status_t* mid, enum MAAT_SCAN_OPT type, const void* value, int size);

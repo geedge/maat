@@ -953,7 +953,7 @@ void table_idx_write_cb(const uchar * key, uint size, void * data, void * user)
 	char line_cnt_str[32], err_str[256];
 	snprintf(line_cnt_str, sizeof(line_cnt_str), "%010d\n", table->line_count);
 
-	int ret=0;
+	UNUSED int ret=0;
 	size_t table_file_sz=strlen(line_cnt_str)+table->write_pos;
 	unsigned char* buff=ALLOC(unsigned char, table_file_sz);
 	unsigned char* encrypt_buff=NULL;

@@ -76,6 +76,19 @@ int insert_set_id(unsigned long long **set, size_t* size, size_t cnt, unsigned l
 	}
 }
 
+void scan_staus_count_inc(struct _OUTER_scan_status_t* _mid)
+{
+	if(_mid->is_no_count_scan)
+	{
+		_mid->is_no_count_scan=0;
+	}
+	else
+	{
+		_mid->scan_cnt++;
+	}
+	return;
+}
+
 void fill_maat_rule(struct Maat_rule_t *rule, const struct Maat_rule_head* rule_head, const char* srv_def, int srv_def_len)
 {
 	memcpy(rule, rule_head, sizeof(struct Maat_rule_head));
@@ -1353,7 +1366,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 		clock_gettime(CLOCK_MONOTONIC,&start);
 	}
 	_mid=grab_mid(mid,_feather, thread_num, 0);
-	_mid->scan_cnt++;
+	scan_staus_count_inc(_mid);
 	if(data==NULL||data_len<=0)
 	{
 		return -1;
@@ -1500,7 +1513,7 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 		clock_gettime(CLOCK_MONOTONIC,&start);
 	}
 	_mid=grab_mid(mid, _feather, thread_num, 0);
-	_mid->scan_cnt++;
+	scan_staus_count_inc(_mid);
 
 	int virtual_table_id=0;
 	p_table=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, SCAN_TYPE_INTERVAL, &virtual_table_id);
@@ -1602,7 +1615,7 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 		clock_gettime(CLOCK_MONOTONIC,&start);
 	}
 	_mid=grab_mid(mid, _feather, thread_num, 0);
-	_mid->scan_cnt++;
+	scan_staus_count_inc(_mid);
 	
 	int virtual_table_id=0;
 	p_table=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, SCAN_TYPE_STRING, &virtual_table_id);
@@ -1805,7 +1818,7 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 		clock_gettime(CLOCK_MONOTONIC,&start);
 	}
 	_mid=grab_mid(mid, _feather, thread_num, 0);
-	_mid->scan_cnt++;
+	scan_staus_count_inc(_mid);
 	int virtual_table_id=0;
 	enum MAAT_TABLE_TYPE table_type=TABLE_TYPE_INVALID;
 	table_type=Maat_table_get_type_by_id(_feather->table_mgr, table_id);
@@ -1993,7 +2006,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 		clock_gettime(CLOCK_MONOTONIC, &start);
 	}
 	_mid=grab_mid(mid, sp->feather, sp->thread_num, 0);
-	_mid->scan_cnt++;
+	scan_staus_count_inc(_mid);
 	if(data==NULL||data_len<=0||scanner==NULL)
 	{
 		return 0;
@@ -2288,7 +2301,7 @@ int Maat_stream_scan_digest(stream_para_t * stream_para, const char * data, int 
 		clock_gettime(CLOCK_MONOTONIC,&start);
 	}
 	_mid=grab_mid(mid, sp->feather, sp->thread_num, 0);
-	_mid->scan_cnt++;
+	scan_staus_count_inc(_mid);
 
 	if(data==NULL||data_len<=0)
 	{
@@ -2423,6 +2436,25 @@ int Maat_read_rule(Maat_feather_t feather, const struct Maat_rule_t* rule, enum 
 	}
 	return ret;
 }
+
+int Maat_apply_scan_status(Maat_feather_t feather, scan_status_t *mid,
+						struct Maat_rule_t*result, int rule_num, int thread_num)
+{
+	struct _OUTER_scan_status_t* _mid=(struct _OUTER_scan_status_t*)(*mid);
+	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	struct scan_region_hit_wraper region_hit_wraper;
+	int ret=0;
+	if(!_mid||! (_mid->compile_mid))
+	{
+		return 0;
+	}
+	memset(&region_hit_wraper, 0, sizeof(region_hit_wraper));
+	region_hit_wraper.Nth_scan=_mid->scan_cnt;
+	region_hit_wraper.n_hit_region=0;
+	ret=region_compile(_feather, _mid->compile_mid, &region_hit_wraper, result, rule_num, thread_num);
+	return ret;
+}
+
 int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCAN_OPT type,const void* value,int size)
 {
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
@@ -2457,6 +2489,10 @@ int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCA
 		case	MAAT_SET_SCAN_LAST_REGION:
 			assert(_mid->is_last_region==0);
 			_mid->is_last_region=1;
+			break;
+		case	MAAT_SET_SCAN_NO_COUNT:
+			assert(_mid->is_no_count_scan==0);
+			_mid->is_no_count_scan=1;
 			break;
 		default:
 			_feather->scan_err_cnt++;
