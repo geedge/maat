@@ -271,7 +271,7 @@ protected:
 	  	logger=MESA_create_runtime_log_handle("maat_perf_test.log",0);
 
 		_shared_feather=Maat_feather(g_iThreadNum, table_info_path, logger);
-		Maat_set_feather_opt(_shared_feather,MAAT_OPT_INSTANCE_NAME,"perf", strlen("perf")+1);
+		Maat_set_feather_opt(_shared_feather,MAAT_OPT_INSTANCE_NAME,"cmdperf", strlen("cmdperf")+1);
 		Maat_set_feather_opt(_shared_feather, MAAT_OPT_REDIS_IP, test_maat_redis_ip, strlen(test_maat_redis_ip)+1);
 		Maat_set_feather_opt(_shared_feather, MAAT_OPT_REDIS_PORT, &test_maat_redis_port, sizeof(test_maat_redis_port));
 		Maat_set_feather_opt(_shared_feather, MAAT_OPT_SCANDIR_INTERVAL_MS,&scan_interval_ms, sizeof(scan_interval_ms));
@@ -575,6 +575,150 @@ TEST_F(MaatCMDPerfTest, UpdateFQDNPlugin)
 
 	return;
 }
+int global_thread_num=4;
+class MaatFilePerfTest : public testing::Test 
+{
+
+protected:
+	static void SetUpTestCase()
+	{
+	
+		int scan_interval_ms=500;
+		int effective_interval_ms=0;
+		const char* rule_folder="./tsgrule/full/index";
+	  	logger=MESA_create_runtime_log_handle("file_perf_test.log",0);
+		const char* table_info="./tsg_tableinfo.conf";
+		_shared_feather_f=Maat_feather(global_thread_num, table_info, logger);
+		Maat_set_feather_opt(_shared_feather_f,MAAT_OPT_INSTANCE_NAME,"files", strlen("files")+1);
+		Maat_set_feather_opt(_shared_feather_f, MAAT_OPT_FULL_CFG_DIR, rule_folder, strlen(rule_folder)+1);
+		Maat_set_feather_opt(_shared_feather_f, MAAT_OPT_INC_CFG_DIR, rule_folder, strlen(rule_folder)+1);
+
+
+		Maat_set_feather_opt(_shared_feather_f, MAAT_OPT_SCANDIR_INTERVAL_MS, &scan_interval_ms, sizeof(scan_interval_ms));
+		//Set a short intevral for testing.
+		Maat_set_feather_opt(_shared_feather_f, MAAT_OPT_EFFECT_INVERVAL_MS, &effective_interval_ms, sizeof(effective_interval_ms));
+
+		Maat_initiate_feather(_shared_feather_f);
+
+	}
+	static void TearDownTestCase()
+	{
+		Maat_burn_feather(_shared_feather_f);
+		MESA_destroy_runtime_log_handle(logger);
+
+	}	
+ 	// Some expensive resource shared by all tests.
+	static Maat_feather_t _shared_feather_f;
+	static void *logger;
+};
+Maat_feather_t MaatFilePerfTest::_shared_feather_f;
+void* MaatFilePerfTest::logger;
+
+struct perf_ip_plugin_ud
+{
+	int rule_id;
+	int ref_cnt;
+};
+
+void perf_ip_plugin_EX_new_cb(int table_id, const char* key, const char* table_line, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
+{
+	int *counter=(int *)argp, ret=0;
+	size_t column_offset=0, column_len=0;
+	struct perf_ip_plugin_ud* ud=(struct perf_ip_plugin_ud*)calloc(sizeof(struct perf_ip_plugin_ud), 1);
+	ret=Maat_helper_read_column(table_line, 1, &column_offset, &column_len);
+	EXPECT_EQ(ret, 0);
+	ud->rule_id=atoi(table_line+column_offset);
+	ret=Maat_helper_read_column(table_line, 5, &column_offset, &column_len);	
+	EXPECT_EQ(ret, 0);
+	ud->ref_cnt=1;
+	*ad=ud;
+	(*counter)++;
+	return;
+}
+void perf_ip_plugin_EX_free_cb(int table_id, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
+{
+	struct perf_ip_plugin_ud* u=(struct perf_ip_plugin_ud*)(*ad);
+	if ((__sync_sub_and_fetch(&u->ref_cnt, 1) == 0))
+	{
+		free(u);
+		*ad=NULL;
+	}
+}
+void perf_ip_plugin_EX_dup_cb(int table_id,	MAAT_PLUGIN_EX_DATA *to, MAAT_PLUGIN_EX_DATA *from, long argl, void *argp)
+{
+	struct perf_ip_plugin_ud* u=(struct perf_ip_plugin_ud*)(*from);
+	__sync_add_and_fetch(&(u->ref_cnt), 1);
+	*to=u;
+}
+static void* ip_plugin_get_thread(void* arg)
+{
+	const char* table_name="TSG_IP_LOCATION_BUILT_IN";
+	int test_times=1000*1000, hit_times=0;
+	int table_id=0;
+	int ret=0, i=0, j=0;
+	Maat_feather_t feather=(Maat_feather_t)arg;
+
+	table_id=Maat_table_register(feather, table_name);
+
+	struct perf_ip_plugin_ud* result[4];
+	struct ip_address ip;
+	ip.ip_type=4;
+	inet_pton(AF_INET, "191.70.72.1", &(ip.ipv4));	
+
+	for(i=0; i<test_times; i++)
+	{
+		ret=Maat_ip_plugin_get_EX_data(feather, table_id, &ip, (void**)result, 4);
+		if(ret>0)
+		{
+			hit_times++;
+		}
+		for(j=0; j<ret; j++)
+		{
+			perf_ip_plugin_EX_free_cb(table_id, (void**)&(result[j]), 0, NULL);
+		}
+	}
+	int* is_all_hit=(int*)malloc(sizeof(int));
+	*is_all_hit=(hit_times==test_times)?1:0;
+	return is_all_hit;
+}
+TEST_F(MaatFilePerfTest, IPPlugin)
+{
+	Maat_feather_t feather=MaatFilePerfTest::_shared_feather_f;
+	int ret=0, i=0;
+	int* is_all_hit=NULL;
+	int table_id=0, ip_plugin_ex_data_counter=0;
+	const char* table_name="TSG_IP_LOCATION_BUILT_IN";
+
+
+	table_id=Maat_table_register(feather, table_name);
+	ASSERT_GT(table_id, 0);
+
+
+	ret=Maat_ip_plugin_EX_register(feather, table_id,
+								perf_ip_plugin_EX_new_cb,
+								perf_ip_plugin_EX_free_cb,
+								perf_ip_plugin_EX_dup_cb,
+								0, &ip_plugin_ex_data_counter);
+
+	ASSERT_TRUE(ret>=0);
+
+	pthread_t threads[global_thread_num];
+	for(i=0; i<global_thread_num; i++)
+	{
+		pthread_create(&(threads[i]), NULL, ip_plugin_get_thread, feather);
+	}
+
+	for(i=0; i<global_thread_num; i++)
+	{
+		pthread_join(threads[i], (void**)&is_all_hit);
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit=0;
+		free(is_all_hit);
+	}
+
+	return;
+}
+
 
 int main(int argc, char ** argv)
 {
