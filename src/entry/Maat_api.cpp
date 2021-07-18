@@ -201,7 +201,9 @@ void scan_region_hit_wraper_build_with_rulescan(struct scan_region_hit_wraper* w
 {
 	size_t i=0;
 	struct Maat_region_inner* region=NULL;
-	memset(wraper, 0, sizeof(struct scan_region_hit_wraper));
+	wraper->n_hit_region=0;
+	wraper->virtual_table_id=0;
+	wraper->virtual_table_ids=NULL;
 	for(i=0; i< n_rslt; i++)
 	{
 		region=(struct Maat_region_inner*)(rulescan_rslt[i].tag);
@@ -220,7 +222,9 @@ void scan_region_hit_wraper_build_with_rulescan(struct scan_region_hit_wraper* w
 void scan_region_hit_wraper_build_with_GIE(struct scan_region_hit_wraper* wraper, GIE_result_t* GIE_rslt, size_t n_rslt, int is_last_region, int virtual_table_id, int Nth_scan)
 {
 	size_t i=0;
-	memset(wraper, 0, sizeof(struct scan_region_hit_wraper));
+	wraper->n_hit_region=0;
+	wraper->virtual_table_id=0;
+	wraper->virtual_table_ids=NULL;
 	for(i=0; i< n_rslt; i++)
 	{
 		wraper->hit_regions[wraper->n_hit_region]=(struct Maat_region_inner*)(GIE_rslt[i].tag);	
