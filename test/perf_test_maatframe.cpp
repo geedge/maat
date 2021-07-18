@@ -8,6 +8,9 @@ using namespace std;
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include <sys/queue.h>
+
+int global_thread_num=4;
+
 struct bool_expr_wrapper
 {
 	struct bool_expr expr;
@@ -210,7 +213,7 @@ int test_add_ip_command(struct Maat_command_batch* batch, const char* region_tab
 	return 0;
 
 }
-int test_add_expr_command_copy(struct Maat_command_batch* batch, const char* region_table,int config_id, const char* keywords)
+int test_add_expr_command_copy(struct Maat_command_batch* batch, const char* region_table,int config_id, const char* keywords, int clause_num)
 {
 	struct Maat_cmd_group2compile g2c;
 	struct Maat_rule_t rule;
@@ -219,7 +222,7 @@ int test_add_expr_command_copy(struct Maat_command_batch* batch, const char* reg
 	rule.config_id=config_id;
 	strcpy(rule.service_defined,"maat_command");
 
-	Maat_command_batch_set_compile(batch, MAAT_OP_ADD, &rule, "COMPILE", NULL, 1, 0, 0);
+	Maat_command_batch_set_compile(batch, MAAT_OP_ADD, &rule, "COMPILE", NULL, clause_num, 0, 0);
 	memset(&g2c, 0, sizeof(g2c));
 	g2c.group_id=config_id;
 	g2c.compile_id=config_id;
@@ -263,14 +266,13 @@ protected:
 	{
 		const char* test_maat_redis_ip="127.0.0.1";
 		unsigned short test_maat_redis_port=6379;
-		int g_iThreadNum=4;
 		const char* table_info_path="./table_info.conf";
 		int scan_interval_ms=500;
 		int effective_interval_ms=0;
 
 	  	logger=MESA_create_runtime_log_handle("maat_perf_test.log",0);
 
-		_shared_feather=Maat_feather(g_iThreadNum, table_info_path, logger);
+		_shared_feather=Maat_feather(global_thread_num, table_info_path, logger);
 		Maat_set_feather_opt(_shared_feather,MAAT_OPT_INSTANCE_NAME,"cmdperf", strlen("cmdperf")+1);
 		Maat_set_feather_opt(_shared_feather, MAAT_OPT_REDIS_IP, test_maat_redis_ip, strlen(test_maat_redis_ip)+1);
 		Maat_set_feather_opt(_shared_feather, MAAT_OPT_REDIS_PORT, &test_maat_redis_port, sizeof(test_maat_redis_port));
@@ -301,7 +303,8 @@ void* MaatCMDPerfTest::logger;
 //Following tests must be coded/tested at last, for they stalled the maat update thread and interrupt other tests.
 TEST_F(MaatCMDPerfTest, SetExpr200K)
 {
-	const int CMD_EXPR_NUM=2*100*1000;
+//	const int CMD_EXPR_NUM=2*100*1000;
+	const int CMD_EXPR_NUM=2*100;
 	const int CMD_IP_NUM=3*1000;
 	const char* expr_table_name="HTTP_URL";
 	const char* ip_table_name="IP_CONFIG";
@@ -325,7 +328,7 @@ TEST_F(MaatCMDPerfTest, SetExpr200K)
 	for(i=0; i<CMD_EXPR_NUM;i++)
 	{
 		random_keyword_generate(keyword_buf, sizeof(keyword_buf));
-		test_add_expr_command_copy(batch, expr_table_name, config_id+i, keyword_buf);
+		test_add_expr_command_copy(batch, expr_table_name, config_id+i, keyword_buf, 1);
 	}
 	srand(srand_ip);
 	for(i=0; i<CMD_IP_NUM; i++)
@@ -365,6 +368,86 @@ TEST_F(MaatCMDPerfTest, SetExpr200K)
 	Maat_clean_status(&mid);
 	return;
 }
+const char* high_match_string="maatframe!";
+struct high_match_rate_thread_para
+{
+	int thread_id;
+	Maat_feather_t feather;
+};
+void* high_match_rate_scan_thread(void *arg)
+{
+	const char* expr_table_name="HTTP_URL";
+	
+
+	struct high_match_rate_thread_para* para=(struct high_match_rate_thread_para*)arg;
+	Maat_feather_t feather=para->feather;
+
+	struct Maat_rule_t result;
+	scan_status_t mid=NULL;
+
+	int table_id=0, i=0, ret=0, test_times=10*1000*1000, hit_times=0;
+	table_id=Maat_table_register(feather, expr_table_name);
+	memset(&result, 0, sizeof(result));
+	for(i=0; i<test_times; i++)
+	{
+		ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, high_match_string, strlen(high_match_string), 
+							&result, NULL, 1,
+							&mid, para->thread_id);
+		if(ret==-2)
+		{
+			hit_times++;
+		}
+		Maat_clean_status(&mid);
+	}
+
+	int* is_all_hit=(int*)malloc(sizeof(int));
+	*is_all_hit=(hit_times==test_times)?1:0;
+	return is_all_hit;
+}
+TEST_F(MaatCMDPerfTest, HighMatchRateOnMultiThread)
+{
+	const char* expr_table_name="HTTP_URL";
+	const int CMD_EXPR_NUM=2*1000;
+	int srand_keyword=717;
+	int config_id=0;
+	int* is_all_hit=NULL;
+	
+	Maat_feather_t feather=MaatCMDPerfTest::_shared_feather;
+	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", CMD_EXPR_NUM);
+	config_id-=CMD_EXPR_NUM;
+	int i=0;
+	char keyword_buf[128];
+	struct Maat_command_batch* batch=NULL;
+	batch=Maat_command_batch_new(feather);
+	srand(srand_keyword);
+	for(i=0; i<CMD_EXPR_NUM-1;i++)
+	{
+		random_keyword_generate(keyword_buf, sizeof(keyword_buf));
+		test_add_expr_command_copy(batch, expr_table_name, config_id+i, keyword_buf, 2);
+	}
+	test_add_expr_command_copy(batch, expr_table_name, config_id+CMD_EXPR_NUM-1, high_match_string, 2);
+	Maat_command_batch_commit(batch);
+	sleep(4);
+	int global_thread_num=4;
+	pthread_t threads[global_thread_num];	
+	struct high_match_rate_thread_para thread_para[global_thread_num];
+	for(i=0; i<global_thread_num; i++)
+	{
+		thread_para[i].feather=feather;
+		thread_para[i].thread_id=i;
+		pthread_create(&(threads[i]), NULL, high_match_rate_scan_thread, thread_para+i);
+	}
+
+	for(i=0; i<global_thread_num; i++)
+	{
+		pthread_join(threads[i], (void**)&is_all_hit);
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit=0;
+		free(is_all_hit);
+	}
+
+}
+
 #define IP_PLUGIN_EX_DATA
 struct ip_plugin_ud
 {
@@ -575,7 +658,6 @@ TEST_F(MaatCMDPerfTest, UpdateFQDNPlugin)
 
 	return;
 }
-int global_thread_num=4;
 class MaatFilePerfTest : public testing::Test 
 {
 
