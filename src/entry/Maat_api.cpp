@@ -369,6 +369,9 @@ int fill_region_hit_detail(const char* scan_buff, const Maat_hierarchy_compile_m
 							struct Maat_hit_detail_t *hit_detail, int detail_num,
 							struct Maat_scanner* scanner)
 {
+
+	//Stop support this feature. 2021-7-19
+/*
 	int i=0;
 	size_t j=0;
 	char r_in_c_flag[region_cnt];
@@ -389,7 +392,7 @@ int fill_region_hit_detail(const char* scan_buff, const Maat_hierarchy_compile_m
 		Maat_hit_path_init(&condition);
 		condition.Nth_scan=Nth_scan;
 		condition.compile_id=compile[i].config_id;
-		hit_path_cnt=Maat_hierarchy_hit_path_select0(mid, &condition, hit_paths, MAX_SCANNER_HIT_NUM);
+		hit_path_cnt=Maat_hierarchy_get_hit_paths(mid, &condition, hit_paths, MAX_SCANNER_HIT_NUM);
 		for(j=0; j<hit_path_cnt && j<MAAT_MAX_HIT_RULE_NUM; j++)
 		{		
 			Nth_hit_region=hit_paths[j]->Nth_hit_region;
@@ -417,6 +420,8 @@ int fill_region_hit_detail(const char* scan_buff, const Maat_hierarchy_compile_m
 		}
 	}
 	return i;
+	*/
+	return 0;
 }
 
 struct _OUTER_scan_status_t* _make_outer_status(_Maat_feather_t *feather, int thread_num)
@@ -2441,24 +2446,6 @@ int Maat_read_rule(Maat_feather_t feather, const struct Maat_rule_t* rule, enum 
 	return ret;
 }
 
-int Maat_apply_scan_status(Maat_feather_t feather, scan_status_t *mid,
-						struct Maat_rule_t*result, int rule_num, int thread_num)
-{
-	struct _OUTER_scan_status_t* _mid=(struct _OUTER_scan_status_t*)(*mid);
-	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
-	struct scan_region_hit_wraper region_hit_wraper;
-	int ret=0;
-	if(!_mid||! (_mid->compile_mid))
-	{
-		return 0;
-	}
-	memset(&region_hit_wraper, 0, sizeof(region_hit_wraper));
-	region_hit_wraper.Nth_scan=_mid->scan_cnt;
-	region_hit_wraper.n_hit_region=0;
-	ret=region_compile(_feather, _mid->compile_mid, &region_hit_wraper, result, rule_num, thread_num);
-	return ret;
-}
-
 int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCAN_OPT type,const void* value,int size)
 {
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
@@ -2510,13 +2497,12 @@ int Maat_get_scan_status(Maat_feather_t feather, scan_status_t* mid, enum MAAT_S
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
 	struct _OUTER_scan_status_t* _mid=NULL;
 	struct Maat_hit_path_t* paths;
-	struct Maat_hit_path_t condition;
-	struct Maat_hierarchy_hit_path **path_inner=NULL;
-	size_t n_read=0, i=0;
+
+	size_t n_read=0;
 	int ret=0;
 	_mid=grab_mid(mid, _feather, 0, 0);
 
-	if(_mid->compile_mid==NULL)
+	if(_mid->compile_mid==NULL||_feather->scanner==NULL)
 	{
 		return 0;
 	}
@@ -2529,14 +2515,7 @@ int Maat_get_scan_status(Maat_feather_t feather, scan_status_t* mid, enum MAAT_S
 			}
 			paths=(struct Maat_hit_path_t*)value;
 			n_read=size/sizeof(struct Maat_hit_path_t);
-			path_inner=ALLOC(struct Maat_hierarchy_hit_path*, n_read);
-			Maat_hit_path_init(&condition);
-			n_read=Maat_hierarchy_hit_path_select0(_mid->compile_mid, &condition, path_inner, n_read);
-			for(i=0; i<n_read; i++)
-			{
-				paths[i]=path_inner[i]->path;
-			}
-			free(path_inner);
+			n_read=Maat_hierarchy_get_hit_paths(_feather->scanner->hier , _mid->compile_mid, paths, n_read);
 			ret=n_read;
 			break;
 		default:

@@ -20,15 +20,8 @@ void Maat_hierarchy_compile_user_data_iterate(struct Maat_hierarchy* hier, void 
 
 int Maat_hierarchy_compile_mid_has_NOT_clause(struct Maat_hierarchy_compile_mid* mid);
 
-struct Maat_hierarchy_hit_path
-{
-	int Nth_hit_region;
-	struct Maat_hit_path_t path;
-	TAILQ_ENTRY(Maat_hierarchy_hit_path) entries;
-};
-void Maat_hit_path_init(struct Maat_hit_path_t* hit_path);
-size_t Maat_hierarchy_hit_path_select0(const struct Maat_hierarchy_compile_mid* mid, struct Maat_hit_path_t* condition, 
-															struct Maat_hierarchy_hit_path** hit_paths, size_t n_path);
+size_t Maat_hierarchy_get_hit_paths(struct Maat_hierarchy* hier, struct Maat_hierarchy_compile_mid* mid, 
+															struct Maat_hit_path_t* hit_paths, size_t n_path);
 
 int Maat_hierarchy_compile_add(struct Maat_hierarchy* hier, int compile_id, int declared_clause_num, void* user_data);
 int Maat_hierarchy_compile_remove(struct Maat_hierarchy * hier, int compile_id);
