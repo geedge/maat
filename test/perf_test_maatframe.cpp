@@ -301,10 +301,10 @@ Maat_feather_t MaatCMDPerfTest::_shared_feather;
 void* MaatCMDPerfTest::logger;
 
 //Following tests must be coded/tested at last, for they stalled the maat update thread and interrupt other tests.
-TEST_F(MaatCMDPerfTest, SetExpr200K)
+TEST_F(MaatCMDPerfTest, SetExpr50K)
 {
 //	const int CMD_EXPR_NUM=2*100*1000;
-	const int CMD_EXPR_NUM=2*100;
+	const int CMD_EXPR_NUM=50*1000;
 	const int CMD_IP_NUM=3*1000;
 	const char* expr_table_name="HTTP_URL";
 	const char* ip_table_name="IP_CONFIG";
@@ -373,14 +373,14 @@ struct high_match_rate_thread_para
 {
 	int thread_id;
 	Maat_feather_t feather;
+	const char* expr_table_name;
 };
 void* high_match_rate_scan_thread(void *arg)
 {
-	const char* expr_table_name="HTTP_URL";
-	
 
 	struct high_match_rate_thread_para* para=(struct high_match_rate_thread_para*)arg;
 	Maat_feather_t feather=para->feather;
+	const char* expr_table_name=para->expr_table_name;
 
 	struct Maat_rule_t result;
 	scan_status_t mid=NULL;
@@ -404,6 +404,30 @@ void* high_match_rate_scan_thread(void *arg)
 	*is_all_hit=(hit_times==test_times)?1:0;
 	return is_all_hit;
 }
+void* high_match_rate_update_thread(void *arg)
+{
+	struct high_match_rate_thread_para* para=(struct high_match_rate_thread_para*)arg;
+	Maat_feather_t feather=para->feather;
+	const int CMD_EXPR_NUM=10;
+	int config_id=0;
+	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", CMD_EXPR_NUM);
+	config_id-=CMD_EXPR_NUM;
+	int i=0;
+	char keyword_buf[128];
+	struct Maat_command_batch* batch=NULL;
+	batch=Maat_command_batch_new(feather);
+
+	for(i=0; i<CMD_EXPR_NUM;i++)
+	{
+		random_keyword_generate(keyword_buf, sizeof(keyword_buf));
+		test_add_expr_command_copy(batch, para->expr_table_name, config_id+i, keyword_buf, 1);
+		sleep(1);
+	}
+	int* is_all_hit=(int*)malloc(sizeof(int));
+	*is_all_hit=1;
+	return is_all_hit;
+}
+
 TEST_F(MaatCMDPerfTest, HighMatchRateOnMultiThread)
 {
 	const char* expr_table_name="HTTP_URL";
@@ -429,16 +453,24 @@ TEST_F(MaatCMDPerfTest, HighMatchRateOnMultiThread)
 	Maat_command_batch_commit(batch);
 	sleep(4);
 	int global_thread_num=4;
-	pthread_t threads[global_thread_num];	
-	struct high_match_rate_thread_para thread_para[global_thread_num];
-	for(i=0; i<global_thread_num; i++)
+	pthread_t threads[global_thread_num+1];	
+	struct high_match_rate_thread_para thread_para[global_thread_num+1];
+	for(i=0; i<global_thread_num+1; i++)
 	{
 		thread_para[i].feather=feather;
 		thread_para[i].thread_id=i;
-		pthread_create(&(threads[i]), NULL, high_match_rate_scan_thread, thread_para+i);
+		thread_para[i].expr_table_name=expr_table_name;
+		if(i<global_thread_num)
+		{
+			pthread_create(&(threads[i]), NULL, high_match_rate_scan_thread, thread_para+i);
+		}
+		else
+		{
+			pthread_create(&(threads[i]), NULL, high_match_rate_update_thread, thread_para+i);
+		}
 	}
 
-	for(i=0; i<global_thread_num; i++)
+	for(i=0; i<global_thread_num+1; i++)
 	{
 		pthread_join(threads[i], (void**)&is_all_hit);
 		EXPECT_EQ(*is_all_hit, 1);
