@@ -70,24 +70,32 @@ struct Maat_hierarchy_internal_hit_path
 	int region_id;
 	int virtual_table_id;
 };
-static inline int compare_internal_hit_path(const void* a, const void* b)
-{
-	return memcmp(a, b, sizeof(struct Maat_hierarchy_internal_hit_path));
-}
 static int Maat_hierarchy_hit_path_add(UT_array* hit_paths, int region_id, int virtual_table_id, int Nth_scan, int Nth_region_result)
 {
-	struct Maat_hierarchy_internal_hit_path new_path;
+	struct Maat_hierarchy_internal_hit_path new_path, *tmp_path=NULL;
 	new_path.region_id=region_id;
 	new_path.Nth_hit_region=Nth_region_result;
 	new_path.Nth_scan=Nth_scan;
 	new_path.virtual_table_id=virtual_table_id;
-
-	if(utarray_find(hit_paths, &new_path, compare_internal_hit_path))
+	size_t i=0, num=utarray_len(hit_paths);
+	for(i=0; i<num; i--)
 	{
-		return 0;
+		tmp_path=(struct Maat_hierarchy_internal_hit_path*)utarray_eltptr(hit_paths, num-i-1);
+		if(tmp_path->Nth_scan!=new_path.Nth_scan)
+		{
+			break;
+		}
+		else
+		{
+			if(tmp_path->region_id==new_path.region_id &&
+				tmp_path->virtual_table_id==new_path.virtual_table_id &&
+				tmp_path->Nth_hit_region==new_path.Nth_hit_region)
+			{
+				return 0;
+			}
+		}
 	}
 	utarray_push_back(hit_paths, &new_path);
-	utarray_sort(hit_paths, compare_internal_hit_path);		
 	return 1;
 }
 
