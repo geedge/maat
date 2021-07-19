@@ -62,9 +62,40 @@ struct Maat_hierarchy_clause_state
 	char in_use;
 	UT_array *literal_ids;
 };
+
+struct Maat_hierarchy_internal_hit_path
+{
+	int Nth_scan;
+	int Nth_hit_region;
+	int region_id;
+	int virtual_table_id;
+};
+static inline int compare_internal_hit_path(const void* a, const void* b)
+{
+	return memcmp(a, b, sizeof(struct Maat_hierarchy_internal_hit_path));
+}
+static int Maat_hierarchy_hit_path_add(UT_array* hit_paths, int region_id, int virtual_table_id, int Nth_scan, int Nth_region_result)
+{
+	struct Maat_hierarchy_internal_hit_path new_path;
+	new_path.region_id=region_id;
+	new_path.Nth_hit_region=Nth_region_result;
+	new_path.Nth_scan=Nth_scan;
+	new_path.virtual_table_id=virtual_table_id;
+
+	if(utarray_find(hit_paths, &new_path, compare_internal_hit_path))
+	{
+		return 0;
+	}
+	utarray_push_back(hit_paths, &new_path);
+	utarray_sort(hit_paths, compare_internal_hit_path);		
+	return 1;
+}
+
 UT_icd ut_literal_id_icd = {sizeof(struct Maat_hierarchy_literal_id), NULL, NULL, NULL};
 UT_icd ut_clause_id_icd = {sizeof(unsigned long long), NULL, NULL, NULL};
 UT_icd ut_region_id_icd = {sizeof(int), NULL, NULL, NULL};
+UT_icd ut_hit_path_icd = {sizeof(struct Maat_hierarchy_internal_hit_path), NULL, NULL, NULL};
+
 #define MAAT_HIER_COMPILE_MAGIC	0x4a5b6c7d
 struct Maat_hierarchy_compile
 {
@@ -91,15 +122,6 @@ struct Maat_hierarchy_clause
 	struct Maat_hierarchy_literal_id* literal_ids;
 	UT_hash_handle hh;
 };
-struct Maat_hierarchy_internal_hit_path
-{
-	int Nth_scan;
-	int Nth_hit_region;
-	int region_id;
-	int virtual_table_id;
-	TAILQ_ENTRY(Maat_hierarchy_internal_hit_path) entries;
-};
-TAILQ_HEAD(internal_hit_path_q, Maat_hierarchy_internal_hit_path);
 
 struct group2region
 {
@@ -1197,7 +1219,7 @@ struct Maat_hierarchy_compile_mid
 	int	not_clause_hitted_flag;
 	size_t hit_path_cnt;
 
-	struct internal_hit_path_q internal_hit_path_qhead;
+	UT_array* _internal_hit_paths;
 	UT_array* _all_hit_clause_array;
 	UT_array* this_scan_hit_clause_ids;
 };
@@ -1205,24 +1227,16 @@ struct Maat_hierarchy_compile_mid
 struct Maat_hierarchy_compile_mid* Maat_hierarchy_compile_mid_new(struct Maat_hierarchy* hier, int thread_num)
 {
 	struct Maat_hierarchy_compile_mid* mid=ALLOC(struct Maat_hierarchy_compile_mid, 1);
-	TAILQ_INIT(&mid->internal_hit_path_qhead);
 	mid->thread_num=thread_num;
 	mid->hier_ver=hier->version;
+	utarray_new(mid->_internal_hit_paths, &ut_hit_path_icd);
 	utarray_new(mid->_all_hit_clause_array, &ut_clause_id_icd);
 	utarray_new(mid->this_scan_hit_clause_ids, &ut_clause_id_icd);
 	return mid;
 }
 void Maat_hierarchy_compile_mid_free(struct Maat_hierarchy_compile_mid* mid)
 {
-	struct Maat_hierarchy_internal_hit_path * tmp = TAILQ_FIRST(&mid->internal_hit_path_qhead);
-	while(tmp != NULL)
-	{
-		TAILQ_REMOVE(&mid->internal_hit_path_qhead, tmp, entries);
-		free(tmp);
-		mid->hit_path_cnt--;
-		tmp = TAILQ_FIRST(&mid->internal_hit_path_qhead);
-	}
-	assert(mid->hit_path_cnt==0);
+	utarray_free(mid->_internal_hit_paths);
 	utarray_free(mid->_all_hit_clause_array);
 	utarray_free(mid->this_scan_hit_clause_ids);
 	free(mid);
@@ -1232,15 +1246,6 @@ int  Maat_hierarchy_compile_mid_has_NOT_clause(struct Maat_hierarchy_compile_mid
 	return mid->not_clause_hitted_flag;
 }
 
-void Maat_hit_path_init(struct Maat_hit_path_t* hit_path)
-{
-	hit_path->Nth_scan=-1;
-	hit_path->region_id=-1;
-	hit_path->sub_group_id=-1;
-	hit_path->top_group_id=-1;
-	hit_path->virtual_table_id=-1;
-	hit_path->compile_id=-1;
-}
 static int Maat_hierarchy_compile_has_literal(struct Maat_hierarchy_compile* compile, struct Maat_hierarchy_literal_id* literal_id)
 {
 	int i=0;
@@ -1292,8 +1297,10 @@ size_t Maat_hierarchy_get_hit_paths(struct Maat_hierarchy* hier, struct Maat_hie
 	}
 	pthread_rwlock_rdlock(&hier->rwlock);
 	
-	TAILQ_FOREACH(p, &mid->internal_hit_path_qhead, entries)
+	for(i=0; i<utarray_len(mid->_internal_hit_paths); i++)
 	{
+		p=(struct Maat_hierarchy_internal_hit_path*)utarray_eltptr(mid->_internal_hit_paths, i);
+
 		HASH_FIND_INT(hier->hash_region_by_id, &(p->region_id), region);
 		if(!region)
 		{
@@ -1312,12 +1319,12 @@ size_t Maat_hierarchy_get_hit_paths(struct Maat_hierarchy* hier, struct Maat_hie
 		}
 		else
 		{
-			for(i=0; i<group->top_group_cnt&& n_made_by_region<n_path; i++, n_made_by_region++)
+			for(j=0; j<group->top_group_cnt&& n_made_by_region<n_path; j++, n_made_by_region++)
 			{
 				hit_paths[n_made_by_region].Nth_scan=p->Nth_scan;
 				hit_paths[n_made_by_region].region_id=p->region_id;
 				hit_paths[n_made_by_region].sub_group_id=group->group_id;
-				hit_paths[n_made_by_region].top_group_id=group->top_group_ids[i];			
+				hit_paths[n_made_by_region].top_group_id=group->top_group_ids[j];			
 				hit_paths[n_made_by_region].virtual_table_id=p->virtual_table_id;
 				hit_paths[n_made_by_region].compile_id=-1;
 			}
@@ -1367,36 +1374,7 @@ size_t Maat_hierarchy_get_hit_paths(struct Maat_hierarchy* hier, struct Maat_hie
 	pthread_rwlock_unlock(&hier->rwlock);
 	return n_made_by_region+n_made_by_compile;
 }
-static int Maat_hierarchy_hit_path_add(struct internal_hit_path_q* qhead, int region_id, int virtual_table_id, int Nth_scan, int Nth_region_result)
-{
-	struct Maat_hierarchy_internal_hit_path *tmp_path;
-	struct Maat_hierarchy_internal_hit_path *new_path=NULL;
-	
-	TAILQ_FOREACH_REVERSE(tmp_path, qhead, internal_hit_path_q, entries)
-	{
-		if(Nth_scan!=tmp_path->Nth_scan)
-		{
-			break;
-		}
-		else
-		{
-			if(region_id==tmp_path->region_id &&
-				virtual_table_id==tmp_path->virtual_table_id &&
-				Nth_region_result==tmp_path->Nth_hit_region)
-			{
-				return 0;
-			}
-		}
-	}
-	new_path=ALLOC(struct Maat_hierarchy_internal_hit_path, 1);
-	new_path->Nth_scan=Nth_scan;
-	new_path->region_id=region_id;
-	new_path->virtual_table_id=virtual_table_id;
-	new_path->Nth_hit_region=Nth_region_result;
 
-	TAILQ_INSERT_TAIL(qhead, new_path, entries);
-	return 1;
-}
 
 void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy* hier, struct Maat_hierarchy_compile_mid* mid, int region_id, int virtual_table_id, int Nth_scan, int Nth_region_result)
 {
@@ -1410,7 +1388,7 @@ void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy* hier, struct Maat_
 		utarray_clear(mid->this_scan_hit_clause_ids);
 	}
 	int ret=0;
-	ret=Maat_hierarchy_hit_path_add(&(mid->internal_hit_path_qhead), region_id, virtual_table_id, Nth_scan, Nth_region_result);
+	ret=Maat_hierarchy_hit_path_add(mid->_internal_hit_paths, region_id, virtual_table_id, Nth_scan, Nth_region_result);
 	if(!ret)
 	{
 		return;
@@ -1438,7 +1416,6 @@ void Maat_hierarchy_compile_mid_udpate(struct Maat_hierarchy* hier, struct Maat_
 		utarray_push_back(mid->_all_hit_clause_array, clause_id);
 		utarray_sort(mid->_all_hit_clause_array, compare_clause_id);		
 		utarray_push_back(mid->this_scan_hit_clause_ids, clause_id);
-		
 	}
 	return;
 }
