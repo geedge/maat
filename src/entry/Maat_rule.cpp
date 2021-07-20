@@ -2328,23 +2328,22 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 	int i=0, ret=0;
 	struct ip_matcher* old_ip_matcher=NULL;
 	struct FQDN_engine* old_fqdn_engine=NULL;
-	if(scanner->to_update_compile_cnt+scanner->to_update_group_cnt>0)
+
+	ret=Maat_hierarchy_rebuild(scanner->hier);
+	if(ret!=0)
 	{
-		ret=Maat_hierarchy_rebuild(scanner->hier);
-		if(ret!=0)
-		{
-			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module ,
-									"Version %d hierarchy rebuild failed.",
-									scanner->version);
-		}
-		else
-		{
-			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-								"Version %d hierarchy rebuild success, dedup string rule %lu.",
-								scanner->version,
-								scanner->dedup_expr_num);	
-		}
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module ,
+								"Version %d hierarchy rebuild failed.",
+								scanner->version);
 	}
+	else
+	{
+		MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
+							"Version %d hierarchy rebuild success, dedup string rule %lu.",
+							scanner->version,
+							scanner->dedup_expr_num);	
+	}
+	
 	scanner->dedup_expr_num=0;
 	rulescan_batch_update(scanner->region,
 							scanner->region_update_q,

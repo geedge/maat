@@ -4093,7 +4093,7 @@ TEST_F(MaatCmdTest, ScanStatusSetNoCount)
 	const char* ip_table_name="IP_PLUS_CONFIG", *app_id_table_name="APP_ID";
 
 	struct Maat_rule_t compile1;
-	struct Maat_cmd_group2compile group11, group21, group22;
+	struct Maat_cmd_group2compile group11, group21;
 	struct Maat_cmd_region region11, region21, region22;
 
 
@@ -4169,22 +4169,14 @@ TEST_F(MaatCmdTest, ScanStatusSetNoCount)
 	//region11->group11--clause1-->compile1
 	//					    	    /    
 	//region21->group21--clause2---/
-	//					 /
-	//region22->group22-/
-
-
-	memset(&group22, 0, sizeof(group22));
-	group22.group_id=Maat_command_get_new_group_id(feather);
-	group22.table_name=g2c_tn;
-	group22.compile_id=compile1.config_id;
-	group22.clause_index=2;
-	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &group22);
+	//			 /
+	//region22->/
 
 	region22.region_id=Maat_command_get_new_region_id(feather);
 	region22.region_type=REGION_INTERVAL;
 	region22.table_name=app_id_table_name;
-	region22.interval_rule.up_boundary=region22.interval_rule.low_boundary=42;
-	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region22, group22.group_id);
+	region22.interval_rule.up_boundary=region22.interval_rule.low_boundary=scan_app_id;
+	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region22, group21.group_id);
 	
 	sleep(1);
 	
