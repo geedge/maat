@@ -2599,7 +2599,7 @@ void *thread_rule_monitor(void *arg)
 		maat_read_full_config(feather);
 	}
 	pthread_mutex_unlock(&(feather->background_update_mutex));
-	while(feather->still_working)
+	while(feather->is_running)
 	{
 		usleep(feather->rule_update_checking_interval_ms*1000);
 		scan_dir_cnt++;

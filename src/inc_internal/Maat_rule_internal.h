@@ -290,7 +290,7 @@ struct _Maat_feather_t
 		struct source_json_ctx json_ctx;
 		struct source_redis_ctx mr_ctx;
 	};
-	int still_working;
+	int is_running;
 	int rule_update_checking_interval_ms;
 	int rule_effect_interval_ms;
 	int garbage_collection_timeout_ms;

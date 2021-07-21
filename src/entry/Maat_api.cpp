@@ -536,7 +536,10 @@ int load_maat_json_file(_Maat_feather_t* feather, const char* maat_json_fn, char
 	{
 		return -1;
 	}
-	strncpy(feather->json_ctx.json_file, maat_json_fn, sizeof(feather->json_ctx.json_file));
+	if(!feather->is_running)
+	{
+		strncpy(feather->json_ctx.json_file, maat_json_fn, sizeof(feather->json_ctx.json_file));
+	}
 	
 	ret=stat(maat_json_fn, &fstat_buf);
 	feather->json_ctx.last_md5_time=fstat_buf.st_ctim;
@@ -638,7 +641,7 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 		default:
 			break;			
 	}
-	if(_feather->still_working==1)//The following options are not allowed to set after initiation;
+	if(_feather->is_running==1)//The following options are not allowed to set after initiation;
 	{
 		return -2;
 	}
@@ -887,7 +890,7 @@ void maat_read_full_config(_Maat_feather_t* _feather)
 	}
 	_feather->scanner=_feather->update_tmp_scanner;
 	_feather->update_tmp_scanner=NULL;
-	_feather->still_working=1;
+	_feather->is_running=1;
 	if(_feather->scanner!=NULL)
 	{
 		_feather->maat_version=_feather->scanner->version;
@@ -1009,7 +1012,7 @@ error_out:
 void Maat_burn_feather(Maat_feather_t feather)
 {
 	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
-	_feather->still_working=0;//destroy will proceed in thread_rule_monitor
+	_feather->is_running=0;//destroy will proceed in thread_rule_monitor
 	void* ret=NULL;
 	pthread_join(_feather->cfg_mon_t, &ret);
 	return;

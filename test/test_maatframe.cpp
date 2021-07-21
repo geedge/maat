@@ -2302,6 +2302,13 @@ protected:
 		
 		const char* foregin_dir="./foreign_files/";	
 		Maat_set_feather_opt(_shared_feather, MAAT_OPT_FOREIGN_CONT_DIR,foregin_dir, strlen(foregin_dir)+1);
+		const char* stat_file="./maat_cmd_test.fs2";
+		Maat_set_feather_opt(_shared_feather, MAAT_OPT_STAT_FILE_PATH, stat_file, strlen(stat_file)+1);
+		Maat_set_feather_opt(_shared_feather, MAAT_OPT_STAT_ON, NULL, 0);
+		Maat_set_feather_opt(_shared_feather, MAAT_OPT_PERF_ON, NULL, 0);
+		//Set a short intevral for testing.
+		int tmp=0;
+		Maat_set_feather_opt(_shared_feather, MAAT_OPT_GARBAGE_COLLECTION_TIMEOUT_MS, &tmp, sizeof(tmp));
 
 		Maat_cmd_flushDB(_shared_feather);
 		Maat_initiate_feather(_shared_feather);
@@ -4485,7 +4492,7 @@ int main(int argc, char ** argv)
 {
 
 	const char* log_file="./test.log";
-	const char* stat_file="./scan_staus.log";
+	const char* stat_file="./maat_stat.fs2";
 	const char* decrypt_key="mesa2017wy";
 	const char* accept_tags="{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
 //	const char* subsitute_acc_tags="{\"tags\":[{\"tag\":\"location\",\"value\":\"Astana\"}]}";
@@ -4502,10 +4509,6 @@ int main(int argc, char ** argv)
 	Maat_set_feather_opt(g_feather, MAAT_OPT_SCANDIR_INTERVAL_MS, &scan_interval_ms, sizeof(scan_interval_ms));
 	//Set a short intevral for testing.
 	Maat_set_feather_opt(g_feather, MAAT_OPT_EFFECT_INVERVAL_MS, &effective_interval_ms, sizeof(effective_interval_ms));
-
-	//Set a short intevral for testing.
-	int tmp=0;
-	Maat_set_feather_opt(g_feather, MAAT_OPT_GARBAGE_COLLECTION_TIMEOUT_MS, &tmp, sizeof(tmp));
 
 
 	Maat_set_feather_opt(g_feather, MAAT_OPT_STAT_FILE_PATH, stat_file, strlen(stat_file)+1);
