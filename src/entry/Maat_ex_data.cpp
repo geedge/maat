@@ -33,7 +33,7 @@ struct EX_data_rt
 	const struct EX_data_schema* ex_schema;
 	int table_id;
 	void (* user_data_free)(void *user_data);	
-	struct Maat_garbage_bin* bin;
+	struct Maat_garbage_bin* ref_bin;
 };
 
 
@@ -59,7 +59,7 @@ void cache_row_free(void*p)
 }
 UT_icd ut_cache_row_icd = {sizeof(char*), NULL, NULL, cache_row_free};
 
-struct EX_data_rt* EX_data_rt_new(int table_id, Maat_plugin_EX_key2index_func_t * key2index, void (* user_data_free)(void *user_data))
+struct EX_data_rt* EX_data_rt_new(int table_id, Maat_plugin_EX_key2index_func_t * key2index, void (* user_data_free)(void *user_data), struct Maat_garbage_bin* bin)
 {
 	struct EX_data_rt* p=ALLOC(struct EX_data_rt, 1);
 	p->hash_key2ex=NULL;
@@ -67,7 +67,7 @@ struct EX_data_rt* EX_data_rt_new(int table_id, Maat_plugin_EX_key2index_func_t 
 	p->table_id=table_id;
 	p->user_data_free=user_data_free;
 	pthread_rwlock_init(&p->rwlock, NULL);
-	p->bin=Maat_garbage_bin_new(0);
+	p->ref_bin=bin;
 	return p;
 };
 size_t EX_data_rt_get_cached_row_num(struct EX_data_rt* ex_rt)
@@ -95,7 +95,7 @@ void EX_data_rt_free(struct EX_data_rt* p)
 		p->cache_row_num=0;
 	}
 	pthread_rwlock_destroy(&p->rwlock);
-	Maat_garbage_bin_free(p->bin);
+	p->ref_bin=NULL;
 	free(p);
 	return;
 }
@@ -172,7 +172,7 @@ int EX_data_rt_delete_by_row(struct EX_data_rt* ex_rt, const char* row, const ch
 	if(exc)
 	{
 		HASH_DELETE(hh, ex_rt->hash_key2ex, exc);	
-		Maat_garbage_bagging(ex_rt->bin, exc, (void (*)(void*))EX_data_container_free);
+		Maat_garbage_bagging(ex_rt->ref_bin, exc, (void (*)(void*))EX_data_container_free);
 		ret=0;
 	}
 	else
@@ -241,9 +241,5 @@ size_t EX_data_rt_get_ex_container_count(struct EX_data_rt* ex_rt)
 	count=HASH_COUNT(ex_rt->hash_key2ex);
 	pthread_rwlock_unlock(&ex_rt->rwlock);
 	return count;
-}
-void EX_data_rt_garbage_collection(struct EX_data_rt* ex_rt)
-{
-	Maat_garbage_collect_routine(ex_rt->bin);
 }
 

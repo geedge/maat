@@ -76,16 +76,9 @@ int insert_set_id(unsigned long long **set, size_t* size, size_t cnt, unsigned l
 	}
 }
 
-void scan_staus_count_inc(struct _OUTER_scan_status_t* _mid)
+static void scan_staus_count_inc(struct _OUTER_scan_status_t* _mid)
 {
-	if(_mid->is_no_count_scan)
-	{
-		_mid->is_no_count_scan=0;
-	}
-	else
-	{
-		_mid->scan_cnt++;
-	}
+	_mid->scan_cnt++;
 	return;
 }
 
@@ -2480,10 +2473,6 @@ int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCA
 		case	MAAT_SET_SCAN_LAST_REGION:
 			assert(_mid->is_last_region==0);
 			_mid->is_last_region=1;
-			break;
-		case	MAAT_SET_SCAN_NO_COUNT:
-			assert(_mid->is_no_count_scan==0);
-			_mid->is_no_count_scan=1;
 			break;
 		default:
 			_feather->scan_err_cnt++;

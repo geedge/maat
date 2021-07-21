@@ -71,7 +71,7 @@ struct Maat_table_runtime
 	mcore_long_t	hit_cnt;
 };
 struct Maat_table_runtime_manager;
-struct Maat_table_runtime_manager* Maat_table_runtime_manager_create(struct Maat_table_manager* table_manager, int max_thread_num);
+struct Maat_table_runtime_manager* Maat_table_runtime_manager_create(struct Maat_table_manager* table_manager, int max_thread_num, struct Maat_garbage_bin* bin);
 void Maat_table_rt_manager_destroy(struct Maat_table_runtime_manager* table_rt_mgr);
 struct Maat_table_runtime* Maat_table_runtime_get(struct Maat_table_runtime_manager* table_rt_mgr, int table_id);
 
@@ -85,7 +85,6 @@ void Maat_table_runtime_digest_del(struct Maat_table_runtime* table_rt, int expr
 int Maat_table_runtime_digest_batch_udpate(struct Maat_table_runtime* table_rt);
 
 void Maat_table_runtime_plugin_new_row(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* row, void *logger);
-void Maat_table_runtime_plugin_garbage_collection(struct Maat_table_runtime* table_rt);
 
 void Maat_table_runtime_ip_plugin_new_row(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* row, void *logger);
 

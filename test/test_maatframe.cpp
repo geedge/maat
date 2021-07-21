@@ -4083,8 +4083,8 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419)
 	Maat_clean_status(&mid);
 
 }
-#define ScanStatus_Set_No_Count
-TEST_F(MaatCmdTest, ScanStatusSetNoCount)
+#define Hierarchy_GroupEdit
+TEST_F(MaatCmdTest, GroupEdit)
 {
 	Maat_feather_t feather=MaatCmdTest::_shared_feather;
 
@@ -4148,7 +4148,7 @@ TEST_F(MaatCmdTest, ScanStatusSetNoCount)
 
 	sleep(1);
 
-	int table_id=0, ret=0, i=0;
+	int table_id=0, ret=0;
 	struct Maat_rule_t result[4];
 	scan_status_t mid=NULL;
 	struct ipaddr ipv4_addr;
@@ -4164,6 +4164,7 @@ TEST_F(MaatCmdTest, ScanStatusSetNoCount)
 	table_id=Maat_table_register(feather, app_id_table_name);
 	ret=Maat_scan_intval(feather, table_id, scan_app_id, result, 4, &mid, 0);
 	EXPECT_EQ(ret, 0);
+	Maat_clean_status(&mid);
 
 
 	//region11->group11--clause1-->compile1
@@ -4180,14 +4181,13 @@ TEST_F(MaatCmdTest, ScanStatusSetNoCount)
 	
 	sleep(1);
 	
+	table_id=Maat_table_register(feather, ip_table_name);
+	ret=Maat_scan_proto_addr(feather,table_id, &ipv4_addr, 6, result, 4, &mid,0);
+	
+	table_id=Maat_table_register(feather, app_id_table_name);
 	ret=Maat_scan_intval(feather, table_id, scan_app_id, result, 4, &mid, 0);
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, compile1.config_id);
-	for(i=0; i<100; i++)
-	{
-		Maat_set_scan_status(feather, &mid, MAAT_SET_SCAN_NO_COUNT, NULL, 0);
-		ret=Maat_scan_intval(feather, table_id, scan_app_id, result, 4, &mid, 0);
-	}
 
 	struct Maat_hit_path_t hit_path[128];
 	memset(hit_path, 0, sizeof(hit_path));
@@ -4195,6 +4195,24 @@ TEST_F(MaatCmdTest, ScanStatusSetNoCount)
 	n_read=Maat_get_scan_status(feather, &mid, MAAT_GET_SCAN_HIT_PATH, hit_path, sizeof(hit_path));
 	EXPECT_EQ(n_read, 2);
 
+	Maat_clean_status(&mid);
+
+	//region11->group11--clause1-->compile1
+	//					    	    /    
+	//region21->group21--clause2---/
+
+	Maat_command_raw_set_region(feather, MAAT_OP_DEL, &region22, group21.group_id);
+
+	sleep(1);
+	
+	memset(result, 0, sizeof(result));
+	table_id=Maat_table_register(feather, ip_table_name);
+	ret=Maat_scan_proto_addr(feather,table_id, &ipv4_addr, 6, result, 4, &mid,0);
+	EXPECT_EQ(ret, -2);
+
+	table_id=Maat_table_register(feather, app_id_table_name);
+	ret=Maat_scan_intval(feather, table_id, scan_app_id, result, 4, &mid, 0);
+	EXPECT_EQ(ret, 0);
 	Maat_clean_status(&mid);
 
 }

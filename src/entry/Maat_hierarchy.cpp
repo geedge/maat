@@ -72,11 +72,13 @@ struct Maat_hierarchy_internal_hit_path
 };
 static int Maat_hierarchy_hit_path_add(UT_array* hit_paths, int region_id, int virtual_table_id, int Nth_scan, int Nth_region_result)
 {
-	struct Maat_hierarchy_internal_hit_path new_path, *tmp_path=NULL;
+	struct Maat_hierarchy_internal_hit_path new_path;
 	new_path.region_id=region_id;
 	new_path.Nth_hit_region=Nth_region_result;
 	new_path.Nth_scan=Nth_scan;
 	new_path.virtual_table_id=virtual_table_id;
+	/*
+	struct Maat_hierarchy_internal_hit_path *tmp_path=NULL;
 	size_t i=0, num=utarray_len(hit_paths);
 	for(i=0; i<num; i--)
 	{
@@ -95,6 +97,7 @@ static int Maat_hierarchy_hit_path_add(UT_array* hit_paths, int region_id, int v
 			}
 		}
 	}
+	*/
 	utarray_push_back(hit_paths, &new_path);
 	return 1;
 }

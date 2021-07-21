@@ -169,7 +169,6 @@ struct _OUTER_scan_status_t
 	unsigned short thread_num;
 	unsigned char is_set_district;
 	unsigned char is_last_region;
-	unsigned char is_no_count_scan;
 	int district_id;
 	int scan_cnt;
 	struct Maat_hierarchy_compile_mid* compile_mid;

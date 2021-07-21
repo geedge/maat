@@ -790,7 +790,7 @@ struct Maat_scanner* create_maat_scanner(unsigned int version, _Maat_feather_t *
 	scanner->logger_ref=feather->logger;
 	scanner->region_rslt_buff=ALLOC(scan_result_t, MAX_SCANNER_HIT_NUM*scan_thread_num);
 	scanner->gie_rslt_buff=ALLOC(GIE_result_t, MAX_SCANNER_HIT_NUM*scan_thread_num);
-	scanner->table_rt_mgr=Maat_table_runtime_manager_create(feather->table_mgr, feather->scan_thread_num);
+	scanner->table_rt_mgr=Maat_table_runtime_manager_create(feather->table_mgr, feather->scan_thread_num, feather->garbage_bin);
 	scanner->max_table_num=Maat_table_manager_get_size(feather->table_mgr);
 	return scanner;
 }
@@ -2369,7 +2369,6 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 				}
 				break;
 			case TABLE_TYPE_PLUGIN:
-				Maat_table_runtime_plugin_garbage_collection(table_rt);
 				break;
 			case TABLE_TYPE_IP_PLUGIN:				
 				ret=Maat_table_runtime_ip_plugin_build_new_ip_matcher(table_rt);

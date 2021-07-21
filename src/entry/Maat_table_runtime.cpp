@@ -58,6 +58,7 @@ struct Maat_table_runtime_manager
 {
 	struct Maat_table_runtime** table_rt;
 	size_t n_table_rt;
+	struct Maat_garbage_bin* ref_bin;
 };
 static GIE_digest_t* create_digest_rule(unsigned int id, enum GIE_operation op,const char* digest,
 						short cfds_lvl, void* tag)
@@ -122,7 +123,7 @@ void _notype_fqdn_rule_free(void* p)
 	fqdn_rule_free((struct FQDN_rule*)p);
 	return;
 }
-static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_schema* table_schema, int max_thread_num)
+static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_schema* table_schema, int max_thread_num, struct Maat_garbage_bin* bin)
 {
 
 	struct Maat_table_runtime* table_rt= ALLOC(struct Maat_table_runtime, 1);
@@ -136,7 +137,8 @@ static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_sche
 		case TABLE_TYPE_PLUGIN:
 			table_rt->plugin.ex_data_rt=EX_data_rt_new(table_schema->table_id, 
 										table_schema->plugin.ex_schema.key2index_func,
-										NULL);
+										NULL,
+										bin);
 			if(table_schema->plugin.have_exdata)
 			{
 				EX_data_rt_set_schema(table_rt->plugin.ex_data_rt, &table_schema->plugin.ex_schema);
@@ -145,7 +147,8 @@ static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_sche
 		case TABLE_TYPE_IP_PLUGIN:
 			table_rt->ip_plugin.ex_data_rt=EX_data_rt_new(table_schema->table_id, 									
 										table_schema->ip_plugin.ex_schema.key2index_func,
-										free);
+										free,
+										bin);
 			if(table_schema->ip_plugin.have_exdata)
 			{			
 				EX_data_rt_set_schema(table_rt->ip_plugin.ex_data_rt, &table_schema->ip_plugin.ex_schema);
@@ -154,7 +157,8 @@ static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_sche
 		case TABLE_TYPE_FQDN_PLUGIN:
 			table_rt->fqdn_plugin.ex_data_rt=EX_data_rt_new(table_schema->table_id, 									
 										table_schema->fqdn_plugin.ex_schema.key2index_func,
-										_notype_fqdn_rule_free);
+										_notype_fqdn_rule_free,
+										bin);
 			if(table_schema->fqdn_plugin.have_exdata)
 			{			
 				EX_data_rt_set_schema(table_rt->fqdn_plugin.ex_data_rt, &table_schema->fqdn_plugin.ex_schema);
@@ -230,12 +234,13 @@ static void table_runtime_free(struct Maat_table_runtime* p)
 	return;
 }
 
-struct Maat_table_runtime_manager* Maat_table_runtime_manager_create(struct Maat_table_manager* table_manager, int max_thread_num)
+struct Maat_table_runtime_manager* Maat_table_runtime_manager_create(struct Maat_table_manager* table_manager, int max_thread_num, struct Maat_garbage_bin* bin)
 {	
 	const struct Maat_table_schema* table_desc=NULL;
 	struct Maat_table_runtime* table_rt=NULL;
 	struct Maat_table_runtime_manager* table_rt_mgr=ALLOC(struct Maat_table_runtime_manager, 1);
 	size_t i=0;
+	table_rt_mgr->ref_bin=bin;
 	table_rt_mgr->n_table_rt=Maat_table_manager_get_size(table_manager);
 	table_rt_mgr->table_rt=ALLOC(struct Maat_table_runtime*, table_rt_mgr->n_table_rt);
 	for(i=0; i<table_rt_mgr->n_table_rt; i++)
@@ -245,7 +250,7 @@ struct Maat_table_runtime_manager* Maat_table_runtime_manager_create(struct Maat
 		{
 			continue;
 		}
-		table_rt=table_runtime_new(table_desc, max_thread_num);
+		table_rt=table_runtime_new(table_desc, max_thread_num, table_rt_mgr->ref_bin);
 		table_rt_mgr->table_rt[i]=table_rt;
 	}
 	return table_rt_mgr;
@@ -260,6 +265,7 @@ void Maat_table_rt_manager_destroy(struct Maat_table_runtime_manager* table_rt_m
 	}
 	free(table_rt_mgr->table_rt);
 	table_rt_mgr->table_rt=NULL;
+	table_rt_mgr->ref_bin=NULL;
 	free(table_rt_mgr);
 }
 struct Maat_table_runtime* Maat_table_runtime_get(struct Maat_table_runtime_manager* table_rt_mgr, int table_id)
@@ -348,10 +354,6 @@ void Maat_table_runtime_plugin_new_row(struct Maat_table_runtime* table_rt, stru
 
 	return;
 }
-void Maat_table_runtime_plugin_garbage_collection(struct Maat_table_runtime* table_rt)
-{
-	EX_data_rt_garbage_collection(table_rt->plugin.ex_data_rt);
-};
 void Maat_table_runtime_digest_add(struct Maat_table_runtime* table_rt, int expr_id, const char* digest, short confidence_degree, void* tag)
 {
 	GIE_digest_t* digest_rule=NULL;
@@ -479,7 +481,6 @@ struct FQDN_engine* Maat_table_runtime_apply_new_fqdn_engine(struct Maat_table_r
 	table_rt->fqdn_plugin.fqdn_engine=table_rt->fqdn_plugin.new_fqdn_engine;
 	assert(table_rt->table_type==TABLE_TYPE_FQDN_PLUGIN);
 	table_rt->fqdn_plugin.new_fqdn_engine=NULL;
-	EX_data_rt_garbage_collection(table_rt->fqdn_plugin.ex_data_rt);
 	table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(table_rt->fqdn_plugin.ex_data_rt);
 	return old_one;
 }
@@ -629,7 +630,6 @@ struct ip_matcher* Maat_table_runtime_apply_new_ip_matcher(struct Maat_table_run
 	assert(table_rt->table_type==TABLE_TYPE_IP_PLUGIN);
 	table_rt->ip_plugin.new_ip_matcher=NULL;
 	table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(table_rt->ip_plugin.ex_data_rt);
-	EX_data_rt_garbage_collection(table_rt->ip_plugin.ex_data_rt);
 	return old_one;
 }
 
