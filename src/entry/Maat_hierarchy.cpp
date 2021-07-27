@@ -1198,18 +1198,17 @@ int Maat_hierarchy_rebuild(struct Maat_hierarchy* hier)
 	int ret=0;
 	struct bool_matcher* new_bm=NULL, *old_bm=NULL;
 	struct region2clause_value* new_region2clause_hash=NULL, *old_region2clause_hash=NULL;
-	
+
+	//Read hier from update thread is OK.
+	ret=Maat_hierarchy_build_top_groups(hier);
+	new_bm=Maat_hierarchy_build_bool_matcher(hier);
+	new_region2clause_hash=Maat_hierarchy_build_region2clause_hash(hier);
+
 	pthread_rwlock_wrlock(&hier->rwlock);
 
-	ret=Maat_hierarchy_build_top_groups(hier);
-
-	new_bm=Maat_hierarchy_build_bool_matcher(hier);
-	old_bm=hier->bm;	
-	
-	new_region2clause_hash=Maat_hierarchy_build_region2clause_hash(hier);
+	old_bm=hier->bm;		
 	old_region2clause_hash=hier->hash_region2clause;
 
-	
 	hier->bm=new_bm;
 	hier->hash_region2clause=new_region2clause_hash;
 	pthread_rwlock_unlock(&hier->rwlock);
