@@ -372,8 +372,10 @@ const char* high_match_string="maatframe!";
 struct high_match_rate_thread_para
 {
 	int thread_id;
+	int test_count;
 	Maat_feather_t feather;
 	const char* expr_table_name;
+	unsigned long long time_elapse_ms;
 };
 void* high_match_rate_scan_thread(void *arg)
 {
@@ -385,10 +387,13 @@ void* high_match_rate_scan_thread(void *arg)
 	struct Maat_rule_t result;
 	scan_status_t mid=NULL;
 
-	int table_id=0, i=0, ret=0, test_times=10*1000*1000, hit_times=0;
+	int table_id=0, i=0, ret=0, hit_times=0;
 	table_id=Maat_table_register(feather, expr_table_name);
 	memset(&result, 0, sizeof(result));
-	for(i=0; i<test_times; i++)
+	struct timespec start, end;
+	
+	clock_gettime(CLOCK_MONOTONIC, &start);
+	for(i=0; i<para->test_count; i++)
 	{
 		ret=Maat_full_scan_string(feather, table_id, CHARSET_GBK, high_match_string, strlen(high_match_string), 
 							&result, NULL, 1,
@@ -399,9 +404,10 @@ void* high_match_rate_scan_thread(void *arg)
 		}
 		Maat_clean_status(&mid);
 	}
-
+	clock_gettime(CLOCK_MONOTONIC, &end);
+	para->time_elapse_ms=(end.tv_sec-start.tv_sec)*1000+(end.tv_nsec-start.tv_nsec)/1000000;
 	int* is_all_hit=(int*)malloc(sizeof(int));
-	*is_all_hit=(hit_times==test_times)?1:0;
+	*is_all_hit=(hit_times==para->test_count)?1:0;
 	return is_all_hit;
 }
 void* high_match_rate_update_thread(void *arg)
@@ -453,6 +459,7 @@ TEST_F(MaatCMDPerfTest, HighMatchRateOnMultiThread)
 	Maat_command_batch_commit(batch);
 	sleep(4);
 	int global_thread_num=4;
+	unsigned long long time_elapse_ms=0, scan_count=0, scan_per_second=0;
 	pthread_t threads[global_thread_num+1];	
 	struct high_match_rate_thread_para thread_para[global_thread_num+1];
 	for(i=0; i<global_thread_num+1; i++)
@@ -460,24 +467,31 @@ TEST_F(MaatCMDPerfTest, HighMatchRateOnMultiThread)
 		thread_para[i].feather=feather;
 		thread_para[i].thread_id=i;
 		thread_para[i].expr_table_name=expr_table_name;
+		thread_para[i].test_count=10*1000*1000;
+		thread_para[i].time_elapse_ms=0;
 		if(i<global_thread_num)
 		{
 			pthread_create(&(threads[i]), NULL, high_match_rate_scan_thread, thread_para+i);
 		}
 		else
 		{
+			thread_para[i].test_count=0;
 			pthread_create(&(threads[i]), NULL, high_match_rate_update_thread, thread_para+i);
 		}
 	}
 
 	for(i=0; i<global_thread_num+1; i++)
 	{
-		pthread_join(threads[i], (void**)&is_all_hit);
+		pthread_join(threads[i], (void**)&is_all_hit);	
+		time_elapse_ms+=thread_para[i].time_elapse_ms;
+		scan_count+=thread_para[i].test_count;
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit=0;
 		free(is_all_hit);
 	}
-
+	scan_per_second=scan_count*1000/time_elapse_ms;
+	EXPECT_GT(scan_per_second, 800*1000);
+	printf("High Match on Multi-Thread speed %lld lookups/s\n", scan_per_second);
 }
 
 #define IP_PLUGIN_EX_DATA

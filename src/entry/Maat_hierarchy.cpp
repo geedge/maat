@@ -1119,15 +1119,16 @@ struct region2clause_value* Maat_hierarchy_build_region2clause_hash(struct Maat_
 			{
 				g2r=ALLOC(struct group2region, 1);
 				utarray_new(g2r->region_ids, &ut_region_id_icd);
+				utarray_reserve(g2r->region_ids, group->ref_by_region_cnt);
 				g2r->group_id=group->top_group_ids[i];
 				HASH_ADD_INT(g2r_hash, group_id, g2r);
 			}
-			if(utarray_find(g2r->region_ids, &(region->region_id), compare_region_id))
-			{
-				assert(0);
-			}
+			
+			//One region belongs to one group, one group may have many regions. So duplicate region check is unnecessary.
+			//if(utarray_find(g2r->region_ids, &(region->region_id), compare_region_id)) assert(0);
+
 			utarray_push_back(g2r->region_ids, &(region->region_id));
-			utarray_sort(g2r->region_ids, compare_region_id);
+			//utarray_sort(g2r->region_ids, compare_region_id);
 		}
 	}
 
@@ -1178,10 +1179,18 @@ struct region2clause_value* Maat_hierarchy_build_region2clause_hash(struct Maat_
 		}
 
 	}
-	
+	int tmp1=0, tmp2=0;
 	HASH_ITER(hh, g2r_hash, g2r, g2r_tmp)
 	{
 		HASH_DEL(g2r_hash, g2r);
+		//Sanity Check
+		utarray_sort(g2r->region_ids, compare_region_id);
+		for(i=1; i<utarray_len(g2r->region_ids); i++)
+		{			
+			tmp1=*((int*)utarray_eltptr(g2r->region_ids, i-1));
+			tmp2=*((int*)utarray_eltptr(g2r->region_ids, i));
+			assert(tmp1!=tmp2);
+		}
 		utarray_free(g2r->region_ids);
 		g2r->region_ids=NULL;
 		free(g2r);
