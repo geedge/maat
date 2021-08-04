@@ -1195,11 +1195,11 @@ MAAT_PLUGIN_EX_DATA Maat_plugin_get_EX_data(Maat_feather_t feather, int table_id
 	if(_feather->perf_on==1)
 	{
 		clock_gettime(CLOCK_MONOTONIC,&end);
-		maat_stat_table(table_rt, 0, &start, &end, 0);
+		Maat_table_runtime_perf_stat(table_rt, 0, &start, &end, 0);
 	}
 	else
 	{
-		maat_stat_table(table_rt, 0, NULL, NULL, 0);
+		Maat_table_runtime_perf_stat(table_rt, 0, NULL, NULL, 0);
 	}
 
 	return exdata;
@@ -1301,11 +1301,11 @@ int Maat_ip_plugin_get_EX_data(Maat_feather_t feather, int table_id, const struc
 	if(_feather->perf_on==1)
 	{
 		clock_gettime(CLOCK_MONOTONIC,&end);
-		maat_stat_table(table_rt, 0, &start, &end, 0);
+		Maat_table_runtime_perf_stat(table_rt, 0, &start, &end, 0);
 	}
 	else
 	{
-		maat_stat_table(table_rt, 0, NULL, NULL, 0);
+		Maat_table_runtime_perf_stat(table_rt, 0, NULL, NULL, 0);
 	}
 
 	return n_get;
@@ -1391,9 +1391,8 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 		return -1;
 	}
 	expr_desc=&(p_table->expr);
-	
-	enum MAAT_TABLE_TYPE table_type=Maat_table_runtime_get_type(p_table);
-	if(table_type==TABLE_TYPE_EXPR_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
+
+	if(p_table->table_type==TABLE_TYPE_EXPR_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
 	{
 		_feather->scan_err_cnt++;
 		return -1;
@@ -1541,9 +1540,7 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 	{
 		return 0;
 	}
-
-	enum MAAT_TABLE_TYPE table_type=Maat_table_runtime_get_type(p_table);
-	if(table_type==TABLE_TYPE_INTERVAL_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
+	if(p_table->table_type==TABLE_TYPE_INTERVAL_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
 	{
 		_feather->scan_err_cnt++;
 		return -1;
@@ -1634,8 +1631,7 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 		_feather->scan_err_cnt++;
 		return -1;
 	}
-	enum MAAT_TABLE_TYPE table_type=Maat_table_runtime_get_type(p_table);
-	if(table_type!=TABLE_TYPE_SIMILARITY)
+	if(p_table->table_type!=TABLE_TYPE_SIMILARITY)
 	{
 		return -1;
 	}
@@ -1686,11 +1682,11 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 	if(_feather->perf_on==1)
 	{
 		clock_gettime(CLOCK_MONOTONIC,&end);
-		maat_stat_table(table_rt,0,&start, &end,thread_num);
+		Maat_table_runtime_perf_stat(table_rt,0,&start, &end,thread_num);
 	}
 	else
 	{
-		maat_stat_table(table_rt,0,NULL, NULL,thread_num);
+		Maat_table_runtime_perf_stat(table_rt,0,NULL, NULL,thread_num);
 	}
 	if(compile_ret==0&&hit_region_cnt>0)
 	{
@@ -1919,11 +1915,11 @@ int Maat_scan_proto_addr(Maat_feather_t feather,int table_id
 	if(_feather->perf_on==1)
 	{
 		clock_gettime(CLOCK_MONOTONIC,&end);
-		maat_stat_table(table_rt, 0, &start, &end, thread_num);
+		Maat_table_runtime_perf_stat(table_rt, 0, &start, &end, thread_num);
 	}
 	else
 	{
-		maat_stat_table(table_rt, 0, NULL, NULL, thread_num);
+		Maat_table_runtime_perf_stat(table_rt, 0, NULL, NULL, thread_num);
 	}
 	if(compile_ret==0&&region_hit_cnt>0)
 	{
@@ -2168,11 +2164,11 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 	if(sp->feather->perf_on==1)
 	{
 		clock_gettime(CLOCK_MONOTONIC,&end);
-		maat_stat_table(table_rt,data_len,&start, &end,sp->thread_num);
+		Maat_table_runtime_perf_stat(table_rt,data_len,&start, &end,sp->thread_num);
 	}
 	else
 	{
-		maat_stat_table(table_rt,data_len,NULL, NULL,sp->thread_num);
+		Maat_table_runtime_perf_stat(table_rt,data_len,NULL, NULL,sp->thread_num);
 	}
 	if(compile_ret==0&&hit_region_cnt>0)
 	{
@@ -2393,11 +2389,11 @@ fast_out:
 	if(sp->feather->perf_on==1)
 	{
 		clock_gettime(CLOCK_MONOTONIC,&end);
-		maat_stat_table(table_rt, data_len, &start, &end, sp->thread_num);
+		Maat_table_runtime_perf_stat(table_rt, data_len, &start, &end, sp->thread_num);
 	}
 	else
 	{
-		maat_stat_table(table_rt, data_len, NULL, NULL, sp->thread_num);
+		Maat_table_runtime_perf_stat(table_rt, data_len, NULL, NULL, sp->thread_num);
 	}
 	if(compile_ret==0&&hit_region_cnt>0)
 	{

@@ -388,7 +388,6 @@ int HASH_add_by_id(MESA_htable_handle hash,int id,void*data);
 int HASH_delete_by_id(MESA_htable_handle hash,int id);
 void maat_read_full_config(_Maat_feather_t* _feather);
 void maat_stat_init(struct _Maat_feather_t* feather);
-void maat_stat_table(struct Maat_table_runtime* p,int scan_len,struct timespec* start, struct timespec* end,int thread_num);
 void maat_stat_output(struct _Maat_feather_t* feather);
 
 redisReply *_wrap_redisCommand(redisContext *c, const char *format, ...);

@@ -2326,9 +2326,7 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 	MESA_htable_handle tmp_map=NULL;
 	struct Maat_table_runtime* table_rt=NULL;
 	int i=0, ret=0;
-	struct ip_matcher* old_ip_matcher=NULL;
-	struct FQDN_engine* old_fqdn_engine=NULL;
-	enum MAAT_TABLE_TYPE table_type=0;
+	enum MAAT_TABLE_TYPE table_type=TABLE_TYPE_INVALID;
 
 	ret=Maat_hierarchy_rebuild(scanner->hier);
 	if(ret!=0)
