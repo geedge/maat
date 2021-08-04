@@ -1,4 +1,3 @@
-#include "Maat_table_runtime.h"
 #include "Maat_rule.h"
 #include "Maat_utils.h"
 
@@ -6,6 +5,77 @@
 #include <MESA/MESA_list_queue.h>
 #include <assert.h>
 #include <sys/queue.h>
+
+
+#include "IPMatcher.h"
+#include "gram_index_engine.h"
+#include "FQDN_engine.h"
+#include "alignment_int64.h"
+#include "dynamic_array.h"
+#include <MESA/MESA_htable.h>
+#include <MESA/MESA_list_queue.h>
+
+struct similar_runtime
+{
+	GIE_handle_t*	gie_handle;
+	MESA_lqueue_head update_q;
+};
+struct fqdn_plugin_runtime
+{
+	struct FQDN_engine* fqdn_engine;
+	struct FQDN_engine* new_fqdn_engine;
+	struct EX_data_rt* ex_data_rt;
+	int changed_flag;
+};
+struct plugin_runtime
+{
+	struct EX_data_rt* ex_data_rt;
+	long long acc_line_num;
+};
+
+struct ip_plugin_runtime
+{
+	struct EX_data_rt* ex_data_rt;
+	struct ip_matcher* ip_matcher;
+	int changed_flag;
+};
+struct expr_runtime
+{
+	long long expr_rule_cnt;	//expr_type=0,1,3
+	long long regex_rule_cnt;	//expr_type=2
+};
+struct ip_runtime
+{
+	long long ipv4_rule_cnt;
+	long long ipv6_rule_cnt;
+
+};
+struct group2compile_runtime
+{
+	long long not_flag_group;
+};
+struct Maat_table_runtime
+{
+	enum MAAT_TABLE_TYPE table_type;
+	long origin_rule_num;
+	union
+	{	
+		struct similar_runtime similar;	//for digest and similarity
+		struct fqdn_plugin_runtime fqdn_plugin;//for fqdn_plugin and fqdn_plugin
+		struct plugin_runtime plugin;		
+		struct ip_plugin_runtime ip_plugin;
+		struct expr_runtime expr;
+		struct ip_runtime ip;
+		struct group2compile_runtime group2compile;		
+		void * other;
+	};
+	mcore_long_t	scan_cnt;
+	mcore_long_t	scan_cpu_time;	//nano
+	mcore_long_t	input_bytes;
+	mcore_long_t	stream_num;
+	mcore_long_t	hit_cnt;
+	struct Maat_garbage_bin* ref_garbage_bin;
+};
 
 struct ip_rule*  ip_plugin_row2ip_rule(const struct ip_plugin_table_schema* schema, const char* row)
 {
@@ -167,7 +237,7 @@ static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_sche
 		default:
 			break;
 	}
-
+	table_rt->ref_garbage_bin=bin;
 	table_rt->scan_cnt=alignment_int64_array_alloc(max_thread_num);
 	table_rt->scan_cpu_time=alignment_int64_array_alloc(max_thread_num);
 	table_rt->input_bytes=alignment_int64_array_alloc(max_thread_num);
@@ -447,15 +517,15 @@ void Maat_table_runtime_fqdn_plugin_new_row(struct Maat_table_runtime* table_rt,
 
 int Maat_table_runtime_fqdn_plugin_build_new_fqdn_engine(struct Maat_table_runtime* table_rt)
 {
-	struct FQDN_engine* new_fqdn_engine=NULL;
+	struct FQDN_engine* new_fqdn_engine=NULL, *old_fqdn_engine=NULL;
 	struct 	fqdn_plugin_runtime* fqdn_rt=&table_rt->fqdn_plugin;
 	assert(table_rt->table_type==TABLE_TYPE_FQDN_PLUGIN);
 	struct EX_data_container **exc_array=NULL;
 	struct FQDN_rule* rules=NULL;
-	size_t rule_cnt=0, i=0;
+	size_t rule_cnt=0, i=0, ret=0;
 	if(!fqdn_rt->changed_flag)
 	{
-		return 0;
+		return ret;
 	}
 
 	rule_cnt=EX_data_rt_list_all_ex_container(fqdn_rt->ex_data_rt, &exc_array);
@@ -468,12 +538,23 @@ int Maat_table_runtime_fqdn_plugin_build_new_fqdn_engine(struct Maat_table_runti
 	}
 	if(rule_cnt>0)
 	{
+		
+		old_fqdn_engine=fqdn_rt->fqdn_engine;
 		new_fqdn_engine=FQDN_engine_new(rules, rule_cnt);
+		if(new_fqdn_engine)
+		{
+			fqdn_rt->fqdn_engine=new_fqdn_engine;
+			Maat_garbage_bagging(table_rt->ref_garbage_bin, old_fqdn_engine, (void (*)(void*))FQDN_engine_free);
+		}
+		else
+		{
+			ret=-1;
+		}
 	}
-	fqdn_rt->new_fqdn_engine=new_fqdn_engine;
 	free(rules);
-	free(exc_array);
-	return 1;
+	free(exc_array);	
+	table_rt->fqdn_plugin.changed_flag=0;
+	return ret;
 }
 struct FQDN_engine* Maat_table_runtime_apply_new_fqdn_engine(struct Maat_table_runtime* table_rt)
 {
@@ -589,7 +670,7 @@ int Maat_table_runtime_digest_batch_udpate(struct Maat_table_runtime* table_rt)
 
 int Maat_table_runtime_ip_plugin_build_new_ip_matcher(struct Maat_table_runtime* table_rt)
 {
-	struct ip_matcher* new_ip_matcher=NULL;
+	struct ip_matcher* new_ip_matcher=NULL, *old_ip_matcher=NULL;
 	size_t rule_cnt=0;
 	size_t i=0, mem_use=0;
 	struct ip_rule *rules=NULL;
@@ -612,8 +693,11 @@ int Maat_table_runtime_ip_plugin_build_new_ip_matcher(struct Maat_table_runtime*
 	{
 		new_ip_matcher=ip_matcher_new(rules, rule_cnt, &mem_use);
 		assert(ip_plugin->new_ip_matcher==NULL);
-		ip_plugin->new_ip_matcher=new_ip_matcher;
+		old_ip_matcher=ip_plugin->ip_matcher;
+		ip_plugin->ip_matcher=new_ip_matcher;
+		Maat_garbage_bagging(table_rt->ref_garbage_bin, old_ip_matcher, (void (*)(void*))ip_matcher_free);
 	}
+	
 	free(rules);
 	free(exc_array);
 	exc_array=NULL;
@@ -621,17 +705,6 @@ int Maat_table_runtime_ip_plugin_build_new_ip_matcher(struct Maat_table_runtime*
 	return 1;
 }
 
-
-
-struct ip_matcher* Maat_table_runtime_apply_new_ip_matcher(struct Maat_table_runtime* table_rt)
-{
-	struct ip_matcher* old_one=table_rt->ip_plugin.ip_matcher;
-	table_rt->ip_plugin.ip_matcher=table_rt->ip_plugin.new_ip_matcher;
-	assert(table_rt->table_type==TABLE_TYPE_IP_PLUGIN);
-	table_rt->ip_plugin.new_ip_matcher=NULL;
-	table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(table_rt->ip_plugin.ex_data_rt);
-	return old_one;
-}
 
 void Maat_table_runtime_ip_plugin_new_row(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* row, void *logger)
 {
@@ -699,7 +772,6 @@ int Maat_table_runtime_ip_plugin_commit_ex_schema(struct Maat_table_runtime* tab
 	}
 	EX_data_rt_clear_row_cache(ip_plugin_rt->ex_data_rt);
 	Maat_table_runtime_ip_plugin_build_new_ip_matcher(table_rt);
-	Maat_table_runtime_apply_new_ip_matcher(table_rt);//returned NULL.
 	return 0;
 }
 

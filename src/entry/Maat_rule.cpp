@@ -2372,25 +2372,14 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 				break;
 			case TABLE_TYPE_IP_PLUGIN:				
 				ret=Maat_table_runtime_ip_plugin_build_new_ip_matcher(table_rt);
-				if(ret)
-				{
-					old_ip_matcher=Maat_table_runtime_apply_new_ip_matcher(table_rt);
-					if(old_ip_matcher)
-					{
-						Maat_garbage_bagging(scanner->ref_garbage_bin, old_ip_matcher, (void (*)(void*))ip_matcher_free);
-					}
-				}
 				break;
 			case TABLE_TYPE_FQDN_PLUGIN:
-
 				ret=Maat_table_runtime_fqdn_plugin_build_new_fqdn_engine(table_rt);
-				if(ret)
+				if(ret<0)
 				{
-					old_fqdn_engine=Maat_table_runtime_apply_new_fqdn_engine(table_rt);
-					if(old_fqdn_engine)
-					{
-						Maat_garbage_bagging(scanner->ref_garbage_bin, old_fqdn_engine, (void (*)(void*))FQDN_engine_free);
-					}
+					MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+										"FQDN plugin table %s build failed.", Maat_table_runtime_get_name);
+
 				}
 				break;
 			default:

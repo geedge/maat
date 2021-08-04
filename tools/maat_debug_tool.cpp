@@ -8,6 +8,7 @@
 #include <getopt.h>
 #include <sys/stat.h>
 #include <arpa/inet.h>
+#include <unistd.h>		/* for sleep*/
 
 void debug_maat_result_print(const char* table_name, int scan_ret, struct Maat_rule_t* result)
 {
@@ -102,9 +103,12 @@ enum tool_arg_type{
 	ARG_SCAN_CHARSET,
 	ARG_INPUT_JSON,
 	ARG_INPUT_FULL_INDEX,
+	ARG_REDIS_IP,
+	ARG_REDIS_PORT,
 	ARG_DECRYPT_KEY,
 	ARG_ACCEPT_TAGS,
 	ARG_SCAN_IPv4,
+	ARG_SLEEP_SECONDS,
 	__ARG_MAX
 };
 
@@ -129,9 +133,12 @@ int main(int argc, char ** argv)
 		{"scan-charset",	optional_argument, 0, 0},
 		{"maat-json",		required_argument, 0, 0},
 		{"full-index",	required_argument, 0, 0},
+		{"redis-ip",	required_argument, 0, 0},
+		{"redis-port",	required_argument, 0, 0},
 		{"decrypt-key", optional_argument, 0, 0},
 		{"accept-tags", optional_argument, 0, 0},
 		{"scan-ipv4", required_argument, 0, 0},	
+		{"sleep-seconds", required_argument, 0, 0},	
 		{0, 0, 0, 0}
 	};
 
@@ -157,6 +164,7 @@ int main(int argc, char ** argv)
 	int scan_detail=0, ret=0;
 	Maat_feather_t feather=NULL;
 	void *g_logger=NULL;
+	int redis_port=6379, sleep_seconds=0;
 
 	g_logger=MESA_create_runtime_log_handle(log_file, 0);
 
@@ -185,10 +193,29 @@ int main(int argc, char ** argv)
 		ret=Maat_set_feather_opt(feather, MAAT_OPT_FULL_CFG_DIR, arg_value[ARG_INPUT_FULL_INDEX], strlen(arg_value[ARG_INPUT_FULL_INDEX])+1);
 		if(ret!=0)
 		{
-			printf("Set %s failed, invalid maat json.\n", arg_value[ARG_INPUT_FULL_INDEX]);
+			printf("Set %s failed, invalid full cfg directory.\n", arg_value[ARG_INPUT_FULL_INDEX]);
 			ret=-1;
 			goto clean_up;
 		}
+	}
+	else if(strlen(arg_value[ARG_REDIS_IP]))
+	{
+		ret=Maat_set_feather_opt(feather, MAAT_OPT_REDIS_IP, arg_value[ARG_REDIS_IP], strlen(arg_value[ARG_REDIS_IP])+1);
+		if(ret!=0)
+		{
+			printf("Set %s failed, redis IP.\n", arg_value[ARG_REDIS_IP]);
+			ret=-1;
+			goto clean_up;
+		}
+		if(strlen(arg_value[ARG_REDIS_PORT]))
+		{
+			redis_port=atoi(arg_value[ARG_REDIS_PORT]);
+		}
+		else
+		{
+			redis_port=6379;
+		}
+		ret=Maat_set_feather_opt(feather, MAAT_OPT_REDIS_PORT, &redis_port, sizeof(redis_port));
 	}
 	else
 	{
@@ -224,6 +251,11 @@ int main(int argc, char ** argv)
 	if(strlen(arg_value[ARG_SCAN_IPv4])>0)
 	{
 		debug_maat_ip_scan(feather, arg_value[ARG_TABLE_NAME], arg_value[ARG_SCAN_IPv4]);
+	}
+	if(strlen(arg_value[ARG_SLEEP_SECONDS])>0)
+	{
+		sleep_seconds=atoi(arg_value[ARG_SLEEP_SECONDS]);
+		sleep(sleep_seconds);
 	}
 clean_up:
 	Maat_burn_feather(feather);
