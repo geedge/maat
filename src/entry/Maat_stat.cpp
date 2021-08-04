@@ -152,16 +152,7 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	FS_start(feather->stat_handle);
 	return;
 }
-void maat_stat_table(struct Maat_table_runtime* p,int scan_len,struct timespec* start, struct timespec* end,int thread_num)
-{
-	alignment_int64_array_add(p->scan_cnt,thread_num,1);
-	alignment_int64_array_add(p->input_bytes,thread_num,scan_len);
-	if(start!=NULL&&end!=NULL)
-	{
-		alignment_int64_array_add(p->scan_cpu_time,thread_num,(end->tv_sec-start->tv_sec)*1000000000+end->tv_nsec-start->tv_nsec);
-	}
-	return;
-}
+
 void maat_stat_output(struct _Maat_feather_t* feather)
 {
 	long value=0;

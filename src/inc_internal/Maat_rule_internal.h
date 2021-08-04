@@ -282,7 +282,6 @@ struct _Maat_feather_t
 	struct Maat_table_manager* table_mgr;
 	
 	int DEFERRED_LOAD_ON;
-	int REDIS_MODE_ON;
 	enum data_source input_mode;
 	union
 	{

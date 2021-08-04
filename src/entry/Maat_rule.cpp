@@ -2328,6 +2328,7 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 	int i=0, ret=0;
 	struct ip_matcher* old_ip_matcher=NULL;
 	struct FQDN_engine* old_fqdn_engine=NULL;
+	enum MAAT_TABLE_TYPE table_type=0;
 
 	ret=Maat_hierarchy_rebuild(scanner->hier);
 	if(ret!=0)
@@ -2357,7 +2358,8 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 		{
 			continue;
 		}
-		switch(table_rt->table_type)
+		table_type=Maat_table_runtime_get_type(table_rt);	
+		switch(table_type)
 		{
 			case TABLE_TYPE_DIGEST:
 			case TABLE_TYPE_SIMILARITY:				
@@ -2371,14 +2373,21 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 			case TABLE_TYPE_PLUGIN:
 				break;
 			case TABLE_TYPE_IP_PLUGIN:				
-				ret=Maat_table_runtime_ip_plugin_build_new_ip_matcher(table_rt);
-				break;
-			case TABLE_TYPE_FQDN_PLUGIN:
-				ret=Maat_table_runtime_fqdn_plugin_build_new_fqdn_engine(table_rt);
+				ret=Maat_table_runtime_ip_plugin_rebuild_ip_matcher(table_rt);
 				if(ret<0)
 				{
 					MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-										"FQDN plugin table %s build failed.", Maat_table_runtime_get_name);
+										"IP plugin table_id %d build failed.", i);
+
+				}
+
+				break;
+			case TABLE_TYPE_FQDN_PLUGIN:
+				ret=Maat_table_runtime_fqdn_plugin_rebuild_fqdn_engine(table_rt);
+				if(ret<0)
+				{
+					MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+										"FQDN plugin table_id %d build failed.", i);
 
 				}
 				break;

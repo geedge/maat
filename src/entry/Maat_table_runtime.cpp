@@ -343,6 +343,21 @@ struct Maat_table_runtime* Maat_table_runtime_get(struct Maat_table_runtime_mana
 	assert(table_id<(int)table_rt_mgr->n_table_rt);
 	return table_rt_mgr->table_rt[table_id];
 }
+enum MAAT_TABLE_TYPE Maat_table_runtime_get_type(struct Maat_table_runtime* table_rt)
+{
+	return table_rt->table_type;
+}
+void Maat_table_runtime_perf_stat(struct Maat_table_runtime* p, int scan_len, struct timespec* start, struct timespec* end,int thread_num)
+{
+	alignment_int64_array_add(p->scan_cnt,thread_num,1);
+	alignment_int64_array_add(p->input_bytes,thread_num,scan_len);
+	if(start!=NULL&&end!=NULL)
+	{
+		alignment_int64_array_add(p->scan_cpu_time,thread_num,(end->tv_sec-start->tv_sec)*1000000000+end->tv_nsec-start->tv_nsec);
+	}
+	return;
+}
+
 size_t Maat_table_runtime_plugin_cached_row_count(struct Maat_table_runtime* table_rt)
 {
 	struct plugin_runtime* plugin_rt=&(table_rt->plugin);
@@ -578,7 +593,7 @@ int Maat_table_runtime_fqdn_plugin_commit_ex_schema(struct Maat_table_runtime* t
 		Maat_table_runtime_fqdn_plugin_new_row(table_rt, table_schema, row, logger);
 	}
 	EX_data_rt_clear_row_cache(fqdn_plugin_rt->ex_data_rt);
-	Maat_table_runtime_fqdn_plugin_build_new_fqdn_engine(table_rt);
+	Maat_table_runtime_fqdn_plugin_rebuild_fqdn_engine(table_rt);
 	Maat_table_runtime_apply_new_fqdn_engine(table_rt);//returned NULL.
 	return 0;
 }
@@ -668,7 +683,7 @@ int Maat_table_runtime_digest_batch_udpate(struct Maat_table_runtime* table_rt)
 	return q_cnt;
 }
 
-int Maat_table_runtime_ip_plugin_build_new_ip_matcher(struct Maat_table_runtime* table_rt)
+int Maat_table_runtime_ip_plugin_rebuild_ip_matcher(struct Maat_table_runtime* table_rt)
 {
 	struct ip_matcher* new_ip_matcher=NULL, *old_ip_matcher=NULL;
 	size_t rule_cnt=0;
@@ -771,7 +786,7 @@ int Maat_table_runtime_ip_plugin_commit_ex_schema(struct Maat_table_runtime* tab
 		Maat_table_runtime_ip_plugin_new_row(table_rt, table_schema, row, logger);
 	}
 	EX_data_rt_clear_row_cache(ip_plugin_rt->ex_data_rt);
-	Maat_table_runtime_ip_plugin_build_new_ip_matcher(table_rt);
+	Maat_table_runtime_ip_plugin_rebuild_ip_matcher(table_rt);
 	return 0;
 }
 

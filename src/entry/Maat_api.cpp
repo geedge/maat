@@ -1282,7 +1282,8 @@ int Maat_ip_plugin_get_EX_data(Maat_feather_t feather, int table_id, const struc
 
 	table_schema=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, SCAN_TYPE_IP_PLUGIN, NULL);
 	table_rt=Maat_table_runtime_get(_feather->scanner->table_rt_mgr, table_id);
-	if(table_rt->table_type!=TABLE_TYPE_IP_PLUGIN)
+	enum MAAT_TABLE_TYPE table_type=Maat_table_runtime_get_type(table_rt);
+	if(table_type!=TABLE_TYPE_IP_PLUGIN)
 	{
 		return -1;
 	}
@@ -1328,7 +1329,8 @@ int Maat_fqdn_plugin_get_EX_data(Maat_feather_t feather, int table_id, const cha
 	}
 	table_schema=Maat_table_get_scan_by_id(_feather->table_mgr, table_id, SCAN_TYPE_FQDN_PLUGIN, NULL);
 	table_rt=Maat_table_runtime_get(_feather->scanner->table_rt_mgr, table_id);
-	if(table_rt->table_type!=TABLE_TYPE_FQDN_PLUGIN)
+	enum MAAT_TABLE_TYPE table_type=Maat_table_runtime_get_type(table_rt);
+	if(table_type!=TABLE_TYPE_FQDN_PLUGIN)
 	{
 		return -1;
 	}
@@ -1338,11 +1340,11 @@ int Maat_fqdn_plugin_get_EX_data(Maat_feather_t feather, int table_id, const cha
 	if(_feather->perf_on==1)
 	{
 		clock_gettime(CLOCK_MONOTONIC,&end);
-		maat_stat_table(table_rt, 0, &start, &end, 0);
+		Maat_table_runtime_perf_stat(table_rt, 0, &start, &end, 0);
 	}
 	else
 	{
-		maat_stat_table(table_rt, 0, NULL, NULL, 0);
+		Maat_table_runtime_perf_stat(table_rt, 0, NULL, NULL, 0);
 	}
 
 	return n_get;
@@ -1389,7 +1391,9 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 		return -1;
 	}
 	expr_desc=&(p_table->expr);
-	if(p_table->table_type==TABLE_TYPE_EXPR_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
+	
+	enum MAAT_TABLE_TYPE table_type=Maat_table_runtime_get_type(p_table);
+	if(table_type==TABLE_TYPE_EXPR_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
 	{
 		_feather->scan_err_cnt++;
 		return -1;
@@ -1473,11 +1477,11 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	if(_feather->perf_on==1)
 	{
 		clock_gettime(CLOCK_MONOTONIC,&end);
-		maat_stat_table(table_rt, data_len, &start, &end, thread_num);
+		Maat_table_runtime_perf_stat(table_rt, data_len, &start, &end, thread_num);
 	}
 	else
 	{
-		maat_stat_table(table_rt, data_len, NULL, NULL, thread_num);
+		Maat_table_runtime_perf_stat(table_rt, data_len, NULL, NULL, thread_num);
 	}
 	DEC_SCANNER_REF(my_scanner, thread_num);
 	if(compile_ret==0&&hit_region_cnt>0)
@@ -1538,7 +1542,8 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 		return 0;
 	}
 
-	if(table_rt->table_type==TABLE_TYPE_INTERVAL_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
+	enum MAAT_TABLE_TYPE table_type=Maat_table_runtime_get_type(p_table);
+	if(table_type==TABLE_TYPE_INTERVAL_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
 	{
 		_feather->scan_err_cnt++;
 		return -1;
@@ -1588,11 +1593,11 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 	if(_feather->perf_on==1)
 	{
 		clock_gettime(CLOCK_MONOTONIC,&end);
-		maat_stat_table(table_rt, 0, &start, &end, thread_num);
+		Maat_table_runtime_perf_stat(table_rt, 0, &start, &end, thread_num);
 	}
 	else
 	{
-		maat_stat_table(table_rt, 0, NULL, NULL, thread_num);
+		Maat_table_runtime_perf_stat(table_rt, 0, NULL, NULL, thread_num);
 	}
 	DEC_SCANNER_REF(my_scanner,thread_num);
 
@@ -1629,6 +1634,12 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 		_feather->scan_err_cnt++;
 		return -1;
 	}
+	enum MAAT_TABLE_TYPE table_type=Maat_table_runtime_get_type(p_table);
+	if(table_type!=TABLE_TYPE_SIMILARITY)
+	{
+		return -1;
+	}
+
 	my_scanner=_feather->scanner;
 	if(my_scanner==NULL)
 	{
@@ -1640,7 +1651,8 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 	if(table_rt->origin_rule_num==0)
 	{
 		return 0;
-	}
+	}	
+
 	GIE_handle_t* gie_handle=table_rt->similar.gie_handle;	
 	INC_SCANNER_REF(my_scanner,thread_num);
 	alignment_int64_array_add(_feather->thread_call_cnt, thread_num, 1);
