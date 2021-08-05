@@ -170,7 +170,8 @@ struct Maat_hierarchy
 	pthread_rwlock_t rwlock;
 	pthread_mutex_t mutex;
 	time_t version;				//After full update, clause id may indicate a different clause. Comparing hier->version and mid->hier_ver can prevent false positive match.
-
+	int changed_flag;
+	
 	struct Maat_hierarchy_compile* hash_compile_by_id;		//key: compile_id, value: struct Maat_hierarchy_compile*.
 	void (* compile_user_data_free)(void *compile_ud);
 
@@ -479,6 +480,7 @@ int Maat_hierarchy_compile_add(struct Maat_hierarchy* hier, int compile_id, int 
 	struct Maat_hierarchy_compile* compile=NULL;
 	
 	pthread_rwlock_wrlock(&hier->rwlock);
+	hier->changed_flag=1;
 	HASH_FIND_INT(hier->hash_compile_by_id, &compile_id, compile);
 	if(!compile)
 	{
@@ -511,6 +513,7 @@ int Maat_hierarchy_compile_remove(struct Maat_hierarchy * hier, int compile_id)
 	int ret=0;
 	
 	pthread_rwlock_wrlock(&hier->rwlock);
+	hier->changed_flag=1;
 	HASH_FIND_INT(hier->hash_compile_by_id, &compile_id, compile);
 	if(compile)
 	{
@@ -664,6 +667,7 @@ int Maat_hierarchy_add_group_to_compile(struct Maat_hierarchy* hier, int group_i
 	struct Maat_hierarchy_compile* compile=NULL;
 	
 	pthread_rwlock_wrlock(&hier->rwlock);
+	hier->changed_flag=1;
 	HASH_FIND(hh_group_id, hier->hash_group_by_id, &group_id, sizeof(group_id), group);
 	if(!group)
 	{
@@ -700,6 +704,7 @@ int Maat_hierarchy_remove_group_from_compile(struct Maat_hierarchy* hier, int gr
 	int ret=0;
 	
 	pthread_rwlock_wrlock(&hier->rwlock);
+	hier->changed_flag=1;
 	HASH_FIND(hh_group_id, hier->hash_group_by_id, &group_id, sizeof(group_id), group);
 	if(!group)
 	{
@@ -746,6 +751,7 @@ int Maat_hierarchy_add_group_to_group(struct Maat_hierarchy* hier, int group_id,
 	struct Maat_hierarchy_group* group=NULL, *superior_group=NULL;
 
 	pthread_rwlock_wrlock(&hier->rwlock);
+	hier->changed_flag=1;
 	HASH_FIND(hh_group_id, hier->hash_group_by_id, &group_id, sizeof(group_id), group);
 	if(!group)
 	{
@@ -782,7 +788,7 @@ int Maat_hierarchy_remove_group_from_group(struct Maat_hierarchy* hier, int grou
 	struct Maat_hierarchy_group* group=NULL, *superior_group=NULL;
 
 	//No hash write operation, LOCK protection is unnecessary.
-	
+	hier->changed_flag=1;
 	HASH_FIND(hh_group_id, hier->hash_group_by_id, &group_id, sizeof(group_id), group);
 	if(group==NULL)
 	{
@@ -838,6 +844,7 @@ int Maat_hierarchy_add_region_to_group(struct Maat_hierarchy* hier, int group_id
 	int ret=0;
 	
 	pthread_rwlock_wrlock(&hier->rwlock);
+	hier->changed_flag=1;
 	HASH_FIND(hh_group_id, hier->hash_group_by_id, &group_id, sizeof(group_id), group);
 	if(!group)
 	{
@@ -867,6 +874,7 @@ void* Maat_hierarchy_region_dettach_user_data(struct Maat_hierarchy* hier, int r
 	struct Maat_hierarchy_region* region=NULL;
 	void* ret=NULL;
 	pthread_rwlock_wrlock(&hier->rwlock);
+	hier->changed_flag=1;
 	HASH_FIND_INT(hier->hash_region_by_id, &region_id, region);
 	if(region)
 	{
@@ -881,6 +889,7 @@ int Maat_hierarchy_remove_region_from_group(struct Maat_hierarchy* hier, int gro
 	struct Maat_hierarchy_group* group=NULL;
 	struct Maat_hierarchy_region* region=NULL;
 	pthread_rwlock_wrlock(&hier->rwlock);
+	hier->changed_flag=1;
 	HASH_FIND(hh_group_id, hier->hash_group_by_id, &group_id, sizeof(group_id), group);
 	if(!group)
 	{
@@ -1209,6 +1218,10 @@ int Maat_hierarchy_rebuild(struct Maat_hierarchy* hier)
 	struct region2clause_value* new_region2clause_hash=NULL, *old_region2clause_hash=NULL;
 
 	//Read hier from update thread is OK.
+	if(!hier->changed_flag)
+	{
+		return ret;
+	}
 	ret=Maat_hierarchy_build_top_groups(hier);
 	new_bm=Maat_hierarchy_build_bool_matcher(hier);
 	new_region2clause_hash=Maat_hierarchy_build_region2clause_hash(hier);
@@ -1220,6 +1233,7 @@ int Maat_hierarchy_rebuild(struct Maat_hierarchy* hier)
 
 	hier->bm=new_bm;
 	hier->hash_region2clause=new_region2clause_hash;
+	hier->changed_flag=0;
 	pthread_rwlock_unlock(&hier->rwlock);
 
 	Maat_garbage_bagging(hier->ref_garbage_bin, old_bm, (void (*)(void*))bool_matcher_free);	

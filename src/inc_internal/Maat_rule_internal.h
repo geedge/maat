@@ -214,11 +214,7 @@ struct Maat_scanner
 	time_t last_update_time;
 	mcore_long_t ref_cnt;
 	rule_scanner_t region;
-	size_t gie_update_q_size;
-	size_t xx_plugin_update_q_size;
-	size_t to_update_group_cnt;
-	size_t to_update_compile_cnt;
-
+	size_t xx_plugin_rule_to_update_cnt;
 	struct Maat_table_runtime_manager*  table_rt_mgr;
 	size_t max_table_num;
 

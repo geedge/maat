@@ -266,15 +266,17 @@ void ip_plugin_EX_free_cb(int table_id, MAAT_PLUGIN_EX_DATA* ad, long argl, void
 {
 	struct ip_plugin_ud* u=(struct ip_plugin_ud*)(*ad);
 	u->ref_cnt--;
-	if(u->ref_cnt>0) return;
-	free(u->buffer);
-	free(u);
-	*ad=NULL;
+	if ((__sync_sub_and_fetch(&u->ref_cnt, 1) == 0))
+	{
+		free(u->buffer);
+		free(u);
+		*ad=NULL;
+	}
 }
 void ip_plugin_EX_dup_cb(int table_id,	MAAT_PLUGIN_EX_DATA *to, MAAT_PLUGIN_EX_DATA *from, long argl, void *argp)
 {
 	struct ip_plugin_ud* u=(struct ip_plugin_ud*)(*from);
-	u->ref_cnt++;
+	__sync_add_and_fetch(&(u->ref_cnt), 1);
 	*to=u;
 }
 
@@ -348,15 +350,16 @@ void fqdn_plugin_EX_new_cb(int table_id, const char* key, const char* table_line
 void fqdn_plugin_EX_free_cb(int table_id, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
 {
 	struct perf_fqdn_plugin_ud* u=(struct perf_fqdn_plugin_ud*)(*ad);
-	u->ref_cnt--;
-	if(u->ref_cnt>0) return;
-	free(u);
-	*ad=NULL;
+	if ((__sync_sub_and_fetch(&u->ref_cnt, 1) == 0))
+	{
+		free(u);
+		*ad=NULL;
+	}
 }
 void fqdn_plugin_EX_dup_cb(int table_id,	MAAT_PLUGIN_EX_DATA *to, MAAT_PLUGIN_EX_DATA *from, long argl, void *argp)
 {
 	struct perf_fqdn_plugin_ud* u=(struct perf_fqdn_plugin_ud*)(*from);
-	u->ref_cnt++;
+	__sync_add_and_fetch(&(u->ref_cnt), 1);
 	*to=u;
 }
 TEST(FQDN_Plugin_Table, EX_DATA)
@@ -3372,15 +3375,16 @@ void plugin_EX_new_cb(int table_id, const char* key, const char* table_line, MAA
 void plugin_EX_free_cb(int table_id, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
 {
 	struct user_info* u=(struct user_info*)(*ad);
-	u->ref_cnt--;
-	if(u->ref_cnt>0) return;
-	free(u);
-	*ad=NULL;
+	if ((__sync_sub_and_fetch(&u->ref_cnt, 1) == 0))
+	{
+		free(u);
+		*ad=NULL;
+	}
 }
 void plugin_EX_dup_cb(int table_id,	MAAT_PLUGIN_EX_DATA *to, MAAT_PLUGIN_EX_DATA *from, long argl, void *argp)
 {
 	struct user_info* u=(struct user_info*)(*from);
-	u->ref_cnt++;
+	__sync_add_and_fetch(&(u->ref_cnt), 1);
 	*to=u;
 }
 

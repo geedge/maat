@@ -289,21 +289,26 @@ protected:
 		const char* test_maat_redis_ip="127.0.0.1";
 		unsigned short test_maat_redis_port=6379;
 		const char* table_info_path="./table_info.conf";
+		const char* stat_file="./perf_cmd_test.fs2";
 		int scan_interval_ms=500;
 		int effective_interval_ms=0;
 
 	  	logger=MESA_create_runtime_log_handle("maat_perf_test.log",0);
 
 		_shared_feather=Maat_feather(global_thread_num, table_info_path, logger);
-		Maat_set_feather_opt(_shared_feather,MAAT_OPT_INSTANCE_NAME,"cmdperf", strlen("cmdperf")+1);
+		Maat_set_feather_opt(_shared_feather,MAAT_OPT_INSTANCE_NAME, "cmdperf", strlen("cmdperf")+1);
 		Maat_set_feather_opt(_shared_feather, MAAT_OPT_REDIS_IP, test_maat_redis_ip, strlen(test_maat_redis_ip)+1);
 		Maat_set_feather_opt(_shared_feather, MAAT_OPT_REDIS_PORT, &test_maat_redis_port, sizeof(test_maat_redis_port));
-		Maat_set_feather_opt(_shared_feather, MAAT_OPT_SCANDIR_INTERVAL_MS,&scan_interval_ms, sizeof(scan_interval_ms));
+		Maat_set_feather_opt(_shared_feather, MAAT_OPT_SCANDIR_INTERVAL_MS, &scan_interval_ms, sizeof(scan_interval_ms));
 		//Set a short intevral for testing.
-		Maat_set_feather_opt(_shared_feather, MAAT_OPT_EFFECT_INVERVAL_MS,&effective_interval_ms, sizeof(effective_interval_ms));
+		Maat_set_feather_opt(_shared_feather, MAAT_OPT_EFFECT_INVERVAL_MS, &effective_interval_ms, sizeof(effective_interval_ms));
 		
 		const char* foregin_dir="./foreign_files/";	
 		Maat_set_feather_opt(_shared_feather, MAAT_OPT_FOREIGN_CONT_DIR, foregin_dir, strlen(foregin_dir)+1);
+		
+		Maat_set_feather_opt(_shared_feather, MAAT_OPT_STAT_FILE_PATH, stat_file, strlen(stat_file)+1);
+		Maat_set_feather_opt(_shared_feather, MAAT_OPT_STAT_ON, NULL, 0);
+		Maat_set_feather_opt(_shared_feather, MAAT_OPT_PERF_ON, NULL, 0);
 	
 		Maat_cmd_flushDB(_shared_feather);
 		Maat_initiate_feather(_shared_feather);
@@ -513,7 +518,7 @@ TEST_F(MaatCMDPerfTest, HighMatchRateOnMultiThread)
 	}
 	scan_per_second=scan_count*1000/time_elapse_ms;
 	EXPECT_GT(scan_per_second, 800*1000);
-	printf("High Match on Multi-Thread speed %lld lookups/s\n", scan_per_second);
+	printf("High match rate on %d-threads speed %lld lookups/s/thread\n", global_thread_num, scan_per_second);
 }
 
 #define IP_PLUGIN_EX_DATA
@@ -543,16 +548,18 @@ void ip_plugin_EX_new_cb(int table_id, const char* key, const char* table_line, 
 void ip_plugin_EX_free_cb(int table_id, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
 {
 	struct ip_plugin_ud* u=(struct ip_plugin_ud*)(*ad);
-	u->ref_cnt--;
-	if(u->ref_cnt>0) return;
-	free(u->buffer);
-	free(u);
-	*ad=NULL;
+	
+	if ((__sync_sub_and_fetch(&u->ref_cnt, 1) == 0))
+	{
+		free(u->buffer);
+		free(u);
+		*ad=NULL;
+	}
 }
 void ip_plugin_EX_dup_cb(int table_id,	MAAT_PLUGIN_EX_DATA *to, MAAT_PLUGIN_EX_DATA *from, long argl, void *argp)
 {
 	struct ip_plugin_ud* u=(struct ip_plugin_ud*)(*from);
-	u->ref_cnt++;
+	__sync_add_and_fetch(&(u->ref_cnt), 1);
 	*to=u;
 }
 
@@ -702,7 +709,7 @@ void* fqdn_plugin_update_thread(void *arg)
 {
 	struct thread_para* para=(struct thread_para*)arg;
 	Maat_feather_t feather=para->feather;
-	const int CMD_EXPR_NUM=10;
+	const int CMD_EXPR_NUM=20;
 	int i=0;
 	struct Maat_cmd_line line_rule;
 	char line_buff[1024], fqdn_buff[256];
@@ -729,13 +736,13 @@ TEST_F(MaatCMDPerfTest, FQDNPluginOnMultiThread)
 	Maat_feather_t feather=MaatCMDPerfTest::_shared_feather;
 	int* is_all_hit=NULL;
 	int ret=0;
-	size_t i=0, j=0;
+	int i=0, j=0;
 	int table_id=0, fqdn_plugin_ex_data_counter=0;
 	const char* table_name="TEST_FQDN_PLUGIN_WITH_EXDATA";
 
 #define FIXED_LINE_CNT 5
-	size_t randomed_line_cnt=100*1000;
-	size_t total_line_cnt=FIXED_LINE_CNT+randomed_line_cnt;
+	int randomed_line_cnt=100*1000;
+	int total_line_cnt=FIXED_LINE_CNT+randomed_line_cnt;
 	const struct Maat_cmd_line **p_line=(const struct Maat_cmd_line**)calloc(sizeof(struct Maat_cmd_line*), total_line_cnt);
 	struct Maat_cmd_line *line_rule=(struct Maat_cmd_line*)calloc(sizeof(struct Maat_cmd_line), total_line_cnt);
 	const char* fixed_table_line[FIXED_LINE_CNT]={
@@ -805,8 +812,8 @@ TEST_F(MaatCMDPerfTest, FQDNPluginOnMultiThread)
 	{
 		perf_fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
 	}
-	size_t global_thread_num=4;
-	unsigned long long time_elapse_ms=0, scan_count=0, scan_per_second=0;
+	int global_thread_num=4;
+	unsigned long long time_elapse_ms=0, scan_count=0, scan_per_second_per_thread=0;
 	pthread_t threads[global_thread_num+1]; 
 	struct thread_para thread_para[global_thread_num+1];
 	for(i=0; i<global_thread_num+1; i++)
@@ -814,7 +821,7 @@ TEST_F(MaatCMDPerfTest, FQDNPluginOnMultiThread)
 		thread_para[i].feather=feather;
 		thread_para[i].thread_id=i;
 		thread_para[i].table_name=table_name;
-		thread_para[i].test_count=1000*1000;
+		thread_para[i].test_count=20*1000*1000;
 		thread_para[i].time_elapse_ms=0;
 		if(i<global_thread_num)
 		{
@@ -836,12 +843,9 @@ TEST_F(MaatCMDPerfTest, FQDNPluginOnMultiThread)
 		*is_all_hit=0;
 		free(is_all_hit);
 	}
-	scan_per_second=scan_count*1000/time_elapse_ms;
-	EXPECT_GT(scan_per_second, 800*1000);
-	printf("FQDN Plugin on Multi-Thread speed %lld lookups/s\n", scan_per_second);
-	
-//	printf("ready to sleep\n");
-//	sleep(300);
+	scan_per_second_per_thread=scan_count*1000/time_elapse_ms;
+	EXPECT_GT(scan_per_second_per_thread, 800*1000);
+	printf("FQDN Plugin on %d-threads speed %lld lookups/s/thread.\n", global_thread_num, scan_per_second_per_thread);	
 
 	return;
 }
@@ -858,7 +862,7 @@ protected:
 	  	logger=MESA_create_runtime_log_handle("file_perf_test.log",0);
 		const char* table_info="./tsg_tableinfo.conf";
 		_shared_feather_f=Maat_feather(global_thread_num, table_info, logger);
-		Maat_set_feather_opt(_shared_feather_f,MAAT_OPT_INSTANCE_NAME,"files", strlen("files")+1);
+		Maat_set_feather_opt(_shared_feather_f, MAAT_OPT_INSTANCE_NAME, "files", strlen("files")+1);
 		Maat_set_feather_opt(_shared_feather_f, MAAT_OPT_FULL_CFG_DIR, rule_folder, strlen(rule_folder)+1);
 		Maat_set_feather_opt(_shared_feather_f, MAAT_OPT_INC_CFG_DIR, rule_folder, strlen(rule_folder)+1);
 

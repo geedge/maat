@@ -57,7 +57,7 @@ extern "C"
 }
 #endif
 
-int MAAT_FRAME_VERSION_3_4_3_20210727=1;
+int MAAT_FRAME_VERSION_3_4_4_20210805=1;
 
 int is_valid_table_name(const char* str)
 {
@@ -1414,7 +1414,6 @@ int add_digest_rule(struct Maat_table_schema* table, struct db_digest_rule* db_r
 	Maat_region_inner_add_expr_id(u_para, expr_id);
 
 	Maat_table_runtime_digest_add(table_rt, expr_id, db_rule->digest_string, db_rule->confidence_degree, u_para);
-	scanner->gie_update_q_size++;
 	return 0;
 }
 
@@ -1456,7 +1455,6 @@ int del_region_rule(struct Maat_table_schema* table, int region_id, int group_id
 			assert(region->expr_id_cnt==1);
 			table_rt=Maat_table_runtime_get(maat_scanner->table_rt_mgr, table->table_id);
 			Maat_table_runtime_digest_del(table_rt, region->expr_id_lb);
-			maat_scanner->gie_update_q_size++;
 			break;
 		default:
 			assert(0);
@@ -1521,7 +1519,6 @@ void update_group2compile_rule(struct Maat_table_schema* table, const char* tabl
 			{
 				table_rt->group2compile.not_flag_group--;
 			}
-			scanner->to_update_group_cnt++;
 		}
 	}
 	else
@@ -1534,7 +1531,6 @@ void update_group2compile_rule(struct Maat_table_schema* table, const char* tabl
 			{
 				table_rt->group2compile.not_flag_group++;
 			}
-			scanner->to_update_group_cnt++;
 		}
 	}
 	return;
@@ -1563,7 +1559,6 @@ void update_group2group_rule(struct Maat_table_schema* table, const char* table_
 		{
 			table_rt->origin_rule_num--;
 			assert(table_rt->origin_rule_num>=0);
-			scanner->to_update_group_cnt++;
 		}
 	}
 	else
@@ -1572,7 +1567,6 @@ void update_group2group_rule(struct Maat_table_schema* table, const char* table_
 		if(ret==0)
 		{
 			table_rt->origin_rule_num++;
-			scanner->to_update_group_cnt++;
 		}
 	}
 
@@ -2101,7 +2095,6 @@ void update_compile_rule(struct Maat_table_schema* table,const char* table_line 
 			assert(ret==0);
 			table_rt->origin_rule_num--;
 			Maat_garbage_bagging(scanner->ref_garbage_bin, p_compile, (void (*)(void*))destroy_compile_rule);
-			scanner->to_update_compile_cnt++;
 		}
 		else
 		{
@@ -2115,7 +2108,6 @@ void update_compile_rule(struct Maat_table_schema* table,const char* table_line 
 		if(ret==0)
 		{
 			table_rt->origin_rule_num++;
-			scanner->to_update_compile_cnt++;
 		}
 		else
 		{
@@ -2317,7 +2309,7 @@ void update_xx_plugin_table(struct Maat_table_schema* table_schema, const char* 
 	{
 		Maat_table_runtime_fqdn_plugin_new_row(table_rt, table_schema, table_row, logger);
 	}
-	scanner->xx_plugin_update_q_size++;
+	scanner->xx_plugin_rule_to_update_cnt++;
 	return;
 }
 
@@ -2402,10 +2394,7 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 		Maat_garbage_bagging(scanner->ref_garbage_bin, tmp_map, (void (*)(void*))map_destroy);
 	}
 	scanner->last_update_time=time(NULL);
-	scanner->gie_update_q_size=0;
-	scanner->to_update_group_cnt=0;
-	scanner->to_update_compile_cnt=0;
-	scanner->xx_plugin_update_q_size=0;
+	scanner->xx_plugin_rule_to_update_cnt=0;
 	return;
 
 }
@@ -2451,7 +2440,7 @@ long long scanner_rule_num(struct Maat_scanner *scanner)
 void maat_finish_cb(void* u_para)
 {
 	struct _Maat_feather_t *feather=(struct _Maat_feather_t *)u_para; 
-	long expr_wait_q_cnt=0;
+	long rulescan_wait_q_cnt=0;
 
 	Maat_table_manager_all_plugin_cb_finish(feather->table_mgr);
 
@@ -2469,8 +2458,8 @@ void maat_finish_cb(void* u_para)
 	{
 		feather->scanner->cfg_num=scanner_rule_num(feather->scanner);
 		feather->scanner->version=feather->maat_version;
-		expr_wait_q_cnt=MESA_lqueue_get_count(feather->scanner->region_update_q);
-		feather->postpone_q_size=expr_wait_q_cnt+feather->scanner->gie_update_q_size+feather->scanner->xx_plugin_update_q_size;
+		rulescan_wait_q_cnt=MESA_lqueue_get_count(feather->scanner->region_update_q);
+		feather->postpone_q_size=rulescan_wait_q_cnt;
 		if(time(NULL)-feather->scanner->last_update_time>=feather->rule_effect_interval_ms/1000)
 		{
 			do_scanner_update(feather->scanner,
@@ -2563,7 +2552,7 @@ void *thread_rule_monitor(void *arg)
 {
 	struct _Maat_feather_t *feather=(struct _Maat_feather_t *)arg;
 	struct Maat_scanner* old_scanner=NULL;
-	long expr_wait_q_cnt=0;
+	long rulescan_update_wait_q_cnt=0;
 	int scan_dir_cnt=0;
 	int ret=0;
 	char md5_tmp[MD5_DIGEST_LENGTH*2+1]={0};
@@ -2695,9 +2684,9 @@ void *thread_rule_monitor(void *arg)
 			}
 			if(feather->scanner!=NULL)
 			{
-				expr_wait_q_cnt=MESA_lqueue_get_count(feather->scanner->region_update_q);
-				feather->postpone_q_size=expr_wait_q_cnt+feather->scanner->gie_update_q_size;
-				total_wait_rule_cnt=feather->postpone_q_size+feather->scanner->to_update_compile_cnt+feather->scanner->to_update_group_cnt;
+				rulescan_update_wait_q_cnt=MESA_lqueue_get_count(feather->scanner->region_update_q);
+				feather->postpone_q_size=rulescan_update_wait_q_cnt;
+				total_wait_rule_cnt=feather->postpone_q_size+feather->scanner->xx_plugin_rule_to_update_cnt;
 				if(total_wait_rule_cnt>0&&time(NULL)-feather->scanner->last_update_time>=feather->rule_effect_interval_ms/1000)
 				{
 					do_scanner_update(feather->scanner,
