@@ -1989,7 +1989,7 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_cmd_line** line_
 	{
 		return -1;
 	}
-	s_rule=(struct serial_rule_t *)calloc(sizeof(struct serial_rule_t),line_num);
+	s_rule=ALLOC(struct serial_rule_t, line_num);
 	for(i=0;i<line_num;i++)
 	{
 		table_id=Maat_table_get_id_by_name(_feather->table_mgr, line_rule[i]->table_name);

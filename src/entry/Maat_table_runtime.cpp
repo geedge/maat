@@ -215,12 +215,10 @@ static void table_runtime_free(struct Maat_table_runtime* p)
 		case TABLE_TYPE_IP_PLUGIN:
 			ip_matcher_free(p->ip_plugin.ip_matcher);
 			EX_data_rt_free(p->ip_plugin.ex_data_rt);			
-			assert(p->ip_plugin.new_ip_matcher==NULL);
 			break;
 		case TABLE_TYPE_FQDN_PLUGIN:
 			FQDN_engine_free(p->fqdn_plugin.fqdn_engine);
 			EX_data_rt_free(p->fqdn_plugin.ex_data_rt);			
-			assert(p->fqdn_plugin.new_fqdn_engine==NULL);
 			break;
 		case TABLE_TYPE_PLUGIN:
 			EX_data_rt_free(p->plugin.ex_data_rt);
@@ -486,20 +484,17 @@ int Maat_table_runtime_fqdn_plugin_rebuild_fqdn_engine(struct Maat_table_runtime
 		rules[i].user_tag=exc_array[i];
 	}
 	if(rule_cnt>0)
-	{
-		
-		old_fqdn_engine=fqdn_rt->fqdn_engine;
+	{		
 		new_fqdn_engine=FQDN_engine_new(rules, rule_cnt);
-		if(new_fqdn_engine)
-		{
-			fqdn_rt->fqdn_engine=new_fqdn_engine;
-			Maat_garbage_bagging(table_rt->ref_garbage_bin, old_fqdn_engine, (void (*)(void*))FQDN_engine_free);
-		}
-		else
+		if(!new_fqdn_engine)
 		{
 			ret=-1;
 		}
 	}
+	old_fqdn_engine=fqdn_rt->fqdn_engine;	
+	fqdn_rt->fqdn_engine=new_fqdn_engine;
+	Maat_garbage_bagging(table_rt->ref_garbage_bin, old_fqdn_engine, (void (*)(void*))FQDN_engine_free);
+	
 	free(rules);
 	free(exc_array);	
 	table_rt->fqdn_plugin.changed_flag=0;
@@ -611,14 +606,15 @@ int Maat_table_runtime_ip_plugin_rebuild_ip_matcher(struct Maat_table_runtime* t
 {
 	struct ip_matcher* new_ip_matcher=NULL, *old_ip_matcher=NULL;
 	size_t rule_cnt=0;
-	size_t i=0, mem_use=0;
+	size_t i=0;
 	struct ip_rule *rules=NULL;
 	struct EX_data_container **exc_array=NULL;
 	struct ip_plugin_runtime *ip_plugin=&(table_rt->ip_plugin);
+	int ret=0;
 	assert(table_rt->table_type==TABLE_TYPE_IP_PLUGIN);
 	if(!ip_plugin->changed_flag)
 	{
-		return 0;
+		return ret;
 	}
 	rule_cnt=EX_data_rt_list_all_ex_container(ip_plugin->ex_data_rt, &exc_array);
 	rules=ALLOC(struct ip_rule, rule_cnt);
@@ -630,18 +626,22 @@ int Maat_table_runtime_ip_plugin_rebuild_ip_matcher(struct Maat_table_runtime* t
 	}
 	if(rule_cnt>0)
 	{
-		new_ip_matcher=ip_matcher_new(rules, rule_cnt, &mem_use);
-		assert(ip_plugin->new_ip_matcher==NULL);
-		old_ip_matcher=ip_plugin->ip_matcher;
-		ip_plugin->ip_matcher=new_ip_matcher;
-		Maat_garbage_bagging(table_rt->ref_garbage_bin, old_ip_matcher, (void (*)(void*))ip_matcher_free);
+		new_ip_matcher=ip_matcher_new(rules, rule_cnt, &ip_plugin->mem_use_by_ip_matcher);
+		if(!new_ip_matcher)
+		{
+			ret=-1;
+		}
 	}
-	
+	old_ip_matcher=ip_plugin->ip_matcher;
+	ip_plugin->ip_matcher=new_ip_matcher;
+	Maat_garbage_bagging(table_rt->ref_garbage_bin, old_ip_matcher, (void (*)(void*))ip_matcher_free);
+
+
 	free(rules);
 	free(exc_array);
 	exc_array=NULL;
 	ip_plugin->changed_flag=0;
-	return 1;
+	return ret;
 }
 
 

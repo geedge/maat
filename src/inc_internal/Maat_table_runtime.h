@@ -28,6 +28,7 @@ struct ip_plugin_runtime
 {
 	struct EX_data_rt* ex_data_rt;
 	struct ip_matcher* ip_matcher;
+	size_t mem_use_by_ip_matcher;
 	int changed_flag;
 };
 struct expr_runtime
