@@ -323,7 +323,7 @@ TEST(IP_Plugin_Table, EX_DATA)
 }
 
 #define FQDN_PLUGIN_EX_DATA
-struct fqdn_plugin_ud
+struct perf_fqdn_plugin_ud
 {
 	int rule_id;
 	int catid;
@@ -333,7 +333,7 @@ void fqdn_plugin_EX_new_cb(int table_id, const char* key, const char* table_line
 {
 	int *counter=(int *)argp, ret=0;
 	size_t column_offset=0, column_len=0;
-	struct fqdn_plugin_ud* ud=(struct fqdn_plugin_ud*)calloc(sizeof(struct fqdn_plugin_ud), 1);
+	struct perf_fqdn_plugin_ud* ud=(struct perf_fqdn_plugin_ud*)calloc(sizeof(struct perf_fqdn_plugin_ud), 1);
 	ret=Maat_helper_read_column(table_line, 1, &column_offset, &column_len);
 	EXPECT_EQ(ret, 0);
 	ud->rule_id=atoi(table_line+column_offset);
@@ -347,7 +347,7 @@ void fqdn_plugin_EX_new_cb(int table_id, const char* key, const char* table_line
 }
 void fqdn_plugin_EX_free_cb(int table_id, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
 {
-	struct fqdn_plugin_ud* u=(struct fqdn_plugin_ud*)(*ad);
+	struct perf_fqdn_plugin_ud* u=(struct perf_fqdn_plugin_ud*)(*ad);
 	u->ref_cnt--;
 	if(u->ref_cnt>0) return;
 	free(u);
@@ -355,7 +355,7 @@ void fqdn_plugin_EX_free_cb(int table_id, MAAT_PLUGIN_EX_DATA* ad, long argl, vo
 }
 void fqdn_plugin_EX_dup_cb(int table_id,	MAAT_PLUGIN_EX_DATA *to, MAAT_PLUGIN_EX_DATA *from, long argl, void *argp)
 {
-	struct fqdn_plugin_ud* u=(struct fqdn_plugin_ud*)(*from);
+	struct perf_fqdn_plugin_ud* u=(struct perf_fqdn_plugin_ud*)(*from);
 	u->ref_cnt++;
 	*to=u;
 }
@@ -375,7 +375,7 @@ TEST(FQDN_Plugin_Table, EX_DATA)
 	ASSERT_TRUE(ret>=0);
 	EXPECT_EQ(fqdn_plugin_ex_data_counter, 5);
 
-	struct fqdn_plugin_ud* result[4];
+	struct perf_fqdn_plugin_ud* result[4];
 
 	ret=Maat_fqdn_plugin_get_EX_data(g_feather, table_id, "www.example1.com", (void**)result, 4);
 	ASSERT_EQ(ret, 2);

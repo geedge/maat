@@ -155,8 +155,30 @@ void ipv4_addr_set_copy(struct ipaddr *ipv4_addr, struct stream_tuple4_v4* v4_ad
 	ipv4_addr->v4=v4_addr;
 	return;
 }
-
-
+void random_fqdn_generate(char* fqdn_buff, size_t sz)
+{
+	size_t min_fqdn_len=6, max_fqdn_len=32;
+	size_t i=0, j=0, len=0;
+	len=random()%(max_fqdn_len-min_fqdn_len)+min_fqdn_len;
+	if(len>=sz)
+	{
+		len=sz-1;
+	}
+	for(i=0; i<len-4; i++)
+	{
+		fqdn_buff[i]='a'+random()%('z' - 'a');
+		if(j>5)
+		{
+			if(random()%3==0)
+			{
+				fqdn_buff[i]='.';
+				j=0;
+			}
+		}
+		j++;
+	}
+	fqdn_buff[i]='\0';
+}
 void random_keyword_generate(char* keyword_buf, size_t sz)
 {
 #define MIN_KEYWORD_LEN	4
@@ -369,20 +391,20 @@ TEST_F(MaatCMDPerfTest, SetExpr50K)
 	return;
 }
 const char* high_match_string="maatframe!";
-struct high_match_rate_thread_para
+struct thread_para
 {
 	int thread_id;
 	int test_count;
 	Maat_feather_t feather;
-	const char* expr_table_name;
+	const char* table_name;
 	unsigned long long time_elapse_ms;
 };
 void* high_match_rate_scan_thread(void *arg)
 {
 
-	struct high_match_rate_thread_para* para=(struct high_match_rate_thread_para*)arg;
+	struct thread_para* para=(struct thread_para*)arg;
 	Maat_feather_t feather=para->feather;
-	const char* expr_table_name=para->expr_table_name;
+	const char* expr_table_name=para->table_name;
 
 	struct Maat_rule_t result;
 	scan_status_t mid=NULL;
@@ -412,7 +434,7 @@ void* high_match_rate_scan_thread(void *arg)
 }
 void* high_match_rate_update_thread(void *arg)
 {
-	struct high_match_rate_thread_para* para=(struct high_match_rate_thread_para*)arg;
+	struct thread_para* para=(struct thread_para*)arg;
 	Maat_feather_t feather=para->feather;
 	const int CMD_EXPR_NUM=10;
 	int config_id=0;
@@ -426,7 +448,7 @@ void* high_match_rate_update_thread(void *arg)
 	for(i=0; i<CMD_EXPR_NUM;i++)
 	{
 		random_keyword_generate(keyword_buf, sizeof(keyword_buf));
-		test_add_expr_command_copy(batch, para->expr_table_name, config_id+i, keyword_buf, 1);
+		test_add_expr_command_copy(batch, para->table_name, config_id+i, keyword_buf, 1);
 		sleep(1);
 	}
 	int* is_all_hit=(int*)malloc(sizeof(int));
@@ -461,12 +483,12 @@ TEST_F(MaatCMDPerfTest, HighMatchRateOnMultiThread)
 	int global_thread_num=4;
 	unsigned long long time_elapse_ms=0, scan_count=0, scan_per_second=0;
 	pthread_t threads[global_thread_num+1];	
-	struct high_match_rate_thread_para thread_para[global_thread_num+1];
+	struct thread_para thread_para[global_thread_num+1];
 	for(i=0; i<global_thread_num+1; i++)
 	{
 		thread_para[i].feather=feather;
 		thread_para[i].thread_id=i;
-		thread_para[i].expr_table_name=expr_table_name;
+		thread_para[i].table_name=expr_table_name;
 		thread_para[i].test_count=10*1000*1000;
 		thread_para[i].time_elapse_ms=0;
 		if(i<global_thread_num)
@@ -606,17 +628,17 @@ TEST_F(MaatCMDPerfTest, UpdateIPPlugin)
 }
 
 #define FQDN_PLUGIN_EX_DATA
-struct fqdn_plugin_ud
+struct perf_fqdn_plugin_ud
 {
 	int rule_id;
 	int catid;
 	int ref_cnt;
 };
-void fqdn_plugin_EX_new_cb(int table_id, const char* key, const char* table_line, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
+void perf_fqdn_plugin_EX_new_cb(int table_id, const char* key, const char* table_line, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
 {
 	int *counter=(int *)argp, ret=0;
 	size_t column_offset=0, column_len=0;
-	struct fqdn_plugin_ud* ud=(struct fqdn_plugin_ud*)calloc(sizeof(struct fqdn_plugin_ud), 1);
+	struct perf_fqdn_plugin_ud* ud=(struct perf_fqdn_plugin_ud*)calloc(sizeof(struct perf_fqdn_plugin_ud), 1);
 	ret=Maat_helper_read_column(table_line, 1, &column_offset, &column_len);
 	EXPECT_EQ(ret, 0);
 	ud->rule_id=atoi(table_line+column_offset);
@@ -628,76 +650,195 @@ void fqdn_plugin_EX_new_cb(int table_id, const char* key, const char* table_line
 	(*counter)++;
 	return;
 }
-void fqdn_plugin_EX_free_cb(int table_id, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
+void perf_fqdn_plugin_EX_free_cb(int table_id, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
 {
-	struct fqdn_plugin_ud* u=(struct fqdn_plugin_ud*)(*ad);
-	u->ref_cnt--;
-	if(u->ref_cnt>0) return;
-	free(u);
-	*ad=NULL;
+	struct perf_fqdn_plugin_ud* u=(struct perf_fqdn_plugin_ud*)(*ad);
+	if ((__sync_sub_and_fetch(&u->ref_cnt, 1) == 0))
+	{
+		free(u);
+		*ad=NULL;
+	}
 }
-void fqdn_plugin_EX_dup_cb(int table_id,	MAAT_PLUGIN_EX_DATA *to, MAAT_PLUGIN_EX_DATA *from, long argl, void *argp)
+void perf_fqdn_plugin_EX_dup_cb(int table_id,	MAAT_PLUGIN_EX_DATA *to, MAAT_PLUGIN_EX_DATA *from, long argl, void *argp)
 {
-	struct fqdn_plugin_ud* u=(struct fqdn_plugin_ud*)(*from);
-	u->ref_cnt++;
+	struct perf_fqdn_plugin_ud* u=(struct perf_fqdn_plugin_ud*)(*from);
+	__sync_add_and_fetch(&(u->ref_cnt), 1);
 	*to=u;
 }
+void* fqdn_plugin_scan_thread(void *arg)
+{
 
-TEST_F(MaatCMDPerfTest, UpdateFQDNPlugin)
+	struct thread_para* para=(struct thread_para*)arg;
+	Maat_feather_t feather=para->feather;
+
+	struct perf_fqdn_plugin_ud* result[4];
+
+	int table_id=0, i=0, j=0, ret=0, hit_times=0;
+	table_id=Maat_table_register(feather, para->table_name);
+	memset(&result, 0, sizeof(result));
+	struct timespec start, end;
+	
+	clock_gettime(CLOCK_MONOTONIC, &start);
+	for(i=0; i<para->test_count; i++)
+	{
+	
+		ret=Maat_fqdn_plugin_get_EX_data(feather, table_id, "r3---sn-i3belne6.example2.com", (void**)result, 4);
+		if(ret==2)
+		{
+			hit_times++;
+		}
+		for(j=0; j<ret; j++)
+		{
+			perf_fqdn_plugin_EX_free_cb(0, (void**)&(result[j]), 0, NULL);
+		}
+	}
+	clock_gettime(CLOCK_MONOTONIC, &end);
+	para->time_elapse_ms=(end.tv_sec-start.tv_sec)*1000+(end.tv_nsec-start.tv_nsec)/1000000;
+	int* is_all_hit=(int*)malloc(sizeof(int));
+	*is_all_hit=(hit_times==para->test_count)?1:0;
+	return is_all_hit;
+}
+void* fqdn_plugin_update_thread(void *arg)
+{
+	struct thread_para* para=(struct thread_para*)arg;
+	Maat_feather_t feather=para->feather;
+	const int CMD_EXPR_NUM=10;
+	int i=0;
+	struct Maat_cmd_line line_rule;
+	char line_buff[1024], fqdn_buff[256];
+	for(i=0; i<CMD_EXPR_NUM; i++)
+	{
+		line_rule.label_id=0;
+		line_rule.rule_id=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", 1);
+		line_rule.table_name=para->table_name;
+		random_fqdn_generate(fqdn_buff, sizeof(fqdn_buff));
+		snprintf(line_buff, 1024, "%d\t1\t%s\tcatid=4\t1", line_rule.rule_id, fqdn_buff);
+		line_rule.table_line=line_buff;
+		line_rule.expire_after=0;
+		Maat_cmd_set_line(feather, &line_rule, MAAT_OP_ADD);
+		sleep(1);
+	}
+	int* is_all_hit=(int*)malloc(sizeof(int));
+	*is_all_hit=1;
+	return is_all_hit;
+}
+
+TEST_F(MaatCMDPerfTest, FQDNPluginOnMultiThread)
 {
 #define FQDN_Plugin_EX_data
 	Maat_feather_t feather=MaatCMDPerfTest::_shared_feather;
-
-	int ret=0, i=0;
+	int* is_all_hit=NULL;
+	int ret=0;
+	size_t i=0, j=0;
 	int table_id=0, fqdn_plugin_ex_data_counter=0;
 	const char* table_name="TEST_FQDN_PLUGIN_WITH_EXDATA";
 
-
-	const int TEST_CMD_LINE_NUM=5;
-	const struct Maat_cmd_line *p_line[TEST_CMD_LINE_NUM];
-	struct Maat_cmd_line line_rule[TEST_CMD_LINE_NUM];
-	const char* table_line[TEST_CMD_LINE_NUM]={
+#define FIXED_LINE_CNT 5
+	size_t randomed_line_cnt=100*1000;
+	size_t total_line_cnt=FIXED_LINE_CNT+randomed_line_cnt;
+	const struct Maat_cmd_line **p_line=(const struct Maat_cmd_line**)calloc(sizeof(struct Maat_cmd_line*), total_line_cnt);
+	struct Maat_cmd_line *line_rule=(struct Maat_cmd_line*)calloc(sizeof(struct Maat_cmd_line), total_line_cnt);
+	const char* fixed_table_line[FIXED_LINE_CNT]={
 				"201\t0\twww.example1.com\tcatid=1\t1",
 				"202\t1\t.example1.com\tcatid=1\t1",
 				"203\t0\tnews.example1.com\tcatid=2\t1",
 				"204\t0\tr3---sn-i3belne6.example2.com\tcatid=3\t1",
 				"205\t0\tr3---sn-i3belne6.example2.com\tcatid=3\t1"
 		};
+	char fqdn_buff[256];
+	char** random_lines=(char**)calloc(sizeof(char*), randomed_line_cnt);
 	table_id=Maat_table_register(feather, table_name);
 	ASSERT_GT(table_id, 0);
-	memset(&line_rule,0,sizeof(line_rule));
-	for(i=0;i<TEST_CMD_LINE_NUM;i++)
+	srand(521);
+	Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", 1000);//jump over IDs of fixed table line.
+	for(i=0, j=0; i<total_line_cnt; i++)
 	{
 		line_rule[i].label_id=0;
 		line_rule[i].rule_id=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", 1);
 		line_rule[i].table_name=table_name;
-		line_rule[i].table_line=table_line[i];
+		if(i<FIXED_LINE_CNT)
+		{
+			line_rule[i].table_line=fixed_table_line[i];
+		}
+		else
+		{
+			random_lines[j]=(char*)calloc(sizeof(char), 1024);
+			random_fqdn_generate(fqdn_buff, sizeof(fqdn_buff));
+			snprintf(random_lines[j], 1024, "%d\t1\t%s\tcatid=4\t1", line_rule[i].rule_id, fqdn_buff);
+			line_rule[i].table_line=random_lines[j];
+			j++;
+		}
 		line_rule[i].expire_after=0;
 		p_line[i]=line_rule+i;
 	}
-	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
+	ret=Maat_cmd_set_lines(feather, p_line, total_line_cnt, MAAT_OP_ADD);
 	EXPECT_GT(ret, 0);
-
+	free(p_line);
+	p_line=NULL;
+	free(line_rule);
+	line_rule=NULL;
+	for(i=0; i<randomed_line_cnt; i++)
+	{
+		free(random_lines[i]);
+		random_lines[i]=NULL;
+	}
+	free(random_lines);
+	random_lines=NULL;
+	
 	sleep(WAIT_FOR_EFFECTIVE_SECOND);
 
 	ret=Maat_fqdn_plugin_EX_register(feather, table_id,
-								fqdn_plugin_EX_new_cb,
-								fqdn_plugin_EX_free_cb,
-								fqdn_plugin_EX_dup_cb,
+								perf_fqdn_plugin_EX_new_cb,
+								perf_fqdn_plugin_EX_free_cb,
+								perf_fqdn_plugin_EX_dup_cb,
 								0, &fqdn_plugin_ex_data_counter);
 
 	ASSERT_TRUE(ret>=0);
-	EXPECT_EQ(fqdn_plugin_ex_data_counter, 5);
+	EXPECT_EQ(fqdn_plugin_ex_data_counter, total_line_cnt);
 
 
-	struct fqdn_plugin_ud* result[4];
+	struct perf_fqdn_plugin_ud* result[4];
 
 	ret=Maat_fqdn_plugin_get_EX_data(feather, table_id, "r3---sn-i3belne6.example2.com", (void**)result, 4);
-	ASSERT_EQ(ret, 2);
-	for(i=0; i<ret; i++)
+	EXPECT_EQ(ret, 2);
+	for(i=0; (int)i<ret; i++)
 	{
-		fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+		perf_fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
 	}
+	size_t global_thread_num=4;
+	unsigned long long time_elapse_ms=0, scan_count=0, scan_per_second=0;
+	pthread_t threads[global_thread_num+1]; 
+	struct thread_para thread_para[global_thread_num+1];
+	for(i=0; i<global_thread_num+1; i++)
+	{
+		thread_para[i].feather=feather;
+		thread_para[i].thread_id=i;
+		thread_para[i].table_name=table_name;
+		thread_para[i].test_count=1000*1000;
+		thread_para[i].time_elapse_ms=0;
+		if(i<global_thread_num)
+		{
+			pthread_create(&(threads[i]), NULL, fqdn_plugin_scan_thread, thread_para+i);
+		}
+		else
+		{
+			thread_para[i].test_count=0;
+			pthread_create(&(threads[i]), NULL, fqdn_plugin_update_thread, thread_para+i);
+		}
+	}
+
+	for(i=0; i<global_thread_num+1; i++)
+	{
+		pthread_join(threads[i], (void**)&is_all_hit);	
+		time_elapse_ms+=thread_para[i].time_elapse_ms;
+		scan_count+=thread_para[i].test_count;
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit=0;
+		free(is_all_hit);
+	}
+	scan_per_second=scan_count*1000/time_elapse_ms;
+	EXPECT_GT(scan_per_second, 800*1000);
+	printf("FQDN Plugin on Multi-Thread speed %lld lookups/s\n", scan_per_second);
 	
 //	printf("ready to sleep\n");
 //	sleep(300);
