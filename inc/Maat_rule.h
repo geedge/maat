@@ -160,7 +160,8 @@ enum MAAT_INIT_OPT
 	MAAT_OPT_ACCEPT_TAGS,			//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1. Format is a JSON, e.g.{"tags":[{"tag":"location","value":"Beijing/ChaoYang/Huayan/22A"},{"tag":"isp","value":"telecom"}]}
 	MAAT_OPT_FOREIGN_CONT_DIR,		//VALUE is a const char*, MUST end with '\0', SIZE= strlen(string+'\0')+1. Specifies a local diretory to store foreign content. Default: []table_info_path]_files
 	MAAT_OPT_GARBAGE_COLLECTION_TIMEOUT_MS, //VALUE is interger, SIZE=sizeof(int). DEFAULT:10,000 milliseconds.
-	MAAT_OPT_JSON_IS_GZIPPED		//VALUE is NULL, SIZE is 0. Default: 0, Not compressed by gzip.
+	MAAT_OPT_JSON_IS_GZIPPED,		//VALUE is NULL, SIZE is 0. Default: 0, Not compressed by gzip.
+	MAAT_OPT_STATUS_OUTPUT_PROMETHEUS	//VALUE is a interger *, 1 or 0, SIZE=sizeof(int). DEFAULT: 1.
 };
 //return -1 if failed, return 0 on success;
 int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT  type,const void* value,int size);

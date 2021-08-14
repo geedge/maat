@@ -14,8 +14,8 @@ set(CPACK_PACKAGING_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
 set(CPACK_PACKAGE_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}.${VERSION_BUILD}")
 execute_process(COMMAND bash -c "echo -ne \"`uname -r | awk -F'.' '{print $5\".\"$6\".\"$7}'`\"" OUTPUT_VARIABLE SYSTEM_VERSION)
 
-#execute_process(COMMAND sh changelog.sh WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/cmake)
-#SET(CPACK_RPM_CHANGELOG_FILE ${PROJECT_SOURCE_DIR}/cmake/changelog.txt)
+execute_process(COMMAND sh changelog.sh WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/cmake)
+SET(CPACK_RPM_CHANGELOG_FILE ${PROJECT_SOURCE_DIR}/cmake/changelog.txt)
 
 
 # RPM Build

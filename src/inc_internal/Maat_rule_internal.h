@@ -292,6 +292,7 @@ struct _Maat_feather_t
 	int cumulative_update_off;
 	int stat_on;
 	int perf_on;
+	int output_prometheus;
 	
 	void* logger;
 	long long maat_version;

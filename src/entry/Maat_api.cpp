@@ -671,7 +671,14 @@ int Maat_set_feather_opt(Maat_feather_t feather,enum MAAT_INIT_OPT type,const vo
 			}
 			_feather->garbage_collection_timeout_ms=intval;
 			break;
-		
+		case MAAT_OPT_STATUS_OUTPUT_PROMETHEUS:
+			intval=*(const int*)value;
+			if(size!=sizeof(int)||intval<0)
+			{
+				return -1;
+			}
+			_feather->output_prometheus=intval;
+			break;
 		case MAAT_OPT_JSON_IS_GZIPPED:
 			intval=*(const int*)value;
 			if(size!=sizeof(int)||intval<0)
