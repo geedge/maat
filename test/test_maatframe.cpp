@@ -977,6 +977,30 @@ TEST(IPScan, IPv4_composition)
 	Maat_clean_status(&mid);
 	return;
 }
+TEST(IPScan, IPv4_composition_with_NOT)
+{
+	int table_id=0,ret=0;
+	const char* table_name="COMPOSITION_IP";
+	struct Maat_rule_t result[4];
+	scan_status_t mid=NULL;
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr_set(&ipv4_addr, &v4_addr, "192.168.58.19", 20000, "10.0.1.26", 443);
+
+	table_id=Maat_table_register(g_feather, table_name);
+	
+	EXPECT_GT(table_id, 0);
+	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION, NULL, 0);
+
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid, 0);
+	
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 185);
+
+	Maat_clean_status(&mid);
+	return;
+}
+
 TEST(IPScan, BugReport20210515)
 {
 	//By Liu Mengyan 2021-5-15

@@ -124,7 +124,59 @@
                   }
               }
           ]
-      }
+      },
+			{
+	      "group_name": "IPv4-composition-NOT-client-ip",
+	      "regions": [
+						{
+							"table_type": "ip_plus",
+							"table_name": "IP_PLUS_CONFIG",
+							"table_content": {
+								"addr_type": "ipv4",
+								"saddr_format": "range",
+								"src_ip1": "192.168.58.19",
+								"src_ip2": "192.168.58.19",
+								"sport_format": "range",
+								"src_port1": "20000",
+								"src_port2": "20000",
+								"daddr_format": "mask",
+								"dst_ip1": "0.0.0.0",
+								"dst_ip2": "255.255.255.0",
+								"dport_format": "range",
+								"dst_port1": "0",
+								"dst_port2": "65535",
+								"protocol": 6,
+								"direction": "double"
+							}
+						}  
+	      ]
+	    },
+			{
+	      "group_name": "IPv4-composition-NOT-server-ip",
+	      "regions": [
+						{
+							"table_type": "ip_plus",
+							"table_name": "IP_PLUS_CONFIG",
+							"table_content": {
+								"addr_type": "ipv4",
+								"saddr_format": "range",
+								"src_ip1": "10.0.1.20",
+								"src_ip2": "10.0.1.25",
+								"sport_format": "range",
+								"src_port1": "1",
+								"src_port2": "443",
+								"daddr_format": "mask",
+								"dst_ip1": "0.0.0.0",
+								"dst_ip2": "255.255.255.0",
+								"dport_format": "range",
+								"dst_port1": "0",
+								"dst_port2": "65535",
+								"protocol": 6,
+								"direction": "double"
+							}
+						}  
+	      ]
+	    }
     ],
     "rules": [
         {
@@ -2032,7 +2084,29 @@
                     ]
                 }
             ]
-        }
+        },
+				{
+					"compile_id": 185,
+					"service": 0,
+					"action": 0,
+					"do_blacklist": 0,
+					"do_log": 0,
+					"effective_rage": 0,
+					"user_region": "ipv4_composition.NOT_match",
+					"is_valid": "yes",
+					"groups": [
+						{
+								"group_name":"IPv4-composition-NOT-client-ip",
+								"virtual_table":"COMPOSITION_IP_SOURCE",
+							"not_flag":0                   
+						},
+						{
+							"group_name":"IPv4-composition-NOT-server-ip",
+							"virtual_table":"COMPOSITION_IP_DESTINATION",
+							"not_flag":1                   
+						}           
+					]
+				}
     ],
     "plugin_table": [
         {
