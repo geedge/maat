@@ -1117,12 +1117,12 @@ TEST(NOTLogic, ScanIrrelavantAtLast)
 TEST(NOTLogic, ScanHitAtLast)
 {
 	const char* string_should_not_hit="This string should not hit.";
-	const char* string_should_hit="This string contains-keywords-MUST-hit-by-rule-186.";
+	const char* string_match_no_region="This string is matched against a empty table.";
 	int ret=0;
 	int table_id=0;
 	struct Maat_rule_t result[4];
 	int found_pos[4];
-	const char* not_hit_table_name="HTTP_URL", *hit_table_name1="IP_PLUS_CONFIG", *hit_table_name2="KEYWORDS_TABLE";
+	const char* not_hit_table_name="HTTP_URL", *hit_table_name1="IP_PLUS_CONFIG", *empty_table_name="EMPTY_KEYWORD";
 	scan_status_t mid=NULL;
 	table_id=Maat_table_register(g_feather, not_hit_table_name);
 	ASSERT_GT(table_id, 0);
@@ -1148,14 +1148,14 @@ TEST(NOTLogic, ScanHitAtLast)
 	
 	EXPECT_EQ(ret, -2);
 
-	table_id=Maat_table_register(g_feather, hit_table_name2);
+	table_id=Maat_table_register(g_feather, empty_table_name);
 	ASSERT_GT(table_id, 0);
 
 	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION, NULL, 0);	
 
-	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, string_should_hit, strlen(string_should_hit), 
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, string_match_no_region, strlen(string_match_no_region), 
 						result, found_pos, 4, &mid, 0);						
-	
+	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 186);
 	Maat_clean_status(&mid);
 

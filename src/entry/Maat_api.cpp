@@ -1419,10 +1419,11 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	scan_data.text_data.toffset=0;
 
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(my_scanner->table_rt_mgr, p_table->table_id);
-	if(table_rt->origin_rule_num==0)
-	{
-		return 0;
-	}
+//	Even no rule in table, we still need to search for NOT compile.
+//	if(table_rt->origin_rule_num==0)
+//	{
+//		return 0;
+//	}
 	assert(thread_num<_feather->scan_thread_num);
 	region_result=my_scanner->region_rslt_buff+MAX_SCANNER_HIT_NUM*thread_num;
 	
@@ -1543,10 +1544,12 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 		return 0;
 	}
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(my_scanner->table_rt_mgr, p_table->table_id);
-	if(table_rt->origin_rule_num==0)
-	{
-		return 0;
-	}
+
+//	Even no rule in table, we still need to search for NOT compile.
+//	if(table_rt->origin_rule_num==0)
+//	{
+//		return 0;
+//	}
 	if(p_table->table_type==TABLE_TYPE_INTERVAL_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
 	{
 		_feather->scan_err_cnt++;
@@ -1651,10 +1654,6 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 	GIE_result_t* region_result=my_scanner->gie_rslt_buff+MAX_SCANNER_HIT_NUM*thread_num;
 
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(my_scanner->table_rt_mgr, p_table->table_id);
-	if(table_rt->origin_rule_num==0)
-	{
-		return 0;
-	}	
 
 	GIE_handle_t* gie_handle=table_rt->similar.gie_handle;	
 	INC_SCANNER_REF(my_scanner,thread_num);
@@ -2038,7 +2037,7 @@ int Maat_stream_scan_string_detail(stream_para_t* stream_para
 	{
 		return 0;
 	}
-	//table rule num is already  in Maat_stream_scan_string_start
+	//table rule num is already tested in Maat_stream_scan_string_start
 
 
 	if(sp->p_real_table->table_type==TABLE_TYPE_EXPR_PLUS&&(_mid==NULL||_mid->is_set_district!=1))

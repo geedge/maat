@@ -2156,21 +2156,6 @@
                         }                  
                     ],
                     "not_flag" : 0
-                },
-                {
-                    "regions": [
-                        {
-                            "table_name": "KEYWORDS_TABLE",
-                            "table_type": "string",
-                            "table_content": {
-                                "keywords": "contains-keywords-MUST-hit-by-rule-186",
-                                "expr_type": "and",
-                                "match_method": "expr",
-                                "format": "uncase plain"
-                            }
-                        }
-                    ],
-                     "not_flag" : 0
                 }
             ]
         }
