@@ -2106,7 +2106,59 @@
 							"not_flag":1                   
 						}           
 					]
-				}
+				},
+        {
+            "compile_id": 186,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "NOTLogic.ScanHitAtLast",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "not_flag":1,
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "string",
+                            "table_content": {
+                                "keywords": "must-not-contained-string-of-rule-186",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "regions": [
+                        {
+                            "table_type": "ip_plus",
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv4",
+                                "saddr_format": "CIDR",
+                                "src_ip1": "10.0.8.18",
+                                "src_ip2": "10.0.8.18",
+                                "sport_format": "range",
+                                "src_port1": "18611",
+                                "src_port2": "18611",
+                                "daddr_format": "range",
+                                "dst_ip1": "10.0.8.20",
+                                "dst_ip2": "10.0.8.20",
+                                "dport_format": "range",
+                                "dst_port1": "80",
+                                "dst_port2": "80",
+                                "protocol": 6,
+                                "direction": "single"
+                            }
+                        }                  
+                    ],
+                    "not_flag" : 0
+                }
+            ]
+        }
     ],
     "plugin_table": [
         {
