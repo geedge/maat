@@ -1544,39 +1544,37 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 		return 0;
 	}
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(my_scanner->table_rt_mgr, p_table->table_id);
+	if(table_rt->origin_rule_num>0)  		//	Even no rule in table, we still need to search for NOT compile.
+	{	
+		if(p_table->table_type==TABLE_TYPE_INTERVAL_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
+		{
+			_feather->scan_err_cnt++;
+			return -1;
+		}
+		
+		intval_scan_data.rule_type=RULETYPE_INT;
+		intval_scan_data.sub_type=make_sub_type(p_table->table_id, CHARSET_NONE, 0);
+		intval_scan_data.int_data=intval;
 
-//	Even no rule in table, we still need to search for NOT compile.
-//	if(table_rt->origin_rule_num==0)
-//	{
-//		return 0;
-//	}
-	if(p_table->table_type==TABLE_TYPE_INTERVAL_PLUS&&(_mid==NULL||_mid->is_set_district!=1))
-	{
-		_feather->scan_err_cnt++;
-		return -1;
-	}
-	
-	intval_scan_data.rule_type=RULETYPE_INT;
-	intval_scan_data.sub_type=make_sub_type(p_table->table_id, CHARSET_NONE, 0);
-	intval_scan_data.int_data=intval;
+		alignment_int64_array_add(_feather->thread_call_cnt, thread_num, 1);
 
-	alignment_int64_array_add(_feather->thread_call_cnt, thread_num, 1);
+		region_result=my_scanner->region_rslt_buff+MAX_SCANNER_HIT_NUM*thread_num;
+		
+		INC_SCANNER_REF(my_scanner,thread_num);
+		region_ret=rulescan_search(my_scanner->region, thread_num, &intval_scan_data, region_result, MAX_SCANNER_HIT_NUM);
+		if(region_ret>0&&p_table->table_type==TABLE_TYPE_INTERVAL_PLUS)
+		{
+			district_id=_mid->district_id;
+		}
+		if(region_ret<0)
+		{
+			DEC_SCANNER_REF(my_scanner, thread_num);
+			_feather->scan_err_cnt++;
+			return -1;
+		}
+	}
 
-	region_result=my_scanner->region_rslt_buff+MAX_SCANNER_HIT_NUM*thread_num;
-	
-	INC_SCANNER_REF(my_scanner,thread_num);
-	region_ret=rulescan_search(my_scanner->region, thread_num, &intval_scan_data, region_result, MAX_SCANNER_HIT_NUM);
-	if(region_ret>0&&p_table->table_type==TABLE_TYPE_INTERVAL_PLUS)
-	{
-		district_id=_mid->district_id;
-	}
-	if(region_ret<0)
-	{
-		DEC_SCANNER_REF(my_scanner, thread_num);
-		_feather->scan_err_cnt++;
-		return -1;
-	}
-	else if(region_ret>0 || scan_status_should_compile_NOT(_mid))
+	if(region_ret>0 || scan_status_should_compile_NOT(_mid))
 	{
 		if(region_ret>0)
 		{

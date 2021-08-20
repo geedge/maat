@@ -1114,7 +1114,7 @@ TEST(NOTLogic, ScanIrrelavantAtLast)
 	Maat_clean_status(&mid);
 
 }
-TEST(NOTLogic, ScanHitAtLast)
+TEST(NOTLogic, ScanHitAtLastEmptyExpr)
 {
 	const char* string_should_not_hit="This string should not hit.";
 	const char* string_match_no_region="This string is matched against a empty table.";
@@ -1134,7 +1134,7 @@ TEST(NOTLogic, ScanHitAtLast)
 	struct ipaddr ipv4_addr;
 	struct stream_tuple4_v4 v4_addr;
 	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
-	inet_pton(AF_INET,"10.0.8.18",&(v4_addr.saddr));
+	inet_pton(AF_INET,"10.0.8.186",&(v4_addr.saddr));
 	v4_addr.source=htons(18611);
 	inet_pton(AF_INET,"10.0.8.20",&(v4_addr.daddr));
 	v4_addr.dest=htons(80);
@@ -1157,6 +1157,98 @@ TEST(NOTLogic, ScanHitAtLast)
 						result, found_pos, 4, &mid, 0);						
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 186);
+	Maat_clean_status(&mid);
+
+}
+
+TEST(NOTLogic, ScanHitAtLastEmptyInteger)
+{
+	const char* string_should_not_hit="This string should not hit.";
+	const char* string_match_no_region="This string is matched against a empty table.";
+	int ret=0;
+	int table_id=0;
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+	const char* not_hit_table_name="HTTP_URL", *hit_table_name1="IP_PLUS_CONFIG", *empty_table_name="EMPTY_INTERGER";
+	scan_status_t mid=NULL;
+	table_id=Maat_table_register(g_feather, not_hit_table_name);
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, string_should_not_hit, strlen(string_should_not_hit), 
+						result, found_pos, 4, &mid, 0);						
+	EXPECT_GE(ret, 0);
+	
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
+	inet_pton(AF_INET,"10.0.8.187",&(v4_addr.saddr));
+	v4_addr.source=htons(18611);
+	inet_pton(AF_INET,"10.0.8.20",&(v4_addr.daddr));
+	v4_addr.dest=htons(80);
+	ipv4_addr.v4=&v4_addr;
+
+	table_id=Maat_table_register(g_feather, hit_table_name1);
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid,0);
+	
+	
+	EXPECT_EQ(ret, -2);
+
+	table_id=Maat_table_register(g_feather, empty_table_name);
+	ASSERT_GT(table_id, 0);
+
+	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION, NULL, 0);	
+
+	ret=Maat_scan_intval(g_feather, table_id, 2015, result, 4, &mid, 0);					
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 187);
+	Maat_clean_status(&mid);
+
+}
+
+TEST(NOTLogic, ScanHitAtLastEmptySimilar)
+{
+	const char* string_should_not_hit="This string should not hit.";
+	const char* string_match_no_region="This string is matched against a empty table.";
+	int ret=0;
+	int table_id=0;
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+	const char* not_hit_table_name="HTTP_URL", *hit_table_name1="IP_PLUS_CONFIG", *empty_table_name="EMPTY_SIMILAR";
+	scan_status_t mid=NULL;
+	table_id=Maat_table_register(g_feather, not_hit_table_name);
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, string_should_not_hit, strlen(string_should_not_hit), 
+						result, found_pos, 4, &mid, 0);						
+	EXPECT_GE(ret, 0);
+	
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
+	inet_pton(AF_INET,"10.0.8.188",&(v4_addr.saddr));
+	v4_addr.source=htons(18611);
+	inet_pton(AF_INET,"10.0.8.20",&(v4_addr.daddr));
+	v4_addr.dest=htons(80);
+	ipv4_addr.v4=&v4_addr;
+
+	table_id=Maat_table_register(g_feather, hit_table_name1);
+	ASSERT_GT(table_id, 0);
+	
+	ret=Maat_scan_proto_addr(g_feather, table_id, &ipv4_addr, 6, result, 4, &mid,0);
+	
+	
+	EXPECT_EQ(ret, -2);
+
+	table_id=Maat_table_register(g_feather, empty_table_name);
+	ASSERT_GT(table_id, 0);
+
+	Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_LAST_REGION, NULL, 0);	
+
+	ret=Maat_similar_scan_string(g_feather, table_id, string_match_no_region, strlen(string_match_no_region), result, 4,&mid, 0);				
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 188);
 	Maat_clean_status(&mid);
 
 }
