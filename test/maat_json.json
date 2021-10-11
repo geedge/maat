@@ -2262,6 +2262,34 @@
                     "not_flag": 0
                 }
             ]
+        },
+        {
+            "is_valid": "yes",
+            "do_log": 0,
+            "effective_rage": 0,
+            "action": 0,
+            "compile_id": 189,
+            "service": 0,
+            "do_blacklist": 0,
+            "user_region": "StringScan.ShouldNotHitExprPlus",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_name": "APP_PAYLOAD",
+                            "table_content": {
+                                "format": "hexbin",
+                                "match_method": "sub",
+                                "district": "tcp.payload.c2s_first_data",
+                                "keywords": "ab00",
+                                "expr_type": "none"
+                            },
+                            "table_type": "expr_plus"
+                        }
+                    ],
+                    "group_name": "Untitled"
+                }
+            ]
         }
     ],
     "plugin_table": [
