@@ -699,6 +699,15 @@ TEST(StringScan, ExprPlusWithHex)
 						&mid, 0);
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 156);
+
+    region_name="User-Agent";
+    ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, region_name, strlen(region_name));
+    ASSERT_EQ(ret, 0);
+    ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data),
+                                            result, found_pos, 4,
+                                            &mid, 0);
+    EXPECT_EQ(ret, -2);
+
 	Maat_clean_status(&mid);
 
 	return;
