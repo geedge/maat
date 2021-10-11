@@ -687,12 +687,13 @@ TEST(StringScan, ExprPlusWithHex)
 	int table_id=0,ret=0;
 	struct Maat_rule_t result[4];
 	const char* scan_data="text/html; charset=UTF-8";	
-	const char* region_name="Content-Type";
+	const char* region_name1="Content-Type";
+	const char* region_name2="User-Agent";
 	int found_pos[4];
 	table_id=Maat_table_register(g_feather, "HTTP_SIGNATURE");
 	ASSERT_GT(table_id, 0);
 	scan_status_t mid=NULL;
-	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, region_name, strlen(region_name));
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, region_name1, strlen(region_name1));
 	ASSERT_EQ(ret, 0);
 	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
 						result, found_pos, 4,
@@ -700,8 +701,7 @@ TEST(StringScan, ExprPlusWithHex)
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 156);
 
-    region_name="User-Agent";
-    ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, region_name, strlen(region_name));
+    ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, region_name2, strlen(region_name2));
     ASSERT_EQ(ret, 0);
     ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data),
                                             result, found_pos, 4,
