@@ -62,7 +62,7 @@ struct db_ip_rule_t
 	};
 	int is_valid;
 };
-struct db_intval_rule
+struct db_interval_rule
 {
 	int region_id;
 	int group_id;
@@ -162,14 +162,15 @@ struct Maat_region_inner
 	int expr_id_ub;	//up boundary
 };
 
-
+#define	DISTRICT_ANY		-1
+#define	DISTRICT_UNKNOWN	-2
 struct _OUTER_scan_status_t
 {
 	struct _Maat_feather_t* feather;
 	unsigned short thread_num;
 	unsigned char is_set_district;
 	unsigned char is_last_region;
-	int district_id;
+	int district_id; //-1: Any District; -2: Unkonwn District;
 	int scan_cnt;
 	struct Maat_hierarchy_compile_mid* compile_mid;
 };

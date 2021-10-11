@@ -116,7 +116,7 @@
           "regions": [
               {
                   "table_name": "INTERGER_PLUS",
-                  "table_type": "intval_plus",
+                  "table_type": "interval_plus",
                   "table_content": {
                       "district": "fqdn_cat_id",
                       "low_boundary": 1724,
@@ -261,7 +261,7 @@
                     "regions": [
                         {
                             "table_name": "CONTENT_SIZE",
-                            "table_type": "intval",
+                            "table_type": "interval",
                             "table_content": {
                                 "low_boundary": 100,
                                 "up_boundary": 500
@@ -325,7 +325,7 @@
                     "regions": [
                         {
                             "table_name": "CONTENT_SIZE",
-                            "table_type": "intval",
+                            "table_type": "interval",
                             "table_content": {
                                 "low_boundary": 2014,
                                 "up_boundary": 2016
@@ -1947,9 +1947,9 @@
                     "regions": [
                         {
                             "table_name": "INTERGER_PLUS",
-                            "table_type": "intval_plus",
+                            "table_type": "interval_plus",
                             "table_content": {
-                                "district": "intval.plus",
+                                "district": "interval.plus",
                                 "low_boundary": 2020,
                                 "up_boundary": 2020
                             }

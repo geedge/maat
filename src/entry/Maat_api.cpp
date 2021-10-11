@@ -200,7 +200,7 @@ void scan_region_hit_wraper_build_with_rulescan(struct scan_region_hit_wraper* w
 	for(i=0; i< n_rslt; i++)
 	{
 		region=(struct Maat_region_inner*)(rulescan_rslt[i].tag);
-		if(region->district_id==district_id||district_id==-1)
+		if(region->district_id==district_id||district_id==DISTRICT_ANY)
 		{
 			wraper->hit_regions[wraper->n_hit_region]=region;
 			wraper->n_hit_region++;
@@ -422,7 +422,7 @@ struct _OUTER_scan_status_t* _make_outer_status(_Maat_feather_t *feather, int th
 	struct _OUTER_scan_status_t* outer_mid=NULL;
 	outer_mid=(struct _OUTER_scan_status_t*)calloc(sizeof(struct _OUTER_scan_status_t),1);
 	outer_mid->feather=feather;
-	outer_mid->district_id=-1;
+	outer_mid->district_id=DISTRICT_ANY;
 	outer_mid->thread_num=(unsigned short)thread_num;
 	alignment_int64_array_add(feather->outer_mid_cnt, thread_num,1);
 	return outer_mid;
@@ -2481,7 +2481,7 @@ int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCA
 			if(map_ret<0)
 			{
 				//May be the district is not effected yet.
-				_mid->district_id=-1;
+				_mid->district_id=DISTRICT_UNKNOWN;
 			}
 			_mid->is_set_district=1;
 			break;

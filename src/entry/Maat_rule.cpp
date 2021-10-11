@@ -57,7 +57,7 @@ extern "C"
 }
 #endif
 
-int MAAT_FRAME_VERSION_3_4_8_20210819=1;
+int MAAT_FRAME_VERSION_3_4_9_20211011=1;
 
 int is_valid_table_name(const char* str)
 {
@@ -671,7 +671,7 @@ void destroy_rs_ip_rule(scan_rule_t* p)
 {
 	free(p);
 }
-scan_rule_t* create_rs_intval_rule(unsigned int sub_type,struct db_intval_rule *intval_rule)
+scan_rule_t* create_rs_intval_rule(unsigned int sub_type,struct db_interval_rule *intval_rule)
 {
 	scan_rule_t *p_rule=(scan_rule_t*)calloc(sizeof(scan_rule_t),1);
 	p_rule->rule_type=RULETYPE_INT;
@@ -1358,14 +1358,14 @@ int add_ip_rule(struct Maat_table_schema* table, struct db_ip_rule_t* db_ip_rule
 	MESA_lqueue_join_tail(scanner->region_update_q, &op_expr, sizeof(void*));
 	return 0;
 }
-int add_intval_rule(struct Maat_table_schema* table,struct db_intval_rule* intval_rule,struct Maat_scanner *scanner,void* logger)
+int add_interval_rule(struct Maat_table_schema* table,struct db_interval_rule* intval_rule,struct Maat_scanner *scanner,void* logger)
 {
 	scan_rule_t* p_rule=NULL;
 	struct op_expr_t* op_expr=NULL;
 	struct Maat_region_inner* u_para=NULL;
 	int expr_id=0, ret=0,district_id=-1;
 
-	if(table->table_type==TABLE_TYPE_EXPR_PLUS)
+	if(table->table_type==TABLE_TYPE_INTERVAL_PLUS)
 	{
 		assert(strlen(intval_rule->district)>0);
 		str_unescape(intval_rule->district);
@@ -1945,7 +1945,7 @@ error_out:
 
 void update_intval_rule(struct Maat_table_schema* table, const char* table_line, struct Maat_scanner *scanner, void* logger)
 {
-	struct db_intval_rule* intval_rule=ALLOC(struct db_intval_rule, 1);
+	struct db_interval_rule* intval_rule=ALLOC(struct db_interval_rule, 1);
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
 	int ret=0;
 	switch(table->table_type)
@@ -2006,7 +2006,7 @@ void update_intval_rule(struct Maat_table_schema* table, const char* table_line,
 	}
 	else
 	{
-		ret=add_intval_rule(table, intval_rule,scanner,logger);
+		ret=add_interval_rule(table, intval_rule,scanner,logger);
 		if(ret<0)
 		{
 			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,

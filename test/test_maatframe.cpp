@@ -540,8 +540,8 @@ TEST(StringScan, PrefixAndSuffix)
 
 }
 
-#define IntvalPlusTest	1
-TEST(IntvalScan,   IntvalPlusPlus)
+#define IntervalPlusTest	1
+TEST(IntervalScan,  IntervalPlus)
 {
 	int table_id=0,ret=0;
 	int scan_val=2020;
@@ -551,7 +551,7 @@ TEST(IntvalScan,   IntvalPlusPlus)
 	table_id=Maat_table_register(g_feather, "INTERGER_PLUS");
 	ASSERT_GT(table_id, 0);
 
-	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, "intval.plus", strlen("intval.plus"));
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, "interval.plus", strlen("interval.plus"));
 	ASSERT_EQ(ret, 0);
 	
 	ret=Maat_scan_intval(g_feather, table_id, scan_val, result,4, &mid, 0);
@@ -675,7 +675,7 @@ TEST(StringScan, ShouldNotHitExprPlus)
 	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, (char*)udp_payload_not_hit, sizeof(udp_payload_not_hit), 
 						result, NULL, 4,
 						&mid, 0);
-	EXPECT_EQ(ret, 0);
+	EXPECT_EQ(ret, -2);
 	
 	Maat_clean_status(&mid);
 	return;
