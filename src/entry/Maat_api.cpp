@@ -1362,7 +1362,8 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 						,struct Maat_rule_t*result,int rule_num,struct Maat_hit_detail_t *hit_detail,int detail_num
 						,int* detail_ret,scan_status_t* mid,int thread_num)
 {
-	int region_ret=0,compile_ret=0;
+	int region_ret=0, compile_ret=0;
+	int district_id=DISTRICT_ANY;
 	size_t hit_region_cnt=0;
 	unsigned int sub_type=0;
 	int virtual_table_id=0;
@@ -1458,7 +1459,11 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 			alignment_int64_array_add(table_rt->hit_cnt, thread_num, 1);
 		}
 		_mid=grab_mid(mid, _feather, thread_num, 1);
-		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, hit_region_cnt, _mid->district_id,
+		if(hit_region_cnt>0&&p_table->table_type==TABLE_TYPE_EXPR_PLUS)
+		{
+			district_id=_mid->district_id;
+		}
+		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, hit_region_cnt, district_id,
 										_mid->is_last_scan, virtual_table_id, _mid->scan_cnt);
 		
 		if(region_hit_wraper.n_wrapped_region>0 || scan_status_should_compile_NOT(_mid))
@@ -1516,6 +1521,7 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 						,scan_status_t *mid,int thread_num)
 {
 	int region_ret=0,compile_ret=0;
+	int district_id=DISTRICT_ANY;
 	struct _OUTER_scan_status_t* _mid=NULL;
 	scan_data_t intval_scan_data;
 	scan_result_t *region_result=NULL;
@@ -1578,7 +1584,12 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 			alignment_int64_array_add(table_rt->hit_cnt, thread_num,1);
 		}	
 		_mid=grab_mid(mid, _feather, thread_num, 1);
-		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, region_ret, _mid->district_id,
+		if(region_ret>0&&p_table->table_type==TABLE_TYPE_INTERVAL_PLUS)
+		{
+			district_id=_mid->district_id;
+		}
+
+		scan_region_hit_wraper_build_with_rulescan(&region_hit_wraper, region_result, region_ret, district_id,
 											_mid->is_last_scan, virtual_table_id, _mid->scan_cnt);
 
 		if(region_hit_wraper.n_wrapped_region>0 || scan_status_should_compile_NOT(_mid))

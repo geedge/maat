@@ -265,7 +265,6 @@ void ip_plugin_EX_new_cb(int table_id, const char* key, const char* table_line, 
 void ip_plugin_EX_free_cb(int table_id, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
 {
 	struct ip_plugin_ud* u=(struct ip_plugin_ud*)(*ad);
-	u->ref_cnt--;
 	if ((__sync_sub_and_fetch(&u->ref_cnt, 1) == 0))
 	{
 		free(u->buffer);
@@ -564,7 +563,7 @@ TEST(IntervalScan,  IntervalPlus)
 }
 
 #define ExprPlusTest	1
-TEST(StringScan,   ExprPlus)
+TEST(StringScan,  ExprPlus)
 {
 	int ret=0;
 	int table_id=0;
@@ -672,7 +671,7 @@ TEST(StringScan, ShouldNotHitExprPlus)
 	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, region_name, strlen(region_name));
 	EXPECT_EQ(ret, 0);
 
-	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, (char*)udp_payload_not_hit, sizeof(udp_payload_not_hit), 
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, (char*)udp_payload_not_hit, sizeof(udp_payload_not_hit), 
 						result, NULL, 4,
 						&mid, 0);
 	EXPECT_EQ(ret, -2);
@@ -686,7 +685,8 @@ TEST(StringScan, ExprPlusWithHex)
 {
 	int table_id=0,ret=0;
 	struct Maat_rule_t result[4];
-	const char* scan_data="text/html; charset=UTF-8";	
+	const char* scan_data1="text/html; charset=UTF-8";
+	const char* scan_data2="Batman\\:Take me Home.Superman/:Fine,stay with me.";
 	const char* region_name1="Content-Type";
 	const char* region_name2="User-Agent";
 	int found_pos[4];
@@ -695,7 +695,7 @@ TEST(StringScan, ExprPlusWithHex)
 	scan_status_t mid=NULL;
 	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, region_name1, strlen(region_name1));
 	ASSERT_EQ(ret, 0);
-	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_UTF8, scan_data1, strlen(scan_data1), 
 						result, found_pos, 4,
 						&mid, 0);
 	EXPECT_EQ(ret, 1);
@@ -703,11 +703,19 @@ TEST(StringScan, ExprPlusWithHex)
 
     ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, region_name2, strlen(region_name2));
     ASSERT_EQ(ret, 0);
-    ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data),
+    ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, scan_data1, strlen(scan_data1),
                                             result, found_pos, 4,
                                             &mid, 0);
     EXPECT_EQ(ret, -2);
 
+	table_id=Maat_table_register(g_feather, "KEYWORDS_TABLE");
+    ret=Maat_full_scan_string(g_feather, table_id, CHARSET_UTF8, scan_data2, strlen(scan_data2),
+                                            result, found_pos, 4,
+                                            &mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 132);
+
+	
 	Maat_clean_status(&mid);
 
 	return;
