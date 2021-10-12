@@ -1,4 +1,4 @@
-/*
+﻿/*
  *
  * Copyright (c) 2014
  * String Algorithms Research Group
@@ -23,294 +23,294 @@ extern "C"
 {
 #endif
 
-	/* rulescan_set_param���������õĲ������� */
+	/* rulescan_set_param函数可设置的参数类型 */
 	enum RULESCAN_PARA_NAME
 	{
-		RULESCAN_DETAIL_RESULT=1,		/* ����־λ��ʾ��������ϸ����λ�õ���Ϣ, optval��ΪNULL��optlen��Ϊ0��Ĭ�ϲ�������ϸ��Ϣ*/
-		RULESCAN_REGEX_GROUP  =2,		/* ����־λ��ʾ�������������ʽƥ��ķ�����Ϣ���������ֶΣ���Ҫ������RULESCAN_DETAIL_RESULT��־λ,optval��ΪNULL��optlen��Ϊ0��Ĭ�ϲ����ط�����Ϣ */
-		RULEACAN_ERRLOG_CLOSE,			/* ����־λ��ʾ���ر�Rulescan������־�����optval��ΪNULL��optlen��Ϊ0�������õĻ�Ĭ�ϴ�Rulescan������־��� */
-		RULESCAN_ERRLOG_FILE_PATH,		/* ����Rulescan������־��·�����������ļ����������û����룬optval��ֵΪ�����ļ�������־·����optlenΪ·�����ȡ����û���趨��
-										����־Ĭ�ϴ洢�ڿ�ִ�г���ǰĿ¼�µ�rulescan_tmp�� */
+		RULESCAN_DETAIL_RESULT=1,		/* 本标志位表示：返回详细命中位置等信息, optval设为NULL，optlen设为0。默认不返回详细信息*/
+		RULESCAN_REGEX_GROUP  =2,		/* 本标志位表示：返回正则表达式匹配的分组信息；开启本字段，需要先设置RULESCAN_DETAIL_RESULT标志位,optval设为NULL，optlen设为0。默认不返回分组信息 */
+		RULEACAN_ERRLOG_CLOSE,			/* 本标志位表示：关闭Rulescan错误日志输出，optval设为NULL，optlen设为0。不设置的话默认打开Rulescan错误日志输出 */
+		RULESCAN_ERRLOG_FILE_PATH,		/* 设置Rulescan错误日志的路径名（包含文件名），由用户传入，optval的值为包含文件名的日志路径，optlen为路径长度。如果没有设定，
+										则日志默认存储在可执行程序当前目录下的rulescan_tmp中 */
 	};
 
-	#define MAX_REGEX_GROUP_NUM 5		 /* �����������ʽ����֧�ֵ�������ĸ��� */	
+	#define MAX_REGEX_GROUP_NUM 5		 /* 对于正则表达式，所支持的最大分组的个数 */	
 
-	#define MAX_EXPR_ITEM_NUM  (1U<<3)   /* ÿ�������ʽ�����MAX_EXPR_ITEM_NUM��������� */
-	#define MAX_MATCH_POS_NUM  1024      /* ÿ����������������ص�����λ�õĸ��� */
-	#define MATCH_POS_NUM_INC  64		 /* ÿ�������������ص�����λ�õĸ�����ʼֵ������ֵ */
+	#define MAX_EXPR_ITEM_NUM  (1U<<3)   /* 每条与表达式最多由MAX_EXPR_ITEM_NUM个规则组成 */
+	#define MAX_MATCH_POS_NUM  1024      /* 每条规则最多允许返回的命中位置的个数 */
+	#define MATCH_POS_NUM_INC  64		 /* 每条规则允许返回的命中位置的个数初始值与增量值 */
 
-	/* ���岻ͬ�Ĺ�������  */
-	const unsigned int RULETYPE_STR  = 0; /* �ַ���������ƹ��� */
-	const unsigned int RULETYPE_REG  = 1; /* �������ʽ���� */
-	const unsigned int RULETYPE_INT  = 2; /* ��ֵ������� */
-	const unsigned int RULETYPE_IPv4 = 3; /* IPv4���� */
-	const unsigned int RULETYPE_IPv6 = 4; /* IPv6���� */
+	/* 定义不同的规则类型  */
+	const unsigned int RULETYPE_STR  = 0; /* 字符串或二进制规则 */
+	const unsigned int RULETYPE_REG  = 1; /* 正则表达式规则 */
+	const unsigned int RULETYPE_INT  = 2; /* 数值区间规则 */
+	const unsigned int RULETYPE_IPv4 = 3; /* IPv4规则 */
+	const unsigned int RULETYPE_IPv6 = 4; /* IPv6规则 */
 
-	const unsigned int MAX_RULETYPE     = 5;          /* ������������ */
-	const unsigned int MAX_SUB_RULETYPE = 4096;       /* �������������� */
+	const unsigned int MAX_RULETYPE     = 5;          /* 规则类型数量 */
+	const unsigned int MAX_SUB_RULETYPE = 4096;       /* 规则子类型数量 */
 
-	/* �ַ������͹��򣨿ɱ�ʾ�ı��ַ������������ַ������������ʽ�� */
+	/* 字符串类型规则（可表示文本字符串、二进制字符串、正则表达式） */
 	typedef struct _string_rule_t
 	{
-		char *        str;            /* �ַ������ݣ�������������ʽ������'\0'�������ɲ�ָ������ */
-		unsigned int  len;            /* �ַ������� */
-		unsigned char case_sensitive; /* �Ƿ��Сд����ƥ�䣨1�����У�0�������У� */
-		unsigned char match_mode;     /* ƥ��ģʽ���Ӵ�ƥ�䣨0��������ƥ�䣨1�������Ծ�ȷ��ƥ����Ч */
-		int  l_offset;                /* ��ʾģʽ��ֻ�����ı���Χ[l_offset, r_offset]�г��֣�-1��ʾ������,-2��ʾ��ƥ�䣻���Ծ�ȷ��ƥ����Ч */
-		int  r_offset;                /* ��ʾģʽ��ֻ�����ı���Χ[l_offset, r_offset]�г��֣�-1��ʾ������,-2��ʾ��ƥ�䣻���Ծ�ȷ��ƥ����Ч */
+		char *        str;            /* 字符串内容；如果是正则表达式，须以'\0'结束，可不指定长度 */
+		unsigned int  len;            /* 字符串长度 */
+		unsigned char case_sensitive; /* 是否大小写敏感匹配（1：敏感；0：不敏感） */
+		unsigned char match_mode;     /* 匹配模式：子串匹配（0），完整匹配（1）；仅对精确串匹配有效 */
+		int  l_offset;                /* 表示模式串只能在文本范围[l_offset, r_offset]中出现，-1表示无限制,-2表示左匹配；仅对精确串匹配有效 */
+		int  r_offset;                /* 表示模式串只能在文本范围[l_offset, r_offset]中出现，-1表示无限制,-2表示右匹配；仅对精确串匹配有效 */
 	}string_rule_t;
 
-	/* ������ֵ������򣬱�ʾ��������[lb, ub] */
+	/* 整数数值区间规则，表示整数区间[lb, ub] */
 	typedef struct _interval_rule_t
 	{
-		unsigned int lb; /* ����������½磨����lb����������Ĭ��Ϊ0 */
-		unsigned int ub; /* ����������½磨����ub����������Ĭ��Ϊ0 */
+		unsigned int lb; /* 数据区间的下界（包含lb），无限制默认为0 */
+		unsigned int ub; /* 数据区间的下界（包含ub），无限制默认为0 */
 	}interval_rule_t;
 
-	/* IPv4���� */
+	/* IPv4规则 */
 	typedef struct _ipv4_rule_t
 	{
-		unsigned int	min_saddr; /* Դ��ַ�½磻0��ʾ���Ա��ֶ� */     
-		unsigned int	max_saddr; /* Դ��ַ�Ͻ磻0��ʾ�̶�IP=min_saddr */    
-		unsigned int    min_daddr; /* Ŀ�ĵ�ַ�½磻0��ʾ���Ա��ֶ� */      
-		unsigned int    max_daddr; /* Ŀ�ĵ�ַ�Ͻ磻0��ʾ�̶�IP=min_daddr */ 
-		unsigned short	min_sport; /* Դ�˿ڷ�Χ�½磻0��ʾ���Ա��ֶ� */
-		unsigned short	max_sport; /* Դ�˿ڷ�Χ�Ͻ磻0��ʾ�̶��˿�=min_sport */
-		unsigned short	min_dport; /* Ŀ�Ķ˿ڷ�Χ�½磻0��ʾ���Ա��ֶ� */
-		unsigned short	max_dport; /* Ŀ�Ķ˿ڷ�Χ�Ͻ磻0��ʾ�̶��˿�=min_dport */
-		unsigned short	proto;     /* �����Э�飬6��ʾTCP��17��ʾUDP��0��ʾ���Ա��ֶ� */
-		unsigned short	direction; /* ����0��ʾ˫��1��ʾ���� */
+		unsigned int	min_saddr; /* 源地址下界；0表示忽略本字段 */     
+		unsigned int	max_saddr; /* 源地址上界；0表示固定IP=min_saddr */    
+		unsigned int    min_daddr; /* 目的地址下界；0表示忽略本字段 */      
+		unsigned int    max_daddr; /* 目的地址上界；0表示固定IP=min_daddr */ 
+		unsigned short	min_sport; /* 源端口范围下界；0表示忽略本字段 */
+		unsigned short	max_sport; /* 源端口范围上界；0表示固定端口=min_sport */
+		unsigned short	min_dport; /* 目的端口范围下界；0表示忽略本字段 */
+		unsigned short	max_dport; /* 目的端口范围上界；0表示固定端口=min_dport */
+		unsigned short	proto;     /* 传输层协议，6表示TCP，17表示UDP；0表示忽略本字段 */
+		unsigned short	direction; /* 方向，0表示双向，1表示单向 */
 	}ipv4_rule_t;
 
-	/* IPv6���� */
+	/* IPv6规则 */
 	typedef struct _ipv6_rule_t
 	{
-		unsigned int	min_saddr[4]; /* Դ��ַ�½磻ȫ0��ʾ���Ա��ֶ� */     
-		unsigned int	max_saddr[4]; /* Դ��ַ�Ͻ磻ȫ0��ʾ�̶�IP=min_saddr */
-		unsigned int	min_daddr[4]; /* Ŀ�ĵ�ַ�½磻ȫ0��ʾ���Ա��ֶ� */      
-		unsigned int	max_daddr[4]; /* Ŀ�ĵ�ַ�Ͻ磻ȫ0��ʾ�̶�IP=min_daddr */ 
-		unsigned short	min_sport;    /* Դ�˿ڷ�Χ�½磻0��ʾ���Ա��ֶ� */
-		unsigned short	max_sport;    /* Դ�˿ڷ�Χ�Ͻ磻0��ʾ�̶��˿�=min_sport */
-		unsigned short	min_dport;    /* Ŀ�Ķ˿ڷ�Χ�½磻0��ʾ���Ա��ֶ� */
-		unsigned short	max_dport;    /* Ŀ�Ķ˿ڷ�Χ�Ͻ磻0��ʾ�̶��˿�=min_dport */
-		unsigned short	proto;        /* �����Э�飬6��ʾTCP��17��ʾUDP��������Ĭ��Ϊ0 */
-		unsigned short	direction;    /* ����0��ʾ˫��1��ʾ���� */
+		unsigned int	min_saddr[4]; /* 源地址下界；全0表示忽略本字段 */     
+		unsigned int	max_saddr[4]; /* 源地址上界；全0表示固定IP=min_saddr */
+		unsigned int	min_daddr[4]; /* 目的地址下界；全0表示忽略本字段 */      
+		unsigned int	max_daddr[4]; /* 目的地址上界；全0表示固定IP=min_daddr */ 
+		unsigned short	min_sport;    /* 源端口范围下界；0表示忽略本字段 */
+		unsigned short	max_sport;    /* 源端口范围上界；0表示固定端口=min_sport */
+		unsigned short	min_dport;    /* 目的端口范围下界；0表示忽略本字段 */
+		unsigned short	max_dport;    /* 目的端口范围上界；0表示固定端口=min_dport */
+		unsigned short	proto;        /* 传输层协议，6表示TCP，17表示UDP，无限制默认为0 */
+		unsigned short	direction;    /* 方向，0表示双向，1表示单向 */
 	}ipv6_rule_t;
 
-	/* ͨ�õĹ������� */
+	/* 通用的规则类型 */
 	typedef struct _scan_rule_t
 	{
-		unsigned int rule_type;              /* �������ͣ�����Ϊ����ö�ٹ�������֮һ */
-		unsigned int sub_type;               /* �������ͣ��û��Զ��壬�������͸�������������MAX_SUB_RULETYPE����ǰ�Ķ��壩 */
-		union                                /* ����rule_type�����������ַ�������ֵ���䡢����IP���� */
+		unsigned int rule_type;              /* 规则类型，必须为上述枚举规则类型之一 */
+		unsigned int sub_type;               /* 子类类型，用户自定义，但子类型个数不允许超过MAX_SUB_RULETYPE（见前文定义） */
+		union                                /* 根据rule_type决定规则是字符串、数值区间、还是IP规则 */
 		{
-			string_rule_t    string_rule;    /* �ַ��������ַ����������ơ��������ʽ�� */
-			interval_rule_t  interval_rule;  /* ������ֵ������� */
-			ipv4_rule_t      ipv4_rule;      /* �������IPv4���� */
-			ipv6_rule_t      ipv6_rule;      /* �������IPv6���� */
+			string_rule_t    string_rule;    /* 字符串规则（字符串、二进制、正则表达式） */
+			interval_rule_t  interval_rule;  /* 整数数值区间规则 */
+			ipv4_rule_t      ipv4_rule;      /* 带掩码的IPv4规则 */
+			ipv6_rule_t      ipv6_rule;      /* 带掩码的IPv6规则 */
 		};
 	}scan_rule_t;
 
-	/* һ�������ʽ���� */
+	/* 一条与表达式规则 */
 	typedef struct _boolean_expr_t
 	{
-		unsigned int  expr_id;   /* �����ʽ��ID */
-		unsigned int  operation; /* �������ʽִ�еĲ�����0��ʾ���ӣ�1��ʾɾ�� */
-		unsigned int  rnum;      /* �������ʽ�������ٸ�����operation=1����rnum=0���� */
-		scan_rule_t * rules;     /* ��������ʽ������operation=1����rules=NULL���� */
-		void *        tag;       /* �û��Զ������ݣ�����ʱ��ƥ�������� */
+		unsigned int  expr_id;   /* 与表达式的ID */
+		unsigned int  operation; /* 对与表达式执行的操作：0表示增加，1表示删除 */
+		unsigned int  rnum;      /* 该与表达式包含多少个项；如果operation=1，置rnum=0即可 */
+		scan_rule_t * rules;     /* 组成与表达式的项；如果operation=1，置rules=NULL即可 */
+		void *        tag;       /* 用户自定义数据，命中时随匹配结果返回 */
 	}boolean_expr_t;
 
 
-	/* ��ɨ����ı��������� */
+	/* 待扫描的文本数据类型 */
 	typedef struct _text_data_t
 	{
-		const char * text;   /* �ı��������� */
-		unsigned int tlen;   /* �ı����ݳ��� */
-		int			 toffset;/* �����ı������������������е�ƫ��������ʽɨ���������Ч�����û����룬���������Ϊ0(���������Ϊ0) */  
+		const char * text;   /* 文本数据内容 */
+		unsigned int tlen;   /* 文本数据长度 */
+		int			 toffset;/* 本段文本数据在整个流数据中的偏移量，流式扫描情况下有效，由用户传入，其它情况置为0(这个必须置为0) */  
 	}text_data_t;
 
-	/* ��ɨ���IPv4Ԫ�� */
+	/* 待扫描的IPv4元组 */
 	typedef struct _ipv4_data_t
 	{
-		unsigned int       saddr; /* ԴIP��ַ */
-		unsigned int       daddr; /* Ŀ��IP��ַ */
-		unsigned short int sport; /* Դ�˿� */
-		unsigned short int dport; /* Ŀ�Ķ˿� */
-		unsigned short int proto; /* �����Э�飬6��ʾTCP��17��ʾUDP */
+		unsigned int       saddr; /* 源IP地址 */
+		unsigned int       daddr; /* 目的IP地址 */
+		unsigned short int sport; /* 源端口 */
+		unsigned short int dport; /* 目的端口 */
+		unsigned short int proto; /* 传输层协议，6表示TCP，17表示UDP */
 	}ipv4_data_t;
 
-	/* ��ɨ���IPv6Ԫ�� */
+	/* 待扫描的IPv6元组 */
 	typedef struct _ipv6_data_t
 	{
-		unsigned int       saddr[4]; /* ԴIP��ַ */
-		unsigned int       daddr[4]; /* Ŀ��IP��ַ */
-		unsigned short int sport;    /* Դ�˿� */
-		unsigned short int dport;    /* Ŀ�Ķ˿� */
-		unsigned short int proto;    /* �����Э�飬6��ʾTCP��17��ʾUDP */
+		unsigned int       saddr[4]; /* 源IP地址 */
+		unsigned int       daddr[4]; /* 目的IP地址 */
+		unsigned short int sport;    /* 源端口 */
+		unsigned short int dport;    /* 目的端口 */
+		unsigned short int proto;    /* 传输层协议，6表示TCP，17表示UDP */
 	}ipv6_data_t;
 
-	/* ͨ�õĴ�ɨ���������� */
+	/* 通用的待扫描数据类型 */
 	typedef struct _scan_data_t
 	{
-		unsigned int rule_type;     /* �������ͣ�����Ϊ����ö�ٹ�������֮һ */
-		unsigned int sub_type;      /* �������ͣ��û��Զ��壬�������͸�������������MAX_SUB_RULETYPE����ǰ�Ķ��壩 */
-		union                       /* ����rule_type�������ݸ������ַ�������ֵ������IPԪ�� */
+		unsigned int rule_type;     /* 规则类型，必须为上述枚举规则类型之一 */
+		unsigned int sub_type;      /* 子类类型，用户自定义，但子类型个数不允许超过MAX_SUB_RULETYPE（见前文定义） */
+		union                       /* 根据rule_type决定数据负载是字符串、数值、还是IP元组 */
 		{
-			text_data_t  text_data; /* ��ɨ���ı����ݣ���ƥ���ַ����������ơ��������ʽ�� */
-			unsigned int int_data;  /* ������ֵ����ƥ����ֵ���䣩 */
-			ipv4_data_t  ipv4_data; /* ��ɨ���IPv4Ԫ�� */
-			ipv6_data_t  ipv6_data; /* ��ɨ���IPv6Ԫ�� */
+			text_data_t  text_data; /* 待扫描文本数据（可匹配字符串、二进制、正则表达式） */
+			unsigned int int_data;  /* 整数数值（可匹配数值区间） */
+			ipv4_data_t  ipv4_data; /* 待扫描的IPv4元组 */
+			ipv6_data_t  ipv6_data; /* 待扫描的IPv6元组 */
 		};
 	}scan_data_t;
 
 	/*
-	   ɨ��������scan_result_t��rule_result_t˵����
-	1���������е�ÿ����������ʽ��һ������ʽ��Ӧһ��scan_result_t������ò�������ʽ����rnum������ÿ���������Ӧ��һ�����scan_result_t::result[k]��0<=k<rnum����
+	   扫描结果类型scan_result_t和rule_result_t说明：
+	1、对于命中的每个布尔表达式，一条表达式对应一条scan_result_t结果，该布尔表达式包含rnum个规则，每个规则均对应于一个结果scan_result_t::result[k]（0<=k<rnum）。
 
-	2�����ھ�ȷ�ַ������������position��length�������£�
-	���еľ�ȷ�ַ�������result_num��ƥ��������i��0<=i<result_num����ƥ��������ʼλ�úͳ��ȷֱ��ǣ�
+	2、对于精确字符串，结果数组position和length释义如下：
+	命中的精确字符串包含result_num个匹配结果，第i（0<=i<result_num）个匹配结果的起始位置和长度分别是：
 	   (position[i], length[i])
 
-	3�������������ʽ���������position��length�������£�
-	���е��������ʽ����result_num��ƥ������ÿ��ƥ��������group_num+1������Ԫ�ء����ڵ�i��0<=i<result_num����ƥ������
-	��a�������������ʽƥ�����ʼλ�úͳ��ȷֱ��ǣ�
+	3、对于正则表达式，结果数组position和length释义如下：
+	命中的正则表达式包含result_num个匹配结果，每个匹配结果包含group_num+1个数组元素。对于第i（0<=i<result_num）个匹配结果：
+	（a）整条正则表达式匹配的起始位置和长度分别是：
 	   (position[(group_num+1)*i],     length[(group_num+1)*i])
-	��b����j��0<=j<group_num�����������ʼλ�úͳ��ȷֱ��ǣ�
+	（b）第j（0<=j<group_num）个分组的起始位置和长度分别是：
 	   (position[(group_num+1)*i+j+1], length[(group_num+1)*i+j+1])
 	*/
 
-	/* �����ɨ�������� */
+	/* 规则的扫描结果类型 */
 	typedef struct _rule_result_t
 	{
-		unsigned int rule_type;                   /* ��������ͣ�����Ϊ����ö�ٹ�������֮һ */
-		unsigned int group_num;                   /* �����������ʽ���͹��򣬱��ֶα�ʾ������飨capturing group���ĸ�������������Ϊ0 */
-		unsigned int result_num;                  /* �ù����������н���ĸ��� */
-		unsigned int position[MAX_MATCH_POS_NUM]; /* �ù����������н������ʼλ�� */
-		unsigned int length[MAX_MATCH_POS_NUM];   /* �ù����������н���ĳ��ȣ���������н��������ǰ�����ݰ������еģ������ö�Ӧ��length=0, ��������������IP�࣬������Ϊ0*/
+		unsigned int rule_type;                   /* 规则的类型，必须为上述枚举规则类型之一 */
+		unsigned int group_num;                   /* 对于正则表达式类型规则，本字段表示捕获分组（capturing group）的个数；否则设置为0 */
+		unsigned int result_num;                  /* 该规则所有命中结果的个数 */
+		unsigned int position[MAX_MATCH_POS_NUM]; /* 该规则所有命中结果的起始位置 */
+		unsigned int length[MAX_MATCH_POS_NUM];   /* 该规则所有命中结果的长度；如果该命中结果是在以前的数据包中命中的，则设置对应的length=0, 对于整数区间与IP类，长度置为0*/
 	}rule_result_t;
 
-	/* ��������ʽ��ɨ�������� */
+	/* 布尔表达式的扫描结果类型 */
 	typedef struct _scan_result_t
 	{
-		unsigned int  expr_id;                     /* �����ʽ��ID */
-		unsigned int  rnum;                        /* �������ʽ�������ٸ����� */
-		rule_result_t result[MAX_EXPR_ITEM_NUM];  /* ��������ʽ��ÿ�������Ӧ��ɨ���� */
-		void *        tag;                         /* �û��Զ������ݣ�����ʱ��ƥ�������� */
+		unsigned int  expr_id;                     /* 与表达式的ID */
+		unsigned int  rnum;                        /* 该与表达式包含多少个规则 */
+		rule_result_t result[MAX_EXPR_ITEM_NUM];  /* 布尔表达式中每个规则对应的扫描结果 */
+		void *        tag;                         /* 用户自定义数据，命中时随匹配结果返回 */
 	}scan_result_t;
 
 	/*
-	���ܣ�ɨ������ʼ��������ɨ��������
-	������
-		max_thread_num [in]: ɨ�����ɲ���ִ�е��߳�����
-	����ֵ��
-		ɨ�������������ֵΪNULLʱ����ʾ��ʼ��ʧ�ܡ�
+	功能：扫描器初始化，生成扫描器对象。
+	参数：
+		max_thread_num [in]: 扫描器可并行执行的线程数。
+	返回值：
+		扫描器句柄；返回值为NULL时，表示初始化失败。
 	*/
 	void * rulescan_initialize(unsigned int max_thread_num);
 
 	/*
-	���ܣ�
-		����ɨ���������������rulescan_update֮ǰ�ɶ�ε��ã�ÿ������һ��ɨ�����͡�Rulescan��Ĭ�ϲ���������λ�õ���ϸ��Ϣ
-	������
-		instance[in]:			ɨ��������ָ�룻
-		optname [in]:           �������ͣ�
-		optval [in]:            optval��optlen��ʾ�����ľ������ݣ�
-		optlen [in]:            optval��optlen��ʾ�����ľ������ݡ�
-	����ֵ��
-		1����ȷ���ã�-1������ʧ�ܡ�
+	功能：
+		设置扫描参数，本函数在rulescan_update之前可多次调用，每次设置一种扫描类型。Rulescan中默认不返回命中位置等详细信息
+	参数：
+		instance[in]:			扫描器对象指针；
+		optname [in]:           参数类型；
+		optval [in]:            optval和optlen表示参数的具体内容；
+		optlen [in]:            optval和optlen表示参数的具体内容。
+	返回值：
+		1：正确设置，-1：设置失败。
 	*/
 	int rulescan_set_param(void * instance, enum RULESCAN_PARA_NAME optname, const void * optval, unsigned int optlen);
 
 	/*
-	���ܣ���̬ע��һ�������ʽ������ɨ�������󡣶���ͬһ��instance�����������ͬʱ�ж�������̡߳�
-	������
-		instance[in]:		ɨ��������ָ�룻
-		expr_array[in]:		һ�������ʽ��
-		epxr_num[in]:		�����ʽ�ĸ�����
-		failed_ids[out]:	�Ƿ������id��failed_ids[0]��ʾ�Ƿ�id�ĸ�����failed_ids[1...failed_ids[0]]��¼�Ƿ�id��Ŀǰֻ�Ժ�һ�������������಼������ʽ��Ч��
-		failed_size[in]:	failed_ids����Ĵ�С��
-	����ֵ��
-		����ֵΪ1ʱ����ʾע��ɹ�������ֵΪ-1ʱ����ʾ������
+	功能：动态注册一组与表达式，更新扫描器对象。对于同一个instance句柄，不允许同时有多个更新线程。
+	参数：
+		instance[in]:		扫描器对象指针；
+		expr_array[in]:		一组与表达式；
+		epxr_num[in]:		与表达式的个数；
+		failed_ids[out]:	非法规则的id；failed_ids[0]表示非法id的个数，failed_ids[1...failed_ids[0]]记录非法id，目前只对含一个正则规则的这类布尔表达式有效；
+		failed_size[in]:	failed_ids数组的大小。
+	返回值：
+		返回值为1时，表示注册成功；返回值为-1时，表示出错。
 	*/
 	int rulescan_update(void * instance, boolean_expr_t * expr_array, unsigned int expr_num, unsigned int * failed_ids, unsigned int failed_size);
 
 	/*
-	���ܣ��ͷ�ɨ�������󣻱�����������һ�Ρ�
-	������
-		instance [in]: ɨ����ָ�롣
-	����ֵ��
-		�ޡ�
+	功能：释放扫描器对象；本函数仅调用一次。
+	参数：
+		instance [in]: 扫描器指针。
+	返回值：
+		无。
 	*/
 	void rulescan_destroy(void * instance);
 
 	/*
-	���ܣ�����һ����ʽɨ�裬���뱣����״̬�Ĳ�����
-	������
-		instance [in]:  ɨ����ָ�룻
-		thread_id [in]: ��ǰִ��ɨ����߳�id�������ڷ�Χ[0, max_thread_num-1]֮�ڡ�
-	����ֵ��
-		���ر�����״̬�Ĳ���������ֵΪNULLʱ����ʾʧ�ܡ�
+	功能：启动一次流式扫描，申请保存流状态的参数。
+	参数：
+		instance [in]:  扫描器指针；
+		thread_id [in]: 当前执行扫描的线程id，必须在范围[0, max_thread_num-1]之内。
+	返回值：
+		返回保存流状态的参数；返回值为NULL时，表示失败。
 	*/
 	void * rulescan_startstream(void * instance, unsigned int thread_id);
 
 	/*
-	���ܣ���ʽɨ��ӿڣ�ɨ��һ������scan_data�������м�ɨ������������״̬stream_param�У�
-		������֧������ɨ��ģʽ��
-		��1��presults��ΪNULL������������ɨ�����������ͨ��*presults����һ��˴ε����н����
-		��2��presultsΪNULL  ����ȫɨ��ģʽ����ʾ�ȴ�������ɨ��������ټ��㲢������������ȫ�����н����
-			 ���rulescan_computeresult������
-	������
-		stream_param [in]: ������״̬�Ĳ�����
-		scan_data [in]:    ��ɨ�����ݣ�
-		presults [out]:    ���presults��ΪNULL�������Ǳ������е�һ��ɨ������
-		size [in]:		   �������presults�Ĵ�С��
-	����ֵ��
-		�������ʽ����ȫɨ�裨presultsΪNULL�����򷵻�ֵΪ����ɨ�����еĹؼ��ʣ���ֵ���䡢IP����ȣ��ĸ�����
-		���presult��ΪNULL���򷵻�ֵΪ����ɨ�����е������ʽ�ĸ�����-1��ʾ������
+	功能：流式扫描接口，扫描一段数据scan_data，并将中间扫描结果保存在流状态stream_param中；
+		本函数支持两种扫描模式：
+		（1）presults不为NULL：本段流数据扫描结束后立即通过*presults返回一组此次的命中结果；
+		（2）presults为NULL  ：完全扫描模式，表示等待整个流扫描结束后，再计算并返回整个流的全部命中结果，
+			 详见rulescan_computeresult函数。
+	参数：
+		stream_param [in]: 保存流状态的参数；
+		scan_data [in]:    待扫描数据；
+		presults [out]:    如果presults不为NULL，则存的是本次命中的一组扫描结果；
+		size [in]:		   结果数组presults的大小。
+	返回值：
+		如果是流式的完全扫描（presults为NULL），则返回值为本次扫描命中的关键词（数值区间、IP规则等）的个数；
+		如果presult不为NULL，则返回值为本次扫描命中的与表达式的个数，-1表示出错。
 	*/
 	int rulescan_searchstream(void * stream_param,  scan_data_t * scan_data, scan_result_t * presults, unsigned int size);
 
 	/*
-	���ܣ�������ɨ������󣬼���ɨ������
-	������
-		stream_param [in]: ������״̬��ָ�룻
-		presults [out]:    ������飬�����������е������ʽ����id��
-		size [in]:         �������presults�Ĵ�С��
-	����ֵ��
-		���������ʽ�����������<=size��������ֵΪ-1��ʾ������
+	功能：数据流扫描结束后，计算扫描结果。
+	参数：
+		stream_param [in]: 保存流状态的指针；
+		presults [out]:    结果数组，保存所有命中的与表达式规则id；
+		size [in]:         结果数组presults的大小。
+	返回值：
+		命中与表达式规则的数量（<=size）；返回值为-1表示出错。
 	*/
 	int rulescan_computeresult(void * stream_param, scan_result_t * presults, unsigned int size);
 
 	/*
-	���ܣ�������ʽɨ�裬�ͷ���������������������µ��øýӿ��ͷ�����������������ָ�ڽ�����ɨ��֮ǰ��û�е���
-		  rulescan_destroy����rulescan�����
-	������
-		stream_param [in]: ������ָ�롣
-	����ֵ��
-		�ޡ�
+	功能：结束流式扫描，释放流参数。正常流程情况下调用该接口释放流参数，正常流程指在结束流扫描之前还没有调用
+		  rulescan_destroy销毁rulescan句柄。
+	参数：
+		stream_param [in]: 流参数指针。
+	返回值：
+		无。
 	*/ 
 	void rulescan_endstream(void * stream_param);
 
 	/*
-	���ܣ�������ʽɨ�裬�ͷ��������������ȵ���rulescan_destroy������rulescan���֮���ٽ�����ɨ��������
-		  ��Ҫ����rulescan_endstream_simple���ͷ�����������������������²ŵ��øýӿڡ�
-	������
-		stream_param [in]: ������ָ�롣
-	����ֵ��
-		�ޡ�
+	功能：结束流式扫描，释放流参数。对于先调用rulescan_destroy销毁了rulescan句柄之后再结束流扫描的情况，
+		  需要调用rulescan_endstream_simple来释放流参数，仅限于这种情况下才调用该接口。
+	参数：
+		stream_param [in]: 流参数指针。
+	返回值：
+		无。
 	*/ 
 	void rulescan_endstream_simple(void * stream_param);
 
 	/*
-	���ܣ�����ʽɨ��ӿڣ�ɨ������󷵻��������н����
-	������
-		instance [in]:	   ɨ����ָ�룻
-		thread_id [in]:	   ��ǰִ��ɨ����߳�id�������ڷ�Χ[0, max_thread_num-1]֮�ڣ�
-		scan_data [in]:    ��ɨ�����ݣ�
-		presults [out]:    ������飬�����������е������ʽ����id��
-		size [in]:         �������presults�Ĵ�С��
-	����ֵ��
-		���������ʽ�����������<=size��������ֵΪ-1��ʾ������
+	功能：非流式扫描接口，扫描结束后返回所有命中结果。
+	参数：
+		instance [in]:	   扫描器指针；
+		thread_id [in]:	   当前执行扫描的线程id，必须在范围[0, max_thread_num-1]之内；
+		scan_data [in]:    待扫描数据；
+		presults [out]:    结果数组，保存所有命中的与表达式规则id；
+		size [in]:         结果数组presults的大小。
+	返回值：
+		命中与表达式规则的数量（<=size）；返回值为-1表示出错。
 	*/
 	int rulescan_search(void * instance, unsigned int thread_id, scan_data_t * scan_data, scan_result_t * presults, unsigned int size);
 
