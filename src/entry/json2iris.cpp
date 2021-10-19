@@ -52,7 +52,7 @@ struct iris_description_t
 	struct iris_table_t* compile_table;
 	MESA_htable_handle group_name_map;
 	MESA_htable_handle iris_table_map;
-	MESA_htable_handle str2int_map;
+	struct maat_kv_store* str2int_map;
 	redisContext *redis_write_ctx;
 	char* encrypt_key;
 	char* encrypt_algo;
@@ -155,46 +155,46 @@ int set_iris_descriptor(const char* json_file,cJSON *json, const char* encrypt_k
 	iris_cfg->iris_table_map=MESA_htable_create(&hargs, sizeof(hargs));
 	MESA_htable_print_crtl(iris_cfg->iris_table_map, 0);
 
-	iris_cfg->str2int_map=map_create();
+	iris_cfg->str2int_map=maat_kv_store_new();
 	
-	map_register(iris_cfg->str2int_map, "yes",1);
-	map_register(iris_cfg->str2int_map, "no",0);
+	maat_kv_register(iris_cfg->str2int_map, "yes",1);
+	maat_kv_register(iris_cfg->str2int_map, "no",0);
 	
-	map_register(iris_cfg->str2int_map, "ip",TABLE_TYPE_IP);
-	map_register(iris_cfg->str2int_map, "ip_plus",TABLE_TYPE_IP_PLUS);
-	map_register(iris_cfg->str2int_map, "string",TABLE_TYPE_EXPR);
-	map_register(iris_cfg->str2int_map, "expr",TABLE_TYPE_EXPR);
-	map_register(iris_cfg->str2int_map, "expr_plus",TABLE_TYPE_EXPR_PLUS);
-	map_register(iris_cfg->str2int_map, "intval",TABLE_TYPE_INTERVAL);
-	map_register(iris_cfg->str2int_map, "interval",TABLE_TYPE_INTERVAL);
-	map_register(iris_cfg->str2int_map, "intval_plus",TABLE_TYPE_INTERVAL_PLUS);
-	map_register(iris_cfg->str2int_map, "interval_plus",TABLE_TYPE_INTERVAL_PLUS);
-	map_register(iris_cfg->str2int_map, "digest",TABLE_TYPE_DIGEST);
-	map_register(iris_cfg->str2int_map, "similar",TABLE_TYPE_SIMILARITY);
+	maat_kv_register(iris_cfg->str2int_map, "ip",TABLE_TYPE_IP);
+	maat_kv_register(iris_cfg->str2int_map, "ip_plus",TABLE_TYPE_IP_PLUS);
+	maat_kv_register(iris_cfg->str2int_map, "string",TABLE_TYPE_EXPR);
+	maat_kv_register(iris_cfg->str2int_map, "expr",TABLE_TYPE_EXPR);
+	maat_kv_register(iris_cfg->str2int_map, "expr_plus",TABLE_TYPE_EXPR_PLUS);
+	maat_kv_register(iris_cfg->str2int_map, "intval",TABLE_TYPE_INTERVAL);
+	maat_kv_register(iris_cfg->str2int_map, "interval",TABLE_TYPE_INTERVAL);
+	maat_kv_register(iris_cfg->str2int_map, "intval_plus",TABLE_TYPE_INTERVAL_PLUS);
+	maat_kv_register(iris_cfg->str2int_map, "interval_plus",TABLE_TYPE_INTERVAL_PLUS);
+	maat_kv_register(iris_cfg->str2int_map, "digest",TABLE_TYPE_DIGEST);
+	maat_kv_register(iris_cfg->str2int_map, "similar",TABLE_TYPE_SIMILARITY);
 
 	
-	map_register(iris_cfg->str2int_map, "ipv4",4);
-	map_register(iris_cfg->str2int_map, "ipv6",6);
+	maat_kv_register(iris_cfg->str2int_map, "ipv4",4);
+	maat_kv_register(iris_cfg->str2int_map, "ipv6",6);
 
-	map_register(iris_cfg->str2int_map, "double",0);
-	map_register(iris_cfg->str2int_map, "single",1);
+	maat_kv_register(iris_cfg->str2int_map, "double",0);
+	maat_kv_register(iris_cfg->str2int_map, "single",1);
 
-	map_register(iris_cfg->str2int_map, "none",0);
-	map_register(iris_cfg->str2int_map, "and",1);
-	map_register(iris_cfg->str2int_map, "regex",2);
-	map_register(iris_cfg->str2int_map, "offset",3);
+	maat_kv_register(iris_cfg->str2int_map, "none",0);
+	maat_kv_register(iris_cfg->str2int_map, "and",1);
+	maat_kv_register(iris_cfg->str2int_map, "regex",2);
+	maat_kv_register(iris_cfg->str2int_map, "offset",3);
 
-	map_register(iris_cfg->str2int_map, "sub",0);
-	map_register(iris_cfg->str2int_map, "right",1);
-	map_register(iris_cfg->str2int_map, "suffix",1);
-	map_register(iris_cfg->str2int_map, "left",2);
-	map_register(iris_cfg->str2int_map, "prefix",2);
-	map_register(iris_cfg->str2int_map, "complete",3);
-	map_register(iris_cfg->str2int_map, "exact",3);
+	maat_kv_register(iris_cfg->str2int_map, "sub",0);
+	maat_kv_register(iris_cfg->str2int_map, "right",1);
+	maat_kv_register(iris_cfg->str2int_map, "suffix",1);
+	maat_kv_register(iris_cfg->str2int_map, "left",2);
+	maat_kv_register(iris_cfg->str2int_map, "prefix",2);
+	maat_kv_register(iris_cfg->str2int_map, "complete",3);
+	maat_kv_register(iris_cfg->str2int_map, "exact",3);
 
-	map_register(iris_cfg->str2int_map, "uncase plain",0);
-	map_register(iris_cfg->str2int_map, "hexbin",1);
-	map_register(iris_cfg->str2int_map, "case plain",2);
+	maat_kv_register(iris_cfg->str2int_map, "uncase plain",0);
+	maat_kv_register(iris_cfg->str2int_map, "hexbin",1);
+	maat_kv_register(iris_cfg->str2int_map, "case plain",2);
 
 	iris_cfg->compile_table=query_table_info(iris_cfg, compile_tn, TABLE_TYPE_COMPILE);
 	iris_cfg->group2compile_table=query_table_info(iris_cfg, group2compile_tn, TABLE_TYPE_GROUP2COMPILE);
@@ -218,7 +218,7 @@ void clear_iris_descriptor(struct iris_description_t *iris_cfg)
 	{
 		MESA_htable_destroy(iris_cfg->iris_table_map, NULL);
 	}
-	map_destroy(iris_cfg->str2int_map);
+	maat_kv_store_free(iris_cfg->str2int_map);
 	free(iris_cfg->encrypt_algo);
 	free(iris_cfg->encrypt_key);
 	return;
@@ -264,7 +264,7 @@ int set_file_rulenum(const char* path,int rulenum,void* logger)
 	fclose(fp);
 	return 0;
 }
-int direct_write_rule(cJSON* json, MESA_htable_handle str2int, struct traslate_command_t*cmd, int cmd_cnt, struct iris_table_t* table, void* logger)
+int direct_write_rule(cJSON* json, struct maat_kv_store* str2int, struct traslate_command_t*cmd, int cmd_cnt, struct iris_table_t* table, void* logger)
 {
 	int i=0,ret=-1;
 	cJSON* item=NULL;
@@ -293,7 +293,7 @@ int direct_write_rule(cJSON* json, MESA_htable_handle str2int, struct traslate_c
 		if(cmd[i].str2int_flag==1)
 		{
 			p=item->valuestring;
-			ret=map_str2int(str2int, p, &int_value);			
+			ret=maat_kv_read(str2int, p, &int_value);			
 			if(ret<0)
 			{
 				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
@@ -748,7 +748,7 @@ int write_region_rule(cJSON* region_json, int compile_id, int group_id, iris_des
 		return -1;
 	}
 	table_type_str=item->valuestring;
-	ret=map_str2int(p_iris->str2int_map, table_type_str, (int*)&(table_type));
+	ret=maat_kv_read(p_iris->str2int_map, table_type_str, (int*)&(table_type));
 	if(ret!=1)
 	{
 		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,

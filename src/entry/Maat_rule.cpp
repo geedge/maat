@@ -57,7 +57,7 @@ extern "C"
 }
 #endif
 
-int MAAT_FRAME_VERSION_3_4_11_20211012=1;
+int MAAT_FRAME_VERSION_3_5_0_20211020=1;
 
 int is_valid_table_name(const char* str)
 {
@@ -763,7 +763,7 @@ struct Maat_scanner* create_maat_scanner(unsigned int version, _Maat_feather_t *
 	Maat_hierarchy_set_compile_user_data_free_func(scanner->hier, (void (*)(void*))destroy_compile_rule);
 	Maat_hierarchy_set_region_user_data_free_func(scanner->hier, (void (*)(void*))Maat_region_inner_free);
 
-	scanner->district_map=map_create();
+	scanner->district_map=maat_kv_store_new();
 	
 	scanner->version=version;
 	scanner->cfg_num=0;
@@ -809,7 +809,7 @@ void destroy_maat_scanner(struct Maat_scanner*scanner)
 	}
 	rulescan_destroy(scanner->region);
 
-	map_destroy(scanner->district_map);
+	maat_kv_store_free(scanner->district_map);
 	scanner->district_map=NULL;
 	assert(scanner->tmp_district_map==NULL);
 
@@ -1036,19 +1036,19 @@ void rulescan_batch_update(rule_scanner_t rs_handle,MESA_lqueue_head expr_queue,
 
 int get_district_id(Maat_scanner *scanner,const char* district_str)
 {
-	int map_ret=0,district_id=-1;
-	map_ret=map_str2int(scanner->district_map, district_str,&district_id);
+	int map_ret=0, district_id=-1;
+	map_ret=maat_kv_read(scanner->district_map, district_str, &district_id);
 	if(map_ret<0)
 	{
 		if(scanner->tmp_district_map==NULL)
 		{
-			scanner->tmp_district_map=map_duplicate(scanner->district_map);
+			scanner->tmp_district_map=maat_kv_store_duplicate(scanner->district_map);
 		}
-		map_ret=map_str2int(scanner->tmp_district_map, district_str,&district_id);
+		map_ret=maat_kv_read(scanner->tmp_district_map, district_str, &district_id);
 		if(map_ret<0)
 		{
-			district_id= scanner->district_num;
-			map_register(scanner->tmp_district_map,district_str, district_id);
+			district_id=scanner->district_num;
+			maat_kv_register(scanner->tmp_district_map, district_str, district_id);
 			scanner->district_num++;
 		}
 	}
@@ -2391,7 +2391,7 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 		tmp_map=scanner->district_map;
 		scanner->district_map=scanner->tmp_district_map;
 		scanner->tmp_district_map=NULL;
-		Maat_garbage_bagging(scanner->ref_garbage_bin, tmp_map, (void (*)(void*))map_destroy);
+		Maat_garbage_bagging(scanner->ref_garbage_bin, tmp_map, (void (*)(void*))maat_kv_store_free);
 	}
 	scanner->last_update_time=time(NULL);
 	scanner->xx_plugin_rule_to_update_cnt=0;

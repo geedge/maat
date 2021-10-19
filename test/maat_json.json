@@ -376,7 +376,7 @@
                             "table_name": "HTTP_SIGNATURE",
                             "table_type": "expr_plus",
                             "table_content": {
-                            		"district": "HTTP\\bURL",
+                            		"district": "HtTP\\bUrL",
                                 "keywords": "abckkk&123",
                                 "expr_type": "and",
                                 "match_method": "sub",

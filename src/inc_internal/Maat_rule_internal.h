@@ -223,8 +223,8 @@ struct Maat_scanner
 	struct Maat_garbage_bin* ref_garbage_bin;
 
 
-	MESA_htable_handle district_map;
-	MESA_htable_handle tmp_district_map;
+	struct maat_kv_store* district_map;
+	struct maat_kv_store* tmp_district_map;
 
 
 	int most_popular_sub_group;

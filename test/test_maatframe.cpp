@@ -581,7 +581,7 @@ TEST(StringScan,  ExprPlus)
 
 	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, region_name, strlen(region_name));
 	ASSERT_EQ(ret, 0);
-	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, scan_data, strlen(scan_data), 
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, scan_data, strlen(scan_data), 
 						result, found_pos, 4,
 						&mid, 0);
 	EXPECT_EQ(ret, 1);

@@ -2494,7 +2494,7 @@ int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCA
 				_feather->scan_err_cnt++;
 				return -1;
 			}
-			map_ret=map_unNullstr2int(_feather->scanner->district_map,(const char*)value,size,&(_mid->district_id));
+			map_ret=maat_kv_read_unNull(_feather->scanner->district_map, (const char*)value, size, &(_mid->district_id));
 			if(map_ret<0)
 			{
 				//May be the district is not effected yet.

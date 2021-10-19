@@ -1,11 +1,11 @@
-#ifndef	__MAP_STR2INT_H_INCLUDE_
-#define	__MAP_STR2INT_H_INCLUDE_
-#include <MESA/MESA_htable.h>
-MESA_htable_handle map_create(void);
-void map_destroy(MESA_htable_handle p);
-int map_register(MESA_htable_handle handle,const char* string,int value);
-int map_str2int(MESA_htable_handle handle,const char* string,int* value);
-int map_unNullstr2int(MESA_htable_handle handle,const char* string,int size,int* value);
-MESA_htable_handle map_duplicate(MESA_htable_handle origin_map);
-#endif
+#pragma once
+
+struct maat_kv_store;
+struct maat_kv_store* maat_kv_store_new(void);
+void maat_kv_store_free(struct maat_kv_store* store);
+int maat_kv_register(struct maat_kv_store* store, const char* key, int value);
+int maat_kv_read(struct maat_kv_store* store, const char* key, int* value);
+int maat_kv_read_unNull(struct maat_kv_store* store, const char* key, size_t key_sz, int* value);
+struct maat_kv_store* maat_kv_store_duplicate(struct maat_kv_store* store);
+
 
