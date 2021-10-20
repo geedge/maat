@@ -569,25 +569,39 @@ TEST(StringScan,  ExprPlus)
 	int table_id=0;
 	struct Maat_rule_t result[4];
 	int found_pos[4];
-	const char* region_name="HTTP URL";
-	const char* scan_data="http://www.cyberessays.com/search_results.php?action=search&query=abckkk,1234567";
+	const char* region_name1="HTTP URL";
+	const char* region_name2="我的diStricT";
+	const char* scan_data1="http://www.cyberessays.com/search_results.php?action=search&query=abckkk,1234567";
+	const char* scan_data2="Addis Sapphire Hotel";
 	table_id=Maat_table_register(g_feather, "HTTP_SIGNATURE");
 	ASSERT_GT(table_id, 0);
 	scan_status_t mid=NULL;
-	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, scan_data, strlen(scan_data), 
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, scan_data1, strlen(scan_data1), 
 						result, found_pos, 4,
 						&mid, 0);
 	EXPECT_EQ(ret, -1);//Should return error for district not setting.
 
-	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, region_name, strlen(region_name));
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, region_name1, strlen(region_name1));
 	ASSERT_EQ(ret, 0);
-	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, scan_data, strlen(scan_data), 
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, scan_data1, strlen(scan_data1), 
 						result, found_pos, 4,
 						&mid, 0);
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 128);
 	
 	Maat_clean_status(&mid);
+
+	ret=Maat_set_scan_status(g_feather, &mid, MAAT_SET_SCAN_DISTRICT, region_name2, strlen(region_name2));
+	ASSERT_EQ(ret, 0);
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, scan_data2, strlen(scan_data2), 
+						result, found_pos, 4,
+						&mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 190);
+	
+	Maat_clean_status(&mid);
+
+	
 	return;
 }
 
