@@ -167,7 +167,7 @@ struct Maat_region_inner
 struct _OUTER_scan_status_t
 {
 	struct _Maat_feather_t* feather;
-	unsigned short thread_num;
+	signed short thread_num;
 	unsigned char is_set_district;
 	unsigned char is_last_scan;
 	int district_id; //-1: Any District; -2: Unkonwn District;

@@ -423,17 +423,25 @@ struct _OUTER_scan_status_t* _make_outer_status(_Maat_feather_t *feather, int th
 	outer_mid=ALLOC(struct _OUTER_scan_status_t, 1);
 	outer_mid->feather=feather;
 	outer_mid->district_id=DISTRICT_ANY;
-	outer_mid->thread_num=(unsigned short)thread_num;
-	alignment_int64_array_add(feather->outer_mid_cnt, thread_num, 1);
+	outer_mid->thread_num=(signed short)thread_num;
 	return outer_mid;
 }
-struct _OUTER_scan_status_t* grab_mid(scan_status_t* raw_mid,_Maat_feather_t* feather, int thread_num, int is_hit_region)
+struct _OUTER_scan_status_t* grab_mid(scan_status_t* raw_mid, _Maat_feather_t* feather, int thread_num, int is_hit_region)
 {
 	struct _OUTER_scan_status_t* _mid=(struct _OUTER_scan_status_t*)(*raw_mid);;
 	if(_mid==NULL)
 	{
 		_mid=_make_outer_status(feather, thread_num);
 		*raw_mid=_mid;
+		if(_mid->thread_num>=0)//Maat_set_scan_status calls grap_mid() with thread_num=-1.
+		{
+			alignment_int64_array_add(feather->outer_mid_cnt, thread_num, 1);
+		}
+	}
+	if(_mid->thread_num<0 && thread_num>0)
+	{
+		_mid->thread_num=thread_num;		
+		alignment_int64_array_add(feather->outer_mid_cnt, thread_num, 1);
 	}
 
 	if(is_hit_region==1)
@@ -2481,12 +2489,7 @@ int Maat_set_scan_status(Maat_feather_t feather,scan_status_t* mid,enum MAAT_SCA
 	{
 		return 0;
 	}
-	_mid=grab_mid(mid, _feather, 0, 0);
-	if(_mid==NULL)
-	{
-		_mid=_make_outer_status(_feather,0);
-		*mid=_mid;
-	}
+	_mid=grab_mid(mid, _feather, -1, 0);
 	switch(type)
 	{
 		case	MAAT_SET_SCAN_DISTRICT:
@@ -2599,7 +2602,10 @@ void Maat_clean_status(scan_status_t* mid)
 		return;
 	}
 	_mid=(struct _OUTER_scan_status_t*)(*mid);
-	alignment_int64_array_add(_mid->feather->outer_mid_cnt, _mid->thread_num, -1);
+	if(_mid->thread_num>=0)
+	{
+		alignment_int64_array_add(_mid->feather->outer_mid_cnt, _mid->thread_num, -1);
+	}
 	if(_mid->compile_mid!=NULL)
 	{
 		Maat_hierarchy_compile_mid_free(_mid->compile_mid);

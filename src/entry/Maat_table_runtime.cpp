@@ -351,10 +351,12 @@ void Maat_table_runtime_plugin_new_row(struct Maat_table_runtime* table_rt, stru
 		if(atoi(row+is_valid_offset)==1)
 		{
 			EX_data_rt_row2EX_data(plugin_rt->ex_data_rt, row, row+key_offset, key_len, NULL, logger);
+			table_rt->origin_rule_num++;
 		}
 		else
 		{
 			EX_data_rt_delete_by_row(plugin_rt->ex_data_rt, row, row+key_offset, key_len, logger);
+			table_rt->origin_rule_num--;
 		}
 	}
 	if(plugin_schema->cb_plug_cnt>0)
@@ -448,10 +450,12 @@ void Maat_table_runtime_fqdn_plugin_new_row(struct Maat_table_runtime* table_rt,
 		{
 			fqdn_rule=fqdn_rule_new((unsigned int)atoi(row+row_id_offset), row+fqdn_offset, fqdn_len, atoi(row+is_suffix_flag_offset));
 			EX_data_rt_row2EX_data(fqdn_plugin_rt->ex_data_rt, row, row+row_id_offset, row_id_len, fqdn_rule, logger);
+			table_rt->origin_rule_num++;
 		}
 		else
 		{
 			EX_data_rt_delete_by_row(fqdn_plugin_rt->ex_data_rt, row, row+row_id_offset, row_id_len, logger);
+			table_rt->origin_rule_num--;
 		}
 	}
 	else
@@ -683,11 +687,13 @@ void Maat_table_runtime_ip_plugin_new_row(struct Maat_table_runtime* table_rt, s
 		{
 			
 			EX_data_rt_row2EX_data(ip_plugin_rt->ex_data_rt, row, row+row_id_offset, row_id_len, ip_rule, logger);
+			table_rt->origin_rule_num++;
 		}
 		else
 		{
 		
 			EX_data_rt_delete_by_row(ip_plugin_rt->ex_data_rt, row, row+row_id_offset, row_id_len, logger);
+			table_rt->origin_rule_num--;
 			free(ip_rule);
 		}
 	}
