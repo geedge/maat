@@ -420,14 +420,14 @@ int fill_region_hit_detail(const char* scan_buff, const Maat_hierarchy_compile_m
 struct _OUTER_scan_status_t* _make_outer_status(_Maat_feather_t *feather, int thread_num)
 {
 	struct _OUTER_scan_status_t* outer_mid=NULL;
-	outer_mid=(struct _OUTER_scan_status_t*)calloc(sizeof(struct _OUTER_scan_status_t),1);
+	outer_mid=ALLOC(struct _OUTER_scan_status_t, 1);
 	outer_mid->feather=feather;
 	outer_mid->district_id=DISTRICT_ANY;
 	outer_mid->thread_num=(unsigned short)thread_num;
-	alignment_int64_array_add(feather->outer_mid_cnt, thread_num,1);
+	alignment_int64_array_add(feather->outer_mid_cnt, thread_num, 1);
 	return outer_mid;
 }
-struct _OUTER_scan_status_t* grab_mid(scan_status_t* raw_mid,_Maat_feather_t* feather,int thread_num,int is_hit_region)
+struct _OUTER_scan_status_t* grab_mid(scan_status_t* raw_mid,_Maat_feather_t* feather, int thread_num, int is_hit_region)
 {
 	struct _OUTER_scan_status_t* _mid=(struct _OUTER_scan_status_t*)(*raw_mid);;
 	if(_mid==NULL)
@@ -1380,7 +1380,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather,int table_id
 	{
 		clock_gettime(CLOCK_MONOTONIC,&start);
 	}
-	_mid=grab_mid(mid,_feather, thread_num, 0);
+	_mid=grab_mid(mid, _feather, thread_num, 0);
 	scan_staus_count_inc(_mid);
 	if(data==NULL||data_len<=0)
 	{
@@ -1989,7 +1989,9 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 	}
 	
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, sp->p_real_table->table_id);
-	INC_SCANNER_REF(scanner, thread_num);
+	INC_SCANNER_REF(scanner, thread_num);	
+	alignment_int64_array_add(table_rt->stream_num, thread_num, 1);
+	
 	if(table_rt->origin_rule_num==0)
 	{
 		return sp;
@@ -2012,7 +2014,6 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 	{
 		sp->do_regex=1;
 	}
-	alignment_int64_array_add(table_rt->stream_num,thread_num,1);
 	sp->rs_stream_para=rulescan_startstream(_feather->scanner->region,thread_num);
 	return sp;
 }
@@ -2598,7 +2599,7 @@ void Maat_clean_status(scan_status_t* mid)
 		return;
 	}
 	_mid=(struct _OUTER_scan_status_t*)(*mid);
-	alignment_int64_array_add(_mid->feather->outer_mid_cnt,_mid->thread_num,-1);
+	alignment_int64_array_add(_mid->feather->outer_mid_cnt, _mid->thread_num, -1);
 	if(_mid->compile_mid!=NULL)
 	{
 		Maat_hierarchy_compile_mid_free(_mid->compile_mid);
