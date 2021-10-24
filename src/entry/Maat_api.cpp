@@ -438,7 +438,7 @@ struct _OUTER_scan_status_t* grab_mid(scan_status_t* raw_mid, _Maat_feather_t* f
 			alignment_int64_array_add(feather->outer_mid_cnt, thread_num, 1);
 		}
 	}
-	if(_mid->thread_num<0 && thread_num>0)
+	if(_mid->thread_num<0 && thread_num>=0)
 	{
 		_mid->thread_num=thread_num;		
 		alignment_int64_array_add(feather->outer_mid_cnt, thread_num, 1);
