@@ -1231,7 +1231,6 @@ TEST(NOTLogic, ScanHitAtLastEmptyExpr)
 TEST(NOTLogic, ScanHitAtLastEmptyInteger)
 {
 	const char* string_should_not_hit="This string should not hit.";
-	const char* string_match_no_region="This string is matched against a empty table.";
 	int ret=0;
 	int table_id=0;
 	struct Maat_rule_t result[4];

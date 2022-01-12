@@ -1146,6 +1146,10 @@ MAAT_RULE_EX_DATA Maat_rule_get_ex_data(Maat_feather_t feather, const struct Maa
 	const struct compile_table_schema* compile_desc=NULL;
 	const struct compile_ex_data_idx* ex_desc=NULL;
 	MAAT_RULE_EX_DATA ad=NULL;
+	if(!_feather || !_feather->scanner)
+	{
+		return NULL;
+	}
 	compile=(struct Maat_compile_rule*)Maat_hierarchy_compile_read_user_data(_feather->scanner->hier, rule->config_id);
 	if(compile==NULL)
 	{
