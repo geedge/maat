@@ -1637,10 +1637,10 @@ int Maat_scan_intval(Maat_feather_t feather,int table_id
 
 }
 
-int Maat_similar_scan_string(Maat_feather_t feather,int table_id
-						,const char* data,int data_len
-						,struct Maat_rule_t*result,int rule_num
-						,scan_status_t* mid,int thread_num)
+int Maat_similar_scan_string(Maat_feather_t feather, int table_id,
+						const char* data, int data_len,
+						struct Maat_rule_t*result, int rule_num,
+						scan_status_t* mid, int thread_num)
 {
 	int hit_region_cnt=0,compile_ret=0;
 	struct _OUTER_scan_status_t* _mid=NULL;
@@ -1676,7 +1676,11 @@ int Maat_similar_scan_string(Maat_feather_t feather,int table_id
 
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(my_scanner->table_rt_mgr, p_table->table_id);
 
-	GIE_handle_t* gie_handle=table_rt->similar.gie_handle;	
+	GIE_handle_t* gie_handle=table_rt->similar.gie_handle;
+	if(gie_handle==NULL)
+	{
+		return 0;
+	}
 	INC_SCANNER_REF(my_scanner,thread_num);
 	alignment_int64_array_add(_feather->thread_call_cnt, thread_num, 1);
 	

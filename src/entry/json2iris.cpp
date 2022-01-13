@@ -1082,7 +1082,7 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 				ret=write_region_rule(region_rule, tracking_compile_id,	group_info->group_id, p_iris, logger);
 				if(ret<0)
 				{
-					MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
+					MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_json,
 												"compile rule %d write region error.", tracking_compile_id);
 					return -1;
 				}
@@ -1120,7 +1120,7 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 	}
 	if(ret<0)
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_json,
 									"%s rule %d write group error.", _str_parent_type[parent_type], parent_id);
 		return -1;
 	}
@@ -1137,7 +1137,7 @@ int write_iris(cJSON *json, struct iris_description_t *p_iris, void* logger)
 	static struct group_info_t* parent_group=NULL;
 	const char* parent_group_name=NULL;
 
-	plug_tables=cJSON_GetObjectItem(json,"plugin_table");
+	plug_tables=cJSON_GetObjectItem(json, "plugin_table");
 	if(NULL!=plug_tables)
 	{
 		i=0;
@@ -1175,53 +1175,47 @@ int write_iris(cJSON *json, struct iris_description_t *p_iris, void* logger)
 		}
 		
 	}
+	compile_cnt=0;
 	compile_array=cJSON_GetObjectItem(json,"rules");
-	if(compile_array==NULL)
+	if(compile_array!=NULL)
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
-									"have no rules.");
-		return -1;
-		
+		compile_cnt=cJSON_GetArraySize(compile_array);
 	}
-	compile_cnt=cJSON_GetArraySize(compile_array);
-	if(compile_cnt<=0)
+	if(compile_cnt>0)
 	{
-		MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
-									"have no rules.");
-		return -1;
-	}
-	cJSON_ArrayForEach(compile_obj, compile_array)
-	{
-		compile_id=write_compile_line(compile_obj,p_iris, logger);
-		if(compile_id<0)
+		cJSON_ArrayForEach(compile_obj, compile_array)
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
-									"In %d compile rule.",i);
-			return -1;
-		}
-		group_array=cJSON_GetObjectItem(compile_obj, "groups");
-		if(group_array==NULL)
-		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
-									"compile rule %d have no group.",compile_id);
-			return -1;
-		}
-		group_cnt=cJSON_GetArraySize(group_array);
-		if(group_cnt<=0)
-		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_json,
-										"compile rule %d have no groups.",compile_id);
-			return -1;
-		}
-		i=0;
-		cJSON_ArrayForEach(group_obj, group_array)
-		{
-			ret=write_group_rule(group_obj, compile_id, PARENT_TYPE_COMPILE, compile_id, i, p_iris, logger);
-			if(ret<0)
+			compile_id=write_compile_line(compile_obj,p_iris, logger);
+			if(compile_id<0)
 			{
+				MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_json,
+										"In %d compile rule.", i);
 				return -1;
 			}
-			i++;
+			group_array=cJSON_GetObjectItem(compile_obj, "groups");
+			if(group_array==NULL)
+			{
+				MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_json,
+										"compile rule %d have no group.",compile_id);
+				return -1;
+			}
+			group_cnt=cJSON_GetArraySize(group_array);
+			if(group_cnt<=0)
+			{
+				MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_json,
+											"compile rule %d have no groups.",compile_id);
+				return -1;
+			}
+			i=0;
+			cJSON_ArrayForEach(group_obj, group_array)
+			{
+				ret=write_group_rule(group_obj, compile_id, PARENT_TYPE_COMPILE, compile_id, i, p_iris, logger);
+				if(ret<0)
+				{
+					return -1;
+				}
+				i++;
+			}
 		}
 	}
 	ret=write_index_file(p_iris, logger);
