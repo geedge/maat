@@ -314,6 +314,7 @@ int Maat_table_runtime_plugin_commit_ex_schema(struct Maat_table_runtime* table_
 		row=EX_data_rt_cached_row_get(table_rt->plugin.ex_data_rt, i);
 		Maat_table_runtime_plugin_new_row(table_rt, table_schema, row, logger);
 	}
+	EX_data_rt_update_commit(table_rt->plugin.ex_data_rt);
 	return 0;
 }
 MAAT_PLUGIN_EX_DATA Maat_table_runtime_plugin_get_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* key)
@@ -372,6 +373,12 @@ void Maat_table_runtime_plugin_new_row(struct Maat_table_runtime* table_rt, stru
 
 	return;
 }
+void Maat_table_runtime_plugin_update_commit(struct Maat_table_runtime* table_rt)
+{
+	EX_data_rt_update_commit(table_rt->plugin.ex_data_rt);
+	return;
+}
+
 void Maat_table_runtime_digest_add(struct Maat_table_runtime* table_rt, int expr_id, const char* digest, short confidence_degree, void* tag)
 {
 	GIE_digest_t* digest_rule=NULL;
@@ -477,7 +484,7 @@ int Maat_table_runtime_fqdn_plugin_rebuild_fqdn_engine(struct Maat_table_runtime
 	{
 		return ret;
 	}
-
+	EX_data_rt_update_commit(fqdn_rt->ex_data_rt);
 	rule_cnt=EX_data_rt_list_all_ex_container(fqdn_rt->ex_data_rt, &exc_array);
 	rules=ALLOC(struct FQDN_rule, rule_cnt);
 	for(i=0; i<rule_cnt; i++)
@@ -620,6 +627,7 @@ int Maat_table_runtime_ip_plugin_rebuild_ip_matcher(struct Maat_table_runtime* t
 	{
 		return ret;
 	}
+	EX_data_rt_update_commit(ip_plugin->ex_data_rt);
 	rule_cnt=EX_data_rt_list_all_ex_container(ip_plugin->ex_data_rt, &exc_array);
 	rules=ALLOC(struct ip_rule, rule_cnt);
 	for(i=0; i<rule_cnt; i++)

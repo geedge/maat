@@ -87,6 +87,7 @@ void Maat_table_runtime_digest_del(struct Maat_table_runtime* table_rt, int expr
 int Maat_table_runtime_digest_batch_udpate(struct Maat_table_runtime* table_rt);
 
 void Maat_table_runtime_plugin_new_row(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* row, void *logger);
+void Maat_table_runtime_plugin_update_commit(struct Maat_table_runtime* table_rt);
 
 void Maat_table_runtime_ip_plugin_new_row(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* row, void *logger);
 
