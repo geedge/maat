@@ -17,7 +17,6 @@ struct EX_data_container
 	size_t key_len;
 	void* user_data;
 
-	UT_hash_handle hh;
 	UT_hash_handle hh_a, hh_b;
 	const struct EX_data_rt* rt;
 	
@@ -31,6 +30,7 @@ struct EX_data_rt
 
 	pthread_mutex_t mutex_update_commit;
 	int is_updating;
+	time_t update_start_time;
 	char effective_hash;//value 'a' or 'b', indicates which hash is effective
 	struct EX_data_container* hash_key2ex_a, *hash_key2ex_b; //two hash for read-copy-update (RCU)
 
@@ -160,6 +160,7 @@ void EX_data_rt_update_prepare(struct EX_data_rt* ex_rt)
 			HASH_ADD_KEYPTR(hh_a, ex_rt->hash_key2ex_a, ex_container->key, ex_container->key_len, ex_container);
 		}
 	}
+	ex_rt->update_start_time=time(NULL);
 	ex_rt->is_updating=1;
 	return;
 }
@@ -193,7 +194,11 @@ void EX_data_rt_update_commit(struct EX_data_rt* ex_rt)
 			HASH_DELETE(hh_b, ex_rt->hash_key2ex_b, ex_container);
 		}
 	}	
-	ex_rt->is_updating=0;	
+	ex_rt->is_updating=0;
+	if(time(NULL)-ex_rt->update_start_time>10)
+	{
+		printf("Danger: %s cost more time than EXC garbage collection timeout.\n", __func__);
+	}
 	pthread_mutex_unlock(&ex_rt->mutex_update_commit);
 	return;
 }
