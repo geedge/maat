@@ -38,7 +38,7 @@ if [ -n "${INSTALL_DEPENDENCY_LIBRARY}" ]; then
 	source /etc/profile.d/framework.sh
 fi
 
-if [ $ASAN_OPTION ];then
+if [ $ASAN_OPTION ] && [ -f "/opt/rh/devtoolset-7/enable" ] ;then
 	source /opt/rh/devtoolset-7/enable
 fi
 
@@ -59,7 +59,7 @@ if [ -n "${PACKAGE}" ]; then
 fi
 
 
-if [ -n "${UPLOAD_RPM}" ]; then	
+if [ -n "${UPLOAD}" ]; then	
 	cp ~/rpm_upload_tools.py ./
 	python3 rpm_upload_tools.py ${PULP3_REPO_NAME} ${PULP3_DIST_NAME} *.rpm
 fi
