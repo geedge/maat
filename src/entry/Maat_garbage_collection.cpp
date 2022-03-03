@@ -81,4 +81,16 @@ void Maat_garbage_collect_routine(struct Maat_garbage_bin* bin)
 	bin->bag_cnt-=n_clollected;
 	return;
 }
+void Maat_garbage_collect_by_force(struct Maat_garbage_bin* bin)
+{
+	struct Maat_garbage_bag* p=NULL;
+	while (p=TAILQ_FIRST(&bin->garbage_q))
+	{
+		p->garbage_free(p->garbage);
+		TAILQ_REMOVE(&bin->garbage_q, p, entries);
+		free(p);
+		bin->bag_cnt--;
+	}
+	return;
+}
 

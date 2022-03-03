@@ -141,8 +141,7 @@ static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_sche
 		case TABLE_TYPE_PLUGIN:
 			table_rt->plugin.ex_data_rt=EX_data_rt_new(table_schema->table_id, 
 										table_schema->plugin.ex_schema.key2index_func,
-										NULL,
-										bin);
+										NULL);
 			if(table_schema->plugin.have_exdata)
 			{
 				EX_data_rt_set_schema(table_rt->plugin.ex_data_rt, &table_schema->plugin.ex_schema);
@@ -151,8 +150,7 @@ static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_sche
 		case TABLE_TYPE_IP_PLUGIN:
 			table_rt->ip_plugin.ex_data_rt=EX_data_rt_new(table_schema->table_id, 									
 										table_schema->ip_plugin.ex_schema.key2index_func,
-										free,
-										bin);
+										free);
 			if(table_schema->ip_plugin.have_exdata)
 			{			
 				EX_data_rt_set_schema(table_rt->ip_plugin.ex_data_rt, &table_schema->ip_plugin.ex_schema);
@@ -161,8 +159,7 @@ static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_sche
 		case TABLE_TYPE_FQDN_PLUGIN:
 			table_rt->fqdn_plugin.ex_data_rt=EX_data_rt_new(table_schema->table_id, 									
 										table_schema->fqdn_plugin.ex_schema.key2index_func,
-										_notype_fqdn_rule_free,
-										bin);
+										_notype_fqdn_rule_free);
 			if(table_schema->fqdn_plugin.have_exdata)
 			{			
 				EX_data_rt_set_schema(table_rt->fqdn_plugin.ex_data_rt, &table_schema->fqdn_plugin.ex_schema);

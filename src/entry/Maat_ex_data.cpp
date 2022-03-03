@@ -30,14 +30,13 @@ struct EX_data_rt
 
 	pthread_mutex_t mutex_update_commit;
 	int is_updating;
-	time_t update_start_time;
 	char effective_hash;//value 'a' or 'b', indicates which hash is effective
 	struct EX_data_container* hash_key2ex_a, *hash_key2ex_b; //two hash for read-copy-update (RCU)
 
 	const struct EX_data_schema* ex_schema;
 	int table_id;
 	void (* user_data_free)(void *user_data);	
-	struct Maat_garbage_bin* ref_bin;
+	struct Maat_garbage_bin* garbage_bin;
 };
 
 
@@ -63,7 +62,7 @@ void cache_row_free(void*p)
 }
 UT_icd ut_cache_row_icd = {sizeof(char*), NULL, NULL, cache_row_free};
 
-struct EX_data_rt* EX_data_rt_new(int table_id, Maat_plugin_EX_key2index_func_t * key2index, void (* user_data_free)(void *user_data), struct Maat_garbage_bin* bin)
+struct EX_data_rt* EX_data_rt_new(int table_id, Maat_plugin_EX_key2index_func_t * key2index, void (* user_data_free)(void *user_data))
 {
 	struct EX_data_rt* p=ALLOC(struct EX_data_rt, 1);
 	p->hash_key2ex_a=NULL;
@@ -72,7 +71,7 @@ struct EX_data_rt* EX_data_rt_new(int table_id, Maat_plugin_EX_key2index_func_t 
 	utarray_new(p->cache_rows, &ut_cache_row_icd);
 	p->table_id=table_id;
 	p->user_data_free=user_data_free;
-	p->ref_bin=bin;
+	p->garbage_bin=Maat_garbage_bin_new(60);
 	pthread_mutex_init(&p->mutex_update_commit, NULL);
 	return p;
 };
@@ -114,7 +113,8 @@ void EX_data_rt_free(struct EX_data_rt* ex_rt)
 		ex_rt->cache_rows=NULL;
 		ex_rt->cache_row_num=0;
 	}
-	ex_rt->ref_bin=NULL;
+	Maat_garbage_bin_free(ex_rt->garbage_bin);
+	ex_rt->garbage_bin=NULL;
 	free(ex_rt);
 	return;
 }
@@ -160,7 +160,7 @@ void EX_data_rt_update_prepare(struct EX_data_rt* ex_rt)
 			HASH_ADD_KEYPTR(hh_a, ex_rt->hash_key2ex_a, ex_container->key, ex_container->key_len, ex_container);
 		}
 	}
-	ex_rt->update_start_time=time(NULL);
+	assert(0==Maat_garbage_bin_get_size(ex_rt->garbage_bin));
 	ex_rt->is_updating=1;
 	return;
 }
@@ -195,10 +195,7 @@ void EX_data_rt_update_commit(struct EX_data_rt* ex_rt)
 		}
 	}	
 	ex_rt->is_updating=0;
-	if(time(NULL)-ex_rt->update_start_time>10)
-	{
-		printf("Danger: %s cost more time than EXC garbage collection timeout.\n", __func__);
-	}
+	Maat_garbage_collect_by_force(ex_rt->garbage_bin);
 	pthread_mutex_unlock(&ex_rt->mutex_update_commit);
 	return;
 }
@@ -310,7 +307,7 @@ int EX_data_rt_delete_by_row(struct EX_data_rt* ex_rt, const char* row, const ch
 	if(exc)
 	{
 		EX_data_rt_updating_hash_del(ex_rt, exc);
-		Maat_garbage_bagging(ex_rt->ref_bin, exc, (void (*)(void*))EX_data_container_free);
+		Maat_garbage_bagging(ex_rt->garbage_bin, exc, (void (*)(void*))EX_data_container_free);
 		ret=0;
 	}
 	else

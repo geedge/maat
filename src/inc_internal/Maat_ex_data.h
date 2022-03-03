@@ -3,7 +3,7 @@
 #include "Maat_garbage_collection.h"
 struct EX_data_rt;
 
-struct EX_data_rt* EX_data_rt_new(int table_id, Maat_plugin_EX_key2index_func_t * key2index, void (* user_data_free)(void *user_data), struct Maat_garbage_bin* bin);
+struct EX_data_rt* EX_data_rt_new(int table_id, Maat_plugin_EX_key2index_func_t * key2index, void (* user_data_free)(void *user_data));
 void EX_data_rt_free(struct EX_data_rt* p);
 void EX_data_rt_update_commit(struct EX_data_rt* ex_rt);
 
