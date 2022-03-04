@@ -239,7 +239,7 @@ void EX_data_rt_updating_hash_add(struct EX_data_rt* ex_rt, const char* key, siz
 	}
 	else
 	{
-		HASH_ADD_KEYPTR(hh_a, ex_rt->hash_key2ex_b, key,key_len, exc);
+		HASH_ADD_KEYPTR(hh_a, ex_rt->hash_key2ex_a, key,key_len, exc);
 	}
 	return;
 }
