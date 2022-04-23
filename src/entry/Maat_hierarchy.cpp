@@ -238,9 +238,9 @@ static inline int compare_region_id(const void* a, const void* b)
 	return ret;
 }
 
-static struct Maat_hierarchy_clause* Maat_hierarchy_clause_fetch(struct Maat_hierarchy* hier, struct Maat_hierarchy_literal_id* literal_ids, size_t n_literal_id)
+static const struct Maat_hierarchy_clause* Maat_hierarchy_clause_fetch(struct Maat_hierarchy* hier, struct Maat_hierarchy_literal_id* literal_ids, size_t n_literal_id)
 {
-	static struct Maat_hierarchy_clause* clause=NULL;
+	struct Maat_hierarchy_clause* clause=NULL;
 
 	HASH_FIND(hh, hier->hash_dedup_clause_by_literals, literal_ids, 
 			n_literal_id*sizeof(struct Maat_hierarchy_literal_id), clause);
@@ -927,7 +927,7 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 	struct Maat_hierarchy_compile* compile=NULL, *tmp_compile=NULL;
 	
 	struct Maat_hierarchy_clause_state* clause_state=NULL;
-	struct Maat_hierarchy_clause* clause=NULL;
+	const struct Maat_hierarchy_clause* clause=NULL;
 	size_t i=0, j=0;
 	int has_clause_num=0;
 	compile_num=HASH_COUNT(hier->hash_compile_by_id);	
