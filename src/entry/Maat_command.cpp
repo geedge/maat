@@ -1790,7 +1790,8 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 			goto clean_up;
 		}
 		if(empty_value_num>0)
-		{
+		{
+
 			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor,"%d of %d rules are empty.",empty_value_num,rule_num);
 		}
 		ret=get_foreign_keys_define(mr_ctx->read_ctx, rule_list, rule_num, feather, feather->foreign_cont_dir, logger);

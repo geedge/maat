@@ -58,6 +58,11 @@ struct ip_rule*  ip_plugin_row2ip_rule(const struct ip_plugin_table_schema* sche
 	range_rule->user_tag=NULL;
 	return range_rule;
 }
+void ip_rule_free(struct ip_rule* p)
+{
+	free(p);
+	return;
+}
 struct Maat_table_runtime_manager
 {
 	struct Maat_table_runtime** table_rt;
@@ -452,7 +457,12 @@ void Maat_table_runtime_fqdn_plugin_new_row(struct Maat_table_runtime* table_rt,
 		if(atoi(row+is_valid_offset)==1)//add
 		{
 			fqdn_rule=fqdn_rule_new((unsigned int)atoi(row+row_id_offset), row+fqdn_offset, fqdn_len, atoi(row+is_suffix_flag_offset));
-			EX_data_rt_row2EX_data(fqdn_plugin_rt->ex_data_rt, row, row+row_id_offset, row_id_len, fqdn_rule, logger);
+			ret=EX_data_rt_row2EX_data(fqdn_plugin_rt->ex_data_rt, row, row+row_id_offset, row_id_len, fqdn_rule, logger);
+			if(ret<0)
+			{
+				fqdn_rule_free(fqdn_rule);
+				fqdn_rule=NULL;
+			}
 		}
 		else
 		{
@@ -690,13 +700,19 @@ void Maat_table_runtime_ip_plugin_new_row(struct Maat_table_runtime* table_rt, s
 		}
 		if(atoi(row+is_valid_offset)==1)//add
 		{
-			EX_data_rt_row2EX_data(ip_plugin_rt->ex_data_rt, row, row+row_id_offset, row_id_len, ip_rule, logger);
+			ret=EX_data_rt_row2EX_data(ip_plugin_rt->ex_data_rt, row, row+row_id_offset, row_id_len, ip_rule, logger);
+			if(ret<0)
+			{
+				ip_rule_free(ip_rule);
+				ip_rule=NULL;
+			}
 		}
 		else
 		{
 		
-			EX_data_rt_delete_by_row(ip_plugin_rt->ex_data_rt, row, row+row_id_offset, row_id_len, logger);
-			free(ip_rule);
+			ret=EX_data_rt_delete_by_row(ip_plugin_rt->ex_data_rt, row, row+row_id_offset, row_id_len, logger);
+			ip_rule_free(ip_rule);
+			ip_rule=NULL;
 		}		
 		table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(ip_plugin_rt->ex_data_rt);
 	}
