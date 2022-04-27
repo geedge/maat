@@ -98,9 +98,9 @@ void EX_data_rt_free(struct EX_data_rt* ex_rt)
 	}
 	else
 	{
-		HASH_ITER(hh_b, ex_rt->hash_key2ex_a, ex_container, tmp)
+		HASH_ITER(hh_b, ex_rt->hash_key2ex_b, ex_container, tmp)
 		{
-			HASH_DELETE(hh_b, ex_rt->hash_key2ex_a, ex_container);
+			HASH_DELETE(hh_b, ex_rt->hash_key2ex_b, ex_container);
 			EX_data_container_free(ex_container);
 		}
 		
