@@ -346,22 +346,16 @@ MAAT_RULE_EX_DATA  EX_data_rt_get_EX_data_by_container(struct EX_data_rt* ex_rt,
 	return dupped_ex_data;
 }
 
-size_t EX_data_rt_list_all_ex_container(struct EX_data_rt* ex_rt, struct EX_data_container*** ex_container_array)
+size_t EX_data_rt_list_updating_ex_containers(struct EX_data_rt* ex_rt, struct EX_data_container*** ex_container_array)
 {
 	size_t ex_data_cnt=0, i=0;
 	struct EX_data_container* ex_container=NULL, *tmp=NULL;
-	assert(ex_rt->is_updating==0);
-	if(ex_rt->effective_hash=='a')
+	if(!ex_rt->ex_schema)
 	{
-		ex_data_cnt=HASH_CNT(hh_a, ex_rt->hash_key2ex_a);
-		*ex_container_array=ALLOC(struct EX_data_container*, ex_data_cnt);
-		HASH_ITER(hh_a, ex_rt->hash_key2ex_a, ex_container, tmp)
-		{
-			(*ex_container_array)[i]=ex_container;
-			i++;
-		}
+		return 0;
 	}
-	else
+	assert(ex_rt->is_updating==1);
+	if(ex_rt->effective_hash=='a')
 	{
 		ex_data_cnt=HASH_CNT(hh_b, ex_rt->hash_key2ex_b);
 		*ex_container_array=ALLOC(struct EX_data_container*, ex_data_cnt);
@@ -370,6 +364,16 @@ size_t EX_data_rt_list_all_ex_container(struct EX_data_rt* ex_rt, struct EX_data
 			(*ex_container_array)[i]=ex_container;
 			i++;
 		}
+	}
+	else
+	{
+		ex_data_cnt=HASH_CNT(hh_a, ex_rt->hash_key2ex_a);
+		*ex_container_array=ALLOC(struct EX_data_container*, ex_data_cnt);
+		HASH_ITER(hh_a, ex_rt->hash_key2ex_a, ex_container, tmp)
+		{
+			(*ex_container_array)[i]=ex_container;
+			i++;
+		}		
 	}
 	return ex_data_cnt;
 }

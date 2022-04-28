@@ -491,8 +491,7 @@ int Maat_table_runtime_fqdn_plugin_rebuild_fqdn_engine(struct Maat_table_runtime
 	{
 		return ret;
 	}
-	EX_data_rt_update_commit(fqdn_rt->ex_data_rt);
-	rule_cnt=EX_data_rt_list_all_ex_container(fqdn_rt->ex_data_rt, &exc_array);
+	rule_cnt=EX_data_rt_list_updating_ex_containers(fqdn_rt->ex_data_rt, &exc_array);
 	rules=ALLOC(struct FQDN_rule, rule_cnt);
 	for(i=0; i<rule_cnt; i++)
 	{
@@ -511,6 +510,7 @@ int Maat_table_runtime_fqdn_plugin_rebuild_fqdn_engine(struct Maat_table_runtime
 	old_fqdn_engine=fqdn_rt->fqdn_engine;	
 	fqdn_rt->fqdn_engine=new_fqdn_engine;
 	Maat_garbage_bagging(table_rt->ref_garbage_bin, old_fqdn_engine, (void (*)(void*))FQDN_engine_free);
+	EX_data_rt_update_commit(fqdn_rt->ex_data_rt);
 	
 	free(rules);
 	free(exc_array);	
@@ -634,8 +634,7 @@ int Maat_table_runtime_ip_plugin_rebuild_ip_matcher(struct Maat_table_runtime* t
 	{
 		return ret;
 	}
-	EX_data_rt_update_commit(ip_plugin->ex_data_rt);
-	rule_cnt=EX_data_rt_list_all_ex_container(ip_plugin->ex_data_rt, &exc_array);
+	rule_cnt=EX_data_rt_list_updating_ex_containers(ip_plugin->ex_data_rt, &exc_array);
 	rules=ALLOC(struct ip_rule, rule_cnt);
 	for(i=0; i<rule_cnt; i++)
 	{
@@ -654,7 +653,7 @@ int Maat_table_runtime_ip_plugin_rebuild_ip_matcher(struct Maat_table_runtime* t
 	old_ip_matcher=ip_plugin->ip_matcher;
 	ip_plugin->ip_matcher=new_ip_matcher;
 	Maat_garbage_bagging(table_rt->ref_garbage_bin, old_ip_matcher, (void (*)(void*))ip_matcher_free);
-
+	EX_data_rt_update_commit(ip_plugin->ex_data_rt);
 
 	free(rules);
 	free(exc_array);

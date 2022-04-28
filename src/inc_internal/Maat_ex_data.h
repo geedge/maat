@@ -23,7 +23,7 @@ int EX_data_rt_row2EX_data(struct EX_data_rt* ex_rt,
 int EX_data_rt_delete_by_row(struct EX_data_rt* ex_rt, const char* row, const char* key, size_t key_len,	void *logger);
 MAAT_RULE_EX_DATA  EX_data_rt_get_EX_data_by_key(struct EX_data_rt* ex_rt, const char* key, size_t key_len);
 MAAT_RULE_EX_DATA  EX_data_rt_get_EX_data_by_container(struct EX_data_rt* ex_rt, struct EX_data_container* container);
-size_t EX_data_rt_list_all_ex_container(struct EX_data_rt* ex_rt, struct EX_data_container*** ex_container_array);
+size_t EX_data_rt_list_updating_ex_containers(struct EX_data_rt* ex_rt, struct EX_data_container*** ex_container_array);
 void* EX_data_container_get_user_data(struct EX_data_container* ex_container);
 size_t EX_data_rt_get_ex_container_count(struct EX_data_rt* ex_rt);
 
