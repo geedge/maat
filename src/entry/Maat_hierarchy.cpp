@@ -254,7 +254,7 @@ static const struct Maat_hierarchy_clause* Maat_hierarchy_clause_fetch(struct Ma
 		memcpy(clause->literal_ids, literal_ids, n_literal_id*sizeof(struct Maat_hierarchy_literal_id));
 		
 		hier->clause_id_generator++;
-		HASH_ADD_KEYPTR(hh, hier->hash_dedup_clause_by_literals, literal_ids, 
+		HASH_ADD_KEYPTR(hh, hier->hash_dedup_clause_by_literals, clause->literal_ids, 
 			n_literal_id*sizeof(struct Maat_hierarchy_literal_id), 
 			clause);
 	}
