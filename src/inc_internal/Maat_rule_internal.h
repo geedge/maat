@@ -10,7 +10,6 @@
 #include <MESA/MESA_list_queue.h>
 #include <MESA/field_stat2.h>
 #include <MESA/rulescan.h>
-#include "dynamic_array.h"
 #include "hiredis.h"
 #include "IPMatcher.h"
 #include "stream_fuzzy_hash.h"
@@ -365,7 +364,6 @@ struct serial_rule_t		//rm= Redis Maat
 	enum MAAT_OPERATION op;//0: delete, 1: add.
 	unsigned long rule_id;
 	int label_id;
-	char with_error;
 	long long timeout;			// absolute unix time.
 	char table_name[256];
 	char* table_line;

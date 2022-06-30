@@ -628,7 +628,7 @@ int get_rm_key_list(redisContext *c, long long instance_version, long long desir
 	}
 	if(redis_version<instance_version)
 	{
-		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor,
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
 				"VERSION roll back MAAT: %lld -> Redis: %lld.",instance_version,redis_version);
 		goto FULL_UPDATE;
 	}
@@ -671,7 +671,7 @@ int get_rm_key_list(redisContext *c, long long instance_version, long long desir
 	return rule_num;
 
 FULL_UPDATE:
-	MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor,
+	MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
 			"Initiate full udpate from instance_version %d to %lld.",instance_version,desired_version==0?redis_version:desired_version);
 	append_cmd_cnt=0;
 	ret=redisAppendCommand(c, "MULTI");
@@ -800,7 +800,7 @@ int _get_maat_redis_value(redisContext *c, struct serial_rule_t* rule_list, int 
 		ret=_wrap_redisGetReply(c,&reply);
 		if(ret==REDIS_ERR)
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor,
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
 							"Redis GET %s:%s,%d failed, redis server error.", mr_key_prefix[rule_list[i].op],
 							rule_list[i].table_name,
 							rule_list[i].rule_id);
@@ -820,10 +820,10 @@ int _get_maat_redis_value(redisContext *c, struct serial_rule_t* rule_list, int 
 			}
 			else
 			{
-				MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor
-						,"Redis GET %s:%s,%d failed",mr_key_prefix[rule_list[i].op]
-						,rule_list[i].table_name
-						,rule_list[i].rule_id);
+				MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
+						"Redis GET %s:%s,%d failed",mr_key_prefix[rule_list[i].op],
+						rule_list[i].table_name,
+						rule_list[i].rule_id);
 				error_happened=1;
 			}
 		}
@@ -850,8 +850,8 @@ int _get_maat_redis_value(redisContext *c, struct serial_rule_t* rule_list, int 
 		ret=_wrap_redisGetReply(c,&reply);
 		if(ret==REDIS_ERR)
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor
-						,"redis command %s failed, redis server error.", redis_cmd);
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
+						"redis command %s failed, redis server error.", redis_cmd);
 			free(retry_ids);
 			return -1;
 		}
@@ -861,12 +861,12 @@ int _get_maat_redis_value(redisContext *c, struct serial_rule_t* rule_list, int 
 		}
 		else if(reply->type==REDIS_REPLY_ERROR)//Deal with Redis response: "Loading Redis is loading the database in memory" 
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor,
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
 					"redis command %s error, reply type=%d, error str=%s", redis_cmd, reply->type, reply->str);
 		}
 		else	//Handle type "nil"
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor,
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
 					"redis command %s failed, reply type=%d", redis_cmd, reply->type);
 		}
 	
@@ -1716,7 +1716,7 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 		const char* dec_key,
 		_Maat_feather_t* feather)
 {
-	int table_id=0, i=0, rule_num=0, empty_value_num=0, valid_column=-1;
+	int table_id=0, i=0, rule_num=0, empty_value_num=0, no_table_num=0, call_update_num=0, valid_column=-1;
 	int ret=0;
 	struct serial_rule_t* rule_list=NULL;
 	int update_type=CM_UPDATE_TYPE_INC;
@@ -1774,7 +1774,7 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 		ret=get_maat_redis_value(mr_ctx->read_ctx, rule_list, rule_num, logger, 0);
 		if(ret<0)
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor,"Get Redis value failed, abandon update.");
+			MESA_handle_runtime_log(logger, RLOG_LV_INFO,maat_redis_monitor, "Get Redis value failed, abandon update.");
 			goto clean_up;
 		}
 		for(i=0;i<rule_num;i++)
@@ -1786,13 +1786,8 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 		}
 		if(empty_value_num==rule_num)
 		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor,"All %d rules are empty, abandon update.",empty_value_num);
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor, "All %d rules are empty, abandon update.", empty_value_num);
 			goto clean_up;
-		}
-		if(empty_value_num>0)
-		{
-
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_redis_monitor,"%d of %d rules are empty.",empty_value_num,rule_num);
 		}
 		ret=get_foreign_keys_define(mr_ctx->read_ctx, rule_list, rule_num, feather, feather->foreign_cont_dir, logger);
 		if(ret>0)
@@ -1800,18 +1795,19 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 			get_foreign_conts(mr_ctx->read_ctx, rule_list, rule_num, 0, logger);
 		}
 	}
-	start(new_version,update_type,u_para);
-	MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor,"Start %s update: %lld -> %lld (%d entries).",
-								update_type==CM_UPDATE_TYPE_INC?"INC":"FULL",version,new_version,rule_num);
+	start(new_version, update_type, u_para);
+	MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor, "Start %s update: %lld -> %lld (%d entries).",
+								update_type==CM_UPDATE_TYPE_INC?"INC":"FULL", version, new_version, rule_num);
 	for(i=0;i<rule_num;i++)
 	{
-		if(rule_list[i].table_line==NULL||rule_list[i].with_error==1)
+		if(rule_list[i].table_line==NULL)
 		{
 			continue;
 		}
 		table_id=Maat_table_get_id_by_name(feather->table_mgr, rule_list[i].table_name);
 		if(table_id<0)//Unrecognized table.
 		{
+			no_table_num++;
 			continue;
 		}
 		table_type=Maat_table_get_type_by_id(feather->table_mgr, table_id);
@@ -1824,8 +1820,8 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 			ret=invalidate_line(rule_list[i].table_line, table_type, valid_column);
 			if(ret<0)
 			{
-				MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_redis_monitor,"Invalidate line failed, invaid format %s ."
-										,rule_list[i].table_line);
+				MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor, "Invalidate line failed, invaid format %s .",
+										rule_list[i].table_line);
 				continue;
 			}
 		}
@@ -1834,9 +1830,14 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 			rewrite_table_line_with_foreign(rule_list+i);
 		}
 		update(rule_list[i].table_name,rule_list[i].table_line,u_para);
+		call_update_num++;
 	}
 	finish(u_para);
-
+	if(call_update_num<rule_num)
+	{		
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor, "Load %d entries to match engine, no tablle: %d, empty value: %d.",
+								call_update_num, no_table_num, empty_value_num);
+	}
 clean_up:
 	for(i=0;i<rule_num;i++)
 	{
