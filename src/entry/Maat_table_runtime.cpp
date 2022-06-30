@@ -317,6 +317,7 @@ int Maat_table_runtime_plugin_commit_ex_schema(struct Maat_table_runtime* table_
 		Maat_table_runtime_plugin_new_row(table_rt, table_schema, row, logger);
 	}
 	EX_data_rt_update_commit(table_rt->plugin.ex_data_rt);
+	table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(table_rt->plugin.ex_data_rt);
 	return 0;
 }
 MAAT_PLUGIN_EX_DATA Maat_table_runtime_plugin_get_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* key)
@@ -359,7 +360,6 @@ void Maat_table_runtime_plugin_new_row(struct Maat_table_runtime* table_rt, stru
 		{
 			EX_data_rt_delete_by_row(plugin_rt->ex_data_rt, row, row+key_offset, key_len, logger);
 		}
-		table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(plugin_rt->ex_data_rt);
 	}
 	if(plugin_schema->cb_plug_cnt>0)
 	{
@@ -377,7 +377,8 @@ void Maat_table_runtime_plugin_new_row(struct Maat_table_runtime* table_rt, stru
 }
 void Maat_table_runtime_plugin_update_commit(struct Maat_table_runtime* table_rt)
 {
-	EX_data_rt_update_commit(table_rt->plugin.ex_data_rt);
+	EX_data_rt_update_commit(table_rt->plugin.ex_data_rt);	
+	table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(table_rt->plugin.ex_data_rt);
 	return;
 }
 
@@ -468,7 +469,6 @@ void Maat_table_runtime_fqdn_plugin_new_row(struct Maat_table_runtime* table_rt,
 		{
 			EX_data_rt_delete_by_row(fqdn_plugin_rt->ex_data_rt, row, row+row_id_offset, row_id_len, logger);
 		}		
-		table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(fqdn_plugin_rt->ex_data_rt);
 	}
 	else
 	{
@@ -511,6 +511,7 @@ int Maat_table_runtime_fqdn_plugin_rebuild_fqdn_engine(struct Maat_table_runtime
 	fqdn_rt->fqdn_engine=new_fqdn_engine;
 	Maat_garbage_bagging(table_rt->ref_garbage_bin, old_fqdn_engine, (void (*)(void*))FQDN_engine_free);
 	EX_data_rt_update_commit(fqdn_rt->ex_data_rt);
+	table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(fqdn_rt->ex_data_rt);
 	
 	free(rules);
 	free(exc_array);	
@@ -654,6 +655,7 @@ int Maat_table_runtime_ip_plugin_rebuild_ip_matcher(struct Maat_table_runtime* t
 	ip_plugin->ip_matcher=new_ip_matcher;
 	Maat_garbage_bagging(table_rt->ref_garbage_bin, old_ip_matcher, (void (*)(void*))ip_matcher_free);
 	EX_data_rt_update_commit(ip_plugin->ex_data_rt);
+	table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(ip_plugin->ex_data_rt);
 
 	free(rules);
 	free(exc_array);
@@ -713,7 +715,6 @@ void Maat_table_runtime_ip_plugin_new_row(struct Maat_table_runtime* table_rt, s
 			ip_rule_free(ip_rule);
 			ip_rule=NULL;
 		}		
-		table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(ip_plugin_rt->ex_data_rt);
 	}
 	else
 	{
