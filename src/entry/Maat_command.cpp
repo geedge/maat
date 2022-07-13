@@ -1761,7 +1761,9 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 	
 	rule_num=get_rm_key_list(mr_ctx->read_ctx, version, feather->load_version_from, &new_version, feather->table_mgr, &rule_list, &update_type, logger, feather->cumulative_update_off);
 	if(rule_num<0)//redis communication error
-	{
+	{		
+		redisFree(mr_ctx->read_ctx);
+		mr_ctx->read_ctx=NULL;
 		return;
 	}
 	feather->load_version_from=0;//only valid for one time.
@@ -1772,9 +1774,11 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 	if(rule_num>0)
 	{
 		ret=get_maat_redis_value(mr_ctx->read_ctx, rule_list, rule_num, logger, 0);
-		if(ret<0)
+		if(ret<0)//redis communication error
 		{
-			MESA_handle_runtime_log(logger, RLOG_LV_INFO,maat_redis_monitor, "Get Redis value failed, abandon update.");
+			redisFree(mr_ctx->read_ctx);
+			mr_ctx->read_ctx=NULL;
+			MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor, "Get Redis value failed, abandon update and close connection.");
 			goto clean_up;
 		}
 		for(i=0;i<rule_num;i++)
