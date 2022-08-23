@@ -1,5 +1,5 @@
 #include "Maat_rule_internal.h"
-#include "Maat_table.h"
+#include "Maat_table_schema.h"
 #include "Maat_garbage_collection.h"
 #include "alignment_int64.h"
 #include <time.h>
@@ -128,7 +128,7 @@ void maat_stat_init(struct _Maat_feather_t* feather)
 	size_t max_table_num=Maat_table_manager_get_size(feather->table_mgr);
 	for(i=0; i<(int)max_table_num; i++)
 	{
-		p_table=Maat_table_get_by_id_raw(feather->table_mgr, i);
+		p_table=Maat_table_manager_get_by_id_raw(feather->table_mgr, i);
 		if(p_table==NULL||p_table->table_type==TABLE_TYPE_PLUGIN
 						||p_table->table_type==TABLE_TYPE_GROUP
 						||p_table->table_type==TABLE_TYPE_COMPILE)
@@ -203,7 +203,7 @@ void maat_stat_output(struct _Maat_feather_t* feather)
 		table_hit_cnt=0;
 		table_regex_ipv6_num=0;
 		
-		p_table=Maat_table_get_by_id_raw(feather->table_mgr, i);
+		p_table=Maat_table_manager_get_by_id_raw(feather->table_mgr, i);
 		if(p_table==NULL)
 		{
 			continue;

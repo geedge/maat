@@ -732,7 +732,7 @@ FULL_UPDATE:
 		}
 		if(table_mgr)
 		{
-			table_id=Maat_table_get_id_by_name(table_mgr, s_rule_array[full_idx].table_name);
+			table_id=Maat_table_manager_get_id_by_name(table_mgr, s_rule_array[full_idx].table_name);
 			if(table_id<0)//Unrecognized table.
 			{
 				continue;
@@ -1536,7 +1536,7 @@ int get_foreign_keys_define(redisContext *ctx, struct serial_rule_t* rule_list, 
 		{
 			continue;
 		}
-		p_table=Maat_table_get_desc_by_name(feather->table_mgr, rule_list[i].table_name);
+		p_table=Maat_table_manager_get_desc_by_name(feather->table_mgr, rule_list[i].table_name);
 		if(!p_table||p_table->table_type!=TABLE_TYPE_PLUGIN)
 		{
 			continue;
@@ -1808,19 +1808,19 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 		{
 			continue;
 		}
-		table_id=Maat_table_get_id_by_name(feather->table_mgr, rule_list[i].table_name);
+		table_id=Maat_table_manager_get_id_by_name(feather->table_mgr, rule_list[i].table_name);
 		if(table_id<0)//Unrecognized table.
 		{
 			no_table_num++;
 			continue;
 		}
-		table_type=Maat_table_get_type_by_id(feather->table_mgr, table_id);
+		table_type=Maat_table_manager_get_type_by_id(feather->table_mgr, table_id);
 		if(rule_list[i].op==MAAT_OP_DEL)
 		{
 			
 		 	scan_type=Maat_table_get_scan_type(table_type);
-			table_schema=Maat_table_get_scan_by_id(feather->table_mgr, table_id, scan_type, NULL);
-			valid_column=Maat_table_xx_plugin_table_get_valid_flag_column(table_schema);
+			table_schema=Maat_table_manager_get_scan_by_id(feather->table_mgr, table_id, scan_type, NULL);
+			valid_column=Maat_table_schema_get_valid_flag_column(table_schema);
 			ret=invalidate_line(rule_list[i].table_line, table_type, valid_column);
 			if(ret<0)
 			{
@@ -1935,7 +1935,7 @@ int Maat_command_raw_set_lines(Maat_feather_t feather,const struct Maat_cmd_line
 	s_rule=ALLOC(struct serial_rule_t, n_line);
 	for(i=0;i<n_line;i++)
 	{
-		table_id=Maat_table_get_id_by_name(_feather->table_mgr, line_rule[i]->table_name);
+		table_id=Maat_table_manager_get_id_by_name(_feather->table_mgr, line_rule[i]->table_name);
 		if(table_id<0)
 		{
 			MESA_handle_runtime_log(_feather->logger, RLOG_LV_FATAL, maat_command,
@@ -1998,7 +1998,7 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_cmd_line** line_
 	s_rule=ALLOC(struct serial_rule_t, line_num);
 	for(i=0;i<line_num;i++)
 	{
-		table_id=Maat_table_get_id_by_name(_feather->table_mgr, line_rule[i]->table_name);
+		table_id=Maat_table_manager_get_id_by_name(_feather->table_mgr, line_rule[i]->table_name);
 		if(table_id<0)
 		{
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_command 
@@ -2008,7 +2008,7 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_cmd_line** line_
 			ret=-1;
 			goto error_out;
 		}
-		p_table=Maat_table_get_by_id_raw(_feather->table_mgr, table_id);
+		p_table=Maat_table_manager_get_by_id_raw(_feather->table_mgr, table_id);
 		if(!p_table)
 		{
 			ret=-1;
@@ -2016,7 +2016,7 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_cmd_line** line_
 		}
 		int valid_flag_column=0;
 		
-		valid_flag_column=Maat_table_xx_plugin_table_get_valid_flag_column(p_table);
+		valid_flag_column=Maat_table_schema_get_valid_flag_column(p_table);
 		if(valid_flag_column<0)
 		{
 			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_command 

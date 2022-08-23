@@ -1,4 +1,4 @@
-#include "Maat_table.h"
+#include "Maat_table_schema.h"
 #include "map_str2int.h"
 #include "Maat_utils.h"
 #include "cJSON.h"
@@ -48,6 +48,9 @@ enum MAAT_SCAN_TYPE Maat_table_get_scan_type(enum MAAT_TABLE_TYPE table_type)
 			break;
 		case TABLE_TYPE_FQDN_PLUGIN:
 			ret=SCAN_TYPE_FQDN_PLUGIN;
+			break;
+		case TABLE_TYPE_BOOL_PLUGIN:
+			ret=SCAN_TYPE_BOOL_PLUGIN;
 			break;
 		case TABLE_TYPE_COMPILE:			
 			ret=SCAN_TYPE_NONE;
@@ -140,7 +143,8 @@ int _read_integer_arrary(char* string, int *array, int size)
 }
 #define COLUMN_PLUGIN_SCHEMA_JSON	4
 #define COLUMN_IP_PLUGIN_SCHEMA_JSON	4
-#define COLUMN_FQDN_PLUGIN_SHCEMA_JSON	4
+#define COLUMN_FQDN_PLUGIN_SCHEMA_JSON	4
+#define	COLUMN_BOOL_PLUGIN_SCHEMA_JSON	4
 #define COLUMN_COMPOSITION_SCHEMA_JSON	4
 #define	COLUMN_VIRUTAL_SCHEMA_JSON	4
 int read_virtual_table_schema(struct Maat_table_manager* table_mgr, const char* line, struct Maat_table_schema* table, MESA_htable_handle reserved_word_map)
@@ -387,7 +391,7 @@ int read_fqdn_plugin_table_schema(const char* line, struct Maat_table_schema* p)
 	struct fqdn_plugin_table_schema* fqdn_plugin_schema=&(p->fqdn_plugin);
 
 	copy_line=_maat_strdup(line);
-	ret=get_column_pos(copy_line, COLUMN_FQDN_PLUGIN_SHCEMA_JSON, &offset, &len);
+	ret=get_column_pos(copy_line, COLUMN_FQDN_PLUGIN_SCHEMA_JSON, &offset, &len);
 	if(ret<0)
 	{
 		goto error_out;
@@ -436,6 +440,76 @@ int read_fqdn_plugin_table_schema(const char* line, struct Maat_table_schema* p)
 	{
 		assert(tmp->type==cJSON_Number);
 		fqdn_plugin_schema->rule_tag_column=tmp->valueint;
+		//read_cnt++; Tag is optional, so NOT ++ intentionally.
+	}
+
+	cJSON_Delete(json);
+
+	free(copy_line);
+	if(read_cnt<4)
+	{
+		return -1;
+	}
+	else
+	{
+		return 0;
+	}
+error_out:
+	free(copy_line);
+	return -1;
+
+}
+int read_bool_plugin_table_schema(const char* line, struct Maat_table_schema* p)
+{
+	int ret=0, read_cnt=0;
+	size_t offset=0, len=0;
+	cJSON* json=NULL, *tmp=NULL;
+	char* copy_line=NULL, *schema_json=NULL;
+	struct bool_plugin_table_schema* bool_plugin_schema=&(p->bool_plugin);
+
+	copy_line=_maat_strdup(line);
+	ret=get_column_pos(copy_line, COLUMN_BOOL_PLUGIN_SCHEMA_JSON, &offset, &len);
+	if(ret<0)
+	{
+		goto error_out;
+	}
+	if(offset+len<strlen(copy_line))
+	{
+		copy_line[offset+len]='\0';
+	}
+	schema_json=copy_line+offset;
+
+	json=cJSON_Parse(schema_json);
+	if(!json)
+	{
+		goto error_out;
+	}
+	tmp=cJSON_GetObjectItem(json, "row_id");
+	if(tmp!=NULL && tmp->type==cJSON_Number)
+	{
+		bool_plugin_schema->row_id_column=tmp->valueint;
+		read_cnt++;
+	}
+	tmp=cJSON_GetObjectItem(json, "bool_expr");
+	if(tmp!=NULL && tmp->type==cJSON_Number)
+	{
+		bool_plugin_schema->bool_expr_column=tmp->valueint;
+		read_cnt++;
+	}
+
+	tmp=cJSON_GetObjectItem(json, "valid");
+	if(tmp!=NULL)
+	{
+		assert(tmp->type==cJSON_Number);
+		bool_plugin_schema->valid_flag_column=tmp->valueint;
+		read_cnt++;
+	}
+	bool_plugin_schema->rule_tag_column=-1;
+	tmp=cJSON_GetObjectItem(json, "tag");
+	if(tmp!=NULL)
+	{
+		assert(tmp->type==cJSON_Number);
+		bool_plugin_schema->rule_tag_column=tmp->valueint;
 		//read_cnt++; Tag is optional, so NOT ++ intentionally.
 	}
 
@@ -582,6 +656,7 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 	maat_kv_register(reserved_word_map, "plugin", TABLE_TYPE_PLUGIN);
 	maat_kv_register(reserved_word_map, "ip_plugin", TABLE_TYPE_IP_PLUGIN);
 	maat_kv_register(reserved_word_map, "fqdn_plugin", TABLE_TYPE_FQDN_PLUGIN);
+	maat_kv_register(reserved_word_map, "bool_plugin", TABLE_TYPE_BOOL_PLUGIN);
 	maat_kv_register(reserved_word_map, "intval", TABLE_TYPE_INTERVAL);
 	maat_kv_register(reserved_word_map, "interval", TABLE_TYPE_INTERVAL);
 	maat_kv_register(reserved_word_map, "intval_plus", TABLE_TYPE_INTERVAL_PLUS);
@@ -687,6 +762,16 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 					goto invalid_table;
 				}
 				break;
+			case TABLE_TYPE_BOOL_PLUGIN:
+				ret=read_bool_plugin_table_schema(line, p);
+				if(ret<0)
+				{
+					fprintf(stderr, "Maat read table info %s line %d error: illegal bool_plugin table schema.\n", table_info_path, i);
+					MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+									"Maat read table info %s line %d error: illegal bool_plugin table schema.", table_info_path, i);
+					goto invalid_table;
+				}
+				break;
 			case TABLE_TYPE_COMPOSITION:
 				ret=read_composition_table_schema(table_mgr, line, p, reserved_word_map);
 				if(ret<0)
@@ -778,7 +863,7 @@ size_t Maat_table_manager_get_count(struct Maat_table_manager* table_mgr)
 {
 	return table_mgr->table_cnt;
 }
-int Maat_table_get_compile_table_name(struct Maat_table_manager* table_mgr, char* buff, size_t sz)
+int Maat_table_manager_get_compile_table_name(struct Maat_table_manager* table_mgr, char* buff, size_t sz)
 {
 	int i=0;
 	for(i=0; i< MAX_TABLE_NUM; i++)
@@ -791,7 +876,7 @@ int Maat_table_get_compile_table_name(struct Maat_table_manager* table_mgr, char
 	}
 	return 0;
 }
-int Maat_table_get_group2compile_table_name(struct Maat_table_manager* table_mgr, char* buff, size_t sz)
+int Maat_table_manager_get_group2compile_table_name(struct Maat_table_manager* table_mgr, char* buff, size_t sz)
 {
 	int i=0;
 	for(i=0; i< MAX_TABLE_NUM; i++)
@@ -804,7 +889,7 @@ int Maat_table_get_group2compile_table_name(struct Maat_table_manager* table_mgr
 	}
 	return 0;
 }
-int Maat_table_get_group2group_table_name(struct Maat_table_manager* table_mgr, char* buff, size_t sz)
+int Maat_table_manager_get_group2group_table_name(struct Maat_table_manager* table_mgr, char* buff, size_t sz)
 {
 	int i=0;
 	for(i=0; i< MAX_TABLE_NUM; i++)
@@ -817,20 +902,7 @@ int Maat_table_get_group2group_table_name(struct Maat_table_manager* table_mgr, 
 	}
 	return 0;
 }
-
-const char* Maat_table_get_name_by_id(struct Maat_table_manager* table_mgr, int table_id)
-{
-	if(table_id>MAX_TABLE_NUM)
-	{
-		return NULL;
-	}
-	if(table_mgr->p_table_info[table_id])
-	{
-		return table_mgr->p_table_info[table_id]->table_name[0];
-	}
-	return NULL;
-}
-enum MAAT_TABLE_TYPE Maat_table_get_type_by_id(struct Maat_table_manager* table_mgr, int table_id)
+enum MAAT_TABLE_TYPE Maat_table_manager_get_type_by_id(struct Maat_table_manager* table_mgr, int table_id)
 {
 	if(table_id>MAX_TABLE_NUM)
 	{
@@ -843,17 +915,8 @@ enum MAAT_TABLE_TYPE Maat_table_get_type_by_id(struct Maat_table_manager* table_
 	return TABLE_TYPE_INVALID;
 
 }
-struct Maat_table_schema * Maat_table_get_by_id_raw(struct Maat_table_manager* table_mgr, int table_id)
-{
-	if(table_id>MAX_TABLE_NUM||table_id<0)
-	{
-		return NULL;
-	}
 
-	return table_mgr->p_table_info[table_id];
-}
-
-struct Maat_table_schema * Maat_table_get_scan_by_id(struct Maat_table_manager* table_mgr, int table_id, enum MAAT_SCAN_TYPE scan_type, int* virutal_table_id)
+struct Maat_table_schema * Maat_table_manager_get_scan_by_id(struct Maat_table_manager* table_mgr, int table_id, enum MAAT_SCAN_TYPE scan_type, int* virutal_table_id)
 {
 	enum MAAT_SCAN_TYPE tab_scan_type;
 	struct Maat_table_schema **p_table_info=table_mgr->p_table_info;
@@ -890,7 +953,7 @@ struct Maat_table_schema * Maat_table_get_scan_by_id(struct Maat_table_manager* 
 	}
 	return p_physical_table;
 }
-int Maat_table_get_id_by_name(struct Maat_table_manager* table_mgr, const char* table_name)
+int Maat_table_manager_get_id_by_name(struct Maat_table_manager* table_mgr, const char* table_name)
 {
 	int table_id=-1,ret=0;
 	ret=maat_kv_read(table_mgr->map_tablename2id, table_name, &table_id);
@@ -903,7 +966,7 @@ int Maat_table_get_id_by_name(struct Maat_table_manager* table_mgr, const char* 
 		return -1;
 	}
 }
-int Maat_table_add_callback_func(struct Maat_table_manager* table_mgr,
+int Maat_table_manager_add_callback_func(struct Maat_table_manager* table_mgr,
 									int table_id,
 									Maat_start_callback_t *start,//MAAT_RULE_UPDATE_TYPE_*,u_para
 									Maat_update_callback_t *update,//table line ,u_para
@@ -911,7 +974,7 @@ int Maat_table_add_callback_func(struct Maat_table_manager* table_mgr,
 									void* u_para)
 {
 	int idx=0;
-	struct Maat_table_schema *p_table=Maat_table_get_scan_by_id(table_mgr, table_id, SCAN_TYPE_PLUGIN, NULL);
+	struct Maat_table_schema *p_table=Maat_table_manager_get_scan_by_id(table_mgr, table_id, SCAN_TYPE_PLUGIN, NULL);
 	struct plugin_table_schema *plugin_desc=&(p_table->plugin);
 	if(p_table==NULL)
 	{
@@ -931,17 +994,17 @@ int Maat_table_add_callback_func(struct Maat_table_manager* table_mgr,
 	return 1;
 }
 
-struct compile_ex_data_idx* Maat_table_get_compile_rule_ex_desc(struct Maat_table_manager* table_mgr, const char* compile_table_name, int idx)
+struct compile_ex_data_idx* Maat_table_manager_get_compile_rule_ex_desc(struct Maat_table_manager* table_mgr, const char* compile_table_name, int idx)
 {
 	int table_id=-1;
 	struct Maat_table_schema *p_table=NULL;
 
-	table_id=Maat_table_get_id_by_name(table_mgr, compile_table_name);
+	table_id=Maat_table_manager_get_id_by_name(table_mgr, compile_table_name);
 	if(table_id<0)
 	{
 		return NULL;
 	}
-	p_table=Maat_table_get_scan_by_id(table_mgr, table_id, SCAN_TYPE_NONE, NULL);
+	p_table=Maat_table_manager_get_scan_by_id(table_mgr, table_id, SCAN_TYPE_NONE, NULL);
 	if(!p_table)
 	{
 		return NULL;
@@ -953,7 +1016,7 @@ struct compile_ex_data_idx* Maat_table_get_compile_rule_ex_desc(struct Maat_tabl
 	return NULL;
 
 }
-int Maat_table_new_compile_rule_ex_index(struct Maat_table_manager* table_mgr, const char* compile_table_name,
+int Maat_table_manager_new_compile_rule_ex_index(struct Maat_table_manager* table_mgr, const char* compile_table_name,
 										 Maat_rule_EX_new_func_t *new_func,
 										 Maat_rule_EX_free_func_t* free_func,
 										 Maat_rule_EX_dup_func_t* dup_func,
@@ -961,12 +1024,12 @@ int Maat_table_new_compile_rule_ex_index(struct Maat_table_manager* table_mgr, c
 {
 	int table_id=-1;
 	struct Maat_table_schema *p_table=NULL;
-	table_id=Maat_table_get_id_by_name(table_mgr, compile_table_name);
+	table_id=Maat_table_manager_get_id_by_name(table_mgr, compile_table_name);
 	if(table_id<0)
 	{
 		return -1;
 	}
-	p_table=Maat_table_get_scan_by_id(table_mgr, table_id, SCAN_TYPE_NONE, NULL);
+	p_table=Maat_table_manager_get_scan_by_id(table_mgr, table_id, SCAN_TYPE_NONE, NULL);
 	if(!p_table)
 	{
 		return -1;
@@ -991,122 +1054,66 @@ int Maat_table_new_compile_rule_ex_index(struct Maat_table_manager* table_mgr, c
 
 	return idx;
 } 
-void Maat_table_EX_data_schema_set(struct EX_data_schema* ex_schema,
+struct EX_data_schema *Maat_table_schema_get_EX_data_schema(struct Maat_table_schema *table_schema)
+{
+	struct EX_data_schema *ex_schema=NULL;
+	switch(table_schema->table_type)
+	{
+		case TABLE_TYPE_PLUGIN:
+			ex_schema=&table_schema->plugin.ex_schema;
+			break;
+		case TABLE_TYPE_IP_PLUGIN:
+			ex_schema=&table_schema->ip_plugin.ex_schema;
+			break;
+		case TABLE_TYPE_FQDN_PLUGIN:
+			ex_schema=&table_schema->fqdn_plugin.ex_schema;
+			break;
+		case TABLE_TYPE_BOOL_PLUGIN:
+			ex_schema=&table_schema->bool_plugin.ex_schema;
+			break;
+		default:
+			break;
+	}
+	return ex_schema;
+}
+
+int Maat_table_schema_set_EX_data_schema(struct Maat_table_schema *table_schema,
 										Maat_plugin_EX_new_func_t* new_func,
 										Maat_plugin_EX_free_func_t* free_func,
 										Maat_plugin_EX_dup_func_t* dup_func,
 										Maat_plugin_EX_key2index_func_t* key2index_func,
-										long argl, void *argp)
+										long argl, void *argp,
+										void* logger)
 {
+	struct EX_data_schema *ex_schema=NULL;
+	if(new_func==NULL || free_func==NULL || dup_func==NULL )
+	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "%s failed: invalid paramter", __FUNCTION__);
+		return -1;
+	}
+	ex_schema=Maat_table_schema_get_EX_data_schema(table_schema);
+	if(ex_schema==NULL)
+	{
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, target table is not a valid plugin table.", __FUNCTION__);
+		return -1;
+	}
+	if(ex_schema->set_flag)
+	{
+		assert(0);
+		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, EX data schema already registed.", __FUNCTION__);
+		return -1;
+	}
 	ex_schema->new_func=new_func;
 	ex_schema->free_func=free_func;
 	ex_schema->dup_func=dup_func;
 	ex_schema->key2index_func=key2index_func;//Set but not used.
 	ex_schema->argl=argl;
 	ex_schema->argp=argp;
-	return;
-}
-int Maat_table_plugin_EX_data_schema_set(struct Maat_table_schema *table_schema,
-										Maat_plugin_EX_new_func_t* new_func,
-										Maat_plugin_EX_free_func_t* free_func,
-										Maat_plugin_EX_dup_func_t* dup_func,
-										Maat_plugin_EX_key2index_func_t* key2index_func,
-										long argl, void *argp,
-										void* logger)
-{
-	if(new_func==NULL || free_func==NULL || dup_func==NULL )
-	{
-		assert(0);
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "%s failed: invalid paramter", __FUNCTION__);
-		return -1;
-	}
-	if(table_schema->table_type!=TABLE_TYPE_PLUGIN)
-	{
-		assert(0);
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, Regist target is not a plugin table.", __FUNCTION__);
-		return -1;
-	}
-	if(table_schema->plugin.have_exdata)
-	{
-		assert(0);
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, EX data already registed.", __FUNCTION__);
-		return -1;
-	}
-	if(table_schema->plugin.key_column==0 || table_schema->plugin.valid_flag_column==0)
-	{
-		assert(0);
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, not enough schema information.", __FUNCTION__);
-		return -1;
-	}
-	Maat_table_EX_data_schema_set(&table_schema->plugin.ex_schema,
-									new_func, free_func, dup_func, key2index_func, argl, argp);
-	table_schema->plugin.have_exdata=1;
+	ex_schema->set_flag=1;
 	return 0;
-}
-int Maat_table_ip_plugin_EX_data_schema_set(struct Maat_table_schema *table_schema,
-										Maat_plugin_EX_new_func_t* new_func,
-										Maat_plugin_EX_free_func_t* free_func,
-										Maat_plugin_EX_dup_func_t* dup_func,
-										Maat_plugin_EX_key2index_func_t* key2index_func,
-										long argl, void *argp,
-										void* logger)
-{
-	if(new_func==NULL || free_func==NULL || dup_func==NULL )
-	{
-		assert(0);
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "%s failed: invalid paramter", __FUNCTION__);
-		return -1;
-	}
-	if(table_schema->table_type!=TABLE_TYPE_IP_PLUGIN)
-	{
-		assert(0);
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, target table is not a ip_plugin table.", __FUNCTION__);
-		return -1;
-	}
-	if(table_schema->ip_plugin.have_exdata)
-	{
-		assert(0);
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, EX data already registed.", __FUNCTION__);
-		return -1;
-	}
-	Maat_table_EX_data_schema_set(&table_schema->ip_plugin.ex_schema,
-									new_func, free_func, dup_func, key2index_func, argl, argp);
-	table_schema->ip_plugin.have_exdata=1;
-	return 0;
-}	
-int Maat_table_fqdn_plugin_EX_data_schema_set(struct Maat_table_schema *table_schema,
-										Maat_plugin_EX_new_func_t* new_func,
-										Maat_plugin_EX_free_func_t* free_func,
-										Maat_plugin_EX_dup_func_t* dup_func,
-										Maat_plugin_EX_key2index_func_t* key2index_func,
-										long argl, void *argp,
-										void* logger)
-{
-	if(new_func==NULL || free_func==NULL || dup_func==NULL )
-	{
-		assert(0);
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "%s failed: invalid paramter", __FUNCTION__);
-		return -1;
-	}
-	if(table_schema->table_type!=TABLE_TYPE_FQDN_PLUGIN)
-	{
-		assert(0);
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, target table is not a fqdn_plugin table.", __FUNCTION__);
-		return -1;
-	}
-	if(table_schema->fqdn_plugin.have_exdata)
-	{
-		assert(0);
-		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module, "Error: %s, EX data already registed.", __FUNCTION__);
-		return -1;
-	}
-	Maat_table_EX_data_schema_set(&table_schema->fqdn_plugin.ex_schema,
-									new_func, free_func, dup_func, key2index_func, argl, argp);
-	table_schema->fqdn_plugin.have_exdata=1;
-	return 0;
-}
 
-										
+}								
 void Maat_table_manager_all_plugin_cb_start(struct Maat_table_manager* table_mgr, int update_type)
 {
 	table_mgr->active_plugin_table_num=0;
@@ -1178,11 +1185,11 @@ int Maat_table_manager_is_last_plugin_table_updating(struct Maat_table_manager* 
 {
 	return table_mgr->is_last_plugin_table_updating;
 }
-struct Maat_table_schema* Maat_table_get_desc_by_name(struct Maat_table_manager* table_mgr, const char* table_name)
+struct Maat_table_schema* Maat_table_manager_get_desc_by_name(struct Maat_table_manager* table_mgr, const char* table_name)
 {
 	struct Maat_table_schema * p_table=NULL;
 	int table_id=0;
-	table_id=Maat_table_get_id_by_name(table_mgr, table_name);
+	table_id=Maat_table_manager_get_id_by_name(table_mgr, table_name);
 	if(table_id<0)
 	{
 		return NULL;
@@ -1190,7 +1197,7 @@ struct Maat_table_schema* Maat_table_get_desc_by_name(struct Maat_table_manager*
 	p_table=table_mgr->p_table_info[table_id];
 	return p_table;
 }
-void Maat_table_set_updating_name(struct Maat_table_schema* p_table, const char* table_name)
+void Maat_table_schema_set_updating_name(struct Maat_table_schema* p_table, const char* table_name)
 {
 	int i=0;
 	for(i=0; i<p_table->conj_cnt; i++)
@@ -1202,11 +1209,20 @@ void Maat_table_set_updating_name(struct Maat_table_schema* p_table, const char*
 	}
 	assert(i<=p_table->conj_cnt);
 }
+struct Maat_table_schema * Maat_table_manager_get_by_id_raw(struct Maat_table_manager* table_mgr, int table_id)
+{
+	if(table_id>MAX_TABLE_NUM||table_id<0)
+	{
+		return NULL;
+	}
 
-int Maat_table_get_child_id(struct Maat_table_manager* table_mgr, int parent_table_id, enum MAAT_TABLE_COMPONENT_TYPE type)
+	return table_mgr->p_table_info[table_id];
+}
+
+int Maat_table_manager_get_child_id(struct Maat_table_manager* table_mgr, int parent_table_id, enum MAAT_TABLE_COMPONENT_TYPE type)
 {
 	int ret=-1;
-	struct Maat_table_schema* p_table=Maat_table_get_by_id_raw(table_mgr, parent_table_id);
+	struct Maat_table_schema* p_table=Maat_table_manager_get_by_id_raw(table_mgr, parent_table_id);
 	if(p_table->table_type!=TABLE_TYPE_COMPOSITION)
 	{
 		return -1;
@@ -1214,7 +1230,7 @@ int Maat_table_get_child_id(struct Maat_table_manager* table_mgr, int parent_tab
 	ret=p_table->composition.component_table_id[type];
 	return ret;
 }
-int Maat_table_xx_plugin_table_get_valid_flag_column(struct Maat_table_schema* p_table)
+int Maat_table_schema_get_valid_flag_column(struct Maat_table_schema* p_table)
 {
 	int valid_flag_column=-1;
 	switch(p_table->table_type)
@@ -1227,6 +1243,9 @@ int Maat_table_xx_plugin_table_get_valid_flag_column(struct Maat_table_schema* p
 			break;			
 		case TABLE_TYPE_FQDN_PLUGIN:
 			valid_flag_column=p_table->fqdn_plugin.valid_flag_column;
+			break;
+		case TABLE_TYPE_BOOL_PLUGIN:
+			valid_flag_column=p_table->bool_plugin.valid_flag_column;
 			break;
 		default:
 			valid_flag_column=-1;

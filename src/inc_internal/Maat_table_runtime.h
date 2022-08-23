@@ -1,8 +1,9 @@
-#include "Maat_table.h"
+#include "Maat_table_schema.h"
 #include "Maat_ex_data.h"
 
 #include "IPMatcher.h"
 #include "gram_index_engine.h"
+#include "bool_matcher.h"
 #include "FQDN_engine.h"
 #include "alignment_int64.h"
 #include <MESA/MESA_list_queue.h>
@@ -15,6 +16,12 @@ struct similar_runtime
 struct fqdn_plugin_runtime
 {
 	struct FQDN_engine* fqdn_engine;
+	struct EX_data_rt* ex_data_rt;
+	int changed_flag;
+};
+struct bool_plugin_runtime
+{
+	struct bool_matcher *matcher;
 	struct EX_data_rt* ex_data_rt;
 	int changed_flag;
 };
@@ -54,6 +61,7 @@ struct Maat_table_runtime
 	{	
 		struct similar_runtime similar;	//for digest and similarity
 		struct fqdn_plugin_runtime fqdn_plugin;//for fqdn_plugin and fqdn_plugin
+		struct bool_plugin_runtime bool_plugin;
 		struct plugin_runtime plugin;		
 		struct ip_plugin_runtime ip_plugin;
 		struct expr_runtime expr;
@@ -80,24 +88,25 @@ enum MAAT_TABLE_TYPE Maat_table_runtime_get_type(struct Maat_table_runtime* tabl
 size_t Maat_table_runtime_plugin_cached_row_count(struct Maat_table_runtime* table_rt);
 const char* Maat_table_runtime_plugin_get_cached_row(struct Maat_table_runtime* table_rt, size_t Nth_row);
 
-int Maat_table_runtime_plugin_commit_ex_schema(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_desc, void* logger);
-MAAT_PLUGIN_EX_DATA Maat_table_runtime_plugin_get_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_desc, const char* key);
+int Maat_table_runtime_commit_EX_data_schema(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, void* logger);
 void Maat_table_runtime_digest_add(struct Maat_table_runtime* table_rt, int expr_id, const char* digest, short confidence_degree, void* tag);
 void Maat_table_runtime_digest_del(struct Maat_table_runtime* table_rt, int expr_id);
 int Maat_table_runtime_digest_batch_udpate(struct Maat_table_runtime* table_rt);
 
 void Maat_table_runtime_plugin_new_row(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* row, void *logger);
-void Maat_table_runtime_plugin_update_commit(struct Maat_table_runtime* table_rt);
+void Maat_table_runtime_plugin_commit_update(struct Maat_table_runtime* table_rt);
+MAAT_PLUGIN_EX_DATA Maat_table_runtime_plugin_get_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_desc, const char* key);
 
 void Maat_table_runtime_ip_plugin_new_row(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* row, void *logger);
-
-int Maat_table_runtime_ip_plugin_commit_ex_schema(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, void* logger);
 int Maat_table_runtime_ip_plugin_get_N_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const struct ip_data* ip, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t size);
-int Maat_table_runtime_ip_plugin_rebuild_ip_matcher(struct Maat_table_runtime* table_rt);
+int Maat_table_runtime_ip_plugin_commit_update(struct Maat_table_runtime* table_rt);
 
 void Maat_table_runtime_fqdn_plugin_new_row(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* row, void *logger);
-int Maat_table_runtime_fqdn_plugin_rebuild_fqdn_engine(struct Maat_table_runtime* table_rt);
-int Maat_table_runtime_fqdn_plugin_commit_ex_schema(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, void* logger);
+int Maat_table_runtime_fqdn_plugin_commit_update(struct Maat_table_runtime* table_rt);
 int Maat_table_runtime_fqdn_plugin_get_N_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* query_fqdn, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t size);
+
+void Maat_table_runtime_bool_plugin_new_row(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* row, void *logger);
+int Maat_table_runtime_bool_plugin_commit_update(struct Maat_table_runtime* table_rt);
+int Maat_table_runtime_bool_plugin_get_N_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, unsigned long long item_id[], size_t n_item, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t size);
 
 

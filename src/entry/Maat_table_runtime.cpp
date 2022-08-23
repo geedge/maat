@@ -99,9 +99,9 @@ static void destroy_digest_rule(GIE_digest_t*rule)
 	rule=NULL;
 	return;
 }
-struct FQDN_rule* fqdn_rule_new(unsigned int id, const char* fqdn, size_t fqdn_len, int is_suffix_match)
+struct FQDN_rule *fqdn_rule_new(unsigned int id, const char* fqdn, size_t fqdn_len, int is_suffix_match)
 {
-	struct FQDN_rule* fqdn_rule=ALLOC(struct FQDN_rule, 1);
+	struct FQDN_rule *fqdn_rule=ALLOC(struct FQDN_rule, 1);
 	//Todo: check FQDN format with regex ^([a-zA-Z0-9._-])+$
 	if(fqdn[0]=='.')
 	{
@@ -119,12 +119,29 @@ struct FQDN_rule* fqdn_rule_new(unsigned int id, const char* fqdn, size_t fqdn_l
 	fqdn_rule->id=id;
 	return fqdn_rule;
 }
-void fqdn_rule_free(struct FQDN_rule* fqdn_rule)
+void fqdn_rule_free(struct FQDN_rule *fqdn_rule)
 {
 	assert(fqdn_rule->user_tag==NULL);
 	free(fqdn_rule->FQDN);
 	fqdn_rule->FQDN=NULL;
 	free(fqdn_rule);
+	return;
+}
+struct bool_expr *bool_expr_new(unsigned int id, unsigned long long item_id[], size_t n_item)
+{
+	struct bool_expr *expr=ALLOC(struct bool_expr, 1);
+	expr->expr_id=id;
+	size_t i=0;
+	for(i=0; i<n_item; i++)
+	{
+		expr->items[i].item_id=item_id[i];
+		expr->items[i].not_flag=0;
+	}
+	return expr;
+}
+void bool_expr_free(struct bool_expr *expr)
+{
+	free(expr);
 	return;
 }
 void _notype_fqdn_rule_free(void* p)
@@ -147,7 +164,7 @@ static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_sche
 			table_rt->plugin.ex_data_rt=EX_data_rt_new(table_schema->table_id, 
 										table_schema->plugin.ex_schema.key2index_func,
 										NULL);
-			if(table_schema->plugin.have_exdata)
+			if(table_schema->plugin.ex_schema.set_flag)
 			{
 				EX_data_rt_set_schema(table_rt->plugin.ex_data_rt, &table_schema->plugin.ex_schema);
 			}
@@ -156,7 +173,7 @@ static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_sche
 			table_rt->ip_plugin.ex_data_rt=EX_data_rt_new(table_schema->table_id, 									
 										table_schema->ip_plugin.ex_schema.key2index_func,
 										free);
-			if(table_schema->ip_plugin.have_exdata)
+			if(table_schema->ip_plugin.ex_schema.set_flag)
 			{			
 				EX_data_rt_set_schema(table_rt->ip_plugin.ex_data_rt, &table_schema->ip_plugin.ex_schema);
 			}
@@ -165,9 +182,18 @@ static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_sche
 			table_rt->fqdn_plugin.ex_data_rt=EX_data_rt_new(table_schema->table_id, 									
 										table_schema->fqdn_plugin.ex_schema.key2index_func,
 										_notype_fqdn_rule_free);
-			if(table_schema->fqdn_plugin.have_exdata)
+			if(table_schema->fqdn_plugin.ex_schema.set_flag)
 			{			
 				EX_data_rt_set_schema(table_rt->fqdn_plugin.ex_data_rt, &table_schema->fqdn_plugin.ex_schema);
+			}
+			break;
+		case TABLE_TYPE_BOOL_PLUGIN:
+			table_rt->bool_plugin.ex_data_rt=EX_data_rt_new(table_schema->table_id, 									
+										table_schema->fqdn_plugin.ex_schema.key2index_func,
+										(void (*)(void*))bool_expr_free);
+			if(table_schema->bool_plugin.ex_schema.set_flag)
+			{			
+				EX_data_rt_set_schema(table_rt->bool_plugin.ex_data_rt, &table_schema->bool_plugin.ex_schema);
 			}
 			break;
 		default:
@@ -249,7 +275,7 @@ struct Maat_table_runtime_manager* Maat_table_runtime_manager_create(struct Maat
 	table_rt_mgr->table_rt=ALLOC(struct Maat_table_runtime*, table_rt_mgr->n_table_rt);
 	for(i=0; i<table_rt_mgr->n_table_rt; i++)
 	{
-		table_desc=Maat_table_get_by_id_raw(table_manager, i);
+		table_desc=Maat_table_manager_get_by_id_raw(table_manager, i);
 		if(!table_desc)
 		{
 			continue;
@@ -305,25 +331,10 @@ const char* Maat_table_runtime_plugin_get_cached_row(struct Maat_table_runtime* 
 	line=EX_data_rt_cached_row_get(plugin_rt->ex_data_rt, Nth_row);
 	return line;
 }
-int Maat_table_runtime_plugin_commit_ex_schema(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, void* logger)
-{
-	size_t i=0;
-	const char* row=NULL;
-	EX_data_rt_set_schema(table_rt->plugin.ex_data_rt, &table_schema->plugin.ex_schema);
-
-	for(i=0; i<EX_data_rt_get_cached_row_num(table_rt->plugin.ex_data_rt); i++)
-	{
-		row=EX_data_rt_cached_row_get(table_rt->plugin.ex_data_rt, i);
-		Maat_table_runtime_plugin_new_row(table_rt, table_schema, row, logger);
-	}
-	EX_data_rt_update_commit(table_rt->plugin.ex_data_rt);
-	table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(table_rt->plugin.ex_data_rt);
-	return 0;
-}
 MAAT_PLUGIN_EX_DATA Maat_table_runtime_plugin_get_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* key)
 {
 	MAAT_RULE_EX_DATA ex_data=NULL;
-	if(!table_schema->plugin.have_exdata)
+	if(!table_schema->plugin.ex_schema.set_flag)
 	{	
 		assert(0);
 		return NULL;
@@ -342,7 +353,7 @@ void Maat_table_runtime_plugin_new_row(struct Maat_table_runtime* table_rt, stru
 	struct plugin_runtime* plugin_rt=&table_rt->plugin;
 	ret=Maat_helper_read_column(row, plugin_schema->valid_flag_column, &is_valid_offset, &valid_len);
 	plugin_rt->acc_line_num++;
-	if(plugin_schema->have_exdata)
+	if(plugin_schema->ex_schema.set_flag)
 	{
 		ret=get_column_pos(row, plugin_schema->key_column, &key_offset, &key_len);
 		if(ret<0)
@@ -368,14 +379,14 @@ void Maat_table_runtime_plugin_new_row(struct Maat_table_runtime* table_rt, stru
 			plugin_schema->cb_plug[i].update(table_schema->table_id, row, plugin_schema->cb_plug[i].u_para);
 		}
 	}
-	if(!plugin_schema->have_exdata && !plugin_schema->cb_plug_cnt)
+	if(!plugin_schema->ex_schema.set_flag && !plugin_schema->cb_plug_cnt)
 	{
 		EX_data_rt_cache_row_put(plugin_rt->ex_data_rt, row);
 	}
 
 	return;
 }
-void Maat_table_runtime_plugin_update_commit(struct Maat_table_runtime* table_rt)
+void Maat_table_runtime_plugin_commit_update(struct Maat_table_runtime* table_rt)
 {
 	EX_data_rt_update_commit(table_rt->plugin.ex_data_rt);	
 	table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(table_rt->plugin.ex_data_rt);
@@ -420,7 +431,7 @@ void Maat_table_runtime_fqdn_plugin_new_row(struct Maat_table_runtime* table_rt,
 	size_t fqdn_offset=0, fqdn_len=0;
 	struct FQDN_rule* fqdn_rule=NULL;
 	int ret=0;	
-	if(fqdn_plugin_schema->have_exdata)
+	if(fqdn_plugin_schema->ex_schema.set_flag)
 	{
 		ret=Maat_helper_read_column(row, fqdn_plugin_schema->valid_flag_column, &is_valid_offset, &valid_len);
 		if(ret<0)
@@ -479,7 +490,7 @@ void Maat_table_runtime_fqdn_plugin_new_row(struct Maat_table_runtime* table_rt,
 	return;
 }
 
-int Maat_table_runtime_fqdn_plugin_rebuild_fqdn_engine(struct Maat_table_runtime* table_rt)
+int Maat_table_runtime_fqdn_plugin_commit_update(struct Maat_table_runtime* table_rt)
 {
 	struct FQDN_engine* new_fqdn_engine=NULL, *old_fqdn_engine=NULL;
 	struct 	fqdn_plugin_runtime* fqdn_rt=&table_rt->fqdn_plugin;
@@ -518,23 +529,80 @@ int Maat_table_runtime_fqdn_plugin_rebuild_fqdn_engine(struct Maat_table_runtime
 	table_rt->fqdn_plugin.changed_flag=0;
 	return ret;
 }
-
-int Maat_table_runtime_fqdn_plugin_commit_ex_schema(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, void* logger)
+struct EX_data_rt *Maat_table_runtime_get_EX_data_rt(struct Maat_table_runtime* table_rt)
+{
+	struct EX_data_rt *rt=NULL;
+	
+	switch(table_rt->table_type)
+	{
+		case	TABLE_TYPE_PLUGIN:
+			rt=table_rt->plugin.ex_data_rt;
+			break;
+		case	TABLE_TYPE_IP_PLUGIN:
+			rt=table_rt->ip_plugin.ex_data_rt;
+			break;
+		case	TABLE_TYPE_FQDN_PLUGIN:
+			rt=table_rt->fqdn_plugin.ex_data_rt;
+			break;
+		case	TABLE_TYPE_BOOL_PLUGIN:
+			rt=table_rt->bool_plugin.ex_data_rt;
+			break;
+		default:
+			break;
+	}
+	return rt;
+}
+int Maat_table_runtime_commit_EX_data_schema(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, void* logger)
 {
 	size_t i=0;
 	const char* row=NULL;
-	struct fqdn_plugin_runtime* fqdn_plugin_rt=&(table_rt->fqdn_plugin);
-	EX_data_rt_set_schema(fqdn_plugin_rt->ex_data_rt, &table_schema->fqdn_plugin.ex_schema);
-	for(i=0; i<EX_data_rt_get_cached_row_num(fqdn_plugin_rt->ex_data_rt); i++)
+	assert(table_rt->table_type==table_schema->table_type);
+	struct EX_data_rt *ex_data_rt=NULL;
+	struct EX_data_schema *ex_data_schema=Maat_table_schema_get_EX_data_schema(table_schema);
+	ex_data_rt=Maat_table_runtime_get_EX_data_rt(table_rt);
+	EX_data_rt_set_schema(ex_data_rt, ex_data_schema);
+	for(i=0; i<EX_data_rt_get_cached_row_num(ex_data_rt); i++)
 	{
-		row=EX_data_rt_cached_row_get(fqdn_plugin_rt->ex_data_rt, i);
-		Maat_table_runtime_fqdn_plugin_new_row(table_rt, table_schema, row, logger);
+		row=EX_data_rt_cached_row_get(ex_data_rt, i);
+		switch(table_rt->table_type)
+		{
+			case	TABLE_TYPE_PLUGIN:
+				Maat_table_runtime_plugin_new_row(table_rt, table_schema, row, logger);
+				break;
+			case	TABLE_TYPE_IP_PLUGIN:
+				Maat_table_runtime_ip_plugin_new_row(table_rt, table_schema, row, logger);
+				break;
+			case	TABLE_TYPE_FQDN_PLUGIN:
+				Maat_table_runtime_fqdn_plugin_new_row(table_rt, table_schema, row, logger);				
+				break;
+			case	TABLE_TYPE_BOOL_PLUGIN:
+				Maat_table_runtime_bool_plugin_new_row(table_rt, table_schema, row, logger);
+				break;
+			default:
+				break;
+		}
 	}
-	EX_data_rt_clear_row_cache(fqdn_plugin_rt->ex_data_rt);
-	Maat_table_runtime_fqdn_plugin_rebuild_fqdn_engine(table_rt);
-	table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(fqdn_plugin_rt->ex_data_rt);
+	EX_data_rt_clear_row_cache(ex_data_rt);
+	switch(table_rt->table_type)
+	{
+		case	TABLE_TYPE_PLUGIN:
+			Maat_table_runtime_plugin_commit_update(table_rt);
+			break;
+		case	TABLE_TYPE_IP_PLUGIN:
+			Maat_table_runtime_ip_plugin_commit_update(table_rt);
+			break;
+		case	TABLE_TYPE_FQDN_PLUGIN:
+			Maat_table_runtime_fqdn_plugin_commit_update(table_rt);
+			break;
+		case	TABLE_TYPE_BOOL_PLUGIN:
+			Maat_table_runtime_bool_plugin_commit_update(table_rt);
+			break;
+		default:
+			break;
+	}
 	return 0;
 }
+
 int Maat_table_runtime_fqdn_plugin_get_N_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* query_fqdn, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t size)
 {
 	struct FQDN_match results[size];
@@ -555,6 +623,145 @@ int Maat_table_runtime_fqdn_plugin_get_N_ex_data(struct Maat_table_runtime* tabl
 	return n_result;
 }
 
+void Maat_table_runtime_bool_plugin_new_row(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* row, void *logger)
+{
+	struct bool_plugin_table_schema *bool_plugin_schema=&(table_schema->bool_plugin);
+	struct bool_plugin_runtime *bool_plugin_rt=&(table_rt->bool_plugin);
+	size_t is_valid_offset=0, valid_len=0;
+	size_t row_id_offset=0, row_id_len=0;
+	size_t bool_expr_offset=0, bool_expr_len=0;
+	struct bool_expr *expr=NULL;
+	int ret=0;
+	unsigned long long item_id[MAX_ITEMS_PER_BOOL_EXPR];
+	size_t n_item=0;
+	if(bool_plugin_schema->ex_schema.set_flag)
+	{
+		ret=Maat_helper_read_column(row, bool_plugin_schema->valid_flag_column, &is_valid_offset, &valid_len);
+		if(ret<0)
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+									"bool_plugin EX data process error: cannot find is_valid column %d of %s",
+									bool_plugin_schema->valid_flag_column, row);
+			return;
+		}
+		ret=Maat_helper_read_column(row, bool_plugin_schema->row_id_column, &row_id_offset, &row_id_len);
+		if(ret<0)
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+									"bool_plugin EX data process error: cannot find row id column %d of %s",
+									bool_plugin_schema->row_id_column, row);
+			return;
+		}
+		ret=Maat_helper_read_column(row, bool_plugin_schema->bool_expr_column, &bool_expr_offset, &bool_expr_len);
+		if(ret<0)
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+									"fqdn_plugin EX data process error: cannot find bool_expr column %d of %s",
+									bool_plugin_schema->bool_expr_column, row);
+			return;
+		}
+		char *token=NULL, *sub_token=NULL, *saveptr;
+		char expr_buffer[256];
+		memset(expr_buffer, 0, sizeof(expr_buffer));
+		memcpy(expr_buffer, row+bool_expr_offset, bool_expr_len);
+		for (token = expr_buffer; ; token= NULL)
+		{
+			sub_token= strtok_r(token, "&", &saveptr);
+			if (sub_token == NULL)
+				break;
+			ret=sscanf(sub_token, "%llu", item_id+n_item);
+			n_item++;
+			if(ret!=1||n_item==MAX_ITEMS_PER_BOOL_EXPR)
+			{
+				MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+										"fqdn_plugin EX data process error: invalid format of bool_expr column %d of %s",
+										bool_plugin_schema->bool_expr_column, row);
+				return;
+			}
+		}
+		if(atoi(row+is_valid_offset)==1)//add
+		{
+			expr=bool_expr_new((unsigned int)atoi(row+row_id_offset), item_id, n_item);
+			if(expr==NULL)
+			ret=EX_data_rt_row2EX_data(bool_plugin_rt->ex_data_rt, row, row+row_id_offset, row_id_len, expr, logger);
+			if(ret<0)
+			{
+				bool_expr_free(expr);
+				expr=NULL;
+			}
+		}
+		else
+		{
+			EX_data_rt_delete_by_row(bool_plugin_rt->ex_data_rt, row, row+row_id_offset, row_id_len, logger);
+		}		
+	}
+	else
+	{
+		EX_data_rt_cache_row_put(bool_plugin_rt->ex_data_rt, row);
+		table_rt->origin_rule_num=EX_data_rt_get_cached_row_num(bool_plugin_rt->ex_data_rt);
+	}
+	bool_plugin_rt->changed_flag=1;
+	return;
+}
+int Maat_table_runtime_bool_plugin_commit_update(struct Maat_table_runtime* table_rt)
+{
+	struct bool_matcher* new_bool_matcher=NULL, *old_bool_matcher=NULL;
+	struct 	bool_plugin_runtime* bool_plugin_rt=&table_rt->bool_plugin;
+	assert(table_rt->table_type==TABLE_TYPE_BOOL_PLUGIN);
+	struct EX_data_container **exc_array=NULL;
+	struct bool_expr* exprs=NULL;
+	size_t expr_cnt=0, i=0, ret=0, mem_usage=0;
+	if(!bool_plugin_rt->changed_flag)
+	{
+		return ret;
+	}
+	expr_cnt=EX_data_rt_list_updating_ex_containers(bool_plugin_rt->ex_data_rt, &exc_array);
+	exprs=ALLOC(struct bool_expr, expr_cnt);
+	for(i=0; i<expr_cnt; i++)
+	{
+		exprs[i]=*((struct bool_expr *)(EX_data_container_get_user_data(exc_array[i])));
+		assert(exprs[i].user_tag==exc_array[i]||exprs[i].user_tag==NULL);
+		exprs[i].user_tag=exc_array[i];
+	}
+	if(expr_cnt>0)
+	{		
+		new_bool_matcher=bool_matcher_new(exprs, expr_cnt, &mem_usage);
+		if(!new_bool_matcher)
+		{
+			ret=-1;
+		}
+	}
+	old_bool_matcher=bool_plugin_rt->matcher;	
+	bool_plugin_rt->matcher=new_bool_matcher;
+	Maat_garbage_bagging(table_rt->ref_garbage_bin, old_bool_matcher, (void (*)(void*))bool_matcher_free);
+	EX_data_rt_update_commit(bool_plugin_rt->ex_data_rt);
+	table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(bool_plugin_rt->ex_data_rt);
+	
+	free(exprs);
+	free(exc_array);	
+	table_rt->fqdn_plugin.changed_flag=0;
+	return ret;
+}
+
+int Maat_table_runtime_bool_plugin_get_N_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, unsigned long long item_id[], size_t n_item, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t size)
+{
+	struct bool_expr_match results[size];
+	int n_result=0, i=0;
+	if(table_rt->table_type!=TABLE_TYPE_BOOL_PLUGIN)
+	{
+		return -1;
+	}
+	if(!table_rt->bool_plugin.matcher)
+	{
+		return 0;
+	}
+	n_result=bool_matcher_match(table_rt->bool_plugin.matcher,  item_id, n_item, results, size);
+	for(i=0; i<n_result; i++)
+	{
+		ex_data_array[i]=EX_data_rt_get_EX_data_by_container(table_rt->bool_plugin.ex_data_rt, (struct EX_data_container *)results[i].user_tag);
+	}
+	return n_result;
+}
 int Maat_table_runtime_digest_batch_udpate(struct Maat_table_runtime* table_rt)
 {
 	long i=0,data_size=0;
@@ -621,7 +828,7 @@ int Maat_table_runtime_digest_batch_udpate(struct Maat_table_runtime* table_rt)
 	return q_cnt;
 }
 
-int Maat_table_runtime_ip_plugin_rebuild_ip_matcher(struct Maat_table_runtime* table_rt)
+int Maat_table_runtime_ip_plugin_commit_update(struct Maat_table_runtime* table_rt)
 {
 	struct ip_matcher* new_ip_matcher=NULL, *old_ip_matcher=NULL;
 	size_t rule_cnt=0;
@@ -673,7 +880,7 @@ void Maat_table_runtime_ip_plugin_new_row(struct Maat_table_runtime* table_rt, s
 	size_t row_id_offset=0, row_id_len=0;
 	struct ip_rule* ip_rule=NULL;
 	int ret=0;	
-	if(ip_plugin_schema->have_exdata)
+	if(ip_plugin_schema->ex_schema.set_flag)
 	{
 		ret=Maat_helper_read_column(row, ip_plugin_schema->valid_flag_column, &is_valid_offset, &valid_len);
 		if(ret<0)
@@ -724,23 +931,6 @@ void Maat_table_runtime_ip_plugin_new_row(struct Maat_table_runtime* table_rt, s
 	ip_plugin_rt->changed_flag=1;
 	return;
 }
-int Maat_table_runtime_ip_plugin_commit_ex_schema(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, void* logger)
-{
-	size_t i=0;
-	const char* row=NULL;
-	struct ip_plugin_runtime* ip_plugin_rt=&(table_rt->ip_plugin);
-	EX_data_rt_set_schema(ip_plugin_rt->ex_data_rt, &table_schema->ip_plugin.ex_schema);
-	for(i=0; i<EX_data_rt_get_cached_row_num(ip_plugin_rt->ex_data_rt); i++)
-	{
-		row=EX_data_rt_cached_row_get(ip_plugin_rt->ex_data_rt, i);
-		Maat_table_runtime_ip_plugin_new_row(table_rt, table_schema, row, logger);
-	}
-	EX_data_rt_clear_row_cache(ip_plugin_rt->ex_data_rt);
-	Maat_table_runtime_ip_plugin_rebuild_ip_matcher(table_rt);
-	table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(ip_plugin_rt->ex_data_rt);
-	return 0;
-}
-
 int Maat_table_runtime_ip_plugin_get_N_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const struct ip_data* ip, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t size)
 {
 	struct scan_result results[size];

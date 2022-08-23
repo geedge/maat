@@ -71,7 +71,7 @@ TEST(BoolMatcher, Match)
 		i++;
 	}
 	size_t mem_size=0;
-	bm=bool_matcher_new(expr_array, expr_num, 4, &mem_size);
+	bm=bool_matcher_new(expr_array, expr_num, &mem_size);
 	unsigned long long test_count=2*1000*1000, match_count=0, unmatch_count=0;
 	long int j=0;
 	size_t k=0;
@@ -97,7 +97,7 @@ TEST(BoolMatcher, Match)
 			input_item_num++;
 		}
 		sort(input_item_ids, input_item_ids+input_item_num);
-		ret=bool_matcher_match(bm, 1, input_item_ids, input_item_num, result_array, 1024);
+		ret=bool_matcher_match(bm, input_item_ids, input_item_num, result_array, 1024);
 		if(ret>0)
 		{
 			match_count++;
@@ -124,7 +124,7 @@ TEST(BoolMatcher, Match)
 	sort(input_item_ids, input_item_ids+input_item_num);
 	for(i=0; i<test_count; i++)
 	{
-		ret=bool_matcher_match(bm, 1, input_item_ids, input_item_num, result_array, 1024);
+		ret=bool_matcher_match(bm, input_item_ids, input_item_num, result_array, 1024);
 		if(ret==0)
 		{
 			unmatch_count++;

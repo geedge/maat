@@ -1,5 +1,5 @@
 #include "Maat_ex_data.h"
-#include "Maat_table.h"
+#include "Maat_table_schema.h"
 #include "Maat_utils.h"
 #include "Maat_garbage_collection.h"
 

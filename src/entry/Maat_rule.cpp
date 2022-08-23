@@ -57,7 +57,7 @@ extern "C"
 }
 #endif
 
-int MAAT_FRAME_VERSION_3_6_11_20220713=1;
+int MAAT_FRAME_VERSION_3_7_0_20220823=1;
 
 int is_valid_table_name(const char* str)
 {
@@ -1495,7 +1495,7 @@ void update_group2compile_rule(struct Maat_table_schema* table, const char* tabl
 	}
 	if(is_valid_table_name(virtual_table_name))
 	{
-		db_g2c_rule.virtual_table_id=Maat_table_get_id_by_name(table_mgr, virtual_table_name);
+		db_g2c_rule.virtual_table_id=Maat_table_manager_get_id_by_name(table_mgr, virtual_table_name);
 		if(db_g2c_rule.virtual_table_id<0)
 		{
 			//This happens when one data source (e.g. redis) is consumed by multiple Maat instance.
@@ -2301,13 +2301,20 @@ void update_xx_plugin_table(struct Maat_table_schema* table_schema, const char* 
 			return;
 		}
 	}
-	if(table_schema->table_type==TABLE_TYPE_IP_PLUGIN)
+	switch(table_schema->table_type)
 	{
-		Maat_table_runtime_ip_plugin_new_row(table_rt, table_schema, table_row, logger);
-	}
-	else //TABLE_TYPE_FQDN_PLUGIN
-	{
-		Maat_table_runtime_fqdn_plugin_new_row(table_rt, table_schema, table_row, logger);
+		case TABLE_TYPE_IP_PLUGIN:
+			Maat_table_runtime_ip_plugin_new_row(table_rt, table_schema, table_row, logger);
+			break;
+		case TABLE_TYPE_FQDN_PLUGIN:
+			Maat_table_runtime_fqdn_plugin_new_row(table_rt, table_schema, table_row, logger);
+			break;
+		case TABLE_TYPE_BOOL_PLUGIN:
+			Maat_table_runtime_bool_plugin_new_row(table_rt, table_schema, table_row, logger);
+			break;
+		default:
+			assert(0);
+			break;
 	}
 	scanner->xx_plugin_rule_to_update_cnt++;
 	return;
@@ -2361,10 +2368,10 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 				}
 				break;
 			case TABLE_TYPE_PLUGIN:
-				Maat_table_runtime_plugin_update_commit(table_rt);
+				Maat_table_runtime_plugin_commit_update(table_rt);
 				break;
 			case TABLE_TYPE_IP_PLUGIN:				
-				ret=Maat_table_runtime_ip_plugin_rebuild_ip_matcher(table_rt);
+				ret=Maat_table_runtime_ip_plugin_commit_update(table_rt);
 				if(ret<0)
 				{
 					MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
@@ -2374,11 +2381,20 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 
 				break;
 			case TABLE_TYPE_FQDN_PLUGIN:
-				ret=Maat_table_runtime_fqdn_plugin_rebuild_fqdn_engine(table_rt);
+				ret=Maat_table_runtime_fqdn_plugin_commit_update(table_rt);
 				if(ret<0)
 				{
 					MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
 										"FQDN plugin table_id %d build failed.", i);
+
+				}
+				break;
+			case TABLE_TYPE_BOOL_PLUGIN:
+				ret=Maat_table_runtime_bool_plugin_commit_update(table_rt);
+				if(ret<0)
+				{
+					MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+										"Boolean expression plugin table_id %d build failed.", i);
 
 				}
 				break;
@@ -2501,13 +2517,13 @@ int maat_update_cb(const char* table_name,const char* line,void *u_para)
 		scanner=feather->scanner;
 	}
 //	MESA_handle_runtime_log(feather->logger, RLOG_LV_DEBUG, maat_module, "Maat table %s input: %s", table_name, line);
-	p_table=Maat_table_get_desc_by_name(feather->table_mgr, table_name);
+	p_table=Maat_table_manager_get_desc_by_name(feather->table_mgr, table_name);
 	if(!p_table)
 	{
 		MESA_handle_runtime_log(feather->logger, RLOG_LV_INFO, maat_module ,"update warning, unknown table name %s", table_name);
 		return -1;	
 	}
-	Maat_table_set_updating_name(p_table, table_name);
+	Maat_table_schema_set_updating_name(p_table, table_name);
 
 	switch(p_table->table_type)
 	{

@@ -3,7 +3,7 @@
 #include "Maat_rule.h"
 #include "Maat_command.h"
 #include "Maat_limits.h"
-#include "Maat_table.h"
+#include "Maat_table_schema.h"
 #include "Maat_table_runtime.h"
 
 #include <MESA/MESA_htable.h>

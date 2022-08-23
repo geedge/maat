@@ -998,7 +998,7 @@ static struct bool_matcher* Maat_hierarchy_build_bool_matcher(struct Maat_hierar
 								"No bool expression to build.");
 		goto error_out;
 	}
-	bm=bool_matcher_new(bool_expr_array, expr_cnt, hier->thread_num, &mem_size);
+	bm=bool_matcher_new(bool_expr_array, expr_cnt, &mem_size);
 	if(bm!=NULL)
 	{
 		MESA_handle_runtime_log(hier->logger, RLOG_LV_INFO, module_maat_hierarchy,
@@ -1365,7 +1365,7 @@ size_t Maat_hierarchy_get_hit_paths(struct Maat_hierarchy* hier, struct Maat_hie
 		}
 	}
 
-	bool_match_ret=bool_matcher_match(hier->bm, mid->thread_num, 
+	bool_match_ret=bool_matcher_match(hier->bm,
 						(unsigned long long*)utarray_eltptr(mid->_all_hit_clause_array, 0), utarray_len(mid->_all_hit_clause_array),
 						expr_match, MAX_SCANNER_HIT_NUM);
 	for(i=0; i<bool_match_ret; i++)
@@ -1516,7 +1516,7 @@ int Maat_hierarchy_region_compile(struct Maat_hierarchy* hier, struct Maat_hiera
 		mid->this_scan_region_hit_cnt=0;
 		return 0;
 	}
-	bool_match_ret=bool_matcher_match(hier->bm, mid->thread_num, 
+	bool_match_ret=bool_matcher_match(hier->bm,
 						(unsigned long long*)utarray_eltptr(mid->_all_hit_clause_array, 0), utarray_len(mid->_all_hit_clause_array),
 						expr_match, MAX_SCANNER_HIT_NUM);
 	for(i=0; i<bool_match_ret && ud_result_cnt<ud_array_sz; i++)

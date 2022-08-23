@@ -31,9 +31,9 @@ bool operator<(const struct bool_item & lhs, const struct bool_item & rhs)
 	return lhs.item_id<rhs.item_id;
 }
 
-struct bool_matcher * bool_matcher_new(struct bool_expr * exprs, size_t expr_num, unsigned int max_thread_num, size_t * mem_size)
+struct bool_matcher * bool_matcher_new(struct bool_expr * exprs, size_t expr_num, size_t * mem_size)
 {
-	if(exprs==NULL || expr_num==0 || max_thread_num==0) return NULL;
+	if(exprs==NULL || expr_num==0) return NULL;
 
 	unsigned int mem_bytes=0;
 
@@ -145,7 +145,7 @@ int do_match(struct bool_expr_item * expr, unsigned long long * item_ids, size_t
 	return 1;
 }
 
-int bool_matcher_match(struct bool_matcher * matcher, unsigned int thread_id, unsigned long long * item_ids, size_t item_num, struct bool_expr_match * results, size_t n_result)
+int bool_matcher_match(struct bool_matcher * matcher, unsigned long long * item_ids, size_t item_num, struct bool_expr_match * results, size_t n_result)
 {
 	if(matcher==NULL) return -1;
 	if(item_num==0) return 0;

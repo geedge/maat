@@ -12,7 +12,7 @@
 #include "cJSON.h"
 #include "hiredis.h"
 #include "map_str2int.h"
-#include "Maat_table.h"
+#include "Maat_table_schema.h"
 #include "Maat_rule_internal.h"
 #include "Maat_utils.h"
 
