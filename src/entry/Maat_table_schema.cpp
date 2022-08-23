@@ -516,7 +516,7 @@ int read_bool_plugin_table_schema(const char* line, struct Maat_table_schema* p)
 	cJSON_Delete(json);
 
 	free(copy_line);
-	if(read_cnt<4)
+	if(read_cnt<3)
 	{
 		return -1;
 	}

@@ -279,7 +279,7 @@ void ip_plugin_EX_dup_cb(int table_id,	MAAT_PLUGIN_EX_DATA *to, MAAT_PLUGIN_EX_D
 	*to=u;
 }
 
-TEST(IP_Plugin_Table, EX_DATA)
+TEST(IPPlugin, EX_DATA)
 {
 	
 	int ip_plugin_ex_data_counter=0, i=0;
@@ -324,7 +324,7 @@ TEST(IP_Plugin_Table, EX_DATA)
 }
 
 #define FQDN_PLUGIN_EX_DATA
-struct perf_fqdn_plugin_ud
+struct fqdn_plugin_ud
 {
 	int rule_id;
 	int catid;
@@ -334,7 +334,7 @@ void fqdn_plugin_EX_new_cb(int table_id, const char* key, const char* table_line
 {
 	int *counter=(int *)argp, ret=0;
 	size_t column_offset=0, column_len=0;
-	struct perf_fqdn_plugin_ud* ud=(struct perf_fqdn_plugin_ud*)calloc(sizeof(struct perf_fqdn_plugin_ud), 1);
+	struct fqdn_plugin_ud* ud=(struct fqdn_plugin_ud*)calloc(sizeof(struct fqdn_plugin_ud), 1);
 	ret=Maat_helper_read_column(table_line, 1, &column_offset, &column_len);
 	EXPECT_EQ(ret, 0);
 	ud->rule_id=atoi(table_line+column_offset);
@@ -348,7 +348,7 @@ void fqdn_plugin_EX_new_cb(int table_id, const char* key, const char* table_line
 }
 void fqdn_plugin_EX_free_cb(int table_id, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
 {
-	struct perf_fqdn_plugin_ud* u=(struct perf_fqdn_plugin_ud*)(*ad);
+	struct fqdn_plugin_ud* u=(struct fqdn_plugin_ud*)(*ad);
 	if ((__sync_sub_and_fetch(&u->ref_cnt, 1) == 0))
 	{
 		free(u);
@@ -357,11 +357,11 @@ void fqdn_plugin_EX_free_cb(int table_id, MAAT_PLUGIN_EX_DATA* ad, long argl, vo
 }
 void fqdn_plugin_EX_dup_cb(int table_id,	MAAT_PLUGIN_EX_DATA *to, MAAT_PLUGIN_EX_DATA *from, long argl, void *argp)
 {
-	struct perf_fqdn_plugin_ud* u=(struct perf_fqdn_plugin_ud*)(*from);
+	struct fqdn_plugin_ud* u=(struct fqdn_plugin_ud*)(*from);
 	__sync_add_and_fetch(&(u->ref_cnt), 1);
 	*to=u;
 }
-TEST(FQDN_Plugin_Table, EX_DATA)
+TEST(FQDNPlugin, EX_DATA)
 {
 	
 	int fqdn_plugin_ex_data_counter=0, i=0;
@@ -377,7 +377,7 @@ TEST(FQDN_Plugin_Table, EX_DATA)
 	ASSERT_TRUE(ret>=0);
 	EXPECT_EQ(fqdn_plugin_ex_data_counter, 5);
 
-	struct perf_fqdn_plugin_ud* result[4];
+	struct fqdn_plugin_ud* result[4];
 
 	ret=Maat_fqdn_plugin_get_EX_data(g_feather, table_id, "www.example1.com", (void**)result, 4);
 	ASSERT_EQ(ret, 2);
@@ -402,7 +402,96 @@ TEST(FQDN_Plugin_Table, EX_DATA)
 	}
 
 }
+struct bool_plugin_ud
+{
+	int id;
+	char *name;
+	int ref_cnt;
+};
+void bool_plugin_EX_new_cb(int table_id, const char* key, const char* table_line, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
+{
+	int *counter=(int *)argp, ret=0;
+	size_t column_offset=0, column_len=0;
+	struct bool_plugin_ud* ud=(struct bool_plugin_ud*)calloc(sizeof(struct bool_plugin_ud), 1);
+	ret=Maat_helper_read_column(table_line, 1, &column_offset, &column_len);
+	EXPECT_EQ(ret, 0);
+	ud->id=atoi(table_line+column_offset);
+	ret=Maat_helper_read_column(table_line, 3, &column_offset, &column_len);	
+	EXPECT_EQ(ret, 0);
+	ud->name=(char*)malloc(column_len+1);
+	memcpy(ud->name, table_line+column_offset, column_len);
+	ud->ref_cnt=1;
+	*ad=ud;
+	(*counter)++;
+	return;
+}
+void bool_plugin_EX_free_cb(int table_id, MAAT_PLUGIN_EX_DATA* ad, long argl, void *argp)
+{
+	struct bool_plugin_ud* u=(struct bool_plugin_ud*)(*ad);
+	if ((__sync_sub_and_fetch(&u->ref_cnt, 1) == 0))
+	{
+		free(u->name);
+		free(u);
+		*ad=NULL;
+	}
+}
+void bool_plugin_EX_dup_cb(int table_id,	MAAT_PLUGIN_EX_DATA *to, MAAT_PLUGIN_EX_DATA *from, long argl, void *argp)
+{
+	struct bool_plugin_ud* u=(struct bool_plugin_ud*)(*from);
+	__sync_add_and_fetch(&(u->ref_cnt), 1);
+	*to=u;
+}
 
+TEST(BoolPlugin, EX_DATA)
+{
+	int ex_data_counter=0, i=0;
+	const char* table_name="TEST_BOOL_PLUGIN_WITH_EXDATA";
+	int table_id=0, ret=0;
+	table_id=Maat_table_register(g_feather, table_name);
+	ASSERT_GT(table_id, 0);
+	ret=Maat_bool_plugin_EX_register(g_feather, table_id,
+								bool_plugin_EX_new_cb,
+								bool_plugin_EX_free_cb,
+								bool_plugin_EX_dup_cb,
+								0, &ex_data_counter);
+	ASSERT_TRUE(ret>=0);
+	EXPECT_EQ(ex_data_counter, 6);
+
+	struct bool_plugin_ud* result[6];
+	unsigned long long items_1[]={999};
+	ret=Maat_bool_plugin_get_EX_data(g_feather, table_id, items_1, 1, (void**)result, 6);
+	EXPECT_EQ(ret, 0);
+	for(i=0; i<ret; i++)
+	{
+		fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
+
+	unsigned long long items_2[]={1, 2, 1000};
+	ret=Maat_bool_plugin_get_EX_data(g_feather, table_id, items_2, 3, (void**)result, 6);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0]->id, 301);
+	for(i=0; i<ret; i++)
+	{
+		fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
+
+	unsigned long long items_3[]={101, 102, 1000};
+	ret=Maat_bool_plugin_get_EX_data(g_feather, table_id, items_3, 3, (void**)result, 6);
+	EXPECT_EQ(ret, 4);
+	for(i=0; i<ret; i++)
+	{
+		fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
+
+	unsigned long long items_4[]={7, 0, 1, 2, 3, 4, 5, 6, 7, 7, 7};
+	ret=Maat_bool_plugin_get_EX_data(g_feather, table_id, items_4, sizeof(items_4)/sizeof(unsigned long long), (void**)result, 6);
+	EXPECT_EQ(ret, 1);	
+	EXPECT_EQ(result[0]->id, 305);
+	for(i=0; i<ret; i++)
+	{
+		fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
+}
 
 TEST(StringScan, Full)
 {
@@ -3813,11 +3902,80 @@ TEST_F(MaatCmdTest, UpdateFQDNPlugin)
 	ret=Maat_cmd_set_lines(feather, p_line+3, TEST_CMD_LINE_NUM-3, MAAT_OP_DEL);
 	EXPECT_GT(ret, 0);
 	
-	usleep(WAIT_FOR_EFFECTIVE_US*5);
+	usleep(WAIT_FOR_EFFECTIVE_US);
 	ret=Maat_fqdn_plugin_get_EX_data(feather, table_id, "r3---sn-i3belne6.example2.com", (void**)result, 4);
 	ASSERT_EQ(ret, 0);
 
 	return;
+}
+TEST_F(MaatCmdTest, UpdateBoolPlugin)
+{
+#define Bool_Plugin_EX_data
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+
+	int ex_data_counter=0, i=0;
+	const char* table_name="TEST_BOOL_PLUGIN_WITH_EXDATA";
+	int table_id=0, ret=0;
+
+	const int TEST_CMD_LINE_NUM=6;
+	const struct Maat_cmd_line *p_line[TEST_CMD_LINE_NUM];
+	struct Maat_cmd_line line_rule[TEST_CMD_LINE_NUM];
+	const char* table_line[TEST_CMD_LINE_NUM]={
+				"301\t1&2&1000\ttunnel1\t1",
+				"302\t101&102\ttunnel2\t1",
+				"303\t102\ttunnel3\t1",
+				"304\t101\ttunnel4\t1",
+				"305\t0&1&2&3&4&5&6&7\ttunnel5\t1",
+				"306\t101&101\tinvalid\t1"
+		};
+	table_id=Maat_table_register(feather, table_name);
+	ASSERT_GT(table_id, 0);
+	memset(&line_rule,0,sizeof(line_rule));
+	for(i=0;i<TEST_CMD_LINE_NUM;i++)
+	{
+		line_rule[i].label_id=0;
+		line_rule[i].rule_id=(int)Maat_cmd_incrby(feather,"TEST_PLUG_SEQ", 1);
+		line_rule[i].table_name=table_name;
+		line_rule[i].table_line=table_line[i];
+		line_rule[i].expire_after=0;
+		p_line[i]=line_rule+i;
+	}
+	ret=Maat_cmd_set_lines(feather, p_line,TEST_CMD_LINE_NUM, MAAT_OP_ADD);
+	EXPECT_GT(ret, 0);
+
+	usleep(WAIT_FOR_EFFECTIVE_US);
+
+
+	ret=Maat_bool_plugin_EX_register(feather, table_id,
+								bool_plugin_EX_new_cb,
+								bool_plugin_EX_free_cb,
+								bool_plugin_EX_dup_cb,
+								0, &ex_data_counter);
+	ASSERT_TRUE(ret>=0);
+	EXPECT_EQ(ex_data_counter, 6);
+
+	struct bool_plugin_ud* result[6];
+	
+	unsigned long long items_3[]={101, 102, 1000};
+	ret=Maat_bool_plugin_get_EX_data(feather, table_id, items_3, 3, (void**)result, 6);
+	EXPECT_EQ(ret, 4);
+	for(i=0; i<ret; i++)
+	{
+		fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
+
+	ret=Maat_cmd_set_lines(feather, p_line+3, TEST_CMD_LINE_NUM-3, MAAT_OP_DEL);
+	EXPECT_GT(ret, 0);
+	
+	usleep(WAIT_FOR_EFFECTIVE_US);
+
+	ret=Maat_bool_plugin_get_EX_data(feather, table_id, items_3, 3, (void**)result, 6);
+	EXPECT_EQ(ret, 2);
+	for(i=0; i<ret; i++)
+	{
+		fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
+
 }
 #define TEST_GROUP_IN_MASS_COMPILES
 TEST_F(MaatCmdTest, GroupInMassCompiles)

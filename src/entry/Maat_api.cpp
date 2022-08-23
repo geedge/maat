@@ -1365,7 +1365,7 @@ int Maat_fqdn_plugin_get_EX_data(Maat_feather_t feather, int table_id, const cha
 
 	return n_get;
 }
-int Maat_bool_plugin_get_EX_data(Maat_feather_t feather, int table_id, unsigned long long item_id[], size_t n_item, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t n_ex_data)
+int Maat_bool_plugin_get_EX_data(Maat_feather_t feather, int table_id, unsigned long long item_ids[], size_t n_item, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t n_ex_data)
 {
 	struct _Maat_feather_t *_feather=(_Maat_feather_t*)feather;
 	struct Maat_table_schema *table_schema=NULL;
@@ -1388,7 +1388,7 @@ int Maat_bool_plugin_get_EX_data(Maat_feather_t feather, int table_id, unsigned 
 	{
 		return -1;
 	}
-	n_get=Maat_table_runtime_bool_plugin_get_N_ex_data(table_rt, table_schema, item_id, n_item, ex_data_array, n_ex_data);
+	n_get=Maat_table_runtime_bool_plugin_get_N_ex_data(table_rt, table_schema, item_ids, n_item, ex_data_array, n_ex_data);
 
 	if(_feather->perf_on==1)
 	{

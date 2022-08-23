@@ -2373,6 +2373,17 @@
 				"204\t0\tr3---sn-i3belne6.example2.com\tcatid=3\t1",
 				"205\t0\tr3---sn-i3belne6.example2.com\tcatid=3\t1"
             ]
+        },
+        {
+        		"table_name":"TEST_BOOL_PLUGIN_WITH_EXDATA",
+        		"table_content": [
+        			"301\t1&2&1000\ttunnel1\t1",
+        			"302\t101&102\ttunnel2\t1",
+        			"303\t102\ttunnel3\t1",
+        			"304\t101\ttunnel4\t1",
+        			"305\t0&1&2&3&4&5&6&7\ttunnel5\t1",
+        			"306\t101&101\tinvalid\t1"
+        		]
         }
     ]
 }

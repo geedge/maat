@@ -2198,71 +2198,31 @@ error_out:
 	digest_rule=NULL;
 	return;
 }
-void update_plugin_table(struct Maat_table_schema* table_schema, const char* row, Maat_scanner* scanner, const struct rule_tag* tags, int n_tags, void* logger)
-{
-	int ret=1, matched_tag=1;
-	struct plugin_table_schema* plugin_desc=&(table_schema->plugin);
-	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table_schema->table_id);
-	char* copy=NULL;
-	size_t accept_tag_offset=0, accept_tag_len=0;
-	if(plugin_desc->rule_tag_column>0&&n_tags>0)
-	{
-		ret=Maat_helper_read_column(row, plugin_desc->rule_tag_column, &accept_tag_offset, &accept_tag_len);
-		if(ret<0)
-		{
-			MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-						"update error, could not locate tag in column %d of plugin table_schema %s:%s",
-						plugin_desc->rule_tag_column,
-						table_schema->table_name[table_schema->updating_name],
-						row);
-			table_schema->udpate_err_cnt++;
-			return;
-		}
-		if(accept_tag_len>2)
-		{
-			copy=ALLOC(char, accept_tag_len+1);
-			memcpy(copy, row+accept_tag_offset, accept_tag_len);
-			matched_tag=compare_accept_tag(copy, tags, n_tags);
-			if(matched_tag<0)
-			{
-				MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
-							"update error,invalid tag format of plugin table_schema %s:%s"
-							,table_schema->table_name[table_schema->updating_name],row);
-				table_schema->udpate_err_cnt++;
-			}
-			if(matched_tag==0)
-			{
-				table_schema->unmatch_tag_cnt++;
-			}
-			free(copy);
-			copy=NULL;
-		}
-		if(!matched_tag)
-		{
-			return;
-		}
-	}
-	Maat_table_runtime_plugin_new_row(table_rt, table_schema, row, logger);
-}
-void update_xx_plugin_table(struct Maat_table_schema* table_schema, const char* table_row, Maat_scanner* scanner, const struct rule_tag* tags, int n_tags, void* logger)
+void update_generic_plugin_table(struct Maat_table_schema* table_schema, const char* table_row, Maat_scanner* scanner, const struct rule_tag* tags, int n_tags, void* logger)
 {
 	int ret=1, matched_tag=1;
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table_schema->table_id);
 	char* copy=NULL;
 	size_t accept_tag_offset=0, accept_tag_len=0;
 	int rule_tag_column=-1;
-	if(table_schema->table_type==TABLE_TYPE_IP_PLUGIN)
+
+	switch(table_schema->table_type)
 	{
-		rule_tag_column=table_schema->ip_plugin.rule_tag_column;
-	}
-	else if(table_schema->table_type==TABLE_TYPE_FQDN_PLUGIN)
-	{
-		rule_tag_column=table_schema->fqdn_plugin.rule_tag_column;
-	}
-	else
-	{
-		assert(0);
-		return;
+		case TABLE_TYPE_PLUGIN:
+			rule_tag_column=table_schema->plugin.rule_tag_column;
+			break;
+		case TABLE_TYPE_IP_PLUGIN:
+			rule_tag_column=table_schema->ip_plugin.rule_tag_column;
+			break;
+		case TABLE_TYPE_FQDN_PLUGIN:
+			rule_tag_column=table_schema->fqdn_plugin.rule_tag_column;
+			break;
+		case TABLE_TYPE_BOOL_PLUGIN:
+			rule_tag_column=table_schema->bool_plugin.rule_tag_column;
+			break;
+		default:
+			assert(0);
+			break;
 	}
 	if(rule_tag_column>0&&n_tags>0)
 	{
@@ -2303,6 +2263,9 @@ void update_xx_plugin_table(struct Maat_table_schema* table_schema, const char* 
 	}
 	switch(table_schema->table_type)
 	{
+		case TABLE_TYPE_PLUGIN:
+			Maat_table_runtime_plugin_new_row(table_rt, table_schema, table_row, logger);
+			break;
 		case TABLE_TYPE_IP_PLUGIN:
 			Maat_table_runtime_ip_plugin_new_row(table_rt, table_schema, table_row, logger);
 			break;
@@ -2553,11 +2516,10 @@ int maat_update_cb(const char* table_name,const char* line,void *u_para)
 			update_group2group_rule(p_table, line, scanner, feather->table_mgr, feather->logger);
 			break;
 		case	TABLE_TYPE_PLUGIN:
-			update_plugin_table(p_table, line, scanner, feather->accept_tags, feather->n_tags, feather->logger);
-			break;
 		case	TABLE_TYPE_IP_PLUGIN:
 		case	TABLE_TYPE_FQDN_PLUGIN:
-			update_xx_plugin_table(p_table, line, scanner, feather->accept_tags, feather->n_tags, feather->logger);
+		case	TABLE_TYPE_BOOL_PLUGIN:
+			update_generic_plugin_table(p_table, line, scanner, feather->accept_tags, feather->n_tags, feather->logger);
 			break;
 		default:
 			break;

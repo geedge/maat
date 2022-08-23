@@ -107,6 +107,6 @@ int Maat_table_runtime_fqdn_plugin_get_N_ex_data(struct Maat_table_runtime* tabl
 
 void Maat_table_runtime_bool_plugin_new_row(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* row, void *logger);
 int Maat_table_runtime_bool_plugin_commit_update(struct Maat_table_runtime* table_rt);
-int Maat_table_runtime_bool_plugin_get_N_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, unsigned long long item_id[], size_t n_item, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t size);
+int Maat_table_runtime_bool_plugin_get_N_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, unsigned long long item_ids[], size_t n_item, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t size);
 
 

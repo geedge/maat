@@ -63,6 +63,33 @@ void ip_rule_free(struct ip_rule* p)
 	free(p);
 	return;
 }
+static int cmp_ull_p(const void *p1, const void *p2)
+{
+	if(* (unsigned long long*) p1 > * (unsigned long long*) p2)
+	{
+		return 1;
+	}
+	else if(* (unsigned long long*) p1 < * (unsigned long long*) p2)
+	{
+		return -1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+size_t ull_dedup(unsigned long long item_ids[], size_t n_item)
+{
+	qsort(item_ids, n_item, sizeof(unsigned long long), cmp_ull_p);
+
+	size_t J=0;
+	for(size_t i=1; i<n_item; i++)
+	{
+		if(item_ids[i]!=item_ids[J]) item_ids[++J]=item_ids[i];
+	}
+	return J+1;
+}
+
 struct Maat_table_runtime_manager
 {
 	struct Maat_table_runtime** table_rt;
@@ -127,16 +154,18 @@ void fqdn_rule_free(struct FQDN_rule *fqdn_rule)
 	free(fqdn_rule);
 	return;
 }
-struct bool_expr *bool_expr_new(unsigned int id, unsigned long long item_id[], size_t n_item)
+struct bool_expr *bool_expr_new(unsigned int id, unsigned long long item_ids[], size_t n_item)
 {
 	struct bool_expr *expr=ALLOC(struct bool_expr, 1);
 	expr->expr_id=id;
 	size_t i=0;
+	n_item=ull_dedup(item_ids, n_item);
 	for(i=0; i<n_item; i++)
 	{
-		expr->items[i].item_id=item_id[i];
+		expr->items[i].item_id=item_ids[i];
 		expr->items[i].not_flag=0;
 	}
+	expr->item_num=n_item;
 	return expr;
 }
 void bool_expr_free(struct bool_expr *expr)
@@ -656,7 +685,7 @@ void Maat_table_runtime_bool_plugin_new_row(struct Maat_table_runtime* table_rt,
 		if(ret<0)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-									"fqdn_plugin EX data process error: cannot find bool_expr column %d of %s",
+									"bool_plugin EX data process error: cannot find bool_expr column %d of %s",
 									bool_plugin_schema->bool_expr_column, row);
 			return;
 		}
@@ -671,10 +700,10 @@ void Maat_table_runtime_bool_plugin_new_row(struct Maat_table_runtime* table_rt,
 				break;
 			ret=sscanf(sub_token, "%llu", item_id+n_item);
 			n_item++;
-			if(ret!=1||n_item==MAX_ITEMS_PER_BOOL_EXPR)
+			if(ret!=1||n_item>MAX_ITEMS_PER_BOOL_EXPR)
 			{
 				MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
-										"fqdn_plugin EX data process error: invalid format of bool_expr column %d of %s",
+										"bool_plugin EX data process error: invalid format of bool_expr column %d of %s",
 										bool_plugin_schema->bool_expr_column, row);
 				return;
 			}
@@ -682,7 +711,6 @@ void Maat_table_runtime_bool_plugin_new_row(struct Maat_table_runtime* table_rt,
 		if(atoi(row+is_valid_offset)==1)//add
 		{
 			expr=bool_expr_new((unsigned int)atoi(row+row_id_offset), item_id, n_item);
-			if(expr==NULL)
 			ret=EX_data_rt_row2EX_data(bool_plugin_rt->ex_data_rt, row, row+row_id_offset, row_id_len, expr, logger);
 			if(ret<0)
 			{
@@ -743,10 +771,10 @@ int Maat_table_runtime_bool_plugin_commit_update(struct Maat_table_runtime* tabl
 	return ret;
 }
 
-int Maat_table_runtime_bool_plugin_get_N_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, unsigned long long item_id[], size_t n_item, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t size)
+int Maat_table_runtime_bool_plugin_get_N_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, unsigned long long item_ids[], size_t n_item, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t size)
 {
 	struct bool_expr_match results[size];
-	int n_result=0, i=0;
+	int n_result=0;
 	if(table_rt->table_type!=TABLE_TYPE_BOOL_PLUGIN)
 	{
 		return -1;
@@ -755,8 +783,10 @@ int Maat_table_runtime_bool_plugin_get_N_ex_data(struct Maat_table_runtime* tabl
 	{
 		return 0;
 	}
-	n_result=bool_matcher_match(table_rt->bool_plugin.matcher,  item_id, n_item, results, size);
-	for(i=0; i<n_result; i++)
+	n_item=ull_dedup(item_ids, n_item);
+
+	n_result=bool_matcher_match(table_rt->bool_plugin.matcher,  item_ids, n_item, results, size);
+	for(int i=0; i<n_result; i++)
 	{
 		ex_data_array[i]=EX_data_rt_get_EX_data_by_container(table_rt->bool_plugin.ex_data_rt, (struct EX_data_container *)results[i].user_tag);
 	}

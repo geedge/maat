@@ -183,7 +183,7 @@ enum MAAT_TABLE_TYPE type_region2table(const struct Maat_region_t* p)
 	}
 	return ret;
 }
-int get_valid_flag_offset(const char* line, enum MAAT_TABLE_TYPE type,int valid_column_seq)
+int get_valid_flag_offset(const char* line, enum MAAT_TABLE_TYPE type, int valid_column_seq)
 {
  	size_t offset=0, len=0;
 	unsigned int column_seq=0, ret=0;
@@ -204,6 +204,7 @@ int get_valid_flag_offset(const char* line, enum MAAT_TABLE_TYPE type,int valid_
 		case	TABLE_TYPE_PLUGIN:
 		case	TABLE_TYPE_IP_PLUGIN:
 		case	TABLE_TYPE_FQDN_PLUGIN:
+		case	TABLE_TYPE_BOOL_PLUGIN:
 			if(valid_column_seq<0)
 			{
 				return -1;
@@ -2019,10 +2020,10 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_cmd_line** line_
 		valid_flag_column=Maat_table_schema_get_valid_flag_column(p_table);
 		if(valid_flag_column<0)
 		{
-			MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_command 
-					,"Command set line id %d failed: table %s is not a plugin or ip_plugin table."
-					, line_rule[i]->rule_id
-					, line_rule[i]->table_name);
+			MESA_handle_runtime_log(_feather->logger, RLOG_LV_FATAL, maat_command, 
+					"Command set line id %d failed: table %s is not a plugin or ip_plugin table.",
+					line_rule[i]->rule_id,
+					line_rule[i]->table_name);
 			ret=-1;
 			goto error_out;
 
@@ -2030,15 +2031,15 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_cmd_line** line_
 
 		if(op==MAAT_OP_ADD)
 		{
-			ret=get_valid_flag_offset(line_rule[i]->table_line
-				, p_table->table_type
-				, valid_flag_column);
+			ret=get_valid_flag_offset(line_rule[i]->table_line,
+									p_table->table_type,
+									valid_flag_column);
 			if(ret<0||
 				(op==MAAT_OP_ADD&&line_rule[i]->table_line[ret]!='1'))
 			{
-				MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_command 
-						,"Command set line %s %d failed: illegal valid flag."
-						, line_rule[i]->table_name, line_rule[i]->rule_id);
+				MESA_handle_runtime_log(_feather->logger, RLOG_LV_FATAL, maat_command,
+						"Command set line %s %d failed: illegal valid flag.",
+						line_rule[i]->table_name, line_rule[i]->rule_id);
 				ret=-1;
 				goto error_out;
 			}
@@ -2058,18 +2059,18 @@ int Maat_cmd_set_lines(Maat_feather_t feather,const struct Maat_cmd_line** line_
 				p_foreign=find_Nth_column(line_rule[i]->table_line, plugin_desc->foreign_columns[j], &foreign_key_size);
 				if(p_foreign==NULL)
 				{
-					MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL, maat_command
-											, "Command set line %s %d failed: No %dth column."
-											, line_rule[i]->table_name, line_rule[i]->rule_id
-											, plugin_desc->foreign_columns[j]);
+					MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL, maat_command,
+											"Command set line %s %d failed: No %dth column.",
+											line_rule[i]->table_name, line_rule[i]->rule_id,
+											plugin_desc->foreign_columns[j]);
 					ret=-1;
 					goto error_out;
 				}
 				if(0!=strncmp(p_foreign, foreign_source_prefix, strlen(foreign_source_prefix)))
 				{
-					MESA_handle_runtime_log(_feather->logger,RLOG_LV_FATAL,maat_redis_monitor
-											,"Command set line %s %d failed: Source prefix %s is mandatory."
-											, line_rule[i]->table_name, line_rule[i]->rule_id, foreign_source_prefix);
+					MESA_handle_runtime_log(_feather->logger, RLOG_LV_FATAL, maat_redis_monitor,
+											"Command set line %s %d failed: Source prefix %s is mandatory.",
+											line_rule[i]->table_name, line_rule[i]->rule_id, foreign_source_prefix);
 					ret=-1;
 					goto error_out;
 				}
@@ -2135,7 +2136,7 @@ int Maat_cmd_set_file(Maat_feather_t feather,const char* key, const char* value,
 			reply= (redisReply *)redisCommandArgv(ctx, sizeof(arg_vec) / sizeof(arg_vec[0]), arg_vec, len_vec);
 			break;
 		case MAAT_OP_DEL:	
-			reply=_wrap_redisCommand(ctx,"EXPIRE %s %d", key, MAAT_REDIS_SYNC_TIME);
+			reply=_wrap_redisCommand(ctx, "EXPIRE %s %d", key, MAAT_REDIS_SYNC_TIME);
 			break;
 		default:
 			return -1;
@@ -2164,7 +2165,7 @@ long long Maat_cmd_incrby(Maat_feather_t feather,const char* key, int increment)
 	{
 		return -1;
 	}
-	data_reply=_wrap_redisCommand(write_ctx,"INCRBY %s %d", key, increment); 
+	data_reply=_wrap_redisCommand(write_ctx, "INCRBY %s %d", key, increment); 
 	if(data_reply->type==REDIS_REPLY_INTEGER)
 	{
 		result=data_reply->integer;
