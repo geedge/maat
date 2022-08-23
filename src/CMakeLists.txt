@@ -19,7 +19,7 @@ set_target_properties(maat_frame_static PROPERTIES OUTPUT_NAME maatframe)
 set_target_properties(maat_frame_static PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 target_include_directories(maat_frame_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc_internal/)
 #target_include_directories(maat_frame_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc_internal/hiredis)
-target_link_libraries(maat_frame_static hiredis-vip-static)
+target_link_libraries(maat_frame_static hiredis-static)
 target_link_libraries(maat_frame_static igraph-static)
 target_link_libraries(maat_frame_static ipmatcher-static)
 
@@ -33,7 +33,7 @@ set_target_properties(maat_frame_shared PROPERTIES SOVERSION ${MAAT_FRAME_MAJOR_
 set_target_properties(maat_frame_shared PROPERTIES LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_LIST_DIR}/version.map")
 target_include_directories(maat_frame_shared PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc_internal/)
 target_include_directories(maat_frame_shared PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc_internal/hiredis)
-target_link_libraries(maat_frame_shared hiredis-vip-static ${MAAT_DEPEND_DYN_LIB})
+target_link_libraries(maat_frame_shared hiredis-static ${MAAT_DEPEND_DYN_LIB})
 target_link_libraries(maat_frame_shared igraph-static ${MAAT_DEPEND_DYN_LIB})
 target_link_libraries(maat_frame_shared ipmatcher-static)
 

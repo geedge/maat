@@ -414,7 +414,7 @@ void set_serial_rule(struct serial_rule_t* rule, enum MAAT_OPERATION op, unsigne
 int get_inc_key_list(long long instance_version, long long target_version, redisContext *c, struct serial_rule_t** list,void* logger)
 {
 	redisReply* reply=NULL,*tmp_reply=NULL;
-	char err_buff[256],	op_str[4];
+	char op_str[4];
 	int rule_num=0;
 	UNUSED int ret=0;
 	unsigned int  i=0, j=0;
@@ -427,9 +427,8 @@ int get_inc_key_list(long long instance_version, long long target_version, redis
 
 	if(reply==NULL)
 	{
-		__redis_strerror_r(errno,err_buff,sizeof(err_buff)-1);
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
-				"GET %s failed %s.",mr_status_sset,err_buff);
+				"GET %s failed with a NULL reply, error: %s.", mr_status_sset, c->errstr);
 		return -1;
 	}	
 	assert(reply->type==REDIS_REPLY_ARRAY);
@@ -441,11 +440,11 @@ int get_inc_key_list(long long instance_version, long long target_version, redis
 		return 0;
 	}
 
-	tmp_reply=_wrap_redisCommand(c, "ZSCORE %s %s",mr_status_sset,reply->element[0]->str);
+	tmp_reply=_wrap_redisCommand(c, "ZSCORE %s %s", mr_status_sset,reply->element[0]->str);
 	if(tmp_reply->type!=REDIS_REPLY_STRING)
 	{
 		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor,
-					"ZSCORE %s %s failed Version: %lld->%lld",mr_status_sset,reply->element[0]->str,instance_version, target_version);
+					"ZSCORE %s %s failed Version: %lld->%lld", mr_status_sset, reply->element[0]->str, instance_version, target_version);
 		freeReplyObject(tmp_reply);
 		tmp_reply=NULL;
 		freeReplyObject(reply);
@@ -462,17 +461,17 @@ int get_inc_key_list(long long instance_version, long long target_version, redis
 	if(nearest_rule_version!=instance_version+1)
 	{
 		MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor,
-				"Noncontinuous VERSION Redis: %lld MAAT: %lld.",nearest_rule_version,instance_version);
+				"Noncontinuous VERSION Redis: %lld MAAT: %lld.", nearest_rule_version, instance_version);
 	}
-	s_rule=(struct serial_rule_t*)calloc(reply->elements,sizeof(struct serial_rule_t));
+	s_rule=ALLOC(struct serial_rule_t, reply->elements);
 	for(i=0, j=0;i<reply->elements;i++)
 	{
 		assert(reply->element[i]->type==REDIS_REPLY_STRING);
-		ret=sscanf(reply->element[i]->str,"%[^,],%[^,],%lu",op_str,s_rule[j].table_name,&(s_rule[j].rule_id));
+		ret=sscanf(reply->element[i]->str,"%[^,],%[^,],%lu", op_str, s_rule[j].table_name, &(s_rule[j].rule_id));
 		if(ret!=3||s_rule[i].rule_id<0)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
-					"Invalid Redis Key: %s",reply->element[i]->str);
+					"Invalid Redis Key: %s", reply->element[i]->str);
 			continue;
 		}
 		if(strncmp(op_str,"ADD",strlen("ADD"))==0)
@@ -486,7 +485,7 @@ int get_inc_key_list(long long instance_version, long long target_version, redis
 		else
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
-					"Invalid Redis Key: %s",reply->element[i]->str);
+					"Invalid Redis Key: %s", reply->element[i]->str);
 			continue;
 		}
 		j++;
@@ -579,7 +578,6 @@ error_out:
 int get_rm_key_list(redisContext *c, long long instance_version, long long desired_version, long long* new_version, struct Maat_table_manager* table_mgr, struct serial_rule_t** list,int *update_type, void* logger, int cumulative_off)
 {
 	redisReply* reply=NULL,*sub_reply=NULL;
-	char err_buff[256];
 	long long redis_version=0,target_version=0;
 	int rule_num=0, changed_rule_num=0, table_id=0;
 	int ret=0;
@@ -592,7 +590,7 @@ int get_rm_key_list(redisContext *c, long long instance_version, long long desir
 
 		if(reply->type==REDIS_REPLY_NIL||reply->type==REDIS_REPLY_ERROR)
 		{
-			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,"GET MAAT_VERSION failed, maybe Redis is busy.");
+			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor, "GET MAAT_VERSION failed, maybe Redis is busy.");
 			freeReplyObject(reply);
 			reply=NULL;
 			return -1;
@@ -600,10 +598,8 @@ int get_rm_key_list(redisContext *c, long long instance_version, long long desir
 	}
 	else
 	{
-		memset(err_buff, 0, sizeof(err_buff));
-		__redis_strerror_r(errno, err_buff, sizeof(err_buff)-1);
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
-				"GET MAAT_VERSION failed %s.",err_buff);
+				"GET MAAT_VERSION failed with NULL reply, error: %s.", c->errstr);
 		return -1;
 	}
 	redis_version=read_redis_integer(reply);
@@ -612,7 +608,7 @@ int get_rm_key_list(redisContext *c, long long instance_version, long long desir
 		if(reply->type==REDIS_REPLY_ERROR)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
-			"Redis Communication error: %s.",reply->str);
+			"Redis Communication error: %s.", reply->str);
 		}
 		return -1;
 	}
@@ -630,7 +626,7 @@ int get_rm_key_list(redisContext *c, long long instance_version, long long desir
 	if(redis_version<instance_version)
 	{
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
-				"VERSION roll back MAAT: %lld -> Redis: %lld.",instance_version,redis_version);
+				"VERSION roll back MAAT: %lld -> Redis: %lld.", instance_version, redis_version);
 		goto FULL_UPDATE;
 	}
 	if(redis_version>instance_version&&cumulative_off==1)
@@ -660,12 +656,12 @@ int get_rm_key_list(redisContext *c, long long instance_version, long long desir
 	}while(rule_num==0&&target_version<=redis_version&&cumulative_off==1);
 	if(rule_num==0)
 	{
-		MESA_handle_runtime_log(logger, RLOG_LV_DEBUG, maat_redis_monitor,"Got nothing after ZRANGEBYSCORE %s (%lld %lld, cumulative %s"
-							,mr_status_sset,instance_version,target_version-1,cumulative_off==1?"OFF":"ON");
+		MESA_handle_runtime_log(logger, RLOG_LV_DEBUG, maat_redis_monitor, "Got nothing after ZRANGEBYSCORE %s (%lld %lld, cumulative %s",
+							mr_status_sset, instance_version, target_version-1, cumulative_off==1?"OFF":"ON");
 		return 0;
 	}
 	MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_redis_monitor,
-			"Inc Update from instance_version %lld to %lld (%d entries).",instance_version,target_version,rule_num);
+			"Inc Update from instance_version %lld to %lld (%d entries).", instance_version,target_version,rule_num);
 	*list=s_rule_array;
 	*update_type=CM_UPDATE_TYPE_INC;
 	*new_version=target_version;
@@ -673,7 +669,7 @@ int get_rm_key_list(redisContext *c, long long instance_version, long long desir
 
 FULL_UPDATE:
 	MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
-			"Initiate full udpate from instance_version %d to %lld.",instance_version,desired_version==0?redis_version:desired_version);
+			"Initiate full udpate from instance_version %d to %lld.", instance_version, desired_version==0?redis_version:desired_version);
 	append_cmd_cnt=0;
 	ret=redisAppendCommand(c, "MULTI");
 	append_cmd_cnt++;
@@ -692,7 +688,7 @@ FULL_UPDATE:
 	if(reply==NULL)
 	{
 		MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
-				"Redis Communication error: %s.",c->errstr);
+				"Redis Communication error: %s.", c->errstr);
 		return -1;
 	}
 	if(reply->type!=REDIS_REPLY_ARRAY)

@@ -15,21 +15,20 @@ set_property(TARGET gtest PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/libgtest
 set_property(TARGET gtest PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
 set_property(TARGET gtest PROPERTY INTERFACE_LINK_LIBRARIES pthread)
 
-ExternalProject_Add(hiredis-vip PREFIX hiredis-vip
-        URL ${CMAKE_CURRENT_SOURCE_DIR}/hiredis-vip-0.3.0.tar.gz
-        URL_MD5 e4d4a2928188b11f696d35ca1c52e9a4
+ExternalProject_Add(hiredis PREFIX hiredis	
+        URL ${CMAKE_CURRENT_SOURCE_DIR}/hiredis-1.0.2.tar.gz
         CONFIGURE_COMMAND ""
         BUILD_COMMAND make
         INSTALL_COMMAND ""
         BUILD_IN_SOURCE 1)
 
-ExternalProject_Get_Property(hiredis-vip SOURCE_DIR)
+ExternalProject_Get_Property(hiredis SOURCE_DIR)
 set(HIREDIS_INCLUDE_DIRECTORIES ${SOURCE_DIR})
 file(MAKE_DIRECTORY ${HIREDIS_INCLUDE_DIRECTORIES})
 
-add_library(hiredis-vip-static STATIC IMPORTED GLOBAL)
-set_property(TARGET hiredis-vip-static PROPERTY IMPORTED_LOCATION ${SOURCE_DIR}/libhiredis_vip.a)
-set_property(TARGET hiredis-vip-static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${SOURCE_DIR})
+add_library(hiredis-static STATIC IMPORTED GLOBAL)
+set_property(TARGET hiredis-static PROPERTY IMPORTED_LOCATION ${SOURCE_DIR}/libhiredis.a)
+set_property(TARGET hiredis-static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${SOURCE_DIR})
 
 ExternalProject_Add(igraph PREFIX igraph
         URL ${CMAKE_CURRENT_SOURCE_DIR}/igraph-0.7.1.tar.gz

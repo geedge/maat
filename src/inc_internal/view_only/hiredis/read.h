@@ -16,14 +16,14 @@
  *     to endorse or promote products derived from this software without
  *     specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS EXPR_TYPE_AND CONTRIBUTORS "AS IS"
- * EXPR_TYPE_AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY EXPR_TYPE_AND FITNESS FOR A PARTICULAR PURPOSE
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED EXPR_TYPE_AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
@@ -38,17 +38,15 @@
 #define REDIS_OK 0
 
 /* When an error occurs, the err flag in a context is set to hold the type of
- * error that occured. REDIS_ERR_IO means there was an I/O error and you
+ * error that occurred. REDIS_ERR_IO means there was an I/O error and you
  * should use the "errno" variable to find out what is wrong.
  * For other values, the "errstr" field will hold a description. */
 #define REDIS_ERR_IO 1 /* Error in read or write */
 #define REDIS_ERR_EOF 3 /* End of file */
 #define REDIS_ERR_PROTOCOL 4 /* Protocol error */
 #define REDIS_ERR_OOM 5 /* Out of memory */
+#define REDIS_ERR_TIMEOUT 6 /* Timed out */
 #define REDIS_ERR_OTHER 2 /* Everything else... */
-#if 1 //shenzheng 2015-8-10 redis cluster
-#define REDIS_ERR_CLUSTER_TOO_MANY_REDIRECT 6
-#endif //shenzheng 2015-8-10 redis cluster
 
 #define REDIS_REPLY_STRING 1
 #define REDIS_REPLY_ARRAY 2
@@ -56,18 +54,20 @@
 #define REDIS_REPLY_NIL 4
 #define REDIS_REPLY_STATUS 5
 #define REDIS_REPLY_ERROR 6
+#define REDIS_REPLY_DOUBLE 7
+#define REDIS_REPLY_BOOL 8
+#define REDIS_REPLY_MAP 9
+#define REDIS_REPLY_SET 10
+#define REDIS_REPLY_ATTR 11
+#define REDIS_REPLY_PUSH 12
+#define REDIS_REPLY_BIGNUM 13
+#define REDIS_REPLY_VERB 14
 
-#define REDIS_READER_MAX_BUF (1024*16)  /* Default max unused reader buffer. */
+/* Default max unused reader buffer. */
+#define REDIS_READER_MAX_BUF (1024*16)
 
-#if 1 //shenzheng 2015-8-22 redis cluster
-#define REDIS_ERROR_MOVED 			"MOVED"
-#define REDIS_ERROR_ASK 			"ASK"
-#define REDIS_ERROR_TRYAGAIN 		"TRYAGAIN"
-#define REDIS_ERROR_CROSSSLOT 		"CROSSSLOT"
-#define REDIS_ERROR_CLUSTERDOWN 	"CLUSTERDOWN"
-
-#define REDIS_STATUS_OK 			"OK"
-#endif //shenzheng 2015-9-24 redis cluster
+/* Default multi-bulk element limit */
+#define REDIS_READER_MAX_ARRAY_ELEMENTS ((1LL<<32) - 1)
 
 #ifdef __cplusplus
 extern "C" {
@@ -75,7 +75,7 @@ extern "C" {
 
 typedef struct redisReadTask {
     int type;
-    int elements; /* number of elements in multibulk container */
+    long long elements; /* number of elements in multibulk container */
     int idx; /* index in parent (array) object */
     void *obj; /* holds user-generated value for a read task */
     struct redisReadTask *parent; /* parent task */
@@ -84,9 +84,11 @@ typedef struct redisReadTask {
 
 typedef struct redisReplyObjectFunctions {
     void *(*createString)(const redisReadTask*, char*, size_t);
-    void *(*createArray)(const redisReadTask*, int);
+    void *(*createArray)(const redisReadTask*, size_t);
     void *(*createInteger)(const redisReadTask*, long long);
+    void *(*createDouble)(const redisReadTask*, double, char*, size_t);
     void *(*createNil)(const redisReadTask*);
+    void *(*createBool)(const redisReadTask*, int);
     void (*freeObject)(void*);
 } redisReplyObjectFunctions;
 
@@ -98,8 +100,11 @@ typedef struct redisReader {
     size_t pos; /* Buffer cursor */
     size_t len; /* Buffer length */
     size_t maxbuf; /* Max length of unused buffer */
+    long long maxelements; /* Max multi-bulk elements */
 
-    redisReadTask rstack[9];
+    redisReadTask **task;
+    int tasks;
+
     int ridx; /* Index of current read task */
     void *reply; /* Temporary reply pointer */
 
@@ -113,14 +118,9 @@ void redisReaderFree(redisReader *r);
 int redisReaderFeed(redisReader *r, const char *buf, size_t len);
 int redisReaderGetReply(redisReader *r, void **reply);
 
-/* Backwards compatibility, can be removed on big version bump. */
-#define redisReplyReaderCreate redisReaderCreate
-#define redisReplyReaderFree redisReaderFree
-#define redisReplyReaderFeed redisReaderFeed
-#define redisReplyReaderGetReply redisReaderGetReply
-#define redisReplyReaderSetPrivdata(_r, _p) (int)(((redisReader*)(_r))->privdata = (_p))
-#define redisReplyReaderGetObject(_r) (((redisReader*)(_r))->reply)
-#define redisReplyReaderGetError(_r) (((redisReader*)(_r))->errstr)
+#define redisReaderSetPrivdata(_r, _p) (int)(((redisReader*)(_r))->privdata = (_p))
+#define redisReaderGetObject(_r) (((redisReader*)(_r))->reply)
+#define redisReaderGetError(_r) (((redisReader*)(_r))->errstr)
 
 #ifdef __cplusplus
 }
