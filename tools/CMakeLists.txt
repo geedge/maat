@@ -13,4 +13,4 @@ add_dependencies(maat_debug_tool maat_frame_shared)
 target_link_libraries(maat_debug_tool maat_frame_static ${MAAT_DEPEND_DYN_LIB})
 target_include_directories(maat_debug_tool PRIVATE ${PROJECT_SOURCE_DIR}/src/inc_internal/)
 
-install(TARGETS maat_redis_tool DESTINATION /usr/local/bin/)
+install(TARGETS maat_redis_tool DESTINATION /usr/local/bin/ COMPONENT TOOLS)
