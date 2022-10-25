@@ -5,8 +5,8 @@
 *	Her feather was the measure that determined whether the souls (considered 
 *	to reside in the heart) of the departed would reach the paradise of afterlife
 *	successfully.
-*	Author: zhengchao, MESA
-*	Version 2020-06-13 version 3.0.0
+*	Author: contact@zhengchao.io
+*	Version 2022-10-24 version 4.0.0
 *********************************************************
 */
 #ifndef H_MAAT_RULE_H_INCLUDE

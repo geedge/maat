@@ -1418,7 +1418,7 @@ int Maat_full_scan_string_detail(Maat_feather_t feather, int table_id,
 
 	scan_result_t *region_result=NULL;
 	struct Maat_table_schema *p_table=NULL;
-	struct expr_table_schema* expr_desc=NULL;
+	struct string_table_schema* expr_desc=NULL;
 	struct timespec start,end;
 	Maat_scanner* my_scanner=NULL;
 
@@ -2022,7 +2022,7 @@ stream_para_t Maat_stream_scan_string_start(Maat_feather_t feather,int table_id,
 		return NULL;
 	}
 	
-	struct expr_table_schema* expr_desc=&(p_table->expr);
+	struct string_table_schema* expr_desc=&(p_table->expr);
 	struct _stream_para_t* sp=ALLOC(struct _stream_para_t ,1);
 	scanner=_feather->scanner;
 	sp->feather=_feather;

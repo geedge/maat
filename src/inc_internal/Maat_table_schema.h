@@ -82,7 +82,7 @@ struct compile_table_schema
 	struct compile_ex_data_idx ex_desc[MAX_COMPILE_EX_DATA_NUM];
 };
 
-struct expr_table_schema
+struct string_table_schema
 {
 	enum MAAT_CHARSET src_charset;
 	enum MAAT_CHARSET dst_charset[MAX_CHARSET_NUM];
@@ -170,7 +170,7 @@ struct Maat_table_schema
 	union
 	{
 		struct compile_table_schema compile;		
-		struct expr_table_schema expr;
+		struct string_table_schema expr;
 		struct plugin_table_schema plugin;		
 		struct ip_plugin_table_schema ip_plugin;
 		struct fqdn_plugin_table_schema fqdn_plugin;

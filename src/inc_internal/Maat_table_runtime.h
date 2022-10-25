@@ -38,6 +38,14 @@ struct ip_plugin_runtime
 	size_t mem_use_by_ip_matcher;
 	int changed_flag;
 };
+struct expr_ng_runtime
+{
+	struct EX_data_rt* ex_data_rt;
+	hs_database_t *hs_pure_literal_db;
+	hs_database_t *hs_regex_db;
+	struct bool_matcher *logical_matcher;
+	int changed_flag;
+};
 struct expr_runtime
 {
 	long long expr_rule_cnt;	//expr_type=0,1,3

@@ -95,8 +95,8 @@ int is_valid_match_method(enum MAAT_MATCH_METHOD match_method)
 	switch(match_method)
 	{
 		case MATCH_METHOD_SUB:
-		case MATCH_METHOD_RIGHT:
-		case MATCH_METHOD_LEFT:
+		case MATCH_METHOD_SUFFIX:
+		case MATCH_METHOD_PREFIX:
 		case MATCH_METHOD_COMPLETE:
 			return 1;
 		default:
@@ -626,10 +626,10 @@ scan_rule_t* create_rs_str_rule(unsigned int sub_type,enum MAAT_MATCH_METHOD mat
 		case MATCH_METHOD_COMPLETE:
 			p_rule->string_rule.match_mode=1;
 			break;
-		case MATCH_METHOD_LEFT:
+		case MATCH_METHOD_PREFIX:
 			p_rule->string_rule.l_offset=-2;
 			break;
-		case MATCH_METHOD_RIGHT:
+		case MATCH_METHOD_SUFFIX:
 			p_rule->string_rule.r_offset=-2;
 			break;
 		case MATCH_METHOD_SUB:
@@ -1079,14 +1079,123 @@ void Maat_region_inner_add_expr_id(struct Maat_region_inner* region, int expr_id
 	return;
 }
 
+int add_expr_ng_rule(struct Maat_table_schema* table, struct db_expr_rule_t* db_rule, struct Maat_scanner *scanner, void* logger)
+{
+	int district_id=-1;
+	if(table->table_type==TABLE_TYPE_EXPR_PLUS)
+	{
+		assert(strlen(db_rule->district)>0);
+		str_unescape(db_rule->district);
+		district_id=get_district_id(scanner, db_rule->district);
+	}
+	struct hs_expression *hs_expr=ALLOC(struct hs_expression, 1);
+	struct hs_pattern *sub_pattern=NULL;
+	int i=0, j=0, ret=0;
+	int sub_expr_cnt=0;
+	char *p=NULL, *saveptr=NULL, *region_string=NULL;
+	char *tmp=NULL, *tmp_pattern=NULL;
+	hs_expr->type=db_rule->expr_type;
+	struct Maat_region_inner* user_tag=NULL;
 
-int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,struct Maat_scanner *scanner,void* logger)
+	switch(db_rule->expr_type)
+	{
+		case EXPR_TYPE_AND:
+		case EXPR_TYPE_OFFSET:
+			for(i=0, p=db_rule->keywords; ; i++,p=NULL)
+			{
+				tmp=strtok_r_esc(p, '&', &saveptr);
+				if(tmp==NULL)
+				{
+					break;
+				}
+				if(i>=MAAT_MAX_EXPR_ITEM_NUM)
+				{
+					MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+							"Table %s region cfg %d too many expr.", table->table_name[table->updating_name], db_rule->region_id);
+					goto error_out;
+				}
+				if(strlen(tmp)==0) continue;
+				sub_pattern=hs_expr->sub_patterns[hs_expr->n_sub_pattern];
+				tmp_pattern=tmp;
+				if(db_rule->expr_type==EXPR_TYPE_OFFSET)
+				{
+					sscanf(tmp, "%d-%d:", &(sub_pattern->start_offset),&(sub_pattern->end_offset));
+					tmp_pattern=(char*)memchr(tmp_pattern, ':', strlen(tmp_pattern));
+					if(tmp_pattern==NULL)
+					{
+						MESA_handle_runtime_log(logger,RLOG_LV_FATAL,maat_module ,
+								"Table %s region cfg %d invalid offset keyword format.", table->table_name[table->updating_name], db_rule->region_id);
+						goto error_out;
+					}
+					tmp_pattern++;//skip ':'
+				}
+				else
+				{
+					sub_pattern->start_offset=sub_pattern->end_offset=-1;
+				}
+				sub_pattern->pattern=_maat_strdup(tmp_pattern);
+				str_unescape(hs_expr->sub_patterns[i].pattern);
+				hs_expr->n_sub_pattern++;
+			}
+			break;	
+		case EXPR_TYPE_REGEX:
+		case EXPR_TYPE_STRING:
+			hs_expr->n_sub_pattern=1;
+			switch(db_rule->match_method)
+			{
+				case MATCH_METHOD_COMPLETE:
+					hs_expr->sub_patterns[0].start_offset=-2;
+					hs_expr->sub_patterns[0].end_offset=-2;
+					break;
+				case MATCH_METHOD_PREFIX:
+					hs_expr->sub_patterns[0].start_offset=-2;
+					hs_expr->sub_patterns[0].end_offset=-1;
+					break;
+				case MATCH_METHOD_SUFFIX:
+					hs_expr->sub_patterns[0].start_offset=-1;
+					hs_expr->sub_patterns[0].end_offset=-2;
+					break;
+				case MATCH_METHOD_SUB:
+					hs_expr->sub_patterns[0].start_offset=-1;
+					hs_expr->sub_patterns[0].end_offset=-1;
+					break;
+				default:
+					assert(0);
+					break;
+			}
+			hs_expr->sub_patterns[0].pattern=_maat_strdup(tmp);
+			str_unescape(hs_expr->sub_patterns[0].pattern);
+			break;
+		default:
+			break;
+	}
+	user_tag=Maat_region_inner_new(db_rule->group_id, db_rule->region_id, table->table_id, district_id);
+	ret=Maat_hierarchy_add_region_to_group(scanner->hier, db_rule->group_id, db_rule->region_id, table->table_id, user_tag);
+	if(ret!=0)
+	{
+		goto error_out;
+	}
+	hs_expr->user_tag=user_tag;
+	for(i=0; i<hs_expr->n_sub_pattern; i++)
+	{
+		if(db_rule->is_hexbin)
+		{
+			hex2bin(hs_expr->sub_patterns[i].pattern, int hex_len, char * binary, int size)
+		}
+	}
+error_out:
+
+	free(hs_expr);
+	if(user_tag) Maat_region_inner_free(user_tag);
+	return -1;
+}
+int add_expr_rule(struct Maat_table_schema* table,struct db_expr_rule_t* db_rule,struct Maat_scanner *scanner,void* logger)
 {
 	unsigned int i=0,j=0;
 	char* p=NULL,*saveptr=NULL,*region_string=NULL;
 	int region_str_len=0,ret=0,k=0;
 	int expr_id=0,district_id=-1;
-	struct expr_table_schema* expr_desc=&(table->expr);
+	struct string_table_schema* expr_desc=&(table->expr);
 	scan_rule_t*p_rule=NULL;
 
 	enum MAAT_CHARSET dst_charset=CHARSET_NONE;
@@ -1573,7 +1682,7 @@ void update_group2group_rule(struct Maat_table_schema* table, const char* table_
 }
 void update_expr_rule(struct Maat_table_schema* table,const char* table_line,struct Maat_scanner *scanner,void* logger)
 {
-	struct db_str_rule_t* maat_str_rule=ALLOC(struct db_str_rule_t, 1);
+	struct db_expr_rule_t* maat_str_rule=ALLOC(struct db_expr_rule_t, 1);
 	int ret=0,db_hexbin=0,rule_type=0;
 	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
 	switch(table->table_type)

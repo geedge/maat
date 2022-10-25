@@ -66,7 +66,7 @@ int read_expr_table_info(const char* line, struct Maat_table_schema* table, stru
 	int j=0, ret[4]={0};
 	char table_type[16], src_charset[256], dst_charset[256], merge[4], quick_str_scan[32]={0};
 	char *token=NULL, *sub_token=NULL, *saveptr;
-	struct expr_table_schema* p=&(table->expr);
+	struct string_table_schema* p=&(table->expr);
 	sscanf(line, "%d\t%s\t%s\t%s\t%s\t%s\t%d\t%s",&(table->table_id),
 											table->table_name[0],
 											table_type,

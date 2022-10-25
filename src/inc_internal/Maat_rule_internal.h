@@ -34,7 +34,7 @@ typedef	void*	rule_scanner_t;
 
 
 
-struct db_str_rule_t
+struct db_expr_rule_t
 {
 	int region_id;
 	int group_id;
