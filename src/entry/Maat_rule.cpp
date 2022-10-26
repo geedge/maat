@@ -523,26 +523,6 @@ error_out:
 	return ret;
 }
 
-void * HASH_fetch_by_id(MESA_htable_handle hash,int id)
-{
-	return MESA_htable_search(hash,(unsigned char*)&(id),sizeof(id));
-}
-int HASH_add_by_id(MESA_htable_handle hash,int id,void*data)
-{
-	int ret=0;
-	ret=MESA_htable_add(hash
-					,(unsigned char*)&(id)
-					,sizeof(id)
-					,data);
-	return ret;
-}
-int HASH_delete_by_id(MESA_htable_handle hash,int id)
-{
-	//destroy function had been initialized when hash create.
-	int ret=-1;
-	ret=MESA_htable_del(hash,(unsigned char*)&id, sizeof(id), NULL);
-	return ret;
-}
 MAAT_RULE_EX_DATA rule_ex_data_new(const struct Maat_rule_head * rule_head, const char* srv_def, const struct compile_ex_data_idx* ex_desc)
 {
 	MAAT_RULE_EX_DATA ad=NULL;
