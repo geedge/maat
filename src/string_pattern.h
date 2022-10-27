@@ -1,3 +1,9 @@
+#pragma once
+
+#include <stddef.h>
+
+#include "../deps/uthash/uthash.h"
+
 struct sub_string_pattern
 {
 	int is_regex;

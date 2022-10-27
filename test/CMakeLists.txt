@@ -1,0 +1,3 @@
+add_executable(maat_api_gtest maat_api_gtest.cpp)
+
+target_link_libraries(maat_api_gtest maat_frame_static gtest_static)
