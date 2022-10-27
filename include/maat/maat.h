@@ -18,6 +18,6 @@ struct ipv6_tuple4
         UINT16 dest;    /* network order */
 };
 struct maat_scan_state;
-int maat_scan_ipv4(struct maat_feather *feather, struct maat_scan_state *state, const struct ipv4_tuple4 *tuple4, unsigned int *matched_ids, size_t n_match_id);
-int maat_scan_string(struct maat_feather *feather, struct maat_scan_state *state, const char *data, size_t length, )
+int maat_scan_ipv4(struct maat_feather *feather, int table_id, struct maat_scan_state *state, const struct ipv4_tuple4 *tuple4, unsigned int *matched_ids, size_t n_match_id);
+int maat_scan_string(struct maat_feather *feather, int table_id, struct maat_scan_state *state, const char *data, size_t length);
 
