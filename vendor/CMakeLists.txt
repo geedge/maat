@@ -19,13 +19,28 @@ set_property(TARGET gtest_static PROPERTY IMPORTED_LOCATION ${VENDOR_BUILD}/lib/
 set_property(TARGET gtest_static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${VENDOR_BUILD}/include)
 set_property(TARGET gtest_static PROPERTY INTERFACE_LINK_LIBRARIES pthread)
 
-execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf ${CMAKE_CURRENT_SOURCE_DIR}/boost_1_80_0.tar.gz
-        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/deps/)
+# colm-0.13.0.5
+ExternalProject_Add(colm PREFIX colm 
+        URL ${CMAKE_CURRENT_SOURCE_DIR}/colm-0.13.0.5.tar.gz
+	CONFIGURE_COMMAND ./autogen.sh && ./configure --prefix=/usr --libdir=/usr/lib64
+	BUILD_COMMAND make	
+	INSTALL_COMMAND make install
+	BUILD_IN_SOURCE 1)
+
+# ragel-7.0.0.10
+ExternalProject_Add(ragel PREFIX ragel
+        URL ${CMAKE_CURRENT_SOURCE_DIR}/ragel-7.0.0.10.tar.gz
+	CONFIGURE_COMMAND ./autogen.sh && ./configure
+	DEPENDS colm
+	BUILD_COMMAND make	
+	INSTALL_COMMAND make install
+	BUILD_IN_SOURCE 1)
 
 # HyperScan 5.4.0
 ExternalProject_Add(hyperscan PREFIX hyperscan
         URL ${CMAKE_CURRENT_SOURCE_DIR}/hyperscan-5.4.0.tar.gz
-	    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${VENDOR_BUILD} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DBOOST_ROOT=${PROJECT_SOURCE_DIR}/deps/boost_1_80_0 -DCMAKE_C_FLAGS="-fPIC")
+	DEPENDS ragel
+	CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${VENDOR_BUILD} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS="-fPIC")
 
 ExternalProject_Get_Property(hyperscan INSTALL_DIR)
 file(MAKE_DIRECTORY ${VENDOR_BUILD}/include)
