@@ -8,6 +8,8 @@ set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-Wall")
 
 include_directories(include)
 
+enable_testing()
+
 #add_subdirectory(source_dir [binary_dir] [EXCLUDE_FROM_ALL])
 add_subdirectory(vendor)
 add_subdirectory(src)

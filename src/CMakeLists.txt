@@ -8,9 +8,11 @@ set(MAAT_FRAME_VERSION ${MAAT_FRAME_MAJOR_VERSION}.${MAAT_FRAME_MINOR_VERSION}.$
 message(STATUS "Maat Frame, Version: ${MAAT_FRAME_VERSION}")
 
 add_definitions(-fPIC)
-set(MAAT_SRC maat_api.cpp)
+set(MAAT_SRC maat_api.cpp bool_matcher.cpp adapter_hs.cpp rcu_hash.cpp maat_garbage_collection.cpp)
 	
 include_directories(${PROJECT_SOURCE_DIR}/include/)
+include_directories(${PROJECT_SOURCE_DIR}/deps/)
+include_directories(${PROJECT_SOURCE_DIR}/src/inc_internal)
 
 # Static Library Output
 add_library(maat_frame_static STATIC ${MAAT_SRC})

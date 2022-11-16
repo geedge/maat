@@ -7,7 +7,7 @@ TEST(EQ_Test, Always_True) {
 }
 
 TEST(maat_api, maat_scan_string) {
-	int ret = maat_scan_string(nullptr, 0, nullptr, nullptr, 0);
+	int ret = maat_scan_string(nullptr, 0, 0, nullptr, 0, nullptr, nullptr, nullptr);
 	EXPECT_EQ(ret, 0);
 }
 

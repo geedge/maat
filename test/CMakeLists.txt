@@ -1,3 +1,11 @@
-add_executable(maat_api_gtest maat_api_gtest.cpp)
+include_directories(${PROJECT_SOURCE_DIR}/src/inc_internal)
+include_directories(${PROJECT_SOURCE_DIR}/deps)
 
+add_executable(maat_api_gtest maat_api_gtest.cpp)
 target_link_libraries(maat_api_gtest maat_frame_static gtest_static)
+
+add_executable(adapter_hs_gtest adapter_hs_gtest.cpp)
+target_link_libraries(adapter_hs_gtest maat_frame_static gtest_static)
+
+add_executable(rcu_hash_gtest rcu_hash_gtest.cpp)
+target_link_libraries(rcu_hash_gtest maat_frame_static gtest_static)
