@@ -2317,6 +2317,33 @@
                     ]
                 }
             ]
+        },
+        {
+            "compile_id": 191,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "StringScan.HexBinCaseSensitive",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "expr",
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_content": {
+                                "keywords": "54455354",
+                                "expr_type": "none",
+                                "format": "hexbin",
+                                "match_method": "sub"
+                            }
+                        }
+                    ],
+                    "group_name": "Untitled"
+                }
+            ]
         }
     ],
     "plugin_table": [

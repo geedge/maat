@@ -831,7 +831,6 @@ TEST(StringScan,   CharsetWindows1251)
 	int read_size=0,pass_flag=0;
 	struct Maat_rule_t result[4];
 	scan_status_t mid=NULL;
-	//const char* fn="./testdata/mesa_logo.jpg";
 	const char* table_name="KEYWORDS_TABLE";
 	const char* fn="./testdata/charsetWindows1251.txt";
 	FILE* fp=fopen(fn,"r");
@@ -868,6 +867,31 @@ TEST(StringScan,   CharsetWindows1251)
 	fclose(fp);
 	Maat_clean_status(&mid);
 	return;
+
+}
+TEST(StringScan,  HexBinCaseSensitive)
+{
+	int ret=0;
+	int table_id=0;
+	struct Maat_rule_t result[4];
+	int found_pos[4];
+	scan_status_t mid=NULL;
+	const char* table_name="KEYWORDS_TABLE";
+	const char* scan_data="String TeST should not hit.";
+	const char* scan_data2="String TEST should hit";
+
+	table_id=Maat_table_register(g_feather, table_name);
+	ASSERT_GT(table_id, 0);
+	ret=Maat_full_scan_string(g_feather, table_id, CHARSET_GBK, scan_data, strlen(scan_data), 
+						result, found_pos, 4, &mid, 0);
+	EXPECT_EQ(ret, 0);
+	Maat_clean_status(&mid);
+	
+	ret=Maat_full_scan_string(g_feather, table_id,CHARSET_GBK, scan_data2, strlen(scan_data2), 
+						result, found_pos, 4, &mid, 0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 191);
+	Maat_clean_status(&mid);
 
 }
 

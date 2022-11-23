@@ -1627,7 +1627,7 @@ void update_expr_rule(struct Maat_table_schema* table,const char* table_line,str
 			break;
 		case	1:
 			maat_str_rule->is_hexbin=TRUE;
-			maat_str_rule->is_case_sensitive=FALSE;
+			maat_str_rule->is_case_sensitive=TRUE;
 			break;
 		case	2:
 			maat_str_rule->is_hexbin=FALSE;
