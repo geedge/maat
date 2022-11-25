@@ -24,48 +24,66 @@ extern "C"
 
 struct maat_runtime {
     /* maat_runtime can be created and destroy dynamic, so need version info */
-    uint64_t version;
+    long long version;
 
     time_t last_update_time;
 
-    struct maat_table_runtime_manager *table_rt_mgr;
+    struct table_runtime_manager *table_rt_mgr;
     size_t max_table_num;
     
-    int max_thread_num;
+    size_t max_thread_num;
     uint32_t rule_num;
 };
 
-enum rule_import_type {
-    RULE_IMPORT_TYPE_IRIS = 1,
-    RULE_IMPORT_TYPE_MAX
+enum data_source {
+    DATA_SOURCE_NONE = 0,
+    DATA_SOURCE_IRIS_FILE
 };
 
-struct rule_import_iris_ctx {
+struct source_iris_ctx {
     char inc_dir[NAME_MAX];
     char full_dir[NAME_MAX];
 };
 
 struct maat {
-    struct maat_runtime *maat_rt;
-    struct maat_runtime *rebuilding_maat_rt; //TODO: creating
-    //struct maat_garbage_collector *gc;
-    struct maat_table_manager *table_mgr;
+    char instance_name[NAME_MAX];
 
-    enum rule_import_type rule_import_type;
+    struct maat_runtime *maat_rt;
+    struct maat_runtime *creating_maat_rt;
+
+    struct table_schema_manager *table_schema_mgr;
+
+    enum data_source input_mode;
     union {
-        struct rule_import_iris_ctx iris_ctx;
+        struct source_iris_ctx iris_ctx;
     };
     
+    int deferred_load;
+
     int is_running;
     pthread_mutex_t background_update_mutex;
     int nr_worker_thread;
     
-    uint64_t maat_version;
-    uint64_t last_full_version;
+    long long maat_version;
+    long long last_full_version;
     pthread_t cfg_mon_thread;
+
+    int rule_effect_interval_ms;
+    int rule_update_checking_interval_ms;
+    int gc_timeout_ms; //garbage collection timeout_ms;
+
+    struct maat_garbage_bin *garbage_bin;
 };
 
+void maat_start_cb(long long new_version, int update_type, void *u_para);
+
+int maat_update_cb(const char *table_name, const char *line, void *u_para);
+
+void maat_finish_cb(void *u_para);
+
 void *rule_monitor_loop(void *arg);
+
+void maat_read_full_config(struct maat *maat_instance);
 
 #ifdef __cpluscplus
 }

@@ -13,9 +13,11 @@
 #include <string.h>
 #include <limits.h>
 #include <sys/stat.h>
+#include <dirent.h>
 
 #include "maat_config_monitor.h"
 #include "maat_utils.h"
+#include "utils.h"
 
 #define CM_MAX_TABLE_NUM 256
 #define	MAX_CONFIG_LINE	(1024 * 16)
@@ -27,17 +29,6 @@ struct cm_table_info_t
 	int cfg_num;
 	char encryp_algorithm[NAME_MAX];
 };
-
-/*
-	@brief check if rule file updated
-	@retval 0 -> CONFIG_UPDATE_TYPE_NONE
-			1 -> CONFIG_UPDATE_TYPE_FULL
-			2 -> CONFIG_UPDATE_TYPE_INC
-*/
-int validate_update_happened(uint64_t current_version, const char *idx_dir, char **idx_paths[], size_t *n_idx_paths)
-{
-
-}
 
 int cm_read_cfg_index_file(const char* path, struct cm_table_info_t* idx, int size)
 {
@@ -55,7 +46,7 @@ int cm_read_cfg_index_file(const char* path, struct cm_table_info_t* idx, int si
 								,idx[i].cfg_path
 								,idx[i].encryp_algorithm);
 		//jump over empty line
-		if (!(ret==3||ret==4)||idx[i].cfg_num==0){
+		if (!(ret == 3 || ret == 4) || idx[i].cfg_num == 0) {
 			continue;
 		}
 
@@ -77,17 +68,15 @@ int cm_read_cfg_index_file(const char* path, struct cm_table_info_t* idx, int si
 	return i;
 }
 
-const char* path2filename(const char*path)
+const char *path2filename(const char *path)
 {
-	int i=0;
-	for(i=strlen(path);i>0;i--)
-	{
-		if(path[i]=='/')
-		{
+	int i = 0;
+	for (i = strlen(path);i > 0;i--) {
+		if (path[i]=='/') {
 			break;
 		}
 	}
-	return path+i+1;
+	return path + i + 1;
 }
 
 char *read_nxt_line_from_buff(const char *buff, size_t buff_size, size_t *offset, char *line, int line_size)
@@ -96,9 +85,9 @@ char *read_nxt_line_from_buff(const char *buff, size_t buff_size, size_t *offset
 	const char* p;
 
 	//search for CRLF, aka CR '\r'(old Mac), LF '\n'(UNIX) or CRLF"\r\n" (Windows)
-	p = (const char*)memchr(buff+*offset, '\n', buff_size-*offset);
+	p = (const char *)memchr(buff + *offset, '\n', buff_size - *offset);
 	if (p == NULL) { // NOT "\n" or "\r\n"
-		p = (const char*)memchr(buff+*offset, '\r', buff_size-*offset);
+		p = (const char *)memchr(buff + *offset, '\r', buff_size - *offset);
 	}
 
 	if (p != NULL) { //point to next character
@@ -108,7 +97,7 @@ char *read_nxt_line_from_buff(const char *buff, size_t buff_size, size_t *offset
 	}
 
 	this_offset = p - (buff + *offset);
-	memcpy(line, buff + *offset, MIN(this_offset, line_size-1));
+	memcpy(line, buff + *offset, MIN(this_offset, line_size - 1));
 
 	*offset += this_offset;
 	line[MIN(this_offset, line_size - 1)] = '\0';
@@ -122,7 +111,6 @@ int cm_read_table_file(struct cm_table_info_t* index,
 {
 	int cfg_num = 0,i  =0;
 	int ret = 0;
-	char error_string[NAME_MAX];
 	char line[MAX_CONFIG_LINE]={0};
 	char *ret_str=NULL;
 	char *table_file_buff=NULL;
@@ -144,16 +132,15 @@ int cm_read_table_file(struct cm_table_info_t* index,
 	}
 
 	for (i = 0; i < cfg_num; i++) {
-		line[sizeof(line)-1]='\0';
+		line[sizeof(line) - 1] = '\0';
 
-		ret_str=read_nxt_line_from_buff(table_file_buff, file_sz, &file_offset, line, sizeof(line));
-		
-		if(ret_str==NULL) {
+		ret_str = read_nxt_line_from_buff(table_file_buff, file_sz, &file_offset, line, sizeof(line));
+		if (ret_str == NULL) {
 			//log_error
 			break;
 		}
 
-		if(line[sizeof(line)-1]!='\0') {
+		if(line[sizeof(line) - 1] != '\0') {
 			//log_error
 			continue;
 		}
@@ -169,32 +156,174 @@ int cm_read_table_file(struct cm_table_info_t* index,
 	return 0;
 }
 
-void config_monitor_traverse(uint64_t current_version, const char *idx_dir,
-							 void (*start_fn)(uint64_t, int, void *),
+//replacement of glibc scandir, to adapt dictator malloc wrap
+#define	ENLARGE_STEP	1024
+int my_scandir(const char *dir, struct dirent ***namelist,
+              int(*filter)(const struct dirent *),
+              int(*compar)(const void *, const void *))
+{
+	int n = 0;
+	int DIR_ENT_SIZE = ENLARGE_STEP;
+	struct dirent entry, *result;
+
+	if ((NULL == dir) || (NULL == namelist)) {
+        return -1;
+    }
+
+	DIR *od = opendir(dir);
+	if (NULL == od) {
+        return -1;
+    }
+    
+    struct dirent **list = ALLOC(struct dirent *, DIR_ENT_SIZE);
+	while (0 == readdir_r(od, &entry, &result)) {
+		if (NULL == result) {
+			break;
+		}
+
+		if (filter && !filter(&entry)) {
+            continue;
+        }
+		
+        struct dirent *p = ALLOC(struct dirent, 1);
+		memcpy((void *)p, (void *)(&entry), sizeof(struct dirent));
+		list[n] = p;
+
+		n++;
+		if (n >= DIR_ENT_SIZE) {
+			DIR_ENT_SIZE += ENLARGE_STEP;
+			list = (struct dirent **)realloc((void*)list, DIR_ENT_SIZE * sizeof(struct dirent *));
+		}
+	} 
+
+	closedir(od); 
+	*namelist = list;
+
+	if (compar) {
+        qsort((void *)*namelist, n, sizeof(struct dirent *), compar); 
+    }
+	
+	return n; 
+}
+
+int filter_fn(const struct dirent *ent)
+{
+    return (strncmp(ent->d_name,"full_config_index",strlen("full_config_index")) == 0 ||
+   	        strncmp(ent->d_name,"inc_config_index",strlen("inc_config_index")) == 0);
+}
+
+int get_new_idx_path(long long current_version, const char *file_dir, char ***idx_path, size_t *idx_num)
+{
+	struct dirent **namelist = NULL;
+	int update_type = CM_UPDATE_TYPE_NONE;
+	
+	int n = my_scandir(file_dir, &namelist, filter_fn, (int (*)(const void*, const void*))alphasort);
+	if (n < 0) {
+		//log_error("scan dir error");
+		return update_type;
+	}
+
+    long long latest_full_version = 0;
+    long long latest_inc_version = 0;
+    int full_file_idx = 0;
+    int *inc_file_idx = ALLOC(int, n);
+	int inc_idx_num = 0;
+    int i = 0;
+	for (i = 0; i < n; i++) {
+		long long config_seq = 0;
+        char update_str[32] = {0};
+        
+		if ((strcmp(namelist[i]->d_name, ".") == 0) || (strcmp(namelist[i]->d_name, "..") == 0)) {
+			continue;
+		}
+
+		if (strlen(namelist[i]->d_name) > 42) {
+			//log_error("config file %s filename too long,should like full_config_index.00000000000000000001",namelist[i]->d_name);
+			continue;
+		}
+
+		int ret = sscanf(namelist[i]->d_name,"%[a-zA-Z]_config_index.%lld", update_str, &config_seq);
+		if (ret != 2) {
+			//log_error("config file %s filename error,should like full_config_index.00000000000000000001",namelist[i]->d_name);
+			continue;
+		}
+
+		if (strncasecmp(update_str, "full", strlen(update_str)) == 0) {
+			if (config_seq > latest_full_version) {
+				latest_full_version = config_seq;
+				full_file_idx = i;
+			}
+		} else if(strncasecmp(update_str,"inc",strlen(update_str))==0) {
+			if (config_seq > current_version) {
+				inc_file_idx[inc_idx_num] = i;
+				inc_idx_num++;
+				if (config_seq > latest_inc_version) {
+					latest_inc_version = config_seq;
+				}
+			}
+		} else {
+			//log_error("config file %s,not full or inc config",namelist[i]->d_name);
+		}
+	}
+
+    size_t path_len = 0;
+	//full update
+	if (latest_full_version > current_version) {
+        *idx_path = (char **)malloc(sizeof(char **));
+		path_len = strlen(file_dir) + strlen(namelist[full_file_idx]->d_name) + 1 + 1;
+		(*idx_path)[0] = (char *)malloc(path_len);
+		snprintf((*idx_path)[0], path_len, "%s/%s", file_dir, namelist[full_file_idx]->d_name);
+		*idx_num = 1;
+		update_type = CM_UPDATE_TYPE_FULL;
+	} else if (latest_inc_version > current_version) {
+		//inc update,it's possible that do inc after full update in this function,but we'll process it at next loop.
+		*idx_path = (char **)malloc(sizeof(char **) * inc_idx_num);
+		for (i = 0; i < inc_idx_num; i++) {
+			path_len = strlen(file_dir) + strlen(namelist[inc_file_idx[i]]->d_name) + 1 + 1;
+			(*idx_path)[i] = (char *)malloc(path_len);
+			snprintf((*idx_path)[i], path_len, "%s/%s", file_dir, namelist[inc_file_idx[i]]->d_name);
+		}
+		*idx_num = inc_idx_num;
+		update_type = CM_UPDATE_TYPE_INC;
+	} else {
+		update_type = CM_UPDATE_TYPE_NONE;
+	}
+
+	free(inc_file_idx);
+	for (i = 0; i < n; i++) {
+		free(namelist[i]);
+	}
+	free(namelist);
+
+	return update_type;
+}
+
+void config_monitor_traverse(long long current_version, const char *idx_dir,
+							 void (*start_fn)(long long, int, void *),
 							 int (*update_fn)(const char *, const char *, void *),
 							 void (*finish_fn)(void *),
 							 void *u_param)
 {
 	size_t i = 0;
-	uint64_t new_version = 0;
+	long long new_version = 0;
 	char **idx_path_array = NULL;
 	size_t idx_path_num = 0;
 	struct cm_table_info_t table_array[CM_MAX_TABLE_NUM];
 
 	memset(table_array, 0, sizeof(table_array));
 
-	int update_type = validate_update_happened(current_version, idx_dir, &idx_path_array, &idx_path_num);
-	if (update_type != CONFIG_UPDATE_TYPE_NONE) {
+	int update_type = get_new_idx_path(current_version, idx_dir, &idx_path_array, &idx_path_num);
+	if (update_type != CM_UPDATE_TYPE_NONE) {
 		for (i = 0; i < idx_path_num; i++) {
 			int table_num = cm_read_cfg_index_file(idx_path_array[i], table_array, CM_MAX_TABLE_NUM);
 			if (table_num < 0) {
-				//log_error
+				//log_error luis
 				break;
 			}
 
 			char str_not_care[256] = {0};
-			const char* table_filename = path2filename(idx_path_array[i]);
-			sscanf(table_filename,"%[a-zA-Z]_config_index.%lld", str_not_care, &new_version);
+			const char *table_filename = path2filename(idx_path_array[i]);
+			sscanf(table_filename, "%[a-zA-Z]_config_index.%lld", str_not_care, &new_version);
 			if (start_fn != NULL) {
 				start_fn(new_version, update_type, u_param);
 			}

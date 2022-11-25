@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "maat_utils.h"
+#include "utils.h"
 #include "adapter_hs.h"
 #include "maat_table_schema.h"
 

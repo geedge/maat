@@ -8,24 +8,33 @@ set(MAAT_FRAME_VERSION ${MAAT_FRAME_MAJOR_VERSION}.${MAAT_FRAME_MINOR_VERSION}.$
 message(STATUS "Maat Frame, Version: ${MAAT_FRAME_VERSION}")
 
 add_definitions(-fPIC)
-set(MAAT_SRC maat_api.cpp bool_matcher.cpp adapter_hs.cpp rcu_hash.cpp maat_garbage_collection.cpp)
-	
+set(MAAT_SRC maat_api.cpp rcu_hash.cpp maat_garbage_collection.cpp maat_config_monitor.cpp maat_rule.cpp 
+    maat_kv.cpp maat_ex_data.cpp maat_table_schema.cpp maat_table_runtime.cpp maat_utils.cpp)
+
+set(MAAT_SRC_M main.cpp maat_api.cpp rcu_hash.cpp maat_garbage_collection.cpp maat_config_monitor.cpp maat_rule.cpp 
+    maat_kv.cpp maat_ex_data.cpp maat_table_schema.cpp maat_table_runtime.cpp maat_utils.cpp)
+
+set(LIB_SOURCE_FILES
+	${PROJECT_SOURCE_DIR}/deps/cJSON/cJSON.c)
+
 include_directories(${PROJECT_SOURCE_DIR}/include/)
 include_directories(${PROJECT_SOURCE_DIR}/deps/)
+include_directories(${PROJECT_SOURCE_DIR}/scanner)
 include_directories(${PROJECT_SOURCE_DIR}/src/inc_internal)
 
 # Static Library Output
-add_library(maat_frame_static STATIC ${MAAT_SRC})
-#add_dependencies(maat_frame_static hyperscan_static hyperscan_runtime_static)
+add_library(maat_frame_static STATIC ${MAAT_SRC} ${LIB_SOURCE_FILES})
 set_target_properties(maat_frame_static PROPERTIES LINKER_LANGUAGE CXX)
 set_target_properties(maat_frame_static PROPERTIES OUTPUT_NAME maatframe)
 set_target_properties(maat_frame_static PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 
-target_link_libraries(maat_frame_static hyperscan_static)
-target_link_libraries(maat_frame_static hyperscan_runtime_static)
+target_link_libraries(maat_frame_static adapter-static pthread)
+
+add_executable(main ${MAAT_SRC_M})
+target_link_libraries(main maat_frame_static)
 
 # Shared Library Output
-#add_library(maat_frame_shared SHARED ${MAAT_SRC})
+#add_library(maat_frame_shared SHARED ${MAAT_SRC} ${LIB_SOURCE_FILES})
 #set_target_properties(maat_frame_shared PROPERTIES LINKER_LANGUAGE CXX)
 #set_target_properties(maat_frame_shared PROPERTIES OUTPUT_NAME maatframe)
 #set_target_properties(maat_frame_shared PROPERTIES CLEAN_DIRECT_OUTPUT 1)
@@ -33,7 +42,6 @@ target_link_libraries(maat_frame_static hyperscan_runtime_static)
 #set_target_properties(maat_frame_shared PROPERTIES SOVERSION ${MAAT_FRAME_MAJOR_VERSION})
 
 #target_link_libraries(maat_frame_shared hyperscan_static)
-#target_link_libraries(maat_frame_shared hyperscan_runtime_static)
 
 # install
 set(CMAKE_INSTALL_PREFIX /opt/MESA/)

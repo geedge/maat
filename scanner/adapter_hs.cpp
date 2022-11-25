@@ -13,11 +13,10 @@
 #include <stddef.h>
 #include <hs/hs.h>
 
-#include "sds/sds.h"
 #include "adapter_hs.h"
 #include "uthash/utarray.h"
 #include "uthash/uthash.h"
-#include "maat_utils.h"
+#include "utils.h"
 #include "bool_matcher.h"
 
 struct adpt_hs_compile_data {
@@ -69,7 +68,7 @@ int adpt_hs_alloc_scratch(struct adapter_hs_runtime *hs_rt, size_t nr_worker_thr
     }
 
     if (hs_alloc_scratch(database, &hs_rt->scratchs[0]) != HS_SUCCESS) {
-        // log_error("ERROR: Unable to allocate scratch space. Exiting.\n");
+        fprintf(stderr, "ERROR: Unable to allocate scratch space. Exiting.\n");
         hs_free_database(database);
         return -1;
     }
@@ -77,14 +76,14 @@ int adpt_hs_alloc_scratch(struct adapter_hs_runtime *hs_rt, size_t nr_worker_thr
     for (size_t i = 1; i < nr_worker_threads; i++) {
         hs_error_t err = hs_clone_scratch(hs_rt->scratchs[0], &hs_rt->scratchs[i]);
         if (err != HS_SUCCESS) {
-            // log_error("Unable to clone scratch prototype");
+            fprintf(stderr, "Unable to clone scratch prototype");
             hs_free_database(database);
             return -1;
         }
 
         err = hs_scratch_size(hs_rt->scratchs[i], &hs_rt->scratch_size);
         if (err != HS_SUCCESS) {
-            // log_error("Unable to query scratch size");
+            fprintf(stderr, "Unable to query scratch size");
             hs_free_database(database);
             return -1;
         }
@@ -115,9 +114,8 @@ int adpt_hs_build_database(struct adapter_hs_runtime *hs_rt,
                                    literal_cd->ids, literal_cd->pattern_lens, literal_cd->n_patterns, 
                                    scan_mode, NULL, &hs_rt->literal_db, &compile_err);
         if (err != HS_SUCCESS) {
-            // log_error
             if (compile_err) {
-                printf("compile error: %s", compile_err->message);
+                fprintf(stderr, "%s compile error: %s", __func__, compile_err->message);
             }
 
             hs_free_compile_error(compile_err);
@@ -130,9 +128,8 @@ int adpt_hs_build_database(struct adapter_hs_runtime *hs_rt,
                                    regex_cd->ids, NULL, regex_cd->n_patterns, 
                                    scan_mode, NULL, &hs_rt->regex_db, &compile_err);
         if (err != HS_SUCCESS) {
-            // log_error
             if (compile_err) {
-                printf("compile error: %s", compile_err->message);
+                fprintf(stderr, "%s compile error: %s", __func__, compile_err->message);
             }
             hs_free_compile_error(compile_err);
             goto error;
@@ -189,7 +186,7 @@ struct adapter_hs *adapter_hs_initialize(int scan_mode, size_t nr_worker_threads
 {
     if ((scan_mode != SCAN_MODE_BLOCK && scan_mode != SCAN_MODE_STREAM) || 
          0 == nr_worker_threads || NULL == expr_array || 0 == n_expr_array) {
-        /* log_error("input parameters illegal!"); */
+        fprintf(stderr, "%s input parameters illegal!", __func__);
         return NULL;
     }
 
@@ -199,7 +196,7 @@ struct adapter_hs *adapter_hs_initialize(int scan_mode, size_t nr_worker_threads
 
     for (size_t i = 0; i < n_expr_array; i++) {
         if (expr_array[i].n_patterns > MAX_EXPR_PATTERN_NUM) {
-            //log_error("the number of patterns in one expression should less than %d\n", MAX_EXPR_PATTERN_NUM);
+            fprintf(stderr, "the number of patterns in one expression should less than %d\n", MAX_EXPR_PATTERN_NUM);
             return NULL;
         }
 
@@ -209,7 +206,7 @@ struct adapter_hs *adapter_hs_initialize(int scan_mode, size_t nr_worker_threads
             } else if (expr_array[i].patterns[j].type == PATTERN_TYPE_REG) {
                 regex_pattern_num++;
             } else {
-                /* log_error("unknown pattern type: %d\n", expr_array[i].patterns[j].type); */
+                fprintf(stderr, "unknown pattern type: %d\n", expr_array[i].patterns[j].type);
                 return NULL;
             }
         }
@@ -288,10 +285,10 @@ struct adapter_hs *adapter_hs_initialize(int scan_mode, size_t nr_worker_threads
     /* create bool matcher */
     hs_instance->hs_rt->bm = bool_matcher_new(exprs, n_expr_array, &mem_size);
     if (hs_instance->hs_rt->bm != NULL) {
-        /* log_info("Adapter_hs module: build bool matcher of %u expressions with %u bytes memory.", 
-                        n_expr_array, mem_size); */
+        fprintf(stdout, "Adapter_hs module: build bool matcher of %u expressions with %u bytes memory.", 
+                        n_expr_array, mem_size);
     } else {
-        /* log_error("Adapter_hs module: build bool matcher failed."); */
+        fprintf(stderr, "Adapter_hs module: build bool matcher failed.");
         goto error;
     }
     free(exprs);
@@ -299,7 +296,6 @@ struct adapter_hs *adapter_hs_initialize(int scan_mode, size_t nr_worker_threads
     /* build hs database */
     ret = adpt_hs_build_database(hs_instance->hs_rt, literal_cd, regex_cd, scan_mode);
     if (ret < 0) {
-        //log_error()
         goto error;
     }
 
@@ -320,7 +316,6 @@ struct adapter_hs *adapter_hs_initialize(int scan_mode, size_t nr_worker_threads
 
     ret = adpt_hs_alloc_scratch(hs_instance->hs_rt, nr_worker_threads, max_patterns_type);
     if (ret < 0) {
-        // log_error
         goto error;
     }
 

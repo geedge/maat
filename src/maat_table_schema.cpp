@@ -11,53 +11,19 @@
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
+#include "utils.h"
 #include "maat_utils.h"
 #include "maat_table_schema.h"
 #include "maat_kv.h"
-#include "cJSON.h"
+#include "cJSON/cJSON.h"
 #include "adapter_hs.h"
 #include "maat_ex_data.h"
 
-
-#define MAX_TABLE_NUM 256
-#define MAX_TABLE_LINE_SIZE (1024 * 16)
-#define MAX_ITEM_STR 64
-
-struct expr_item {
-    int item_id;
-    int group_id;
-    char district[MAX_ITEM_STR]; //128
-    char keywords[MAX_ITEM_STR]; //1k
-    char expr_type[MAX_ITEM_STR];//enum
-    char match_method[MAX_ITEM_STR]; //enum
-    int is_hexbin;
-    int case_sensitive;
-    int is_valid;
-   
-     //rule_tag; 只存在schema里
-	//int have_exdata;
-    //struct ex_data *ex_data; //hash表
-};
-
-struct ip_plugin_item {
-    int row_id;
-	int ip_type;
-	int start_ip;
-	int end_ip;
-	int valid_flag;
-	int rule_tag;
-	int have_exdata;
-	struct ex_data *ex_data;
-};
-
-struct maat_table_item {
-    enum maat_table_type table_type;
-    union {
-        struct expr_item expr_item;
-        struct ip_plugin_item ip_plugin_item;
-    };
-};
+#define MAX_TABLE_NUM        256
+#define MAX_TABLE_LINE_SIZE  (1024 * 16)
+#define	MAX_FOREIGN_CLMN_NUM 8
 
 struct expr_table_schema {
 	int item_id_column;
@@ -67,119 +33,147 @@ struct expr_table_schema {
 	int expr_type_column;
     int match_method_column;
     int is_hexbin_column;
-    int case_sensitive_column;
-    /* valid means add, invalid means delete */
-	int is_valid_column;
-	int have_exdata;
-	struct ex_data_schema *ex_schema;
+	int is_valid_column;  /* valid means add, invalid means delete */
+    enum scan_mode scan_mode; /* adapter_hs scan mode */
+};
+
+#define	MAX_PLUGIN_PER_TABLE 32
+struct plugin_table_schema {
+    int item_id_column;
+    int key_column;
+    int is_valid_column;
+    int rule_tag_column;
+    int n_foreign;
+    int foreign_columns[MAX_FOREIGN_CLMN_NUM];
+    size_t cb_plug_cnt;
+    struct plugin_table_callback_schema cb_plug[MAX_PLUGIN_PER_TABLE];
+    struct ex_data_schema ex_schema;
 };
 
 struct ip_plugin_table_schema {
-    int row_id_column;
+    int item_id_column;
 	int ip_type_column;
 	int start_ip_column;
 	int end_ip_column;
-	int valid_flag_column;
+	int is_valid_column;
 	int rule_tag_column;
 	int have_exdata;
-	struct ex_data_schema *ex_schema;
+	struct ex_data_schema ex_schema;
 };
 
-struct maat_table_schema {
+struct table_schema {
     int table_id;
-    sds table_name;
-    enum maat_table_type table_type;
+    char table_name[NAME_MAX];
+    enum table_type table_type;
     union {
         struct expr_table_schema expr;
+        struct plugin_table_schema plugin;
         struct ip_plugin_table_schema ip_plugin;
     };
 };
 
-struct maat_table_manager {
-    struct maat_table_schema *schema_table[MAX_TABLE_NUM];
+struct table_schema_manager {
+    struct table_schema *schema_table[MAX_TABLE_NUM];
     size_t n_schema_table;
-
+    size_t n_active_plugin_table;
     struct maat_kv_store *tablename2id_map;
 };
 
-struct maat_table_schema *table_schema_new(void)
+struct table_schema *table_schema_new(void)
 {
-    struct maat_table_schema *ptable = ALLOC(struct maat_table_schema, 1);
+    struct table_schema *ptable = ALLOC(struct table_schema, 1);
 
     return ptable;
 }
 
-void table_schema_free(struct maat_table_schema *ptable)
+void table_schema_free(struct table_schema *ptable)
 {
     free(ptable);
 }
 
-int read_expr_table_schema(cJSON *root, struct maat_table_schema *ptable)
+int read_expr_table_schema(cJSON *root, struct table_schema *ptable,
+                            struct maat_kv_store* reserved_word_map)
 {
     int read_cnt = 0;
-    cJSON *item = NULL;
+    cJSON *json = NULL;
 
-    item = cJSON_GetObjectItem(root, "table_id");
-    if (item != NULL && item->type == cJSON_String) {
-        ptable->table_id = item->valueint;
+    json = cJSON_GetObjectItem(root, "table_id");
+    if (json != NULL && json->type == cJSON_Number) {
+        ptable->table_id = json->valueint;
         read_cnt++;
     }
 
-    item = cJSON_GetObjectItem(root, "table_name");
-    if (item != NULL && item->type == cJSON_String) {
-        memcpy(ptable->table_name, item->valuestring, strlen(item->valuestring));
+    json = cJSON_GetObjectItem(root, "table_name");
+    if (json != NULL && json->type == cJSON_String) {
+        if (strlen(json->valuestring) >= NAME_MAX) {
+            fprintf(stderr, "table name %s length too long", json->valuestring);
+            return -1;
+        }
+        memcpy(ptable->table_name, json->valuestring, strlen(json->valuestring));
         read_cnt++;
     }
 
-    item = cJSON_GetObjectItem(root, "item_id");
-    if (item != NULL && item->type == cJSON_Number) {
-        ptable->expr.item_id_column = item->valueint;
+    json = cJSON_GetObjectItem(root, "scan_mode");
+    if (json != NULL && json->type == cJSON_String) {
+        int ret = maat_kv_read(reserved_word_map, json->valuestring, (int*)&(ptable->expr.scan_mode));
+        if (ret < 0) {
+            fprintf(stderr, "scan_mode %s illegal", json->valuestring);
+            return -1;
+        }
         read_cnt++;
     }
 
-    item = cJSON_GetObjectItem(root, "group_id");
-    if (item != NULL && item->type == cJSON_Number) {
-        ptable->expr.group_id_column = item->valueint;
+    json = cJSON_GetObjectItem(root, "item_id");
+    if (json != NULL && json->type == cJSON_Number) {
+        ptable->expr.item_id_column = json->valueint;
         read_cnt++;
     }
 
-    item = cJSON_GetObjectItem(root, "district");
-    if (item != NULL && item->type == cJSON_Number) {
-        ptable->expr.district_column = item->valueint;
+    json = cJSON_GetObjectItem(root, "group_id");
+    if (json != NULL && json->type == cJSON_Number) {
+        ptable->expr.group_id_column = json->valueint;
         read_cnt++;
     }
 
-    item = cJSON_GetObjectItem(root, "keywords");
+    json = cJSON_GetObjectItem(root, "rule");
+    if (json == NULL || json->type != cJSON_Object) {
+        fprintf(stderr, "table %s has no rule", ptable->table_name);
+        return -1;
+    }
+
+    cJSON *item = cJSON_GetObjectItem(json, "keywords");
     if (item != NULL && item->type == cJSON_Number) {
         ptable->expr.keywords_column = item->valueint;
         read_cnt++;
     }
 
-    item = cJSON_GetObjectItem(root, "expr_type");
+    if (ptable->table_type == TABLE_TYPE_EXPR_PLUS) {
+        item = cJSON_GetObjectItem(json, "district");
+        if (item != NULL && item->type == cJSON_Number) {
+            ptable->expr.district_column = item->valueint;
+            read_cnt++;
+        }
+    }
+
+    item = cJSON_GetObjectItem(json, "expr_type");
     if (item != NULL && item->type == cJSON_Number) {
         ptable->expr.expr_type_column = item->valueint;
         read_cnt++;
     }
 
-    item = cJSON_GetObjectItem(root, "match_method");
+    item = cJSON_GetObjectItem(json, "match_method");
     if (item != NULL && item->type == cJSON_Number) {
         ptable->expr.match_method_column = item->valueint;
         read_cnt++;
     }
 
-    item = cJSON_GetObjectItem(root, "is_hexbin");
+    item = cJSON_GetObjectItem(json, "is_hexbin");
     if (item != NULL && item->type == cJSON_Number) {
         ptable->expr.is_hexbin_column = item->valueint;
         read_cnt++;
     }
 
-    item = cJSON_GetObjectItem(root, "case_sensitive");
-    if (item != NULL && item->type == cJSON_Number) {
-        ptable->expr.case_sensitive_column = item->valueint;
-        read_cnt++;
-    }
-
-    item = cJSON_GetObjectItem(root, "is_valid");
+    item = cJSON_GetObjectItem(json, "is_valid");
     if (item != NULL && item->type == cJSON_Number) {
         ptable->expr.is_valid_column = item->valueint;
         read_cnt++;
@@ -192,50 +186,152 @@ int read_expr_table_schema(cJSON *root, struct maat_table_schema *ptable)
     }
 }
 
-int read_ip_plugin_table_schema(cJSON *root, struct maat_table_schema *ptable)
+static int read_integer_array(char *string, int *array, int size)
 {
-    int read_cnt = 0;
-    cJSON *item = NULL;
+    int i = 0;
+	char *token = NULL, *sub_token = NULL, *saveptr;
+	
+	for (i = 0, token = string; i < size; token= NULL, i++) {
+		sub_token = strtok_r(token, ",", &saveptr);
+		if (sub_token == NULL) {
+            break;
+        }
+		
+		sscanf(sub_token, "%d", array + i);
+	}
 
-    item = cJSON_GetObjectItem(root, "table_id");
+	return i;
+}
+
+int read_plugin_table_schema(cJSON *root, struct table_schema *ptable)
+{
+    size_t read_cnt = 0;
+    cJSON *json = NULL;
+
+    json = cJSON_GetObjectItem(root, "table_id");
+    if (json != NULL && json->type == cJSON_Number) {
+        ptable->table_id = json->valueint;
+        read_cnt++;
+    }
+
+    json = cJSON_GetObjectItem(root, "table_name");
+    if (json != NULL && json->type == cJSON_String) {
+        if (strlen(json->valuestring) >= NAME_MAX) {
+            fprintf(stderr, "table name %s length too long", json->valuestring);
+            return -1;
+        }
+        memcpy(ptable->table_name, json->valuestring, strlen(json->valuestring));
+        read_cnt++;
+    }
+
+    json = cJSON_GetObjectItem(root, "item_id");
+    if (json != NULL && json->type == cJSON_Number) {
+        ptable->plugin.item_id_column = json->valueint;
+        read_cnt++;
+    }
+
+    json = cJSON_GetObjectItem(root, "rule");
+    if (json == NULL || json->type != cJSON_Object) {
+        fprintf(stderr, "table %s has no rule", ptable->table_name);
+        return -1;
+    }
+
+    cJSON *item = cJSON_GetObjectItem(json, "key");
     if (item != NULL && item->type == cJSON_Number) {
-        ptable->table_id = item->valueint;
+        ptable->plugin.key_column = item->valueint;
         read_cnt++;
     }
 
-    item = cJSON_GetObjectItem(root, "table_name");
-    if (item != NULL && item->type == cJSON_String) {
-        memcpy(ptable->table_name, item->valuestring, strlen(item->valuestring));
-        read_cnt++;
-    }
-
-    item = cJSON_GetObjectItem(root, "row_id");
+    item = cJSON_GetObjectItem(json, "is_valid");
     if (item != NULL && item->type == cJSON_Number) {
-        ptable->ip_plugin.row_id_column = item->valueint;
+        ptable->plugin.is_valid_column = item->valueint;
         read_cnt++;
     }
 
-    item = cJSON_GetObjectItem(root, "ip_type");
+    item = cJSON_GetObjectItem(json, "tag");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->plugin.rule_tag_column = item->valueint;
+        read_cnt++;
+    }
+
+    item = cJSON_GetObjectItem(json, "foreign");
+    if (item != NULL) {
+        read_cnt++;
+        if (item->type == cJSON_String) {
+            ptable->plugin.n_foreign = read_integer_array(item->valuestring, 
+                                            ptable->plugin.foreign_columns, 
+                                            MAX_FOREIGN_CLMN_NUM);
+        } else if (item->type == cJSON_Array) {
+            ptable->plugin.n_foreign = cJSON_GetArraySize(item);
+            for (int i = 0; i < ptable->plugin.n_foreign; i++) {
+                cJSON *foreign_item = cJSON_GetArrayItem(item, i);
+                assert(foreign_item->type == cJSON_Number);
+                ptable->plugin.foreign_columns[i] = foreign_item->valueint;
+            }
+        }
+    }
+
+    if (read_cnt < 7) {
+        return -1;
+    } else {
+        return 0;
+    }
+}
+
+int read_ip_plugin_table_schema(cJSON *root, struct table_schema *ptable)
+{
+    size_t read_cnt = 0;
+    cJSON *json = NULL;
+
+    json = cJSON_GetObjectItem(root, "table_id");
+    if (json != NULL && json->type == cJSON_Number) {
+        ptable->table_id = json->valueint;
+        read_cnt++;
+    }
+
+    json = cJSON_GetObjectItem(root, "table_name");
+    if (json != NULL && json->type == cJSON_String) {
+        if (strlen(json->valuestring) >= NAME_MAX) {
+            fprintf(stderr, "table name %s length too long", json->valuestring);
+            return -1;
+        }
+        memcpy(ptable->table_name, json->valuestring, strlen(json->valuestring));
+        read_cnt++;
+    }
+
+    json = cJSON_GetObjectItem(root, "item_id");
+    if (json != NULL && json->type == cJSON_Number) {
+        ptable->ip_plugin.item_id_column = json->valueint;
+        read_cnt++;
+    }
+
+    json = cJSON_GetObjectItem(root, "rule");
+    if (NULL == json || json->type != cJSON_Object) {
+        fprintf(stderr, "table %s has no rule", ptable->table_name);
+        return -1;
+    }
+
+    cJSON *item = cJSON_GetObjectItem(json, "ip_type");
     if (item != NULL && item->type == cJSON_Number) {
         ptable->ip_plugin.ip_type_column = item->valueint;
         read_cnt++;
     }
 
-    item = cJSON_GetObjectItem(root, "start_ip");
+    item = cJSON_GetObjectItem(json, "start_ip");
     if (item != NULL && item->type == cJSON_Number) {
         ptable->ip_plugin.start_ip_column = item->valueint;
         read_cnt++;
     }
 
-    item = cJSON_GetObjectItem(root, "end_ip");
+    item = cJSON_GetObjectItem(json, "end_ip");
     if (item != NULL && item->type == cJSON_Number) {
         ptable->ip_plugin.end_ip_column = item->valueint;
         read_cnt++;
     }
 
-    item = cJSON_GetObjectItem(root, "valid");
+    item = cJSON_GetObjectItem(json, "is_valid");
     if (item != NULL && item->type == cJSON_Number) {
-        ptable->ip_plugin.valid_flag_column = item->valueint;
+        ptable->ip_plugin.is_valid_column = item->valueint;
         read_cnt++;
     }
 
@@ -246,137 +342,153 @@ int read_ip_plugin_table_schema(cJSON *root, struct maat_table_schema *ptable)
     }
 }
 
-int table_schema_populate(const char *line, struct maat_table_schema *ptable,
+int table_schema_populate(cJSON *json, struct table_schema *ptable,
                           struct maat_kv_store* reserved_word_map)
 {
     int ret = -1;
-    int read_cnt = 0;
-    cJSON *root = NULL;
     cJSON *item = NULL;
-    sds copy_line = sdsnew(line);
-    sds table_type_str = NULL;
 
-    root = cJSON_Parse(copy_line);
-    if (NULL == root) {
-        goto next;
-    }
-
-    item = cJSON_GetObjectItem(root, "table_type");
+    item = cJSON_GetObjectItem(json, "table_type");
     if (item != NULL && item->type == cJSON_String) {
-        table_type_str = sdsnew(item->valuestring);
-        read_cnt++;
+        ret = maat_kv_read(reserved_word_map, item->valuestring, (int*)&(ptable->table_type));
+        if (ret < 0) {
+            fprintf(stderr, "table_type %s is illegal", item->valuestring);
+            return -1;
+        }
     }
-
-    ret = maat_kv_read(reserved_word_map, table_type_str, (int*)&(ptable->table_type));
-    if (ret < 0) {
-        goto next;
-    }
-
+   
     switch (ptable->table_type) {
     case TABLE_TYPE_EXPR:
-        ret = read_expr_table_schema(root, ptable);
+    case TABLE_TYPE_EXPR_PLUS:
+        ret = read_expr_table_schema(json, ptable, reserved_word_map);
         if (ret < 0) {
-            goto next;
+            return -1;
+        }
+        break;
+    case TABLE_TYPE_PLUGIN:
+        ret = read_plugin_table_schema(json, ptable);
+        if (ret < 0) {
+            return -1;
         }
         break;
     case TABLE_TYPE_IP_PLUGIN:
-        ret = read_ip_plugin_table_schema(root, ptable);
+        ret = read_ip_plugin_table_schema(json, ptable);
         if (ret < 0) {
-            goto next;
+            return -1;
         }
         break;
     default:
         break;
     }
-
-next:
-    cJSON_Delete(root);
-    sdsfree(copy_line);
-    if (table_type_str != NULL) {
-        sdsfree(table_type_str);
-    }
     
-    return ret;
+    return 0;
 }
 
-struct maat_table_manager *maat_table_manager_create(sds table_info_path)
+struct table_schema_manager *table_schema_manager_create(const char *table_info_path)
 {
-    FILE *fp = fopen(table_info_path, "r");
-    if (NULL == fp) {
-        fprintf(stderr,"Maat read table info %s error.\n",table_info_path);
-        //log_error()
+    unsigned char *json_buff = NULL;
+    size_t json_buff_sz = 0;
+
+    int ret = load_file_to_memory(table_info_path, &json_buff, &json_buff_sz);
+    if (ret < 0) {
+        fprintf(stderr, "Maat read table info %s error.\n", table_info_path);
         return NULL;
     }
 
-	struct maat_kv_store* reserved_word_map = maat_kv_store_new();
+    cJSON *root = NULL;
+    root = cJSON_Parse((const char *)json_buff);
+	if (!root) {
+        fprintf(stderr, "Error before: %-200.200s", cJSON_GetErrorPtr());
+        free(json_buff);
+        return NULL;
+    }
+
+    int json_array_size = cJSON_GetArraySize(root);
+    if (json_array_size <= 0) {
+        fprintf(stderr, "invalid json content in %s", table_info_path);
+        free(json_buff);
+        return NULL;
+    }
+    
+    struct maat_kv_store* reserved_word_map = maat_kv_store_new();
     /* register table type reserved word */
     maat_kv_register(reserved_word_map, "expr", TABLE_TYPE_EXPR);
+    maat_kv_register(reserved_word_map, "expr_plus", TABLE_TYPE_EXPR_PLUS);
+    maat_kv_register(reserved_word_map, "ip", TABLE_TYPE_IP);
+    maat_kv_register(reserved_word_map, "plugin", TABLE_TYPE_PLUGIN);
     maat_kv_register(reserved_word_map, "ip_plugin", TABLE_TYPE_IP_PLUGIN);
 
-    int i = 0;
-    char line[MAX_TABLE_LINE_SIZE] = {0};
-    struct maat_table_manager *table_mgr = ALLOC(struct maat_table_manager, 1);
-    struct maat_table_schema **pptable = table_mgr->schema_table;
-    table_mgr->tablename2id_map = maat_kv_store_new();
+    maat_kv_register(reserved_word_map, "block", SCAN_MODE_BLOCK);
+    maat_kv_register(reserved_word_map, "stream", SCAN_MODE_STREAM);
 
-    while (NULL != fgets(line, sizeof(line), fp)) {
-        i++;
+    struct table_schema_manager *table_schema_mgr = ALLOC(struct table_schema_manager, 1);
+    struct table_schema **pptable = table_schema_mgr->schema_table;
+    table_schema_mgr->tablename2id_map = maat_kv_store_new();
 
-        if (line[0] == '#' || line[0] == ' ' || line[0] == '\t') {
+    for (int i = 0; i < json_array_size; i++) {
+        cJSON *json = cJSON_GetArrayItem(root, i);
+       
+        if (json != NULL && json->type == cJSON_Object) {
+            struct table_schema *table_schema = table_schema_new();
+            int ret = table_schema_populate(json, table_schema, reserved_word_map);
+            if (ret < 0) {
+                fprintf(stderr, "Maat populate table info error, table_id:%d", table_schema->table_id);
+                goto error;
+            }
+
+            if (table_schema->table_id >= MAX_TABLE_NUM) {
+                fprintf(stderr, "Maat read table info %s:%d error: table id %u > %d.\n",
+                        table_info_path, i, table_schema->table_id, MAX_TABLE_NUM);
+                goto error;
+            }
+
+            ret = maat_kv_register(table_schema_mgr->tablename2id_map, table_schema->table_name, table_schema->table_id);
+            if (ret < 0) {
+                fprintf(stderr, "Duplicate table %s of table id %d", table_schema->table_name, table_schema->table_id);
+                goto error;
+            }
+
+            /* TODO: conjunction table*/
+            #if 0
+            if (pptable[table_schema->table_id] != NULL) {
+                fprintf(stderr, "Duplicate table %s of table id %d", table_schema->table_name, table_schema->table_id);
+                goto error;
+            }
+            #endif
+
+            pptable[table_schema->table_id] = table_schema;
+            table_schema_mgr->n_schema_table++;
             continue;
+        error:
+            table_schema_free(table_schema);
         }
-
-        struct maat_table_schema *table_schema = table_schema_new();
-        int ret = table_schema_populate(line, table_schema, reserved_word_map);
-        if (ret < 0) {
-            fprintf(stderr, "Maat read table info %s line %d error: illegal table schema.\n", 
-                    table_info_path, i);
-            //log_error()
-            goto error;
-        }
-
-        if (table_schema->table_id >= MAX_TABLE_NUM) {
-            fprintf(stderr,"Maat read table info %s:%d error: table id %uh > %zu.\n",
-                    table_info_path, i, table_schema->table_id, MAX_TABLE_NUM);
-            goto error;
-        }
-
-        ret = maat_kv_register(table_mgr->tablename2id_map, table_schema->table_name, table_schema->table_id);
-        if (ret < 0) {
-            //log_error("Duplicate table %s of table id %d", table_schema->table_name, table_schema->table_id);
-            goto error;
-        }
-
-        pptable[table_schema->table_id] = table_schema;
-        table_mgr->n_schema_table++;
-        continue;
-    error:
-        table_schema_free(table_schema);
     }
+	
     maat_kv_store_free(reserved_word_map);
+    free(json_buff);
 
-    return table_mgr;
+    return table_schema_mgr;
 }
 
-void maat_table_manager_destroy(struct maat_table_manager *table_mgr)
+void table_schema_manager_destroy(struct table_schema_manager *table_schema_mgr)
 {
 	for (size_t i = 0; i < MAX_TABLE_NUM; i++) {
-		if (NULL == table_mgr->schema_table[i]) {
+		if (NULL == table_schema_mgr->schema_table[i]) {
 			continue;
 		}
-		table_schema_free(table_mgr->schema_table[i]);
-		table_mgr->schema_table[i] = NULL;
+		table_schema_free(table_schema_mgr->schema_table[i]);
+		table_schema_mgr->schema_table[i] = NULL;
 	}
 
-	maat_kv_store_free(table_mgr->tablename2id_map);
-	free(table_mgr);
+	maat_kv_store_free(table_schema_mgr->tablename2id_map);
+	free(table_schema_mgr);
 }
 
-int maat_table_manager_get_table_id(struct maat_table_manager* table_mgr, sds table_name)
+int table_schema_manager_get_table_id(struct table_schema_manager* table_schema_mgr, const char *table_name)
 {
     int table_id = -1;
 
-	int ret=maat_kv_read(table_mgr->tablename2id_map, table_name, &table_id);
+	int ret = maat_kv_read(table_schema_mgr->tablename2id_map, table_name, &table_id);
 	if (ret > 0) {
 		return table_id;
 	} else {
@@ -384,21 +496,134 @@ int maat_table_manager_get_table_id(struct maat_table_manager* table_mgr, sds ta
 	}
 }
 
-enum maat_table_type maat_table_manager_get_table_type(struct maat_table_manager *table_mgr, int id)
+enum table_type table_schema_manager_get_table_type(struct table_schema_manager *table_schema_mgr, int id)
 {
-    if (table_mgr->schema_table[id] == NULL) {
+    if (table_schema_mgr->schema_table[id] == NULL) {
         return TABLE_TYPE_MAX;
     }
 
-    return table_mgr->schema_table[id]->table_type;
+    return table_schema_mgr->schema_table[id]->table_type;
 }
 
-size_t maat_table_manager_get_size(struct maat_table_manager* table_mgr)
+size_t table_schema_manager_get_size(struct table_schema_manager* table_schema_mgr)
 {
-    return table_mgr->n_schema_table;
+    return MAX_TABLE_NUM;
 }
 
-int populate_expr_table_item(sds line, struct expr_table_schema *expr_schema, struct expr_item *expr_item)
+void table_schema_manager_all_plugin_cb_start(struct table_schema_manager *table_schema_mgr, int update_type)
+{
+    struct table_schema *ptable = NULL;
+    struct plugin_table_schema *plugin_schema = NULL;
+
+    for (size_t i = 0; i < MAX_TABLE_NUM; i++) {
+		ptable = table_schema_mgr->schema_table[i];
+        if (NULL == ptable) {
+            continue;
+        }
+
+		plugin_schema = &(ptable->plugin);
+		if (ptable->table_type != TABLE_TYPE_PLUGIN || 0 == plugin_schema->cb_plug_cnt) {
+			continue;
+		}
+
+		table_schema_mgr->n_active_plugin_table++;
+		for (size_t j = 0; j < plugin_schema->cb_plug_cnt; j++) {
+			if (plugin_schema->cb_plug[j].start != NULL) {
+				plugin_schema->cb_plug[j].start(update_type, plugin_schema->cb_plug[j].u_para);
+			}
+		}
+	}
+}
+
+void table_schema_manager_all_plugin_cb_finish(struct table_schema_manager* table_schema_mgr)
+{
+    struct table_schema *ptable = NULL;
+    struct plugin_table_schema *plugin_schema = NULL;
+
+    for (size_t i = 0; i < MAX_TABLE_NUM; i++) {
+        ptable = table_schema_mgr->schema_table[i];
+        if (NULL == ptable) {
+            continue;
+        }
+        
+        if (ptable->table_type != TABLE_TYPE_PLUGIN) {
+            continue;
+        }
+
+        plugin_schema = &(ptable->plugin);
+        for (size_t j = 0; j < plugin_schema->cb_plug_cnt; j++) {
+            if (plugin_schema->cb_plug[j].finish != NULL) {
+                plugin_schema->cb_plug[j].finish(plugin_schema->cb_plug[j].u_para);
+            }
+        }
+    }
+    table_schema_mgr->n_active_plugin_table = 0;
+}
+
+enum expr_type int_to_expr_type(int expr_type)
+{
+    enum expr_type type = EXPR_TYPE_MAX;
+
+    switch (expr_type) {
+    case 0:
+        type = EXPR_TYPE_STRING;
+        break;
+    case 1:
+        type = EXPR_TYPE_AND;
+        break;
+    case 2:
+        type = EXPR_TYPE_REGEX;
+        break;
+    case 3:
+        type = EXPR_TYPE_OFFSET;
+        break;
+    default:
+        break;
+    }
+
+    return type;
+}
+
+enum match_method int_to_match_method_type(int match_method_type)
+{
+    enum match_method type = MATCH_METHOD_MAX;
+
+    switch (match_method_type) {
+    case 0:
+        type = MATCH_METHOD_SUB;
+        break;
+    case 1:
+        type = MATCH_METHOD_RIGHT;
+        break;
+    case 2:
+        type = MATCH_METHOD_LEFT;
+        break;
+    case 3:
+        type = MATCH_METHOD_COMPLETE;
+        break;
+    default:
+        break;
+    }
+
+    return type;
+}
+
+struct table_schema *table_schema_get(struct table_schema_manager *table_schema_mgr, int table_id)
+{
+    return table_schema_mgr->schema_table[table_id];
+}
+
+enum table_type table_schema_get_table_type(struct table_schema *table_schema)
+{
+    return table_schema->table_type;
+}
+
+int table_schema_get_table_id(struct table_schema *table_schema)
+{
+    return table_schema->table_id;
+}
+
+int populate_expr_table_item(const char *line, struct expr_table_schema *expr_schema, struct expr_item *expr_item)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
@@ -407,7 +632,6 @@ int populate_expr_table_item(sds line, struct expr_table_schema *expr_schema, st
     if (ret < 0) {
         return -1;
     }
-
     expr_item->item_id = atoi(line + column_offset);
 
     ret = get_column_pos(line, expr_schema->group_id_column, &column_offset, &column_len);
@@ -416,24 +640,162 @@ int populate_expr_table_item(sds line, struct expr_table_schema *expr_schema, st
     }
     expr_item->group_id = atoi(line + column_offset);
 
-}
+    /* TODO: luis */
+    #if 0
+    ret = get_column_pos(line, expr_schema->district_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
 
-int populate_ip_plugin_table_item(sds line, struct ip_plugin_table_schema *ip_plugin_schema, struct ip_plugin_item *ip_plugin_item)
-{
+    if (column_len >= MAX_DISTRICT_STR) {
+        //log_error
+        return -1;
+    }
+    memcpy(expr_item->district, (line + column_offset), column_len);
+    #endif
+
+    ret = get_column_pos(line, expr_schema->keywords_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+
+    if (column_len >= MAX_KEYWORDS_STR) {
+        //log_error
+        return -1;
+    }
+    memcpy(expr_item->keywords, (line + column_offset), column_len);
+
+    ret = get_column_pos(line, expr_schema->expr_type_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    
+    int expr_type = atoi(line + column_offset);
+    expr_item->expr_type = int_to_expr_type(expr_type);
+
+    ret = get_column_pos(line, expr_schema->match_method_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    
+    int match_method_type = atoi(line + column_offset);
+    expr_item->match_method = int_to_match_method_type(match_method_type);
+
+    ret = get_column_pos(line, expr_schema->is_hexbin_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    int db_hexbin = atoi(line + column_offset);
+    switch (db_hexbin) {
+        case 0:
+            expr_item->is_hexbin = FALSE;
+            expr_item->is_case_sensitive = FALSE;
+            break;
+        case 1:
+            expr_item->is_hexbin = TRUE;
+            expr_item->is_case_sensitive = FALSE;
+            break;
+        case 2:
+            expr_item->is_hexbin = FALSE;
+            expr_item->is_case_sensitive = TRUE;
+            break;
+        default:
+            //fprintf(stderr, "invalid hexbin value of expr table");
+            return -1;
+    }
+    ret = get_column_pos(line, expr_schema->is_valid_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    expr_item->is_valid = atoi(line + column_offset);
+    
     return 0;
 }
 
-struct maat_table_item *
-maat_table_line_to_item(sds line, struct maat_table_schema *table_schema)
+int populate_plugin_table_item(const char *line, struct plugin_table_schema *plugin_schema, struct plugin_item *plugin_item)
+{
+    size_t column_offset = 0;
+    size_t column_len = 0;
+
+    int ret = get_column_pos(line, plugin_schema->key_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+
+    if (column_len > MAX_KEYWORDS_STR) {
+        fprintf(stderr, "plugin table's key len:%zu, exceed %d", column_len, MAX_KEYWORDS_STR);
+        return -1;
+    }
+    memcpy(plugin_item->key, (line + column_offset), column_len);
+    plugin_item->key_len = column_len;
+
+    ret = get_column_pos(line, plugin_schema->is_valid_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    plugin_item->is_valid = atoi(line + column_offset);
+
+    return 0;
+}
+
+int populate_ip_plugin_table_item(const char *line, struct ip_plugin_table_schema *ip_plugin_schema, struct ip_plugin_item *ip_plugin_item)
+{
+    size_t column_offset = 0;
+    size_t column_len = 0;
+
+    int ret = get_column_pos(line, ip_plugin_schema->item_id_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    ip_plugin_item->item_id = atoi(line + column_offset);
+
+    ret = get_column_pos(line, ip_plugin_schema->is_valid_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    ip_plugin_item->is_valid = atoi(line + column_offset);
+
+    ret = get_column_pos(line, ip_plugin_schema->ip_type_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    ip_plugin_item->ip_type = atoi(line + column_offset);
+    if (ip_plugin_item->ip_type != 4 && ip_plugin_item->ip_type != 6) {
+        return -1;
+    }
+
+    ret = get_column_pos(line, ip_plugin_schema->start_ip_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    strncpy(ip_plugin_item->start_ip, line + column_offset, MIN(column_len, sizeof(ip_plugin_item->start_ip)));
+    
+    ret = get_column_pos(line, ip_plugin_schema->end_ip_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    strncpy(ip_plugin_item->end_ip, line + column_offset, MIN(column_len, sizeof(ip_plugin_item->end_ip)));
+
+    return 0;
+}
+
+struct table_item *
+table_schema_line_to_item(const char *line, struct table_schema *table_schema)
 {
     int ret = -1;
-    struct maat_table_item *table_item = ALLOC(struct maat_table_item, 1);
+    struct table_item *table_item = ALLOC(struct table_item, 1);
 
-    switch (table_schema->table_type)
-    {
+    switch (table_schema->table_type) {
     case TABLE_TYPE_EXPR:
         table_item->table_type = TABLE_TYPE_EXPR;
         ret = populate_expr_table_item(line, &table_schema->expr, &table_item->expr_item);
+        if (ret < 0) {
+            goto error;
+        }
+        break;
+    case TABLE_TYPE_PLUGIN:
+        table_item->table_type = TABLE_TYPE_PLUGIN;
+        ret = populate_plugin_table_item(line, &table_schema->plugin, &table_item->plugin_item);
         if (ret < 0) {
             goto error;
         }
@@ -454,3 +816,155 @@ error:
     return NULL;
 }
 
+enum scan_mode expr_table_schema_get_scan_mode(struct table_schema *table_schema)
+{
+    if (table_schema->table_type != TABLE_TYPE_EXPR) {
+        return SCAN_MODE_MAX;
+    }
+
+    return table_schema->expr.scan_mode;
+}
+
+int plugin_table_schema_set_ex_data_schema(struct table_schema *table_schema,
+									        maat_plugin_ex_new_func_t *new_func,
+									        maat_plugin_ex_free_func_t *free_func,
+									        maat_plugin_ex_dup_func_t *dup_func,
+									        long argl, void *argp)
+{
+    if (NULL == new_func || NULL == free_func || NULL == dup_func) {
+        assert(0);
+        fprintf(stderr, "%s failed: invalid parameter", __FUNCTION__);
+        return -1;
+    }
+
+    struct ex_data_schema *ex_schema = plugin_table_schema_get_ex_data_schema(table_schema);
+    if (NULL == ex_schema) {
+        fprintf(stderr, "Error: %s, target table is not a valid plugin table.", __FUNCTION__);
+        return -1;
+    }
+
+    if (ex_schema->set_flag) {
+        assert(0);
+        fprintf(stderr, "Error: %s, EX data schema already registed.", __FUNCTION__);
+        return -1;
+    }
+
+    ex_schema->new_func = new_func;
+    ex_schema->free_func = free_func;
+    ex_schema->dup_func = dup_func;
+    ex_schema->argl = argl;
+    ex_schema->argp = argp;
+    ex_schema->set_flag = 1;
+
+    return 0;
+}
+
+struct ex_data_schema *plugin_table_schema_get_ex_data_schema(struct table_schema *table_schema)
+{
+    struct ex_data_schema *ex_schema = NULL;
+
+    switch (table_schema->table_type) {
+        case TABLE_TYPE_PLUGIN:
+            ex_schema = &(table_schema->plugin.ex_schema);
+            break;
+        case TABLE_TYPE_IP_PLUGIN:
+            ex_schema = &(table_schema->ip_plugin.ex_schema);
+            break;
+        default:
+            break;
+    }
+
+    return ex_schema;
+}
+
+int plugin_table_schema_ex_data_schema_flag(struct table_schema *table_schema)
+{
+    struct ex_data_schema *ex_schema = NULL;
+
+    switch (table_schema->table_type) {
+        case TABLE_TYPE_PLUGIN:
+            ex_schema = &(table_schema->plugin.ex_schema);
+            break;
+        case TABLE_TYPE_IP_PLUGIN:
+            ex_schema = &(table_schema->ip_plugin.ex_schema);
+            break;
+        default:
+            break;
+    }
+
+    return ex_schema->set_flag;
+}
+
+int plugin_table_schema_add_callback(struct table_schema_manager* table_schema_mgr, int table_id,
+							         maat_start_callback_t *start,
+							         maat_update_callback_t *update,
+							         maat_finish_callback_t *finish,
+							         void *u_para)
+{
+	struct table_schema *ptable = table_schema_get(table_schema_mgr, table_id);
+    if (NULL == ptable) {
+        fprintf(stderr, "table_id:%d unregistered, can't add callback func", table_id);
+		return -1;
+	}
+
+    switch (ptable->table_type) {
+        case TABLE_TYPE_EXPR:
+        case TABLE_TYPE_EXPR_PLUS:
+        case TABLE_TYPE_IP:
+            fprintf(stderr, "table %s is not plugin type.", ptable->table_name);
+            return -1;
+        default:
+            break;
+    }
+
+	struct plugin_table_schema *plugin_schema = &(ptable->plugin);
+	size_t idx = plugin_schema->cb_plug_cnt;
+	if (idx == MAX_PLUGIN_PER_TABLE) {
+        fprintf(stderr, "the plugin number of table %s exceed maxium:%d", 
+                ptable->table_name, MAX_PLUGIN_PER_TABLE);
+		return -1;
+	}
+
+	plugin_schema->cb_plug_cnt++;
+	plugin_schema->cb_plug[idx].start = start;
+	plugin_schema->cb_plug[idx].update = update;
+	plugin_schema->cb_plug[idx].finish = finish;
+	plugin_schema->cb_plug[idx].u_para = u_para;
+
+	return 0;
+}
+
+size_t plugin_table_schema_callback_count(struct table_schema *table_schema)
+{
+    if (NULL == table_schema) {
+        return 0;
+    }
+
+    if (table_schema->table_type == TABLE_TYPE_PLUGIN) {
+        return table_schema->plugin.cb_plug_cnt;
+    } else {
+        return 0;
+    }
+}
+
+void plugin_table_schema_all_cb_update(struct table_schema* table_schema, const char *row)
+{
+    struct plugin_table_schema *plugin_schema = NULL;
+
+    switch (table_schema->table_type) {
+        case TABLE_TYPE_EXPR:
+        case TABLE_TYPE_EXPR_PLUS:
+        case TABLE_TYPE_IP_PLUGIN:
+            break;
+        case TABLE_TYPE_PLUGIN:
+            plugin_schema = &(table_schema->plugin);
+            if (plugin_schema->cb_plug_cnt > 0) {
+                for (size_t i = 0; i < plugin_schema->cb_plug_cnt; i++) {
+                    plugin_schema->cb_plug[i].update(table_schema->table_id, row, plugin_schema->cb_plug[i].u_para);
+                }
+            }
+            break;
+       default:
+            break;
+    }
+}

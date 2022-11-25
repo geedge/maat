@@ -11,12 +11,17 @@
 #include <assert.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <sys/queue.h>
 
 #include "rcu_hash.h"
-#include "maat_utils.h"
-#include "maat_garbage_collection.h"
+#include "utils.h"
 
-#define GARBAGE_DEFAULT_TIMEOUT 60
+struct rcu_hash_garbage_bag {
+	void *garbage;
+	void (* garbage_free)(void *garbage);
+	TAILQ_ENTRY(rcu_hash_garbage_bag) entries;
+};
+TAILQ_HEAD(rcu_hash_garbage_q, rcu_hash_garbage_bag);
 
 struct rcu_hash_table {
     int is_updating;
@@ -26,8 +31,11 @@ struct rcu_hash_table {
     struct rcu_hash_node *hashmap_a;
     struct rcu_hash_node *hashmap_b;
 
-    void (* data_free)(void *data);
-    struct maat_garbage_bin *garbage_bin;
+    void (*data_free_fn)(void *user_ctx, void *data);
+    void *user_ctx;
+
+    struct rcu_hash_garbage_q garbage_q;
+    size_t garbage_q_len;
 
     pthread_mutex_t update_mutex;
 };
@@ -37,35 +45,67 @@ struct rcu_hash_node {
     size_t key_len;
     void *data; //table_runtime解析成两个成员
 
+    /* htable the node belongs to */
+    struct rcu_hash_table *htable;
+
     UT_hash_handle hh_a;
     UT_hash_handle hh_b;   
 };
 
-void rcu_hash_node_free(struct rcu_hash_node *node, void (* data_free)(void *data))
+void rcu_hash_garbage_queue_free(struct rcu_hash_garbage_q* garbage_q)
 {
+	struct rcu_hash_garbage_bag *p = NULL;
+
+	while ((p = TAILQ_FIRST(garbage_q)) != NULL) {
+		p->garbage_free(p->garbage);
+		TAILQ_REMOVE(garbage_q, p, entries);
+		free(p);
+	}
+}
+
+size_t rcu_hash_garbage_queue_len(struct rcu_hash_table *htable)
+{
+	return htable->garbage_q_len;
+}
+
+void rcu_hash_garbage_bagging(struct rcu_hash_garbage_q* garbage_q, void* garbage, void (* func)(void *))
+{
+	struct rcu_hash_garbage_bag *bag = ALLOC(struct rcu_hash_garbage_bag, 1);
+
+	bag->garbage = garbage;
+	bag->garbage_free = func;
+	TAILQ_INSERT_TAIL(garbage_q, bag, entries);
+}
+
+void rcu_hash_node_free(struct rcu_hash_node *node)
+{
+    if (NULL == node) {
+        return;
+    }
+
     if (node->key != NULL) {
         free(node->key);
     }
 
     if (node->data != NULL) {
-        data_free(node->data);
+        node->htable->data_free_fn(node->htable->user_ctx, node->data);
     }
-
     free(node);
 }
 
-struct rcu_hash_table *rcu_hash_new(void (* data_free)(void *data))
+struct rcu_hash_table *rcu_hash_new(rcu_hash_data_free_fn *free_fn)
 {
-    if (NULL == data_free) {
+    if (NULL == free_fn) {
         return NULL;
     }
-    
+
     struct rcu_hash_table *htable = ALLOC(struct rcu_hash_table, 1);
 
     htable->is_updating = 0;
     htable->effective_hash = 'a';
-    htable->garbage_bin = maat_garbage_bin_new(GARBAGE_DEFAULT_TIMEOUT);
-    htable->data_free = data_free;
+    TAILQ_INIT(&htable->garbage_q);
+    htable->garbage_q_len = 0;
+    htable->data_free_fn = free_fn;
     pthread_mutex_init(&htable->update_mutex, NULL);
 
     return htable;
@@ -73,28 +113,36 @@ struct rcu_hash_table *rcu_hash_new(void (* data_free)(void *data))
 
 void rcu_hash_free(struct rcu_hash_table *htable)
 {
+    if (NULL == htable) {
+        return;
+    }
+
     struct rcu_hash_node *tmp = NULL;
     struct rcu_hash_node *item = NULL;
-
-    if (htable != NULL) {
+    if (htable->effective_hash == 'a') {
         HASH_ITER(hh_a, htable->hashmap_a, item, tmp) {
             HASH_DELETE(hh_a, htable->hashmap_a, item);
-            rcu_hash_node_free(item, htable->data_free);
+            rcu_hash_node_free(item);
         }
-
+    } else {
         HASH_ITER(hh_b, htable->hashmap_b, item, tmp) {
             HASH_DELETE(hh_b, htable->hashmap_b, item);
-            rcu_hash_node_free(item, htable->data_free);
+            rcu_hash_node_free(item);
         }
     }
 
-    maat_garbage_bin_free(htable->garbage_bin);
+    rcu_hash_garbage_queue_free(&(htable->garbage_q));
     pthread_mutex_destroy(&htable->update_mutex);
 
     free(htable);
 }
 
-void rcu_hash_update_prepare(struct rcu_hash_table *htable)
+void rcu_hash_set_user_ctx(struct rcu_hash_table *htable, void *user_ctx)
+{
+    htable->user_ctx = user_ctx;
+}
+
+void rcu_hash_commit_prepare(struct rcu_hash_table *htable)
 {
     struct rcu_hash_node *node = NULL;
     struct rcu_hash_node *tmp = NULL;
@@ -116,23 +164,31 @@ void rcu_hash_update_prepare(struct rcu_hash_table *htable)
 
 void rcu_hash_add(struct rcu_hash_table *htable, const char *key, size_t key_len, void *data)
 {
+    if (NULL == htable || NULL == key || 0 == key_len) {
+        return;
+    }
+
+    struct rcu_hash_node *tmp = NULL;
     struct rcu_hash_node *node = ALLOC(struct rcu_hash_node, 1);
+    
+    node->key = (char *)malloc(sizeof(char) * key_len);
     memcpy(node->key, key, key_len);
     node->key_len = key_len;
     node->data = data;
+    node->htable = htable;
 
     if (!htable->is_updating) {
-        rcu_hash_update_prepare(htable);
+        rcu_hash_commit_prepare(htable);
     }
 
     if (htable->effective_hash == 'a') {
-        HASH_FIND(hh_b, htable->hashmap_b, key, key_len, node);
-        if (NULL == node) {
+        HASH_FIND(hh_b, htable->hashmap_b, key, key_len, tmp);
+        if (NULL == tmp) {
             HASH_ADD_KEYPTR(hh_b, htable->hashmap_b, key, key_len, node);
         }
     } else {
-        HASH_FIND(hh_a, htable->hashmap_a, key, key_len, node);
-        if (NULL == node) {
+        HASH_FIND(hh_a, htable->hashmap_a, key, key_len, tmp);
+        if (NULL == tmp) {
             HASH_ADD_KEYPTR(hh_a, htable->hashmap_a, key, key_len, node);
         }
     }
@@ -140,12 +196,15 @@ void rcu_hash_add(struct rcu_hash_table *htable, const char *key, size_t key_len
 
 void rcu_hash_del(struct rcu_hash_table *htable, const char *key, size_t key_len)
 {
-    struct rcu_hash_node *node = NULL;
+    if (NULL == htable || NULL == key || 0 == key_len) {
+        return;
+    }
 
     if (!htable->is_updating) {
-        rcu_hash_update_prepare(htable);
+        rcu_hash_commit_prepare(htable);
     }
     
+    struct rcu_hash_node *node = NULL;
     if (htable->effective_hash == 'a') {
         HASH_FIND(hh_b, htable->hashmap_b, key, key_len, node);
         if (node != NULL) {
@@ -159,14 +218,18 @@ void rcu_hash_del(struct rcu_hash_table *htable, const char *key, size_t key_len
     }
 
     if (node != NULL) {
-        maat_garbage_bagging(htable->garbage_bin, node, (void (*)(void*))rcu_hash_node_free);
+        rcu_hash_garbage_bagging(&(htable->garbage_q), node, (void (*)(void*))rcu_hash_node_free);
+        htable->garbage_q_len++;
     }
 }
 
 void *rcu_hash_find(struct rcu_hash_table *htable, const char *key, size_t key_len)
 {
-    struct rcu_hash_node *node = NULL;
+    if (NULL == htable || NULL == key || 0 == key_len) {
+        return NULL;
+    }
 
+    struct rcu_hash_node *node = NULL;
     if (htable->effective_hash == 'a') {
         HASH_FIND(hh_a, htable->hashmap_a, key, key_len, node);
         if (node != NULL) {
@@ -182,8 +245,12 @@ void *rcu_hash_find(struct rcu_hash_table *htable, const char *key, size_t key_l
     return NULL;
 }
 
-size_t rcu_hash_counts(struct rcu_hash_table *htable)
+size_t rcu_hash_count(struct rcu_hash_table *htable)
 {
+    if (NULL == htable) {
+        return 0;
+    }
+
     if (htable->effective_hash == 'a') {
         return HASH_CNT(hh_a, htable->hashmap_a);
     } else {
@@ -193,6 +260,10 @@ size_t rcu_hash_counts(struct rcu_hash_table *htable)
 
 void rcu_hash_commit(struct rcu_hash_table *htable)
 {
+    if (NULL == htable) {
+        return;
+    }
+
     if (!htable->is_updating) {
         return;
     }
@@ -221,7 +292,40 @@ void rcu_hash_commit(struct rcu_hash_table *htable)
         }
     }
     htable->is_updating = 0;
-    //maat_garbage_collect_by_force(htable->garbage_bin);
-    //rcu_garbage
+
+    rcu_hash_garbage_queue_free(&(htable->garbage_q));
+    htable->garbage_q_len = 0;
+    
     pthread_mutex_unlock(&htable->update_mutex);
+}
+
+size_t rcu_hash_list_updating_data(struct rcu_hash_table *htable, void ***data_array)
+{
+    size_t i = 0;
+    size_t node_cnt = 0;
+	struct rcu_hash_node *node = NULL, *tmp = NULL;
+	
+	assert(htable->is_updating == 1);
+    if (htable->effective_hash == 'a') {
+        node_cnt = HASH_CNT(hh_b, htable->hashmap_b);
+        *data_array = ALLOC(void *, node_cnt);
+        HASH_ITER(hh_b, htable->hashmap_b, node, tmp) {
+            (*data_array)[i] = node->data;
+            i++;
+        }
+    } else {
+        node_cnt = HASH_CNT(hh_a, htable->hashmap_a);
+        *data_array = ALLOC(void *, node_cnt);
+        HASH_ITER(hh_a, htable->hashmap_a, node, tmp) {
+            (*data_array)[i] = node->data;
+            i++;
+        }
+    }
+
+	return node_cnt;
+}
+
+int rcu_hash_updating_flag(struct rcu_hash_table *htable)
+{
+    return htable->is_updating;
 }

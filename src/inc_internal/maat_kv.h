@@ -8,8 +8,8 @@
 ***********************************************************************************************
 */
 
-#ifndef _MAAT_KV_MAP_H_
-#define _MAAT_KV_MAP_H_
+#ifndef _MAAT_KV_H_
+#define _MAAT_KV_H_
 
 #ifdef __cpluscplus
 extern "C"

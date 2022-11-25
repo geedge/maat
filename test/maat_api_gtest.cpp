@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
+#include "maat/maat.h"
 
-#include "../include/maat/maat.h"
+#include <gtest/gtest.h>
 
 TEST(EQ_Test, Always_True) {
   EXPECT_EQ(1, 1);

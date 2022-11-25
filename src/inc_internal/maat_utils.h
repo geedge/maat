@@ -19,11 +19,28 @@ extern "C"
 #include <stdlib.h>
 #include <stddef.h>
 
-#include "sds/sds.h"
+#define	TRUE	1
+#define	FALSE	0
 
-#define ALLOC(type, number) ((type *)calloc(sizeof(type), number))
+#ifndef MAX
+#define MAX(a, b)  	(((a) > (b)) ? (a) : (b))
+#endif
 
-int get_column_pos(sds line, int column_seq, size_t *offset, size_t *len);
+#ifndef MIN
+#define MIN(a, b)  	(((a) < (b)) ? (a) : (b))
+#endif
+
+char *maat_strdup(const char *s);
+
+int get_column_pos(const char *line, int column_seq, size_t *offset, size_t *len);
+
+int load_file_to_memory(const char *file_name, unsigned char **pp_out, size_t *out_sz);
+
+char *strtok_r_esc(char *s, const char delim, char **save_ptr);
+
+char *str_unescape_and(char *s);
+
+char *str_unescape(char *s);
 
 #ifdef __cpluscplus
 }

@@ -19,19 +19,51 @@ extern "C"
 #include "maat_table_schema.h"
 #include "maat_garbage_collection.h"
 
-struct maat_table_item;
-struct maat_table_runtime;
-struct maat_table_runtime_manager;
+struct table_item;
+struct table_runtime;
+struct table_runtime_manager;
 
-struct maat_table_runtime_manager *maat_table_runtime_manager_create(struct maat_table_manager *table_mgr, int max_thread_num, struct maat_garbage_bin* bin);
+/* table runtime manager API */
+struct table_runtime_manager *table_runtime_manager_create(struct table_schema_manager *table_schema_mgr, int max_thread_num, 
+                                                           struct maat_garbage_bin *bin);
 
-void maat_table_runtime_manager_destroy(struct maat_table_runtime_manager *table_rt_mgr);
+void table_runtime_manager_destroy(struct table_runtime_manager *table_rt_mgr);
 
-struct maat_table_runtime *maat_table_runtime_get(struct maat_table_runtime_manager *table_rt_mgr, int table_id);
+/* table runtime API */
+struct table_runtime *table_runtime_get(struct table_runtime_manager *table_rt_mgr, int table_id);
 
-enum maat_table_type maat_table_runtime_get_type(struct maat_table_runtime* table_rt);
+size_t table_runtime_rule_count(struct table_runtime *table_rt);
 
-void maat_table_runtime_item_add(struct maat_table_runtime *table_rt, struct maat_table_item *table_item);
+enum table_type table_runtime_get_type(struct table_runtime* table_rt);
+
+void table_runtime_update(struct table_runtime *table_rt, struct table_schema *table_schema, const char *line, struct table_item *table_item);
+
+/**
+ * @brief if table_runtime is updating
+ * 
+ * @retval 1(yes) 0(no)
+*/
+int table_runtime_updating_flag(struct table_runtime *table_rt);
+
+void table_runtime_commit(struct table_runtime *table_rt, size_t nr_worker_thread);
+
+/* table runtime scan API */
+int table_runtime_scan_string(struct table_runtime *table_rt, int thread_id, const char *data, size_t data_len, 
+                              int results[], size_t *n_result);
+
+void table_runtime_stream_open(struct table_runtime *table_rt, int thread_id);
+int table_runtime_scan_stream(struct table_runtime *table_rt, const char *data, size_t data_len,
+                              int result[], size_t n_result);
+void table_runtime_stream_close(struct table_runtime *table_rt);
+
+/* plugin table runtime API */
+size_t plugin_table_runtime_cached_row_count(struct table_runtime *table_rt);
+
+const char* plugin_table_runtime_get_cached_row(struct table_runtime *table_rt, size_t row_seq);
+
+void *plugin_table_runtime_get_ex_data(struct table_runtime *table_rt, struct table_schema *table_schema, const char *key, size_t key_len);
+
+void plugin_table_runtime_commit_ex_data_schema(struct table_runtime *table_rt, struct table_schema *table_schema);
 
 #ifdef __cpluscplus
 }

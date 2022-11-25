@@ -20,6 +20,13 @@ extern "C"
 
 struct maat_options {
     size_t nr_worker_threads;
+    int rule_effect_interval_ms;
+    int rule_update_checking_interval_ms;
+    int gc_timeout_ms;
+    int deferred_load_on;
+    enum data_source input_mode;
+    char iris_full_dir[NAME_MAX];
+    char iris_inc_dir[NAME_MAX];
 };
 
 #ifdef __cpluscplus

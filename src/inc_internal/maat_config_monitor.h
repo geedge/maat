@@ -18,15 +18,14 @@ extern "C"
 
 #include <stdint.h>
 
-#define CONFIG_UPDATE_TYPE_NONE 0
-#define CONFIG_UPDATE_TYPE_FULL 1
-#define CONFIG_UPDATE_TYPE_INC 2
+#define CM_UPDATE_TYPE_NONE 0
+#define CM_UPDATE_TYPE_FULL 1
+#define CM_UPDATE_TYPE_INC  2
 
-
-void config_monitor_traverse(uint64_t version, const char *idx_dir,
-							void (*pre_fn)(uint64_t, int, void *),
+void config_monitor_traverse(long long version, const char *idx_dir,
+							void (*start_fn)(long long, int, void *),
 							int (*update_fn)(const char *, const char *, void *),
-							void (*post_fn)(void *),
+							void (*finish_fn)(void *),
 							void *u_param);
 
 #ifdef __cpluscplus

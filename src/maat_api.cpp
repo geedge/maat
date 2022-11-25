@@ -9,19 +9,27 @@
 */
 
 #include <stdio.h>
+#include <string.h>
 
-#include "maat_utils.h"
+#include "utils.h"
+#include "maat/maat.h"
 #include "maat_rule.h"
 #include "maat_common.h"
+#include "maat_kv.h"
 #include "maat_table_schema.h"
 #include "maat_table_runtime.h"
-#include "sds/sds.h"
+#include "maat_config_monitor.h"
 
 struct maat_options* maat_options_new(void)
 {
     struct maat_options *options = ALLOC(struct maat_options, 1);
 
     options->nr_worker_threads = 1;
+    options->deferred_load_on = 0;
+    options->rule_effect_interval_ms = 60 * 1000;
+    options->rule_update_checking_interval_ms = 1 * 1000;
+    options->gc_timeout_ms = 10 * 1000;
+    options->input_mode = DATA_SOURCE_NONE;
 
     return options;
 }
@@ -33,25 +41,129 @@ int maat_options_set_worker_thread_number(struct maat_options *opts, size_t n_wo
     return 0;
 }
 
-struct maat *maat_new(struct maat_options opts, const char *table_info_path)
+int maat_options_set_rule_effect_interval_ms(struct maat_options *opts, int interval_ms)
 {
-    #if 0
+    opts->rule_effect_interval_ms = interval_ms;
+    
+    return 0;
+}
+
+int maat_options_set_rule_update_checking_interval_ms(struct maat_options *opts, int interval_ms)
+{
+    opts->rule_update_checking_interval_ms = interval_ms;
+
+    return 0;
+}
+
+int maat_options_set_gc_timeout_ms(struct maat_options *opts, int interval_ms)
+{
+    opts->gc_timeout_ms = interval_ms;
+
+    return 0;
+}
+
+int maat_options_set_deferred_load_on(struct maat_options *opts)
+{
+    opts->deferred_load_on = 1;
+    return 0;
+}
+
+int maat_options_set_iris_full_dir(struct maat_options *opts, const char *full_dir)
+{
+    if (strlen(full_dir) >= NAME_MAX) {
+        return -1;
+    }
+
+    memcpy(opts->iris_full_dir, full_dir, strlen(full_dir));
+    opts->input_mode = DATA_SOURCE_IRIS_FILE;
+    return 0;
+}
+
+int maat_options_set_iris_inc_dir(struct maat_options *opts, const char *inc_dir)
+{
+    if (strlen(inc_dir) >= NAME_MAX) {
+        return -1;
+    }
+
+    memcpy(opts->iris_inc_dir, inc_dir, strlen(inc_dir));
+    opts->input_mode = DATA_SOURCE_IRIS_FILE;
+    return 0;
+}
+
+void maat_read_full_config(struct maat *maat_instance)
+{
+    switch (maat_instance->input_mode) {
+        case DATA_SOURCE_IRIS_FILE:
+			config_monitor_traverse(maat_instance->maat_version,
+                                    maat_instance->iris_ctx.full_dir,
+                                    maat_start_cb,
+                                    maat_update_cb,
+                                    maat_finish_cb,
+                                    maat_instance);
+            if (NULL == maat_instance->creating_maat_rt) {
+                fprintf(stderr, "At initiation: NO effective rule in %s.",
+                                maat_instance->iris_ctx.full_dir);
+            }
+            break;
+        default:
+            break;
+    }
+
+    maat_instance->maat_rt = maat_instance->creating_maat_rt;
+    maat_instance->creating_maat_rt = NULL;
+    maat_instance->is_running = 1;
+    if (maat_instance->maat_rt != NULL) {
+        maat_instance->maat_version = maat_instance->maat_rt->version;
+        maat_instance->last_full_version = maat_instance->maat_rt->version;
+    }
+}
+
+struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
+{
     if (NULL == table_info_path) {
         return NULL;
     }
 
+    int garbage_gc_timeout_s = 0;
     struct maat *maat_instance = ALLOC(struct maat, 1);
     
-    maat_instance->table_mgr = maat_table_manager_create(table_info_path);
+    maat_instance->table_schema_mgr = table_schema_manager_create(table_info_path);
+    if (NULL == maat_instance->table_schema_mgr) {
+        goto failed;
+    }
+
+    maat_instance->input_mode = opts->input_mode;
+    switch (maat_instance->input_mode) {
+        case DATA_SOURCE_IRIS_FILE:
+            memcpy(maat_instance->iris_ctx.full_dir, opts->iris_full_dir, strlen(opts->iris_full_dir));
+            memcpy(maat_instance->iris_ctx.inc_dir, opts->iris_inc_dir, strlen(opts->iris_inc_dir));
+            break;
+        default:
+            fprintf(stderr, "data source unsupported:%d\n", maat_instance->input_mode);
+            goto failed;
+    }
+
     maat_instance->is_running = 0;
     maat_instance->maat_version = 0;
     maat_instance->last_full_version = 0;
-    maat_instance->nr_worker_thread = opts.nr_worker_threads;
+    maat_instance->nr_worker_thread = opts->nr_worker_threads;
+    maat_instance->rule_effect_interval_ms = opts->rule_effect_interval_ms;
+    maat_instance->gc_timeout_ms = opts->gc_timeout_ms;
+    maat_instance->deferred_load = opts->deferred_load_on;
+    garbage_gc_timeout_s = (maat_instance->rule_effect_interval_ms / 1000) +
+                                (maat_instance->gc_timeout_ms / 1000);
+    maat_instance->garbage_bin = maat_garbage_bin_new(garbage_gc_timeout_s);
+    pthread_mutex_init(&(maat_instance->background_update_mutex), NULL);
+
+    if (0 == maat_instance->deferred_load) {
+        maat_read_full_config(maat_instance);
+    }
 
     pthread_create(&(maat_instance->cfg_mon_thread), NULL, rule_monitor_loop, (void*)maat_instance);
 
     return maat_instance;
-    #endif
+failed:
+    free(maat_instance);
     return NULL;
 }
 
@@ -64,9 +176,98 @@ void maat_free(struct maat *maat_instance)
 	return;
 }
 
-int maat_table_get_id(struct maat *instance, const char *table_name)
+int maat_table_get_id(struct maat *maat_instance, const char *table_name)
 {
+    int table_id = -1;
+
+    struct table_schema_manager *table_schema_mgr = maat_instance->table_schema_mgr;
+    table_id = table_schema_manager_get_table_id(table_schema_mgr, table_name);
+    
+    return table_id;
+}
+
+int maat_table_callback_register(struct maat *maat_instance, int table_id,
+								 maat_start_callback_t *start,
+								 maat_update_callback_t *update,
+								 maat_finish_callback_t *finish,
+								 void *u_para)
+{
+    int ret = -1;
+
+    pthread_mutex_lock(&(maat_instance->background_update_mutex));
+    ret = plugin_table_schema_add_callback(maat_instance->table_schema_mgr, table_id, start, update, finish, u_para);
+    if (ret < 0) {
+        pthread_mutex_unlock(&(maat_instance->background_update_mutex));
+        return -1;
+    }
+
+    if (!maat_instance->maat_rt) {
+        pthread_mutex_unlock(&(maat_instance->background_update_mutex));
+        return 0;
+    }
+
+    struct table_runtime *table_rt = table_runtime_get(maat_instance->maat_rt->table_rt_mgr, table_id);
+    size_t row_count = plugin_table_runtime_cached_row_count(table_rt);
+    if (row_count > 0) {
+        if (start != NULL) {
+            start(MAAT_RULE_UPDATE_TYPE_FULL, u_para);
+        }
+
+        for (size_t i = 0; i < row_count; i++) {
+            const char *line = plugin_table_runtime_get_cached_row(table_rt, i);
+            if (NULL == line) {
+                break;
+            }
+
+            update(table_id, line, u_para);
+        }
+
+        if (finish != NULL) {
+            finish(u_para);
+        }
+    }
+
+    pthread_mutex_unlock(&(maat_instance->background_update_mutex));
+
     return 0;
+}
+
+int maat_plugin_table_ex_schema_register(struct maat *maat_instance, int table_id,
+                                         maat_plugin_ex_new_func_t *new_func,
+                                         maat_plugin_ex_free_func_t *free_func,
+                                         maat_plugin_ex_dup_func_t *dup_func,
+                                         long argl, void *argp)
+{
+    struct table_schema *table_schema = table_schema_get(maat_instance->table_schema_mgr, table_id);
+    pthread_mutex_lock(&(maat_instance->background_update_mutex));
+    int ret = plugin_table_schema_set_ex_data_schema(table_schema, new_func, free_func, dup_func, argl, argp);
+    if (ret < 0) {
+        pthread_mutex_unlock(&(maat_instance->background_update_mutex));
+        return -1;
+    }
+    
+    struct table_runtime *table_rt = NULL;
+    if (maat_instance->maat_rt != NULL) {
+        table_rt = table_runtime_get(maat_instance->maat_rt->table_rt_mgr, table_id);
+        plugin_table_runtime_commit_ex_data_schema(table_rt, table_schema);
+    }
+    pthread_mutex_unlock(&(maat_instance->background_update_mutex));
+
+    return 0;
+}
+
+void *maat_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
+                                    const char *key, size_t key_len)
+{
+    struct maat_runtime *maat_rt = maat_instance->maat_rt;
+    if (NULL == maat_rt) {
+        return NULL;
+    }
+
+    struct table_schema *table_schema  = table_schema_get(maat_instance->table_schema_mgr, table_id);
+    struct table_runtime *table_rt = table_runtime_get(maat_rt->table_rt_mgr, table_id);
+
+    return plugin_table_runtime_get_ex_data(table_rt, table_schema, key, key_len);
 }
 
 int maat_scan_integer(struct maat *instance, int table_id, int thread_id,
@@ -87,16 +288,10 @@ int maat_scan_string(struct maat *maat_instance, int table_id, int thread_id,
                      const char *data, size_t data_len, int results[], size_t *n_results,
                      struct maat_state *state)
 {
-    #if 0
-    if (NULL == maat_instance || NULL == data ) {
-        return -1;
-    }
+    struct table_runtime_manager *table_rt_mgr = maat_instance->maat_rt->table_rt_mgr;
+    struct table_runtime *table_rt = table_runtime_get(table_rt_mgr, table_id);
     
-    struct maat_runtime *maat_rt = maat_instance->maat_rt;
-    
-    struct maat_table_runtime *table_rt = maat_table_runtime_get(maat_rt->table_rt_mgr, table_id);
-    #endif
-    return 0;
+    return table_runtime_scan_string(table_rt, thread_id, data, data_len, results, n_results);
 }
 
 struct maat_stream *maat_scan_stream_open(struct maat *instance, int table_id, int thread_id)

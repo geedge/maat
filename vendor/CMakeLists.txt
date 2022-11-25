@@ -54,3 +54,19 @@ add_library(hyperscan_runtime_static STATIC IMPORTED GLOBAL)
 add_dependencies(hyperscan_runtime_static hyperscan)
 set_property(TARGET hyperscan_runtime_static PROPERTY IMPORTED_LOCATION ${VENDOR_BUILD}/lib64/libhs_runtime.a)
 set_property(TARGET hyperscan_runtime_static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${VENDOR_BUILD}/include)
+
+# ipmatcher-1.1
+ExternalProject_Add(ipmatcher PREFIX ipmatcher
+        URL ${CMAKE_CURRENT_SOURCE_DIR}/ipmatcher-v1.1.zip
+		CONFIGURE_COMMAND ""
+        BUILD_COMMAND make
+		INSTALL_COMMAND make DESTDIR=<INSTALL_DIR> install
+        BUILD_IN_SOURCE 1)
+
+ExternalProject_Get_Property(ipmatcher INSTALL_DIR)
+file(MAKE_DIRECTORY ${INSTALL_DIR}/include)
+
+add_library(ipmatcher-static STATIC IMPORTED GLOBAL)
+add_dependencies(ipmatcher-static ipmatcher)
+set_property(TARGET ipmatcher-static PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/ipmatcher.a)
+set_property(TARGET ipmatcher-static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)

@@ -12,7 +12,7 @@
 #include <ctype.h>
 
 #include "uthash/uthash.h"
-#include "maat_utils.h"
+#include "utils.h"
 
 #define MAAT_KV_MAX_KEY_LEN 512
 
