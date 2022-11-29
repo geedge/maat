@@ -32,7 +32,7 @@ enum scan_mode {
 
 /* pattern type: PATTERN_TYPE_STR(pure literal string) or PATTERN_TYPE_REG(regex expression) */
 enum pattern_type {
-    PATTERN_TYPE_STR = 1,
+    PATTERN_TYPE_STR = 0,
     PATTERN_TYPE_REG,
 };
 

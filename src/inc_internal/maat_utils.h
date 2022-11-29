@@ -42,6 +42,9 @@ char *str_unescape_and(char *s);
 
 char *str_unescape(char *s);
 
+/* system cmd wrapper */
+int system_cmd_mkdir(const char* path);
+
 #ifdef __cpluscplus
 }
 #endif

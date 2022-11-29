@@ -238,13 +238,15 @@ int get_new_idx_path(long long current_version, const char *file_dir, char ***id
 		}
 
 		if (strlen(namelist[i]->d_name) > 42) {
-			//log_error("config file %s filename too long,should like full_config_index.00000000000000000001",namelist[i]->d_name);
+			fprintf(stderr, "config file %s filename too long,should like full_config_index.00000000000000000001", 
+                            namelist[i]->d_name);
 			continue;
 		}
 
 		int ret = sscanf(namelist[i]->d_name,"%[a-zA-Z]_config_index.%lld", update_str, &config_seq);
 		if (ret != 2) {
-			//log_error("config file %s filename error,should like full_config_index.00000000000000000001",namelist[i]->d_name);
+			fprintf(stderr, "config file %s filename error,should like full_config_index.00000000000000000001",
+                            namelist[i]->d_name);
 			continue;
 		}
 
@@ -262,7 +264,7 @@ int get_new_idx_path(long long current_version, const char *file_dir, char ***id
 				}
 			}
 		} else {
-			//log_error("config file %s,not full or inc config",namelist[i]->d_name);
+			fprintf(stderr, "config file %s,not full or inc config", namelist[i]->d_name);
 		}
 	}
 
@@ -317,7 +319,7 @@ void config_monitor_traverse(long long current_version, const char *idx_dir,
 		for (i = 0; i < idx_path_num; i++) {
 			int table_num = cm_read_cfg_index_file(idx_path_array[i], table_array, CM_MAX_TABLE_NUM);
 			if (table_num < 0) {
-				//log_error luis
+				fprintf(stderr, "load %s failed, abandon udpate.", idx_path_array[i]);
 				break;
 			}
 

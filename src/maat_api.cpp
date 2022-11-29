@@ -207,14 +207,14 @@ int maat_table_callback_register(struct maat *maat_instance, int table_id,
     }
 
     struct table_runtime *table_rt = table_runtime_get(maat_instance->maat_rt->table_rt_mgr, table_id);
-    size_t row_count = plugin_table_runtime_cached_row_count(table_rt);
+    size_t row_count = table_runtime_cached_row_count(table_rt);
     if (row_count > 0) {
         if (start != NULL) {
             start(MAAT_RULE_UPDATE_TYPE_FULL, u_para);
         }
 
         for (size_t i = 0; i < row_count; i++) {
-            const char *line = plugin_table_runtime_get_cached_row(table_rt, i);
+            const char *line = table_runtime_get_cached_row(table_rt, i);
             if (NULL == line) {
                 break;
             }
@@ -249,7 +249,7 @@ int maat_plugin_table_ex_schema_register(struct maat *maat_instance, int table_i
     struct table_runtime *table_rt = NULL;
     if (maat_instance->maat_rt != NULL) {
         table_rt = table_runtime_get(maat_instance->maat_rt->table_rt_mgr, table_id);
-        plugin_table_runtime_commit_ex_data_schema(table_rt, table_schema);
+        table_runtime_commit_ex_data_schema(table_rt, table_schema);
     }
     pthread_mutex_unlock(&(maat_instance->background_update_mutex));
 
@@ -267,7 +267,7 @@ void *maat_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
     struct table_schema *table_schema  = table_schema_get(maat_instance->table_schema_mgr, table_id);
     struct table_runtime *table_rt = table_runtime_get(maat_rt->table_rt_mgr, table_id);
 
-    return plugin_table_runtime_get_ex_data(table_rt, table_schema, key, key_len);
+    return table_runtime_get_ex_data(table_rt, table_schema, key, key_len);
 }
 
 int maat_scan_integer(struct maat *instance, int table_id, int thread_id,
@@ -288,6 +288,12 @@ int maat_scan_string(struct maat *maat_instance, int table_id, int thread_id,
                      const char *data, size_t data_len, int results[], size_t *n_results,
                      struct maat_state *state)
 {
+    if ((NULL == maat_instance) || (table_id < 0) || (table_id >= MAX_TABLE_NUM) ||
+        (thread_id < 0) || (NULL == data) || (0 == data_len) || (NULL == results) || 
+        (NULL == n_results)) {
+        return -1;
+    }
+    
     struct table_runtime_manager *table_rt_mgr = maat_instance->maat_rt->table_rt_mgr;
     struct table_runtime *table_rt = table_runtime_get(table_rt_mgr, table_id);
     

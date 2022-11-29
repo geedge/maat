@@ -88,8 +88,19 @@ void plugin_ex_data_free(void *user_ctx, void *data)
     ctx->ex_schema->free_func(ctx->table_id, &data, argl, argp);
 }
 
+void expr_rule_free(and_expr_t *expr_rule)
+{
+    if (expr_rule != NULL) {
+        for (size_t i = 0; i < expr_rule->n_patterns; i++) {
+            free(expr_rule->patterns[i].pat);
+            expr_rule->patterns[i].pat = NULL;
+        }
+    }
+}
 void expr_ex_data_free(void *user_ctx, void *data)
 {
+    and_expr_t *expr_rule = (and_expr_t *)data;
+    expr_rule_free(expr_rule);
     free(data);
 }
 
@@ -164,6 +175,10 @@ table_runtime_manager_create(struct table_schema_manager *table_schema_mgr, int 
 
 void table_runtime_manager_destroy(struct table_runtime_manager *table_rt_mgr)
 {
+    if (NULL == table_rt_mgr) {
+        return;
+    }
+
 	for(size_t i = 0; i < table_rt_mgr->n_table_rt; i++) {
 		table_runtime_free(table_rt_mgr->table_rt[i]);
 		table_rt_mgr->table_rt[i] = NULL;
@@ -176,28 +191,48 @@ void table_runtime_manager_destroy(struct table_runtime_manager *table_rt_mgr)
 
 struct table_runtime *table_runtime_get(struct table_runtime_manager *table_rt_mgr, int table_id)
 {
+    if (NULL == table_rt_mgr || (table_id < 0) || (table_id >= MAX_TABLE_NUM)) {
+        return NULL;
+    }
+
     assert(table_id < (int)table_rt_mgr->n_table_rt);
 	return table_rt_mgr->table_rt[table_id];
 }
 
 size_t table_runtime_rule_count(struct table_runtime *table_rt)
 {
+    if (NULL == table_rt) {
+        return 0;
+    }
+
     return table_rt->rule_num;
 }
 
 enum table_type table_runtime_get_type(struct table_runtime* table_rt)
 {
+    if (NULL == table_rt) {
+        return TABLE_TYPE_MAX;
+    }
+
     return table_rt->table_type;
 }
 
 int table_runtime_scan_string(struct table_runtime* table_rt, int thread_id, const char *data, size_t data_len, 
                               int result[], size_t *n_result)
 {
+    if (NULL == table_rt) {
+        return -1;
+    }
+
     return adapter_hs_scan(table_rt->expr_rt.hs, thread_id, data, data_len, result, n_result);
 }
 
 void table_runtime_stream_open(struct table_runtime *table_rt, int thread_id)
 {
+    if (NULL == table_rt) {
+        return;
+    }
+
     struct adapter_hs_stream *hs_stream = adapter_hs_stream_open(table_rt->expr_rt.hs, thread_id);
     table_rt->expr_rt.hs_stream = hs_stream;
 }
@@ -205,18 +240,42 @@ void table_runtime_stream_open(struct table_runtime *table_rt, int thread_id)
 int table_runtime_scan_stream(struct table_runtime *table_rt, const char *data, size_t data_len,
                               int result[], size_t *n_result)
 {
+    if (NULL == table_rt) {
+        return -1;
+    }
+
     return adapter_hs_scan_stream(table_rt->expr_rt.hs_stream, data, data_len, result, n_result);
 }
 
 void table_runtime_stream_close(struct table_runtime *table_rt)
 {
-    adapter_hs_stream_close(table_rt->expr_rt.hs_stream);
-    table_rt->expr_rt.hs_stream = NULL;
+    if (table_rt != NULL) {
+        adapter_hs_stream_close(table_rt->expr_rt.hs_stream);
+        table_rt->expr_rt.hs_stream = NULL;
+    }
 }
 
 struct ip_rule *ip_plugin_item_to_ip_rule(struct ip_plugin_item *ip_plugin_item)
 {
     return NULL;
+}
+
+enum pattern_type expr_type2pattern_type(enum expr_type expr_type)
+{
+    enum pattern_type pattern_type = PATTERN_TYPE_STR;
+
+    switch (expr_type) {
+        case EXPR_TYPE_STRING:
+        case EXPR_TYPE_AND:
+            break;
+        case EXPR_TYPE_REGEX:
+            pattern_type = PATTERN_TYPE_REG;
+            break;
+        default:
+            break;
+    }
+
+    return pattern_type;
 }
 
 and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item)
@@ -265,7 +324,7 @@ and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item)
         expr_rule->patterns[i].pat = ALLOC(char, strlen(sub_key_array[i]));
         memcpy(expr_rule->patterns[i].pat, sub_key_array[i], strlen(sub_key_array[i]));
         expr_rule->patterns[i].pat_len = strlen(sub_key_array[i]);
-        expr_rule->patterns[i].type = expr_item->expr_type;
+        expr_rule->patterns[i].type = expr_type2pattern_type(expr_item->expr_type);
     }
     expr_rule->n_patterns = sub_expr_cnt;
     
@@ -281,7 +340,7 @@ void expr_runtime_update_row(struct expr_runtime *expr_rt, char *key, size_t key
         //delete
         data = rcu_hash_find(expr_rt->htable, key, key_len);
         if (NULL == data) {
-            //log_error("the key:%s not exist, so can't be deleted.");
+            fprintf(stderr, "the key:%s not exist, so can't be deleted.", key);
             return;
         }
         rcu_hash_del(expr_rt->htable, key, key_len);
@@ -289,11 +348,15 @@ void expr_runtime_update_row(struct expr_runtime *expr_rt, char *key, size_t key
         //add
         data = rcu_hash_find(expr_rt->htable, key, key_len);
         if (data != NULL) {
-            //log_error("the key:%s already exist, so can't be added.");
+            fprintf(stderr, "the key:%s already exist, so can't be added.", key);
             return;
         }
         and_expr_t *data = ALLOC(and_expr_t, 1);
         memcpy(data, expr_rule, sizeof(and_expr_t));
+        for (size_t i = 0; i < expr_rule->n_patterns; i++) {
+            data->patterns[i].pat = ALLOC(char, expr_rule->patterns[i].pat_len);
+            memcpy(data->patterns[i].pat, expr_rule->patterns[i].pat, expr_rule->patterns[i].pat_len);
+        }
         rcu_hash_add(expr_rt->htable, key, key_len, (void *)data);
     }
 }
@@ -367,7 +430,7 @@ void table_runtime_update(struct table_runtime *table_rt, struct table_schema *t
             expr_rule = expr_item_to_expr_rule(&table_item->expr_item);
             key = (char *)&(table_item->expr_item.item_id);
             expr_runtime_update_row(&(table_rt->expr_rt), key, sizeof(int), expr_rule, is_valid);
-            free(expr_rule);
+            expr_rule_free(expr_rule);
             break;
         case TABLE_TYPE_PLUGIN:
             is_valid = table_item->plugin_item.is_valid;
@@ -423,7 +486,9 @@ int expr_runtime_commit(struct table_runtime *table_rt, size_t nr_worker_thread)
     maat_garbage_bagging(table_rt->ref_garbage_bin, old_adapter_hs, (void (*)(void*))adapter_hs_destroy);
     rcu_hash_commit(expr_rt->htable);
     table_rt->rule_num = rcu_hash_count(expr_rt->htable);
-
+    rule_cnt = rcu_hash_list_updating_data(expr_rt->htable, &ex_data_array);
+    assert(rule_cnt == 0);
+    
     free(rules);
     free(ex_data_array);
 
@@ -528,7 +593,7 @@ void table_runtime_commit(struct table_runtime *table_rt, size_t nr_worker_threa
     }
 }
 
-size_t plugin_table_runtime_cached_row_count(struct table_runtime* table_rt)
+size_t table_runtime_cached_row_count(struct table_runtime* table_rt)
 {
     size_t row_count = 0;
     struct ex_data_runtime *ex_data_rt = NULL;
@@ -545,7 +610,7 @@ size_t plugin_table_runtime_cached_row_count(struct table_runtime* table_rt)
     return row_count;
 }
 
-const char* plugin_table_runtime_get_cached_row(struct table_runtime* table_rt, size_t row_seq)
+const char* table_runtime_get_cached_row(struct table_runtime* table_rt, size_t row_seq)
 {
     const char *line = NULL;
     struct ex_data_runtime *ex_data_rt = NULL;
@@ -562,7 +627,7 @@ const char* plugin_table_runtime_get_cached_row(struct table_runtime* table_rt, 
     return line;
 }
 
-void *plugin_table_runtime_get_ex_data(struct table_runtime *table_rt, struct table_schema *table_schema, 
+void *table_runtime_get_ex_data(struct table_runtime *table_rt, struct table_schema *table_schema, 
                                         const char *key, size_t key_len)
 {
     void *ex_data = NULL;
@@ -604,7 +669,7 @@ struct ex_data_runtime *table_runtime_get_ex_data_rt(struct table_runtime *table
     return ex_data_rt;
 }
 
-void plugin_table_runtime_commit_ex_data_schema(struct table_runtime *table_rt, struct table_schema *table_schema)
+void table_runtime_commit_ex_data_schema(struct table_runtime *table_rt, struct table_schema *table_schema)
 {
     struct ex_data_schema *ex_data_schema = plugin_table_schema_get_ex_data_schema(table_schema);
     struct ex_data_runtime *ex_data_rt = table_runtime_get_ex_data_rt(table_rt);

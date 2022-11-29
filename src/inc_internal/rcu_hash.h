@@ -1,7 +1,7 @@
 /*
 **********************************************************************************************
-*	File: maat_rhash.h
-*   Description: maat rcu hashtable
+*	File: rcu_hash.h
+*   Description: rcu hashtable
 *	Authors: Liu WenTan <liuwentan@geedgenetworks.com>
 *	Date:    2022-10-31
 *   Copyright: (c) 2018-2022 Geedge Networks, Inc. All rights reserved.

@@ -21,7 +21,6 @@
 #include "adapter_hs.h"
 #include "maat_ex_data.h"
 
-#define MAX_TABLE_NUM        256
 #define MAX_TABLE_LINE_SIZE  (1024 * 16)
 #define	MAX_FOREIGN_CLMN_NUM 8
 
@@ -574,9 +573,6 @@ enum expr_type int_to_expr_type(int expr_type)
     case 2:
         type = EXPR_TYPE_REGEX;
         break;
-    case 3:
-        type = EXPR_TYPE_OFFSET;
-        break;
     default:
         break;
     }
@@ -700,7 +696,7 @@ int populate_expr_table_item(const char *line, struct expr_table_schema *expr_sc
             expr_item->is_case_sensitive = TRUE;
             break;
         default:
-            //fprintf(stderr, "invalid hexbin value of expr table");
+            fprintf(stderr, "invalid hexbin value of expr table");
             return -1;
     }
     ret = get_column_pos(line, expr_schema->is_valid_column, &column_offset, &column_len);

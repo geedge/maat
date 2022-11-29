@@ -11,9 +11,6 @@ add_definitions(-fPIC)
 set(MAAT_SRC maat_api.cpp rcu_hash.cpp maat_garbage_collection.cpp maat_config_monitor.cpp maat_rule.cpp 
     maat_kv.cpp maat_ex_data.cpp maat_table_schema.cpp maat_table_runtime.cpp maat_utils.cpp)
 
-set(MAAT_SRC_M main.cpp maat_api.cpp rcu_hash.cpp maat_garbage_collection.cpp maat_config_monitor.cpp maat_rule.cpp 
-    maat_kv.cpp maat_ex_data.cpp maat_table_schema.cpp maat_table_runtime.cpp maat_utils.cpp)
-
 set(LIB_SOURCE_FILES
 	${PROJECT_SOURCE_DIR}/deps/cJSON/cJSON.c)
 
@@ -29,9 +26,6 @@ set_target_properties(maat_frame_static PROPERTIES OUTPUT_NAME maatframe)
 set_target_properties(maat_frame_static PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 
 target_link_libraries(maat_frame_static adapter-static pthread)
-
-add_executable(main ${MAAT_SRC_M})
-target_link_libraries(main maat_frame_static)
 
 # Shared Library Output
 #add_library(maat_frame_shared SHARED ${MAAT_SRC} ${LIB_SOURCE_FILES})

@@ -140,14 +140,14 @@ void maat_finish_cb(void *u_param)
     if (maat_instance->creating_maat_rt != NULL) {
         maat_instance->creating_maat_rt->rule_num = maat_runtime_rule_num(maat_instance->creating_maat_rt);
         maat_runtime_commit(maat_instance->creating_maat_rt);
-        fprintf(stdout, "Full config version %llu load %d entries complete", 
+        fprintf(stdout, "Full config version %llu load %d entries complete\n", 
                         maat_instance->creating_maat_rt->version,
                         maat_instance->creating_maat_rt->rule_num);
     } else if (maat_instance->maat_rt != NULL) {
         maat_instance->maat_rt->rule_num = maat_runtime_rule_num(maat_instance->maat_rt);
         maat_instance->maat_rt->version = maat_instance->maat_version;
         maat_runtime_commit(maat_instance->maat_rt);
-        fprintf(stdout, "Inc config version %llu load %d entries complete", 
+        fprintf(stdout, "Inc config version %llu load %d entries complete\n", 
                         maat_instance->maat_rt->version,
                         maat_instance->maat_rt->rule_num);
     }
@@ -198,6 +198,13 @@ void *rule_monitor_loop(void *arg)
 				maat_instance->maat_rt = maat_instance->creating_maat_rt;
 
 				if (old_maat_rt != NULL) {
+                    if (maat_instance->maat_rt->version > old_maat_rt->version) {
+                        fprintf(stdout, "Maat version updated %lld -> %lld.", 
+                                        old_maat_rt->version, maat_instance->maat_rt->version);
+                    } else {
+                        fprintf(stdout, "Maat version roll back %lld -> %lld.",
+                                        old_maat_rt->version, maat_instance->maat_rt->version);
+                    }
                     maat_garbage_bagging(maat_instance->garbage_bin, old_maat_rt, (void (*)(void*))maat_runtime_destroy);
 				}
 

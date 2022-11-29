@@ -285,7 +285,7 @@ struct adapter_hs *adapter_hs_initialize(int scan_mode, size_t nr_worker_threads
     /* create bool matcher */
     hs_instance->hs_rt->bm = bool_matcher_new(exprs, n_expr_array, &mem_size);
     if (hs_instance->hs_rt->bm != NULL) {
-        fprintf(stdout, "Adapter_hs module: build bool matcher of %u expressions with %u bytes memory.", 
+        fprintf(stdout, "Adapter_hs module: build bool matcher of %zu expressions with %zu bytes memory.", 
                         n_expr_array, mem_size);
     } else {
         fprintf(stderr, "Adapter_hs module: build bool matcher failed.");
@@ -395,6 +395,10 @@ int matched_event_cb(unsigned int id, unsigned long long from,
 int adapter_hs_scan(struct adapter_hs *hs_instance, int thread_id, const char *data, size_t data_len, 
                     int results[], size_t *n_results)
 {
+    if (NULL == hs_instance || NULL == data || (0 == data_len) || NULL == results || NULL == n_results) {
+        return -1;
+    }
+
     struct adapter_hs_runtime *hs_rt = hs_instance->hs_rt;
     hs_scratch_t *scratch = hs_rt->scratchs[thread_id];
     UT_array *pattern_id_set;

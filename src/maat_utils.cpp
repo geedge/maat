@@ -179,3 +179,11 @@ char *str_unescape(char *s)
 	s[j] = '\0';
 	return s;
 }
+
+#define MAX_SYSTEM_CMD_LEN	512
+int system_cmd_mkdir(const char *path)
+{
+    char cmd[MAX_SYSTEM_CMD_LEN] = {0};
+	snprintf(cmd, sizeof(cmd), "mkdir -p %s", path);
+	return system(cmd);
+}

@@ -21,8 +21,9 @@ extern "C"
 #include "maat/maat.h"
 #include "adapter_hs.h"
 
+#define MAX_TABLE_NUM    256
 #define MAX_DISTRICT_STR 128
-#define MAX_IP_STR 128
+#define MAX_IP_STR       128
 #define MAX_KEYWORDS_STR 1024
 
 enum table_type {
@@ -35,10 +36,9 @@ enum table_type {
 };
 
 enum expr_type {
-    EXPR_TYPE_STRING = 1,
-    EXPR_TYPE_REGEX,
+    EXPR_TYPE_STRING = 0,
 	EXPR_TYPE_AND,
-	EXPR_TYPE_OFFSET,
+    EXPR_TYPE_REGEX,
     EXPR_TYPE_MAX
 };
 

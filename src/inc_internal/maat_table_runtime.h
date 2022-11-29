@@ -56,14 +56,15 @@ int table_runtime_scan_stream(struct table_runtime *table_rt, const char *data, 
                               int result[], size_t n_result);
 void table_runtime_stream_close(struct table_runtime *table_rt);
 
-/* plugin table runtime API */
-size_t plugin_table_runtime_cached_row_count(struct table_runtime *table_rt);
+/* table runtime cached row API */
+size_t table_runtime_cached_row_count(struct table_runtime *table_rt);
 
-const char* plugin_table_runtime_get_cached_row(struct table_runtime *table_rt, size_t row_seq);
+const char* table_runtime_get_cached_row(struct table_runtime *table_rt, size_t row_seq);
 
-void *plugin_table_runtime_get_ex_data(struct table_runtime *table_rt, struct table_schema *table_schema, const char *key, size_t key_len);
+/* table runtime ex data API */
+void *table_runtime_get_ex_data(struct table_runtime *table_rt, struct table_schema *table_schema, const char *key, size_t key_len);
 
-void plugin_table_runtime_commit_ex_data_schema(struct table_runtime *table_rt, struct table_schema *table_schema);
+void table_runtime_commit_ex_data_schema(struct table_runtime *table_rt, struct table_schema *table_schema);
 
 #ifdef __cpluscplus
 }

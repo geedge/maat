@@ -1,0 +1,7 @@
+0000000006
+101	1	hello	                    0  0  0  1
+102 2   maat                        0  0  0  1
+103 3   [W|w]orld                   2  0  0  1
+104 4   hello&world                 1  0  0  1
+105 5   [0-9]hello&world            2  0  0  1
+106 6   [0-9]hello&[0-9]world       2  0  0  1

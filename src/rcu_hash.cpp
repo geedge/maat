@@ -305,7 +305,6 @@ size_t rcu_hash_list_updating_data(struct rcu_hash_table *htable, void ***data_a
     size_t node_cnt = 0;
 	struct rcu_hash_node *node = NULL, *tmp = NULL;
 	
-	assert(htable->is_updating == 1);
     if (htable->effective_hash == 'a') {
         node_cnt = HASH_CNT(hh_b, htable->hashmap_b);
         *data_array = ALLOC(void *, node_cnt);

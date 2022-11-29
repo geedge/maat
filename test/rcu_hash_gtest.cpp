@@ -43,6 +43,13 @@ TEST(rcu_hash_add_one_node, single_thread) {
     ret = rcu_hash_garbage_queue_len(htable);
     EXPECT_EQ(ret, 0);
 
+    void **data_array = NULL;
+    ret = rcu_hash_list_updating_data(htable, &data_array);
+    EXPECT_EQ(ret, 1);
+
+    ret = rcu_hash_updating_flag(htable);
+    EXPECT_EQ(ret, 1);
+
     rcu_hash_commit(htable);
 
     /* find in hash after commit */
@@ -57,6 +64,12 @@ TEST(rcu_hash_add_one_node, single_thread) {
     EXPECT_EQ(ret, 1);
 
     ret = rcu_hash_garbage_queue_len(htable);
+    EXPECT_EQ(ret, 0);
+
+    ret = rcu_hash_list_updating_data(htable, &data_array);
+    EXPECT_EQ(ret, 0);
+
+    ret = rcu_hash_updating_flag(htable);
     EXPECT_EQ(ret, 0);
 
     rcu_hash_free(htable);
@@ -95,6 +108,13 @@ TEST(rcu_hash_add_multi_node, single_thread) {
     ret = rcu_hash_garbage_queue_len(htable);
     EXPECT_EQ(ret, 0);
 
+    void **data_array = NULL;
+    ret = rcu_hash_list_updating_data(htable, &data_array);
+    EXPECT_EQ(ret, 2);
+
+    ret = rcu_hash_updating_flag(htable);
+    EXPECT_EQ(ret, 1);
+
     rcu_hash_commit(htable);
 
     /* find in hash after commit */
@@ -118,6 +138,12 @@ TEST(rcu_hash_add_multi_node, single_thread) {
     ret = rcu_hash_garbage_queue_len(htable);
     EXPECT_EQ(ret, 0);
 
+    ret = rcu_hash_list_updating_data(htable, &data_array);
+    EXPECT_EQ(ret, 0);
+
+    ret = rcu_hash_updating_flag(htable);
+    EXPECT_EQ(ret, 0);
+
     rcu_hash_free(htable);
 }
 
@@ -136,17 +162,27 @@ TEST(rcu_hash_del_one_node, single_thread) {
     /* add to hash */
     rcu_hash_add(htable, key, key_len, (void *)data);
 
+    void **data_array = NULL;
+    int ret = rcu_hash_list_updating_data(htable, &data_array);
+    EXPECT_EQ(ret, 1);
+
     /* find in hash before commit */
     void *res = rcu_hash_find(htable, key, key_len);
     EXPECT_EQ(res, nullptr);
 
-    int ret = rcu_hash_count(htable);
+    ret = rcu_hash_count(htable);
     EXPECT_EQ(ret, 0);
 
     ret = rcu_hash_garbage_queue_len(htable);
     EXPECT_EQ(ret, 0);
 
     rcu_hash_del(htable, key, key_len);
+
+    ret = rcu_hash_list_updating_data(htable, &data_array);
+    EXPECT_EQ(ret, 0);
+
+    ret = rcu_hash_updating_flag(htable);
+    EXPECT_EQ(ret, 1);
 
     rcu_hash_commit(htable);
 
