@@ -5,11 +5,14 @@
 #include "maat_utils.h"
 #include "maat_table_schema.h"
 #include "maat_table_runtime.h"
+#include "maat_command.h"
 
 struct maat *g_maat_instance = NULL;
 const char *table_info_path = "./table_info.conf";
 const char *rule_full_path = "./rule/full/index";
 const char *rule_inc_path = "./rule/inc/index";
+const char *json_path="./maat_json.json";
+const char *iris_file = "./HTTP_URL.000001";
 
 TEST(maat_scan_string, hit_one_expr) {
     struct table_schema_manager *table_schema_mgr = g_maat_instance->table_schema_mgr;
@@ -31,20 +34,22 @@ TEST(maat_scan_string, hit_one_expr) {
     EXPECT_EQ(n_result_array, 1);
     EXPECT_EQ(result_array[0], 101);
 
+/*
     memset(result_array, 0, sizeof(result_array));
     char data3[64] = "maat";
     ret = maat_scan_string(g_maat_instance, table_id, 0, data3, strlen(data3), result_array, &n_result_array, NULL);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result_array, 1);
-    EXPECT_EQ(result_array[0], 102);
+    EXPECT_EQ(result_array[0], 102); */
 
+/*
     memset(result_array, 0, sizeof(result_array));
     char data4[64] = "world";
     ret = maat_scan_string(g_maat_instance, table_id, 0, data4, strlen(data4), result_array, &n_result_array, NULL);
     EXPECT_EQ(n_result_array, 1);
-    EXPECT_EQ(result_array[0], 103);
+    EXPECT_EQ(result_array[0], 103); */
 }
-
+#if 0
 TEST(maat_scan_string, hit_two_expr) {
     struct table_schema_manager *table_schema_mgr = g_maat_instance->table_schema_mgr;
     int table_id = table_schema_manager_get_table_id(table_schema_mgr, "HTTP_URL");
@@ -159,14 +164,82 @@ TEST(maat_scan_string, config_dynamic_update) {
     EXPECT_EQ(result_array[4], 101);
 }
 
+
+TEST(maat_scan_string, hit_one_expr) {
+    struct table_schema_manager *table_schema_mgr = g_maat_instance->table_schema_mgr;
+    int table_id = table_schema_manager_get_table_id(table_schema_mgr, "HTTP_URL");
+   
+    char data[128] = "i.ytimg.com";
+    int result_array[5] = {0};
+    size_t n_result_array = 0;
+    int ret = maat_scan_string(g_maat_instance, table_id, 0, data, strlen(data), result_array, &n_result_array, NULL);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result_array, 1);
+    EXPECT_EQ(result_array[0], 30);
+}
+
+TEST(maat_scan_string, hit_two_expr) {
+    struct table_schema_manager *table_schema_mgr = g_maat_instance->table_schema_mgr;
+    int table_id = table_schema_manager_get_table_id(table_schema_mgr, "HTTP_URL");
+   
+    char data[128] = "should hit aaa bbb";
+    int result_array[5] = {0};
+    size_t n_result_array = 0;
+    int ret = maat_scan_string(g_maat_instance, table_id, 0, data, strlen(data), result_array, &n_result_array, NULL);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result_array, 2);
+    EXPECT_EQ(result_array[0], 28);
+    EXPECT_EQ(result_array[1], 27);
+}
+
+TEST(maat_scan_string, hit_three_expr) {
+    struct table_schema_manager *table_schema_mgr = g_maat_instance->table_schema_mgr;
+    int table_id = table_schema_manager_get_table_id(table_schema_mgr, "HTTP_URL");
+   
+    char data[128] = "should hit aaa bbb C#中国";
+    int result_array[5] = {0};
+    size_t n_result_array = 0;
+    int ret = maat_scan_string(g_maat_instance, table_id, 0, data, strlen(data), result_array, &n_result_array, NULL);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result_array, 3);
+    EXPECT_EQ(result_array[0], 28);
+    EXPECT_EQ(result_array[1], 27);
+    EXPECT_EQ(result_array[2], 18);
+}
+#endif
+TEST(maat_redis, write) {
+    char line[1024] = {0};
+    char table_name[64] = "HTTP_URL";
+    struct maat_cmd_line rule_line;
+    rule_line.table_name = (char *)malloc(sizeof(char) * 64);
+
+    memcpy((void *)rule_line.table_name, table_name, strlen(table_name));
+    FILE *fp = fopen(iris_file, "r");
+    EXPECT_NE(fp, nullptr);
+
+    int rule_num = 0;
+    fscanf(fp, "%d\n", &rule_num);
+
+    while (NULL != fgets(line, sizeof(line), fp)) {
+        rule_line.table_line = (char *)malloc(sizeof(line));
+        memcpy((void *)rule_line.table_line, line, strlen(line));
+        maat_cmd_set_line(g_maat_instance, &rule_line);
+        break;
+    }
+
+}
+
 int main(int argc, char ** argv)
 {
 	int ret=0;
 	::testing::InitGoogleTest(&argc, argv);
 
     struct maat_options *opts = maat_options_new();
-    maat_options_set_iris_full_dir(opts, rule_full_path);
-    maat_options_set_iris_inc_dir(opts, rule_inc_path);
+    //maat_options_set_iris_full_dir(opts, rule_full_path);
+    //maat_options_set_iris_inc_dir(opts, rule_inc_path);
+    maat_options_set_redis_ip(opts, "127.0.0.1");
+    maat_options_set_redis_port(opts, 6379);
+    //maat_options_set_json_file(opts, json_path);
 
     g_maat_instance = maat_new(opts, table_info_path);
     EXPECT_NE(g_maat_instance, nullptr);

@@ -24,10 +24,10 @@ extern "C"
 struct adapter_hs;
 
 /* scan mode */
-enum scan_mode {
-    SCAN_MODE_BLOCK = 1,
-    SCAN_MODE_STREAM,
-    SCAN_MODE_MAX
+enum hs_scan_mode {
+    HS_SCAN_MODE_BLOCK = 1,
+    HS_SCAN_MODE_STREAM,
+    HS_SCAN_MODE_MAX
 };
 
 /* pattern type: PATTERN_TYPE_STR(pure literal string) or PATTERN_TYPE_REG(regex expression) */

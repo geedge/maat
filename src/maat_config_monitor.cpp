@@ -14,10 +14,13 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <unistd.h>
 
-#include "maat_config_monitor.h"
-#include "maat_utils.h"
 #include "utils.h"
+#include "maat_utils.h"
+#include "maat_rule.h"
+#include "json2iris.h"
+#include "maat_config_monitor.h"
 
 #define CM_MAX_TABLE_NUM 256
 #define	MAX_CONFIG_LINE	(1024 * 16)
@@ -345,4 +348,81 @@ void config_monitor_traverse(long long current_version, const char *idx_dir,
 	}
 	
 	free(idx_path_array);
+}
+
+int load_maat_json_file(struct maat *maat_instance, const char *json_filename, char *err_str, size_t err_str_sz)
+{
+	int ret = 0;
+	struct stat fstat_buf;
+	unsigned char *json_buff = NULL; 
+    unsigned char *decrypted_buff = NULL; 
+    unsigned char *uncompressed_buff = NULL;
+	size_t json_buff_sz = 0;
+    size_t decrypted_buff_sz = 0; 
+    size_t uncompressed_buff_sz = 0;
+
+	fprintf(stdout, "Maat initial with JSON file %s, formating..", json_filename);
+
+	if (strlen(maat_instance->decrypt_key) && strlen(maat_instance->decrypt_algo)) {
+		ret = decrypt_open(json_filename, maat_instance->decrypt_key, maat_instance->decrypt_algo, 
+                            (unsigned char **)&decrypted_buff, &decrypted_buff_sz, err_str, err_str_sz);
+		if (ret < 0) {
+			fprintf(stderr, "Decrypt Maat JSON file %s failed.", json_filename);
+			return -1;
+		}
+
+		json_buff=decrypted_buff;
+		json_buff_sz=decrypted_buff_sz;
+	}
+    
+	if (maat_instance->maat_json_is_gzipped) {
+		ret = gzip_uncompress(json_buff, json_buff_sz, &uncompressed_buff, &uncompressed_buff_sz);
+		free(json_buff);
+		if (ret < 0) {
+			fprintf(stderr, "Uncompress Maat JSON file %s failed.", json_filename);
+			return -1;
+		}
+
+		json_buff = uncompressed_buff;
+		json_buff_sz = uncompressed_buff_sz;
+	}
+
+    //decryption failed or no decryption
+	if (NULL == json_buff) {	
+		ret = load_file_to_memory(json_filename, &json_buff, &json_buff_sz);
+		if (ret < 0) {
+			fprintf(stderr, "Read Maat JSON file %s failed.", json_filename);
+			return -1;
+		}
+	}
+
+	ret = json2iris((const char*)json_buff, json_filename,
+			maat_instance->compile_tn, maat_instance->group2compile_tn, maat_instance->group2group_tn,
+			NULL,
+			maat_instance->json_ctx.iris_file,
+			sizeof(maat_instance->json_ctx.iris_file),
+			strlen(maat_instance->decrypt_key) ? maat_instance->decrypt_key : NULL,
+			strlen(maat_instance->decrypt_algo) ? maat_instance->decrypt_algo : NULL);
+
+	free(json_buff);
+	json_buff = NULL;
+	if (ret < 0) {
+		return -1;
+	}
+
+	if (!maat_instance->is_running) {
+		strncpy(maat_instance->json_ctx.json_file, json_filename, sizeof(maat_instance->json_ctx.json_file));
+	}
+	
+	ret=stat(json_filename, &fstat_buf);
+	maat_instance->json_ctx.last_md5_time = fstat_buf.st_ctim;
+	
+	md5_file(maat_instance->json_ctx.json_file, maat_instance->json_ctx.effective_json_md5);
+	fprintf(stdout, "JSON file %s md5: %s, generate index file %s OK.",
+					maat_instance->json_ctx.json_file,
+					maat_instance->json_ctx.effective_json_md5,
+					maat_instance->json_ctx.iris_file);
+	maat_instance->input_mode = DATA_SOURCE_JSON_FILE;
+
+	return 0;	
 }

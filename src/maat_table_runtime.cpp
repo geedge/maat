@@ -36,7 +36,7 @@ struct plugin_user_ctx {
 };
 
 struct expr_runtime {
-    enum scan_mode scan_mode;
+    enum hs_scan_mode scan_mode;
     struct adapter_hs *hs;
     struct adapter_hs_stream *hs_stream;
     struct rcu_hash_table *htable;

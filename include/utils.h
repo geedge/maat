@@ -20,6 +20,15 @@ extern "C"
 
 #define ALLOC(type, number) ((type *)calloc(sizeof(type), number))
 
+#define FREE(ptr)  \
+    {                   \
+        if (ptr)        \
+        {               \
+            free(ptr);  \
+            ptr = NULL; \
+        }               \
+    }
+
 #ifdef __cpluscplus
 }
 #endif

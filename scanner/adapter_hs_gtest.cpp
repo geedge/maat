@@ -66,11 +66,11 @@ TEST(block_mode_initialize, invalid_input_parameter)
     EXPECT_EQ(hs_instance, nullptr);
 
     /* case2: invalid expr parameter */
-    hs_instance = adapter_hs_initialize(SCAN_MODE_BLOCK, 1, nullptr, 1);
+    hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, nullptr, 1);
     EXPECT_EQ(hs_instance, nullptr);
 
     /* case3: invalid expr num */
-    hs_instance = adapter_hs_initialize(SCAN_MODE_BLOCK, 1, exprs, 0);
+    hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, exprs, 0);
     EXPECT_EQ(hs_instance, nullptr);
 }
 
@@ -79,7 +79,7 @@ TEST(block_mode_scan, invalid_input_parameter)
     and_expr_t expr_array[64];
     size_t n_expr_array = 0;
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(SCAN_MODE_BLOCK, 1, nullptr, 0);
+    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, nullptr, 0);
     EXPECT_EQ(hs_instance, nullptr);
 
     hs_instance = adapter_hs_initialize(0, 1, expr_array, n_expr_array);
@@ -88,7 +88,7 @@ TEST(block_mode_scan, invalid_input_parameter)
     n_expr_array = 1;
     expr_array[0].expr_id = 101;
     expr_array[0].n_patterns = 10;
-    hs_instance = adapter_hs_initialize(SCAN_MODE_BLOCK, 1, expr_array, n_expr_array);
+    hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, expr_array, n_expr_array);
     EXPECT_EQ(hs_instance, nullptr);
 
     memset(expr_array, 0, sizeof(expr_array));
@@ -96,7 +96,7 @@ TEST(block_mode_scan, invalid_input_parameter)
     expr_array[0].expr_id = 101;
     expr_array[0].n_patterns = 1;
     expr_array[0].patterns[0].type = 0;
-    hs_instance = adapter_hs_initialize(SCAN_MODE_BLOCK, 1, expr_array, n_expr_array);
+    hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, expr_array, n_expr_array);
     EXPECT_EQ(hs_instance, nullptr);
 }
 
@@ -109,7 +109,7 @@ TEST(block_mode_scan, hit_one_expr)
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_expr_array, 6);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(SCAN_MODE_BLOCK, 1, expr_array, n_expr_array);
+    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, expr_array, n_expr_array);
     EXPECT_NE(hs_instance, nullptr);
     expr_array_free(expr_array, n_expr_array);
 
@@ -149,7 +149,7 @@ TEST(block_mode_scan, hit_two_expr)
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_expr_array, 6);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(SCAN_MODE_BLOCK, 1, expr_array, n_expr_array);
+    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, expr_array, n_expr_array);
     EXPECT_NE(hs_instance, nullptr);
     expr_array_free(expr_array, n_expr_array);
 
@@ -184,7 +184,7 @@ TEST(block_mode_scan, hit_three_expr)
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_expr_array, 6);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(SCAN_MODE_BLOCK, 1, expr_array, n_expr_array);
+    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, expr_array, n_expr_array);
     EXPECT_NE(hs_instance, nullptr);
     expr_array_free(expr_array, n_expr_array);
 
@@ -221,7 +221,7 @@ TEST(block_mode_scan, hit_four_expr)
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_expr_array, 6);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(SCAN_MODE_BLOCK, 1, expr_array, n_expr_array);
+    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, expr_array, n_expr_array);
     EXPECT_NE(hs_instance, nullptr);
     expr_array_free(expr_array, n_expr_array);
 
@@ -260,7 +260,7 @@ TEST(block_mode_scan, hit_five_expr)
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_expr_array, 6);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(SCAN_MODE_BLOCK, 1, expr_array, n_expr_array);
+    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, expr_array, n_expr_array);
     EXPECT_NE(hs_instance, nullptr);
     expr_array_free(expr_array, n_expr_array);
 

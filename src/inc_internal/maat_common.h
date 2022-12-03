@@ -18,6 +18,8 @@ extern "C"
 
 #include <stddef.h>
 
+#include "maat_rule.h"
+
 struct maat_options {
     size_t nr_worker_threads;
     int rule_effect_interval_ms;
@@ -25,8 +27,11 @@ struct maat_options {
     int gc_timeout_ms;
     int deferred_load_on;
     enum data_source input_mode;
-    char iris_full_dir[NAME_MAX];
-    char iris_inc_dir[NAME_MAX];
+    union {
+        struct source_iris_ctx iris_ctx;
+        struct source_json_ctx json_ctx;
+        struct source_redis_ctx redis_ctx;
+    };
 };
 
 #ifdef __cpluscplus

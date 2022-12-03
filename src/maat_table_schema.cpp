@@ -33,7 +33,7 @@ struct expr_table_schema {
     int match_method_column;
     int is_hexbin_column;
 	int is_valid_column;  /* valid means add, invalid means delete */
-    enum scan_mode scan_mode; /* adapter_hs scan mode */
+    enum hs_scan_mode scan_mode; /* adapter_hs scan mode */
 };
 
 #define	MAX_PLUGIN_PER_TABLE 32
@@ -60,6 +60,10 @@ struct ip_plugin_table_schema {
 	struct ex_data_schema ex_schema;
 };
 
+struct virtual_table_schema {
+	int physical_table_id[SCAN_TYPE_MAX];
+};
+
 struct table_schema {
     int table_id;
     char table_name[NAME_MAX];
@@ -68,6 +72,7 @@ struct table_schema {
         struct expr_table_schema expr;
         struct plugin_table_schema plugin;
         struct ip_plugin_table_schema ip_plugin;
+        struct virtual_table_schema virtual_table;
     };
 };
 
@@ -388,6 +393,10 @@ struct table_schema_manager *table_schema_manager_create(const char *table_info_
     unsigned char *json_buff = NULL;
     size_t json_buff_sz = 0;
 
+    if (NULL == table_info_path) {
+        return NULL;
+    }
+
     int ret = load_file_to_memory(table_info_path, &json_buff, &json_buff_sz);
     if (ret < 0) {
         fprintf(stderr, "Maat read table info %s error.\n", table_info_path);
@@ -417,8 +426,8 @@ struct table_schema_manager *table_schema_manager_create(const char *table_info_
     maat_kv_register(reserved_word_map, "plugin", TABLE_TYPE_PLUGIN);
     maat_kv_register(reserved_word_map, "ip_plugin", TABLE_TYPE_IP_PLUGIN);
 
-    maat_kv_register(reserved_word_map, "block", SCAN_MODE_BLOCK);
-    maat_kv_register(reserved_word_map, "stream", SCAN_MODE_STREAM);
+    maat_kv_register(reserved_word_map, "block", HS_SCAN_MODE_BLOCK);
+    maat_kv_register(reserved_word_map, "stream", HS_SCAN_MODE_STREAM);
 
     struct table_schema_manager *table_schema_mgr = ALLOC(struct table_schema_manager, 1);
     struct table_schema **pptable = table_schema_mgr->schema_table;
@@ -471,6 +480,10 @@ struct table_schema_manager *table_schema_manager_create(const char *table_info_
 
 void table_schema_manager_destroy(struct table_schema_manager *table_schema_mgr)
 {
+    if (NULL == table_schema_mgr) {
+        return;
+    }
+
 	for (size_t i = 0; i < MAX_TABLE_NUM; i++) {
 		if (NULL == table_schema_mgr->schema_table[i]) {
 			continue;
@@ -480,11 +493,15 @@ void table_schema_manager_destroy(struct table_schema_manager *table_schema_mgr)
 	}
 
 	maat_kv_store_free(table_schema_mgr->tablename2id_map);
-	free(table_schema_mgr);
+	FREE(table_schema_mgr);
 }
 
 int table_schema_manager_get_table_id(struct table_schema_manager* table_schema_mgr, const char *table_name)
 {
+    if (NULL == table_schema_mgr || NULL == table_name) {
+        return -1;
+    }
+
     int table_id = -1;
 
 	int ret = maat_kv_read(table_schema_mgr->tablename2id_map, table_name, &table_id);
@@ -497,6 +514,10 @@ int table_schema_manager_get_table_id(struct table_schema_manager* table_schema_
 
 enum table_type table_schema_manager_get_table_type(struct table_schema_manager *table_schema_mgr, int id)
 {
+    if (NULL == table_schema_mgr) {
+        return TABLE_TYPE_MAX;
+    }
+
     if (table_schema_mgr->schema_table[id] == NULL) {
         return TABLE_TYPE_MAX;
     }
@@ -511,6 +532,10 @@ size_t table_schema_manager_get_size(struct table_schema_manager* table_schema_m
 
 void table_schema_manager_all_plugin_cb_start(struct table_schema_manager *table_schema_mgr, int update_type)
 {
+    if (NULL == table_schema_mgr) {
+        return;
+    }
+
     struct table_schema *ptable = NULL;
     struct plugin_table_schema *plugin_schema = NULL;
 
@@ -536,6 +561,10 @@ void table_schema_manager_all_plugin_cb_start(struct table_schema_manager *table
 
 void table_schema_manager_all_plugin_cb_finish(struct table_schema_manager* table_schema_mgr)
 {
+    if (NULL == table_schema_mgr) {
+        return;
+    }
+
     struct table_schema *ptable = NULL;
     struct plugin_table_schema *plugin_schema = NULL;
 
@@ -606,17 +635,147 @@ enum match_method int_to_match_method_type(int match_method_type)
 
 struct table_schema *table_schema_get(struct table_schema_manager *table_schema_mgr, int table_id)
 {
+    if ((NULL == table_schema_mgr) || (table_id < 0)) {
+        return NULL;
+    }
+
     return table_schema_mgr->schema_table[table_id];
+}
+
+struct table_schema *table_schema_get_by_scan_type(struct table_schema_manager *table_schema_mgr, 
+                                                   int table_id, enum scan_type scan_type, int *virtual_table_id)
+{
+    enum scan_type table_scan_type;
+	struct table_schema **pptable = table_schema_mgr->schema_table;
+	size_t n_table = MAX_TABLE_NUM;
+
+	if ((unsigned int)table_id > n_table) {
+		return NULL;
+	}
+
+	if (NULL == pptable[table_id]) {
+		return NULL;
+	}
+
+	struct table_schema *ptable = pptable[table_id];
+	if (NULL == ptable) {
+		return NULL;
+	}
+
+    struct table_schema *p_physical_table = NULL;
+	if (ptable->table_type == TABLE_TYPE_VIRTUAL) {
+		p_physical_table = pptable[ptable->virtual_table.physical_table_id[scan_type]];
+		*virtual_table_id = table_id;
+	} else {
+		p_physical_table = ptable;
+		if(virtual_table_id) {
+            *virtual_table_id = 0;
+        }
+	}
+
+	table_scan_type = table_schema_get_scan_type(p_physical_table);
+	if (table_scan_type != scan_type) {
+			return NULL;	
+	}
+
+	return p_physical_table;
 }
 
 enum table_type table_schema_get_table_type(struct table_schema *table_schema)
 {
+    if (NULL == table_schema) {
+        return TABLE_TYPE_MAX;
+    }   
+
     return table_schema->table_type;
 }
 
 int table_schema_get_table_id(struct table_schema *table_schema)
 {
+    if (NULL == table_schema) {
+        return -1;
+    }
+
     return table_schema->table_id;
+}
+
+enum scan_type table_schema_get_scan_type(struct table_schema *table_schema)
+{
+    enum scan_type ret = SCAN_TYPE_INVALID;
+
+    if (NULL == table_schema) {
+        return ret;
+    }
+
+	switch (table_schema->table_type) {
+		case TABLE_TYPE_EXPR:
+		case TABLE_TYPE_EXPR_PLUS:
+		case TABLE_TYPE_SIMILARITY:
+		case TABLE_TYPE_DIGEST:
+			ret = SCAN_TYPE_STRING;
+			break;
+		case TABLE_TYPE_INTERVAL:
+		case TABLE_TYPE_INTERVAL_PLUS:
+			ret = SCAN_TYPE_INTERVAL;
+			break;
+		case TABLE_TYPE_IP:
+		case TABLE_TYPE_IP_PLUS:
+		case TABLE_TYPE_COMPOSITION:
+			ret = SCAN_TYPE_IP;
+			break;
+		case TABLE_TYPE_PLUGIN:
+			ret = SCAN_TYPE_PLUGIN;
+			break;
+		case TABLE_TYPE_IP_PLUGIN:
+			ret = SCAN_TYPE_IP;
+			break;
+		case TABLE_TYPE_FQDN_PLUGIN:
+			ret = SCAN_TYPE_FQDN_PLUGIN;
+			break;
+		case TABLE_TYPE_BOOL_PLUGIN:
+			ret = SCAN_TYPE_BOOL_PLUGIN;
+			break;
+		case TABLE_TYPE_COMPILE:			
+			ret = SCAN_TYPE_NONE;
+			break;
+		default:
+			break;
+	}
+
+	return ret;
+}
+
+int table_schema_get_valid_flag_column(struct table_schema *table_schema)
+{
+	int valid_flag_column = -1;
+
+    if (NULL == table_schema) {
+        return valid_flag_column;
+    }
+
+	switch (table_schema->table_type) {
+        case TABLE_TYPE_EXPR:
+            valid_flag_column = table_schema->expr.is_valid_column;
+            break;
+		case TABLE_TYPE_PLUGIN:
+			valid_flag_column = table_schema->plugin.is_valid_column;
+			break;
+		case TABLE_TYPE_IP_PLUGIN:
+			valid_flag_column = table_schema->ip_plugin.is_valid_column;
+			break;
+            /*
+		case TABLE_TYPE_FQDN_PLUGIN:
+			valid_flag_column = table_schema->fqdn_plugin.valid_flag_column;
+			break;
+		case TABLE_TYPE_BOOL_PLUGIN:
+			valid_flag_column = table_schema->bool_plugin.valid_flag_column;
+			break;*/
+		default:
+			valid_flag_column = -1;
+			break;
+	}
+
+	return valid_flag_column;
 }
 
 int populate_expr_table_item(const char *line, struct expr_table_schema *expr_schema, struct expr_item *expr_item)
@@ -778,6 +937,10 @@ int populate_ip_plugin_table_item(const char *line, struct ip_plugin_table_schem
 struct table_item *
 table_schema_line_to_item(const char *line, struct table_schema *table_schema)
 {
+    if (NULL == line || NULL == table_schema) {
+        return NULL;
+    }
+
     int ret = -1;
     struct table_item *table_item = ALLOC(struct table_item, 1);
 
@@ -812,10 +975,14 @@ error:
     return NULL;
 }
 
-enum scan_mode expr_table_schema_get_scan_mode(struct table_schema *table_schema)
+enum hs_scan_mode expr_table_schema_get_scan_mode(struct table_schema *table_schema)
 {
+    if (NULL == table_schema) {
+        return HS_SCAN_MODE_MAX;
+    }
+
     if (table_schema->table_type != TABLE_TYPE_EXPR) {
-        return SCAN_MODE_MAX;
+        return HS_SCAN_MODE_MAX;
     }
 
     return table_schema->expr.scan_mode;
@@ -827,7 +994,7 @@ int plugin_table_schema_set_ex_data_schema(struct table_schema *table_schema,
 									        maat_plugin_ex_dup_func_t *dup_func,
 									        long argl, void *argp)
 {
-    if (NULL == new_func || NULL == free_func || NULL == dup_func) {
+    if (NULL == table_schema || NULL == new_func || NULL == free_func || NULL == dup_func) {
         assert(0);
         fprintf(stderr, "%s failed: invalid parameter", __FUNCTION__);
         return -1;
@@ -857,6 +1024,10 @@ int plugin_table_schema_set_ex_data_schema(struct table_schema *table_schema,
 
 struct ex_data_schema *plugin_table_schema_get_ex_data_schema(struct table_schema *table_schema)
 {
+    if (NULL == table_schema) {
+        return NULL;
+    }
+
     struct ex_data_schema *ex_schema = NULL;
 
     switch (table_schema->table_type) {
@@ -875,6 +1046,10 @@ struct ex_data_schema *plugin_table_schema_get_ex_data_schema(struct table_schem
 
 int plugin_table_schema_ex_data_schema_flag(struct table_schema *table_schema)
 {
+    if (NULL == table_schema) {
+        return -1;
+    }
+
     struct ex_data_schema *ex_schema = NULL;
 
     switch (table_schema->table_type) {
@@ -897,6 +1072,10 @@ int plugin_table_schema_add_callback(struct table_schema_manager* table_schema_m
 							         maat_finish_callback_t *finish,
 							         void *u_para)
 {
+    if ((NULL == table_schema_mgr) || (table_id < 0)) {
+        return -1;
+    }
+
 	struct table_schema *ptable = table_schema_get(table_schema_mgr, table_id);
     if (NULL == ptable) {
         fprintf(stderr, "table_id:%d unregistered, can't add callback func", table_id);
@@ -945,6 +1124,10 @@ size_t plugin_table_schema_callback_count(struct table_schema *table_schema)
 
 void plugin_table_schema_all_cb_update(struct table_schema* table_schema, const char *row)
 {
+    if (NULL == table_schema || NULL == row) {
+        return;
+    }
+
     struct plugin_table_schema *plugin_schema = NULL;
 
     switch (table_schema->table_type) {
@@ -963,4 +1146,22 @@ void plugin_table_schema_all_cb_update(struct table_schema* table_schema, const 
        default:
             break;
     }
+}
+
+int plugin_table_schema_get_foreign_column(struct table_schema *table_schema, int *foreign_columns)
+{
+    if (NULL == table_schema) {
+        return -1;
+    }
+
+    if (table_schema->table_type != TABLE_TYPE_PLUGIN) {
+        return 0;
+    }
+
+    int n_foreign = table_schema->plugin.n_foreign;
+    for (int i = 0; i < n_foreign; i++) {
+        foreign_columns[i] = table_schema->plugin.foreign_columns[i];
+    }
+
+    return n_foreign;
 }

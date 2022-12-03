@@ -70,3 +70,16 @@ add_library(ipmatcher-static STATIC IMPORTED GLOBAL)
 add_dependencies(ipmatcher-static ipmatcher)
 set_property(TARGET ipmatcher-static PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/ipmatcher.a)
 set_property(TARGET ipmatcher-static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
+
+# hiredis-1.1.0
+ExternalProject_Add(hiredis PREFIX hiredis
+        URL ${CMAKE_CURRENT_SOURCE_DIR}/hiredis-1.1.0.tar.gz
+		CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${VENDOR_BUILD} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS="-fPIC")
+
+ExternalProject_Get_Property(hiredis INSTALL_DIR)
+file(MAKE_DIRECTORY ${VENDOR_BUILD}/include)
+
+add_library(hiredis-static STATIC IMPORTED GLOBAL)
+add_dependencies(hiredis-static hiredis)
+set_property(TARGET hiredis-static  PROPERTY IMPORTED_LOCATION ${VENDOR_BUILD}/lib64/libhiredisd.a)
+set_property(TARGET hiredis-static  PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${VENDOR_BUILD}/include)

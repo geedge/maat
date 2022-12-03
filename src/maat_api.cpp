@@ -12,13 +12,16 @@
 #include <string.h>
 
 #include "utils.h"
+#include "json2iris.h"
 #include "maat/maat.h"
 #include "maat_rule.h"
 #include "maat_common.h"
 #include "maat_kv.h"
+#include "maat_command.h"
 #include "maat_table_schema.h"
 #include "maat_table_runtime.h"
 #include "maat_config_monitor.h"
+#include "maat_redis_monitor.h"
 
 struct maat_options* maat_options_new(void)
 {
@@ -65,6 +68,7 @@ int maat_options_set_gc_timeout_ms(struct maat_options *opts, int interval_ms)
 int maat_options_set_deferred_load_on(struct maat_options *opts)
 {
     opts->deferred_load_on = 1;
+
     return 0;
 }
 
@@ -74,8 +78,9 @@ int maat_options_set_iris_full_dir(struct maat_options *opts, const char *full_d
         return -1;
     }
 
-    memcpy(opts->iris_full_dir, full_dir, strlen(full_dir));
+    memcpy(opts->iris_ctx.full_dir, full_dir, strlen(full_dir));
     opts->input_mode = DATA_SOURCE_IRIS_FILE;
+
     return 0;
 }
 
@@ -85,24 +90,89 @@ int maat_options_set_iris_inc_dir(struct maat_options *opts, const char *inc_dir
         return -1;
     }
 
-    memcpy(opts->iris_inc_dir, inc_dir, strlen(inc_dir));
+    memcpy(opts->iris_ctx.inc_dir, inc_dir, strlen(inc_dir));
     opts->input_mode = DATA_SOURCE_IRIS_FILE;
+
+    return 0;
+}
+
+int maat_options_set_json_file(struct maat_options *opts, const char *json_filename)
+{
+    strncpy(opts->json_ctx.json_file, json_filename, sizeof(opts->json_ctx.json_file));
+    opts->input_mode = DATA_SOURCE_JSON_FILE;
+
+    return 0;
+}
+
+int maat_options_set_redis_ip(struct maat_options *opts, const char *redis_ip)
+{
+    memcpy(opts->redis_ctx.redis_ip, redis_ip, strlen(redis_ip));
+    opts->input_mode = DATA_SOURCE_REDIS;
+
+    return 0;
+}
+
+int maat_options_set_redis_port(struct maat_options *opts, uint16_t redis_port)
+{
+    opts->redis_ctx.redis_port = redis_port;
+
+    return 0;
+}
+
+int maat_options_set_redis_db_index(struct maat_options *opts, int db_index)
+{
+    opts->redis_ctx.redis_db = db_index;
+
     return 0;
 }
 
 void maat_read_full_config(struct maat *maat_instance)
 {
+    int ret = -1;
+    char err_str[NAME_MAX] = {0};
+    struct source_redis_ctx *mr_ctx = NULL;
+
     switch (maat_instance->input_mode) {
+        case DATA_SOURCE_REDIS:
+            mr_ctx = &(maat_instance->mr_ctx);
+            fprintf(stdout, "Maat initiate from Redis %s:%hu db%d.", 
+                            mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db);
+            mr_ctx->read_ctx = maat_cmd_connect_redis(mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db);
+            if (mr_ctx->read_ctx != NULL) {
+                redis_monitor_traverse(maat_instance->maat_version, mr_ctx,
+									   maat_start_cb, maat_update_cb, maat_finish_cb,
+									   maat_instance);
+            }
+
+            if (NULL == maat_instance->creating_maat_rt) {
+                fprintf(stderr, "At initiation: NO effective rule in %s.",
+                                maat_instance->iris_ctx.full_dir);
+            }
+            break;
         case DATA_SOURCE_IRIS_FILE:
 			config_monitor_traverse(maat_instance->maat_version,
                                     maat_instance->iris_ctx.full_dir,
-                                    maat_start_cb,
-                                    maat_update_cb,
-                                    maat_finish_cb,
+                                    maat_start_cb, maat_update_cb, maat_finish_cb,
                                     maat_instance);
             if (NULL == maat_instance->creating_maat_rt) {
                 fprintf(stderr, "At initiation: NO effective rule in %s.",
                                 maat_instance->iris_ctx.full_dir);
+            }
+            break;
+        case DATA_SOURCE_JSON_FILE:
+            ret = load_maat_json_file(maat_instance, maat_instance->json_ctx.json_file, err_str, sizeof(err_str));
+            if (ret < 0) {
+                fprintf(stderr, "Maat re-initiate with JSON file %s failed: %s", maat_instance->json_ctx.json_file, err_str);
+                return;
+            }
+            
+            config_monitor_traverse(maat_instance->maat_version,
+                                    maat_instance->json_ctx.iris_file,
+                                    maat_start_cb, maat_update_cb, maat_finish_cb,
+                                    maat_instance);
+            if (NULL == maat_instance->creating_maat_rt) {
+                fprintf(stderr, "At initiation: NO effective rule in %s.",
+                                maat_instance->json_ctx.iris_file);
             }
             break;
         default:
@@ -134,9 +204,17 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
 
     maat_instance->input_mode = opts->input_mode;
     switch (maat_instance->input_mode) {
+        case DATA_SOURCE_REDIS:
+            memcpy(maat_instance->mr_ctx.redis_ip, opts->redis_ctx.redis_ip, strlen(opts->redis_ctx.redis_ip));
+            maat_instance->mr_ctx.redis_port = opts->redis_ctx.redis_port;
+            maat_instance->mr_ctx.redis_db = opts->redis_ctx.redis_db;
+            break;
         case DATA_SOURCE_IRIS_FILE:
-            memcpy(maat_instance->iris_ctx.full_dir, opts->iris_full_dir, strlen(opts->iris_full_dir));
-            memcpy(maat_instance->iris_ctx.inc_dir, opts->iris_inc_dir, strlen(opts->iris_inc_dir));
+            memcpy(maat_instance->iris_ctx.full_dir, opts->iris_ctx.full_dir, strlen(opts->iris_ctx.full_dir));
+            memcpy(maat_instance->iris_ctx.inc_dir, opts->iris_ctx.inc_dir, strlen(opts->iris_ctx.inc_dir));
+            break;
+        case DATA_SOURCE_JSON_FILE:
+            memcpy(maat_instance->json_ctx.json_file, opts->json_ctx.json_file, strlen(opts->json_ctx.json_file));
             break;
         default:
             fprintf(stderr, "data source unsupported:%d\n", maat_instance->input_mode);

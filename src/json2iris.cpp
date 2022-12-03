@@ -1,0 +1,1207 @@
+/*
+**********************************************************************************************
+*	File: json2iris.h
+*   Description: rule for transform json2iris
+*	Authors: Liu WenTan <liuwentan@geedgenetworks.com>
+*	Date:    2022-10-31
+*   Copyright: (c) 2018-2022 Geedge Networks, Inc. All rights reserved.
+***********************************************************************************************
+*/
+
+#include <limits.h>
+#include <string.h>
+#include <unistd.h>
+#include <assert.h>
+#include <errno.h>
+#include <sys/stat.h>
+
+#include "utils.h"
+#include "json2iris.h"
+#include "cJSON/cJSON.h"
+#include "maat_kv.h"
+#include "maat_utils.h"
+#include "maat_table_schema.h"
+#include "maat_rule.h"
+#include "uthash/uthash.h"
+
+#define	MAX_COLUMN_NUM	32
+
+#define mr_region_id_var "SEQUENCE_REGION"
+#define mr_group_id_var	 "SEQUENCE_GROUP"
+
+const int json_version = 1;
+const char *untitled_group_name="Untitled";
+
+enum maat_group_relation {
+	PARENT_TYPE_COMPILE = 0,
+	PARENT_TYPE_GROUP
+};
+
+struct group_info {
+	int group_id;
+	char group_name[PATH_MAX];
+    UT_hash_handle hh;
+};
+
+struct iris_table {
+	char table_name[PATH_MAX];
+	char table_path[PATH_MAX];
+	int line_count;
+	enum table_type table_type;
+	void *buff;
+	size_t write_pos;
+	size_t buff_sz;
+    UT_hash_handle hh;
+};
+
+struct iris_description {
+	int group_cnt;
+	int region_cnt;
+	
+	char tmp_iris_dir[PATH_MAX];
+	char tmp_iris_index_dir[PATH_MAX];
+	char index_path[PATH_MAX];
+
+	struct iris_table *group_table;
+	struct iris_table *group2group_table;
+	struct iris_table *group2compile_table;
+	struct iris_table *compile_table;
+
+	struct group_info *group_name_map;
+	struct iris_table *iris_table_map;
+
+	struct maat_kv_store *str2int_map;
+	redisContext *redis_write_ctx;
+
+	char *encrypt_key;
+	char *encrypt_algo;
+	FILE *idx_fp;
+};
+
+struct translate_command {
+	const char *json_string;
+	char *json_value;
+	int json_type;
+	int str2int_flag;
+	int empty_allowed;
+	const char *default_string;
+	int default_int;
+};
+
+struct iris_table *query_table_info(struct iris_description *p_iris, const char *table_name, enum table_type table_type)
+{
+    struct iris_table *table_info = NULL;
+    HASH_FIND(hh, p_iris->iris_table_map, table_name, strlen(table_name), table_info);
+    if (NULL == table_info) {
+        table_info = ALLOC(struct iris_table, 1);
+        table_info->line_count = 0;
+		table_info->table_type = table_type;
+		memcpy(table_info->table_name, table_name, MIN(sizeof(table_info->table_name) - 1, strlen(table_name)));
+		snprintf(table_info->table_path, sizeof(table_info->table_path), "%s/%s.local", p_iris->tmp_iris_dir, table_info->table_name);
+        HASH_ADD_KEYPTR(hh, p_iris->iris_table_map, table_name, strlen(table_name), table_info);
+    }
+
+	return table_info;
+}
+
+void free_iris_table_info(void *p)
+{
+	struct iris_table *table = (struct iris_table *)p;
+    if (table != NULL) {
+        FREE(table->buff);
+    }
+    FREE(table);
+}
+
+int set_iris_descriptor(const char *json_file, cJSON *json, const char *encrypt_key, const char *encrypt_algo, 
+                        const char *compile_tn, const char *group2compile_tn, const char* group2group_tn, 
+                        redisContext *redis_write_ctx, struct iris_description *iris_cfg)
+{
+	memset(iris_cfg, 0, sizeof(struct iris_description));
+	snprintf(iris_cfg->tmp_iris_dir, sizeof(iris_cfg->tmp_iris_dir), "%s_iris_tmp", json_file);
+	snprintf(iris_cfg->tmp_iris_index_dir, sizeof(iris_cfg->tmp_iris_index_dir), "%s_iris_tmp/index", json_file);
+	snprintf(iris_cfg->index_path, sizeof(iris_cfg->index_path), "%s/full_config_index.%010d", iris_cfg->tmp_iris_index_dir, json_version);
+
+	iris_cfg->redis_write_ctx = redis_write_ctx;
+	iris_cfg->str2int_map = maat_kv_store_new();
+	
+	maat_kv_register(iris_cfg->str2int_map, "yes", 1);
+	maat_kv_register(iris_cfg->str2int_map, "no", 0);
+	
+	maat_kv_register(iris_cfg->str2int_map, "ip", TABLE_TYPE_IP);
+	maat_kv_register(iris_cfg->str2int_map, "ip_plus", TABLE_TYPE_IP_PLUS);
+	maat_kv_register(iris_cfg->str2int_map, "string", TABLE_TYPE_EXPR);
+	maat_kv_register(iris_cfg->str2int_map, "expr", TABLE_TYPE_EXPR);
+	maat_kv_register(iris_cfg->str2int_map, "expr_plus", TABLE_TYPE_EXPR_PLUS);
+	maat_kv_register(iris_cfg->str2int_map, "intval", TABLE_TYPE_INTERVAL);
+	maat_kv_register(iris_cfg->str2int_map, "interval", TABLE_TYPE_INTERVAL);
+	maat_kv_register(iris_cfg->str2int_map, "intval_plus", TABLE_TYPE_INTERVAL_PLUS);
+	maat_kv_register(iris_cfg->str2int_map, "interval_plus", TABLE_TYPE_INTERVAL_PLUS);
+    maat_kv_register(iris_cfg->str2int_map, "digest", TABLE_TYPE_DIGEST);
+	maat_kv_register(iris_cfg->str2int_map, "similar", TABLE_TYPE_SIMILARITY);
+	
+	maat_kv_register(iris_cfg->str2int_map, "ipv4", 4);
+	maat_kv_register(iris_cfg->str2int_map, "ipv6", 6);
+
+	maat_kv_register(iris_cfg->str2int_map, "double", 0);
+	maat_kv_register(iris_cfg->str2int_map, "single", 1);
+
+	maat_kv_register(iris_cfg->str2int_map, "none", 0);
+	maat_kv_register(iris_cfg->str2int_map, "and", 1);
+	maat_kv_register(iris_cfg->str2int_map, "regex", 2);
+	maat_kv_register(iris_cfg->str2int_map, "offset", 3);
+
+	maat_kv_register(iris_cfg->str2int_map, "sub", 0);
+	maat_kv_register(iris_cfg->str2int_map, "right", 1);
+	maat_kv_register(iris_cfg->str2int_map, "suffix", 1);
+	maat_kv_register(iris_cfg->str2int_map, "left", 2);
+	maat_kv_register(iris_cfg->str2int_map, "prefix", 2);
+	maat_kv_register(iris_cfg->str2int_map, "complete", 3);
+	maat_kv_register(iris_cfg->str2int_map, "exact", 3);
+
+	maat_kv_register(iris_cfg->str2int_map, "uncase plain", 0);
+	maat_kv_register(iris_cfg->str2int_map, "hexbin", 1);
+	maat_kv_register(iris_cfg->str2int_map, "case plain", 2);
+
+	iris_cfg->compile_table = query_table_info(iris_cfg, compile_tn, TABLE_TYPE_COMPILE);
+	iris_cfg->group2compile_table = query_table_info(iris_cfg, group2compile_tn, TABLE_TYPE_GROUP2COMPILE);
+	iris_cfg->group2group_table = query_table_info(iris_cfg, group2group_tn, TABLE_TYPE_GROUP2GROUP);
+	
+	if (encrypt_key && encrypt_algo) {
+		iris_cfg->encrypt_key = maat_strdup(encrypt_key);
+		iris_cfg->encrypt_algo = maat_strdup(encrypt_algo);
+	}
+
+	return 0;
+}
+
+void clear_iris_descriptor(struct iris_description *iris_cfg)
+{
+	if (iris_cfg->group_name_map != NULL) {
+        struct group_info *node = NULL;
+        struct group_info *tmp = NULL;
+        HASH_ITER(hh, iris_cfg->group_name_map, node, tmp) {
+            HASH_DELETE(hh, iris_cfg->group_name_map, node);
+            FREE(node);
+        }
+	}
+
+	if(iris_cfg->iris_table_map != NULL) {
+        struct iris_table *node = NULL;
+        struct iris_table *tmp = NULL;
+        HASH_ITER(hh, iris_cfg->iris_table_map, node, tmp) {
+            HASH_DELETE(hh, iris_cfg->iris_table_map, node);
+            free_iris_table_info(node);
+        }
+	}
+
+	maat_kv_store_free(iris_cfg->str2int_map);
+	FREE(iris_cfg->encrypt_algo);
+	FREE(iris_cfg->encrypt_key);
+    
+	return;
+}
+
+int create_tmp_dir(struct iris_description *p)
+{
+	if ((access(p->tmp_iris_dir,F_OK)) < 0) {
+		if ((mkdir(p->tmp_iris_dir, 0777)) < 0) {
+			return -1;
+		}
+	}
+
+	if ((access(p->tmp_iris_index_dir,F_OK)) < 0) {
+		if ((mkdir(p->tmp_iris_index_dir, 0777)) < 0) {
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+int write_plugin_line(cJSON *plug_table_json, int sequence, struct iris_description *p_iris)
+{
+	cJSON *item = cJSON_GetObjectItem(plug_table_json, "table_name");
+	if (NULL == item || item->type != cJSON_String) {
+		fprintf(stderr, "The %d plugin_table's table_name not defined or format error.", sequence);
+		return -1;
+	}
+	const char *table_name = item->valuestring;
+
+	cJSON *table_content = cJSON_GetObjectItem(plug_table_json, "table_content");
+	if (NULL == table_content || table_content->type != cJSON_Array) {
+		fprintf(stderr, "%d plugin_table's table_content not defined or format error.", sequence);
+		return -1;
+	}
+	int line_cnt = cJSON_GetArraySize(table_content);
+
+    struct iris_table *table_info = query_table_info(p_iris, table_name, TABLE_TYPE_PLUGIN);
+
+    cJSON *each_line = NULL;
+	const char *line_content = NULL;
+	for (int i = 0; i < line_cnt; i++) {
+		each_line = cJSON_GetArrayItem(table_content, i);
+		if (NULL == each_line || each_line->type != cJSON_String) {
+			fprintf(stderr, "plugin_table %s's line %d format error.", table_info->table_name, i+1);
+			continue;
+		}
+        
+		line_content = each_line->valuestring;
+		table_info->write_pos += memcat(&(table_info->buff), table_info->write_pos, &(table_info->buff_sz), line_content, strlen(line_content));
+		table_info->write_pos += memcat(&(table_info->buff), table_info->write_pos, &(table_info->buff_sz), "\n", 1);
+		table_info->line_count++;
+	}
+
+	return 0;
+}
+
+static struct group_info *group_info_read(struct group_info *group_name_map, const char *group_name)
+{
+    struct group_info *node = NULL;
+    HASH_FIND(hh, group_name_map, group_name, strlen(group_name), node);
+
+    return node;
+}
+
+static int get_group_seq(struct iris_description *iris_cfg)
+{
+	redisReply *data_reply=NULL;
+	int sequence = 0;
+
+	if (NULL == iris_cfg->redis_write_ctx) {
+		sequence = iris_cfg->group_cnt;
+	} else {
+		data_reply = maat_cmd_wrap_redis_command(iris_cfg->redis_write_ctx, "INCRBY %s 1", mr_group_id_var);
+		sequence = (int)data_reply->integer - 1;
+		freeReplyObject(data_reply);
+		data_reply = NULL;
+	}
+	iris_cfg->group_cnt++;
+
+	return sequence;
+}
+
+static struct group_info *group_info_add_unsafe(struct iris_description *p_iris, const char *group_name)
+{
+	static struct group_info untitled_group;
+	struct group_info *group_info = NULL;
+
+	if (0 == strncasecmp(group_name, untitled_group_name, strlen(untitled_group_name))) {
+		group_info = &untitled_group;
+		group_info->group_id = get_group_seq(p_iris);
+	} else {
+		group_info = ALLOC(struct group_info, 1);
+		group_info->group_id = get_group_seq(p_iris);
+		strncpy(group_info->group_name, group_name, sizeof(group_info->group_name));
+        HASH_ADD_KEYPTR(hh, p_iris->group_name_map, group_name, strlen(group_name), group_info);
+	}
+	return group_info;
+}
+
+static int get_region_seq(struct iris_description *iris_cfg)
+{
+	int sequence = 0;
+
+	if (NULL == iris_cfg->redis_write_ctx) {
+		sequence = iris_cfg->region_cnt;
+	} else {
+		redisReply *data_reply = maat_cmd_wrap_redis_command(iris_cfg->redis_write_ctx, "INCRBY %s 1", mr_region_id_var);
+		sequence = (int)data_reply->integer - 1;
+		freeReplyObject(data_reply);
+	}
+	iris_cfg->region_cnt++;
+
+	return sequence;
+}
+
+int direct_write_rule(cJSON *json, struct maat_kv_store *str2int, struct translate_command *cmd, int cmd_cnt, struct iris_table *table)
+{
+	int i = 0;
+    int ret = -1;
+	
+	for (i = 0; i < cmd_cnt; i++) {
+		cJSON *item = cJSON_GetObjectItem(json, cmd[i].json_string);
+		if (NULL == item && (1 == cmd[i].empty_allowed)) {
+            cJSON dummy;
+			dummy.valuestring = (char *)cmd[i].default_string;
+			dummy.valueint = cmd[i].default_int;
+			dummy.valuedouble = cmd[i].default_int;
+			dummy.type = cmd[i].json_type;
+			item = &dummy;
+		}
+
+		if (NULL == item || item->type != cmd[i].json_type) {
+			fprintf(stderr, "%s not defined or wrong format.", cmd[i].json_string);
+			ret = -1;
+			goto error_out;
+		}
+
+		if (1 == cmd[i].str2int_flag) {
+            int int_value = 0;
+			char *p = item->valuestring;
+			ret = maat_kv_read(str2int, p, &int_value);			
+			if (ret < 0) {
+				fprintf(stderr, "%s's value %s is not valid format.", cmd[i].json_string, p);
+				FREE(p);
+				ret = -1;
+				goto error_out;
+			}
+			cmd[i].json_value = (char *)malloc(21);/* 2^64+1 can be represented in 21 chars. */
+			snprintf(cmd[i].json_value, 21, "%d", int_value);
+		} else {
+			switch (item->type) {
+				case cJSON_Number:
+					cmd[i].json_value = cJSON_Print(item);
+					break;
+				case cJSON_String:
+					cmd[i].json_value = ALLOC(char, strlen(item->valuestring) + 1);
+					memcpy(cmd[i].json_value, item->valuestring, strlen(item->valuestring));
+					break;
+				default://impossible ,already checked
+					assert(0);
+					break;
+			}
+		}
+	}
+
+	for (i = 0; i < cmd_cnt; i++) {
+		table->write_pos += memcat(&(table->buff), table->write_pos, &table->buff_sz, cmd[i].json_value, strlen(cmd[i].json_value));
+		table->write_pos += memcat(&(table->buff), table->write_pos, &table->buff_sz, "\t", 1);
+	}
+	table->write_pos += memcat(&(table->buff), table->write_pos, &table->buff_sz, "\n", 1);
+	table->line_count++;
+	ret = 0;
+error_out:	
+	for (i = 0; i < cmd_cnt; i++) {
+		if (cmd[i].json_value != NULL) {
+			FREE(cmd[i].json_value);
+		}
+	}
+	return ret;
+}
+
+int write_expr_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table)
+{
+	struct translate_command json_cmd[MAX_COLUMN_NUM];
+	int cmd_cnt = 0;
+	memset(json_cmd, 0, sizeof(json_cmd));
+
+	json_cmd[cmd_cnt].json_string = "region_id";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "group_id";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+	
+	if (table->table_type==TABLE_TYPE_EXPR_PLUS) {
+		json_cmd[cmd_cnt].json_string = "district";
+		json_cmd[cmd_cnt].json_type = cJSON_String;
+		cmd_cnt++;
+	}
+
+	json_cmd[cmd_cnt].json_string = "keywords";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "expr_type";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].str2int_flag = 1;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "match_method";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].str2int_flag = 1;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "format";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].str2int_flag = 1;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "is_valid";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+	
+	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table);
+}
+
+int write_ip_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table)
+{
+	struct translate_command json_cmd[MAX_COLUMN_NUM];
+	int cmd_cnt = 0;
+	memset(json_cmd, 0, sizeof(json_cmd));
+
+	json_cmd[cmd_cnt].json_string = "region_id";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "group_id";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+	
+	json_cmd[cmd_cnt].json_string = "addr_type";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].str2int_flag = 1;
+	cmd_cnt++;
+	
+	json_cmd[cmd_cnt].json_string = "src_ip";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "0.0.0.0";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "mask_src_ip";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "255.255.255.255";
+	cmd_cnt++;	
+
+	json_cmd[cmd_cnt].json_string = "src_port";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "0";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "mask_src_port";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "65535";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "dst_ip";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "0.0.0.0";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "mask_dst_ip";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "255.255.255.255";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "dst_port";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "0";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "mask_dst_port";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "65535";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "protocol";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_int = 0;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "direction";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].str2int_flag = 1;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "double";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "is_valid";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+	
+	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table);
+}
+
+int write_ip_plus_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table)
+{
+	struct translate_command json_cmd[MAX_COLUMN_NUM];
+	int cmd_cnt = 0;
+	memset(json_cmd, 0, sizeof(json_cmd));
+
+	json_cmd[cmd_cnt].json_string = "region_id";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "group_id";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+	
+	json_cmd[cmd_cnt].json_string = "addr_type";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].str2int_flag = 1;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "saddr_format";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "mask";	
+	cmd_cnt++;	
+
+	json_cmd[cmd_cnt].json_string = "src_ip1";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "0.0.0.0";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "src_ip2";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "255.255.255.255";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "sport_format";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "mask";	
+	cmd_cnt++;	
+
+	json_cmd[cmd_cnt].json_string = "src_port1";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "0";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "src_port2";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "65535";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "daddr_format";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "mask";	
+	cmd_cnt++;	
+
+	json_cmd[cmd_cnt].json_string = "dst_ip1";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "0.0.0.0";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "dst_ip2";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "255.255.255.255";
+	cmd_cnt++;
+	
+	json_cmd[cmd_cnt].json_string = "dport_format";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "mask";	
+	cmd_cnt++;	
+
+	json_cmd[cmd_cnt].json_string = "dst_port1";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "0";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "dst_port2";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "65535";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "protocol";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_int = 0;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "direction";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].str2int_flag = 1;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "double";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "is_valid";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+
+	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table);
+}
+
+int write_intval_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table)
+{
+	struct translate_command json_cmd[MAX_COLUMN_NUM];
+	int cmd_cnt = 0;
+	memset(json_cmd, 0, sizeof(json_cmd));
+	
+	json_cmd[cmd_cnt].json_string = "region_id";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "group_id";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+
+	if (table->table_type == TABLE_TYPE_INTERVAL_PLUS) {
+		json_cmd[cmd_cnt].json_string = "district";
+		json_cmd[cmd_cnt].json_type = cJSON_String;
+		cmd_cnt++;
+	}
+		
+	json_cmd[cmd_cnt].json_string = "low_boundary";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "up_boundary";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "is_valid";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+	
+	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table);
+}
+
+int write_digest_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table)
+{
+	struct translate_command json_cmd[MAX_COLUMN_NUM];
+	int cmd_cnt = 0;
+	memset(json_cmd, 0, sizeof(json_cmd));
+	
+	json_cmd[cmd_cnt].json_string = "region_id";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "group_id";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+	
+	json_cmd[cmd_cnt].json_string = "raw_len";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "digest";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "cfds_level";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "is_valid";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+	
+	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table);
+}
+
+int write_similar_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table)
+{
+	struct translate_command json_cmd[MAX_COLUMN_NUM];
+	int cmd_cnt = 0;
+	memset(json_cmd, 0, sizeof(json_cmd));
+	
+	json_cmd[cmd_cnt].json_string = "region_id";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "group_id";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+	
+	json_cmd[cmd_cnt].json_string = "target";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "threshold";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "is_valid";
+	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+	
+	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table);
+}
+
+int write_region_rule(cJSON *region_json, int compile_id, int group_id, struct iris_description *p_iris)
+{
+    cJSON *item = cJSON_GetObjectItem(region_json, "table_name");
+	if (NULL == item || item->type != cJSON_String) {
+		fprintf(stderr, "compile rule %d's table_name not defined or format error.", compile_id);
+		return -1;
+	}
+    const char *table_name = item->valuestring;
+
+	item = cJSON_GetObjectItem(region_json, "table_type");
+	if (NULL == item || item->type != cJSON_String) {
+		fprintf(stderr, "compile rule %d's table name %s's table_type not defined or format error.", 
+                        compile_id, table_name);
+		return -1;
+	}
+
+	const char *table_type_str = item->valuestring;
+    enum table_type table_type = TABLE_TYPE_EXPR;
+	int ret = maat_kv_read(p_iris->str2int_map, table_type_str, (int*)&(table_type));
+	if (ret != 1) {
+		fprintf(stderr, "compile rule %d table name %s's table_type %s invalid.",
+                        compile_id, table_name, table_type_str);
+		return -1;
+	}
+	
+	cJSON *table_content = cJSON_GetObjectItem(region_json, "table_content");
+	if (NULL == table_content || table_content->type != cJSON_Object) {
+		fprintf(stderr, "compile rule %d table name %s's table_content not defined or format error.",
+                        compile_id, table_name);
+		return -1;
+	}
+
+	int region_id = get_region_seq(p_iris);
+	cJSON_AddNumberToObject(table_content, "region_id", region_id);
+	cJSON_AddNumberToObject(table_content, "group_id", group_id);
+	cJSON_AddNumberToObject(table_content, "is_valid", 1);
+
+    struct iris_table *table_info = query_table_info(p_iris, table_name, table_type);
+	switch(table_type)
+	{
+		case TABLE_TYPE_EXPR:
+		case TABLE_TYPE_EXPR_PLUS:
+			ret = write_expr_line(table_content, p_iris, table_info);
+			break;
+		case TABLE_TYPE_IP:
+			ret = write_ip_line(table_content, p_iris, table_info);
+			break;
+		case TABLE_TYPE_IP_PLUS:
+			ret = write_ip_plus_line(table_content, p_iris, table_info);
+			break;
+		case TABLE_TYPE_INTERVAL:
+		case TABLE_TYPE_INTERVAL_PLUS:
+			ret = write_intval_line(table_content, p_iris, table_info);
+			break;
+        case TABLE_TYPE_DIGEST:
+			ret = write_digest_line(table_content, p_iris, table_info);
+			break;
+		case TABLE_TYPE_SIMILARITY:
+			ret = write_similar_line(table_content, p_iris, table_info);
+			break;
+		default:
+			assert(0);
+			break;
+	}
+	return ret;
+}
+
+int write_group2compile_line(int group_id, int compile_id, int group_not_flag, int clause_index, 
+                             const char *virtual_table, struct iris_description *p_iris)
+{
+	char buff[4096] = {0};
+	struct iris_table *table = p_iris->group2compile_table;
+
+	snprintf(buff, sizeof(buff), "%d\t%d\t1\t%d\t%s\t%d\n", group_id, compile_id, group_not_flag, virtual_table, clause_index);
+	table->write_pos += memcat(&(table->buff), table->write_pos, &(table->buff_sz), buff, strlen(buff));
+	table->line_count++;
+
+	return 0;
+}
+
+int write_group2group_line(int group_id, int superior_group_id, struct iris_description *p_iris)
+{
+	char buff[4096] = {0};
+	struct iris_table *table = p_iris->group2group_table;
+
+	snprintf(buff, sizeof(buff), "%d\t%d\t1\n", group_id, superior_group_id);
+	table->write_pos += memcat(&(table->buff), table->write_pos, &(table->buff_sz), buff, strlen(buff));
+	table->line_count++;
+
+	return 0;
+}
+
+int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int tracking_compile_id, 
+                     int Nth_group, struct iris_description *p_iris)
+{
+    int ret = 0;
+    int group_not_flag = 0;
+    int clause_index = 0;
+	const char *str_parent_type[2] = {"compile", "group"};
+	const char *group_name = NULL;
+    const char *virtual_table = NULL;
+
+	cJSON *item = cJSON_GetObjectItem(group_json, "group_name");
+	if (NULL == item || item->type != cJSON_String) {
+		group_name = untitled_group_name;
+	} else {
+		group_name = item->valuestring;
+	}
+
+	if (parent_type == PARENT_TYPE_COMPILE) {
+		item = cJSON_GetObjectItem(group_json, "virtual_table");
+		if (NULL == item || item->type != cJSON_String) {
+			virtual_table = "null";
+		} else {
+			virtual_table = item->valuestring;
+		}
+
+		item = cJSON_GetObjectItem(group_json, "not_flag");
+		if (NULL == item || item->type != cJSON_Number) {
+			group_not_flag = 0;
+		} else {
+			group_not_flag = item->valueint;
+		}
+
+		item = cJSON_GetObjectItem(group_json, "clause_index");
+		if (NULL == item || item->type != cJSON_Number) {
+			clause_index = Nth_group;
+		} else {
+			clause_index = item->valueint;
+		}
+	} else {
+		group_not_flag = 0;
+	}
+
+	struct group_info *group_info = group_info_read(p_iris->group_name_map, group_name);
+    //exist group name, regions and sub groups will be ommit.
+	if (NULL == group_info) {
+		group_info = group_info_add_unsafe(p_iris, group_name);
+		cJSON *region_json = cJSON_GetObjectItem(group_json, "regions");
+		if (region_json != NULL) {
+            cJSON *region_rule = NULL;
+			cJSON_ArrayForEach(region_rule, region_json) {
+				ret = write_region_rule(region_rule, tracking_compile_id, group_info->group_id, p_iris);
+				if (ret < 0) {
+					fprintf(stderr, "compile rule %d write region error.", tracking_compile_id);
+					return -1;
+				}
+			}
+		}
+		
+        cJSON *sub_groups = cJSON_GetObjectItem(group_json,"sub_groups");
+		if (sub_groups != NULL) {
+			//recursively
+			int i = 0;
+			cJSON_ArrayForEach(item, sub_groups) {
+				i++;
+				ret = write_group_rule(item, group_info->group_id, PARENT_TYPE_GROUP, tracking_compile_id, i, p_iris);
+				if (ret < 0) {
+					return -1;
+				}
+			}
+		}
+
+		if (NULL == region_json && NULL == sub_groups) {
+			fprintf(stdout, "A group of compile rule %d has neither regions, sub groups, nor refered another exisited group.", 
+                            tracking_compile_id);
+		}
+	}
+
+	if (parent_type == PARENT_TYPE_COMPILE) {
+		ret = write_group2compile_line(group_info->group_id, parent_id, group_not_flag, clause_index, virtual_table, p_iris);
+	} else {
+		ret = write_group2group_line(group_info->group_id, parent_id, p_iris);
+	}
+
+	if (ret < 0) {
+		fprintf(stderr, "%s rule %d write group error.", str_parent_type[parent_type], parent_id);
+		return -1;
+	}
+
+	return 0;
+}
+
+int write_compile_line(cJSON *compile, struct iris_description *p_iris)
+{
+	cJSON *item=cJSON_GetObjectItem(compile, "compile_id");
+	if (item->type != cJSON_Number) {
+		fprintf(stderr, "compile_id format not number.");
+		return -1;
+	}
+	int compile_id = item->valueint;
+
+    cJSON *group_array = cJSON_GetObjectItem(compile, "groups");
+    int group_num = cJSON_GetArraySize(group_array);
+    int *clause_ids = ALLOC(int, group_num);
+    int clause_num = 0;
+    cJSON *group_obj = NULL;
+
+	cJSON_ArrayForEach(group_obj, group_array) {
+		item = cJSON_GetObjectItem(group_obj, "clause_index");
+		if (item) {
+            int i = 0;
+			int clause_index = item->valueint;
+			for (i = 0; i < clause_num; i++) {
+				if (clause_ids[i] == clause_index) {
+					break;
+				}
+			}
+
+			if (i == clause_num) {
+				clause_ids[clause_num] = clause_index;
+				clause_num++;
+			}			
+		}
+	}
+	FREE(clause_ids);
+	
+	if (clause_num == 0) {
+		clause_num = group_num;
+	}
+
+	cJSON_AddNumberToObject(compile, "clause_num", clause_num);
+
+	struct translate_command compile_cmd[MAX_COLUMN_NUM];
+	memset(compile_cmd, 0, sizeof(compile_cmd));
+
+    int cmd_cnt = 0;
+	compile_cmd[cmd_cnt].json_string = "compile_id";
+	compile_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+	
+	compile_cmd[cmd_cnt].json_string = "service";
+	compile_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+	
+	compile_cmd[cmd_cnt].json_string = "action";
+	compile_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+	
+	compile_cmd[cmd_cnt].json_string = "do_blacklist";
+	compile_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+
+	compile_cmd[cmd_cnt].json_string = "do_log";
+	compile_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+
+
+	compile_cmd[cmd_cnt].json_string = "tags";
+	compile_cmd[cmd_cnt].json_type = cJSON_String;
+	compile_cmd[cmd_cnt].empty_allowed = 1;
+	compile_cmd[cmd_cnt].default_string = "0";
+	cmd_cnt++;
+	
+	compile_cmd[cmd_cnt].json_string = "user_region";
+	compile_cmd[cmd_cnt].json_type = cJSON_String;
+	cmd_cnt++;
+	
+	compile_cmd[cmd_cnt].json_string = "is_valid";
+	compile_cmd[cmd_cnt].json_type = cJSON_String;
+	compile_cmd[cmd_cnt].str2int_flag = 1;
+	cmd_cnt++;
+	
+	compile_cmd[cmd_cnt].json_string = "clause_num";
+	compile_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+
+	compile_cmd[cmd_cnt].json_string = "evaluation_order";
+	compile_cmd[cmd_cnt].json_type = cJSON_String;
+	compile_cmd[cmd_cnt].empty_allowed = 1;
+	compile_cmd[cmd_cnt].default_string = "0.0";
+	cmd_cnt++;
+
+    struct iris_table *table_info = NULL;
+	item = cJSON_GetObjectItem(compile,"table_name");
+	if (NULL == item || item->type != cJSON_String) {
+		table_info = p_iris->compile_table;
+	} else {
+		table_info = query_table_info(p_iris, item->valuestring, TABLE_TYPE_COMPILE);
+	}
+	
+	int ret = direct_write_rule(compile, p_iris->str2int_map, compile_cmd, cmd_cnt, table_info);
+	if (ret < 0) {
+		return -1;
+	}
+
+	return compile_id;
+}
+
+void write_table_idx(struct iris_description *p_iris, struct iris_table *table)
+{
+	char line_cnt_str[32] = {0};
+    char err_str[256] = {0};
+
+	snprintf(line_cnt_str, sizeof(line_cnt_str), "%010d\n", table->line_count);
+
+	size_t table_file_sz = strlen(line_cnt_str) + table->write_pos;
+    unsigned char *buff = ALLOC(unsigned char, table_file_sz);
+	memcpy(buff, line_cnt_str, strlen(line_cnt_str));
+	memcpy(buff + strlen(line_cnt_str), table->buff, table->write_pos);
+
+	FILE *table_fp = fopen(table->table_path, "w");
+	if (p_iris->encrypt_key) {
+        unsigned char *encrypt_buff = NULL;
+        size_t encrypt_buff_sz = 0;
+		int ret = crypt_memory(buff, table_file_sz, &encrypt_buff, &encrypt_buff_sz, p_iris->encrypt_key, 
+                                p_iris->encrypt_algo, 1, err_str, sizeof(err_str));
+		assert(ret == 0);
+		fwrite(encrypt_buff, encrypt_buff_sz, 1, table_fp);
+		fprintf(p_iris->idx_fp, "%s\t%d\t%s\t%s\n", table->table_name, table->line_count, table->table_path, p_iris->encrypt_algo);
+		FREE(encrypt_buff);
+	} else {
+		fwrite(buff, table_file_sz, 1, table_fp);		
+		fprintf(p_iris->idx_fp, "%s\t%d\t%s\n", table->table_name, table->line_count, table->table_path);
+	}
+
+	fclose(table_fp);
+	FREE(buff);
+}
+
+int write_index_file(struct iris_description *p_iris)
+{
+	p_iris->idx_fp = fopen(p_iris->index_path, "w");
+	if (NULL == p_iris->idx_fp) {
+		fprintf(stderr, "index file %s fopen error %s.",p_iris->index_path, strerror(errno));
+		return -1;
+	}
+
+    struct iris_table *node = NULL;
+    struct iris_table *tmp = NULL;
+    HASH_ITER(hh, p_iris->iris_table_map, node, tmp) {
+        write_table_idx(p_iris, node);
+    }
+    
+	fclose(p_iris->idx_fp);
+	p_iris->idx_fp = NULL;
+
+	return 0;
+}
+
+int write_iris(cJSON *json, struct iris_description *p_iris)
+{
+	int i=0;
+	int ret=0;
+	static struct group_info *parent_group = NULL; //TODO
+	
+	cJSON *plug_tables = cJSON_GetObjectItem(json, "plugin_table");
+	if (plug_tables != NULL) {
+        cJSON *each_plug_table = NULL;
+		cJSON_ArrayForEach(each_plug_table, plug_tables) {
+			write_plugin_line(each_plug_table, i, p_iris);
+			i++;
+		}
+	}
+
+	cJSON *group_array = cJSON_GetObjectItem(json, "groups");//sub-group to group
+	if (group_array != NULL) {
+        cJSON *group_obj = NULL;
+		cJSON_ArrayForEach(group_obj, group_array) {
+            const char *parent_group_name = NULL;
+			cJSON *item = cJSON_GetObjectItem(group_obj, "parent_group");
+			if (NULL == item || item->type!=cJSON_String) {
+				parent_group_name = untitled_group_name;
+			} else {
+				parent_group_name = item->string;
+			}
+
+			parent_group = group_info_read(p_iris->group_name_map, parent_group_name);
+			if(NULL == parent_group) {
+				parent_group = group_info_add_unsafe(p_iris, parent_group_name);
+			}
+
+			ret = write_group_rule(group_obj, parent_group->group_id, PARENT_TYPE_GROUP, 0, 0, p_iris);
+			if (ret < 0) {
+				return -1;
+			}
+		}
+	}
+
+	int compile_cnt = 0;
+	cJSON *compile_array = cJSON_GetObjectItem(json, "rules");
+	if (compile_array != NULL) {
+		compile_cnt = cJSON_GetArraySize(compile_array);
+	}
+
+	if (compile_cnt > 0) {
+        cJSON *compile_obj = NULL;
+		cJSON_ArrayForEach(compile_obj, compile_array) {
+			int compile_id = write_compile_line(compile_obj,p_iris);
+			if (compile_id < 0) {
+				fprintf(stderr, "In %d compile rule.", i);
+				return -1;
+			}
+
+			group_array = cJSON_GetObjectItem(compile_obj, "groups");
+			if (NULL == group_array) {
+				fprintf(stderr, "compile rule %d have no group.",compile_id);
+				return -1;
+			}
+
+			int group_cnt = cJSON_GetArraySize(group_array);
+			if (group_cnt <= 0) {
+				fprintf(stderr, "compile rule %d have no groups.", compile_id);
+				return -1;
+			}
+
+			i = 0;
+            cJSON *group_obj = NULL;
+			cJSON_ArrayForEach(group_obj, group_array) {
+				ret = write_group_rule(group_obj, compile_id, PARENT_TYPE_COMPILE, compile_id, i, p_iris);
+				if (ret < 0) {
+					return -1;
+				}
+				i++;
+			}
+		}
+	}
+
+	ret = write_index_file(p_iris);
+	if (ret < 0) {
+		return -1;
+	}
+	return 0;
+}
+
+int json2iris(const char *json_buff, const char *json_filename, const char *compile_tn, 
+              const char *group2compile_tn, const char *group2group_tn, redisContext *redis_write_ctx, 
+              char *iris_dir_buf, int buf_len, char *encrypt_key, char *encrypt_algo)
+{
+    int ret = -1;
+    cJSON *tmp_obj = NULL;
+	struct iris_description iris_cfg;
+
+	memset(&iris_cfg, 0, sizeof(iris_cfg));
+
+	cJSON *json = cJSON_Parse(json_buff);
+	if (!json) {
+		fprintf(stderr, "Error before: %-200.200s", cJSON_GetErrorPtr());
+		goto error_out;
+	}
+
+	tmp_obj = cJSON_GetObjectItem(json, "compile_table");
+	if (tmp_obj) {
+		compile_tn = tmp_obj->valuestring;
+	}
+
+	tmp_obj = cJSON_GetObjectItem(json, "group2compile_table");
+	if (tmp_obj) {
+		group2compile_tn = tmp_obj->valuestring;
+	}
+
+	tmp_obj = cJSON_GetObjectItem(json, "group2group_table");
+	if (tmp_obj) {
+		group2group_tn = tmp_obj->valuestring;
+	}
+
+	ret = set_iris_descriptor(json_filename, json, encrypt_key, encrypt_algo, 
+                              compile_tn, group2compile_tn, group2group_tn, 
+                              redis_write_ctx, &iris_cfg);
+	if (ret < 0) {
+		goto error_out;
+	}
+
+	ret = create_tmp_dir(&iris_cfg);
+	if (ret < 0) {
+		fprintf(stderr, "create tmp folder %s error", iris_cfg.tmp_iris_dir);
+		goto error_out;
+	}
+
+	ret = write_iris(json, &iris_cfg);
+	if (ret < 0) {
+		goto error_out;
+	}
+	memcpy(iris_dir_buf, iris_cfg.tmp_iris_index_dir, MIN(strlen(iris_cfg.tmp_iris_index_dir) + 1, (unsigned int)buf_len));
+
+	cJSON_Delete(json);
+	clear_iris_descriptor(&iris_cfg);
+	return 0;	
+
+error_out:
+	cJSON_Delete(json);
+	clear_iris_descriptor(&iris_cfg);
+	return -1;
+}

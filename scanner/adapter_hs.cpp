@@ -184,7 +184,7 @@ void adpt_hs_compile_data_free(struct adpt_hs_compile_data *hs_cd, size_t n_patt
 
 struct adapter_hs *adapter_hs_initialize(int scan_mode, size_t nr_worker_threads, and_expr_t *expr_array, size_t n_expr_array)
 {
-    if ((scan_mode != SCAN_MODE_BLOCK && scan_mode != SCAN_MODE_STREAM) || 
+    if ((scan_mode != HS_SCAN_MODE_BLOCK && scan_mode != HS_SCAN_MODE_STREAM) || 
          0 == nr_worker_threads || NULL == expr_array || 0 == n_expr_array) {
         fprintf(stderr, "%s input parameters illegal!", __func__);
         return NULL;
@@ -407,11 +407,12 @@ int adapter_hs_scan(struct adapter_hs *hs_instance, int thread_id, const char *d
     utarray_new(pattern_id_set, &ut_pattern_id_icd);
 	utarray_reserve(pattern_id_set, hs_instance->n_patterns);
 
+    int err_count = 0;
     if (hs_rt->literal_db != NULL) {
         err = hs_scan(hs_rt->literal_db, data, data_len, 0, scratch, matched_event_cb, pattern_id_set);
         if (err != HS_SUCCESS) {
             //log_error()
-            return -1;
+            err_count++;
         }
     }
     
@@ -419,10 +420,14 @@ int adapter_hs_scan(struct adapter_hs *hs_instance, int thread_id, const char *d
         err = hs_scan(hs_rt->regex_db, data, data_len, 0, scratch, matched_event_cb, pattern_id_set);
         if (err != HS_SUCCESS) {
             //log_error()
-            return -1;
+            err_count++;
         }
     }
     
+    if (2 == err_count) {
+        return -1;
+    }
+
     size_t pattern_set_size = utarray_len(pattern_id_set);
     unsigned long long items[pattern_set_size];
     memset(items, 0, sizeof(unsigned long long) * pattern_set_size);

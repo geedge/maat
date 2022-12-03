@@ -14,12 +14,16 @@
 #include <limits.h>
 #include <string.h>
 #include <sys/prctl.h>
+#include <sys/stat.h>
 #include <assert.h>
 
+#include "utils.h"
+#include "json2iris.h"
+#include "maat_utils.h"
 #include "maat_rule.h"
 #include "maat_config_monitor.h"
-#include "utils.h"
-#include "maat_utils.h"
+#include "maat_redis_monitor.h"
+
 #include "maat_table_runtime.h"
 #include "maat_table_schema.h"
 
@@ -100,7 +104,16 @@ int maat_update_cb(const char *table_name, const char *line, void *u_param)
 	struct maat *maat_instance =(struct maat *)u_param; 
 	struct maat_runtime* maat_rt = NULL;
 	int table_id = table_schema_manager_get_table_id(maat_instance->table_schema_mgr, table_name);
+    if (table_id < 0) {
+        fprintf(stderr, "update warning, unknown table name %s\n", table_name);
+        return -1;
+    }
+
 	struct table_schema* table_schema = table_schema_get(maat_instance->table_schema_mgr, table_id);
+    if (NULL == table_schema) {
+        fprintf(stderr, "update warning, table name %s doesn't have table schema\n", table_name);
+        return -1;
+    }
 
 	if (maat_instance->creating_maat_rt != NULL) {
 		maat_rt = maat_instance->creating_maat_rt;
@@ -177,10 +190,21 @@ void *rule_monitor_loop(void *arg)
     }
     pthread_mutex_unlock(&(maat_instance->background_update_mutex));
 
+    char md5_tmp[MD5_DIGEST_LENGTH * 2 + 1] = {0};
+    char err_str[NAME_MAX] = {0};
+    struct stat attrib;
     while (maat_instance->is_running) {
         usleep(maat_instance->rule_update_checking_interval_ms * 1000);
 		if( 0 == pthread_mutex_trylock(&(maat_instance->background_update_mutex))) {
 			switch (maat_instance->input_mode) {
+                case DATA_SOURCE_REDIS:
+                    redis_monitor_traverse(maat_instance->maat_version,
+                                            &(maat_instance->mr_ctx),
+                                            maat_start_cb,
+                                            maat_update_cb,
+                                            maat_finish_cb,
+                                            maat_instance);
+                    break;
 				case DATA_SOURCE_IRIS_FILE:
 					config_monitor_traverse(maat_instance->maat_version, 
 											maat_instance->iris_ctx.inc_dir,
@@ -189,6 +213,29 @@ void *rule_monitor_loop(void *arg)
 											maat_finish_cb,
 											maat_instance);
 					break;
+                case DATA_SOURCE_JSON_FILE:
+                    memset(md5_tmp, 0, sizeof(md5_tmp));
+				    stat(maat_instance->json_ctx.json_file, &attrib);
+					if (memcmp(&attrib.st_ctim, &(maat_instance->json_ctx.last_md5_time), sizeof(attrib.st_ctim))) {
+						maat_instance->json_ctx.last_md5_time = attrib.st_ctim;
+						md5_file(maat_instance->json_ctx.json_file, md5_tmp);
+						if (0 != strcmp(md5_tmp, maat_instance->json_ctx.effective_json_md5)) {
+							ret = load_maat_json_file(maat_instance, maat_instance->json_ctx.json_file, err_str, sizeof(err_str));
+							if (ret < 0) {
+								fprintf(stdout, "Maat re-initiate with JSON file %s (md5=%s)failed: %s",
+												maat_instance->json_ctx.json_file, md5_tmp, err_str);
+							} else {
+								config_monitor_traverse(0, maat_instance->json_ctx.iris_file,
+														maat_start_cb,
+														maat_update_cb,
+														maat_finish_cb,
+														maat_instance);
+								fprintf(stdout, "Maat re-initiate with JSON file %s success, md5: %s",
+												maat_instance->json_ctx.json_file, md5_tmp);
+							}
+						}
+					}
+                    break;
 				default:
 					break;
 			}
@@ -231,7 +278,20 @@ void *rule_monitor_loop(void *arg)
     maat_runtime_destroy(maat_instance->maat_rt);
 	maat_garbage_bin_free(maat_instance->garbage_bin);
 	table_schema_manager_destroy(maat_instance->table_schema_mgr);
-    free(maat_instance);
+
+    if (maat_instance->input_mode == DATA_SOURCE_REDIS) {
+        if (maat_instance->mr_ctx.read_ctx != NULL) {
+            redisFree(maat_instance->mr_ctx.read_ctx);
+            maat_instance->mr_ctx.read_ctx = NULL;
+        }
+
+        if (maat_instance->mr_ctx.write_ctx != NULL) {
+            redisFree(maat_instance->mr_ctx.write_ctx);
+            maat_instance->mr_ctx.write_ctx = NULL;
+        }
+    }
+
+    FREE(maat_instance);
 
     return NULL;
 }

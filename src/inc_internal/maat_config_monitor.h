@@ -28,6 +28,8 @@ void config_monitor_traverse(long long version, const char *idx_dir,
 							void (*finish_fn)(void *),
 							void *u_param);
 
+int load_maat_json_file(struct maat *maat_instance, const char *json_filename, char *err_str, size_t err_str_sz);
+
 #ifdef __cpluscplus
 }
 #endif

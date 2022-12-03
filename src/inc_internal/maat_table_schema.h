@@ -25,13 +25,28 @@ extern "C"
 #define MAX_DISTRICT_STR 128
 #define MAX_IP_STR       128
 #define MAX_KEYWORDS_STR 1024
+#define	MAX_FOREIGN_CLMN_NUM 8
 
 enum table_type {
 	TABLE_TYPE_EXPR = 0,
     TABLE_TYPE_EXPR_PLUS,
     TABLE_TYPE_IP,
+    TABLE_TYPE_IP_PLUS,
+    TABLE_TYPE_INTERVAL,
+    TABLE_TYPE_INTERVAL_PLUS,
+    TABLE_TYPE_DIGEST,
+    TABLE_TYPE_SIMILARITY,
     TABLE_TYPE_PLUGIN,
     TABLE_TYPE_IP_PLUGIN,
+    TABLE_TYPE_FQDN_PLUGIN,
+    TABLE_TYPE_BOOL_PLUGIN,
+    //above are physical table
+    TABLE_TYPE_VIRTUAL,
+    TABLE_TYPE_COMPOSITION,
+    TABLE_TYPE_COMPILE,
+    TABLE_TYPE_GROUP,
+    TABLE_TYPE_GROUP2GROUP,
+	TABLE_TYPE_GROUP2COMPILE,
 	TABLE_TYPE_MAX
 };
 
@@ -42,8 +57,21 @@ enum expr_type {
     EXPR_TYPE_MAX
 };
 
+enum scan_type {
+    SCAN_TYPE_INVALID = -1,
+	SCAN_TYPE_NONE = 0,
+	SCAN_TYPE_PLUGIN,
+	SCAN_TYPE_IP_PLUGIN,
+	SCAN_TYPE_FQDN_PLUGIN,
+	SCAN_TYPE_BOOL_PLUGIN,
+	SCAN_TYPE_IP,
+	SCAN_TYPE_INTERVAL,
+	SCAN_TYPE_STRING,
+	SCAN_TYPE_MAX
+};
+
 enum match_method {
-    MATCH_METHOD_SUB=0,
+    MATCH_METHOD_SUB = 0,
 	MATCH_METHOD_RIGHT,
 	MATCH_METHOD_LEFT,
 	MATCH_METHOD_COMPLETE,
@@ -60,10 +88,6 @@ struct expr_item {
     int is_hexbin;
     int is_case_sensitive;
     int is_valid;
-   
-     //rule_tag; 只存在schema里
-	//int have_exdata;
-    //struct ex_data *ex_data; //hash表
 };
 
 struct plugin_item {
@@ -129,14 +153,21 @@ void table_schema_manager_all_plugin_cb_finish(struct table_schema_manager* tabl
 /* table schema generic API */
 struct table_schema *table_schema_get(struct table_schema_manager *table_schema_mgr, int table_id);
 
+struct table_schema *table_schema_get_by_scan_type(struct table_schema_manager *table_schema_mgr, 
+                                                   int table_id, enum scan_type type, int *virtual_table_id);
+
 enum table_type table_schema_get_table_type(struct table_schema *table_schema);
 
 int table_schema_get_table_id(struct table_schema *table_schema);
 
+enum scan_type table_schema_get_scan_type(struct table_schema *table_schema);
+
 struct table_item *table_schema_line_to_item(const char *line, struct table_schema *table_schema);
 
+int table_schema_get_valid_flag_column(struct table_schema *table_schema);
+
 /* expr table schema API */
-enum scan_mode expr_table_schema_get_scan_mode(struct table_schema *table_schema);
+enum hs_scan_mode expr_table_schema_get_scan_mode(struct table_schema *table_schema);
 
 /* plugin table schema API */
 int plugin_table_schema_set_ex_data_schema(struct table_schema *table_schema,
@@ -164,6 +195,8 @@ int plugin_table_schema_add_callback(struct table_schema_manager* table_schema_m
 size_t plugin_table_schema_callback_count(struct table_schema *table_schema);
 
 void plugin_table_schema_all_cb_update(struct table_schema *table_schema, const char *row);
+
+int plugin_table_schema_get_foreign_column(struct table_schema *table_schema, int *foreign_columns);
 
 #ifdef __cpluscplus
 }

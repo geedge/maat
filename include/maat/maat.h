@@ -66,6 +66,10 @@ int maat_options_set_instance_name(struct maat_options *opts, const char *instan
 int maat_options_set_deferred_load_on(struct maat_options *opts);
 int maat_options_set_iris_full_dir(struct maat_options *opts, const char *full_dir);
 int maat_options_set_iris_inc_dir(struct maat_options *opts, const char *inc_dir);
+int maat_options_set_json_file(struct maat_options *opts, const char *json_filename);
+int maat_options_set_redis_ip(struct maat_options *opts, const char *redis_ip);
+int maat_options_set_redis_port(struct maat_options *opts, uint16_t redis_port);
+int maat_options_set_redis_db_index(struct maat_options *opts, int db_index);
 
 /* maat_instance API */
 struct maat *maat_new(struct maat_options *opts, const char *table_info_path);

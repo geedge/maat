@@ -11,6 +11,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <zlib.h>
+#include <openssl/md5.h>
+#include <openssl/evp.h>
 
 #include "maat_utils.h"
 
@@ -19,6 +22,7 @@ char *maat_strdup(const char *s)
 	if (NULL == s) {
 		return NULL;
 	}
+
     char *d = (char *)malloc(strlen(s) + 1);
 	memcpy(d, s, strlen(s) + 1);
 
@@ -27,10 +31,14 @@ char *maat_strdup(const char *s)
 
 int get_column_pos(const char *line, int column_seq, size_t *offset, size_t *len)
 {
-	const char *seps=" \t";
-	char *saveptr=NULL, *subtoken=NULL, *str=NULL;
+	int i = 0;
+    int ret = -1;
+    char *str = NULL;
+	char *saveptr = NULL;
+    char *subtoken = NULL;
+    const char *seps = " \t";
 	char *dup_line = maat_strdup(line);
-	int i = 0, ret = -1;
+	
 	for (str = dup_line; ; str = NULL) {
 		subtoken = strtok_r(str, seps, &saveptr);
 		if (subtoken == NULL)
@@ -53,7 +61,7 @@ int load_file_to_memory(const char *file_name, unsigned char **pp_out, size_t *o
 	int ret = 0;
 	FILE *fp = NULL;		
 	struct stat fstat_buf;
-	size_t read_size=0;
+	size_t read_size = 0;
 	
 	ret = stat(file_name, &fstat_buf);
 	if (ret != 0) {
@@ -186,4 +194,181 @@ int system_cmd_mkdir(const char *path)
     char cmd[MAX_SYSTEM_CMD_LEN] = {0};
 	snprintf(cmd, sizeof(cmd), "mkdir -p %s", path);
 	return system(cmd);
+}
+
+char *md5_file(const char *filename, char *md5string)
+{
+	unsigned char md5[MD5_DIGEST_LENGTH] = {0};
+	struct stat file_info;	
+	stat(filename, &file_info);
+	size_t file_size = file_info.st_size;
+
+	FILE *fp = fopen(filename,"r");
+	if (NULL == fp) {
+		return NULL;
+	}
+
+	char *file_buff = (char *)malloc(file_size);
+	fread(file_buff, 1, file_size, fp);
+	fclose(fp);
+	
+	MD5((const unsigned char *)(file_buff), (unsigned long)(file_size), md5);
+	for (int i = 0; i < MD5_DIGEST_LENGTH; ++i) {
+		sprintf(&md5string[i*2], "%02x", (unsigned int)md5[i]);
+	}
+
+	free(file_buff);
+	return md5string;
+}
+
+int crypt_memory(const unsigned char *inbuf, size_t inlen, unsigned char **pp_out, size_t *out_sz, 
+                 const char *key, const char *algorithm, int do_encrypt, 
+                 char *err_str, size_t err_str_sz)
+{
+	OpenSSL_add_all_algorithms();
+	const EVP_CIPHER *cipher = EVP_get_cipherbyname(algorithm);
+	if (NULL == cipher) {
+		snprintf(err_str, err_str_sz, "Cipher %s is not supported.", algorithm);
+		return 0;
+	}
+
+	const EVP_MD *dgst = EVP_get_digestbyname("md5");
+	if (NULL == dgst) {
+		snprintf(err_str, err_str_sz, "Get MD5 object failed.");
+		return 0;
+	}
+
+    const unsigned char *salt = NULL;
+    unsigned char cipher_key[EVP_MAX_KEY_LENGTH];
+	unsigned char cipher_iv[EVP_MAX_IV_LENGTH];
+
+	memset(cipher_key,0,sizeof(cipher_key));
+	memset(cipher_iv,0,sizeof(cipher_iv));
+
+	int ret = EVP_BytesToKey(cipher, dgst, salt, (unsigned char *)key, 
+                             strlen((const char *)key), 1, cipher_key, cipher_iv);
+	if(0 == ret) {
+		snprintf(err_str, err_str_sz, "Key and IV generatioin failed.");
+		return 0;
+	}
+
+    /* Don't set key or IV right away; we want to check lengths */
+	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+	EVP_CipherInit_ex(ctx, cipher, NULL, NULL, NULL, do_encrypt);
+	OPENSSL_assert(EVP_CIPHER_CTX_key_length(ctx) % 16 == 0);
+	OPENSSL_assert(EVP_CIPHER_CTX_iv_length(ctx) == 16);
+	 
+	/* Now we can set key and IV */
+	//It should be set to 1 for encryption, 0 for decryption and -1 to leave the value unchanged (the actual value of 'enc' being supplied in a previous call).
+	EVP_CipherInit_ex(ctx, NULL, NULL, cipher_key, cipher_iv, -1);
+    int out_blk_len = 0;
+    int out_buff_offset = 0;
+	int out_buff_len = inlen + EVP_CIPHER_block_size(cipher) - 1;
+	*pp_out = (unsigned char *)malloc(out_buff_len * sizeof(unsigned char));
+	if (!EVP_CipherUpdate(ctx, *pp_out + out_buff_offset, &out_blk_len, inbuf, inlen)) {
+		snprintf(err_str, err_str_sz, "EVP_CipherUpdate failed.");
+		EVP_CIPHER_CTX_free(ctx);
+		goto error_out;
+	}
+
+	out_buff_offset += out_blk_len;
+	if (!EVP_CipherFinal_ex(ctx, *pp_out+out_buff_offset, &out_blk_len)) {
+		snprintf(err_str, err_str_sz, "EVP_CipherFinal_ex failed. Maybe password is wrong?");
+		EVP_CIPHER_CTX_free(ctx);
+		goto error_out;
+	}
+
+	out_buff_offset += out_blk_len;
+	EVP_CIPHER_CTX_free(ctx);
+	*out_sz = out_buff_offset;
+	return 0;	
+	
+error_out:	
+	free(*pp_out);
+	*pp_out = NULL;
+	return -1;
+}
+
+int decrypt_open(const char* file_name, const char* key, const char* algorithm, 
+                 unsigned char**pp_out, size_t *out_sz, char* err_str, size_t err_str_sz)
+{
+	size_t file_sz = 0;
+	unsigned char *file_buff = NULL;
+	int ret = load_file_to_memory(file_name, &file_buff, &file_sz);
+	if (ret < 0) {
+		return -1;
+	}
+
+	ret = crypt_memory(file_buff, file_sz, pp_out, out_sz, key, algorithm, 0, err_str, err_str_sz);
+	free(file_buff);
+	file_buff = NULL;
+
+	return ret;
+}
+
+int gzip_uncompress_one_try(const unsigned char *in_compressed_data, size_t in_compressed_sz, 
+                            unsigned char **out_uncompressed_data, size_t *out_uncompressed_sz)
+{
+	z_stream strm;
+	strm.zalloc = NULL;
+	strm.zfree = NULL;
+	strm.opaque = NULL;
+
+	strm.avail_in = in_compressed_sz;
+	strm.avail_out = *out_uncompressed_sz;
+	strm.next_in = (Bytef *) in_compressed_data;
+	strm.next_out = *out_uncompressed_data;
+
+	int ret = -1;
+	ret = inflateInit2(&strm, MAX_WBITS+16);
+	if (ret == Z_OK) {
+		ret = inflate(&strm, Z_FINISH);
+		if (ret == Z_STREAM_END) {
+			*out_uncompressed_sz = strm.total_out;
+			ret = inflateEnd(&strm);
+			return ret;
+		}
+	}
+	inflateEnd(&strm);
+	return ret;
+}
+
+int gzip_uncompress(const unsigned char *in_compressed_data, size_t in_compressed_sz, 
+                    unsigned char **out_uncompressed_data, size_t *out_uncompressed_sz)
+{
+	int z_result;
+	int ret = -1;
+	size_t buffer_sz = in_compressed_sz * 2;	
+	*out_uncompressed_data = (unsigned char *)malloc(buffer_sz);
+
+	do {
+		*out_uncompressed_sz=buffer_sz;
+		z_result = gzip_uncompress_one_try(in_compressed_data, in_compressed_sz,
+			                                out_uncompressed_data, out_uncompressed_sz);
+		switch (z_result) {
+			case Z_OK:
+				ret = 0;
+				break;			
+			case Z_BUF_ERROR:
+				buffer_sz *= 2;
+				*out_uncompressed_data = (unsigned char *)realloc(*out_uncompressed_data, buffer_sz);
+				break;
+			default:
+				ret = -1;
+				break;
+		}
+	} while (z_result == Z_BUF_ERROR);
+
+	return ret;
+}
+
+size_t memcat(void **dest, size_t offset, size_t *n_dest, const void *src, size_t n_src)
+{
+	if (*n_dest < offset + n_src) {
+		*n_dest = (offset + n_src) * 2;
+		*dest = realloc(*dest, sizeof(char) * (*n_dest));
+	}
+	memcpy((char *) * dest + offset, src, n_src);
+    
+	return n_src;
 }
