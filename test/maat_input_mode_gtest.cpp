@@ -144,6 +144,9 @@ TEST(redis_mode, maat_scan_string) {
     redisContext *c = maat_cmd_connect_redis(redis_ip, redis_port, redis_db);
     EXPECT_NE(c, nullptr);
 
+    redisReply *reply = maat_cmd_wrap_redis_command(c, "flushdb");
+    EXPECT_NE(reply, nullptr);
+    
     if ((access(json_iris_path, F_OK)) < 0) {
         char tmp_iris_path[128] = {0};
         char *json_buff = NULL;

@@ -166,6 +166,8 @@ struct table_item *table_schema_line_to_item(const char *line, struct table_sche
 
 int table_schema_get_valid_flag_column(struct table_schema *table_schema);
 
+void table_schema_set_updating_name(struct table_schema *table_schema, const char *table_name);
+
 /* expr table schema API */
 enum hs_scan_mode expr_table_schema_get_scan_mode(struct table_schema *table_schema);
 

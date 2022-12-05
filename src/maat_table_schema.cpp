@@ -23,6 +23,7 @@
 
 #define MAX_TABLE_LINE_SIZE  (1024 * 16)
 #define	MAX_FOREIGN_CLMN_NUM 8
+#define	MAX_CONJUNCTION_TABLE_NUM 8
 
 struct expr_table_schema {
 	int item_id_column;
@@ -66,7 +67,9 @@ struct virtual_table_schema {
 
 struct table_schema {
     int table_id;
-    char table_name[NAME_MAX];
+    int conj_cnt;
+    int updating_name;
+    char table_name[MAX_CONJUNCTION_TABLE_NUM][NAME_MAX];
     enum table_type table_type;
     union {
         struct expr_table_schema expr;
@@ -86,6 +89,7 @@ struct table_schema_manager {
 struct table_schema *table_schema_new(void)
 {
     struct table_schema *ptable = ALLOC(struct table_schema, 1);
+    ptable->conj_cnt = 1;
 
     return ptable;
 }
@@ -113,7 +117,7 @@ int read_expr_table_schema(cJSON *root, struct table_schema *ptable,
             fprintf(stderr, "table name %s length too long\n", json->valuestring);
             return -1;
         }
-        memcpy(ptable->table_name, json->valuestring, strlen(json->valuestring));
+        memcpy(ptable->table_name[0], json->valuestring, strlen(json->valuestring));
         read_cnt++;
     }
 
@@ -141,7 +145,7 @@ int read_expr_table_schema(cJSON *root, struct table_schema *ptable,
 
     json = cJSON_GetObjectItem(root, "rule");
     if (json == NULL || json->type != cJSON_Object) {
-        fprintf(stderr, "table %s has no rule\n", ptable->table_name);
+        fprintf(stderr, "table %s has no rule\n", ptable->table_name[0]);
         return -1;
     }
 
@@ -224,7 +228,7 @@ int read_plugin_table_schema(cJSON *root, struct table_schema *ptable)
             fprintf(stderr, "table name %s length too long\n", json->valuestring);
             return -1;
         }
-        memcpy(ptable->table_name, json->valuestring, strlen(json->valuestring));
+        memcpy(ptable->table_name[0], json->valuestring, strlen(json->valuestring));
         read_cnt++;
     }
 
@@ -236,7 +240,7 @@ int read_plugin_table_schema(cJSON *root, struct table_schema *ptable)
 
     json = cJSON_GetObjectItem(root, "rule");
     if (json == NULL || json->type != cJSON_Object) {
-        fprintf(stderr, "table %s has no rule\n", ptable->table_name);
+        fprintf(stderr, "table %s has no rule\n", ptable->table_name[0]);
         return -1;
     }
 
@@ -299,7 +303,7 @@ int read_ip_plugin_table_schema(cJSON *root, struct table_schema *ptable)
             fprintf(stderr, "table name %s length too long\n", json->valuestring);
             return -1;
         }
-        memcpy(ptable->table_name, json->valuestring, strlen(json->valuestring));
+        memcpy(ptable->table_name[0], json->valuestring, strlen(json->valuestring));
         read_cnt++;
     }
 
@@ -311,7 +315,7 @@ int read_ip_plugin_table_schema(cJSON *root, struct table_schema *ptable)
 
     json = cJSON_GetObjectItem(root, "rule");
     if (NULL == json || json->type != cJSON_Object) {
-        fprintf(stderr, "table %s has no rule\n", ptable->table_name);
+        fprintf(stderr, "table %s has no rule\n", ptable->table_name[0]);
         return -1;
     }
 
@@ -430,45 +434,55 @@ struct table_schema_manager *table_schema_manager_create(const char *table_info_
     maat_kv_register(reserved_word_map, "stream", HS_SCAN_MODE_STREAM);
 
     struct table_schema_manager *table_schema_mgr = ALLOC(struct table_schema_manager, 1);
-    struct table_schema **pptable = table_schema_mgr->schema_table;
+    struct table_schema **table_array = table_schema_mgr->schema_table;
     table_schema_mgr->tablename2id_map = maat_kv_store_new();
 
+    struct table_schema *conj_table = NULL;
     for (int i = 0; i < json_array_size; i++) {
         cJSON *json = cJSON_GetArrayItem(root, i);
        
         if (json != NULL && json->type == cJSON_Object) {
-            struct table_schema *table_schema = table_schema_new();
-            int ret = table_schema_populate(json, table_schema, reserved_word_map);
+            struct table_schema *ptable = table_schema_new();
+            int ret = table_schema_populate(json, ptable, reserved_word_map);
             if (ret < 0) {
-                fprintf(stderr, "Maat populate table info error, table_id:%d\n", table_schema->table_id);
-                goto error;
+                fprintf(stderr, "Maat populate table info error, table_id:%d\n", ptable->table_id);
+                goto free_table;
             }
 
-            if (table_schema->table_id >= MAX_TABLE_NUM) {
+            if (ptable->table_id >= MAX_TABLE_NUM) {
                 fprintf(stderr, "Maat read table info %s:%d error: table id %u > %d\n",
-                        table_info_path, i, table_schema->table_id, MAX_TABLE_NUM);
-                goto error;
+                        table_info_path, i, ptable->table_id, MAX_TABLE_NUM);
+                goto free_table;
             }
 
-            ret = maat_kv_register(table_schema_mgr->tablename2id_map, table_schema->table_name, table_schema->table_id);
+            ret = maat_kv_register(table_schema_mgr->tablename2id_map, ptable->table_name[0], ptable->table_id);
             if (ret < 0) {
-                fprintf(stderr, "Duplicate table %s of table id %d\n", table_schema->table_name, table_schema->table_id);
-                goto error;
+                fprintf(stderr, "Duplicate table %s of table id %d\n", ptable->table_name[0], ptable->table_id);
+                goto free_table;
             }
 
             /* TODO: conjunction table*/
-            #if 0
-            if (pptable[table_schema->table_id] != NULL) {
-                fprintf(stderr, "Duplicate table %s of table id %d", table_schema->table_name, table_schema->table_id);
-                goto error;
+            if (table_array[ptable->table_id] != NULL) {
+                conj_table = table_array[ptable->table_id];
+                if (conj_table->conj_cnt == MAX_CONJUNCTION_TABLE_NUM) {
+                    fprintf(stderr, "Maat read table info %s error: reach table_id %d conjunction upper limit\n",
+                                    table_info_path, ptable->table_id);
+                    goto free_table;
+                }
+                memcpy(conj_table->table_name[conj_table->conj_cnt], ptable->table_name[0], NAME_MAX);
+                conj_table->conj_cnt++;
+                fprintf(stdout, "Maat read table info %s: conjunction %s with %s (id=%d,total=%d)\n",
+                                table_info_path, ptable->table_name[0], conj_table->table_name[0],
+                                conj_table->table_id, conj_table->conj_cnt);
+                goto free_table;
             }
-            #endif
 
-            pptable[table_schema->table_id] = table_schema;
+            table_array[ptable->table_id] = ptable;
             table_schema_mgr->n_schema_table++;
             continue;
-        error:
-            table_schema_free(table_schema);
+        free_table:
+            table_schema_free(ptable);
+            ptable = NULL;
         }
     }
 	
@@ -776,6 +790,21 @@ int table_schema_get_valid_flag_column(struct table_schema *table_schema)
 	}
 
 	return valid_flag_column;
+}
+
+void table_schema_set_updating_name(struct table_schema *table_schema, const char *table_name)
+{
+    if (NULL == table_schema) {
+        return;
+    }
+    
+    int i = 0;
+	for (i = 0; i < table_schema->conj_cnt; i++) {
+		if (0 == strcmp(table_schema->table_name[i], table_name)) {
+			table_schema->updating_name = i;
+		}
+	}
+	assert(i <= table_schema->conj_cnt);
 }
 
 int populate_expr_table_item(const char *line, struct expr_table_schema *expr_schema, struct expr_item *expr_item)
@@ -1086,7 +1115,7 @@ int plugin_table_schema_add_callback(struct table_schema_manager* table_schema_m
         case TABLE_TYPE_EXPR:
         case TABLE_TYPE_EXPR_PLUS:
         case TABLE_TYPE_IP:
-            fprintf(stderr, "table %s is not plugin type\n", ptable->table_name);
+            fprintf(stderr, "table_id: %d is not plugin type\n", table_id);
             return -1;
         default:
             break;
@@ -1095,8 +1124,8 @@ int plugin_table_schema_add_callback(struct table_schema_manager* table_schema_m
 	struct plugin_table_schema *plugin_schema = &(ptable->plugin);
 	size_t idx = plugin_schema->cb_plug_cnt;
 	if (idx == MAX_PLUGIN_PER_TABLE) {
-        fprintf(stderr, "the plugin number of table %s exceed maxium:%d\n", 
-                ptable->table_name, MAX_PLUGIN_PER_TABLE);
+        fprintf(stderr, "the plugin number of table_id: %d exceed maxium:%d\n", 
+                        ptable->table_id, MAX_PLUGIN_PER_TABLE);
 		return -1;
 	}
 

@@ -13,7 +13,7 @@ const char *rule_full_path = "./rule/full/index";
 const char *rule_inc_path = "./rule/inc/index";
 const char *json_path="./maat_json.json";
 const char *iris_file = "./HTTP_URL.000001";
-
+#if 0
 TEST(maat_scan_string, hit_one_expr) {
     struct table_schema_manager *table_schema_mgr = g_maat_instance->table_schema_mgr;
     int table_id = table_schema_manager_get_table_id(table_schema_mgr, "HTTP_URL");
@@ -49,7 +49,7 @@ TEST(maat_scan_string, hit_one_expr) {
     EXPECT_EQ(n_result_array, 1);
     EXPECT_EQ(result_array[0], 103); */
 }
-#if 0
+
 TEST(maat_scan_string, hit_two_expr) {
     struct table_schema_manager *table_schema_mgr = g_maat_instance->table_schema_mgr;
     int table_id = table_schema_manager_get_table_id(table_schema_mgr, "HTTP_URL");
@@ -163,8 +163,7 @@ TEST(maat_scan_string, config_dynamic_update) {
     EXPECT_EQ(result_array[3], 103);
     EXPECT_EQ(result_array[4], 101);
 }
-
-
+#endif
 TEST(maat_scan_string, hit_one_expr) {
     struct table_schema_manager *table_schema_mgr = g_maat_instance->table_schema_mgr;
     int table_id = table_schema_manager_get_table_id(table_schema_mgr, "HTTP_URL");
@@ -206,28 +205,6 @@ TEST(maat_scan_string, hit_three_expr) {
     EXPECT_EQ(result_array[1], 27);
     EXPECT_EQ(result_array[2], 18);
 }
-#endif
-TEST(maat_redis, write) {
-    char line[1024] = {0};
-    char table_name[64] = "HTTP_URL";
-    struct maat_cmd_line rule_line;
-    rule_line.table_name = (char *)malloc(sizeof(char) * 64);
-
-    memcpy((void *)rule_line.table_name, table_name, strlen(table_name));
-    FILE *fp = fopen(iris_file, "r");
-    EXPECT_NE(fp, nullptr);
-
-    int rule_num = 0;
-    fscanf(fp, "%d\n", &rule_num);
-
-    while (NULL != fgets(line, sizeof(line), fp)) {
-        rule_line.table_line = (char *)malloc(sizeof(line));
-        memcpy((void *)rule_line.table_line, line, strlen(line));
-        maat_cmd_set_line(g_maat_instance, &rule_line);
-        break;
-    }
-
-}
 
 int main(int argc, char ** argv)
 {
@@ -235,11 +212,7 @@ int main(int argc, char ** argv)
 	::testing::InitGoogleTest(&argc, argv);
 
     struct maat_options *opts = maat_options_new();
-    //maat_options_set_iris_full_dir(opts, rule_full_path);
-    //maat_options_set_iris_inc_dir(opts, rule_inc_path);
-    maat_options_set_redis_ip(opts, "127.0.0.1");
-    maat_options_set_redis_port(opts, 6379);
-    //maat_options_set_json_file(opts, json_path);
+    maat_options_set_json_file(opts, json_path);
 
     g_maat_instance = maat_new(opts, table_info_path);
     EXPECT_NE(g_maat_instance, nullptr);

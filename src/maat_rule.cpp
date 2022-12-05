@@ -115,6 +115,8 @@ int maat_update_cb(const char *table_name, const char *line, void *u_param)
         return -1;
     }
 
+    table_schema_set_updating_name(table_schema, table_name);
+    
 	if (maat_instance->creating_maat_rt != NULL) {
 		maat_rt = maat_instance->creating_maat_rt;
 	} else {
