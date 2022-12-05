@@ -72,25 +72,25 @@ int maat_options_set_deferred_load_on(struct maat_options *opts)
     return 0;
 }
 
-int maat_options_set_iris_full_dir(struct maat_options *opts, const char *full_dir)
+int maat_options_set_iris_full_index_dir(struct maat_options *opts, const char *full_idx_dir)
 {
-    if (strlen(full_dir) >= NAME_MAX) {
+    if (strlen(full_idx_dir) >= NAME_MAX) {
         return -1;
     }
 
-    memcpy(opts->iris_ctx.full_dir, full_dir, strlen(full_dir));
+    memcpy(opts->iris_ctx.full_idx_dir, full_idx_dir, strlen(full_idx_dir));
     opts->input_mode = DATA_SOURCE_IRIS_FILE;
 
     return 0;
 }
 
-int maat_options_set_iris_inc_dir(struct maat_options *opts, const char *inc_dir)
+int maat_options_set_iris_inc_index_dir(struct maat_options *opts, const char *inc_idx_dir)
 {
-    if (strlen(inc_dir) >= NAME_MAX) {
+    if (strlen(inc_idx_dir) >= NAME_MAX) {
         return -1;
     }
 
-    memcpy(opts->iris_ctx.inc_dir, inc_dir, strlen(inc_dir));
+    memcpy(opts->iris_ctx.inc_idx_dir, inc_idx_dir, strlen(inc_idx_dir));
     opts->input_mode = DATA_SOURCE_IRIS_FILE;
 
     return 0;
@@ -135,7 +135,7 @@ void maat_read_full_config(struct maat *maat_instance)
     switch (maat_instance->input_mode) {
         case DATA_SOURCE_REDIS:
             mr_ctx = &(maat_instance->mr_ctx);
-            fprintf(stdout, "Maat initiate from Redis %s:%hu db%d.", 
+            fprintf(stdout, "Maat initiate from Redis %s:%hu db%d\n", 
                             mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db);
             mr_ctx->read_ctx = maat_cmd_connect_redis(mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db);
             if (mr_ctx->read_ctx != NULL) {
@@ -145,24 +145,24 @@ void maat_read_full_config(struct maat *maat_instance)
             }
 
             if (NULL == maat_instance->creating_maat_rt) {
-                fprintf(stderr, "At initiation: NO effective rule in %s.",
-                                maat_instance->iris_ctx.full_dir);
+                fprintf(stderr, "At initiation: NO effective rule in redis %s:%hu db%d\n",
+                                mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db);
             }
             break;
         case DATA_SOURCE_IRIS_FILE:
 			config_monitor_traverse(maat_instance->maat_version,
-                                    maat_instance->iris_ctx.full_dir,
+                                    maat_instance->iris_ctx.full_idx_dir,
                                     maat_start_cb, maat_update_cb, maat_finish_cb,
                                     maat_instance);
             if (NULL == maat_instance->creating_maat_rt) {
-                fprintf(stderr, "At initiation: NO effective rule in %s.",
-                                maat_instance->iris_ctx.full_dir);
+                fprintf(stderr, "At initiation: NO effective rule in %s\n",
+                                maat_instance->iris_ctx.full_idx_dir);
             }
             break;
         case DATA_SOURCE_JSON_FILE:
             ret = load_maat_json_file(maat_instance, maat_instance->json_ctx.json_file, err_str, sizeof(err_str));
             if (ret < 0) {
-                fprintf(stderr, "Maat re-initiate with JSON file %s failed: %s", maat_instance->json_ctx.json_file, err_str);
+                fprintf(stderr, "Maat re-initiate with JSON file %s failed: %s\n", maat_instance->json_ctx.json_file, err_str);
                 return;
             }
             
@@ -171,7 +171,7 @@ void maat_read_full_config(struct maat *maat_instance)
                                     maat_start_cb, maat_update_cb, maat_finish_cb,
                                     maat_instance);
             if (NULL == maat_instance->creating_maat_rt) {
-                fprintf(stderr, "At initiation: NO effective rule in %s.",
+                fprintf(stderr, "At initiation: NO effective rule in %s\n",
                                 maat_instance->json_ctx.iris_file);
             }
             break;
@@ -210,8 +210,8 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
             maat_instance->mr_ctx.redis_db = opts->redis_ctx.redis_db;
             break;
         case DATA_SOURCE_IRIS_FILE:
-            memcpy(maat_instance->iris_ctx.full_dir, opts->iris_ctx.full_dir, strlen(opts->iris_ctx.full_dir));
-            memcpy(maat_instance->iris_ctx.inc_dir, opts->iris_ctx.inc_dir, strlen(opts->iris_ctx.inc_dir));
+            memcpy(maat_instance->iris_ctx.full_idx_dir, opts->iris_ctx.full_idx_dir, strlen(opts->iris_ctx.full_idx_dir));
+            memcpy(maat_instance->iris_ctx.inc_idx_dir, opts->iris_ctx.inc_idx_dir, strlen(opts->iris_ctx.inc_idx_dir));
             break;
         case DATA_SOURCE_JSON_FILE:
             memcpy(maat_instance->json_ctx.json_file, opts->json_ctx.json_file, strlen(opts->json_ctx.json_file));
@@ -237,21 +237,24 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
         maat_read_full_config(maat_instance);
     }
 
-    pthread_create(&(maat_instance->cfg_mon_thread), NULL, rule_monitor_loop, (void*)maat_instance);
+    pthread_create(&(maat_instance->cfg_mon_thread), NULL, rule_monitor_loop, (void *)maat_instance);
 
     return maat_instance;
 failed:
-    free(maat_instance);
+    FREE(maat_instance);
     return NULL;
 }
 
 void maat_free(struct maat *maat_instance)
 {
+    if (NULL == maat_instance) {
+        return;
+    }
 
-    void* ret = NULL;
+    void *ret = NULL;
+
+    maat_instance->is_running = 0;
 	pthread_join(maat_instance->cfg_mon_thread, &ret);
-
-	return;
 }
 
 int maat_table_get_id(struct maat *maat_instance, const char *table_name)

@@ -31,7 +31,7 @@ struct ex_data_runtime {
 
 void cache_row_free(void *p)
 {
-	free(*(char **)p);
+	FREE(*(char **)p);
 }
 
 UT_icd ut_cache_row_icd = {sizeof(char*), NULL, NULL, cache_row_free};
@@ -63,7 +63,7 @@ void ex_data_runtime_free(struct ex_data_runtime *ex_data_rt)
         rcu_hash_free(ex_data_rt->htable);
     }
 
-    free(ex_data_rt);
+    FREE(ex_data_rt);
 }
 
 void ex_data_runtime_commit(struct ex_data_runtime *ex_data_rt)
@@ -147,7 +147,7 @@ void ex_data_runtime_del_ex_data(struct ex_data_runtime *ex_data_rt, const char 
 {
     void *tmp_data = rcu_hash_find(ex_data_rt->htable, key, key_len);
     if (NULL == tmp_data) {
-        fprintf(stderr, "ex data del error: no such key:%s", key);
+        fprintf(stderr, "ex data del error: no such key:%s\n", key);
         return;
     }
 

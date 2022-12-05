@@ -50,8 +50,8 @@ enum data_source {
 };
 
 struct source_iris_ctx {
-    char inc_dir[NAME_MAX];
-    char full_dir[NAME_MAX];
+    char inc_idx_dir[NAME_MAX];
+    char full_idx_dir[NAME_MAX];
 };
 
 struct source_json_ctx
@@ -83,7 +83,6 @@ struct foreign_key {
 struct serial_rule {
 	enum maat_operation op;//0: delete, 1: add.
 	unsigned long rule_id;
-	int label_id;
 	long long timeout;			// absolute unix time.
 	char table_name[NAME_MAX];
 	char *table_line;
@@ -174,9 +173,9 @@ int maat_cmd_get_valid_flag_offset(const char *line, enum table_type table_type,
 
 const char *maat_cmd_find_Nth_column(const char *line, int Nth, int *column_len);
 
-int maat_cmd_exec_serial_rule(redisContext *c, struct serial_rule *s_rule, size_t serial_rule_num, long long server_time);
+int maat_cmd_write_rule(redisContext *c, struct serial_rule *s_rule, size_t serial_rule_num, long long server_time);
 
-void maat_cmd_empty_serial_rule(struct serial_rule *s_rule);
+void maat_cmd_clear_rule_cache(struct serial_rule *s_rule);
 
 int maat_cmd_get_rm_key_list(redisContext *c, long long instance_version, long long desired_version, 
                              long long *new_version, struct table_schema_manager* table_schema_mgr, 

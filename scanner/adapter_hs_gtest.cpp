@@ -51,7 +51,7 @@ void expr_array_free(and_expr_t expr_array[], size_t n_expr_array)
 {
     for (size_t i = 0; i < n_expr_array; i++) {
         for (size_t j = 0; j < expr_array[i].n_patterns; j++) {
-            free(expr_array[i].patterns[j].pat);
+            FREE(expr_array[i].patterns[j].pat);
         }
     }
 }

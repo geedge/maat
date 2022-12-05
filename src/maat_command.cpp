@@ -59,7 +59,7 @@ redisContext *maat_cmd_connect_redis(const char *redis_ip, int redis_port, int r
 
 	redisContext *c = redisConnectWithTimeout(redis_ip, redis_port, connect_timeout);
 	if (NULL == c || c->err) {
-		fprintf(stderr, "Unable to connect redis server %s:%d db%d, error: %s",
+		fprintf(stderr, "Unable to connect redis server %s:%d db%d, error: %s\n",
 						redis_ip, redis_port, redis_db, c == NULL ? "Unknown" : c->errstr);
 		
 		if (c != NULL) {
@@ -91,7 +91,7 @@ void save_serial_rule(void *data, void *user)
 	array->array[i].op = MAAT_OP_ADD;
 }
 
-void maat_cmd_empty_serial_rule(struct serial_rule *s_rule)
+void maat_cmd_clear_rule_cache(struct serial_rule *s_rule)
 {
 	if (s_rule->table_line != NULL) {
 		FREE(s_rule->table_line);
@@ -302,7 +302,7 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
 
     int table_id = table_schema_manager_get_table_id(maat_instance->table_schema_mgr, line_rule->table_name);
     if (table_id < 0) {
-        fprintf(stderr, "Command set line id %d failed: unknown table %s.", line_rule->rule_id, line_rule->table_name);
+        fprintf(stderr, "Command set line id %d failed: unknown table %s\n", line_rule->rule_id, line_rule->table_name);
         FREE(s_rule);
         return -1;
     }
@@ -315,7 +315,7 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
 
     int valid_flag_column = table_schema_get_valid_flag_column(table_schema);
     if (valid_flag_column < 0) {
-        fprintf(stderr, "Command set line id %d failed: table %s is not a plugin or ip_plugin table.",
+        fprintf(stderr, "Command set line id %d failed: table %s is not a plugin or ip_plugin table\n",
                         line_rule->rule_id, line_rule->table_name);
         FREE(s_rule);
         return -1;
@@ -331,7 +331,7 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
     maat_cmd_set_serial_rule(s_rule + i, (enum maat_operation)is_valid, line_rule->rule_id, line_rule->table_name,
                              line_rule->table_line, absolute_expire_time);
 
-    int success_cnt = maat_cmd_exec_serial_rule(write_ctx, s_rule, 1, server_time);
+    int success_cnt = maat_cmd_write_rule(write_ctx, s_rule, 1, server_time);
 	if (success_cnt != 1) {
 		ret = -1;
 		goto error_out;
@@ -341,7 +341,7 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
 	maat_instance->line_cmd_acc_num += success_cnt;
 
 error_out:
-	maat_cmd_empty_serial_rule(s_rule);
+	maat_cmd_clear_rule_cache(s_rule);
 	FREE(s_rule);
 
 	return ret;

@@ -60,6 +60,8 @@ size_t memcat(void **dest, size_t offset, size_t *n_dest, const void *src, size_
 /* system cmd wrapper */
 int system_cmd_mkdir(const char* path);
 
+int system_cmd_rmdir(const char *dir);
+
 #ifdef __cpluscplus
 }
 #endif

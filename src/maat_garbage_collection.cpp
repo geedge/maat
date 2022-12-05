@@ -48,11 +48,11 @@ void maat_garbage_bin_free(struct maat_garbage_bin* bin)
 	while (p = TAILQ_FIRST(&bin->garbage_q)) {
 		p->garbage_free(p->garbage);
 		TAILQ_REMOVE(&bin->garbage_q, p, entries);
-		free(p);
+		FREE(p);
 		bin->bag_cnt--;
 	}
 
-	free(bin);
+	FREE(bin);
 }
 
 size_t  maat_garbage_bin_get_size(struct maat_garbage_bin* bin)
@@ -82,7 +82,7 @@ void maat_garbage_collect_routine(struct maat_garbage_bin* bin)
 		if ((now - p->create_time) > p->timeout || p->timeout == 0) {
 			p->garbage_free(p->garbage);
 			TAILQ_REMOVE(&bin->garbage_q, p, entries);
-			free(p);
+			FREE(p);
 			n_clollected++;
 		}
 		n_bag++;
@@ -98,7 +98,7 @@ void maat_garbage_collect_by_force(struct maat_garbage_bin* bin)
 	while (p = TAILQ_FIRST(&bin->garbage_q)) {
 		p->garbage_free(p->garbage);
 		TAILQ_REMOVE(&bin->garbage_q, p, entries);
-		free(p);
+		FREE(p);
 		bin->bag_cnt--;
 	}
 }

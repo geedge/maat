@@ -247,7 +247,6 @@ int main(int argc, char ** argv)
 	ret=RUN_ALL_TESTS();
 
     maat_free(g_maat_instance);
-    g_maat_instance = NULL;
 
 	return ret;
 }

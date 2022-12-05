@@ -55,7 +55,7 @@ int set_file_rulenum(const char *path, int rule_num)
 	}
 
 	if (NULL == fp) {
-		fprintf(stderr, "fopen %s failed %s at set rule num.", path, strerror(errno));
+		fprintf(stderr, "fopen %s failed %s at set rule num\n", path, strerror(errno));
 		return -1;
 	}
 
@@ -67,15 +67,18 @@ int set_file_rulenum(const char *path, int rule_num)
 
 void read_rule_from_redis(redisContext *c, long long desire_version, const char* output_path)
 {
-	struct serial_rule *rule_list;
-	int line_count=0;
-	int i=0,ret=0;
+	int i = 0;
+    int ret = 0;
+    int line_count = 0;
 	int update_type = CM_UPDATE_TYPE_INC;
-	long long version=0;
-	const char* cur_table=NULL;
+	long long version = 0;
+	const char *cur_table = NULL;
     char foreign_files_dir[256] = {0};
-	char table_path[256],index_path[256];
-	FILE *table_fp=NULL, *index_fp=NULL;
+	char table_path[256] = {0};
+    char index_path[256] = {0};
+	FILE *table_fp = NULL; 
+    FILE *index_fp = NULL;
+    struct serial_rule *rule_list = NULL;
 
 	int rule_num = maat_cmd_get_rm_key_list(c, 0, desire_version, &version, NULL, &rule_list, &update_type, 0);
 	if (0 == rule_num) {
@@ -126,10 +129,10 @@ void read_rule_from_redis(redisContext *c, long long desire_version, const char*
 		maat_cmd_get_foreign_conts(c, rule_list, rule_num, 1);
 	}
 
-	snprintf(index_path,sizeof(index_path),"%s/full_config_index.%020lld",output_path,version);
+	snprintf(index_path,sizeof(index_path), "%s/full_config_index.%020lld", output_path, version);
 	index_fp = fopen(index_path, "w");
 	if (NULL == index_fp) {
-		printf("Open %s failed.\n",index_path);
+		printf("Open %s failed.\n", index_path);
 		goto clean_up;
 	}
 
@@ -174,11 +177,10 @@ void read_rule_from_redis(redisContext *c, long long desire_version, const char*
 
 clean_up:
 	for (i = 0; i < rule_num; i++) {
-		maat_cmd_empty_serial_rule(rule_list+i);
+		maat_cmd_clear_rule_cache(rule_list+i);
 	}
 
-	free(rule_list);
-	rule_list = NULL;
+	FREE(rule_list);
 
 	if (c != NULL) {
 		redisFree(c);
@@ -193,7 +195,7 @@ clean_up:
 	}
 }
 
-int count_line_num(const char *table_name,const char *line, void *u_para)
+int count_line_num_cb(const char *table_name, const char *line, void *u_para)
 {
 	(*((unsigned int *)u_para))++;
 	return 0;
@@ -201,10 +203,11 @@ int count_line_num(const char *table_name,const char *line, void *u_para)
 
 int line_idx = 0;
 long long absolute_expire_time=0;
-int make_serial_rule(const char *table_name, const char *line,void *u_para)
+int make_serial_rule(const char *table_name, const char *line, void *u_para)
 {
 	struct serial_rule *s_rule=(struct serial_rule *)u_para;
-	int rule_id=0,is_valid=0;
+	int rule_id = 0;
+    //int is_valid = 0;
 	char *buff = ALLOC(char, strlen(line) + 1);
     
     memcpy(buff, line, strlen(line) + 1);
@@ -217,28 +220,19 @@ int make_serial_rule(const char *table_name, const char *line,void *u_para)
     char *str1 = NULL;
     char *token = NULL;
     char *saveptr1 = NULL;
-    char *last1 =NULL;
+
 	for (j = 0,str1 = buff; ; j++, str1 = NULL) {
 		 token = strtok_r(str1, "\t ", &saveptr1);
 		 if (token == NULL)
 			 break;
-		 if(j==0)
-		 {
-			sscanf(token,"%d",&rule_id);
+		 if (j == 0) {
+			sscanf(token,"%d", &rule_id);
 		 }
-		 last1=token;
  	 }
-	sscanf(last1,"%d",&is_valid);
-	
-	memcpy(buff,line, strlen(line)+1);
-	while(buff[strlen(buff)-1]=='\n'||buff[strlen(buff)-1]=='\t')
-	{
-		buff[strlen(buff)-1]='\0';
-	}
-	//printf("Writing table %s, rule_id=%d, timeout=%lld, is_valid=%d\n", table_name, rule_id,absolute_expire_time,is_valid);
-	maat_cmd_set_serial_rule(s_rule + line_idx, (enum maat_operation)is_valid, rule_id, table_name, buff, absolute_expire_time);
+
+	maat_cmd_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, rule_id, table_name, buff,  absolute_expire_time);
 	line_idx++;
-	free(str1);
+	FREE(str1);
 
 	return 0;
 }
@@ -247,26 +241,18 @@ int make_serial_rule(const char *table_name, const char *line,void *u_para)
 #define WORK_MODE_JSON	1
 int main(int argc, char * argv[])
 {
-	int oc=0,ret=0;
-	int model=0;
-	char redis_ip[64];
-	int redis_port=6379;
-	int redis_db=0;
+	int oc = 0;
+	int model = 0;
+	char redis_ip[64] = {0};
+	int redis_port = 6379;
+	int redis_db = 0;
+    char dump_dir[128] = {0};
+    char json_file[128] = {0};
+    int timeout = 0;
+	long long desired_version = 0;
 	strncpy(redis_ip, "127.0.0.1", sizeof(redis_ip));
-	char dump_dir[128], json_file[128], tmp_iris_path[128];
-	strncpy(dump_dir,redis_dump_dir,sizeof(dump_dir));
-	redisContext * ctx=NULL;
-	unsigned int total_line_cnt=0, success_cnt=0, i=0;
-	int timeout=0;
-	FILE* json_fp=NULL;
-	cJSON *json=NULL, *tmp_obj=NULL;
-	struct stat fstat_buf;
-	unsigned long json_file_size=0,read_size=0;
-	long long desired_version=0;
-	char* json_buff=NULL;
-	size_t json_buff_sz=0;
-    char compile_table_name[128] = {0};
-
+	strncpy(dump_dir, redis_dump_dir, sizeof(dump_dir));
+	
 	while ((oc = getopt(argc,argv,"h:p:n:d:v:f:j:t:")) != -1) {
 		switch (oc) {
 			case 'h':
@@ -291,44 +277,9 @@ int main(int argc, char * argv[])
 			case 'j':
 				strncpy(json_file, optarg, sizeof(json_file));
 				model = WORK_MODE_JSON;
-				ret = stat(json_file, &fstat_buf);
-				if (ret != 0) {
-					printf("fstat file %s error.\n", json_file);
-					return -1;
-				}
-
-				json_fp = fopen(json_file, "r");
-				if (NULL == json_fp) {
-					printf("fopen file %s error %s.\n", json_file, strerror(errno));
-					return -1;
-				}
-
-				json_file_size = fstat_buf.st_size;
-				json_buff = ALLOC(char, json_file_size);
-				read_size = fread(json_buff, 1, json_file_size, json_fp);
-				if (read_size != json_file_size) {
-					printf("fread file %s error.\n", json_file);
-					return -1;
-				}
-
-				json = cJSON_Parse(json_buff);
-				if (!json) {
-					printf("%s format is error before: %-200.200s\n", json_file, cJSON_GetErrorPtr());
-					return -1;
-				}
-
-				tmp_obj=cJSON_GetObjectItem(json, "compile_table");
-				if (NULL == tmp_obj) {
-					printf("No \"compile_table\" in %s.\n",json_file);
-					return -1;
-				}
-				strncpy(compile_table_name, tmp_obj->valuestring, sizeof(compile_table_name));
-				free(json_buff);
-				cJSON_Delete(json);
-				fclose(json_fp);
 				break;
 			case 't':
-				sscanf(optarg,"%d",&timeout);
+				sscanf(optarg,"%d", &timeout);
 				break;
 			case '?':
 			default:
@@ -338,31 +289,34 @@ int main(int argc, char * argv[])
 		}
 	}
 
-	ctx = maat_cmd_connect_redis(redis_ip, redis_port, redis_db);
-	if (NULL == ctx) {
+	redisContext *c = maat_cmd_connect_redis(redis_ip, redis_port, redis_db);
+	if (NULL == c) {
 		return -1;
 	}
 
+    char tmp_iris_path[128] = {0};
 	if (model == WORK_MODE_DUMP) {
 		printf("Reading key list from %s:%d db%d.\n", redis_ip, redis_port, redis_db);
-		read_rule_from_redis(ctx, desired_version, dump_dir);
+		read_rule_from_redis(c, desired_version, dump_dir);
 	} else if(model == WORK_MODE_JSON) {
-		ret = load_file_to_memory(json_file, (unsigned char**)&json_buff, &json_buff_sz);
+        char *json_buff = NULL;
+        size_t json_buff_sz = 0;
+		int ret = load_file_to_memory(json_file, (unsigned char**)&json_buff, &json_buff_sz);
 		if (ret < 0) {
 			printf("open %s failed.\n", json_file);
 		}
 
-		ret = json2iris(json_buff, json_file, NULL, NULL, NULL, ctx, tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL);
+		ret = json2iris(json_buff, json_file, NULL, NULL, NULL, c, tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL);
 		if (ret < 0) {
 			printf("Invalid json format.\n");
 		}
 
-		total_line_cnt = 0;
-		config_monitor_traverse(0, tmp_iris_path, NULL, count_line_num, NULL, &total_line_cnt);
-		printf("Serialize %s to %d lines, write temp file to %s .\n",json_file, total_line_cnt, tmp_iris_path);
+		size_t total_line_cnt = 0;
+		config_monitor_traverse(0, tmp_iris_path, NULL, count_line_num_cb, NULL, &total_line_cnt);
+		printf("Serialize %s to %zu lines, write temp file to %s .\n", json_file, total_line_cnt, tmp_iris_path);
 
 		struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
-		long long server_time = maat_cmd_redis_server_time_s(ctx);
+		long long server_time = maat_cmd_redis_server_time_s(c);
 		if (!server_time) {
 			printf("Get Redis Time failed.\n");
 		}
@@ -375,19 +329,20 @@ int main(int argc, char * argv[])
 		printf("Timeout = %lld\n", absolute_expire_time);
 
 		ret = 0;
+        int success_cnt = 0;
 		do {
-			success_cnt = maat_cmd_exec_serial_rule(ctx, s_rule, total_line_cnt, server_time);
+			success_cnt = maat_cmd_write_rule(c, s_rule, total_line_cnt, server_time);
 		} while(success_cnt < 0);
 
-		if (success_cnt != total_line_cnt) {
-			printf("Only Add %d of %d, rule id maybe conflicts.\n", success_cnt, total_line_cnt);
+		if (success_cnt != (int)total_line_cnt) {
+			printf("Only Add %d of %zu, rule id maybe conflicts.\n", success_cnt, total_line_cnt);
 		}
 
-		for (i = 0; i < total_line_cnt; i++) {
-			maat_cmd_empty_serial_rule(s_rule+i);
+		for (size_t i = 0; i < total_line_cnt; i++) {
+			maat_cmd_clear_rule_cache(s_rule+i);
 		}
-		free(s_rule);	
-		redisFree(ctx);
+		FREE(s_rule);	
+		redisFree(c);
 	}
 
 	return 0;

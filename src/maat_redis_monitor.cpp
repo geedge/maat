@@ -55,7 +55,7 @@ void _get_foregin_keys(struct serial_rule *p_rule, int *foreign_columns, int n_f
 	for (int i = 0; i < n_foreign; i++) {
 		const char *p_foreign = maat_cmd_find_Nth_column(p_rule->table_line, foreign_columns[i], &foreign_key_size);
 		if (NULL == p_foreign) {
-			fprintf(stderr, "Get %s,%lu foreign keys failed: No %dth column.",
+			fprintf(stderr, "Get %s,%lu foreign keys failed: No %dth column\n",
 							p_rule->table_name, p_rule->rule_id, foreign_columns[i]);
 			continue;
 		}
@@ -66,7 +66,7 @@ void _get_foregin_keys(struct serial_rule *p_rule, int *foreign_columns, int n_f
 		}
 
 		if (0 != strncmp(p_foreign, foreign_source_prefix, strlen(foreign_source_prefix))) {
-			fprintf(stderr, "Get %s,%lu foreign key failed: Invalid source prefix %s.",
+			fprintf(stderr, "Get %s,%lu foreign key failed: Invalid source prefix %s\n",
 							p_rule->table_name, p_rule->rule_id, p_foreign);
 			continue;
 		}
@@ -76,7 +76,7 @@ void _get_foregin_keys(struct serial_rule *p_rule, int *foreign_columns, int n_f
 		p_foreign += strlen(foreign_source_prefix);
 
 		if (0 != strncmp(p_foreign, foreign_key_prefix, strlen(foreign_key_prefix))) {
-			fprintf(stdout, "%s, %lu foreign key prefix %s is not recommended.",
+			fprintf(stdout, "%s, %lu foreign key prefix %s is not recommended\n",
 							p_rule->table_name, p_rule->rule_id, p_foreign);
 		}
 
@@ -181,7 +181,7 @@ int _get_maat_redis_value(redisContext *c, struct serial_rule *rule_list, int ru
 	for (i = 0; i < rule_num; i++) {
 		ret = maat_cmd_wrap_redis_get_reply(c, &reply);
 		if (ret == REDIS_ERR) {
-			fprintf(stderr, "Redis GET %s:%s,%lu failed, redis server error.", mr_key_prefix[rule_list[i].op], 
+			fprintf(stderr, "Redis GET %s:%s,%lu failed, redis server error\n", mr_key_prefix[rule_list[i].op], 
                              rule_list[i].table_name, rule_list[i].rule_id);
 			error_happened = 1;
 			break;			
@@ -194,7 +194,7 @@ int _get_maat_redis_value(redisContext *c, struct serial_rule *rule_list, int ru
 				retry_ids[failed_cnt] = i;
 				failed_cnt++;
 			} else {
-				fprintf(stderr, "Redis GET %s:%s,%lu failed",mr_key_prefix[rule_list[i].op],
+				fprintf(stderr, "Redis GET %s:%s,%lu failed\n",mr_key_prefix[rule_list[i].op],
 						         rule_list[i].table_name, rule_list[i].rule_id);
 				error_happened = 1;
 			}
@@ -222,8 +222,8 @@ int _get_maat_redis_value(redisContext *c, struct serial_rule *rule_list, int ru
 		idx = retry_ids[i];
 		ret = maat_cmd_wrap_redis_get_reply(c, &reply);
 		if (ret == REDIS_ERR) {
-			fprintf(stderr, "redis command %s failed, redis server error.", redis_cmd);
-			free(retry_ids);
+			fprintf(stderr, "redis command %s failed, redis server error\n", redis_cmd);
+			FREE(retry_ids);
 			return -1;
 		}
 
@@ -231,10 +231,10 @@ int _get_maat_redis_value(redisContext *c, struct serial_rule *rule_list, int ru
 			rule_list[idx].table_line = maat_strdup(reply->str);
 		} else if(reply->type==REDIS_REPLY_ERROR) {
             //Deal with Redis response: "Loading Redis is loading the database in memory" 
-			fprintf(stderr, "redis command %s error, reply type=%d, error str=%s", redis_cmd, reply->type, reply->str);
+			fprintf(stderr, "redis command %s error, reply type=%d, error str=%s\n", redis_cmd, reply->type, reply->str);
 		} else {
             //Handle type "nil"
-			fprintf(stderr, "redis command %s failed, reply type=%d", redis_cmd, reply->type);
+			fprintf(stderr, "redis command %s failed, reply type=%d\n", redis_cmd, reply->type);
 		}
 	
 		freeReplyObject(reply);
@@ -284,7 +284,7 @@ int get_inc_key_list(long long instance_version, long long target_version,
 	redisReply *reply = (redisReply *)redisCommand(c, "ZRANGEBYSCORE %s (%lld %lld", mr_status_sset,
                                                       instance_version,target_version);
 	if (NULL == reply) {
-		fprintf(stderr, "GET %s failed with a NULL reply, error: %s.", mr_status_sset, c->errstr);
+		fprintf(stderr, "GET %s failed with a NULL reply, error: %s\n", mr_status_sset, c->errstr);
 		return -1;
 	}
 
@@ -299,7 +299,7 @@ int get_inc_key_list(long long instance_version, long long target_version,
 
 	redisReply *tmp_reply= maat_cmd_wrap_redis_command(c, "ZSCORE %s %s", mr_status_sset, reply->element[0]->str);
 	if (tmp_reply->type != REDIS_REPLY_STRING) {
-		fprintf(stderr, "ZSCORE %s %s failed Version: %lld->%lld", mr_status_sset, 
+		fprintf(stderr, "ZSCORE %s %s failed Version: %lld->%lld\n", mr_status_sset, 
                         reply->element[0]->str, instance_version, target_version);
 		freeReplyObject(tmp_reply);
 		tmp_reply = NULL;
@@ -317,7 +317,7 @@ int get_inc_key_list(long long instance_version, long long target_version,
 	}
 
 	if (nearest_rule_version != instance_version + 1) {
-		fprintf(stdout, "Noncontinuous VERSION Redis: %lld MAAT: %lld.", 
+		fprintf(stdout, "Noncontinuous VERSION Redis: %lld MAAT: %lld\n", 
                         nearest_rule_version, instance_version);
 	}
 
@@ -326,12 +326,12 @@ int get_inc_key_list(long long instance_version, long long target_version,
     char op_str[4] = {0};
     struct serial_rule *s_rule = ALLOC(struct serial_rule, reply->elements);
 
-	for (i = 0, j = 0; i < reply->elements; i++) {
+	for (i = 0, j = 0; i < (int)reply->elements; i++) {
 		assert(reply->element[i]->type == REDIS_REPLY_STRING);
 		int ret = sscanf(reply->element[i]->str, "%[^,],%[^,],%lu", op_str, 
                                                  s_rule[j].table_name, &(s_rule[j].rule_id));
 		if (ret != 3 || s_rule[i].rule_id < 0) {
-			fprintf(stderr, "Invalid Redis Key: %s", reply->element[i]->str);
+			fprintf(stderr, "Invalid Redis Key: %s\n", reply->element[i]->str);
 			continue;
 		}
 
@@ -340,7 +340,7 @@ int get_inc_key_list(long long instance_version, long long target_version,
 		} else if(strncmp(op_str, "DEL", strlen("DEL")) == 0) {
 			s_rule[j].op = MAAT_OP_DEL;
 		} else {
-			fprintf(stderr, "Invalid Redis Key: %s", reply->element[i]->str);
+			fprintf(stderr, "Invalid Redis Key: %s\n", reply->element[i]->str);
 			continue;
 		}
 		j++;
@@ -377,7 +377,6 @@ struct serial_rule *serial_rule_clone(const struct serial_rule *s_rule)
 
     new_rule->op = s_rule->op;
     new_rule->rule_id = s_rule->rule_id;
-    new_rule->label_id = s_rule->label_id;
     new_rule->timeout = s_rule->timeout;
     memcpy(new_rule->table_name, s_rule->table_name, strlen(s_rule->table_name));
     new_rule->n_foreign = s_rule->n_foreign;
@@ -468,20 +467,20 @@ int maat_cmd_get_rm_key_list(redisContext *c, long long instance_version, long l
 	redisReply *reply = (redisReply *)redisCommand(c, "GET MAAT_VERSION");
 	if (reply != NULL) {
 		if (reply->type == REDIS_REPLY_NIL || reply->type == REDIS_REPLY_ERROR) {
-			fprintf(stderr, "GET MAAT_VERSION failed, maybe Redis is busy.");
+			fprintf(stderr, "GET MAAT_VERSION failed, maybe Redis is busy\n");
 			freeReplyObject(reply);
 			reply = NULL;
 			return -1;
 		}
 	} else {
-		fprintf(stderr, "GET MAAT_VERSION failed with NULL reply, error: %s.", c->errstr);
+		fprintf(stderr, "GET MAAT_VERSION failed with NULL reply, error: %s\n", c->errstr);
 		return -1;
 	}
 
 	long long redis_version = maat_cmd_read_redis_integer(reply);
 	if (redis_version < 0) {
 		if (reply->type == REDIS_REPLY_ERROR) {
-			fprintf(stderr, "Redis Communication error: %s.", reply->str);
+			fprintf(stderr, "Redis Communication error: %s\n", reply->str);
 		}
 		return -1;
 	}
@@ -498,7 +497,7 @@ int maat_cmd_get_rm_key_list(redisContext *c, long long instance_version, long l
 	}
 
 	if (redis_version < instance_version) {
-		fprintf(stderr, "VERSION roll back MAAT: %lld -> Redis: %lld.", instance_version, redis_version);
+		fprintf(stderr, "VERSION roll back MAAT: %lld -> Redis: %lld\n", instance_version, redis_version);
 		goto FULL_UPDATE;
 	}
 
@@ -522,12 +521,12 @@ int maat_cmd_get_rm_key_list(redisContext *c, long long instance_version, long l
 	} while (0 == rule_num && target_version <= redis_version && 1 == cumulative_off);
 
 	if (0 == rule_num) {
-		fprintf(stdout, "Got nothing after ZRANGEBYSCORE %s (%lld %lld, cumulative %s", mr_status_sset, 
+		fprintf(stdout, "Got nothing after ZRANGEBYSCORE %s (%lld %lld, cumulative %s\n", mr_status_sset, 
                         instance_version, target_version-1, cumulative_off == 1 ? "OFF" : "ON");
 		return 0;
 	}
 
-	fprintf(stdout, "Inc Update from instance_version %lld to %lld (%d entries).", 
+	fprintf(stdout, "Inc Update from instance_version %lld to %lld (%d entries)\n", 
                     instance_version, target_version, rule_num);
 
 	*list = s_rule_array;
@@ -536,7 +535,7 @@ int maat_cmd_get_rm_key_list(redisContext *c, long long instance_version, long l
 	return rule_num;
 
 FULL_UPDATE:
-	fprintf(stdout, "Initiate full udpate from instance_version %lld to %lld.", instance_version, 
+	fprintf(stdout, "Initiate full update from instance_version %lld to %lld\n", instance_version, 
                     desired_version == 0 ? redis_version : desired_version);
 	size_t append_cmd_cnt = 0;
 	int ret = redisAppendCommand(c, "MULTI");
@@ -558,12 +557,12 @@ FULL_UPDATE:
 
 	reply = maat_cmd_wrap_redis_command(c, "EXEC");
 	if (NULL == reply) {
-		fprintf(stderr, "Redis Communication error: %s.", c->errstr);
+		fprintf(stderr, "Redis Communication error: %s\n", c->errstr);
 		return -1;
 	}
 
 	if (reply->type != REDIS_REPLY_ARRAY) {
-		fprintf(stderr, "Invalid Redis Key List type %d", reply->type);
+		fprintf(stderr, "Invalid Redis Key List type %d\n", reply->type);
 		freeReplyObject(reply);
 		reply = NULL;
 		return -1;
@@ -572,7 +571,7 @@ FULL_UPDATE:
 	*new_version = maat_cmd_read_redis_integer(reply->element[0]);
 	redisReply *sub_reply = reply->element[1];
 	if (sub_reply->type != REDIS_REPLY_ARRAY) {
-		fprintf(stderr, "Invalid Redis Key List type %d", sub_reply->type);
+		fprintf(stderr, "Invalid Redis Key List type %d\n", sub_reply->type);
 		freeReplyObject(reply);
 		reply = NULL;
 		return -1;
@@ -582,7 +581,7 @@ FULL_UPDATE:
 	s_rule_array = ALLOC(struct serial_rule, sub_reply->elements);
 	for (i = 0, full_idx = 0; i < sub_reply->elements; i++) {
 		if (sub_reply->element[i]->type != REDIS_REPLY_STRING) {
-			fprintf(stderr, "Invalid Redis Key Type: %d", sub_reply->element[i]->type);
+			fprintf(stderr, "Invalid Redis Key Type: %d\n", sub_reply->element[i]->type);
 			continue;
 		}
 
@@ -592,7 +591,7 @@ FULL_UPDATE:
 		s_rule_array[full_idx].op = MAAT_OP_ADD;
 
 		if (ret != 2 || s_rule_array[full_idx].rule_id < 0 || strlen(s_rule_array[full_idx].table_name) == 0) {
-			fprintf(stderr, "Invalid Redis Key Format: %s", sub_reply->element[i]->str);
+			fprintf(stderr, "Invalid Redis Key Format: %s\n", sub_reply->element[i]->str);
 			continue;
 		}
 
@@ -614,9 +613,11 @@ FULL_UPDATE:
         struct serial_rule *changed_rule_array = NULL;
 		int changed_rule_num = get_inc_key_list(desired_version, redis_version, c, &changed_rule_array);
 		if (changed_rule_num < 0) {
-			fprintf(stderr, "Recover history version %lld faild where as redis version is %lld.", desired_version, redis_version);
+			fprintf(stderr, "Recover history version %lld faild where as redis version is %lld\n", 
+                            desired_version, redis_version);
 		} else if(0 == changed_rule_num) {
-			fprintf(stderr, "Nothing to recover from history version %lld to redis version is %lld.", desired_version, redis_version);
+			fprintf(stderr, "Nothing to recover from history version %lld to redis version is %lld\n", 
+                            desired_version, redis_version);
 		} else {
             struct serial_rule *history_rule_array = NULL;
 			ret = recovery_history_version(s_rule_array, full_idx, changed_rule_array, changed_rule_num, &history_rule_array);
@@ -625,7 +626,7 @@ FULL_UPDATE:
 				s_rule_array = history_rule_array;
 				rule_num = ret;
 				*new_version = desired_version;
-				fprintf(stdout, "Successfully recovered from history version %lld to redis version is %lld.", 
+				fprintf(stdout, "Successfully recovered from history version %lld to redis version is %lld\n", 
                                 desired_version, redis_version);
 			}
 		}		
@@ -634,7 +635,7 @@ FULL_UPDATE:
 
 	*list = s_rule_array;
 	*update_type = CM_UPDATE_TYPE_FULL;
-	fprintf(stdout, "Full update %d keys of version %lld.", rule_num, *new_version);
+	fprintf(stdout, "Full update %d keys of version %lld\n", rule_num, *new_version);
 
 	return rule_num ;
 }
@@ -662,7 +663,7 @@ void _get_foreign_conts(redisContext *c, struct serial_rule *rule_list, int rule
 				
 				ret = remove(rule_list[i].f_keys[j].filename);
 				if (ret == -1) {
-					fprintf(stderr, "Foreign content file %s remove failed.",
+					fprintf(stderr, "Foreign content file %s remove failed\n",
 							        rule_list[i].f_keys[j].filename);
 				}
 			}
@@ -693,7 +694,7 @@ void _get_foreign_conts(redisContext *c, struct serial_rule *rule_list, int rule
 	for (i = 0; i < key_num; i++) {
 		ret = maat_cmd_wrap_redis_get_reply(c, &reply);
 		if (ret == REDIS_ERR) {
-			fprintf(stderr, "Get %s,%lu foreign key %s content failed, redis server error.",
+			fprintf(stderr, "Get %s,%lu foreign key %s content failed, redis server error\n",
                             rule_list[track[i].rule_idx].table_name,
                             rule_list[track[i].rule_idx].rule_id,
                             rule_list[track[i].rule_idx].f_keys[track[i].foreign_idx].key);
@@ -701,7 +702,7 @@ void _get_foreign_conts(redisContext *c, struct serial_rule *rule_list, int rule
 		}
 		
 		if (reply->type != REDIS_REPLY_STRING) {
-			fprintf(stderr, "Get %s,%lu foreign key %s content failed.",
+			fprintf(stderr, "Get %s,%lu foreign key %s content failed\n",
                             rule_list[track[i].rule_idx].table_name,
                             rule_list[track[i].rule_idx].rule_id,
                             rule_list[track[i].rule_idx].f_keys[track[i].foreign_idx].key);
@@ -710,7 +711,7 @@ void _get_foreign_conts(redisContext *c, struct serial_rule *rule_list, int rule
 			s_rule = rule_list+track[i].rule_idx;
 			FILE *fp = fopen(s_rule->f_keys[track[i].foreign_idx].filename, "w");
 			if (NULL == fp) {
-				fprintf(stderr, "Write foreign content failed: fopen %s error.",
+				fprintf(stderr, "Write foreign content failed: fopen %s error\n",
                                  s_rule->f_keys[track[i].foreign_idx].filename);
 			} else {
 				fwrite(reply->str, 1, reply->len, fp);
@@ -811,7 +812,7 @@ int redlock_try_lock(redisContext *c, const char *lock_name, long long expire)
 	return ret;
 }
 
-long long _exec_serial_rule_begin(redisContext* c, size_t rule_num, size_t renew_rule_num, 
+long long exec_serial_rule_begin(redisContext* c, size_t rule_num, size_t renew_rule_num, 
                                   int *renew_allowed, long long *transaction_version)
 {
 	int ret = -1;
@@ -860,7 +861,7 @@ const char* lua_exec_done=
 "redis.call(\'del\', KEYS[4]);"
 "redis.call(\'zadd\', KEYS[3], ARGV[1], maat_version);"
 "return maat_version;";
-redisReply* _exec_serial_rule_end(redisContext *c, const char *transaction_list, long long server_time, 
+redisReply* exec_serial_rule_end(redisContext *c, const char *transaction_list, long long server_time, 
                                   int renew_allowed, struct expected_reply *expect_reply,  size_t *cnt)
 {
 	redisReply *data_reply = NULL;
@@ -889,7 +890,7 @@ redisReply* _exec_serial_rule_end(redisContext *c, const char *transaction_list,
 	return data_reply;
 }
 
-void _exec_serial_rule(redisContext *c,	const char *transaction_list, struct serial_rule *s_rule, size_t rule_num,  
+void exec_serial_rule(redisContext *c,	const char *transaction_list, struct serial_rule *s_rule, size_t rule_num,  
                        struct expected_reply *expect_reply, size_t *cnt, size_t offset, int renew_allowed)
 {
     size_t i = 0;
@@ -924,21 +925,6 @@ void _exec_serial_rule(redisContext *c,	const char *transaction_list, struct ser
 					expected_reply_add(expect_reply+*cnt, i+offset, REDIS_REPLY_INTEGER, 1);
 					expected_reply_add(expect_reply+*cnt, i+offset, REDIS_REPLY_INTEGER, 0);
 					(*cnt)++;
-					append_cmd_cnt++;
-				}
-
-				if (s_rule[i].label_id > 0)
-				{
-					redisAppendCommand(c, "ZADD %s %d %s,%lu",
-							              mr_label_sset,
-							              s_rule[i].label_id,
-							              s_rule[i].table_name,
-							              s_rule[i].rule_id);
-					expected_reply_add(expect_reply+*cnt, i+offset, REDIS_REPLY_INTEGER, 1);
-					expected_reply_add(expect_reply+*cnt, i+offset, REDIS_REPLY_INTEGER, 0);
-
-					(*cnt)++;
-
 					append_cmd_cnt++;
 				}
 				break;
@@ -1050,7 +1036,7 @@ int mr_operation_success(redisReply *actual_reply, struct expected_reply *expect
 	return 0;
 }
 
-int maat_cmd_exec_serial_rule(redisContext *c, struct serial_rule *s_rule, size_t serial_rule_num, long long server_time)
+int maat_cmd_write_rule(redisContext *c, struct serial_rule *s_rule, size_t serial_rule_num, long long server_time)
 {
 	size_t i = 0;
     size_t rule_seq = 0;
@@ -1066,7 +1052,7 @@ int maat_cmd_exec_serial_rule(redisContext *c, struct serial_rule *s_rule, size_
     char transaction_list[NAME_MAX * 2] = {0};
     long long transaction_version = 0;
     long long transaction_finished_version = 0;
-	size_t max_multi_cmd_num = MAX_REDIS_OP_PER_SRULE * serial_rule_num + 2;// 2 for operation in _exec_serial_rule_end()
+	size_t max_multi_cmd_num = MAX_REDIS_OP_PER_SRULE * serial_rule_num + 2;// 2 for operation in exec_serial_rule_end()
 	struct expected_reply *expected_reply = ALLOC(struct expected_reply, max_multi_cmd_num);
 	
 	for (i = 0; i < serial_rule_num; i++) {
@@ -1075,7 +1061,7 @@ int maat_cmd_exec_serial_rule(redisContext *c, struct serial_rule *s_rule, size_
 		}
 	}
 
-	int ret = _exec_serial_rule_begin(c, serial_rule_num, renew_num, &renew_allowed, &transaction_version);
+	int ret = exec_serial_rule_begin(c, serial_rule_num, renew_num, &renew_allowed, &transaction_version);
 	//Preconditions for transaction are not satisfied.
     if (ret != 0) {
 		success_cnt = -1;
@@ -1088,13 +1074,13 @@ int maat_cmd_exec_serial_rule(redisContext *c, struct serial_rule *s_rule, size_
     
 	while (success_cnt < serial_rule_num) {
 		size_t batch_cnt = MIN(serial_rule_num - success_cnt, max_redis_batch);
-		_exec_serial_rule(c, transaction_list, s_rule + success_cnt, batch_cnt, expected_reply, &multi_cmd_cnt, 
+		exec_serial_rule(c, transaction_list, s_rule + success_cnt, batch_cnt, expected_reply, &multi_cmd_cnt, 
                             success_cnt, renew_allowed);
 		assert(multi_cmd_cnt<max_multi_cmd_num);
 		success_cnt+=batch_cnt;
 	}
 
-	transaction_reply = _exec_serial_rule_end(c, transaction_list, server_time, renew_allowed, expected_reply, &multi_cmd_cnt);
+	transaction_reply = exec_serial_rule_end(c, transaction_list, server_time, renew_allowed, expected_reply, &multi_cmd_cnt);
 	if (1 == mr_transaction_success(transaction_reply)) {
 		assert(transaction_reply->elements == multi_cmd_cnt);
 		for (i = 0; i < multi_cmd_cnt; i++) {
@@ -1106,7 +1092,7 @@ int maat_cmd_exec_serial_rule(redisContext *c, struct serial_rule *s_rule, size_
 				continue;
 			}
 			rule_seq = expected_reply[i].s_rule_seq;
-			fprintf(stderr, "%s %s %lu failed, rule id maybe conflict or not exist.",
+			fprintf(stderr, "%s %s %lu failed, rule id maybe conflict or not exist\n",
 					        mr_op_str[s_rule[rule_seq].op], s_rule[rule_seq].table_name,
                             s_rule[rule_seq].rule_id);
 			success_cnt--;
@@ -1118,7 +1104,7 @@ int maat_cmd_exec_serial_rule(redisContext *c, struct serial_rule *s_rule, size_
 
 	if (transaction_version > 0) {
 		transaction_finished_version = maat_cmd_read_redis_integer(transaction_reply->element[multi_cmd_cnt-1]);
-		fprintf(stdout, "Redis transaction MAAT_PRE_VER = %lld , MAAT_VERSION = %lld ",
+		fprintf(stdout, "Redis transaction MAAT_PRE_VER = %lld , MAAT_VERSION = %lld\n",
 						transaction_version, transaction_finished_version);
 	}
 
@@ -1129,7 +1115,7 @@ error_out:
 	if (renew_num > 0 && renew_allowed != 1) {
 		for (i = 0; i < (unsigned int)serial_rule_num; i++) {
 			if (s_rule[i].op == MAAT_OP_RENEW_TIMEOUT) {
-				fprintf(stdout, "%s %s %lu is not allowed due to lock contention.",
+				fprintf(stdout, "%s %s %lu is not allowed due to lock contention\n",
                                 mr_op_str[MAAT_OP_RENEW_TIMEOUT], s_rule[i].table_name, 
                                 s_rule[i].rule_id);
 			}
@@ -1205,7 +1191,7 @@ void cleanup_update_status(redisContext *c)
 	freeReplyObject(reply);	
 	reply = NULL;
 
-	fprintf(stdout, "Clean up update status from version %lld to %lld (%lld versions, %lld entries).",
+	fprintf(stdout, "Clean up update status from version %lld to %lld (%lld versions, %lld entries)\n",
                     version_lower_bound, version_upper_bound, version_num, entry_num);
 	return;
 	
@@ -1243,13 +1229,13 @@ void check_maat_expiration(redisContext *c)
 	freeReplyObject(data_reply);
 	data_reply = NULL;
 
-	int success_cnt = maat_cmd_exec_serial_rule(c, s_rule, s_rule_num, server_time);
+	int success_cnt = maat_cmd_write_rule(c, s_rule, s_rule_num, server_time);
     if (success_cnt < 0) {
-        fprintf(stderr, "maat_cmd_exec_serial_rule failed.\n");
+        fprintf(stderr, "maat_cmd_write_rule failed.\n");
     } else if (success_cnt == (int)s_rule_num) {
-		fprintf(stdout, "Succesfully expired %zu rules in Redis.", s_rule_num);
+		fprintf(stdout, "Succesfully expired %zu rules in Redis\n", s_rule_num);
 	} else {
-		fprintf(stderr, "Failed to expired %d of %zu rules in Redis, try later.", 
+		fprintf(stderr, "Failed to expired %d of %zu rules in Redis, try later\n", 
                         s_rule_num - success_cnt, s_rule_num);
 	}
 
@@ -1292,7 +1278,7 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 		if (mr_ctx->read_ctx != NULL) {
 			redisFree(mr_ctx->read_ctx);
 		}
-		fprintf(stdout, "Reconnecting...");
+		fprintf(stdout, "Reconnecting...\n");
 
 		mr_ctx->read_ctx = maat_cmd_connect_redis(mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db);
 		if (NULL == mr_ctx->read_ctx) {
@@ -1329,7 +1315,7 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 		if (ret < 0) {
 			redisFree(mr_ctx->read_ctx);
 			mr_ctx->read_ctx = NULL;
-			fprintf(stderr, "Get Redis value failed, abandon update and close connection.");
+			fprintf(stderr, "Get Redis value failed, abandon update and close connection\n");
 			goto clean_up;
 		}
 
@@ -1340,7 +1326,7 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 		}
 
 		if (empty_value_num == rule_num) {
-			fprintf(stdout, "All %d rules are empty, abandon update.", empty_value_num);
+			fprintf(stdout, "All %d rules are empty, abandon update\n", empty_value_num);
 			goto clean_up;
 		}
 
@@ -1351,7 +1337,7 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 	}
 
 	start_fn(new_version, update_type, u_param);
-	fprintf(stdout, "Start %s update: %lld -> %lld (%d entries).",
+	fprintf(stdout, "Start %s update: %lld -> %lld (%d entries)\n",
 					update_type==CM_UPDATE_TYPE_INC?"INC":"FULL", version, new_version, rule_num);
 
 	for (i = 0; i < rule_num; i++) {
@@ -1374,7 +1360,7 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 			valid_column = table_schema_get_valid_flag_column(table_schema);
 			ret = invalidate_line(rule_list[i].table_line, table_type, valid_column);
 			if (ret < 0) {
-				fprintf(stdout, "Invalidate line failed, invaid format %s .", rule_list[i].table_line);
+				fprintf(stdout, "Invalidate line failed, invaid format %s\n", rule_list[i].table_line);
 				continue;
 			}
 		}
@@ -1390,13 +1376,13 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 	finish_fn(u_param);
 
 	if (call_update_num < rule_num) {		
-		fprintf(stdout, "Load %d entries to match engine, no tablle: %d, empty value: %d.",
+		fprintf(stdout, "Load %d entries to match engine, no table: %d, empty value: %d\n",
 						call_update_num, no_table_num, empty_value_num);
 	}
 
 clean_up:
 	for (i = 0; i < rule_num; i++) {
-		maat_cmd_empty_serial_rule(rule_list + i);
+		maat_cmd_clear_rule_cache(rule_list + i);
 	}
 
 	FREE(rule_list);

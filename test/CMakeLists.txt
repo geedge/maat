@@ -8,6 +8,9 @@ target_link_libraries(maat_api_gtest maat_frame_static gtest_static)
 add_executable(rcu_hash_gtest rcu_hash_gtest.cpp)
 target_link_libraries(rcu_hash_gtest maat_frame_static gtest_static)
 
+add_executable(maat_input_mode_gtest maat_input_mode_gtest.cpp)
+target_link_libraries(maat_input_mode_gtest maat_frame_static gtest_static)
+
 add_executable(maat_framework_gtest maat_framework_gtest.cpp)
 target_link_libraries(maat_framework_gtest maat_frame_static gtest_static)
 

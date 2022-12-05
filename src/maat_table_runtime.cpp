@@ -82,6 +82,10 @@ struct table_runtime_manager {
 
 void plugin_ex_data_free(void *user_ctx, void *data)
 {
+    if (NULL == user_ctx || NULL == data) {
+        return;
+    }
+
     struct plugin_user_ctx *ctx = (struct plugin_user_ctx *)user_ctx;
     long argl = ctx->ex_schema->argl;
     void *argp = ctx->ex_schema->argp;
@@ -90,18 +94,19 @@ void plugin_ex_data_free(void *user_ctx, void *data)
 
 void expr_rule_free(and_expr_t *expr_rule)
 {
-    if (expr_rule != NULL) {
-        for (size_t i = 0; i < expr_rule->n_patterns; i++) {
-            free(expr_rule->patterns[i].pat);
-            expr_rule->patterns[i].pat = NULL;
-        }
+    if (NULL == expr_rule) {
+        return;
+    }
+
+    for (size_t i = 0; i < expr_rule->n_patterns; i++) {
+        FREE(expr_rule->patterns[i].pat);
     }
 }
 void expr_ex_data_free(void *user_ctx, void *data)
 {
     and_expr_t *expr_rule = (and_expr_t *)data;
     expr_rule_free(expr_rule);
-    free(data);
+    FREE(data);
 }
 
 struct table_runtime *table_runtime_new(struct table_schema *table_schema, int max_thread_num, struct maat_garbage_bin* bin)
@@ -131,6 +136,10 @@ struct table_runtime *table_runtime_new(struct table_schema *table_schema, int m
 
 void table_runtime_free(struct table_runtime * table_rt)
 {
+    if (NULL == table_rt) {
+        return;
+    }
+
     switch (table_rt->table_type) {
         case TABLE_TYPE_EXPR:
             adapter_hs_destroy(table_rt->expr_rt.hs);
@@ -147,7 +156,7 @@ void table_runtime_free(struct table_runtime * table_rt)
             break;
     }
 
-    free(table_rt);
+    FREE(table_rt);
 }
 
 struct table_runtime_manager *
@@ -184,9 +193,8 @@ void table_runtime_manager_destroy(struct table_runtime_manager *table_rt_mgr)
 		table_rt_mgr->table_rt[i] = NULL;
 	}
 
-	free(table_rt_mgr->table_rt);
-	table_rt_mgr->table_rt = NULL;
-	free(table_rt_mgr);
+	FREE(table_rt_mgr->table_rt);
+	FREE(table_rt_mgr);
 }
 
 struct table_runtime *table_runtime_get(struct table_runtime_manager *table_rt_mgr, int table_id)
@@ -297,7 +305,7 @@ and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item)
                 }
 
                 if (i >= MAAT_MAX_EXPR_ITEM_NUM) {
-                    fprintf(stderr, "item_id:%d too many patterns", expr_item->item_id);
+                    fprintf(stderr, "item_id:%d too many patterns\n", expr_item->item_id);
                     return NULL;
                 }
 
@@ -340,7 +348,7 @@ void expr_runtime_update_row(struct expr_runtime *expr_rt, char *key, size_t key
         //delete
         data = rcu_hash_find(expr_rt->htable, key, key_len);
         if (NULL == data) {
-            fprintf(stderr, "the key:%s not exist, so can't be deleted.", key);
+            fprintf(stderr, "the key:%s not exist, so can't be deleted\n", key);
             return;
         }
         rcu_hash_del(expr_rt->htable, key, key_len);
@@ -348,7 +356,7 @@ void expr_runtime_update_row(struct expr_runtime *expr_rt, char *key, size_t key
         //add
         data = rcu_hash_find(expr_rt->htable, key, key_len);
         if (data != NULL) {
-            fprintf(stderr, "the key:%s already exist, so can't be added.", key);
+            fprintf(stderr, "the key:%s already exist, so can't be added\n", key);
             return;
         }
         and_expr_t *data = ALLOC(and_expr_t, 1);
@@ -443,7 +451,7 @@ void table_runtime_update(struct table_runtime *table_rt, struct table_schema *t
             ip_rule = ip_plugin_item_to_ip_rule(&table_item->ip_plugin_item);
             key = (char *)&(table_item->ip_plugin_item.item_id);
             ip_plugin_runtime_update_row(&(table_rt->ip_plugin_rt), table_schema, row, key, sizeof(int), ip_rule, is_valid);
-            free(ip_rule);
+            FREE(ip_rule);
             break;
         default:
             break;
@@ -489,8 +497,8 @@ int expr_runtime_commit(struct table_runtime *table_rt, size_t nr_worker_thread)
     rule_cnt = rcu_hash_list_updating_data(expr_rt->htable, &ex_data_array);
     assert(rule_cnt == 0);
     
-    free(rules);
-    free(ex_data_array);
+    FREE(rules);
+    FREE(ex_data_array);
 
     return ret;
 }
@@ -535,8 +543,8 @@ int ip_plugin_runtime_commit(struct table_runtime *table_rt)
     ex_data_runtime_commit(ip_plugin_rt->ex_data_rt);
     table_rt->rule_num = ex_data_runtime_ex_data_count(ip_plugin_rt->ex_data_rt);
 
-    free(rules);
-    free(ex_data_array);
+    FREE(rules);
+    FREE(ex_data_array);
 
     return ret;
 }

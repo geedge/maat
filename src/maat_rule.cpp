@@ -66,7 +66,7 @@ void maat_runtime_destroy(struct maat_runtime *maat_rt)
         maat_rt->table_rt_mgr = NULL;
     }
 
-    free(maat_rt);
+    FREE(maat_rt);
 }
 
 int maat_runtime_updating_flag(struct maat_runtime *maat_rt)
@@ -122,10 +122,12 @@ int maat_update_cb(const char *table_name, const char *line, void *u_param)
 	}
 
     struct table_item *table_item = table_schema_line_to_item(line, table_schema);
-    struct table_runtime *table_rt = table_runtime_get(maat_rt->table_rt_mgr, table_id);
-    table_runtime_update(table_rt, table_schema, line, table_item);
-	free(table_item);
-    
+    if (table_item != NULL) {
+        struct table_runtime *table_rt = table_runtime_get(maat_rt->table_rt_mgr, table_id);
+        table_runtime_update(table_rt, table_schema, line, table_item);
+	    FREE(table_item);
+    }
+     
 	return 0;
 }
 
@@ -185,7 +187,7 @@ void *rule_monitor_loop(void *arg)
     pthread_mutex_lock(&(maat_instance->background_update_mutex));
     /* if deferred load on */
     if (maat_instance->deferred_load != 0) {
-        fprintf(stdout, "Deferred Loading ON, updating in %s.", __func__);
+        fprintf(stdout, "Deferred Loading ON, updating in %s\n", __func__);
         maat_read_full_config(maat_instance);
     }
     pthread_mutex_unlock(&(maat_instance->background_update_mutex));
@@ -207,7 +209,7 @@ void *rule_monitor_loop(void *arg)
                     break;
 				case DATA_SOURCE_IRIS_FILE:
 					config_monitor_traverse(maat_instance->maat_version, 
-											maat_instance->iris_ctx.inc_dir,
+											maat_instance->iris_ctx.inc_idx_dir,
 											maat_start_cb,
 											maat_update_cb,
 											maat_finish_cb,
@@ -222,7 +224,7 @@ void *rule_monitor_loop(void *arg)
 						if (0 != strcmp(md5_tmp, maat_instance->json_ctx.effective_json_md5)) {
 							ret = load_maat_json_file(maat_instance, maat_instance->json_ctx.json_file, err_str, sizeof(err_str));
 							if (ret < 0) {
-								fprintf(stdout, "Maat re-initiate with JSON file %s (md5=%s)failed: %s",
+								fprintf(stdout, "Maat re-initiate with JSON file %s (md5=%s)failed: %s\n",
 												maat_instance->json_ctx.json_file, md5_tmp, err_str);
 							} else {
 								config_monitor_traverse(0, maat_instance->json_ctx.iris_file,
@@ -230,7 +232,7 @@ void *rule_monitor_loop(void *arg)
 														maat_update_cb,
 														maat_finish_cb,
 														maat_instance);
-								fprintf(stdout, "Maat re-initiate with JSON file %s success, md5: %s",
+								fprintf(stdout, "Maat re-initiate with JSON file %s success, md5: %s\n",
 												maat_instance->json_ctx.json_file, md5_tmp);
 							}
 						}
@@ -246,10 +248,10 @@ void *rule_monitor_loop(void *arg)
 
 				if (old_maat_rt != NULL) {
                     if (maat_instance->maat_rt->version > old_maat_rt->version) {
-                        fprintf(stdout, "Maat version updated %lld -> %lld.", 
+                        fprintf(stdout, "Maat version updated %lld -> %lld\n", 
                                         old_maat_rt->version, maat_instance->maat_rt->version);
                     } else {
-                        fprintf(stdout, "Maat version roll back %lld -> %lld.",
+                        fprintf(stdout, "Maat version roll back %lld -> %lld\n",
                                         old_maat_rt->version, maat_instance->maat_rt->version);
                     }
                     maat_garbage_bagging(maat_instance->garbage_bin, old_maat_rt, (void (*)(void*))maat_runtime_destroy);

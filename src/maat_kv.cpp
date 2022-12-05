@@ -51,10 +51,10 @@ struct maat_kv_pair* maat_kv_pair_new(const char* key, size_t keylen, int value)
 
 void maat_kv_pair_free(struct maat_kv_pair* kv)
 {
-	free(kv->key);
+	FREE(kv->key);
 	kv->key = NULL;
 
-	free(kv);
+	FREE(kv);
 }
 
 struct maat_kv_store* maat_kv_store_new(void)
@@ -77,7 +77,7 @@ void maat_kv_store_free(struct maat_kv_store* store)
 		maat_kv_pair_free(kv);
 	}
 
-	free(store);
+	FREE(store);
 }
 
 int maat_kv_register_unNull(struct maat_kv_store* store, const char* key, size_t keylen, int value)

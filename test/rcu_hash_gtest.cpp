@@ -10,7 +10,7 @@ struct user_data {
 
 void data_free(void *user_ctx, void *data)
 {
-    free(data);
+    FREE(data);
 }
 
 TEST(rcu_hash_new, invalid_input_parameter) {

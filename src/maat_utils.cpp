@@ -15,6 +15,7 @@
 #include <openssl/md5.h>
 #include <openssl/evp.h>
 
+#include "utils.h"
 #include "maat_utils.h"
 
 char *maat_strdup(const char *s)
@@ -51,7 +52,7 @@ int get_column_pos(const char *line, int column_seq, size_t *offset, size_t *len
 		}
 		i++;
 	}
-	free(dup_line);
+	FREE(dup_line);
     
 	return ret;
 }
@@ -77,8 +78,7 @@ int load_file_to_memory(const char *file_name, unsigned char **pp_out, size_t *o
 	*pp_out = (unsigned char *)calloc(1, *out_sz+1);
 	read_size = fread(*pp_out, 1, *out_sz, fp);
 	if (read_size != *out_sz) {
-		free(*pp_out);
-		pp_out = NULL;
+		FREE(*pp_out);
 		return -1;
 	}	
 	
@@ -196,6 +196,13 @@ int system_cmd_mkdir(const char *path)
 	return system(cmd);
 }
 
+int system_cmd_rmdir(const char *dir)
+{
+	char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
+	snprintf(cmd,sizeof(cmd), "rm %s -rf", dir);
+	return  system(cmd);
+}
+
 char *md5_file(const char *filename, char *md5string)
 {
 	unsigned char md5[MD5_DIGEST_LENGTH] = {0};
@@ -217,7 +224,8 @@ char *md5_file(const char *filename, char *md5string)
 		sprintf(&md5string[i*2], "%02x", (unsigned int)md5[i]);
 	}
 
-	free(file_buff);
+	FREE(file_buff);
+
 	return md5string;
 }
 
@@ -284,8 +292,7 @@ int crypt_memory(const unsigned char *inbuf, size_t inlen, unsigned char **pp_ou
 	return 0;	
 	
 error_out:	
-	free(*pp_out);
-	*pp_out = NULL;
+	FREE(*pp_out);
 	return -1;
 }
 
@@ -300,8 +307,7 @@ int decrypt_open(const char* file_name, const char* key, const char* algorithm,
 	}
 
 	ret = crypt_memory(file_buff, file_sz, pp_out, out_sz, key, algorithm, 0, err_str, err_str_sz);
-	free(file_buff);
-	file_buff = NULL;
+	FREE(file_buff);
 
 	return ret;
 }
