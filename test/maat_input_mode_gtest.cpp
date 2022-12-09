@@ -140,9 +140,11 @@ TEST(redis_mode, maat_scan_string) {
     int redis_port = 6379;
     int redis_db = 0;
 
+    struct log_handle *logger = log_handle_create("./tmp.log", 0);
+
     snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
 
-    redisContext *c = maat_cmd_connect_redis(redis_ip, redis_port, redis_db, NULL);
+    redisContext *c = maat_cmd_connect_redis(redis_ip, redis_port, redis_db, logger);
     EXPECT_NE(c, nullptr);
 
     redisReply *reply = maat_cmd_wrap_redis_command(c, "flushdb");
@@ -157,25 +159,25 @@ TEST(redis_mode, maat_scan_string) {
         EXPECT_NE(ret, -1);
 
         ret = json2iris(json_buff, json_filename, NULL, NULL, NULL, c, tmp_iris_path, 
-                        sizeof(tmp_iris_path), NULL, NULL, NULL);
+                        sizeof(tmp_iris_path), NULL, NULL, logger);
         EXPECT_NE(ret, -1);
     }
 
     size_t total_line_cnt = 0;
     char tmp_iris_full_idx_path[128] = {0};
     snprintf(tmp_iris_full_idx_path, sizeof(tmp_iris_full_idx_path), "%s/index", json_iris_path);
-    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, count_line_num_cb, NULL, &total_line_cnt, NULL);
+    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, count_line_num_cb, NULL, &total_line_cnt, logger);
 
     struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
     long long server_time = maat_cmd_redis_server_time_s(c);
     EXPECT_NE(server_time, -1);
 
     absolute_expire_time = server_time + 300;
-    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, make_serial_rule, NULL, s_rule, NULL);
+    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, make_serial_rule, NULL, s_rule, logger);
 
     int success_cnt = 0;
     do {
-        success_cnt = maat_cmd_write_rule(c, s_rule, total_line_cnt, server_time, NULL);
+        success_cnt = maat_cmd_write_rule(c, s_rule, total_line_cnt, server_time, logger);
     } while (success_cnt < 0);
 
     EXPECT_EQ(success_cnt, (int)total_line_cnt);
@@ -189,6 +191,7 @@ TEST(redis_mode, maat_scan_string) {
     struct maat_options *opts = maat_options_new();
     maat_options_set_redis_ip(opts, redis_ip);
     maat_options_set_redis_port(opts, redis_port);
+    maat_options_set_logger(opts, logger);
 
     struct maat *maat_instance = maat_new(opts, table_info_path);
     struct table_schema_manager *table_schema_mgr = maat_instance->table_schema_mgr;

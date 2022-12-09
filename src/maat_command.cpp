@@ -61,8 +61,14 @@ redisContext *maat_cmd_connect_redis(const char *redis_ip, int redis_port, int r
 
 	redisContext *c = redisConnectWithTimeout(redis_ip, redis_port, connect_timeout);
 	if (NULL == c || c->err) {
-		log_error(logger, MODULE_MAAT_COMMAND, "Unable to connect redis server %s:%d db%d, error: %s",
-				  redis_ip, redis_port, redis_db, c == NULL ? "Unknown" : c->errstr);
+        if (NULL == logger) {
+            printf("Unable to connect redis server %s:%d db%d, error: %s",
+				   redis_ip, redis_port, redis_db, c == NULL ? "Unknown" : c->errstr);
+        } else {
+            log_error(logger, MODULE_MAAT_COMMAND, 
+                      "Unable to connect redis server %s:%d db%d, error: %s",
+				      redis_ip, redis_port, redis_db, c == NULL ? "Unknown" : c->errstr);
+        }
 		
 		if (c != NULL) {
             redisFree(c);

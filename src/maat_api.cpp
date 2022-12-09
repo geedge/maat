@@ -312,7 +312,8 @@ int maat_table_callback_register(struct maat *maat_instance, int table_id,
     int ret = -1;
 
     pthread_mutex_lock(&(maat_instance->background_update_mutex));
-    ret = plugin_table_schema_add_callback(maat_instance->table_schema_mgr, table_id, start, update, finish, u_para);
+    ret = plugin_table_schema_add_callback(maat_instance->table_schema_mgr, table_id, 
+                                           start, update, finish, u_para, maat_instance->logger);
     if (ret < 0) {
         pthread_mutex_unlock(&(maat_instance->background_update_mutex));
         return -1;
@@ -357,7 +358,8 @@ int maat_plugin_table_ex_schema_register(struct maat *maat_instance, int table_i
 {
     struct table_schema *table_schema = table_schema_get(maat_instance->table_schema_mgr, table_id);
     pthread_mutex_lock(&(maat_instance->background_update_mutex));
-    int ret = plugin_table_schema_set_ex_data_schema(table_schema, new_func, free_func, dup_func, argl, argp);
+    int ret = plugin_table_schema_set_ex_data_schema(table_schema, new_func, free_func, dup_func, 
+                                                     argl, argp, maat_instance->logger);
     if (ret < 0) {
         pthread_mutex_unlock(&(maat_instance->background_update_mutex));
         return -1;

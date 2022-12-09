@@ -151,7 +151,8 @@ void table_schema_free(struct table_schema *ptable)
 }
 
 int read_expr_table_schema(cJSON *root, struct table_schema *ptable,
-                            struct maat_kv_store* reserved_word_map)
+                            struct maat_kv_store* reserved_word_map,
+                            struct log_handle *logger)
 {
     int read_cnt = 0;
     cJSON *json = NULL;
@@ -165,7 +166,8 @@ int read_expr_table_schema(cJSON *root, struct table_schema *ptable,
     json = cJSON_GetObjectItem(root, "table_name");
     if (json != NULL && json->type == cJSON_String) {
         if (strlen(json->valuestring) >= NAME_MAX) {
-            fprintf(stderr, "table name %s length too long\n", json->valuestring);
+            log_error(logger, MODULE_TABLE_SCHEMA, "expr table name %s length too long", 
+                                                    json->valuestring);
             return -1;
         }
         memcpy(ptable->table_name[0], json->valuestring, strlen(json->valuestring));
@@ -176,7 +178,7 @@ int read_expr_table_schema(cJSON *root, struct table_schema *ptable,
     if (json != NULL && json->type == cJSON_String) {
         int ret = maat_kv_read(reserved_word_map, json->valuestring, (int*)&(ptable->expr.scan_mode));
         if (ret < 0) {
-            fprintf(stderr, "scan_mode %s illegal\n", json->valuestring);
+            log_error(logger, MODULE_TABLE_SCHEMA, "scan_mode %s illegal", json->valuestring);
             return -1;
         }
         read_cnt++;
@@ -196,7 +198,8 @@ int read_expr_table_schema(cJSON *root, struct table_schema *ptable,
 
     json = cJSON_GetObjectItem(root, "custom");
     if (json == NULL || json->type != cJSON_Object) {
-        fprintf(stderr, "table %s has no custom column\n", ptable->table_name[0]);
+        log_error(logger, MODULE_TABLE_SCHEMA, "table %s has no custom column", 
+                                                ptable->table_name[0]);
         return -1;
     }
 
@@ -244,8 +247,8 @@ int read_expr_table_schema(cJSON *root, struct table_schema *ptable,
     
     return 0;  
 }
-
-int read_ip_table_schema(cJSON *root, struct table_schema *ptable)
+#if 0
+int read_ip_table_schema(cJSON *root, struct table_schema *ptable, struct log_handle *logger)
 {
      size_t read_cnt = 0;
     cJSON *json = NULL;
@@ -259,7 +262,8 @@ int read_ip_table_schema(cJSON *root, struct table_schema *ptable)
     json = cJSON_GetObjectItem(root, "table_name");
     if (json != NULL && json->type == cJSON_String) {
         if (strlen(json->valuestring) >= NAME_MAX) {
-            fprintf(stderr, "table name %s length too long\n", json->valuestring);
+            log_error(logger, MODULE_TABLE_SCHEMA, "ip table name %s length too long", 
+                                                    json->valuestring);
             return -1;
         }
         memcpy(ptable->table_name[0], json->valuestring, strlen(json->valuestring));
@@ -280,7 +284,8 @@ int read_ip_table_schema(cJSON *root, struct table_schema *ptable)
 
     json = cJSON_GetObjectItem(root, "custom");
     if (NULL == json || json->type != cJSON_Object) {
-        fprintf(stderr, "table %s has no custom column\n", ptable->table_name[0]);
+        log_error(logger, MODULE_TABLE_SCHEMA, "ip table %s has no custom column", 
+                                                ptable->table_name[0]);
         return -1;
     }
 
@@ -362,8 +367,9 @@ int read_ip_table_schema(cJSON *root, struct table_schema *ptable)
 
     return 0;
 }
-
-int read_ip_plus_table_schema(cJSON *root, struct table_schema *ptable)
+#endif
+int read_ip_plus_table_schema(cJSON *root, struct table_schema *ptable,
+                              struct log_handle *logger)
 {
      size_t read_cnt = 0;
     cJSON *json = NULL;
@@ -377,7 +383,8 @@ int read_ip_plus_table_schema(cJSON *root, struct table_schema *ptable)
     json = cJSON_GetObjectItem(root, "table_name");
     if (json != NULL && json->type == cJSON_String) {
         if (strlen(json->valuestring) >= NAME_MAX) {
-            fprintf(stderr, "table name %s length too long\n", json->valuestring);
+            log_error(logger, MODULE_TABLE_SCHEMA, "ip_plus table name %s length too long", 
+                                                    json->valuestring);
             return -1;
         }
         memcpy(ptable->table_name[0], json->valuestring, strlen(json->valuestring));
@@ -398,7 +405,8 @@ int read_ip_plus_table_schema(cJSON *root, struct table_schema *ptable)
 
     json = cJSON_GetObjectItem(root, "custom");
     if (NULL == json || json->type != cJSON_Object) {
-        fprintf(stderr, "table %s has no custom column\n", ptable->table_name[0]);
+        log_error(logger, MODULE_TABLE_SCHEMA, "ip_plus table %s has no custom column", 
+                                                ptable->table_name[0]);
         return -1;
     }
 
@@ -505,8 +513,10 @@ int read_ip_plus_table_schema(cJSON *root, struct table_schema *ptable)
     return 0;
 }
 
-int read_virtual_table_schema(cJSON *root, struct table_schema **table_array, struct table_schema *ptable, 
-                              struct maat_kv_store *tablename2id_map)
+int read_virtual_table_schema(cJSON *root, struct table_schema **table_array, 
+                              struct table_schema *ptable, 
+                              struct maat_kv_store *tablename2id_map,
+                              struct log_handle *logger)
 {
     size_t read_cnt = 0;
     cJSON *json = NULL;
@@ -520,7 +530,8 @@ int read_virtual_table_schema(cJSON *root, struct table_schema **table_array, st
     json = cJSON_GetObjectItem(root, "table_name");
     if (json != NULL && json->type == cJSON_String) {
         if (strlen(json->valuestring) >= NAME_MAX) {
-            fprintf(stderr, "table name %s length too long\n", json->valuestring);
+            log_error(logger, MODULE_TABLE_SCHEMA, "virtual table name %s length too long", 
+                                                    json->valuestring);
             return -1;
         }
         memcpy(ptable->table_name[0], json->valuestring, strlen(json->valuestring));
@@ -529,7 +540,8 @@ int read_virtual_table_schema(cJSON *root, struct table_schema **table_array, st
 
     json = cJSON_GetObjectItem(root, "physical_table");
     if (NULL == json || json->type != cJSON_Array) {
-        fprintf(stderr, "table %s has no physical_table column\n", ptable->table_name[0]);
+        log_error(logger, MODULE_TABLE_SCHEMA, "virtual table %s has no physical_table column", 
+                                                ptable->table_name[0]);
         return -1;
     }
     read_cnt++;
@@ -557,7 +569,9 @@ int read_virtual_table_schema(cJSON *root, struct table_schema **table_array, st
     return 0;
 }
 
-int read_composition_table_schema(cJSON *root, struct table_schema *ptable, struct maat_kv_store *tablename2id_map)
+int read_composition_table_schema(cJSON *root, struct table_schema *ptable, 
+                                  struct maat_kv_store *tablename2id_map,
+                                  struct log_handle *logger)
 {
      size_t read_cnt = 0;
     cJSON *json = NULL;
@@ -571,7 +585,8 @@ int read_composition_table_schema(cJSON *root, struct table_schema *ptable, stru
     json = cJSON_GetObjectItem(root, "table_name");
     if (json != NULL && json->type == cJSON_String) {
         if (strlen(json->valuestring) >= NAME_MAX) {
-            fprintf(stderr, "table name %s length too long\n", json->valuestring);
+            log_error(logger, MODULE_TABLE_SCHEMA, "composition table name %s length too long", 
+                                                    json->valuestring);
             return -1;
         }
         memcpy(ptable->table_name[0], json->valuestring, strlen(json->valuestring));
@@ -580,7 +595,8 @@ int read_composition_table_schema(cJSON *root, struct table_schema *ptable, stru
 
     json = cJSON_GetObjectItem(root, "composition_table");
     if (NULL == json || json->type != cJSON_Object) {
-        fprintf(stderr, "table %s has no composition_table column\n", ptable->table_name[0]);
+        log_error(logger, MODULE_TABLE_SCHEMA, "table %s has no composition_table column", 
+                                                ptable->table_name[0]);
         return -1;
     }
     read_cnt++;
@@ -592,8 +608,9 @@ int read_composition_table_schema(cJSON *root, struct table_schema *ptable, stru
         /* physical table should already exist */
         ret = maat_kv_read(tablename2id_map, item->valuestring, &composition_schema->component_table_id[COMPOSITION_TYPE_SIP]);
         if (ret < 0) {
-            fprintf(stderr, "Child table %s of table %s (id=%d) are not defined",
-                            item->valuestring, ptable->table_name[0], ptable->table_id);
+            log_error(logger, MODULE_TABLE_SCHEMA, 
+                      "Child table %s of table %s (id=%d) are not defined",
+                      item->valuestring, ptable->table_name[0], ptable->table_id);
             return -1;
         }
     }
@@ -603,8 +620,9 @@ int read_composition_table_schema(cJSON *root, struct table_schema *ptable, stru
         /* physical table should already exist */
         ret = maat_kv_read(tablename2id_map, item->valuestring, &composition_schema->component_table_id[COMPOSITION_TYPE_DIP]);
         if (ret < 0) {
-            fprintf(stderr, "Child table %s of table %s (id=%d) are not defined",
-                            item->valuestring, ptable->table_name[0], ptable->table_id);
+            log_error(logger, MODULE_TABLE_SCHEMA, 
+                      "Child table %s of table %s (id=%d) are not defined",
+                      item->valuestring, ptable->table_name[0], ptable->table_id);
             return -1;
         }
     }
@@ -614,8 +632,9 @@ int read_composition_table_schema(cJSON *root, struct table_schema *ptable, stru
         /* physical table should already exist */
         ret = maat_kv_read(tablename2id_map, item->valuestring, &composition_schema->component_table_id[COMPOSITION_TYPE_SESSION]);
         if (ret < 0) {
-            fprintf(stderr, "Child table %s of table %s (id=%d) are not defined",
-                            item->valuestring, ptable->table_name[0], ptable->table_id);
+            log_error(logger, MODULE_TABLE_SCHEMA, 
+                      "Child table %s of table %s (id=%d) are not defined",
+                      item->valuestring, ptable->table_name[0], ptable->table_id);
             return -1;
         }
     }
@@ -644,7 +663,7 @@ static int read_integer_array(char *string, int *array, int size)
 	return i;
 }
 
-int read_plugin_table_schema(cJSON *root, struct table_schema *ptable)
+int read_plugin_table_schema(cJSON *root, struct table_schema *ptable, struct log_handle *logger)
 {
     size_t read_cnt = 0;
     cJSON *json = NULL;
@@ -658,7 +677,8 @@ int read_plugin_table_schema(cJSON *root, struct table_schema *ptable)
     json = cJSON_GetObjectItem(root, "table_name");
     if (json != NULL && json->type == cJSON_String) {
         if (strlen(json->valuestring) >= NAME_MAX) {
-            fprintf(stderr, "table name %s length too long\n", json->valuestring);
+            log_error(logger, MODULE_TABLE_SCHEMA, "plugin table name %s length too long", 
+                                                    json->valuestring);
             return -1;
         }
         memcpy(ptable->table_name[0], json->valuestring, strlen(json->valuestring));
@@ -673,7 +693,8 @@ int read_plugin_table_schema(cJSON *root, struct table_schema *ptable)
 
     json = cJSON_GetObjectItem(root, "custom");
     if (json == NULL || json->type != cJSON_Object) {
-        fprintf(stderr, "table %s has no custom column\n", ptable->table_name[0]);
+        log_error(logger, MODULE_TABLE_SCHEMA, "table %s has no custom column", 
+                                                ptable->table_name[0]);
         return -1;
     }
 
@@ -719,7 +740,7 @@ int read_plugin_table_schema(cJSON *root, struct table_schema *ptable)
     return 0; 
 }
 
-int read_ip_plugin_table_schema(cJSON *root, struct table_schema *ptable)
+int read_ip_plugin_table_schema(cJSON *root, struct table_schema *ptable, struct log_handle *logger)
 {
     size_t read_cnt = 0;
     cJSON *json = NULL;
@@ -733,7 +754,8 @@ int read_ip_plugin_table_schema(cJSON *root, struct table_schema *ptable)
     json = cJSON_GetObjectItem(root, "table_name");
     if (json != NULL && json->type == cJSON_String) {
         if (strlen(json->valuestring) >= NAME_MAX) {
-            fprintf(stderr, "table name %s length too long\n", json->valuestring);
+            log_error(logger, MODULE_TABLE_SCHEMA, "ip_plugin table name %s length too long", 
+                                                    json->valuestring);
             return -1;
         }
         memcpy(ptable->table_name[0], json->valuestring, strlen(json->valuestring));
@@ -748,7 +770,8 @@ int read_ip_plugin_table_schema(cJSON *root, struct table_schema *ptable)
 
     json = cJSON_GetObjectItem(root, "custom");
     if (NULL == json || json->type != cJSON_Object) {
-        fprintf(stderr, "table %s has no custom column\n", ptable->table_name[0]);
+        log_error(logger, MODULE_TABLE_SCHEMA, "table %s has no custom column", 
+                                                ptable->table_name[0]);
         return -1;
     }
 
@@ -783,8 +806,11 @@ int read_ip_plugin_table_schema(cJSON *root, struct table_schema *ptable)
     return 0;
 }
 
-int table_schema_populate(cJSON *json, struct table_schema **table_array, struct table_schema *ptable,
-                          struct maat_kv_store *reserved_word_map, struct maat_kv_store *tablename2id_map)
+int table_schema_populate(cJSON *json, struct table_schema **table_array, 
+                          struct table_schema *ptable,
+                          struct maat_kv_store *reserved_word_map, 
+                          struct maat_kv_store *tablename2id_map,
+                          struct log_handle *logger)
 {
     int ret = -1;
     cJSON *item = NULL;
@@ -793,7 +819,8 @@ int table_schema_populate(cJSON *json, struct table_schema **table_array, struct
     if (item != NULL && item->type == cJSON_String) {
         ret = maat_kv_read(reserved_word_map, item->valuestring, (int*)&(ptable->table_type));
         if (ret < 0) {
-            fprintf(stderr, "table_type %s is illegal\n", item->valuestring);
+            log_error(logger, MODULE_TABLE_SCHEMA, "table_type %s is illegal", 
+                                                    item->valuestring);
             return -1;
         }
     }
@@ -801,7 +828,7 @@ int table_schema_populate(cJSON *json, struct table_schema **table_array, struct
     switch (ptable->table_type) {
     case TABLE_TYPE_EXPR:
     case TABLE_TYPE_EXPR_PLUS:
-        ret = read_expr_table_schema(json, ptable, reserved_word_map);
+        ret = read_expr_table_schema(json, ptable, reserved_word_map, logger);
         if (ret < 0) {
             return -1;
         }
@@ -814,31 +841,31 @@ int table_schema_populate(cJSON *json, struct table_schema **table_array, struct
         }
         break; */
     case TABLE_TYPE_IP_PLUS:
-        ret = read_ip_plus_table_schema(json, ptable);
+        ret = read_ip_plus_table_schema(json, ptable, logger);
         if (ret < 0) {
             return -1;
         }
         break;
     case TABLE_TYPE_PLUGIN:
-        ret = read_plugin_table_schema(json, ptable);
+        ret = read_plugin_table_schema(json, ptable, logger);
         if (ret < 0) {
             return -1;
         }
         break;
     case TABLE_TYPE_IP_PLUGIN:
-        ret = read_ip_plugin_table_schema(json, ptable);
+        ret = read_ip_plugin_table_schema(json, ptable, logger);
         if (ret < 0) {
             return -1;
         }
         break;
     case TABLE_TYPE_VIRTUAL:
-        ret = read_virtual_table_schema(json, table_array, ptable, tablename2id_map);
+        ret = read_virtual_table_schema(json, table_array, ptable, tablename2id_map, logger);
         if (ret < 0) {
             return -1;
         }
         break;
     case TABLE_TYPE_COMPOSITION:
-        ret = read_composition_table_schema(json, ptable, tablename2id_map);
+        ret = read_composition_table_schema(json, ptable, tablename2id_map, logger);
         if (ret < 0) {
             return -1;
         }
@@ -850,7 +877,8 @@ int table_schema_populate(cJSON *json, struct table_schema **table_array, struct
     return 0;
 }
 
-struct table_schema_manager *table_schema_manager_create(const char *table_info_path, struct log_handle *logger)
+struct table_schema_manager *
+table_schema_manager_create(const char *table_info_path, struct log_handle *logger)
 {
     unsigned char *json_buff = NULL;
     size_t json_buff_sz = 0;
@@ -906,7 +934,7 @@ struct table_schema_manager *table_schema_manager_create(const char *table_info_
         if (json != NULL && json->type == cJSON_Object) {
             struct table_schema *ptable = table_schema_new();
             int ret = table_schema_populate(json, table_array, ptable, reserved_word_map, 
-                                            table_schema_mgr->tablename2id_map);
+                                            table_schema_mgr->tablename2id_map, logger);
             if (ret < 0) {
                 log_error(logger, MODULE_TABLE_SCHEMA, 
                           "Maat populate table info error, table_id:%d", ptable->table_id);
@@ -1723,23 +1751,26 @@ int plugin_table_schema_set_ex_data_schema(struct table_schema *table_schema,
 									        maat_plugin_ex_new_func_t *new_func,
 									        maat_plugin_ex_free_func_t *free_func,
 									        maat_plugin_ex_dup_func_t *dup_func,
-									        long argl, void *argp)
+									        long argl, void *argp,
+                                            struct log_handle *logger)
 {
     if (NULL == table_schema || NULL == new_func || NULL == free_func || NULL == dup_func) {
         assert(0);
-        fprintf(stderr, "%s failed: invalid parameter\n", __FUNCTION__);
+        log_error(logger, MODULE_TABLE_SCHEMA, "%s failed: invalid parameter", __FUNCTION__);
         return -1;
     }
 
     struct ex_data_schema *ex_schema = plugin_table_schema_get_ex_data_schema(table_schema);
     if (NULL == ex_schema) {
-        fprintf(stderr, "Error: %s, target table is not a valid plugin table\n", __FUNCTION__);
+        log_error(logger, MODULE_TABLE_SCHEMA, 
+                  "Error: %s, target table is not a valid plugin table", __FUNCTION__);
         return -1;
     }
 
     if (ex_schema->set_flag) {
         assert(0);
-        fprintf(stderr, "Error: %s, EX data schema already registed\n", __FUNCTION__);
+        log_error(logger, MODULE_TABLE_SCHEMA, "Error: %s, EX data schema already registed", 
+                                                __FUNCTION__);
         return -1;
     }
 
@@ -1801,7 +1832,7 @@ int plugin_table_schema_add_callback(struct table_schema_manager* table_schema_m
 							         maat_start_callback_t *start,
 							         maat_update_callback_t *update,
 							         maat_finish_callback_t *finish,
-							         void *u_para)
+							         void *u_para, struct log_handle *logger)
 {
     if ((NULL == table_schema_mgr) || (table_id < 0)) {
         return -1;
@@ -1809,7 +1840,8 @@ int plugin_table_schema_add_callback(struct table_schema_manager* table_schema_m
 
 	struct table_schema *ptable = table_schema_get(table_schema_mgr, table_id);
     if (NULL == ptable) {
-        fprintf(stderr, "table_id:%d unregistered, can't add callback func\n", table_id);
+        log_error(logger, MODULE_TABLE_SCHEMA, 
+                  "table_id:%d unregistered, can't add callback func", table_id);
 		return -1;
 	}
 
@@ -1817,7 +1849,7 @@ int plugin_table_schema_add_callback(struct table_schema_manager* table_schema_m
         case TABLE_TYPE_EXPR:
         case TABLE_TYPE_EXPR_PLUS:
         case TABLE_TYPE_IP_PLUS:
-            fprintf(stderr, "table_id: %d is not plugin type\n", table_id);
+            log_error(logger, MODULE_TABLE_SCHEMA, "table_id: %d is not plugin type", table_id);
             return -1;
         default:
             break;
@@ -1826,8 +1858,8 @@ int plugin_table_schema_add_callback(struct table_schema_manager* table_schema_m
 	struct plugin_table_schema *plugin_schema = &(ptable->plugin);
 	size_t idx = plugin_schema->cb_plug_cnt;
 	if (idx == MAX_PLUGIN_PER_TABLE) {
-        fprintf(stderr, "the plugin number of table_id: %d exceed maxium:%d\n", 
-                        ptable->table_id, MAX_PLUGIN_PER_TABLE);
+        log_error(logger, MODULE_TABLE_SCHEMA, "the plugin number of table_id: %d exceed maxium:%d", 
+                                                ptable->table_id, MAX_PLUGIN_PER_TABLE);
 		return -1;
 	}
 

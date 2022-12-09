@@ -221,7 +221,8 @@ int plugin_table_schema_set_ex_data_schema(struct table_schema *table_schema,
 									        maat_plugin_ex_new_func_t *new_func,
 									        maat_plugin_ex_free_func_t *free_func,
 									        maat_plugin_ex_dup_func_t *dup_func,
-									        long argl, void *argp);
+									        long argl, void *argp,
+                                            struct log_handle *logger);
 
 struct ex_data_schema *plugin_table_schema_get_ex_data_schema(struct table_schema *table_schema);
 /**
@@ -231,11 +232,11 @@ struct ex_data_schema *plugin_table_schema_get_ex_data_schema(struct table_schem
 */
 int plugin_table_schema_ex_data_schema_flag(struct table_schema *table_schema);
 
-int plugin_table_schema_add_callback(struct table_schema_manager* table_schema_mgr, int table_id,
-							         maat_start_callback_t *start,//MAAT_RULE_UPDATE_TYPE_*,u_para
-							         maat_update_callback_t *update,//table line ,u_para
-							         maat_finish_callback_t *finish,//u_para
-							        void *u_para);
+int plugin_table_schema_add_callback(struct table_schema_manager *table_schema_mgr, int table_id,
+							         maat_start_callback_t *start,
+							         maat_update_callback_t *update,
+							         maat_finish_callback_t *finish,
+							         void *u_para, struct log_handle *logger);
 /**
  * @brief the number of callback function stored in plugin table schema
 */
