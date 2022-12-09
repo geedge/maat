@@ -57,7 +57,8 @@ TEST(iris_mode, maat_scan_string) {
 		int ret = load_file_to_memory(json_filename, (unsigned char**)&json_buff, &json_buff_sz);
         EXPECT_NE(ret, -1);
 
-		ret = json2iris(json_buff, json_filename, NULL, NULL, NULL, NULL, tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL);
+		ret = json2iris(json_buff, json_filename, NULL, NULL, NULL, NULL, 
+                        tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL, NULL);
 		EXPECT_NE(ret, -1);
 	}
 
@@ -141,7 +142,7 @@ TEST(redis_mode, maat_scan_string) {
 
     snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
 
-    redisContext *c = maat_cmd_connect_redis(redis_ip, redis_port, redis_db);
+    redisContext *c = maat_cmd_connect_redis(redis_ip, redis_port, redis_db, NULL);
     EXPECT_NE(c, nullptr);
 
     redisReply *reply = maat_cmd_wrap_redis_command(c, "flushdb");
@@ -155,25 +156,26 @@ TEST(redis_mode, maat_scan_string) {
         int ret = load_file_to_memory(json_filename, (unsigned char **)&json_buff, &json_buff_sz);
         EXPECT_NE(ret, -1);
 
-        ret = json2iris(json_buff, json_filename, NULL, NULL, NULL, c, tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL);
+        ret = json2iris(json_buff, json_filename, NULL, NULL, NULL, c, tmp_iris_path, 
+                        sizeof(tmp_iris_path), NULL, NULL, NULL);
         EXPECT_NE(ret, -1);
     }
 
     size_t total_line_cnt = 0;
     char tmp_iris_full_idx_path[128] = {0};
     snprintf(tmp_iris_full_idx_path, sizeof(tmp_iris_full_idx_path), "%s/index", json_iris_path);
-    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, count_line_num_cb, NULL, &total_line_cnt);
+    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, count_line_num_cb, NULL, &total_line_cnt, NULL);
 
     struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
     long long server_time = maat_cmd_redis_server_time_s(c);
     EXPECT_NE(server_time, -1);
 
     absolute_expire_time = server_time + 300;
-    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, make_serial_rule, NULL, s_rule);
+    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, make_serial_rule, NULL, s_rule, NULL);
 
     int success_cnt = 0;
     do {
-        success_cnt = maat_cmd_write_rule(c, s_rule, total_line_cnt, server_time);
+        success_cnt = maat_cmd_write_rule(c, s_rule, total_line_cnt, server_time, NULL);
     } while (success_cnt < 0);
 
     EXPECT_EQ(success_cnt, (int)total_line_cnt);

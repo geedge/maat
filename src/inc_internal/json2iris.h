@@ -20,7 +20,8 @@ extern "C"
 
 int json2iris(const char* json_buff, const char* json_filename, const char*compile_tn, 
               const char* group2compile_tn, const char* group2group_tn, redisContext *redis_write_ctx, 
-              char* iris_dir_buf, int buf_len, char* encrypt_key, char* encrypt_algo);
+              char* iris_dir_buf, int buf_len, char* encrypt_key, char* encrypt_algo,
+              struct log_handle *logger);
 
 #ifdef __cpluscplus
 }

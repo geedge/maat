@@ -29,6 +29,8 @@ void rcu_hash_free(struct rcu_hash_table *htable);
 
 void rcu_hash_set_user_ctx(struct rcu_hash_table *htable, void *user_ctx);
 
+void *rcu_hash_get_user_ctx(struct rcu_hash_table *htable);
+
 /**
  * @brief just means add to the updating nodes
  *        after call rcu_hash_commit, they become effective nodes

@@ -10,18 +10,23 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 #include "utils.h"
+#include "maat_utils.h"
 #include "json2iris.h"
 #include "maat/maat.h"
 #include "maat_rule.h"
 #include "maat_common.h"
 #include "maat_kv.h"
 #include "maat_command.h"
+#include "maat_ex_data.h"
 #include "maat_table_schema.h"
 #include "maat_table_runtime.h"
 #include "maat_config_monitor.h"
 #include "maat_redis_monitor.h"
+
+#define MODULE_MAAT_API	 module_name_str("maat.api")
 
 struct maat_options* maat_options_new(void)
 {
@@ -33,6 +38,7 @@ struct maat_options* maat_options_new(void)
     options->rule_update_checking_interval_ms = 1 * 1000;
     options->gc_timeout_ms = 10 * 1000;
     options->input_mode = DATA_SOURCE_NONE;
+    options->log_level = 0;
 
     return options;
 }
@@ -61,6 +67,13 @@ int maat_options_set_rule_update_checking_interval_ms(struct maat_options *opts,
 int maat_options_set_gc_timeout_ms(struct maat_options *opts, int interval_ms)
 {
     opts->gc_timeout_ms = interval_ms;
+
+    return 0;
+}
+
+int maat_options_set_instance_name(struct maat_options *opts, const char *instance_name, size_t name_len)
+{
+    memcpy(opts->instance_name, instance_name, name_len);
 
     return 0;
 }
@@ -119,9 +132,16 @@ int maat_options_set_redis_port(struct maat_options *opts, uint16_t redis_port)
     return 0;
 }
 
-int maat_options_set_redis_db_index(struct maat_options *opts, int db_index)
+int maat_options_set_redis_db(struct maat_options *opts, int db_index)
 {
     opts->redis_ctx.redis_db = db_index;
+
+    return 0;
+}
+
+int maat_options_set_logger(struct maat_options *opts, void *logger)
+{
+    opts->logger = (struct log_handle *)logger;
 
     return 0;
 }
@@ -135,9 +155,10 @@ void maat_read_full_config(struct maat *maat_instance)
     switch (maat_instance->input_mode) {
         case DATA_SOURCE_REDIS:
             mr_ctx = &(maat_instance->mr_ctx);
-            fprintf(stdout, "Maat initiate from Redis %s:%hu db%d\n", 
-                            mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db);
-            mr_ctx->read_ctx = maat_cmd_connect_redis(mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db);
+            log_info(maat_instance->logger, MODULE_MAAT_API, "Maat initiate from Redis %s:%hu db%d", 
+                     mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db);
+            mr_ctx->read_ctx = maat_cmd_connect_redis(mr_ctx->redis_ip, mr_ctx->redis_port, 
+                                                      mr_ctx->redis_db, maat_instance->logger);
             if (mr_ctx->read_ctx != NULL) {
                 redis_monitor_traverse(maat_instance->maat_version, mr_ctx,
 									   maat_start_cb, maat_update_cb, maat_finish_cb,
@@ -145,34 +166,37 @@ void maat_read_full_config(struct maat *maat_instance)
             }
 
             if (NULL == maat_instance->creating_maat_rt) {
-                fprintf(stderr, "At initiation: NO effective rule in redis %s:%hu db%d\n",
-                                mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db);
+                log_error(maat_instance->logger, MODULE_MAAT_API, 
+                          "At initiation: NO effective rule in redis %s:%hu db%d",
+                          mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db);
             }
             break;
         case DATA_SOURCE_IRIS_FILE:
 			config_monitor_traverse(maat_instance->maat_version,
                                     maat_instance->iris_ctx.full_idx_dir,
                                     maat_start_cb, maat_update_cb, maat_finish_cb,
-                                    maat_instance);
+                                    maat_instance, maat_instance->logger);
             if (NULL == maat_instance->creating_maat_rt) {
-                fprintf(stderr, "At initiation: NO effective rule in %s\n",
-                                maat_instance->iris_ctx.full_idx_dir);
+                log_error(maat_instance->logger, MODULE_MAAT_API, 
+                          "At initiation: NO effective rule in %s",
+                          maat_instance->iris_ctx.full_idx_dir);
             }
             break;
         case DATA_SOURCE_JSON_FILE:
             ret = load_maat_json_file(maat_instance, maat_instance->json_ctx.json_file, err_str, sizeof(err_str));
             if (ret < 0) {
-                fprintf(stderr, "Maat re-initiate with JSON file %s failed: %s\n", maat_instance->json_ctx.json_file, err_str);
+                log_error(maat_instance->logger, MODULE_MAAT_API, "Maat re-initiate with JSON file %s failed: %s", 
+                          maat_instance->json_ctx.json_file, err_str);
                 return;
             }
             
             config_monitor_traverse(maat_instance->maat_version,
                                     maat_instance->json_ctx.iris_file,
                                     maat_start_cb, maat_update_cb, maat_finish_cb,
-                                    maat_instance);
+                                    maat_instance, maat_instance->logger);
             if (NULL == maat_instance->creating_maat_rt) {
-                fprintf(stderr, "At initiation: NO effective rule in %s\n",
-                                maat_instance->json_ctx.iris_file);
+                log_error(maat_instance->logger, MODULE_MAAT_API, "At initiation: NO effective rule in %s",
+                          maat_instance->json_ctx.iris_file);
             }
             break;
         default:
@@ -197,7 +221,19 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     int garbage_gc_timeout_s = 0;
     struct maat *maat_instance = ALLOC(struct maat, 1);
     
-    maat_instance->table_schema_mgr = table_schema_manager_create(table_info_path);
+    if (opts->logger != NULL) {
+        maat_instance->logger = opts->logger;
+    } else {
+        char log_path[1024] = {0};
+        if (strlen(maat_instance->instance_name) > 0) {
+            snprintf(log_path, sizeof(log_path), "%s.log", maat_instance->instance_name);
+        } else {
+            snprintf(log_path, sizeof(log_path), "maat.log");
+        }
+        maat_instance->logger = log_handle_create(log_path, opts->log_level);
+    }
+    
+    maat_instance->table_schema_mgr = table_schema_manager_create(table_info_path, maat_instance->logger);
     if (NULL == maat_instance->table_schema_mgr) {
         goto failed;
     }
@@ -217,7 +253,7 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
             memcpy(maat_instance->json_ctx.json_file, opts->json_ctx.json_file, strlen(opts->json_ctx.json_file));
             break;
         default:
-            fprintf(stderr, "data source unsupported:%d\n", maat_instance->input_mode);
+            log_error(maat_instance->logger, MODULE_MAAT_API, "data source unsupported:%d", maat_instance->input_mode);
             goto failed;
     }
 
@@ -330,14 +366,14 @@ int maat_plugin_table_ex_schema_register(struct maat *maat_instance, int table_i
     struct table_runtime *table_rt = NULL;
     if (maat_instance->maat_rt != NULL) {
         table_rt = table_runtime_get(maat_instance->maat_rt->table_rt_mgr, table_id);
-        table_runtime_commit_ex_data_schema(table_rt, table_schema);
+        table_runtime_commit_ex_data_schema(table_rt, table_schema, maat_instance->logger);
     }
     pthread_mutex_unlock(&(maat_instance->background_update_mutex));
 
     return 0;
 }
 
-void *maat_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
+void *maat_plugin_table_dup_ex_data(struct maat *maat_instance, int table_id,
                                     const char *key, size_t key_len)
 {
     struct maat_runtime *maat_rt = maat_instance->maat_rt;
@@ -346,9 +382,21 @@ void *maat_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
     }
 
     struct table_schema *table_schema  = table_schema_get(maat_instance->table_schema_mgr, table_id);
-    struct table_runtime *table_rt = table_runtime_get(maat_rt->table_rt_mgr, table_id);
+    if (NULL == table_schema) {
+        return NULL;
+    }
 
-    return table_runtime_get_ex_data(table_rt, table_schema, key, key_len);
+    struct table_runtime *table_rt = table_runtime_get(maat_rt->table_rt_mgr, table_id);
+    if (NULL == table_rt) {
+        return NULL;
+    }
+
+    struct ex_data_runtime *ex_data_rt = table_runtime_get_ex_data_rt(table_rt);
+    if (NULL == ex_data_rt) {
+        return NULL;
+    }
+
+    return ex_data_runtime_dup_ex_data(ex_data_rt, key, key_len);
 }
 
 int maat_scan_integer(struct maat *instance, int table_id, int thread_id,
@@ -358,27 +406,141 @@ int maat_scan_integer(struct maat *instance, int table_id, int thread_id,
     return 0;
 }
 
-int maat_scan_ip(struct maat *instance, int table_id, int thread_id, 
-                 const struct ip_data *ip, int results[], size_t n_result, 
-                 struct maat_state *state)
+static int ip_scan_data_set(struct table_rt_2tuple *table_rt_addr, struct addr_4tuple *addr, enum table_composition_type child_type)
 {
+    switch (addr->type) {
+        case IP_TYPE_V4:
+            switch (child_type) {
+                case COMPOSITION_TYPE_SIP:
+                    table_rt_addr->ipv4 = ntohl(addr->ipv4.sip);
+                    table_rt_addr->port = ntohs(addr->ipv4.sport);
+                    break;
+                case COMPOSITION_TYPE_DIP:
+                    table_rt_addr->ipv4 = ntohl(addr->ipv4.dip);
+                    table_rt_addr->port = ntohs(addr->ipv4.dport);
+                    break;
+                default:
+                    assert(0);
+                    return -1;
+            }
+            break;
+        case IP_TYPE_V6:
+            switch (child_type) {
+                case COMPOSITION_TYPE_SIP:
+                    memcpy(table_rt_addr->ipv6, addr->ipv6.sip, sizeof(addr->ipv6.sip));
+                    ipv6_ntoh(table_rt_addr->ipv6);
+                    table_rt_addr->port = ntohs(addr->ipv6.sport);
+                    break;
+                case COMPOSITION_TYPE_DIP:
+                    memcpy(table_rt_addr->ipv6, addr->ipv6.dip, sizeof(addr->ipv6.dip));
+                    ipv6_ntoh(table_rt_addr->ipv6);
+                    table_rt_addr->port = ntohs(addr->ipv6.dport);
+                    break;
+                default:
+                    assert(0);
+                    return -1;
+            }
+            break;
+        default:
+            assert(0);
+            return -1;
+    }
+
     return 0;
 }
 
+static int ip_composition_scan(int thread_id, struct addr_4tuple *addr,
+                               int parent_table_id, enum table_composition_type child_type,
+                               int *virtual_table_id,
+                               struct table_schema_manager *table_schema_mgr,
+                               struct table_runtime_manager *table_rt_mgr, int results[], size_t *n_result)
+{
+    int child_table_id = 0;
+
+    if (child_type == COMPOSITION_TYPE_MAX) {
+        child_table_id = parent_table_id;
+        child_type = COMPOSITION_TYPE_SIP;
+    } else {
+        child_table_id = table_schema_manager_get_child_table_id(table_schema_mgr, parent_table_id, child_type);
+    }
+
+    if (child_table_id < 0) {
+        return 0;
+    }
+
+    struct table_schema *real_table = table_schema_get_by_scan_type(table_schema_mgr, child_table_id, SCAN_TYPE_IP, virtual_table_id);
+    if (NULL == real_table) {
+        return 0;
+    }
+
+    enum table_type table_type = table_schema_get_table_type(real_table);
+    if (table_type != TABLE_TYPE_IP_PLUS) {
+        return -1;
+    }
+
+    int table_id = table_schema_get_table_id(real_table);
+    struct table_runtime *table_rt = table_runtime_get(table_rt_mgr, table_id);
+    size_t rule_num = table_runtime_rule_count(table_rt);
+    if (0 == rule_num) {
+        return 0;
+    }
+
+    struct table_rt_2tuple scan_data;
+    memset(&scan_data, 0, sizeof(struct table_rt_2tuple));
+
+    ip_scan_data_set(&scan_data, addr, child_type);
+
+    return table_runtime_scan_ip(table_rt, thread_id, &scan_data, results, n_result);
+}
+
+int maat_scan_ip(struct maat *maat_instance, int table_id, int thread_id, struct addr_4tuple *addr, 
+                 int results[], size_t *n_result, struct maat_state *state)
+{
+    if ((NULL == maat_instance) || (table_id < 0) || (table_id >= MAX_TABLE_NUM) ||
+        (thread_id < 0) || (NULL == addr) || (NULL == results) || (NULL == n_result)) {
+        return -1;
+    }
+
+    struct table_runtime_manager *table_rt_mgr = maat_instance->maat_rt->table_rt_mgr;
+    struct table_runtime *table_rt = table_runtime_get(table_rt_mgr, table_id);
+    enum table_type table_type = table_runtime_get_type(table_rt);
+
+    int region_ret = 0;
+    int virtual_table_id = 0;
+    
+    if (table_type == TABLE_TYPE_COMPOSITION) {
+        /*
+        enum table_composition_type childs[3] = {COMPOSITION_TYPE_SIP, COMPOSITION_TYPE_DIP, COMPOSITION_TYPE_SESSION};
+        for (int i = 0; i < 3; i++) {
+            region_ret = ip_composition_scan(table_rt, thread_id, ip, table_id, childs[i], maat_instance->table_schema_mgr,
+                                             maat_instance->maat_rt->table_rt_mgr, results, n_result);
+        }*/
+        region_ret = ip_composition_scan(thread_id, addr, table_id, COMPOSITION_TYPE_SIP, &virtual_table_id,
+                                         maat_instance->table_schema_mgr, maat_instance->maat_rt->table_rt_mgr, 
+                                         results, n_result);
+    } else {
+        region_ret = ip_composition_scan(thread_id, addr, table_id, COMPOSITION_TYPE_MAX, &virtual_table_id,
+                                         maat_instance->table_schema_mgr, maat_instance->maat_rt->table_rt_mgr, 
+                                         results, n_result);
+    }
+
+    return region_ret;
+}
+
 int maat_scan_string(struct maat *maat_instance, int table_id, int thread_id,
-                     const char *data, size_t data_len, int results[], size_t *n_results,
+                     const char *data, size_t data_len, int results[], size_t *n_result,
                      struct maat_state *state)
 {
     if ((NULL == maat_instance) || (table_id < 0) || (table_id >= MAX_TABLE_NUM) ||
         (thread_id < 0) || (NULL == data) || (0 == data_len) || (NULL == results) || 
-        (NULL == n_results)) {
+        (NULL == n_result)) {
         return -1;
     }
     
     struct table_runtime_manager *table_rt_mgr = maat_instance->maat_rt->table_rt_mgr;
     struct table_runtime *table_rt = table_runtime_get(table_rt_mgr, table_id);
     
-    return table_runtime_scan_string(table_rt, thread_id, data, data_len, results, n_results);
+    return table_runtime_scan_string(table_rt, thread_id, data, data_len, results, n_result);
 }
 
 struct maat_stream *maat_scan_stream_open(struct maat *instance, int table_id, int thread_id)

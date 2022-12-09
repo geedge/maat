@@ -10,13 +10,28 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include <sys/stat.h>
+#include <sys/syscall.h> 
 #include <zlib.h>
 #include <openssl/md5.h>
 #include <openssl/evp.h>
 
 #include "utils.h"
 #include "maat_utils.h"
+
+pid_t gettid() 
+{
+	return syscall(SYS_gettid);
+}
+
+const char *module_name_str(const char *name)
+{
+	static __thread char module[64];
+	snprintf(module,sizeof(module),"%s(%d)", name, gettid());
+    
+	return module;
+}
 
 char *maat_strdup(const char *s)
 {
@@ -377,4 +392,130 @@ size_t memcat(void **dest, size_t offset, size_t *n_dest, const void *src, size_
 	memcpy((char *) * dest + offset, src, n_src);
     
 	return n_src;
+}
+
+enum maat_ip_format ip_format_str2int(const char *format)
+{
+	if (0 == strcasecmp(format, "range")) {
+		return IP_FORMAT_RANGE;
+	} else if(0 == strcasecmp(format, "mask")) {
+		return IP_FORMAT_MASK;
+	} else if(0 == strcasecmp(format, "CIDR")) {
+		return IP_FORMAT_CIDR;
+	} else {
+		assert(0);
+	}
+	return IP_FORMAT_UNKNOWN;
+}
+
+int ip_format2range(int ip_type, enum maat_ip_format format, const char *ip1, const char *ip2, 
+                    uint32_t range_begin[], uint32_t range_end[])
+{
+	int cidr = 0;
+	int ret = 0;
+
+	if (ip_type != 4 && ip_type != 6) {
+		assert(0);
+		return -1;
+	}
+
+	if (ip_type == 4) {
+        uint32_t ipv4_addr = 0;
+		ret = inet_pton(AF_INET, ip1, &ipv4_addr);
+		if (ret <= 0) {
+			return -1;
+		}
+
+		ipv4_addr = ntohl(ipv4_addr);
+        uint32_t ipv4_range_end = 0;
+        uint32_t ipv4_mask = 0;
+		switch (format) {
+			case IP_FORMAT_RANGE:
+				range_begin[0] = ipv4_addr;
+				ret = inet_pton(AF_INET, ip2, &ipv4_range_end);
+				if (ret <= 0) {
+					return -1;
+				}				
+				ipv4_range_end = ntohl(ipv4_range_end);
+				range_end[0] = ipv4_range_end;
+				break;
+			case IP_FORMAT_MASK:
+				ret = inet_pton(AF_INET, ip2, &ipv4_mask);
+				if (ret <= 0) {
+					return -1;
+				}
+				ipv4_mask = ntohl(ipv4_mask);
+				range_begin[0] = ipv4_addr & ipv4_mask;
+				range_end[0] = ipv4_addr | ~ipv4_mask;
+				break;
+			case IP_FORMAT_CIDR:
+				cidr = atoi(ip2);
+				if (cidr > 32 || cidr < 0) {
+					return -1;
+				}
+				ipv4_mask = (0xFFFFFFFFUL << (32 - cidr)) & 0xFFFFFFFFUL;
+				range_begin[0] = ipv4_addr & ipv4_mask;
+				range_end[0] = ipv4_addr | ~ipv4_mask;
+				break;
+			default:
+				assert(0);
+		}
+	} else {
+        //ipv6
+        int i = 0;
+        uint32_t ipv6_addr[4] = {0};
+        uint32_t ipv6_mask[4] = {0};
+        uint32_t ipv6_range_end[4] = {0};
+
+		ret = inet_pton(AF_INET6, ip1, ipv6_addr);
+		if (ret <= 0) {
+			return -1;
+		}
+		ipv6_ntoh(ipv6_addr);
+
+		switch (format) {
+			case IP_FORMAT_RANGE:
+				ret = inet_pton(AF_INET6, ip2, ipv6_range_end);
+				if (ret <= 0) {
+					return -1;
+				}
+				ipv6_ntoh(ipv6_range_end);
+
+				memcpy(range_begin, ipv6_addr, sizeof(ipv6_addr));				
+				memcpy(range_end, ipv6_range_end, sizeof(ipv6_range_end));
+				break;
+			case IP_FORMAT_MASK:
+				ret = inet_pton(AF_INET6, ip2, ipv6_mask);
+				if (ret <= 0) {
+					return -1;
+				}
+				ipv6_ntoh(ipv6_mask);
+                
+				for (i = 0; i < 4; i++) {
+					range_begin[i]=ipv6_addr[i] & ipv6_mask[i];	
+					range_end[i] = ipv6_addr[i] | ~ipv6_mask[i];
+				}
+				break;
+			case IP_FORMAT_CIDR:
+				cidr = atoi(ip2);
+				if (cidr > 128 || cidr < 0) {
+					return -1;
+				}
+
+				for (i = 0; i < 4; i++) {
+					int bit32 = 128 - cidr - 32 * (3 - i);
+					if (bit32 < 0) {
+                        bit32 = 0;
+                    }
+                    
+					ipv6_mask[i] = (0xFFFFFFFFUL << bit32) & 0xFFFFFFFFUL;
+					range_begin[i] = ipv6_addr[i] & ipv6_mask[i];	
+					range_end[i] = ipv6_addr[i] | ~ipv6_mask[i];
+				}
+				break;
+			default:
+				assert(0);
+		}
+	}
+	return 0;
 }

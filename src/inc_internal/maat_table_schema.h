@@ -27,6 +27,13 @@ extern "C"
 #define MAX_KEYWORDS_STR 1024
 #define	MAX_FOREIGN_CLMN_NUM 8
 
+enum table_composition_type {
+    COMPOSITION_TYPE_SIP = 0,
+    COMPOSITION_TYPE_DIP,
+    COMPOSITION_TYPE_SESSION,
+    COMPOSITION_TYPE_MAX
+};
+
 enum table_type {
 	TABLE_TYPE_EXPR = 0,
     TABLE_TYPE_EXPR_PLUS,
@@ -90,6 +97,35 @@ struct expr_item {
     int is_valid;
 };
 
+struct ipv4_item_rule {
+    uint32_t min_sip;   /* 源地址下界；0表示忽略本字段 */
+    uint32_t max_sip;   /* 源地址上界；0表示固定IP=min_saddr */
+    uint16_t min_sport; /* 源端口范围下界；0表示忽略本字段 */
+    uint16_t max_sport; /* 源端口范围上界；0表示固定端口=min_sport */
+    uint16_t proto;     /* 传输层协议，6表示TCP，17表示UDP；0表示忽略本字段 */
+    uint16_t direction; /* 方向，0表示双向，1表示单向 */
+};
+
+struct ipv6_item_rule {
+    uint32_t min_sip[4]; /* 源地址下界；全0表示忽略本字段 */
+    uint32_t max_sip[4]; /* 源地址上界；全0表示固定IP=min_saddr */
+    uint16_t min_sport;  /* 源端口范围下界；0表示忽略本字段 */
+    uint16_t max_sport;  /* 源端口范围上界；0表示固定端口=min_sport */
+    uint16_t proto;      /* 传输层协议，6表示TCP，17表示UDP，无限制默认为0 */
+    uint16_t direction;  /* 方向，0表示双向，1表示单向 */
+};
+
+struct ip_plus_item {
+    int item_id;
+    int group_id;
+    int addr_type;
+    union {
+        struct ipv4_item_rule ipv4;
+        struct ipv6_item_rule ipv6;
+    };
+    int is_valid;
+};
+
 struct plugin_item {
     char key[MAX_KEYWORDS_STR];
     size_t key_len;
@@ -111,6 +147,7 @@ struct table_item {
     enum table_type table_type;
     union {
         struct expr_item expr_item;
+        struct ip_plus_item ip_plus_item;
         struct plugin_item plugin_item;
         struct ip_plugin_item ip_plugin_item;
     };
@@ -139,10 +176,17 @@ struct table_schema;
 struct table_schema_manager;
 
 /* table schema manager API */
-struct table_schema_manager *table_schema_manager_create(const char *table_info_path);
+struct table_schema_manager *table_schema_manager_create(const char *table_info_path, struct log_handle *logger);
 void table_schema_manager_destroy(struct table_schema_manager *table_schema_mgr);
 
 int table_schema_manager_get_table_id(struct table_schema_manager* table_schema_mgr, const char *table_name);
+
+/**
+ * @brief get composition table's child table(specified by type) id 
+*/
+int table_schema_manager_get_child_table_id(struct table_schema_manager *table_schema_mgr, int parent_table_id, 
+                                            enum table_composition_type type);
+
 enum table_type table_schema_manager_get_table_type(struct table_schema_manager *table_schema_mgr, int table_id);
 
 size_t table_schema_manager_get_size(struct table_schema_manager* table_schema_mgr);
@@ -162,7 +206,8 @@ int table_schema_get_table_id(struct table_schema *table_schema);
 
 enum scan_type table_schema_get_scan_type(struct table_schema *table_schema);
 
-struct table_item *table_schema_line_to_item(const char *line, struct table_schema *table_schema);
+struct table_item *table_schema_line_to_item(const char *line, struct table_schema *table_schema,
+                                             struct log_handle *logger);
 
 int table_schema_get_valid_flag_column(struct table_schema *table_schema);
 

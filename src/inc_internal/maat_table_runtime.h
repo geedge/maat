@@ -16,16 +16,27 @@ extern "C"
 {
 #endif
 
+#include "maat/maat.h"
 #include "maat_table_schema.h"
 #include "maat_garbage_collection.h"
+
+struct table_rt_2tuple {
+    enum ip_type ip_type;
+    uint16_t port;
+	union {
+		uint32_t ipv4;
+		uint32_t ipv6[4];
+	};
+};
 
 struct table_item;
 struct table_runtime;
 struct table_runtime_manager;
 
 /* table runtime manager API */
-struct table_runtime_manager *table_runtime_manager_create(struct table_schema_manager *table_schema_mgr, int max_thread_num, 
-                                                           struct maat_garbage_bin *bin);
+struct table_runtime_manager *
+table_runtime_manager_create(struct table_schema_manager *table_schema_mgr, int max_thread_num, 
+                             struct maat_garbage_bin *bin);
 
 void table_runtime_manager_destroy(struct table_runtime_manager *table_rt_mgr);
 
@@ -36,7 +47,8 @@ size_t table_runtime_rule_count(struct table_runtime *table_rt);
 
 enum table_type table_runtime_get_type(struct table_runtime* table_rt);
 
-void table_runtime_update(struct table_runtime *table_rt, struct table_schema *table_schema, const char *line, struct table_item *table_item);
+void table_runtime_update(struct table_runtime *table_rt, struct table_schema *table_schema, 
+                          const char *line, struct table_item *table_item, struct log_handle *logger);
 
 /**
  * @brief if table_runtime is updating
@@ -52,9 +64,10 @@ int table_runtime_scan_string(struct table_runtime *table_rt, int thread_id, con
                               int results[], size_t *n_result);
 
 void table_runtime_stream_open(struct table_runtime *table_rt, int thread_id);
-int table_runtime_scan_stream(struct table_runtime *table_rt, const char *data, size_t data_len,
-                              int result[], size_t n_result);
+int table_runtime_scan_stream(struct table_runtime *table_rt, const char *data, size_t data_len, int results[], size_t *n_result);
 void table_runtime_stream_close(struct table_runtime *table_rt);
+
+int table_runtime_scan_ip(struct table_runtime *table_rt, int thread_id, struct table_rt_2tuple *data, int results[], size_t *n_result);
 
 /* table runtime cached row API */
 size_t table_runtime_cached_row_count(struct table_runtime *table_rt);
@@ -62,9 +75,10 @@ size_t table_runtime_cached_row_count(struct table_runtime *table_rt);
 const char* table_runtime_get_cached_row(struct table_runtime *table_rt, size_t row_seq);
 
 /* table runtime ex data API */
-void *table_runtime_get_ex_data(struct table_runtime *table_rt, struct table_schema *table_schema, const char *key, size_t key_len);
+struct ex_data_runtime *table_runtime_get_ex_data_rt(struct table_runtime *table_rt);
 
-void table_runtime_commit_ex_data_schema(struct table_runtime *table_rt, struct table_schema *table_schema);
+void table_runtime_commit_ex_data_schema(struct table_runtime *table_rt, struct table_schema *table_schema,
+                                         struct log_handle *logger);
 
 #ifdef __cpluscplus
 }

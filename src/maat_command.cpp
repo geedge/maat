@@ -21,6 +21,8 @@
 #include "maat_config_monitor.h"
 #include "maat_table_schema.h"
 
+#define MODULE_MAAT_COMMAND	 module_name_str("maat.command")
+
 extern const char *foreign_source_prefix;
 extern const char *mr_key_prefix;
 
@@ -51,7 +53,7 @@ redisReply *maat_cmd_wrap_redis_command(redisContext *c, const char *format, ...
 	return (redisReply *)reply;
 }
 
-redisContext *maat_cmd_connect_redis(const char *redis_ip, int redis_port, int redis_db)
+redisContext *maat_cmd_connect_redis(const char *redis_ip, int redis_port, int redis_db, struct log_handle *logger)
 {
 	struct timeval connect_timeout;
 	connect_timeout.tv_sec = 0;
@@ -59,8 +61,8 @@ redisContext *maat_cmd_connect_redis(const char *redis_ip, int redis_port, int r
 
 	redisContext *c = redisConnectWithTimeout(redis_ip, redis_port, connect_timeout);
 	if (NULL == c || c->err) {
-		fprintf(stderr, "Unable to connect redis server %s:%d db%d, error: %s\n",
-						redis_ip, redis_port, redis_db, c == NULL ? "Unknown" : c->errstr);
+		log_error(logger, MODULE_MAAT_COMMAND, "Unable to connect redis server %s:%d db%d, error: %s",
+				  redis_ip, redis_port, redis_db, c == NULL ? "Unknown" : c->errstr);
 		
 		if (c != NULL) {
             redisFree(c);
@@ -109,10 +111,10 @@ void maat_cmd_clear_rule_cache(struct serial_rule *s_rule)
 	memset(s_rule, 0, sizeof(struct serial_rule));
 }
 
-int connect_redis_for_write(struct source_redis_ctx *mr_ctx)
+int connect_redis_for_write(struct source_redis_ctx *mr_ctx, struct log_handle *logger)
 {
 	assert(mr_ctx->write_ctx == NULL);
-	mr_ctx->write_ctx = maat_cmd_connect_redis(mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db);
+	mr_ctx->write_ctx = maat_cmd_connect_redis(mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db, logger);
 	if (NULL == mr_ctx->write_ctx) {
 		return -1;
 	} else {
@@ -123,7 +125,7 @@ int connect_redis_for_write(struct source_redis_ctx *mr_ctx)
 redisContext *get_redis_ctx_for_write(struct maat *maat_instance)
 {
 	if (NULL == maat_instance->mr_ctx.write_ctx) {
-		int ret = connect_redis_for_write(&(maat_instance->mr_ctx));
+		int ret = connect_redis_for_write(&(maat_instance->mr_ctx), maat_instance->logger);
 		if(ret!=0)
 		{
 			return NULL;
@@ -302,7 +304,8 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
 
     int table_id = table_schema_manager_get_table_id(maat_instance->table_schema_mgr, line_rule->table_name);
     if (table_id < 0) {
-        fprintf(stderr, "Command set line id %d failed: unknown table %s\n", line_rule->rule_id, line_rule->table_name);
+        log_error(maat_instance->logger, MODULE_MAAT_COMMAND, "Command set line id %d failed: unknown table %s", 
+                  line_rule->rule_id, line_rule->table_name);
         FREE(s_rule);
         return -1;
     }
@@ -315,8 +318,9 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
 
     int valid_flag_column = table_schema_get_valid_flag_column(table_schema);
     if (valid_flag_column < 0) {
-        fprintf(stderr, "Command set line id %d failed: table %s is not a plugin or ip_plugin table\n",
-                        line_rule->rule_id, line_rule->table_name);
+        log_error(maat_instance->logger, MODULE_MAAT_COMMAND, 
+                  "Command set line id %d failed: table %s is not a plugin or ip_plugin table",
+                  line_rule->rule_id, line_rule->table_name);
         FREE(s_rule);
         return -1;
     }
@@ -331,7 +335,7 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
     maat_cmd_set_serial_rule(s_rule + i, (enum maat_operation)is_valid, line_rule->rule_id, line_rule->table_name,
                              line_rule->table_line, absolute_expire_time);
 
-    int success_cnt = maat_cmd_write_rule(write_ctx, s_rule, 1, server_time);
+    int success_cnt = maat_cmd_write_rule(write_ctx, s_rule, 1, server_time, maat_instance->logger);
 	if (success_cnt != 1) {
 		ret = -1;
 		goto error_out;

@@ -6,6 +6,7 @@
 #include "maat_table_schema.h"
 #include "maat_table_runtime.h"
 #include "maat_command.h"
+#include "IPMatcher.h"
 
 struct maat *g_maat_instance = NULL;
 const char *table_info_path = "./table_info.conf";
@@ -204,6 +205,24 @@ TEST(maat_scan_string, hit_three_expr) {
     EXPECT_EQ(result_array[0], 28);
     EXPECT_EQ(result_array[1], 27);
     EXPECT_EQ(result_array[2], 18);
+}
+
+TEST(maat_scan_ip, hit_ip) {
+    struct table_schema_manager *table_schema_mgr = g_maat_instance->table_schema_mgr;
+    int table_id = table_schema_manager_get_table_id(table_schema_mgr, "IP_PLUS_CONFIG");
+    char ip_str[32] = "192.168.50.24";
+    struct addr_4tuple addr;
+    addr.type = IP_TYPE_V4;
+    int ret = inet_pton(AF_INET, ip_str, &addr.ipv4.sip);
+    EXPECT_EQ(ret, 1);
+    addr.ipv4.sport = htons(1);
+
+    int results[3] = {-1};
+    size_t n_result = 0;
+    ret = maat_scan_ip(g_maat_instance, table_id, 0, &addr, results, &n_result, nullptr);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(results[0], 4);
 }
 
 int main(int argc, char ** argv)

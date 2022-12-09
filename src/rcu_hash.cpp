@@ -142,6 +142,11 @@ void rcu_hash_set_user_ctx(struct rcu_hash_table *htable, void *user_ctx)
     htable->user_ctx = user_ctx;
 }
 
+void *rcu_hash_get_user_ctx(struct rcu_hash_table *htable)
+{
+    return htable->user_ctx;
+}
+
 void rcu_hash_commit_prepare(struct rcu_hash_table *htable)
 {
     struct rcu_hash_node *node = NULL;

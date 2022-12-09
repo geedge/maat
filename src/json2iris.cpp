@@ -24,6 +24,8 @@
 #include "maat_rule.h"
 #include "uthash/uthash.h"
 
+#define MODULE_JSON2IRIS	 module_name_str("maat.json2iris")
+
 #define	MAX_COLUMN_NUM	32
 
 #define mr_region_id_var "SEQUENCE_REGION"
@@ -219,22 +221,24 @@ int create_tmp_dir(struct iris_description *p)
 	return 0;
 }
 
-int write_plugin_line(cJSON *plug_table_json, int sequence, struct iris_description *p_iris)
+int write_plugin_line(cJSON *plug_table_json, int sequence, struct iris_description *p_iris, 
+                      struct log_handle *logger)
 {
 	cJSON *item = cJSON_GetObjectItem(plug_table_json, "table_name");
 	if (NULL == item || item->type != cJSON_String) {
-		fprintf(stderr, "The %d plugin_table's table_name not defined or format error\n", sequence);
+		log_error(logger, MODULE_JSON2IRIS, 
+                  "The %d plugin_table's table_name not defined or format error", sequence);
 		return -1;
 	}
 	const char *table_name = item->valuestring;
 
 	cJSON *table_content = cJSON_GetObjectItem(plug_table_json, "table_content");
 	if (NULL == table_content || table_content->type != cJSON_Array) {
-		fprintf(stderr, "%d plugin_table's table_content not defined or format error\n", sequence);
+		log_error(logger, MODULE_JSON2IRIS, 
+                  "%d plugin_table's table_content not defined or format error", sequence);
 		return -1;
 	}
 	int line_cnt = cJSON_GetArraySize(table_content);
-
     struct iris_table *table_info = query_table_info(p_iris, table_name, TABLE_TYPE_PLUGIN);
 
     cJSON *each_line = NULL;
@@ -242,7 +246,8 @@ int write_plugin_line(cJSON *plug_table_json, int sequence, struct iris_descript
 	for (int i = 0; i < line_cnt; i++) {
 		each_line = cJSON_GetArrayItem(table_content, i);
 		if (NULL == each_line || each_line->type != cJSON_String) {
-			fprintf(stderr, "plugin_table %s's line %d format error\n", table_info->table_name, i+1);
+			log_error(logger, MODULE_JSON2IRIS, "plugin_table %s's line %d format error", 
+                                                 table_info->table_name, i + 1);
 			continue;
 		}
         
@@ -314,7 +319,8 @@ static int get_region_seq(struct iris_description *iris_cfg)
 	return sequence;
 }
 
-int direct_write_rule(cJSON *json, struct maat_kv_store *str2int, struct translate_command *cmd, int cmd_cnt, struct iris_table *table)
+int direct_write_rule(cJSON *json, struct maat_kv_store *str2int, struct translate_command *cmd, int cmd_cnt, 
+                      struct iris_table *table, struct log_handle *logger)
 {
 	int i = 0;
     int ret = -1;
@@ -331,7 +337,7 @@ int direct_write_rule(cJSON *json, struct maat_kv_store *str2int, struct transla
 		}
 
 		if (NULL == item || item->type != cmd[i].json_type) {
-			fprintf(stderr, "%s not defined or wrong format\n", cmd[i].json_string);
+			log_error(logger, MODULE_JSON2IRIS, "%s not defined or wrong format", cmd[i].json_string);
 			ret = -1;
 			goto error_out;
 		}
@@ -341,7 +347,7 @@ int direct_write_rule(cJSON *json, struct maat_kv_store *str2int, struct transla
 			char *p = item->valuestring;
 			ret = maat_kv_read(str2int, p, &int_value);			
 			if (ret < 0) {
-				fprintf(stderr, "%s's value %s is not valid format\n", cmd[i].json_string, p);
+				log_error(logger, MODULE_JSON2IRIS, "%s's value %s is not valid format", cmd[i].json_string, p);
 				FREE(p);
 				ret = -1;
 				goto error_out;
@@ -380,7 +386,8 @@ error_out:
 	return ret;
 }
 
-int write_expr_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table)
+int write_expr_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table, 
+                    struct log_handle *logger)
 {
 	struct translate_command json_cmd[MAX_COLUMN_NUM];
 	int cmd_cnt = 0;
@@ -423,10 +430,11 @@ int write_expr_line(cJSON *region_json, struct iris_description *p_iris, struct 
 	json_cmd[cmd_cnt].json_type = cJSON_Number;
 	cmd_cnt++;
 	
-	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table);
+	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table, logger);
 }
 
-int write_ip_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table)
+int write_ip_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table,
+                  struct log_handle *logger)
 {
 	struct translate_command json_cmd[MAX_COLUMN_NUM];
 	int cmd_cnt = 0;
@@ -510,10 +518,11 @@ int write_ip_line(cJSON *region_json, struct iris_description *p_iris, struct ir
 	json_cmd[cmd_cnt].json_type = cJSON_Number;
 	cmd_cnt++;
 	
-	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table);
+	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table, logger);
 }
 
-int write_ip_plus_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table)
+int write_ip_plus_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table,
+                       struct log_handle *logger)
 {
 	struct translate_command json_cmd[MAX_COLUMN_NUM];
 	int cmd_cnt = 0;
@@ -621,10 +630,11 @@ int write_ip_plus_line(cJSON *region_json, struct iris_description *p_iris, stru
 	json_cmd[cmd_cnt].json_type = cJSON_Number;
 	cmd_cnt++;
 
-	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table);
+	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table, logger);
 }
 
-int write_intval_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table)
+int write_intval_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table,
+                      struct log_handle *logger)
 {
 	struct translate_command json_cmd[MAX_COLUMN_NUM];
 	int cmd_cnt = 0;
@@ -656,10 +666,11 @@ int write_intval_line(cJSON *region_json, struct iris_description *p_iris, struc
 	json_cmd[cmd_cnt].json_type = cJSON_Number;
 	cmd_cnt++;
 	
-	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table);
+	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table, logger);
 }
 
-int write_digest_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table)
+int write_digest_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table,
+                      struct log_handle *logger)
 {
 	struct translate_command json_cmd[MAX_COLUMN_NUM];
 	int cmd_cnt = 0;
@@ -689,10 +700,11 @@ int write_digest_line(cJSON *region_json, struct iris_description *p_iris, struc
 	json_cmd[cmd_cnt].json_type = cJSON_Number;
 	cmd_cnt++;
 	
-	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table);
+	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table, logger);
 }
 
-int write_similar_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table)
+int write_similar_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table,
+                       struct log_handle *logger)
 {
 	struct translate_command json_cmd[MAX_COLUMN_NUM];
 	int cmd_cnt = 0;
@@ -718,22 +730,24 @@ int write_similar_line(cJSON *region_json, struct iris_description *p_iris, stru
 	json_cmd[cmd_cnt].json_type = cJSON_Number;
 	cmd_cnt++;
 	
-	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table);
+	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table, logger);
 }
 
-int write_region_rule(cJSON *region_json, int compile_id, int group_id, struct iris_description *p_iris)
+int write_region_rule(cJSON *region_json, int compile_id, int group_id, struct iris_description *p_iris,
+                      struct log_handle *logger)
 {
     cJSON *item = cJSON_GetObjectItem(region_json, "table_name");
 	if (NULL == item || item->type != cJSON_String) {
-		fprintf(stderr, "compile rule %d's table_name not defined or format error\n", compile_id);
+		log_error(logger, MODULE_JSON2IRIS, "compile rule %d's table_name not defined or format error", 
+                                            compile_id);
 		return -1;
 	}
     const char *table_name = item->valuestring;
 
 	item = cJSON_GetObjectItem(region_json, "table_type");
 	if (NULL == item || item->type != cJSON_String) {
-		fprintf(stderr, "compile rule %d's table name %s's table_type not defined or format error\n", 
-                        compile_id, table_name);
+		log_error(logger, MODULE_JSON2IRIS, 
+                  "compile rule %d's table name %s's table_type not defined or format error", compile_id, table_name);
 		return -1;
 	}
 
@@ -741,15 +755,15 @@ int write_region_rule(cJSON *region_json, int compile_id, int group_id, struct i
     enum table_type table_type = TABLE_TYPE_EXPR;
 	int ret = maat_kv_read(p_iris->str2int_map, table_type_str, (int*)&(table_type));
 	if (ret != 1) {
-		fprintf(stderr, "compile rule %d table name %s's table_type %s invalid\n",
-                        compile_id, table_name, table_type_str);
+		log_error(logger, MODULE_JSON2IRIS, "compile rule %d table name %s's table_type %s invalid",
+                                            compile_id, table_name, table_type_str);
 		return -1;
 	}
 	
 	cJSON *table_content = cJSON_GetObjectItem(region_json, "table_content");
 	if (NULL == table_content || table_content->type != cJSON_Object) {
-		fprintf(stderr, "compile rule %d table name %s's table_content not defined or format error\n",
-                        compile_id, table_name);
+		log_error(logger, MODULE_JSON2IRIS, 
+                  "compile rule %d table name %s's table_content not defined or format error", compile_id, table_name);
 		return -1;
 	}
 
@@ -763,23 +777,23 @@ int write_region_rule(cJSON *region_json, int compile_id, int group_id, struct i
 	{
 		case TABLE_TYPE_EXPR:
 		case TABLE_TYPE_EXPR_PLUS:
-			ret = write_expr_line(table_content, p_iris, table_info);
+			ret = write_expr_line(table_content, p_iris, table_info, logger);
 			break;
 		case TABLE_TYPE_IP:
-			ret = write_ip_line(table_content, p_iris, table_info);
+			ret = write_ip_line(table_content, p_iris, table_info, logger);
 			break;
 		case TABLE_TYPE_IP_PLUS:
-			ret = write_ip_plus_line(table_content, p_iris, table_info);
+			ret = write_ip_plus_line(table_content, p_iris, table_info, logger);
 			break;
 		case TABLE_TYPE_INTERVAL:
 		case TABLE_TYPE_INTERVAL_PLUS:
-			ret = write_intval_line(table_content, p_iris, table_info);
+			ret = write_intval_line(table_content, p_iris, table_info, logger);
 			break;
         case TABLE_TYPE_DIGEST:
-			ret = write_digest_line(table_content, p_iris, table_info);
+			ret = write_digest_line(table_content, p_iris, table_info, logger);
 			break;
 		case TABLE_TYPE_SIMILARITY:
-			ret = write_similar_line(table_content, p_iris, table_info);
+			ret = write_similar_line(table_content, p_iris, table_info, logger);
 			break;
 		default:
 			assert(0);
@@ -814,7 +828,7 @@ int write_group2group_line(int group_id, int superior_group_id, struct iris_desc
 }
 
 int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int tracking_compile_id, 
-                     int Nth_group, struct iris_description *p_iris)
+                     int Nth_group, struct iris_description *p_iris, struct log_handle *logger)
 {
     int ret = 0;
     int group_not_flag = 0;
@@ -863,21 +877,22 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 		if (region_json != NULL) {
             cJSON *region_rule = NULL;
 			cJSON_ArrayForEach(region_rule, region_json) {
-				ret = write_region_rule(region_rule, tracking_compile_id, group_info->group_id, p_iris);
+				ret = write_region_rule(region_rule, tracking_compile_id, group_info->group_id, p_iris, logger);
 				if (ret < 0) {
-					fprintf(stderr, "compile rule %d write region error\n", tracking_compile_id);
+					log_error(logger, MODULE_JSON2IRIS, "compile rule %d write region error", 
+                                                        tracking_compile_id);
 					return -1;
 				}
 			}
 		}
 		
-        cJSON *sub_groups = cJSON_GetObjectItem(group_json,"sub_groups");
+        cJSON *sub_groups = cJSON_GetObjectItem(group_json, "sub_groups");
 		if (sub_groups != NULL) {
 			//recursively
 			int i = 0;
 			cJSON_ArrayForEach(item, sub_groups) {
 				i++;
-				ret = write_group_rule(item, group_info->group_id, PARENT_TYPE_GROUP, tracking_compile_id, i, p_iris);
+				ret = write_group_rule(item, group_info->group_id, PARENT_TYPE_GROUP, tracking_compile_id, i, p_iris, logger);
 				if (ret < 0) {
 					return -1;
 				}
@@ -885,8 +900,9 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 		}
 
 		if (NULL == region_json && NULL == sub_groups) {
-			fprintf(stdout, "A group of compile rule %d has neither regions, sub groups, nor refered another exisited group\n", 
-                            tracking_compile_id);
+			log_info(logger, MODULE_JSON2IRIS, 
+                     "A group of compile rule %d has neither regions, sub groups, nor refered another exisited group", 
+                     tracking_compile_id);
 		}
 	}
 
@@ -897,18 +913,18 @@ int write_group_rule(cJSON *group_json, int parent_id, int parent_type, int trac
 	}
 
 	if (ret < 0) {
-		fprintf(stderr, "%s rule %d write group error\n", str_parent_type[parent_type], parent_id);
+		log_error(logger, MODULE_JSON2IRIS, "%s rule %d write group error", str_parent_type[parent_type], parent_id);
 		return -1;
 	}
 
 	return 0;
 }
 
-int write_compile_line(cJSON *compile, struct iris_description *p_iris)
+int write_compile_line(cJSON *compile, struct iris_description *p_iris, struct log_handle *logger)
 {
 	cJSON *item=cJSON_GetObjectItem(compile, "compile_id");
 	if (item->type != cJSON_Number) {
-		fprintf(stderr, "compile_id format not number\n");
+		log_error(logger, MODULE_JSON2IRIS, "compile_id format not number");
 		return -1;
 	}
 	int compile_id = item->valueint;
@@ -1002,7 +1018,7 @@ int write_compile_line(cJSON *compile, struct iris_description *p_iris)
 		table_info = query_table_info(p_iris, item->valuestring, TABLE_TYPE_COMPILE);
 	}
 	
-	int ret = direct_write_rule(compile, p_iris->str2int_map, compile_cmd, cmd_cnt, table_info);
+	int ret = direct_write_rule(compile, p_iris->str2int_map, compile_cmd, cmd_cnt, table_info, logger);
 	if (ret < 0) {
 		return -1;
 	}
@@ -1041,11 +1057,12 @@ void write_table_idx(struct iris_description *p_iris, struct iris_table *table)
 	FREE(buff);
 }
 
-int write_index_file(struct iris_description *p_iris)
+int write_index_file(struct iris_description *p_iris, struct log_handle *logger)
 {
 	p_iris->idx_fp = fopen(p_iris->index_path, "w");
 	if (NULL == p_iris->idx_fp) {
-		fprintf(stderr, "index file %s fopen error %s\n",p_iris->index_path, strerror(errno));
+		log_error(logger, MODULE_JSON2IRIS, "index file %s fopen error %s",
+                                            p_iris->index_path, strerror(errno));
 		return -1;
 	}
 
@@ -1061,7 +1078,7 @@ int write_index_file(struct iris_description *p_iris)
 	return 0;
 }
 
-int write_iris(cJSON *json, struct iris_description *p_iris)
+int write_iris(cJSON *json, struct iris_description *p_iris, struct log_handle *logger)
 {
 	int i=0;
 	int ret=0;
@@ -1071,7 +1088,7 @@ int write_iris(cJSON *json, struct iris_description *p_iris)
 	if (plug_tables != NULL) {
         cJSON *each_plug_table = NULL;
 		cJSON_ArrayForEach(each_plug_table, plug_tables) {
-			write_plugin_line(each_plug_table, i, p_iris);
+			write_plugin_line(each_plug_table, i, p_iris, logger);
 			i++;
 		}
 	}
@@ -1093,7 +1110,7 @@ int write_iris(cJSON *json, struct iris_description *p_iris)
 				parent_group = group_info_add_unsafe(p_iris, parent_group_name);
 			}
 
-			ret = write_group_rule(group_obj, parent_group->group_id, PARENT_TYPE_GROUP, 0, 0, p_iris);
+			ret = write_group_rule(group_obj, parent_group->group_id, PARENT_TYPE_GROUP, 0, 0, p_iris, logger);
 			if (ret < 0) {
 				return -1;
 			}
@@ -1109,28 +1126,28 @@ int write_iris(cJSON *json, struct iris_description *p_iris)
 	if (compile_cnt > 0) {
         cJSON *compile_obj = NULL;
 		cJSON_ArrayForEach(compile_obj, compile_array) {
-			int compile_id = write_compile_line(compile_obj,p_iris);
+			int compile_id = write_compile_line(compile_obj, p_iris, logger);
 			if (compile_id < 0) {
-				fprintf(stderr, "In %d compile rule\n", i);
+				log_error(logger, MODULE_JSON2IRIS, "In %d compile rule", i);
 				return -1;
 			}
 
 			group_array = cJSON_GetObjectItem(compile_obj, "groups");
 			if (NULL == group_array) {
-				fprintf(stderr, "compile rule %d have no group\n",compile_id);
+				log_error(logger, MODULE_JSON2IRIS, "compile rule %d have no group", compile_id);
 				return -1;
 			}
 
 			int group_cnt = cJSON_GetArraySize(group_array);
 			if (group_cnt <= 0) {
-				fprintf(stderr, "compile rule %d have no groups\n", compile_id);
+				log_error(logger, MODULE_JSON2IRIS, "compile rule %d have no groups", compile_id);
 				return -1;
 			}
 
 			i = 0;
             cJSON *group_obj = NULL;
 			cJSON_ArrayForEach(group_obj, group_array) {
-				ret = write_group_rule(group_obj, compile_id, PARENT_TYPE_COMPILE, compile_id, i, p_iris);
+				ret = write_group_rule(group_obj, compile_id, PARENT_TYPE_COMPILE, compile_id, i, p_iris, logger);
 				if (ret < 0) {
 					return -1;
 				}
@@ -1139,7 +1156,7 @@ int write_iris(cJSON *json, struct iris_description *p_iris)
 		}
 	}
 
-	ret = write_index_file(p_iris);
+	ret = write_index_file(p_iris, logger);
 	if (ret < 0) {
 		return -1;
 	}
@@ -1148,7 +1165,8 @@ int write_iris(cJSON *json, struct iris_description *p_iris)
 
 int json2iris(const char *json_buff, const char *json_filename, const char *compile_tn, 
               const char *group2compile_tn, const char *group2group_tn, redisContext *redis_write_ctx, 
-              char *iris_dir_buf, int buf_len, char *encrypt_key, char *encrypt_algo)
+              char *iris_dir_buf, int buf_len, char *encrypt_key, char *encrypt_algo,
+              struct log_handle *logger)
 {
     int ret = -1;
     cJSON *tmp_obj = NULL;
@@ -1158,7 +1176,7 @@ int json2iris(const char *json_buff, const char *json_filename, const char *comp
 
 	cJSON *json = cJSON_Parse(json_buff);
 	if (!json) {
-		fprintf(stderr, "Error before: %-200.200s\n", cJSON_GetErrorPtr());
+		log_error(logger, MODULE_JSON2IRIS, "Error before: %-200.200s", cJSON_GetErrorPtr());
 		goto error_out;
 	}
 
@@ -1186,11 +1204,11 @@ int json2iris(const char *json_buff, const char *json_filename, const char *comp
 
 	ret = create_tmp_dir(&iris_cfg);
 	if (ret < 0) {
-		fprintf(stderr, "create tmp folder %s error\n", iris_cfg.tmp_iris_dir);
+		log_error(logger, MODULE_JSON2IRIS, "create tmp folder %s error", iris_cfg.tmp_iris_dir);
 		goto error_out;
 	}
 
-	ret = write_iris(json, &iris_cfg);
+	ret = write_iris(json, &iris_cfg, logger);
 	if (ret < 0) {
 		goto error_out;
 	}

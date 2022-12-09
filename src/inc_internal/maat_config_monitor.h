@@ -25,8 +25,8 @@ extern "C"
 void config_monitor_traverse(long long version, const char *idx_dir,
 							void (*start_fn)(long long, int, void *),
 							int (*update_fn)(const char *, const char *, void *),
-							void (*finish_fn)(void *),
-							void *u_param);
+							void (*finish_fn)(void *), void *u_param,
+                            struct log_handle *logger);
 
 int load_maat_json_file(struct maat *maat_instance, const char *json_filename, char *err_str, size_t err_str_sz);
 

@@ -18,14 +18,18 @@ extern "C"
 
 #include <stddef.h>
 
+#include "log/log.h"
 #include "maat_rule.h"
 
 struct maat_options {
+    char instance_name[NAME_MAX];
     size_t nr_worker_threads;
     int rule_effect_interval_ms;
     int rule_update_checking_interval_ms;
     int gc_timeout_ms;
     int deferred_load_on;
+    int log_level;
+    struct log_handle *logger;
     enum data_source input_mode;
     union {
         struct source_iris_ctx iris_ctx;

@@ -13,7 +13,7 @@ set(MAAT_SRC json2iris.cpp maat_api.cpp rcu_hash.cpp maat_garbage_collection.cpp
     maat_command.cpp maat_redis_monitor.cpp)
 
 set(LIB_SOURCE_FILES
-	${PROJECT_SOURCE_DIR}/deps/cJSON/cJSON.c)
+	${PROJECT_SOURCE_DIR}/deps/cJSON/cJSON.c ${PROJECT_SOURCE_DIR}/deps/log/log.c)
 
 include_directories(${PROJECT_SOURCE_DIR}/include/)
 include_directories(${PROJECT_SOURCE_DIR}/deps/)

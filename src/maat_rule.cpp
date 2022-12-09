@@ -27,6 +27,8 @@
 #include "maat_table_runtime.h"
 #include "maat_table_schema.h"
 
+#define MODULE_MAAT_RULE	 module_name_str("maat.rule")
+
 struct maat_runtime* maat_runtime_create(long long version, struct maat *maat_instance)
 {
 	struct maat_runtime *maat_rt = ALLOC(struct maat_runtime, 1);
@@ -105,13 +107,14 @@ int maat_update_cb(const char *table_name, const char *line, void *u_param)
 	struct maat_runtime* maat_rt = NULL;
 	int table_id = table_schema_manager_get_table_id(maat_instance->table_schema_mgr, table_name);
     if (table_id < 0) {
-        fprintf(stderr, "update warning, unknown table name %s\n", table_name);
+        log_error(maat_instance->logger, MODULE_MAAT_RULE, "update warning, unknown table name %s", table_name);
         return -1;
     }
 
 	struct table_schema* table_schema = table_schema_get(maat_instance->table_schema_mgr, table_id);
     if (NULL == table_schema) {
-        fprintf(stderr, "update warning, table name %s doesn't have table schema\n", table_name);
+        log_error(maat_instance->logger, MODULE_MAAT_RULE, 
+                  "update warning, table name %s doesn't have table schema", table_name);
         return -1;
     }
 
@@ -123,10 +126,10 @@ int maat_update_cb(const char *table_name, const char *line, void *u_param)
 		maat_rt = maat_instance->maat_rt;
 	}
 
-    struct table_item *table_item = table_schema_line_to_item(line, table_schema);
+    struct table_item *table_item = table_schema_line_to_item(line, table_schema, maat_instance->logger);
     if (table_item != NULL) {
         struct table_runtime *table_rt = table_runtime_get(maat_rt->table_rt_mgr, table_id);
-        table_runtime_update(table_rt, table_schema, line, table_item);
+        table_runtime_update(table_rt, table_schema, line, table_item, maat_instance->logger);
 	    FREE(table_item);
     }
      
@@ -157,16 +160,14 @@ void maat_finish_cb(void *u_param)
     if (maat_instance->creating_maat_rt != NULL) {
         maat_instance->creating_maat_rt->rule_num = maat_runtime_rule_num(maat_instance->creating_maat_rt);
         maat_runtime_commit(maat_instance->creating_maat_rt);
-        fprintf(stdout, "Full config version %llu load %d entries complete\n", 
-                        maat_instance->creating_maat_rt->version,
-                        maat_instance->creating_maat_rt->rule_num);
+        log_info(maat_instance->logger, MODULE_MAAT_RULE, "Full config version %llu load %d entries complete\n", 
+                 maat_instance->creating_maat_rt->version, maat_instance->creating_maat_rt->rule_num);
     } else if (maat_instance->maat_rt != NULL) {
         maat_instance->maat_rt->rule_num = maat_runtime_rule_num(maat_instance->maat_rt);
         maat_instance->maat_rt->version = maat_instance->maat_version;
         maat_runtime_commit(maat_instance->maat_rt);
-        fprintf(stdout, "Inc config version %llu load %d entries complete\n", 
-                        maat_instance->maat_rt->version,
-                        maat_instance->maat_rt->rule_num);
+        log_info(maat_instance->logger, MODULE_MAAT_RULE, "Inc config version %llu load %d entries complete\n", 
+                 maat_instance->maat_rt->version, maat_instance->maat_rt->rule_num);
     }
 }
 
@@ -189,7 +190,7 @@ void *rule_monitor_loop(void *arg)
     pthread_mutex_lock(&(maat_instance->background_update_mutex));
     /* if deferred load on */
     if (maat_instance->deferred_load != 0) {
-        fprintf(stdout, "Deferred Loading ON, updating in %s\n", __func__);
+        log_info(maat_instance->logger, MODULE_MAAT_RULE, "Deferred Loading ON, updating in %s", __func__);
         maat_read_full_config(maat_instance);
     }
     pthread_mutex_unlock(&(maat_instance->background_update_mutex));
@@ -204,18 +205,14 @@ void *rule_monitor_loop(void *arg)
                 case DATA_SOURCE_REDIS:
                     redis_monitor_traverse(maat_instance->maat_version,
                                             &(maat_instance->mr_ctx),
-                                            maat_start_cb,
-                                            maat_update_cb,
-                                            maat_finish_cb,
+                                            maat_start_cb, maat_update_cb, maat_finish_cb,
                                             maat_instance);
                     break;
 				case DATA_SOURCE_IRIS_FILE:
 					config_monitor_traverse(maat_instance->maat_version, 
 											maat_instance->iris_ctx.inc_idx_dir,
-											maat_start_cb,
-											maat_update_cb,
-											maat_finish_cb,
-											maat_instance);
+											maat_start_cb, maat_update_cb, maat_finish_cb,
+											maat_instance, maat_instance->logger);
 					break;
                 case DATA_SOURCE_JSON_FILE:
                     memset(md5_tmp, 0, sizeof(md5_tmp));
@@ -224,18 +221,19 @@ void *rule_monitor_loop(void *arg)
 						maat_instance->json_ctx.last_md5_time = attrib.st_ctim;
 						md5_file(maat_instance->json_ctx.json_file, md5_tmp);
 						if (0 != strcmp(md5_tmp, maat_instance->json_ctx.effective_json_md5)) {
-							ret = load_maat_json_file(maat_instance, maat_instance->json_ctx.json_file, err_str, sizeof(err_str));
+							ret = load_maat_json_file(maat_instance, maat_instance->json_ctx.json_file, 
+                                                      err_str, sizeof(err_str));
 							if (ret < 0) {
-								fprintf(stdout, "Maat re-initiate with JSON file %s (md5=%s)failed: %s\n",
-												maat_instance->json_ctx.json_file, md5_tmp, err_str);
+								log_error(maat_instance->logger, MODULE_MAAT_RULE, 
+                                          "Maat re-initiate with JSON file %s (md5=%s)failed: %s\n",
+										  maat_instance->json_ctx.json_file, md5_tmp, err_str);
 							} else {
 								config_monitor_traverse(0, maat_instance->json_ctx.iris_file,
-														maat_start_cb,
-														maat_update_cb,
-														maat_finish_cb,
-														maat_instance);
-								fprintf(stdout, "Maat re-initiate with JSON file %s success, md5: %s\n",
-												maat_instance->json_ctx.json_file, md5_tmp);
+														maat_start_cb, maat_update_cb, maat_finish_cb,
+														maat_instance, maat_instance->logger);
+								log_info(maat_instance->logger, MODULE_MAAT_RULE, 
+                                         "Maat re-initiate with JSON file %s success, md5: %s\n",
+										 maat_instance->json_ctx.json_file, md5_tmp);
 							}
 						}
 					}
@@ -250,11 +248,11 @@ void *rule_monitor_loop(void *arg)
 
 				if (old_maat_rt != NULL) {
                     if (maat_instance->maat_rt->version > old_maat_rt->version) {
-                        fprintf(stdout, "Maat version updated %lld -> %lld\n", 
-                                        old_maat_rt->version, maat_instance->maat_rt->version);
+                        log_info(maat_instance->logger, MODULE_MAAT_RULE, "Maat version updated %lld -> %lld\n", 
+                                 old_maat_rt->version, maat_instance->maat_rt->version);
                     } else {
-                        fprintf(stdout, "Maat version roll back %lld -> %lld\n",
-                                        old_maat_rt->version, maat_instance->maat_rt->version);
+                        log_info(maat_instance->logger, MODULE_MAAT_RULE, "Maat version roll back %lld -> %lld\n",
+                                 old_maat_rt->version, maat_instance->maat_rt->version);
                     }
                     maat_garbage_bagging(maat_instance->garbage_bin, old_maat_rt, (void (*)(void*))maat_runtime_destroy);
 				}

@@ -22,6 +22,8 @@
 #include "json2iris.h"
 #include "maat_config_monitor.h"
 
+#define MODULE_CONFIG_MONITOR	 module_name_str("maat.config_monitor")
+
 #define CM_MAX_TABLE_NUM 256
 #define	MAX_CONFIG_LINE	(1024 * 16)
 
@@ -215,14 +217,15 @@ int filter_fn(const struct dirent *ent)
    	        strncmp(ent->d_name,"inc_config_index",strlen("inc_config_index")) == 0);
 }
 
-int get_new_idx_path(long long current_version, const char *file_dir, char ***idx_path, size_t *idx_num)
+int get_new_idx_path(long long current_version, const char *file_dir, 
+                     char ***idx_path, size_t *idx_num, struct log_handle *logger)
 {
 	struct dirent **namelist = NULL;
 	int update_type = CM_UPDATE_TYPE_NONE;
 	
 	int n = my_scandir(file_dir, &namelist, filter_fn, (int (*)(const void*, const void*))alphasort);
 	if (n < 0) {
-		//log_error("scan dir error");
+		log_error(logger, MODULE_CONFIG_MONITOR, "scan dir error");
 		return update_type;
 	}
 
@@ -241,15 +244,17 @@ int get_new_idx_path(long long current_version, const char *file_dir, char ***id
 		}
 
 		if (strlen(namelist[i]->d_name) > 42) {
-			fprintf(stderr, "config file %s filename too long, should like full_config_index.000000000001\n", 
-                            namelist[i]->d_name);
+			log_error(logger, MODULE_CONFIG_MONITOR, 
+                      "config file %s filename too long, should like full_config_index.000000000001", 
+                      namelist[i]->d_name);
 			continue;
 		}
 
 		int ret = sscanf(namelist[i]->d_name,"%[a-zA-Z]_config_index.%lld", update_str, &config_seq);
 		if (ret != 2) {
-			fprintf(stderr, "config file %s filename error, should like full_config_index.000000000001\n",
-                            namelist[i]->d_name);
+			log_error(logger, MODULE_CONFIG_MONITOR, 
+                      "config file %s filename error, should like full_config_index.000000000001",
+                      namelist[i]->d_name);
 			continue;
 		}
 
@@ -267,7 +272,8 @@ int get_new_idx_path(long long current_version, const char *file_dir, char ***id
 				}
 			}
 		} else {
-			fprintf(stderr, "config file %s, not full or inc config\n", namelist[i]->d_name);
+			log_error(logger, MODULE_CONFIG_MONITOR, "config file %s, not full or inc config", 
+                                                     namelist[i]->d_name);
 		}
 	}
 
@@ -306,8 +312,8 @@ int get_new_idx_path(long long current_version, const char *file_dir, char ***id
 void config_monitor_traverse(long long current_version, const char *idx_dir,
 							 void (*start_fn)(long long, int, void *),
 							 int (*update_fn)(const char *, const char *, void *),
-							 void (*finish_fn)(void *),
-							 void *u_param)
+							 void (*finish_fn)(void *), void *u_param,
+                             struct log_handle *logger)
 {
 	size_t i = 0;
 	long long new_version = 0;
@@ -317,12 +323,13 @@ void config_monitor_traverse(long long current_version, const char *idx_dir,
 
 	memset(table_array, 0, sizeof(table_array));
 
-	int update_type = get_new_idx_path(current_version, idx_dir, &idx_path_array, &idx_path_num);
+	int update_type = get_new_idx_path(current_version, idx_dir, &idx_path_array, &idx_path_num, logger);
 	if (update_type != CM_UPDATE_TYPE_NONE) {
 		for (i = 0; i < idx_path_num; i++) {
+            log_info(logger, MODULE_CONFIG_MONITOR, "load %s", idx_path_array[i]);
 			int table_num = cm_read_cfg_index_file(idx_path_array[i], table_array, CM_MAX_TABLE_NUM);
 			if (table_num < 0) {
-				fprintf(stderr, "load %s failed, abandon update\n", idx_path_array[i]);
+				log_error(logger, MODULE_CONFIG_MONITOR, "load %s failed, abandon update", idx_path_array[i]);
 				break;
 			}
 
@@ -350,7 +357,8 @@ void config_monitor_traverse(long long current_version, const char *idx_dir,
 	FREE(idx_path_array);
 }
 
-int load_maat_json_file(struct maat *maat_instance, const char *json_filename, char *err_str, size_t err_str_sz)
+int load_maat_json_file(struct maat *maat_instance, const char *json_filename, 
+                        char *err_str, size_t err_str_sz)
 {
 	int ret = 0;
 	struct stat fstat_buf;
@@ -361,13 +369,16 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename, c
     size_t decrypted_buff_sz = 0; 
     size_t uncompressed_buff_sz = 0;
 
-	fprintf(stdout, "Maat initial with JSON file %s, formating...\n", json_filename);
+	log_info(maat_instance->logger, MODULE_CONFIG_MONITOR, 
+            "Maat initial with JSON file %s, formating...", json_filename);
 
 	if (strlen(maat_instance->decrypt_key) && strlen(maat_instance->decrypt_algo)) {
 		ret = decrypt_open(json_filename, maat_instance->decrypt_key, maat_instance->decrypt_algo, 
-                            (unsigned char **)&decrypted_buff, &decrypted_buff_sz, err_str, err_str_sz);
+                            (unsigned char **)&decrypted_buff, &decrypted_buff_sz, 
+                            err_str, err_str_sz);
 		if (ret < 0) {
-			fprintf(stderr, "Decrypt Maat JSON file %s failed\n", json_filename);
+			log_error(maat_instance->logger, MODULE_CONFIG_MONITOR, 
+                      "Decrypt Maat JSON file %s failed", json_filename);
 			return -1;
 		}
 
@@ -379,7 +390,8 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename, c
 		ret = gzip_uncompress(json_buff, json_buff_sz, &uncompressed_buff, &uncompressed_buff_sz);
 		FREE(json_buff);
 		if (ret < 0) {
-			fprintf(stderr, "Uncompress Maat JSON file %s failed\n", json_filename);
+			log_error(maat_instance->logger, MODULE_CONFIG_MONITOR, 
+                      "Uncompress Maat JSON file %s failed", json_filename);
 			return -1;
 		}
 
@@ -391,18 +403,18 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename, c
 	if (NULL == json_buff) {	
 		ret = load_file_to_memory(json_filename, &json_buff, &json_buff_sz);
 		if (ret < 0) {
-			fprintf(stderr, "Read Maat JSON file %s failed\n", json_filename);
+			log_error(maat_instance->logger, MODULE_CONFIG_MONITOR, 
+                      "Read Maat JSON file %s failed", json_filename);
 			return -1;
 		}
 	}
 
-	ret = json2iris((const char*)json_buff, json_filename,
-			maat_instance->compile_tn, maat_instance->group2compile_tn, maat_instance->group2group_tn,
-			NULL,
-			maat_instance->json_ctx.iris_file,
-			sizeof(maat_instance->json_ctx.iris_file),
-			strlen(maat_instance->decrypt_key) ? maat_instance->decrypt_key : NULL,
-			strlen(maat_instance->decrypt_algo) ? maat_instance->decrypt_algo : NULL);
+	ret = json2iris((const char*)json_buff, json_filename, maat_instance->compile_tn, 
+                    maat_instance->group2compile_tn, maat_instance->group2group_tn, NULL,
+			        maat_instance->json_ctx.iris_file, sizeof(maat_instance->json_ctx.iris_file),
+			        strlen(maat_instance->decrypt_key) ? maat_instance->decrypt_key : NULL,
+			        strlen(maat_instance->decrypt_algo) ? maat_instance->decrypt_algo : NULL,
+                    maat_instance->logger);
 
 	FREE(json_buff);
 	json_buff = NULL;
@@ -418,10 +430,10 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename, c
 	maat_instance->json_ctx.last_md5_time = fstat_buf.st_ctim;
 	
 	md5_file(maat_instance->json_ctx.json_file, maat_instance->json_ctx.effective_json_md5);
-	fprintf(stdout, "JSON file %s md5: %s, generate index file %s OK\n",
-					maat_instance->json_ctx.json_file,
-					maat_instance->json_ctx.effective_json_md5,
-					maat_instance->json_ctx.iris_file);
+	log_info(maat_instance->logger, MODULE_CONFIG_MONITOR, "JSON file %s md5: %s, generate index file %s OK",
+					                                        maat_instance->json_ctx.json_file,
+					                                        maat_instance->json_ctx.effective_json_md5,
+					                                        maat_instance->json_ctx.iris_file);
 	maat_instance->input_mode = DATA_SOURCE_JSON_FILE;
 
 	return 0;	

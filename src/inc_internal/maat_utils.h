@@ -18,6 +18,7 @@ extern "C"
 
 #include <stdlib.h>
 #include <stddef.h>
+#include <arpa/inet.h>
 
 #define	TRUE	1
 #define	FALSE	0
@@ -30,7 +31,27 @@ extern "C"
 #define MIN(a, b)  	(((a) < (b)) ? (a) : (b))
 #endif
 
+enum maat_ip_format {
+	IP_FORMAT_RANGE,
+	IP_FORMAT_MASK,
+	IP_FORMAT_CIDR,
+	IP_FORMAT_UNKNOWN
+};
+
+enum maat_ip_format ip_format_str2int(const char *format);
+int ip_format2range(int ip_type, enum maat_ip_format format, const char *ip1, const char *ip2, 
+                    uint32_t range_begin[], uint32_t range_end[]);
+
+inline void ipv6_ntoh(unsigned int *v6_addr)
+{
+	for (unsigned int i = 0; i < 4; i++) {
+		v6_addr[i] = ntohl(v6_addr[i]);
+	}
+}
+
 #define UNUSED	__attribute__((unused))
+
+const char *module_name_str(const char *name);
 
 char *maat_strdup(const char *s);
 

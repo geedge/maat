@@ -65,7 +65,7 @@ int set_file_rulenum(const char *path, int rule_num)
 	return 0;
 }
 
-void read_rule_from_redis(redisContext *c, long long desire_version, const char* output_path)
+void read_rule_from_redis(redisContext *c, long long desire_version, const char *output_path, struct log_handle *logger)
 {
 	int i = 0;
     int ret = 0;
@@ -80,7 +80,7 @@ void read_rule_from_redis(redisContext *c, long long desire_version, const char*
     FILE *index_fp = NULL;
     struct serial_rule *rule_list = NULL;
 
-	int rule_num = maat_cmd_get_rm_key_list(c, 0, desire_version, &version, NULL, &rule_list, &update_type, 0);
+	int rule_num = maat_cmd_get_rm_key_list(c, 0, desire_version, &version, NULL, &rule_list, &update_type, 0, logger);
 	if (0 == rule_num) {
 		if (desire_version != 0) {
 			printf("Read desired version %lld failed.\n", desire_version);
@@ -102,7 +102,7 @@ void read_rule_from_redis(redisContext *c, long long desire_version, const char*
 	}
 
 	printf("Reading value: \n");
-	ret = maat_cmd_get_redis_value(c, rule_list, rule_num, 1);
+	ret = maat_cmd_get_redis_value(c, rule_list, rule_num, 1, logger);
 	if (ret < 0) {
 		goto clean_up;
 	}
@@ -123,10 +123,10 @@ void read_rule_from_redis(redisContext *c, long long desire_version, const char*
         }
 	}
 
-	ret = maat_cmd_get_foreign_keys_by_prefix(c, rule_list, rule_num, foreign_files_dir);
+	ret = maat_cmd_get_foreign_keys_by_prefix(c, rule_list, rule_num, foreign_files_dir, logger);
 	if (ret > 0) {
 		printf("%d lines has foreign content.\n", ret);
-		maat_cmd_get_foreign_conts(c, rule_list, rule_num, 1);
+		maat_cmd_get_foreign_conts(c, rule_list, rule_num, 1, NULL);
 	}
 
 	snprintf(index_path,sizeof(index_path), "%s/full_config_index.%020lld", output_path, version);
@@ -248,11 +248,13 @@ int main(int argc, char * argv[])
 	int redis_db = 0;
     char dump_dir[128] = {0};
     char json_file[128] = {0};
+    char log_path[128] = "./maat_redis_tool.log";
     int timeout = 0;
 	long long desired_version = 0;
 	strncpy(redis_ip, "127.0.0.1", sizeof(redis_ip));
 	strncpy(dump_dir, redis_dump_dir, sizeof(dump_dir));
-	
+	struct log_handle *logger = log_handle_create(log_path, 0);
+
 	while ((oc = getopt(argc,argv,"h:p:n:d:v:f:j:t:")) != -1) {
 		switch (oc) {
 			case 'h':
@@ -289,7 +291,7 @@ int main(int argc, char * argv[])
 		}
 	}
 
-	redisContext *c = maat_cmd_connect_redis(redis_ip, redis_port, redis_db);
+	redisContext *c = maat_cmd_connect_redis(redis_ip, redis_port, redis_db, logger);
 	if (NULL == c) {
 		return -1;
 	}
@@ -297,7 +299,7 @@ int main(int argc, char * argv[])
     char tmp_iris_path[128] = {0};
 	if (model == WORK_MODE_DUMP) {
 		printf("Reading key list from %s:%d db%d.\n", redis_ip, redis_port, redis_db);
-		read_rule_from_redis(c, desired_version, dump_dir);
+		read_rule_from_redis(c, desired_version, dump_dir, logger);
 	} else if(model == WORK_MODE_JSON) {
         char *json_buff = NULL;
         size_t json_buff_sz = 0;
@@ -306,13 +308,14 @@ int main(int argc, char * argv[])
 			printf("open %s failed.\n", json_file);
 		}
 
-		ret = json2iris(json_buff, json_file, NULL, NULL, NULL, c, tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL);
+		ret = json2iris(json_buff, json_file, NULL, NULL, NULL, c, tmp_iris_path, 
+                        sizeof(tmp_iris_path), NULL, NULL, NULL);
 		if (ret < 0) {
 			printf("Invalid json format.\n");
 		}
 
 		size_t total_line_cnt = 0;
-		config_monitor_traverse(0, tmp_iris_path, NULL, count_line_num_cb, NULL, &total_line_cnt);
+		config_monitor_traverse(0, tmp_iris_path, NULL, count_line_num_cb, NULL, &total_line_cnt, NULL);
 		printf("Serialize %s to %zu lines, write temp file to %s .\n", json_file, total_line_cnt, tmp_iris_path);
 
 		struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
@@ -325,13 +328,13 @@ int main(int argc, char * argv[])
 			absolute_expire_time = server_time + timeout;
 		}
 
-		config_monitor_traverse(0, tmp_iris_path, NULL, make_serial_rule, NULL, s_rule);
+		config_monitor_traverse(0, tmp_iris_path, NULL, make_serial_rule, NULL, s_rule, NULL);
 		printf("Timeout = %lld\n", absolute_expire_time);
 
 		ret = 0;
         int success_cnt = 0;
 		do {
-			success_cnt = maat_cmd_write_rule(c, s_rule, total_line_cnt, server_time);
+			success_cnt = maat_cmd_write_rule(c, s_rule, total_line_cnt, server_time, NULL);
 		} while(success_cnt < 0);
 
 		if (success_cnt != (int)total_line_cnt) {

@@ -36,13 +36,28 @@ enum ip_type {
     IP_TYPE_V6
 };
 
-typedef struct ip_data_s {
+/* network order */
+struct ipv4_4tuple {
+    uint32_t sip;
+    uint32_t dip;
+    uint16_t sport;
+    uint16_t dport;
+};
+
+struct ipv6_4tuple {
+    uint8_t sip[16];
+    uint8_t dip[16];
+    uint16_t sport;
+    uint16_t dport;
+};
+
+struct addr_4tuple {
     enum ip_type type;
     union {
-        uint32_t ipv4;
-        uint32_t ipv6[4];
+        struct ipv4_4tuple ipv4;
+        struct ipv6_4tuple ipv6;
     };  
-} ip_data_t;
+};
 
 #define	MAAT_RULE_UPDATE_TYPE_FULL	1
 #define	MAAT_RULE_UPDATE_TYPE_INC	2
@@ -69,7 +84,8 @@ int maat_options_set_iris_inc_index_dir(struct maat_options *opts, const char *i
 int maat_options_set_json_file(struct maat_options *opts, const char *json_filename);
 int maat_options_set_redis_ip(struct maat_options *opts, const char *redis_ip);
 int maat_options_set_redis_port(struct maat_options *opts, uint16_t redis_port);
-int maat_options_set_redis_db_index(struct maat_options *opts, int db_index);
+int maat_options_set_redis_db(struct maat_options *opts, int db_index);
+int maat_options_set_logger(struct maat_options *opts, void *logger);
 
 /* maat_instance API */
 struct maat *maat_new(struct maat_options *opts, const char *table_info_path);
@@ -90,7 +106,7 @@ int maat_plugin_table_ex_schema_register(struct maat *instance, int table_id,
                                      maat_plugin_ex_dup_func_t *dup_func,
                                      long argl, void *argp);
                                      
-void *maat_plugin_table_get_ex_data(struct maat *instance, int table_id,
+void *maat_plugin_table_dup_ex_data(struct maat *instance, int table_id,
                                     const char *key, size_t key_len);
 /* maat scan API */
 struct maat_state;
@@ -99,7 +115,7 @@ int maat_scan_integer(struct maat *instance, int table_id, int thread_id,
                       struct maat_state *state);
 
 int maat_scan_ip(struct maat *instance, int table_id, int thread_id, 
-                 const ip_data_t *ip, int results[], size_t *n_result, 
+                 struct addr_4tuple *addr, int results[], size_t *n_result, 
                  struct maat_state *state);
 
 int maat_scan_string(struct maat *instance, int table_id, int thread_id,
