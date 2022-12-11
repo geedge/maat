@@ -205,6 +205,7 @@ TEST(redis_mode, maat_scan_string) {
     EXPECT_EQ(n_result_array, 1);
     EXPECT_EQ(result_array[0], 30);
 
+    log_handle_destroy(maat_instance->logger);
     maat_free(maat_instance);
 }
 

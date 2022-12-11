@@ -412,6 +412,7 @@ static int ip_scan_data_set(struct table_rt_2tuple *table_rt_addr, struct addr_4
 {
     switch (addr->type) {
         case IP_TYPE_V4:
+            table_rt_addr->ip_type = IP_TYPE_V4;
             switch (child_type) {
                 case COMPOSITION_TYPE_SIP:
                     table_rt_addr->ipv4 = ntohl(addr->ipv4.sip);
@@ -427,6 +428,7 @@ static int ip_scan_data_set(struct table_rt_2tuple *table_rt_addr, struct addr_4
             }
             break;
         case IP_TYPE_V6:
+            table_rt_addr->ip_type = IP_TYPE_V6;
             switch (child_type) {
                 case COMPOSITION_TYPE_SIP:
                     memcpy(table_rt_addr->ipv6, addr->ipv6.sip, sizeof(addr->ipv6.sip));

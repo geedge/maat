@@ -303,7 +303,7 @@ int table_runtime_scan_ip(struct table_runtime *table_rt, int thread_id, struct 
     } else {
         memcpy(ip.ipv6, data->ipv6, sizeof(data->ipv6));
     }
-  
+    
     n_hit_result = ip_matcher_match(table_rt->ip_plus_rt.ip_matcher, &ip, scan_results, table_rt->rule_num);
     int index = 0;
     /* filter rule_id by port */

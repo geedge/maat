@@ -268,6 +268,9 @@ void *rule_monitor_loop(void *arg)
                 
                 if ((updating_flag > 0) && (time_window >= maat_instance->rule_effect_interval_ms / 1000)) {
                     maat_runtime_commit(maat_instance->maat_rt);
+                    log_info(maat_instance->logger,MODULE_MAAT_RULE,
+							 "Actual update config version %u, %d entries load to rulescan after postpone.",
+							 maat_instance->maat_rt->version, maat_instance->maat_rt->rule_num);
                 }
 				
 			}
