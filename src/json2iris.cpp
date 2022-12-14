@@ -130,7 +130,6 @@ int set_iris_descriptor(const char *json_file, cJSON *json, const char *encrypt_
 	maat_kv_register(iris_cfg->str2int_map, "yes", 1);
 	maat_kv_register(iris_cfg->str2int_map, "no", 0);
 	
-	maat_kv_register(iris_cfg->str2int_map, "ip", TABLE_TYPE_IP);
 	maat_kv_register(iris_cfg->str2int_map, "ip_plus", TABLE_TYPE_IP_PLUS);
 	maat_kv_register(iris_cfg->str2int_map, "string", TABLE_TYPE_EXPR);
 	maat_kv_register(iris_cfg->str2int_map, "expr", TABLE_TYPE_EXPR);
@@ -433,94 +432,6 @@ int write_expr_line(cJSON *region_json, struct iris_description *p_iris, struct 
 	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table, logger);
 }
 
-int write_ip_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table,
-                  struct log_handle *logger)
-{
-	struct translate_command json_cmd[MAX_COLUMN_NUM];
-	int cmd_cnt = 0;
-	memset(json_cmd, 0, sizeof(json_cmd));
-
-	json_cmd[cmd_cnt].json_string = "region_id";
-	json_cmd[cmd_cnt].json_type = cJSON_Number;
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "group_id";
-	json_cmd[cmd_cnt].json_type = cJSON_Number;
-	cmd_cnt++;
-	
-	json_cmd[cmd_cnt].json_string = "addr_type";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	json_cmd[cmd_cnt].str2int_flag = 1;
-	cmd_cnt++;
-	
-	json_cmd[cmd_cnt].json_string = "src_ip";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	json_cmd[cmd_cnt].empty_allowed = 1;
-	json_cmd[cmd_cnt].default_string = "0.0.0.0";
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "mask_src_ip";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	json_cmd[cmd_cnt].empty_allowed = 1;
-	json_cmd[cmd_cnt].default_string = "255.255.255.255";
-	cmd_cnt++;	
-
-	json_cmd[cmd_cnt].json_string = "src_port";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	json_cmd[cmd_cnt].empty_allowed = 1;
-	json_cmd[cmd_cnt].default_string = "0";
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "mask_src_port";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	json_cmd[cmd_cnt].empty_allowed = 1;
-	json_cmd[cmd_cnt].default_string = "65535";
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "dst_ip";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	json_cmd[cmd_cnt].empty_allowed = 1;
-	json_cmd[cmd_cnt].default_string = "0.0.0.0";
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "mask_dst_ip";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	json_cmd[cmd_cnt].empty_allowed = 1;
-	json_cmd[cmd_cnt].default_string = "255.255.255.255";
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "dst_port";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	json_cmd[cmd_cnt].empty_allowed = 1;
-	json_cmd[cmd_cnt].default_string = "0";
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "mask_dst_port";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	json_cmd[cmd_cnt].empty_allowed = 1;
-	json_cmd[cmd_cnt].default_string = "65535";
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "protocol";
-	json_cmd[cmd_cnt].json_type = cJSON_Number;
-	json_cmd[cmd_cnt].empty_allowed = 1;
-	json_cmd[cmd_cnt].default_int = 0;
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "direction";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	json_cmd[cmd_cnt].str2int_flag = 1;
-	json_cmd[cmd_cnt].empty_allowed = 1;
-	json_cmd[cmd_cnt].default_string = "double";
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "is_valid";
-	json_cmd[cmd_cnt].json_type = cJSON_Number;
-	cmd_cnt++;
-	
-	return direct_write_rule(region_json, p_iris->str2int_map, json_cmd, cmd_cnt, table, logger);
-}
-
 int write_ip_plus_line(cJSON *region_json, struct iris_description *p_iris, struct iris_table *table,
                        struct log_handle *logger)
 {
@@ -778,9 +689,6 @@ int write_region_rule(cJSON *region_json, int compile_id, int group_id, struct i
 		case TABLE_TYPE_EXPR:
 		case TABLE_TYPE_EXPR_PLUS:
 			ret = write_expr_line(table_content, p_iris, table_info, logger);
-			break;
-		case TABLE_TYPE_IP:
-			ret = write_ip_line(table_content, p_iris, table_info, logger);
 			break;
 		case TABLE_TYPE_IP_PLUS:
 			ret = write_ip_plus_line(table_content, p_iris, table_info, logger);
@@ -1163,13 +1071,15 @@ int write_iris(cJSON *json, struct iris_description *p_iris, struct log_handle *
 	return 0;
 }
 
-int json2iris(const char *json_buff, const char *json_filename, const char *compile_tn, 
-              const char *group2compile_tn, const char *group2group_tn, redisContext *redis_write_ctx, 
+int json2iris(const char *json_buff, const char *json_filename, redisContext *redis_write_ctx, 
               char *iris_dir_buf, int buf_len, char *encrypt_key, char *encrypt_algo,
               struct log_handle *logger)
 {
     int ret = -1;
     cJSON *tmp_obj = NULL;
+    const char *compile_tbl_name = NULL;
+    const char *group2compile_tbl_name = NULL;
+    const char *group2group_tbl_name = NULL;
 	struct iris_description iris_cfg;
 
 	memset(&iris_cfg, 0, sizeof(iris_cfg));
@@ -1182,21 +1092,21 @@ int json2iris(const char *json_buff, const char *json_filename, const char *comp
 
 	tmp_obj = cJSON_GetObjectItem(json, "compile_table");
 	if (tmp_obj) {
-		compile_tn = tmp_obj->valuestring;
+		compile_tbl_name = tmp_obj->valuestring;
 	}
 
 	tmp_obj = cJSON_GetObjectItem(json, "group2compile_table");
 	if (tmp_obj) {
-		group2compile_tn = tmp_obj->valuestring;
+		group2compile_tbl_name = tmp_obj->valuestring;
 	}
 
 	tmp_obj = cJSON_GetObjectItem(json, "group2group_table");
 	if (tmp_obj) {
-		group2group_tn = tmp_obj->valuestring;
+		group2group_tbl_name = tmp_obj->valuestring;
 	}
 
 	ret = set_iris_descriptor(json_filename, json, encrypt_key, encrypt_algo, 
-                              compile_tn, group2compile_tn, group2group_tn, 
+                              compile_tbl_name, group2compile_tbl_name, group2group_tbl_name, 
                               redis_write_ctx, &iris_cfg);
 	if (ret < 0) {
 		goto error_out;

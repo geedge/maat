@@ -27,17 +27,18 @@ extern "C"
 #define MAX_KEYWORDS_STR 1024
 #define	MAX_FOREIGN_CLMN_NUM 8
 
-enum table_composition_type {
-    COMPOSITION_TYPE_SIP = 0,
-    COMPOSITION_TYPE_DIP,
-    COMPOSITION_TYPE_SESSION,
-    COMPOSITION_TYPE_MAX
+enum component_table_type {
+    COMPONENT_TABLE_TYPE_NONE = -1,
+    COMPONENT_TABLE_TYPE_SIP = 0,
+    COMPONENT_TABLE_TYPE_DIP,
+    COMPONENT_TABLE_TYPE_SESSION,
+    COMPONENT_TABLE_TYPE_MAX
 };
 
 enum table_type {
+    TABLE_TYPE_INVALID = -1,
 	TABLE_TYPE_EXPR = 0,
     TABLE_TYPE_EXPR_PLUS,
-    TABLE_TYPE_IP,
     TABLE_TYPE_IP_PLUS,
     TABLE_TYPE_INTERVAL,
     TABLE_TYPE_INTERVAL_PLUS,
@@ -53,8 +54,7 @@ enum table_type {
     TABLE_TYPE_COMPILE,
     TABLE_TYPE_GROUP,
     TABLE_TYPE_GROUP2GROUP,
-	TABLE_TYPE_GROUP2COMPILE,
-	TABLE_TYPE_MAX
+	TABLE_TYPE_GROUP2COMPILE
 };
 
 enum expr_type {
@@ -155,10 +155,10 @@ struct table_item {
 
 struct plugin_table_callback_schema
 {
-	maat_start_callback_t 	*start;
-	maat_update_callback_t	*update;
-	maat_finish_callback_t	*finish;
-	void* u_para;
+	maat_start_callback_t *start;
+	maat_update_callback_t *update;
+	maat_finish_callback_t *finish;
+	void *u_para;
 };
 
 struct ex_data_schema
@@ -170,6 +170,16 @@ struct ex_data_schema
 	long argl;
 	void *argp;
     int set_flag;
+};
+
+struct compile_ex_data_schema {
+	maat_rule_ex_new_func_t *new_func;
+	maat_rule_ex_free_func_t *free_func;
+	maat_rule_ex_dup_func_t *dup_func;
+	long argl;
+	void *argp;
+	int idx;
+	int table_id;
 };
 
 struct table_schema;
@@ -185,7 +195,7 @@ int table_schema_manager_get_table_id(struct table_schema_manager* table_schema_
  * @brief get composition table's child table(specified by type) id 
 */
 int table_schema_manager_get_child_table_id(struct table_schema_manager *table_schema_mgr, int parent_table_id, 
-                                            enum table_composition_type type);
+                                            enum component_table_type type);
 
 enum table_type table_schema_manager_get_table_type(struct table_schema_manager *table_schema_mgr, int table_id);
 
@@ -216,23 +226,33 @@ void table_schema_set_updating_name(struct table_schema *table_schema, const cha
 /* expr table schema API */
 enum hs_scan_mode expr_table_schema_get_scan_mode(struct table_schema *table_schema);
 
-/* plugin table schema API */
-int plugin_table_schema_set_ex_data_schema(struct table_schema *table_schema,
-									        maat_plugin_ex_new_func_t *new_func,
-									        maat_plugin_ex_free_func_t *free_func,
-									        maat_plugin_ex_dup_func_t *dup_func,
-									        long argl, void *argp,
-                                            struct log_handle *logger);
+/* table schema ex API */
+int table_schema_set_ex_data_schema(struct table_schema *table_schema,
+									maat_plugin_ex_new_func_t *new_func,
+									maat_plugin_ex_free_func_t *free_func,
+									maat_plugin_ex_dup_func_t *dup_func,
+									long argl, void *argp,
+                                    struct log_handle *logger);
 
-struct ex_data_schema *plugin_table_schema_get_ex_data_schema(struct table_schema *table_schema);
+struct ex_data_schema *table_schema_get_ex_data_schema(struct table_schema *table_schema);
+
+/* table schema compile rule ex API */
+int table_schema_set_compile_rule_ex_data_schema(struct table_schema *table_schema,
+                                            maat_rule_ex_new_func_t *new_func,
+                                            maat_rule_ex_free_func_t *free_func,
+                                            maat_rule_ex_dup_func_t *dup_func,
+                                            long argl, void *argp,
+                                            struct log_handle *logger);
+struct compile_ex_data_schema *table_schema_get_compile_rule_ex_data_schema(struct table_schema *table_schema, size_t idx);
+size_t table_schema_compile_rule_ex_data_schema_count(struct table_schema *table_schema);
 /**
  * @brief if plugin table schema's ex data schema set
  * 
  * @retval 1(already Set) 0(Not set yet)
 */
-int plugin_table_schema_ex_data_schema_flag(struct table_schema *table_schema);
+int table_schema_ex_data_schema_flag(struct table_schema *table_schema);
 
-int plugin_table_schema_add_callback(struct table_schema_manager *table_schema_mgr, int table_id,
+int table_schema_add_callback(struct table_schema_manager *table_schema_mgr, int table_id,
 							         maat_start_callback_t *start,
 							         maat_update_callback_t *update,
 							         maat_finish_callback_t *finish,
@@ -240,11 +260,11 @@ int plugin_table_schema_add_callback(struct table_schema_manager *table_schema_m
 /**
  * @brief the number of callback function stored in plugin table schema
 */
-size_t plugin_table_schema_callback_count(struct table_schema *table_schema);
+size_t table_schema_callback_count(struct table_schema *table_schema);
 
-void plugin_table_schema_all_cb_update(struct table_schema *table_schema, const char *row);
+void table_schema_all_cb_update(struct table_schema *table_schema, const char *row);
 
-int plugin_table_schema_get_foreign_column(struct table_schema *table_schema, int *foreign_columns);
+int table_schema_get_foreign_column(struct table_schema *table_schema, int *foreign_columns);
 
 #ifdef __cpluscplus
 }

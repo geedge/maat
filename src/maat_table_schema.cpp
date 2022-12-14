@@ -29,6 +29,20 @@
 #define	MAX_FOREIGN_CLMN_NUM 8
 #define	MAX_CONJUNCTION_TABLE_NUM 8
 
+#define	MAX_COMPILE_EX_DATA_NUM	2
+
+enum user_region_encode {
+	USER_REGION_ENCODE_NONE=0,
+	USER_REGION_ENCODE_ESCAPE,
+	USER_REGION_ENCODE_BASE64
+};
+
+struct compile_table_schema {
+    enum user_region_encode user_region_encoding;
+	size_t n_ex_schema;
+	struct compile_ex_data_schema ex_schema[MAX_COMPILE_EX_DATA_NUM];
+};
+
 struct expr_table_schema {
 	int item_id_column;
     int group_id_column;
@@ -39,23 +53,6 @@ struct expr_table_schema {
     int is_hexbin_column;
 	int is_valid_column;  /* valid means add, invalid means delete */
     enum hs_scan_mode scan_mode; /* adapter_hs scan mode */
-};
-
-struct ip_table_schema {
-    int item_id_column;
-    int group_id_column;
-    int addr_type_column;
-    int sip_column;
-    int sip_mask_column;
-    int sport_column;
-    int sport_mask_column;
-    int dip_column;
-    int dip_mask_column;
-    int dport_column;
-    int dport_mask_column;
-    int proto_column;
-    int direction_column;
-    int is_valid_column;
 };
 
 struct ip_plus_table_schema {
@@ -109,7 +106,7 @@ struct virtual_table_schema {
 
 struct composition_table_schema
 {	
-	int component_table_id[COMPOSITION_TYPE_MAX];
+	int component_table_id[COMPONENT_TABLE_TYPE_MAX];
 };
 
 struct table_schema {
@@ -119,8 +116,8 @@ struct table_schema {
     char table_name[MAX_CONJUNCTION_TABLE_NUM][NAME_MAX];
     enum table_type table_type;
     union {
+        struct compile_table_schema compile;
         struct expr_table_schema expr;
-        struct ip_table_schema ip;
         struct ip_plus_table_schema ip_plus;
         struct plugin_table_schema plugin;
         struct ip_plugin_table_schema ip_plugin;
@@ -247,127 +244,7 @@ int read_expr_table_schema(cJSON *root, struct table_schema *ptable,
     
     return 0;  
 }
-#if 0
-int read_ip_table_schema(cJSON *root, struct table_schema *ptable, struct log_handle *logger)
-{
-     size_t read_cnt = 0;
-    cJSON *json = NULL;
 
-    json = cJSON_GetObjectItem(root, "table_id");
-    if (json != NULL && json->type == cJSON_Number) {
-        ptable->table_id = json->valueint;
-        read_cnt++;
-    }
-
-    json = cJSON_GetObjectItem(root, "table_name");
-    if (json != NULL && json->type == cJSON_String) {
-        if (strlen(json->valuestring) >= NAME_MAX) {
-            log_error(logger, MODULE_TABLE_SCHEMA, "ip table name %s length too long", 
-                                                    json->valuestring);
-            return -1;
-        }
-        memcpy(ptable->table_name[0], json->valuestring, strlen(json->valuestring));
-        read_cnt++;
-    }
-
-    json = cJSON_GetObjectItem(root, "item_id");
-    if (json != NULL && json->type == cJSON_Number) {
-        ptable->ip.item_id_column = json->valueint;
-        read_cnt++;
-    }
-
-    json = cJSON_GetObjectItem(root, "group_id");
-    if (json != NULL && json->type == cJSON_Number) {
-        ptable->ip.group_id_column = json->valueint;
-        read_cnt++;
-    }
-
-    json = cJSON_GetObjectItem(root, "custom");
-    if (NULL == json || json->type != cJSON_Object) {
-        log_error(logger, MODULE_TABLE_SCHEMA, "ip table %s has no custom column", 
-                                                ptable->table_name[0]);
-        return -1;
-    }
-
-    cJSON *item = cJSON_GetObjectItem(json, "addr_type");
-    if (item != NULL && item->type == cJSON_Number) {
-        ptable->ip.addr_type_column = item->valueint;
-        read_cnt++;
-    }
-
-    item = cJSON_GetObjectItem(json, "sip");
-    if (item != NULL && item->type == cJSON_Number) {
-        ptable->ip.sip_column = item->valueint;
-        read_cnt++;
-    }
-
-    item = cJSON_GetObjectItem(json, "sip_mask");
-    if (item != NULL && item->type == cJSON_Number) {
-        ptable->ip.sip_mask_column = item->valueint;
-        read_cnt++;
-    }
-
-    item = cJSON_GetObjectItem(json, "sport");
-    if (item != NULL && item->type == cJSON_Number) {
-        ptable->ip.sport_column = item->valueint;
-        read_cnt++;
-    }
-
-    item = cJSON_GetObjectItem(json, "sport_mask");
-    if (item != NULL && item->type == cJSON_Number) {
-        ptable->ip.sport_mask_column = item->valueint;
-        read_cnt++;
-    }
-
-    item = cJSON_GetObjectItem(json, "dip");
-    if (item != NULL && item->type == cJSON_Number) {
-        ptable->ip.dip_column = item->valueint;
-        read_cnt++;
-    }
-
-    item = cJSON_GetObjectItem(json, "dip_mask");
-    if (item != NULL && item->type == cJSON_Number) {
-        ptable->ip.dip_mask_column = item->valueint;
-        read_cnt++;
-    }
-
-    item = cJSON_GetObjectItem(json, "dport");
-    if (item != NULL && item->type == cJSON_Number) {
-        ptable->ip.dport_column = item->valueint;
-        read_cnt++;
-    }
-
-    item = cJSON_GetObjectItem(json, "dport_mask");
-    if (item != NULL && item->type == cJSON_Number) {
-        ptable->ip.dport_mask_column = item->valueint;
-        read_cnt++;
-    }
-
-    item = cJSON_GetObjectItem(json, "proto");
-    if (item != NULL && item->type == cJSON_Number) {
-        ptable->ip.proto_column = item->valueint;
-        read_cnt++;
-    }
-
-    item = cJSON_GetObjectItem(json, "direction");
-    if (item != NULL && item->type == cJSON_Number) {
-        ptable->ip.direction_column = item->valueint;
-        read_cnt++;
-    }
-
-    item = cJSON_GetObjectItem(json, "is_valid");
-    if (item != NULL && item->type == cJSON_Number) {
-        ptable->ip.is_valid_column = item->valueint;
-        read_cnt++;
-    }
-
-    if (read_cnt < 16) {
-        return -1;
-    }
-
-    return 0;
-}
-#endif
 int read_ip_plus_table_schema(cJSON *root, struct table_schema *ptable,
                               struct log_handle *logger)
 {
@@ -606,7 +483,8 @@ int read_composition_table_schema(cJSON *root, struct table_schema *ptable,
     cJSON *item = cJSON_GetObjectItem(json, "source");
     if (item != NULL && item->type == cJSON_String) {
         /* physical table should already exist */
-        ret = maat_kv_read(tablename2id_map, item->valuestring, &composition_schema->component_table_id[COMPOSITION_TYPE_SIP]);
+        ret = maat_kv_read(tablename2id_map, item->valuestring, 
+                           &composition_schema->component_table_id[COMPONENT_TABLE_TYPE_SIP]);
         if (ret < 0) {
             log_error(logger, MODULE_TABLE_SCHEMA, 
                       "Child table %s of table %s (id=%d) are not defined",
@@ -618,7 +496,8 @@ int read_composition_table_schema(cJSON *root, struct table_schema *ptable,
     item = cJSON_GetObjectItem(json, "dest");
     if (item != NULL && item->type == cJSON_String) {
         /* physical table should already exist */
-        ret = maat_kv_read(tablename2id_map, item->valuestring, &composition_schema->component_table_id[COMPOSITION_TYPE_DIP]);
+        ret = maat_kv_read(tablename2id_map, item->valuestring, 
+                           &composition_schema->component_table_id[COMPONENT_TABLE_TYPE_DIP]);
         if (ret < 0) {
             log_error(logger, MODULE_TABLE_SCHEMA, 
                       "Child table %s of table %s (id=%d) are not defined",
@@ -630,7 +509,8 @@ int read_composition_table_schema(cJSON *root, struct table_schema *ptable,
     item = cJSON_GetObjectItem(json, "session");
     if (item != NULL && item->type == cJSON_String) {
         /* physical table should already exist */
-        ret = maat_kv_read(tablename2id_map, item->valuestring, &composition_schema->component_table_id[COMPOSITION_TYPE_SESSION]);
+        ret = maat_kv_read(tablename2id_map, item->valuestring, 
+                           &composition_schema->component_table_id[COMPONENT_TABLE_TYPE_SESSION]);
         if (ret < 0) {
             log_error(logger, MODULE_TABLE_SCHEMA, 
                       "Child table %s of table %s (id=%d) are not defined",
@@ -833,13 +713,6 @@ int table_schema_populate(cJSON *json, struct table_schema **table_array,
             return -1;
         }
         break;
-    /* TODO: delete
-    case TABLE_TYPE_IP:
-        ret = read_ip_table_schema(json, ptable);
-        if (ret < 0) {
-            return -1;
-        }
-        break; */
     case TABLE_TYPE_IP_PLUS:
         ret = read_ip_plus_table_schema(json, ptable, logger);
         if (ret < 0) {
@@ -912,7 +785,6 @@ table_schema_manager_create(const char *table_info_path, struct log_handle *logg
     /* register table type reserved word */
     maat_kv_register(reserved_word_map, "expr", TABLE_TYPE_EXPR);
     maat_kv_register(reserved_word_map, "expr_plus", TABLE_TYPE_EXPR_PLUS);
-    //maat_kv_register(reserved_word_map, "ip", TABLE_TYPE_IP);
     maat_kv_register(reserved_word_map, "ip_plus", TABLE_TYPE_IP_PLUS);
     maat_kv_register(reserved_word_map, "plugin", TABLE_TYPE_PLUGIN);
     maat_kv_register(reserved_word_map, "ip_plugin", TABLE_TYPE_IP_PLUGIN);
@@ -1023,7 +895,7 @@ int table_schema_manager_get_table_id(struct table_schema_manager* table_schema_
 }
 
 int table_schema_manager_get_child_table_id(struct table_schema_manager *table_schema_mgr, int parent_table_id, 
-                                            enum table_composition_type type)
+                                            enum component_table_type type)
 {
 	struct table_schema* table_schema = table_schema_get(table_schema_mgr, parent_table_id);
 	if (table_schema->table_type != TABLE_TYPE_COMPOSITION) {
@@ -1036,11 +908,11 @@ int table_schema_manager_get_child_table_id(struct table_schema_manager *table_s
 enum table_type table_schema_manager_get_table_type(struct table_schema_manager *table_schema_mgr, int id)
 {
     if (NULL == table_schema_mgr) {
-        return TABLE_TYPE_MAX;
+        return TABLE_TYPE_INVALID;
     }
 
-    if (table_schema_mgr->schema_table[id] == NULL) {
-        return TABLE_TYPE_MAX;
+    if (NULL == table_schema_mgr->schema_table[id]) {
+        return TABLE_TYPE_INVALID;
     }
 
     return table_schema_mgr->schema_table[id]->table_type;
@@ -1205,7 +1077,7 @@ struct table_schema *table_schema_get_by_scan_type(struct table_schema_manager *
 enum table_type table_schema_get_table_type(struct table_schema *table_schema)
 {
     if (NULL == table_schema) {
-        return TABLE_TYPE_MAX;
+        return TABLE_TYPE_INVALID;
     }   
 
     return table_schema->table_type;
@@ -1239,7 +1111,6 @@ enum scan_type table_schema_get_scan_type(struct table_schema *table_schema)
 		case TABLE_TYPE_INTERVAL_PLUS:
 			ret = SCAN_TYPE_INTERVAL;
 			break;
-		//case TABLE_TYPE_IP:
 		case TABLE_TYPE_IP_PLUS:
 		case TABLE_TYPE_COMPOSITION:
 			ret = SCAN_TYPE_IP;
@@ -1530,7 +1401,7 @@ int populate_ip_plus_table_item(const char *line, struct ip_plus_table_schema *i
         direction = ip_plus_item->ipv4.direction;
     } else {
         //ipv6
-        ret = ip_format2range(ip_plus_item->addr_type, IP_FORMAT_MASK, sip1_str, sip2_str, 
+        ret = ip_format2range(ip_plus_item->addr_type, ip_format_str2int(saddr_format), sip1_str, sip2_str, 
                               ip_plus_item->ipv6.min_sip, ip_plus_item->ipv6.max_sip);
         if (ret < 0) {
             return -1;
@@ -1747,12 +1618,12 @@ enum hs_scan_mode expr_table_schema_get_scan_mode(struct table_schema *table_sch
     return table_schema->expr.scan_mode;
 }
 
-int plugin_table_schema_set_ex_data_schema(struct table_schema *table_schema,
-									        maat_plugin_ex_new_func_t *new_func,
-									        maat_plugin_ex_free_func_t *free_func,
-									        maat_plugin_ex_dup_func_t *dup_func,
-									        long argl, void *argp,
-                                            struct log_handle *logger)
+int table_schema_set_ex_data_schema(struct table_schema *table_schema,
+									maat_plugin_ex_new_func_t *new_func,
+									maat_plugin_ex_free_func_t *free_func,
+									maat_plugin_ex_dup_func_t *dup_func,
+									long argl, void *argp,
+                                    struct log_handle *logger)
 {
     if (NULL == table_schema || NULL == new_func || NULL == free_func || NULL == dup_func) {
         assert(0);
@@ -1760,7 +1631,7 @@ int plugin_table_schema_set_ex_data_schema(struct table_schema *table_schema,
         return -1;
     }
 
-    struct ex_data_schema *ex_schema = plugin_table_schema_get_ex_data_schema(table_schema);
+    struct ex_data_schema *ex_schema = table_schema_get_ex_data_schema(table_schema);
     if (NULL == ex_schema) {
         log_error(logger, MODULE_TABLE_SCHEMA, 
                   "Error: %s, target table is not a valid plugin table", __FUNCTION__);
@@ -1784,7 +1655,7 @@ int plugin_table_schema_set_ex_data_schema(struct table_schema *table_schema,
     return 0;
 }
 
-struct ex_data_schema *plugin_table_schema_get_ex_data_schema(struct table_schema *table_schema)
+struct ex_data_schema *table_schema_get_ex_data_schema(struct table_schema *table_schema)
 {
     if (NULL == table_schema) {
         return NULL;
@@ -1806,7 +1677,77 @@ struct ex_data_schema *plugin_table_schema_get_ex_data_schema(struct table_schem
     return ex_schema;
 }
 
-int plugin_table_schema_ex_data_schema_flag(struct table_schema *table_schema)
+int table_schema_set_compile_rule_ex_data_schema(struct table_schema *table_schema,
+                                                 maat_rule_ex_new_func_t *new_func,
+                                                 maat_rule_ex_free_func_t *free_func,
+                                                 maat_rule_ex_dup_func_t *dup_func,
+                                                 long argl, void *argp,
+                                                 struct log_handle *logger)
+{
+    if (NULL == table_schema || NULL == new_func || NULL == free_func || NULL == dup_func) {
+        assert(0);
+        log_error(logger, MODULE_TABLE_SCHEMA, "%s failed: invalid parameter", __FUNCTION__);
+        return -1;
+    }
+
+	if (table_schema->table_type != TABLE_TYPE_COMPILE) {
+        log_error(logger, MODULE_TABLE_SCHEMA, 
+                  "table type must TABLE_TYPE_COMPILE when set compile rule ex_data schema");
+        return -1;
+    }
+
+	struct compile_table_schema* compile_schema = &(table_schema->compile);
+	if (compile_schema->n_ex_schema == MAX_COMPILE_EX_DATA_NUM) {
+        log_error(logger, MODULE_TABLE_SCHEMA, 
+                  "compile ex schema num reach maxium, can't set anymore");
+		return -1;
+	}
+
+	int idx = compile_schema->n_ex_schema;
+	compile_schema->ex_schema[idx].idx = idx;
+	compile_schema->ex_schema[idx].table_id = table_schema->table_id;
+	compile_schema->ex_schema[idx].argl = argl;
+	compile_schema->ex_schema[idx].argp = argp;
+	compile_schema->ex_schema[idx].new_func = new_func;
+	compile_schema->ex_schema[idx].free_func = free_func;
+	compile_schema->ex_schema[idx].dup_func = dup_func;
+	compile_schema->n_ex_schema++;
+
+	return idx;
+}
+
+struct compile_ex_data_schema *
+table_schema_get_compile_rule_ex_data_schema(struct table_schema *table_schema, size_t idx)
+{
+    if (NULL == table_schema) {
+        return NULL;
+    }
+	
+    if (table_schema->table_type != TABLE_TYPE_COMPILE) {
+        return NULL;
+    }
+
+	if (idx < table_schema->compile.n_ex_schema) {
+		return (table_schema->compile.ex_schema + idx);
+	}
+
+	return NULL;
+}
+
+size_t table_schema_compile_rule_ex_data_schema_count(struct table_schema *table_schema)
+{
+    if (NULL == table_schema) {
+        return 0;
+    }
+
+    if (table_schema->table_type != TABLE_TYPE_COMPILE) {
+        return 0;
+    }
+
+    return table_schema->compile.n_ex_schema;
+}
+
+int table_schema_ex_data_schema_flag(struct table_schema *table_schema)
 {
     if (NULL == table_schema) {
         return -1;
@@ -1828,7 +1769,7 @@ int plugin_table_schema_ex_data_schema_flag(struct table_schema *table_schema)
     return ex_schema->set_flag;
 }
 
-int plugin_table_schema_add_callback(struct table_schema_manager* table_schema_mgr, int table_id,
+int table_schema_add_callback(struct table_schema_manager* table_schema_mgr, int table_id,
 							         maat_start_callback_t *start,
 							         maat_update_callback_t *update,
 							         maat_finish_callback_t *finish,
@@ -1872,7 +1813,7 @@ int plugin_table_schema_add_callback(struct table_schema_manager* table_schema_m
 	return 0;
 }
 
-size_t plugin_table_schema_callback_count(struct table_schema *table_schema)
+size_t table_schema_callback_count(struct table_schema *table_schema)
 {
     if (NULL == table_schema) {
         return 0;
@@ -1885,7 +1826,7 @@ size_t plugin_table_schema_callback_count(struct table_schema *table_schema)
     }
 }
 
-void plugin_table_schema_all_cb_update(struct table_schema* table_schema, const char *row)
+void table_schema_all_cb_update(struct table_schema* table_schema, const char *row)
 {
     if (NULL == table_schema || NULL == row) {
         return;
@@ -1911,7 +1852,7 @@ void plugin_table_schema_all_cb_update(struct table_schema* table_schema, const 
     }
 }
 
-int plugin_table_schema_get_foreign_column(struct table_schema *table_schema, int *foreign_columns)
+int table_schema_get_foreign_column(struct table_schema *table_schema, int *foreign_columns)
 {
     if (NULL == table_schema) {
         return -1;

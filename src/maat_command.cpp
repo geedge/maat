@@ -162,9 +162,6 @@ int maat_cmd_get_valid_flag_offset(const char *line, enum table_type table_type,
 		case TABLE_TYPE_EXPR:
 			column_seq = 7;
 			break;
-		case TABLE_TYPE_IP:
-			column_seq = 14;
-			break;
 		case TABLE_TYPE_IP_PLUS:
 			column_seq = 18;
 			break;
@@ -332,8 +329,8 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
     }
 
     enum table_type table_type = table_schema_get_table_type(table_schema);
-    int is_valid = maat_cmd_get_valid_flag_offset(line_rule->table_line, table_type, valid_flag_column);
-
+    int valid_offset = maat_cmd_get_valid_flag_offset(line_rule->table_line, table_type, valid_flag_column);
+    int is_valid = atoi(line_rule->table_line+valid_offset);
     if (line_rule->expire_after > 0) {
         absolute_expire_time = server_time + line_rule->expire_after;
     }

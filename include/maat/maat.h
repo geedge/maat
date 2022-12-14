@@ -27,13 +27,17 @@ extern "C"
 /* maat instance handle */
 struct maat;
 
-struct maat_rule {
-    int rule_id;
-};
-
 enum ip_type {
     IP_TYPE_V4,
     IP_TYPE_V6
+};
+
+enum maat_scan_opt
+{
+	MAAT_SET_SCAN_DISTRICT = 1,		//VALUE is a const char*, SIZE= strlen(string). DEFAULT: no default.
+	MAAT_SET_SCAN_LAST_REGION,		//VALUE is NULL, SIZE=0. This option indicates that the follow scan is the last region of current scan combination.
+	MAAT_GET_SCAN_HIT_PATH			//VALUE is struct Maat_hit_path_t*, an array of struct Maat_hit_path_t, SIZE= sizeof(struct Maat_hit_path_t)*N,
+									//Maat_get_scan_status returns actual got number.
 };
 
 /* network order */
@@ -69,6 +73,12 @@ typedef void maat_finish_callback_t(void *u_para);
 typedef void maat_plugin_ex_new_func_t(int table_id, const char *key, const char *table_line, void **ad, long argl, void *argp);
 typedef void maat_plugin_ex_free_func_t(int table_id, void **ad, long argl, void *argp);
 typedef void maat_plugin_ex_dup_func_t(int table_id, void **to, void **from, long argl, void *argp);
+
+typedef void maat_rule_ex_new_func_t(int idx, const struct maat_rule *rule, const char *srv_def_large,
+									 void *ex_data, long argl, void *argp);
+typedef void maat_rule_ex_free_func_t(int idx, const struct maat_rule *rule, const char *srv_def_large,
+									  void *ex_data, long argl, void *argp);
+typedef void maat_rule_ex_dup_func_t(int idx, void *to, void *from, long argl, void *argp);
 
 /* maat_instance options API */
 struct maat_options;
@@ -112,25 +122,30 @@ void *maat_plugin_table_dup_ex_data(struct maat *instance, int table_id,
 struct maat_state;
 int maat_scan_integer(struct maat *instance, int table_id, int thread_id,
                       unsigned int intval, int results[], size_t *n_result,
-                      struct maat_state *state);
+                      struct maat_state **state);
 
 int maat_scan_ip(struct maat *instance, int table_id, int thread_id, 
                  struct addr_4tuple *addr, int results[], size_t *n_result, 
-                 struct maat_state *state);
+                 struct maat_state **state);
 
 int maat_scan_string(struct maat *instance, int table_id, int thread_id,
                      const char *data, size_t data_len, int results[], size_t *n_result,
-                     struct maat_state *state);
+                     struct maat_state **state);
 
 struct maat_stream;
 struct maat_stream *maat_scan_stream_open(struct maat *instance, int table_id, int thread_id);
 
 int maat_scan_stream(struct maat_stream **stream, int thread_id, const char* data, int data_len, 
-                     int results[], size_t *n_result, struct maat_state *state);
+                     int results[], size_t *n_result, struct maat_state **state);
 
 void maat_scan_stream_close(struct maat_stream **stream);
 
-void maat_state_reset(struct maat_state *state);
+int maat_state_set(struct maat *instance, struct maat_state **mid, enum maat_scan_opt opt, const void *value, int size);
+
+//return >=0 if success, return -1 when failed;
+int maat_state_get(struct maat *instance, struct maat_state **mid, enum maat_scan_opt opt, void *value, int size);
+
+void maat_state_reset(struct maat_state **state);
 
 #ifdef __cpluscplus
 }

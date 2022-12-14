@@ -57,8 +57,7 @@ TEST(iris_mode, maat_scan_string) {
 		int ret = load_file_to_memory(json_filename, (unsigned char**)&json_buff, &json_buff_sz);
         EXPECT_NE(ret, -1);
 
-		ret = json2iris(json_buff, json_filename, NULL, NULL, NULL, NULL, 
-                        tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL, NULL);
+		ret = json2iris(json_buff, json_filename, NULL, tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL, NULL);
 		EXPECT_NE(ret, -1);
 	}
 
@@ -158,8 +157,7 @@ TEST(redis_mode, maat_scan_string) {
         int ret = load_file_to_memory(json_filename, (unsigned char **)&json_buff, &json_buff_sz);
         EXPECT_NE(ret, -1);
 
-        ret = json2iris(json_buff, json_filename, NULL, NULL, NULL, c, tmp_iris_path, 
-                        sizeof(tmp_iris_path), NULL, NULL, logger);
+        ret = json2iris(json_buff, json_filename, c, tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL, logger);
         EXPECT_NE(ret, -1);
     }
 

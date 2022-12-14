@@ -57,7 +57,7 @@ void table_runtime_update(struct table_runtime *table_rt, struct table_schema *t
 */
 int table_runtime_updating_flag(struct table_runtime *table_rt);
 
-void table_runtime_commit(struct table_runtime *table_rt, size_t nr_worker_thread);
+void table_runtime_commit(struct table_runtime *table_rt, size_t nr_worker_thread, struct log_handle *logger);
 
 /* table runtime scan API */
 int table_runtime_scan_string(struct table_runtime *table_rt, int thread_id, const char *data, size_t data_len, 
@@ -67,7 +67,7 @@ void table_runtime_stream_open(struct table_runtime *table_rt, int thread_id);
 int table_runtime_scan_stream(struct table_runtime *table_rt, const char *data, size_t data_len, int results[], size_t *n_result);
 void table_runtime_stream_close(struct table_runtime *table_rt);
 
-int table_runtime_scan_ip(struct table_runtime *table_rt, int thread_id, struct table_rt_2tuple *data, int results[], size_t *n_result);
+int table_runtime_scan_ip(struct table_runtime *table_rt, int thread_id, struct table_rt_2tuple *data, struct scan_result *results, size_t *n_result, size_t n_result_array);
 
 /* table runtime cached row API */
 size_t table_runtime_cached_row_count(struct table_runtime *table_rt);
@@ -78,7 +78,7 @@ const char* table_runtime_get_cached_row(struct table_runtime *table_rt, size_t 
 struct ex_data_runtime *table_runtime_get_ex_data_rt(struct table_runtime *table_rt);
 
 void table_runtime_commit_ex_data_schema(struct table_runtime *table_rt, struct table_schema *table_schema,
-                                         struct log_handle *logger);
+                                         int nr_worker_num, struct log_handle *logger);
 
 #ifdef __cpluscplus
 }

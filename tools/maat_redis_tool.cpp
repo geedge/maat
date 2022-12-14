@@ -308,14 +308,13 @@ int main(int argc, char * argv[])
 			printf("open %s failed.\n", json_file);
 		}
 
-		ret = json2iris(json_buff, json_file, NULL, NULL, NULL, c, tmp_iris_path, 
-                        sizeof(tmp_iris_path), NULL, NULL, NULL);
+		ret = json2iris(json_buff, json_file, c, tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL, logger);
 		if (ret < 0) {
 			printf("Invalid json format.\n");
 		}
 
 		size_t total_line_cnt = 0;
-		config_monitor_traverse(0, tmp_iris_path, NULL, count_line_num_cb, NULL, &total_line_cnt, NULL);
+		config_monitor_traverse(0, tmp_iris_path, NULL, count_line_num_cb, NULL, &total_line_cnt, logger);
 		printf("Serialize %s to %zu lines, write temp file to %s .\n", json_file, total_line_cnt, tmp_iris_path);
 
 		struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
@@ -328,13 +327,13 @@ int main(int argc, char * argv[])
 			absolute_expire_time = server_time + timeout;
 		}
 
-		config_monitor_traverse(0, tmp_iris_path, NULL, make_serial_rule, NULL, s_rule, NULL);
+		config_monitor_traverse(0, tmp_iris_path, NULL, make_serial_rule, NULL, s_rule, logger);
 		printf("Timeout = %lld\n", absolute_expire_time);
 
 		ret = 0;
         int success_cnt = 0;
 		do {
-			success_cnt = maat_cmd_write_rule(c, s_rule, total_line_cnt, server_time, NULL);
+			success_cnt = maat_cmd_write_rule(c, s_rule, total_line_cnt, server_time, logger);
 		} while(success_cnt < 0);
 
 		if (success_cnt != (int)total_line_cnt) {

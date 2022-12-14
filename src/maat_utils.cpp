@@ -52,7 +52,7 @@ int get_column_pos(const char *line, int column_seq, size_t *offset, size_t *len
     char *str = NULL;
 	char *saveptr = NULL;
     char *subtoken = NULL;
-    const char *seps = " \t";
+    const char *seps = "\t";
 	char *dup_line = maat_strdup(line);
 	
 	for (str = dup_line; ; str = NULL) {

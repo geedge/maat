@@ -23,6 +23,7 @@
 #include "adapter_hs.h"
 #include "rcu_hash.h"
 #include "IPMatcher.h"
+#include "alignment.h"
 
 #define MODULE_TABLE_RUNTIME	 module_name_str("maat.table_runtime")
 
@@ -69,6 +70,10 @@ struct table_runtime {
     };
 
     struct maat_garbage_bin *ref_garbage_bin;
+
+    long long *scan_cnt;
+    long long *hit_cnt;
+    long long *stream_num;
     //ex_data_rt
     //table相关指针
 };
@@ -144,6 +149,10 @@ struct table_runtime *table_runtime_new(struct table_schema *table_schema, int m
             break;
     }
 
+    table_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
+    table_rt->hit_cnt = alignment_int64_array_alloc(max_thread_num);
+    table_rt->stream_num = alignment_int64_array_alloc(max_thread_num);
+    
     return table_rt;
 }
 
@@ -232,7 +241,7 @@ size_t table_runtime_rule_count(struct table_runtime *table_rt)
 enum table_type table_runtime_get_type(struct table_runtime* table_rt)
 {
     if (NULL == table_rt) {
-        return TABLE_TYPE_MAX;
+        return TABLE_TYPE_INVALID;
     }
 
     return table_rt->table_type;
@@ -286,7 +295,7 @@ enum IP_TYPE ip_type_transform(enum ip_type type)
 }
 
 int table_runtime_scan_ip(struct table_runtime *table_rt, int thread_id, struct table_rt_2tuple *data,
-                          int results[], size_t *n_result)
+                          struct scan_result *results, size_t *n_result, size_t n_result_array)
 {
     if (NULL == table_rt) {
         return -1;
@@ -294,7 +303,7 @@ int table_runtime_scan_ip(struct table_runtime *table_rt, int thread_id, struct 
 
     int i = 0;
     int n_hit_result = 0;
-    struct scan_result scan_results[table_rt->rule_num] = {0};
+    struct scan_result scan_results[n_result_array] = {0};
 
     struct ip_data ip;
     ip.type = ip_type_transform(data->ip_type);
@@ -304,7 +313,11 @@ int table_runtime_scan_ip(struct table_runtime *table_rt, int thread_id, struct 
         memcpy(ip.ipv6, data->ipv6, sizeof(data->ipv6));
     }
     
-    n_hit_result = ip_matcher_match(table_rt->ip_plus_rt.ip_matcher, &ip, scan_results, table_rt->rule_num);
+    n_hit_result = ip_matcher_match(table_rt->ip_plus_rt.ip_matcher, &ip, scan_results, n_result_array);
+    if (n_hit_result > (int)n_result_array) {
+        n_hit_result = n_result_array;
+    }
+
     int index = 0;
     /* filter rule_id by port */
     for (i = 0; i < n_hit_result; i++) {
@@ -312,7 +325,7 @@ int table_runtime_scan_ip(struct table_runtime *table_rt, int thread_id, struct 
         if (data->port < port_range->min_port || data->port > port_range->max_port) {
             continue;
         }
-        results[index++] = scan_results[i].rule_id;
+        results[index++].rule_id = scan_results[i].rule_id;
     }
     *n_result = index;
 
@@ -473,8 +486,8 @@ void plugin_runtime_update_row(struct plugin_runtime *plugin_rt, struct table_sc
 {
     struct ex_data_container *ex_container = ALLOC(struct ex_data_container, 1);
     ex_container->ex_data = ex_data_runtime_row2ex_data(plugin_rt->ex_data_rt, row, key, key_len);
-    int set_flag = plugin_table_schema_ex_data_schema_flag(table_schema);
-    size_t cb_count = plugin_table_schema_callback_count(table_schema);
+    int set_flag = table_schema_ex_data_schema_flag(table_schema);
+    size_t cb_count = table_schema_callback_count(table_schema);
 
     /* already set plugin_table_schema's ex_data_schema */
     if (1 == set_flag) {
@@ -489,7 +502,7 @@ void plugin_runtime_update_row(struct plugin_runtime *plugin_rt, struct table_sc
 
     /* plugin table schema has callback */
     if (cb_count > 0) {
-        plugin_table_schema_all_cb_update(table_schema, row);
+        table_schema_all_cb_update(table_schema, row);
     }
     
     if ((0 == set_flag) && (0 == cb_count)) {
@@ -510,7 +523,7 @@ void ip_plugin_runtime_update_row(struct ip_plugin_runtime *ip_plugin_rt, struct
     struct ex_container_ctx *ctx = ex_data_runtime_get_ex_container_ctx(ex_data_rt);
     ctx->custom_data_free = free;
 
-    int set_flag = plugin_table_schema_ex_data_schema_flag(table_schema);
+    int set_flag = table_schema_ex_data_schema_flag(table_schema);
 
     if (1 == set_flag) {
         if (0 == is_valid) {
@@ -576,7 +589,8 @@ void table_runtime_update(struct table_runtime *table_rt, struct table_schema *t
     }
 }
 
-int expr_runtime_commit(struct table_runtime *table_rt, size_t nr_worker_thread)
+int expr_runtime_commit(struct table_runtime *table_rt, size_t nr_worker_thread,
+                        struct log_handle *logger)
 {
     struct expr_runtime *expr_rt = &(table_rt->expr_rt);
     void **ex_data_array = NULL;
@@ -594,8 +608,12 @@ int expr_runtime_commit(struct table_runtime *table_rt, size_t nr_worker_thread)
     struct adapter_hs *new_adapter_hs = NULL;
     struct adapter_hs *old_adapter_hs = NULL;
     if (rule_cnt > 0) {
+        log_info(logger, MODULE_TABLE_RUNTIME, 
+                 "committing %zu expr rules for rebuilding adapter_hs engine", rule_cnt);
         new_adapter_hs = adapter_hs_initialize(expr_rt->scan_mode, nr_worker_thread, rules, rule_cnt);
         if (NULL == new_adapter_hs) {
+            log_error(logger, MODULE_TABLE_RUNTIME, 
+                      "rebuild adapter_hs engine failed when update %zu expr rules", rule_cnt);
             ret = -1;
         }
     }
@@ -615,7 +633,7 @@ int expr_runtime_commit(struct table_runtime *table_rt, size_t nr_worker_thread)
     return ret;
 }
 
-int ip_plus_runtime_commit(struct table_runtime *table_rt)
+int ip_plus_runtime_commit(struct table_runtime *table_rt, struct log_handle *logger)
 {
     struct ex_data_container **ex_container = NULL;
     struct ip_rule *rules = NULL;
@@ -636,8 +654,12 @@ int ip_plus_runtime_commit(struct table_runtime *table_rt)
     size_t mem_used = 0;
 
     if (rule_cnt > 0) {
+        log_info(logger, MODULE_TABLE_RUNTIME, 
+                 "committing %zu ip_plus rules for rebuilding ip_matcher engine", rule_cnt);
         new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used);
         if (NULL == new_ip_matcher) {
+            log_error(logger, MODULE_TABLE_RUNTIME, 
+                      "rebuild ip_matcher engine failed when update %zu ip_plus rules", rule_cnt);
             ret = -1;
         }
     }
@@ -662,7 +684,7 @@ int plugin_runtime_commit(struct table_runtime *table_rt)
     return 0;
 }
 
-int ip_plugin_runtime_commit(struct table_runtime *table_rt)
+int ip_plugin_runtime_commit(struct table_runtime *table_rt, struct log_handle *logger)
 {
     struct ex_data_container **ex_container = NULL;
     struct ip_rule *rules = NULL;
@@ -683,8 +705,12 @@ int ip_plugin_runtime_commit(struct table_runtime *table_rt)
     size_t mem_used = 0;
 
     if (rule_cnt > 0) {
+         log_info(logger, MODULE_TABLE_RUNTIME, 
+                 "committing %zu ip_plugin rules for rebuilding ip_matcher engine", rule_cnt);
         new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used);
         if (NULL == new_ip_matcher) {
+            log_error(logger, MODULE_TABLE_RUNTIME, 
+                      "rebuild ip_matcher engine failed when update %zu ip_plugin rules", rule_cnt);
             ret = -1;
         }
     }
@@ -737,20 +763,21 @@ int table_runtime_updating_flag(struct table_runtime *table_rt)
     return updating_flag;
 }
 
-void table_runtime_commit(struct table_runtime *table_rt, size_t nr_worker_thread)
+void table_runtime_commit(struct table_runtime *table_rt, size_t nr_worker_thread,
+                          struct log_handle *logger)
 {
     switch (table_rt->table_type) {
         case TABLE_TYPE_EXPR:
-            expr_runtime_commit(table_rt, nr_worker_thread);
+            expr_runtime_commit(table_rt, nr_worker_thread, logger);
             break;
         case TABLE_TYPE_IP_PLUS:
-            ip_plus_runtime_commit(table_rt);
+            ip_plus_runtime_commit(table_rt, logger);
             break;
         case TABLE_TYPE_PLUGIN:
             plugin_runtime_commit(table_rt);
             break;
         case TABLE_TYPE_IP_PLUGIN:
-            ip_plugin_runtime_commit(table_rt);
+            ip_plugin_runtime_commit(table_rt, logger);
             break;
         default:
             break;
@@ -813,9 +840,9 @@ struct ex_data_runtime *table_runtime_get_ex_data_rt(struct table_runtime *table
 }
 
 void table_runtime_commit_ex_data_schema(struct table_runtime *table_rt, struct table_schema *table_schema,
-                                         struct log_handle *logger)
+                                         int nr_worker_thread, struct log_handle *logger)
 {
-    struct ex_data_schema *ex_data_schema = plugin_table_schema_get_ex_data_schema(table_schema);
+    struct ex_data_schema *ex_data_schema = table_schema_get_ex_data_schema(table_schema);
     struct ex_data_runtime *ex_data_rt = table_runtime_get_ex_data_rt(table_rt);
     ex_data_runtime_set_schema(ex_data_rt, ex_data_schema);
     struct ex_container_ctx *ctx = ALLOC(struct ex_container_ctx, 1);
@@ -840,5 +867,5 @@ void table_runtime_commit_ex_data_schema(struct table_runtime *table_rt, struct 
     }
     ex_data_runtime_clear_row_cache(ex_data_rt);
 
-    table_runtime_commit(table_rt, 0);
+    table_runtime_commit(table_rt, nr_worker_thread, logger);
 }

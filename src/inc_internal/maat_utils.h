@@ -31,6 +31,8 @@ extern "C"
 #define MIN(a, b)  	(((a) < (b)) ? (a) : (b))
 #endif
 
+#define	MAX_SCANNER_HIT_NUM	 4096
+
 enum maat_ip_format {
 	IP_FORMAT_RANGE,
 	IP_FORMAT_MASK,

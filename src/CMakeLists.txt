@@ -10,7 +10,7 @@ message(STATUS "Maat Frame, Version: ${MAAT_FRAME_VERSION}")
 add_definitions(-fPIC)
 set(MAAT_SRC json2iris.cpp maat_api.cpp rcu_hash.cpp maat_garbage_collection.cpp maat_config_monitor.cpp 
     maat_rule.cpp maat_kv.cpp maat_ex_data.cpp maat_table_schema.cpp maat_table_runtime.cpp maat_utils.cpp
-    maat_command.cpp maat_redis_monitor.cpp)
+    maat_command.cpp maat_redis_monitor.cpp maat_hierarchy.cpp)
 
 set(LIB_SOURCE_FILES
 	${PROJECT_SOURCE_DIR}/deps/cJSON/cJSON.c ${PROJECT_SOURCE_DIR}/deps/log/log.c)
@@ -26,7 +26,7 @@ set_target_properties(maat_frame_static PROPERTIES LINKER_LANGUAGE CXX)
 set_target_properties(maat_frame_static PROPERTIES OUTPUT_NAME maatframe)
 set_target_properties(maat_frame_static PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 
-target_link_libraries(maat_frame_static adapter-static hiredis-static pthread crypto z)
+target_link_libraries(maat_frame_static adapter-static hiredis-static igraph-static pthread crypto z)
 
 # Shared Library Output
 #add_library(maat_frame_shared SHARED ${MAAT_SRC} ${LIB_SOURCE_FILES})

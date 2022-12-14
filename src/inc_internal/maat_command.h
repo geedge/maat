@@ -30,6 +30,13 @@ struct maat_cmd_line
 	int expire_after;	//expired after $timeout$ seconds, set to 0 for never timeout.
 };
 
+/**
+ * @brief write one line to redis
+ * 
+ * @retval 
+ *      success: number of successfully updated rule.
+ *      failed: -1
+*/
 int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *line_rule);
 
 #ifdef __cpluscplus

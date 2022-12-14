@@ -112,7 +112,7 @@ int get_foreign_keys_define(redisContext *ctx, struct serial_rule *rule_list, in
 		}
 
         int foreign_columns[8];
-        int n_foreign_column = plugin_table_schema_get_foreign_column(table_schema, foreign_columns);
+        int n_foreign_column = table_schema_get_foreign_column(table_schema, foreign_columns);
         if (0 == n_foreign_column) {
             continue;
         }

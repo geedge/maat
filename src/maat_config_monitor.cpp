@@ -409,8 +409,7 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
 		}
 	}
 
-	ret = json2iris((const char*)json_buff, json_filename, maat_instance->compile_tn, 
-                    maat_instance->group2compile_tn, maat_instance->group2group_tn, NULL,
+	ret = json2iris((const char*)json_buff, json_filename, NULL,
 			        maat_instance->json_ctx.iris_file, sizeof(maat_instance->json_ctx.iris_file),
 			        strlen(maat_instance->decrypt_key) ? maat_instance->decrypt_key : NULL,
 			        strlen(maat_instance->decrypt_algo) ? maat_instance->decrypt_algo : NULL,

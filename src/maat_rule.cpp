@@ -23,11 +23,56 @@
 #include "maat_rule.h"
 #include "maat_config_monitor.h"
 #include "maat_redis_monitor.h"
-
 #include "maat_table_runtime.h"
 #include "maat_table_schema.h"
+#include "maat_hierarchy.h"
+#include "alignment.h"
 
 #define MODULE_MAAT_RULE	 module_name_str("maat.rule")
+
+void fill_maat_rule(struct maat_rule *rule, const struct maat_rule_head *rule_head, 
+                    const char *srv_def, int srv_def_len)
+{
+	memcpy(rule, rule_head, sizeof(struct maat_rule_head));
+	memcpy(rule->service_defined, srv_def, MIN(srv_def_len, MAX_SERVICE_DEFINE_LEN));
+}
+
+void rule_ex_data_free(const struct maat_rule_head *rule_head, const char *srv_def, void *ex_data, 
+                       const struct compile_ex_data_schema *ex_schema)
+{
+	struct maat_rule rule;
+
+    memset(&rule, 0, sizeof(rule));
+	fill_maat_rule(&rule, rule_head, srv_def, strlen(srv_def)+1);
+	ex_schema->free_func(ex_schema->idx, &rule, srv_def, ex_data, ex_schema->argl, ex_schema->argp);
+}
+
+void destroy_compile_rule(struct maat_compile_rule *compile_rule)
+{
+    size_t n_compile_ex_schema = table_schema_compile_rule_ex_data_schema_count(compile_rule->ref_table);
+	assert(compile_rule->magic_num == COMPILE_RULE_MAGIC);
+
+	for (size_t i = 0; i < n_compile_ex_schema; i++) {
+        struct compile_ex_data_schema *compile_ex_schema = table_schema_get_compile_rule_ex_data_schema(compile_rule->ref_table, i);
+		rule_ex_data_free(&(compile_rule->head), compile_rule->service_defined, compile_rule->ex_data+i, compile_ex_schema);
+		void *ex_data = compile_rule->ex_data + 1;
+        ex_data = NULL;
+	}
+	free(compile_rule->ex_data);
+
+	compile_rule->is_valid = 0;
+	compile_rule->declared_clause_num = -1;
+	FREE(compile_rule->service_defined);
+	FREE(compile_rule);
+}
+
+void maat_region_inner_free(struct maat_region_inner *region)
+{
+	assert(region->magic_num == REGION_RULE_MAGIC);
+	assert(region->expr_id_cnt == 0 ||region->expr_id_cnt == (region->expr_id_ub - region->expr_id_lb + 1));
+	region->magic_num = 0;
+	FREE(region);
+}
 
 struct maat_runtime* maat_runtime_create(long long version, struct maat *maat_instance)
 {
@@ -35,15 +80,24 @@ struct maat_runtime* maat_runtime_create(long long version, struct maat *maat_in
 
 	maat_rt->version = version;
 	maat_rt->table_rt_mgr = table_runtime_manager_create(maat_instance->table_schema_mgr,
-                                                        maat_instance->nr_worker_thread,
-                                                        maat_instance->garbage_bin);
+                                                         maat_instance->nr_worker_thread,
+                                                         maat_instance->garbage_bin);
 	maat_rt->max_table_num = table_schema_manager_get_size(maat_instance->table_schema_mgr);
     maat_rt->max_thread_num = maat_instance->nr_worker_thread;
+    maat_rt->hier = maat_hierarchy_new(maat_instance->nr_worker_thread, maat_instance->garbage_bin,
+                                       maat_instance->logger);
+    maat_hierarchy_set_compile_user_data_free_func(maat_rt->hier, (void (*)(void*))destroy_compile_rule);
+	maat_hierarchy_set_region_user_data_free_func(maat_rt->hier, (void (*)(void*))maat_region_inner_free);
 
+    maat_rt->logger = maat_instance->logger;
+    maat_rt->ref_garbage_bin = maat_instance->garbage_bin;
+    maat_rt->region_result_buff = ALLOC(struct scan_result, MAX_SCANNER_HIT_NUM * maat_instance->nr_worker_thread);
+    maat_rt->ref_cnt = alignment_int64_array_alloc(maat_instance->nr_worker_thread);
+    
     return maat_rt;
 }
 
-void maat_runtime_commit(struct maat_runtime *maat_rt)
+void maat_runtime_commit(struct maat_runtime *maat_rt, struct log_handle *logger)
 {
 	for (size_t i = 0; i < maat_rt->max_table_num; i++) {
 		struct table_runtime *table_rt = table_runtime_get(maat_rt->table_rt_mgr, i);
@@ -51,7 +105,7 @@ void maat_runtime_commit(struct maat_runtime *maat_rt)
 			continue;
 		}
 
-		table_runtime_commit(table_rt, maat_rt->max_thread_num);
+		table_runtime_commit(table_rt, maat_rt->max_thread_num, logger);
 	}
 
     maat_rt->last_update_time = time(NULL);
@@ -159,13 +213,13 @@ void maat_finish_cb(void *u_param)
     
     if (maat_instance->creating_maat_rt != NULL) {
         maat_instance->creating_maat_rt->rule_num = maat_runtime_rule_num(maat_instance->creating_maat_rt);
-        maat_runtime_commit(maat_instance->creating_maat_rt);
+        maat_runtime_commit(maat_instance->creating_maat_rt, maat_instance->logger);
         log_info(maat_instance->logger, MODULE_MAAT_RULE, "Full config version %llu load %d entries complete\n", 
                  maat_instance->creating_maat_rt->version, maat_instance->creating_maat_rt->rule_num);
     } else if (maat_instance->maat_rt != NULL) {
         maat_instance->maat_rt->rule_num = maat_runtime_rule_num(maat_instance->maat_rt);
         maat_instance->maat_rt->version = maat_instance->maat_version;
-        maat_runtime_commit(maat_instance->maat_rt);
+        maat_runtime_commit(maat_instance->maat_rt, maat_instance->logger);
         log_info(maat_instance->logger, MODULE_MAAT_RULE, "Inc config version %llu load %d entries complete\n", 
                  maat_instance->maat_rt->version, maat_instance->maat_rt->rule_num);
     }
@@ -267,7 +321,7 @@ void *rule_monitor_loop(void *arg)
                 time_t time_window = time(NULL) - maat_instance->maat_rt->last_update_time;
                 
                 if ((updating_flag > 0) && (time_window >= maat_instance->rule_effect_interval_ms / 1000)) {
-                    maat_runtime_commit(maat_instance->maat_rt);
+                    maat_runtime_commit(maat_instance->maat_rt, maat_instance->logger);
                     log_info(maat_instance->logger,MODULE_MAAT_RULE,
 							 "Actual update config version %u, %d entries load to rulescan after postpone.",
 							 maat_instance->maat_rt->version, maat_instance->maat_rt->rule_num);

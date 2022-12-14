@@ -29,6 +29,57 @@ extern "C"
 #include "uthash/uthash.h"
 #include "maat_table_schema.h"
 #include "maat_command.h"
+#include "IPMatcher.h"
+
+struct maat_rule_head {
+	int config_id;
+	int	service_id;
+	char do_log;
+	char do_blacklist;
+	char action;
+	char resevered;
+	int	serv_def_len;
+};
+
+#define	MAX_SERVICE_DEFINE_LEN 128
+struct maat_rule {
+	int	config_id;
+	int	service_id;
+	uint8_t	do_log;
+	uint8_t do_blacklist;
+	uint8_t	action;
+	uint8_t	reserved;
+	int	serv_def_len;
+	char service_defined[MAX_SERVICE_DEFINE_LEN];
+};
+
+#define	REGION_RULE_MAGIC 0x4d3c2b1a
+struct maat_region_inner
+{
+	long long magic_num;
+	int region_id;
+	int group_id;
+	int district_id;
+	int table_id;
+	int expr_id_cnt;
+	int expr_id_lb;	//low boundary
+	int expr_id_ub;	//up boundary
+};
+
+#define	COMPILE_RULE_MAGIC	0x1a2b3c4d
+struct maat_compile_rule
+{
+	long long magic_num;
+	struct maat_rule_head head;// fix len of Maat_rule_t
+	char *service_defined;
+	int is_valid;
+	int declared_clause_num;
+	double evaluation_order;
+	struct table_schema *ref_table;
+	void *ex_data;
+	int compile_id;
+	pthread_rwlock_t rwlock;
+};
 
 struct maat_runtime {
     /* maat_runtime can be created and destroy dynamic, so need version info */
@@ -36,11 +87,18 @@ struct maat_runtime {
 
     time_t last_update_time;
 
+    long long *ref_cnt;
     struct table_runtime_manager *table_rt_mgr;
     size_t max_table_num;
     
     size_t max_thread_num;
     uint32_t rule_num;
+
+    struct maat_hierarchy *hier;
+    struct maat_garbage_bin *ref_garbage_bin;
+
+    struct scan_result *region_result_buff;
+    struct log_handle *logger;
 };
 
 enum data_source {
@@ -148,6 +206,12 @@ struct maat {
 
     /* statistics */
     long long line_cmd_acc_num;
+
+    long long *outer_mid_cnt;
+    long long *compile_mid_cnt;
+    long long *thread_call_cnt;
+
+    long long scan_err_cnt;
 };
 
 void maat_start_cb(long long new_version, int update_type, void *u_para);
