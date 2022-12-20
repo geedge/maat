@@ -68,9 +68,6 @@ size_t memcat(void**dest, size_t offset, size_t *n_dest, const void* src, size_t
 
 pid_t gettid(void);
 int system_cmd_mkdir(const char* path);
-int system_cmd_rm(const char* src_file);
-int system_cmd_mv(const char* src_file, const char*dst_file);
-int system_cmd_cp(const char* src_file, const char*dst_file);
 int system_cmd_encrypt(const char* src_file, const char* dst_file, const char* password);
 int system_cmd_gzip(const char* src_file, const char* dst_file);
 

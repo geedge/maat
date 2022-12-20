@@ -25,6 +25,9 @@ enum MAAT_SCAN_TYPE Maat_table_get_scan_type(enum MAAT_TABLE_TYPE table_type)
 	enum MAAT_SCAN_TYPE ret=SCAN_TYPE_INVALID;
 	switch(table_type)
 	{
+        case TABLE_TYPE_FLAG:
+            ret=SCAN_TYPE_FLAG;
+            break;
 		case TABLE_TYPE_EXPR:
 		case TABLE_TYPE_EXPR_PLUS:
 		case TABLE_TYPE_SIMILARITY:
@@ -649,6 +652,7 @@ struct Maat_table_manager* Maat_table_manager_create(const char* table_info_path
 	table_mgr->map_tablename2id=maat_kv_store_new();
 
 	reserved_word_map=maat_kv_store_new();
+    maat_kv_register(reserved_word_map, "flag", TABLE_TYPE_FLAG);
 	maat_kv_register(reserved_word_map, "expr", TABLE_TYPE_EXPR);
 	maat_kv_register(reserved_word_map, "ip", TABLE_TYPE_IP);	
 	maat_kv_register(reserved_word_map, "ip_plus", TABLE_TYPE_IP_PLUS);

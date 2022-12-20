@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required (VERSION 3.5)
 set(lib_name maatframe)
 project (maatframe)
 
@@ -7,8 +7,10 @@ include(Version)
 
 SET(CMAKE_INSTALL_PREFIX /opt/MESA/)
 
+LINK_DIRECTORIES(/opt/MESA/lib /usr/lib64)
+
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -Wall)
-set(MAAT_DEPEND_DYN_LIB  MESA_handle_logger MESA_htable pcre rulescan pthread m pcre MESA_field_stat2 crypto z)
+set(MAAT_DEPEND_DYN_LIB pcre rulescan pthread m pcre crypto z zlog)
 include_directories(${PROJECT_SOURCE_DIR}/inc/)
 include_directories(/opt/MESA/include/)
 

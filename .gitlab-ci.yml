@@ -3,7 +3,7 @@ variables:
   BUILD_IMAGE_CENTOS7: "git.mesalab.cn:7443/mesa_platform/build-env:master"
   BUILD_IMAGE_CENTOS8: "git.mesalab.cn:7443/mesa_platform/build-env:rockylinux"
   BUILD_PADDING_PREFIX: /tmp/padding_for_CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX_PREFIX_PREFIX_PREFIX_PREFIX_PREFIX/
-  INSTALL_DEPENDENCY_LIBRARY:  libMESA_handle_logger-devel  libMESA_htable-devel pcre-devel librulescan-devel libMESA_field_stat2-devel libMESA_field_stat-devel sapp-devel framework_env openssl-devel libasan
+  INSTALL_DEPENDENCY_LIBRARY:  pcre-devel librulescan-devel libMESA_field_stat-devel sapp-devel framework_env openssl-devel libasan
 
 stages:
 - build

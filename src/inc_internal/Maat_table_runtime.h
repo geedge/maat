@@ -1,13 +1,22 @@
+#pragma once
+
 #include "Maat_table_schema.h"
 #include "Maat_ex_data.h"
 
 #include "IPMatcher.h"
 #include "gram_index_engine.h"
 #include "bool_matcher.h"
+#include "flag_matcher.h"
 #include "FQDN_engine.h"
 #include "alignment_int64.h"
+#include "rcu_hash.h"
 #include <MESA/MESA_list_queue.h>
 
+struct flag_runtime
+{
+    struct flag_matcher *matcher;
+    struct rcu_hash_table *htable;
+};
 struct similar_runtime
 {
 	GIE_handle_t*	gie_handle;
@@ -59,6 +68,7 @@ struct Maat_table_runtime
 	long origin_rule_num;
 	union
 	{	
+        struct flag_runtime flag;
 		struct similar_runtime similar;	//for digest and similarity
 		struct fqdn_plugin_runtime fqdn_plugin;//for fqdn_plugin and fqdn_plugin
 		struct bool_plugin_runtime bool_plugin;
@@ -109,4 +119,6 @@ void Maat_table_runtime_bool_plugin_new_row(struct Maat_table_runtime* table_rt,
 int Maat_table_runtime_bool_plugin_commit_update(struct Maat_table_runtime* table_rt);
 int Maat_table_runtime_bool_plugin_get_N_ex_data(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, unsigned long long item_ids[], size_t n_item, MAAT_PLUGIN_EX_DATA* ex_data_array, size_t size);
 
-
+void Maat_table_runtime_flag_add(struct Maat_table_runtime *table_rt, int expr_id, uint64_t flag, uint64_t mask, void *tag);
+void Maat_table_runtime_flag_del(struct Maat_table_runtime *table_rt, int expr_id);
+int Maat_table_runtime_flag_commit_update(struct Maat_table_runtime* table_rt, void *logger);

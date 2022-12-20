@@ -790,6 +790,7 @@ struct Maat_scanner* create_maat_scanner(unsigned int version, _Maat_feather_t *
 	scanner->logger_ref=feather->logger;
 	scanner->region_rslt_buff=ALLOC(scan_result_t, MAX_SCANNER_HIT_NUM*scan_thread_num);
 	scanner->gie_rslt_buff=ALLOC(GIE_result_t, MAX_SCANNER_HIT_NUM*scan_thread_num);
+    scanner->flag_rslt_buff=ALLOC(struct flag_match, MAX_SCANNER_HIT_NUM*scan_thread_num);
 	scanner->table_rt_mgr=Maat_table_runtime_manager_create(feather->table_mgr, feather->scan_thread_num, feather->garbage_bin);
 	scanner->max_table_num=Maat_table_manager_get_size(feather->table_mgr);
 	return scanner;
@@ -826,6 +827,8 @@ void destroy_maat_scanner(struct Maat_scanner*scanner)
 	scanner->region_rslt_buff=NULL;
 	free(scanner->gie_rslt_buff);
 	scanner->gie_rslt_buff=NULL;
+    free(scanner->flag_rslt_buff);
+    scanner->flag_rslt_buff=NULL;
 	alignment_int64_array_free(scanner->ref_cnt);
 	scanner->ref_cnt=NULL;
 	for(i=0;i<MAX_CHARSET_NUM;i++)
@@ -1330,6 +1333,32 @@ int add_expr_rule(struct Maat_table_schema* table,struct db_str_rule_t* db_rule,
 	}
 	return 0;
 }
+
+int add_flag_rule(struct Maat_table_schema* table, const char *line, struct db_flag_rule* db_flag_rule, struct Maat_scanner *scanner, void* logger)
+{
+    struct Maat_region_inner* u_para=NULL;
+    struct Maat_table_runtime * table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
+    int expr_id=0, ret=0;
+
+    u_para=Maat_region_inner_new(db_flag_rule->group_id, db_flag_rule->region_id, table->table_id, -1);
+    ret=Maat_hierarchy_add_region_to_group(scanner->hier, db_flag_rule->group_id, db_flag_rule->region_id, table->table_id, u_para);
+    if(ret!=0)
+	{
+		Maat_region_inner_free(u_para);
+		u_para=NULL;
+		return -1;
+	}
+
+    expr_id=scanner->exprid_generator++;
+	Maat_region_inner_add_expr_id(u_para, expr_id);
+    MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
+							"Maat_table_runtime_flag_add expr_id:%d", expr_id);
+    
+	Maat_table_runtime_flag_add(table_rt, expr_id, db_flag_rule->flag, db_flag_rule->mask, u_para);
+
+    return 0;
+}
+
 int add_ip_rule(struct Maat_table_schema* table, struct db_ip_rule_t* db_ip_rule, struct Maat_scanner *scanner, void* logger)
 {
 	scan_rule_t* p_rule=NULL;
@@ -1456,6 +1485,12 @@ int del_region_rule(struct Maat_table_schema* table, int region_id, int group_id
 			table_rt=Maat_table_runtime_get(maat_scanner->table_rt_mgr, table->table_id);
 			Maat_table_runtime_digest_del(table_rt, region->expr_id_lb);
 			break;
+        case    TABLE_TYPE_FLAG:
+            table_rt=Maat_table_runtime_get(maat_scanner->table_rt_mgr, table->table_id);
+            MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
+							"Maat_table_runtime_flag_del expr_id:%d", region->expr_id_cnt);	
+            Maat_table_runtime_flag_del(table_rt, region->expr_id_cnt);
+            break;
 		default:
 			assert(0);
 			break;
@@ -1571,6 +1606,51 @@ void update_group2group_rule(struct Maat_table_schema* table, const char* table_
 	}
 
 }
+
+void update_flag_rule(struct Maat_table_schema* table,const char* table_row,struct Maat_scanner *scanner,void* logger)
+{
+    struct db_flag_rule *db_flag_rule = ALLOC(struct db_flag_rule, 1);
+    struct Maat_table_runtime *table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
+
+    int ret = sscanf(table_row, "%d\t%d\t%lu\t%lu\t%d", &(db_flag_rule->region_id), &(db_flag_rule->group_id),
+                                                             &(db_flag_rule->flag), &(db_flag_rule->mask),
+                                                             &(db_flag_rule->is_valid));
+    MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_module, 
+                                    "update_flag_rule, table_name:%s region_id:%d, group_id:%d, flag:%lu, mask:%lu, is_valid:%d",
+                                    table->table_name[table->updating_name], db_flag_rule->region_id,
+                                    db_flag_rule->group_id, db_flag_rule->flag, db_flag_rule->mask,
+                                    db_flag_rule->is_valid);
+    if(db_flag_rule->is_valid==FALSE)
+	{
+		ret=del_region_rule(table, db_flag_rule->region_id, db_flag_rule->group_id, 0, scanner, logger);
+		if(ret<0)
+		{
+			table->udpate_err_cnt++;
+		}
+		else
+		{
+			table_rt->origin_rule_num--;
+		}
+	}
+	else
+	{
+		ret=add_flag_rule(table, table_row, db_flag_rule, scanner, logger);
+		if(ret<0)
+		{
+			MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_module, 
+                                    "duplicate config of flag table %s config_id=%d",
+                                    table->table_name[table->updating_name], db_flag_rule->region_id);
+			table->udpate_err_cnt++;
+		}
+		else
+		{
+			table_rt->origin_rule_num++;
+		}
+	}
+    free(db_flag_rule);
+    db_flag_rule = NULL;
+}
+
 void update_expr_rule(struct Maat_table_schema* table,const char* table_line,struct Maat_scanner *scanner,void* logger)
 {
 	struct db_str_rule_t* maat_str_rule=ALLOC(struct db_str_rule_t, 1);
@@ -2321,6 +2401,14 @@ void do_scanner_update(struct Maat_scanner* scanner, int scan_thread_num, void* 
 		table_type=Maat_table_runtime_get_type(table_rt);	
 		switch(table_type)
 		{
+            case TABLE_TYPE_FLAG:
+                ret=Maat_table_runtime_flag_commit_update(table_rt, logger);
+                if(ret<0)
+                {
+                    MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_module,
+										"flag_update error.");
+                }
+                break;
 			case TABLE_TYPE_DIGEST:
 			case TABLE_TYPE_SIMILARITY:				
 				ret=Maat_table_runtime_digest_batch_udpate(table_rt);
@@ -2490,6 +2578,9 @@ int maat_update_cb(const char* table_name,const char* line,void *u_para)
 
 	switch(p_table->table_type)
 	{
+        case    TABLE_TYPE_FLAG:
+            update_flag_rule(p_table, line, scanner, feather->logger);
+            break;
 		case	TABLE_TYPE_EXPR:
 		case	TABLE_TYPE_EXPR_PLUS:
 			update_expr_rule(p_table, line, scanner, feather->logger);

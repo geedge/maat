@@ -189,7 +189,7 @@ int get_valid_flag_offset(const char* line, enum MAAT_TABLE_TYPE type, int valid
 	unsigned int column_seq=0, ret=0;
  	switch(type)
 	{
-		case	TABLE_TYPE_EXPR:
+		case    TABLE_TYPE_EXPR:
 			column_seq=7;
 			break;
 		case	TABLE_TYPE_IP:
@@ -1610,7 +1610,7 @@ void _get_foreign_conts(redisContext *ctx, struct serial_rule_t* rule_list, int 
 				{
 					continue;
 				}
-				//ret=system_cmd_rm(rule_list[i].f_keys[j].filename);
+				
 				ret=remove(rule_list[i].f_keys[j].filename);
 				if(ret==-1)
 				{

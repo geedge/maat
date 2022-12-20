@@ -5,8 +5,7 @@
 #include <assert.h>
 #include <sys/queue.h>
 
-
-
+#include "Maat_rule_internal.h"
 #include "dynamic_array.h"
 #include <MESA/MESA_htable.h>
 #include <MESA/MESA_list_queue.h>
@@ -96,6 +95,25 @@ struct Maat_table_runtime_manager
 	size_t n_table_rt;
 	struct Maat_garbage_bin* ref_bin;
 };
+
+static struct flag_rule *create_flag_rule(uint32_t id, uint64_t flag, uint64_t flag_mask, void *tag)
+{
+    struct flag_rule *rule = ALLOC(struct flag_rule, 1);
+
+    rule->flag_rule_id = id;
+    rule->flag = flag;
+    rule->mask = flag_mask;
+    rule->user_tag = tag;
+
+    return rule;
+}
+
+static void destroy_flag_rule(struct flag_rule *rule)
+{
+    free(rule);
+    rule=NULL;
+}
+
 static GIE_digest_t* create_digest_rule(unsigned int id, enum GIE_operation op,const char* digest,
 						short cfds_lvl, void* tag)
 {
@@ -178,6 +196,11 @@ void _notype_fqdn_rule_free(void* p)
 	fqdn_rule_free((struct FQDN_rule*)p);
 	return;
 }
+void rcu_free_cb(void *user_ctx, void *data)
+{
+    struct flag_rule *rule = (struct flag_rule *)data;
+    destroy_flag_rule(rule);
+}
 static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_schema* table_schema, int max_thread_num, struct Maat_garbage_bin* bin)
 {
 
@@ -185,6 +208,9 @@ static struct Maat_table_runtime* table_runtime_new(const struct Maat_table_sche
 	table_rt->table_type=table_schema->table_type;
 	switch(table_schema->table_type)
 	{
+        case TABLE_TYPE_FLAG:
+            table_rt->flag.htable = rcu_hash_new(rcu_free_cb);
+            break;
 		case TABLE_TYPE_DIGEST:
 		case TABLE_TYPE_SIMILARITY:
 			table_rt->similar.update_q=MESA_lqueue_create(0,0);
@@ -249,6 +275,16 @@ static void table_runtime_free(struct Maat_table_runtime* p)
 	}
 	switch(p->table_type)
 	{
+        case TABLE_TYPE_FLAG:
+            if(p->flag.htable!=NULL)
+            {
+                rcu_hash_free(p->flag.htable);
+            }
+            if (p->flag.matcher!=NULL)
+            {
+                flag_matcher_free(p->flag.matcher);
+            }
+            break;
 		case TABLE_TYPE_DIGEST:
 		case TABLE_TYPE_SIMILARITY:
 			if(p->similar.gie_handle!=NULL)
@@ -277,6 +313,10 @@ static void table_runtime_free(struct Maat_table_runtime* p)
 			FQDN_engine_free(p->fqdn_plugin.fqdn_engine);
 			EX_data_rt_free(p->fqdn_plugin.ex_data_rt);			
 			break;
+        case TABLE_TYPE_BOOL_PLUGIN:
+            bool_matcher_free(p->bool_plugin.matcher);
+            EX_data_rt_free(p->bool_plugin.ex_data_rt);
+            break;
 		case TABLE_TYPE_PLUGIN:
 			EX_data_rt_free(p->plugin.ex_data_rt);
 			break;
@@ -421,6 +461,17 @@ void Maat_table_runtime_plugin_commit_update(struct Maat_table_runtime* table_rt
 	table_rt->origin_rule_num=EX_data_rt_get_ex_container_count(table_rt->plugin.ex_data_rt);
 	return;
 }
+
+void Maat_table_runtime_flag_add(struct Maat_table_runtime *table_rt, int expr_id, uint64_t flag, uint64_t mask, void *tag)
+{
+    struct flag_rule *rule = create_flag_rule(expr_id, flag, mask, tag);
+    rcu_hash_add(table_rt->flag.htable, (const char *)&expr_id, sizeof(int), rule);
+}
+
+void Maat_table_runtime_flag_del(struct Maat_table_runtime* table_rt, int expr_id)
+{
+    rcu_hash_del(table_rt->flag.htable, (const char *)&expr_id, sizeof(int));
+} 
 
 void Maat_table_runtime_digest_add(struct Maat_table_runtime* table_rt, int expr_id, const char* digest, short confidence_degree, void* tag)
 {
@@ -792,6 +843,7 @@ int Maat_table_runtime_bool_plugin_get_N_ex_data(struct Maat_table_runtime* tabl
 	}
 	return n_result;
 }
+
 int Maat_table_runtime_digest_batch_udpate(struct Maat_table_runtime* table_rt)
 {
 	long i=0,data_size=0;
@@ -858,6 +910,55 @@ int Maat_table_runtime_digest_batch_udpate(struct Maat_table_runtime* table_rt)
 	return q_cnt;
 }
 
+int Maat_table_runtime_flag_commit_update(struct Maat_table_runtime *table_rt, void *logger)
+{
+    int ret = 0;
+    void **rule_array = NULL;
+    struct flag_runtime *flag_rt = &(table_rt->flag);
+    assert(table_rt->table_type==TABLE_TYPE_FLAG);
+
+    size_t rule_cnt = rcu_hash_list_updating_data(flag_rt->htable, &rule_array);
+    MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_module,
+										"new_flag_matcher commit rule_cnt:%zu", rule_cnt);
+    if (0 == rule_cnt) {
+        free(rule_array);
+	    rule_array = NULL;
+        return 0;
+    }
+
+	struct flag_rule *rules=ALLOC(struct flag_rule, rule_cnt);
+	for (size_t i = 0; i < rule_cnt; i++)
+	{
+		rules[i] = *(struct flag_rule *)rule_array[i];
+	}
+
+    struct flag_matcher *new_flag_matcher = NULL;
+    struct flag_matcher *old_flag_matcher = NULL;
+    
+    new_flag_matcher = flag_matcher_new(rules, rule_cnt);
+	if(!new_flag_matcher)
+	{
+		ret = -1;
+	}
+	
+	old_flag_matcher = flag_rt->matcher;
+	flag_rt->matcher = new_flag_matcher;
+    if (old_flag_matcher != NULL) 
+    {
+        Maat_garbage_bagging(table_rt->ref_garbage_bin, old_flag_matcher, (void (*)(void*))flag_matcher_free);
+    }
+	
+	rcu_hash_commit(flag_rt->htable);
+	table_rt->origin_rule_num=rcu_hash_count(flag_rt->htable);
+
+	free(rules);
+    rules = NULL;
+	free(rule_array);
+	rule_array=NULL;
+
+	return ret;
+}
+
 int Maat_table_runtime_ip_plugin_commit_update(struct Maat_table_runtime* table_rt)
 {
 	struct ip_matcher* new_ip_matcher=NULL, *old_ip_matcher=NULL;
@@ -900,7 +1001,6 @@ int Maat_table_runtime_ip_plugin_commit_update(struct Maat_table_runtime* table_
 	ip_plugin->changed_flag=0;
 	return ret;
 }
-
 
 void Maat_table_runtime_ip_plugin_new_row(struct Maat_table_runtime* table_rt, struct Maat_table_schema* table_schema, const char* row, void *logger)
 {

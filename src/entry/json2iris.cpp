@@ -160,6 +160,7 @@ int set_iris_descriptor(const char* json_file,cJSON *json, const char* encrypt_k
 	maat_kv_register(iris_cfg->str2int_map, "yes",1);
 	maat_kv_register(iris_cfg->str2int_map, "no",0);
 	
+    maat_kv_register(iris_cfg->str2int_map, "flag",TABLE_TYPE_FLAG);
 	maat_kv_register(iris_cfg->str2int_map, "ip",TABLE_TYPE_IP);
 	maat_kv_register(iris_cfg->str2int_map, "ip_plus",TABLE_TYPE_IP_PLUS);
 	maat_kv_register(iris_cfg->str2int_map, "string",TABLE_TYPE_EXPR);
@@ -541,6 +542,35 @@ int write_ip_plus_line(cJSON *region_json, struct iris_description_t *p_iris, st
 
 }
 
+int write_flag_line(cJSON *region_json, struct iris_description_t *p_iris, struct iris_table_t* table, void * logger)
+{
+    struct traslate_command_t json_cmd[MAX_COLUMN_NUM];
+	int cmd_cnt=0;
+	memset(json_cmd,0,sizeof(json_cmd));
+
+	json_cmd[cmd_cnt].json_string="region_id";
+	json_cmd[cmd_cnt].json_type=cJSON_Number;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string="group_id";
+	json_cmd[cmd_cnt].json_type=cJSON_Number;
+	cmd_cnt++;
+	
+	json_cmd[cmd_cnt].json_string="flag";
+	json_cmd[cmd_cnt].json_type=cJSON_Number;
+	cmd_cnt++;
+
+    json_cmd[cmd_cnt].json_string="flag_mask";
+	json_cmd[cmd_cnt].json_type=cJSON_Number;
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string="is_valid";
+	json_cmd[cmd_cnt].json_type=cJSON_Number;
+	cmd_cnt++;
+	
+	return direct_write_rule(region_json, p_iris->str2int_map,json_cmd, cmd_cnt, table, logger);
+}
+
 int write_expr_line(cJSON *region_json, struct iris_description_t *p_iris, struct iris_table_t* table, void * logger)
 {
 	struct traslate_command_t json_cmd[MAX_COLUMN_NUM];
@@ -782,6 +812,9 @@ int write_region_rule(cJSON* region_json, int compile_id, int group_id, iris_des
 
 	switch(table_type)
 	{
+        case TABLE_TYPE_FLAG:
+            ret=write_flag_line(table_content, p_iris, table_info, logger);
+            break;
 		case TABLE_TYPE_EXPR:
 		case TABLE_TYPE_EXPR_PLUS:
 			ret=write_expr_line(table_content, p_iris, table_info, logger);

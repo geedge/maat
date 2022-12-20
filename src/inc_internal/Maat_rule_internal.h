@@ -32,7 +32,13 @@
 
 typedef	void*	rule_scanner_t;
 
-
+struct db_flag_rule {
+    int region_id;
+    int group_id;
+    uint64_t flag;
+    uint64_t mask;
+    int is_valid;
+};
 
 struct db_str_rule_t
 {
@@ -208,6 +214,7 @@ struct rule_tag
 	char* tag_name;
 	char* tag_val;
 };
+
 struct Maat_scanner
 {
 	long long version;
@@ -237,6 +244,7 @@ struct Maat_scanner
 
 	scan_result_t *region_rslt_buff;
 	GIE_result_t* gie_rslt_buff;
+    struct flag_match *flag_rslt_buff;
 	void* logger_ref;
 
 	int max_thread_num;
@@ -412,5 +420,3 @@ void redis_monitor_traverse(long        long version, struct source_redis_ctx* m
 		void* u_para,
 		const char* dec_key,
 		_Maat_feather_t* feather);
-
-

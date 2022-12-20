@@ -1,11 +1,12 @@
 #add_executable(maat_demo maat_demo.cpp)
 #target_link_libraries(maat_demo maat_frame_shared)
+LINK_DIRECTORIES(/opt/MESA/lib /usr/lib64)
 
 add_executable(test_igraph test_igraph.cpp)
 target_link_libraries(test_igraph igraph-static)
 
 add_executable(test_maatframe test_maatframe.cpp)
-target_link_libraries(test_maatframe maat_frame_shared gtest)
+target_link_libraries(test_maatframe maat_frame_shared mesalogger-static gtest)
 
 add_executable(perf_test_maatframe perf_test_maatframe.cpp)
 target_link_libraries(perf_test_maatframe maat_frame_shared gtest)

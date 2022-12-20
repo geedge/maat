@@ -210,6 +210,10 @@ int Maat_get_scan_status(Maat_feather_t feather, scan_status_t* mid, enum MAAT_S
 
 //Return hit rule number, return -1 when error occurs,return -2 when hit current region
 //mid MUST set to NULL before fist call
+int Maat_scan_flag(Maat_feather_t feather,int table_id
+                        ,uint64_t flag
+                        ,struct Maat_rule_t *result,int rule_num
+                        ,scan_status_t *mid,int thread_num);
 int Maat_scan_intval(Maat_feather_t feather,int table_id
 						,unsigned int intval
 						,struct Maat_rule_t*result,int rule_num

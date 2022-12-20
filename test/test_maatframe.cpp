@@ -31,7 +31,6 @@ extern int my_scandir(const char *dir, struct dirent ***namelist,
               int(*filter)(const struct dirent *),
               int(*compar)(const void *, const void *));
 extern char* md5_file(const char* filename, char* md5string);
-extern int system_cmd_cp(const char* src_file,const char*dst_file);
 extern int system_cmd_encrypt(const char* src_file, const char* dst_file, const char* password);
 int system_cmd_gzip(const char* src_file, const char* dst_file);
 
@@ -130,16 +129,13 @@ protected:
 		int tmp=0;
 		system_cmd_gzip(old_json, tmp_gzipped_file_name);
 		system_cmd_encrypt(tmp_gzipped_file_name, watched_json, json_decrypt_key);
-		
 		_shared_feather_j=Maat_feather(g_iThreadNum, table_info_path, g_logger);	
 		tmp=1;
 		Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_JSON_IS_GZIPPED, &tmp, sizeof(tmp));
 		Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_DECRYPT_KEY, json_decrypt_key, strlen(json_decrypt_key)+1);
-		Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_JSON_FILE_PATH, watched_json, strlen(watched_json)+1);		
+		Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_JSON_FILE_PATH, watched_json, strlen(watched_json)+1);	
 		Maat_set_feather_opt(_shared_feather_j, MAAT_OPT_SCANDIR_INTERVAL_MS, &scan_interval_ms, sizeof(scan_interval_ms));
-
 		Maat_initiate_feather(_shared_feather_j);
-
 	}
 	static void TearDownTestCase()
 	{
@@ -151,6 +147,66 @@ protected:
 };
 Maat_feather_t JSONUpdate::_shared_feather_j;
 
+TEST(FlagScan, basic)
+{
+	int ret=0;
+	int table_id=0;
+	struct Maat_rule_t result[4];
+	const char* table_name="FLAG_CONFIG";
+	scan_status_t mid=NULL;
+    
+	table_id=Maat_table_register(g_feather,table_name);
+	ASSERT_GT(table_id, 0);
+
+	//compile_id:192 flag: 0000 0001 mask: 0000 0011
+    //scan_data: 0000 0001 or 0000 0101 should hit
+	uint64_t scan_data=1; 
+	ret=Maat_scan_flag(g_feather, table_id, scan_data, result, 4, &mid, 0);	
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 192);
+	Maat_clean_status(&mid);
+
+    scan_data=5;
+    ret=Maat_scan_flag(g_feather, table_id, scan_data, result, 4, &mid, 0);		
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0].config_id, 192);
+	Maat_clean_status(&mid);
+
+    scan_data=6;
+    ret=Maat_scan_flag(g_feather, table_id, scan_data, result, 4, &mid, 0);				
+	EXPECT_GE(ret, -2);
+    Maat_clean_status(&mid);
+}
+
+TEST(FlagScan, withExprRegion)
+{
+	int ret=0;
+	int flag_table_id=0;
+    int expr_table_id=0;
+	struct Maat_rule_t result[4];
+    int found_pos[4];
+	const char* flag_table_name="FLAG_CONFIG";
+    const char* expr_table_name="HTTP_URL";
+	scan_status_t mid=NULL;
+    
+	flag_table_id=Maat_table_register(g_feather,flag_table_name);
+	ASSERT_GT(flag_table_id, 0);
+
+    expr_table_id=Maat_table_register(g_feather,expr_table_name);
+	ASSERT_GT(expr_table_id, 0);
+	//compile_id:193 flag: 0000 0010 mask: 0000 0011
+    //scan_data: 0000 0010 or 0000 0100 should hit
+	uint64_t flag_scan_data=2;
+	ret=Maat_scan_flag(g_feather, flag_table_id, flag_scan_data, result, 4, &mid, 0);					
+	EXPECT_EQ(ret, -2);
+
+	const char *expr_scan_data="hello world";
+    ret=Maat_full_scan_string(g_feather, expr_table_id, CHARSET_GBK, expr_scan_data, strlen(expr_scan_data),
+                                result, found_pos, 4, &mid, 0);
+    EXPECT_EQ(ret, 1);
+    EXPECT_EQ(result[0].config_id, 193);
+    Maat_clean_status(&mid);
+}
 
 TEST_F(JSONUpdate, OldCfg)
 {
@@ -168,7 +224,6 @@ TEST_F(JSONUpdate, NewCfg)
 	sleep(5);
 	scan_with_old_or_new_cfg(JSONUpdate::_shared_feather_j, 0);
 }
-
 void Maat_read_entry_start_cb(int update_type,void* u_para)
 {
 	return;
@@ -463,7 +518,7 @@ TEST(BoolPlugin, EX_DATA)
 	EXPECT_EQ(ret, 0);
 	for(i=0; i<ret; i++)
 	{
-		fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+        bool_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
 	}
 
 	unsigned long long items_2[]={1, 2, 1000};
@@ -472,7 +527,7 @@ TEST(BoolPlugin, EX_DATA)
 	EXPECT_EQ(result[0]->id, 301);
 	for(i=0; i<ret; i++)
 	{
-		fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+        bool_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
 	}
 
 	unsigned long long items_3[]={101, 102, 1000};
@@ -480,7 +535,7 @@ TEST(BoolPlugin, EX_DATA)
 	EXPECT_EQ(ret, 4);
 	for(i=0; i<ret; i++)
 	{
-		fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+        bool_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
 	}
 
 	unsigned long long items_4[]={7, 0, 1, 2, 3, 4, 5, 6, 7, 7, 7};
@@ -489,7 +544,7 @@ TEST(BoolPlugin, EX_DATA)
 	EXPECT_EQ(result[0]->id, 305);
 	for(i=0; i<ret; i++)
 	{
-		fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+        bool_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
 	}
 }
 
@@ -2672,7 +2727,6 @@ protected:
 Maat_feather_t MaatCmdTest::_shared_feather;
 
 void* MaatCmdTest::logger;
-
 int MaatCmdTest::linger_timeout;
 int test_add_expr_command(struct Maat_command_batch* batch, Maat_feather_t feather, const char* region_table, int config_id, int timeout, int label_id, const char* keywords)
 {
@@ -3444,8 +3498,6 @@ TEST_F(MaatCmdTest,   VirtualTable)
 	return;
 
 }
-
-
 TEST_F(MaatCmdTest, SetLines)
 {
 	const int TEST_CMD_LINE_NUM=4;
@@ -3985,7 +4037,7 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin)
 	EXPECT_EQ(ret, 4);
 	for(i=0; i<ret; i++)
 	{
-		fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+		bool_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
 	}
 
 	ret=Maat_cmd_set_lines(feather, p_line+3, TEST_CMD_LINE_NUM-3, MAAT_OP_DEL);
@@ -3997,7 +4049,7 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin)
 	EXPECT_EQ(ret, 2);
 	for(i=0; i<ret; i++)
 	{
-		fqdn_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
+        bool_plugin_EX_free_cb(0, (void**)&(result[i]), 0, NULL);
 	}
 
 }
@@ -4131,7 +4183,6 @@ TEST_F(MaatCmdTest, GroupInMassCompiles)
 	Maat_clean_status(&mid);
 	
 }
-
 
 #define TEST_HIT_PATH
 TEST_F(MaatCmdTest,    HitPath)
@@ -4902,7 +4953,6 @@ TEST_F(MaatCmdTest, StreamScanSegfaultWhenVersionRollBack_TSG6324)
 
 }
 
-
 int main(int argc, char ** argv)
 {
 
@@ -4939,4 +4989,3 @@ int main(int argc, char ** argv)
 	MESA_destroy_runtime_log_handle(g_logger);
 	return ret;
 }
-

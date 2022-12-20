@@ -18,7 +18,6 @@
 #include "rulescan.h"
 #include "json2iris.h"
 
-
 inline void INC_SCANNER_REF(Maat_scanner*scanner,int thread_num)
 {
 	alignment_int64_array_add(scanner->ref_cnt, thread_num, 1);
@@ -230,6 +229,22 @@ void scan_region_hit_wraper_build_with_GIE(struct scan_region_hit_wraper* wraper
 	return;
 }
 
+void scan_region_hit_wraper_build_with_flag_matcher(struct scan_region_hit_wraper* wraper, struct flag_match* flag_rslt, size_t n_rslt, int is_last_region, int virtual_table_id, int Nth_scan)
+{
+	size_t i=0;
+	wraper->n_wrapped_region=0;
+	wraper->virtual_table_id=0;
+	wraper->virtual_table_ids=NULL;
+	for(i=0; i< n_rslt; i++)
+	{
+		wraper->wrapped_regions[wraper->n_wrapped_region]=(struct Maat_region_inner*)(flag_rslt[i].user_tag);	
+	}
+	wraper->n_wrapped_region=n_rslt;
+	wraper->is_last_region=is_last_region;
+	wraper->virtual_table_id=virtual_table_id;
+	wraper->Nth_scan=Nth_scan;
+	wraper->virtual_table_ids=NULL;
+}
 int region_compile(_Maat_feather_t*feather, struct Maat_hierarchy_compile_mid* compile_mid, const struct scan_region_hit_wraper* region_hit_wraper, struct Maat_rule_t* result, int size,int thread_num)
 {
 	int is_last_region=region_hit_wraper->is_last_region;
@@ -492,7 +507,6 @@ int load_maat_json_file(_Maat_feather_t* feather, const char* maat_json_fn, char
 	MESA_handle_runtime_log(feather->logger, RLOG_LV_INFO, maat_module ,
 					"Maat initial with JSON file %s, formating..",
 					maat_json_fn);
-
 	if(strlen(feather->decrypt_key)&&strlen(feather->decrypt_algo))
 	{
 		ret=decrypt_open(maat_json_fn, feather->decrypt_key, feather->decrypt_algo, (unsigned char**)&decrypted_buff, &decrypted_buff_sz, err_str, err_str_sz);
@@ -559,7 +573,6 @@ int load_maat_json_file(_Maat_feather_t* feather, const char* maat_json_fn, char
 					feather->json_ctx.effective_json_md5,
 					feather->json_ctx.iris_file);
 	feather->input_mode=SOURCE_JSON_FILE;
-
 	return 0;	
 }
 Maat_feather_t Maat_feather(int max_thread_num,const char* table_info_path,void* logger)
@@ -1561,6 +1574,97 @@ int Maat_full_scan_string(Maat_feather_t feather, int table_id,
 											NULL, 0, &detail_ret,mid,thread_num);
 	return compile_ret;
 }
+int Maat_scan_flag(Maat_feather_t feather,int table_id
+                        ,uint64_t flag
+                        ,struct Maat_rule_t *result,int rule_num
+                        ,scan_status_t *mid,int thread_num)
+{
+    int region_ret=0,compile_ret=0;
+	struct _OUTER_scan_status_t* _mid=NULL;
+	struct flag_match *flag_result=NULL;
+	struct _Maat_feather_t* _feather=(_Maat_feather_t*)feather;
+	struct Maat_scanner* my_scanner=NULL;
+
+	Maat_table_schema* p_table=NULL;
+	struct timespec start,end;
+	if(_feather->perf_on==1)
+	{
+		clock_gettime(CLOCK_MONOTONIC,&start);
+	}
+	_mid=grab_mid(mid, _feather, thread_num, 0);
+	scan_staus_count_inc(_mid);
+
+	int virtual_table_id=0;
+	p_table=Maat_table_manager_get_scan_by_id(_feather->table_mgr, table_id, SCAN_TYPE_FLAG, &virtual_table_id);
+	if(p_table==NULL)
+	{
+		_feather->scan_err_cnt++;
+		return -1;
+	}
+	my_scanner=_feather->scanner;
+	if(my_scanner==NULL)
+	{
+		return 0;
+	}
+	struct Maat_table_runtime* table_rt=Maat_table_runtime_get(my_scanner->table_rt_mgr, p_table->table_id);
+    struct flag_matcher *flag_matcher = table_rt->flag.matcher;
+
+    alignment_int64_array_add(_feather->thread_call_cnt, thread_num, 1);
+    flag_result=my_scanner->flag_rslt_buff+MAX_SCANNER_HIT_NUM*thread_num;
+    INC_SCANNER_REF(my_scanner,thread_num);
+
+    region_ret=flag_matcher_match(flag_matcher, flag, flag_result, MAX_SCANNER_HIT_NUM);
+    if (region_ret < 0)
+    {
+        DEC_SCANNER_REF(my_scanner, thread_num);
+        _feather->scan_err_cnt++;
+        return -1;
+    }
+
+	if(region_ret>0 || scan_status_should_compile_NOT(_mid))
+	{
+		struct scan_region_hit_wraper region_hit_wraper;
+		if(region_ret>0)
+		{
+			alignment_int64_array_add(table_rt->hit_cnt, thread_num,1);
+		}
+
+		_mid=grab_mid(mid, _feather, thread_num, 1);
+		scan_region_hit_wraper_build_with_flag_matcher(&region_hit_wraper, flag_result, region_ret,
+											           _mid->is_last_scan, virtual_table_id, _mid->scan_cnt);
+
+		if(region_hit_wraper.n_wrapped_region>0 || scan_status_should_compile_NOT(_mid))
+		{
+			compile_ret=region_compile(_feather,_mid->compile_mid,
+										&region_hit_wraper,
+										result, rule_num,
+										thread_num);
+			assert(_mid->is_last_scan<2);
+			if(_mid->is_last_scan==1)
+			{
+				_mid->is_last_scan=2;
+			}
+		}
+	}
+	
+	if(_feather->perf_on==1)
+	{
+		clock_gettime(CLOCK_MONOTONIC,&end);
+		Maat_table_runtime_perf_stat(table_rt, 0, &start, &end, thread_num);
+	}
+	else
+	{
+		Maat_table_runtime_perf_stat(table_rt, 0, NULL, NULL, thread_num);
+	}
+	DEC_SCANNER_REF(my_scanner,thread_num);
+
+	if(compile_ret==0&&region_ret>0)
+	{
+		return -2;
+	}
+	return compile_ret;
+}
+
 int Maat_scan_intval(Maat_feather_t feather,int table_id
 						,unsigned int intval
 						,struct Maat_rule_t*result,int rule_num

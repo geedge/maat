@@ -207,39 +207,22 @@ int system_cmd_mkdir(const char* path)
 {
 	char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
 	snprintf(cmd, sizeof(cmd),"mkdir -p %s", path);
-	return  system(cmd) ;
-}
-int system_cmd_mv(const char* src_file,const char*dst_file)
-{
-	char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
-	snprintf(cmd, sizeof(cmd), "mv %s %s", src_file, dst_file);
-	return  system(cmd);
-}
-int system_cmd_cp(const char* src_file,const char*dst_file)
-{
-	char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
-	snprintf(cmd, sizeof(cmd), "cp -f %s %s", src_file, dst_file);
 	return  system(cmd);
 }
 int system_cmd_gzip(const char* src_file, const char* dst_file)
 {
 	char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
 	snprintf(cmd,sizeof(cmd), "gzip -9 < %s > %s", src_file, dst_file);
-	return  system(cmd);
+    return  system(cmd);
 }
 
 int system_cmd_encrypt(const char* src_file, const char* dst_file, const char* password)
 {
 	char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
-	snprintf(cmd,sizeof(cmd), "openssl enc -e -aes-256-cbc -k %s -p -nosalt -in %s -out %s", password, src_file, dst_file);
+	snprintf(cmd,sizeof(cmd), "openssl enc -e -aes-256-cbc -k %s -p -nosalt -in %s -out %s -md md5", password, src_file, dst_file);
 	return  system(cmd);
 }
-int system_cmd_rm(const char* src_file)
-{
-	char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
-	snprintf(cmd,sizeof(cmd), "rm %s -f", src_file);
-	return  system(cmd);
-}
+
 char* md5_file(const char* filename, char* md5string)
 {
 	FILE* fp=NULL;
@@ -288,7 +271,6 @@ int crypt_memory(const unsigned char* inbuf, size_t inlen, unsigned char** pp_ou
 	int ret=0, out_blk_len=0;
 	int out_buff_len=0, out_buff_offset=0;
 	EVP_CIPHER_CTX *ctx;
-
 	unsigned char cipher_key[EVP_MAX_KEY_LENGTH];
 	unsigned char cipher_iv[EVP_MAX_IV_LENGTH];
 	memset(cipher_key,0,sizeof(cipher_key));
@@ -376,8 +358,7 @@ int load_file_to_memory(const char* file_name, unsigned char**pp_out, size_t *ou
 		free(*pp_out);
 		pp_out=NULL;
 		return -1;
-	}	
-	
+	}
 	fclose(fp);
 	fp=NULL;
 	return 0;
