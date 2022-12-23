@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 
 set(MAAT_FRAME_MAJOR_VERSION 3)
-set(MAAT_FRAME_MINOR_VERSION 5)
+set(MAAT_FRAME_MINOR_VERSION 6)
 set(MAAT_FRAME_PATCH_VERSION 0)
 set(MAAT_FRAME_VERSION ${MAAT_FRAME_MAJOR_VERSION}.${MAAT_FRAME_MINOR_VERSION}.${MAAT_FRAME_PATCH_VERSION})
 
@@ -31,6 +31,7 @@ target_link_libraries(maat_frame_static igraph-static)
 target_link_libraries(maat_frame_static ipmatcher-static)
 target_link_libraries(maat_frame_static fieldstat2-static)
 target_link_libraries(maat_frame_static mesalogger-static)
+target_link_libraries(maat_frame_static zlog-static)
 target_link_libraries(maat_frame_static mesahtable-static)
 
 # Shared Library Output
@@ -48,6 +49,7 @@ target_link_libraries(maat_frame_shared igraph-static ${MAAT_DEPEND_DYN_LIB})
 target_link_libraries(maat_frame_shared ipmatcher-static)
 target_link_libraries(maat_frame_shared fieldstat2-static)
 target_link_libraries(maat_frame_shared mesalogger-static)
+target_link_libraries(maat_frame_shared zlog-static)
 target_link_libraries(maat_frame_shared mesahtable-static)
 
 set(CMAKE_INSTALL_PREFIX /opt/MESA/)

@@ -78,17 +78,34 @@ add_dependencies(fieldstat2-static FieldStat2)
 set_property(TARGET fieldstat2-static PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/libMESA_field_stat2.a)
 set_property(TARGET fieldstat2-static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
 
+# zlog
+ExternalProject_Add(zlog PREFIX zlog
+	    URL ${CMAKE_CURRENT_SOURCE_DIR}/zlog-1.2.15.tar.gz
+        URL_MD5 5e79f8d08744c7fef8528dd55a3bcd2d  
+        CONFIGURE_COMMAND ""
+        BUILD_COMMAND make
+        INSTALL_COMMAND ""
+	    BUILD_IN_SOURCE 1)
+
+ExternalProject_Get_Property(zlog SOURCE_DIR)
+file(MAKE_DIRECTORY ${SOURCE_DIR}/src/)
+
+set(ARCHIVE_OUTPUT_DIRECTORY ${SOURCE_DIR})
+add_library(zlog-static STATIC IMPORTED GLOBAL)
+add_dependencies(zlog-static  zlog)
+set_property(TARGET zlog-static  PROPERTY IMPORTED_LOCATION ${SOURCE_DIR}/src/libzlog.a)
+set_property(TARGET zlog-static  PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${SOURCE_DIR}/src)
+
 # mesa_handle_logger
 ExternalProject_Add(MESA_handle_logger PREFIX MESA_handle_logger
         URL ${CMAKE_CURRENT_SOURCE_DIR}/MESA_handle_logger-dev-2.0.zip
 		CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS="-fPIC")
 
 ExternalProject_Get_Property(MESA_handle_logger INSTALL_DIR)
-message(" MESA_handle_logger CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}")
 file(MAKE_DIRECTORY ${INSTALL_DIR}/include)
 
 add_library(mesalogger-static STATIC IMPORTED GLOBAL)
-add_dependencies(mesalogger-static MESA_handle_logger)
+add_dependencies(mesalogger-static MESA_handle_logger zlog-static)
 set_property(TARGET mesalogger-static PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/src/MESA_handle_logger-build/libMESA_handle_logger.a)
 set_property(TARGET mesalogger-static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
 

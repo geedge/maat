@@ -6,7 +6,7 @@ add_executable(test_igraph test_igraph.cpp)
 target_link_libraries(test_igraph igraph-static)
 
 add_executable(test_maatframe test_maatframe.cpp)
-target_link_libraries(test_maatframe maat_frame_shared mesalogger-static gtest)
+target_link_libraries(test_maatframe maat_frame_shared gtest)
 
 add_executable(perf_test_maatframe perf_test_maatframe.cpp)
 target_link_libraries(perf_test_maatframe maat_frame_shared gtest)
