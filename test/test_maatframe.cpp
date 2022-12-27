@@ -159,14 +159,14 @@ TEST(FlagScan, basic)
 	ASSERT_GT(table_id, 0);
 
 	//compile_id:192 flag: 0000 0001 mask: 0000 0011
-    //scan_data: 0000 0001 or 0000 0101 should hit
-	uint64_t scan_data=1; 
+    //scan_data: 0000 1001 or 0000 1101 should hit
+	uint64_t scan_data=9; 
 	ret=Maat_scan_flag(g_feather, table_id, scan_data, result, 4, &mid, 0);	
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 192);
 	Maat_clean_status(&mid);
 
-    scan_data=5;
+    scan_data=13;
     ret=Maat_scan_flag(g_feather, table_id, scan_data, result, 4, &mid, 0);		
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0].config_id, 192);
@@ -205,6 +205,29 @@ TEST(FlagScan, withExprRegion)
                                 result, found_pos, 4, &mid, 0);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(result[0].config_id, 193);
+    Maat_clean_status(&mid);
+}
+
+TEST(FlagScan, hitMultiCompile)
+{
+	int ret=0;
+	int flag_table_id=0;
+	struct Maat_rule_t result[4];
+    int found_pos[4];
+	const char* flag_table_name="FLAG_CONFIG";
+	scan_status_t mid=NULL;
+    
+	flag_table_id=Maat_table_register(g_feather,flag_table_name);
+	ASSERT_GT(flag_table_id, 0);
+
+	//compile_id:192 flag: 0000 0001 mask: 0000 0011
+    //compile_id:194 flag: 0001 0101 mask: 0001 1111
+    //scan_data: 0001 0101 should hit compile192 and compile194
+	uint64_t flag_scan_data=21;
+	ret=Maat_scan_flag(g_feather, flag_table_id, flag_scan_data, result, 4, &mid, 0);					
+	EXPECT_EQ(ret, 2);
+    EXPECT_EQ(result[0].config_id, 194);
+    EXPECT_EQ(result[1].config_id, 192);
     Maat_clean_status(&mid);
 }
 

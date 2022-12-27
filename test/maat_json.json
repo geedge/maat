@@ -2404,6 +2404,29 @@
                     ]
                 }
             ]
+        },
+        {
+            "compile_id": 194,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "anything",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "flag",
+                            "table_name": "FLAG_CONFIG",
+                            "table_content": {
+                                "flag": 21,
+                                "flag_mask": 31
+                            }
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "plugin_table": [

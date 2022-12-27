@@ -14,13 +14,11 @@ struct flag_matcher *flag_matcher_new(struct flag_rule *rule, uint32_t n_rule)
 {
     if (!rule)
     {
-        fprintf(stderr, "Invalid argument: struct flag_rule *rule\n");
         return NULL;
     }
 
     if (!n_rule)
     {
-        fprintf(stderr, "Invalid argument: uint32_t n_rule\n");
         return NULL;
     }
 
@@ -41,7 +39,6 @@ void flag_matcher_free(struct flag_matcher *flag_matcher)
 {   
     if (!flag_matcher)
     {
-        fprintf(stderr, "Invalid argument: struct flag_matcher *flag_matcher\n");
         return;
     }
 
@@ -55,7 +52,6 @@ int flag_matcher_match(struct flag_matcher *flag_matcher,  uint64_t flag, struct
 {
     if (!flag_matcher)
     {
-        fprintf(stderr, "Invalid argument: struct flag_matcher *flag_matcher\n");
         return -1;
     }
 
@@ -70,7 +66,6 @@ int flag_matcher_match(struct flag_matcher *flag_matcher,  uint64_t flag, struct
             result_number++;
             if (result_number == n_result)
             {
-                fprintf(stderr, "result array is full\n");
                 return result_number;
             }
         }

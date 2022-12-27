@@ -219,9 +219,10 @@ void scan_region_hit_wraper_build_with_GIE(struct scan_region_hit_wraper* wraper
 	wraper->virtual_table_ids=NULL;
 	for(i=0; i< n_rslt; i++)
 	{
-		wraper->wrapped_regions[wraper->n_wrapped_region]=(struct Maat_region_inner*)(GIE_rslt[i].tag);	
+		wraper->wrapped_regions[wraper->n_wrapped_region]=(struct Maat_region_inner*)(GIE_rslt[i].tag);
+        wraper->n_wrapped_region++;
 	}
-	wraper->n_wrapped_region=n_rslt;
+	
 	wraper->is_last_region=is_last_region;
 	wraper->virtual_table_id=virtual_table_id;
 	wraper->Nth_scan=Nth_scan;
@@ -237,9 +238,10 @@ void scan_region_hit_wraper_build_with_flag_matcher(struct scan_region_hit_wrape
 	wraper->virtual_table_ids=NULL;
 	for(i=0; i< n_rslt; i++)
 	{
-		wraper->wrapped_regions[wraper->n_wrapped_region]=(struct Maat_region_inner*)(flag_rslt[i].user_tag);	
+		wraper->wrapped_regions[wraper->n_wrapped_region]=(struct Maat_region_inner*)(flag_rslt[i].user_tag);
+        wraper->n_wrapped_region++;
 	}
-	wraper->n_wrapped_region=n_rslt;
+	
 	wraper->is_last_region=is_last_region;
 	wraper->virtual_table_id=virtual_table_id;
 	wraper->Nth_scan=Nth_scan;
