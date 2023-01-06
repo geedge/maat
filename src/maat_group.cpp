@@ -1,0 +1,313 @@
+/*
+**********************************************************************************************
+*	File: maat_group.cpp
+*   Description: 
+*	Authors: Liu wentan <liuwentan@geedgenetworks.com>
+*	Date:    2022-10-31
+*   Copyright: (c) 2018-2022 Geedge Networks, Inc. All rights reserved.
+***********************************************************************************************
+*/
+
+#include <assert.h>
+#include <pthread.h>
+
+#include "maat_group.h"
+#include "utils.h"
+#include "maat_utils.h"
+#include "uthash/uthash.h"
+#include "igraph/igraph.h"
+#include "log/log.h"
+
+#define MODULE_GROUP	 module_name_str("maat.group")
+
+struct maat_group_topology {
+    struct maat_group *hash_group_by_id;	 //key: group_id, value: struct maat_group *.
+	struct maat_group *hash_group_by_vertex; //key: vetex_id, value: struct maat_group *. Multimap (Items with multiple keys).
+    igraph_t group_graph;
+	igraph_integer_t group_graph_vcount;
+	igraph_vector_t dfs_vids;
+	igraph_integer_t grp_vertex_id_generator;
+
+    pthread_rwlock_t rwlock;
+    struct log_handle *logger;
+};
+
+void group_vertex_free(struct maat_group *group)
+{
+	free(group->top_group_ids);
+	free(group);
+}
+
+struct maat_group_topology *maat_group_topology_new(struct log_handle *logger)
+{
+    struct maat_group_topology *group_topo = ALLOC(struct maat_group_topology, 1);
+    UNUSED int ret = 0;
+
+    group_topo->hash_group_by_id = NULL;
+    group_topo->hash_group_by_vertex = NULL;
+
+    ret = igraph_empty(&group_topo->group_graph, 0, IGRAPH_DIRECTED);
+    assert(ret == IGRAPH_SUCCESS);
+
+    ret = pthread_rwlock_init(&group_topo->rwlock, NULL);
+    assert(ret == 0);
+
+    group_topo->logger = logger;
+
+    return group_topo;
+}
+
+void maat_group_topology_free(struct maat_group_topology *group_topo)
+{
+    struct maat_group *group = NULL, *tmp_group = NULL;
+
+    HASH_CLEAR(hh_vertex_id, group_topo->hash_group_by_vertex);//No need group memory clean up.
+	HASH_ITER(hh_group_id, group_topo->hash_group_by_id, group, tmp_group) {
+		HASH_DELETE(hh_group_id, group_topo->hash_group_by_id, group);
+		group_vertex_free(group);
+	}
+	assert(group_topo->hash_group_by_id == NULL);	
+	
+	igraph_destroy(&group_topo->group_graph);
+
+    pthread_rwlock_unlock(&group_topo->rwlock);
+	pthread_rwlock_destroy(&group_topo->rwlock);
+}
+
+size_t print_igraph_vector(igraph_vector_t *v, char *buff, size_t sz) {
+  long int i;
+  int printed = 0;
+
+  for (i = 0; i < igraph_vector_size(v); i++) {
+    printed += snprintf(buff + printed, sz - printed, " %li", (long int) VECTOR(*v)[i]);
+  }
+
+  return printed;
+}
+
+struct maat_group *maat_group_topology_add_group(struct maat_group_topology *group_topo, int group_id)
+{
+	struct maat_group *group = ALLOC(struct maat_group, 1);
+
+	group->group_id = group_id;
+	group->vertex_id = group_topo->grp_vertex_id_generator++;
+
+	assert(igraph_vcount(&group_topo->group_graph)==group->vertex_id);
+	igraph_add_vertices(&group_topo->group_graph, 1, NULL);	//Add 1 vertice.
+	
+	HASH_ADD(hh_group_id, group_topo->hash_group_by_id, group_id, sizeof(group->group_id), group);
+	HASH_ADD(hh_vertex_id, group_topo->hash_group_by_vertex, vertex_id, sizeof(group->vertex_id), group);
+
+	return group;
+}
+
+void maat_group_topology_remove_group(struct maat_group_topology *group_topo, struct maat_group *group)
+{
+	igraph_vector_t v; 
+	char buff[4096] = {0};
+
+	assert(group->ref_by_compile_cnt == 0 && group->ref_by_superior_group_cnt == 0);
+	igraph_vector_init(&v, 8);
+	igraph_neighbors(&group_topo->group_graph, &v, group->vertex_id, IGRAPH_ALL);
+	if (igraph_vector_size(&v) > 0) {
+		print_igraph_vector(&v, buff, sizeof(buff));
+		log_error(group_topo->logger, MODULE_GROUP, "Del group %d exception, still reached by %s.",
+						                            group->vertex_id, buff);
+		assert(0);
+	}
+	igraph_vector_destroy(&v);
+	assert(group->top_group_ids==NULL);
+	//We should not call igraph_delete_vertices, because this is function changes the ids of the vertices.
+	//igraph_delete_vertices(&hier->group_graph, igraph_vss_1(group->vertex_id));
+
+	
+	HASH_DELETE(hh_group_id, group_topo->hash_group_by_id, group);
+	HASH_DELETE(hh_vertex_id, group_topo->hash_group_by_vertex, group);
+
+	group_vertex_free(group);
+}
+
+struct maat_group *maat_group_topology_find_group(struct maat_group_topology *group_topo, int group_id)
+{
+    struct maat_group *group = NULL;
+
+    HASH_FIND(hh_group_id, group_topo->hash_group_by_id, &group_id, sizeof(group_id), group);
+
+    return group;
+}
+
+int maat_group_topology_add_group_to_group(struct maat_group_topology *group_topo, int group_id, int superior_group_id)
+{
+    int ret = 0;
+	igraph_integer_t edge_id;
+	struct maat_group *group = NULL, *superior_group = NULL;
+
+    group = maat_group_topology_find_group(group_topo, group_id);
+	if (NULL == group) {
+		group = maat_group_topology_add_group(group_topo, group_id);
+	}
+	
+    superior_group = maat_group_topology_find_group(group_topo, superior_group_id);
+	if (NULL == superior_group) {
+		superior_group = maat_group_topology_add_group(group_topo, superior_group_id);
+	}
+
+	ret = igraph_get_eid(&group_topo->group_graph, &edge_id, group->vertex_id, superior_group->vertex_id, IGRAPH_DIRECTED, /*error*/ 0);
+	
+    //No duplicated edges between two groups.
+    if (edge_id > 0) {
+		log_error(group_topo->logger, MODULE_GROUP,
+                  "Add group %d to group %d failed, relation already exisited.",
+				  group->group_id, superior_group->group_id);
+		ret = -1;
+	} else {
+		igraph_add_edge(&group_topo->group_graph, group->vertex_id, superior_group->vertex_id);
+		group->ref_by_superior_group_cnt++;
+		superior_group->ref_by_subordinate_group_cnt++;
+		ret = 0;
+	}
+	
+	return ret;
+}
+
+int maat_group_topology_remove_group_from_group(struct maat_group_topology *group_topo, int group_id, int superior_group_id)
+{
+    int ret = 0;
+	struct maat_group *group = NULL, *superior_group = NULL;
+
+	//No hash write operation, LOCK protection is unnecessary.
+	group = maat_group_topology_find_group(group_topo, group_id);
+	if (NULL == group) {
+		log_error(group_topo->logger, MODULE_GROUP,
+				  "Del group %d from group %d failed, group %d not exisited.",
+				  group_id, superior_group_id, group_id);
+		return -1;	
+	}
+
+    superior_group = maat_group_topology_find_group(group_topo, superior_group_id);
+	if (NULL == superior_group) {
+		log_error(group_topo->logger, MODULE_GROUP,
+				  "Del group %d from group %d failed, superior group %d not exisited.",
+				  group_id, superior_group_id, superior_group_id);
+		return -1;	
+	}
+
+	igraph_es_t es;
+	igraph_integer_t edge_num_before = 0, edge_num_after = 0;
+
+	edge_num_before = igraph_ecount(&group_topo->group_graph);
+	// The edges between the given pairs of vertices will be included in the edge selection.
+	//The vertex pairs must be given as the arguments of the function call, the third argument 
+	//is the first vertex of the first edge, the fourth argument is the second vertex of the 
+	//first edge, the fifth is the first vertex of the second edge and so on. The last element
+	//of the argument list must be -1 to denote the end of the argument list.
+	//https://igraph.org/c/doc/igraph-Iterators.html#igraph_es_pairs_small
+	ret = igraph_es_pairs_small(&es, IGRAPH_DIRECTED, group->vertex_id, superior_group->vertex_id, -1);
+	assert(ret==IGRAPH_SUCCESS);
+	// ignore no such edge to abort().
+	igraph_set_error_handler(igraph_error_handler_ignore);
+	ret = igraph_delete_edges(&group_topo->group_graph, es);
+	edge_num_after = igraph_ecount(&group_topo->group_graph);
+	igraph_es_destroy(&es);
+	
+	if (ret != IGRAPH_SUCCESS || edge_num_before - edge_num_after != 1) {
+		assert(0);
+		return -1;
+	}
+
+	group->ref_by_superior_group_cnt--;
+	superior_group->ref_by_subordinate_group_cnt--;
+
+	return 0;
+}
+
+static size_t effective_vertices_count(igraph_vector_t *vids)
+{
+    size_t i = 0;
+	int tmp_vid = 0;
+
+	for (i = 0; i < (size_t)igraph_vector_size(vids); i++) {
+		tmp_vid = (int) VECTOR(*vids)[i];
+		if (tmp_vid < 0) {
+			break;
+		}
+	}
+
+	return i;
+}
+
+int maat_group_topology_build_top_groups(struct maat_group_topology *group_topo)
+{
+	struct maat_group *group = NULL, *tmp = NULL;
+	struct maat_group *superior_group = NULL;
+	int tmp_vid=0;
+	size_t i=0, top_group_cnt=0;
+	int* temp_group_ids=NULL;
+	
+	igraph_bool_t is_dag;
+	igraph_is_dag(&(group_topo->group_graph), &is_dag);
+	if (!is_dag) {
+		log_error(group_topo->logger, MODULE_GROUP, "Sub group cycle detected!");
+		return -1;
+	}
+
+	group_topo->group_graph_vcount = igraph_vcount(&group_topo->group_graph);
+	igraph_vector_init(&(group_topo->dfs_vids), group_topo->group_graph_vcount);
+	
+	HASH_ITER (hh_group_id, group_topo->hash_group_by_id, group, tmp) {
+		top_group_cnt = 0;
+		temp_group_ids = NULL;
+		//Orphan, Not reference by any one, free it.
+		if (0 == group->ref_by_compile_cnt
+			&& 0 == group->ref_by_superior_group_cnt
+			&& 0 == group->ref_by_subordinate_group_cnt
+			&& 0 == group->ref_by_item_cnt) {
+		
+			FREE(group->top_group_ids);
+			maat_group_topology_remove_group(group_topo, group);
+			continue;
+		}
+
+		//A group is need to build top groups when it has items and referenced by superior groups or compiles.
+		if (group->ref_by_item_cnt > 0 && 
+            (group->ref_by_compile_cnt > 0 || group->ref_by_superior_group_cnt > 0)) {
+			if (0 == group->ref_by_superior_group_cnt) {
+				//fast path, group is only referenced by compile rules.
+				top_group_cnt = 1;
+				temp_group_ids = ALLOC(int, top_group_cnt);
+				temp_group_ids[0] = group->group_id;
+			} else {
+				igraph_vector_t *vids = &(group_topo->dfs_vids);
+				igraph_dfs(&group_topo->group_graph, group->vertex_id, IGRAPH_OUT, 
+							0, vids, NULL, NULL, NULL, NULL, NULL, NULL);
+				
+				temp_group_ids = ALLOC(int, effective_vertices_count(vids));
+				
+				for (size_t i = 0; i < (size_t)igraph_vector_size(vids); i++) {
+					tmp_vid = (int) VECTOR(*vids)[i];
+					if (tmp_vid < 0) {
+						break;
+					}
+
+					HASH_FIND(hh_vertex_id, group_topo->hash_group_by_vertex, &tmp_vid, sizeof(tmp_vid), superior_group);
+
+                    //including itself
+					if (superior_group->ref_by_compile_cnt > 0) {
+						temp_group_ids[top_group_cnt] = superior_group->group_id;
+						top_group_cnt++;
+					}
+				}
+			}
+		}
+
+		free(group->top_group_ids);
+		group->top_group_cnt = top_group_cnt;
+		group->top_group_ids = ALLOC(int, group->top_group_cnt);
+		memcpy(group->top_group_ids, temp_group_ids, sizeof(int)*group->top_group_cnt);
+
+		FREE(temp_group_ids);
+	}	
+	igraph_vector_destroy(&group_topo->dfs_vids);
+
+	return 0;
+}

@@ -132,6 +132,10 @@ void rcu_hash_free(struct rcu_hash_table *htable)
     }
 
     rcu_hash_garbage_queue_free(&(htable->garbage_q));
+    if (htable->user_ctx != NULL) {
+        FREE(htable->user_ctx);
+    }
+    
     pthread_mutex_destroy(&htable->update_mutex);
 
     FREE(htable);

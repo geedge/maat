@@ -29,15 +29,15 @@ set_target_properties(maat_frame_static PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 target_link_libraries(maat_frame_static adapter-static hiredis-static igraph-static pthread crypto z)
 
 # Shared Library Output
-#add_library(maat_frame_shared SHARED ${MAAT_SRC} ${LIB_SOURCE_FILES})
-#set_target_properties(maat_frame_shared PROPERTIES LINKER_LANGUAGE CXX)
-#set_target_properties(maat_frame_shared PROPERTIES OUTPUT_NAME maatframe)
-#set_target_properties(maat_frame_shared PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-#set_target_properties(maat_frame_shared PROPERTIES VERSION ${MAAT_FRAME_MAJOR_VERSION}.${MAAT_FRAME_MINOR_VERSION})
-#set_target_properties(maat_frame_shared PROPERTIES SOVERSION ${MAAT_FRAME_MAJOR_VERSION})
+add_library(maat_frame_shared SHARED ${MAAT_SRC} ${LIB_SOURCE_FILES})
+set_target_properties(maat_frame_shared PROPERTIES LINKER_LANGUAGE CXX)
+set_target_properties(maat_frame_shared PROPERTIES OUTPUT_NAME maatframe)
+set_target_properties(maat_frame_shared PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+set_target_properties(maat_frame_shared PROPERTIES VERSION ${MAAT_FRAME_MAJOR_VERSION}.${MAAT_FRAME_MINOR_VERSION})
+set_target_properties(maat_frame_shared PROPERTIES SOVERSION ${MAAT_FRAME_MAJOR_VERSION})
 
-#target_link_libraries(maat_frame_shared hyperscan_static)
+target_link_libraries(maat_frame_shared hyperscan_static)
 
 # install
 set(CMAKE_INSTALL_PREFIX /opt/MESA/)
-install(FILES ${PROJECT_SOURCE_DIR}/inc/Maat_rule.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/MESA/ COMPONENT HEADER)
+#install(FILES ${PROJECT_SOURCE_DIR}/include/maat DESTINATION ${CMAKE_INSTALL_PREFIX}/include/MESA/ COMPONENT HEADER)

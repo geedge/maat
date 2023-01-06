@@ -32,34 +32,45 @@ enum ip_type {
     IP_TYPE_V6
 };
 
+struct maat_hit_path {
+    int Nth_scan;
+	int item_id;
+	int sub_group_id;
+	int top_group_id;
+	int virtual_table_id; // 0 is not a virtual table.
+	int compile_id;
+};
+
+struct maat_matched {
+    int virtual_table_id;
+    int group_id;
+};
+
 enum maat_scan_opt
 {
 	MAAT_SET_SCAN_DISTRICT = 1,		//VALUE is a const char*, SIZE= strlen(string). DEFAULT: no default.
 	MAAT_SET_SCAN_LAST_REGION,		//VALUE is NULL, SIZE=0. This option indicates that the follow scan is the last region of current scan combination.
-	MAAT_GET_SCAN_HIT_PATH			//VALUE is struct Maat_hit_path_t*, an array of struct Maat_hit_path_t, SIZE= sizeof(struct Maat_hit_path_t)*N,
+	MAAT_GET_SCAN_HIT_PATH,			//VALUE is struct maat_hit_path*, an array of struct maat_hit_path, SIZE= sizeof(struct maat_hit_path)*N,
 									//Maat_get_scan_status returns actual got number.
+    MAAT_GET_SCAN_MATCHED           //VALUE is struct maat_matched*, an array of struct maat_matched, SIZE= sizeof(struct maat_matched)*N,                 
 };
 
 /* network order */
-struct ipv4_4tuple {
+struct ipv4_2tuple {
     uint32_t sip;
     uint32_t dip;
-    uint16_t sport;
-    uint16_t dport;
 };
 
-struct ipv6_4tuple {
+struct ipv6_2tuple {
     uint8_t sip[16];
     uint8_t dip[16];
-    uint16_t sport;
-    uint16_t dport;
 };
 
-struct addr_4tuple {
+struct addr_2tuple {
     enum ip_type type;
     union {
-        struct ipv4_4tuple ipv4;
-        struct ipv6_4tuple ipv6;
+        struct ipv4_2tuple ipv4;
+        struct ipv6_2tuple ipv6;
     };  
 };
 
@@ -83,18 +94,15 @@ typedef void maat_rule_ex_dup_func_t(int idx, void *to, void *from, long argl, v
 /* maat_instance options API */
 struct maat_options;
 struct maat_options* maat_options_new(void);
-int maat_options_set_worker_thread_number(struct maat_options *opts, size_t nr_worker_threads);
+int maat_options_set_caller_thread_number(struct maat_options *opts, size_t n_thread);
 int maat_options_set_rule_effect_interval_ms(struct maat_options *opts, int interval_ms);
 int maat_options_set_rule_update_checking_interval_ms(struct maat_options *opts, int interval_ms);
 int maat_options_set_gc_timeout_ms(struct maat_options *opts, int interval_ms);
 int maat_options_set_instance_name(struct maat_options *opts, const char *instance_name, size_t name_len);
 int maat_options_set_deferred_load_on(struct maat_options *opts);
-int maat_options_set_iris_full_index_dir(struct maat_options *opts, const char *full_idx_dir);
-int maat_options_set_iris_inc_index_dir(struct maat_options *opts, const char *inc_idx_dir);
+int maat_options_set_iris(struct maat_options *opts, const char *full_directory, const char *increment_directory);
 int maat_options_set_json_file(struct maat_options *opts, const char *json_filename);
-int maat_options_set_redis_ip(struct maat_options *opts, const char *redis_ip);
-int maat_options_set_redis_port(struct maat_options *opts, uint16_t redis_port);
-int maat_options_set_redis_db(struct maat_options *opts, int db_index);
+int maat_options_set_redis(struct maat_options *opts, const char *redis_ip, uint16_t redis_port, int redis_db);
 int maat_options_set_logger(struct maat_options *opts, void *logger);
 
 /* maat_instance API */
@@ -111,12 +119,13 @@ int maat_table_callback_register(struct maat *instance, int table_id,
 								 void *u_para);
 /* maat plugin table API */
 int maat_plugin_table_ex_schema_register(struct maat *instance, int table_id,
-                                     maat_plugin_ex_new_func_t *new_func,
-                                     maat_plugin_ex_free_func_t *free_func,
-                                     maat_plugin_ex_dup_func_t *dup_func,
-                                     long argl, void *argp);
-                                     
-void *maat_plugin_table_dup_ex_data(struct maat *instance, int table_id,
+                                         maat_plugin_ex_new_func_t *new_func,
+                                         maat_plugin_ex_free_func_t *free_func,
+                                         maat_plugin_ex_dup_func_t *dup_func,
+                                         long argl, void *argp);
+/* returned data is duplicated by dup_func of maat_plugin_table_ex_schema_register, 
+   caller is responsible to free the data. */                                     
+void *maat_plugin_table_get_ex_data(struct maat *instance, int table_id,
                                     const char *key, size_t key_len);
 /* maat scan API */
 struct maat_state;
@@ -125,7 +134,7 @@ int maat_scan_integer(struct maat *instance, int table_id, int thread_id,
                       struct maat_state **state);
 
 int maat_scan_ip(struct maat *instance, int table_id, int thread_id, 
-                 struct addr_4tuple *addr, int results[], size_t *n_result, 
+                 struct addr_2tuple *addr, int results[], size_t *n_result, 
                  struct maat_state **state);
 
 int maat_scan_string(struct maat *instance, int table_id, int thread_id,
@@ -140,12 +149,16 @@ int maat_scan_stream(struct maat_stream **stream, int thread_id, const char* dat
 
 void maat_scan_stream_close(struct maat_stream **stream);
 
+/* maat state API */
 int maat_state_set(struct maat *instance, struct maat_state **mid, enum maat_scan_opt opt, const void *value, int size);
 
 //return >=0 if success, return -1 when failed;
 int maat_state_get(struct maat *instance, struct maat_state **mid, enum maat_scan_opt opt, void *value, int size);
 
-void maat_state_reset(struct maat_state **state);
+void maat_state_free(struct maat_state **state);
+
+/* return matched compile_id */
+int maat_matched_compile_id(struct maat *instance, struct maat_matched *matched);
 
 #ifdef __cpluscplus
 }

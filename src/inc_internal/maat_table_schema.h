@@ -17,15 +17,18 @@ extern "C"
 #endif
 
 #include <stddef.h>
+#include <limits.h>
 
 #include "maat/maat.h"
 #include "adapter_hs.h"
 
-#define MAX_TABLE_NUM    256
-#define MAX_DISTRICT_STR 128
-#define MAX_IP_STR       128
-#define MAX_KEYWORDS_STR 1024
+#define MAX_TABLE_NUM        256
+#define MAX_DISTRICT_STR     128
+#define MAX_IP_STR           128
+#define MAX_KEYWORDS_STR     1024
 #define	MAX_FOREIGN_CLMN_NUM 8
+#define MAX_TABLE_LINE_SIZE  (1024 * 16)
+#define	MAX_COMPILE_EX_DATA_NUM	2
 
 enum component_table_type {
     COMPONENT_TABLE_TYPE_NONE = -1,
@@ -85,6 +88,34 @@ enum match_method {
     MATCH_METHOD_MAX
 };
 
+struct compile_item {
+    int compile_id;
+    int service_id;
+    int action;
+    int do_blacklist;
+    int do_log;
+    char user_region[MAX_TABLE_LINE_SIZE];
+    int is_valid;
+    int clause_num;
+    int evaluation_order;
+};
+
+struct group2compile_item {
+    int group_id;
+    int compile_id;
+    int is_valid;
+    int not_flag;
+    int virtual_table_id;
+    int clause_index;
+    int associated_compile_table_id;
+};
+
+struct group2group_item {
+    int group_id;
+    int superior_group_id;
+    int is_valid;
+};
+
 struct expr_item {
     int item_id;
     int group_id;
@@ -139,13 +170,14 @@ struct ip_plugin_item {
 	char end_ip[MAX_IP_STR];
 	int is_valid;
 	int rule_tag;
-	int have_exdata;
-	void *ex_data;
 };
 
 struct table_item {
     enum table_type table_type;
     union {
+        struct compile_item compile_item;
+        struct group2compile_item g2c_item;
+        struct group2group_item g2g_item;
         struct expr_item expr_item;
         struct ip_plus_item ip_plus_item;
         struct plugin_item plugin_item;
@@ -214,14 +246,19 @@ enum table_type table_schema_get_table_type(struct table_schema *table_schema);
 
 int table_schema_get_table_id(struct table_schema *table_schema);
 
+/* get group2compile table's associated compile table id */
+int table_schema_get_associated_table_id(struct table_schema *table_schema);
+
 enum scan_type table_schema_get_scan_type(struct table_schema *table_schema);
 
 struct table_item *table_schema_line_to_item(const char *line, struct table_schema *table_schema,
-                                             struct log_handle *logger);
+                                             struct rule_tag *accept_tags, int n_accept_tag, struct log_handle *logger);
+void table_item_free(struct table_item *table_item);
 
 int table_schema_get_valid_flag_column(struct table_schema *table_schema);
 
 void table_schema_set_updating_name(struct table_schema *table_schema, const char *table_name);
+const char *table_schema_get_updating_name(struct table_schema *table_schema);
 
 /* expr table schema API */
 enum hs_scan_mode expr_table_schema_get_scan_mode(struct table_schema *table_schema);

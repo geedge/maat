@@ -25,11 +25,8 @@
 
 #define MODULE_TABLE_SCHEMA	 module_name_str("maat.table_schema")
 
-#define MAX_TABLE_LINE_SIZE  (1024 * 16)
 #define	MAX_FOREIGN_CLMN_NUM 8
 #define	MAX_CONJUNCTION_TABLE_NUM 8
-
-#define	MAX_COMPILE_EX_DATA_NUM	2
 
 enum user_region_encode {
 	USER_REGION_ENCODE_NONE=0,
@@ -38,9 +35,35 @@ enum user_region_encode {
 };
 
 struct compile_table_schema {
+    int compile_id_column;
+    int service_id_column;
+    int action_column;
+    int do_blacklist_column;
+    int do_log_column;
+    int tags_column;
+    int user_region_column;
+    int is_valid_column;
+    int clause_num_column;
+    int evaluation_order_column;
     enum user_region_encode user_region_encoding;
 	size_t n_ex_schema;
 	struct compile_ex_data_schema ex_schema[MAX_COMPILE_EX_DATA_NUM];
+};
+
+struct group2compile_table_schema {
+    int group_id_column;
+    int compile_id_column;
+    int is_valid_column;
+    int not_flag_column;
+    int virtual_table_name_column;
+    int clause_index_column;
+    char associated_compile_table_id;
+};
+
+struct group2group_table_schema {
+    int group_id_column;
+    int superior_group_id_column;
+    int is_valid_column;
 };
 
 struct expr_table_schema {
@@ -117,6 +140,8 @@ struct table_schema {
     enum table_type table_type;
     union {
         struct compile_table_schema compile;
+        struct group2compile_table_schema group2compile;
+        struct group2group_table_schema group2group;
         struct expr_table_schema expr;
         struct ip_plus_table_schema ip_plus;
         struct plugin_table_schema plugin;
@@ -124,12 +149,16 @@ struct table_schema {
         struct virtual_table_schema virtual_table;
         struct composition_table_schema composition;
     };
+
+    uint64_t update_err_cnt;
+	uint64_t unmatched_tag_cnt;
 };
 
 struct table_schema_manager {
     struct table_schema *schema_table[MAX_TABLE_NUM];
     size_t n_schema_table;
     size_t n_active_plugin_table;
+    char default_compile_table[NAME_MAX];
     struct maat_kv_store *tablename2id_map;
     struct log_handle *logger;
 };
@@ -147,9 +176,242 @@ void table_schema_free(struct table_schema *ptable)
     FREE(ptable);
 }
 
-int read_expr_table_schema(cJSON *root, struct table_schema *ptable,
+int read_compile_table_schema(cJSON *root, struct table_schema *ptable,
                             struct maat_kv_store* reserved_word_map,
                             struct log_handle *logger)
+{
+    int read_cnt = 0;
+    cJSON *json = NULL;
+
+    json = cJSON_GetObjectItem(root, "table_id");
+    if (json != NULL && json->type == cJSON_Number) {
+        ptable->table_id = json->valueint;
+        read_cnt++;
+    }
+
+    json = cJSON_GetObjectItem(root, "table_name");
+    if (json != NULL && json->type == cJSON_String) {
+        if (strlen(json->valuestring) >= NAME_MAX) {
+            log_error(logger, MODULE_TABLE_SCHEMA, 
+                      "compile table name %s length too long", json->valuestring);
+            return -1;
+        }
+        memcpy(ptable->table_name[0], json->valuestring, strlen(json->valuestring));
+        read_cnt++;
+    }
+
+    json = cJSON_GetObjectItem(root, "custom");
+    if (json == NULL || json->type != cJSON_Object) {
+        log_error(logger, MODULE_TABLE_SCHEMA, "table %s has no custom column", 
+                                                ptable->table_name[0]);
+        return -1;
+    }
+
+    cJSON *item = cJSON_GetObjectItem(json, "compile_id");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->compile.compile_id_column = item->valueint;
+        read_cnt++;
+    }
+
+    item = cJSON_GetObjectItem(json, "service_id");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->compile.service_id_column = item->valueint;
+        read_cnt++;
+    }
+
+    item = cJSON_GetObjectItem(json, "action");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->compile.action_column = item->valueint;
+        read_cnt++;
+    }
+
+    item = cJSON_GetObjectItem(json, "do_blacklist");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->compile.do_blacklist_column = item->valueint;
+        read_cnt++;
+    }
+
+    item = cJSON_GetObjectItem(json, "do_log");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->compile.do_log_column = item->valueint;
+        read_cnt++;
+    }
+
+    item = cJSON_GetObjectItem(json, "tags");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->compile.tags_column = item->valueint;
+        read_cnt++;
+    }
+
+    item = cJSON_GetObjectItem(json, "user_region");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->compile.user_region_column = item->valueint;
+        read_cnt++;
+    }
+
+    item = cJSON_GetObjectItem(json, "is_valid");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->compile.is_valid_column = item->valueint;
+        read_cnt++;
+    }
+
+    item = cJSON_GetObjectItem(json, "clause_num");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->compile.clause_num_column = item->valueint;
+        read_cnt++;
+    }
+    item = cJSON_GetObjectItem(json, "evaluation_order");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->compile.evaluation_order_column = item->valueint;
+        read_cnt++;
+    }
+
+    if (read_cnt < 12) {
+        return -1;
+    }
+
+    return 0;
+}
+
+int read_group2compile_table_schema(cJSON *root, struct table_schema *ptable,
+                                    struct maat_kv_store* reserved_word_map,
+                                    struct log_handle *logger)
+{
+    int read_cnt = 0;
+    cJSON *json = NULL;
+
+    json = cJSON_GetObjectItem(root, "table_id");
+    if (json != NULL && json->type == cJSON_Number) {
+        ptable->table_id = json->valueint;
+        read_cnt++;
+    }
+
+    json = cJSON_GetObjectItem(root, "table_name");
+    if (json != NULL && json->type == cJSON_String) {
+        if (strlen(json->valuestring) >= NAME_MAX) {
+            log_error(logger, MODULE_TABLE_SCHEMA, 
+                      "group2compile table name %s length too long", json->valuestring);
+            return -1;
+        }
+        memcpy(ptable->table_name[0], json->valuestring, strlen(json->valuestring));
+        read_cnt++;
+    }
+
+    json = cJSON_GetObjectItem(root, "associated_compile_table_id");
+    if (json != NULL && json->type == cJSON_Number) {
+        ptable->group2compile.associated_compile_table_id = json->valueint;
+        read_cnt++;
+    }
+
+    json = cJSON_GetObjectItem(root, "custom");
+    if (json == NULL || json->type != cJSON_Object) {
+        log_error(logger, MODULE_TABLE_SCHEMA, "table %s has no custom column", 
+                                                ptable->table_name[0]);
+        return -1;
+    }
+
+    cJSON *item = cJSON_GetObjectItem(json, "group_id");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->group2compile.group_id_column = item->valueint;
+        read_cnt++;
+    }
+
+    item = cJSON_GetObjectItem(json, "compile_id");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->group2compile.compile_id_column = item->valueint;
+        read_cnt++;
+    }
+
+    item = cJSON_GetObjectItem(json, "is_valid");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->group2compile.is_valid_column = item->valueint;
+        read_cnt++;
+    }
+
+    item = cJSON_GetObjectItem(json, "not_flag");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->group2compile.not_flag_column = item->valueint;
+        read_cnt++;
+    }
+
+    item = cJSON_GetObjectItem(json, "virtual_table_name");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->group2compile.virtual_table_name_column = item->valueint;
+        read_cnt++;
+    }
+
+    item = cJSON_GetObjectItem(json, "clause_index");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->group2compile.clause_index_column = item->valueint;
+        read_cnt++;
+    }
+
+    if (read_cnt < 8) {
+        return -1;
+    }
+
+    return 0;
+}
+
+int read_group2group_table_schema(cJSON *root, struct table_schema *ptable,
+                                  struct maat_kv_store* reserved_word_map,
+                                  struct log_handle *logger)
+{
+    int read_cnt = 0;
+    cJSON *json = NULL;
+
+    json = cJSON_GetObjectItem(root, "table_id");
+    if (json != NULL && json->type == cJSON_Number) {
+        ptable->table_id = json->valueint;
+        read_cnt++;
+    }
+
+    json = cJSON_GetObjectItem(root, "table_name");
+    if (json != NULL && json->type == cJSON_String) {
+        if (strlen(json->valuestring) >= NAME_MAX) {
+            log_error(logger, MODULE_TABLE_SCHEMA, 
+                      "group2group table name %s length too long", json->valuestring);
+            return -1;
+        }
+        memcpy(ptable->table_name[0], json->valuestring, strlen(json->valuestring));
+        read_cnt++;
+    }
+
+    json = cJSON_GetObjectItem(root, "custom");
+    if (json == NULL || json->type != cJSON_Object) {
+        log_error(logger, MODULE_TABLE_SCHEMA, "table %s has no custom column", 
+                                                ptable->table_name[0]);
+        return -1;
+    }
+
+    cJSON *item = cJSON_GetObjectItem(json, "group_id");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->group2group.group_id_column = item->valueint;
+        read_cnt++;
+    }
+
+    item = cJSON_GetObjectItem(json, "superior_group_id");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->group2group.superior_group_id_column = item->valueint;
+        read_cnt++;
+    }
+
+    item = cJSON_GetObjectItem(json, "is_valid");
+    if (item != NULL && item->type == cJSON_Number) {
+        ptable->group2group.is_valid_column = item->valueint;
+        read_cnt++;
+    }
+
+    if (read_cnt < 5) {
+        return -1;
+    }
+
+    return 0;
+}
+
+int read_expr_table_schema(cJSON *root, struct table_schema *ptable,
+                           struct maat_kv_store* reserved_word_map,
+                           struct log_handle *logger)
 {
     int read_cnt = 0;
     cJSON *json = NULL;
@@ -704,49 +966,44 @@ int table_schema_populate(cJSON *json, struct table_schema **table_array,
             return -1;
         }
     }
-   
+
     switch (ptable->table_type) {
-    case TABLE_TYPE_EXPR:
-    case TABLE_TYPE_EXPR_PLUS:
-        ret = read_expr_table_schema(json, ptable, reserved_word_map, logger);
-        if (ret < 0) {
-            return -1;
-        }
-        break;
-    case TABLE_TYPE_IP_PLUS:
-        ret = read_ip_plus_table_schema(json, ptable, logger);
-        if (ret < 0) {
-            return -1;
-        }
-        break;
-    case TABLE_TYPE_PLUGIN:
-        ret = read_plugin_table_schema(json, ptable, logger);
-        if (ret < 0) {
-            return -1;
-        }
-        break;
-    case TABLE_TYPE_IP_PLUGIN:
-        ret = read_ip_plugin_table_schema(json, ptable, logger);
-        if (ret < 0) {
-            return -1;
-        }
-        break;
-    case TABLE_TYPE_VIRTUAL:
-        ret = read_virtual_table_schema(json, table_array, ptable, tablename2id_map, logger);
-        if (ret < 0) {
-            return -1;
-        }
-        break;
-    case TABLE_TYPE_COMPOSITION:
-        ret = read_composition_table_schema(json, ptable, tablename2id_map, logger);
-        if (ret < 0) {
-            return -1;
-        }
-        break;
-    default:
-        break;
+        case TABLE_TYPE_COMPILE:
+            ret = read_compile_table_schema(json, ptable, reserved_word_map, logger);
+            break;
+        case TABLE_TYPE_GROUP2COMPILE:
+            ret = read_group2compile_table_schema(json, ptable, reserved_word_map, logger);
+            break;
+        case TABLE_TYPE_GROUP2GROUP:
+            ret = read_group2group_table_schema(json, ptable, reserved_word_map, logger);
+            break;
+        case TABLE_TYPE_EXPR:
+        case TABLE_TYPE_EXPR_PLUS:
+            ret = read_expr_table_schema(json, ptable, reserved_word_map, logger);
+            break;
+        case TABLE_TYPE_IP_PLUS:
+            ret = read_ip_plus_table_schema(json, ptable, logger);
+            break;
+        case TABLE_TYPE_PLUGIN:
+            ret = read_plugin_table_schema(json, ptable, logger);
+            break;
+        case TABLE_TYPE_IP_PLUGIN:
+            ret = read_ip_plugin_table_schema(json, ptable, logger);
+            break;
+        case TABLE_TYPE_VIRTUAL:
+            ret = read_virtual_table_schema(json, table_array, ptable, tablename2id_map, logger);
+            break;
+        case TABLE_TYPE_COMPOSITION:
+            ret = read_composition_table_schema(json, ptable, tablename2id_map, logger);
+            break;
+        default:
+            break;
     }
-    
+
+    if (ret < 0) {
+        return -1;
+    }
+
     return 0;
 }
 
@@ -783,6 +1040,9 @@ table_schema_manager_create(const char *table_info_path, struct log_handle *logg
     
     struct maat_kv_store* reserved_word_map = maat_kv_store_new();
     /* register table type reserved word */
+    maat_kv_register(reserved_word_map, "compile", TABLE_TYPE_COMPILE);
+    maat_kv_register(reserved_word_map, "group2compile", TABLE_TYPE_GROUP2COMPILE);
+    maat_kv_register(reserved_word_map, "group2group", TABLE_TYPE_GROUP2GROUP);
     maat_kv_register(reserved_word_map, "expr", TABLE_TYPE_EXPR);
     maat_kv_register(reserved_word_map, "expr_plus", TABLE_TYPE_EXPR_PLUS);
     maat_kv_register(reserved_word_map, "ip_plus", TABLE_TYPE_IP_PLUS);
@@ -1092,6 +1352,15 @@ int table_schema_get_table_id(struct table_schema *table_schema)
     return table_schema->table_id;
 }
 
+int table_schema_get_associated_table_id(struct table_schema *table_schema)
+{
+    if (NULL == table_schema || table_schema->table_type != TABLE_TYPE_GROUP2COMPILE) {
+        return -1;
+    }
+
+    return table_schema->group2compile.associated_compile_table_id;
+}
+
 enum scan_type table_schema_get_scan_type(struct table_schema *table_schema)
 {
     enum scan_type ret = SCAN_TYPE_INVALID;
@@ -1146,6 +1415,15 @@ int table_schema_get_valid_flag_column(struct table_schema *table_schema)
     }
 
 	switch (table_schema->table_type) {
+        case TABLE_TYPE_COMPILE:
+            valid_flag_column = table_schema->compile.is_valid_column;
+            break;
+        case TABLE_TYPE_GROUP2COMPILE:
+            valid_flag_column = table_schema->group2compile.is_valid_column;
+            break;
+        case TABLE_TYPE_GROUP2GROUP:
+            valid_flag_column = table_schema->group2group.is_valid_column;
+            break;
         case TABLE_TYPE_EXPR:
             valid_flag_column = table_schema->expr.is_valid_column;
             break;
@@ -1155,13 +1433,6 @@ int table_schema_get_valid_flag_column(struct table_schema *table_schema)
 		case TABLE_TYPE_IP_PLUGIN:
 			valid_flag_column = table_schema->ip_plugin.is_valid_column;
 			break;
-            /*
-		case TABLE_TYPE_FQDN_PLUGIN:
-			valid_flag_column = table_schema->fqdn_plugin.valid_flag_column;
-			break;
-		case TABLE_TYPE_BOOL_PLUGIN:
-			valid_flag_column = table_schema->bool_plugin.valid_flag_column;
-			break;*/
 		default:
 			valid_flag_column = -1;
 			break;
@@ -1183,6 +1454,326 @@ void table_schema_set_updating_name(struct table_schema *table_schema, const cha
 		}
 	}
 	assert(i <= table_schema->conj_cnt);
+}
+
+const char *table_schema_get_updating_name(struct table_schema *table_schema)
+{
+    return table_schema->table_name[table_schema->updating_name];
+}
+
+static int compare_each_tag(cJSON *tag_obj, const struct rule_tag *accept_tags, int n_accept_tag)
+{
+	cJSON *tab_name_obj = cJSON_GetObjectItem(tag_obj, "tag");
+	if (NULL == tab_name_obj || tab_name_obj->type != cJSON_String) {
+		goto error;
+	}
+
+	const char *tag_name = tab_name_obj->valuestring;
+	cJSON *tag_vals_array = cJSON_GetObjectItem(tag_obj, "value");
+	if (NULL == tag_vals_array || tag_vals_array->type != cJSON_Array) {
+		goto error;
+	}
+
+    int name_matched = 0;
+	int n_val = cJSON_GetArraySize(tag_vals_array);
+
+	for (int i = 0; i < n_accept_tag; i++) {
+		if (0 != strcmp(accept_tags[i].tag_name, tag_name)) {
+			continue;
+		}
+		name_matched++;
+
+		for (int j = 0; j < n_val; j++) {
+			cJSON *tag_val_obj = cJSON_GetArrayItem(tag_vals_array, j);
+			if (NULL == tag_val_obj || tag_val_obj->type != cJSON_String) {
+				goto error;
+			}
+
+			const char *tag_val = tag_val_obj->valuestring;
+			// compare a/b/c with a/b/c/d is a miss.
+			if (strlen(accept_tags[i].tag_val) < strlen(tag_val)) {
+				continue;
+			}
+
+			// compare a1a2/b1/c1 with a1a2/b/ is a miss.
+			//make sure the overlap is ended with a '/' 
+            size_t compare_len = 
+			if (0 == strncmp(accept_tags[i].tag_val, tag_val, strlen(tag_val)) &&
+				(strlen(accept_tags[i].tag_val) == strlen(tag_val) || accept_tags[i].tag_val[strlen(tag_val)] == '/')) {
+				return 1;
+			}
+		}
+	}
+
+	//no matched name is considered as a 
+	if (name_matched > 0) {
+		return 0;
+	} else {
+		return 1;
+	}
+
+error:
+	return -1;
+}
+
+//@param tag_set likes [{"tag":"location","value":["北京/朝阳/华严北里","上海/浦东/陆家嘴"]},{"tag":"isp","value":["电信","移动"]}]
+static int compare_each_tag_set(cJSON *tag_set, const struct rule_tag *accept_tags, int n_accept_tag)
+{
+	int matched = 0;
+
+	int n_tag = cJSON_GetArraySize(tag_set);
+	for (int i = 0; i < n_tag; i++) {
+		cJSON *tag_obj = cJSON_GetArrayItem(tag_set, i);
+		if (NULL == tag_obj || tag_obj->type != cJSON_Object) {
+			goto error;
+		}
+
+		int ret = compare_each_tag(tag_obj,  accept_tags, n_accept_tag);
+		if (ret < 0) {
+			return -1;
+		}
+
+		if(1 == ret) {
+			matched++;
+		}
+	}
+
+	if (matched == n_tag) {
+		return 1;
+	} else {
+		return 0;
+	}
+
+error:
+	return -1;
+}
+
+//@param value {"tag_sets":[[{"tag":"location","value":["北京/朝阳/华严北里","上海/浦东/陆家嘴"]},{"tag":"isp","value":["电信","移动"]}],[{"tag":"location","value":["北京"]},{"tag":"isp","value":["联通"]}]]}
+//@return 1 on match, 0 on not match, -1 on error.
+static int compare_accept_tag(const char *value, const struct rule_tag *accept_tags, int n_tag)
+{
+	int ret = -1;
+    int n_set = 0;
+    cJSON *tag_set = NULL;
+    cJSON *tag_set_array = NULL;
+    
+	cJSON *root = cJSON_Parse(value);
+	if (NULL == root) {
+		goto next;
+	}
+
+	tag_set_array = cJSON_GetObjectItem(root, "tag_sets");
+	if (NULL == tag_set_array || tag_set_array->type != cJSON_Array) {
+		goto next;
+	}
+
+	n_set = cJSON_GetArraySize(tag_set_array);
+	for (int i = 0; i < n_set; i++) {
+		tag_set = cJSON_GetArrayItem(tag_set_array, i);
+		if (NULL == tag_set || tag_set->type != cJSON_Array) {
+			goto next;
+		}
+
+		ret = compare_each_tag_set(tag_set, accept_tags, n_tag);
+        //match or error occurs.
+		if (ret != 0) {
+			break;
+		}
+	}
+
+error:
+	cJSON_Delete(root);
+	return ret;
+}
+
+int populate_compile_table_item(const char *line, struct table_schema *table_schema, struct table_item *table_item, 
+                                const char *table_name, const struct rule_tag *accept_tags, int n_accept_tag, 
+                                struct log_handle *logger)
+{
+    size_t column_offset = 0;
+    size_t column_len = 0;
+    struct compile_table_schema *compile_schema = &(table_schema->compile);
+    struct compile_item *compile_item = &(table_item->compile_item);
+
+    int ret = get_column_pos(line, compile_schema->compile_id_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    compile_item->compile_id = atoi(line + column_offset);
+
+    ret = get_column_pos(line, compile_schema->service_id_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    compile_item->service_id = atoi(line + column_offset);
+
+    ret = get_column_pos(line, compile_schema->action_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    compile_item->action = atoi(line + column_offset);
+
+    ret = get_column_pos(line, compile_schema->do_blacklist_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    compile_item->do_blacklist = atoi(line + column_offset);
+
+    ret = get_column_pos(line, compile_schema->do_log_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    compile_item->do_log = atoi(line + column_offset);
+
+    ret = get_column_pos(line, compile_schema->tags_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    
+    char tag_str[MAX_TABLE_LINE_SIZE] = {0};
+    memcpy(tag_str, (line + column_offset), column_len);
+
+    if (n_accept_tag > 0 && strlen(tag_str) > 2) {
+		str_unescape(tag_str);
+		ret = compare_accept_tag(tag_str, accept_tags, n_accept_tag);
+		if (ret < 0) {
+			log_error(logger, MODULE_TABLE_SCHEMA,
+					  "update error, invalid tag format for compile table[%s]:compile_id[%d]",
+					  table_name, compile_item->compile_id);
+			return -1;
+		}
+
+		if (0 == ret) {
+			table_schema->unmatched_tag_cnt++;
+			return -1;
+		}
+	}
+
+    ret = get_column_pos(line, compile_schema->user_region_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+
+    if (column_len > MAX_TABLE_LINE_SIZE) {
+        log_error(logger, MODULE_TABLE_SCHEMA, 
+                  "update error: compile table[%s]:compile_id[%d] user_region length too long",
+                  table_name, compile_item->compile_id);
+        return -1;
+    }
+    
+    memcpy(compile_item->user_region, (line + column_offset), column_len);
+
+    switch (compile_schema->user_region_encoding) {
+		case USER_REGION_ENCODE_ESCAPE:
+			str_unescape(compile_item->user_region);
+			break;
+		default:
+			break;
+	}
+
+    ret = get_column_pos(line, compile_schema->is_valid_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    compile_item->is_valid = atoi(line + column_offset);
+
+    ret = get_column_pos(line, compile_schema->clause_num_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    compile_item->clause_num = atoi(line + column_offset);
+
+    ret = get_column_pos(line, compile_schema->evaluation_order_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    compile_item->evaluation_order = atoi(line + column_offset);
+
+    return 0;
+}
+
+int populate_group2compile_table_item(const char *line, struct group2compile_table_schema *group2compile_schema, 
+                                      struct table_item *table_item, const char *table_name,
+                                      struct log_handle *logger)
+{
+    size_t column_offset = 0;
+    size_t column_len = 0;
+    struct group2compile_item *group2compile_item = &(table_item->group2compile_item);
+
+    int ret = get_column_pos(line, group2compile_schema->group_id_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    group2compile_item->group_id = atoi(line + column_offset);
+
+    ret = get_column_pos(line, group2compile_schema->compile_id_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    group2compile_item->compile_id = atoi(line + column_offset);
+
+    ret = get_column_pos(line, group2compile_schema->is_valid_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    group2compile_item->is_valid = atoi(line + column_offset);
+
+    ret = get_column_pos(line, group2compile_schema->not_flag_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    group2compile_item->not_flag = atoi(line + column_offset);
+
+    ret = get_column_pos(line, group2compile_schema->virtual_table_name_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+
+    if (column_len > NAME_MAX) {
+        log_error(logger, MODULE_TABLE_SCHEMA, 
+                  "update error: group2compile table[%s]:group_id[%d] virtual table name length too long",
+                  table_name, group2compile_item->group_id);
+        return -1;
+    }
+    memcpy(group2compile_item->virtual_table_name, (line + column_offset), column_len);
+
+    ret = get_column_pos(line, group2compile_schema->clause_index_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+
+    group2compile_item->clause_index = atoi(line + column_offset);
+
+    return 0;
+}
+
+int populate_group2group_table_item(const char *line, struct group2group_table_schema *group2group_schema, 
+                                    struct table_item *table_item, const char *table_name,
+                                    struct log_handle *logger)
+{
+    size_t column_offset = 0;
+    size_t column_len = 0;
+    struct group2group_item *group2group_item = &(table_item->group2group_item);
+
+    int ret = get_column_pos(line, group2group_schema->group_id_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    group2group_item->group_id = atoi(line + column_offset);
+
+    ret = get_column_pos(line, group2group_schema->superior_group_id_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    group2group_item->superior_group_id = atoi(line + column_offset);
+
+    ret = get_column_pos(line, group2group_schema->is_valid_column, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+    group2group_item->is_valid = atoi(line + column_offset);
+
+    return 0;
 }
 
 int populate_expr_table_item(const char *line, struct expr_table_schema *expr_schema, 
@@ -1540,68 +2131,87 @@ int populate_ip_plugin_table_item(const char *line, struct ip_plugin_table_schem
     return 0;
 }
 
-struct table_item *
-table_schema_line_to_item(const char *line, struct table_schema *table_schema, struct log_handle *logger)
+void table_item_free(struct table_item *table_item)
+{
+    if (NULL == table_item) {
+        return;
+    }
+
+    switch (table_item->table_type) {
+        case TABLE_TYPE_COMPILE:
+        case TABLE_TYPE_GROUP2COMPILE:
+        case TABLE_TYPE_GROUP2GROUP:
+        case TABLE_TYPE_EXPR:
+        case TABLE_TYPE_EXPR_PLUS:
+        case TABLE_TYPE_IP_PLUS:
+        case TABLE_TYPE_PLUGIN:
+            break;
+        case TABLE_TYPE_IP_PLUGIN:
+            /* TODO: free ex_data */
+            break;
+        default:
+            break;
+    }
+
+    FREE(table_item);
+} 
+
+struct table_item *table_schema_line_to_item(const char *line, struct table_schema *table_schema, 
+                                             struct rule_tag *accept_tags, int n_accept_tag, struct log_handle *logger)
 {
     if (NULL == line || NULL == table_schema) {
         return NULL;
     }
 
     int ret = -1;
+    const char *table_name = table_schema_get_updating_name(table_schema);
     struct table_item *table_item = ALLOC(struct table_item, 1);
 
     switch (table_schema->table_type) {
+    case TABLE_TYPE_COMPILE:
+        table_item->table_type = table_schema->table_type;
+        ret = populate_compile_table_item(line, table_schema, table_item, table_name, accept_tags, n_accept_tag, logger);
+        break;
+    case TABLE_TYPE_GROUP2COMPILE:
+        table_item->table_type = table_schema->table_type;
+        ret = populate_group2compile_table_item(line, &table_schema->group2compile, table_item, table_name, logger);
+        break;
+    case TABLE_TYPE_GROUP2GROUP:
+        table_item->table_type = table_schema->table_type;
+        ret = populate_group2group_table_item(line, &table_schema->group2group, table_item, table_name, logger);
+        break;
     case TABLE_TYPE_EXPR:
     case TABLE_TYPE_EXPR_PLUS:
         table_item->table_type = table_schema->table_type;
-        ret = populate_expr_table_item(line, &table_schema->expr, table_item,
-                                       table_schema->table_name[table_schema->updating_name], logger);
-        if (ret < 0) {
-            log_error(logger, MODULE_TABLE_SCHEMA, 
-                      "abandon config: invalid format of expr table %s:%s",
-                      table_schema->table_name[table_schema->updating_name], line);
-            goto error;
-        }
+        ret = populate_expr_table_item(line, &table_schema->expr, table_item, table_name, logger);
         break;
     case TABLE_TYPE_IP_PLUS:
         table_item->table_type = table_schema->table_type;
-        ret = populate_ip_plus_table_item(line, &table_schema->ip_plus, table_item,
-                                          table_schema->table_name[table_schema->updating_name], logger);
-        if (ret < 0) {
-            log_error(logger, MODULE_TABLE_SCHEMA, 
-                      "abandon config: invalid format of ip_plus table %s:%s",
-                      table_schema->table_name[table_schema->updating_name], line);
-            goto error;
-        }
+        ret = populate_ip_plus_table_item(line, &table_schema->ip_plus, table_item, table_name, logger);
         break;
     case TABLE_TYPE_PLUGIN:
         table_item->table_type = TABLE_TYPE_PLUGIN;
-        ret = populate_plugin_table_item(line, &table_schema->plugin, table_item,
-                                         table_schema->table_name[table_schema->updating_name], logger);
-        if (ret < 0) {
-            log_error(logger, MODULE_TABLE_SCHEMA, 
-                      "abandon config: invalid format of plugin table %s:%s",
-                      table_schema->table_name[table_schema->updating_name], line);
-            goto error;
-        }
+        ret = populate_plugin_table_item(line, &table_schema->plugin, table_item, table_name, logger);
         break;
     case TABLE_TYPE_IP_PLUGIN:
         table_item->table_type = TABLE_TYPE_IP_PLUGIN;
-        ret = populate_ip_plugin_table_item(line, &table_schema->ip_plugin, table_item,
-                                            table_schema->table_name[table_schema->updating_name], logger);
-        if (ret < 0) {
-            log_error(logger, MODULE_TABLE_SCHEMA, 
-                      "abandon config: invalid format of ip_plugin table %s:%s",
-                      table_schema->table_name[table_schema->updating_name], line);
-            goto error;
-        }
+        ret = populate_ip_plugin_table_item(line, &table_schema->ip_plugin, table_item, table_name, logger);
         break;
     default:
         break;
     }
+
+    if (ret < 0) {
+        log_error(logger, MODULE_TABLE_SCHEMA, 
+                  "abandon config: invalid format of table %s:%s, transform line to item failed. ",
+                  table_name, line);
+        table_schema->update_err_cnt++;
+        goto error;
+    }
     return table_item;
+
 error:
-    FREE(table_item);
+    table_item_free(table_item);
     return NULL;
 }
 

@@ -53,32 +53,44 @@ struct maat_rule {
 	char service_defined[MAX_SERVICE_DEFINE_LEN];
 };
 
-#define	REGION_RULE_MAGIC 0x4d3c2b1a
-struct maat_region_inner
-{
+#define	ITEM_RULE_MAGIC 0x4d3c2b1a
+struct maat_item_inner {
 	long long magic_num;
-	int region_id;
+	int item_id;
 	int group_id;
 	int district_id;
-	int table_id;
 	int expr_id_cnt;
 	int expr_id_lb;	//low boundary
 	int expr_id_ub;	//up boundary
 };
 
 #define	COMPILE_RULE_MAGIC	0x1a2b3c4d
-struct maat_compile_rule
-{
+struct maat_compile_rule {
 	long long magic_num;
+    int compile_id;
 	struct maat_rule_head head;// fix len of Maat_rule_t
 	char *service_defined;
 	int is_valid;
 	int declared_clause_num;
 	double evaluation_order;
 	struct table_schema *ref_table;
-	void *ex_data;
-	int compile_id;
+	void **ex_data;
 	pthread_rwlock_t rwlock;
+};
+
+struct group2compile_rule {
+    int group_id;
+	int compile_id;
+	int is_valid;
+	int not_flag;
+	int virtual_table_id;
+	int clause_index;
+};
+
+struct group2group_rule {
+    int group_id;
+	int superior_group_id;
+	int is_valid;
 };
 
 struct maat_runtime {
@@ -94,10 +106,8 @@ struct maat_runtime {
     size_t max_thread_num;
     uint32_t rule_num;
 
-    struct maat_hierarchy *hier;
     struct maat_garbage_bin *ref_garbage_bin;
-
-    struct scan_result *region_result_buff;
+    struct scan_result *item_result_buff;
     struct log_handle *logger;
 };
 
@@ -158,6 +168,11 @@ struct expected_reply {
 	redisReply possible_replies[POSSIBLE_REDIS_REPLY_SIZE];
 };
 
+struct rule_tag {
+	char *tag_name;
+	char *tag_val;
+};
+
 struct maat {
     char instance_name[NAME_MAX];
 
@@ -173,6 +188,9 @@ struct maat {
         struct source_redis_ctx mr_ctx;
     };
     
+    struct rule_tag *accept_tags;
+	int n_accept_tag;
+
     struct log_handle *logger;
     int deferred_load;
 
@@ -192,10 +210,10 @@ struct maat {
 
     struct maat_garbage_bin *garbage_bin;
 
-    char compile_tn[NAME_MAX];
-    char group_tn[NAME_MAX];
-	char group2compile_tn[NAME_MAX];
-	char group2group_tn[NAME_MAX];
+    char compile_tablename[NAME_MAX];
+    //char group_tn[NAME_MAX];
+	//char group2compile_tn[NAME_MAX];
+	//char group2group_tn[NAME_MAX];
 
     char decrypt_key[NAME_MAX];
 	char decrypt_algo[NAME_MAX];
@@ -262,6 +280,8 @@ void maat_cmd_rewrite_table_line_with_foreign(struct serial_rule *s_rule);
 
 void maat_cmd_set_serial_rule(struct serial_rule *rule, enum maat_operation op, unsigned long rule_id, 
                               const char *table_name, const char *line, long long timeout);
+
+void fill_maat_rule(struct maat_rule *rule, const struct maat_rule_head *rule_head, const char *srv_def, int srv_def_len);
 
 #ifdef __cpluscplus
 }

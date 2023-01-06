@@ -365,12 +365,6 @@ int main(int argc, char ** argv)
 {
 	int ret=0;
 	::testing::InitGoogleTest(&argc, argv);
-/*
-    struct maat_options *opts = maat_options_new();
-    maat_options_set_json_file(opts, json_path);
-
-    g_maat_instance = maat_new(opts, table_info_path);
-    EXPECT_NE(g_maat_instance, nullptr);*/
 
     char json_iris_path[128] = {0};
     char redis_ip[64] = "127.0.0.1";
@@ -426,8 +420,7 @@ int main(int argc, char ** argv)
     redisFree(c);
 
     struct maat_options *opts = maat_options_new();
-    maat_options_set_redis_ip(opts, redis_ip);
-    maat_options_set_redis_port(opts, redis_port);
+    maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
     maat_options_set_logger(opts, logger);
 
     g_maat_instance = maat_new(opts, table_info_path);

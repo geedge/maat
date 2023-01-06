@@ -67,8 +67,7 @@ TEST(iris_mode, maat_scan_string) {
     snprintf(tmp_iris_inc_idx_path, sizeof(tmp_iris_inc_idx_path), "%s/index", json_iris_path);
 
     struct maat_options *opts = maat_options_new();
-    maat_options_set_iris_full_index_dir(opts, tmp_iris_full_idx_path);
-    maat_options_set_iris_inc_index_dir(opts, tmp_iris_inc_idx_path);
+    maat_options_set_iris(opts, tmp_iris_full_idx_path, tmp_iris_inc_idx_path);
 
     struct maat *maat_instance = maat_new(opts, table_info_path);
     EXPECT_NE(maat_instance, nullptr);
@@ -187,8 +186,7 @@ TEST(redis_mode, maat_scan_string) {
     redisFree(c);
 
     struct maat_options *opts = maat_options_new();
-    maat_options_set_redis_ip(opts, redis_ip);
-    maat_options_set_redis_port(opts, redis_port);
+    maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
     maat_options_set_logger(opts, logger);
 
     struct maat *maat_instance = maat_new(opts, table_info_path);
