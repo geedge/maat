@@ -19,7 +19,6 @@
 #include "maat_rule.h"
 #include "hiredis/hiredis.h"
 #include "maat_config_monitor.h"
-#include "maat_table_schema.h"
 
 #define MODULE_MAAT_COMMAND	 module_name_str("maat.command")
 
@@ -305,7 +304,7 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
 
 	struct serial_rule *s_rule = ALLOC(struct serial_rule, 1);
 
-    int table_id = table_schema_manager_get_table_id(maat_instance->table_schema_mgr, line_rule->table_name);
+    int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, line_rule->table_name);
     if (table_id < 0) {
         log_error(maat_instance->logger, MODULE_MAAT_COMMAND, "Command set line id %d failed: unknown table %s", 
                   line_rule->rule_id, line_rule->table_name);
@@ -313,14 +312,8 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
         return -1;
     }
 
-    struct table_schema *table_schema = table_schema_get(maat_instance->table_schema_mgr, table_id);
-    if (!table_schema) {
-        FREE(s_rule);
-        return -1;
-    }
-
-    int valid_flag_column = table_schema_get_valid_flag_column(table_schema);
-    if (valid_flag_column < 0) {
+    int valid_column = table_manager_get_valid_column(maat_instance->tbl_mgr, table_id);
+    if (valid_column < 0) {
         log_error(maat_instance->logger, MODULE_MAAT_COMMAND, 
                   "Command set line id %d failed: table %s is not a plugin or ip_plugin table",
                   line_rule->rule_id, line_rule->table_name);
@@ -328,9 +321,9 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
         return -1;
     }
 
-    enum table_type table_type = table_schema_get_table_type(table_schema);
-    int valid_offset = maat_cmd_get_valid_flag_offset(line_rule->table_line, table_type, valid_flag_column);
-    int is_valid = atoi(line_rule->table_line+valid_offset);
+    enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
+    int valid_offset = maat_cmd_get_valid_flag_offset(line_rule->table_line, table_type, valid_column);
+    int is_valid = atoi(line_rule->table_line + valid_offset);
     if (line_rule->expire_after > 0) {
         absolute_expire_time = server_time + line_rule->expire_after;
     }

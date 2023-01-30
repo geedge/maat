@@ -17,7 +17,7 @@
 #include "maat_command.h"
 #include "maat_config_monitor.h"
 #include "maat_redis_monitor.h"
-#include "maat_table_schema.h"
+#include "maat_plugin.h"
 
 #define MODULE_REDIS_MONITOR	 module_name_str("maat.redis_monitor")
 
@@ -97,22 +97,22 @@ void _get_foregin_keys(struct serial_rule *p_rule, int *foreign_columns, int n_f
 int get_foreign_keys_define(redisContext *ctx, struct serial_rule *rule_list, int rule_num, struct maat *maat_instance, const char *dir)
 {
 	int rule_with_foreign_key = 0;
-	struct table_schema *table_schema = NULL;
+	void *schema = NULL;
 
 	for (int i = 0; i < rule_num; i++) {
 		if (NULL == rule_list[i].table_line) {
 			continue;
 		}
 
-        int table_id = table_schema_manager_get_table_id(maat_instance->table_schema_mgr, rule_list[i].table_name);
-		table_schema = table_schema_get(maat_instance->table_schema_mgr, table_id);
-        enum table_type table_type = table_schema_get_table_type(table_schema);
+        int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, rule_list[i].table_name);
+		schema = table_manager_get_schema(maat_instance->tbl_mgr, table_id);
+        enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
 		if (!table_schema || table_type != TABLE_TYPE_PLUGIN) {
 			continue;
 		}
 
         int foreign_columns[8];
-        int n_foreign_column = table_schema_get_foreign_column(table_schema, foreign_columns);
+        int n_foreign_column = plugin_table_get_foreign_column((struct plugin_schema *)schema, foreign_columns);
         if (0 == n_foreign_column) {
             continue;
         }
@@ -467,7 +467,7 @@ int recovery_history_version(const struct serial_rule *current, int current_num,
 }
 
 int maat_cmd_get_rm_key_list(redisContext *c, long long instance_version, long long desired_version, 
-                             long long *new_version, struct table_schema_manager* table_schema_mgr, 
+                             long long *new_version, struct table_manager *tbl_mgr,
                              struct serial_rule **list, int *update_type, int cumulative_off,
                              struct log_handle *logger)
 {
@@ -608,7 +608,7 @@ FULL_UPDATE:
 		}
 
 		if (table_schema_mgr) {
-			int table_id = table_schema_manager_get_table_id(table_schema_mgr, s_rule_array[full_idx].table_name);
+			int table_id = table_manager_get_table_id(tbl_mgr, s_rule_array[full_idx].table_name);
 			//Unrecognized table.
             if (table_id < 0) {
 				continue;
@@ -1277,7 +1277,7 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
     int valid_column = -1;
 	enum table_type table_type;
 	enum scan_type scan_type;
-	struct table_schema *table_schema = NULL;
+	void *table_schema = NULL;
     struct maat *maat_instance = (struct maat *)u_param;
 
     //authorized to write
@@ -1369,19 +1369,19 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 			continue;
 		}
 
-		table_id = table_schema_manager_get_table_id(maat_instance->table_schema_mgr, rule_list[i].table_name);
+		table_id = table_manager_get_table_id(maat_instance->tbl_mgr, rule_list[i].table_name);
 		//Unrecognized table.
         if (table_id < 0) {
 			no_table_num++;
 			continue;
 		}
 
-        table_schema = table_schema_get(maat_instance->table_schema_mgr, table_id);
 		if (rule_list[i].op == MAAT_OP_DEL) {
-		 	scan_type = table_schema_get_scan_type(table_schema);
-            table_type = table_schema_get_table_type(table_schema);
-			table_schema = table_schema_get_by_scan_type(maat_instance->table_schema_mgr, table_id, scan_type, NULL);
-			valid_column = table_schema_get_valid_flag_column(table_schema);
+            //TODO: by luis
+		 	//scan_type = table_schema_get_scan_type(table_schema);
+            table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
+			//table_schema = table_schema_get_by_scan_type(maat_instance->table_schema_mgr, table_id, scan_type, NULL);
+			valid_column = table_manager_get_valid_column(maat_instance->tbl_mgr, table_id);
 			ret = invalidate_line(rule_list[i].table_line, table_type, valid_column);
 			if (ret < 0) {
 				log_error(maat_instance->logger, MODULE_REDIS_MONITOR, 

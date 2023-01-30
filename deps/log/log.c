@@ -136,7 +136,8 @@ static int log_create_path(const char *file_path)
     {
 		return 0;
     }
-
+    fclose(fp);
+    
     return 1;
 }
 

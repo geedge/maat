@@ -23,8 +23,10 @@ extern "C"
 
 struct maat_options {
     char instance_name[NAME_MAX];
-    char compile_tablename[NAME_MAX];
     size_t nr_worker_threads;
+
+    const char *accept_tags;
+
     int rule_effect_interval_ms;
     int rule_update_checking_interval_ms;
     int gc_timeout_ms;

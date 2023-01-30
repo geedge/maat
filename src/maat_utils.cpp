@@ -45,6 +45,19 @@ char *maat_strdup(const char *s)
 	return d;
 }
 
+int get_column_value(const char *line, int column_seq)
+{
+    size_t column_offset = 0;
+    size_t column_len = 0;
+
+    int ret = get_column_pos(line, column_seq, &column_offset, &column_len);
+    if (ret < 0) {
+        return -1;
+    }
+
+    return atoi(line + column_offset);
+}
+
 int get_column_pos(const char *line, int column_seq, size_t *offset, size_t *len)
 {
 	int i = 0;

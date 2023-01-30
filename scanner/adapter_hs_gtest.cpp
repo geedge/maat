@@ -2,7 +2,6 @@
 
 #include "utils.h"
 #include "adapter_hs.h"
-#include "maat_table_schema.h"
 
 int parse_and_expr_file(const char *filename, and_expr_t expr[], size_t *n_expr)
 {

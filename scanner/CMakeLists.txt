@@ -3,6 +3,7 @@ add_definitions(-fPIC)
 
 include_directories(${PROJECT_SOURCE_DIR}/deps)
 include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR}/src/inc_internal)
 
 add_library(adapter-static adapter_hs.cpp bool_matcher.cpp)
 

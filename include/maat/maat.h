@@ -27,11 +27,6 @@ extern "C"
 /* maat instance handle */
 struct maat;
 
-enum ip_type {
-    IP_TYPE_V4,
-    IP_TYPE_V6
-};
-
 struct maat_hit_path {
     int Nth_scan;
 	int item_id;
@@ -41,7 +36,7 @@ struct maat_hit_path {
 	int compile_id;
 };
 
-struct maat_matched {
+struct maat_hit_object {
     int virtual_table_id;
     int group_id;
 };
@@ -49,30 +44,17 @@ struct maat_matched {
 enum maat_scan_opt
 {
 	MAAT_SET_SCAN_DISTRICT = 1,		//VALUE is a const char*, SIZE= strlen(string). DEFAULT: no default.
-	MAAT_SET_SCAN_LAST_REGION,		//VALUE is NULL, SIZE=0. This option indicates that the follow scan is the last region of current scan combination.
-	MAAT_GET_SCAN_HIT_PATH,			//VALUE is struct maat_hit_path*, an array of struct maat_hit_path, SIZE= sizeof(struct maat_hit_path)*N,
+	MAAT_SET_SCAN_LAST_ITEM,		//VALUE is NULL, SIZE=0. This option indicates that the follow scan is the last region of current scan combination.
+	MAAT_SET_SCAN_COMPILE_TABLE_ID, //Caller can specify which compile table to use
+    MAAT_GET_SCAN_HIT_PATH,			//VALUE is struct maat_hit_path*, an array of struct maat_hit_path, SIZE= sizeof(struct maat_hit_path)*N,
 									//Maat_get_scan_status returns actual got number.
-    MAAT_GET_SCAN_MATCHED           //VALUE is struct maat_matched*, an array of struct maat_matched, SIZE= sizeof(struct maat_matched)*N,                 
+    MAAT_GET_SCAN_HIT_OBJECTS        //VALUE is struct maat_hit_object*, an array of struct maat_hit_object, SIZE= sizeof(struct maat_hit_object)*N,                 
 };
 
-/* network order */
-struct ipv4_2tuple {
-    uint32_t sip;
-    uint32_t dip;
-};
-
-struct ipv6_2tuple {
-    uint8_t sip[16];
-    uint8_t dip[16];
-};
-
-struct addr_2tuple {
-    enum ip_type type;
-    union {
-        struct ipv4_2tuple ipv4;
-        struct ipv6_2tuple ipv6;
-    };  
-};
+#define MAAT_OK        0  //scan but not hit(group or compile)
+#define MAAT_ERR      -1  //scan error
+#define MAAT_HALF_HIT  1  //half hit: hit group, not hit compile
+#define MAAT_HIT       2  //scan hit compile
 
 #define	MAAT_RULE_UPDATE_TYPE_FULL	1
 #define	MAAT_RULE_UPDATE_TYPE_INC	2
@@ -93,8 +75,11 @@ typedef void maat_rule_ex_dup_func_t(int idx, void *to, void *from, long argl, v
 
 /* maat_instance options API */
 struct maat_options;
-struct maat_options* maat_options_new(void);
+struct maat_options *maat_options_new(void);
+void maat_options_free(struct maat_options *opts);
+
 int maat_options_set_caller_thread_number(struct maat_options *opts, size_t n_thread);
+int maat_options_set_accept_tags(struct maat_options *opts, const char *accept_tags);
 int maat_options_set_rule_effect_interval_ms(struct maat_options *opts, int interval_ms);
 int maat_options_set_rule_update_checking_interval_ms(struct maat_options *opts, int interval_ms);
 int maat_options_set_gc_timeout_ms(struct maat_options *opts, int interval_ms);
@@ -110,8 +95,9 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path);
 void maat_free(struct maat *instance);
 
 /* maat table API */
+/* return table_id(>=0) if success,otherwise return -1 */
 int maat_table_get_id(struct maat *instance, const char *table_name);
-
+/* return 0 if success, otherwise return -1 */
 int maat_table_callback_register(struct maat *instance, int table_id,
 								 maat_start_callback_t *start,
 								 maat_update_callback_t *update,
@@ -129,17 +115,33 @@ void *maat_plugin_table_get_ex_data(struct maat *instance, int table_id,
                                     const char *key, size_t key_len);
 /* maat scan API */
 struct maat_state;
-int maat_scan_integer(struct maat *instance, int table_id, int thread_id,
-                      unsigned int intval, int results[], size_t *n_result,
-                      struct maat_state **state);
 
-int maat_scan_ip(struct maat *instance, int table_id, int thread_id, 
-                 struct addr_2tuple *addr, int results[], size_t *n_result, 
-                 struct maat_state **state);
+/**
+ * @param instance:     maat instance created by maat_new()
+ * @param table_id:     the id of table which to be scanned
+ * @param thread_id:    thread index
+ * @param results:      array to store hit compile id
+ * @param n_result:     the array size
+ * @param n_hit_result: the number of hit compile id
+ * @param state:        scan mid status
+ * 
+ * @retval MAAT_ERR/MAAT_OK/MAAT_HALF_HIT       
+*/
+int maat_scan_integer(struct maat *instance, int table_id, int thread_id,
+                      unsigned int intval, int *results, size_t n_result,
+                      size_t *n_hit_result, struct maat_state **state);
+
+int maat_scan_ipv4(struct maat *instance, int table_id, int thread_id, 
+                   uint32_t ip_addr, int *results, size_t n_result, 
+                   size_t *n_hit_result, struct maat_state **state);
+
+int maat_scan_ipv6(struct maat *instance, int table_id, int thread_id, 
+                   uint8_t *ip_addr, int *results, size_t n_result, 
+                   size_t *n_hit_result, struct maat_state **state);
 
 int maat_scan_string(struct maat *instance, int table_id, int thread_id,
-                     const char *data, size_t data_len, int results[], size_t *n_result,
-                     struct maat_state **state);
+                     const char *data, size_t data_len, int *results, size_t n_result,
+                     size_t *n_hit_result, struct maat_state **state);
 
 struct maat_stream;
 struct maat_stream *maat_scan_stream_open(struct maat *instance, int table_id, int thread_id);
@@ -150,15 +152,20 @@ int maat_scan_stream(struct maat_stream **stream, int thread_id, const char* dat
 void maat_scan_stream_close(struct maat_stream **stream);
 
 /* maat state API */
-int maat_state_set(struct maat *instance, struct maat_state **mid, enum maat_scan_opt opt, const void *value, int size);
+int maat_state_set_scan_district(struct maat *instance, struct maat_state **state, const char *district, size_t district_len);
 
-//return >=0 if success, return -1 when failed;
-int maat_state_get(struct maat *instance, struct maat_state **mid, enum maat_scan_opt opt, void *value, int size);
+int maat_state_set_last_scan(struct maat *maat_instance, struct maat_state **state);
+
+int maat_state_set_scan_compile_table(struct maat *maat_instance, struct maat_state **state, int compile_table_id);
+
+int maat_state_get_hit_paths(struct maat *instance, struct maat_state **state, struct maat_hit_path *paths, size_t n_path);
+
+int maat_state_get_hit_objects(struct maat *instance, struct maat_state **state, struct maat_hit_object *objs, size_t n_obj);
 
 void maat_state_free(struct maat_state **state);
 
-/* return matched compile_id */
-int maat_matched_compile_id(struct maat *instance, struct maat_matched *matched);
+/* return hit object compile_id */
+int maat_hit_object_compile_id(struct maat *instance, struct maat_hit_object *obj);
 
 #ifdef __cpluscplus
 }

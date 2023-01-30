@@ -267,6 +267,19 @@ size_t rcu_hash_count(struct rcu_hash_table *htable)
     }
 }
 
+size_t rcu_hash_updating_count(struct rcu_hash_table *htable)
+{
+    if (NULL == htable) {
+        return 0;
+    }
+
+    if (htable->effective_hash == 'a') {
+        return HASH_CNT(hh_b, htable->hashmap_b);
+    } else {
+        return HASH_CNT(hh_a, htable->hashmap_a);
+    }
+}
+
 void rcu_hash_commit(struct rcu_hash_table *htable)
 {
     if (NULL == htable) {

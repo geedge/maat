@@ -2,7 +2,6 @@
 #include "maat/maat.h"
 #include "maat_utils.h"
 #include "maat_rule.h"
-#include "maat_table_schema.h"
 #include "json2iris.h"
 #include "maat_config_monitor.h"
 
@@ -31,17 +30,19 @@ TEST(json_mode, maat_scan_string) {
     struct maat *maat_instance = maat_new(opts, table_info_path);
     EXPECT_NE(maat_instance, nullptr);
 
-    struct table_schema_manager *table_schema_mgr = maat_instance->table_schema_mgr;
-    int table_id = table_schema_manager_get_table_id(table_schema_mgr, "HTTP_URL");
+    int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, "HTTP_URL");
    
-    char data[128] = "i.ytimg.com";
-    int result_array[5] = {0};
-    size_t n_result_array = 0;
-    int ret = maat_scan_string(maat_instance, table_id, 0, data, strlen(data), result_array, &n_result_array, NULL);
+    char scan_data[128] = "hello";
+    int results[5] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+    int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data), results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
-    EXPECT_EQ(n_result_array, 1);
-    EXPECT_EQ(result_array[0], 30);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 191);
 
+    maat_options_free(opts);
+    maat_state_free(&state);
     maat_free(maat_instance);
 }
 
@@ -72,17 +73,19 @@ TEST(iris_mode, maat_scan_string) {
     struct maat *maat_instance = maat_new(opts, table_info_path);
     EXPECT_NE(maat_instance, nullptr);
 
-    struct table_schema_manager *table_schema_mgr = maat_instance->table_schema_mgr;
-    int table_id = table_schema_manager_get_table_id(table_schema_mgr, "HTTP_URL");
+    int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, "HTTP_URL");
    
-    char data[128] = "i.ytimg.com";
-    int result_array[5] = {0};
-    size_t n_result_array = 0;
-    int ret = maat_scan_string(maat_instance, table_id, 0, data, strlen(data), result_array, &n_result_array, NULL);
+    char scan_data[128] = "hello";
+    int results[5] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+    int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data), results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
-    EXPECT_EQ(n_result_array, 1);
-    EXPECT_EQ(result_array[0], 30);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 191);
 
+    maat_options_free(opts);
+    maat_state_free(&state);
     maat_free(maat_instance);
 }
 
@@ -190,17 +193,19 @@ TEST(redis_mode, maat_scan_string) {
     maat_options_set_logger(opts, logger);
 
     struct maat *maat_instance = maat_new(opts, table_info_path);
-    struct table_schema_manager *table_schema_mgr = maat_instance->table_schema_mgr;
-    int table_id = table_schema_manager_get_table_id(table_schema_mgr, "HTTP_URL");
+    int table_id = table_manager_get_table_id(maat_instance->tbl_mgr "HTTP_URL");
    
-    char data[128] = "i.ytimg.com";
-    int result_array[5] = {0};
-    size_t n_result_array = 0;
-    int ret = maat_scan_string(maat_instance, table_id, 0, data, strlen(data), result_array, &n_result_array, NULL);
+    char scan_data[128] = "hello";
+    int results[5] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+    int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data), results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
-    EXPECT_EQ(n_result_array, 1);
-    EXPECT_EQ(result_array[0], 30);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 191);
 
+    maat_options_free(opts);
+    maat_state_free(&state);
     log_handle_destroy(maat_instance->logger);
     maat_free(maat_instance);
 }

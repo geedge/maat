@@ -27,9 +27,12 @@ extern "C"
 #include "log/log.h"
 #include "hiredis/hiredis.h"
 #include "uthash/uthash.h"
-#include "maat_table_schema.h"
 #include "maat_command.h"
 #include "IPMatcher.h"
+#include "maat_kv.h"
+#include "maat_table.h"
+
+#define MAX_TABLE_NUM	256
 
 struct maat_rule_head {
 	int config_id;
@@ -64,8 +67,15 @@ struct maat_item_inner {
 	int expr_id_ub;	//up boundary
 };
 
+struct maat_item {
+	int item_id;
+	int group_id;
+	UT_hash_handle hh;
+	void *user_data;
+};
+
 #define	COMPILE_RULE_MAGIC	0x1a2b3c4d
-struct maat_compile_rule {
+struct compile_rule {
 	long long magic_num;
     int compile_id;
 	struct maat_rule_head head;// fix len of Maat_rule_t
@@ -73,7 +83,7 @@ struct maat_compile_rule {
 	int is_valid;
 	int declared_clause_num;
 	double evaluation_order;
-	struct table_schema *ref_table;
+	struct compile_schema *ref_table;
 	void **ex_data;
 	pthread_rwlock_t rwlock;
 };
@@ -83,8 +93,9 @@ struct group2compile_rule {
 	int compile_id;
 	int is_valid;
 	int not_flag;
-	int virtual_table_id;
+	int vt_id;  //virtual_table_id
 	int clause_index;
+    int associated_compile_table_id;
 };
 
 struct group2group_rule {
@@ -100,14 +111,19 @@ struct maat_runtime {
     time_t last_update_time;
 
     long long *ref_cnt;
-    struct table_runtime_manager *table_rt_mgr;
+    struct table_manager *ref_tbl_mgr; //share with maat instance
     size_t max_table_num;
     
     size_t max_thread_num;
     uint32_t rule_num;
 
     struct maat_garbage_bin *ref_garbage_bin;
-    struct scan_result *item_result_buff;
+
+	struct maat_kv_store *district_map;
+    struct maat_kv_store *tmp_district_map;
+
+	unsigned int district_num;
+	
     struct log_handle *logger;
 };
 
@@ -179,7 +195,7 @@ struct maat {
     struct maat_runtime *maat_rt;
     struct maat_runtime *creating_maat_rt;
 
-    struct table_schema_manager *table_schema_mgr;
+    struct table_manager *tbl_mgr;
 
     enum data_source input_mode;
     union {
@@ -187,9 +203,6 @@ struct maat {
         struct source_json_ctx json_ctx;
         struct source_redis_ctx mr_ctx;
     };
-    
-    struct rule_tag *accept_tags;
-	int n_accept_tag;
 
     struct log_handle *logger;
     int deferred_load;
@@ -210,10 +223,8 @@ struct maat {
 
     struct maat_garbage_bin *garbage_bin;
 
-    char compile_tablename[NAME_MAX];
-    //char group_tn[NAME_MAX];
-	//char group2compile_tn[NAME_MAX];
-	//char group2group_tn[NAME_MAX];
+    int default_compile_table_id;
+    int g2g_table_id; //group2group table id
 
     char decrypt_key[NAME_MAX];
 	char decrypt_algo[NAME_MAX];
@@ -231,6 +242,29 @@ struct maat {
 
     long long scan_err_cnt;
 };
+
+struct maat_state {
+	struct maat *maat_instance;
+	int16_t thread_id;
+    int compile_table_id; //caller can select compile table to scan
+	unsigned char is_set_district;
+	unsigned char is_last_scan;
+	int district_id; //-1: Any District; -2: Unkonwn District;
+	int scan_cnt;
+	struct maat_compile_state *compile_mid;
+};
+
+int parse_accept_tag(const char *value, struct rule_tag **result, void *logger);
+
+int compare_accept_tag(const char *value, const struct rule_tag *accept_tags, int n_tag);
+
+struct maat_item *maat_item_new(int item_id, int group_id, void *user_data);
+
+void maat_item_free(struct maat_item *item, void (* item_user_data_free)(void *));
+
+struct maat_item_inner *maat_item_inner_new(int group_id, int item_id, int district_id);
+
+void maat_item_inner_free(struct maat_item_inner *item);
 
 void maat_start_cb(long long new_version, int update_type, void *u_para);
 

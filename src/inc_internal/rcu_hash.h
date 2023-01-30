@@ -51,6 +51,7 @@ void rcu_hash_del(struct rcu_hash_table *htable, const char *key, size_t key_len
 void *rcu_hash_find(struct rcu_hash_table *htable, const char *key, size_t key_len);
 
 size_t rcu_hash_count(struct rcu_hash_table *htable);
+size_t rcu_hash_updating_count(struct rcu_hash_table *htable);
 
 /**
  * @brief make add/del effective

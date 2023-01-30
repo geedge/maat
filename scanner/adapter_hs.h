@@ -19,6 +19,8 @@ extern "C"
 #include <stddef.h>
 #include <stdint.h>
 
+#include "log/log.h"
+
 #define MAX_EXPR_PATTERN_NUM 8
 
 struct adapter_hs;
@@ -63,7 +65,7 @@ typedef struct {
  * 
  * @retval the pointer to adapter_hs instance
 */
-struct adapter_hs *adapter_hs_initialize(int scan_mode, size_t nr_worker_threads, and_expr_t *expr_array, size_t n_expr_array);
+struct adapter_hs *adapter_hs_initialize(int scan_mode, size_t nr_worker_threads, and_expr_t *expr_array, size_t n_expr_array, struct log_handle *logger);
 
 /**
  * @brief scan input data to match logic AND expression, return all matched expr_id

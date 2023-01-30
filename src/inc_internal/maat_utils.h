@@ -31,7 +31,9 @@ extern "C"
 #define MIN(a, b)  	(((a) < (b)) ? (a) : (b))
 #endif
 
-#define	MAX_SCANNER_HIT_NUM	 4096
+#define	MAX_SCANNER_HIT_COMPILE_NUM  4096
+#define MAX_SCANNER_HIT_GROUP_NUM    4096
+#define MAX_SCANNER_HIT_ITEM_NUM    4096
 
 enum maat_ip_format {
 	IP_FORMAT_RANGE,
@@ -58,6 +60,9 @@ const char *module_name_str(const char *name);
 char *maat_strdup(const char *s);
 
 int get_column_pos(const char *line, int column_seq, size_t *offset, size_t *len);
+
+/* the column value must be integer */
+int get_column_value(const char *line, int column_seq);
 
 int load_file_to_memory(const char *file_name, unsigned char **pp_out, size_t *out_sz);
 

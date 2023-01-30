@@ -23,28 +23,223 @@
 #include "maat_rule.h"
 #include "maat_config_monitor.h"
 #include "maat_redis_monitor.h"
-#include "maat_table_runtime.h"
-#include "maat_table_schema.h"
-#include "maat_hierarchy.h"
+#include "maat_table.h"
+#include "maat_compile.h"
+#include "maat_plugin.h"
 #include "alignment.h"
 
 #define MODULE_MAAT_RULE	 module_name_str("maat.rule")
+
+struct maat_item *maat_item_new(int item_id, int group_id, void *user_data)
+{
+	struct maat_item *item = NULL;
+	item = ALLOC(struct maat_item, 1);
+	item->group_id = group_id;
+	item->item_id = item_id;
+	item->user_data = user_data;
+
+	return item;
+}
+
+void maat_item_free(struct maat_item *item, void (* item_user_data_free)(void *))
+{
+	if (item_user_data_free && item->user_data) {
+		item_user_data_free(item->user_data);
+		item->user_data = NULL;
+	}
+
+	free(item);
+}
+
+static int compare_each_tag(cJSON *tag_obj, const struct rule_tag *accept_tags, int n_accept_tag)
+{
+    if (NULL == tag_obj || NULL == accept_tags) {
+        return -1;
+    }
+
+	cJSON *tab_name_obj = cJSON_GetObjectItem(tag_obj, "tag");
+	if (NULL == tab_name_obj || tab_name_obj->type != cJSON_String) {
+		return -1;
+	}
+
+	const char *tag_name = tab_name_obj->valuestring;
+	cJSON *tag_vals_array = cJSON_GetObjectItem(tag_obj, "value");
+	if (NULL == tag_vals_array || tag_vals_array->type != cJSON_Array) {
+		return -1;
+	}
+
+    int name_matched = 0;
+	int n_val = cJSON_GetArraySize(tag_vals_array);
+	for (int i = 0; i < n_accept_tag; i++) {
+		if (0 != strcmp(accept_tags[i].tag_name, tag_name)) {
+			continue;
+		}
+		name_matched++;
+
+		for (int j = 0; j < n_val; j++) {
+			cJSON *tag_val_obj = cJSON_GetArrayItem(tag_vals_array, j);
+			if (NULL == tag_val_obj || tag_val_obj->type != cJSON_String) {
+				return -1;
+			}
+
+			const char *tag_val = tag_val_obj->valuestring;
+			// compare a/b/c with a/b/c/d is a miss.
+			if (strlen(accept_tags[i].tag_val) < strlen(tag_val)) {
+				continue;
+			}
+
+			// compare a1a2/b1/c1 with a1a2/b/ is a miss.
+			//make sure the overlap is ended with a '/' 
+            if (0 == strncmp(accept_tags[i].tag_val, tag_val, strlen(tag_val)) &&
+				(strlen(accept_tags[i].tag_val) == strlen(tag_val) || accept_tags[i].tag_val[strlen(tag_val)] == '/')) {
+				return 1;
+			}
+		}
+	}
+
+	//no matched name is considered as a 
+	if (name_matched > 0) {
+		return 0;
+	} else {
+		return 1;
+	}
+}
+
+//@param tag_set likes [{"tag":"location","value":["北京/朝阳/华严北里","上海/浦东/陆家嘴"]},{"tag":"isp","value":["电信","移动"]}]
+static int compare_each_tag_set(cJSON *tag_set, const struct rule_tag *accept_tags, int n_accept_tag)
+{
+	int matched = 0;
+
+	int n_tag = cJSON_GetArraySize(tag_set);
+	for (int i = 0; i < n_tag; i++) {
+		cJSON *tag_obj = cJSON_GetArrayItem(tag_set, i);
+		if (NULL == tag_obj || tag_obj->type != cJSON_Object) {
+			goto error;
+		}
+
+		int ret = compare_each_tag(tag_obj,  accept_tags, n_accept_tag);
+		if (ret < 0) {
+			return -1;
+		}
+
+		if(1 == ret) {
+			matched++;
+		}
+	}
+
+	if (matched == n_tag) {
+		return 1;
+	} else {
+		return 0;
+	}
+
+error:
+	return -1;
+}
+
+//@param value is a JSON, like {"tags":[{"tag":"location","value":"北京/朝阳/华严北里/甲22号},{"tag":"isp","value":"电信"}]}
+int parse_accept_tag(const char *value, struct rule_tag **result, void *logger)
+{
+	cJSON *json = JSON_Parse(value);
+	if (!json) {
+		log_error(logger, MODULE_MAAT_RULE,
+				 "parse accept tag Error before: %-200.200s", cJSON_GetErrorPtr());
+		return 0;
+	}
+
+	cJSON *tag = NULL, *tmp = NULL;
+	cJSON *array = cJSON_GetObjectItem(json, "tags");
+	int n_tag = cJSON_GetArraySize(array);
+	struct rule_tag *p = ALLOC(struct rule_tag, n_tag);
+
+	for (int i = 0; i < n_tag; i++) {
+		tag = cJSON_GetArrayItem(array, i);
+		tmp = cJSON_GetObjectItem(tag, "tag");
+		p[i].tag_name = maat_strdup(tmp->valuestring);
+		tmp = cJSON_GetObjectItem(tag, "value");
+		p[i].tag_val = maat_strdup(tmp->valuestring);
+	}
+
+	cJSON_Delete(json);
+	*result = p;
+	return n_tag;
+}
+
+//@param value {"tag_sets":[[{"tag":"location","value":["北京/朝阳/华严北里","上海/浦东/陆家嘴"]},{"tag":"isp","value":["电信","移动"]}],[{"tag":"location","value":["北京"]},{"tag":"isp","value":["联通"]}]]}
+//@return 1 on match, 0 on not match, -1 on error.
+int compare_accept_tag(const char *value, const struct rule_tag *accept_tags, int n_tag)
+{
+	int ret = -1;
+    int n_set = 0;
+    cJSON *tag_set = NULL;
+    cJSON *tag_set_array = NULL;
+    
+	cJSON *root = cJSON_Parse(value);
+	if (NULL == root) {
+		goto error;
+	}
+
+	tag_set_array = cJSON_GetObjectItem(root, "tag_sets");
+	if (NULL == tag_set_array || tag_set_array->type != cJSON_Array) {
+		goto error;
+	}
+
+	n_set = cJSON_GetArraySize(tag_set_array);
+	for (int i = 0; i < n_set; i++) {
+		tag_set = cJSON_GetArrayItem(tag_set_array, i);
+		if (NULL == tag_set || tag_set->type != cJSON_Array) {
+			goto error;
+		}
+
+		ret = compare_each_tag_set(tag_set, accept_tags, n_tag);
+        //match or error occurs.
+		if (ret != 0) {
+			break;
+		}
+	}
+
+error:
+	cJSON_Delete(root);
+	return ret;
+}
+
+struct maat_item_inner *maat_item_inner_new(int group_id, int item_id, int district_id)
+{
+	struct maat_item_inner *item = ALLOC(struct maat_item_inner, 1);
+	item->magic_num = ITEM_RULE_MAGIC;
+	item->item_id = item_id;
+	item->group_id = group_id;
+	item->district_id = district_id;
+
+	return item;
+}
+
+void maat_item_inner_free(struct maat_item_inner *item)
+{
+	assert(item->magic_num == ITEM_RULE_MAGIC);
+	assert(item->expr_id_cnt == 0 || item->expr_id_cnt == item->expr_id_ub - item->expr_id_lb + 1);
+	item->magic_num = 0;
+
+	free(item);
+}
 
 struct maat_runtime* maat_runtime_create(long long version, struct maat *maat_instance)
 {
 	struct maat_runtime *maat_rt = ALLOC(struct maat_runtime, 1);
 
 	maat_rt->version = version;
-	maat_rt->table_rt_mgr = table_runtime_manager_create(maat_instance->table_schema_mgr,
-                                                         maat_instance->nr_worker_thread,
-                                                         maat_instance->garbage_bin,
-                                                         maat_instance->logger);
-	maat_rt->max_table_num = table_schema_manager_get_size(maat_instance->table_schema_mgr);
+	int ret = table_manager_init(maat_instance->tbl_mgr, maat_instance->garbage_bin);
+    if (ret < 0) {
+        FREE(maat_rt);
+        return NULL;
+    }
+
+    maat_rt->ref_tbl_mgr = maat_instance->tbl_mgr;
+	maat_rt->max_table_num = table_manager_table_count(maat_instance->table_mgr);
     maat_rt->max_thread_num = maat_instance->nr_worker_thread;
 
     maat_rt->logger = maat_instance->logger;
     maat_rt->ref_garbage_bin = maat_instance->garbage_bin;
-    maat_rt->item_result_buff = ALLOC(struct scan_result, MAX_SCANNER_HIT_NUM * maat_instance->nr_worker_thread);
     maat_rt->ref_cnt = alignment_int64_array_alloc(maat_instance->nr_worker_thread);
     
     return maat_rt;
@@ -53,12 +248,12 @@ struct maat_runtime* maat_runtime_create(long long version, struct maat *maat_in
 void maat_runtime_commit(struct maat_runtime *maat_rt, struct log_handle *logger)
 {
 	for (size_t i = 0; i < maat_rt->max_table_num; i++) {
-		struct table_runtime *table_rt = table_runtime_get(maat_rt->table_rt_mgr, i);
-		if (NULL == table_rt) {
+		void *runtime = table_manager_get_runtime(maat_rt->ref_tbl_mgr, i);
+		if (NULL == runtime) {
 			continue;
 		}
 
-		table_runtime_commit(table_rt, maat_rt->version, maat_rt->max_thread_num, logger);
+		table_manager_commit_runtime(runtime, maat_rt->version, maat_rt->max_thread_num, logger);
 	}
 
     maat_rt->last_update_time = time(NULL);
@@ -71,8 +266,8 @@ void maat_runtime_destroy(struct maat_runtime *maat_rt)
     }
 
     if (maat_rt->table_rt_mgr != NULL) {
-        table_runtime_manager_destroy(maat_rt->table_rt_mgr);
-        maat_rt->table_rt_mgr = NULL;
+        table_manager_runtime_destroy(maat_rt->ref_tbl_mgr);
+        maat_rt->ref_table_mgr = NULL;
     }
 
     FREE(maat_rt);
@@ -81,7 +276,7 @@ void maat_runtime_destroy(struct maat_runtime *maat_rt)
 int maat_runtime_updating_flag(struct maat_runtime *maat_rt)
 {
     for (size_t i = 0; i < maat_rt->max_table_num; i++) {
-		struct table_runtime *table_rt = table_runtime_get(maat_rt->table_rt_mgr, i);
+		struct table_runtime *table_rt = table_manager_get_runtime(maat_rt->tbl_mgr, i);
 		if (NULL == table_rt) {
 			continue;
 		}
@@ -105,27 +300,41 @@ void maat_start_cb(long long new_version, int update_type, void *u_param)
 		maat_instance->maat_version = new_version;
 	}
 
-    table_schema_manager_all_plugin_cb_start(maat_instance->table_schema_mgr, update_type);
+	int table_id = -1;
+	enum table_type table_type = TABLE_TYPE_MAX;
+	size_t table_cnt = table_manager_table_count(maat_instance->tbl_mgr);
+	for (size_t i = 0; i < table_cnt; i++) {
+		table_type = table_manager_get_table_type(maat_instance->tbl_mgr, i);
+		if (table_type != TABLE_TYPE_PLUGIN) {
+			continue;
+		}
+
+		void *schema = table_manager_get_schema(maat_instance->tbl_mgr, i);
+		plugin_table_all_callback_start((struct plugin_schema *)schema, update_type);
+	}
 }
 
 int maat_update_cb(const char *table_name, const char *line, void *u_param)
 {
+	if (NULL == table_name || NULL == line || NULL == u_param) {
+		return 0;
+	}
+	
 	struct maat *maat_instance =(struct maat *)u_param; 
 	struct maat_runtime* maat_rt = NULL;
-	int table_id = table_schema_manager_get_table_id(maat_instance->table_schema_mgr, table_name);
+	int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, table_name);
     if (table_id < 0) {
-        log_error(maat_instance->logger, MODULE_MAAT_RULE, "update warning, unknown table name %s", table_name);
+        log_error(maat_instance->logger, MODULE_MAAT_RULE, 
+				  "update warning, unknown table name %s", table_name);
         return -1;
     }
 
-	struct table_schema* table_schema = table_schema_get(maat_instance->table_schema_mgr, table_id);
-    if (NULL == table_schema) {
+	void *schema = table_manager_get_schema(maat_instance->tbl_mgr, table_id);
+    if (NULL == schema) {
         log_error(maat_instance->logger, MODULE_MAAT_RULE, 
                   "update warning, table name %s doesn't have table schema", table_name);
         return -1;
     }
-
-    table_schema_set_updating_name(table_schema, table_name);
     
 	if (maat_instance->creating_maat_rt != NULL) {
 		maat_rt = maat_instance->creating_maat_rt;
@@ -133,14 +342,16 @@ int maat_update_cb(const char *table_name, const char *line, void *u_param)
 		maat_rt = maat_instance->maat_rt;
 	}
 
-    struct table_item *table_item = table_schema_line_to_item(line, table_schema, maat_instance->accept_tags, 
-                                                              maat_instance->n_accept_tag, maat_instance->logger);
-    if (table_item != NULL) {
-        struct table_runtime *table_rt = table_runtime_get(maat_rt->table_rt_mgr, table_id);
-        table_runtime_update(table_rt, table_schema, line, table_item, maat_instance->logger);
-	    table_item_free(table_item);
+	void *runtime = table_manager_get_runtime(maat_rt->tbl_mgr, table_id);
+	int ret = table_manager_update_runtime(runtime, schema, line);
+    if (ret < 0) {
+        log_error(maat_instance->logger, MODULE_MAAT_RULE,
+                  "table manager update runtime error, table_name:%s", table_name);
+        return -1;
     }
-     
+
+    //TODO: by luis
+    //int is_valid = table_manager_get_valid
 	return 0;
 }
 
@@ -150,7 +361,7 @@ uint32_t maat_runtime_rule_num(struct maat_runtime *maat_rt)
 	struct table_runtime *table_rt = NULL;
 	
 	for (size_t i = 0; i < maat_rt->max_table_num; i++) {
-		table_rt = table_runtime_get(maat_rt->table_rt_mgr, i);
+		table_rt = table_manager_get_runtime(maat_rt->tbl_mgr, i);
 		if (table_rt != NULL) {
 			total += table_runtime_rule_count(table_rt);
 		}
@@ -163,8 +374,8 @@ void maat_finish_cb(void *u_param)
 {
 	struct maat *maat_instance = (struct maat *)u_param;
 
-    table_schema_manager_all_plugin_cb_finish(maat_instance->table_schema_mgr);
-    
+    //table_manager_all_plugin_cb_finish(maat_instance->table_schema_mgr);
+    plugin_table_all_callback_finish(maat_)
     if (maat_instance->creating_maat_rt != NULL) {
         maat_instance->creating_maat_rt->rule_num = maat_runtime_rule_num(maat_instance->creating_maat_rt);
         maat_runtime_commit(maat_instance->creating_maat_rt, maat_instance->logger);
@@ -290,7 +501,7 @@ void *rule_monitor_loop(void *arg)
 
     maat_runtime_destroy(maat_instance->maat_rt);
 	maat_garbage_bin_free(maat_instance->garbage_bin);
-	table_schema_manager_destroy(maat_instance->table_schema_mgr);
+	table_manager_destroy(maat_instance->tbl_mgr);
 
     if (maat_instance->input_mode == DATA_SOURCE_REDIS) {
         if (maat_instance->mr_ctx.read_ctx != NULL) {
@@ -303,6 +514,12 @@ void *rule_monitor_loop(void *arg)
             maat_instance->mr_ctx.write_ctx = NULL;
         }
     }
+
+	for (int i = 0; i < maat_instance->n_accept_tag; i++) {
+		FREE(maat_instance->accept_tags[i].tag_name);
+		FREE(maat_instance->accept_tags[i].tag_val);
+	}
+	FREE(maat_instance->accept_tags);
 
     FREE(maat_instance);
 

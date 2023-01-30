@@ -131,3 +131,16 @@ int maat_kv_read(struct maat_kv_store * store, const char * key, int * value)
 {
 	return maat_kv_read_unNull(store, key, strlen(key), value);
 }
+
+struct maat_kv_store *maat_kv_store_duplicate(struct maat_kv_store *origin_map)
+{
+	struct maat_kv_store *target = maat_kv_store_new();
+	struct maat_kv_pair *kv = NULL, *tmp_kv = NULL, *copy_kv = NULL;
+
+	HASH_ITER (hh, origin_map->hash, kv, tmp_kv) {
+		copy_kv = maat_kv_pair_new(kv->key, kv->keylen, kv->val);
+		HASH_ADD_KEYPTR(hh, target->hash, copy_kv->key, copy_kv->keylen, copy_kv);
+	}
+	
+	return target;
+}

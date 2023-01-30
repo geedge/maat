@@ -1,0 +1,60 @@
+/*
+**********************************************************************************************
+*	File: maat_plugin.h
+*   Description: 
+*	Authors: Liu WenTan <liuwentan@geedgenetworks.com>
+*	Date:    2022-10-31
+*   Copyright: (c) 2018-2022 Geedge Networks, Inc. All rights reserved.
+***********************************************************************************************
+*/
+
+#ifndef _MAAT_PLUGIN_H_
+#define _MAAT_PLUGIN_H_
+
+#ifdef __cpluscplus
+extern "C"
+{
+#endif
+
+#define	MAX_FOREIGN_CLMN_NUM 8
+
+/* plugin schema API */
+void *plugin_schema_new(cJSON *json, const char *table_name, struct log_handle *logger);
+void plugin_schema_free(void *plugin_schema);
+
+struct plugin_schema;
+/* plugin table callback API */
+int plugin_table_add_callback(void *plugin_schema, int table_id,
+                        	  maat_start_callback_t *start,
+							  maat_update_callback_t *update,
+							  maat_finish_callback_t *finish,
+							  void *u_para, struct log_handle *logger);
+
+void plugin_table_all_callback_start(struct plugin_schema *plugin_schema, int update_type);
+void plugin_table_all_callback_finish(struct plugin_schema *plugin_schema);
+
+int plugin_table_get_foreign_column(struct plugin_schema *plugin_schema, int *foreign_columns);
+
+/* plugin table ex data API */
+int plugin_table_set_ex_data_schema(void *custom_schema, 
+                                       maat_plugin_ex_new_func_t *new_func,
+							           maat_plugin_ex_free_func_t *free_func,
+							           maat_plugin_ex_dup_func_t *dup_func,
+							           long argl, void *argp);
+struct ex_data_schema *plugin_table_get_ex_data_schema(void *custom_schema);
+
+/* plugin runtime API */
+struct ex_data_runtime *plugin_runtime_get_ex_data_rt(void *plugin_runtime);
+
+int plugin_runtime_updating_flag(struct plugin_runtime *plugin_rt);
+
+int plugin_runtime_update(struct plugin_runtime *plugin_rt, struct plugin_item *plugin_item,
+                           struct plugin_schema *plugin_schema, const char *row, 
+                           struct log_handle *logger);
+int plugin_runtime_commit(void *plugin_runtime);
+
+#ifdef __cpluscplus
+}
+#endif
+
+#endif
