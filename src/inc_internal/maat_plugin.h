@@ -16,6 +16,8 @@ extern "C"
 {
 #endif
 
+#include "maat/maat.h"
+
 #define	MAX_FOREIGN_CLMN_NUM 8
 
 /* plugin schema API */
@@ -40,18 +42,22 @@ int plugin_table_set_ex_data_schema(void *custom_schema,
                                        maat_plugin_ex_new_func_t *new_func,
 							           maat_plugin_ex_free_func_t *free_func,
 							           maat_plugin_ex_dup_func_t *dup_func,
-							           long argl, void *argp);
+							           long argl, void *argp,
+                                       struct log_handle *logger);
 struct ex_data_schema *plugin_table_get_ex_data_schema(void *custom_schema);
 
 /* plugin runtime API */
-struct ex_data_runtime *plugin_runtime_get_ex_data_rt(void *plugin_runtime);
+void *plugin_runtime_new(void *plugin_schema, int max_thread_num, struct maat_garbage_bin *garbage_bin,
+                         struct log_handle *logger);
+void plugin_runtime_free(void *plugin_runtime);
 
-int plugin_runtime_updating_flag(struct plugin_runtime *plugin_rt);
+int plugin_runtime_updating_flag(void *plugin_runtime);
 
-int plugin_runtime_update(struct plugin_runtime *plugin_rt, struct plugin_item *plugin_item,
-                           struct plugin_schema *plugin_schema, const char *row, 
-                           struct log_handle *logger);
+int plugin_runtime_update(void *plugin_runtime, void *plugin_schema, const char *line,
+                          int valid_column);
 int plugin_runtime_commit(void *plugin_runtime);
+
+struct ex_data_runtime *plugin_runtime_get_ex_data_rt(void *plugin_runtime);
 
 #ifdef __cpluscplus
 }

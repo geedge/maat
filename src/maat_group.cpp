@@ -60,10 +60,10 @@ void *group2group_schema_new(cJSON *json, const char *table_name, struct log_han
 	
 	cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
-    if (NULL == item || item->type != cJSON_Number) {
-        goto error;
+    if (item != NULL && item->type == cJSON_Number) {
+        g2g_schema->table_id = item->valueint;
+        read_cnt++;
     }
-    g2g_schema->table_id = item->valueint;
 
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
@@ -83,13 +83,13 @@ void *group2group_schema_new(cJSON *json, const char *table_name, struct log_han
         read_cnt++;
     }
 
-    if (read_cnt < 2) {
+    if (read_cnt < 3) {
 		goto error;
     }
 
 	return g2g_schema;
 error:
-	FREE(g2c_schema);
+	FREE(g2g_schema);
 	return NULL;
 }
 
@@ -98,9 +98,27 @@ void group2group_schema_free(void *g2g_schema)
 	FREE(g2g_schema);
 }
 
-struct group2group_runtime *
-group2group_runtime_new(void *ip_plus_schema, struct maat_garbage_bin *garbage_bin,
-						struct log_handle *logger)
+struct maat_group_topology *maat_group_topology_new(struct log_handle *logger)
+{
+    struct maat_group_topology *group_topo = ALLOC(struct maat_group_topology, 1);
+    UNUSED int ret = 0;
+
+    group_topo->hash_group_by_id = NULL;
+    group_topo->hash_group_by_vertex = NULL;
+
+    ret = igraph_empty(&group_topo->group_graph, 0, IGRAPH_DIRECTED);
+    assert(ret == IGRAPH_SUCCESS);
+
+    ret = pthread_rwlock_init(&group_topo->rwlock, NULL);
+    assert(ret == 0);
+
+    group_topo->logger = logger;
+
+    return group_topo;
+}
+
+void *group2group_runtime_new(void *ip_plus_schema, int max_thread_num, struct maat_garbage_bin *garbage_bin,
+						      struct log_handle *logger)
 {
 	struct group2group_runtime *g2g_rt = ALLOC(struct group2group_runtime, 1);
 
@@ -109,6 +127,29 @@ group2group_runtime_new(void *ip_plus_schema, struct maat_garbage_bin *garbage_b
     g2g_rt->logger = logger;
 
 	return g2g_rt;
+}
+
+void group_vertex_free(struct maat_group *group)
+{
+	free(group->top_group_ids);
+	free(group);
+}
+
+void maat_group_topology_free(struct maat_group_topology *group_topo)
+{
+    struct maat_group *group = NULL, *tmp_group = NULL;
+
+    HASH_CLEAR(hh_vertex_id, group_topo->hash_group_by_vertex);//No need group memory clean up.
+	HASH_ITER(hh_group_id, group_topo->hash_group_by_id, group, tmp_group) {
+		HASH_DELETE(hh_group_id, group_topo->hash_group_by_id, group);
+		group_vertex_free(group);
+	}
+	assert(group_topo->hash_group_by_id == NULL);	
+	
+	igraph_destroy(&group_topo->group_graph);
+
+    pthread_rwlock_unlock(&group_topo->rwlock);
+	pthread_rwlock_destroy(&group_topo->rwlock);
 }
 
 void group2group_runtime_free(void *g2g_runtime)
@@ -163,48 +204,6 @@ void group2group_item_free(struct group2group_item *g2g_item)
     FREE(g2g_item);
 }
 
-void group_vertex_free(struct maat_group *group)
-{
-	free(group->top_group_ids);
-	free(group);
-}
-
-struct maat_group_topology *maat_group_topology_new(struct log_handle *logger)
-{
-    struct maat_group_topology *group_topo = ALLOC(struct maat_group_topology, 1);
-    UNUSED int ret = 0;
-
-    group_topo->hash_group_by_id = NULL;
-    group_topo->hash_group_by_vertex = NULL;
-
-    ret = igraph_empty(&group_topo->group_graph, 0, IGRAPH_DIRECTED);
-    assert(ret == IGRAPH_SUCCESS);
-
-    ret = pthread_rwlock_init(&group_topo->rwlock, NULL);
-    assert(ret == 0);
-
-    group_topo->logger = logger;
-
-    return group_topo;
-}
-
-void maat_group_topology_free(struct maat_group_topology *group_topo)
-{
-    struct maat_group *group = NULL, *tmp_group = NULL;
-
-    HASH_CLEAR(hh_vertex_id, group_topo->hash_group_by_vertex);//No need group memory clean up.
-	HASH_ITER(hh_group_id, group_topo->hash_group_by_id, group, tmp_group) {
-		HASH_DELETE(hh_group_id, group_topo->hash_group_by_id, group);
-		group_vertex_free(group);
-	}
-	assert(group_topo->hash_group_by_id == NULL);	
-	
-	igraph_destroy(&group_topo->group_graph);
-
-    pthread_rwlock_unlock(&group_topo->rwlock);
-	pthread_rwlock_destroy(&group_topo->rwlock);
-}
-
 size_t print_igraph_vector(igraph_vector_t *v, char *buff, size_t sz) {
   long int i;
   int printed = 0;
@@ -216,8 +215,16 @@ size_t print_igraph_vector(igraph_vector_t *v, char *buff, size_t sz) {
   return printed;
 }
 
-struct maat_group *maat_group_topology_add_group(struct maat_group_topology *group_topo, int group_id)
+struct maat_group *group2group_runtime_add_group(void *g2g_runtime, int group_id)
 {
+    if (NULL == g2g_runtime) {
+        return NULL;
+    }
+
+    struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
+    struct maat_group_topology *group_topo = g2g_rt->group_topo;
+    assert(group_topo != NULL);
+
 	struct maat_group *group = ALLOC(struct maat_group, 1);
 
 	group->group_id = group_id;
@@ -232,10 +239,17 @@ struct maat_group *maat_group_topology_add_group(struct maat_group_topology *gro
 	return group;
 }
 
-void maat_group_topology_remove_group(struct maat_group_topology *group_topo, struct maat_group *group)
+void group2group_runtime_remove_group(void *g2g_runtime, struct maat_group *group)
 {
+    if (NULL == g2g_runtime || NULL == group) {
+        return;
+    }
+
 	igraph_vector_t v; 
 	char buff[4096] = {0};
+    struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
+    struct maat_group_topology *group_topo = g2g_rt->group_topo;
+    assert(group_topo != NULL);
 
 	assert(group->ref_by_compile_cnt == 0 && group->ref_by_superior_group_cnt == 0);
 	igraph_vector_init(&v, 8);
@@ -258,36 +272,49 @@ void maat_group_topology_remove_group(struct maat_group_topology *group_topo, st
 	group_vertex_free(group);
 }
 
-struct maat_group *maat_group_topology_find_group(struct maat_group_topology *group_topo, int group_id)
+struct maat_group *group2group_runtime_find_group(void *g2g_runtime, int group_id)
 {
-    struct maat_group *group = NULL;
+    if (NULL == g2g_runtime) {
+        return NULL;
+    }
 
+    struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
+    struct maat_group_topology *group_topo = g2g_rt->group_topo;
+    assert(group_topo != NULL);
+
+    struct maat_group *group = NULL;
     HASH_FIND(hh_group_id, group_topo->hash_group_by_id, &group_id, sizeof(group_id), group);
 
     return group;
 }
 
-int maat_group_topology_add_group_to_group(struct maat_group_topology *group_topo, int group_id, int superior_group_id)
+int group2group_runtime_add_group_to_group(void *g2g_runtime, int group_id, int superior_group_id)
 {
+    if (NULL == g2g_runtime) {
+        return -1;
+    }
+
     int ret = 0;
 	igraph_integer_t edge_id;
-	struct maat_group *group = NULL, *superior_group = NULL;
+    struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
+    struct maat_group_topology *group_topo = g2g_rt->group_topo;
+    assert(group_topo != NULL);
 
-    group = maat_group_topology_find_group(group_topo, group_id);
+    struct maat_group *group = group2group_runtime_find_group(g2g_runtime, group_id);
 	if (NULL == group) {
-		group = maat_group_topology_add_group(group_topo, group_id);
+		group = group2group_runtime_add_group(g2g_runtime, group_id);
 	}
 	
-    superior_group = maat_group_topology_find_group(group_topo, superior_group_id);
+    struct maat_group *superior_group = group2group_runtime_find_group(g2g_runtime, superior_group_id);
 	if (NULL == superior_group) {
-		superior_group = maat_group_topology_add_group(group_topo, superior_group_id);
+		superior_group = group2group_runtime_add_group(g2g_runtime, superior_group_id);
 	}
 
 	ret = igraph_get_eid(&group_topo->group_graph, &edge_id, group->vertex_id, superior_group->vertex_id, IGRAPH_DIRECTED, /*error*/ 0);
 	
     //No duplicated edges between two groups.
     if (edge_id > 0) {
-		log_error(group_topo->logger, MODULE_GROUP,
+		log_error(g2g_rt->logger, MODULE_GROUP,
                   "Add group %d to group %d failed, relation already exisited.",
 				  group->group_id, superior_group->group_id);
 		ret = -1;
@@ -301,23 +328,26 @@ int maat_group_topology_add_group_to_group(struct maat_group_topology *group_top
 	return ret;
 }
 
-int maat_group_topology_remove_group_from_group(struct maat_group_topology *group_topo, int group_id, int superior_group_id)
+int group2group_runtime_remove_group_from_group(void *g2g_runtime, int group_id, int superior_group_id)
 {
-    int ret = 0;
-	struct maat_group *group = NULL, *superior_group = NULL;
+    if (NULL == g2g_runtime) {
+        return -1;
+    }
+
+    struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
 
 	//No hash write operation, LOCK protection is unnecessary.
-	group = maat_group_topology_find_group(group_topo, group_id);
+	struct maat_group *group = group2group_runtime_find_group(g2g_runtime, group_id);
 	if (NULL == group) {
-		log_error(group_topo->logger, MODULE_GROUP,
+		log_error(g2g_rt->logger, MODULE_GROUP,
 				  "Del group %d from group %d failed, group %d not exisited.",
 				  group_id, superior_group_id, group_id);
 		return -1;	
 	}
 
-    superior_group = maat_group_topology_find_group(group_topo, superior_group_id);
+    struct maat_group *superior_group = group2group_runtime_find_group(g2g_runtime, superior_group_id);
 	if (NULL == superior_group) {
-		log_error(group_topo->logger, MODULE_GROUP,
+		log_error(g2g_rt->logger, MODULE_GROUP,
 				  "Del group %d from group %d failed, superior group %d not exisited.",
 				  group_id, superior_group_id, superior_group_id);
 		return -1;	
@@ -325,6 +355,7 @@ int maat_group_topology_remove_group_from_group(struct maat_group_topology *grou
 
 	igraph_es_t es;
 	igraph_integer_t edge_num_before = 0, edge_num_after = 0;
+    struct maat_group_topology *group_topo = g2g_rt->group_topo;
 
 	edge_num_before = igraph_ecount(&group_topo->group_graph);
 	// The edges between the given pairs of vertices will be included in the edge selection.
@@ -333,7 +364,7 @@ int maat_group_topology_remove_group_from_group(struct maat_group_topology *grou
 	//first edge, the fifth is the first vertex of the second edge and so on. The last element
 	//of the argument list must be -1 to denote the end of the argument list.
 	//https://igraph.org/c/doc/igraph-Iterators.html#igraph_es_pairs_small
-	ret = igraph_es_pairs_small(&es, IGRAPH_DIRECTED, group->vertex_id, superior_group->vertex_id, -1);
+	int ret = igraph_es_pairs_small(&es, IGRAPH_DIRECTED, group->vertex_id, superior_group->vertex_id, -1);
 	assert(ret==IGRAPH_SUCCESS);
 	// ignore no such edge to abort().
 	igraph_set_error_handler(igraph_error_handler_ignore);
@@ -367,18 +398,25 @@ static size_t effective_vertices_count(igraph_vector_t *vids)
 	return i;
 }
 
-int maat_group_topology_build_top_groups(struct maat_group_topology *group_topo)
+int group2group_runtime_build_top_groups(void *g2g_runtime)
 {
+    if (NULL == g2g_runtime) {
+        return -1;
+    }
+
 	struct maat_group *group = NULL, *tmp = NULL;
 	struct maat_group *superior_group = NULL;
 	int tmp_vid=0;
-	size_t i=0, top_group_cnt=0;
+	size_t top_group_cnt=0;
 	int* temp_group_ids=NULL;
-	
+	struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
+    struct maat_group_topology *group_topo = g2g_rt->group_topo;
+    assert(group_topo != NULL);
+
 	igraph_bool_t is_dag;
 	igraph_is_dag(&(group_topo->group_graph), &is_dag);
 	if (!is_dag) {
-		log_error(group_topo->logger, MODULE_GROUP, "Sub group cycle detected!");
+		log_error(g2g_rt->logger, MODULE_GROUP, "Sub group cycle detected!");
 		return -1;
 	}
 
@@ -394,7 +432,7 @@ int maat_group_topology_build_top_groups(struct maat_group_topology *group_topo)
 			&& 0 == group->ref_by_subordinate_group_cnt) {
 		
 			FREE(group->top_group_ids);
-			maat_group_topology_remove_group(group_topo, group);
+			group2group_runtime_remove_group(g2g_runtime, group);
 			continue;
 		}
 
@@ -449,29 +487,27 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema, const char *
     }
 
 	int ret = -1;
-    struct group2group_item *g2g_item = NULL;
     struct group2group_schema *schema = (struct group2group_schema *)g2g_schema;
 	struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
-    int item_id = get_column_value(line, schema->table_id);
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
         return -1;
-    } else if (0 == is_valid) {
-        //delete
-        ret = maat_group_topology_remove_group_from_group(g2g_rt->group_topo, g2g_item->group_id, g2g_item->superior_group_id);
-    } else {
-        //add
-        g2g_item = group2group_item_new(line, schema, logger);
     }
 
-    if (1 == is_valid) {
-        //add
-        ret = maat_group_topology_add_group_to_group(g2g_rt->group_topo, g2g_item->group_id, g2g_item->superior_group_id);
-    } else {
-        //delete
-        
+    struct group2group_item *g2g_item = group2group_item_new(line, schema, g2g_rt->logger);
+    if (NULL == g2g_item) {
+        return -1;
     }
     
+    if (0 == is_valid) {
+        //delete
+        ret = group2group_runtime_remove_group_from_group(g2g_runtime, g2g_item->group_id, g2g_item->superior_group_id);
+    } else {
+        //add
+        ret = group2group_runtime_add_group_to_group(g2g_runtime, g2g_item->group_id, g2g_item->superior_group_id);
+    }
+    group2group_item_free(g2g_item);
+
     return ret;
 }
 
@@ -481,24 +517,19 @@ int group2group_runtime_commit(void *g2g_runtime)
 		return -1;
 	}
 
-	struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
-    int ret = maat_group_topology_build_top_groups(g2g_rt->group_topo);
-
-    return ret;
+    return group2group_runtime_build_top_groups(g2g_runtime);
 }
 
-int group2group_runtime_get_top_groups(struct group2group_runtime *g2g_rt, int *group_ids, size_t n_group_ids, 
+int group2group_runtime_get_top_groups(void *g2g_runtime, int *group_ids, size_t n_group_ids, 
                               			int *top_group_ids)
 {
-    if (NULL == table_rt || NULL == group_ids || 0 == n_group_ids || 
-        table_rt->table_type != TABLE_TYPE_GROUP2GROUP) {
+    if (NULL == g2g_runtime || NULL == group_ids || 0 == n_group_ids) {
         return -1;
     }
     
     size_t top_group_index = 0;
-    struct group2group_runtime *g2g_rt = &(table_rt->g2g_rt);
     for (size_t i = 0; i < n_group_ids; i++) {
-        struct maat_group *group = maat_group_topology_find_group(g2g_rt->group_topo, group_ids[i]);
+        struct maat_group *group = group2group_runtime_find_group(g2g_runtime, group_ids[i]);
         if (!group) {
             continue;
         }

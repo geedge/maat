@@ -80,7 +80,6 @@ struct compile_rule {
     int compile_id;
 	struct maat_rule_head head;// fix len of Maat_rule_t
 	char *service_defined;
-	int is_valid;
 	int declared_clause_num;
 	double evaluation_order;
 	struct compile_schema *ref_table;
@@ -88,20 +87,9 @@ struct compile_rule {
 	pthread_rwlock_t rwlock;
 };
 
-struct group2compile_rule {
-    int group_id;
-	int compile_id;
-	int is_valid;
-	int not_flag;
-	int vt_id;  //virtual_table_id
-	int clause_index;
-    int associated_compile_table_id;
-};
-
 struct group2group_rule {
     int group_id;
 	int superior_group_id;
-	int is_valid;
 };
 
 struct maat_runtime {
@@ -114,7 +102,6 @@ struct maat_runtime {
     struct table_manager *ref_tbl_mgr; //share with maat instance
     size_t max_table_num;
     
-    size_t max_thread_num;
     uint32_t rule_num;
 
     struct maat_garbage_bin *ref_garbage_bin;
@@ -254,9 +241,9 @@ struct maat_state {
 	struct maat_compile_state *compile_mid;
 };
 
-int parse_accept_tag(const char *value, struct rule_tag **result, void *logger);
+size_t parse_accept_tag(const char *value, struct rule_tag **result, struct log_handle *logger);
 
-int compare_accept_tag(const char *value, const struct rule_tag *accept_tags, int n_tag);
+int compare_accept_tag(const char *value, const struct rule_tag *accept_tags, size_t n_accept_tag);
 
 struct maat_item *maat_item_new(int item_id, int group_id, void *user_data);
 
@@ -264,7 +251,7 @@ void maat_item_free(struct maat_item *item, void (* item_user_data_free)(void *)
 
 struct maat_item_inner *maat_item_inner_new(int group_id, int item_id, int district_id);
 
-void maat_item_inner_free(struct maat_item_inner *item);
+void maat_item_inner_free(void *item_inner);
 
 void maat_start_cb(long long new_version, int update_type, void *u_para);
 
@@ -297,7 +284,7 @@ int maat_cmd_write_rule(redisContext *c, struct serial_rule *s_rule, size_t seri
 void maat_cmd_clear_rule_cache(struct serial_rule *s_rule);
 
 int maat_cmd_get_rm_key_list(redisContext *c, long long instance_version, long long desired_version, 
-                             long long *new_version, struct table_schema_manager* table_schema_mgr, 
+                             long long *new_version, struct table_manager* tbl_mgr, 
                              struct serial_rule **list, int *update_type, int cumulative_off,
                              struct log_handle *logger);
 

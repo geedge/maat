@@ -9,6 +9,7 @@
 */
 
 #include <stdint.h>
+#include <assert.h>
 
 #include "utils.h"
 #include "log/log.h"
@@ -19,6 +20,7 @@
 #include "IPMatcher.h"
 #include "maat_ip.h"
 #include "maat_rule.h"
+#include "maat_compile.h"
 #include "maat_garbage_collection.h"
 
 #define MODULE_IP	 module_name_str("maat.ip")
@@ -88,10 +90,6 @@ struct ip_plus_runtime {
 
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
-    // long long *scan_cnt;
-    // long long *hit_cnt;
-    // long long *not_grp_hit_cnt;
-    // long long *stream_num;
 };
 
 void *ip_plus_schema_new(cJSON *json, const char *table_name, struct log_handle *logger)
@@ -101,10 +99,10 @@ void *ip_plus_schema_new(cJSON *json, const char *table_name, struct log_handle 
 
     cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
-    if (NULL == item || item->type != cJSON_Number) {
-        goto error;
+    if (item != NULL && item->type == cJSON_Number) {
+        ip_plus_schema->table_id = item->valueint;
+        read_cnt++;
     }
-    ip_plus_schema->table_id = item->valueint;
 
     item = cJSON_GetObjectItem(json, "custom");
     if (NULL == item || item->type != cJSON_Object) {
@@ -136,85 +134,85 @@ void *ip_plus_schema_new(cJSON *json, const char *table_name, struct log_handle 
         read_cnt++;
     }
 
-    custom_item = cJSON_GetObjectItem(json, "sip1");
+    custom_item = cJSON_GetObjectItem(item, "sip1");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         ip_plus_schema->sip1_column = custom_item->valueint;
         read_cnt++;
     }
 
-    custom_item = cJSON_GetObjectItem(json, "sip2");
+    custom_item = cJSON_GetObjectItem(item, "sip2");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         ip_plus_schema->sip2_column = custom_item->valueint;
         read_cnt++;
     }
 
-    custom_item = cJSON_GetObjectItem(json, "sport_format");
+    custom_item = cJSON_GetObjectItem(item, "sport_format");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         ip_plus_schema->sport_format_column = custom_item->valueint;
         read_cnt++;
     }
 
-    custom_item = cJSON_GetObjectItem(json, "sport1");
+    custom_item = cJSON_GetObjectItem(item, "sport1");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         ip_plus_schema->sport1_column = custom_item->valueint;
         read_cnt++;
     }
 
-    custom_item = cJSON_GetObjectItem(json, "sport2");
+    custom_item = cJSON_GetObjectItem(item, "sport2");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         ip_plus_schema->sport2_column = custom_item->valueint;
         read_cnt++;
     }
 
-    custom_item = cJSON_GetObjectItem(json, "daddr_format");
+    custom_item = cJSON_GetObjectItem(item, "daddr_format");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         ip_plus_schema->daddr_format_column = custom_item->valueint;
         read_cnt++;
     }
 
-    custom_item = cJSON_GetObjectItem(json, "dip1");
+    custom_item = cJSON_GetObjectItem(item, "dip1");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         ip_plus_schema->dip1_column = custom_item->valueint;
         read_cnt++;
     }
 
-    custom_item = cJSON_GetObjectItem(json, "dip2");
+    custom_item = cJSON_GetObjectItem(item, "dip2");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         ip_plus_schema->dip2_column = custom_item->valueint;
         read_cnt++;
     }
 
-    custom_item = cJSON_GetObjectItem(json, "dport_format");
+    custom_item = cJSON_GetObjectItem(item, "dport_format");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         ip_plus_schema->dport_format_column = custom_item->valueint;
         read_cnt++;
     }
 
-    custom_item = cJSON_GetObjectItem(json, "dport1");
+    custom_item = cJSON_GetObjectItem(item, "dport1");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         ip_plus_schema->dport1_column = custom_item->valueint;
         read_cnt++;
     }
 
-    custom_item = cJSON_GetObjectItem(json, "dport2");
+    custom_item = cJSON_GetObjectItem(item, "dport2");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         ip_plus_schema->dport2_column = custom_item->valueint;
         read_cnt++;
     }
 
-    custom_item = cJSON_GetObjectItem(json, "proto");
+    custom_item = cJSON_GetObjectItem(item, "proto");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         ip_plus_schema->proto_column = custom_item->valueint;
         read_cnt++;
     }
 
-    custom_item = cJSON_GetObjectItem(json, "direction");
+    custom_item = cJSON_GetObjectItem(item, "direction");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         ip_plus_schema->direction_column = custom_item->valueint;
         read_cnt++;
     }
 
-    if (read_cnt < 17) {
+    if (read_cnt < 18) {
         goto error;
     }
 
@@ -229,7 +227,7 @@ void ip_plus_schema_free(void *ip_plus_schema)
     FREE(ip_plus_schema);
 }
 
-void *ip_plus_runtime_new(void *ip_plus_schema, struct maat_garbage_bin *garbage_bin,
+void *ip_plus_runtime_new(void *ip_plus_schema, int max_thread_num, struct maat_garbage_bin *garbage_bin,
                           struct log_handle *logger)
 {
     if (NULL == ip_plus_schema) {
@@ -239,7 +237,7 @@ void *ip_plus_runtime_new(void *ip_plus_schema, struct maat_garbage_bin *garbage
     struct ip_plus_schema *schema = (struct ip_plus_schema *)ip_plus_schema;
     struct ip_plus_runtime *ip_plus_rt = ALLOC(struct ip_plus_runtime, 1);
 
-    ip_plus_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, ex_data_container_free);
+    ip_plus_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, ex_data_container_free, logger);
     ip_plus_rt->item_user_data_free = maat_item_inner_free;
     ip_plus_rt->ref_garbage_bin = garbage_bin;
     ip_plus_rt->logger = logger;
@@ -318,7 +316,9 @@ struct ip_plus_item *ip_plus_item_new(const char *line, struct ip_plus_schema *i
 
     ret = get_column_pos(line, ip_plus_schema->saddr_format_column, &column_offset, &column_len);
     if (ret < 0) {
-        return -1;
+        log_error(logger, MODULE_IP, "ip_plus table(table_id:%d) line:%s has no saddr_format",
+                  ip_plus_schema->table_id, line);
+        goto error;
     }
     memcpy(saddr_format, (line + column_offset), column_len);
     if (IP_FORMAT_UNKNOWN == ip_format_str2int(saddr_format)) {
@@ -519,6 +519,12 @@ int ip_plus_runtime_update_row(struct ip_plus_runtime *rt, char *key, size_t key
     return 0;
 }
 
+int ip_plus_runtime_updating_flag(void *ip_plus_runtime)
+{
+    struct ip_plus_runtime *ip_plus_rt = (struct ip_plus_runtime *)ip_plus_runtime;
+    return ex_data_runtime_updating_flag(ip_plus_rt->ex_data_rt);
+}
+
 int ip_plus_runtime_update(void *ip_plus_runtime, void *ip_plus_schema, const char *line,
                            int valid_column)
 {
@@ -562,12 +568,11 @@ int ip_plus_runtime_update(void *ip_plus_runtime, void *ip_plus_schema, const ch
 
         ip_plus_item = ip_plus_item_new(line, schema, ip_plus_rt->logger);
         if (NULL == ip_plus_item) {
-            log_error(ip_plus_rt->logger, MODULE_IP, "ip_plus line:%s to item failed", line);
             return -1;
         }
 
         u_para = maat_item_inner_new(ip_plus_item->group_id, item_id, 0);
-        item = maat_item_new(item_id, group_id, u_para);
+        item = maat_item_new(item_id, ip_plus_item->group_id, u_para);
         HASH_ADD_INT(ip_plus_rt->item_hash, item_id, item);
     }
     
@@ -619,11 +624,11 @@ int ip_plus_runtime_commit(void *ip_plus_runtime)
     size_t mem_used = 0;
 
     if (rule_cnt > 0) {
-        log_info(logger, MODULE_IP, 
+        log_info(ip_plus_rt->logger, MODULE_IP, 
                  "committing %zu ip_plus rules for rebuilding ip_matcher engine", rule_cnt);
         new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used);
         if (NULL == new_ip_matcher) {
-            log_error(logger, MODULE_IP, 
+            log_error(ip_plus_rt->logger, MODULE_IP, 
                       "rebuild ip_matcher engine failed when update %zu ip_plus rules", rule_cnt);
             ret = -1;
         }
@@ -631,7 +636,7 @@ int ip_plus_runtime_commit(void *ip_plus_runtime)
 
     old_ip_matcher = ip_plus_rt->ip_matcher;
     ip_plus_rt->ip_matcher = new_ip_matcher;
-    maat_garbage_bagging(garbage_bin, old_ip_matcher, (void (*)(void*))ip_matcher_free);
+    maat_garbage_bagging(ip_plus_rt->ref_garbage_bin, old_ip_matcher, (void (*)(void*))ip_matcher_free);
     ex_data_runtime_commit(ex_data_rt);
     ip_plus_rt->rule_num = ex_data_runtime_ex_container_count(ex_data_rt);
 
@@ -641,11 +646,11 @@ int ip_plus_runtime_commit(void *ip_plus_runtime)
     return ret;
 }
 
-int ip_runtime_scan_ip(struct ip_runtime *ip_rt, int thread_id, struct ip_addr *data, 
+int ip_plus_runtime_scan_ipv4(struct ip_plus_runtime *ip_plus_rt, int thread_id, uint32_t ip_addr, 
                           int *group_id_array, size_t n_group_id_array, int virtual_table_id,
                           struct maat_state *state)
 {
-    if (NULL == table_rt) {
+    if (NULL == ip_plus_rt) {
         return -1;
     }
 
@@ -653,14 +658,10 @@ int ip_runtime_scan_ip(struct ip_runtime *ip_rt, int thread_id, struct ip_addr *
     struct scan_result scan_results[MAX_SCANNER_HIT_ITEM_NUM] = {0};
 
     struct ip_data ip;
-    ip.type = ip_type_transform(scan_data->ip_type);
-    if (ip.type == IPv4) {
-        ip.ipv4 = scan_data->ipv4;
-    } else {
-        memcpy(ip.ipv6, scan_data->ipv6, sizeof(scan_data->ipv6));
-    }
-    
-    n_hit_item = ip_matcher_match(table_rt->ip_plus_rt.ip_matcher, &ip, scan_results, MAX_SCANNER_HIT_ITEM_NUM);
+    ip.type = IPv4;
+    ip.ipv4 = ip_addr;
+   
+    n_hit_item = ip_matcher_match(ip_plus_rt->ip_matcher, &ip, scan_results, MAX_SCANNER_HIT_ITEM_NUM);
     if (n_hit_item > MAX_SCANNER_HIT_ITEM_NUM) {
         n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
     }
@@ -671,7 +672,7 @@ int ip_runtime_scan_ip(struct ip_runtime *ip_rt, int thread_id, struct ip_addr *
     size_t n_group_id = 0;
     int i = 0;
     for (i = 0; i < n_hit_item; i++) {
-        HASH_FIND_INT(table_rt->item_hash, &(scan_results[i].rule_id), item);
+        HASH_FIND_INT(ip_plus_rt->item_hash, &(scan_results[i].rule_id), item);
         assert(item != NULL);
         if (!item) {
             // should not come here
@@ -686,7 +687,8 @@ int ip_runtime_scan_ip(struct ip_runtime *ip_rt, int thread_id, struct ip_addr *
         }
 
         // update hit path
-        maat_compile_state_update_hit_path(compile_state, scan_results[i].rule_id, item->group_id, virtual_table_id, state->scan_cnt, i);
+        maat_compile_state_update_hit_path(compile_state, scan_results[i].rule_id, item->group_id,
+                                           virtual_table_id, state->scan_cnt, i);
     }
 
     // update hit clause: literal_id{group_id,vt_id} to clause_id
@@ -696,12 +698,13 @@ int ip_runtime_scan_ip(struct ip_runtime *ip_rt, int thread_id, struct ip_addr *
     } else {
         compile_table_id = state->compile_table_id;
     }
-    struct maat_runtime *maat_rt = state->maat_instance->maat_rt;
-    struct table_runtime *compile_table_rt = table_manager_get_runtime(maat_rt->tbl_mgr, compile_table_id);
-    assert(compile_table_rt->table_type == TABLE_TYPE_COMPILE);
+
+    void *compile_rt = table_manager_get_runtime(state->maat_instance->tbl_mgr, compile_table_id);
+    enum table_type table_type = table_manager_get_table_type(state->maat_instance->tbl_mgr, compile_table_id);
+    assert(table_type == TABLE_TYPE_COMPILE);
     
     for (size_t idx = 0; idx < n_group_id; idx++) {
-        maat_compile_state_update_hit_clause(compile_state, &(compile_table_rt->compile_rt.compile_hash), group_id_array[idx], virtual_table_id);
+        maat_compile_state_update_hit_clause(compile_state, compile_rt, group_id_array[idx], virtual_table_id);
     }
 
     return n_group_id;

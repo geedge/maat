@@ -18,6 +18,7 @@
 #include "maat_config_monitor.h"
 #include "maat_redis_monitor.h"
 #include "maat_plugin.h"
+#include "maat_virtual.h"
 
 #define MODULE_REDIS_MONITOR	 module_name_str("maat.redis_monitor")
 
@@ -97,7 +98,6 @@ void _get_foregin_keys(struct serial_rule *p_rule, int *foreign_columns, int n_f
 int get_foreign_keys_define(redisContext *ctx, struct serial_rule *rule_list, int rule_num, struct maat *maat_instance, const char *dir)
 {
 	int rule_with_foreign_key = 0;
-	void *schema = NULL;
 
 	for (int i = 0; i < rule_num; i++) {
 		if (NULL == rule_list[i].table_line) {
@@ -105,9 +105,9 @@ int get_foreign_keys_define(redisContext *ctx, struct serial_rule *rule_list, in
 		}
 
         int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, rule_list[i].table_name);
-		schema = table_manager_get_schema(maat_instance->tbl_mgr, table_id);
+		void *schema = table_manager_get_schema(maat_instance->tbl_mgr, table_id);
         enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
-		if (!table_schema || table_type != TABLE_TYPE_PLUGIN) {
+		if (!schema || table_type != TABLE_TYPE_PLUGIN) {
 			continue;
 		}
 
@@ -607,7 +607,7 @@ FULL_UPDATE:
 			continue;
 		}
 
-		if (table_schema_mgr) {
+		if (tbl_mgr) {
 			int table_id = table_manager_get_table_id(tbl_mgr, s_rule_array[full_idx].table_name);
 			//Unrecognized table.
             if (table_id < 0) {
@@ -1277,7 +1277,7 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
     int valid_column = -1;
 	enum table_type table_type;
 	enum scan_type scan_type;
-	void *table_schema = NULL;
+	//void *table_schema = NULL;
     struct maat *maat_instance = (struct maat *)u_param;
 
     //authorized to write
@@ -1315,7 +1315,7 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
     int update_type = CM_UPDATE_TYPE_INC;
 
 	int rule_num = maat_cmd_get_rm_key_list(mr_ctx->read_ctx, version, maat_instance->load_specific_version, 
-                                            &new_version, maat_instance->table_schema_mgr, &rule_list, 
+                                            &new_version, maat_instance->tbl_mgr, &rule_list, 
                                             &update_type, maat_instance->cumulative_update_off,
                                             maat_instance->logger);
 	//redis communication error

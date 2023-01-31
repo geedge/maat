@@ -31,6 +31,8 @@ enum scan_type {
 
 void *virtual_schema_new(cJSON *json, const char *table_name, struct log_handle *logger);
 
+void virtual_schema_free(void *virtual_schema);
+
 #ifdef __cpluscplus
 }
 #endif

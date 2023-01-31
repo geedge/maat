@@ -14,7 +14,6 @@
 #include "cJSON/cJSON.h"
 #include "utils.h"
 #include "maat_utils.h"
-#include "maat.h"
 #include "maat_plugin.h"
 #include "maat_ex_data.h"
 #include "maat_limits.h"
@@ -28,11 +27,6 @@ struct plugin_callback_schema {
 	void *u_para;
 };
 
-struct plugin_item {
-    char key[MAX_KEYWORDS_STR];
-    size_t key_len;
-};
-
 struct plugin_runtime {
     uint64_t acc_line_num;
     struct ex_data_runtime *ex_data_rt;
@@ -41,6 +35,7 @@ struct plugin_runtime {
     uint32_t updating_rule_num;
 
     struct maat_garbage_bin *ref_garbage_bin;
+    struct log_handle *logger;
 };
 
 #define	MAX_PLUGIN_PER_TABLE 32
@@ -80,10 +75,10 @@ void *plugin_schema_new(cJSON *json, const char *table_name, struct log_handle *
 
     cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
-    if (NULL == item || item->type != cJSON_Number) {
-        goto error;
+    if (item != NULL && item->type == cJSON_Number) {
+        plugin_schema->table_id = item->valueint;
+        read_cnt++;
     }
-    plugin_schema->table_id = item->valueint;
 
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
@@ -92,7 +87,7 @@ void *plugin_schema_new(cJSON *json, const char *table_name, struct log_handle *
     }
 
     custom_item = cJSON_GetObjectItem(item, "item_id");
-    if (custom_item == NULL || custom_item->type != cJSON_Object) {
+    if (custom_item != NULL && custom_item->type == cJSON_Number) {
         plugin_schema->item_id_column = custom_item->valueint;
         read_cnt++;
     }
@@ -126,7 +121,7 @@ void *plugin_schema_new(cJSON *json, const char *table_name, struct log_handle *
         }
     }
 
-    if (read_cnt < 4) {
+    if (read_cnt < 5) {
         goto error;
     }
     
@@ -197,41 +192,6 @@ void plugin_table_all_callback_finish(struct plugin_schema *plugin_schema)
     }
 }
 
-struct plugin_item *plugin_item_new(const char *line, struct plugin_schema *plugin_schema,
-                                    struct log_handle *logger)
-{
-    size_t column_offset = 0;
-    size_t column_len = 0;
-    struct plugin_item *plugin_item = ALLOC(struct plugin_item, 1);
-
-    int ret = get_column_pos(line, plugin_schema->key_column, &column_offset, &column_len);
-    if (ret < 0) {
-        log_error(logger, MODULE_PLUGIN, 
-                  "plugin table(table_id:%d) line:%s has no key",
-                  plugin_schema->table_id, line);
-        goto error;
-    }
-
-    if (column_len > MAX_KEYWORDS_STR) {
-        log_error(logger, MODULE_PLUGIN, 
-                  "plugin table(table_id:%d): key:%s length:%zu too long, exceed %d",
-                  plugin_schema->table_id, (line + column_offset), column_len, MAX_KEYWORDS_STR);
-        goto error;
-    }
-    memcpy(plugin_item->key, (line + column_offset), column_len);
-    plugin_item->key_len = column_len;
-
-    return plugin_item;
-error:
-    FREE(plugin_item);
-    return NULL;
-}
-
-void plugin_item_free(struct plugin_item *plugin_item)
-{
-    FREE(plugin_item);
-}
-
 int plugin_table_get_foreign_column(struct plugin_schema *plugin_schema, int *foreign_columns)
 {
     if (NULL == plugin_schema) {
@@ -277,6 +237,43 @@ struct ex_data_schema *plugin_table_get_ex_data_schema(void *plugin_schema)
 
     struct plugin_schema *schema = (struct plugin_schema *)plugin_schema;
     return schema->ex_schema;
+}
+
+void *plugin_runtime_new(void *plugin_schema, int max_thread_num, struct maat_garbage_bin *garbage_bin,
+                         struct log_handle *logger)
+{
+    if (NULL == plugin_schema) {
+        return NULL;
+    }
+
+    struct plugin_schema *schema = (struct plugin_schema *)plugin_schema;
+    struct plugin_runtime *plugin_rt = ALLOC(struct plugin_runtime, 1);
+    plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, ex_data_container_free, logger);
+    plugin_rt->ref_garbage_bin = garbage_bin;
+    plugin_rt->logger = logger;
+
+    return plugin_rt;
+}
+
+void plugin_runtime_free(void *plugin_runtime)
+{
+    if (NULL == plugin_runtime) {
+        return;
+    }
+
+    struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
+    if (plugin_rt->ex_data_rt != NULL) {
+        ex_data_runtime_free(plugin_rt->ex_data_rt);
+        plugin_rt->ex_data_rt = NULL;
+    }
+
+    FREE(plugin_rt);
+}
+
+int plugin_runtime_updating_flag(void *plugin_runtime)
+{
+    struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
+    return ex_data_runtime_updating_flag(plugin_rt->ex_data_rt);
 }
 
 int plugin_runtime_update_row(struct plugin_runtime *plugin_rt, struct plugin_schema *plugin_schema, 
@@ -357,11 +354,6 @@ int plugin_runtime_commit(void *plugin_runtime)
     //table_rt->rule_num = ex_data_runtime_ex_container_count(table_rt->plugin_rt.ex_data_rt);
 
     return 0;
-}
-
-int plugin_runtime_updating_flag(struct plugin_runtime *plugin_rt)
-{
-    return ex_data_runtime_updating_flag(plugin_rt->ex_data_rt);
 }
 
 struct ex_data_runtime *plugin_runtime_get_ex_data_rt(void *plugin_runtime)

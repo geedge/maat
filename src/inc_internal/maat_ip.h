@@ -22,18 +22,21 @@ void *ip_plus_schema_new(cJSON *json, const char *table_name, struct log_handle 
 void ip_plus_schema_free(void *ip_plus_schema);
 
 /* ip plus runtime API */
-void *ip_plus_runtime_new(void *ip_plus_schema, struct maat_garbage_bin *garbage_bin, struct log_handle *logger);
+void *ip_plus_runtime_new(void *ip_plus_schema, int max_thread_num, struct maat_garbage_bin *garbage_bin,
+                          struct log_handle *logger);
 void ip_plus_runtime_free(void *ip_plus_runtime);
 
-int ip_plus_runtime_update(void *ip_plus_runtime, void *ip_plus_schema, const char *line);
+int ip_plus_runtime_updating_flag(void *ip_plus_runtime);
+int ip_plus_runtime_update(void *ip_plus_runtime, void *ip_plus_schema, const char *line,
+                           int valid_column);
 int ip_plus_runtime_commit(void *ip_plus_runtime);
 
 struct ex_data_runtime *ip_plus_runtime_get_ex_data_rt(struct ip_plus_runtime *ip_plus_rt);
 
 /* ip runtime scan API */
-int ip_runtime_scan_ip(struct ip_runtime *ip_rt, int thread_id, struct ip_addr *data, 
-                          int *group_id_array, size_t n_group_id_array, int virtual_table_id,
-                          struct maat_state *state);
+int ip_plus_runtime_scan_ipv4(struct ip_plus_runtime *ip_plus_rt, int thread_id, uint32_t ip_addr, 
+                              int *group_id_array, size_t n_group_id_array, int virtual_table_id,
+                              struct maat_state *state);
 
 #ifdef __cpluscplus
 }

@@ -18,7 +18,7 @@ extern "C"
 
 #include "log/log.h"
 #include "cJSON/cJSON.h"
-#include "maat.h"
+#include "maat/maat.h"
 #include "maat_kv.h"
 #include "maat_rule.h"
 
@@ -38,6 +38,7 @@ void compile_schema_free(void *compile_schema);
 
 void *group2compile_schema_new(cJSON *json, const char *table_name, struct log_handle *logger);
 void group2compile_schema_free(void *g2c_schema);
+int group2compile_associated_compile_table_id(void *g2c_schema);
 
 int compile_table_set_rule_ex_data_schema(struct compile_schema *compile_schema, int table_id,
                                           maat_rule_ex_new_func_t *new_func,
@@ -51,7 +52,7 @@ compile_table_get_rule_ex_data_schema(struct compile_schema *compile_schema, siz
 size_t compile_table_rule_ex_data_schema_count(struct compile_schema *compile_schema);
 
 /* compile runtime API */
-void *compile_runtime_new(void *compile_schema, struct maat_garbage_bin *garbage_bin,
+void *compile_runtime_new(void *compile_schema, int max_thread_num, struct maat_garbage_bin *garbage_bin,
                           struct log_handle *logger);
 void compile_runtime_free(void *compile_runtime);
 
@@ -60,14 +61,15 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema, const ch
 int compile_runtime_commit(void *compile_runtime);
 
 int compile_runtime_match(struct compile_runtime *compile_rt, int *group_ids, size_t n_group_ids, 
-						  int *compile_ids, size_t compile_ids_size, struct maat_state *state);
+						  int vt_id, int *compile_ids, size_t compile_ids_size, struct maat_state *state);
 
-size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, struct maat_group_topology *group_topo, 
-                                     struct maat_compile_state *compile_state, 
+size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, struct group2group_runtime *g2g_rt, 
+                                     struct maat_compile_state *compile_state,
                                      struct maat_hit_path *hit_paths, size_t hit_path_siz);
 /* group2compile runtime API */
-void *group2compile_runtime_new(void *g2c_schema, struct maat_garbage_bin *garbage_bin,
+void *group2compile_runtime_new(void *g2c_schema, int max_thread_num, struct maat_garbage_bin *garbage_bin,
                                 struct log_handle *logger);
+void group2compile_runtime_init(void *g2c_runtime, void *compile_runtime, void *g2g_runtime);
 void group2compile_runtime_free(void *g2c_runtime);
 
 int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema, const char *line,
@@ -79,7 +81,7 @@ struct maat_compile_state *maat_compile_state_new(int thread_id);
 void maat_compile_state_free(struct maat_compile_state *compile_state);
 void maat_compile_state_update_hit_path(struct maat_compile_state *compile_state, int item_id, int group_id, int virtual_table_id, 
                                         int Nth_scan, int Nth_item_result);
-void maat_compile_state_update_hit_clause(struct maat_compile_state *compile_state, struct maat_compile **compile_hash, 
+void maat_compile_state_update_hit_clause(struct maat_compile_state *compile_state, void *compile_runtime, 
 										  int group_id, int virtual_table_id);
 int maat_compile_state_has_NOT_clause(struct maat_compile_state *compile_state);
 

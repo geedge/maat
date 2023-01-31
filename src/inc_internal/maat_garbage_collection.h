@@ -20,17 +20,17 @@ extern "C"
 
 struct maat_garbage_bin;
 
-struct maat_garbage_bin* maat_garbage_bin_new(int default_timeout);
+struct maat_garbage_bin *maat_garbage_bin_new(int default_timeout);
 
-void maat_garbage_bin_free(struct maat_garbage_bin* bin);
+void maat_garbage_bin_free(struct maat_garbage_bin *bin);
 
-void maat_garbage_bagging(struct maat_garbage_bin* bin, void* garbage, void (* func)(void *));
+void maat_garbage_bagging(struct maat_garbage_bin *bin, void *garbage, void (* func)(void *));
 
-void maat_garbage_collect_routine(struct maat_garbage_bin* bin);
+void maat_garbage_collect_routine(struct maat_garbage_bin *bin);
 
-size_t  maat_garbage_bin_get_size(struct maat_garbage_bin* bin);
+size_t maat_garbage_bin_get_size(struct maat_garbage_bin *bin);
 
-void maat_garbage_collect_by_force(struct maat_garbage_bin* bin);
+void maat_garbage_collect_by_force(struct maat_garbage_bin *bin);
 
 #ifdef __cpluscplus
 }

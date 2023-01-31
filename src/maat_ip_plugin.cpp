@@ -8,14 +8,15 @@
 ***********************************************************************************************
 */
 
+#include <assert.h>
+
 #include "maat_ip_plugin.h"
-#include "cJSON/cJSON.h"
-#include "log/log.h"
 #include "utils.h"
 #include "maat_utils.h"
 #include "maat_ex_data.h"
 #include "IPMatcher.h"
 #include "maat_rule.h"
+#include "maat_garbage_collection.h"
 
 #define MODULE_IP_PLUGIN	 module_name_str("maat.ip_plugin")
 #define MAX_IP_STR    128
@@ -44,16 +45,9 @@ struct ip_plugin_runtime {
 
     uint32_t rule_num;
     uint32_t updating_rule_num;
-    struct maat_item *item_hash;
-    void (*item_user_data_free)(void *);
 
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
-
-    // long long *scan_cnt;
-    // long long *hit_cnt;
-    // long long *not_grp_hit_cnt;
-    // long long *stream_num;
 };
 
 void *ip_plugin_schema_new(cJSON *json, const char *table_name, struct log_handle *logger)
@@ -63,10 +57,10 @@ void *ip_plugin_schema_new(cJSON *json, const char *table_name, struct log_handl
 
     cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
-    if (NULL == item || item->type != cJSON_Number) {
-        goto error;
+   if (item != NULL && item->type == cJSON_Number) {
+        ip_plugin_schema->table_id = item->valueint;
+        read_cnt++;
     }
-    ip_plugin_schema->table_id = item->valueint;
 
     item = cJSON_GetObjectItem(json, "custom");
     if (NULL == item || item->type != cJSON_Object) {
@@ -98,7 +92,7 @@ void *ip_plugin_schema_new(cJSON *json, const char *table_name, struct log_handl
         read_cnt++;
     }
 
-    if (read_cnt < 4) {
+    if (read_cnt < 5) {
         goto error;
     }
     
@@ -193,42 +187,40 @@ void ip_plugin_item_free(struct ip_plugin_item *item)
 
 int ip_plugin_table_ex_data_schema_flag(struct ip_plugin_schema *ip_plugin_schema)
 {
-
+    return 0;
 }
 
 int ip_plugin_table_set_ex_data_schema(void *ip_plugin_schema, 
                                        maat_plugin_ex_new_func_t *new_func,
 							           maat_plugin_ex_free_func_t *free_func,
 							           maat_plugin_ex_dup_func_t *dup_func,
-							           long argl, void *argp)
+							           long argl, void *argp,
+                                       struct log_handle *logger)
 {
-    struct ip_plugin_schema *schema = (struct ip_plugin_schema *)ip_plugin_schema;
-    struct ex_data_schema *ex_schema = schema->ex_schema;
-
-    if (ex_schema->set_flag) {
-        assert(0);
-        log_error(logger, MODULE_TABLE, "Error: %s, EX data schema already registed", 
-                                                __FUNCTION__);
+    if (NULL == ip_plugin_schema) {
         return -1;
     }
 
-    ex_schema->new_func = new_func;
-    ex_schema->free_func = free_func;
-    ex_schema->dup_func = dup_func;
-    ex_schema->argl = argl;
-    ex_schema->argp = argp;
-    //ex_schema->set_flag = 1;
+    struct ip_plugin_schema *schema = (struct ip_plugin_schema *)ip_plugin_schema;
+    if (schema->ex_schema != NULL) {
+        assert(0);
+        log_error(logger, MODULE_IP_PLUGIN,
+                  "Error: %s, EX data schema already registed", __FUNCTION__);
+        return -1;
+    }
+
+    schema->ex_schema = ex_data_schema_new(new_func, free_func, dup_func, argl, argp);
 
     return 0;
 }
 
 int ip_plugin_runtime_update_row(struct ip_plugin_runtime *rt, struct ip_plugin_schema *schema,
-                                  const char *row, char *key, size_t key_len, struct ip_plugin_item *item, 
-                                  int is_valid)
+                                  const char *row, char *key, size_t key_len, 
+                                  struct ip_plugin_item *ip_plugin_item, int is_valid)
 {
     int ret = -1;
     struct ex_data_runtime *ex_data_rt = rt->ex_data_rt;
-    int set_flag = ip_plugin_table_schema_ex_data_schema_flag(schema);
+    int set_flag = ip_plugin_table_ex_data_schema_flag(schema);
 
     if (1 == set_flag) {
         if (0 == is_valid) {
@@ -240,7 +232,7 @@ int ip_plugin_runtime_update_row(struct ip_plugin_runtime *rt, struct ip_plugin_
         } else {
             //add
             void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, row, key, key_len);
-            struct ex_data_container *ex_container = ex_data_container_new(ex_data, (void *)item);
+            struct ex_data_container *ex_container = ex_data_container_new(ex_data, (void *)ip_plugin_item);
             ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
             if (ret < 0) {
                 return -1;
@@ -253,7 +245,7 @@ int ip_plugin_runtime_update_row(struct ip_plugin_runtime *rt, struct ip_plugin_
     return 0;
 }
 
-void *ip_plugin_runtime_new(void *ip_plugin_schema, struct maat_garbage_bin *garbage_bin,
+void *ip_plugin_runtime_new(void *ip_plugin_schema, int max_thread_num, struct maat_garbage_bin *garbage_bin,
                             struct log_handle *logger)
 {
     if (NULL == ip_plugin_schema) {
@@ -263,8 +255,7 @@ void *ip_plugin_runtime_new(void *ip_plugin_schema, struct maat_garbage_bin *gar
     struct ip_plugin_schema *schema = (struct ip_plugin_schema *)ip_plugin_schema;
     struct ip_plugin_runtime *ip_plugin_rt = ALLOC(struct ip_plugin_runtime, 1);
 
-    ip_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, ex_data_container_free);
-    ip_plugin_rt->item_user_data_free = maat_item_inner_free;
+    ip_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, ex_data_container_free, logger);
     ip_plugin_rt->ref_garbage_bin = garbage_bin;
     ip_plugin_rt->logger = logger;
 
@@ -280,19 +271,31 @@ void ip_plugin_runtime_free(void *ip_plugin_runtime)
     struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
     if (ip_plugin_rt->ip_matcher != NULL) {
         ip_matcher_free(ip_plugin_rt->ip_matcher);
+        ip_plugin_rt->ip_matcher = NULL;
     }
 
     if (ip_plugin_rt->ex_data_rt != NULL) {
         ex_data_runtime_free(ip_plugin_rt->ex_data_rt);
-    }
-
-    struct maat_item *item = NULL, *tmp_item = NULL;
-    HASH_ITER(hh, ip_plugin_rt->item_hash, item, tmp_item) {
-        HASH_DELETE(hh, ip_plugin_rt->item_hash, item);
-        maat_item_free(item, ip_plugin_rt->item_user_data_free);
+        ip_plugin_rt->ex_data_rt = NULL;
     }
 
     FREE(ip_plugin_rt);
+}
+
+void ip_plugin_item_to_ip_rule(struct ip_plugin_item *item, struct ip_rule *rule)
+{
+    if (4 == item->ip_type) {
+        rule->type = IPv4;
+        ip_format2range(item->ip_type, IP_FORMAT_RANGE, item->start_ip, item->end_ip,
+                        &(rule->ipv4_rule.start_ip), &(rule->ipv4_rule.end_ip));
+    } else {
+        rule->type = IPv6;
+        ip_format2range(item->ip_type, IP_FORMAT_RANGE, item->start_ip, item->end_ip,
+                        rule->ipv6_rule.start_ip, rule->ipv6_rule.end_ip);
+    }
+    
+    rule->rule_id = item->item_id;
+    rule->user_tag = NULL;
 }
 
 int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema, const char *line,
@@ -302,57 +305,28 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema, co
         return -1;
     }
 
-    struct maat_item *item = NULL;
     struct ip_plugin_item *ip_plugin_item = NULL;
-    struct maat_item_inner *u_para = NULL;
     struct ip_plugin_schema *schema = (struct ip_plugin_schema *)ip_plugin_schema;
     struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
     int item_id = get_column_value(line, schema->item_id_column);
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
         return -1;
-    } else if (0 == is_valid) {
-        //delete
-        HASH_FIND_INT(ip_plugin_rt->item_hash, &item_id, item);
-        if (NULL == item) {
-            return -1;
-        }
-        
-        u_para = (struct maat_item_inner *)item->user_data;
-        item->user_data = NULL;
-        
-	    if (NULL == u_para) {
-		    return -1;
-	    }
-
-        HASH_DELETE(hh, ip_plugin_rt->item_hash, item);
-        maat_garbage_bagging(ip_plugin_rt->ref_garbage_bin, u_para, (void (*)(void *))maat_item_inner_free);
-    } else {
+    } 
+    
+    if (1 == is_valid) {
         //add
-        HASH_FIND_INT(ip_plugin_rt->item_hash, &item_id, item);
-        if (item) {
-            log_error(ip_plus_rt->logger, MODULE_IP_PLUGIN, 
-                      "ip_plugin runtime add item %d to item_hash failed, already exist", item_id);
-            return -1;
-        }
-
         ip_plugin_item = ip_plugin_item_new(line, schema, ip_plugin_rt->logger);
         if (NULL == ip_plugin_item) {
-            log_error(ip_plugin_rt->logger, MODULE_IP_PLUGIN, "ip_plugin line:%s to item failed", line);
             return -1;
         }
-
-        u_para = maat_item_inner_new(ip_plugin_item->group_id, item_id, 0);
-        item = maat_item_new(item_id, group_id, u_para);
-        HASH_ADD_INT(ip_plugin_rt->item_hash, item_id, item);
     }
 
     char *key = (char *)&item_id;
-    int ret = ip_plugin_runtime_update_row(ip_plugin_rt, schema, row, key, sizeof(int), ip_plugin_item, is_valid);
+    int ret = ip_plugin_runtime_update_row(ip_plugin_rt, schema, line, key, sizeof(int), ip_plugin_item, is_valid);
     if (ret < 0) {
         if (ip_plugin_item != NULL) {
-            ip_plugin_item_free(ip_plugin_item);
-            ip_plugin_item = NULL;
+            FREE(ip_plugin_item);
         }
         return -1;
     } else {
@@ -364,20 +338,6 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema, co
     }
 
     return 0;
-}
-
-void ip_plugin_item_to_ip_rule(struct ip_plugin_item *item, struct ip_rule *rule)
-{
-    if (4 == item->ip_type) {
-        rule->type = IPv4;
-        ip_format2range(item->ip_type, IP_FORMAT_RANGE, item->start_ip, item->end_ip, &(rule->ipv4_rule.start_ip), &(rule->ipv4_rule.end_ip));
-    } else {
-        rule->type = IPv6;
-        ip_format2range(item->ip_type, IP_FORMAT_RANGE, item->start_ip, item->end_ip, &(rule->ipv6_rule.start_ip), &(rule->ipv6_rule.end_ip));
-    }
-    
-    rule->rule_id = item->item_id;
-    rule->user_tag = NULL;
 }
 
 int ip_plugin_runtime_commit(void *ip_plugin_runtime)
@@ -409,11 +369,11 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime)
     size_t mem_used = 0;
 
     if (rule_cnt > 0) {
-         log_info(ip_plugin_rt->logger, MODULE_TABLE_RUNTIME, 
+         log_info(ip_plugin_rt->logger, MODULE_IP_PLUGIN, 
                  "committing %zu ip_plugin rules for rebuilding ip_matcher engine", rule_cnt);
         new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used);
         if (NULL == new_ip_matcher) {
-            log_error(ip_plugin_rt->logger, MODULE_TABLE_RUNTIME, 
+            log_error(ip_plugin_rt->logger, MODULE_IP_PLUGIN, 
                       "rebuild ip_matcher engine failed when update %zu ip_plugin rules", rule_cnt);
             ret = -1;
         }
@@ -431,8 +391,9 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime)
     return ret;
 }
 
-int ip_plugin_runtime_updating_flag(struct ip_plugin_runtime *ip_plugin_rt)
+int ip_plugin_runtime_updating_flag(void *ip_plugin_runtime)
 {
+    struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
     return ex_data_runtime_updating_flag(ip_plugin_rt->ex_data_rt);
 }
 

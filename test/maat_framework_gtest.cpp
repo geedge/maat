@@ -75,14 +75,14 @@ TEST(maat_scan_ipv4, hit_ip_and_port) {
     int results[3] = {-1};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    ret = maat_scan_ip(g_maat_instance, table_id, 0, &addr, results, sizeof(results), &n_hit_result, &state);
+    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 7);
     maat_state_free(&state);
 
     state = NULL;
-    ret = maat_scan_ip(g_maat_instance, table_id, 0, &addr, results, sizeof(results), &n_hit_result, &state);
+    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_hit_result, 0);
 
@@ -92,15 +92,14 @@ TEST(maat_scan_ipv4, hit_ip_and_port) {
 TEST(maat_scan_ipv4, hit_ip_and_port_range) {
     int table_id = table_manager_get_table_id(g_maat_instance->tbl_mgr, "IP_PLUS_CONFIG");
     char ip_str[32] = "192.168.50.24";
-    struct addr_2tuple addr;
-    addr.type = IP_TYPE_V4;
-    int ret = inet_pton(AF_INET, ip_str, &addr.ipv4.sip);
+    uint32_t sip;
+    int ret = inet_pton(AF_INET, ip_str, &sip);
     EXPECT_EQ(ret, 1);
 
     int results[3] = {-1};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    ret = maat_scan_ip(g_maat_instance, table_id, 0, &addr, results, sizeof(results), &n_hit_result, &state);
+    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 4);
@@ -109,7 +108,7 @@ TEST(maat_scan_ipv4, hit_ip_and_port_range) {
     memset(results, 0, sizeof(results));
     n_hit_result = 0;
     state = NULL;
-    ret = maat_scan_ip(g_maat_instance, table_id, 0, &addr, results, sizeof(results), &n_hit_result, &state);
+    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 4);
@@ -118,7 +117,7 @@ TEST(maat_scan_ipv4, hit_ip_and_port_range) {
     memset(results, 0, sizeof(results));
     n_hit_result = 0;
     state = NULL;
-    ret = maat_scan_ip(g_maat_instance, table_id, 0, &addr, results, sizeof(results), &n_hit_result, &state);
+    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_hit_result, 0);
 }
@@ -128,33 +127,32 @@ TEST(maat_scan_ipv4, hit_ip_range_and_port_range) {
     char ip_str1[32] = "10.0.1.20";
     char ip_str2[32] = "10.0.1.25";
     char ip_str3[32] = "10.0.1.26";
-    struct addr_2tuple addr;
-    addr.type = IP_TYPE_V4;
-    int ret = inet_pton(AF_INET, ip_str1, &addr.ipv4.sip);
+    uint32_t sip;
+    int ret = inet_pton(AF_INET, ip_str1, &sip);
     EXPECT_EQ(ret, 1);
 
     int results[3] = {-1};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    ret = maat_scan_ip(g_maat_instance, table_id, 0, &addr, results, sizeof(results), &n_hit_result, &state);
+    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 8);
     maat_state_free(&state);
 
-    ret = inet_pton(AF_INET, ip_str2, &addr.ipv4.sip);
+    ret = inet_pton(AF_INET, ip_str2, &sip);
     EXPECT_EQ(ret, 1);
     state = NULL;
-    ret = maat_scan_ip(g_maat_instance, table_id, 0, &addr, results, sizeof(results), &n_hit_result, &state);
+    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 8);
     maat_state_free(&state);
 
-    ret = inet_pton(AF_INET, ip_str3, &addr.ipv4.sip);
+    ret = inet_pton(AF_INET, ip_str3, &sip);
     EXPECT_EQ(ret, 1);
     state = NULL;
-    ret = maat_scan_ip(g_maat_instance, table_id, 0, &addr, results, sizeof(results), &n_hit_result, &state);
+    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
@@ -164,24 +162,23 @@ TEST(maat_scan_ipv4, hit_ip_cidr_and_port_range) {
     int table_id = table_manager_get_table_id(g_maat_instance->tbl_mgr, "IP_PLUS_CONFIG");
     char ip_str1[32] = "192.168.0.1";
     char ip_str2[32] = "192.168.0.0";
-    struct addr_2tuple addr;
-    addr.type = IP_TYPE_V4;
-    int ret = inet_pton(AF_INET, ip_str1, &addr.ipv4.sip);
+    uint32_t sip;
+    int ret = inet_pton(AF_INET, ip_str1, &sip);
     EXPECT_EQ(ret, 1);
 
     int results[3] = {-1};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    ret = maat_scan_ip(g_maat_instance, table_id, 0, &addr, results, sizeof(results), &n_hit_result, &state);
+    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 50);
     maat_state_free(&state);
 
-    ret = inet_pton(AF_INET, ip_str2, &addr.ipv4.sip);
+    ret = inet_pton(AF_INET, ip_str2, &sip);
     EXPECT_EQ(ret, 1);
     state = NULL;
-    ret = maat_scan_ip(g_maat_instance, table_id, 0, &addr, results, sizeof(results), &n_hit_result, &state);
+    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
@@ -190,15 +187,14 @@ TEST(maat_scan_ipv4, hit_ip_cidr_and_port_range) {
 TEST(maat_scan_ipv4, hit_ip_cidr_and_port_mask) {
     int table_id = table_manager_get_table_id(g_maat_instance->tbl_mgr, "IP_PLUS_CONFIG");
     char ip_str[32] = "192.168.40.10";
-    struct addr_2tuple addr;
-    addr.type = IP_TYPE_V4;
-    int ret = inet_pton(AF_INET, ip_str, &addr.ipv4.sip);
+    uint32_t sip;
+    int ret = inet_pton(AF_INET, ip_str, &sip);
     EXPECT_EQ(ret, 1);
 
     int results[3] = {-1};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    ret = maat_scan_ip(g_maat_instance, table_id, 0, &addr, results, sizeof(results), &n_hit_result, &state);
+    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_hit_result, 2);
     EXPECT_EQ(results[0], 63);
@@ -206,7 +202,7 @@ TEST(maat_scan_ipv4, hit_ip_cidr_and_port_mask) {
     maat_state_free(&state);
 
     state = NULL;
-    ret = maat_scan_ip(g_maat_instance, table_id, 0, &addr, results, sizeof(results), &n_hit_result, &state);
+    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
@@ -215,22 +211,21 @@ TEST(maat_scan_ipv4, hit_ip_cidr_and_port_mask) {
 TEST(maat_scan_ipv6, hit_ip_range_and_port_mask) {
     int table_id = table_manager_get_table_id(g_maat_instance->tbl_mgr, "IP_PLUS_CONFIG");
     char ip_str[32] = "1001:da8:205:1::101";
-    struct addr_2tuple addr;
-    addr.type = IP_TYPE_V6;
-    int ret = inet_pton(AF_INET6, ip_str, &addr.ipv6.sip);
+    uint8_t sip6[128];
+    int ret = inet_pton(AF_INET6, ip_str, sip6);
     EXPECT_EQ(ret, 1);
 
     int results[3] = {-1};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    ret = maat_scan_ip(g_maat_instance, table_id, 0, &addr, results, sizeof(results), &n_hit_result, &state);
+    ret = maat_scan_ipv6(g_maat_instance, table_id, 0, sip6, results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 47);
     maat_state_free(&state);
 
     state = NULL;
-    ret = maat_scan_ip(g_maat_instance, table_id, 0, &addr, results, sizeof(results), &n_hit_result, &state);
+    ret = maat_scan_ipv6(g_maat_instance, table_id, 0, sip6, results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
@@ -270,15 +265,14 @@ TEST(maat_scan_ip, dynamic_config) {
     int table_id = table_manager_get_table_id(g_maat_instance->tbl_mgr, "IP_PLUS_CONFIG");
    
     char ip_str[32] = "10.0.6.201";
-    struct addr_2tuple addr;
-    addr.type = IP_TYPE_V4;
-    int ret = inet_pton(AF_INET, ip_str, &addr.ipv4.sip);
+    uint32_t sip;
+    int ret = inet_pton(AF_INET, ip_str, &sip);
     EXPECT_EQ(ret, 1);
 
     int results[3] = {-1};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    ret = maat_scan_ip(g_maat_instance, table_id, 0, &addr, results, sizeof(results), &n_hit_result, &state);
+    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
@@ -294,7 +288,7 @@ TEST(maat_scan_ip, dynamic_config) {
 
     sleep(2);
     state = NULL;
-    ret = maat_scan_ip(g_maat_instance, table_id, 0, &addr, results, sizeof(results), &n_hit_result, &state);
+    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 9998);

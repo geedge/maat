@@ -314,7 +314,7 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
 
     int valid_column = table_manager_get_valid_column(maat_instance->tbl_mgr, table_id);
     if (valid_column < 0) {
-        log_error(maat_instance->logger, MODULE_MAAT_COMMAND, 
+        log_error(maat_instance->logger, MODULE_MAAT_COMMAND,
                   "Command set line id %d failed: table %s is not a plugin or ip_plugin table",
                   line_rule->rule_id, line_rule->table_name);
         FREE(s_rule);

@@ -33,7 +33,8 @@ struct ex_container_ctx {
 struct ex_data_runtime;
 
 /* ex_data_runtime API */
-struct ex_data_runtime *ex_data_runtime_new(int table_id, rcu_hash_data_free_fn *data_free_fn);
+struct ex_data_runtime *ex_data_runtime_new(int table_id, rcu_hash_data_free_fn *data_free_fn,
+                                            struct log_handle *logger);
 
 void ex_data_runtime_free(struct ex_data_runtime *ex_data_rt);
 

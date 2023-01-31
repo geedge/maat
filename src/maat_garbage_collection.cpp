@@ -31,7 +31,7 @@ struct maat_garbage_bin {
 	int timeout_seconds;
 };
 
-struct maat_garbage_bin* maat_garbage_bin_new(int default_timeout)
+struct maat_garbage_bin *maat_garbage_bin_new(int default_timeout)
 {
 	struct maat_garbage_bin* bin = ALLOC(struct maat_garbage_bin, 1);
 
