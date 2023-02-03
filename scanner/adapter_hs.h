@@ -38,6 +38,11 @@ enum pattern_type {
     PATTERN_TYPE_REG,
 };
 
+struct hs_scan_result {
+    int item_id;
+    void *user_tag;
+};
+
 typedef struct {
     /* pattern type */
     int type;
@@ -53,6 +58,7 @@ typedef struct {
     uint32_t expr_id;
     size_t n_patterns;
     scan_pattern_t patterns[MAX_EXPR_PATTERN_NUM];
+    void *user_tag;
 } and_expr_t;
 
 /**
@@ -65,7 +71,8 @@ typedef struct {
  * 
  * @retval the pointer to adapter_hs instance
 */
-struct adapter_hs *adapter_hs_initialize(int scan_mode, size_t nr_worker_threads, and_expr_t *expr_array, size_t n_expr_array, struct log_handle *logger);
+struct adapter_hs *adapter_hs_initialize(int scan_mode, size_t nr_worker_threads, and_expr_t *expr_array, 
+                                         size_t n_expr_array, struct log_handle *logger);
 
 /**
  * @brief scan input data to match logic AND expression, return all matched expr_id
@@ -78,7 +85,7 @@ struct adapter_hs *adapter_hs_initialize(int scan_mode, size_t nr_worker_threads
  * @param n_results: number of elements in array of expr_id
 */
 int adapter_hs_scan(struct adapter_hs *instance, int thread_id, const char *data, size_t data_len, 
-                    int results[], size_t *n_results);
+                    struct hs_scan_result *results, size_t *n_results);
 
 /**
  * @brief destroy adapter_hs instance

@@ -21,16 +21,18 @@ extern "C"
 
 struct expr_runtime;
 
-void *expr_schema_new(cJSON *json, const char *table_name, struct log_handle *logger);
+void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
+                      const char *table_name, struct log_handle *logger);
 void expr_schema_free(void *expr_schema);
 
 /* expr runtime API */
-void *expr_runtime_new(void *expr_schema, int max_thread_num, struct maat_garbage_bin *garbage_bin,
+void *expr_runtime_new(void *expr_schema, int max_thread_num, 
+                       struct maat_garbage_bin *garbage_bin,
                        struct log_handle *logger);
 void expr_runtime_free(void *expr_runtime);
 
-int expr_runtime_updating_flag(void *expr_runtime);
-int expr_runtime_update(void *expr_runtime, void *expr_schema, const char *line, int valid_column);
+int expr_runtime_update(void *expr_runtime, void *expr_schema, 
+                        const char *line, int valid_column);
 int expr_runtime_commit(void *expr_runtime);
 
 /* expr runtime scan API */
@@ -39,14 +41,18 @@ int expr_runtime_commit(void *expr_runtime);
  * 
  * @retval the num of hit group_id
 */
-int expr_runtime_scan_string(struct expr_runtime *expr_runtime, int thread_id, 
-                             const char *data, size_t data_len, int group_ids[], 
-                             size_t max_hit_num, int virtual_table_id, 
-                             struct maat_state *state);
+int expr_runtime_scan_string(struct expr_runtime *expr_rt, int thread_id, 
+                             const char *data, size_t data_len, 
+                             int *group_ids, size_t group_ids_size, 
+                             int vtable_id, struct maat_state *state);
 
 void expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id);
-int expr_runtime_scan_stream(struct expr_runtime *expr_rt, const char *data, size_t data_len, int results[], size_t *n_result);
+int expr_runtime_scan_stream(struct expr_runtime *expr_rt, const char *data, 
+                             size_t data_len, int result[], size_t *n_result);
 void expr_runtime_stream_close(struct expr_runtime *expr_rt);
+
+void expr_runtime_scan_hit_inc(struct expr_runtime *expr_rt, int thread_id);
+long long expr_runtime_scan_hit_sum(struct expr_runtime *expr_rt, int n_thread);
 
 #ifdef __cpluscplus
 }

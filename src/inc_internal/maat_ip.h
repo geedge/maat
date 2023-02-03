@@ -16,27 +16,31 @@ extern "C"
 {
 #endif
 
-struct ip_plus_runtime;
+struct ip_runtime;
 
-void *ip_plus_schema_new(cJSON *json, const char *table_name, struct log_handle *logger);
-void ip_plus_schema_free(void *ip_plus_schema);
+void *ip_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
+                    const char *table_name, struct log_handle *logger);
+void ip_schema_free(void *ip_schema);
 
-/* ip plus runtime API */
-void *ip_plus_runtime_new(void *ip_plus_schema, int max_thread_num, struct maat_garbage_bin *garbage_bin,
-                          struct log_handle *logger);
-void ip_plus_runtime_free(void *ip_plus_runtime);
+/* ip runtime API */
+void *ip_runtime_new(void *ip_schema, int max_thread_num, 
+                     struct maat_garbage_bin *garbage_bin,
+                     struct log_handle *logger);
+void ip_runtime_free(void *ip_runtime);
 
-int ip_plus_runtime_updating_flag(void *ip_plus_runtime);
-int ip_plus_runtime_update(void *ip_plus_runtime, void *ip_plus_schema, const char *line,
-                           int valid_column);
-int ip_plus_runtime_commit(void *ip_plus_runtime);
+int ip_runtime_update(void *ip_runtime, void *ip_schema, 
+                      const char *line, int valid_column);
+int ip_runtime_commit(void *ip_runtime);
 
-struct ex_data_runtime *ip_plus_runtime_get_ex_data_rt(struct ip_plus_runtime *ip_plus_rt);
+struct ex_data_runtime *ip_runtime_get_ex_data_rt(struct ip_runtime *ip_rt);
 
 /* ip runtime scan API */
-int ip_plus_runtime_scan_ipv4(struct ip_plus_runtime *ip_plus_rt, int thread_id, uint32_t ip_addr, 
-                              int *group_id_array, size_t n_group_id_array, int virtual_table_id,
-                              struct maat_state *state);
+int ip_runtime_scan_ip(struct ip_runtime *ip_rt, int thread_id, int ip_type, 
+                    uint8_t *ip_addr, int *group_ids, size_t group_id_size, 
+                    int vtable_id, struct maat_state *state);
+
+void ip_runtime_scan_hit_inc(struct ip_runtime *ip_rt, int thread_id);
+long long ip_runtime_scan_hit_sum(struct ip_runtime *ip_rt, int n_thread);
 
 #ifdef __cpluscplus
 }

@@ -31,6 +31,27 @@ extern "C"
 #define MIN(a, b)  	(((a) < (b)) ? (a) : (b))
 #endif
 
+#define ALLOC(type, number) ((type *)calloc(sizeof(type), number))
+
+#define FREE(ptr)  \
+    {                   \
+        if (ptr)        \
+        {               \
+            free(ptr);  \
+            ptr = NULL; \
+        }               \
+    }
+
+#ifndef offsetof
+#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+#endif
+
+#ifndef container_of
+#define container_of(ptr, type, member) ({			 \
+	const typeof( ((type *)0)->member ) *__mptr = (ptr); \
+	(type *)( (char *)__mptr - offsetof(type,member) );})
+#endif
+
 #define	MAX_SCANNER_HIT_COMPILE_NUM  4096
 #define MAX_SCANNER_HIT_GROUP_NUM    4096
 #define MAX_SCANNER_HIT_ITEM_NUM    4096

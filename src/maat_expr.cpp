@@ -11,7 +11,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "utils.h"
 #include "maat_expr.h"
 #include "adapter_hs.h"
 #include "maat_utils.h"
@@ -20,6 +19,8 @@
 #include "rcu_hash.h"
 #include "maat_rule.h"
 #include "maat_compile.h"
+#include "maat_group.h"
+#include "alignment.h"
 #include "maat_garbage_collection.h"
 
 #define MAX_DISTRICT_STR     128
@@ -36,6 +37,7 @@ struct expr_schema {
     int is_hexbin_column;
     enum hs_scan_mode scan_mode; /* adapter_hs scan mode */
     int table_id; //ugly
+    struct table_manager *ref_tbl_mgr;
 };
 
 enum expr_type {
@@ -56,7 +58,7 @@ enum match_method {
 struct expr_item {
     int item_id;
     int group_id;
-    char district[MAX_DISTRICT_STR];
+    int district_id;
     char keywords[MAX_KEYWORDS_STR];
     enum expr_type expr_type;
     enum match_method match_method;
@@ -80,9 +82,8 @@ struct expr_runtime {
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
 
-    // long long *scan_cnt;
-    // long long *hit_cnt;
-    // long long *not_grp_hit_cnt;
+    long long *scan_cnt;
+    long long *hit_cnt;
     // long long *stream_num;
 };
 
@@ -139,11 +140,13 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
     int db_hexbin = -1;
     int expr_type = -1;
     int match_method_type = -1;
+    enum table_type table_type = TABLE_TYPE_INVALID;
     struct expr_item *expr_item = ALLOC(struct expr_item, 1);
 
     int ret = get_column_pos(line, expr_schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_EXPR, "expr table(table_id:%d) line:%s has no item_id",
+        log_error(logger, MODULE_EXPR, 
+                  "expr table(table_id:%d) line:%s has no item_id",
                   expr_schema->table_id, line);
         goto error;
     }
@@ -151,32 +154,40 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
 
     ret = get_column_pos(line, expr_schema->group_id_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_EXPR, "expr table(table_id:%d) line:%s has no group_id",
+        log_error(logger, MODULE_EXPR, 
+                  "expr table(table_id:%d) line:%s has no group_id",
                   expr_schema->table_id, line);
         goto error;
     }
     expr_item->group_id = atoi(line + column_offset);
 
+    table_type = table_manager_get_table_type(expr_schema->tbl_mgr, expr_schema->table_id);
     //TODO
-    #if 0
-    if (table_item->table_type == TABLE_TYPE_EXPR_PLUS) {
+    #if 1
+    if (table_type == TABLE_TYPE_EXPR_PLUS) {
         ret = get_column_pos(line, expr_schema->district_column, &column_offset, &column_len);
         if (ret < 0) {
-            return -1;
+            goto error;
         }
 
         if (column_len >= MAX_DISTRICT_STR) {
             log_error(logger, MODULE_EXPR, 
-                      "update error: expr table[%s]:item_id[%d] district length too long",
-                      table_name, expr_item->item_id);
-            return -1;
+                      "expr table(table_id:%d) line:%s district length too long",
+                      expr_schema->table_id, line);
+            goto error;
         }
-        memcpy(expr_item->district, (line + column_offset), column_len);
+
+        char district[MAX_DISTRICT_STR] = {0};
+        memcpy(district, (line + column_offset), column_len);
+        assert(strlen(district) > 0);
+        str_unescape(district);
+        expr_item->district_id = get_district_id()
     }
     #endif
     ret = get_column_pos(line, expr_schema->keywords_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_EXPR, "expr table(table_id:%d) line:%s has no keywords",
+        log_error(logger, MODULE_EXPR, 
+                  "expr table(table_id:%d) line:%s has no keywords",
                   expr_schema->table_id, line);
         goto error;
     }
@@ -191,7 +202,8 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
 
     ret = get_column_pos(line, expr_schema->expr_type_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_EXPR, "expr table(table_id:%d) line:%s has no expr_type",
+        log_error(logger, MODULE_EXPR, 
+                  "expr table(table_id:%d) line:%s has no expr_type",
                   expr_schema->table_id, line);
         goto error;
     }
@@ -201,7 +213,8 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
 
     ret = get_column_pos(line, expr_schema->match_method_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_EXPR, "expr table(table_id:%d) line:%s has no match_method",
+        log_error(logger, MODULE_EXPR, 
+                  "expr table(table_id:%d) line:%s has no match_method",
                   expr_schema->table_id, line);
         goto error;
     }
@@ -211,7 +224,8 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
 
     ret = get_column_pos(line, expr_schema->is_hexbin_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_EXPR, "expr table(table_id:%d) line:%s has no is_hexbin",
+        log_error(logger, MODULE_EXPR, 
+                  "expr table(table_id:%d) line:%s has no is_hexbin",
                   expr_schema->table_id, line);
         goto error;
     }
@@ -248,7 +262,8 @@ void expr_item_free(struct expr_item *expr_item)
     FREE(expr_item);
 }
 
-void *expr_schema_new(cJSON *json, const char *table_name, struct log_handle *logger)
+void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
+                      const char *table_name, struct log_handle *logger)
 {
     int read_cnt = 0;
 	struct expr_schema *expr_schema = ALLOC(struct expr_schema, 1);
@@ -267,15 +282,18 @@ void *expr_schema_new(cJSON *json, const char *table_name, struct log_handle *lo
 
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
-        log_error(logger, MODULE_EXPR, "table %s has no custom column", table_name);
+        log_error(logger, MODULE_EXPR, 
+                  "table %s has no custom column", table_name);
         goto error;
     }
 
 	custom_item = cJSON_GetObjectItem(item, "scan_mode");
 	if (custom_item != NULL && custom_item->type == cJSON_String) {
-		ret = maat_kv_read(scan_mode_map, custom_item->valuestring, (int*)&(expr_schema->scan_mode));
+		ret = maat_kv_read(scan_mode_map, custom_item->valuestring, 
+                          (int*)&(expr_schema->scan_mode));
         if (ret < 0) {
-            log_error(logger, MODULE_EXPR, "scan_mode %s illegal", custom_item->valuestring);
+            log_error(logger, MODULE_EXPR, "scan_mode %s illegal", 
+                      custom_item->valuestring);
             goto error;
         }
         read_cnt++;
@@ -323,6 +341,8 @@ void *expr_schema_new(cJSON *json, const char *table_name, struct log_handle *lo
         read_cnt++;
     }
 
+    expr_schema->tbl_mgr = tbl_mgr;
+
     if (read_cnt < 8) {
 		goto error;
     }
@@ -359,7 +379,8 @@ void expr_ex_data_free(void *user_ctx, void *data)
     expr_rule_free(expr_rule);
 }
 
-void *expr_runtime_new(void *expr_schema, int max_thread_num, struct maat_garbage_bin *garbage_bin,
+void *expr_runtime_new(void *expr_schema, int max_thread_num, 
+                       struct maat_garbage_bin *garbage_bin,
                        struct log_handle *logger)
 {
     if (NULL == expr_schema) {
@@ -376,10 +397,8 @@ void *expr_runtime_new(void *expr_schema, int max_thread_num, struct maat_garbag
     expr_rt->ref_garbage_bin = garbage_bin;
     expr_rt->logger = logger;
 
-    // expr_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
-    // expr_rt->hit_cnt = alignment_int64_array_alloc(max_thread_num);
-    // expr_rt->not_grp_hit_cnt = alignment_int64_array_alloc(max_thread_num);
-    // expr_rt->stream_num = alignment_int64_array_alloc(max_thread_num);
+    expr_rt->hit_cnt = alignment_int64_array_alloc(max_thread_num);
+    expr_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
 
     return expr_rt;
 }
@@ -411,11 +430,23 @@ void expr_runtime_free(void *expr_runtime)
         HASH_DELETE(hh, expr_rt->item_hash, item);
         maat_item_free(item, expr_rt->item_user_data_free);
     }
+
+    if (expr_rt->hit_cnt != NULL) {
+        alignment_int64_array_free(expr_rt->hit_cnt);
+        expr_rt->hit_cnt = NULL;
+    }
+
+    if (expr_rt->scan_cnt != NULL) {
+        alignment_int64_array_free(expr_rt->scan_cnt);
+        expr_rt->scan_cnt = NULL;
+    }
+
     FREE(expr_rt);
 }
 
-int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key, size_t key_len, 
-                             and_expr_t *expr_rule, int is_valid, struct log_handle *logger)
+int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key, 
+                            size_t key_len, and_expr_t *expr_rule, 
+                            int is_valid, struct log_handle *logger)
 {
     void *data = NULL;
 
@@ -424,7 +455,8 @@ int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key, size_t key_
         data = rcu_hash_find(expr_rt->htable, key, key_len);
         if (NULL == data) {
             log_error(logger, MODULE_EXPR, 
-                      "the key of expr rule not exist, can't be deleted, expr_id:%d", expr_rule->expr_id);
+                      "the key of expr rule not exist, can't be deleted, expr_id:%d",
+                      expr_rule->expr_id);
             return -1;
         }
         rcu_hash_del(expr_rt->htable, key, key_len);
@@ -433,7 +465,8 @@ int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key, size_t key_
         data = rcu_hash_find(expr_rt->htable, key, key_len);
         if (data != NULL) {
             log_error(logger, MODULE_EXPR,
-                      "the key of expr rule already exist, can't be added, expr_id:%d", expr_rule->expr_id);
+                      "the key of expr rule already exist, can't be added, expr_id:%d", 
+                      expr_rule->expr_id);
             return -1;
         }
         rcu_hash_add(expr_rt->htable, key, key_len, (void *)expr_rule);
@@ -461,7 +494,8 @@ enum pattern_type expr_type2pattern_type(enum expr_type expr_type)
 }
 
 #define MAAT_MAX_EXPR_ITEM_NUM	8
-and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item, struct log_handle *logger)
+and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item, 
+                                   struct log_handle *logger)
 {
     size_t i = 0;
     size_t sub_expr_cnt = 0;
@@ -481,7 +515,8 @@ and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item, struct log_handl
 
                 if (i >= MAAT_MAX_EXPR_ITEM_NUM) {
                     log_error(logger, MODULE_EXPR,
-                              "expr item_id:%d too many patterns", expr_item->item_id);
+                              "expr item_id:%d too many patterns", 
+                              expr_item->item_id);
                     return NULL;
                 }
 
@@ -515,7 +550,8 @@ and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item, struct log_handl
     return expr_rule;
 }
 
-int expr_runtime_update(void *expr_runtime, void *expr_schema, const char *line, int valid_column)
+int expr_runtime_update(void *expr_runtime, void *expr_schema, 
+                        const char *line, int valid_column)
 {
     if (NULL == expr_runtime || NULL == expr_schema) {
         return -1;
@@ -553,7 +589,8 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema, const char *line,
         HASH_FIND_INT(expr_rt->item_hash, &item_id, item);
         if (item) {
             log_error(expr_rt->logger, MODULE_EXPR, 
-                      "expr runtime add item %d to item_hash failed, already exist", item_id);
+                      "expr runtime add item %d to item_hash failed, already exist", 
+                      item_id);
             return -1;
         }
 
@@ -572,14 +609,16 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema, const char *line,
         expr_rule = expr_item_to_expr_rule(expr_item, expr_rt->logger);
         expr_item_free(expr_item);
         if (NULL == expr_rule) {
-            log_error(expr_rt->logger, MODULE_EXPR, "transform expr table(table_id:%d) item to expr_rule failed, item_id:%d",
+            log_error(expr_rt->logger, MODULE_EXPR, 
+                      "transform expr table(table_id:%d) item to expr_rule failed, item_id:%d",
                       schema->table_id, item_id);
             return -1;
         }
     }
 
     char *key = (char *)&item_id;
-    ret = expr_runtime_update_row(expr_rt, key, sizeof(int), expr_rule, is_valid, expr_rt->logger);
+    ret = expr_runtime_update_row(expr_rt, key, sizeof(int), expr_rule, 
+                                  is_valid, expr_rt->logger);
     if (ret < 0) {
         if (expr_rule != NULL) {
             expr_rule_free(expr_rule);
@@ -622,20 +661,25 @@ int expr_runtime_commit(void *expr_runtime)
     struct adapter_hs *old_adapter_hs = NULL;
 
     log_info(expr_rt->logger, MODULE_EXPR,
-             "committing %zu expr rules for rebuilding adapter_hs engine", rule_cnt);
-    new_adapter_hs = adapter_hs_initialize(expr_rt->scan_mode, expr_rt->n_worker_thread, rules, rule_cnt, expr_rt->logger);
+             "committing %zu expr rules for rebuilding adapter_hs engine", 
+             rule_cnt);
+    new_adapter_hs = adapter_hs_initialize(expr_rt->scan_mode, 
+                                           expr_rt->n_worker_thread, 
+                                           rules, rule_cnt, 
+                                           expr_rt->logger);
     if (NULL == new_adapter_hs) {
         log_error(expr_rt->logger, MODULE_EXPR,
-                  "rebuild adapter_hs engine failed when update %zu expr rules", rule_cnt);
+                  "rebuild adapter_hs engine failed when update %zu expr rules", 
+                  rule_cnt);
         ret = -1;
     }
 
     old_adapter_hs = expr_rt->hs;
     expr_rt->hs = new_adapter_hs;
 
-    maat_garbage_bagging(expr_rt->ref_garbage_bin, old_adapter_hs, (void (*)(void*))adapter_hs_destroy);
+    maat_garbage_bagging(expr_rt->ref_garbage_bin, old_adapter_hs, 
+                         (void (*)(void*))adapter_hs_destroy);
     rcu_hash_commit(expr_rt->htable);
-    expr_rt->rule_num = rcu_hash_count(expr_rt->htable);
     rule_cnt = rcu_hash_updating_count(expr_rt->htable);
     assert(rule_cnt == 0);
     
@@ -645,71 +689,37 @@ int expr_runtime_commit(void *expr_runtime)
     return ret;
 }
 
-int expr_runtime_updating_flag(void *expr_runtime)
+int expr_runtime_scan_string(struct expr_runtime *expr_rt, int thread_id, 
+                             const char *data, size_t data_len, 
+                            int *group_ids, size_t group_ids_size, 
+                            int vtable_id, struct maat_state *state)
 {
-    struct expr_runtime *expr_rt = (struct expr_runtime *)expr_runtime;
-    return rcu_hash_updating_flag(expr_rt->htable);
-}
-
-int expr_runtime_scan_string(struct expr_runtime *expr_rt, int thread_id, const char *data, size_t data_len, 
-                              int group_id_array[], size_t n_group_id_array, int virtual_table_id, struct maat_state *state)
-{
-    if (NULL == expr_rt) {
-        return -1;
-    }
-
     int hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM] = {-1};
     size_t n_hit_item = 0;
     int ret = adapter_hs_scan(expr_rt->hs, thread_id, data, data_len, hit_item_ids, &n_hit_item);
     if (ret < 0) {
         return -1;
     }
+
+    if (0 == n_hit_item) {
+        return 0;
+    }
+
     if (n_hit_item > MAX_SCANNER_HIT_ITEM_NUM) {
+        log_info(expr_rt->logger, MODULE_EXPR, 
+                 "hit expr item count:%d exceed maxium:%d", 
+                 n_hit_item, MAX_SCANNER_HIT_ITEM_NUM);
         n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
     }
-
-    struct maat_compile_state *compile_state = state->compile_mid;
-    //tranform item_id to group_id
-    struct maat_item *item = NULL;
-    size_t n_group_id = 0;
-    size_t i = 0;
-    for (i = 0; i < n_hit_item; i++) {
-        HASH_FIND_INT(expr_rt->item_hash, &(hit_item_ids[i]), item);
-        assert(item != NULL);
-        if (!item) {
-            // should not come here
-            continue;
-        }
-
-        if (n_group_id >= n_group_id_array) {
-            n_group_id = n_group_id_array;
-            //Prevent group_id_array out of bounds
-        } else {
-            group_id_array[n_group_id++] = item->group_id;
-        }
-        
-        maat_compile_state_update_hit_path(compile_state, hit_item_ids[i], item->group_id, virtual_table_id, state->scan_cnt, i);
-    }
-
-    // literal_id{group_id,vt_id} to clause_id
-    // STEP 1: get compile table runtime
-    int compile_table_id = -1;
-    if (state->compile_table_id == -1) {
-        compile_table_id = state->maat_instance->default_compile_table_id;
-    } else {
-        compile_table_id = state->compile_table_id;
-    }
-  
-    void *compile_rt = table_manager_get_runtime(state->maat_instance->tbl_mgr, compile_table_id);
-    enum table_type table_type = table_manager_get_table_type(state->maat_instance->tbl_mgr, compile_table_id);
-    assert(table_type == TABLE_TYPE_COMPILE);
     
-    // STEP 2: get the specified compile table's hit clause_id array by literal_id
-    for (i = 0; i < n_group_id; i++) {
-        maat_compile_state_update_hit_clause(compile_state, compile_rt, group_id_array[i], virtual_table_id);
+    size_t group_hit_cnt = 0;
+    ret = maat_compile_state_update(expr_rt->item_hash, vtable_id, hit_item_ids, n_hit_item,
+                                    group_ids, group_ids_size, &group_hit_cnt, state);
+    if (ret < 0) {
+        return -1;
     }
 
-    return n_group_id;
+    return group_hit_cnt;
 }
 
 void expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id)
@@ -722,14 +732,15 @@ void expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id)
     expr_rt->hs_stream = hs_stream;
 }
 
-int expr_runtime_scan_stream(struct expr_runtime *expr_rt, const char *data, size_t data_len,
-                              int result[], size_t *n_result)
+int expr_runtime_scan_stream(struct expr_runtime *expr_rt, const char *data, 
+                             size_t data_len, int result[], size_t *n_result)
 {
     if (NULL == expr_rt) {
         return -1;
     }
 
-    return adapter_hs_scan_stream(expr_rt->hs_stream, data, data_len, result, n_result);
+    return adapter_hs_scan_stream(expr_rt->hs_stream, data, data_len, 
+                                  result, n_result);
 }
 
 void expr_runtime_stream_close(struct expr_runtime *expr_rt)
@@ -738,4 +749,14 @@ void expr_runtime_stream_close(struct expr_runtime *expr_rt)
         adapter_hs_stream_close(expr_rt->hs_stream);
         expr_rt->hs_stream = NULL;
     }
+}
+
+void expr_runtime_scan_hit_inc(struct expr_runtime *expr_rt, int thread_id)
+{
+    alignment_int64_array_add(expr_rt->hit_cnt, thread_id, 1);
+}
+
+long long expr_runtime_scan_hit_sum(struct expr_runtime *expr_rt, int n_thread)
+{
+    return alignment_int64_array_sum(expr_rt->hit_cnt, n_thread);
 }

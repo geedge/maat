@@ -14,7 +14,7 @@
 #include <sys/queue.h>
 
 #include "rcu_hash.h"
-#include "utils.h"
+#include "maat_utils.h"
 
 struct rcu_hash_garbage_bag {
 	void *garbage;
@@ -68,7 +68,8 @@ size_t rcu_hash_garbage_queue_len(struct rcu_hash_table *htable)
 	return htable->garbage_q_len;
 }
 
-void rcu_hash_garbage_bagging(struct rcu_hash_garbage_q* garbage_q, void* garbage, void (* func)(void *))
+void rcu_hash_garbage_bagging(struct rcu_hash_garbage_q* garbage_q, 
+                              void* garbage, void (* func)(void *))
 {
 	struct rcu_hash_garbage_bag *bag = ALLOC(struct rcu_hash_garbage_bag, 1);
 
@@ -171,7 +172,8 @@ void rcu_hash_commit_prepare(struct rcu_hash_table *htable)
     htable->is_updating = 1;
 }
 
-void rcu_hash_add(struct rcu_hash_table *htable, const char *key, size_t key_len, void *data)
+void rcu_hash_add(struct rcu_hash_table *htable, const char *key, 
+                  size_t key_len, void *data)
 {
     if (NULL == htable || NULL == key || 0 == key_len) {
         return;
@@ -227,7 +229,8 @@ void rcu_hash_del(struct rcu_hash_table *htable, const char *key, size_t key_len
     }
 
     if (node != NULL) {
-        rcu_hash_garbage_bagging(&(htable->garbage_q), node, (void (*)(void*))rcu_hash_node_free);
+        rcu_hash_garbage_bagging(&(htable->garbage_q), node, 
+                                 (void (*)(void*))rcu_hash_node_free);
         htable->garbage_q_len++;
     }
 }
@@ -344,9 +347,4 @@ size_t rcu_hash_list_updating_data(struct rcu_hash_table *htable, void ***data_a
     }
 
 	return node_cnt;
-}
-
-int rcu_hash_updating_flag(struct rcu_hash_table *htable)
-{
-    return htable->is_updating;
 }

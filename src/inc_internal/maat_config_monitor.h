@@ -18,17 +18,14 @@ extern "C"
 
 #include <stdint.h>
 
-#define CM_UPDATE_TYPE_NONE 0
-#define CM_UPDATE_TYPE_FULL 1
-#define CM_UPDATE_TYPE_INC  2
-
 void config_monitor_traverse(long long version, const char *idx_dir,
 							void (*start_fn)(long long, int, void *),
 							int (*update_fn)(const char *, const char *, void *),
 							void (*finish_fn)(void *), void *u_param,
                             struct log_handle *logger);
 
-int load_maat_json_file(struct maat *maat_instance, const char *json_filename, char *err_str, size_t err_str_sz);
+int load_maat_json_file(struct maat *maat_instance, const char *json_filename, 
+                        char *err_str, size_t err_str_sz);
 
 #ifdef __cpluscplus
 }

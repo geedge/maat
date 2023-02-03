@@ -62,13 +62,6 @@ size_t rcu_hash_garbage_queue_len(struct rcu_hash_table *htable);
 
 size_t rcu_hash_list_updating_data(struct rcu_hash_table *htable, void ***data_array);
 
-/**
- * @brief check if rcu hash table is updating
- * 
- * @retval 1 means htable is updating, otherwise 0
-*/
-int rcu_hash_updating_flag(struct rcu_hash_table *htable);
-
 #ifdef __cpluscplus
 }
 #endif

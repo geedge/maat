@@ -12,11 +12,12 @@
 
 #include "log/log.h"
 #include "cJSON/cJSON.h"
-#include "utils.h"
 #include "maat_utils.h"
+#include "maat_rule.h"
 #include "maat_plugin.h"
 #include "maat_ex_data.h"
 #include "maat_limits.h"
+#include "maat_table.h"
 
 #define MODULE_PLUGIN	 module_name_str("maat.plugin")
 
@@ -49,6 +50,10 @@ struct plugin_schema {
     struct plugin_callback_schema cb[MAX_PLUGIN_PER_TABLE];
     struct ex_data_schema *ex_schema;
     int table_id; //ugly
+    struct table_manager *tbl_mgr;
+
+    unsigned long long update_err_cnt;
+    unsigned long long unmatch_tag_cnt;
 };
 
 static int read_integer_array(char *string, int *array, int size)
@@ -68,7 +73,8 @@ static int read_integer_array(char *string, int *array, int size)
 	return i;
 }
 
-void *plugin_schema_new(cJSON *json, const char *table_name, struct log_handle *logger)
+void *plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
+                        const char *table_name, struct log_handle *logger)
 {
     size_t read_cnt = 0;
     struct plugin_schema *plugin_schema = ALLOC(struct plugin_schema, 1);
@@ -82,7 +88,8 @@ void *plugin_schema_new(cJSON *json, const char *table_name, struct log_handle *
 
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
-        log_error(logger, MODULE_PLUGIN, "table %s has no custom column", table_name);
+        log_error(logger, MODULE_PLUGIN, 
+                  "table %s has no custom column", table_name);
         goto error;
     }
 
@@ -120,6 +127,8 @@ void *plugin_schema_new(cJSON *json, const char *table_name, struct log_handle *
             }
         }
     }
+
+    plugin_schema->tbl_mgr = tbl_mgr;
 
     if (read_cnt < 5) {
         goto error;
@@ -160,8 +169,9 @@ int plugin_table_add_callback(void *plugin_schema, int table_id,
     size_t idx = schema->cb_cnt;
 
 	if (idx == MAX_PLUGIN_PER_TABLE) {
-        log_error(logger, MODULE_PLUGIN, "the plugin number of table_id: %d exceed maxium:%d", 
-                                          table_id, MAX_PLUGIN_PER_TABLE);
+        log_error(logger, MODULE_PLUGIN, 
+                  "the plugin number of table_id: %d exceed maxium:%d", 
+                  table_id, MAX_PLUGIN_PER_TABLE);
 		return -1;
 	}
 
@@ -192,7 +202,8 @@ void plugin_table_all_callback_finish(struct plugin_schema *plugin_schema)
     }
 }
 
-int plugin_table_get_foreign_column(struct plugin_schema *plugin_schema, int *foreign_columns)
+int plugin_table_get_foreign_column(struct plugin_schema *plugin_schema, 
+                                    int *foreign_columns)
 {
     if (NULL == plugin_schema) {
         return -1;
@@ -221,7 +232,8 @@ int plugin_table_set_ex_data_schema(void *plugin_schema,
     if (schema->ex_schema != NULL) {
         assert(0);
         log_error(logger, MODULE_PLUGIN, 
-                  "Error: %s, EX data schema already registed", __FUNCTION__);
+                  "Error: %s, EX data schema already registed", 
+                  __FUNCTION__);
         return -1;
     }
     schema->ex_schema = ex_data_schema_new(new_func, free_func, dup_func, argl, argp);
@@ -239,7 +251,8 @@ struct ex_data_schema *plugin_table_get_ex_data_schema(void *plugin_schema)
     return schema->ex_schema;
 }
 
-void *plugin_runtime_new(void *plugin_schema, int max_thread_num, struct maat_garbage_bin *garbage_bin,
+void *plugin_runtime_new(void *plugin_schema, int max_thread_num, 
+                         struct maat_garbage_bin *garbage_bin,
                          struct log_handle *logger)
 {
     if (NULL == plugin_schema) {
@@ -248,7 +261,8 @@ void *plugin_runtime_new(void *plugin_schema, int max_thread_num, struct maat_ga
 
     struct plugin_schema *schema = (struct plugin_schema *)plugin_schema;
     struct plugin_runtime *plugin_rt = ALLOC(struct plugin_runtime, 1);
-    plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, ex_data_container_free, logger);
+    plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, 
+                                                ex_data_container_free, logger);
     plugin_rt->ref_garbage_bin = garbage_bin;
     plugin_rt->logger = logger;
 
@@ -270,18 +284,12 @@ void plugin_runtime_free(void *plugin_runtime)
     FREE(plugin_rt);
 }
 
-int plugin_runtime_updating_flag(void *plugin_runtime)
-{
-    struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
-    return ex_data_runtime_updating_flag(plugin_rt->ex_data_rt);
-}
-
-int plugin_runtime_update_row(struct plugin_runtime *plugin_rt, struct plugin_schema *plugin_schema, 
-                               const char *row, char *key, size_t key_len, int is_valid)
+int plugin_runtime_update_row(struct plugin_runtime *plugin_rt, 
+                              struct plugin_schema *plugin_schema, 
+                              const char *row, char *key, size_t key_len, 
+                              int is_valid)
 {
     int ret = -1;
-    void *ex_data = ex_data_runtime_row2ex_data(plugin_rt->ex_data_rt, row, key, key_len);
-    struct ex_data_container *ex_container = ex_data_container_new(ex_data, NULL);
     struct ex_data_schema *ex_schema = plugin_schema->ex_schema;
 
     /* already set plugin_table_schema's ex_data_schema */
@@ -294,6 +302,8 @@ int plugin_runtime_update_row(struct plugin_runtime *plugin_rt, struct plugin_sc
             }
         } else {
             // add
+            void *ex_data = ex_data_runtime_row2ex_data(plugin_rt->ex_data_rt, row, key, key_len);
+            struct ex_data_container *ex_container = ex_data_container_new(ex_data, NULL);
             ret = ex_data_runtime_add_ex_container(plugin_rt->ex_data_rt, key, key_len, ex_container);
             if (ret < 0) {
                 return -1;
@@ -313,33 +323,77 @@ int plugin_runtime_update_row(struct plugin_runtime *plugin_rt, struct plugin_sc
         ex_data_runtime_cache_row_put(plugin_rt->ex_data_rt, row);
     }
 
-    plugin_rt->acc_line_num++;
-
     return 0;
 }
 
-int plugin_runtime_update(void *plugin_runtime, void *plugin_schema, const char *line,
-                          int valid_column)
+int plugin_accept_tag_match(struct plugin_schema *schema, const char *line,
+                            struct log_handle *logger)
 {
-    if (NULL == plugin_runtime || NULL == plugin_runtime) {
+    size_t column_offset = 0;
+    size_t column_len = 0;
+    size_t n_tag = table_manager_accept_tags_count(schema->tbl_mgr);
+
+    if (schema->rule_tag_column > 0 && n_tag > 0) {
+        int ret = get_column_pos(line, schema->rule_tag_column, &column_offset, &column_len);
+        if (ret < 0) {
+            log_error(logger, MODULE_PLUGIN,
+                      "plugin table(table_id:%d) has no rule_tag, line:%s",
+                      schema->table_id, line);
+            schema->update_err_cnt++;
+            return TAG_MATCH_ERR;
+        }
+
+        if (column_len > 2) {
+            char *tag_str = ALLOC(char, column_len + 1);
+            memcpy(tag_str, (line + column_offset), column_len);
+            ret = table_manager_accept_tags_match(schema->tbl_mgr, tag_str);
+            FREE(tag_str);
+            if (TAG_MATCH_ERR == ret) {
+                log_error(logger, MODULE_PLUGIN,
+                          "plugin table(table_id:%d) has invalid tag format, line:%s",
+                          schema->table_id, line);
+                schema->update_err_cnt++;
+                return TAG_MATCH_ERR;
+            }
+
+            if (TAG_MATCH_UNMATCHED == ret) {
+                schema->unmatch_tag_cnt++;
+                return TAG_MATCH_UNMATCHED;
+            }
+        }
+    }
+
+    return TAG_MATCH_MATCHED;
+}
+
+int plugin_runtime_update(void *plugin_runtime, void *plugin_schema, 
+                          const char *line, int valid_column)
+{
+    if (NULL == plugin_runtime || NULL == plugin_schema) {
         return -1;
     }
 
     struct plugin_schema *schema = (struct plugin_schema *)plugin_schema;
     struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
-    int item_id = get_column_value(line, schema->item_id_column);
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
         return -1;
     }
-    char *key = (char *)&item_id;
 
-    int ret = plugin_runtime_update_row(plugin_rt, schema, line, key, sizeof(int), is_valid);
-    if (ret < 0) {
-
-    } else {
-        
+    int ret = plugin_accept_tag_match(schema, line, plugin_rt->logger);
+    if (ret == TAG_MATCH_UNMATCHED) {
+        return -1;
     }
+
+    int item_id = get_column_value(line, schema->item_id_column);
+    char *key = (char *)&item_id;
+    ret = plugin_runtime_update_row(plugin_rt, schema, line, key, sizeof(int), is_valid);
+    if (ret < 0) {
+        schema->update_err_cnt++;
+        return -1;
+    }
+    plugin_rt->acc_line_num++;
+
     return 0;
 }
 
@@ -351,7 +405,6 @@ int plugin_runtime_commit(void *plugin_runtime)
 
     struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
     ex_data_runtime_commit(plugin_rt->ex_data_rt);
-    //table_rt->rule_num = ex_data_runtime_ex_container_count(table_rt->plugin_rt.ex_data_rt);
 
     return 0;
 }

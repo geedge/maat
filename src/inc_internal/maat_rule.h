@@ -34,6 +34,22 @@ extern "C"
 
 #define MAX_TABLE_NUM	256
 
+#define MAAT_UPDATE_TYPE_NONE 0
+#define	MAAT_UPDATE_TYPE_FULL 1
+#define	MAAT_UPDATE_TYPE_INC 2
+
+enum last_scan_flag {
+    LAST_SCAN_UNSET,
+    LAST_SCAN_SET,
+    LAST_SCAN_FINISHED
+};
+
+enum tag_match {
+    TAG_MATCH_ERR = -1,
+    TAG_MATCH_UNMATCHED,
+    TAG_MATCH_MATCHED
+};
+
 struct maat_rule_head {
 	int config_id;
 	int	service_id;
@@ -89,7 +105,7 @@ struct compile_rule {
 
 struct group2group_rule {
     int group_id;
-	int superior_group_id;
+	int super_group_id;
 };
 
 struct maat_runtime {
@@ -223,9 +239,11 @@ struct maat {
     /* statistics */
     long long line_cmd_acc_num;
 
-    long long *outer_mid_cnt;
-    long long *compile_mid_cnt;
+    long long *outer_state_cnt;
+    long long *compile_state_cnt;
     long long *thread_call_cnt;
+    long long *hit_cnt;
+    long long *not_grp_hit_cnt;
 
     long long scan_err_cnt;
 };
@@ -238,7 +256,7 @@ struct maat_state {
 	unsigned char is_last_scan;
 	int district_id; //-1: Any District; -2: Unkonwn District;
 	int scan_cnt;
-	struct maat_compile_state *compile_mid;
+	struct maat_compile_state *compile_state;
 };
 
 size_t parse_accept_tag(const char *value, struct rule_tag **result, struct log_handle *logger);
@@ -264,7 +282,8 @@ void *rule_monitor_loop(void *arg);
 void maat_read_full_config(struct maat *maat_instance);
 
 /* maat command API for internal */
-redisContext *maat_cmd_connect_redis(const char *redis_ip, int redis_port, int redis_db, struct log_handle *logger);
+redisContext *maat_cmd_connect_redis(const char *redis_ip, int redis_port,
+                                     int redis_db, struct log_handle *logger);
 
 redisReply *maat_cmd_wrap_redis_command(redisContext *c, const char *format, ...);
 
@@ -274,35 +293,39 @@ long long maat_cmd_redis_server_time_s(redisContext *c);
 
 long long maat_cmd_read_redis_integer(const redisReply *reply);
 
-int maat_cmd_get_valid_flag_offset(const char *line, enum table_type table_type, int valid_column_seq);
+int maat_cmd_get_valid_flag_offset(const char *line, enum table_type table_type,
+                                   int valid_column_seq);
 
 const char *maat_cmd_find_Nth_column(const char *line, int Nth, int *column_len);
 
-int maat_cmd_write_rule(redisContext *c, struct serial_rule *s_rule, size_t serial_rule_num, 
-                        long long server_time, struct log_handle *logger);
+int maat_cmd_write_rule(redisContext *c, struct serial_rule *s_rule, 
+                        size_t serial_rule_num, long long server_time, 
+                        struct log_handle *logger);
 
 void maat_cmd_clear_rule_cache(struct serial_rule *s_rule);
 
-int maat_cmd_get_rm_key_list(redisContext *c, long long instance_version, long long desired_version, 
-                             long long *new_version, struct table_manager* tbl_mgr, 
-                             struct serial_rule **list, int *update_type, int cumulative_off,
-                             struct log_handle *logger);
+int maat_cmd_get_rm_key_list(redisContext *c, long long instance_version, 
+                             long long desired_version, long long *new_version, 
+                             struct table_manager *tbl_mgr, struct serial_rule **list, 
+                             int *update_type, int cumulative_off, struct log_handle *logger);
 
-int maat_cmd_get_redis_value(redisContext *c, struct serial_rule *rule_list, int rule_num, int print_process,
-                             struct log_handle *logger);
+int maat_cmd_get_redis_value(redisContext *c, struct serial_rule *rule_list, 
+                             int rule_num, int print_process, struct log_handle *logger);
 
-int maat_cmd_get_foreign_keys_by_prefix(redisContext *ctx, struct serial_rule *rule_list, int rule_num, 
-                                        const char *dir, struct log_handle *logger);
+int maat_cmd_get_foreign_keys_by_prefix(redisContext *ctx, struct serial_rule *rule_list, 
+                                        int rule_num, const char* dir, struct log_handle *logger);
 
-void maat_cmd_get_foreign_conts(redisContext *ctx, struct serial_rule *rule_list, int rule_num, int print_fn,
-                                struct log_handle *logger);
+void maat_cmd_get_foreign_conts(redisContext *c, struct serial_rule *rule_list, 
+                                int rule_num, int print_fn, struct log_handle *logger);
 
 void maat_cmd_rewrite_table_line_with_foreign(struct serial_rule *s_rule);
 
-void maat_cmd_set_serial_rule(struct serial_rule *rule, enum maat_operation op, unsigned long rule_id, 
-                              const char *table_name, const char *line, long long timeout);
+void maat_cmd_set_serial_rule(struct serial_rule *rule, enum maat_operation op,
+                              unsigned long rule_id, const char *table_name,
+                              const char *line, long long timeout);
 
-void fill_maat_rule(struct maat_rule *rule, const struct maat_rule_head *rule_head, const char *srv_def, int srv_def_len);
+void fill_maat_rule(struct maat_rule *rule, const struct maat_rule_head *rule_head,
+                    const char *srv_def, int srv_def_len);
 
 #ifdef __cpluscplus
 }

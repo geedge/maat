@@ -24,7 +24,8 @@ struct maat_garbage_bin *maat_garbage_bin_new(int default_timeout);
 
 void maat_garbage_bin_free(struct maat_garbage_bin *bin);
 
-void maat_garbage_bagging(struct maat_garbage_bin *bin, void *garbage, void (* func)(void *));
+void maat_garbage_bagging(struct maat_garbage_bin* bin, void* garbage, 
+                          void (* func)(void *));
 
 void maat_garbage_collect_routine(struct maat_garbage_bin *bin);
 

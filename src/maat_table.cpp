@@ -12,7 +12,6 @@
 #include <assert.h>
 
 #include "log/log.h"
-#include "utils.h"
 #include "maat_utils.h"
 #include "maat_table.h"
 #include "maat_rule.h"
@@ -26,7 +25,7 @@
 #include "maat_ip_plugin.h"
 #include "maat_virtual.h"
 
-#define MODULE_TABLE	 module_name_str("maat.table")
+#define MODULE_TABLE  module_name_str("maat.table")
 
 struct table_item {
     enum table_type table_type;
@@ -50,21 +49,28 @@ struct table_manager {
     size_t n_accept_tag;
 
     int default_compile_table_id;
+    int g2g_table_id;
     struct maat_kv_store *tablename2id_map;
+
+    struct maat_kv_store *district_map;
+    struct maat_kv_store *tmp_district_map;
+
+    struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
 };
 
 struct table_operations {
     enum table_type type;
-    void *(*new_schema)(cJSON *json, const char *table_name, struct log_handle *logger);
+    void *(*new_schema)(cJSON *json, struct table_manager *tbl_mgr, const char *table_name,
+                        struct log_handle *logger);
     void (*free_schema)(void *schema);
 
-    void *(*new_runtime)(void *schema, int max_thread_num, struct maat_garbage_bin *garbage_bin, struct log_handle *logger);
+    void *(*new_runtime)(void *schema, int max_thread_num, struct maat_garbage_bin *garbage_bin,
+                         struct log_handle *logger);
     void (*free_runtime)(void *runtime);
 
     int (*update_runtime)(void *runtime, void *schema, const char *line, int valid_column);
     int (*commit_runtime)(void *runtime);
-    int (*runtime_updating_flag)(void *runtime);
 };
 
 struct table_operations table_ops[TABLE_TYPE_MAX] = {
@@ -75,8 +81,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = expr_runtime_new,
         .free_runtime = expr_runtime_free,
         .update_runtime = expr_runtime_update,
-        .commit_runtime = expr_runtime_commit,
-        .runtime_updating_flag = expr_runtime_updating_flag
+        .commit_runtime = expr_runtime_commit
     },
     {
         .type = TABLE_TYPE_EXPR_PLUS,
@@ -85,18 +90,16 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = expr_runtime_new,
         .free_runtime = expr_runtime_free,
         .update_runtime = expr_runtime_update,
-        .commit_runtime = expr_runtime_commit,
-        .runtime_updating_flag = expr_runtime_updating_flag
+        .commit_runtime = expr_runtime_commit
     },
     {
         .type = TABLE_TYPE_IP_PLUS,
-        .new_schema = ip_plus_schema_new,
-        .free_schema = ip_plus_schema_free,
-        .new_runtime = ip_plus_runtime_new,
-        .free_runtime = ip_plus_runtime_free,
-        .update_runtime = ip_plus_runtime_update,
-        .commit_runtime = ip_plus_runtime_commit,
-        .runtime_updating_flag = ip_plus_runtime_updating_flag
+        .new_schema = ip_schema_new,
+        .free_schema = ip_schema_free,
+        .new_runtime = ip_runtime_new,
+        .free_runtime = ip_runtime_free,
+        .update_runtime = ip_runtime_update,
+        .commit_runtime = ip_runtime_commit
     },
     {
         .type = TABLE_TYPE_INTERVAL,
@@ -105,8 +108,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = NULL,
         .free_runtime = NULL,
         .update_runtime = NULL,
-        .commit_runtime = NULL,
-        .runtime_updating_flag = NULL
+        .commit_runtime = NULL
     },
     {
         .type = TABLE_TYPE_INTERVAL_PLUS,
@@ -115,8 +117,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = NULL,
         .free_runtime = NULL,
         .update_runtime = NULL,
-        .commit_runtime = NULL,
-        .runtime_updating_flag = NULL
+        .commit_runtime = NULL
     },
     {
         .type = TABLE_TYPE_DIGEST,
@@ -125,8 +126,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = NULL,
         .free_runtime = NULL,
         .update_runtime = NULL,
-        .commit_runtime = NULL,
-        .runtime_updating_flag = NULL
+        .commit_runtime = NULL
     },
     {
         .type = TABLE_TYPE_SIMILARITY,
@@ -135,8 +135,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = NULL,
         .free_runtime = NULL,
         .update_runtime = NULL,
-        .commit_runtime = NULL,
-        .runtime_updating_flag = NULL
+        .commit_runtime = NULL
     },
     {   
         .type = TABLE_TYPE_CONJUNCTION,
@@ -145,8 +144,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = NULL,
         .free_runtime = NULL,
         .update_runtime = NULL,
-        .commit_runtime = NULL,
-        .runtime_updating_flag = NULL
+        .commit_runtime = NULL
     },
     {
         .type = TABLE_TYPE_PLUGIN,
@@ -155,8 +153,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = plugin_runtime_new,
         .free_runtime = plugin_runtime_free,
         .update_runtime = plugin_runtime_update,
-        .commit_runtime = plugin_runtime_commit,
-        .runtime_updating_flag = plugin_runtime_updating_flag
+        .commit_runtime = plugin_runtime_commit
     },
     {
         .type = TABLE_TYPE_IP_PLUGIN,
@@ -165,8 +162,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = ip_plugin_runtime_new,
         .free_runtime = ip_plugin_runtime_free,
         .update_runtime = ip_plugin_runtime_update,
-        .commit_runtime = ip_plugin_runtime_commit,
-        .runtime_updating_flag = ip_plugin_runtime_updating_flag
+        .commit_runtime = ip_plugin_runtime_commit
     },
     {
         .type = TABLE_TYPE_FQDN_PLUGIN,
@@ -202,8 +198,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = compile_runtime_new,
         .free_runtime = compile_runtime_free,
         .update_runtime = compile_runtime_update,
-        .commit_runtime = compile_runtime_commit,
-        .runtime_updating_flag = NULL
+        .commit_runtime = compile_runtime_commit
     },
     {
         .type = TABLE_TYPE_GROUP2GROUP,
@@ -212,8 +207,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = group2group_runtime_new,
         .free_runtime = group2group_runtime_free,
         .update_runtime = group2group_runtime_update,
-        .commit_runtime = group2group_runtime_commit,
-        .runtime_updating_flag = NULL
+        .commit_runtime = group2group_runtime_commit
     },
     {
         .type = TABLE_TYPE_GROUP2COMPILE,
@@ -222,18 +216,19 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = group2compile_runtime_new,
         .free_runtime = group2compile_runtime_free,
         .update_runtime = group2compile_runtime_update,
-        .commit_runtime = NULL,
-        .runtime_updating_flag = NULL
+        .commit_runtime = NULL
     }
 };
 
-void *maat_table_schema_new(cJSON *json, const char *table_name, enum table_type table_type,
+void *maat_table_schema_new(cJSON *json, const char *table_name, 
+                            enum table_type table_type, 
+                            struct table_manager *tbl_mgr, 
                             struct log_handle *logger)
 {
     void *schema = NULL;
 
     if (table_ops[table_type].new_schema != NULL) {
-        schema = table_ops[table_type].new_schema(json, table_name, logger);
+        schema = table_ops[table_type].new_schema(json, tbl_mgr, table_name, logger);
     }
 
     return schema;
@@ -378,8 +373,9 @@ void maat_table_free(struct maat_table *maat_tbl)
     FREE(maat_tbl);
 }
 
-struct table_manager *table_manager_create(const char *table_info_path, const char *accept_tags,
-                                           struct log_handle *logger)
+struct table_manager *
+table_manager_create(const char *table_info_path, const char *accept_tags,
+                     struct maat_garbage_bin *garbage_bin, struct log_handle *logger)
 {
     if (NULL == table_info_path) {
         return NULL;
@@ -389,7 +385,8 @@ struct table_manager *table_manager_create(const char *table_info_path, const ch
     size_t json_buff_sz = 0;
     int ret = load_file_to_memory(table_info_path, &json_buff, &json_buff_sz);
     if (ret < 0) {
-        log_error(logger, MODULE_TABLE, "Maat read table info %s error.", table_info_path);
+        log_error(logger, MODULE_TABLE, 
+                  "Maat read table info %s error.", table_info_path);
         return NULL;
     }
 
@@ -397,14 +394,16 @@ struct table_manager *table_manager_create(const char *table_info_path, const ch
     cJSON *json = NULL;
     root = cJSON_Parse((const char *)json_buff);
 	if (!root) {
-        log_error(logger, MODULE_TABLE, "Error before: %-200.200s", cJSON_GetErrorPtr());
+        log_error(logger, MODULE_TABLE, 
+                  "Error before: %-200.200s", cJSON_GetErrorPtr());
         FREE(json_buff);
         return NULL;
     }
 
     int json_array_size = cJSON_GetArraySize(root);
     if (json_array_size <= 0) {
-        log_error(logger, MODULE_TABLE, "invalid json content in %s", table_info_path);
+        log_error(logger, MODULE_TABLE, 
+                  "invalid json content in %s", table_info_path);
         free(json_buff);
         return NULL;
     }
@@ -416,8 +415,11 @@ struct table_manager *table_manager_create(const char *table_info_path, const ch
     tbl_mgr->n_accept_tag = parse_accept_tag(accept_tags, &tbl_mgr->accept_tags, logger);
     tbl_mgr->logger = logger;
     tbl_mgr->tablename2id_map = maat_kv_store_new();
+    tbl_mgr->district_map = maat_kv_store_new();
+    tbl_mgr->ref_garbage_bin = garbage_bin;
 
     int default_compile_table_id = MAX_TABLE_NUM;
+    int g2g_table_id = MAX_TABLE_NUM;
 
     for (int i = 0; i < json_array_size; i++) {
         json = cJSON_GetArrayItem(root, i);
@@ -437,10 +439,11 @@ struct table_manager *table_manager_create(const char *table_info_path, const ch
                 continue;
             }
 
-            maat_tbl->schema = maat_table_schema_new(json, maat_tbl->table_name, maat_tbl->table_type, logger);
+            maat_tbl->schema = maat_table_schema_new(json, maat_tbl->table_name, 
+                                                     maat_tbl->table_type, tbl_mgr, logger);
             if (NULL == maat_tbl->schema) {
-                log_error(logger, MODULE_TABLE, "Maat table schema new failed, table_name:%s", 
-                          maat_tbl->table_name);
+                log_error(logger, MODULE_TABLE, 
+                          "Maat table schema new failed, table_name:%s", maat_tbl->table_name);
                 maat_table_free(maat_tbl);
                 continue;
             }
@@ -451,14 +454,23 @@ struct table_manager *table_manager_create(const char *table_info_path, const ch
                 }
             }
 
+            if (maat_tbl->table_type == TABLE_TYPE_GROUP2GROUP) {
+                g2g_table_id = maat_tbl->table_id;
+            }
+
             tbl_mgr->tbl[maat_tbl->table_id] = maat_tbl;
             tbl_mgr->n_table++;
         }
     }
 	
     assert(default_compile_table_id != MAX_TABLE_NUM);
+    assert(g2g_table_id != MAX_TABLE_NUM);
+
     tbl_mgr->default_compile_table_id = default_compile_table_id;
+    tbl_mgr->g2g_table_id = g2g_table_id;
+
     log_info(logger, MODULE_TABLE, "default compile table id: %d", default_compile_table_id);
+    log_info(logger, MODULE_TABLE, "group2group table id: %d", g2g_table_id);
 
     maat_kv_store_free(reserved_word_map);
     cJSON_Delete(root);
@@ -490,7 +502,6 @@ int table_manager_runtime_create(struct table_manager *tbl_mgr, int max_thread_n
     assert(tbl_mgr->n_table != 0);
 
     size_t i = 0;
-    int g2g_group_id = MAX_TABLE_NUM;
     enum table_type table_type = TABLE_TYPE_MAX;
 
     for (i = 0; i < MAX_TABLE_NUM; i++) {
@@ -500,16 +511,10 @@ int table_manager_runtime_create(struct table_manager *tbl_mgr, int max_thread_n
         }
      
         table_type = table_manager_get_table_type(tbl_mgr, i);
-        if (table_type == TABLE_TYPE_GROUP2GROUP) {
-            g2g_group_id = i;
-        }
-
         assert(NULL == tbl_mgr->tbl[i]->runtime);
         tbl_mgr->tbl[i]->runtime = maat_table_runtime_new(schema, table_type, max_thread_num,
                                                           garbage_bin, tbl_mgr->logger);
     }
-
-    assert(g2g_group_id != MAX_TABLE_NUM);
 
     /* group2compile runtime depends on associated compile runtime,
        must make sure associated compile runtime already exist */
@@ -528,9 +533,13 @@ int table_manager_runtime_create(struct table_manager *tbl_mgr, int max_thread_n
         void *schema = table_manager_get_schema(tbl_mgr, i);
         int associated_compile_table_id = group2compile_associated_compile_table_id(schema);
         void *compile_rt = table_manager_get_runtime(tbl_mgr, associated_compile_table_id);
+        int g2g_group_id = table_manager_get_group2group_table_id(tbl_mgr);
         void *g2g_rt = table_manager_get_runtime(tbl_mgr, g2g_group_id);
         group2compile_runtime_init(runtime, compile_rt, g2g_rt);
     }
+
+    /* new district map */
+    tbl_mgr->district_map = maat_kv_store_new();
 
     return 0;
 }
@@ -551,6 +560,9 @@ void table_manager_runtime_destroy(struct table_manager *tbl_mgr)
 		maat_table_runtime_free(runtime, table_type);
         tbl_mgr->tbl[i]->runtime = NULL;
 	}
+
+    /* free district map */
+    maat_kv_store_free(tbl_mgr->district_map);
 }
 
 void table_manager_destroy(struct table_manager *tbl_mgr)
@@ -580,6 +592,7 @@ void table_manager_destroy(struct table_manager *tbl_mgr)
 	FREE(tbl_mgr->accept_tags);
 
 	maat_kv_store_free(tbl_mgr->tablename2id_map);
+    
 	FREE(tbl_mgr);
 }
 
@@ -622,6 +635,11 @@ int table_manager_get_defaut_compile_table_id(struct table_manager *tbl_mgr)
     return tbl_mgr->default_compile_table_id;
 }
 
+int table_manager_get_group2group_table_id(struct table_manager *tbl_mgr)
+{
+    return tbl_mgr->g2g_table_id;
+}
+
 void *table_manager_get_schema(struct table_manager *tbl_mgr, int table_id)
 {
     if (NULL == tbl_mgr || table_id < 0 || table_id >= MAX_TABLE_NUM) {
@@ -635,7 +653,8 @@ void *table_manager_get_schema(struct table_manager *tbl_mgr, int table_id)
     return tbl_mgr->tbl[table_id]->schema;
 }
 
-struct ex_data_schema *table_manager_get_table_ex_data_schema(struct table_manager *tbl_mgr, int table_id)
+struct ex_data_schema *
+table_manager_get_table_ex_data_schema(struct table_manager *tbl_mgr, int table_id)
 {
     return NULL;
 }
@@ -653,9 +672,21 @@ int table_manager_get_valid_column(struct table_manager *tbl_mgr, int table_id)
     return tbl_mgr->tbl[table_id]->valid_column;
 }
 
+size_t table_manager_accept_tags_count(struct table_manager *tbl_mgr)
+{
+    return tbl_mgr->n_accept_tag;
+}
+
 int table_manager_accept_tags_match(struct table_manager *tbl_mgr, const char *tags)
 {
-    return 0;
+    return compare_accept_tag(tags, tbl_mgr->accept_tags, tbl_mgr->n_accept_tag);
+}
+
+int table_manager_set_scan_district(struct table_manager *tbl_mgr, const char *district_str, 
+                                    size_t district_str_len, int *district_id)
+{
+    return maat_kv_read_unNull(tbl_mgr->district_map,
+                                       district_str, district_str_len, district_id);
 }
 
 void *table_manager_get_runtime(struct table_manager *tbl_mgr, int table_id)
@@ -671,26 +702,8 @@ void *table_manager_get_runtime(struct table_manager *tbl_mgr, int table_id)
 	return tbl_mgr->tbl[table_id]->runtime;
 }
 
-int table_manager_runtime_updating_flag(struct table_manager *tbl_mgr, int table_id)
-{
-    if (NULL == tbl_mgr) {
-        return -1;
-    }
-
-    if (NULL == tbl_mgr->tbl[table_id]) {
-        return -1;
-    }
-
-    enum table_type table_type = tbl_mgr->tbl[table_id]->table_type;
-    void *runtime = table_manager_get_runtime(tbl_mgr, table_id);
-    if (table_ops[table_type].runtime_updating_flag != NULL) {
-        return table_ops[table_type].runtime_updating_flag(runtime);
-    }
-    
-    return -1;
-}
-
-int table_manager_update_runtime(struct table_manager *tbl_mgr, int table_id, const char *line)
+int table_manager_update_runtime(struct table_manager *tbl_mgr, int table_id, 
+                                 const char *line)
 {
     void *schema = table_manager_get_schema(tbl_mgr, table_id);
     if (NULL == schema) {
@@ -716,7 +729,16 @@ int table_manager_update_runtime(struct table_manager *tbl_mgr, int table_id, co
         return -1;
     }
 
-    return table_ops[table_type].update_runtime(runtime, schema, line, valid_column);
+    int ret = table_ops[table_type].update_runtime(runtime, schema, line, valid_column);
+
+    if (tbl_mgr->tmp_district_map != NULL) {
+        struct maat_kv_store *tmp_map = tbl_mgr->district_map;
+        tbl_mgr->district_map = tbl_mgr->tmp_district_map;
+        tbl_mgr->tmp_district_map = NULL;
+        maat_garbage_bagging(tbl_mgr->ref_garbage_bin, tmp_map, (void (*)(void *))maat_kv_store_free);
+    }
+
+    return ret;
 }
 
 void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id)

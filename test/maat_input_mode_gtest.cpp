@@ -1,4 +1,3 @@
-#include "utils.h"
 #include "maat/maat.h"
 #include "maat_utils.h"
 #include "maat_rule.h"
@@ -10,10 +9,6 @@
 
 const char *table_info_path = "./table_info.conf";
 const char *json_filename = "maat_json.json";
-
-TEST(EQ_Test, Always_True) {
-  EXPECT_EQ(1, 1);
-}
 
 TEST(json_mode, maat_scan_string) {
     char json_iris_path[128] = {0};
@@ -38,7 +33,7 @@ TEST(json_mode, maat_scan_string) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data), results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_HIT);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 191);
 
@@ -81,7 +76,7 @@ TEST(iris_mode, maat_scan_string) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data), results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_HIT);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 191);
 
@@ -201,7 +196,7 @@ TEST(redis_mode, maat_scan_string) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data), results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_HIT);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 191);
 

@@ -16,7 +16,6 @@
 #include <dirent.h>
 #include <unistd.h>
 
-#include "utils.h"
 #include "maat_utils.h"
 #include "maat_rule.h"
 #include "json2iris.h"
@@ -84,7 +83,8 @@ const char *path2filename(const char *path)
 	return path + i + 1;
 }
 
-char *read_nxt_line_from_buff(const char *buff, size_t buff_size, size_t *offset, char *line, int line_size)
+char *read_nxt_line_from_buff(const char *buff, size_t buff_size, 
+                              size_t *offset, char *line, int line_size)
 {
 	int this_offset=0;
 	const char* p;
@@ -221,7 +221,7 @@ int get_new_idx_path(long long current_version, const char *file_dir,
                      char ***idx_path, size_t *idx_num, struct log_handle *logger)
 {
 	struct dirent **namelist = NULL;
-	int update_type = CM_UPDATE_TYPE_NONE;
+	int update_type = MAAT_UPDATE_TYPE_NONE;
 	
 	int n = my_scandir(file_dir, &namelist, filter_fn, (int (*)(const void*, const void*))alphasort);
 	if (n < 0) {
@@ -285,7 +285,7 @@ int get_new_idx_path(long long current_version, const char *file_dir,
 		(*idx_path)[0] = (char *)malloc(path_len);
 		snprintf((*idx_path)[0], path_len, "%s/%s", file_dir, namelist[full_file_idx]->d_name);
 		*idx_num = 1;
-		update_type = CM_UPDATE_TYPE_FULL;
+		update_type = MAAT_UPDATE_TYPE_FULL;
 	} else if (latest_inc_version > current_version) {
 		//inc update,it's possible that do inc after full update in this function,but we'll process it at next loop.
 		*idx_path = (char **)malloc(sizeof(char **) * inc_idx_num);
@@ -295,9 +295,9 @@ int get_new_idx_path(long long current_version, const char *file_dir,
 			snprintf((*idx_path)[i], path_len, "%s/%s", file_dir, namelist[inc_file_idx[i]]->d_name);
 		}
 		*idx_num = inc_idx_num;
-		update_type = CM_UPDATE_TYPE_INC;
+		update_type = MAAT_UPDATE_TYPE_INC;
 	} else {
-		update_type = CM_UPDATE_TYPE_NONE;
+		update_type = MAAT_UPDATE_TYPE_NONE;
 	}
 
 	FREE(inc_file_idx);
@@ -324,7 +324,7 @@ void config_monitor_traverse(long long current_version, const char *idx_dir,
 	memset(table_array, 0, sizeof(table_array));
 
 	int update_type = get_new_idx_path(current_version, idx_dir, &idx_path_array, &idx_path_num, logger);
-	if (update_type != CM_UPDATE_TYPE_NONE) {
+	if (update_type != MAAT_UPDATE_TYPE_NONE) {
 		for (i = 0; i < idx_path_num; i++) {
             log_info(logger, MODULE_CONFIG_MONITOR, "load %s", idx_path_array[i]);
 			int table_num = cm_read_cfg_index_file(idx_path_array[i], table_array, CM_MAX_TABLE_NUM);
@@ -370,12 +370,15 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
     size_t uncompressed_buff_sz = 0;
 
 	log_info(maat_instance->logger, MODULE_CONFIG_MONITOR, 
-            "Maat initial with JSON file %s, formating...", json_filename);
+            "Maat initial with JSON file %s, formating...", 
+            json_filename);
 
 	if (strlen(maat_instance->decrypt_key) && strlen(maat_instance->decrypt_algo)) {
-		ret = decrypt_open(json_filename, maat_instance->decrypt_key, maat_instance->decrypt_algo, 
-                            (unsigned char **)&decrypted_buff, &decrypted_buff_sz, 
-                            err_str, err_str_sz);
+		ret = decrypt_open(json_filename, maat_instance->decrypt_key, 
+                           maat_instance->decrypt_algo, 
+                           (unsigned char **)&decrypted_buff, 
+                           &decrypted_buff_sz, 
+                           err_str, err_str_sz);
 		if (ret < 0) {
 			log_error(maat_instance->logger, MODULE_CONFIG_MONITOR, 
                       "Decrypt Maat JSON file %s failed", json_filename);
@@ -387,7 +390,8 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
 	}
     
 	if (maat_instance->maat_json_is_gzipped) {
-		ret = gzip_uncompress(json_buff, json_buff_sz, &uncompressed_buff, &uncompressed_buff_sz);
+		ret = gzip_uncompress(json_buff, json_buff_sz, &uncompressed_buff, 
+                              &uncompressed_buff_sz);
 		FREE(json_buff);
 		if (ret < 0) {
 			log_error(maat_instance->logger, MODULE_CONFIG_MONITOR, 
@@ -410,7 +414,8 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
 	}
 
 	ret = json2iris((const char*)json_buff, json_filename, NULL,
-			        maat_instance->json_ctx.iris_file, sizeof(maat_instance->json_ctx.iris_file),
+			        maat_instance->json_ctx.iris_file, 
+                    sizeof(maat_instance->json_ctx.iris_file),
 			        strlen(maat_instance->decrypt_key) ? maat_instance->decrypt_key : NULL,
 			        strlen(maat_instance->decrypt_algo) ? maat_instance->decrypt_algo : NULL,
                     maat_instance->logger);
@@ -422,17 +427,20 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
 	}
 
 	if (!maat_instance->is_running) {
-		strncpy(maat_instance->json_ctx.json_file, json_filename, sizeof(maat_instance->json_ctx.json_file));
+		strncpy(maat_instance->json_ctx.json_file, json_filename, 
+                sizeof(maat_instance->json_ctx.json_file));
 	}
 	
 	ret = stat(json_filename, &fstat_buf);
 	maat_instance->json_ctx.last_md5_time = fstat_buf.st_ctim;
 	
 	md5_file(maat_instance->json_ctx.json_file, maat_instance->json_ctx.effective_json_md5);
-	log_info(maat_instance->logger, MODULE_CONFIG_MONITOR, "JSON file %s md5: %s, generate index file %s OK",
-					                                        maat_instance->json_ctx.json_file,
-					                                        maat_instance->json_ctx.effective_json_md5,
-					                                        maat_instance->json_ctx.iris_file);
+	log_info(maat_instance->logger, MODULE_CONFIG_MONITOR, 
+            "JSON file %s md5: %s, generate index file %s OK",
+			maat_instance->json_ctx.json_file,
+			maat_instance->json_ctx.effective_json_md5,
+		    maat_instance->json_ctx.iris_file);
+
 	maat_instance->input_mode = DATA_SOURCE_JSON_FILE;
 
 	return 0;	

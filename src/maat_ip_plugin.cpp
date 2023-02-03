@@ -10,9 +10,8 @@
 
 #include <assert.h>
 
-#include "maat_ip_plugin.h"
-#include "utils.h"
 #include "maat_utils.h"
+#include "maat_ip_plugin.h"
 #include "maat_ex_data.h"
 #include "IPMatcher.h"
 #include "maat_rule.h"
@@ -37,6 +36,10 @@ struct ip_plugin_schema {
 	int rule_tag_column;
 	struct ex_data_schema *ex_schema;
     int table_id; //ugly
+    struct table_manager *tbl_mgr;
+
+    unsigned long long update_err_cnt;
+    unsigned long long unmatch_tag_cnt;
 };
 
 struct ip_plugin_runtime {
@@ -50,7 +53,8 @@ struct ip_plugin_runtime {
     struct log_handle *logger;
 };
 
-void *ip_plugin_schema_new(cJSON *json, const char *table_name, struct log_handle *logger)
+void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
+                           const char *table_name, struct log_handle *logger)
 {
     size_t read_cnt = 0;
     struct ip_plugin_schema *ip_plugin_schema = ALLOC(struct ip_plugin_schema, 1);
@@ -64,7 +68,8 @@ void *ip_plugin_schema_new(cJSON *json, const char *table_name, struct log_handl
 
     item = cJSON_GetObjectItem(json, "custom");
     if (NULL == item || item->type != cJSON_Object) {
-        log_error(logger, MODULE_IP_PLUGIN, "table %s has no custom column", table_name);
+        log_error(logger, MODULE_IP_PLUGIN, 
+                  "table %s has no custom column", table_name);
         goto error;
     }
 
@@ -91,6 +96,8 @@ void *ip_plugin_schema_new(cJSON *json, const char *table_name, struct log_handl
         ip_plugin_schema->end_ip_column = custom_item->valueint;
         read_cnt++;
     }
+
+    ip_plugin_schema->tbl_mgr = tbl_mgr;
 
     if (read_cnt < 5) {
         goto error;
@@ -127,52 +134,102 @@ struct ex_data_schema *ip_plugin_table_get_ex_data_schema(void *ip_plugin_schema
     return schema->ex_schema;
 }
 
-struct ip_plugin_item *ip_plugin_item_new(const char *line, struct ip_plugin_schema *ip_plugin_schema,
-                                          struct log_handle *logger)
+int ip_plugin_accept_tag_match(struct ip_plugin_schema *schema, const char *line,
+                               struct log_handle *logger)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
+    size_t n_tag = table_manager_accept_tags_count(schema->tbl_mgr);
+
+    if (schema->rule_tag_column > 0 && n_tag > 0) {
+        int ret = get_column_pos(line, schema->rule_tag_column, 
+                                 &column_offset, &column_len);
+        if (ret < 0) {
+            log_error(logger, MODULE_IP_PLUGIN,
+                      "ip_plugin table(table_id:%d) has no rule_tag, line:%s",
+                      schema->table_id, line);
+            schema->update_err_cnt++;
+            return TAG_MATCH_ERR;
+        }
+
+        if (column_len > 2) {
+            char *tag_str = ALLOC(char, column_len + 1);
+            memcpy(tag_str, (line + column_offset), column_len);
+            ret = table_manager_accept_tags_match(schema->tbl_mgr, tag_str);
+            FREE(tag_str);
+            if (TAG_MATCH_ERR == ret) {
+                log_error(logger, MODULE_IP_PLUGIN,
+                          "ip_plugin table(table_id:%d) has invalid tag format, line:%s",
+                          schema->table_id, line);
+                schema->update_err_cnt++;
+                return TAG_MATCH_ERR;
+            }
+
+            if (TAG_MATCH_UNMATCHED == ret) {
+                schema->unmatch_tag_cnt++;
+                return TAG_MATCH_UNMATCHED;
+            }
+        }
+    }
+
+    return TAG_MATCH_MATCHED;
+}
+
+struct ip_plugin_item *
+ip_plugin_item_new(const char *line, struct ip_plugin_schema *schema,
+                   struct log_handle *logger)
+{
+    int ret = ip_plugin_accept_tag_match(schema, line, logger);
+    if (ret == TAG_MATCH_UNMATCHED) {
+        return NULL;
+    }
+
+    size_t column_offset = 0;
+    size_t column_len = 0;
     struct ip_plugin_item *ip_plugin_item = ALLOC(struct ip_plugin_item, 1);
-    
-    int ret = get_column_pos(line, ip_plugin_schema->item_id_column, &column_offset, &column_len);
+    ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_IP_PLUGIN, "ip plugin table(table_id:%d) line:%s has no item_id",
-                  ip_plugin_schema->table_id, line);
+        log_error(logger, MODULE_IP_PLUGIN, 
+                  "ip plugin table(table_id:%d) line:%s has no item_id",
+                  schema->table_id, line);
         goto error;
     }
     ip_plugin_item->item_id = atoi(line + column_offset);
 
-    ret = get_column_pos(line, ip_plugin_schema->ip_type_column, &column_offset, &column_len);
+    ret = get_column_pos(line, schema->ip_type_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_IP_PLUGIN, "ip plugin table(table_id:%d) line:%s has no ip_type",
-                  ip_plugin_schema->table_id, line);
+        log_error(logger, MODULE_IP_PLUGIN, 
+                  "ip plugin table(table_id:%d) line:%s has no ip_type",
+                  schema->table_id, line);
         goto error;
     }
     ip_plugin_item->ip_type = atoi(line + column_offset);
     if (ip_plugin_item->ip_type != 4 && ip_plugin_item->ip_type != 6) {
         log_error(logger, MODULE_IP_PLUGIN, 
                   "ip_plugin table(table_id:%d) line:%s ip_type[%d] invalid",
-                  ip_plugin_schema->table_id, line, ip_plugin_item->ip_type);
+                  schema->table_id, line, ip_plugin_item->ip_type);
         goto error;
     }
 
-    ret = get_column_pos(line, ip_plugin_schema->start_ip_column, &column_offset, &column_len);
+    ret = get_column_pos(line, schema->start_ip_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_IP_PLUGIN, 
                   "ip_plugin table(table_id:%d) line:%s has no start_ip",
-                  ip_plugin_schema->table_id, line);
+                  schema->table_id, line);
         goto error;
     }
-    strncpy(ip_plugin_item->start_ip, line + column_offset, MIN(column_len, sizeof(ip_plugin_item->start_ip)));
+    strncpy(ip_plugin_item->start_ip, line + column_offset, 
+            MIN(column_len, sizeof(ip_plugin_item->start_ip)));
     
-    ret = get_column_pos(line, ip_plugin_schema->end_ip_column, &column_offset, &column_len);
+    ret = get_column_pos(line, schema->end_ip_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_IP_PLUGIN, 
                   "ip_plugin table(table_id:%d) line:%s has no end_ip",
-                  ip_plugin_schema->table_id, line);
+                  schema->table_id, line);
         goto error;
     }
-    strncpy(ip_plugin_item->end_ip, line + column_offset, MIN(column_len, sizeof(ip_plugin_item->end_ip)));
+    strncpy(ip_plugin_item->end_ip, line + column_offset, 
+            MIN(column_len, sizeof(ip_plugin_item->end_ip)));
 
     return ip_plugin_item;
 error:
@@ -245,7 +302,8 @@ int ip_plugin_runtime_update_row(struct ip_plugin_runtime *rt, struct ip_plugin_
     return 0;
 }
 
-void *ip_plugin_runtime_new(void *ip_plugin_schema, int max_thread_num, struct maat_garbage_bin *garbage_bin,
+void *ip_plugin_runtime_new(void *ip_plugin_schema, int max_thread_num,
+                            struct maat_garbage_bin *garbage_bin,
                             struct log_handle *logger)
 {
     if (NULL == ip_plugin_schema) {
@@ -255,7 +313,8 @@ void *ip_plugin_runtime_new(void *ip_plugin_schema, int max_thread_num, struct m
     struct ip_plugin_schema *schema = (struct ip_plugin_schema *)ip_plugin_schema;
     struct ip_plugin_runtime *ip_plugin_rt = ALLOC(struct ip_plugin_runtime, 1);
 
-    ip_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, ex_data_container_free, logger);
+    ip_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, 
+                                                   ex_data_container_free, logger);
     ip_plugin_rt->ref_garbage_bin = garbage_bin;
     ip_plugin_rt->logger = logger;
 
@@ -298,10 +357,11 @@ void ip_plugin_item_to_ip_rule(struct ip_plugin_item *item, struct ip_rule *rule
     rule->user_tag = NULL;
 }
 
-int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema, const char *line,
-                             int valid_column)
+int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema, 
+                             const char *line, int valid_column)
 {
-    if (NULL == ip_plugin_runtime || NULL == ip_plugin_schema || NULL == line) {
+    if (NULL == ip_plugin_runtime || NULL == ip_plugin_schema || 
+        NULL == line) {
         return -1;
     }
 
@@ -323,7 +383,8 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema, co
     }
 
     char *key = (char *)&item_id;
-    int ret = ip_plugin_runtime_update_row(ip_plugin_rt, schema, line, key, sizeof(int), ip_plugin_item, is_valid);
+    int ret = ip_plugin_runtime_update_row(ip_plugin_rt, schema, line, key, 
+                                           sizeof(int), ip_plugin_item, is_valid);
     if (ret < 0) {
         if (ip_plugin_item != NULL) {
             FREE(ip_plugin_item);
@@ -370,31 +431,27 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime)
 
     if (rule_cnt > 0) {
          log_info(ip_plugin_rt->logger, MODULE_IP_PLUGIN, 
-                 "committing %zu ip_plugin rules for rebuilding ip_matcher engine", rule_cnt);
+                 "committing %zu ip_plugin rules for rebuilding ip_matcher engine", 
+                 rule_cnt);
         new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used);
         if (NULL == new_ip_matcher) {
             log_error(ip_plugin_rt->logger, MODULE_IP_PLUGIN, 
-                      "rebuild ip_matcher engine failed when update %zu ip_plugin rules", rule_cnt);
+                      "rebuild ip_matcher engine failed when update %zu ip_plugin rules", 
+                      rule_cnt);
             ret = -1;
         }
     }
 
     old_ip_matcher = ip_plugin_rt->ip_matcher;
     ip_plugin_rt->ip_matcher = new_ip_matcher;
-    maat_garbage_bagging(ip_plugin_rt->ref_garbage_bin, old_ip_matcher, (void (*)(void*))ip_matcher_free);
+    maat_garbage_bagging(ip_plugin_rt->ref_garbage_bin, old_ip_matcher, 
+                        (void (*)(void*))ip_matcher_free);
     ex_data_runtime_commit(ex_data_rt);
-    ip_plugin_rt->rule_num = ex_data_runtime_ex_container_count(ex_data_rt);
 
     FREE(rules);
     FREE(ex_container);
 
     return ret;
-}
-
-int ip_plugin_runtime_updating_flag(void *ip_plugin_runtime)
-{
-    struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
-    return ex_data_runtime_updating_flag(ip_plugin_rt->ex_data_rt);
 }
 
 struct ex_data_runtime *ip_plugin_runtime_get_ex_data_rt(void *ip_plugin_runtime)

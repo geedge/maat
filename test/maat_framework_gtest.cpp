@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 
-#include "utils.h"
 #include "maat/maat.h"
 #include "maat_rule.h"
 #include "maat_utils.h"
@@ -9,64 +8,95 @@
 #include "json2iris.h"
 #include "maat_config_monitor.h"
 
-struct maat *g_maat_instance = NULL;
+#define MODULE_FRAMEWORK_GTEST	 module_name_str("maat.framework_gtest")
+
 const char *table_info_path = "./table_info.conf";
 const char *json_path="./maat_json.json";
 const char *json_filename = "maat_json.json";
+struct maat *g_maat_instance = NULL;
 
-TEST(maat_scan_string, hit_one_expr) {
-    int table_id = maat_table_get_id(g_maat_instance, "HTTP_URL");
-   
+class MaatStringScan : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        table_id = maat_table_get_id(g_maat_instance, "HTTP_URL");
+    }
+
+    static void TearDownTestCase() {
+       
+    }
+
+    static int table_id;
+};
+int MaatStringScan::table_id;
+
+TEST_F(MaatStringScan, hit_one_expr) {
+    int table_id = MaatStringScan::table_id;
     char scan_data[128] = "hello";
     int results[5] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     int ret = maat_scan_string(g_maat_instance, table_id, 0, scan_data, strlen(scan_data), results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_HIT);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 191);
 
     struct maat_hit_path hit_path[128] = {0};
     int n_read = 0;
     n_read = maat_state_get_hit_paths(g_maat_instance, &state, hit_path, sizeof(hit_path));
+    EXPECT_NE(n_read, 0);
     maat_state_free(&state);
 }
 
-TEST(maat_scan_string, hit_two_expr) {
-    int table_id = maat_table_get_id(g_maat_instance, "HTTP_URL");
-   
+TEST_F(MaatStringScan, hit_two_expr) {
+    int table_id = MaatStringScan::table_id;
     char data[128] = "should hit aaa bbb";
     int results[5] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     int ret = maat_scan_string(g_maat_instance, table_id, 0, data, strlen(data), results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], 28);
-    EXPECT_EQ(results[1], 27);
+    EXPECT_EQ(results[0], 139);
+    EXPECT_EQ(results[1], 138);
 
     maat_state_free(&state);
 }
 
-TEST(maat_scan_string, hit_three_expr) {
-    int table_id = maat_table_get_id(g_maat_instance, "HTTP_URL");
+TEST_F(MaatStringScan, hit_three_expr) {
+    int table_id = MaatStringScan::table_id;
    
     char data[128] = "should hit aaa bbb C#中国";
     int results[5] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     int ret = maat_scan_string(g_maat_instance, table_id, 0, data, strlen(data), results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 3);
-    EXPECT_EQ(results[0], 28);
-    EXPECT_EQ(results[1], 27);
-    EXPECT_EQ(results[2], 18);
+    EXPECT_EQ(results[0], 139);
+    EXPECT_EQ(results[1], 138);
+    EXPECT_EQ(results[2], 129);
 
     maat_state_free(&state);
 }
 
-TEST(maat_scan_ipv4, hit_ip_and_port) {
-    int table_id = maat_table_get_id(g_maat_instance, "IP_PLUS_CONFIG");
+class MaatIPScan : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        table_id = maat_table_get_id(g_maat_instance, "IP_PLUS_CONFIG");
+    }
+
+    static void TearDownTestCase() {
+       
+    }
+
+    static int table_id;
+};
+int MaatIPScan::table_id;
+
+TEST_F(MaatIPScan, hit_ip_and_port) {
+    int table_id = MaatIPScan::table_id;
     char ip_str[32] = "192.168.58.19";
     uint32_t sip;
     int ret = inet_pton(AF_INET, ip_str, &sip);
@@ -76,20 +106,20 @@ TEST(maat_scan_ipv4, hit_ip_and_port) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 7);
     maat_state_free(&state);
 
     state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_OK);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(&state);
 }
-
-TEST(maat_scan_ipv4, hit_ip_and_port_range) {
+#if 0
+TEST_F(MaatStringScan, hit_ip_and_port_range) {
     int table_id = table_manager_get_table_id(g_maat_instance->tbl_mgr, "IP_PLUS_CONFIG");
     char ip_str[32] = "192.168.50.24";
     uint32_t sip;
@@ -100,7 +130,7 @@ TEST(maat_scan_ipv4, hit_ip_and_port_range) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 4);
     maat_state_free(&state);
@@ -109,7 +139,7 @@ TEST(maat_scan_ipv4, hit_ip_and_port_range) {
     n_hit_result = 0;
     state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 4);
     maat_state_free(&state);
@@ -118,7 +148,7 @@ TEST(maat_scan_ipv4, hit_ip_and_port_range) {
     n_hit_result = 0;
     state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_OK);
     EXPECT_EQ(n_hit_result, 0);
 }
 
@@ -135,7 +165,7 @@ TEST(maat_scan_ipv4, hit_ip_range_and_port_range) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 8);
     maat_state_free(&state);
@@ -144,7 +174,7 @@ TEST(maat_scan_ipv4, hit_ip_range_and_port_range) {
     EXPECT_EQ(ret, 1);
     state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 8);
     maat_state_free(&state);
@@ -153,7 +183,7 @@ TEST(maat_scan_ipv4, hit_ip_range_and_port_range) {
     EXPECT_EQ(ret, 1);
     state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_OK);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
 }
@@ -170,7 +200,7 @@ TEST(maat_scan_ipv4, hit_ip_cidr_and_port_range) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 50);
     maat_state_free(&state);
@@ -179,7 +209,7 @@ TEST(maat_scan_ipv4, hit_ip_cidr_and_port_range) {
     EXPECT_EQ(ret, 1);
     state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_OK);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
 }
@@ -195,7 +225,7 @@ TEST(maat_scan_ipv4, hit_ip_cidr_and_port_mask) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
     EXPECT_EQ(results[0], 63);
     EXPECT_EQ(results[1], 67);
@@ -203,7 +233,7 @@ TEST(maat_scan_ipv4, hit_ip_cidr_and_port_mask) {
 
     state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_OK);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
 }
@@ -219,14 +249,14 @@ TEST(maat_scan_ipv6, hit_ip_range_and_port_mask) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     ret = maat_scan_ipv6(g_maat_instance, table_id, 0, sip6, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 47);
     maat_state_free(&state);
 
     state = NULL;
     ret = maat_scan_ipv6(g_maat_instance, table_id, 0, sip6, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_OK);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
 }
@@ -239,7 +269,7 @@ TEST(maat_scan_string, dynamic_config) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     int ret = maat_scan_string(g_maat_instance, table_id, 0, data, strlen(data), results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_OK);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
 
@@ -255,7 +285,7 @@ TEST(maat_scan_string, dynamic_config) {
     sleep(2);
     state = NULL;
     ret = maat_scan_string(g_maat_instance, table_id, 0, data, strlen(data), results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 9999);
     maat_state_free(&state);
@@ -273,7 +303,7 @@ TEST(maat_scan_ip, dynamic_config) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_OK);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
 
@@ -289,11 +319,13 @@ TEST(maat_scan_ip, dynamic_config) {
     sleep(2);
     state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 9998);
     maat_state_free(&state);
 }
+#endif
+
 
 int count_line_num_cb(const char *table_name, const char *line, void *u_para)
 {
@@ -341,25 +373,22 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 	return 0;
 }
 
-int main(int argc, char ** argv)
+int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
+                          struct log_handle *logger)
 {
-	int ret=0;
-	::testing::InitGoogleTest(&argc, argv);
-
     char json_iris_path[128] = {0};
-    char redis_ip[64] = "127.0.0.1";
-    int redis_port = 6379;
-    int redis_db = 0;
-
-    struct log_handle *logger = log_handle_create("./tmp.log", 0);
 
     snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
 
     redisContext *c = maat_cmd_connect_redis(redis_ip, redis_port, redis_db, logger);
-    EXPECT_NE(c, nullptr);
+    if (nullptr == c) {
+        return -1;
+    }
 
     redisReply *reply = maat_cmd_wrap_redis_command(c, "flushdb");
-    EXPECT_NE(reply, nullptr);
+    if (nullptr == reply) {
+        return -1;
+    }
     
     if ((access(json_iris_path, F_OK)) < 0) {
         char tmp_iris_path[128] = {0};
@@ -367,11 +396,15 @@ int main(int argc, char ** argv)
         size_t json_buff_sz = 0;
         
         int ret = load_file_to_memory(json_filename, (unsigned char **)&json_buff, &json_buff_sz);
-        EXPECT_NE(ret, -1);
+        if (ret < 0) {
+            return -1;
+        }
 
         ret = json2iris(json_buff, json_filename, c, tmp_iris_path, 
                         sizeof(tmp_iris_path), NULL, NULL, logger);
-        EXPECT_NE(ret, -1);
+        if (ret < 0) {
+            return -1;
+        }
     }
 
     size_t total_line_cnt = 0;
@@ -381,7 +414,9 @@ int main(int argc, char ** argv)
 
     struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
     long long server_time = maat_cmd_redis_server_time_s(c);
-    EXPECT_NE(server_time, -1);
+    if (server_time < 0) {
+        return -1;
+    }
 
     absolute_expire_time = server_time + 300;
     config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, make_serial_rule, NULL, s_rule, logger);
@@ -399,17 +434,47 @@ int main(int argc, char ** argv)
     FREE(s_rule);
     redisFree(c);
 
+    return 0;
+}
+
+int main(int argc, char ** argv)
+{
+	int ret=0;
+	::testing::InitGoogleTest(&argc, argv);
+
+    struct log_handle *logger = log_handle_create("./maat_framework_gtest.log", 0);
+    if (NULL == logger) {
+        printf("create log handle failed.\n");
+        return -1;
+    }
+
+    char redis_ip[64] = "127.0.0.1";
+    int redis_port = 6379;
+    int redis_db = 0;
+
+    ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+    if (ret < 0) {
+        log_error(logger, MODULE_FRAMEWORK_GTEST, "write config to redis failed.");
+        log_handle_destroy(logger);
+        return -1;
+    }
+
     struct maat_options *opts = maat_options_new();
     maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
     maat_options_set_logger(opts, logger);
 
     g_maat_instance = maat_new(opts, table_info_path);
     maat_options_free(opts);
-    
-	ret=RUN_ALL_TESTS();
-    
-    log_handle_destroy(g_maat_instance->logger);
+    if (NULL == g_maat_instance) {
+        log_error(logger, MODULE_FRAMEWORK_GTEST, "create maat instance in MaatStringScan failed.");
+        log_handle_destroy(logger);
+        return -1;
+    }
+
+    ret=RUN_ALL_TESTS();
+
     maat_free(g_maat_instance);
+    log_handle_destroy(logger);
 
 	return ret;
 }

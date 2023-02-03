@@ -5,7 +5,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "utils.h"
 #include "maat_rule.h"
 #include "maat_utils.h"
 #include "maat_command.h"
@@ -70,7 +69,7 @@ void read_rule_from_redis(redisContext *c, long long desire_version, const char 
 	int i = 0;
     int ret = 0;
     int line_count = 0;
-	int update_type = CM_UPDATE_TYPE_INC;
+	int update_type = MAAT_UPDATE_TYPE_INC;
 	long long version = 0;
 	const char *cur_table = NULL;
     char foreign_files_dir[256] = {0};
@@ -95,7 +94,7 @@ void read_rule_from_redis(redisContext *c, long long desire_version, const char 
 		return;
 	}
 
-	assert(update_type == CM_UPDATE_TYPE_FULL);
+	assert(update_type == MAAT_UPDATE_TYPE_FULL);
 	printf("MAAT Version: %lld, key number: %d\n", version, rule_num);
 	if (0 == rule_num) {
 		goto clean_up;

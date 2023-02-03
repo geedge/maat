@@ -20,7 +20,7 @@ extern "C"
 
 #include <stdint.h>
 
-void redis_monitor_traverse(long long version, struct source_redis_ctx* mr_ctx,
+void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 							void (*start_fn)(long long, int, void *),
 							int (*update_fn)(const char *, const char *, void *),
 							void (*finish_fn)(void *), void *u_param);

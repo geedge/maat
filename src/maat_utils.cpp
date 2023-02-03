@@ -17,7 +17,6 @@
 #include <openssl/md5.h>
 #include <openssl/evp.h>
 
-#include "utils.h"
 #include "maat_utils.h"
 
 pid_t gettid() 
@@ -257,8 +256,8 @@ char *md5_file(const char *filename, char *md5string)
 	return md5string;
 }
 
-int crypt_memory(const unsigned char *inbuf, size_t inlen, unsigned char **pp_out, size_t *out_sz, 
-                 const char *key, const char *algorithm, int do_encrypt, 
+int crypt_memory(const unsigned char *inbuf, size_t inlen, unsigned char **pp_out, 
+                 size_t *out_sz, const char *key, const char *algorithm, int do_encrypt, 
                  char *err_str, size_t err_str_sz)
 {
 	OpenSSL_add_all_algorithms();
@@ -325,7 +324,8 @@ error_out:
 }
 
 int decrypt_open(const char* file_name, const char* key, const char* algorithm, 
-                 unsigned char**pp_out, size_t *out_sz, char* err_str, size_t err_str_sz)
+                 unsigned char**pp_out, size_t *out_sz, 
+                 char* err_str, size_t err_str_sz)
 {
 	size_t file_sz = 0;
 	unsigned char *file_buff = NULL;
@@ -334,7 +334,8 @@ int decrypt_open(const char* file_name, const char* key, const char* algorithm,
 		return -1;
 	}
 
-	ret = crypt_memory(file_buff, file_sz, pp_out, out_sz, key, algorithm, 0, err_str, err_str_sz);
+	ret = crypt_memory(file_buff, file_sz, pp_out, out_sz, key, algorithm, 
+                        0, err_str, err_str_sz);
 	FREE(file_buff);
 
 	return ret;

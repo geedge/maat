@@ -10,7 +10,6 @@
 
 #include "cJSON/cJSON.h"
 #include "maat_kv.h"
-#include "utils.h"
 #include "maat_utils.h"
 #include "log/log.h"
 #include "maat_virtual.h"
@@ -19,19 +18,25 @@
 
 struct virtual_schema {
 	int physical_table_id[SCAN_TYPE_MAX];
+    int table_id;
+    struct table_manager *tbl_mgr;
 };
 
-void *virtual_schema_new(cJSON *json, const char *table_name, struct log_handle *logger)
+void *virtual_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
+                         const char *table_name, struct log_handle *logger)
 {
     //size_t read_cnt = 0;
 
     cJSON *item = cJSON_GetObjectItem(json, "physical_table");
     if (NULL == item || item->type != cJSON_Array) {
-        log_error(logger, MODULE_VIRTUAL, "virtual table %s has no physical_table column", table_name);
+        log_error(logger, MODULE_VIRTUAL, 
+                  "virtual table %s has no physical_table column", table_name);
         return NULL;
     }
 
     struct virtual_schema *vt_schema = ALLOC(struct virtual_schema, 1);
+
+    vt_schema->tbl_mgr = tbl_mgr;
     return vt_schema;
 #if 0
     struct virtual_schema *vt_schema = ALLOC(struct virtual_schema, 1);

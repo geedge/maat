@@ -8,12 +8,12 @@
 ***********************************************************************************************
 */
 
-#include "utils.h"
-
 #include <time.h>
 #include <stdlib.h>
 #include <sys/queue.h>
 #include <assert.h>
+
+#include "maat_utils.h"
 
 struct maat_garbage_bag {
 	time_t create_time;
@@ -60,7 +60,8 @@ size_t  maat_garbage_bin_get_size(struct maat_garbage_bin* bin)
 	return bin->bag_cnt;
 }
 
-void maat_garbage_bagging(struct maat_garbage_bin* bin, void* garbage, void (* func)(void *))
+void maat_garbage_bagging(struct maat_garbage_bin* bin, void* garbage, 
+                          void (* func)(void *))
 {
 	struct maat_garbage_bag *bag = ALLOC(struct maat_garbage_bag, 1);
 

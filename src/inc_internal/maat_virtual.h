@@ -29,7 +29,8 @@ enum scan_type {
 	SCAN_TYPE_MAX
 };
 
-void *virtual_schema_new(cJSON *json, const char *table_name, struct log_handle *logger);
+void *virtual_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
+                         const char *table_name, struct log_handle *logger);
 
 void virtual_schema_free(void *virtual_schema);
 

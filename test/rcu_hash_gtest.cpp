@@ -1,5 +1,5 @@
-#include "../src/inc_internal/rcu_hash.h"
-#include "../include/utils.h"
+#include "rcu_hash.h"
+#include "maat_utils.h"
 
 #include <gtest/gtest.h>
 
@@ -47,9 +47,6 @@ TEST(rcu_hash_add_one_node, single_thread) {
     ret = rcu_hash_list_updating_data(htable, &data_array);
     EXPECT_EQ(ret, 1);
 
-    ret = rcu_hash_updating_flag(htable);
-    EXPECT_EQ(ret, 1);
-
     rcu_hash_commit(htable);
 
     /* find in hash after commit */
@@ -67,9 +64,6 @@ TEST(rcu_hash_add_one_node, single_thread) {
     EXPECT_EQ(ret, 0);
 
     ret = rcu_hash_list_updating_data(htable, &data_array);
-    EXPECT_EQ(ret, 0);
-
-    ret = rcu_hash_updating_flag(htable);
     EXPECT_EQ(ret, 0);
 
     rcu_hash_free(htable);
@@ -112,9 +106,6 @@ TEST(rcu_hash_add_multi_node, single_thread) {
     ret = rcu_hash_list_updating_data(htable, &data_array);
     EXPECT_EQ(ret, 2);
 
-    ret = rcu_hash_updating_flag(htable);
-    EXPECT_EQ(ret, 1);
-
     rcu_hash_commit(htable);
 
     /* find in hash after commit */
@@ -139,9 +130,6 @@ TEST(rcu_hash_add_multi_node, single_thread) {
     EXPECT_EQ(ret, 0);
 
     ret = rcu_hash_list_updating_data(htable, &data_array);
-    EXPECT_EQ(ret, 0);
-
-    ret = rcu_hash_updating_flag(htable);
     EXPECT_EQ(ret, 0);
 
     rcu_hash_free(htable);
@@ -180,9 +168,6 @@ TEST(rcu_hash_del_one_node, single_thread) {
 
     ret = rcu_hash_list_updating_data(htable, &data_array);
     EXPECT_EQ(ret, 0);
-
-    ret = rcu_hash_updating_flag(htable);
-    EXPECT_EQ(ret, 1);
 
     rcu_hash_commit(htable);
 

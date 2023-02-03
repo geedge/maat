@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 
-#include "utils.h"
 #include "adapter_hs.h"
 
 int parse_and_expr_file(const char *filename, and_expr_t expr[], size_t *n_expr)
@@ -33,7 +32,7 @@ int parse_and_expr_file(const char *filename, and_expr_t expr[], size_t *n_expr)
             char *sub_pattern_token = strtok_r(pattern_token, ":", &save_pattern_ptr);
             expr[i].patterns[j].type = atoi(sub_pattern_token);
             size_t str_len = strlen(save_pattern_ptr);
-            expr[i].patterns[j].pat = ALLOC(char, str_len);
+            expr[i].patterns[j].pat = (char *)calloc(sizeof(char), str_len);
             memcpy(expr[i].patterns[j].pat, save_pattern_ptr, str_len);
             expr[i].patterns[j].pat_len = str_len;
             j++;
@@ -50,7 +49,8 @@ void expr_array_free(and_expr_t expr_array[], size_t n_expr_array)
 {
     for (size_t i = 0; i < n_expr_array; i++) {
         for (size_t j = 0; j < expr_array[i].n_patterns; j++) {
-            FREE(expr_array[i].patterns[j].pat);
+            free(expr_array[i].patterns[j].pat);
+            expr_array[i].patterns[j].pat = NULL;
         }
     }
 }

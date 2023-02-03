@@ -17,7 +17,6 @@
 #include <sys/stat.h>
 #include <assert.h>
 
-#include "utils.h"
 #include "json2iris.h"
 #include "log/log.h"
 #include "cJSON/cJSON.h"
@@ -57,18 +56,18 @@ void maat_item_free(struct maat_item *item, void (* item_user_data_free)(void *)
 static int compare_each_tag(cJSON *tag_obj, const struct rule_tag *accept_tags, size_t n_accept_tag)
 {
     if (NULL == tag_obj || NULL == accept_tags) {
-        return -1;
+        return TAG_MATCH_ERR;
     }
 
 	cJSON *tab_name_obj = cJSON_GetObjectItem(tag_obj, "tag");
 	if (NULL == tab_name_obj || tab_name_obj->type != cJSON_String) {
-		return -1;
+		return TAG_MATCH_ERR;
 	}
 
 	const char *tag_name = tab_name_obj->valuestring;
 	cJSON *tag_vals_array = cJSON_GetObjectItem(tag_obj, "value");
 	if (NULL == tag_vals_array || tag_vals_array->type != cJSON_Array) {
-		return -1;
+		return TAG_MATCH_ERR;
 	}
 
     int name_matched = 0;
@@ -82,7 +81,7 @@ static int compare_each_tag(cJSON *tag_obj, const struct rule_tag *accept_tags, 
 		for (int j = 0; j < n_val; j++) {
 			cJSON *tag_val_obj = cJSON_GetArrayItem(tag_vals_array, j);
 			if (NULL == tag_val_obj || tag_val_obj->type != cJSON_String) {
-				return -1;
+				return TAG_MATCH_ERR;
 			}
 
 			const char *tag_val = tag_val_obj->valuestring;
@@ -95,16 +94,16 @@ static int compare_each_tag(cJSON *tag_obj, const struct rule_tag *accept_tags, 
 			//make sure the overlap is ended with a '/' 
             if (0 == strncmp(accept_tags[i].tag_val, tag_val, strlen(tag_val)) &&
 				(strlen(accept_tags[i].tag_val) == strlen(tag_val) || accept_tags[i].tag_val[strlen(tag_val)] == '/')) {
-				return 1;
+				return TAG_MATCH_MATCHED;
 			}
 		}
 	}
 
 	//no matched name is considered as a 
 	if (name_matched > 0) {
-		return 0;
+		return TAG_MATCH_UNMATCHED;
 	} else {
-		return 1;
+		return TAG_MATCH_MATCHED;
 	}
 }
 
@@ -117,12 +116,12 @@ static int compare_each_tag_set(cJSON *tag_set, const struct rule_tag *accept_ta
 	for (int i = 0; i < n_tag; i++) {
 		cJSON *tag_obj = cJSON_GetArrayItem(tag_set, i);
 		if (NULL == tag_obj || tag_obj->type != cJSON_Object) {
-			goto error;
+			return TAG_MATCH_ERR;
 		}
 
 		int ret = compare_each_tag(tag_obj,  accept_tags, n_accept_tag);
 		if (ret < 0) {
-			return -1;
+			return TAG_MATCH_ERR;
 		}
 
 		if(1 == ret) {
@@ -131,13 +130,10 @@ static int compare_each_tag_set(cJSON *tag_set, const struct rule_tag *accept_ta
 	}
 
 	if (matched == n_tag) {
-		return 1;
+		return TAG_MATCH_MATCHED;
 	} else {
-		return 0;
+		return TAG_MATCH_UNMATCHED;
 	}
-
-error:
-	return -1;
 }
 
 //@param value is a JSON, like {"tags":[{"tag":"location","value":"北京/朝阳/华严北里/甲22号},{"tag":"isp","value":"电信"}]}
@@ -176,7 +172,7 @@ size_t parse_accept_tag(const char *value, struct rule_tag **result, struct log_
 //@return 1 on match, 0 on not match, -1 on error.
 int compare_accept_tag(const char *value, const struct rule_tag *accept_tags, size_t n_accept_tag)
 {
-	int ret = -1;
+	int ret = TAG_MATCH_ERR;
     int n_set = 0;
     cJSON *tag_set = NULL;
     cJSON *tag_set_array = NULL;
@@ -200,7 +196,7 @@ int compare_accept_tag(const char *value, const struct rule_tag *accept_tags, si
 
 		ret = compare_each_tag_set(tag_set, accept_tags, n_accept_tag);
         //match or error occurs.
-		if (ret != 0) {
+		if (ret != TAG_MATCH_UNMATCHED) {
 			break;
 		}
 	}
@@ -280,25 +276,11 @@ void maat_runtime_destroy(struct maat_runtime *maat_rt)
     FREE(maat_rt);
 }
 
-int maat_runtime_updating_flag(struct maat_runtime *maat_rt)
-{
-    int flag = -1;
-
-    for (size_t i = 0; i < maat_rt->max_table_num; i++) {
-        flag = table_manager_runtime_updating_flag(maat_rt->ref_tbl_mgr, i);
-        if (1 == flag) {
-            return 1;
-        }
-	}
-
-    return 0;
-}
-
 void maat_start_cb(long long new_version, int update_type, void *u_param)
 {
 	struct maat *maat_instance = (struct maat *)u_param;
 	
-	if (update_type == CM_UPDATE_TYPE_FULL) {
+	if (update_type == MAAT_UPDATE_TYPE_FULL) {
 		maat_instance->creating_maat_rt = maat_runtime_create(new_version, maat_instance);
 	} else {
 		maat_instance->maat_version = new_version;
@@ -390,14 +372,18 @@ void maat_finish_cb(void *u_param)
     if (maat_instance->creating_maat_rt != NULL) {
         maat_instance->creating_maat_rt->rule_num = maat_runtime_rule_num(maat_instance->creating_maat_rt);
         maat_runtime_commit(maat_instance->creating_maat_rt, maat_instance->logger);
-        log_info(maat_instance->logger, MODULE_MAAT_RULE, "Full config version %llu load %d entries complete\n", 
-                 maat_instance->creating_maat_rt->version, maat_instance->creating_maat_rt->rule_num);
+        log_info(maat_instance->logger, MODULE_MAAT_RULE, 
+                 "Full config version %llu load %d entries complete", 
+                 maat_instance->creating_maat_rt->version, 
+                 maat_instance->creating_maat_rt->rule_num);
     } else if (maat_instance->maat_rt != NULL) {
         maat_instance->maat_rt->rule_num = maat_runtime_rule_num(maat_instance->maat_rt);
         maat_instance->maat_rt->version = maat_instance->maat_version;
         maat_runtime_commit(maat_instance->maat_rt, maat_instance->logger);
-        log_info(maat_instance->logger, MODULE_MAAT_RULE, "Inc config version %llu load %d entries complete\n", 
-                 maat_instance->maat_rt->version, maat_instance->maat_rt->rule_num);
+        log_info(maat_instance->logger, MODULE_MAAT_RULE, 
+                 "Inc config version %llu load %d entries complete", 
+                 maat_instance->maat_rt->version, 
+                 maat_instance->maat_rt->rule_num);
     }
 }
 
@@ -420,7 +406,8 @@ void *rule_monitor_loop(void *arg)
     pthread_mutex_lock(&(maat_instance->background_update_mutex));
     /* if deferred load on */
     if (maat_instance->deferred_load != 0) {
-        log_info(maat_instance->logger, MODULE_MAAT_RULE, "Deferred Loading ON, updating in %s", __func__);
+        log_info(maat_instance->logger, MODULE_MAAT_RULE, 
+                 "Deferred Loading ON, updating in %s", __func__);
         maat_read_full_config(maat_instance);
     }
     pthread_mutex_unlock(&(maat_instance->background_update_mutex));
@@ -478,13 +465,16 @@ void *rule_monitor_loop(void *arg)
 
 				if (old_maat_rt != NULL) {
                     if (maat_instance->maat_rt->version > old_maat_rt->version) {
-                        log_info(maat_instance->logger, MODULE_MAAT_RULE, "Maat version updated %lld -> %lld\n", 
+                        log_info(maat_instance->logger, MODULE_MAAT_RULE, 
+                                 "Maat version updated %lld -> %lld\n", 
                                  old_maat_rt->version, maat_instance->maat_rt->version);
                     } else {
-                        log_info(maat_instance->logger, MODULE_MAAT_RULE, "Maat version roll back %lld -> %lld\n",
+                        log_info(maat_instance->logger, MODULE_MAAT_RULE, 
+                                 "Maat version roll back %lld -> %lld\n",
                                  old_maat_rt->version, maat_instance->maat_rt->version);
                     }
-                    maat_garbage_bagging(maat_instance->garbage_bin, old_maat_rt, (void (*)(void*))maat_runtime_destroy);
+                    maat_garbage_bagging(maat_instance->garbage_bin, old_maat_rt, 
+                                         (void (*)(void*))maat_runtime_destroy);
 				}
 
 				maat_instance->creating_maat_rt = NULL;
@@ -493,12 +483,11 @@ void *rule_monitor_loop(void *arg)
 			}
 
 			if (maat_instance->maat_rt != NULL) {
-                int updating_flag = maat_runtime_updating_flag(maat_instance->maat_rt);
                 time_t time_window = time(NULL) - maat_instance->maat_rt->last_update_time;
                 
-                if ((updating_flag > 0) && (time_window >= maat_instance->rule_effect_interval_ms / 1000)) {
+                if (time_window >= maat_instance->rule_effect_interval_ms / 1000) {
                     maat_runtime_commit(maat_instance->maat_rt, maat_instance->logger);
-                    log_info(maat_instance->logger,MODULE_MAAT_RULE,
+                    log_info(maat_instance->logger, MODULE_MAAT_RULE,
 							 "Actual update config version %u, %d entries load to rulescan after postpone.",
 							 maat_instance->maat_rt->version, maat_instance->maat_rt->rule_num);
                 }
@@ -513,6 +502,12 @@ void *rule_monitor_loop(void *arg)
     maat_runtime_destroy(maat_instance->maat_rt);
 	maat_garbage_bin_free(maat_instance->garbage_bin);
 	table_manager_destroy(maat_instance->tbl_mgr);
+
+    alignment_int64_array_free(maat_instance->outer_state_cnt);
+    alignment_int64_array_free(maat_instance->compile_state_cnt);
+    alignment_int64_array_free(maat_instance->thread_call_cnt);
+    alignment_int64_array_free(maat_instance->hit_cnt);
+    alignment_int64_array_free(maat_instance->not_grp_hit_cnt);
 
     if (maat_instance->input_mode == DATA_SOURCE_REDIS) {
         if (maat_instance->mr_ctx.read_ctx != NULL) {
