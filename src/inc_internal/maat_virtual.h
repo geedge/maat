@@ -34,6 +34,7 @@ void *virtual_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
 void virtual_schema_free(void *virtual_schema);
 
+
 #ifdef __cpluscplus
 }
 #endif

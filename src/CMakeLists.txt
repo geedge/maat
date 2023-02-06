@@ -10,7 +10,7 @@ message(STATUS "Maat Frame, Version: ${MAAT_FRAME_VERSION}")
 add_definitions(-fPIC)
 set(MAAT_SRC json2iris.cpp maat_api.cpp rcu_hash.cpp maat_garbage_collection.cpp maat_config_monitor.cpp 
     maat_rule.cpp maat_kv.cpp maat_ex_data.cpp maat_utils.cpp maat_command.cpp maat_redis_monitor.cpp 
-    maat_table.cpp maat_compile.cpp maat_group.cpp maat_ip.cpp
+    maat_table.cpp maat_compile.cpp maat_group.cpp maat_ip.cpp maat_intval.cpp maat_flag.cpp
     maat_expr.cpp maat_plugin.cpp maat_ip_plugin.cpp maat_virtual.cpp)
 
 set(LIB_SOURCE_FILES

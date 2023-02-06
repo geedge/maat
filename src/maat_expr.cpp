@@ -162,8 +162,6 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
     expr_item->group_id = atoi(line + column_offset);
 
     table_type = table_manager_get_table_type(expr_schema->tbl_mgr, expr_schema->table_id);
-    //TODO
-    #if 1
     if (table_type == TABLE_TYPE_EXPR_PLUS) {
         ret = get_column_pos(line, expr_schema->district_column, &column_offset, &column_len);
         if (ret < 0) {
@@ -181,9 +179,9 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
         memcpy(district, (line + column_offset), column_len);
         assert(strlen(district) > 0);
         str_unescape(district);
-        expr_item->district_id = get_district_id()
+        expr_item->district_id = table_manager_get_district_id(expr_schema->ref_tbl_mgr, district);
     }
-    #endif
+    
     ret = get_column_pos(line, expr_schema->keywords_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_EXPR, 
@@ -545,6 +543,9 @@ and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item,
         expr_rule->patterns[i].pat_len = strlen(sub_key_array[i]);
         expr_rule->patterns[i].type = expr_type2pattern_type(expr_item->expr_type);
     }
+    int *district_tag = ALLOC(int, 1);
+    *district_tag = expr_item->district_id;
+    expr_rule->user_tag = district_tag;
     expr_rule->n_patterns = sub_expr_cnt;
     
     return expr_rule;
@@ -599,10 +600,7 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
             return -1;
         }
 
-        // TODO: by luis
-        //int district_id = get_district_id(maat_rt, expr_item->district);
-        int district_id = -1;
-        u_para = maat_item_inner_new(expr_item->group_id, item_id, district_id);
+        u_para = maat_item_inner_new(expr_item->group_id, item_id, expr_item->district_id);
         item = maat_item_new(item_id, expr_item->group_id, u_para);
         HASH_ADD_INT(expr_rt->item_hash, item_id, item);
 
@@ -694,9 +692,12 @@ int expr_runtime_scan_string(struct expr_runtime *expr_rt, int thread_id,
                             int *group_ids, size_t group_ids_size, 
                             int vtable_id, struct maat_state *state)
 {
-    int hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM] = {-1};
     size_t n_hit_item = 0;
-    int ret = adapter_hs_scan(expr_rt->hs, thread_id, data, data_len, hit_item_ids, &n_hit_item);
+    struct hs_scan_results hit_results[MAX_SCANNER_HIT_ITEM_NUM] = {0};
+    
+    int ret = adapter_hs_scan(expr_rt->hs, thread_id, data, data_len, 
+                              hit_item_ids, MAX_SCANNER_HIT_ITEM_NUM, 
+                              &n_hit_item);
     if (ret < 0) {
         return -1;
     }
@@ -713,8 +714,9 @@ int expr_runtime_scan_string(struct expr_runtime *expr_rt, int thread_id,
     }
     
     size_t group_hit_cnt = 0;
-    ret = maat_compile_state_update(expr_rt->item_hash, vtable_id, hit_item_ids, n_hit_item,
-                                    group_ids, group_ids_size, &group_hit_cnt, state);
+    ret = maat_compile_state_update(expr_rt->item_hash, vtable_id, hit_item_ids, 
+                                    n_hit_item, group_ids, group_ids_size, 
+                                    &group_hit_cnt, state);
     if (ret < 0) {
         return -1;
     }

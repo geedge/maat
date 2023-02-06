@@ -24,11 +24,6 @@
 
 #define MODULE_IP	 module_name_str("maat.ip")
 
-struct port_range {
-    uint16_t min_port;
-    uint16_t max_port;
-};
-
 struct ip_schema {
     int item_id_column;
     int group_id_column;
@@ -36,11 +31,6 @@ struct ip_schema {
     int saddr_format_column;
     int sip1_column;
     int sip2_column;
-    int sport_format_column;
-    int sport1_column;
-    int sport2_column;
-    int proto_column;
-    int direction_column;
     int table_id; //ugly
     struct table_manager *tbl_mgr;
 };
@@ -48,19 +38,11 @@ struct ip_schema {
 struct ipv4_item_rule {
     uint32_t min_sip;   /* 源地址下界；0表示忽略本字段 */
     uint32_t max_sip;   /* 源地址上界；0表示固定IP=min_saddr */
-    uint16_t min_sport; /* 源端口范围下界；0表示忽略本字段 */
-    uint16_t max_sport; /* 源端口范围上界；0表示固定端口=min_sport */
-    uint16_t proto;     /* 传输层协议，6表示TCP，17表示UDP；0表示忽略本字段 */
-    uint16_t direction; /* 方向，0表示双向，1表示单向 */
 };
 
 struct ipv6_item_rule {
     uint32_t min_sip[4]; /* 源地址下界；全0表示忽略本字段 */
     uint32_t max_sip[4]; /* 源地址上界；全0表示固定IP=min_saddr */
-    uint16_t min_sport;  /* 源端口范围下界；0表示忽略本字段 */
-    uint16_t max_sport;  /* 源端口范围上界；0表示固定端口=min_sport */
-    uint16_t proto;      /* 传输层协议，6表示TCP，17表示UDP，无限制默认为0 */
-    uint16_t direction;  /* 方向，0表示双向，1表示单向 */
 };
 
 struct ip_item {
@@ -145,39 +127,9 @@ void *ip_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         read_cnt++;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "sport_format");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        ip_schema->sport_format_column = custom_item->valueint;
-        read_cnt++;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "sport1");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        ip_schema->sport1_column = custom_item->valueint;
-        read_cnt++;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "sport2");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        ip_schema->sport2_column = custom_item->valueint;
-        read_cnt++;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "proto");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        ip_schema->proto_column = custom_item->valueint;
-        read_cnt++;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "direction");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        ip_schema->direction_column = custom_item->valueint;
-        read_cnt++;
-    }
-
     ip_schema->tbl_mgr = tbl_mgr;
 
-    if (read_cnt < 12) {
+    if (read_cnt < 7) {
         goto error;
     }
 
@@ -330,38 +282,6 @@ struct ip_item *ip_item_new(const char *line, struct ip_schema *ip_schema,
     }
     memcpy(sip2_str, (line + column_offset), column_len);
 
-    ret = get_column_pos(line, ip_schema->sport_format_column, &column_offset, &column_len);
-    if (ret < 0) {
-        log_error(logger, MODULE_IP, 
-                  "ip table(table_id:%d) line:%s has no sport_format",
-                  ip_schema->table_id, line);
-        goto error;
-    }
-    memcpy(sport_format, (line + column_offset), column_len);
-    if (IP_FORMAT_UNKNOWN == ip_format_str2int(sport_format)) {
-        log_error(logger, MODULE_IP, 
-                  "ip table(table_id:%d) line:%s has invalid sport_format, should be range/mask/CIDR",
-                  ip_schema->table_id, line);
-        goto error;
-    }
-
-    ret = get_column_pos(line, ip_schema->sport1_column, &column_offset, &column_len);
-    if (ret < 0) {
-        log_error(logger, MODULE_IP, "ip table(table_id:%d) line:%s has no sport1",
-                  ip_schema->table_id, line);
-        goto error;
-    }
-    sport1 = atoi(line + column_offset);
-
-    ret = get_column_pos(line, ip_schema->sport2_column, &column_offset, &column_len);
-    if (ret < 0) {
-        log_error(logger, MODULE_IP, 
-                  "ip table(table_id:%d) line:%s has no sport2",
-                  ip_schema->table_id, line);
-        goto error;
-    }
-    sport2 = atoi(line + column_offset);
-
     if (IPv4 == ip_item->addr_type) {
         ret = ip_format2range(ip_item->addr_type, ip_format_str2int(saddr_format), sip1_str, sip2_str, 
                               &ip_item->ipv4.min_sip, &ip_item->ipv4.max_sip);
@@ -371,34 +291,6 @@ struct ip_item *ip_item_new(const char *line, struct ip_schema *ip_schema,
                       ip_schema->table_id, line);
             goto error;
         }
-
-        if(IP_FORMAT_MASK == ip_format_str2int(sport_format)) {
-            ip_item->ipv4.min_sport = sport1 & sport2;
-            ip_item->ipv4.max_sport = sport1 | ~sport2;
-        } else {
-            ip_item->ipv4.min_sport = sport1;
-			ip_item->ipv4.max_sport = sport2;
-        }
-
-        ret = get_column_pos(line, ip_schema->proto_column, &column_offset, &column_len);
-        if (ret < 0) {
-            log_error(logger, MODULE_IP, 
-                      "ip table(table_id:%d) line:%s has no proto",
-                      ip_schema->table_id, line);
-            goto error;
-        }
-        ip_item->ipv4.proto = atoi(line + column_offset);
-        protocol = ip_item->ipv4.proto;
-
-        ret = get_column_pos(line, ip_schema->direction_column, &column_offset, &column_len);
-        if (ret < 0) {
-            log_error(logger, MODULE_IP, 
-                      "ip table(table_id:%d) line:%s has no direction",
-                      ip_schema->table_id, line);
-            goto error;
-        }
-        ip_item->ipv4.direction = atoi(line + column_offset);
-        direction = ip_item->ipv4.direction;
     } else {
         //ipv6
         ret = ip_format2range(ip_item->addr_type, ip_format_str2int(saddr_format), sip1_str, sip2_str, 
@@ -409,46 +301,6 @@ struct ip_item *ip_item_new(const char *line, struct ip_schema *ip_schema,
                       ip_schema->table_id, line);
             goto error;
         }
-
-        if(IP_FORMAT_MASK == ip_format_str2int(sport_format)) {
-            ip_item->ipv6.min_sport = sport1 & sport2;
-            ip_item->ipv6.max_sport = sport1 | ~sport2;
-        } else {
-            ip_item->ipv6.min_sport = sport1;
-			ip_item->ipv6.max_sport = sport2;
-        }
-
-        ret = get_column_pos(line, ip_schema->proto_column, &column_offset, &column_len);
-        if (ret < 0) {
-            log_error(logger, MODULE_IP, "ip table(table_id:%d) line:%s has no proto",
-                      ip_schema->table_id, line);
-            goto error;
-        }
-        ip_item->ipv6.proto = atoi(line + column_offset);
-        protocol = ip_item->ipv6.proto;
-
-        ret = get_column_pos(line, ip_schema->direction_column, &column_offset, &column_len);
-        if (ret < 0) {
-            log_error(logger, MODULE_IP, "ip table(table_id:%d) line:%s has no direction",
-                      ip_schema->table_id, line);
-            goto error;
-        }
-        ip_item->ipv6.direction = atoi(line + column_offset);
-        direction = ip_item->ipv6.direction;
-    }
-
-    if (protocol > 65535 || protocol < 0) {
-        log_error(logger, MODULE_IP, 
-                  "ip table(table_id:%d) line:%s has invalid proto:%d",
-                  ip_schema->table_id, line, protocol);
-        goto error;
-    }
-
-    if (direction != 0 && direction != 1) {
-        log_error(logger, MODULE_IP, 
-                  "ip table(table_id:%d) line:%s has invalid direction:%d",
-                  ip_schema->table_id, line, direction);
-        goto error;
     }
 
     return ip_item;
@@ -464,24 +316,18 @@ void ip_item_free(struct ip_item *ip_item)
 
 void ip_item_to_ip_rule(struct ip_item *item, struct ip_rule *rule)
 {
-    struct port_range *sport_range = ALLOC(struct port_range, 1);
     if (IPv4 == item->addr_type) {
         rule->type = IPv4;
-        sport_range->min_port = item->ipv4.min_sport;
-        sport_range->max_port = item->ipv4.max_sport;
         rule->ipv4_rule.start_ip = item->ipv4.min_sip;
         rule->ipv4_rule.end_ip = item->ipv4.max_sip;
     } else {
         rule->type = IPv6;
-        sport_range->min_port = item->ipv6.min_sport;
-        sport_range->max_port = item->ipv6.max_sport;
         memcpy(rule->ipv6_rule.start_ip, item->ipv6.min_sip, 
                sizeof(item->ipv6.min_sip));
         memcpy(rule->ipv6_rule.end_ip, item->ipv6.max_sip, 
                sizeof(item->ipv6.max_sip));
     }
     rule->rule_id = item->item_id;
-    rule->user_tag = sport_range;
 }
 
 struct ex_data_runtime *ip_runtime_get_ex_data_rt(struct ip_runtime *ip_rt)
@@ -656,7 +502,7 @@ int ip_runtime_scan_ip(struct ip_runtime *ip_rt, int thread_id, int ip_type,
         }
     }
 
-    n_hit_item = ip_matcher_match(ip_rt->ip_matcher, &scan_data, scan_results, sizeof(scan_result));
+    n_hit_item = ip_matcher_match(ip_rt->ip_matcher, &scan_data, scan_results, MAX_SCANNER_HIT_ITEM_NUM);
     if (n_hit_item <= 0) {
         return n_hit_item;
     }

@@ -189,9 +189,10 @@ void adpt_hs_compile_data_free(struct adpt_hs_compile_data *hs_cd, size_t n_patt
     FREE(hs_cd);
 }
 
-struct adapter_hs *adapter_hs_initialize(int scan_mode, size_t n_worker_thread,
-                                         and_expr_t *expr_array, size_t n_expr_array,
-                                         struct log_handle *logger)
+struct adapter_hs *
+adapter_hs_initialize(int scan_mode, size_t n_worker_thread,
+                      and_expr_t *expr_array, size_t n_expr_array,
+                      struct log_handle *logger)
 {
     if ((scan_mode != HS_SCAN_MODE_BLOCK && scan_mode != HS_SCAN_MODE_STREAM) || 
          0 == n_worker_thread || NULL == expr_array || 0 == n_expr_array) {
@@ -275,6 +276,7 @@ struct adapter_hs *adapter_hs_initialize(int scan_mode, size_t n_worker_thread,
         }
         exprs[i].expr_id = expr_array[i].expr_id;
         exprs[i].item_num = expr_array[i].n_patterns;
+        exprs[i].user_tag = expr_array[i].user_tag;
     }
 
     if (literal_cd != NULL) {
@@ -409,7 +411,7 @@ int matched_event_cb(unsigned int id, unsigned long long from,
 int adapter_hs_scan(struct adapter_hs *hs_instance, int thread_id,
                     const char *data, size_t data_len, 
                     struct hs_scan_result *results,
-                    size_t *n_results)
+                    size_t n_result, size_t *n_hit_result)
 {
     if (NULL == hs_instance || NULL == data || (0 == data_len) || 
         NULL == results || NULL == n_results) {
@@ -466,11 +468,15 @@ int adapter_hs_scan(struct adapter_hs *hs_instance, int thread_id,
         goto next;
     }
 
+    if (bool_matcher_ret > n_result) {
+        bool_matcher_ret = n_result;
+    }
+
     for (matched_index = 0; matched_index < bool_matcher_ret; matched_index++) {
         results[matched_index].item_id = bool_matcher_results[matched_index].expr_id;
         results[matched_index].user_tag = bool_matcher_results[matched_index].user_tag;
     }
-    *n_results = bool_matcher_ret;
+    *n_hit_result = bool_matcher_ret;
 next:
     FREE(bool_matcher_results);
     utarray_free(pattern_id_set);

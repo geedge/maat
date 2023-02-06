@@ -71,8 +71,10 @@ typedef struct {
  * 
  * @retval the pointer to adapter_hs instance
 */
-struct adapter_hs *adapter_hs_initialize(int scan_mode, size_t nr_worker_threads, and_expr_t *expr_array, 
-                                         size_t n_expr_array, struct log_handle *logger);
+struct adapter_hs *
+adapter_hs_initialize(int scan_mode, size_t n_worker_thread,
+                      and_expr_t *expr_array, size_t n_expr_array,
+                      struct log_handle *logger);
 
 /**
  * @brief scan input data to match logic AND expression, return all matched expr_id
@@ -84,8 +86,10 @@ struct adapter_hs *adapter_hs_initialize(int scan_mode, size_t nr_worker_threads
  * @param results:   the array of expr_id
  * @param n_results: number of elements in array of expr_id
 */
-int adapter_hs_scan(struct adapter_hs *instance, int thread_id, const char *data, size_t data_len, 
-                    struct hs_scan_result *results, size_t *n_results);
+int adapter_hs_scan(struct adapter_hs *hs_instance, int thread_id,
+                    const char *data, size_t data_len, 
+                    struct hs_scan_result *results,
+                    size_t n_result, size_t *n_hit_result);
 
 /**
  * @brief destroy adapter_hs instance

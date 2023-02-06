@@ -121,12 +121,6 @@ struct maat_runtime {
     uint32_t rule_num;
 
     struct maat_garbage_bin *ref_garbage_bin;
-
-	struct maat_kv_store *district_map;
-    struct maat_kv_store *tmp_district_map;
-
-	unsigned int district_num;
-	
     struct log_handle *logger;
 };
 
@@ -258,6 +252,7 @@ struct maat_state {
 	int scan_cnt;
 	struct maat_compile_state *compile_state;
 };
+
 
 size_t parse_accept_tag(const char *value, struct rule_tag **result, struct log_handle *logger);
 

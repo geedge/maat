@@ -31,6 +31,7 @@
 #include "maat_ip.h"
 #include "maat_plugin.h"
 #include "maat_ip_plugin.h"
+#include "maat_virtual.h"
 
 #define MODULE_MAAT_API	 module_name_str("maat.api")
 
@@ -41,6 +42,50 @@ enum district_set_flag {
     DISTRICT_FLAG_UNSET,
     DISTRICT_FLAG_SET
 };
+
+enum scan_type maat_table_get_scan_type(enum table_type table_type)
+{
+	enum scan_type ret = SCAN_TYPE_INVALID;
+
+    switch (table_type) {
+    case TABLE_TYPE_FLAG:
+        ret = SCAN_TYPE_FLAG;
+        break;
+    case TABLE_TYPE_EXPR:
+    case TABLE_TYPE_EXPR_PLUS:
+    case TABLE_TYPE_SIMILARITY:
+    case TABLE_TYPE_DIGEST:
+        ret = SCAN_TYPE_STRING;
+        break;
+    case TABLE_TYPE_INTERVAL:
+    case TABLE_TYPE_INTERVAL_PLUS:
+        ret = SCAN_TYPE_INTERVAL;
+        break;
+    case TABLE_TYPE_IP:
+    case TABLE_TYPE_IP_PLUS:
+    case TABLE_TYPE_COMPOSITION:
+        ret = SCAN_TYPE_IP;
+        break;
+    case TABLE_TYPE_PLUGIN:
+        ret = SCAN_TYPE_PLUGIN;
+        break;
+    case TABLE_TYPE_IP_PLUGIN:
+        ret = SCAN_TYPE_IP;
+        break;
+    case TABLE_TYPE_FQDN_PLUGIN:
+        ret = SCAN_TYPE_FQDN_PLUGIN;
+        break;
+    case TABLE_TYPE_BOOL_PLUGIN:
+        ret = SCAN_TYPE_BOOL_PLUGIN;
+        break;
+    case TABLE_TYPE_COMPILE:
+        ret = SCAN_TYPE_NONE;
+        break;
+    default:
+        break;
+    }
+    return ret;
+}
 
 struct maat_options* maat_options_new(void)
 {
@@ -849,13 +894,17 @@ int maat_scan_string(struct maat *maat_instance, int table_id, int thread_id,
     mid = grab_state(state, maat_instance, thread_id);
     mid->scan_cnt++;
 
-    int vtable_id = 0;
-    //TODO: by luis get virtual_table_id
-    // struct table_schema *table_schema = table_schema_get_by_scan_type(maat_instance->table_schema_mgr, table_id,
-    //                                                                   SCAN_TYPE_STRING, &virtual_table_id);
-    // if (NULL == table_schema) {
-    //     return MAAT_SCAN_ERR;
-    // }
+    int physical_table_id = -1;
+    enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
+    if (table_type == TABLE_TYPE_VIRTUAL) {
+        //find physical table id
+        physical_table_id = virtual_table_get_physical_table_id(table_id, SCAN_TYPE_STRING);
+        if (physical_table_id < 0) {
+            return MAAT_SCAN_ERR;
+        }
+    } else {
+        physical_table_id = table_id;
+    }
 
     if (NULL == maat_instance->maat_rt) {
         log_error(maat_instance->logger, MODULE_MAAT_API, 
@@ -866,7 +915,7 @@ int maat_scan_string(struct maat *maat_instance, int table_id, int thread_id,
     maat_runtime_ref_inc(maat_instance->maat_rt, thread_id);
 
     //TODO: is TABLE_TYPE_EXPR_PLUS
-    enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
+    enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, physical_table_id);
     if ((table_type == TABLE_TYPE_EXPR_PLUS) && 
         (NULL == mid || DISTRICT_FLAG_UNSET == mid->is_set_district)) {
         maat_instance->scan_err_cnt++;
@@ -882,13 +931,15 @@ int maat_scan_string(struct maat *maat_instance, int table_id, int thread_id,
     }
 
     int group_hit_cnt = expr_runtime_scan_string((struct expr_runtime *)expr_rt, thread_id,
-                                                 data, data_len, group_ids, sizeof(group_ids),
+                                                 data, data_len, group_ids, 
+                                                 MAX_SCANNER_HIT_GROUP_NUM,
                                                  vtable_id, mid);
     if (group_hit_cnt < 0) {
         return MAAT_SCAN_ERR;
     } 
     
     int compile_ret = 0;
+    int district_id = DISTRICT_ANY;
     if (group_hit_cnt > 0 || scan_status_should_compile_NOT(mid)) {
         // come here means group_hit_cnt > 0, at least MAAT_SCAN_HALF_HIT, or MAAT_SCAN_HIT
         if (group_hit_cnt > 0) {
@@ -896,7 +947,7 @@ int maat_scan_string(struct maat *maat_instance, int table_id, int thread_id,
         }
 
         if (group_hit_cnt > 0 && table_type == TABLE_TYPE_EXPR_PLUS) {
-
+            district_id = mid->district_id;
         }
 
         int compile_table_id = -1;
@@ -964,8 +1015,6 @@ int maat_state_set_scan_district(struct maat *maat_instance,
     int ret = table_manager_set_scan_district(maat_instance->tbl_mgr, 
                                               district, district_len,
                                               &(mid->district_id));
-    // int map_ret = maat_kv_read_unNull(maat_instance->maat_rt->district_map,
-    //                                   district, district_len, &(mid->district_id));
     if (ret < 0) {
         mid->district_id = DISTRICT_UNKNOWN;
     }

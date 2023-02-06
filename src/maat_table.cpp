@@ -54,6 +54,7 @@ struct table_manager {
 
     struct maat_kv_store *district_map;
     struct maat_kv_store *tmp_district_map;
+    uint32_t district_num;
 
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -74,6 +75,15 @@ struct table_operations {
 };
 
 struct table_operations table_ops[TABLE_TYPE_MAX] = {
+    {
+        .type = TABLE_TYPE_FLAG,
+        .new_schema = flag_schema_new,
+        .free_schema = flag_schema_free,
+        .new_runtime = flag_runtime_new,
+        .free_runtime = flag_runtime_free,
+        .update_runtime = flag_runtime_update,
+        .commit_runtime = flag_runtime_commit
+    },
     {
         .type = TABLE_TYPE_EXPR,
         .new_schema = expr_schema_new,
@@ -415,7 +425,6 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
     tbl_mgr->n_accept_tag = parse_accept_tag(accept_tags, &tbl_mgr->accept_tags, logger);
     tbl_mgr->logger = logger;
     tbl_mgr->tablename2id_map = maat_kv_store_new();
-    tbl_mgr->district_map = maat_kv_store_new();
     tbl_mgr->ref_garbage_bin = garbage_bin;
 
     int default_compile_table_id = MAX_TABLE_NUM;
@@ -682,11 +691,31 @@ int table_manager_accept_tags_match(struct table_manager *tbl_mgr, const char *t
     return compare_accept_tag(tags, tbl_mgr->accept_tags, tbl_mgr->n_accept_tag);
 }
 
-int table_manager_set_scan_district(struct table_manager *tbl_mgr, const char *district_str, 
-                                    size_t district_str_len, int *district_id)
+int table_manager_set_scan_district(struct table_manager *tbl_mgr, const char *district, 
+                                    size_t district_len, int *district_id)
 {
-    return maat_kv_read_unNull(tbl_mgr->district_map,
-                                       district_str, district_str_len, district_id);
+    return maat_kv_read_unNull(tbl_mgr->district_map, district, district_len, district_id);
+}
+
+int table_manager_get_district_id(struct table_manager *tbl_mgr, const char *district)
+{
+    int district_id = -1;
+
+	int map_ret = maat_kv_read(tbl_mgr->district_map, district, &district_id);
+	if (map_ret < 0) {
+		if (NULL == tbl_mgr->tmp_district_map) {
+			tbl_mgr->tmp_district_map = maat_kv_store_duplicate(tbl_mgr->district_map);
+		}
+
+		map_ret = maat_kv_read(tbl_mgr->tmp_district_map, district, &district_id);
+		if (map_ret < 0) {
+			district_id = tbl_mgr->district_num;
+			maat_kv_register(tbl_mgr->tmp_district_map, district, district_id);
+			tbl_mgr->district_num++;
+		}
+	}
+
+	return district_id;
 }
 
 void *table_manager_get_runtime(struct table_manager *tbl_mgr, int table_id)
