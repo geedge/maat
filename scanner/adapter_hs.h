@@ -106,7 +106,7 @@ struct adapter_hs_stream;
 struct adapter_hs_stream *adapter_hs_stream_open(struct adapter_hs *hs_instance, int thread_id);
 
 int adapter_hs_scan_stream(struct adapter_hs_stream *stream, const char *data, size_t data_len,
-                           int results[], size_t *n_results);
+                           struct hs_scan_result *results, size_t n_result, size_t *n_hit_result);
 
 void adapter_hs_stream_close(struct adapter_hs_stream *stream);
 

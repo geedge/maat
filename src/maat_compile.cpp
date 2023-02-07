@@ -992,7 +992,7 @@ maat_compile_bool_matcher_new(struct maat_compile *compile_hash,
 				}
 
 				//TODO:mytest need to delete
-				#if 0
+				#if 1
 				struct maat_literal_id *p = NULL;
 				for(p = (struct maat_literal_id *)utarray_front(compile->clause_states[i].literal_ids); p!=NULL; p=(struct maat_literal_id *)utarray_next(compile->clause_states[i].literal_ids,p)) {
     				printf("compile_id:%d, clause_id:%llu, literal{%d: %d}\n", 
@@ -1067,16 +1067,16 @@ size_t maat_compile_bool_matcher_match(struct bool_matcher *bm, int is_last_scan
 	size_t ud_result_cnt = 0;
 
 	//TODO:mytest need to delete
-	#if 0
+	#if 1
 	unsigned long long *p;
-	for (p = (unsigned long long *)utarray_front(compile_state->all_hit_clause_array); p != NULL; p = (unsigned long long *)utarray_next(compile_state->all_hit_clause_array, p))
+    printf("utarray_len:%u\n", utarray_len(compile_state->all_hit_clauses));
+	for (p = (unsigned long long *)utarray_front(compile_state->all_hit_clauses); p != NULL; p = (unsigned long long *)utarray_next(compile_state->all_hit_clauses, p))
 	{
-		printf(" before bool_matcher_match compile_state clause_id:%llu\n",  *p);
+		printf("before bool_matcher_match compile_state clause_id:%llu\n",  *p);
 	}
 	#endif
 	
-	int bool_match_ret = bool_matcher_match(bm, 
-                                            (unsigned long long *)utarray_eltptr(compile_state->all_hit_clauses, 0),
+	int bool_match_ret = bool_matcher_match(bm, (unsigned long long *)utarray_eltptr(compile_state->all_hit_clauses, 0),
 											utarray_len(compile_state->all_hit_clauses), 
                                             expr_match, MAX_SCANNER_HIT_COMPILE_NUM);
 	for (int i = 0; i < bool_match_ret && ud_result_cnt < ud_array_size; i++) {
@@ -1197,8 +1197,8 @@ struct maat_compile_state *maat_compile_state_new(int thread_id)
 	compile_state->thread_id = thread_id;
 	//compile_state->hier_ver = hier->version;
 	utarray_new(compile_state->internal_hit_paths, &ut_hit_path_icd);
-	utarray_new(compile_state->all_hit_clause_array, &ut_clause_id_icd);
-	utarray_new(compile_state->this_scan_hit_clause_ids, &ut_clause_id_icd);
+	utarray_new(compile_state->all_hit_clauses, &ut_clause_id_icd);
+	utarray_new(compile_state->this_scan_hit_clauses, &ut_clause_id_icd);
 
 	return compile_state;
 }
@@ -1206,8 +1206,8 @@ struct maat_compile_state *maat_compile_state_new(int thread_id)
 void maat_compile_state_free(struct maat_compile_state *compile_state)
 {
     utarray_free(compile_state->internal_hit_paths);
-	utarray_free(compile_state->all_hit_clause_array);
-	utarray_free(compile_state->this_scan_hit_clause_ids);
+	utarray_free(compile_state->all_hit_clauses);
+	utarray_free(compile_state->this_scan_hit_clauses);
 	free(compile_state);
 }
 
@@ -1316,8 +1316,8 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt,
     struct maat_hit_path tmp_path;
     struct bool_expr_match *expr_match = compile_rt->expr_match_buff + compile_state->thread_id * MAX_SCANNER_HIT_COMPILE_NUM;
     int bool_match_ret = bool_matcher_match(compile_rt->bm, 
-                                            (unsigned long long *)utarray_eltptr(compile_state->all_hit_clause_array, 0),
-											utarray_len(compile_state->all_hit_clause_array), expr_match, 
+                                            (unsigned long long *)utarray_eltptr(compile_state->all_hit_clauses, 0),
+											utarray_len(compile_state->all_hit_clauses), expr_match, 
                                             MAX_SCANNER_HIT_COMPILE_NUM);
 	for (int idx = 0; idx < bool_match_ret; idx++) {
         compile = (struct maat_compile *)expr_match[idx].user_tag;
@@ -1387,7 +1387,6 @@ void maat_compile_state_update_hit_clause(struct maat_compile_state *compile_sta
     struct maat_literal_id *tmp = NULL;
 
     unsigned long long *clause_id = 0;
-    size_t new_clause_idx = utarray_len(compile_state->this_scan_hit_clauses);
 
 	HASH_ITER(hh, compile_rt->compile_hash, compile, tmp_compile) {
 		for (size_t i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
@@ -1396,6 +1395,7 @@ void maat_compile_state_update_hit_clause(struct maat_compile_state *compile_sta
 				continue;
 			}
 
+            size_t new_clause_idx = utarray_len(compile_state->this_scan_hit_clauses);
 			tmp = (struct maat_literal_id *)utarray_find(clause_state->literal_ids, 
                                                          &literal_id, compare_literal_id);
 			if (tmp) {
@@ -1404,6 +1404,7 @@ void maat_compile_state_update_hit_clause(struct maat_compile_state *compile_sta
                                 compare_clause_id)) {
 					continue;
 				}
+
                 utarray_push_back(compile_state->this_scan_hit_clauses, &(clause_state->clause_id));
 			}
 
@@ -1779,6 +1780,11 @@ int maat_compile_state_update(struct maat_item *item_hash, int vtable_id,
         int top_group_ids[MAX_SCANNER_HIT_GROUP_NUM] = {-1};
         int top_group_cnt = group2group_runtime_get_top_groups(g2g_rt, &group_ids[i], 
                                                                1, top_group_ids);
+        if (0 == top_group_cnt) {
+            maat_compile_state_update_hit_clause(state->compile_state, compile_rt,
+                                                 group_ids[i], vtable_id);
+        }
+        
         for (int j = 0; j < top_group_cnt; j++) {
             maat_compile_state_update_hit_clause(state->compile_state, compile_rt, 
                                                  top_group_ids[j], vtable_id);

@@ -350,7 +350,7 @@ uint32_t maat_runtime_rule_num(struct maat_runtime *maat_rt)
 void maat_plugin_table_all_callback_finish(struct table_manager *tbl_mgr)
 {
     size_t table_cnt = table_manager_table_count(tbl_mgr);
-    enum table_type table_type = TABLE_TYPE_MAX;
+    enum table_type table_type = TABLE_TYPE_INVALID;
 
     for (size_t i = 0; i < table_cnt; i++) {
         table_type = table_manager_get_table_type(tbl_mgr, i);

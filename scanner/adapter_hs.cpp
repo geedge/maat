@@ -414,7 +414,7 @@ int adapter_hs_scan(struct adapter_hs *hs_instance, int thread_id,
                     size_t n_result, size_t *n_hit_result)
 {
     if (NULL == hs_instance || NULL == data || (0 == data_len) || 
-        NULL == results || NULL == n_results) {
+        NULL == results || 0 == n_result || NULL == n_hit_result) {
         return -1;
     }
 
@@ -515,9 +515,8 @@ struct adapter_hs_stream *adapter_hs_stream_open(struct adapter_hs *hs_instance,
     return hs_stream;
 }
 
-int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream,
-                           const char *data, size_t data_len,
-                           int results[], size_t *n_results)
+int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data, size_t data_len,
+                           struct hs_scan_result *results, size_t n_result, size_t *n_hit_result)
 {
     hs_error_t err;
 
@@ -549,19 +548,30 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream,
         items[i] = *(unsigned long long *)utarray_eltptr(hs_stream->pattern_id_set, i);
     }
 
-    size_t matched_index = 0;
+    int ret = 0;
+    int matched_index = 0;
     struct bool_expr_match *bool_matcher_results = NULL;
+
     bool_matcher_results = ALLOC(struct bool_expr_match, hs_stream->n_expr);
-    size_t bool_matcher_ret = bool_matcher_match(hs_stream->hs_rt->bm, items, pattern_set_size,
+    int bool_matcher_ret = bool_matcher_match(hs_stream->hs_rt->bm, items, pattern_set_size,
                                                  bool_matcher_results, hs_stream->n_expr);
-    for (matched_index = 0; matched_index < bool_matcher_ret; matched_index++) {
-        results[matched_index] = bool_matcher_results[matched_index].expr_id;
+    if (bool_matcher_ret < 0) {
+        ret = -1;
+        goto next;
     }
-    *n_results = bool_matcher_ret;
 
+    if (bool_matcher_ret > n_result) {
+        bool_matcher_ret = n_result;
+    }
+
+    for (matched_index = 0; matched_index < bool_matcher_ret; matched_index++) {
+        results[matched_index].item_id = bool_matcher_results[matched_index].expr_id;
+        results[matched_index].user_tag = bool_matcher_results[matched_index].user_tag;
+    }
+    *n_hit_result = bool_matcher_ret;
+next:
     FREE(bool_matcher_results);
-
-    return 0;
+    return ret;
 }
 
 void adapter_hs_stream_close(struct adapter_hs_stream *hs_stream)

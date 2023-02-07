@@ -100,3 +100,29 @@ add_library(igraph-static STATIC IMPORTED GLOBAL)
 add_dependencies(igraph-static igraph)
 set_property(TARGET igraph-static PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/libigraph.a)
 set_property(TARGET igraph-static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
+
+#flag-matcher
+ExternalProject_Add(flagmatcher PREFIX flagmatcher
+        URL ${CMAKE_CURRENT_SOURCE_DIR}/flag-matcher.tar.gz
+		CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${VENDOR_BUILD} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS="-fPIC")
+
+ExternalProject_Get_Property(flagmatcher INSTALL_DIR)
+file(MAKE_DIRECTORY ${VENDOR_BUILD}/include)
+
+add_library(flagmatcher-static STATIC IMPORTED GLOBAL)
+add_dependencies(flagmatcher-static flagmatcher)
+set_property(TARGET flagmatcher-static  PROPERTY IMPORTED_LOCATION ${VENDOR_BUILD}/lib/libflag_matcher.a)
+set_property(TARGET flagmatcher-static  PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${VENDOR_BUILD}/include)
+
+#interval-matcher
+ExternalProject_Add(intervalmatcher PREFIX intervalmatcher
+        URL ${CMAKE_CURRENT_SOURCE_DIR}/interval-matcher.tar.gz
+		CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${VENDOR_BUILD} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS="-fPIC")
+
+ExternalProject_Get_Property(intervalmatcher INSTALL_DIR)
+file(MAKE_DIRECTORY ${VENDOR_BUILD}/include)
+
+add_library(intervalmatcher-static STATIC IMPORTED GLOBAL)
+add_dependencies(intervalmatcher-static flagmatcher)
+set_property(TARGET intervalmatcher-static  PROPERTY IMPORTED_LOCATION ${VENDOR_BUILD}/lib/libinterval_matcher.a)
+set_property(TARGET intervalmatcher-static  PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${VENDOR_BUILD}/include)

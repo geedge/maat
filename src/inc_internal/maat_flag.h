@@ -16,6 +16,8 @@ extern "C"
 {
 #endif
 
+#include <stdint.h>
+
 #include "log/log.h"
 #include "cJSON/cJSON.h"
 
@@ -42,9 +44,8 @@ int flag_runtime_commit(void *flag_runtime);
  * @retval the num of hit group_id
 */
 int flag_runtime_scan_flag(struct flag_runtime *flag_rt, int thread_id, 
-                             const char *data, size_t data_len, 
-                             int *group_ids, size_t group_ids_size, 
-                             int vtable_id, struct maat_state *state);
+                           uint64_t flag, int *group_ids, size_t group_ids_size, 
+                           int vtable_id, struct maat_state *state);
 
 void flag_runtime_scan_hit_inc(struct flag_runtime *flag_rt, int thread_id);
 long long flag_runtime_scan_hit_sum(struct flag_runtime *flag_rt, int n_thread);

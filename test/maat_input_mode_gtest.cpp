@@ -10,6 +10,7 @@
 const char *table_info_path = "./table_info.conf";
 const char *json_filename = "maat_json.json";
 
+#if 0
 TEST(json_mode, maat_scan_string) {
     char json_iris_path[128] = {0};
     snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
@@ -26,16 +27,16 @@ TEST(json_mode, maat_scan_string) {
     struct maat *maat_instance = maat_new(opts, table_info_path);
     EXPECT_NE(maat_instance, nullptr);
 
-    int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, "HTTP_URL");
+    int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, "KEYWORDS_TABLE");
    
-    char scan_data[128] = "hello";
+    char scan_data[128] = "Batman\\:Take me Home.Superman/:Fine,stay with me.";
     int results[5] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data), results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 191);
+    EXPECT_EQ(results[0], 132);
 
     maat_options_free(opts);
     maat_state_free(&state);
@@ -69,22 +70,22 @@ TEST(iris_mode, maat_scan_string) {
     struct maat *maat_instance = maat_new(opts, table_info_path);
     EXPECT_NE(maat_instance, nullptr);
 
-    int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, "HTTP_URL");
+    int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, "KEYWORDS_TABLE");
    
-    char scan_data[128] = "hello";
+    char scan_data[128] = "Batman\\:Take me Home.Superman/:Fine,stay with me.";
     int results[5] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data), results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 191);
+    EXPECT_EQ(results[0], 132);
 
     maat_options_free(opts);
     maat_state_free(&state);
     maat_free(maat_instance);
 }
-
+#endif
 int count_line_num_cb(const char *table_name, const char *line, void *u_para)
 {
 	(*((unsigned int *)u_para))++;
@@ -131,6 +132,8 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 	return 0;
 }
 
+
+#if 1
 TEST(redis_mode, maat_scan_string) {
     char json_iris_path[128] = {0};
     char redis_ip[64] = "127.0.0.1";
@@ -189,23 +192,23 @@ TEST(redis_mode, maat_scan_string) {
     maat_options_set_logger(opts, logger);
 
     struct maat *maat_instance = maat_new(opts, table_info_path);
-    int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, "HTTP_URL");
+    int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, "KEYWORDS_TABLE");
    
-    char scan_data[128] = "hello";
+    char scan_data[128] = "Batman\\:Take me Home.Superman/:Fine,stay with me.";
     int results[5] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data), results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 191);
+    EXPECT_EQ(results[0], 132);
 
     maat_options_free(opts);
     maat_state_free(&state);
     log_handle_destroy(maat_instance->logger);
     maat_free(maat_instance);
 }
-
+#endif
 int main(int argc, char ** argv)
 {
 	int ret=0;

@@ -28,15 +28,13 @@
 #include "maat_garbage_collection.h"
 #include "maat_group.h"
 #include "maat_expr.h"
+#include "maat_flag.h"
 #include "maat_ip.h"
 #include "maat_plugin.h"
 #include "maat_ip_plugin.h"
 #include "maat_virtual.h"
 
 #define MODULE_MAAT_API	 module_name_str("maat.api")
-
-#define	DISTRICT_ANY		-1
-#define	DISTRICT_UNKNOWN	-2
 
 enum district_set_flag {
     DISTRICT_FLAG_UNSET,
@@ -53,17 +51,13 @@ enum scan_type maat_table_get_scan_type(enum table_type table_type)
         break;
     case TABLE_TYPE_EXPR:
     case TABLE_TYPE_EXPR_PLUS:
-    case TABLE_TYPE_SIMILARITY:
-    case TABLE_TYPE_DIGEST:
         ret = SCAN_TYPE_STRING;
         break;
     case TABLE_TYPE_INTERVAL:
     case TABLE_TYPE_INTERVAL_PLUS:
         ret = SCAN_TYPE_INTERVAL;
         break;
-    case TABLE_TYPE_IP:
     case TABLE_TYPE_IP_PLUS:
-    case TABLE_TYPE_COMPOSITION:
         ret = SCAN_TYPE_IP;
         break;
     case TABLE_TYPE_PLUGIN:
@@ -84,6 +78,7 @@ enum scan_type maat_table_get_scan_type(enum table_type table_type)
     default:
         break;
     }
+
     return ret;
 }
 
@@ -299,14 +294,6 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
         maat_instance->logger = log_handle_create(log_path, opts->log_level);
     }
 
-    maat_instance->tbl_mgr = table_manager_create(table_info_path, opts->accept_tags,
-                                                  maat_instance->garbage_bin, maat_instance->logger);
-    if (NULL == maat_instance->tbl_mgr) {
-        goto failed;
-    }
-
-    maat_instance->default_compile_table_id = table_manager_get_defaut_compile_table_id(maat_instance->tbl_mgr);
-    maat_instance->g2g_table_id = table_manager_get_group2group_table_id(maat_instance->tbl_mgr);
     maat_instance->input_mode = opts->input_mode;
 
     switch (maat_instance->input_mode) {
@@ -342,6 +329,15 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     garbage_gc_timeout_s = (maat_instance->rule_effect_interval_ms / 1000) +
                                 (maat_instance->gc_timeout_ms / 1000);
     maat_instance->garbage_bin = maat_garbage_bin_new(garbage_gc_timeout_s);
+
+    maat_instance->tbl_mgr = table_manager_create(table_info_path, opts->accept_tags,
+                                                  maat_instance->garbage_bin, maat_instance->logger);
+    if (NULL == maat_instance->tbl_mgr) {
+        goto failed;
+    }
+
+    maat_instance->default_compile_table_id = table_manager_get_defaut_compile_table_id(maat_instance->tbl_mgr);
+    maat_instance->g2g_table_id = table_manager_get_group2group_table_id(maat_instance->tbl_mgr);
 
     maat_instance->outer_state_cnt = alignment_int64_array_alloc(opts->nr_worker_threads);
     maat_instance->compile_state_cnt = alignment_int64_array_alloc(opts->nr_worker_threads);
@@ -698,11 +694,97 @@ int hit_group_to_compile(void *compile_runtime, int *compile_ids, size_t compile
     }
 }
 
-int maat_scan_flag(struct maat *instance, int table_id, int thread_id,
+int maat_scan_flag(struct maat *maat_instance, int table_id, int thread_id,
                    uint64_t flag, int *results, size_t n_result,
                    size_t *n_hit_result, struct maat_state **state)
 {
-    return 0;
+     if ((NULL == maat_instance) || (table_id < 0) || (table_id >= MAX_TABLE_NUM) 
+        || (thread_id < 0) || (NULL == results) || (0 == n_result) || (NULL == state)) {
+        return MAAT_SCAN_ERR;
+    }
+    
+    struct maat_state *mid = NULL;
+    mid = grab_state(state, maat_instance, thread_id);
+    mid->scan_cnt++;
+
+    int physical_table_id = 0;
+    int vtable_id = 0;
+    
+    enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
+    if (table_type == TABLE_TYPE_VIRTUAL) {
+        //find physical table id
+        void *virtual_schema = table_manager_get_schema(maat_instance->tbl_mgr, table_id);
+        physical_table_id = virtual_table_get_physical_table_id(virtual_schema, SCAN_TYPE_FLAG);
+        if (physical_table_id < 0) {
+            return MAAT_SCAN_ERR;
+        }
+    } else {
+        physical_table_id = table_id;
+    }
+
+    if (NULL == maat_instance->maat_rt) {
+        log_error(maat_instance->logger, MODULE_MAAT_API, 
+                 "maat_scan_string error because of maat_runtime is NULL");
+        return MAAT_SCAN_OK;
+    }
+
+    maat_runtime_ref_inc(maat_instance->maat_rt, thread_id);
+    alignment_int64_array_add(maat_instance->thread_call_cnt, thread_id, 1);
+
+    int group_ids[MAX_SCANNER_HIT_GROUP_NUM] = {-1};
+    void *flag_rt = table_manager_get_runtime(maat_instance->tbl_mgr, table_id);
+    if (NULL == flag_rt) {
+        return MAAT_SCAN_ERR;
+    }
+
+    int group_hit_cnt = flag_runtime_scan_flag((struct flag_runtime *)flag_rt, 
+                                                 thread_id,
+                                                 flag, group_ids, 
+                                                 MAX_SCANNER_HIT_GROUP_NUM,
+                                                 vtable_id, mid);
+    if (group_hit_cnt < 0) {
+        return MAAT_SCAN_ERR;
+    } 
+    
+    int compile_ret = 0;
+    if (group_hit_cnt > 0 || scan_status_should_compile_NOT(mid)) {
+        // come here means group_hit_cnt > 0, at least MAAT_SCAN_HALF_HIT, or MAAT_SCAN_HIT
+        if (group_hit_cnt > 0) {
+            flag_runtime_scan_hit_inc((struct flag_runtime *)flag_rt, thread_id);
+        }
+
+        int compile_table_id = -1;
+        if (mid->compile_table_id == -1) {
+            compile_table_id = maat_instance->default_compile_table_id;
+        } else {
+            compile_table_id = mid->compile_table_id;
+        }
+
+        void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr, compile_table_id);
+        compile_ret = hit_group_to_compile(compile_rt, results, n_result, n_hit_result, mid);
+
+        assert(mid->is_last_scan < LAST_SCAN_FINISHED);
+        if (LAST_SCAN_SET == mid->is_last_scan) {
+            mid->is_last_scan = LAST_SCAN_FINISHED;
+        }
+    }
+
+    if (compile_ret > 0) {
+        alignment_int64_array_add(maat_instance->hit_cnt, thread_id, 1);
+    }
+
+    if (0 == group_hit_cnt && compile_ret > 0) {
+        // hit NOT group
+        alignment_int64_array_add(maat_instance->not_grp_hit_cnt, thread_id, 1);
+    }
+
+    maat_runtime_ref_dec(maat_instance->maat_rt, thread_id);
+
+    if (0 == compile_ret && group_hit_cnt > 0) {
+        return MAAT_SCAN_HALF_HIT;
+    }
+
+    return MAAT_SCAN_HIT;
 }
 
 int maat_scan_integer(struct maat *instance, int table_id, int thread_id,
@@ -894,11 +976,14 @@ int maat_scan_string(struct maat *maat_instance, int table_id, int thread_id,
     mid = grab_state(state, maat_instance, thread_id);
     mid->scan_cnt++;
 
-    int physical_table_id = -1;
+    int physical_table_id = 0;
+    int vtable_id = 0;
+    
     enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_VIRTUAL) {
         //find physical table id
-        physical_table_id = virtual_table_get_physical_table_id(table_id, SCAN_TYPE_STRING);
+        void *virtual_schema = table_manager_get_schema(maat_instance->tbl_mgr, table_id);
+        physical_table_id = virtual_table_get_physical_table_id(virtual_schema, SCAN_TYPE_STRING);
         if (physical_table_id < 0) {
             return MAAT_SCAN_ERR;
         }
@@ -914,8 +999,7 @@ int maat_scan_string(struct maat *maat_instance, int table_id, int thread_id,
 
     maat_runtime_ref_inc(maat_instance->maat_rt, thread_id);
 
-    //TODO: is TABLE_TYPE_EXPR_PLUS
-    enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, physical_table_id);
+    table_type = table_manager_get_table_type(maat_instance->tbl_mgr, physical_table_id);
     if ((table_type == TABLE_TYPE_EXPR_PLUS) && 
         (NULL == mid || DISTRICT_FLAG_UNSET == mid->is_set_district)) {
         maat_instance->scan_err_cnt++;
@@ -930,7 +1014,8 @@ int maat_scan_string(struct maat *maat_instance, int table_id, int thread_id,
         return MAAT_SCAN_ERR;
     }
 
-    int group_hit_cnt = expr_runtime_scan_string((struct expr_runtime *)expr_rt, thread_id,
+    int group_hit_cnt = expr_runtime_scan_string((struct expr_runtime *)expr_rt, 
+                                                 thread_id,
                                                  data, data_len, group_ids, 
                                                  MAX_SCANNER_HIT_GROUP_NUM,
                                                  vtable_id, mid);
@@ -939,15 +1024,10 @@ int maat_scan_string(struct maat *maat_instance, int table_id, int thread_id,
     } 
     
     int compile_ret = 0;
-    int district_id = DISTRICT_ANY;
     if (group_hit_cnt > 0 || scan_status_should_compile_NOT(mid)) {
         // come here means group_hit_cnt > 0, at least MAAT_SCAN_HALF_HIT, or MAAT_SCAN_HIT
         if (group_hit_cnt > 0) {
             expr_runtime_scan_hit_inc((struct expr_runtime *)expr_rt, thread_id);
-        }
-
-        if (group_hit_cnt > 0 && table_type == TABLE_TYPE_EXPR_PLUS) {
-            district_id = mid->district_id;
         }
 
         int compile_table_id = -1;

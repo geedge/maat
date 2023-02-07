@@ -31,12 +31,18 @@ extern "C"
 #include "IPMatcher.h"
 #include "maat_kv.h"
 #include "maat_table.h"
+#include "maat_virtual.h"
 
 #define MAX_TABLE_NUM	256
 
 #define MAAT_UPDATE_TYPE_NONE 0
 #define	MAAT_UPDATE_TYPE_FULL 1
 #define	MAAT_UPDATE_TYPE_INC 2
+
+#define	DISTRICT_ANY		-1
+#define	DISTRICT_UNKNOWN	-2
+
+#define MAX_DISTRICT_STR     128
 
 enum last_scan_flag {
     LAST_SCAN_UNSET,
@@ -253,6 +259,7 @@ struct maat_state {
 	struct maat_compile_state *compile_state;
 };
 
+enum scan_type maat_table_get_scan_type(enum table_type table_type);
 
 size_t parse_accept_tag(const char *value, struct rule_tag **result, struct log_handle *logger);
 

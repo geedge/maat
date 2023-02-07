@@ -26,6 +26,7 @@ enum scan_type {
 	SCAN_TYPE_IP,
 	SCAN_TYPE_INTERVAL,
 	SCAN_TYPE_STRING,
+    SCAN_TYPE_FLAG,
 	SCAN_TYPE_MAX
 };
 
@@ -34,6 +35,7 @@ void *virtual_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
 void virtual_schema_free(void *virtual_schema);
 
+int virtual_table_get_physical_table_id(void *virtual_schema, enum scan_type type);
 
 #ifdef __cpluscplus
 }

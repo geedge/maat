@@ -67,6 +67,7 @@ int table_manager_accept_tags_match(struct table_manager *tbl_mgr, const char *t
 int table_manager_set_scan_district(struct table_manager *tbl_mgr, const char *district_str, 
                                     size_t district_str_len, int *district_id);
 int table_manager_get_district_id(struct table_manager *tbl_mgr, const char *district);
+
 void *table_manager_get_schema(struct table_manager *tbl_mgr, int table_id);
 void *table_manager_get_runtime(struct table_manager *tbl_mgr, int table_id);
 

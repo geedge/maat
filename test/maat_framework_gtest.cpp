@@ -113,7 +113,7 @@ TEST_F(MaatIPScan, hit_ip_and_port) {
 
     state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_OK);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
     EXPECT_EQ(n_hit_result, 0);
 
     maat_state_free(&state);
@@ -148,7 +148,7 @@ TEST_F(MaatStringScan, hit_ip_and_port_range) {
     n_hit_result = 0;
     state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_OK);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
     EXPECT_EQ(n_hit_result, 0);
 }
 
@@ -183,7 +183,7 @@ TEST(maat_scan_ipv4, hit_ip_range_and_port_range) {
     EXPECT_EQ(ret, 1);
     state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_OK);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
 }
@@ -209,7 +209,7 @@ TEST(maat_scan_ipv4, hit_ip_cidr_and_port_range) {
     EXPECT_EQ(ret, 1);
     state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_OK);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
 }
@@ -233,7 +233,7 @@ TEST(maat_scan_ipv4, hit_ip_cidr_and_port_mask) {
 
     state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_OK);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
 }
@@ -256,7 +256,7 @@ TEST(maat_scan_ipv6, hit_ip_range_and_port_mask) {
 
     state = NULL;
     ret = maat_scan_ipv6(g_maat_instance, table_id, 0, sip6, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_OK);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
 }
@@ -269,7 +269,7 @@ TEST(maat_scan_string, dynamic_config) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     int ret = maat_scan_string(g_maat_instance, table_id, 0, data, strlen(data), results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_OK);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
 
@@ -303,7 +303,7 @@ TEST(maat_scan_ip, dynamic_config) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_OK);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
 

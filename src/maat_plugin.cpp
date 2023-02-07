@@ -369,7 +369,8 @@ int plugin_accept_tag_match(struct plugin_schema *schema, const char *line,
 int plugin_runtime_update(void *plugin_runtime, void *plugin_schema, 
                           const char *line, int valid_column)
 {
-    if (NULL == plugin_runtime || NULL == plugin_schema) {
+    if (NULL == plugin_runtime || NULL == plugin_schema ||
+        NULL == line) {
         return -1;
     }
 

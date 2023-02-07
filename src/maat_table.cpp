@@ -21,6 +21,7 @@
 #include "maat_ip.h"
 #include "maat_compile.h"
 #include "maat_group.h"
+#include "maat_flag.h"
 #include "maat_plugin.h"
 #include "maat_ip_plugin.h"
 #include "maat_virtual.h"
@@ -75,14 +76,17 @@ struct table_operations {
 };
 
 struct table_operations table_ops[TABLE_TYPE_MAX] = {
+    // {
+    //     .type = TABLE_TYPE_FLAG,
+    //     .new_schema = flag_schema_new,
+    //     .free_schema = flag_schema_free,
+    //     .new_runtime = flag_runtime_new,
+    //     .free_runtime = flag_runtime_free,
+    //     .update_runtime = flag_runtime_update,
+    //     .commit_runtime = flag_runtime_commit
+    // },
     {
-        .type = TABLE_TYPE_FLAG,
-        .new_schema = flag_schema_new,
-        .free_schema = flag_schema_free,
-        .new_runtime = flag_runtime_new,
-        .free_runtime = flag_runtime_free,
-        .update_runtime = flag_runtime_update,
-        .commit_runtime = flag_runtime_commit
+        .type = TABLE_TYPE_FLAG
     },
     {
         .type = TABLE_TYPE_EXPR,
@@ -130,22 +134,10 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .commit_runtime = NULL
     },
     {
-        .type = TABLE_TYPE_DIGEST,
-        .new_schema = NULL,
-        .free_schema = NULL,
-        .new_runtime = NULL,
-        .free_runtime = NULL,
-        .update_runtime = NULL,
-        .commit_runtime = NULL
+        .type = TABLE_TYPE_DIGEST
     },
     {
-        .type = TABLE_TYPE_SIMILARITY,
-        .new_schema = NULL,
-        .free_schema = NULL,
-        .new_runtime = NULL,
-        .free_runtime = NULL,
-        .update_runtime = NULL,
-        .commit_runtime = NULL
+        .type = TABLE_TYPE_SIMILARITY
     },
     {   
         .type = TABLE_TYPE_CONJUNCTION,
@@ -262,9 +254,13 @@ static void register_reserved_word(struct maat_kv_store *reserved_word_map)
     maat_kv_register(reserved_word_map, "group2group", TABLE_TYPE_GROUP2GROUP);
     maat_kv_register(reserved_word_map, "expr", TABLE_TYPE_EXPR);
     maat_kv_register(reserved_word_map, "expr_plus", TABLE_TYPE_EXPR_PLUS);
+    maat_kv_register(reserved_word_map, "intval", TABLE_TYPE_INTERVAL);
+    maat_kv_register(reserved_word_map, "intval_plus", TABLE_TYPE_INTERVAL_PLUS);
     maat_kv_register(reserved_word_map, "ip_plus", TABLE_TYPE_IP_PLUS);
     maat_kv_register(reserved_word_map, "plugin", TABLE_TYPE_PLUGIN);
     maat_kv_register(reserved_word_map, "ip_plugin", TABLE_TYPE_IP_PLUGIN);
+    maat_kv_register(reserved_word_map, "bool_plugin", TABLE_TYPE_BOOL_PLUGIN);
+    maat_kv_register(reserved_word_map, "fqdn_plugin", TABLE_TYPE_FQDN_PLUGIN);
     maat_kv_register(reserved_word_map, "virtual", TABLE_TYPE_VIRTUAL);
 }
 
@@ -511,7 +507,7 @@ int table_manager_runtime_create(struct table_manager *tbl_mgr, int max_thread_n
     assert(tbl_mgr->n_table != 0);
 
     size_t i = 0;
-    enum table_type table_type = TABLE_TYPE_MAX;
+    enum table_type table_type = TABLE_TYPE_INVALID;
 
     for (i = 0; i < MAX_TABLE_NUM; i++) {
         void *schema = table_manager_get_schema(tbl_mgr, i);
@@ -629,11 +625,11 @@ int table_manager_get_table_id(struct table_manager *tbl_mgr, const char *name)
 enum table_type table_manager_get_table_type(struct table_manager *tbl_mgr, int table_id)
 {
     if (NULL == tbl_mgr || table_id < 0 || table_id >= MAX_TABLE_NUM) {
-        return TABLE_TYPE_MAX;
+        return TABLE_TYPE_INVALID;
     }
 
     if (NULL == tbl_mgr->tbl[table_id]) {
-        return TABLE_TYPE_MAX;
+        return TABLE_TYPE_INVALID;
     }
 
     return tbl_mgr->tbl[table_id]->table_type;
@@ -750,14 +746,14 @@ int table_manager_update_runtime(struct table_manager *tbl_mgr, int table_id,
     }
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
-    if (table_type == TABLE_TYPE_MAX) {
+    if (table_type == TABLE_TYPE_INVALID) {
         return -1;
     }
 
     if (NULL == table_ops[table_type].update_runtime) {
         return -1;
     }
-
+    
     int ret = table_ops[table_type].update_runtime(runtime, schema, line, valid_column);
 
     if (tbl_mgr->tmp_district_map != NULL) {
@@ -773,7 +769,7 @@ int table_manager_update_runtime(struct table_manager *tbl_mgr, int table_id,
 void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id)
 {
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
-    if (table_type == TABLE_TYPE_MAX) {
+    if (table_type == TABLE_TYPE_INVALID) {
         return;
     }
 
@@ -782,6 +778,7 @@ void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id)
         return;
     }
 
+    printf("table_id:%d\n", table_id);
     if ( table_ops[table_type].commit_runtime != NULL) {
         table_ops[table_type].commit_runtime(runtime);
     }
