@@ -387,7 +387,7 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
     return 0;
 }
 
-int interval_runtime_commit(void *interval_runtime)
+int interval_runtime_commit(void *interval_runtime, const char *table_name)
 {
     if (NULL == interval_runtime) {
         return -1;
@@ -413,14 +413,14 @@ int interval_runtime_commit(void *interval_runtime)
     struct interval_matcher *old_interval_matcher = NULL;
 
     log_info(interval_rt->logger, MODULE_INTERVAL,
-             "committing %zu interval rules for rebuilding interval_matcher engine", 
-             rule_cnt);
+             "table[%s] committing %zu interval rules for rebuilding interval_matcher engine", 
+             table_name, rule_cnt);
 
     new_interval_matcher = interval_matcher_new(rules, rule_cnt);
     if (NULL == new_interval_matcher) {
         log_error(interval_rt->logger, MODULE_INTERVAL,
-                  "rebuild interval_matcher engine failed when update %zu interval rules", 
-                  rule_cnt);
+                  "table[%s]rebuild interval_matcher engine failed when update %zu interval rules", 
+                  table_name, rule_cnt);
         ret = -1;
     }
 

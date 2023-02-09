@@ -460,6 +460,34 @@ int maat_table_callback_register(struct maat *maat_instance, int table_id,
     return 0;
 }
 
+int maat_compile_table_ex_schema_register(struct maat *maat_instance, int table_id,
+                                          maat_rule_ex_new_func_t *new_func,
+                                          maat_rule_ex_free_func_t *free_func,
+                                          maat_rule_ex_dup_func_t *dup_func,
+                                          long argl, void *argp)
+{
+    if (NULL == maat_instance || table_id < 0 || table_id > MAX_TABLE_NUM) {
+        return -1;
+    }
+    
+    enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
+    assert(table_type == TABLE_TYPE_COMPILE);
+
+    void *compile_schema = table_manager_get_schema(maat_instance->tbl_mgr, table_id);
+    assert(compile_schema != NULL);
+
+    return compile_table_set_rule_ex_data_schema((struct compile_schema *)compile_schema, table_id,
+                                                 new_func, free_func, dup_func, 
+                                                 argl, argp, maat_instance->logger);
+}
+
+void *maat_compile_table_get_ex_data(struct maat *maat_instance, int table_id, int compile_id, size_t idx)
+{
+    struct compile_schema *schema = (struct compile_schema *)table_manager_get_schema(maat_instance->tbl_mgr, 
+                                                                                      table_id);
+    return compile_table_get_rule_ex_data(schema, compile_id, idx);
+}
+
 int generic_plugin_table_ex_schema_register(struct table_manager *tbl_mgr, int table_id,
 									       maat_plugin_ex_new_func_t *new_func,
 									       maat_plugin_ex_free_func_t *free_func,
@@ -556,10 +584,10 @@ void generic_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
 
     switch (table_type) {
         case TABLE_TYPE_PLUGIN:
-            plugin_runtime_commit(runtime);
+            plugin_runtime_commit(runtime, "false_plugin_table");
             break;
         case TABLE_TYPE_IP_PLUGIN:
-            ip_plugin_runtime_commit(runtime);
+            ip_plugin_runtime_commit(runtime, "false_plugin_table");
             break;
         default:
             break;
@@ -598,18 +626,19 @@ int maat_plugin_table_ex_schema_register(struct maat *maat_instance, int table_i
     return 0;
 }
 
-void *maat_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
-                                    const char *key, size_t key_len)
+int maat_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
+                                  const char *key, size_t key_len,
+                                  void **ex_data_array, size_t n_ex_data)
 {
     struct maat_runtime *maat_rt = maat_instance->maat_rt;
     if (NULL == maat_rt) {
-        return NULL;
+        return -1;
     }
 
     enum table_type table_type = table_manager_get_table_type(maat_rt->ref_tbl_mgr, table_id);
     void *runtime = table_manager_get_runtime(maat_rt->ref_tbl_mgr, table_id);
     if (NULL == runtime) {
-        return NULL;
+        return -1;
     }
 
     struct ex_data_runtime *ex_data_rt = NULL;
@@ -625,10 +654,11 @@ void *maat_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
     }
   
     if (NULL == ex_data_rt) {
-        return NULL;
+        return -1;
     }
 
-    return ex_data_runtime_get_ex_data(ex_data_rt, key, key_len);
+    *ex_data_array = ex_data_runtime_get_ex_data(ex_data_rt, key, key_len);
+    return 0;
 }
 
 struct maat_state *make_outer_state(struct maat *maat_instance, int thread_id)
@@ -681,17 +711,12 @@ inline int scan_status_should_compile_NOT(struct maat_state *state)
     return 0;
 }
 
-int hit_group_to_compile(void *compile_runtime, int *compile_ids, size_t compile_ids_size,
-                         size_t *n_hit_compile_id, struct maat_state *mid)
+size_t hit_group_to_compile(void *compile_runtime, int *compile_ids, size_t compile_ids_size,
+                         struct maat_state *mid)
 {
-    int compile_id_cnt = compile_runtime_match((struct compile_runtime *)compile_runtime,
-                                              compile_ids, compile_ids_size, mid);
-    *n_hit_compile_id = compile_id_cnt;
-    if (compile_id_cnt > 0) {
-        return MAAT_SCAN_HIT;
-    } else {
-        return MAAT_SCAN_HALF_HIT;
-    }
+    size_t n_hit_compile = compile_runtime_match((struct compile_runtime *)compile_runtime,
+                                                 compile_ids, compile_ids_size, mid);
+    return n_hit_compile;
 }
 
 int maat_scan_flag(struct maat *maat_instance, int table_id, int thread_id,
@@ -746,7 +771,7 @@ int maat_scan_flag(struct maat *maat_instance, int table_id, int thread_id,
         return MAAT_SCAN_ERR;
     } 
     
-    int compile_ret = 0;
+    size_t n_hit_compile = 0;
     if (group_hit_cnt > 0 || scan_status_should_compile_NOT(mid)) {
         // come here means group_hit_cnt > 0, at least MAAT_SCAN_HALF_HIT, or MAAT_SCAN_HIT
         if (group_hit_cnt > 0) {
@@ -761,7 +786,8 @@ int maat_scan_flag(struct maat *maat_instance, int table_id, int thread_id,
         }
 
         void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr, compile_table_id);
-        compile_ret = hit_group_to_compile(compile_rt, results, n_result, n_hit_result, mid);
+        n_hit_compile = hit_group_to_compile(compile_rt, results, n_result, mid);
+        *n_hit_result = n_hit_compile;
 
         assert(mid->is_last_scan < LAST_SCAN_FINISHED);
         if (LAST_SCAN_SET == mid->is_last_scan) {
@@ -769,22 +795,23 @@ int maat_scan_flag(struct maat *maat_instance, int table_id, int thread_id,
         }
     }
 
-    if (compile_ret > 0) {
+    if (n_hit_compile > 0) {
         alignment_int64_array_add(maat_instance->hit_cnt, thread_id, 1);
-    }
-
-    if (0 == group_hit_cnt && compile_ret > 0) {
-        // hit NOT group
-        alignment_int64_array_add(maat_instance->not_grp_hit_cnt, thread_id, 1);
+        if (0 == group_hit_cnt) {
+            //hit NOT group
+             alignment_int64_array_add(maat_instance->not_grp_hit_cnt, thread_id, 1);
+        }
+        return MAAT_SCAN_HIT;
+    } else {
+        // n_hit_compile == 0
+        if (group_hit_cnt > 0) {
+            return MAAT_SCAN_HALF_HIT;
+        }
     }
 
     maat_runtime_ref_dec(maat_instance->maat_rt, thread_id);
 
-    if (0 == compile_ret && group_hit_cnt > 0) {
-        return MAAT_SCAN_HALF_HIT;
-    }
-
-    return MAAT_SCAN_HIT;
+    return MAAT_SCAN_OK;
 }
 
 int maat_scan_integer(struct maat *instance, int table_id, int thread_id,
@@ -837,7 +864,7 @@ int maat_scan_ipv4(struct maat *maat_instance, int table_id, int thread_id,
         return MAAT_SCAN_ERR;
     } 
     
-    int compile_ret = 0;
+     size_t n_hit_compile = 0;
     if (group_hit_cnt > 0 || scan_status_should_compile_NOT(mid)) {
         // come here means group_hit_cnt > 0, at least MAAT_SCAN_HALF_HIT, or MAAT_SCAN_HIT
         if (group_hit_cnt > 0) {
@@ -852,7 +879,8 @@ int maat_scan_ipv4(struct maat *maat_instance, int table_id, int thread_id,
         }
 
         void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr, compile_table_id);
-        compile_ret = hit_group_to_compile(compile_rt, results, n_result, n_hit_result, mid);
+        n_hit_compile = hit_group_to_compile(compile_rt, results, n_result, mid);
+        *n_hit_result = n_hit_compile;
 
         assert(mid->is_last_scan < LAST_SCAN_FINISHED);
         if (LAST_SCAN_SET == mid->is_last_scan) {
@@ -860,22 +888,23 @@ int maat_scan_ipv4(struct maat *maat_instance, int table_id, int thread_id,
         }
     }
 
-    if (compile_ret > 0) {
+    if (n_hit_compile > 0) {
         alignment_int64_array_add(maat_instance->hit_cnt, thread_id, 1);
-    }
-
-    if (0 == group_hit_cnt && compile_ret > 0) {
-        // hit NOT group
-        alignment_int64_array_add(maat_instance->not_grp_hit_cnt, thread_id, 1);
+        if (0 == group_hit_cnt) {
+            //hit NOT group
+             alignment_int64_array_add(maat_instance->not_grp_hit_cnt, thread_id, 1);
+        }
+        return MAAT_SCAN_HIT;
+    } else {
+        // n_hit_compile == 0
+        if (group_hit_cnt > 0) {
+            return MAAT_SCAN_HALF_HIT;
+        }
     }
 
     maat_runtime_ref_dec(maat_instance->maat_rt, thread_id);
 
-    if (0 == compile_ret && group_hit_cnt > 0) {
-        return MAAT_SCAN_HALF_HIT;
-    }
-
-    return MAAT_SCAN_HIT;
+    return MAAT_SCAN_OK;
 }
 
 
@@ -921,7 +950,7 @@ int maat_scan_ipv6(struct maat *maat_instance, int table_id, int thread_id,
         return MAAT_SCAN_ERR;
     } 
     
-    int compile_ret = 0;
+    size_t n_hit_compile = 0;
     if (group_hit_cnt > 0 || scan_status_should_compile_NOT(mid)) {
         // come here means group_hit_cnt > 0, at least MAAT_SCAN_HALF_HIT, or MAAT_SCAN_HIT
         if (group_hit_cnt > 0) {
@@ -936,7 +965,8 @@ int maat_scan_ipv6(struct maat *maat_instance, int table_id, int thread_id,
         }
 
         void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr, compile_table_id);
-        compile_ret = hit_group_to_compile(compile_rt, results, n_result, n_hit_result, mid);
+        n_hit_compile = hit_group_to_compile(compile_rt, results, n_result, mid);
+        *n_hit_result = n_hit_compile;
 
         assert(mid->is_last_scan < LAST_SCAN_FINISHED);
         if (LAST_SCAN_SET == mid->is_last_scan) {
@@ -944,22 +974,23 @@ int maat_scan_ipv6(struct maat *maat_instance, int table_id, int thread_id,
         }
     }
 
-    if (compile_ret > 0) {
+    if (n_hit_compile > 0) {
         alignment_int64_array_add(maat_instance->hit_cnt, thread_id, 1);
-    }
-
-    if (0 == group_hit_cnt && compile_ret > 0) {
-        // hit NOT group
-        alignment_int64_array_add(maat_instance->not_grp_hit_cnt, thread_id, 1);
+        if (0 == group_hit_cnt) {
+            //hit NOT group
+             alignment_int64_array_add(maat_instance->not_grp_hit_cnt, thread_id, 1);
+        }
+        return MAAT_SCAN_HIT;
+    } else {
+        // n_hit_compile == 0
+        if (group_hit_cnt > 0) {
+            return MAAT_SCAN_HALF_HIT;
+        }
     }
 
     maat_runtime_ref_dec(maat_instance->maat_rt, thread_id);
 
-    if (0 == compile_ret && group_hit_cnt > 0) {
-        return MAAT_SCAN_HALF_HIT;
-    }
-
-    return MAAT_SCAN_HIT;
+    return MAAT_SCAN_OK;
 }
 
 int maat_scan_string(struct maat *maat_instance, int table_id, int thread_id,
@@ -1023,7 +1054,7 @@ int maat_scan_string(struct maat *maat_instance, int table_id, int thread_id,
         return MAAT_SCAN_ERR;
     } 
     
-    int compile_ret = 0;
+     size_t n_hit_compile = 0;
     if (group_hit_cnt > 0 || scan_status_should_compile_NOT(mid)) {
         // come here means group_hit_cnt > 0, at least MAAT_SCAN_HALF_HIT, or MAAT_SCAN_HIT
         if (group_hit_cnt > 0) {
@@ -1038,7 +1069,8 @@ int maat_scan_string(struct maat *maat_instance, int table_id, int thread_id,
         }
 
         void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr, compile_table_id);
-        compile_ret = hit_group_to_compile(compile_rt, results, n_result, n_hit_result, mid);
+        n_hit_compile = hit_group_to_compile(compile_rt, results, n_result, mid);
+        *n_hit_result = n_hit_compile;
 
         assert(mid->is_last_scan < LAST_SCAN_FINISHED);
         if (LAST_SCAN_SET == mid->is_last_scan) {
@@ -1046,22 +1078,23 @@ int maat_scan_string(struct maat *maat_instance, int table_id, int thread_id,
         }
     }
 
-    if (compile_ret > 0) {
+    if (n_hit_compile > 0) {
         alignment_int64_array_add(maat_instance->hit_cnt, thread_id, 1);
-    }
-
-    if (0 == group_hit_cnt && compile_ret > 0) {
-        // hit NOT group
-        alignment_int64_array_add(maat_instance->not_grp_hit_cnt, thread_id, 1);
+        if (0 == group_hit_cnt) {
+            //hit NOT group
+             alignment_int64_array_add(maat_instance->not_grp_hit_cnt, thread_id, 1);
+        }
+        return MAAT_SCAN_HIT;
+    } else {
+        // n_hit_compile == 0
+        if (group_hit_cnt > 0) {
+            return MAAT_SCAN_HALF_HIT;
+        }
     }
 
     maat_runtime_ref_dec(maat_instance->maat_rt, thread_id);
 
-    if (0 == compile_ret && group_hit_cnt > 0) {
-        return MAAT_SCAN_HALF_HIT;
-    }
-
-    return MAAT_SCAN_HIT;
+    return MAAT_SCAN_OK;
 }
 
 struct maat_stream *maat_scan_stream_open(struct maat *instance, int table_id, int thread_id)

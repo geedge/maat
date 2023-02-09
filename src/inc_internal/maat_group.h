@@ -47,7 +47,7 @@ int group2group_runtime_get_top_groups(void *g2g_runtime, int *group_ids,
 
 int group2group_runtime_update(void *g2g_runtime, void *g2g_schema, 
                                const char *line, int valid_column);			   
-int group2group_runtime_commit(void *g2g_runtime);
+int group2group_runtime_commit(void *g2g_runtime, const char *table_name);
 
 #ifdef __cpluscplus
 }

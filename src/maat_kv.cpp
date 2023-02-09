@@ -120,7 +120,7 @@ int maat_kv_read_unNull(struct maat_kv_store* store, const char* key, size_t key
 	strlowercase(key, keylen, key_lowercase, sizeof(key_lowercase));
 	HASH_FIND(hh, store->hash, key_lowercase, keylen, kv);
 	if (kv) {
-		*value=kv->val;
+		*value = kv->val;
 		return 1;
 	} else {
 		return -1;

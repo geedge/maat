@@ -36,7 +36,7 @@ struct ip_plugin_schema {
 	int rule_tag_column;
 	struct ex_data_schema *ex_schema;
     int table_id; //ugly
-    struct table_manager *tbl_mgr;
+    struct table_manager *ref_tbl_mgr;
 
     unsigned long long update_err_cnt;
     unsigned long long unmatch_tag_cnt;
@@ -57,12 +57,12 @@ void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
                            const char *table_name, struct log_handle *logger)
 {
     size_t read_cnt = 0;
-    struct ip_plugin_schema *ip_plugin_schema = ALLOC(struct ip_plugin_schema, 1);
+    struct ip_plugin_schema *schema = ALLOC(struct ip_plugin_schema, 1);
 
     cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
    if (item != NULL && item->type == cJSON_Number) {
-        ip_plugin_schema->table_id = item->valueint;
+        schema->table_id = item->valueint;
         read_cnt++;
     }
 
@@ -75,37 +75,43 @@ void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     custom_item = cJSON_GetObjectItem(item, "item_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        ip_plugin_schema->item_id_column = custom_item->valueint;
+        schema->item_id_column = custom_item->valueint;
         read_cnt++;
     }
 
     custom_item = cJSON_GetObjectItem(item, "ip_type");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        ip_plugin_schema->ip_type_column = custom_item->valueint;
+        schema->ip_type_column = custom_item->valueint;
         read_cnt++;
     }
 
     custom_item = cJSON_GetObjectItem(item, "start_ip");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        ip_plugin_schema->start_ip_column = custom_item->valueint;
+        schema->start_ip_column = custom_item->valueint;
         read_cnt++;
     }
 
     custom_item = cJSON_GetObjectItem(item, "end_ip");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        ip_plugin_schema->end_ip_column = custom_item->valueint;
+        schema->end_ip_column = custom_item->valueint;
         read_cnt++;
     }
 
-    ip_plugin_schema->tbl_mgr = tbl_mgr;
+    // rule_tag is optional
+    custom_item = cJSON_GetObjectItem(item, "rule_tag");
+    if (custom_item != NULL && custom_item->type == cJSON_Number) {
+        schema->rule_tag_column = custom_item->valueint;
+    }
+
+    schema->ref_tbl_mgr = tbl_mgr;
 
     if (read_cnt < 5) {
         goto error;
     }
     
-    return ip_plugin_schema;
+    return schema;
 error:
-    FREE(ip_plugin_schema);
+    FREE(schema);
     return NULL;
 }
 
@@ -139,7 +145,7 @@ int ip_plugin_accept_tag_match(struct ip_plugin_schema *schema, const char *line
 {
     size_t column_offset = 0;
     size_t column_len = 0;
-    size_t n_tag = table_manager_accept_tags_count(schema->tbl_mgr);
+    size_t n_tag = table_manager_accept_tags_count(schema->ref_tbl_mgr);
 
     if (schema->rule_tag_column > 0 && n_tag > 0) {
         int ret = get_column_pos(line, schema->rule_tag_column, 
@@ -155,7 +161,7 @@ int ip_plugin_accept_tag_match(struct ip_plugin_schema *schema, const char *line
         if (column_len > 2) {
             char *tag_str = ALLOC(char, column_len + 1);
             memcpy(tag_str, (line + column_offset), column_len);
-            ret = table_manager_accept_tags_match(schema->tbl_mgr, tag_str);
+            ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
             FREE(tag_str);
             if (TAG_MATCH_ERR == ret) {
                 log_error(logger, MODULE_IP_PLUGIN,
@@ -372,36 +378,42 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
         return -1;
-    } 
-    
-    if (1 == is_valid) {
-        //add
-        ip_plugin_item = ip_plugin_item_new(line, schema, ip_plugin_rt->logger);
-        if (NULL == ip_plugin_item) {
-            return -1;
-        }
     }
 
-    char *key = (char *)&item_id;
-    int ret = ip_plugin_runtime_update_row(ip_plugin_rt, schema, line, key, 
-                                           sizeof(int), ip_plugin_item, is_valid);
-    if (ret < 0) {
-        if (ip_plugin_item != NULL) {
-            FREE(ip_plugin_item);
+    if (schema->ex_schema != NULL) {
+        if (1 == is_valid) {
+            // add
+            ip_plugin_item = ip_plugin_item_new(line, schema, ip_plugin_rt->logger);
+            if (NULL == ip_plugin_item) {
+                return -1;
+            }
         }
-        return -1;
-    } else {
-        if (0 == is_valid) {
-            ip_plugin_rt->rule_num--;
+
+        char *key = (char *)&item_id;
+        int ret = ip_plugin_runtime_update_row(ip_plugin_rt, schema, line, key,
+                                               sizeof(int), ip_plugin_item, is_valid);
+        if (ret < 0) {
+            if (ip_plugin_item != NULL) {
+                FREE(ip_plugin_item);
+            }
+            return -1;
         } else {
-            ip_plugin_rt->rule_num++;
+            if (0 == is_valid) {
+                ip_plugin_rt->rule_num--;
+            } else {
+                ip_plugin_rt->rule_num++;
+            }
         }
+    } else {
+        //ex_schema not set
+        ex_data_runtime_cache_row_put(ip_plugin_rt->ex_data_rt, line);
+        ip_plugin_rt->rule_num = ex_data_runtime_cached_row_count(ip_plugin_rt->ex_data_rt);
     }
 
     return 0;
 }
 
-int ip_plugin_runtime_commit(void *ip_plugin_runtime)
+int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name)
 {
     if (NULL == ip_plugin_runtime) {
         return -1;
@@ -431,13 +443,13 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime)
 
     if (rule_cnt > 0) {
          log_info(ip_plugin_rt->logger, MODULE_IP_PLUGIN, 
-                 "committing %zu ip_plugin rules for rebuilding ip_matcher engine", 
-                 rule_cnt);
+                 "table[%s] committing %zu ip_plugin rules for rebuilding ip_matcher engine", 
+                 table_name, rule_cnt);
         new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used);
         if (NULL == new_ip_matcher) {
             log_error(ip_plugin_rt->logger, MODULE_IP_PLUGIN, 
-                      "rebuild ip_matcher engine failed when update %zu ip_plugin rules", 
-                      rule_cnt);
+                      "table[%s] rebuild ip_matcher engine failed when update %zu ip_plugin rules", 
+                      table_name, rule_cnt);
             ret = -1;
         }
     }

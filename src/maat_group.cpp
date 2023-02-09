@@ -28,7 +28,7 @@ struct group2group_schema {
     int group_id_column;
     int super_group_id_column;
     int table_id;//ugly
-    struct table_manager *tbl_mgr;
+    struct table_manager *ref_tbl_mgr;
 };
 
 struct maat_group {
@@ -99,7 +99,7 @@ void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         read_cnt++;
     }
 
-    g2g_schema->tbl_mgr = tbl_mgr;
+    g2g_schema->ref_tbl_mgr = tbl_mgr;
 
     if (read_cnt < 3) {
 		goto error;
@@ -554,13 +554,20 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
     return ret;
 }
 
-int group2group_runtime_commit(void *g2g_runtime)
+int group2group_runtime_commit(void *g2g_runtime, const char *table_name)
 {
     if (NULL == g2g_runtime) {
 		return -1;
 	}
 
-    return group2group_runtime_build_top_groups(g2g_runtime);
+    struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
+    int ret = group2group_runtime_build_top_groups(g2g_runtime);
+    if (ret < 0) {
+        log_error(g2g_rt->logger, MODULE_GROUP, 
+                  "table[%s] group2group runtime commit failed", table_name);
+    }
+
+    return ret;
 }
 
 int group2group_runtime_get_top_groups(void *g2g_runtime, int *group_ids, 

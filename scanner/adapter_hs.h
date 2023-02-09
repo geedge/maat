@@ -47,6 +47,16 @@ typedef struct {
     /* pattern type */
     int type;
 
+    /* default 0(sensitive) 1(insensitive) */
+    int case_sensitive;
+
+    /* (0)sub string match (1)complete match */
+    int match_mode;
+
+    /* just match in scan_data's range of [l_offset, r_offset] */
+    int l_offset;
+    int r_offset;
+
     /* start pointer of pattern */
     char *pat;
     /* pattern length */

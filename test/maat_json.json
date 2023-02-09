@@ -3,183 +3,179 @@
 	"group2compile_table": "GROUP2COMPILE",
 	"group2group_table": "GROUP2GROUP",
     "groups": [		
-		{
-			"group_name": "ASN1234",
-            "regions": [
-                {
-                    "table_name": "AS_NUMBER",
-                    "table_type": "expr",
-                    "table_content": {
-                        "keywords": "AS1234",
-                        "expr_type": "none",
-                        "match_method": "exact",
-                        "format": "uncase plain"
-                    }
-                }
-            ]
-        },
-        {
-            "group_name": "ASN2345",
-            "regions": [
-                {
-                    "table_name": "AS_NUMBER",
-                    "table_type": "expr",
-                    "table_content": {
-                        "keywords": "AS2345",
-                        "expr_type": "none",
-                        "match_method": "exact",
-                        "format": "uncase plain"
-                    }
-                }
-            ]
-        },
-		{
-	        "group_name": "financial-department-ip",
-	        "regions": [
-	            {
-	                "table_name": "IP_PLUS_CONFIG",
-	                "table_type": "ip_plus",
-	                "table_content": {
-	                    "addr_type": "ipv4",
-                        "saddr_format": "mask",
-	                    "src_ip1": "192.168.40.88",
-	                    "src_ip2": "255.255.255.255",
-                        "sport_format": "mask",
-	                    "src_port1": "0",
-	                    "src_port2": "65535",
-                        "daddr_format": "mask",
-	                    "dst_ip1": "0.0.0.0",
-	                    "dst_ip2": "255.255.255.255",
-                        "dport_format": "mask",
-	                    "dst_port1": "0",
-	                    "dst_port2": "65535",
-	                    "protocol": 6,
-	                    "direction": "double"
-	                }
-	            }
-	        ]
+			{
+				"group_name": "ASN1234",
+        "regions": [
+          {
+            "table_name": "AS_NUMBER",
+            "table_type": "expr",
+            "table_content": {
+                "keywords": "AS1234",
+                "expr_type": "none",
+                "match_method": "exact",
+                "format": "uncase plain"
+            }
+          }
+        ]
+      },
+      {
+          "group_name": "ASN2345",
+          "regions": [
+              {
+                  "table_name": "AS_NUMBER",
+                  "table_type": "expr",
+                  "table_content": {
+                      "keywords": "AS2345",
+                      "expr_type": "none",
+                      "match_method": "exact",
+                      "format": "uncase plain"
+                  }
+              }
+          ]
+      },
+			{
+	      "group_name": "financial-department-ip",
+	      "regions": [
+	          {
+	              "table_name": "IP_CONFIG",
+	              "table_type": "ip_plus",
+	              "table_content": {
+	                  "addr_type": "ipv4",
+	                  "src_ip": "192.168.40.88",
+	                  "mask_src_ip": "255.255.255.255",
+	                  "src_port": "0",
+	                  "mask_src_port": "65535",
+	                  "dst_ip": "0.0.0.0",
+	                  "mask_dst_ip": "255.255.255.255",
+	                  "dst_port": "0",
+	                  "mask_dst_port": "65535",
+	                  "protocol": 6,
+	                  "direction": "double"
+	              }
+	          }
+	      ]
 	    },
-        {
-            "group_name": "Country-Sparta-IP",
-            "regions": [
-                {
-                    "table_name": "GeoLocation",
-                    "table_type": "expr",
-                    "table_content": {
-                        "keywords": "Greece.Sparta",
-                        "expr_type": "none",
-                        "match_method": "exact",
-                        "format": "uncase plain"
-                    }
-                }
-            ]
-        },
-		{
-	        "group_name": "IPv4-composition-source-only",
-	        "regions": [
-				{
-					"table_type": "ip_plus",
-					"table_name": "IP_PLUS_CONFIG",
-					"table_content": {
-						"addr_type": "ipv4",
-						"saddr_format": "range",
-						"src_ip1": "192.168.50.24",
-						"src_ip2": "192.168.50.24",
-						"sport_format": "range",
-						"src_port1": "1",
-						"src_port2": "40000",
-						"daddr_format": "mask",
-						"dst_ip1": "0.0.0.0",
-						"dst_ip2": "255.255.255.0",
-						"dport_format": "range",
-						"dst_port1": "0",
-						"dst_port2": "65535",
-						"protocol": 6,
-						"direction": "double"
-					}
-				}  
-	        ]
+      {
+          "group_name": "Country-Sparta-IP",
+          "regions": [
+              {
+                  "table_name": "GeoLocation",
+                  "table_type": "expr",
+                  "table_content": {
+                      "keywords": "Greece.Sparta",
+                      "expr_type": "none",
+                      "match_method": "exact",
+                      "format": "uncase plain"
+                  }
+              }
+          ]
+      },
+			{
+	      "group_name": "IPv4-composition-source-only",
+	      "regions": [
+						{
+							"table_type": "ip_plus",
+							"table_name": "IP_PLUS_CONFIG",
+							"table_content": {
+								"addr_type": "ipv4",
+								"saddr_format": "range",
+								"src_ip1": "192.168.50.24",
+								"src_ip2": "192.168.50.24",
+								"sport_format": "range",
+								"src_port1": "1",
+								"src_port2": "40000",
+								"daddr_format": "mask",
+								"dst_ip1": "0.0.0.0",
+								"dst_ip2": "255.255.255.0",
+								"dport_format": "range",
+								"dst_port1": "0",
+								"dst_port2": "65535",
+								"protocol": 6,
+								"direction": "double"
+							}
+						}  
+	      ]
 	    },
-        {
-            "group_name": "FQDN_OBJ1",
-            "regions": [
-                {
-                    "table_name": "KEYWORDS_TABLE",
-                    "table_type": "expr",
-                    "table_content": {
-                        "keywords": "sports.example.com",
-                        "expr_type": "none",
-                        "match_method": "exact",
-                        "format": "uncase plain"
-                    }
-                }
-            ]
-        },
-        {
-            "group_name": "FQDN_CAT1",
-            "regions": [
-                {
-                    "table_name": "INTERGER_PLUS",
-                    "table_type": "interval_plus",
-                    "table_content": {
-                        "district": "fqdn_cat_id",
-                        "low_boundary": 1724,
-                        "up_boundary": 1724
-                    }
-                }
-            ]
-        },
-		{
-	        "group_name": "IPv4-composition-NOT-client-ip",
-	        "regions": [
-				{
-					"table_type": "ip_plus",
-					"table_name": "IP_PLUS_CONFIG",
-					"table_content": {
-						"addr_type": "ipv4",
-						"saddr_format": "range",
-						"src_ip1": "192.168.58.19",
-						"src_ip2": "192.168.58.19",
-						"sport_format": "range",
-						"src_port1": "20000",
-						"src_port2": "20000",
-						"daddr_format": "mask",
-						"dst_ip1": "0.0.0.0",
-						"dst_ip2": "255.255.255.0",
-						"dport_format": "range",
-						"dst_port1": "0",
-						"dst_port2": "65535",
-						"protocol": 6,
-						"direction": "double"
-					}
-				}  
-	        ]
+      {
+          "group_name": "FQDN_OBJ1",
+          "regions": [
+              {
+                  "table_name": "KEYWORDS_TABLE",
+                  "table_type": "expr",
+                  "table_content": {
+                      "keywords": "sports.example.com",
+                      "expr_type": "none",
+                      "match_method": "exact",
+                      "format": "uncase plain"
+                  }
+              }
+          ]
+      },
+      {
+          "group_name": "FQDN_CAT1",
+          "regions": [
+              {
+                  "table_name": "INTERGER_PLUS",
+                  "table_type": "interval_plus",
+                  "table_content": {
+                      "district": "fqdn_cat_id",
+                      "low_boundary": 1724,
+                      "up_boundary": 1724
+                  }
+              }
+          ]
+      },
+			{
+	      "group_name": "IPv4-composition-NOT-client-ip",
+	      "regions": [
+						{
+							"table_type": "ip_plus",
+							"table_name": "IP_PLUS_CONFIG",
+							"table_content": {
+								"addr_type": "ipv4",
+								"saddr_format": "range",
+								"src_ip1": "192.168.58.19",
+								"src_ip2": "192.168.58.19",
+								"sport_format": "range",
+								"src_port1": "20000",
+								"src_port2": "20000",
+								"daddr_format": "mask",
+								"dst_ip1": "0.0.0.0",
+								"dst_ip2": "255.255.255.0",
+								"dport_format": "range",
+								"dst_port1": "0",
+								"dst_port2": "65535",
+								"protocol": 6,
+								"direction": "double"
+							}
+						}  
+	      ]
 	    },
-		{
-	        "group_name": "IPv4-composition-NOT-server-ip",
-	        "regions": [
-				{
-					"table_type": "ip_plus",
-					"table_name": "IP_PLUS_CONFIG",
-					"table_content": {
-						"addr_type": "ipv4",
-						"saddr_format": "range",
-						"src_ip1": "10.0.1.20",
-						"src_ip2": "10.0.1.25",
-						"sport_format": "range",
-						"src_port1": "1",
-						"src_port2": "443",
-						"daddr_format": "mask",
-						"dst_ip1": "0.0.0.0",
-						"dst_ip2": "255.255.255.0",
-						"dport_format": "range",
-						"dst_port1": "0",
-						"dst_port2": "65535",
-						"protocol": 6,
-						"direction": "double"
-					}
-				}  
-	        ]
+			{
+	      "group_name": "IPv4-composition-NOT-server-ip",
+	      "regions": [
+						{
+							"table_type": "ip_plus",
+							"table_name": "IP_PLUS_CONFIG",
+							"table_content": {
+								"addr_type": "ipv4",
+								"saddr_format": "range",
+								"src_ip1": "10.0.1.20",
+								"src_ip2": "10.0.1.25",
+								"sport_format": "range",
+								"src_port1": "1",
+								"src_port2": "443",
+								"daddr_format": "mask",
+								"dst_ip1": "0.0.0.0",
+								"dst_ip2": "255.255.255.0",
+								"dport_format": "range",
+								"dst_port1": "0",
+								"dst_port2": "65535",
+								"protocol": 6,
+								"direction": "double"
+							}
+						}  
+	      ]
 	    }
     ],
     "rules": [
@@ -196,43 +192,35 @@
                     "group_name": "123_IP_group",
                     "regions": [
                         {
-                            "table_name": "IP_PLUS_CONFIG",
+                            "table_name": "IP_CONFIG",
                             "table_type": "ip_plus",
                             "table_content": {
                                 "addr_type": "ipv4",
-                                "saddr_format": "mask",
-                                "src_ip1": "10.0.6.201",
-                                "src_ip2": "255.255.0.0",
-                                "sport_format": "mask",
-                                "src_port1": "0",
-                                "src_port2": "65535",
-                                "daddr_format":"mask",
-                                "dst_ip1": "0.0.0.0",
-                                "dst_ip2": "255.255.255.255",
-                                "dport_format":"mask",
-                                "dst_port1": "0",
-                                "dst_port2": "65535",
+                                "src_ip": "10.0.6.201",
+                                "mask_src_ip": "255.255.0.0",
+                                "src_port": "0",
+                                "mask_src_port": "65535",
+                                "dst_ip": "0.0.0.0",
+                                "mask_dst_ip": "255.255.255.255",
+                                "dst_port": "0",
+                                "mask_dst_port": "65535",
                                 "protocol": 6,
                                 "direction": "double"
                             }
                         },
                         {
-                            "table_name": "IP_PLUS_CONFIG",
+                            "table_name": "IP_CONFIG",
                             "table_type": "ip_plus",
                             "table_content": {
                                 "addr_type": "ipv6",
-                                "saddr_format":"mask",
-                                "src_ip1": "2001:da8:205:1::101",
-                                "src_ip2": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:0000",
-                                "sport_format":"mask",
-                                "src_port1": "0",
-                                "src_port2": "65535",
-                                "daddr_format":"mask",
-                                "dst_ip1": "0::0",
-                                "dst_ip2": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
-                                "dport_format":"mask",
-                                "dst_port1": "0",
-                                "dst_port2": "65535",
+                                "src_ip": "2001:da8:205:1::101",
+                                "mask_src_ip": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:0000",
+                                "src_port": "0",
+                                "mask_src_port": "65535",
+                                "dst_ip": "0::0",
+                                "mask_dst_ip": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+                                "dst_port": "0",
+                                "mask_dst_port": "65535",
                                 "protocol": 6,
                                 "direction": "double"
                             }
@@ -283,31 +271,7 @@
                 }
             ]
         },
-        {
-            "compile_id": 125,
-            "service": 1,
-            "action": 1,
-            "do_blacklist": 1,
-            "do_log": 1,
-            "user_region": "anything",
-            "is_valid": "yes",
-            "groups": [
-                {
-                    "regions": [
-                        {
-                            "table_name": "HTTP_URL",
-                            "table_type": "expr",
-                            "table_content": {
-                                "keywords": "action=search\\&query=(.*)",
-                                "expr_type": "regex",
-                                "match_method": "sub",
-                                "format": "uncase plain"
-                            }
-                        }
-                    ]
-                }
-            ]
-        },
+       
         {
             "compile_id": 126,
             "service": 1,
@@ -953,7 +917,31 @@
 				        }
 				    ]
 				},
-        
+        {
+            "compile_id": 149,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "StringScan.Regex",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_name": "CORNER_CASE_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "^((?!.*\\binstagram\\b)).*\\.fbcdn\\.net$",
+                                "expr_type": "regex",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
         {
             "compile_id": 150,
             "service": 0,
@@ -2013,6 +2001,32 @@
             ]
         },
         {
+            "compile_id": 183,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "StringScan.RegexWithNotContains",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_name": "CORNER_CASE_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "^(?=.*/rain/a/TWF2021042600418000)(?!new.qq.com).*",
+                                "expr_type": "regex",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
             "compile_id": 184,
             "user_region": "APP_ID=6006740;Liumengyan-Bugreport-20210515",
             "description": "Hulu",
@@ -2027,24 +2041,20 @@
                     "regions": [
 
                         {
-                            "table_name": "IP_PLUS_CONFIG",
+                            "table_name": "IP_CONFIG",
                             "table_type": "ip_plus",
-                            "table_content": {  
-                                "addr_type": "ipv6",
-                                "saddr_format":"mask",
-                                "src_ip1": "::",
-                                "src_ip2": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
-                                "sport_format":"mask",
-                                "src_port1": "0",
-                                "src_port2": "65535",
-                                "daddr_format":"mask",
-                                "dst_ip1": "2620:100:3000::",
-                                "dst_ip2": "ffff:ffff:ff00:0000:0000:0000:0000:0000",
-                                "dport_format":"mask",
-                                "dst_port1": "0",
-                                "dst_port2": "65535",
+                            "table_content": {
                                 "protocol": 0,
-                                "direction": "double"
+                                "addr_type": "ipv6",
+                                "direction": "double",
+                                "src_ip": "::",
+                                "dst_ip": "2620:100:3000::",
+                                "src_port": "0",
+                                "dst_port": "0",
+                                "mask_src_port": "65535",
+                                "mask_src_ip": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+                                "mask_dst_port": "65535",
+                                "mask_dst_ip": "ffff:ffff:ff00:0000:0000:0000:0000:0000"
                             }
                         }
                     ]
@@ -2286,15 +2296,76 @@
         },
         {
             "compile_id": 191,
-            "service": 1,
-            "action": 1,
-            "do_blacklist": 1,
-            "do_log": 1,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "StringScan.HexBinCaseSensitive",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "expr",
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_content": {
+                                "keywords": "54455354",
+                                "expr_type": "none",
+                                "format": "hexbin",
+                                "match_method": "sub"
+                            }
+                        }
+                    ],
+                    "group_name": "Untitled"
+                }
+            ]
+        },
+        {
+            "compile_id": 192,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
             "user_region": "anything",
             "is_valid": "yes",
             "groups": [
                 {
-                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_type": "flag",
+                            "table_name": "FLAG_CONFIG",
+                            "table_content": {
+                                "flag": 1,
+                                "flag_mask": 3
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 193,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "anything",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "flag",
+                            "table_name": "FLAG_CONFIG",
+                            "table_content": {
+                                "flag": 2,
+                                "flag_mask": 3
+                            }
+                        }
+                    ]
+                },
+                {
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -2304,6 +2375,29 @@
                                 "expr_type": "none",
                                 "match_method": "sub",
                                 "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 194,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "anything",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "flag",
+                            "table_name": "FLAG_CONFIG",
+                            "table_content": {
+                                "flag": 21,
+                                "flag_mask": 31
                             }
                         }
                     ]

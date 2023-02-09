@@ -45,7 +45,7 @@ void ip_plugin_runtime_free(void *ip_plugin_runtime);
 
 int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema, 
                              const char *line, int valid_column);
-int ip_plugin_runtime_commit(void *ip_plugin_runtime);
+int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name);
 
 struct ex_data_runtime *ip_plugin_runtime_get_ex_data_rt(void *ip_plugin_runtime);
 

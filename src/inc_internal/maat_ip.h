@@ -30,7 +30,7 @@ void ip_runtime_free(void *ip_runtime);
 
 int ip_runtime_update(void *ip_runtime, void *ip_schema, 
                       const char *line, int valid_column);
-int ip_runtime_commit(void *ip_runtime);
+int ip_runtime_commit(void *ip_runtime, const char *table_name);
 
 struct ex_data_runtime *ip_runtime_get_ex_data_rt(struct ip_runtime *ip_rt);
 

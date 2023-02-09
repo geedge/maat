@@ -10,6 +10,7 @@
 
 #include <string.h>
 #include <assert.h>
+#include <ctype.h>
 
 #include "maat_expr.h"
 #include "adapter_hs.h"
@@ -42,6 +43,7 @@ enum expr_type {
     EXPR_TYPE_STRING = 0,
 	EXPR_TYPE_AND,
     EXPR_TYPE_REGEX,
+    EXPR_TYPE_OFFSET,
     EXPR_TYPE_MAX
 };
 
@@ -98,6 +100,9 @@ enum expr_type int_to_expr_type(int expr_type)
         break;
     case 2:
         type = EXPR_TYPE_REGEX;
+        break;
+    case 3:
+        type = EXPR_TYPE_OFFSET;
         break;
     default:
         break;
@@ -179,22 +184,6 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
         str_unescape(district);
         expr_item->district_id = table_manager_get_district_id(expr_schema->ref_tbl_mgr, district);
     }
-    
-    ret = get_column_pos(line, expr_schema->keywords_column, &column_offset, &column_len);
-    if (ret < 0) {
-        log_error(logger, MODULE_EXPR, 
-                  "expr table(table_id:%d) line:%s has no keywords",
-                  expr_schema->table_id, line);
-        goto error;
-    }
-
-    if (column_len >= MAX_KEYWORDS_STR) {
-        log_error(logger, MODULE_EXPR, 
-                  "expr table(table_id:%d) line:%s keywords length too long",
-                  expr_schema->table_id, line);
-        goto error;
-    }
-    memcpy(expr_item->keywords, (line + column_offset), column_len);
 
     ret = get_column_pos(line, expr_schema->expr_type_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -247,6 +236,23 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
             goto error;
     }
     
+    ret = get_column_pos(line, expr_schema->keywords_column, &column_offset, &column_len);
+    if (ret < 0) {
+        log_error(logger, MODULE_EXPR, 
+                  "expr table(table_id:%d) line:%s has no keywords",
+                  expr_schema->table_id, line);
+        goto error;
+    }
+
+    if (column_len >= MAX_KEYWORDS_STR) {
+        log_error(logger, MODULE_EXPR, 
+                  "expr table(table_id:%d) line:%s keywords length too long",
+                  expr_schema->table_id, line);
+        goto error;
+    }
+    memcpy(expr_item->keywords, (line + column_offset), column_len);
+
+   
     return expr_item;
 error:
     FREE(expr_item);
@@ -478,6 +484,7 @@ enum pattern_type expr_type2pattern_type(enum expr_type expr_type)
     switch (expr_type) {
         case EXPR_TYPE_STRING:
         case EXPR_TYPE_AND:
+        case EXPR_TYPE_OFFSET:
             break;
         case EXPR_TYPE_REGEX:
             pattern_type = PATTERN_TYPE_REG;
@@ -489,6 +496,33 @@ enum pattern_type expr_type2pattern_type(enum expr_type expr_type)
     return pattern_type;
 }
 
+int converHextoint(char srctmp)
+{
+	if (isdigit(srctmp)) {
+		return srctmp - '0';
+	} else {
+		char temp = toupper(srctmp);
+		temp = temp - 'A' + 10;
+		return temp;
+	}
+}
+
+size_t hex2bin(char *hex, int hex_len, char *binary, size_t size)
+{
+	size_t resultlen = 0;
+	int high,low;
+	for (int i = 0; i < hex_len && size > resultlen; i += 2, resultlen++) {
+		high = converHextoint(hex[i]);
+		low = converHextoint(hex[i+1]);
+		binary[resultlen] = high * 16 + low;
+	}
+
+	size = resultlen;
+	binary[resultlen] = '\0';
+
+	return resultlen;
+}
+
 #define MAAT_MAX_EXPR_ITEM_NUM	8
 and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item, void *user_data,
                                    struct log_handle *logger)
@@ -496,15 +530,18 @@ and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item, void *user_data,
     size_t i = 0;
     size_t sub_expr_cnt = 0;
     char *pos = NULL;
+    char *tmp = NULL;
     char *saveptr = NULL;
     char *sub_key_array[MAAT_MAX_EXPR_ITEM_NUM];
+    int key_left_offset[MAAT_MAX_EXPR_ITEM_NUM] = {-1};
+    int key_right_offset[MAAT_MAX_EXPR_ITEM_NUM] = {-1};
     and_expr_t *expr_rule = ALLOC(and_expr_t, 1);
 
     switch (expr_item->expr_type) {
         case EXPR_TYPE_AND:
         case EXPR_TYPE_REGEX:
             for (i = 0, pos = expr_item->keywords; ; i++, pos = NULL) {
-                char *tmp = strtok_r_esc(pos, '&', &saveptr);
+                tmp = strtok_r_esc(pos, '&', &saveptr);
                 if (NULL == tmp) {
                     break;
                 }
@@ -525,6 +562,42 @@ and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item, void *user_data,
             }
             sub_expr_cnt = i;
             break;
+        case EXPR_TYPE_OFFSET:
+            for (i = 0, pos = expr_item->keywords; ; i++, pos = NULL) {
+                tmp = strtok_r_esc(pos, '&', &saveptr);
+                if (NULL == tmp) {
+                    break;
+                }
+
+                if (i >= MAAT_MAX_EXPR_ITEM_NUM) {
+                    log_error(logger, MODULE_EXPR,
+                              "expr item_id:%d too many patterns", 
+                              expr_item->item_id);
+                    return NULL;
+                }
+
+                sub_key_array[i] = tmp;
+                sscanf(sub_key_array[i], "%d-%d:", &(key_left_offset[i]),&(key_right_offset[i]));
+				if (!(key_left_offset[i] >= 0 && key_right_offset[i] > 0 
+                      && key_left_offset[i] <= key_right_offset[i])) {
+					log_error(logger, MODULE_EXPR,
+							 "expr item:%d has invalid offset.", expr_item->item_id);
+					return NULL;
+				}
+
+				sub_key_array[i] = (char *)memchr(sub_key_array[i], ':', strlen(sub_key_array[i]));
+				if (NULL == sub_key_array[i]) {
+					log_error(logger, MODULE_EXPR,
+							"expr item:%d has invalid offset keyword format.",
+                            expr_item->item_id);
+					return NULL;
+				}
+
+				sub_key_array[i]++;//jump over ':'
+				sub_key_array[i] = str_unescape(sub_key_array[i]);
+            }
+            sub_expr_cnt = i;
+            break;
         case EXPR_TYPE_STRING:
             sub_expr_cnt = 1;
             sub_key_array[0] = expr_item->keywords;
@@ -534,12 +607,36 @@ and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item, void *user_data,
             break;
     }
 
+    size_t region_str_len = 0;
+    char *region_string = NULL;
+    size_t sub_key_len = 0;
+
     for (i = 0; i < sub_expr_cnt; i++) {
         expr_rule->expr_id = expr_item->item_id;
-        expr_rule->patterns[i].pat = ALLOC(char, strlen(sub_key_array[i]));
-        memcpy(expr_rule->patterns[i].pat, sub_key_array[i], strlen(sub_key_array[i]));
-        expr_rule->patterns[i].pat_len = strlen(sub_key_array[i]);
+        if (FALSE == expr_item->is_case_sensitive) {
+            // insensitive
+            expr_rule->patterns[i].case_sensitive = 1;
+        }
+        
         expr_rule->patterns[i].type = expr_type2pattern_type(expr_item->expr_type);
+
+        if (TRUE == expr_item->is_hexbin && expr_rule->patterns[i].type != EXPR_TYPE_REGEX) {
+            region_str_len = strlen(sub_key_array[i]) + 1;
+			region_string = ALLOC(char, region_str_len);
+			region_str_len = hex2bin(sub_key_array[i], strlen(sub_key_array[i]), region_string, region_str_len);
+        }
+
+        if (region_string != NULL) {
+            expr_rule->patterns[i].pat = ALLOC(char, region_str_len);
+            memcpy(expr_rule->patterns[i].pat, region_string, region_str_len);
+            expr_rule->patterns[i].pat_len = region_str_len;
+            FREE(region_string);
+        } else {
+            sub_key_len = strlen(sub_key_array[i]);
+            expr_rule->patterns[i].pat = ALLOC(char, sub_key_len);
+            memcpy(expr_rule->patterns[i].pat, sub_key_array[i], sub_key_len);
+            expr_rule->patterns[i].pat_len = sub_key_len;
+        }
     }
    
     expr_rule->user_tag = user_data;
@@ -631,7 +728,7 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
     return 0;
 }
 
-int expr_runtime_commit(void *expr_runtime)
+int expr_runtime_commit(void *expr_runtime, const char *table_name)
 {
     if (NULL == expr_runtime) {
         return -1;
@@ -648,26 +745,24 @@ int expr_runtime_commit(void *expr_runtime)
     }
 
     and_expr_t *rules = ALLOC(and_expr_t, rule_cnt);
-
-    for (size_t i = 0; i < rule_cnt; i++) {
+    for (size_t i = 0 ; i < rule_cnt; i++) {
         rules[i] = *(and_expr_t *)ex_data_array[i];
-        printf("rule_id:%d\n", rules[i].expr_id);
     }
-    printf("\n\n");
+    
     struct adapter_hs *new_adapter_hs = NULL;
     struct adapter_hs *old_adapter_hs = NULL;
 
     log_info(expr_rt->logger, MODULE_EXPR,
-             "committing %zu expr rules for rebuilding adapter_hs engine", 
-             rule_cnt);
+             "table[%s] committing %zu expr rules for rebuilding adapter_hs engine", 
+             table_name, rule_cnt);
     new_adapter_hs = adapter_hs_initialize(expr_rt->scan_mode, 
                                            expr_rt->n_worker_thread, 
                                            rules, rule_cnt, 
                                            expr_rt->logger);
     if (NULL == new_adapter_hs) {
         log_error(expr_rt->logger, MODULE_EXPR,
-                  "rebuild adapter_hs engine failed when update %zu expr rules", 
-                  rule_cnt);
+                  "table[%s] rebuild adapter_hs engine failed when update %zu expr rules", 
+                  table_name, rule_cnt);
         ret = -1;
     }
 

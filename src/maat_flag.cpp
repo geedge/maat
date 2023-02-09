@@ -359,7 +359,7 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
     return 0;
 }
 
-int flag_runtime_commit(void *flag_runtime)
+int flag_runtime_commit(void *flag_runtime, const char *table_name)
 {
     if (NULL == flag_runtime) {
         return -1;
@@ -385,13 +385,13 @@ int flag_runtime_commit(void *flag_runtime)
     struct flag_matcher *old_flag_matcher = NULL;
 
     log_info(flag_rt->logger, MODULE_FLAG,
-             "committing %zu flag rules for rebuilding flag_matcher engine", 
-             rule_cnt);
+             "table[%s] committing %zu flag rules for rebuilding flag_matcher engine", 
+             table_name, rule_cnt);
     new_flag_matcher = flag_matcher_new(rules, rule_cnt);
     if (NULL == new_flag_matcher) {
         log_error(flag_rt->logger, MODULE_FLAG,
-                  "rebuild flag_matcher engine failed when update %zu flag rules", 
-                  rule_cnt);
+                  "table[%s] rebuild flag_matcher engine failed when update %zu flag rules", 
+                  table_name, rule_cnt);
         ret = -1;
     }
 

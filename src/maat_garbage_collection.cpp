@@ -45,7 +45,7 @@ void maat_garbage_bin_free(struct maat_garbage_bin* bin)
 {
 	struct maat_garbage_bag *p = NULL;
 
-	while (p = TAILQ_FIRST(&bin->garbage_q)) {
+	while ((p = TAILQ_FIRST(&bin->garbage_q)) != NULL) {
 		p->garbage_free(p->garbage);
 		TAILQ_REMOVE(&bin->garbage_q, p, entries);
 		FREE(p);
@@ -96,7 +96,7 @@ void maat_garbage_collect_routine(struct maat_garbage_bin* bin)
 void maat_garbage_collect_by_force(struct maat_garbage_bin* bin)
 {
 	struct maat_garbage_bag *p = NULL;
-	while (p = TAILQ_FIRST(&bin->garbage_q)) {
+	while ((p = TAILQ_FIRST(&bin->garbage_q)) != NULL) {
 		p->garbage_free(p->garbage);
 		TAILQ_REMOVE(&bin->garbage_q, p, entries);
 		FREE(p);

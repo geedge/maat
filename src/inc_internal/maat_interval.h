@@ -35,7 +35,7 @@ void interval_runtime_free(void *interval_runtime);
 
 int interval_runtime_update(void *interval_runtime, void *interval_schema, 
                             const char *line, int valid_column);
-int interval_runtime_commit(void *interval_runtime);
+int interval_runtime_commit(void *interval_runtime, const char *table_name);
 
 /* interval runtime scan API */
 /**

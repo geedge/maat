@@ -12,6 +12,9 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <hs/hs.h>
+#include <assert.h>
+#include <unistd.h>
+#include <sys/syscall.h> 
 
 #include "adapter_hs.h"
 #include "uthash/utarray.h"
@@ -19,7 +22,20 @@
 #include "maat_utils.h"
 #include "bool_matcher.h"
 
-#define MODULE_ADAPTER_HS	 module_name_str("maat.adapter_hs")
+pid_t hs_gettid() 
+{
+	return syscall(SYS_gettid);
+}
+
+static const char *hs_module_name_str(const char *name)
+{
+	static __thread char module[64];
+	snprintf(module,sizeof(module),"%s(%d)", name, hs_gettid());
+    
+	return module;
+}
+
+#define MODULE_ADAPTER_HS	 hs_module_name_str("maat.adapter_hs")
 
 struct adpt_hs_compile_data {
     unsigned int *ids;
@@ -56,6 +72,33 @@ struct adapter_hs_stream {
     hs_stream_t *regex_stream;
     struct adapter_hs_runtime *hs_rt;
     UT_array *pattern_id_set;
+};
+
+struct matched_pattern {
+    unsigned int pattern_id;
+    unsigned long matched_l_offset;
+    unsigned long matched_r_offset;
+    UT_hash_handle hh;
+};
+
+struct matched_pattern_set {
+    UT_array *pat_ids;
+    unsigned int pattern_id;
+    unsigned long long l_matched;
+    unsigned long long r_matched;
+    struct matched_pattern *pat_hash;
+};
+
+struct pattern_offset {
+    unsigned int pattern_id;
+    unsigned long l_offset;
+    unsigned long r_offset;
+};
+
+struct hs_tag {
+    size_t n_pat_offset;
+    struct pattern_offset *pat_offset;
+    void *user_tag;
 };
 
 static int adpt_hs_alloc_scratch(struct adapter_hs_runtime *hs_rt,
@@ -214,6 +257,11 @@ adapter_hs_initialize(int scan_mode, size_t n_worker_thread,
         }
 
         for (size_t j = 0; j < expr_array[i].n_patterns; j++) {
+            /* pat_len should not 0 */
+            if (0 == expr_array[i].patterns[j].pat_len) {
+                return NULL;
+            }
+
             if (expr_array[i].patterns[j].type == PATTERN_TYPE_STR) {
                 literal_pattern_num++;
             } else if (expr_array[i].patterns[j].type == PATTERN_TYPE_REG) {
@@ -245,12 +293,26 @@ adapter_hs_initialize(int scan_mode, size_t n_worker_thread,
 
     /* populate adpt_hs_compile_data and bool_expr */
     for (size_t i = 0; i < n_expr_array; i++) {
+        struct hs_tag *hs_tag = ALLOC(struct hs_tag, 1);
+        hs_tag->pat_offset = ALLOC(struct pattern_offset, expr_array[i].n_patterns);
+        hs_tag->n_pat_offset = expr_array[i].n_patterns;
+        hs_tag->user_tag = expr_array[i].user_tag;
+
         for (size_t j = 0; j < expr_array[i].n_patterns; j++) {
             size_t pat_len = 0;
 
+            hs_tag->pat_offset[j].pattern_id = pattern_id;
+            hs_tag->pat_offset[j].l_offset = expr_array[i].patterns[j].l_offset;
+            hs_tag->pat_offset[j].r_offset = expr_array[i].patterns[j].r_offset;
+
             if (expr_array[i].patterns[j].type == PATTERN_TYPE_STR) {
                 literal_cd->ids[literal_index] = pattern_id;
-                literal_cd->flags[literal_index] = HS_FLAG_CASELESS;
+
+                /* set flags */
+                literal_cd->flags[literal_index] = HS_FLAG_SOM_LEFTMOST;
+                if (expr_array[i].patterns[j].case_sensitive == 1) {
+                    literal_cd->flags[literal_index] |= HS_FLAG_CASELESS;
+                }
                 
                 pat_len = expr_array[i].patterns[j].pat_len;
                 literal_cd->pattern_lens[literal_index] = pat_len;
@@ -261,8 +323,13 @@ adapter_hs_initialize(int scan_mode, size_t n_worker_thread,
                 literal_index++; 
             } else {
                 regex_cd->ids[regex_index] = pattern_id;
-                regex_cd->flags[regex_index] = HS_FLAG_CASELESS;
 
+                /* set flags */
+                regex_cd->flags[regex_index] = HS_FLAG_SOM_LEFTMOST;
+                if (expr_array[i].patterns[j].case_sensitive == 1) {
+                    regex_cd->flags[literal_index] |= HS_FLAG_CASELESS;
+                }
+              
                 pat_len = expr_array[i].patterns[j].pat_len;
                 regex_cd->pattern_lens[regex_index] = pat_len;
                 regex_cd->patterns[regex_index] = ALLOC(char, pat_len);
@@ -276,7 +343,7 @@ adapter_hs_initialize(int scan_mode, size_t n_worker_thread,
         }
         exprs[i].expr_id = expr_array[i].expr_id;
         exprs[i].item_num = expr_array[i].n_patterns;
-        exprs[i].user_tag = expr_array[i].user_tag;
+        exprs[i].user_tag = hs_tag;
     }
 
     if (literal_cd != NULL) {
@@ -376,9 +443,9 @@ void adapter_hs_destroy(struct adapter_hs *hs_instance)
     FREE(hs_instance);
 }
 
-static inline int compare_pattern_id(const void* a, const void* b)
+static inline int compare_pattern_id(const void *a, const void *b)
 {
-	long long ret= *(unsigned long long *)a - *(unsigned long long *)b;
+	long long ret = *(unsigned long long *)a - *(unsigned long long *)b;
 
     if (0 == ret) {
 		return 0;
@@ -389,21 +456,28 @@ static inline int compare_pattern_id(const void* a, const void* b)
 	}
 }
 
-UT_icd ut_pattern_id_icd = {sizeof(unsigned long long), NULL, NULL, NULL};
-
+UT_icd ut_pattern_id_icd = {sizeof(unsigned int), NULL, NULL, NULL};
 /**
  * @param id: pattern id
 */
 int matched_event_cb(unsigned int id, unsigned long long from,
-                        unsigned long long to, unsigned int flags, void *ctx) {
+                     unsigned long long to, unsigned int flags, 
+                     void *ctx) {
     // put id in set
-    UT_array *pattern_id_set = (UT_array *)ctx;
-    unsigned long long pattern_id = (unsigned long long)id;
-    if (utarray_find(pattern_id_set, &pattern_id, compare_pattern_id)) {
+    printf("matched_event_cb, expr_id:%u, from:%llu  to:%llu\n", id, from, to);
+
+    struct matched_pattern_set *matched_pattern_set = (struct matched_pattern_set *)ctx;
+    unsigned int pattern_id = id;
+    
+    if (utarray_find(matched_pattern_set->pat_ids, &pattern_id, compare_pattern_id)) {
         return -1;
     }
-    utarray_push_back(pattern_id_set, &pattern_id);
-    utarray_sort(pattern_id_set, compare_pattern_id);
+
+    matched_pattern_set->pattern_id = pattern_id;
+    matched_pattern_set->l_matched = from;
+    matched_pattern_set->r_matched = to;
+    utarray_push_back(matched_pattern_set->pat_ids, &pattern_id);
+    utarray_sort(matched_pattern_set->pat_ids, compare_pattern_id);
 
     return 0;
 }
@@ -420,16 +494,18 @@ int adapter_hs_scan(struct adapter_hs *hs_instance, int thread_id,
 
     struct adapter_hs_runtime *hs_rt = hs_instance->hs_rt;
     hs_scratch_t *scratch = hs_rt->scratchs[thread_id];
-    UT_array *pattern_id_set;
     hs_error_t err;
 
-    utarray_new(pattern_id_set, &ut_pattern_id_icd);
-	utarray_reserve(pattern_id_set, hs_instance->n_patterns);
+    struct matched_pattern_set matched_pat_set;
+   
+    matched_pat_set.pat_hash = NULL;
+    utarray_new(matched_pat_set.pat_ids, &ut_pattern_id_icd);
+    utarray_reserve(matched_pat_set.pat_ids, hs_instance->n_patterns);
 
     int err_count = 0;
     if (hs_rt->literal_db != NULL) {
         err = hs_scan(hs_rt->literal_db, data, data_len, 0, scratch,
-                      matched_event_cb, pattern_id_set);
+                      matched_event_cb, &matched_pat_set);
         if (err != HS_SUCCESS) {
             //log_error()
             err_count++;
@@ -438,7 +514,7 @@ int adapter_hs_scan(struct adapter_hs *hs_instance, int thread_id,
     
     if (hs_rt->regex_db != NULL) {
         err = hs_scan(hs_rt->regex_db, data, data_len, 0, scratch,
-                      matched_event_cb, pattern_id_set);
+                      matched_event_cb, &matched_pat_set);
         if (err != HS_SUCCESS) {
             //log_error()
             err_count++;
@@ -449,37 +525,66 @@ int adapter_hs_scan(struct adapter_hs *hs_instance, int thread_id,
         return -1;
     }
 
-    size_t pattern_set_size = utarray_len(pattern_id_set);
-    unsigned long long items[pattern_set_size];
-    memset(items, 0, sizeof(unsigned long long) * pattern_set_size);
-    for (size_t i = 0; i < pattern_set_size; i++) {
-        items[i] = *(unsigned long long *)utarray_eltptr(pattern_id_set, i);
+    struct matched_pattern *matched_pat = ALLOC(struct matched_pattern, 1);
+    unsigned int pattern_id = matched_pat_set.pattern_id;
+    matched_pat->pattern_id = pattern_id;
+    matched_pat->matched_l_offset = matched_pat_set.l_matched;
+    matched_pat->matched_r_offset = matched_pat_set.r_matched;
+    
+    HASH_ADD_INT(matched_pat_set.pat_hash, pattern_id, matched_pat);
+
+    size_t matched_pattern_ids_cnt = utarray_len(matched_pat_set.pat_ids);
+    unsigned long long items[matched_pattern_ids_cnt];
+    memset(items, 0, sizeof(unsigned long long) * matched_pattern_ids_cnt);
+    
+    for (size_t i = 0; i < matched_pattern_ids_cnt; i++) {
+        items[i] = *(unsigned long long *)utarray_eltptr(matched_pat_set.pat_ids, i);
     }
 
     int ret = 0;
     int matched_index = 0;
-
+    int real_matched_index = 0;
     struct bool_expr_match *bool_matcher_results = NULL;
     bool_matcher_results = ALLOC(struct bool_expr_match, hs_instance->n_expr);
-    int bool_matcher_ret = bool_matcher_match(hs_rt->bm, items, pattern_set_size,
+    int bool_matcher_ret = bool_matcher_match(hs_rt->bm, items, matched_pattern_ids_cnt,
                                               bool_matcher_results, hs_instance->n_expr);
     if (bool_matcher_ret < 0) {
         ret = -1;
         goto next;
     }
 
-    if (bool_matcher_ret > n_result) {
+    if (bool_matcher_ret > (int)n_result) {
         bool_matcher_ret = n_result;
     }
 
     for (matched_index = 0; matched_index < bool_matcher_ret; matched_index++) {
-        results[matched_index].item_id = bool_matcher_results[matched_index].expr_id;
-        results[matched_index].user_tag = bool_matcher_results[matched_index].user_tag;
+        //results[matched_index].item_id = bool_matcher_results[matched_index].expr_id;
+        struct hs_tag *hs_tag = (struct hs_tag *)bool_matcher_results[matched_index].user_tag;
+        for (size_t i = 0; i < hs_tag->n_pat_offset; i++) {
+            //命中的 item = pat1 & pat2
+            int pattern_id = hs_tag->pat_offset[i].pattern_id;
+            struct matched_pattern *matched_pat = NULL;
+            HASH_FIND_INT(matched_pat_set.pat_hash, &pattern_id, matched_pat);
+            if (matched_pat) {
+                if (matched_pat->matched_l_offset >= hs_tag->pat_offset[i].l_offset &&
+                    matched_pat->matched_r_offset <= hs_tag->pat_offset[i].r_offset) {
+                    results[real_matched_index].item_id = bool_matcher_results[matched_index].expr_id;
+                    results[real_matched_index].user_tag = hs_tag->user_tag;
+                    real_matched_index++;
+                    break;
+                }
+            }
+        }
     }
     *n_hit_result = bool_matcher_ret;
 next:
     FREE(bool_matcher_results);
-    utarray_free(pattern_id_set);
+    struct matched_pattern *pattern = NULL, *tmp_pattern = NULL;
+    HASH_ITER(hh, matched_pat_set.pat_hash, pattern, tmp_pattern) {
+        HASH_DELETE(hh, matched_pat_set.pat_hash, pattern);
+        FREE(pattern); 
+    }
+    utarray_free(matched_pat_set.pat_ids);
 
     return ret;
 }
@@ -560,7 +665,7 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
         goto next;
     }
 
-    if (bool_matcher_ret > n_result) {
+    if (bool_matcher_ret > (int)n_result) {
         bool_matcher_ret = n_result;
     }
 

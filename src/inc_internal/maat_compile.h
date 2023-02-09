@@ -49,8 +49,7 @@ int compile_table_set_rule_ex_data_schema(struct compile_schema *compile_schema,
                                           maat_rule_ex_dup_func_t *dup_func,
                                           long argl, void *argp,
                                           struct log_handle *logger);
-struct compile_ex_data_schema *
-compile_table_get_rule_ex_data_schema(struct compile_schema *compile_schema, size_t idx);
+void *compile_table_get_rule_ex_data(struct compile_schema *compile_schema, int compile_id, size_t idx);
 
 size_t compile_table_rule_ex_data_schema_count(struct compile_schema *compile_schema);
 
@@ -62,7 +61,7 @@ void compile_runtime_free(void *compile_runtime);
 
 int compile_runtime_update(void *compile_runtime, void *compile_schema,
                            const char *line, int valid_column);
-int compile_runtime_commit(void *compile_runtime);
+int compile_runtime_commit(void *compile_runtime, const char *table_name);
 
 int compile_runtime_match(struct compile_runtime *compile_rt, int *compile_ids,
                           size_t compile_ids_size, struct maat_state *state);

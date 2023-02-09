@@ -23,7 +23,7 @@
 struct virtual_schema {
 	int physical_table_id[SCAN_TYPE_MAX];
     int table_id;
-    struct table_manager *tbl_mgr;
+    struct table_manager *ref_tbl_mgr;
 };
 
 void *virtual_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
@@ -37,7 +37,7 @@ void *virtual_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     }
 
     struct virtual_schema *vt_schema = ALLOC(struct virtual_schema, 1);
-    vt_schema->tbl_mgr = tbl_mgr;
+    vt_schema->ref_tbl_mgr = tbl_mgr;
    
     int cnt = cJSON_GetArraySize(item);
     for (int i = 0; i < cnt; i++) {

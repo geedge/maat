@@ -24,6 +24,9 @@
 #include "maat_flag.h"
 #include "maat_plugin.h"
 #include "maat_ip_plugin.h"
+#include "maat_bool_plugin.h"
+#include "maat_fqdn_plugin.h"
+#include "maat_interval.h"
 #include "maat_virtual.h"
 
 #define MODULE_TABLE  module_name_str("maat.table")
@@ -72,21 +75,18 @@ struct table_operations {
     void (*free_runtime)(void *runtime);
 
     int (*update_runtime)(void *runtime, void *schema, const char *line, int valid_column);
-    int (*commit_runtime)(void *runtime);
+    int (*commit_runtime)(void *runtime, const char *table_name);
 };
 
 struct table_operations table_ops[TABLE_TYPE_MAX] = {
-    // {
-    //     .type = TABLE_TYPE_FLAG,
-    //     .new_schema = flag_schema_new,
-    //     .free_schema = flag_schema_free,
-    //     .new_runtime = flag_runtime_new,
-    //     .free_runtime = flag_runtime_free,
-    //     .update_runtime = flag_runtime_update,
-    //     .commit_runtime = flag_runtime_commit
-    // },
     {
-        .type = TABLE_TYPE_FLAG
+        .type = TABLE_TYPE_FLAG,
+        .new_schema = flag_schema_new,
+        .free_schema = flag_schema_free,
+        .new_runtime = flag_runtime_new,
+        .free_runtime = flag_runtime_free,
+        .update_runtime = flag_runtime_update,
+        .commit_runtime = flag_runtime_commit
     },
     {
         .type = TABLE_TYPE_EXPR,
@@ -117,21 +117,21 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
     },
     {
         .type = TABLE_TYPE_INTERVAL,
-        .new_schema = NULL,
-        .free_schema = NULL,
-        .new_runtime = NULL,
-        .free_runtime = NULL,
-        .update_runtime = NULL,
-        .commit_runtime = NULL
+        .new_schema = interval_schema_new,
+        .free_schema = interval_schema_free,
+        .new_runtime = interval_runtime_new,
+        .free_runtime = interval_runtime_free,
+        .update_runtime = interval_runtime_update,
+        .commit_runtime = interval_runtime_commit
     },
     {
         .type = TABLE_TYPE_INTERVAL_PLUS,
-        .new_schema = NULL,
-        .free_schema = NULL,
-        .new_runtime = NULL,
-        .free_runtime = NULL,
-        .update_runtime = NULL,
-        .commit_runtime = NULL
+        .new_schema = interval_schema_new,
+        .free_schema = interval_schema_free,
+        .new_runtime = interval_runtime_new,
+        .free_runtime = interval_runtime_free,
+        .update_runtime = interval_runtime_update,
+        .commit_runtime = interval_runtime_commit
     },
     {
         .type = TABLE_TYPE_DIGEST
@@ -168,21 +168,21 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
     },
     {
         .type = TABLE_TYPE_FQDN_PLUGIN,
-        .new_schema = NULL,
-        .free_schema = NULL,
-        .new_runtime = NULL,
-        .free_runtime = NULL,
-        .update_runtime = NULL,
-        .commit_runtime = NULL
+        .new_schema = fqdn_plugin_schema_new,
+        .free_schema = fqdn_plugin_schema_free,
+        .new_runtime = fqdn_plugin_runtime_new,
+        .free_runtime = fqdn_plugin_runtime_free,
+        .update_runtime = fqdn_plugin_runtime_update,
+        .commit_runtime = fqdn_plugin_runtime_commit
     },
     {
         .type = TABLE_TYPE_BOOL_PLUGIN,
-        .new_schema = NULL,
-        .free_schema = NULL,
-        .new_runtime = NULL,
-        .free_runtime = NULL,
-        .update_runtime = NULL,
-        .commit_runtime = NULL
+        .new_schema = bool_plugin_schema_new,
+        .free_schema = bool_plugin_schema_free,
+        .new_runtime = bool_plugin_runtime_new,
+        .free_runtime = bool_plugin_runtime_free,
+        .update_runtime = bool_plugin_runtime_update,
+        .commit_runtime = bool_plugin_runtime_commit
     },
     {
         .type = TABLE_TYPE_VIRTUAL,
@@ -252,6 +252,7 @@ static void register_reserved_word(struct maat_kv_store *reserved_word_map)
     maat_kv_register(reserved_word_map, "compile", TABLE_TYPE_COMPILE);
     maat_kv_register(reserved_word_map, "group2compile", TABLE_TYPE_GROUP2COMPILE);
     maat_kv_register(reserved_word_map, "group2group", TABLE_TYPE_GROUP2GROUP);
+    maat_kv_register(reserved_word_map, "flag", TABLE_TYPE_FLAG);
     maat_kv_register(reserved_word_map, "expr", TABLE_TYPE_EXPR);
     maat_kv_register(reserved_word_map, "expr_plus", TABLE_TYPE_EXPR_PLUS);
     maat_kv_register(reserved_word_map, "intval", TABLE_TYPE_INTERVAL);
@@ -314,7 +315,7 @@ struct maat_table *maat_table_new(cJSON *json, struct maat_kv_store *reserved_wo
                   "table(table_id:%d) has no table name", ptable->table_id);
         goto error;
     }
-
+    
     if (strlen(item->valuestring) >= NAME_MAX) {
         log_error(logger, MODULE_TABLE,
                   "table(table_id:%d) name %s length too long", 
@@ -440,7 +441,6 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
         if (json != NULL && json->type == cJSON_Object) {
             struct maat_table *maat_tbl = maat_table_new(json, reserved_word_map, logger);
             if (NULL == maat_tbl) {
-                log_error(logger, MODULE_TABLE, "Maat table new failed.");
                 continue;
             }
 
@@ -452,7 +452,9 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
                 maat_table_free(maat_tbl);
                 continue;
             }
-
+            log_info(logger, MODULE_TABLE, "register table[%s]->table_id:%d",
+                     maat_tbl->table_name, maat_tbl->table_id);
+                     
             if (maat_tbl->table_type == TABLE_TYPE_COMPILE) {
                 if (maat_tbl->table_id < default_compile_table_id) {
                     default_compile_table_id = maat_tbl->table_id;
@@ -778,8 +780,8 @@ void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id)
         return;
     }
 
-    printf("table_id:%d\n", table_id);
+    struct maat_table *ptable = tbl_mgr->tbl[table_id];
     if ( table_ops[table_type].commit_runtime != NULL) {
-        table_ops[table_type].commit_runtime(runtime);
+        table_ops[table_type].commit_runtime(runtime, ptable->table_name);;
     }
 }

@@ -1351,8 +1351,6 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
     int call_update_num = 0;
     int valid_column = -1;
 	enum table_type table_type;
-	enum scan_type scan_type;
-	//void *table_schema = NULL;
     struct maat *maat_instance = (struct maat *)u_param;
 
     //authorized to write

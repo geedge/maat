@@ -92,6 +92,15 @@ int maat_table_callback_register(struct maat *instance, int table_id,
 								 maat_update_callback_t *update,
 								 maat_finish_callback_t *finish,
 								 void *u_para);
+
+/* maat compile table API */
+int maat_compile_table_ex_schema_register(struct maat *instance, int table_id,
+                                          maat_rule_ex_new_func_t *new_func,
+                                          maat_rule_ex_free_func_t *free_func,
+                                          maat_rule_ex_dup_func_t *dup_func,
+                                          long argl, void *argp);
+void *maat_compile_table_get_ex_data(struct maat *instance, int table_id, int compile_id, size_t idx);
+
 /* maat plugin table API */
 int maat_plugin_table_ex_schema_register(struct maat *instance, int table_id,
                                          maat_plugin_ex_new_func_t *new_func,
@@ -100,8 +109,9 @@ int maat_plugin_table_ex_schema_register(struct maat *instance, int table_id,
                                          long argl, void *argp);
 /* returned data is duplicated by dup_func of maat_plugin_table_ex_schema_register, 
    caller is responsible to free the data. */                                     
-void *maat_plugin_table_get_ex_data(struct maat *instance, int table_id,
-                                    const char *key, size_t key_len);
+int maat_plugin_table_get_ex_data(struct maat *instance, int table_id,
+                                    const char *key, size_t key_len,
+                                    void **ex_data_array, size_t n_ex_data);
 /* maat scan API */
 struct maat_state;
 

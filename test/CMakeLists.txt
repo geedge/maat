@@ -14,6 +14,9 @@ target_link_libraries(maat_input_mode_gtest maat_frame_static gtest_static)
 add_executable(maat_framework_gtest maat_framework_gtest.cpp)
 target_link_libraries(maat_framework_gtest maat_frame_static gtest_static)
 
+add_executable(adapter_hs_gtest adapter_hs_gtest.cpp)
+target_link_libraries(adapter_hs_gtest maat_frame_static gtest_static)
+
 file(COPY rule DESTINATION ./)
 file(COPY table_info.conf DESTINATION ./)
 file(COPY and_expr.conf DESTINATION ./)

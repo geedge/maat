@@ -32,7 +32,7 @@ struct ip_schema {
     int sip1_column;
     int sip2_column;
     int table_id; //ugly
-    struct table_manager *tbl_mgr;
+    struct table_manager *ref_tbl_mgr;
 };
 
 struct ipv4_item_rule {
@@ -127,7 +127,7 @@ void *ip_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         read_cnt++;
     }
 
-    ip_schema->tbl_mgr = tbl_mgr;
+    ip_schema->ref_tbl_mgr = tbl_mgr;
 
     if (read_cnt < 7) {
         goto error;
@@ -208,13 +208,8 @@ struct ip_item *ip_item_new(const char *line, struct ip_schema *ip_schema,
     size_t column_offset = 0;
     size_t column_len = 0;
     char saddr_format[16] = {0};
-    char sport_format[16] = {0};
     char sip1_str[40] = {0};
     char sip2_str[40] = {0};
-    uint16_t sport1 = 0;
-    uint16_t sport2 = 0;
-    uint16_t protocol = 0;
-    uint16_t direction = 0;
     struct ip_item *ip_item = ALLOC(struct ip_item, 1);
 
     int ret = get_column_pos(line, ip_schema->item_id_column, &column_offset, &column_len);
@@ -431,7 +426,7 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
     return 0;
 }
 
-int ip_runtime_commit(void *ip_runtime)
+int ip_runtime_commit(void *ip_runtime, const char *table_name)
 {
     if (NULL == ip_runtime) {
         return -1;
@@ -461,13 +456,13 @@ int ip_runtime_commit(void *ip_runtime)
 
     if (rule_cnt > 0) {
         log_info(ip_rt->logger, MODULE_IP, 
-                 "committing %zu ip rules for rebuilding ip_matcher engine", 
-                 rule_cnt);
+                 "table[%s] committing %zu ip rules for rebuilding ip_matcher engine", 
+                 table_name, rule_cnt);
         new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used);
         if (NULL == new_ip_matcher) {
             log_error(ip_rt->logger, MODULE_IP, 
-                      "rebuild ip_matcher engine failed when update %zu ip rules",
-                       rule_cnt);
+                      "table[%s] rebuild ip_matcher engine failed when update %zu ip rules",
+                       table_name, rule_cnt);
             ret = -1;
         }
     }
