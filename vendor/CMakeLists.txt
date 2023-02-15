@@ -5,6 +5,9 @@ include(ExternalProject)
 set(VENDOR_ROOT ${CMAKE_BINARY_DIR}/vendor)
 set(VENDOR_BUILD ${CMAKE_BINARY_DIR}/vendor/vbuild)
 
+set(CMAKE_C_FLAGS "-std=gnu99 -fPIC -Wall") 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -Wall")
+
 # GoogleTest
 ExternalProject_Add(GoogleTest PREFIX GoogleTest
         URL ${CMAKE_CURRENT_SOURCE_DIR}/googletest-release-1.8.0.tar.gz
@@ -40,7 +43,7 @@ ExternalProject_Add(ragel PREFIX ragel
 ExternalProject_Add(hyperscan PREFIX hyperscan
         URL ${CMAKE_CURRENT_SOURCE_DIR}/hyperscan-5.4.0.tar.gz
 	DEPENDS ragel
-	CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${VENDOR_BUILD} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS="-fPIC")
+	CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${VENDOR_BUILD} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS="-fPIC" -DCMAKE_CXX_FLAGS="-fPIC")
 
 ExternalProject_Get_Property(hyperscan INSTALL_DIR)
 file(MAKE_DIRECTORY ${VENDOR_BUILD}/include)
@@ -81,7 +84,7 @@ file(MAKE_DIRECTORY ${VENDOR_BUILD}/include)
 
 add_library(hiredis-static STATIC IMPORTED GLOBAL)
 add_dependencies(hiredis-static hiredis)
-set_property(TARGET hiredis-static  PROPERTY IMPORTED_LOCATION ${VENDOR_BUILD}/lib64/libhiredisd.a)
+set_property(TARGET hiredis-static  PROPERTY IMPORTED_LOCATION ${VENDOR_BUILD}/lib64/libhiredis.a)
 set_property(TARGET hiredis-static  PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${VENDOR_BUILD}/include)
 
 #igraph-0.7.1
@@ -103,7 +106,7 @@ set_property(TARGET igraph-static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${INSTA
 
 #flag-matcher
 ExternalProject_Add(flagmatcher PREFIX flagmatcher
-        URL ${CMAKE_CURRENT_SOURCE_DIR}/flag-matcher.tar.gz
+        URL ${CMAKE_CURRENT_SOURCE_DIR}/flag-matcher-1.0.1.tar.gz
 		CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${VENDOR_BUILD} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS="-fPIC")
 
 ExternalProject_Get_Property(flagmatcher INSTALL_DIR)
@@ -116,7 +119,7 @@ set_property(TARGET flagmatcher-static  PROPERTY INTERFACE_INCLUDE_DIRECTORIES $
 
 #interval-matcher
 ExternalProject_Add(intervalmatcher PREFIX intervalmatcher
-        URL ${CMAKE_CURRENT_SOURCE_DIR}/interval-matcher.tar.gz
+        URL ${CMAKE_CURRENT_SOURCE_DIR}/interval-matcher-1.0.1.tar.gz
 		CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${VENDOR_BUILD} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS="-fPIC")
 
 ExternalProject_Get_Property(intervalmatcher INSTALL_DIR)

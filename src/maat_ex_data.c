@@ -14,7 +14,6 @@
 #include "uthash/uthash.h"
 #include "uthash/utarray.h"
 #include "log/log.h"
-#include "rcu_hash.h"
 #include "maat_utils.h"
 #include "maat_ex_data.h"
 
@@ -69,8 +68,8 @@ void ex_data_runtime_free(struct ex_data_runtime *ex_data_rt)
 
     if (ex_data_rt->cache_rows != NULL) {
 		utarray_free(ex_data_rt->cache_rows);
-		ex_data_rt->cache_rows=NULL;
-		ex_data_rt->cache_row_num=0;
+		ex_data_rt->cache_rows = NULL;
+		ex_data_rt->cache_row_num = 0;
 	}
 
     if (ex_data_rt->htable != NULL) {

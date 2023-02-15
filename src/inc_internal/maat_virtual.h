@@ -11,10 +11,12 @@
 #ifndef _MAAT_VIRTUAL_H_
 #define _MAAT_VIRTUAL_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#include "cJSON/cJSON.h"
 
 enum scan_type {
     SCAN_TYPE_INVALID = -1,
@@ -30,6 +32,9 @@ enum scan_type {
 	SCAN_TYPE_MAX
 };
 
+struct table_manager;
+struct log_handle;
+
 void *virtual_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
                          const char *table_name, struct log_handle *logger);
 
@@ -37,7 +42,7 @@ void virtual_schema_free(void *virtual_schema);
 
 int virtual_table_get_physical_table_id(void *virtual_schema, enum scan_type type);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

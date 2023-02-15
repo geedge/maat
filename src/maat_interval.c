@@ -439,7 +439,7 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name)
     return ret;
 }
 
-int interval_runtime_scan_intval(struct interval_runtime *interval_rt, int thread_id, 
+int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id, 
                                  uint64_t integer, 
                                  int *group_ids, size_t group_ids_size, 
                                  int vtable_id, struct maat_state *state)

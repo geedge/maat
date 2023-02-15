@@ -11,12 +11,12 @@
 #ifndef _MAAT_EX_DATA_H_
 #define _MAAT_EX_DATA_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
 
-#include "maat/maat.h"
+#include "maat.h"
 #include "rcu_hash.h"
 
 struct ex_data_container {
@@ -90,7 +90,7 @@ void *ex_data_runtime_get_custom_data(struct ex_data_runtime *ex_data_rt,
 
 size_t ex_data_runtime_ex_container_count(struct ex_data_runtime *ex_data_rt);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

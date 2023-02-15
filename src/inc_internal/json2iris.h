@@ -11,19 +11,20 @@
 #ifndef _JSON2IRIS_H_
 #define _JSON2IRIS_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
 
 #include "hiredis/hiredis.h"
+#include "log/log.h"
 
 int json2iris(const char *json_buff, const char *json_filename,
               redisContext *redis_write_ctx, char *iris_dir_buf, 
               int buf_len, char *encrypt_key, char *encrypt_algo,
               struct log_handle *logger);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

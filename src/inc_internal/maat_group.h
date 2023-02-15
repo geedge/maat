@@ -11,17 +11,18 @@
 #ifndef _MAAT_GROUP_H_
 #define _MAAT_GROUP_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
 
 #include "cJSON/cJSON.h"
-#include "uthash/uthash.h"
-#include "igraph/igraph.h"
 #include "maat_kv.h"
 
 struct maat_group;
+struct table_manager;
+struct log_handle;
+struct maat_garbage_bin;
 
 /* group2group schema API */
 void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
@@ -49,7 +50,7 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
                                const char *line, int valid_column);			   
 int group2group_runtime_commit(void *g2g_runtime, const char *table_name);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

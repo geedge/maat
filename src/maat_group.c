@@ -11,11 +11,12 @@
 #include <assert.h>
 #include <pthread.h>
 
+#include "log/log.h"
 #include "maat_group.h"
 #include "maat_utils.h"
 #include "uthash/uthash.h"
 #include "igraph/igraph.h"
-#include "log/log.h"
+#include "maat_kv.h"
 
 #define MODULE_GROUP	 module_name_str("maat.group")
 

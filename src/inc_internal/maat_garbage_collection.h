@@ -11,7 +11,7 @@
 #ifndef _MAAT_GARBAGE_COLLECTION_H_
 #define _MAAT_GARBAGE_COLLECTION_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
@@ -33,7 +33,7 @@ size_t maat_garbage_bin_get_size(struct maat_garbage_bin *bin);
 
 void maat_garbage_collect_by_force(struct maat_garbage_bin *bin);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

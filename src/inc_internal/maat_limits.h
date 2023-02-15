@@ -11,14 +11,14 @@
 #ifndef _MAAT_LIMITS_H_
 #define _MAAT_LIMITS_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
 
 #define MAX_KEYWORDS_STR     1024
                               
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

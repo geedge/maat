@@ -1,0 +1,9 @@
+VERS_3.0{
+global:
+	extern "C" {
+		*MAAT_FRAME_VERSION_*;
+		*maat_*;
+		*bool_matcher_*;
+	};
+local: *;
+};

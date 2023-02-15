@@ -11,7 +11,7 @@
 #ifndef _MAAT_REDIS_MONITOR_H_
 #define _MAAT_REDIS_MONITOR_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
@@ -25,7 +25,7 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 							int (*update_fn)(const char *, const char *, void *),
 							void (*finish_fn)(void *), void *u_param);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

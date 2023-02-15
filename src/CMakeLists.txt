@@ -7,12 +7,13 @@ set(MAAT_FRAME_VERSION ${MAAT_FRAME_MAJOR_VERSION}.${MAAT_FRAME_MINOR_VERSION}.$
 
 message(STATUS "Maat Frame, Version: ${MAAT_FRAME_VERSION}")
 
+add_definitions(-D_GNU_SOURCE) 
 add_definitions(-fPIC)
-set(MAAT_SRC json2iris.cpp maat_api.cpp rcu_hash.cpp maat_garbage_collection.cpp maat_config_monitor.cpp 
-    maat_rule.cpp maat_kv.cpp maat_ex_data.cpp maat_utils.cpp maat_command.cpp maat_redis_monitor.cpp 
-    maat_table.cpp maat_compile.cpp maat_group.cpp maat_ip.cpp maat_flag.cpp maat_interval.cpp
-    maat_expr.cpp maat_plugin.cpp maat_ip_plugin.cpp maat_bool_plugin.cpp maat_fqdn_plugin.cpp 
-    maat_virtual.cpp)
+set(MAAT_SRC alignment.c json2iris.c maat_api.c rcu_hash.c maat_garbage_collection.c maat_config_monitor.c 
+    maat_rule.c maat_kv.c maat_ex_data.c maat_utils.c maat_command.c maat_redis_monitor.c 
+    maat_table.c maat_compile.c maat_group.c maat_ip.c maat_flag.c maat_interval.c
+    maat_expr.c maat_fqdn.c maat_port_proto.c maat_plugin.c maat_ip_plugin.c maat_bool_plugin.c 
+    maat_fqdn_plugin.c maat_virtual.c)
 
 set(LIB_SOURCE_FILES
 	${PROJECT_SOURCE_DIR}/deps/cJSON/cJSON.c ${PROJECT_SOURCE_DIR}/deps/log/log.c)
@@ -28,18 +29,31 @@ set_target_properties(maat_frame_static PROPERTIES LINKER_LANGUAGE CXX)
 set_target_properties(maat_frame_static PROPERTIES OUTPUT_NAME maatframe)
 set_target_properties(maat_frame_static PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 
-target_link_libraries(maat_frame_static adapter-static hiredis-static igraph-static flagmatcher-static intervalmatcher-static pthread crypto z)
+target_link_libraries(maat_frame_static hiredis-static ${MAAT_DEPEND_DYN_LIB})
+target_link_libraries(maat_frame_static igraph-static)
+target_link_libraries(maat_frame_static ipmatcher-static)
+target_link_libraries(maat_frame_static adapter-static)
+target_link_libraries(maat_frame_static flagmatcher-static)
+target_link_libraries(maat_frame_static intervalmatcher-static)
 
 # Shared Library Output
-#add_library(maat_frame_shared SHARED ${MAAT_SRC} ${LIB_SOURCE_FILES})
-#set_target_properties(maat_frame_shared PROPERTIES LINKER_LANGUAGE CXX)
-#set_target_properties(maat_frame_shared PROPERTIES OUTPUT_NAME maatframe)
-#set_target_properties(maat_frame_shared PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-#set_target_properties(maat_frame_shared PROPERTIES VERSION ${MAAT_FRAME_MAJOR_VERSION}.${MAAT_FRAME_MINOR_VERSION})
-#set_target_properties(maat_frame_shared PROPERTIES SOVERSION ${MAAT_FRAME_MAJOR_VERSION})
+add_library(maat_frame_shared SHARED ${MAAT_SRC} ${LIB_SOURCE_FILES})
+set_target_properties(maat_frame_shared PROPERTIES LINKER_LANGUAGE CXX)
+set_target_properties(maat_frame_shared PROPERTIES OUTPUT_NAME maatframe)
+set_target_properties(maat_frame_shared PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+set_target_properties(maat_frame_shared PROPERTIES VERSION ${MAAT_FRAME_MAJOR_VERSION}.${MAAT_FRAME_MINOR_VERSION})
+set_target_properties(maat_frame_shared PROPERTIES SOVERSION ${MAAT_FRAME_MAJOR_VERSION})
+set_target_properties(maat_frame_shared PROPERTIES LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_LIST_DIR}/version.map")
 
-#target_link_libraries(maat_frame_shared hyperscan_static)
+target_link_libraries(maat_frame_shared hiredis-static ${MAAT_DEPEND_DYN_LIB})
+target_link_libraries(maat_frame_shared igraph-static ${MAAT_DEPEND_DYN_LIB})
+target_link_libraries(maat_frame_shared ipmatcher-static)
+target_link_libraries(maat_frame_shared adapter-static)
+target_link_libraries(maat_frame_shared flagmatcher-static)
+target_link_libraries(maat_frame_shared intervalmatcher-static)
 
 # install
 set(CMAKE_INSTALL_PREFIX /opt/MESA/)
-#install(FILES ${PROJECT_SOURCE_DIR}/include/maat DESTINATION ${CMAKE_INSTALL_PREFIX}/include/MESA/ COMPONENT HEADER)
+install(FILES ${PROJECT_SOURCE_DIR}/include/maat.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/MESA/ COMPONENT HEADER)
+install(FILES ${PROJECT_SOURCE_DIR}/include/bool_matcher.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/MESA/ COMPONENT HEADER)
+install(TARGETS maat_frame_shared LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/ COMPONENT LIBRARIES)

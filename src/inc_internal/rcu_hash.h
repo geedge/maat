@@ -11,7 +11,7 @@
 #ifndef _RCU_HASH_H_
 #define _RCU_HASH_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
@@ -62,7 +62,7 @@ size_t rcu_hash_garbage_queue_len(struct rcu_hash_table *htable);
 
 size_t rcu_hash_list_updating_data(struct rcu_hash_table *htable, void ***data_array);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

@@ -11,10 +11,12 @@
 #ifndef _MAAT_COMMAND_H_
 #define _MAAT_COMMAND_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#include "maat.h"
 
 enum maat_operation {
 	MAAT_OP_DEL = 0,
@@ -39,7 +41,7 @@ struct maat_cmd_line
 */
 int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *line_rule);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

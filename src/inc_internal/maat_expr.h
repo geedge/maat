@@ -11,15 +11,18 @@
 #ifndef _MAAT_EXPR_H_
 #define _MAAT_EXPR_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
 
-#include "log/log.h"
+#include "maat_rule.h"
 #include "cJSON/cJSON.h"
 
 struct expr_runtime;
+struct table_manager;
+struct log_handle;
+struct maat_garbage_bin;
 
 void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
                       const char *table_name, struct log_handle *logger);
@@ -41,13 +44,13 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name);
  * 
  * @retval the num of hit group_id
 */
-int expr_runtime_scan_string(struct expr_runtime *expr_rt, int thread_id, 
-                             const char *data, size_t data_len,
-                             int *group_ids, size_t group_ids_size, 
-                             int vtable_ids, struct maat_state *state);
+int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, 
+                      const char *data, size_t data_len,
+                      int *group_ids, size_t group_ids_size, 
+                      int vtable_ids, struct maat_state *state);
 
 void expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id);
-int expr_runtime_scan_stream(struct expr_runtime *expr_rt, const char *data,
+int expr_runtime_stream_scan(struct expr_runtime *expr_rt, const char *data,
                              size_t data_len, int *group_ids, size_t group_ids_size, 
                              int vtable_id, struct maat_state *state);
 void expr_runtime_stream_close(struct expr_runtime *expr_rt);
@@ -55,7 +58,7 @@ void expr_runtime_stream_close(struct expr_runtime *expr_rt);
 void expr_runtime_scan_hit_inc(struct expr_runtime *expr_rt, int thread_id);
 long long expr_runtime_scan_hit_sum(struct expr_runtime *expr_rt, int n_thread);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

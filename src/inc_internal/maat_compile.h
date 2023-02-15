@@ -11,14 +11,13 @@
 #ifndef _MAAT_COMPILE_H_
 #define _MAAT_COMPILE_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
 
-#include "log/log.h"
 #include "cJSON/cJSON.h"
-#include "maat/maat.h"
+#include "maat.h"
 #include "maat_kv.h"
 #include "maat_rule.h"
 
@@ -31,6 +30,11 @@ struct compile_ex_data_schema {
 	int idx;
 	int table_id;
 };
+
+struct compile_schema;
+struct compile_runtime;
+struct maat_compile_state;
+struct group2group_runtime;
 
 /* compile schema API */
 void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
@@ -93,7 +97,7 @@ int maat_compile_state_update(struct maat_item *item_hash, int vtable_id,
                               
 int maat_compile_state_has_NOT_clause(struct maat_compile_state *compile_state);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

@@ -11,17 +11,20 @@
 #ifndef _MAAT_FLAG_H_
 #define _MAAT_FLAG_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
 
 #include <stdint.h>
 
-#include "log/log.h"
+#include "maat_rule.h"
 #include "cJSON/cJSON.h"
 
 struct flag_runtime;
+struct table_manager;
+struct log_handle;
+struct maat_garbage_bin;
 
 void *flag_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
                       const char *table_name, struct log_handle *logger);
@@ -43,14 +46,14 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name);
  * 
  * @retval the num of hit group_id
 */
-int flag_runtime_scan_flag(struct flag_runtime *flag_rt, int thread_id, 
-                           uint64_t flag, int *group_ids, size_t group_ids_size, 
-                           int vtable_id, struct maat_state *state);
+int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, 
+                      uint64_t flag, int *group_ids, size_t group_ids_size, 
+                      int vtable_id, struct maat_state *state);
 
 void flag_runtime_scan_hit_inc(struct flag_runtime *flag_rt, int thread_id);
 long long flag_runtime_scan_hit_sum(struct flag_runtime *flag_rt, int n_thread);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

@@ -11,16 +11,18 @@
 #ifndef _MAAT_BOOL_PLUGIN_H_
 #define _MAAT_BOOL_PLUGIN_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
 
-#include "log/log.h"
-#include "maat/maat.h"
+#include "maat.h"
 #include "cJSON/cJSON.h"
 
 struct bool_plugin_runtime;
+struct table_manager;
+struct log_handle;
+struct maat_garbage_bin;
 
 /* bool plugin schema API */
 void *bool_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
@@ -49,7 +51,7 @@ int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name
 
 struct ex_data_runtime *bool_plugin_runtime_get_ex_data_rt(void *bool_plugin_runtime);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

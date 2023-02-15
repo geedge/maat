@@ -44,7 +44,7 @@ struct packedRT_t
 	unsigned char B[4];
 };
 
-void * aligned_malloc(size_t size, size_t align)
+static void * aligned_malloc(size_t size, size_t align)
 {
 	void * malloc_ptr;
 	void * aligned_ptr;
@@ -73,7 +73,7 @@ void * aligned_malloc(size_t size, size_t align)
 	return aligned_ptr;
 }
 
-void aligned_free(void * aligned_ptr)
+static void aligned_free(void * aligned_ptr)
 {
 	if (aligned_ptr)
 	{

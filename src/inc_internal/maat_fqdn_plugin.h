@@ -11,16 +11,18 @@
 #ifndef _MAAT_FQDN_PLUGIN_H_
 #define _MAAT_FQDN_PLUGIN_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
 
-#include "log/log.h"
-#include "maat/maat.h"
+#include "maat.h"
 #include "cJSON/cJSON.h"
 
 struct fqdn_plugin_runtime;
+struct table_manager;
+struct log_handle;
+struct maat_garbage_bin;
 
 /* fqdn plugin schema API */
 void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
@@ -49,7 +51,7 @@ int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name
 
 struct ex_data_runtime *fqdn_plugin_runtime_get_ex_data_rt(void *fqdn_plugin_runtime);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

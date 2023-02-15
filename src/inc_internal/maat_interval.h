@@ -11,17 +11,20 @@
 #ifndef _MAAT_INTERVAL_H_
 #define _MAAT_INTERVAL_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
 
 #include <stdint.h>
 
-#include "log/log.h"
+#include "maat_rule.h"
 #include "cJSON/cJSON.h"
 
 struct interval_runtime;
+struct table_manager;
+struct log_handle;
+struct maat_garbage_bin;
 
 void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
                           const char *table_name, struct log_handle *logger);
@@ -43,14 +46,14 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name);
  * 
  * @retval the num of hit group_id
 */
-int interval_runtime_scan_intval(struct interval_runtime *interval_rt, int thread_id, 
-                                 uint64_t integer, int *group_ids, size_t group_ids_size, 
-                                 int vtable_id, struct maat_state *state);
+int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id, 
+                          uint64_t integer, int *group_ids, size_t group_ids_size, 
+                          int vtable_id, struct maat_state *state);
 
 void interval_runtime_scan_hit_inc(struct interval_runtime *interval_rt, int thread_id);
 long long interval_runtime_scan_hit_sum(struct interval_runtime *interval_rt, int n_thread);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

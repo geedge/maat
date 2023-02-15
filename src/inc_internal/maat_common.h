@@ -11,7 +11,7 @@
 #ifndef _MAAT_COMMON_H_
 #define _MAAT_COMMON_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
@@ -41,7 +41,7 @@ struct maat_options {
     };
 };
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

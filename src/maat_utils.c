@@ -32,6 +32,13 @@ const char *module_name_str(const char *name)
 	return module;
 }
 
+inline void ipv6_ntoh(unsigned int *v6_addr)
+{
+	for (unsigned int i = 0; i < 4; i++) {
+		v6_addr[i] = ntohl(v6_addr[i]);
+	}
+}
+
 char *maat_strdup(const char *s)
 {
 	if (NULL == s) {
@@ -440,7 +447,7 @@ int ip_format2range(int ip_type, enum maat_ip_format format, const char *ip1, co
 			return -1;
 		}
 
-		ipv4_addr = ntohl(ipv4_addr);
+		//ipv4_addr = ntohl(ipv4_addr);
         uint32_t ipv4_range_end = 0;
         uint32_t ipv4_mask = 0;
 		switch (format) {
@@ -450,7 +457,7 @@ int ip_format2range(int ip_type, enum maat_ip_format format, const char *ip1, co
 				if (ret <= 0) {
 					return -1;
 				}				
-				ipv4_range_end = ntohl(ipv4_range_end);
+				//ipv4_range_end = ntohl(ipv4_range_end);
 				range_end[0] = ipv4_range_end;
 				break;
 			case IP_FORMAT_MASK:
@@ -458,7 +465,7 @@ int ip_format2range(int ip_type, enum maat_ip_format format, const char *ip1, co
 				if (ret <= 0) {
 					return -1;
 				}
-				ipv4_mask = ntohl(ipv4_mask);
+				//ipv4_mask = ntohl(ipv4_mask);
 				range_begin[0] = ipv4_addr & ipv4_mask;
 				range_end[0] = ipv4_addr | ~ipv4_mask;
 				break;
@@ -485,7 +492,7 @@ int ip_format2range(int ip_type, enum maat_ip_format format, const char *ip1, co
 		if (ret <= 0) {
 			return -1;
 		}
-		ipv6_ntoh(ipv6_addr);
+		//ipv6_ntoh(ipv6_addr);
 
 		switch (format) {
 			case IP_FORMAT_RANGE:
@@ -493,7 +500,7 @@ int ip_format2range(int ip_type, enum maat_ip_format format, const char *ip1, co
 				if (ret <= 0) {
 					return -1;
 				}
-				ipv6_ntoh(ipv6_range_end);
+				//ipv6_ntoh(ipv6_range_end);
 
 				memcpy(range_begin, ipv6_addr, sizeof(ipv6_addr));				
 				memcpy(range_end, ipv6_range_end, sizeof(ipv6_range_end));
@@ -503,7 +510,7 @@ int ip_format2range(int ip_type, enum maat_ip_format format, const char *ip1, co
 				if (ret <= 0) {
 					return -1;
 				}
-				ipv6_ntoh(ipv6_mask);
+				//ipv6_ntoh(ipv6_mask);
                 
 				for (i = 0; i < 4; i++) {
 					range_begin[i]=ipv6_addr[i] & ipv6_mask[i];	

@@ -11,7 +11,7 @@
 #ifndef _MAAT_UTILS_H_
 #define _MAAT_UTILS_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
@@ -67,18 +67,15 @@ enum maat_ip_format ip_format_str2int(const char *format);
 int ip_format2range(int ip_type, enum maat_ip_format format, const char *ip1, const char *ip2, 
                     uint32_t range_begin[], uint32_t range_end[]);
 
-inline void ipv6_ntoh(unsigned int *v6_addr)
-{
-	for (unsigned int i = 0; i < 4; i++) {
-		v6_addr[i] = ntohl(v6_addr[i]);
-	}
-}
+
 
 #define UNUSED	__attribute__((unused))
 
 const char *module_name_str(const char *name);
 
 char *maat_strdup(const char *s);
+
+void ipv6_ntoh(unsigned int *v6_addr);
 
 int get_column_pos(const char *line, int column_seq, size_t *offset, size_t *len);
 
@@ -111,7 +108,7 @@ int system_cmd_mkdir(const char* path);
 
 int system_cmd_rmdir(const char *dir);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

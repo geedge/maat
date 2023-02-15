@@ -12,7 +12,6 @@
 #include <assert.h>
 
 #include "log/log.h"
-#include "cJSON/cJSON.h"
 #include "maat_utils.h"
 #include "maat_ex_data.h"
 #include "IPMatcher.h"
@@ -479,7 +478,7 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name)
     return ret;
 }
 
-int ip_runtime_scan_ip(struct ip_runtime *ip_rt, int thread_id, int ip_type, 
+int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type, 
                     uint8_t *ip_addr, int *group_ids, size_t group_id_size, 
                     int vtable_id, struct maat_state *state)
 {

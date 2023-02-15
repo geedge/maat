@@ -11,7 +11,7 @@
 #ifndef _MAAT_RULE_H_
 #define _MAAT_RULE_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
@@ -29,8 +29,10 @@ extern "C"
 #include "uthash/uthash.h"
 #include "maat_command.h"
 #include "IPMatcher.h"
+#include "maat.h"
 #include "maat_kv.h"
 #include "maat_table.h"
+#include "maat_rule.h"
 #include "maat_virtual.h"
 
 #define MAX_TABLE_NUM	256
@@ -64,18 +66,6 @@ struct maat_rule_head {
 	char action;
 	char resevered;
 	int	serv_def_len;
-};
-
-#define	MAX_SERVICE_DEFINE_LEN 128
-struct maat_rule {
-	int	config_id;
-	int	service_id;
-	uint8_t	do_log;
-	uint8_t do_blacklist;
-	uint8_t	action;
-	uint8_t	reserved;
-	int	serv_def_len;
-	char service_defined[MAX_SERVICE_DEFINE_LEN];
 };
 
 #define	ITEM_RULE_MAGIC 0x4d3c2b1a
@@ -329,7 +319,7 @@ void maat_cmd_set_serial_rule(struct serial_rule *rule, enum maat_operation op,
 void fill_maat_rule(struct maat_rule *rule, const struct maat_rule_head *rule_head,
                     const char *srv_def, int srv_def_len);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

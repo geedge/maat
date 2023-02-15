@@ -11,12 +11,13 @@
 #ifndef _MAAT_PLUGIN_H_
 #define _MAAT_PLUGIN_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
 
-#include "maat/maat.h"
+#include "cJSON/cJSON.h"
+#include "maat.h"
 
 #define	MAX_FOREIGN_CLMN_NUM 8
 
@@ -59,7 +60,7 @@ int plugin_runtime_commit(void *plugin_runtime, const char *table_name);
 
 struct ex_data_runtime *plugin_runtime_get_ex_data_rt(void *plugin_runtime);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

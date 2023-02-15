@@ -1,4 +1,4 @@
-#include "maat/maat.h"
+#include "maat.h"
 #include "maat_utils.h"
 #include "maat_rule.h"
 #include "json2iris.h"
@@ -36,7 +36,7 @@ TEST(json_mode, maat_scan_string) {
     struct maat *maat_instance = maat_new(opts, table_info_path);
     EXPECT_NE(maat_instance, nullptr);
 
-    int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, "KEYWORDS_TABLE");
+    int table_id = maat_table_get_id(maat_instance, "KEYWORDS_TABLE");
    
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     int results[5] = {0};
@@ -81,7 +81,7 @@ TEST(iris_mode, maat_scan_string) {
     struct maat *maat_instance = maat_new(opts, table_info_path);
     EXPECT_NE(maat_instance, nullptr);
 
-    int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, "KEYWORDS_TABLE");
+    int table_id = maat_table_get_id(maat_instance, "KEYWORDS_TABLE");
    
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     int results[5] = {0};
@@ -202,7 +202,7 @@ TEST(redis_mode, maat_scan_string) {
     maat_options_set_logger(opts, g_logger);
 
     struct maat *maat_instance = maat_new(opts, table_info_path);
-    int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, "KEYWORDS_TABLE");
+    int table_id = maat_table_get_id(maat_instance, "KEYWORDS_TABLE");
    
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     int results[5] = {0};

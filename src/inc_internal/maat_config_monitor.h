@@ -11,7 +11,7 @@
 #ifndef _MAAT_CONFIG_MONITOR_H_
 #define _MAAT_CONFIG_MONITOR_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
@@ -27,7 +27,7 @@ void config_monitor_traverse(long long version, const char *idx_dir,
 int load_maat_json_file(struct maat *maat_instance, const char *json_filename, 
                         char *err_str, size_t err_str_sz);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

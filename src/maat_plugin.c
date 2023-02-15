@@ -11,7 +11,6 @@
 #include <assert.h>
 
 #include "log/log.h"
-#include "cJSON/cJSON.h"
 #include "maat_utils.h"
 #include "maat_rule.h"
 #include "maat_plugin.h"

@@ -16,7 +16,7 @@
 #ifndef _MAAT_H_
 #define _MAAT_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
@@ -46,6 +46,18 @@ enum maat_scan_status {
     MAAT_SCAN_OK,        //scan but not hit(group or compile)
     MAAT_SCAN_HALF_HIT,  //half hit: hit group, not hit compile
     MAAT_SCAN_HIT        //scan hit compile
+};
+
+#define	MAX_SERVICE_DEFINE_LEN 128
+struct maat_rule {
+	int	config_id;
+	int	service_id;
+	uint8_t	do_log;
+	uint8_t do_blacklist;
+	uint8_t	action;
+	uint8_t	reserved;
+	int	serv_def_len;
+	char service_defined[MAX_SERVICE_DEFINE_LEN];
 };
 
 typedef void maat_start_callback_t(int update_type, void *u_param);
@@ -176,7 +188,7 @@ void maat_state_free(struct maat_state **state);
 /* return hit object compile_id */
 int maat_hit_object_compile_id(struct maat *instance, struct maat_hit_object *obj);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

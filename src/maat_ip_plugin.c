@@ -10,6 +10,7 @@
 
 #include <assert.h>
 
+#include "log/log.h"
 #include "maat_utils.h"
 #include "maat_ip_plugin.h"
 #include "maat_ex_data.h"

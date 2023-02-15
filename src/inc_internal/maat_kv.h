@@ -11,10 +11,12 @@
 #ifndef _MAAT_KV_H_
 #define _MAAT_KV_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#include <stddef.h>
 
 struct maat_kv_store;
 
@@ -30,7 +32,7 @@ int maat_kv_read_unNull(struct maat_kv_store *store, const char *key, size_t key
 
 struct maat_kv_store *maat_kv_store_duplicate(struct maat_kv_store *store);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

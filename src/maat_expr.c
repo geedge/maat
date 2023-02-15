@@ -35,6 +35,7 @@ struct expr_schema {
     int match_method_column;
     int is_hexbin_column;
     enum hs_scan_mode scan_mode; /* adapter_hs scan mode */
+    enum hs_pattern_type pattern_type; /* literal or regex */
     int table_id; //ugly
     struct table_manager *ref_tbl_mgr;
 };
@@ -61,13 +62,14 @@ struct expr_item {
     int district_id;
     char keywords[MAX_KEYWORDS_STR];
     enum expr_type expr_type;
-    enum match_method match_method;
+    enum hs_match_mode match_mode;
     int is_hexbin;
     int is_case_sensitive;
 };
 
 struct expr_runtime {
     enum hs_scan_mode scan_mode;
+    enum hs_pattern_type pattern_type;
     struct adapter_hs *hs;
     struct adapter_hs_stream *hs_stream;
     struct rcu_hash_table *htable;
@@ -111,28 +113,28 @@ enum expr_type int_to_expr_type(int expr_type)
     return type;
 }
 
-enum match_method int_to_match_method_type(int match_method_type)
+enum hs_match_mode int_to_match_mode(int match_method)
 {
-    enum match_method type = MATCH_METHOD_MAX;
+    enum hs_match_mode mode = HS_MATCH_MODE_MAX;
 
-    switch (match_method_type) {
+    switch (match_method) {
     case 0:
-        type = MATCH_METHOD_SUB;
+        mode = HS_MATCH_MODE_SUB;
         break;
     case 1:
-        type = MATCH_METHOD_RIGHT;
+        mode = HS_MATCH_MODE_SUFFIX;
         break;
     case 2:
-        type = MATCH_METHOD_LEFT;
+        mode = HS_MATCH_MODE_PREFIX;
         break;
     case 3:
-        type = MATCH_METHOD_COMPLETE;
+        mode = HS_MATCH_MODE_EXACTLY;
         break;
     default:
         break;
     }
 
-    return type;
+    return mode;
 }
 
 struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schema,
@@ -205,7 +207,7 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
     }
     
     match_method_type = atoi(line + column_offset);
-    expr_item->match_method = int_to_match_method_type(match_method_type);
+    expr_item->match_mode = int_to_match_mode(match_method_type);
 
     ret = get_column_pos(line, expr_schema->is_hexbin_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -252,7 +254,6 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
     }
     memcpy(expr_item->keywords, (line + column_offset), column_len);
 
-   
     return expr_item;
 error:
     FREE(expr_item);
@@ -264,17 +265,42 @@ void expr_item_free(struct expr_item *expr_item)
     FREE(expr_item);
 }
 
+enum hs_scan_mode scan_mode_str_to_enum(const char *mode_str)
+{
+    enum hs_scan_mode scan_mode = HS_SCAN_MODE_MAX;
+
+    if (strcmp(mode_str, "block") == 0) {
+        scan_mode = HS_SCAN_MODE_BLOCK;
+    } else if (strcmp(mode_str, "stream") == 0) {
+        scan_mode = HS_SCAN_MODE_STREAM;
+    } else {
+        assert(0);
+    }
+
+    return scan_mode;
+}
+
+enum hs_pattern_type pattern_type_str_to_enum(const char *type_str)
+{
+    enum hs_pattern_type pattern_type = HS_PATTERN_TYPE_MAX;
+
+    if (strcmp(type_str, "literal") == 0) {
+        pattern_type = HS_PATTERN_TYPE_STR;
+    } else if (strcmp(type_str, "regex") == 0) {
+        pattern_type = HS_PATTERN_TYPE_REG;
+    } else {
+        assert(0);
+    }
+
+    return pattern_type;
+}
+
 void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
                       const char *table_name, struct log_handle *logger)
 {
     int read_cnt = 0;
 	struct expr_schema *expr_schema = ALLOC(struct expr_schema, 1);
-	struct maat_kv_store *scan_mode_map = maat_kv_store_new();
 
-    maat_kv_register(scan_mode_map, "block", HS_SCAN_MODE_BLOCK);
-    maat_kv_register(scan_mode_map, "stream", HS_SCAN_MODE_STREAM);
-
-    int ret = -1;
     cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
     if (item != NULL && item->type == cJSON_Number) {
@@ -291,13 +317,13 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
 	custom_item = cJSON_GetObjectItem(item, "scan_mode");
 	if (custom_item != NULL && custom_item->type == cJSON_String) {
-		ret = maat_kv_read(scan_mode_map, custom_item->valuestring, 
-                          (int*)&(expr_schema->scan_mode));
-        if (ret < 0) {
-            log_error(logger, MODULE_EXPR, "scan_mode %s illegal", 
-                      custom_item->valuestring);
-            goto error;
-        }
+        expr_schema->scan_mode = scan_mode_str_to_enum(custom_item->valuestring);
+        read_cnt++;
+	}
+
+    custom_item = cJSON_GetObjectItem(item, "pattern_type");
+	if (custom_item != NULL && custom_item->type == cJSON_String) {
+        expr_schema->pattern_type = pattern_type_str_to_enum(custom_item->valuestring);
         read_cnt++;
 	}
 
@@ -319,10 +345,10 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         read_cnt++;
     }
 
+    /* expr_plus has district */
 	custom_item = cJSON_GetObjectItem(item, "district");
 	if (custom_item != NULL && custom_item->type == cJSON_Number) {
 		expr_schema->district_column = custom_item->valueint;
-		read_cnt++;
 	}
 
 	custom_item = cJSON_GetObjectItem(item, "expr_type");
@@ -345,14 +371,12 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     expr_schema->ref_tbl_mgr = tbl_mgr;
 
-    if (read_cnt < 8) {
+    if (read_cnt < 9) {
 		goto error;
     }
 	
-    maat_kv_store_free(scan_mode_map);
     return expr_schema;
 error:
-    maat_kv_store_free(scan_mode_map);
     FREE(expr_schema);
     return NULL;
 }
@@ -394,6 +418,7 @@ void *expr_runtime_new(void *expr_schema, int max_thread_num,
 
     expr_rt->htable = rcu_hash_new(expr_ex_data_free);
     expr_rt->scan_mode = schema->scan_mode;
+    expr_rt->pattern_type = schema->pattern_type;
     expr_rt->item_user_data_free = maat_item_inner_free;
     expr_rt->n_worker_thread = max_thread_num;
     expr_rt->ref_garbage_bin = garbage_bin;
@@ -477,17 +502,18 @@ int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key,
     return 0;
 }
 
-enum pattern_type expr_type2pattern_type(enum expr_type expr_type)
+enum hs_pattern_type expr_type2pattern_type(enum expr_type expr_type)
 {
-    enum pattern_type pattern_type = PATTERN_TYPE_STR;
+    enum hs_pattern_type pattern_type = HS_PATTERN_TYPE_MAX;
 
     switch (expr_type) {
         case EXPR_TYPE_STRING:
         case EXPR_TYPE_AND:
         case EXPR_TYPE_OFFSET:
+            pattern_type = HS_PATTERN_TYPE_STR;
             break;
         case EXPR_TYPE_REGEX:
-            pattern_type = PATTERN_TYPE_REG;
+            pattern_type = HS_PATTERN_TYPE_REG;
             break;
         default:
             break;
@@ -496,7 +522,7 @@ enum pattern_type expr_type2pattern_type(enum expr_type expr_type)
     return pattern_type;
 }
 
-int converHextoint(char srctmp)
+int convertHextoint(char srctmp)
 {
 	if (isdigit(srctmp)) {
 		return srctmp - '0';
@@ -512,8 +538,8 @@ size_t hex2bin(char *hex, int hex_len, char *binary, size_t size)
 	size_t resultlen = 0;
 	int high,low;
 	for (int i = 0; i < hex_len && size > resultlen; i += 2, resultlen++) {
-		high = converHextoint(hex[i]);
-		low = converHextoint(hex[i+1]);
+		high = convertHextoint(hex[i]);
+		low = convertHextoint(hex[i+1]);
 		binary[resultlen] = high * 16 + low;
 	}
 
@@ -612,15 +638,15 @@ and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item, void *user_data,
     size_t sub_key_len = 0;
 
     for (i = 0; i < sub_expr_cnt; i++) {
-        expr_rule->expr_id = expr_item->item_id;
+       
         if (FALSE == expr_item->is_case_sensitive) {
             // insensitive
-            expr_rule->patterns[i].case_sensitive = 1;
+            expr_rule->patterns[i].case_sensitive = HS_CASE_INSESITIVE;
         }
         
-        expr_rule->patterns[i].type = expr_type2pattern_type(expr_item->expr_type);
+        enum hs_pattern_type pattern_type = expr_type2pattern_type(expr_item->expr_type);
 
-        if (TRUE == expr_item->is_hexbin && expr_rule->patterns[i].type != EXPR_TYPE_REGEX) {
+        if (TRUE == expr_item->is_hexbin && pattern_type != HS_PATTERN_TYPE_REG) {
             region_str_len = strlen(sub_key_array[i]) + 1;
 			region_string = ALLOC(char, region_str_len);
 			region_str_len = hex2bin(sub_key_array[i], strlen(sub_key_array[i]), region_string, region_str_len);
@@ -637,11 +663,26 @@ and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item, void *user_data,
             memcpy(expr_rule->patterns[i].pat, sub_key_array[i], sub_key_len);
             expr_rule->patterns[i].pat_len = sub_key_len;
         }
+
+        expr_rule->patterns[i].match_mode = expr_item->match_mode;
+        if (expr_rule->patterns[i].match_mode == HS_MATCH_MODE_SUB) {
+            expr_rule->patterns[i].l_offset = key_left_offset[i];
+            expr_rule->patterns[i].r_offset = key_right_offset[i];
+        }
     }
-   
+    expr_rule->expr_id = expr_item->item_id;
     expr_rule->user_tag = user_data;
     expr_rule->n_patterns = sub_expr_cnt;
     
+    //mytest
+    // printf("expr_rule->expr_id:%u\n", expr_rule->expr_id);
+    // printf("expr_rule->n_patterns:%zu\n", expr_rule->n_patterns);
+    // for (size_t i = 0; i < expr_rule->n_patterns; i++) {
+    //     printf("expr_rule->patterns[%zu].pat:%s\n", i, expr_rule->patterns[i].pat);
+    //     printf("expr_rule->patterns[%zu].pat_len:%zu\n", i, expr_rule->patterns[i].pat_len);
+    //     printf("expr_rule->patterns[%zu].l_offset:%d\n", i, expr_rule->patterns[i].l_offset);
+    //     printf("expr_rule->patterns[%zu].r_offset:%d\n", i, expr_rule->patterns[i].r_offset);
+    // }
     return expr_rule;
 }
 
@@ -755,7 +796,7 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name)
     log_info(expr_rt->logger, MODULE_EXPR,
              "table[%s] committing %zu expr rules for rebuilding adapter_hs engine", 
              table_name, rule_cnt);
-    new_adapter_hs = adapter_hs_initialize(expr_rt->scan_mode, 
+    new_adapter_hs = adapter_hs_initialize(expr_rt->scan_mode, expr_rt->pattern_type,
                                            expr_rt->n_worker_thread, 
                                            rules, rule_cnt, 
                                            expr_rt->logger);
@@ -781,7 +822,7 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name)
     return ret;
 }
 
-int expr_runtime_scan_string(struct expr_runtime *expr_rt, int thread_id, 
+int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, 
                              const char *data, size_t data_len,
                              int *group_ids, size_t group_ids_size, 
                              int vtable_id, struct maat_state *state)
@@ -839,7 +880,7 @@ void expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id)
     expr_rt->hs_stream = hs_stream;
 }
 
-int expr_runtime_scan_stream(struct expr_runtime *expr_rt, const char *data, 
+int expr_runtime_stream_scan(struct expr_runtime *expr_rt, const char *data, 
                              size_t data_len, int *group_ids, size_t group_ids_size, 
                              int vtable_id, struct maat_state *state)
 {

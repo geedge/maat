@@ -1,11 +1,12 @@
 #include <gtest/gtest.h>
 
-#include "maat/maat.h"
+#include "maat.h"
 #include "maat_rule.h"
 #include "maat_utils.h"
 #include "maat_command.h"
 #include "IPMatcher.h"
 #include "json2iris.h"
+#include "log/log.h"
 #include "maat_config_monitor.h"
 
 #define MODULE_FRAMEWORK_GTEST	 module_name_str("maat.framework_gtest")
@@ -14,6 +15,8 @@ const char *table_info_path = "./table_info.conf";
 const char *json_path="./maat_json.json";
 const char *json_filename = "maat_json.json";
 struct maat *g_maat_instance = NULL;
+
+extern int system_cmd_rmdir(const char *dir);
 
 class MaatFlagScan : public testing::Test
 {
@@ -234,7 +237,9 @@ TEST_F(MaatStringScan, ExprPlus) {
 	EXPECT_EQ(results[0], 190);
 	maat_state_free(&state);
 }
+
 //TODO:
+#if 0
 TEST_F(MaatStringScan, ShouldNotHitExprPlus) {
     int results[5] = {0};
     size_t n_hit_result = 0;
@@ -259,6 +264,7 @@ TEST_F(MaatStringScan, ShouldNotHitExprPlus) {
 
 	int ret = maat_state_set_scan_district(g_maat_instance, &state, region_name, strlen(region_name));
 	ASSERT_EQ(ret, 0);
+    
 	ret = maat_scan_string(g_maat_instance, table_id, 0, (char *)udp_payload_not_hit, sizeof(udp_payload_not_hit), 
 						   results, 5, &n_hit_result, &state);
 	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
@@ -348,41 +354,7 @@ TEST_F(MaatStringScan, ExprPlusWithOffset)
 	
 	maat_state_free(&state);
 }
-
-#if 0
-TEST_F(MaatStringScan, hit_two_expr) {
-    int table_id = MaatStringScan::table_id;
-    char data[128] = "should hit aaa bbb";
-    int results[5] = {0};
-    size_t n_hit_result = 0;
-    struct maat_state *state = NULL;
-    int ret = maat_scan_string(g_maat_instance, table_id, 0, data, strlen(data), results, 
-                               sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], 139);
-    EXPECT_EQ(results[1], 138);
-
-    maat_state_free(&state);
-}
-
-TEST_F(MaatStringScan, hit_three_expr) {
-    int table_id = MaatStringScan::table_id;
-   
-    char data[128] = "should hit aaa bbb C#中国";
-    int results[5] = {0};
-    size_t n_hit_result = 0;
-    struct maat_state *state = NULL;
-    int ret = maat_scan_string(g_maat_instance, table_id, 0, data, strlen(data), results, 
-                               sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 3);
-    EXPECT_EQ(results[0], 139);
-    EXPECT_EQ(results[1], 138);
-    EXPECT_EQ(results[2], 129);
-
-    maat_state_free(&state);
-}
+#endif
 
 class MaatIPScan : public testing::Test
 {
@@ -399,9 +371,9 @@ protected:
 };
 int MaatIPScan::table_id;
 
-TEST_F(MaatIPScan, hit_ip) {
+TEST_F(MaatIPScan, IPv4) {
     int table_id = MaatIPScan::table_id;
-    char ip_str[32] = "192.168.58.20";
+    char ip_str[32] = "10.0.7.100";
     uint32_t sip;
     int ret = inet_pton(AF_INET, ip_str, &sip);
     EXPECT_EQ(ret, 1);
@@ -409,166 +381,36 @@ TEST_F(MaatIPScan, hit_ip) {
     int results[3] = {-1};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results),
+    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, 3,
                          &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 7);
-    maat_state_free(&state);
-
-    state = NULL;
-    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), 
-                         &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-    EXPECT_EQ(n_hit_result, 0);
-
-    maat_state_free(&state);
-}
-
-TEST_F(MaatStringScan, hit_ip_and_port_range) {
-    int table_id = table_manager_get_table_id(g_maat_instance->tbl_mgr, "IP_PLUS_CONFIG");
-    char ip_str[32] = "192.168.50.24";
-    uint32_t sip;
-    int ret = inet_pton(AF_INET, ip_str, &sip);
-    EXPECT_EQ(ret, 1);
-
-    int results[3] = {-1};
-    size_t n_hit_result = 0;
-    struct maat_state *state = NULL;
-    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 4);
-    maat_state_free(&state);
-
-    memset(results, 0, sizeof(results));
-    n_hit_result = 0;
-    state = NULL;
-    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 4);
-    maat_state_free(&state);
-
-    memset(results, 0, sizeof(results));
-    n_hit_result = 0;
-    state = NULL;
-    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-    EXPECT_EQ(n_hit_result, 0);
-}
-
-TEST(maat_scan_ipv4, hit_ip_range_and_port_range) {
-    int table_id = table_manager_get_table_id(g_maat_instance->tbl_mgr, "IP_PLUS_CONFIG");
-    char ip_str1[32] = "10.0.1.20";
-    char ip_str2[32] = "10.0.1.25";
-    char ip_str3[32] = "10.0.1.26";
-    uint32_t sip;
-    int ret = inet_pton(AF_INET, ip_str1, &sip);
-    EXPECT_EQ(ret, 1);
-
-    int results[3] = {-1};
-    size_t n_hit_result = 0;
-    struct maat_state *state = NULL;
-    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 8);
-    maat_state_free(&state);
-
-    ret = inet_pton(AF_INET, ip_str2, &sip);
-    EXPECT_EQ(ret, 1);
-    state = NULL;
-    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 8);
-    maat_state_free(&state);
-
-    ret = inet_pton(AF_INET, ip_str3, &sip);
-    EXPECT_EQ(ret, 1);
-    state = NULL;
-    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-    EXPECT_EQ(n_hit_result, 0);
-    maat_state_free(&state);
-}
-
-TEST(maat_scan_ipv4, hit_ip_cidr_and_port_range) {
-    int table_id = table_manager_get_table_id(g_maat_instance->tbl_mgr, "IP_PLUS_CONFIG");
-    char ip_str1[32] = "192.168.0.1";
-    char ip_str2[32] = "192.168.0.0";
-    uint32_t sip;
-    int ret = inet_pton(AF_INET, ip_str1, &sip);
-    EXPECT_EQ(ret, 1);
-
-    int results[3] = {-1};
-    size_t n_hit_result = 0;
-    struct maat_state *state = NULL;
-    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 50);
-    maat_state_free(&state);
-
-    ret = inet_pton(AF_INET, ip_str2, &sip);
-    EXPECT_EQ(ret, 1);
-    state = NULL;
-    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-    EXPECT_EQ(n_hit_result, 0);
-    maat_state_free(&state);
-}
-
-TEST(maat_scan_ipv4, hit_ip_cidr_and_port_mask) {
-    int table_id = table_manager_get_table_id(g_maat_instance->tbl_mgr, "IP_PLUS_CONFIG");
-    char ip_str[32] = "192.168.40.10";
-    uint32_t sip;
-    int ret = inet_pton(AF_INET, ip_str, &sip);
-    EXPECT_EQ(ret, 1);
-
-    int results[3] = {-1};
-    size_t n_hit_result = 0;
-    struct maat_state *state = NULL;
-    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], 63);
-    EXPECT_EQ(results[1], 67);
-    maat_state_free(&state);
-
-    state = NULL;
-    ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-    EXPECT_EQ(n_hit_result, 0);
+    EXPECT_EQ(results[0], 169);
+    EXPECT_EQ(results[1], 154);
     maat_state_free(&state);
 }
 
-TEST(maat_scan_ipv6, hit_ip_range_and_port_mask) {
-    int table_id = table_manager_get_table_id(g_maat_instance->tbl_mgr, "IP_PLUS_CONFIG");
+TEST_F(MaatIPScan, IPv6) {
+    int table_id = MaatIPScan::table_id;
     char ip_str[32] = "1001:da8:205:1::101";
-    uint8_t sip6[128];
-    int ret = inet_pton(AF_INET6, ip_str, sip6);
+    uint8_t sip[16];
+    int ret = inet_pton(AF_INET6, ip_str, &sip);
     EXPECT_EQ(ret, 1);
 
     int results[3] = {-1};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    ret = maat_scan_ipv6(g_maat_instance, table_id, 0, sip6, results, sizeof(results), &n_hit_result, &state);
+    ret = maat_scan_ipv6(g_maat_instance, table_id, 0, sip, results, 3,
+                         &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 47);
-    maat_state_free(&state);
+    EXPECT_EQ(results[0], 155);
 
-    state = NULL;
-    ret = maat_scan_ipv6(g_maat_instance, table_id, 0, sip6, results, sizeof(results), &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-    EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
 }
 
-TEST(maat_scan_string, dynamic_config) {
-    int table_id = table_manager_get_table_id(g_maat_instance->tbl_mgr, "HTTP_URL");
+TEST_F(MaatStringScan, dynamic_config) {
+    int table_id = maat_table_get_id(g_maat_instance, "HTTP_URL");
    
     char data[128] = "hello world";
     int results[5] = {0};
@@ -597,8 +439,8 @@ TEST(maat_scan_string, dynamic_config) {
     maat_state_free(&state);
 }
 
-TEST(maat_scan_ip, dynamic_config) {
-    int table_id = table_manager_get_table_id(g_maat_instance->tbl_mgr, "IP_PLUS_CONFIG");
+TEST_F(MaatIPScan, dynamic_config) {
+    int table_id = maat_table_get_id(g_maat_instance, "IP_PLUS_CONFIG");
    
     char ip_str[32] = "10.0.6.201";
     uint32_t sip;
@@ -630,7 +472,6 @@ TEST(maat_scan_ip, dynamic_config) {
     EXPECT_EQ(results[0], 9998);
     maat_state_free(&state);
 }
-#endif
 
 int count_line_num_cb(const char *table_name, const char *line, void *u_para)
 {

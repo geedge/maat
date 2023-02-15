@@ -11,7 +11,7 @@
 #ifndef _ADAPTER_HS_H_
 #define _ADAPTER_HS_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
@@ -32,10 +32,24 @@ enum hs_scan_mode {
     HS_SCAN_MODE_MAX
 };
 
-/* pattern type: PATTERN_TYPE_STR(pure literal string) or PATTERN_TYPE_REG(regex expression) */
-enum pattern_type {
-    PATTERN_TYPE_STR = 0,
-    PATTERN_TYPE_REG,
+/* match method */
+enum hs_match_mode {
+    HS_MATCH_MODE_EXACTLY = 1,  /* scan data must match pattern exactly */
+    HS_MATCH_MODE_PREFIX,       /* pattern must in the head of scan_data */
+    HS_MATCH_MODE_SUFFIX,       /* pattern must in the end of scan_data */
+    HS_MATCH_MODE_SUB,           /* pattern must in the range[l_offset, r_offset] of scan_data */
+    HS_MATCH_MODE_MAX
+};
+
+enum hs_pattern_type {
+    HS_PATTERN_TYPE_STR = 0,  /* pure literal string */
+    HS_PATTERN_TYPE_REG,      /* regex expression */
+    HS_PATTERN_TYPE_MAX
+};
+
+enum hs_case_sensitive {
+    HS_CASE_SENSITIVE = 0,
+    HS_CASE_INSESITIVE
 };
 
 struct hs_scan_result {
@@ -44,16 +58,15 @@ struct hs_scan_result {
 };
 
 typedef struct {
-    /* pattern type */
-    int type;
+    enum hs_case_sensitive case_sensitive;
+    enum hs_match_mode match_mode;
 
-    /* default 0(sensitive) 1(insensitive) */
-    int case_sensitive;
-
-    /* (0)sub string match (1)complete match */
-    int match_mode;
-
-    /* just match in scan_data's range of [l_offset, r_offset] */
+    /* 
+     * just match in scan_data's range of [l_offset, r_offset], -1 means no limits
+     * for example:
+     *  [-1, r_offset] means the pattern must in scan_data's [0 ~ r_offset]
+     *  [l_offset, -1] means the pattern must in scan_data's [l_offset ~ end]
+     */
     int l_offset;
     int r_offset;
 
@@ -81,10 +94,11 @@ typedef struct {
  * 
  * @retval the pointer to adapter_hs instance
 */
-struct adapter_hs *
-adapter_hs_initialize(int scan_mode, size_t n_worker_thread,
-                      and_expr_t *expr_array, size_t n_expr_array,
-                      struct log_handle *logger);
+struct adapter_hs *adapter_hs_initialize(enum hs_scan_mode scan_mode, 
+                                         enum hs_pattern_type pattern_type,
+                                         size_t n_worker_thread,
+                                         and_expr_t *exprs, size_t n_expr,
+                                         struct log_handle *logger);
 
 /**
  * @brief scan input data to match logic AND expression, return all matched expr_id
@@ -120,7 +134,7 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *stream, const char *data, s
 
 void adapter_hs_stream_close(struct adapter_hs_stream *stream);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

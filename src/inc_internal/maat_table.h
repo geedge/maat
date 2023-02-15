@@ -11,13 +11,15 @@
 #ifndef _MAAT_TABLE_H_
 #define _MAAT_TABLE_H_
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
 
 #include <stddef.h>
 #include <cJSON/cJSON.h>
+
+#include "maat_garbage_collection.h"
 
 enum table_type {
     TABLE_TYPE_INVALID = -1,
@@ -74,7 +76,7 @@ void *table_manager_get_runtime(struct table_manager *tbl_mgr, int table_id);
 int table_manager_update_runtime(struct table_manager *tbl_mgr, int table_id, const char *line);
 void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id);
 
-#ifdef __cpluscplus
+#ifdef __cplusplus
 }
 #endif
 

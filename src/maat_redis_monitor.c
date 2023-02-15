@@ -13,7 +13,7 @@
 #include <sys/stat.h>
 #include <stdio.h>
 
-#include "maat/maat.h"
+#include "maat.h"
 #include "maat_utils.h"
 #include "maat_command.h"
 #include "maat_config_monitor.h"

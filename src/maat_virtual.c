@@ -10,7 +10,6 @@
 
 #include <assert.h>
 
-#include "cJSON/cJSON.h"
 #include "maat_kv.h"
 #include "maat_utils.h"
 #include "log/log.h"

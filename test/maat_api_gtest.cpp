@@ -1,4 +1,4 @@
-#include "maat/maat.h"
+#include "maat.h"
 
 #include <gtest/gtest.h>
 

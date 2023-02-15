@@ -410,7 +410,7 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name)
     return ret;
 }
 
-int flag_runtime_scan_flag(struct flag_runtime *flag_rt, int thread_id, 
+int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, 
                            uint64_t flag, int *group_ids, size_t group_ids_size, 
                            int vtable_id, struct maat_state *state)
 {

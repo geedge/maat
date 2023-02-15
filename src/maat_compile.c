@@ -20,7 +20,6 @@
 #include "maat_compile.h"
 #include "maat_garbage_collection.h"
 #include "maat_group.h"
-#include "maat/maat.h"
 #include "rcu_hash.h"
 #include "maat_table.h"
 

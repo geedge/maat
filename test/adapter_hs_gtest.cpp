@@ -3,61 +3,146 @@
 #include "log/log.h"
 #include "adapter_hs.h"
 #include "maat_utils.h"
+#include "cJSON/cJSON.h"
 
 struct log_handle *g_logger = NULL;
 
-int parse_and_expr_file(const char *filename, and_expr_t expr[], size_t *n_expr)
+enum hs_match_mode match_method_to_match_mode(const char *method)
 {
-    FILE *fp = fopen(filename, "r");
+    enum hs_match_mode mode = HS_MATCH_MODE_MAX;
 
-    char line[4096] = {0};
-    size_t i = 0;
-    while (NULL != fgets(line, sizeof(line), fp)) {
-        if (line[0] == '#' || line[0] == ' ' || line[0] == '\t') {
-            memset(line, 0, sizeof(line));
-            continue;
+    if (strcmp(method, "sub") == 0) {
+        mode = HS_MATCH_MODE_SUB;
+    } else if (strcmp(method, "exactly") == 0) {
+        mode = HS_MATCH_MODE_EXACTLY;
+    } else if (strcmp(method, "prefix") == 0) {
+        mode = HS_MATCH_MODE_PREFIX;
+    } else if (strcmp(method, "suffix") == 0) {
+        mode = HS_MATCH_MODE_SUFFIX;
+    } else {
+        assert(0);
+    }
+
+    return mode;
+}
+
+enum hs_case_sensitive case_sensitive_str_to_enum(const char *str)
+{
+    enum hs_case_sensitive case_sensitive = HS_CASE_SENSITIVE;
+
+    if (strcmp(str, "yes") == 0) {
+        case_sensitive = HS_CASE_SENSITIVE;
+    } else if (strcmp(str, "no") == 0) {
+        case_sensitive = HS_CASE_INSESITIVE;
+    } else {
+        assert(0);
+    }
+
+    return case_sensitive;
+}
+
+int parse_config_file(const char *filename, and_expr_t exprs[], size_t *n_expr)
+{
+    unsigned char *json_buff = NULL;
+    size_t json_buff_size = 0;
+    
+    int ret = load_file_to_memory(filename, &json_buff, &json_buff_size);
+    if (ret < 0) {
+        printf("load file:%s to memory failed.\n", filename);
+        return -1;
+    }
+
+    size_t rule_cnt = 0;
+    cJSON *rules_obj = NULL;
+    cJSON *root = cJSON_Parse((const char *)json_buff);
+    if (NULL == root) {
+        printf("Error before: %-200.200s\n", cJSON_GetErrorPtr());
+        ret = -1;
+        goto next;
+    }
+
+    rules_obj = cJSON_GetObjectItem(root, "expr_rules");
+    if (NULL == rules_obj) {
+        printf("Error before: %-200.200s\n", cJSON_GetErrorPtr());
+        ret = -1;
+        goto next;
+    }
+
+    rule_cnt = cJSON_GetArraySize(rules_obj);
+    for (size_t i = 0; i < rule_cnt; i++) {
+        cJSON *expr_obj = cJSON_GetArrayItem(rules_obj, i);
+        cJSON *tmp_item = cJSON_GetObjectItem(expr_obj, "expr_id");
+        if (tmp_item != NULL && tmp_item->type == cJSON_Number) {
+            exprs[i].expr_id = tmp_item->valueint;
         }
 
-        char pattern_buf[1024] = {0};
-        int ret = sscanf(line, "%u\t%lu\t%s", &(expr[i].expr_id), &(expr[i].n_patterns), pattern_buf);
-        EXPECT_NE(ret, 0);
+        tmp_item = cJSON_GetObjectItem(expr_obj, "pattern_num");
+        if (tmp_item != NULL && tmp_item->type == cJSON_Number) {
+            exprs[i].n_patterns = tmp_item->valueint;
+        }
 
-        str_unescape(pattern_buf);
-        char *expr_token = NULL;
-        char *sub_expr_token = NULL;
-        char *save_expr_ptr = NULL;
-        size_t j = 0;
-        for (expr_token = pattern_buf; ; expr_token = NULL) {
-            sub_expr_token = strtok_r(expr_token, "&", &save_expr_ptr);
-            if (sub_expr_token == NULL) {
-                break;
+        tmp_item = cJSON_GetObjectItem(expr_obj, "patterns");
+        if (NULL == tmp_item || tmp_item->type != cJSON_Array) {
+            printf("json has no patterns array.\n");
+            ret = -1;
+            goto next;
+        }
+
+        size_t pattern_cnt = cJSON_GetArraySize(tmp_item);
+        for (size_t j = 0; j < pattern_cnt; j++) {
+            cJSON *pat_item = cJSON_GetArrayItem(tmp_item, j);
+            cJSON *item = cJSON_GetObjectItem(pat_item, "match_method");
+            if (item != NULL && item->type == cJSON_String) {
+                exprs[i].patterns[j].match_mode = match_method_to_match_mode(item->valuestring);
             }
 
-            char *pattern_token = sub_expr_token;
-            char *save_pattern_ptr = NULL;
-            char *sub_pattern_token = strtok_r(pattern_token, ":", &save_pattern_ptr);
-            expr[i].patterns[j].type = atoi(sub_pattern_token);
-            size_t str_len = strlen(save_pattern_ptr);
-            expr[i].patterns[j].pat = (char *)calloc(sizeof(char), str_len);
-            memcpy(expr[i].patterns[j].pat, save_pattern_ptr, str_len);
-            expr[i].patterns[j].pat_len = str_len;
-            j++;
-        }
-        i++;
-        memset(line, 0, sizeof(line));
-    }
-    *n_expr = i;
-    fclose(fp);
+            item = cJSON_GetObjectItem(pat_item, "case_sensitive");
+            if (item != NULL && item->type == cJSON_String) {
+                exprs[i].patterns[j].case_sensitive = case_sensitive_str_to_enum(item->valuestring);
+            }
 
-    return 0;
+            item = cJSON_GetObjectItem(pat_item, "pattern");
+            if (item != NULL && item->type == cJSON_String) {
+                exprs[i].patterns[j].pat = ALLOC(char, strlen(item->valuestring));
+                memcpy(exprs[i].patterns[j].pat, item->valuestring, strlen(item->valuestring));
+                exprs[i].patterns[j].pat_len = strlen(item->valuestring);
+            }
+
+            if (exprs[i].patterns->match_mode == HS_MATCH_MODE_SUB) {
+                item = cJSON_GetObjectItem(pat_item, "offset");
+                if (item != NULL && item->type == cJSON_String) {
+                    int key_left_offset = -1;
+                    int key_right_offset = -1;
+                    sscanf(item->valuestring, "%d~%d", &key_left_offset, &key_right_offset);
+                    if (key_left_offset < -1 || key_right_offset < -1) {
+                        printf("Error: offset should not less than -1, left_offset:%d, right_offset:%d\n",
+                                key_left_offset, key_right_offset);
+                    }
+                    exprs[i].patterns[j].l_offset = key_left_offset;
+                    exprs[i].patterns[j].r_offset = key_right_offset;
+                } else {
+                    exprs[i].patterns[j].l_offset = -1;
+                    exprs[i].patterns[j].r_offset = -1;
+                }
+            }
+        }
+        exprs[i].n_patterns = pattern_cnt;
+    }
+
+    *n_expr = rule_cnt;
+next:
+    cJSON_Delete(root);
+    return ret;
 }
 
 void expr_array_free(and_expr_t expr_array[], size_t n_expr_array)
 {
     for (size_t i = 0; i < n_expr_array; i++) {
         for (size_t j = 0; j < expr_array[i].n_patterns; j++) {
-            free(expr_array[i].patterns[j].pat);
-            expr_array[i].patterns[j].pat = NULL;
+            if (expr_array[i].patterns[j].pat != NULL) {
+                free(expr_array[i].patterns[j].pat);
+                expr_array[i].patterns[j].pat = NULL;
+            }
         }
     }
 }
@@ -68,15 +153,15 @@ TEST(block_mode_initialize, invalid_input_parameter)
     and_expr_t exprs[64];
 
     /* case1: invalid scan_mode parameter */
-    hs_instance = adapter_hs_initialize(0, 1, exprs, 1, g_logger);
+    hs_instance = adapter_hs_initialize(HS_SCAN_MODE_MAX, HS_PATTERN_TYPE_REG, 1, exprs, 1, g_logger);
     EXPECT_EQ(hs_instance, nullptr);
 
     /* case2: invalid expr parameter */
-    hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, nullptr, 1, g_logger);
+    hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, HS_PATTERN_TYPE_REG, 1, nullptr, 1, g_logger);
     EXPECT_EQ(hs_instance, nullptr);
 
     /* case3: invalid expr num */
-    hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, exprs, 0, g_logger);
+    hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, HS_PATTERN_TYPE_REG, 1, exprs, 0, g_logger);
     EXPECT_EQ(hs_instance, nullptr);
 }
 
@@ -85,312 +170,398 @@ TEST(block_mode_scan, invalid_input_parameter)
     and_expr_t expr_array[64];
     size_t n_expr_array = 0;
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, nullptr, 0, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, HS_PATTERN_TYPE_REG, 1, nullptr, 0, g_logger);
     EXPECT_EQ(hs_instance, nullptr);
 
-    hs_instance = adapter_hs_initialize(0, 1, expr_array, n_expr_array, g_logger);
+    hs_instance = adapter_hs_initialize(HS_SCAN_MODE_MAX, HS_PATTERN_TYPE_REG, 1, expr_array, n_expr_array, g_logger);
     EXPECT_EQ(hs_instance, nullptr);
 
     n_expr_array = 1;
     expr_array[0].expr_id = 101;
     expr_array[0].n_patterns = 10;
-    hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, expr_array, n_expr_array, g_logger);
+    hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, HS_PATTERN_TYPE_REG, 1, expr_array, n_expr_array, g_logger);
     EXPECT_EQ(hs_instance, nullptr);
 
     memset(expr_array, 0, sizeof(expr_array));
     n_expr_array = 1;
     expr_array[0].expr_id = 101;
     expr_array[0].n_patterns = 1;
-    expr_array[0].patterns[0].type = 0;
-    hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, expr_array, n_expr_array, g_logger);
+    hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, HS_PATTERN_TYPE_REG, 1, expr_array, n_expr_array, g_logger);
     EXPECT_EQ(hs_instance, nullptr);
 }
 
-TEST(block_mode_scan, literal_hit1)
+TEST(block_mode_scan, literal_sub_has_normal_offset)
 {
     and_expr_t expr_array[64] = {0};
     size_t n_expr_array = 0;
-    
-    int ret = parse_and_expr_file("./and_expr.conf", expr_array, &n_expr_array);
-    EXPECT_EQ(ret, 0);
-    EXPECT_EQ(n_expr_array, 10);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, expr_array, n_expr_array, g_logger);
+    int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_expr_array, 15);
+
+    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, HS_PATTERN_TYPE_STR, 1, expr_array, n_expr_array, g_logger);
     EXPECT_NE(hs_instance, nullptr);
     expr_array_free(expr_array, n_expr_array);
 
-    char data0[64] = "luis";
-    struct hs_scan_result result0[64] = {0};
-    size_t n_result0 = 0;
-    ret = adapter_hs_scan(hs_instance, 0, data0, strlen(data0), result0, 64, &n_result0);
-    EXPECT_EQ(ret, 0);
-    EXPECT_EQ(n_result0, 0);
-
-    char data1[64] = "hello";
-    struct hs_scan_result result1[64] = {0};
-    size_t n_result1 = 0;
-    ret = adapter_hs_scan(hs_instance, 0, data1, strlen(data1), result1, 64, &n_result1);
-    EXPECT_EQ(ret, 0);
-    EXPECT_EQ(n_result1, 1);
-    EXPECT_EQ(result1[0].item_id, 101);
-
-    char data2[64] = "world";
-    struct hs_scan_result result2[64] = {0};
-    size_t n_result2 = 0;
-    ret = adapter_hs_scan(hs_instance, 0, data2, strlen(data2), result2, 64, &n_result2);
-    EXPECT_EQ(ret, 0);
-    EXPECT_EQ(n_result2, 1);
-    EXPECT_EQ(result2[0].item_id, 102);
-    
-    adapter_hs_destroy(hs_instance);
-    hs_instance = nullptr;
-}
-
-TEST(block_mode_scan, literal_hit2)
-{
-    and_expr_t expr_array[64] = {0};
-    size_t n_expr_array = 0;
-    
-    int ret = parse_and_expr_file("./and_expr.conf", expr_array, &n_expr_array);
-    EXPECT_EQ(ret, 0);
-
-    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, 
-                                                           expr_array, n_expr_array, g_logger);
-    EXPECT_NE(hs_instance, nullptr);
-    expr_array_free(expr_array, n_expr_array);
-
-    char data0[64] = "hello maat";
-    struct hs_scan_result result0[64] = {0};
-    size_t n_result0 = 0;
-    ret = adapter_hs_scan(hs_instance, 0, data0, strlen(data0), result0, 64, &n_result0);
-    EXPECT_EQ(ret, 0);
-    EXPECT_EQ(n_result0, 2);
-    EXPECT_EQ(result0[0].item_id, 103);
-    EXPECT_EQ(result0[1].item_id, 101);
-
-    char data1[64] = "maat World";
-    struct hs_scan_result result1[64] = {0};
-    size_t n_result1 = 0;
-    ret = adapter_hs_scan(hs_instance, 0, data1, strlen(data1), result1, 64, &n_result1);
-    EXPECT_EQ(ret, 0);
-    EXPECT_EQ(n_result1, 2);
-    EXPECT_EQ(result1[0].item_id, 103);
-    EXPECT_EQ(result1[1].item_id, 102);
-
-    adapter_hs_destroy(hs_instance);
-    hs_instance = nullptr;
-}
-
-TEST(block_mode_scan, literal_hit3)
-{
-    and_expr_t expr_array[64] = {0};
-    size_t n_expr_array = 0;
-    
-    int ret = parse_and_expr_file("./and_expr.conf", expr_array, &n_expr_array);
-    EXPECT_EQ(ret, 0);
-
-    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, expr_array, n_expr_array, g_logger);
-    EXPECT_NE(hs_instance, nullptr);
-    expr_array_free(expr_array, n_expr_array);
-
-    char data0[64] = "hello world";
-    struct hs_scan_result result0[64] = {0};
-    size_t n_result0 = 0;
-    ret = adapter_hs_scan(hs_instance, 0, data0, strlen(data0), result0, 64, &n_result0);
-    EXPECT_EQ(ret, 0);
-    EXPECT_EQ(n_result0, 3);
-    EXPECT_EQ(result0[0].item_id, 104);
-    EXPECT_EQ(result0[1].item_id, 102);
-    EXPECT_EQ(result0[2].item_id, 101);
-
-    char data1[64] = "hello World";
-    struct hs_scan_result result1[64] = {0};
-    size_t n_result1 = 0;
-    ret = adapter_hs_scan(hs_instance, 0, data1, strlen(data1), result1, 64, &n_result1);
-    EXPECT_EQ(ret, 0);
-    EXPECT_EQ(n_result1, 2);
-    EXPECT_EQ(result1[0].item_id, 102);
-    EXPECT_EQ(result1[1].item_id, 101);
-
-    adapter_hs_destroy(hs_instance);
-    hs_instance = nullptr;
-}
-
-TEST(block_mode_scan, literal_russian_hit3)
-{
-    and_expr_t expr_array[64] = {0};
-    size_t n_expr_array = 0;
-    
-    int ret = parse_and_expr_file("./and_expr.conf", expr_array, &n_expr_array);
-    EXPECT_EQ(ret, 0);
-
-    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, expr_array, n_expr_array, g_logger);
-    EXPECT_NE(hs_instance, nullptr);
-    expr_array_free(expr_array, n_expr_array);
-
-    char data0[64] = "يىلىدىكى";
-    struct hs_scan_result result0[64] = {0};
-    size_t n_result0 = 0;
-    ret = adapter_hs_scan(hs_instance, 0, data0, strlen(data0), result0, 64, &n_result0);
-    EXPECT_EQ(ret, 0);
-    EXPECT_EQ(n_result0, 1);
-    EXPECT_EQ(result0[0].item_id, 109);
-   
-    adapter_hs_destroy(hs_instance);
-    hs_instance = nullptr;
-}
-
-TEST(block_mode_scan, literal_case_insensitive_hit4)
-{
-    and_expr_t expr_array[64] = {0};
-    size_t n_expr_array = 0;
-    
-    int ret = parse_and_expr_file("./and_expr.conf", expr_array, &n_expr_array);
-    EXPECT_EQ(ret, 0);
-
-    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, expr_array, n_expr_array, g_logger);
-    EXPECT_NE(hs_instance, nullptr);
-    expr_array_free(expr_array, n_expr_array);
-
-    char data0[64] = "today";
+    char scan_data1[64] = "hello aaa";
     struct hs_scan_result result[64] = {0};
     size_t n_result = 0;
-    ret = adapter_hs_scan(hs_instance, 0, data0, strlen(data0), result, 64, &n_result);
+
+    ret = adapter_hs_scan(hs_instance, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
 
-    char data1[64] = "Today";
-    n_result = 0;
+    char scan_data2[64] = "Ahello aaa";
     memset(result, 0, sizeof(result));
-    ret = adapter_hs_scan(hs_instance, 0, data1, strlen(data1), result, 64, &n_result);
+    n_result = 0;
+    ret = adapter_hs_scan(hs_instance, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 1);
-    EXPECT_EQ(result[0].item_id, 110);
+    EXPECT_EQ(result[0].item_id, 101);
+    
+    char scan_data3[64] = "Aahello aaa";
+    memset(result, 0, sizeof(result));
+    n_result = 0;
+    ret = adapter_hs_scan(hs_instance, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 0);
 
     adapter_hs_destroy(hs_instance);
     hs_instance = nullptr;
 }
 
-TEST(block_mode_scan, literal_and_regex1)
+TEST(block_mode_scan, literal_sub_has_left_unlimit_offset)
+{
+    and_expr_t expr_array[64] = {0};
+    size_t n_expr_array = 0;
+
+    int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_expr_array, 15);
+
+    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, HS_PATTERN_TYPE_STR, 1, expr_array, n_expr_array, g_logger);
+    EXPECT_NE(hs_instance, nullptr);
+    expr_array_free(expr_array, n_expr_array);
+
+    char scan_data1[64] = "hello bbb";
+    struct hs_scan_result result[64] = {0};
+    size_t n_result = 0;
+
+    ret = adapter_hs_scan(hs_instance, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(result[0].item_id, 102);
+
+    char scan_data2[64] = "Ahello bbb";
+    memset(result, 0, sizeof(result));
+    n_result = 0;
+    ret = adapter_hs_scan(hs_instance, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(result[0].item_id, 102);
+
+    char scan_data3[64] = "Aahello bbb";
+    memset(result, 0, sizeof(result));
+    n_result = 0;
+    ret = adapter_hs_scan(hs_instance, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 0);
+
+    adapter_hs_destroy(hs_instance);
+    hs_instance = nullptr;
+}
+
+TEST(block_mode_scan, literal_sub_has_right_unlimit_offset)
+{
+    and_expr_t expr_array[64] = {0};
+    size_t n_expr_array = 0;
+
+    int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_expr_array, 15);
+
+    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, HS_PATTERN_TYPE_STR, 1, expr_array, n_expr_array, g_logger);
+    EXPECT_NE(hs_instance, nullptr);
+    expr_array_free(expr_array, n_expr_array);
+
+    char scan_data1[64] = "hello ccc";
+    struct hs_scan_result result[64] = {0};
+    size_t n_result = 0;
+
+    ret = adapter_hs_scan(hs_instance, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 0);
+
+    char scan_data2[64] = "1234hello ccc";
+    memset(result, 0, sizeof(result));
+    n_result = 0;
+    ret = adapter_hs_scan(hs_instance, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 0);
+
+    char scan_data3[64] = "12345hello ccc";
+    memset(result, 0, sizeof(result));
+    n_result = 0;
+    ret = adapter_hs_scan(hs_instance, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(result[0].item_id, 103);
+
+    char scan_data4[64] = "12345hello cccAaBb";
+    memset(result, 0, sizeof(result));
+    n_result = 0;
+    ret = adapter_hs_scan(hs_instance, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(result[0].item_id, 103);
+
+    char scan_data5[64] = "123456hello cccAaBb";
+    memset(result, 0, sizeof(result));
+    n_result = 0;
+    ret = adapter_hs_scan(hs_instance, 0, scan_data5, strlen(scan_data5), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(result[0].item_id, 103);
+
+    adapter_hs_destroy(hs_instance);
+    hs_instance = nullptr;
+}
+
+TEST(block_mode_scan, literal_sub_with_no_offset)
 {
     and_expr_t expr_array[64] = {0};
     size_t n_expr_array = 0;
     
-    int ret = parse_and_expr_file("./and_expr.conf", expr_array, &n_expr_array);
+    int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, 
+    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, HS_PATTERN_TYPE_STR, 1, expr_array, n_expr_array, g_logger);
+    EXPECT_NE(hs_instance, nullptr);
+    expr_array_free(expr_array, n_expr_array);
+
+    char scan_data1[64] = "hello ddd";
+    struct hs_scan_result result[64] = {0};
+    size_t n_result = 0;
+    ret = adapter_hs_scan(hs_instance, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(result[0].item_id, 104);
+
+    char scan_data2[64] = "123hello ddd";
+    memset(result, 0, sizeof(result));
+    n_result = 0;
+    ret = adapter_hs_scan(hs_instance, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(result[0].item_id, 104);
+
+    char scan_data3[64] = "123hello ddd456";
+    memset(result, 0, sizeof(result));
+    n_result = 0;
+    ret = adapter_hs_scan(hs_instance, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(result[0].item_id, 104);
+
+    char scan_data4[64] = "helloddd";
+    memset(result, 0, sizeof(result));
+    n_result = 0;
+    ret = adapter_hs_scan(hs_instance, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 0);
+
+    adapter_hs_destroy(hs_instance);
+    hs_instance = nullptr;
+}
+
+TEST(block_mode_scan, literal_exactly)
+{
+    and_expr_t expr_array[64] = {0};
+    size_t n_expr_array = 0;
+    
+    int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
+    EXPECT_EQ(ret, 0);
+
+    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, HS_PATTERN_TYPE_STR, 1, expr_array, n_expr_array, g_logger);
+    EXPECT_NE(hs_instance, nullptr);
+    expr_array_free(expr_array, n_expr_array);
+
+    char scan_data1[64] = "hello eee";
+    struct hs_scan_result result[64] = {0};
+    size_t n_result = 0;
+
+    ret = adapter_hs_scan(hs_instance, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(result[0].item_id, 105);
+
+    char scan_data2[64] = "Ahello eee";
+    memset(result, 0, sizeof(result));
+    n_result = 0;
+
+    ret = adapter_hs_scan(hs_instance, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 0);
+
+    char scan_data3[64] = "hello eeeB";
+    memset(result, 0, sizeof(result));
+    n_result = 0;
+
+    ret = adapter_hs_scan(hs_instance, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 0);
+
+    adapter_hs_destroy(hs_instance);
+    hs_instance = nullptr;
+}
+
+TEST(block_mode_scan, literal_prefix)
+{
+    and_expr_t expr_array[64] = {0};
+    size_t n_expr_array = 0;
+    
+    int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
+    EXPECT_EQ(ret, 0);
+
+    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, HS_PATTERN_TYPE_STR, 1, 
                                                             expr_array, n_expr_array, g_logger);
     EXPECT_NE(hs_instance, nullptr);
     expr_array_free(expr_array, n_expr_array);
 
-    char data0[64] = "1hello world";
-    struct hs_scan_result result0[64] = {0};
-    size_t n_result0 = 0;
-    ret = adapter_hs_scan(hs_instance, 0, data0, strlen(data0), result0, 64, &n_result0);
-    EXPECT_EQ(ret, 0);
-    EXPECT_EQ(n_result0, 4);
-    EXPECT_EQ(result0[0].item_id, 105);
-    EXPECT_EQ(result0[1].item_id, 104);
-    EXPECT_EQ(result0[2].item_id, 102);
-    EXPECT_EQ(result0[3].item_id, 101);
+    char scan_data1[64] = "hello fff";
+    struct hs_scan_result result[64] = {0};
+    size_t n_result = 0;
 
-    char data1[64] = "8hello World";
-    struct hs_scan_result result1[64] = {0};
-    size_t n_result1 = 0;
-    ret = adapter_hs_scan(hs_instance, 0, data1, strlen(data1), result1, 64, &n_result1);
+    ret = adapter_hs_scan(hs_instance, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
     EXPECT_EQ(ret, 0);
-    EXPECT_EQ(n_result1, 2);
-    EXPECT_EQ(result1[0].item_id, 102);
-    EXPECT_EQ(result1[1].item_id, 101);
+    EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(result[0].item_id, 106);
+
+    char scan_data2[64] = "Ahello fff";
+    memset(result, 0, sizeof(result));
+    n_result = 0;
+
+    ret = adapter_hs_scan(hs_instance, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 0);
+
+    char scan_data3[64] = "Ahello fffBCD";
+    memset(result, 0, sizeof(result));
+    n_result = 0;
+
+    ret = adapter_hs_scan(hs_instance, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 0);
+
+    char scan_data4[64] = "hello fffBCD";
+    memset(result, 0, sizeof(result));
+    n_result = 0;
+
+    ret = adapter_hs_scan(hs_instance, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(result[0].item_id, 106);
 
     adapter_hs_destroy(hs_instance);
     hs_instance = nullptr;
 }
 
-TEST(block_mode_scan, literal_and_regex2)
+TEST(block_mode_scan, literal_suffix)
 {
     and_expr_t expr_array[64] = {0};
     size_t n_expr_array = 0;
     
-    int ret = parse_and_expr_file("./and_expr.conf", expr_array, &n_expr_array);
+    int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, 
+    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, HS_PATTERN_TYPE_STR, 1, 
                                                            expr_array, n_expr_array, g_logger);
     EXPECT_NE(hs_instance, nullptr);
     expr_array_free(expr_array, n_expr_array);
 
-    char data0[64] = "1hello 2world";
-    struct hs_scan_result result0[64] = {0};
-    size_t n_result0 = 0;
-    ret = adapter_hs_scan(hs_instance, 0, data0, strlen(data0), result0, 64, &n_result0);
-    EXPECT_EQ(ret, 0);
-    EXPECT_EQ(n_result0, 5);
-    EXPECT_EQ(result0[0].item_id, 106);
-    EXPECT_EQ(result0[1].item_id, 105);
-    EXPECT_EQ(result0[2].item_id, 104);
-    EXPECT_EQ(result0[3].item_id, 102);
-    EXPECT_EQ(result0[4].item_id, 101);
+    char scan_data1[64] = "hello ggg";
+    struct hs_scan_result result[64] = {0};
+    size_t n_result = 0;
 
-    char data1[64] = "8hello 9World";
-    struct hs_scan_result result1[64] = {0};
-    size_t n_result1 = 0;
-    ret = adapter_hs_scan(hs_instance, 0, data1, strlen(data1), result1, 64, &n_result1);
+    ret = adapter_hs_scan(hs_instance, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
     EXPECT_EQ(ret, 0);
-    EXPECT_EQ(n_result1, 2);
-    EXPECT_EQ(result1[0].item_id, 102);
-    EXPECT_EQ(result1[1].item_id, 101);
+    EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(result[0].item_id, 107);
+
+    char scan_data2[64] = "ABChello ggg";
+    memset(result, 0, sizeof(result));
+    n_result = 0;
+
+    ret = adapter_hs_scan(hs_instance, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(result[0].item_id, 107);
+
+    char scan_data3[64] = "ABChello gggDEF";
+    memset(result, 0, sizeof(result));
+    n_result = 0;
+
+    ret = adapter_hs_scan(hs_instance, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 0);
+
+    char scan_data4[64] = "hello gggDEF";
+    memset(result, 0, sizeof(result));
+    n_result = 0;
+
+    ret = adapter_hs_scan(hs_instance, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 0);
 
     adapter_hs_destroy(hs_instance);
     hs_instance = nullptr;
 }
 
-TEST(block_mode_scan, regex_hit1)
+// TEST(block_mode_scan, literal_sub_with_hexbin)
+// {
+//     and_expr_t expr_array[64] = {0};
+//     size_t n_expr_array = 0;
+    
+//     int ret = parse_config_file("./and_expr.conf", expr_array, &n_expr_array);
+//     EXPECT_EQ(ret, 0);
+
+//     struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, 
+//                                                            expr_array, n_expr_array, g_logger);
+//     EXPECT_NE(hs_instance, nullptr);
+//     expr_array_free(expr_array, n_expr_array);
+
+//     char data0[64] = "Cookie: Txa123aheadBCAxd";
+//     struct hs_scan_result result0[64] = {0};
+//     size_t n_result0 = 0;
+//     ret = adapter_hs_scan(hs_instance, 0, data0, strlen(data0), result0, 64, &n_result0);
+//     EXPECT_EQ(ret, 0);
+//     EXPECT_EQ(n_result0, 1);
+//     EXPECT_EQ(result0[0].item_id, 107);
+
+//     adapter_hs_destroy(hs_instance);
+//     hs_instance = nullptr;
+// }
+
+TEST(block_mode_scan, literal_with_chinese)
 {
     and_expr_t expr_array[64] = {0};
     size_t n_expr_array = 0;
     
-    int ret = parse_and_expr_file("./and_expr.conf", expr_array, &n_expr_array);
+    int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, 
+    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, HS_PATTERN_TYPE_STR, 1, 
                                                            expr_array, n_expr_array, g_logger);
     EXPECT_NE(hs_instance, nullptr);
     expr_array_free(expr_array, n_expr_array);
 
-    char data0[64] = "Cookie: Txa123aheadBCAxd";
+    char data0[64] = "#中国 你好";
     struct hs_scan_result result0[64] = {0};
     size_t n_result0 = 0;
     ret = adapter_hs_scan(hs_instance, 0, data0, strlen(data0), result0, 64, &n_result0);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result0, 1);
-    EXPECT_EQ(result0[0].item_id, 107);
-
-    adapter_hs_destroy(hs_instance);
-    hs_instance = nullptr;
-}
-
-TEST(block_mode_scan, chinese_hit1)
-{
-    and_expr_t expr_array[64] = {0};
-    size_t n_expr_array = 0;
-    
-    int ret = parse_and_expr_file("./and_expr.conf", expr_array, &n_expr_array);
-    EXPECT_EQ(ret, 0);
-
-    struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, 1, 
-                                                           expr_array, n_expr_array, g_logger);
-    EXPECT_NE(hs_instance, nullptr);
-    expr_array_free(expr_array, n_expr_array);
-
-    char data0[64] = "中国 你好";
-    struct hs_scan_result result0[64] = {0};
-    size_t n_result0 = 0;
-    ret = adapter_hs_scan(hs_instance, 0, data0, strlen(data0), result0, 64, &n_result0);
-    EXPECT_EQ(ret, 0);
-    EXPECT_EQ(n_result0, 1);
-    EXPECT_EQ(result0[0].item_id, 108);
+    EXPECT_EQ(result0[0].item_id, 114);
 
     adapter_hs_destroy(hs_instance);
     hs_instance = nullptr;
@@ -405,5 +576,6 @@ int main(int argc, char **argv)
     ret = RUN_ALL_TESTS();
 
     log_handle_destroy(g_logger);
+
     return ret;
 }
