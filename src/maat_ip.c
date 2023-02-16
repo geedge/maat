@@ -488,12 +488,13 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
     struct ip_data scan_data;
     if (ip_type == IPv4) {
         scan_data.type = IPv4;
-        scan_data.ipv4 = *(uint32_t *)ip_addr;
+        scan_data.ipv4 = ntohl(*(uint32_t *)ip_addr);
     } else {
         scan_data.type = IPv6;
         for (int i = 0; i < 4; i++) {
             scan_data.ipv6[i] = *((uint32_t *)ip_addr + i);
         }
+        ipv6_ntoh(scan_data.ipv6);
     }
 
     n_hit_item = ip_matcher_match(ip_rt->ip_matcher, &scan_data, scan_results, MAX_SCANNER_HIT_ITEM_NUM);

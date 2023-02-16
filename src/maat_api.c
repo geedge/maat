@@ -865,10 +865,9 @@ int maat_scan_integer(struct maat *maat_instance, int table_id, int thread_id,
     }
 
     int group_hit_cnt = interval_runtime_scan((struct interval_runtime *)interval_rt, 
-                                                      thread_id,
-                                                      intval, group_ids, 
-                                                      MAX_SCANNER_HIT_GROUP_NUM,
-                                                      vtable_id, mid);
+                                              thread_id, intval, group_ids, 
+                                              MAX_SCANNER_HIT_GROUP_NUM,
+                                              vtable_id, mid);
     if (group_hit_cnt < 0) {
         return MAAT_SCAN_ERR;
     } 
@@ -1141,10 +1140,10 @@ int maat_scan_string(struct maat *maat_instance, int table_id, int thread_id,
     }
 
     int group_hit_cnt = expr_runtime_scan((struct expr_runtime *)expr_rt, 
-                                                 thread_id,
-                                                 data, data_len, group_ids, 
-                                                 MAX_SCANNER_HIT_GROUP_NUM,
-                                                 vtable_id, mid);
+                                           thread_id, data, data_len, 
+                                           group_ids, 
+                                           MAX_SCANNER_HIT_GROUP_NUM,
+                                           vtable_id, mid);
     if (group_hit_cnt < 0) {
         return MAAT_SCAN_ERR;
     } 

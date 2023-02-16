@@ -34,6 +34,7 @@ enum hs_scan_mode {
 
 /* match method */
 enum hs_match_mode {
+    HS_MATCH_MODE_INVALID = -1,
     HS_MATCH_MODE_EXACTLY = 1,  /* scan data must match pattern exactly */
     HS_MATCH_MODE_PREFIX,       /* pattern must in the head of scan_data */
     HS_MATCH_MODE_SUFFIX,       /* pattern must in the end of scan_data */
@@ -60,6 +61,7 @@ struct hs_scan_result {
 typedef struct {
     enum hs_case_sensitive case_sensitive;
     enum hs_match_mode match_mode;
+    int is_hexbin; /* 1(yes) 0(no) */
 
     /* 
      * just match in scan_data's range of [l_offset, r_offset], -1 means no limits

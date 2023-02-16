@@ -465,6 +465,29 @@ int is_real_matched_pattern(struct matched_pattern *matched_pat, enum hs_match_m
     return -1;
 }
 
+int hs_tag_validate(struct hs_tag *hs_tag, struct matched_pattern_container *matched_pat_container,
+                    size_t data_len)
+{
+    /* check if real matched pattern, because pattern match_mode is different */
+    for (size_t i = 0; i < hs_tag->n_pat_attr; i++) {
+        struct matched_pattern *tmp_matched_pat = NULL;
+        int pattern_id = hs_tag->pat_attr[i].pattern_id;
+        HASH_FIND_INT(matched_pat_container->pat_hash, &pattern_id, tmp_matched_pat);
+        if (tmp_matched_pat) {
+            int matched_ret = is_real_matched_pattern(tmp_matched_pat,
+                                                      hs_tag->pat_attr[i].match_mode,
+                                                      data_len,
+                                                      hs_tag->pat_attr[i].l_offset,
+                                                      hs_tag->pat_attr[i].r_offset);
+            if (matched_ret < 0) {
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
 int adapter_hs_scan(struct adapter_hs *hs_instance, int thread_id,
                     const char *data, size_t data_len, 
                     struct hs_scan_result *results,
@@ -518,7 +541,6 @@ int adapter_hs_scan(struct adapter_hs *hs_instance, int thread_id,
     }
 
     int ret = 0;
-    int matched_index = 0;
     int real_matched_index = 0;
     struct hs_tag *hs_tag = NULL;
     struct bool_expr_match *bool_matcher_results = ALLOC(struct bool_expr_match, hs_instance->n_expr);
@@ -533,29 +555,20 @@ int adapter_hs_scan(struct adapter_hs *hs_instance, int thread_id,
         bool_matcher_ret = n_result;
     }
 
-    for (matched_index = 0; matched_index < bool_matcher_ret; matched_index++) {
-        hs_tag = (struct hs_tag *)bool_matcher_results[matched_index].user_tag;
+    for (int index = 0; index < bool_matcher_ret; index++) {
+        hs_tag = (struct hs_tag *)bool_matcher_results[index].user_tag;
 
-        /* check if real matched pattern, because pattern match_mode is different */
-        for (i = 0; i < hs_tag->n_pat_attr; i++) {
-            struct matched_pattern *tmp_matched_pat = NULL;
-            int pattern_id = hs_tag->pat_attr[i].pattern_id;
-            HASH_FIND_INT(matched_pat_container.pat_hash, &pattern_id, tmp_matched_pat);
-            if (tmp_matched_pat) {
-                int matched_ret = is_real_matched_pattern(tmp_matched_pat, 
-                                                          hs_tag->pat_attr[i].match_mode,
-                                                          data_len,
-                                                          hs_tag->pat_attr[i].l_offset,
-                                                          hs_tag->pat_attr[i].r_offset);
-                if (0 == matched_ret) {
-                    results[real_matched_index].item_id = bool_matcher_results[matched_index].expr_id;
-                    results[real_matched_index].user_tag = hs_tag->user_tag;
-                    real_matched_index++;
-                    break;
-                }
-            }
+        int tag_ret = hs_tag_validate(hs_tag, &matched_pat_container, data_len);
+        if (tag_ret < 0) {
+            //bool_matcher_results[index] is invalid hit, continue
+            continue;
         }
+
+        results[real_matched_index].item_id = bool_matcher_results[index].expr_id;
+        results[real_matched_index].user_tag = hs_tag->user_tag;
+        real_matched_index++;
     }
+    
     *n_hit_result = real_matched_index;
 next:
     FREE(bool_matcher_results);

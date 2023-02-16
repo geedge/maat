@@ -14,14 +14,14 @@ void data_free(void *user_ctx, void *data)
 }
 
 TEST(rcu_hash_new, invalid_input_parameter) {
-    struct rcu_hash_table *htable = rcu_hash_new(nullptr);
-    EXPECT_EQ(htable, nullptr);
+    struct rcu_hash_table *htable = rcu_hash_new(NULL);
+    EXPECT_EQ(htable, NULL);
 }
 
 TEST(rcu_hash_add_one_node, single_thread) {
     /* add one node to hash */
     struct rcu_hash_table *htable = rcu_hash_new(data_free);
-    EXPECT_NE(htable, nullptr);
+    EXPECT_NE(htable, NULL);
 
     struct user_data *data = ALLOC(struct user_data, 1);
     data->id = 101;
@@ -35,7 +35,7 @@ TEST(rcu_hash_add_one_node, single_thread) {
 
     /* find in hash before commit */
     void *res = rcu_hash_find(htable, key, key_len);
-    EXPECT_EQ(res, nullptr);
+    EXPECT_EQ(res, NULL);
 
     int ret = rcu_hash_count(htable);
     EXPECT_EQ(ret, 0);
@@ -51,7 +51,7 @@ TEST(rcu_hash_add_one_node, single_thread) {
 
     /* find in hash after commit */
     res = rcu_hash_find(htable, key, key_len);
-    EXPECT_NE(res, nullptr);
+    EXPECT_NE(res, NULL);
 
     struct user_data *res_data = (struct user_data *)res;
     EXPECT_EQ(res_data->id, 101);
@@ -72,7 +72,7 @@ TEST(rcu_hash_add_one_node, single_thread) {
 TEST(rcu_hash_add_multi_node, single_thread) {
     /* add multi node to hash */
     struct rcu_hash_table *htable = rcu_hash_new(data_free);
-    EXPECT_NE(htable, nullptr);
+    EXPECT_NE(htable, NULL);
 
     struct user_data *data0 = ALLOC(struct user_data, 1);
     data0->id = 101;
@@ -92,9 +92,9 @@ TEST(rcu_hash_add_multi_node, single_thread) {
 
     /* find in hash before commit */
     void *res = rcu_hash_find(htable, key0, key0_len);
-    EXPECT_EQ(res, nullptr);
+    EXPECT_EQ(res, NULL);
     res = rcu_hash_find(htable, key1, key1_len);
-    EXPECT_EQ(res, nullptr);
+    EXPECT_EQ(res, NULL);
 
     int ret = rcu_hash_count(htable);
     EXPECT_EQ(ret, 0);
@@ -110,14 +110,14 @@ TEST(rcu_hash_add_multi_node, single_thread) {
 
     /* find in hash after commit */
     res = rcu_hash_find(htable, key0, key0_len);
-    EXPECT_NE(res, nullptr);
+    EXPECT_NE(res, NULL);
 
     struct user_data *res_data0 = (struct user_data *)res;
     EXPECT_EQ(res_data0->id, 101);
     EXPECT_STREQ(res_data0->name, "www.baidu.com");
 
     res = rcu_hash_find(htable, key1, key1_len);
-    EXPECT_NE(res, nullptr);
+    EXPECT_NE(res, NULL);
 
     struct user_data *res_data1 = (struct user_data *)res;
     EXPECT_EQ(res_data1->id, 102);
@@ -138,7 +138,7 @@ TEST(rcu_hash_add_multi_node, single_thread) {
 TEST(rcu_hash_del_one_node, single_thread) {
     /* case1: add and del before commit */
     struct rcu_hash_table *htable = rcu_hash_new(data_free);
-    EXPECT_NE(htable, nullptr);
+    EXPECT_NE(htable, NULL);
 
     struct user_data *data = ALLOC(struct user_data, 1);
     data->id = 101;
@@ -156,7 +156,7 @@ TEST(rcu_hash_del_one_node, single_thread) {
 
     /* find in hash before commit */
     void *res = rcu_hash_find(htable, key, key_len);
-    EXPECT_EQ(res, nullptr);
+    EXPECT_EQ(res, NULL);
 
     ret = rcu_hash_count(htable);
     EXPECT_EQ(ret, 0);
@@ -173,7 +173,7 @@ TEST(rcu_hash_del_one_node, single_thread) {
 
     /* find in hash after commit */
     res = rcu_hash_find(htable, key, key_len);
-    EXPECT_EQ(res, nullptr);
+    EXPECT_EQ(res, NULL);
 
     /* case2: add && commit, and del */
     struct user_data *data1 = ALLOC(struct user_data, 1);
@@ -190,7 +190,7 @@ TEST(rcu_hash_del_one_node, single_thread) {
     rcu_hash_del(htable, key1, key1_len);
 
     res = rcu_hash_find(htable, key1, key1_len);
-    EXPECT_NE(res, nullptr);
+    EXPECT_NE(res, NULL);
 
     struct user_data *res_data = (struct user_data *)res;
     EXPECT_EQ(res_data->id, 102);
@@ -205,7 +205,7 @@ TEST(rcu_hash_del_one_node, single_thread) {
     /* delete commit */
     rcu_hash_commit(htable);
     res = rcu_hash_find(htable, key1, key1_len);
-    EXPECT_EQ(res, nullptr);
+    EXPECT_EQ(res, NULL);
 
     ret = rcu_hash_count(htable);
     EXPECT_EQ(ret, 0);
@@ -219,7 +219,7 @@ TEST(rcu_hash_del_one_node, single_thread) {
 TEST(rcu_hash_del_multi_node, single_thread) {
     /* case1: add and del before commit */
     struct rcu_hash_table *htable = rcu_hash_new(data_free);
-    EXPECT_NE(htable, nullptr);
+    EXPECT_NE(htable, NULL);
 
     struct user_data *data1 = ALLOC(struct user_data, 1);
     data1->id = 101;
@@ -239,7 +239,7 @@ TEST(rcu_hash_del_multi_node, single_thread) {
 
     /* find in hash before commit */
     void *res = rcu_hash_find(htable, key1, key1_len);
-    EXPECT_EQ(res, nullptr);
+    EXPECT_EQ(res, NULL);
 
     int ret = rcu_hash_count(htable);
     EXPECT_EQ(ret, 0);
@@ -257,10 +257,10 @@ TEST(rcu_hash_del_multi_node, single_thread) {
 
     /* find in hash after commit */
     res = rcu_hash_find(htable, key1, key1_len);
-    EXPECT_EQ(res, nullptr);
+    EXPECT_EQ(res, NULL);
 
     res = rcu_hash_find(htable, key2, key2_len);
-    EXPECT_NE(res, nullptr);
+    EXPECT_NE(res, NULL);
 
     ret = rcu_hash_count(htable);
     EXPECT_EQ(ret, 1);

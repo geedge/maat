@@ -696,7 +696,7 @@ int table_manager_set_scan_district(struct table_manager *tbl_mgr, const char *d
 
 int table_manager_get_district_id(struct table_manager *tbl_mgr, const char *district)
 {
-    int district_id = -1;
+    int district_id = DISTRICT_ANY;
 
 	int map_ret = maat_kv_read(tbl_mgr->district_map, district, &district_id);
 	if (map_ret < 0) {

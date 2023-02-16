@@ -41,6 +41,7 @@ struct expr_schema {
 };
 
 enum expr_type {
+    EXPR_TYPE_INVALID = -1,
     EXPR_TYPE_STRING = 0,
 	EXPR_TYPE_AND,
     EXPR_TYPE_REGEX,
@@ -91,7 +92,7 @@ struct expr_runtime {
 
 enum expr_type int_to_expr_type(int expr_type)
 {
-    enum expr_type type = EXPR_TYPE_MAX;
+    enum expr_type type = EXPR_TYPE_INVALID;
 
     switch (expr_type) {
     case 0:
@@ -115,7 +116,7 @@ enum expr_type int_to_expr_type(int expr_type)
 
 enum hs_match_mode int_to_match_mode(int match_method)
 {
-    enum hs_match_mode mode = HS_MATCH_MODE_MAX;
+    enum hs_match_mode mode = HS_MATCH_MODE_INVALID;
 
     switch (match_method) {
     case 0:
@@ -197,6 +198,12 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
     
     expr_type = atoi(line + column_offset);
     expr_item->expr_type = int_to_expr_type(expr_type);
+    if (expr_item->expr_type == EXPR_TYPE_INVALID) {
+        log_error(logger, MODULE_EXPR, 
+                  "expr table(table_id:%d) line:%s has invalid expr_type",
+                  expr_schema->table_id, line);
+        goto error;
+    }
 
     ret = get_column_pos(line, expr_schema->match_method_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -208,6 +215,12 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
     
     match_method_type = atoi(line + column_offset);
     expr_item->match_mode = int_to_match_mode(match_method_type);
+    if (expr_item->match_mode == HS_MATCH_MODE_INVALID) {
+        log_error(logger, MODULE_EXPR, 
+                  "expr table(table_id:%d) line:%s has invalid match_method",
+                  expr_schema->table_id, line);
+        goto error;
+    }
 
     ret = get_column_pos(line, expr_schema->is_hexbin_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -522,7 +535,7 @@ enum hs_pattern_type expr_type2pattern_type(enum expr_type expr_type)
     return pattern_type;
 }
 
-int convertHextoint(char srctmp)
+static int convertHextoint(char srctmp)
 {
 	if (isdigit(srctmp)) {
 		return srctmp - '0';
@@ -533,7 +546,7 @@ int convertHextoint(char srctmp)
 	}
 }
 
-size_t hex2bin(char *hex, int hex_len, char *binary, size_t size)
+static size_t hex2bin(char *hex, int hex_len, char *binary, size_t size)
 {
 	size_t resultlen = 0;
 	int high,low;
@@ -559,8 +572,13 @@ and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item, void *user_data,
     char *tmp = NULL;
     char *saveptr = NULL;
     char *sub_key_array[MAAT_MAX_EXPR_ITEM_NUM];
-    int key_left_offset[MAAT_MAX_EXPR_ITEM_NUM] = {-1};
-    int key_right_offset[MAAT_MAX_EXPR_ITEM_NUM] = {-1};
+    int key_left_offset[MAAT_MAX_EXPR_ITEM_NUM];
+    int key_right_offset[MAAT_MAX_EXPR_ITEM_NUM];
+
+    /* -1 means offset no limit, As long as the pattern appears in the scan data, it will hit */
+    memset(key_left_offset, -1, sizeof(key_left_offset));
+    memset(key_right_offset, -1, sizeof(key_right_offset));
+
     and_expr_t *expr_rule = ALLOC(and_expr_t, 1);
 
     switch (expr_item->expr_type) {
@@ -852,6 +870,7 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
     struct maat_item_inner *item = NULL;
     int real_hit_item_cnt = 0;
     int district_id = state->district_id;
+
     for (size_t i = 0; i < n_hit_item; i++) {
         item = (struct maat_item_inner *)(hit_results[i].user_tag);
         if (item->district_id == district_id || district_id == DISTRICT_ANY) {

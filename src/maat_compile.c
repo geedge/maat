@@ -1065,7 +1065,7 @@ maat_compile_bool_matcher_new(struct maat_compile *compile_hash,
 
 	//TODO:mytest need to delete
 	#if 0
-	printf("bool_matcher_new....................\n");
+	printf("bool_matcher_new....................expr_cnt:%zu\n", expr_cnt);
 	for (expr_index = 0; expr_index < expr_cnt; expr_index++) {
 		printf("bool_expr_array[%zu].expr_id:%llu, item_num:%zu\n", expr_index, bool_expr_array[expr_index].expr_id,
 																	bool_expr_array[expr_index].item_num);
@@ -1780,9 +1780,9 @@ int maat_compile_state_update(struct maat_item *item_hash, int vtable_id,
 
     for (size_t i = 0; i < hit_item_cnt; i++) {
         HASH_FIND_INT(item_hash, &(hit_item_ids[i]), item);
-        assert(item != NULL);
+        //assert(item != NULL);
         if (!item) {
-            // should not come here
+            // item config has been deleted
             continue;
         }
 
