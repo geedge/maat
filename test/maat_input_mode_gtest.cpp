@@ -34,7 +34,7 @@ TEST(json_mode, maat_scan_string) {
     maat_options_set_json_file(opts, json_path);
 
     struct maat *maat_instance = maat_new(opts, table_info_path);
-    EXPECT_NE(maat_instance, NULL);
+    EXPECT_TRUE(maat_instance != NULL);
 
     int table_id = maat_table_get_id(maat_instance, "KEYWORDS_TABLE");
    
@@ -79,7 +79,7 @@ TEST(iris_mode, maat_scan_string) {
     maat_options_set_iris(opts, tmp_iris_full_idx_path, tmp_iris_inc_idx_path);
 
     struct maat *maat_instance = maat_new(opts, table_info_path);
-    EXPECT_NE(maat_instance, NULL);
+    EXPECT_TRUE(maat_instance != NULL);
 
     int table_id = maat_table_get_id(maat_instance, "KEYWORDS_TABLE");
    
@@ -153,10 +153,10 @@ TEST(redis_mode, maat_scan_string) {
     snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
 
     redisContext *c = maat_cmd_connect_redis(redis_ip, redis_port, redis_db, g_logger);
-    EXPECT_NE(c, NULL);
+    EXPECT_TRUE(c != NULL);
 
     redisReply *reply = maat_cmd_wrap_redis_command(c, "flushdb");
-    EXPECT_NE(reply, NULL);
+    EXPECT_TRUE(reply != NULL);
     
     if (access(json_iris_path, F_OK) < 0) {
         char tmp_iris_path[128] = {0};

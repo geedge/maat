@@ -417,7 +417,9 @@ void *rule_monitor_loop(void *arg)
     struct stat attrib;
     while (maat_instance->is_running) {
         usleep(maat_instance->rule_update_checking_interval_ms * 1000);
-		if( 0 == pthread_mutex_trylock(&(maat_instance->background_update_mutex))) {
+		if (0 == pthread_mutex_trylock(&(maat_instance->background_update_mutex))) {
+            log_info(maat_instance->logger, MODULE_MAAT_RULE,
+                     "rule_monitor_loop.................%d", maat_instance->rule_update_checking_interval_ms * 1000);
 			switch (maat_instance->input_mode) {
                 case DATA_SOURCE_REDIS:
                     redis_monitor_traverse(maat_instance->maat_version,

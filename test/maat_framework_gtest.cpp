@@ -141,10 +141,7 @@ protected:
     static void TearDownTestCase() {
        
     }
-
-    static int table_id;
 };
-int MaatStringScan::table_id;
 
 TEST_F(MaatStringScan, Expr8) {
     int table_id = maat_table_get_id(g_maat_instance, "KEYWORDS_TABLE");
@@ -353,7 +350,6 @@ TEST_F(MaatStringScan, ExprPlusWithOffset)
 	maat_state_free(&state);
 }
 #endif
-
 TEST_F(MaatStringScan, dynamic_config) {
     int table_id = maat_table_get_id(g_maat_instance, "HTTP_URL_LITERAL");
    
@@ -590,7 +586,6 @@ protected:
     }
 };
 
-#if 0
 TEST_F(MaatIntervalScan, Pure) {	
 	int results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -607,11 +602,10 @@ TEST_F(MaatIntervalScan, Pure) {
 	maat_state_free(&state);
 
     unsigned int scan_data2 = 300;
-    int ret = maat_scan_integer(g_maat_instance, table_id, 0, scan_data2, results, ARRAY_SIZE, 
+    ret = maat_scan_integer(g_maat_instance, table_id, 0, scan_data2, results, ARRAY_SIZE, 
                             &n_hit_result, &state);
-	EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 124);
+	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    EXPECT_EQ(n_hit_result, 0);
 	maat_state_free(&state);
 }
 
@@ -626,7 +620,7 @@ TEST_F(MaatIntervalScan, IntervalPlus) {
 
     const char *district_str = "interval.plus";
     int ret = maat_state_set_scan_district(g_maat_instance, &state, district_str, strlen(district_str));
-    ASSERT_GT(ret, 0);
+    EXPECT_EQ(ret, 0);
 
     unsigned int scan_data1 = 2020;
 	ret = maat_scan_integer(g_maat_instance, table_id, 0, scan_data1, results, ARRAY_SIZE, 
@@ -636,7 +630,6 @@ TEST_F(MaatIntervalScan, IntervalPlus) {
     EXPECT_EQ(results[0], 179);
 	maat_state_free(&state);
 }
-#endif
 
 int count_line_num_cb(const char *table_name, const char *line, void *u_para)
 {

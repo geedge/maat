@@ -10,9 +10,31 @@
 
 #include "maat_fqdn.h"
 #include "log/log.h"
+#include "fqdn_engine.h"
+
+struct fqdn_schema {
+    int item_id_column;
+    int group_id_column;
+    int fqdn_column;
+    int match_method_column;
+    int table_id;
+    struct table_manager *ref_tbl_mgr;
+};
 
 struct fqdn_runtime {
+    struct FQDN_engine *engine;
+     struct rcu_hash_table *htable;
 
+    uint32_t rule_num;
+    uint32_t updating_rule_num;
+    struct maat_item *item_hash;
+    void (*item_user_data_free)(void *);
+
+    struct maat_garbage_bin *ref_garbage_bin;
+    struct log_handle *logger;
+
+    long long *scan_cnt;
+    long long *hit_cnt;
 };
 
 void *fqdn_schema_new(cJSON *json, struct table_manager *tbl_mgr, 

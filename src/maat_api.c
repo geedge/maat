@@ -331,6 +331,7 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     maat_instance->last_full_version = 0;
     maat_instance->nr_worker_thread = opts->nr_worker_threads;
     maat_instance->rule_effect_interval_ms = opts->rule_effect_interval_ms;
+    maat_instance->rule_update_checking_interval_ms = opts->rule_update_checking_interval_ms;
     maat_instance->gc_timeout_ms = opts->gc_timeout_ms;
     maat_instance->deferred_load = opts->deferred_load_on;
     garbage_gc_timeout_s = (maat_instance->rule_effect_interval_ms / 1000) +
@@ -856,6 +857,14 @@ int maat_scan_integer(struct maat *maat_instance, int table_id, int thread_id,
     }
 
     maat_runtime_ref_inc(maat_instance->maat_rt, thread_id);
+
+    table_type = table_manager_get_table_type(maat_instance->tbl_mgr, physical_table_id);
+    if ((table_type == TABLE_TYPE_INTERVAL_PLUS) && 
+        (NULL == mid || DISTRICT_FLAG_UNSET == mid->is_set_district)) {
+        maat_instance->scan_err_cnt++;
+        return MAAT_SCAN_ERR;
+    }
+
     alignment_int64_array_add(maat_instance->thread_call_cnt, thread_id, 1);
 
     int group_ids[MAX_SCANNER_HIT_GROUP_NUM] = {-1};

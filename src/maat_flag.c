@@ -429,7 +429,9 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
         n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
     }
     
-    int hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM] = {-1};
+    int hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
+    memset(hit_item_ids, -1, sizeof(hit_item_ids));
+    
     for (int i = 0; i < n_hit_item; i++) {
         hit_item_ids[i] = hit_results[i].rule_id;
     }

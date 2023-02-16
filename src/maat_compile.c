@@ -91,6 +91,7 @@ struct compile_runtime {
 	uint32_t rule_num;
     uint32_t updating_rule_num;
 
+    pthread_rwlock_t rwlock; /* TODO: replaced with mutex? */
     struct bool_expr_match *expr_match_buff;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -195,7 +196,7 @@ void *compile_runtime_get_user_data(struct compile_runtime *compile_rt, int comp
     struct maat_compile *compile = NULL;
     void *ret = NULL;
 
-    //TODO: add mutex
+    pthread_rwlock_rdlock(&compile_rt->rwlock);
     HASH_FIND_INT(compile_rt->compile_hash, &compile_id, compile);
     if (compile != NULL) {
         ret = compile->user_data;
@@ -203,6 +204,7 @@ void *compile_runtime_get_user_data(struct compile_runtime *compile_rt, int comp
             compile->user_data = NULL;
         }
     }
+    pthread_rwlock_unlock(&compile_rt->rwlock);
 
     return ret;
 }
@@ -578,6 +580,7 @@ void *compile_runtime_new(void *compile_schema, int max_thread_num,
     compile_rt->expr_match_buff = ALLOC(struct bool_expr_match, max_thread_num * MAX_SCANNER_HIT_COMPILE_NUM);
     compile_rt->logger = logger;
     compile_rt->ref_garbage_bin = garbage_bin;
+    pthread_rwlock_init(&compile_rt->rwlock, NULL);
 
     return compile_rt;
 }
@@ -617,6 +620,9 @@ void compile_runtime_free(void *compile_runtime)
     }
 
     struct compile_runtime *compile_rt = (struct compile_runtime *)compile_runtime;
+    
+    pthread_rwlock_wrlock(&compile_rt->rwlock);
+
     if (compile_rt->bm != NULL) {
         bool_matcher_free(compile_rt->bm);
     }
@@ -624,6 +630,7 @@ void compile_runtime_free(void *compile_runtime)
     if (compile_rt->compile_hash != NULL) {
         maat_compile_hash_free(&(compile_rt->compile_hash));
     }
+    pthread_rwlock_unlock(&compile_rt->rwlock);
 
     if (compile_rt->expr_match_buff != NULL) {
         FREE(compile_rt->expr_match_buff);
@@ -797,22 +804,9 @@ int maat_compile_hash_add(struct maat_compile **compile_hash, int compile_id,
                           struct maat_compile *compile)
 {
 	int ret = 0;
-	struct maat_compile *tmp_compile = NULL;
 
-	HASH_FIND_INT(*compile_hash, &compile_id, tmp_compile);
-	if (!tmp_compile) {
-		// not found
-		assert(compile->declared_clause_num >= 0);
-		HASH_ADD_INT(*compile_hash, compile_id, compile);
-	} else {
-		// already exist
-		if (tmp_compile->user_data != NULL) {
-			ret = -1;
-		} else {
-			maat_compile_set(tmp_compile, compile->declared_clause_num, 
-                             compile->user_data, compile->user_data_free);
-		}
-	}
+    assert(compile->declared_clause_num >= 0);
+	HASH_ADD_INT(*compile_hash, compile_id, compile);
 
 	//TODO:mytest need to delete
 #if 0
@@ -825,16 +819,23 @@ int maat_compile_hash_add(struct maat_compile **compile_hash, int compile_id,
 	return ret;
 }
 
-int maat_compile_hash_remove(struct maat_compile **compile_hash, int compile_id, 
-                             struct maat_garbage_bin *garbage_bin)
+void maat_compile_hash_set(struct maat_compile **compile_hash, int compile_id,
+                          struct maat_compile *compile)
 {
-	struct maat_compile *compile = NULL;
+    struct maat_compile *tmp_compile = NULL;
 
-	HASH_FIND_INT(*compile_hash, &compile_id, compile);
-	if (!compile) {
-		return -1;
-	}
+    HASH_FIND_INT(*compile_hash, &compile_id, tmp_compile);
+    assert(tmp_compile != NULL);
 
+    assert(tmp_compile->user_data == NULL);
+    maat_compile_set(tmp_compile, compile->declared_clause_num,
+                     compile->user_data, compile->user_data_free);
+    
+}
+
+int maat_compile_hash_remove(struct maat_compile **compile_hash, int compile_id, 
+                             struct maat_compile *compile, struct maat_garbage_bin *garbage_bin)
+{
 	if (0 == compile->actual_clause_num) {
 		 HASH_DEL(*compile_hash, compile);
 		 maat_garbage_bagging(garbage_bin, compile, (void (*)(void *))maat_compile_free);
@@ -1045,6 +1046,7 @@ maat_compile_bool_matcher_new(struct maat_compile *compile_hash,
 				j++;
 			}
 		}
+
 		//some compile may have zero groups, e.g. default policy.
 		if (j == (size_t)compile->declared_clause_num && j > 0) {
 			bool_expr_array[expr_cnt].expr_id = compile->compile_id;
@@ -1420,16 +1422,16 @@ void maat_compile_state_update_hit_clause(struct maat_compile_state *compile_sta
         return;
     }
     
-    struct compile_runtime *compile_rt = (struct compile_runtime *)compile_runtime;
-    assert(compile_rt->compile_hash != NULL);
-
 	struct maat_compile *compile = NULL, *tmp_compile = NULL;
 	struct maat_clause_state *clause_state = NULL;
 	struct maat_literal_id literal_id = {group_id, vtable_id};
     struct maat_literal_id *tmp = NULL;
-
     unsigned long long *clause_id = 0;
-
+    struct compile_runtime *compile_rt = (struct compile_runtime *)compile_runtime;
+    
+    pthread_rwlock_wrlock(&compile_rt->rwlock);
+    assert(compile_rt->compile_hash != NULL);
+    
 	HASH_ITER(hh, compile_rt->compile_hash, compile, tmp_compile) {
 		for (size_t i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
 			clause_state = compile->clause_states + i;
@@ -1463,6 +1465,7 @@ void maat_compile_state_update_hit_clause(struct maat_compile_state *compile_sta
             }
         }
 	}
+    pthread_rwlock_unlock(&compile_rt->rwlock);
 }
 
 int maat_compile_state_has_NOT_clause(struct maat_compile_state *compile_state)
@@ -1562,10 +1565,20 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
     int compile_id = get_column_value(line, schema->compile_id_column);
     if (is_valid < 0) {
         return -1;
-    } else if (0 == is_valid) {
+    }
+
+    if (0 == is_valid) {
         //delete
+        pthread_rwlock_wrlock(&compile_rt->rwlock);
+        compile = maat_compile_hash_find(&(compile_rt->compile_hash), compile_id);
+        if (NULL == compile) {
+            pthread_rwlock_unlock(&compile_rt->rwlock);
+            return -1;
+        }
+
         ret = maat_compile_hash_remove(&(compile_rt->compile_hash), compile_id, 
-                                        compile_rt->ref_garbage_bin);
+                                        compile, compile_rt->ref_garbage_bin);
+        pthread_rwlock_unlock(&compile_rt->rwlock);
         if (ret < 0) {
             log_error(compile_rt->logger, MODULE_COMPILE,
                       "remove compile table(table_id:%d) compile(compile_id:%d) from compile_hash failed",
@@ -1574,8 +1587,11 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
         }
     } else {
         //add
+        pthread_rwlock_wrlock(&compile_rt->rwlock);
+
         compile_item = compile_item_new(line, schema, compile_rt->logger);
         if (NULL == compile_item) {
+            pthread_rwlock_unlock(&compile_rt->rwlock);
             return -1;
         }
 
@@ -1587,6 +1603,7 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
         compile = maat_compile_new(compile_rule->compile_id);
         if (NULL == compile) {
             destroy_compile_rule(compile_rule);
+            pthread_rwlock_unlock(&compile_rt->rwlock);
             log_error(compile_rt->logger, MODULE_COMPILE,
                       "maat_compile_new failed, compile_table(table_id:%d) compile_id:%d", 
                       schema->table_id, compile_item->compile_id);
@@ -1595,14 +1612,15 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
 
         maat_compile_set(compile, compile_rule->declared_clause_num, compile_rule, 
                         (void (*)(void *))destroy_compile_rule);
-        ret = maat_compile_hash_add(&(compile_rt->compile_hash), compile_id, compile);
-        if (ret < 0) {
-            maat_compile_free(compile);
-            log_error(compile_rt->logger, MODULE_COMPILE,
-                      "add compile table(table_id:%d) compile(compile_id:%d) to compile_hash failed",
-                      schema->table_id, compile_id);
-            return -1;
+
+        struct maat_compile *tmp_compile = maat_compile_hash_find(&(compile_rt->compile_hash), compile_id);
+        if (tmp_compile != NULL) {
+            maat_compile_hash_set(&(compile_rt->compile_hash), compile_id, compile);
+        } else {
+            maat_compile_hash_add(&(compile_rt->compile_hash), compile_id, compile);
         }
+        
+        pthread_rwlock_unlock(&compile_rt->rwlock);
     }
 
     return 0;
@@ -1630,6 +1648,7 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
         return -1;
     }
 
+    pthread_rwlock_wrlock(&compile_rt->rwlock);
     if (0 == is_valid) {
         //delete
         ret = maat_remove_group_from_compile(&(compile_rt->compile_hash), g2g_rt, g2c_item,
@@ -1649,6 +1668,7 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
             }
         }
     }
+    pthread_rwlock_unlock(&compile_rt->rwlock);
 
     group2compile_item_free(g2c_item);
     return ret;
@@ -1661,6 +1681,7 @@ int compile_runtime_commit(void *compile_runtime, const char *table_name)
     }
 
     struct compile_runtime *compile_rt = (struct compile_runtime *)compile_runtime;
+    //TODO: no need add rdlock?
     size_t compile_cnt = maat_compile_in_use_count(compile_rt->compile_hash);
     if (0 == compile_cnt) {
         return 0;
@@ -1684,8 +1705,11 @@ int compile_runtime_commit(void *compile_runtime, const char *table_name)
         ret = -1;
     }
 
+    pthread_rwlock_wrlock(&compile_rt->rwlock);
     old_bool_matcher = compile_rt->bm;
     compile_rt->bm = new_bool_matcher;
+    pthread_rwlock_unlock(&compile_rt->rwlock);
+
     maat_garbage_bagging(compile_rt->ref_garbage_bin, old_bool_matcher, 
                         (void (*)(void*))maat_compile_bool_matcher_free);
   
@@ -1748,10 +1772,12 @@ int compile_runtime_match(struct compile_runtime *compile_rt,
     struct compile_rule *compile_rules[compile_ids_size];
     
     // all hit clause_id -> compile_id
+    pthread_rwlock_rdlock(&compile_rt->rwlock);
     size_t bool_match_ret = maat_compile_bool_matcher_match(compile_rt->bm, 
                                                             is_last_scan, compile_state,
                                                             (void **)compile_rules,
                                                             compile_ids_size);
+    pthread_rwlock_unlock(&compile_rt->rwlock);
     if (bool_match_ret > 0) {
         qsort(compile_rules, bool_match_ret, sizeof(struct compile_rule *), 
               compare_compile_rule);

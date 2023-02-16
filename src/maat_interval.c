@@ -354,7 +354,7 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
             return -1;
         }
 
-        u_para = maat_item_inner_new(interval_item->group_id, item_id, 0);
+        u_para = maat_item_inner_new(interval_item->group_id, item_id, interval_item->district_id);
         item = maat_item_new(item_id, interval_item->group_id, u_para);
         HASH_ADD_INT(interval_rt->item_hash, item_id, item);
 
@@ -459,9 +459,18 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
         n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
     }
     
-    int hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM] = {-1};
+    int hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
+    struct maat_item_inner *item = NULL;
+    int real_hit_item_cnt = 0;
+    int district_id = state->district_id;
+
+    memset(hit_item_ids, -1, sizeof(hit_item_ids));
+
     for (int i = 0; i < n_hit_item; i++) {
-        hit_item_ids[i] = hit_results[i].rule_id;
+        item = (struct maat_item_inner *)(hit_results[i].user_tag);
+        if (item->district_id == district_id || district_id == DISTRICT_ANY) {
+            hit_item_ids[real_hit_item_cnt++] = hit_results[i].rule_id;
+        }
     }
 
     size_t group_hit_cnt = 0;

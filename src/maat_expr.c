@@ -866,11 +866,13 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
         n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
     }
     
-    int hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM] = {-1};
+    int hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
     struct maat_item_inner *item = NULL;
     int real_hit_item_cnt = 0;
     int district_id = state->district_id;
 
+    memset(hit_item_ids, -1, sizeof(hit_item_ids));
+    
     for (size_t i = 0; i < n_hit_item; i++) {
         item = (struct maat_item_inner *)(hit_results[i].user_tag);
         if (item->district_id == district_id || district_id == DISTRICT_ANY) {
