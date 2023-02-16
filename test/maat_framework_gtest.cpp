@@ -97,8 +97,9 @@ TEST_F(MaatFlagScan, withExprRegion) {
     EXPECT_NE(n_read, 0);
 
     const char *expr_scan_data = "hello world";
-    ret = maat_scan_string(g_maat_instance, expr_table_id, 0, expr_scan_data, strlen(expr_scan_data), 
-                           results, ARRAY_SIZE, &n_hit_result, &state);
+    ret = maat_scan_string(g_maat_instance, expr_table_id, 0, expr_scan_data, 
+                           strlen(expr_scan_data), results, ARRAY_SIZE, 
+                           &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 193);
@@ -588,6 +589,7 @@ protected:
        
     }
 };
+
 #if 0
 TEST_F(MaatIntervalScan, Pure) {	
 	int results[ARRAY_SIZE] = {0};
@@ -635,6 +637,7 @@ TEST_F(MaatIntervalScan, IntervalPlus) {
 	maat_state_free(&state);
 }
 #endif
+
 int count_line_num_cb(const char *table_name, const char *line, void *u_para)
 {
 	(*((unsigned int *)u_para))++;
