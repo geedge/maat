@@ -631,6 +631,64 @@ TEST_F(MaatIntervalScan, IntervalPlus) {
 	maat_state_free(&state);
 }
 
+class NOTLogic : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        
+    }
+
+    static void TearDownTestCase() {
+       
+    }
+};
+
+TEST_F(NOTLogic, ScanNotAtLast) {
+    const char *string_should_hit = "This string ONLY contains must-contained-string-of-rule-144.";
+	const char *string_should_not_hit = "This string contains both must-contained-string-of-rule-144 and must-not-contained-string-of-rule-144.";
+
+	int results[ARRAY_SIZE] = {0};
+     size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+	const char *hit_table_name = "HTTP_URL_LITERAL";
+    const char *not_hit_table_name = "KEYWORDS_TABLE";
+
+	int hit_table_id = maat_table_get_id(g_maat_instance, hit_table_name);
+	ASSERT_GT(hit_table_id, 0);
+	
+	int ret = maat_scan_string(g_maat_instance, hit_table_id, 0, string_should_hit, strlen(string_should_hit), 
+						       results, ARRAY_SIZE, &n_hit_result, &state);
+						
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+	EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 144);
+
+	int not_hit_table_id = maat_table_get_id(g_maat_instance, not_hit_table_name);
+	ASSERT_GT(not_hit_table_id, 0);
+
+	maat_state_set_last_scan(g_maat_instance, &state);
+	ret = maat_scan_string(g_maat_instance, not_hit_table_id, 0, string_should_not_hit, strlen(string_should_not_hit), 
+						   results, ARRAY_SIZE, &n_hit_result, &state);
+	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+	maat_state_free(&state);
+}
+
+class PluginTable : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        
+    }
+
+    static void TearDownTestCase() {
+       
+    }
+};
+
+TEST_F(PluginTable, Callback) {
+
+}
+
 int count_line_num_cb(const char *table_name, const char *line, void *u_para)
 {
 	(*((unsigned int *)u_para))++;

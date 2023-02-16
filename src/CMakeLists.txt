@@ -7,6 +7,8 @@ set(MAAT_FRAME_VERSION ${MAAT_FRAME_MAJOR_VERSION}.${MAAT_FRAME_MINOR_VERSION}.$
 
 message(STATUS "Maat Frame, Version: ${MAAT_FRAME_VERSION}")
 
+LINK_DIRECTORIES(/opt/MESA/lib /usr/lib64)
+
 add_definitions(-D_GNU_SOURCE) 
 add_definitions(-fPIC)
 set(MAAT_SRC alignment.c json2iris.c maat_api.c rcu_hash.c maat_garbage_collection.c maat_config_monitor.c 
@@ -18,6 +20,7 @@ set(MAAT_SRC alignment.c json2iris.c maat_api.c rcu_hash.c maat_garbage_collecti
 set(LIB_SOURCE_FILES
 	${PROJECT_SOURCE_DIR}/deps/cJSON/cJSON.c ${PROJECT_SOURCE_DIR}/deps/log/log.c)
 
+include_directories(/opt/MESA/include/MESA/)
 include_directories(${PROJECT_SOURCE_DIR}/include/)
 include_directories(${PROJECT_SOURCE_DIR}/deps/)
 include_directories(${PROJECT_SOURCE_DIR}/scanner)
