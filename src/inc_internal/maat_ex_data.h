@@ -82,9 +82,12 @@ int ex_data_runtime_del_ex_container(struct ex_data_runtime *ex_data_rt,
 size_t ex_data_runtime_list_updating_ex_container(struct ex_data_runtime *ex_data_rt,
                                                   struct ex_data_container ***ex_container);
 
-void *ex_data_runtime_get_ex_data(struct ex_data_runtime *ex_data_rt, 
-                                  const char *key, size_t key_len);
+void *ex_data_runtime_get_ex_data_by_key(struct ex_data_runtime *ex_data_rt, 
+                                         const char *key, size_t key_len);
 
+void *ex_data_runtime_get_ex_data_by_container(struct ex_data_runtime *ex_data_rt,
+                                               struct ex_data_container *ex_container);
+                                               
 void *ex_data_runtime_get_custom_data(struct ex_data_runtime *ex_data_rt, 
                                       const char *key, size_t key_len);
 

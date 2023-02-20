@@ -36,6 +36,8 @@ extern "C"
 #include "maat_virtual.h"
 
 #define MAX_TABLE_NUM	256
+#define MAX_COMPILE_TABLE_NUM 16
+#define MAX_PHYSICAL_TABLE_NUM  16
 
 #define MAAT_UPDATE_TYPE_NONE 0
 #define	MAAT_UPDATE_TYPE_FULL 1
@@ -60,10 +62,6 @@ enum tag_match {
 
 struct maat_rule_head {
 	int config_id;
-	int	service_id;
-	char do_log;
-	char do_blacklist;
-	char action;
 	char resevered;
 	int	serv_def_len;
 };
@@ -241,7 +239,8 @@ struct maat {
 struct maat_state {
 	struct maat *maat_instance;
 	int16_t thread_id;
-    int compile_table_id; //caller can select compile table to scan
+    size_t n_compile_table;
+    char compile_tables[MAX_COMPILE_TABLE_NUM][NAME_MAX]; //caller can select compile table to scan
 	unsigned char is_set_district;
 	unsigned char is_last_scan;
 	int district_id; //-1: Any District; -2: Unkonwn District;

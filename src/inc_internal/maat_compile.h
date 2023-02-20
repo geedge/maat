@@ -74,7 +74,7 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt,
                                      struct group2group_runtime *g2g_rt, 
                                      struct maat_compile_state *compile_state,
                                      struct maat_hit_path *hit_paths,
-                                     size_t n_hit_path);
+                                     size_t hit_path_index, size_t n_hit_path);
 /* group2compile runtime API */
 void *group2compile_runtime_new(void *g2c_schema, int max_thread_num,
                                 struct maat_garbage_bin *garbage_bin,
@@ -92,7 +92,7 @@ void maat_compile_state_free(struct maat_compile_state *compile_state);
 
 int maat_compile_state_update(struct maat_item *item_hash, int vtable_id,
                               int *hit_item_ids, size_t hit_item_cnt,
-                              int *group_ids, size_t group_ids_size,
+                              int *group_ids, int hit_group_index, size_t group_ids_size,
                               size_t *n_hit_group_id, struct maat_state *state);
                               
 int maat_compile_state_has_NOT_clause(struct maat_compile_state *compile_state);

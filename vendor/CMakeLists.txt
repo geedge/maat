@@ -1,5 +1,5 @@
 # CMakeFiles for 3rd vendor library
-
+cmake_minimum_required(VERSION 3.5)
 include(ExternalProject)
 
 set(VENDOR_ROOT ${CMAKE_BINARY_DIR}/vendor)
@@ -84,8 +84,13 @@ file(MAKE_DIRECTORY ${VENDOR_BUILD}/include)
 
 add_library(hiredis-static STATIC IMPORTED GLOBAL)
 add_dependencies(hiredis-static hiredis)
-set_property(TARGET hiredis-static  PROPERTY IMPORTED_LOCATION ${VENDOR_BUILD}/lib64/libhiredisd.a)
+
 set_property(TARGET hiredis-static  PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${VENDOR_BUILD}/include)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+set_property(TARGET hiredis-static  PROPERTY IMPORTED_LOCATION ${VENDOR_BUILD}/lib64/libhiredisd.a)
+else()
+set_property(TARGET hiredis-static  PROPERTY IMPORTED_LOCATION ${VENDOR_BUILD}/lib64/libhiredis.a)
+endif()
 
 #igraph-0.7.1
 ExternalProject_Add(igraph PREFIX igraph

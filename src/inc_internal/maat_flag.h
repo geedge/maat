@@ -46,8 +46,8 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name);
  * 
  * @retval the num of hit group_id
 */
-int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, 
-                      uint64_t flag, int *group_ids, size_t group_ids_size, 
+int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, uint64_t flag, 
+                      int *group_ids, int hit_group_index,size_t group_ids_size, 
                       int vtable_id, struct maat_state *state);
 
 void flag_runtime_scan_hit_inc(struct flag_runtime *flag_rt, int thread_id);

@@ -41,8 +41,8 @@ struct ex_data_runtime *ip_runtime_get_ex_data_rt(struct ip_runtime *ip_rt);
 
 /* ip runtime scan API */
 int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type, 
-                    uint8_t *ip_addr, int *group_ids, size_t group_id_size, 
-                    int vtable_id, struct maat_state *state);
+                    uint8_t *ip_addr, int *group_ids, int hit_group_index,
+                    size_t group_id_size, int vtable_id, struct maat_state *state);
 
 void ip_runtime_scan_hit_inc(struct ip_runtime *ip_rt, int thread_id);
 long long ip_runtime_scan_hit_sum(struct ip_runtime *ip_rt, int n_thread);

@@ -840,10 +840,9 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name)
     return ret;
 }
 
-int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, 
-                             const char *data, size_t data_len,
-                             int *group_ids, size_t group_ids_size, 
-                             int vtable_id, struct maat_state *state)
+int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *data, 
+                      size_t data_len, int *group_ids, int hit_group_index,
+                      size_t group_ids_size, int vtable_ids, struct maat_state *state)
 {
     size_t n_hit_item = 0;
     struct hs_scan_result hit_results[MAX_SCANNER_HIT_ITEM_NUM] = {0};
@@ -881,9 +880,9 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
     }
 
     size_t group_hit_cnt = 0;
-    ret = maat_compile_state_update(expr_rt->item_hash, vtable_id, hit_item_ids, 
-                                    real_hit_item_cnt, group_ids, group_ids_size, 
-                                    &group_hit_cnt, state);
+    ret = maat_compile_state_update(expr_rt->item_hash, vtable_ids, hit_item_ids, 
+                                    real_hit_item_cnt, group_ids, hit_group_index,
+                                    group_ids_size, &group_hit_cnt, state);
     if (ret < 0) {
         return -1;
     }
@@ -901,8 +900,8 @@ void expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id)
     expr_rt->hs_stream = hs_stream;
 }
 
-int expr_runtime_stream_scan(struct expr_runtime *expr_rt, const char *data, 
-                             size_t data_len, int *group_ids, size_t group_ids_size, 
+int expr_runtime_stream_scan(struct expr_runtime *expr_rt, const char *data, size_t data_len, 
+                             int *group_ids, int hit_group_index, size_t group_ids_size, 
                              int vtable_id, struct maat_state *state)
 {
     if (NULL == expr_rt) {
@@ -936,8 +935,8 @@ int expr_runtime_stream_scan(struct expr_runtime *expr_rt, const char *data,
 
     size_t group_hit_cnt = 0;
     ret = maat_compile_state_update(expr_rt->item_hash, vtable_id, hit_item_ids, 
-                                    n_hit_item, group_ids, group_ids_size, 
-                                    &group_hit_cnt, state);
+                                    n_hit_item, group_ids, hit_group_index,
+                                    group_ids_size, &group_hit_cnt, state);
     if (ret < 0) {
         return -1;
     }

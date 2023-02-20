@@ -476,7 +476,8 @@ TEST_F(MaatIPScan, IPv6) {
     int ret = inet_pton(AF_INET6, ip_str, &sip);
     EXPECT_EQ(ret, 1);
 
-    int results[ARRAY_SIZE] = {-1};
+    int results[ARRAY_SIZE];
+    memset(results, -1, sizeof(results));
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     ret = maat_scan_ipv6(g_maat_instance, table_id, 0, sip, results, ARRAY_SIZE,
@@ -673,6 +674,47 @@ TEST_F(NOTLogic, ScanNotAtLast) {
 	maat_state_free(&state);
 }
 
+void maat_read_entry_start_cb(int update_type, void *u_para)
+{
+
+}
+
+void maat_read_entry_cb(int table_id, const char *table_line, void *u_para)
+{
+	char ip_str[16]={0};
+	int entry_id=-1,seq=-1;
+	unsigned int ip_uint=0;
+	int is_valid=0;
+	unsigned int local_ip_nr=16820416;//192.168.0.1
+
+	sscanf(table_line, "%d\t%s\t%d\t%d", &seq,ip_str, &entry_id, &is_valid);
+	inet_pton(AF_INET,ip_str,&ip_uint);
+	if(local_ip_nr==ip_uint)
+	{
+		if(is_valid==1)
+		{
+			//printf("Load entry id %d success.\n",entry_id);
+			EXPECT_EQ(entry_id, 101);
+		}
+		else
+		{
+			//printf("Offload entry id %d success.\n",entry_id);
+		}
+	}
+}
+
+void maat_read_entry_finish_cb(void *u_para)
+{
+	//Maat_feather_t feather=u_para;
+	// long long version=0;
+	// int ret=0,is_last_updating_table=0;
+	// ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version, sizeof(version));
+	// EXPECT_EQ(ret, 0);
+	// ret=Maat_read_state(feather,MAAT_STATE_LAST_UPDATING_TABLE, &is_last_updating_table, sizeof(is_last_updating_table));
+	// EXPECT_EQ(ret, 0);
+	//printf("Maat Version %lld at plugin finish callback, is_last_update=%d.\n",version,is_last_updating_table);
+}
+
 class PluginTable : public testing::Test
 {
 protected:
@@ -686,7 +728,245 @@ protected:
 };
 
 TEST_F(PluginTable, Callback) {
+    int table_id = maat_table_get_id(g_maat_instance, "QD_ENTRY_INFO");
+    int ret = maat_table_callback_register(g_maat_instance, table_id, 
+                                           maat_read_entry_start_cb,
+                                           maat_read_entry_cb, 
+                                           maat_read_entry_finish_cb,
+                                           g_maat_instance);
+    EXPECT_EQ(ret, 0);
+}
 
+class IPPluginTable : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        
+    }
+
+    static void TearDownTestCase() {
+       
+    }
+};
+
+struct ip_plugin_ud {
+	int rule_id;
+	char *buffer;
+	int ref_cnt;
+};
+void ip_plugin_EX_new_cb(int table_id, const char *key, const char *table_line, 
+                         void **ad, long argl, void *argp)
+{
+	int *counter = (int *)argp;
+	size_t column_offset=0, column_len=0;
+	struct ip_plugin_ud *ud = ALLOC(struct ip_plugin_ud, 1);
+
+	int ret = get_column_pos(table_line, 1, &column_offset, &column_len);
+	EXPECT_EQ(ret, 0);
+
+	ud->rule_id = atoi(table_line + column_offset);
+
+	ret = get_column_pos(table_line, 5, &column_offset, &column_len);	
+	EXPECT_EQ(ret, 0);
+
+	ud->buffer = (char *)calloc(sizeof(char), column_len + 1);
+	strncpy(ud->buffer, table_line + column_offset, column_len);
+	ud->ref_cnt = 1;
+	*ad = ud;
+	(*counter)++;
+}
+
+void ip_plugin_EX_free_cb(int table_id, void **ad, long argl, void *argp)
+{
+	struct ip_plugin_ud *ud = (struct ip_plugin_ud *)(*ad);
+	if ((__sync_sub_and_fetch(&ud->ref_cnt, 1) == 0)) {
+		free(ud->buffer);
+		free(ud);
+		*ad = NULL;
+	}
+}
+
+void ip_plugin_EX_dup_cb(int table_id, void **to, void **from, long argl, void *argp)
+{
+	struct ip_plugin_ud *ud = (struct ip_plugin_ud *)(*from);
+	__sync_add_and_fetch(&(ud->ref_cnt), 1);
+	*to = ud;
+}
+
+TEST_F(IPPluginTable, EX_DATA) {
+    int ip_plugin_ex_data_counter = 0;
+    const char *table_name = "TEST_IP_PLUGIN_WITH_EXDATA";
+
+    int ret = maat_plugin_table_ex_schema_register(g_maat_instance, table_name,
+                                                   ip_plugin_EX_new_cb,
+                                                   ip_plugin_EX_free_cb,
+                                                   ip_plugin_EX_dup_cb,
+                                                   0, &ip_plugin_ex_data_counter);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ip_plugin_ex_data_counter, 5);
+
+    struct ip_addr ipv4;
+    ipv4.ip_type = IPv4;
+    ret = inet_pton(AF_INET, "192.168.30.100", &ipv4.ipv4);
+    EXPECT_EQ(ret, 1);
+
+    struct ip_plugin_ud *results[ARRAY_SIZE];
+    ret = maat_ip_plugin_table_get_ex_data(g_maat_instance, table_name, &ipv4, 
+                                           (void **)results, ARRAY_SIZE);
+    EXPECT_EQ(ret, 2);
+    EXPECT_EQ(results[0]->rule_id, 101);
+    EXPECT_EQ(results[1]->rule_id, 102);
+
+    int i = 0;
+    for (i = 0; i < ret; i++) {
+		ip_plugin_EX_free_cb(0, (void**)&(results[i]), 0, NULL);
+	}
+
+    struct ip_addr ipv6;
+    ipv6.ip_type = IPv6;
+    inet_pton(AF_INET6, "2001:db8:1234::5210", &(ipv6.ipv6));
+    memset(results, 0, sizeof(results));
+
+	ret = maat_ip_plugin_table_get_ex_data(g_maat_instance, table_name, &ipv6, 
+                                           (void**)results, ARRAY_SIZE);
+	EXPECT_EQ(ret, 2);
+	EXPECT_EQ(results[0]->rule_id, 104);
+	EXPECT_EQ(results[1]->rule_id, 103);
+
+	for (i = 0; i < ret; i++) {
+		ip_plugin_EX_free_cb(0, (void**)&(results[i]), 0, NULL);
+	}
+
+	//Reproduce BugReport-Liumengyan-20210515
+	inet_pton(AF_INET6, "240e:97c:4010:104::17", &(ipv6.ipv6));
+	ret = maat_ip_plugin_table_get_ex_data(g_maat_instance, table_name, &ipv6, 
+                                           (void**)results, ARRAY_SIZE);
+	EXPECT_EQ(ret, 0);
+}
+
+class VirtualTable : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        
+    }
+
+    static void TearDownTestCase() {
+       
+    }
+};
+
+TEST_F(VirtualTable, basic) {
+    int results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+    const char *table_name = "HTTP_RESPONSE_KEYWORDS";
+    
+	int table_id = maat_table_get_id(g_maat_instance, table_name);
+	ASSERT_GT(table_id, 0);
+
+    char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
+    int ret = maat_scan_string(g_maat_instance, table_id, 0, scan_data, strlen(scan_data),
+                                results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    EXPECT_EQ(n_hit_result, 0);
+    maat_state_free(&state);
+}
+
+class CompileTable : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        
+    }
+
+    static void TearDownTestCase() {
+       
+    }    
+};
+
+struct rule_ex_param {
+	int ref_cnt;
+	char name[NAME_MAX];
+	int id;
+	pthread_mutex_t lock;
+};
+
+void compile_ex_param_new(int idx, const struct maat_rule *rule, const char *srv_def_large, 
+						  void **ad, long argl, void *argp)
+{
+	int *counter = (int *)argp;
+	*ad = NULL;
+	ASSERT_GT(rule->serv_def_len, 4);
+
+	struct rule_ex_param *param = (struct rule_ex_param *)calloc(sizeof(struct rule_ex_param), 1);
+	
+	param->ref_cnt = 1;
+	pthread_mutex_init(&(param->lock), NULL);
+	
+	sscanf(srv_def_large, "%*[^:]:%[^,],%d", param->name, &(param->id));
+	(*counter)++;
+	*ad = param;
+}
+
+void compile_ex_param_free(int idx, const struct maat_rule *rule, const char *srv_def_large, 
+                           void **ad, long argl, void *argp)
+{
+	if (*ad == NULL) {
+		return;
+	}
+
+	struct rule_ex_param *param = (struct rule_ex_param *)*ad;
+	pthread_mutex_lock(&(param->lock));
+	param->ref_cnt--;
+	if (param->ref_cnt > 0) {	
+		pthread_mutex_unlock(&(param->lock));
+		return;
+	}
+	free(param);
+}
+
+void compile_ex_param_dup(int idx, void **to, void **from, long argl, void *argp)
+{
+	struct rule_ex_param *from_param = *((struct rule_ex_param **)from);
+	pthread_mutex_lock(&(from_param->lock));
+	from_param->ref_cnt++;
+	pthread_mutex_unlock(&(from_param->lock));
+	*((struct rule_ex_param**)to) = from_param;
+}
+
+TEST_F(CompileTable, CompileEXData) {
+    int results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+    const char *url = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
+	const char *table_name = "HTTP_URL_LITERAL";
+	const char *expect_name = "I have a name";
+
+    int table_id =  maat_table_get_id(g_maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+    int ex_data_counter = 0;
+    int ex_param_idx = maat_compile_table_ex_schema_register(g_maat_instance, "COMPILE_ALIAS",
+                                                             compile_ex_param_new,
+                                                             compile_ex_param_free,
+                                                             compile_ex_param_dup,
+                                                             0, &ex_data_counter);
+    ASSERT_TRUE(ex_param_idx>=0);
+	EXPECT_EQ(ex_data_counter, 1);
+
+    int ret = maat_scan_string(g_maat_instance, table_id, 0, url, strlen(url),
+                                results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+    void *ex_data = maat_compile_table_get_ex_data(g_maat_instance, table_id, 0, ex_param_idx);
+    ASSERT_TRUE(ex_data!=NULL);
+    struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
+	EXPECT_EQ(param->id, 7799);
+	EXPECT_EQ(strcmp(param->name, expect_name), 0);
+	compile_ex_param_free(0, NULL, NULL, &ex_data, 0, NULL);
+
+	maat_state_free(&state);
 }
 
 int count_line_num_cb(const char *table_name, const char *line, void *u_para)

@@ -205,28 +205,16 @@ int plugin_table_get_foreign_column(struct plugin_schema *plugin_schema,
     return n_foreign;
 }
 
-int plugin_table_set_ex_data_schema(void *plugin_schema, 
+void plugin_table_set_ex_data_schema(void *plugin_schema, 
                                     maat_plugin_ex_new_func_t *new_func,
 							        maat_plugin_ex_free_func_t *free_func,
 							        maat_plugin_ex_dup_func_t *dup_func,
 							        long argl, void *argp,
                                     struct log_handle *logger)
 {
-    if (NULL == plugin_schema) {
-        return -1;
-    }
-
     struct plugin_schema *schema = (struct plugin_schema *)plugin_schema;
-    if (schema->ex_schema != NULL) {
-        assert(0);
-        log_error(logger, MODULE_PLUGIN, 
-                  "Error: %s, EX data schema already registed", 
-                  __FUNCTION__);
-        return -1;
-    }
+    
     schema->ex_schema = ex_data_schema_new(new_func, free_func, dup_func, argl, argp);
-
-    return 0;
 }
 
 struct ex_data_schema *plugin_table_get_ex_data_schema(void *plugin_schema)

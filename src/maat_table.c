@@ -325,6 +325,7 @@ struct maat_table *maat_table_new(cJSON *json, struct maat_kv_store *reserved_wo
 
     item = cJSON_GetObjectItem(json, "table_type");
     if (NULL == item || item->type != cJSON_String) {
+        log_error(logger, MODULE_TABLE, "table:%s has no table_type column", ptable->table_name);
         goto error;
     }
 
@@ -337,6 +338,7 @@ struct maat_table *maat_table_new(cJSON *json, struct maat_kv_store *reserved_wo
     item = cJSON_GetObjectItem(json, "valid_column");
     if (NULL == item || item->type != cJSON_Number) {
         if (ptable->table_type != TABLE_TYPE_VIRTUAL) {
+            log_error(logger, MODULE_TABLE, "table:%s has no valid column", ptable->table_name);
             goto error;
         }
     } else {

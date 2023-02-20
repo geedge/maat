@@ -32,7 +32,7 @@ void ip_plugin_schema_free(void *ip_plugin_schema);
 /* ip plugin table ex data API */
 struct ex_data_schema *ip_plugin_table_get_ex_data_schema(void *ip_plugin_schema);
 
-int ip_plugin_table_set_ex_data_schema(void *ip_plugin_schema, 
+void ip_plugin_table_set_ex_data_schema(void *ip_plugin_schema, 
                                        maat_plugin_ex_new_func_t *new_func,
 							           maat_plugin_ex_free_func_t *free_func,
 							           maat_plugin_ex_dup_func_t *dup_func,
@@ -50,6 +50,9 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
 int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name);
 
 struct ex_data_runtime *ip_plugin_runtime_get_ex_data_rt(void *ip_plugin_runtime);
+
+int ip_plugin_runtime_get_ex_data(void *ip_plugin_runtime, const struct ip_addr *ip_addr, 
+                                  void **ex_data_array, size_t n_ex_data_array);
 
 #ifdef __cplusplus
 }

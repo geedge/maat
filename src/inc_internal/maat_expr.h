@@ -44,14 +44,13 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name);
  * 
  * @retval the num of hit group_id
 */
-int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, 
-                      const char *data, size_t data_len,
-                      int *group_ids, size_t group_ids_size, 
-                      int vtable_ids, struct maat_state *state);
+int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *data, 
+                      size_t data_len, int *group_ids, int hit_group_index,
+                      size_t group_ids_size, int vtable_ids, struct maat_state *state);
 
 void expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id);
-int expr_runtime_stream_scan(struct expr_runtime *expr_rt, const char *data,
-                             size_t data_len, int *group_ids, size_t group_ids_size, 
+int expr_runtime_stream_scan(struct expr_runtime *expr_rt, const char *data, size_t data_len, 
+                             int *group_ids, int hit_group_index, size_t group_ids_size, 
                              int vtable_id, struct maat_state *state);
 void expr_runtime_stream_close(struct expr_runtime *expr_rt);
 

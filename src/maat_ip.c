@@ -453,17 +453,15 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name)
     struct ip_matcher *old_ip_matcher = NULL;
     size_t mem_used = 0;
 
-    if (rule_cnt > 0) {
-        log_info(ip_rt->logger, MODULE_IP, 
-                 "table[%s] committing %zu ip rules for rebuilding ip_matcher engine", 
-                 table_name, rule_cnt);
-        new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used);
-        if (NULL == new_ip_matcher) {
-            log_error(ip_rt->logger, MODULE_IP, 
-                      "table[%s] rebuild ip_matcher engine failed when update %zu ip rules",
-                       table_name, rule_cnt);
-            ret = -1;
-        }
+    log_info(ip_rt->logger, MODULE_IP,
+             "table[%s] committing %zu ip rules for rebuilding ip_matcher engine",
+             table_name, rule_cnt);
+    new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used);
+    if (NULL == new_ip_matcher) {
+        log_error(ip_rt->logger, MODULE_IP,
+                  "table[%s] rebuild ip_matcher engine failed when update %zu ip rules",
+                  table_name, rule_cnt);
+        ret = -1;
     }
 
     old_ip_matcher = ip_rt->ip_matcher;
@@ -479,8 +477,8 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name)
 }
 
 int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type, 
-                    uint8_t *ip_addr, int *group_ids, size_t group_id_size, 
-                    int vtable_id, struct maat_state *state)
+                    uint8_t *ip_addr, int *group_ids, int hit_group_index, 
+                    size_t group_id_size, int vtable_id, struct maat_state *state)
 {
     int n_hit_item = 0;
     struct scan_result scan_results[MAX_SCANNER_HIT_ITEM_NUM] = {0};
@@ -518,7 +516,7 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
 
     size_t group_hit_cnt = 0;
     int ret = maat_compile_state_update(ip_rt->item_hash, vtable_id, hit_item_ids, n_hit_item,
-                                        group_ids, group_id_size, &group_hit_cnt, state);
+                                        group_ids, hit_group_index, group_id_size, &group_hit_cnt, state);
     if (ret < 0) {
         return -1;
     }

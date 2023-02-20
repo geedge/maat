@@ -40,7 +40,7 @@ void plugin_table_all_callback_finish(struct plugin_schema *plugin_schema);
 int plugin_table_get_foreign_column(struct plugin_schema *plugin_schema, int *foreign_columns);
 
 /* plugin table ex data API */
-int plugin_table_set_ex_data_schema(void *plugin_schema, 
+void plugin_table_set_ex_data_schema(void *plugin_schema, 
                                     maat_plugin_ex_new_func_t *new_func,
 							        maat_plugin_ex_free_func_t *free_func,
 							        maat_plugin_ex_dup_func_t *dup_func,

@@ -440,9 +440,8 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name)
 }
 
 int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id, 
-                                 uint64_t integer, 
-                                 int *group_ids, size_t group_ids_size, 
-                                 int vtable_id, struct maat_state *state)
+                          uint64_t integer, int *group_ids, int hit_group_index, 
+                          size_t group_ids_size, int vtable_id, struct maat_state *state)
 {
     struct interval_result hit_results[MAX_SCANNER_HIT_ITEM_NUM] = {0};
     
@@ -475,7 +474,7 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
 
     size_t group_hit_cnt = 0;
     int ret = maat_compile_state_update(interval_rt->item_hash, vtable_id, hit_item_ids, 
-                                        n_hit_item, group_ids, group_ids_size, 
+                                        n_hit_item, group_ids, hit_group_index, group_ids_size, 
                                         &group_hit_cnt, state);
     if (ret < 0) {
         return -1;

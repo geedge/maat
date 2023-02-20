@@ -17,6 +17,7 @@ extern "C"
 #endif
 
 #include <stdint.h>
+#include "log/log.h"
 
 void config_monitor_traverse(long long version, const char *idx_dir,
 							void (*start_fn)(long long, int, void *),

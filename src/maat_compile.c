@@ -10,6 +10,7 @@
 
 #include <assert.h>
 #include <pthread.h>
+#include <limits.h>
 
 #include "maat_utils.h"
 #include "log/log.h"
@@ -35,10 +36,6 @@ enum user_region_encode {
 
 struct compile_schema {
     int compile_id_column;
-    int service_id_column;
-    int action_column;
-    int do_blacklist_column;
-    int do_log_column;
     int tags_column;
     int user_region_column;
     int clause_num_column;
@@ -64,10 +61,6 @@ struct group2compile_schema {
 
 struct compile_item {
     int compile_id;
-    int service_id;
-    int action;
-    int do_blacklist;
-    int do_log;
     char user_region[MAX_TABLE_LINE_SIZE];
     int clause_num;
     int evaluation_order;
@@ -274,30 +267,6 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         read_cnt++;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "service_id");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        compile_schema->service_id_column = custom_item->valueint;
-        read_cnt++;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "action");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        compile_schema->action_column = custom_item->valueint;
-        read_cnt++;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "do_blacklist");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        compile_schema->do_blacklist_column = custom_item->valueint;
-        read_cnt++;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "do_log");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        compile_schema->do_log_column = custom_item->valueint;
-        read_cnt++;
-    }
-
     custom_item = cJSON_GetObjectItem(item, "tags");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         compile_schema->tags_column = custom_item->valueint;
@@ -324,7 +293,7 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     compile_schema->ref_tbl_mgr = tbl_mgr;
 
-    if (read_cnt < 10) {
+    if (read_cnt < 6) {
 		goto error;
     }
 
@@ -437,46 +406,6 @@ compile_item_new(const char *line, struct compile_schema *compile_schema,
         goto error;
     }
     compile_item->compile_id = atoi(line + column_offset);
-
-    ret = get_column_pos(line, compile_schema->service_id_column, 
-                         &column_offset, &column_len);
-    if (ret < 0) {
-        log_error(logger, MODULE_COMPILE, 
-                  "compile table(table_id:%d) line:%s has no service_id",
-                  compile_schema->table_id, line);
-        goto error;
-    }
-    compile_item->service_id = atoi(line + column_offset);
-
-    ret = get_column_pos(line, compile_schema->action_column, 
-                        &column_offset, &column_len);
-    if (ret < 0) {
-        log_error(logger, MODULE_COMPILE, 
-                  "compile table(table_id:%d) line:%s has no action",
-                  compile_schema->table_id, line);
-        goto error;
-    }
-    compile_item->action = atoi(line + column_offset);
-
-    ret = get_column_pos(line, compile_schema->do_blacklist_column, 
-                         &column_offset, &column_len);
-    if (ret < 0) {
-        log_error(logger, MODULE_COMPILE, 
-                  "compile table(table_id:%d) line:%s has no do_blacklist",
-                  compile_schema->table_id, line);
-        goto error;
-    }
-    compile_item->do_blacklist = atoi(line + column_offset);
-
-    ret = get_column_pos(line, compile_schema->do_log_column, 
-                         &column_offset, &column_len);
-    if (ret < 0) {
-        log_error(logger, MODULE_COMPILE, 
-                 "compile table(table_id:%d) line:%s has no do_log",
-                  compile_schema->table_id, line);
-        goto error;
-    }
-    compile_item->do_log = atoi(line + column_offset);
 
     ret = get_column_pos(line, compile_schema->tags_column,
                          &column_offset, &column_len);
@@ -1296,7 +1225,7 @@ static int maat_compile_has_literal(struct maat_compile* compile,
 	return 0;
 }
 
-static int maat_compile_is_hit_path_existed(const struct maat_hit_path *hit_paths, 
+static int maat_compile_is_hit_path_existed(const struct maat_hit_path *hit_paths,
                                             size_t n_path, const struct maat_hit_path *find)
 {
 	for (size_t i = 0; i < n_path; i++) {
@@ -1312,11 +1241,11 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt,
                                      struct group2group_runtime *g2g_rt, 
 									 struct maat_compile_state *compile_state, 
                                   	 struct maat_hit_path *hit_paths, 
-                                     size_t hit_path_size)
+                                     size_t hit_path_index, size_t hit_path_size)
 {
-	size_t i = 0, j = 0; 
+	size_t i = 0, j = 0;
 	struct maat_internal_hit_path *internal_path = NULL;
-    size_t hit_path_cnt = 0;
+    size_t hit_path_cnt = hit_path_index;
     size_t new_hit_path_cnt = 0;
 
 	for (i = 0; i < utarray_len(compile_state->internal_hit_paths); i++) {
@@ -1502,10 +1431,6 @@ void compile_item_to_compile_rule(struct compile_item *compile_item,
 {
     struct maat_rule_head rule_head;
     rule_head.config_id = compile_item->compile_id;
-    rule_head.service_id = compile_item->service_id;
-    rule_head.action = compile_item->action;
-    rule_head.do_blacklist = compile_item->do_blacklist;
-    rule_head.do_log = compile_item->do_log;
     
     compile_rule->magic_num = COMPILE_RULE_MAGIC;
     compile_rule->head = rule_head;
@@ -1792,11 +1717,11 @@ int compile_runtime_match(struct compile_runtime *compile_rt,
 
 int maat_compile_state_update(struct maat_item *item_hash, int vtable_id,
                               int *hit_item_ids, size_t hit_item_cnt,
-                              int *group_ids, size_t group_ids_size,
+                              int *group_ids, int hit_group_index, size_t group_ids_size,
                               size_t *n_hit_group_id, struct maat_state *state)
 {
     struct maat_item *item = NULL;
-    size_t hit_group_cnt = 0;
+    size_t hit_group_cnt = hit_group_index;
 
     void *g2g_rt = table_manager_get_runtime(state->maat_instance->tbl_mgr,
                                              state->maat_instance->g2g_table_id);
@@ -1827,31 +1752,29 @@ int maat_compile_state_update(struct maat_item *item_hash, int vtable_id,
     *n_hit_group_id = hit_group_cnt;
 
     /* update hit clause */
-    int compile_table_id = -1;
-    if (state->compile_table_id == -1) {
-        compile_table_id = state->maat_instance->default_compile_table_id;
+    int compile_table_ids[MAX_COMPILE_TABLE_NUM] = {0};
+    size_t compile_table_cnt = 0;
+    if (0 == state->n_compile_table) {
+        compile_table_ids[0] = state->maat_instance->default_compile_table_id;
+        compile_table_cnt = 1;
     } else {
-        compile_table_id = state->compile_table_id;
+        for (size_t i = 0; i < state->n_compile_table; i++) {
+            compile_table_ids[i] = maat_table_get_id(state->maat_instance, state->compile_tables[i]);
+        }
+        compile_table_cnt = state->n_compile_table;
     }
 
-    void *compile_rt = table_manager_get_runtime(state->maat_instance->tbl_mgr, 
-                                                 compile_table_id);
-    enum table_type table_type = table_manager_get_table_type(state->maat_instance->tbl_mgr, 
-                                                              compile_table_id);
-    assert(table_type == TABLE_TYPE_COMPILE);
-
-    for (size_t i = 0; i < hit_group_cnt; i++) {
-        int top_group_ids[MAX_SCANNER_HIT_GROUP_NUM] = {-1};
-        int top_group_cnt = group2group_runtime_get_top_groups(g2g_rt, &group_ids[i], 
-                                                               1, top_group_ids);
-        // if (0 == top_group_cnt) {
-        //     maat_compile_state_update_hit_clause(state->compile_state, compile_rt,
-        //                                          group_ids[i], vtable_id);
-        // }
-        
-        for (int j = 0; j < top_group_cnt; j++) {
-            maat_compile_state_update_hit_clause(state->compile_state, compile_rt, 
-                                                 top_group_ids[j], vtable_id);
+    for (size_t idx = 0; idx < compile_table_cnt; idx++) {
+        void *compile_rt = table_manager_get_runtime(state->maat_instance->tbl_mgr, 
+                                                     compile_table_ids[idx]);
+        for (size_t i = 0; i < hit_group_cnt; i++) {
+            int top_group_ids[MAX_SCANNER_HIT_GROUP_NUM] = {-1};
+            int top_group_cnt = group2group_runtime_get_top_groups(g2g_rt, &group_ids[i],
+                                                                   1, top_group_ids);
+            for (int j = 0; j < top_group_cnt; j++) {
+                maat_compile_state_update_hit_clause(state->compile_state, compile_rt,
+                                                     top_group_ids[j], vtable_id);
+            }
         }
     }
 

@@ -51,13 +51,17 @@ enum maat_scan_status {
 #define	MAX_SERVICE_DEFINE_LEN 128
 struct maat_rule {
 	int	config_id;
-	int	service_id;
-	uint8_t	do_log;
-	uint8_t do_blacklist;
-	uint8_t	action;
 	uint8_t	reserved;
 	int	serv_def_len;
 	char service_defined[MAX_SERVICE_DEFINE_LEN];
+};
+
+struct ip_addr {
+    int ip_type;             //4: IPv4, 6: IPv6
+    union {
+        unsigned int ipv4;   //network order
+        unsigned int ipv6[4];
+    };
 };
 
 typedef void maat_start_callback_t(int update_type, void *u_param);
@@ -69,10 +73,10 @@ typedef void maat_plugin_ex_free_func_t(int table_id, void **ad, long argl, void
 typedef void maat_plugin_ex_dup_func_t(int table_id, void **to, void **from, long argl, void *argp);
 
 typedef void maat_rule_ex_new_func_t(int idx, const struct maat_rule *rule, const char *srv_def_large,
-									 void *ex_data, long argl, void *argp);
+									 void **ex_data, long argl, void *argp);
 typedef void maat_rule_ex_free_func_t(int idx, const struct maat_rule *rule, const char *srv_def_large,
-									  void *ex_data, long argl, void *argp);
-typedef void maat_rule_ex_dup_func_t(int idx, void *to, void *from, long argl, void *argp);
+									  void **ex_data, long argl, void *argp);
+typedef void maat_rule_ex_dup_func_t(int idx, void **to, void **from, long argl, void *argp);
 
 /* maat_instance options API */
 struct maat_options;
@@ -106,7 +110,7 @@ int maat_table_callback_register(struct maat *instance, int table_id,
 								 void *u_para);
 
 /* maat compile table API */
-int maat_compile_table_ex_schema_register(struct maat *instance, int table_id,
+int maat_compile_table_ex_schema_register(struct maat *instance, const char *table_name,
                                           maat_rule_ex_new_func_t *new_func,
                                           maat_rule_ex_free_func_t *free_func,
                                           maat_rule_ex_dup_func_t *dup_func,
@@ -114,16 +118,16 @@ int maat_compile_table_ex_schema_register(struct maat *instance, int table_id,
 void *maat_compile_table_get_ex_data(struct maat *instance, int table_id, int compile_id, size_t idx);
 
 /* maat plugin table API */
-int maat_plugin_table_ex_schema_register(struct maat *instance, int table_id,
+int maat_plugin_table_ex_schema_register(struct maat *instance, const char *table_name,
                                          maat_plugin_ex_new_func_t *new_func,
                                          maat_plugin_ex_free_func_t *free_func,
                                          maat_plugin_ex_dup_func_t *dup_func,
                                          long argl, void *argp);
 /* returned data is duplicated by dup_func of maat_plugin_table_ex_schema_register, 
    caller is responsible to free the data. */                                     
-int maat_plugin_table_get_ex_data(struct maat *instance, int table_id,
-                                    const char *key, size_t key_len,
-                                    void **ex_data_array, size_t n_ex_data);
+int maat_ip_plugin_table_get_ex_data(struct maat *instance, const char *table_name,
+                                     const struct ip_addr *ip,
+                                     void **ex_data_array, size_t n_ex_data);
 /* maat scan API */
 struct maat_state;
 
@@ -174,8 +178,8 @@ int maat_state_set_scan_district(struct maat *instance, struct maat_state **stat
 
 int maat_state_set_last_scan(struct maat *maat_instance, struct maat_state **state);
 
-int maat_state_set_scan_compile_table(struct maat *maat_instance, struct maat_state **state, 
-                                      int compile_table_id);
+int maat_state_set_scan_compile_tables(struct maat *maat_instance, struct maat_state **state, 
+                                       const char *compile_table[], size_t n_table);
 
 int maat_state_get_hit_paths(struct maat *instance, struct maat_state **state, 
                              struct maat_hit_path *paths, size_t n_path);

@@ -20,7 +20,8 @@
 #define MODULE_VIRTUAL	 module_name_str("maat.virtual")
 
 struct virtual_schema {
-	int physical_table_id[SCAN_TYPE_MAX];
+    char physical_tables[MAX_PHYSICAL_TABLE_NUM][NAME_MAX];
+    size_t n_physical_table;
     int table_id;
     struct table_manager *ref_tbl_mgr;
 };
@@ -28,38 +29,38 @@ struct virtual_schema {
 void *virtual_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
                          const char *table_name, struct log_handle *logger)
 {
-    cJSON *item = cJSON_GetObjectItem(json, "physical_table");
+    struct virtual_schema *schema = ALLOC(struct virtual_schema, 1);
+    schema->ref_tbl_mgr = tbl_mgr;
+   
+    cJSON *item = cJSON_GetObjectItem(json, "table_id");
+    if (NULL == item || item->type != cJSON_Number) {
+        log_error(logger, MODULE_VIRTUAL, 
+                  "virtual table %s has no table_id column", table_name);
+        goto error;
+    }
+    schema->table_id = item->valueint;
+
+    item = cJSON_GetObjectItem(json, "physical_table");
     if (NULL == item || item->type != cJSON_Array) {
         log_error(logger, MODULE_VIRTUAL, 
                   "virtual table %s has no physical_table column", table_name);
-        return NULL;
+        goto error;
     }
 
-    struct virtual_schema *vt_schema = ALLOC(struct virtual_schema, 1);
-    vt_schema->ref_tbl_mgr = tbl_mgr;
-   
     int cnt = cJSON_GetArraySize(item);
     for (int i = 0; i < cnt; i++) {
         cJSON *tmp_item = cJSON_GetArrayItem(item, i);
         if (tmp_item != NULL && tmp_item->type == cJSON_String) {
-            int table_id = table_manager_get_table_id(tbl_mgr, tmp_item->valuestring);
-            /* physical table should already exist */
-            if (table_id < 0) {
-                log_error(logger, MODULE_VIRTUAL, "table:%s is not registered",
-                            tmp_item->valuestring);
-                FREE(vt_schema);
-                return NULL;
-            }
-
-            enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
-            assert(table_type != TABLE_TYPE_INVALID);
-            enum scan_type scan_type = maat_table_get_scan_type(table_type);
-            assert(scan_type != SCAN_TYPE_INVALID);
-            vt_schema->physical_table_id[scan_type]= table_id;
+           memcpy(schema->physical_tables[i], tmp_item->valuestring, 
+                  strlen(tmp_item->valuestring));
         }
     }
+    schema->n_physical_table = cnt;
 
-    return vt_schema;
+    return schema;
+error:
+    FREE(schema);
+    return NULL;
 }
 
 void virtual_schema_free(void *virtual_schema)
@@ -67,12 +68,28 @@ void virtual_schema_free(void *virtual_schema)
     FREE(virtual_schema);
 }
 
-int virtual_table_get_physical_table_id(void *virtual_schema, enum scan_type type)
+int virtual_table_get_id(void *virtual_schema)
 {
     if (NULL == virtual_schema) {
         return -1;
     }
 
     struct virtual_schema *schema = (struct virtual_schema *)virtual_schema;
-    return schema->physical_table_id[type];
+    return schema->table_id;
+}
+
+size_t virtual_table_get_physical_table_id(void *virtual_schema, int physical_table_ids[])
+{
+    if (NULL == virtual_schema) {
+        return -1;
+    }
+
+    struct virtual_schema *schema = (struct virtual_schema *)virtual_schema;
+
+    for (size_t i = 0; i < schema->n_physical_table; i++) {
+        int table_id = table_manager_get_table_id(schema->ref_tbl_mgr, schema->physical_tables[i]);
+        physical_table_ids[i] = table_id;
+    }
+    
+    return schema->n_physical_table;
 }

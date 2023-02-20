@@ -250,8 +250,8 @@ int ex_data_runtime_del_ex_container(struct ex_data_runtime *ex_data_rt,
     return 0;
 }
 
-void *ex_data_runtime_get_ex_data(struct ex_data_runtime *ex_data_rt, 
-                                  const char *key, size_t key_len)
+void *ex_data_runtime_get_ex_data_by_key(struct ex_data_runtime *ex_data_rt, 
+                                         const char *key, size_t key_len)
 {
     struct ex_data_container *ex_container = NULL;
     ex_container = (struct ex_data_container *)rcu_hash_find(ex_data_rt->htable, 
@@ -260,6 +260,17 @@ void *ex_data_runtime_get_ex_data(struct ex_data_runtime *ex_data_rt,
         return NULL;
     }
 
+    void *dup_ex_data = NULL;
+    ex_data_rt->ex_schema->dup_func(ex_data_rt->table_id, &dup_ex_data, 
+                                    &(ex_container->ex_data), 
+                                    ex_data_rt->ex_schema->argl, 
+                                    ex_data_rt->ex_schema->argp);
+    return dup_ex_data;
+}
+
+void *ex_data_runtime_get_ex_data_by_container(struct ex_data_runtime *ex_data_rt, 
+                                               struct ex_data_container *ex_container)
+{
     void *dup_ex_data = NULL;
     ex_data_rt->ex_schema->dup_func(ex_data_rt->table_id, &dup_ex_data, 
                                     &(ex_container->ex_data), 

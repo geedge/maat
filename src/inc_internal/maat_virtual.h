@@ -40,7 +40,8 @@ void *virtual_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
 void virtual_schema_free(void *virtual_schema);
 
-int virtual_table_get_physical_table_id(void *virtual_schema, enum scan_type type);
+int virtual_table_get_id(void *virtual_schema);
+size_t virtual_table_get_physical_table_id(void *virtual_schema, int physical_table_ids[]);
 
 #ifdef __cplusplus
 }

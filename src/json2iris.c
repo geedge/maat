@@ -1024,11 +1024,12 @@ void write_table_idx(struct iris_description *p_iris, struct iris_table *table)
 	memcpy(buff, line_cnt_str, strlen(line_cnt_str));
 	memcpy(buff + strlen(line_cnt_str), table->buff, table->write_pos);
 
+    UNUSED int ret = 0;
 	FILE *table_fp = fopen(table->table_path, "w");
 	if (p_iris->encrypt_key) {
         unsigned char *encrypt_buff = NULL;
         size_t encrypt_buff_sz = 0;
-		int ret = crypt_memory(buff, table_file_sz, &encrypt_buff, 
+		ret = crypt_memory(buff, table_file_sz, &encrypt_buff, 
                                 &encrypt_buff_sz, p_iris->encrypt_key, 
                                 p_iris->encrypt_algo, 1, err_str, sizeof(err_str));
 		assert(ret == 0);
