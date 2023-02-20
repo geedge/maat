@@ -489,3 +489,30 @@ struct ex_data_runtime *bool_plugin_runtime_get_ex_data_rt(void *bool_plugin_run
 
     return bool_plugin_rt->ex_data_rt;
 }
+
+int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, unsigned long long *item_ids,
+                                    size_t n_item, void **ex_data_array, size_t n_ex_data)
+{
+    if (NULL == bool_plugin_runtime) {
+        return -1;
+    }
+
+    struct bool_plugin_runtime *bool_plugin_rt = (struct bool_plugin_runtime *)bool_plugin_runtime;
+    if (NULL == bool_plugin_rt->matcher) {
+        log_info(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN, 
+                 "bool_matcher is NULL, can't get ex data");
+        return 0;
+    }
+
+    struct bool_expr_match results[n_ex_data];
+	memset(results, 0, sizeof(results));
+
+    n_item = ull_dedup(item_ids, n_item);
+	int n_result = bool_matcher_match(bool_plugin_rt->matcher, item_ids, n_item, results, n_ex_data);
+	for (int i = 0; i < n_result; i++) {
+		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(bool_plugin_rt->ex_data_rt, 
+                                                                    (struct ex_data_container *)results[i].user_tag);
+	}
+
+	return n_result;
+}

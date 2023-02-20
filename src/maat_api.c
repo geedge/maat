@@ -33,6 +33,7 @@
 #include "maat_ip.h"
 #include "maat_plugin.h"
 #include "maat_ip_plugin.h"
+#include "maat_fqdn_plugin.h"
 #include "maat_virtual.h"
 
 #define MODULE_MAAT_API	 module_name_str("maat.api")
@@ -418,13 +419,17 @@ const char *generic_plugin_runtime_get_cached_row(void *custom_rt, enum table_ty
 }
 
 /* must be plugin table */
-int maat_table_callback_register(struct maat *maat_instance, int table_id,
+int maat_table_callback_register(struct maat *maat_instance, const char *table_name,
 								 maat_start_callback_t *start,
 								 maat_update_callback_t *update,
 								 maat_finish_callback_t *finish,
 								 void *u_para)
 {
     int ret = -1;
+    int table_id = maat_table_get_id(maat_instance, table_name);
+    if (table_id < 0) {
+        return -1;
+    }
 
     pthread_mutex_lock(&(maat_instance->background_update_mutex));
     void *schema = table_manager_get_schema(maat_instance->tbl_mgr, table_id);
@@ -500,8 +505,13 @@ int maat_compile_table_ex_schema_register(struct maat *maat_instance, const char
                                                  argl, argp, maat_instance->logger);
 }
 
-void *maat_compile_table_get_ex_data(struct maat *maat_instance, int table_id, int compile_id, size_t idx)
+void *maat_compile_table_get_ex_data(struct maat *maat_instance, const char *table_name, int compile_id, size_t idx)
 {
+    int table_id = maat_table_get_id(maat_instance, table_name);
+    if (table_id < 0) {
+        return NULL;
+    }
+    
     struct compile_schema *schema = (struct compile_schema *)table_manager_get_schema(maat_instance->tbl_mgr, 
                                                                                       table_id);
     return compile_table_get_rule_ex_data(schema, compile_id, idx);
@@ -661,8 +671,8 @@ int maat_plugin_table_ex_schema_register(struct maat *maat_instance, const char 
 }
 
 int maat_ip_plugin_table_get_ex_data(struct maat *maat_instance, const char *table_name,
-                                     const struct ip_addr *ip_addr,
-                                     void **ex_data_array, size_t n_ex_data)
+                                     const struct ip_addr *ip_addr, void **ex_data_array, 
+                                     size_t n_ex_data)
 {
     if (NULL == maat_instance || NULL == table_name || NULL == ip_addr ||
         NULL == ex_data_array || 0 == n_ex_data) {
@@ -687,6 +697,67 @@ int maat_ip_plugin_table_get_ex_data(struct maat *maat_instance, const char *tab
     }
 
     int n_hit_ex_data = ip_plugin_runtime_get_ex_data(ip_plugin_rt, ip_addr, ex_data_array, n_ex_data);
+    
+    return n_hit_ex_data;
+}
+
+int maat_fqdn_plugin_table_get_ex_data(struct maat *maat_instance, const char *table_name,
+                                       const char *fqdn, void **ex_data_array, size_t n_ex_data)
+{
+    if (NULL == maat_instance || NULL == table_name || NULL == fqdn ||
+        NULL == ex_data_array || 0 == n_ex_data) {
+        return -1;
+    }
+    
+    int table_id = maat_table_get_id(maat_instance, table_name);
+    if (table_id < 0) {
+        log_error(maat_instance->logger, MODULE_MAAT_API, 
+                  "table_name:%s not registered yet, can't register ex_schema.", table_name);
+        return -1;
+    }
+
+    struct maat_runtime *maat_rt = maat_instance->maat_rt;
+    if (NULL == maat_rt) {
+        return -1;
+    }
+
+    void *fqdn_plugin_rt = table_manager_get_runtime(maat_rt->ref_tbl_mgr, table_id);
+    if (NULL == fqdn_plugin_rt) {
+        return -1;
+    }
+
+    int n_hit_ex_data = fqdn_plugin_runtime_get_ex_data(fqdn_plugin_rt, fqdn, ex_data_array, n_ex_data);
+    
+    return n_hit_ex_data;
+}
+
+int maat_bool_plugin_table_get_ex_data(struct maat *maat_instance, const char *table_name,
+                                       unsigned long long *item_ids, size_t n_item,
+                                       void **ex_data_array, size_t n_ex_data)
+{
+    if (NULL == maat_instance || NULL == table_name || NULL == item_ids ||
+        NULL == ex_data_array || 0 == n_ex_data) {
+        return -1;
+    }
+    
+    int table_id = maat_table_get_id(maat_instance, table_name);
+    if (table_id < 0) {
+        log_error(maat_instance->logger, MODULE_MAAT_API, 
+                  "table_name:%s not registered yet, can't register ex_schema.", table_name);
+        return -1;
+    }
+
+    struct maat_runtime *maat_rt = maat_instance->maat_rt;
+    if (NULL == maat_rt) {
+        return -1;
+    }
+
+    void *bool_plugin_rt = table_manager_get_runtime(maat_rt->ref_tbl_mgr, table_id);
+    if (NULL == bool_plugin_rt) {
+        return -1;
+    }
+
+    int n_hit_ex_data = bool_plugin_runtime_get_ex_data(bool_plugin_rt, item_ids, n_item, ex_data_array, n_ex_data);
     
     return n_hit_ex_data;
 }
@@ -749,15 +820,20 @@ size_t hit_group_to_compile(void *compile_runtime, int *compile_ids, size_t comp
     return n_hit_compile;
 }
 
-int maat_scan_flag(struct maat *maat_instance, int table_id, int thread_id,
+int maat_scan_flag(struct maat *maat_instance, const char *table_name, int thread_id,
                    uint64_t flag, int *results, size_t n_result,
                    size_t *n_hit_result, struct maat_state **state)
 {
-    if ((NULL == maat_instance) || (table_id < 0) || (table_id >= MAX_TABLE_NUM) 
-        || (thread_id < 0) || (NULL == results) || (0 == n_result) || (NULL == state)) {
+    if ((NULL == maat_instance) || NULL == table_name || (thread_id < 0) || 
+        (NULL == results) || (0 == n_result) || (NULL == state)) {
         return MAAT_SCAN_ERR;
     }
     
+    int table_id = maat_table_get_id(maat_instance, table_name);
+    if (table_id < 0) {
+        return MAAT_SCAN_ERR;
+    }
+
     struct maat_state *mid = NULL;
     mid = grab_state(state, maat_instance, thread_id);
     mid->scan_cnt++;
@@ -874,15 +950,20 @@ int maat_scan_flag(struct maat *maat_instance, int table_id, int thread_id,
     return MAAT_SCAN_OK;
 }
 
-int maat_scan_integer(struct maat *maat_instance, int table_id, int thread_id,
+int maat_scan_integer(struct maat *maat_instance, const char *table_name, int thread_id,
                       unsigned int intval, int *results, size_t n_result,
                       size_t *n_hit_result, struct maat_state **state)
 {
-    if ((NULL == maat_instance) || (table_id < 0) || (table_id >= MAX_TABLE_NUM) 
-        || (thread_id < 0) || (NULL == results) || (0 == n_result) || (NULL == state)) {
+    if ((NULL == maat_instance) || NULL == table_name || (thread_id < 0) || 
+        (NULL == results) || (0 == n_result) || (NULL == state)) {
         return MAAT_SCAN_ERR;
     }
     
+    int table_id = maat_table_get_id(maat_instance, table_name);
+    if (table_id < 0) {
+        return MAAT_SCAN_ERR;
+    }
+
     struct maat_state *mid = NULL;
     mid = grab_state(state, maat_instance, thread_id);
     mid->scan_cnt++;
@@ -1005,12 +1086,17 @@ int maat_scan_integer(struct maat *maat_instance, int table_id, int thread_id,
     return MAAT_SCAN_OK;
 }
 
-int maat_scan_ipv4(struct maat *maat_instance, int table_id, int thread_id, 
+int maat_scan_ipv4(struct maat *maat_instance, const char *table_name, int thread_id, 
                    uint32_t ip_addr, int *results, size_t n_result, 
                    size_t *n_hit_result, struct maat_state **state)
 {
-    if ((NULL == maat_instance) || (table_id < 0) || (table_id >= MAX_TABLE_NUM) ||
-        (thread_id < 0) || (NULL == results) || (0 == n_result) || (NULL == state)) {
+    if ((NULL == maat_instance) || NULL == table_name || (thread_id < 0) || 
+        (NULL == results) || (0 == n_result) || (NULL == state)) {
+        return MAAT_SCAN_ERR;
+    }
+
+    int table_id = maat_table_get_id(maat_instance, table_name);
+    if (table_id < 0) {
         return MAAT_SCAN_ERR;
     }
 
@@ -1132,13 +1218,18 @@ int maat_scan_ipv4(struct maat *maat_instance, int table_id, int thread_id,
 }
 
 
-int maat_scan_ipv6(struct maat *maat_instance, int table_id, int thread_id, 
+int maat_scan_ipv6(struct maat *maat_instance, const char *table_name, int thread_id, 
                    uint8_t *ip_addr, int *results, size_t n_result, 
                    size_t *n_hit_result, struct maat_state **state)
 {
-    if ((NULL == maat_instance) || (table_id < 0) || (table_id >= MAX_TABLE_NUM) ||
-        (thread_id < 0) || (NULL == ip_addr) || (NULL == results) || (0 == n_result) ||
+    if ((NULL == maat_instance) || NULL == table_name || (thread_id < 0) || 
+        (NULL == ip_addr) || (NULL == results) || (0 == n_result) ||
         (NULL == state)) {
+        return MAAT_SCAN_ERR;
+    }
+
+    int table_id = maat_table_get_id(maat_instance, table_name);
+    if (table_id < 0) {
         return MAAT_SCAN_ERR;
     }
 
@@ -1257,16 +1348,21 @@ int maat_scan_ipv6(struct maat *maat_instance, int table_id, int thread_id,
     return MAAT_SCAN_OK;
 }
 
-int maat_scan_string(struct maat *maat_instance, int table_id, int thread_id,
+int maat_scan_string(struct maat *maat_instance, const char *table_name, int thread_id,
                      const char *data, size_t data_len, int *results, size_t n_result,
                      size_t *n_hit_result, struct maat_state **state)
 {
-    if ((NULL == maat_instance) || (table_id < 0) || (table_id >= MAX_TABLE_NUM) 
-        || (thread_id < 0) || (NULL == data) || (0 == data_len) 
-        || (NULL == results) || (0 == n_result) || (NULL == state)) {
+    if ((NULL == maat_instance) || NULL == table_name || (thread_id < 0) || 
+        (NULL == data) || (0 == data_len) || (NULL == results) || 
+        (0 == n_result) || (NULL == state)) {
         return MAAT_SCAN_ERR;
     }
     
+    int table_id = maat_table_get_id(maat_instance, table_name);
+    if (table_id < 0) {
+        return MAAT_SCAN_ERR;
+    }
+
     struct maat_state *mid = NULL;
     mid = grab_state(state, maat_instance, thread_id);
     mid->scan_cnt++;
@@ -1387,7 +1483,7 @@ int maat_scan_string(struct maat *maat_instance, int table_id, int thread_id,
     return MAAT_SCAN_OK;
 }
 
-struct maat_stream *maat_scan_stream_open(struct maat *instance, int table_id, int thread_id)
+struct maat_stream *maat_scan_stream_open(struct maat *instance, const char *table_name, int thread_id)
 {
     return NULL;
 }

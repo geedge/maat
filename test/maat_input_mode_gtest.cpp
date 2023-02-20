@@ -36,13 +36,12 @@ TEST(json_mode, maat_scan_string) {
     struct maat *maat_instance = maat_new(opts, table_info_path);
     EXPECT_TRUE(maat_instance != NULL);
 
-    int table_id = maat_table_get_id(maat_instance, "KEYWORDS_TABLE");
-   
+    const char *table_name = "KEYWORDS_TABLE";
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     int results[5] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data), 
+    int ret = maat_scan_string(maat_instance, table_name, 0, scan_data, strlen(scan_data), 
                                results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -81,13 +80,12 @@ TEST(iris_mode, maat_scan_string) {
     struct maat *maat_instance = maat_new(opts, table_info_path);
     EXPECT_TRUE(maat_instance != NULL);
 
-    int table_id = maat_table_get_id(maat_instance, "KEYWORDS_TABLE");
-   
+    const char *table_name = "KEYWORDS_TABLE";
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     int results[5] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data), 
+    int ret = maat_scan_string(maat_instance, table_name, 0, scan_data, strlen(scan_data), 
                                results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -202,13 +200,12 @@ TEST(redis_mode, maat_scan_string) {
     maat_options_set_logger(opts, g_logger);
 
     struct maat *maat_instance = maat_new(opts, table_info_path);
-    int table_id = maat_table_get_id(maat_instance, "KEYWORDS_TABLE");
-   
+    const char *table_name = "KEYWORDS_TABLE";
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     int results[5] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data), 
+    int ret = maat_scan_string(maat_instance, table_name, 0, scan_data, strlen(scan_data), 
                                results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);

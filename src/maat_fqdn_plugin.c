@@ -428,3 +428,30 @@ struct ex_data_runtime *fqdn_plugin_runtime_get_ex_data_rt(void *fqdn_plugin_run
 
     return fqdn_plugin_rt->ex_data_rt;
 }
+
+
+int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, const char *query_fqdn, 
+                                    void **ex_data_array, size_t n_ex_data)
+{
+    if (NULL == fqdn_plugin_runtime) {
+        return -1;
+    }
+
+    struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+    if (NULL == fqdn_plugin_rt->engine) {
+        log_info(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN, 
+                 "fqdn_engine is NULL, can't get ex data");
+        return 0;
+    }
+
+    struct FQDN_match results[n_ex_data];
+	memset(results, 0, sizeof(results));
+
+	int n_result = FQDN_engine_search(fqdn_plugin_rt->engine, query_fqdn, strlen(query_fqdn), results, n_ex_data);
+	for (int i = 0; i < n_result; i++) {
+		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(fqdn_plugin_rt->ex_data_rt, 
+                                                                    (struct ex_data_container *)results[i].user_tag);
+	}
+
+	return n_result;
+}
