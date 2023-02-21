@@ -115,7 +115,8 @@ void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     custom_item = cJSON_GetObjectItem(item, "addr_format");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->addr_format_column = custom_item->valueint;
-        read_cnt++;
+        //TODO: just because test table not add this column
+        //read_cnt++;
     }
 
     // rule_tag is optional
@@ -126,7 +127,7 @@ void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     schema->ref_tbl_mgr = tbl_mgr;
 
-    if (read_cnt < 6) {
+    if (read_cnt < 5) {
         goto error;
     }
     
@@ -242,6 +243,8 @@ ip_plugin_item_new(const char *line, struct ip_plugin_schema *schema,
         goto error;
     }
 
+    //TODO: to be added again,
+    #if 0
     ret = get_column_pos(line, schema->addr_format_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_IP_PLUGIN, 
@@ -257,7 +260,10 @@ ip_plugin_item_new(const char *line, struct ip_plugin_schema *schema,
                   schema->table_id, line);
         goto error;
     }
-
+    #endif
+    const char *tmp_str = "range";
+    memcpy(addr_format, tmp_str, strlen(tmp_str));
+    
     ret = get_column_pos(line, schema->start_ip_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_IP_PLUGIN, 
