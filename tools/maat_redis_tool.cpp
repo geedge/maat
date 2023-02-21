@@ -72,9 +72,9 @@ void read_rule_from_redis(redisContext *c, long long desire_version, const char 
 	int update_type = MAAT_UPDATE_TYPE_INC;
 	long long version = 0;
 	const char *cur_table = NULL;
-    char foreign_files_dir[256] = {0};
-	char table_path[256] = {0};
-    char index_path[256] = {0};
+    char foreign_files_dir[NAME_MAX] = {0};
+	char table_path[PATH_MAX] = {0};
+    char index_path[PATH_MAX] = {0};
 	FILE *table_fp = NULL; 
     FILE *index_fp = NULL;
     struct serial_rule *rule_list = NULL;

@@ -682,7 +682,6 @@
             "do_blacklist": 1,
             "do_log": 1,
             "user_region": "Something:I\\bhave\\ba\\bname,7799",
-            "table_name":"COMPILE_ALIAS",
             "is_valid": "yes",
             "groups": [
                 {

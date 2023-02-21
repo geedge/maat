@@ -54,6 +54,7 @@ int compile_table_set_rule_ex_data_schema(struct compile_schema *compile_schema,
                                           long argl, void *argp,
                                           struct log_handle *logger);
 void *compile_table_get_rule_ex_data(struct compile_schema *compile_schema, int compile_id, size_t idx);
+void compile_table_rule_ex_data_iterate(struct compile_schema *compile_schema, int idx);
 
 size_t compile_table_rule_ex_data_schema_count(struct compile_schema *compile_schema);
 

@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <pthread.h>
-#include <limits.h>
+#include <linux/limits.h>
 #include <string.h>
 #include <sys/prctl.h>
 #include <sys/stat.h>

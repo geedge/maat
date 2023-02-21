@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
+#include <linux/limits.h>
 #include <sys/stat.h>
 #include <dirent.h>
 #include <unistd.h>
@@ -23,7 +23,6 @@
 
 #define MODULE_CONFIG_MONITOR	 module_name_str("maat.config_monitor")
 
-#define CM_MAX_TABLE_NUM 256
 #define	MAX_CONFIG_LINE	(1024 * 16)
 
 struct cm_table_info_t
@@ -319,7 +318,7 @@ void config_monitor_traverse(long long current_version, const char *idx_dir,
 	long long new_version = 0;
 	char **idx_path_array = NULL;
 	size_t idx_path_num = 0;
-	struct cm_table_info_t table_array[CM_MAX_TABLE_NUM];
+	struct cm_table_info_t table_array[MAX_TABLE_NUM];
 
 	memset(table_array, 0, sizeof(table_array));
 
@@ -327,7 +326,7 @@ void config_monitor_traverse(long long current_version, const char *idx_dir,
 	if (update_type != MAAT_UPDATE_TYPE_NONE) {
 		for (i = 0; i < idx_path_num; i++) {
             log_info(logger, MODULE_CONFIG_MONITOR, "load %s", idx_path_array[i]);
-			int table_num = cm_read_cfg_index_file(idx_path_array[i], table_array, CM_MAX_TABLE_NUM);
+			int table_num = cm_read_cfg_index_file(idx_path_array[i], table_array, MAX_TABLE_NUM);
 			if (table_num < 0) {
 				log_error(logger, MODULE_CONFIG_MONITOR, "load %s failed, abandon update", idx_path_array[i]);
 				break;

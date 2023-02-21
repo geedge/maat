@@ -12,8 +12,8 @@ const char *json_filename = "maat_json.json";
 struct log_handle *g_logger = NULL;
 
 TEST(json_mode, maat_scan_string) {
-    char tmp_iris_path[128] = {0};
-    char json_iris_path[128] = {0};
+    char tmp_iris_path[PATH_MAX] = {0};
+    char json_iris_path[PATH_MAX] = {0};
     snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
 
     if (access(json_iris_path, F_OK) < 0) {
@@ -29,7 +29,7 @@ TEST(json_mode, maat_scan_string) {
 	}
 
 	struct maat_options *opts = maat_options_new();
-    char json_path[128] = {0};
+    char json_path[PATH_MAX] = {0};
     snprintf(json_path, sizeof(json_path), "./%s", json_filename);
     maat_options_set_json_file(opts, json_path);
 
@@ -37,11 +37,12 @@ TEST(json_mode, maat_scan_string) {
     EXPECT_TRUE(maat_instance != NULL);
 
     const char *table_name = "KEYWORDS_TABLE";
+    int table_id = maat_table_get_id(maat_instance, table_name);
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     int results[5] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    int ret = maat_scan_string(maat_instance, table_name, 0, scan_data, strlen(scan_data), 
+    int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data), 
                                results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -53,8 +54,8 @@ TEST(json_mode, maat_scan_string) {
 }
 
 TEST(iris_mode, maat_scan_string) {
-    char tmp_iris_path[128] = {0};
-    char json_iris_path[128] = {0};
+    char tmp_iris_path[512] = {0};
+    char json_iris_path[512] = {0};
     snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
 
     if (access(json_iris_path, F_OK) < 0) {
@@ -69,8 +70,8 @@ TEST(iris_mode, maat_scan_string) {
 		EXPECT_NE(ret, -1);
 	}
 
-    char tmp_iris_full_idx_path[128] = {0};
-    char tmp_iris_inc_idx_path[128] = {0};
+    char tmp_iris_full_idx_path[PATH_MAX] = {0};
+    char tmp_iris_inc_idx_path[PATH_MAX] = {0};
     snprintf(tmp_iris_full_idx_path, sizeof(tmp_iris_full_idx_path), "%s/index", json_iris_path);
     snprintf(tmp_iris_inc_idx_path, sizeof(tmp_iris_inc_idx_path), "%s/index", json_iris_path);
 
@@ -81,11 +82,12 @@ TEST(iris_mode, maat_scan_string) {
     EXPECT_TRUE(maat_instance != NULL);
 
     const char *table_name = "KEYWORDS_TABLE";
+    int table_id = maat_table_get_id(maat_instance, table_name);
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     int results[5] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    int ret = maat_scan_string(maat_instance, table_name, 0, scan_data, strlen(scan_data), 
+    int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data), 
                                results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -135,7 +137,8 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 		buff[strlen(buff)-1]='\0';
 	}
 
-	maat_cmd_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, rule_id, table_name, buff, absolute_expire_time);
+	maat_cmd_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, rule_id, table_name, 
+                             buff, absolute_expire_time);
 	line_idx++;
 	FREE(str1);
 
@@ -143,7 +146,7 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 }
 
 TEST(redis_mode, maat_scan_string) {
-    char json_iris_path[128] = {0};
+    char json_iris_path[512] = {0};
     char redis_ip[64] = "127.0.0.1";
     int redis_port = 6379;
     int redis_db = 0;
@@ -170,7 +173,7 @@ TEST(redis_mode, maat_scan_string) {
     }
 
     size_t total_line_cnt = 0;
-    char tmp_iris_full_idx_path[128] = {0};
+    char tmp_iris_full_idx_path[PATH_MAX] = {0};
     snprintf(tmp_iris_full_idx_path, sizeof(tmp_iris_full_idx_path), "%s/index", json_iris_path);
     config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, count_line_num_cb, NULL, 
                             &total_line_cnt, g_logger);
@@ -201,11 +204,12 @@ TEST(redis_mode, maat_scan_string) {
 
     struct maat *maat_instance = maat_new(opts, table_info_path);
     const char *table_name = "KEYWORDS_TABLE";
+    int table_id = maat_table_get_id(maat_instance, table_name);
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     int results[5] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    int ret = maat_scan_string(maat_instance, table_name, 0, scan_data, strlen(scan_data), 
+    int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data), 
                                results, sizeof(results), &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -222,7 +226,7 @@ int main(int argc, char ** argv)
 	::testing::InitGoogleTest(&argc, argv);
     g_logger = log_handle_create("./input_mode_gtest.log", 0);
 
-    char json_iris_path[128] = {0};
+    char json_iris_path[NAME_MAX] = {0};
     snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
     if ((access(json_iris_path, F_OK)) == 0) {
         system_cmd_rmdir(json_iris_path);

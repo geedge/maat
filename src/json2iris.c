@@ -8,7 +8,7 @@
 ***********************************************************************************************
 */
 
-#include <limits.h>
+#include <linux/limits.h>
 #include <string.h>
 #include <unistd.h>
 #include <assert.h>
@@ -29,6 +29,8 @@
 #define mr_region_id_var "SEQUENCE_REGION"
 #define mr_group_id_var	 "SEQUENCE_GROUP"
 
+#define MAX_PATH_LINE 512
+
 const int json_version = 1;
 const char *untitled_group_name="Untitled";
 
@@ -39,12 +41,12 @@ enum maat_group_relation {
 
 struct group_info {
 	int group_id;
-	char group_name[PATH_MAX];
+	char group_name[NAME_MAX];
     UT_hash_handle hh;
 };
 
 struct iris_table {
-	char table_name[PATH_MAX];
+	char table_name[NAME_MAX];
 	char table_path[PATH_MAX];
 	int line_count;
 	enum table_type table_type;
@@ -58,8 +60,8 @@ struct iris_description {
 	int group_cnt;
 	int region_cnt;
 	
-	char tmp_iris_dir[PATH_MAX];
-	char tmp_iris_index_dir[PATH_MAX];
+	char tmp_iris_dir[MAX_PATH_LINE];
+	char tmp_iris_index_dir[MAX_PATH_LINE];
 	char index_path[PATH_MAX];
 
 	struct iris_table *group_table;

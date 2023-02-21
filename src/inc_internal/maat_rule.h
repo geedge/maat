@@ -18,7 +18,7 @@ extern "C"
 
 #include <stdint.h>
 #include <stddef.h>
-#include <limits.h>
+#include <linux/limits.h>
 #include <sys/time.h>
 #include <pthread.h>
 #include <sys/queue.h>
@@ -35,7 +35,7 @@ extern "C"
 #include "maat_rule.h"
 #include "maat_virtual.h"
 
-#define MAX_TABLE_NUM	256
+#define MAX_TABLE_NUM	1024
 #define MAX_COMPILE_TABLE_NUM 16
 #define MAX_PHYSICAL_TABLE_NUM  16
 
@@ -314,9 +314,6 @@ void maat_cmd_rewrite_table_line_with_foreign(struct serial_rule *s_rule);
 void maat_cmd_set_serial_rule(struct serial_rule *rule, enum maat_operation op,
                               unsigned long rule_id, const char *table_name,
                               const char *line, long long timeout);
-
-void fill_maat_rule(struct maat_rule *rule, const struct maat_rule_head *rule_head,
-                    const char *srv_def, int srv_def_len);
 
 #ifdef __cplusplus
 }

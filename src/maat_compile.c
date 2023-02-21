@@ -10,7 +10,7 @@
 
 #include <assert.h>
 #include <pthread.h>
-#include <limits.h>
+#include <linux/limits.h>
 
 #include "maat_utils.h"
 #include "log/log.h"
@@ -38,7 +38,7 @@ struct compile_schema {
     int compile_id_column;
     int tags_column;
     int user_region_column;
-    int clause_num_column;
+    int declared_clause_num_column;
     int evaluation_order_column;
     enum user_region_encode user_region_encoding;
 	size_t n_ex_schema;
@@ -62,7 +62,7 @@ struct group2compile_schema {
 struct compile_item {
     int compile_id;
     char user_region[MAX_TABLE_LINE_SIZE];
-    int clause_num;
+    int declared_clause_num;
     int evaluation_order;
 };
 
@@ -202,6 +202,82 @@ void *compile_runtime_get_user_data(struct compile_runtime *compile_rt, int comp
     return ret;
 }
 
+void fill_maat_rule(struct maat_rule *rule, const struct maat_rule_head *rule_head,
+                    const char *srv_def, int srv_def_len)
+{
+    memcpy(rule, rule_head, sizeof(struct maat_rule_head));
+	memcpy(rule->service_defined, srv_def, MIN(srv_def_len, MAX_SERVICE_DEFINE_LEN));
+}
+
+void *rule_ex_data_new(const struct maat_rule_head *rule_head, const char *srv_def,
+                       const struct compile_ex_data_schema *ex_schema)
+{
+	void *ex_data = NULL;
+	struct maat_rule rule;
+
+	fill_maat_rule(&rule, rule_head, srv_def, strlen(srv_def)+1);
+	ex_schema->new_func(ex_schema->idx, &rule, srv_def, &ex_data, ex_schema->argl, ex_schema->argp);
+	
+    return ex_data;
+}
+
+void rule_ex_data_free(const struct maat_rule_head *rule_head, const char *srv_def, 
+                       void *ex_data, const struct compile_ex_data_schema *ex_schema)
+{
+	struct maat_rule rule;
+
+    memset(&rule, 0, sizeof(rule));
+	fill_maat_rule(&rule, rule_head, srv_def, strlen(srv_def)+1);
+	ex_schema->free_func(ex_schema->idx, &rule, srv_def, ex_data, 
+                         ex_schema->argl, ex_schema->argp);
+}
+
+void rule_ex_data_new_cb(void *user_data, void *param)
+{
+	struct compile_ex_data_schema *ex_schema = (struct compile_ex_data_schema *)param;
+	struct compile_rule *compile = (struct compile_rule *)user_data;
+	
+	// if(compile->ref_table->table_id!=ex_desc->table_id)
+	// {
+	// 	return;
+	// }
+    
+	void *ad = rule_ex_data_new(&(compile->head), compile->service_defined, ex_schema);
+	compile->ex_data[ex_schema->idx] = ad;
+}
+
+void compile_runtime_user_data_iterate(struct compile_runtime *compile_rt, 
+                                       void (*callback)(void *user_data, void *param), 
+                                       void *param)
+{
+    struct maat_compile *compile = NULL, *tmp_compile = NULL;
+
+    pthread_rwlock_rdlock(&compile_rt->rwlock);
+    HASH_ITER(hh, compile_rt->compile_hash, compile, tmp_compile) {
+        if (compile->user_data) {
+            callback(compile->user_data, param);
+        }
+    }
+    pthread_rwlock_unlock(&compile_rt->rwlock);
+}
+
+void compile_table_rule_ex_data_iterate(struct compile_schema *compile_schema, int idx)
+{
+    if (NULL == compile_schema) {
+		return;
+	}
+
+    if (idx >= compile_schema->n_ex_schema) {
+        return;
+    }
+
+    struct compile_ex_data_schema *ex_schema = (compile_schema->ex_schema + idx);
+    struct compile_runtime *compile_rt = NULL;
+    compile_rt = (struct compile_runtime *)table_manager_get_runtime(compile_schema->ref_tbl_mgr,
+                                                                     compile_schema->table_id);
+    compile_runtime_user_data_iterate(compile_rt, rule_ex_data_new_cb, ex_schema);
+}
+
 void *compile_table_get_rule_ex_data(struct compile_schema *compile_schema, int compile_id, size_t idx)
 {
 	if (NULL == compile_schema) {
@@ -254,6 +330,20 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         read_cnt++;
     }
 
+    item = cJSON_GetObjectItem(json, "user_region_encoded");
+    if (item != NULL && item->type == cJSON_String) {
+        if (strcmp(item->valuestring, "escape") == 0) {
+            compile_schema->user_region_encoding = USER_REGION_ENCODE_ESCAPE;
+        } else if (strcmp(item->valuestring, "none") == 0) {
+            compile_schema->user_region_encoding = USER_REGION_ENCODE_NONE;
+        } else {
+            log_error(logger, MODULE_COMPILE,
+                      "table %s has no user_region_encoded column", table_name);
+            goto error;
+        }
+        read_cnt++;
+    }
+
    	item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
         log_error(logger, MODULE_COMPILE, 
@@ -281,7 +371,7 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     custom_item = cJSON_GetObjectItem(item, "clause_num");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        compile_schema->clause_num_column = custom_item->valueint;
+        compile_schema->declared_clause_num_column = custom_item->valueint;
         read_cnt++;
     }
 
@@ -293,7 +383,7 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     compile_schema->ref_tbl_mgr = tbl_mgr;
 
-    if (read_cnt < 6) {
+    if (read_cnt < 7) {
 		goto error;
     }
 
@@ -461,7 +551,7 @@ compile_item_new(const char *line, struct compile_schema *compile_schema,
 			break;
 	}
 
-    ret = get_column_pos(line, compile_schema->clause_num_column, 
+    ret = get_column_pos(line, compile_schema->declared_clause_num_column, 
                          &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_COMPILE,
@@ -469,7 +559,7 @@ compile_item_new(const char *line, struct compile_schema *compile_schema,
 				  compile_schema->table_id, line);
 		goto error;
     }
-    compile_item->clause_num = atoi(line + column_offset);
+    compile_item->declared_clause_num = atoi(line + column_offset);
 
     ret = get_column_pos(line, compile_schema->evaluation_order_column, 
                          &column_offset, &column_len);
@@ -1402,29 +1492,6 @@ int maat_compile_state_has_NOT_clause(struct maat_compile_state *compile_state)
     return compile_state->not_clause_hitted_flag;
 }
 
-void *rule_ex_data_new(const struct maat_rule_head *rule_head, const char *srv_def,
-                       const struct compile_ex_data_schema *ex_schema)
-{
-	void *ex_data = NULL;
-	struct maat_rule rule;
-
-	fill_maat_rule(&rule, rule_head, srv_def, strlen(srv_def)+1);
-	ex_schema->new_func(ex_schema->idx, &rule, srv_def, &ex_data, ex_schema->argl, ex_schema->argp);
-	
-    return ex_data;
-}
-
-void rule_ex_data_free(const struct maat_rule_head *rule_head, const char *srv_def, 
-                       void *ex_data, const struct compile_ex_data_schema *ex_schema)
-{
-	struct maat_rule rule;
-
-    memset(&rule, 0, sizeof(rule));
-	fill_maat_rule(&rule, rule_head, srv_def, strlen(srv_def)+1);
-	ex_schema->free_func(ex_schema->idx, &rule, srv_def, ex_data, 
-                         ex_schema->argl, ex_schema->argp);
-}
-
 void compile_item_to_compile_rule(struct compile_item *compile_item,
                                   struct compile_schema *compile_schema,
                                   struct compile_rule *compile_rule)
@@ -1434,7 +1501,7 @@ void compile_item_to_compile_rule(struct compile_item *compile_item,
     
     compile_rule->magic_num = COMPILE_RULE_MAGIC;
     compile_rule->head = rule_head;
-    compile_rule->declared_clause_num = compile_item->clause_num;
+    compile_rule->declared_clause_num = compile_item->declared_clause_num;
     compile_rule->ex_data = ALLOC(void *, MAX_COMPILE_EX_DATA_NUM);
 
     compile_rule->ref_table = compile_schema;
@@ -1534,17 +1601,19 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
                       schema->table_id, compile_item->compile_id);
             return -1;
         }
-
+        
         maat_compile_set(compile, compile_rule->declared_clause_num, compile_rule, 
                         (void (*)(void *))destroy_compile_rule);
-
+        
         struct maat_compile *tmp_compile = maat_compile_hash_find(&(compile_rt->compile_hash), compile_id);
         if (tmp_compile != NULL) {
             maat_compile_hash_set(&(compile_rt->compile_hash), compile_id, compile);
         } else {
             maat_compile_hash_add(&(compile_rt->compile_hash), compile_id, compile);
         }
-        
+        if (compile->compile_id == 141) {
+            printf("compile->declared_clause_num:%d\n", compile->declared_clause_num);
+        }
         pthread_rwlock_unlock(&compile_rt->rwlock);
     }
 

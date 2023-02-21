@@ -320,32 +320,27 @@ void ip_plugin_table_set_ex_data_schema(void *ip_plugin_schema,
     schema->ex_schema = ex_data_schema_new(new_func, free_func, dup_func, argl, argp);
 }
 
-int ip_plugin_runtime_update_row(struct ip_plugin_runtime *rt, struct ip_plugin_schema *schema,
+int ip_plugin_runtime_update_row(struct ip_plugin_runtime *ip_plugin_rt,
                                   const char *row, char *key, size_t key_len, 
                                   struct ip_plugin_item *ip_plugin_item, int is_valid)
 {
     int ret = -1;
-    struct ex_data_runtime *ex_data_rt = rt->ex_data_rt;
-    struct ex_data_schema *ex_schema = schema->ex_schema;
+    struct ex_data_runtime *ex_data_rt = ip_plugin_rt->ex_data_rt;
 
-    if (ex_schema != NULL) {
-        if (0 == is_valid) {
-            //delete
-            ret = ex_data_runtime_del_ex_container(ex_data_rt, key, key_len);
-            if (ret < 0) {
-                return -1;
-            }
-        } else {
-            //add
-            void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, row, key, key_len);
-            struct ex_data_container *ex_container = ex_data_container_new(ex_data, (void *)ip_plugin_item);
-            ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
-            if (ret < 0) {
-                return -1;
-            }
+    if (0 == is_valid) {
+        // delete
+        ret = ex_data_runtime_del_ex_container(ex_data_rt, key, key_len);
+        if (ret < 0) {
+            return -1;
         }
     } else {
-        ex_data_runtime_cache_row_put(ex_data_rt, row);
+        // add
+        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, row, key, key_len);
+        struct ex_data_container *ex_container = ex_data_container_new(ex_data, (void *)ip_plugin_item);
+        ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
+        if (ret < 0) {
+            return -1;
+        }
     }
 
     return 0;
@@ -435,8 +430,8 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
         }
 
         char *key = (char *)&item_id;
-        int ret = ip_plugin_runtime_update_row(ip_plugin_rt, schema, line, key,
-                                               sizeof(int), ip_plugin_item, is_valid);
+        int ret = ip_plugin_runtime_update_row(ip_plugin_rt, line, key, sizeof(int), 
+                                               ip_plugin_item, is_valid);
         if (ret < 0) {
             if (ip_plugin_item != NULL) {
                 FREE(ip_plugin_item);
@@ -479,6 +474,7 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name)
 
     for (size_t i = 0; i < rule_cnt; i++) {
         struct ip_plugin_item *item = (struct ip_plugin_item *)ex_container[i]->custom_data;
+        assert(item != NULL);
         ip_plugin_item_to_ip_rule(item, &rules[i]);
         rules[i].user_tag = ex_container[i];
     }

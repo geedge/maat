@@ -395,3 +395,31 @@ struct ex_data_runtime *plugin_runtime_get_ex_data_rt(void *plugin_runtime)
     struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
     return plugin_rt->ex_data_rt;
 }
+
+size_t plugin_runtime_cached_row_count(void *plugin_runtime)
+{
+    if (NULL == plugin_runtime) {
+        return 0;
+    }
+
+    struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
+    if (NULL == plugin_rt->ex_data_rt) {
+        return 0;
+    }
+
+    return ex_data_runtime_cached_row_count(plugin_rt->ex_data_rt);
+}
+
+const char *plugin_runtime_cached_row_get(void *plugin_runtime, size_t index)
+{
+    if (NULL == plugin_runtime) {
+        return NULL;
+    }
+
+    struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
+    if (NULL == plugin_rt->ex_data_rt) {
+        return NULL;
+    }
+
+    return ex_data_runtime_cached_row_get(plugin_rt->ex_data_rt, index);
+}

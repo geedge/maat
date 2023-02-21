@@ -8,7 +8,7 @@
 ***********************************************************************************************
 */
 
-#include <limits.h>
+#include <linux/limits.h>
 #include <assert.h>
 
 #include "log/log.h"

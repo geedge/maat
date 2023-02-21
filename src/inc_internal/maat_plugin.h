@@ -60,6 +60,10 @@ int plugin_runtime_commit(void *plugin_runtime, const char *table_name);
 
 struct ex_data_runtime *plugin_runtime_get_ex_data_rt(void *plugin_runtime);
 
+size_t plugin_runtime_cached_row_count(void *plugin_runtime);
+
+const char *plugin_runtime_cached_row_get(void *plugin_runtime, size_t index);
+
 #ifdef __cplusplus
 }
 #endif
