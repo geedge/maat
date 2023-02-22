@@ -28,7 +28,7 @@ struct plugin_callback_schema {
 };
 
 struct plugin_runtime {
-    uint64_t acc_line_num;
+    long long acc_line_num;
     struct ex_data_runtime *ex_data_rt;
 
     uint32_t rule_num;
@@ -364,7 +364,7 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
 
     long long item_id = get_column_value(line, schema->key_column);
     char *key = (char *)&item_id;
-    ret = plugin_runtime_update_row(plugin_rt, schema, line, key, sizeof(uint64_t), is_valid);
+    ret = plugin_runtime_update_row(plugin_rt, schema, line, key, sizeof(long long), is_valid);
     if (ret < 0) {
         schema->update_err_cnt++;
         return -1;
@@ -435,6 +435,6 @@ void *plugin_runtime_get_ex_data(void *plugin_runtime, void *plugin_schema, cons
     if (NULL == schema->ex_schema) {
         return NULL;
     }
-    
+
     return ex_data_runtime_get_ex_data_by_key(plugin_rt->ex_data_rt, key, strlen(key));
 }

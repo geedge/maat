@@ -33,7 +33,7 @@ struct bool_plugin_schema {
 };
 
 struct bool_plugin_item {
-    uint64_t item_id;
+    long long item_id;
     size_t n_bool_item;
     unsigned long long bool_item_id[MAX_ITEMS_PER_BOOL_EXPR];
 };
@@ -355,7 +355,7 @@ size_t ull_dedup(unsigned long long item_ids[], size_t n_item)
 	return index + 1;
 }
 
-struct bool_expr *bool_expr_new(uint64_t item_id, struct bool_plugin_item *item)
+struct bool_expr *bool_expr_new(long long item_id, struct bool_plugin_item *item)
 {
     struct bool_expr *expr = ALLOC(struct bool_expr, 1);
 
@@ -408,7 +408,7 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
 
         char *key = (char *)&item_id;
         int ret = bool_plugin_runtime_update_row(bool_plugin_rt, schema, line, key,
-                                                 sizeof(uint64_t), expr, is_valid);
+                                                 sizeof(long long), expr, is_valid);
         if (ret < 0) {
             if (item != NULL) {
                 FREE(item);

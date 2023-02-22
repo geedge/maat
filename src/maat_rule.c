@@ -1,5 +1,4 @@
-/*
-**********************************************************************************************
+/**********************************************************************************************
 *	File: maat_rule.cpp
 *   Description:
 *	Authors: Liu WenTan <liuwentan@geedgenetworks.com>
@@ -32,7 +31,7 @@
 
 #define MODULE_MAAT_RULE	 module_name_str("maat.rule")
 
-struct maat_item *maat_item_new(uint64_t item_id, uint64_t group_id, void *user_data)
+struct maat_item *maat_item_new(long long item_id, long long group_id, void *user_data)
 {
 	struct maat_item *item = NULL;
 	item = ALLOC(struct maat_item, 1);
@@ -206,7 +205,7 @@ error:
 	return ret;
 }
 
-struct maat_item_inner *maat_item_inner_new(uint64_t group_id, uint64_t item_id, int district_id)
+struct maat_item_inner *maat_item_inner_new(long long group_id, long long item_id, int district_id)
 {
 	struct maat_item_inner *item = ALLOC(struct maat_item_inner, 1);
 	item->magic_num = ITEM_RULE_MAGIC;

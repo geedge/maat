@@ -39,8 +39,8 @@ TEST_F(MaatFlagScan, basic) {
     int flag_table_id = maat_table_get_id(g_maat_instance, flag_table_name);
     //compile_id:192 flag: 0000 0001 mask: 0000 0011
     //scan_data: 0000 1001 or 0000 1101 should hit
-    uint64_t scan_data = 9;
-    uint64_t results[ARRAY_SIZE] = {0};
+    long long scan_data = 9;
+    long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     int ret = maat_scan_flag(g_maat_instance, flag_table_id, 0, scan_data, results,
@@ -82,8 +82,8 @@ TEST_F(MaatFlagScan, withExprRegion) {
     int expr_table_id = maat_table_get_id(g_maat_instance, expr_table_name);
     //compile_id:193 flag: 0000 0010 mask: 0000 0011
     //scan_data: 0000 0010 or 0000 0100 should hit
-    uint64_t flag_scan_data = 2;
-    uint64_t results[ARRAY_SIZE] = {0};
+    long long flag_scan_data = 2;
+    long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
 
@@ -113,8 +113,8 @@ TEST_F(MaatFlagScan, hitMultiCompile) {
     //compile_id:192 flag: 0000 0001 mask: 0000 0011
     //compile_id:194 flag: 0001 0101 mask: 0001 1111
     //scan_data: 0001 0101 should hit compile192 and compile194
-    uint64_t flag_scan_data = 21;
-    uint64_t results[ARRAY_SIZE] = {0};
+    long long flag_scan_data = 21;
+    long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
 
@@ -148,7 +148,7 @@ TEST_F(MaatStringScan, Expr8) {
     const char *table_name = "KEYWORDS_TABLE";
     int table_id = maat_table_get_id(g_maat_instance, table_name);
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
-    uint64_t results[ARRAY_SIZE] = {0};
+    long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     int ret = maat_scan_string(g_maat_instance, table_id, 0, scan_data, strlen(scan_data), 
@@ -166,7 +166,7 @@ TEST_F(MaatStringScan, Expr8) {
 
 TEST_F(MaatStringScan, Regex) {
     int ret = 0;
-    uint64_t results[ARRAY_SIZE] = {0};
+    long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     const char *cookie = "Cookie: Txa123aheadBCAxd";
@@ -203,7 +203,7 @@ TEST_F(MaatStringScan, Regex) {
 }
 
 TEST_F(MaatStringScan, ExprPlus) {
-    uint64_t results[ARRAY_SIZE] = {0};
+    long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
 	const char *region_name1 ="HTTP URL";
@@ -237,7 +237,7 @@ TEST_F(MaatStringScan, ExprPlus) {
 //TODO:
 #if 0
 TEST_F(MaatStringScan, ShouldNotHitExprPlus) {
-    uint64_t results[ARRAY] = {0};
+    long long results[ARRAY] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
 	const char *region_name = "tcp.payload";
@@ -268,7 +268,7 @@ TEST_F(MaatStringScan, ShouldNotHitExprPlus) {
 }
 
 TEST_F(MaatStringScan, ExprPlusWithHex) {
-    uint64_t results[ARRAY_SIZE] = {0};
+    long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
 	const char *scan_data1 = "text/html; charset=UTF-8";
@@ -302,7 +302,7 @@ TEST_F(MaatStringScan, ExprPlusWithHex) {
 
 TEST_F(MaatStringScan, ExprPlusWithOffset)
 {
-	uint64_t results[ARRAY_SIZE] = {0};
+	long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
 	const char *region_name = "Payload";
@@ -355,7 +355,7 @@ TEST_F(MaatStringScan, dynamic_config) {
     const char *table_name = "HTTP_URL_LITERAL";
     int table_id = maat_table_get_id(g_maat_instance, table_name);
     char data[128] = "hello world";
-    uint64_t results[ARRAY_SIZE] = {0};
+    long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     int ret = maat_scan_string(g_maat_instance, table_id, 0, data, strlen(data), results, 
@@ -458,7 +458,7 @@ TEST_F(MaatIPScan, IPv4) {
     int ret = inet_pton(AF_INET, ip_str, &sip);
     EXPECT_EQ(ret, 1);
 
-    uint64_t results[ARRAY_SIZE] = {0};
+    long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, ARRAY_SIZE,
@@ -478,7 +478,7 @@ TEST_F(MaatIPScan, IPv6) {
     int ret = inet_pton(AF_INET6, ip_str, &sip);
     EXPECT_EQ(ret, 1);
 
-    uint64_t results[ARRAY_SIZE] = {0};
+    long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     ret = maat_scan_ipv6(g_maat_instance, table_id, 0, sip, results, ARRAY_SIZE,
@@ -498,7 +498,7 @@ TEST_F(MaatIPScan, dynamic_config) {
     int ret = inet_pton(AF_INET, ip_str, &sip);
     EXPECT_EQ(ret, 1);
 
-    uint64_t results[ARRAY_SIZE] = {0};
+    long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, ARRAY_SIZE, 
@@ -588,7 +588,7 @@ protected:
 };
 
 TEST_F(MaatIntervalScan, Pure) {	
-	uint64_t results[ARRAY_SIZE] = {0};
+	long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     const char *table_name = "CONTENT_SIZE";
@@ -609,7 +609,7 @@ TEST_F(MaatIntervalScan, Pure) {
 }
 
 TEST_F(MaatIntervalScan, IntervalPlus) {
-    uint64_t results[ARRAY_SIZE] = {0};
+    long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     const char *table_name = "INTERGER_PLUS";
@@ -644,7 +644,7 @@ TEST_F(NOTLogic, ScanNotAtLast) {
     const char *string_should_hit = "This string ONLY contains must-contained-string-of-rule-144.";
 	const char *string_should_not_hit = "This string contains both must-contained-string-of-rule-144 and must-not-contained-string-of-rule-144.";
 
-	uint64_t results[ARRAY_SIZE] = {0};
+	long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
 	const char *hit_table_name = "HTTP_URL_LITERAL";
@@ -740,7 +740,7 @@ protected:
 };
 
 struct ip_plugin_ud {
-	uint64_t rule_id;
+	long long rule_id;
 	char *buffer;
 	int ref_cnt;
 };
@@ -848,7 +848,7 @@ protected:
 };
 
 TEST_F(VirtualTable, basic) {
-    uint64_t results[ARRAY_SIZE] = {0};
+    long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     const char *table_name = "HTTP_RESPONSE_KEYWORDS";
@@ -925,7 +925,7 @@ void compile_ex_param_dup(int idx, void **to, void **from, long argl, void *argp
 }
 
 TEST_F(CompileTable, CompileEXData) {
-    uint64_t results[ARRAY_SIZE] = {0};
+    long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     const char *url = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";

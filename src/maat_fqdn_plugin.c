@@ -35,7 +35,7 @@ struct fqdn_plugin_schema {
 };
 
 struct fqdn_plugin_item {
-    uint64_t item_id;
+    long long item_id;
     int suffix_flag;
 
 };
@@ -349,7 +349,7 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
 
         char *key = (char *)&item_id;
         int ret = fqdn_plugin_runtime_update_row(fqdn_plugin_rt, schema, line, key,
-                                                 sizeof(uint64_t), rule, is_valid);
+                                                 sizeof(long long), rule, is_valid);
         if (ret < 0) {
             if (item != NULL) {
                 FREE(item);

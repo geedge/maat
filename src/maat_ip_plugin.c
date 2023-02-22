@@ -33,7 +33,7 @@ struct ipv6_item_rule {
 };
 
 struct ip_plugin_item {
-    uint64_t item_id;
+    long long item_id;
 	int ip_type;
 	union {
         struct ipv4_item_rule ipv4;
@@ -440,7 +440,7 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
         }
 
         char *key = (char *)&item_id;
-        int ret = ip_plugin_runtime_update_row(ip_plugin_rt, line, key, sizeof(uint64_t), 
+        int ret = ip_plugin_runtime_update_row(ip_plugin_rt, line, key, sizeof(long long), 
                                                ip_plugin_item, is_valid);
         if (ret < 0) {
             if (ip_plugin_item != NULL) {

@@ -21,8 +21,8 @@
 #define MODULE_GROUP	 module_name_str("maat.group")
 
 struct group2group_item {
-    uint64_t group_id;
-    uint64_t super_group_id;
+    long long group_id;
+    long long super_group_id;
 };
 
 struct group2group_schema {
@@ -34,13 +34,13 @@ struct group2group_schema {
 
 struct maat_group {
 	igraph_integer_t vertex_id;
-	uint64_t group_id;
+	long long group_id;
 	int ref_by_compile_cnt;
 	int ref_by_super_group_cnt;
 	int ref_by_sub_group_cnt;
 
 	size_t top_group_cnt;
-	uint64_t *top_group_ids;
+	long long *top_group_ids;
 
 	UT_hash_handle hh_group_id;
 	UT_hash_handle hh_vertex_id;
@@ -243,7 +243,7 @@ size_t print_igraph_vector(igraph_vector_t *v, char *buff, size_t sz) {
   return printed;
 }
 
-struct maat_group *_group2group_runtime_add_group(void *g2g_runtime, uint64_t group_id, int lock_flag)
+struct maat_group *_group2group_runtime_add_group(void *g2g_runtime, long long group_id, int lock_flag)
 {
     struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
 
@@ -270,7 +270,7 @@ struct maat_group *_group2group_runtime_add_group(void *g2g_runtime, uint64_t gr
 	return group;
 }
 
-struct maat_group *group2group_runtime_add_group(void *g2g_runtime, uint64_t group_id)
+struct maat_group *group2group_runtime_add_group(void *g2g_runtime, long long group_id)
 {
     if (NULL == g2g_runtime) {
         return NULL;
@@ -326,7 +326,7 @@ void group2group_runtime_remove_group(void *g2g_runtime, struct maat_group *grou
 	_group2group_runtime_remove_group(g2g_runtime, group, 1);
 }
 
-struct maat_group *_group2group_runtime_find_group(void *g2g_runtime, uint64_t group_id, int lock_flag)
+struct maat_group *_group2group_runtime_find_group(void *g2g_runtime, long long group_id, int lock_flag)
 {
     if (NULL == g2g_runtime) {
         return NULL;
@@ -350,7 +350,7 @@ struct maat_group *_group2group_runtime_find_group(void *g2g_runtime, uint64_t g
     return group;
 }
 
-struct maat_group *group2group_runtime_find_group(void *g2g_runtime, uint64_t group_id)
+struct maat_group *group2group_runtime_find_group(void *g2g_runtime, long long group_id)
 {
     if (NULL == g2g_runtime) {
         return NULL;
@@ -359,8 +359,8 @@ struct maat_group *group2group_runtime_find_group(void *g2g_runtime, uint64_t gr
     return _group2group_runtime_find_group(g2g_runtime, group_id, 1);
 }
 
-int group2group_runtime_add_group_to_group(void *g2g_runtime, uint64_t group_id, 
-                                           uint64_t super_group_id)
+int group2group_runtime_add_group_to_group(void *g2g_runtime, long long group_id, 
+                                           long long super_group_id)
 {
     if (NULL == g2g_runtime) {
         return -1;
@@ -406,8 +406,8 @@ int group2group_runtime_add_group_to_group(void *g2g_runtime, uint64_t group_id,
 	return ret;
 }
 
-int group2group_runtime_remove_group_from_group(void *g2g_runtime, uint64_t group_id,
-                                                uint64_t super_group_id)
+int group2group_runtime_remove_group_from_group(void *g2g_runtime, long long group_id,
+                                                long long super_group_id)
 {
     if (NULL == g2g_runtime) {
         return -1;
@@ -560,8 +560,8 @@ int group2group_runtime_build_top_groups(void *g2g_runtime)
 
 		free(group->top_group_ids);
 		group->top_group_cnt = top_group_cnt;
-		group->top_group_ids = ALLOC(uint64_t, group->top_group_cnt);
-		memcpy(group->top_group_ids, temp_group_ids, sizeof(uint64_t)*group->top_group_cnt);
+		group->top_group_ids = ALLOC(long long, group->top_group_cnt);
+		memcpy(group->top_group_ids, temp_group_ids, sizeof(long long)*group->top_group_cnt);
 
 		FREE(temp_group_ids);
 	}	
@@ -622,8 +622,8 @@ int group2group_runtime_commit(void *g2g_runtime, const char *table_name)
     return ret;
 }
 
-int group2group_runtime_get_top_groups(void *g2g_runtime, uint64_t *group_ids, 
-                                       size_t n_group_ids, uint64_t *top_group_ids)
+int group2group_runtime_get_top_groups(void *g2g_runtime, long long *group_ids, 
+                                       size_t n_group_ids, long long *top_group_ids)
 {
     if (NULL == g2g_runtime || NULL == group_ids || 0 == n_group_ids) {
         return -1;

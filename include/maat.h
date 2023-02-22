@@ -30,15 +30,15 @@ struct maat;
 struct maat_hit_path {
     int Nth_scan;
     int vtable_id; // 0 is not a virtual table.
-	uint64_t item_id;
-	uint64_t sub_group_id;
-	uint64_t top_group_id;
-	uint64_t compile_id;
+	long long item_id;
+	long long sub_group_id;
+	long long top_group_id;
+	long long compile_id;
 };
 
 struct maat_hit_object {
     int vtable_id;
-    uint64_t group_id;
+    long long group_id;
 };
 
 enum maat_scan_status {
@@ -50,7 +50,7 @@ enum maat_scan_status {
 
 #define	MAX_SERVICE_DEFINE_LEN 128
 struct maat_rule {
-	uint64_t config_id;
+	long long config_id;
 	uint8_t	reserved;
 	int	serv_def_len;
 	char service_defined[MAX_SERVICE_DEFINE_LEN];
@@ -116,7 +116,7 @@ int maat_compile_table_ex_schema_register(struct maat *instance, int table_id,
                                           maat_rule_ex_dup_func_t *dup_func,
                                           long argl, void *argp);
 void *maat_compile_table_get_ex_data(struct maat *instance, int compile_table_id, 
-                                     uint64_t compile_id, size_t idx);
+                                     long long compile_id, size_t idx);
 
 /* maat plugin table API */
 int maat_plugin_table_ex_schema_register(struct maat *instance, int table_id,
@@ -157,22 +157,22 @@ struct maat_state;
  *         MAAT_SCAN_HIT       
 */
 int maat_scan_flag(struct maat *instance, int table_id, int thread_id,
-                   uint64_t flag, uint64_t *results, size_t n_result,
+                   long long flag, long long *results, size_t n_result,
                    size_t *n_hit_result, struct maat_state **state);
 int maat_scan_integer(struct maat *instance, int table_id, int thread_id,
-                      unsigned int intval, uint64_t *results, size_t n_result,
+                      unsigned int intval, long long *results, size_t n_result,
                       size_t *n_hit_result, struct maat_state **state);
 
 int maat_scan_ipv4(struct maat *instance, int table_id, int thread_id, 
-                   uint32_t ip_addr, uint64_t *results, size_t n_result, 
+                   uint32_t ip_addr, long long *results, size_t n_result, 
                    size_t *n_hit_result, struct maat_state **state);
 
 int maat_scan_ipv6(struct maat *instance, int table_id, int thread_id, 
-                   uint8_t *ip_addr, uint64_t *results, size_t n_result, 
+                   uint8_t *ip_addr, long long *results, size_t n_result, 
                    size_t *n_hit_result, struct maat_state **state);
 
 int maat_scan_string(struct maat *instance, int table_id, int thread_id,
-                     const char *data, size_t data_len, uint64_t *results, 
+                     const char *data, size_t data_len, long long *results, 
                      size_t n_result, size_t *n_hit_result, 
                      struct maat_state **state);
 
@@ -180,7 +180,7 @@ struct maat_stream;
 struct maat_stream *maat_scan_stream_open(struct maat *instance, int table_id, int thread_id);
 
 int maat_scan_stream(struct maat_stream **stream, const char* data, int data_len, 
-                     uint64_t *results, size_t *n_result, struct maat_state **state);
+                     long long *results, size_t *n_result, struct maat_state **state);
 
 void maat_scan_stream_close(struct maat_stream **stream);
 

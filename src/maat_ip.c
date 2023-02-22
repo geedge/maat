@@ -45,8 +45,8 @@ struct ipv6_item_rule {
 };
 
 struct ip_item {
-    uint64_t item_id;
-    uint64_t group_id;
+    long long item_id;
+    long long group_id;
     int addr_type;
     union {
         struct ipv4_item_rule ipv4;
@@ -375,7 +375,7 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
         return -1;
     } else if (0 == is_valid) {
         //delete
-        HASH_FIND(hh, ip_rt->item_hash, &item_id, sizeof(uint64_t), item);
+        HASH_FIND(hh, ip_rt->item_hash, &item_id, sizeof(long long), item);
         if (NULL == item) {
             return -1;
         }
@@ -392,7 +392,7 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
                              (void (*)(void *))maat_item_inner_free);
     } else {
         //add
-        HASH_FIND(hh, ip_rt->item_hash, &item_id, sizeof(uint64_t), item);
+        HASH_FIND(hh, ip_rt->item_hash, &item_id, sizeof(long long), item);
         if (item) {
             log_error(ip_rt->logger, MODULE_IP, 
                       "ip runtime add item %llu to item_hash failed, already exist", 
@@ -407,11 +407,11 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
 
         u_para = maat_item_inner_new(ip_item->group_id, item_id, 0);
         item = maat_item_new(item_id, ip_item->group_id, u_para);
-        HASH_ADD(hh, ip_rt->item_hash, item_id, sizeof(uint64_t), item);
+        HASH_ADD(hh, ip_rt->item_hash, item_id, sizeof(long long), item);
     }
     
     char *key = (char *)&item_id;
-    int ret = ip_runtime_update_row(ip_rt, key, sizeof(uint64_t), ip_item, is_valid);
+    int ret = ip_runtime_update_row(ip_rt, key, sizeof(long long), ip_item, is_valid);
     if (ret < 0) {
         if (ip_item != NULL) {
             ip_item_free(ip_item);
@@ -510,7 +510,7 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
         n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
     }
 
-    uint64_t hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
+    long long hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
     memset(hit_item_ids, 0, sizeof(hit_item_ids));
     
     for (int i = 0; i < n_hit_item; i++) {

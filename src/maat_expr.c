@@ -58,8 +58,8 @@ enum match_method {
 };
 
 struct expr_item {
-    uint64_t item_id;
-    uint64_t group_id;
+    long long item_id;
+    long long group_id;
     int district_id;
     char keywords[MAX_KEYWORDS_STR];
     enum expr_type expr_type;
@@ -485,7 +485,7 @@ void expr_runtime_free(void *expr_runtime)
 }
 
 int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key, 
-                            size_t key_len, uint64_t item_id, and_expr_t *expr_rule, 
+                            size_t key_len, long long item_id, and_expr_t *expr_rule, 
                             int is_valid, struct log_handle *logger)
 {
     void *data = NULL;
@@ -729,7 +729,7 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
         return -1;
     } else if (0 == is_valid) {
         //delete
-        HASH_FIND(hh, expr_rt->item_hash, &item_id, sizeof(uint64_t), item);
+        HASH_FIND(hh, expr_rt->item_hash, &item_id, sizeof(long long), item);
         if (NULL == item) {
             return -1;
         }
@@ -745,7 +745,7 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
         maat_garbage_bagging(expr_rt->ref_garbage_bin, u_para, maat_item_inner_free);
     } else {
         //add
-        HASH_FIND(hh, expr_rt->item_hash, &item_id, sizeof(uint64_t), item);
+        HASH_FIND(hh, expr_rt->item_hash, &item_id, sizeof(long long), item);
         if (item) {
             log_error(expr_rt->logger, MODULE_EXPR, 
                       "expr runtime add item %llu to item_hash failed, already exist", 
@@ -760,7 +760,7 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
 
         u_para = maat_item_inner_new(expr_item->group_id, item_id, expr_item->district_id);
         item = maat_item_new(item_id, expr_item->group_id, u_para);
-        HASH_ADD(hh, expr_rt->item_hash, item_id, sizeof(uint64_t), item);
+        HASH_ADD(hh, expr_rt->item_hash, item_id, sizeof(long long), item);
 
         expr_rule = expr_item_to_expr_rule(expr_item, u_para, expr_rt->logger);
         expr_item_free(expr_item);
@@ -773,7 +773,7 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
     }
 
     char *key = (char *)&item_id;
-    ret = expr_runtime_update_row(expr_rt, key, sizeof(uint64_t), item_id, 
+    ret = expr_runtime_update_row(expr_rt, key, sizeof(long long), item_id, 
                                   expr_rule, is_valid, expr_rt->logger);
     if (ret < 0) {
         if (expr_rule != NULL) {
@@ -868,7 +868,7 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *d
         n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
     }
     
-    uint64_t hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
+    long long hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
     struct maat_item_inner *item = NULL;
     int real_hit_item_cnt = 0;
     int district_id = state->district_id;
@@ -929,7 +929,7 @@ int expr_runtime_stream_scan(struct expr_runtime *expr_rt, const char *data, siz
         n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
     }
     
-    uint64_t hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
+    long long hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
     memset(hit_item_ids, 0, sizeof(hit_item_ids));
 
     for (size_t i = 0; i < n_hit_item; i++) {

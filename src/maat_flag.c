@@ -34,10 +34,10 @@ struct flag_schema {
 };
 
 struct flag_item {
-    uint64_t item_id;
-    uint64_t group_id;
-    uint64_t flag;
-    uint64_t flag_mask;
+    long long item_id;
+    long long group_id;
+    long long flag;
+    long long flag_mask;
 };
 
 struct flag_runtime {
@@ -176,7 +176,7 @@ void flag_runtime_free(void *flag_runtime)
 }
 
 int flag_runtime_update_row(struct flag_runtime *flag_rt, char *key, size_t key_len,
-                            uint64_t item_id, struct flag_rule *rule, int is_valid)
+                            long long item_id, struct flag_rule *rule, int is_valid)
 {
     void *data = NULL;
 
@@ -301,7 +301,7 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
         return -1;
     } else if (0 == is_valid) {
         //delete
-        HASH_FIND(hh, flag_rt->item_hash, &item_id, sizeof(uint64_t), item);
+        HASH_FIND(hh, flag_rt->item_hash, &item_id, sizeof(long long), item);
         if (NULL == item) {
             return -1;
         }
@@ -317,7 +317,7 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
         maat_garbage_bagging(flag_rt->ref_garbage_bin, u_para, maat_item_inner_free);
     } else {
         //add
-        HASH_FIND(hh, flag_rt->item_hash, &item_id, sizeof(uint64_t), item);
+        HASH_FIND(hh, flag_rt->item_hash, &item_id, sizeof(long long), item);
         if (item) {
             log_error(flag_rt->logger, MODULE_FLAG, 
                       "flag runtime add item %d to item_hash failed, already exist", 
@@ -332,7 +332,7 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
 
         u_para = maat_item_inner_new(flag_item->group_id, item_id, 0);
         item = maat_item_new(item_id, flag_item->group_id, u_para);
-        HASH_ADD(hh, flag_rt->item_hash, item_id, sizeof(uint64_t), item);
+        HASH_ADD(hh, flag_rt->item_hash, item_id, sizeof(long long), item);
 
         flag_rule = flag_item_to_flag_rule(flag_item, u_para);
         flag_item_free(flag_item);
@@ -345,7 +345,7 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
     }
 
     char *key = (char *)&item_id;
-    int ret = flag_runtime_update_row(flag_rt, key, sizeof(uint64_t), item_id, flag_rule, is_valid);
+    int ret = flag_runtime_update_row(flag_rt, key, sizeof(long long), item_id, flag_rule, is_valid);
     if (ret < 0) {
         if (flag_rule != NULL) {
             flag_rule_free(flag_rule);
@@ -415,7 +415,7 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name)
 }
 
 int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, 
-                      uint64_t flag, int vtable_id, struct maat_state *state)
+                      long long flag, int vtable_id, struct maat_state *state)
 {
     struct flag_result hit_results[MAX_SCANNER_HIT_ITEM_NUM] = {0};
     
@@ -432,7 +432,7 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
         n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
     }
     
-    uint64_t hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
+    long long hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
     memset(hit_item_ids, 0, sizeof(hit_item_ids));
     
     for (int i = 0; i < n_hit_item; i++) {
