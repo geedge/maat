@@ -81,7 +81,7 @@ int virtual_table_get_id(void *virtual_schema)
 size_t virtual_table_get_physical_table_id(void *virtual_schema, int physical_table_ids[])
 {
     if (NULL == virtual_schema) {
-        return -1;
+        return 0;
     }
 
     struct virtual_schema *schema = (struct virtual_schema *)virtual_schema;

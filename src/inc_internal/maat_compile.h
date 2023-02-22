@@ -53,7 +53,7 @@ int compile_table_set_rule_ex_data_schema(struct compile_schema *compile_schema,
                                           maat_rule_ex_dup_func_t *dup_func,
                                           long argl, void *argp,
                                           struct log_handle *logger);
-void *compile_table_get_rule_ex_data(struct compile_schema *compile_schema, int compile_id, size_t idx);
+void *compile_table_get_rule_ex_data(struct compile_schema *compile_schema, uint64_t compile_id, size_t idx);
 void compile_table_rule_ex_data_iterate(struct compile_schema *compile_schema, int idx);
 
 size_t compile_table_rule_ex_data_schema_count(struct compile_schema *compile_schema);
@@ -68,7 +68,7 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
                            const char *line, int valid_column);
 int compile_runtime_commit(void *compile_runtime, const char *table_name);
 
-int compile_runtime_match(struct compile_runtime *compile_rt, int *compile_ids,
+int compile_runtime_match(struct compile_runtime *compile_rt, uint64_t *compile_ids,
                           size_t compile_ids_size, struct maat_state *state);
 
 size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt,
@@ -92,8 +92,7 @@ struct maat_compile_state *maat_compile_state_new(int thread_id);
 void maat_compile_state_free(struct maat_compile_state *compile_state);
 
 int maat_compile_state_update(struct maat_item *item_hash, int vtable_id,
-                              int *hit_item_ids, size_t hit_item_cnt,
-                              int *group_ids, int hit_group_index, size_t group_ids_size,
+                              uint64_t *hit_item_ids, size_t hit_item_cnt,
                               size_t *n_hit_group_id, struct maat_state *state);
                               
 int maat_compile_state_has_NOT_clause(struct maat_compile_state *compile_state);

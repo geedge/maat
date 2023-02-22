@@ -16,6 +16,8 @@ extern "C"
 {
 #endif
 
+#include <stdint.h>
+
 #include "cJSON/cJSON.h"
 #include "maat_kv.h"
 
@@ -38,13 +40,13 @@ void group2group_runtime_free(void *g2g_runtime);
 void maat_group_ref_inc(struct maat_group *group);
 void maat_group_ref_dec(struct maat_group *group);
 
-struct maat_group *group2group_runtime_add_group(void *g2g_runtime, int group_id);
+struct maat_group *group2group_runtime_add_group(void *g2g_runtime, uint64_t group_id);
 void group2group_runtime_remove_group(void *g2g_runtime, struct maat_group *group);
-struct maat_group *group2group_runtime_find_group(void *g2g_runtime, int group_id);
+struct maat_group *group2group_runtime_find_group(void *g2g_runtime, uint64_t group_id);
 
 int group2group_runtime_build_top_groups(void *g2g_runtime);
-int group2group_runtime_get_top_groups(void *g2g_runtime, int *group_ids, 
-                                       size_t n_group_ids, int *top_group_ids);
+int group2group_runtime_get_top_groups(void *g2g_runtime, uint64_t *group_ids, 
+                                       size_t n_group_ids, uint64_t *top_group_ids);
 
 int group2group_runtime_update(void *g2g_runtime, void *g2g_schema, 
                                const char *line, int valid_column);			   

@@ -35,8 +35,9 @@ struct fqdn_plugin_schema {
 };
 
 struct fqdn_plugin_item {
-    int item_id;
+    uint64_t item_id;
     int suffix_flag;
+
 };
 
 struct fqdn_plugin_runtime {
@@ -257,7 +258,7 @@ fqdn_plugin_item_new(const char *line, struct fqdn_plugin_schema *schema,
                   schema->table_id, line);
         goto error;
     }
-    item->item_id = atoi(line + column_offset);
+    item->item_id = atoll(line + column_offset);
 
     ret = get_column_pos(line, schema->suffix_flag_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -323,7 +324,11 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
     struct FQDN_rule *rule = NULL;
     struct fqdn_plugin_schema *schema = (struct fqdn_plugin_schema *)fqdn_plugin_schema;
     struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
-    int item_id = get_column_value(line, schema->item_id_column);
+    long long item_id = get_column_value(line, schema->item_id_column);
+    if (item_id < 0) {
+        return -1;
+    }
+
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
         return -1;
@@ -344,7 +349,7 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
 
         char *key = (char *)&item_id;
         int ret = fqdn_plugin_runtime_update_row(fqdn_plugin_rt, schema, line, key,
-                                                 sizeof(int), rule, is_valid);
+                                                 sizeof(uint64_t), rule, is_valid);
         if (ret < 0) {
             if (item != NULL) {
                 FREE(item);

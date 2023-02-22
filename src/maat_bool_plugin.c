@@ -33,7 +33,7 @@ struct bool_plugin_schema {
 };
 
 struct bool_plugin_item {
-    int item_id;
+    uint64_t item_id;
     size_t n_bool_item;
     unsigned long long bool_item_id[MAX_ITEMS_PER_BOOL_EXPR];
 };
@@ -290,7 +290,7 @@ bool_plugin_item_new(const char *line, struct bool_plugin_schema *schema,
                   schema->table_id, line);
         goto error;
     }
-    item->item_id = atoi(line + column_offset);
+    item->item_id = atoll(line + column_offset);
 
     ret = get_column_pos(line, schema->bool_expr_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -355,7 +355,7 @@ size_t ull_dedup(unsigned long long item_ids[], size_t n_item)
 	return index + 1;
 }
 
-struct bool_expr *bool_expr_new(int item_id, struct bool_plugin_item *item)
+struct bool_expr *bool_expr_new(uint64_t item_id, struct bool_plugin_item *item)
 {
     struct bool_expr *expr = ALLOC(struct bool_expr, 1);
 
@@ -383,7 +383,11 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
     struct bool_expr *expr = NULL;
     struct bool_plugin_schema *schema = (struct bool_plugin_schema *)bool_plugin_schema;
     struct bool_plugin_runtime *bool_plugin_rt = (struct bool_plugin_runtime *)bool_plugin_runtime;
-    int item_id = get_column_value(line, schema->item_id_column);
+    long long item_id = get_column_value(line, schema->item_id_column);
+    if (item_id < 0) {
+        return -1;
+    }
+
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
         return -1;
@@ -404,7 +408,7 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
 
         char *key = (char *)&item_id;
         int ret = bool_plugin_runtime_update_row(bool_plugin_rt, schema, line, key,
-                                                 sizeof(int), expr, is_valid);
+                                                 sizeof(uint64_t), expr, is_valid);
         if (ret < 0) {
             if (item != NULL) {
                 FREE(item);

@@ -353,3 +353,25 @@ error_out:
 
 	return ret;
 }
+
+long long maat_cmd_incrby(struct maat *maat_instance, const char *key, int increment)
+{
+	long long result = 0;
+
+	redisContext *write_ctx = get_redis_ctx_for_write(maat_instance);
+	if (NULL == write_ctx) {
+		return -1;
+	}
+
+	redisReply *data_reply = maat_cmd_wrap_redis_command(write_ctx, "INCRBY %s %d", key, increment); 
+	if (data_reply->type == REDIS_REPLY_INTEGER) {
+		result = data_reply->integer;
+	} else {
+		result = -1;
+	}
+
+	freeReplyObject(data_reply);
+	data_reply = NULL;
+    
+	return result;		
+}

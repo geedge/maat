@@ -28,7 +28,7 @@ struct maat_cmd_line
 {
 	const char *table_name;
 	const char *table_line;
-	int rule_id;		// for MAAT_OP_DEL, only rule_id and table_name are necessary.
+	uint64_t rule_id;		// for MAAT_OP_DEL, only rule_id and table_name are necessary.
 	int expire_after;	//expired after $timeout$ seconds, set to 0 for never timeout.
 };
 
@@ -40,6 +40,8 @@ struct maat_cmd_line
  *      failed: -1
 */
 int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *line_rule);
+
+long long maat_cmd_incrby(struct maat *maat_instance, const char *key, int increment);
 
 #ifdef __cplusplus
 }

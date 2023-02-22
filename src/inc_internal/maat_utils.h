@@ -80,7 +80,7 @@ void ipv6_ntoh(unsigned int *v6_addr);
 int get_column_pos(const char *line, int column_seq, size_t *offset, size_t *len);
 
 /* the column value must be integer */
-int get_column_value(const char *line, int column_seq);
+long long get_column_value(const char *line, int column_seq);
 
 int load_file_to_memory(const char *file_name, unsigned char **pp_out, size_t *out_sz);
 

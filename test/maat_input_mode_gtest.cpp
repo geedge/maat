@@ -39,7 +39,7 @@ TEST(json_mode, maat_scan_string) {
     const char *table_name = "KEYWORDS_TABLE";
     int table_id = maat_table_get_id(maat_instance, table_name);
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
-    int results[5] = {0};
+    uint64_t results[5] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data), 
@@ -84,7 +84,7 @@ TEST(iris_mode, maat_scan_string) {
     const char *table_name = "KEYWORDS_TABLE";
     int table_id = maat_table_get_id(maat_instance, table_name);
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
-    int results[5] = {0};
+    uint64_t results[5] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data), 
@@ -206,7 +206,7 @@ TEST(redis_mode, maat_scan_string) {
     const char *table_name = "KEYWORDS_TABLE";
     int table_id = maat_table_get_id(maat_instance, table_name);
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
-    int results[5] = {0};
+    uint64_t results[5] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data), 

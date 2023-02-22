@@ -29,16 +29,16 @@ struct maat;
 
 struct maat_hit_path {
     int Nth_scan;
-	int item_id;
-	int sub_group_id;
-	int top_group_id;
-	int vtable_id; // 0 is not a virtual table.
-	int compile_id;
+    int vtable_id; // 0 is not a virtual table.
+	uint64_t item_id;
+	uint64_t sub_group_id;
+	uint64_t top_group_id;
+	uint64_t compile_id;
 };
 
 struct maat_hit_object {
     int vtable_id;
-    int group_id;
+    uint64_t group_id;
 };
 
 enum maat_scan_status {
@@ -50,7 +50,7 @@ enum maat_scan_status {
 
 #define	MAX_SERVICE_DEFINE_LEN 128
 struct maat_rule {
-	int	config_id;
+	uint64_t config_id;
 	uint8_t	reserved;
 	int	serv_def_len;
 	char service_defined[MAX_SERVICE_DEFINE_LEN];
@@ -116,7 +116,7 @@ int maat_compile_table_ex_schema_register(struct maat *instance, int table_id,
                                           maat_rule_ex_dup_func_t *dup_func,
                                           long argl, void *argp);
 void *maat_compile_table_get_ex_data(struct maat *instance, int compile_table_id, 
-                                     int compile_id, size_t idx);
+                                     uint64_t compile_id, size_t idx);
 
 /* maat plugin table API */
 int maat_plugin_table_ex_schema_register(struct maat *instance, int table_id,
@@ -125,7 +125,9 @@ int maat_plugin_table_ex_schema_register(struct maat *instance, int table_id,
                                          maat_plugin_ex_dup_func_t *dup_func,
                                          long argl, void *argp);
 /* returned data is duplicated by dup_func of maat_plugin_table_ex_schema_register, 
-   caller is responsible to free the data. */                                     
+   caller is responsible to free the data. */
+void *maat_plugin_table_get_ex_data(struct maat *instance, int table_id, const char *key);
+                                     
 int maat_ip_plugin_table_get_ex_data(struct maat *instance, int table_id,
                                      const struct ip_addr *ip, void **ex_data_array,
                                      size_t n_ex_data);
@@ -155,29 +157,30 @@ struct maat_state;
  *         MAAT_SCAN_HIT       
 */
 int maat_scan_flag(struct maat *instance, int table_id, int thread_id,
-                   uint64_t flag, int *results, size_t n_result,
+                   uint64_t flag, uint64_t *results, size_t n_result,
                    size_t *n_hit_result, struct maat_state **state);
 int maat_scan_integer(struct maat *instance, int table_id, int thread_id,
-                      unsigned int intval, int *results, size_t n_result,
+                      unsigned int intval, uint64_t *results, size_t n_result,
                       size_t *n_hit_result, struct maat_state **state);
 
 int maat_scan_ipv4(struct maat *instance, int table_id, int thread_id, 
-                   uint32_t ip_addr, int *results, size_t n_result, 
+                   uint32_t ip_addr, uint64_t *results, size_t n_result, 
                    size_t *n_hit_result, struct maat_state **state);
 
 int maat_scan_ipv6(struct maat *instance, int table_id, int thread_id, 
-                   uint8_t *ip_addr, int *results, size_t n_result, 
+                   uint8_t *ip_addr, uint64_t *results, size_t n_result, 
                    size_t *n_hit_result, struct maat_state **state);
 
 int maat_scan_string(struct maat *instance, int table_id, int thread_id,
-                     const char *data, size_t data_len, int *results, size_t n_result,
-                     size_t *n_hit_result, struct maat_state **state);
+                     const char *data, size_t data_len, uint64_t *results, 
+                     size_t n_result, size_t *n_hit_result, 
+                     struct maat_state **state);
 
 struct maat_stream;
 struct maat_stream *maat_scan_stream_open(struct maat *instance, int table_id, int thread_id);
 
-int maat_scan_stream(struct maat_stream **stream, int thread_id, const char* data, int data_len, 
-                     int *results, size_t *n_result, struct maat_state **state);
+int maat_scan_stream(struct maat_stream **stream, const char* data, int data_len, 
+                     uint64_t *results, size_t *n_result, struct maat_state **state);
 
 void maat_scan_stream_close(struct maat_stream **stream);
 

@@ -61,7 +61,7 @@ enum tag_match {
 };
 
 struct maat_rule_head {
-	int config_id;
+	uint64_t config_id;
 	char resevered;
 	int	serv_def_len;
 };
@@ -69,8 +69,8 @@ struct maat_rule_head {
 #define	ITEM_RULE_MAGIC 0x4d3c2b1a
 struct maat_item_inner {
 	long long magic_num;
-	int item_id;
-	int group_id;
+	uint64_t item_id;
+	uint64_t group_id;
 	int district_id;
 	int expr_id_cnt;
 	int expr_id_lb;	//low boundary
@@ -78,8 +78,8 @@ struct maat_item_inner {
 };
 
 struct maat_item {
-	int item_id;
-	int group_id;
+	uint64_t item_id;
+	uint64_t group_id;
 	UT_hash_handle hh;
 	void *user_data;
 };
@@ -87,7 +87,7 @@ struct maat_item {
 #define	COMPILE_RULE_MAGIC	0x1a2b3c4d
 struct compile_rule {
 	long long magic_num;
-    int compile_id;
+    uint64_t compile_id;
 	struct maat_rule_head head;// fix len of Maat_rule_t
 	char *service_defined;
 	int declared_clause_num;
@@ -98,8 +98,8 @@ struct compile_rule {
 };
 
 struct group2group_rule {
-    int group_id;
-	int super_group_id;
+    uint64_t group_id;
+	uint64_t super_group_id;
 };
 
 struct maat_runtime {
@@ -254,11 +254,11 @@ size_t parse_accept_tag(const char *value, struct rule_tag **result, struct log_
 
 int compare_accept_tag(const char *value, const struct rule_tag *accept_tags, size_t n_accept_tag);
 
-struct maat_item *maat_item_new(int item_id, int group_id, void *user_data);
+struct maat_item *maat_item_new(uint64_t item_id, uint64_t group_id, void *user_data);
 
 void maat_item_free(struct maat_item *item, void (* item_user_data_free)(void *));
 
-struct maat_item_inner *maat_item_inner_new(int group_id, int item_id, int district_id);
+struct maat_item_inner *maat_item_inner_new(uint64_t group_id, uint64_t item_id, int district_id);
 
 void maat_item_inner_free(void *item_inner);
 

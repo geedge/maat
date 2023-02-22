@@ -47,8 +47,7 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name);
  * @retval the num of hit group_id
 */
 int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id, 
-                          uint64_t integer, int *group_ids, int hit_group_index, 
-                          size_t group_ids_size, int vtable_id, struct maat_state *state);
+                          uint64_t integer, int vtable_id, struct maat_state *state);
 
 void interval_runtime_scan_hit_inc(struct interval_runtime *interval_rt, int thread_id);
 long long interval_runtime_scan_hit_sum(struct interval_runtime *interval_rt, int n_thread);

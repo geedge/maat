@@ -54,7 +54,7 @@ enum hs_case_sensitive {
 };
 
 struct hs_scan_result {
-    int item_id;
+    uint64_t item_id;
     void *user_tag;
 };
 

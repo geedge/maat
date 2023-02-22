@@ -45,8 +45,8 @@ struct ipv6_item_rule {
 };
 
 struct ip_item {
-    int item_id;
-    int group_id;
+    uint64_t item_id;
+    uint64_t group_id;
     int addr_type;
     union {
         struct ipv4_item_rule ipv4;
@@ -218,7 +218,7 @@ struct ip_item *ip_item_new(const char *line, struct ip_schema *ip_schema,
                   ip_schema->table_id, line);
         goto error;
     }
-    ip_item->item_id = atoi(line + column_offset);
+    ip_item->item_id = atoll(line + column_offset);
 
     ret = get_column_pos(line, ip_schema->group_id_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -227,7 +227,7 @@ struct ip_item *ip_item_new(const char *line, struct ip_schema *ip_schema,
                   ip_schema->table_id, line);
         goto error;
     }
-    ip_item->group_id = atoi(line + column_offset);
+    ip_item->group_id = atoll(line + column_offset);
 
     ret = get_column_pos(line, ip_schema->addr_type_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -365,13 +365,17 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
     struct maat_item_inner *u_para = NULL;
     struct ip_schema *schema = (struct ip_schema *)ip_schema;
     struct ip_runtime *ip_rt = (struct ip_runtime *)ip_runtime;
-    int item_id = get_column_value(line, schema->item_id_column);
+    long long item_id = get_column_value(line, schema->item_id_column);
+    if (item_id < 0) {
+        return -1;
+    }
+
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
         return -1;
     } else if (0 == is_valid) {
         //delete
-        HASH_FIND_INT(ip_rt->item_hash, &item_id, item);
+        HASH_FIND(hh, ip_rt->item_hash, &item_id, sizeof(uint64_t), item);
         if (NULL == item) {
             return -1;
         }
@@ -388,10 +392,10 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
                              (void (*)(void *))maat_item_inner_free);
     } else {
         //add
-        HASH_FIND_INT(ip_rt->item_hash, &item_id, item);
+        HASH_FIND(hh, ip_rt->item_hash, &item_id, sizeof(uint64_t), item);
         if (item) {
             log_error(ip_rt->logger, MODULE_IP, 
-                      "ip runtime add item %d to item_hash failed, already exist", 
+                      "ip runtime add item %llu to item_hash failed, already exist", 
                       item_id);
             return -1;
         }
@@ -403,11 +407,11 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
 
         u_para = maat_item_inner_new(ip_item->group_id, item_id, 0);
         item = maat_item_new(item_id, ip_item->group_id, u_para);
-        HASH_ADD_INT(ip_rt->item_hash, item_id, item);
+        HASH_ADD(hh, ip_rt->item_hash, item_id, sizeof(uint64_t), item);
     }
     
     char *key = (char *)&item_id;
-    int ret = ip_runtime_update_row(ip_rt, key, sizeof(int), ip_item, is_valid);
+    int ret = ip_runtime_update_row(ip_rt, key, sizeof(uint64_t), ip_item, is_valid);
     if (ret < 0) {
         if (ip_item != NULL) {
             ip_item_free(ip_item);
@@ -477,8 +481,7 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name)
 }
 
 int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type, 
-                    uint8_t *ip_addr, int *group_ids, int hit_group_index, 
-                    size_t group_id_size, int vtable_id, struct maat_state *state)
+                    uint8_t *ip_addr, int vtable_id, struct maat_state *state)
 {
     int n_hit_item = 0;
     struct scan_result scan_results[MAX_SCANNER_HIT_ITEM_NUM] = {0};
@@ -507,8 +510,8 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
         n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
     }
 
-    int hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
-    memset(hit_item_ids, -1, sizeof(hit_item_ids));
+    uint64_t hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
+    memset(hit_item_ids, 0, sizeof(hit_item_ids));
     
     for (int i = 0; i < n_hit_item; i++) {
         hit_item_ids[i] = scan_results[i].rule_id;
@@ -516,7 +519,7 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
 
     size_t group_hit_cnt = 0;
     int ret = maat_compile_state_update(ip_rt->item_hash, vtable_id, hit_item_ids, n_hit_item,
-                                        group_ids, hit_group_index, group_id_size, &group_hit_cnt, state);
+                                        &group_hit_cnt, state);
     if (ret < 0) {
         return -1;
     }

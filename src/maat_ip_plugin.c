@@ -33,7 +33,7 @@ struct ipv6_item_rule {
 };
 
 struct ip_plugin_item {
-    int item_id;
+    uint64_t item_id;
 	int ip_type;
 	union {
         struct ipv4_item_rule ipv4;
@@ -226,7 +226,7 @@ ip_plugin_item_new(const char *line, struct ip_plugin_schema *schema,
                   schema->table_id, line);
         goto error;
     }
-    ip_plugin_item->item_id = atoi(line + column_offset);
+    ip_plugin_item->item_id = atoll(line + column_offset);
 
     ret = get_column_pos(line, schema->ip_type_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -263,7 +263,7 @@ ip_plugin_item_new(const char *line, struct ip_plugin_schema *schema,
     #endif
     const char *tmp_str = "range";
     memcpy(addr_format, tmp_str, strlen(tmp_str));
-    
+
     ret = get_column_pos(line, schema->start_ip_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_IP_PLUGIN, 
@@ -420,7 +420,11 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
     struct ip_plugin_item *ip_plugin_item = NULL;
     struct ip_plugin_schema *schema = (struct ip_plugin_schema *)ip_plugin_schema;
     struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
-    int item_id = get_column_value(line, schema->item_id_column);
+    long long item_id = get_column_value(line, schema->item_id_column);
+    if (item_id < 0) {
+        return -1;
+    }
+
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
         return -1;
@@ -436,7 +440,7 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
         }
 
         char *key = (char *)&item_id;
-        int ret = ip_plugin_runtime_update_row(ip_plugin_rt, line, key, sizeof(int), 
+        int ret = ip_plugin_runtime_update_row(ip_plugin_rt, line, key, sizeof(uint64_t), 
                                                ip_plugin_item, is_valid);
         if (ret < 0) {
             if (ip_plugin_item != NULL) {

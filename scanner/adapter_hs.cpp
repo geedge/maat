@@ -424,8 +424,7 @@ int matched_event_cb(unsigned int id, unsigned long long from,
     matched_pat->matched_l_offset = from;
     matched_pat->matched_r_offset = to;
     
-    HASH_ADD_INT(matched_pat_container->pat_hash, pattern_id, matched_pat);
-
+    HASH_ADD(hh, matched_pat_container->pat_hash, pattern_id, sizeof(unsigned long long), matched_pat);
     return 0;
 }
 
@@ -471,8 +470,8 @@ int hs_tag_validate(struct hs_tag *hs_tag, struct matched_pattern_container *mat
     /* check if real matched pattern, because pattern match_mode is different */
     for (size_t i = 0; i < hs_tag->n_pat_attr; i++) {
         struct matched_pattern *tmp_matched_pat = NULL;
-        int pattern_id = hs_tag->pat_attr[i].pattern_id;
-        HASH_FIND_INT(matched_pat_container->pat_hash, &pattern_id, tmp_matched_pat);
+        unsigned long long pattern_id = hs_tag->pat_attr[i].pattern_id;
+        HASH_FIND(hh, matched_pat_container->pat_hash, &pattern_id, sizeof(unsigned long long), tmp_matched_pat);
         if (tmp_matched_pat) {
             int matched_ret = is_real_matched_pattern(tmp_matched_pat,
                                                       hs_tag->pat_attr[i].match_mode,

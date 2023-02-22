@@ -362,9 +362,9 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
         return -1;
     }
 
-    int item_id = get_column_value(line, schema->key_column);
+    long long item_id = get_column_value(line, schema->key_column);
     char *key = (char *)&item_id;
-    ret = plugin_runtime_update_row(plugin_rt, schema, line, key, sizeof(int), is_valid);
+    ret = plugin_runtime_update_row(plugin_rt, schema, line, key, sizeof(uint64_t), is_valid);
     if (ret < 0) {
         schema->update_err_cnt++;
         return -1;
@@ -422,4 +422,19 @@ const char *plugin_runtime_cached_row_get(void *plugin_runtime, size_t index)
     }
 
     return ex_data_runtime_cached_row_get(plugin_rt->ex_data_rt, index);
+}
+
+void *plugin_runtime_get_ex_data(void *plugin_runtime, void *plugin_schema, const char *key)
+{
+    if (NULL == plugin_runtime || NULL == plugin_schema) {
+        return NULL;
+    }
+
+    struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
+    struct plugin_schema *schema = (struct plugin_schema *)plugin_schema;
+    if (NULL == schema->ex_schema) {
+        return NULL;
+    }
+    
+    return ex_data_runtime_get_ex_data_by_key(plugin_rt->ex_data_rt, key, strlen(key));
 }

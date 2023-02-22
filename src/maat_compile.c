@@ -29,7 +29,7 @@
 #define	MAX_COMPILE_EX_DATA_NUM		2
 
 enum user_region_encode {
-	USER_REGION_ENCODE_NONE=0,
+	USER_REGION_ENCODE_NONE = 0,
 	USER_REGION_ENCODE_ESCAPE,
 	USER_REGION_ENCODE_BASE64
 };
@@ -60,15 +60,15 @@ struct group2compile_schema {
 };
 
 struct compile_item {
-    int compile_id;
+    uint64_t compile_id;
     char user_region[MAX_TABLE_LINE_SIZE];
     int declared_clause_num;
     int evaluation_order;
 };
 
 struct group2compile_item {
-    int group_id;
-    int compile_id;
+    uint64_t group_id;
+    uint64_t compile_id;
     int not_flag;
     int vtable_id;
     int clause_index;
@@ -104,7 +104,7 @@ struct maat_clause_state {
 };
 
 struct maat_literal_id {
-	int group_id;
+	uint64_t group_id;
 	int vtable_id;
 };
 
@@ -118,14 +118,14 @@ struct maat_clause {
 struct compile_sort_para {
 	double evaluation_order;
 	int declared_clause_num;
-	int compile_id;
+	uint64_t compile_id;
 	void *user;
 };
 
 #define MAAT_COMPILE_MAGIC	0x4a5b6c7d
 struct maat_compile {
 	unsigned int magic;
-	int compile_id;
+	uint64_t compile_id;
 	int actual_clause_num;
 	int declared_clause_num;
 	int not_clause_cnt;
@@ -138,8 +138,8 @@ struct maat_compile {
 struct maat_internal_hit_path {
 	int Nth_scan;
 	int Nth_hit_item;
-	int item_id;
-	int group_id;
+	uint64_t item_id;
+	uint64_t group_id;
 	int vtable_id;
 };
 
@@ -184,13 +184,13 @@ int compile_table_set_rule_ex_data_schema(struct compile_schema *compile_schema,
 	return idx;
 }
 
-void *compile_runtime_get_user_data(struct compile_runtime *compile_rt, int compile_id, int is_dettach)
+void *compile_runtime_get_user_data(struct compile_runtime *compile_rt, uint64_t compile_id, int is_dettach)
 {
     struct maat_compile *compile = NULL;
     void *ret = NULL;
 
     pthread_rwlock_rdlock(&compile_rt->rwlock);
-    HASH_FIND_INT(compile_rt->compile_hash, &compile_id, compile);
+    HASH_FIND(hh, compile_rt->compile_hash, &compile_id, sizeof(uint64_t), compile);
     if (compile != NULL) {
         ret = compile->user_data;
         if (is_dettach) {
@@ -278,7 +278,7 @@ void compile_table_rule_ex_data_iterate(struct compile_schema *compile_schema, i
     compile_runtime_user_data_iterate(compile_rt, rule_ex_data_new_cb, ex_schema);
 }
 
-void *compile_table_get_rule_ex_data(struct compile_schema *compile_schema, int compile_id, size_t idx)
+void *compile_table_get_rule_ex_data(struct compile_schema *compile_schema, uint64_t compile_id, size_t idx)
 {
 	if (NULL == compile_schema) {
 		return NULL;
@@ -495,7 +495,7 @@ compile_item_new(const char *line, struct compile_schema *compile_schema,
                   compile_schema->table_id, line);
         goto error;
     }
-    compile_item->compile_id = atoi(line + column_offset);
+    compile_item->compile_id = atoll(line + column_offset);
 
     ret = get_column_pos(line, compile_schema->tags_column,
                          &column_offset, &column_len);
@@ -717,7 +717,7 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
 				  g2c_schema->table_id, line);
 		goto error;
     }
-    g2c_item->group_id = atoi(line + column_offset);
+    g2c_item->group_id = atoll(line + column_offset);
 
     ret = get_column_pos(line, g2c_schema->compile_id_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -726,7 +726,7 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
 				  g2c_schema->table_id, line);
 		goto error;
     }
-    g2c_item->compile_id = atoi(line + column_offset);
+    g2c_item->compile_id = atoll(line + column_offset);
 
     ret = get_column_pos(line, g2c_schema->not_flag_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -790,7 +790,7 @@ void group2compile_item_free(struct group2compile_item *g2c_item)
 }
 
 #define MAAT_HIER_COMPILE_MAGIC	0x4a5b6c7d
-struct maat_compile *maat_compile_new(int compile_id)
+struct maat_compile *maat_compile_new(uint64_t compile_id)
 {
 	struct maat_compile *compile = ALLOC(struct maat_compile, 1);
 
@@ -819,31 +819,31 @@ int maat_compile_set(struct maat_compile *compile, int declared_clause_num,
 	return 0;
 }
 
-int maat_compile_hash_add(struct maat_compile **compile_hash, int compile_id, 
+int maat_compile_hash_add(struct maat_compile **compile_hash, uint64_t compile_id, 
                           struct maat_compile *compile)
 {
 	int ret = 0;
 
     assert(compile->declared_clause_num >= 0);
-	HASH_ADD_INT(*compile_hash, compile_id, compile);
-
+    HASH_ADD(hh, *compile_hash, compile_id, sizeof(uint64_t), compile);
 	//TODO:mytest need to delete
 #if 0
 	size_t compile_cnt = HASH_COUNT(*compile_hash);
 	struct maat_compile *compile1 = NULL, *tmp_compile1 = NULL;
 	HASH_ITER (hh, *compile_hash, compile1, tmp_compile1) {
-		printf("compile->compile_id:%d, compile_cnt:%zu\n", compile1->compile_id, compile_cnt);
+		printf("<maat_compile_hash_add> compile_id:%lu, compile_cnt:%zu\n", 
+                compile1->compile_id, compile_cnt);
 	}
 #endif
 	return ret;
 }
 
-void maat_compile_hash_set(struct maat_compile **compile_hash, int compile_id,
+void maat_compile_hash_set(struct maat_compile **compile_hash, uint64_t compile_id,
                           struct maat_compile *compile)
 {
     struct maat_compile *tmp_compile = NULL;
 
-    HASH_FIND_INT(*compile_hash, &compile_id, tmp_compile);
+    HASH_FIND(hh, *compile_hash, &compile_id, sizeof(uint64_t), tmp_compile);
     assert(tmp_compile != NULL);
 
     assert(tmp_compile->user_data == NULL);
@@ -852,8 +852,8 @@ void maat_compile_hash_set(struct maat_compile **compile_hash, int compile_id,
     
 }
 
-int maat_compile_hash_remove(struct maat_compile **compile_hash, int compile_id, 
-                             struct maat_compile *compile, struct maat_garbage_bin *garbage_bin)
+int maat_compile_hash_remove(struct maat_compile **compile_hash, struct maat_compile *compile,
+                             struct maat_garbage_bin *garbage_bin)
 {
 	if (0 == compile->actual_clause_num) {
 		 HASH_DEL(*compile_hash, compile);
@@ -865,20 +865,20 @@ int maat_compile_hash_remove(struct maat_compile **compile_hash, int compile_id,
 	size_t compile_cnt = HASH_COUNT(*compile_hash);
 	struct maat_compile *compile1 = NULL, *tmp_compile1 = NULL;
 	HASH_ITER (hh, *compile_hash, compile1, tmp_compile1) {
-		printf("compile->compile_id:%d, compile_cnt:%zu\n", compile1->compile_id, compile_cnt);
+		printf("<maat_compile_hash_remove> compile_id:%lu, compile_cnt:%zu\n", 
+                compile1->compile_id, compile_cnt);
 	}
 #endif
 	return 0;
 }
 
-struct maat_compile *maat_compile_hash_find(struct maat_compile **compile_hash, 
-                                            int compile_id)
+struct maat_compile *maat_compile_hash_find(struct maat_compile **compile_hash, uint64_t compile_id)
 {
 	struct maat_compile *compile = NULL;
 
 	HASH_FIND(hh, *compile_hash, &compile_id, sizeof(compile_id), compile);
 
-	return compile;
+    return compile;
 }
 
 size_t maat_compile_in_use_count(struct maat_compile *compile_hash)
@@ -930,7 +930,8 @@ int maat_compile_clause_add_literal(struct maat_compile *compile,
     tmp = (struct maat_literal_id *)utarray_find(clause_state->literal_ids,
                                                  literal_id, compare_literal_id);
 	if (tmp) {
-		assert(*(unsigned long long*)tmp == *(unsigned long long*)(literal_id));
+        assert(tmp->group_id == literal_id->group_id);
+        assert(tmp->vtable_id == literal_id->vtable_id);
 		return -1;
 	} else {
 		utarray_push_back(clause_state->literal_ids, literal_id);
@@ -1055,7 +1056,7 @@ maat_compile_bool_matcher_new(struct maat_compile *compile_hash,
 				#if 0
 				struct maat_literal_id *p = NULL;
 				for(p = (struct maat_literal_id *)utarray_front(compile->clause_states[i].literal_ids); p!=NULL; p=(struct maat_literal_id *)utarray_next(compile->clause_states[i].literal_ids,p)) {
-    				printf("compile_id:%d, clause_id:%llu, literal{%d: %d}\n", 
+    				printf("compile_id:%lu, clause_id:%llu, literal{%lu: %d}\n", 
 							compile->compile_id, compile->clause_states[i].clause_id, p->group_id, p->vtable_id);
   				}
 				#endif
@@ -1066,6 +1067,8 @@ maat_compile_bool_matcher_new(struct maat_compile *compile_hash,
 			}
 		}
 
+        // printf("bool_matcher_new compile_id:%lu j:%zu, compile->declared_clause_num:%d\n", 
+        //         compile->compile_id, j, compile->declared_clause_num);
 		//some compile may have zero groups, e.g. default policy.
 		if (j == (size_t)compile->declared_clause_num && j > 0) {
 			bool_expr_array[expr_cnt].expr_id = compile->compile_id;
@@ -1163,14 +1166,9 @@ size_t maat_compile_bool_matcher_match(struct bool_matcher *bm, int is_last_scan
 	return ud_result_cnt;
 }
 
-int maat_add_group_to_compile(struct maat_compile **compile_hash, void *g2g_runtime,
-                              struct group2compile_item *g2c_item, struct log_handle *logger)
+int maat_add_group_to_compile(struct maat_compile **compile_hash, struct group2compile_item *g2c_item,
+                              struct log_handle *logger)
 {
-	struct maat_group *group = group2group_runtime_find_group(g2g_runtime, g2c_item->group_id);
-	if (!group) {
-		group = group2group_runtime_add_group(g2g_runtime, g2c_item->group_id);
-	}
-
 	int ret = -1;
 	struct maat_compile *compile = maat_compile_hash_find(compile_hash, g2c_item->compile_id);
 	if (!compile) {
@@ -1192,27 +1190,19 @@ int maat_add_group_to_compile(struct maat_compile **compile_hash, void *g2g_runt
                   g2c_item->compile_id);
 		ret = -1;
 	} else {
-		maat_group_ref_inc(group);
 		ret = 0;
 	}
 
+    // printf("group2compile update compile_id:%lu, compile->declared_clause_num:%d\n",
+    //         compile->compile_id, compile->declared_clause_num);
 	return ret;
 }
 
-int maat_remove_group_from_compile(struct maat_compile **compile_hash, 
-                                   void *g2g_runtime,
+int maat_remove_group_from_compile(struct maat_compile **compile_hash,
                                    struct group2compile_item *g2c_item,
                                    struct maat_garbage_bin *garbage_bin, 
 								   struct log_handle *logger)
 {
-	struct maat_group *group = group2group_runtime_find_group(g2g_runtime, g2c_item->group_id);
-	if (!group) {
-		log_error(logger, MODULE_COMPILE,
-                  "Remove group %d from compile %d failed, group is not exisited.",
-				  g2c_item->group_id, g2c_item->compile_id);
-		return -1;
-	}
-	
 	struct maat_compile *compile = NULL;
 	HASH_FIND(hh, *compile_hash, &(g2c_item->compile_id), sizeof(g2c_item->compile_id), compile);
 	if (!compile) {
@@ -1230,7 +1220,6 @@ int maat_remove_group_from_compile(struct maat_compile **compile_hash,
 				   g2c_item->group_id, g2c_item->vtable_id, g2c_item->clause_index, g2c_item->compile_id);
 		return -1;
 	}
-    maat_group_ref_dec(group);
 
 	if (0 == compile->actual_clause_num && NULL == compile->user_data) {		
 		HASH_DEL(*compile_hash, compile);
@@ -1274,7 +1263,7 @@ void maat_compile_state_free(struct maat_compile_state *compile_state)
 	free(compile_state);
 }
 
-static int maat_compile_hit_path_add(UT_array *hit_paths, int item_id, int group_id,
+static int maat_compile_hit_path_add(UT_array *hit_paths, uint64_t item_id, uint64_t group_id,
                                      int vtable_id, int Nth_scan, int Nth_item_result)
 {
 	struct maat_internal_hit_path new_path;
@@ -1343,7 +1332,8 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt,
         /*
             NOTE: maybe one item has been deleted, but it's item_id still exist in internal_hit_paths
         */
-        int top_group_ids[MAX_SCANNER_HIT_GROUP_NUM] = {-1};
+        uint64_t top_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
+        memset(top_group_ids, 0, sizeof(top_group_ids));
         int top_group_cnt = group2group_runtime_get_top_groups(g2g_rt, &(internal_path->group_id),
                                                                1, top_group_ids);
         if (top_group_cnt <= 0) {
@@ -1417,7 +1407,7 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt,
 }
 
 void maat_compile_state_update_hit_path(struct maat_compile_state *compile_state,
-                                        int item_id, int group_id, int vtable_id, 
+                                        uint64_t item_id, uint64_t group_id, int vtable_id, 
                                         int Nth_scan, int Nth_item_result)
 {
 	if (compile_state->Nth_scan != Nth_scan) {
@@ -1434,7 +1424,7 @@ void maat_compile_state_update_hit_path(struct maat_compile_state *compile_state
 }
 
 void maat_compile_state_update_hit_clause(struct maat_compile_state *compile_state,
-                                          void *compile_runtime, int group_id,
+                                          void *compile_runtime, uint64_t group_id,
                                           int vtable_id)
 {
     if (NULL == compile_state || NULL == compile_runtime) {
@@ -1448,7 +1438,7 @@ void maat_compile_state_update_hit_clause(struct maat_compile_state *compile_sta
     unsigned long long *clause_id = 0;
     struct compile_runtime *compile_rt = (struct compile_runtime *)compile_runtime;
     
-    pthread_rwlock_wrlock(&compile_rt->rwlock);
+    pthread_rwlock_rdlock(&compile_rt->rwlock);
     assert(compile_rt->compile_hash != NULL);
     
 	HASH_ITER(hh, compile_rt->compile_hash, compile, tmp_compile) {
@@ -1554,8 +1544,12 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
     struct compile_schema *schema = (struct compile_schema *)compile_schema;
     struct compile_runtime *compile_rt = (struct compile_runtime *)compile_runtime;
     int is_valid = get_column_value(line, valid_column);
-    int compile_id = get_column_value(line, schema->compile_id_column);
     if (is_valid < 0) {
+        return -1;
+    }
+
+    long long compile_id = get_column_value(line, schema->compile_id_column);
+    if (compile_id < 0) {
         return -1;
     }
 
@@ -1568,12 +1562,12 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
             return -1;
         }
 
-        ret = maat_compile_hash_remove(&(compile_rt->compile_hash), compile_id, 
-                                        compile, compile_rt->ref_garbage_bin);
+        ret = maat_compile_hash_remove(&(compile_rt->compile_hash), compile,
+                                        compile_rt->ref_garbage_bin);
         pthread_rwlock_unlock(&compile_rt->rwlock);
         if (ret < 0) {
             log_error(compile_rt->logger, MODULE_COMPILE,
-                      "remove compile table(table_id:%d) compile(compile_id:%d) from compile_hash failed",
+                      "remove compile table(table_id:%d) compile(compile_id:%lld) from compile_hash failed",
                       schema->table_id, compile_id);
             return -1;
         }
@@ -1604,16 +1598,15 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
         
         maat_compile_set(compile, compile_rule->declared_clause_num, compile_rule, 
                         (void (*)(void *))destroy_compile_rule);
-        
         struct maat_compile *tmp_compile = maat_compile_hash_find(&(compile_rt->compile_hash), compile_id);
         if (tmp_compile != NULL) {
             maat_compile_hash_set(&(compile_rt->compile_hash), compile_id, compile);
         } else {
             maat_compile_hash_add(&(compile_rt->compile_hash), compile_id, compile);
         }
-        if (compile->compile_id == 141) {
-            printf("compile->declared_clause_num:%d\n", compile->declared_clause_num);
-        }
+        // printf("compile_runtime_update compile_id:%lu, compile->declared_clause_num:%d\n",
+        //         compile->compile_id, compile->declared_clause_num);
+
         pthread_rwlock_unlock(&compile_rt->rwlock);
     }
 
@@ -1642,27 +1635,45 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
         return -1;
     }
 
-    pthread_rwlock_wrlock(&compile_rt->rwlock);
+     struct maat_group *group = NULL;
     if (0 == is_valid) {
         //delete
-        ret = maat_remove_group_from_compile(&(compile_rt->compile_hash), g2g_rt, g2c_item,
+        group = group2group_runtime_find_group(g2g_rt, g2c_item->group_id);
+        if (!group) {
+            log_error(compile_rt->logger, MODULE_COMPILE,
+                      "Remove group %d from compile %d failed, group is not exisited.",
+                      g2c_item->group_id, g2c_item->compile_id);
+            return -1;
+        }
+
+        pthread_rwlock_wrlock(&compile_rt->rwlock);
+        ret = maat_remove_group_from_compile(&(compile_rt->compile_hash), g2c_item,
                                              compile_rt->ref_garbage_bin, compile_rt->logger);
+        pthread_rwlock_unlock(&compile_rt->rwlock);
         if (0 == ret) {
             if (g2c_item->not_flag) {
                 g2c_rt->not_flag_group--;
             }
+            maat_group_ref_dec(group);
         }
     } else {
         //add
-        ret = maat_add_group_to_compile(&(compile_rt->compile_hash), g2g_rt, g2c_item, 
-                                        compile_rt->logger);
+        group = group2group_runtime_find_group(g2g_rt, g2c_item->group_id);
+	    if (!group) {
+	 	    group = group2group_runtime_add_group(g2g_rt, g2c_item->group_id);
+	    }
+
+        pthread_rwlock_wrlock(&compile_rt->rwlock);
+        ret = maat_add_group_to_compile(&(compile_rt->compile_hash), g2c_item, compile_rt->logger);
+        pthread_rwlock_unlock(&compile_rt->rwlock);
         if (0 == ret) {
             if (g2c_item->not_flag) {
                 g2c_rt->not_flag_group++;
             }
+            maat_group_ref_inc(group);
         }
     }
-    pthread_rwlock_unlock(&compile_rt->rwlock);
+    
 
     group2compile_item_free(g2c_item);
     return ret;
@@ -1758,7 +1769,7 @@ static int compare_compile_rule(const void *a, const void *b)
 }
 
 int compile_runtime_match(struct compile_runtime *compile_rt, 
-                          int *compile_ids, size_t compile_ids_size, 
+                          uint64_t *compile_ids, size_t compile_ids_size, 
                           struct maat_state *state)
 {
     struct maat_compile_state *compile_state = state->compile_state;
@@ -1785,12 +1796,13 @@ int compile_runtime_match(struct compile_runtime *compile_rt,
 }
 
 int maat_compile_state_update(struct maat_item *item_hash, int vtable_id,
-                              int *hit_item_ids, size_t hit_item_cnt,
-                              int *group_ids, int hit_group_index, size_t group_ids_size,
+                              uint64_t *hit_item_ids, size_t hit_item_cnt,
                               size_t *n_hit_group_id, struct maat_state *state)
 {
     struct maat_item *item = NULL;
-    size_t hit_group_cnt = hit_group_index;
+    uint64_t hit_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
+    memset(hit_group_ids, 0, sizeof(hit_group_ids));
+    size_t hit_group_cnt = 0;
 
     void *g2g_rt = table_manager_get_runtime(state->maat_instance->tbl_mgr,
                                              state->maat_instance->g2g_table_id);
@@ -1799,18 +1811,18 @@ int maat_compile_state_update(struct maat_item *item_hash, int vtable_id,
     }
 
     for (size_t i = 0; i < hit_item_cnt; i++) {
-        HASH_FIND_INT(item_hash, &(hit_item_ids[i]), item);
+        HASH_FIND(hh, item_hash, &(hit_item_ids[i]), sizeof(uint64_t), item);
         //assert(item != NULL);
         if (!item) {
             // item config has been deleted
             continue;
         }
 
-        if (hit_group_cnt >= group_ids_size) {
-            hit_group_cnt = group_ids_size;
+        if (hit_group_cnt >= MAX_SCANNER_HIT_GROUP_NUM) {
+            hit_group_cnt = MAX_SCANNER_HIT_GROUP_NUM;
             //Prevent group_id_array out of bounds
         } else {
-            group_ids[hit_group_cnt++] = item->group_id;
+            hit_group_ids[hit_group_cnt++] = item->group_id;
         }
 
         // update hit path
@@ -1837,8 +1849,9 @@ int maat_compile_state_update(struct maat_item *item_hash, int vtable_id,
         void *compile_rt = table_manager_get_runtime(state->maat_instance->tbl_mgr, 
                                                      compile_table_ids[idx]);
         for (size_t i = 0; i < hit_group_cnt; i++) {
-            int top_group_ids[MAX_SCANNER_HIT_GROUP_NUM] = {-1};
-            int top_group_cnt = group2group_runtime_get_top_groups(g2g_rt, &group_ids[i],
+            uint64_t top_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
+            memset(top_group_ids, 0, sizeof(top_group_ids));
+            int top_group_cnt = group2group_runtime_get_top_groups(g2g_rt, &hit_group_ids[i],
                                                                    1, top_group_ids);
             for (int j = 0; j < top_group_cnt; j++) {
                 maat_compile_state_update_hit_clause(state->compile_state, compile_rt,
