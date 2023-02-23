@@ -472,7 +472,7 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
 
     for (int i = 0; i < n_hit_item; i++) {
         item = (struct maat_item_inner *)(hit_results[i].user_tag);
-        if (item->district_id == district_id || district_id == DISTRICT_ANY) {
+        if (item->district_id == district_id || item->district_id == DISTRICT_ANY) {
             hit_item_ids[real_hit_item_cnt++] = hit_results[i].rule_id;
         }
     }
