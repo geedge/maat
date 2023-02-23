@@ -21,12 +21,12 @@
 #include "maat_compile.h"
 #include "maat_garbage_collection.h"
 #include "maat_group.h"
+#include "maat_ex_data.h"
 #include "rcu_hash.h"
 #include "maat_table.h"
 
 #define MODULE_COMPILE	 module_name_str("maat.compile")
 #define MAX_TABLE_LINE_SIZE  (1024 * 16)
-#define	MAX_COMPILE_EX_DATA_NUM		2
 
 enum user_region_encode {
 	USER_REGION_ENCODE_NONE = 0,
@@ -41,8 +41,7 @@ struct compile_schema {
     int declared_clause_num_column;
     int evaluation_order_column;
     enum user_region_encode user_region_encoding;
-	size_t n_ex_schema;
-	struct compile_ex_data_schema ex_schema[MAX_COMPILE_EX_DATA_NUM];
+	struct ex_data_schema *ex_schema;
     int table_id; //ugly
     struct table_manager *ref_tbl_mgr;
     size_t unmatched_tag_cnt;
@@ -157,31 +156,30 @@ struct maat_compile_state {
 	UT_array *this_scan_hit_clauses;
 };
 
-int compile_table_set_rule_ex_data_schema(struct compile_schema *compile_schema, 
+int compile_table_set_ex_data_schema(struct compile_schema *compile_schema, 
                                           int table_id,
-										  maat_rule_ex_new_func_t *new_func,
-                                          maat_rule_ex_free_func_t *free_func,
-                                          maat_rule_ex_dup_func_t *dup_func,
+										  maat_ex_new_func_t *new_func,
+                                          maat_ex_free_func_t *free_func,
+                                          maat_ex_dup_func_t *dup_func,
                                           long argl, void *argp,
                                           struct log_handle *logger)
 {
-	if (compile_schema->n_ex_schema == MAX_COMPILE_EX_DATA_NUM) {
+	if (compile_schema->ex_schema != NULL) {
         log_error(logger, MODULE_COMPILE, 
-                  "compile ex schema num reach maxium, can't set anymore");
+                  "compile ex schema has been set already, can't set anymore");
 		return -1;
 	}
 
-	int idx = compile_schema->n_ex_schema;
-	compile_schema->ex_schema[idx].idx = idx;
-	compile_schema->ex_schema[idx].table_id = table_id;
-	compile_schema->ex_schema[idx].argl = argl;
-	compile_schema->ex_schema[idx].argp = argp;
-	compile_schema->ex_schema[idx].new_func = new_func;
-	compile_schema->ex_schema[idx].free_func = free_func;
-	compile_schema->ex_schema[idx].dup_func = dup_func;
-	compile_schema->n_ex_schema++;
+	//compile_schema->ex_schema[idx].table_id = table_id;
+    compile_schema->ex_schema = ALLOC(struct ex_data_schema, 1);
 
-	return idx;
+	compile_schema->ex_schema->argl = argl;
+	compile_schema->ex_schema->argp = argp;
+	compile_schema->ex_schema->new_func = new_func;
+	compile_schema->ex_schema->free_func = free_func;
+	compile_schema->ex_schema->dup_func = dup_func;
+
+	return 0;
 }
 
 void *compile_runtime_get_user_data(struct compile_runtime *compile_rt, long long compile_id, int is_dettach)
@@ -202,83 +200,68 @@ void *compile_runtime_get_user_data(struct compile_runtime *compile_rt, long lon
     return ret;
 }
 
-void fill_maat_rule(struct maat_rule *rule, const struct maat_rule_head *rule_head,
-                    const char *srv_def, int srv_def_len)
-{
-    memcpy(rule, rule_head, sizeof(struct maat_rule_head));
-	memcpy(rule->service_defined, srv_def, MIN(srv_def_len, MAX_SERVICE_DEFINE_LEN));
-}
-
-void *rule_ex_data_new(const struct maat_rule_head *rule_head, const char *srv_def,
-                       const struct compile_ex_data_schema *ex_schema)
+void *rule_ex_data_new(int table_id, const char *table_line, 
+                       const struct ex_data_schema *ex_schema)
 {
 	void *ex_data = NULL;
-	struct maat_rule rule;
 
-	fill_maat_rule(&rule, rule_head, srv_def, strlen(srv_def)+1);
-	ex_schema->new_func(ex_schema->idx, &rule, srv_def, &ex_data, ex_schema->argl, ex_schema->argp);
+	ex_schema->new_func(table_id, NULL, table_line, &ex_data, ex_schema->argl, ex_schema->argp);
 	
     return ex_data;
 }
 
-void rule_ex_data_free(const struct maat_rule_head *rule_head, const char *srv_def, 
-                       void *ex_data, const struct compile_ex_data_schema *ex_schema)
+void rule_ex_data_free(int table_id, void **ex_data, const struct ex_data_schema *ex_schema)
 {
-	struct maat_rule rule;
-
-    memset(&rule, 0, sizeof(rule));
-	fill_maat_rule(&rule, rule_head, srv_def, strlen(srv_def)+1);
-	ex_schema->free_func(ex_schema->idx, &rule, srv_def, ex_data, 
-                         ex_schema->argl, ex_schema->argp);
+	ex_schema->free_func(table_id, ex_data, ex_schema->argl, ex_schema->argp);
 }
 
-void rule_ex_data_new_cb(void *user_data, void *param)
+void rule_ex_data_new_cb(void *user_data, void *param, int table_id)
 {
-	struct compile_ex_data_schema *ex_schema = (struct compile_ex_data_schema *)param;
+	struct ex_data_schema *ex_schema = (struct ex_data_schema *)param;
 	struct compile_rule *compile = (struct compile_rule *)user_data;
 	
 	// if(compile->ref_table->table_id!=ex_desc->table_id)
 	// {
 	// 	return;
 	// }
-    
-	void *ad = rule_ex_data_new(&(compile->head), compile->service_defined, ex_schema);
-	compile->ex_data[ex_schema->idx] = ad;
+
+	void *ad = rule_ex_data_new(table_id, compile->table_line, ex_schema);
+	*compile->ex_data = ad;
 }
 
 void compile_runtime_user_data_iterate(struct compile_runtime *compile_rt, 
-                                       void (*callback)(void *user_data, void *param), 
-                                       void *param)
+                                       void (*callback)(void *user_data, void *param, int table_id), 
+                                       void *param, int table_id)
 {
     struct maat_compile *compile = NULL, *tmp_compile = NULL;
 
     pthread_rwlock_rdlock(&compile_rt->rwlock);
     HASH_ITER(hh, compile_rt->compile_hash, compile, tmp_compile) {
         if (compile->user_data) {
-            callback(compile->user_data, param);
+            callback(compile->user_data, param, table_id);
         }
     }
     pthread_rwlock_unlock(&compile_rt->rwlock);
 }
 
-void compile_table_rule_ex_data_iterate(struct compile_schema *compile_schema, int idx)
+void compile_table_ex_data_iterate(struct compile_schema *compile_schema)
 {
     if (NULL == compile_schema) {
 		return;
 	}
 
-    if (idx >= compile_schema->n_ex_schema) {
+    if (NULL == compile_schema->ex_schema) {
         return;
     }
 
-    struct compile_ex_data_schema *ex_schema = (compile_schema->ex_schema + idx);
+    struct ex_data_schema *ex_schema = compile_schema->ex_schema;
     struct compile_runtime *compile_rt = NULL;
     compile_rt = (struct compile_runtime *)table_manager_get_runtime(compile_schema->ref_tbl_mgr,
                                                                      compile_schema->table_id);
-    compile_runtime_user_data_iterate(compile_rt, rule_ex_data_new_cb, ex_schema);
+    compile_runtime_user_data_iterate(compile_rt, rule_ex_data_new_cb, ex_schema, compile_schema->table_id);
 }
 
-void *compile_table_get_rule_ex_data(struct compile_schema *compile_schema, long long compile_id, size_t idx)
+void *compile_table_get_ex_data(struct compile_schema *compile_schema, long long compile_id)
 {
 	if (NULL == compile_schema) {
 		return NULL;
@@ -293,22 +276,12 @@ void *compile_table_get_rule_ex_data(struct compile_schema *compile_schema, long
     if (NULL == compile_rule) {
         return NULL;
     }
-
+   
     void *ex_data = NULL;
-    assert(idx < compile_schema->n_ex_schema);
-    struct compile_ex_data_schema *ex_schema = &(compile_schema->ex_schema[idx]);
-    ex_schema->dup_func(ex_schema->idx, &ex_data, compile_rule->ex_data + idx, ex_schema->argl, ex_schema->argp);
+    struct ex_data_schema *ex_schema = compile_schema->ex_schema;
+    ex_schema->dup_func(compile_schema->table_id, &ex_data, compile_rule->ex_data, ex_schema->argl, ex_schema->argp);
 
 	return ex_data;
-}
-
-size_t compile_table_rule_ex_data_schema_count(struct compile_schema *compile_schema)
-{
-	if (NULL == compile_schema) {
-		return 0;
-	}
-
-	return compile_schema->n_ex_schema;
 }
 
 UT_icd ut_literal_id_icd = {sizeof(struct maat_literal_id), NULL, NULL, NULL};
@@ -1484,29 +1457,23 @@ int maat_compile_state_has_NOT_clause(struct maat_compile_state *compile_state)
 
 void compile_item_to_compile_rule(struct compile_item *compile_item,
                                   struct compile_schema *compile_schema,
-                                  struct compile_rule *compile_rule)
+                                  struct compile_rule *compile_rule,
+                                  const char *table_line)
 {
-    struct maat_rule_head rule_head;
-    rule_head.config_id = compile_item->compile_id;
-    
     compile_rule->magic_num = COMPILE_RULE_MAGIC;
-    compile_rule->head = rule_head;
     compile_rule->declared_clause_num = compile_item->declared_clause_num;
-    compile_rule->ex_data = ALLOC(void *, MAX_COMPILE_EX_DATA_NUM);
-
     compile_rule->ref_table = compile_schema;
-    compile_rule->head.serv_def_len = strlen(compile_item->user_region);
-    compile_rule->service_defined = ALLOC(char, compile_rule->head.serv_def_len);
-    memcpy(compile_rule->service_defined, compile_item->user_region, 
-           compile_rule->head.serv_def_len);
+    compile_rule->ex_data = ALLOC(void *, 1);
+    compile_rule->table_line_len = strlen(table_line) + 1;
+    compile_rule->table_line = ALLOC(char, compile_rule->table_line_len);
+    memcpy(compile_rule->table_line, table_line, compile_rule->table_line_len);
     compile_rule->evaluation_order = compile_item->evaluation_order;
 
-    size_t n_rule_ex_schema =compile_schema->n_ex_schema;
-    for (size_t i = 0; i < n_rule_ex_schema; i++) {
-        struct compile_ex_data_schema *ex_schema = &(compile_schema->ex_schema[i]);
-        compile_rule->ex_data[i] = rule_ex_data_new(&compile_rule->head, 
-                                                    compile_rule->service_defined, ex_schema);
+    if (compile_schema->ex_schema != NULL) {
+        *(compile_rule->ex_data) = rule_ex_data_new(compile_schema->table_id, compile_rule->table_line, 
+                                                 compile_schema->ex_schema);
     }
+    
     compile_rule->compile_id = compile_item->compile_id;
     pthread_rwlock_init(&compile_rule->rwlock, NULL);
 }
@@ -1516,18 +1483,14 @@ void destroy_compile_rule(struct compile_rule *compile_rule)
 	struct compile_schema *schema = compile_rule->ref_table;
 	assert(compile_rule->magic_num==COMPILE_RULE_MAGIC);
 
-    size_t n_rule_ex_schema = schema->n_ex_schema;
-	for (size_t i = 0; i < n_rule_ex_schema; i++) {
-        struct compile_ex_data_schema *ex_schema = &(schema->ex_schema[i]);
-		rule_ex_data_free(&(compile_rule->head), compile_rule->service_defined, 
-                          compile_rule->ex_data+i, ex_schema);
-		compile_rule->ex_data[i] = NULL;
-	}
-	free(compile_rule->ex_data);
+    if (schema->ex_schema != NULL) {
+        rule_ex_data_free(schema->table_id, compile_rule->ex_data, schema->ex_schema);
+		*compile_rule->ex_data = NULL;
+    }
+    FREE(compile_rule->ex_data);
 	compile_rule->declared_clause_num = -1;
-	free(compile_rule->service_defined);
-	compile_rule->service_defined = NULL;
-	free(compile_rule);
+	FREE(compile_rule->table_line);
+	FREE(compile_rule);
 }
 
 int compile_runtime_update(void *compile_runtime, void *compile_schema, 
@@ -1582,7 +1545,7 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
         }
 
         struct compile_rule *compile_rule = ALLOC(struct compile_rule, 1);
-        compile_item_to_compile_rule(compile_item, schema, compile_rule);
+        compile_item_to_compile_rule(compile_item, schema, compile_rule, line);
         compile_item_free(compile_item);
         compile_item = NULL;
 

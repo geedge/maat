@@ -19,14 +19,6 @@
 
 #define MODULE_EX_DATA	 module_name_str("maat.ex_data")
 
-struct ex_data_schema {
-	maat_plugin_ex_new_func_t *new_func;
-	maat_plugin_ex_free_func_t *free_func;
-	maat_plugin_ex_dup_func_t *dup_func;
-	long argl;
-	void *argp;
-};
-
 struct ex_data_runtime {
     UT_array *cache_rows;
     size_t cache_row_num;
@@ -127,9 +119,9 @@ void ex_data_runtime_clear_row_cache(struct ex_data_runtime *ex_data_rt)
     ex_data_rt->cache_size = 0;
 }
 
-struct ex_data_schema *ex_data_schema_new(maat_plugin_ex_new_func_t *new_func,
-										  maat_plugin_ex_free_func_t *free_func,
-										  maat_plugin_ex_dup_func_t *dup_func,
+struct ex_data_schema *ex_data_schema_new(maat_ex_new_func_t *new_func,
+										  maat_ex_free_func_t *free_func,
+										  maat_ex_dup_func_t *dup_func,
 										  long argl, void *argp)
 {
     struct ex_data_schema *ex_schema = ALLOC(struct ex_data_schema, 1);

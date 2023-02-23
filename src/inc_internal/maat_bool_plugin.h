@@ -33,9 +33,9 @@ void bool_plugin_schema_free(void *bool_plugin_schema);
 struct ex_data_schema *bool_plugin_table_get_ex_data_schema(void *bool_plugin_schema);
 
 int bool_plugin_table_set_ex_data_schema(void *bool_plugin_schema, 
-                                         maat_plugin_ex_new_func_t *new_func,
-							             maat_plugin_ex_free_func_t *free_func,
-							             maat_plugin_ex_dup_func_t *dup_func,
+                                         maat_ex_new_func_t *new_func,
+							             maat_ex_free_func_t *free_func,
+							             maat_ex_dup_func_t *dup_func,
 							             long argl, void *argp,
                                          struct log_handle *logger);
 

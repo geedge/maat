@@ -60,12 +60,6 @@ enum tag_match {
     TAG_MATCH_MATCHED
 };
 
-struct maat_rule_head {
-	long long config_id;
-	char resevered;
-	int	serv_def_len;
-};
-
 #define	ITEM_RULE_MAGIC 0x4d3c2b1a
 struct maat_item_inner {
 	long long magic_num;
@@ -88,8 +82,8 @@ struct maat_item {
 struct compile_rule {
 	long long magic_num;
     long long compile_id;
-	struct maat_rule_head head;// fix len of Maat_rule_t
-	char *service_defined;
+    char *table_line;
+    size_t table_line_len;
 	int declared_clause_num;
 	double evaluation_order;
 	struct compile_schema *ref_table;

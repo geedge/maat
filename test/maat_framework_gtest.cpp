@@ -453,6 +453,8 @@ protected:
 TEST_F(MaatIPScan, IPv4) {
     const char *table_name = "IP_PLUS_CONFIG";
     int table_id = maat_table_get_id(g_maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
     char ip_str[32] = "10.0.7.100";
     uint32_t sip;
     int ret = inet_pton(AF_INET, ip_str, &sip);
@@ -881,25 +883,32 @@ struct rule_ex_param {
 	pthread_mutex_t lock;
 };
 
-void compile_ex_param_new(int idx, const struct maat_rule *rule, const char *srv_def_large, 
-						  void **ad, long argl, void *argp)
+void compile_ex_param_new(int table_id, const char *key, const char *table_line, void **ad, long argl, void *argp)
 {
 	int *counter = (int *)argp;
 	*ad = NULL;
-	ASSERT_GT(rule->serv_def_len, 4);
 
 	struct rule_ex_param *param = (struct rule_ex_param *)calloc(sizeof(struct rule_ex_param), 1);
 	
 	param->ref_cnt = 1;
 	pthread_mutex_init(&(param->lock), NULL);
 	
-	sscanf(srv_def_large, "%*[^:]:%[^,],%d", param->name, &(param->id));
+    int compile_id = 0;
+    int service_id = 0;
+    int action = 0;
+    int do_blacklist = 0;
+    int do_log = 0;
+    char tags[1024] = {0};
+
+	sscanf(table_line, "%d\t%d\t%d\t%d\t%d\t%s\t%*[^:]:%[^,],%d", 
+           &compile_id, &service_id, &action, &do_blacklist, &do_log, 
+           tags, param->name, &(param->id));
+    
 	(*counter)++;
 	*ad = param;
 }
 
-void compile_ex_param_free(int idx, const struct maat_rule *rule, const char *srv_def_large, 
-                           void **ad, long argl, void *argp)
+void compile_ex_param_free(int table_id, void **ad, long argl, void *argp)
 {
 	if (*ad == NULL) {
 		return;
@@ -915,7 +924,7 @@ void compile_ex_param_free(int idx, const struct maat_rule *rule, const char *sr
 	free(param);
 }
 
-void compile_ex_param_dup(int idx, void **to, void **from, long argl, void *argp)
+void compile_ex_param_dup(int table_id, void **to, void **from, long argl, void *argp)
 {
 	struct rule_ex_param *from_param = *((struct rule_ex_param **)from);
 	pthread_mutex_lock(&(from_param->lock));
@@ -936,25 +945,27 @@ TEST_F(CompileTable, CompileEXData) {
     int compile_table_id = maat_table_get_id(g_maat_instance, compile_table_name);
 
     int ex_data_counter = 0;
-    int ex_param_idx = maat_compile_table_ex_schema_register(g_maat_instance, compile_table_id,
-                                                             compile_ex_param_new,
-                                                             compile_ex_param_free,
-                                                             compile_ex_param_dup,
-                                                             0, &ex_data_counter);
-    ASSERT_TRUE(ex_param_idx >= 0);
+    int ret = maat_compile_table_ex_schema_register(g_maat_instance, compile_table_id,
+                                                    compile_ex_param_new,
+                                                    compile_ex_param_free,
+                                                    compile_ex_param_dup,
+                                                    0, &ex_data_counter);
+    ASSERT_TRUE(ret == 0);
 
-    int ret = maat_scan_string(g_maat_instance, table_id, 0, url, strlen(url),
+    ret = maat_scan_string(g_maat_instance, table_id, 0, url, strlen(url),
                                 results, ARRAY_SIZE, &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 141);
 
-    void *ex_data = maat_compile_table_get_ex_data(g_maat_instance, compile_table_id, results[0], ex_param_idx);
+    void *ex_data = maat_compile_table_get_ex_data(g_maat_instance, compile_table_id, results[0]);
     ASSERT_TRUE(ex_data!=NULL);
     struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
 	EXPECT_EQ(param->id, 7799);
+
+    str_unescape(param->name);
 	EXPECT_EQ(strcmp(param->name, expect_name), 0);
-	compile_ex_param_free(0, NULL, NULL, &ex_data, 0, NULL);
+	compile_ex_param_free(compile_table_id, &ex_data, 0, NULL);
 
 	maat_state_free(&state);
 }

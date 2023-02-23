@@ -455,9 +455,9 @@ int maat_table_callback_register(struct maat *maat_instance, int table_id,
 }
 
 int maat_compile_table_ex_schema_register(struct maat *maat_instance, int table_id,
-                                          maat_rule_ex_new_func_t *new_func,
-                                          maat_rule_ex_free_func_t *free_func,
-                                          maat_rule_ex_dup_func_t *dup_func,
+                                          maat_ex_new_func_t *new_func,
+                                          maat_ex_free_func_t *free_func,
+                                          maat_ex_dup_func_t *dup_func,
                                           long argl, void *argp)
 {
     if (NULL == maat_instance || table_id < 0 || table_id >= MAX_TABLE_NUM) {
@@ -475,36 +475,36 @@ int maat_compile_table_ex_schema_register(struct maat *maat_instance, int table_
     assert(compile_schema != NULL);
 
     pthread_mutex_lock(&(maat_instance->background_update_mutex));
-    int idx = compile_table_set_rule_ex_data_schema((struct compile_schema *)compile_schema, table_id,
+    int ret = compile_table_set_ex_data_schema((struct compile_schema *)compile_schema, table_id,
                                                      new_func, free_func, dup_func, 
                                                      argl, argp, maat_instance->logger);
-    if (idx < 0) {
+    if (ret < 0) {
         pthread_mutex_unlock(&(maat_instance->background_update_mutex));
         return -1;
     }
 
     if (maat_instance->maat_rt != NULL) {
-        compile_table_rule_ex_data_iterate((struct compile_schema *)compile_schema, idx);
+        compile_table_ex_data_iterate((struct compile_schema *)compile_schema);
     }
 
     pthread_mutex_unlock(&(maat_instance->background_update_mutex));
-    return idx;    
+    return 0;    
 }
 
 void *maat_compile_table_get_ex_data(struct maat *maat_instance, int compile_table_id, 
-                                     long long compile_id, size_t idx)
+                                     long long compile_id)
 {
     struct compile_schema *schema = (struct compile_schema *)table_manager_get_schema(maat_instance->tbl_mgr, 
                                                                                       compile_table_id);
     enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, compile_table_id);
     assert(table_type == TABLE_TYPE_COMPILE);
-    return compile_table_get_rule_ex_data(schema, compile_id, idx);
+    return compile_table_get_ex_data(schema, compile_id);
 }
 
 int generic_plugin_table_ex_schema_register(struct table_manager *tbl_mgr, int table_id,
-									        maat_plugin_ex_new_func_t *new_func,
-									        maat_plugin_ex_free_func_t *free_func,
-									        maat_plugin_ex_dup_func_t *dup_func,
+									        maat_ex_new_func_t *new_func,
+									        maat_ex_free_func_t *free_func,
+									        maat_ex_dup_func_t *dup_func,
 									        long argl, void *argp, struct log_handle *logger)
 {
     if (NULL == tbl_mgr || NULL == new_func || NULL == free_func || NULL == dup_func) {
@@ -650,9 +650,9 @@ void generic_plugin_runtime_commit_ex_schema(void *runtime, void *schema, int ta
 }
 
 int maat_plugin_table_ex_schema_register(struct maat *maat_instance, int table_id,
-                                         maat_plugin_ex_new_func_t *new_func,
-                                         maat_plugin_ex_free_func_t *free_func,
-                                         maat_plugin_ex_dup_func_t *dup_func,
+                                         maat_ex_new_func_t *new_func,
+                                         maat_ex_free_func_t *free_func,
+                                         maat_ex_dup_func_t *dup_func,
                                          long argl, void *argp)
 {
     if (NULL == maat_instance || table_id < 0 || table_id >= MAX_TABLE_NUM) {

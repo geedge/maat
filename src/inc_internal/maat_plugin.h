@@ -41,9 +41,9 @@ int plugin_table_get_foreign_column(struct plugin_schema *plugin_schema, int *fo
 
 /* plugin table ex data API */
 void plugin_table_set_ex_data_schema(void *plugin_schema, 
-                                    maat_plugin_ex_new_func_t *new_func,
-							        maat_plugin_ex_free_func_t *free_func,
-							        maat_plugin_ex_dup_func_t *dup_func,
+                                    maat_ex_new_func_t *new_func,
+							        maat_ex_free_func_t *free_func,
+							        maat_ex_dup_func_t *dup_func,
 							        long argl, void *argp,
                                     struct log_handle *logger);
 struct ex_data_schema *plugin_table_get_ex_data_schema(void *custom_schema);

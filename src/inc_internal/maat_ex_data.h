@@ -30,6 +30,14 @@ struct ex_container_ctx {
     struct ex_data_schema *ex_schema;
 };
 
+struct ex_data_schema {
+	maat_ex_new_func_t *new_func;
+	maat_ex_free_func_t *free_func;
+	maat_ex_dup_func_t *dup_func;
+	long argl;
+	void *argp;
+};
+
 struct ex_data_runtime;
 
 /* ex_data_runtime API */
@@ -49,9 +57,9 @@ size_t ex_data_runtime_cached_row_count(struct ex_data_runtime *ex_data_rt);
 void ex_data_runtime_clear_row_cache(struct ex_data_runtime *ex_data_rt);
 
 /* set schema API */
-struct ex_data_schema *ex_data_schema_new(maat_plugin_ex_new_func_t *new_func,
-										  maat_plugin_ex_free_func_t *free_func,
-										  maat_plugin_ex_dup_func_t *dup_func,
+struct ex_data_schema *ex_data_schema_new(maat_ex_new_func_t *new_func,
+										  maat_ex_free_func_t *free_func,
+										  maat_ex_dup_func_t *dup_func,
 										  long argl, void *argp);
 void ex_data_schema_free(struct ex_data_schema *ex_schema);
 

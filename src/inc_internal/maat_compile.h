@@ -21,16 +21,6 @@ extern "C"
 #include "maat_kv.h"
 #include "maat_rule.h"
 
-struct compile_ex_data_schema {
-	maat_rule_ex_new_func_t *new_func;
-	maat_rule_ex_free_func_t *free_func;
-	maat_rule_ex_dup_func_t *dup_func;
-	long argl;
-	void *argp;
-	int idx;
-	int table_id;
-};
-
 struct compile_schema;
 struct compile_runtime;
 struct maat_compile_state;
@@ -46,17 +36,14 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 void group2compile_schema_free(void *g2c_schema);
 int group2compile_associated_compile_table_id(void *g2c_schema);
 
-int compile_table_set_rule_ex_data_schema(struct compile_schema *compile_schema, 
-                                          int table_id,
-                                          maat_rule_ex_new_func_t *new_func,
-                                          maat_rule_ex_free_func_t *free_func,
-                                          maat_rule_ex_dup_func_t *dup_func,
-                                          long argl, void *argp,
-                                          struct log_handle *logger);
-void *compile_table_get_rule_ex_data(struct compile_schema *compile_schema, long long compile_id, size_t idx);
-void compile_table_rule_ex_data_iterate(struct compile_schema *compile_schema, int idx);
-
-size_t compile_table_rule_ex_data_schema_count(struct compile_schema *compile_schema);
+int compile_table_set_ex_data_schema(struct compile_schema *compile_schema, int table_id,
+                                     maat_ex_new_func_t *new_func,
+                                     maat_ex_free_func_t *free_func,
+                                     maat_ex_dup_func_t *dup_func,
+                                     long argl, void *argp,
+                                     struct log_handle *logger);
+void *compile_table_get_ex_data(struct compile_schema *compile_schema, long long compile_id);
+void compile_table_ex_data_iterate(struct compile_schema *compile_schema);
 
 /* compile runtime API */
 void *compile_runtime_new(void *compile_schema, int max_thread_num,
