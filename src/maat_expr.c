@@ -186,6 +186,8 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
         assert(strlen(district) > 0);
         str_unescape(district);
         expr_item->district_id = table_manager_get_district_id(expr_schema->ref_tbl_mgr, district);
+    } else {
+        expr_item->district_id = DISTRICT_ANY;
     }
 
     ret = get_column_pos(line, expr_schema->expr_type_column, &column_offset, &column_len);
@@ -877,7 +879,7 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *d
     
     for (size_t i = 0; i < n_hit_item; i++) {
         item = (struct maat_item_inner *)(hit_results[i].user_tag);
-        if (item->district_id == district_id || district_id == DISTRICT_ANY) {
+        if (item->district_id == district_id || item->district_id == DISTRICT_ANY) {
             hit_item_ids[real_hit_item_cnt++] = hit_results[i].item_id;
         }
     }

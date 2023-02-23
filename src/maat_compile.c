@@ -1034,7 +1034,7 @@ maat_compile_bool_matcher_new(struct maat_compile *compile_hash,
 				#if 0
 				struct maat_literal_id *p = NULL;
 				for(p = (struct maat_literal_id *)utarray_front(compile->clause_states[i].literal_ids); p!=NULL; p=(struct maat_literal_id *)utarray_next(compile->clause_states[i].literal_ids,p)) {
-    				printf("compile_id:%lu, clause_id:%llu, literal{%lu: %d}\n", 
+    				printf("compile_id:%llu, clause_id:%llu, literal{%llu: %d}\n", 
 							compile->compile_id, compile->clause_states[i].clause_id, p->group_id, p->vtable_id);
   				}
 				#endif

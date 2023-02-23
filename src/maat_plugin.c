@@ -262,25 +262,29 @@ void plugin_runtime_free(void *plugin_runtime)
 
 int plugin_runtime_update_row(struct plugin_runtime *plugin_rt, 
                               struct plugin_schema *plugin_schema, 
-                              const char *row, char *key, size_t key_len, 
-                              int is_valid)
+                              const char *row, const char *key, 
+                              size_t key_len, int is_valid)
 {
     int ret = -1;
     struct ex_data_schema *ex_schema = plugin_schema->ex_schema;
+
+    char hash_key[key_len + 1];
+    memset(hash_key, 0, sizeof(hash_key));
+    memcpy(hash_key, key, key_len);
 
     /* already set plugin_table_schema's ex_data_schema */
     if (ex_schema != NULL) {
         if (is_valid == 0) {
             // delete
-            ret = ex_data_runtime_del_ex_container(plugin_rt->ex_data_rt, key, key_len);
+            ret = ex_data_runtime_del_ex_container(plugin_rt->ex_data_rt, hash_key, key_len);
             if (ret < 0) {
                 return -1;
             }
         } else {
             // add
-            void *ex_data = ex_data_runtime_row2ex_data(plugin_rt->ex_data_rt, row, key, key_len);
+            void *ex_data = ex_data_runtime_row2ex_data(plugin_rt->ex_data_rt, row, hash_key, key_len);
             struct ex_data_container *ex_container = ex_data_container_new(ex_data, NULL);
-            ret = ex_data_runtime_add_ex_container(plugin_rt->ex_data_rt, key, key_len, ex_container);
+            ret = ex_data_runtime_add_ex_container(plugin_rt->ex_data_rt, hash_key, key_len, ex_container);
             if (ret < 0) {
                 return -1;
             }
@@ -362,9 +366,14 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
         return -1;
     }
 
-    long long item_id = get_column_value(line, schema->key_column);
-    char *key = (char *)&item_id;
-    ret = plugin_runtime_update_row(plugin_rt, schema, line, key, sizeof(long long), is_valid);
+    size_t key_offset = 0, key_len = 0;
+    ret = get_column_pos(line, schema->key_column, &key_offset, &key_len);
+    if (ret < 0) {
+        return -1;
+    }
+
+    const char *key = line + key_offset;
+    ret = plugin_runtime_update_row(plugin_rt, schema, line, key, key_len, is_valid);
     if (ret < 0) {
         schema->update_err_cnt++;
         return -1;
@@ -435,6 +444,6 @@ void *plugin_runtime_get_ex_data(void *plugin_runtime, void *plugin_schema, cons
     if (NULL == schema->ex_schema) {
         return NULL;
     }
-
+    
     return ex_data_runtime_get_ex_data_by_key(plugin_rt->ex_data_rt, key, strlen(key));
 }

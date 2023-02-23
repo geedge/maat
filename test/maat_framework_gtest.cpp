@@ -234,6 +234,35 @@ TEST_F(MaatStringScan, ExprPlus) {
 	maat_state_free(&state);
 }
 
+TEST_F(MaatStringScan, ExprAndExprPlus) {
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+    const char *expr_table_name = "HTTP_URL_LITERAL";
+    const char *expr_plus_table_name = "HTTP_SIGNATURE";
+    const char *region_name = "I love China";
+    const char *scan_data = "today is Monday and yesterday is Tuesday";
+    int expr_table_id = maat_table_get_id(g_maat_instance, expr_table_name);
+    int expr_plus_table_id = maat_table_get_id(g_maat_instance, expr_plus_table_name);
+
+    int ret = maat_scan_string(g_maat_instance, expr_plus_table_id, 0, scan_data, strlen(scan_data),
+                                results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_ERR);
+
+    ret = maat_state_set_scan_district(g_maat_instance, &state, region_name, strlen(region_name));
+    ASSERT_EQ(ret, 0);
+    ret = maat_scan_string(g_maat_instance, expr_plus_table_id, 0, scan_data, strlen(scan_data),
+                            results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_string(g_maat_instance, expr_table_id, 0, scan_data, strlen(scan_data),
+                            results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(results[0], 195);
+    maat_state_free(&state);
+
+}
+
 //TODO:
 #if 0
 TEST_F(MaatStringScan, ShouldNotHitExprPlus) {

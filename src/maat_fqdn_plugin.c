@@ -34,12 +34,6 @@ struct fqdn_plugin_schema {
     unsigned long long unmatch_tag_cnt;
 };
 
-struct fqdn_plugin_item {
-    long long item_id;
-    int suffix_flag;
-
-};
-
 struct fqdn_plugin_runtime {
     struct FQDN_engine *engine;
     struct ex_data_runtime *ex_data_rt;
@@ -238,8 +232,8 @@ int fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema, const char *
     return TAG_MATCH_MATCHED;
 }
 
-struct fqdn_plugin_item *
-fqdn_plugin_item_new(const char *line, struct fqdn_plugin_schema *schema,
+struct FQDN_rule *
+fqdn_plugin_rule_new(const char *line, struct fqdn_plugin_schema *schema,
                      struct log_handle *logger)
 {
      int ret = fqdn_plugin_accept_tag_match(schema, line, logger);
@@ -249,7 +243,9 @@ fqdn_plugin_item_new(const char *line, struct fqdn_plugin_schema *schema,
 
     size_t column_offset = 0;
     size_t column_len = 0;
-    struct fqdn_plugin_item *item = ALLOC(struct fqdn_plugin_item, 1);
+    const char *fqdn = NULL;
+    size_t fqdn_len = 0;
+    struct FQDN_rule *fqdn_plugin_rule = ALLOC(struct FQDN_rule, 1);
 
     ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -258,7 +254,7 @@ fqdn_plugin_item_new(const char *line, struct fqdn_plugin_schema *schema,
                   schema->table_id, line);
         goto error;
     }
-    item->item_id = atoll(line + column_offset);
+    fqdn_plugin_rule->id = atoi(line + column_offset);
 
     ret = get_column_pos(line, schema->suffix_flag_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -267,7 +263,7 @@ fqdn_plugin_item_new(const char *line, struct fqdn_plugin_schema *schema,
                   schema->table_id, line);
         goto error;
     }
-    item->suffix_flag = atoi(line + column_offset);
+    fqdn_plugin_rule->is_suffix_match = atoi(line + column_offset);
 
     ret = get_column_pos(line, schema->fqdn_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -277,38 +273,60 @@ fqdn_plugin_item_new(const char *line, struct fqdn_plugin_schema *schema,
         goto error;
     }
 
-    return item;
+    fqdn = line + column_offset;
+    fqdn_len = column_len;
+
+    if (fqdn[0] == '.') {
+        fqdn++;
+        fqdn_len--;
+    }
+
+    if (fqdn[fqdn_len] == '/') {
+        fqdn_len--;
+    }
+
+    fqdn_plugin_rule->FQDN = ALLOC(char, fqdn_len + 1);
+    memcpy(fqdn_plugin_rule->FQDN, fqdn, fqdn_len);
+    fqdn_plugin_rule->len = fqdn_len;
+
+    return fqdn_plugin_rule;
 error:
-    FREE(item);
+    FREE(fqdn_plugin_rule);
     return NULL;
 }
 
-struct FQDN_rule *fqdn_rule_new(unsigned int id, const char* fqdn, size_t fqdn_len, int is_suffix_match)
+void fqdn_plugin_rule_free(struct FQDN_rule *rule)
 {
-	struct FQDN_rule *fqdn_rule=ALLOC(struct FQDN_rule, 1);
-	//Todo: check FQDN format with regex ^([a-zA-Z0-9._-])+$
-	if(fqdn[0]=='.')
-	{
-		fqdn++;
-		fqdn_len--;
-	}
-	if(fqdn[fqdn_len]=='/')
-	{
-		fqdn_len--;
-	}	
-	fqdn_rule->FQDN=ALLOC(char, fqdn_len+1);
-	memcpy(fqdn_rule->FQDN, fqdn, fqdn_len);
-	fqdn_rule->len=fqdn_len;
-	fqdn_rule->is_suffix_match=is_suffix_match;
-	fqdn_rule->id=id;
-	return fqdn_rule;
+    if (rule->FQDN != NULL) {
+        FREE(rule->FQDN);
+    }
+
+    FREE(rule);
 }
 
-int fqdn_plugin_runtime_update_row(struct fqdn_plugin_runtime *rt, 
-                                   struct fqdn_plugin_schema *schema,
-                                   const char *row, char *key, size_t key_len, 
-                                   struct FQDN_rule *rule, int is_valid)
+int fqdn_plugin_runtime_update_row(struct fqdn_plugin_runtime *fqdn_plugin_rt,
+                                   const char *row, const char *key, size_t key_len, 
+                                   struct FQDN_rule *fqdn_plugin_rule, int is_valid)
 {
+    int ret = -1;
+    struct ex_data_runtime *ex_data_rt = fqdn_plugin_rt->ex_data_rt;
+
+    if (0 == is_valid) {
+        // delete
+        ret = ex_data_runtime_del_ex_container(ex_data_rt, key, key_len);
+        if (ret < 0) {
+            return -1;
+        }
+    } else {
+        // add
+        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, row, key, key_len);
+        struct ex_data_container *ex_container = ex_data_container_new(ex_data, (void *)fqdn_plugin_rule);
+        ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
+        if (ret < 0) {
+            return -1;
+        }
+    }
+
     return 0;
 }
 
@@ -320,8 +338,7 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
         return -1;
     }
 
-    struct fqdn_plugin_item *item = NULL;
-    struct FQDN_rule *rule = NULL;
+    struct FQDN_rule *fqdn_plugin_rule = NULL;
     struct fqdn_plugin_schema *schema = (struct fqdn_plugin_schema *)fqdn_plugin_schema;
     struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
     long long item_id = get_column_value(line, schema->item_id_column);
@@ -337,22 +354,18 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
     if (schema->ex_schema != NULL) {
         if (1 == is_valid) {
             // add
-            item = fqdn_plugin_item_new(line, schema, fqdn_plugin_rt->logger);
-            if (NULL == item) {
+            fqdn_plugin_rule = fqdn_plugin_rule_new(line, schema, fqdn_plugin_rt->logger);
+            if (NULL == fqdn_plugin_rule) {
                 return -1;
             }
-
-            //rule = fqdn_rule_new(line, schema, fqdn_plugin_rt->logger);
-            assert(rule != NULL);
-            //fqdn_plugin_item_free(item);
         }
 
         char *key = (char *)&item_id;
-        int ret = fqdn_plugin_runtime_update_row(fqdn_plugin_rt, schema, line, key,
-                                                 sizeof(long long), rule, is_valid);
+        int ret = fqdn_plugin_runtime_update_row(fqdn_plugin_rt, line, key, sizeof(long long),
+                                                 fqdn_plugin_rule, is_valid);
         if (ret < 0) {
-            if (item != NULL) {
-                FREE(item);
+            if (fqdn_plugin_rule != NULL) {
+                fqdn_plugin_rule_free(fqdn_plugin_rule);
             }
             return -1;
         } else {
@@ -391,8 +404,8 @@ int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name
     struct FQDN_rule *rules = ALLOC(struct FQDN_rule, rule_cnt);
 
     for (size_t i = 0; i < rule_cnt; i++) {
-        rules[i] = *(struct FQDN_rule *)ex_container[i]->custom_data;
-        assert(rules[i].user_tag == ex_container[i] || NULL == rules[i].user_tag);
+         rules[i] = *(struct FQDN_rule *)ex_container[i]->custom_data;
+        assert(rules[i].user_tag == ex_container[i] || rules[i].user_tag == NULL);
         rules[i].user_tag = ex_container[i];
     }
 

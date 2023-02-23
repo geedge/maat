@@ -32,12 +32,6 @@ struct bool_plugin_schema {
     unsigned long long unmatch_tag_cnt;
 };
 
-struct bool_plugin_item {
-    long long item_id;
-    size_t n_bool_item;
-    unsigned long long bool_item_id[MAX_ITEMS_PER_BOOL_EXPR];
-};
-
 struct bool_plugin_runtime {
     struct bool_matcher *matcher;
     struct ex_data_runtime *ex_data_rt;
@@ -150,6 +144,33 @@ int bool_plugin_table_set_ex_data_schema(void *bool_plugin_schema,
     return 0;
 }
 
+
+static int cmp_ull_p(const void *p1, const void *p2)
+{
+	if(* (unsigned long long*) p1 > * (unsigned long long*) p2) {
+		return 1;
+	} else if(* (unsigned long long*) p1 < * (unsigned long long*) p2) {
+		return -1;
+	} else {
+		return 0;
+	}
+}
+
+size_t ull_dedup(unsigned long long item_ids[], size_t n_item)
+{
+    size_t index = 0;
+
+	qsort(item_ids, n_item, sizeof(unsigned long long), cmp_ull_p);
+
+	for (size_t i = 1; i < n_item; i++) {
+		if (item_ids[i] != item_ids[index]) {
+            item_ids[++index] = item_ids[i];
+        }
+	}
+
+	return index + 1;
+}
+
 void *bool_plugin_runtime_new(void *bool_plugin_schema, int max_thread_num,
                               struct maat_garbage_bin *garbage_bin,
                               struct log_handle *logger)
@@ -189,38 +210,27 @@ void bool_plugin_runtime_free(void *bool_plugin_runtime)
     FREE(bool_plugin_rt);
 }
 
-int bool_plugin_table_ex_data_schema_flag(struct bool_plugin_schema *bool_plugin_schema)
-{
-    return 0;
-}
-
-int bool_plugin_runtime_update_row(struct bool_plugin_runtime *rt, 
-                                   struct bool_plugin_schema *schema,
+int bool_plugin_runtime_update_row(struct bool_plugin_runtime *bool_plugin_rt,
                                    const char *row, char *key, size_t key_len, 
                                    struct bool_expr *expr, int is_valid)
 {
     int ret = -1;
-    struct ex_data_runtime *ex_data_rt = rt->ex_data_rt;
-    int set_flag = bool_plugin_table_ex_data_schema_flag(schema);
+    struct ex_data_runtime *ex_data_rt = bool_plugin_rt->ex_data_rt;
 
-    if (1 == set_flag) {
-        if (0 == is_valid) {
-            //delete
-            ret = ex_data_runtime_del_ex_container(ex_data_rt, key, key_len);
-            if (ret < 0) {
-                return -1;
-            }
-        } else {
-            //add
-            void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, row, key, key_len);
-            struct ex_data_container *ex_container = ex_data_container_new(ex_data, (void *)expr);
-            ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
-            if (ret < 0) {
-                return -1;
-            }
+    if (0 == is_valid) {
+        // delete
+        ret = ex_data_runtime_del_ex_container(ex_data_rt, key, key_len);
+        if (ret < 0) {
+            return -1;
         }
     } else {
-        ex_data_runtime_cache_row_put(ex_data_rt, row);
+        // add
+        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, row, key, key_len);
+        struct ex_data_container *ex_container = ex_data_container_new(ex_data, (void *)expr);
+        ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
+        if (ret < 0) {
+            return -1;
+        }
     }
 
     return 0;
@@ -267,8 +277,8 @@ int bool_plugin_accept_tag_match(struct bool_plugin_schema *schema, const char *
     return TAG_MATCH_MATCHED;
 }
 
-struct bool_plugin_item *
-bool_plugin_item_new(const char *line, struct bool_plugin_schema *schema,
+struct bool_expr *
+bool_plugin_expr_new(const char *line, struct bool_plugin_schema *schema,
                      struct log_handle *logger)
 {
     int ret = bool_plugin_accept_tag_match(schema, line, logger);
@@ -280,8 +290,9 @@ bool_plugin_item_new(const char *line, struct bool_plugin_schema *schema,
     size_t column_len = 0;
     size_t n_item = 0;
     char expr_buffer[BUFSIZ] = {0};
+    unsigned long long items[MAX_ITEMS_PER_BOOL_EXPR] = {0};
     char *token = NULL, *sub_token = NULL, *saveptr;
-    struct bool_plugin_item *item = ALLOC(struct bool_plugin_item, 1);
+    struct bool_expr *bool_expr = ALLOC(struct bool_expr, 1);
 
     ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -290,7 +301,7 @@ bool_plugin_item_new(const char *line, struct bool_plugin_schema *schema,
                   schema->table_id, line);
         goto error;
     }
-    item->item_id = atoll(line + column_offset);
+    bool_expr->expr_id = atoll(line + column_offset);
 
     ret = get_column_pos(line, schema->bool_expr_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -307,7 +318,7 @@ bool_plugin_item_new(const char *line, struct bool_plugin_schema *schema,
             break;
         }
 
-        ret = sscanf(sub_token, "%llu", item->bool_item_id + n_item);
+        ret = sscanf(sub_token, "%llu", items + n_item);
         n_item++;
         if (ret != 1 || n_item > MAX_ITEMS_PER_BOOL_EXPR) {
             log_error(logger, MODULE_BOOL_PLUGIN, 
@@ -316,59 +327,24 @@ bool_plugin_item_new(const char *line, struct bool_plugin_schema *schema,
             goto error;
         }
     }
-    item->n_bool_item = n_item;
 
-    return item;
+    n_item = ull_dedup(items, n_item);
+    for (size_t i = 0; i < n_item; i++) {
+        bool_expr->items[i].item_id = items[i];
+        bool_expr->items[i].not_flag = 0;
+    }
+
+    bool_expr->item_num = n_item;
+
+    return bool_expr;
 error:
-    FREE(item);
+    FREE(bool_expr);
     return NULL;
 }
 
-void bool_plugin_item_free(struct bool_plugin_item *item)
+void bool_plugin_expr_free(struct bool_expr *expr)
 {
-    FREE(item);
-}
-
-static int cmp_ull_p(const void *p1, const void *p2)
-{
-	if(* (unsigned long long*) p1 > * (unsigned long long*) p2) {
-		return 1;
-	} else if(* (unsigned long long*) p1 < * (unsigned long long*) p2) {
-		return -1;
-	} else {
-		return 0;
-	}
-}
-
-size_t ull_dedup(unsigned long long item_ids[], size_t n_item)
-{
-    size_t index = 0;
-
-	qsort(item_ids, n_item, sizeof(unsigned long long), cmp_ull_p);
-
-	for (size_t i = 1; i < n_item; i++) {
-		if (item_ids[i] != item_ids[index]) {
-            item_ids[++index] = item_ids[i];
-        }
-	}
-
-	return index + 1;
-}
-
-struct bool_expr *bool_expr_new(long long item_id, struct bool_plugin_item *item)
-{
-    struct bool_expr *expr = ALLOC(struct bool_expr, 1);
-
-    expr->expr_id = item_id;
-    size_t n_item = ull_dedup(item->bool_item_id, item->n_bool_item);
-    for (size_t i = 0; i < n_item; i++) {
-        expr->items[i].item_id = item->bool_item_id[i];
-        expr->items[i].not_flag = 0;
-    }
-
-    expr->item_num = n_item;
-
-    return expr;
+    FREE(expr);
 }
 
 int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_schema, 
@@ -379,8 +355,7 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
         return -1;
     }
 
-    struct bool_plugin_item *item = NULL;
-    struct bool_expr *expr = NULL;
+    struct bool_expr *bool_expr = NULL;
     struct bool_plugin_schema *schema = (struct bool_plugin_schema *)bool_plugin_schema;
     struct bool_plugin_runtime *bool_plugin_rt = (struct bool_plugin_runtime *)bool_plugin_runtime;
     long long item_id = get_column_value(line, schema->item_id_column);
@@ -396,22 +371,18 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
     if (schema->ex_schema != NULL) {
         if (1 == is_valid) {
             // add
-            item = bool_plugin_item_new(line, schema, bool_plugin_rt->logger);
-            if (NULL == item) {
+            bool_expr = bool_plugin_expr_new(line, schema, bool_plugin_rt->logger);
+            if (NULL == bool_expr) {
                 return -1;
             }
-
-            expr = bool_expr_new(item_id, item);
-            assert(expr != NULL);
-            bool_plugin_item_free(item);
         }
 
         char *key = (char *)&item_id;
-        int ret = bool_plugin_runtime_update_row(bool_plugin_rt, schema, line, key,
-                                                 sizeof(long long), expr, is_valid);
+        int ret = bool_plugin_runtime_update_row(bool_plugin_rt, line, key,
+                                                 sizeof(long long), bool_expr, is_valid);
         if (ret < 0) {
-            if (item != NULL) {
-                FREE(item);
+            if (bool_expr != NULL) {
+                bool_plugin_expr_free(bool_expr);
             }
             return -1;
         } else {

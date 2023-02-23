@@ -72,7 +72,7 @@ void ex_data_runtime_free(struct ex_data_runtime *ex_data_rt)
 }
 
 void ex_data_runtime_commit(struct ex_data_runtime *ex_data_rt)
-{
+{    
     rcu_hash_commit(ex_data_rt->htable);
 }
 
@@ -220,7 +220,7 @@ int ex_data_runtime_add_ex_container(struct ex_data_runtime *ex_data_rt,
     }
 
     rcu_hash_add(ex_data_rt->htable, key, key_len, ex_container);
-
+    
     return 0;
 }
 
@@ -246,6 +246,7 @@ void *ex_data_runtime_get_ex_data_by_key(struct ex_data_runtime *ex_data_rt,
                                          const char *key, size_t key_len)
 {
     struct ex_data_container *ex_container = NULL;
+
     ex_container = (struct ex_data_container *)rcu_hash_find(ex_data_rt->htable, 
                                                              key, key_len);
     if (NULL == ex_container) {

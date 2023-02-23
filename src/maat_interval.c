@@ -227,6 +227,8 @@ struct interval_item *interval_item_new(const char *line, struct interval_schema
         assert(strlen(district) > 0);
         str_unescape(district);
         item->district_id = table_manager_get_district_id(schema->ref_tbl_mgr, district);
+    } else {
+        item->district_id = DISTRICT_ANY;
     }
 
     ret = get_column_pos(line, schema->low_bound_column, &column_offset, &column_len);
