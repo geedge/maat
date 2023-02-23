@@ -828,6 +828,11 @@ void maat_compile_hash_set(struct maat_compile **compile_hash, long long compile
 int maat_compile_hash_remove(struct maat_compile **compile_hash, struct maat_compile *compile,
                              struct maat_garbage_bin *garbage_bin)
 {
+    if (compile->user_data_free && compile->user_data) {
+        compile->user_data_free(compile->user_data);
+        compile->user_data = NULL;
+    }
+
 	if (0 == compile->actual_clause_num) {
 		 HASH_DEL(*compile_hash, compile);
 		 maat_garbage_bagging(garbage_bin, compile, (void (*)(void *))maat_compile_free);

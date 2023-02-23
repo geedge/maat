@@ -970,6 +970,45 @@ TEST_F(CompileTable, CompileEXData) {
 	maat_state_free(&state);
 }
 
+TEST_F(CompileTable, CompileRuleUpdate) {
+    //9999	0	0	0	0	0	anything	1	1	0.0
+    const char *compile_table_name = "COMPILE";
+    const char *table_line_add = "9999\t0\t0\t0\t0\t0\tanything\t1\t1\t0.0";
+    struct maat_cmd_line line_rule;
+
+    memset(&line_rule, 0, sizeof(line_rule));
+    line_rule.rule_id = 9999;
+    line_rule.table_line = table_line_add;
+    line_rule.table_name = compile_table_name;
+    int ret = maat_cmd_set_line(g_maat_instance, &line_rule);
+    EXPECT_EQ(ret, 1);
+
+    sleep(1);
+    const char *table_line_del = "9999\t0\t0\t0\t0\t0\tanything\t0\t1\t0.0";
+    memset(&line_rule, 0, sizeof(line_rule));
+    line_rule.rule_id = 9999;
+    line_rule.table_line = table_line_del;
+    line_rule.table_name = compile_table_name;
+    ret = maat_cmd_set_line(g_maat_instance, &line_rule);
+    EXPECT_EQ(ret, 1);
+
+    sleep(1);
+    memset(&line_rule, 0, sizeof(line_rule));
+    line_rule.rule_id = 9999;
+    line_rule.table_line = table_line_add;
+    line_rule.table_name = compile_table_name;
+    ret = maat_cmd_set_line(g_maat_instance, &line_rule);
+    EXPECT_EQ(ret, 1);
+
+    sleep(1);
+    memset(&line_rule, 0, sizeof(line_rule));
+    line_rule.rule_id = 9999;
+    line_rule.table_line = table_line_del;
+    line_rule.table_name = compile_table_name;
+    ret = maat_cmd_set_line(g_maat_instance, &line_rule);
+    EXPECT_EQ(ret, 1);
+}
+
 class MaatCmdTest : public testing::Test
 {
 protected:
