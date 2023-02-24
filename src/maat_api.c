@@ -1654,8 +1654,9 @@ int maat_state_set_scan_compile_tables(struct maat *maat_instance, struct maat_s
     }
 
     struct maat_state *mid = grab_state(state, maat_instance, -1);
+    mid->n_compile_table = n_table;
+
     for (size_t i = 0; i < mid->n_compile_table; i++) {
-        
         strncpy(mid->compile_tables[i], compile_tables[i], strlen(compile_tables[i]));
     }
 

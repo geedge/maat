@@ -1230,6 +1230,91 @@ TEST_F(CompileTable, CompileRuleUpdate) {
     EXPECT_EQ(ret, 1);
 }
 
+class Policy : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        
+    }
+
+    static void TearDownTestCase() {
+       
+    }    
+};
+
+void accept_tags_entry_cb(int table_id, const char *table_line, void *u_para)
+{
+	int* callback_times = (int *)u_para;
+	char status[32] = {0};
+	int entry_id = -1, seq = -1;
+	int is_valid = 0;
+
+	sscanf(table_line, "%d\t%s\t%d\t%d", &seq,status, &entry_id, &is_valid);
+	EXPECT_STREQ(status, "SUCCESS");
+	(*callback_times)++;
+}
+
+TEST_F(Policy, PluginRuleTags1) {
+    const char *table_name = "TEST_EFFECTIVE_RANGE_TABLE";
+    int table_id = maat_table_get_id(g_maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+    int callback_times=0;
+	int ret = maat_table_callback_register(g_maat_instance, table_id,
+							               NULL,
+							               accept_tags_entry_cb, 
+							               NULL,
+							               &callback_times);
+	ASSERT_GE(ret, 0);
+	EXPECT_EQ(callback_times, 5);
+}
+
+void accept_tags_entry2_cb(int table_id, const char *table_line, void *u_para)
+{
+	int *callback_times = (int *)u_para;
+	(*callback_times)++;
+}
+
+TEST_F(Policy, PluginRuleTags2) {
+    const char *table_name = "IR_INTERCEPT_IP";
+	int table_id = maat_table_get_id(g_maat_instance, table_name);
+	ASSERT_GT(table_id, 0);
+
+	int callback_times = 0;
+	int ret = maat_table_callback_register(g_maat_instance, table_id,
+							               NULL,
+							               accept_tags_entry2_cb, 
+							               NULL,
+							               &callback_times);
+	ASSERT_GE(ret, 0);
+	EXPECT_EQ(callback_times, 2);
+}
+
+TEST_F(Policy, CompileRuleTags) {
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+	const char *should_hit = "string bbb should hit";
+	const char *should_not_hit = "string aaa should not hit";
+	const char *table_name = "HTTP_URL_LITERAL";
+	
+    int table_id = maat_table_get_id(g_maat_instance, table_name);
+	ASSERT_GT(table_id, 0);
+
+	int ret = maat_scan_string(g_maat_instance, table_id, 0, should_not_hit, 
+                               strlen(should_not_hit), results, ARRAY_SIZE,
+						        &n_hit_result, &state);
+	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+	
+	ret = maat_scan_string(g_maat_instance, table_id, 0, should_hit, 
+                           strlen(should_hit), results, ARRAY_SIZE,
+						   &n_hit_result, &state);
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+
+	maat_state_free(&state);
+}
+
+
 class MaatCmdTest : public testing::Test
 {
 protected:
@@ -1480,6 +1565,7 @@ int main(int argc, char ** argv)
         return -1;
     }
 
+    const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
     char redis_ip[64] = "127.0.0.1";
     int redis_port = 6379;
     int redis_db = 0;
@@ -1494,6 +1580,7 @@ int main(int argc, char ** argv)
     struct maat_options *opts = maat_options_new();
     maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
     maat_options_set_logger(opts, logger);
+    maat_options_set_accept_tags(opts, accept_tags);
 
     g_maat_instance = maat_new(opts, table_info_path);
     maat_options_free(opts);

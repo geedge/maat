@@ -285,9 +285,6 @@ int plugin_runtime_update_row(struct plugin_runtime *plugin_rt,
                 return -1;
             }
             plugin_rt->acc_line_num++;
-            log_info(plugin_rt->logger, MODULE_PLUGIN, 
-                 "<plugin_runtime_update> add ex_data_runtime, key:%s key_len:%zu line:%s", 
-                 key, key_len, row);
         }
     }
 
@@ -301,8 +298,6 @@ int plugin_runtime_update_row(struct plugin_runtime *plugin_rt,
     
     if ((NULL == ex_schema) && (0 == cb_count)) {
         ex_data_runtime_cache_row_put(plugin_rt->ex_data_rt, row);
-        log_info(plugin_rt->logger, MODULE_PLUGIN, 
-                 "<plugin_runtime_update> cache_row_put, line:%s", row);
     }
 
     return 0;

@@ -28,23 +28,17 @@
 #define MODULE_COMPILE	 module_name_str("maat.compile")
 #define MAX_TABLE_LINE_SIZE  (1024 * 16)
 
-enum user_region_encode {
-	USER_REGION_ENCODE_NONE = 0,
-	USER_REGION_ENCODE_ESCAPE,
-	USER_REGION_ENCODE_BASE64
-};
-
 struct compile_schema {
     int compile_id_column;
-    int tags_column;
-    int user_region_column;
+    int rule_tag_column;
     int declared_clause_num_column;
     int evaluation_order_column;
-    enum user_region_encode user_region_encoding;
 	struct ex_data_schema *ex_schema;
     int table_id; //ugly
     struct table_manager *ref_tbl_mgr;
-    size_t unmatched_tag_cnt;
+
+    unsigned long long update_err_cnt;
+    unsigned long long unmatch_tag_cnt;
 };
 
 struct group2compile_schema {
@@ -60,7 +54,6 @@ struct group2compile_schema {
 
 struct compile_item {
     long long compile_id;
-    char user_region[MAX_TABLE_LINE_SIZE];
     int declared_clause_num;
     int evaluation_order;
 };
@@ -303,20 +296,6 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         read_cnt++;
     }
 
-    item = cJSON_GetObjectItem(json, "user_region_encoded");
-    if (item != NULL && item->type == cJSON_String) {
-        if (strcmp(item->valuestring, "escape") == 0) {
-            compile_schema->user_region_encoding = USER_REGION_ENCODE_ESCAPE;
-        } else if (strcmp(item->valuestring, "none") == 0) {
-            compile_schema->user_region_encoding = USER_REGION_ENCODE_NONE;
-        } else {
-            log_error(logger, MODULE_COMPILE,
-                      "table %s has no user_region_encoded column", table_name);
-            goto error;
-        }
-        read_cnt++;
-    }
-
    	item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
         log_error(logger, MODULE_COMPILE, 
@@ -332,13 +311,7 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     custom_item = cJSON_GetObjectItem(item, "tags");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        compile_schema->tags_column = custom_item->valueint;
-        read_cnt++;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "user_region");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        compile_schema->user_region_column = custom_item->valueint;
+        compile_schema->rule_tag_column = custom_item->valueint;
         read_cnt++;
     }
 
@@ -356,7 +329,7 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     compile_schema->ref_tbl_mgr = tbl_mgr;
 
-    if (read_cnt < 7) {
+    if (read_cnt < 5) {
 		goto error;
     }
 
@@ -450,17 +423,61 @@ int group2compile_associated_compile_table_id(void *g2c_schema)
     return schema->associated_compile_table_id;
 }
 
+int compile_accept_tag_match(struct compile_schema *schema, const char *line,
+                             struct log_handle *logger)
+{
+    size_t column_offset = 0;
+    size_t column_len = 0;
+    size_t n_tag = table_manager_accept_tags_count(schema->ref_tbl_mgr);
+
+    if (schema->rule_tag_column > 0 && n_tag > 0) {
+        int ret = get_column_pos(line, schema->rule_tag_column, 
+                                 &column_offset, &column_len);
+        if (ret < 0) {
+            log_error(logger, MODULE_COMPILE,
+                      "compile table(table_id:%d) has no rule_tag, line:%s",
+                      schema->table_id, line);
+            schema->update_err_cnt++;
+            return TAG_MATCH_ERR;
+        }
+
+        if (column_len > 2) {
+            char *tag_str = ALLOC(char, column_len + 1);
+            memcpy(tag_str, (line + column_offset), column_len);
+            ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
+            FREE(tag_str);
+            if (TAG_MATCH_ERR == ret) {
+                log_error(logger, MODULE_COMPILE,
+                          "compile table(table_id:%d) has invalid tag format, line:%s",
+                          schema->table_id, line);
+                schema->update_err_cnt++;
+                return TAG_MATCH_ERR;
+            }
+
+            if (TAG_MATCH_UNMATCHED == ret) {
+                schema->unmatch_tag_cnt++;
+                return TAG_MATCH_UNMATCHED;
+            }
+        }
+    }
+
+    return TAG_MATCH_MATCHED;
+}
+
 struct compile_item *
 compile_item_new(const char *line, struct compile_schema *compile_schema,
                  struct log_handle *logger)
 {
+    int ret = compile_accept_tag_match(compile_schema, line, logger);
+    if (ret == TAG_MATCH_UNMATCHED) {
+        return NULL;
+    }
+
     size_t column_offset = 0;
     size_t column_len = 0;
-    char tag_str[MAX_TABLE_LINE_SIZE] = {0};
-    size_t n_accept_tag = 0;
     struct compile_item *compile_item = ALLOC(struct compile_item, 1);
 
-    int ret = get_column_pos(line, compile_schema->compile_id_column, 
+    ret = get_column_pos(line, compile_schema->compile_id_column, 
                              &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_COMPILE, 
@@ -469,60 +486,6 @@ compile_item_new(const char *line, struct compile_schema *compile_schema,
         goto error;
     }
     compile_item->compile_id = atoll(line + column_offset);
-
-    ret = get_column_pos(line, compile_schema->tags_column,
-                         &column_offset, &column_len);
-    if (ret < 0) {
-        log_error(logger, MODULE_COMPILE, 
-                  "compile table(table_id:%d) line:%s has no tags",
-                  compile_schema->table_id, line);
-        goto error;
-    }
-    
-    memcpy(tag_str, (line + column_offset), column_len);
-    n_accept_tag = table_manager_accept_tags_count(compile_schema->ref_tbl_mgr);
-
-    if (n_accept_tag > 0 && strlen(tag_str) > 2) {
-		str_unescape(tag_str);
-        ret = table_manager_accept_tags_match(compile_schema->ref_tbl_mgr, tag_str);
-		if (TAG_MATCH_ERR == ret) {
-			log_error(logger, MODULE_COMPILE,
-					  "compile table(table_id:%d) line:%s is invalid tag",
-					  compile_schema->table_id, line);
-			goto error;
-		}
-
-		if (TAG_MATCH_MATCHED == ret) { //not matched
-			compile_schema->unmatched_tag_cnt++;
-            goto error;
-		}
-	}
-
-    ret = get_column_pos(line, compile_schema->user_region_column, 
-                         &column_offset, &column_len);
-    if (ret < 0) {
-        log_error(logger, MODULE_COMPILE,
-				  "compile table(table_id:%d) line:%s has no user_region",
-					  compile_schema->table_id, line);
-		goto error;
-    }
-
-    if (column_len > MAX_TABLE_LINE_SIZE) {
-        log_error(logger, MODULE_COMPILE,
-				  "compile table(table_id:%d) line:%s user_region too long",
-				  compile_schema->table_id, line);
-		goto error;
-    }
-    
-    memcpy(compile_item->user_region, (line + column_offset), column_len);
-
-    switch (compile_schema->user_region_encoding) {
-		case USER_REGION_ENCODE_ESCAPE:
-			str_unescape(compile_item->user_region);
-			break;
-		default:
-			break;
-	}
 
     ret = get_column_pos(line, compile_schema->declared_clause_num_column, 
                          &column_offset, &column_len);
