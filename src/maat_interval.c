@@ -10,16 +10,14 @@
 
 #include <assert.h>
 
-#include "maat_utils.h"
-#include "log/log.h"
-#include "maat_interval.h"
 #include "maat_rule.h"
+#include "maat_utils.h"
 #include "rcu_hash.h"
 #include "alignment.h"
-#include "uthash/uthash.h"
 #include "maat_garbage_collection.h"
 #include "maat_compile.h"
 #include "interval_matcher.h"
+#include "maat_interval.h"
 
 #define MODULE_INTERVAL	 module_name_str("maat.interval")
 

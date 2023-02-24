@@ -20,11 +20,9 @@ extern "C"
 
 #include "cJSON/cJSON.h"
 #include "maat_kv.h"
+#include "maat_table.h"
 
 struct maat_group;
-struct table_manager;
-struct log_handle;
-struct maat_garbage_bin;
 
 /* group2group schema API */
 void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr, 

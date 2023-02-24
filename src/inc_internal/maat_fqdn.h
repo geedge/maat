@@ -18,11 +18,9 @@ extern "C"
 
 #include "maat_rule.h"
 #include "cJSON/cJSON.h"
+#include "maat_table.h"
 
 struct fqdn_runtime;
-struct table_manager;
-struct log_handle;
-struct maat_garbage_bin;
 
 void *fqdn_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
                       const char *table_name, struct log_handle *logger);

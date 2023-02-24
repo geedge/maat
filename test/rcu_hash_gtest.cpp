@@ -90,6 +90,22 @@ TEST(rcu_hash_add_multi_node, single_thread) {
     size_t key1_len = strlen(key1);
     rcu_hash_add(htable, key1, key1_len, (void *)data1);
 
+    struct user_data *data2 = ALLOC(struct user_data, 1);
+    data2->id = 103;
+    char name2[64] = "mahuateng";
+    memcpy(data2->name, name2, strlen(name2)); 
+    char key2[64] = "192.168.0.1";
+    size_t key2_len = strlen(key2);
+    rcu_hash_add(htable, key2, key2_len, (void *)data2);
+
+    struct user_data *data3 = ALLOC(struct user_data, 1);
+    data3->id = 104;
+    char name3[64] = "liyanhong";
+    memcpy(data3->name, name3, strlen(name3)); 
+    char key3[64] = "192.168.0.2";
+    size_t key3_len = strlen(key3);
+    rcu_hash_add(htable, key3, key3_len, (void *)data3);
+
     /* find in hash before commit */
     void *res = rcu_hash_find(htable, key0, key0_len);
     EXPECT_TRUE(res == NULL);
@@ -104,27 +120,37 @@ TEST(rcu_hash_add_multi_node, single_thread) {
 
     void **data_array = NULL;
     ret = rcu_hash_list_updating_data(htable, &data_array);
-    EXPECT_EQ(ret, 2);
+    EXPECT_EQ(ret, 4);
 
     rcu_hash_commit(htable);
 
     /* find in hash after commit */
     res = rcu_hash_find(htable, key0, key0_len);
     EXPECT_TRUE(res != NULL);
-
     struct user_data *res_data0 = (struct user_data *)res;
     EXPECT_EQ(res_data0->id, 101);
     EXPECT_STREQ(res_data0->name, "www.baidu.com");
 
     res = rcu_hash_find(htable, key1, key1_len);
     EXPECT_TRUE(res != NULL);
-
     struct user_data *res_data1 = (struct user_data *)res;
     EXPECT_EQ(res_data1->id, 102);
     EXPECT_STREQ(res_data1->name, "127.0.0.1");
 
+    res = rcu_hash_find(htable, key2, key2_len);
+    EXPECT_TRUE(res != NULL);
+    struct user_data *res_data2 = (struct user_data *)res;
+    EXPECT_EQ(res_data2->id, 103);
+    EXPECT_STREQ(res_data2->name, "mahuateng");
+
+    res = rcu_hash_find(htable, key3, key3_len);
+    EXPECT_TRUE(res != NULL);
+    struct user_data *res_data3 = (struct user_data *)res;
+    EXPECT_EQ(res_data3->id, 104);
+    EXPECT_STREQ(res_data3->name, "liyanhong");
+
     ret = rcu_hash_count(htable);
-    EXPECT_EQ(ret, 2);
+    EXPECT_EQ(ret, 4);
 
     ret = rcu_hash_garbage_queue_len(htable);
     EXPECT_EQ(ret, 0);

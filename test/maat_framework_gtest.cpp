@@ -260,7 +260,6 @@ TEST_F(MaatStringScan, ExprAndExprPlus) {
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(results[0], 195);
     maat_state_free(&state);
-
 }
 
 //TODO:
@@ -866,6 +865,199 @@ TEST_F(IPPluginTable, EX_DATA) {
 	EXPECT_EQ(ret, 0);
 }
 
+class FQDNPluginTable : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        
+    }
+
+    static void TearDownTestCase() {
+       
+    }
+};
+
+#define FQDN_PLUGIN_EX_DATA
+struct fqdn_plugin_ud
+{
+	int rule_id;
+	int catid;
+	int ref_cnt;
+};
+
+void fqdn_plugin_ex_new_cb(int table_id, const char *key, const char *table_line, void **ad, long argl, void *argp)
+{
+	int *counter = (int *)argp;
+	size_t column_offset = 0, column_len = 0;
+	struct fqdn_plugin_ud *ud = ALLOC(struct fqdn_plugin_ud, 1);
+
+	int ret = get_column_pos(table_line, 1, &column_offset, &column_len);
+	EXPECT_EQ(ret, 0);
+
+	ud->rule_id = atoi(table_line + column_offset);
+	ret = get_column_pos(table_line, 4, &column_offset, &column_len);	
+	EXPECT_EQ(ret, 0);
+
+	sscanf(table_line + column_offset, "catid=%d", &ud->catid);
+	ud->ref_cnt = 1;
+	*ad = ud;
+	(*counter)++;
+}
+
+void fqdn_plugin_ex_free_cb(int table_id, void **ad, long argl, void *argp)
+{
+	struct fqdn_plugin_ud *u = (struct fqdn_plugin_ud *)(*ad);
+	if ((__sync_sub_and_fetch(&u->ref_cnt, 1) == 0)) {
+		free(u);
+		*ad = NULL;
+	}
+}
+
+void fqdn_plugin_ex_dup_cb(int table_id, void **to, void **from, long argl, void *argp)
+{
+	struct fqdn_plugin_ud *u = (struct fqdn_plugin_ud *)(*from);
+	__sync_add_and_fetch(&(u->ref_cnt), 1);
+	*to = u;
+}
+
+TEST_F(FQDNPluginTable, EX_DATA) {
+    const char *table_name = "TEST_FQDN_PLUGIN_WITH_EXDATA";
+    int table_id = maat_table_get_id(g_maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+    int fqdn_plugin_ex_data_counter = 0;
+    int ret = maat_plugin_table_ex_schema_register(g_maat_instance, table_id,
+                                                    fqdn_plugin_ex_new_cb,
+                                                    fqdn_plugin_ex_free_cb,
+                                                    fqdn_plugin_ex_dup_cb,
+                                                    0, &fqdn_plugin_ex_data_counter);
+    ASSERT_TRUE(ret>=0);
+	EXPECT_EQ(fqdn_plugin_ex_data_counter, 5);
+
+    int i = 0;
+    struct fqdn_plugin_ud *result[4];
+
+	ret = maat_fqdn_plugin_table_get_ex_data(g_maat_instance, table_id, "www.example1.com", (void**)result, 4);
+	ASSERT_EQ(ret, 2);
+	EXPECT_EQ(result[0]->rule_id, 201);
+	EXPECT_EQ(result[1]->rule_id, 202);
+
+	for (i = 0; i < ret; i++) {
+		fqdn_plugin_ex_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
+
+	ret = maat_fqdn_plugin_table_get_ex_data(g_maat_instance, table_id, "www.example3.com", (void**)result, 4);
+	EXPECT_EQ(ret, 0);
+
+	ret = maat_fqdn_plugin_table_get_ex_data(g_maat_instance, table_id, "r3---sn-i3belne6.example2.com", (void**)result, 4);
+	ASSERT_EQ(ret, 2);
+	EXPECT_TRUE(result[0]->rule_id == 205 || result[0]->rule_id == 204);
+	
+	for (i = 0; i < ret; i++) {
+		fqdn_plugin_ex_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
+}
+
+struct bool_plugin_ud {
+	int id;
+	char *name;
+	int ref_cnt;
+};
+void bool_plugin_ex_new_cb(int table_id, const char *key, const char *table_line, void **ad, long argl, void *argp)
+{
+	int *counter=(int *)argp;
+	size_t column_offset=0, column_len=0;
+	struct bool_plugin_ud *ud = ALLOC(struct bool_plugin_ud, 1);
+	
+    int ret = get_column_pos(table_line, 1, &column_offset, &column_len);
+	EXPECT_EQ(ret, 0);
+
+	ud->id = atoi(table_line + column_offset);
+	ret = get_column_pos(table_line, 3, &column_offset, &column_len);	
+	EXPECT_EQ(ret, 0);
+
+	ud->name = (char *)malloc(column_len+1);
+	memcpy(ud->name, table_line+column_offset, column_len);
+	ud->ref_cnt = 1;
+	*ad = ud;
+	(*counter)++;
+}
+void bool_plugin_ex_free_cb(int table_id, void **ad, long argl, void *argp)
+{
+	struct bool_plugin_ud *u = (struct bool_plugin_ud *)(*ad);
+	if ((__sync_sub_and_fetch(&u->ref_cnt, 1) == 0))
+	{
+		free(u->name);
+		free(u);
+		*ad = NULL;
+	}
+}
+void bool_plugin_ex_dup_cb(int table_id, void **to, void **from, long argl, void *argp)
+{
+	struct bool_plugin_ud *u = (struct bool_plugin_ud *)(*from);
+	__sync_add_and_fetch(&(u->ref_cnt), 1);
+	*to = u;
+}
+
+class BoolPluginTable : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        
+    }
+
+    static void TearDownTestCase() {
+       
+    }
+};
+
+TEST_F(BoolPluginTable, EX_DATA) {
+    int ex_data_counter = 0, i = 0;
+	const char *table_name = "TEST_BOOL_PLUGIN_WITH_EXDATA";
+
+	int table_id = maat_table_get_id(g_maat_instance, table_name);
+	ASSERT_GT(table_id, 0);
+
+	int ret = maat_plugin_table_ex_schema_register(g_maat_instance, table_id,
+								                   bool_plugin_ex_new_cb,
+								                   bool_plugin_ex_free_cb,
+								                   bool_plugin_ex_dup_cb,
+								                   0, &ex_data_counter);
+	ASSERT_TRUE(ret >= 0);
+	EXPECT_EQ(ex_data_counter, 6);
+
+	struct bool_plugin_ud *result[6];
+	unsigned long long items_1[] = {999};
+	ret = maat_bool_plugin_table_get_ex_data(g_maat_instance, table_id, items_1, 1, (void**)result, 6);
+	EXPECT_EQ(ret, 0);
+	for (i = 0; i < ret; i++) {
+        bool_plugin_ex_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
+
+	unsigned long long items_2[] = {1, 2, 1000};
+	ret = maat_bool_plugin_table_get_ex_data(g_maat_instance, table_id, items_2, 3, (void**)result, 6);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result[0]->id, 301);
+	for (i = 0; i < ret; i++) {
+        bool_plugin_ex_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
+
+	unsigned long long items_3[]={101, 102, 1000};
+	ret = maat_bool_plugin_table_get_ex_data(g_maat_instance, table_id, items_3, 3, (void**)result, 6);
+	EXPECT_EQ(ret, 4);
+	for (i = 0; i < ret; i++) {
+        bool_plugin_ex_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
+
+	unsigned long long items_4[]={7, 0, 1, 2, 3, 4, 5, 6, 7, 7, 7};
+	ret = maat_bool_plugin_table_get_ex_data(g_maat_instance, table_id, items_4, sizeof(items_4)/sizeof(unsigned long long), (void**)result, 6);
+	EXPECT_EQ(ret, 1);	
+	EXPECT_EQ(result[0]->id, 305);
+	for (i = 0; i < ret; i++) {
+        bool_plugin_ex_free_cb(0, (void**)&(result[i]), 0, NULL);
+	}
+}
+
 class VirtualTable : public testing::Test
 {
 protected:
@@ -1084,6 +1276,7 @@ void plugin_ex_dup_cb(int table_id,	void **to, void **from, long argl, void *arg
 	__sync_add_and_fetch(&(u->ref_cnt), 1);
 	*to = u;
 }
+
 #if 0
 TEST_F(MaatCmdTest, PluginEXData) {
     const char *table_name = "TEST_PLUGIN_EXDATA_TABLE";
@@ -1135,8 +1328,8 @@ TEST_F(MaatCmdTest, PluginEXData) {
 
     ret = maat_cmd_set_line(g_maat_instance, &line_rule);
 	EXPECT_GT(ret, 0);
-
-	sleep(1);
+	
+    sleep(1);
     int ex_data_counter = 0;
 	ret = maat_plugin_table_ex_schema_register(g_maat_instance, table_id,
 								               plugin_ex_new_cb,
@@ -1147,7 +1340,7 @@ TEST_F(MaatCmdTest, PluginEXData) {
 	EXPECT_EQ(ex_data_counter, TEST_CMD_LINE_NUM);
 	
 	struct user_info *uinfo = NULL;
-	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(g_maat_instance, table_id, "192.168.0.2");
+	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(g_maat_instance, table_id, "192.168.0.4");
 	ASSERT_TRUE(uinfo != NULL);
 	EXPECT_EQ(0, strcmp(uinfo->name, "liuqiangdong"));
 	EXPECT_EQ(uinfo->id, 2);
@@ -1161,6 +1354,7 @@ TEST_F(MaatCmdTest, PluginEXData) {
 	ASSERT_TRUE(uinfo == NULL);
 }
 #endif
+
 int count_line_num_cb(const char *table_name, const char *line, void *u_para)
 {
 	(*((unsigned int *)u_para))++;

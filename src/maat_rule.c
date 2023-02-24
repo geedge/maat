@@ -18,7 +18,6 @@
 
 #include "json2iris.h"
 #include "log/log.h"
-#include "cJSON/cJSON.h"
 #include "maat_utils.h"
 #include "maat_rule.h"
 #include "maat_config_monitor.h"
@@ -415,6 +414,7 @@ void *rule_monitor_loop(void *arg)
     char err_str[NAME_MAX] = {0};
     struct stat attrib;
     while (maat_instance->is_running) {
+        log_info(maat_instance->logger, MODULE_MAAT_RULE, "rule_monitor_loop.............");
         usleep(maat_instance->rule_update_checking_interval_ms * 1000);
 		if (0 == pthread_mutex_trylock(&(maat_instance->background_update_mutex))) {
 			switch (maat_instance->input_mode) {

@@ -13,7 +13,6 @@
 #include "maat_fqdn_plugin.h"
 #include "maat_ex_data.h"
 #include "fqdn_engine.h"
-#include "log/log.h"
 #include "maat_utils.h"
 #include "maat_table.h"
 #include "maat_rule.h"

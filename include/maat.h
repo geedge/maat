@@ -165,8 +165,9 @@ int maat_scan_string(struct maat *instance, int table_id, int thread_id,
 struct maat_stream;
 struct maat_stream *maat_scan_stream_open(struct maat *instance, int table_id, int thread_id);
 
-int maat_scan_stream(struct maat_stream **stream, const char* data, int data_len, 
-                     long long *results, size_t *n_result, struct maat_state **state);
+int maat_scan_stream(struct maat_stream **stream, const char *data, int data_len, 
+                     long long *results, size_t n_result, size_t *n_hit_result,
+                     struct maat_state **state);
 
 void maat_scan_stream_close(struct maat_stream **stream);
 

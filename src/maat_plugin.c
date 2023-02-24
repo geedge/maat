@@ -268,26 +268,26 @@ int plugin_runtime_update_row(struct plugin_runtime *plugin_rt,
     int ret = -1;
     struct ex_data_schema *ex_schema = plugin_schema->ex_schema;
 
-    char hash_key[key_len + 1];
-    memset(hash_key, 0, sizeof(hash_key));
-    memcpy(hash_key, key, key_len);
-
     /* already set plugin_table_schema's ex_data_schema */
     if (ex_schema != NULL) {
         if (is_valid == 0) {
             // delete
-            ret = ex_data_runtime_del_ex_container(plugin_rt->ex_data_rt, hash_key, key_len);
+            ret = ex_data_runtime_del_ex_container(plugin_rt->ex_data_rt, key, key_len);
             if (ret < 0) {
                 return -1;
             }
         } else {
             // add
-            void *ex_data = ex_data_runtime_row2ex_data(plugin_rt->ex_data_rt, row, hash_key, key_len);
+            void *ex_data = ex_data_runtime_row2ex_data(plugin_rt->ex_data_rt, row, key, key_len);
             struct ex_data_container *ex_container = ex_data_container_new(ex_data, NULL);
-            ret = ex_data_runtime_add_ex_container(plugin_rt->ex_data_rt, hash_key, key_len, ex_container);
+            ret = ex_data_runtime_add_ex_container(plugin_rt->ex_data_rt, key, key_len, ex_container);
             if (ret < 0) {
                 return -1;
             }
+            plugin_rt->acc_line_num++;
+            log_info(plugin_rt->logger, MODULE_PLUGIN, 
+                 "<plugin_runtime_update> add ex_data_runtime, key:%s key_len:%zu line:%s", 
+                 key, key_len, row);
         }
     }
 
@@ -301,6 +301,8 @@ int plugin_runtime_update_row(struct plugin_runtime *plugin_rt,
     
     if ((NULL == ex_schema) && (0 == cb_count)) {
         ex_data_runtime_cache_row_put(plugin_rt->ex_data_rt, row);
+        log_info(plugin_rt->logger, MODULE_PLUGIN, 
+                 "<plugin_runtime_update> cache_row_put, line:%s", row);
     }
 
     return 0;
@@ -378,7 +380,6 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
         schema->update_err_cnt++;
         return -1;
     }
-    plugin_rt->acc_line_num++;
 
     return 0;
 }
@@ -390,8 +391,17 @@ int plugin_runtime_commit(void *plugin_runtime, const char *table_name)
     }
 
     struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
-    ex_data_runtime_commit(plugin_rt->ex_data_rt);
+   
+    struct ex_data_container **ex_container = NULL;
+    size_t rule_cnt = ex_data_runtime_list_updating_ex_container(plugin_rt->ex_data_rt,
+                                                                &ex_container);
+    if (rule_cnt == 0) {
+        FREE(ex_container);
+        return 0;
+    }
 
+    ex_data_runtime_commit(plugin_rt->ex_data_rt);
+    
     return 0;
 }
 
@@ -444,6 +454,6 @@ void *plugin_runtime_get_ex_data(void *plugin_runtime, void *plugin_schema, cons
     if (NULL == schema->ex_schema) {
         return NULL;
     }
-    
+
     return ex_data_runtime_get_ex_data_by_key(plugin_rt->ex_data_rt, key, strlen(key));
 }

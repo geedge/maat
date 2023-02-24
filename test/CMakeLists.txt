@@ -18,6 +18,9 @@ target_link_libraries(maat_framework_gtest maat_frame_static gtest_static)
 add_executable(adapter_hs_gtest adapter_hs_gtest.cpp)
 target_link_libraries(adapter_hs_gtest maat_frame_static gtest_static)
 
+add_executable(maat_ex_data_gtest maat_ex_data_gtest.cpp)
+target_link_libraries(maat_ex_data_gtest maat_frame_static gtest_static)
+
 file(COPY table_info.conf DESTINATION ./)
 file(COPY literal_expr.conf DESTINATION ./)
 file(COPY regex_expr.conf DESTINATION ./)

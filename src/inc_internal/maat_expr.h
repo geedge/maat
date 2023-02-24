@@ -17,12 +17,10 @@ extern "C"
 #endif
 
 #include "maat_rule.h"
+#include "maat_table.h"
 #include "cJSON/cJSON.h"
 
 struct expr_runtime;
-struct table_manager;
-struct log_handle;
-struct maat_garbage_bin;
 
 void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
                       const char *table_name, struct log_handle *logger);

@@ -18,11 +18,9 @@ extern "C"
 
 #include "maat.h"
 #include "cJSON/cJSON.h"
+#include "maat_table.h"
 
 struct ip_plugin_runtime;
-struct table_manager;
-struct log_handle;
-struct maat_garbage_bin;
 
 /* ip plugin schema API */
 void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr, 

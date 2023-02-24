@@ -18,13 +18,10 @@ extern "C"
 
 #include <stdint.h>
 
-#include "maat_rule.h"
 #include "cJSON/cJSON.h"
+#include "maat_table.h"
 
 struct interval_runtime;
-struct table_manager;
-struct log_handle;
-struct maat_garbage_bin;
 
 void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
                           const char *table_name, struct log_handle *logger);

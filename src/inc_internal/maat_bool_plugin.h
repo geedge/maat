@@ -17,12 +17,10 @@ extern "C"
 #endif
 
 #include "maat.h"
+#include "maat_table.h"
 #include "cJSON/cJSON.h"
 
 struct bool_plugin_runtime;
-struct table_manager;
-struct log_handle;
-struct maat_garbage_bin;
 
 /* bool plugin schema API */
 void *bool_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr, 

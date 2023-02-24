@@ -25,7 +25,7 @@ struct ex_data_runtime {
     size_t cache_size;
 
     struct rcu_hash_table *htable;
-    struct ex_data_schema *ex_schema;
+    struct ex_data_schema *ref_ex_schema;
 	int table_id;
 
     struct log_handle *logger;
@@ -74,6 +74,8 @@ void ex_data_runtime_free(struct ex_data_runtime *ex_data_rt)
 void ex_data_runtime_commit(struct ex_data_runtime *ex_data_rt)
 {    
     rcu_hash_commit(ex_data_rt->htable);
+    size_t count = rcu_hash_count(ex_data_rt->htable);
+    log_info(ex_data_rt->logger, MODULE_EX_DATA, "rcu_hash_count:%zu", count);
 }
 
 void ex_data_runtime_cache_row_put(struct ex_data_runtime *ex_data_rt, const char *row)
@@ -143,7 +145,7 @@ void ex_data_schema_free(struct ex_data_schema *ex_schema)
 void ex_data_runtime_set_schema(struct ex_data_runtime *ex_data_rt, 
                                 struct ex_data_schema *schema)
 {
-    ex_data_rt->ex_schema = schema;
+    ex_data_rt->ref_ex_schema = schema;
 }
 
 void ex_data_runtime_set_ex_container_ctx(struct ex_data_runtime *ex_data_rt, 
@@ -162,7 +164,7 @@ void *ex_data_runtime_row2ex_data(struct ex_data_runtime *ex_data_rt, const char
                                   const char *key, size_t key_len)
 {   
     void *ex_data = NULL;
-    struct ex_data_schema *ex_schema = ex_data_rt->ex_schema;
+    struct ex_data_schema *ex_schema = ex_data_rt->ref_ex_schema;
     ex_schema->new_func(ex_data_rt->table_id, key, row, &ex_data, 
                         ex_schema->argl, ex_schema->argp);
 
@@ -220,7 +222,11 @@ int ex_data_runtime_add_ex_container(struct ex_data_runtime *ex_data_rt,
     }
 
     rcu_hash_add(ex_data_rt->htable, key, key_len, ex_container);
-    
+    tmp_container = (struct ex_data_container *)rcu_hash_find(ex_data_rt->htable, 
+                                                              key, key_len);
+    log_info(ex_data_rt->logger, MODULE_EX_DATA,
+            "ex_data_runtime_add_ex_container rcu_hash_add ex_data_rt->htable:%p key:%p key_len:%zu, ex_container:%p tmp_container:%p", 
+            ex_data_rt->htable, key, key_len, ex_container, tmp_container);
     return 0;
 }
 
@@ -254,10 +260,10 @@ void *ex_data_runtime_get_ex_data_by_key(struct ex_data_runtime *ex_data_rt,
     }
 
     void *dup_ex_data = NULL;
-    ex_data_rt->ex_schema->dup_func(ex_data_rt->table_id, &dup_ex_data, 
+    ex_data_rt->ref_ex_schema->dup_func(ex_data_rt->table_id, &dup_ex_data, 
                                     &(ex_container->ex_data), 
-                                    ex_data_rt->ex_schema->argl, 
-                                    ex_data_rt->ex_schema->argp);
+                                    ex_data_rt->ref_ex_schema->argl, 
+                                    ex_data_rt->ref_ex_schema->argp);
     return dup_ex_data;
 }
 
@@ -265,10 +271,10 @@ void *ex_data_runtime_get_ex_data_by_container(struct ex_data_runtime *ex_data_r
                                                struct ex_data_container *ex_container)
 {
     void *dup_ex_data = NULL;
-    ex_data_rt->ex_schema->dup_func(ex_data_rt->table_id, &dup_ex_data, 
+    ex_data_rt->ref_ex_schema->dup_func(ex_data_rt->table_id, &dup_ex_data, 
                                     &(ex_container->ex_data), 
-                                    ex_data_rt->ex_schema->argl, 
-                                    ex_data_rt->ex_schema->argp);
+                                    ex_data_rt->ref_ex_schema->argl, 
+                                    ex_data_rt->ref_ex_schema->argp);
     return dup_ex_data;
 }
 

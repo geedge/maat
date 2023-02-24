@@ -24,7 +24,6 @@ extern "C"
 #include <sys/queue.h>
 #include <openssl/md5.h>
 
-#include "log/log.h"
 #include "hiredis/hiredis.h"
 #include "uthash/uthash.h"
 #include "maat_command.h"
@@ -32,7 +31,6 @@ extern "C"
 #include "maat.h"
 #include "maat_kv.h"
 #include "maat_table.h"
-#include "maat_rule.h"
 #include "maat_virtual.h"
 
 #define MAX_TABLE_NUM	1024

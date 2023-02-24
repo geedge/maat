@@ -19,6 +19,7 @@ extern "C"
 #include <stddef.h>
 #include <cJSON/cJSON.h>
 
+#include "log/log.h"
 #include "maat_garbage_collection.h"
 
 enum table_type {

@@ -13,7 +13,6 @@
 #include "maat_bool_plugin.h"
 #include "bool_matcher.h"
 #include "maat_ex_data.h"
-#include "log/log.h"
 #include "maat_utils.h"
 #include "maat_rule.h"
 #include "maat_garbage_collection.h"
