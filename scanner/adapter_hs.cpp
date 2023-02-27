@@ -583,6 +583,10 @@ next:
 
 struct adapter_hs_stream *adapter_hs_stream_open(struct adapter_hs *hs_instance, int thread_id)
 {
+    if (NULL == hs_instance || thread_id < 0) {
+        return NULL;
+    }
+    
     struct adapter_hs_stream *hs_stream = ALLOC(struct adapter_hs_stream, 1);
     hs_error_t err;
 
@@ -617,6 +621,11 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
 {
     hs_error_t err;
 
+    if (NULL == hs_stream || NULL == data || 0 == data_len ||
+        NULL == results || 0 == n_result || NULL == n_hit_result) {
+        return -1;
+    }
+    
     int thread_id = hs_stream->thread_id;
     if (hs_stream->literal_stream != NULL) {
         err = hs_scan_stream(hs_stream->literal_stream, data, data_len, 

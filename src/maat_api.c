@@ -1531,11 +1531,12 @@ struct maat_stream *maat_scan_stream_open(struct maat *maat_instance, int table_
 
         void *expr_rt = table_manager_get_runtime(stream->ref_maat_instance->tbl_mgr, 
                                                   stream->physical_table_ids[i]);
-        if (NULL == expr_rt) {
+        assert(expr_rt != NULL);
+
+        int ret = expr_runtime_stream_open((struct expr_runtime *)expr_rt, thread_id);
+        if (ret < 0) {
             return NULL;
         }
-
-        expr_runtime_stream_open((struct expr_runtime *)expr_rt, thread_id);
     }
 
     return stream;

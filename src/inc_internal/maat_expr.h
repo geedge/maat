@@ -43,9 +43,9 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name);
  * @retval the num of hit group_id
 */
 int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *data, 
-                      size_t data_len, int vtable_ids, struct maat_state *state);
+                      size_t data_len, int vtable_id, struct maat_state *state);
 
-void expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id);
+int expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id);
 int expr_runtime_stream_scan(struct expr_runtime *expr_rt, const char *data, size_t data_len,
                              int vtable_id, struct maat_state *state);
 void expr_runtime_stream_close(struct expr_runtime *expr_rt);

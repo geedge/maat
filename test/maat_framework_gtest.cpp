@@ -261,7 +261,33 @@ TEST_F(MaatStringScan, ExprAndExprPlus) {
     EXPECT_EQ(results[0], 195);
     maat_state_free(&state);
 }
+#if 0
+TEST_F(MaatStringScan, StreamInput) {
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+	const char *scan_data = "http://www.cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
+	const char *table_name = "HTTP_URL_STREAM";
 
+	int table_id = maat_table_get_id(g_maat_instance, table_name);
+	ASSERT_GT(table_id, 0);
+
+	struct maat_stream *sp = maat_scan_stream_open(g_maat_instance, table_id, 0);
+	ASSERT_FALSE(sp==NULL);
+
+	int ret = maat_scan_stream(&sp, "www.cyberessays.com", strlen("www.cyberessays.com"),
+                                results, ARRAY_SIZE, &n_hit_result, &state);
+	EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+	ret = maat_scan_stream(&sp, scan_data, strlen(scan_data), results, ARRAY_SIZE,
+                            &n_hit_result, &state);
+	maat_scan_stream_close(&sp);
+
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+	EXPECT_EQ(results[0], 125);
+	maat_state_free(&state);
+}
+#endif
 //TODO:
 #if 0
 TEST_F(MaatStringScan, ShouldNotHitExprPlus) {
@@ -1565,7 +1591,7 @@ int main(int argc, char ** argv)
         return -1;
     }
 
-    const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+   const char* accept_tags="{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
     char redis_ip[64] = "127.0.0.1";
     int redis_port = 6379;
     int redis_db = 0;

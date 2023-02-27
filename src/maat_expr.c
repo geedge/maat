@@ -847,8 +847,13 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name)
 }
 
 int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *data, 
-                      size_t data_len, int vtable_ids, struct maat_state *state)
+                      size_t data_len, int vtable_id, struct maat_state *state)
 {
+    if (NULL == expr_rt || thread_id < 0 || NULL == data || 0 == data_len 
+        || vtable_id < 0 || NULL == state) {
+        return -1;
+    }
+
     size_t n_hit_item = 0;
     struct hs_scan_result hit_results[MAX_SCANNER_HIT_ITEM_NUM] = {0};
     
@@ -885,7 +890,7 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *d
     }
 
     size_t group_hit_cnt = 0;
-    ret = maat_compile_state_update(expr_rt->item_hash, vtable_ids, hit_item_ids, 
+    ret = maat_compile_state_update(expr_rt->item_hash, vtable_id, hit_item_ids, 
                                     real_hit_item_cnt, &group_hit_cnt, state);
     if (ret < 0) {
         return -1;
@@ -894,20 +899,27 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *d
     return group_hit_cnt;
 }
 
-void expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id)
+int expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id)
 {
-    if (NULL == expr_rt) {
-        return;
+    if (NULL == expr_rt || thread_id < 0) {
+        return -1;
     }
 
     struct adapter_hs_stream *hs_stream = adapter_hs_stream_open(expr_rt->hs, thread_id);
+    if (NULL == hs_stream) {
+        return -1;
+    }
+
     expr_rt->hs_stream = hs_stream;
+
+    return 0;
 }
 
 int expr_runtime_stream_scan(struct expr_runtime *expr_rt, const char *data, size_t data_len,
                              int vtable_id, struct maat_state *state)
 {
-    if (NULL == expr_rt) {
+    if (NULL == expr_rt || NULL == data || 0 == data_len ||
+        vtable_id < 0 || NULL == state) {
         return -1;
     }
 

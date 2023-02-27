@@ -222,11 +222,7 @@ int ex_data_runtime_add_ex_container(struct ex_data_runtime *ex_data_rt,
     }
 
     rcu_hash_add(ex_data_rt->htable, key, key_len, ex_container);
-    tmp_container = (struct ex_data_container *)rcu_hash_find(ex_data_rt->htable, 
-                                                              key, key_len);
-    log_info(ex_data_rt->logger, MODULE_EX_DATA,
-            "ex_data_runtime_add_ex_container rcu_hash_add ex_data_rt->htable:%p key:%p key_len:%zu, ex_container:%p tmp_container:%p", 
-            ex_data_rt->htable, key, key_len, ex_container, tmp_container);
+    
     return 0;
 }
 
