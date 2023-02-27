@@ -74,8 +74,6 @@ void ex_data_runtime_free(struct ex_data_runtime *ex_data_rt)
 void ex_data_runtime_commit(struct ex_data_runtime *ex_data_rt)
 {    
     rcu_hash_commit(ex_data_rt->htable);
-    size_t count = rcu_hash_count(ex_data_rt->htable);
-    log_info(ex_data_rt->logger, MODULE_EX_DATA, "rcu_hash_count:%zu", count);
 }
 
 void ex_data_runtime_cache_row_put(struct ex_data_runtime *ex_data_rt, const char *row)

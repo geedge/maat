@@ -1339,8 +1339,40 @@ TEST_F(Policy, CompileRuleTags) {
 
 	maat_state_free(&state);
 }
+#if 0
+TEST_F(Policy, CompileEXData) {
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+	const char *url = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
+	const char *table_name = "HTTP_URL_LITERAL";
+	const char *expect_name = "I have a name";
 
+	int table_id = maat_table_get_id(g_maat_instance, table_name);
+	ASSERT_GT(table_id, 0);
+	
+    int ex_data_counter = 0;
+	int ret = maat_compile_table_ex_schema_register(g_maat_instance, "COMPILE", 
+													         compile_ex_param_new, 
+                                                             compile_ex_param_free, 
+                                                             compile_ex_param_dup,
+													         0, &ex_data_counter);
+	ASSERT_TRUE(ret >= 0);
+	EXPECT_EQ(ex_data_counter, 1);
+	
+	ret = maat_scan_string(g_maat_instance, table_id, 0, url, strlen(url), 
+						       results, ARRAY_SIZE, &n_hit_result, &state);
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
 
+	void *ex_data=Maat_rule_get_ex_data(g_feather, result, ex_param_idx);
+	ASSERT_TRUE(ex_data!=NULL);
+	struct rule_ex_param* param=(struct rule_ex_param*)ex_data;
+	EXPECT_EQ(param->id, 7799);
+	EXPECT_EQ(strcmp(param->name, expect_name),0);
+	compile_ex_param_free(0, NULL, NULL, &ex_data, 0, NULL);
+	Maat_clean_status(&mid);
+}
+#endif
 class MaatCmdTest : public testing::Test
 {
 protected:

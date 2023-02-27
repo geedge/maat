@@ -470,9 +470,6 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
             tbl_mgr->n_table++;
         }
     }
-	
-    assert(default_compile_table_id != MAX_TABLE_NUM);
-    assert(g2g_table_id != MAX_TABLE_NUM);
 
     tbl_mgr->default_compile_table_id = default_compile_table_id;
     tbl_mgr->g2g_table_id = g2g_table_id;
