@@ -467,7 +467,7 @@ int get_inc_key_list(long long instance_version, long long target_version, redis
 	for(i=0, j=0;i<reply->elements;i++)
 	{
 		assert(reply->element[i]->type==REDIS_REPLY_STRING);
-		ret=sscanf(reply->element[i]->str,"%[^,],%[^,],%lu", op_str, s_rule[j].table_name, &(s_rule[j].rule_id));
+		ret=sscanf(reply->element[i]->str,"%3s,%[^,],%lu", op_str, s_rule[j].table_name, &(s_rule[j].rule_id));
 		if(ret!=3||s_rule[i].rule_id<0)
 		{
 			MESA_handle_runtime_log(logger, RLOG_LV_FATAL, maat_redis_monitor,
