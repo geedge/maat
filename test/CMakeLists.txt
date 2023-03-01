@@ -2,6 +2,8 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/src/inc_internal)
 include_directories(${PROJECT_SOURCE_DIR}/deps)
 include_directories(${PROJECT_SOURCE_DIR}/scanner)
+include_directories(${PROJECT_SOURCE_DIR}/scanner/adapter_hs)
+include_directories(${PROJECT_SOURCE_DIR}/scanner/ip_matcher)
 
 add_executable(maat_api_gtest maat_api_gtest.cpp)
 target_link_libraries(maat_api_gtest maat_frame_shared gtest_static)

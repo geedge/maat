@@ -2,8 +2,17 @@ VERS_3.0{
 global:
 	extern "C" {
 		*MAAT_FRAME_VERSION_*;
-		*maat_*;
-		*bool_matcher_*;
+		maat_options*;
+        maat_new;
+        maat_free;
+        maat_table*;
+        maat_compile_table*;
+        maat_plugin_table*;
+        maat_ip_plugin_table*;
+        maat_fqdn_plugin_table*;
+        maat_bool_plugin_table*;
+        maat_scan*;
+        maat_state_*;
 	};
 local: *;
 };

@@ -14,7 +14,7 @@
 #include "maat_utils.h"
 #include "maat_ip_plugin.h"
 #include "maat_ex_data.h"
-#include "IPMatcher.h"
+#include "ip_matcher.h"
 #include "maat_rule.h"
 #include "maat.h"
 #include "maat_garbage_collection.h"
@@ -206,7 +206,7 @@ ip_plugin_rule_new(const char *line, struct ip_plugin_schema *schema,
                   schema->table_id, line);
         goto error;
     }
-    ip_plugin_rule->rule_id = atoi(line + column_offset);
+    ip_plugin_rule->rule_id = atoll(line + column_offset);
 
     ret = get_column_pos(line, schema->ip_type_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -383,7 +383,6 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
         return -1;
     }
 
-    //struct ip_plugin_item *ip_plugin_item = NULL;
     struct ip_rule *ip_plugin_rule = NULL;
     struct ip_plugin_schema *schema = (struct ip_plugin_schema *)ip_plugin_schema;
     struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
@@ -462,7 +461,7 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name)
     log_info(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
              "table[%s] committing %zu ip_plugin rules for rebuilding ip_matcher engine",
              table_name, rule_cnt);
-    new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used);
+    new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used, ip_plugin_rt->logger);
     if (NULL == new_ip_matcher) {
         log_error(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
                   "table[%s] rebuild ip_matcher engine failed when update %zu ip_plugin rules",

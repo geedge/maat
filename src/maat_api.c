@@ -26,6 +26,7 @@
 #include "maat_redis_monitor.h"
 #include "maat_compile.h"
 #include "alignment.h"
+#include "ip_matcher.h"
 #include "maat_garbage_collection.h"
 #include "maat_group.h"
 #include "maat_expr.h"

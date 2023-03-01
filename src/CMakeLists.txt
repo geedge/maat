@@ -24,6 +24,12 @@ include_directories(/opt/MESA/include/MESA/)
 include_directories(${PROJECT_SOURCE_DIR}/include/)
 include_directories(${PROJECT_SOURCE_DIR}/deps/)
 include_directories(${PROJECT_SOURCE_DIR}/scanner)
+include_directories(${PROJECT_SOURCE_DIR}/scanner/adapter_hs)
+include_directories(${PROJECT_SOURCE_DIR}/scanner/fqdn_engine)
+include_directories(${PROJECT_SOURCE_DIR}/scanner/bool_matcher)
+include_directories(${PROJECT_SOURCE_DIR}/scanner/ip_matcher)
+include_directories(${PROJECT_SOURCE_DIR}/scanner/flag_matcher)
+include_directories(${PROJECT_SOURCE_DIR}/scanner/interval_matcher)
 include_directories(${PROJECT_SOURCE_DIR}/src/inc_internal)
 
 # Static Library Output
@@ -34,10 +40,7 @@ set_target_properties(maat_frame_static PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 
 target_link_libraries(maat_frame_static hiredis-static ${MAAT_DEPEND_DYN_LIB})
 target_link_libraries(maat_frame_static igraph-static)
-target_link_libraries(maat_frame_static ipmatcher-static)
 target_link_libraries(maat_frame_static adapter-static)
-target_link_libraries(maat_frame_static flagmatcher-static)
-target_link_libraries(maat_frame_static intervalmatcher-static)
 
 # Shared Library Output
 add_library(maat_frame_shared SHARED ${MAAT_SRC} ${LIB_SOURCE_FILES})
@@ -50,10 +53,7 @@ set_target_properties(maat_frame_shared PROPERTIES LINK_FLAGS "-Wl,--version-scr
 
 target_link_libraries(maat_frame_shared hiredis-static ${MAAT_DEPEND_DYN_LIB})
 target_link_libraries(maat_frame_shared igraph-static ${MAAT_DEPEND_DYN_LIB})
-target_link_libraries(maat_frame_shared ipmatcher-static)
 target_link_libraries(maat_frame_shared adapter-static)
-target_link_libraries(maat_frame_shared flagmatcher-static)
-target_link_libraries(maat_frame_shared intervalmatcher-static)
 
 # install
 set(CMAKE_INSTALL_PREFIX /opt/MESA/)

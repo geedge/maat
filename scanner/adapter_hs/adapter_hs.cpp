@@ -20,7 +20,7 @@
 #include "uthash/utarray.h"
 #include "uthash/uthash.h"
 #include "maat_utils.h"
-#include "bool_matcher.h"
+#include "../bool_matcher/bool_matcher.h"
 
 pid_t hs_gettid() 
 {

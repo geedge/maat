@@ -4,7 +4,7 @@
 #include "maat_rule.h"
 #include "maat_utils.h"
 #include "maat_command.h"
-#include "IPMatcher.h"
+#include "ip_matcher.h"
 #include "json2iris.h"
 #include "log/log.h"
 #include "maat_config_monitor.h"
@@ -124,6 +124,11 @@ TEST_F(MaatFlagScan, hitMultiCompile) {
     EXPECT_EQ(n_hit_result, 2);
     EXPECT_EQ(results[0], 194);
     EXPECT_EQ(results[1], 192);
+
+    // memset(results, 0, sizeof(results));
+    // ret = maat_scan_flag(g_maat_instance, flag_table_id, 0, flag_scan_data, results, 
+    //                          ARRAY_SIZE, &n_hit_result, &state);
+    // EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     struct maat_hit_path hit_path[HIT_PATH_SIZE] = {0};
     int n_read = 0;
@@ -1352,25 +1357,60 @@ TEST_F(Policy, CompileEXData) {
 	ASSERT_GT(table_id, 0);
 	
     int ex_data_counter = 0;
-	int ret = maat_compile_table_ex_schema_register(g_maat_instance, "COMPILE", 
-													         compile_ex_param_new, 
-                                                             compile_ex_param_free, 
-                                                             compile_ex_param_dup,
-													         0, &ex_data_counter);
-	ASSERT_TRUE(ret >= 0);
+    int compile_table_id = maat_table_get_id(g_maat_instance, "COMPILE");
+	int ret = maat_compile_table_ex_schema_register(g_maat_instance, compile_table_id, 
+													compile_ex_param_new, 
+                                                    compile_ex_param_free, 
+                                                    compile_ex_param_dup,
+													0, &ex_data_counter);
+	EXPECT_EQ(ret, 0);
 	EXPECT_EQ(ex_data_counter, 1);
 	
 	ret = maat_scan_string(g_maat_instance, table_id, 0, url, strlen(url), 
 						       results, ARRAY_SIZE, &n_hit_result, &state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(results[0], 141);
 
-	void *ex_data=Maat_rule_get_ex_data(g_feather, result, ex_param_idx);
-	ASSERT_TRUE(ex_data!=NULL);
-	struct rule_ex_param* param=(struct rule_ex_param*)ex_data;
+	void *ex_data = maat_compile_table_get_ex_data(g_maat_instance, compile_table_id, results[0]);
+	ASSERT_TRUE(ex_data != NULL);
+
+	struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
 	EXPECT_EQ(param->id, 7799);
+
+    str_unescape(param->name);
 	EXPECT_EQ(strcmp(param->name, expect_name),0);
-	compile_ex_param_free(0, NULL, NULL, &ex_data, 0, NULL);
-	Maat_clean_status(&mid);
+
+	compile_ex_param_free(compile_table_id, &ex_data, 0, NULL);
+	maat_state_free(&state);
+}
+#endif
+#if 0
+TEST_F(Policy, SubGroup) {
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+	const char *scan_data = "ceshi6@mailhost.cn";
+	
+	uint32_t sip;
+	inet_pton(AF_INET,"10.0.6.205", &sip);
+
+	int table_id = maat_table_get_id(g_maat_instance, "MAIL_ADDR");
+	ASSERT_GT(table_id, 0);
+	
+	int ret = maat_scan_string(g_maat_instance, table_id, 0, scan_data, strlen(scan_data), 
+						       results, ARRAY_SIZE, &n_hit_result, &state);
+	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+	
+	table_id = maat_table_get_id(g_maat_instance, "IP_CONFIG");	
+	ASSERT_GT(table_id, 0);
+	
+	ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, ARRAY_SIZE,
+                         &n_hit_result, &state);	
+	
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+	EXPECT_EQ(results[0], 153);
+	
+	maat_state_free(&state);
 }
 #endif
 class MaatCmdTest : public testing::Test

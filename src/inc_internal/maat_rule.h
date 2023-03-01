@@ -27,7 +27,7 @@ extern "C"
 #include "hiredis/hiredis.h"
 #include "uthash/uthash.h"
 #include "maat_command.h"
-#include "IPMatcher.h"
+//#include "ip_matcher.h"
 #include "maat.h"
 #include "maat_kv.h"
 #include "maat_table.h"
@@ -150,7 +150,7 @@ struct foreign_key {
 //rm= Redis Maat
 struct serial_rule {
 	enum maat_operation op;//0: delete, 1: add.
-	unsigned long rule_id;
+	long long rule_id;
 	long long timeout;			// absolute unix time.
 	char table_name[NAME_MAX];
 	char *table_line;
@@ -304,7 +304,7 @@ void maat_cmd_get_foreign_conts(redisContext *c, struct serial_rule *rule_list,
 void maat_cmd_rewrite_table_line_with_foreign(struct serial_rule *s_rule);
 
 void maat_cmd_set_serial_rule(struct serial_rule *rule, enum maat_operation op,
-                              unsigned long rule_id, const char *table_name,
+                              long long rule_id, const char *table_name,
                               const char *line, long long timeout);
 
 #ifdef __cplusplus

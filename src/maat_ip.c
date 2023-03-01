@@ -14,7 +14,7 @@
 #include "log/log.h"
 #include "maat_utils.h"
 #include "maat_ex_data.h"
-#include "IPMatcher.h"
+#include "ip_matcher.h"
 #include "maat_ip.h"
 #include "maat_rule.h"
 #include "maat_compile.h"
@@ -460,7 +460,7 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name)
     log_info(ip_rt->logger, MODULE_IP,
              "table[%s] committing %zu ip rules for rebuilding ip_matcher engine",
              table_name, rule_cnt);
-    new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used);
+    new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used, ip_rt->logger);
     if (NULL == new_ip_matcher) {
         log_error(ip_rt->logger, MODULE_IP,
                   "table[%s] rebuild ip_matcher engine failed when update %zu ip rules",

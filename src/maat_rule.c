@@ -25,6 +25,7 @@
 #include "maat_table.h"
 #include "maat_compile.h"
 #include "maat_plugin.h"
+#include "ip_matcher.h"
 #include "alignment.h"
 #include "maat_garbage_collection.h"
 

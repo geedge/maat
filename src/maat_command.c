@@ -143,7 +143,7 @@ redisContext *get_redis_ctx_for_write(struct maat *maat_instance)
 }
 
 void maat_cmd_set_serial_rule(struct serial_rule *rule, enum maat_operation op,
-                              unsigned long rule_id, const char *table_name,
+                              long long rule_id, const char *table_name,
                               const char *line, long long timeout)
 {
 	memset(rule, 0, sizeof(struct serial_rule));
@@ -313,7 +313,7 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
     int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, line_rule->table_name);
     if (table_id < 0) {
         log_error(maat_instance->logger, MODULE_MAAT_COMMAND, 
-                  "Command set line id %d failed: unknown table %s", 
+                  "Command set line id %lld failed: unknown table %s", 
                   line_rule->rule_id, line_rule->table_name);
         FREE(s_rule);
         return -1;
@@ -322,7 +322,7 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
     int valid_column = table_manager_get_valid_column(maat_instance->tbl_mgr, table_id);
     if (valid_column < 0) {
         log_error(maat_instance->logger, MODULE_MAAT_COMMAND,
-                  "Command set line id %d failed: table %s is not a plugin or ip_plugin table",
+                  "Command set line id %lld failed: table %s is not a plugin or ip_plugin table",
                   line_rule->rule_id, line_rule->table_name);
         FREE(s_rule);
         return -1;
