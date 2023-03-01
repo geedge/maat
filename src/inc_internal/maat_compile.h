@@ -42,8 +42,6 @@ int compile_table_set_ex_data_schema(struct compile_schema *compile_schema, int 
                                      maat_ex_dup_func_t *dup_func,
                                      long argl, void *argp,
                                      struct log_handle *logger);
-void *compile_table_get_ex_data(struct compile_schema *compile_schema, long long compile_id);
-void compile_table_ex_data_iterate(struct compile_schema *compile_schema);
 
 /* compile runtime API */
 void *compile_runtime_new(void *compile_schema, int max_thread_num,
@@ -63,6 +61,13 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt,
                                      struct maat_compile_state *compile_state,
                                      struct maat_hit_path *hit_paths,
                                      size_t hit_path_index, size_t n_hit_path);
+
+void *compile_runtime_get_ex_data(struct compile_runtime *compile_rt, 
+                                  struct compile_schema *compile_schema, 
+                                  long long compile_id);
+void compile_runtime_ex_data_iterate(struct compile_runtime *compile_rt,
+                                     struct compile_schema *compile_schema);
+
 /* group2compile runtime API */
 void *group2compile_runtime_new(void *g2c_schema, int max_thread_num,
                                 struct maat_garbage_bin *garbage_bin,

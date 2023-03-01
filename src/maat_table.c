@@ -54,7 +54,6 @@ struct table_manager {
     int default_compile_table_id;
     int g2g_table_id;
     struct maat_kv_store *tablename2id_map;
-
     struct maat_kv_store *district_map;
     struct maat_kv_store *tmp_district_map;
     uint32_t district_num;
@@ -597,7 +596,6 @@ void table_manager_destroy(struct table_manager *tbl_mgr)
 	FREE(tbl_mgr->accept_tags);
 
 	maat_kv_store_free(tbl_mgr->tablename2id_map);
-    
 	FREE(tbl_mgr);
 }
 

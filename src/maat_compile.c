@@ -163,9 +163,7 @@ int compile_table_set_ex_data_schema(struct compile_schema *compile_schema,
 		return -1;
 	}
 
-	//compile_schema->ex_schema[idx].table_id = table_id;
     compile_schema->ex_schema = ALLOC(struct ex_data_schema, 1);
-
 	compile_schema->ex_schema->argl = argl;
 	compile_schema->ex_schema->argp = argp;
 	compile_schema->ex_schema->new_func = new_func;
@@ -235,46 +233,6 @@ void compile_runtime_user_data_iterate(struct compile_runtime *compile_rt,
         }
     }
     pthread_rwlock_unlock(&compile_rt->rwlock);
-}
-
-void compile_table_ex_data_iterate(struct compile_schema *compile_schema)
-{
-    if (NULL == compile_schema) {
-		return;
-	}
-
-    if (NULL == compile_schema->ex_schema) {
-        return;
-    }
-
-    struct ex_data_schema *ex_schema = compile_schema->ex_schema;
-    struct compile_runtime *compile_rt = NULL;
-    compile_rt = (struct compile_runtime *)table_manager_get_runtime(compile_schema->ref_tbl_mgr,
-                                                                     compile_schema->table_id);
-    compile_runtime_user_data_iterate(compile_rt, rule_ex_data_new_cb, ex_schema, compile_schema->table_id);
-}
-
-void *compile_table_get_ex_data(struct compile_schema *compile_schema, long long compile_id)
-{
-	if (NULL == compile_schema) {
-		return NULL;
-	}
-
-    struct compile_rule *compile_rule = NULL;
-    struct compile_runtime *compile_rt = NULL;
-    compile_rt = (struct compile_runtime *)table_manager_get_runtime(compile_schema->ref_tbl_mgr,
-                                                                     compile_schema->table_id);
-	
-    compile_rule = (struct compile_rule *)compile_runtime_get_user_data(compile_rt, compile_id, 0);
-    if (NULL == compile_rule) {
-        return NULL;
-    }
-   
-    void *ex_data = NULL;
-    struct ex_data_schema *ex_schema = compile_schema->ex_schema;
-    ex_schema->dup_func(compile_schema->table_id, &ex_data, compile_rule->ex_data, ex_schema->argl, ex_schema->argp);
-
-	return ex_data;
 }
 
 UT_icd ut_literal_id_icd = {sizeof(struct maat_literal_id), NULL, NULL, NULL};
@@ -997,7 +955,7 @@ maat_compile_bool_matcher_new(struct maat_compile *compile_hash,
 				#if 0
 				struct maat_literal_id *p = NULL;
 				for(p = (struct maat_literal_id *)utarray_front(compile->clause_states[i].literal_ids); p!=NULL; p=(struct maat_literal_id *)utarray_next(compile->clause_states[i].literal_ids,p)) {
-    				printf("compile_id:%llu, clause_id:%llu, literal{%llu: %d}\n", 
+    				printf("<before bool_matcher_new> compile_id:%llu, clause_id:%llu, literal{%llu: %d}\n", 
 							compile->compile_id, compile->clause_states[i].clause_id, p->group_id, p->vtable_id);
   				}
 				#endif
@@ -1063,6 +1021,43 @@ void maat_compile_bool_matcher_free(struct bool_matcher *bm)
     bool_matcher_free(bm);
 }
 
+static int maat_compile_has_clause(struct maat_compile *compile,
+                                   unsigned long long clause_id)
+{
+	struct maat_clause_state *clause_state = NULL;
+
+	for (size_t i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
+		clause_state = compile->clause_states + i;
+		if (!clause_state->in_use) {
+			continue;
+		}
+
+		if (clause_state->clause_id == clause_id) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static size_t compile_state_if_new_hit_compile(struct maat_compile_state *compile_state,
+                                               struct maat_compile *compile)
+{
+	size_t r_in_c_cnt = 0;
+	int ret = 0;
+
+	unsigned long long new_hit_clause_id = 0;
+	for (size_t i = 0; i < utarray_len(compile_state->this_scan_hit_clauses); i++) {
+		new_hit_clause_id = *(unsigned long long*)utarray_eltptr(compile_state->this_scan_hit_clauses, i);
+		ret = maat_compile_has_clause(compile, new_hit_clause_id);
+		if (ret) {
+			r_in_c_cnt++;
+		}
+	}
+
+	return r_in_c_cnt;
+}
+
 size_t maat_compile_bool_matcher_match(struct bool_matcher *bm, int is_last_scan,
                                        struct maat_compile_state *compile_state,
                                        void **user_data_array, size_t ud_array_size)
@@ -1092,14 +1087,20 @@ size_t maat_compile_bool_matcher_match(struct bool_matcher *bm, int is_last_scan
 			continue;
 		}
 
+        size_t n_new_hit_compile = compile_state_if_new_hit_compile(compile_state, compile);
+        size_t n_this_scan_hit_item = compile_state->this_scan_hit_item_cnt;
         if ((compile->not_clause_cnt > 0) && (LAST_SCAN_UNSET == is_last_scan)) {
             compile_state->not_clause_hitted_flag = 1;
         }
 
 		//TODO: not_clause
 		if (compile->user_data) {
-			user_data_array[ud_result_cnt] = compile->user_data;
-			ud_result_cnt++;
+            if (n_new_hit_compile > 0 || 0 == n_this_scan_hit_item) {
+                /* compile hit because of new item or
+                    hit a compile that refer a NOT-logic group in previous scan */
+                user_data_array[ud_result_cnt] = compile->user_data;
+			    ud_result_cnt++;
+            }
 		}
 	}
 
@@ -1459,6 +1460,41 @@ void destroy_compile_rule(struct compile_rule *compile_rule)
 	compile_rule->declared_clause_num = -1;
 	FREE(compile_rule->table_line);
 	FREE(compile_rule);
+}
+
+void compile_runtime_ex_data_iterate(struct compile_runtime *compile_rt,
+                                     struct compile_schema *compile_schema)
+{
+    if (NULL == compile_rt || NULL == compile_schema ||
+        NULL == compile_schema->ex_schema) {
+		return;
+	}
+
+    compile_runtime_user_data_iterate(compile_rt, rule_ex_data_new_cb, 
+                                      compile_schema->ex_schema,
+                                      compile_schema->table_id);
+}
+
+void *compile_runtime_get_ex_data(struct compile_runtime *compile_rt, 
+                                  struct compile_schema *compile_schema, 
+                                  long long compile_id)
+{
+	if (NULL == compile_rt || NULL == compile_schema || compile_id < 0) {
+		return NULL;
+	}
+
+    struct compile_rule *compile_rule = NULL;
+    compile_rule = (struct compile_rule *)compile_runtime_get_user_data(compile_rt, compile_id, 0);
+    if (NULL == compile_rule) {
+        return NULL;
+    }
+   
+    void *ex_data = NULL;
+    struct ex_data_schema *ex_schema = compile_schema->ex_schema;
+    ex_schema->dup_func(compile_schema->table_id, &ex_data, compile_rule->ex_data, 
+                        ex_schema->argl, ex_schema->argp);
+
+	return ex_data;
 }
 
 int compile_runtime_update(void *compile_runtime, void *compile_schema, 

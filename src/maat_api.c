@@ -458,66 +458,38 @@ int maat_table_callback_register(struct maat *maat_instance, int table_id,
     return 0;
 }
 
-int maat_compile_table_ex_schema_register(struct maat *maat_instance, int table_id,
-                                          maat_ex_new_func_t *new_func,
-                                          maat_ex_free_func_t *free_func,
-                                          maat_ex_dup_func_t *dup_func,
-                                          long argl, void *argp)
+int compile_table_ex_schema_register(struct maat *maat_instance, int table_id,
+                                     maat_ex_new_func_t *new_func,
+                                     maat_ex_free_func_t *free_func,
+                                     maat_ex_dup_func_t *dup_func,
+                                     long argl, void *argp)
 {
-    if (NULL == maat_instance || table_id < 0 || table_id >= MAX_TABLE_NUM) {
-        return -1;
-    }
-    
-    enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
-    if (table_type != TABLE_TYPE_COMPILE) {
-        log_error(maat_instance->logger, MODULE_MAAT_API, 
-                  "table(tabld_id:%d) is not compile table", table_id);
-        return -1;
-    }
+    void *schema = table_manager_get_schema(maat_instance->tbl_mgr, table_id);
+    assert(schema != NULL);
 
-    void *compile_schema = table_manager_get_schema(maat_instance->tbl_mgr, table_id);
-    assert(compile_schema != NULL);
-
-    pthread_mutex_lock(&(maat_instance->background_update_mutex));
-    int ret = compile_table_set_ex_data_schema((struct compile_schema *)compile_schema, table_id,
-                                                     new_func, free_func, dup_func, 
-                                                     argl, argp, maat_instance->logger);
+    int ret = compile_table_set_ex_data_schema((struct compile_schema *)schema,
+                                                table_id, new_func, free_func, dup_func, 
+                                                argl, argp, maat_instance->logger);
     if (ret < 0) {
-        pthread_mutex_unlock(&(maat_instance->background_update_mutex));
         return -1;
     }
 
     if (maat_instance->maat_rt != NULL) {
-        compile_table_ex_data_iterate((struct compile_schema *)compile_schema);
+        void *runtime = table_manager_get_runtime(maat_instance->tbl_mgr, table_id);
+        assert(runtime != NULL);
+        compile_runtime_ex_data_iterate((struct compile_runtime *)runtime,
+                                        (struct compile_schema *)schema);
     }
 
-    pthread_mutex_unlock(&(maat_instance->background_update_mutex));
     return 0;    
 }
 
-void *maat_compile_table_get_ex_data(struct maat *maat_instance, int compile_table_id, 
-                                     long long compile_id)
+int generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int table_id,
+									   maat_ex_new_func_t *new_func,
+									   maat_ex_free_func_t *free_func,
+									   maat_ex_dup_func_t *dup_func,
+									   long argl, void *argp, struct log_handle *logger)
 {
-    struct compile_schema *schema = (struct compile_schema *)table_manager_get_schema(maat_instance->tbl_mgr, 
-                                                                                      compile_table_id);
-    enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, compile_table_id);
-    assert(table_type == TABLE_TYPE_COMPILE);
-    return compile_table_get_ex_data(schema, compile_id);
-}
-
-int generic_plugin_table_ex_schema_register(struct table_manager *tbl_mgr, int table_id,
-									        maat_ex_new_func_t *new_func,
-									        maat_ex_free_func_t *free_func,
-									        maat_ex_dup_func_t *dup_func,
-									        long argl, void *argp, struct log_handle *logger)
-{
-    if (NULL == tbl_mgr || NULL == new_func || NULL == free_func || NULL == dup_func) {
-        assert(0);
-        log_error(logger, MODULE_MAAT_API, 
-                  "table(table_id:%d) %s failed: invalid parameter", __FUNCTION__);
-        return -1;
-    }
-
     void *schema = table_manager_get_schema(tbl_mgr, table_id);
     if (NULL == schema) {
         log_error(logger, MODULE_MAAT_API, 
@@ -574,7 +546,10 @@ int generic_plugin_table_ex_schema_register(struct table_manager *tbl_mgr, int t
                                                 dup_func, argl, argp, logger);
             break;
         default:
-            break;
+            log_error(logger, MODULE_MAAT_API,
+                      "Error: %s, table(table_id:%d) is not plugin table, can't set ex schema",
+                      __FUNCTION__, table_id);
+            return -1;
     }
 
     return 0;
@@ -653,22 +628,16 @@ void generic_plugin_runtime_commit_ex_schema(void *runtime, void *schema, int ta
     }
 }
 
-int maat_plugin_table_ex_schema_register(struct maat *maat_instance, int table_id,
-                                         maat_ex_new_func_t *new_func,
-                                         maat_ex_free_func_t *free_func,
-                                         maat_ex_dup_func_t *dup_func,
-                                         long argl, void *argp)
+int generic_plugin_table_ex_schema_register(struct maat *maat_instance, int table_id,
+									        maat_ex_new_func_t *new_func,
+									        maat_ex_free_func_t *free_func,
+									        maat_ex_dup_func_t *dup_func,
+									        long argl, void *argp)
 {
-    if (NULL == maat_instance || table_id < 0 || table_id >= MAX_TABLE_NUM) {
-        return -1;
-    }
-
-    pthread_mutex_lock(&(maat_instance->background_update_mutex));
-    int ret = generic_plugin_table_ex_schema_register(maat_instance->tbl_mgr, table_id,
-                                                      new_func, free_func, dup_func,
-                                                      argl, argp, maat_instance->logger);
+    int ret = generic_plugin_table_set_ex_schema(maat_instance->tbl_mgr, table_id, 
+                                                 new_func, free_func, dup_func,
+                                                 argl, argp, maat_instance->logger);
     if (ret < 0) {
-        pthread_mutex_unlock(&(maat_instance->background_update_mutex));
         return -1;
     }
     
@@ -683,34 +652,80 @@ int maat_plugin_table_ex_schema_register(struct maat *maat_instance, int table_i
         valid_column = table_manager_get_valid_column(maat_instance->tbl_mgr, table_id);
         generic_plugin_runtime_commit_ex_schema(runtime, schema, table_id, table_type, valid_column);
     }
-    pthread_mutex_unlock(&(maat_instance->background_update_mutex));
 
     return 0;
 }
 
-void *maat_plugin_table_get_ex_data(struct maat *maat_instance, int table_id, const char *key)
+int maat_plugin_table_ex_schema_register(struct maat *maat_instance, int table_id,
+                                         maat_ex_new_func_t *new_func,
+                                         maat_ex_free_func_t *free_func,
+                                         maat_ex_dup_func_t *dup_func,
+                                         long argl, void *argp)
+{
+    if (NULL == maat_instance || table_id < 0 || table_id >= MAX_TABLE_NUM) {
+        return -1;
+    }
+
+    pthread_mutex_lock(&(maat_instance->background_update_mutex));
+
+    int ret = -1;
+    enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
+    if (TABLE_TYPE_COMPILE == table_type) {
+        ret = compile_table_ex_schema_register(maat_instance, table_id, 
+                                               new_func, free_func, dup_func,
+                                               argl, argp);
+    } else {
+        ret = generic_plugin_table_ex_schema_register(maat_instance, table_id,
+                                                      new_func, free_func, dup_func,
+                                                      argl, argp);
+    }
+
+    pthread_mutex_unlock(&(maat_instance->background_update_mutex));
+    return ret;
+}
+
+void *maat_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
+                                    const char *key, size_t key_len)
 {
 
-    if (NULL == maat_instance || table_id < 0 || table_id >= MAX_TABLE_NUM || NULL == key) {
+    if (NULL == maat_instance || table_id < 0 || table_id >= MAX_TABLE_NUM 
+        || NULL == key || 0 == key_len) {
+        log_error(maat_instance->logger, MODULE_MAAT_API,
+                  "input parameter is invalid.");
         return NULL;
     }
     
     struct maat_runtime *maat_rt = maat_instance->maat_rt;
     if (NULL == maat_rt) {
+        log_error(maat_instance->logger, MODULE_MAAT_API, "maat runtime is NULL");
         return NULL;
     }
 
-    void *plugin_rt = table_manager_get_runtime(maat_rt->ref_tbl_mgr, table_id);
-    if (NULL == plugin_rt) {
+    void *runtime = table_manager_get_runtime(maat_rt->ref_tbl_mgr, table_id);
+    if (NULL == runtime) {
+        log_error(maat_instance->logger, MODULE_MAAT_API,
+                  "table(table_id:%d) runtime is NULL", table_id);
         return NULL;
     }
 
-    void *plugin_schema = table_manager_get_schema(maat_rt->ref_tbl_mgr, table_id);
-    if (NULL == plugin_schema) {
+    void *schema = table_manager_get_schema(maat_rt->ref_tbl_mgr, table_id);
+    if (NULL == schema) {
+        log_error(maat_instance->logger, MODULE_MAAT_API,
+                  "table(table_id:%d) schema is NULL", table_id);
         return NULL;
     }
 
-    return plugin_runtime_get_ex_data(plugin_rt, plugin_schema, key);
+    void *ret = NULL;
+    enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
+    if (TABLE_TYPE_COMPILE == table_type) {
+        ret = compile_runtime_get_ex_data(runtime, schema, *(long long *)key);
+    } else if (TABLE_TYPE_PLUGIN == table_type) {
+        ret = plugin_runtime_get_ex_data(runtime, schema, key, key_len);
+    } else {
+        return NULL;
+    }
+
+    return ret;
 }
 
 int maat_ip_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,

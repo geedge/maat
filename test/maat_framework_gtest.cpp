@@ -125,10 +125,50 @@ TEST_F(MaatFlagScan, hitMultiCompile) {
     EXPECT_EQ(results[0], 194);
     EXPECT_EQ(results[1], 192);
 
-    // memset(results, 0, sizeof(results));
-    // ret = maat_scan_flag(g_maat_instance, flag_table_id, 0, flag_scan_data, results, 
-    //                          ARRAY_SIZE, &n_hit_result, &state);
-    // EXPECT_EQ(ret, MAAT_SCAN_OK);
+    memset(results, 0, sizeof(results));
+    ret = maat_scan_flag(g_maat_instance, flag_table_id, 0, flag_scan_data, results, 
+                             ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    struct maat_hit_path hit_path[HIT_PATH_SIZE] = {0};
+    int n_read = 0;
+    n_read = maat_state_get_hit_paths(g_maat_instance, &state, hit_path, HIT_PATH_SIZE);
+    EXPECT_NE(n_read, 0);
+
+    maat_state_free(&state);
+}  
+
+TEST_F(MaatFlagScan, hitRepeatedCompile) {
+    const char *flag_table_name = "FLAG_CONFIG";
+    int flag_table_id = maat_table_get_id(g_maat_instance, flag_table_name);
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+
+    //compile_id:192 flag: 0000 0001 mask: 0000 0011
+    //scan_data: 0000 1001 or 0000 1101 should hit
+    long long flag_scan_data1 = 9; 
+    int ret = maat_scan_flag(g_maat_instance, flag_table_id, 0, flag_scan_data1, results, 
+                             ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 192);
+
+    //compile_id:192 flag: 0000 0001 mask: 0000 0011
+    //compile_id:194 flag: 0001 0101 mask: 0001 1111
+    //scan_data: 0001 0101 should hit compile192 and compile194
+	long long flag_scan_data2 = 21;
+    memset(results, 0, sizeof(results));
+    ret = maat_scan_flag(g_maat_instance, flag_table_id, 0, flag_scan_data2, results, 
+                         ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 194);
+
+    memset(results, 0, sizeof(results));
+    ret = maat_scan_flag(g_maat_instance, flag_table_id, 0, flag_scan_data2, results, 
+                         ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     struct maat_hit_path hit_path[HIT_PATH_SIZE] = {0};
     int n_read = 0;
@@ -1197,7 +1237,7 @@ TEST_F(CompileTable, CompileEXData) {
     int compile_table_id = maat_table_get_id(g_maat_instance, compile_table_name);
 
     int ex_data_counter = 0;
-    int ret = maat_compile_table_ex_schema_register(g_maat_instance, compile_table_id,
+    int ret = maat_plugin_table_ex_schema_register(g_maat_instance, compile_table_id,
                                                     compile_ex_param_new,
                                                     compile_ex_param_free,
                                                     compile_ex_param_dup,
@@ -1210,7 +1250,8 @@ TEST_F(CompileTable, CompileEXData) {
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 141);
 
-    void *ex_data = maat_compile_table_get_ex_data(g_maat_instance, compile_table_id, results[0]);
+    void *ex_data = maat_plugin_table_get_ex_data(g_maat_instance, compile_table_id, 
+                                                 (char *)&results[0], sizeof(long long));
     ASSERT_TRUE(ex_data!=NULL);
     struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
 	EXPECT_EQ(param->id, 7799);
@@ -1358,7 +1399,7 @@ TEST_F(Policy, CompileEXData) {
 	
     int ex_data_counter = 0;
     int compile_table_id = maat_table_get_id(g_maat_instance, "COMPILE");
-	int ret = maat_compile_table_ex_schema_register(g_maat_instance, compile_table_id, 
+	int ret = maat_plugin_table_ex_schema_register(g_maat_instance, compile_table_id, 
 													compile_ex_param_new, 
                                                     compile_ex_param_free, 
                                                     compile_ex_param_dup,
@@ -1371,7 +1412,8 @@ TEST_F(Policy, CompileEXData) {
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(results[0], 141);
 
-	void *ex_data = maat_compile_table_get_ex_data(g_maat_instance, compile_table_id, results[0]);
+	void *ex_data = maat_plugin_table_get_ex_data(g_maat_instance, compile_table_id, 
+                                                  (char *)&results[0], sizeof(long long));
 	ASSERT_TRUE(ex_data != NULL);
 
 	struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
@@ -1523,7 +1565,9 @@ TEST_F(MaatCmdTest, PluginEXData) {
 	EXPECT_EQ(ex_data_counter, TEST_CMD_LINE_NUM);
 	
 	struct user_info *uinfo = NULL;
-	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(g_maat_instance, table_id, "192.168.0.4");
+    const char *key1 = "192.168.0.4";
+	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(g_maat_instance, table_id, 
+                                                              key1, strlen(key1));
 	ASSERT_TRUE(uinfo != NULL);
 	EXPECT_EQ(0, strcmp(uinfo->name, "liuqiangdong"));
 	EXPECT_EQ(uinfo->id, 2);
@@ -1533,7 +1577,9 @@ TEST_F(MaatCmdTest, PluginEXData) {
 	EXPECT_GT(ret, 0);
 	
 	sleep(1);
-	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(g_maat_instance, table_id, "192.168.0.2");
+    const char *key2 = "192.168.0.2";
+	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(g_maat_instance, table_id,
+                                                              key2, strlen(key2));
 	ASSERT_TRUE(uinfo == NULL);
 }
 #endif

@@ -64,7 +64,8 @@ size_t plugin_runtime_cached_row_count(void *plugin_runtime);
 
 const char *plugin_runtime_cached_row_get(void *plugin_runtime, size_t index);
 
-void *plugin_runtime_get_ex_data(void *plugin_runtime, void *plugin_schema, const char *key);
+void *plugin_runtime_get_ex_data(void *plugin_runtime, void *plugin_schema,
+                                 const char *key, size_t key_len);
 
 #ifdef __cplusplus
 }

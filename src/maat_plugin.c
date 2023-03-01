@@ -438,7 +438,8 @@ const char *plugin_runtime_cached_row_get(void *plugin_runtime, size_t index)
     return ex_data_runtime_cached_row_get(plugin_rt->ex_data_rt, index);
 }
 
-void *plugin_runtime_get_ex_data(void *plugin_runtime, void *plugin_schema, const char *key)
+void *plugin_runtime_get_ex_data(void *plugin_runtime, void *plugin_schema,
+                                 const char *key, size_t key_len)
 {
     if (NULL == plugin_runtime || NULL == plugin_schema) {
         return NULL;
@@ -450,5 +451,5 @@ void *plugin_runtime_get_ex_data(void *plugin_runtime, void *plugin_schema, cons
         return NULL;
     }
 
-    return ex_data_runtime_get_ex_data_by_key(plugin_rt->ex_data_rt, key, strlen(key));
+    return ex_data_runtime_get_ex_data_by_key(plugin_rt->ex_data_rt, key, key_len);
 }
