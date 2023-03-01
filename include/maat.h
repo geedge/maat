@@ -56,6 +56,20 @@ struct ip_addr {
     };
 };
 
+struct ipv4_tuple {
+    unsigned int sip;       /* network order */
+    unsigned int dip;       /* network order */
+    unsigned short sport;   /* network order */
+    unsigned short dport;   /* network order */
+};
+ 
+struct ipv6_tuple {
+    unsigned int sip[4] ;   /* network order */
+    unsigned int dip[4] ;   /* network order */
+    unsigned short sport;   /* network order */
+    unsigned short dport;   /* network order */
+};
+
 typedef void maat_start_callback_t(int update_type, void *u_param);
 typedef void maat_update_callback_t(int table_id, const char *table_line, void *u_para);
 typedef void maat_finish_callback_t(void *u_para);
@@ -86,7 +100,7 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path);
 void maat_free(struct maat *instance);
 
 /* maat table API */
-int maat_table_get_id(struct maat *instance, const char *table_name);
+int maat_get_table_id(struct maat *instance, const char *table_name);
 
 /* return 0 if success, otherwise return -1 */
 int maat_table_callback_register(struct maat *instance, int table_id,
@@ -138,16 +152,26 @@ int maat_scan_flag(struct maat *instance, int table_id, int thread_id,
                    long long flag, long long *results, size_t n_result,
                    size_t *n_hit_result, struct maat_state **state);
 int maat_scan_integer(struct maat *instance, int table_id, int thread_id,
-                      unsigned int intval, long long *results, size_t n_result,
+                      long long integer, long long *results, size_t n_result,
                       size_t *n_hit_result, struct maat_state **state);
 
 int maat_scan_ipv4(struct maat *instance, int table_id, int thread_id, 
                    uint32_t ip_addr, long long *results, size_t n_result, 
                    size_t *n_hit_result, struct maat_state **state);
 
+int maat_scan_ipv4_tuple4(struct maat *instance, int table_id, int thread_id,
+                          const struct ipv4_tuple *tuple, long long *results,
+                          size_t n_result, size_t *n_hit_result,
+                          struct maat_state **state);
+
 int maat_scan_ipv6(struct maat *instance, int table_id, int thread_id, 
                    uint8_t *ip_addr, long long *results, size_t n_result, 
                    size_t *n_hit_result, struct maat_state **state);
+
+int maat_scan_ipv6_tuple4(struct maat *instance, int table_id, int thread_id,
+                          const struct ipv6_tuple *tuple, long long *results,
+                          size_t n_result, size_t *n_hit_result,
+                          struct maat_state **state);
 
 int maat_scan_string(struct maat *instance, int table_id, int thread_id,
                      const char *data, size_t data_len, long long *results, 

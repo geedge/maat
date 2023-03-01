@@ -27,6 +27,7 @@
 struct flag_schema {
     int item_id_column;
     int group_id_column;
+    int district_column;
     int flag_column;
     int flag_mask_column;
     int table_id;
@@ -36,6 +37,7 @@ struct flag_schema {
 struct flag_item {
     long long item_id;
     long long group_id;
+    int district_id;
     long long flag;
     long long flag_mask;
 };
@@ -85,6 +87,12 @@ void *flag_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     custom_item = cJSON_GetObjectItem(item, "group_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->group_id_column = custom_item->valueint;
+        read_cnt++;
+    }
+
+    custom_item = cJSON_GetObjectItem(item, "district");
+    if (custom_item != NULL && custom_item->type == cJSON_Number) {
+        schema->district_column = custom_item->valueint;
         read_cnt++;
     }
 
@@ -205,53 +213,77 @@ int flag_runtime_update_row(struct flag_runtime *flag_rt, char *key, size_t key_
     return 0;
 }
 
-struct flag_item *flag_item_new(const char *line, struct flag_schema *flag_schema,
+struct flag_item *flag_item_new(const char *line, struct flag_schema *schema,
                                 struct log_handle *logger)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
-    struct flag_item *flag_item = ALLOC(struct flag_item, 1);
+    enum table_type table_type = TABLE_TYPE_INVALID;
+    struct flag_item *item = ALLOC(struct flag_item, 1);
 
-    int ret = get_column_pos(line, flag_schema->item_id_column, &column_offset, &column_len);
+    int ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_FLAG, 
                   "flag table(table_id:%d) line:%s has no item_id",
-                  flag_schema->table_id, line);
+                  schema->table_id, line);
         goto error;
     }
-    flag_item->item_id = atoll(line + column_offset);
+    item->item_id = atoll(line + column_offset);
 
-    ret = get_column_pos(line, flag_schema->group_id_column, &column_offset, &column_len);
+    ret = get_column_pos(line, schema->group_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_FLAG, 
                   "flag table(table_id:%d) line:%s has no group_id",
-                  flag_schema->table_id, line);
+                  schema->table_id, line);
         goto error;
     }
-    flag_item->group_id = atoll(line + column_offset);
+    item->group_id = atoll(line + column_offset);
 
-    ret = get_column_pos(line, flag_schema->flag_column, &column_offset, &column_len);
+    table_type = table_manager_get_table_type(schema->ref_tbl_mgr, schema->table_id);
+    if (table_type == TABLE_TYPE_INTERVAL_PLUS) {
+        ret = get_column_pos(line, schema->district_column, &column_offset, &column_len);
+        if (ret < 0) {
+            goto error;
+        }
+
+        if (column_len >= MAX_DISTRICT_STR) {
+            log_error(logger, MODULE_FLAG, 
+                      "flag_plus table(table_id:%d) line:%s district length too long",
+                      schema->table_id, line);
+            goto error;
+        }
+
+        char district[MAX_DISTRICT_STR] = {0};
+        memcpy(district, (line + column_offset), column_len);
+        assert(strlen(district) > 0);
+        str_unescape(district);
+        item->district_id = table_manager_get_district_id(schema->ref_tbl_mgr, district);
+    } else {
+        item->district_id = DISTRICT_ANY;
+    }
+
+    ret = get_column_pos(line, schema->flag_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_FLAG, 
                   "flag table(table_id:%d) line:%s has no flag",
-                  flag_schema->table_id, line);
+                  schema->table_id, line);
         goto error;
     }
 
-    flag_item->flag = strtoull(line + column_offset, NULL, 0);
+    item->flag = strtoull(line + column_offset, NULL, 0);
 
-     ret = get_column_pos(line, flag_schema->flag_mask_column, &column_offset, &column_len);
+     ret = get_column_pos(line, schema->flag_mask_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_FLAG, 
                   "flag table(table_id:%d) line:%s has no flag_mask",
-                  flag_schema->table_id, line);
+                  schema->table_id, line);
         goto error;
     }
-    flag_item->flag_mask = strtoull(line + column_offset, NULL, 0);
+    item->flag_mask = strtoull(line + column_offset, NULL, 0);
 
-    return flag_item;
+    return item;
 error:
-    FREE(flag_item);
+    FREE(item);
     return NULL;
 }
 
@@ -330,7 +362,7 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
             return -1;
         }
 
-        u_para = maat_item_inner_new(flag_item->group_id, item_id, 0);
+        u_para = maat_item_inner_new(flag_item->group_id, item_id, flag_item->district_id);
         item = maat_item_new(item_id, flag_item->group_id, u_para);
         HASH_ADD(hh, flag_rt->item_hash, item_id, sizeof(long long), item);
 
@@ -433,10 +465,17 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
     }
     
     long long hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
+    struct maat_item_inner *item = NULL;
+    int real_hit_item_cnt = 0;
+    int district_id = state->district_id;
+
     memset(hit_item_ids, 0, sizeof(hit_item_ids));
     
     for (int i = 0; i < n_hit_item; i++) {
-        hit_item_ids[i] = hit_results[i].rule_id;
+        item = (struct maat_item_inner *)(hit_results[i].user_tag);
+        if (item->district_id == district_id || item->district_id == DISTRICT_ANY) {
+            hit_item_ids[real_hit_item_cnt++] = hit_results[i].rule_id;
+        }
     }
 
     size_t group_hit_cnt = 0;

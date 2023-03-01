@@ -163,9 +163,16 @@ int maat_cmd_get_valid_flag_offset(const char *line, enum table_type table_type,
 	int column_seq = 0;
 
  	switch (table_type) {
+        case TABLE_TYPE_FLAG:
+        case TABLE_TYPE_FLAG_PLUS: //TODO:
+            column_seq = 5;
+            break;
 		case TABLE_TYPE_EXPR:
 			column_seq = 7;
 			break;
+        case TABLE_TYPE_EXPR_PLUS:
+            column_seq = 8;
+            break;
 		case TABLE_TYPE_IP_PLUS:
 			column_seq = 18;
 			break;
@@ -187,15 +194,6 @@ int maat_cmd_get_valid_flag_offset(const char *line, enum table_type table_type,
 			break;
 		case TABLE_TYPE_INTERVAL_PLUS:
 			column_seq = 6;
-			break;
-		case TABLE_TYPE_DIGEST:
-			column_seq = 6;
-			break;
-		case TABLE_TYPE_SIMILARITY:
-			column_seq = 5;
-			break;
-		case TABLE_TYPE_EXPR_PLUS:
-			column_seq = 8;
 			break;
 		case TABLE_TYPE_GROUP2COMPILE:
 		case TABLE_TYPE_GROUP2GROUP:

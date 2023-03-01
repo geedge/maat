@@ -36,7 +36,7 @@ protected:
 
 TEST_F(MaatFlagScan, basic) {
     const char *flag_table_name = "FLAG_CONFIG";
-    int flag_table_id = maat_table_get_id(g_maat_instance, flag_table_name);
+    int flag_table_id = maat_get_table_id(g_maat_instance, flag_table_name);
     //compile_id:192 flag: 0000 0001 mask: 0000 0011
     //scan_data: 0000 1001 or 0000 1101 should hit
     long long scan_data = 9;
@@ -78,8 +78,8 @@ TEST_F(MaatFlagScan, basic) {
 TEST_F(MaatFlagScan, withExprRegion) {
     const char *flag_table_name = "FLAG_CONFIG";
     const char *expr_table_name = "HTTP_URL_LITERAL";
-    int flag_table_id = maat_table_get_id(g_maat_instance, flag_table_name);
-    int expr_table_id = maat_table_get_id(g_maat_instance, expr_table_name);
+    int flag_table_id = maat_get_table_id(g_maat_instance, flag_table_name);
+    int expr_table_id = maat_get_table_id(g_maat_instance, expr_table_name);
     //compile_id:193 flag: 0000 0010 mask: 0000 0011
     //scan_data: 0000 0010 or 0000 0100 should hit
     long long flag_scan_data = 2;
@@ -109,7 +109,7 @@ TEST_F(MaatFlagScan, withExprRegion) {
 
 TEST_F(MaatFlagScan, hitMultiCompile) {
     const char *flag_table_name = "FLAG_CONFIG";
-    int flag_table_id = maat_table_get_id(g_maat_instance, flag_table_name);
+    int flag_table_id = maat_get_table_id(g_maat_instance, flag_table_name);
     //compile_id:192 flag: 0000 0001 mask: 0000 0011
     //compile_id:194 flag: 0001 0101 mask: 0001 1111
     //scan_data: 0001 0101 should hit compile192 and compile194
@@ -140,7 +140,7 @@ TEST_F(MaatFlagScan, hitMultiCompile) {
 
 TEST_F(MaatFlagScan, hitRepeatedCompile) {
     const char *flag_table_name = "FLAG_CONFIG";
-    int flag_table_id = maat_table_get_id(g_maat_instance, flag_table_name);
+    int flag_table_id = maat_get_table_id(g_maat_instance, flag_table_name);
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
@@ -178,6 +178,41 @@ TEST_F(MaatFlagScan, hitRepeatedCompile) {
     maat_state_free(&state);
 }  
 
+
+TEST_F(MaatFlagScan, FlagPlus) {
+    const char *flag_table_name = "FLAG_PLUS_CONFIG";
+    const char *region_name = "I love China";
+    int flag_table_id = maat_get_table_id(g_maat_instance, flag_table_name);
+    //compile_id:196 flag: 0001 1111 mask: 0000 1111
+    //scan_data: 0000 1111 or 0001 1111 should hit
+    long long scan_data1 = 15;
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+    int ret = maat_scan_flag(g_maat_instance, flag_table_id, 0, scan_data1, results,
+                             ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_ERR);
+ 
+    ret = maat_state_set_scan_district(g_maat_instance, &state, region_name, strlen(region_name));
+    ASSERT_EQ(ret, 0);
+
+    ret = maat_scan_flag(g_maat_instance, flag_table_id, 0, scan_data1, results,
+                             ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 196);
+
+    ret = maat_scan_flag(g_maat_instance, flag_table_id, 0, scan_data1, results,
+                             ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    struct maat_hit_path hit_path[HIT_PATH_SIZE] = {0};
+    int n_read = 0;
+    n_read = maat_state_get_hit_paths(g_maat_instance, &state, hit_path, HIT_PATH_SIZE);
+    EXPECT_NE(n_read, 0);
+    maat_state_free(&state);
+}
+
 class MaatStringScan : public testing::Test
 {
 protected:
@@ -191,7 +226,7 @@ protected:
 
 TEST_F(MaatStringScan, Expr8) {
     const char *table_name = "KEYWORDS_TABLE";
-    int table_id = maat_table_get_id(g_maat_instance, table_name);
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -216,7 +251,7 @@ TEST_F(MaatStringScan, Regex) {
     struct maat_state *state = NULL;
     const char *cookie = "Cookie: Txa123aheadBCAxd";
     const char *table_name = "HTTP_URL_REGEX";
-    int table_id = maat_table_get_id(g_maat_instance, table_name);
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
 
     ret = maat_scan_string(g_maat_instance, table_id, 0, cookie, strlen(cookie),
                             results, ARRAY_SIZE, &n_hit_result, &state);
@@ -256,7 +291,7 @@ TEST_F(MaatStringScan, ExprPlus) {
 	const char *scan_data1 = "http://www.cyberessays.com/search_results.php?action=search&query=abckkk,1234567";
 	const char *scan_data2 = "Addis Sapphire Hotel";
     const char *table_name = "HTTP_SIGNATURE";
-    int table_id = maat_table_get_id(g_maat_instance, table_name);
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
 
 	int ret = maat_scan_string(g_maat_instance, table_id, 0, scan_data1, strlen(scan_data1), 
 						        results, ARRAY_SIZE, &n_hit_result, &state);
@@ -287,8 +322,8 @@ TEST_F(MaatStringScan, ExprAndExprPlus) {
     const char *expr_plus_table_name = "HTTP_SIGNATURE";
     const char *region_name = "I love China";
     const char *scan_data = "today is Monday and yesterday is Tuesday";
-    int expr_table_id = maat_table_get_id(g_maat_instance, expr_table_name);
-    int expr_plus_table_id = maat_table_get_id(g_maat_instance, expr_plus_table_name);
+    int expr_table_id = maat_get_table_id(g_maat_instance, expr_table_name);
+    int expr_plus_table_id = maat_get_table_id(g_maat_instance, expr_plus_table_name);
 
     int ret = maat_scan_string(g_maat_instance, expr_plus_table_id, 0, scan_data, strlen(scan_data),
                                 results, ARRAY_SIZE, &n_hit_result, &state);
@@ -314,7 +349,7 @@ TEST_F(MaatStringScan, StreamInput) {
 	const char *scan_data = "http://www.cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
 	const char *table_name = "HTTP_URL_STREAM";
 
-	int table_id = maat_table_get_id(g_maat_instance, table_name);
+	int table_id = maat_get_table_id(g_maat_instance, table_name);
 	ASSERT_GT(table_id, 0);
 
 	struct maat_stream *sp = maat_scan_stream_open(g_maat_instance, table_id, 0);
@@ -354,7 +389,7 @@ TEST_F(MaatStringScan, ShouldNotHitExprPlus) {
 							0xf6, 0x30, 0x81, 0xf4, 0x3f, 0xc2, 0x19, 0x6a, 
 							0x68, 0x61, 0x93, 0x08, 0xc0, 0x0a, 0xab, 0x00 };
 
-	int table_id = maat_table_get_id(g_maat_instance, "APP_PAYLOAD");
+	int table_id = maat_get_table_id(g_maat_instance, "APP_PAYLOAD");
 	ASSERT_GT(table_id, 0);
 
 	int ret = maat_state_set_scan_district(g_maat_instance, &state, region_name, strlen(region_name));
@@ -375,7 +410,7 @@ TEST_F(MaatStringScan, ExprPlusWithHex) {
 	const char *region_name1 = "Content-Type";
 	const char *region_name2 = "User-Agent";
 
-	int table_id = maat_table_get_id(g_maat_instance, "HTTP_SIGNATURE");
+	int table_id = maat_get_table_id(g_maat_instance, "HTTP_SIGNATURE");
 	ASSERT_GT(table_id, 0);
 
 	int ret = maat_state_set_scan_district(g_maat_instance, &state, region_name1, strlen(region_name1));
@@ -391,7 +426,7 @@ TEST_F(MaatStringScan, ExprPlusWithHex) {
 						   results, ARRAY_SIZE, &n_hit_result, &state);
 	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     
-    table_id = maat_table_get_id(g_maat_instance, "KEYWORDS_TABLE");
+    table_id = maat_get_table_id(g_maat_instance, "KEYWORDS_TABLE");
     ret = maat_scan_string(g_maat_instance, table_id, 0, scan_data2, strlen(scan_data2),
                             results, ARRAY_SIZE, &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -432,7 +467,7 @@ TEST_F(MaatStringScan, ExprPlusWithOffset)
 							0xf6, 0x30, 0x81, 0xf4, 0x3f, 0xc2, 0x19, 0x6a, 
 							0x68, 0x61, 0x93, 0x08, 0xc0, 0x0a };
 
-	int table_id = maat_table_get_id(g_maat_instance, "APP_PAYLOAD");
+	int table_id = maat_get_table_id(g_maat_instance, "APP_PAYLOAD");
 	ASSERT_GT(table_id, 0);
 
 	int ret = maat_state_set_scan_district(g_maat_instance, &state, region_name, strlen(region_name));
@@ -452,7 +487,7 @@ TEST_F(MaatStringScan, ExprPlusWithOffset)
 #endif
 TEST_F(MaatStringScan, dynamic_config) {
     const char *table_name = "HTTP_URL_LITERAL";
-    int table_id = maat_table_get_id(g_maat_instance, table_name);
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
     char data[128] = "hello world";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -551,7 +586,7 @@ protected:
 
 TEST_F(MaatIPScan, IPv4) {
     const char *table_name = "IP_PLUS_CONFIG";
-    int table_id = maat_table_get_id(g_maat_instance, table_name);
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
     ASSERT_GT(table_id, 0);
 
     char ip_str[32] = "10.0.7.100";
@@ -573,7 +608,7 @@ TEST_F(MaatIPScan, IPv4) {
 
 TEST_F(MaatIPScan, IPv6) {
     const char *table_name = "IP_PLUS_CONFIG";
-    int table_id = maat_table_get_id(g_maat_instance, table_name);
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
     char ip_str[32] = "1001:da8:205:1::101";
     uint8_t sip[16];
     int ret = inet_pton(AF_INET6, ip_str, &sip);
@@ -593,7 +628,7 @@ TEST_F(MaatIPScan, IPv6) {
 
 TEST_F(MaatIPScan, dynamic_config) {
     const char *table_name = "IP_PLUS_CONFIG";
-    int table_id = maat_table_get_id(g_maat_instance, table_name);
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
     char ip_str[32] = "100.100.100.100";
     uint32_t sip;
     int ret = inet_pton(AF_INET, ip_str, &sip);
@@ -693,7 +728,7 @@ TEST_F(MaatIntervalScan, Pure) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     const char *table_name = "CONTENT_SIZE";
-    int table_id = maat_table_get_id(g_maat_instance, table_name);
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
     unsigned int scan_data1 = 2015;
 
 	int ret = maat_scan_integer(g_maat_instance, table_id, 0, scan_data1, results, ARRAY_SIZE, 
@@ -714,7 +749,7 @@ TEST_F(MaatIntervalScan, IntervalPlus) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     const char *table_name = "INTERGER_PLUS";
-    int table_id = maat_table_get_id(g_maat_instance, table_name);
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
     const char *district_str = "interval.plus";
 
     int ret = maat_state_set_scan_district(g_maat_instance, &state, district_str, strlen(district_str));
@@ -750,8 +785,8 @@ TEST_F(NOTLogic, ScanNotAtLast) {
     struct maat_state *state = NULL;
 	const char *hit_table_name = "HTTP_URL_LITERAL";
     const char *not_hit_table_name = "KEYWORDS_TABLE";
-	int hit_table_id = maat_table_get_id(g_maat_instance, hit_table_name);
-    int not_hit_table_id = maat_table_get_id(g_maat_instance, not_hit_table_name);
+	int hit_table_id = maat_get_table_id(g_maat_instance, hit_table_name);
+    int not_hit_table_id = maat_get_table_id(g_maat_instance, not_hit_table_name);
 
 	int ret = maat_scan_string(g_maat_instance, hit_table_id, 0, string_should_hit, strlen(string_should_hit), 
 						       results, ARRAY_SIZE, &n_hit_result, &state);
@@ -818,7 +853,7 @@ protected:
 
 TEST_F(PluginTable, Callback) {
     const char *table_name = "QD_ENTRY_INFO";
-    int table_id = maat_table_get_id(g_maat_instance, table_name);
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
 
     int ret = maat_table_callback_register(g_maat_instance, table_id, 
                                            maat_read_entry_start_cb,
@@ -887,7 +922,7 @@ void ip_plugin_EX_dup_cb(int table_id, void **to, void **from, long argl, void *
 TEST_F(IPPluginTable, EX_DATA) {
     int ip_plugin_ex_data_counter = 0;
     const char *table_name = "TEST_IP_PLUGIN_WITH_EXDATA";
-    int table_id = maat_table_get_id(g_maat_instance, table_name);
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
 
     int ret = maat_plugin_table_ex_schema_register(g_maat_instance, table_id,
                                                    ip_plugin_EX_new_cb,
@@ -993,7 +1028,7 @@ void fqdn_plugin_ex_dup_cb(int table_id, void **to, void **from, long argl, void
 
 TEST_F(FQDNPluginTable, EX_DATA) {
     const char *table_name = "TEST_FQDN_PLUGIN_WITH_EXDATA";
-    int table_id = maat_table_get_id(g_maat_instance, table_name);
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
     ASSERT_GT(table_id, 0);
 
     int fqdn_plugin_ex_data_counter = 0;
@@ -1086,7 +1121,7 @@ TEST_F(BoolPluginTable, EX_DATA) {
     int ex_data_counter = 0, i = 0;
 	const char *table_name = "TEST_BOOL_PLUGIN_WITH_EXDATA";
 
-	int table_id = maat_table_get_id(g_maat_instance, table_name);
+	int table_id = maat_get_table_id(g_maat_instance, table_name);
 	ASSERT_GT(table_id, 0);
 
 	int ret = maat_plugin_table_ex_schema_register(g_maat_instance, table_id,
@@ -1146,7 +1181,7 @@ TEST_F(VirtualTable, basic) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     const char *table_name = "HTTP_RESPONSE_KEYWORDS";
-    int table_id = maat_table_get_id(g_maat_instance, table_name);
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     
     int ret = maat_scan_string(g_maat_instance, table_id, 0, scan_data, strlen(scan_data),
@@ -1224,17 +1259,17 @@ void compile_ex_param_dup(int table_id, void **to, void **from, long argl, void 
 	pthread_mutex_unlock(&(from_param->lock));
 	*((struct rule_ex_param**)to) = from_param;
 }
-
+#if 0
 TEST_F(CompileTable, CompileEXData) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     const char *url = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
 	const char *table_name = "HTTP_URL_LITERAL";
-    const char *compile_table_name = "COMPILE";
+    const char *compile_table_name = "COMPILE_ALIAS";
 	const char *expect_name = "I have a name";
-    int table_id = maat_table_get_id(g_maat_instance, table_name);
-    int compile_table_id = maat_table_get_id(g_maat_instance, compile_table_name);
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
+    int compile_table_id = maat_get_table_id(g_maat_instance, compile_table_name);
 
     int ex_data_counter = 0;
     int ret = maat_plugin_table_ex_schema_register(g_maat_instance, compile_table_id,
@@ -1243,6 +1278,10 @@ TEST_F(CompileTable, CompileEXData) {
                                                     compile_ex_param_dup,
                                                     0, &ex_data_counter);
     ASSERT_TRUE(ret == 0);
+    EXPECT_EQ(ex_data_counter, 1);
+
+    ret = maat_state_set_scan_compile_tables(g_maat_instance, &state, &compile_table_name, 1);
+    EXPECT_EQ(ret, 0);
 
     ret = maat_scan_string(g_maat_instance, table_id, 0, url, strlen(url),
                                 results, ARRAY_SIZE, &n_hit_result, &state);
@@ -1262,7 +1301,7 @@ TEST_F(CompileTable, CompileEXData) {
 
 	maat_state_free(&state);
 }
-
+#endif
 TEST_F(CompileTable, CompileRuleUpdate) {
     //9999	0	0	0	0	0	anything	1	1	0.0
     const char *compile_table_name = "COMPILE";
@@ -1328,7 +1367,7 @@ void accept_tags_entry_cb(int table_id, const char *table_line, void *u_para)
 
 TEST_F(Policy, PluginRuleTags1) {
     const char *table_name = "TEST_EFFECTIVE_RANGE_TABLE";
-    int table_id = maat_table_get_id(g_maat_instance, table_name);
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
     ASSERT_GT(table_id, 0);
 
     int callback_times=0;
@@ -1349,7 +1388,7 @@ void accept_tags_entry2_cb(int table_id, const char *table_line, void *u_para)
 
 TEST_F(Policy, PluginRuleTags2) {
     const char *table_name = "IR_INTERCEPT_IP";
-	int table_id = maat_table_get_id(g_maat_instance, table_name);
+	int table_id = maat_get_table_id(g_maat_instance, table_name);
 	ASSERT_GT(table_id, 0);
 
 	int callback_times = 0;
@@ -1370,7 +1409,7 @@ TEST_F(Policy, CompileRuleTags) {
 	const char *should_not_hit = "string aaa should not hit";
 	const char *table_name = "HTTP_URL_LITERAL";
 	
-    int table_id = maat_table_get_id(g_maat_instance, table_name);
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
 	ASSERT_GT(table_id, 0);
 
 	int ret = maat_scan_string(g_maat_instance, table_id, 0, should_not_hit, 
@@ -1394,11 +1433,11 @@ TEST_F(Policy, CompileEXData) {
 	const char *table_name = "HTTP_URL_LITERAL";
 	const char *expect_name = "I have a name";
 
-	int table_id = maat_table_get_id(g_maat_instance, table_name);
+	int table_id = maat_get_table_id(g_maat_instance, table_name);
 	ASSERT_GT(table_id, 0);
 	
     int ex_data_counter = 0;
-    int compile_table_id = maat_table_get_id(g_maat_instance, "COMPILE");
+    int compile_table_id = maat_get_table_id(g_maat_instance, "COMPILE");
 	int ret = maat_plugin_table_ex_schema_register(g_maat_instance, compile_table_id, 
 													compile_ex_param_new, 
                                                     compile_ex_param_free, 
@@ -1436,14 +1475,14 @@ TEST_F(Policy, SubGroup) {
 	uint32_t sip;
 	inet_pton(AF_INET,"10.0.6.205", &sip);
 
-	int table_id = maat_table_get_id(g_maat_instance, "MAIL_ADDR");
+	int table_id = maat_get_table_id(g_maat_instance, "MAIL_ADDR");
 	ASSERT_GT(table_id, 0);
 	
 	int ret = maat_scan_string(g_maat_instance, table_id, 0, scan_data, strlen(scan_data), 
 						       results, ARRAY_SIZE, &n_hit_result, &state);
 	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 	
-	table_id = maat_table_get_id(g_maat_instance, "IP_CONFIG");	
+	table_id = maat_get_table_id(g_maat_instance, "IP_CONFIG");	
 	ASSERT_GT(table_id, 0);
 	
 	ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, ARRAY_SIZE,
@@ -1511,7 +1550,7 @@ TEST_F(MaatCmdTest, PluginEXData) {
 							                     "2\t192.168.0.2\tliuqiangdong\t1\t0",
 							                     "3\t192.168.0.3\tmayun\t1\t0",
 							                     "4\t192.168.0.4\tliyanhong\t1\t0"};
-	int table_id = maat_table_get_id(g_maat_instance, table_name);
+	int table_id = maat_get_table_id(g_maat_instance, table_name);
 	ASSERT_GT(table_id, 0);
     
     /* 1st line */

@@ -162,7 +162,7 @@ void read_rule_from_redis(redisContext *c, long long desire_version, const char 
 			
 			cur_table = rule_list[i].table_name;
 		}
-		fprintf(table_fp, "%s\tkey=%ld\n", rule_list[i].table_line, rule_list[i].rule_id);
+		fprintf(table_fp, "%s\tkey=%lld\n", rule_list[i].table_line, rule_list[i].rule_id);
 		line_count++;
 	}
 

@@ -51,7 +51,7 @@ void ex_data_dup_cb(int table_id,	void **to, void **from, long argl, void *argp)
 
 TEST(EXDataRuntime, Update) {
     const char *table_name = "TEST_PLUGIN_EXDATA_TABLE";
-	int table_id = maat_table_get_id(g_maat_instance, table_name);
+	int table_id = maat_get_table_id(g_maat_instance, table_name);
 	ASSERT_GT(table_id, 0);
 
     int ex_data_counter = 0;

@@ -37,7 +37,7 @@ TEST(json_mode, maat_scan_string) {
     EXPECT_TRUE(maat_instance != NULL);
 
     const char *table_name = "KEYWORDS_TABLE";
-    int table_id = maat_table_get_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_instance, table_name);
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     long long results[5] = {0};
     size_t n_hit_result = 0;
@@ -82,7 +82,7 @@ TEST(iris_mode, maat_scan_string) {
     EXPECT_TRUE(maat_instance != NULL);
 
     const char *table_name = "KEYWORDS_TABLE";
-    int table_id = maat_table_get_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_instance, table_name);
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     long long results[5] = {0};
     size_t n_hit_result = 0;
@@ -204,7 +204,7 @@ TEST(redis_mode, maat_scan_string) {
 
     struct maat *maat_instance = maat_new(opts, table_info_path);
     const char *table_name = "KEYWORDS_TABLE";
-    int table_id = maat_table_get_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_instance, table_name);
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     long long results[5] = {0};
     size_t n_hit_result = 0;

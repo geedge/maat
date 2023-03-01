@@ -87,6 +87,15 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .commit_runtime = flag_runtime_commit
     },
     {
+        .type = TABLE_TYPE_FLAG_PLUS,
+        .new_schema = flag_schema_new,
+        .free_schema = flag_schema_free,
+        .new_runtime = flag_runtime_new,
+        .free_runtime = flag_runtime_free,
+        .update_runtime = flag_runtime_update,
+        .commit_runtime = flag_runtime_commit
+    },
+    {
         .type = TABLE_TYPE_EXPR,
         .new_schema = expr_schema_new,
         .free_schema = expr_schema_free,
@@ -114,6 +123,15 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .commit_runtime = ip_runtime_commit
     },
     {
+        .type = TABLE_TYPE_PORT,
+        .new_schema = NULL,
+        .free_schema = NULL,
+        .new_runtime = NULL,
+        .free_runtime = NULL,
+        .update_runtime = NULL,
+        .commit_runtime = NULL
+    },
+    {
         .type = TABLE_TYPE_INTERVAL,
         .new_schema = interval_schema_new,
         .free_schema = interval_schema_free,
@@ -130,12 +148,6 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .free_runtime = interval_runtime_free,
         .update_runtime = interval_runtime_update,
         .commit_runtime = interval_runtime_commit
-    },
-    {
-        .type = TABLE_TYPE_DIGEST
-    },
-    {
-        .type = TABLE_TYPE_SIMILARITY
     },
     {   
         .type = TABLE_TYPE_CONJUNCTION,
@@ -186,6 +198,15 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .type = TABLE_TYPE_VIRTUAL,
         .new_schema = virtual_schema_new,
         .free_schema = virtual_schema_free,
+        .new_runtime = NULL,
+        .free_runtime = NULL,
+        .update_runtime = NULL,
+        .commit_runtime = NULL
+    },
+    {
+        .type = TABLE_TYPE_COMPOSITION,
+        .new_schema = NULL,
+        .free_schema = NULL,
         .new_runtime = NULL,
         .free_runtime = NULL,
         .update_runtime = NULL,
@@ -251,16 +272,19 @@ static void register_reserved_word(struct maat_kv_store *reserved_word_map)
     maat_kv_register(reserved_word_map, "group2compile", TABLE_TYPE_GROUP2COMPILE);
     maat_kv_register(reserved_word_map, "group2group", TABLE_TYPE_GROUP2GROUP);
     maat_kv_register(reserved_word_map, "flag", TABLE_TYPE_FLAG);
+    maat_kv_register(reserved_word_map, "flag_plus", TABLE_TYPE_FLAG_PLUS);
     maat_kv_register(reserved_word_map, "expr", TABLE_TYPE_EXPR);
     maat_kv_register(reserved_word_map, "expr_plus", TABLE_TYPE_EXPR_PLUS);
     maat_kv_register(reserved_word_map, "intval", TABLE_TYPE_INTERVAL);
     maat_kv_register(reserved_word_map, "intval_plus", TABLE_TYPE_INTERVAL_PLUS);
     maat_kv_register(reserved_word_map, "ip_plus", TABLE_TYPE_IP_PLUS);
+    maat_kv_register(reserved_word_map, "port", TABLE_TYPE_PORT);
     maat_kv_register(reserved_word_map, "plugin", TABLE_TYPE_PLUGIN);
     maat_kv_register(reserved_word_map, "ip_plugin", TABLE_TYPE_IP_PLUGIN);
     maat_kv_register(reserved_word_map, "bool_plugin", TABLE_TYPE_BOOL_PLUGIN);
     maat_kv_register(reserved_word_map, "fqdn_plugin", TABLE_TYPE_FQDN_PLUGIN);
     maat_kv_register(reserved_word_map, "virtual", TABLE_TYPE_VIRTUAL);
+    maat_kv_register(reserved_word_map, "composition", TABLE_TYPE_COMPOSITION);
 }
 
 static void register_tablename2id(cJSON *json, struct maat_kv_store *tablename2id_map, 

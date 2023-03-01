@@ -190,7 +190,7 @@ int _get_maat_redis_value(redisContext *c, struct serial_rule *rule_list, int ru
 
 	for (i = 0; i < rule_num; i++) {
 		snprintf(redis_cmd, sizeof(redis_cmd), 
-                 "GET %s:%s,%lu", mr_key_prefix[rule_list[i].op],
+                 "GET %s:%s,%lld", mr_key_prefix[rule_list[i].op],
                  rule_list[i].table_name,
                  rule_list[i].rule_id);
 		ret = redisAppendCommand(c, redis_cmd);
@@ -236,7 +236,7 @@ int _get_maat_redis_value(redisContext *c, struct serial_rule *rule_list, int ru
 	for (i = 0; i < failed_cnt; i++) {
 		idx = retry_ids[i];
 		snprintf(redis_cmd, sizeof(redis_cmd), 
-                 "GET %s:%s,%lu", mr_key_prefix[MAAT_OP_DEL],
+                 "GET %s:%s,%lld", mr_key_prefix[MAAT_OP_DEL],
                  rule_list[idx].table_name,
                  rule_list[idx].rule_id);
 		ret = redisAppendCommand(c, redis_cmd);
@@ -454,13 +454,13 @@ int recovery_history_version(const struct serial_rule *current, int current_num,
     struct serial_rule *s_rule_map = NULL;
     struct serial_rule *rule_node = NULL;
 	for (i = 0; i < current_num; i++) {
-		snprintf(hkey, sizeof(hkey), "%ld,%s", current[i].rule_id, current[i].table_name);
+		snprintf(hkey, sizeof(hkey), "%lld,%s", current[i].rule_id, current[i].table_name);
         rule_node = serial_rule_clone(current + i);
         HASH_ADD_KEYPTR(hh, s_rule_map, hkey, strlen(hkey), rule_node);
 	}
 
 	for (i = changed_num - 1; i >= 0; i--) {
-		snprintf(hkey, sizeof(hkey), "%ld,%s", changed[i].rule_id, changed[i].table_name);
+		snprintf(hkey, sizeof(hkey), "%lld,%s", changed[i].rule_id, changed[i].table_name);
         //newly added rule is need to delete from current, so that history version can be recovered.
 		if (changed[i].op == MAAT_OP_ADD) {
             rule_node = NULL;
@@ -643,7 +643,7 @@ FULL_UPDATE:
 			continue;
 		}
 
-		ret = sscanf(sub_reply->element[i]->str, "%*[^:]:%[^,],%ld", 
+		ret = sscanf(sub_reply->element[i]->str, "%*[^:]:%[^,],%lld", 
                      s_rule_array[full_idx].table_name, 
                      &(s_rule_array[full_idx].rule_id));
 		s_rule_array[full_idx].op = MAAT_OP_ADD;
@@ -1316,7 +1316,7 @@ void check_maat_expiration(redisContext *c, struct log_handle *logger)
 
 	for (size_t i = 0; i < s_rule_num; i++) {
 		s_rule[i].op = MAAT_OP_DEL;
-		ret = sscanf(data_reply->element[i]->str, "%[^,],%ld", 
+		ret = sscanf(data_reply->element[i]->str, "%[^,],%lld", 
                     s_rule[i].table_name, &(s_rule[i].rule_id));
 		assert(ret == 2);
 	}

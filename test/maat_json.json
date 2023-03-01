@@ -323,31 +323,6 @@
             ]
         },
         {
-            "compile_id": 127,
-            "service": 1,
-            "action": 1,
-            "do_blacklist": 1,
-            "do_log": 1,
-            "user_region": "anything",
-            "is_valid": "yes",
-            "groups": [
-                {
-                    "group_name": "Untitled",
-                    "regions": [
-                        {
-                            "table_name": "FILE_DIGEST",
-                            "table_type": "digest",
-                            "table_content": {
-                                "raw_len": 1160164,
-                                "digest": "3072:Xk/maCm4yLYtRIFDFnVfHH+CAQI6VD5mekDmaa/4qCuFnqak1s3/+Gn1IJHa/AvybUsbGWcIAy9grTp2s5bbj/TaKxONfb[0:1160163]#12288:UChtbFS6pypdTy4m2[0:1160163]",
-                                "cfds_level": 70
-                            }
-                        }
-                    ]
-                }
-            ]
-        },
-        {
             "compile_id": 128,
             "service": 1,
             "action": 1,
@@ -531,30 +506,6 @@
             ]
         },
         {
-            "compile_id": 135,
-            "service": 1,
-            "action": 1,
-            "do_blacklist": 1,
-            "do_log": 1,
-            "user_region": "anything",
-            "is_valid": "yes",
-            "groups": [
-                {
-                    "group_name": "Untitled",
-                    "regions": [
-                        {
-                            "table_name": "SIM_URL",
-                            "table_type": "similar",
-                            "table_content": {
-                                "target": "mwss.xiu.youku.com/live/hls/v1/0000000000000000000000001526a0a8/709.ts?&token=98765",
-                                "threshold": 90
-                            }
-                        }
-                    ]
-                }
-            ]
-        },
-        {
             "compile_id": 136,
             "service": 1,
             "action": 1,
@@ -693,10 +644,12 @@
             "do_blacklist": 1,
             "do_log": 1,
             "user_region": "Something:I\\bhave\\ba\\bname,7799",
+            "compile_table_name": "COMPILE_ALIAS",
             "is_valid": "yes",
             "groups": [
                 {
                     "group_name": "Untitled",
+                    "g2c_table_name": "GROUP2COMPILE_ALIAS",
                     "regions": [
                         {
                             "table_name": "HTTP_URL_LITERAL",
@@ -2452,6 +2405,30 @@
                                 "expr_type": "none",
                                 "match_method": "sub",
                                 "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 196,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "anything",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "flag_plus",
+                            "table_name": "FLAG_PLUS_CONFIG",
+                            "table_content": {
+                                "district": "I love\\bChina",
+                                "flag": 30,
+                                "flag_mask": 14
                             }
                         }
                     ]

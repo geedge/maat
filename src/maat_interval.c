@@ -215,7 +215,7 @@ struct interval_item *interval_item_new(const char *line, struct interval_schema
 
         if (column_len >= MAX_DISTRICT_STR) {
             log_error(logger, MODULE_INTERVAL, 
-                      "interval table(table_id:%d) line:%s district length too long",
+                      "interval_plus table(table_id:%d) line:%s district length too long",
                       schema->table_id, line);
             goto error;
         }

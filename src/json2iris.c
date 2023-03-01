@@ -139,7 +139,9 @@ int set_iris_descriptor(const char *json_file, cJSON *json,
 	maat_kv_register(iris_cfg->str2int_map, "no", 0);
 	
     maat_kv_register(iris_cfg->str2int_map, "flag", TABLE_TYPE_FLAG);
+    maat_kv_register(iris_cfg->str2int_map, "flag_plus", TABLE_TYPE_FLAG_PLUS);
 	maat_kv_register(iris_cfg->str2int_map, "ip_plus", TABLE_TYPE_IP_PLUS);
+    maat_kv_register(iris_cfg->str2int_map, "port", TABLE_TYPE_PORT);
 	maat_kv_register(iris_cfg->str2int_map, "string", TABLE_TYPE_EXPR);
 	maat_kv_register(iris_cfg->str2int_map, "expr", TABLE_TYPE_EXPR);
 	maat_kv_register(iris_cfg->str2int_map, "expr_plus", TABLE_TYPE_EXPR_PLUS);
@@ -147,8 +149,6 @@ int set_iris_descriptor(const char *json_file, cJSON *json,
 	maat_kv_register(iris_cfg->str2int_map, "interval", TABLE_TYPE_INTERVAL);
 	maat_kv_register(iris_cfg->str2int_map, "intval_plus", TABLE_TYPE_INTERVAL_PLUS);
 	maat_kv_register(iris_cfg->str2int_map, "interval_plus", TABLE_TYPE_INTERVAL_PLUS);
-    maat_kv_register(iris_cfg->str2int_map, "digest", TABLE_TYPE_DIGEST);
-	maat_kv_register(iris_cfg->str2int_map, "similar", TABLE_TYPE_SIMILARITY);
 	
 	maat_kv_register(iris_cfg->str2int_map, "ipv4", 4);
 	maat_kv_register(iris_cfg->str2int_map, "ipv6", 6);
@@ -423,6 +423,12 @@ int write_flag_line(cJSON *region_json, struct iris_description *p_iris,
 	json_cmd[cmd_cnt].json_type = cJSON_Number;
 	cmd_cnt++;
 	
+    if (table->table_type==TABLE_TYPE_FLAG_PLUS) {
+		json_cmd[cmd_cnt].json_string = "district";
+		json_cmd[cmd_cnt].json_type = cJSON_String;
+		cmd_cnt++;
+	}
+
 	json_cmd[cmd_cnt].json_string = "flag";
 	json_cmd[cmd_cnt].json_type = cJSON_Number;
 	cmd_cnt++;
@@ -637,72 +643,6 @@ int write_intval_line(cJSON *region_json, struct iris_description *p_iris,
                              json_cmd, cmd_cnt, table, logger);
 }
 
-int write_digest_line(cJSON *region_json, struct iris_description *p_iris,
-                      struct iris_table *table, struct log_handle *logger)
-{
-	struct translate_command json_cmd[MAX_COLUMN_NUM];
-	int cmd_cnt = 0;
-	memset(json_cmd, 0, sizeof(json_cmd));
-	
-	json_cmd[cmd_cnt].json_string = "region_id";
-	json_cmd[cmd_cnt].json_type = cJSON_Number;
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "group_id";
-	json_cmd[cmd_cnt].json_type = cJSON_Number;
-	cmd_cnt++;
-	
-	json_cmd[cmd_cnt].json_string = "raw_len";
-	json_cmd[cmd_cnt].json_type = cJSON_Number;
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "digest";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "cfds_level";
-	json_cmd[cmd_cnt].json_type = cJSON_Number;
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "is_valid";
-	json_cmd[cmd_cnt].json_type = cJSON_Number;
-	cmd_cnt++;
-	
-	return direct_write_rule(region_json, p_iris->str2int_map,
-                             json_cmd, cmd_cnt, table, logger);
-}
-
-int write_similar_line(cJSON *region_json, struct iris_description *p_iris,
-                       struct iris_table *table, struct log_handle *logger)
-{
-	struct translate_command json_cmd[MAX_COLUMN_NUM];
-	int cmd_cnt = 0;
-	memset(json_cmd, 0, sizeof(json_cmd));
-	
-	json_cmd[cmd_cnt].json_string = "region_id";
-	json_cmd[cmd_cnt].json_type = cJSON_Number;
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "group_id";
-	json_cmd[cmd_cnt].json_type = cJSON_Number;
-	cmd_cnt++;
-	
-	json_cmd[cmd_cnt].json_string = "target";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "threshold";
-	json_cmd[cmd_cnt].json_type = cJSON_Number;
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "is_valid";
-	json_cmd[cmd_cnt].json_type = cJSON_Number;
-	cmd_cnt++;
-	
-	return direct_write_rule(region_json, p_iris->str2int_map,
-                             json_cmd, cmd_cnt, table, logger);
-}
-
 int write_region_rule(cJSON *region_json, int compile_id, int group_id,
                       struct iris_description *p_iris, struct log_handle *logger)
 {
@@ -750,6 +690,7 @@ int write_region_rule(cJSON *region_json, int compile_id, int group_id,
 	switch(table_type)
 	{
         case TABLE_TYPE_FLAG:
+        case TABLE_TYPE_FLAG_PLUS:
             ret = write_flag_line(table_content, p_iris, table_info, logger);
             break;
 		case TABLE_TYPE_EXPR:
@@ -763,12 +704,6 @@ int write_region_rule(cJSON *region_json, int compile_id, int group_id,
 		case TABLE_TYPE_INTERVAL_PLUS:
 			ret = write_intval_line(table_content, p_iris, table_info, logger);
 			break;
-        case TABLE_TYPE_DIGEST:
-			ret = write_digest_line(table_content, p_iris, table_info, logger);
-			break;
-		case TABLE_TYPE_SIMILARITY:
-			ret = write_similar_line(table_content, p_iris, table_info, logger);
-			break;
 		default:
 			assert(0);
 			break;
@@ -778,10 +713,16 @@ int write_region_rule(cJSON *region_json, int compile_id, int group_id,
 
 int write_group2compile_line(int group_id, int compile_id, int group_not_flag, 
                              int clause_index, const char *vtable, 
-                             struct iris_description *p_iris)
+                             struct iris_description *p_iris,
+                             struct iris_table *g2c_table)
 {
 	char buff[4096] = {0};
-	struct iris_table *table = p_iris->group2compile_table;
+    struct iris_table *table = NULL;
+    if (g2c_table != NULL) {
+        table = g2c_table;
+    } else {
+        table = p_iris->group2compile_table;
+    }
 
 	snprintf(buff, sizeof(buff), "%d\t%d\t1\t%d\t%s\t%d\n", group_id, compile_id, 
              group_not_flag, vtable, clause_index);
@@ -818,6 +759,7 @@ int write_group_rule(cJSON *group_json, int parent_id,
 	const char *str_parent_type[2] = {"compile", "group"};
 	const char *group_name = NULL;
     const char *virtual_table = NULL;
+    struct iris_table *g2c_table = NULL;
 
 	cJSON *item = cJSON_GetObjectItem(group_json, "group_name");
 	if (NULL == item || item->type != cJSON_String) {
@@ -847,6 +789,12 @@ int write_group_rule(cJSON *group_json, int parent_id,
 		} else {
 			clause_index = item->valueint;
 		}
+
+        item = cJSON_GetObjectItem(group_json, "g2c_table_name");
+        if (item != NULL && item->type == cJSON_String) {
+            g2c_table = query_table_info(p_iris, item->valuestring, 
+                                         TABLE_TYPE_GROUP2COMPILE);
+        }
 	} else {
 		group_not_flag = 0;
 	}
@@ -892,7 +840,7 @@ int write_group_rule(cJSON *group_json, int parent_id,
 
 	if (parent_type == PARENT_TYPE_COMPILE) {
 		ret = write_group2compile_line(group_info->group_id, parent_id, group_not_flag,
-                                       clause_index, virtual_table, p_iris);
+                                       clause_index, virtual_table, p_iris, g2c_table);
 	} else {
 		ret = write_group2group_line(group_info->group_id, parent_id, p_iris);
 	}
@@ -998,7 +946,7 @@ int write_compile_line(cJSON *compile, struct iris_description *p_iris,
 	cmd_cnt++;
 
     struct iris_table *table_info = NULL;
-	item = cJSON_GetObjectItem(compile,"table_name");
+	item = cJSON_GetObjectItem(compile,"compile_table_name");
 	if (NULL == item || item->type != cJSON_String) {
 		table_info = p_iris->compile_table;
 	} else {

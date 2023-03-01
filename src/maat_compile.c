@@ -1807,7 +1807,7 @@ int maat_compile_state_update(struct maat_item *item_hash, int vtable_id,
         compile_table_cnt = 1;
     } else {
         for (size_t i = 0; i < state->n_compile_table; i++) {
-            compile_table_ids[i] = maat_table_get_id(state->maat_instance, state->compile_tables[i]);
+            compile_table_ids[i] = maat_get_table_id(state->maat_instance, state->compile_tables[i]);
         }
         compile_table_cnt = state->n_compile_table;
     }
