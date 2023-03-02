@@ -722,14 +722,18 @@ int maat_compile_hash_add(struct maat_compile **compile_hash, long long compile_
     HASH_ADD(hh, *compile_hash, compile_id, sizeof(long long), compile);
 	//TODO:mytest need to delete
 #if 0
-	size_t compile_cnt = HASH_COUNT(*compile_hash);
-	struct maat_compile *compile1 = NULL, *tmp_compile1 = NULL;
-	HASH_ITER (hh, *compile_hash, compile1, tmp_compile1) {
-		printf("<maat_compile_hash_add> compile_id:%lu, compile_cnt:%zu\n", 
-                compile1->compile_id, compile_cnt);
-	}
+    if (compile_id == 141)
+    {
+        size_t compile_cnt = HASH_COUNT(*compile_hash);
+        struct maat_compile *compile1 = NULL, *tmp_compile1 = NULL;
+        HASH_ITER(hh, *compile_hash, compile1, tmp_compile1)
+        {
+            printf("<maat_compile_hash_add> compile_id:%lld, compile_cnt:%zu\n",
+                   compile1->compile_id, compile_cnt);
+        }
+    }
 #endif
-	return ret;
+    return ret;
 }
 
 void maat_compile_hash_set(struct maat_compile **compile_hash, long long compile_id,

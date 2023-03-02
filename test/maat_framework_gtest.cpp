@@ -1259,7 +1259,7 @@ void compile_ex_param_dup(int table_id, void **to, void **from, long argl, void 
 	pthread_mutex_unlock(&(from_param->lock));
 	*((struct rule_ex_param**)to) = from_param;
 }
-#if 0
+
 TEST_F(CompileTable, CompileEXData) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -1301,7 +1301,7 @@ TEST_F(CompileTable, CompileEXData) {
 
 	maat_state_free(&state);
 }
-#endif
+
 TEST_F(CompileTable, CompileRuleUpdate) {
     //9999	0	0	0	0	0	anything	1	1	0.0
     const char *compile_table_name = "COMPILE";

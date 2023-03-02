@@ -74,7 +74,8 @@ typedef void maat_start_callback_t(int update_type, void *u_param);
 typedef void maat_update_callback_t(int table_id, const char *table_line, void *u_para);
 typedef void maat_finish_callback_t(void *u_para);
 
-typedef void maat_ex_new_func_t(int table_id, const char *key, const char *table_line, void **ad, long argl, void *argp);
+typedef void maat_ex_new_func_t(int table_id, const char *key, const char *table_line, 
+                                void **ad, long argl, void *argp);
 typedef void maat_ex_free_func_t(int table_id, void **ad, long argl, void *argp);
 typedef void maat_ex_dup_func_t(int table_id, void **to, void **from, long argl, void *argp);
 
@@ -90,14 +91,22 @@ int maat_options_set_rule_update_checking_interval_ms(struct maat_options *opts,
 int maat_options_set_gc_timeout_ms(struct maat_options *opts, int interval_ms);
 int maat_options_set_instance_name(struct maat_options *opts, const char *instance_name, size_t name_len);
 int maat_options_set_deferred_load_on(struct maat_options *opts);
-int maat_options_set_iris(struct maat_options *opts, const char *full_directory, const char *increment_directory);
+
+int maat_options_set_iris(struct maat_options *opts, const char *full_directory, 
+                          const char *increment_directory);
 int maat_options_set_json_file(struct maat_options *opts, const char *json_filename);
-int maat_options_set_redis(struct maat_options *opts, const char *redis_ip, uint16_t redis_port, int redis_db);
+int maat_options_set_redis(struct maat_options *opts, const char *redis_ip, 
+                           uint16_t redis_port, int redis_db);
+
 int maat_options_set_logger(struct maat_options *opts, void *logger);
 
 /* maat_instance API */
 struct maat *maat_new(struct maat_options *opts, const char *table_info_path);
 void maat_free(struct maat *instance);
+
+/* maat helper API */
+int maat_helper_read_column(const char *table_line, int Nth_column, 
+                            size_t *column_offset, size_t *column_len);
 
 /* maat table API */
 int maat_get_table_id(struct maat *instance, const char *table_name);

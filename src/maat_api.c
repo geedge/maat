@@ -387,6 +387,12 @@ void maat_free(struct maat *maat_instance)
 	pthread_join(maat_instance->cfg_mon_thread, &ret);
 }
 
+int maat_helper_read_column(const char *table_line, int Nth_column, 
+                            size_t *column_offset, size_t *column_len)
+{
+    return get_column_pos(table_line, Nth_column, column_offset, column_len);
+}
+
 int maat_get_table_id(struct maat *maat_instance, const char *table_name)
 {
     int table_id = -1;
