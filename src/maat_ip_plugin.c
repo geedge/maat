@@ -64,7 +64,8 @@ void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     item = cJSON_GetObjectItem(json, "custom");
     if (NULL == item || item->type != cJSON_Object) {
         log_error(logger, MODULE_IP_PLUGIN, 
-                  "table %s has no custom column", table_name);
+                  "[%s:%d] table %s has no custom column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -154,8 +155,8 @@ int ip_plugin_accept_tag_match(struct ip_plugin_schema *schema, const char *line
                                  &column_offset, &column_len);
         if (ret < 0) {
             log_error(logger, MODULE_IP_PLUGIN,
-                      "ip_plugin table(table_id:%d) has no rule_tag, line:%s",
-                      schema->table_id, line);
+                      "[%s:%d] ip_plugin table(table_id:%d) has no rule_tag, line:%s",
+                      __FUNCTION__, __LINE__, schema->table_id, line);
             schema->update_err_cnt++;
             return TAG_MATCH_ERR;
         }
@@ -167,8 +168,8 @@ int ip_plugin_accept_tag_match(struct ip_plugin_schema *schema, const char *line
             FREE(tag_str);
             if (TAG_MATCH_ERR == ret) {
                 log_error(logger, MODULE_IP_PLUGIN,
-                          "ip_plugin table(table_id:%d) has invalid tag format, line:%s",
-                          schema->table_id, line);
+                          "[%s:%d] ip_plugin table(table_id:%d) has invalid tag format, line:%s",
+                          __FUNCTION__, __LINE__, schema->table_id, line);
                 schema->update_err_cnt++;
                 return TAG_MATCH_ERR;
             }
@@ -202,8 +203,8 @@ ip_plugin_rule_new(const char *line, struct ip_plugin_schema *schema,
     ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_IP_PLUGIN, 
-                  "ip plugin table(table_id:%d) line:%s has no item_id",
-                  schema->table_id, line);
+                  "[%s:%d] ip plugin table(table_id:%d) line:%s has no item_id",
+                  __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
     }
     ip_plugin_rule->rule_id = atoll(line + column_offset);
@@ -211,15 +212,15 @@ ip_plugin_rule_new(const char *line, struct ip_plugin_schema *schema,
     ret = get_column_pos(line, schema->ip_type_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_IP_PLUGIN, 
-                  "ip plugin table(table_id:%d) line:%s has no ip_type",
-                  schema->table_id, line);
+                  "[%s:%d] ip plugin table(table_id:%d) line:%s has no ip_type",
+                  __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
     }
     ip_plugin_rule->type = atoi(line + column_offset);
     if (ip_plugin_rule->type != IPv4 && ip_plugin_rule->type != IPv6) {
         log_error(logger, MODULE_IP_PLUGIN, 
-                  "ip_plugin table(table_id:%d) line:%s ip_type[%d] invalid",
-                  schema->table_id, line, ip_plugin_rule->type);
+                  "[%s:%d] ip_plugin table(table_id:%d) line:%s ip_type[%d] invalid",
+                  __FUNCTION__, __LINE__, schema->table_id, line, ip_plugin_rule->type);
         goto error;
     }
 
@@ -228,16 +229,16 @@ ip_plugin_rule_new(const char *line, struct ip_plugin_schema *schema,
     ret = get_column_pos(line, schema->addr_format_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_IP_PLUGIN, 
-                  "ip_plugin table(table_id:%d) line:%s has no addr_format column",
-                  schema->table_id, line);
+                  "[%s:%d] ip_plugin table(table_id:%d) line:%s has no addr_format column",
+                  __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
     }
 
     memcpy(addr_format, (line + column_offset), column_len);
     if (IP_FORMAT_UNKNOWN == ip_format_str2int(addr_format)) {
         log_error(logger, MODULE_IP_PLUGIN, 
-                  "ip_plugin table(table_id:%d) line:%s has invalid addr_format, should be range/CIDR",
-                  schema->table_id, line);
+                  "[%s:%d] ip_plugin table(table_id:%d) line:%s has invalid addr_format, should be range/CIDR",
+                  __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
     }
     #endif
@@ -247,8 +248,8 @@ ip_plugin_rule_new(const char *line, struct ip_plugin_schema *schema,
     ret = get_column_pos(line, schema->start_ip_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_IP_PLUGIN, 
-                  "ip_plugin table(table_id:%d) line:%s has no start_ip",
-                  schema->table_id, line);
+                  "[%s:%d] ip_plugin table(table_id:%d) line:%s has no start_ip",
+                  __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
     }
     strncpy(start_ip_str, line + column_offset, column_len);
@@ -256,8 +257,8 @@ ip_plugin_rule_new(const char *line, struct ip_plugin_schema *schema,
     ret = get_column_pos(line, schema->end_ip_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_IP_PLUGIN, 
-                  "ip_plugin table(table_id:%d) line:%s has no end_ip",
-                  schema->table_id, line);
+                  "[%s:%d] ip_plugin table(table_id:%d) line:%s has no end_ip",
+                  __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
     }
     strncpy(end_ip_str, line + column_offset, column_len);
@@ -269,8 +270,8 @@ ip_plugin_rule_new(const char *line, struct ip_plugin_schema *schema,
                               &ip_plugin_rule->ipv4_rule.end_ip);
         if (ret < 0) {
             log_error(logger, MODULE_IP_PLUGIN, 
-                      "ip_plugin table(table_id:%d) line:%s ip_format2range(ip4) failed",
-                      schema->table_id, line);
+                      "[%s:%d] ip_plugin table(table_id:%d) line:%s ip_format2range(ip4) failed",
+                      __FUNCTION__, __LINE__, schema->table_id, line);
             goto error;
         }
     } else {
@@ -281,8 +282,8 @@ ip_plugin_rule_new(const char *line, struct ip_plugin_schema *schema,
                               ip_plugin_rule->ipv6_rule.end_ip);
         if (ret < 0) {
             log_error(logger, MODULE_IP_PLUGIN, 
-                      "ip_plugin table(table_id:%d) line:%s ip_format2range(ip6) failed",
-                      schema->table_id, line);
+                      "[%s:%d] ip_plugin table(table_id:%d) line:%s ip_format2range(ip6) failed",
+                      __FUNCTION__, __LINE__, schema->table_id, line);
             goto error;
         }
     }
@@ -464,8 +465,8 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name)
     new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used, ip_plugin_rt->logger);
     if (NULL == new_ip_matcher) {
         log_error(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
-                  "table[%s] rebuild ip_matcher engine failed when update %zu ip_plugin rules",
-                  table_name, rule_cnt);
+                  "[%s:%d] table[%s] rebuild ip_matcher engine failed when update %zu ip_plugin rules",
+                  __FUNCTION__, __LINE__, table_name, rule_cnt);
         ret = -1;
     }
 
@@ -503,7 +504,7 @@ int ip_plugin_runtime_get_ex_data(void *ip_plugin_runtime, const struct ip_addr 
     if (NULL == ip_plugin_rt->ip_matcher) {
         log_info(ip_plugin_rt->logger, MODULE_IP_PLUGIN, 
                  "ip_matcher is NULL, can't get ex data");
-        return 0;
+        return -1;
     }
 
     struct scan_result results[n_ex_data];

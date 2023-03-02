@@ -236,8 +236,8 @@ int write_plugin_line(cJSON *plug_table_json, int sequence,
 	cJSON *item = cJSON_GetObjectItem(plug_table_json, "table_name");
 	if (NULL == item || item->type != cJSON_String) {
 		log_error(logger, MODULE_JSON2IRIS, 
-                  "The %d plugin_table's table_name not defined or format error",
-                  sequence);
+                  "[%s:%d] The %d plugin_table's table_name not defined or format error",
+                  __FUNCTION__, __LINE__, sequence);
 		return -1;
 	}
 	const char *table_name = item->valuestring;
@@ -245,8 +245,8 @@ int write_plugin_line(cJSON *plug_table_json, int sequence,
 	cJSON *table_content = cJSON_GetObjectItem(plug_table_json, "table_content");
 	if (NULL == table_content || table_content->type != cJSON_Array) {
 		log_error(logger, MODULE_JSON2IRIS, 
-                  "%d plugin_table's table_content not defined or format error",
-                  sequence);
+                  "[%s:%d] %d plugin_table's table_content not defined or format error",
+                  __FUNCTION__, __LINE__, sequence);
 		return -1;
 	}
 	int line_cnt = cJSON_GetArraySize(table_content);
@@ -258,8 +258,8 @@ int write_plugin_line(cJSON *plug_table_json, int sequence,
 		each_line = cJSON_GetArrayItem(table_content, i);
 		if (NULL == each_line || each_line->type != cJSON_String) {
 			log_error(logger, MODULE_JSON2IRIS,
-                      "plugin_table %s's line %d format error", 
-                      table_info->table_name, i + 1);
+                      "[%s:%d] plugin_table %s's line %d format error", 
+                      __FUNCTION__, __LINE__, table_info->table_name, i + 1);
 			continue;
 		}
         
@@ -357,7 +357,8 @@ int direct_write_rule(cJSON *json, struct maat_kv_store *str2int,
 
 		if (NULL == item || item->type != cmd[i].json_type) {
 			log_error(logger, MODULE_JSON2IRIS, 
-                      "%s not defined or wrong format", cmd[i].json_string);
+                      "[%s:%d] %s not defined or wrong format", 
+                      __FUNCTION__, __LINE__, cmd[i].json_string);
 			ret = -1;
 			goto error_out;
 		}
@@ -368,7 +369,8 @@ int direct_write_rule(cJSON *json, struct maat_kv_store *str2int,
 			ret = maat_kv_read(str2int, p, &int_value);			
 			if (ret < 0) {
 				log_error(logger, MODULE_JSON2IRIS, 
-                          "%s's value %s is not valid format", cmd[i].json_string, p);
+                          "[%s:%d] %s's value %s is not valid format", 
+                          __FUNCTION__, __LINE__, cmd[i].json_string, p);
 				FREE(p);
 				ret = -1;
 				goto error_out;
@@ -649,8 +651,8 @@ int write_region_rule(cJSON *region_json, int compile_id, int group_id,
     cJSON *item = cJSON_GetObjectItem(region_json, "table_name");
 	if (NULL == item || item->type != cJSON_String) {
 		log_error(logger, MODULE_JSON2IRIS, 
-                  "compile rule %d's table_name not defined or format error", 
-                  compile_id);
+                  "[%s:%d] compile rule %d's table_name not defined or format error", 
+                  __FUNCTION__, __LINE__, compile_id);
 		return -1;
 	}
     const char *table_name = item->valuestring;
@@ -658,8 +660,8 @@ int write_region_rule(cJSON *region_json, int compile_id, int group_id,
 	item = cJSON_GetObjectItem(region_json, "table_type");
 	if (NULL == item || item->type != cJSON_String) {
 		log_error(logger, MODULE_JSON2IRIS, 
-                  "compile rule %d's table name %s's table_type not defined or format error",
-                  compile_id, table_name);
+                  "[%s:%d] compile rule %d's table name %s's table_type not defined or format error",
+                  __FUNCTION__, __LINE__, compile_id, table_name);
 		return -1;
 	}
 
@@ -668,16 +670,16 @@ int write_region_rule(cJSON *region_json, int compile_id, int group_id,
 	int ret = maat_kv_read(p_iris->str2int_map, table_type_str, (int*)&(table_type));
 	if (ret != 1) {
 		log_error(logger, MODULE_JSON2IRIS, 
-                  "compile rule %d table name %s's table_type %s invalid",
-                  compile_id, table_name, table_type_str);
+                  "[%s:%d] compile rule %d table name %s's table_type %s invalid",
+                  __FUNCTION__, __LINE__, compile_id, table_name, table_type_str);
 		return -1;
 	}
 	
 	cJSON *table_content = cJSON_GetObjectItem(region_json, "table_content");
 	if (NULL == table_content || table_content->type != cJSON_Object) {
 		log_error(logger, MODULE_JSON2IRIS, 
-                  "compile rule %d table name %s's table_content not defined or format error",
-                  compile_id, table_name);
+                  "[%s:%d] compile rule %d table name %s's table_content not defined or format error",
+                  __FUNCTION__, __LINE__, compile_id, table_name);
 		return -1;
 	}
 
@@ -811,7 +813,8 @@ int write_group_rule(cJSON *group_json, int parent_id,
                                         p_iris, logger);
 				if (ret < 0) {
 					log_error(logger, MODULE_JSON2IRIS, 
-                              "compile rule %d write region error", tracking_compile_id);
+                              "[%s:%d] compile rule %d write region error", 
+                              __FUNCTION__, __LINE__, tracking_compile_id);
 					return -1;
 				}
 			}
@@ -833,8 +836,8 @@ int write_group_rule(cJSON *group_json, int parent_id,
 
 		if (NULL == region_json && NULL == sub_groups) {
 			log_info(logger, MODULE_JSON2IRIS, 
-                     "A group of compile rule %d has neither regions, sub groups, nor refered another exisited group", 
-                     tracking_compile_id);
+                     "[%s:%d] A group of compile rule %d has neither regions, sub groups, nor refered another exisited group", 
+                     __FUNCTION__, __LINE__, tracking_compile_id);
 		}
 	}
 
@@ -847,7 +850,8 @@ int write_group_rule(cJSON *group_json, int parent_id,
 
 	if (ret < 0) {
 		log_error(logger, MODULE_JSON2IRIS, 
-                  "%s rule %d write group error", str_parent_type[parent_type], parent_id);
+                  "[%s:%d] %s rule %d write group error", 
+                  __FUNCTION__, __LINE__, str_parent_type[parent_type], parent_id);
 		return -1;
 	}
 
@@ -859,7 +863,8 @@ int write_compile_line(cJSON *compile, struct iris_description *p_iris,
 {
 	cJSON *item=cJSON_GetObjectItem(compile, "compile_id");
 	if (item->type != cJSON_Number) {
-		log_error(logger, MODULE_JSON2IRIS, "compile_id format not number");
+		log_error(logger, MODULE_JSON2IRIS, 
+                  "[%s:%d] compile_id format not number", __FUNCTION__, __LINE__);
 		return -1;
 	}
 	int compile_id = item->valueint;
@@ -1002,8 +1007,8 @@ int write_index_file(struct iris_description *p_iris, struct log_handle *logger)
 	p_iris->idx_fp = fopen(p_iris->index_path, "w");
 	if (NULL == p_iris->idx_fp) {
 		log_error(logger, MODULE_JSON2IRIS, 
-                  "index file %s fopen error %s",
-                  p_iris->index_path, strerror(errno));
+                  "[%s:%d] index file %s fopen error %s",
+                  __FUNCTION__, __LINE__, p_iris->index_path, strerror(errno));
 		return -1;
 	}
 
@@ -1071,21 +1076,24 @@ int write_iris(cJSON *json, struct iris_description *p_iris,
 		cJSON_ArrayForEach(compile_obj, compile_array) {
 			int compile_id = write_compile_line(compile_obj, p_iris, logger);
 			if (compile_id < 0) {
-				log_error(logger, MODULE_JSON2IRIS, "In %d compile rule", i);
+				log_error(logger, MODULE_JSON2IRIS, "[%s:%d] In %d compile rule", 
+                          __FUNCTION__, __LINE__, i);
 				return -1;
 			}
 
 			group_array = cJSON_GetObjectItem(compile_obj, "groups");
 			if (NULL == group_array) {
 				log_error(logger, MODULE_JSON2IRIS, 
-                          "compile rule %d have no group", compile_id);
+                          "[%s:%d] compile rule %d have no group", 
+                          __FUNCTION__, __LINE__, compile_id);
 				return -1;
 			}
 
 			int group_cnt = cJSON_GetArraySize(group_array);
 			if (group_cnt <= 0) {
 				log_error(logger, MODULE_JSON2IRIS, 
-                          "compile rule %d have no groups", compile_id);
+                          "[%s:%d] compile rule %d have no groups", 
+                          __FUNCTION__, __LINE__, compile_id);
 				return -1;
 			}
 
@@ -1126,7 +1134,8 @@ int json2iris(const char *json_buff, const char *json_filename,
 	cJSON *json = cJSON_Parse(json_buff);
 	if (!json) {
 		log_error(logger, MODULE_JSON2IRIS, 
-                  "Error before: %-200.200s", cJSON_GetErrorPtr());
+                  "[%s:%d] error message: %-200.200s", 
+                  __FUNCTION__, __LINE__, cJSON_GetErrorPtr());
 		goto error_out;
 	}
 
@@ -1155,7 +1164,8 @@ int json2iris(const char *json_buff, const char *json_filename,
 	ret = create_tmp_dir(&iris_cfg);
 	if (ret < 0) {
 		log_error(logger, MODULE_JSON2IRIS, 
-                  "create tmp folder %s error", iris_cfg.tmp_iris_dir);
+                  "[%s:%d] create tmp folder %s error", 
+                  __FUNCTION__, __LINE__, iris_cfg.tmp_iris_dir);
 		goto error_out;
 	}
 

@@ -59,7 +59,8 @@ void *bool_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     item = cJSON_GetObjectItem(json, "custom");
     if (NULL == item || item->type != cJSON_Object) {
         log_error(logger, MODULE_BOOL_PLUGIN, 
-                  "table %s has no custom column", table_name);
+                  "[%s:%d] table %s has no custom column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -134,7 +135,8 @@ int bool_plugin_table_set_ex_data_schema(void *bool_plugin_schema,
     if (schema->ex_schema != NULL) {
         assert(0);
         log_error(logger, MODULE_BOOL_PLUGIN,
-                  "Error: %s, EX data schema already registed", __FUNCTION__);
+                  "[%s:%d], ex_data schema has already been registered, can't be registered again",
+                  __FUNCTION__, __LINE__);
         return -1;
     }
 
@@ -247,8 +249,8 @@ int bool_plugin_accept_tag_match(struct bool_plugin_schema *schema, const char *
                                  &column_offset, &column_len);
         if (ret < 0) {
             log_error(logger, MODULE_BOOL_PLUGIN,
-                      "bool_plugin table(table_id:%d) has no rule_tag, line:%s",
-                      schema->table_id, line);
+                      "[%s:%d] bool_plugin table(table_id:%d) has no rule_tag, line:%s",
+                      __FUNCTION__, __LINE__, schema->table_id, line);
             schema->update_err_cnt++;
             return TAG_MATCH_ERR;
         }
@@ -260,8 +262,8 @@ int bool_plugin_accept_tag_match(struct bool_plugin_schema *schema, const char *
             FREE(tag_str);
             if (TAG_MATCH_ERR == ret) {
                 log_error(logger, MODULE_BOOL_PLUGIN,
-                          "bool_plugin table(table_id:%d) has invalid tag format, line:%s",
-                          schema->table_id, line);
+                          "[%s:%d] bool_plugin table(table_id:%d) has invalid tag format, line:%s",
+                          __FUNCTION__, __LINE__, schema->table_id, line);
                 schema->update_err_cnt++;
                 return TAG_MATCH_ERR;
             }
@@ -296,8 +298,8 @@ bool_plugin_expr_new(const char *line, struct bool_plugin_schema *schema,
     ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_BOOL_PLUGIN, 
-                  "bool_plugin table(table_id:%d) line:%s has no item_id column",
-                  schema->table_id, line);
+                  "[%s:%d] bool_plugin table(table_id:%d) line:%s has no item_id column",
+                  __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
     }
     bool_expr->expr_id = atoll(line + column_offset);
@@ -305,8 +307,8 @@ bool_plugin_expr_new(const char *line, struct bool_plugin_schema *schema,
     ret = get_column_pos(line, schema->bool_expr_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_BOOL_PLUGIN, 
-                  "bool_plugin table(table_id:%d) line:%s has no bool_expr column",
-                  schema->table_id, line);
+                  "[%s:%d] bool_plugin table(table_id:%d) line:%s has no bool_expr column",
+                  __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
     }
 
@@ -321,8 +323,8 @@ bool_plugin_expr_new(const char *line, struct bool_plugin_schema *schema,
         n_item++;
         if (ret != 1 || n_item > MAX_ITEMS_PER_BOOL_EXPR) {
             log_error(logger, MODULE_BOOL_PLUGIN, 
-                      "bool_plugin table(table_id:%d) invalid format of bool_expr column, line:%s",
-                      schema->table_id, line);
+                      "[%s:%d] bool_plugin table(table_id:%d) invalid format of bool_expr column, line:%s",
+                      __FUNCTION__, __LINE__, schema->table_id, line);
             goto error;
         }
     }
@@ -436,8 +438,8 @@ int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name
     new_bool_matcher = bool_matcher_new(exprs, expr_cnt, &mem_used);
     if (NULL == new_bool_matcher) {
         log_error(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
-                  "table[%s] rebuild bool_matcher engine failed when update %zu bool_plugin rules",
-                  table_name, expr_cnt);
+                  "[%s:%d] table[%s] rebuild bool_matcher engine failed when update %zu bool_plugin rules",
+                  __FUNCTION__, __LINE__, table_name, expr_cnt);
         ret = -1;
     }
 
@@ -475,7 +477,7 @@ int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, unsigned long lon
     if (NULL == bool_plugin_rt->matcher) {
         log_info(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN, 
                  "bool_matcher is NULL, can't get ex data");
-        return 0;
+        return -1;
     }
 
     struct bool_expr_match results[n_ex_data];

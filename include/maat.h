@@ -126,8 +126,7 @@ int maat_plugin_table_ex_schema_register(struct maat *instance, int table_id,
                                          long argl, void *argp);
 /* returned data is duplicated by dup_func of maat_plugin_table_ex_schema_register, 
    caller is responsible to free the data. */
-void *maat_plugin_table_get_ex_data(struct maat *instance, int table_id,
-                                    const char *key, size_t key_len);
+void *maat_plugin_table_get_ex_data(struct maat *instance, int table_id, const char *key);
                                      
 int maat_ip_plugin_table_get_ex_data(struct maat *instance, int table_id,
                                      const struct ip_addr *ip, void **ex_data_array,

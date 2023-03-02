@@ -224,7 +224,7 @@ int get_new_idx_path(long long current_version, const char *file_dir,
 	
 	int n = my_scandir(file_dir, &namelist, filter_fn, (int (*)(const void*, const void*))alphasort);
 	if (n < 0) {
-		log_error(logger, MODULE_CONFIG_MONITOR, "scan dir error");
+		log_error(logger, MODULE_CONFIG_MONITOR, "[%s:%d] scan dir error", __FUNCTION__, __LINE__);
 		return update_type;
 	}
 
@@ -244,16 +244,16 @@ int get_new_idx_path(long long current_version, const char *file_dir,
 
 		if (strlen(namelist[i]->d_name) > 42) {
 			log_error(logger, MODULE_CONFIG_MONITOR, 
-                      "config file %s filename too long, should like full_config_index.000000000001", 
-                      namelist[i]->d_name);
+                      "[%s:%d] config file %s filename too long, should like full_config_index.000000000001", 
+                      __FUNCTION__, __LINE__, namelist[i]->d_name);
 			continue;
 		}
 
 		int ret = sscanf(namelist[i]->d_name,"%[a-zA-Z]_config_index.%lld", update_str, &config_seq);
 		if (ret != 2) {
 			log_error(logger, MODULE_CONFIG_MONITOR, 
-                      "config file %s filename error, should like full_config_index.000000000001",
-                      namelist[i]->d_name);
+                      "[%s:%d] config file %s filename error, should like full_config_index.000000000001",
+                      __FUNCTION__, __LINE__, namelist[i]->d_name);
 			continue;
 		}
 
@@ -271,8 +271,9 @@ int get_new_idx_path(long long current_version, const char *file_dir,
 				}
 			}
 		} else {
-			log_error(logger, MODULE_CONFIG_MONITOR, "config file %s, not full or inc config", 
-                                                     namelist[i]->d_name);
+			log_error(logger, MODULE_CONFIG_MONITOR, 
+                      "[%s:%d] config file %s, not full or inc config", 
+                      __FUNCTION__, __LINE__, namelist[i]->d_name);
 		}
 	}
 
@@ -328,7 +329,9 @@ void config_monitor_traverse(long long current_version, const char *idx_dir,
             log_info(logger, MODULE_CONFIG_MONITOR, "load %s", idx_path_array[i]);
 			int table_num = cm_read_cfg_index_file(idx_path_array[i], table_array, MAX_TABLE_NUM);
 			if (table_num < 0) {
-				log_error(logger, MODULE_CONFIG_MONITOR, "load %s failed, abandon update", idx_path_array[i]);
+				log_error(logger, MODULE_CONFIG_MONITOR, 
+                          "[%s:%d] load %s failed, abandon update", 
+                          __FUNCTION__, __LINE__, idx_path_array[i]);
 				break;
 			}
 
@@ -380,7 +383,8 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
                            err_str, err_str_sz);
 		if (ret < 0) {
 			log_error(maat_instance->logger, MODULE_CONFIG_MONITOR, 
-                      "Decrypt Maat JSON file %s failed", json_filename);
+                      "[%s:%d] Decrypt Maat JSON file %s failed", 
+                      __FUNCTION__, __LINE__, json_filename);
 			return -1;
 		}
 
@@ -394,7 +398,8 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
 		FREE(json_buff);
 		if (ret < 0) {
 			log_error(maat_instance->logger, MODULE_CONFIG_MONITOR, 
-                      "Uncompress Maat JSON file %s failed", json_filename);
+                      "[%s:%d] Uncompress Maat JSON file %s failed", 
+                      __FUNCTION__, __LINE__, json_filename);
 			return -1;
 		}
 
@@ -407,7 +412,8 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
 		ret = load_file_to_memory(json_filename, &json_buff, &json_buff_sz);
 		if (ret < 0) {
 			log_error(maat_instance->logger, MODULE_CONFIG_MONITOR, 
-                      "Read Maat JSON file %s failed", json_filename);
+                      "[%s:%d] Read Maat JSON file %s failed", 
+                      __FUNCTION__, __LINE__, json_filename);
 			return -1;
 		}
 	}

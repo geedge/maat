@@ -116,7 +116,8 @@ static int adpt_hs_alloc_scratch(struct adapter_hs_runtime *hs_rt, size_t n_work
 
     if (hs_alloc_scratch(database, &hs_rt->scratchs[0]) != HS_SUCCESS) {
         log_error(logger, MODULE_ADAPTER_HS,
-                  "ERROR: Unable to allocate scratch space. Exiting.");
+                  "[%s:%d] Unable to allocate scratch space. Exiting.", 
+                  __FUNCTION__, __LINE__);
         hs_free_database(database);
         return -1;
     }
@@ -124,14 +125,16 @@ static int adpt_hs_alloc_scratch(struct adapter_hs_runtime *hs_rt, size_t n_work
     for (size_t i = 1; i < n_worker_thread; i++) {
         hs_error_t err = hs_clone_scratch(hs_rt->scratchs[0], &hs_rt->scratchs[i]);
         if (err != HS_SUCCESS) {
-            log_error(logger, MODULE_ADAPTER_HS, "Unable to clone scratch prototype");
+            log_error(logger, MODULE_ADAPTER_HS, 
+                      "[%s:%d] Unable to clone scratch prototype", __FUNCTION__, __LINE__);
             hs_free_database(database);
             return -1;
         }
 
         err = hs_scratch_size(hs_rt->scratchs[i], &hs_rt->scratch_size);
         if (err != HS_SUCCESS) {
-            log_error(logger, MODULE_ADAPTER_HS, "Unable to query scratch size");
+            log_error(logger, MODULE_ADAPTER_HS, 
+                      "[%s:%d] Unable to query scratch size", __FUNCTION__, __LINE__);
             hs_free_database(database);
             return -1;
         }
@@ -164,8 +167,8 @@ static int adpt_hs_build_database(struct adapter_hs_runtime *hs_rt,
                                     scan_mode, NULL, &hs_rt->literal_db, &compile_err);
         if (err != HS_SUCCESS) {
             if (compile_err) {
-                log_error(logger, MODULE_ADAPTER_HS,
-                          "%s compile error: %s", __func__, compile_err->message);
+                log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] compile error: %s", 
+                          __FUNCTION__, __LINE__, compile_err->message);
             }
 
             hs_free_compile_error(compile_err);
@@ -177,8 +180,8 @@ static int adpt_hs_build_database(struct adapter_hs_runtime *hs_rt,
                                       scan_mode, NULL, &hs_rt->regex_db, &compile_err);
         if (err != HS_SUCCESS) {
             if (compile_err) {
-                log_error(logger, MODULE_ADAPTER_HS, "%s compile error: %s",
-                          __func__, compile_err->message);
+                log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] compile error: %s",
+                          __FUNCTION__, __LINE__, compile_err->message);
             }
             hs_free_compile_error(compile_err);
             return -1;
@@ -228,8 +231,8 @@ struct adapter_hs *adapter_hs_initialize(enum hs_scan_mode scan_mode,
     if ((scan_mode != HS_SCAN_MODE_BLOCK && scan_mode != HS_SCAN_MODE_STREAM) || 
         (pattern_type != HS_PATTERN_TYPE_STR && pattern_type != HS_PATTERN_TYPE_REG) || 
         0 == n_worker_thread || NULL == exprs || 0 == n_expr) {
-        log_error(logger, MODULE_ADAPTER_HS,
-                  "%s input parameters illegal!", __func__);
+        log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] input parameters illegal!",
+                  __FUNCTION__, __LINE__);
         return NULL;
     }
 
@@ -239,14 +242,15 @@ struct adapter_hs *adapter_hs_initialize(enum hs_scan_mode scan_mode,
     for (size_t i = 0; i < n_expr; i++) {
         if (exprs[i].n_patterns > MAX_EXPR_PATTERN_NUM) {
             log_error(logger, MODULE_ADAPTER_HS, 
-                      "the number of patterns in one expression should less than %d",
-                      MAX_EXPR_PATTERN_NUM);
+                      "[%s:%d] the number of patterns in one expression should less than %d",
+                      __FUNCTION__, __LINE__, MAX_EXPR_PATTERN_NUM);
             return NULL;
         }
 
         for (size_t j = 0; j < exprs[i].n_patterns; j++) {
             if (0 == exprs[i].patterns[j].pat_len) {
-                log_error(logger, MODULE_ADAPTER_HS, "expr pattern length should not 0");
+                log_error(logger, MODULE_ADAPTER_HS, 
+                          "[%s:%d] expr pattern length should not 0", __FUNCTION__, __LINE__);
                 return NULL;
             }
 
@@ -255,7 +259,8 @@ struct adapter_hs *adapter_hs_initialize(enum hs_scan_mode scan_mode,
     }
 
     if (0 == pattern_num) {
-        log_error(logger, MODULE_ADAPTER_HS, "expr array has no valid pattern");
+        log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] expr array has no valid pattern",
+                  __FUNCTION__, __LINE__);
         return NULL;
     }
 
@@ -327,7 +332,8 @@ struct adapter_hs *adapter_hs_initialize(enum hs_scan_mode scan_mode,
                  "Adapter_hs module: build bool matcher of %zu expressions with %zu bytes memory", 
                  n_expr, mem_size);
     } else {
-        log_error(logger, MODULE_ADAPTER_HS, "Adapter_hs module: build bool matcher failed");
+        log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] Adapter_hs module: build bool matcher failed",
+                  __FUNCTION__, __LINE__);
         goto error;
     }
     FREE(bool_exprs);
@@ -512,7 +518,6 @@ int adapter_hs_scan(struct adapter_hs *hs_instance, int thread_id,
         err = hs_scan(hs_rt->literal_db, data, data_len, 0, scratch,
                       matched_event_cb, &matched_pat_container);
         if (err != HS_SUCCESS) {
-            //log_error()
             err_count++;
         }
     }
@@ -521,7 +526,6 @@ int adapter_hs_scan(struct adapter_hs *hs_instance, int thread_id,
         err = hs_scan(hs_rt->regex_db, data, data_len, 0, scratch,
                       matched_event_cb, &matched_pat_container);
         if (err != HS_SUCCESS) {
-            //log_error()
             err_count++;
         }
     }
@@ -632,7 +636,6 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
                              0, hs_stream->hs_rt->scratchs[thread_id],
                              matched_event_cb, hs_stream->pattern_id_set);
         if (err != HS_SUCCESS) {
-            //log_error()
             return -1;
         }
     }
@@ -642,7 +645,6 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
                              0, hs_stream->hs_rt->scratchs[thread_id],
                              matched_event_cb, hs_stream->pattern_id_set);
         if (err != HS_SUCCESS) {
-            //log_error()
             return -1;
         }
     }

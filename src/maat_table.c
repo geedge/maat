@@ -149,15 +149,6 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .update_runtime = interval_runtime_update,
         .commit_runtime = interval_runtime_commit
     },
-    {   
-        .type = TABLE_TYPE_CONJUNCTION,
-        .new_schema = NULL,
-        .free_schema = NULL,
-        .new_runtime = NULL,
-        .free_runtime = NULL,
-        .update_runtime = NULL,
-        .commit_runtime = NULL
-    },
     {
         .type = TABLE_TYPE_PLUGIN,
         .new_schema = plugin_schema_new,
@@ -287,30 +278,47 @@ static void register_reserved_word(struct maat_kv_store *reserved_word_map)
     maat_kv_register(reserved_word_map, "composition", TABLE_TYPE_COMPOSITION);
 }
 
-static void register_tablename2id(cJSON *json, struct maat_kv_store *tablename2id_map, 
+static int register_tablename2id(cJSON *json, struct maat_kv_store *tablename2id_map, 
                                   struct log_handle *logger)
 {
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
     if (NULL == item || item->type != cJSON_Number) {
-        return;
+        return -1;
     }
     int table_id = item->valueint;
 
     item = cJSON_GetObjectItem(json, "table_name");
-    if (NULL == item || item->type != cJSON_String) {
+    if (NULL == item || (item->type != cJSON_String && item->type != cJSON_Array)) {
         log_error(logger, MODULE_TABLE, 
-                  "table(table_id:%d) has no table name", table_id);
-        return;
+                  "[%s:%d] table(table_id:%d) has no table name", 
+                  __FUNCTION__, __LINE__, table_id);
+        return -1;
+    }
+
+    if (item->type == cJSON_Array) {
+        int n_table_name = cJSON_GetArraySize(item);
+        cJSON *tmp_item = NULL;
+        for (int i = 0; i < n_table_name; i++) {
+            tmp_item = cJSON_GetArrayItem(item, i);
+            if (NULL == tmp_item || tmp_item->type != cJSON_String) {
+                log_error(logger, MODULE_TABLE,
+                          "[%s:%d] table(table_id:%d) table_name format invalid",
+                          __FUNCTION__, __LINE__, table_id);
+                return -1;
+            }
+        }
     }
 
     if (strlen(item->valuestring) >= NAME_MAX) {
         log_error(logger, MODULE_TABLE,
-                  "table(table_id:%d) name %s length too long",
-                  table_id, item->valuestring);
-        return;
+                  "[%s:%d] table(table_id:%d) name %s length too long",
+                  __FUNCTION__, __LINE__, table_id, item->valuestring);
+        return -1;
     }
     
     maat_kv_register(tablename2id_map, item->valuestring, table_id);
+
+    return 0;
 }
 
 struct maat_table *maat_table_new(cJSON *json, struct maat_kv_store *reserved_word_map,
@@ -326,42 +334,50 @@ struct maat_table *maat_table_new(cJSON *json, struct maat_kv_store *reserved_wo
 
     if (item->valueint >= MAX_TABLE_NUM) {
         log_error(logger, MODULE_TABLE,
-                  "table(table_id:%d) exceed maxium %d", MAX_TABLE_NUM);
+                  "[%s:%d] table(table_id:%d) exceed maxium %d", 
+                  __FUNCTION__, __LINE__, MAX_TABLE_NUM);
         goto error;
     }
     ptable->table_id = item->valueint;
 
     item = cJSON_GetObjectItem(json, "table_name");
-    if (NULL == item || item->type != cJSON_String) {
+    if (NULL == item || (item->type != cJSON_String && item->type != cJSON_Array)) {
         log_error(logger, MODULE_TABLE, 
-                  "table(table_id:%d) has no table name", ptable->table_id);
+                  "[%s:%d] table(table_id:%d) has no table name", 
+                  __FUNCTION__, __LINE__, ptable->table_id);
         goto error;
     }
     
     if (strlen(item->valuestring) >= NAME_MAX) {
         log_error(logger, MODULE_TABLE,
-                  "table(table_id:%d) name %s length too long", 
-                  ptable->table_id, item->valuestring);
+                  "[%s:%d] table(table_id:%d) name %s length too long", 
+                  __FUNCTION__, __LINE__, ptable->table_id, item->valuestring);
         goto error;
     }
     memcpy(ptable->table_name, item->valuestring, strlen(item->valuestring));
 
     item = cJSON_GetObjectItem(json, "table_type");
     if (NULL == item || item->type != cJSON_String) {
-        log_error(logger, MODULE_TABLE, "table:%s has no table_type column", ptable->table_name);
+        log_error(logger, MODULE_TABLE, 
+                 "[%s:%d] table:%s has no table_type column", 
+                 __FUNCTION__, __LINE__, ptable->table_name);
         goto error;
     }
 
     ret = maat_kv_read(reserved_word_map, item->valuestring, (int*)&(ptable->table_type));
     if (ret < 0) {
-        log_error(logger, MODULE_TABLE, "table_type %s is illegal", item->valuestring);
+        log_error(logger, MODULE_TABLE, 
+                  "[%s:%d] table:%s table_type %s is illegal", 
+                  __FUNCTION__, __LINE__, ptable->table_name, item->valuestring);
         goto error;
     }
 
     item = cJSON_GetObjectItem(json, "valid_column");
     if (NULL == item || item->type != cJSON_Number) {
         if (ptable->table_type != TABLE_TYPE_VIRTUAL) {
-            log_error(logger, MODULE_TABLE, "table:%s has no valid column", ptable->table_name);
+            log_error(logger, MODULE_TABLE, 
+                      "[%s:%d] table:%s has no valid column", 
+                      __FUNCTION__, __LINE__, ptable->table_name);
             goto error;
         }
     } else {
@@ -417,7 +433,8 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
     int ret = load_file_to_memory(table_info_path, &json_buff, &json_buff_sz);
     if (ret < 0) {
         log_error(logger, MODULE_TABLE, 
-                  "Maat read table info %s error.", table_info_path);
+                  "[%s:%d] Maat read table info %s error.",
+                  __FUNCTION__, __LINE__, table_info_path);
         return NULL;
     }
 
@@ -426,7 +443,8 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
     root = cJSON_Parse((const char *)json_buff);
 	if (!root) {
         log_error(logger, MODULE_TABLE, 
-                  "Error before: %-200.200s", cJSON_GetErrorPtr());
+                  "[%s:%d] error message: %-200.200s", 
+                  __FUNCTION__, __LINE__, cJSON_GetErrorPtr());
         FREE(json_buff);
         return NULL;
     }
@@ -434,7 +452,8 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
     int json_array_size = cJSON_GetArraySize(root);
     if (json_array_size <= 0) {
         log_error(logger, MODULE_TABLE, 
-                  "invalid json content in %s", table_info_path);
+                  "[%s:%d] invalid json content in %s", 
+                  __FUNCTION__, __LINE__, table_info_path);
         free(json_buff);
         return NULL;
     }
@@ -455,7 +474,13 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
         json = cJSON_GetArrayItem(root, i);
 
         if (json != NULL && json->type == cJSON_Object) {
-            register_tablename2id(json, tbl_mgr->tablename2id_map, logger);
+            ret = register_tablename2id(json, tbl_mgr->tablename2id_map, logger);
+            if (ret < 0) {
+                log_error(logger, MODULE_TABLE, 
+                          "[%s:%d] register_tablename2id failed", 
+                          __FUNCTION__, __LINE__);
+                return NULL;
+            }
         }
     }
 
@@ -472,11 +497,12 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
                                                      maat_tbl->table_type, tbl_mgr, logger);
             if (NULL == maat_tbl->schema) {
                 log_error(logger, MODULE_TABLE, 
-                          "Maat table schema new failed, table_name:%s", maat_tbl->table_name);
+                          "[%s:%d] Maat table schema new failed, table_name:%s", 
+                          __FUNCTION__, __LINE__, maat_tbl->table_name);
                 maat_table_free(maat_tbl);
                 continue;
             }
-            log_info(logger, MODULE_TABLE, "register table[%s]->table_id:%d",
+            log_info(logger, MODULE_TABLE, "successfully register table[%s]->table_id:%d",
                      maat_tbl->table_name, maat_tbl->table_id);
                      
             if (maat_tbl->table_type == TABLE_TYPE_COMPILE) {
@@ -637,7 +663,9 @@ int table_manager_get_table_id(struct table_manager *tbl_mgr, const char *name)
     int table_id = -1;
     int ret = maat_kv_read(tbl_mgr->tablename2id_map, name, &table_id);
 	if (ret < 0) {
-        log_error(tbl_mgr->logger, MODULE_TABLE, "table:%s is not registered", name);
+        log_error(tbl_mgr->logger, MODULE_TABLE, 
+                  "[%s:%d] table:%s is not registered", 
+                  __FUNCTION__, __LINE__, name);
 		return -1;		
 	}
 

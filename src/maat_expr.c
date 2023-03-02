@@ -152,8 +152,8 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
     int ret = get_column_pos(line, expr_schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_EXPR, 
-                  "expr table(table_id:%d) line:%s has no item_id",
-                  expr_schema->table_id, line);
+                  "[%s:%d] expr table(table_id:%d) line:%s has no item_id",
+                  __FUNCTION__, __LINE__, expr_schema->table_id, line);
         goto error;
     }
     expr_item->item_id = atoll(line + column_offset);
@@ -161,8 +161,8 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
     ret = get_column_pos(line, expr_schema->group_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_EXPR, 
-                  "expr table(table_id:%d) line:%s has no group_id",
-                  expr_schema->table_id, line);
+                  "[%s:%d] expr table(table_id:%d) line:%s has no group_id",
+                  __FUNCTION__, __LINE__, expr_schema->table_id, line);
         goto error;
     }
     expr_item->group_id = atoll(line + column_offset);
@@ -176,8 +176,8 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
 
         if (column_len >= MAX_DISTRICT_STR) {
             log_error(logger, MODULE_EXPR, 
-                      "expr table(table_id:%d) line:%s district length too long",
-                      expr_schema->table_id, line);
+                      "[%s:%d] expr table(table_id:%d) line:%s district length too long",
+                      __FUNCTION__, __LINE__, expr_schema->table_id, line);
             goto error;
         }
 
@@ -193,8 +193,8 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
     ret = get_column_pos(line, expr_schema->expr_type_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_EXPR, 
-                  "expr table(table_id:%d) line:%s has no expr_type",
-                  expr_schema->table_id, line);
+                  "[%s:%d] expr table(table_id:%d) line:%s has no expr_type",
+                  __FUNCTION__, __LINE__, expr_schema->table_id, line);
         goto error;
     }
     
@@ -202,16 +202,16 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
     expr_item->expr_type = int_to_expr_type(expr_type);
     if (expr_item->expr_type == EXPR_TYPE_INVALID) {
         log_error(logger, MODULE_EXPR, 
-                  "expr table(table_id:%d) line:%s has invalid expr_type",
-                  expr_schema->table_id, line);
+                  "[%s:%d] expr table(table_id:%d) line:%s has invalid expr_type",
+                 __FUNCTION__, __LINE__, expr_schema->table_id, line);
         goto error;
     }
 
     ret = get_column_pos(line, expr_schema->match_method_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_EXPR, 
-                  "expr table(table_id:%d) line:%s has no match_method",
-                  expr_schema->table_id, line);
+                  "[%s:%d] expr table(table_id:%d) line:%s has no match_method",
+                  __FUNCTION__, __LINE__, expr_schema->table_id, line);
         goto error;
     }
     
@@ -219,16 +219,16 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
     expr_item->match_mode = int_to_match_mode(match_method_type);
     if (expr_item->match_mode == HS_MATCH_MODE_INVALID) {
         log_error(logger, MODULE_EXPR, 
-                  "expr table(table_id:%d) line:%s has invalid match_method",
-                  expr_schema->table_id, line);
+                  "[%s:%d] expr table(table_id:%d) line:%s has invalid match_method",
+                  __FUNCTION__, __LINE__, expr_schema->table_id, line);
         goto error;
     }
 
     ret = get_column_pos(line, expr_schema->is_hexbin_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_EXPR, 
-                  "expr table(table_id:%d) line:%s has no is_hexbin",
-                  expr_schema->table_id, line);
+                  "[%s:%d] expr table(table_id:%d) line:%s has no is_hexbin",
+                  __FUNCTION__, __LINE__, expr_schema->table_id, line);
         goto error;
     }
     db_hexbin = atoi(line + column_offset);
@@ -248,23 +248,23 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
             break;
         default:
             log_error(logger, MODULE_EXPR, 
-                      "expr table(table_id:%d) line:%s has invalid hexbin value:%d",
-                      expr_schema->table_id, line, db_hexbin);
+                      "[%s:%d] expr table(table_id:%d) line:%s has invalid hexbin value:%d",
+                      __FUNCTION__, __LINE__, expr_schema->table_id, line, db_hexbin);
             goto error;
     }
     
     ret = get_column_pos(line, expr_schema->keywords_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_EXPR, 
-                  "expr table(table_id:%d) line:%s has no keywords",
-                  expr_schema->table_id, line);
+                  "[%s:%d] expr table(table_id:%d) line:%s has no keywords",
+                  __FUNCTION__, __LINE__, expr_schema->table_id, line);
         goto error;
     }
 
     if (column_len >= MAX_KEYWORDS_STR) {
         log_error(logger, MODULE_EXPR, 
-                  "expr table(table_id:%d) line:%s keywords length too long",
-                  expr_schema->table_id, line);
+                  "[%s:%d] expr table(table_id:%d) line:%s keywords length too long",
+                  __FUNCTION__, __LINE__, expr_schema->table_id, line);
         goto error;
     }
     memcpy(expr_item->keywords, (line + column_offset), column_len);
@@ -326,7 +326,7 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
         log_error(logger, MODULE_EXPR, 
-                  "table %s has no custom column", table_name);
+                  "[%s:%d] table %s has no custom column", table_name);
         goto error;
     }
 
@@ -497,8 +497,8 @@ int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key,
         data = rcu_hash_find(expr_rt->htable, key, key_len);
         if (NULL == data) {
             log_error(logger, MODULE_EXPR, 
-                      "the key of expr rule not exist, can't be deleted, expr_id:%llu",
-                      item_id);
+                      "[%s:%d] the key of expr rule not exist, can't be deleted, expr_id:%llu",
+                      __FUNCTION__, __LINE__, item_id);
             return -1;
         }
         rcu_hash_del(expr_rt->htable, key, key_len);
@@ -507,8 +507,8 @@ int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key,
         data = rcu_hash_find(expr_rt->htable, key, key_len);
         if (data != NULL) {
             log_error(logger, MODULE_EXPR,
-                      "the key of expr rule already exist, can't be added, expr_id:%llu", 
-                      item_id);
+                      "[%s:%d] the key of expr rule already exist, can't be added, expr_id:%llu", 
+                      __FUNCTION__, __LINE__, item_id);
             return -1;
         }
         rcu_hash_add(expr_rt->htable, key, key_len, (void *)expr_rule);
@@ -594,8 +594,8 @@ and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item, void *user_data,
 
                 if (i >= MAAT_MAX_EXPR_ITEM_NUM) {
                     log_error(logger, MODULE_EXPR,
-                              "expr item_id:%d too many patterns", 
-                              expr_item->item_id);
+                              "[%s:%d] expr item_id:%d too many patterns", 
+                              __FUNCTION__, __LINE__, expr_item->item_id);
                     return NULL;
                 }
 
@@ -617,8 +617,8 @@ and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item, void *user_data,
 
                 if (i >= MAAT_MAX_EXPR_ITEM_NUM) {
                     log_error(logger, MODULE_EXPR,
-                              "expr item_id:%d too many patterns", 
-                              expr_item->item_id);
+                              "[%s:%d] expr item_id:%d too many patterns", 
+                              __FUNCTION__, __LINE__, expr_item->item_id);
                     return NULL;
                 }
 
@@ -627,15 +627,16 @@ and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item, void *user_data,
 				if (!(key_left_offset[i] >= 0 && key_right_offset[i] > 0 
                       && key_left_offset[i] <= key_right_offset[i])) {
 					log_error(logger, MODULE_EXPR,
-							 "expr item:%d has invalid offset.", expr_item->item_id);
+							 "[%s:%d] expr item:%d has invalid offset.",
+                             __FUNCTION__, __LINE__, expr_item->item_id);
 					return NULL;
 				}
 
 				sub_key_array[i] = (char *)memchr(sub_key_array[i], ':', strlen(sub_key_array[i]));
 				if (NULL == sub_key_array[i]) {
 					log_error(logger, MODULE_EXPR,
-							"expr item:%d has invalid offset keyword format.",
-                            expr_item->item_id);
+							"[%s:%d] expr item:%d has invalid offset keyword format.",
+                            __FUNCTION__, __LINE__, expr_item->item_id);
 					return NULL;
 				}
 
@@ -750,8 +751,8 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
         HASH_FIND(hh, expr_rt->item_hash, &item_id, sizeof(long long), item);
         if (item) {
             log_error(expr_rt->logger, MODULE_EXPR, 
-                      "expr runtime add item %llu to item_hash failed, already exist", 
-                      item_id);
+                      "[%s:%d] expr runtime add item %llu to item_hash failed, already exist", 
+                      __FUNCTION__, __LINE__, item_id);
             return -1;
         }
 
@@ -768,8 +769,8 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
         expr_item_free(expr_item);
         if (NULL == expr_rule) {
             log_error(expr_rt->logger, MODULE_EXPR, 
-                      "transform expr table(table_id:%d) item to expr_rule failed, item_id:%llu",
-                      schema->table_id, item_id);
+                      "[%s:%d] transform expr table(table_id:%d) item to expr_rule failed, item_id:%llu",
+                      __FUNCTION__, __LINE__, schema->table_id, item_id);
             return -1;
         }
     }
@@ -826,8 +827,8 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name)
                                            expr_rt->logger);
     if (NULL == new_adapter_hs) {
         log_error(expr_rt->logger, MODULE_EXPR,
-                  "table[%s] rebuild adapter_hs engine failed when update %zu expr rules", 
-                  table_name, rule_cnt);
+                  "[%s:%d] table[%s] rebuild adapter_hs engine failed when update %zu expr rules", 
+                  __FUNCTION__, __LINE__, table_name, rule_cnt);
         ret = -1;
     }
 

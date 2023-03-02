@@ -466,7 +466,7 @@
                     "group_name": "Untitled",
                     "regions": [
                         {
-                            "table_name": "HTTP_HOST",
+                            "table_name": "HTTP_HOST_LITERAL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "www.3300av.com",

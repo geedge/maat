@@ -1262,48 +1262,6 @@ void compile_ex_param_dup(int table_id, void **to, void **from, long argl, void 
 	*((struct rule_ex_param**)to) = from_param;
 }
 
-TEST_F(CompileTable, CompileEXData) {
-    long long results[ARRAY_SIZE] = {0};
-    size_t n_hit_result = 0;
-    struct maat_state *state = NULL;
-    const char *url = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
-	const char *table_name = "HTTP_URL_LITERAL";
-    const char *compile_table_name = "COMPILE_ALIAS";
-	const char *expect_name = "I have a name";
-    int table_id = maat_get_table_id(g_maat_instance, table_name);
-    int compile_table_id = maat_get_table_id(g_maat_instance, compile_table_name);
-
-    int ex_data_counter = 0;
-    int ret = maat_plugin_table_ex_schema_register(g_maat_instance, compile_table_id,
-                                                    compile_ex_param_new,
-                                                    compile_ex_param_free,
-                                                    compile_ex_param_dup,
-                                                    0, &ex_data_counter);
-    ASSERT_TRUE(ret == 0);
-    EXPECT_EQ(ex_data_counter, 1);
-
-    ret = maat_state_set_scan_compile_tables(g_maat_instance, &state, &compile_table_name, 1);
-    EXPECT_EQ(ret, 0);
-
-    ret = maat_scan_string(g_maat_instance, table_id, 0, url, strlen(url),
-                                results, ARRAY_SIZE, &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 141);
-
-    void *ex_data = maat_plugin_table_get_ex_data(g_maat_instance, compile_table_id, 
-                                                 (char *)&results[0], sizeof(long long));
-    ASSERT_TRUE(ex_data!=NULL);
-    struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
-	EXPECT_EQ(param->id, 7799);
-
-    str_unescape(param->name);
-	EXPECT_EQ(strcmp(param->name, expect_name), 0);
-	compile_ex_param_free(compile_table_id, &ex_data, 0, NULL);
-
-	maat_state_free(&state);
-}
-
 TEST_F(CompileTable, CompileRuleUpdate) {
     //9999	0	0	0	0	0	anything	1	1	0.0
     const char *compile_table_name = "COMPILE";
@@ -1426,47 +1384,48 @@ TEST_F(Policy, CompileRuleTags) {
 
 	maat_state_free(&state);
 }
-#if 0
+
 TEST_F(Policy, CompileEXData) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-	const char *url = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
+    const char *url = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
 	const char *table_name = "HTTP_URL_LITERAL";
+    const char *compile_table_name = "COMPILE_ALIAS";
 	const char *expect_name = "I have a name";
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
+    int compile_table_id = maat_get_table_id(g_maat_instance, compile_table_name);
 
-	int table_id = maat_get_table_id(g_maat_instance, table_name);
-	ASSERT_GT(table_id, 0);
-	
     int ex_data_counter = 0;
-    int compile_table_id = maat_get_table_id(g_maat_instance, "COMPILE");
-	int ret = maat_plugin_table_ex_schema_register(g_maat_instance, compile_table_id, 
-													compile_ex_param_new, 
-                                                    compile_ex_param_free, 
+    int ret = maat_plugin_table_ex_schema_register(g_maat_instance, compile_table_id,
+                                                    compile_ex_param_new,
+                                                    compile_ex_param_free,
                                                     compile_ex_param_dup,
-													0, &ex_data_counter);
-	EXPECT_EQ(ret, 0);
-	EXPECT_EQ(ex_data_counter, 1);
-	
-	ret = maat_scan_string(g_maat_instance, table_id, 0, url, strlen(url), 
-						       results, ARRAY_SIZE, &n_hit_result, &state);
-	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+                                                    0, &ex_data_counter);
+    ASSERT_TRUE(ret == 0);
+    EXPECT_EQ(ex_data_counter, 1);
+
+    ret = maat_state_set_scan_compile_tables(g_maat_instance, &state, &compile_table_name, 1);
+    EXPECT_EQ(ret, 0);
+
+    ret = maat_scan_string(g_maat_instance, table_id, 0, url, strlen(url),
+                                results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 141);
 
-	void *ex_data = maat_plugin_table_get_ex_data(g_maat_instance, compile_table_id, 
-                                                  (char *)&results[0], sizeof(long long));
-	ASSERT_TRUE(ex_data != NULL);
-
-	struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
+    void *ex_data = maat_plugin_table_get_ex_data(g_maat_instance, compile_table_id, 
+                                                 (char *)&results[0]);
+    ASSERT_TRUE(ex_data!=NULL);
+    struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
 	EXPECT_EQ(param->id, 7799);
 
     str_unescape(param->name);
-	EXPECT_EQ(strcmp(param->name, expect_name),0);
-
+	EXPECT_EQ(strcmp(param->name, expect_name), 0);
 	compile_ex_param_free(compile_table_id, &ex_data, 0, NULL);
+
 	maat_state_free(&state);
 }
-#endif
 #if 0
 TEST_F(Policy, SubGroup) {
     long long results[ARRAY_SIZE] = {0};
@@ -1863,7 +1822,8 @@ int main(int argc, char ** argv)
 
     ret = write_config_to_redis(redis_ip, redis_port, redis_db, g_logger);
     if (ret < 0) {
-        log_error(g_logger, MODULE_FRAMEWORK_GTEST, "write config to redis failed.");
+        log_error(g_logger, MODULE_FRAMEWORK_GTEST, 
+                  "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         log_handle_destroy(g_logger);
         g_logger = NULL;
         return -1;
@@ -1877,7 +1837,9 @@ int main(int argc, char ** argv)
     g_maat_instance = maat_new(opts, table_info_path);
     maat_options_free(opts);
     if (NULL == g_maat_instance) {
-        log_error(g_logger, MODULE_FRAMEWORK_GTEST, "create maat instance in MaatStringScan failed.");
+        log_error(g_logger, MODULE_FRAMEWORK_GTEST, 
+                  "[%s:%d] create maat instance in MaatStringScan failed.", 
+                  __FUNCTION__, __LINE__);
         log_handle_destroy(g_logger);
         return -1;
     }

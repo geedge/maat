@@ -71,7 +71,8 @@ void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
         log_error(logger, MODULE_INTERVAL, 
-                  "table %s has no custom column", table_name);
+                  "[%s:%d] table %s has no custom column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -191,8 +192,8 @@ struct interval_item *interval_item_new(const char *line, struct interval_schema
     int ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_INTERVAL, 
-                  "interval table(table_id:%d) line:%s has no item_id",
-                  schema->table_id, line);
+                  "[%s:%d] interval table(table_id:%d) line:%s has no item_id",
+                  __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
     }
     item->item_id = atoll(line + column_offset);
@@ -200,8 +201,8 @@ struct interval_item *interval_item_new(const char *line, struct interval_schema
     ret = get_column_pos(line, schema->group_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_INTERVAL, 
-                  "interval table(table_id:%d) line:%s has no group_id",
-                  schema->table_id, line);
+                  "[%s:%d] interval table(table_id:%d) line:%s has no group_id",
+                  __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
     }
     item->group_id = atoll(line + column_offset);
@@ -215,8 +216,8 @@ struct interval_item *interval_item_new(const char *line, struct interval_schema
 
         if (column_len >= MAX_DISTRICT_STR) {
             log_error(logger, MODULE_INTERVAL, 
-                      "interval_plus table(table_id:%d) line:%s district length too long",
-                      schema->table_id, line);
+                      "[%s:%d] interval_plus table(table_id:%d) line:%s district length too long",
+                      __FUNCTION__, __LINE__, schema->table_id, line);
             goto error;
         }
 
@@ -232,8 +233,8 @@ struct interval_item *interval_item_new(const char *line, struct interval_schema
     ret = get_column_pos(line, schema->low_bound_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_INTERVAL, 
-                  "interval table(table_id:%d) line:%s has no low_bound",
-                  schema->table_id, line);
+                  "[%s:%d] interval table(table_id:%d) line:%s has no low_bound",
+                  __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
     }
     item->low_bound = atoi(line + column_offset);
@@ -241,8 +242,8 @@ struct interval_item *interval_item_new(const char *line, struct interval_schema
     ret = get_column_pos(line, schema->up_bound_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_INTERVAL, 
-                  "interval table(table_id:%d) line:%s has no up_bound",
-                  schema->table_id, line);
+                  "[%s:%d] interval table(table_id:%d) line:%s has no up_bound",
+                  __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
     }
     item->up_bound = atoi(line + column_offset);
@@ -285,8 +286,8 @@ int interval_runtime_update_row(struct interval_runtime *interval_rt, char *key,
         data = rcu_hash_find(interval_rt->htable, key, key_len);
         if (NULL == data) {
             log_error(interval_rt->logger, MODULE_INTERVAL, 
-                      "the key of interval rule not exist, can't be deleted, item_id:%llu",
-                      item_id);
+                      "[%s:%d] the key of interval rule not exist, can't be deleted, item_id:%llu",
+                      __FUNCTION__, __LINE__, item_id);
             return -1;
         }
         rcu_hash_del(interval_rt->htable, key, key_len);
@@ -295,8 +296,8 @@ int interval_runtime_update_row(struct interval_runtime *interval_rt, char *key,
         data = rcu_hash_find(interval_rt->htable, key, key_len);
         if (data != NULL) {
             log_error(interval_rt->logger, MODULE_INTERVAL,
-                      "the key of interval rule already exist, can't be added, item_id:%llu", 
-                      item_id);
+                      "[%s:%d] the key of interval rule already exist, can't be added, item_id:%llu", 
+                      __FUNCTION__, __LINE__, item_id);
             return -1;
         }
         rcu_hash_add(interval_rt->htable, key, key_len, (void *)rule);
@@ -348,8 +349,8 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
         HASH_FIND(hh, interval_rt->item_hash, &item_id, sizeof(long long), item);
         if (item) {
             log_error(interval_rt->logger, MODULE_INTERVAL, 
-                      "interval runtime add item %llu to item_hash failed, already exist", 
-                      item_id);
+                      "[%s:%d] interval runtime add item %llu to item_hash failed, already exist", 
+                      __FUNCTION__, __LINE__, item_id);
             return -1;
         }
 
@@ -366,8 +367,8 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
         interval_item_free(interval_item);
         if (NULL == interval_rule) {
             log_error(interval_rt->logger, MODULE_INTERVAL, 
-                      "transform interval table(table_id:%d) item to interval_rule failed, item_id:%llu",
-                      schema->table_id, item_id);
+                      "[%s:%d] transform interval table(table_id:%d) item to interval_rule failed, item_id:%llu",
+                      __FUNCTION__, __LINE__, schema->table_id, item_id);
             return -1;
         }
     }
@@ -423,8 +424,8 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name)
     new_interval_matcher = interval_matcher_new(rules, rule_cnt);
     if (NULL == new_interval_matcher) {
         log_error(interval_rt->logger, MODULE_INTERVAL,
-                  "table[%s]rebuild interval_matcher engine failed when update %zu interval rules", 
-                  table_name, rule_cnt);
+                  "[%s:%d] table[%s]rebuild interval_matcher engine failed when update %zu interval rules", 
+                  __FUNCTION__, __LINE__, table_name, rule_cnt);
         ret = -1;
     }
 

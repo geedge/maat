@@ -86,7 +86,8 @@ void *ip_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     item = cJSON_GetObjectItem(json, "custom");
     if (NULL == item || item->type != cJSON_Object) {
         log_error(logger, MODULE_IP, 
-                  "ip table %s has no custom column", table_name);
+                  "[%s:%d] ip table %s has no custom column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -214,8 +215,8 @@ struct ip_item *ip_item_new(const char *line, struct ip_schema *ip_schema,
     int ret = get_column_pos(line, ip_schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_IP, 
-                  "ip plus table(table_id:%d) line:%s has no item_id",
-                  ip_schema->table_id, line);
+                  "[%s:%d] ip plus table(table_id:%d) line:%s has no item_id",
+                  __FUNCTION__, __LINE__, ip_schema->table_id, line);
         goto error;
     }
     ip_item->item_id = atoll(line + column_offset);
@@ -223,8 +224,8 @@ struct ip_item *ip_item_new(const char *line, struct ip_schema *ip_schema,
     ret = get_column_pos(line, ip_schema->group_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_IP,
-                  "ip plus table(table_id:%d) line:%s has no group_id",
-                  ip_schema->table_id, line);
+                  "[%s:%d] ip plus table(table_id:%d) line:%s has no group_id",
+                  __FUNCTION__, __LINE__, ip_schema->table_id, line);
         goto error;
     }
     ip_item->group_id = atoll(line + column_offset);
@@ -232,46 +233,48 @@ struct ip_item *ip_item_new(const char *line, struct ip_schema *ip_schema,
     ret = get_column_pos(line, ip_schema->addr_type_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_IP, 
-                  "ip plus table(table_id:%d) line:%s has no addr_type",
-                  ip_schema->table_id, line);
+                  "[%s:%d] ip plus table(table_id:%d) line:%s has no addr_type",
+                  __FUNCTION__, __LINE__, ip_schema->table_id, line);
         goto error;
     }
     ip_item->addr_type = atoi(line + column_offset);
 
     if (ip_item->addr_type != IPv4 && ip_item->addr_type != IPv6) {
         log_error(logger, MODULE_IP, 
-                  "ip table(table_id:%d) line:%s has invalid addr type:%d",
-                  ip_schema->table_id, line, ip_item->addr_type);
+                  "[%s:%d] ip table(table_id:%d) line:%s has invalid addr type:%d",
+                  __FUNCTION__, __LINE__, ip_schema->table_id, line, ip_item->addr_type);
         goto error;
     }
 
     ret = get_column_pos(line, ip_schema->saddr_format_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_IP,
-                  "ip table(table_id:%d) line:%s has no saddr_format",
-                  ip_schema->table_id, line);
+                  "[%s:%d] ip table(table_id:%d) line:%s has no saddr_format",
+                  __FUNCTION__, __LINE__, ip_schema->table_id, line);
         goto error;
     }
     memcpy(saddr_format, (line + column_offset), column_len);
     if (IP_FORMAT_UNKNOWN == ip_format_str2int(saddr_format)) {
         log_error(logger, MODULE_IP, 
-                  "ip table(table_id:%d) line:%s has invalid saddr_format, should be range/mask/CIDR",
-                  ip_schema->table_id, line);
+                  "[%s:%d] ip table(table_id:%d) line:%s has invalid saddr_format, should be range/mask/CIDR",
+                  __FUNCTION__, __LINE__, ip_schema->table_id, line);
         goto error;
     }
 
     ret = get_column_pos(line, ip_schema->sip1_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_IP, "ip table(table_id:%d) line:%s has no sip1",
-                  ip_schema->table_id, line);
+        log_error(logger, MODULE_IP, 
+                  "[%s:%d] ip table(table_id:%d) line:%s has no sip1",
+                  __FUNCTION__, __LINE__, ip_schema->table_id, line);
         goto error;
     }
     memcpy(sip1_str, (line + column_offset), column_len);
 
     ret = get_column_pos(line, ip_schema->sip2_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_IP, "ip table(table_id:%d) line:%s has no sip2",
-                  ip_schema->table_id, line);
+        log_error(logger, MODULE_IP, 
+                  "[%s:%d] ip table(table_id:%d) line:%s has no sip2",
+                  __FUNCTION__, __LINE__, ip_schema->table_id, line);
         goto error;
     }
     memcpy(sip2_str, (line + column_offset), column_len);
@@ -281,8 +284,8 @@ struct ip_item *ip_item_new(const char *line, struct ip_schema *ip_schema,
                               &ip_item->ipv4.min_sip, &ip_item->ipv4.max_sip);
         if (ret < 0) {
             log_error(logger, MODULE_IP, 
-                      "ip table(table_id:%d) line:%s ip_format2range(ip4) failed",
-                      ip_schema->table_id, line);
+                      "[%s:%d] ip table(table_id:%d) line:%s ip_format2range(ip4) failed",
+                      __FUNCTION__, __LINE__, ip_schema->table_id, line);
             goto error;
         }
     } else {
@@ -291,8 +294,8 @@ struct ip_item *ip_item_new(const char *line, struct ip_schema *ip_schema,
                               ip_item->ipv6.min_sip, ip_item->ipv6.max_sip);
         if (ret < 0) {
             log_error(logger, MODULE_IP, 
-                      "ip table(table_id:%d) line:%s ip_format2range(ip6) failed",
-                      ip_schema->table_id, line);
+                      "[%s:%d] ip table(table_id:%d) line:%s ip_format2range(ip6) failed",
+                      __FUNCTION__, __LINE__, ip_schema->table_id, line);
             goto error;
         }
     }
@@ -395,8 +398,8 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
         HASH_FIND(hh, ip_rt->item_hash, &item_id, sizeof(long long), item);
         if (item) {
             log_error(ip_rt->logger, MODULE_IP, 
-                      "ip runtime add item %llu to item_hash failed, already exist", 
-                      item_id);
+                      "[%s:%d] ip runtime add item %llu to item_hash failed, already exist", 
+                      __FUNCTION__, __LINE__, item_id);
             return -1;
         }
 
@@ -463,8 +466,8 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name)
     new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used, ip_rt->logger);
     if (NULL == new_ip_matcher) {
         log_error(ip_rt->logger, MODULE_IP,
-                  "table[%s] rebuild ip_matcher engine failed when update %zu ip rules",
-                  table_name, rule_cnt);
+                  "[%s:%d] table[%s] rebuild ip_matcher engine failed when update %zu ip rules",
+                  __FUNCTION__, __LINE__, table_name, rule_cnt);
         ret = -1;
     }
 

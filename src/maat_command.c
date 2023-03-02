@@ -65,8 +65,9 @@ redisContext *maat_cmd_connect_redis(const char *redis_ip, int redis_port,
 				   redis_ip, redis_port, redis_db, c == NULL ? "Unknown" : c->errstr);
         } else {
             log_error(logger, MODULE_MAAT_COMMAND, 
-                      "Unable to connect redis server %s:%d db%d, error: %s",
-				      redis_ip, redis_port, redis_db, c == NULL ? "Unknown" : c->errstr);
+                      "[%s:%d] Unable to connect redis server %s:%d db%d, error: %s",
+				      __FUNCTION__, __LINE__, redis_ip, redis_port, redis_db, 
+                      c == NULL ? "Unknown" : c->errstr);
         }
 		
 		if (c != NULL) {
@@ -311,8 +312,8 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
     int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, line_rule->table_name);
     if (table_id < 0) {
         log_error(maat_instance->logger, MODULE_MAAT_COMMAND, 
-                  "Command set line id %lld failed: unknown table %s", 
-                  line_rule->rule_id, line_rule->table_name);
+                  "[%s:%d] Command set line id %lld failed: unknown table %s", 
+                  __FUNCTION__, __LINE__, line_rule->rule_id, line_rule->table_name);
         FREE(s_rule);
         return -1;
     }
@@ -320,8 +321,8 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
     int valid_column = table_manager_get_valid_column(maat_instance->tbl_mgr, table_id);
     if (valid_column < 0) {
         log_error(maat_instance->logger, MODULE_MAAT_COMMAND,
-                  "Command set line id %lld failed: table %s is not a plugin or ip_plugin table",
-                  line_rule->rule_id, line_rule->table_name);
+                  "[%s:%d] Command set line id %lld failed: table %s is not a plugin or ip_plugin table",
+                  __FUNCTION__, __LINE__, line_rule->rule_id, line_rule->table_name);
         FREE(s_rule);
         return -1;
     }

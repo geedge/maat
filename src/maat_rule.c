@@ -145,7 +145,8 @@ size_t parse_accept_tag(const char *value, struct rule_tag **result, struct log_
 	cJSON *json = cJSON_Parse(value);
 	if (!json) {
 		log_error(logger, MODULE_MAAT_RULE,
-				 "parse accept tag Error before: %-200.200s", cJSON_GetErrorPtr());
+				 "[%s:%d] parse accept tag Error before: %-200.200s", 
+                 __FUNCTION__, __LINE__, cJSON_GetErrorPtr());
 		return 0;
 	}
 
@@ -308,14 +309,16 @@ int maat_update_cb(const char *table_name, const char *line, void *u_param)
 	int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, table_name);
     if (table_id < 0) {
         log_error(maat_instance->logger, MODULE_MAAT_RULE, 
-				  "update warning, unknown table name %s", table_name);
+				  "[%s:%d] update warning, unknown table name %s", 
+                  __FUNCTION__, __LINE__, table_name);
         return -1;
     }
 
 	void *schema = table_manager_get_schema(maat_instance->tbl_mgr, table_id);
     if (NULL == schema) {
         log_error(maat_instance->logger, MODULE_MAAT_RULE, 
-                  "update warning, table name %s doesn't have table schema", table_name);
+                  "[%s:%d] update warning, table name %s doesn't have table schema", 
+                  __FUNCTION__, __LINE__, table_name);
         return -1;
     }
     
@@ -406,7 +409,7 @@ void *rule_monitor_loop(void *arg)
     /* if deferred load on */
     if (maat_instance->deferred_load != 0) {
         log_info(maat_instance->logger, MODULE_MAAT_RULE, 
-                 "Deferred Loading ON, updating in %s", __func__);
+                 "Deferred Loading ON, updating in %s:%d", __FUNCTION__, __LINE__);
         maat_read_full_config(maat_instance);
     }
     pthread_mutex_unlock(&(maat_instance->background_update_mutex));
@@ -415,7 +418,7 @@ void *rule_monitor_loop(void *arg)
     char err_str[NAME_MAX] = {0};
     struct stat attrib;
     while (maat_instance->is_running) {
-        log_info(maat_instance->logger, MODULE_MAAT_RULE, "rule_monitor_loop.............");
+        log_info(maat_instance->logger, MODULE_MAAT_RULE, "%s:%d.............", __FUNCTION__, __LINE__);
         usleep(maat_instance->rule_update_checking_interval_ms * 1000);
 		if (0 == pthread_mutex_trylock(&(maat_instance->background_update_mutex))) {
 			switch (maat_instance->input_mode) {
@@ -442,8 +445,9 @@ void *rule_monitor_loop(void *arg)
                                                       err_str, sizeof(err_str));
 							if (ret < 0) {
 								log_error(maat_instance->logger, MODULE_MAAT_RULE, 
-                                          "Maat re-initiate with JSON file %s (md5=%s)failed: %s\n",
-										  maat_instance->json_ctx.json_file, md5_tmp, err_str);
+                                          "[%s:%d] Maat re-initiate with JSON file %s (md5=%s)failed: %s\n",
+										  __FUNCTION__, __LINE__, maat_instance->json_ctx.json_file, 
+                                          md5_tmp, err_str);
 							} else {
 								config_monitor_traverse(0, maat_instance->json_ctx.iris_file,
 														maat_start_cb, maat_update_cb, maat_finish_cb,

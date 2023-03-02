@@ -74,7 +74,8 @@ void *flag_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
         log_error(logger, MODULE_FLAG, 
-                  "table %s has no custom column", table_name);
+                  "[%s:%d] table %s has no custom column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -193,8 +194,8 @@ int flag_runtime_update_row(struct flag_runtime *flag_rt, char *key, size_t key_
         data = rcu_hash_find(flag_rt->htable, key, key_len);
         if (NULL == data) {
             log_error(flag_rt->logger, MODULE_FLAG, 
-                      "the key of flag rule not exist, can't be deleted, item_id:%llu",
-                      item_id);
+                      "[%s:%d] the key of flag rule not exist, can't be deleted, item_id:%llu",
+                      __FUNCTION__, __LINE__, item_id);
             return -1;
         }
         rcu_hash_del(flag_rt->htable, key, key_len);
@@ -203,8 +204,8 @@ int flag_runtime_update_row(struct flag_runtime *flag_rt, char *key, size_t key_
         data = rcu_hash_find(flag_rt->htable, key, key_len);
         if (data != NULL) {
             log_error(flag_rt->logger, MODULE_FLAG,
-                      "the key of flag rule already exist, can't be added, item_id:%llu", 
-                      item_id);
+                      "[%s:%d] the key of flag rule already exist, can't be added, item_id:%llu", 
+                      __FUNCTION__, __LINE__, item_id);
             return -1;
         }
         rcu_hash_add(flag_rt->htable, key, key_len, (void *)rule);
@@ -224,8 +225,8 @@ struct flag_item *flag_item_new(const char *line, struct flag_schema *schema,
     int ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_FLAG, 
-                  "flag table(table_id:%d) line:%s has no item_id",
-                  schema->table_id, line);
+                  "[%s:%d] flag table(table_id:%d) line:%s has no item_id",
+                  __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
     }
     item->item_id = atoll(line + column_offset);
@@ -233,8 +234,8 @@ struct flag_item *flag_item_new(const char *line, struct flag_schema *schema,
     ret = get_column_pos(line, schema->group_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_FLAG, 
-                  "flag table(table_id:%d) line:%s has no group_id",
-                  schema->table_id, line);
+                  "[%s:%d] flag table(table_id:%d) line:%s has no group_id",
+                  __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
     }
     item->group_id = atoll(line + column_offset);
@@ -248,8 +249,8 @@ struct flag_item *flag_item_new(const char *line, struct flag_schema *schema,
 
         if (column_len >= MAX_DISTRICT_STR) {
             log_error(logger, MODULE_FLAG, 
-                      "flag_plus table(table_id:%d) line:%s district length too long",
-                      schema->table_id, line);
+                      "[%s:%d] flag_plus table(table_id:%d) line:%s district length too long",
+                      __FUNCTION__, __LINE__, schema->table_id, line);
             goto error;
         }
 
@@ -265,8 +266,8 @@ struct flag_item *flag_item_new(const char *line, struct flag_schema *schema,
     ret = get_column_pos(line, schema->flag_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_FLAG, 
-                  "flag table(table_id:%d) line:%s has no flag",
-                  schema->table_id, line);
+                  "[%s:%d] flag table(table_id:%d) line:%s has no flag",
+                  __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
     }
 
@@ -275,8 +276,8 @@ struct flag_item *flag_item_new(const char *line, struct flag_schema *schema,
      ret = get_column_pos(line, schema->flag_mask_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_FLAG, 
-                  "flag table(table_id:%d) line:%s has no flag_mask",
-                  schema->table_id, line);
+                  "[%s:%d] flag table(table_id:%d) line:%s has no flag_mask",
+                  __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
     }
     item->flag_mask = strtoull(line + column_offset, NULL, 0);
@@ -352,8 +353,8 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
         HASH_FIND(hh, flag_rt->item_hash, &item_id, sizeof(long long), item);
         if (item) {
             log_error(flag_rt->logger, MODULE_FLAG, 
-                      "flag runtime add item %d to item_hash failed, already exist", 
-                      item_id);
+                      "[%s:%d] flag runtime add item %d to item_hash failed, already exist", 
+                      __FUNCTION__, __LINE__, item_id);
             return -1;
         }
 
@@ -370,8 +371,8 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
         flag_item_free(flag_item);
         if (NULL == flag_rule) {
             log_error(flag_rt->logger, MODULE_FLAG, 
-                      "transform flag table(table_id:%d) item to flag_rule failed, item_id:%d",
-                      schema->table_id, item_id);
+                      "[%s:%d] transform flag table(table_id:%d) item to flag_rule failed, item_id:%d",
+                      __FUNCTION__, __LINE__, schema->table_id, item_id);
             return -1;
         }
     }
@@ -426,8 +427,8 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name)
     new_flag_matcher = flag_matcher_new(rules, rule_cnt);
     if (NULL == new_flag_matcher) {
         log_error(flag_rt->logger, MODULE_FLAG,
-                  "table[%s] rebuild flag_matcher engine failed when update %zu flag rules", 
-                  table_name, rule_cnt);
+                  "[%s:%d] table[%s] rebuild flag_matcher engine failed when update %zu flag rules", 
+                  __FUNCTION__, __LINE__, table_name, rule_cnt);
         ret = -1;
     }
 

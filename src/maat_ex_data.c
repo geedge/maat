@@ -214,8 +214,8 @@ int ex_data_runtime_add_ex_container(struct ex_data_runtime *ex_data_rt,
                                                               key, key_len);
     if (tmp_container != NULL) {
         log_error(ex_data_rt->logger, MODULE_EX_DATA,
-                  "ex_data_runtime add ex container error: already exist same key:%s",
-                  key);
+                  "[%s:%d] ex_data_runtime add ex container error: already exist same key:%s",
+                  __FUNCTION__, __LINE__, key);
         return -1;
     }
 
@@ -232,8 +232,8 @@ int ex_data_runtime_del_ex_container(struct ex_data_runtime *ex_data_rt,
                                                               key, key_len);
     if (NULL == tmp_container) {
         log_error(ex_data_rt->logger, MODULE_EX_DATA, 
-                  "ex_data_runtime del ex container error: no such key:%s", 
-                  key);
+                  "[%s:%d] ex_data_runtime del ex container error: no such key:%s", 
+                  __FUNCTION__, __LINE__, key);
         return -1;
     }
 

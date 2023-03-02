@@ -63,7 +63,7 @@ struct ip_matcher * ip_matcher_new(struct ip_rule * rules, size_t rule_num,
 	{
 		log_error(logger, MODULE_IP_MATCHER, 
                   "[%s:%d]:  ip_matcher_new() failed, for param is wrong!", 
-                  __FILE__, __LINE__);
+                  __FUNCTION__, __LINE__);
 		return NULL;
 	}
 
@@ -96,8 +96,8 @@ struct ip_matcher * ip_matcher_new(struct ip_rule * rules, size_t rule_num,
 			delete v4_matcher;
 			v4_matcher=NULL;
 			log_error(logger, MODULE_IP_MATCHER, 
-                      "ip_matcher_new() failed !", 
-                      __FILE__, __LINE__);
+                      "[%s:%d] ip_matcher_new() failed !", 
+                      __FUNCTION__, __LINE__);
 			return NULL;
 		}
 
@@ -115,8 +115,8 @@ struct ip_matcher * ip_matcher_new(struct ip_rule * rules, size_t rule_num,
 			delete v6_matcher;
 			v6_matcher=NULL;
 			log_error(logger, MODULE_IP_MATCHER, 
-                      "ip_matcher_new() failed !", 
-                      __FILE__, __LINE__);
+                      "[%s:%d] ip_matcher_new() failed !", 
+                      __FUNCTION__, __LINE__);
 			return NULL;
 		}
 
@@ -136,7 +136,7 @@ int ip_matcher_match(struct ip_matcher* matcher, struct ip_data* data,
 	{
 		log_error(matcher->logger, MODULE_IP_MATCHER, 
                   "[%s:%d]: ip_matcher_match() failed, for param is NULL!", 
-                  __FILE__, __LINE__);
+                  __FUNCTION__, __LINE__);
 		return -1;
 	}
 
@@ -155,7 +155,7 @@ int ip_matcher_match(struct ip_matcher* matcher, struct ip_data* data,
 	{
 		log_error(matcher->logger, MODULE_IP_MATCHER, 
                   "[%s:%d]: ip_matcher_match() failed, for can't find the right rule_matcher!", 
-                  __FILE__, __LINE__);
+                  __FUNCTION__, __LINE__);
 		return -1;
 	}
 
@@ -164,7 +164,7 @@ int ip_matcher_match(struct ip_matcher* matcher, struct ip_data* data,
 	{
 		log_error(matcher->logger, MODULE_IP_MATCHER, 
                   "[%s:%d]: ip_matcher_match() failed, for the value returned by search_rule() is wrong!", 
-                  __FILE__, __LINE__);
+                  __FUNCTION__, __LINE__);
 		return -1;
 	}
 

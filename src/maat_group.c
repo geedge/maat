@@ -84,7 +84,8 @@ void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
         log_error(logger, MODULE_GROUP, 
-                  "table %s has no custom column", table_name);
+                  "[%s:%d] table %s has no custom column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -205,8 +206,8 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
     int ret = get_column_pos(line, g2g_schema->group_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_GROUP,
-                  "group2group table(table_id:%d) line:%s has no group_id",
-                  g2g_schema->table_id, line);
+                  "[%s:%d] group2group table(table_id:%d) line:%s has no group_id",
+                  __FUNCTION__, __LINE__, g2g_schema->table_id, line);
         goto error;
     }
     g2g_item->group_id = atoll(line + column_offset);
@@ -215,8 +216,8 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
                          &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_GROUP,
-                  "group2group table(table_id:%d) line:%s has no super_group_id",
-                  g2g_schema->table_id, line);
+                  "[%s:%d] group2group table(table_id:%d) line:%s has no super_group_id",
+                  __FUNCTION__, __LINE__, g2g_schema->table_id, line);
         goto error;
     }
     g2g_item->super_group_id = atoll(line + column_offset);
@@ -298,8 +299,8 @@ void _group2group_runtime_remove_group(void *g2g_runtime, struct maat_group *gro
 	if (igraph_vector_size(&v) > 0) {
 		print_igraph_vector(&v, buff, sizeof(buff));
 		log_error(group_topo->logger, MODULE_GROUP, 
-                 "Del group %d exception, still reached by %s.",
-				  group->vertex_id, buff);
+                 "[%s:%d] Del group %d exception, still reached by %s.",
+				  __FUNCTION__, __LINE__, group->vertex_id, buff);
 		assert(0);
 	}
 	igraph_vector_destroy(&v);
@@ -391,8 +392,8 @@ int group2group_runtime_add_group_to_group(void *g2g_runtime, long long group_id
     //No duplicated edges between two groups.
     if (edge_id > 0) {
 		log_error(g2g_rt->logger, MODULE_GROUP,
-                  "Add group %d to group %d failed, relation already exisited.",
-				  group->group_id, super_group->group_id);
+                  "[%s:%d] Add group %d to group %d failed, relation already exisited.",
+				  __FUNCTION__, __LINE__, group->group_id, super_group->group_id);
 		ret = -1;
 	} else {
 		igraph_add_edge(&group_topo->group_graph, group->vertex_id, 
@@ -420,8 +421,8 @@ int group2group_runtime_remove_group_from_group(void *g2g_runtime, long long gro
 	struct maat_group *group = _group2group_runtime_find_group(g2g_runtime, group_id, 0);
 	if (NULL == group) {
 		log_error(g2g_rt->logger, MODULE_GROUP,
-				  "Del group %d from group %d failed, group %d not exisited.",
-				  group_id, super_group_id, group_id);
+				  "[%s:%d] Del group %d from group %d failed, group %d not exisited.",
+				  __FUNCTION__, __LINE__, group_id, super_group_id, group_id);
         pthread_rwlock_unlock(&(g2g_rt->rwlock));
 		return -1;	
 	}
@@ -430,8 +431,8 @@ int group2group_runtime_remove_group_from_group(void *g2g_runtime, long long gro
                                                                      super_group_id, 0);
 	if (NULL == super_group) {
 		log_error(g2g_rt->logger, MODULE_GROUP,
-				  "Del group %d from group %d failed, superior group %d not exisited.",
-				  group_id, super_group_id, super_group_id);
+				  "[%s:%d] Del group %d from group %d failed, superior group %d not exisited.",
+				  __FUNCTION__, __LINE__, group_id, super_group_id, super_group_id);
         pthread_rwlock_unlock(&(g2g_rt->rwlock));
 		return -1;	
 	}
@@ -504,7 +505,8 @@ int group2group_runtime_build_top_groups(void *g2g_runtime)
 	igraph_bool_t is_dag;
 	igraph_is_dag(&(group_topo->group_graph), &is_dag);
 	if (!is_dag) {
-		log_error(g2g_rt->logger, MODULE_GROUP, "Sub group cycle detected!");
+		log_error(g2g_rt->logger, MODULE_GROUP, "[%s:%d] Sub group cycle detected!",
+                  __FUNCTION__, __LINE__);
         pthread_rwlock_unlock(&(g2g_rt->rwlock));
 		return -1;
 	}
@@ -616,10 +618,12 @@ int group2group_runtime_commit(void *g2g_runtime, const char *table_name)
     int ret = group2group_runtime_build_top_groups(g2g_runtime);
     if (ret < 0) {
         log_error(g2g_rt->logger, MODULE_GROUP, 
-                  "table[%s] group2group runtime commit failed", table_name);
+                  "[%s:%d] table[%s] group2group runtime commit failed", 
+                  __FUNCTION__, __LINE__, table_name);
+        return -1;
     }
 
-    return ret;
+    return 0;
 }
 
 int group2group_runtime_get_top_groups(void *g2g_runtime, long long *group_ids, 

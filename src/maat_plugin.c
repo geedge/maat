@@ -80,7 +80,8 @@ void *plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
     if (NULL == item || item->type != cJSON_Number) {
         log_error(logger, MODULE_PLUGIN, 
-                  "plugin table %s has no table_id column", table_name);
+                  "[%s:%d] plugin table %s has no table_id column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
     schema->table_id = item->valueint;
@@ -88,14 +89,16 @@ void *plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
         log_error(logger, MODULE_PLUGIN, 
-                  "plugin table %s has no custom column", table_name);
+                  "[%s:%d] plugin table %s has no custom column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
     custom_item = cJSON_GetObjectItem(item, "key");
     if (NULL == custom_item || custom_item->type != cJSON_Number) {
         log_error(logger, MODULE_PLUGIN, 
-                  "plugin table: %s has no key column", table_name);
+                  "[%s:%d] plugin table: %s has no key column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
     schema->key_column = custom_item->valueint;
@@ -158,8 +161,8 @@ int plugin_table_add_callback(void *plugin_schema, int table_id,
 
 	if (idx == MAX_PLUGIN_PER_TABLE) {
         log_error(logger, MODULE_PLUGIN, 
-                  "the plugin number of table_id: %d exceed maxium:%d", 
-                  table_id, MAX_PLUGIN_PER_TABLE);
+                  "[%s:%d] the plugin number of table_id: %d exceed maxium:%d", 
+                  __FUNCTION__, __LINE__, table_id, MAX_PLUGIN_PER_TABLE);
 		return -1;
 	}
 
@@ -314,8 +317,8 @@ int plugin_accept_tag_match(struct plugin_schema *schema, const char *line,
         int ret = get_column_pos(line, schema->rule_tag_column, &column_offset, &column_len);
         if (ret < 0) {
             log_error(logger, MODULE_PLUGIN,
-                      "plugin table(table_id:%d) has no rule_tag, line:%s",
-                      schema->table_id, line);
+                      "[%s:%d] plugin table(table_id:%d) has no rule_tag, line:%s",
+                      __FUNCTION__, __LINE__, schema->table_id, line);
             schema->update_err_cnt++;
             return TAG_MATCH_ERR;
         }
@@ -327,8 +330,8 @@ int plugin_accept_tag_match(struct plugin_schema *schema, const char *line,
             FREE(tag_str);
             if (TAG_MATCH_ERR == ret) {
                 log_error(logger, MODULE_PLUGIN,
-                          "plugin table(table_id:%d) has invalid tag format, line:%s",
-                          schema->table_id, line);
+                          "[%s:%d] plugin table(table_id:%d) has invalid tag format, line:%s",
+                          __FUNCTION__, __LINE__, schema->table_id, line);
                 schema->update_err_cnt++;
                 return TAG_MATCH_ERR;
             }
