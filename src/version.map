@@ -5,6 +5,7 @@ global:
 		maat_options*;
         maat_new;
         maat_free;
+        maat_get_table_id;
         maat_table*;
         maat_compile_table*;
         maat_plugin_table*;

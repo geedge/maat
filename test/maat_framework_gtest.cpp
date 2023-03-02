@@ -18,6 +18,8 @@ const char *table_info_path = "./table_info.conf";
 const char *json_path="./maat_json.json";
 const char *json_filename = "maat_json.json";
 struct maat *g_maat_instance = NULL;
+struct log_handle *g_logger = NULL;
+size_t g_thread_num = 4;
 
 extern int system_cmd_rmdir(const char *dir);
 
@@ -1494,6 +1496,22 @@ TEST_F(Policy, SubGroup) {
 	maat_state_free(&state);
 }
 #endif
+TEST_F(Policy, ReadColumn) {
+    const char *ip = "192.168.0.1";
+	const char *tmp = "something";
+	char line[256] = {0};
+    size_t offset=0, len=0;
+
+	snprintf(line, sizeof(line), "1\t%s\t%s", ip, tmp);
+	int ret = maat_helper_read_column(line, 2, &offset, &len);
+	EXPECT_EQ(ret, 0);
+	EXPECT_EQ(0, strncmp(ip, line+offset, len));
+	
+	ret = maat_helper_read_column(line, 3, &offset, &len);
+	EXPECT_EQ(ret, 0);
+	EXPECT_EQ(0, strncmp(tmp, line+offset, len));
+}
+
 class MaatCmdTest : public testing::Test
 {
 protected:
@@ -1505,7 +1523,97 @@ protected:
        
     }    
 };
+#if 0
+TEST_F(MaatCmdTest, SetIP) {
+	long long version_before = 0;
+	const char *ip_table_name = "IP_CONFIG";
+	const char *compile_table_name = "COMPILE";
+    char table_line[128] = {0};
+    long long compile_id = 0;
+   
+    compile_id = maat_cmd_incrby(g_maat_instance, "TEST_SEQ", 1);
+    sprintf(table_line, "%lld\t")
+    struct maat_cmd_line line_rule;
+    line_rule.table_name = compile_table_name;
 
+	
+	strcpy(compile.service_defined, "maat_command");
+	struct Maat_command_batch* batch=NULL;
+	batch=Maat_command_batch_new(feather);
+	//MUST acqire by function, because Maat_cmd_t has some hidden members.
+	Maat_command_batch_set_compile(batch, MAAT_OP_ADD, &compile, "COMPILE", NULL, 1, 0, timeout);
+
+	struct Maat_cmd_group2compile g2c;
+	memset(&g2c, 0, sizeof(g2c));
+	g2c.group_id=Maat_command_get_new_group_id(feather);
+	g2c.compile_id=compile.config_id;
+	g2c.clause_index=1;
+	g2c.table_name="GROUP2COMPILE";
+	Maat_command_batch_set_group2compile(batch, MAAT_OP_ADD, &g2c);
+
+
+
+	
+
+	struct Maat_cmd_region region;
+	memset(&region, 0, sizeof(region));
+	region.region_type=REGION_IP;
+	region.table_name=region_table;
+	region.ip_rule.addr_type=ADDR_TYPE_IPv4;
+	region.ip_rule.direction=ADDR_DIR_DOUBLE;
+	region.ip_rule.src_ip="172.0.0.1";
+	region.ip_rule.mask_src_ip="255.255.255.255";
+	region.ip_rule.src_port=53331;
+	region.ip_rule.mask_src_port=0;//means any port should hit.
+	
+	region.ip_rule.dst_ip="172.0.0.2";
+	region.ip_rule.mask_dst_ip="255.255.255.255";
+	region.ip_rule.dst_port=80;
+	region.ip_rule.mask_dst_port=65535;
+	region.ip_rule.protocol=0;//means any protocol should hit.
+	ret=Maat_command_batch_set_region(batch, MAAT_OP_ADD, &region, g2c.group_id);
+	EXPECT_GE(ret, 0);
+
+
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
+	EXPECT_EQ(ret, 0);
+	Maat_command_batch_commit(batch);
+
+	wait_for_cmd_effective(feather, version_before);
+	
+	struct ipaddr ipv4_addr;
+	struct stream_tuple4_v4 v4_addr;
+	ipv4_addr.addrtype=ADDR_TYPE_IPV4;
+	inet_pton(AF_INET,region.ip_rule.src_ip,&(v4_addr.saddr));
+	v4_addr.source=htons(region.ip_rule.src_port+1);//Not use the exactly port for testing port mask.
+	inet_pton(AF_INET,region.ip_rule.dst_ip,&(v4_addr.daddr));
+	v4_addr.dest=htons(region.ip_rule.dst_port);
+	ipv4_addr.v4=&v4_addr;
+	
+	int table_id=0;
+	struct Maat_rule_t result;
+	memset(&result, 0, sizeof(result));
+	scan_status_t mid=NULL;
+	table_id=Maat_table_register(feather,region_table);
+	ASSERT_GE(table_id, 0);
+
+	ret=Maat_scan_proto_addr(feather,table_id,&ipv4_addr,6,&result,1, &mid,0);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(result.config_id, config_id);
+
+	Maat_clean_status(&mid);
+	
+	ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version_before, sizeof(version_before));
+
+	Maat_command_raw_set_compile(feather, MAAT_OP_RENEW_TIMEOUT, &compile, "COMPILE", NULL, 1, 0, timeout);
+	
+	sleep(timeout-1);
+	ret=Maat_scan_proto_addr(feather,table_id,&ipv4_addr,6,&result,1, &mid,0);
+	EXPECT_EQ(ret, 1);
+
+	Maat_clean_status(&mid);
+}
+#endif
 struct user_info {
 	char name[256];
 	char ip_addr[32];
@@ -1742,8 +1850,8 @@ int main(int argc, char ** argv)
 	int ret=0;
 	::testing::InitGoogleTest(&argc, argv);
 
-    struct log_handle *logger = log_handle_create("./maat_framework_gtest.log", 0);
-    if (NULL == logger) {
+    g_logger = log_handle_create("./maat_framework_gtest.log", 0);
+    if (NULL == g_logger) {
         printf("create log handle failed.\n");
         return -1;
     }
@@ -1753,30 +1861,32 @@ int main(int argc, char ** argv)
     int redis_port = 6379;
     int redis_db = 0;
 
-    ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+    ret = write_config_to_redis(redis_ip, redis_port, redis_db, g_logger);
     if (ret < 0) {
-        log_error(logger, MODULE_FRAMEWORK_GTEST, "write config to redis failed.");
-        log_handle_destroy(logger);
+        log_error(g_logger, MODULE_FRAMEWORK_GTEST, "write config to redis failed.");
+        log_handle_destroy(g_logger);
+        g_logger = NULL;
         return -1;
     }
     
     struct maat_options *opts = maat_options_new();
     maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-    maat_options_set_logger(opts, logger);
+    maat_options_set_logger(opts, g_logger);
     maat_options_set_accept_tags(opts, accept_tags);
 
     g_maat_instance = maat_new(opts, table_info_path);
     maat_options_free(opts);
     if (NULL == g_maat_instance) {
-        log_error(logger, MODULE_FRAMEWORK_GTEST, "create maat instance in MaatStringScan failed.");
-        log_handle_destroy(logger);
+        log_error(g_logger, MODULE_FRAMEWORK_GTEST, "create maat instance in MaatStringScan failed.");
+        log_handle_destroy(g_logger);
         return -1;
     }
 
     ret=RUN_ALL_TESTS();
 
     maat_free(g_maat_instance);
-    log_handle_destroy(logger);
+    log_handle_destroy(g_logger);
+    g_logger = NULL;
 
 	return ret;
 }

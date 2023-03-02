@@ -234,7 +234,7 @@ int system_cmd_rmdir(const char *dir)
 {
 	char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
 	snprintf(cmd,sizeof(cmd), "rm %s -rf", dir);
-	return  system(cmd);
+	return system(cmd);
 }
 
 char *md5_file(const char *filename, char *md5string)
