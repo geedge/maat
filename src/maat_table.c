@@ -617,7 +617,7 @@ void table_manager_runtime_destroy(struct table_manager *tbl_mgr)
         if (NULL == runtime) {
             continue;
         }
-
+        
         enum table_type table_type = table_manager_get_table_type(tbl_mgr, i);
 		maat_table_runtime_free(runtime, table_type);
         tbl_mgr->tbl[i]->runtime = NULL;

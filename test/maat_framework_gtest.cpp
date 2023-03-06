@@ -1445,6 +1445,11 @@ TEST_F(CompileTable, Conjunction) {
     EXPECT_EQ(n_hit_result, 2);
     EXPECT_EQ(results[0], 197);
     EXPECT_EQ(results[1], 141);
+
+    struct maat_hit_path hit_path[HIT_PATH_SIZE] = {0};
+    int n_read = maat_state_get_hit_paths(g_maat_instance, &state, hit_path, HIT_PATH_SIZE);
+    EXPECT_EQ(n_read, 2);
+
     maat_state_free(&state);
 }
 
@@ -1665,35 +1670,64 @@ protected:
     }    
 };
 #if 0
+TEST_F(MaatCmdTest, HitPath) {
+    const char *g2g_table_name = "GROUP2GROUP";
+	const char *g2c_table_name = "GROUP2COMPILE";
+	const char *compile_table_name = "COMPILE";
+	const char *http_sig_table_name = "HTTP_SIGNATURE";
+	const char *ip_table_name = "IP_CONFIG";
+	const char *keywords_table_name = "KEYWORDS_TABLE";
+    char table_line_add[128] = {0};
+    struct maat_cmd_line line_rule;
+
+    /* compile table add line */
+    long long compile_id = maat_cmd_incrby(g_maat_instance, "TEST_SEQ", 1);
+    sprintf(table_line_add, "%lld\t0\t0\t0\t0\t0\tanything\t1\t1\t0.0", compile_id);
+    line_rule.rule_id = compile_id;
+    line_rule.table_line = table_line_add;
+    line_rule.table_name = compile_table_name;
+    int ret = maat_cmd_set_line(g_maat_instance, &line_rule);
+    EXPECT_EQ(ret, 1);
+
+    /* group2compile table add line */
+    memset(&line_rule, 0, sizeof(line_rule));
+    memset(table_line_add, 0, sizeof(table_line_add));
+
+    long long group_id = maat_cmd_incrby(g_maat_instance, "SEQUENCE_GROUP", 1);
+    sprintf(table_line_add, "%lld\t%lld\t1\t0\tnull\t1", group_id, compile_id);
+    line_rule.rule_id = group_id;
+    line_rule.table_line = table_line_add;
+    line_rule.table_name = g2c_table_name;
+    ret = maat_cmd_set_line(g_maat_instance, &line_rule);
+    EXPECT_EQ(ret, 1);
+
+    /* item table add line */
+    memset(&line_rule, 0, sizeof(line_rule));
+    memset(table_line_add, 0, sizeof(table_line_add));
+
+    long long item_id = maat_cmd_incrby(g_maat_instance, "SEQUENCE_REGION", 1);
+    sprintf(table_line_add, "%lld\t%lld\t%s\t%s\t", item_id, group_id, "URL", "graph_theory");
+}
+#endif
+#if 0
 TEST_F(MaatCmdTest, SetIP) {
 	long long version_before = 0;
 	const char *ip_table_name = "IP_CONFIG";
 	const char *compile_table_name = "COMPILE";
-    char table_line[128] = {0};
+    char compile_table_line_add[128] = {0};
     long long compile_id = 0;
    
     compile_id = maat_cmd_incrby(g_maat_instance, "TEST_SEQ", 1);
-    sprintf(table_line, "%lld\t")
+    sprintf(compile_table_line_add, "%lld\t0\t0\t0\t0\t0\tanything\t1\t1\t0.0", compile_id);
     struct maat_cmd_line line_rule;
+    line_rule.rule_id = compile_id;
+    line_rule.table_line = compile_table_line_add;
     line_rule.table_name = compile_table_name;
+    int ret = maat_cmd_set_line(g_maat_instance, &line_rule);
+    EXPECT_EQ(ret, 1);
 
-	
-	strcpy(compile.service_defined, "maat_command");
-	struct Maat_command_batch* batch=NULL;
-	batch=Maat_command_batch_new(feather);
-	//MUST acqire by function, because Maat_cmd_t has some hidden members.
-	Maat_command_batch_set_compile(batch, MAAT_OP_ADD, &compile, "COMPILE", NULL, 1, 0, timeout);
-
-	struct Maat_cmd_group2compile g2c;
-	memset(&g2c, 0, sizeof(g2c));
-	g2c.group_id=Maat_command_get_new_group_id(feather);
-	g2c.compile_id=compile.config_id;
-	g2c.clause_index=1;
-	g2c.table_name="GROUP2COMPILE";
-	Maat_command_batch_set_group2compile(batch, MAAT_OP_ADD, &g2c);
-
-
-
+    long long group_id = maat_cmd_incrby(g_maat_instance, "SEQUENCE_GROUP", 1);
+	memset(&line_rule, 0, sizeof(line_rule));
 	
 
 	struct Maat_cmd_region region;
