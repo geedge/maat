@@ -1427,7 +1427,7 @@ TEST_F(CompileTable, CompileRuleUpdate) {
     EXPECT_EQ(ret, 1);
 }
 
-TEST_F(CompileTable, Conjunction) {
+TEST_F(CompileTable, Conjunction1) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
@@ -1449,6 +1449,41 @@ TEST_F(CompileTable, Conjunction) {
     struct maat_hit_path hit_path[HIT_PATH_SIZE] = {0};
     int n_read = maat_state_get_hit_paths(g_maat_instance, &state, hit_path, HIT_PATH_SIZE);
     EXPECT_EQ(n_read, 2);
+
+    maat_state_free(&state);
+}
+
+TEST_F(CompileTable, Conjunction2) {
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+    const char *scan_data = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
+    const char *table_name = "HTTP_URL_LITERAL";
+    const char *compile_tables[2] = {"COMPILE", "COMPILE_ALIAS"};
+
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+    int ret = maat_scan_string(g_maat_instance, table_id, 0, scan_data, strlen(scan_data),
+                               results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 197);
+
+    struct maat_hit_path hit_path[HIT_PATH_SIZE] = {0};
+    int n_read = maat_state_get_hit_paths(g_maat_instance, &state, hit_path, HIT_PATH_SIZE);
+    EXPECT_EQ(n_read, 2);
+
+    maat_state_set_scan_compile_tables(g_maat_instance, &state, compile_tables, 2);
+    ret = maat_scan_string(g_maat_instance, table_id, 0, scan_data, strlen(scan_data),
+                               results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 141);
+
+    memset(hit_path, 0, sizeof(hit_path));
+    n_read = maat_state_get_hit_paths(g_maat_instance, &state, hit_path, HIT_PATH_SIZE);
+    EXPECT_EQ(n_read, 4);
 
     maat_state_free(&state);
 }

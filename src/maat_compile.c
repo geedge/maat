@@ -137,7 +137,6 @@ struct maat_internal_hit_path {
 struct maat_compile_state {
 	int thread_id;
 	int Nth_scan;
-    int Nth_get_hit_path;
 	time_t hier_ver;
 	size_t this_scan_hit_item_cnt;
 	int	not_clause_hitted_flag;
@@ -1267,61 +1266,18 @@ static int maat_compile_is_hit_path_existed(const struct maat_hit_path *hit_path
 	return 0;
 }
 
-size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt,
-                                     struct group2group_runtime *g2g_rt, 
+size_t compile_runtime_get_new_hit_paths(struct compile_runtime *compile_rt,
 									 struct maat_compile_state *compile_state, 
-                                  	 struct maat_hit_path *hit_paths, 
-                                     size_t hit_path_index, size_t hit_path_size)
+                                  	 struct maat_hit_path *hit_path_array, 
+                                     size_t array_size, size_t hit_path_cnt)
 {
-	size_t i = 0, j = 0;
-	struct maat_internal_hit_path *internal_path = NULL;
-    size_t hit_path_cnt = hit_path_index;
+    /* assign hit_path_array[].compile_id */
     size_t new_hit_path_cnt = 0;
-
-    size_t tmp_path_cnt = utarray_len(compile_state->internal_hit_paths);
-    if (0 == compile_state->Nth_get_hit_path) {
-        for (i = 0; i < utarray_len(compile_state->internal_hit_paths); i++) {
-            internal_path = (struct maat_internal_hit_path *)utarray_eltptr(compile_state->internal_hit_paths, i);
-            /*
-                NOTE: maybe one item has been deleted, but it's item_id still exist in internal_hit_paths
-            */
-            long long top_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
-            memset(top_group_ids, 0, sizeof(top_group_ids));
-            int top_group_cnt = group2group_runtime_get_top_groups(g2g_rt, &(internal_path->group_id),
-                                                                   1, top_group_ids);
-            if (top_group_cnt <= 0) {
-                /*
-                    item->group_id has no top group, this group can only be referenced by compile
-                    ------------------------------------------------------------------------------
-                    for example:
-                        compile1 -> group1 -> group2 -> item1
-                        group3 -> item2
-
-                        group1 and group3 has no top group
-                        group1 is referenced by compile1, group3 is not referenced by any compile
-
-                        NOTE: Add the hit path as long as the item is hit
-
-                */
-                top_group_cnt = 1; // add one hit path which top_group_ids[0] = -1
-            }
-
-            for (int j = 0; j < top_group_cnt && hit_path_cnt < hit_path_size; j++, hit_path_cnt++) {
-                hit_paths[hit_path_cnt].Nth_scan = internal_path->Nth_scan;
-                hit_paths[hit_path_cnt].item_id = internal_path->item_id;
-                hit_paths[hit_path_cnt].sub_group_id = internal_path->group_id;
-                hit_paths[hit_path_cnt].top_group_id = top_group_ids[j]; // top_group_id may be -1
-                hit_paths[hit_path_cnt].vtable_id = internal_path->vtable_id;
-                hit_paths[hit_path_cnt].compile_id = -1;
-            }
-        }
-    }
-
-    /* assign hit_paths[].compile_id */
     struct maat_compile *compile = NULL;
     struct maat_literal_id literal_id = {0, 0};
     struct maat_hit_path tmp_path;
     struct bool_expr_match *expr_match = compile_rt->expr_match_buff + compile_state->thread_id * MAX_SCANNER_HIT_COMPILE_NUM;
+
     int bool_match_ret = bool_matcher_match(compile_rt->bm, 
                                             (unsigned long long *)utarray_eltptr(compile_state->all_hit_clauses, 0),
 											utarray_len(compile_state->all_hit_clauses), expr_match, 
@@ -1334,37 +1290,30 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt,
 			continue;
 		}
 
-        for (j = 0; j < hit_path_cnt && (hit_path_cnt + new_hit_path_cnt) < hit_path_size; j++) {
-			if (hit_paths[j].top_group_id < 0) {
+        for (size_t j = 0; j < hit_path_cnt && (hit_path_cnt + new_hit_path_cnt) < array_size; j++) {
+			if (hit_path_array[j].top_group_id < 0) {
 				continue;
 			}
 
-			literal_id.group_id = hit_paths[j].top_group_id;
-			literal_id.vtable_id = hit_paths[j].vtable_id;
+			literal_id.group_id = hit_path_array[j].top_group_id;
+			literal_id.vtable_id = hit_path_array[j].vtable_id;
 			if (maat_compile_has_literal(compile, &literal_id)) {
-				if (hit_paths[j].compile_id < 0) {
-					hit_paths[j].compile_id = compile->compile_id;
+				if (hit_path_array[j].compile_id < 0) {
+					hit_path_array[j].compile_id = compile->compile_id;
 				} else {
                     // means same literal_id hit more than one compile_id
-					tmp_path = hit_paths[j];
+					tmp_path = hit_path_array[j];
 					tmp_path.compile_id = compile->compile_id;
-					if(maat_compile_is_hit_path_existed(hit_paths, hit_path_cnt + new_hit_path_cnt, &tmp_path)) {
-						hit_paths[hit_path_cnt + new_hit_path_cnt] = tmp_path;
+					if(maat_compile_is_hit_path_existed(hit_path_array, hit_path_cnt + new_hit_path_cnt, &tmp_path)) {
+						hit_path_array[hit_path_cnt + new_hit_path_cnt] = tmp_path;
 						new_hit_path_cnt++;
 					}
 				}
 			}
 		}
 	}
-
-    if (0 == compile_state->Nth_get_hit_path) {
-        hit_path_cnt += new_hit_path_cnt;
-    } else {
-        hit_path_cnt = new_hit_path_cnt;
-    }
-    compile_state->Nth_get_hit_path++;
     
-    return hit_path_cnt;
+    return new_hit_path_cnt;
 }
 
 void maat_compile_state_update_hit_path(struct maat_compile_state *compile_state,
@@ -1846,4 +1795,62 @@ int maat_compile_state_update(struct maat_item *item_hash, int vtable_id,
     }
 
     return 0;
+}
+
+size_t maat_compile_state_get_hit_paths(struct maat_compile_state *compile_state,
+                                        struct group2group_runtime *g2g_rt,
+                                        struct maat_hit_path *hit_path_array, 
+                                        size_t array_size)
+{
+    size_t hit_path_cnt = 0;
+    struct maat_internal_hit_path *internal_path = NULL;
+
+    for (int i = 0; i < utarray_len(compile_state->internal_hit_paths); i++) {
+        internal_path = (struct maat_internal_hit_path *)utarray_eltptr(compile_state->internal_hit_paths, i);
+        /*
+            NOTE: maybe one item has been deleted, but it's item_id still exist in internal_hit_paths
+        */
+        long long top_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
+        memset(top_group_ids, 0, sizeof(top_group_ids));
+        int top_group_cnt = group2group_runtime_get_top_groups(g2g_rt, &(internal_path->group_id),
+                                                               1, top_group_ids);
+        if (top_group_cnt <= 0) {
+            /*
+                item->group_id has no top group, this group can only be referenced by compile
+                ------------------------------------------------------------------------------
+                for example:
+                    compile1 -> group1 -> group2 -> item1
+                    group3 -> item2
+
+                    group1 and group3 has no top group
+                    group1 is referenced by compile1, group3 is not referenced by any compile
+
+                    NOTE: Add the hit path as long as the item is hit
+
+            */
+            top_group_cnt = 1; // add one hit path which top_group_ids[0] = -1
+        }
+
+        struct maat_hit_path tmp_path;
+        for (int j = 0; j < top_group_cnt && hit_path_cnt < array_size; j++, hit_path_cnt++) {
+            memset(&tmp_path, 0, sizeof(tmp_path));
+            tmp_path.Nth_scan = internal_path->Nth_scan;
+            tmp_path.item_id = internal_path->item_id;
+            tmp_path.sub_group_id = internal_path->group_id;
+            tmp_path.top_group_id = top_group_ids[j];
+            tmp_path.vtable_id = internal_path->vtable_id;
+            tmp_path.compile_id = -1;
+
+            /* check if internal_path is duplicated from hit_path_array[] element */
+            if (hit_path_cnt > 0) {
+                if (maat_compile_is_hit_path_existed(hit_path_array, hit_path_cnt, &tmp_path)) {
+                    continue;
+                }
+            }
+
+            hit_path_array[hit_path_cnt] = tmp_path;
+        }
+    }
+
+    return hit_path_cnt;
 }

@@ -1789,20 +1789,22 @@ size_t maat_get_hit_paths(struct maat *maat_instance, struct maat_state *state,
         compile_table_cnt = state->n_compile_table;
     }
 
-    size_t sum_hit_path = 0;
-    
+    void *g2g_runtime = table_manager_get_runtime(maat_instance->tbl_mgr, maat_instance->g2g_table_id);
+    assert(g2g_runtime != NULL);
+    size_t compile_state_hit_path_cnt = maat_compile_state_get_hit_paths(state->compile_state, 
+                                                              (struct group2group_runtime *)g2g_runtime,
+                                                               paths, n_path);
+    size_t new_hit_path_cnt = 0;
     for (size_t i = 0; i < compile_table_cnt; i++) {
         void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr, compile_table_ids[i]);
-        void *g2g_runtime = table_manager_get_runtime(maat_instance->tbl_mgr, maat_instance->g2g_table_id);
-        assert(NULL != compile_rt && NULL != g2g_runtime);
-        size_t n_hit_path = compile_runtime_get_hit_paths((struct compile_runtime *)compile_rt, 
-                                                          (struct group2group_runtime *)g2g_runtime,
-                                                          state->compile_state, paths, sum_hit_path, 
-                                                          n_path);
-        sum_hit_path += n_hit_path;
+        assert(NULL != compile_rt);
+        
+        new_hit_path_cnt += compile_runtime_get_new_hit_paths((struct compile_runtime *)compile_rt,
+                                                               state->compile_state, paths, n_path,
+                                                               compile_state_hit_path_cnt + new_hit_path_cnt);
     }
    
-    return sum_hit_path;
+    return (compile_state_hit_path_cnt + new_hit_path_cnt);
 }
 
 size_t maat_get_hit_objects(struct maat_compile_state *compile_state,
