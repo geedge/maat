@@ -77,7 +77,7 @@ struct expr_runtime {
     struct group2group_runtime *ref_g2g_rt;
 
     uint32_t rule_num;
-    uint32_t updating_rule_num;
+
     struct maat_item *item_hash;
     void (*item_user_data_free)(void *);
 
@@ -850,9 +850,9 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name)
 int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *data, 
                       size_t data_len, int vtable_id, struct maat_state *state)
 {
-    if (NULL == expr_rt || thread_id < 0 || NULL == data || 0 == data_len 
-        || vtable_id < 0 || NULL == state) {
-        return -1;
+    if (0 == expr_rt->rule_num) {
+        //empty expr table
+        return 0;
     }
 
     size_t n_hit_item = 0;
@@ -919,9 +919,9 @@ int expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id)
 int expr_runtime_stream_scan(struct expr_runtime *expr_rt, const char *data, size_t data_len,
                              int vtable_id, struct maat_state *state)
 {
-    if (NULL == expr_rt || NULL == data || 0 == data_len ||
-        vtable_id < 0 || NULL == state) {
-        return -1;
+    if (0 == expr_rt->rule_num) {
+        //empty expr table
+        return 0;
     }
 
     size_t n_hit_item = 0;

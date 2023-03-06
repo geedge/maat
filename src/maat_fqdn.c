@@ -26,7 +26,7 @@ struct fqdn_runtime {
      struct rcu_hash_table *htable;
 
     uint32_t rule_num;
-    uint32_t updating_rule_num;
+
     struct maat_item *item_hash;
     void (*item_user_data_free)(void *);
 

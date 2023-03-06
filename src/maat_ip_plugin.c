@@ -42,7 +42,6 @@ struct ip_plugin_runtime {
     struct ex_data_runtime *ex_data_rt;
 
     uint32_t rule_num;
-    uint32_t updating_rule_num;
 
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -501,10 +500,8 @@ int ip_plugin_runtime_get_ex_data(void *ip_plugin_runtime, const struct ip_addr 
     }
 
     struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
-    if (NULL == ip_plugin_rt->ip_matcher) {
-        log_info(ip_plugin_rt->logger, MODULE_IP_PLUGIN, 
-                 "ip_matcher is NULL, can't get ex data");
-        return -1;
+    if (0 == ip_plugin_rt->rule_num) {
+        return 0;
     }
 
     struct scan_result results[n_ex_data];
@@ -517,6 +514,7 @@ int ip_plugin_runtime_get_ex_data(void *ip_plugin_runtime, const struct ip_addr 
 		ipv6_ntoh(ip_data.ipv6);
 	}
 
+    assert(ip_plugin_rt->ip_matcher != NULL);
 	int n_result = ip_matcher_match(ip_plugin_rt->ip_matcher, &ip_data, results, n_ex_data);
 	for (int i = 0; i < n_result; i++) {
 		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(ip_plugin_rt->ex_data_rt, 

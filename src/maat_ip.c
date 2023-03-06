@@ -59,7 +59,7 @@ struct ip_runtime {
     struct ex_data_runtime* ex_data_rt;
 
     uint32_t rule_num;
-    uint32_t updating_rule_num;
+
     struct maat_item *item_hash;
     void (*item_user_data_free)(void *);
 
@@ -486,6 +486,10 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name)
 int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type, 
                     uint8_t *ip_addr, int vtable_id, struct maat_state *state)
 {
+    if (0 == ip_rt->rule_num) {
+        //empty ip table
+        return 0;
+    }
     int n_hit_item = 0;
     struct scan_result scan_results[MAX_SCANNER_HIT_ITEM_NUM] = {0};
 

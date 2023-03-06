@@ -44,7 +44,7 @@ struct interval_runtime {
     struct rcu_hash_table *htable;
 
     uint32_t rule_num;
-    uint32_t updating_rule_num;
+
     struct maat_item *item_hash;
     void (*item_user_data_free)(void *);
 
@@ -447,6 +447,11 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name)
 int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id, 
                           long long integer, int vtable_id, struct maat_state *state)
 {
+    if (0 == interval_rt->rule_num) {
+        //empty interval table
+        return 0;
+    }
+
     struct interval_result hit_results[MAX_SCANNER_HIT_ITEM_NUM] = {0};
     
     int n_hit_item = interval_matcher_match(interval_rt->matcher, integer, 

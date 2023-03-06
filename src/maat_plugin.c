@@ -32,7 +32,6 @@ struct plugin_runtime {
     struct ex_data_runtime *ex_data_rt;
 
     uint32_t rule_num;
-    uint32_t updating_rule_num;
 
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;

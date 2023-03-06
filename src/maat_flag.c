@@ -47,7 +47,7 @@ struct flag_runtime {
     struct rcu_hash_table *htable;
 
     uint32_t rule_num;
-    uint32_t updating_rule_num;
+
     struct maat_item *item_hash;
     void (*item_user_data_free)(void *);
 
@@ -450,6 +450,11 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name)
 int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, 
                       long long flag, int vtable_id, struct maat_state *state)
 {
+    if (0 == flag_rt->rule_num) {
+        //empty flag table
+        return 0;
+    }
+
     struct flag_result hit_results[MAX_SCANNER_HIT_ITEM_NUM] = {0};
     
     int n_hit_item = flag_matcher_match(flag_rt->matcher, flag, 

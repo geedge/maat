@@ -602,9 +602,8 @@ TEST_F(MaatIPScan, IPv4) {
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, ARRAY_SIZE,
                          &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 2);
-    EXPECT_EQ(results[0], 169);
-    EXPECT_EQ(results[1], 154);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 154);
     maat_state_free(&state);
 }
 
@@ -641,9 +640,8 @@ TEST_F(MaatIPScan, dynamic_config) {
     struct maat_state *state = NULL;
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, ARRAY_SIZE, 
                          &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 169);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    EXPECT_EQ(n_hit_result, 0);
     maat_state_free(&state);
 
     /* add new line in GROUP2COMPILE table */
@@ -680,9 +678,8 @@ TEST_F(MaatIPScan, dynamic_config) {
     ret = maat_scan_ipv4(g_maat_instance, table_id, 0, sip, results, ARRAY_SIZE, 
                          &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 2);
+    EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 9998);
-    EXPECT_EQ(results[1], 169);
     maat_state_free(&state);
 
     /* del new line in IP_PLUS_CONFIG */
@@ -778,30 +775,159 @@ protected:
     }
 };
 
-TEST_F(NOTLogic, ScanNotAtLast) {
-    const char *string_should_hit = "This string ONLY contains must-contained-string-of-rule-144.";
-	const char *string_should_not_hit = "This string contains both must-contained-string-of-rule-144 and must-not-contained-string-of-rule-144.";
-
+TEST_F(NOTLogic, OneRegion) {
+    const char *string_should_hit = "This string ONLY contains must-contained-string-of-rule-143.";
+	const char *string_should_not_hit = "This string contains both must-contained-string-of-rule-143 and must-not-contained-string-of-rule-143.";
 	long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-	const char *hit_table_name = "HTTP_URL_LITERAL";
-    const char *not_hit_table_name = "KEYWORDS_TABLE";
-	int hit_table_id = maat_get_table_id(g_maat_instance, hit_table_name);
-    int not_hit_table_id = maat_get_table_id(g_maat_instance, not_hit_table_name);
+	const char *table_name = "HTTP_URL_LITERAL";
 
-	int ret = maat_scan_string(g_maat_instance, hit_table_id, 0, string_should_hit, strlen(string_should_hit), 
+	int table_id = maat_get_table_id(g_maat_instance, table_name);
+    maat_state_set_last_scan(g_maat_instance, &state);
+	int ret = maat_scan_string(g_maat_instance, table_id, 0, string_should_hit, strlen(string_should_hit), 
 						       results, ARRAY_SIZE, &n_hit_result, &state);
 						
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
 	EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 144);
-
-	maat_state_set_last_scan(g_maat_instance, &state);
-	ret = maat_scan_string(g_maat_instance, not_hit_table_id, 0, string_should_not_hit, strlen(string_should_not_hit), 
+    EXPECT_EQ(results[0], 143);
+    maat_state_free(&state);
+	
+    maat_state_set_last_scan(g_maat_instance, &state);
+	ret = maat_scan_string(g_maat_instance, table_id, 0, string_should_not_hit, strlen(string_should_not_hit), 
 						   results, ARRAY_SIZE, &n_hit_result, &state);
 	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 	maat_state_free(&state);
+}
+
+TEST_F(NOTLogic, ScanNotAtLast) {
+    const char *string_should_hit="This string ONLY contains must-contained-string-of-rule-144.";
+	const char *string_should_not_hit="This string contains both must-contained-string-of-rule-144 and must-not-contained-string-of-rule-144.";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+	const char *hit_table_name = "HTTP_URL_LITERAL";
+    const char *not_hit_table_name = "KEYWORDS_TABLE";
+
+    int hit_table_id = maat_get_table_id(g_maat_instance, hit_table_name);
+    ASSERT_GT(hit_table_id, 0);
+
+    int ret = maat_scan_string(g_maat_instance, hit_table_id, 0, string_should_hit, strlen(string_should_hit), 
+						       results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    int not_hit_table_id =  maat_get_table_id(g_maat_instance, not_hit_table_name);
+    ASSERT_GT(not_hit_table_id, 0);
+
+	maat_state_set_last_scan(g_maat_instance, &state);
+    ret = maat_scan_string(g_maat_instance, not_hit_table_id, 0, string_should_not_hit, strlen(string_should_not_hit), 
+						       results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    maat_state_free(&state);
+}
+
+TEST_F(NOTLogic, ScanIrrelavantAtLast) {
+    const char *string_should_hit = "This string ONLY contains must-contained-string-of-rule-144.";
+	const char *string_irrelevant = "This string contiains nothing to hit.";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+    const char *hit_table_name = "HTTP_URL_LITERAL";
+    const char *not_hit_table_name = "KEYWORDS_TABLE";
+
+    int hit_table_id = maat_get_table_id(g_maat_instance, hit_table_name);
+    ASSERT_GT(hit_table_id, 0);
+
+    int ret = maat_scan_string(g_maat_instance, hit_table_id, 0, string_should_hit, strlen(string_should_hit), 
+						       results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    int not_hit_table_id = maat_get_table_id(g_maat_instance, not_hit_table_name);
+    ASSERT_GT(hit_table_id, 0);
+
+    maat_state_set_last_scan(g_maat_instance, &state);
+    ret = maat_scan_string(g_maat_instance, not_hit_table_id, 0, string_irrelevant, strlen(string_irrelevant), 
+						       results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 144);
+    maat_state_free(&state);
+}
+
+TEST_F(NOTLogic, ScanHitAtLastEmptyExpr) {
+    const char *string_should_not_hit = "This string should not hit.";
+	const char *string_match_no_region = "This string is matched against a empty table.";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+    const char *not_hit_table_name = "HTTP_URL_LITERAL";
+    const char *hit_table_name = "IP_PLUS_CONFIG";
+    const char *empty_table_name = "EMPTY_KEYWORD";
+
+    int not_hit_table_id = maat_get_table_id(g_maat_instance, not_hit_table_name);
+    ASSERT_GT(not_hit_table_id, 0);
+
+    int ret = maat_scan_string(g_maat_instance, not_hit_table_id, 0, string_should_not_hit, strlen(string_should_not_hit), 
+						       results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    uint32_t sip;
+    inet_pton(AF_INET, "10.0.8.186", &sip);
+
+    int hit_table_id = maat_get_table_id(g_maat_instance, hit_table_name);
+    ASSERT_GT(hit_table_id, 0);
+
+    ret = maat_scan_ipv4(g_maat_instance, hit_table_id, 0, sip,
+                         results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    int empty_table_id = maat_get_table_id(g_maat_instance, empty_table_name);
+    ASSERT_GT(empty_table_id, 0);
+
+    maat_state_set_last_scan(g_maat_instance, &state);
+    ret = maat_scan_string(g_maat_instance, empty_table_id, 0, string_match_no_region, strlen(string_match_no_region), 
+						   results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 186);
+    maat_state_free(&state);
+}
+
+TEST_F(NOTLogic, ScanHitAtLastEmptyInteger) {
+    const char *string_should_not_hit = "This string should not hit.";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+    const char *not_hit_table_name = "HTTP_URL_LITERAL";
+    const char *hit_table_name = "IP_PLUS_CONFIG";
+    const char *empty_table_name = "EMPTY_INTERGER";
+
+    int not_hit_table_id = maat_get_table_id(g_maat_instance, not_hit_table_name);
+    ASSERT_GT(not_hit_table_id, 0);
+
+    int ret = maat_scan_string(g_maat_instance, not_hit_table_id, 0, string_should_not_hit, strlen(string_should_not_hit), 
+						       results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    uint32_t sip;
+    inet_pton(AF_INET, "10.0.8.187", &sip);
+
+    int hit_table_id = maat_get_table_id(g_maat_instance, hit_table_name);
+    ASSERT_GT(hit_table_id, 0);
+
+    ret = maat_scan_ipv4(g_maat_instance, hit_table_id, 0, sip,
+                         results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    int empty_table_id = maat_get_table_id(g_maat_instance, empty_table_name);
+    ASSERT_GT(empty_table_id, 0);
+
+    maat_state_set_last_scan(g_maat_instance, &state);
+    ret = maat_scan_integer(g_maat_instance, empty_table_id, 0, 2015,
+                            results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(results[0], 187);
+    maat_state_free(&state);
 }
 
 void maat_read_entry_start_cb(int update_type, void *u_para)
@@ -1301,6 +1427,27 @@ TEST_F(CompileTable, CompileRuleUpdate) {
     EXPECT_EQ(ret, 1);
 }
 
+TEST_F(CompileTable, Conjunction) {
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+    const char *scan_data = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
+    const char *table_name = "HTTP_URL_LITERAL";
+    const char *compile_tables[2] = {"COMPILE", "COMPILE_ALIAS"};
+
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+    maat_state_set_scan_compile_tables(g_maat_instance, &state, compile_tables, 2);
+    int ret = maat_scan_string(g_maat_instance, table_id, 0, scan_data, strlen(scan_data),
+                               results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 2);
+    EXPECT_EQ(results[0], 197);
+    EXPECT_EQ(results[1], 141);
+    maat_state_free(&state);
+}
+
 class Policy : public testing::Test
 {
 protected:
@@ -1469,6 +1616,41 @@ TEST_F(Policy, ReadColumn) {
 	ret = maat_helper_read_column(line, 3, &offset, &len);
 	EXPECT_EQ(ret, 0);
 	EXPECT_EQ(0, strncmp(tmp, line+offset, len));
+}
+
+class TableInfo : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        
+    }
+
+    static void TearDownTestCase() {
+       
+    }    
+};
+
+TEST_F(TableInfo, Conjunction) {
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+    const char *scan_data = "soq is using table conjunction function.http://www.3300av.com/novel/27122.txt";
+    const char *table_name = "HTTP_URL_LITERAL";
+    const char *conj_table_name = "HTTP_HOST_LITERAL";
+
+    int table_id = maat_get_table_id(g_maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+    int conj_table_id = maat_get_table_id(g_maat_instance, conj_table_name);
+    ASSERT_GT(conj_table_id, 0);
+
+    int ret = maat_scan_string(g_maat_instance, conj_table_id, 0, scan_data, strlen(scan_data),
+                               results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 2);
+    EXPECT_EQ(results[0], 134);
+    EXPECT_EQ(results[1], 133);
+    maat_state_free(&state);
 }
 
 class MaatCmdTest : public testing::Test

@@ -306,17 +306,31 @@ static int register_tablename2id(cJSON *json, struct maat_kv_store *tablename2id
                           __FUNCTION__, __LINE__, table_id);
                 return -1;
             }
-        }
-    }
 
-    if (strlen(item->valuestring) >= NAME_MAX) {
-        log_error(logger, MODULE_TABLE,
-                  "[%s:%d] table(table_id:%d) name %s length too long",
-                  __FUNCTION__, __LINE__, table_id, item->valuestring);
-        return -1;
+            if (strlen(tmp_item->valuestring) >= NAME_MAX) {
+                log_error(logger, MODULE_TABLE,
+                          "[%s:%d] table(table_id:%d) name %s length too long",
+                          __FUNCTION__, __LINE__, table_id, tmp_item->valuestring);
+                return -1;
+            }
+
+            maat_kv_register(tablename2id_map, tmp_item->valuestring, table_id);
+            log_info(logger, MODULE_TABLE, "tablename[%s] -> table_id:[%d]",
+                     tmp_item->valuestring, table_id);
+        }
+    } else {
+        //cJSON_String
+        if (strlen(item->valuestring) >= NAME_MAX) {
+            log_error(logger, MODULE_TABLE,
+                      "[%s:%d] table(table_id:%d) name %s length too long",
+                      __FUNCTION__, __LINE__, table_id, item->valuestring);
+            return -1;
+        }
+
+        maat_kv_register(tablename2id_map, item->valuestring, table_id);
+        log_info(logger, MODULE_TABLE, "table_name[%s] -> table_id:[%d]",
+                 item->valuestring, table_id);
     }
-    
-    maat_kv_register(tablename2id_map, item->valuestring, table_id);
 
     return 0;
 }
@@ -341,20 +355,14 @@ struct maat_table *maat_table_new(cJSON *json, struct maat_kv_store *reserved_wo
     ptable->table_id = item->valueint;
 
     item = cJSON_GetObjectItem(json, "table_name");
-    if (NULL == item || (item->type != cJSON_String && item->type != cJSON_Array)) {
-        log_error(logger, MODULE_TABLE, 
-                  "[%s:%d] table(table_id:%d) has no table name", 
-                  __FUNCTION__, __LINE__, ptable->table_id);
-        goto error;
+    // already validate in register_tablename2id
+    if (item->type == cJSON_Array) {
+        cJSON *tmp_item = cJSON_GetArrayItem(item, 0);
+        memcpy(ptable->table_name, tmp_item->valuestring, strlen(tmp_item->valuestring));
+    } else {
+        //cJSON_String
+        memcpy(ptable->table_name, item->valuestring, strlen(item->valuestring));
     }
-    
-    if (strlen(item->valuestring) >= NAME_MAX) {
-        log_error(logger, MODULE_TABLE,
-                  "[%s:%d] table(table_id:%d) name %s length too long", 
-                  __FUNCTION__, __LINE__, ptable->table_id, item->valuestring);
-        goto error;
-    }
-    memcpy(ptable->table_name, item->valuestring, strlen(item->valuestring));
 
     item = cJSON_GetObjectItem(json, "table_type");
     if (NULL == item || item->type != cJSON_String) {

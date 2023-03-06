@@ -74,7 +74,6 @@ struct compile_runtime {
     unsigned long long clause_id_generator;
 
 	uint32_t rule_num;
-    uint32_t updating_rule_num;
 
     pthread_rwlock_t rwlock; /* TODO: replaced with mutex? */
     struct bool_expr_match *expr_match_buff;
@@ -963,7 +962,7 @@ maat_compile_bool_matcher_new(struct maat_compile *compile_hash,
 				#if 0
 				struct maat_literal_id *p = NULL;
 				for(p = (struct maat_literal_id *)utarray_front(compile->clause_states[i].literal_ids); p!=NULL; p=(struct maat_literal_id *)utarray_next(compile->clause_states[i].literal_ids,p)) {
-    				printf("<before bool_matcher_new> compile_id:%llu, clause_id:%llu, literal{%llu: %d}\n", 
+    				printf("<before bool_matcher_new> compile_id:%lld, clause_id:%llu, literal{%lld: %d}\n", 
 							compile->compile_id, compile->clause_states[i].clause_id, p->group_id, p->vtable_id);
   				}
 				#endif
@@ -1102,17 +1101,14 @@ size_t maat_compile_bool_matcher_match(struct bool_matcher *bm, int is_last_scan
         size_t n_this_scan_hit_item = compile_state->this_scan_hit_item_cnt;
         if ((compile->not_clause_cnt > 0) && (LAST_SCAN_UNSET == is_last_scan)) {
             compile_state->not_clause_hitted_flag = 1;
-        }
-
-		//TODO: not_clause
-		if (compile->user_data) {
-            if (n_new_hit_compile > 0 || 0 == n_this_scan_hit_item) {
+        } else if (compile->user_data) {
+             if (n_new_hit_compile > 0 || 0 == n_this_scan_hit_item) {
                 /* compile hit because of new item or
-                    hit a compile that refer a NOT-logic group in previous scan */
+                   hit a compile that refer a NOT-logic group in previous scan */
                 user_data_array[ud_result_cnt] = compile->user_data;
 			    ud_result_cnt++;
             }
-		}
+        }
 	}
 
     compile_state->this_scan_hit_item_cnt = 0;
@@ -1123,6 +1119,7 @@ int maat_add_group_to_compile(struct maat_compile **compile_hash, struct group2c
                               struct log_handle *logger)
 {
 	int ret = -1;
+
 	struct maat_compile *compile = maat_compile_hash_find(compile_hash, g2c_item->compile_id);
 	if (!compile) {
 		compile = maat_compile_new(g2c_item->compile_id);
@@ -1746,9 +1743,8 @@ static int compare_compile_rule(const void *a, const void *b)
 	return compile_sort_para_compare(&sa, &sb);
 }
 
-int compile_runtime_match(struct compile_runtime *compile_rt, 
-                          long long *compile_ids, size_t compile_ids_size, 
-                          struct maat_state *state)
+int compile_runtime_match(struct compile_runtime *compile_rt, long long *compile_ids,
+                          int ids_index, size_t compile_ids_size, struct maat_state *state)
 {
     struct maat_compile_state *compile_state = state->compile_state;
     int is_last_scan = state->is_last_scan;
@@ -1767,7 +1763,7 @@ int compile_runtime_match(struct compile_runtime *compile_rt,
     }
    
     for (size_t i = 0; i < bool_match_ret; i++) {
-        compile_ids[i] = compile_rules[i]->compile_id;
+        compile_ids[ids_index + i] = compile_rules[i]->compile_id;
 	}
     
     return MIN(bool_match_ret, compile_ids_size);

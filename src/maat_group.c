@@ -61,7 +61,6 @@ struct group2group_runtime {
     struct maat_group_topology *group_topo;
 
 	uint32_t rule_num;
-    uint32_t updating_rule_num;
 
     pthread_rwlock_t rwlock;
     struct maat_garbage_bin *ref_garbage_bin;

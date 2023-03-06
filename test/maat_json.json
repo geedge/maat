@@ -1542,44 +1542,6 @@
                 ]
             },
         {
-            "compile_id": 169,
-            "service": 0,
-            "action": 0,
-            "do_blacklist": 0,
-            "do_log": 0,
-            "effective_rage": 0,
-            "user_region": "IPScan.IPv4_Any",
-            "is_valid": "yes",
-            "groups": [
-                {
-                    "regions": [
-                        {
-                            "table_type": "ip_plus",
-                            "table_name": "IP_PLUS_CONFIG",
-                            "table_content": {
-                                "addr_type": "ipv4",
-                                "saddr_format": "CIDR",
-                                "src_ip1": "0.0.0.0",
-                                "src_ip2": "0",
-                                "sport_format": "mask",
-                                "src_port1": "20304",
-                                "src_port2": "65535",
-                                "daddr_format": "CIDR",
-                                "dst_ip1": "0.0.0.0",
-                                "dst_ip2": "0",
-                                "dport_format": "range",
-                                "dst_port1": "0",
-                                "dst_port2": "0",
-                                "protocol": 6,
-                                "direction": "single"
-                            }
-                        }                      
-                    ],
-                    "not_flag" : 0
-                }
-            ]
-        },
-        {
             "compile_id": 170,
             "service": 0,
             "action": 0,
@@ -2429,6 +2391,32 @@
                                 "district": "I love\\bChina",
                                 "flag": 30,
                                 "flag_mask": 14
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 197,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "Something:I\\bhave\\ba\\bname,8866",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL_LITERAL",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "hqdefault.jpg",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
                             }
                         }
                     ]

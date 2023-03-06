@@ -38,7 +38,6 @@ struct fqdn_plugin_runtime {
     struct ex_data_runtime *ex_data_rt;
 
     uint32_t rule_num;
-    uint32_t updating_rule_num;
 
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -456,15 +455,14 @@ int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, const char *query
     }
 
     struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
-    if (NULL == fqdn_plugin_rt->engine) {
-        log_info(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN, 
-                 "fqdn_engine is NULL, can't get ex data");
-        return -1;
+    if (0 == fqdn_plugin_rt->rule_num) {
+        return 0;
     }
 
     struct FQDN_match results[n_ex_data];
 	memset(results, 0, sizeof(results));
 
+    assert(fqdn_plugin_rt->engine != NULL);
 	int n_result = FQDN_engine_search(fqdn_plugin_rt->engine, query_fqdn, strlen(query_fqdn), results, n_ex_data);
 	for (int i = 0; i < n_result; i++) {
 		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(fqdn_plugin_rt->ex_data_rt, 

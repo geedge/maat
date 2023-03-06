@@ -915,11 +915,11 @@ static inline int scan_status_should_compile_NOT(struct maat_state *state)
     return 0;
 }
 
-size_t hit_group_to_compile(void *compile_runtime, long long *compile_ids, size_t compile_ids_size,
-                         struct maat_state *mid)
+size_t hit_group_to_compile(void *compile_runtime, long long *compile_ids, int ids_index,
+                            size_t compile_ids_size, struct maat_state *mid)
 {
     size_t n_hit_compile = compile_runtime_match((struct compile_runtime *)compile_runtime,
-                                                 compile_ids, compile_ids_size, mid);
+                                                 compile_ids, ids_index, compile_ids_size, mid);
     return n_hit_compile;
 }
 
@@ -1181,7 +1181,7 @@ size_t group_to_compile(struct maat *maat_instance, long long *results, size_t n
 
     for (size_t i = 0; i < compile_table_cnt; i++) {
         void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr, compile_table_id[i]);
-        size_t n_hit_compile = hit_group_to_compile(compile_rt, results, n_result, mid);
+        size_t n_hit_compile = hit_group_to_compile(compile_rt, results, sum_hit_compile_cnt, n_result, mid);
         sum_hit_compile_cnt += n_hit_compile;
     }
 
