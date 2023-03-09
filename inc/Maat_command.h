@@ -17,6 +17,7 @@ enum MAAT_GROUP_RELATION
 };
 enum MAAT_REGION_TYPE
 {
+    REGION_FLAG,
 	REGION_EXPR,
 	REGION_IP,
 	REGION_IP_PLUS,
@@ -54,6 +55,11 @@ enum MAAT_ADDR_DIRECTION
 {
 	ADDR_DIR_DOUBLE=0,
 	ADDR_DIR_SINGLE=1
+};
+struct Maat_rgn_flag_t
+{
+    uint64_t flag;
+    uint64_t flag_mask;
 };
 struct Maat_rgn_str_t
 {
@@ -122,6 +128,7 @@ struct Maat_region_t
 	enum MAAT_REGION_TYPE region_type;
 	union
 	{
+        struct Maat_rgn_flag_t flag_rule;
 		struct Maat_rgn_str_t expr_rule;
 		struct Maat_rgn_ip_t ip_rule;
 		struct Maat_rgn_intv_t interval_rule;
@@ -136,6 +143,7 @@ struct Maat_cmd_region
 	enum MAAT_REGION_TYPE region_type;
 	union
 	{
+        struct Maat_rgn_flag_t flag_rule;
 		struct Maat_rgn_str_t expr_rule;
 		struct Maat_rgn_ip_t ip_rule;		
 		struct Maat_rgn_ip_plus_t ip_plus_rule;

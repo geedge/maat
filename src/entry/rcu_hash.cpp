@@ -198,12 +198,12 @@ void rcu_hash_add(struct rcu_hash_table *htable, const char *key, size_t key_len
     if (htable->effective_hash == 'a') {
         HASH_FIND(hh_b, htable->hashmap_b, key, key_len, tmp);
         if (NULL == tmp) {
-            HASH_ADD_KEYPTR(hh_b, htable->hashmap_b, key, key_len, node);
+            HASH_ADD_KEYPTR(hh_b, htable->hashmap_b, node->key, node->key_len, node);
         }
     } else {
         HASH_FIND(hh_a, htable->hashmap_a, key, key_len, tmp);
         if (NULL == tmp) {
-            HASH_ADD_KEYPTR(hh_a, htable->hashmap_a, key, key_len, node);
+            HASH_ADD_KEYPTR(hh_a, htable->hashmap_a, node->key, node->key_len, node);
         }
     }
 }
@@ -272,6 +272,15 @@ size_t rcu_hash_count(struct rcu_hash_table *htable)
     }
 }
 
+int rcu_hash_is_updating(struct rcu_hash_table *htable)
+{
+    if (NULL == htable) {
+        return 0;
+    }
+
+    return htable->is_updating;
+}
+
 void rcu_hash_commit(struct rcu_hash_table *htable)
 {
     if (NULL == htable) {
@@ -313,32 +322,27 @@ void rcu_hash_commit(struct rcu_hash_table *htable)
     pthread_mutex_unlock(&htable->update_mutex);
 }
 
-size_t rcu_hash_list_updating_data(struct rcu_hash_table *htable, void ***data_array)
+size_t rcu_hash_list(struct rcu_hash_table *htable, void ***data_array)
 {
     size_t i = 0;
     size_t node_cnt = 0;
 	struct rcu_hash_node *node = NULL, *tmp = NULL;
 	
     if (htable->effective_hash == 'a') {
-        node_cnt = HASH_CNT(hh_b, htable->hashmap_b);
-        *data_array = ALLOC(void *, node_cnt);
-        HASH_ITER(hh_b, htable->hashmap_b, node, tmp) {
-            (*data_array)[i] = node->data;
-            i++;
-        }
-    } else {
         node_cnt = HASH_CNT(hh_a, htable->hashmap_a);
         *data_array = ALLOC(void *, node_cnt);
         HASH_ITER(hh_a, htable->hashmap_a, node, tmp) {
             (*data_array)[i] = node->data;
             i++;
         }
+    } else {
+        node_cnt = HASH_CNT(hh_b, htable->hashmap_b);
+        *data_array = ALLOC(void *, node_cnt);
+        HASH_ITER(hh_b, htable->hashmap_b, node, tmp) {
+            (*data_array)[i] = node->data;
+            i++;
+        }
     }
 
 	return node_cnt;
-}
-
-int rcu_hash_updating_flag(struct rcu_hash_table *htable)
-{
-    return htable->is_updating;
 }

@@ -213,7 +213,6 @@ TEST(FlagScan, hitMultiCompile)
 	int ret=0;
 	int flag_table_id=0;
 	struct Maat_rule_t result[4];
-    int found_pos[4];
 	const char* flag_table_name="FLAG_CONFIG";
 	scan_status_t mid=NULL;
     
@@ -2802,6 +2801,83 @@ int del_command(Maat_feather_t feather, int config_id)
 	ret=Maat_command_raw_set_compile(feather, MAAT_OP_DEL, &compile, "COMPILE", NULL, 1, 0, 0);
 	return ret;
 }
+
+TEST_F(MaatCmdTest, SetFlag)
+{
+    struct Maat_rule_t compile;
+	int config_id=0;
+	const char* region_table_name="FLAG_CONFIG";
+	int ret=0;
+	memset(&compile, 0, sizeof(compile));
+	Maat_feather_t feather=MaatCmdTest::_shared_feather;
+
+    //MUST acquire by Maat_cmd_incrby to guarantee a unique compile ID.
+    //compile table add line
+	config_id=(int)Maat_cmd_incrby(feather, "TEST_SEQ", 1);
+	compile.config_id=config_id;
+	Maat_command_raw_set_compile(feather, MAAT_OP_ADD, &compile, "COMPILE", NULL, 1, 0, 0);
+
+    //group2compile table add line
+    struct Maat_cmd_group2compile g2c;
+	memset(&g2c, 0, sizeof(g2c));
+	g2c.group_id=Maat_command_get_new_group_id(feather);
+	g2c.compile_id=compile.config_id;
+	g2c.clause_index=1;
+	g2c.table_name="GROUP2COMPILE";
+	Maat_command_raw_set_group2compile(feather, MAAT_OP_ADD, &g2c);
+
+    //flag region table add line
+    struct Maat_cmd_region region1;
+    memset(&region1, 0, sizeof(region1));
+    region1.region_id=Maat_command_get_new_region_id(feather);
+    region1.region_type=REGION_FLAG;
+    region1.table_name=region_table_name;
+    region1.flag_rule.flag=7;
+    region1.flag_rule.flag_mask=7;
+    Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region1, g2c.group_id);
+
+    usleep(WAIT_FOR_EFFECTIVE_US * 2);
+
+    struct Maat_rule_t result[4];
+	scan_status_t mid=NULL;
+	int table_id=Maat_table_register(feather, region_table_name);
+	ASSERT_GT(table_id, 0);
+	memset(result, 0, sizeof(result));
+
+    /* 15 -> 0000 1111 should hit rule: flag-> 0000 0111 flag_mask-> 0000 0111 */
+    uint64_t scan_data = 15;
+    ret=Maat_scan_flag(feather, table_id, scan_data, result, 4, &mid, 0);
+    EXPECT_EQ(ret, 1);
+    EXPECT_EQ(result[0].config_id, config_id);
+
+    /* 11 -> 0000 1011 should not hit rule */
+    scan_data = 11;
+    ret=Maat_scan_flag(feather, table_id, scan_data, result, 4, &mid, 0);
+    EXPECT_EQ(ret, 0);
+    Maat_clean_status(&mid);
+    mid = NULL;
+
+    //flag region table del line
+    Maat_command_raw_set_region(feather, MAAT_OP_DEL, &region1, g2c.group_id);
+    usleep(WAIT_FOR_EFFECTIVE_US * 2);
+
+    memset(result, 0, sizeof(result));
+    scan_data = 15;
+    ret=Maat_scan_flag(feather, table_id, scan_data, result, 4, &mid, 0);
+    EXPECT_EQ(ret, -1);
+
+    //flag region table add line
+    Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region1, g2c.group_id);
+    usleep(WAIT_FOR_EFFECTIVE_US * 2);
+
+    memset(result, 0, sizeof(result));
+    scan_data = 15;
+    ret=Maat_scan_flag(feather, table_id, scan_data, result, 4, &mid, 0);
+    EXPECT_EQ(ret, 1);
+    EXPECT_EQ(result[0].config_id, config_id);
+    Maat_clean_status(&mid);
+}
+
 TEST_F(MaatCmdTest, SetIP)
 {
 	struct Maat_rule_t compile;
@@ -2829,10 +2905,6 @@ TEST_F(MaatCmdTest, SetIP)
 	g2c.clause_index=1;
 	g2c.table_name="GROUP2COMPILE";
 	Maat_command_batch_set_group2compile(batch, MAAT_OP_ADD, &g2c);
-
-
-
-	
 
 	struct Maat_cmd_region region;
 	memset(&region, 0, sizeof(region));
@@ -2891,9 +2963,6 @@ TEST_F(MaatCmdTest, SetIP)
 	EXPECT_EQ(ret, 1);
 
 	Maat_clean_status(&mid);
-
-	return;
-
 }
 
 TEST_F(MaatCmdTest, SetExpr)
@@ -3014,7 +3083,7 @@ TEST_F(MaatCmdTest, SetExpr8)
 	region1.expr_rule.expr_type=EXPR_TYPE_AND;
 	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region1, group1.group_id);
 
-	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
+	usleep(WAIT_FOR_EFFECTIVE_US * 2);//waiting for commands go into effect
 
 	struct Maat_rule_t result;
 	scan_status_t mid=NULL;
@@ -3035,7 +3104,7 @@ TEST_F(MaatCmdTest, SetExpr8)
 	region1.expr_rule.keywords=keywords7;
 	Maat_command_raw_set_region(feather, MAAT_OP_ADD, &region1, group1.group_id);
 
-	usleep(WAIT_FOR_EFFECTIVE_US);//waiting for commands go into effect
+	usleep(WAIT_FOR_EFFECTIVE_US * 2);//waiting for commands go into effect
 
 	memset(&result, 0, sizeof(result));
 	mid=NULL;
@@ -3863,6 +3932,7 @@ TEST_F(MaatCmdTest, PluginEXData)
 
 	return;
 }
+
 TEST_F(MaatCmdTest, UpdateIPPlugin)
 {
 #define IP_Plugin_EX_data
@@ -4007,6 +4077,7 @@ TEST_F(MaatCmdTest, UpdateFQDNPlugin)
 
 	return;
 }
+
 TEST_F(MaatCmdTest, UpdateBoolPlugin)
 {
 #define Bool_Plugin_EX_data

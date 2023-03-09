@@ -24,7 +24,7 @@ void sfh_rs_entropy(IVI_seg_t * seg, void * user_para);
 void sfh_output_state_t(IVI_seg_t * seg, void * user_para);
 int write_uint_array(unsigned int ** array, unsigned int *index,unsigned int *size,unsigned int value);
 /**
- * roll_state³õÊ¼»¯
+ * roll_stateï¿½ï¿½Ê¼ï¿½ï¿½
  */
 static inline void  roll_init(struct roll_state_t * self)
 {
@@ -32,7 +32,7 @@ static inline void  roll_init(struct roll_state_t * self)
 }
 
 /**
- * ¼ÆËãroll_hashÖµ£¬½«Íâ²¿Êý¾Ý¶ÁÈ¡µ½´°¿ÚÖÐ
+ * ï¿½ï¿½ï¿½ï¿½roll_hashÖµï¿½ï¿½ï¿½ï¿½ï¿½â²¿ï¿½ï¿½ï¿½Ý¶ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
  */
 static inline  void roll_hash(struct roll_state_t * self, unsigned char c)
 {
@@ -53,7 +53,7 @@ static inline  void roll_hash(struct roll_state_t * self, unsigned char c)
 }
 
 /**
- * ¼ÆËã´°¿ÚÀïÃæµÄroll_hashÖµ£¬Ã¿´Îroll_hashÖµÂú×ãÒ»¶¨Ìõ¼þ£¬·ÖÆ¬
+ * ï¿½ï¿½ï¿½ã´°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½roll_hashÖµï¿½ï¿½Ã¿ï¿½ï¿½roll_hashÖµï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¬
  */
 static  inline unsigned int roll_sum(const struct roll_state_t * self)
 {
@@ -61,7 +61,7 @@ static  inline unsigned int roll_sum(const struct roll_state_t * self)
 }
 
 /**
- * ¼ÆËã·ÖÆ¬µÄFNVÖµ
+ * ï¿½ï¿½ï¿½ï¿½ï¿½Æ¬ï¿½ï¿½FNVÖµ
  */
 static inline unsigned int sum_hash(unsigned char c, unsigned int h)
 {
@@ -69,7 +69,7 @@ static inline unsigned int sum_hash(unsigned char c, unsigned int h)
 }
 
 /**
- * ´´½¨handle
+ * ï¿½ï¿½ï¿½ï¿½handle
  */
 sfh_instance_t * SFH_instance(unsigned long long origin_len)
 {
@@ -98,7 +98,7 @@ sfh_instance_t * SFH_instance(unsigned long long origin_len)
 
 
 /**
- * IVI_destroyµÄ»Øµ÷º¯Êý£¬Ïú»ÙIVIÖÐµÄÊý¾Ý
+ * IVI_destroyï¿½Ä»Øµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½IVIï¿½Ðµï¿½ï¿½ï¿½ï¿½ï¿½
  */
 void fuzzy_node_free(IVI_seg_t * seg, void * usr_para)
 {
@@ -293,7 +293,7 @@ int destroy_sfh_seg(sfh_seg_t*p)
 	return ret_size;
 }
 /**
- * ÅÐ¶ÏÊý¾ÝÊÇ·ñÓëÒÑ¾­¼ÆËã¹ýµÄÊý¾ÝÓÐ¸²¸Ç
+ * ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½Ñ¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¸ï¿½ï¿½ï¿½
  */
 unsigned int segment_overlap(fuzzy_handle_inner_t * _handle, unsigned int size, unsigned long long offset, const char * data)
 {
@@ -307,7 +307,7 @@ unsigned int segment_overlap(fuzzy_handle_inner_t * _handle, unsigned int size, 
 	
 	//printf("size: %u\n",size);
 	//printf("before query\n");
-	/*²éÑ¯ÊÇ·ñÓÐ¸²¸Ç£¬Èç¹ûÓÐ¸²¸Ç£¬·µ»Ø¸²¸ÇµÄsegmentµÄÆ¬Êý£¬Èç¹ûÃ»ÓÐ¸²¸Ç£¬·µ»Ø0*/
+	/*ï¿½ï¿½Ñ¯ï¿½Ç·ï¿½ï¿½Ð¸ï¿½ï¿½Ç£ï¿½ï¿½ï¿½ï¿½ï¿½Ð¸ï¿½ï¿½Ç£ï¿½ï¿½ï¿½ï¿½Ø¸ï¿½ï¿½Çµï¿½segmentï¿½ï¿½Æ¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã»ï¿½Ð¸ï¿½ï¿½Ç£ï¿½ï¿½ï¿½ï¿½ï¿½0*/
 	if(offset>0)
 	{
 		overlap_segnum = IVI_query(_handle->ivi, offset-1, offset + size, &overlap_segs);
@@ -583,7 +583,7 @@ int sfh_merge_seg(fuzzy_handle_inner_t * _handle, sfh_seg_t * p, sfh_seg_t * n,u
 }
 
 /**
- * È¡³öÇø¼äÁ´±íÀïÃæµÄhash_resultÖµ£¬²¢½øÐÐÆ´½Ó£¬ÐÎ³É×îºóµÄresultÊä³ö£¬²¢ÇÒÂú×ãabc[1:100]def[200:300]ÕâÖÖ¸ñÊ½
+ * È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½hash_resultÖµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ´ï¿½Ó£ï¿½ï¿½Î³ï¿½ï¿½ï¿½ï¿½ï¿½resultï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½abc[1:100]def[200:300]ï¿½ï¿½ï¿½Ö¸ï¿½Ê½
  */
 int SFH_digest(sfh_instance_t * handle, char * hash_buffer, unsigned int size)
 {
@@ -687,7 +687,7 @@ void sfh_output_callback(IVI_seg_t * seg, void * user_para)
 }
 
 /**
- * ¼ÆËãfuzzy_hashµÄ¸÷ÖÖ³¤¶È
+ * ï¿½ï¿½ï¿½ï¿½fuzzy_hashï¿½Ä¸ï¿½ï¿½Ö³ï¿½ï¿½ï¿½
  */
 unsigned long long SFH_status(sfh_instance_t * handle, int type)
 {
@@ -697,13 +697,13 @@ unsigned long long SFH_status(sfh_instance_t * handle, int type)
 	char buffer[64];
 	switch(type)
 	{
-		case TOTAL_LENGTH: //ÒÑ¾­¼ÆËã¹ýhashÖµµÄÈ«²¿³¤¶È
+		case TOTAL_LENGTH: //ï¿½Ñ¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½hashÖµï¿½ï¿½È«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 			 length = IVI_seg_length(_handle->ivi);
 			 break;
-		case EFFECTIVE_LENGTH:  //°üº¬ÔÚ¼ÆËãhashÖµÀïÃæµÄÓÐÐ§³¤¶È
+		case EFFECTIVE_LENGTH:  //ï¿½ï¿½ï¿½ï¿½ï¿½Ú¼ï¿½ï¿½ï¿½hashÖµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð§ï¿½ï¿½ï¿½ï¿½
 				length = _handle->effective_length;
 				break;
-		case HASH_LENGTH:   //×îºóÊä³ö¹þÏ£½á¹ûµÄ³¤¶È
+		case HASH_LENGTH:   //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï£ï¿½ï¿½ï¿½ï¿½Ä³ï¿½ï¿½ï¿½
 				tmp_length.hash_length = 0;
 				tmp_length.first_ZTH_offset = 0;
 				tmp_length.last_ZTH_offset = 0;

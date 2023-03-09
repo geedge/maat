@@ -149,6 +149,9 @@ enum MAAT_TABLE_TYPE type_region2table(const struct Maat_region_t* p)
 	enum MAAT_TABLE_TYPE ret=TABLE_TYPE_IP;
 	switch(p->region_type)
 	{
+        case REGION_FLAG:
+            ret=TABLE_TYPE_FLAG;
+            break;
 		case REGION_IP:
 			ret=TABLE_TYPE_IP;
 			break;
@@ -189,6 +192,9 @@ int get_valid_flag_offset(const char* line, enum MAAT_TABLE_TYPE type, int valid
 	unsigned int column_seq=0, ret=0;
  	switch(type)
 	{
+        case TABLE_TYPE_FLAG:
+            column_seq=5;
+            break;
 		case    TABLE_TYPE_EXPR:
 			column_seq=7;
 			break;
@@ -291,6 +297,10 @@ void serialize_region(const struct Maat_cmd_region* p, int group_id, char* buff,
 	UNUSED size_t ret=0;
 	switch(p->region_type)
 	{
+        case REGION_FLAG:
+            ret=snprintf(buff, sz, "%d\t%d\t%lu\t%lu\t1", p->region_id, group_id, 
+                         p->flag_rule.flag, p->flag_rule.flag_mask);
+            break;
 		case REGION_IP:
 			ret=snprintf(buff, sz, "%d\t%d\t%d\t%s\t%s\t%hu\t%hu\t%s\t%s\t%hu\t%hu\t%d\t%d\t1",
 					p->region_id,
@@ -1858,6 +1868,8 @@ void _maat_copy_region(struct Maat_region_t* dst,const struct Maat_region_t* src
 	}
 	switch(dst->region_type)
 	{
+        case REGION_FLAG:
+            break;
 		case REGION_IP:
 			dst->ip_rule.src_ip=_maat_strdup(src->ip_rule.src_ip);
 			dst->ip_rule.mask_src_ip=_maat_strdup(src->ip_rule.mask_src_ip);
@@ -1887,6 +1899,8 @@ void _maat_empty_region(struct Maat_region_t* p)
 	p->table_name=NULL;
 	switch(p->region_type)
 	{
+        case REGION_FLAG:
+            break;
 		case REGION_IP:
 			free((char*)p->ip_rule.src_ip);
 			free((char*)p->ip_rule.mask_src_ip);

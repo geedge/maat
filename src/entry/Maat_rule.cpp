@@ -1338,7 +1338,7 @@ int add_flag_rule(struct Maat_table_schema* table, const char *line, struct db_f
 {
     struct Maat_region_inner* u_para=NULL;
     struct Maat_table_runtime * table_rt=Maat_table_runtime_get(scanner->table_rt_mgr, table->table_id);
-    int expr_id=0, ret=0;
+    int ret=0;
 
     u_para=Maat_region_inner_new(db_flag_rule->group_id, db_flag_rule->region_id, table->table_id, -1);
     ret=Maat_hierarchy_add_region_to_group(scanner->hier, db_flag_rule->group_id, db_flag_rule->region_id, table->table_id, u_para);
@@ -1349,12 +1349,9 @@ int add_flag_rule(struct Maat_table_schema* table, const char *line, struct db_f
 		return -1;
 	}
 
-    expr_id=scanner->exprid_generator++;
-	Maat_region_inner_add_expr_id(u_para, expr_id);
     MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"Maat_table_runtime_flag_add expr_id:%d", expr_id);
-    
-	Maat_table_runtime_flag_add(table_rt, expr_id, db_flag_rule->flag, db_flag_rule->mask, u_para);
+							"add_flag_rule region_id:%d", db_flag_rule->region_id);
+	Maat_table_runtime_flag_add(table_rt, db_flag_rule->region_id, db_flag_rule->flag, db_flag_rule->mask, u_para);
 
     return 0;
 }
@@ -1487,9 +1484,7 @@ int del_region_rule(struct Maat_table_schema* table, int region_id, int group_id
 			break;
         case    TABLE_TYPE_FLAG:
             table_rt=Maat_table_runtime_get(maat_scanner->table_rt_mgr, table->table_id);
-            MESA_handle_runtime_log(logger,RLOG_LV_INFO,maat_module ,
-							"Maat_table_runtime_flag_del expr_id:%d", region->expr_id_cnt);	
-            Maat_table_runtime_flag_del(table_rt, region->expr_id_cnt);
+            Maat_table_runtime_flag_del(table_rt, region->region_id);
             break;
 		default:
 			assert(0);

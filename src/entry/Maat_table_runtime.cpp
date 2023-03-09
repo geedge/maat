@@ -96,11 +96,11 @@ struct Maat_table_runtime_manager
 	struct Maat_garbage_bin* ref_bin;
 };
 
-static struct flag_rule *create_flag_rule(uint32_t id, uint64_t flag, uint64_t flag_mask, void *tag)
+static struct flag_rule *create_flag_rule(uint32_t region_id, uint64_t flag, uint64_t flag_mask, void *tag)
 {
     struct flag_rule *rule = ALLOC(struct flag_rule, 1);
 
-    rule->flag_rule_id = id;
+    rule->flag_rule_id = region_id;
     rule->flag = flag;
     rule->mask = flag_mask;
     rule->user_tag = tag;
@@ -462,15 +462,15 @@ void Maat_table_runtime_plugin_commit_update(struct Maat_table_runtime* table_rt
 	return;
 }
 
-void Maat_table_runtime_flag_add(struct Maat_table_runtime *table_rt, int expr_id, uint64_t flag, uint64_t mask, void *tag)
+void Maat_table_runtime_flag_add(struct Maat_table_runtime *table_rt, int region_id, uint64_t flag, uint64_t mask, void *tag)
 {
-    struct flag_rule *rule = create_flag_rule(expr_id, flag, mask, tag);
-    rcu_hash_add(table_rt->flag.htable, (const char *)&expr_id, sizeof(int), rule);
+    struct flag_rule *rule = create_flag_rule(region_id, flag, mask, tag);
+    rcu_hash_add(table_rt->flag.htable, (const char *)&region_id, sizeof(int), rule);
 }
 
-void Maat_table_runtime_flag_del(struct Maat_table_runtime* table_rt, int expr_id)
+void Maat_table_runtime_flag_del(struct Maat_table_runtime* table_rt, int region_id)
 {
-    rcu_hash_del(table_rt->flag.htable, (const char *)&expr_id, sizeof(int));
+    rcu_hash_del(table_rt->flag.htable, (const char *)&region_id, sizeof(int));
 } 
 
 void Maat_table_runtime_digest_add(struct Maat_table_runtime* table_rt, int expr_id, const char* digest, short confidence_degree, void* tag)
@@ -914,23 +914,26 @@ int Maat_table_runtime_flag_commit_update(struct Maat_table_runtime *table_rt, v
 {
     int ret = 0;
     void **rule_array = NULL;
+    struct flag_rule *rules = NULL;
     struct flag_runtime *flag_rt = &(table_rt->flag);
     assert(table_rt->table_type==TABLE_TYPE_FLAG);
 
-    size_t rule_cnt = rcu_hash_list_updating_data(flag_rt->htable, &rule_array);
-    MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_module,
-										"new_flag_matcher commit rule_cnt:%zu", rule_cnt);
-    if (0 == rule_cnt) {
-        free(rule_array);
-	    rule_array = NULL;
+    int updating_flag = rcu_hash_is_updating(flag_rt->htable);
+    if (0 == updating_flag) {
         return 0;
     }
 
-	struct flag_rule *rules=ALLOC(struct flag_rule, rule_cnt);
-	for (size_t i = 0; i < rule_cnt; i++)
-	{
-		rules[i] = *(struct flag_rule *)rule_array[i];
-	}
+    rcu_hash_commit(flag_rt->htable);
+
+    size_t rule_cnt = rcu_hash_list(flag_rt->htable, &rule_array);
+    MESA_handle_runtime_log(logger, RLOG_LV_INFO, maat_module,
+										"new_flag_matcher commit rule_cnt:%zu", rule_cnt);
+    if (rule_cnt > 0) {
+        rules = ALLOC(struct flag_rule, rule_cnt);
+        for (size_t i = 0; i < rule_cnt; i++) {
+            rules[i] = *(struct flag_rule *)rule_array[i];
+        }
+    }
 
     struct flag_matcher *new_flag_matcher = NULL;
     struct flag_matcher *old_flag_matcher = NULL;
@@ -943,18 +946,23 @@ int Maat_table_runtime_flag_commit_update(struct Maat_table_runtime *table_rt, v
 	
 	old_flag_matcher = flag_rt->matcher;
 	flag_rt->matcher = new_flag_matcher;
+    
     if (old_flag_matcher != NULL) 
     {
         Maat_garbage_bagging(table_rt->ref_garbage_bin, old_flag_matcher, (void (*)(void*))flag_matcher_free);
     }
 	
-	rcu_hash_commit(flag_rt->htable);
 	table_rt->origin_rule_num=rcu_hash_count(flag_rt->htable);
 
-	free(rules);
-    rules = NULL;
-	free(rule_array);
-	rule_array=NULL;
+    if (rules != NULL) {
+        free(rules);
+        rules = NULL;
+    }
+	
+    if (rule_array != NULL) {
+        free(rule_array);
+	    rule_array=NULL;
+    }
 
 	return ret;
 }
