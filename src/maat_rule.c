@@ -44,7 +44,7 @@ struct maat_item *maat_item_new(long long item_id, long long group_id, void *use
 	return item;
 }
 
-void maat_item_free(void *user_ctx, void *maat_item)
+void maat_item_free(void *maat_item)
 {
     struct maat_item *item = (struct maat_item *)maat_item;
 	if (item->user_data_free && item->user_data) {

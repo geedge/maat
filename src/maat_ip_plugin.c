@@ -316,6 +316,9 @@ int ip_plugin_runtime_update_row(struct ip_plugin_runtime *ip_plugin_rt,
 {
     int ret = -1;
     struct ex_data_runtime *ex_data_rt = ip_plugin_rt->ex_data_rt;
+    if (NULL == ex_data_rt) {
+        return -1;
+    }
 
     if (0 == is_valid) {
         // delete
@@ -413,12 +416,6 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
                 ip_plugin_rule_free(ip_plugin_rule);
             }
             return -1;
-        } else {
-            if (0 == is_valid) {
-                ip_plugin_rt->rule_num--;
-            } else {
-                ip_plugin_rt->rule_num++;
-            }
         }
     } else {
         //ex_schema not set

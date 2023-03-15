@@ -125,6 +125,12 @@ void interval_ex_data_free(void *user_ctx, void *data)
     FREE(item);
 }
 
+void interval_maat_item_free(void *user_ctx, void *data)
+{
+    struct maat_item *item = (struct maat_item *)data;
+    maat_item_free(item);
+}
+
 void *interval_runtime_new(void *interval_schema, int max_thread_num, 
                            struct maat_garbage_bin *garbage_bin,
                            struct log_handle *logger)
@@ -136,7 +142,7 @@ void *interval_runtime_new(void *interval_schema, int max_thread_num,
     struct interval_runtime *interval_rt = ALLOC(struct interval_runtime, 1);
 
     interval_rt->htable = rcu_hash_new(interval_ex_data_free);
-    interval_rt->item_htable = rcu_hash_new(maat_item_free);
+    interval_rt->item_htable = rcu_hash_new(interval_maat_item_free);
     interval_rt->ref_garbage_bin = garbage_bin;
     interval_rt->logger = logger;
 
@@ -279,41 +285,20 @@ void interval_rule_free(struct interval_rule *rule)
 int interval_runtime_update_row(struct interval_runtime *interval_rt, char *key, size_t key_len,
                                 long long item_id, struct interval_rule *rule, int is_valid)
 {
-    void *data = NULL;
+    int ret = -1;
 
     if (0 == is_valid) {
         //delete
-        data = rcu_hash_find(interval_rt->htable, key, key_len);
-        if (NULL == data) {
-            data = rcu_hash_updating_find(interval_rt->htable, key, key_len);
-            if (NULL == data) {
-                 log_error(interval_rt->logger, MODULE_INTERVAL, 
-                      "[%s:%d] the key of interval rule(rule_id:%lld) not exist, can't be deleted from interval runtime htable",
-                      __FUNCTION__, __LINE__, item_id);
-                return -1;
-            }
-        }
-
         rcu_hash_del(interval_rt->htable, key, key_len);
     } else {
         //add
-        data = rcu_hash_find(interval_rt->htable, key, key_len);
-        if (data != NULL) {
+        ret = rcu_hash_add(interval_rt->htable, key, key_len, (void *)rule);
+        if (ret < 0) {
             log_error(interval_rt->logger, MODULE_INTERVAL,
-                      "[%s:%d] the key of interval rule(rule_id:%lld) already exist, can't be added to interval runtime htable", 
+                      "[%s:%d] interval rule(rule_id:%lld) add to interval runtime htable failed", 
                       __FUNCTION__, __LINE__, item_id);
             return -1;
         }
-
-        data = rcu_hash_updating_find(interval_rt->htable, key, key_len);
-        if (data != NULL) {
-            log_error(interval_rt->logger, MODULE_INTERVAL,
-                      "[%s:%d] the key of interval rule(rule_id:%lld) already exist, can't be added to interval runtime htable", 
-                      __FUNCTION__, __LINE__, item_id);
-            return -1;
-        }
-
-        rcu_hash_add(interval_rt->htable, key, key_len, (void *)rule);
     }
     
     return 0;
@@ -327,6 +312,7 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
         return -1;
     }
 
+    int ret = -1;
     struct maat_item_inner *u_para = NULL;
     struct maat_item *item = NULL;
     struct interval_rule *interval_rule = NULL;
@@ -343,37 +329,9 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
         return -1;
     } else if (0 == is_valid) {
         //delete
-        item = (struct maat_item *)rcu_hash_find(interval_rt->item_htable, 
-                                                (char *)&item_id, sizeof(item_id));
-        if (NULL == item) {
-            item = (struct maat_item *)rcu_hash_updating_find(interval_rt->item_htable, 
-                                                             (char *)&item_id, sizeof(item_id));
-            if (NULL == item) {
-                return -1;
-            }
-        }
-
         rcu_hash_del(interval_rt->item_htable, (char *)&item_id, sizeof(item_id));
     } else {
         //add
-        item = (struct maat_item *)rcu_hash_find(interval_rt->item_htable, 
-                                                (char *)&item_id, sizeof(item_id));;
-        if (item) {
-            log_error(interval_rt->logger, MODULE_INTERVAL, 
-                      "[%s:%d] interval runtime add item(item_id:%lld) to item_htable failed, already exist", 
-                      __FUNCTION__, __LINE__, item_id);
-            return -1;
-        }
-
-        item = (struct maat_item *)rcu_hash_updating_find(interval_rt->item_htable, 
-                                                         (char *)&item_id, sizeof(item_id));;
-        if (item) {
-            log_error(interval_rt->logger, MODULE_INTERVAL, 
-                      "[%s:%d] interval runtime add item(item_id:%lld) to item_htable failed, already exist", 
-                      __FUNCTION__, __LINE__, item_id);
-            return -1;
-        }
-
         struct interval_item *interval_item = interval_item_new(line, schema, interval_rt->logger);
         if (NULL == interval_item) {
             return -1;
@@ -381,7 +339,15 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
 
         u_para = maat_item_inner_new(interval_item->group_id, item_id, interval_item->district_id);
         item = maat_item_new(item_id, interval_item->group_id, u_para, maat_item_inner_free);
-        rcu_hash_add(interval_rt->item_htable, (char *)&(item_id), sizeof(item_id), item);
+        ret = rcu_hash_add(interval_rt->item_htable, (char *)&(item_id), sizeof(item_id), item);
+        if (ret < 0) {
+            log_error(interval_rt->logger, MODULE_INTERVAL, 
+                      "[%s:%d] interval runtime add item(item_id:%lld) to item_htable failed", 
+                      __FUNCTION__, __LINE__, item_id);
+            interval_item_free(interval_item);
+            maat_item_free(item);
+            return -1;
+        }
 
         interval_rule = interval_item_to_interval_rule(interval_item, u_para);
         interval_item_free(interval_item);
@@ -394,7 +360,7 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
     }
 
     char *key = (char *)&item_id;
-    int ret = interval_runtime_update_row(interval_rt, key, sizeof(long long), item_id, interval_rule, is_valid);
+    ret = interval_runtime_update_row(interval_rt, key, sizeof(long long), item_id, interval_rule, is_valid);
     if (ret < 0) {
         if (interval_rule != NULL) {
             interval_rule_free(interval_rule);

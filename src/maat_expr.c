@@ -417,6 +417,12 @@ void expr_ex_data_free(void *user_ctx, void *data)
     expr_rule_free(expr_rule);
 }
 
+void expr_maat_item_free(void *user_ctx, void *data)
+{
+    struct maat_item *item = (struct maat_item *)data;
+    maat_item_free(item);
+}
+
 void *expr_runtime_new(void *expr_schema, int max_thread_num, 
                        struct maat_garbage_bin *garbage_bin,
                        struct log_handle *logger)
@@ -429,7 +435,7 @@ void *expr_runtime_new(void *expr_schema, int max_thread_num,
     struct expr_runtime *expr_rt = ALLOC(struct expr_runtime, 1);
 
     expr_rt->htable = rcu_hash_new(expr_ex_data_free);
-    expr_rt->item_htable = rcu_hash_new(maat_item_free);
+    expr_rt->item_htable = rcu_hash_new(expr_maat_item_free);
     expr_rt->scan_mode = schema->scan_mode;
     expr_rt->pattern_type = schema->pattern_type;
     expr_rt->n_worker_thread = max_thread_num;
@@ -485,41 +491,20 @@ void expr_runtime_free(void *expr_runtime)
 int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key, size_t key_len, 
                             long long item_id, struct hs_expr *expr_rule, int is_valid)
 {
-    void *data = NULL;
+    int ret = -1;
 
     if (0 == is_valid) {
         //delete
-        data = rcu_hash_find(expr_rt->htable, key, key_len);
-        if (NULL == data) {
-            data = rcu_hash_updating_find(expr_rt->htable, key, key_len);
-            if (NULL == data) {
-                log_error(expr_rt->logger, MODULE_EXPR, 
-                      "[%s:%d] the key of expr rule(rule_id:%lld) not exist, can't be deleted from expr runtime htable",
-                      __FUNCTION__, __LINE__, item_id);
-                return -1;
-            }
-        }
-
         rcu_hash_del(expr_rt->htable, key, key_len);
     } else {
         //add
-        data = rcu_hash_find(expr_rt->htable, key, key_len);
-        if (data != NULL) {
+        ret = rcu_hash_add(expr_rt->htable, key, key_len, (void *)expr_rule);
+        if (ret < 0) {
             log_error(expr_rt->logger, MODULE_EXPR,
-                      "[%s:%d] the key of expr rule(rule_id:%lld) already exist, can't be added to expr runtime htable", 
+                      "[%s:%d] expr rule(rule_id:%lld) added to expr runtime htable failed", 
                       __FUNCTION__, __LINE__, item_id);
             return -1;
         }
-
-        data = rcu_hash_updating_find(expr_rt->htable, key, key_len);
-        if (data != NULL) {
-            log_error(expr_rt->logger, MODULE_EXPR,
-                      "[%s:%d] the key of expr rule(rule_id:%lld) already exist, can't be added to expr runtime htable", 
-                      __FUNCTION__, __LINE__, item_id);
-            return -1;
-        }
-
-        rcu_hash_add(expr_rt->htable, key, key_len, (void *)expr_rule);
     }
 
     return 0;
@@ -741,33 +726,9 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
         return -1;
     } else if (0 == is_valid) {
         //delete
-        item = (struct maat_item *)rcu_hash_find(expr_rt->item_htable, (char *)&item_id, sizeof(item_id));
-        if (NULL == item) {
-            item = (struct maat_item *)rcu_hash_updating_find(expr_rt->item_htable, (char *)&item_id, sizeof(item_id));
-            if (NULL == item) {
-                return -1;
-            }
-        }
-
         rcu_hash_del(expr_rt->item_htable, (char *)&item_id, sizeof(item_id));
     } else {
         //add
-        item = (struct maat_item *)rcu_hash_find(expr_rt->item_htable, (char *)&item_id, sizeof(item_id));
-        if (item) {
-            log_error(expr_rt->logger, MODULE_EXPR, 
-                      "[%s:%d] expr runtime add item(item_id:%lld) to item_htable failed, already exist", 
-                      __FUNCTION__, __LINE__, item_id);
-            return -1;
-        }
-
-        item = (struct maat_item *)rcu_hash_updating_find(expr_rt->item_htable, (char *)&item_id, sizeof(item_id));
-        if (item) {
-            log_error(expr_rt->logger, MODULE_EXPR, 
-                      "[%s:%d] expr runtime add item(item_id:%lld) to item_htable failed, already exist", 
-                      __FUNCTION__, __LINE__, item_id);
-            return -1;
-        }
-
         struct expr_item *expr_item = expr_item_new(line, schema, expr_rt->logger);
         if (NULL == expr_item) {
             return -1;
@@ -775,7 +736,15 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
 
         u_para = maat_item_inner_new(expr_item->group_id, item_id, expr_item->district_id);
         item = maat_item_new(item_id, expr_item->group_id, u_para, maat_item_inner_free);
-        rcu_hash_add(expr_rt->item_htable, (char *)&item_id, sizeof(item_id), item);
+        ret = rcu_hash_add(expr_rt->item_htable, (char *)&item_id, sizeof(item_id), item);
+        if (ret < 0) {
+            log_error(expr_rt->logger, MODULE_EXPR, 
+                      "[%s:%d] expr runtime add item(item_id:%lld) to item_htable failed", 
+                      __FUNCTION__, __LINE__, item_id);
+            expr_item_free(expr_item);
+            maat_item_free(item);
+            return -1;
+        }
 
         expr_rule = expr_item_to_expr_rule(expr_item, u_para, expr_rt->logger);
         expr_item_free(expr_item);

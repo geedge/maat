@@ -32,12 +32,16 @@ void rcu_hash_set_user_ctx(struct rcu_hash_table *htable, void *user_ctx);
 void *rcu_hash_get_user_ctx(struct rcu_hash_table *htable);
 
 /**
- * @brief just means add to the updating nodes
- *        after call rcu_hash_commit, they become effective nodes
+ * @brief Adding the updating nodes which will become effective nodes after call rcu_hash_commit
+ *    
+ * @retval 0(success) -1(failed)
 */
-void rcu_hash_add(struct rcu_hash_table *htable, const char *key, size_t key_len, void *data);
+int rcu_hash_add(struct rcu_hash_table *htable, const char *key, size_t key_len, void *data);
 
-void rcu_hash_del(struct rcu_hash_table *htable, const char *key, size_t key_len);
+/**
+ * @brief Deleting
+*/
+int rcu_hash_del(struct rcu_hash_table *htable, const char *key, size_t key_len);
 
 /**
  * @brief find in effective nodes
@@ -49,8 +53,6 @@ void rcu_hash_del(struct rcu_hash_table *htable, const char *key, size_t key_len
  * @retval NULL or 
 */
 void *rcu_hash_find(struct rcu_hash_table *htable, const char *key, size_t key_len);
-
-void *rcu_hash_updating_find(struct rcu_hash_table *htable, const char *key, size_t key_len);
 
 /**
  * @brief list all effective nodes
@@ -72,8 +74,6 @@ int rcu_hash_is_updating(struct rcu_hash_table *htable);
  * @brief make add/del effective
 */
 void rcu_hash_commit(struct rcu_hash_table *htable);
-
-size_t rcu_hash_garbage_queue_len(struct rcu_hash_table *htable);
 
 #ifdef __cplusplus
 }

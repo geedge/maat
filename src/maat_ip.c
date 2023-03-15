@@ -255,6 +255,12 @@ void ip_ex_data_free(void *user_ctx, void *data)
     ip_item_free(item);
 }
 
+void ip_maat_item_free(void *user_ctx, void *data)
+{
+    struct maat_item *item = (struct maat_item *)data;
+    maat_item_free(item);
+}
+
 void *ip_runtime_new(void *ip_schema, int max_thread_num, 
                      struct maat_garbage_bin *garbage_bin,
                      struct log_handle *logger)
@@ -262,7 +268,7 @@ void *ip_runtime_new(void *ip_schema, int max_thread_num,
     struct ip_runtime *ip_rt = ALLOC(struct ip_runtime, 1);
 
     ip_rt->htable = rcu_hash_new(ip_ex_data_free);
-    ip_rt->item_htable = rcu_hash_new(maat_item_free);
+    ip_rt->item_htable = rcu_hash_new(ip_maat_item_free);
     ip_rt->ref_garbage_bin = garbage_bin;
     ip_rt->logger = logger;
 
@@ -326,41 +332,20 @@ void ip_item_to_ip_rule(struct ip_item *item, struct ip_rule *rule)
 int ip_runtime_update_row(struct ip_runtime *ip_rt, char *key, size_t key_len, 
                           struct ip_item *item, int is_valid)
 {
-    void *data = NULL;
+    int ret = -1;
     
     if (0 == is_valid) {
         // delete
-        data = rcu_hash_find(ip_rt->htable, key, key_len);
-         if (NULL == data) {
-            data = rcu_hash_updating_find(ip_rt->htable, key, key_len);
-            if (NULL == data) {
-                log_error(ip_rt->logger, MODULE_IP, 
-                      "[%s:%d] the key of ip rule(rule_id:%lld) not exist, can't be deleted from ip runtime htable",
-                      __FUNCTION__, __LINE__, item->item_id);
-                return -1;
-            } 
-        }
-
         rcu_hash_del(ip_rt->htable, key, key_len);
     } else {
         // add
-        data = rcu_hash_find(ip_rt->htable, key, key_len);
-        if (data != NULL) {
+        ret = rcu_hash_add(ip_rt->htable, key, key_len, (void *)item);
+        if (ret < 0) {
             log_error(ip_rt->logger, MODULE_IP,
-                      "[%s:%d] the key of ip rule(rule_id:%lld) already exist, can't be added to ip runtime htable", 
+                      "[%s:%d] ip rule(rule_id:%lld) add to ip runtime htable failed", 
                       __FUNCTION__, __LINE__, item->item_id);
             return -1;
         }
-
-        data = rcu_hash_updating_find(ip_rt->htable, key, key_len);
-        if (data != NULL) {
-            log_error(ip_rt->logger, MODULE_IP,
-                      "[%s:%d] the key of ip rule(rule_id:%lld) already exist, can't be added to ip runtime htable", 
-                      __FUNCTION__, __LINE__, item->item_id);
-            return -1;
-        }
-
-        rcu_hash_add(ip_rt->htable, key, key_len, (void *)item);
     }
 
     return 0;
@@ -373,6 +358,7 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
         return -1;
     }
 
+    int ret = -1;
     struct maat_item *item = NULL;
     struct ip_item *ip_item = NULL;
     struct maat_item_inner *u_para = NULL;
@@ -389,39 +375,9 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
         return -1;
     } else if (0 == is_valid) {
         //delete
-        item = (struct maat_item *)rcu_hash_find(ip_rt->item_htable, 
-                                                (char *)&item_id, 
-                                                sizeof(item_id));
-        if (NULL == item) {
-            item = (struct maat_item *)rcu_hash_updating_find(ip_rt->item_htable, 
-                                                             (char *)&item_id, 
-                                                             sizeof(item_id));
-            if (NULL == item) {
-                return -1;
-            }
-        }
-
         rcu_hash_del(ip_rt->item_htable, (char *)&item_id, sizeof(item_id));
     } else {
         //add
-        item = (struct maat_item *)rcu_hash_find(ip_rt->item_htable, 
-                                                (char *)&item_id, sizeof(item_id));;
-        if (item) {
-            log_error(ip_rt->logger, MODULE_IP, 
-                      "[%s:%d] ip runtime add item(item_id:%lld) to item_htable failed, already exist", 
-                      __FUNCTION__, __LINE__, item_id);
-            return -1;
-        }
-
-        item = (struct maat_item *)rcu_hash_updating_find(ip_rt->item_htable, 
-                                                          (char *)&item_id, sizeof(item_id));;
-        if (item) {
-            log_error(ip_rt->logger, MODULE_IP, 
-                      "[%s:%d] ip runtime add item(item_id:%lld) to item_htable failed, already exist", 
-                      __FUNCTION__, __LINE__, item_id);
-            return -1;
-        }
-
         ip_item = ip_item_new(line, schema, ip_rt->logger);
         if (NULL == ip_item) {
             return -1;
@@ -429,11 +385,19 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
 
         u_para = maat_item_inner_new(ip_item->group_id, item_id, 0);
         item = maat_item_new(item_id, ip_item->group_id, u_para, maat_item_inner_free);
-        rcu_hash_add(ip_rt->item_htable, (char *)&(item_id), sizeof(item_id), item);
+        ret = rcu_hash_add(ip_rt->item_htable, (char *)&(item_id), sizeof(item_id), item);
+        if (ret < 0) {
+            log_error(ip_rt->logger, MODULE_IP, 
+                      "[%s:%d] ip runtime add item(item_id:%lld) to item_htable failed", 
+                      __FUNCTION__, __LINE__, item_id);
+            ip_item_free(ip_item);
+            maat_item_free(item);
+            return -1;
+        }
     }
     
     char *key = (char *)&item_id;
-    int ret = ip_runtime_update_row(ip_rt, key, sizeof(long long), ip_item, is_valid);
+    ret = ip_runtime_update_row(ip_rt, key, sizeof(long long), ip_item, is_valid);
     if (ret < 0) {
         if (ip_item != NULL) {
             ip_item_free(ip_item);

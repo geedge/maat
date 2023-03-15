@@ -128,6 +128,12 @@ void flag_ex_data_free(void *user_ctx, void *data)
     FREE(flag_item);
 }
 
+void flag_maat_item_free(void *user_ctx, void *data)
+{
+    struct maat_item *item = (struct maat_item *)data;
+    maat_item_free(item);
+}
+
 void *flag_runtime_new(void *flag_schema, int max_thread_num, 
                        struct maat_garbage_bin *garbage_bin,
                        struct log_handle *logger)
@@ -139,7 +145,7 @@ void *flag_runtime_new(void *flag_schema, int max_thread_num,
     struct flag_runtime *flag_rt = ALLOC(struct flag_runtime, 1);
 
     flag_rt->htable = rcu_hash_new(flag_ex_data_free);
-    flag_rt->item_htable = rcu_hash_new(maat_item_free);
+    flag_rt->item_htable = rcu_hash_new(flag_maat_item_free);
     flag_rt->ref_garbage_bin = garbage_bin;
     flag_rt->logger = logger;
 
@@ -187,41 +193,20 @@ void flag_runtime_free(void *flag_runtime)
 int flag_runtime_update_row(struct flag_runtime *flag_rt, char *key, size_t key_len,
                             long long item_id, struct flag_rule *rule, int is_valid)
 {
-    void *data = NULL;
+    int ret = -1;
 
     if (0 == is_valid) {
         //delete
-        data = rcu_hash_find(flag_rt->htable, key, key_len);
-        if (NULL == data) {
-            data = rcu_hash_updating_find(flag_rt->htable, key, key_len);
-            if (NULL == data) {
-                log_error(flag_rt->logger, MODULE_FLAG, 
-                      "[%s:%d] the key of flag rule(rule_id:%lld) not exist, can't be deleted from flag runtime htable",
-                      __FUNCTION__, __LINE__, item_id);
-                return -1;
-            }
-        }
-
         rcu_hash_del(flag_rt->htable, key, key_len);
     } else {
         //add
-        data = rcu_hash_find(flag_rt->htable, key, key_len);
-        if (data != NULL) {
+        ret = rcu_hash_add(flag_rt->htable, key, key_len, (void *)rule);
+        if (ret < 0) {
             log_error(flag_rt->logger, MODULE_FLAG,
-                      "[%s:%d] the key of flag rule(rule_id:%lld) already exist, can't be added to flag runtime htable", 
+                      "[%s:%d] flag rule(rule_id:%lld) add to flag runtime htable failed", 
                       __FUNCTION__, __LINE__, item_id);
             return -1;
         }
-
-        data = rcu_hash_updating_find(flag_rt->htable, key, key_len);
-        if (data != NULL) {
-            log_error(flag_rt->logger, MODULE_FLAG,
-                      "[%s:%d] the key of flag rule(rule_id:%lld) already exist, can't be added to flag runtime htable", 
-                      __FUNCTION__, __LINE__, item_id);
-            return -1;
-        }
-
-        rcu_hash_add(flag_rt->htable, key, key_len, (void *)rule);
     }
     
     return 0;
@@ -331,6 +316,7 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
         return -1;
     }
 
+    int ret = -1;
     struct maat_item_inner *u_para = NULL;
     struct maat_item *item = NULL;
     struct flag_rule *flag_rule = NULL;
@@ -347,33 +333,9 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
         return -1;
     } else if (0 == is_valid) {
         //delete
-        item = (struct maat_item *)rcu_hash_find(flag_rt->item_htable, (char *)&item_id, sizeof(item_id));
-        if (NULL == item) {
-            item = (struct maat_item *)rcu_hash_updating_find(flag_rt->item_htable, (char *)&item_id, sizeof(item_id));
-            if (NULL == item) {
-                return -1;
-            }
-        }
-
-        rcu_hash_del(flag_rt->item_htable, (char *)&item_id, sizeof(item_id));
+       rcu_hash_del(flag_rt->item_htable, (char *)&item_id, sizeof(item_id));
     } else {
         //add
-        item = (struct maat_item *)rcu_hash_find(flag_rt->item_htable, (char *)&item_id, sizeof(item_id));
-        if (item) {
-            log_error(flag_rt->logger, MODULE_FLAG, 
-                      "[%s:%d] flag runtime add item(item_id:%lld) to item_htable failed, already exist", 
-                      __FUNCTION__, __LINE__, item_id);
-            return -1;
-        }
-
-        item = (struct maat_item *)rcu_hash_updating_find(flag_rt->item_htable, (char *)&item_id, sizeof(item_id));
-        if (item) {
-            log_error(flag_rt->logger, MODULE_FLAG, 
-                      "[%s:%d] flag runtime add item(item_id:%lld) to item_htable failed, already exist", 
-                      __FUNCTION__, __LINE__, item_id);
-            return -1;
-        }
-
         struct flag_item *flag_item = flag_item_new(line, schema, flag_rt->logger);
         if (NULL == flag_item) {
             return -1;
@@ -381,7 +343,15 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
 
         u_para = maat_item_inner_new(flag_item->group_id, item_id, flag_item->district_id);
         item = maat_item_new(item_id, flag_item->group_id, u_para, maat_item_inner_free);
-        rcu_hash_add(flag_rt->item_htable, (char *)&(item_id), sizeof(item_id), item);
+        ret = rcu_hash_add(flag_rt->item_htable, (char *)&(item_id), sizeof(item_id), item);
+        if (ret < 0) {
+            log_error(flag_rt->logger, MODULE_FLAG, 
+                      "[%s:%d] flag runtime add item(item_id:%lld) to item_htable failed", 
+                      __FUNCTION__, __LINE__, item_id);
+            flag_item_free(flag_item);
+            maat_item_free(item);
+            return -1;
+        }
 
         flag_rule = flag_item_to_flag_rule(flag_item, u_para);
         flag_item_free(flag_item);
@@ -394,19 +364,13 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
     }
 
     char *key = (char *)&item_id;
-    int ret = flag_runtime_update_row(flag_rt, key, sizeof(long long), item_id, flag_rule, is_valid);
+    ret = flag_runtime_update_row(flag_rt, key, sizeof(long long), item_id, flag_rule, is_valid);
     if (ret < 0) {
         if (flag_rule != NULL) {
             flag_rule_free(flag_rule);
             flag_rule = NULL;
         }
         return -1;
-    } else {
-        if (0 == is_valid) {
-            flag_rt->rule_num--;
-        } else {
-            flag_rt->rule_num++;
-        }
     }
 
     return 0;

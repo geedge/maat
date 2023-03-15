@@ -64,11 +64,6 @@ void rcu_hash_garbage_queue_free(struct rcu_hash_garbage_q *garbage_q)
 	}
 }
 
-size_t rcu_hash_garbage_queue_len(struct rcu_hash_table *htable)
-{
-	return htable->garbage_q_len;
-}
-
 void rcu_hash_garbage_bagging(struct rcu_hash_garbage_q* garbage_q, 
                               void* garbage, void (* func)(void *))
 {
@@ -173,11 +168,11 @@ void rcu_hash_commit_prepare(struct rcu_hash_table *htable)
     htable->is_updating = 1;
 }
 
-void rcu_hash_add(struct rcu_hash_table *htable, const char *key, 
+int rcu_hash_add(struct rcu_hash_table *htable, const char *key, 
                   size_t key_len, void *data)
 {
     if (NULL == htable || NULL == key || 0 == key_len) {
-        return;
+        return -1;
     }
 
     if (!htable->is_updating) {
@@ -191,26 +186,30 @@ void rcu_hash_add(struct rcu_hash_table *htable, const char *key,
         HASH_FIND(hh_a, htable->hashmap_a, key, key_len, tmp);
     }
 
-    if (NULL == tmp) {
-        struct rcu_hash_node *node = ALLOC(struct rcu_hash_node, 1);
-        node->key = ALLOC(char, key_len);
-        memcpy(node->key, key, key_len);
-        node->key_len = key_len;
-        node->data = data;
-        node->htable = htable;
-
-        if (htable->effective_hash == 'a') {
-            HASH_ADD_KEYPTR(hh_b, htable->hashmap_b, node->key, node->key_len, node);
-        } else {
-            HASH_ADD_KEYPTR(hh_a, htable->hashmap_a, node->key, node->key_len, node);
-        }
+    if (tmp != NULL) {
+        return -1;
     }
+
+    struct rcu_hash_node *node = ALLOC(struct rcu_hash_node, 1);
+    node->key = ALLOC(char, key_len);
+    memcpy(node->key, key, key_len);
+    node->key_len = key_len;
+    node->data = data;
+    node->htable = htable;
+
+    if (htable->effective_hash == 'a') {
+        HASH_ADD_KEYPTR(hh_b, htable->hashmap_b, node->key, node->key_len, node);
+    } else {
+        HASH_ADD_KEYPTR(hh_a, htable->hashmap_a, node->key, node->key_len, node);
+    }
+
+    return 0;
 }
 
-void rcu_hash_del(struct rcu_hash_table *htable, const char *key, size_t key_len)
+int rcu_hash_del(struct rcu_hash_table *htable, const char *key, size_t key_len)
 {
     if (NULL == htable || NULL == key || 0 == key_len) {
-        return;
+        return -1;
     }
 
     if (!htable->is_updating) {
@@ -235,6 +234,8 @@ void rcu_hash_del(struct rcu_hash_table *htable, const char *key, size_t key_len
                                  (void (*)(void*))rcu_hash_node_free);
         htable->garbage_q_len++;
     }
+
+    return 0;
 }
 
 void *rcu_hash_find(struct rcu_hash_table *htable, const char *key, size_t key_len)
@@ -251,28 +252,6 @@ void *rcu_hash_find(struct rcu_hash_table *htable, const char *key, size_t key_l
         }
     } else {
         HASH_FIND(hh_b, htable->hashmap_b, key, key_len, node);
-        if (node != NULL) {
-            return node->data;
-        }
-    }
-    
-    return NULL;
-}
-
-void *rcu_hash_updating_find(struct rcu_hash_table *htable, const char *key, size_t key_len)
-{
-     if (NULL == htable || NULL == key || 0 == key_len) {
-        return NULL;
-    }
-
-    struct rcu_hash_node *node = NULL;
-    if (htable->effective_hash == 'a') {
-        HASH_FIND(hh_b, htable->hashmap_b, key, key_len, node);
-        if (node != NULL) {
-            return node->data;
-        }
-    } else {
-        HASH_FIND(hh_a, htable->hashmap_a, key, key_len, node);
         if (node != NULL) {
             return node->data;
         }

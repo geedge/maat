@@ -42,9 +42,6 @@ TEST(rcu_hash_add_one_node, single_thread) {
     int ret = rcu_hash_count(htable);
     EXPECT_EQ(ret, 0);
 
-    ret = rcu_hash_garbage_queue_len(htable);
-    EXPECT_EQ(ret, 0);
-
     void **data_array = NULL;
     rcu_hash_commit(htable);
 
@@ -66,9 +63,6 @@ TEST(rcu_hash_add_one_node, single_thread) {
 
     ret = rcu_hash_count(htable);
     EXPECT_EQ(ret, 1);
-
-    ret = rcu_hash_garbage_queue_len(htable);
-    EXPECT_EQ(ret, 0);
 
     rcu_hash_free(htable);
 }
@@ -119,9 +113,6 @@ TEST(rcu_hash_add_multi_node, single_thread) {
     int ret = rcu_hash_count(htable);
     EXPECT_EQ(ret, 0);
 
-    ret = rcu_hash_garbage_queue_len(htable);
-    EXPECT_EQ(ret, 0);
-
     void **data_array = NULL;
     ret = rcu_hash_list(htable, &data_array);
     EXPECT_EQ(ret, 0);
@@ -167,9 +158,6 @@ TEST(rcu_hash_add_multi_node, single_thread) {
     ret = rcu_hash_count(htable);
     EXPECT_EQ(ret, 4);
 
-    ret = rcu_hash_garbage_queue_len(htable);
-    EXPECT_EQ(ret, 0);
-
     rcu_hash_free(htable);
 }
 
@@ -201,9 +189,6 @@ TEST(rcu_hash_del_one_node, single_thread) {
     EXPECT_TRUE(res == NULL);
 
     ret = rcu_hash_count(htable);
-    EXPECT_EQ(ret, 0);
-
-    ret = rcu_hash_garbage_queue_len(htable);
     EXPECT_EQ(ret, 0);
 
     rcu_hash_del(htable, key, key_len);
@@ -244,9 +229,6 @@ TEST(rcu_hash_del_one_node, single_thread) {
 
     ret = rcu_hash_count(htable);
     EXPECT_EQ(ret, 1);
-
-    ret = rcu_hash_garbage_queue_len(htable);
-    EXPECT_EQ(ret, 1);
     
     /* delete commit */
     rcu_hash_commit(htable);
@@ -254,9 +236,6 @@ TEST(rcu_hash_del_one_node, single_thread) {
     EXPECT_TRUE(res == NULL);
 
     ret = rcu_hash_count(htable);
-    EXPECT_EQ(ret, 0);
-
-    ret = rcu_hash_garbage_queue_len(htable);
     EXPECT_EQ(ret, 0);
 
     rcu_hash_free(htable);
@@ -290,14 +269,8 @@ TEST(rcu_hash_del_multi_node, single_thread) {
     int ret = rcu_hash_count(htable);
     EXPECT_EQ(ret, 0);
 
-    ret = rcu_hash_garbage_queue_len(htable);
-    EXPECT_EQ(ret, 0);
-
     /* add del, then commit */
     rcu_hash_del(htable, key1, key1_len);
-
-    ret = rcu_hash_garbage_queue_len(htable);
-    EXPECT_EQ(ret, 1);
 
     rcu_hash_commit(htable);
 
@@ -311,8 +284,126 @@ TEST(rcu_hash_del_multi_node, single_thread) {
     ret = rcu_hash_count(htable);
     EXPECT_EQ(ret, 1);
 
-    ret = rcu_hash_garbage_queue_len(htable);
+    rcu_hash_free(htable);
+}
+
+TEST(rcu_hash_add_with_same_key, single_thread) {
+    struct rcu_hash_table *htable = rcu_hash_new(data_free);
+    EXPECT_TRUE(htable != NULL);
+
+    char key[64] = "http_url";
+    size_t key_len = strlen(key);
+
+    //add data1
+    struct user_data *data1 = ALLOC(struct user_data, 1);
+    data1->id = 101;
+    char name1[64] = "www.baidu.com";
+    memcpy(data1->name, name1, strlen(name1)); 
+    int ret = rcu_hash_add(htable, key, key_len, (void *)data1);
     EXPECT_EQ(ret, 0);
+
+    void *res = rcu_hash_find(htable, key, key_len);
+    EXPECT_TRUE(res == NULL);
+
+    //add data2
+    struct user_data *data2 = ALLOC(struct user_data, 1);
+    data2->id = 102;
+    char name2[64] = "www.google.com";
+    memcpy(data2->name, name2, strlen(name2)); 
+    ret = rcu_hash_add(htable, key, key_len, (void *)data2);
+    EXPECT_EQ(ret, -1);
+    FREE(data2);
+
+    rcu_hash_commit(htable);
+
+    res = rcu_hash_find(htable, key, key_len);
+    EXPECT_TRUE(res != NULL);
+
+    struct user_data *tmp_data = (struct user_data *)res;
+    EXPECT_EQ(tmp_data->id, 101);
+    EXPECT_STREQ(tmp_data->name, "www.baidu.com");
+
+    rcu_hash_free(htable);
+}
+
+TEST(rcu_hash_del_with_same_key, single_thread) {
+    struct rcu_hash_table *htable = rcu_hash_new(data_free);
+    EXPECT_TRUE(htable != NULL);
+
+    char key[64] = "http_url";
+    size_t key_len = strlen(key);
+
+    int ret = rcu_hash_del(htable, key, key_len);
+    EXPECT_EQ(ret, 0);
+
+    //add data1
+    struct user_data *data1 = ALLOC(struct user_data, 1);
+    data1->id = 101;
+    char name1[64] = "www.baidu.com";
+    memcpy(data1->name, name1, strlen(name1)); 
+   
+    ret = rcu_hash_add(htable, key, key_len, (void *)data1);
+    EXPECT_EQ(ret, 0);
+
+    void *res = rcu_hash_find(htable, key, key_len);
+    EXPECT_TRUE(res == NULL);
+
+    ret = rcu_hash_del(htable, key, key_len);
+    EXPECT_EQ(ret, 0);
+
+    //add data2
+    struct user_data *data2 = ALLOC(struct user_data, 1);
+    data2->id = 102;
+    char name2[64] = "www.google.com";
+    memcpy(data2->name, name2, strlen(name2)); 
+    ret = rcu_hash_add(htable, key, key_len, (void *)data2);
+    EXPECT_EQ(ret, 0);
+
+    rcu_hash_commit(htable);
+
+    res = rcu_hash_find(htable, key, key_len);
+    EXPECT_TRUE(res != NULL);
+
+    struct user_data *tmp_data = (struct user_data *)res;
+    EXPECT_EQ(tmp_data->id, 102);
+    EXPECT_STREQ(tmp_data->name, "www.google.com");
+
+    rcu_hash_free(htable);
+}
+
+TEST(rcu_hash_modify_with_same_key, single_thread) {
+    struct rcu_hash_table *htable = rcu_hash_new(data_free);
+    EXPECT_TRUE(htable != NULL);
+
+    char key[64] = "http_url";
+    size_t key_len = strlen(key);
+
+    //add data1
+    struct user_data *data1 = ALLOC(struct user_data, 1);
+    data1->id = 101;
+    char name1[64] = "www.baidu.com";
+    memcpy(data1->name, name1, strlen(name1)); 
+    rcu_hash_add(htable, key, key_len, (void *)data1);
+
+    void *res = rcu_hash_find(htable, key, key_len);
+    EXPECT_TRUE(res == NULL);
+
+    //del data1
+    rcu_hash_del(htable, key, key_len);
+
+    //add data2
+    struct user_data *data2 = ALLOC(struct user_data, 1);
+    data2->id = 102;
+    char name2[64] = "www.google.com";
+    memcpy(data2->name, name2, strlen(name2)); 
+    
+    rcu_hash_add(htable, key, key_len, (void *)data2);
+    rcu_hash_commit(htable);
+
+    res = rcu_hash_find(htable, key, key_len);
+    struct user_data *tmp_data = (struct user_data *)res;
+    EXPECT_EQ(tmp_data->id, 102);
+    EXPECT_STREQ(tmp_data->name, "www.google.com");
 
     rcu_hash_free(htable);
 }
@@ -320,12 +411,13 @@ TEST(rcu_hash_del_multi_node, single_thread) {
 TEST(global_rcu_hash_add, single_thread) {
     EXPECT_TRUE(g_htable != NULL);
 
+    char key1[64] = "http_url";
+    size_t key1_len = strlen(key1);
+
     struct user_data *data1 = ALLOC(struct user_data, 1);
     data1->id = 101;
     char name1[64] = "www.baidu.com";
     memcpy(data1->name, name1, strlen(name1)); 
-    char key1[64] = "http_url";
-    size_t key1_len = strlen(key1);
     rcu_hash_add(g_htable, key1, key1_len, (void *)data1);
 
     int ret = rcu_hash_count(g_htable);
@@ -364,51 +456,6 @@ TEST(global_rcu_hash_del, single_thread) {
 
     res = rcu_hash_find(g_htable, key, key_len);
     EXPECT_TRUE(res == NULL);
-}
-
-TEST(rcu_hash_updating_find, single_thread) {
-    struct rcu_hash_table *htable = rcu_hash_new(data_free);
-    EXPECT_TRUE(htable != NULL);
-
-    //add data1
-    struct user_data *data1 = ALLOC(struct user_data, 1);
-    data1->id = 101;
-    char name1[64] = "www.baidu.com";
-    memcpy(data1->name, name1, strlen(name1)); 
-    char key[64] = "http_url";
-    size_t key_len = strlen(key);
-    rcu_hash_add(htable, key, key_len, (void *)data1);
-
-    void *res = rcu_hash_find(htable, key, key_len);
-    EXPECT_TRUE(res == NULL);
-
-    res = rcu_hash_updating_find(htable, key, key_len);
-    EXPECT_TRUE(res != NULL);
-
-    //del data1
-    rcu_hash_del(htable, key, key_len);
-
-    res = rcu_hash_updating_find(htable, key, key_len);
-    EXPECT_TRUE(res == NULL);
-
-    //add data2
-    struct user_data *data2 = ALLOC(struct user_data, 1);
-    data2->id = 102;
-    char name2[64] = "www.google.com";
-    memcpy(data2->name, name2, strlen(name2)); 
-    
-    rcu_hash_add(htable, key, key_len, (void *)data2);
-    res = rcu_hash_updating_find(htable, key, key_len);
-    EXPECT_TRUE(res != NULL);
-
-    rcu_hash_commit(htable);
-
-    res = rcu_hash_find(htable, key, key_len);
-    struct user_data *tmp_data = (struct user_data *)res;
-    EXPECT_EQ(tmp_data->id, 102);
-    EXPECT_STREQ(tmp_data->name, "www.google.com");
-
-    rcu_hash_free(htable);
 }
 
 int main(int argc, char ** argv)

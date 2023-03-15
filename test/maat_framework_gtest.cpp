@@ -2566,7 +2566,7 @@ TEST_F(MaatCmdTest, SetExpr) {
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     maat_state_free(&state);
 }
-#if 0
+
 TEST_F(MaatCmdTest, SetExpr8) {
     const char *scan_data8 = "string1, string2, string3, string4, string5, string6, string7, string8";
 	const char *scan_data7 = "string1, string2, string3, string4, string5, string6, string7";
@@ -2629,7 +2629,7 @@ TEST_F(MaatCmdTest, SetExpr8) {
     EXPECT_EQ(results[0], compile_id);
     maat_state_free(&state);
 }
-#endif
+
 struct user_info {
 	char name[256];
 	char ip_addr[32];
