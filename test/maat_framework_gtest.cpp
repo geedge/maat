@@ -693,9 +693,10 @@ TEST_F(MaatStringScan, StreamInput) {
 //TODO:
 #if 0
 TEST_F(MaatStringScan, ShouldNotHitExprPlus) {
-    long long results[ARRAY] = {0};
+    long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
+    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
 	const char *region_name = "tcp.payload";
 	unsigned char udp_payload_not_hit[] = { /* Stun packet */
 							0x00, 0x03, 0x00, 0x4a, 0x21, 0x12, 0xa4, 0x42, 
@@ -711,13 +712,13 @@ TEST_F(MaatStringScan, ShouldNotHitExprPlus) {
 							0xf6, 0x30, 0x81, 0xf4, 0x3f, 0xc2, 0x19, 0x6a, 
 							0x68, 0x61, 0x93, 0x08, 0xc0, 0x0a, 0xab, 0x00 };
 
-	int table_id = maat_get_table_id(g_maat_instance, "APP_PAYLOAD");
+	int table_id = maat_get_table_id(maat_instance, "APP_PAYLOAD");
 	ASSERT_GT(table_id, 0);
 
-	int ret = maat_state_set_scan_district(g_maat_instance, &state, region_name, strlen(region_name));
+	int ret = maat_state_set_scan_district(maat_instance, &state, region_name, strlen(region_name));
 	ASSERT_EQ(ret, 0);
     
-	ret = maat_scan_string(g_maat_instance, table_id, 0, (char *)udp_payload_not_hit, sizeof(udp_payload_not_hit), 
+	ret = maat_scan_string(maat_instance, table_id, 0, (char *)udp_payload_not_hit, sizeof(udp_payload_not_hit), 
 						   results, ARRAY_SIZE, &n_hit_result, &state);
 	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 	maat_state_free(&state);
@@ -727,29 +728,30 @@ TEST_F(MaatStringScan, ExprPlusWithHex) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
+    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
 	const char *scan_data1 = "text/html; charset=UTF-8";
 	const char *scan_data2 = "Batman\\:Take me Home.Superman/:Fine,stay with me.";
 	const char *region_name1 = "Content-Type";
 	const char *region_name2 = "User-Agent";
 
-	int table_id = maat_get_table_id(g_maat_instance, "HTTP_SIGNATURE");
+	int table_id = maat_get_table_id(maat_instance, "HTTP_SIGNATURE");
 	ASSERT_GT(table_id, 0);
 
-	int ret = maat_state_set_scan_district(g_maat_instance, &state, region_name1, strlen(region_name1));
+	int ret = maat_state_set_scan_district(maat_instance, &state, region_name1, strlen(region_name1));
 	ASSERT_EQ(ret, 0);
-	ret = maat_scan_string(g_maat_instance, table_id, 0, scan_data1, strlen(scan_data1), 
+	ret = maat_scan_string(maat_instance, table_id, 0, scan_data1, strlen(scan_data1), 
 						   results, ARRAY_SIZE, &n_hit_result, &state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(results[0], 156);
 
-    ret = maat_state_set_scan_district(g_maat_instance, &state, region_name2, strlen(region_name2));
+    ret = maat_state_set_scan_district(maat_instance, &state, region_name2, strlen(region_name2));
 	ASSERT_EQ(ret, 0);
-	ret = maat_scan_string(g_maat_instance, table_id, 0, scan_data1, strlen(scan_data1), 
+	ret = maat_scan_string(maat_instance, table_id, 0, scan_data1, strlen(scan_data1), 
 						   results, ARRAY_SIZE, &n_hit_result, &state);
 	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     
-    table_id = maat_get_table_id(g_maat_instance, "KEYWORDS_TABLE");
-    ret = maat_scan_string(g_maat_instance, table_id, 0, scan_data2, strlen(scan_data2),
+    table_id = maat_get_table_id(maat_instance, "KEYWORDS_TABLE");
+    ret = maat_scan_string(maat_instance, table_id, 0, scan_data2, strlen(scan_data2),
                             results, ARRAY_SIZE, &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(results[0], 132);                    
@@ -761,6 +763,7 @@ TEST_F(MaatStringScan, ExprPlusWithOffset)
 	long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
+    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
 	const char *region_name = "Payload";
 	unsigned char udp_payload_not_hit[] = { /* Stun packet */
 							0x00, 0x03, 0x00, 0x4a, 0x21, 0x12, 0xa4, 0x42, 
@@ -789,17 +792,17 @@ TEST_F(MaatStringScan, ExprPlusWithOffset)
 							0xf6, 0x30, 0x81, 0xf4, 0x3f, 0xc2, 0x19, 0x6a, 
 							0x68, 0x61, 0x93, 0x08, 0xc0, 0x0a };
 
-	int table_id = maat_get_table_id(g_maat_instance, "APP_PAYLOAD");
+	int table_id = maat_get_table_id(maat_instance, "APP_PAYLOAD");
 	ASSERT_GT(table_id, 0);
 
-	int ret = maat_state_set_scan_district(g_maat_instance, &state, region_name, strlen(region_name));
+	int ret = maat_state_set_scan_district(maat_instance, &state, region_name, strlen(region_name));
 	EXPECT_EQ(ret, 0);
 
-	ret = maat_scan_string(g_maat_instance, table_id, 0, (char*)udp_payload_not_hit, sizeof(udp_payload_not_hit), 
+	ret = maat_scan_string(maat_instance, table_id, 0, (char*)udp_payload_not_hit, sizeof(udp_payload_not_hit), 
 						   results, ARRAY_SIZE, &n_hit_result, &state);
 	EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-	ret = maat_scan_string(g_maat_instance, table_id, 0, (char*)udp_payload_hit, sizeof(udp_payload_hit), 
+	ret = maat_scan_string(maat_instance, table_id, 0, (char*)udp_payload_hit, sizeof(udp_payload_hit), 
 						   results, ARRAY_SIZE, &n_hit_result, &state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
 	EXPECT_EQ(results[0], 148);

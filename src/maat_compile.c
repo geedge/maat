@@ -1630,7 +1630,13 @@ int compile_runtime_commit(void *compile_runtime, const char *table_name)
     struct bool_matcher *old_bool_matcher = NULL;
     struct bool_matcher *new_bool_matcher = NULL;
 
+    pthread_rwlock_rdlock(&compile_rt->rwlock);
     size_t compile_cnt = HASH_COUNT(compile_rt->compile_hash);
+    pthread_rwlock_unlock(&compile_rt->rwlock);
+    if (0 == compile_cnt) {
+        return 0;
+    }
+    
     log_info(compile_rt->logger, MODULE_COMPILE,
              "table[%s] committing %zu compile rules for rebuilding compile bool_matcher engine",
              table_name, compile_cnt);
