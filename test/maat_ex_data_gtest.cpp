@@ -4,6 +4,7 @@
 #include "json2iris.h"
 #include "maat_command.h"
 #include "maat_ex_data.h"
+#include "maat_garbage_collection.h"
 
 #include <gtest/gtest.h>
 #include <limits.h>
@@ -55,8 +56,8 @@ TEST(EXDataRuntime, Update) {
 	ASSERT_GT(table_id, 0);
 
     int ex_data_counter = 0;
-
-    struct ex_data_runtime *ex_data_rt = ex_data_runtime_new(table_id, ex_data_container_free, g_logger);
+    struct maat_garbage_bin *garbage_bin = maat_garbage_bin_new(10);
+    struct ex_data_runtime *ex_data_rt = ex_data_runtime_new(table_id, ex_container_free, garbage_bin, g_logger);
     struct ex_data_schema *ex_schema = ex_data_schema_new(ex_data_new_cb, ex_data_free_cb, ex_data_dup_cb, 
                                                           0, &ex_data_counter);
     ex_data_runtime_set_schema(ex_data_rt, ex_schema);
@@ -67,7 +68,7 @@ TEST(EXDataRuntime, Update) {
     void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, row1, key1, key1_len);
     EXPECT_EQ(ex_data_counter, 1);
 
-    struct ex_data_container *ex_container = ex_data_container_new(ex_data, NULL);
+    struct ex_container *ex_container = ex_container_new(ex_data, NULL);
     int ret = ex_data_runtime_add_ex_container(ex_data_rt, key1, key1_len, ex_container);
     EXPECT_EQ(ret, 0);
 
@@ -75,7 +76,7 @@ TEST(EXDataRuntime, Update) {
     const char *key2 = "192.168.0.2";
     size_t key2_len = strlen(key2);
     ex_data = ex_data_runtime_row2ex_data(ex_data_rt, row2, key2, key2_len);
-    ex_container = ex_data_container_new(ex_data, NULL);
+    ex_container = ex_container_new(ex_data, NULL);
     ret = ex_data_runtime_add_ex_container(ex_data_rt, key2, key2_len, ex_container);
     EXPECT_EQ(ret, 0);
 
@@ -94,6 +95,10 @@ TEST(EXDataRuntime, Update) {
     info = (struct user_info *)res_data2;
     EXPECT_EQ(0, strcmp(info->name, "liyanhong"));
     EXPECT_EQ(info->id, 2);
+
+    maat_garbage_bin_free(garbage_bin);
+    ex_data_runtime_free(ex_data_rt);
+    ex_data_schema_free(ex_schema);
 }
 
 int main(int argc, char ** argv)
@@ -119,6 +124,7 @@ int main(int argc, char ** argv)
 
 		ret = json2iris(json_buff, json_filename, NULL, tmp_iris_path, sizeof(tmp_iris_path),
                         NULL, NULL, g_logger);
+        FREE(json_buff);
 		EXPECT_NE(ret, -1);
 	}
 

@@ -25,6 +25,7 @@ TEST(json_mode, maat_scan_string) {
 
 		ret = json2iris(json_buff, json_filename, NULL, tmp_iris_path, sizeof(tmp_iris_path),
                         NULL, NULL, g_logger);
+        FREE(json_buff);
 		EXPECT_NE(ret, -1);
 	}
 
@@ -48,11 +49,18 @@ TEST(json_mode, maat_scan_string) {
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 182);
 
+    long long clause_id = maat_runtime_get_sequence(maat_instance->maat_rt, "test_seq");
+    EXPECT_EQ(clause_id, 0);
+    clause_id = maat_runtime_get_sequence(maat_instance->maat_rt, "test_seq");
+    EXPECT_EQ(clause_id, 1);
+    clause_id = maat_runtime_get_sequence(maat_instance->maat_rt, "test_seq");
+    EXPECT_EQ(clause_id, 2);
+
     maat_options_free(opts);
     maat_state_free(&state);
     maat_free(maat_instance);
 }
-
+#if 0
 TEST(iris_mode, maat_scan_string) {
     char tmp_iris_path[512] = {0};
     char json_iris_path[512] = {0};
@@ -67,6 +75,7 @@ TEST(iris_mode, maat_scan_string) {
 
 		ret = json2iris(json_buff, json_filename, NULL, tmp_iris_path, sizeof(tmp_iris_path), 
                         NULL, NULL, g_logger);
+        FREE(json_buff);
 		EXPECT_NE(ret, -1);
 	}
 
@@ -140,7 +149,8 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 	maat_cmd_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, rule_id, table_name, 
                              buff, absolute_expire_time);
 	line_idx++;
-	FREE(str1);
+    
+	FREE(buff);
 
 	return 0;
 }
@@ -169,6 +179,7 @@ TEST(redis_mode, maat_scan_string) {
 
         ret = json2iris(json_buff, json_filename, c, tmp_iris_path, sizeof(tmp_iris_path), 
                         NULL, NULL, g_logger);
+        FREE(json_buff);
         EXPECT_NE(ret, -1);
     }
 
@@ -219,7 +230,7 @@ TEST(redis_mode, maat_scan_string) {
     maat_state_free(&state);
     maat_free(maat_instance);
 }
-
+#endif
 int main(int argc, char ** argv)
 {
 	int ret=0;

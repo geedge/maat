@@ -128,58 +128,90 @@ void maat_options_free(struct maat_options *opts)
 
 int maat_options_set_caller_thread_number(struct maat_options *opts, size_t n_thread)
 {
+    if (NULL == opts) {
+        return -1;
+    }
+
     opts->nr_worker_threads = n_thread;
-    
     return 0;
 }
 
 int maat_options_set_accept_tags(struct maat_options *opts, const char *accept_tags)
 {
-    opts->accept_tags = maat_strdup(accept_tags);
+    if (NULL == opts || NULL == accept_tags) {
+        return -1;
+    }
 
+    opts->accept_tags = maat_strdup(accept_tags);
     return 0;
 }
 
 int maat_options_set_rule_effect_interval_ms(struct maat_options *opts, int interval_ms)
 {
+    if (NULL == opts || interval_ms < 0) {
+        return -1;
+    }
+
     opts->rule_effect_interval_ms = interval_ms;
-    
     return 0;
 }
 
 int maat_options_set_rule_update_checking_interval_ms(struct maat_options *opts, int interval_ms)
 {
-    opts->rule_update_checking_interval_ms = interval_ms;
+    if (NULL == opts || interval_ms < 0) {
+        return -1;
+    }
 
+    opts->rule_update_checking_interval_ms = interval_ms;
     return 0;
 }
 
 int maat_options_set_gc_timeout_ms(struct maat_options *opts, int interval_ms)
 {
-    opts->gc_timeout_ms = interval_ms;
+    if (NULL == opts || interval_ms < 0) {
+        return -1;
+    }
 
+    opts->gc_timeout_ms = interval_ms;
     return 0;
 }
 
-int maat_options_set_instance_name(struct maat_options *opts, const char *instance_name,
-                                   size_t name_len)
+int maat_options_set_instance_name(struct maat_options *opts, const char *instance_name)
 {
-    memcpy(opts->instance_name, instance_name, name_len);
+    if (NULL == opts || NULL == instance_name || 
+        strlen(instance_name) >= NAME_MAX) {
+        return -1;
+    }
 
+    memcpy(opts->instance_name, instance_name, strlen(instance_name));
     return 0;
 }
 
 int maat_options_set_deferred_load_on(struct maat_options *opts)
 {
-    opts->deferred_load_on = 1;
+    if (NULL == opts) {
+        return -1;
+    }
 
+    opts->deferred_load_on = 1;
+    return 0;
+}
+
+int maat_options_set_foreign_cont_dir(struct maat_options *opts, const char *dir)
+{
+    if (NULL == opts || strlen(dir) >= NAME_MAX) {
+        return -1;
+    }
+
+    memcpy(opts->foreign_cont_dir, dir, strlen(dir));
     return 0;
 }
 
 int maat_options_set_iris(struct maat_options *opts, const char *full_directory,
                           const char *increment_directory)
 {
-    if (strlen(full_directory) >= NAME_MAX || strlen(increment_directory) >= NAME_MAX) {
+    if (NULL == opts || strlen(full_directory) >= NAME_MAX || 
+        strlen(increment_directory) >= NAME_MAX) {
         return -1;
     }
 
@@ -345,6 +377,7 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     maat_instance->rule_update_checking_interval_ms = opts->rule_update_checking_interval_ms;
     maat_instance->gc_timeout_ms = opts->gc_timeout_ms;
     maat_instance->deferred_load = opts->deferred_load_on;
+    memcpy(maat_instance->foreign_cont_dir, opts->foreign_cont_dir, strlen(opts->foreign_cont_dir));
     garbage_gc_timeout_s = (maat_instance->rule_effect_interval_ms / 1000) +
                                 (maat_instance->gc_timeout_ms / 1000);
     maat_instance->garbage_bin = maat_garbage_bin_new(garbage_gc_timeout_s);
@@ -593,10 +626,10 @@ void generic_plugin_runtime_commit_ex_schema(void *runtime, void *schema, int ta
     }
 
     ex_data_runtime_set_schema(ex_data_rt, ex_data_schema);
-    struct ex_container_ctx *ex_ctx = ALLOC(struct ex_container_ctx, 1);
-    ex_ctx->table_id = table_id;
-    ex_ctx->ex_schema = ex_data_schema;
-    ex_data_runtime_set_ex_container_ctx(ex_data_rt, ex_ctx);
+    struct ex_container_schema *container_schema = ALLOC(struct ex_container_schema, 1);
+    container_schema->table_id = table_id;
+    container_schema->ex_schema = ex_data_schema;
+    ex_data_runtime_set_ex_container_schema(ex_data_rt, container_schema);
 
     size_t n_cached_row = ex_data_runtime_cached_row_count(ex_data_rt);
     for (size_t i = 0; i < n_cached_row; i++) {
@@ -897,7 +930,7 @@ struct maat_state *grab_state(struct maat_state **state, struct maat *maat_insta
 		alignment_int64_array_add(maat_instance->outer_state_cnt, thread_id, 1);
 	}
 
-    if (NULL == mid->compile_state) {
+    if ((thread_id >= 0) && (NULL == mid->compile_state)) {
         mid->compile_state = maat_compile_state_new(thread_id);
         alignment_int64_array_add(maat_instance->compile_state_cnt, thread_id, 1);
     }
@@ -1720,6 +1753,39 @@ void maat_scan_stream_close(struct maat_stream **maat_stream)
     FREE(stream);
 }
 
+struct maat_state *maat_state_new(struct maat *maat_instance, int thread_id)
+{
+    return NULL; 
+}
+
+void maat_state_reset(struct maat_state *state)
+{
+
+}
+
+void maat_state_free(struct maat_state **state)
+{
+    struct maat_state *mid = NULL;
+    if (NULL == *state) {
+        return;
+    }
+
+    mid = *state;
+    if (mid->thread_id >= 0) {
+        alignment_int64_array_add(mid->maat_instance->outer_state_cnt, mid->thread_id, -1);
+    }
+
+    if (mid->compile_state != NULL) {
+        maat_compile_state_free(mid->compile_state);
+        mid->compile_state = NULL;
+        alignment_int64_array_add(mid->maat_instance->compile_state_cnt, mid->thread_id, -1);
+    }
+    
+    mid->maat_instance = NULL;
+    free(mid);
+    *state = NULL;
+}
+
 int maat_state_set_scan_district(struct maat *maat_instance,
                                  struct maat_state **state,
                                  const char *district,
@@ -1832,29 +1898,6 @@ int maat_state_get_hit_objects(struct maat *instance, struct maat_state **state,
                                struct maat_hit_object *objs, size_t n_obj)
 {
     return 0;
-}
-
-void maat_state_free(struct maat_state **state)
-{
-    struct maat_state *mid = NULL;
-    if (NULL == *state) {
-        return;
-    }
-
-    mid = *state;
-    if (mid->thread_id >= 0) {
-        alignment_int64_array_add(mid->maat_instance->outer_state_cnt, mid->thread_id, -1);
-    }
-
-    if (mid->compile_state != NULL) {
-        maat_compile_state_free(mid->compile_state);
-        mid->compile_state = NULL;
-        alignment_int64_array_add(mid->maat_instance->compile_state_cnt, mid->thread_id, -1);
-    }
-    
-    mid->maat_instance = NULL;
-    free(mid);
-    *state = NULL;
 }
 
 int maat_hit_object_compile_id(struct maat *instance, struct maat_hit_object *obj)

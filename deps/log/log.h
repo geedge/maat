@@ -17,26 +17,10 @@ extern "C"
 #include <stdarg.h>
 #include <stdbool.h>
 #include <time.h>
-#include <pthread.h>
 
 #define LOG_VERSION "0.1.0"
 
 struct log_handle;
-
-struct log_event
-{
-    int level;
-    va_list ap;
-    const char *fmt;
-	const char *module;
-	char *run_log_path;
-    char *cur_log_file;
-    void *user_data;
-    pthread_mutex_t mutex;
-};
-
-typedef void (*log_func_t)(struct log_event *ev);
-typedef void (*log_lock_func_t)(int lock, void *udata);
 
 enum { LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL };
 
@@ -48,11 +32,6 @@ enum { LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL };
 #define log_fatal(handle, module, fmt, ...)	log_print(handle, LOG_FATAL, module, fmt, ##__VA_ARGS__)
 
 void log_print(struct log_handle *, int level, const char *module, const char *fmt, ...);
-
-int log_options_add_file_fp(struct log_handle *, int level);
-int log_options_add_fp(struct log_handle *, FILE *fp, int level);
-
-void log_options_set_lock_fn(struct log_handle *, log_lock_func_t fn, void *user_data);
 void log_options_set_enable(struct log_handle *, int enable);
 void log_options_set_level(struct log_handle *, int level);
 

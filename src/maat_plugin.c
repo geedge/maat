@@ -142,7 +142,7 @@ void plugin_schema_free(void *plugin_schema)
         schema->ex_schema = NULL;
     }
 
-    FREE(schema);
+    free(schema);
 }
 
 int plugin_table_add_callback(void *plugin_schema, int table_id,
@@ -240,7 +240,8 @@ void *plugin_runtime_new(void *plugin_schema, int max_thread_num,
     struct plugin_schema *schema = (struct plugin_schema *)plugin_schema;
     struct plugin_runtime *plugin_rt = ALLOC(struct plugin_runtime, 1);
     plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, 
-                                                ex_data_container_free, logger);
+                                                ex_container_free, 
+                                                garbage_bin, logger);
     plugin_rt->ref_garbage_bin = garbage_bin;
     plugin_rt->logger = logger;
 
@@ -281,7 +282,7 @@ int plugin_runtime_update_row(struct plugin_runtime *plugin_rt,
         } else {
             // add
             void *ex_data = ex_data_runtime_row2ex_data(plugin_rt->ex_data_rt, row, key, key_len);
-            struct ex_data_container *ex_container = ex_data_container_new(ex_data, NULL);
+            struct ex_container *ex_container = ex_container_new(ex_data, NULL);
             ret = ex_data_runtime_add_ex_container(plugin_rt->ex_data_rt, key, key_len, ex_container);
             if (ret < 0) {
                 return -1;
@@ -388,16 +389,18 @@ int plugin_runtime_commit(void *plugin_runtime, const char *table_name)
     }
 
     struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
-   
-    struct ex_data_container **ex_container = NULL;
-    size_t rule_cnt = ex_data_runtime_list_updating_ex_container(plugin_rt->ex_data_rt,
-                                                                &ex_container);
-    if (rule_cnt == 0) {
-        FREE(ex_container);
+    struct ex_data_runtime *ex_data_rt = plugin_rt->ex_data_rt;
+    if (NULL == ex_data_rt) {
+        return -1;
+    }
+
+    int updating_flag = ex_data_runtime_is_updating(ex_data_rt);
+    if (0 == updating_flag) {
         return 0;
     }
 
-    ex_data_runtime_commit(plugin_rt->ex_data_rt);
+    ex_data_runtime_commit(ex_data_rt);
+    plugin_rt->rule_num = ex_data_runtime_ex_container_count(ex_data_rt);
     
     return 0;
 }

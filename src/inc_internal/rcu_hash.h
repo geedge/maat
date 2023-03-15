@@ -50,8 +50,23 @@ void rcu_hash_del(struct rcu_hash_table *htable, const char *key, size_t key_len
 */
 void *rcu_hash_find(struct rcu_hash_table *htable, const char *key, size_t key_len);
 
+void *rcu_hash_updating_find(struct rcu_hash_table *htable, const char *key, size_t key_len);
+
+/**
+ * @brief list all effective nodes
+ * 
+ * @retval the number of effective nodes
+*/
+size_t rcu_hash_list(struct rcu_hash_table *htable, void ***data_array);
+
 size_t rcu_hash_count(struct rcu_hash_table *htable);
-size_t rcu_hash_updating_count(struct rcu_hash_table *htable);
+
+/**
+ * @brief if rcu hash is updating
+ * 
+ * @retval True(1) False(0) 
+*/
+int rcu_hash_is_updating(struct rcu_hash_table *htable);
 
 /**
  * @brief make add/del effective
@@ -59,8 +74,6 @@ size_t rcu_hash_updating_count(struct rcu_hash_table *htable);
 void rcu_hash_commit(struct rcu_hash_table *htable);
 
 size_t rcu_hash_garbage_queue_len(struct rcu_hash_table *htable);
-
-size_t rcu_hash_list_updating_data(struct rcu_hash_table *htable, void ***data_array);
 
 #ifdef __cplusplus
 }

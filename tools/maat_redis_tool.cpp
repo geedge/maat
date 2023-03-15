@@ -231,7 +231,8 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 
 	maat_cmd_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, rule_id, table_name, buff,  absolute_expire_time);
 	line_idx++;
-	FREE(str1);
+    
+	FREE(buff);
 
 	return 0;
 }
@@ -308,7 +309,8 @@ int main(int argc, char * argv[])
 		}
 
 		ret = json2iris(json_buff, json_file, c, tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL, logger);
-		if (ret < 0) {
+		FREE(json_buff);
+        if (ret < 0) {
 			printf("Invalid json format.\n");
 		}
 

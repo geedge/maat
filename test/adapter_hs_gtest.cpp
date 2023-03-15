@@ -79,7 +79,7 @@ static size_t hex2bin(char *hex, int hex_len, char *binary, size_t size)
 	return resultlen;
 }
 
-int parse_config_file(const char *filename, and_expr_t exprs[], size_t *n_expr)
+int parse_config_file(const char *filename, struct hs_expr exprs[], size_t *n_expr)
 {
     unsigned char *json_buff = NULL;
     size_t json_buff_size = 0;
@@ -155,6 +155,7 @@ int parse_config_file(const char *filename, and_expr_t exprs[], size_t *n_expr)
                                           pat_str, pat_str_len);
                     
                     memcpy(exprs[i].patterns[j].pat, pat_str, pat_str_len);
+                    free(pat_str);
                     exprs[i].patterns[j].pat_len = pat_str_len;
                 } else {
                     memcpy(exprs[i].patterns[j].pat, item->valuestring, 
@@ -187,10 +188,11 @@ int parse_config_file(const char *filename, and_expr_t exprs[], size_t *n_expr)
     *n_expr = rule_cnt;
 next:
     cJSON_Delete(root);
+    FREE(json_buff);
     return ret;
 }
 
-void expr_array_free(and_expr_t expr_array[], size_t n_expr_array)
+void expr_array_free(struct hs_expr expr_array[], size_t n_expr_array)
 {
     for (size_t i = 0; i < n_expr_array; i++) {
         for (size_t j = 0; j < expr_array[i].n_patterns; j++) {
@@ -205,7 +207,7 @@ void expr_array_free(and_expr_t expr_array[], size_t n_expr_array)
 TEST(block_mode_initialize, invalid_input_parameter)
 {
     struct adapter_hs *hs_instance = NULL;
-    and_expr_t exprs[64];
+    struct hs_expr exprs[64];
 
     /* case1: invalid scan_mode parameter */
     hs_instance = adapter_hs_initialize(HS_SCAN_MODE_MAX, HS_PATTERN_TYPE_REG, 
@@ -225,7 +227,7 @@ TEST(block_mode_initialize, invalid_input_parameter)
 
 TEST(block_mode_scan, invalid_input_parameter)
 {
-    and_expr_t expr_array[64];
+    struct hs_expr expr_array[64];
     size_t n_expr_array = 0;
 
     struct adapter_hs *hs_instance = adapter_hs_initialize(HS_SCAN_MODE_BLOCK, HS_PATTERN_TYPE_REG, 
@@ -254,7 +256,7 @@ TEST(block_mode_scan, invalid_input_parameter)
 
 TEST(block_mode_scan, literal_sub_has_normal_offset)
 {
-    and_expr_t expr_array[64] = {0};
+    struct hs_expr expr_array[64] = {0};
     size_t n_expr_array = 0;
 
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
@@ -295,7 +297,7 @@ TEST(block_mode_scan, literal_sub_has_normal_offset)
 
 TEST(block_mode_scan, literal_sub_has_left_unlimit_offset)
 {
-    and_expr_t expr_array[64] = {0};
+    struct hs_expr expr_array[64] = {0};
     size_t n_expr_array = 0;
 
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
@@ -336,7 +338,7 @@ TEST(block_mode_scan, literal_sub_has_left_unlimit_offset)
 
 TEST(block_mode_scan, literal_sub_has_right_unlimit_offset)
 {
-    and_expr_t expr_array[64] = {0};
+    struct hs_expr expr_array[64] = {0};
     size_t n_expr_array = 0;
 
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
@@ -392,7 +394,7 @@ TEST(block_mode_scan, literal_sub_has_right_unlimit_offset)
 
 TEST(block_mode_scan, literal_sub_with_no_offset)
 {
-    and_expr_t expr_array[64] = {0};
+    struct hs_expr expr_array[64] = {0};
     size_t n_expr_array = 0;
     
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
@@ -440,7 +442,7 @@ TEST(block_mode_scan, literal_sub_with_no_offset)
 
 TEST(block_mode_scan, literal_exactly)
 {
-    and_expr_t expr_array[64] = {0};
+    struct hs_expr expr_array[64] = {0};
     size_t n_expr_array = 0;
     
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
@@ -482,7 +484,7 @@ TEST(block_mode_scan, literal_exactly)
 
 TEST(block_mode_scan, literal_prefix)
 {
-    and_expr_t expr_array[64] = {0};
+    struct hs_expr expr_array[64] = {0};
     size_t n_expr_array = 0;
     
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
@@ -533,7 +535,7 @@ TEST(block_mode_scan, literal_prefix)
 
 TEST(block_mode_scan, literal_suffix)
 {
-    and_expr_t expr_array[64] = {0};
+    struct hs_expr expr_array[64] = {0};
     size_t n_expr_array = 0;
     
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
@@ -584,7 +586,7 @@ TEST(block_mode_scan, literal_suffix)
 
 TEST(block_mode_scan, literal_sub_with_hexbin)
 {
-    and_expr_t expr_array[64] = {0};
+    struct hs_expr expr_array[64] = {0};
     size_t n_expr_array = 0;
     
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
@@ -617,7 +619,7 @@ TEST(block_mode_scan, literal_sub_with_hexbin)
 
 TEST(block_mode_scan, literal_with_chinese)
 {
-    and_expr_t expr_array[64] = {0};
+    struct hs_expr expr_array[64] = {0};
     size_t n_expr_array = 0;
     
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);

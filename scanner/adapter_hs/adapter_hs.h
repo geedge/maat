@@ -58,7 +58,7 @@ struct hs_scan_result {
     void *user_tag;
 };
 
-typedef struct {
+struct hs_pattern {
     enum hs_case_sensitive case_sensitive;
     enum hs_match_mode match_mode;
     int is_hexbin; /* 1(yes) 0(no) */
@@ -76,15 +76,15 @@ typedef struct {
     char *pat;
     /* pattern length */
     size_t pat_len;
-} scan_pattern_t;
+};
 
 /* logic AND expression, such as (pattern1 & pattern2) */
-typedef struct {
-    uint32_t expr_id;
+struct hs_expr {
+    long long expr_id;
     size_t n_patterns;
-    scan_pattern_t patterns[MAX_EXPR_PATTERN_NUM];
+    struct hs_pattern patterns[MAX_EXPR_PATTERN_NUM];
     void *user_tag;
-} and_expr_t;
+};
 
 /**
  * @brief initialize adapter_hs instance
@@ -99,7 +99,7 @@ typedef struct {
 struct adapter_hs *adapter_hs_initialize(enum hs_scan_mode scan_mode, 
                                          enum hs_pattern_type pattern_type,
                                          size_t n_worker_thread,
-                                         and_expr_t *exprs, size_t n_expr,
+                                         struct hs_expr *exprs, size_t n_expr,
                                          struct log_handle *logger);
 
 /**

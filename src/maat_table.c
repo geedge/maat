@@ -372,7 +372,7 @@ struct maat_table *maat_table_new(cJSON *json, struct maat_kv_store *reserved_wo
         goto error;
     }
 
-    ret = maat_kv_read(reserved_word_map, item->valuestring, (int*)&(ptable->table_type));
+    ret = maat_kv_read(reserved_word_map, item->valuestring, (long long *)&(ptable->table_type));
     if (ret < 0) {
         log_error(logger, MODULE_TABLE, 
                   "[%s:%d] table:%s table_type %s is illegal", 
@@ -462,21 +462,16 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
         log_error(logger, MODULE_TABLE, 
                   "[%s:%d] invalid json content in %s", 
                   __FUNCTION__, __LINE__, table_info_path);
-        free(json_buff);
+        FREE(json_buff);
+        cJSON_Delete(root);
         return NULL;
     }
     
-    struct maat_kv_store *reserved_word_map = maat_kv_store_new();
-    register_reserved_word(reserved_word_map);
-
     struct table_manager *tbl_mgr = ALLOC(struct table_manager, 1);
     tbl_mgr->n_accept_tag = parse_accept_tag(accept_tags, &tbl_mgr->accept_tags, logger);
     tbl_mgr->logger = logger;
     tbl_mgr->tablename2id_map = maat_kv_store_new();
     tbl_mgr->ref_garbage_bin = garbage_bin;
-
-    int default_compile_table_id = MAX_TABLE_NUM;
-    int g2g_table_id = MAX_TABLE_NUM;
 
     for (int i = 0; i < json_array_size; i++) {
         json = cJSON_GetArrayItem(root, i);
@@ -485,12 +480,24 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
             ret = register_tablename2id(json, tbl_mgr->tablename2id_map, logger);
             if (ret < 0) {
                 log_error(logger, MODULE_TABLE, 
-                          "[%s:%d] register_tablename2id failed", 
-                          __FUNCTION__, __LINE__);
+                          "[%s:%d] register_tablename2id failed", __FUNCTION__, __LINE__);
+                FREE(json_buff);
+                cJSON_Delete(root);
+                maat_kv_store_free(tbl_mgr->tablename2id_map);
+                for (int idx = 0; idx < tbl_mgr->n_accept_tag; idx++) {
+                    FREE(tbl_mgr->accept_tags[idx].tag_name);
+                    FREE(tbl_mgr->accept_tags[idx].tag_val);
+                }
+                FREE(tbl_mgr);
                 return NULL;
             }
         }
     }
+
+    int default_compile_table_id = MAX_TABLE_NUM;
+    int g2g_table_id = MAX_TABLE_NUM;
+    struct maat_kv_store *reserved_word_map = maat_kv_store_new();
+    register_reserved_word(reserved_word_map);
 
     for (int i = 0; i < json_array_size; i++) {
         json = cJSON_GetArrayItem(root, i);
@@ -534,9 +541,9 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
     log_info(logger, MODULE_TABLE, "default compile table id: %d", default_compile_table_id);
     log_info(logger, MODULE_TABLE, "group2group table id: %d", g2g_table_id);
 
+    FREE(json_buff);
     maat_kv_store_free(reserved_word_map);
     cJSON_Delete(root);
-    FREE(json_buff);
 
     return tbl_mgr;
 }
@@ -645,6 +652,9 @@ void table_manager_destroy(struct table_manager *tbl_mgr)
         enum table_type table_type = table_manager_get_table_type(tbl_mgr, i);
 		maat_table_schema_free(schema, table_type);
         tbl_mgr->tbl[i]->schema = NULL;
+
+        maat_table_free(tbl_mgr->tbl[i]);
+        tbl_mgr->tbl[i] = NULL;
 	}
 
     for (size_t i = 0; i < tbl_mgr->n_accept_tag; i++) {
@@ -668,7 +678,7 @@ int table_manager_get_table_id(struct table_manager *tbl_mgr, const char *name)
         return -1;
     }
 
-    int table_id = -1;
+    long long table_id = -1;
     int ret = maat_kv_read(tbl_mgr->tablename2id_map, name, &table_id);
 	if (ret < 0) {
         log_error(tbl_mgr->logger, MODULE_TABLE, 
@@ -677,7 +687,7 @@ int table_manager_get_table_id(struct table_manager *tbl_mgr, const char *name)
 		return -1;		
 	}
 
-    return table_id;
+    return (int)table_id;
 }
 
 enum table_type table_manager_get_table_type(struct table_manager *tbl_mgr, int table_id)
@@ -746,14 +756,14 @@ int table_manager_accept_tags_match(struct table_manager *tbl_mgr, const char *t
 }
 
 int table_manager_set_scan_district(struct table_manager *tbl_mgr, const char *district, 
-                                    size_t district_len, int *district_id)
+                                    size_t district_len, long long *district_id)
 {
     return maat_kv_read_unNull(tbl_mgr->district_map, district, district_len, district_id);
 }
 
-int table_manager_get_district_id(struct table_manager *tbl_mgr, const char *district)
+long long table_manager_get_district_id(struct table_manager *tbl_mgr, const char *district)
 {
-    int district_id = DISTRICT_ANY;
+    long long district_id = DISTRICT_ANY;
 
 	int map_ret = maat_kv_read(tbl_mgr->district_map, district, &district_id);
 	if (map_ret < 0) {

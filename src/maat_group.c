@@ -149,8 +149,8 @@ void *group2group_runtime_new(void *g2g_schema, int max_thread_num,
 
 void group_vertex_free(struct maat_group *group)
 {
-	free(group->top_group_ids);
-	free(group);
+	FREE(group->top_group_ids);
+	FREE(group);
 }
 
 void maat_group_topology_free(struct maat_group_topology *group_topo)
@@ -165,6 +165,7 @@ void maat_group_topology_free(struct maat_group_topology *group_topo)
 	assert(group_topo->hash_group_by_id == NULL);	
 	
 	igraph_destroy(&group_topo->group_graph);
+    FREE(group_topo);
 }
 
 void group2group_runtime_free(void *g2g_runtime)
@@ -175,12 +176,14 @@ void group2group_runtime_free(void *g2g_runtime)
 
     struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
 
+    pthread_rwlock_wrlock(&g2g_rt->rwlock);
     if (g2g_rt->group_topo != NULL) {
         maat_group_topology_free(g2g_rt->group_topo);
+        g2g_rt->group_topo = NULL;
     }
-    
-    //pthread_rwlock_unlock(&g2g_rt->rwlock);
+    pthread_rwlock_unlock(&g2g_rt->rwlock);
 	pthread_rwlock_destroy(&g2g_rt->rwlock);
+    
     FREE(g2g_rt);
 }
 

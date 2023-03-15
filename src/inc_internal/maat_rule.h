@@ -37,14 +37,14 @@ extern "C"
 #define MAX_COMPILE_TABLE_NUM 16
 #define MAX_PHYSICAL_TABLE_NUM  16
 
-#define MAAT_UPDATE_TYPE_NONE 0
-#define	MAAT_UPDATE_TYPE_FULL 1
-#define	MAAT_UPDATE_TYPE_INC 2
+#define	DISTRICT_ANY	   -1
+#define	DISTRICT_UNKNOWN   -2
 
-#define	DISTRICT_ANY		-1
-#define	DISTRICT_UNKNOWN	-2
+#define MAX_DISTRICT_STR   128
+#define INVALID_VERSION    -1
 
-#define MAX_DISTRICT_STR     128
+#define mr_region_id_var "SEQUENCE_REGION"
+#define mr_group_id_var	 "SEQUENCE_GROUP"
 
 enum last_scan_flag {
     LAST_SCAN_UNSET,
@@ -63,7 +63,7 @@ struct maat_item_inner {
 	long long magic_num;
 	long long item_id;
 	long long group_id;
-	int district_id;
+	long long district_id;
 	int expr_id_cnt;
 	int expr_id_lb;	//low boundary
 	int expr_id_ub;	//up boundary
@@ -72,8 +72,9 @@ struct maat_item_inner {
 struct maat_item {
 	long long item_id;
 	long long group_id;
-	UT_hash_handle hh;
+	
 	void *user_data;
+    void (*user_data_free)(void *data);
 };
 
 #define	COMPILE_RULE_MAGIC	0x1a2b3c4d
@@ -105,6 +106,7 @@ struct maat_runtime {
     size_t max_table_num;
     
     uint32_t rule_num;
+    struct maat_kv_store *sequence_map;
 
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -216,6 +218,9 @@ struct maat {
     long long load_specific_version;  //Default: Load the Latest. Only valid in redis mode, and maybe failed for too old
     char foreign_cont_dir[NAME_MAX];
 
+    /* internal state */
+    long long new_version;
+
     /* statistics */
     long long line_cmd_acc_num;
 
@@ -235,7 +240,7 @@ struct maat_state {
     char compile_tables[MAX_COMPILE_TABLE_NUM][NAME_MAX]; //caller can select compile table to scan
 	unsigned char is_set_district;
 	unsigned char is_last_scan;
-	int district_id; //-1: Any District; -2: Unkonwn District;
+	long long district_id; //-1: Any District; -2: Unkonwn District;
 	int scan_cnt;
 	struct maat_compile_state *compile_state;
 };
@@ -246,11 +251,11 @@ size_t parse_accept_tag(const char *value, struct rule_tag **result, struct log_
 
 int compare_accept_tag(const char *value, const struct rule_tag *accept_tags, size_t n_accept_tag);
 
-struct maat_item *maat_item_new(long long item_id, long long group_id, void *user_data);
+struct maat_item *maat_item_new(long long item_id, long long group_id, void *user_data, void (*user_data_free)(void *));
 
-void maat_item_free(struct maat_item *item, void (* item_user_data_free)(void *));
+void maat_item_free(void *user_ctx, void *maat_item);
 
-struct maat_item_inner *maat_item_inner_new(long long group_id, long long item_id, int district_id);
+struct maat_item_inner *maat_item_inner_new(long long group_id, long long item_id, long long district_id);
 
 void maat_item_inner_free(void *item_inner);
 
@@ -261,6 +266,8 @@ int maat_update_cb(const char *table_name, const char *line, void *u_para);
 void maat_finish_cb(void *u_para);
 
 void *rule_monitor_loop(void *arg);
+
+long long maat_runtime_get_sequence(struct maat_runtime *maat_rt, const char *key);
 
 void maat_read_full_config(struct maat *maat_instance);
 

@@ -17,6 +17,7 @@ extern "C"
 #endif
 
 #include "cJSON/cJSON.h"
+#include "rcu_hash.h"
 #include "maat.h"
 #include "maat_kv.h"
 #include "maat_rule.h"
@@ -48,6 +49,8 @@ void *compile_runtime_new(void *compile_schema, int max_thread_num,
                           struct maat_garbage_bin *garbage_bin,
                           struct log_handle *logger);
 void compile_runtime_free(void *compile_runtime);
+
+void compile_runtime_init(void *compile_runtime, struct maat_runtime *maat_rt);
 
 int compile_runtime_update(void *compile_runtime, void *compile_schema,
                            const char *line, int valid_column);
@@ -82,7 +85,7 @@ struct maat_compile_state;
 struct maat_compile_state *maat_compile_state_new(int thread_id);
 void maat_compile_state_free(struct maat_compile_state *compile_state);
 
-int maat_compile_state_update(struct maat_item *item_hash, int vtable_id,
+int maat_compile_state_update(struct rcu_hash_table *item_htable, int vtable_id,
                               long long *hit_item_ids, size_t hit_item_cnt,
                               size_t *n_hit_group_id, struct maat_state *state);
 

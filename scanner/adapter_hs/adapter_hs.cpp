@@ -62,6 +62,7 @@ struct adapter_hs {
     size_t n_expr;
     size_t n_patterns;
     struct adapter_hs_runtime *hs_rt;
+    struct hs_tag *tag_map;
 };
 
 struct adapter_hs_stream {
@@ -97,9 +98,13 @@ struct pattern_attribute {
 };
 
 struct hs_tag {
+    char *key;
+    size_t key_len;
+
     size_t n_pat_attr;
     struct pattern_attribute *pat_attr;
     void *user_tag;
+    UT_hash_handle hh;
 };
 
 static int adpt_hs_alloc_scratch(struct adapter_hs_runtime *hs_rt, size_t n_worker_thread,
@@ -222,10 +227,40 @@ void adpt_hs_compile_data_free(struct adpt_hs_compile_data *hs_cd, size_t n_patt
     FREE(hs_cd);
 }
 
+struct hs_tag *hs_tag_new(long long expr_id, size_t n_pattern)
+{
+    struct hs_tag *tag = ALLOC(struct hs_tag, 1);
+
+    tag->key = ALLOC(char, sizeof(long long));
+    memcpy(tag->key, (char *)&expr_id, sizeof(long long));
+    tag->key_len = sizeof(long long);
+    tag->pat_attr = ALLOC(struct pattern_attribute, n_pattern);
+    tag->n_pat_attr = n_pattern;
+
+    return tag;
+}
+
+void hs_tag_free(struct hs_tag *tag)
+{
+    if (NULL == tag) {
+        return;
+    }
+
+    if (tag->key != NULL) {
+        FREE(tag->key);
+    }
+
+    if (tag->pat_attr != NULL) {
+        FREE(tag->pat_attr);
+    }
+
+    FREE(tag);
+}
+
 struct adapter_hs *adapter_hs_initialize(enum hs_scan_mode scan_mode, 
                                          enum hs_pattern_type pattern_type,
                                          size_t n_worker_thread,
-                                         and_expr_t *exprs, size_t n_expr,
+                                         struct hs_expr *exprs, size_t n_expr,
                                          struct log_handle *logger)
 {
     if ((scan_mode != HS_SCAN_MODE_BLOCK && scan_mode != HS_SCAN_MODE_STREAM) || 
@@ -268,13 +303,13 @@ struct adapter_hs *adapter_hs_initialize(enum hs_scan_mode scan_mode,
     compile_data = adpt_hs_compile_data_new(pattern_num);
     
     uint32_t pattern_index = 0;
-    struct bool_expr *bool_exprs = ALLOC(struct bool_expr, n_expr);
+    struct adapter_hs *hs_instance = ALLOC(struct adapter_hs, 1);
+    hs_instance->tag_map = NULL;
 
+    struct bool_expr *bool_exprs = ALLOC(struct bool_expr, n_expr);
     /* populate adpt_hs_compile_data and bool_expr */
     for (size_t i = 0; i < n_expr; i++) {
-        struct hs_tag *hs_tag = ALLOC(struct hs_tag, 1);
-        hs_tag->pat_attr = ALLOC(struct pattern_attribute, exprs[i].n_patterns);
-        hs_tag->n_pat_attr = exprs[i].n_patterns;
+        struct hs_tag *hs_tag = hs_tag_new(exprs[i].expr_id, exprs[i].n_patterns);
         hs_tag->user_tag = exprs[i].user_tag;
 
         for (size_t j = 0; j < exprs[i].n_patterns; j++) {
@@ -306,13 +341,13 @@ struct adapter_hs *adapter_hs_initialize(enum hs_scan_mode scan_mode,
         bool_exprs[i].expr_id = exprs[i].expr_id;
         bool_exprs[i].item_num = exprs[i].n_patterns;
         bool_exprs[i].user_tag = hs_tag;
+        HASH_ADD_KEYPTR(hh, hs_instance->tag_map, hs_tag->key, hs_tag->key_len, hs_tag);
     }
     compile_data->n_patterns = pattern_index;
 
     int ret = -1;
     size_t mem_size = 0;
-    struct adapter_hs *hs_instance = ALLOC(struct adapter_hs, 1);
-
+    
     hs_instance->n_worker_thread = n_worker_thread;
     hs_instance->n_patterns = pattern_index;
     hs_instance->n_expr = n_expr;
@@ -325,6 +360,7 @@ struct adapter_hs *adapter_hs_initialize(enum hs_scan_mode scan_mode,
     //         printf("item[%zu] item_id: %llu\n", j, exprs[i].items[j].item_id);
     //     }
     // }
+    
     /* create bool matcher */
     hs_instance->hs_rt->bm = bool_matcher_new(bool_exprs, n_expr, &mem_size);
     if (hs_instance->hs_rt->bm != NULL) {
@@ -334,7 +370,10 @@ struct adapter_hs *adapter_hs_initialize(enum hs_scan_mode scan_mode,
     } else {
         log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] Adapter_hs module: build bool matcher failed",
                   __FUNCTION__, __LINE__);
-        goto error;
+        adpt_hs_compile_data_free(compile_data, pattern_index);
+        FREE(bool_exprs);
+        adapter_hs_destroy(hs_instance);
+        return NULL;
     }
     FREE(bool_exprs);
 
@@ -344,17 +383,15 @@ struct adapter_hs *adapter_hs_initialize(enum hs_scan_mode scan_mode,
         goto error;
     }
 
-    if (compile_data != NULL) {
-        adpt_hs_compile_data_free(compile_data, pattern_index);
-    }
-
     ret = adpt_hs_alloc_scratch(hs_instance->hs_rt, n_worker_thread, pattern_type, logger);
     if (ret < 0) {
         goto error;
     }
 
+    adpt_hs_compile_data_free(compile_data, pattern_index);
     return hs_instance;
 error:
+    adpt_hs_compile_data_free(compile_data, pattern_index);
     adapter_hs_destroy(hs_instance);
 
     return NULL;
@@ -389,6 +426,14 @@ void adapter_hs_destroy(struct adapter_hs *hs_instance)
         }
 
         FREE(hs_instance->hs_rt);
+    }
+
+    if (hs_instance->tag_map != NULL) {
+        struct hs_tag *tag = NULL, *tmp_tag = NULL;
+        HASH_ITER(hh, hs_instance->tag_map, tag, tmp_tag) {
+            HASH_DEL(hs_instance->tag_map, tag);
+            hs_tag_free(tag);
+        }
     }
 
     FREE(hs_instance);
@@ -662,7 +707,7 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
 
     bool_matcher_results = ALLOC(struct bool_expr_match, hs_stream->n_expr);
     int bool_matcher_ret = bool_matcher_match(hs_stream->hs_rt->bm, items, pattern_set_size,
-                                                 bool_matcher_results, hs_stream->n_expr);
+                                              bool_matcher_results, hs_stream->n_expr);
     if (bool_matcher_ret < 0) {
         ret = -1;
         goto next;

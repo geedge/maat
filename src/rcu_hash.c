@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/queue.h>
+#include <stdio.h>
 
 #include "rcu_hash.h"
 #include "maat_utils.h"
@@ -52,7 +53,7 @@ struct rcu_hash_node {
     UT_hash_handle hh_b;   
 };
 
-void rcu_hash_garbage_queue_free(struct rcu_hash_garbage_q* garbage_q)
+void rcu_hash_garbage_queue_free(struct rcu_hash_garbage_q *garbage_q)
 {
 	struct rcu_hash_garbage_bag *p = NULL;
 
@@ -83,7 +84,7 @@ void rcu_hash_node_free(struct rcu_hash_node *node)
     if (NULL == node) {
         return;
     }
-
+    
     if (node->key != NULL) {
         FREE(node->key);
     }
@@ -179,28 +180,29 @@ void rcu_hash_add(struct rcu_hash_table *htable, const char *key,
         return;
     }
 
-    struct rcu_hash_node *tmp = NULL;
-    struct rcu_hash_node *node = ALLOC(struct rcu_hash_node, 1);
-    
-    node->key = (char *)malloc(sizeof(char) * key_len);
-    memcpy(node->key, key, key_len);
-    node->key_len = key_len;
-    node->data = data;
-    node->htable = htable;
-
     if (!htable->is_updating) {
         rcu_hash_commit_prepare(htable);
     }
 
+    struct rcu_hash_node *tmp = NULL;
     if (htable->effective_hash == 'a') {
         HASH_FIND(hh_b, htable->hashmap_b, key, key_len, tmp);
-        if (NULL == tmp) {
-            HASH_ADD_KEYPTR(hh_b, htable->hashmap_b, key, key_len, node);
-        }
     } else {
         HASH_FIND(hh_a, htable->hashmap_a, key, key_len, tmp);
-        if (NULL == tmp) {
-            HASH_ADD_KEYPTR(hh_a, htable->hashmap_a, key, key_len, node);
+    }
+
+    if (NULL == tmp) {
+        struct rcu_hash_node *node = ALLOC(struct rcu_hash_node, 1);
+        node->key = ALLOC(char, key_len);
+        memcpy(node->key, key, key_len);
+        node->key_len = key_len;
+        node->data = data;
+        node->htable = htable;
+
+        if (htable->effective_hash == 'a') {
+            HASH_ADD_KEYPTR(hh_b, htable->hashmap_b, node->key, node->key_len, node);
+        } else {
+            HASH_ADD_KEYPTR(hh_a, htable->hashmap_a, node->key, node->key_len, node);
         }
     }
 }
@@ -257,6 +259,28 @@ void *rcu_hash_find(struct rcu_hash_table *htable, const char *key, size_t key_l
     return NULL;
 }
 
+void *rcu_hash_updating_find(struct rcu_hash_table *htable, const char *key, size_t key_len)
+{
+     if (NULL == htable || NULL == key || 0 == key_len) {
+        return NULL;
+    }
+
+    struct rcu_hash_node *node = NULL;
+    if (htable->effective_hash == 'a') {
+        HASH_FIND(hh_b, htable->hashmap_b, key, key_len, node);
+        if (node != NULL) {
+            return node->data;
+        }
+    } else {
+        HASH_FIND(hh_a, htable->hashmap_a, key, key_len, node);
+        if (node != NULL) {
+            return node->data;
+        }
+    }
+    
+    return NULL;
+}
+
 size_t rcu_hash_count(struct rcu_hash_table *htable)
 {
     if (NULL == htable) {
@@ -266,30 +290,22 @@ size_t rcu_hash_count(struct rcu_hash_table *htable)
     if (htable->effective_hash == 'a') {
         return HASH_CNT(hh_a, htable->hashmap_a);
     } else {
-         return HASH_CNT(hh_b, htable->hashmap_b);
+        return HASH_CNT(hh_b, htable->hashmap_b);
     }
 }
 
-size_t rcu_hash_updating_count(struct rcu_hash_table *htable)
+int rcu_hash_is_updating(struct rcu_hash_table *htable)
 {
     if (NULL == htable) {
         return 0;
     }
 
-    if (htable->effective_hash == 'a') {
-        return HASH_CNT(hh_b, htable->hashmap_b);
-    } else {
-        return HASH_CNT(hh_a, htable->hashmap_a);
-    }
+    return htable->is_updating;
 }
 
 void rcu_hash_commit(struct rcu_hash_table *htable)
 {
     if (NULL == htable) {
-        return;
-    }
-
-    if (!htable->is_updating) {
         return;
     }
 
@@ -324,23 +340,23 @@ void rcu_hash_commit(struct rcu_hash_table *htable)
     pthread_mutex_unlock(&htable->update_mutex);
 }
 
-size_t rcu_hash_list_updating_data(struct rcu_hash_table *htable, void ***data_array)
+size_t rcu_hash_list(struct rcu_hash_table *htable, void ***data_array)
 {
     size_t i = 0;
     size_t node_cnt = 0;
 	struct rcu_hash_node *node = NULL, *tmp = NULL;
 	
     if (htable->effective_hash == 'a') {
-        node_cnt = HASH_CNT(hh_b, htable->hashmap_b);
+        node_cnt = HASH_CNT(hh_a, htable->hashmap_a);
         *data_array = ALLOC(void *, node_cnt);
-        HASH_ITER(hh_b, htable->hashmap_b, node, tmp) {
+        HASH_ITER(hh_a, htable->hashmap_a, node, tmp) {
             (*data_array)[i] = node->data;
             i++;
         }
     } else {
-        node_cnt = HASH_CNT(hh_a, htable->hashmap_a);
+        node_cnt = HASH_CNT(hh_b, htable->hashmap_b);
         *data_array = ALLOC(void *, node_cnt);
-        HASH_ITER(hh_a, htable->hashmap_a, node, tmp) {
+        HASH_ITER(hh_b, htable->hashmap_b, node, tmp) {
             (*data_array)[i] = node->data;
             i++;
         }

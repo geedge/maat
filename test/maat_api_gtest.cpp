@@ -1,10 +1,7 @@
 #include "maat.h"
-
+#include "maat_rule.h"
 #include <gtest/gtest.h>
 
-TEST(EQ_Test, Always_True) {
-  EXPECT_EQ(1, 1);
-}
 
 int main(int argc, char ** argv)
 {

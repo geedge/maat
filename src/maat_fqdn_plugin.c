@@ -112,7 +112,7 @@ void fqdn_plugin_schema_free(void *fqdn_plugin_schema)
         schema->ex_schema = NULL;
     }
 
-    FREE(schema);
+    free(schema);
 }
 
 /* fqdn plugin table ex data API */
@@ -162,8 +162,8 @@ void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, int max_thread_num,
     struct fqdn_plugin_schema *schema = (struct fqdn_plugin_schema *)fqdn_plugin_schema;
     struct fqdn_plugin_runtime *fqdn_plugin_rt = ALLOC(struct fqdn_plugin_runtime, 1);
 
-    fqdn_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, ex_data_container_free, 
-                                                     logger);
+    fqdn_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, ex_container_free, 
+                                                     garbage_bin, logger);
     fqdn_plugin_rt->ref_garbage_bin = garbage_bin;
     fqdn_plugin_rt->logger = logger;
 
@@ -319,7 +319,7 @@ int fqdn_plugin_runtime_update_row(struct fqdn_plugin_runtime *fqdn_plugin_rt,
     } else {
         // add
         void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, row, key, key_len);
-        struct ex_data_container *ex_container = ex_data_container_new(ex_data, (void *)fqdn_plugin_rule);
+        struct ex_container *ex_container = ex_container_new(ex_data, (void *)fqdn_plugin_rule);
         ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
         if (ret < 0) {
             return -1;
@@ -389,31 +389,38 @@ int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name
         return -1;
     }
 
-    int ret = 0;
-    struct ex_data_container **ex_container = NULL;
     struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
     struct ex_data_runtime *ex_data_rt = fqdn_plugin_rt->ex_data_rt;
+    if (NULL == ex_data_rt) {
+        return -1;
+    }
 
-    size_t rule_cnt = ex_data_runtime_list_updating_ex_container(ex_data_rt, &ex_container);
-    if (0 == rule_cnt) {
-        FREE(ex_container);
+    int updating_flag = ex_data_runtime_is_updating(ex_data_rt);
+    if (0 == updating_flag) {
         return 0;
     }
 
-    struct FQDN_rule *rules = ALLOC(struct FQDN_rule, rule_cnt);
+    ex_data_runtime_commit(ex_data_rt);
 
-    for (size_t i = 0; i < rule_cnt; i++) {
-         rules[i] = *(struct FQDN_rule *)ex_container[i]->custom_data;
-        assert(rules[i].user_tag == ex_container[i] || rules[i].user_tag == NULL);
-        rules[i].user_tag = ex_container[i];
+    struct FQDN_rule *rules = NULL;
+    struct ex_container **ex_container = NULL;
+    size_t rule_cnt = ex_data_runtime_list_ex_container(ex_data_rt, &ex_container);
+    if (rule_cnt > 0) {
+        rules = ALLOC(struct FQDN_rule, rule_cnt);
+        for (size_t i = 0; i < rule_cnt; i++) {
+            rules[i] = *(struct FQDN_rule *)ex_container[i]->custom_data;
+            assert(rules[i].user_tag == ex_container[i] || rules[i].user_tag == NULL);
+            rules[i].user_tag = ex_container[i];
+        }
     }
-
-    struct FQDN_engine *new_fqdn_engine = NULL;
-    struct FQDN_engine *old_fqdn_engine = NULL;
 
     log_info(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
              "table[%s] committing %zu fqdn_plugin rules for rebuilding FQDN engine", 
              table_name, rule_cnt);
+
+    int ret = 0;
+    struct FQDN_engine *new_fqdn_engine = NULL;
+    struct FQDN_engine *old_fqdn_engine = NULL;
 
     new_fqdn_engine = FQDN_engine_new(rules, rule_cnt);
     if (NULL == new_fqdn_engine) {
@@ -425,12 +432,20 @@ int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name
 
     old_fqdn_engine = fqdn_plugin_rt->engine;
     fqdn_plugin_rt->engine = new_fqdn_engine;
-    maat_garbage_bagging(fqdn_plugin_rt->ref_garbage_bin, old_fqdn_engine, 
-                        (void (*)(void*))FQDN_engine_free);
-    ex_data_runtime_commit(ex_data_rt);
+    if (old_fqdn_engine != NULL) {
+        maat_garbage_bagging(fqdn_plugin_rt->ref_garbage_bin, old_fqdn_engine, 
+                             (void (*)(void*))FQDN_engine_free);
+    }
+    
+    fqdn_plugin_rt->rule_num = rule_cnt;
 
-    FREE(rules);
-    FREE(ex_container);
+    if (rules != NULL) {
+        FREE(rules);
+    }
+    
+    if (ex_container != NULL) {
+        FREE(ex_container);
+    }
 
     return ret;
 }
@@ -466,7 +481,7 @@ int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, const char *query
 	int n_result = FQDN_engine_search(fqdn_plugin_rt->engine, query_fqdn, strlen(query_fqdn), results, n_ex_data);
 	for (int i = 0; i < n_result; i++) {
 		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(fqdn_plugin_rt->ex_data_rt, 
-                                                                    (struct ex_data_container *)results[i].user_tag);
+                                                                    (struct ex_container *)results[i].user_tag);
 	}
 
 	return n_result;

@@ -60,7 +60,7 @@ enum match_method {
 struct expr_item {
     long long item_id;
     long long group_id;
-    int district_id;
+    long long district_id;
     char keywords[MAX_KEYWORDS_STR];
     enum expr_type expr_type;
     enum hs_match_mode match_mode;
@@ -73,14 +73,11 @@ struct expr_runtime {
     enum hs_pattern_type pattern_type;
     struct adapter_hs *hs;
     struct adapter_hs_stream *hs_stream;
-    struct rcu_hash_table *htable;
+    struct rcu_hash_table *htable;      // store hs_expr rule for rebuild adapter_hs instance
+    struct rcu_hash_table *item_htable; // store this expr table's all maat_item which will be used in expr_runtime_scan
     struct group2group_runtime *ref_g2g_rt;
 
     uint32_t rule_num;
-
-    struct maat_item *item_hash;
-    void (*item_user_data_free)(void *);
-
     int n_worker_thread;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -401,7 +398,7 @@ void expr_schema_free(void *expr_schema)
     FREE(expr_schema);
 }
 
-void expr_rule_free(and_expr_t *expr_rule)
+void expr_rule_free(struct hs_expr *expr_rule)
 {
     if (NULL == expr_rule) {
         return;
@@ -416,7 +413,7 @@ void expr_rule_free(and_expr_t *expr_rule)
 
 void expr_ex_data_free(void *user_ctx, void *data)
 {
-    and_expr_t *expr_rule = (and_expr_t *)data;
+    struct hs_expr *expr_rule = (struct hs_expr *)data;
     expr_rule_free(expr_rule);
 }
 
@@ -432,9 +429,9 @@ void *expr_runtime_new(void *expr_schema, int max_thread_num,
     struct expr_runtime *expr_rt = ALLOC(struct expr_runtime, 1);
 
     expr_rt->htable = rcu_hash_new(expr_ex_data_free);
+    expr_rt->item_htable = rcu_hash_new(maat_item_free);
     expr_rt->scan_mode = schema->scan_mode;
     expr_rt->pattern_type = schema->pattern_type;
-    expr_rt->item_user_data_free = maat_item_inner_free;
     expr_rt->n_worker_thread = max_thread_num;
     expr_rt->ref_garbage_bin = garbage_bin;
     expr_rt->logger = logger;
@@ -467,10 +464,9 @@ void expr_runtime_free(void *expr_runtime)
         expr_rt->htable = NULL;
     }
 
-    struct maat_item *item = NULL, *tmp = NULL;
-    HASH_ITER(hh, expr_rt->item_hash, item, tmp) {
-        HASH_DELETE(hh, expr_rt->item_hash, item);
-        maat_item_free(item, expr_rt->item_user_data_free);
+    if (expr_rt->item_htable != NULL) {
+        rcu_hash_free(expr_rt->item_htable);
+        expr_rt->item_htable = NULL;
     }
 
     if (expr_rt->hit_cnt != NULL) {
@@ -486,9 +482,8 @@ void expr_runtime_free(void *expr_runtime)
     FREE(expr_rt);
 }
 
-int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key, 
-                            size_t key_len, long long item_id, and_expr_t *expr_rule, 
-                            int is_valid, struct log_handle *logger)
+int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key, size_t key_len, 
+                            long long item_id, struct hs_expr *expr_rule, int is_valid)
 {
     void *data = NULL;
 
@@ -496,21 +491,34 @@ int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key,
         //delete
         data = rcu_hash_find(expr_rt->htable, key, key_len);
         if (NULL == data) {
-            log_error(logger, MODULE_EXPR, 
-                      "[%s:%d] the key of expr rule not exist, can't be deleted, expr_id:%llu",
+            data = rcu_hash_updating_find(expr_rt->htable, key, key_len);
+            if (NULL == data) {
+                log_error(expr_rt->logger, MODULE_EXPR, 
+                      "[%s:%d] the key of expr rule(rule_id:%lld) not exist, can't be deleted from expr runtime htable",
                       __FUNCTION__, __LINE__, item_id);
-            return -1;
+                return -1;
+            }
         }
+
         rcu_hash_del(expr_rt->htable, key, key_len);
     } else {
         //add
         data = rcu_hash_find(expr_rt->htable, key, key_len);
         if (data != NULL) {
-            log_error(logger, MODULE_EXPR,
-                      "[%s:%d] the key of expr rule already exist, can't be added, expr_id:%llu", 
+            log_error(expr_rt->logger, MODULE_EXPR,
+                      "[%s:%d] the key of expr rule(rule_id:%lld) already exist, can't be added to expr runtime htable", 
                       __FUNCTION__, __LINE__, item_id);
             return -1;
         }
+
+        data = rcu_hash_updating_find(expr_rt->htable, key, key_len);
+        if (data != NULL) {
+            log_error(expr_rt->logger, MODULE_EXPR,
+                      "[%s:%d] the key of expr rule(rule_id:%lld) already exist, can't be added to expr runtime htable", 
+                      __FUNCTION__, __LINE__, item_id);
+            return -1;
+        }
+
         rcu_hash_add(expr_rt->htable, key, key_len, (void *)expr_rule);
     }
 
@@ -565,7 +573,7 @@ static size_t hex2bin(char *hex, int hex_len, char *binary, size_t size)
 }
 
 #define MAAT_MAX_EXPR_ITEM_NUM	8
-and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item, void *user_data,
+struct hs_expr *expr_item_to_expr_rule(struct expr_item *expr_item, void *user_data,
                                    struct log_handle *logger)
 {
     size_t i = 0;
@@ -581,7 +589,7 @@ and_expr_t *expr_item_to_expr_rule(struct expr_item *expr_item, void *user_data,
     memset(key_left_offset, -1, sizeof(key_left_offset));
     memset(key_right_offset, -1, sizeof(key_right_offset));
 
-    and_expr_t *expr_rule = ALLOC(and_expr_t, 1);
+    struct hs_expr *expr_rule = ALLOC(struct hs_expr, 1);
 
     switch (expr_item->expr_type) {
         case EXPR_TYPE_AND:
@@ -718,7 +726,7 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
     int ret = -1;
     struct maat_item_inner *u_para = NULL;
     struct maat_item *item = NULL;
-    and_expr_t *expr_rule = NULL;
+    struct hs_expr *expr_rule = NULL;
     struct expr_schema *schema = (struct expr_schema *)expr_schema;
     struct expr_runtime *expr_rt = (struct expr_runtime *)expr_runtime;
 
@@ -728,30 +736,34 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
     }
 
     int is_valid = get_column_value(line, valid_column);
+    //printf("<expr_runtime_update> item_id:%lld is_valid:%d\n", item_id, is_valid);
     if (is_valid < 0) {
         return -1;
     } else if (0 == is_valid) {
         //delete
-        HASH_FIND(hh, expr_rt->item_hash, &item_id, sizeof(long long), item);
+        item = (struct maat_item *)rcu_hash_find(expr_rt->item_htable, (char *)&item_id, sizeof(item_id));
         if (NULL == item) {
-            return -1;
+            item = (struct maat_item *)rcu_hash_updating_find(expr_rt->item_htable, (char *)&item_id, sizeof(item_id));
+            if (NULL == item) {
+                return -1;
+            }
         }
-        
-        u_para = (struct maat_item_inner *)item->user_data;
-        item->user_data = NULL;
-        
-	    if (NULL == u_para) {
-		    return -1;
-	    }
 
-        HASH_DELETE(hh, expr_rt->item_hash, item);
-        maat_garbage_bagging(expr_rt->ref_garbage_bin, u_para, maat_item_inner_free);
+        rcu_hash_del(expr_rt->item_htable, (char *)&item_id, sizeof(item_id));
     } else {
         //add
-        HASH_FIND(hh, expr_rt->item_hash, &item_id, sizeof(long long), item);
+        item = (struct maat_item *)rcu_hash_find(expr_rt->item_htable, (char *)&item_id, sizeof(item_id));
         if (item) {
             log_error(expr_rt->logger, MODULE_EXPR, 
-                      "[%s:%d] expr runtime add item %llu to item_hash failed, already exist", 
+                      "[%s:%d] expr runtime add item(item_id:%lld) to item_htable failed, already exist", 
+                      __FUNCTION__, __LINE__, item_id);
+            return -1;
+        }
+
+        item = (struct maat_item *)rcu_hash_updating_find(expr_rt->item_htable, (char *)&item_id, sizeof(item_id));
+        if (item) {
+            log_error(expr_rt->logger, MODULE_EXPR, 
+                      "[%s:%d] expr runtime add item(item_id:%lld) to item_htable failed, already exist", 
                       __FUNCTION__, __LINE__, item_id);
             return -1;
         }
@@ -762,33 +774,27 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
         }
 
         u_para = maat_item_inner_new(expr_item->group_id, item_id, expr_item->district_id);
-        item = maat_item_new(item_id, expr_item->group_id, u_para);
-        HASH_ADD(hh, expr_rt->item_hash, item_id, sizeof(long long), item);
+        item = maat_item_new(item_id, expr_item->group_id, u_para, maat_item_inner_free);
+        rcu_hash_add(expr_rt->item_htable, (char *)&item_id, sizeof(item_id), item);
 
         expr_rule = expr_item_to_expr_rule(expr_item, u_para, expr_rt->logger);
         expr_item_free(expr_item);
         if (NULL == expr_rule) {
             log_error(expr_rt->logger, MODULE_EXPR, 
-                      "[%s:%d] transform expr table(table_id:%d) item to expr_rule failed, item_id:%llu",
+                      "[%s:%d] transform expr table(table_id:%d) item(item_id:%lld) to expr_rule failed",
                       __FUNCTION__, __LINE__, schema->table_id, item_id);
             return -1;
         }
     }
 
     char *key = (char *)&item_id;
-    ret = expr_runtime_update_row(expr_rt, key, sizeof(long long), item_id, 
-                                  expr_rule, is_valid, expr_rt->logger);
+    ret = expr_runtime_update_row(expr_rt, key, sizeof(item_id), item_id, 
+                                  expr_rule, is_valid);
     if (ret < 0) {
         if (expr_rule != NULL) {
             expr_rule_free(expr_rule);
         }
         return -1;
-    } else {
-        if (0 == is_valid) {
-            expr_rt->rule_num--;
-        } else {
-            expr_rt->rule_num++;
-        }
     }
 
     return 0;
@@ -800,30 +806,39 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name)
         return -1;
     }
 
-    int ret = 0;
     struct expr_runtime *expr_rt = (struct expr_runtime *)expr_runtime;
-    void **ex_data_array = NULL;
 
-    size_t rule_cnt = rcu_hash_list_updating_data(expr_rt->htable, &ex_data_array);
-    if (0 == rule_cnt) {
-        FREE(ex_data_array);
+    int updating_flag = rcu_hash_is_updating(expr_rt->htable);
+    if (0 == updating_flag) {
         return 0;
     }
 
-    and_expr_t *rules = ALLOC(and_expr_t, rule_cnt);
-    for (size_t i = 0 ; i < rule_cnt; i++) {
-        rules[i] = *(and_expr_t *)ex_data_array[i];
+    rcu_hash_commit(expr_rt->htable);
+
+    struct hs_expr *rules = NULL;
+    void **ex_data_array = NULL;
+    size_t rule_cnt = rcu_hash_list(expr_rt->htable, &ex_data_array);
+    //printf("rcu_hash_commit  rule_cnt:%zu\n", rule_cnt);
+    if (rule_cnt > 0) {
+        rules = ALLOC(struct hs_expr, rule_cnt);
+        for (size_t i = 0; i < rule_cnt; i++) {
+            rules[i] = *(struct hs_expr *)ex_data_array[i];
+            //printf("expr_id:%lld\n", rules[i].expr_id);
+            // for (size_t j = 0; j < rules[i].n_patterns; j++) {
+            //     printf("rules[%zu].patterns[%zu]:%s\n", i, j, rules[i].patterns[j].pat);
+            // }
+        }
     }
-    
-    struct adapter_hs *new_adapter_hs = NULL;
-    struct adapter_hs *old_adapter_hs = NULL;
 
     log_info(expr_rt->logger, MODULE_EXPR,
              "table[%s] committing %zu expr rules for rebuilding adapter_hs engine", 
              table_name, rule_cnt);
+
+    int ret = 0;
+    struct adapter_hs *new_adapter_hs = NULL;
+    struct adapter_hs *old_adapter_hs = NULL;
     new_adapter_hs = adapter_hs_initialize(expr_rt->scan_mode, expr_rt->pattern_type,
-                                           expr_rt->n_worker_thread, 
-                                           rules, rule_cnt, 
+                                           expr_rt->n_worker_thread, rules, rule_cnt, 
                                            expr_rt->logger);
     if (NULL == new_adapter_hs) {
         log_error(expr_rt->logger, MODULE_EXPR,
@@ -834,15 +849,20 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name)
 
     old_adapter_hs = expr_rt->hs;
     expr_rt->hs = new_adapter_hs;
-
-    maat_garbage_bagging(expr_rt->ref_garbage_bin, old_adapter_hs, 
+    if (old_adapter_hs != NULL) {
+        maat_garbage_bagging(expr_rt->ref_garbage_bin, old_adapter_hs, 
                          (void (*)(void*))adapter_hs_destroy);
-    rcu_hash_commit(expr_rt->htable);
-    rule_cnt = rcu_hash_updating_count(expr_rt->htable);
-    assert(rule_cnt == 0);
+    }
+    rcu_hash_commit(expr_rt->item_htable);
+    expr_rt->rule_num = rule_cnt;
+
+    if (rules != NULL) {
+        FREE(rules);
+    }
     
-    FREE(rules);
-    FREE(ex_data_array);
+    if (ex_data_array != NULL) {
+        FREE(ex_data_array);
+    }
 
     return ret;
 }
@@ -879,7 +899,7 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *d
     long long hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
     struct maat_item_inner *item = NULL;
     int real_hit_item_cnt = 0;
-    int district_id = state->district_id;
+    long long district_id = state->district_id;
 
     memset(hit_item_ids, 0, sizeof(hit_item_ids));
     
@@ -891,7 +911,7 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *d
     }
 
     size_t group_hit_cnt = 0;
-    ret = maat_compile_state_update(expr_rt->item_hash, vtable_id, hit_item_ids, 
+    ret = maat_compile_state_update(expr_rt->item_htable, vtable_id, hit_item_ids, 
                                     real_hit_item_cnt, &group_hit_cnt, state);
     if (ret < 0) {
         return -1;
@@ -952,7 +972,7 @@ int expr_runtime_stream_scan(struct expr_runtime *expr_rt, const char *data, siz
     }
 
     size_t group_hit_cnt = 0;
-    ret = maat_compile_state_update(expr_rt->item_hash, vtable_id, hit_item_ids, 
+    ret = maat_compile_state_update(expr_rt->item_htable, vtable_id, hit_item_ids, 
                                     n_hit_item, &group_hit_cnt, state);
     if (ret < 0) {
         return -1;

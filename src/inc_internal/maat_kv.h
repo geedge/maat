@@ -24,11 +24,13 @@ struct maat_kv_store *maat_kv_store_new(void);
 
 void maat_kv_store_free(struct maat_kv_store *store);
 
-int maat_kv_register(struct maat_kv_store *store, const char *key, int value);
+int maat_kv_register(struct maat_kv_store *store, const char *key, long long value);
 
-int maat_kv_read(struct maat_kv_store *store, const char *key, int *value);
+int maat_kv_read(struct maat_kv_store *store, const char *key, long long *value);
 
-int maat_kv_read_unNull(struct maat_kv_store *store, const char *key, size_t key_sz, int *value);
+int maat_kv_read_unNull(struct maat_kv_store *store, const char *key, size_t key_sz, long long *value);
+
+int maat_kv_write(struct maat_kv_store *store, const char *key, long long value);
 
 struct maat_kv_store *maat_kv_store_duplicate(struct maat_kv_store *store);
 

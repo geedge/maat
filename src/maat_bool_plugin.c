@@ -104,7 +104,7 @@ void bool_plugin_schema_free(void *bool_plugin_schema)
         schema->ex_schema = NULL;
     }
 
-    FREE(schema);
+    free(schema);
 }
 
 /* ip plugin table ex data API */
@@ -182,8 +182,9 @@ void *bool_plugin_runtime_new(void *bool_plugin_schema, int max_thread_num,
     struct bool_plugin_schema *schema = (struct bool_plugin_schema *)bool_plugin_schema;
     struct bool_plugin_runtime *bool_plugin_rt = ALLOC(struct bool_plugin_runtime, 1);
 
-    bool_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, ex_data_container_free, 
-                                                     logger);
+    bool_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, 
+                                                     ex_container_free, 
+                                                     garbage_bin, logger);
     bool_plugin_rt->ref_garbage_bin = garbage_bin;
     bool_plugin_rt->logger = logger;
 
@@ -226,7 +227,7 @@ int bool_plugin_runtime_update_row(struct bool_plugin_runtime *bool_plugin_rt,
     } else {
         // add
         void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, row, key, key_len);
-        struct ex_data_container *ex_container = ex_data_container_new(ex_data, (void *)expr);
+        struct ex_container *ex_container = ex_container_new(ex_data, (void *)expr);
         ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
         if (ret < 0) {
             return -1;
@@ -385,12 +386,6 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
                 bool_plugin_expr_free(bool_expr);
             }
             return -1;
-        } else {
-            if (0 == is_valid) {
-                bool_plugin_rt->rule_num--;
-            } else {
-                bool_plugin_rt->rule_num++;
-            }
         }
     } else {
         //ex_schema not set
@@ -407,49 +402,64 @@ int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name
         return -1;
     }
 
-    int ret = 0;
-    struct ex_data_container **ex_container = NULL;
     struct bool_plugin_runtime *bool_plugin_rt = (struct bool_plugin_runtime *)bool_plugin_runtime;
     struct ex_data_runtime *ex_data_rt = bool_plugin_rt->ex_data_rt;
+    if (NULL == ex_data_rt) {
+        return -1;
+    }
 
-    size_t expr_cnt = ex_data_runtime_list_updating_ex_container(ex_data_rt, &ex_container);
-    if (0 == expr_cnt) {
-        FREE(ex_container);
+    int updating_flag = ex_data_runtime_is_updating(ex_data_rt);
+    if (0 == updating_flag) {
         return 0;
     }
 
-    struct bool_expr *exprs = ALLOC(struct bool_expr, expr_cnt);
+    ex_data_runtime_commit(ex_data_rt);
 
-    for (size_t i = 0; i < expr_cnt; i++) {
-        exprs[i] = *(struct bool_expr *)(struct bool_expr *)ex_container[i]->custom_data;
-        assert(exprs[i].user_tag == ex_container[i] || NULL == exprs[i].user_tag);
-        exprs[i].user_tag = ex_container[i];
+    struct bool_expr *rules = NULL;
+    struct ex_container **ex_container = NULL;
+    size_t rule_cnt = ex_data_runtime_list_ex_container(ex_data_rt, &ex_container);
+    if (rule_cnt > 0) {
+        rules = ALLOC(struct bool_expr, rule_cnt);
+        for (size_t i = 0; i < rule_cnt; i++) {
+            rules[i] = *(struct bool_expr *)(struct bool_expr *)ex_container[i]->custom_data;
+            assert(rules[i].user_tag == ex_container[i] || NULL == rules[i].user_tag);
+            rules[i].user_tag = ex_container[i];
+        }
     }
-
-    struct bool_matcher *new_bool_matcher = NULL;
-    struct bool_matcher *old_bool_matcher = NULL;
-    size_t mem_used = 0;
 
     log_info(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
              "table[%s] committing %zu bool_plugin rules for rebuilding bool_matcher engine", 
-             table_name, expr_cnt);
+             table_name, rule_cnt);
 
-    new_bool_matcher = bool_matcher_new(exprs, expr_cnt, &mem_used);
+    int ret = 0;
+    size_t mem_used = 0;
+    struct bool_matcher *new_bool_matcher = NULL;
+    struct bool_matcher *old_bool_matcher = NULL;
+
+    new_bool_matcher = bool_matcher_new(rules, rule_cnt, &mem_used);
     if (NULL == new_bool_matcher) {
         log_error(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
                   "[%s:%d] table[%s] rebuild bool_matcher engine failed when update %zu bool_plugin rules",
-                  __FUNCTION__, __LINE__, table_name, expr_cnt);
+                  __FUNCTION__, __LINE__, table_name, rule_cnt);
         ret = -1;
     }
 
     old_bool_matcher = bool_plugin_rt->matcher;
     bool_plugin_rt->matcher = new_bool_matcher;
-    maat_garbage_bagging(bool_plugin_rt->ref_garbage_bin, old_bool_matcher, 
-                        (void (*)(void*))bool_matcher_free);
-    ex_data_runtime_commit(ex_data_rt);
+    if (old_bool_matcher != NULL) {
+        maat_garbage_bagging(bool_plugin_rt->ref_garbage_bin, old_bool_matcher, 
+                             (void (*)(void*))bool_matcher_free);
+    }
 
-    FREE(exprs);
-    FREE(ex_container);
+    bool_plugin_rt->rule_num = rule_cnt;
+
+    if (rules != NULL) {
+        FREE(rules);
+    }
+    
+    if (ex_container != NULL) {
+        FREE(ex_container);
+    }
 
     return ret;
 }
@@ -485,7 +495,7 @@ int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, unsigned long lon
 	int n_result = bool_matcher_match(bool_plugin_rt->matcher, item_ids, n_item, results, n_ex_data);
 	for (int i = 0; i < n_result; i++) {
 		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(bool_plugin_rt->ex_data_rt, 
-                                                                    (struct ex_data_container *)results[i].user_tag);
+                                                                    (struct ex_container *)results[i].user_tag);
 	}
 
 	return n_result;

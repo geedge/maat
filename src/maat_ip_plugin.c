@@ -128,7 +128,7 @@ void ip_plugin_schema_free(void *ip_plugin_schema)
         schema->ex_schema = NULL;
     }
 
-    FREE(schema);
+    free(schema);
 }
 
 struct ex_data_schema *ip_plugin_table_get_ex_data_schema(void *ip_plugin_schema)
@@ -326,7 +326,7 @@ int ip_plugin_runtime_update_row(struct ip_plugin_runtime *ip_plugin_rt,
     } else {
         // add
         void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, row, key, key_len);
-        struct ex_data_container *ex_container = ex_data_container_new(ex_data, (void *)ip_plugin_rule);
+        struct ex_container *ex_container = ex_container_new(ex_data, (void *)ip_plugin_rule);
         ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
         if (ret < 0) {
             return -1;
@@ -347,8 +347,8 @@ void *ip_plugin_runtime_new(void *ip_plugin_schema, int max_thread_num,
     struct ip_plugin_schema *schema = (struct ip_plugin_schema *)ip_plugin_schema;
     struct ip_plugin_runtime *ip_plugin_rt = ALLOC(struct ip_plugin_runtime, 1);
 
-    ip_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, 
-                                                   ex_data_container_free, logger);
+    ip_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, ex_container_free, 
+                                                   garbage_bin, logger);
     ip_plugin_rt->ref_garbage_bin = garbage_bin;
     ip_plugin_rt->logger = logger;
 
@@ -435,32 +435,40 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name)
         return -1;
     }
 
-    int ret = 0;
-    struct ex_data_container **ex_container = NULL;
     struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
     struct ex_data_runtime *ex_data_rt = ip_plugin_rt->ex_data_rt;
+    if (NULL == ex_data_rt) {
+        return -1;
+    }
 
-    size_t rule_cnt = ex_data_runtime_list_updating_ex_container(ex_data_rt, &ex_container);
-    if (0 == rule_cnt) {
-        FREE(ex_container);
+    int updating_flag = ex_data_runtime_is_updating(ex_data_rt);
+    if (0 == updating_flag) {
         return 0;
     }
-    
-    struct ip_rule *rules = ALLOC(struct ip_rule, rule_cnt);
 
-    for (size_t i = 0; i < rule_cnt; i++) {
-        rules[i] = *(struct ip_rule *)ex_container[i]->custom_data;
-        assert(rules[i].user_tag == ex_container[i] || rules[i].user_tag == NULL);
-        rules[i].user_tag = ex_container[i];
+    ex_data_runtime_commit(ex_data_rt);
+
+    struct ip_rule *rules = NULL;
+    struct ex_container **ex_container = NULL;
+    size_t rule_cnt = ex_data_runtime_list_ex_container(ex_data_rt, &ex_container);
+    if (rule_cnt > 0) {
+        rules = ALLOC(struct ip_rule, rule_cnt);
+        for (size_t i = 0; i < rule_cnt; i++) {
+            rules[i] = *(struct ip_rule *)ex_container[i]->custom_data;
+            assert(rules[i].user_tag == ex_container[i] || rules[i].user_tag == NULL);
+            rules[i].user_tag = ex_container[i];
+        }
     }
-
-    struct ip_matcher *new_ip_matcher = NULL;
-    struct ip_matcher *old_ip_matcher = NULL;
-    size_t mem_used = 0;
 
     log_info(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
              "table[%s] committing %zu ip_plugin rules for rebuilding ip_matcher engine",
              table_name, rule_cnt);
+
+    int ret = 0;
+    size_t mem_used = 0;
+    struct ip_matcher *new_ip_matcher = NULL;
+    struct ip_matcher *old_ip_matcher = NULL;
+
     new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used, ip_plugin_rt->logger);
     if (NULL == new_ip_matcher) {
         log_error(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
@@ -471,12 +479,20 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name)
 
     old_ip_matcher = ip_plugin_rt->ip_matcher;
     ip_plugin_rt->ip_matcher = new_ip_matcher;
-    maat_garbage_bagging(ip_plugin_rt->ref_garbage_bin, old_ip_matcher, 
-                        (void (*)(void*))ip_matcher_free);
-    ex_data_runtime_commit(ex_data_rt);
+    if (old_ip_matcher != NULL) {
+        maat_garbage_bagging(ip_plugin_rt->ref_garbage_bin, old_ip_matcher, 
+                             (void (*)(void*))ip_matcher_free);
+    }
+    
+    ip_plugin_rt->rule_num = rule_cnt;
 
-    FREE(rules);
-    FREE(ex_container);
+    if (rules != NULL) {
+        FREE(rules);
+    }
+    
+    if (ex_container != NULL) {
+        FREE(ex_container);
+    }
 
     return ret;
 }
@@ -518,7 +534,7 @@ int ip_plugin_runtime_get_ex_data(void *ip_plugin_runtime, const struct ip_addr 
 	int n_result = ip_matcher_match(ip_plugin_rt->ip_matcher, &ip_data, results, n_ex_data);
 	for (int i = 0; i < n_result; i++) {
 		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(ip_plugin_rt->ex_data_rt, 
-                                                                    (struct ex_data_container *)results[i].tag);
+                                                                    (struct ex_container *)results[i].tag);
 	}
 	return n_result;
 }

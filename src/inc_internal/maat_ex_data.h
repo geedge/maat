@@ -18,16 +18,11 @@ extern "C"
 
 #include "maat.h"
 #include "rcu_hash.h"
+#include "maat_garbage_collection.h"
 
-struct ex_data_container {
+struct ex_container {
     void *ex_data;
     void *custom_data;
-};
-
-struct ex_container_ctx {
-    int table_id;
-    void (*custom_data_free)(void *custom_data);
-    struct ex_data_schema *ex_schema;
 };
 
 struct ex_data_schema {
@@ -38,12 +33,18 @@ struct ex_data_schema {
 	void *argp;
 };
 
+struct ex_container_schema {
+    int table_id;
+    void (*custom_data_free)(void *custom_data);
+    struct ex_data_schema *ex_schema;
+};
+
 struct ex_data_runtime;
 
 /* ex_data_runtime API */
 struct ex_data_runtime *
 ex_data_runtime_new(int table_id, rcu_hash_data_free_fn *data_free_fn,
-                    struct log_handle *logger);
+                    struct maat_garbage_bin *garbage_bin, struct log_handle *logger);
 void ex_data_runtime_free(struct ex_data_runtime *ex_data_rt);
 void ex_data_runtime_commit(struct ex_data_runtime *ex_data_rt);
 
@@ -67,39 +68,42 @@ void ex_data_runtime_set_schema(struct ex_data_runtime *ex_data_rt,
                                 struct ex_data_schema *schema);
 
 /* set user_ctx API */
-void ex_data_runtime_set_ex_container_ctx(struct ex_data_runtime *ex_data_rt, 
-                                          struct ex_container_ctx *container_ctx);
+void ex_data_runtime_set_ex_container_schema(struct ex_data_runtime *ex_data_rt, 
+                                          struct ex_container_schema *container_schema);
 
-struct ex_container_ctx *
-ex_data_runtime_get_ex_container_ctx(struct ex_data_runtime *ex_data_rt);
+struct ex_container_schema *
+ex_data_runtime_get_ex_container_schema(struct ex_data_runtime *ex_data_rt);
 
-struct ex_data_container *ex_data_container_new(void *ex_data, void *custom_data);
-void ex_data_container_free(void *ctx, void *data);
+struct ex_container *ex_container_new(void *ex_data, void *custom_data);
+void ex_container_free(void *ctx, void *data);
 
 /* ex_data_runtime ex data API */
-void *ex_data_runtime_row2ex_data(struct ex_data_runtime *ex_data_rt, const char *row, 
-                                  const char *key, size_t key_len);
+void *ex_data_runtime_row2ex_data(struct ex_data_runtime *ex_data_rt, 
+                                  const char *row, const char *key, 
+                                  size_t key_len);
 
 int ex_data_runtime_add_ex_container(struct ex_data_runtime *ex_data_rt,
                                       const char *key, size_t key_len,
-                                      struct ex_data_container *ex_container);
+                                      struct ex_container *ex_container);
 
 int ex_data_runtime_del_ex_container(struct ex_data_runtime *ex_data_rt,
                                       const char *key, size_t key_len);
 
-size_t ex_data_runtime_list_updating_ex_container(struct ex_data_runtime *ex_data_rt,
-                                                  struct ex_data_container ***ex_container);
+size_t ex_data_runtime_list_ex_container(struct ex_data_runtime *ex_data_rt,
+                                         struct ex_container ***ex_container);
+
+size_t ex_data_runtime_ex_container_count(struct ex_data_runtime *ex_data_rt);
+
+int ex_data_runtime_is_updating(struct ex_data_runtime *ex_data_rt);
 
 void *ex_data_runtime_get_ex_data_by_key(struct ex_data_runtime *ex_data_rt, 
                                          const char *key, size_t key_len);
 
 void *ex_data_runtime_get_ex_data_by_container(struct ex_data_runtime *ex_data_rt,
-                                               struct ex_data_container *ex_container);
+                                               struct ex_container *ex_container);
                                                
 void *ex_data_runtime_get_custom_data(struct ex_data_runtime *ex_data_rt, 
                                       const char *key, size_t key_len);
-
-size_t ex_data_runtime_ex_container_count(struct ex_data_runtime *ex_data_rt);
 
 #ifdef __cplusplus
 }

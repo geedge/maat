@@ -24,8 +24,7 @@ enum maat_operation {
 	MAAT_OP_RENEW_TIMEOUT	//Rule expire time is changed to now+cmd->expire_after
 };
 
-struct maat_cmd_line
-{
+struct maat_cmd_line {
 	const char *table_name;
 	const char *table_line;
 	long long rule_id;		// for MAAT_OP_DEL, only rule_id and table_name are necessary.
@@ -42,6 +41,15 @@ struct maat_cmd_line
 int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *line_rule);
 
 long long maat_cmd_incrby(struct maat *maat_instance, const char *key, int increment);
+
+long long maat_cmd_get_config_version(struct maat *maat_instance);
+
+/* True(1), False(0) */
+int maat_cmd_config_is_updating(struct maat *maat_instance);
+
+char *maat_cmd_str_escape(char *dst, int size, const char *src);
+
+int maat_cmd_flushDB(struct maat *maat_instance);
 
 #ifdef __cplusplus
 }

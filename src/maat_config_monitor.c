@@ -109,9 +109,9 @@ char *read_nxt_line_from_buff(const char *buff, size_t buff_size,
 	return line;
 }
 
-int cm_read_table_file(struct cm_table_info_t* index,
+int cm_read_table_file(struct cm_table_info_t *index,
 						int (*update_fn)(const char *, const char *, void *),
-						void* u_param)
+						void *u_param, struct log_handle *logger)
 {
 	int cfg_num = 0,i  =0;
 	int ret = 0;
@@ -123,7 +123,8 @@ int cm_read_table_file(struct cm_table_info_t* index,
 
 	ret = load_file_to_memory(index->cfg_path, (unsigned char **)&table_file_buff, &file_sz);
 	if (ret < 0) {
-		// log_error
+		log_error(logger, MODULE_CONFIG_MONITOR, "[%s:%d] open %s failed.", 
+                  __FUNCTION__, __LINE__, index->cfg_path);
 		return -1;
 	}
 
@@ -131,7 +132,9 @@ int cm_read_table_file(struct cm_table_info_t* index,
 	sscanf(line, "%d\n", &cfg_num);
 
 	if(cfg_num != index->cfg_num) {
-		//log_error
+        FREE(table_file_buff);
+        log_error(logger, MODULE_CONFIG_MONITOR, "[%s:%d] file %s config num not matched",
+                  __FUNCTION__, __LINE__, index->cfg_path);
 		return -1;
 	}
 
@@ -140,17 +143,19 @@ int cm_read_table_file(struct cm_table_info_t* index,
 
 		ret_str = read_nxt_line_from_buff(table_file_buff, file_sz, &file_offset, line, sizeof(line));
 		if (ret_str == NULL) {
-			//log_error
+			log_error(logger, MODULE_CONFIG_MONITOR, "[%s:%d] file %s line_num %d less than claimed %d",
+                       __FUNCTION__, __LINE__, index->cfg_path, i, cfg_num);
 			break;
 		}
 
 		if(line[sizeof(line) - 1] != '\0') {
-			//log_error
+			log_error(logger, MODULE_CONFIG_MONITOR, "[%s:%d] line size more than %u at of file %s:%d",
+                       __FUNCTION__, __LINE__, sizeof(line), index->cfg_path, i);
 			continue;
 		}
 
 		ret = update_fn(index->table_name, line, u_param);
-		if (ret<0) {
+		if (ret < 0) {
 			break;
 		}
 	}
@@ -220,7 +225,7 @@ int get_new_idx_path(long long current_version, const char *file_dir,
                      char ***idx_path, size_t *idx_num, struct log_handle *logger)
 {
 	struct dirent **namelist = NULL;
-	int update_type = MAAT_UPDATE_TYPE_NONE;
+	int update_type = MAAT_UPDATE_TYPE_INVALID;
 	
 	int n = my_scandir(file_dir, &namelist, filter_fn, (int (*)(const void*, const void*))alphasort);
 	if (n < 0) {
@@ -297,7 +302,7 @@ int get_new_idx_path(long long current_version, const char *file_dir,
 		*idx_num = inc_idx_num;
 		update_type = MAAT_UPDATE_TYPE_INC;
 	} else {
-		update_type = MAAT_UPDATE_TYPE_NONE;
+		update_type = MAAT_UPDATE_TYPE_INVALID;
 	}
 
 	FREE(inc_file_idx);
@@ -324,7 +329,7 @@ void config_monitor_traverse(long long current_version, const char *idx_dir,
 	memset(table_array, 0, sizeof(table_array));
 
 	int update_type = get_new_idx_path(current_version, idx_dir, &idx_path_array, &idx_path_num, logger);
-	if (update_type != MAAT_UPDATE_TYPE_NONE) {
+	if (update_type != MAAT_UPDATE_TYPE_INVALID) {
 		for (i = 0; i < idx_path_num; i++) {
             log_info(logger, MODULE_CONFIG_MONITOR, "load %s", idx_path_array[i]);
 			int table_num = cm_read_cfg_index_file(idx_path_array[i], table_array, MAX_TABLE_NUM);
@@ -343,7 +348,7 @@ void config_monitor_traverse(long long current_version, const char *idx_dir,
 			}
 
 			for (int j = 0; j < table_num; j++) {
-				cm_read_table_file(table_array + j, update_fn, u_param);
+				cm_read_table_file(table_array + j, update_fn, u_param, logger);
 			}
 
 			if (finish_fn != NULL) {
@@ -424,9 +429,7 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
 			        strlen(maat_instance->decrypt_key) ? maat_instance->decrypt_key : NULL,
 			        strlen(maat_instance->decrypt_algo) ? maat_instance->decrypt_algo : NULL,
                     maat_instance->logger);
-
 	FREE(json_buff);
-	json_buff = NULL;
 	if (ret < 0) {
 		return -1;
 	}

@@ -25,10 +25,6 @@
 #define MODULE_JSON2IRIS  module_name_str("maat.json2iris")
 
 #define	MAX_COLUMN_NUM	32
-
-#define mr_region_id_var "SEQUENCE_REGION"
-#define mr_group_id_var	 "SEQUENCE_GROUP"
-
 #define MAX_PATH_LINE 512
 
 const int json_version = 1;
@@ -104,7 +100,7 @@ struct iris_table *query_table_info(struct iris_description *p_iris,
                strlen(table_name)));
 		snprintf(table_info->table_path, sizeof(table_info->table_path), 
                  "%s/%s.local", p_iris->tmp_iris_dir, table_info->table_name);
-        HASH_ADD_KEYPTR(hh, p_iris->iris_table_map, table_name, strlen(table_name), table_info);
+        HASH_ADD_KEYPTR(hh, p_iris->iris_table_map, table_info->table_name, strlen(table_name), table_info);
     }
 
 	return table_info;
@@ -315,7 +311,7 @@ static struct group_info *group_info_add_unsafe(struct iris_description *p_iris,
 		group_info = ALLOC(struct group_info, 1);
 		group_info->group_id = get_group_seq(p_iris);
 		strncpy(group_info->group_name, group_name, sizeof(group_info->group_name));
-        HASH_ADD_KEYPTR(hh, p_iris->group_name_map, group_name, strlen(group_name), group_info);
+        HASH_ADD_KEYPTR(hh, p_iris->group_name_map, group_info->group_name, strlen(group_name), group_info);
 	}
 	return group_info;
 }
@@ -364,7 +360,7 @@ int direct_write_rule(cJSON *json, struct maat_kv_store *str2int,
 		}
 
 		if (1 == cmd[i].str2int_flag) {
-            int int_value = 0;
+            long long int_value = 0;
 			char *p = item->valuestring;
 			ret = maat_kv_read(str2int, p, &int_value);			
 			if (ret < 0) {
@@ -376,7 +372,7 @@ int direct_write_rule(cJSON *json, struct maat_kv_store *str2int,
 				goto error_out;
 			}
 			cmd[i].json_value = (char *)malloc(21);/* 2^64+1 can be represented in 21 chars. */
-			snprintf(cmd[i].json_value, 21, "%d", int_value);
+			snprintf(cmd[i].json_value, 21, "%d", (int)int_value);
 		} else {
 			switch (item->type) {
 				case cJSON_Number:
@@ -667,7 +663,7 @@ int write_region_rule(cJSON *region_json, int compile_id, int group_id,
 
 	const char *table_type_str = item->valuestring;
     enum table_type table_type = TABLE_TYPE_EXPR;
-	int ret = maat_kv_read(p_iris->str2int_map, table_type_str, (int*)&(table_type));
+	int ret = maat_kv_read(p_iris->str2int_map, table_type_str, (long long *)&(table_type));
 	if (ret != 1) {
 		log_error(logger, MODULE_JSON2IRIS, 
                   "[%s:%d] compile rule %d table name %s's table_type %s invalid",

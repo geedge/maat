@@ -48,6 +48,12 @@ enum maat_scan_status {
     MAAT_SCAN_HIT        //scan hit compile
 };
 
+enum maat_update_type {
+    MAAT_UPDATE_TYPE_INVALID = 0,
+    MAAT_UPDATE_TYPE_FULL,
+    MAAT_UPDATE_TYPE_INC
+};
+
 struct ip_addr {
     int ip_type;             //4: IPv4, 6: IPv6
     union {
@@ -70,6 +76,7 @@ struct ipv6_tuple {
     unsigned short dport;   /* network order */
 };
 
+/* update_type: MAAT_UPDATE_TYPE_FULL or MAAT_UPDATE_TYPE_INC */
 typedef void maat_start_callback_t(int update_type, void *u_param);
 typedef void maat_update_callback_t(int table_id, const char *table_line, void *u_para);
 typedef void maat_finish_callback_t(void *u_para);
@@ -89,8 +96,9 @@ int maat_options_set_accept_tags(struct maat_options *opts, const char *accept_t
 int maat_options_set_rule_effect_interval_ms(struct maat_options *opts, int interval_ms);
 int maat_options_set_rule_update_checking_interval_ms(struct maat_options *opts, int interval_ms);
 int maat_options_set_gc_timeout_ms(struct maat_options *opts, int interval_ms);
-int maat_options_set_instance_name(struct maat_options *opts, const char *instance_name, size_t name_len);
+int maat_options_set_instance_name(struct maat_options *opts, const char *instance_name);
 int maat_options_set_deferred_load_on(struct maat_options *opts);
+int maat_options_set_foreign_cont_dir(struct maat_options *opts, const char *dir);
 
 int maat_options_set_iris(struct maat_options *opts, const char *full_directory, 
                           const char *increment_directory);
@@ -196,6 +204,12 @@ int maat_scan_stream(struct maat_stream **stream, const char *data, int data_len
 void maat_scan_stream_close(struct maat_stream **stream);
 
 /* maat state API */
+struct maat_state *maat_state_new(struct maat *instance, int thread_id);
+
+void maat_state_reset(struct maat_state *state);
+
+void maat_state_free(struct maat_state **state);
+
 int maat_state_set_scan_district(struct maat *instance, struct maat_state **state, 
                                  const char *district, size_t district_len);
 
@@ -209,8 +223,6 @@ int maat_state_get_hit_paths(struct maat *instance, struct maat_state **state,
 
 int maat_state_get_hit_objects(struct maat *instance, struct maat_state **state, 
                                struct maat_hit_object *objs, size_t n_obj);
-
-void maat_state_free(struct maat_state **state);
 
 /* return hit object compile_id */
 int maat_hit_object_compile_id(struct maat *instance, struct maat_hit_object *obj);
