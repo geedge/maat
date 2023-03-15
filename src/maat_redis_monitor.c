@@ -1097,15 +1097,6 @@ void exec_serial_rule(redisContext *c,	const char *transaction_list,
 	}
 }
 
-int mr_transaction_success(redisReply *data_reply)
-{
-	if (data_reply->type == REDIS_REPLY_NIL) {
-		return 0;
-	} else {
-		return 1;
-	}
-}
-
 int mr_operation_success(redisReply *actual_reply, struct expected_reply *expected)
 {
 	if (expected->possible_replies[0].type != actual_reply->type) {
@@ -1179,7 +1170,7 @@ int maat_cmd_write_rule(redisContext *c, struct serial_rule *s_rule,
 
 	transaction_reply = exec_serial_rule_end(c, transaction_list, server_time, renew_allowed, 
                                              expected_reply, &multi_cmd_cnt);
-	if (1 == mr_transaction_success(transaction_reply)) {
+	if (transaction_reply->type != REDIS_REPLY_NIL) {
 		assert(transaction_reply->elements == multi_cmd_cnt);
 		for (i = 0; i < multi_cmd_cnt; i++) {
 			p = transaction_reply->element[i];

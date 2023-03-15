@@ -150,7 +150,7 @@ int redis_flushDB(redisContext *ctx, int db_index, struct log_handle *logger)
 	for (int i = 0; i < append_cmd_cnt; i++) {
 		ret = maat_cmd_wrap_redis_get_reply(ctx, &data_reply);
 		if (ret == REDIS_OK) {
-			if (0 == mr_transaction_success(data_reply)) {
+			if (data_reply->type == REDIS_REPLY_NIL) {
 				redis_transaction_success = 0;
 			}
 			freeReplyObject(data_reply);
@@ -165,6 +165,19 @@ int redis_flushDB(redisContext *ctx, int db_index, struct log_handle *logger)
 	}
 
 	return redis_transaction_success;
+}
+
+static int connect_redis_for_write(struct source_redis_ctx *mr_ctx,
+                                   struct log_handle *logger)
+{
+	assert(mr_ctx->write_ctx == NULL);
+	mr_ctx->write_ctx = maat_cmd_connect_redis(mr_ctx->redis_ip, mr_ctx->redis_port,
+                                               mr_ctx->redis_db, logger);
+	if (NULL == mr_ctx->write_ctx) {
+		return -1;
+	} else {
+		return 0;
+	}
 }
 
 redisContext *get_redis_ctx_for_write(struct maat *maat_instance)
@@ -214,19 +227,6 @@ void maat_cmd_clear_rule_cache(struct serial_rule *s_rule)
 	}
 
 	memset(s_rule, 0, sizeof(struct serial_rule));
-}
-
-int connect_redis_for_write(struct source_redis_ctx *mr_ctx,
-                            struct log_handle *logger)
-{
-	assert(mr_ctx->write_ctx == NULL);
-	mr_ctx->write_ctx = maat_cmd_connect_redis(mr_ctx->redis_ip, mr_ctx->redis_port,
-                                               mr_ctx->redis_db, logger);
-	if (NULL == mr_ctx->write_ctx) {
-		return -1;
-	} else {
-		return 0;
-	}
 }
 
 void maat_cmd_set_serial_rule(struct serial_rule *rule, enum maat_operation op,

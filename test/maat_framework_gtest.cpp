@@ -497,7 +497,7 @@ TEST_F(MaatFlagScan, FlagPlus) {
     EXPECT_NE(n_read, 0);
     maat_state_free(&state);
 }
-#if 1
+
 class MaatStringScan : public testing::Test
 {
 protected:
@@ -2488,9 +2488,8 @@ TEST_F(MaatCmdTest, SetIP) {
                             IPv4, "mask", src_ip, src_ip_mask, 0);
     EXPECT_EQ(ret, 1);
 
-    //version_before = maat_cmd_get_config_version(maat_instance);
-    //wait_for_cmd_effective(maat_instance, version_before);
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    version_before = maat_cmd_get_config_version(maat_instance);
+    wait_for_cmd_effective(maat_instance, version_before);
    
     uint32_t sip;
     ret = inet_pton(AF_INET, src_ip, &sip);
@@ -2759,7 +2758,6 @@ TEST_F(MaatCmdTest, PluginEXData) {
                                                               table_id, key2);
 	ASSERT_TRUE(uinfo == NULL);
 }
-#endif
 
 int main(int argc, char ** argv)
 {

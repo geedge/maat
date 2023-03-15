@@ -25,7 +25,7 @@ set_property(TARGET gtest_static PROPERTY INTERFACE_LINK_LIBRARIES pthread)
 # colm-0.13.0.5
 ExternalProject_Add(colm PREFIX colm 
         URL ${CMAKE_CURRENT_SOURCE_DIR}/colm-0.13.0.5.tar.gz
-	CONFIGURE_COMMAND ./autogen.sh && ./configure --prefix=/usr --libdir=/usr/lib64
+	CONFIGURE_COMMAND ./autogen.sh && ./configure --prefix=${VENDOR_BUILD}
 	BUILD_COMMAND make	
 	INSTALL_COMMAND make install
 	BUILD_IN_SOURCE 1)
@@ -33,7 +33,7 @@ ExternalProject_Add(colm PREFIX colm
 # ragel-7.0.0.10
 ExternalProject_Add(ragel PREFIX ragel
         URL ${CMAKE_CURRENT_SOURCE_DIR}/ragel-7.0.0.10.tar.gz
-	CONFIGURE_COMMAND ./autogen.sh && ./configure
+	CONFIGURE_COMMAND ./autogen.sh && ./configure --prefix=${VENDOR_BUILD}
 	DEPENDS colm
 	BUILD_COMMAND make	
 	INSTALL_COMMAND make install
@@ -80,15 +80,15 @@ endif()
 ExternalProject_Add(igraph PREFIX igraph
         URL ${CMAKE_CURRENT_SOURCE_DIR}/igraph-0.7.1.tar.gz
         URL_MD5 4f6e7c16b45fce8ed423516a9786e4e8
-        CONFIGURE_COMMAND ./configure --prefix=<INSTALL_DIR> --disable-shared --with-pic
+        CONFIGURE_COMMAND ./configure --prefix=${VENDOR_BUILD} --disable-shared --with-pic
         BUILD_COMMAND make
         INSTALL_COMMAND make install
         BUILD_IN_SOURCE 1)
 
 ExternalProject_Get_Property(igraph INSTALL_DIR)
-file(MAKE_DIRECTORY ${INSTALL_DIR}/include)
+file(MAKE_DIRECTORY ${VENDOR_BUILD}/include)
 
 add_library(igraph-static STATIC IMPORTED GLOBAL)
 add_dependencies(igraph-static igraph)
-set_property(TARGET igraph-static PROPERTY IMPORTED_LOCATION ${INSTALL_DIR}/lib/libigraph.a)
-set_property(TARGET igraph-static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
+set_property(TARGET igraph-static PROPERTY IMPORTED_LOCATION ${VENDOR_BUILD}/lib/libigraph.a)
+set_property(TARGET igraph-static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${VENDOR_BUILD}/include)
