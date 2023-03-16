@@ -401,7 +401,14 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
         return -1;
     }
 
+    long long key_int = 0;
     const char *key = line + key_offset;
+    if (schema->key_type == PLUGIN_KEY_TYPE_INTEGER) {
+        key_int = atoll(key);
+        key = (char *)&key_int;
+        key_len = sizeof(long long);
+    }
+
     ret = plugin_runtime_update_row(plugin_rt, schema, line, key, key_len, is_valid);
     if (ret < 0) {
         schema->update_err_cnt++;
@@ -487,12 +494,8 @@ void *plugin_runtime_get_ex_data(void *plugin_runtime, void *plugin_schema,
     }
 
     if (schema->key_type == PLUGIN_KEY_TYPE_INTEGER) {
-        char key_str[MAX_KEYWORDS_STR] = {0};
-        long long key_int = *(long long *)key;
-        sprintf(key_str, "%lld", key_int);
-        key_len = strlen(key_str);
-        return ex_data_runtime_get_ex_data_by_key(plugin_rt->ex_data_rt, ex_schema, key_str, key_len);
-    } else {
-        return ex_data_runtime_get_ex_data_by_key(plugin_rt->ex_data_rt, ex_schema, key, key_len);
-    }    
+        key_len = sizeof(long long);
+    }
+    
+    return ex_data_runtime_get_ex_data_by_key(plugin_rt->ex_data_rt, ex_schema, key, key_len);    
 }
