@@ -311,8 +311,8 @@ void ip_plugin_table_set_ex_data_schema(void *ip_plugin_schema,
 }
 
 int ip_plugin_runtime_update_row(struct ip_plugin_runtime *ip_plugin_rt,
-                                 struct ex_data_schema *ex_schema, 
-                                 const char *row, char *key, size_t key_len, 
+                                 struct ex_data_schema *ex_schema, const char *row, 
+                                 const char *key, size_t key_len, 
                                  struct ip_rule *ip_plugin_rule, int is_valid)
 {
     int ret = -1;
@@ -390,13 +390,15 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
     struct ip_rule *ip_plugin_rule = NULL;
     struct ip_plugin_schema *schema = (struct ip_plugin_schema *)ip_plugin_schema;
     struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
-    long long item_id = get_column_value(line, schema->item_id_column);
-    if (item_id < 0) {
-        return -1;
-    }
+    size_t item_id_offset = 0, item_id_len = 0;
 
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
+        return -1;
+    }
+
+    int ret = get_column_pos(line, schema->item_id_column, &item_id_offset, &item_id_len);
+    if (ret < 0) {
         return -1;
     }
 
@@ -410,10 +412,10 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
             }
         }
 
-        char *key = (char *)&item_id;
-        int ret = ip_plugin_runtime_update_row(ip_plugin_rt, ex_schema, line, key, 
-                                               sizeof(long long), ip_plugin_rule, 
-                                               is_valid);
+        const char *key = line + item_id_offset;
+        size_t key_len = item_id_len;
+        ret = ip_plugin_runtime_update_row(ip_plugin_rt, ex_schema, line, key, key_len, 
+                                               ip_plugin_rule, is_valid);
         if (ret < 0) {
             if (ip_plugin_rule != NULL) {
                 ip_plugin_rule_free(ip_plugin_rule);

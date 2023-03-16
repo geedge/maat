@@ -212,8 +212,8 @@ void bool_plugin_runtime_free(void *bool_plugin_runtime)
 }
 
 int bool_plugin_runtime_update_row(struct bool_plugin_runtime *bool_plugin_rt,
-                                   struct ex_data_schema *ex_schema,
-                                   const char *row, char *key, size_t key_len, 
+                                   struct ex_data_schema *ex_schema, const char *row, 
+                                   const char *key, size_t key_len, 
                                    struct bool_expr *expr, int is_valid)
 {
     int ret = -1;
@@ -360,13 +360,15 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
     struct bool_expr *bool_expr = NULL;
     struct bool_plugin_schema *schema = (struct bool_plugin_schema *)bool_plugin_schema;
     struct bool_plugin_runtime *bool_plugin_rt = (struct bool_plugin_runtime *)bool_plugin_runtime;
-    long long item_id = get_column_value(line, schema->item_id_column);
-    if (item_id < 0) {
-        return -1;
-    }
+    size_t item_id_offset = 0, item_id_len = 0;
 
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
+        return -1;
+    }
+
+    int ret = get_column_pos(line, schema->item_id_column, &item_id_offset, &item_id_len);
+    if (ret < 0) {
         return -1;
     }
 
@@ -380,9 +382,10 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
             }
         }
 
-        char *key = (char *)&item_id;
-        int ret = bool_plugin_runtime_update_row(bool_plugin_rt, ex_schema, line, key,
-                                                 sizeof(long long), bool_expr, is_valid);
+        const char *key = line + item_id_offset;
+        size_t key_len = item_id_len;
+        ret = bool_plugin_runtime_update_row(bool_plugin_rt, ex_schema, line, key, key_len, 
+                                                 bool_expr, is_valid);
         if (ret < 0) {
             if (bool_expr != NULL) {
                 bool_plugin_expr_free(bool_expr);

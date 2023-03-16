@@ -22,12 +22,6 @@
 
 #define MODULE_PLUGIN	 module_name_str("maat.plugin")
 
-enum plugin_key_type {
-    PLUGIN_KEY_TYPE_INVALID = 0,
-    PLUGIN_KEY_TYPE_POINTER,
-    PLUGIN_KEY_TYPE_INTEGER
-};
-
 struct plugin_callback_schema {
 	maat_start_callback_t *start;
 	maat_update_callback_t *update;
@@ -45,10 +39,16 @@ struct plugin_runtime {
     struct log_handle *logger;
 };
 
+enum plugin_key_type {
+    PLUGIN_KEY_TYPE_INVALID = 0,
+    PLUGIN_KEY_TYPE_POINTER,
+    PLUGIN_KEY_TYPE_INTEGER
+};
+
 #define	MAX_PLUGIN_PER_TABLE 32
 struct plugin_schema {
-    int key_column;
     enum plugin_key_type key_type;
+    int key_column;
     int rule_tag_column;
     int n_foreign;
     int foreign_columns[MAX_FOREIGN_CLMN_NUM];
