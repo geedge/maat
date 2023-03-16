@@ -96,9 +96,9 @@ int maat_options_set_accept_tags(struct maat_options *opts, const char *accept_t
 int maat_options_set_rule_effect_interval_ms(struct maat_options *opts, int interval_ms);
 int maat_options_set_rule_update_checking_interval_ms(struct maat_options *opts, int interval_ms);
 int maat_options_set_gc_timeout_ms(struct maat_options *opts, int interval_ms);
-int maat_options_set_instance_name(struct maat_options *opts, const char *instance_name, size_t name_len);
+int maat_options_set_instance_name(struct maat_options *opts, const char *instance_name);
 int maat_options_set_deferred_load_on(struct maat_options *opts);
-int maat_options_set_foreign_cont_dir(struct maat_options *opts, const char *dir, size_t dir_len);
+int maat_options_set_foreign_cont_dir(struct maat_options *opts, const char *dir);
 
 int maat_options_set_iris(struct maat_options *opts, const char *full_directory, 
                           const char *increment_directory);
