@@ -176,14 +176,13 @@ int maat_options_set_gc_timeout_ms(struct maat_options *opts, int interval_ms)
     return 0;
 }
 
-int maat_options_set_instance_name(struct maat_options *opts, const char *instance_name)
+int maat_options_set_instance_name(struct maat_options *opts, const char *instance_name, size_t name_len)
 {
-    if (NULL == opts || NULL == instance_name || 
-        strlen(instance_name) >= NAME_MAX) {
+    if (NULL == opts || NULL == instance_name || name_len > sizeof(opts->instance_name)) {
         return -1;
     }
 
-    memcpy(opts->instance_name, instance_name, strlen(instance_name));
+    memcpy(opts->instance_name, instance_name, name_len);
     return 0;
 }
 
@@ -197,13 +196,13 @@ int maat_options_set_deferred_load_on(struct maat_options *opts)
     return 0;
 }
 
-int maat_options_set_foreign_cont_dir(struct maat_options *opts, const char *dir)
+int maat_options_set_foreign_cont_dir(struct maat_options *opts, const char *dir, size_t dir_len)
 {
-    if (NULL == opts || strlen(dir) >= NAME_MAX) {
+    if (NULL == opts || NULL == dir || dir_len > sizeof(opts->foreign_cont_dir)) {
         return -1;
     }
 
-    memcpy(opts->foreign_cont_dir, dir, strlen(dir));
+    memcpy(opts->foreign_cont_dir, dir, dir_len);
     return 0;
 }
 
