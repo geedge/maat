@@ -646,20 +646,23 @@ struct adapter_hs_stream *adapter_hs_stream_open(struct adapter_hs *hs_instance,
     utarray_new(hs_stream->pattern_id_set, &ut_pattern_id_icd);
     utarray_reserve(hs_stream->pattern_id_set, hs_stream->n_patterns);
 
+    int err_count = 0;
     if (hs_instance->hs_rt->literal_db != NULL) {
         err = hs_open_stream(hs_instance->hs_rt->literal_db, 0, &hs_stream->literal_stream);
         if (err != HS_SUCCESS) {
-            // log_error
-            return NULL;
+           err_count++;
         }
     }
 
     if (hs_instance->hs_rt->regex_db != NULL) {
         err = hs_open_stream(hs_instance->hs_rt->regex_db, 0, &hs_stream->regex_stream);
         if (err != HS_SUCCESS) {
-            // log_error
-            return NULL;
+            err_count++;
         }
+    }
+
+    if (2 == err_count) {
+        return NULL;
     }
 
     return hs_stream;
@@ -675,13 +678,14 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
         return -1;
     }
     
+    int err_count = 0;
     int thread_id = hs_stream->thread_id;
     if (hs_stream->literal_stream != NULL) {
         err = hs_scan_stream(hs_stream->literal_stream, data, data_len, 
                              0, hs_stream->hs_rt->scratchs[thread_id],
                              matched_event_cb, hs_stream->pattern_id_set);
         if (err != HS_SUCCESS) {
-            return -1;
+            err_count++;
         }
     }
     
@@ -690,8 +694,12 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
                              0, hs_stream->hs_rt->scratchs[thread_id],
                              matched_event_cb, hs_stream->pattern_id_set);
         if (err != HS_SUCCESS) {
-            return -1;
+            err_count++;
         }
+    }
+
+    if (2 == err_count) {
+        return -1;
     }
 
     size_t pattern_set_size = utarray_len(hs_stream->pattern_id_set);
@@ -736,10 +744,19 @@ void adapter_hs_stream_close(struct adapter_hs_stream *hs_stream)
     int thread_id = hs_stream->thread_id;
 
     if (hs_stream->hs_rt != NULL) {
-        hs_close_stream(hs_stream->literal_stream,
-                        hs_stream->hs_rt->scratchs[thread_id], NULL, NULL);
-        hs_close_stream(hs_stream->regex_stream,
-                        hs_stream->hs_rt->scratchs[thread_id], NULL, NULL);
+        if (hs_stream->literal_stream != NULL) {
+            hs_close_stream(hs_stream->literal_stream,
+                            hs_stream->hs_rt->scratchs[thread_id], 
+                            NULL, NULL);
+            hs_stream->literal_stream = NULL;
+        }
+        
+        if (hs_stream->regex_stream != NULL) {
+            hs_close_stream(hs_stream->regex_stream,
+                            hs_stream->hs_rt->scratchs[thread_id], 
+                            NULL, NULL);
+            hs_stream->regex_stream = NULL;
+        }
     }
    
     utarray_free(hs_stream->pattern_id_set);

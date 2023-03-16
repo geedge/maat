@@ -601,34 +601,33 @@ int generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int table_
 void generic_plugin_runtime_commit_ex_schema(void *runtime, void *schema, int table_id, 
                                              enum table_type table_type, int valid_column)
 {
-    struct ex_data_schema *ex_data_schema = NULL;
+    struct ex_data_schema *ex_schema = NULL;
     struct ex_data_runtime *ex_data_rt = NULL;
 
     switch (table_type) {
         case TABLE_TYPE_PLUGIN:
-            ex_data_schema = plugin_table_get_ex_data_schema(schema);
+            ex_schema = plugin_table_get_ex_data_schema(schema);
             ex_data_rt = plugin_runtime_get_ex_data_rt(runtime);
             break;
         case TABLE_TYPE_IP_PLUGIN:
-            ex_data_schema = ip_plugin_table_get_ex_data_schema(schema);
+            ex_schema = ip_plugin_table_get_ex_data_schema(schema);
             ex_data_rt = ip_plugin_runtime_get_ex_data_rt(runtime);
             break;
         case TABLE_TYPE_FQDN_PLUGIN:
-            ex_data_schema = fqdn_plugin_table_get_ex_data_schema(schema);
+            ex_schema = fqdn_plugin_table_get_ex_data_schema(schema);
             ex_data_rt = fqdn_plugin_runtime_get_ex_data_rt(runtime);
             break;
         case TABLE_TYPE_BOOL_PLUGIN:
-            ex_data_schema = bool_plugin_table_get_ex_data_schema(schema);
+            ex_schema = bool_plugin_table_get_ex_data_schema(schema);
             ex_data_rt = bool_plugin_runtime_get_ex_data_rt(runtime);
             break;
         default:
             break;
     }
 
-    ex_data_runtime_set_schema(ex_data_rt, ex_data_schema);
     struct ex_container_schema *container_schema = ALLOC(struct ex_container_schema, 1);
     container_schema->table_id = table_id;
-    container_schema->ex_schema = ex_data_schema;
+    container_schema->ex_schema = ex_schema;
     ex_data_runtime_set_ex_container_schema(ex_data_rt, container_schema);
 
     size_t n_cached_row = ex_data_runtime_cached_row_count(ex_data_rt);
@@ -809,7 +808,16 @@ int maat_ip_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
         return -1;
     }
 
-    int n_hit_ex_data = ip_plugin_runtime_get_ex_data(ip_plugin_rt, ip_addr, ex_data_array, n_ex_data);
+    void *ip_plugin_schema = table_manager_get_schema(maat_rt->ref_tbl_mgr, table_id);
+    if (NULL == ip_plugin_schema) {
+        log_error(maat_instance->logger, MODULE_MAAT_API,
+                  "[%s:%d] table(table_id:%d) schema is NULL", 
+                  __FUNCTION__, __LINE__, table_id);
+        return -1;
+    }
+
+    int n_hit_ex_data = ip_plugin_runtime_get_ex_data(ip_plugin_rt, ip_plugin_schema, ip_addr, 
+                                                      ex_data_array, n_ex_data);
     if (n_hit_ex_data < 0) {
         log_error(maat_instance->logger, MODULE_MAAT_API,
                   "[%s:%d] ip_plugin table(table_id:%d) get ex_data error.", 
@@ -848,7 +856,16 @@ int maat_fqdn_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
         return -1;
     }
 
-    int n_hit_ex_data = fqdn_plugin_runtime_get_ex_data(fqdn_plugin_rt, fqdn, ex_data_array, n_ex_data);
+    void *fqdn_plugin_schema = table_manager_get_schema(maat_rt->ref_tbl_mgr, table_id);
+    if (NULL == fqdn_plugin_schema) {
+        log_error(maat_instance->logger, MODULE_MAAT_API,
+                  "[%s:%d] table(table_id:%d) schema is NULL", 
+                  __FUNCTION__, __LINE__, table_id);
+        return -1;
+    }
+
+    int n_hit_ex_data = fqdn_plugin_runtime_get_ex_data(fqdn_plugin_rt, fqdn_plugin_schema,
+                                                        fqdn, ex_data_array, n_ex_data);
     if (n_hit_ex_data < 0) {
         log_error(maat_instance->logger, MODULE_MAAT_API,
                   "[%s:%d] fqdn_plugin table(table_id:%d) get ex_data error.", 
@@ -887,7 +904,17 @@ int maat_bool_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
         return -1;
     }
 
-    int n_hit_ex_data = bool_plugin_runtime_get_ex_data(bool_plugin_rt, item_ids, n_item, ex_data_array, n_ex_data);
+    void *bool_plugin_schema = table_manager_get_schema(maat_rt->ref_tbl_mgr, table_id);
+    if (NULL == bool_plugin_schema) {
+        log_error(maat_instance->logger, MODULE_MAAT_API,
+                  "[%s:%d] table(table_id:%d) schema is NULL", 
+                  __FUNCTION__, __LINE__, table_id);
+        return -1;
+    }
+
+    int n_hit_ex_data = bool_plugin_runtime_get_ex_data(bool_plugin_rt, bool_plugin_schema,
+                                                        item_ids, n_item, ex_data_array, 
+                                                        n_ex_data);
     if (n_hit_ex_data < 0) {
         log_error(maat_instance->logger, MODULE_MAAT_API,
                   "[%s:%d] bool_plugin table(table_id:%d) get ex_data error.", 

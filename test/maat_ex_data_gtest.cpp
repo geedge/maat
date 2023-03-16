@@ -60,12 +60,11 @@ TEST(EXDataRuntime, Update) {
     struct ex_data_runtime *ex_data_rt = ex_data_runtime_new(table_id, ex_container_free, garbage_bin, g_logger);
     struct ex_data_schema *ex_schema = ex_data_schema_new(ex_data_new_cb, ex_data_free_cb, ex_data_dup_cb, 
                                                           0, &ex_data_counter);
-    ex_data_runtime_set_schema(ex_data_rt, ex_schema);
 
     const char *row1 = "1\t192.168.0.1\tmahuateng\t1\t0";
     const char *key1 = "192.168.0.1";
     size_t key1_len = strlen(key1);
-    void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, row1, key1, key1_len);
+    void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, ex_schema, row1, key1, key1_len);
     EXPECT_EQ(ex_data_counter, 1);
 
     struct ex_container *ex_container = ex_container_new(ex_data, NULL);
@@ -75,21 +74,21 @@ TEST(EXDataRuntime, Update) {
     const char *row2 = "2\t192.168.0.2\tliyanhong\t1\t0";
     const char *key2 = "192.168.0.2";
     size_t key2_len = strlen(key2);
-    ex_data = ex_data_runtime_row2ex_data(ex_data_rt, row2, key2, key2_len);
+    ex_data = ex_data_runtime_row2ex_data(ex_data_rt, ex_schema, row2, key2, key2_len);
     ex_container = ex_container_new(ex_data, NULL);
     ret = ex_data_runtime_add_ex_container(ex_data_rt, key2, key2_len, ex_container);
     EXPECT_EQ(ret, 0);
 
     ex_data_runtime_commit(ex_data_rt);
 
-    void *res_data1 = ex_data_runtime_get_ex_data_by_key(ex_data_rt, "192.168.0.1", 11);
+    void *res_data1 = ex_data_runtime_get_ex_data_by_key(ex_data_rt, ex_schema, "192.168.0.1", 11);
     EXPECT_TRUE(res_data1 != NULL);
 
     struct user_info *info = (struct user_info *)res_data1;
     EXPECT_EQ(0, strcmp(info->name, "mahuateng"));
     EXPECT_EQ(info->id, 1);
 
-    void *res_data2 = ex_data_runtime_get_ex_data_by_key(ex_data_rt, "192.168.0.2", 11);
+    void *res_data2 = ex_data_runtime_get_ex_data_by_key(ex_data_rt, ex_schema, "192.168.0.2", 11);
     EXPECT_TRUE(res_data2 != NULL);
 
     info = (struct user_info *)res_data2;

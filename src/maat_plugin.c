@@ -9,6 +9,8 @@
 */
 
 #include <assert.h>
+#include <errno.h>
+#include <limits.h>
 
 #include "log/log.h"
 #include "maat_utils.h"
@@ -19,6 +21,12 @@
 #include "maat_table.h"
 
 #define MODULE_PLUGIN	 module_name_str("maat.plugin")
+
+enum plugin_key_type {
+    PLUGIN_KEY_TYPE_INVALID = 0,
+    PLUGIN_KEY_TYPE_POINTER,
+    PLUGIN_KEY_TYPE_INTEGER
+};
 
 struct plugin_callback_schema {
 	maat_start_callback_t *start;
@@ -40,6 +48,7 @@ struct plugin_runtime {
 #define	MAX_PLUGIN_PER_TABLE 32
 struct plugin_schema {
     int key_column;
+    enum plugin_key_type key_type;
     int rule_tag_column;
     int n_foreign;
     int foreign_columns[MAX_FOREIGN_CLMN_NUM];
@@ -101,6 +110,26 @@ void *plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
     schema->key_column = custom_item->valueint;
+    
+    custom_item = cJSON_GetObjectItem(item, "key_type");
+    if (NULL == custom_item || custom_item->type != cJSON_String) {
+        log_error(logger, MODULE_PLUGIN, 
+                  "[%s:%d] plugin table: %s has no key_type column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
+    }
+
+    if (strcmp(custom_item->valuestring, "pointer") == 0) {
+        schema->key_type = PLUGIN_KEY_TYPE_POINTER;
+    } else if (strcmp(custom_item->valuestring, "integer") == 0) {
+        schema->key_type = PLUGIN_KEY_TYPE_INTEGER;
+    } else {
+        log_error(logger, MODULE_PLUGIN, 
+                  "[%s:%d] plugin table: %s key_type:%s illegal", 
+                  __FUNCTION__, __LINE__, table_name, 
+                  custom_item->valuestring);
+        goto error;
+    }
     
     custom_item = cJSON_GetObjectItem(item, "tag");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
@@ -281,7 +310,7 @@ int plugin_runtime_update_row(struct plugin_runtime *plugin_rt,
             }
         } else {
             // add
-            void *ex_data = ex_data_runtime_row2ex_data(plugin_rt->ex_data_rt, row, key, key_len);
+            void *ex_data = ex_data_runtime_row2ex_data(plugin_rt->ex_data_rt, ex_schema, row, key, key_len);
             struct ex_container *ex_container = ex_container_new(ex_data, NULL);
             ret = ex_data_runtime_add_ex_container(plugin_rt->ex_data_rt, key, key_len, ex_container);
             if (ret < 0) {
@@ -452,9 +481,18 @@ void *plugin_runtime_get_ex_data(void *plugin_runtime, void *plugin_schema,
 
     struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
     struct plugin_schema *schema = (struct plugin_schema *)plugin_schema;
-    if (NULL == schema->ex_schema) {
+    struct ex_data_schema *ex_schema = schema->ex_schema;
+    if (NULL == ex_schema) {
         return NULL;
     }
 
-    return ex_data_runtime_get_ex_data_by_key(plugin_rt->ex_data_rt, key, key_len);
+    if (schema->key_type == PLUGIN_KEY_TYPE_INTEGER) {
+        char key_str[MAX_KEYWORDS_STR] = {0};
+        long long key_int = *(long long *)key;
+        sprintf(key_str, "%lld", key_int);
+        key_len = strlen(key_str);
+        return ex_data_runtime_get_ex_data_by_key(plugin_rt->ex_data_rt, ex_schema, key_str, key_len);
+    } else {
+        return ex_data_runtime_get_ex_data_by_key(plugin_rt->ex_data_rt, ex_schema, key, key_len);
+    }    
 }

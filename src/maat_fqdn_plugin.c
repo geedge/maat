@@ -304,7 +304,8 @@ void fqdn_plugin_rule_free(struct FQDN_rule *rule)
 }
 
 int fqdn_plugin_runtime_update_row(struct fqdn_plugin_runtime *fqdn_plugin_rt,
-                                   const char *row, const char *key, size_t key_len, 
+                                   struct ex_data_schema *ex_schema, const char *row, 
+                                   const char *key, size_t key_len, 
                                    struct FQDN_rule *fqdn_plugin_rule, int is_valid)
 {
     int ret = -1;
@@ -318,7 +319,7 @@ int fqdn_plugin_runtime_update_row(struct fqdn_plugin_runtime *fqdn_plugin_rt,
         }
     } else {
         // add
-        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, row, key, key_len);
+        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, ex_schema, row, key, key_len);
         struct ex_container *ex_container = ex_container_new(ex_data, (void *)fqdn_plugin_rule);
         ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
         if (ret < 0) {
@@ -350,7 +351,8 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
         return -1;
     }
 
-    if (schema->ex_schema != NULL) {
+    struct ex_data_schema *ex_schema = schema->ex_schema;
+    if (ex_schema != NULL) {
         if (1 == is_valid) {
             // add
             fqdn_plugin_rule = fqdn_plugin_rule_new(line, schema, fqdn_plugin_rt->logger);
@@ -360,19 +362,13 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
         }
 
         char *key = (char *)&item_id;
-        int ret = fqdn_plugin_runtime_update_row(fqdn_plugin_rt, line, key, sizeof(long long),
+        int ret = fqdn_plugin_runtime_update_row(fqdn_plugin_rt, ex_schema, line, key, sizeof(long long), 
                                                  fqdn_plugin_rule, is_valid);
         if (ret < 0) {
             if (fqdn_plugin_rule != NULL) {
                 fqdn_plugin_rule_free(fqdn_plugin_rule);
             }
             return -1;
-        } else {
-            if (0 == is_valid) {
-                fqdn_plugin_rt->rule_num--;
-            } else {
-                fqdn_plugin_rt->rule_num++;
-            }
         }
     } else {
         //ex_schema not set
@@ -462,10 +458,17 @@ struct ex_data_runtime *fqdn_plugin_runtime_get_ex_data_rt(void *fqdn_plugin_run
 }
 
 
-int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, const char *query_fqdn, 
-                                    void **ex_data_array, size_t n_ex_data)
+int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, void *fqdn_plugin_schema,
+                                    const char *query_fqdn, void **ex_data_array, 
+                                    size_t n_ex_data)
 {
-    if (NULL == fqdn_plugin_runtime) {
+    if (NULL == fqdn_plugin_runtime || NULL == fqdn_plugin_schema) {
+        return -1;
+    }
+
+    struct fqdn_plugin_schema *schema = (struct fqdn_plugin_schema *)fqdn_plugin_schema;
+    struct ex_data_schema *ex_schema = schema->ex_schema;
+    if (NULL == ex_schema) {
         return -1;
     }
 
@@ -480,7 +483,7 @@ int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, const char *query
     assert(fqdn_plugin_rt->engine != NULL);
 	int n_result = FQDN_engine_search(fqdn_plugin_rt->engine, query_fqdn, strlen(query_fqdn), results, n_ex_data);
 	for (int i = 0; i < n_result; i++) {
-		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(fqdn_plugin_rt->ex_data_rt, 
+		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(fqdn_plugin_rt->ex_data_rt, ex_schema,
                                                                     (struct ex_container *)results[i].user_tag);
 	}
 

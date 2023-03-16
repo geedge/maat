@@ -1414,6 +1414,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_deferred_load_on(opts);
         maat_options_set_logger(opts, g_logger);
         maat_options_set_accept_tags(opts, accept_tags);
 
@@ -1447,6 +1448,107 @@ TEST_F(PluginTable, Callback) {
                                            maat_read_entry_finish_cb,
                                            maat_instance);
     EXPECT_EQ(ret, 0);
+}
+
+struct plugin_ud {
+	char key[256];
+    char value[256];
+    int id;
+	int ref_cnt;
+};
+
+void plugin_EX_new_cb(int table_id, const char *key, const char *table_line, 
+                         void **ad, long argl, void *argp)
+{
+	int *counter = (int *)argp;
+    int valid = 0, tag = 0;
+	struct plugin_ud *ud = ALLOC(struct plugin_ud, 1);
+
+	int ret = sscanf(table_line, "%d\t%s\t%s\t%d\t%d", &(ud->id), ud->key, ud->value, &valid, &tag);
+    EXPECT_EQ(ret, 5);
+    ud->ref_cnt = 1;
+    *ad = ud;
+	(*counter)++;
+}
+
+void plugin_EX_free_cb(int table_id, void **ad, long argl, void *argp)
+{
+	struct plugin_ud *ud = (struct plugin_ud *)(*ad);
+	if ((__sync_sub_and_fetch(&ud->ref_cnt, 1) == 0)) {
+		free(ud);
+		*ad = NULL;
+	}
+}
+
+void plugin_EX_dup_cb(int table_id, void **to, void **from, long argl, void *argp)
+{
+	struct plugin_ud *ud = (struct plugin_ud *)(*from);
+	__sync_add_and_fetch(&(ud->ref_cnt), 1);
+	*to = ud;
+}
+
+TEST_F(PluginTable, EX_DATA) {
+    const char *table_name = "TEST_PLUGIN_EXDATA_TABLE";
+    struct maat *maat_instance = PluginTable::_shared_maat_instance;
+
+    int table_id = maat_get_table_id(maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+    int plugin_ex_data_counter = 0;
+    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_id,
+                                                   plugin_EX_new_cb,
+                                                   plugin_EX_free_cb,
+                                                   plugin_EX_dup_cb,
+                                                   0, &plugin_ex_data_counter);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(plugin_ex_data_counter, 4);
+
+    const char *key1 = "HeBei";
+    struct plugin_ud *ud = NULL;
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id, key1);
+    ASSERT_TRUE(ud != NULL);
+    EXPECT_STREQ(ud->value, "Shijiazhuang");
+    EXPECT_EQ(ud->id, 1);
+    plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
+
+    const char *key2 = "ShanDong";
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id, key2);
+    ASSERT_TRUE(ud != NULL);
+    EXPECT_STREQ(ud->value, "Jinan");
+    EXPECT_EQ(ud->id, 3);
+    plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
+}
+
+TEST_F(PluginTable, KEY_TYPE) {
+    const char *table_name = "TEST_PLUGIN_KEY_TYPE_TABLE";
+    struct maat *maat_instance = PluginTable::_shared_maat_instance;
+
+    int table_id = maat_get_table_id(maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+    int plugin_ex_data_counter = 0;
+    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_id,
+                                                   plugin_EX_new_cb,
+                                                   plugin_EX_free_cb,
+                                                   plugin_EX_dup_cb,
+                                                   0, &plugin_ex_data_counter);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(plugin_ex_data_counter, 4);
+
+    long long key1 = 11111111;
+    struct plugin_ud *ud = NULL;
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id, (char *)&key1);
+    ASSERT_TRUE(ud != NULL);
+    EXPECT_STREQ(ud->value, "Shijiazhuang");
+    EXPECT_EQ(ud->id, 1);
+    plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
+
+    long long key2 = 33333333;
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id, (char *)&key2);
+    ASSERT_TRUE(ud != NULL);
+    EXPECT_STREQ(ud->value, "Jinan");
+    EXPECT_EQ(ud->id, 3);
+    plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 }
 
 class IPPluginTable : public testing::Test
@@ -2380,6 +2482,7 @@ protected:
 
         g_logger = log_handle_create("./maat_framework_gtest.log", 0);
         assert(g_logger != NULL);
+        maat_options_set_deferred_load_on(opts);
         maat_options_set_logger(opts, g_logger);
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);

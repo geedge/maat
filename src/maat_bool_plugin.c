@@ -212,6 +212,7 @@ void bool_plugin_runtime_free(void *bool_plugin_runtime)
 }
 
 int bool_plugin_runtime_update_row(struct bool_plugin_runtime *bool_plugin_rt,
+                                   struct ex_data_schema *ex_schema,
                                    const char *row, char *key, size_t key_len, 
                                    struct bool_expr *expr, int is_valid)
 {
@@ -226,7 +227,7 @@ int bool_plugin_runtime_update_row(struct bool_plugin_runtime *bool_plugin_rt,
         }
     } else {
         // add
-        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, row, key, key_len);
+        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, ex_schema, row, key, key_len);
         struct ex_container *ex_container = ex_container_new(ex_data, (void *)expr);
         ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
         if (ret < 0) {
@@ -369,7 +370,8 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
         return -1;
     }
 
-    if (schema->ex_schema != NULL) {
+    struct ex_data_schema *ex_schema = schema->ex_schema;
+    if (ex_schema != NULL) {
         if (1 == is_valid) {
             // add
             bool_expr = bool_plugin_expr_new(line, schema, bool_plugin_rt->logger);
@@ -379,7 +381,7 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
         }
 
         char *key = (char *)&item_id;
-        int ret = bool_plugin_runtime_update_row(bool_plugin_rt, line, key,
+        int ret = bool_plugin_runtime_update_row(bool_plugin_rt, ex_schema, line, key,
                                                  sizeof(long long), bool_expr, is_valid);
         if (ret < 0) {
             if (bool_expr != NULL) {
@@ -475,10 +477,17 @@ struct ex_data_runtime *bool_plugin_runtime_get_ex_data_rt(void *bool_plugin_run
     return bool_plugin_rt->ex_data_rt;
 }
 
-int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, unsigned long long *item_ids,
-                                    size_t n_item, void **ex_data_array, size_t n_ex_data)
+int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, void *bool_plugin_schema,
+                                    unsigned long long *item_ids, size_t n_item, 
+                                    void **ex_data_array, size_t n_ex_data)
 {
-    if (NULL == bool_plugin_runtime) {
+    if (NULL == bool_plugin_runtime || NULL == bool_plugin_schema) {
+        return -1;
+    }
+
+    struct bool_plugin_schema *schema = (struct bool_plugin_schema *)bool_plugin_schema;
+    struct ex_data_schema *ex_schema = schema->ex_schema;
+    if (NULL == ex_schema) {
         return -1;
     }
 
@@ -494,7 +503,7 @@ int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, unsigned long lon
     assert(bool_plugin_rt->matcher != NULL);
 	int n_result = bool_matcher_match(bool_plugin_rt->matcher, item_ids, n_item, results, n_ex_data);
 	for (int i = 0; i < n_result; i++) {
-		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(bool_plugin_rt->ex_data_rt, 
+		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(bool_plugin_rt->ex_data_rt, ex_schema,
                                                                     (struct ex_container *)results[i].user_tag);
 	}
 

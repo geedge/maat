@@ -49,8 +49,8 @@ int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name
 
 struct ex_data_runtime *fqdn_plugin_runtime_get_ex_data_rt(void *fqdn_plugin_runtime);
 
-int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, const char *fqdn, 
-                                    void **ex_data_array, size_t n_ex_data);
+int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, void *fqdn_plugin_schema,
+                                    const char *fqdn, void **ex_data_array, size_t n_ex_data);
 #ifdef __cplusplus
 }
 #endif

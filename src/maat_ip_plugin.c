@@ -311,8 +311,9 @@ void ip_plugin_table_set_ex_data_schema(void *ip_plugin_schema,
 }
 
 int ip_plugin_runtime_update_row(struct ip_plugin_runtime *ip_plugin_rt,
-                                  const char *row, char *key, size_t key_len, 
-                                  struct ip_rule *ip_plugin_rule, int is_valid)
+                                 struct ex_data_schema *ex_schema, 
+                                 const char *row, char *key, size_t key_len, 
+                                 struct ip_rule *ip_plugin_rule, int is_valid)
 {
     int ret = -1;
     struct ex_data_runtime *ex_data_rt = ip_plugin_rt->ex_data_rt;
@@ -328,7 +329,7 @@ int ip_plugin_runtime_update_row(struct ip_plugin_runtime *ip_plugin_rt,
         }
     } else {
         // add
-        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, row, key, key_len);
+        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, ex_schema, row, key, key_len);
         struct ex_container *ex_container = ex_container_new(ex_data, (void *)ip_plugin_rule);
         ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
         if (ret < 0) {
@@ -399,7 +400,8 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
         return -1;
     }
 
-    if (schema->ex_schema != NULL) {
+    struct ex_data_schema *ex_schema = schema->ex_schema;
+    if (ex_schema != NULL) {
         if (1 == is_valid) {
             // add
             ip_plugin_rule = ip_plugin_rule_new(line, schema, ip_plugin_rt->logger);
@@ -409,8 +411,9 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
         }
 
         char *key = (char *)&item_id;
-        int ret = ip_plugin_runtime_update_row(ip_plugin_rt, line, key, sizeof(long long), 
-                                               ip_plugin_rule, is_valid);
+        int ret = ip_plugin_runtime_update_row(ip_plugin_rt, ex_schema, line, key, 
+                                               sizeof(long long), ip_plugin_rule, 
+                                               is_valid);
         if (ret < 0) {
             if (ip_plugin_rule != NULL) {
                 ip_plugin_rule_free(ip_plugin_rule);
@@ -505,10 +508,17 @@ struct ex_data_runtime *ip_plugin_runtime_get_ex_data_rt(void *ip_plugin_runtime
     return ip_plugin_rt->ex_data_rt;
 }
 
-int ip_plugin_runtime_get_ex_data(void *ip_plugin_runtime, const struct ip_addr *ip_addr, 
-                                  void **ex_data_array, size_t n_ex_data)
+int ip_plugin_runtime_get_ex_data(void *ip_plugin_runtime, void *ip_plugin_schema,
+                                  const struct ip_addr *ip_addr, void **ex_data_array, 
+                                  size_t n_ex_data)
 {
-    if (NULL == ip_plugin_runtime) {
+    if (NULL == ip_plugin_runtime || NULL == ip_plugin_schema) {
+        return -1;
+    }
+
+    struct ip_plugin_schema *schema = (struct ip_plugin_schema *)ip_plugin_schema;
+    struct ex_data_schema *ex_schema = schema->ex_schema;
+    if (NULL == ex_schema) {
         return -1;
     }
 
@@ -530,7 +540,7 @@ int ip_plugin_runtime_get_ex_data(void *ip_plugin_runtime, const struct ip_addr 
     assert(ip_plugin_rt->ip_matcher != NULL);
 	int n_result = ip_matcher_match(ip_plugin_rt->ip_matcher, &ip_data, results, n_ex_data);
 	for (int i = 0; i < n_result; i++) {
-		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(ip_plugin_rt->ex_data_rt, 
+		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(ip_plugin_rt->ex_data_rt, ex_schema,
                                                                     (struct ex_container *)results[i].tag);
 	}
 	return n_result;

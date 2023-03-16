@@ -2442,6 +2442,24 @@
             ]
         },
         {
+            "table_name": "TEST_PLUGIN_EXDATA_TABLE",
+            "table_content": [
+                "1\tHeBei\tShijiazhuang\t1\t0",
+                "2\tHeNan\tZhengzhou\t1\t0",
+                "3\tShanDong\tJinan\t1\t0",
+                "4\tShanXi\tTaiyuan\t1\t0"
+            ]
+        },
+        {
+            "table_name": "TEST_PLUGIN_KEY_TYPE_TABLE",
+            "table_content": [
+                "1\t11111111\tShijiazhuang\t1\t0",
+                "2\t22222222\tZhengzhou\t1\t0",
+                "3\t33333333\tJinan\t1\t0",
+                "4\t44444444\tTaiyuan\t1\t0"
+            ]
+        },
+        {
             "table_name": "TEST_EFFECTIVE_RANGE_TABLE",
             "table_content": [
 				"1\tSUCCESS\t99\t1\t{\"tag_sets\":[[{\"tag\":\"location\",\"value\":[\"北京/朝阳/华严北里\"]},{\"tag\":\"isp\",\"value\":[\"电信\",\"移动\"]}]]}\t1111",
