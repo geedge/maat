@@ -323,7 +323,10 @@ struct adapter_hs *adapter_hs_initialize(enum hs_scan_mode scan_mode,
             }
 
             compile_data->ids[pattern_index] = pattern_index;
-            compile_data->flags[pattern_index] = HS_FLAG_SOM_LEFTMOST;
+            if (pattern_type == HS_PATTERN_TYPE_STR) {
+                compile_data->flags[pattern_index] = HS_FLAG_SOM_LEFTMOST;
+            }
+            
             if (exprs[i].patterns[j].case_sensitive == HS_CASE_INSESITIVE) {
                 compile_data->flags[pattern_index] |= HS_FLAG_CASELESS;
             }

@@ -19,7 +19,6 @@ const char *table_info_path = "./table_info.conf";
 const char *json_path="./maat_json.json";
 const char *json_filename = "maat_json.json";
 
-struct log_handle *g_logger = NULL;
 size_t g_thread_num = 4;
 
 extern int system_cmd_rmdir(const char *dir);
@@ -276,24 +275,22 @@ protected:
         int redis_port = 6379;
         int redis_db = 0;
 
-        g_logger = log_handle_create("./maat_framework_gtest.log", 0);
-        assert(g_logger != NULL);
-
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, g_logger);
+        logger = log_handle_create("./maat_framework_gtest.log", 0);        
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, g_logger);
+        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -301,13 +298,15 @@ protected:
 
     static void TearDownTestCase() {
         maat_free(_shared_maat_instance);
-        g_logger = NULL;
+        log_handle_destroy(logger);
     }
 
+    static struct log_handle *logger;
     static struct maat *_shared_maat_instance;
 };
 
 struct maat *MaatFlagScan::_shared_maat_instance;
+struct log_handle *MaatFlagScan::logger;
 
 TEST_F(MaatFlagScan, basic) {
     const char *flag_table_name = "FLAG_CONFIG";
@@ -507,24 +506,22 @@ protected:
         int redis_port = 6379;
         int redis_db = 0;
 
-        g_logger = log_handle_create("./maat_framework_gtest.log", 0);
-        assert(g_logger != NULL);
-
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, g_logger);
+        logger = log_handle_create("./maat_framework_gtest.log", 0);  
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, g_logger);
+        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -532,13 +529,15 @@ protected:
 
     static void TearDownTestCase() {
         maat_free(_shared_maat_instance);
-        g_logger = NULL;
+        log_handle_destroy(logger);
     }
 
+    static struct log_handle *logger;
     static struct maat *_shared_maat_instance;
 };
 
 struct maat *MaatStringScan::_shared_maat_instance;
+struct log_handle *MaatStringScan::logger;
 
 TEST_F(MaatStringScan, Expr8) {
     const char *table_name = "KEYWORDS_TABLE";
@@ -638,11 +637,11 @@ TEST_F(MaatStringScan, ExprAndExprPlus) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
+    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
     const char *expr_table_name = "HTTP_URL_LITERAL";
     const char *expr_plus_table_name = "HTTP_SIGNATURE";
     const char *region_name = "I love China";
     const char *scan_data = "today is Monday and yesterday is Tuesday";
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
 
     int expr_table_id = maat_get_table_id(maat_instance, expr_table_name);
     int expr_plus_table_id = maat_get_table_id(maat_instance, expr_plus_table_name);
@@ -668,13 +667,14 @@ TEST_F(MaatStringScan, StreamInput) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
+    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
 	const char *scan_data = "http://www.cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
-	const char *table_name = "HTTP_URL_STREAM";
+	const char *table_name = "HTTP_URL_REGEX";
 
-	int table_id = maat_get_table_id(g_maat_instance, table_name);
+	int table_id = maat_get_table_id(maat_instance, table_name);
 	ASSERT_GT(table_id, 0);
 
-	struct maat_stream *sp = maat_scan_stream_open(g_maat_instance, table_id, 0);
+	struct maat_stream *sp = maat_scan_stream_open(maat_instance, table_id, 0);
 	ASSERT_FALSE(sp==NULL);
 
 	int ret = maat_scan_stream(&sp, "www.cyberessays.com", strlen("www.cyberessays.com"),
@@ -889,24 +889,22 @@ protected:
         int redis_port = 6379;
         int redis_db = 0;
 
-        g_logger = log_handle_create("./maat_framework_gtest.log", 0);
-        assert(g_logger != NULL);
-
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, g_logger);
+        logger = log_handle_create("./maat_framework_gtest.log", 0);
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, g_logger);
+        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -914,13 +912,15 @@ protected:
 
     static void TearDownTestCase() {
         maat_free(_shared_maat_instance);
-        g_logger = NULL;
+        log_handle_destroy(logger);
     }
 
+    static struct log_handle *logger;
     static struct maat *_shared_maat_instance;
 };
 
 struct maat *MaatIPScan::_shared_maat_instance;
+struct log_handle *MaatIPScan::logger;
 
 TEST_F(MaatIPScan, IPv4) {
     const char *table_name = "IP_PLUS_CONFIG";
@@ -1046,24 +1046,22 @@ protected:
         int redis_port = 6379;
         int redis_db = 0;
 
-        g_logger = log_handle_create("./maat_framework_gtest.log", 0);
-        assert(g_logger != NULL);
-
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, g_logger);
+        logger = log_handle_create("./maat_framework_gtest.log", 0);  
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, g_logger);
+        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -1071,13 +1069,15 @@ protected:
 
     static void TearDownTestCase() {
        maat_free(_shared_maat_instance);
-       g_logger = NULL;
+       log_handle_destroy(logger);
     }
 
+    static struct log_handle *logger;
     static struct maat *_shared_maat_instance;
 };
 
 struct maat *MaatIntervalScan::_shared_maat_instance;
+struct log_handle *MaatIntervalScan::logger;
 
 TEST_F(MaatIntervalScan, Pure) {	
 	long long results[ARRAY_SIZE] = {0};
@@ -1133,24 +1133,22 @@ protected:
         int redis_port = 6379;
         int redis_db = 0;
 
-        g_logger = log_handle_create("./maat_framework_gtest.log", 0);
-        assert(g_logger != NULL);
-
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, g_logger);
+        logger = log_handle_create("./maat_framework_gtest.log", 0);  
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, g_logger);
+        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -1158,13 +1156,15 @@ protected:
 
     static void TearDownTestCase() {
        maat_free(_shared_maat_instance);
-       g_logger = NULL;
+       log_handle_destroy(logger);
     }
 
+    static struct log_handle *logger;
     static struct maat *_shared_maat_instance;
 };
 
 struct maat *NOTLogic::_shared_maat_instance;
+struct log_handle *NOTLogic::logger;
 
 TEST_F(NOTLogic, OneRegion) {
     const char *string_should_hit = "This string ONLY contains must-contained-string-of-rule-143.";
@@ -1403,25 +1403,23 @@ protected:
         int redis_port = 6379;
         int redis_db = 0;
 
-        g_logger = log_handle_create("./maat_framework_gtest.log", 0);
-        assert(g_logger != NULL);
-
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, g_logger);
+        logger = log_handle_create("./maat_framework_gtest.log", 0);
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
         maat_options_set_deferred_load_on(opts);
-        maat_options_set_logger(opts, g_logger);
+        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -1429,13 +1427,15 @@ protected:
 
     static void TearDownTestCase() {
        maat_free(_shared_maat_instance);
-       g_logger = NULL;
+       log_handle_destroy(logger);
     }
 
+    static struct log_handle *logger;
     static struct maat *_shared_maat_instance;
 };
 
 struct maat *PluginTable::_shared_maat_instance;
+struct log_handle *PluginTable::logger;
 
 TEST_F(PluginTable, Callback) {
     const char *table_name = "QD_ENTRY_INFO";
@@ -1560,24 +1560,22 @@ protected:
         int redis_port = 6379;
         int redis_db = 0;
 
-        g_logger = log_handle_create("./maat_framework_gtest.log", 0);
-        assert(g_logger != NULL);
-
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, g_logger);
+        logger = log_handle_create("./maat_framework_gtest.log", 0);  
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, g_logger);
+        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -1585,13 +1583,15 @@ protected:
 
     static void TearDownTestCase() {
        maat_free(_shared_maat_instance);
-       g_logger = NULL;
+       log_handle_destroy(logger);
     }
 
+    static struct log_handle *logger;
     static struct maat *_shared_maat_instance;
 };
 
 struct maat *IPPluginTable::_shared_maat_instance;
+struct log_handle *IPPluginTable::logger;
 
 struct ip_plugin_ud {
 	long long rule_id;
@@ -1701,24 +1701,22 @@ protected:
         int redis_port = 6379;
         int redis_db = 0;
 
-        g_logger = log_handle_create("./maat_framework_gtest.log", 0);
-        assert(g_logger != NULL);
-
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, g_logger);
+        logger = log_handle_create("./maat_framework_gtest.log", 0);  
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, g_logger);
+        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -1726,13 +1724,15 @@ protected:
 
     static void TearDownTestCase() {
         maat_free(_shared_maat_instance);
-        g_logger = NULL;
+        log_handle_destroy(logger);
     }
 
+    static struct log_handle *logger;
     static struct maat *_shared_maat_instance;
 };
 
 struct maat *FQDNPluginTable::_shared_maat_instance;
+struct log_handle *FQDNPluginTable::logger;
 
 #define FQDN_PLUGIN_EX_DATA
 struct fqdn_plugin_ud
@@ -1867,24 +1867,22 @@ protected:
         int redis_port = 6379;
         int redis_db = 0;
 
-        g_logger = log_handle_create("./maat_framework_gtest.log", 0);
-        assert(g_logger != NULL);
-
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, g_logger);
+        logger = log_handle_create("./maat_framework_gtest.log", 0);
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, g_logger);
+        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -1892,13 +1890,15 @@ protected:
 
     static void TearDownTestCase() {
         maat_free(_shared_maat_instance);
-        g_logger = NULL;
+        log_handle_destroy(logger);
     }
 
+    static struct log_handle *logger;
     static struct maat *_shared_maat_instance;
 };
 
 struct maat *BoolPluginTable::_shared_maat_instance;
+struct log_handle *BoolPluginTable::logger;
 
 TEST_F(BoolPluginTable, EX_DATA) {
     int ex_data_counter = 0, i = 0;
@@ -1957,24 +1957,22 @@ protected:
         int redis_port = 6379;
         int redis_db = 0;
 
-        g_logger = log_handle_create("./maat_framework_gtest.log", 0);
-        assert(g_logger != NULL);
-
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, g_logger);
+        logger = log_handle_create("./maat_framework_gtest.log", 0);
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, g_logger);
+        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -1982,13 +1980,15 @@ protected:
 
     static void TearDownTestCase() {
        maat_free(_shared_maat_instance);
-       g_logger = NULL;
+       log_handle_destroy(logger);
     }
 
+    static struct log_handle *logger;
     static struct maat *_shared_maat_instance;
 };
 
 struct maat *VirtualTable::_shared_maat_instance;
+struct log_handle *VirtualTable::logger;
 
 TEST_F(VirtualTable, basic) {
     long long results[ARRAY_SIZE] = {0};
@@ -2016,24 +2016,22 @@ protected:
         int redis_port = 6379;
         int redis_db = 0;
 
-        g_logger = log_handle_create("./maat_framework_gtest.log", 0);
-        assert(g_logger != NULL);
-
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, g_logger);
+        logger = log_handle_create("./maat_framework_gtest.log", 0);
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, g_logger);
+        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -2041,13 +2039,15 @@ protected:
 
     static void TearDownTestCase() {
        maat_free(_shared_maat_instance);
-       g_logger = NULL;
+       log_handle_destroy(logger);
     }    
 
+    static struct log_handle *logger;
     static struct maat *_shared_maat_instance;
 };
 
 struct maat *CompileTable::_shared_maat_instance;
+struct log_handle *CompileTable::logger;
 
 struct rule_ex_param {
 	int ref_cnt;
@@ -2192,24 +2192,22 @@ protected:
         int redis_port = 6379;
         int redis_db = 0;
 
-        g_logger = log_handle_create("./maat_framework_gtest.log", 0);
-        assert(g_logger != NULL);
-
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, g_logger);
+        logger = log_handle_create("./maat_framework_gtest.log", 0);
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, g_logger);
+        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -2217,13 +2215,15 @@ protected:
 
     static void TearDownTestCase() {
         maat_free(_shared_maat_instance);
-        g_logger = NULL;
+        log_handle_destroy(logger);
     }    
 
+    static struct log_handle *logger;
     static struct maat *_shared_maat_instance;
 };
 
 struct maat *Policy::_shared_maat_instance;
+struct log_handle *Policy::logger;
 
 void accept_tags_entry_cb(int table_id, const char *table_line, void *u_para)
 {
@@ -2399,24 +2399,22 @@ protected:
         int redis_port = 6379;
         int redis_db = 0;
 
-        g_logger = log_handle_create("./maat_framework_gtest.log", 0);
-        assert(g_logger != NULL);
-
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, g_logger);
+        logger = log_handle_create("./maat_framework_gtest.log", 0);
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, g_logger);
+        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -2424,13 +2422,15 @@ protected:
 
     static void TearDownTestCase() {
         maat_free(_shared_maat_instance);
-        g_logger = NULL;
+        log_handle_destroy(logger);
     }   
 
+    static struct log_handle *logger;
     static struct maat *_shared_maat_instance; 
 };
 
 struct maat *TableInfo::_shared_maat_instance;
+struct log_handle *TableInfo::logger;
 
 TEST_F(TableInfo, Conjunction) {
     long long results[ARRAY_SIZE] = {0};
@@ -2464,33 +2464,23 @@ protected:
         int redis_port = 6379;
         int redis_db = 0;
 
-        g_logger = log_handle_create("./maat_framework_gtest.log", 0);
-        assert(g_logger != NULL);
-
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, g_logger);
+        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
 
         _shared_maat_instance = maat_new(opts, table_info_path);
-        if (NULL == _shared_maat_instance) {
-            log_error(g_logger, MODULE_FRAMEWORK_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
-                      __FUNCTION__, __LINE__);
-        }
+        assert(_shared_maat_instance != NULL);
+       
         maat_cmd_flushDB(_shared_maat_instance);
         maat_free(_shared_maat_instance);
 
-        g_logger = log_handle_create("./maat_framework_gtest.log", 0);
-        assert(g_logger != NULL);
         maat_options_set_deferred_load_on(opts);
-        maat_options_set_logger(opts, g_logger);
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
     }
 
     static void TearDownTestCase() {
         maat_free(_shared_maat_instance);
-        g_logger = NULL;
     } 
 
     static struct maat *_shared_maat_instance;    

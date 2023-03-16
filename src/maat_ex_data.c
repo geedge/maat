@@ -205,6 +205,8 @@ void ex_container_free(void *schema, void *data)
     if (NULL == data) {
         return;
     }
+
+    struct ex_container *ex_container = (struct ex_container *)data;
     //TODO:
     if (NULL == schema) {
 
@@ -214,7 +216,7 @@ void ex_container_free(void *schema, void *data)
     long argl = container_schema->ex_schema->argl;
     void *argp = container_schema->ex_schema->argp;
 
-    struct ex_container *ex_container = (struct ex_container *)data;
+    
     if (ex_container->ex_data != NULL 
         && container_schema->ex_schema->free_func != NULL) {
         container_schema->ex_schema->free_func(container_schema->table_id, 

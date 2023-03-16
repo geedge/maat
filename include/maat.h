@@ -99,14 +99,13 @@ int maat_options_set_gc_timeout_ms(struct maat_options *opts, int interval_ms);
 int maat_options_set_instance_name(struct maat_options *opts, const char *instance_name);
 int maat_options_set_deferred_load_on(struct maat_options *opts);
 int maat_options_set_foreign_cont_dir(struct maat_options *opts, const char *dir);
+int maat_options_set_logger_path(struct maat_options *opts, const char *log_path);
 
 int maat_options_set_iris(struct maat_options *opts, const char *full_directory, 
                           const char *increment_directory);
 int maat_options_set_json_file(struct maat_options *opts, const char *json_filename);
 int maat_options_set_redis(struct maat_options *opts, const char *redis_ip, 
                            uint16_t redis_port, int redis_db);
-
-int maat_options_set_logger(struct maat_options *opts, void *logger);
 
 /* maat_instance API */
 struct maat *maat_new(struct maat_options *opts, const char *table_info_path);

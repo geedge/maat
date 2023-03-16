@@ -17,6 +17,7 @@ extern "C"
 #endif
 
 #include <stddef.h>
+#include <limits.h>
 
 #include "log/log.h"
 #include "maat_rule.h"
@@ -24,6 +25,7 @@ extern "C"
 struct maat_options {
     char instance_name[NAME_MAX];
     char foreign_cont_dir[NAME_MAX];
+    char log_path[PATH_MAX];
     size_t nr_worker_threads;
     char *accept_tags;
     int rule_effect_interval_ms;
@@ -31,7 +33,6 @@ struct maat_options {
     int gc_timeout_ms;
     int deferred_load_on;
     int log_level;
-    struct log_handle *logger;
     enum data_source input_mode;
     union {
         struct source_iris_ctx iris_ctx;

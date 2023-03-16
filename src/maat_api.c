@@ -241,9 +241,13 @@ int maat_options_set_redis(struct maat_options *opts, const char *redis_ip,
     return 0;
 }
 
-int maat_options_set_logger(struct maat_options *opts, void *logger)
+int maat_options_set_logger_path(struct maat_options *opts, const char *log_path)
 {
-    opts->logger = (struct log_handle *)logger;
+    if (NULL == opts || NULL == log_path || strlen(log_path) >= PATH_MAX) {
+        return -1;
+    }
+
+    memcpy(opts->log_path, log_path, strlen(log_path));
 
     return 0;
 }
@@ -330,8 +334,8 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     int garbage_gc_timeout_s = 0;
     struct maat *maat_instance = ALLOC(struct maat, 1);
     
-    if (opts->logger != NULL) {
-        maat_instance->logger = opts->logger;
+    if (strlen(opts->log_path) != 0) {
+        maat_instance->logger = log_handle_create(opts->log_path, opts->log_level);
     } else {
         char log_path[1024] = {0};
         if (strlen(maat_instance->instance_name) > 0) {

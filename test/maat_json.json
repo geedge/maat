@@ -284,6 +284,31 @@
             ]
         },
         {
+            "compile_id": 125,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "anything",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL_REGEX",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "action=search\\&query=(.*)",
+                                "expr_type": "regex",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
             "compile_id": 126,
             "service": 1,
             "action": 1,

@@ -33,6 +33,7 @@ TEST(json_mode, maat_scan_string) {
     char json_path[PATH_MAX] = {0};
     snprintf(json_path, sizeof(json_path), "./%s", json_filename);
     maat_options_set_json_file(opts, json_path);
+    maat_options_set_logger_path(opts, "./maat_input_mode_gtest.log");
 
     struct maat *maat_instance = maat_new(opts, table_info_path);
     EXPECT_TRUE(maat_instance != NULL);
@@ -60,7 +61,7 @@ TEST(json_mode, maat_scan_string) {
     maat_state_free(&state);
     maat_free(maat_instance);
 }
-#if 0
+
 TEST(iris_mode, maat_scan_string) {
     char tmp_iris_path[512] = {0};
     char json_iris_path[512] = {0};
@@ -86,6 +87,7 @@ TEST(iris_mode, maat_scan_string) {
 
     struct maat_options *opts = maat_options_new();
     maat_options_set_iris(opts, tmp_iris_full_idx_path, tmp_iris_inc_idx_path);
+    maat_options_set_logger_path(opts, "./maat_input_mode_gtest.log");
 
     struct maat *maat_instance = maat_new(opts, table_info_path);
     EXPECT_TRUE(maat_instance != NULL);
@@ -211,7 +213,7 @@ TEST(redis_mode, maat_scan_string) {
 
     struct maat_options *opts = maat_options_new();
     maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-    maat_options_set_logger(opts, g_logger);
+    maat_options_set_logger_path(opts, "./maat_input_mode_gtest.log");
 
     struct maat *maat_instance = maat_new(opts, table_info_path);
     const char *table_name = "KEYWORDS_TABLE";
@@ -230,7 +232,7 @@ TEST(redis_mode, maat_scan_string) {
     maat_state_free(&state);
     maat_free(maat_instance);
 }
-#endif
+
 int main(int argc, char ** argv)
 {
 	int ret=0;
