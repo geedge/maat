@@ -25,13 +25,6 @@ extern "C"
 
 struct adapter_hs;
 
-/* scan mode */
-enum hs_scan_mode {
-    HS_SCAN_MODE_BLOCK = 1,
-    HS_SCAN_MODE_STREAM,
-    HS_SCAN_MODE_MAX
-};
-
 /* match method */
 enum hs_match_mode {
     HS_MATCH_MODE_INVALID = -1,
@@ -89,15 +82,14 @@ struct hs_expr {
 /**
  * @brief initialize adapter_hs instance
  * 
- * @param scan_mode:         the following scan as block or stream mode
+ * @param pattern_type:      pure literal or regex expression
  * @param nr_worker_threads: the number of scan threads which will call adapter_hs_scan()
  * @param expr_array:        logic AND expression's array
  * @param n_expr_arrays:     the number of logic AND expression's array
  * 
  * @retval the pointer to adapter_hs instance
 */
-struct adapter_hs *adapter_hs_initialize(enum hs_scan_mode scan_mode, 
-                                         enum hs_pattern_type pattern_type,
+struct adapter_hs *adapter_hs_initialize(enum hs_pattern_type pattern_type,
                                          size_t n_worker_thread,
                                          struct hs_expr *exprs, size_t n_expr,
                                          struct log_handle *logger);

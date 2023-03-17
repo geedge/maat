@@ -202,21 +202,15 @@ struct ex_container *ex_container_new(void *ex_data, void *custom_data)
 void ex_container_free(void *schema, void *data)
 {
     /* schema is NULL if not call ex_data_runtime_set_ex_container_schema */
-    if (NULL == data) {
+    if (NULL == schema || NULL == data) {
         return;
     }
 
     struct ex_container *ex_container = (struct ex_container *)data;
-    //TODO:
-    if (NULL == schema) {
-
-    }
-    
     struct ex_container_schema *container_schema = (struct ex_container_schema *)schema;
     long argl = container_schema->ex_schema->argl;
     void *argp = container_schema->ex_schema->argp;
 
-    
     if (ex_container->ex_data != NULL 
         && container_schema->ex_schema->free_func != NULL) {
         container_schema->ex_schema->free_func(container_schema->table_id, 

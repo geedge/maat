@@ -878,11 +878,12 @@
             ]
         },
 				{
+                    "compile_id": 148,
 				    "is_valid": "yes",
 				    "do_log": 0,
 				    "effective_rage": 0,
 				    "action": 0,
-				    "compile_id": 148,
+				    
 				    "service": 0,
 				    "do_blacklist": 0,
 				    "user_region": "StringScan.ExprPlusWithOffset",
@@ -895,7 +896,7 @@
 				                        "format": "hexbin",
 				                        "match_method": "sub",
 				                        "district": "Payload",
-				                        "keywords": "1-1:03&9-10:2d&14-16:2d34&19-21:2d&24-25:2d",
+				                        "keywords": "1-1:03&9-10:2d&14-16:2d34",
 				                        "expr_type": "offset"
 				                    },
 				                    "table_type": "expr_plus"

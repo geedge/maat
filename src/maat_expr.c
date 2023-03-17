@@ -34,7 +34,6 @@ struct expr_schema {
 	int expr_type_column;
     int match_method_column;
     int is_hexbin_column;
-    enum hs_scan_mode scan_mode; /* adapter_hs scan mode */
     enum hs_pattern_type pattern_type; /* literal or regex */
     int table_id; //ugly
     struct table_manager *ref_tbl_mgr;
@@ -69,7 +68,6 @@ struct expr_item {
 };
 
 struct expr_runtime {
-    enum hs_scan_mode scan_mode;
     enum hs_pattern_type pattern_type;
     struct adapter_hs *hs;
     struct adapter_hs_stream *hs_stream;
@@ -277,21 +275,6 @@ void expr_item_free(struct expr_item *expr_item)
     FREE(expr_item);
 }
 
-enum hs_scan_mode scan_mode_str_to_enum(const char *mode_str)
-{
-    enum hs_scan_mode scan_mode = HS_SCAN_MODE_MAX;
-
-    if (strcmp(mode_str, "block") == 0) {
-        scan_mode = HS_SCAN_MODE_BLOCK;
-    } else if (strcmp(mode_str, "stream") == 0) {
-        scan_mode = HS_SCAN_MODE_STREAM;
-    } else {
-        assert(0);
-    }
-
-    return scan_mode;
-}
-
 enum hs_pattern_type pattern_type_str_to_enum(const char *type_str)
 {
     enum hs_pattern_type pattern_type = HS_PATTERN_TYPE_MAX;
@@ -326,12 +309,6 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
                   "[%s:%d] table %s has no custom column", table_name);
         goto error;
     }
-
-	custom_item = cJSON_GetObjectItem(item, "scan_mode");
-	if (custom_item != NULL && custom_item->type == cJSON_String) {
-        expr_schema->scan_mode = scan_mode_str_to_enum(custom_item->valuestring);
-        read_cnt++;
-	}
 
     custom_item = cJSON_GetObjectItem(item, "pattern_type");
 	if (custom_item != NULL && custom_item->type == cJSON_String) {
@@ -383,7 +360,7 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     expr_schema->ref_tbl_mgr = tbl_mgr;
 
-    if (read_cnt < 9) {
+    if (read_cnt < 8) {
 		goto error;
     }
 	
@@ -436,7 +413,6 @@ void *expr_runtime_new(void *expr_schema, int max_thread_num,
 
     expr_rt->htable = rcu_hash_new(expr_ex_data_free);
     expr_rt->item_htable = rcu_hash_new(expr_maat_item_free);
-    expr_rt->scan_mode = schema->scan_mode;
     expr_rt->pattern_type = schema->pattern_type;
     expr_rt->n_worker_thread = max_thread_num;
     expr_rt->ref_garbage_bin = garbage_bin;
@@ -809,9 +785,8 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name)
     int ret = 0;
     struct adapter_hs *new_adapter_hs = NULL;
     struct adapter_hs *old_adapter_hs = NULL;
-    new_adapter_hs = adapter_hs_initialize(expr_rt->scan_mode, expr_rt->pattern_type,
-                                           expr_rt->n_worker_thread, rules, rule_cnt, 
-                                           expr_rt->logger);
+    new_adapter_hs = adapter_hs_initialize(expr_rt->pattern_type, expr_rt->n_worker_thread, 
+                                           rules, rule_cnt, expr_rt->logger);
     if (NULL == new_adapter_hs) {
         log_error(expr_rt->logger, MODULE_EXPR,
                   "[%s:%d] table[%s] rebuild adapter_hs engine failed when update %zu expr rules", 
