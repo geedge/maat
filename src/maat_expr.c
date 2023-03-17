@@ -667,13 +667,13 @@ struct hs_expr *expr_item_to_expr_rule(struct expr_item *expr_item, void *user_d
         }
 
         if (region_string != NULL) {
-            expr_rule->patterns[i].pat = ALLOC(char, region_str_len);
+            expr_rule->patterns[i].pat = ALLOC(char, region_str_len + 1);
             memcpy(expr_rule->patterns[i].pat, region_string, region_str_len);
             expr_rule->patterns[i].pat_len = region_str_len;
             FREE(region_string);
         } else {
             sub_key_len = strlen(sub_key_array[i]);
-            expr_rule->patterns[i].pat = ALLOC(char, sub_key_len);
+            expr_rule->patterns[i].pat = ALLOC(char, sub_key_len + 1);
             memcpy(expr_rule->patterns[i].pat, sub_key_array[i], sub_key_len);
             expr_rule->patterns[i].pat_len = sub_key_len;
         }
@@ -792,9 +792,12 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name)
         rules = ALLOC(struct hs_expr, rule_cnt);
         for (size_t i = 0; i < rule_cnt; i++) {
             rules[i] = *(struct hs_expr *)ex_data_array[i];
-            //printf("expr_id:%lld\n", rules[i].expr_id);
-            // for (size_t j = 0; j < rules[i].n_patterns; j++) {
-            //     printf("rules[%zu].patterns[%zu]:%s\n", i, j, rules[i].patterns[j].pat);
+            // if (rules[i].expr_id == 13)
+            // {
+            //         for (size_t j = 0; j < rules[i].n_patterns; j++)
+            //         {
+            //             printf("rules[%zu].patterns[%zu]:%s\n", i, j, rules[i].patterns[j].pat);
+            //         }
             // }
         }
     }

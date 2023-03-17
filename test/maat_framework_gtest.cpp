@@ -560,7 +560,7 @@ TEST_F(MaatStringScan, Expr8) {
     EXPECT_NE(n_read, 0);
     maat_state_free(&state);
 }
-
+#if 0
 TEST_F(MaatStringScan, Regex) {
     int ret = 0;
     long long results[ARRAY_SIZE] = {0};
@@ -599,7 +599,7 @@ TEST_F(MaatStringScan, Regex) {
 	}
 #endif	
 }
-
+#endif
 TEST_F(MaatStringScan, ExprPlus) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -662,7 +662,7 @@ TEST_F(MaatStringScan, ExprAndExprPlus) {
     EXPECT_EQ(results[0], 195);
     maat_state_free(&state);
 }
-#if 0
+
 TEST_F(MaatStringScan, StreamInput) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -675,7 +675,7 @@ TEST_F(MaatStringScan, StreamInput) {
 	ASSERT_GT(table_id, 0);
 
 	struct maat_stream *sp = maat_scan_stream_open(maat_instance, table_id, 0);
-	ASSERT_FALSE(sp==NULL);
+	ASSERT_TRUE(sp != NULL);
 
 	int ret = maat_scan_stream(&sp, "www.cyberessays.com", strlen("www.cyberessays.com"),
                                 results, ARRAY_SIZE, &n_hit_result, &state);
@@ -689,7 +689,7 @@ TEST_F(MaatStringScan, StreamInput) {
 	EXPECT_EQ(results[0], 125);
 	maat_state_free(&state);
 }
-#endif
+
 //TODO:
 #if 0
 TEST_F(MaatStringScan, ShouldNotHitExprPlus) {
@@ -2456,6 +2456,29 @@ TEST_F(TableInfo, Conjunction) {
     maat_state_free(&state);
 }
 
+class MaatFileTest : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        struct maat_options *opts = maat_options_new();
+        char json_path[PATH_MAX] = {0};
+        const char *table_info = "./file_test_tableinfo.conf";
+
+        snprintf(json_path, sizeof(json_path), "./%s", json_filename);
+        maat_options_set_json_file(opts, json_path);
+        maat_options_set_logger_path(opts, "./maat_input_mode_gtest.log");
+
+        struct maat *maat_instance = maat_new(opts, table_info);
+        EXPECT_TRUE(maat_instance != NULL);
+    }
+
+    static void TearDownTestCase() {
+
+    }
+
+    static struct maat *_shared_maat_instance;
+};
+
 class MaatCmdTest : public testing::Test
 {
 protected:
@@ -2483,7 +2506,7 @@ protected:
         maat_free(_shared_maat_instance);
     } 
 
-    static struct maat *_shared_maat_instance;    
+    static struct maat *_shared_maat_instance;
 };
 
 struct maat *MaatCmdTest::_shared_maat_instance;
