@@ -82,7 +82,7 @@ struct hs_expr {
 };
 
 /**
- * @brief initialize adapter_hs instance
+ * @brief new adapter_hs instance
  * 
  * @param nr_worker_threads: the number of scan threads which will call adapter_hs_scan()
  * @param expr_array:        logic AND expression's array
@@ -90,14 +90,14 @@ struct hs_expr {
  * 
  * @retval the pointer to adapter_hs instance
 */
-struct adapter_hs *adapter_hs_initialize(size_t n_worker_thread,
-                                         struct hs_expr *exprs, size_t n_expr,
-                                         struct log_handle *logger);
+struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
+                                  struct hs_expr *exprs, size_t n_expr,
+                                  struct log_handle *logger);
 
 /**
  * @brief scan input data to match logic AND expression, return all matched expr_id
  * 
- * @param instance:  adapter_hs instance obtained by adapter_hs_initialize()
+ * @param instance:  adapter_hs instance obtained by adapter_hs_new()
  * @param thread_id: the thread_id of caller
  * @param data:      data to be scanned
  * @param data_len:  the length of data to be scanned
@@ -112,9 +112,9 @@ int adapter_hs_scan(struct adapter_hs *hs_instance, int thread_id,
 /**
  * @brief destroy adapter_hs instance
  * 
- * @param instance: adapter_hs instance obtained by adapter_hs_initialize()
+ * @param instance: adapter_hs instance obtained by adapter_hs_new()
 */
-void adapter_hs_destroy(struct adapter_hs *instance);
+void adapter_hs_free(struct adapter_hs *instance);
 
 struct adapter_hs_stream;
 /**

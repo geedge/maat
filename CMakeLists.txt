@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 2.8)
-set(lib_name maatframe)
-project(maatframe) 
+set(lib_name maat4)
+project(maat4) 
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 include(Version)

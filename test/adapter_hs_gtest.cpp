@@ -209,23 +209,23 @@ TEST(adapter_hs_init, invalid_input_parameter)
     struct hs_expr expr_array[64];
     size_t n_expr_array = 0;
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(1, NULL, 0, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(1, NULL, 0, g_logger);
     EXPECT_TRUE(hs_instance == NULL);
 
-    hs_instance = adapter_hs_initialize(1, expr_array, n_expr_array, g_logger);
+    hs_instance = adapter_hs_new(1, expr_array, n_expr_array, g_logger);
     EXPECT_TRUE(hs_instance == NULL);
 
     n_expr_array = 1;
     expr_array[0].expr_id = 101;
     expr_array[0].n_patterns = 10;
-    hs_instance = adapter_hs_initialize(1, expr_array, n_expr_array, g_logger);
+    hs_instance = adapter_hs_new(1, expr_array, n_expr_array, g_logger);
     EXPECT_TRUE(hs_instance == NULL);
 
     memset(expr_array, 0, sizeof(expr_array));
     n_expr_array = 1;
     expr_array[0].expr_id = 101;
     expr_array[0].n_patterns = 1;
-    hs_instance = adapter_hs_initialize(1, expr_array, n_expr_array, g_logger);
+    hs_instance = adapter_hs_new(1, expr_array, n_expr_array, g_logger);
     EXPECT_TRUE(hs_instance == NULL);
 }
 
@@ -238,7 +238,7 @@ TEST(adapter_hs_scan, literal_sub_has_normal_offset)
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_expr_array, 12);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(1, expr_array, n_expr_array, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(1, expr_array, n_expr_array, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(expr_array, n_expr_array);
 
@@ -273,7 +273,7 @@ TEST(adapter_hs_scan, literal_sub_has_normal_offset)
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
 
-    adapter_hs_destroy(hs_instance);
+    adapter_hs_free(hs_instance);
     hs_instance = NULL;
 }
 
@@ -285,7 +285,7 @@ TEST(adapter_hs_scan, literal_sub_has_left_unlimit_offset)
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(1, expr_array, n_expr_array, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(1, expr_array, n_expr_array, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(expr_array, n_expr_array);
 
@@ -321,7 +321,7 @@ TEST(adapter_hs_scan, literal_sub_has_left_unlimit_offset)
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
 
-    adapter_hs_destroy(hs_instance);
+    adapter_hs_free(hs_instance);
     hs_instance = NULL;
 }
 
@@ -333,7 +333,7 @@ TEST(adapter_hs_scan, literal_sub_has_right_unlimit_offset)
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(1, expr_array, n_expr_array, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(1, expr_array, n_expr_array, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(expr_array, n_expr_array);
 
@@ -376,7 +376,7 @@ TEST(adapter_hs_scan, literal_sub_has_right_unlimit_offset)
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].item_id, 103);
 
-    adapter_hs_destroy(hs_instance);
+    adapter_hs_free(hs_instance);
     hs_instance = NULL;
 }
 
@@ -388,7 +388,7 @@ TEST(adapter_hs_scan, literal_sub_with_no_offset)
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(1, expr_array, n_expr_array, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(1, expr_array, n_expr_array, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(expr_array, n_expr_array);
 
@@ -423,7 +423,7 @@ TEST(adapter_hs_scan, literal_sub_with_no_offset)
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
 
-    adapter_hs_destroy(hs_instance);
+    adapter_hs_free(hs_instance);
     hs_instance = NULL;
 }
 
@@ -435,7 +435,7 @@ TEST(adapter_hs_scan, literal_exactly)
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(1, expr_array, n_expr_array, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(1, expr_array, n_expr_array, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(expr_array, n_expr_array);
 
@@ -464,7 +464,7 @@ TEST(adapter_hs_scan, literal_exactly)
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
 
-    adapter_hs_destroy(hs_instance);
+    adapter_hs_free(hs_instance);
     hs_instance = NULL;
 }
 
@@ -476,7 +476,7 @@ TEST(adapter_hs_scan, literal_prefix)
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(1, expr_array, n_expr_array, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(1, expr_array, n_expr_array, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(expr_array, n_expr_array);
 
@@ -514,7 +514,7 @@ TEST(adapter_hs_scan, literal_prefix)
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].item_id, 106);
 
-    adapter_hs_destroy(hs_instance);
+    adapter_hs_free(hs_instance);
     hs_instance = NULL;
 }
 
@@ -526,7 +526,7 @@ TEST(adapter_hs_scan, literal_suffix)
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(1, expr_array, n_expr_array, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(1, expr_array, n_expr_array, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(expr_array, n_expr_array);
 
@@ -564,7 +564,7 @@ TEST(adapter_hs_scan, literal_suffix)
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
 
-    adapter_hs_destroy(hs_instance);
+    adapter_hs_free(hs_instance);
     hs_instance = NULL;
 }
 
@@ -576,7 +576,7 @@ TEST(adapter_hs_scan, literal_sub_with_hexbin)
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(1, expr_array, n_expr_array, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(1, expr_array, n_expr_array, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(expr_array, n_expr_array);
 
@@ -596,7 +596,7 @@ TEST(adapter_hs_scan, literal_sub_with_hexbin)
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
 
-    adapter_hs_destroy(hs_instance);
+    adapter_hs_free(hs_instance);
     hs_instance = NULL;
 }
 
@@ -608,7 +608,7 @@ TEST(adapter_hs_scan, literal_with_chinese)
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(1, expr_array, n_expr_array, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(1, expr_array, n_expr_array, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(expr_array, n_expr_array);
 
@@ -620,7 +620,7 @@ TEST(adapter_hs_scan, literal_with_chinese)
     EXPECT_EQ(n_result0, 1);
     EXPECT_EQ(result0[0].item_id, 110);
 
-    adapter_hs_destroy(hs_instance);
+    adapter_hs_free(hs_instance);
     hs_instance = NULL;
 }
 
@@ -632,7 +632,7 @@ TEST(adapter_hs_scan, same_pattern_different_offset)
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_initialize(1, expr_array, n_expr_array, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(1, expr_array, n_expr_array, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(expr_array, n_expr_array);
 
@@ -644,7 +644,7 @@ TEST(adapter_hs_scan, same_pattern_different_offset)
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].item_id, 112);
 
-    adapter_hs_destroy(hs_instance);
+    adapter_hs_free(hs_instance);
     hs_instance = NULL;                                             
 }
 

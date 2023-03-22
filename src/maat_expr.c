@@ -432,7 +432,7 @@ void expr_runtime_free(void *expr_runtime)
 
     struct expr_runtime *expr_rt = (struct expr_runtime *)expr_runtime;
     if (expr_rt->hs != NULL) {
-        adapter_hs_destroy(expr_rt->hs);
+        adapter_hs_free(expr_rt->hs);
         expr_rt->hs = NULL;
     }
 
@@ -783,7 +783,7 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name)
     int ret = 0;
     struct adapter_hs *new_adapter_hs = NULL;
     struct adapter_hs *old_adapter_hs = NULL;
-    new_adapter_hs = adapter_hs_initialize(expr_rt->n_worker_thread, rules, rule_cnt, expr_rt->logger);
+    new_adapter_hs = adapter_hs_new(expr_rt->n_worker_thread, rules, rule_cnt, expr_rt->logger);
     if (NULL == new_adapter_hs) {
         log_error(expr_rt->logger, MODULE_EXPR,
                   "[%s:%d] table[%s] rebuild adapter_hs engine failed when update %zu expr rules", 
@@ -795,7 +795,7 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name)
     expr_rt->hs = new_adapter_hs;
     if (old_adapter_hs != NULL) {
         maat_garbage_bagging(expr_rt->ref_garbage_bin, old_adapter_hs, 
-                         (void (*)(void*))adapter_hs_destroy);
+                         (void (*)(void*))adapter_hs_free);
     }
     rcu_hash_commit(expr_rt->item_htable);
     expr_rt->rule_num = rule_cnt;

@@ -1725,7 +1725,13 @@ void maat_scan_stream_close(struct maat_stream **maat_stream)
 
 struct maat_state *maat_state_new(struct maat *maat_instance, int thread_id)
 {
-    return NULL; 
+    struct maat_state *state = ALLOC(struct maat_state, 1);
+
+    state->maat_instance = maat_instance;
+    state->district_id = DISTRICT_ANY;
+    state->thread_id = (signed short)thread_id;
+
+    return state;
 }
 
 void maat_state_reset(struct maat_state *state)

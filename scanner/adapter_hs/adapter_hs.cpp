@@ -356,9 +356,9 @@ struct bool_expr *bool_exprs_new(struct hs_expr *exprs, size_t n_expr, struct hs
     return bool_exprs;
 }
 
-struct adapter_hs *adapter_hs_initialize(size_t n_worker_thread,
-                                         struct hs_expr *exprs, size_t n_expr,
-                                         struct log_handle *logger)
+struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
+                                  struct hs_expr *exprs, size_t n_expr,
+                                  struct log_handle *logger)
 {
     if (0 == n_worker_thread || NULL == exprs || 0 == n_expr) {
         log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] input parameters illegal!",
@@ -490,11 +490,11 @@ struct adapter_hs *adapter_hs_initialize(size_t n_worker_thread,
 
     return hs_instance;
 error:
-    adapter_hs_destroy(hs_instance);
+    adapter_hs_free(hs_instance);
     return NULL;
 }
 
-void adapter_hs_destroy(struct adapter_hs *hs_instance)
+void adapter_hs_free(struct adapter_hs *hs_instance)
 {
     if (NULL == hs_instance) {
         return;
