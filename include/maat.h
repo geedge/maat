@@ -214,8 +214,8 @@ int maat_state_set_scan_district(struct maat *instance, struct maat_state **stat
 
 int maat_state_set_last_scan(struct maat *maat_instance, struct maat_state **state);
 
-int maat_state_set_scan_compile_tables(struct maat *maat_instance, struct maat_state **state, 
-                                       const char *compile_table[], size_t n_table);
+int maat_state_set_scan_compile_table(struct maat *maat_instance, struct maat_state **state, 
+                                      int compile_table_id);
 
 int maat_state_get_hit_paths(struct maat *instance, struct maat_state **state, 
                              struct maat_hit_path *paths, size_t n_path);

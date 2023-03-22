@@ -936,7 +936,7 @@ struct maat_state *make_outer_state(struct maat *maat_instance, int thread_id)
 	outer_state->maat_instance = maat_instance;
 	outer_state->district_id = DISTRICT_ANY;
 	outer_state->thread_id = (signed short)thread_id;
-    outer_state->n_compile_table = 0;
+    outer_state->compile_table_id = 0;
 
 	return outer_state;
 }
@@ -978,11 +978,11 @@ static inline int scan_status_should_compile_NOT(struct maat_state *state)
     return 0;
 }
 
-size_t hit_group_to_compile(void *compile_runtime, long long *compile_ids, int ids_index,
-                            size_t compile_ids_size, struct maat_state *mid)
+size_t hit_group_to_compile(void *compile_runtime, long long *compile_ids,
+                            size_t compile_ids_size, struct maat_state *state)
 {
     size_t n_hit_compile = compile_runtime_match((struct compile_runtime *)compile_runtime,
-                                                 compile_ids, ids_index, compile_ids_size, mid);
+                                                 compile_ids, compile_ids_size, state);
     return n_hit_compile;
 }
 
@@ -1188,34 +1188,25 @@ int expr_stream_scan(struct maat_stream *stream, const char *data, size_t data_l
 }
 
 size_t group_to_compile(struct maat *maat_instance, long long *results, size_t n_result,
-                        struct maat_state *mid)
+                        struct maat_state *state)
 {
-    int compile_table_id[MAX_COMPILE_TABLE_NUM] = {0};
-    size_t compile_table_cnt = 0;
-    size_t sum_hit_compile_cnt = 0;
+    int compile_table_id = -1;
 
-    if (0 == mid->n_compile_table) {
-        compile_table_id[0] = maat_instance->default_compile_table_id;
-        compile_table_cnt = 1;
+    if (state->compile_table_id != 0) {
+        compile_table_id = state->compile_table_id;
     } else {
-        for (size_t i = 0; i < mid->n_compile_table; i++) {
-            compile_table_id[i] = maat_get_table_id(maat_instance, mid->compile_tables[i]);
-        }
-        compile_table_cnt = mid->n_compile_table;
+        compile_table_id = maat_instance->default_compile_table_id;
     }
 
-    for (size_t i = 0; i < compile_table_cnt; i++) {
-        void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr, compile_table_id[i]);
-        size_t n_hit_compile = hit_group_to_compile(compile_rt, results, sum_hit_compile_cnt, n_result, mid);
-        sum_hit_compile_cnt += n_hit_compile;
+    void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr, compile_table_id);
+    size_t n_hit_compile = hit_group_to_compile(compile_rt, results, n_result, state);
+
+    assert(state->is_last_scan < LAST_SCAN_FINISHED);
+    if (LAST_SCAN_SET == state->is_last_scan) {
+        state->is_last_scan = LAST_SCAN_FINISHED;
     }
 
-    assert(mid->is_last_scan < LAST_SCAN_FINISHED);
-    if (LAST_SCAN_SET == mid->is_last_scan) {
-        mid->is_last_scan = LAST_SCAN_FINISHED;
-    }
-
-    return sum_hit_compile_cnt;
+    return n_hit_compile;
 }
 
 int maat_scan_flag(struct maat *maat_instance, int table_id, int thread_id,
@@ -1798,19 +1789,15 @@ int maat_state_set_last_scan(struct maat *maat_instance, struct maat_state **sta
     return 0;
 }
 
-int maat_state_set_scan_compile_tables(struct maat *maat_instance, struct maat_state **state,
-                                       const char *compile_tables[], size_t n_table)
+int maat_state_set_scan_compile_table(struct maat *maat_instance, struct maat_state **state,
+                                      int compile_table_id)
 {
-    if (NULL == maat_instance->maat_rt) {
+    if (NULL == maat_instance->maat_rt || compile_table_id < 0) {
         return -1;
     }
 
     struct maat_state *mid = grab_state(state, maat_instance, -1);
-    mid->n_compile_table = n_table;
-
-    for (size_t i = 0; i < mid->n_compile_table; i++) {
-        strncpy(mid->compile_tables[i], compile_tables[i], strlen(compile_tables[i]));
-    }
+    mid->compile_table_id = compile_table_id;
 
     return 0;
 }
@@ -1818,17 +1805,12 @@ int maat_state_set_scan_compile_tables(struct maat *maat_instance, struct maat_s
 size_t maat_get_hit_paths(struct maat *maat_instance, struct maat_state *state,
                           struct maat_hit_path *paths, size_t n_path)
 {
-    int compile_table_ids[MAX_COMPILE_TABLE_NUM] = {0};
-    size_t compile_table_cnt = 0;
+    int compile_table_id = -1;
 
-    if (0 == state->n_compile_table) {
-        compile_table_ids[0] = maat_instance->default_compile_table_id;
-        compile_table_cnt = 1;
+    if (state->compile_table_id != 0) {
+        compile_table_id = state->compile_table_id;
     } else {
-        for (size_t i = 0; i < state->n_compile_table; i++) {
-            compile_table_ids[i] = maat_get_table_id(maat_instance, state->compile_tables[i]);
-        }
-        compile_table_cnt = state->n_compile_table;
+        compile_table_id = maat_instance->default_compile_table_id;
     }
 
     void *g2g_runtime = table_manager_get_runtime(maat_instance->tbl_mgr, maat_instance->g2g_table_id);
@@ -1837,14 +1819,14 @@ size_t maat_get_hit_paths(struct maat *maat_instance, struct maat_state *state,
                                                               (struct group2group_runtime *)g2g_runtime,
                                                                paths, n_path);
     size_t new_hit_path_cnt = 0;
-    for (size_t i = 0; i < compile_table_cnt; i++) {
-        void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr, compile_table_ids[i]);
-        assert(NULL != compile_rt);
+    
+    void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr, compile_table_id);
+    assert(NULL != compile_rt);
         
-        new_hit_path_cnt += compile_runtime_get_new_hit_paths((struct compile_runtime *)compile_rt,
-                                                               state->compile_state, paths, n_path,
-                                                               compile_state_hit_path_cnt + new_hit_path_cnt);
-    }
+    new_hit_path_cnt = compile_runtime_get_new_hit_paths((struct compile_runtime *)compile_rt,
+                                                          state->compile_state, paths, n_path,
+                                                          compile_state_hit_path_cnt);
+    
    
     return (compile_state_hit_path_cnt + new_hit_path_cnt);
 }

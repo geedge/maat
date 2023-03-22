@@ -652,7 +652,7 @@ int main(int argc, char **argv)
 {
     int ret = 0;
     ::testing::InitGoogleTest(&argc, argv);
-    g_logger = log_handle_create("./tmp.log", 0);
+    g_logger = log_handle_create("./adapter_hs_gtest.log", 0);
 
     ret = RUN_ALL_TESTS();
 

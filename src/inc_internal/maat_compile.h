@@ -57,7 +57,7 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
 int compile_runtime_commit(void *compile_runtime, const char *table_name);
 
 int compile_runtime_match(struct compile_runtime *compile_rt, long long *compile_ids,
-                          int ids_index, size_t compile_ids_size, struct maat_state *state);
+                          size_t compile_ids_size, struct maat_state *state);
 
 size_t compile_runtime_get_new_hit_paths(struct compile_runtime *compile_rt,
 									     struct maat_compile_state *compile_state, 

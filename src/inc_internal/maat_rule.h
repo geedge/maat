@@ -235,8 +235,7 @@ struct maat {
 struct maat_state {
 	struct maat *maat_instance;
 	int16_t thread_id;
-    size_t n_compile_table;
-    char compile_tables[MAX_COMPILE_TABLE_NUM][NAME_MAX]; //caller can select compile table to scan
+    int compile_table_id;
 	unsigned char is_set_district;
 	unsigned char is_last_scan;
 	long long district_id; //-1: Any District; -2: Unkonwn District;

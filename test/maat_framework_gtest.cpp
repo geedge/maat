@@ -539,6 +539,24 @@ protected:
 struct maat *MaatStringScan::_shared_maat_instance;
 struct log_handle *MaatStringScan::logger;
 
+TEST_F(MaatStringScan, ScanDataOnlyOneByte) {
+    const char *table_name = "HTTP_URL";
+    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
+
+    int table_id = maat_get_table_id(maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = NULL;
+    const char scan_data = 0x20;
+    int ret = maat_scan_string(maat_instance, table_id, 0, &scan_data, sizeof(scan_data),
+                               results, ARRAY_SIZE, &n_hit_result, &state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    EXPECT_EQ(n_hit_result, 0);
+    maat_state_free(&state);
+}
+
 TEST_F(MaatStringScan, Full) {
     const char *table_name = "HTTP_URL";
     struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
@@ -2370,13 +2388,11 @@ TEST_F(CompileTable, Conjunction1) {
     struct maat_state *state = NULL;
     const char *scan_data = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
     const char *table_name = "HTTP_URL";
-    const char *compile_tables[2] = {"COMPILE", "COMPILE_ALIAS"};
     struct maat *maat_instance = CompileTable::_shared_maat_instance;
 
     int table_id = maat_get_table_id(maat_instance, table_name);
     ASSERT_GT(table_id, 0);
 
-    maat_state_set_scan_compile_tables(maat_instance, &state, compile_tables, 2);
     int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data),
                                results, ARRAY_SIZE, &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -2397,7 +2413,6 @@ TEST_F(CompileTable, Conjunction2) {
     struct maat_state *state = NULL;
     const char *scan_data = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
     const char *table_name = "HTTP_URL";
-    const char *compile_tables[2] = {"COMPILE", "COMPILE_ALIAS"};
     struct maat *maat_instance = CompileTable::_shared_maat_instance;
 
     int table_id = maat_get_table_id(maat_instance, table_name);
@@ -2406,19 +2421,17 @@ TEST_F(CompileTable, Conjunction2) {
     int ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data),
                                results, ARRAY_SIZE, &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(n_hit_result, 2);
     EXPECT_EQ(results[0], 197);
+    EXPECT_EQ(results[1], 141);
 
     struct maat_hit_path hit_path[HIT_PATH_SIZE] = {0};
     int n_read = maat_state_get_hit_paths(maat_instance, &state, hit_path, HIT_PATH_SIZE);
     EXPECT_EQ(n_read, 2);
 
-    maat_state_set_scan_compile_tables(maat_instance, &state, compile_tables, 2);
     ret = maat_scan_string(maat_instance, table_id, 0, scan_data, strlen(scan_data),
                                results, ARRAY_SIZE, &n_hit_result, &state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 141);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     memset(hit_path, 0, sizeof(hit_path));
     n_read = maat_state_get_hit_paths(maat_instance, &state, hit_path, HIT_PATH_SIZE);
@@ -2550,9 +2563,9 @@ TEST_F(Policy, CompileEXData) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    const char *url = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
+    const char *url = "firewall should hit";
 	const char *table_name = "HTTP_URL";
-    const char *compile_table_name = "COMPILE_ALIAS";
+    const char *compile_table_name = "COMPILE_FIREWALL";
 	const char *expect_name = "I have a name";
     struct maat *maat_instance = Policy::_shared_maat_instance;
 
@@ -2568,14 +2581,14 @@ TEST_F(Policy, CompileEXData) {
     ASSERT_TRUE(ret == 0);
     EXPECT_EQ(ex_data_counter, 1);
 
-    ret = maat_state_set_scan_compile_tables(maat_instance, &state, &compile_table_name, 1);
+    ret = maat_state_set_scan_compile_table(maat_instance, &state, compile_table_id);
     EXPECT_EQ(ret, 0);
 
     ret = maat_scan_string(maat_instance, table_id, 0, url, strlen(url),
-                                results, ARRAY_SIZE, &n_hit_result, &state);
+                            results, ARRAY_SIZE, &n_hit_result, &state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 141);
+    EXPECT_EQ(results[0], 198);
 
     void *ex_data = maat_plugin_table_get_ex_data(maat_instance, compile_table_id, 
                                                  (char *)&results[0]);
