@@ -20,6 +20,6 @@ maat_command.h中描述了配置写入的API。
 
 `Make install`
 
-生成动态链接库 `./build/src/libmaatframe.so`
+生成动态链接库 `./build/src/libmaat4.so`
 
-生成静态链接库 `./build/src/libmaatframe.a`
+生成静态链接库 `./build/src/libmaat4.a`
