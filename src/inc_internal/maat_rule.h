@@ -35,7 +35,6 @@ extern "C"
 
 #define MAX_TABLE_NUM	1024
 #define MAX_COMPILE_TABLE_NUM 16
-#define MAX_PHYSICAL_TABLE_NUM  16
 
 #define	DISTRICT_ANY	   -1
 #define	DISTRICT_UNKNOWN   -2

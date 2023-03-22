@@ -243,7 +243,7 @@
                     "group_name": "Untitled",
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "abckkk&123",
@@ -295,7 +295,7 @@
                 {
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_REGEX",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "action=search\\&query=(.*)",
@@ -321,7 +321,7 @@
                     "group_name": "Untitled",
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "should_not_hit_any_rule",
@@ -387,7 +387,7 @@
                     "group_name": "Untitled",
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "C#中国",
@@ -491,7 +491,7 @@
                     "group_name": "Untitled",
                     "regions": [
                         {
-                            "table_name": "HTTP_HOST_LITERAL",
+                            "table_name": "HTTP_HOST",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "www.3300av.com",
@@ -517,7 +517,7 @@
                     "group_name": "Untitled",
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "novel&27122.txt",
@@ -596,7 +596,7 @@
                 {
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "should&hit&aaa",
@@ -623,7 +623,7 @@
                 {
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "should&hit&bbb",
@@ -677,7 +677,7 @@
                     "g2c_table_name": "GROUP2COMPILE_ALIAS",
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "i.ytimg.com",
@@ -702,7 +702,7 @@
                 {
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": ",IgpwcjA0LnN2bzAzKgkxMjcuMC4wLjE",
@@ -728,7 +728,7 @@
                     "not_flag":0,
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "must-contained-string-of-rule-143",
@@ -743,7 +743,7 @@
                     "not_flag":1,
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "must-not-contained-string-of-rule-143",
@@ -769,7 +769,7 @@
                     "not_flag":0,
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "must-contained-string-of-rule-144",
@@ -810,7 +810,7 @@
                     "not_flag":0,
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "must-contained-string-of-rule-145",
@@ -839,7 +839,7 @@
                 {
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_REGEX",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "Cookie:\\s&head",
@@ -864,7 +864,7 @@
                 {
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "googlevideo.com/videoplayback&mn=sn-35153iuxa-5a56%2Csn-n8v7znz7",
@@ -877,35 +877,34 @@
                 }
             ]
         },
-				{
-                    "compile_id": 148,
-				    "is_valid": "yes",
-				    "do_log": 0,
-				    "effective_rage": 0,
-				    "action": 0,
-				    
-				    "service": 0,
-				    "do_blacklist": 0,
-				    "user_region": "StringScan.ExprPlusWithOffset",
-				    "groups": [
-				        {
-				            "regions": [
-				                {
-				                    "table_name": "APP_PAYLOAD",
-				                    "table_content": {
-				                        "format": "hexbin",
-				                        "match_method": "sub",
-				                        "district": "Payload",
-				                        "keywords": "1-1:03&9-10:2d&14-16:2d34",
-				                        "expr_type": "offset"
-				                    },
-				                    "table_type": "expr_plus"
-				                }
-				            ],
-				            "group_name": "Untitled"
-				        }
-				    ]
-				},
+        {
+            "compile_id": 148,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "StringScan.ExprPlusWithOffset",
+            "effective_rage": 0,
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_name": "APP_PAYLOAD",
+                            "table_type": "expr_plus",
+                            "table_content": {
+                                "format": "hexbin",
+                                "match_method": "sub",
+                                "district": "Payload",
+                                "keywords": "1-1:03&9-10:2d&14-16:2d34&19-21:2d&24-25:2d",
+                                "expr_type": "offset"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
         {
             "compile_id": 149,
             "service": 1,
@@ -1304,7 +1303,7 @@
 		                "not_flag":0,
 		                "regions": [
 		                    {
-		                        "table_name": "HTTP_URL_LITERAL",
+		                        "table_name": "HTTP_URL",
 		                        "table_type": "expr",
 		                        "table_content": {
 		                            "keywords": "https://blog.csdn.net/littlefang/article/details/8213058",
@@ -1458,7 +1457,7 @@
                     "group_name": "Untitled",
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "cavemancircus.com/",
@@ -1500,7 +1499,7 @@
                         "group_name": "Untitled",
                         "regions": [
                             {
-                                "table_name": "HTTP_URL_LITERAL",
+                                "table_name": "HTTP_URL",
                                 "table_type": "expr",
                                 "table_content": {
                                     "keywords": "2019/12/27/pretty-girls-6",
@@ -1527,7 +1526,7 @@
                         "group_name": "Untitled",
                         "regions": [
                             {
-                                "table_name": "HTTP_URL_LITERAL",
+                                "table_name": "HTTP_URL",
                                 "table_type": "expr",
                                 "table_content": {
                                     "keywords": "2019/12/27",
@@ -1554,7 +1553,7 @@
                         "group_name": "Untitled",
                         "regions": [
                             {
-                                "table_name": "HTTP_URL_LITERAL",
+                                "table_name": "HTTP_URL",
                                 "table_type": "expr",
                                 "table_content": {
                                     "keywords": "2019/12/27",
@@ -2051,7 +2050,7 @@
                     "not_flag": 1,
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "must-not-contained-string-of-rule-186",
@@ -2103,7 +2102,7 @@
                     "not_flag": 1,
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "must-not-contained-string-of-rule-187",
@@ -2155,7 +2154,7 @@
                     "not_flag": 1,
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "must-not-contained-string-of-rule-188",
@@ -2323,7 +2322,7 @@
                 {
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "hello",
@@ -2386,7 +2385,7 @@
                 {
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "Monday",
@@ -2436,7 +2435,7 @@
                     "group_name": "Untitled",
                     "regions": [
                         {
-                            "table_name": "HTTP_URL_LITERAL",
+                            "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "hqdefault.jpg",

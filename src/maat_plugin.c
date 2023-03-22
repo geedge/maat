@@ -94,60 +94,57 @@ void *plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     }
     schema->table_id = item->valueint;
 
+    /* custom is optional */
     item = cJSON_GetObjectItem(json, "custom");
-    if (item == NULL || item->type != cJSON_Object) {
-        log_error(logger, MODULE_PLUGIN, 
-                  "[%s:%d] plugin table %s has no custom column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
+    if (item != NULL && item->type == cJSON_Object) {
+        custom_item = cJSON_GetObjectItem(item, "key");
+        if (NULL == custom_item || custom_item->type != cJSON_Number) {
+            log_error(logger, MODULE_PLUGIN,
+                      "[%s:%d] plugin table: %s has no key column",
+                      __FUNCTION__, __LINE__, table_name);
+            goto error;
+        }
+        schema->key_column = custom_item->valueint;
 
-    custom_item = cJSON_GetObjectItem(item, "key");
-    if (NULL == custom_item || custom_item->type != cJSON_Number) {
-        log_error(logger, MODULE_PLUGIN, 
-                  "[%s:%d] plugin table: %s has no key column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-    schema->key_column = custom_item->valueint;
-    
-    custom_item = cJSON_GetObjectItem(item, "key_type");
-    if (NULL == custom_item || custom_item->type != cJSON_String) {
-        log_error(logger, MODULE_PLUGIN, 
-                  "[%s:%d] plugin table: %s has no key_type column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
+        custom_item = cJSON_GetObjectItem(item, "key_type");
+        if (NULL == custom_item || custom_item->type != cJSON_String) {
+            log_error(logger, MODULE_PLUGIN,
+                      "[%s:%d] plugin table: %s has no key_type column",
+                      __FUNCTION__, __LINE__, table_name);
+            goto error;
+        }
 
-    if (strcmp(custom_item->valuestring, "pointer") == 0) {
-        schema->key_type = PLUGIN_KEY_TYPE_POINTER;
-    } else if (strcmp(custom_item->valuestring, "integer") == 0) {
-        schema->key_type = PLUGIN_KEY_TYPE_INTEGER;
-    } else {
-        log_error(logger, MODULE_PLUGIN, 
-                  "[%s:%d] plugin table: %s key_type:%s illegal", 
-                  __FUNCTION__, __LINE__, table_name, 
-                  custom_item->valuestring);
-        goto error;
-    }
-    
-    custom_item = cJSON_GetObjectItem(item, "tag");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->rule_tag_column = custom_item->valueint;
-    }
+        if (strcmp(custom_item->valuestring, "pointer") == 0) {
+            schema->key_type = PLUGIN_KEY_TYPE_POINTER;
+        } else if (strcmp(custom_item->valuestring, "integer") == 0) {
+            schema->key_type = PLUGIN_KEY_TYPE_INTEGER;
+        } else {
+            log_error(logger, MODULE_PLUGIN,
+                      "[%s:%d] plugin table: %s key_type:%s illegal",
+                      __FUNCTION__, __LINE__, table_name,
+                      custom_item->valuestring);
+            goto error;
+        }
 
-    custom_item = cJSON_GetObjectItem(item, "foreign");
-    if (custom_item != NULL) {
-        if (custom_item->type == cJSON_String) {
-            schema->n_foreign = read_integer_array(custom_item->valuestring, 
-                                                    schema->foreign_columns, 
-                                                    MAX_FOREIGN_CLMN_NUM);
-        } else if (custom_item->type == cJSON_Array) {
-            schema->n_foreign = cJSON_GetArraySize(custom_item);
-            for (int i = 0; i < schema->n_foreign; i++) {
-                cJSON *foreign_item = cJSON_GetArrayItem(custom_item, i);
-                assert(foreign_item->type == cJSON_Number);
-                schema->foreign_columns[i] = foreign_item->valueint;
+        custom_item = cJSON_GetObjectItem(item, "tag");
+        if (custom_item != NULL && custom_item->type == cJSON_Number) {
+            schema->rule_tag_column = custom_item->valueint;
+        }
+
+        custom_item = cJSON_GetObjectItem(item, "foreign");
+        if (custom_item != NULL) {
+            if (custom_item->type == cJSON_String) {
+                schema->n_foreign = read_integer_array(custom_item->valuestring,
+                                                       schema->foreign_columns,
+                                                       MAX_FOREIGN_CLMN_NUM);
+            } else if (custom_item->type == cJSON_Array) {
+                schema->n_foreign = cJSON_GetArraySize(custom_item);
+                for (int i = 0; i < schema->n_foreign; i++)
+                {
+                    cJSON *foreign_item = cJSON_GetArrayItem(custom_item, i);
+                    assert(foreign_item->type == cJSON_Number);
+                    schema->foreign_columns[i] = foreign_item->valueint;
+                }
             }
         }
     }

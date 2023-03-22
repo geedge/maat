@@ -144,7 +144,6 @@ int bool_plugin_table_set_ex_data_schema(void *bool_plugin_schema,
     return 0;
 }
 
-
 static int cmp_ull_p(const void *p1, const void *p2)
 {
 	if(* (unsigned long long*) p1 > * (unsigned long long*) p2) {

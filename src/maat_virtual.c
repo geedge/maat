@@ -20,8 +20,7 @@
 #define MODULE_VIRTUAL	 module_name_str("maat.virtual")
 
 struct virtual_schema {
-    char physical_tables[MAX_PHYSICAL_TABLE_NUM][NAME_MAX];
-    size_t n_physical_table;
+    char physical_table[NAME_MAX];
     int table_id;
     struct table_manager *ref_tbl_mgr;
 };
@@ -42,23 +41,15 @@ void *virtual_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     schema->table_id = item->valueint;
 
     item = cJSON_GetObjectItem(json, "physical_table");
-    if (NULL == item || item->type != cJSON_Array) {
+    if (NULL == item || item->type != cJSON_String) {
         log_error(logger, MODULE_VIRTUAL, 
                   "[%s:%d] virtual table %s has no physical_table column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
-    int cnt = cJSON_GetArraySize(item);
-    for (int i = 0; i < cnt; i++) {
-        cJSON *tmp_item = cJSON_GetArrayItem(item, i);
-        if (tmp_item != NULL && tmp_item->type == cJSON_String) {
-           memcpy(schema->physical_tables[i], tmp_item->valuestring, 
-                  strlen(tmp_item->valuestring));
-        }
-    }
-    schema->n_physical_table = cnt;
-
+    memcpy(schema->physical_table, item->valuestring, strlen(item->valuestring));
+   
     return schema;
 error:
     FREE(schema);
@@ -80,7 +71,7 @@ int virtual_table_get_id(void *virtual_schema)
     return schema->table_id;
 }
 
-size_t virtual_table_get_physical_table_id(void *virtual_schema, int physical_table_ids[])
+int virtual_table_get_physical_table_id(void *virtual_schema)
 {
     if (NULL == virtual_schema) {
         return 0;
@@ -88,10 +79,5 @@ size_t virtual_table_get_physical_table_id(void *virtual_schema, int physical_ta
 
     struct virtual_schema *schema = (struct virtual_schema *)virtual_schema;
 
-    for (size_t i = 0; i < schema->n_physical_table; i++) {
-        int table_id = table_manager_get_table_id(schema->ref_tbl_mgr, schema->physical_tables[i]);
-        physical_table_ids[i] = table_id;
-    }
-    
-    return schema->n_physical_table;
+    return table_manager_get_table_id(schema->ref_tbl_mgr, schema->physical_table);
 }

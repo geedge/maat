@@ -54,16 +54,18 @@ struct hs_scan_result {
 struct hs_pattern {
     enum hs_case_sensitive case_sensitive;
     enum hs_match_mode match_mode;
+    enum hs_pattern_type pattern_type;
+
     int is_hexbin; /* 1(yes) 0(no) */
 
     /* 
-     * just match in scan_data's range of [l_offset, r_offset], -1 means no limits
+     * just match in scan_data's range of [start_offset, end_offset], -1 means no limits
      * for example:
-     *  [-1, r_offset] means the pattern must in scan_data's [0 ~ r_offset]
-     *  [l_offset, -1] means the pattern must in scan_data's [l_offset ~ end]
+     *  [-1, end_offset] means the pattern must in scan_data's [0 ~ start_offset]
+     *  [start_offset, -1] means the pattern must in scan_data's [start_offset ~ data_end]
      */
-    int l_offset;
-    int r_offset;
+    int start_offset;
+    int end_offset;
 
     /* start pointer of pattern */
     char *pat;
@@ -82,15 +84,13 @@ struct hs_expr {
 /**
  * @brief initialize adapter_hs instance
  * 
- * @param pattern_type:      pure literal or regex expression
  * @param nr_worker_threads: the number of scan threads which will call adapter_hs_scan()
  * @param expr_array:        logic AND expression's array
  * @param n_expr_arrays:     the number of logic AND expression's array
  * 
  * @retval the pointer to adapter_hs instance
 */
-struct adapter_hs *adapter_hs_initialize(enum hs_pattern_type pattern_type,
-                                         size_t n_worker_thread,
+struct adapter_hs *adapter_hs_initialize(size_t n_worker_thread,
                                          struct hs_expr *exprs, size_t n_expr,
                                          struct log_handle *logger);
 

@@ -353,7 +353,7 @@ TEST_F(MaatFlagScan, basic) {
 
 TEST_F(MaatFlagScan, withExprRegion) {
     const char *flag_table_name = "FLAG_CONFIG";
-    const char *expr_table_name = "HTTP_URL_LITERAL";
+    const char *expr_table_name = "HTTP_URL";
     struct maat *maat_instance = MaatFlagScan::_shared_maat_instance;
 
     int flag_table_id = maat_get_table_id(maat_instance, flag_table_name);
@@ -540,7 +540,7 @@ struct maat *MaatStringScan::_shared_maat_instance;
 struct log_handle *MaatStringScan::logger;
 
 TEST_F(MaatStringScan, Full) {
-    const char *table_name = "HTTP_URL_REGEX";
+    const char *table_name = "HTTP_URL";
     struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
 
     int table_id = maat_get_table_id(maat_instance, table_name);
@@ -564,7 +564,7 @@ TEST_F(MaatStringScan, Regex) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     const char *cookie = "Cookie: Txa123aheadBCAxd";
-    const char *table_name = "HTTP_URL_REGEX";
+    const char *table_name = "HTTP_URL";
     struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
 
     int table_id = maat_get_table_id(maat_instance, table_name);
@@ -629,7 +629,7 @@ TEST_F(MaatStringScan, ExprPlus) {
 	EXPECT_EQ(results[0], 190);
 	maat_state_free(&state);
 }
-#if 0
+
 TEST_F(MaatStringScan, ExprPlusWithOffset)
 {
 	long long results[ARRAY_SIZE] = {0};
@@ -681,7 +681,7 @@ TEST_F(MaatStringScan, ExprPlusWithOffset)
 	
 	maat_state_free(&state);
 }
-
+#if 0
 TEST_F(MaatStringScan, ExprPlusWithHex) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -721,7 +721,7 @@ TEST_F(MaatStringScan, ExprAndExprPlus) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
-    const char *expr_table_name = "HTTP_URL_LITERAL";
+    const char *expr_table_name = "HTTP_URL";
     const char *expr_plus_table_name = "HTTP_SIGNATURE";
     const char *region_name = "I love China";
     const char *scan_data = "today is Monday and yesterday is Tuesday";
@@ -904,7 +904,8 @@ TEST_F(MaatStringScan, PrefixAndSuffix) {
     EXPECT_EQ(results[0], 152);
     maat_state_free(&state);
 }
-
+#endif
+#if 0
 TEST_F(MaatStringScan, MaatUnescape) {
     const char *scan_data = "Batman\\:Take me Home.Superman/:Fine,stay with me.";
 	const char *table_name = "KEYWORDS_TABLE";
@@ -923,11 +924,12 @@ TEST_F(MaatStringScan, MaatUnescape) {
     EXPECT_EQ(results[0], 132);
     maat_state_free(&state);
 }
-
+#endif
+#if 0
 TEST_F(MaatStringScan, RegexWithNotContains) {
     const char *should_NOT_hit_scan_data = "new.qq.com/rain/a/TWF2021042600418000";
 	const char *should_hit_scan_data = "fakesina.com/rain/a/TWF2021042600418000";
-	const char *table_name = "HTTP_URL_REGEX";
+	const char *table_name = "HTTP_URL";
     struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
 
     int table_id = maat_get_table_id(maat_instance, table_name);
@@ -1031,7 +1033,7 @@ TEST_F(MaatStringScan, StreamInput) {
     struct maat_state *state = NULL;
     struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
 	const char *scan_data = "http://www.cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
-	const char *table_name = "HTTP_URL_REGEX";
+	const char *table_name = "HTTP_URL";
 
 	int table_id = maat_get_table_id(maat_instance, table_name);
 	ASSERT_GT(table_id, 0);
@@ -1053,7 +1055,7 @@ TEST_F(MaatStringScan, StreamInput) {
 }
 
 TEST_F(MaatStringScan, dynamic_config) {
-    const char *table_name = "HTTP_URL_LITERAL";
+    const char *table_name = "HTTP_URL";
     char data[128] = "hello world, welcome to maat version4, it's funny.";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -1414,7 +1416,7 @@ TEST_F(NOTLogic, OneRegion) {
 	long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-	const char *table_name = "HTTP_URL_LITERAL";
+	const char *table_name = "HTTP_URL";
     struct maat *maat_instance = NOTLogic::_shared_maat_instance;
 
 	int table_id = maat_get_table_id(maat_instance, table_name);
@@ -1442,7 +1444,7 @@ TEST_F(NOTLogic, ScanNotAtLast) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-	const char *hit_table_name = "HTTP_URL_LITERAL";
+	const char *hit_table_name = "HTTP_URL";
     const char *not_hit_table_name = "KEYWORDS_TABLE";
     struct maat *maat_instance = NOTLogic::_shared_maat_instance;
 
@@ -1469,7 +1471,7 @@ TEST_F(NOTLogic, ScanIrrelavantAtLast) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    const char *hit_table_name = "HTTP_URL_LITERAL";
+    const char *hit_table_name = "HTTP_URL";
     const char *not_hit_table_name = "KEYWORDS_TABLE";
     struct maat *maat_instance = NOTLogic::_shared_maat_instance;
 
@@ -1498,7 +1500,7 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyExpr) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    const char *not_hit_table_name = "HTTP_URL_LITERAL";
+    const char *not_hit_table_name = "HTTP_URL";
     const char *hit_table_name = "IP_PLUS_CONFIG";
     const char *empty_table_name = "EMPTY_KEYWORD";
     struct maat *maat_instance = NOTLogic::_shared_maat_instance;
@@ -1537,7 +1539,7 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyInteger) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    const char *not_hit_table_name = "HTTP_URL_LITERAL";
+    const char *not_hit_table_name = "HTTP_URL";
     const char *hit_table_name = "IP_PLUS_CONFIG";
     const char *empty_table_name = "EMPTY_INTERGER";
     struct maat *maat_instance = NOTLogic::_shared_maat_instance;
@@ -1575,7 +1577,7 @@ TEST_F(NOTLogic, ScanNotIP) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
-    const char *hit_table_name = "HTTP_URL_LITERAL";
+    const char *hit_table_name = "HTTP_URL";
     const char *not_hit_table_name = "IP_CONFIG";
     struct maat *maat_instance = NOTLogic::_shared_maat_instance;
 
@@ -2367,7 +2369,7 @@ TEST_F(CompileTable, Conjunction1) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     const char *scan_data = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
-    const char *table_name = "HTTP_URL_LITERAL";
+    const char *table_name = "HTTP_URL";
     const char *compile_tables[2] = {"COMPILE", "COMPILE_ALIAS"};
     struct maat *maat_instance = CompileTable::_shared_maat_instance;
 
@@ -2394,7 +2396,7 @@ TEST_F(CompileTable, Conjunction2) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     const char *scan_data = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
-    const char *table_name = "HTTP_URL_LITERAL";
+    const char *table_name = "HTTP_URL";
     const char *compile_tables[2] = {"COMPILE", "COMPILE_ALIAS"};
     struct maat *maat_instance = CompileTable::_shared_maat_instance;
 
@@ -2525,7 +2527,7 @@ TEST_F(Policy, CompileRuleTags) {
     struct maat_state *state = NULL;
 	const char *should_hit = "string bbb should hit";
 	const char *should_not_hit = "string aaa should not hit";
-	const char *table_name = "HTTP_URL_LITERAL";
+	const char *table_name = "HTTP_URL";
 	struct maat *maat_instance = Policy::_shared_maat_instance;
 
     int table_id = maat_get_table_id(maat_instance, table_name);
@@ -2549,7 +2551,7 @@ TEST_F(Policy, CompileEXData) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     const char *url = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
-	const char *table_name = "HTTP_URL_LITERAL";
+	const char *table_name = "HTTP_URL";
     const char *compile_table_name = "COMPILE_ALIAS";
 	const char *expect_name = "I have a name";
     struct maat *maat_instance = Policy::_shared_maat_instance;
@@ -2679,8 +2681,8 @@ TEST_F(TableInfo, Conjunction) {
     size_t n_hit_result = 0;
     struct maat_state *state = NULL;
     const char *scan_data = "soq is using table conjunction function.http://www.3300av.com/novel/27122.txt";
-    const char *table_name = "HTTP_URL_LITERAL";
-    const char *conj_table_name = "HTTP_HOST_LITERAL";
+    const char *table_name = "HTTP_URL";
+    const char *conj_table_name = "HTTP_HOST";
     struct maat *maat_instance = TableInfo::_shared_maat_instance;
 
     int table_id = maat_get_table_id(maat_instance, table_name);
@@ -2869,7 +2871,7 @@ TEST_F(MaatCmdTest, SetIP) {
 
 TEST_F(MaatCmdTest, SetExpr) {
     const char *scan_data = "Hiredis is a minimalistic C client library for the Redis database.\r\n";
-	const char *table_name = "HTTP_URL_LITERAL";
+	const char *table_name = "HTTP_URL";
 	
 	const char *keywords1 = "Hiredis";
 	const char *keywords2 = "C Client";
