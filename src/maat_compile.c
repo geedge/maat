@@ -136,7 +136,6 @@ struct maat_internal_hit_path {
 struct maat_compile_state {
 	int thread_id;
 	int Nth_scan;
-	time_t hier_ver;
 	size_t this_scan_hit_item_cnt;
 	int	not_clause_hitted_flag;
 	int is_no_count_scan;
@@ -1196,10 +1195,13 @@ static inline int compare_clause_id(const void *a, const void *b)
 
 struct maat_compile_state *maat_compile_state_new(int thread_id)
 {
+    if (thread_id < 0) {
+        return NULL;
+    }
+
     struct maat_compile_state *compile_state = ALLOC(struct maat_compile_state, 1);
 
 	compile_state->thread_id = thread_id;
-	//compile_state->hier_ver = hier->version;
 	utarray_new(compile_state->internal_hit_paths, &ut_hit_path_icd);
 	utarray_new(compile_state->all_hit_clauses, &ut_clause_id_icd);
 	utarray_new(compile_state->this_scan_hit_clauses, &ut_clause_id_icd);
@@ -1207,8 +1209,29 @@ struct maat_compile_state *maat_compile_state_new(int thread_id)
 	return compile_state;
 }
 
+void maat_compile_state_reset(struct maat_compile_state *compile_state)
+{
+    if (NULL == compile_state) {
+        return;
+    }
+
+    compile_state->Nth_scan = 0;
+    compile_state->this_scan_hit_item_cnt = 0;
+    compile_state->not_clause_hitted_flag = 0;
+    compile_state->is_no_count_scan = 0;
+    compile_state->hit_path_cnt = 0;
+
+    utarray_clear(compile_state->internal_hit_paths);
+    utarray_clear(compile_state->all_hit_clauses);
+    utarray_clear(compile_state->this_scan_hit_clauses);
+}
+
 void maat_compile_state_free(struct maat_compile_state *compile_state)
 {
+    if (NULL == compile_state) {
+        return;
+    }
+    
     utarray_free(compile_state->internal_hit_paths);
 	utarray_free(compile_state->all_hit_clauses);
 	utarray_free(compile_state->this_scan_hit_clauses);

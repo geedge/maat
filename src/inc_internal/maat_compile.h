@@ -83,6 +83,7 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
 /* maat compile state API */
 struct maat_compile_state;
 struct maat_compile_state *maat_compile_state_new(int thread_id);
+void maat_compile_state_reset(struct maat_compile_state *compile_state);
 void maat_compile_state_free(struct maat_compile_state *compile_state);
 
 int maat_compile_state_update(struct rcu_hash_table *item_htable, int vtable_id,

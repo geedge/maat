@@ -810,16 +810,19 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
         return 0;
     }
 
-    if (n_item > MAX_SCANNER_HIT_ITEM_NUM) {
-        n_item = MAX_SCANNER_HIT_ITEM_NUM;
+    if (n_item > MAX_SCANNER_HIT_PATTERN_NUM) {
+        n_item = MAX_SCANNER_HIT_PATTERN_NUM;
     }
 
-    unsigned long long item_ids[MAX_SCANNER_HIT_ITEM_NUM];
-    memset(item_ids, 0, sizeof(unsigned long long) * MAX_SCANNER_HIT_ITEM_NUM);
+    unsigned long long item_ids[MAX_SCANNER_HIT_PATTERN_NUM];
+    memset(item_ids, 0, sizeof(unsigned long long) * MAX_SCANNER_HIT_PATTERN_NUM);
 
     int i = 0;
     struct matched_pattern *pat = NULL, *tmp_pat = NULL;
     HASH_ITER(hh, hs_stream->matched_pat_container.pat_hash, pat, tmp_pat) {
+        if (i >= MAX_SCANNER_HIT_PATTERN_NUM) {
+            break;
+        }
         item_ids[i++] = pat->pattern_id;
     }
     qsort(item_ids, n_item, sizeof(unsigned long long), cmp_ull_p);

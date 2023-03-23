@@ -55,6 +55,7 @@ extern "C"
 #define	MAX_SCANNER_HIT_COMPILE_NUM  4096
 #define MAX_SCANNER_HIT_GROUP_NUM    4096
 #define MAX_SCANNER_HIT_ITEM_NUM    4096
+#define MAX_SCANNER_HIT_PATTERN_NUM  4096 * 8
 
 enum maat_ip_format {
 	IP_FORMAT_RANGE,

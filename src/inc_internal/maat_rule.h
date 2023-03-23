@@ -45,12 +45,6 @@ extern "C"
 #define mr_region_id_var "SEQUENCE_REGION"
 #define mr_group_id_var	 "SEQUENCE_GROUP"
 
-enum last_scan_flag {
-    LAST_SCAN_UNSET,
-    LAST_SCAN_SET,
-    LAST_SCAN_FINISHED
-};
-
 enum tag_match {
     TAG_MATCH_ERR = -1,
     TAG_MATCH_UNMATCHED,
@@ -223,8 +217,6 @@ struct maat {
     /* statistics */
     long long line_cmd_acc_num;
 
-    long long *outer_state_cnt;
-    long long *compile_state_cnt;
     long long *thread_call_cnt;
     long long *hit_cnt;
     long long *not_grp_hit_cnt;
@@ -232,12 +224,23 @@ struct maat {
     long long scan_err_cnt;
 };
 
+enum district_flag {
+    DISTRICT_FLAG_UNSET,
+    DISTRICT_FLAG_SET
+};
+
+enum last_scan_flag {
+    LAST_SCAN_UNSET,
+    LAST_SCAN_SET,
+    LAST_SCAN_FINISHED
+};
+
 struct maat_state {
 	struct maat *maat_instance;
-	int16_t thread_id;
+	int thread_id;
     int compile_table_id;
-	unsigned char is_set_district;
-	unsigned char is_last_scan;
+	enum district_flag is_set_district;
+	enum last_scan_flag is_last_scan;
 	long long district_id; //-1: Any District; -2: Unkonwn District;
 	int scan_cnt;
 	struct maat_compile_state *compile_state;

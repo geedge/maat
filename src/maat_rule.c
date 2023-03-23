@@ -559,8 +559,6 @@ void *rule_monitor_loop(void *arg)
 	maat_garbage_bin_free(maat_instance->garbage_bin);
 	table_manager_destroy(maat_instance->tbl_mgr);
 
-    alignment_int64_array_free(maat_instance->outer_state_cnt);
-    alignment_int64_array_free(maat_instance->compile_state_cnt);
     alignment_int64_array_free(maat_instance->thread_call_cnt);
     alignment_int64_array_free(maat_instance->hit_cnt);
     alignment_int64_array_free(maat_instance->not_grp_hit_cnt);
