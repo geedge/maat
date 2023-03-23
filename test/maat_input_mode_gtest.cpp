@@ -7,6 +7,8 @@
 
 #include <gtest/gtest.h>
 
+#define MODULE_INPUT_MODE_GTEST	 module_name_str("maat.input_mode_gtest")
+
 const char *table_info_path = "./table_info.conf";
 const char *json_filename = "maat_json.json";
 struct log_handle *g_logger = NULL;
@@ -124,39 +126,31 @@ long long absolute_expire_time=0;
 int make_serial_rule(const char *table_name, const char *line, void *u_para)
 {
 	struct serial_rule *s_rule=(struct serial_rule *)u_para;
-	int rule_id = 0;
+    redisContext *ctx = s_rule->ref_ctx;
 	char *buff = ALLOC(char, strlen(line) + 1);
-    
+
     memcpy(buff, line, strlen(line) + 1);
-
-	while (buff[strlen(buff) - 1] == '\n' || buff[strlen(buff) - 1] == '\t') {
-		buff[strlen(buff) - 1] = '\0';
+	while(buff[strlen(line) - 1] == '\n' || buff[strlen(line) - 1] == '\t') {
+		buff[strlen(line) - 1] = '\0';
 	}
 
-    int j = 0;
-    char *str1 = NULL;
-    char *token = NULL;
-    char *saveptr1 = NULL;
-
-	for (j = 0,str1 = buff; ; j++, str1 = NULL) {
-		 token = strtok_r(str1, "\t ", &saveptr1);
-		 if (token == NULL)
-			 break;
-		 if (j == 0) {
-			sscanf(token,"%d", &rule_id);
-		 }
- 	}
-	
-    memcpy(buff, line, strlen(line)+1);
-	while(buff[strlen(buff)-1]=='\n'||buff[strlen(buff)-1]=='\t') {
-		buff[strlen(buff)-1]='\0';
+    const char *redis_rule_key = "TEST_RULE_KEY";
+    redisReply *reply = maat_cmd_wrap_redis_command(ctx, "INCRBY %s %d", redis_rule_key, 1);
+	if (reply->type == REDIS_REPLY_NIL) {
+		printf("incrby redis_rule_key:%s failed.", redis_rule_key);
+        return -1;
+	} else {
+		s_rule->rule_id = maat_cmd_read_redis_integer(reply);
+		freeReplyObject(reply);
+		reply = NULL;
 	}
 
-	maat_cmd_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, rule_id, table_name, 
+	maat_cmd_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, s_rule->rule_id, table_name, 
                              buff, absolute_expire_time);
+    (s_rule + line_idx)->ref_ctx = ctx;
 	line_idx++;
-    
-	FREE(buff);
+
+    FREE(buff);
 
 	return 0;
 }
@@ -196,12 +190,14 @@ TEST(redis_mode, maat_scan_string) {
                             &total_line_cnt, g_logger);
 
     struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
+    s_rule->ref_ctx = c;
     long long server_time = maat_cmd_redis_server_time_s(c);
     EXPECT_NE(server_time, -1);
 
     absolute_expire_time = server_time + 300;
     config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, make_serial_rule, NULL, 
                             s_rule, g_logger);
+    s_rule->ref_ctx = NULL;
     int success_cnt = 0;
     do {
         success_cnt = maat_cmd_write_rule(c, s_rule, total_line_cnt, server_time, g_logger);

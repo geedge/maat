@@ -151,6 +151,7 @@ struct serial_rule {
 	char *table_line;
 	int n_foreign;
 	struct foreign_key *f_keys;
+    redisContext *ref_ctx;
 	TAILQ_ENTRY(serial_rule) entries;
     UT_hash_handle hh;
 };

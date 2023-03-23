@@ -13,6 +13,8 @@
 #include "json2iris.h"
 #include "hiredis/hiredis.h"
 
+#define MODULE_REDIS_TOOL	 module_name_str("maat.redis_tool")
+
 const char *redis_dump_dir = "./redis_dump";
 const char *default_table_info = "./table_info.conf";
 
@@ -205,34 +207,30 @@ long long absolute_expire_time=0;
 int make_serial_rule(const char *table_name, const char *line, void *u_para)
 {
 	struct serial_rule *s_rule=(struct serial_rule *)u_para;
-	int rule_id = 0;
-    //int is_valid = 0;
+    redisContext *ctx = s_rule->ref_ctx;
 	char *buff = ALLOC(char, strlen(line) + 1);
-    
-    memcpy(buff, line, strlen(line) + 1);
 
-	while (buff[strlen(buff) - 1] == '\n' || buff[strlen(buff) - 1] == '\t') {
-		buff[strlen(buff) - 1] = '\0';
+    memcpy(buff, line, strlen(line) + 1);
+	while(buff[strlen(line) - 1] == '\n' || buff[strlen(line) - 1] == '\t') {
+		buff[strlen(line) - 1] = '\0';
 	}
 
-    int j = 0;
-    char *str1 = NULL;
-    char *token = NULL;
-    char *saveptr1 = NULL;
+    const char *redis_rule_key = "TEST_RULE_KEY";
+    redisReply *reply = maat_cmd_wrap_redis_command(ctx, "INCRBY %s %d", redis_rule_key, 1);
+	if (reply->type == REDIS_REPLY_NIL) {
+		printf("incrby redis_rule_key:%s failed.", redis_rule_key);
+        return -1;
+	} else {
+		s_rule->rule_id = maat_cmd_read_redis_integer(reply);
+		freeReplyObject(reply);
+		reply = NULL;
+	}
 
-	for (j = 0,str1 = buff; ; j++, str1 = NULL) {
-		 token = strtok_r(str1, "\t ", &saveptr1);
-		 if (token == NULL)
-			 break;
-		 if (j == 0) {
-			sscanf(token,"%d", &rule_id);
-		 }
- 	 }
-
-	maat_cmd_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, rule_id, table_name, buff,  absolute_expire_time);
+	maat_cmd_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, s_rule->rule_id, table_name, 
+                             buff, absolute_expire_time);
+    (s_rule + line_idx)->ref_ctx = ctx;
 	line_idx++;
-    
-	FREE(buff);
+    FREE(buff);
 
 	return 0;
 }
@@ -298,38 +296,46 @@ int main(int argc, char * argv[])
 
     char tmp_iris_path[128] = {0};
 	if (model == WORK_MODE_DUMP) {
-		printf("Reading key list from %s:%d db%d.\n", redis_ip, redis_port, redis_db);
+		log_info(logger, MODULE_REDIS_TOOL, "Reading key list from %s:%d db%d.", 
+                 redis_ip, redis_port, redis_db);
 		read_rule_from_redis(c, desired_version, dump_dir, logger);
 	} else if(model == WORK_MODE_JSON) {
         char *json_buff = NULL;
         size_t json_buff_sz = 0;
 		int ret = load_file_to_memory(json_file, (unsigned char**)&json_buff, &json_buff_sz);
 		if (ret < 0) {
-			printf("open %s failed.\n", json_file);
+			log_error(logger, MODULE_REDIS_TOOL, "open file:%s failed.", json_file);
+            return -1;
 		}
 
 		ret = json2iris(json_buff, json_file, c, tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL, logger);
 		FREE(json_buff);
         if (ret < 0) {
-			printf("Invalid json format.\n");
+			log_error(logger, MODULE_REDIS_TOOL, "Invalid json format.");
+            return -1;
 		}
 
 		size_t total_line_cnt = 0;
 		config_monitor_traverse(0, tmp_iris_path, NULL, count_line_num_cb, NULL, &total_line_cnt, logger);
-		printf("Serialize %s to %zu lines, write temp file to %s .\n", json_file, total_line_cnt, tmp_iris_path);
+		log_error(logger, MODULE_REDIS_TOOL, "Serialize %s to %zu lines, write temp file to %s .", 
+                  json_file, total_line_cnt, tmp_iris_path);
 
 		struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
+        s_rule->ref_ctx = c;
 		long long server_time = maat_cmd_redis_server_time_s(c);
 		if (!server_time) {
-			printf("Get Redis Time failed.\n");
+			log_error(logger, MODULE_REDIS_TOOL, "Get Redis Time failed.");
+            FREE(s_rule);
+            return -1;
 		}
 
 		if (timeout > 0) {
 			absolute_expire_time = server_time + timeout;
 		}
 
-		config_monitor_traverse(0, tmp_iris_path, NULL, make_serial_rule, NULL, s_rule, logger);
-		printf("Timeout = %lld\n", absolute_expire_time);
+        config_monitor_traverse(0, tmp_iris_path, NULL, make_serial_rule, NULL, s_rule, logger);
+        s_rule->ref_ctx = NULL;
+		log_info(logger, MODULE_REDIS_TOOL, "Timeout = %lld\n", absolute_expire_time);
 
 		ret = 0;
         int success_cnt = 0;
@@ -338,7 +344,8 @@ int main(int argc, char * argv[])
 		} while(success_cnt < 0);
 
 		if (success_cnt != (int)total_line_cnt) {
-			printf("Only Add %d of %zu, rule id maybe conflicts.\n", success_cnt, total_line_cnt);
+			log_error(logger, MODULE_REDIS_TOOL, "Only Add %d of %zu, rule id maybe conflicts.", 
+                      success_cnt, total_line_cnt);
 		}
 
 		for (size_t i = 0; i < total_line_cnt; i++) {

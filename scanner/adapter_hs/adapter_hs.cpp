@@ -804,18 +804,18 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
         return -1;
     }
 
-    size_t n_item = HASH_COUNT(hs_stream->matched_pat_container.pat_hash);
-    if (0 == n_item) {
+    size_t n_pattern_id = HASH_COUNT(hs_stream->matched_pat_container.pat_hash);
+    if (0 == n_pattern_id) {
         *n_hit_result = 0;
         return 0;
     }
 
-    if (n_item > MAX_SCANNER_HIT_PATTERN_NUM) {
-        n_item = MAX_SCANNER_HIT_PATTERN_NUM;
+    if (n_pattern_id > MAX_SCANNER_HIT_PATTERN_NUM) {
+        n_pattern_id = MAX_SCANNER_HIT_PATTERN_NUM;
     }
 
-    unsigned long long item_ids[MAX_SCANNER_HIT_PATTERN_NUM];
-    memset(item_ids, 0, sizeof(unsigned long long) * MAX_SCANNER_HIT_PATTERN_NUM);
+    unsigned long long pattern_ids[MAX_SCANNER_HIT_PATTERN_NUM];
+    memset(pattern_ids, 0, sizeof(unsigned long long) * MAX_SCANNER_HIT_PATTERN_NUM);
 
     int i = 0;
     struct matched_pattern *pat = NULL, *tmp_pat = NULL;
@@ -823,15 +823,15 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
         if (i >= MAX_SCANNER_HIT_PATTERN_NUM) {
             break;
         }
-        item_ids[i++] = pat->pattern_id;
+        pattern_ids[i++] = pat->pattern_id;
     }
-    qsort(item_ids, n_item, sizeof(unsigned long long), cmp_ull_p);
+    qsort(pattern_ids, n_pattern_id, sizeof(unsigned long long), cmp_ull_p);
 
     int ret = 0;
     int real_matched_index = 0;
     struct hs_tag *hs_tag = NULL;
     struct bool_expr_match *bool_matcher_results = ALLOC(struct bool_expr_match, hs_stream->n_expr);
-    int bool_matcher_ret = bool_matcher_match(hs_stream->hs_rt->bm, item_ids, n_item,
+    int bool_matcher_ret = bool_matcher_match(hs_stream->hs_rt->bm, pattern_ids, n_pattern_id,
                                               bool_matcher_results, hs_stream->n_expr);
     if (bool_matcher_ret < 0) {
         ret = -1;
@@ -879,6 +879,10 @@ int adapter_hs_scan(struct adapter_hs *hs_instance, int thread_id,
     }
 
     struct adapter_hs_stream *hs_stream = adapter_hs_stream_open(hs_instance, thread_id);
+    if (NULL == hs_stream) {
+        return -1;
+    }
+
     int ret = adapter_hs_scan_stream(hs_stream, data, data_len, results, n_result, n_hit_result);
     adapter_hs_stream_close(hs_stream);
 

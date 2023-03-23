@@ -9,7 +9,7 @@
 
 *	Authors: Liu WenTan <liuwentan@geedgenetworks.com>
 *	Date:    2022-10-31
-*   Copyright: (c) 2018-2022 Geedge Networks, Inc. All rights reserved.
+*   Copyright: (c) 2018-2023 Geedge Networks, Inc. All rights reserved.
 ***********************************************************************************************
 */
 
@@ -67,6 +67,7 @@ struct ipv4_tuple {
     unsigned int dip;       /* network order */
     unsigned short sport;   /* network order */
     unsigned short dport;   /* network order */
+    int protocol;
 };
  
 struct ipv6_tuple {
@@ -74,6 +75,7 @@ struct ipv6_tuple {
     unsigned int dip[4] ;   /* network order */
     unsigned short sport;   /* network order */
     unsigned short dport;   /* network order */
+    int protocol;
 };
 
 /* update_type: MAAT_UPDATE_TYPE_FULL or MAAT_UPDATE_TYPE_INC */

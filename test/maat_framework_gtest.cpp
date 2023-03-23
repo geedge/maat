@@ -49,35 +49,28 @@ long long absolute_expire_time=0;
 int make_serial_rule(const char *table_name, const char *line, void *u_para)
 {
 	struct serial_rule *s_rule=(struct serial_rule *)u_para;
-	int rule_id = 0;
+    redisContext *ctx = s_rule->ref_ctx;
 	char *buff = ALLOC(char, strlen(line) + 1);
-    
+
     memcpy(buff, line, strlen(line) + 1);
-
-	while (buff[strlen(buff) - 1] == '\n' || buff[strlen(buff) - 1] == '\t') {
-		buff[strlen(buff) - 1] = '\0';
+	while(buff[strlen(line) - 1] == '\n' || buff[strlen(line) - 1] == '\t') {
+		buff[strlen(line) - 1] = '\0';
 	}
 
-    int j = 0;
-    char *str1 = NULL;
-    char *token = NULL;
-    char *saveptr1 = NULL;
-
-	for (j = 0,str1 = buff; ; j++, str1 = NULL) {
-		 token = strtok_r(str1, "\t ", &saveptr1);
-		 if (token == NULL)
-			 break;
-		 if (j == 0) {
-			sscanf(token,"%d", &rule_id);
-		 }
- 	}
-	
-    memcpy(buff, line, strlen(line)+1);
-	while(buff[strlen(buff)-1]=='\n'||buff[strlen(buff)-1]=='\t') {
-		buff[strlen(buff)-1]='\0';
+    const char *redis_rule_key = "TEST_RULE_KEY";
+    redisReply *reply = maat_cmd_wrap_redis_command(ctx, "INCRBY %s %d", redis_rule_key, 1);
+	if (reply->type == REDIS_REPLY_NIL) {
+		printf("incrby redis_rule_key:%s failed.", redis_rule_key);
+        return -1;
+	} else {
+		s_rule->rule_id = maat_cmd_read_redis_integer(reply);
+		freeReplyObject(reply);
+		reply = NULL;
 	}
 
-	maat_cmd_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, rule_id, table_name, buff, absolute_expire_time);
+	maat_cmd_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, s_rule->rule_id, table_name, 
+                             buff, absolute_expire_time);
+    (s_rule + line_idx)->ref_ctx = ctx;
 	line_idx++;
 
     FREE(buff);
@@ -130,6 +123,7 @@ int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
     config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, count_line_num_cb, NULL, &total_line_cnt, logger);
 
     struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
+    s_rule->ref_ctx = c;
     long long server_time = maat_cmd_redis_server_time_s(c);
     if (server_time < 0) {
         return -1;
@@ -137,6 +131,7 @@ int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
 
     absolute_expire_time = server_time + 300;
     config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, make_serial_rule, NULL, s_rule, logger);
+    s_rule->ref_ctx = NULL;
     line_idx = 0;
     absolute_expire_time = 0;
 
@@ -722,12 +717,13 @@ TEST_F(MaatStringScan, ExprPlusWithOffset)
 	maat_state_free(state);
     state = NULL;
 }
-#if 0
+
 TEST_F(MaatStringScan, ExprPlusWithHex) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
-    struct maat_state *state = NULL;
+    int thread_id = 0;
     struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
 	const char *scan_data1 = "text/html; charset=UTF-8";
 	const char *scan_data2 = "Batman\\:Take me Home.Superman/:Fine,stay with me.";
 	const char *region_name1 = "Content-Type";
@@ -736,27 +732,28 @@ TEST_F(MaatStringScan, ExprPlusWithHex) {
 	int table_id = maat_get_table_id(maat_instance, "HTTP_SIGNATURE");
 	ASSERT_GT(table_id, 0);
 
-	int ret = maat_state_set_scan_district(maat_instance, &state, region_name1, strlen(region_name1));
+	int ret = maat_state_set_scan_district(state, region_name1, strlen(region_name1));
 	ASSERT_EQ(ret, 0);
-	ret = maat_scan_string(maat_instance, table_id, 0, scan_data1, strlen(scan_data1), 
-						   results, ARRAY_SIZE, &n_hit_result, &state);
+	ret = maat_scan_string(maat_instance, table_id, thread_id, scan_data1, strlen(scan_data1), 
+						   results, ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(results[0], 156);
 
-    ret = maat_state_set_scan_district(maat_instance, &state, region_name2, strlen(region_name2));
+    ret = maat_state_set_scan_district(state, region_name2, strlen(region_name2));
 	ASSERT_EQ(ret, 0);
-	ret = maat_scan_string(maat_instance, table_id, 0, scan_data1, strlen(scan_data1), 
-						   results, ARRAY_SIZE, &n_hit_result, &state);
-	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+	ret = maat_scan_string(maat_instance, table_id, thread_id, scan_data1, strlen(scan_data1), 
+						   results, ARRAY_SIZE, &n_hit_result, state);
+	EXPECT_EQ(ret, MAAT_SCAN_OK); //maat-v3 consider as half hit, it's unreasonable
     
     table_id = maat_get_table_id(maat_instance, "KEYWORDS_TABLE");
-    ret = maat_scan_string(maat_instance, table_id, 0, scan_data2, strlen(scan_data2),
-                            results, ARRAY_SIZE, &n_hit_result, &state);
+    ret = maat_scan_string(maat_instance, table_id, thread_id, scan_data2, strlen(scan_data2),
+                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(results[0], 132);                    
-	maat_state_free(&state);
+	maat_state_free(state);
+    state = NULL;
 }
-#endif
+
 TEST_F(MaatStringScan, ExprAndExprPlus) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -788,7 +785,7 @@ TEST_F(MaatStringScan, ExprAndExprPlus) {
     maat_state_free(state);
     state = NULL;
 }
-#if 0
+
 TEST_F(MaatStringScan, ShouldNotHitExprPlus) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -818,11 +815,11 @@ TEST_F(MaatStringScan, ShouldNotHitExprPlus) {
     
 	ret = maat_scan_string(maat_instance, table_id, thread_id, (char *)udp_payload_not_hit, sizeof(udp_payload_not_hit), 
 						   results, ARRAY_SIZE, &n_hit_result, state);
-	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+	EXPECT_EQ(ret, MAAT_SCAN_OK); //maat-v3 consider as half hit, it's unreasonable
 	maat_state_free(state);
     state = NULL;
 }
-#endif
+
 TEST_F(MaatStringScan, Expr8) {
     const char *table_name = "KEYWORDS_TABLE";
     int thread_id = 0;
@@ -957,7 +954,7 @@ TEST_F(MaatStringScan, PrefixAndSuffix) {
     state = NULL;
 }
 #endif
-#if 0
+
 TEST_F(MaatStringScan, MaatUnescape) {
     const char *scan_data = "Batman\\:Take me Home.Superman/:Fine,stay with me.";
 	const char *table_name = "KEYWORDS_TABLE";
@@ -978,7 +975,7 @@ TEST_F(MaatStringScan, MaatUnescape) {
     maat_state_free(state);
     state = NULL;
 }
-#endif
+
 #if 0
 TEST_F(MaatStringScan, RegexWithNotContains) {
     const char *should_NOT_hit_scan_data = "new.qq.com/rain/a/TWF2021042600418000";

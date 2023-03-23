@@ -957,8 +957,7 @@ int flag_scan(struct table_manager *tbl_mgr, int thread_id, long long flag,
               int physical_table_id, int vtable_id, struct maat_state *state)
 {
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, physical_table_id);
-    if ((table_type == TABLE_TYPE_FLAG_PLUS) &&
-        (NULL == state || DISTRICT_FLAG_UNSET == state->is_set_district)) {
+    if (table_type == TABLE_TYPE_FLAG_PLUS && DISTRICT_FLAG_UNSET == state->is_set_district) {
         return -1;
     }
 
@@ -989,8 +988,7 @@ int interval_scan(struct table_manager *tbl_mgr, int thread_id, long long intege
 {
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, physical_table_id);
-    if ((table_type == TABLE_TYPE_INTERVAL_PLUS) &&
-        (NULL == state || DISTRICT_FLAG_UNSET == state->is_set_district)) {
+    if (table_type == TABLE_TYPE_INTERVAL_PLUS && DISTRICT_FLAG_UNSET == state->is_set_district) {
         // maat_instance->scan_err_cnt++;
         return -1;
     }
@@ -1075,8 +1073,7 @@ int string_scan(struct table_manager *tbl_mgr, int thread_id, const char *data, 
                 int physical_table_id, int vtable_id, struct maat_state *state)
 {
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, physical_table_id);
-    if ((table_type == TABLE_TYPE_EXPR_PLUS) &&
-        (NULL == state || DISTRICT_FLAG_UNSET == state->is_set_district)) {
+    if (table_type == TABLE_TYPE_EXPR_PLUS && DISTRICT_FLAG_UNSET == state->is_set_district) {
         // maat_instance->scan_err_cnt++;
         return -1;
     }
@@ -1112,8 +1109,7 @@ int expr_stream_scan(struct maat_stream *stream, const char *data, size_t data_l
 
     struct table_manager *tbl_mgr = stream->ref_maat_instance->tbl_mgr;
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, stream->physical_table_id);
-    if ((table_type == TABLE_TYPE_EXPR_PLUS) &&
-        (NULL == state || DISTRICT_FLAG_UNSET == state->is_set_district)) {
+    if (table_type == TABLE_TYPE_EXPR_PLUS && DISTRICT_FLAG_UNSET == state->is_set_district) {
         // maat_instance->scan_err_cnt++;
         return -1;
     }
@@ -1698,7 +1694,6 @@ void maat_state_free(struct maat_state *state)
     assert(state->compile_state != NULL);
     maat_compile_state_free(state->compile_state);
     state->compile_state = NULL;
-    //alignment_int64_array_add(mid->maat_instance->compile_state_cnt, mid->thread_id, -1);
     state->maat_instance = NULL;
     free(state);
 }
