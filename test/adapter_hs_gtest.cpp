@@ -181,6 +181,11 @@ int parse_config_file(const char *filename, struct hs_expr exprs[], size_t *n_ex
                     exprs[i].patterns[j].end_offset = -1;
                 }
             }
+
+            if (exprs[i].patterns->match_mode == HS_MATCH_MODE_EXACTLY) {
+                exprs[i].patterns[j].start_offset = 0;
+                exprs[i].patterns[j].end_offset = exprs[i].patterns[j].pat_len - 1;
+            }
         }
         exprs[i].n_patterns = pattern_cnt;
     }

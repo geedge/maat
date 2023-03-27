@@ -66,55 +66,35 @@ struct adapter_hs {
     size_t n_expr;
     size_t n_patterns;
     struct adapter_hs_runtime *hs_rt;
-    struct hs_tag *tag_map;
-    struct pattern_attribute *pat_attr_by_str;
-    struct pattern_attribute *pat_attr_by_id;
+    struct pattern_attribute *hs_attr;
     struct log_handle *logger;
 };
 
-struct matched_offset {
-    unsigned long long start_offset;
-    unsigned long long end_offset;
+struct pattern_offset {
+    long long start;
+    long long end;
+};
+
+struct pattern_attribute {
+    long long pattern_id;
+    enum hs_match_mode match_mode;
+    struct pattern_offset offset;
 };
 
 struct matched_pattern {
-    unsigned long long pattern_id;
-    struct matched_offset *offsets;
-    size_t offset_cnt;
-    size_t offset_size;
-    UT_hash_handle hh;
-};
-
-struct matched_pattern_container {
-    struct matched_pattern *pat_hash;
+    UT_array *pattern_ids;
+    size_t n_patterns;
+    struct pattern_attribute *ref_hs_attr;
+    size_t scan_data_len;
 };
 
 struct adapter_hs_stream {
     int thread_id;
     size_t n_expr;
-    size_t n_patterns;
     hs_stream_t *literal_stream;
     hs_stream_t *regex_stream;
     struct adapter_hs_runtime *hs_rt;
-    struct matched_pattern_container matched_pat_container;
-};
-
-struct pattern_attribute {
-    unsigned long long bool_expr_id;
-    unsigned long long pattern_id;
-    enum hs_match_mode match_mode;
-    int start_offset;
-    int end_offset;
-};
-
-struct hs_tag {
-    char *key;
-    size_t key_len;
-
-    size_t n_pat_attr;
-    struct pattern_attribute *pat_attr;
-    void *user_tag;
-    UT_hash_handle hh;
+    struct matched_pattern *matched_pat;
 };
 
 int _hs_alloc_scratch(hs_database_t *db, hs_scratch_t **scratchs, size_t n_worker_thread,
@@ -253,36 +233,6 @@ void adpt_hs_compile_data_free(struct adpt_hs_compile_data *hs_cd)
     FREE(hs_cd);
 }
 
-struct hs_tag *hs_tag_new(long long expr_id, size_t n_pattern)
-{
-    struct hs_tag *tag = ALLOC(struct hs_tag, 1);
-
-    tag->key = ALLOC(char, sizeof(long long));
-    memcpy(tag->key, (char *)&expr_id, sizeof(long long));
-    tag->key_len = sizeof(long long);
-    tag->pat_attr = ALLOC(struct pattern_attribute, n_pattern);
-    tag->n_pat_attr = n_pattern;
-
-    return tag;
-}
-
-void hs_tag_free(struct hs_tag *tag)
-{
-    if (NULL == tag) {
-        return;
-    }
-
-    if (tag->key != NULL) {
-        FREE(tag->key);
-    }
-
-    if (tag->pat_attr != NULL) {
-        FREE(tag->pat_attr);
-    }
-
-    FREE(tag);
-}
-
 void populate_compile_data(struct adpt_hs_compile_data *compile_data, int index, int pattern_id,
                           char *pat, size_t pat_len, int case_sensitive)
 {
@@ -299,7 +249,7 @@ void populate_compile_data(struct adpt_hs_compile_data *compile_data, int index,
     memcpy(compile_data->patterns[index], pat, pat_len);
 }
 
-struct bool_expr *bool_exprs_new(struct hs_expr *exprs, size_t n_expr, struct hs_tag **tag_hash,
+struct bool_expr *bool_exprs_new(struct hs_expr *exprs, size_t n_expr, struct pattern_attribute *pattern_attr,
                                  struct adpt_hs_compile_data *literal_cd, struct adpt_hs_compile_data *regex_cd,
                                  size_t *n_pattern)
 {
@@ -314,15 +264,15 @@ struct bool_expr *bool_exprs_new(struct hs_expr *exprs, size_t n_expr, struct hs
 
     /* populate adpt_hs_compile_data and bool_expr */
     for (size_t i = 0; i < n_expr; i++) {
-        struct hs_tag *hs_tag = hs_tag_new(exprs[i].expr_id, exprs[i].n_patterns);
-        hs_tag->user_tag = exprs[i].user_tag;
 
         for (size_t j = 0; j < exprs[i].n_patterns; j++) {
-            hs_tag->pat_attr[j].pattern_id = pattern_index;
-            hs_tag->pat_attr[j].match_mode = exprs[i].patterns[j].match_mode;
-            if (exprs[i].patterns[j].match_mode == HS_MATCH_MODE_SUB) {
-                hs_tag->pat_attr[j].start_offset = exprs[i].patterns[j].start_offset;
-                hs_tag->pat_attr[j].end_offset = exprs[i].patterns[j].end_offset;
+            pattern_attr[pattern_index].pattern_id = pattern_index;
+            pattern_attr[pattern_index].match_mode = exprs[i].patterns[j].match_mode;
+            
+            if (pattern_attr[pattern_index].match_mode == HS_MATCH_MODE_SUB || 
+                pattern_attr[pattern_index].match_mode == HS_MATCH_MODE_EXACTLY) {
+                pattern_attr[pattern_index].offset.start = exprs[i].patterns[j].start_offset;
+                pattern_attr[pattern_index].offset.end = exprs[i].patterns[j].end_offset;
             }
 
             /* literal pattern */
@@ -347,8 +297,7 @@ struct bool_expr *bool_exprs_new(struct hs_expr *exprs, size_t n_expr, struct hs
         //printf("expr_id:%lld item_num:%zu\n", exprs[i].expr_id, exprs[i].n_patterns);
         bool_exprs[i].expr_id = exprs[i].expr_id;
         bool_exprs[i].item_num = exprs[i].n_patterns;
-        bool_exprs[i].user_tag = hs_tag;
-        HASH_ADD_KEYPTR(hh, *tag_hash, hs_tag->key, hs_tag->key_len, hs_tag);
+        bool_exprs[i].user_tag = exprs[i].user_tag;
     }
 
     *n_pattern = pattern_index;
@@ -409,14 +358,14 @@ struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
         regex_cd = adpt_hs_compile_data_new(regex_pattern_num);
     }
     
-    size_t pattern_cnt = 0;
+    size_t pattern_cnt = literal_pattern_num + regex_pattern_num;
     struct adapter_hs *hs_instance = ALLOC(struct adapter_hs, 1);
-    hs_instance->tag_map = NULL;
+    hs_instance->hs_attr = ALLOC(struct pattern_attribute, pattern_cnt);
     hs_instance->logger = logger;
     hs_instance->n_worker_thread = n_worker_thread;
     hs_instance->n_expr = n_expr;
 
-    struct bool_expr *bool_exprs = bool_exprs_new(exprs, n_expr, &hs_instance->tag_map,
+    struct bool_expr *bool_exprs = bool_exprs_new(exprs, n_expr, hs_instance->hs_attr,
                                                   literal_cd, regex_cd, &pattern_cnt);
     if (NULL == bool_exprs) {
         return NULL;
@@ -534,28 +483,23 @@ void adapter_hs_free(struct adapter_hs *hs_instance)
         FREE(hs_instance->hs_rt);
     }
 
-    if (hs_instance->tag_map != NULL) {
-        struct hs_tag *tag = NULL, *tmp_tag = NULL;
-        HASH_ITER(hh, hs_instance->tag_map, tag, tmp_tag) {
-            HASH_DEL(hs_instance->tag_map, tag);
-            hs_tag_free(tag);
-        }
+    if (hs_instance->hs_attr != NULL) {
+        FREE(hs_instance->hs_attr);
     }
 
     FREE(hs_instance);
 }
 
-int find_same_pattern_offset(struct matched_pattern *matched_pat, unsigned long long from,
-                             unsigned long long to)
+static inline int compare_pattern_id(const void *a, const void *b)
 {
-    for (size_t i = 0; i < matched_pat->offset_cnt; i++) {
-        if (matched_pat->offsets[i].start_offset == from && 
-            matched_pat->offsets[i].end_offset == to - 1) {
-            return 0;
-        }
-    }
-
-    return -1;
+	long long ret = *(const unsigned long long *)a - *(const unsigned long long *)b;
+	if (ret == 0) {
+		return 0;
+	} else if(ret < 0) {
+		return -1;
+	} else {
+		return 1;
+	}
 }
 
 /**
@@ -565,107 +509,69 @@ int matched_event_cb(unsigned int id, unsigned long long from,
                      unsigned long long to, unsigned int flags, 
                      void *ctx) {
     // put id in set
-    struct matched_pattern_container *matched_pat_container = (struct matched_pattern_container *)ctx;
     unsigned long long pattern_id = id;
-    
-    struct matched_pattern *matched_pat = NULL;
-    HASH_FIND(hh, matched_pat_container->pat_hash, &pattern_id, sizeof(unsigned long long), matched_pat);
-    if (matched_pat != NULL) {
-        // same pattern_id, offset maybe different
-        int ret = find_same_pattern_offset(matched_pat, from, to);
-        if (ret < 0) { /* different offset */
-            // TODO: use realloc
-            if (matched_pat->offset_cnt >= matched_pat->offset_size) {
-                matched_pat->offset_size *= 2;
-                matched_pat->offsets = (struct matched_offset *)realloc(matched_pat->offsets, 
-                                        matched_pat->offset_size*sizeof(struct matched_offset));
-            }
-            matched_pat->offsets[matched_pat->offset_cnt].start_offset = from;
-            matched_pat->offsets[matched_pat->offset_cnt].end_offset = to - 1;
-            matched_pat->offset_cnt++;
-        }
+    struct matched_pattern *matched_pat = (struct matched_pattern *)ctx;
+
+    if (id > matched_pat->n_patterns || id < 0) {
         return 0;
-    } else {
-        // different pattern_id
-        struct matched_pattern *matched_pat = ALLOC(struct matched_pattern, 1);
-        matched_pat->pattern_id = pattern_id;
-        matched_pat->offsets = ALLOC(struct matched_offset, MAX_OFFSET_NUM);
-        matched_pat->offset_size = MAX_OFFSET_NUM;
-        matched_pat->offsets[matched_pat->offset_cnt].start_offset = from;
-        matched_pat->offsets[matched_pat->offset_cnt].end_offset = to - 1;
-        matched_pat->offset_cnt++;
-
-        HASH_ADD(hh, matched_pat_container->pat_hash, pattern_id, sizeof(unsigned long long), matched_pat);
     }
 
+    // duplicate pattern_id
+    if (utarray_find(matched_pat->pattern_ids, &pattern_id, compare_pattern_id)) {
+        return 0;
+    }
+    
+    int ret = 0;
+    long long start_offset = -1;
+    long long end_offset = -1;
+    struct pattern_attribute pat_attr = matched_pat->ref_hs_attr[id];
+    switch (pat_attr.match_mode) {
+        case HS_MATCH_MODE_EXACTLY:
+            if (0 == from && matched_pat->scan_data_len == to) {
+                ret = 1;
+            }
+            break;
+        case HS_MATCH_MODE_SUB:
+            if (pat_attr.offset.start == -1) {
+                start_offset = 0;
+            } else {
+                start_offset = pat_attr.offset.start;
+            }
+
+            if (pat_attr.offset.end == -1) {
+                end_offset = matched_pat->scan_data_len;
+            } else {
+                end_offset = pat_attr.offset.end;
+            }
+
+            if (start_offset <= (long long)from && 
+                end_offset >= (long long)(to - 1)) {
+                ret = 1;
+            }
+            break;
+        case HS_MATCH_MODE_PREFIX:
+            if (0 == from) {
+                ret = 1;
+            }
+            break;
+        case HS_MATCH_MODE_SUFFIX:
+            if (to == matched_pat->scan_data_len) {
+                ret = 1;
+            }
+            break;
+        default:
+            break;
+    }
+   
+    if (1 == ret) {
+        utarray_push_back(matched_pat->pattern_ids, &pattern_id);
+        utarray_sort(matched_pat->pattern_ids, compare_pattern_id);
+    }
+    
     return 0;
 }
 
-int is_real_matched_pattern(struct matched_pattern *matched_pat, enum hs_match_mode match_mode,
-                            size_t data_len, int attr_start_offset, int attr_end_offset)
-{
-    if (match_mode == HS_MATCH_MODE_EXACTLY) {
-        for (size_t i = 0; i < matched_pat->offset_cnt; i++) {
-            if (matched_pat->offsets[i].start_offset == 0 && 
-                matched_pat->offsets[i].end_offset == data_len - 1) {
-                return 0;
-            }
-        }
-    } else if (match_mode == HS_MATCH_MODE_PREFIX) {
-        for (size_t i = 0; i < matched_pat->offset_cnt; i++) {
-            if (matched_pat->offsets[i].start_offset == 0) {
-                return 0;
-            }
-        }
-    } else if (match_mode == HS_MATCH_MODE_SUFFIX) {
-        for (size_t i = 0; i < matched_pat->offset_cnt; i++) {
-            if (matched_pat->offsets[i].end_offset == data_len - 1) {
-                return 0;
-            }
-        }
-    } else if (match_mode == HS_MATCH_MODE_SUB) {
-        if (attr_start_offset == -1) {
-            attr_start_offset = 0;
-        }
-
-        if (attr_end_offset == -1) {
-            attr_end_offset = (int)data_len - 1;
-        }
-
-        for (size_t i = 0; i < matched_pat->offset_cnt; i++) {
-            if (matched_pat->offsets[i].start_offset >= (unsigned long long)attr_start_offset &&
-                matched_pat->offsets[i].end_offset <= (unsigned long long)attr_end_offset) {
-                return 0;
-            }
-        }
-    } else {
-        assert(0);
-    }
-
-    return -1;
-}
-
-int hs_tag_validate(struct hs_tag *hs_tag, struct matched_pattern_container *matched_pat_container,
-                    size_t data_len)
-{
-    /* check if real matched pattern, because pattern match_mode is different */
-    for (size_t i = 0; i < hs_tag->n_pat_attr; i++) {
-        struct matched_pattern *matched_pat = NULL;
-        unsigned long long pattern_id = hs_tag->pat_attr[i].pattern_id;
-        HASH_FIND(hh, matched_pat_container->pat_hash, &pattern_id, sizeof(unsigned long long), matched_pat);
-        if (matched_pat) {
-            int matched_ret = is_real_matched_pattern(matched_pat, hs_tag->pat_attr[i].match_mode,
-                                                      data_len, hs_tag->pat_attr[i].start_offset,
-                                                      hs_tag->pat_attr[i].end_offset);
-            if (matched_ret < 0) {
-                return -1;
-            }
-        }
-    }
-
-    return 0;
-}
-
+UT_icd ut_pattern_id_icd = {sizeof(unsigned long long), NULL, NULL, NULL};
 struct adapter_hs_stream *adapter_hs_stream_open(struct adapter_hs *hs_instance, int thread_id)
 {
     if (NULL == hs_instance || thread_id < 0) {
@@ -677,8 +583,12 @@ struct adapter_hs_stream *adapter_hs_stream_open(struct adapter_hs *hs_instance,
 
     hs_stream->thread_id = thread_id;
     hs_stream->n_expr = hs_instance->n_expr;
-    hs_stream->n_patterns = hs_instance->n_patterns;
     hs_stream->hs_rt = hs_instance->hs_rt;
+    hs_stream->matched_pat = ALLOC(struct matched_pattern, 1);
+    hs_stream->matched_pat->ref_hs_attr = hs_instance->hs_attr;
+    hs_stream->matched_pat->n_patterns = hs_instance->n_patterns;
+    utarray_new(hs_stream->matched_pat->pattern_ids, &ut_pattern_id_icd);
+    utarray_reserve(hs_stream->matched_pat->pattern_ids, hs_instance->n_patterns);
 
     int err_count = 0;
     if (hs_instance->hs_rt->literal_db != NULL) {
@@ -736,28 +646,14 @@ void adapter_hs_stream_close(struct adapter_hs_stream *hs_stream)
         }
     }
 
-    if (hs_stream->matched_pat_container.pat_hash != NULL) {
-        struct matched_pattern *pattern = NULL, *tmp_pattern = NULL;
-        HASH_ITER(hh, hs_stream->matched_pat_container.pat_hash, pattern, tmp_pattern) {
-            HASH_DELETE(hh, hs_stream->matched_pat_container.pat_hash, pattern);
-            FREE(pattern);
-        }
-    }
-
-    /* hs_stream->hs_rt point to hs_instance->hs_rt which will call free */
+    /* hs_stream->hs_rt point to hs_instance->hs_rt which will call free 
+        same as hs_attr */
     hs_stream->hs_rt = NULL;
-    FREE(hs_stream);
-}
+    hs_stream->matched_pat->ref_hs_attr = NULL;
+    utarray_free(hs_stream->matched_pat->pattern_ids);
 
-static int cmp_ull_p(const void *p1, const void *p2)
-{
-	if(* (unsigned long long*) p1 > * (unsigned long long*) p2) {
-		return 1;
-	} else if(* (unsigned long long*) p1 < * (unsigned long long*) p2) {
-		return -1;
-	} else {
-		return 0;
-	}
+    FREE(hs_stream->matched_pat);
+    FREE(hs_stream);
 }
 
 int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data, size_t data_len,
@@ -782,10 +678,12 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
 
     int err_count = 0;
     int thread_id = hs_stream->thread_id;
+    hs_stream->matched_pat->scan_data_len = data_len;
+
     if (hs_stream->literal_stream != NULL) {
         err = hs_scan_stream(hs_stream->literal_stream, data, data_len, 
                              0, hs_stream->hs_rt->literal_scratchs[thread_id],
-                             matched_event_cb, &hs_stream->matched_pat_container);
+                             matched_event_cb, hs_stream->matched_pat);
         if (err != HS_SUCCESS) {
             err_count++;
         }
@@ -794,7 +692,7 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
     if (hs_stream->regex_stream != NULL) {
         err = hs_scan_stream(hs_stream->regex_stream, data, data_len,
                              0, hs_stream->hs_rt->regex_scratchs[thread_id],
-                             matched_event_cb, &hs_stream->matched_pat_container);
+                             matched_event_cb, hs_stream->matched_pat);
         if (err != HS_SUCCESS) {
             err_count++;
         }
@@ -804,7 +702,7 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
         return -1;
     }
 
-    size_t n_pattern_id = HASH_COUNT(hs_stream->matched_pat_container.pat_hash);
+    size_t n_pattern_id = utarray_len(hs_stream->matched_pat->pattern_ids);
     if (0 == n_pattern_id) {
         *n_hit_result = 0;
         return 0;
@@ -817,19 +715,16 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
     unsigned long long pattern_ids[MAX_SCANNER_HIT_PATTERN_NUM];
     memset(pattern_ids, 0, sizeof(unsigned long long) * MAX_SCANNER_HIT_PATTERN_NUM);
 
-    int i = 0;
-    struct matched_pattern *pat = NULL, *tmp_pat = NULL;
-    HASH_ITER(hh, hs_stream->matched_pat_container.pat_hash, pat, tmp_pat) {
+    for (size_t i = 0; i < n_pattern_id; i++) {
         if (i >= MAX_SCANNER_HIT_PATTERN_NUM) {
             break;
         }
-        pattern_ids[i++] = pat->pattern_id;
+
+        unsigned long long pattern_id = *(unsigned long long *)utarray_eltptr(hs_stream->matched_pat->pattern_ids, i);
+        pattern_ids[i] = pattern_id;
     }
-    qsort(pattern_ids, n_pattern_id, sizeof(unsigned long long), cmp_ull_p);
 
     int ret = 0;
-    int real_matched_index = 0;
-    struct hs_tag *hs_tag = NULL;
     struct bool_expr_match *bool_matcher_results = ALLOC(struct bool_expr_match, hs_stream->n_expr);
     int bool_matcher_ret = bool_matcher_match(hs_stream->hs_rt->bm, pattern_ids, n_pattern_id,
                                               bool_matcher_results, hs_stream->n_expr);
@@ -843,27 +738,13 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
     }
 
     for (int index = 0; index < bool_matcher_ret; index++) {
-        hs_tag = (struct hs_tag *)bool_matcher_results[index].user_tag;
-
-        int tag_ret = hs_tag_validate(hs_tag, &hs_stream->matched_pat_container, data_len);
-        if (tag_ret < 0) {
-            //bool_matcher_results[index] is invalid hit, continue
-            continue;
-        }
-
-        results[real_matched_index].item_id = bool_matcher_results[index].expr_id;
-        results[real_matched_index].user_tag = hs_tag->user_tag;
-        real_matched_index++;
+        results[index].item_id = bool_matcher_results[index].expr_id;
+        results[index].user_tag = bool_matcher_results[index].user_tag;
     }
-    *n_hit_result = real_matched_index;
+    *n_hit_result = bool_matcher_ret;
 next:
     FREE(bool_matcher_results);
-
-    struct matched_pattern *pattern = NULL, *tmp_pattern = NULL;
-    HASH_ITER(hh, hs_stream->matched_pat_container.pat_hash, pattern, tmp_pattern) {
-        HASH_DELETE(hh, hs_stream->matched_pat_container.pat_hash, pattern);
-        FREE(pattern);
-    }
+    utarray_clear(hs_stream->matched_pat->pattern_ids);
 
     return ret;
 }

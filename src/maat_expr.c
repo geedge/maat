@@ -601,7 +601,7 @@ struct hs_expr *expr_item_to_expr_rule(struct expr_item *expr_item, void *user_d
                 }
 
                 sub_key_array[i] = tmp;
-                sscanf(sub_key_array[i], "%d-%d:", &(key_left_offset[i]),&(key_right_offset[i]));
+                sscanf(sub_key_array[i], "%d-%d:", &(key_left_offset[i]), &(key_right_offset[i]));
 				if (!(key_left_offset[i] >= 0 && key_right_offset[i] > 0 
                       && key_left_offset[i] <= key_right_offset[i])) {
 					log_error(logger, MODULE_EXPR,
@@ -861,6 +861,7 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *d
     
     for (size_t i = 0; i < n_hit_item; i++) {
         item = (struct maat_item_inner *)(hit_results[i].user_tag);
+        assert(item != NULL);
         if (item->district_id == district_id || item->district_id == DISTRICT_ANY) {
             hit_item_ids[real_hit_item_cnt++] = hit_results[i].item_id;
         }
