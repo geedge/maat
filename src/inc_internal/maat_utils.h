@@ -57,18 +57,25 @@ extern "C"
 #define MAX_SCANNER_HIT_ITEM_NUM    4096
 #define MAX_SCANNER_HIT_PATTERN_NUM  4096 * 8
 
-enum maat_ip_format {
+enum ip_format {
+    IP_FORMAT_SINGLE = 1,
 	IP_FORMAT_RANGE,
-	IP_FORMAT_MASK,
 	IP_FORMAT_CIDR,
+    IP_FORMAT_MASK,
 	IP_FORMAT_UNKNOWN
 };
 
-enum maat_ip_format ip_format_str2int(const char *format);
-int ip_format2range(int ip_type, enum maat_ip_format format, const char *ip1, const char *ip2, 
+enum port_format {
+	PORT_FORMAT_SINGLE = 1,
+	PORT_FORMAT_RANGE,
+	PORT_FORMAT_UNKNOWN
+};
+
+enum ip_format ip_format_str2int(const char *format);
+int ip_format2range(int ip_type, enum ip_format format, const char *ip1, const char *ip2, 
                     uint32_t range_begin[], uint32_t range_end[]);
 
-
+enum port_format port_format_str2int(const char *format);
 
 #define UNUSED	__attribute__((unused))
 

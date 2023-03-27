@@ -123,15 +123,6 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .commit_runtime = ip_runtime_commit
     },
     {
-        .type = TABLE_TYPE_PORT,
-        .new_schema = NULL,
-        .free_schema = NULL,
-        .new_runtime = NULL,
-        .free_runtime = NULL,
-        .update_runtime = NULL,
-        .commit_runtime = NULL
-    },
-    {
         .type = TABLE_TYPE_INTERVAL,
         .new_schema = interval_schema_new,
         .free_schema = interval_schema_free,
@@ -269,7 +260,6 @@ static void register_reserved_word(struct maat_kv_store *reserved_word_map)
     maat_kv_register(reserved_word_map, "intval", TABLE_TYPE_INTERVAL);
     maat_kv_register(reserved_word_map, "intval_plus", TABLE_TYPE_INTERVAL_PLUS);
     maat_kv_register(reserved_word_map, "ip_plus", TABLE_TYPE_IP_PLUS);
-    maat_kv_register(reserved_word_map, "port", TABLE_TYPE_PORT);
     maat_kv_register(reserved_word_map, "plugin", TABLE_TYPE_PLUGIN);
     maat_kv_register(reserved_word_map, "ip_plugin", TABLE_TYPE_IP_PLUGIN);
     maat_kv_register(reserved_word_map, "bool_plugin", TABLE_TYPE_BOOL_PLUGIN);

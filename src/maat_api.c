@@ -597,6 +597,10 @@ int generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int table_
 void generic_plugin_runtime_commit_ex_schema(void *runtime, void *schema, int table_id, 
                                              enum table_type table_type, int valid_column)
 {
+    if (NULL == runtime || NULL == schema || valid_column < 0) {
+        return;
+    }
+
     struct ex_data_schema *ex_schema = NULL;
     struct ex_data_runtime *ex_data_rt = NULL;
 
@@ -688,6 +692,10 @@ int generic_plugin_table_ex_schema_register(struct maat *maat_instance, int tabl
 
         table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
         valid_column = table_manager_get_valid_column(maat_instance->tbl_mgr, table_id);
+        if (table_type == TABLE_TYPE_INVALID || valid_column < 0) {
+            return -1;
+        }
+        
         generic_plugin_runtime_commit_ex_schema(runtime, schema, table_id, table_type, valid_column);
     }
 
@@ -1016,7 +1024,8 @@ int interval_scan(struct table_manager *tbl_mgr, int thread_id, long long intege
 }
 
 int ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_addr,
-              int physical_table_id, int vtable_id, struct maat_state *state)
+              uint16_t port, int proto, int physical_table_id, int vtable_id, 
+              struct maat_state *state)
 {
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, physical_table_id);
@@ -1030,7 +1039,8 @@ int ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_addr,
     }
 
     int group_hit_cnt = ip_runtime_scan((struct ip_runtime *)ip_rt, thread_id, IPv4,
-                                        (uint8_t *)&ip_addr, vtable_id, state);
+                                        (uint8_t *)&ip_addr, port, proto, vtable_id, 
+                                        state);
     if (group_hit_cnt < 0) {
         return -1;
     }
@@ -1043,7 +1053,8 @@ int ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_addr,
 }
 
 int ipv6_scan(struct table_manager *tbl_mgr, int thread_id, uint8_t *ip_addr,
-              int physical_table_id, int vtable_id, struct maat_state *state)
+              uint16_t port, int proto, int physical_table_id, int vtable_id, 
+              struct maat_state *state)
 {
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, physical_table_id);
@@ -1057,7 +1068,7 @@ int ipv6_scan(struct table_manager *tbl_mgr, int thread_id, uint8_t *ip_addr,
     }
 
     int group_hit_cnt = ip_runtime_scan((struct ip_runtime *)ip_rt, thread_id, IPv6,
-                                        ip_addr, vtable_id, state);
+                                        ip_addr, port, proto, vtable_id, state);
     if (group_hit_cnt < 0) {
         return -1;
     }
@@ -1305,11 +1316,12 @@ int maat_scan_integer(struct maat *maat_instance, int table_id, int thread_id,
 }
 
 int maat_scan_ipv4(struct maat *maat_instance, int table_id, int thread_id, 
-                   uint32_t ip_addr, long long *results, size_t n_result, 
+                   uint32_t ip_addr, uint16_t port, int protocol,
+                   long long *results, size_t n_result, 
                    size_t *n_hit_result, struct maat_state *state)
 {
     if ((NULL == maat_instance) || table_id < 0 || table_id >= MAX_TABLE_NUM 
-        || (thread_id < 0) || (NULL == results) || (0 == n_result) 
+        || (protocol < -1) || (thread_id < 0) || (NULL == results) || (0 == n_result) 
         || (NULL == state)) {
         return MAAT_SCAN_ERR;
     }
@@ -1345,7 +1357,7 @@ int maat_scan_ipv4(struct maat *maat_instance, int table_id, int thread_id,
     maat_runtime_ref_inc(maat_instance->maat_rt, thread_id);
     alignment_int64_array_add(maat_instance->thread_call_cnt, thread_id, 1);
 
-    int hit_group_cnt = ipv4_scan(maat_instance->tbl_mgr, thread_id, ip_addr,
+    int hit_group_cnt = ipv4_scan(maat_instance->tbl_mgr, thread_id, ip_addr, port, protocol,
                                   physical_table_id, vtable_id, state);
     if (hit_group_cnt < 0) {
         return MAAT_SCAN_ERR;
@@ -1386,12 +1398,13 @@ int maat_scan_ipv4_tuple4(struct maat *instance, int table_id, int thread_id,
 }
 
 int maat_scan_ipv6(struct maat *maat_instance, int table_id, int thread_id, 
-                   uint8_t *ip_addr, long long *results, size_t n_result, 
+                   uint8_t *ip_addr, uint16_t port, int protocol,
+                   long long *results, size_t n_result, 
                    size_t *n_hit_result, struct maat_state *state)
 {
     if ((NULL == maat_instance) || table_id < 0 || table_id >= MAX_TABLE_NUM 
-        || (thread_id < 0) || (NULL == ip_addr) || (NULL == results) 
-        || (0 == n_result) || (NULL == state)) {
+        || (protocol < -1) || (thread_id < 0) || (NULL == ip_addr) 
+        || (NULL == results) || (0 == n_result) || (NULL == state)) {
         return MAAT_SCAN_ERR;
     }
 
@@ -1426,7 +1439,7 @@ int maat_scan_ipv6(struct maat *maat_instance, int table_id, int thread_id,
     maat_runtime_ref_inc(maat_instance->maat_rt, thread_id);
     alignment_int64_array_add(maat_instance->thread_call_cnt, thread_id, 1);
 
-    int hit_group_cnt = ipv6_scan(maat_instance->tbl_mgr, thread_id, ip_addr,
+    int hit_group_cnt = ipv6_scan(maat_instance->tbl_mgr, thread_id, ip_addr, port, protocol, 
                                   physical_table_id, vtable_id, state);
     if (hit_group_cnt < 0) {
         return MAAT_SCAN_ERR;
@@ -1783,20 +1796,16 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
 
     void *g2g_runtime = table_manager_get_runtime(maat_instance->tbl_mgr, maat_instance->g2g_table_id);
     assert(g2g_runtime != NULL);
-    size_t compile_state_hit_path_cnt = maat_compile_state_get_hit_paths(state->compile_state, 
-                                                              (struct group2group_runtime *)g2g_runtime,
-                                                               paths, n_path);
-    size_t new_hit_path_cnt = 0;
+    size_t internal_hit_path_cnt = maat_compile_state_get_internal_hit_paths(state->compile_state, 
+                                                                            (struct group2group_runtime *)g2g_runtime,
+                                                                             paths, n_path);
     
     void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr, compile_table_id);
     assert(NULL != compile_rt);
         
-    new_hit_path_cnt = compile_runtime_get_new_hit_paths((struct compile_runtime *)compile_rt,
-                                                          state->compile_state, paths, n_path,
-                                                          compile_state_hit_path_cnt);
-    
-   
-    return (compile_state_hit_path_cnt + new_hit_path_cnt);
+    return compile_runtime_get_hit_paths((struct compile_runtime *)compile_rt,
+                                          state->compile_state, paths, n_path,
+                                          internal_hit_path_cnt);
 }
 
 int maat_state_get_hit_objects(struct maat_state *state, struct maat_hit_object *objs, size_t n_obj)

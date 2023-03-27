@@ -232,8 +232,8 @@ int expr_table_set_line(struct maat *maat_instance, const char *table_name, enum
 }
 
 int ip_table_set_line(struct maat *maat_instance, const char *table_name, enum maat_operation op,
-                      long long item_id, long long group_id, enum IP_TYPE type, const char *saddr_format,
-                      const char *src_ip, const char *src_ip_mask, int expire_after)
+                      long long item_id, long long group_id, enum IP_TYPE type, const char *ip1, 
+                      const char *ip2, uint16_t port_min, uint16_t port_max, int expire_after)
 {
     char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_instance, table_name);
@@ -249,10 +249,10 @@ int ip_table_set_line(struct maat *maat_instance, const char *table_name, enum m
         ip_type = 6;
     }
 
-    sprintf(table_line, "%lld\t%lld\t%d\t%s\t%s\t%s\t%s\t0\t65535\t%s\t%s\t%s\t%s\t0\t65535\t6\t0\t%d", 
-            item_id, group_id, ip_type, saddr_format, src_ip, src_ip_mask, "range", "range", "0.0.0.0", 
-            "255.255.255.255", "range", op);
+    sprintf(table_line, "%lld\t%lld\t%d\t%s\t%s\t%s\t%s\t%u\t%u\t6\t%d", item_id, group_id, ip_type, 
+            "range", ip1, ip2, "range", port_min, port_max, op);
     struct maat_cmd_line line_rule;
+    
     line_rule.rule_id = item_id;
     line_rule.table_line = table_line;
     line_rule.table_name = table_name;
@@ -1083,7 +1083,29 @@ TEST_F(MaatStringScan, OffsetChunk1460) {
     maat_state_free(state);
     state = NULL;
 }
+#if 0
+TEST_F(MaatStringScan, GBKEncodedURL) {
+    const char *table_name = "HTTP_URL";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    const char *url_gb2312 = "www.baidu.com/?wd=C%23%D6%D0%B9%FA";
 
+    int table_id = maat_get_table_id(maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+    int ret = maat_scan_string(maat_instance, table_id, thread_id, url_gb2312,
+                               strlen(url_gb2312), results, ARRAY_SIZE, &n_hit_result, 
+                               state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 129);
+    maat_state_free(state);
+    state = NULL;
+}
+#endif
 TEST_F(MaatStringScan, StreamInput) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -1225,7 +1247,7 @@ protected:
 struct maat *MaatIPScan::_shared_maat_instance;
 struct log_handle *MaatIPScan::logger;
 
-TEST_F(MaatIPScan, IPv4) {
+TEST_F(MaatIPScan, IPv4_IPPort) {
     const char *table_name = "IP_PLUS_CONFIG";
     struct maat *maat_instance = MaatIPScan::_shared_maat_instance;
     int thread_id = 0;
@@ -1237,12 +1259,14 @@ TEST_F(MaatIPScan, IPv4) {
     uint32_t sip;
     int ret = inet_pton(AF_INET, ip_str, &sip);
     EXPECT_EQ(ret, 1);
+    uint16_t port = htons(65529);
+    int proto = 6;
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    ret = maat_scan_ipv4(maat_instance, table_id, thread_id, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_instance, table_id, thread_id, sip, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 154);
@@ -1250,7 +1274,41 @@ TEST_F(MaatIPScan, IPv4) {
     state = NULL;
 }
 
-TEST_F(MaatIPScan, IPv6) {
+TEST_F(MaatIPScan, IPv4_Port) {
+    const char *table_name = "IP_PLUS_CONFIG";
+    struct maat *maat_instance = MaatIPScan::_shared_maat_instance;
+    int thread_id = 0;
+
+    int table_id = maat_get_table_id(maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+    char ip_str[32] = "0.0.0.0";
+    uint32_t sip;
+    int ret = inet_pton(AF_INET, ip_str, &sip);
+    EXPECT_EQ(ret, 1);
+    uint16_t port = htons(65528);
+    int proto = 6;
+
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    ret = maat_scan_ipv4(maat_instance, table_id, thread_id, sip, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    maat_state_reset(state);
+
+    port = htons(65529);
+    ret = maat_scan_ipv4(maat_instance, table_id, thread_id, sip, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 154);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(MaatIPScan, IPv6_IPPort) {
     const char *table_name = "IP_PLUS_CONFIG";
     struct maat *maat_instance = MaatIPScan::_shared_maat_instance;
     int thread_id = 0;
@@ -1260,12 +1318,14 @@ TEST_F(MaatIPScan, IPv6) {
     uint8_t sip[16];
     int ret = inet_pton(AF_INET6, ip_str, &sip);
     EXPECT_EQ(ret, 1);
+    uint16_t port = htons(65510);
+    int proto = 6;
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    ret = maat_scan_ipv6(maat_instance, table_id, thread_id, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv6(maat_instance, table_id, thread_id, sip, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 155);
@@ -1284,12 +1344,14 @@ TEST_F(MaatIPScan, dynamic_config) {
     uint32_t sip;
     int ret = inet_pton(AF_INET, ip_str, &sip);
     EXPECT_EQ(ret, 1);
+    uint16_t port = htons(100);
+    int proto = 6;
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    ret = maat_scan_ipv4(maat_instance, table_id, thread_id, sip, results, ARRAY_SIZE, 
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_instance, table_id, thread_id, sip, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_reset(state);
@@ -1299,25 +1361,26 @@ TEST_F(MaatIPScan, dynamic_config) {
 
      /* compile table add line */
     long long compile_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile_id, NULL, 1, 0);
+    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, 
+                                 compile_id, NULL, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* group2compile table add line */
     long long group_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group_id,
-                                       compile_id, 0, "null", 1, 0);
+    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, 
+                                       group_id, compile_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* ip table add line */
     long long item_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_instance, table_name, MAAT_OP_ADD, item_id, group_id,
-                            IPv4, "range", "100.100.100.100", "100.100.100.100", 0);
+                            IPv4, "100.100.100.100", "100.100.100.100", 100, 100, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
-    ret = maat_scan_ipv4(maat_instance, table_id, thread_id, sip, results, ARRAY_SIZE, 
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_instance, table_id, thread_id, sip, port, proto, results, 
+                         ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], compile_id);
@@ -1325,7 +1388,7 @@ TEST_F(MaatIPScan, dynamic_config) {
 
     /* ip table del line */
     ret = ip_table_set_line(maat_instance, table_name, MAAT_OP_DEL, item_id, group_id,
-                            IPv4, "range", "100.100.100.100", "100.100.100.100", 0);
+                            IPv4, "100.100.100.100", "100.100.100.100", 100, 100, 0);
     EXPECT_EQ(ret, 1);
 
     /* group2compile table del line */
@@ -1334,13 +1397,14 @@ TEST_F(MaatIPScan, dynamic_config) {
     EXPECT_EQ(ret, 1);
 
     /* compile table del line */
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_DEL, compile_id, NULL, 1, 0);
+    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_DEL, 
+                                 compile_id, NULL, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
-    ret = maat_scan_ipv4(maat_instance, table_id, thread_id, sip, results, ARRAY_SIZE, 
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_instance, table_id, thread_id, sip, port, proto, results, 
+                         ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
@@ -1592,12 +1656,14 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyExpr) {
 
     uint32_t sip;
     inet_pton(AF_INET, "10.0.8.186", &sip);
+    uint16_t port = htons(18611);
+    int proto = 6;
 
     int hit_table_id = maat_get_table_id(maat_instance, hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
     ret = maat_scan_ipv4(maat_instance, hit_table_id, thread_id, sip,
-                         results, ARRAY_SIZE, &n_hit_result, state);
+                         port, proto, results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     int empty_table_id = maat_get_table_id(maat_instance, empty_table_name);
@@ -1635,11 +1701,13 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyInteger) {
 
     uint32_t sip;
     inet_pton(AF_INET, "10.0.8.187", &sip);
+    uint16_t port = htons(18611);
+    int proto = 6;
 
     int hit_table_id = maat_get_table_id(maat_instance, hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
-    ret = maat_scan_ipv4(maat_instance, hit_table_id, thread_id, sip,
+    ret = maat_scan_ipv4(maat_instance, hit_table_id, thread_id, sip, port, proto,
                          results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -1674,13 +1742,15 @@ TEST_F(NOTLogic, ScanNotIP) {
 
     uint32_t sip;
     inet_pton(AF_INET, "10.0.6.205", &sip);
+    uint16_t port = htons(50001);
+    int proto = 6;
 
     int not_hit_table_id = maat_get_table_id(maat_instance, not_hit_table_name);
     ASSERT_GT(not_hit_table_id, 0);
 
     maat_state_set_last_scan(state);
-    ret = maat_scan_ipv4(maat_instance, not_hit_table_id, thread_id, sip, results, ARRAY_SIZE,
-                         &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_instance, not_hit_table_id, thread_id, sip, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     maat_state_free(state);
     state = NULL;
@@ -1927,7 +1997,7 @@ struct ip_plugin_ud {
 	char *buffer;
 	int ref_cnt;
 };
-void ip_plugin_EX_new_cb(int table_id, const char *key, const char *table_line, 
+void ip_plugin_ex_new_cb(int table_id, const char *key, const char *table_line, 
                          void **ad, long argl, void *argp)
 {
 	int *counter = (int *)argp;
@@ -1949,7 +2019,7 @@ void ip_plugin_EX_new_cb(int table_id, const char *key, const char *table_line,
 	(*counter)++;
 }
 
-void ip_plugin_EX_free_cb(int table_id, void **ad, long argl, void *argp)
+void ip_plugin_ex_free_cb(int table_id, void **ad, long argl, void *argp)
 {
 	struct ip_plugin_ud *ud = (struct ip_plugin_ud *)(*ad);
 	if ((__sync_sub_and_fetch(&ud->ref_cnt, 1) == 0)) {
@@ -1959,7 +2029,7 @@ void ip_plugin_EX_free_cb(int table_id, void **ad, long argl, void *argp)
 	}
 }
 
-void ip_plugin_EX_dup_cb(int table_id, void **to, void **from, long argl, void *argp)
+void ip_plugin_ex_dup_cb(int table_id, void **to, void **from, long argl, void *argp)
 {
 	struct ip_plugin_ud *ud = (struct ip_plugin_ud *)(*from);
 	__sync_add_and_fetch(&(ud->ref_cnt), 1);
@@ -1975,9 +2045,9 @@ TEST_F(IPPluginTable, EX_DATA) {
     ASSERT_GT(table_id, 0);
 
     int ret = maat_plugin_table_ex_schema_register(maat_instance, table_id,
-                                                   ip_plugin_EX_new_cb,
-                                                   ip_plugin_EX_free_cb,
-                                                   ip_plugin_EX_dup_cb,
+                                                   ip_plugin_ex_new_cb,
+                                                   ip_plugin_ex_free_cb,
+                                                   ip_plugin_ex_dup_cb,
                                                    0, &ip_plugin_ex_data_counter);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(ip_plugin_ex_data_counter, 5);
@@ -1996,7 +2066,7 @@ TEST_F(IPPluginTable, EX_DATA) {
 
     int i = 0;
     for (i = 0; i < ret; i++) {
-		ip_plugin_EX_free_cb(0, (void**)&(results[i]), 0, NULL);
+		ip_plugin_ex_free_cb(0, (void**)&(results[i]), 0, NULL);
 	}
 
     struct ip_addr ipv6;
@@ -2011,7 +2081,7 @@ TEST_F(IPPluginTable, EX_DATA) {
 	EXPECT_EQ(results[1]->rule_id, 103);
 
 	for (i = 0; i < ret; i++) {
-		ip_plugin_EX_free_cb(0, (void**)&(results[i]), 0, NULL);
+		ip_plugin_ex_free_cb(0, (void**)&(results[i]), 0, NULL);
 	}
 
 	//Reproduce BugReport-Liumengyan-20210515
@@ -2870,6 +2940,11 @@ int test_add_expr_command(struct maat *maat_instance, const char *expr_table,
     return ret;
 }
 
+int del_command(struct maat *maat_instance, int compile_id)
+{
+    return compile_table_set_line(maat_instance, "COMPILE", MAAT_OP_DEL, compile_id, NULL, 1, 0);
+}
+
 #if 0
 TEST_F(MaatCmdTest, HitPath) {
     const char *g2g_table_name = "GROUP2GROUP";
@@ -2935,25 +3010,29 @@ TEST_F(MaatCmdTest, SetIP) {
     EXPECT_EQ(ret, 1);
 
     /* item table add line */
-    const char *src_ip = "172.0.0.1";
-    const char *src_ip_mask = "255.255.255.255";
+    const char *ip1 = "172.0.0.1";
+    const char *ip2 = "172.0.0.1";
+    uint16_t port_min = 53331;
+    uint16_t port_max = 53331;
     long long item_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_instance, ip_table_name, MAAT_OP_ADD, item_id, group_id,
-                            IPv4, "mask", src_ip, src_ip_mask, 0);
+                            IPv4, ip1, ip2, port_min, port_max, 0);
     EXPECT_EQ(ret, 1);
 
     version_before = maat_cmd_get_config_version(maat_instance);
     wait_for_cmd_effective(maat_instance, version_before);
    
     uint32_t sip;
-    ret = inet_pton(AF_INET, src_ip, &sip);
+    ret = inet_pton(AF_INET, ip1, &sip);
     EXPECT_EQ(ret, 1);
+    uint16_t port = htons(53331);
+    int proto = 6;
 
     int table_id = maat_get_table_id(maat_instance, ip_table_name);
     ASSERT_GE(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_instance, table_id, thread_id, sip, results, ARRAY_SIZE,
-                             &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_instance, table_id, thread_id, sip, port, proto, results, 
+                         ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], compile_id);
@@ -3088,6 +3167,153 @@ TEST_F(MaatCmdTest, SetExpr8) {
     state = NULL;
 }
 
+TEST_F(MaatCmdTest, RuleIDRecycle) {
+    const char *table_name = "HTTP_URL";
+	const char *scan_data = "Reuse rule ID is allowed.";
+	const char *keywords = "Reuse&rule";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+    int table_id = maat_get_table_id(maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+    long long rule_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
+    test_add_expr_command(maat_instance, table_name, rule_id, 0, keywords);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+
+    int ret = maat_scan_string(maat_instance, table_id, thread_id, scan_data, strlen(scan_data),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    maat_state_reset(state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], rule_id);
+
+    del_command(maat_instance, rule_id);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+
+    ret = maat_scan_string(maat_instance, table_id, thread_id, scan_data, strlen(scan_data),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    maat_state_reset(state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    test_add_expr_command(maat_instance, table_name, rule_id, 0, keywords);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+
+    memset(results, 0, sizeof(results));
+    ret = maat_scan_string(maat_instance, table_id, thread_id, scan_data, strlen(scan_data),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    maat_state_free(state);
+    state = NULL;
+
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], rule_id);
+}
+
+TEST_F(MaatCmdTest, ReturnRuleIDWithDescendingOrder) {
+    const char *table_name = "HTTP_URL";
+	const char *scan_data = "This string will hit mulptiple rules.";
+	const char *keywords = "string\\bwill\\bhit";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+    int table_id = maat_get_table_id(maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+    int i = 0;
+    int repeat_times = 4;
+    long long expect_rule_id[ARRAY_SIZE] = {0};
+    long long rule_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", repeat_times);
+
+    for (i = 0; i < repeat_times; i++) {
+        //add in ascending order
+        expect_rule_id[i] = rule_id + 1 - repeat_times + i;
+        test_add_expr_command(maat_instance, table_name, expect_rule_id[i], 0, keywords);
+    }
+
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+
+    memset(results, 0, sizeof(results));
+    int ret = maat_scan_string(maat_instance, table_id, thread_id, scan_data, strlen(scan_data),
+                                results, ARRAY_SIZE, &n_hit_result, state);
+    maat_state_free(state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, repeat_times);
+    for (i = 0; i < repeat_times; i++) {
+        EXPECT_EQ(results[i], expect_rule_id[repeat_times -i - 1]);
+    }
+}
+
+TEST_F(MaatCmdTest, SubGroup) {
+
+}
+
+TEST_F(MaatCmdTest, RefGroup) {
+
+}
+
+TEST_F(MaatCmdTest, VirtualTable) {
+
+}
+
+TEST_F(MaatCmdTest, SetLines) {
+    int i = 0;
+    const int TEST_CMD_LINE_NUM = 4;
+    const char *table_name = "QD_ENTRY_INFO";
+    struct maat_cmd_line line_rule;
+    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+    long long expect_rule_id[TEST_CMD_LINE_NUM] = {0};
+    const char *table_line_add[TEST_CMD_LINE_NUM] = {
+        "1\t192.168.0.1\t100\t1",
+        "1\t192.168.0.1\t101\t1",
+        "1\t192.168.0.1\t102\t1",
+        "1\t192.168.0.1\t103\t1",
+        };
+    const char *table_line_del[TEST_CMD_LINE_NUM] = {
+        "1\t192.168.0.1\t100\t0",
+        "1\t192.168.0.1\t101\t0",
+        "1\t192.168.0.1\t102\t0",
+        "1\t192.168.0.1\t103\t0",
+        };
+    int ret = 0;
+
+    for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
+        expect_rule_id[i] = maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
+        line_rule.rule_id = expect_rule_id[i];
+        line_rule.table_name = table_name;
+        line_rule.table_line = table_line_add[i];
+        line_rule.expire_after = 0;
+
+        ret = maat_cmd_set_line(maat_instance, &line_rule);
+        EXPECT_GT(ret, 0);
+    }
+
+    for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
+        memset(&line_rule, 0, sizeof(line_rule));
+        line_rule.rule_id = expect_rule_id[i];
+        line_rule.table_name = table_name;
+        line_rule.table_line = table_line_del[i];
+        line_rule.expire_after = 0;
+
+        ret = maat_cmd_set_line(maat_instance, &line_rule);
+        EXPECT_GT(ret, 0);
+    }
+}
+
+TEST_F(MaatCmdTest, PauseUpdate) {
+
+}
+
+TEST_F(MaatCmdTest, SetFile) {
+
+}
+
 struct user_info {
 	char name[256];
 	char ip_addr[32];
@@ -3140,50 +3366,23 @@ TEST_F(MaatCmdTest, PluginEXData) {
 	int table_id = maat_get_table_id(maat_instance, table_name);
 	ASSERT_GT(table_id, 0);
     
-    long long item_id = -1;
+    int i = 0, ret = 0;
     struct maat_cmd_line line_rule;
+    long long rule_id[TEST_CMD_LINE_NUM] = {0};
     /* 1st line */
-	memset(&line_rule, 0, sizeof(line_rule));
-    line_rule.rule_id = maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
-    line_rule.table_name = table_name;
-    line_rule.table_line = table_line_add[0];
-    line_rule.expire_after = 0;
+    for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
+        memset(&line_rule, 0, sizeof(line_rule));
+        rule_id[i] = maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
+        line_rule.rule_id = rule_id[i];
+        line_rule.table_name = table_name;
+        line_rule.table_line = table_line_add[i];
+        line_rule.expire_after = 0;
 
-    int ret = maat_cmd_set_line(maat_instance, &line_rule);
-	EXPECT_GT(ret, 0);
-
-    /* 2nd line */
-    memset(&line_rule, 0, sizeof(line_rule));
-    line_rule.rule_id = maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
-    line_rule.table_name = table_name;
-    line_rule.table_line = table_line_add[1];
-    line_rule.expire_after = 0;
-    item_id = line_rule.rule_id;
-
-    ret = maat_cmd_set_line(maat_instance, &line_rule);
-	EXPECT_GT(ret, 0);
-
-    /* 3rd line */
-    memset(&line_rule, 0, sizeof(line_rule));
-    line_rule.rule_id = maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
-    line_rule.table_name = table_name;
-    line_rule.table_line = table_line_add[2];
-    line_rule.expire_after = 0;
-
-    ret = maat_cmd_set_line(maat_instance, &line_rule);
-	EXPECT_GT(ret, 0);
-
-    /* 4th line */
-    memset(&line_rule, 0, sizeof(line_rule));
-    line_rule.rule_id = maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
-    line_rule.table_name = table_name;
-    line_rule.table_line = table_line_add[3];
-    line_rule.expire_after = 0;
-
-    ret = maat_cmd_set_line(maat_instance, &line_rule);
-	EXPECT_GT(ret, 0);
+        ret = maat_cmd_set_line(maat_instance, &line_rule);
+        EXPECT_GT(ret, 0);
+    }
 	
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
     int ex_data_counter = 0;
 	ret = maat_plugin_table_ex_schema_register(maat_instance, table_id,
 								               plugin_ex_new_cb,
@@ -3203,7 +3402,7 @@ TEST_F(MaatCmdTest, PluginEXData) {
 	plugin_ex_free_cb(table_id, (void**)&uinfo, 0, NULL);
     
     memset(&line_rule, 0, sizeof(line_rule));
-    line_rule.rule_id = item_id;
+    line_rule.rule_id = rule_id[1];
     line_rule.table_name = table_name;
     line_rule.table_line = table_line_del[1];
     line_rule.expire_after = 0;
@@ -3216,6 +3415,281 @@ TEST_F(MaatCmdTest, PluginEXData) {
 	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(maat_instance, 
                                                               table_id, key2);
 	ASSERT_TRUE(uinfo == NULL);
+}
+
+TEST_F(MaatCmdTest, UpdateIPPlugin) {
+    const char *table_name = "TEST_IP_PLUGIN_WITH_EXDATA";
+	const int TEST_CMD_LINE_NUM = 4;
+	struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+	const char *table_line_add[TEST_CMD_LINE_NUM] = {
+        "101\t4\t192.168.30.99\t192.168.30.101\tSomething-like-json\t1\trange",
+		"102\t4\t192.168.30.90\t192.168.30.128\tBigger-range-should-in-the-back\t1\trange",
+        "103\t6\t2001:db8:1234::\t2001:db8:1235::\tBigger-range-should-in-the-back\t1\trange",
+		"104\t6\t2001:db8:1234::1\t2001:db8:1234::5210\tSomething-like-json\t1\trange"};
+    const char *table_line_del[TEST_CMD_LINE_NUM] = {
+        "101\t4\t192.168.30.99\t192.168.30.101\tSomething-like-json\t0\trange",
+		"102\t4\t192.168.30.90\t192.168.30.128\tBigger-range-should-in-the-back\t0\trange",
+        "103\t6\t2001:db8:1234::\t2001:db8:1235::\tBigger-range-should-in-the-back\t0\trange",
+		"104\t6\t2001:db8:1234::1\t2001:db8:1234::5210\tSomething-like-json\t0\trange"};
+
+    int table_id = maat_get_table_id(maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+    
+    int i = 0, ret = 0;
+    struct maat_cmd_line line_rule;
+    long long rule_id[TEST_CMD_LINE_NUM] = {0};
+    //add lines
+    for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
+        memset(&line_rule, 0, sizeof(line_rule));
+        rule_id[i] = maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
+        line_rule.rule_id = rule_id[i];
+        line_rule.table_name = table_name;
+        line_rule.table_line = table_line_add[i];
+        line_rule.expire_after = 0;
+
+        ret = maat_cmd_set_line(maat_instance, &line_rule);
+        EXPECT_GT(ret, 0);
+    }
+
+    sleep(WAIT_FOR_EFFECTIVE_S);
+
+    int ex_data_counter = 0;
+	ret = maat_plugin_table_ex_schema_register(maat_instance, table_id,
+								               ip_plugin_ex_new_cb,
+								               ip_plugin_ex_free_cb,
+								               ip_plugin_ex_dup_cb,
+								               0, &ex_data_counter);
+	ASSERT_TRUE(ret >= 0);
+	EXPECT_EQ(ex_data_counter, TEST_CMD_LINE_NUM);
+
+    struct ip_addr ipv4, ipv6;
+    struct ip_plugin_ud *results[ARRAY_SIZE];
+    ipv4.ip_type = 4;
+    inet_pton(AF_INET, "192.168.30.100", &(ipv4.ipv4));
+
+    memset(results, 0, sizeof(results));
+    ret = maat_ip_plugin_table_get_ex_data(maat_instance, table_id, &ipv4, (void **)results, ARRAY_SIZE);
+    EXPECT_EQ(ret, 2);
+    EXPECT_EQ(results[0]->rule_id, 101);
+    EXPECT_EQ(results[1]->rule_id, 102);
+    for (i = 0; i < ret; i++) {
+        ip_plugin_ex_free_cb(table_id, (void **)&(results[i]), 0, NULL);
+    }
+
+    ipv6.ip_type = 6;
+    inet_pton(AF_INET6, "2001:db8:1234::5210", &(ipv6.ipv6));
+
+    memset(results, 0, sizeof(results));
+    ret = maat_ip_plugin_table_get_ex_data(maat_instance, table_id, &ipv6, (void **)results, ARRAY_SIZE);
+    EXPECT_EQ(ret, 2);
+    EXPECT_EQ(results[0]->rule_id, 104);
+    EXPECT_EQ(results[1]->rule_id, 103);
+    for (i = 0; i < ret; i++) {
+        ip_plugin_ex_free_cb(table_id, (void **)&(results[i]), 0, NULL);
+    }
+
+    //del lines
+    for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
+        memset(&line_rule, 0, sizeof(line_rule));
+        line_rule.rule_id = rule_id[i];
+        line_rule.table_name = table_name;
+        line_rule.table_line = table_line_del[i];
+        line_rule.expire_after = 0;
+
+        ret = maat_cmd_set_line(maat_instance, &line_rule);
+        EXPECT_GT(ret, 0);
+    }
+
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+
+    memset(results, 0, sizeof(results));
+    ret = maat_ip_plugin_table_get_ex_data(maat_instance, table_id, &ipv4, (void **)results, ARRAY_SIZE);
+    EXPECT_EQ(ret, 0);
+}
+
+TEST_F(MaatCmdTest, UpdateFQDNPlugin) {
+    const char *table_name = "TEST_FQDN_PLUGIN_WITH_EXDATA";
+	const int TEST_CMD_LINE_NUM = 5;
+	struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+    const char *table_line_add[TEST_CMD_LINE_NUM]={
+		"201\t0\twww.example1.com\tcatid=1\t1",
+		"202\t1\t.example1.com\tcatid=1\t1",
+		"203\t0\tnews.example1.com\tcatid=2\t1",
+		"204\t0\tr3---sn-i3belne6.example2.com\tcatid=3\t1",
+		"205\t0\tr3---sn-i3belne6.example2.com\tcatid=3\t1"};
+    const char *table_line_del[TEST_CMD_LINE_NUM]={
+		"201\t0\twww.example1.com\tcatid=1\t0",
+		"202\t1\t.example1.com\tcatid=1\t0",
+		"203\t0\tnews.example1.com\tcatid=2\t0",
+		"204\t0\tr3---sn-i3belne6.example2.com\tcatid=3\t0",
+		"205\t0\tr3---sn-i3belne6.example2.com\tcatid=3\t0"};
+    
+    int table_id = maat_get_table_id(maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+    
+    int i = 0, ret = 0;
+    long long rule_id[TEST_CMD_LINE_NUM] = {0};
+    struct maat_cmd_line line_rule;
+    //add lines
+    for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
+        memset(&line_rule, 0, sizeof(line_rule));
+        rule_id[i] = maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
+        line_rule.rule_id = rule_id[i];
+        line_rule.table_name = table_name;
+        line_rule.table_line = table_line_add[i];
+        line_rule.expire_after = 0;
+
+        ret = maat_cmd_set_line(maat_instance, &line_rule);
+        EXPECT_GT(ret, 0);
+    }
+
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+
+    int ex_data_counter = 0;
+    ret = maat_plugin_table_ex_schema_register(maat_instance, table_id,
+                                               fqdn_plugin_ex_new_cb,
+                                               fqdn_plugin_ex_free_cb,
+                                               fqdn_plugin_ex_dup_cb,
+                                               0, &ex_data_counter);
+    ASSERT_TRUE(ret >= 0);
+	EXPECT_EQ(ex_data_counter, 5);
+
+    struct fqdn_plugin_ud *results[ARRAY_SIZE];
+    memset(results, 0, sizeof(results));
+
+    ret = maat_fqdn_plugin_table_get_ex_data(maat_instance, table_id,
+                                             "r3---sn-i3belne6.example2.com", 
+                                             (void**)results, ARRAY_SIZE);
+    ASSERT_EQ(ret, 2);
+    for (i = 0; i < ret; i++) {
+		fqdn_plugin_ex_free_cb(0, (void**)&(results[i]), 0, NULL);
+	}
+
+    //del lines
+    for (i = 3; i < TEST_CMD_LINE_NUM; i++) {
+        memset(&line_rule, 0, sizeof(line_rule));
+        line_rule.rule_id = rule_id[i];
+        line_rule.table_name = table_name;
+        line_rule.table_line = table_line_del[i];
+        line_rule.expire_after = 0;
+
+        ret = maat_cmd_set_line(maat_instance, &line_rule);
+        EXPECT_GT(ret, 0);
+    }
+
+    sleep(WAIT_FOR_EFFECTIVE_S);
+    ret = maat_fqdn_plugin_table_get_ex_data(maat_instance, table_id, 
+                                            "r3---sn-i3belne6.example2.com", 
+                                            (void**)results, ARRAY_SIZE);
+    ASSERT_EQ(ret, 0);                                 
+}
+
+TEST_F(MaatCmdTest, UpdateBoolPlugin) {
+    const char *table_name = "TEST_BOOL_PLUGIN_WITH_EXDATA";
+	const int TEST_CMD_LINE_NUM = 6;
+	struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+    const char *table_line_add[TEST_CMD_LINE_NUM] = {
+		"301\t1&2&1000\ttunnel1\t1",
+		"302\t101&102\ttunnel2\t1",
+		"303\t102\ttunnel3\t1",
+		"304\t101\ttunnel4\t1",
+		"305\t0&1&2&3&4&5&6&7\ttunnel5\t1",
+		"306\t101&101\tinvalid\t1"};
+    const char *table_line_del[TEST_CMD_LINE_NUM] = {
+        "301\t1&2&1000\ttunnel1\t0",
+		"302\t101&102\ttunnel2\t0",
+		"303\t102\ttunnel3\t0",
+		"304\t101\ttunnel4\t0",
+		"305\t0&1&2&3&4&5&6&7\ttunnel5\t0",
+		"306\t101&101\tinvalid\t0"};
+    
+    int table_id = maat_get_table_id(maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+    
+    long long rule_id[TEST_CMD_LINE_NUM] = {0};
+    struct maat_cmd_line line_rule;
+    int i = 0, ret = 0;
+
+    for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
+        memset(&line_rule, 0, sizeof(line_rule));
+        rule_id[i] = maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
+        line_rule.rule_id = rule_id[i];
+        line_rule.table_name = table_name;
+        line_rule.table_line = table_line_add[i];
+        line_rule.expire_after = 0;
+
+        ret = maat_cmd_set_line(maat_instance, &line_rule);
+        EXPECT_GT(ret, 0);
+    }
+
+    sleep(WAIT_FOR_EFFECTIVE_S);
+
+    int ex_data_counter = 0;
+    ret = maat_plugin_table_ex_schema_register(maat_instance, table_id,
+								               bool_plugin_ex_new_cb,
+								               bool_plugin_ex_free_cb,
+								               bool_plugin_ex_dup_cb,
+								               0, &ex_data_counter);
+	ASSERT_TRUE(ret>=0);
+	EXPECT_EQ(ex_data_counter, 6);
+
+    unsigned long long items[] = {101, 102, 1000};
+    struct bool_plugin_ud *results[ARRAY_SIZE];
+    memset(results, 0, sizeof(results));
+    ret = maat_bool_plugin_table_get_ex_data(maat_instance, table_id, items, 3,
+                                             (void **)results, ARRAY_SIZE);
+    EXPECT_EQ(ret, 4);
+	for (i = 0; i < ret; i++) {
+		bool_plugin_ex_free_cb(0, (void**)&(results[i]), 0, NULL);
+	}
+
+    for (i = 3; i < TEST_CMD_LINE_NUM; i++) {
+        memset(&line_rule, 0, sizeof(line_rule));
+        line_rule.rule_id = rule_id[i];
+        line_rule.table_name = table_name;
+        line_rule.table_line = table_line_del[i];
+        line_rule.expire_after = 0;
+
+        ret = maat_cmd_set_line(maat_instance, &line_rule);
+        EXPECT_GT(ret, 0);
+    }
+    sleep(WAIT_FOR_EFFECTIVE_S);
+
+    memset(results, 0, sizeof(results));
+    ret = maat_bool_plugin_table_get_ex_data(maat_instance, table_id, items, 3,
+                                             (void **)results, ARRAY_SIZE);
+    EXPECT_EQ(ret, 2);
+    for (i = 0; i < ret; i++) {
+		bool_plugin_ex_free_cb(0, (void**)&(results[i]), 0, NULL);
+	}
+}
+
+TEST_F(MaatCmdTest, GroupInMassCompiles) {
+
+}
+
+TEST_F(MaatCmdTest, HitPath) {
+
+}
+
+TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
+
+}
+
+TEST_F(MaatCmdTest, GroupEdit) {
+
+}
+
+TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
+
+}
+
+TEST_F(MaatCmdTest, UpdateDeadLockDetection) {
+
+}
+
+TEST_F(MaatCmdTest, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
+
 }
 
 int main(int argc, char ** argv)

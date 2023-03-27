@@ -829,14 +829,18 @@ void maat_cmd_get_foreign_conts(redisContext *c, struct serial_rule *rule_list,
 	}
 }
 
-int invalidate_line(char *line, enum table_type table_type, int valid_column_seq)
+int invalidate_line(char *line, int column_seq)
 {
-	int i = maat_cmd_get_valid_flag_offset(line, table_type, valid_column_seq);
-	if (i < 0) {
+    if (NULL == line || column_seq < 0) {
+        return -1;
+    }
+
+	int offset = maat_cmd_get_valid_flag_offset(line, column_seq);
+	if (offset < 0) {
 		return -1;
 	}
 
-	line[i] = '0';
+	line[offset] = '0';
 
 	return 0;
 }
@@ -1354,7 +1358,6 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
     int no_table_num = 0;
     int call_update_num = 0;
     int valid_column = -1;
-	enum table_type table_type;
     struct maat *maat_instance = (struct maat *)u_param;
 
     //authorized to write
@@ -1464,12 +1467,8 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 		}
 
 		if (rule_list[i].op == MAAT_OP_DEL) {
-            //TODO: by luis
-		 	//scan_type = table_schema_get_scan_type(table_schema);
-            table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
-			//table_schema = table_schema_get_by_scan_type(maat_instance->table_schema_mgr, table_id, scan_type, NULL);
 			valid_column = table_manager_get_valid_column(maat_instance->tbl_mgr, table_id);
-			ret = invalidate_line(rule_list[i].table_line, table_type, valid_column);
+			ret = invalidate_line(rule_list[i].table_line, valid_column);
 			if (ret < 0) {
 				log_error(maat_instance->logger, MODULE_REDIS_MONITOR, 
                           "[%s:%d] Invalidate line failed, invaid format %s", 

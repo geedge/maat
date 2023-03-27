@@ -244,54 +244,11 @@ void maat_cmd_set_serial_rule(struct serial_rule *rule, enum maat_operation op,
 	}
 }
 
-int maat_cmd_get_valid_flag_offset(const char *line, enum table_type table_type,
-                                   int valid_column_seq)
-{
-	int column_seq = 0;
-
- 	switch (table_type) {
-        case TABLE_TYPE_FLAG:
-        case TABLE_TYPE_FLAG_PLUS: //TODO:
-            column_seq = 5;
-            break;
-		case TABLE_TYPE_EXPR:
-			column_seq = 7;
-			break;
-        case TABLE_TYPE_EXPR_PLUS:
-            column_seq = 8;
-            break;
-		case TABLE_TYPE_IP_PLUS:
-			column_seq = 18;
-			break;
-		case TABLE_TYPE_COMPILE:
-			column_seq = 8;
-			break;
-		case TABLE_TYPE_PLUGIN:
-		case TABLE_TYPE_IP_PLUGIN:
-		case TABLE_TYPE_FQDN_PLUGIN:
-		case TABLE_TYPE_BOOL_PLUGIN:
-			if (valid_column_seq < 0) {
-				return -1;
-			}
-
-			column_seq = valid_column_seq;
-			break;
-		case TABLE_TYPE_INTERVAL:
-			column_seq = 5;
-			break;
-		case TABLE_TYPE_INTERVAL_PLUS:
-			column_seq = 6;
-			break;
-		case TABLE_TYPE_GROUP2COMPILE:
-		case TABLE_TYPE_GROUP2GROUP:
-			column_seq = 3;
-			break;
-		default:
-			assert(0);
-	}
-	
+int maat_cmd_get_valid_flag_offset(const char *line, int column_seq)
+{	
     size_t offset = 0;
     size_t len = 0;
+
 	int ret = get_column_pos(line, column_seq, &offset, &len);
     // 0 is also a valid value for some non-MAAT producer.
 	if (ret < 0 || offset >= strlen(line) || (line[offset] != '1' && 
@@ -392,9 +349,16 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
         FREE(s_rule);
         return -1;
     }
+   
+    int valid_offset = maat_cmd_get_valid_flag_offset(line_rule->table_line, valid_column);
+    if (valid_offset < 0) {
+        log_error(maat_instance->logger, MODULE_MAAT_COMMAND,
+                  "[%s:%d] Command set line id %lld failed: table %s valid_offset error",
+                  __FUNCTION__, __LINE__, line_rule->rule_id, line_rule->table_name);
+        FREE(s_rule);
+        return -1;
+    }
 
-    enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
-    int valid_offset = maat_cmd_get_valid_flag_offset(line_rule->table_line, table_type, valid_column);
     int is_valid = atoi(line_rule->table_line + valid_offset);
     if (line_rule->expire_after > 0) {
         absolute_expire_time = server_time + line_rule->expire_after;

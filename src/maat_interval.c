@@ -54,15 +54,23 @@ struct interval_runtime {
 void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
                           const char *table_name, struct log_handle *logger)
 {
-    int read_cnt = 0;
     struct interval_schema *schema = ALLOC(struct interval_schema, 1);
 
+    char table_type[NAME_MAX] = {0};
     cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
     if (item != NULL && item->type == cJSON_Number) {
         schema->table_id = item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_INTERVAL, 
+                  "[%s:%d] table %s has no table_id column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
+
+    /* table_type already validate in maat_table_new() */
+    item = cJSON_GetObjectItem(json, "table_type");
+    memcpy(table_type, item->valuestring, strlen(item->valuestring));
 
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
@@ -75,39 +83,57 @@ void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     custom_item = cJSON_GetObjectItem(item, "item_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->item_id_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_INTERVAL, 
+                  "[%s:%d] table %s has no item_id column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
     custom_item = cJSON_GetObjectItem(item, "group_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->group_id_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_INTERVAL, 
+                  "[%s:%d] table %s has no group_id column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "district");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->district_column = custom_item->valueint;
-        read_cnt++;
+    /* interval_plus has district */
+    if (strcmp(table_type, "intval_plus") == 0) {
+        custom_item = cJSON_GetObjectItem(item, "district");
+        if (custom_item != NULL && custom_item->type == cJSON_Number) {
+            schema->district_column = custom_item->valueint;
+        } else {
+            log_error(logger, MODULE_INTERVAL, 
+                  "[%s:%d] interval_plus table %s has no district column", 
+                  __FUNCTION__, __LINE__, table_name);
+            goto error;
+        }
     }
 
     custom_item = cJSON_GetObjectItem(item, "low_bound");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->low_bound_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_INTERVAL, 
+                  "[%s:%d] table %s has no low_bound column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
     custom_item = cJSON_GetObjectItem(item, "up_bound");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->up_bound_column = custom_item->valueint;
-        read_cnt++;
-    }
-
-    schema->ref_tbl_mgr = tbl_mgr;
-
-    if (read_cnt < 5) {
+    } else {
+        log_error(logger, MODULE_INTERVAL, 
+                  "[%s:%d] table %s has no up_bound column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
+    schema->ref_tbl_mgr = tbl_mgr;
     return schema;
 error:
     FREE(schema);
@@ -405,12 +431,14 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name)
     struct interval_matcher *new_interval_matcher = NULL;
     struct interval_matcher *old_interval_matcher = NULL;
 
-    new_interval_matcher = interval_matcher_new(rules, rule_cnt);
-    if (NULL == new_interval_matcher) {
-        log_error(interval_rt->logger, MODULE_INTERVAL,
-                  "[%s:%d] table[%s]rebuild interval_matcher engine failed when update %zu interval rules", 
-                  __FUNCTION__, __LINE__, table_name, rule_cnt);
-        ret = -1;
+    if (rule_cnt > 0) {
+        new_interval_matcher = interval_matcher_new(rules, rule_cnt);
+        if (NULL == new_interval_matcher) {
+            log_error(interval_rt->logger, MODULE_INTERVAL,
+                      "[%s:%d] table[%s]rebuild interval_matcher engine failed when update %zu interval rules",
+                      __FUNCTION__, __LINE__, table_name, rule_cnt);
+            ret = -1;
+        }
     }
 
     old_interval_matcher = interval_rt->matcher;

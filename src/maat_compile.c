@@ -54,7 +54,7 @@ struct group2compile_schema {
 struct compile_item {
     long long compile_id;
     int declared_clause_num;
-    int evaluation_order;
+    double evaluation_order;
 };
 
 struct group2compile_item {
@@ -241,15 +241,16 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
                          const char *table_name,
                          struct log_handle *logger)
 {
-    int read_cnt = 0;
-
 	struct compile_schema *compile_schema = ALLOC(struct compile_schema, 1);
 
 	cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
     if (item != NULL && item->type == cJSON_Number) {
         compile_schema->table_id = item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_COMPILE, 
+                  "[%s:%d] table %s has no table_id column", table_name);
+        goto error;
     }
 
    	item = cJSON_GetObjectItem(json, "custom");
@@ -263,33 +264,27 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     custom_item = cJSON_GetObjectItem(item, "compile_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         compile_schema->compile_id_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_COMPILE, 
+                  "[%s:%d] table %s has no compile_id column", table_name);
+        goto error;
     }
 
     custom_item = cJSON_GetObjectItem(item, "tags");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         compile_schema->rule_tag_column = custom_item->valueint;
-        read_cnt++;
     }
 
     custom_item = cJSON_GetObjectItem(item, "clause_num");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         compile_schema->declared_clause_num_column = custom_item->valueint;
-        read_cnt++;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "evaluation_order");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        compile_schema->evaluation_order_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_COMPILE, 
+                  "[%s:%d] table %s has no clause_num column", table_name);
+        goto error;
     }
 
     compile_schema->ref_tbl_mgr = tbl_mgr;
-
-    if (read_cnt < 5) {
-		goto error;
-    }
-
 	return compile_schema;
 error:
 	FREE(compile_schema);
@@ -304,20 +299,27 @@ void compile_schema_free(void *compile_schema)
 void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
                                const char *table_name, struct log_handle *logger)
 {
-    int read_cnt = 0;
 	struct group2compile_schema *g2c_schema = ALLOC(struct group2compile_schema, 1);
 
 	cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
     if (item != NULL && item->type == cJSON_Number) {
         g2c_schema->table_id = item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_COMPILE, 
+                  "[%s:%d] table %s has no table_id column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
     item = cJSON_GetObjectItem(json, "associated_compile_table_id");
     if (item != NULL && item->type == cJSON_Number) {
         g2c_schema->associated_compile_table_id = item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_COMPILE, 
+                  "[%s:%d] table %s has no associated_compile_table_id column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
     item = cJSON_GetObjectItem(json, "custom");
@@ -331,39 +333,54 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 	custom_item = cJSON_GetObjectItem(item, "group_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         g2c_schema->group_id_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_COMPILE, 
+                  "[%s:%d] table %s has no group_id column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
     custom_item = cJSON_GetObjectItem(item, "compile_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         g2c_schema->compile_id_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+         log_error(logger, MODULE_COMPILE, 
+                  "[%s:%d] table %s has no compile_id column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
     custom_item = cJSON_GetObjectItem(item, "not_flag");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         g2c_schema->not_flag_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+         log_error(logger, MODULE_COMPILE, 
+                  "[%s:%d] table %s has no not_flag column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
     custom_item = cJSON_GetObjectItem(item, "virtual_table_name");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         g2c_schema->vtable_name_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+         log_error(logger, MODULE_COMPILE, 
+                  "[%s:%d] table %s has no virtual_table_name column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
     custom_item = cJSON_GetObjectItem(item, "clause_index");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         g2c_schema->clause_index_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+         log_error(logger, MODULE_COMPILE, 
+                  "[%s:%d] table %s has no clause_index column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
     g2c_schema->ref_tbl_mgr = tbl_mgr;
-
-    if (read_cnt < 7) {
-		goto error;
-    }
-
 	return g2c_schema;
 error:
 	FREE(g2c_schema);
@@ -455,16 +472,6 @@ compile_item_new(const char *line, struct compile_schema *compile_schema,
 		goto error;
     }
     compile_item->declared_clause_num = atoi(line + column_offset);
-
-    ret = get_column_pos(line, compile_schema->evaluation_order_column, 
-                         &column_offset, &column_len);
-    if (ret < 0) {
-        log_error(logger, MODULE_COMPILE,
-				  "[%s:%d] compile table(table_id:%d) line:%s has no evaluation_order",
-				  __FUNCTION__, __LINE__, compile_schema->table_id, line);
-		goto error;
-    }
-    compile_item->evaluation_order = atoi(line + column_offset);
 
     return compile_item;
 error:
@@ -1291,10 +1298,10 @@ static int maat_compile_is_hit_path_existed(const struct maat_hit_path *hit_path
 	return 0;
 }
 
-size_t compile_runtime_get_new_hit_paths(struct compile_runtime *compile_rt,
+size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt,
 									 struct maat_compile_state *compile_state, 
                                   	 struct maat_hit_path *hit_path_array, 
-                                     size_t array_size, size_t hit_path_cnt)
+                                     size_t array_size, size_t n_internal_hit_path)
 {
     /* assign hit_path_array[].compile_id */
     size_t new_hit_path_cnt = 0;
@@ -1313,11 +1320,11 @@ size_t compile_runtime_get_new_hit_paths(struct compile_runtime *compile_rt,
         compile = (struct maat_compile *)expr_match[idx].user_tag;
 		assert(compile->magic == MAAT_COMPILE_MAGIC);
 		assert((unsigned long long)compile->compile_id == expr_match[idx].expr_id);
-		if (0 == compile->actual_clause_num) {
+		if (0 == compile->actual_clause_num || NULL == compile->user_data) {
 			continue;
 		}
 
-        for (size_t j = 0; j < hit_path_cnt && (hit_path_cnt + new_hit_path_cnt) < array_size; j++) {
+        for (size_t j = 0; j < n_internal_hit_path && (n_internal_hit_path + new_hit_path_cnt) < array_size; j++) {
 			if (hit_path_array[j].top_group_id < 0) {
 				continue;
 			}
@@ -1331,8 +1338,8 @@ size_t compile_runtime_get_new_hit_paths(struct compile_runtime *compile_rt,
                     // means same literal_id hit more than one compile_id
 					tmp_path = hit_path_array[j];
 					tmp_path.compile_id = compile->compile_id;
-					if(maat_compile_is_hit_path_existed(hit_path_array, hit_path_cnt + new_hit_path_cnt, &tmp_path)) {
-						hit_path_array[hit_path_cnt + new_hit_path_cnt] = tmp_path;
+					if(maat_compile_is_hit_path_existed(hit_path_array, n_internal_hit_path + new_hit_path_cnt, &tmp_path)) {
+						hit_path_array[n_internal_hit_path + new_hit_path_cnt] = tmp_path;
 						new_hit_path_cnt++;
 					}
 				}
@@ -1341,7 +1348,7 @@ size_t compile_runtime_get_new_hit_paths(struct compile_runtime *compile_rt,
 	}
     pthread_rwlock_unlock(&compile_rt->rwlock);
 
-    return new_hit_path_cnt;
+    return (n_internal_hit_path + new_hit_path_cnt);
 }
 
 void maat_compile_state_update_hit_path(struct maat_compile_state *compile_state,
@@ -1819,7 +1826,7 @@ int maat_compile_state_update(struct rcu_hash_table *item_htable, int vtable_id,
     return 0;
 }
 
-size_t maat_compile_state_get_hit_paths(struct maat_compile_state *compile_state,
+size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *compile_state,
                                         struct group2group_runtime *g2g_rt,
                                         struct maat_hit_path *hit_path_array, 
                                         size_t array_size)

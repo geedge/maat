@@ -283,7 +283,8 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         expr_schema->table_id = item->valueint;
     } else {
         log_error(logger, MODULE_EXPR, 
-                  "[%s:%d] table %s has no table_id column", table_name);
+                  "[%s:%d] table %s has no table_id column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -294,7 +295,8 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
         log_error(logger, MODULE_EXPR, 
-                  "[%s:%d] table %s has no custom column", table_name);
+                  "[%s:%d] table %s has no custom column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -303,7 +305,8 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         expr_schema->item_id_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_EXPR, 
-                  "[%s:%d] table %s has no item_id column", table_name);
+                  "[%s:%d] table %s has no item_id column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -312,7 +315,8 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         expr_schema->group_id_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_EXPR, 
-                  "[%s:%d] table %s has no group_id column", table_name);
+                  "[%s:%d] table %s has no group_id column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -321,7 +325,8 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         expr_schema->keywords_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_EXPR, 
-                  "[%s:%d] table %s has no keywords column", table_name);
+                  "[%s:%d] table %s has no keywords column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -332,7 +337,8 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
             expr_schema->district_column = custom_item->valueint;
         } else {
             log_error(logger, MODULE_EXPR, 
-                  "[%s:%d] expr_plus table %s has no district column", table_name);
+                  "[%s:%d] expr_plus table %s has no district column", 
+                  __FUNCTION__, __LINE__, table_name);
             goto error;
         }
     }
@@ -342,7 +348,8 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         expr_schema->expr_type_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_EXPR, 
-                  "[%s:%d] table %s has no expr_type column", table_name);
+                  "[%s:%d] table %s has no expr_type column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -351,7 +358,8 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         expr_schema->match_method_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_EXPR, 
-                  "[%s:%d] table %s has no match_method column", table_name);
+                  "[%s:%d] table %s has no match_method column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -360,7 +368,8 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         expr_schema->is_hexbin_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_EXPR, 
-                  "[%s:%d] table %s has no is_hexbin column", table_name);
+                  "[%s:%d] table %s has no is_hexbin column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -783,12 +792,15 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name)
     int ret = 0;
     struct adapter_hs *new_adapter_hs = NULL;
     struct adapter_hs *old_adapter_hs = NULL;
-    new_adapter_hs = adapter_hs_new(expr_rt->n_worker_thread, rules, rule_cnt, expr_rt->logger);
-    if (NULL == new_adapter_hs) {
-        log_error(expr_rt->logger, MODULE_EXPR,
-                  "[%s:%d] table[%s] rebuild adapter_hs engine failed when update %zu expr rules", 
-                  __FUNCTION__, __LINE__, table_name, rule_cnt);
-        ret = -1;
+
+    if (rule_cnt > 0) {
+        new_adapter_hs = adapter_hs_new(expr_rt->n_worker_thread, rules, rule_cnt, expr_rt->logger);
+        if (NULL == new_adapter_hs) {
+            log_error(expr_rt->logger, MODULE_EXPR,
+                      "[%s:%d] table[%s] rebuild adapter_hs engine failed when update %zu expr rules",
+                      __FUNCTION__, __LINE__, table_name, rule_cnt);
+            ret = -1;
+        }
     }
 
     old_adapter_hs = expr_rt->hs;

@@ -46,14 +46,17 @@ struct fqdn_plugin_runtime {
 void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
                              const char *table_name, struct log_handle *logger)
 {
-    size_t read_cnt = 0;
     struct fqdn_plugin_schema *schema = ALLOC(struct fqdn_plugin_schema, 1);
 
     cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
-   if (item != NULL && item->type == cJSON_Number) {
+    if (item != NULL && item->type == cJSON_Number) {
         schema->table_id = item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_FQDN_PLUGIN, 
+                  "[%s:%d] table %s has no table_id column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
     item = cJSON_GetObjectItem(json, "custom");
@@ -67,20 +70,32 @@ void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     custom_item = cJSON_GetObjectItem(item, "item_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->item_id_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_FQDN_PLUGIN, 
+                  "[%s:%d] table %s has no item_id column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
     custom_item = cJSON_GetObjectItem(item, "suffix_match_method");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->suffix_flag_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_FQDN_PLUGIN, 
+                  "[%s:%d] table %s has no suffix_match_method column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
     // rule_tag is optional
     custom_item = cJSON_GetObjectItem(item, "fqdn");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->fqdn_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_FQDN_PLUGIN, 
+                  "[%s:%d] table %s has no fqdn column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
     // rule_tag is optional
@@ -90,11 +105,6 @@ void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     }
 
     schema->ref_tbl_mgr = tbl_mgr;
-
-    if (read_cnt < 4) {
-        goto error;
-    }
-    
     return schema;
 error:
     FREE(schema);
@@ -421,12 +431,14 @@ int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name
     struct FQDN_engine *new_fqdn_engine = NULL;
     struct FQDN_engine *old_fqdn_engine = NULL;
 
-    new_fqdn_engine = FQDN_engine_new(rules, rule_cnt);
-    if (NULL == new_fqdn_engine) {
-        log_error(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
-                  "[%s:%d] table[%s] rebuild FQDN engine failed when update %zu fqdn_plugin rules",
-                  __FUNCTION__, __LINE__, table_name, rule_cnt);
-        ret = -1;
+    if (rule_cnt > 0) {
+        new_fqdn_engine = FQDN_engine_new(rules, rule_cnt);
+        if (NULL == new_fqdn_engine) {
+            log_error(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
+                      "[%s:%d] table[%s] rebuild FQDN engine failed when update %zu fqdn_plugin rules",
+                      __FUNCTION__, __LINE__, table_name, rule_cnt);
+            ret = -1;
+        }
     }
 
     old_fqdn_engine = fqdn_plugin_rt->engine;

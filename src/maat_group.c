@@ -70,14 +70,16 @@ struct group2group_runtime {
 void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
                              const char *table_name, struct log_handle *logger)
 {
-    int read_cnt = 0;
 	struct group2group_schema *g2g_schema = ALLOC(struct group2group_schema, 1);
 	
 	cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
     if (item != NULL && item->type == cJSON_Number) {
         g2g_schema->table_id = item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_GROUP, 
+                  "[%s:%d] table %s has no table_id column", table_name);
+        goto error;
     }
 
     item = cJSON_GetObjectItem(json, "custom");
@@ -91,21 +93,22 @@ void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     custom_item = cJSON_GetObjectItem(item, "group_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         g2g_schema->group_id_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_GROUP, 
+                  "[%s:%d] table %s has no group_id column", table_name);
+        goto error;
     }
 
     custom_item = cJSON_GetObjectItem(item, "super_group_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         g2g_schema->super_group_id_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_GROUP, 
+                  "[%s:%d] table %s has no super_group_id column", table_name);
+        goto error;
     }
 
     g2g_schema->ref_tbl_mgr = tbl_mgr;
-
-    if (read_cnt < 3) {
-		goto error;
-    }
-
 	return g2g_schema;
 error:
 	FREE(g2g_schema);

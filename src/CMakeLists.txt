@@ -12,10 +12,9 @@ LINK_DIRECTORIES(/opt/MESA/lib /usr/lib64)
 add_definitions(-D_GNU_SOURCE) 
 add_definitions(-fPIC)
 set(MAAT_SRC alignment.c json2iris.c maat_api.c rcu_hash.c maat_garbage_collection.c maat_config_monitor.c 
-    maat_rule.c maat_kv.c maat_ex_data.c maat_utils.c maat_command.c maat_redis_monitor.c 
-    maat_table.c maat_compile.c maat_group.c maat_ip.c maat_flag.c maat_interval.c
-    maat_expr.c maat_fqdn.c maat_port.c maat_plugin.c maat_ip_plugin.c maat_bool_plugin.c 
-    maat_fqdn_plugin.c maat_virtual.c)
+    maat_rule.c maat_kv.c maat_ex_data.c maat_utils.c maat_command.c maat_redis_monitor.c maat_table.c 
+    maat_compile.c maat_group.c maat_ip.c maat_flag.c maat_interval.c maat_expr.c maat_fqdn.c maat_plugin.c 
+    maat_ip_plugin.c maat_bool_plugin.c maat_fqdn_plugin.c maat_virtual.c)
 
 set(LIB_SOURCE_FILES
 	${PROJECT_SOURCE_DIR}/deps/cJSON/cJSON.c ${PROJECT_SOURCE_DIR}/deps/log/log.c)

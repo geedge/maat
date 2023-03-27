@@ -172,8 +172,14 @@ int maat_scan_integer(struct maat *instance, int table_id, int thread_id,
                       long long integer, long long *results, size_t n_result,
                       size_t *n_hit_result, struct maat_state *state);
 
+/**
+ * @param ip_addr: network ipv4 address
+ * @param port:    network port
+ * @param protocol: -1(ANY protocol) 1(ICMP) 6(TCP) 17(UDP)
+*/
 int maat_scan_ipv4(struct maat *instance, int table_id, int thread_id, 
-                   uint32_t ip_addr, long long *results, size_t n_result, 
+                   uint32_t ip_addr, uint16_t port, int protocol,
+                   long long *results, size_t n_result, 
                    size_t *n_hit_result, struct maat_state *state);
 
 int maat_scan_ipv4_tuple4(struct maat *instance, int table_id, int thread_id,
@@ -182,7 +188,8 @@ int maat_scan_ipv4_tuple4(struct maat *instance, int table_id, int thread_id,
                           struct maat_state *state);
 
 int maat_scan_ipv6(struct maat *instance, int table_id, int thread_id, 
-                   uint8_t *ip_addr, long long *results, size_t n_result, 
+                   uint8_t *ip_addr, uint16_t port, int protocol,
+                   long long *results, size_t n_result, 
                    size_t *n_hit_result, struct maat_state *state);
 
 int maat_scan_ipv6_tuple4(struct maat *instance, int table_id, int thread_id,

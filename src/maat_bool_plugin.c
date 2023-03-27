@@ -45,14 +45,17 @@ struct bool_plugin_runtime {
 void *bool_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
                              const char *table_name, struct log_handle *logger)
 {
-    size_t read_cnt = 0;
     struct bool_plugin_schema *schema = ALLOC(struct bool_plugin_schema, 1);
 
     cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
    if (item != NULL && item->type == cJSON_Number) {
         schema->table_id = item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_BOOL_PLUGIN, 
+                  "[%s:%d] table %s has no table_id column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
     item = cJSON_GetObjectItem(json, "custom");
@@ -66,13 +69,21 @@ void *bool_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     custom_item = cJSON_GetObjectItem(item, "item_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->item_id_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_BOOL_PLUGIN, 
+                  "[%s:%d] table %s has no item_id column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
     custom_item = cJSON_GetObjectItem(item, "bool_expr");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->bool_expr_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_BOOL_PLUGIN, 
+                  "[%s:%d] table %s has no bool_expr column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
     // rule_tag is optional
@@ -82,11 +93,6 @@ void *bool_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     }
 
     schema->ref_tbl_mgr = tbl_mgr;
-
-    if (read_cnt < 3) {
-        goto error;
-    }
-    
     return schema;
 error:
     FREE(schema);
@@ -440,12 +446,14 @@ int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name
     struct bool_matcher *new_bool_matcher = NULL;
     struct bool_matcher *old_bool_matcher = NULL;
 
-    new_bool_matcher = bool_matcher_new(rules, rule_cnt, &mem_used);
-    if (NULL == new_bool_matcher) {
-        log_error(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
-                  "[%s:%d] table[%s] rebuild bool_matcher engine failed when update %zu bool_plugin rules",
-                  __FUNCTION__, __LINE__, table_name, rule_cnt);
-        ret = -1;
+    if (rule_cnt > 0) {
+        new_bool_matcher = bool_matcher_new(rules, rule_cnt, &mem_used);
+        if (NULL == new_bool_matcher) {
+            log_error(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
+                      "[%s:%d] table[%s] rebuild bool_matcher engine failed when update %zu bool_plugin rules",
+                      __FUNCTION__, __LINE__, table_name, rule_cnt);
+            ret = -1;
+        }
     }
 
     old_bool_matcher = bool_plugin_rt->matcher;

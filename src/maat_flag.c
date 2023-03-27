@@ -57,15 +57,23 @@ struct flag_runtime {
 void *flag_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
                       const char *table_name, struct log_handle *logger)
 {
-    int read_cnt = 0;
     struct flag_schema *schema = ALLOC(struct flag_schema, 1);
 
+    char table_type[NAME_MAX] = {0};
     cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
     if (item != NULL && item->type == cJSON_Number) {
         schema->table_id = item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_FLAG, 
+                  "[%s:%d] table %s has no table_id column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
+
+    /* table_type already validate in maat_table_new() */
+    item = cJSON_GetObjectItem(json, "table_type");
+    memcpy(table_type, item->valuestring, strlen(item->valuestring));
 
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
@@ -78,39 +86,57 @@ void *flag_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     custom_item = cJSON_GetObjectItem(item, "item_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->item_id_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_FLAG, 
+                  "[%s:%d] table %s has no item_id column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
     custom_item = cJSON_GetObjectItem(item, "group_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->group_id_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_FLAG, 
+                  "[%s:%d] table %s has no group_id column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "district");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->district_column = custom_item->valueint;
-        read_cnt++;
+    /* flag_plus has district */
+    if (strcmp(table_type, "flag_plus") == 0) {
+        custom_item = cJSON_GetObjectItem(item, "district");
+        if (custom_item != NULL && custom_item->type == cJSON_Number) {
+            schema->district_column = custom_item->valueint;
+        } else {
+            log_error(logger, MODULE_FLAG, 
+                  "[%s:%d] flag_plus table %s has no district column", 
+                  __FUNCTION__, __LINE__, table_name);
+            goto error;
+        }
     }
 
     custom_item = cJSON_GetObjectItem(item, "flag");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->flag_column = custom_item->valueint;
-        read_cnt++;
+    } else {
+        log_error(logger, MODULE_FLAG, 
+                  "[%s:%d] table %s has no flag column", 
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
     }
 
     custom_item = cJSON_GetObjectItem(item, "flag_mask");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->flag_mask_column = custom_item->valueint;
-        read_cnt++;
-    }
-
-    schema->ref_tbl_mgr = tbl_mgr;
-
-    if (read_cnt < 5) {
+    } else {
+        log_error(logger, MODULE_FLAG, 
+                  "[%s:%d] table %s has no flag_mask column", 
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
+    schema->ref_tbl_mgr = tbl_mgr;
     return schema;
 error:
     FREE(schema);
@@ -408,12 +434,15 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name)
     int ret = 0;
     struct flag_matcher *new_flag_matcher = NULL;
     struct flag_matcher *old_flag_matcher = NULL;
-    new_flag_matcher = flag_matcher_new(rules, rule_cnt);
-    if (NULL == new_flag_matcher) {
-        log_error(flag_rt->logger, MODULE_FLAG,
-                  "[%s:%d] table[%s] rebuild flag_matcher engine failed when update %zu flag rules", 
-                  __FUNCTION__, __LINE__, table_name, rule_cnt);
-        ret = -1;
+
+    if (rule_cnt > 0) {
+        new_flag_matcher = flag_matcher_new(rules, rule_cnt);
+        if (NULL == new_flag_matcher) {
+            log_error(flag_rt->logger, MODULE_FLAG,
+                      "[%s:%d] table[%s] rebuild flag_matcher engine failed when update %zu flag rules",
+                      __FUNCTION__, __LINE__, table_name, rule_cnt);
+            ret = -1;
+        }
     }
 
     old_flag_matcher = flag_rt->matcher;

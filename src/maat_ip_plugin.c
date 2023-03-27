@@ -471,12 +471,14 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name)
     struct ip_matcher *new_ip_matcher = NULL;
     struct ip_matcher *old_ip_matcher = NULL;
 
-    new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used, ip_plugin_rt->logger);
-    if (NULL == new_ip_matcher) {
-        log_error(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
-                  "[%s:%d] table[%s] rebuild ip_matcher engine failed when update %zu ip_plugin rules",
-                  __FUNCTION__, __LINE__, table_name, rule_cnt);
-        ret = -1;
+    if (rule_cnt > 0) {
+        new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used, ip_plugin_rt->logger);
+        if (NULL == new_ip_matcher) {
+            log_error(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
+                      "[%s:%d] table[%s] rebuild ip_matcher engine failed when update %zu ip_plugin rules",
+                      __FUNCTION__, __LINE__, table_name, rule_cnt);
+            ret = -1;
+        }
     }
 
     old_ip_matcher = ip_plugin_rt->ip_matcher;

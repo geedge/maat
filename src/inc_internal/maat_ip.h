@@ -37,7 +37,8 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name);
 
 /* ip runtime scan API */
 int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type, 
-                    uint8_t *ip_addr, int vtable_id, struct maat_state *state);
+                    uint8_t *ip_addr, uint16_t port, int proto, int vtable_id, 
+                    struct maat_state *state);
 
 void ip_runtime_scan_hit_inc(struct ip_runtime *ip_rt, int thread_id);
 long long ip_runtime_scan_hit_sum(struct ip_runtime *ip_rt, int n_thread);

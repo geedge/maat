@@ -415,21 +415,35 @@ size_t memcat(void **dest, size_t offset, size_t *n_dest, const void *src, size_
 	return n_src;
 }
 
-enum maat_ip_format ip_format_str2int(const char *format)
+enum ip_format ip_format_str2int(const char *format)
 {
-	if (0 == strcasecmp(format, "range")) {
+    if (0 == strcasecmp(format, "single")) {
+        return IP_FORMAT_SINGLE;
+    }else if (0 == strcasecmp(format, "range")) {
 		return IP_FORMAT_RANGE;
-	} else if(0 == strcasecmp(format, "mask")) {
-		return IP_FORMAT_MASK;
-	} else if(0 == strcasecmp(format, "CIDR")) {
+	} else if (0 == strcasecmp(format, "CIDR")) {
 		return IP_FORMAT_CIDR;
-	} else {
+	} else if (0 == strcasecmp(format, "mask")) {
+        return IP_FORMAT_MASK;
+    } else {
 		assert(0);
 	}
 	return IP_FORMAT_UNKNOWN;
 }
 
-int ip_format2range(int ip_type, enum maat_ip_format format, const char *ip1, const char *ip2, 
+enum port_format port_format_str2int(const char *format)
+{
+    if (0 == strcasecmp(format, "single")) {
+        return PORT_FORMAT_SINGLE;
+    } else if (0 == strcasecmp(format, "range")) {
+        return PORT_FORMAT_RANGE;
+    } else {
+        assert(0);
+    }
+    return PORT_FORMAT_UNKNOWN;
+}
+
+int ip_format2range(int ip_type, enum ip_format format, const char *ip1, const char *ip2, 
                     uint32_t range_begin[], uint32_t range_end[])
 {
 	int cidr = 0;
@@ -451,6 +465,7 @@ int ip_format2range(int ip_type, enum maat_ip_format format, const char *ip1, co
         uint32_t ipv4_range_end = 0;
         uint32_t ipv4_mask = 0;
 		switch (format) {
+            case IP_FORMAT_SINGLE:
 			case IP_FORMAT_RANGE:
 				range_begin[0] = ipv4_addr;
 				ret = inet_pton(AF_INET, ip2, &ipv4_range_end);
@@ -460,8 +475,8 @@ int ip_format2range(int ip_type, enum maat_ip_format format, const char *ip1, co
 				ipv4_range_end = ntohl(ipv4_range_end);
 				range_end[0] = ipv4_range_end;
 				break;
-			case IP_FORMAT_MASK:
-				ret = inet_pton(AF_INET, ip2, &ipv4_mask);
+            case IP_FORMAT_MASK:
+                ret = inet_pton(AF_INET, ip2, &ipv4_mask);
 				if (ret <= 0) {
 					return -1;
 				}
@@ -495,6 +510,7 @@ int ip_format2range(int ip_type, enum maat_ip_format format, const char *ip1, co
 		ipv6_ntoh(ipv6_addr);
 
 		switch (format) {
+            case IP_FORMAT_SINGLE:
 			case IP_FORMAT_RANGE:
 				ret = inet_pton(AF_INET6, ip2, ipv6_range_end);
 				if (ret <= 0) {
@@ -505,7 +521,7 @@ int ip_format2range(int ip_type, enum maat_ip_format format, const char *ip1, co
 				memcpy(range_begin, ipv6_addr, sizeof(ipv6_addr));				
 				memcpy(range_end, ipv6_range_end, sizeof(ipv6_range_end));
 				break;
-			case IP_FORMAT_MASK:
+            case IP_FORMAT_MASK:
 				ret = inet_pton(AF_INET6, ip2, ipv6_mask);
 				if (ret <= 0) {
 					return -1;

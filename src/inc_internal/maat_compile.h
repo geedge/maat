@@ -59,10 +59,10 @@ int compile_runtime_commit(void *compile_runtime, const char *table_name);
 int compile_runtime_match(struct compile_runtime *compile_rt, long long *compile_ids,
                           size_t compile_ids_size, struct maat_state *state);
 
-size_t compile_runtime_get_new_hit_paths(struct compile_runtime *compile_rt,
-									     struct maat_compile_state *compile_state, 
-                                  	     struct maat_hit_path *hit_path_array, 
-                                         size_t array_size, size_t hit_path_cnt);
+size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt,
+									 struct maat_compile_state *compile_state, 
+                                  	 struct maat_hit_path *hit_path_array, 
+                                     size_t array_size, size_t hit_path_cnt);
 
 void *compile_runtime_get_ex_data(struct compile_runtime *compile_rt, 
                                   struct compile_schema *compile_schema, 
@@ -90,7 +90,7 @@ int maat_compile_state_update(struct rcu_hash_table *item_htable, int vtable_id,
                               long long *hit_item_ids, size_t hit_item_cnt,
                               size_t *n_hit_group_id, struct maat_state *state);
 
-size_t maat_compile_state_get_hit_paths(struct maat_compile_state *compile_state,
+size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *compile_state,
                                         struct group2group_runtime *g2g_rt,
                                         struct maat_hit_path *hit_path_array, 
                                         size_t array_size);
