@@ -15,6 +15,7 @@ global:
         maat_scan*;
         maat_state_*;
         maat_helper*;
+        maat_stream_*;
 	};
 local: *;
 };

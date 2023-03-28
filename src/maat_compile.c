@@ -1840,7 +1840,7 @@ size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *comp
             NOTE: maybe one item has been deleted, but it's item_id still exist in internal_hit_paths
         */
         long long top_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
-        memset(top_group_ids, 0, sizeof(top_group_ids));
+        memset(top_group_ids, -1, sizeof(top_group_ids));
         int top_group_cnt = group2group_runtime_get_top_groups(g2g_rt, &(internal_path->group_id),
                                                                1, top_group_ids);
         if (top_group_cnt <= 0) {
