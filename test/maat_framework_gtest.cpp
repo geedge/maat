@@ -248,7 +248,7 @@ int intval_table_set_line(struct maat *maat_instance, const char *table_name, en
         sprintf(table_line, "%lld\t%lld\t%s\t%u\t%u\t%d", item_id, group_id, district,
                 low_boundary, up_boundary, op);
     } else {
-        sprintf(table_line, "%lld\t%lldt%u\t%u\t%d", item_id, group_id,
+        sprintf(table_line, "%lld\t%lld\t%u\t%u\t%d", item_id, group_id,
                 low_boundary, up_boundary, op);
     }
 
@@ -306,7 +306,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
@@ -548,7 +548,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
@@ -1250,7 +1250,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
@@ -1456,7 +1456,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
@@ -1547,7 +1547,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
@@ -1840,7 +1840,7 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
         maat_options_set_deferred_load_on(opts);
-        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
@@ -1996,7 +1996,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
@@ -2137,7 +2137,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
@@ -2303,7 +2303,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
@@ -2393,7 +2393,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
@@ -2454,7 +2454,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
@@ -2628,7 +2628,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
@@ -2839,7 +2839,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
@@ -2898,7 +2898,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_iris(opts, rule_folder, rule_folder);
-        maat_options_set_logger_path(opts, "./maat_input_mode_gtest.log");
+        maat_options_set_logger(opts, "./maat_input_mode_gtest.log", LOG_LEVEL_INFO);
 
         _shared_maat_instance = maat_new(opts, table_info);
         EXPECT_TRUE(_shared_maat_instance != NULL);
@@ -2921,7 +2921,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger_path(opts, "./maat_framework_gtest.log");
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
 
         _shared_maat_instance = maat_new(opts, table_info_path);
         assert(_shared_maat_instance != NULL);
@@ -2972,47 +2972,6 @@ int del_command(struct maat *maat_instance, int compile_id)
 {
     return compile_table_set_line(maat_instance, "COMPILE", MAAT_OP_DEL, compile_id, NULL, 1, 0);
 }
-
-#if 0
-TEST_F(MaatCmdTest, HitPath) {
-    const char *g2g_table_name = "GROUP2GROUP";
-	const char *g2c_table_name = "GROUP2COMPILE";
-	const char *compile_table_name = "COMPILE";
-	const char *http_sig_table_name = "HTTP_SIGNATURE";
-	const char *ip_table_name = "IP_CONFIG";
-	const char *keywords_table_name = "KEYWORDS_TABLE";
-    char table_line_add[128] = {0};
-    struct maat_cmd_line line_rule;
-
-    /* compile table add line */
-    long long compile_id = maat_cmd_incrby(g_maat_instance, "TEST_SEQ", 1);
-    sprintf(table_line_add, "%lld\t0\t0\t0\t0\t0\tanything\t1\t1\t0.0", compile_id);
-    line_rule.rule_id = compile_id;
-    line_rule.table_line = table_line_add;
-    line_rule.table_name = compile_table_name;
-    int ret = maat_cmd_set_line(g_maat_instance, &line_rule);
-    EXPECT_EQ(ret, 1);
-
-    /* group2compile table add line */
-    memset(&line_rule, 0, sizeof(line_rule));
-    memset(table_line_add, 0, sizeof(table_line_add));
-
-    long long group_id = maat_cmd_incrby(g_maat_instance, "SEQUENCE_GROUP", 1);
-    sprintf(table_line_add, "%lld\t%lld\t1\t0\tnull\t1", group_id, compile_id);
-    line_rule.rule_id = group_id;
-    line_rule.table_line = table_line_add;
-    line_rule.table_name = g2c_table_name;
-    ret = maat_cmd_set_line(g_maat_instance, &line_rule);
-    EXPECT_EQ(ret, 1);
-
-    /* item table add line */
-    memset(&line_rule, 0, sizeof(line_rule));
-    memset(table_line_add, 0, sizeof(table_line_add));
-
-    long long item_id = maat_cmd_incrby(g_maat_instance, "SEQUENCE_REGION", 1);
-    sprintf(table_line_add, "%lld\t%lld\t%s\t%s\t", item_id, group_id, "URL", "graph_theory");
-}
-#endif
 
 TEST_F(MaatCmdTest, SetIP) {
     long long version_before = 0;
@@ -4214,12 +4173,14 @@ TEST_F(MaatCmdTest, GroupInMassCompiles) {
 	const char* table_url = "HTTP_URL";
 	const char* table_appid = "APP_ID";
     int compile_cnt = 1000;
+    int thread_id = 0;
     struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
 
     //item_url1 -> group1
     long long group1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
     long long item1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, table_url, MAAT_OP_ADD, item1_id, group1_id,
+    int ret = expr_table_set_line(maat_instance, table_url, MAAT_OP_ADD, item1_id, group1_id,
                               "baidu.com&tsg", NULL, 1, 0, 0, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
@@ -4241,18 +4202,292 @@ TEST_F(MaatCmdTest, GroupInMassCompiles) {
                                 /
           item_appid -> group3_/
     */
-    
+    int i = 0;
+    long long compile_id[compile_cnt] = {0};
+    for (i = 0; i < compile_cnt; i++) {
+        compile_id[i] = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
+        ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile_id[i],
+                                     "mass_compile", 2, 0);
+        EXPECT_EQ(ret, 1);
+    }
 
+    for (i = 0; i < compile_cnt; i++) {
+        ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group1_id,
+                                           compile_id[i], 0, "null", 0, 0);
+        EXPECT_EQ(ret, 1);
+
+        ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group3_id,
+                                           compile_id[i], 0, "null", 2, 0);
+        EXPECT_EQ(ret, 1);
+    }
+
+    /* item_url2 -> group2 -> target_compile
+                                    /
+              item_appid -> group3_/
+    */
+    long long target_compile_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
+    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, target_compile_id,
+                                 NULL, 2, 0);
+    EXPECT_EQ(ret, 1);
+    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group2_id,
+                                       target_compile_id, 0, "null", 1, 0);
+    EXPECT_EQ(ret, 1);
+    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group3_id,
+                                       target_compile_id, 0, "null", 2, 0);
+    EXPECT_EQ(ret, 1);
+
+    sleep(WAIT_FOR_EFFECTIVE_S);
+
+    const char* http_url1 = "https://www.baidu.com/s?wd=tsg";
+	const char* http_url2 = "https://www.baidu.com/s?wd=zhengzhou&rsv_spt=1&rsv_iqid=0x8b4cae8100000560&issp=1&f=8&rsv_bp=1";
+
+    int url_table_id = maat_get_table_id(maat_instance, table_url);
+    ASSERT_GT(url_table_id, 0);
+
+    int appid_table_id = maat_get_table_id(maat_instance, table_appid);
+    ASSERT_GT(appid_table_id, 0);
+
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    ret = maat_scan_string(maat_instance, url_table_id, http_url2, strlen(http_url2),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_integer(maat_instance, appid_table_id, 100, results, ARRAY_SIZE,
+                            &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], target_compile_id);
+    maat_state_reset(state);
+
+    ret = maat_scan_string(maat_instance, url_table_id, http_url1, strlen(http_url1),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_integer(maat_instance, appid_table_id, 100, results, ARRAY_SIZE,
+                            &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 4);
+    maat_state_free(state);
+    state = NULL;
 }
-#endif
-TEST_F(MaatCmdTest, HitPath) {
 
+TEST_F(MaatCmdTest, HitPath) {
+    const char *g2g_table_name = "GROUP2GROUP";
+	const char *g2c_table_name = "GROUP2COMPILE";
+	const char *compile_table_name = "COMPILE";
+	const char *http_sig_table_name = "HTTP_SIGNATURE";
+	const char *ip_table_name = "IP_CONFIG";
+	const char *keywords_table_name = "KEYWORDS_TABLE";
+    int thread_id = 0;
+    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+    /* compile1 */
+    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile1_id,
+                                     NULL, 2, 0);
+    EXPECT_EQ(ret, 1);
+
+    //group1 -> compile1
+    long long group1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group1_id,
+                                       compile1_id, 0, "HTTP_REQUEST_HEADER", 1, 0);
+    EXPECT_EQ(ret, 1);
+
+    //item1 -> group1 -> compile1
+    long long item1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_instance, http_sig_table_name, MAAT_OP_ADD, item1_id, group1_id,
+                              "graph_theory", "URL", 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+    EXPECT_EQ(ret, 1);
+
+    /* item1 -> group1 -> compile1
+                             /
+                    group21_/
+    */
+    long long group21_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group21_id,
+                                       compile1_id, 0, "HTTP_RESPONSE_HEADER", 2, 0);
+    EXPECT_EQ(ret, 1);
+
+    /* item1 -> group1 -> compile1
+                            /
+        group2 -> group21 _/
+    */
+    long long group2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
+    ret = group2group_table_set_line(maat_instance, g2g_table_name, MAAT_OP_ADD, group2_id,
+                                     group21_id, 0);
+    EXPECT_EQ(ret, 1);
+
+    /*       item1 -> group1 -> compile1
+                                    /
+       item2 -> group2 -> group21 _/
+    */
+    long long item2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_instance, http_sig_table_name, MAAT_OP_ADD, item2_id, group2_id,
+                              "time=2020-02-11", "Cookie", 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+    EXPECT_EQ(ret, 1);
+
+    //item3 -> group3, group3 is not referenced by any compile.
+    long long item3_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
+    long long group3_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
+    ret = ip_table_set_line(maat_instance, ip_table_name, MAAT_OP_ADD, item3_id, group3_id,
+                            IPv4, "220.181.38.148", "220.181.38.149", 0, 65535, 0);
+    EXPECT_EQ(ret, 1);
+
+    char temp[1024]={0};
+    //item4 -> group4, group4 is not referenced by any compile.
+    long long item4_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
+    long long group4_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
+    ret = expr_table_set_line(maat_instance, keywords_table_name, MAAT_OP_ADD, item4_id, group4_id,
+                              maat_cmd_str_escape(temp, sizeof(temp), "a finite or infinite"),
+                              NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+    EXPECT_EQ(ret, 1);
+
+    sleep(WAIT_FOR_EFFECTIVE_S);
+
+    const char* http_url = "en.wikipedia.org/wiki/Path_(graph_theory)";
+	const char* http_resp_hdr_cookie = "laptop=thinkpad X1 extrem;time=2020-02-11T15:34:00;main[XWJOKE]=hoho; Hm_lvt_bbac0322e6ee13093f98d5c4b5a10912=1578874808;";
+
+    int table_id = maat_get_table_id(maat_instance, "HTTP_REQUEST_HEADER");
+    ASSERT_GT(table_id, 0);
+
+    ret = maat_state_set_scan_district(state, "URL", strlen("URL"));
+    EXPECT_EQ(ret, 0);
+
+    int Nth_scan = 0;
+
+    Nth_scan++;
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    ret = maat_scan_string(maat_instance, table_id, http_url, strlen(http_url),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    struct maat_hit_path hit_path[128];
+    memset(hit_path, 0, sizeof(hit_path));
+    int n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    EXPECT_EQ(n_read, 1);
+
+    int path_idx = 0;
+    EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, table_id);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
+    table_id = maat_get_table_id(maat_instance, "HTTP_RESPONSE_HEADER");
+	ASSERT_GT(table_id, 0);
+
+    ret = maat_state_set_scan_district(state, "Cookie", strlen("Cookie"));
+    EXPECT_EQ(ret, 0);
+
+    Nth_scan++;
+    ret = maat_scan_string(maat_instance, table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
+                          results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], compile1_id);
+
+    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    EXPECT_EQ(n_read, 2);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan-1);
+	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
+    EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
+
+    path_idx++;
+    ASSERT_EQ(path_idx, 1);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, table_id);
+	EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
+
+    const char* keywords1="In graph theory, a path in a graph is a finite or infinite \
+sequence of edges which joins a sequence of vertices which, by most definitions,\
+are all distinct (and since the vertices are distinct, so are the edges). ";
+	const char* keywords2="A directed path in a directed graph is a finite or infinite\
+sequence of edges which joins a sequence of distinct vertices, but with the added restriction\
+that the edges be all directed in the same direction.";
+
+    table_id = maat_get_table_id(maat_instance, keywords_table_name);
+    ASSERT_GT(table_id, 0);
+
+    struct maat_stream *stream = maat_stream_new(maat_instance, table_id, state);
+    Nth_scan++;
+    ret = maat_stream_scan(stream, keywords1, strlen(keywords1), results, ARRAY_SIZE,
+                           &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    EXPECT_EQ(n_read, 3);
+
+    path_idx++;
+	ASSERT_EQ(path_idx, 2);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
+    table_id = maat_get_table_id(maat_instance, ip_table_name);
+    ASSERT_GT(table_id, 0);
+
+    Nth_scan++;
+    uint32_t ip_addr;
+    inet_pton(AF_INET, "220.181.38.148", &ip_addr);
+    uint16_t port = htons(17272);
+    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6, results, ARRAY_SIZE,
+                         &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    EXPECT_EQ(n_read, 4);
+
+    path_idx++;
+	ASSERT_EQ(path_idx, 3);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, item3_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
+    Nth_scan++;
+    ret = maat_stream_scan(stream, keywords2, strlen(keywords2), results, ARRAY_SIZE,
+                           &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    EXPECT_EQ(n_read, 5);
+
+    path_idx++;
+	ASSERT_EQ(path_idx, 4);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+    maat_stream_free(stream);
+    maat_state_free(state);
+    state = NULL;
 }
 
 TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
-
+    const char *g2c_table_name = "GROUP2COMPILE";
+	const char* compile_table_name = "COMPILE";
+	const char* ip_table_name = "IP_PLUS_CONFIG";
+    const char *app_id_table_name = "APP_ID";
+    int thread_id = 0;
+    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
 }
-
+#endif
 TEST_F(MaatCmdTest, GroupEdit) {
 
 }

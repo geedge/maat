@@ -235,13 +235,14 @@ int maat_options_set_redis(struct maat_options *opts, const char *redis_ip,
     return 0;
 }
 
-int maat_options_set_logger_path(struct maat_options *opts, const char *log_path)
+int maat_options_set_logger(struct maat_options *opts, const char *log_path, enum log_level level)
 {
     if (NULL == opts || NULL == log_path || strlen(log_path) >= PATH_MAX) {
         return -1;
     }
 
     memcpy(opts->log_path, log_path, strlen(log_path));
+    opts->log_level = level;
 
     return 0;
 }
