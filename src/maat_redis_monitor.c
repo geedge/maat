@@ -24,7 +24,7 @@
 #define MODULE_REDIS_MONITOR	 module_name_str("maat.redis_monitor")
 
 const time_t MAAT_REDIS_RECONNECT_INTERVAL_S = 5;
-const static int MAAT_REDIS_SYNC_TIME = 30 * 60;
+const int MAAT_REDIS_SYNC_TIME = 30 * 60;
 
 const char *mr_expire_lock = "EXPIRE_OP_LOCK";
 const long	mr_expire_lock_timeout_ms = 300 * 1000;

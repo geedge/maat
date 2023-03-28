@@ -40,6 +40,9 @@ struct maat_cmd_line {
 */
 int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *line_rule);
 
+int maat_cmd_set_file(struct maat *maat_instance, const char *key, const char *value, 
+                      size_t size, enum maat_operation op);
+                      
 long long maat_cmd_incrby(struct maat *maat_instance, const char *key, int increment);
 
 long long maat_cmd_get_config_version(struct maat *maat_instance);

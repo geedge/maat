@@ -22,6 +22,7 @@
 #define MODULE_MAAT_COMMAND	 module_name_str("maat.command")
 
 extern const char *foreign_source_prefix;
+extern const char *foreign_key_prefix;
 extern const char *mr_key_prefix;
 
 extern const char *mr_expire_lock;
@@ -30,6 +31,8 @@ extern const long mr_expire_lock_time;
 extern const char *mr_status_sset;
 extern const char *mr_version_sset;
 extern const char *mr_label_sset;
+
+extern const int MAAT_REDIS_SYNC_TIME;
 
 redisReply *maat_cmd_wrap_redis_command(redisContext *c, const char *format, ...)
 {
@@ -381,6 +384,62 @@ error_out:
 	FREE(s_rule);
 
 	return ret;
+}
+
+int maat_cmd_set_file(struct maat *maat_instance, const char *key, const char *value, 
+                      size_t size, enum maat_operation op)
+{
+	redisContext *ctx = maat_instance->mr_ctx.write_ctx;
+	if (NULL == ctx) {
+		log_error(maat_instance->logger, MODULE_MAAT_COMMAND, 
+                  "[%s:%d] failed: Redis is not connected.", 
+                  __FUNCTION__, __LINE__);
+		return -1;
+	}
+
+	const char *arg_vec[3];
+	size_t len_vec[3];
+
+	arg_vec[0] = "SET";
+	len_vec[0] = strlen("SET");
+
+	arg_vec[1] = key;
+	len_vec[1] = strlen(key);
+
+	arg_vec[2] = value;
+	len_vec[2] = size;
+
+	redisReply *reply = NULL;
+	if (0 != strncmp(key, foreign_key_prefix, strlen(foreign_key_prefix))) {
+		log_error(maat_instance->logger, MODULE_MAAT_COMMAND, 
+                 "Invalid File key, prefix %s is mandatory.", foreign_key_prefix);
+		return -1;
+	}
+
+	switch (op) {
+		case MAAT_OP_ADD:
+			reply = (redisReply *)redisCommandArgv(ctx, sizeof(arg_vec) / sizeof(arg_vec[0]),
+                                                   arg_vec, len_vec);
+			break;
+		case MAAT_OP_DEL:	
+			reply = maat_cmd_wrap_redis_command(ctx, "EXPIRE %s %d", key, MAAT_REDIS_SYNC_TIME);
+			break;
+		default:
+			return -1;
+			break;
+	}
+
+	if (NULL == reply || reply->type == REDIS_REPLY_NIL || reply->type == REDIS_REPLY_ERROR) {
+		log_error(maat_instance->logger, MODULE_MAAT_COMMAND, 
+                  "Set file failed, maybe Redis is busy.");
+		freeReplyObject(reply);
+		reply = NULL;
+		return -1;		
+	}
+
+	freeReplyObject(reply);
+	reply = NULL;
+	return 1;
 }
 
 long long maat_cmd_incrby(struct maat *maat_instance, const char *key, int increment)

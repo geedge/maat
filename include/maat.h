@@ -165,10 +165,10 @@ struct maat_state;
  *         MAAT_SCAN_HALF_HIT
  *         MAAT_SCAN_HIT       
 */
-int maat_scan_flag(struct maat *instance, int table_id, int thread_id,
+int maat_scan_flag(struct maat *instance, int table_id,
                    long long flag, long long *results, size_t n_result,
                    size_t *n_hit_result, struct maat_state *state);
-int maat_scan_integer(struct maat *instance, int table_id, int thread_id,
+int maat_scan_integer(struct maat *instance, int table_id,
                       long long integer, long long *results, size_t n_result,
                       size_t *n_hit_result, struct maat_state *state);
 
@@ -177,39 +177,40 @@ int maat_scan_integer(struct maat *instance, int table_id, int thread_id,
  * @param port:    network port
  * @param protocol: -1(ANY protocol) 1(ICMP) 6(TCP) 17(UDP)
 */
-int maat_scan_ipv4(struct maat *instance, int table_id, int thread_id, 
+int maat_scan_ipv4(struct maat *instance, int table_id,
                    uint32_t ip_addr, uint16_t port, int protocol,
                    long long *results, size_t n_result, 
                    size_t *n_hit_result, struct maat_state *state);
 
-int maat_scan_ipv4_tuple4(struct maat *instance, int table_id, int thread_id,
+int maat_scan_ipv4_tuple4(struct maat *instance, int table_id,
                           const struct ipv4_tuple *tuple, long long *results,
                           size_t n_result, size_t *n_hit_result,
                           struct maat_state *state);
 
-int maat_scan_ipv6(struct maat *instance, int table_id, int thread_id, 
+int maat_scan_ipv6(struct maat *instance, int table_id,
                    uint8_t *ip_addr, uint16_t port, int protocol,
                    long long *results, size_t n_result, 
                    size_t *n_hit_result, struct maat_state *state);
 
-int maat_scan_ipv6_tuple4(struct maat *instance, int table_id, int thread_id,
+int maat_scan_ipv6_tuple4(struct maat *instance, int table_id,
                           const struct ipv6_tuple *tuple, long long *results,
                           size_t n_result, size_t *n_hit_result,
                           struct maat_state *state);
 
-int maat_scan_string(struct maat *instance, int table_id, int thread_id,
+int maat_scan_string(struct maat *instance, int table_id,
                      const char *data, size_t data_len, long long *results, 
                      size_t n_result, size_t *n_hit_result, 
                      struct maat_state *state);
 
 struct maat_stream;
-struct maat_stream *maat_scan_stream_open(struct maat *instance, int table_id, int thread_id);
+struct maat_stream *maat_stream_new(struct maat *instance, int table_id,
+                                    struct maat_state *state);
 
-int maat_scan_stream(struct maat_stream **stream, const char *data, int data_len, 
+int maat_stream_scan(struct maat_stream *stream, const char *data, int data_len, 
                      long long *results, size_t n_result, size_t *n_hit_result,
                      struct maat_state *state);
 
-void maat_scan_stream_close(struct maat_stream **stream);
+void maat_stream_free(struct maat_stream *stream);
 
 /* maat state API */
 struct maat_state *maat_state_new(struct maat *instance, int thread_id);

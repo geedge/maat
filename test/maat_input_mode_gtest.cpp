@@ -47,7 +47,7 @@ TEST(json_mode, maat_scan_string) {
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    int ret = maat_scan_string(maat_instance, table_id, thread_id, scan_data, strlen(scan_data), 
+    int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data), 
                                results, sizeof(results), &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -103,7 +103,7 @@ TEST(iris_mode, maat_scan_string) {
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    int ret = maat_scan_string(maat_instance, table_id, thread_id, scan_data, strlen(scan_data), 
+    int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data), 
                                results, sizeof(results), &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -223,7 +223,7 @@ TEST(redis_mode, maat_scan_string) {
     size_t n_hit_result = 0;
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    int ret = maat_scan_string(maat_instance, table_id, thread_id, scan_data, strlen(scan_data), 
+    int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data), 
                                results, sizeof(results), &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
