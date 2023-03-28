@@ -4166,13 +4166,12 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
 		bool_plugin_ex_free_cb(0, (void**)&(results[i]), 0, NULL);
 	}
 }
-
+#define COMPILE_ID_NUMS 1000
 TEST_F(MaatCmdTest, GroupInMassCompiles) {
     const char* g2c_table_name = "GROUP2COMPILE";
 	const char* compile_table_name = "COMPILE";
 	const char* table_url = "HTTP_URL";
 	const char* table_appid = "APP_ID";
-    int compile_cnt = 1000;
     int thread_id = 0;
     struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
     struct maat_state *state = maat_state_new(maat_instance, thread_id);
@@ -4198,20 +4197,20 @@ TEST_F(MaatCmdTest, GroupInMassCompiles) {
                                 100, 100, NULL, 0);
     EXPECT_EQ(ret, 1);
 
-    /*  item_url1 -> group1 -> compile[0 ~ compile_cnt] 
+    /*  item_url1 -> group1 -> compile[0 ~ COMPILE_ID_NUMS] 
                                 /
           item_appid -> group3_/
     */
     int i = 0;
-    long long compile_id[compile_cnt] = {0};
-    for (i = 0; i < compile_cnt; i++) {
+    long long compile_id[COMPILE_ID_NUMS] = {0};
+    for (i = 0; i < COMPILE_ID_NUMS; i++) {
         compile_id[i] = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
         ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile_id[i],
                                      "mass_compile", 2, 0);
         EXPECT_EQ(ret, 1);
     }
 
-    for (i = 0; i < compile_cnt; i++) {
+    for (i = 0; i < COMPILE_ID_NUMS; i++) {
         ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group1_id,
                                            compile_id[i], 0, "null", 0, 0);
         EXPECT_EQ(ret, 1);
