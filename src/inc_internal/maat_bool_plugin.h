@@ -44,7 +44,7 @@ void *bool_plugin_runtime_new(void *bool_plugin_schema, int max_thread_num,
 void bool_plugin_runtime_free(void *bool_plugin_runtime);
 
 int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_schema, 
-                               const char *line, int valid_column);
+                                const char *table_name, const char *line, int valid_column);
 int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name);
 
 struct ex_data_runtime *bool_plugin_runtime_get_ex_data_rt(void *bool_plugin_runtime);

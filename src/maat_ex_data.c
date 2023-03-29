@@ -179,12 +179,13 @@ ex_data_runtime_get_ex_container_schema(struct ex_data_runtime *ex_data_rt)
 
 void *ex_data_runtime_row2ex_data(struct ex_data_runtime *ex_data_rt, 
                                   struct ex_data_schema *ex_schema,
+                                  const char *table_name,
                                   const char *row, const char *key, 
                                   size_t key_len)
 {   
     void *ex_data = NULL;
     
-    ex_schema->new_func(ex_data_rt->table_id, key, row, &ex_data, 
+    ex_schema->new_func(table_name, ex_data_rt->table_id, key, row, &ex_data, 
                         ex_schema->argl, ex_schema->argp);
     return ex_data;
 }

@@ -73,7 +73,7 @@ long long table_manager_get_district_id(struct table_manager *tbl_mgr, const cha
 void *table_manager_get_schema(struct table_manager *tbl_mgr, int table_id);
 void *table_manager_get_runtime(struct table_manager *tbl_mgr, int table_id);
 
-int table_manager_update_runtime(struct table_manager *tbl_mgr, int table_id, const char *line);
+int table_manager_update_runtime(struct table_manager *tbl_mgr, const char *table_name, int table_id, const char *line);
 void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id);
 
 #ifdef __cplusplus

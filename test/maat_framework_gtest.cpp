@@ -1884,13 +1884,13 @@ struct plugin_ud {
 	int ref_cnt;
 };
 
-void plugin_EX_new_cb(int table_id, const char *key, const char *table_line, 
-                         void **ad, long argl, void *argp)
+void plugin_EX_new_cb(const char *table_name, int table_id, const char *key, 
+                      const char *table_line, void **ad, long argl, void *argp)
 {
 	int *counter = (int *)argp;
     int valid = 0, tag = 0;
 	struct plugin_ud *ud = ALLOC(struct plugin_ud, 1);
-
+    
 	int ret = sscanf(table_line, "%d\t%s\t%s\t%d\t%d", &(ud->id), ud->key, ud->value, &valid, &tag);
     EXPECT_EQ(ret, 5);
     ud->ref_cnt = 1;
@@ -1922,7 +1922,7 @@ TEST_F(PluginTable, EX_DATA) {
     ASSERT_GT(table_id, 0);
 
     int plugin_ex_data_counter = 0;
-    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_id,
+    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
                                                    plugin_EX_new_cb,
                                                    plugin_EX_free_cb,
                                                    plugin_EX_dup_cb,
@@ -1954,7 +1954,7 @@ TEST_F(PluginTable, KEY_TYPE) {
     ASSERT_GT(table_id, 0);
 
     int plugin_ex_data_counter = 0;
-    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_id,
+    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
                                                    plugin_EX_new_cb,
                                                    plugin_EX_free_cb,
                                                    plugin_EX_dup_cb,
@@ -2025,8 +2025,8 @@ struct ip_plugin_ud {
 	char *buffer;
 	int ref_cnt;
 };
-void ip_plugin_ex_new_cb(int table_id, const char *key, const char *table_line, 
-                         void **ad, long argl, void *argp)
+void ip_plugin_ex_new_cb(const char *table_name, int table_id, const char *key, 
+                         const char *table_line, void **ad, long argl, void *argp)
 {
 	int *counter = (int *)argp;
 	size_t column_offset=0, column_len=0;
@@ -2072,7 +2072,7 @@ TEST_F(IPPluginTable, EX_DATA) {
     int table_id = maat_get_table_id(maat_instance, table_name);
     ASSERT_GT(table_id, 0);
 
-    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_id,
+    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
                                                    ip_plugin_ex_new_cb,
                                                    ip_plugin_ex_free_cb,
                                                    ip_plugin_ex_dup_cb,
@@ -2169,7 +2169,8 @@ struct fqdn_plugin_ud
 	int ref_cnt;
 };
 
-void fqdn_plugin_ex_new_cb(int table_id, const char *key, const char *table_line, void **ad, long argl, void *argp)
+void fqdn_plugin_ex_new_cb(const char *table_name, int table_id, const char *key, 
+                           const char *table_line, void **ad, long argl, void *argp)
 {
 	int *counter = (int *)argp;
 	size_t column_offset = 0, column_len = 0;
@@ -2212,7 +2213,7 @@ TEST_F(FQDNPluginTable, EX_DATA) {
     ASSERT_GT(table_id, 0);
 
     int fqdn_plugin_ex_data_counter = 0;
-    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_id,
+    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
                                                     fqdn_plugin_ex_new_cb,
                                                     fqdn_plugin_ex_free_cb,
                                                     fqdn_plugin_ex_dup_cb,
@@ -2249,7 +2250,8 @@ struct bool_plugin_ud {
 	char *name;
 	int ref_cnt;
 };
-void bool_plugin_ex_new_cb(int table_id, const char *key, const char *table_line, void **ad, long argl, void *argp)
+void bool_plugin_ex_new_cb(const char *table_name, int table_id, const char *key, 
+                           const char *table_line, void **ad, long argl, void *argp)
 {
 	int *counter=(int *)argp;
 	size_t column_offset=0, column_len=0;
@@ -2335,7 +2337,7 @@ TEST_F(BoolPluginTable, EX_DATA) {
 	int table_id = maat_get_table_id(maat_instance, table_name);
 	ASSERT_GT(table_id, 0);
 
-	int ret = maat_plugin_table_ex_schema_register(maat_instance, table_id,
+	int ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
 								                   bool_plugin_ex_new_cb,
 								                   bool_plugin_ex_free_cb,
 								                   bool_plugin_ex_dup_cb,
@@ -2485,13 +2487,13 @@ struct rule_ex_param {
 	pthread_mutex_t lock;
 };
 
-void compile_ex_param_new(int table_id, const char *key, const char *table_line, void **ad, long argl, void *argp)
+void compile_ex_param_new(const char *table_name, int table_id, const char *key, 
+                          const char *table_line, void **ad, long argl, void *argp)
 {
 	int *counter = (int *)argp;
 	*ad = NULL;
 
 	struct rule_ex_param *param = (struct rule_ex_param *)calloc(sizeof(struct rule_ex_param), 1);
-	
 	param->ref_cnt = 1;
 	pthread_mutex_init(&(param->lock), NULL);
 	
@@ -2746,7 +2748,7 @@ TEST_F(Policy, CompileEXData) {
     int compile_table_id = maat_get_table_id(maat_instance, compile_table_name);
 
     int ex_data_counter = 0;
-    int ret = maat_plugin_table_ex_schema_register(maat_instance, compile_table_id,
+    int ret = maat_plugin_table_ex_schema_register(maat_instance, compile_table_name,
                                                     compile_ex_param_new,
                                                     compile_ex_param_free,
                                                     compile_ex_param_dup,
@@ -3822,8 +3824,8 @@ struct user_info {
 	int id;
 	int ref_cnt;
 };
-void plugin_ex_new_cb(int table_id, const char *key, const char *table_line, 
-                      void **ad, long argl, void *argp)
+void plugin_ex_new_cb(const char *table_name, int table_id, const char *key, 
+                      const char *table_line, void **ad, long argl, void *argp)
 {
 	int *counter = (int *)argp;
 	struct user_info *u = ALLOC(struct user_info, 1);
@@ -3886,7 +3888,7 @@ TEST_F(MaatCmdTest, PluginEXData) {
 	
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
     int ex_data_counter = 0;
-	ret = maat_plugin_table_ex_schema_register(maat_instance, table_id,
+	ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
 								               plugin_ex_new_cb,
 								               plugin_ex_free_cb,
 								               plugin_ex_dup_cb,
@@ -3956,7 +3958,7 @@ TEST_F(MaatCmdTest, UpdateIPPlugin) {
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     int ex_data_counter = 0;
-	ret = maat_plugin_table_ex_schema_register(maat_instance, table_id,
+	ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
 								               ip_plugin_ex_new_cb,
 								               ip_plugin_ex_free_cb,
 								               ip_plugin_ex_dup_cb,
@@ -4048,7 +4050,7 @@ TEST_F(MaatCmdTest, UpdateFQDNPlugin) {
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     int ex_data_counter = 0;
-    ret = maat_plugin_table_ex_schema_register(maat_instance, table_id,
+    ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
                                                fqdn_plugin_ex_new_cb,
                                                fqdn_plugin_ex_free_cb,
                                                fqdn_plugin_ex_dup_cb,
@@ -4127,7 +4129,7 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     int ex_data_counter = 0;
-    ret = maat_plugin_table_ex_schema_register(maat_instance, table_id,
+    ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
 								               bool_plugin_ex_new_cb,
 								               bool_plugin_ex_free_cb,
 								               bool_plugin_ex_dup_cb,
@@ -4760,7 +4762,7 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
 	maat_state_free(state);                                    
 }
 
-#if 0
+#if 1
 TEST_F(MaatCmdTest, UpdateDeadLockDetection) {
     const char* g2c_table_name = "GROUP2COMPILE";
 	const char* compile_table_name = "COMPILE";

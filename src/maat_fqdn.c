@@ -61,7 +61,8 @@ void fqdn_runtime_free(void *fqdn_runtime)
 }
 
 int fqdn_runtime_update(void *fqdn_runtime, void *fqdn_schema, 
-                      const char *line, int valid_column)
+                        const char *table_name, const char *line, 
+                        int valid_column)
 {
     return 0;
 }

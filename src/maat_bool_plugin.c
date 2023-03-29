@@ -217,8 +217,8 @@ void bool_plugin_runtime_free(void *bool_plugin_runtime)
 }
 
 int bool_plugin_runtime_update_row(struct bool_plugin_runtime *bool_plugin_rt,
-                                   struct ex_data_schema *ex_schema, const char *row, 
-                                   const char *key, size_t key_len, 
+                                   struct ex_data_schema *ex_schema, const char *table_name,
+                                   const char *row, const char *key, size_t key_len, 
                                    struct bool_expr *expr, int is_valid)
 {
     int ret = -1;
@@ -232,7 +232,7 @@ int bool_plugin_runtime_update_row(struct bool_plugin_runtime *bool_plugin_rt,
         }
     } else {
         // add
-        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, ex_schema, row, key, key_len);
+        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, ex_schema, table_name, row, key, key_len);
         struct ex_container *ex_container = ex_container_new(ex_data, (void *)expr);
         ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
         if (ret < 0) {
@@ -286,7 +286,7 @@ int bool_plugin_accept_tag_match(struct bool_plugin_schema *schema, const char *
 
 struct bool_expr *
 bool_plugin_expr_new(const char *line, struct bool_plugin_schema *schema,
-                     struct log_handle *logger)
+                     const char *table_name, struct log_handle *logger)
 {
     int ret = bool_plugin_accept_tag_match(schema, line, logger);
     if (ret == TAG_MATCH_UNMATCHED) {
@@ -304,8 +304,8 @@ bool_plugin_expr_new(const char *line, struct bool_plugin_schema *schema,
     ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_BOOL_PLUGIN, 
-                  "[%s:%d] bool_plugin table(table_id:%d) line:%s has no item_id column",
-                  __FUNCTION__, __LINE__, schema->table_id, line);
+                  "[%s:%d] bool_plugin table:%s line:%s has no item_id column",
+                  __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
     bool_expr->expr_id = atoll(line + column_offset);
@@ -313,8 +313,8 @@ bool_plugin_expr_new(const char *line, struct bool_plugin_schema *schema,
     ret = get_column_pos(line, schema->bool_expr_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_BOOL_PLUGIN, 
-                  "[%s:%d] bool_plugin table(table_id:%d) line:%s has no bool_expr column",
-                  __FUNCTION__, __LINE__, schema->table_id, line);
+                  "[%s:%d] bool_plugin table:%s line:%s has no bool_expr column",
+                  __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
 
@@ -329,8 +329,8 @@ bool_plugin_expr_new(const char *line, struct bool_plugin_schema *schema,
         n_item++;
         if (ret != 1 || n_item > MAX_ITEMS_PER_BOOL_EXPR) {
             log_error(logger, MODULE_BOOL_PLUGIN, 
-                      "[%s:%d] bool_plugin table(table_id:%d) invalid format of bool_expr column, line:%s",
-                      __FUNCTION__, __LINE__, schema->table_id, line);
+                      "[%s:%d] bool_plugin table:%s line:%s has invalid format of bool_expr column",
+                      __FUNCTION__, __LINE__, table_name, line);
             goto error;
         }
     }
@@ -355,7 +355,7 @@ void bool_plugin_expr_free(struct bool_expr *expr)
 }
 
 int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_schema, 
-                               const char *line, int valid_column)
+                               const char *table_name, const char *line, int valid_column)
 {
     if (NULL == bool_plugin_runtime || NULL == bool_plugin_schema || 
         NULL == line) {
@@ -381,7 +381,7 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
     if (ex_schema != NULL) {
         if (1 == is_valid) {
             // add
-            bool_expr = bool_plugin_expr_new(line, schema, bool_plugin_rt->logger);
+            bool_expr = bool_plugin_expr_new(line, schema, table_name, bool_plugin_rt->logger);
             if (NULL == bool_expr) {
                 return -1;
             }
@@ -389,8 +389,8 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
 
         const char *key = line + item_id_offset;
         size_t key_len = item_id_len;
-        ret = bool_plugin_runtime_update_row(bool_plugin_rt, ex_schema, line, key, key_len, 
-                                                 bool_expr, is_valid);
+        ret = bool_plugin_runtime_update_row(bool_plugin_rt, ex_schema, table_name, line, key, key_len, 
+                                            bool_expr, is_valid);
         if (ret < 0) {
             if (bool_expr != NULL) {
                 bool_plugin_expr_free(bool_expr);
@@ -404,6 +404,12 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
     }
 
     return 0;
+}
+
+void garbage_bool_matcher_free(void *matcher, void *arg)
+{
+    struct bool_matcher *bm = (struct bool_matcher *)matcher;
+    bool_matcher_free(bm);
 }
 
 int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name)
@@ -459,8 +465,8 @@ int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name
     old_bool_matcher = bool_plugin_rt->matcher;
     bool_plugin_rt->matcher = new_bool_matcher;
     if (old_bool_matcher != NULL) {
-        maat_garbage_bagging(bool_plugin_rt->ref_garbage_bin, old_bool_matcher, 
-                             (void (*)(void*))bool_matcher_free);
+        maat_garbage_bagging(bool_plugin_rt->ref_garbage_bin, old_bool_matcher, NULL,
+                             garbage_bool_matcher_free);
     }
 
     bool_plugin_rt->rule_num = rule_cnt;

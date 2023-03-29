@@ -472,7 +472,8 @@ int ip_runtime_update_row(struct ip_runtime *ip_rt, char *key, size_t key_len,
 }
 
 int ip_runtime_update(void *ip_runtime, void *ip_schema, 
-                      const char *line, int valid_column)
+                      const char *table_name, const char *line, 
+                      int valid_column)
 {
     if (NULL == ip_runtime || NULL == ip_schema || NULL == line) {
         return -1;
@@ -507,8 +508,8 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
         ret = rcu_hash_add(ip_rt->item_htable, (char *)&(item_id), sizeof(item_id), item);
         if (ret < 0) {
             log_error(ip_rt->logger, MODULE_IP, 
-                      "[%s:%d] ip runtime add item(item_id:%lld) to item_htable failed", 
-                      __FUNCTION__, __LINE__, item_id);
+                      "[%s:%d] [table:%s] ip runtime add item(item_id:%lld) failed", 
+                      __FUNCTION__, __LINE__, table_name, item_id);
             ip_item_free(ip_item);
             maat_item_free(item);
             return -1;
@@ -526,6 +527,12 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
     }
 
     return 0;
+}
+
+void garbage_ip_matcher_free(void *ip_matcher, void *arg)
+{
+    struct ip_matcher *matcher = (struct ip_matcher *)ip_matcher;
+    ip_matcher_free(matcher);
 }
 
 int ip_runtime_commit(void *ip_runtime, const char *table_name)
@@ -589,15 +596,15 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name)
     old_ip_matcher = ip_rt->ip_matcher;
     ip_rt->ip_matcher = new_ip_matcher;
     if (old_ip_matcher != NULL) {
-        maat_garbage_bagging(ip_rt->ref_garbage_bin, old_ip_matcher, 
-                             (void (*)(void *))ip_matcher_free);
+        maat_garbage_bagging(ip_rt->ref_garbage_bin, old_ip_matcher, NULL,
+                             garbage_ip_matcher_free);
     }
 
     old_intval_matcher = ip_rt->intval_matcher;
     ip_rt->intval_matcher = new_intval_matcher;
     if (old_intval_matcher != NULL) {
-        maat_garbage_bagging(ip_rt->ref_garbage_bin, old_intval_matcher,
-                             (void (*)(void *))interval_matcher_free);
+        maat_garbage_bagging(ip_rt->ref_garbage_bin, old_intval_matcher, NULL,
+                             garbage_interval_matcher_free);
     }
 
     rcu_hash_commit(ip_rt->item_htable);

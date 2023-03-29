@@ -202,7 +202,7 @@ void maat_group_ref_dec(struct maat_group *group)
 
 struct group2group_item *
 group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
-                     struct log_handle *logger)
+                     const char *table_name, struct log_handle *logger)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
@@ -211,8 +211,8 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
     int ret = get_column_pos(line, g2g_schema->group_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_GROUP,
-                  "[%s:%d] group2group table(table_id:%d) line:%s has no group_id",
-                  __FUNCTION__, __LINE__, g2g_schema->table_id, line);
+                  "[%s:%d] group2group table:%s line:%s has no group_id",
+                  __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
     g2g_item->group_id = atoll(line + column_offset);
@@ -221,8 +221,8 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
                          &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_GROUP,
-                  "[%s:%d] group2group table(table_id:%d) line:%s has no super_group_id",
-                  __FUNCTION__, __LINE__, g2g_schema->table_id, line);
+                  "[%s:%d] group2group table:%s line:%s has no super_group_id",
+                  __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
     g2g_item->super_group_id = atoll(line + column_offset);
@@ -579,7 +579,8 @@ int group2group_runtime_build_top_groups(void *g2g_runtime)
 }
 
 int group2group_runtime_update(void *g2g_runtime, void *g2g_schema, 
-                               const char *line, int valid_column)
+                               const char *table_name, const char *line, 
+                               int valid_column)
 {
     if (NULL == g2g_runtime || NULL == g2g_schema || 
         NULL == line) {
@@ -594,7 +595,8 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
         return -1;
     }
 
-    struct group2group_item *g2g_item = group2group_item_new(line, schema, g2g_rt->logger);
+    struct group2group_item *g2g_item = group2group_item_new(line, schema, table_name, 
+                                                             g2g_rt->logger);
     if (NULL == g2g_item) {
         return -1;
     }

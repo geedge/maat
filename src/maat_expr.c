@@ -691,7 +691,8 @@ error:
 }
 
 int expr_runtime_update(void *expr_runtime, void *expr_schema, 
-                        const char *line, int valid_column)
+                        const char *table_name, const char *line, 
+                        int valid_column)
 {
     if (NULL == expr_runtime || NULL == expr_schema ||
         NULL == line) {
@@ -729,8 +730,8 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
         ret = rcu_hash_add(expr_rt->item_htable, (char *)&item_id, sizeof(item_id), item);
         if (ret < 0) {
             log_error(expr_rt->logger, MODULE_EXPR, 
-                      "[%s:%d] expr runtime add item(item_id:%lld) to item_htable failed", 
-                      __FUNCTION__, __LINE__, item_id);
+                      "[%s:%d] [table:%s] expr runtime add item(item_id:%lld) failed", 
+                      __FUNCTION__, __LINE__, table_name, item_id);
             expr_item_free(expr_item);
             maat_item_free(item);
             return -1;
@@ -740,8 +741,8 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
         expr_item_free(expr_item);
         if (NULL == expr_rule) {
             log_error(expr_rt->logger, MODULE_EXPR, 
-                      "[%s:%d] transform expr table(table_id:%d) item(item_id:%lld) to expr_rule failed",
-                      __FUNCTION__, __LINE__, schema->table_id, item_id);
+                      "[%s:%d] [table:%s] transform expr_item(item_id:%lld) to expr_rule failed",
+                      __FUNCTION__, __LINE__, table_name, item_id);
             return -1;
         }
     }
@@ -757,6 +758,12 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
     }
 
     return 0;
+}
+
+void garbage_adapter_hs_free(void *adapter_hs, void *arg)
+{
+    struct adapter_hs *hs = (struct adapter_hs *)adapter_hs;
+    adapter_hs_free(hs);
 }
 
 int expr_runtime_commit(void *expr_runtime, const char *table_name)
@@ -806,8 +813,7 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name)
     old_adapter_hs = expr_rt->hs;
     expr_rt->hs = new_adapter_hs;
     if (old_adapter_hs != NULL) {
-        maat_garbage_bagging(expr_rt->ref_garbage_bin, old_adapter_hs, 
-                         (void (*)(void*))adapter_hs_free);
+        maat_garbage_bagging(expr_rt->ref_garbage_bin, old_adapter_hs, NULL, garbage_adapter_hs_free);
     }
     rcu_hash_commit(expr_rt->item_htable);
     expr_rt->rule_num = rule_cnt;

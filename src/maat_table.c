@@ -64,15 +64,17 @@ struct table_manager {
 
 struct table_operations {
     enum table_type type;
-    void *(*new_schema)(cJSON *json, struct table_manager *tbl_mgr, const char *table_name,
-                        struct log_handle *logger);
+    void *(*new_schema)(cJSON *json, struct table_manager *tbl_mgr, 
+                        const char *table_name, struct log_handle *logger);
     void (*free_schema)(void *schema);
 
-    void *(*new_runtime)(void *schema, int max_thread_num, struct maat_garbage_bin *garbage_bin,
+    void *(*new_runtime)(void *schema, int max_thread_num, 
+                         struct maat_garbage_bin *garbage_bin,
                          struct log_handle *logger);
     void (*free_runtime)(void *runtime);
 
-    int (*update_runtime)(void *runtime, void *schema, const char *line, int valid_column);
+    int (*update_runtime)(void *runtime, void *schema, const char *table_name,
+                          const char *line, int valid_column);
     int (*commit_runtime)(void *runtime, const char *table_name);
 };
 
@@ -559,6 +561,12 @@ void *maat_table_runtime_new(void *schema, enum table_type table_type,
     return runtime;
 }
 
+void garbage_maat_table_runtime_free(void *runtime, void *arg)
+{
+    enum table_type type = *(enum table_type *)arg;
+    maat_table_runtime_free(runtime, type);
+}
+
 int table_manager_runtime_create(struct table_manager *tbl_mgr, int max_thread_num,
                                  struct maat_garbage_bin *garbage_bin)
 {
@@ -578,7 +586,13 @@ int table_manager_runtime_create(struct table_manager *tbl_mgr, int max_thread_n
         }
      
         table_type = table_manager_get_table_type(tbl_mgr, i);
-        assert(NULL == tbl_mgr->tbl[i]->runtime);
+        void *runtime = table_manager_get_runtime(tbl_mgr, i);
+        if (runtime != NULL) {
+            enum table_type *arg = ALLOC(enum table_type, 1);
+            *arg = table_type;
+            maat_garbage_bagging(garbage_bin, runtime, arg, garbage_maat_table_runtime_free);
+        }
+        
         tbl_mgr->tbl[i]->runtime = maat_table_runtime_new(schema, table_type, max_thread_num,
                                                           garbage_bin, tbl_mgr->logger);
     }
@@ -790,8 +804,14 @@ void *table_manager_get_runtime(struct table_manager *tbl_mgr, int table_id)
 	return tbl_mgr->tbl[table_id]->runtime;
 }
 
-int table_manager_update_runtime(struct table_manager *tbl_mgr, int table_id, 
-                                 const char *line)
+void garbage_maat_kv_store_free(void *maat_kv_store, void *arg)
+{
+    struct maat_kv_store *kv_store = (struct maat_kv_store *)maat_kv_store;
+    maat_kv_store_free(kv_store);
+}
+
+int table_manager_update_runtime(struct table_manager *tbl_mgr, const char *table_name,
+                                 int table_id, const char *line)
 {
     void *schema = table_manager_get_schema(tbl_mgr, table_id);
     if (NULL == schema) {
@@ -817,13 +837,14 @@ int table_manager_update_runtime(struct table_manager *tbl_mgr, int table_id,
         return -1;
     }
     
-    int ret = table_ops[table_type].update_runtime(runtime, schema, line, valid_column);
+    int ret = table_ops[table_type].update_runtime(runtime, schema, table_name, 
+                                                   line, valid_column);
 
     if (tbl_mgr->tmp_district_map != NULL) {
         struct maat_kv_store *tmp_map = tbl_mgr->district_map;
         tbl_mgr->district_map = tbl_mgr->tmp_district_map;
         tbl_mgr->tmp_district_map = NULL;
-        maat_garbage_bagging(tbl_mgr->ref_garbage_bin, tmp_map, (void (*)(void *))maat_kv_store_free);
+        maat_garbage_bagging(tbl_mgr->ref_garbage_bin, tmp_map, NULL, garbage_maat_kv_store_free);
     }
 
     return ret;

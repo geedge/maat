@@ -44,6 +44,7 @@
 struct maat_stream {
     struct maat *ref_maat_instance;
     struct adapter_hs_stream *s_handle; //each physical table open one stream
+    int last_full_version;
     int thread_id;
     int vtable_id;
     int physical_table_id;
@@ -595,8 +596,8 @@ int generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int table_
     return 0;
 }
 
-void generic_plugin_runtime_commit_ex_schema(void *runtime, void *schema, int table_id, 
-                                             enum table_type table_type, int valid_column)
+void generic_plugin_runtime_commit_ex_schema(void *runtime, void *schema, const char *table_name,
+                                             int table_id, enum table_type table_type, int valid_column)
 {
     if (NULL == runtime || NULL == schema || valid_column < 0) {
         return;
@@ -636,16 +637,16 @@ void generic_plugin_runtime_commit_ex_schema(void *runtime, void *schema, int ta
         const char *row = ex_data_runtime_cached_row_get(ex_data_rt, i);
         switch (table_type) {
             case TABLE_TYPE_PLUGIN:
-                plugin_runtime_update(runtime, schema, row, valid_column);
+                plugin_runtime_update(runtime, schema, table_name, row, valid_column);
                 break;
             case TABLE_TYPE_IP_PLUGIN:
-                ip_plugin_runtime_update(runtime, schema, row, valid_column);
+                ip_plugin_runtime_update(runtime, schema, table_name, row, valid_column);
                 break;
             case TABLE_TYPE_FQDN_PLUGIN:
-                fqdn_plugin_runtime_update(runtime, schema, row, valid_column);
+                fqdn_plugin_runtime_update(runtime, schema, table_name, row, valid_column);
                 break;
             case TABLE_TYPE_BOOL_PLUGIN:
-                bool_plugin_runtime_update(runtime, schema, row, valid_column);
+                bool_plugin_runtime_update(runtime, schema, table_name, row, valid_column);
                 break;
             default:
                 break;
@@ -655,23 +656,24 @@ void generic_plugin_runtime_commit_ex_schema(void *runtime, void *schema, int ta
 
     switch (table_type) {
         case TABLE_TYPE_PLUGIN:
-            plugin_runtime_commit(runtime, "unknown");
+            plugin_runtime_commit(runtime, table_name);
             break;
         case TABLE_TYPE_IP_PLUGIN:
-            ip_plugin_runtime_commit(runtime, "unknown");
+            ip_plugin_runtime_commit(runtime, table_name);
             break;
         case TABLE_TYPE_FQDN_PLUGIN:
-            fqdn_plugin_runtime_commit(runtime, "unknown");
+            fqdn_plugin_runtime_commit(runtime, table_name);
             break;
         case TABLE_TYPE_BOOL_PLUGIN:
-            bool_plugin_runtime_commit(runtime, "unknown");
+            bool_plugin_runtime_commit(runtime, table_name);
             break;
         default:
             break;
     }
 }
 
-int generic_plugin_table_ex_schema_register(struct maat *maat_instance, int table_id,
+int generic_plugin_table_ex_schema_register(struct maat *maat_instance, 
+                                            const char *table_name, int table_id,
 									        maat_ex_new_func_t *new_func,
 									        maat_ex_free_func_t *free_func,
 									        maat_ex_dup_func_t *dup_func,
@@ -697,22 +699,29 @@ int generic_plugin_table_ex_schema_register(struct maat *maat_instance, int tabl
             return -1;
         }
 
-        generic_plugin_runtime_commit_ex_schema(runtime, schema, table_id, table_type, valid_column);
+        generic_plugin_runtime_commit_ex_schema(runtime, schema, table_name, table_id, 
+                                                table_type, valid_column);
     }
 
     return 0;
 }
 
-int maat_plugin_table_ex_schema_register(struct maat *maat_instance, int table_id,
+int maat_plugin_table_ex_schema_register(struct maat *maat_instance, 
+                                         const char *table_name,
                                          maat_ex_new_func_t *new_func,
                                          maat_ex_free_func_t *free_func,
                                          maat_ex_dup_func_t *dup_func,
                                          long argl, void *argp)
 {
-    if (NULL == maat_instance || table_id < 0 || table_id >= MAX_TABLE_NUM) {
+    if (NULL == maat_instance || NULL == table_name) {
         log_error(maat_instance->logger, MODULE_MAAT_API,
-                  "[%s:%d] table(table_id:%d) input parameter is invalid.",
-                  __FUNCTION__, __LINE__, table_id);
+                  "[%s:%d] [table:%s] ex_schema register input parameter is invalid.",
+                  __FUNCTION__, __LINE__, table_name);
+        return -1;
+    }
+
+    int table_id = maat_get_table_id(maat_instance, table_name);
+    if (table_id < 0) {
         return -1;
     }
 
@@ -725,7 +734,7 @@ int maat_plugin_table_ex_schema_register(struct maat *maat_instance, int table_i
                                                new_func, free_func, dup_func,
                                                argl, argp);
     } else {
-        ret = generic_plugin_table_ex_schema_register(maat_instance, table_id,
+        ret = generic_plugin_table_ex_schema_register(maat_instance, table_name, table_id,
                                                       new_func, free_func, dup_func,
                                                       argl, argp);
     }
@@ -1564,6 +1573,7 @@ struct maat_stream *maat_stream_new(struct maat *maat_instance, int table_id,
 
     struct maat_stream *stream = ALLOC(struct maat_stream, 1);
     stream->ref_maat_instance = maat_instance;
+    stream->last_full_version = maat_instance->last_full_version;
     stream->thread_id = state->thread_id;
     stream->logger = maat_instance->logger;
 
@@ -1614,17 +1624,7 @@ int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data
 
     state->scan_cnt++;
 
-    int valid_table_id = -1;
-    if (maat_stream->vtable_id != 0) {
-        valid_table_id = maat_stream->vtable_id;
-    } else {
-        valid_table_id = maat_stream->physical_table_id;
-    }
-
-    if (NULL == maat_stream->ref_maat_instance->maat_rt) {
-        log_error(maat_stream->logger, MODULE_MAAT_API, 
-                 "[%s:%d] table(table_id:%d) thread_id:%d maat_scan_stream error because of maat_runtime is NULL",
-                 __FUNCTION__, __LINE__, valid_table_id, maat_stream->thread_id);
+    if (maat_stream->last_full_version != maat_stream->ref_maat_instance->last_full_version) {
         return MAAT_SCAN_OK;
     }
 

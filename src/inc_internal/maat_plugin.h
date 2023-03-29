@@ -55,7 +55,8 @@ void *plugin_runtime_new(void *plugin_schema, int max_thread_num,
 void plugin_runtime_free(void *plugin_runtime);
 
 int plugin_runtime_update(void *plugin_runtime, void *plugin_schema, 
-                          const char *line, int valid_column);
+                          const char *table_name, const char *line, 
+                          int valid_column);
 int plugin_runtime_commit(void *plugin_runtime, const char *table_name);
 
 struct ex_data_runtime *plugin_runtime_get_ex_data_rt(void *plugin_runtime);

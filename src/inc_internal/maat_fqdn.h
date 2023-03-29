@@ -33,7 +33,8 @@ void *fqdn_runtime_new(void *fqdn_schema, int max_thread_num,
 void fqdn_runtime_free(void *fqdn_runtime);
 
 int fqdn_runtime_update(void *fqdn_runtime, void *fqdn_schema, 
-                      const char *line, int valid_column);
+                        const char *table_name, const char *line, 
+                        int valid_column);
 int fqdn_runtime_commit(void *fqdn_runtime, const char *table_name);
 
 struct ex_data_runtime *fqdn_runtime_get_ex_data_rt(struct fqdn_runtime *fqdn_rt);

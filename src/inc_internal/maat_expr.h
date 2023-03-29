@@ -33,7 +33,8 @@ void *expr_runtime_new(void *expr_schema, int max_thread_num,
 void expr_runtime_free(void *expr_runtime);
 
 int expr_runtime_update(void *expr_runtime, void *expr_schema, 
-                        const char *line, int valid_column);
+                         const char *table_name, const char *line, 
+                         int valid_column);
 int expr_runtime_commit(void *expr_runtime, const char *table_name);
 
 /* expr runtime scan API */

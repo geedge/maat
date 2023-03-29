@@ -310,6 +310,12 @@ void maat_runtime_destroy(struct maat_runtime *maat_rt)
     FREE(maat_rt);
 }
 
+void garbage_maat_runtime_destroy(void *maat_runtime, void *arg)
+{
+    struct maat_runtime *maat_rt = (struct maat_runtime *)maat_runtime;
+    maat_runtime_destroy(maat_rt);
+}
+
 void maat_start_cb(long long new_version, int update_type, void *u_param)
 {
 	struct maat *maat_instance = (struct maat *)u_param;
@@ -376,7 +382,7 @@ int maat_update_cb(const char *table_name, const char *line, void *u_param)
 		maat_rt = maat_instance->maat_rt;
 	}
     
-	table_manager_update_runtime(maat_rt->ref_tbl_mgr, table_id, line);
+	table_manager_update_runtime(maat_rt->ref_tbl_mgr, table_name, table_id, line);
 
 	return 0;
 }
@@ -530,8 +536,8 @@ void *rule_monitor_loop(void *arg)
                                  "Maat version roll back %lld -> %lld\n",
                                  old_maat_rt->version, maat_instance->maat_rt->version);
                     }
-                    maat_garbage_bagging(maat_instance->garbage_bin, old_maat_rt, 
-                                         (void (*)(void*))maat_runtime_destroy);
+                    maat_garbage_bagging(maat_instance->garbage_bin, old_maat_rt, NULL,
+                                         garbage_maat_runtime_destroy);
 				}
 
 				maat_instance->creating_maat_rt = NULL;

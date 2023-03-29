@@ -47,7 +47,8 @@ int group2group_runtime_get_top_groups(void *g2g_runtime, long long *group_ids,
                                        size_t n_group_ids, long long *top_group_ids);
 
 int group2group_runtime_update(void *g2g_runtime, void *g2g_schema, 
-                               const char *line, int valid_column);			   
+                                const char *table_name, const char *line, 
+                                int valid_column);			   
 int group2group_runtime_commit(void *g2g_runtime, const char *table_name);
 
 #ifdef __cplusplus

@@ -21,8 +21,8 @@ struct user_info {
 	int ref_cnt;
 };
 
-void ex_data_new_cb(int table_id, const char *key, const char *table_line, 
-                      void **ad, long argl, void *argp)
+void ex_data_new_cb(const char *table_name, int table_id, const char *key, const char *table_line, 
+                    void **ad, long argl, void *argp)
 {
 	int *counter = (int *)argp;
 	struct user_info *u = ALLOC(struct user_info, 1);
@@ -64,7 +64,7 @@ TEST(EXDataRuntime, Update) {
     const char *row1 = "1\t192.168.0.1\tmahuateng\t1\t0";
     const char *key1 = "192.168.0.1";
     size_t key1_len = strlen(key1);
-    void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, ex_schema, row1, key1, key1_len);
+    void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, ex_schema, table_name, row1, key1, key1_len);
     EXPECT_EQ(ex_data_counter, 1);
 
     struct ex_container *ex_container = ex_container_new(ex_data, NULL);
@@ -74,7 +74,7 @@ TEST(EXDataRuntime, Update) {
     const char *row2 = "2\t192.168.0.2\tliyanhong\t1\t0";
     const char *key2 = "192.168.0.2";
     size_t key2_len = strlen(key2);
-    ex_data = ex_data_runtime_row2ex_data(ex_data_rt, ex_schema, row2, key2, key2_len);
+    ex_data = ex_data_runtime_row2ex_data(ex_data_rt, ex_schema, table_name, row2, key2, key2_len);
     ex_container = ex_container_new(ex_data, NULL);
     ret = ex_data_runtime_add_ex_container(ex_data_rt, key2, key2_len, ex_container);
     EXPECT_EQ(ret, 0);

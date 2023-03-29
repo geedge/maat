@@ -335,7 +335,8 @@ void flag_rule_free(struct flag_rule *rule)
 }
 
 int flag_runtime_update(void *flag_runtime, void *flag_schema, 
-                        const char *line, int valid_column)
+                        const char *table_name, const char *line, 
+                        int valid_column)
 {
     if (NULL == flag_runtime || NULL == flag_schema ||
         NULL == line) {
@@ -372,8 +373,8 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
         ret = rcu_hash_add(flag_rt->item_htable, (char *)&(item_id), sizeof(item_id), item);
         if (ret < 0) {
             log_error(flag_rt->logger, MODULE_FLAG, 
-                      "[%s:%d] flag runtime add item(item_id:%lld) to item_htable failed", 
-                      __FUNCTION__, __LINE__, item_id);
+                      "[%s:%d] [table:%s] flag runtime add item(item_id:%lld) failed", 
+                      __FUNCTION__, __LINE__, table_name, item_id);
             flag_item_free(flag_item);
             maat_item_free(item);
             return -1;
@@ -383,8 +384,8 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
         flag_item_free(flag_item);
         if (NULL == flag_rule) {
             log_error(flag_rt->logger, MODULE_FLAG, 
-                      "[%s:%d] transform flag table(table_id:%d) item(item_id:%lld) to flag_rule failed",
-                      __FUNCTION__, __LINE__, schema->table_id, item_id);
+                      "[%s:%d] [table:%s] transform flag_item(item_id:%lld) to flag_rule failed",
+                      __FUNCTION__, __LINE__, table_name, item_id);
             return -1;
         }
     }
@@ -400,6 +401,12 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
     }
 
     return 0;
+}
+
+void garbage_flag_matcher_free(void *flag_matcher, void *arg)
+{
+    struct flag_matcher *matcher = (struct flag_matcher *)flag_matcher;
+    flag_matcher_free(matcher);
 }
 
 int flag_runtime_commit(void *flag_runtime, const char *table_name)
@@ -448,8 +455,8 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name)
     old_flag_matcher = flag_rt->matcher;
     flag_rt->matcher = new_flag_matcher;
     if (old_flag_matcher != NULL) {
-        maat_garbage_bagging(flag_rt->ref_garbage_bin, old_flag_matcher, 
-                         (void (*)(void*))flag_matcher_free);
+        maat_garbage_bagging(flag_rt->ref_garbage_bin, old_flag_matcher, NULL,
+                             garbage_flag_matcher_free);
     }
     rcu_hash_commit(flag_rt->item_htable);
     flag_rt->rule_num = rule_cnt;

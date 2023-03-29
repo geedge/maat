@@ -291,8 +291,8 @@ void plugin_runtime_free(void *plugin_runtime)
 
 int plugin_runtime_update_row(struct plugin_runtime *plugin_rt, 
                               struct plugin_schema *plugin_schema, 
-                              const char *row, const char *key, 
-                              size_t key_len, int is_valid)
+                              const char *table_name, const char *row, 
+                              const char *key, size_t key_len, int is_valid)
 {
     int ret = -1;
     struct ex_data_schema *ex_schema = plugin_schema->ex_schema;
@@ -307,7 +307,8 @@ int plugin_runtime_update_row(struct plugin_runtime *plugin_rt,
             }
         } else {
             // add
-            void *ex_data = ex_data_runtime_row2ex_data(plugin_rt->ex_data_rt, ex_schema, row, key, key_len);
+            void *ex_data = ex_data_runtime_row2ex_data(plugin_rt->ex_data_rt, ex_schema, 
+                                                        table_name, row, key, key_len);
             struct ex_container *ex_container = ex_container_new(ex_data, NULL);
             ret = ex_data_runtime_add_ex_container(plugin_rt->ex_data_rt, key, key_len, ex_container);
             if (ret < 0) {
@@ -332,8 +333,8 @@ int plugin_runtime_update_row(struct plugin_runtime *plugin_rt,
     return 0;
 }
 
-int plugin_accept_tag_match(struct plugin_schema *schema, const char *line,
-                            struct log_handle *logger)
+int plugin_accept_tag_match(struct plugin_schema *schema, const char *table_name,
+                            const char *line, struct log_handle *logger)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
@@ -343,8 +344,8 @@ int plugin_accept_tag_match(struct plugin_schema *schema, const char *line,
         int ret = get_column_pos(line, schema->rule_tag_column, &column_offset, &column_len);
         if (ret < 0) {
             log_error(logger, MODULE_PLUGIN,
-                      "[%s:%d] plugin table(table_id:%d) has no rule_tag, line:%s",
-                      __FUNCTION__, __LINE__, schema->table_id, line);
+                      "[%s:%d] plugin table:%s has no rule_tag, line:%s",
+                      __FUNCTION__, __LINE__, table_name, line);
             schema->update_err_cnt++;
             return TAG_MATCH_ERR;
         }
@@ -356,8 +357,8 @@ int plugin_accept_tag_match(struct plugin_schema *schema, const char *line,
             FREE(tag_str);
             if (TAG_MATCH_ERR == ret) {
                 log_error(logger, MODULE_PLUGIN,
-                          "[%s:%d] plugin table(table_id:%d) has invalid tag format, line:%s",
-                          __FUNCTION__, __LINE__, schema->table_id, line);
+                          "[%s:%d] plugin table:%s has invalid tag format, line:%s",
+                          __FUNCTION__, __LINE__, table_name, line);
                 schema->update_err_cnt++;
                 return TAG_MATCH_ERR;
             }
@@ -373,7 +374,8 @@ int plugin_accept_tag_match(struct plugin_schema *schema, const char *line,
 }
 
 int plugin_runtime_update(void *plugin_runtime, void *plugin_schema, 
-                          const char *line, int valid_column)
+                          const char *table_name, const char *line, 
+                          int valid_column)
 {
     if (NULL == plugin_runtime || NULL == plugin_schema ||
         NULL == line) {
@@ -387,7 +389,7 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
         return -1;
     }
 
-    int ret = plugin_accept_tag_match(schema, line, plugin_rt->logger);
+    int ret = plugin_accept_tag_match(schema, table_name, line, plugin_rt->logger);
     if (ret == TAG_MATCH_UNMATCHED) {
         return -1;
     }
@@ -406,7 +408,8 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
         key_len = sizeof(long long);
     }
 
-    ret = plugin_runtime_update_row(plugin_rt, schema, line, key, key_len, is_valid);
+    ret = plugin_runtime_update_row(plugin_rt, schema, table_name, line, 
+                                    key, key_len, is_valid);
     if (ret < 0) {
         schema->update_err_cnt++;
         return -1;

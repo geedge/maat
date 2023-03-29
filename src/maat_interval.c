@@ -331,7 +331,8 @@ int interval_runtime_update_row(struct interval_runtime *interval_rt, char *key,
 }
 
 int interval_runtime_update(void *interval_runtime, void *interval_schema, 
-                            const char *line, int valid_column)
+                            const char *table_name, const char *line, 
+                            int valid_column)
 {
     if (NULL == interval_runtime || NULL == interval_schema ||
         NULL == line) {
@@ -368,8 +369,8 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
         ret = rcu_hash_add(interval_rt->item_htable, (char *)&(item_id), sizeof(item_id), item);
         if (ret < 0) {
             log_error(interval_rt->logger, MODULE_INTERVAL, 
-                      "[%s:%d] interval runtime add item(item_id:%lld) to item_htable failed", 
-                      __FUNCTION__, __LINE__, item_id);
+                      "[%s:%d] [table:%s] interval runtime add item(item_id:%lld) failed", 
+                      __FUNCTION__, __LINE__, table_name, item_id);
             interval_item_free(interval_item);
             maat_item_free(item);
             return -1;
@@ -379,8 +380,8 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
         interval_item_free(interval_item);
         if (NULL == interval_rule) {
             log_error(interval_rt->logger, MODULE_INTERVAL, 
-                      "[%s:%d] transform interval table(table_id:%d) item(item_id:%lld) to interval_rule failed",
-                      __FUNCTION__, __LINE__, schema->table_id, item_id);
+                      "[%s:%d] [table:%s] transform interval_item(item_id:%lld) to interval_rule failed",
+                      __FUNCTION__, __LINE__, table_name, item_id);
             return -1;
         }
     }
@@ -396,6 +397,12 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
     }
 
     return 0;
+}
+
+void garbage_interval_matcher_free(void *interval_matcher, void *arg)
+{
+    struct interval_matcher *matcher = (struct interval_matcher *)interval_matcher;
+    interval_matcher_free(matcher);
 }
 
 int interval_runtime_commit(void *interval_runtime, const char *table_name)
@@ -444,8 +451,8 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name)
     old_interval_matcher = interval_rt->matcher;
     interval_rt->matcher = new_interval_matcher;
     if (old_interval_matcher != NULL) {
-        maat_garbage_bagging(interval_rt->ref_garbage_bin, old_interval_matcher, 
-                            (void (*)(void*))interval_matcher_free);
+        maat_garbage_bagging(interval_rt->ref_garbage_bin, old_interval_matcher, NULL,
+                            garbage_interval_matcher_free);
     }
     rcu_hash_commit(interval_rt->item_htable);
     interval_rt->rule_num = rule_cnt;

@@ -91,8 +91,8 @@ typedef void maat_start_callback_t(int update_type, void *u_param);
 typedef void maat_update_callback_t(int table_id, const char *table_line, void *u_para);
 typedef void maat_finish_callback_t(void *u_para);
 
-typedef void maat_ex_new_func_t(int table_id, const char *key, const char *table_line, 
-                                void **ad, long argl, void *argp);
+typedef void maat_ex_new_func_t(const char *table_name, int table_id, const char *key, 
+                                const char *table_line, void **ad, long argl, void *argp);
 typedef void maat_ex_free_func_t(int table_id, void **ad, long argl, void *argp);
 typedef void maat_ex_dup_func_t(int table_id, void **to, void **from, long argl, void *argp);
 
@@ -136,7 +136,7 @@ int maat_table_callback_register(struct maat *instance, int table_id,
 								 void *u_para);
 
 /* maat plugin table API */
-int maat_plugin_table_ex_schema_register(struct maat *instance, int table_id,
+int maat_plugin_table_ex_schema_register(struct maat *instance, const char *table_name,
                                          maat_ex_new_func_t *new_func,
                                          maat_ex_free_func_t *free_func,
                                          maat_ex_dup_func_t *dup_func,

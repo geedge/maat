@@ -77,8 +77,8 @@ void ex_container_free(void *ctx, void *data);
 /* ex_data_runtime ex data API */
 void *ex_data_runtime_row2ex_data(struct ex_data_runtime *ex_data_rt,
                                   struct ex_data_schema *ex_schema,
-                                  const char *row, const char *key, 
-                                  size_t key_len);
+                                  const char *table_name, const char *row, 
+                                  const char *key, size_t key_len);
 
 int ex_data_runtime_add_ex_container(struct ex_data_runtime *ex_data_rt,
                                       const char *key, size_t key_len,

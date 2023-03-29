@@ -315,6 +315,10 @@ void maat_cmd_set_serial_rule(struct serial_rule *rule, enum maat_operation op,
                               long long rule_id, const char *table_name,
                               const char *line, long long timeout);
 
+void garbage_ip_matcher_free(void *ip_matcher, void *arg);
+void garbage_interval_matcher_free(void *ip_matcher, void *arg);
+void garbage_bool_matcher_free(void *bool_matcher, void *arg);
+
 #ifdef __cplusplus
 }
 #endif
