@@ -1064,7 +1064,7 @@
                                 "ip1": "10.0.7.100",
                                 "ip2": "10.0.7.106",
                                 "port_format": "range",
-                                "port1": "65529",
+                                "port1": "65530",
                                 "port2": "65535",
                                 "protocol": 6
                             }
@@ -1503,6 +1503,37 @@
                             }
                         }
                     ]
+                }
+            ]
+        },
+        {
+            "compile_id": 169,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "IPScan.IPv4_Any",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "ip_plus",
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv4",
+                                "addr_format": "CIDR",
+                                "ip1": "0.0.0.0",
+                                "ip2": "0",
+                                "port_format": "range",
+                                "port1": "64000",
+                                "port2": "64999",
+                                "protocol": 6
+                            }
+                        }                      
+                    ],
+                    "not_flag" : 0
                 }
             ]
         },

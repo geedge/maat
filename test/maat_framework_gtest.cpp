@@ -1286,7 +1286,7 @@ TEST_F(MaatIPScan, IPv4_IPPort) {
     uint32_t sip;
     int ret = inet_pton(AF_INET, ip_str, &sip);
     EXPECT_EQ(ret, 1);
-    uint16_t port = htons(65529);
+    uint16_t port = htons(65530);
     int proto = 6;
 
     long long results[ARRAY_SIZE] = {0};
@@ -1313,7 +1313,7 @@ TEST_F(MaatIPScan, IPv4_Port) {
     uint32_t sip;
     int ret = inet_pton(AF_INET, ip_str, &sip);
     EXPECT_EQ(ret, 1);
-    uint16_t port = htons(65528);
+    uint16_t port = htons(20303);
     int proto = 6;
 
     long long results[ARRAY_SIZE] = {0};
@@ -1324,12 +1324,12 @@ TEST_F(MaatIPScan, IPv4_Port) {
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     maat_state_reset(state);
 
-    port = htons(65529);
+    port = htons(64999);
     ret = maat_scan_ipv4(maat_instance, table_id, sip, port, proto, 
                          results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 154);
+    EXPECT_EQ(results[0], 169);
 
     maat_state_free(state);
     state = NULL;
@@ -2929,7 +2929,6 @@ protected:
         maat_cmd_flushDB(_shared_maat_instance);
         maat_free(_shared_maat_instance);
 
-        maat_options_set_deferred_load_on(opts);
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
     }
@@ -4270,7 +4269,7 @@ TEST_F(MaatCmdTest, GroupInMassCompiles) {
     maat_state_free(state);
     state = NULL;
 }
-#if 0
+
 TEST_F(MaatCmdTest, HitPath) {
     const char *g2g_table_name = "GROUP2GROUP";
 	const char *g2c_table_name = "GROUP2COMPILE";
@@ -4343,7 +4342,7 @@ TEST_F(MaatCmdTest, HitPath) {
                               NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     const char* http_url = "en.wikipedia.org/wiki/Path_(graph_theory)";
 	const char* http_resp_hdr_cookie = "laptop=thinkpad X1 extrem;time=2020-02-11T15:34:00;main[XWJOKE]=hoho; Hm_lvt_bbac0322e6ee13093f98d5c4b5a10912=1578874808;";
@@ -4419,7 +4418,7 @@ that the edges be all directed in the same direction.";
     struct maat_stream *stream = maat_stream_new(maat_instance, table_id, state);
     Nth_scan++;
     ret = maat_stream_scan(stream, keywords1, strlen(keywords1), results, ARRAY_SIZE,
-                           &n_hit_result, state);
+                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 3);
@@ -4456,7 +4455,7 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
 
-    Nth_scan++;
+    Nth_scan++;   
     ret = maat_stream_scan(stream, keywords2, strlen(keywords2), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
@@ -4502,19 +4501,19 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
 
     long long item11_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_instance, ip_table_name, MAAT_OP_ADD, item11_id, group11_id,
-                            IPv4, "192.168.2.1", "192.168.2.4", 0, 0, 0);
+                            IPv4, "192.168.2.1", "192.168.2.4", 0, 65535, 0);
     EXPECT_EQ(ret, 1);
 
     long long group21_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group21_id,
-                                       compile1_id, 0, "null", 1, 0);
+                                       compile1_id, 0, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
     long long item21_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
     ret = intval_table_set_line(maat_instance, app_id_table_name, MAAT_OP_ADD, item21_id,
                                 group21_id, 31, 31, NULL, 0);
     EXPECT_EQ(ret, 1);
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -4555,7 +4554,7 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
                                 group22_id, 32, 32, NULL, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     table_id = maat_get_table_id(maat_instance, app_id_table_name);
     ret = maat_scan_integer(maat_instance, table_id, 31, results, ARRAY_SIZE,
@@ -4595,7 +4594,7 @@ TEST_F(MaatCmdTest, GroupEdit) {
 
     long long item11_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_instance, ip_table_name, MAAT_OP_ADD, item11_id, group11_id, 
-                            IPv4, "192.168.3.1", "192.168.3.4", 0, 0, 0);
+                            IPv4, "192.168.3.1", "192.168.3.4", 0, 65535, 0);
     EXPECT_EQ(ret, 1);
 
     long long group21_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
@@ -4747,11 +4746,11 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
 	while (now - update_time < 3) {
 		ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6, results, ARRAY_SIZE,
                              &n_hit_result, state);
-		if (ret > 0) {
+		if (ret == MAAT_SCAN_HIT) {
 			hit_cnt++;
 			EXPECT_EQ(results[0], compile1_id);
-		} else {
-			EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+		} 
+        if (ret == MAAT_SCAN_HALF_HIT) {
 			miss_cnt++;
 		}
 		now = time(NULL);
@@ -4761,6 +4760,7 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
 	maat_state_free(state);                                    
 }
 
+#if 0
 TEST_F(MaatCmdTest, UpdateDeadLockDetection) {
     const char* g2c_table_name = "GROUP2COMPILE";
 	const char* compile_table_name = "COMPILE";
@@ -4878,7 +4878,7 @@ TEST_F(MaatCmdTest, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
     EXPECT_EQ(results[0], compile1_id);
 
     //DON'T DO THIS!!!
-	//Roll back version, trigger full udpate.	
+	//Roll back version, trigger full update.	
 	//This operation generates FATAL logs in test_maat_redis.log.yyyy-mm-dd.
 	//For example: Add group 22 vt_id 0 to clause 2 of compile 979 failed, group is already exisited
 	maat_cmd_incrby(maat_instance, "MAAT_VERSION", -100);

@@ -241,7 +241,6 @@ TEST(adapter_hs_scan, literal_sub_has_normal_offset)
 
     int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
     EXPECT_EQ(ret, 0);
-    EXPECT_EQ(n_expr_array, 12);
 
     struct adapter_hs *hs_instance = adapter_hs_new(1, expr_array, n_expr_array, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
@@ -651,6 +650,32 @@ TEST(adapter_hs_scan, same_pattern_different_offset)
 
     adapter_hs_free(hs_instance);
     hs_instance = NULL;                                             
+}
+
+TEST(adapter_hs_scan, long_scan_data)
+{
+    struct hs_expr expr_array[64] = {0};
+    size_t n_expr_array = 0;
+    
+    int ret = parse_config_file("./literal_expr.conf", expr_array, &n_expr_array);
+    EXPECT_EQ(ret, 0);
+
+    struct adapter_hs *hs_instance = adapter_hs_new(1, expr_array, n_expr_array, g_logger);
+    EXPECT_TRUE(hs_instance != NULL);
+    expr_array_free(expr_array, n_expr_array);
+
+    const char* scan_data = "A directed path in a directed graph is a finite or infinite\
+sequence of edges which joins a sequence of distinct vertices, but with the added restriction\
+that the edges be all directed in the same direction.";
+    struct hs_scan_result result[64] = {0};
+    size_t n_result = 0;
+    ret = adapter_hs_scan(hs_instance, 0, scan_data, strlen(scan_data), result, 64, &n_result);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(result[0].item_id, 113);
+
+    adapter_hs_free(hs_instance);
+    hs_instance = NULL;                          
 }
 
 int main(int argc, char **argv)

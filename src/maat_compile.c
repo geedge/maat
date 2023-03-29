@@ -72,7 +72,7 @@ struct compile_runtime {
     struct maat_compile *compile_hash; // <compile_id, struct maat_compile>
     struct maat_runtime *ref_maat_rt;
 	uint32_t rule_num;
-
+    struct maat_clause *clause_by_literals_hash;
     pthread_rwlock_t rwlock; /* TODO: replaced with mutex? */
 
     struct bool_expr_match *expr_match_buff;
@@ -499,6 +499,7 @@ void *compile_runtime_new(void *compile_schema, int max_thread_num,
     struct compile_runtime *compile_rt = ALLOC(struct compile_runtime, 1);
 
     compile_rt->expr_match_buff = ALLOC(struct bool_expr_match, max_thread_num * MAX_SCANNER_HIT_COMPILE_NUM);
+    compile_rt->clause_by_literals_hash = NULL;
     compile_rt->logger = logger;
     compile_rt->ref_garbage_bin = garbage_bin;
     pthread_rwlock_init(&compile_rt->rwlock, NULL);
@@ -541,6 +542,18 @@ void maat_compile_hash_free(struct maat_compile **compile_hash)
 	assert(*compile_hash == NULL);
 }
 
+static void maat_clause_hash_free(struct maat_clause **clause_hash)
+{
+	struct maat_clause *clause = NULL, *tmp_clause = NULL;
+
+	HASH_ITER (hh, *clause_hash, clause, tmp_clause) {
+		HASH_DEL(*clause_hash, clause);
+		FREE(clause->literal_ids);
+		clause->n_literal_id = 0;
+		FREE(clause);
+	}
+}
+
 void compile_runtime_free(void *compile_runtime)
 {
     if (NULL == compile_runtime) {
@@ -553,12 +566,18 @@ void compile_runtime_free(void *compile_runtime)
 
     if (compile_rt->bm != NULL) {
         bool_matcher_free(compile_rt->bm);
+        compile_rt->bm = NULL;
     }
 
     if (compile_rt->compile_hash != NULL) {
         maat_compile_hash_free(&(compile_rt->compile_hash));
+        compile_rt->compile_hash = NULL;
     }
     
+    if (compile_rt->clause_by_literals_hash != NULL) {
+        maat_clause_hash_free(&compile_rt->clause_by_literals_hash);
+        compile_rt->clause_by_literals_hash = NULL;
+    }
     if (compile_rt->expr_match_buff != NULL) {
         FREE(compile_rt->expr_match_buff);
     }
@@ -723,6 +742,7 @@ struct maat_compile *maat_compile_new(long long compile_id)
     for(int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {	
 		utarray_new(compile->clause_states[i].ut_literal_ids, &ut_literal_id_icd);
 		compile->clause_states[i].in_use=0;
+        compile->clause_states[i].clause_id = -1;
 	}
 
 	return compile;
@@ -751,8 +771,7 @@ int maat_compile_hash_add(struct maat_compile **compile_hash, long long compile_
     HASH_ADD(hh, *compile_hash, compile_id, sizeof(long long), compile);
 	//TODO:mytest need to delete
 #if 0
-    if (compile_id == 141)
-    {
+    
         size_t compile_cnt = HASH_COUNT(*compile_hash);
         struct maat_compile *compile1 = NULL, *tmp_compile1 = NULL;
         HASH_ITER(hh, *compile_hash, compile1, tmp_compile1)
@@ -760,7 +779,7 @@ int maat_compile_hash_add(struct maat_compile **compile_hash, long long compile_
             printf("<maat_compile_hash_add> compile_id:%lld, compile_cnt:%zu\n",
                    compile1->compile_id, compile_cnt);
         }
-    }
+    
 #endif
     return ret;
 }
@@ -879,38 +898,26 @@ int maat_compile_clause_remove_literal(struct maat_compile *compile,
 }
 
 static const struct maat_clause *
-maat_clause_hash_fetch_clause(struct maat_clause **clause_hash,
-                              struct maat_runtime *ref_maat_rt,
+maat_clause_hash_fetch_clause(struct compile_runtime *compile_rt,
 							  struct maat_literal_id *literal_ids, 
                               size_t n_literal_id)
 {
 	struct maat_clause *clause = NULL;
 
-	HASH_FIND(hh, *clause_hash, literal_ids, n_literal_id * sizeof(struct maat_literal_id), clause);
+	HASH_FIND(hh, compile_rt->clause_by_literals_hash, literal_ids, 
+              n_literal_id * sizeof(struct maat_literal_id), clause);
 	if (!clause) {
 		clause = ALLOC(struct maat_clause, 1);
-		clause->clause_id = maat_runtime_get_sequence(ref_maat_rt, "clause_id");
+		clause->clause_id = maat_runtime_get_sequence(compile_rt->ref_maat_rt, "clause_id");
 		clause->n_literal_id = n_literal_id;
 		clause->literal_ids = ALLOC(struct maat_literal_id, n_literal_id);
 		memcpy(clause->literal_ids, literal_ids, n_literal_id * sizeof(struct maat_literal_id));
 		
-		HASH_ADD_KEYPTR(hh, *clause_hash, clause->literal_ids, 
+		HASH_ADD_KEYPTR(hh, compile_rt->clause_by_literals_hash, clause->literal_ids, 
                         n_literal_id * sizeof(struct maat_literal_id), clause);
 	}
 
 	return clause;
-}
-
-static void maat_clause_hash_free(struct maat_clause **clause_hash)
-{
-	struct maat_clause *clause = NULL, *tmp_clause = NULL;
-
-	HASH_ITER (hh, *clause_hash, clause, tmp_clause) {
-		HASH_DEL(*clause_hash, clause);
-		FREE(clause->literal_ids);
-		clause->n_literal_id = 0;
-		FREE(clause);
-	}
 }
 
 struct bool_matcher *maat_compile_bool_matcher_new(struct compile_runtime *compile_rt)
@@ -924,7 +931,7 @@ struct bool_matcher *maat_compile_bool_matcher_new(struct compile_runtime *compi
 	struct bool_matcher *bm = NULL;
 	struct maat_clause_state *clause_state = NULL;
 	const struct maat_clause *clause = NULL;
-	struct maat_clause *clause_hash = NULL; // <literal_id, struct maat_clause>
+	//struct maat_clause *clause_hash = NULL; // <literal_id, struct maat_clause>
     
     pthread_rwlock_rdlock(&compile_rt->rwlock);
 	//STEP 1, update clause_id of each compile and literal
@@ -943,8 +950,7 @@ struct bool_matcher *maat_compile_bool_matcher_new(struct compile_runtime *compi
 			has_clause_num++;
 			literal_ids = (struct maat_literal_id *)utarray_eltptr(clause_state->ut_literal_ids, 0);
 			n_literal_id = utarray_len(clause_state->ut_literal_ids);
-			clause = maat_clause_hash_fetch_clause(&clause_hash, compile_rt->ref_maat_rt, 
-                                                    literal_ids, n_literal_id);
+			clause = maat_clause_hash_fetch_clause(compile_rt, literal_ids, n_literal_id);
 			clause_state->clause_id = clause->clause_id;
 		}
 		assert(has_clause_num == compile->actual_clause_num);
@@ -1023,13 +1029,7 @@ struct bool_matcher *maat_compile_bool_matcher_new(struct compile_runtime *compi
 	}
 
 error:
-    if (clause_hash != NULL) {
-        maat_clause_hash_free(&clause_hash);
-        clause_hash = NULL;
-    }
-	
     FREE(bool_expr_array);
-
     return bm;
 }
 
@@ -1392,7 +1392,7 @@ void maat_compile_state_update_hit_clause(struct maat_compile_state *compile_sta
 			if (!clause_state->in_use) {
 				continue;
 			}
-
+           
             size_t new_clause_idx = utarray_len(compile_state->this_scan_hit_clauses);
 			tmp = (struct maat_literal_id *)utarray_find(clause_state->ut_literal_ids, 
                                                          &literal_id, compare_literal_id);
@@ -1416,6 +1416,12 @@ void maat_compile_state_update_hit_clause(struct maat_compile_state *compile_sta
                     utarray_push_back(compile_state->all_hit_clauses, clause_id);
                 }
                 utarray_sort(compile_state->all_hit_clauses, compare_clause_id);
+                // printf("<update_hit_clause> all_hit_clause:");
+                // for (i = 0; i < utarray_len(compile_state->all_hit_clauses); i++) {
+                //     long long *tmp_clause_id = (long long *)utarray_eltptr(compile_state->all_hit_clauses, i);
+                //     printf(" %lld ", *tmp_clause_id);
+                // }
+                // printf("\n");
             }
         }
 	}

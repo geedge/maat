@@ -522,8 +522,6 @@ int matched_event_cb(unsigned int id, unsigned long long from,
     }
     
     int ret = 0;
-    long long start_offset = -1;
-    long long end_offset = -1;
     struct pattern_attribute pat_attr = matched_pat->ref_hs_attr[id];
     switch (pat_attr.match_mode) {
         case HS_MATCH_MODE_EXACTLY:
@@ -532,20 +530,28 @@ int matched_event_cb(unsigned int id, unsigned long long from,
             }
             break;
         case HS_MATCH_MODE_SUB:
+            if (pat_attr.offset.start == -1 && 
+                pat_attr.offset.end == -1) {
+                    ret = 1;
+                    break;
+            }
+
             if (pat_attr.offset.start == -1) {
-                start_offset = 0;
-            } else {
-                start_offset = pat_attr.offset.start;
+                if ((long long)(to - 1) <= pat_attr.offset.end) {
+                    ret = 1;
+                    break;
+                }
             }
 
             if (pat_attr.offset.end == -1) {
-                end_offset = matched_pat->scan_data_len;
-            } else {
-                end_offset = pat_attr.offset.end;
+                if ((long long)from >= pat_attr.offset.start) {
+                    ret = 1;
+                    break;
+                }
             }
 
-            if (start_offset <= (long long)from && 
-                end_offset >= (long long)(to - 1)) {
+            if ((long long)from >= pat_attr.offset.start && 
+                (long long)(to - 1) <= pat_attr.offset.end) {
                 ret = 1;
             }
             break;
