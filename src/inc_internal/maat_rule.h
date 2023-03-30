@@ -22,6 +22,7 @@ extern "C"
 #include <sys/time.h>
 #include <pthread.h>
 #include <sys/queue.h>
+#include <dirent.h>
 #include <openssl/md5.h>
 
 #include "hiredis/hiredis.h"
@@ -246,6 +247,10 @@ struct maat_state {
 	int scan_cnt;
 	struct maat_compile_state *compile_state;
 };
+
+int my_scandir(const char *dir, struct dirent ***namelist,
+              int(*filter)(const struct dirent *),
+              int(*compar)(const void *, const void *));
 
 enum scan_type maat_table_get_scan_type(enum table_type table_type);
 

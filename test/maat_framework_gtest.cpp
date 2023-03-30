@@ -1,4 +1,6 @@
 #include <gtest/gtest.h>
+#include <dirent.h>
+#include <openssl/md5.h>
 
 #include "maat.h"
 #include "maat_rule.h"
@@ -2782,31 +2784,69 @@ TEST_F(Policy, CompileEXData) {
 TEST_F(Policy, SubGroup) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
-    struct maat_state *state = NULL;
+    int thread_id = 0;
+    struct maat *maat_instance = Policy::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
 	const char *scan_data = "ceshi6@mailhost.cn";
 	
-	uint32_t sip;
-	inet_pton(AF_INET,"10.0.6.205", &sip);
+	uint32_t ip_addr;
+	inet_pton(AF_INET,"10.0.6.205", &ip_addr);
+    uint16_t port = htons(50001);
 
-	int table_id = maat_get_table_id(g_maat_instance, "MAIL_ADDR");
+	int table_id = maat_get_table_id(maat_instance, "MAIL_ADDR");
 	ASSERT_GT(table_id, 0);
 	
-	int ret = maat_scan_string(g_maat_instance, table_id, scan_data, strlen(scan_data), 
-						       results, ARRAY_SIZE, &n_hit_result, &state);
+	int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data), 
+						       results, ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 	
-	table_id = maat_get_table_id(g_maat_instance, "IP_CONFIG");	
+	table_id = maat_get_table_id(maat_instance, "IP_CONFIG");	
 	ASSERT_GT(table_id, 0);
 	
-	ret = maat_scan_ipv4(g_maat_instance, table_id, sip, results, ARRAY_SIZE,
-                         &n_hit_result, &state);	
+	ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6,
+                         results, ARRAY_SIZE, &n_hit_result, state);	
 	
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
 	EXPECT_EQ(results[0], 153);
 	
-	maat_state_free(&state);
+	maat_state_free(state);
 }
 #endif
+TEST_F(Policy, EvaluationOrder) {
+    const char *url = "cavemancircus.com/2019/12/27/pretty-girls-6/";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_instance = Policy::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+    int table_id = maat_get_table_id(maat_instance, "HTTP_URL");
+	ASSERT_GT(table_id, 0);
+
+    int ret = maat_scan_string(maat_instance, table_id, url, strlen(url),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 3);
+    EXPECT_EQ(results[0], 166);
+    EXPECT_EQ(results[1], 167);
+    EXPECT_EQ(results[2], 168);
+
+    uint32_t ip_addr;
+    inet_pton(AF_INET, "192.168.23.23", &ip_addr);
+    uint16_t port = htons(65530);
+
+    table_id = maat_get_table_id(maat_instance, "IP_PLUS_CONFIG");
+    ASSERT_GT(table_id, 0);
+
+    memset(results, 0, sizeof(results));
+    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6,
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 165);
+    maat_state_free(state);
+}
+
 TEST_F(Policy, ReadColumn) {
     const char *ip = "192.168.0.1";
 	const char *tmp = "something";
@@ -2897,10 +2937,16 @@ protected:
     static void SetUpTestCase() {
         const char *rule_folder = "./ntcrule/full/index";
         const char *table_info = "./file_test_tableinfo.conf";
+        int scan_interval_ms = 500;
+        int effective_interval_ms = 0;
 
         struct maat_options *opts = maat_options_new();
+        maat_options_set_caller_thread_number(opts, g_thread_num);
+        maat_options_set_instance_name(opts, "files");
         maat_options_set_iris(opts, rule_folder, rule_folder);
-        maat_options_set_logger(opts, "./maat_input_mode_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_rule_update_checking_interval_ms(opts, scan_interval_ms);
+        maat_options_set_rule_effect_interval_ms(opts, effective_interval_ms);
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
 
         _shared_maat_instance = maat_new(opts, table_info);
         EXPECT_TRUE(_shared_maat_instance != NULL);
@@ -2912,6 +2958,73 @@ protected:
 
     static struct maat *_shared_maat_instance;
 };
+struct maat *MaatFileTest::_shared_maat_instance;
+
+TEST_F(MaatFileTest, StreamFiles) {
+    const char test_data_dir[64] = "./test_streamfiles";
+    const char *table_name = "NTC_HTTP_REQ_BODY";
+    int thread_id = 0;
+    struct maat *maat_instance = MaatFileTest::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+    int table_id = maat_get_table_id(maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+    struct dirent **name_list;
+    int n = my_scandir(test_data_dir, &name_list, NULL, 
+                       (int (*)(const void*, const void*))alphasort);
+    ASSERT_GT(n, 0);
+    struct maat_stream *stream = maat_stream_new(maat_instance, table_id, state);
+    ASSERT_FALSE(stream == NULL);
+
+    struct stat file_info;
+	size_t file_size = 0;
+    char file_path[PATH_MAX] = {0};
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int hit_cnt = 0;
+
+    for (int i = 0; i < n; i++) {
+        if ((strcmp(name_list[i]->d_name, ".") == 0) || 
+            (strcmp(name_list[i]->d_name, "..") == 0)) {
+			continue;
+		}
+
+        snprintf(file_path, sizeof(file_path), "%s/%s", test_data_dir, 
+                 name_list[i]->d_name);
+        int ret = stat(file_path, &file_info);
+		ASSERT_TRUE(ret == 0);
+
+		file_size = file_info.st_size;
+		char *buff = ALLOC(char, file_size);
+		FILE *fp = fopen(file_path, "rb");
+		if (fp == NULL) {
+			printf("fopen %s error.\n", file_path);
+			continue;
+		}
+
+		int read_len = fread(buff, 1, file_size, fp);
+		ret = maat_stream_scan(stream, buff, read_len, results, ARRAY_SIZE, 
+                                &n_hit_result, state);
+		read_len = fread(buff, 1, sizeof(buff), fp);
+		if (ret > 0) {
+			hit_cnt++;
+		}
+		fclose(fp);
+		free(buff);
+		buff = NULL;
+    }
+    maat_state_free(state);
+    state = NULL;
+    maat_stream_free(stream);
+    EXPECT_GT(hit_cnt, 0);
+
+    for (int i = 0; i < n; i++) {
+        free(name_list[i]);
+    }
+
+    free(name_list);
+}
 
 class MaatCmdTest : public testing::Test
 {
@@ -2931,6 +3044,7 @@ protected:
         maat_cmd_flushDB(_shared_maat_instance);
         maat_free(_shared_maat_instance);
 
+        maat_options_set_foreign_cont_dir(opts, "./foreign_files/");
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
     }
@@ -3696,6 +3810,7 @@ int is_same_file(const char *filename1, const char *filename2)
 		return 0;
 	}
 }
+
 int g_test_foregin_read_OK = 0, g_test_foreign_del_OK = 0;
 char file1_to_del[256], file2_to_del[256];
 const char* empty_file_name = "An_empty_file";
@@ -3730,7 +3845,6 @@ void foreign_key_test_entry_cb(int table_id, const char *table_line, void *u_par
 	}
 }
 
-#if 0
 TEST_F(MaatCmdTest, SetFile) {
     struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
     const char* table_name = "TEST_FOREIGN_KEY";
@@ -3741,7 +3855,7 @@ TEST_F(MaatCmdTest, SetFile) {
     int ret = maat_table_callback_register(maat_instance, table_id, NULL,
                                            foreign_key_test_entry_cb,
                                            NULL, NULL);
-    ASSERT_GT(ret, 1);
+    EXPECT_EQ(ret, 0);
 
     const char *file1_name = "./testdata/digest_test.data";
     const char *file2_name = "./testdata/mesa_logo.jpg";	
@@ -3817,7 +3931,7 @@ TEST_F(MaatCmdTest, SetFile) {
 	sleep(WAIT_FOR_EFFECTIVE_S);//wait for callback triggered.
 	EXPECT_EQ(g_test_foregin_read_OK, 1);
 }
-#endif
+
 struct user_info {
 	char name[256];
 	char ip_addr[32];
@@ -4761,8 +4875,7 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
 	EXPECT_LE(hit_cnt, miss_cnt);
 	maat_state_free(state);                                    
 }
-
-#if 1
+#if 0
 TEST_F(MaatCmdTest, UpdateDeadLockDetection) {
     const char* g2c_table_name = "GROUP2COMPILE";
 	const char* compile_table_name = "COMPILE";

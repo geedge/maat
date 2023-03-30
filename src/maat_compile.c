@@ -121,6 +121,7 @@ struct maat_compile {
     char table_name[NAME_MAX];
 	int actual_clause_num;
 	int declared_clause_num;
+    double evaluation_order;
 	int not_clause_cnt;
 	void *user_data;
 	void (*user_data_free)(void *);
@@ -289,6 +290,15 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
+    custom_item = cJSON_GetObjectItem(item, "evaluation_order");
+    if (custom_item != NULL && custom_item->type == cJSON_Number) {
+        compile_schema->evaluation_order_column = custom_item->valueint;
+    } else {
+        log_error(logger, MODULE_COMPILE, 
+                  "[%s:%d] table %s has no evaluation_order column", table_name);
+        goto error;
+    }
+    
     compile_schema->ref_tbl_mgr = tbl_mgr;
 	return compile_schema;
 error:
@@ -477,6 +487,16 @@ compile_item_new(const char *line, struct compile_schema *compile_schema,
 		goto error;
     }
     compile_item->declared_clause_num = atoi(line + column_offset);
+
+    ret = get_column_pos(line, compile_schema->evaluation_order_column,
+                         &column_offset, &column_len);
+    if (ret < 0) {
+        log_error(logger, MODULE_COMPILE,
+				  "[%s:%d] compile table(table_id:%d) line:%s has no evaluation_order",
+				  __FUNCTION__, __LINE__, compile_schema->table_id, line);
+		goto error;
+    }
+    compile_item->evaluation_order = atof(line + column_offset);
 
     return compile_item;
 error:
@@ -755,8 +775,8 @@ struct maat_compile *maat_compile_new(long long compile_id)
 }
 
 int maat_compile_set(struct maat_compile *compile, const char *table_name,
-                     int declared_clause_num, void *user_data, 
-                     void (*user_data_free)(void *))
+                     double evaluation_order, int declared_clause_num, 
+                     void *user_data, void (*user_data_free)(void *))
 {
 	if (user_data != NULL && NULL == user_data_free) {
 		return -1;
@@ -764,6 +784,7 @@ int maat_compile_set(struct maat_compile *compile, const char *table_name,
 
     memset(compile->table_name, 0, sizeof(compile->table_name));
     memcpy(compile->table_name, table_name, sizeof(compile->table_name));
+    compile->evaluation_order = evaluation_order;
 	compile->declared_clause_num = declared_clause_num;
 	compile->user_data = user_data;
 	compile->user_data_free = user_data_free;
@@ -808,8 +829,9 @@ void maat_compile_hash_set(struct maat_compile **compile_hash, long long compile
     assert(tmp_compile != NULL);
 
     assert(tmp_compile->user_data == NULL);
-    maat_compile_set(tmp_compile, table_name, compile->declared_clause_num,
-                     compile->user_data, compile->user_data_free);
+    maat_compile_set(tmp_compile, table_name, compile->evaluation_order,
+                     compile->declared_clause_num, compile->user_data, 
+                     compile->user_data_free);
     
 }
 
@@ -1465,13 +1487,13 @@ void compile_item_to_compile_rule(struct compile_item *compile_item,
                                   const char *table_line)
 {
     compile_rule->magic_num = COMPILE_RULE_MAGIC;
+    compile_rule->evaluation_order = compile_item->evaluation_order;
     compile_rule->declared_clause_num = compile_item->declared_clause_num;
     compile_rule->ref_table = compile_schema;
     compile_rule->ex_data = ALLOC(void *, 1);
     compile_rule->table_line_len = strlen(table_line) + 1;
     compile_rule->table_line = ALLOC(char, compile_rule->table_line_len);
     memcpy(compile_rule->table_line, table_line, compile_rule->table_line_len);
-    compile_rule->evaluation_order = compile_item->evaluation_order;
 
     if (compile_schema->ex_schema != NULL) {
         *(compile_rule->ex_data) = rule_ex_data_new(table_name, compile_schema->table_id, 
@@ -1600,7 +1622,8 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
             return -1;
         }
         
-        maat_compile_set(compile, table_name, compile_rule->declared_clause_num, compile_rule, 
+        maat_compile_set(compile, table_name, compile_rule->evaluation_order,
+                         compile_rule->declared_clause_num, compile_rule, 
                         (void (*)(void *))destroy_compile_rule);
         struct maat_compile *tmp_compile = maat_compile_hash_find(&(compile_rt->compile_hash), compile_id);
         if (tmp_compile != NULL) {

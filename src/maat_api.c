@@ -194,12 +194,12 @@ int maat_options_set_deferred_load_on(struct maat_options *opts)
 
 int maat_options_set_stat_on(struct maat_options *opts)
 {
-
+    return 0;
 }
 
 int maat_options_set_perf_on(struct maat_options *opts)
 {
-
+    return 0;
 }
 
 int maat_options_set_foreign_cont_dir(struct maat_options *opts, const char *dir)
@@ -352,6 +352,18 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
         }
         maat_instance->logger = log_handle_create(log_path, opts->log_level);
     }
+
+    if (0 == strlen(opts->foreign_cont_dir)) {
+        snprintf(maat_instance->foreign_cont_dir, sizeof(maat_instance->foreign_cont_dir),
+                 "%s_files", table_info_path);
+    } else {
+        memcpy(maat_instance->foreign_cont_dir, opts->foreign_cont_dir, strlen(opts->foreign_cont_dir));
+        size_t len = strlen(maat_instance->foreign_cont_dir);
+        if (maat_instance->foreign_cont_dir[len - 1] == '/') {
+            maat_instance->foreign_cont_dir[len - 1] = '\0';
+        }
+    }
+    system_cmd_mkdir(maat_instance->foreign_cont_dir);
 
     maat_instance->input_mode = opts->input_mode;
 
@@ -1203,9 +1215,6 @@ int maat_scan_flag(struct maat *maat_instance, int table_id,
     state->scan_cnt++;
 
     if (NULL == maat_instance->maat_rt) {
-        log_error(maat_instance->logger, MODULE_MAAT_API, 
-                 "[%s:%d] table(table_id:%d) thread_id:%d maat_scan_flag error because of maat_runtime is NULL",
-                 __FUNCTION__, __LINE__, table_id, state->thread_id);
         return MAAT_SCAN_OK;
     }
 
@@ -1276,9 +1285,6 @@ int maat_scan_integer(struct maat *maat_instance, int table_id,
     state->scan_cnt++;
 
     if (NULL == maat_instance->maat_rt) {
-        log_error(maat_instance->logger, MODULE_MAAT_API, 
-                 "[%s:%d] table(table_id:%d) thread_id:%d maat_scan_integer error because of maat_runtime is NULL",
-                 __FUNCTION__, __LINE__, table_id, state->thread_id);
         return MAAT_SCAN_OK;
     }
 
@@ -1350,9 +1356,6 @@ int maat_scan_ipv4(struct maat *maat_instance, int table_id,
     state->scan_cnt++;
 
     if (NULL == maat_instance->maat_rt) {
-        log_error(maat_instance->logger, MODULE_MAAT_API, 
-                 "[%s:%d] table(table_id:%d) thread_id:%d maat_scan_ipv4 error because of maat_runtime is NULL",
-                 __FUNCTION__, __LINE__, table_id, state->thread_id);
         return MAAT_SCAN_OK;
     }
 
@@ -1432,9 +1435,6 @@ int maat_scan_ipv6(struct maat *maat_instance, int table_id,
     state->scan_cnt++;
 
     if (NULL == maat_instance->maat_rt) {
-        log_error(maat_instance->logger, MODULE_MAAT_API, 
-                 "[%s:%d] table(table_id:%d) thread_id:%d maat_scan_ipv6 error because of maat_runtime is NULL",
-                 __FUNCTION__, __LINE__, table_id, state->thread_id);
         return MAAT_SCAN_OK;
     }
 
@@ -1513,9 +1513,6 @@ int maat_scan_string(struct maat *maat_instance, int table_id, const char *data,
     state->scan_cnt++;
 
     if (NULL == maat_instance->maat_rt) {
-        log_error(maat_instance->logger, MODULE_MAAT_API, 
-                 "[%s:%d] table(table_id:%d) thread_id:%d maat_scan_string error because of maat_runtime is NULL",
-                 __FUNCTION__, __LINE__, table_id, state->thread_id);
         return MAAT_SCAN_OK;
     }
 
