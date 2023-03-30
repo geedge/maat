@@ -192,6 +192,16 @@ int maat_options_set_deferred_load_on(struct maat_options *opts)
     return 0;
 }
 
+int maat_options_set_stat_on(struct maat_options *opts)
+{
+
+}
+
+int maat_options_set_perf_on(struct maat_options *opts)
+{
+
+}
+
 int maat_options_set_foreign_cont_dir(struct maat_options *opts, const char *dir)
 {
     if (NULL == opts || NULL == dir || strlen(dir) >= NAME_MAX) {
