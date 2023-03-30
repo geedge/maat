@@ -15,16 +15,6 @@ pid_t ip_matcher_gettid()
 	return syscall(SYS_gettid);
 }
 
-static const char *ip_matcher_module_name_str(const char *name)
-{
-	static __thread char module[64];
-	snprintf(module,sizeof(module),"%s(%d)", name, ip_matcher_gettid());
-    
-	return module;
-}
-
-#define MODULE_IP_MATCHER	 ip_matcher_module_name_str("maat.ip_matcher")
-
 int ipmatcher_VERSION_2020_05_13 = 0;
 
 struct ip_matcher
@@ -32,7 +22,6 @@ struct ip_matcher
 	CRuleMatch *	ipv4_matcher;
 	CRuleMatch *	ipv6_matcher;
 
-    struct log_handle *logger;
 #ifdef RULESCAN_DEBUG
 	//for test
 	double						search_time;
@@ -70,7 +59,6 @@ struct ip_matcher * ip_matcher_new(struct ip_rule * rules, size_t rule_num,
 	mem_bytes = sizeof(struct ip_matcher);
 	matcher->ipv4_matcher = NULL;
 	matcher->ipv6_matcher = NULL;
-    matcher->logger = logger;
 
 	map<long long, struct ip_rule> ipv4_rules;
 	map<long long, struct ip_rule> ipv6_rules;
@@ -141,7 +129,7 @@ int ip_matcher_match(struct ip_matcher* matcher, struct ip_data* data,
 
 	if(tmp_matcher==NULL) 
 	{
-		return -1;
+		return 0;
 	}
 
 	int ret = tmp_matcher->search_rule(data,result,size);

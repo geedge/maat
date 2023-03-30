@@ -500,7 +500,7 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
     int real_hit_item_cnt = 0;
     long long district_id = state->district_id;
 
-    memset(hit_item_ids, 0, sizeof(hit_item_ids));
+    memset(hit_item_ids, -1, sizeof(hit_item_ids));
     
     for (int i = 0; i < n_hit_item; i++) {
         item = (struct maat_item_inner *)(hit_results[i].user_tag);

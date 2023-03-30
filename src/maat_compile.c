@@ -1831,14 +1831,8 @@ int maat_compile_state_update(struct rcu_hash_table *item_htable, int vtable_id,
 {
     struct maat_item *item = NULL;
     long long hit_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
-    memset(hit_group_ids, 0, sizeof(hit_group_ids));
+    memset(hit_group_ids, -1, sizeof(hit_group_ids));
     size_t hit_group_cnt = 0;
-
-    void *g2g_rt = table_manager_get_runtime(state->maat_instance->tbl_mgr,
-                                             state->maat_instance->g2g_table_id);
-    if (NULL == g2g_rt) {
-        return -1;
-    }
 
     for (size_t i = 0; i < hit_item_cnt; i++) {
         item = (struct maat_item *)rcu_hash_find(item_htable, (char *)&(hit_item_ids[i]), sizeof(long long));
@@ -1873,6 +1867,12 @@ int maat_compile_state_update(struct rcu_hash_table *item_htable, int vtable_id,
     void *compile_rt = table_manager_get_runtime(state->maat_instance->tbl_mgr,
                                                  compile_table_id);
     if (NULL == compile_rt) {
+        return 0;
+    }
+
+    void *g2g_rt = table_manager_get_runtime(state->maat_instance->tbl_mgr,
+                                             state->maat_instance->g2g_table_id);
+    if (NULL == g2g_rt) {
         return 0;
     }
 

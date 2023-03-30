@@ -691,7 +691,7 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
     int ret = 0;
     size_t real_hit_index = 0;
     long long hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
-    memset(hit_item_ids, 0, sizeof(hit_item_ids));
+    memset(hit_item_ids, -1, sizeof(hit_item_ids));
 
     // any ip, so scan port+proto
     if (1 == any_ip_flag) {

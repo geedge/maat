@@ -1012,13 +1012,11 @@ int flag_scan(struct table_manager *tbl_mgr, int thread_id, long long flag,
 
     int group_hit_cnt = flag_runtime_scan((struct flag_runtime *)flag_rt, thread_id,
                                           flag, vtable_id, state);
-    if (group_hit_cnt < 0) {
-        return -1;
+    if (group_hit_cnt <= 0) {
+        return group_hit_cnt;
     }
 
-    if (group_hit_cnt > 0) {
-        flag_runtime_scan_hit_inc((struct flag_runtime *)flag_rt, thread_id);
-    }
+    flag_runtime_scan_hit_inc((struct flag_runtime *)flag_rt, thread_id);
 
     return group_hit_cnt;
 }
@@ -1044,13 +1042,11 @@ int interval_scan(struct table_manager *tbl_mgr, int thread_id, long long intege
 
     int group_hit_cnt = interval_runtime_scan((struct interval_runtime *)interval_rt,
                                               thread_id, integer, vtable_id, state);
-    if (group_hit_cnt < 0) {
-        return -1;
+    if (group_hit_cnt <= 0) {
+        return group_hit_cnt;
     }
 
-    if (group_hit_cnt > 0) {
-        interval_runtime_scan_hit_inc((struct interval_runtime *)interval_rt, thread_id);
-    }
+    interval_runtime_scan_hit_inc((struct interval_runtime *)interval_rt, thread_id);
 
     return group_hit_cnt;
 }
@@ -1073,14 +1069,12 @@ int ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_addr,
     int group_hit_cnt = ip_runtime_scan((struct ip_runtime *)ip_rt, thread_id, IPv4,
                                         (uint8_t *)&ip_addr, port, proto, vtable_id, 
                                         state);
-    if (group_hit_cnt < 0) {
-        return -1;
+    if (group_hit_cnt <= 0) {
+        return group_hit_cnt;
     }
 
-    if (group_hit_cnt > 0) {
-        ip_runtime_scan_hit_inc((struct ip_runtime *)ip_rt, thread_id);
-    }
-
+    ip_runtime_scan_hit_inc((struct ip_runtime *)ip_rt, thread_id);
+    
     return group_hit_cnt;
 }
 
@@ -1101,14 +1095,12 @@ int ipv6_scan(struct table_manager *tbl_mgr, int thread_id, uint8_t *ip_addr,
 
     int group_hit_cnt = ip_runtime_scan((struct ip_runtime *)ip_rt, thread_id, IPv6,
                                         ip_addr, port, proto, vtable_id, state);
-    if (group_hit_cnt < 0) {
-        return -1;
+    if (group_hit_cnt <= 0) {
+        return group_hit_cnt;
     }
 
-    if (group_hit_cnt > 0) {
-        ip_runtime_scan_hit_inc((struct ip_runtime *)ip_rt, thread_id);
-    }
-
+    ip_runtime_scan_hit_inc((struct ip_runtime *)ip_rt, thread_id);
+    
     return group_hit_cnt;
 }
 
@@ -1133,13 +1125,11 @@ int string_scan(struct table_manager *tbl_mgr, int thread_id, const char *data, 
     int group_hit_cnt = expr_runtime_scan((struct expr_runtime *)expr_rt,
                                           thread_id, data, data_len,
                                           vtable_id, state);
-    if (group_hit_cnt < 0) {
-        return -1;
+    if (group_hit_cnt <= 0) {
+        return group_hit_cnt;
     }
 
-    if (group_hit_cnt > 0) {
-        expr_runtime_scan_hit_inc((struct expr_runtime *)expr_rt, thread_id);
-    }
+    expr_runtime_scan_hit_inc((struct expr_runtime *)expr_rt, thread_id);
 
     return group_hit_cnt;
 }
@@ -1153,7 +1143,8 @@ int expr_stream_scan(struct maat_stream *stream, const char *data, size_t data_l
 
     struct table_manager *tbl_mgr = stream->ref_maat_instance->tbl_mgr;
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, stream->physical_table_id);
-    if (table_type == TABLE_TYPE_EXPR_PLUS && DISTRICT_FLAG_UNSET == state->is_set_district) {
+    if (table_type == TABLE_TYPE_EXPR_PLUS && 
+        DISTRICT_FLAG_UNSET == state->is_set_district) {
         // maat_instance->scan_err_cnt++;
         return -1;
     }
@@ -1169,13 +1160,11 @@ int expr_stream_scan(struct maat_stream *stream, const char *data, size_t data_l
 
     int group_hit_cnt = expr_runtime_stream_scan((struct expr_runtime *)expr_rt, stream->s_handle,
                                                  data, data_len, stream->vtable_id, state);
-    if (group_hit_cnt < 0) {
-        return -1;
+    if (group_hit_cnt <= 0) {
+        return group_hit_cnt;
     }
 
-    if (group_hit_cnt > 0) {
-        expr_runtime_scan_hit_inc((struct expr_runtime *)expr_rt, stream->thread_id);
-    }
+    expr_runtime_scan_hit_inc((struct expr_runtime *)expr_rt, stream->thread_id);
 
     return group_hit_cnt;
 }

@@ -863,7 +863,7 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *d
     int real_hit_item_cnt = 0;
     long long district_id = state->district_id;
 
-    memset(hit_item_ids, 0, sizeof(hit_item_ids));
+    memset(hit_item_ids, -1, sizeof(hit_item_ids));
     
     for (size_t i = 0; i < n_hit_item; i++) {
         item = (struct maat_item_inner *)(hit_results[i].user_tag);
@@ -919,7 +919,7 @@ int expr_runtime_stream_scan(struct expr_runtime *expr_rt, struct adapter_hs_str
     }
     
     long long hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
-    memset(hit_item_ids, 0, sizeof(hit_item_ids));
+    memset(hit_item_ids, -1, sizeof(hit_item_ids));
 
     for (size_t i = 0; i < n_hit_item; i++) {
         hit_item_ids[i] = hit_results[i].item_id;
