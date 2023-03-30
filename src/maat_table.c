@@ -488,8 +488,8 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
         }
     }
 
-    int default_compile_table_id = MAX_TABLE_NUM;
-    int g2g_table_id = MAX_TABLE_NUM;
+    int default_compile_table_id = -1;
+    int g2g_table_id = -1;
     struct maat_kv_store *reserved_word_map = maat_kv_store_new();
     register_reserved_word(reserved_word_map);
 
@@ -516,12 +516,14 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
                      maat_tbl->table_name, maat_tbl->table_id);
                      
             if (maat_tbl->table_type == TABLE_TYPE_COMPILE) {
-                if (maat_tbl->table_id < default_compile_table_id) {
+                if (default_compile_table_id < 0) {
+                    default_compile_table_id = maat_tbl->table_id;
+                } else if (maat_tbl->table_id < default_compile_table_id) {
                     default_compile_table_id = maat_tbl->table_id;
                 }
             }
 
-            if (maat_tbl->table_type == TABLE_TYPE_GROUP2GROUP) {
+            if (maat_tbl->table_type == TABLE_TYPE_GROUP2GROUP) { 
                 g2g_table_id = maat_tbl->table_id;
             }
 

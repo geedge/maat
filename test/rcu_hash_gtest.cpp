@@ -457,6 +457,88 @@ TEST(global_rcu_hash_del, single_thread) {
     res = rcu_hash_find(g_htable, key, key_len);
     EXPECT_TRUE(res == NULL);
 }
+#define THREAD_NUM 10
+struct thread_param {
+	int thread_id;
+	int test_count;
+	unsigned long long time_elapse_ms;
+};
+
+void *rcu_scan_thread(void *arg)
+{
+    struct thread_param *param = (struct thread_param *)arg;
+
+    int hit_cnt = 0;
+    void **data_array = NULL;
+
+    sleep(2);
+    for (int index = 0; index < param->test_count; index++) {
+        size_t count = rcu_hash_list(g_htable, &data_array);
+
+        for (size_t i = 0; i < count; i++) {
+            struct user_data *user_data = (struct user_data *)data_array[i];
+            if (user_data != NULL && user_data->id == 101) {
+                hit_cnt++;
+            }
+        }
+    }
+    int *is_all_hit = ALLOC(int, 1);
+	*is_all_hit = (hit_cnt == param->test_count) ? 1 : 0;
+    printf("thread[%d]: hit_cnt:%d\n", param->thread_id, hit_cnt);
+    return is_all_hit;
+}
+
+void *rcu_update_thread(void *arg)
+{
+    const char *key = "http_url";
+    size_t key_len = strlen(key);
+
+    for (int i = 0; i < 10; i++) {
+        rcu_hash_del(g_htable, key, key_len);
+        rcu_hash_commit(g_htable);
+
+        sleep(1);
+
+        struct user_data *data = ALLOC(struct user_data, 1);
+        data->id = 101;
+        char name[64] = "www.baidu.com";
+        memcpy(data->name, name, strlen(name));
+        rcu_hash_add(g_htable, key, key_len, data);
+        rcu_hash_commit(g_htable);
+    }
+    int *is_all_hit = ALLOC(int, 1);
+    *is_all_hit = 1;
+
+    return is_all_hit;
+}
+
+TEST(rcu_hash_update, multi_thread) {
+    pthread_t threads[THREAD_NUM + 1];
+    struct thread_param t_param[THREAD_NUM + 1];
+    for (int i = 0; i < THREAD_NUM + 1; i++) {
+        t_param[i].thread_id = i;
+        t_param[i].test_count = 1000 * 1000;
+        t_param[i].time_elapse_ms = 0;
+
+        if (i < THREAD_NUM) {
+            pthread_create(&threads[i], NULL, rcu_scan_thread, t_param+i);
+        } else {
+            pthread_create(&threads[i], NULL, rcu_update_thread, t_param+i);
+        }
+    }
+
+    int *is_all_hit = NULL;
+    unsigned long long time_elapse_ms = 0, scan_count = 0;
+    for (int i = 0; i < THREAD_NUM + 1; i++) {
+        pthread_join(threads[i], (void **)&is_all_hit);
+        time_elapse_ms += t_param[i].time_elapse_ms;
+		scan_count += t_param[i].test_count;
+
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit = 0;
+		free(is_all_hit);
+    }
+}
 
 int main(int argc, char ** argv)
 {

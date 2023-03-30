@@ -4875,7 +4875,7 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
 	EXPECT_LE(hit_cnt, miss_cnt);
 	maat_state_free(state);                                    
 }
-#if 0
+#if 1
 TEST_F(MaatCmdTest, UpdateDeadLockDetection) {
     const char* g2c_table_name = "GROUP2COMPILE";
 	const char* compile_table_name = "COMPILE";
@@ -4901,7 +4901,7 @@ TEST_F(MaatCmdTest, UpdateDeadLockDetection) {
                               "part-1", NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     const char* scan_data1 = "scan string part-1.";
 	const char* scan_data2 = "scan string part-2.";

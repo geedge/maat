@@ -1185,13 +1185,17 @@ size_t group_to_compile(struct maat *maat_instance, long long *results, size_t n
 {
     int compile_table_id = -1;
 
-    if (state->compile_table_id != 0) {
+    if (state->compile_table_id > 0) {
         compile_table_id = state->compile_table_id;
     } else {
         compile_table_id = maat_instance->default_compile_table_id;
     }
 
     void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr, compile_table_id);
+    if (NULL == compile_rt) {
+        return 0;
+    }
+
     size_t n_hit_compile = hit_group_to_compile(compile_rt, results, n_result, state);
 
     assert(state->is_last_scan < LAST_SCAN_FINISHED);
@@ -1800,20 +1804,21 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
     }
 
     int compile_table_id = -1;
-    if (state->compile_table_id != 0) {
+    if (state->compile_table_id > 0) {
         compile_table_id = state->compile_table_id;
     } else {
         compile_table_id = maat_instance->default_compile_table_id;
     }
 
     void *g2g_runtime = table_manager_get_runtime(maat_instance->tbl_mgr, maat_instance->g2g_table_id);
-    assert(g2g_runtime != NULL);
     size_t internal_hit_path_cnt = maat_compile_state_get_internal_hit_paths(state->compile_state, 
                                                                             (struct group2group_runtime *)g2g_runtime,
                                                                              paths, n_path);
     
     void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr, compile_table_id);
-    assert(NULL != compile_rt);
+    if (NULL == compile_rt) {
+        return internal_hit_path_cnt;
+    }
         
     return compile_runtime_get_hit_paths((struct compile_runtime *)compile_rt,
                                           state->compile_state, paths, n_path,

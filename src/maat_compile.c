@@ -1244,10 +1244,6 @@ static inline int compare_clause_id(const void *a, const void *b)
 
 struct maat_compile_state *maat_compile_state_new(int thread_id)
 {
-    if (thread_id < 0) {
-        return NULL;
-    }
-
     struct maat_compile_state *compile_state = ALLOC(struct maat_compile_state, 1);
 
 	compile_state->thread_id = thread_id;
@@ -1858,7 +1854,7 @@ int maat_compile_state_update(struct rcu_hash_table *item_htable, int vtable_id,
 
     /* update hit clause */
     int compile_table_id = -1;
-    if (state->compile_table_id != 0) {
+    if (state->compile_table_id > 0) {
         compile_table_id = state->compile_table_id;
     } else {
         compile_table_id = state->maat_instance->default_compile_table_id;
@@ -1866,7 +1862,9 @@ int maat_compile_state_update(struct rcu_hash_table *item_htable, int vtable_id,
 
     void *compile_rt = table_manager_get_runtime(state->maat_instance->tbl_mgr,
                                                  compile_table_id);
-    assert(compile_rt != NULL);
+    if (NULL == compile_rt) {
+        return 0;
+    }
 
     long long top_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
     memset(top_group_ids, -1, sizeof(top_group_ids));
