@@ -75,6 +75,7 @@ struct compile_runtime {
     time_t version;
 	uint32_t rule_num;
     struct maat_clause *clause_by_literals_hash;
+    int updating_flag;
     pthread_rwlock_t rwlock; /* TODO: replaced with mutex? */
 
     struct bool_expr_match *expr_match_buff;
@@ -525,6 +526,7 @@ void *compile_runtime_new(void *compile_schema, int max_thread_num,
 
     compile_rt->expr_match_buff = ALLOC(struct bool_expr_match, max_thread_num * MAX_SCANNER_HIT_COMPILE_NUM);
     compile_rt->version = time(NULL);
+    compile_rt->updating_flag = 0;
     compile_rt->clause_by_literals_hash = NULL;
     compile_rt->logger = logger;
     compile_rt->ref_garbage_bin = garbage_bin;
@@ -604,9 +606,11 @@ void compile_runtime_free(void *compile_runtime)
         maat_clause_hash_free(&compile_rt->clause_by_literals_hash);
         compile_rt->clause_by_literals_hash = NULL;
     }
+
     if (compile_rt->expr_match_buff != NULL) {
         FREE(compile_rt->expr_match_buff);
     }
+
     pthread_rwlock_unlock(&compile_rt->rwlock);
     pthread_rwlock_destroy(&compile_rt->rwlock);
 
@@ -1578,6 +1582,7 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
     if (0 == is_valid) {
         //delete
         pthread_rwlock_wrlock(&compile_rt->rwlock);
+        compile_rt->updating_flag = 1;
         compile = maat_compile_hash_find(&(compile_rt->compile_hash), compile_id);
         if (NULL == compile) {
             pthread_rwlock_unlock(&compile_rt->rwlock);
@@ -1596,7 +1601,7 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
     } else {
         //add
         pthread_rwlock_wrlock(&compile_rt->rwlock);
-
+        compile_rt->updating_flag = 1;
         compile_item = compile_item_new(line, schema, compile_rt->logger);
         if (NULL == compile_item) {
             pthread_rwlock_unlock(&compile_rt->rwlock);
@@ -1672,6 +1677,7 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
         }
 
         pthread_rwlock_wrlock(&compile_rt->rwlock);
+        compile_rt->updating_flag = 1;
         ret = maat_remove_group_from_compile(&(compile_rt->compile_hash), g2c_item,
                                              compile_rt->ref_garbage_bin, compile_rt->logger);
         pthread_rwlock_unlock(&compile_rt->rwlock);
@@ -1689,6 +1695,7 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
 	    }
 
         pthread_rwlock_wrlock(&compile_rt->rwlock);
+        compile_rt->updating_flag = 1;
         ret = maat_add_group_to_compile(&(compile_rt->compile_hash), g2c_item, compile_rt->logger);
         pthread_rwlock_unlock(&compile_rt->rwlock);
         if (0 == ret) {
@@ -1716,9 +1723,11 @@ int compile_runtime_commit(void *compile_runtime, const char *table_name)
     struct bool_matcher *new_bool_matcher = NULL;
 
     pthread_rwlock_rdlock(&compile_rt->rwlock);
+    int updating_flag = compile_rt->updating_flag;
     size_t compile_cnt = HASH_COUNT(compile_rt->compile_hash);
     pthread_rwlock_unlock(&compile_rt->rwlock);
-    if (0 == compile_cnt) {
+
+    if (0 == updating_flag) {
         return 0;
     }
     
@@ -1738,6 +1747,7 @@ int compile_runtime_commit(void *compile_runtime, const char *table_name)
     pthread_rwlock_wrlock(&compile_rt->rwlock);
     old_bool_matcher = compile_rt->bm;
     compile_rt->bm = new_bool_matcher;
+    compile_rt->updating_flag = 0;
     pthread_rwlock_unlock(&compile_rt->rwlock);
 
     maat_garbage_bagging(compile_rt->ref_garbage_bin, old_bool_matcher, NULL,
