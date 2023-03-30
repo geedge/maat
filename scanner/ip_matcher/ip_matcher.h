@@ -91,8 +91,7 @@ extern "C"
 	����ֵ��
 		ipɨ����,���ؿ�ָ������ɨ����ʧ��
 	*/
-	struct ip_matcher* ip_matcher_new(struct ip_rule * rules, size_t rule_num, 
-                                      size_t * mem_use, struct log_handle *logger);
+	struct ip_matcher* ip_matcher_new(struct ip_rule * rules, size_t rule_num, size_t * mem_use);
 
 	/*
 	���ܣ�����ipɨ�����������ip���ݽ���ɨ��

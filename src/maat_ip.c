@@ -576,7 +576,7 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name)
     struct interval_matcher *new_intval_matcher = NULL;
     struct interval_matcher *old_intval_matcher = NULL;
     if (rule_cnt > 0) {
-        new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used, ip_rt->logger);
+        new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used);
         if (NULL == new_ip_matcher) {
             log_error(ip_rt->logger, MODULE_IP,
                       "[%s:%d] table[%s] rebuild ip_matcher engine failed when update %zu ip rules",

@@ -57,13 +57,10 @@ CRuleMatch * new_rule_matcher(enum IP_TYPE type)
 }
 
 struct ip_matcher * ip_matcher_new(struct ip_rule * rules, size_t rule_num, 
-                                   size_t * mem_use, struct log_handle *logger)
+                                   size_t * mem_use)
 {
 	if(rules == NULL || rule_num == 0)
 	{
-		log_error(logger, MODULE_IP_MATCHER, 
-                  "[%s:%d]:  ip_matcher_new() failed, for param is wrong!", 
-                  __FUNCTION__, __LINE__);
 		return NULL;
 	}
 
@@ -95,9 +92,6 @@ struct ip_matcher * ip_matcher_new(struct ip_rule * rules, size_t rule_num,
 		{
 			delete v4_matcher;
 			v4_matcher=NULL;
-			log_error(logger, MODULE_IP_MATCHER, 
-                      "[%s:%d] ip_matcher_new() failed !", 
-                      __FUNCTION__, __LINE__);
 			return NULL;
 		}
 
@@ -114,9 +108,6 @@ struct ip_matcher * ip_matcher_new(struct ip_rule * rules, size_t rule_num,
 		{
 			delete v6_matcher;
 			v6_matcher=NULL;
-			log_error(logger, MODULE_IP_MATCHER, 
-                      "[%s:%d] ip_matcher_new() failed !", 
-                      __FUNCTION__, __LINE__);
 			return NULL;
 		}
 
@@ -134,9 +125,6 @@ int ip_matcher_match(struct ip_matcher* matcher, struct ip_data* data,
 {
 	if(matcher == NULL || data == NULL || result == NULL)
 	{
-		log_error(matcher->logger, MODULE_IP_MATCHER, 
-                  "[%s:%d]: ip_matcher_match() failed, for param is NULL!", 
-                  __FUNCTION__, __LINE__);
 		return -1;
 	}
 
@@ -153,18 +141,12 @@ int ip_matcher_match(struct ip_matcher* matcher, struct ip_data* data,
 
 	if(tmp_matcher==NULL) 
 	{
-		log_error(matcher->logger, MODULE_IP_MATCHER, 
-                  "[%s:%d]: ip_matcher_match() failed, for can't find the right rule_matcher!", 
-                  __FUNCTION__, __LINE__);
 		return -1;
 	}
 
 	int ret = tmp_matcher->search_rule(data,result,size);
 	if(ret<0) 
 	{
-		log_error(matcher->logger, MODULE_IP_MATCHER, 
-                  "[%s:%d]: ip_matcher_match() failed, for the value returned by search_rule() is wrong!", 
-                  __FUNCTION__, __LINE__);
 		return -1;
 	}
 
