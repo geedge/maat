@@ -1867,19 +1867,19 @@ int maat_compile_state_update(struct rcu_hash_table *item_htable, int vtable_id,
     void *compile_rt = table_manager_get_runtime(state->maat_instance->tbl_mgr,
                                                  compile_table_id);
     assert(compile_rt != NULL);
-    for (size_t i = 0; i < hit_group_cnt; i++) {
-        long long top_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
-        memset(top_group_ids, 0, sizeof(top_group_ids));
-        int top_group_cnt = group2group_runtime_get_top_groups(g2g_rt, &hit_group_ids[i],
-                                                               1, top_group_ids);
-        if (top_group_cnt >= MAX_SCANNER_HIT_GROUP_NUM) {
-            top_group_cnt = MAX_SCANNER_HIT_GROUP_NUM;
-        }
 
-        for (int j = 0; j < top_group_cnt; j++) {
-            maat_compile_state_update_hit_clause(state->compile_state, compile_rt,
-                                                 top_group_ids[j], vtable_id);
-        }
+    long long top_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
+    memset(top_group_ids, -1, sizeof(top_group_ids));
+    int top_group_cnt = group2group_runtime_get_top_groups(g2g_rt, hit_group_ids,
+                                                           hit_group_cnt,
+                                                           top_group_ids);
+    if (top_group_cnt >= MAX_SCANNER_HIT_GROUP_NUM) {
+        top_group_cnt = MAX_SCANNER_HIT_GROUP_NUM;
+    }
+
+    for (int j = 0; j < top_group_cnt; j++) {
+        maat_compile_state_update_hit_clause(state->compile_state, compile_rt,
+                                             top_group_ids[j], vtable_id);
     }
 
     return 0;

@@ -498,9 +498,9 @@ int group2group_runtime_build_top_groups(void *g2g_runtime)
 
 	struct maat_group *group = NULL, *tmp = NULL;
 	struct maat_group *super_group = NULL;
-	int tmp_vid=0;
-	size_t top_group_cnt=0;
-	int *temp_group_ids=NULL;
+	int tmp_vid = 0;
+	size_t top_group_cnt = 0;
+	long long *temp_group_ids = NULL;
 	struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
 
     pthread_rwlock_wrlock(&(g2g_rt->rwlock));
@@ -538,14 +538,14 @@ int group2group_runtime_build_top_groups(void *g2g_runtime)
 			if (0 == group->ref_by_super_group_cnt) {
 				//fast path, group is only referenced by compile rules.
 				top_group_cnt = 1;
-				temp_group_ids = ALLOC(int, top_group_cnt);
+				temp_group_ids = ALLOC(long long, top_group_cnt);
 				temp_group_ids[0] = group->group_id;
 			} else {
 				igraph_vector_t *vids = &(group_topo->dfs_vids);
 				igraph_dfs(&group_topo->group_graph, group->vertex_id, IGRAPH_OUT, 
 							0, vids, NULL, NULL, NULL, NULL, NULL, NULL);
 				
-				temp_group_ids = ALLOC(int, effective_vertices_count(vids));
+				temp_group_ids = ALLOC(long long, effective_vertices_count(vids));
 				
 				for (size_t i = 0; i < (size_t)igraph_vector_size(vids); i++) {
 					tmp_vid = (int) VECTOR(*vids)[i];

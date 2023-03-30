@@ -2780,7 +2780,7 @@ TEST_F(Policy, CompileEXData) {
 	maat_state_free(state);
     state = NULL;
 }
-#if 0
+
 TEST_F(Policy, SubGroup) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -2811,7 +2811,7 @@ TEST_F(Policy, SubGroup) {
 	
 	maat_state_free(state);
 }
-#endif
+
 TEST_F(Policy, EvaluationOrder) {
     const char *url = "cavemancircus.com/2019/12/27/pretty-girls-6/";
     long long results[ARRAY_SIZE] = {0};

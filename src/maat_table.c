@@ -587,14 +587,13 @@ int table_manager_runtime_create(struct table_manager *tbl_mgr, int max_thread_n
      
         table_type = table_manager_get_table_type(tbl_mgr, i);
         void *runtime = table_manager_get_runtime(tbl_mgr, i);
+        tbl_mgr->tbl[i]->runtime = maat_table_runtime_new(schema, table_type, max_thread_num,
+                                                          garbage_bin, tbl_mgr->logger);
         if (runtime != NULL) {
             enum table_type *arg = ALLOC(enum table_type, 1);
             *arg = table_type;
             maat_garbage_bagging(garbage_bin, runtime, arg, garbage_maat_table_runtime_free);
         }
-        
-        tbl_mgr->tbl[i]->runtime = maat_table_runtime_new(schema, table_type, max_thread_num,
-                                                          garbage_bin, tbl_mgr->logger);
     }
 
     /* group2compile runtime depends on associated compile runtime,
