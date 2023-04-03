@@ -2827,9 +2827,9 @@ TEST_F(Policy, EvaluationOrder) {
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 3);
-    EXPECT_EQ(results[0], 166);
+    EXPECT_EQ(results[0], 168);
     EXPECT_EQ(results[1], 167);
-    EXPECT_EQ(results[2], 168);
+    EXPECT_EQ(results[2], 166);
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.23.23", &ip_addr);

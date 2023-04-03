@@ -31,7 +31,6 @@ struct compile_schema {
     int compile_id_column;
     int rule_tag_column;
     int declared_clause_num_column;
-    int evaluation_order_column;
 	struct ex_data_schema *ex_schema;
     int table_id; //ugly
     char table_name[NAME_MAX];
@@ -291,15 +290,6 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "evaluation_order");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        compile_schema->evaluation_order_column = custom_item->valueint;
-    } else {
-        log_error(logger, MODULE_COMPILE, 
-                  "[%s:%d] table %s has no evaluation_order column", table_name);
-        goto error;
-    }
-    
     compile_schema->ref_tbl_mgr = tbl_mgr;
 	return compile_schema;
 error:
@@ -488,16 +478,6 @@ compile_item_new(const char *line, struct compile_schema *compile_schema,
 		goto error;
     }
     compile_item->declared_clause_num = atoi(line + column_offset);
-
-    ret = get_column_pos(line, compile_schema->evaluation_order_column,
-                         &column_offset, &column_len);
-    if (ret < 0) {
-        log_error(logger, MODULE_COMPILE,
-				  "[%s:%d] compile table(table_id:%d) line:%s has no evaluation_order",
-				  __FUNCTION__, __LINE__, compile_schema->table_id, line);
-		goto error;
-    }
-    compile_item->evaluation_order = atof(line + column_offset);
 
     return compile_item;
 error:
