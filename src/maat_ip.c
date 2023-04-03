@@ -664,7 +664,8 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
         return 0;
     }
     
-    struct scan_result ip_results[MAX_SCANNER_HIT_ITEM_NUM] = {0};
+    struct scan_result ip_results[MAX_SCANNER_HIT_ITEM_NUM];
+    memset(ip_results, 0, sizeof(ip_results));
 
     /* if ip_addr = "0.0.0.0" means any ip */
     int any_ip_flag = 0;
@@ -695,7 +696,8 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
 
     // any ip, so scan port+proto
     if (1 == any_ip_flag) {
-        struct interval_result port_results[MAX_SCANNER_HIT_ITEM_NUM] = {0};
+        struct interval_result port_results[MAX_SCANNER_HIT_ITEM_NUM];
+        memset(port_results, 0, sizeof(port_results));
         uint16_t host_port = ntohs(port);
         int n_hit_port_item = interval_matcher_match(ip_rt->intval_matcher, host_port, 
                                                      port_results, MAX_SCANNER_HIT_ITEM_NUM);

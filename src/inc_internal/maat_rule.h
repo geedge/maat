@@ -78,10 +78,8 @@ struct compile_rule {
     char *table_line;
     size_t table_line_len;
 	int declared_clause_num;
-	double evaluation_order;
 	struct compile_schema *ref_table;
 	void **ex_data;
-	pthread_rwlock_t rwlock;
 };
 
 struct group2group_rule {

@@ -72,6 +72,7 @@ void maat_garbage_bagging(struct maat_garbage_bin* bin, void* garbage, void *arg
 	bag->create_time = time(NULL);
 	bag->timeout = bin->timeout_seconds;
 	bag->garbage = garbage;
+	bag->arg = arg;
 	bag->garbage_free = func;
 	TAILQ_INSERT_TAIL(&bin->garbage_q, bag, entries);
 	bin->bag_cnt++;

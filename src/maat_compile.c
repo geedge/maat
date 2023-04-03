@@ -54,7 +54,6 @@ struct group2compile_schema {
 struct compile_item {
     long long compile_id;
     int declared_clause_num;
-    double evaluation_order;
 };
 
 struct group2compile_item {
@@ -108,7 +107,6 @@ struct maat_clause {
 };
 
 struct compile_sort_para {
-	double evaluation_order;
 	int declared_clause_num;
 	long long compile_id;
 	void *user;
@@ -121,7 +119,6 @@ struct maat_compile {
     char table_name[NAME_MAX];
 	int actual_clause_num;
 	int declared_clause_num;
-    double evaluation_order;
 	int not_clause_cnt;
 	void *user_data;
 	void (*user_data_free)(void *);
@@ -299,6 +296,12 @@ error:
 
 void compile_schema_free(void *compile_schema)
 {
+    struct compile_schema *schema = (struct compile_schema *)compile_schema;
+
+    if (schema->ex_schema != NULL) {
+        FREE(schema->ex_schema);
+    }
+
 	FREE(compile_schema);
 }
 
@@ -759,8 +762,8 @@ struct maat_compile *maat_compile_new(long long compile_id)
 }
 
 int maat_compile_set(struct maat_compile *compile, const char *table_name,
-                     double evaluation_order, int declared_clause_num, 
-                     void *user_data, void (*user_data_free)(void *))
+                     int declared_clause_num, void *user_data, 
+                     void (*user_data_free)(void *))
 {
 	if (user_data != NULL && NULL == user_data_free) {
 		return -1;
@@ -768,7 +771,6 @@ int maat_compile_set(struct maat_compile *compile, const char *table_name,
 
     memset(compile->table_name, 0, sizeof(compile->table_name));
     memcpy(compile->table_name, table_name, sizeof(compile->table_name));
-    compile->evaluation_order = evaluation_order;
 	compile->declared_clause_num = declared_clause_num;
 	compile->user_data = user_data;
 	compile->user_data_free = user_data_free;
@@ -813,10 +815,8 @@ void maat_compile_hash_set(struct maat_compile **compile_hash, long long compile
     assert(tmp_compile != NULL);
 
     assert(tmp_compile->user_data == NULL);
-    maat_compile_set(tmp_compile, table_name, compile->evaluation_order,
-                     compile->declared_clause_num, compile->user_data, 
-                     compile->user_data_free);
-    
+    maat_compile_set(tmp_compile, table_name, compile->declared_clause_num, 
+                     compile->user_data, compile->user_data_free);
 }
 
 int maat_compile_hash_remove(struct maat_compile **compile_hash, struct maat_compile *compile,
@@ -1443,12 +1443,6 @@ void maat_compile_state_update_hit_clause(struct maat_compile_state *compile_sta
                     utarray_push_back(compile_state->all_hit_clauses, clause_id);
                 }
                 utarray_sort(compile_state->all_hit_clauses, compare_clause_id);
-                // printf("<update_hit_clause> all_hit_clause:");
-                // for (i = 0; i < utarray_len(compile_state->all_hit_clauses); i++) {
-                //     long long *tmp_clause_id = (long long *)utarray_eltptr(compile_state->all_hit_clauses, i);
-                //     printf(" %lld ", *tmp_clause_id);
-                // }
-                // printf("\n");
             }
         }
 	}
@@ -1467,7 +1461,6 @@ void compile_item_to_compile_rule(struct compile_item *compile_item,
                                   const char *table_line)
 {
     compile_rule->magic_num = COMPILE_RULE_MAGIC;
-    compile_rule->evaluation_order = compile_item->evaluation_order;
     compile_rule->declared_clause_num = compile_item->declared_clause_num;
     compile_rule->ref_table = compile_schema;
     compile_rule->ex_data = ALLOC(void *, 1);
@@ -1482,10 +1475,9 @@ void compile_item_to_compile_rule(struct compile_item *compile_item,
     }
     
     compile_rule->compile_id = compile_item->compile_id;
-    pthread_rwlock_init(&compile_rule->rwlock, NULL);
 }
 
-void destroy_compile_rule(struct compile_rule *compile_rule)
+void compile_rule_free(struct compile_rule *compile_rule)
 {
 	struct compile_schema *schema = compile_rule->ref_table;
 	assert(compile_rule->magic_num==COMPILE_RULE_MAGIC);
@@ -1595,7 +1587,7 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
 
         compile = maat_compile_new(compile_rule->compile_id);
         if (NULL == compile) {
-            destroy_compile_rule(compile_rule);
+            compile_rule_free(compile_rule);
             pthread_rwlock_unlock(&compile_rt->rwlock);
             log_error(compile_rt->logger, MODULE_COMPILE,
                       "[%s:%d] maat_compile_new failed, compile_table:%s compile_id:%d", 
@@ -1603,9 +1595,8 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
             return -1;
         }
         
-        maat_compile_set(compile, table_name, compile_rule->evaluation_order,
-                         compile_rule->declared_clause_num, compile_rule, 
-                        (void (*)(void *))destroy_compile_rule);
+        maat_compile_set(compile, table_name, compile_rule->declared_clause_num, 
+                        compile_rule, (void (*)(void *))compile_rule_free);
         struct maat_compile *tmp_compile = maat_compile_hash_find(&(compile_rt->compile_hash), compile_id);
         if (tmp_compile != NULL) {
             maat_compile_hash_set(&(compile_rt->compile_hash), compile_id, table_name, compile);
@@ -1653,6 +1644,7 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
             log_error(compile_rt->logger, MODULE_COMPILE,
                       "[%s:%d] Remove group %d from compile %d failed, group is not exisited.",
                       __FUNCTION__, __LINE__, g2c_item->group_id, g2c_item->compile_id);
+            group2compile_item_free(g2c_item);
             return -1;
         }
 
@@ -1741,18 +1733,6 @@ int compile_runtime_commit(void *compile_runtime, const char *table_name)
 static int compile_sort_para_compare(const struct compile_sort_para *a,
                                      const struct compile_sort_para *b)
 {
-	//If both of compile rule's evaluation order are specified, compile rule with small evaluation order is priority.
-	if (a->evaluation_order != 0 && b->evaluation_order != 0) {
-		if (a->evaluation_order - b->evaluation_order < 0) {
-			return -1;
-		} else if(a->evaluation_order - b->evaluation_order > 0) {
-			return 1;
-		}
-	} else if(a->evaluation_order + b->evaluation_order!= 0) {
-        //If one of compile rule's evaluation order is zero, compile rule with big evaluation order is priority.
-		return (a->evaluation_order - b->evaluation_order > 0) ? -1 : 1;
-	}
-
 	//If compile rule's execute sequences are not specified or equal.
 	if (a->declared_clause_num != b->declared_clause_num) {
 		return (a->declared_clause_num - b->declared_clause_num);
@@ -1766,7 +1746,6 @@ static void compile_sort_para_set(struct compile_sort_para *para,
                                   void *user)
 {
 	para->compile_id = compile_relation->compile_id;
-	para->evaluation_order = compile_relation->evaluation_order;
 	para->declared_clause_num = compile_relation->declared_clause_num;
 	para->user = user;
 }

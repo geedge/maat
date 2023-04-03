@@ -562,8 +562,8 @@ void *rule_monitor_loop(void *arg)
     }
 
     maat_runtime_destroy(maat_instance->maat_rt);
-	maat_garbage_bin_free(maat_instance->garbage_bin);
 	table_manager_destroy(maat_instance->tbl_mgr);
+    maat_garbage_bin_free(maat_instance->garbage_bin);
 
     alignment_int64_array_free(maat_instance->thread_call_cnt);
     alignment_int64_array_free(maat_instance->hit_cnt);

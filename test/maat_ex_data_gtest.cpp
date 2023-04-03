@@ -133,10 +133,13 @@ int main(int argc, char ** argv)
     maat_options_set_json_file(opts, json_path);
 
     g_maat_instance = maat_new(opts, table_info_path);
+    maat_options_free(opts);
     EXPECT_TRUE(g_maat_instance != NULL);
 
 	ret=RUN_ALL_TESTS();
 
     log_handle_destroy(g_logger);
+    maat_free(g_maat_instance);
+    g_maat_instance = NULL;
 	return ret;
 }

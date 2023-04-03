@@ -838,7 +838,8 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *d
     }
 
     size_t n_hit_item = 0;
-    struct hs_scan_result hit_results[MAX_SCANNER_HIT_ITEM_NUM] = {0};
+    struct hs_scan_result hit_results[MAX_SCANNER_HIT_ITEM_NUM];
+    memset(hit_results, 0, sizeof(hit_results));
     
     int ret = adapter_hs_scan(expr_rt->hs, thread_id, data, data_len, 
                               hit_results, MAX_SCANNER_HIT_ITEM_NUM, 
@@ -901,7 +902,9 @@ int expr_runtime_stream_scan(struct expr_runtime *expr_rt, struct adapter_hs_str
     }
 
     size_t n_hit_item = 0;
-    struct hs_scan_result hit_results[MAX_SCANNER_HIT_ITEM_NUM] = {0};
+    struct hs_scan_result hit_results[MAX_SCANNER_HIT_ITEM_NUM];
+    memset(hit_results, 0, sizeof(hit_results));
+    
     int ret = adapter_hs_scan_stream(s_handle, data, data_len, hit_results, MAX_SCANNER_HIT_ITEM_NUM, &n_hit_item);
     if (ret < 0) {
         return -1;

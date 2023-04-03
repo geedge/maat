@@ -26,6 +26,9 @@ target_link_libraries(adapter_hs_gtest maat_frame_static gtest_static)
 add_executable(maat_ex_data_gtest maat_ex_data_gtest.cpp)
 target_link_libraries(maat_ex_data_gtest maat_frame_static gtest_static)
 
+add_executable(maat_garbage_collection_gtest maat_garbage_collection_gtest.cpp)
+target_link_libraries(maat_garbage_collection_gtest maat_frame_static gtest_static)
+
 file(COPY table_info.conf DESTINATION ./)
 file(COPY file_test_tableinfo.conf DESTINATION ./)
 file(COPY literal_expr.conf DESTINATION ./)

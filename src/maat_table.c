@@ -643,7 +643,15 @@ void table_manager_runtime_destroy(struct table_manager *tbl_mgr)
 	}
 
     /* free district map */
-    maat_kv_store_free(tbl_mgr->district_map);
+    if (tbl_mgr->district_map != NULL) {
+        maat_kv_store_free(tbl_mgr->district_map);
+        tbl_mgr->district_map = NULL;
+    }
+    
+    if (tbl_mgr->tmp_district_map != NULL) {
+        maat_kv_store_free(tbl_mgr->tmp_district_map);
+        tbl_mgr->tmp_district_map = NULL;
+    }
 }
 
 void table_manager_destroy(struct table_manager *tbl_mgr)

@@ -218,9 +218,8 @@ void ex_container_free(void *schema, void *data)
                                             &(ex_container->ex_data), argl, argp);
     }
     
-    if (ex_container->custom_data != NULL 
-        && container_schema->custom_data_free != NULL) {
-        container_schema->custom_data_free(ex_container->custom_data);
+    if (ex_container->custom_data != NULL) {
+        FREE(ex_container->custom_data);
     }
 
     FREE(ex_container);

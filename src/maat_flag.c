@@ -480,7 +480,8 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
         return 0;
     }
 
-    struct flag_result hit_results[MAX_SCANNER_HIT_ITEM_NUM] = {0};
+    struct flag_result hit_results[MAX_SCANNER_HIT_ITEM_NUM];
+    memset(hit_results, 0, sizeof(hit_results));
     
     int n_hit_item = flag_matcher_match(flag_rt->matcher, flag, 
                                         hit_results, MAX_SCANNER_HIT_ITEM_NUM);

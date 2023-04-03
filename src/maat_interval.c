@@ -476,7 +476,8 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
         return 0;
     }
 
-    struct interval_result hit_results[MAX_SCANNER_HIT_ITEM_NUM] = {0};
+    struct interval_result hit_results[MAX_SCANNER_HIT_ITEM_NUM];
+    memset(hit_results, 0, sizeof(hit_results));
     
     int n_hit_item = interval_matcher_match(interval_rt->matcher, integer, 
                                             hit_results, MAX_SCANNER_HIT_ITEM_NUM);
