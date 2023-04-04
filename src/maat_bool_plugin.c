@@ -189,7 +189,7 @@ void *bool_plugin_runtime_new(void *bool_plugin_schema, int max_thread_num,
 
     bool_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, 
                                                      ex_container_free, 
-                                                     garbage_bin, logger);
+                                                    logger);
     bool_plugin_rt->ref_garbage_bin = garbage_bin;
     bool_plugin_rt->logger = logger;
 

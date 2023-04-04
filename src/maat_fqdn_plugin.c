@@ -173,7 +173,7 @@ void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, int max_thread_num,
     struct fqdn_plugin_runtime *fqdn_plugin_rt = ALLOC(struct fqdn_plugin_runtime, 1);
 
     fqdn_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, ex_container_free, 
-                                                     garbage_bin, logger);
+                                                     logger);
     fqdn_plugin_rt->ref_garbage_bin = garbage_bin;
     fqdn_plugin_rt->logger = logger;
 

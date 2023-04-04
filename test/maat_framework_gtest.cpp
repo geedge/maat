@@ -2186,7 +2186,7 @@ void fqdn_plugin_ex_new_cb(const char *table_name, int table_id, const char *key
 	EXPECT_EQ(ret, 0);
 
 	sscanf(table_line + column_offset, "catid=%d", &ud->catid);
-	ud->ref_cnt = 1;
+	ud->ref_cnt = 0;
 	*ad = ud;
 	(*counter)++;
 }
@@ -2268,7 +2268,7 @@ void bool_plugin_ex_new_cb(const char *table_name, int table_id, const char *key
 
 	ud->name = (char *)malloc(column_len+1);
 	memcpy(ud->name, table_line+column_offset, column_len);
-	ud->ref_cnt = 1;
+	ud->ref_cnt = 0;
 	*ad = ud;
 	(*counter)++;
 }
@@ -3946,7 +3946,7 @@ void plugin_ex_new_cb(const char *table_name, int table_id, const char *key,
 	int valid = 0, tag = 0;
 	int ret = sscanf(table_line, "%d\t%s\t%s%d\t%d", &(u->id), u->ip_addr, u->name, &valid, &tag);
 	EXPECT_EQ(ret, 5);
-	u->ref_cnt = 1;
+	u->ref_cnt = 0;
 	*ad = u;
 	(*counter)++;
 }

@@ -358,7 +358,7 @@ void *ip_plugin_runtime_new(void *ip_plugin_schema, int max_thread_num,
     struct ip_plugin_runtime *ip_plugin_rt = ALLOC(struct ip_plugin_runtime, 1);
 
     ip_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, ex_container_free, 
-                                                   garbage_bin, logger);
+                                                   logger);
     ip_plugin_rt->ref_garbage_bin = garbage_bin;
     ip_plugin_rt->logger = logger;
 

@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <unistd.h>
 #include <linux/limits.h>
 
 #include "maat_utils.h"
@@ -438,7 +439,9 @@ void maat_free(struct maat *maat_instance)
     }
 
     void *ret = NULL;
-
+    while (0 == maat_instance->is_running) {
+        usleep(500 * 1000); 
+    }
     maat_instance->is_running = 0;
 	pthread_join(maat_instance->cfg_mon_thread, &ret);
 }

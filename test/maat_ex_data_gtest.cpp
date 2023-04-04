@@ -29,7 +29,7 @@ void ex_data_new_cb(const char *table_name, int table_id, const char *key, const
 	int valid = 0, tag = 0;
 	int ret = sscanf(table_line, "%d\t%s\t%s%d\t%d", &(u->id), u->ip_addr, u->name, &valid, &tag);
 	EXPECT_EQ(ret, 5);
-	u->ref_cnt = 1;
+	u->ref_cnt = 0;
 	*ad = u;
 	(*counter)++;
 }
@@ -38,9 +38,12 @@ void ex_data_free_cb(int table_id, void **ad, long argl, void *argp)
 {
 	struct user_info *u = (struct user_info *)(*ad);
 	if ((__sync_sub_and_fetch(&u->ref_cnt, 1) == 0)) {
+        printf("yes, free(u)\n");
 		free(u);
 		*ad = NULL;
-	}
+	} else {
+        printf("u->ref_cnt:%d\n", u->ref_cnt);
+    }
 }
 
 void ex_data_dup_cb(int table_id,	void **to, void **from, long argl, void *argp)
@@ -56,8 +59,7 @@ TEST(EXDataRuntime, Update) {
 	ASSERT_GT(table_id, 0);
 
     int ex_data_counter = 0;
-    struct maat_garbage_bin *garbage_bin = maat_garbage_bin_new(10);
-    struct ex_data_runtime *ex_data_rt = ex_data_runtime_new(table_id, ex_container_free, garbage_bin, g_logger);
+    struct ex_data_runtime *ex_data_rt = ex_data_runtime_new(table_id, ex_container_free, g_logger);
     struct ex_data_schema *ex_schema = ex_data_schema_new(ex_data_new_cb, ex_data_free_cb, ex_data_dup_cb, 
                                                           0, &ex_data_counter);
 
@@ -87,15 +89,17 @@ TEST(EXDataRuntime, Update) {
     struct user_info *info = (struct user_info *)res_data1;
     EXPECT_EQ(0, strcmp(info->name, "mahuateng"));
     EXPECT_EQ(info->id, 1);
+    ex_data_free_cb(table_id, (void **)&res_data1, 0, NULL);
 
+    ex_container = NULL;
     void *res_data2 = ex_data_runtime_get_ex_data_by_key(ex_data_rt, ex_schema, "192.168.0.2", 11);
     EXPECT_TRUE(res_data2 != NULL);
 
     info = (struct user_info *)res_data2;
     EXPECT_EQ(0, strcmp(info->name, "liyanhong"));
     EXPECT_EQ(info->id, 2);
+    ex_data_free_cb(table_id, (void **)&res_data2, 0, NULL);
 
-    maat_garbage_bin_free(garbage_bin);
     ex_data_runtime_free(ex_data_rt);
     ex_data_schema_free(ex_schema);
 }

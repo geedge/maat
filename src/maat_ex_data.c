@@ -25,7 +25,6 @@ struct ex_data_runtime {
     size_t cache_size;
 
     struct rcu_hash_table *htable;
-    struct maat_garbage_bin *ref_garbage_bin;
 	int table_id;
 
     struct log_handle *logger;
@@ -40,10 +39,9 @@ UT_icd ut_cache_row_icd = {sizeof(char*), NULL, NULL, cache_row_free};
 
 struct ex_data_runtime *
 ex_data_runtime_new(int table_id, rcu_hash_data_free_fn *data_free_fn,
-                    struct maat_garbage_bin *garbage_bin, struct log_handle *logger)
+                    struct log_handle *logger)
 {
-    if (NULL == data_free_fn || NULL == garbage_bin ||
-        NULL == logger) {
+    if (NULL == data_free_fn ||  NULL == logger) {
         return NULL;
     }
 
@@ -52,7 +50,6 @@ ex_data_runtime_new(int table_id, rcu_hash_data_free_fn *data_free_fn,
     utarray_new(ex_data_rt->cache_rows, &ut_cache_row_icd);
     ex_data_rt->htable = rcu_hash_new(data_free_fn);
     ex_data_rt->table_id = table_id;
-    ex_data_rt->ref_garbage_bin = garbage_bin;
     ex_data_rt->logger = logger;
 
     return ex_data_rt;
@@ -203,23 +200,24 @@ struct ex_container *ex_container_new(void *ex_data, void *custom_data)
 void ex_container_free(void *schema, void *data)
 {
     /* schema is NULL if not call ex_data_runtime_set_ex_container_schema */
-    if (NULL == schema || NULL == data) {
+    if (NULL == data) {
         return;
     }
 
     struct ex_container *ex_container = (struct ex_container *)data;
-    struct ex_container_schema *container_schema = (struct ex_container_schema *)schema;
-    long argl = container_schema->ex_schema->argl;
-    void *argp = container_schema->ex_schema->argp;
-
-    if (ex_container->ex_data != NULL 
-        && container_schema->ex_schema->free_func != NULL) {
-        container_schema->ex_schema->free_func(container_schema->table_id, 
-                                            &(ex_container->ex_data), argl, argp);
-    }
-    
     if (ex_container->custom_data != NULL) {
         FREE(ex_container->custom_data);
+    }
+
+    struct ex_container_schema *container_schema = (struct ex_container_schema *)schema;
+    if (container_schema != NULL && container_schema->ex_schema != NULL) {
+        long argl = container_schema->ex_schema->argl;
+        void *argp = container_schema->ex_schema->argp;
+
+        if (ex_container->ex_data != NULL && container_schema->ex_schema->free_func != NULL) {
+            container_schema->ex_schema->free_func(container_schema->table_id,
+                                                   &(ex_container->ex_data), argl, argp);
+        }
     }
 
     FREE(ex_container);

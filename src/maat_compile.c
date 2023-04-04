@@ -858,7 +858,7 @@ int compare_literal_id(const void *pa, const void *pb)
 	struct maat_literal_id *la = (struct maat_literal_id *)pa;
 	struct maat_literal_id *lb = (struct maat_literal_id *)pb;
 
-	int ret = la->vtable_id - lb->vtable_id;
+	long long ret = la->vtable_id - lb->vtable_id;
 	if (0 == ret) {
 		ret = la->group_id - lb->group_id;
 	}
@@ -927,7 +927,7 @@ maat_clause_hash_fetch_clause(struct compile_runtime *compile_rt,
 
 	HASH_FIND(hh, compile_rt->clause_by_literals_hash, literal_ids, 
               n_literal_id * sizeof(struct maat_literal_id), clause);
-	if (!clause) {
+	if (NULL == clause) {
 		clause = ALLOC(struct maat_clause, 1);
 		clause->clause_id = maat_runtime_get_sequence(compile_rt->ref_maat_rt, "clause_id");
 		clause->n_literal_id = n_literal_id;

@@ -403,6 +403,11 @@ void ip_runtime_free(void *ip_runtime)
         ip_rt->ip_matcher = NULL;
     }
 
+    if (ip_rt->intval_matcher != NULL) {
+        interval_matcher_free(ip_rt->intval_matcher);
+        ip_rt->intval_matcher = NULL;
+    }
+
     if (ip_rt->htable != NULL) {
         rcu_hash_free(ip_rt->htable);
         ip_rt->htable = NULL;
@@ -614,6 +619,10 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name)
         FREE(rules);
     }
     
+    if (intval_rules != NULL) {
+        FREE(intval_rules);
+    }
+
     if (ex_data_array != NULL) {
         FREE(ex_data_array);
     }

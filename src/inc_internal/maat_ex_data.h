@@ -43,7 +43,7 @@ struct ex_data_runtime;
 /* ex_data_runtime API */
 struct ex_data_runtime *
 ex_data_runtime_new(int table_id, rcu_hash_data_free_fn *data_free_fn,
-                    struct maat_garbage_bin *garbage_bin, struct log_handle *logger);
+                    struct log_handle *logger);
 void ex_data_runtime_free(struct ex_data_runtime *ex_data_rt);
 void ex_data_runtime_commit(struct ex_data_runtime *ex_data_rt);
 
