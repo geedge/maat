@@ -61,16 +61,6 @@ void virtual_schema_free(void *virtual_schema)
     FREE(virtual_schema);
 }
 
-int virtual_table_get_id(void *virtual_schema)
-{
-    if (NULL == virtual_schema) {
-        return -1;
-    }
-
-    struct virtual_schema *schema = (struct virtual_schema *)virtual_schema;
-    return schema->table_id;
-}
-
 int virtual_table_get_physical_table_id(void *virtual_schema)
 {
     if (NULL == virtual_schema) {

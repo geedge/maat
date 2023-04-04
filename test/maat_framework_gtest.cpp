@@ -289,7 +289,7 @@ int ip_table_set_line(struct maat *maat_instance, const char *table_name, enum m
 
     return maat_cmd_set_line(maat_instance, &line_rule);
 }
-
+#if 1
 class MaatFlagScan : public testing::Test
 {
 protected:
@@ -511,7 +511,7 @@ TEST_F(MaatFlagScan, FlagPlus) {
                              ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_ERR);
  
-    ret = maat_state_set_scan_district(state, region_name, strlen(region_name));
+    ret = maat_state_set_scan_district(state, flag_table_id, region_name, strlen(region_name));
     ASSERT_EQ(ret, 0);
 
     ret = maat_scan_flag(maat_instance, flag_table_id, scan_data1, results,
@@ -675,7 +675,7 @@ TEST_F(MaatStringScan, ExprPlus) {
 						        results, ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_ERR);//Should return error for district not setting.
 
-	ret = maat_state_set_scan_district(state, region_name1, strlen(region_name1));
+	ret = maat_state_set_scan_district(state, table_id, region_name1, strlen(region_name1));
 	ASSERT_EQ(ret, 0);
 	ret = maat_scan_string(maat_instance, table_id, scan_data1, strlen(scan_data1), 
 						   results, ARRAY_SIZE, &n_hit_result, state);
@@ -683,7 +683,7 @@ TEST_F(MaatStringScan, ExprPlus) {
 	EXPECT_EQ(results[0], 128);
 	maat_state_reset(state);
 
-	ret = maat_state_set_scan_district(state, region_name2, strlen(region_name2));
+	ret = maat_state_set_scan_district(state, table_id, region_name2, strlen(region_name2));
 	ASSERT_EQ(ret, 0);
 	ret = maat_scan_string(maat_instance, table_id, scan_data2, strlen(scan_data2), 
 						   results, ARRAY_SIZE, &n_hit_result, state);
@@ -731,7 +731,7 @@ TEST_F(MaatStringScan, ExprPlusWithOffset)
 	int table_id = maat_get_table_id(maat_instance, "APP_PAYLOAD");
 	ASSERT_GT(table_id, 0);
 
-	int ret = maat_state_set_scan_district(state, region_name, strlen(region_name));
+	int ret = maat_state_set_scan_district(state, table_id, region_name, strlen(region_name));
 	EXPECT_EQ(ret, 0);
 
 	ret = maat_scan_string(maat_instance, table_id, (char*)udp_payload_not_hit, sizeof(udp_payload_not_hit), 
@@ -761,14 +761,14 @@ TEST_F(MaatStringScan, ExprPlusWithHex) {
 	int table_id = maat_get_table_id(maat_instance, "HTTP_SIGNATURE");
 	ASSERT_GT(table_id, 0);
 
-	int ret = maat_state_set_scan_district(state, region_name1, strlen(region_name1));
+	int ret = maat_state_set_scan_district(state, table_id, region_name1, strlen(region_name1));
 	ASSERT_EQ(ret, 0);
 	ret = maat_scan_string(maat_instance, table_id, scan_data1, strlen(scan_data1), 
 						   results, ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(results[0], 156);
 
-    ret = maat_state_set_scan_district(state, region_name2, strlen(region_name2));
+    ret = maat_state_set_scan_district(state, table_id, region_name2, strlen(region_name2));
 	ASSERT_EQ(ret, 0);
 	ret = maat_scan_string(maat_instance, table_id, scan_data1, strlen(scan_data1), 
 						   results, ARRAY_SIZE, &n_hit_result, state);
@@ -801,7 +801,7 @@ TEST_F(MaatStringScan, ExprAndExprPlus) {
                                 results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_ERR);
 
-    ret = maat_state_set_scan_district(state, region_name, strlen(region_name));
+    ret = maat_state_set_scan_district(state, expr_plus_table_id, region_name, strlen(region_name));
     ASSERT_EQ(ret, 0);
     ret = maat_scan_string(maat_instance, expr_plus_table_id, scan_data, strlen(scan_data),
                             results, ARRAY_SIZE, &n_hit_result, state);
@@ -839,7 +839,7 @@ TEST_F(MaatStringScan, ShouldNotHitExprPlus) {
 	int table_id = maat_get_table_id(maat_instance, "APP_PAYLOAD");
 	ASSERT_GT(table_id, 0);
 
-	int ret = maat_state_set_scan_district(state, region_name, strlen(region_name));
+	int ret = maat_state_set_scan_district(state, table_id, region_name, strlen(region_name));
 	ASSERT_EQ(ret, 0);
     
 	ret = maat_scan_string(maat_instance, table_id, (char *)udp_payload_not_hit, sizeof(udp_payload_not_hit), 
@@ -1518,7 +1518,7 @@ TEST_F(MaatIntervalScan, IntervalPlus) {
     int table_id = maat_get_table_id(maat_instance, table_name);
     const char *district_str = "interval.plus";
 
-    int ret = maat_state_set_scan_district(state, district_str, strlen(district_str));
+    int ret = maat_state_set_scan_district(state, table_id, district_str, strlen(district_str));
     EXPECT_EQ(ret, 0);
 
     unsigned int scan_data1 = 2020;
@@ -1841,7 +1841,6 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_deferred_load_on(opts);
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
@@ -2186,7 +2185,7 @@ void fqdn_plugin_ex_new_cb(const char *table_name, int table_id, const char *key
 	EXPECT_EQ(ret, 0);
 
 	sscanf(table_line + column_offset, "catid=%d", &ud->catid);
-	ud->ref_cnt = 0;
+	ud->ref_cnt = 1;
 	*ad = ud;
 	(*counter)++;
 }
@@ -2268,7 +2267,7 @@ void bool_plugin_ex_new_cb(const char *table_name, int table_id, const char *key
 
 	ud->name = (char *)malloc(column_len+1);
 	memcpy(ud->name, table_line+column_offset, column_len);
-	ud->ref_cnt = 0;
+	ud->ref_cnt = 1;
 	*ad = ud;
 	(*counter)++;
 }
@@ -2949,6 +2948,7 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
 
         _shared_maat_instance = maat_new(opts, table_info);
+        maat_options_free(opts);
         EXPECT_TRUE(_shared_maat_instance != NULL);
     }
 
@@ -3025,7 +3025,7 @@ TEST_F(MaatFileTest, StreamFiles) {
 
     free(name_list);
 }
-
+#endif
 class MaatCmdTest : public testing::Test
 {
 protected:
@@ -3638,7 +3638,7 @@ TEST_F(MaatCmdTest, VirtualTable) {
     int table_id = maat_get_table_id(maat_instance, "HTTP_REQUEST_HEADER");
     ASSERT_GT(table_id, 0);
 
-    ret = maat_state_set_scan_district(state, "User-Agent", strlen("User-Agent"));
+    ret = maat_state_set_scan_district(state, table_id, "User-Agent", strlen("User-Agent"));
     EXPECT_EQ(ret, 0);
 
     ret = maat_scan_string(maat_instance, table_id, http_req_hdr_ua, strlen(http_req_hdr_ua),
@@ -3648,7 +3648,7 @@ TEST_F(MaatCmdTest, VirtualTable) {
     table_id = maat_get_table_id(maat_instance, "HTTP_RESPONSE_HEADER");
     ASSERT_GT(table_id, 0);
 
-    ret = maat_state_set_scan_district(state, "Cookie", strlen("Cookie"));
+    ret = maat_state_set_scan_district(state, table_id, "Cookie", strlen("Cookie"));
     EXPECT_EQ(ret, 0);
 
     ret = maat_scan_string(maat_instance, table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
@@ -3673,7 +3673,7 @@ TEST_F(MaatCmdTest, VirtualTable) {
     table_id = maat_get_table_id(maat_instance, "HTTP_RESPONSE_HEADER");
     ASSERT_GT(table_id, 0);
 
-    ret = maat_state_set_scan_district(state, "Cookie", strlen("Cookie"));
+    ret = maat_state_set_scan_district(state, table_id, "Cookie", strlen("Cookie"));
     EXPECT_EQ(ret, 0);
 
     ret = maat_scan_string(maat_instance, table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
@@ -3946,7 +3946,7 @@ void plugin_ex_new_cb(const char *table_name, int table_id, const char *key,
 	int valid = 0, tag = 0;
 	int ret = sscanf(table_line, "%d\t%s\t%s%d\t%d", &(u->id), u->ip_addr, u->name, &valid, &tag);
 	EXPECT_EQ(ret, 5);
-	u->ref_cnt = 0;
+	u->ref_cnt = 1;
 	*ad = u;
 	(*counter)++;
 }
@@ -4466,7 +4466,7 @@ TEST_F(MaatCmdTest, HitPath) {
     int table_id = maat_get_table_id(maat_instance, "HTTP_REQUEST_HEADER");
     ASSERT_GT(table_id, 0);
 
-    ret = maat_state_set_scan_district(state, "URL", strlen("URL"));
+    ret = maat_state_set_scan_district(state, table_id, "URL", strlen("URL"));
     EXPECT_EQ(ret, 0);
 
     int Nth_scan = 0;
@@ -4494,7 +4494,7 @@ TEST_F(MaatCmdTest, HitPath) {
     table_id = maat_get_table_id(maat_instance, "HTTP_RESPONSE_HEADER");
 	ASSERT_GT(table_id, 0);
 
-    ret = maat_state_set_scan_district(state, "Cookie", strlen("Cookie"));
+    ret = maat_state_set_scan_district(state, table_id, "Cookie", strlen("Cookie"));
     EXPECT_EQ(ret, 0);
 
     Nth_scan++;

@@ -1378,6 +1378,7 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 		mr_ctx->last_reconnect_time = time(NULL);
 		if (mr_ctx->read_ctx != NULL) {
 			redisFree(mr_ctx->read_ctx);
+            mr_ctx->read_ctx = NULL;
 		}
 		log_info(maat_instance->logger, MODULE_REDIS_MONITOR, "Reconnecting...");
 

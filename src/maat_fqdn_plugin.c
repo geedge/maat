@@ -161,6 +161,22 @@ int fqdn_plugin_table_set_ex_data_schema(void *fqdn_plugin_schema,
     return 0;
 }
 
+void fqdn_rule_free(struct FQDN_rule *fqdn_rule)
+{
+	assert(fqdn_rule->user_tag==NULL);
+	free(fqdn_rule->FQDN);
+	fqdn_rule->FQDN=NULL;
+	free(fqdn_rule);
+	return;
+}
+
+void fqdn_ex_container_free(void *schema, void *data)
+{
+    struct ex_container_schema *container_schema = (struct ex_container_schema *)schema;
+    container_schema->user_data_free = (void (*)(void *))fqdn_rule_free;
+    ex_container_free(container_schema, data);
+}
+
 void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, int max_thread_num,
                               struct maat_garbage_bin *garbage_bin,
                               struct log_handle *logger)
@@ -172,7 +188,7 @@ void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, int max_thread_num,
     struct fqdn_plugin_schema *schema = (struct fqdn_plugin_schema *)fqdn_plugin_schema;
     struct fqdn_plugin_runtime *fqdn_plugin_rt = ALLOC(struct fqdn_plugin_runtime, 1);
 
-    fqdn_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, ex_container_free, 
+    fqdn_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, fqdn_ex_container_free,
                                                      logger);
     fqdn_plugin_rt->ref_garbage_bin = garbage_bin;
     fqdn_plugin_rt->logger = logger;

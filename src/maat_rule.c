@@ -310,6 +310,12 @@ void maat_runtime_destroy(struct maat_runtime *maat_rt)
     FREE(maat_rt);
 }
 
+void garbage_maat_kv_store_free(void *kv_store, void *arg)
+{
+    struct maat_kv_store *store = (struct maat_kv_store *)kv_store;
+    maat_kv_store_free(store);
+}
+
 void garbage_maat_runtime_destroy(void *maat_runtime, void *arg)
 {
     struct maat_runtime *maat_rt = (struct maat_runtime *)maat_runtime;
@@ -562,8 +568,8 @@ void *rule_monitor_loop(void *arg)
     }
 
     maat_runtime_destroy(maat_instance->maat_rt);
-	table_manager_destroy(maat_instance->tbl_mgr);
     maat_garbage_bin_free(maat_instance->garbage_bin);
+    table_manager_destroy(maat_instance->tbl_mgr); //table manager MUST be freed at last.
 
     alignment_int64_array_free(maat_instance->thread_call_cnt);
     alignment_int64_array_free(maat_instance->hit_cnt);

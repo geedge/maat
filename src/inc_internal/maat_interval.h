@@ -46,6 +46,9 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name);
 int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id, 
                           long long integer, int vtable_id, struct maat_state *state);
 
+int interval_runtime_set_scan_district(struct interval_runtime *interval_rt, const char *district, 
+                                       size_t district_len, long long *district_id);
+                                       
 void interval_runtime_scan_hit_inc(struct interval_runtime *interval_rt, int thread_id);
 long long interval_runtime_scan_hit_sum(struct interval_runtime *interval_rt, int n_thread);
 

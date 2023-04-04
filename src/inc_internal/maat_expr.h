@@ -52,6 +52,9 @@ int expr_runtime_stream_scan(struct expr_runtime *expr_rt, struct adapter_hs_str
                              int vtable_id, struct maat_state *state);
 void expr_runtime_stream_close(struct adapter_hs_stream *s_handle);
 
+int expr_runtime_set_scan_district(struct expr_runtime *expr_rt, const char *district, 
+                                   size_t district_len, long long *district_id);
+
 void expr_runtime_scan_hit_inc(struct expr_runtime *expr_rt, int thread_id);
 long long expr_runtime_scan_hit_sum(struct expr_runtime *expr_rt, int n_thread);
 

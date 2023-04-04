@@ -36,6 +36,7 @@ struct ex_data_schema {
 struct ex_container_schema {
     int table_id;
     struct ex_data_schema *ex_schema;
+    void (*user_data_free)(void *);
 };
 
 struct ex_data_runtime;

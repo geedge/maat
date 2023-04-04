@@ -321,6 +321,7 @@ void maat_cmd_set_serial_rule(struct serial_rule *rule, enum maat_operation op,
 void garbage_ip_matcher_free(void *ip_matcher, void *arg);
 void garbage_interval_matcher_free(void *ip_matcher, void *arg);
 void garbage_bool_matcher_free(void *bool_matcher, void *arg);
+void garbage_maat_kv_store_free(void *kv_store, void *arg);
 
 #ifdef __cplusplus
 }

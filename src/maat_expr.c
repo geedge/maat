@@ -75,6 +75,9 @@ struct expr_runtime {
     int n_worker_thread;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
+    int district_num;
+    struct maat_kv_store *district_map;
+    struct maat_kv_store *tmp_district_map;
 
     long long *scan_cnt;
     long long *hit_cnt;
@@ -129,8 +132,39 @@ enum hs_match_mode int_to_match_mode(int match_method)
     return mode;
 }
 
+long long expr_runtime_get_district_id(struct expr_runtime *expr_rt, const char *district)
+{
+    long long district_id = DISTRICT_ANY;
+
+	int map_ret = maat_kv_read(expr_rt->district_map, district, &district_id);
+	if (map_ret < 0) {
+        if (NULL == expr_rt->tmp_district_map) {
+            expr_rt->tmp_district_map = maat_kv_store_duplicate(expr_rt->district_map);
+        }
+        
+        map_ret = maat_kv_read(expr_rt->tmp_district_map, district, &district_id);
+        if (map_ret < 0) {
+            district_id = expr_rt->district_num;
+		    maat_kv_register(expr_rt->tmp_district_map, district, district_id);
+		    expr_rt->district_num++;
+        }
+	}
+
+	return district_id;
+}
+
+int expr_runtime_set_scan_district(struct expr_runtime *expr_rt, const char *district, 
+                                    size_t district_len, long long *district_id)
+{
+    if (NULL == expr_rt || NULL == district || 0 == district_len) {
+        return -1;
+    }
+
+    return maat_kv_read_unNull(expr_rt->district_map, district, district_len, district_id);
+}
+
 struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schema,
-                                struct log_handle *logger)
+                                struct expr_runtime *expr_rt)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
@@ -142,7 +176,7 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
 
     int ret = get_column_pos(line, expr_schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_EXPR, 
+        log_error(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table(table_id:%d) line:%s has no item_id",
                   __FUNCTION__, __LINE__, expr_schema->table_id, line);
         goto error;
@@ -151,7 +185,7 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
 
     ret = get_column_pos(line, expr_schema->group_id_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_EXPR, 
+        log_error(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table(table_id:%d) line:%s has no group_id",
                   __FUNCTION__, __LINE__, expr_schema->table_id, line);
         goto error;
@@ -166,7 +200,7 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
         }
 
         if (column_len >= MAX_DISTRICT_STR) {
-            log_error(logger, MODULE_EXPR, 
+            log_error(expr_rt->logger, MODULE_EXPR, 
                       "[%s:%d] expr table(table_id:%d) line:%s district length too long",
                       __FUNCTION__, __LINE__, expr_schema->table_id, line);
             goto error;
@@ -176,14 +210,14 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
         memcpy(district, (line + column_offset), column_len);
         assert(strlen(district) > 0);
         str_unescape(district);
-        expr_item->district_id = table_manager_get_district_id(expr_schema->ref_tbl_mgr, district);
+        expr_item->district_id = expr_runtime_get_district_id(expr_rt, district);
     } else {
         expr_item->district_id = DISTRICT_ANY;
     }
 
     ret = get_column_pos(line, expr_schema->expr_type_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_EXPR, 
+        log_error(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table(table_id:%d) line:%s has no expr_type",
                   __FUNCTION__, __LINE__, expr_schema->table_id, line);
         goto error;
@@ -192,7 +226,7 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
     expr_type = atoi(line + column_offset);
     expr_item->expr_type = int_to_expr_type(expr_type);
     if (expr_item->expr_type == EXPR_TYPE_INVALID) {
-        log_error(logger, MODULE_EXPR, 
+        log_error(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table(table_id:%d) line:%s has invalid expr_type",
                  __FUNCTION__, __LINE__, expr_schema->table_id, line);
         goto error;
@@ -200,7 +234,7 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
 
     ret = get_column_pos(line, expr_schema->match_method_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_EXPR, 
+        log_error(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table(table_id:%d) line:%s has no match_method",
                   __FUNCTION__, __LINE__, expr_schema->table_id, line);
         goto error;
@@ -209,7 +243,7 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
     match_method_type = atoi(line + column_offset);
     expr_item->match_mode = int_to_match_mode(match_method_type);
     if (expr_item->match_mode == HS_MATCH_MODE_INVALID) {
-        log_error(logger, MODULE_EXPR, 
+        log_error(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table(table_id:%d) line:%s has invalid match_method",
                   __FUNCTION__, __LINE__, expr_schema->table_id, line);
         goto error;
@@ -217,7 +251,7 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
 
     ret = get_column_pos(line, expr_schema->is_hexbin_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_EXPR, 
+        log_error(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table(table_id:%d) line:%s has no is_hexbin",
                   __FUNCTION__, __LINE__, expr_schema->table_id, line);
         goto error;
@@ -238,7 +272,7 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
             expr_item->is_case_sensitive = TRUE;
             break;
         default:
-            log_error(logger, MODULE_EXPR, 
+            log_error(expr_rt->logger, MODULE_EXPR, 
                       "[%s:%d] expr table(table_id:%d) line:%s has invalid hexbin value:%d",
                       __FUNCTION__, __LINE__, expr_schema->table_id, line, db_hexbin);
             goto error;
@@ -246,14 +280,14 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
     
     ret = get_column_pos(line, expr_schema->keywords_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_EXPR, 
+        log_error(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table(table_id:%d) line:%s has no keywords",
                   __FUNCTION__, __LINE__, expr_schema->table_id, line);
         goto error;
     }
 
     if (column_len >= MAX_KEYWORDS_STR) {
-        log_error(logger, MODULE_EXPR, 
+        log_error(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table(table_id:%d) line:%s keywords length too long",
                   __FUNCTION__, __LINE__, expr_schema->table_id, line);
         goto error;
@@ -426,6 +460,7 @@ void *expr_runtime_new(void *expr_schema, int max_thread_num,
     expr_rt->n_worker_thread = max_thread_num;
     expr_rt->ref_garbage_bin = garbage_bin;
     expr_rt->logger = logger;
+    expr_rt->district_map = maat_kv_store_new();
 
     expr_rt->hit_cnt = alignment_int64_array_alloc(max_thread_num);
     expr_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
@@ -445,11 +480,6 @@ void expr_runtime_free(void *expr_runtime)
         expr_rt->hs = NULL;
     }
 
-    // if (expr_rt->hs_stream != NULL) {
-    //     adapter_hs_stream_close(expr_rt->hs_stream);
-    //     expr_rt->hs_stream = NULL;
-    // }
-
     if (expr_rt->htable != NULL) {
         rcu_hash_free(expr_rt->htable);
         expr_rt->htable = NULL;
@@ -458,6 +488,13 @@ void expr_runtime_free(void *expr_runtime)
     if (expr_rt->item_htable != NULL) {
         rcu_hash_free(expr_rt->item_htable);
         expr_rt->item_htable = NULL;
+    }
+
+    assert(expr_rt->tmp_district_map == NULL);
+
+    if (expr_rt->district_map != NULL) {
+        maat_kv_store_free(expr_rt->district_map);
+        expr_rt->district_map = NULL;
     }
 
     if (expr_rt->hit_cnt != NULL) {
@@ -720,7 +757,7 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
         rcu_hash_del(expr_rt->item_htable, (char *)&item_id, sizeof(item_id));
     } else {
         //add
-        struct expr_item *expr_item = expr_item_new(line, schema, expr_rt->logger);
+        struct expr_item *expr_item = expr_item_new(line, schema, expr_rt);
         if (NULL == expr_item) {
             return -1;
         }
@@ -780,6 +817,14 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name)
     }
 
     rcu_hash_commit(expr_rt->htable);
+
+    if (expr_rt->tmp_district_map != NULL) {
+        struct maat_kv_store *tmp_map = expr_rt->district_map;
+        expr_rt->district_map = expr_rt->tmp_district_map;
+        expr_rt->tmp_district_map = NULL;
+        maat_garbage_bagging(expr_rt->ref_garbage_bin, tmp_map, NULL, 
+                             garbage_maat_kv_store_free);
+    }
 
     struct hs_expr *rules = NULL;
     void **ex_data_array = NULL;
@@ -904,7 +949,7 @@ int expr_runtime_stream_scan(struct expr_runtime *expr_rt, struct adapter_hs_str
     size_t n_hit_item = 0;
     struct hs_scan_result hit_results[MAX_SCANNER_HIT_ITEM_NUM];
     memset(hit_results, 0, sizeof(hit_results));
-    
+
     int ret = adapter_hs_scan_stream(s_handle, data, data_len, hit_results, MAX_SCANNER_HIT_ITEM_NUM, &n_hit_item);
     if (ret < 0) {
         return -1;

@@ -48,6 +48,9 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name);
 int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, long long flag,
                       int vtable_id, struct maat_state *state);
 
+int flag_runtime_set_scan_district(struct flag_runtime *flag_rt, const char *district, 
+                                    size_t district_len, long long *district_id);
+
 void flag_runtime_scan_hit_inc(struct flag_runtime *flag_rt, int thread_id);
 long long flag_runtime_scan_hit_sum(struct flag_runtime *flag_rt, int n_thread);
 

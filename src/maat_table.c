@@ -54,9 +54,6 @@ struct table_manager {
     int default_compile_table_id;
     int g2g_table_id;
     struct maat_kv_store *tablename2id_map;
-    struct maat_kv_store *district_map;
-    struct maat_kv_store *tmp_district_map;
-    uint32_t district_num;
 
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -620,9 +617,6 @@ int table_manager_runtime_create(struct table_manager *tbl_mgr, int max_thread_n
         group2compile_runtime_init(runtime, compile_rt, g2g_rt);
     }
 
-    /* new district map */
-    tbl_mgr->district_map = maat_kv_store_new();
-
     return 0;
 }
 
@@ -641,17 +635,6 @@ void table_manager_runtime_destroy(struct table_manager *tbl_mgr)
             tbl_mgr->tbl[i]->runtime = NULL;
         }
 	}
-
-    /* free district map */
-    if (tbl_mgr->district_map != NULL) {
-        maat_kv_store_free(tbl_mgr->district_map);
-        tbl_mgr->district_map = NULL;
-    }
-    
-    if (tbl_mgr->tmp_district_map != NULL) {
-        maat_kv_store_free(tbl_mgr->tmp_district_map);
-        tbl_mgr->tmp_district_map = NULL;
-    }
 }
 
 void table_manager_destroy(struct table_manager *tbl_mgr)
@@ -680,8 +663,11 @@ void table_manager_destroy(struct table_manager *tbl_mgr)
         FREE(tbl_mgr->accept_tags);
     }
 
-    maat_kv_store_free(tbl_mgr->tablename2id_map);
-    tbl_mgr->tablename2id_map = NULL;
+    if (tbl_mgr->tablename2id_map != NULL) {
+        maat_kv_store_free(tbl_mgr->tablename2id_map);
+        tbl_mgr->tablename2id_map = NULL;
+    }
+
 	FREE(tbl_mgr);
 }
 
@@ -702,7 +688,7 @@ int table_manager_get_table_id(struct table_manager *tbl_mgr, const char *name)
         log_error(tbl_mgr->logger, MODULE_TABLE, 
                   "[%s:%d] table:%s is not registered", 
                   __FUNCTION__, __LINE__, name);
-		return -1;		
+		return -1;
 	}
 
     return (int)table_id;
@@ -773,33 +759,6 @@ int table_manager_accept_tags_match(struct table_manager *tbl_mgr, const char *t
     return compare_accept_tag(tags, tbl_mgr->accept_tags, tbl_mgr->n_accept_tag);
 }
 
-int table_manager_set_scan_district(struct table_manager *tbl_mgr, const char *district, 
-                                    size_t district_len, long long *district_id)
-{
-    return maat_kv_read_unNull(tbl_mgr->district_map, district, district_len, district_id);
-}
-
-long long table_manager_get_district_id(struct table_manager *tbl_mgr, const char *district)
-{
-    long long district_id = DISTRICT_ANY;
-
-	int map_ret = maat_kv_read(tbl_mgr->district_map, district, &district_id);
-	if (map_ret < 0) {
-		if (NULL == tbl_mgr->tmp_district_map) {
-			tbl_mgr->tmp_district_map = maat_kv_store_duplicate(tbl_mgr->district_map);
-		}
-
-		map_ret = maat_kv_read(tbl_mgr->tmp_district_map, district, &district_id);
-		if (map_ret < 0) {
-			district_id = tbl_mgr->district_num;
-			maat_kv_register(tbl_mgr->tmp_district_map, district, district_id);
-			tbl_mgr->district_num++;
-		}
-	}
-
-	return district_id;
-}
-
 void *table_manager_get_runtime(struct table_manager *tbl_mgr, int table_id)
 {
     if (NULL == tbl_mgr || (table_id < 0) || (table_id >= MAX_TABLE_NUM)) {
@@ -811,12 +770,6 @@ void *table_manager_get_runtime(struct table_manager *tbl_mgr, int table_id)
     }
 
 	return tbl_mgr->tbl[table_id]->runtime;
-}
-
-void garbage_maat_kv_store_free(void *maat_kv_store, void *arg)
-{
-    struct maat_kv_store *kv_store = (struct maat_kv_store *)maat_kv_store;
-    maat_kv_store_free(kv_store);
 }
 
 int table_manager_update_runtime(struct table_manager *tbl_mgr, const char *table_name,
@@ -834,40 +787,43 @@ int table_manager_update_runtime(struct table_manager *tbl_mgr, const char *tabl
 
     int valid_column = table_manager_get_valid_column(tbl_mgr, table_id);
     if (valid_column < 0) {
+        log_error(tbl_mgr->logger, MODULE_TABLE, 
+                  "[%s:%d] table:%s has no valid column, can't update runtime",
+                  __FUNCTION__, __LINE__, table_name);
         return -1;
     }
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_INVALID) {
+        log_error(tbl_mgr->logger, MODULE_TABLE, 
+                  "[%s:%d] table:%s table_type is invalid, can't update runtime",
+                  __FUNCTION__, __LINE__, table_name);
         return -1;
     }
 
     if (NULL == table_ops[table_type].update_runtime) {
+        log_error(tbl_mgr->logger, MODULE_TABLE, 
+                  "[%s:%d] table:%s has no update_runtime function, can't update runtime",
+                  __FUNCTION__, __LINE__, table_name);
         return -1;
     }
     
-    int ret = table_ops[table_type].update_runtime(runtime, schema, table_name, 
-                                                   line, valid_column);
-
-    if (tbl_mgr->tmp_district_map != NULL) {
-        struct maat_kv_store *tmp_map = tbl_mgr->district_map;
-        tbl_mgr->district_map = tbl_mgr->tmp_district_map;
-        tbl_mgr->tmp_district_map = NULL;
-        maat_garbage_bagging(tbl_mgr->ref_garbage_bin, tmp_map, NULL, garbage_maat_kv_store_free);
-    }
-
-    return ret;
+    return table_ops[table_type].update_runtime(runtime, schema, table_name, 
+                                                line, valid_column);
 }
 
 void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id)
 {
-    enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
-    if (table_type == TABLE_TYPE_INVALID) {
+    void *runtime = table_manager_get_runtime(tbl_mgr, table_id);
+    if (NULL == runtime) {
         return;
     }
 
-    void *runtime = table_manager_get_runtime(tbl_mgr, table_id);
-    if (NULL == runtime) {
+    enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
+    if (table_type == TABLE_TYPE_INVALID) {
+        log_error(tbl_mgr->logger, MODULE_TABLE, 
+                  "[%s:%d] table(table_id:%d) table_type is invalid, can't commit runtime",
+                  __FUNCTION__, __LINE__, table_id);
         return;
     }
 

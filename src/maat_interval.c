@@ -46,6 +46,9 @@ struct interval_runtime {
     uint32_t rule_num;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
+    int district_num;
+    struct maat_kv_store *district_map;
+    struct maat_kv_store *tmp_district_map;
 
     long long *scan_cnt;
     long long *hit_cnt;
@@ -171,6 +174,7 @@ void *interval_runtime_new(void *interval_schema, int max_thread_num,
     interval_rt->item_htable = rcu_hash_new(interval_maat_item_free);
     interval_rt->ref_garbage_bin = garbage_bin;
     interval_rt->logger = logger;
+    interval_rt->district_map = maat_kv_store_new();
 
     interval_rt->hit_cnt = alignment_int64_array_alloc(max_thread_num);
     interval_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
@@ -200,6 +204,13 @@ void interval_runtime_free(void *interval_runtime)
         interval_rt->matcher = NULL;
     }
 
+    assert(interval_rt->tmp_district_map == NULL);
+
+    if (interval_rt->district_map != NULL) {
+        maat_kv_store_free(interval_rt->district_map);
+        interval_rt->district_map = NULL;
+    }
+
     if (interval_rt->hit_cnt != NULL) {
         alignment_int64_array_free(interval_rt->hit_cnt);
         interval_rt->hit_cnt = NULL;
@@ -213,8 +224,39 @@ void interval_runtime_free(void *interval_runtime)
     FREE(interval_rt);
 }
 
+long long interval_runtime_get_district_id(struct interval_runtime *interval_rt, const char *district)
+{
+    long long district_id = DISTRICT_ANY;
+
+	int map_ret = maat_kv_read(interval_rt->district_map, district, &district_id);
+	if (map_ret < 0) {
+        if (NULL == interval_rt->tmp_district_map) {
+            interval_rt->tmp_district_map = maat_kv_store_duplicate(interval_rt->district_map);
+        }
+        
+        map_ret = maat_kv_read(interval_rt->tmp_district_map, district, &district_id);
+        if (map_ret < 0) {
+            district_id = interval_rt->district_num;
+		    maat_kv_register(interval_rt->tmp_district_map, district, district_id);
+		    interval_rt->district_num++;
+        }
+	}
+
+	return district_id;
+}
+
+int interval_runtime_set_scan_district(struct interval_runtime *interval_rt, const char *district, 
+                                       size_t district_len, long long *district_id)
+{
+    if (NULL == interval_rt || NULL == district || 0 == district_len) {
+        return -1;
+    }
+
+    return maat_kv_read_unNull(interval_rt->district_map, district, district_len, district_id);
+}
+
 struct interval_item *interval_item_new(const char *line, struct interval_schema *schema,
-                                        struct log_handle *logger)
+                                        struct interval_runtime *interval_rt)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
@@ -223,7 +265,7 @@ struct interval_item *interval_item_new(const char *line, struct interval_schema
 
     int ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_INTERVAL, 
+        log_error(interval_rt->logger, MODULE_INTERVAL, 
                   "[%s:%d] interval table(table_id:%d) line:%s has no item_id",
                   __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
@@ -232,7 +274,7 @@ struct interval_item *interval_item_new(const char *line, struct interval_schema
 
     ret = get_column_pos(line, schema->group_id_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_INTERVAL, 
+        log_error(interval_rt->logger, MODULE_INTERVAL, 
                   "[%s:%d] interval table(table_id:%d) line:%s has no group_id",
                   __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
@@ -247,7 +289,7 @@ struct interval_item *interval_item_new(const char *line, struct interval_schema
         }
 
         if (column_len >= MAX_DISTRICT_STR) {
-            log_error(logger, MODULE_INTERVAL, 
+            log_error(interval_rt->logger, MODULE_INTERVAL, 
                       "[%s:%d] interval_plus table(table_id:%d) line:%s district length too long",
                       __FUNCTION__, __LINE__, schema->table_id, line);
             goto error;
@@ -257,14 +299,14 @@ struct interval_item *interval_item_new(const char *line, struct interval_schema
         memcpy(district, (line + column_offset), column_len);
         assert(strlen(district) > 0);
         str_unescape(district);
-        item->district_id = table_manager_get_district_id(schema->ref_tbl_mgr, district);
+        item->district_id = interval_runtime_get_district_id(interval_rt, district);
     } else {
         item->district_id = DISTRICT_ANY;
     }
 
     ret = get_column_pos(line, schema->low_bound_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_INTERVAL, 
+        log_error(interval_rt->logger, MODULE_INTERVAL, 
                   "[%s:%d] interval table(table_id:%d) line:%s has no low_bound",
                   __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
@@ -273,7 +315,7 @@ struct interval_item *interval_item_new(const char *line, struct interval_schema
 
     ret = get_column_pos(line, schema->up_bound_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_INTERVAL, 
+        log_error(interval_rt->logger, MODULE_INTERVAL, 
                   "[%s:%d] interval table(table_id:%d) line:%s has no up_bound",
                   __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
@@ -359,7 +401,7 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
         rcu_hash_del(interval_rt->item_htable, (char *)&item_id, sizeof(item_id));
     } else {
         //add
-        struct interval_item *interval_item = interval_item_new(line, schema, interval_rt->logger);
+        struct interval_item *interval_item = interval_item_new(line, schema, interval_rt);
         if (NULL == interval_item) {
             return -1;
         }
@@ -419,6 +461,14 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name)
     }
 
     rcu_hash_commit(interval_rt->htable);
+
+    if (interval_rt->tmp_district_map != NULL) {
+        struct maat_kv_store *tmp_map = interval_rt->district_map;
+        interval_rt->district_map = interval_rt->tmp_district_map;
+        interval_rt->tmp_district_map = NULL;
+        maat_garbage_bagging(interval_rt->ref_garbage_bin, tmp_map, NULL, 
+                             garbage_maat_kv_store_free);
+    }
 
     void **ex_data_array = NULL;
     struct interval_rule *rules = NULL;

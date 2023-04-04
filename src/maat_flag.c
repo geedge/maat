@@ -49,6 +49,9 @@ struct flag_runtime {
     uint32_t rule_num;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
+    int district_num;
+    struct maat_kv_store *district_map;
+    struct maat_kv_store *tmp_district_map;
 
     long long *scan_cnt;
     long long *hit_cnt;
@@ -174,6 +177,7 @@ void *flag_runtime_new(void *flag_schema, int max_thread_num,
     flag_rt->item_htable = rcu_hash_new(flag_maat_item_free);
     flag_rt->ref_garbage_bin = garbage_bin;
     flag_rt->logger = logger;
+    flag_rt->district_map = maat_kv_store_new();
 
     flag_rt->hit_cnt = alignment_int64_array_alloc(max_thread_num);
     flag_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
@@ -201,6 +205,13 @@ void flag_runtime_free(void *flag_runtime)
     if (flag_rt->matcher != NULL) {
         flag_matcher_free(flag_rt->matcher);
         flag_rt->matcher = NULL;
+    }
+
+    assert(flag_rt->tmp_district_map == NULL);
+
+    if (flag_rt->district_map != NULL) {
+        maat_kv_store_free(flag_rt->district_map);
+        flag_rt->district_map = NULL;
     }
 
     if (flag_rt->hit_cnt != NULL) {
@@ -238,8 +249,39 @@ int flag_runtime_update_row(struct flag_runtime *flag_rt, char *key, size_t key_
     return 0;
 }
 
+long long flag_runtime_get_district_id(struct flag_runtime *flag_rt, const char *district)
+{
+    long long district_id = DISTRICT_ANY;
+
+	int map_ret = maat_kv_read(flag_rt->district_map, district, &district_id);
+	if (map_ret < 0) {
+        if (NULL == flag_rt->tmp_district_map) {
+            flag_rt->tmp_district_map = maat_kv_store_duplicate(flag_rt->district_map);
+        }
+        
+        map_ret = maat_kv_read(flag_rt->tmp_district_map, district, &district_id);
+        if (map_ret < 0) {
+            district_id = flag_rt->district_num;
+		    maat_kv_register(flag_rt->tmp_district_map, district, district_id);
+		    flag_rt->district_num++;
+        }
+	}
+
+	return district_id;
+}
+
+int flag_runtime_set_scan_district(struct flag_runtime *flag_rt, const char *district, 
+                                    size_t district_len, long long *district_id)
+{
+    if (NULL == flag_rt || NULL == district || 0 == district_len) {
+        return -1;
+    }
+    
+    return maat_kv_read_unNull(flag_rt->district_map, district, district_len, district_id);
+}
+
 struct flag_item *flag_item_new(const char *line, struct flag_schema *schema,
-                                struct log_handle *logger)
+                                struct flag_runtime *flag_rt)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
@@ -248,7 +290,7 @@ struct flag_item *flag_item_new(const char *line, struct flag_schema *schema,
 
     int ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_FLAG, 
+        log_error(flag_rt->logger, MODULE_FLAG, 
                   "[%s:%d] flag table(table_id:%d) line:%s has no item_id",
                   __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
@@ -257,7 +299,7 @@ struct flag_item *flag_item_new(const char *line, struct flag_schema *schema,
 
     ret = get_column_pos(line, schema->group_id_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_FLAG, 
+        log_error(flag_rt->logger, MODULE_FLAG, 
                   "[%s:%d] flag table(table_id:%d) line:%s has no group_id",
                   __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
@@ -272,7 +314,7 @@ struct flag_item *flag_item_new(const char *line, struct flag_schema *schema,
         }
 
         if (column_len >= MAX_DISTRICT_STR) {
-            log_error(logger, MODULE_FLAG, 
+            log_error(flag_rt->logger, MODULE_FLAG, 
                       "[%s:%d] flag_plus table(table_id:%d) line:%s district length too long",
                       __FUNCTION__, __LINE__, schema->table_id, line);
             goto error;
@@ -282,14 +324,14 @@ struct flag_item *flag_item_new(const char *line, struct flag_schema *schema,
         memcpy(district, (line + column_offset), column_len);
         assert(strlen(district) > 0);
         str_unescape(district);
-        item->district_id = table_manager_get_district_id(schema->ref_tbl_mgr, district);
+        item->district_id = flag_runtime_get_district_id(flag_rt, district);
     } else {
         item->district_id = DISTRICT_ANY;
     }
 
     ret = get_column_pos(line, schema->flag_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_FLAG, 
+        log_error(flag_rt->logger, MODULE_FLAG, 
                   "[%s:%d] flag table(table_id:%d) line:%s has no flag",
                   __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
@@ -299,7 +341,7 @@ struct flag_item *flag_item_new(const char *line, struct flag_schema *schema,
 
      ret = get_column_pos(line, schema->flag_mask_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_FLAG, 
+        log_error(flag_rt->logger, MODULE_FLAG, 
                   "[%s:%d] flag table(table_id:%d) line:%s has no flag_mask",
                   __FUNCTION__, __LINE__, schema->table_id, line);
         goto error;
@@ -363,7 +405,7 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
        rcu_hash_del(flag_rt->item_htable, (char *)&item_id, sizeof(item_id));
     } else {
         //add
-        struct flag_item *flag_item = flag_item_new(line, schema, flag_rt->logger);
+        struct flag_item *flag_item = flag_item_new(line, schema, flag_rt);
         if (NULL == flag_item) {
             return -1;
         }
@@ -423,6 +465,14 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name)
     }
 
     rcu_hash_commit(flag_rt->htable);
+
+    if (flag_rt->tmp_district_map != NULL) {
+        struct maat_kv_store *tmp_map = flag_rt->district_map;
+        flag_rt->district_map = flag_rt->tmp_district_map;
+        flag_rt->tmp_district_map = NULL;
+        maat_garbage_bagging(flag_rt->ref_garbage_bin, tmp_map, NULL, 
+                             garbage_maat_kv_store_free);
+    }
 
     struct flag_rule *rules = NULL;
     void **ex_data_array = NULL;

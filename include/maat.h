@@ -229,8 +229,8 @@ void maat_state_reset(struct maat_state *state);
 
 void maat_state_free(struct maat_state *state);
 
-int maat_state_set_scan_district(struct maat_state *state, const char *district, 
-                                 size_t district_len);
+int maat_state_set_scan_district(struct maat_state *state, int table_id, 
+                                 const char *district, size_t district_len);
 
 int maat_state_set_last_scan(struct maat_state *state);
 

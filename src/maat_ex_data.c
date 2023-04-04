@@ -205,16 +205,24 @@ void ex_container_free(void *schema, void *data)
     }
 
     struct ex_container *ex_container = (struct ex_container *)data;
+    struct ex_container_schema *container_schema = (struct ex_container_schema *)schema;
+
+    /* free ex_container->custom_data */
     if (ex_container->custom_data != NULL) {
-        FREE(ex_container->custom_data);
+        if (container_schema != NULL && container_schema->user_data_free != NULL) {
+            container_schema->user_data_free(ex_container->custom_data);
+        } else {
+             FREE(ex_container->custom_data);
+        }
     }
 
-    struct ex_container_schema *container_schema = (struct ex_container_schema *)schema;
-    if (container_schema != NULL && container_schema->ex_schema != NULL) {
-        long argl = container_schema->ex_schema->argl;
-        void *argp = container_schema->ex_schema->argp;
+    /* free ex_container->ex_data */
+    if (ex_container->ex_data != NULL) {
+        if (container_schema != NULL && container_schema->ex_schema != NULL &&
+            container_schema->ex_schema->free_func != NULL) {
+            long argl = container_schema->ex_schema->argl;
+            void *argp = container_schema->ex_schema->argp;
 
-        if (ex_container->ex_data != NULL && container_schema->ex_schema->free_func != NULL) {
             container_schema->ex_schema->free_func(container_schema->table_id,
                                                    &(ex_container->ex_data), argl, argp);
         }

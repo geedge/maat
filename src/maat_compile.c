@@ -586,7 +586,7 @@ void compile_runtime_free(void *compile_runtime)
     }
     
     if (compile_rt->clause_by_literals_hash != NULL) {
-        maat_clause_hash_free(&compile_rt->clause_by_literals_hash);
+        maat_clause_hash_free(&(compile_rt->clause_by_literals_hash));
         compile_rt->clause_by_literals_hash = NULL;
     }
 

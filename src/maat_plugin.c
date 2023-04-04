@@ -265,9 +265,7 @@ void *plugin_runtime_new(void *plugin_schema, int max_thread_num,
 
     struct plugin_schema *schema = (struct plugin_schema *)plugin_schema;
     struct plugin_runtime *plugin_rt = ALLOC(struct plugin_runtime, 1);
-    plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, 
-                                                ex_container_free, 
-                                                logger);
+    plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, ex_container_free, logger);
     plugin_rt->ref_garbage_bin = garbage_bin;
     plugin_rt->logger = logger;
 
