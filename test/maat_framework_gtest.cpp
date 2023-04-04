@@ -289,7 +289,7 @@ int ip_table_set_line(struct maat *maat_instance, const char *table_name, enum m
 
     return maat_cmd_set_line(maat_instance, &line_rule);
 }
-#if 1
+
 class MaatFlagScan : public testing::Test
 {
 protected:
@@ -936,7 +936,7 @@ TEST_F(MaatStringScan, BugReport20190325) {
     maat_state_free(state);
     state = NULL;
 }
-#if 0
+
 TEST_F(MaatStringScan, PrefixAndSuffix) {
     const char *hit_twice = "ceshi3@mailhost.cn";
 	const char *hit_suffix = "11111111111ceshi3@mailhost.cn";
@@ -982,7 +982,6 @@ TEST_F(MaatStringScan, PrefixAndSuffix) {
     maat_state_free(state);
     state = NULL;
 }
-#endif
 
 TEST_F(MaatStringScan, MaatUnescape) {
     const char *scan_data = "Batman\\:Take me Home.Superman/:Fine,stay with me.";
@@ -1358,6 +1357,30 @@ TEST_F(MaatIPScan, IPv6_IPPort) {
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 155);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(MaatIPScan, BugReport20210515) {
+    const char *table_name = "IP_CONFIG";
+    struct maat *maat_instance = MaatIPScan::_shared_maat_instance;
+    int thread_id = 0;
+
+    int table_id = maat_get_table_id(maat_instance, table_name);
+    char ip_str[64] = "2409:8915:3430:7e7:8c9b:ff2a:7aa1:e74";
+    uint8_t ip_addr[sizeof(struct in6_addr)];
+    int ret = inet_pton(AF_INET6, ip_str, &ip_addr);
+    EXPECT_EQ(ret, 1);
+    uint16_t port = htons(41159);
+    int proto = 6;
+
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    ret = maat_scan_ipv6(maat_instance, table_id, ip_addr, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -3025,7 +3048,241 @@ TEST_F(MaatFileTest, StreamFiles) {
 
     free(name_list);
 }
-#endif
+
+class HierarchyTest : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+        char redis_ip[64] = "127.0.0.1";
+        int redis_port = 6379;
+        int redis_db = 0;
+
+        logger = log_handle_create("./maat_framework_gtest.log", 0);
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+        if (ret < 0) {
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
+                      "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
+        }
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_accept_tags(opts, accept_tags);
+
+        _shared_maat_instance = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+        if (NULL == _shared_maat_instance) {
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
+                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      __FUNCTION__, __LINE__);
+        }
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_instance);
+        log_handle_destroy(logger);
+    }   
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_instance; 
+};
+
+struct maat *HierarchyTest::_shared_maat_instance;
+struct log_handle *HierarchyTest::logger;
+
+TEST_F(HierarchyTest, VirtualOfOnePhysical)
+{
+    const char *http_content = "Batman\\:Take me Home.Superman/:Fine,stay with me.";
+	const char *http_url = "https://blog.csdn.net/littlefang/article/details/8213058";
+    const char *url_table_name = "HTTP_URL";
+    const char *keywords_table_name = "HTTP_RESPONSE_KEYWORDS";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_instance = HierarchyTest::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+    int table_id = maat_get_table_id(maat_instance, url_table_name);
+    ASSERT_GT(table_id, 0);
+
+    int ret = maat_scan_string(maat_instance, table_id, http_url, strlen(http_url),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    table_id = maat_get_table_id(maat_instance, keywords_table_name);
+    ASSERT_GT(table_id, 0);
+
+    ret = maat_scan_string(maat_instance, table_id, http_content, strlen(http_content),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 160);
+    maat_state_reset(state);
+
+    const char *should_not_hit = "2018-10-05 is a keywords of table KEYWORDS_TABLE. Should not hit.";
+    ret = maat_scan_string(maat_instance, table_id, should_not_hit, strlen(should_not_hit),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(HierarchyTest, VirtualWithVirtual) {
+    const char *http_req_hdr_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36";
+	const char *http_resp_hdr_cookie = "uid=12345678;BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; sugstore=1;";
+    const char *req_table_name = "HTTP_REQUEST_HEADER";
+    const char *res_table_name = "HTTP_RESPONSE_HEADER";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_instance = HierarchyTest::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+    int table_id = maat_get_table_id(maat_instance, req_table_name);
+    ASSERT_GT(table_id, 0);
+
+    int ret = maat_state_set_scan_district(state, table_id, "User-Agent", strlen("User-Agent"));
+    EXPECT_EQ(ret, 0);
+
+    ret = maat_scan_string(maat_instance, table_id, http_req_hdr_ua, strlen(http_req_hdr_ua),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    table_id = maat_get_table_id(maat_instance, res_table_name);
+    ASSERT_GT(table_id, 0);
+
+    ret = maat_state_set_scan_district(state, table_id, "Cookie", strlen("Cookie"));
+    EXPECT_EQ(ret, 0);
+
+    ret = maat_scan_string(maat_instance, table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 162);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(HierarchyTest, OneGroupInTwoVirtual) {
+    const char *http_resp_hdr_cookie = "sessionid=888888;BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; sugstore=1;";
+    const char *req_table_name = "HTTP_REQUEST_HEADER";
+    const char *res_table_name = "HTTP_RESPONSE_HEADER";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_instance = HierarchyTest::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+    int table_id = maat_get_table_id(maat_instance, req_table_name);
+    ASSERT_GT(table_id, 0);
+
+    int ret = maat_state_set_scan_district(state, table_id, "Cookie", strlen("Cookie"));
+    EXPECT_EQ(ret, 0);
+
+    ret = maat_scan_string(maat_instance, table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    table_id = maat_get_table_id(maat_instance, res_table_name);
+    ASSERT_GT(table_id, 0);
+
+    ret = maat_state_set_scan_district(state, table_id, "Cookie", strlen("Cookie"));
+    EXPECT_EQ(ret, 0);
+
+    ret = maat_scan_string(maat_instance, table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 163);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(HierarchyTest, TwoVirtualInOneClause) {
+    const char *src_asn = "AS1234", *dst_asn = "AS2345";
+	const char *my_county = "Greece.Sparta";
+    const char *src_asn_table_name = "SOURCE_IP_ASN";
+    const char *dst_asn_table_name = "DESTINATION_IP_ASN";
+    const char *ip_table_name = "IP_CONFIG";
+    const char *src_ip_geo_table_name = "SOURCE_IP_GEO";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_instance = HierarchyTest::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+    //--------------------------------------
+	//			Source ASN & Dest ASN
+	//--------------------------------------
+    int table_id = maat_get_table_id(maat_instance, src_asn_table_name);
+    ASSERT_GT(table_id, 0);
+
+    int ret = maat_scan_string(maat_instance, table_id, src_asn, strlen(src_asn),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    table_id = maat_get_table_id(maat_instance, dst_asn_table_name);
+    ASSERT_GT(table_id, 0);
+
+    ret = maat_scan_string(maat_instance, table_id, dst_asn, strlen(dst_asn),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 178);
+
+    maat_state_reset(state);
+
+    //--------------------------------------
+	//			Source IP & Dest ASN
+	//--------------------------------------
+    table_id = maat_get_table_id(maat_instance, ip_table_name);
+    ASSERT_GT(table_id, 0);
+
+    uint32_t ip_addr;
+    inet_pton(AF_INET, "192.168.40.88", &ip_addr);
+    uint16_t port = htons(8888);
+
+    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6,
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    table_id = maat_get_table_id(maat_instance, dst_asn_table_name);
+    ASSERT_GT(table_id, 0);
+
+    ret = maat_scan_string(maat_instance, table_id, dst_asn, strlen(dst_asn),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 178);
+
+    maat_state_reset(state);
+
+    //--------------------------------------
+	//			Source Geo & Dest ASN
+	//--------------------------------------
+    table_id = maat_get_table_id(maat_instance, src_ip_geo_table_name);
+    ASSERT_GT(table_id, 0);
+
+    ret = maat_scan_string(maat_instance, table_id, my_county, strlen(my_county),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    table_id = maat_get_table_id(maat_instance, dst_asn_table_name);
+    ASSERT_GT(table_id, 0);
+
+    ret = maat_scan_string(maat_instance, table_id, dst_asn, strlen(dst_asn),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 178);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
 class MaatCmdTest : public testing::Test
 {
 protected:
@@ -4875,7 +5132,7 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
 	EXPECT_LE(hit_cnt, miss_cnt);
 	maat_state_free(state);                                    
 }
-#if 1
+
 TEST_F(MaatCmdTest, UpdateDeadLockDetection) {
     const char* g2c_table_name = "GROUP2COMPILE";
 	const char* compile_table_name = "COMPILE";
@@ -5009,7 +5266,7 @@ TEST_F(MaatCmdTest, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
 	maat_state_free(state);
     state = NULL;
 }
-#endif
+
 int main(int argc, char ** argv)
 {
 	int ret=0;

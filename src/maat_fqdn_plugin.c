@@ -173,7 +173,11 @@ void fqdn_rule_free(struct FQDN_rule *fqdn_rule)
 void fqdn_ex_container_free(void *schema, void *data)
 {
     struct ex_container_schema *container_schema = (struct ex_container_schema *)schema;
-    container_schema->user_data_free = (void (*)(void *))fqdn_rule_free;
+    
+    if (container_schema != NULL) {
+        container_schema->user_data_free = (void (*)(void *))fqdn_rule_free;
+    }
+    
     ex_container_free(container_schema, data);
 }
 
