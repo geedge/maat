@@ -10,6 +10,7 @@
 
 #include <stddef.h>
 #include <stdio.h>
+#include <assert.h>
 
 #include "uthash/uthash.h"
 #include "uthash/utarray.h"
@@ -24,7 +25,8 @@ struct ex_data_runtime {
     size_t cache_row_num;
     size_t cache_size;
 
-    struct rcu_hash_table *htable;
+    struct rcu_hash_table *htable; // store ex_container
+    struct ex_container_schema *ref_container_schema;
 	int table_id;
 
     struct log_handle *logger;
@@ -38,17 +40,16 @@ void cache_row_free(void *p)
 UT_icd ut_cache_row_icd = {sizeof(char*), NULL, NULL, cache_row_free};
 
 struct ex_data_runtime *
-ex_data_runtime_new(int table_id, rcu_hash_data_free_fn *data_free_fn,
-                    struct log_handle *logger)
+ex_data_runtime_new(int table_id, struct log_handle *logger)
 {
-    if (NULL == data_free_fn ||  NULL == logger) {
+    if (table_id < 0 || NULL == logger) {
         return NULL;
     }
 
     struct ex_data_runtime *ex_data_rt = ALLOC(struct ex_data_runtime, 1);
 
     utarray_new(ex_data_rt->cache_rows, &ut_cache_row_icd);
-    ex_data_rt->htable = rcu_hash_new(data_free_fn);
+    ex_data_rt->htable = NULL;
     ex_data_rt->table_id = table_id;
     ex_data_rt->logger = logger;
 
@@ -130,60 +131,21 @@ void ex_data_runtime_clear_row_cache(struct ex_data_runtime *ex_data_rt)
     ex_data_rt->cache_size = 0;
 }
 
-struct ex_data_schema *ex_data_schema_new(maat_ex_new_func_t *new_func,
-										  maat_ex_free_func_t *free_func,
-										  maat_ex_dup_func_t *dup_func,
-										  long argl, void *argp)
-{
-    struct ex_data_schema *ex_schema = ALLOC(struct ex_data_schema, 1);
-
-    ex_schema->new_func = new_func;
-    ex_schema->free_func = free_func;
-    ex_schema->dup_func = dup_func;
-    ex_schema->argl = argl;
-    ex_schema->argp = argp;
-
-    return ex_schema;
-}
-
-void ex_data_schema_free(struct ex_data_schema *ex_schema)
-{
-    if (ex_schema != NULL) {
-        FREE(ex_schema);
-    }
-    
-}
-
 void ex_data_runtime_set_ex_container_schema(struct ex_data_runtime *ex_data_rt, 
                                              struct ex_container_schema *container_schema)
 {
-    if (NULL == ex_data_rt) {
-        return;
-    }
-
-    rcu_hash_set_user_ctx(ex_data_rt->htable, container_schema);
+    ex_data_rt->ref_container_schema = container_schema;
 }
 
-struct ex_container_schema *
-ex_data_runtime_get_ex_container_schema(struct ex_data_runtime *ex_data_rt)
-{
-    if (NULL == ex_data_rt) {
-        return NULL;
-    }
-
-    return (struct ex_container_schema *)rcu_hash_get_user_ctx(ex_data_rt->htable);
-}
-
-void *ex_data_runtime_row2ex_data(struct ex_data_runtime *ex_data_rt, 
-                                  struct ex_data_schema *ex_schema,
-                                  const char *table_name,
-                                  const char *row, const char *key, 
-                                  size_t key_len)
+void *ex_data_runtime_row2ex_data(struct ex_data_runtime *ex_data_rt,
+                                  const char *table_name, const char *row, 
+                                  const char *key, size_t key_len)
 {   
     void *ex_data = NULL;
-    
-    ex_schema->new_func(table_name, ex_data_rt->table_id, key, row, &ex_data, 
-                        ex_schema->argl, ex_schema->argp);
+    struct ex_container_schema *container_schema = ex_data_rt->ref_container_schema;
+    container_schema->ex_schema.new_func(table_name, ex_data_rt->table_id, key, row, 
+                                         &ex_data, container_schema->ex_schema.argl, 
+                                         container_schema->ex_schema.argp);
     return ex_data;
 }
 
@@ -197,78 +159,103 @@ struct ex_container *ex_container_new(void *ex_data, void *custom_data)
     return ex_container;
 }
 
-void ex_container_free(void *schema, void *data)
+void ex_container_free(void *user_ctx, void *data)
 {
     /* schema is NULL if not call ex_data_runtime_set_ex_container_schema */
-    if (NULL == data) {
+    if (NULL == user_ctx || NULL == data) {
         return;
     }
 
-    struct ex_container *ex_container = (struct ex_container *)data;
-    struct ex_container_schema *container_schema = (struct ex_container_schema *)schema;
+    struct ex_container *container = (struct ex_container *)data;
+    struct ex_container_schema *container_schema = (struct ex_container_schema *)user_ctx;
 
     /* free ex_container->custom_data */
-    if (ex_container->custom_data != NULL) {
-        if (container_schema != NULL && container_schema->user_data_free != NULL) {
-            container_schema->user_data_free(ex_container->custom_data);
-        } else {
-             FREE(ex_container->custom_data);
-        }
+    if (container->custom_data != NULL && container_schema->custom_data_free != NULL) {
+        container_schema->custom_data_free(container->custom_data);
     }
 
     /* free ex_container->ex_data */
-    if (ex_container->ex_data != NULL) {
-        if (container_schema != NULL && container_schema->ex_schema != NULL &&
-            container_schema->ex_schema->free_func != NULL) {
-            long argl = container_schema->ex_schema->argl;
-            void *argp = container_schema->ex_schema->argp;
-
-            container_schema->ex_schema->free_func(container_schema->table_id,
-                                                   &(ex_container->ex_data), argl, argp);
-        }
+    if (container->ex_data != NULL && container_schema->ex_schema.free_func != NULL) {
+        container_schema->ex_schema.free_func(container_schema->table_id, &(container->ex_data),
+                                              container_schema->ex_schema.argl,
+                                              container_schema->ex_schema.argp);
     }
 
-    FREE(ex_container);
+    FREE(container);
 }
 
 int ex_data_runtime_add_ex_container(struct ex_data_runtime *ex_data_rt,
                                      const char *key, size_t key_len,
                                      struct ex_container *ex_container)
 {
+    if (NULL == ex_data_rt || NULL == key || 0 == key_len ||
+        NULL == ex_container) {
+        return -1;
+    }
+
+    if (NULL == ex_data_rt->htable) {
+        /* ex_data_rt->ref_container_schema has been set */
+        assert(ex_data_rt->ref_container_schema != NULL);
+        ex_data_rt->htable = rcu_hash_new(ex_container_free, ex_data_rt->ref_container_schema);
+    }
+
     return rcu_hash_add(ex_data_rt->htable, key, key_len, ex_container);
 }
 
 int ex_data_runtime_del_ex_container(struct ex_data_runtime *ex_data_rt,
                                      const char *key, size_t key_len)
 {
+    if (NULL == ex_data_rt || NULL == key || 0 == key_len ||
+        NULL == ex_data_rt->htable) {
+        return -1;
+    }
+
     return rcu_hash_del(ex_data_rt->htable, key, key_len);
 }
 
 void *ex_data_runtime_get_ex_data_by_key(struct ex_data_runtime *ex_data_rt,
-                                         struct ex_data_schema *ex_schema,
                                          const char *key, size_t key_len)
 {
-    struct ex_container *ex_container = NULL;
+    if (NULL == ex_data_rt || NULL == key || 0 == key_len) {
+        return NULL;
+    }
 
-    ex_container = (struct ex_container *)rcu_hash_find(ex_data_rt->htable, 
-                                                             key, key_len);
+    struct ex_container_schema *container_schema = ex_data_rt->ref_container_schema;
+    if (NULL == container_schema || (0 == container_schema->set_flag)) {
+        return NULL;
+    }
+
+    struct ex_container *ex_container = (struct ex_container *)rcu_hash_find(ex_data_rt->htable, 
+                                                                             key, key_len);
     if (NULL == ex_container) {
         return NULL;
     }
 
     void *dup_ex_data = NULL;
-    ex_schema->dup_func(ex_data_rt->table_id, &dup_ex_data, &(ex_container->ex_data), 
-                        ex_schema->argl, ex_schema->argp);
+    container_schema->ex_schema.dup_func(ex_data_rt->table_id, &dup_ex_data, 
+                                         &(ex_container->ex_data), 
+                                         container_schema->ex_schema.argl, 
+                                         container_schema->ex_schema.argp);
     return dup_ex_data;
 }
 
 void *ex_data_runtime_get_ex_data_by_container(struct ex_data_runtime *ex_data_rt,
-                                               struct ex_data_schema *ex_schema,
                                                struct ex_container *ex_container)
 {
+    if (NULL == ex_data_rt || NULL == ex_container) {
+        return NULL;
+    }
+
+    struct ex_container_schema *container_schema = ex_data_rt->ref_container_schema;
+    if (NULL == container_schema || (0 == container_schema->set_flag)) {
+        return NULL;
+    }
+
     void *dup_ex_data = NULL;
-    ex_schema->dup_func(ex_data_rt->table_id, &dup_ex_data, &(ex_container->ex_data), 
-                        ex_schema->argl, ex_schema->argp);
+    container_schema->ex_schema.dup_func(ex_data_rt->table_id, &dup_ex_data, 
+                                         &(ex_container->ex_data), 
+                                         container_schema->ex_schema.argl, 
+                                         container_schema->ex_schema.argp);
     return dup_ex_data;
 }
 

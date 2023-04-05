@@ -380,8 +380,8 @@ void *ip_runtime_new(void *ip_schema, int max_thread_num,
 {
     struct ip_runtime *ip_rt = ALLOC(struct ip_runtime, 1);
 
-    ip_rt->htable = rcu_hash_new(ip_ex_data_free);
-    ip_rt->item_htable = rcu_hash_new(ip_maat_item_free);
+    ip_rt->htable = rcu_hash_new(ip_ex_data_free, NULL);
+    ip_rt->item_htable = rcu_hash_new(ip_maat_item_free, NULL);
     ip_rt->ref_garbage_bin = garbage_bin;
     ip_rt->logger = logger;
 

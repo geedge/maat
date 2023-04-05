@@ -20,11 +20,6 @@ extern "C"
 #include "rcu_hash.h"
 #include "maat_garbage_collection.h"
 
-struct ex_container {
-    void *ex_data;
-    void *custom_data;
-};
-
 struct ex_data_schema {
 	maat_ex_new_func_t *new_func;
 	maat_ex_free_func_t *free_func;
@@ -33,18 +28,22 @@ struct ex_data_schema {
 	void *argp;
 };
 
+struct ex_container {
+    void *ex_data;
+    void *custom_data;
+};
+
 struct ex_container_schema {
     int table_id;
-    struct ex_data_schema *ex_schema;
-    void (*user_data_free)(void *);
+    int set_flag;
+    struct ex_data_schema ex_schema;
+    void (*custom_data_free)(void *);
 };
 
 struct ex_data_runtime;
 
 /* ex_data_runtime API */
-struct ex_data_runtime *
-ex_data_runtime_new(int table_id, rcu_hash_data_free_fn *data_free_fn,
-                    struct log_handle *logger);
+struct ex_data_runtime *ex_data_runtime_new(int table_id, struct log_handle *logger);
 void ex_data_runtime_free(struct ex_data_runtime *ex_data_rt);
 void ex_data_runtime_commit(struct ex_data_runtime *ex_data_rt);
 
@@ -57,26 +56,14 @@ size_t ex_data_runtime_cached_row_count(struct ex_data_runtime *ex_data_rt);
 
 void ex_data_runtime_clear_row_cache(struct ex_data_runtime *ex_data_rt);
 
-/* set schema API */
-struct ex_data_schema *ex_data_schema_new(maat_ex_new_func_t *new_func,
-										  maat_ex_free_func_t *free_func,
-										  maat_ex_dup_func_t *dup_func,
-										  long argl, void *argp);
-void ex_data_schema_free(struct ex_data_schema *ex_schema);
-
 /* set user_ctx API */
 void ex_data_runtime_set_ex_container_schema(struct ex_data_runtime *ex_data_rt, 
-                                          struct ex_container_schema *container_schema);
-
-struct ex_container_schema *
-ex_data_runtime_get_ex_container_schema(struct ex_data_runtime *ex_data_rt);
+                                             struct ex_container_schema *container_schema);
 
 struct ex_container *ex_container_new(void *ex_data, void *custom_data);
-void ex_container_free(void *ctx, void *data);
 
 /* ex_data_runtime ex data API */
 void *ex_data_runtime_row2ex_data(struct ex_data_runtime *ex_data_rt,
-                                  struct ex_data_schema *ex_schema,
                                   const char *table_name, const char *row, 
                                   const char *key, size_t key_len);
 
@@ -95,11 +82,9 @@ size_t ex_data_runtime_ex_container_count(struct ex_data_runtime *ex_data_rt);
 int ex_data_runtime_is_updating(struct ex_data_runtime *ex_data_rt);
 
 void *ex_data_runtime_get_ex_data_by_key(struct ex_data_runtime *ex_data_rt,
-                                         struct ex_data_schema *ex_schema,
                                          const char *key, size_t key_len);
 
 void *ex_data_runtime_get_ex_data_by_container(struct ex_data_runtime *ex_data_rt,
-                                               struct ex_data_schema *ex_schema,
                                                struct ex_container *ex_container);
                                                
 void *ex_data_runtime_get_custom_data(struct ex_data_runtime *ex_data_rt, 

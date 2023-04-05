@@ -100,6 +100,9 @@ static int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
     redisReply *reply = maat_cmd_wrap_redis_command(c, "flushdb");
     if (NULL == reply) {
         return -1;
+    } else {
+        freeReplyObject(reply);
+	    reply = NULL;
     }
     
     if (0 == access(json_iris_path, F_OK)) {

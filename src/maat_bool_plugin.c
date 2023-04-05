@@ -12,7 +12,6 @@
 
 #include "maat_bool_plugin.h"
 #include "bool_matcher.h"
-#include "maat_ex_data.h"
 #include "maat_utils.h"
 #include "maat_rule.h"
 #include "maat_garbage_collection.h"
@@ -23,9 +22,10 @@ struct bool_plugin_schema {
     int item_id_column;
     int bool_expr_column;
     int rule_tag_column;
-    struct ex_data_schema *ex_schema;
+    struct ex_container_schema container_schema;
     int table_id;
     struct table_manager *ref_tbl_mgr;
+    struct log_handle *logger;
 
     unsigned long long update_err_cnt;
     unsigned long long unmatch_tag_cnt;
@@ -46,6 +46,7 @@ void *bool_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
                              const char *table_name, struct log_handle *logger)
 {
     struct bool_plugin_schema *schema = ALLOC(struct bool_plugin_schema, 1);
+    schema->logger = logger;
 
     cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
@@ -104,50 +105,43 @@ void bool_plugin_schema_free(void *bool_plugin_schema)
     if (NULL == bool_plugin_schema) {
         return;
     }
-    struct bool_plugin_schema *schema = (struct bool_plugin_schema *)bool_plugin_schema;
-    if (schema->ex_schema != NULL) {
-        ex_data_schema_free(schema->ex_schema);
-        schema->ex_schema = NULL;
-    }
-
-    free(schema);
+  
+    FREE(bool_plugin_schema);
 }
 
-/* ip plugin table ex data API */
-struct ex_data_schema *bool_plugin_table_get_ex_data_schema(void *bool_plugin_schema)
+int bool_plugin_table_set_ex_container_schema(void *bool_plugin_schema, int table_id,
+                                              maat_ex_new_func_t *new_func,
+							                  maat_ex_free_func_t *free_func,
+							                  maat_ex_dup_func_t *dup_func,
+                                              void (*custom_data_free)(void *),
+							                  long argl, void *argp)
 {
-    if (NULL == bool_plugin_schema) {
-        return NULL;
-    }
-
     struct bool_plugin_schema *schema = (struct bool_plugin_schema *)bool_plugin_schema;
 
-    return schema->ex_schema;
-}
-
-int bool_plugin_table_set_ex_data_schema(void *bool_plugin_schema, 
-                                         maat_ex_new_func_t *new_func,
-							             maat_ex_free_func_t *free_func,
-							             maat_ex_dup_func_t *dup_func,
-							             long argl, void *argp,
-                                         struct log_handle *logger)
-{
-    if (NULL == bool_plugin_schema) {
+    if (1 == schema->container_schema.set_flag) {
+        log_error(schema->logger, MODULE_BOOL_PLUGIN, 
+                  "[%s:%d] bool_plugin table(table_id:%d) ex_container_schema has been set, can't set again",
+                  __FUNCTION__, __LINE__, table_id);
         return -1;
     }
 
-    struct bool_plugin_schema *schema = (struct bool_plugin_schema *)bool_plugin_schema;
-    if (schema->ex_schema != NULL) {
-        assert(0);
-        log_error(logger, MODULE_BOOL_PLUGIN,
-                  "[%s:%d], ex_data schema has already been registered, can't be registered again",
-                  __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    schema->ex_schema = ex_data_schema_new(new_func, free_func, dup_func, argl, argp);
-
+    schema->container_schema.table_id = table_id;
+    schema->container_schema.custom_data_free = custom_data_free;
+    schema->container_schema.ex_schema.new_func = new_func;
+    schema->container_schema.ex_schema.free_func = free_func;
+    schema->container_schema.ex_schema.dup_func = dup_func;
+    schema->container_schema.ex_schema.argl = argl;
+    schema->container_schema.ex_schema.argp = argp;
+    schema->container_schema.set_flag = 1;
+    
     return 0;
+}
+
+struct ex_container_schema *bool_plugin_table_get_ex_container_schema(void *bool_plugin_schema)
+{
+    struct bool_plugin_schema *schema = (struct bool_plugin_schema *)bool_plugin_schema;
+
+    return &(schema->container_schema);
 }
 
 static int cmp_ull_p(const void *p1, const void *p2)
@@ -187,9 +181,11 @@ void *bool_plugin_runtime_new(void *bool_plugin_schema, int max_thread_num,
     struct bool_plugin_schema *schema = (struct bool_plugin_schema *)bool_plugin_schema;
     struct bool_plugin_runtime *bool_plugin_rt = ALLOC(struct bool_plugin_runtime, 1);
 
-    bool_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, 
-                                                     ex_container_free, 
-                                                     logger);
+    bool_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, logger);
+    if (1 == schema->container_schema.set_flag) {
+        ex_data_runtime_set_ex_container_schema(bool_plugin_rt->ex_data_rt, &(schema->container_schema));
+    }
+
     bool_plugin_rt->ref_garbage_bin = garbage_bin;
     bool_plugin_rt->logger = logger;
 
@@ -217,8 +213,8 @@ void bool_plugin_runtime_free(void *bool_plugin_runtime)
 }
 
 int bool_plugin_runtime_update_row(struct bool_plugin_runtime *bool_plugin_rt,
-                                   struct ex_data_schema *ex_schema, const char *table_name,
-                                   const char *row, const char *key, size_t key_len, 
+                                   const char *table_name, const char *row, 
+                                   const char *key, size_t key_len, 
                                    struct bool_expr *expr, int is_valid)
 {
     int ret = -1;
@@ -232,7 +228,7 @@ int bool_plugin_runtime_update_row(struct bool_plugin_runtime *bool_plugin_rt,
         }
     } else {
         // add
-        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, ex_schema, table_name, row, key, key_len);
+        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, table_name, row, key, key_len);
         struct ex_container *ex_container = ex_container_new(ex_data, (void *)expr);
         ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
         if (ret < 0) {
@@ -377,8 +373,7 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
         return -1;
     }
 
-    struct ex_data_schema *ex_schema = schema->ex_schema;
-    if (ex_schema != NULL) {
+    if (1 == schema->container_schema.set_flag) {
         if (1 == is_valid) {
             // add
             bool_expr = bool_plugin_expr_new(line, schema, table_name, bool_plugin_rt->logger);
@@ -389,7 +384,7 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
 
         const char *key = line + item_id_offset;
         size_t key_len = item_id_len;
-        ret = bool_plugin_runtime_update_row(bool_plugin_rt, ex_schema, table_name, line, key, key_len, 
+        ret = bool_plugin_runtime_update_row(bool_plugin_rt, table_name, line, key, key_len, 
                                             bool_expr, is_valid);
         if (ret < 0) {
             if (bool_expr != NULL) {
@@ -493,17 +488,11 @@ struct ex_data_runtime *bool_plugin_runtime_get_ex_data_rt(void *bool_plugin_run
     return bool_plugin_rt->ex_data_rt;
 }
 
-int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, void *bool_plugin_schema,
-                                    unsigned long long *item_ids, size_t n_item, 
-                                    void **ex_data_array, size_t n_ex_data)
+int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, unsigned long long *item_ids, 
+                                    size_t n_item, void **ex_data_array, size_t n_ex_data)
 {
-    if (NULL == bool_plugin_runtime || NULL == bool_plugin_schema) {
-        return -1;
-    }
-
-    struct bool_plugin_schema *schema = (struct bool_plugin_schema *)bool_plugin_schema;
-    struct ex_data_schema *ex_schema = schema->ex_schema;
-    if (NULL == ex_schema) {
+    if (NULL == bool_plugin_runtime || NULL == ex_data_array ||
+        NULL == item_ids || 0 == n_item || 0 == n_ex_data) {
         return -1;
     }
 
@@ -519,7 +508,7 @@ int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, void *bool_plugin
     assert(bool_plugin_rt->matcher != NULL);
 	int n_result = bool_matcher_match(bool_plugin_rt->matcher, item_ids, n_item, results, n_ex_data);
 	for (int i = 0; i < n_result; i++) {
-		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(bool_plugin_rt->ex_data_rt, ex_schema,
+		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(bool_plugin_rt->ex_data_rt,
                                                                     (struct ex_container *)results[i].user_tag);
 	}
 

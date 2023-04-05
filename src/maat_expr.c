@@ -455,8 +455,8 @@ void *expr_runtime_new(void *expr_schema, int max_thread_num,
 
     struct expr_runtime *expr_rt = ALLOC(struct expr_runtime, 1);
 
-    expr_rt->htable = rcu_hash_new(expr_ex_data_free);
-    expr_rt->item_htable = rcu_hash_new(expr_maat_item_free);
+    expr_rt->htable = rcu_hash_new(expr_ex_data_free, NULL);
+    expr_rt->item_htable = rcu_hash_new(expr_maat_item_free, NULL);
     expr_rt->n_worker_thread = max_thread_num;
     expr_rt->ref_garbage_bin = garbage_bin;
     expr_rt->logger = logger;

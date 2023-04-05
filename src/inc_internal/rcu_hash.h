@@ -18,18 +18,14 @@ extern "C"
 
 #include "uthash/uthash.h"
 
-typedef void rcu_hash_data_free_fn(void *user_ctx, void *data);
+typedef void data_free_fn(void *user_ctx, void *data);
 
 /* rcu hash table */
 struct rcu_hash_table;
 
-struct rcu_hash_table *rcu_hash_new(rcu_hash_data_free_fn *free_fn);
+struct rcu_hash_table *rcu_hash_new(data_free_fn *free_fn, void *arg);
 
 void rcu_hash_free(struct rcu_hash_table *htable);
-
-void rcu_hash_set_user_ctx(struct rcu_hash_table *htable, void *user_ctx);
-
-void *rcu_hash_get_user_ctx(struct rcu_hash_table *htable);
 
 /**
  * @brief Adding the updating nodes which will become effective nodes after call rcu_hash_commit

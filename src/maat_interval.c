@@ -170,8 +170,8 @@ void *interval_runtime_new(void *interval_schema, int max_thread_num,
 
     struct interval_runtime *interval_rt = ALLOC(struct interval_runtime, 1);
 
-    interval_rt->htable = rcu_hash_new(interval_ex_data_free);
-    interval_rt->item_htable = rcu_hash_new(interval_maat_item_free);
+    interval_rt->htable = rcu_hash_new(interval_ex_data_free, NULL);
+    interval_rt->item_htable = rcu_hash_new(interval_maat_item_free, NULL);
     interval_rt->ref_garbage_bin = garbage_bin;
     interval_rt->logger = logger;
     interval_rt->district_map = maat_kv_store_new();

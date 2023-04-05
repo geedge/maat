@@ -11,8 +11,6 @@
 #include <assert.h>
 
 #include "maat_fqdn_plugin.h"
-#include "maat_ex_data.h"
-#include "fqdn_engine.h"
 #include "maat_utils.h"
 #include "maat_table.h"
 #include "maat_rule.h"
@@ -25,9 +23,10 @@ struct fqdn_plugin_schema {
     int suffix_flag_column;
     int fqdn_column;
     int rule_tag_column;
-    struct ex_data_schema *ex_schema;
+    struct ex_container_schema container_schema;
     int table_id;
     struct table_manager *ref_tbl_mgr;
+    struct log_handle *logger;
 
     unsigned long long update_err_cnt;
     unsigned long long unmatch_tag_cnt;
@@ -47,6 +46,7 @@ void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
                              const char *table_name, struct log_handle *logger)
 {
     struct fqdn_plugin_schema *schema = ALLOC(struct fqdn_plugin_schema, 1);
+    schema->logger = logger;
 
     cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
@@ -116,69 +116,51 @@ void fqdn_plugin_schema_free(void *fqdn_plugin_schema)
     if (NULL == fqdn_plugin_schema) {
         return;
     }
-    struct fqdn_plugin_schema *schema = (struct fqdn_plugin_schema *)fqdn_plugin_schema;
-    if (schema->ex_schema != NULL) {
-        ex_data_schema_free(schema->ex_schema);
-        schema->ex_schema = NULL;
-    }
 
-    free(schema);
+    FREE(fqdn_plugin_schema);
 }
 
-/* fqdn plugin table ex data API */
-struct ex_data_schema *fqdn_plugin_table_get_ex_data_schema(void *fqdn_plugin_schema)
+int fqdn_plugin_table_set_ex_container_schema(void *fqdn_plugin_schema, int table_id,
+                                              maat_ex_new_func_t *new_func,
+							                  maat_ex_free_func_t *free_func,
+							                  maat_ex_dup_func_t *dup_func,
+                                              void (*custom_data_free)(void *),
+							                  long argl, void *argp)
 {
-    if (NULL == fqdn_plugin_schema) {
-        return NULL;
-    }
-
     struct fqdn_plugin_schema *schema = (struct fqdn_plugin_schema *)fqdn_plugin_schema;
 
-    return schema->ex_schema;
-}
-
-int fqdn_plugin_table_set_ex_data_schema(void *fqdn_plugin_schema, 
-                                         maat_ex_new_func_t *new_func,
-							             maat_ex_free_func_t *free_func,
-							             maat_ex_dup_func_t *dup_func,
-							             long argl, void *argp,
-                                         struct log_handle *logger)
-{
-    if (NULL == fqdn_plugin_schema) {
+    if (1 == schema->container_schema.set_flag) {
+        log_error(schema->logger, MODULE_FQDN_PLUGIN, 
+                  "[%s:%d] fqdn_plugin table(table_id:%d) ex_container_schema has been set, can't set again",
+                  __FUNCTION__, __LINE__, table_id);
         return -1;
     }
 
-    struct fqdn_plugin_schema *schema = (struct fqdn_plugin_schema *)fqdn_plugin_schema;
-    if (schema->ex_schema != NULL) {
-        assert(0);
-        log_error(logger, MODULE_FQDN_PLUGIN,
-                  "[%s:%d], EX data schema already registed", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    schema->ex_schema = ex_data_schema_new(new_func, free_func, dup_func, argl, argp);
+    schema->container_schema.table_id = table_id;
+    schema->container_schema.custom_data_free = custom_data_free;
+    schema->container_schema.ex_schema.new_func = new_func;
+    schema->container_schema.ex_schema.free_func = free_func;
+    schema->container_schema.ex_schema.dup_func = dup_func;
+    schema->container_schema.ex_schema.argl = argl;
+    schema->container_schema.ex_schema.argp = argp;
+    schema->container_schema.set_flag = 1;
 
     return 0;
 }
 
-void fqdn_rule_free(struct FQDN_rule *fqdn_rule)
+struct ex_container_schema *fqdn_plugin_table_get_ex_container_schema(void *fqdn_plugin_schema)
 {
-	assert(fqdn_rule->user_tag==NULL);
-	free(fqdn_rule->FQDN);
-	fqdn_rule->FQDN=NULL;
-	free(fqdn_rule);
-	return;
+    struct fqdn_plugin_schema *schema = (struct fqdn_plugin_schema *)fqdn_plugin_schema;
+
+    return &(schema->container_schema);
 }
 
-void fqdn_ex_container_free(void *schema, void *data)
+void fqdn_rule_free(struct FQDN_rule *fqdn_rule)
 {
-    struct ex_container_schema *container_schema = (struct ex_container_schema *)schema;
-    
-    if (container_schema != NULL) {
-        container_schema->user_data_free = (void (*)(void *))fqdn_rule_free;
-    }
-    
-    ex_container_free(container_schema, data);
+	assert(fqdn_rule->user_tag == NULL);
+	free(fqdn_rule->FQDN);
+	fqdn_rule->FQDN = NULL;
+	free(fqdn_rule);
 }
 
 void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, int max_thread_num,
@@ -192,8 +174,11 @@ void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, int max_thread_num,
     struct fqdn_plugin_schema *schema = (struct fqdn_plugin_schema *)fqdn_plugin_schema;
     struct fqdn_plugin_runtime *fqdn_plugin_rt = ALLOC(struct fqdn_plugin_runtime, 1);
 
-    fqdn_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, fqdn_ex_container_free,
-                                                     logger);
+    fqdn_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, logger);
+    if (1 == schema->container_schema.set_flag) {
+        ex_data_runtime_set_ex_container_schema(fqdn_plugin_rt->ex_data_rt, &(schema->container_schema));
+    }
+
     fqdn_plugin_rt->ref_garbage_bin = garbage_bin;
     fqdn_plugin_rt->logger = logger;
 
@@ -334,9 +319,10 @@ void fqdn_plugin_rule_free(struct FQDN_rule *rule)
 }
 
 int fqdn_plugin_runtime_update_row(struct fqdn_plugin_runtime *fqdn_plugin_rt,
-                                   struct ex_data_schema *ex_schema, const char *table_name,
-                                   const char *row, const char *key, size_t key_len, 
-                                   struct FQDN_rule *fqdn_plugin_rule, int is_valid)
+                                   const char *table_name, const char *row, 
+                                   const char *key, size_t key_len, 
+                                   struct FQDN_rule *fqdn_plugin_rule, 
+                                   int is_valid)
 {
     int ret = -1;
     struct ex_data_runtime *ex_data_rt = fqdn_plugin_rt->ex_data_rt;
@@ -349,7 +335,7 @@ int fqdn_plugin_runtime_update_row(struct fqdn_plugin_runtime *fqdn_plugin_rt,
         }
     } else {
         // add
-        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, ex_schema, table_name, row, key, key_len);
+        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, table_name, row, key, key_len);
         struct ex_container *ex_container = ex_container_new(ex_data, (void *)fqdn_plugin_rule);
         ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
         if (ret < 0) {
@@ -383,8 +369,7 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
         return -1;
     }
 
-    struct ex_data_schema *ex_schema = schema->ex_schema;
-    if (ex_schema != NULL) {
+    if (1 == schema->container_schema.set_flag) {
         if (1 == is_valid) {
             // add
             fqdn_plugin_rule = fqdn_plugin_rule_new(line, schema, table_name, fqdn_plugin_rt->logger);
@@ -395,7 +380,7 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
 
         const char *key = line + item_id_offset;
         size_t key_len = item_id_len;
-        ret = fqdn_plugin_runtime_update_row(fqdn_plugin_rt, ex_schema, table_name, line, key, key_len, 
+        ret = fqdn_plugin_runtime_update_row(fqdn_plugin_rt, table_name, line, key, key_len, 
                                                  fqdn_plugin_rule, is_valid);
         if (ret < 0) {
             if (fqdn_plugin_rule != NULL) {
@@ -499,17 +484,11 @@ struct ex_data_runtime *fqdn_plugin_runtime_get_ex_data_rt(void *fqdn_plugin_run
 }
 
 
-int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, void *fqdn_plugin_schema,
-                                    const char *query_fqdn, void **ex_data_array, 
-                                    size_t n_ex_data)
+int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, const char *query_fqdn, 
+                                    void **ex_data_array, size_t n_ex_data)
 {
-    if (NULL == fqdn_plugin_runtime || NULL == fqdn_plugin_schema) {
-        return -1;
-    }
-
-    struct fqdn_plugin_schema *schema = (struct fqdn_plugin_schema *)fqdn_plugin_schema;
-    struct ex_data_schema *ex_schema = schema->ex_schema;
-    if (NULL == ex_schema) {
+    if (NULL == fqdn_plugin_runtime || NULL == query_fqdn ||
+        NULL == ex_data_array || 0 == n_ex_data) {
         return -1;
     }
 
@@ -524,7 +503,7 @@ int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, void *fqdn_plugin
     assert(fqdn_plugin_rt->engine != NULL);
 	int n_result = FQDN_engine_search(fqdn_plugin_rt->engine, query_fqdn, strlen(query_fqdn), results, n_ex_data);
 	for (int i = 0; i < n_result; i++) {
-		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(fqdn_plugin_rt->ex_data_rt, ex_schema,
+		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(fqdn_plugin_rt->ex_data_rt,
                                                                     (struct ex_container *)results[i].user_tag);
 	}
 

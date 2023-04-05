@@ -90,7 +90,7 @@ void rcu_hash_node_free(struct rcu_hash_node *node)
     FREE(node);
 }
 
-struct rcu_hash_table *rcu_hash_new(rcu_hash_data_free_fn *free_fn)
+struct rcu_hash_table *rcu_hash_new(data_free_fn *free_fn, void *user_ctx)
 {
     if (NULL == free_fn) {
         return NULL;
@@ -103,6 +103,7 @@ struct rcu_hash_table *rcu_hash_new(rcu_hash_data_free_fn *free_fn)
     TAILQ_INIT(&htable->garbage_q);
     htable->garbage_q_len = 0;
     htable->data_free_fn = free_fn;
+    htable->user_ctx = user_ctx;
     pthread_mutex_init(&htable->update_mutex, NULL);
 
     return htable;
@@ -129,23 +130,9 @@ void rcu_hash_free(struct rcu_hash_table *htable)
     }
 
     rcu_hash_garbage_queue_free(&(htable->garbage_q));
-    if (htable->user_ctx != NULL) {
-        FREE(htable->user_ctx);
-    }
-    
     pthread_mutex_destroy(&htable->update_mutex);
 
     FREE(htable);
-}
-
-void rcu_hash_set_user_ctx(struct rcu_hash_table *htable, void *user_ctx)
-{
-    htable->user_ctx = user_ctx;
-}
-
-void *rcu_hash_get_user_ctx(struct rcu_hash_table *htable)
-{
-    return htable->user_ctx;
 }
 
 void rcu_hash_commit_prepare(struct rcu_hash_table *htable)

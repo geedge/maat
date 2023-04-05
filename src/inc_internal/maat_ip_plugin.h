@@ -19,6 +19,7 @@ extern "C"
 #include "maat.h"
 #include "cJSON/cJSON.h"
 #include "maat_table.h"
+#include "maat_ex_data.h"
 
 struct ip_plugin_runtime;
 
@@ -28,14 +29,13 @@ void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 void ip_plugin_schema_free(void *ip_plugin_schema);
 
 /* ip plugin table ex data API */
-struct ex_data_schema *ip_plugin_table_get_ex_data_schema(void *ip_plugin_schema);
-
-void ip_plugin_table_set_ex_data_schema(void *ip_plugin_schema, 
-                                       maat_ex_new_func_t *new_func,
-							           maat_ex_free_func_t *free_func,
-							           maat_ex_dup_func_t *dup_func,
-							           long argl, void *argp,
-                                       struct log_handle *logger);
+int ip_plugin_table_set_ex_container_schema(void *ip_plugin_schema, int table_id,
+                                            maat_ex_new_func_t *new_func,
+							                maat_ex_free_func_t *free_func,
+							                maat_ex_dup_func_t *dup_func,
+                                            void (*custom_data_free)(void *),
+							                long argl, void *argp);
+struct ex_container_schema *ip_plugin_table_get_ex_container_schema(void *ip_plugin_schema);
 
 /* ip plugin runtime API */
 void *ip_plugin_runtime_new(void *ip_plugin_schema, int max_thread_num,
@@ -49,9 +49,8 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name);
 
 struct ex_data_runtime *ip_plugin_runtime_get_ex_data_rt(void *ip_plugin_runtime);
 
-int ip_plugin_runtime_get_ex_data(void *ip_plugin_runtime, void *ip_plugin_schema,
-                                  const struct ip_addr *ip_addr, void **ex_data_array, 
-                                  size_t n_ex_data_array);
+int ip_plugin_runtime_get_ex_data(void *ip_plugin_runtime, const struct ip_addr *ip_addr, 
+                                  void **ex_data_array, size_t n_ex_data_array);
 
 #ifdef __cplusplus
 }

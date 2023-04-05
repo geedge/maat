@@ -41,8 +41,7 @@ int compile_table_set_ex_data_schema(struct compile_schema *compile_schema, int 
                                      maat_ex_new_func_t *new_func,
                                      maat_ex_free_func_t *free_func,
                                      maat_ex_dup_func_t *dup_func,
-                                     long argl, void *argp,
-                                     struct log_handle *logger);
+                                     long argl, void *argp);
 
 /* compile runtime API */
 void *compile_runtime_new(void *compile_schema, int max_thread_num,

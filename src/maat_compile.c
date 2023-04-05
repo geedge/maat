@@ -31,10 +31,12 @@ struct compile_schema {
     int compile_id_column;
     int rule_tag_column;
     int declared_clause_num_column;
-	struct ex_data_schema *ex_schema;
+	struct ex_data_schema ex_schema;
+    int set_flag;
     int table_id; //ugly
     char table_name[NAME_MAX];
     struct table_manager *ref_tbl_mgr;
+    struct log_handle *logger;
 
     unsigned long long update_err_cnt;
     unsigned long long unmatch_tag_cnt;
@@ -71,8 +73,8 @@ struct compile_runtime {
     struct maat_compile *compile_hash; // <compile_id, struct maat_compile>
     struct maat_runtime *ref_maat_rt;
     time_t version;
-	uint32_t rule_num;
     struct maat_clause *clause_by_literals_hash;
+    uint32_t rule_num;
     int updating_flag;
     pthread_rwlock_t rwlock; /* TODO: replaced with mutex? */
 
@@ -86,7 +88,7 @@ struct group2compile_runtime {
     struct compile_runtime *ref_compile_rt;
     struct group2group_runtime *ref_g2g_rt;
 };
-
+#pragma pack(4)
 struct maat_clause_state {
 	long long clause_id;
 	char not_flag;
@@ -98,6 +100,7 @@ struct maat_literal_id {
 	long long group_id;
 	int vtable_id;
 };
+#pragma pack()
 
 struct maat_clause {
 	long long clause_id;
@@ -148,28 +151,26 @@ struct maat_compile_state {
 	UT_array *this_scan_hit_clauses;
 };
 
-int compile_table_set_ex_data_schema(struct compile_schema *compile_schema, 
-                                     int table_id,
+int compile_table_set_ex_data_schema(struct compile_schema *compile_schema, int table_id,
 									 maat_ex_new_func_t *new_func,
                                      maat_ex_free_func_t *free_func,
                                      maat_ex_dup_func_t *dup_func,
-                                     long argl, void *argp,
-                                     struct log_handle *logger)
+                                     long argl, void *argp)
 {
-	if (compile_schema->ex_schema != NULL) {
-        log_error(logger, MODULE_COMPILE, 
-                  "[%s:%d] compile table(table_id:%d)ex schema has been set already, can't set anymore",
+	if (1 == compile_schema->set_flag) {
+        log_error(compile_schema->logger, MODULE_COMPILE, 
+                  "[%s:%d] compile table(table_id:%d)ex schema has been set already, can't set again",
                   __FUNCTION__, __LINE__, table_id);
 		return -1;
 	}
 
-    compile_schema->ex_schema = ALLOC(struct ex_data_schema, 1);
-	compile_schema->ex_schema->argl = argl;
-	compile_schema->ex_schema->argp = argp;
-	compile_schema->ex_schema->new_func = new_func;
-	compile_schema->ex_schema->free_func = free_func;
-	compile_schema->ex_schema->dup_func = dup_func;
-
+    compile_schema->ex_schema.new_func = new_func;
+    compile_schema->ex_schema.free_func = free_func;
+    compile_schema->ex_schema.dup_func = dup_func;
+    compile_schema->ex_schema.argl = argl;
+    compile_schema->ex_schema.argp = argp;
+    compile_schema->set_flag = 1;
+    
 	return 0;
 }
 
@@ -192,13 +193,12 @@ void *compile_runtime_get_user_data(struct compile_runtime *compile_rt, long lon
 }
 
 void *rule_ex_data_new(const char *table_name, int table_id, const char *table_line, 
-                       const struct ex_data_schema *ex_schema)
+                       struct ex_data_schema *ex_schema)
 {
 	void *ex_data = NULL;
 
 	ex_schema->new_func(table_name, table_id, NULL, table_line, &ex_data, 
                         ex_schema->argl, ex_schema->argp);
-	
     return ex_data;
 }
 
@@ -245,6 +245,7 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
                          struct log_handle *logger)
 {
 	struct compile_schema *compile_schema = ALLOC(struct compile_schema, 1);
+    compile_schema->logger = logger;
 
 	cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
@@ -296,12 +297,6 @@ error:
 
 void compile_schema_free(void *compile_schema)
 {
-    struct compile_schema *schema = (struct compile_schema *)compile_schema;
-
-    if (schema->ex_schema != NULL) {
-        FREE(schema->ex_schema);
-    }
-
 	FREE(compile_schema);
 }
 
@@ -806,19 +801,6 @@ void garbage_maat_compile_free(void *maat_compile, void *arg)
     maat_compile_free(compile);
 }
 
-void maat_compile_hash_set(struct maat_compile **compile_hash, long long compile_id,
-                          const char *table_name, struct maat_compile *compile)
-{
-    struct maat_compile *tmp_compile = NULL;
-
-    HASH_FIND(hh, *compile_hash, &compile_id, sizeof(long long), tmp_compile);
-    assert(tmp_compile != NULL);
-
-    assert(tmp_compile->user_data == NULL);
-    maat_compile_set(tmp_compile, table_name, compile->declared_clause_num, 
-                     compile->user_data, compile->user_data_free);
-}
-
 int maat_compile_hash_remove(struct maat_compile **compile_hash, struct maat_compile *compile,
                              struct maat_garbage_bin *garbage_bin)
 {
@@ -924,7 +906,7 @@ maat_clause_hash_fetch_clause(struct compile_runtime *compile_rt,
                               size_t n_literal_id)
 {
 	struct maat_clause *clause = NULL;
-
+    
 	HASH_FIND(hh, compile_rt->clause_by_literals_hash, literal_ids, 
               n_literal_id * sizeof(struct maat_literal_id), clause);
 	if (NULL == clause) {
@@ -1455,23 +1437,23 @@ int maat_compile_state_has_NOT_clause(struct maat_compile_state *compile_state)
 }
 
 void compile_item_to_compile_rule(struct compile_item *compile_item,
-                                  struct compile_schema *compile_schema,
+                                  struct compile_schema *schema,
                                   struct compile_rule *compile_rule,
                                   const char *table_name,
                                   const char *table_line)
 {
     compile_rule->magic_num = COMPILE_RULE_MAGIC;
     compile_rule->declared_clause_num = compile_item->declared_clause_num;
-    compile_rule->ref_table = compile_schema;
+    compile_rule->ref_table = schema;
     compile_rule->ex_data = ALLOC(void *, 1);
     compile_rule->table_line_len = strlen(table_line) + 1;
     compile_rule->table_line = ALLOC(char, compile_rule->table_line_len);
     memcpy(compile_rule->table_line, table_line, compile_rule->table_line_len);
 
-    if (compile_schema->ex_schema != NULL) {
-        *(compile_rule->ex_data) = rule_ex_data_new(table_name, compile_schema->table_id, 
-                                                    compile_rule->table_line, 
-                                                    compile_schema->ex_schema);
+    if (1 == schema->set_flag) {
+        *(compile_rule->ex_data) = rule_ex_data_new(table_name, schema->table_id, 
+                                                    compile_rule->table_line,
+                                                    &(schema->ex_schema));
     }
     
     compile_rule->compile_id = compile_item->compile_id;
@@ -1482,8 +1464,8 @@ void compile_rule_free(struct compile_rule *compile_rule)
 	struct compile_schema *schema = compile_rule->ref_table;
 	assert(compile_rule->magic_num==COMPILE_RULE_MAGIC);
 
-    if (schema->ex_schema != NULL) {
-        rule_ex_data_free(schema->table_id, compile_rule->ex_data, schema->ex_schema);
+    if (1 == schema->set_flag) {
+        rule_ex_data_free(schema->table_id, compile_rule->ex_data, &(schema->ex_schema));
 		*compile_rule->ex_data = NULL;
     }
     FREE(compile_rule->ex_data);
@@ -1496,12 +1478,12 @@ void compile_runtime_ex_data_iterate(struct compile_runtime *compile_rt,
                                      struct compile_schema *compile_schema)
 {
     if (NULL == compile_rt || NULL == compile_schema ||
-        NULL == compile_schema->ex_schema) {
+        (0 == compile_schema->set_flag)) {
 		return;
 	}
 
     compile_runtime_user_data_iterate(compile_rt, rule_ex_data_new_cb, 
-                                      compile_schema->ex_schema,
+                                      &(compile_schema->ex_schema),
                                       compile_schema->table_id);
 }
 
@@ -1509,7 +1491,8 @@ void *compile_runtime_get_ex_data(struct compile_runtime *compile_rt,
                                   struct compile_schema *compile_schema, 
                                   long long compile_id)
 {
-	if (NULL == compile_rt || NULL == compile_schema || compile_id < 0) {
+	if (NULL == compile_rt || NULL == compile_schema || compile_id < 0 ||
+        (0 == compile_schema->set_flag)) {
 		return NULL;
 	}
 
@@ -1520,10 +1503,10 @@ void *compile_runtime_get_ex_data(struct compile_runtime *compile_rt,
     }
    
     void *ex_data = NULL;
-    struct ex_data_schema *ex_schema = compile_schema->ex_schema;
-    ex_schema->dup_func(compile_schema->table_id, &ex_data, compile_rule->ex_data, 
-                        ex_schema->argl, ex_schema->argp);
-
+    compile_schema->ex_schema.dup_func(compile_schema->table_id, &ex_data, 
+                                       compile_rule->ex_data, 
+                                       compile_schema->ex_schema.argl, 
+                                       compile_schema->ex_schema.argp);
 	return ex_data;
 }
 
@@ -1595,16 +1578,16 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
             return -1;
         }
         
-        maat_compile_set(compile, table_name, compile_rule->declared_clause_num, 
-                        compile_rule, (void (*)(void *))compile_rule_free);
         struct maat_compile *tmp_compile = maat_compile_hash_find(&(compile_rt->compile_hash), compile_id);
         if (tmp_compile != NULL) {
-            maat_compile_hash_set(&(compile_rt->compile_hash), compile_id, table_name, compile);
+            maat_compile_set(tmp_compile, table_name, compile_rule->declared_clause_num, 
+                             compile_rule, (void (*)(void *))compile_rule_free);
+            maat_compile_free(compile);
         } else {
+            maat_compile_set(compile, table_name, compile_rule->declared_clause_num, 
+                             compile_rule, (void (*)(void *))compile_rule_free);
             maat_compile_hash_add(&(compile_rt->compile_hash), compile_id, compile);
         }
-        // printf("compile_runtime_update compile_id:%lld, compile->declared_clause_num:%d\n",
-        //         compile->compile_id, compile->declared_clause_num);
 
         pthread_rwlock_unlock(&compile_rt->rwlock);
     }

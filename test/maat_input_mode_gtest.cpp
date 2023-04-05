@@ -168,6 +168,8 @@ TEST(redis_mode, maat_scan_string) {
 
     redisReply *reply = maat_cmd_wrap_redis_command(c, "flushdb");
     EXPECT_TRUE(reply != NULL);
+    freeReplyObject(reply);
+	reply = NULL;
     
     if (access(json_iris_path, F_OK) < 0) {
         char tmp_iris_path[128] = {0};

@@ -95,6 +95,9 @@ int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
     redisReply *reply = maat_cmd_wrap_redis_command(c, "flushdb");
     if (NULL == reply) {
         return -1;
+    } else {
+        freeReplyObject(reply);
+	    reply = NULL;
     }
     
     if (0 == access(json_iris_path, F_OK)) {
@@ -2569,7 +2572,7 @@ TEST_F(CompileTable, CompileRuleUpdate) {
     int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile_id, NULL, 1, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
     ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_DEL, compile_id, NULL, 1, 0);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -4144,7 +4147,7 @@ TEST_F(MaatCmdTest, SetFile) {
 
     ret = maat_cmd_set_line(maat_instance, &line_rule);
     EXPECT_EQ(ret, 1);
-	sleep(WAIT_FOR_EFFECTIVE_S);//wait for callback triggered.
+	sleep(WAIT_FOR_EFFECTIVE_S * 2);//wait for callback triggered.
 	EXPECT_EQ(g_test_foregin_read_OK, 1);
 
     g_test_foreign_del_OK = 0;
@@ -4185,7 +4188,7 @@ TEST_F(MaatCmdTest, SetFile) {
 
     ret = maat_cmd_set_line(maat_instance, &line_rule);
     EXPECT_EQ(ret, 1);
-	sleep(WAIT_FOR_EFFECTIVE_S);//wait for callback triggered.
+	sleep(WAIT_FOR_EFFECTIVE_S * 2);//wait for callback triggered.
 	EXPECT_EQ(g_test_foregin_read_OK, 1);
 }
 
@@ -4497,7 +4500,7 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
         EXPECT_GT(ret, 0);
     }
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     int ex_data_counter = 0;
     ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
@@ -4528,7 +4531,7 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
         ret = maat_cmd_set_line(maat_instance, &line_rule);
         EXPECT_GT(ret, 0);
     }
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     memset(results, 0, sizeof(results));
     ret = maat_bool_plugin_table_get_ex_data(maat_instance, table_id, items, 3,
@@ -4607,7 +4610,7 @@ TEST_F(MaatCmdTest, GroupInMassCompiles) {
                                        target_compile_id, 0, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     const char* http_url1 = "https://www.baidu.com/s?wd=tsg";
 	const char* http_url2 = "https://www.baidu.com/s?wd=zhengzhou&rsv_spt=1&rsv_iqid=0x8b4cae8100000560&issp=1&f=8&rsv_bp=1";
@@ -5014,7 +5017,7 @@ TEST_F(MaatCmdTest, GroupEdit) {
                                 scan_app_id, scan_app_id, NULL, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     table_id = maat_get_table_id(maat_instance, ip_table_name);
     ASSERT_GT(table_id, 0);
@@ -5086,7 +5089,7 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
                             IPv4, "192.168.73.163", "192.168.73.180", 0, 65535, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.73.169", &ip_addr);

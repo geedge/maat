@@ -16,7 +16,6 @@
 #include "maat_utils.h"
 #include "maat_rule.h"
 #include "maat_plugin.h"
-#include "maat_ex_data.h"
 #include "maat_limits.h"
 #include "maat_table.h"
 
@@ -54,9 +53,10 @@ struct plugin_schema {
     int foreign_columns[MAX_FOREIGN_CLMN_NUM];
     size_t cb_cnt;
     struct plugin_callback_schema cb[MAX_PLUGIN_PER_TABLE];
-    struct ex_data_schema *ex_schema;
+    struct ex_container_schema container_schema;
     int table_id; //ugly
     struct table_manager *ref_tbl_mgr;
+    struct log_handle *logger;
 
     unsigned long long update_err_cnt;
     unsigned long long unmatch_tag_cnt;
@@ -83,6 +83,8 @@ void *plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
                         const char *table_name, struct log_handle *logger)
 {
     struct plugin_schema *schema = ALLOC(struct plugin_schema, 1);
+
+    schema->logger = logger;
 
     cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
@@ -162,13 +164,7 @@ void plugin_schema_free(void *plugin_schema)
         return;
     }
 
-    struct plugin_schema *schema = (struct plugin_schema *)plugin_schema;
-    if (schema->ex_schema != NULL) {
-        ex_data_schema_free(schema->ex_schema);
-        schema->ex_schema = NULL;
-    }
-
-    free(schema);
+    FREE(plugin_schema);
 }
 
 int plugin_table_add_callback(void *plugin_schema, int table_id,
@@ -233,26 +229,39 @@ int plugin_table_get_foreign_column(struct plugin_schema *plugin_schema,
     return n_foreign;
 }
 
-void plugin_table_set_ex_data_schema(void *plugin_schema, 
-                                    maat_ex_new_func_t *new_func,
-							        maat_ex_free_func_t *free_func,
-							        maat_ex_dup_func_t *dup_func,
-							        long argl, void *argp,
-                                    struct log_handle *logger)
+int plugin_table_set_ex_container_schema(void *plugin_schema, int table_id,
+                                         maat_ex_new_func_t *new_func,
+							             maat_ex_free_func_t *free_func,
+							             maat_ex_dup_func_t *dup_func,
+                                         void (*custom_data_free)(void *),
+							             long argl, void *argp)
 {
     struct plugin_schema *schema = (struct plugin_schema *)plugin_schema;
     
-    schema->ex_schema = ex_data_schema_new(new_func, free_func, dup_func, argl, argp);
-}
-
-struct ex_data_schema *plugin_table_get_ex_data_schema(void *plugin_schema)
-{
-    if (NULL == plugin_schema) {
-        return NULL;
+    if (1 == schema->container_schema.set_flag) {
+        log_error(schema->logger, MODULE_PLUGIN, 
+                  "[%s:%d] plugin table(table_id:%d) ex_container_schema has been set, can't set again",
+                  __FUNCTION__, __LINE__, table_id);
+        return -1;
     }
 
+    schema->container_schema.table_id = table_id;
+    schema->container_schema.custom_data_free = custom_data_free;
+    schema->container_schema.ex_schema.new_func = new_func;
+    schema->container_schema.ex_schema.free_func = free_func;
+    schema->container_schema.ex_schema.dup_func = dup_func;
+    schema->container_schema.ex_schema.argl = argl;
+    schema->container_schema.ex_schema.argp = argp;
+    schema->container_schema.set_flag = 1;
+
+    return 0;
+}
+
+struct ex_container_schema *plugin_table_get_ex_container_schema(void *plugin_schema)
+{
     struct plugin_schema *schema = (struct plugin_schema *)plugin_schema;
-    return schema->ex_schema;
+
+    return &(schema->container_schema);
 }
 
 void *plugin_runtime_new(void *plugin_schema, int max_thread_num, 
@@ -265,7 +274,11 @@ void *plugin_runtime_new(void *plugin_schema, int max_thread_num,
 
     struct plugin_schema *schema = (struct plugin_schema *)plugin_schema;
     struct plugin_runtime *plugin_rt = ALLOC(struct plugin_runtime, 1);
-    plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, ex_container_free, logger);
+    plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, logger);
+    if (1 == schema->container_schema.set_flag) {
+        ex_data_runtime_set_ex_container_schema(plugin_rt->ex_data_rt, &(schema->container_schema));
+    }
+
     plugin_rt->ref_garbage_bin = garbage_bin;
     plugin_rt->logger = logger;
 
@@ -293,10 +306,10 @@ int plugin_runtime_update_row(struct plugin_runtime *plugin_rt,
                               const char *key, size_t key_len, int is_valid)
 {
     int ret = -1;
-    struct ex_data_schema *ex_schema = plugin_schema->ex_schema;
+    struct ex_container_schema *container_schema = &(plugin_schema->container_schema);
 
     /* already set plugin_table_schema's ex_data_schema */
-    if (ex_schema != NULL) {
+    if (1 == container_schema->set_flag) {
         if (is_valid == 0) {
             // delete
             ret = ex_data_runtime_del_ex_container(plugin_rt->ex_data_rt, key, key_len);
@@ -305,8 +318,8 @@ int plugin_runtime_update_row(struct plugin_runtime *plugin_rt,
             }
         } else {
             // add
-            void *ex_data = ex_data_runtime_row2ex_data(plugin_rt->ex_data_rt, ex_schema, 
-                                                        table_name, row, key, key_len);
+            void *ex_data = ex_data_runtime_row2ex_data(plugin_rt->ex_data_rt, table_name, 
+                                                        row, key, key_len);
             struct ex_container *ex_container = ex_container_new(ex_data, NULL);
             ret = ex_data_runtime_add_ex_container(plugin_rt->ex_data_rt, key, key_len, ex_container);
             if (ret < 0) {
@@ -324,7 +337,7 @@ int plugin_runtime_update_row(struct plugin_runtime *plugin_rt,
         }
     }
     
-    if ((NULL == ex_schema) && (0 == cb_count)) {
+    if ((0 == container_schema->set_flag) && (0 == cb_count)) {
         ex_data_runtime_cache_row_put(plugin_rt->ex_data_rt, row);
     }
 
@@ -486,14 +499,10 @@ void *plugin_runtime_get_ex_data(void *plugin_runtime, void *plugin_schema,
 
     struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
     struct plugin_schema *schema = (struct plugin_schema *)plugin_schema;
-    struct ex_data_schema *ex_schema = schema->ex_schema;
-    if (NULL == ex_schema) {
-        return NULL;
-    }
 
     if (schema->key_type == PLUGIN_KEY_TYPE_INTEGER) {
         key_len = sizeof(long long);
     }
     
-    return ex_data_runtime_get_ex_data_by_key(plugin_rt->ex_data_rt, ex_schema, key, key_len);    
+    return ex_data_runtime_get_ex_data_by_key(plugin_rt->ex_data_rt, key, key_len);    
 }

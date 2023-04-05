@@ -18,6 +18,7 @@ extern "C"
 
 #include "cJSON/cJSON.h"
 #include "maat.h"
+#include "maat_ex_data.h"
 
 #define	MAX_FOREIGN_CLMN_NUM 8
 
@@ -40,13 +41,13 @@ void plugin_table_all_callback_finish(struct plugin_schema *plugin_schema);
 int plugin_table_get_foreign_column(struct plugin_schema *plugin_schema, int *foreign_columns);
 
 /* plugin table ex data API */
-void plugin_table_set_ex_data_schema(void *plugin_schema, 
-                                    maat_ex_new_func_t *new_func,
-							        maat_ex_free_func_t *free_func,
-							        maat_ex_dup_func_t *dup_func,
-							        long argl, void *argp,
-                                    struct log_handle *logger);
-struct ex_data_schema *plugin_table_get_ex_data_schema(void *custom_schema);
+int plugin_table_set_ex_container_schema(void *plugin_schema, int table_id,
+                                         maat_ex_new_func_t *new_func,
+							             maat_ex_free_func_t *free_func,
+							             maat_ex_dup_func_t *dup_func,
+                                         void (*custom_data_free)(void *),
+							             long argl, void *argp);
+struct ex_container_schema *plugin_table_get_ex_container_schema(void *plugin_schema);
 
 /* plugin runtime API */
 void *plugin_runtime_new(void *plugin_schema, int max_thread_num, 

@@ -18,6 +18,7 @@ extern "C"
 
 #include "maat.h"
 #include "maat_table.h"
+#include "maat_ex_data.h"
 #include "cJSON/cJSON.h"
 
 struct bool_plugin_runtime;
@@ -27,15 +28,13 @@ void *bool_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
                              const char *table_name, struct log_handle *logger);
 void bool_plugin_schema_free(void *bool_plugin_schema);
 
-/* ip plugin table ex data API */
-struct ex_data_schema *bool_plugin_table_get_ex_data_schema(void *bool_plugin_schema);
-
-int bool_plugin_table_set_ex_data_schema(void *bool_plugin_schema, 
-                                         maat_ex_new_func_t *new_func,
-							             maat_ex_free_func_t *free_func,
-							             maat_ex_dup_func_t *dup_func,
-							             long argl, void *argp,
-                                         struct log_handle *logger);
+int bool_plugin_table_set_ex_container_schema(void *bool_plugin_schema, int table_id,
+                                              maat_ex_new_func_t *new_func,
+							                  maat_ex_free_func_t *free_func,
+							                  maat_ex_dup_func_t *dup_func,
+                                              void (*custom_data_free)(void *),
+							                  long argl, void *argp);
+struct ex_container_schema *bool_plugin_table_get_ex_container_schema(void *bool_plugin_schema);
 
 /* ip plugin runtime API */
 void *bool_plugin_runtime_new(void *bool_plugin_schema, int max_thread_num,
@@ -49,9 +48,8 @@ int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name
 
 struct ex_data_runtime *bool_plugin_runtime_get_ex_data_rt(void *bool_plugin_runtime);
 
-int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, void *bool_plugin_schema,
-                                    unsigned long long *item_ids, size_t n_item, 
-                                    void **ex_data_array, size_t n_ex_data);
+int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, unsigned long long *item_ids, 
+                                    size_t n_item, void **ex_data_array, size_t n_ex_data);
 
 #ifdef __cplusplus
 }

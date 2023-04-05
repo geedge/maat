@@ -173,8 +173,8 @@ void *flag_runtime_new(void *flag_schema, int max_thread_num,
 
     struct flag_runtime *flag_rt = ALLOC(struct flag_runtime, 1);
 
-    flag_rt->htable = rcu_hash_new(flag_ex_data_free);
-    flag_rt->item_htable = rcu_hash_new(flag_maat_item_free);
+    flag_rt->htable = rcu_hash_new(flag_ex_data_free, NULL);
+    flag_rt->item_htable = rcu_hash_new(flag_maat_item_free, NULL);
     flag_rt->ref_garbage_bin = garbage_bin;
     flag_rt->logger = logger;
     flag_rt->district_map = maat_kv_store_new();
