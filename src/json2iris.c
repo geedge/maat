@@ -90,6 +90,11 @@ struct iris_table *query_table_info(struct iris_description *p_iris,
                                     const char *table_name, 
                                     enum table_type table_type)
 {
+    if (NULL == p_iris || NULL == table_name || 
+        table_type == TABLE_TYPE_INVALID) {
+        return NULL;
+    }
+
     struct iris_table *table_info = NULL;
     HASH_FIND(hh, p_iris->iris_table_map, table_name, strlen(table_name), table_info);
     if (NULL == table_info) {
@@ -672,9 +677,13 @@ int write_group2compile_line(int group_id, int compile_id, int group_not_flag,
 {
 	char buff[4096] = {0};
     struct iris_table *table = NULL;
+    
     if (g2c_table != NULL) {
         table = g2c_table;
     } else {
+        if (NULL == p_iris->group2compile_table) {
+            return -1;
+        }
         table = p_iris->group2compile_table;
     }
 
@@ -692,6 +701,9 @@ int write_group2group_line(int group_id, int super_group_id,
 {
 	char buff[4096] = {0};
 	struct iris_table *table = p_iris->group2group_table;
+    if (NULL == table) {
+        return -1;
+    }
 
 	snprintf(buff, sizeof(buff), "%d\t%d\t1\n", group_id, 
             super_group_id);
@@ -899,6 +911,9 @@ int write_compile_line(cJSON *compile, struct iris_description *p_iris,
     struct iris_table *table_info = NULL;
 	item = cJSON_GetObjectItem(compile,"compile_table_name");
 	if (NULL == item || item->type != cJSON_String) {
+        if (NULL == p_iris->compile_table) {
+            return -1;
+        }
 		table_info = p_iris->compile_table;
 	} else {
 		table_info = query_table_info(p_iris, item->valuestring, TABLE_TYPE_COMPILE);

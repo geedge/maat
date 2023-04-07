@@ -250,8 +250,6 @@ int my_scandir(const char *dir, struct dirent ***namelist,
               int(*filter)(const struct dirent *),
               int(*compar)(const void *, const void *));
 
-enum scan_type maat_table_get_scan_type(enum table_type table_type);
-
 size_t parse_accept_tag(const char *value, struct rule_tag **result, struct log_handle *logger);
 
 int compare_accept_tag(const char *value, const struct rule_tag *accept_tags, size_t n_accept_tag);
@@ -274,7 +272,7 @@ void *rule_monitor_loop(void *arg);
 
 long long maat_runtime_get_sequence(struct maat_runtime *maat_rt, const char *key);
 
-void maat_read_full_config(struct maat *maat_instance);
+int maat_read_full_config(struct maat *maat_instance);
 
 /* maat command API for internal */
 redisContext *maat_cmd_connect_redis(const char *redis_ip, int redis_port,

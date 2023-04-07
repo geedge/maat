@@ -364,12 +364,12 @@ int get_inc_key_list(long long instance_version, long long target_version,
 
     int i = 0;
     int j = 0;
-    char op_str[256] = {0}; // reply->element[i]->str length less than 256
+    char op_str[4] = {0};
     struct serial_rule *s_rule = ALLOC(struct serial_rule, reply->elements);
 
 	for (i = 0, j = 0; i < (int)reply->elements; i++) {
 		assert(reply->element[i]->type == REDIS_REPLY_STRING);
-		int ret = sscanf(reply->element[i]->str, "%[^,],%[^,],%lld", 
+		int ret = sscanf(reply->element[i]->str, "%3s,%[^,],%lld", 
                          op_str, s_rule[j].table_name, &(s_rule[j].rule_id));
 		if (ret != 3 || s_rule[i].rule_id < 0) {
 			log_error(logger, MODULE_REDIS_MONITOR, 

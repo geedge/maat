@@ -52,48 +52,6 @@ struct maat_stream {
     struct log_handle *logger;
 };
 
-enum scan_type maat_table_get_scan_type(enum table_type table_type)
-{
-	enum scan_type ret = SCAN_TYPE_INVALID;
-
-    switch (table_type) {
-    case TABLE_TYPE_FLAG:
-    case TABLE_TYPE_FLAG_PLUS:
-        ret = SCAN_TYPE_FLAG;
-        break;
-    case TABLE_TYPE_EXPR:
-    case TABLE_TYPE_EXPR_PLUS:
-        ret = SCAN_TYPE_STRING;
-        break;
-    case TABLE_TYPE_INTERVAL:
-    case TABLE_TYPE_INTERVAL_PLUS:
-        ret = SCAN_TYPE_INTERVAL;
-        break;
-    case TABLE_TYPE_IP_PLUS:
-        ret = SCAN_TYPE_IP;
-        break;
-    case TABLE_TYPE_PLUGIN:
-        ret = SCAN_TYPE_PLUGIN;
-        break;
-    case TABLE_TYPE_IP_PLUGIN:
-        ret = SCAN_TYPE_IP;
-        break;
-    case TABLE_TYPE_FQDN_PLUGIN:
-        ret = SCAN_TYPE_FQDN_PLUGIN;
-        break;
-    case TABLE_TYPE_BOOL_PLUGIN:
-        ret = SCAN_TYPE_BOOL_PLUGIN;
-        break;
-    case TABLE_TYPE_COMPILE:
-        ret = SCAN_TYPE_NONE;
-        break;
-    default:
-        break;
-    }
-
-    return ret;
-}
-
 struct maat_options* maat_options_new(void)
 {
     struct maat_options *options = ALLOC(struct maat_options, 1);
@@ -259,7 +217,7 @@ int maat_options_set_logger(struct maat_options *opts, const char *log_path, enu
     return 0;
 }
 
-void maat_read_full_config(struct maat *maat_instance)
+int maat_read_full_config(struct maat *maat_instance)
 {
     int ret = -1;
     char err_str[NAME_MAX] = {0};
@@ -286,6 +244,7 @@ void maat_read_full_config(struct maat *maat_instance)
                           "[%s:%d] At initiation: NO effective rule in redis %s:%hu db%d",
                           __FUNCTION__, __LINE__, mr_ctx->redis_ip, mr_ctx->redis_port, 
                           mr_ctx->redis_db);
+                return -1;
             }
             break;
         case DATA_SOURCE_IRIS_FILE:
@@ -297,6 +256,7 @@ void maat_read_full_config(struct maat *maat_instance)
                 log_error(maat_instance->logger, MODULE_MAAT_API, 
                           "[%s:%d] At initiation: NO effective rule in %s",
                           __FUNCTION__, __LINE__, maat_instance->iris_ctx.full_idx_dir);
+                return -1;
             }
             break;
         case DATA_SOURCE_JSON_FILE:
@@ -306,7 +266,7 @@ void maat_read_full_config(struct maat *maat_instance)
                 log_error(maat_instance->logger, MODULE_MAAT_API, 
                           "[%s:%d] Maat re-initiate with JSON file %s failed: %s", 
                           __FUNCTION__, __LINE__, maat_instance->json_ctx.json_file, err_str);
-                return;
+                return -1;
             }
             
             config_monitor_traverse(maat_instance->maat_version,
@@ -317,6 +277,7 @@ void maat_read_full_config(struct maat *maat_instance)
                 log_error(maat_instance->logger, MODULE_MAAT_API, 
                           "[%s:%d] At initiation: NO effective rule in %s",
                           __FUNCTION__, __LINE__, maat_instance->json_ctx.iris_file);
+                return -1;
             }
             break;
         default:
@@ -330,6 +291,8 @@ void maat_read_full_config(struct maat *maat_instance)
         maat_instance->maat_version = maat_instance->maat_rt->version;
         maat_instance->last_full_version = maat_instance->maat_rt->version;
     }
+
+    return 0;
 }
 
 struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
@@ -404,6 +367,11 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     garbage_gc_timeout_s = (maat_instance->rule_effect_interval_ms / 1000) +
                                 (maat_instance->gc_timeout_ms / 1000);
     maat_instance->garbage_bin = maat_garbage_bin_new(garbage_gc_timeout_s);
+    maat_instance->thread_call_cnt = alignment_int64_array_alloc(opts->nr_worker_threads);
+    maat_instance->hit_cnt = alignment_int64_array_alloc(opts->nr_worker_threads);
+    maat_instance->not_grp_hit_cnt = alignment_int64_array_alloc(opts->nr_worker_threads);
+
+    pthread_mutex_init(&(maat_instance->background_update_mutex), NULL);
 
     maat_instance->tbl_mgr = table_manager_create(table_info_path, opts->accept_tags,
                                                   maat_instance->garbage_bin, maat_instance->logger);
@@ -414,20 +382,26 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     maat_instance->default_compile_table_id = table_manager_get_defaut_compile_table_id(maat_instance->tbl_mgr);
     maat_instance->g2g_table_id = table_manager_get_group2group_table_id(maat_instance->tbl_mgr);
 
-    maat_instance->thread_call_cnt = alignment_int64_array_alloc(opts->nr_worker_threads);
-    maat_instance->hit_cnt = alignment_int64_array_alloc(opts->nr_worker_threads);
-    maat_instance->not_grp_hit_cnt = alignment_int64_array_alloc(opts->nr_worker_threads);
-
-    pthread_mutex_init(&(maat_instance->background_update_mutex), NULL);
-
     if (0 == maat_instance->deferred_load) {
-        maat_read_full_config(maat_instance);
+        int ret = maat_read_full_config(maat_instance);
+        if (ret < 0) {
+            log_error(maat_instance->logger, MODULE_MAAT_API, 
+                      "[%s:%d] maat read full config failed", __FUNCTION__, __LINE__);
+            goto failed;
+        }
     }
 
     pthread_create(&(maat_instance->cfg_mon_thread), NULL, rule_monitor_loop, (void *)maat_instance);
 
     return maat_instance;
 failed:
+    log_handle_destroy(maat_instance->logger);
+    table_manager_destroy(maat_instance->tbl_mgr);
+    maat_garbage_bin_free(maat_instance->garbage_bin);
+    alignment_int64_array_free(maat_instance->thread_call_cnt);
+    alignment_int64_array_free(maat_instance->hit_cnt);
+    alignment_int64_array_free(maat_instance->not_grp_hit_cnt);
+    pthread_mutex_destroy(&(maat_instance->background_update_mutex));
     FREE(maat_instance);
     return NULL;
 }
