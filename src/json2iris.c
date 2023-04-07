@@ -339,7 +339,7 @@ int direct_write_rule(cJSON *json, struct maat_kv_store *str2int,
 	int i = 0;
     int ret = -1;
 	cJSON dummy;
-    
+
 	for (i = 0; i < cmd_cnt; i++) {
 		cJSON *item = cJSON_GetObjectItem(json, cmd[i].json_string);
 		if (NULL == item && (1 == cmd[i].empty_allowed)) {
@@ -1088,32 +1088,17 @@ int json2iris(const char *json_buff, const char *json_filename,
 	tmp_obj = cJSON_GetObjectItem(json, "compile_table");
 	if (tmp_obj) {
 		compile_tbl_name = tmp_obj->valuestring;
-	} else {
-        log_error(logger, MODULE_JSON2IRIS,
-                  "[%s:%d] json file:%s has no [compile_table] field", 
-                  __FUNCTION__, __LINE__, json_filename);
-        goto error_out;
-    }
+	}
 
 	tmp_obj = cJSON_GetObjectItem(json, "group2compile_table");
 	if (tmp_obj) {
 		group2compile_tbl_name = tmp_obj->valuestring;
-	} else {
-        log_error(logger, MODULE_JSON2IRIS,
-                  "[%s:%d] json file:%s has no [group2compile_table] field", 
-                  __FUNCTION__, __LINE__, json_filename);
-        goto error_out;
-    }
+	}
 
 	tmp_obj = cJSON_GetObjectItem(json, "group2group_table");
 	if (tmp_obj) {
 		group2group_tbl_name = tmp_obj->valuestring;
-	} else {
-        log_error(logger, MODULE_JSON2IRIS,
-                  "[%s:%d] json file:%s has no [group2group_table] field", 
-                  __FUNCTION__, __LINE__, json_filename);
-        goto error_out;
-    }
+	}
 
 	ret = set_iris_descriptor(json_filename, json, encrypt_key, encrypt_algo, 
                               compile_tbl_name, group2compile_tbl_name, 
