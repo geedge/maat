@@ -338,11 +338,11 @@ int direct_write_rule(cJSON *json, struct maat_kv_store *str2int,
 {
 	int i = 0;
     int ret = -1;
-	
+	cJSON dummy;
+    
 	for (i = 0; i < cmd_cnt; i++) {
 		cJSON *item = cJSON_GetObjectItem(json, cmd[i].json_string);
 		if (NULL == item && (1 == cmd[i].empty_allowed)) {
-            cJSON dummy;
 			dummy.valuestring = (char *)cmd[i].default_string;
 			dummy.valueint = cmd[i].default_int;
 			dummy.valuedouble = cmd[i].default_int;

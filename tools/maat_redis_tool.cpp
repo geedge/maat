@@ -25,7 +25,7 @@ void maat_tool_print_usage(void)
 	printf("\t-h [host], redis IP, 127.0.0.1 as default.\n");
 	printf("\t-p [port], redis port, 6379 as default.\n");
 	printf("\t-n [db], redis db, 0 as default.\n");
-	printf("\t-d [dir], dump rules from redis to [dir], %s as default.\n",redis_dump_dir);
+	printf("\t-d [dir], dump rules from redis to [dir], %s as default.\n", redis_dump_dir);
 	printf("\t-v [version], dump specific [version] from redis, dump latest version as default.\n");
 	printf("\t-j [payload.json], add or delete rules as maat json. Must have field compile_table field, and plugin table's valid flag must be in the last column.\n");
 	printf("\t-t [timeout], timeout config after t seconds, default is 0 which means never timeout.\n");	
