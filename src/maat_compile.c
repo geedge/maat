@@ -88,19 +88,19 @@ struct group2compile_runtime {
     struct compile_runtime *ref_compile_rt;
     struct group2group_runtime *ref_g2g_rt;
 };
-#pragma pack(4)
+
 struct maat_clause_state {
 	long long clause_id;
-	char not_flag;
-	char in_use;
 	UT_array *ut_literal_ids;
+    char not_flag; // 1 byte
+	char in_use;   // 1 byte
+    char pad[6];   // for 8 bytes alignment
 };
 
 struct maat_literal_id {
 	long long group_id;
-	int vtable_id;
+	long long vtable_id;
 };
-#pragma pack()
 
 struct maat_clause {
 	long long clause_id;

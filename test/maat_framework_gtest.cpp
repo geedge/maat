@@ -292,7 +292,7 @@ int ip_table_set_line(struct maat *maat_instance, const char *table_name, enum m
 
     return maat_cmd_set_line(maat_instance, &line_rule);
 }
-#if 0
+#if 1
 class MaatFlagScan : public testing::Test
 {
 protected:
@@ -5434,6 +5434,7 @@ TEST_F(MaatRollbackTest, FullConfigRollback) {
 
     ret = rollback_redis_version(c, logger);
     EXPECT_EQ(ret, 0);
+    redisFree(c);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
