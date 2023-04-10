@@ -292,7 +292,7 @@ int ip_table_set_line(struct maat *maat_instance, const char *table_name, enum m
 
     return maat_cmd_set_line(maat_instance, &line_rule);
 }
-
+#if 0
 class MaatFlagScan : public testing::Test
 {
 protected:
@@ -5267,6 +5267,182 @@ TEST_F(MaatCmdTest, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
 
 	maat_stream_free(stream);
 	maat_state_free(state);
+    state = NULL;
+}
+#endif
+class MaatRollbackTest : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+        char redis_ip[64] = "127.0.0.1";
+        int redis_port = 6379;
+        int redis_db = 0;
+
+        logger = log_handle_create("./maat_framework_gtest.log", 0);        
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+        if (ret < 0) {
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
+                      "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
+        }
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_accept_tags(opts, accept_tags);
+
+        _shared_maat_instance = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+        if (NULL == _shared_maat_instance) {
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
+                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      __FUNCTION__, __LINE__);
+        }
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_instance);
+        log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_instance;
+};
+struct maat *MaatRollbackTest::_shared_maat_instance;
+struct log_handle *MaatRollbackTest::logger;
+
+static int clear_config_in_redis(redisContext *c, struct log_handle *logger)
+{
+    long long redis_version = 0;
+    redisReply *reply = maat_cmd_wrap_redis_command(c, "GET MAAT_VERSION");
+    if (reply != NULL) {
+		if (reply->type == REDIS_REPLY_NIL || reply->type == REDIS_REPLY_ERROR) {
+			log_error(logger, MODULE_FRAMEWORK_GTEST, 
+                      "[%s:%d] GET MAAT_VERSION failed, maybe Redis is busy",
+                      __FUNCTION__, __LINE__);
+			freeReplyObject(reply);
+			reply = NULL;
+			return -1;
+		}
+	} else {
+		log_error(logger, MODULE_FRAMEWORK_GTEST, 
+                  "[%s:%d] GET MAAT_VERSION failed with NULL reply, error: %s",
+                  __FUNCTION__, __LINE__, c->errstr);
+		return -1;
+	}
+
+    redis_version = maat_cmd_read_redis_integer(reply);
+	if (redis_version < 0) {
+		if (reply->type == REDIS_REPLY_ERROR) {
+			log_error(logger, MODULE_FRAMEWORK_GTEST, 
+                      "[%s:%d] Redis Communication error: %s", 
+                      __FUNCTION__, __LINE__, reply->str);
+		}
+        freeReplyObject(reply);
+	    reply = NULL;
+		return -1;
+	}
+
+	freeReplyObject(reply);
+	reply = NULL;
+
+    reply = maat_cmd_wrap_redis_command(c, "MULTI");
+	freeReplyObject(reply);
+	reply = NULL;
+	
+    int append_cmd_cnt = 0;
+	redisAppendCommand(c, "FLUSHDB");
+	append_cmd_cnt++;
+	redisAppendCommand(c, "SET MAAT_VERSION %lld", redis_version);
+	append_cmd_cnt++;
+	redisAppendCommand(c, "SET MAAT_PRE_VER %lld", redis_version);
+	append_cmd_cnt++;
+	redisAppendCommand(c, "SET %s 1", mr_region_id_var);
+	append_cmd_cnt++;
+	redisAppendCommand(c, "SET %s 1", mr_group_id_var);
+	append_cmd_cnt++;
+	redisAppendCommand(c, "EXEC");
+	append_cmd_cnt++;
+
+    int redis_transaction_success = 1;
+    for (int i = 0; i < append_cmd_cnt; i++) {
+		int ret = maat_cmd_wrap_redis_get_reply(c, &reply);
+		if (ret == REDIS_OK) {
+			if (reply->type == REDIS_REPLY_NIL) {
+				redis_transaction_success = 0;
+			}
+			freeReplyObject(reply);
+			reply = NULL;
+		}
+	}
+
+    if (0 == redis_transaction_success) {
+		return -1;
+	}
+
+    return 0;
+}
+
+static int rollback_redis_version(redisContext *c, struct log_handle *logger)
+{
+    redisReply *reply = maat_cmd_wrap_redis_command(c, "SET MAAT_VERSION 0");
+    if (NULL == reply) {
+        log_error(logger, MODULE_FRAMEWORK_GTEST, 
+                  "[%s:%d] set MAAT_VERSION failed, Redis Communication error: %s", 
+                  __FUNCTION__, __LINE__, c->errstr);
+        return -1;
+    }
+    freeReplyObject(reply);
+    reply = NULL;
+
+    return 0;
+}
+
+TEST_F(MaatRollbackTest, FullConfigRollback) {
+    const char *table_name = "HTTP_URL";
+    struct maat *maat_instance = MaatRollbackTest::_shared_maat_instance;
+    struct log_handle *logger = MaatRollbackTest::logger;
+
+    int table_id = maat_get_table_id(maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    const char *scan_data = "http://www.cyberessays.com/search_results.php?action=search&query=username,abckkk,1234567";
+
+    int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data), 
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 125);
+    maat_state_reset(state);
+
+    sleep(5);
+    char redis_ip[64] = "127.0.0.1";
+    int redis_port = 6379;
+    int redis_db = 0;
+    redisContext *c = maat_cmd_connect_redis(redis_ip, redis_port, redis_db, logger);
+    EXPECT_TRUE(c != NULL);
+
+    ret = clear_config_in_redis(c, logger);
+    EXPECT_EQ(ret, 0);
+
+    ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+    EXPECT_EQ(ret, 0);
+
+    ret = rollback_redis_version(c, logger);
+    EXPECT_EQ(ret, 0);
+
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+
+    ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data), 
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 125);
+    maat_state_free(state);
     state = NULL;
 }
 

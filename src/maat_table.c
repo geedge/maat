@@ -304,7 +304,7 @@ static int register_tablename2id(cJSON *json, struct maat_kv_store *tablename2id
             }
 
             maat_kv_register(tablename2id_map, tmp_item->valuestring, table_id);
-            log_info(logger, MODULE_TABLE, "tablename[%s] -> table_id:[%d]",
+            log_info(logger, MODULE_TABLE, "table_name[%s] -> table_id:[%d]",
                      tmp_item->valuestring, table_id);
         }
     }

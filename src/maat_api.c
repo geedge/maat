@@ -721,33 +721,21 @@ void *maat_plugin_table_get_ex_data(struct maat *maat_instance, int table_id, co
 
     if (NULL == maat_instance || table_id < 0 || table_id >= MAX_TABLE_NUM 
         || NULL == key) {
-        log_error(maat_instance->logger, MODULE_MAAT_API,
-                  "[%s:%d] table(table_id:%d) input parameter is invalid",
-                  __FUNCTION__, __LINE__, table_id);
         return NULL;
     }
     
     struct maat_runtime *maat_rt = maat_instance->maat_rt;
     if (NULL == maat_rt) {
-        log_error(maat_instance->logger, MODULE_MAAT_API, 
-                  "[%s:%d] table(table_id:%d) maat runtime is NULL", 
-                  __FUNCTION__, __LINE__, table_id);
         return NULL;
     }
 
     void *runtime = table_manager_get_runtime(maat_rt->ref_tbl_mgr, table_id);
     if (NULL == runtime) {
-        log_error(maat_instance->logger, MODULE_MAAT_API,
-                  "[%s:%d] table(table_id:%d) runtime is NULL", 
-                  __FUNCTION__, __LINE__, table_id);
         return NULL;
     }
 
     void *schema = table_manager_get_schema(maat_rt->ref_tbl_mgr, table_id);
     if (NULL == schema) {
-        log_error(maat_instance->logger, MODULE_MAAT_API,
-                  "[%s:%d] table(table_id:%d) schema is NULL", 
-                  __FUNCTION__, __LINE__, table_id);
         return NULL;
     }
 
@@ -758,9 +746,6 @@ void *maat_plugin_table_get_ex_data(struct maat *maat_instance, int table_id, co
     } else if (TABLE_TYPE_PLUGIN == table_type) {
         ret = plugin_runtime_get_ex_data(runtime, schema, key, strlen(key));
     } else {
-        log_error(maat_instance->logger, MODULE_MAAT_API,
-                  "[%s:%d] table(table_id:%d) type is invalid, neither compile nor plugin", 
-                  __FUNCTION__, __LINE__, table_id);
         return NULL;
     }
 
@@ -773,34 +758,22 @@ int maat_ip_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
 {
     if (NULL == maat_instance || table_id < 0 || table_id >= MAX_TABLE_NUM 
         || NULL == ip_addr || NULL == ex_data_array || 0 == n_ex_data) {
-        log_error(maat_instance->logger, MODULE_MAAT_API,
-                  "[%s:%d] ip_plugin table(table_id:%d) input parameter is invalid.",
-                  __FUNCTION__, __LINE__, table_id);
         return -1;
     }
     
     struct maat_runtime *maat_rt = maat_instance->maat_rt;
     if (NULL == maat_rt) {
-        log_error(maat_instance->logger, MODULE_MAAT_API, 
-                  "[%s:%d] ip_plugin table(table_id:%d) maat runtime is NULL", 
-                  __FUNCTION__, __LINE__, table_id);
         return -1;
     }
 
     void *ip_plugin_rt = table_manager_get_runtime(maat_rt->ref_tbl_mgr, table_id);
     if (NULL == ip_plugin_rt) {
-        log_error(maat_instance->logger, MODULE_MAAT_API,
-                  "[%s:%d] ip_plugin table(table_id:%d) runtime is NULL",
-                  __FUNCTION__, __LINE__, table_id);
         return -1;
     }
 
     int n_hit_ex_data = ip_plugin_runtime_get_ex_data(ip_plugin_rt, ip_addr, 
                                                       ex_data_array, n_ex_data);
     if (n_hit_ex_data < 0) {
-        log_error(maat_instance->logger, MODULE_MAAT_API,
-                  "[%s:%d] ip_plugin table(table_id:%d) get ex_data error.", 
-                  __FUNCTION__, __LINE__, table_id);
         return -1;
     }
 
@@ -813,34 +786,22 @@ int maat_fqdn_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
 {
     if (NULL == maat_instance || table_id < 0 || table_id >= MAX_TABLE_NUM 
         || NULL == fqdn || NULL == ex_data_array || 0 == n_ex_data) {
-        log_error(maat_instance->logger, MODULE_MAAT_API,
-                  "[%s:%d] fqdn_plugin table(table_id:%d) input parameter is invalid.",
-                  __FUNCTION__, __LINE__, table_id);
         return -1;
     }
 
     struct maat_runtime *maat_rt = maat_instance->maat_rt;
     if (NULL == maat_rt) {
-        log_error(maat_instance->logger, MODULE_MAAT_API, 
-                  "[%s:%d] fqdn_plugin table(table_id:%d) maat runtime is NULL",
-                  __FUNCTION__, __LINE__, table_id);
         return -1;
     }
 
     void *fqdn_plugin_rt = table_manager_get_runtime(maat_rt->ref_tbl_mgr, table_id);
     if (NULL == fqdn_plugin_rt) {
-        log_error(maat_instance->logger, MODULE_MAAT_API,
-                  "[%s:%d] fqdn_plugin table(table_id:%d) runtime is NULL", 
-                  __FUNCTION__, __LINE__, table_id);
         return -1;
     }
 
     int n_hit_ex_data = fqdn_plugin_runtime_get_ex_data(fqdn_plugin_rt, fqdn,
                                                         ex_data_array, n_ex_data);
     if (n_hit_ex_data < 0) {
-        log_error(maat_instance->logger, MODULE_MAAT_API,
-                  "[%s:%d] fqdn_plugin table(table_id:%d) get ex_data error.", 
-                  __FUNCTION__, __LINE__, table_id);
         return -1;
     }
 
@@ -853,34 +814,22 @@ int maat_bool_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
 {
     if (NULL == maat_instance || table_id < 0 || table_id >= MAX_TABLE_NUM 
         || NULL == item_ids || NULL == ex_data_array || 0 == n_ex_data) {
-        log_error(maat_instance->logger, MODULE_MAAT_API,
-                  "[%s:%d] bool_plugin table(table_id:%d) input parameter is invalid.",
-                  __FUNCTION__, __LINE__, table_id);
         return -1;
     }
     
     struct maat_runtime *maat_rt = maat_instance->maat_rt;
     if (NULL == maat_rt) {
-        log_error(maat_instance->logger, MODULE_MAAT_API, 
-                  "[%s:%d] bool_plugin table(table_id:%d) maat runtime is NULL", 
-                  __FUNCTION__, __LINE__, table_id);
         return -1;
     }
 
     void *bool_plugin_rt = table_manager_get_runtime(maat_rt->ref_tbl_mgr, table_id);
     if (NULL == bool_plugin_rt) {
-         log_error(maat_instance->logger, MODULE_MAAT_API,
-                  "[%s:%d] bool_plugin table(table_id:%d) runtime is NULL", 
-                  __FUNCTION__, __LINE__, table_id);
         return -1;
     }
 
     int n_hit_ex_data = bool_plugin_runtime_get_ex_data(bool_plugin_rt, item_ids, n_item, 
                                                         ex_data_array, n_ex_data);
     if (n_hit_ex_data < 0) {
-        log_error(maat_instance->logger, MODULE_MAAT_API,
-                  "[%s:%d] bool_plugin table(table_id:%d) get ex_data error.", 
-                  __FUNCTION__, __LINE__, table_id);
         return -1;
     }
 

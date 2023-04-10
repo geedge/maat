@@ -26,7 +26,7 @@ void maat_tool_print_usage(void)
 	printf("\t-p [port], redis port, 6379 as default.\n");
 	printf("\t-n [db], redis db, 0 as default.\n");
 	printf("\t-d [dir], dump rules from redis to [dir], %s as default.\n", redis_dump_dir);
-    printf("\t-u [dir], flush redis and upload full rules to redis, confirm the risk before proceeding\n");
+    printf("\t-u [json_file], flush redis and upload all rules to redis, confirm the risk before proceeding\n");
 	printf("\t-v [version], dump specific [version] from redis, dump latest version as default.\n");
 	printf("\t-j [payload.json], add or delete rules as maat json. Must have field compile_table field, and plugin table's valid flag must be in the last column.\n");
 	printf("\t-t [timeout], timeout config after t seconds, default is 0 which means never timeout.\n");	
@@ -204,11 +204,11 @@ int count_line_num_cb(const char *table_name, const char *line, void *u_para)
 }
 
 int line_idx = 0;
-long long absolute_expire_time=0;
 int make_serial_rule(const char *table_name, const char *line, void *u_para)
 {
 	struct serial_rule *s_rule=(struct serial_rule *)u_para;
     redisContext *ctx = s_rule->ref_ctx;
+    long long absolute_expire_time = s_rule->timeout;
 	char *buff = ALLOC(char, strlen(line) + 1);
 
     memcpy(buff, line, strlen(line) + 1);
@@ -236,17 +236,157 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 	return 0;
 }
 
+int write_config_to_redis(redisContext *c, char *json_filename, struct log_handle *logger)
+{
+    char tmp_iris_path[128] = {0};
+    char *json_buff = NULL;
+    size_t json_buff_sz = 0;
+
+    snprintf(tmp_iris_path, sizeof(tmp_iris_path), "%s_iris_tmp", json_filename);
+
+    int ret = load_file_to_memory(json_filename, (unsigned char **)&json_buff, &json_buff_sz);
+    if (ret < 0) {
+        return -1;
+    }
+
+    ret = json2iris(json_buff, json_filename, c, tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL, logger);
+    FREE(json_buff);
+    if (ret < 0) {
+        return -1;
+    }
+
+    size_t total_line_cnt = 0;
+    config_monitor_traverse(0, tmp_iris_path, NULL, count_line_num_cb, NULL, &total_line_cnt, logger);
+
+    struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
+    s_rule->ref_ctx = c;
+    long long server_time = maat_cmd_redis_server_time_s(c);
+    if (server_time < 0) {
+        return -1;
+    }
+
+    s_rule->timeout = server_time + 300;
+    config_monitor_traverse(0, tmp_iris_path, NULL, make_serial_rule, NULL, s_rule, logger);
+    s_rule->ref_ctx = NULL;
+    line_idx = 0;
+
+    int success_cnt = 0;
+    do {
+        success_cnt = maat_cmd_write_rule(c, s_rule, total_line_cnt, server_time, logger);
+    } while (success_cnt < 0);
+
+    assert(success_cnt == (int)total_line_cnt);
+
+    for (size_t i = 0; i < total_line_cnt; i++) {
+        maat_cmd_clear_rule_cache(s_rule + i);
+    }
+
+    FREE(s_rule);
+    
+    return 0;
+}
+
+int rollback_redis_version(redisContext *c, struct log_handle *logger)
+{
+    redisReply *reply = maat_cmd_wrap_redis_command(c, "SET MAAT_VERSION 0");
+    if (NULL == reply) {
+        log_error(logger, MODULE_REDIS_TOOL, 
+                  "[%s:%d] set MAAT_VERSION failed, Redis Communication error: %s", 
+                  __FUNCTION__, __LINE__, c->errstr);
+        return -1;
+    }
+    freeReplyObject(reply);
+    reply = NULL;
+
+    return 0;
+}
+
+int clear_config_in_redis(redisContext *c, struct log_handle *logger)
+{
+    long long redis_version = 0;
+    redisReply *reply = maat_cmd_wrap_redis_command(c, "GET MAAT_VERSION");
+    if (reply != NULL) {
+		if (reply->type == REDIS_REPLY_NIL || reply->type == REDIS_REPLY_ERROR) {
+			log_error(logger, MODULE_REDIS_TOOL, 
+                      "[%s:%d] GET MAAT_VERSION failed, maybe Redis is busy",
+                      __FUNCTION__, __LINE__);
+			freeReplyObject(reply);
+			reply = NULL;
+			return -1;
+		}
+	} else {
+		log_error(logger, MODULE_REDIS_TOOL, 
+                  "[%s:%d] GET MAAT_VERSION failed with NULL reply, error: %s",
+                  __FUNCTION__, __LINE__, c->errstr);
+		return -1;
+	}
+
+    redis_version = maat_cmd_read_redis_integer(reply);
+	if (redis_version < 0) {
+		if (reply->type == REDIS_REPLY_ERROR) {
+			log_error(logger, MODULE_REDIS_TOOL, 
+                      "[%s:%d] Redis Communication error: %s", 
+                      __FUNCTION__, __LINE__, reply->str);
+		}
+        freeReplyObject(reply);
+	    reply = NULL;
+		return -1;
+	}
+
+	freeReplyObject(reply);
+	reply = NULL;
+
+    reply = maat_cmd_wrap_redis_command(c, "MULTI");
+	freeReplyObject(reply);
+	reply = NULL;
+	
+    int append_cmd_cnt = 0;
+	redisAppendCommand(c, "FLUSHDB");
+	append_cmd_cnt++;
+	redisAppendCommand(c, "SET MAAT_VERSION %lld", redis_version);
+	append_cmd_cnt++;
+	redisAppendCommand(c, "SET MAAT_PRE_VER %lld", redis_version);
+	append_cmd_cnt++;
+	redisAppendCommand(c, "SET %s 1", mr_region_id_var);
+	append_cmd_cnt++;
+	redisAppendCommand(c, "SET %s 1", mr_group_id_var);
+	append_cmd_cnt++;
+	redisAppendCommand(c, "EXEC");
+	append_cmd_cnt++;
+
+    int redis_transaction_success = 1;
+    for (int i = 0; i < append_cmd_cnt; i++) {
+		int ret = maat_cmd_wrap_redis_get_reply(c, &reply);
+		if (ret == REDIS_OK) {
+			if (reply->type == REDIS_REPLY_NIL) {
+				redis_transaction_success = 0;
+			}
+			freeReplyObject(reply);
+			reply = NULL;
+		}
+	}
+
+    if (0 == redis_transaction_success) {
+		return -1;
+	}
+
+    return 0;
+}
+
 #define	WORK_MODE_DUMP	0
 #define WORK_MODE_JSON	1
+#define WORK_MODE_UPLOAD 2
+
 int main(int argc, char * argv[])
 {
 	int oc = 0;
-	int model = 0;
+	int mode = 0;
 	char redis_ip[64] = {0};
 	int redis_port = 6379;
 	int redis_db = 0;
     char dump_dir[128] = {0};
     char json_file[128] = {0};
+    char upload_file[128] = {0};
     char log_path[128] = "./maat_redis_tool.log";
     int timeout = 0;
 	long long desired_version = 0;
@@ -254,7 +394,7 @@ int main(int argc, char * argv[])
 	strncpy(dump_dir, redis_dump_dir, sizeof(dump_dir));
 	struct log_handle *logger = log_handle_create(log_path, 0);
 
-	while ((oc = getopt(argc,argv,"h:p:n:d:v:f:j:t:")) != -1) {
+	while ((oc = getopt(argc,argv,"h:p:n:d:v:f:j:t:u:")) != -1) {
 		switch (oc) {
 			case 'h':
 				strncpy(redis_ip, optarg, sizeof(redis_ip));
@@ -266,7 +406,7 @@ int main(int argc, char * argv[])
 				sscanf(optarg, "%d", &redis_db);
 				break;
 			case 'd':
-				model = WORK_MODE_DUMP;
+				mode = WORK_MODE_DUMP;
 				strncpy(dump_dir, optarg, sizeof(dump_dir));
 				if (dump_dir[strlen(dump_dir)-1] == '/') {
 					dump_dir[strlen(dump_dir)-1] = '\0';
@@ -277,11 +417,15 @@ int main(int argc, char * argv[])
 				break;
 			case 'j':
 				strncpy(json_file, optarg, sizeof(json_file));
-				model = WORK_MODE_JSON;
+				mode = WORK_MODE_JSON;
 				break;
 			case 't':
 				sscanf(optarg,"%d", &timeout);
 				break;
+            case 'u':
+                strncpy(upload_file, optarg, sizeof(upload_file));
+                mode = WORK_MODE_UPLOAD;
+                break;
 			case '?':
 			default:
 				maat_tool_print_usage();
@@ -296,11 +440,11 @@ int main(int argc, char * argv[])
 	}
 
     char tmp_iris_path[128] = {0};
-	if (model == WORK_MODE_DUMP) {
+	if (mode == WORK_MODE_DUMP) {
 		log_info(logger, MODULE_REDIS_TOOL, "Reading key list from %s:%d db%d.", 
                  redis_ip, redis_port, redis_db);
 		read_rule_from_redis(c, desired_version, dump_dir, logger);
-	} else if(model == WORK_MODE_JSON) {
+	} else if(mode == WORK_MODE_JSON) {
         char *json_buff = NULL;
         size_t json_buff_sz = 0;
 		int ret = load_file_to_memory(json_file, (unsigned char**)&json_buff, &json_buff_sz);
@@ -331,14 +475,12 @@ int main(int argc, char * argv[])
 		}
 
 		if (timeout > 0) {
-			absolute_expire_time = server_time + timeout;
+			s_rule->timeout = server_time + timeout;
 		}
-
+        log_info(logger, MODULE_REDIS_TOOL, "Timeout = %lld\n", s_rule->timeout);
         config_monitor_traverse(0, tmp_iris_path, NULL, make_serial_rule, NULL, s_rule, logger);
         s_rule->ref_ctx = NULL;
-		log_info(logger, MODULE_REDIS_TOOL, "Timeout = %lld\n", absolute_expire_time);
 
-		ret = 0;
         int success_cnt = 0;
 		do {
 			success_cnt = maat_cmd_write_rule(c, s_rule, total_line_cnt, server_time, logger);
@@ -354,7 +496,26 @@ int main(int argc, char * argv[])
 		}
 		FREE(s_rule);	
 		redisFree(c);
-	}
+	} else if (mode == WORK_MODE_UPLOAD) {
+        int ret = clear_config_in_redis(c, logger);
+        if (ret < 0) {
+            log_error(logger, MODULE_REDIS_TOOL, "clear config in redis failed.");
+            return -1;
+        }
+
+        ret = write_config_to_redis(c, upload_file, logger);
+        if (ret < 0) {
+            log_error(logger, MODULE_REDIS_TOOL, "write config to redis failed.");
+            return -1;
+        }
+
+        ret = rollback_redis_version(c, logger);
+        if (ret < 0) {
+            log_error(logger, MODULE_REDIS_TOOL, "rollback redis version failed.");
+            return -1;
+        }
+        redisFree(c);
+    }
 
 	return 0;
 }
