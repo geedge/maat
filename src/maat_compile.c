@@ -603,10 +603,7 @@ void compile_runtime_init(void *compile_runtime, struct maat_runtime *maat_rt)
     }
 
     struct compile_runtime *compile_rt = (struct compile_runtime *)compile_runtime;
-
-    pthread_rwlock_wrlock(&compile_rt->rwlock);
     compile_rt->ref_maat_rt = maat_rt;
-    pthread_rwlock_unlock(&compile_rt->rwlock);
 }
 
 void *group2compile_runtime_new(void *g2c_schema, int max_thread_num, 

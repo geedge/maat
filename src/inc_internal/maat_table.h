@@ -68,9 +68,11 @@ int table_manager_accept_tags_match(struct table_manager *tbl_mgr, const char *t
 
 void *table_manager_get_schema(struct table_manager *tbl_mgr, int table_id);
 void *table_manager_get_runtime(struct table_manager *tbl_mgr, int table_id);
+void *table_manager_get_updating_runtime(struct table_manager *tbl_mgr, int table_id);
 
-int table_manager_update_runtime(struct table_manager *tbl_mgr, const char *table_name, int table_id, const char *line);
-void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id);
+int table_manager_update_runtime(struct table_manager *tbl_mgr, const char *table_name, 
+                                 int table_id, const char *line, int update_type);
+void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id, int update_type);
 
 long long table_manager_runtime_rule_count(struct table_manager *tbl_mgr, int table_id);
 

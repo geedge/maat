@@ -256,10 +256,11 @@ struct maat_runtime* maat_runtime_create(long long version, struct maat *maat_in
     return maat_rt;
 }
 
-void maat_runtime_commit(struct maat_runtime *maat_rt, struct log_handle *logger)
+void maat_runtime_commit(struct maat_runtime *maat_rt, int update_type, 
+                         struct log_handle *logger)
 {
 	for (size_t i = 0; i < maat_rt->max_table_num; i++) {
-		table_manager_commit_runtime(maat_rt->ref_tbl_mgr, i);
+		table_manager_commit_runtime(maat_rt->ref_tbl_mgr, i, update_type);
 	}
 
     maat_rt->last_update_time = time(NULL);
@@ -326,36 +327,31 @@ void maat_start_cb(long long new_version, int update_type, void *u_param)
 {
 	struct maat *maat_instance = (struct maat *)u_param;
 	maat_instance->new_version = new_version;
+    size_t i = 0;
+    size_t table_cnt = table_manager_table_count(maat_instance->tbl_mgr);
+    enum table_type table_type = TABLE_TYPE_INVALID;
 
 	if (update_type == MAAT_UPDATE_TYPE_FULL) {
 		maat_instance->creating_maat_rt = maat_runtime_create(new_version, maat_instance);
-	} else {
+        for (i = 0; i < table_cnt; i++) {
+            table_type = table_manager_get_table_type(maat_instance->tbl_mgr, i);
+            if (table_type == TABLE_TYPE_COMPILE) {
+                // compile runtime need a reference to maat runtime
+                void *compile_rt = table_manager_get_updating_runtime(maat_instance->tbl_mgr, i);
+                compile_runtime_init(compile_rt, maat_instance->creating_maat_rt);
+            }
+        }
+    } else {
 		maat_instance->maat_version = new_version;
 	}
 
-    struct maat_runtime *maat_rt = NULL;
-    if (maat_instance->creating_maat_rt != NULL) {
-        maat_rt = maat_instance->creating_maat_rt;
-    } else {
-        maat_rt = maat_instance->maat_rt;
-    }
-
-	size_t table_cnt = table_manager_table_count(maat_instance->tbl_mgr);
-	for (size_t i = 0; i < table_cnt; i++) {
-		enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, i);
-        if (table_type == TABLE_TYPE_COMPILE) {
-            //compile runtime need a reference to maat runtime
-            void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr, i);
-            compile_runtime_init(compile_rt, maat_rt);
+    for (i = 0; i < table_cnt; i++) {
+        table_type = table_manager_get_table_type(maat_instance->tbl_mgr, i);
+        if (table_type == TABLE_TYPE_PLUGIN) {
+            void *schema = table_manager_get_schema(maat_instance->tbl_mgr, i);
+            plugin_table_all_callback_start((struct plugin_schema *)schema, update_type);
         }
-
-		if (table_type != TABLE_TYPE_PLUGIN) {
-			continue;
-		}
-
-		void *schema = table_manager_get_schema(maat_instance->tbl_mgr, i);
-		plugin_table_all_callback_start((struct plugin_schema *)schema, update_type);
-	}
+    }
 }
 
 int maat_update_cb(const char *table_name, const char *line, void *u_param)
@@ -382,13 +378,15 @@ int maat_update_cb(const char *table_name, const char *line, void *u_param)
         return -1;
     }
     
-	if (maat_instance->creating_maat_rt != NULL) {
+	int update_type = MAAT_UPDATE_TYPE_INC;
+	if (maat_instance->creating_maat_rt != NULL) { //Full update
 		maat_rt = maat_instance->creating_maat_rt;
+        update_type = MAAT_UPDATE_TYPE_FULL;
 	} else {
 		maat_rt = maat_instance->maat_rt;
 	}
     
-	table_manager_update_runtime(maat_rt->ref_tbl_mgr, table_name, table_id, line);
+	table_manager_update_runtime(maat_rt->ref_tbl_mgr, table_name, table_id, line, update_type);
 
 	return 0;
 }
@@ -431,7 +429,7 @@ void maat_finish_cb(void *u_param)
     maat_plugin_table_all_callback_finish(maat_instance->tbl_mgr);
 
     if (maat_instance->creating_maat_rt != NULL) {
-        maat_runtime_commit(maat_instance->creating_maat_rt, maat_instance->logger);
+        maat_runtime_commit(maat_instance->creating_maat_rt, MAAT_UPDATE_TYPE_FULL, maat_instance->logger);
         maat_instance->creating_maat_rt->rule_num = maat_runtime_rule_num(maat_instance->creating_maat_rt);
         log_info(maat_instance->logger, MODULE_MAAT_RULE, 
                  "Full config version %llu load %d entries complete", 
@@ -439,7 +437,7 @@ void maat_finish_cb(void *u_param)
                  maat_instance->creating_maat_rt->rule_num);
     } else if (maat_instance->maat_rt != NULL) {
         maat_instance->maat_rt->version = maat_instance->maat_version;
-        maat_runtime_commit(maat_instance->maat_rt, maat_instance->logger);
+        maat_runtime_commit(maat_instance->maat_rt, MAAT_UPDATE_TYPE_INC, maat_instance->logger);
         maat_instance->maat_rt->rule_num = maat_runtime_rule_num(maat_instance->maat_rt);
         log_info(maat_instance->logger, MODULE_MAAT_RULE, 
                  "Inc config version %llu load %d entries complete", 
@@ -559,7 +557,7 @@ void *rule_monitor_loop(void *arg)
                 time_t time_window = time(NULL) - maat_instance->maat_rt->last_update_time;
                 
                 if (time_window >= maat_instance->rule_effect_interval_ms / 1000) {
-                    maat_runtime_commit(maat_instance->maat_rt, maat_instance->logger);
+                    maat_runtime_commit(maat_instance->maat_rt, MAAT_UPDATE_TYPE_INC, maat_instance->logger);
                     log_info(maat_instance->logger, MODULE_MAAT_RULE,
 							 "Actual update config version %u, %d entries load to maat runtime.",
 							 maat_instance->maat_rt->version, maat_instance->maat_rt->rule_num);

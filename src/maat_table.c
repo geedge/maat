@@ -42,6 +42,7 @@ struct maat_table {
     int valid_column;
     void *schema;
     void *runtime;
+    void *updating_runtime;
 };
 
 struct table_manager {
@@ -600,37 +601,40 @@ int table_manager_runtime_create(struct table_manager *tbl_mgr, int max_thread_n
             continue;
         }
      
+        assert(tbl_mgr->tbl[i]->updating_runtime == NULL);
         table_type = table_manager_get_table_type(tbl_mgr, i);
-        void *runtime = table_manager_get_runtime(tbl_mgr, i);
-        tbl_mgr->tbl[i]->runtime = maat_table_runtime_new(schema, table_type, max_thread_num,
-                                                          garbage_bin, tbl_mgr->logger);
-        if (runtime != NULL) {
-            enum table_type *arg = ALLOC(enum table_type, 1);
-            *arg = table_type;
-            maat_garbage_bagging(garbage_bin, runtime, arg, garbage_maat_table_runtime_free);
-        }
+        assert(table_type != TABLE_TYPE_INVALID);
+        tbl_mgr->tbl[i]->updating_runtime = maat_table_runtime_new(schema, table_type, max_thread_num,
+                                                                    garbage_bin, tbl_mgr->logger);
     }
 
     /* group2compile runtime depends on associated compile runtime,
        must make sure associated compile runtime already exist */
     for (i = 0; i < MAX_TABLE_NUM; i++) {
-        void *runtime = table_manager_get_runtime(tbl_mgr, i);
-        if (NULL == runtime) {
-            continue;
-        }
-
         table_type = table_manager_get_table_type(tbl_mgr, i);
         if (table_type != TABLE_TYPE_GROUP2COMPILE) {
             continue;
         }
 
-        
         void *schema = table_manager_get_schema(tbl_mgr, i);
+        if (NULL == schema) {
+            log_error(tbl_mgr->logger, MODULE_TABLE, 
+                      "[%s:%d] group2compile table(table_id:%d) schema is null",
+                      __FUNCTION__, __LINE__, i);
+            continue;
+        }
+
+        void *g2c_updating_rt = table_manager_get_updating_runtime(tbl_mgr, i);
+        if (NULL == g2c_updating_rt) {
+            continue;
+        }
+
         int associated_compile_table_id = group2compile_associated_compile_table_id(schema);
-        void *compile_rt = table_manager_get_runtime(tbl_mgr, associated_compile_table_id);
+        void *compile_updating_rt = table_manager_get_updating_runtime(tbl_mgr, associated_compile_table_id);
         int g2g_group_id = table_manager_get_group2group_table_id(tbl_mgr);
-        void *g2g_rt = table_manager_get_runtime(tbl_mgr, g2g_group_id);
-        group2compile_runtime_init(runtime, compile_rt, g2g_rt);
+        void *g2g_updating_rt = table_manager_get_updating_runtime(tbl_mgr, g2g_group_id);
+        
+        group2compile_runtime_init(g2c_updating_rt, compile_updating_rt, g2g_updating_rt);
     }
 
     return 0;
@@ -788,15 +792,34 @@ void *table_manager_get_runtime(struct table_manager *tbl_mgr, int table_id)
 	return tbl_mgr->tbl[table_id]->runtime;
 }
 
+void *table_manager_get_updating_runtime(struct table_manager *tbl_mgr, int table_id)
+{
+    if (NULL == tbl_mgr || (table_id < 0) || (table_id >= MAX_TABLE_NUM)) {
+        return NULL;
+    }
+
+    if (NULL == tbl_mgr->tbl[table_id]) {
+        return NULL;
+    }
+
+	return tbl_mgr->tbl[table_id]->updating_runtime;
+}
+
 int table_manager_update_runtime(struct table_manager *tbl_mgr, const char *table_name,
-                                 int table_id, const char *line)
+                                 int table_id, const char *line, int update_type)
 {
     void *schema = table_manager_get_schema(tbl_mgr, table_id);
     if (NULL == schema) {
         return -1;
     }
 
-    void *runtime = table_manager_get_runtime(tbl_mgr, table_id);
+    void *runtime = NULL;
+    if (update_type == MAAT_UPDATE_TYPE_FULL) {
+        runtime = table_manager_get_updating_runtime(tbl_mgr, table_id);
+    } else {
+        runtime = table_manager_get_runtime(tbl_mgr, table_id);
+    }
+  
     if (NULL == runtime) {
         return -1;
     }
@@ -828,10 +851,10 @@ int table_manager_update_runtime(struct table_manager *tbl_mgr, const char *tabl
                                                 line, valid_column);
 }
 
-void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id)
+void table_commit_updating_runtime(struct table_manager *tbl_mgr, int table_id)
 {
-    void *runtime = table_manager_get_runtime(tbl_mgr, table_id);
-    if (NULL == runtime) {
+    void *updating_rt = table_manager_get_updating_runtime(tbl_mgr, table_id);
+    if (NULL == updating_rt) {
         return;
     }
 
@@ -845,7 +868,52 @@ void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id)
 
     struct maat_table *ptable = tbl_mgr->tbl[table_id];
     if ( table_ops[table_type].commit_runtime != NULL) {
-        table_ops[table_type].commit_runtime(runtime, ptable->table_name);;
+        table_ops[table_type].commit_runtime(updating_rt, ptable->table_name);
+    }
+
+    void *runtime = table_manager_get_runtime(tbl_mgr, table_id);
+    tbl_mgr->tbl[table_id]->runtime = updating_rt;
+    if (runtime != NULL) {
+        enum table_type *arg = ALLOC(enum table_type, 1);
+        *arg = table_type;
+        maat_garbage_bagging(tbl_mgr->ref_garbage_bin, runtime, arg, garbage_maat_table_runtime_free);
+    }
+
+    tbl_mgr->tbl[table_id]->updating_runtime = NULL;
+}
+
+void table_commit_runtime(struct table_manager *tbl_mgr, int table_id)
+{
+    void *runtime = table_manager_get_runtime(tbl_mgr, table_id);
+    if (NULL == runtime) {
+        return;
+    }
+
+     enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
+    if (table_type == TABLE_TYPE_INVALID) {
+        log_error(tbl_mgr->logger, MODULE_TABLE, 
+                  "[%s:%d] table(table_id:%d) table_type is invalid, can't commit runtime",
+                  __FUNCTION__, __LINE__, table_id);
+        return;
+    }
+
+    struct maat_table *ptable = tbl_mgr->tbl[table_id];
+    if (table_ops[table_type].commit_runtime != NULL) {
+        table_ops[table_type].commit_runtime(runtime, ptable->table_name);
+    }
+}
+
+void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id,
+                                  int update_type)
+{
+    if (NULL == tbl_mgr || table_id < 0) {
+        return;
+    }
+
+    if (update_type == MAAT_UPDATE_TYPE_FULL) {
+        table_commit_updating_runtime(tbl_mgr, table_id);
+    } else {
+        table_commit_runtime(tbl_mgr, table_id);
     }
 }
 
