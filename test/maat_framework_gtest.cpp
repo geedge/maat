@@ -292,6 +292,130 @@ int ip_table_set_line(struct maat *maat_instance, const char *table_name, enum m
 
     return maat_cmd_set_line(maat_instance, &line_rule);
 }
+
+int test_add_expr_command(struct maat *maat_instance, const char *expr_table, 
+                          long long compile_id, int timeout, const char *keywords)
+{
+    char huge_serv_def[1024 * 2] = {0};
+
+    memset(huge_serv_def, 's', sizeof(huge_serv_def) - 1);
+    huge_serv_def[sizeof(huge_serv_def) - 1] = '\0';
+
+    int ret = compile_table_set_line(maat_instance, "COMPILE", MAAT_OP_ADD, compile_id, 
+                                     huge_serv_def, 1, timeout);
+    EXPECT_EQ(ret, 1);
+
+    long long group_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_instance, "GROUP2COMPILE", MAAT_OP_ADD, group_id, 
+                                       compile_id, 0, "null", 1, timeout);
+    EXPECT_EQ(ret, 1);
+
+    long long item_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_instance, expr_table, MAAT_OP_ADD, item_id, group_id, keywords, 
+                              "null", 1, 0, 0, 0);
+    EXPECT_EQ(ret, 1);
+
+    return ret;
+}
+
+int del_command(struct maat *maat_instance, int compile_id)
+{
+    return compile_table_set_line(maat_instance, "COMPILE", MAAT_OP_DEL, compile_id, NULL, 1, 0);
+}
+#if 0
+class MaatStreamScan : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        char redis_ip[64] = "127.0.0.1";
+        int redis_port = 6379;
+        int redis_db = 0;
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
+
+        _shared_maat_instance = maat_new(opts, table_info_path);
+        assert(_shared_maat_instance != NULL);
+       
+        maat_cmd_flushDB(_shared_maat_instance);
+        maat_free(_shared_maat_instance);
+
+        maat_options_set_foreign_cont_dir(opts, "./foreign_files/");
+        maat_options_set_rule_effect_interval_ms(opts, 20 * 1000); //20s for garbage collection
+        _shared_maat_instance = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_instance);
+    } 
+
+    static struct maat *_shared_maat_instance;
+};
+
+struct maat *MaatStreamScan::_shared_maat_instance;
+
+TEST_F(MaatStreamScan, dynamic_config) {
+    const char *scan_data1 = "http://www.cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
+	const char *scan_data2 = "hello world";
+    const char *table_name = "HTTP_URL";
+    const char *keywords1 = "action=search\\&query=(.*)";
+    const char *keywords2 = "hello";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_instance = MaatStreamScan::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
+    int ret = test_add_expr_command(maat_instance, table_name, compile1_id, 0, keywords1);
+    EXPECT_EQ(ret, 1);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+
+    int table_id = maat_get_table_id(maat_instance, table_name);
+	ASSERT_GT(table_id, 0);
+
+	struct maat_stream *sp = maat_stream_new(maat_instance, table_id, state);
+	ASSERT_TRUE(sp != NULL);
+
+	ret = maat_stream_scan(sp, "www.cyberessays.com", strlen("www.cyberessays.com"),
+                                results, ARRAY_SIZE, &n_hit_result, state);
+	EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+	ret = maat_stream_scan(sp, scan_data1, strlen(scan_data1), results, ARRAY_SIZE,
+                            &n_hit_result, state);
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+	EXPECT_EQ(results[0], compile1_id);
+	maat_state_reset(state);
+
+    long long compile2_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
+    ret = test_add_expr_command(maat_instance, table_name, compile2_id, 0, keywords2);
+    EXPECT_EQ(ret, 1);
+
+    for (int i = 0; i < 100; i++) {
+        ret = maat_stream_scan(sp, "www.cyberessays.com", strlen("www.cyberessays.com"),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+        EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+        ret = maat_stream_scan(sp, scan_data2, strlen(scan_data2), results, ARRAY_SIZE,
+                               &n_hit_result, state);
+        EXPECT_EQ(ret, MAAT_SCAN_HIT);
+        EXPECT_EQ(results[0], compile2_id);
+        maat_state_reset(state);
+        usleep(500 * 1000);
+
+        compile2_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
+        ret = test_add_expr_command(maat_instance, table_name, compile2_id, 0, keywords2);
+        EXPECT_EQ(ret, 1);
+        
+    }
+    maat_stream_free(sp);
+    maat_state_free(state);
+    sp = NULL;
+    state = NULL;
+}
+#endif
 #if 1
 class MaatFlagScan : public testing::Test
 {
@@ -3318,36 +3442,6 @@ protected:
 
 struct maat *MaatCmdTest::_shared_maat_instance;
 
-int test_add_expr_command(struct maat *maat_instance, const char *expr_table, 
-                          long long compile_id, int timeout, const char *keywords)
-{
-    char huge_serv_def[1024 * 2] = {0};
-
-    memset(huge_serv_def, 's', sizeof(huge_serv_def) - 1);
-    huge_serv_def[sizeof(huge_serv_def) - 1] = '\0';
-
-    int ret = compile_table_set_line(maat_instance, "COMPILE", MAAT_OP_ADD, compile_id, 
-                                     huge_serv_def, 1, timeout);
-    EXPECT_EQ(ret, 1);
-
-    long long group_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, "GROUP2COMPILE", MAAT_OP_ADD, group_id, 
-                                       compile_id, 0, "null", 1, timeout);
-    EXPECT_EQ(ret, 1);
-
-    long long item_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, expr_table, MAAT_OP_ADD, item_id, group_id, keywords, 
-                              "null", 1, 0, 0, 0);
-    EXPECT_EQ(ret, 1);
-
-    return ret;
-}
-
-int del_command(struct maat *maat_instance, int compile_id)
-{
-    return compile_table_set_line(maat_instance, "COMPILE", MAAT_OP_DEL, compile_id, NULL, 1, 0);
-}
-
 TEST_F(MaatCmdTest, SetIP) {
     long long version_before = 0;
     long long results[ARRAY_SIZE] = {0};
@@ -5269,7 +5363,7 @@ TEST_F(MaatCmdTest, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
 	maat_state_free(state);
     state = NULL;
 }
-#endif
+
 class MaatRollbackTest : public testing::Test
 {
 protected:
@@ -5446,7 +5540,7 @@ TEST_F(MaatRollbackTest, FullConfigRollback) {
     maat_state_free(state);
     state = NULL;
 }
-
+#endif
 int main(int argc, char ** argv)
 {
 	int ret=0;

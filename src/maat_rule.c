@@ -478,10 +478,8 @@ void *rule_monitor_loop(void *arg)
         ret = maat_read_full_config(maat_instance);
         if (ret < 0) {
             log_error(maat_instance->logger, MODULE_MAAT_RULE,
-                      "[%s:%d] maat read full config failed, exit rule_monitor_loop thread.",
+                      "[%s:%d] maat read full config failed",
                       __FUNCTION__, __LINE__);
-            pthread_mutex_unlock(&(maat_instance->background_update_mutex));
-            return NULL;
         }
     }
     pthread_mutex_unlock(&(maat_instance->background_update_mutex));

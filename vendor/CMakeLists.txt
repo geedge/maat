@@ -5,7 +5,7 @@ include(ExternalProject)
 set(VENDOR_ROOT ${CMAKE_BINARY_DIR}/vendor)
 set(VENDOR_BUILD ${CMAKE_BINARY_DIR}/vendor/vbuild)
 
-set(CMAKE_C_FLAGS "-std=gnu99 -fPIC -Wall") 
+set(CMAKE_C_FLAGS "-std=c99 -fPIC -Wall") 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -Wall")
 
 # GoogleTest

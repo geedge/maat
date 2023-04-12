@@ -435,8 +435,8 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
 	}
 
 	if (!maat_instance->is_running) {
-		strncpy(maat_instance->json_ctx.json_file, json_filename, 
-                sizeof(maat_instance->json_ctx.json_file));
+        size_t len = MIN(strlen(json_filename), sizeof(maat_instance->json_ctx.json_file));
+		strncpy(maat_instance->json_ctx.json_file, json_filename, len);
 	}
 	
 	ret = stat(json_filename, &fstat_buf);

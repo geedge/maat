@@ -387,7 +387,6 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
         if (ret < 0) {
             log_error(maat_instance->logger, MODULE_MAAT_API, 
                       "[%s:%d] maat read full config failed", __FUNCTION__, __LINE__);
-            goto failed;
         }
     }
 
