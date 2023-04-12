@@ -37,6 +37,8 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
                          int valid_column);
 int expr_runtime_commit(void *expr_runtime, const char *table_name);
 
+long long expr_runtime_rule_count(void *expr_runtime);
+
 /* expr runtime scan API */
 /**
  * @brief scan string to get hit group_ids
@@ -47,6 +49,7 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *d
                       size_t data_len, int vtable_id, struct maat_state *state);
 
 struct adapter_hs_stream *expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id);
+
 int expr_runtime_stream_scan(struct expr_runtime *expr_rt, struct adapter_hs_stream *s_handle, 
                              const char *data, size_t data_len,
                              int vtable_id, struct maat_state *state);

@@ -71,7 +71,7 @@ struct expr_runtime {
     struct rcu_hash_table *htable;      // store hs_expr rule for rebuild adapter_hs instance
     struct rcu_hash_table *item_htable; // store this expr table's all maat_item which will be used in expr_runtime_scan
 
-    uint32_t rule_num;
+    long long rule_num;
     int n_worker_thread;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -872,6 +872,16 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name)
     }
 
     return ret;
+}
+
+long long expr_runtime_rule_count(void *expr_runtime)
+{
+    if (NULL == expr_runtime) {
+        return 0;
+    }
+    
+    struct expr_runtime *expr_rt = (struct expr_runtime *)expr_runtime;
+    return expr_rt->rule_num;
 }
 
 int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *data, 

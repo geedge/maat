@@ -45,11 +45,11 @@
 struct maat_stream {
     struct maat *ref_maat_instance;
     struct adapter_hs_stream *s_handle; //each physical table open one stream
-    int last_full_version;
+    long long last_full_version;
+    struct log_handle *logger;
     int thread_id;
     int vtable_id;
     int physical_table_id;
-    struct log_handle *logger;
 };
 
 struct maat_options* maat_options_new(void)
@@ -1498,7 +1498,8 @@ int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data
 
     state->scan_cnt++;
 
-    if (maat_stream->last_full_version != maat_stream->ref_maat_instance->last_full_version) {
+    struct maat *maat_instance = maat_stream->ref_maat_instance;
+    if (maat_stream->last_full_version != maat_instance->last_full_version) {
         return MAAT_SCAN_OK;
     }
 

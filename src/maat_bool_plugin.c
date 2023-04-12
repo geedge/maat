@@ -34,9 +34,7 @@ struct bool_plugin_schema {
 struct bool_plugin_runtime {
     struct bool_matcher *matcher;
     struct ex_data_runtime *ex_data_rt;
-
-    uint32_t rule_num;
-
+    long long rule_num;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
 };
@@ -475,6 +473,16 @@ int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name
     }
 
     return ret;
+}
+
+long long bool_plugin_runtime_rule_count(void *bool_plugin_runtime)
+{
+    if (NULL == bool_plugin_runtime) {
+        return 0;
+    }
+    
+    struct bool_plugin_runtime *bool_plugin_rt = (struct bool_plugin_runtime *)bool_plugin_runtime;
+    return bool_plugin_rt->rule_num;
 }
 
 struct ex_data_runtime *bool_plugin_runtime_get_ex_data_rt(void *bool_plugin_runtime)

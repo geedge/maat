@@ -74,7 +74,7 @@ struct compile_runtime {
     struct maat_runtime *ref_maat_rt;
     time_t version;
     struct maat_clause *clause_by_literals_hash;
-    uint32_t rule_num;
+    long long rule_num;
     int updating_flag;
     pthread_rwlock_t rwlock; /* TODO: replaced with mutex? */
 
@@ -85,6 +85,7 @@ struct compile_runtime {
 
 struct group2compile_runtime {
     long long not_flag_group;
+    long long rule_num;
     struct compile_runtime *ref_compile_rt;
     struct group2group_runtime *ref_g2g_rt;
 };
@@ -1541,6 +1542,9 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
         compile = maat_compile_hash_find(&(compile_rt->compile_hash), compile_id);
         if (NULL == compile) {
             pthread_rwlock_unlock(&compile_rt->rwlock);
+            log_error(compile_rt->logger, MODULE_COMPILE,
+                      "[%s:%d] compile table:%s has no compile_id:%lld, can't be deleted",
+                      __FUNCTION__, __LINE__, table_name, compile_id);
             return -1;
         }
 
@@ -1641,6 +1645,7 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
                 g2c_rt->not_flag_group--;
             }
             maat_group_ref_dec(group);
+            g2c_rt->rule_num--;
         }
     } else {
         //add
@@ -1658,12 +1663,23 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
                 g2c_rt->not_flag_group++;
             }
             maat_group_ref_inc(group);
+            g2c_rt->rule_num++;
         }
     }
     
 
     group2compile_item_free(g2c_item);
     return ret;
+}
+
+long long group2compile_runtime_rule_count(void *g2c_runtime)
+{
+    if (NULL == g2c_runtime) {
+        return 0;
+    }
+    
+    struct group2compile_runtime *g2c_rt = (struct group2compile_runtime *)g2c_runtime;
+    return g2c_rt->rule_num;
 }
 
 int compile_runtime_commit(void *compile_runtime, const char *table_name)
@@ -1711,6 +1727,16 @@ int compile_runtime_commit(void *compile_runtime, const char *table_name)
     compile_rt->rule_num = compile_cnt;
 
     return ret;
+}
+
+long long compile_runtime_rule_count(void *compile_runtime)
+{
+    if (NULL == compile_runtime) {
+        return 0;
+    }
+    
+    struct compile_runtime *compile_rt = (struct compile_runtime *)compile_runtime;
+    return compile_rt->rule_num;
 }
 
 static int compile_sort_para_compare(const struct compile_sort_para *a,

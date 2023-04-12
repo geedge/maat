@@ -46,6 +46,8 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
                                 const char *table_name, const char *line, int valid_column);
 int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name);
 
+long long bool_plugin_runtime_rule_count(void *bool_plugin_runtime);
+
 struct ex_data_runtime *bool_plugin_runtime_get_ex_data_rt(void *bool_plugin_runtime);
 
 int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, unsigned long long *item_ids, 

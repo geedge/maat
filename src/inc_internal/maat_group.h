@@ -51,6 +51,8 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
                                 int valid_column);			   
 int group2group_runtime_commit(void *g2g_runtime, const char *table_name);
 
+long long group2group_runtime_rule_count(void *g2g_runtime);
+
 #ifdef __cplusplus
 }
 #endif

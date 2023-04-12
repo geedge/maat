@@ -59,8 +59,7 @@ struct maat_group_topology {
 
 struct group2group_runtime {
     struct maat_group_topology *group_topo;
-
-	uint32_t rule_num;
+	long long rule_num;
 
     pthread_rwlock_t rwlock;
     struct maat_garbage_bin *ref_garbage_bin;
@@ -631,6 +630,16 @@ int group2group_runtime_commit(void *g2g_runtime, const char *table_name)
     }
 
     return 0;
+}
+
+long long group2group_runtime_rule_count(void *g2g_runtime)
+{
+    if (NULL == g2g_runtime) {
+        return 0;
+    }
+    
+    struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
+    return g2g_rt->rule_num;
 }
 
 int group2group_runtime_get_top_groups(void *g2g_runtime, long long *group_ids, 

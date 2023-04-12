@@ -36,6 +36,8 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
                       int valid_column);
 int ip_runtime_commit(void *ip_runtime, const char *table_name);
 
+long long ip_runtime_rule_count(void *ip_runtime);
+
 /* ip runtime scan API */
 int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type, 
                     uint8_t *ip_addr, uint16_t port, int proto, int vtable_id, 

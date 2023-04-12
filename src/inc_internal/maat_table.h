@@ -72,6 +72,8 @@ void *table_manager_get_runtime(struct table_manager *tbl_mgr, int table_id);
 int table_manager_update_runtime(struct table_manager *tbl_mgr, const char *table_name, int table_id, const char *line);
 void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id);
 
+long long table_manager_runtime_rule_count(struct table_manager *tbl_mgr, int table_id);
+
 #ifdef __cplusplus
 }
 #endif

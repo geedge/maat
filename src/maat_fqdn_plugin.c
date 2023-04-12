@@ -472,6 +472,16 @@ int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name
     return ret;
 }
 
+long long fqdn_plugin_runtime_rule_count(void *fqdn_plugin_runtime)
+{
+    if (NULL == fqdn_plugin_runtime) {
+        return 0;
+    }
+    
+    struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+    return fqdn_plugin_rt->rule_num;
+}
+
 struct ex_data_runtime *fqdn_plugin_runtime_get_ex_data_rt(void *fqdn_plugin_runtime)
 {
     if (NULL == fqdn_plugin_runtime) {

@@ -55,6 +55,8 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
                            const char *table_name, const char *line, int valid_column);
 int compile_runtime_commit(void *compile_runtime, const char *table_name);
 
+long long compile_runtime_rule_count(void *compile_runtime);
+
 int compile_runtime_match(struct compile_runtime *compile_rt, long long *compile_ids,
                           size_t compile_ids_size, struct maat_state *state);
 
@@ -79,6 +81,7 @@ void group2compile_runtime_free(void *g2c_runtime);
 int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
                                  const char *table_name, const char *line, 
                                 int valid_column);
+long long group2compile_runtime_rule_count(void *g2c_runtime);
 
 /* maat compile state API */
 struct maat_compile_state;

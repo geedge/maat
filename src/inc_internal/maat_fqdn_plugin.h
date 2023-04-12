@@ -48,6 +48,8 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
                                 const char *table_name, const char *line, int valid_column);
 int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name);
 
+long long fqdn_plugin_runtime_rule_count(void *fqdn_plugin_runtime);
+
 struct ex_data_runtime *fqdn_plugin_runtime_get_ex_data_rt(void *fqdn_plugin_runtime);
 
 int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, const char *fqdn, 

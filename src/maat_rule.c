@@ -393,17 +393,16 @@ int maat_update_cb(const char *table_name, const char *line, void *u_param)
 	return 0;
 }
 
-uint32_t maat_runtime_rule_num(struct maat_runtime *maat_rt)
+long long maat_runtime_rule_num(struct maat_runtime *maat_rt)
 {
-	uint32_t total = 0;
-	void *runtime = NULL;
+	long long total = 0;
 	
 	for (size_t i = 0; i < maat_rt->max_table_num; i++) {
-		runtime = table_manager_get_runtime(maat_rt->ref_tbl_mgr, i);
-		if (runtime != NULL) {
-            //TODO: by luis
-			//total += table_runtime_rule_count(runtime);
-		}
+        long long rule_cnt = table_manager_runtime_rule_count(maat_rt->ref_tbl_mgr, i);
+		total += rule_cnt;
+        if (rule_cnt != 0) {
+            log_info(maat_rt->logger, MODULE_MAAT_RULE, "table:%d rule count:%lld", i, rule_cnt);
+        }
 	}
 
 	return total;
@@ -432,16 +431,16 @@ void maat_finish_cb(void *u_param)
     maat_plugin_table_all_callback_finish(maat_instance->tbl_mgr);
 
     if (maat_instance->creating_maat_rt != NULL) {
-        maat_instance->creating_maat_rt->rule_num = maat_runtime_rule_num(maat_instance->creating_maat_rt);
         maat_runtime_commit(maat_instance->creating_maat_rt, maat_instance->logger);
+        maat_instance->creating_maat_rt->rule_num = maat_runtime_rule_num(maat_instance->creating_maat_rt);
         log_info(maat_instance->logger, MODULE_MAAT_RULE, 
                  "Full config version %llu load %d entries complete", 
                  maat_instance->creating_maat_rt->version, 
                  maat_instance->creating_maat_rt->rule_num);
     } else if (maat_instance->maat_rt != NULL) {
-        maat_instance->maat_rt->rule_num = maat_runtime_rule_num(maat_instance->maat_rt);
         maat_instance->maat_rt->version = maat_instance->maat_version;
         maat_runtime_commit(maat_instance->maat_rt, maat_instance->logger);
+        maat_instance->maat_rt->rule_num = maat_runtime_rule_num(maat_instance->maat_rt);
         log_info(maat_instance->logger, MODULE_MAAT_RULE, 
                  "Inc config version %llu load %d entries complete", 
                  maat_instance->maat_rt->version, 

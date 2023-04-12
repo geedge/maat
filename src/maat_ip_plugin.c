@@ -39,9 +39,7 @@ struct ip_plugin_schema {
 struct ip_plugin_runtime {
 	struct ip_matcher *ip_matcher;
     struct ex_data_runtime *ex_data_rt;
-
-    uint32_t rule_num;
-
+    long long rule_num;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
 };
@@ -510,6 +508,16 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name)
     }
 
     return ret;
+}
+
+long long ip_plugin_runtime_rule_count(void *ip_plugin_runtime)
+{
+    if (NULL == ip_plugin_runtime) {
+        return 0;
+    }
+    
+    struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
+    return ip_plugin_rt->rule_num;
 }
 
 struct ex_data_runtime *ip_plugin_runtime_get_ex_data_rt(void *ip_plugin_runtime)

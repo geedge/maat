@@ -69,7 +69,7 @@ struct ip_runtime {
     struct interval_matcher *intval_matcher;
     struct rcu_hash_table *htable; //store ip rule for rebuild ip_matcher instance
     struct rcu_hash_table *item_htable;  //store this ip table's all maat_item which will be used in ip_runtime_scan
-    uint32_t rule_num;
+    long long rule_num;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
 
@@ -628,6 +628,16 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name)
     }
 
     return ret;
+}
+
+long long ip_runtime_rule_count(void *ip_runtime)
+{
+    if (NULL == ip_runtime) {
+        return 0;
+    }
+    
+    struct ip_runtime *ip_rt = (struct ip_runtime *)ip_runtime;
+    return ip_rt->rule_num;
 }
 
 int validate_port(struct rcu_hash_table *htable, const char *key, size_t key_len,

@@ -91,7 +91,7 @@ struct adapter_hs_stream {
     size_t n_expr;
     hs_stream_t *literal_stream;
     hs_stream_t *regex_stream;
-    struct adapter_hs_runtime *hs_rt;
+    struct adapter_hs_runtime *ref_hs_rt;
     struct matched_pattern *matched_pat;
     struct log_handle *logger;
 };
@@ -602,7 +602,7 @@ struct adapter_hs_stream *adapter_hs_stream_open(struct adapter_hs *hs_instance,
     hs_stream->logger = hs_instance->logger;
     hs_stream->thread_id = thread_id;
     hs_stream->n_expr = hs_instance->n_expr;
-    hs_stream->hs_rt = hs_instance->hs_rt;
+    hs_stream->ref_hs_rt = hs_instance->hs_rt;
     hs_stream->matched_pat = ALLOC(struct matched_pattern, 1);
     hs_stream->matched_pat->ref_hs_attr = hs_instance->hs_attr;
     hs_stream->matched_pat->n_patterns = hs_instance->n_patterns;
@@ -653,7 +653,7 @@ void adapter_hs_stream_close(struct adapter_hs_stream *hs_stream)
         return;
     }
 
-    if (hs_stream->hs_rt != NULL) {
+    if (hs_stream->ref_hs_rt != NULL) {
         if (hs_stream->literal_stream != NULL) {
             hs_close_stream(hs_stream->literal_stream, NULL, NULL, NULL);
             hs_stream->literal_stream = NULL;
@@ -667,7 +667,7 @@ void adapter_hs_stream_close(struct adapter_hs_stream *hs_stream)
 
     /* hs_stream->hs_rt point to hs_instance->hs_rt which will call free 
         same as hs_attr */
-    hs_stream->hs_rt = NULL;
+    hs_stream->ref_hs_rt = NULL;
     hs_stream->matched_pat->ref_hs_attr = NULL;
     utarray_free(hs_stream->matched_pat->pattern_ids);
 
@@ -701,9 +701,9 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
 
     int err_scratch_flag = 0;
     if (hs_stream->literal_stream != NULL) {
-        if (hs_stream->hs_rt->literal_scratches != NULL) {
+        if (hs_stream->ref_hs_rt->literal_scratches != NULL) {
             err = hs_scan_stream(hs_stream->literal_stream, data, data_len,
-                                 0, hs_stream->hs_rt->literal_scratches[thread_id],
+                                 0, hs_stream->ref_hs_rt->literal_scratches[thread_id],
                                  matched_event_cb, hs_stream->matched_pat);
             if (err != HS_SUCCESS) {
                 err_count++;
@@ -716,9 +716,9 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
     }
 
     if (hs_stream->regex_stream != NULL) {
-        if (hs_stream->hs_rt->regex_scratches != NULL) {
+        if (hs_stream->ref_hs_rt->regex_scratches != NULL) {
             err = hs_scan_stream(hs_stream->regex_stream, data, data_len,
-                                 0, hs_stream->hs_rt->regex_scratches[thread_id],
+                                 0, hs_stream->ref_hs_rt->regex_scratches[thread_id],
                                  matched_event_cb, hs_stream->matched_pat);
             if (err != HS_SUCCESS) {
                 err_count++;
@@ -762,7 +762,7 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
 
     int ret = 0;
     struct bool_expr_match *bool_matcher_results = ALLOC(struct bool_expr_match, hs_stream->n_expr);
-    int bool_matcher_ret = bool_matcher_match(hs_stream->hs_rt->bm, pattern_ids, n_pattern_id,
+    int bool_matcher_ret = bool_matcher_match(hs_stream->ref_hs_rt->bm, pattern_ids, n_pattern_id,
                                               bool_matcher_results, hs_stream->n_expr);
     if (bool_matcher_ret < 0) {
         ret = -1;

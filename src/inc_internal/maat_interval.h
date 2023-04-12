@@ -37,6 +37,8 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
                             const char *table_name,const char *line, int valid_column);
 int interval_runtime_commit(void *interval_runtime, const char *table_name);
 
+long long interval_runtime_rule_count(void *interval_runtime);
+
 /* interval runtime scan API */
 /**
  * @brief scan intval to get hit group_ids

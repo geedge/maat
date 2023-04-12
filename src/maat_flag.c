@@ -46,7 +46,7 @@ struct flag_runtime {
     struct flag_matcher *matcher;
     struct rcu_hash_table *htable;       //store flag rule for rebuild flag_matcher instance
     struct rcu_hash_table *item_htable;  //store this flag table's all maat_item which will be used in flag_runtime_scan
-    uint32_t rule_num;
+    long long rule_num;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
     int district_num;
@@ -520,6 +520,16 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name)
     }
 
     return ret;
+}
+
+long long flag_runtime_rule_count(void *flag_runtime)
+{
+    if (NULL == flag_runtime) {
+        return 0;
+    }
+    
+    struct flag_runtime *flag_rt = (struct flag_runtime *)flag_runtime;
+    return flag_rt->rule_num;
 }
 
 int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, 

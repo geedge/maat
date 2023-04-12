@@ -73,6 +73,8 @@ struct table_operations {
     int (*update_runtime)(void *runtime, void *schema, const char *table_name,
                           const char *line, int valid_column);
     int (*commit_runtime)(void *runtime, const char *table_name);
+
+    long long (*runtime_rule_count)(void *runtime);
 };
 
 struct table_operations table_ops[TABLE_TYPE_MAX] = {
@@ -83,7 +85,8 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = flag_runtime_new,
         .free_runtime = flag_runtime_free,
         .update_runtime = flag_runtime_update,
-        .commit_runtime = flag_runtime_commit
+        .commit_runtime = flag_runtime_commit,
+        .runtime_rule_count = flag_runtime_rule_count
     },
     {
         .type = TABLE_TYPE_FLAG_PLUS,
@@ -92,7 +95,8 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = flag_runtime_new,
         .free_runtime = flag_runtime_free,
         .update_runtime = flag_runtime_update,
-        .commit_runtime = flag_runtime_commit
+        .commit_runtime = flag_runtime_commit,
+        .runtime_rule_count = flag_runtime_rule_count
     },
     {
         .type = TABLE_TYPE_EXPR,
@@ -101,7 +105,8 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = expr_runtime_new,
         .free_runtime = expr_runtime_free,
         .update_runtime = expr_runtime_update,
-        .commit_runtime = expr_runtime_commit
+        .commit_runtime = expr_runtime_commit,
+        .runtime_rule_count = expr_runtime_rule_count
     },
     {
         .type = TABLE_TYPE_EXPR_PLUS,
@@ -110,7 +115,8 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = expr_runtime_new,
         .free_runtime = expr_runtime_free,
         .update_runtime = expr_runtime_update,
-        .commit_runtime = expr_runtime_commit
+        .commit_runtime = expr_runtime_commit,
+        .runtime_rule_count = expr_runtime_rule_count
     },
     {
         .type = TABLE_TYPE_IP_PLUS,
@@ -119,7 +125,8 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = ip_runtime_new,
         .free_runtime = ip_runtime_free,
         .update_runtime = ip_runtime_update,
-        .commit_runtime = ip_runtime_commit
+        .commit_runtime = ip_runtime_commit,
+        .runtime_rule_count = ip_runtime_rule_count
     },
     {
         .type = TABLE_TYPE_INTERVAL,
@@ -128,7 +135,8 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = interval_runtime_new,
         .free_runtime = interval_runtime_free,
         .update_runtime = interval_runtime_update,
-        .commit_runtime = interval_runtime_commit
+        .commit_runtime = interval_runtime_commit,
+        .runtime_rule_count = interval_runtime_rule_count
     },
     {
         .type = TABLE_TYPE_INTERVAL_PLUS,
@@ -137,7 +145,8 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = interval_runtime_new,
         .free_runtime = interval_runtime_free,
         .update_runtime = interval_runtime_update,
-        .commit_runtime = interval_runtime_commit
+        .commit_runtime = interval_runtime_commit,
+        .runtime_rule_count = interval_runtime_rule_count
     },
     {
         .type = TABLE_TYPE_PLUGIN,
@@ -146,7 +155,8 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = plugin_runtime_new,
         .free_runtime = plugin_runtime_free,
         .update_runtime = plugin_runtime_update,
-        .commit_runtime = plugin_runtime_commit
+        .commit_runtime = plugin_runtime_commit,
+        .runtime_rule_count = plugin_runtime_rule_count
     },
     {
         .type = TABLE_TYPE_IP_PLUGIN,
@@ -155,7 +165,8 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = ip_plugin_runtime_new,
         .free_runtime = ip_plugin_runtime_free,
         .update_runtime = ip_plugin_runtime_update,
-        .commit_runtime = ip_plugin_runtime_commit
+        .commit_runtime = ip_plugin_runtime_commit,
+        .runtime_rule_count = ip_plugin_runtime_rule_count
     },
     {
         .type = TABLE_TYPE_FQDN_PLUGIN,
@@ -164,7 +175,8 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = fqdn_plugin_runtime_new,
         .free_runtime = fqdn_plugin_runtime_free,
         .update_runtime = fqdn_plugin_runtime_update,
-        .commit_runtime = fqdn_plugin_runtime_commit
+        .commit_runtime = fqdn_plugin_runtime_commit,
+        .runtime_rule_count = fqdn_plugin_runtime_rule_count
     },
     {
         .type = TABLE_TYPE_BOOL_PLUGIN,
@@ -173,7 +185,8 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = bool_plugin_runtime_new,
         .free_runtime = bool_plugin_runtime_free,
         .update_runtime = bool_plugin_runtime_update,
-        .commit_runtime = bool_plugin_runtime_commit
+        .commit_runtime = bool_plugin_runtime_commit,
+        .runtime_rule_count = bool_plugin_runtime_rule_count
     },
     {
         .type = TABLE_TYPE_VIRTUAL,
@@ -200,7 +213,8 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = compile_runtime_new,
         .free_runtime = compile_runtime_free,
         .update_runtime = compile_runtime_update,
-        .commit_runtime = compile_runtime_commit
+        .commit_runtime = compile_runtime_commit,
+        .runtime_rule_count = compile_runtime_rule_count
     },
     {
         .type = TABLE_TYPE_GROUP2GROUP,
@@ -209,7 +223,8 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = group2group_runtime_new,
         .free_runtime = group2group_runtime_free,
         .update_runtime = group2group_runtime_update,
-        .commit_runtime = group2group_runtime_commit
+        .commit_runtime = group2group_runtime_commit,
+        .runtime_rule_count = group2group_runtime_rule_count
     },
     {
         .type = TABLE_TYPE_GROUP2COMPILE,
@@ -218,7 +233,8 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .new_runtime = group2compile_runtime_new,
         .free_runtime = group2compile_runtime_free,
         .update_runtime = group2compile_runtime_update,
-        .commit_runtime = NULL
+        .commit_runtime = NULL,
+        .runtime_rule_count = group2compile_runtime_rule_count
     }
 };
 
@@ -831,4 +847,22 @@ void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id)
     if ( table_ops[table_type].commit_runtime != NULL) {
         table_ops[table_type].commit_runtime(runtime, ptable->table_name);;
     }
+}
+
+long long table_manager_runtime_rule_count(struct table_manager *tbl_mgr, int table_id)
+{
+    void *runtime = table_manager_get_runtime(tbl_mgr, table_id);
+    if (NULL == runtime) {
+        return 0;
+    }
+
+    enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
+    if (table_type == TABLE_TYPE_INVALID) {
+        log_error(tbl_mgr->logger, MODULE_TABLE, 
+                  "[%s:%d] table(table_id:%d) table_type is invalid, can't update runtime",
+                  __FUNCTION__, __LINE__, table_id);
+        return 0;
+    }
+
+    return table_ops[table_type].runtime_rule_count(runtime);
 }

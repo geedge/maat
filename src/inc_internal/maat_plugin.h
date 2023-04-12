@@ -60,6 +60,8 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
                           int valid_column);
 int plugin_runtime_commit(void *plugin_runtime, const char *table_name);
 
+long long plugin_runtime_rule_count(void *plugin_runtime);
+
 struct ex_data_runtime *plugin_runtime_get_ex_data_rt(void *plugin_runtime);
 
 size_t plugin_runtime_cached_row_count(void *plugin_runtime);

@@ -322,6 +322,21 @@ int del_command(struct maat *maat_instance, int compile_id)
 {
     return compile_table_set_line(maat_instance, "COMPILE", MAAT_OP_DEL, compile_id, NULL, 1, 0);
 }
+
+static void random_keyword_generate(char *keyword_buf, size_t sz)
+{
+#define MIN_KEYWORD_LEN	4
+	size_t i=0, len=0;
+	len=random()%(sz-1-MIN_KEYWORD_LEN)+MIN_KEYWORD_LEN;
+	for(i=0; i<len; i++)
+	{
+		//keyword_buf[i]='0'+random()%('~' - '0');
+		keyword_buf[i]='a'+random()%('z' - 'a');
+	}
+	keyword_buf[i]='\0';
+	return;
+}
+
 #if 0
 class MaatStreamScan : public testing::Test
 {
@@ -342,7 +357,7 @@ protected:
         maat_free(_shared_maat_instance);
 
         maat_options_set_foreign_cont_dir(opts, "./foreign_files/");
-        maat_options_set_rule_effect_interval_ms(opts, 20 * 1000); //20s for garbage collection
+        maat_options_set_rule_effect_interval_ms(opts, 10 * 1000); //20s for garbage collection
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
     }
@@ -357,11 +372,10 @@ protected:
 struct maat *MaatStreamScan::_shared_maat_instance;
 
 TEST_F(MaatStreamScan, dynamic_config) {
-    const char *scan_data1 = "http://www.cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
-	const char *scan_data2 = "hello world";
+	const char *scan_data1 = "hello world cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
     const char *table_name = "HTTP_URL";
-    const char *keywords1 = "action=search\\&query=(.*)";
-    const char *keywords2 = "hello";
+    const char *keywords1 = "hello";
+    char keyword_buf[128];
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
@@ -389,27 +403,24 @@ TEST_F(MaatStreamScan, dynamic_config) {
 	EXPECT_EQ(results[0], compile1_id);
 	maat_state_reset(state);
 
-    long long compile2_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    ret = test_add_expr_command(maat_instance, table_name, compile2_id, 0, keywords2);
-    EXPECT_EQ(ret, 1);
-
     for (int i = 0; i < 100; i++) {
+        random_keyword_generate(keyword_buf, sizeof(keyword_buf));
+        long long compile_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
+        ret = test_add_expr_command(maat_instance, table_name, compile_id, 0, keyword_buf);
+        EXPECT_EQ(ret, 1);
+
         ret = maat_stream_scan(sp, "www.cyberessays.com", strlen("www.cyberessays.com"),
                                results, ARRAY_SIZE, &n_hit_result, state);
         EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-        ret = maat_stream_scan(sp, scan_data2, strlen(scan_data2), results, ARRAY_SIZE,
+        ret = maat_stream_scan(sp, scan_data1, strlen(scan_data1), results, ARRAY_SIZE,
                                &n_hit_result, state);
         EXPECT_EQ(ret, MAAT_SCAN_HIT);
-        EXPECT_EQ(results[0], compile2_id);
+        EXPECT_EQ(results[0], compile1_id);
         maat_state_reset(state);
         usleep(500 * 1000);
-
-        compile2_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-        ret = test_add_expr_command(maat_instance, table_name, compile2_id, 0, keywords2);
-        EXPECT_EQ(ret, 1);
-        
     }
+
     maat_stream_free(sp);
     maat_state_free(state);
     sp = NULL;

@@ -43,7 +43,7 @@ struct interval_runtime {
     struct interval_matcher *matcher;
     struct rcu_hash_table *htable;       //store interval rule for rebuild interval_matcher instance
     struct rcu_hash_table *item_htable;  //store this interval table's all maat_item which will be used in interval_runtime_scan
-    uint32_t rule_num;
+    long long rule_num;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
     int district_num;
@@ -516,6 +516,16 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name)
     }
 
     return ret;
+}
+
+long long interval_runtime_rule_count(void *interval_runtime)
+{
+    if (NULL == interval_runtime) {
+        return 0;
+    }
+    
+    struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
+    return interval_rt->rule_num;
 }
 
 int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id, 
