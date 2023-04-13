@@ -29,15 +29,15 @@ void *flag_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 void flag_schema_free(void *flag_schema);
 
 /* flag runtime API */
-void *flag_runtime_new(void *flag_schema, int max_thread_num, 
-                       struct maat_garbage_bin *garbage_bin,
+void *flag_runtime_new(void *flag_schema, int max_thread_num,
+                       struct maat_garbage_bin *garbage_bin, 
                        struct log_handle *logger);
 void flag_runtime_free(void *flag_runtime);
 
-int flag_runtime_update(void *flag_runtime, void *flag_schema, 
-                         const char *table_name, const char *line, 
-                         int valid_column);
-int flag_runtime_commit(void *flag_runtime, const char *table_name);
+int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table_name, 
+                        const char *line, int valid_column);
+
+int flag_runtime_commit(void *flag_runtime, const char *table_name, long long maat_rt_version);
 
 long long flag_runtime_rule_count(void *flag_runtime);
 

@@ -85,6 +85,7 @@ struct compile_runtime {
 
 struct group2compile_runtime {
     long long not_flag_group;
+    long long version;
     long long rule_num;
     struct compile_runtime *ref_compile_rt;
     struct group2group_runtime *ref_g2g_rt;
@@ -493,9 +494,9 @@ void compile_item_free(struct compile_item *compile_item)
     FREE(compile_item);
 }
 
-void *compile_runtime_new(void *compile_schema, int max_thread_num, 
-                          struct maat_garbage_bin *garbage_bin,
-						  struct log_handle *logger)
+void *compile_runtime_new(void *compile_schema, int max_thread_num,
+                          struct maat_garbage_bin *garbage_bin, 
+                          struct log_handle *logger)
 {
 	if (NULL == compile_schema) {
         return NULL;
@@ -606,11 +607,16 @@ void compile_runtime_init(void *compile_runtime, struct maat_runtime *maat_rt)
     compile_rt->ref_maat_rt = maat_rt;
 }
 
-void *group2compile_runtime_new(void *g2c_schema, int max_thread_num, 
-                                struct maat_garbage_bin *garbage_bin,
+void *group2compile_runtime_new(void *g2c_schema, int max_thread_num,
+                                struct maat_garbage_bin *garbage_bin, 
                                 struct log_handle *logger)
 {
+    if (NULL == g2c_schema) {
+        return NULL;
+    }
+
     struct group2compile_runtime *g2c_rt = ALLOC(struct group2compile_runtime, 1);
+
     return g2c_rt;
 }
 
@@ -1679,7 +1685,7 @@ long long group2compile_runtime_rule_count(void *g2c_runtime)
     return g2c_rt->rule_num;
 }
 
-int compile_runtime_commit(void *compile_runtime, const char *table_name)
+int compile_runtime_commit(void *compile_runtime, const char *table_name, long long maat_rt_version)
 {
     if (NULL == compile_runtime) {
         return -1;
@@ -1699,10 +1705,6 @@ int compile_runtime_commit(void *compile_runtime, const char *table_name)
         return 0;
     }
     
-    log_info(compile_rt->logger, MODULE_COMPILE,
-             "table[%s] committing %zu compile rules for rebuilding compile bool_matcher engine",
-             table_name, compile_cnt);
-    
     int ret = 0;
     new_bool_matcher = maat_compile_bool_matcher_new(compile_rt);
     if (NULL == new_bool_matcher) {
@@ -1717,6 +1719,10 @@ int compile_runtime_commit(void *compile_runtime, const char *table_name)
     compile_rt->bm = new_bool_matcher;
     compile_rt->updating_flag = 0;
     pthread_rwlock_unlock(&compile_rt->rwlock);
+
+    log_info(compile_rt->logger, MODULE_COMPILE,
+             "table[%s] commit %zu compile rules and rebuild compile bool_matcher completed, version:%lld",
+             table_name, compile_cnt, maat_rt_version);
 
     maat_garbage_bagging(compile_rt->ref_garbage_bin, old_bool_matcher, NULL,
                         garbage_bool_matcher_free);

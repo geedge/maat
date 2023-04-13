@@ -46,6 +46,7 @@ struct maat_stream {
     struct maat *ref_maat_instance;
     struct adapter_hs_stream *s_handle; //each physical table open one stream
     long long last_full_version;
+    long long expr_rt_version;
     struct log_handle *logger;
     int thread_id;
     int vtable_id;
@@ -626,16 +627,16 @@ int generic_plugin_runtime_commit_ex_schema(void *runtime, void *schema, const c
 
     switch (table_type) {
         case TABLE_TYPE_PLUGIN:
-            plugin_runtime_commit(runtime, table_name);
+            plugin_runtime_commit(runtime, table_name, 0);
             break;
         case TABLE_TYPE_IP_PLUGIN:
-            ip_plugin_runtime_commit(runtime, table_name);
+            ip_plugin_runtime_commit(runtime, table_name, 0);
             break;
         case TABLE_TYPE_FQDN_PLUGIN:
-            fqdn_plugin_runtime_commit(runtime, table_name);
+            fqdn_plugin_runtime_commit(runtime, table_name, 0);
             break;
         case TABLE_TYPE_BOOL_PLUGIN:
-            bool_plugin_runtime_commit(runtime, table_name);
+            bool_plugin_runtime_commit(runtime, table_name, 0);
             break;
         default:
             break;
@@ -1472,6 +1473,7 @@ struct maat_stream *maat_stream_new(struct maat *maat_instance, int table_id,
     void *expr_rt = table_manager_get_runtime(stream->ref_maat_instance->tbl_mgr,
                                               stream->physical_table_id);
     assert(expr_rt != NULL);
+    stream->expr_rt_version = expr_runtime_get_version(expr_rt);
 
     struct adapter_hs_stream *handle = expr_runtime_stream_open((struct expr_runtime *)expr_rt, 
                                                                 state->thread_id);
@@ -1500,6 +1502,14 @@ int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data
 
     struct maat *maat_instance = maat_stream->ref_maat_instance;
     if (maat_stream->last_full_version != maat_instance->last_full_version) {
+        return MAAT_SCAN_OK;
+    }
+
+    void *expr_rt = table_manager_get_runtime(maat_instance->tbl_mgr, maat_stream->physical_table_id);
+    assert(expr_rt != NULL);
+
+    long long cur_expr_rt_version = expr_runtime_get_version(expr_rt);
+    if (maat_stream->expr_rt_version != cur_expr_rt_version) {
         return MAAT_SCAN_OK;
     }
 

@@ -40,13 +40,14 @@ struct ex_container_schema *fqdn_plugin_table_get_ex_container_schema(void *fqdn
 
 /* fqdn plugin runtime API */
 void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, int max_thread_num,
-                              struct maat_garbage_bin *garbage_bin,
+                              struct maat_garbage_bin *garbage_bin, 
                               struct log_handle *logger);
 void fqdn_plugin_runtime_free(void *fqdn_plugin_runtime);
 
 int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_schema, 
                                 const char *table_name, const char *line, int valid_column);
-int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name);
+
+int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name, long long maat_rt_version);
 
 long long fqdn_plugin_runtime_rule_count(void *fqdn_plugin_runtime);
 

@@ -43,6 +43,7 @@ struct interval_runtime {
     struct interval_matcher *matcher;
     struct rcu_hash_table *htable;       //store interval rule for rebuild interval_matcher instance
     struct rcu_hash_table *item_htable;  //store this interval table's all maat_item which will be used in interval_runtime_scan
+    long long version;
     long long rule_num;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -160,8 +161,8 @@ void interval_maat_item_free(void *user_ctx, void *data)
     maat_item_free(item);
 }
 
-void *interval_runtime_new(void *interval_schema, int max_thread_num, 
-                           struct maat_garbage_bin *garbage_bin,
+void *interval_runtime_new(void *interval_schema, int max_thread_num,
+                           struct maat_garbage_bin *garbage_bin, 
                            struct log_handle *logger)
 {
     if (NULL == interval_schema) {
@@ -447,7 +448,7 @@ void garbage_interval_matcher_free(void *interval_matcher, void *arg)
     interval_matcher_free(matcher);
 }
 
-int interval_runtime_commit(void *interval_runtime, const char *table_name)
+int interval_runtime_commit(void *interval_runtime, const char *table_name, long long maat_rt_version)
 {
     if (NULL == interval_runtime) {
         return -1;
@@ -480,10 +481,6 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name)
         }
     }
 
-    log_info(interval_rt->logger, MODULE_INTERVAL,
-             "table[%s] committing %zu interval rules for rebuilding interval_matcher engine", 
-             table_name, rule_cnt);
-
     int ret = 0;
     struct interval_matcher *new_interval_matcher = NULL;
     struct interval_matcher *old_interval_matcher = NULL;
@@ -505,8 +502,14 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name)
                             garbage_interval_matcher_free);
     }
     rcu_hash_commit(interval_rt->item_htable);
+
     interval_rt->rule_num = rule_cnt;
+    interval_rt->version = maat_rt_version;
     
+    log_info(interval_rt->logger, MODULE_INTERVAL,
+             "table[%s] commit %zu interval rules and rebuild interval_matcher completed, version:%lld", 
+             table_name, rule_cnt, interval_rt->version);
+
     if (rules != NULL) {
         FREE(rules);
     }

@@ -39,6 +39,7 @@ struct ip_plugin_schema {
 struct ip_plugin_runtime {
 	struct ip_matcher *ip_matcher;
     struct ex_data_runtime *ex_data_rt;
+    long long version;
     long long rule_num;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -346,7 +347,7 @@ int ip_plugin_runtime_update_row(struct ip_plugin_runtime *ip_plugin_rt,
 }
 
 void *ip_plugin_runtime_new(void *ip_plugin_schema, int max_thread_num,
-                            struct maat_garbage_bin *garbage_bin,
+                            struct maat_garbage_bin *garbage_bin, 
                             struct log_handle *logger)
 {
     if (NULL == ip_plugin_schema) {
@@ -439,7 +440,7 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
     return 0;
 }
 
-int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name)
+int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name, long long maat_rt_version)
 {
     if (NULL == ip_plugin_runtime) {
         return -1;
@@ -458,22 +459,17 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name)
 
     ex_data_runtime_commit(ex_data_rt);
 
-    size_t i = 0;
     struct ip_rule *rules = NULL;
     struct ex_container **ex_container = NULL;
     size_t rule_cnt = ex_data_runtime_list_ex_container(ex_data_rt, &ex_container);
     if (rule_cnt > 0) {
         rules = ALLOC(struct ip_rule, rule_cnt);
-        for (i = 0; i < rule_cnt; i++) {
+        for (size_t i = 0; i < rule_cnt; i++) {
             rules[i] = *(struct ip_rule *)ex_container[i]->custom_data;
             assert(rules[i].user_tag == ex_container[i] || rules[i].user_tag == NULL);
             rules[i].user_tag = ex_container[i];
         }
     }
-
-    log_info(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
-             "table[%s] committing %zu ip_plugin rules for rebuilding ip_matcher engine",
-             table_name, rule_cnt);
 
     int ret = 0;
     size_t mem_used = 0;
@@ -484,7 +480,7 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name)
         new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used);
         if (NULL == new_ip_matcher) {
             log_error(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
-                      "[%s:%d] table[%s] rebuild ip_matcher engine failed when update %zu ip_plugin rules",
+                      "[%s:%d] ip_plugin table[%s] rebuild ip_matcher failed when update %zu rules",
                       __FUNCTION__, __LINE__, table_name, rule_cnt);
             ret = -1;
         }
@@ -498,6 +494,13 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name)
     }
     
     ip_plugin_rt->rule_num = rule_cnt;
+    if (maat_rt_version != 0) {
+        ip_plugin_rt->version = maat_rt_version;
+    }
+
+    log_info(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
+             "table[%s] commit %zu ip_plugin rules and rebuild ip_matcher completed, version:%lld", 
+             table_name, rule_cnt, ip_plugin_rt->version);
 
     if (rules != NULL) {
         FREE(rules);

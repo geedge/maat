@@ -47,6 +47,7 @@ struct flag_runtime {
     struct rcu_hash_table *htable;       //store flag rule for rebuild flag_matcher instance
     struct rcu_hash_table *item_htable;  //store this flag table's all maat_item which will be used in flag_runtime_scan
     long long rule_num;
+    long long version;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
     int district_num;
@@ -163,8 +164,8 @@ void flag_maat_item_free(void *user_ctx, void *data)
     maat_item_free(item);
 }
 
-void *flag_runtime_new(void *flag_schema, int max_thread_num, 
-                       struct maat_garbage_bin *garbage_bin,
+void *flag_runtime_new(void *flag_schema, int max_thread_num,
+                       struct maat_garbage_bin *garbage_bin, 
                        struct log_handle *logger)
 {
     if (NULL == flag_schema) {
@@ -376,9 +377,8 @@ void flag_rule_free(struct flag_rule *rule)
     FREE(rule);
 }
 
-int flag_runtime_update(void *flag_runtime, void *flag_schema, 
-                        const char *table_name, const char *line, 
-                        int valid_column)
+int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table_name, 
+                        const char *line, int valid_column)
 {
     if (NULL == flag_runtime || NULL == flag_schema ||
         NULL == line) {
@@ -451,7 +451,7 @@ void garbage_flag_matcher_free(void *flag_matcher, void *arg)
     flag_matcher_free(matcher);
 }
 
-int flag_runtime_commit(void *flag_runtime, const char *table_name)
+int flag_runtime_commit(void *flag_runtime, const char *table_name, long long maat_rt_version)
 {
     if (NULL == flag_runtime) {
         return -1;
@@ -465,7 +465,7 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name)
     }
 
     rcu_hash_commit(flag_rt->htable);
-
+    
     if (flag_rt->tmp_district_map != NULL) {
         struct maat_kv_store *tmp_map = flag_rt->district_map;
         flag_rt->district_map = flag_rt->tmp_district_map;
@@ -483,10 +483,6 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name)
             rules[i] = *(struct flag_rule *)ex_data_array[i];
         }
     }
-
-    log_info(flag_rt->logger, MODULE_FLAG,
-             "table[%s] committing %zu flag rules for rebuilding flag_matcher engine", 
-             table_name, rule_cnt);
 
     int ret = 0;
     struct flag_matcher *new_flag_matcher = NULL;
@@ -509,7 +505,13 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name)
                              garbage_flag_matcher_free);
     }
     rcu_hash_commit(flag_rt->item_htable);
+
     flag_rt->rule_num = rule_cnt;
+    flag_rt->version = maat_rt_version;
+
+    log_info(flag_rt->logger, MODULE_FLAG,
+             "table[%s] commit %zu flag rules and rebuild flag_matcher completed, version:%lld", 
+             table_name, rule_cnt, flag_rt->version);
 
     if (rules != NULL) {
         FREE(rules);

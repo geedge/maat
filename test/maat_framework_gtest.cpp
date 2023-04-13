@@ -337,96 +337,6 @@ static void random_keyword_generate(char *keyword_buf, size_t sz)
 	return;
 }
 
-#if 0
-class MaatStreamScan : public testing::Test
-{
-protected:
-    static void SetUpTestCase() {
-        char redis_ip[64] = "127.0.0.1";
-        int redis_port = 6379;
-        int redis_db = 0;
-
-        struct maat_options *opts = maat_options_new();
-        maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
-
-        _shared_maat_instance = maat_new(opts, table_info_path);
-        assert(_shared_maat_instance != NULL);
-       
-        maat_cmd_flushDB(_shared_maat_instance);
-        maat_free(_shared_maat_instance);
-
-        maat_options_set_foreign_cont_dir(opts, "./foreign_files/");
-        maat_options_set_rule_effect_interval_ms(opts, 10 * 1000); //20s for garbage collection
-        _shared_maat_instance = maat_new(opts, table_info_path);
-        maat_options_free(opts);
-    }
-
-    static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
-    } 
-
-    static struct maat *_shared_maat_instance;
-};
-
-struct maat *MaatStreamScan::_shared_maat_instance;
-
-TEST_F(MaatStreamScan, dynamic_config) {
-	const char *scan_data1 = "hello world cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
-    const char *table_name = "HTTP_URL";
-    const char *keywords1 = "hello";
-    char keyword_buf[128];
-    long long results[ARRAY_SIZE] = {0};
-    size_t n_hit_result = 0;
-    int thread_id = 0;
-    struct maat *maat_instance = MaatStreamScan::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
-
-    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = test_add_expr_command(maat_instance, table_name, compile1_id, 0, keywords1);
-    EXPECT_EQ(ret, 1);
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
-
-    int table_id = maat_get_table_id(maat_instance, table_name);
-	ASSERT_GT(table_id, 0);
-
-	struct maat_stream *sp = maat_stream_new(maat_instance, table_id, state);
-	ASSERT_TRUE(sp != NULL);
-
-	ret = maat_stream_scan(sp, "www.cyberessays.com", strlen("www.cyberessays.com"),
-                                results, ARRAY_SIZE, &n_hit_result, state);
-	EXPECT_EQ(ret, MAAT_SCAN_OK);
-
-	ret = maat_stream_scan(sp, scan_data1, strlen(scan_data1), results, ARRAY_SIZE,
-                            &n_hit_result, state);
-	EXPECT_EQ(ret, MAAT_SCAN_HIT);
-	EXPECT_EQ(results[0], compile1_id);
-	maat_state_reset(state);
-
-    for (int i = 0; i < 100; i++) {
-        random_keyword_generate(keyword_buf, sizeof(keyword_buf));
-        long long compile_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-        ret = test_add_expr_command(maat_instance, table_name, compile_id, 0, keyword_buf);
-        EXPECT_EQ(ret, 1);
-
-        ret = maat_stream_scan(sp, "www.cyberessays.com", strlen("www.cyberessays.com"),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-        EXPECT_EQ(ret, MAAT_SCAN_OK);
-
-        ret = maat_stream_scan(sp, scan_data1, strlen(scan_data1), results, ARRAY_SIZE,
-                               &n_hit_result, state);
-        EXPECT_EQ(ret, MAAT_SCAN_HIT);
-        EXPECT_EQ(results[0], compile1_id);
-        maat_state_reset(state);
-        usleep(500 * 1000);
-    }
-
-    maat_stream_free(sp);
-    maat_state_free(state);
-    sp = NULL;
-    state = NULL;
-}
-#endif
 #if 1
 class MaatFlagScan : public testing::Test
 {
@@ -1368,6 +1278,100 @@ TEST_F(MaatStringScan, dynamic_config) {
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     EXPECT_EQ(n_hit_result, 0);
     maat_state_free(state);
+    state = NULL;
+}
+
+class MaatStreamScan : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        char redis_ip[64] = "127.0.0.1";
+        int redis_port = 6379;
+        int redis_db = 0;
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
+
+        _shared_maat_instance = maat_new(opts, table_info_path);
+        assert(_shared_maat_instance != NULL);
+       
+        maat_cmd_flushDB(_shared_maat_instance);
+        maat_free(_shared_maat_instance);
+
+        maat_options_set_foreign_cont_dir(opts, "./foreign_files/");
+        maat_options_set_rule_effect_interval_ms(opts, 0); 
+        maat_options_set_gc_timeout_ms(opts, 0); // start GC immediately
+        _shared_maat_instance = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_instance);
+    } 
+
+    static struct maat *_shared_maat_instance;
+};
+
+struct maat *MaatStreamScan::_shared_maat_instance;
+
+TEST_F(MaatStreamScan, dynamic_config) {
+	const char *scan_data1 = "hello world cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
+    const char *table_name = "HTTP_URL";
+    const char *keywords1 = "hello";
+    char keyword_buf[128];
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_instance = MaatStreamScan::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+    // STEP 1: add keywords1 and wait scan stream to hit
+    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
+    int ret = test_add_expr_command(maat_instance, table_name, compile1_id, 0, keywords1);
+    EXPECT_EQ(ret, 1);
+
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+
+    int table_id = maat_get_table_id(maat_instance, table_name);
+	ASSERT_GT(table_id, 0);
+
+	struct maat_stream *sp = maat_stream_new(maat_instance, table_id, state);
+	ASSERT_TRUE(sp != NULL);
+
+	ret = maat_stream_scan(sp, "www.cyberessays.com", strlen("www.cyberessays.com"),
+                                results, ARRAY_SIZE, &n_hit_result, state);
+	EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+	ret = maat_stream_scan(sp, scan_data1, strlen(scan_data1), results, ARRAY_SIZE,
+                            &n_hit_result, state);
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+	EXPECT_EQ(results[0], compile1_id);
+    maat_state_reset(state);
+
+    // STEP 2: Inc config update, use same stream to scan and wait old expr_runtime invalid 
+    random_keyword_generate(keyword_buf, sizeof(keyword_buf));
+    long long compile_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
+    ret = test_add_expr_command(maat_instance, table_name, compile_id, 0, keyword_buf);
+    EXPECT_EQ(ret, 1);
+
+    // Inc config has not yet taken effect, stream scan can hit compile
+    ret = maat_stream_scan(sp, scan_data1, strlen(scan_data1), results, ARRAY_SIZE,
+                           &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(results[0], compile1_id);
+    maat_state_reset(state);
+
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+
+    // Inc config has taken effect, stream reference old expr_runtime, should not hit compile
+    ret = maat_stream_scan(sp, scan_data1, strlen(scan_data1), results, ARRAY_SIZE,
+                           &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_stream_free(sp);
+    maat_state_free(state);
+    sp = NULL;
     state = NULL;
 }
 

@@ -69,6 +69,7 @@ struct ip_runtime {
     struct interval_matcher *intval_matcher;
     struct rcu_hash_table *htable; //store ip rule for rebuild ip_matcher instance
     struct rcu_hash_table *item_htable;  //store this ip table's all maat_item which will be used in ip_runtime_scan
+    long long version;
     long long rule_num;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -374,10 +375,14 @@ void ip_maat_item_free(void *user_ctx, void *data)
     maat_item_free(item);
 }
 
-void *ip_runtime_new(void *ip_schema, int max_thread_num, 
-                     struct maat_garbage_bin *garbage_bin,
+void *ip_runtime_new(void *ip_schema, int max_thread_num,
+                     struct maat_garbage_bin *garbage_bin, 
                      struct log_handle *logger)
 {
+    if (NULL == ip_schema) {
+        return NULL;
+    }
+
     struct ip_runtime *ip_rt = ALLOC(struct ip_runtime, 1);
 
     ip_rt->htable = rcu_hash_new(ip_ex_data_free, NULL);
@@ -540,7 +545,7 @@ void garbage_ip_matcher_free(void *ip_matcher, void *arg)
     ip_matcher_free(matcher);
 }
 
-int ip_runtime_commit(void *ip_runtime, const char *table_name)
+int ip_runtime_commit(void *ip_runtime, const char *table_name, long long maat_rt_version)
 {
     if (NULL == ip_runtime) {
         return -1;
@@ -568,10 +573,6 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name)
             ip_item_to_port_rule(item, &intval_rules[i]);
         }
     }
-
-    log_info(ip_rt->logger, MODULE_IP,
-             "table[%s] committing %zu ip rules for rebuilding ip_matcher engine",
-             table_name, rule_cnt);
 
     int ret = 0;
     size_t mem_used = 0;
@@ -613,8 +614,14 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name)
     }
 
     rcu_hash_commit(ip_rt->item_htable);
+
     ip_rt->rule_num = rule_cnt;
+    ip_rt->version = maat_rt_version;
     
+    log_info(ip_rt->logger, MODULE_IP,
+             "table[%s] commit %zu ip rules and rebuild ip_matcher completed, version:%lld", 
+             table_name, rule_cnt, ip_rt->version);
+
     if (rules != NULL) {
         FREE(rules);
     }

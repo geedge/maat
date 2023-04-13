@@ -31,6 +31,7 @@ struct plugin_callback_schema {
 struct plugin_runtime {
     long long acc_line_num;
     struct ex_data_runtime *ex_data_rt;
+    long long version;
     long long rule_num;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -262,8 +263,8 @@ struct ex_container_schema *plugin_table_get_ex_container_schema(void *plugin_sc
     return &(schema->container_schema);
 }
 
-void *plugin_runtime_new(void *plugin_schema, int max_thread_num, 
-                         struct maat_garbage_bin *garbage_bin,
+void *plugin_runtime_new(void *plugin_schema, int max_thread_num,
+                         struct maat_garbage_bin *garbage_bin, 
                          struct log_handle *logger)
 {
     if (NULL == plugin_schema) {
@@ -272,6 +273,7 @@ void *plugin_runtime_new(void *plugin_schema, int max_thread_num,
 
     struct plugin_schema *schema = (struct plugin_schema *)plugin_schema;
     struct plugin_runtime *plugin_rt = ALLOC(struct plugin_runtime, 1);
+    
     plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, logger);
     if (1 == schema->container_schema.set_flag) {
         ex_data_runtime_set_ex_container_schema(plugin_rt->ex_data_rt, &(schema->container_schema));
@@ -427,7 +429,7 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
     return 0;
 }
 
-int plugin_runtime_commit(void *plugin_runtime, const char *table_name)
+int plugin_runtime_commit(void *plugin_runtime, const char *table_name, long long maat_rt_version)
 {
     if (NULL == plugin_runtime) {
         return -1;
@@ -445,8 +447,16 @@ int plugin_runtime_commit(void *plugin_runtime, const char *table_name)
     }
 
     ex_data_runtime_commit(ex_data_rt);
-    plugin_rt->rule_num = ex_data_runtime_ex_container_count(ex_data_rt);
     
+    plugin_rt->rule_num = ex_data_runtime_ex_container_count(ex_data_rt);
+    if (maat_rt_version != 0) {
+        plugin_rt->version = maat_rt_version;
+    }
+    
+    log_info(plugin_rt->logger, MODULE_PLUGIN,
+             "table[%s] commit %zu plugin rules, version:%lld", 
+             table_name, plugin_rt->rule_num, plugin_rt->version);
+
     return 0;
 }
 

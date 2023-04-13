@@ -51,6 +51,7 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
                      struct maat_garbage_bin *garbage_bin, struct log_handle *logger);
 int table_manager_runtime_create(struct table_manager *tbl_mgr, int max_thread_num,
                                  struct maat_garbage_bin *garbage_bin);
+
 void table_manager_runtime_destroy(struct table_manager *tbl_mgr);
 void table_manager_destroy(struct table_manager *tbl_mgr);
 
@@ -72,7 +73,9 @@ void *table_manager_get_updating_runtime(struct table_manager *tbl_mgr, int tabl
 
 int table_manager_update_runtime(struct table_manager *tbl_mgr, const char *table_name, 
                                  int table_id, const char *line, int update_type);
-void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id, int update_type);
+
+void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id, 
+                                  int update_type, long long maat_rt_version);
 
 long long table_manager_runtime_rule_count(struct table_manager *tbl_mgr, int table_id);
 

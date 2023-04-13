@@ -59,6 +59,7 @@ struct maat_group_topology {
 
 struct group2group_runtime {
     struct maat_group_topology *group_topo;
+    long long version;
 	long long rule_num;
 
     pthread_rwlock_t rwlock;
@@ -135,10 +136,14 @@ struct maat_group_topology *maat_group_topology_new(struct log_handle *logger)
     return group_topo;
 }
 
-void *group2group_runtime_new(void *g2g_schema, int max_thread_num, 
-                              struct maat_garbage_bin *garbage_bin,
-						      struct log_handle *logger)
+void *group2group_runtime_new(void *g2g_schema, int max_thread_num,
+                              struct maat_garbage_bin *garbage_bin, 
+                              struct log_handle *logger)
 {
+    if (NULL == g2g_schema) {
+        return NULL;
+    }
+
 	struct group2group_runtime *g2g_rt = ALLOC(struct group2group_runtime, 1);
 
 	g2g_rt->group_topo = maat_group_topology_new(logger);
@@ -489,7 +494,7 @@ static size_t effective_vertices_count(igraph_vector_t *vids)
 	return i;
 }
 
-int group2group_runtime_build_top_groups(void *g2g_runtime)
+int group2group_runtime_build_top_groups(void *g2g_runtime, long long maat_rt_version)
 {
     if (NULL == g2g_runtime) {
         return -1;
@@ -572,6 +577,8 @@ int group2group_runtime_build_top_groups(void *g2g_runtime)
 		FREE(temp_group_ids);
 	}	
 	igraph_vector_destroy(&group_topo->dfs_vids);
+    g2g_rt->version = maat_rt_version;
+
     pthread_rwlock_unlock(&(g2g_rt->rwlock));
 
 	return 0;
@@ -604,30 +611,40 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
         //delete
         ret = group2group_runtime_remove_group_from_group(g2g_runtime, g2g_item->group_id, 
                                                           g2g_item->super_group_id);
+        if (0 == ret) {
+            g2g_rt->rule_num--;
+        }
     } else {
         //add
         ret = group2group_runtime_add_group_to_group(g2g_runtime, g2g_item->group_id, 
                                                      g2g_item->super_group_id);
+        if (0 == ret) {
+            g2g_rt->rule_num++;
+        }
     }
     group2group_item_free(g2g_item);
 
     return ret;
 }
 
-int group2group_runtime_commit(void *g2g_runtime, const char *table_name)
+int group2group_runtime_commit(void *g2g_runtime, const char *table_name, long long maat_rt_version)
 {
     if (NULL == g2g_runtime) {
 		return -1;
 	}
 
     struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
-    int ret = group2group_runtime_build_top_groups(g2g_runtime);
+    int ret = group2group_runtime_build_top_groups(g2g_runtime, maat_rt_version);
     if (ret < 0) {
         log_error(g2g_rt->logger, MODULE_GROUP, 
                   "[%s:%d] table[%s] group2group runtime commit failed", 
                   __FUNCTION__, __LINE__, table_name);
         return -1;
     }
+
+    log_info(g2g_rt->logger, MODULE_GROUP,
+             "table[%s] commit %zu g2g rules and rebuild top_groups completed, version:%lld",
+             table_name, g2g_rt->rule_num, g2g_rt->version);
 
     return 0;
 }

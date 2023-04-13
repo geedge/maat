@@ -34,6 +34,7 @@ struct bool_plugin_schema {
 struct bool_plugin_runtime {
     struct bool_matcher *matcher;
     struct ex_data_runtime *ex_data_rt;
+    long long version;
     long long rule_num;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -169,7 +170,7 @@ size_t ull_dedup(unsigned long long item_ids[], size_t n_item)
 }
 
 void *bool_plugin_runtime_new(void *bool_plugin_schema, int max_thread_num,
-                              struct maat_garbage_bin *garbage_bin,
+                              struct maat_garbage_bin *garbage_bin, 
                               struct log_handle *logger)
 {
     if (NULL == bool_plugin_schema) {
@@ -405,7 +406,7 @@ void garbage_bool_matcher_free(void *matcher, void *arg)
     bool_matcher_free(bm);
 }
 
-int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name)
+int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name, long long maat_rt_version)
 {
     if (NULL == bool_plugin_runtime) {
         return -1;
@@ -436,10 +437,6 @@ int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name
         }
     }
 
-    log_info(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
-             "table[%s] committing %zu bool_plugin rules for rebuilding bool_matcher engine", 
-             table_name, rule_cnt);
-
     int ret = 0;
     size_t mem_used = 0;
     struct bool_matcher *new_bool_matcher = NULL;
@@ -463,6 +460,13 @@ int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name
     }
 
     bool_plugin_rt->rule_num = rule_cnt;
+    if (maat_rt_version != 0) {
+        bool_plugin_rt->version = maat_rt_version;
+    }
+
+    log_info(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
+             "table[%s] commit %zu bool_plugin rules and rebuild bool_matcher completed, version:%lld", 
+             table_name, rule_cnt, bool_plugin_rt->version);
 
     if (rules != NULL) {
         FREE(rules);

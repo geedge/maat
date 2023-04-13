@@ -38,13 +38,14 @@ struct ex_container_schema *bool_plugin_table_get_ex_container_schema(void *bool
 
 /* ip plugin runtime API */
 void *bool_plugin_runtime_new(void *bool_plugin_schema, int max_thread_num,
-                              struct maat_garbage_bin *garbage_bin,
+                              struct maat_garbage_bin *garbage_bin, 
                               struct log_handle *logger);
 void bool_plugin_runtime_free(void *bool_plugin_runtime);
 
 int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_schema, 
                                 const char *table_name, const char *line, int valid_column);
-int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name);
+
+int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name, long long maat_rt_version);
 
 long long bool_plugin_runtime_rule_count(void *bool_plugin_runtime);
 

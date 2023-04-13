@@ -28,14 +28,15 @@ void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 void interval_schema_free(void *interval_schema);
 
 /* interval runtime API */
-void *interval_runtime_new(void *interval_schema, int max_thread_num, 
-                           struct maat_garbage_bin *garbage_bin,
+void *interval_runtime_new(void *interval_schema, int max_thread_num,
+                           struct maat_garbage_bin *garbage_bin, 
                            struct log_handle *logger);
 void interval_runtime_free(void *interval_runtime);
 
-int interval_runtime_update(void *interval_runtime, void *interval_schema, 
-                            const char *table_name,const char *line, int valid_column);
-int interval_runtime_commit(void *interval_runtime, const char *table_name);
+int interval_runtime_update(void *interval_runtime, void *interval_schema, const char *table_name,
+                            const char *line, int valid_column);
+
+int interval_runtime_commit(void *interval_runtime, const char *table_name, long long maat_rt_version);
 
 long long interval_runtime_rule_count(void *interval_runtime);
 

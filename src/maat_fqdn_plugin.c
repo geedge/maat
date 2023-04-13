@@ -35,9 +35,8 @@ struct fqdn_plugin_schema {
 struct fqdn_plugin_runtime {
     struct FQDN_engine *engine;
     struct ex_data_runtime *ex_data_rt;
-
-    uint32_t rule_num;
-
+    long long version;
+    long long rule_num;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
 };
@@ -164,7 +163,7 @@ void fqdn_rule_free(struct FQDN_rule *fqdn_rule)
 }
 
 void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, int max_thread_num,
-                              struct maat_garbage_bin *garbage_bin,
+                              struct maat_garbage_bin *garbage_bin, 
                               struct log_handle *logger)
 {
     if (NULL == fqdn_plugin_schema) {
@@ -403,7 +402,7 @@ void garbage_fqdn_engine_free(void *fqdn_engine, void *arg)
     FQDN_engine_free(engine);
 }
 
-int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name)
+int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name, long long maat_rt_version)
 {
      if (NULL == fqdn_plugin_runtime) {
         return -1;
@@ -434,10 +433,6 @@ int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name
         }
     }
 
-    log_info(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
-             "table[%s] committing %zu fqdn_plugin rules for rebuilding FQDN engine", 
-             table_name, rule_cnt);
-
     int ret = 0;
     struct FQDN_engine *new_fqdn_engine = NULL;
     struct FQDN_engine *old_fqdn_engine = NULL;
@@ -458,8 +453,15 @@ int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name
         maat_garbage_bagging(fqdn_plugin_rt->ref_garbage_bin, old_fqdn_engine, NULL,
                              garbage_fqdn_engine_free);
     }
-    
+
     fqdn_plugin_rt->rule_num = rule_cnt;
+    if (maat_rt_version != 0) {
+        fqdn_plugin_rt->version = maat_rt_version;
+    }
+
+    log_info(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
+             "table[%s] commit %zu fqdn_plugin rules and rebuild FQDN engine completed, version:%lld", 
+             table_name, rule_cnt, fqdn_plugin_rt->version);
 
     if (rules != NULL) {
         FREE(rules);

@@ -39,13 +39,14 @@ struct ex_container_schema *ip_plugin_table_get_ex_container_schema(void *ip_plu
 
 /* ip plugin runtime API */
 void *ip_plugin_runtime_new(void *ip_plugin_schema, int max_thread_num,
-                            struct maat_garbage_bin *garbage_bin,
+                            struct maat_garbage_bin *garbage_bin, 
                             struct log_handle *logger);
 void ip_plugin_runtime_free(void *ip_plugin_runtime);
 
 int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema, 
                              const char *table_name, const char *line, int valid_column);
-int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name);
+
+int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name, long long maat_rt_version);
 
 long long ip_plugin_runtime_rule_count(void *ip_plugin_runtime);
 

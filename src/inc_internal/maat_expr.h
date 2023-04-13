@@ -28,16 +28,18 @@ void expr_schema_free(void *expr_schema);
 
 /* expr runtime API */
 void *expr_runtime_new(void *expr_schema, int max_thread_num, 
-                       struct maat_garbage_bin *garbage_bin,
+                       struct maat_garbage_bin *garbage_bin, 
                        struct log_handle *logger);
 void expr_runtime_free(void *expr_runtime);
 
-int expr_runtime_update(void *expr_runtime, void *expr_schema, 
-                         const char *table_name, const char *line, 
-                         int valid_column);
-int expr_runtime_commit(void *expr_runtime, const char *table_name);
+int expr_runtime_update(void *expr_runtime, void *expr_schema, const char *table_name, 
+                        const char *line, int valid_column);
+
+int expr_runtime_commit(void *expr_runtime, const char *table_name, long long maat_rt_version);
 
 long long expr_runtime_rule_count(void *expr_runtime);
+
+long long expr_runtime_get_version(void *expr_runtime);
 
 /* expr runtime scan API */
 /**

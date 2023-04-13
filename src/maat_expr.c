@@ -71,6 +71,7 @@ struct expr_runtime {
     struct rcu_hash_table *htable;      // store hs_expr rule for rebuild adapter_hs instance
     struct rcu_hash_table *item_htable; // store this expr table's all maat_item which will be used in expr_runtime_scan
 
+    long long version;  //expr_rt version
     long long rule_num;
     int n_worker_thread;
     struct maat_garbage_bin *ref_garbage_bin;
@@ -446,7 +447,7 @@ void expr_maat_item_free(void *user_ctx, void *data)
 }
 
 void *expr_runtime_new(void *expr_schema, int max_thread_num, 
-                       struct maat_garbage_bin *garbage_bin,
+                       struct maat_garbage_bin *garbage_bin, 
                        struct log_handle *logger)
 {
     if (NULL == expr_schema) {
@@ -803,7 +804,7 @@ void garbage_adapter_hs_free(void *adapter_hs, void *arg)
     adapter_hs_free(hs);
 }
 
-int expr_runtime_commit(void *expr_runtime, const char *table_name)
+int expr_runtime_commit(void *expr_runtime, const char *table_name, long long maat_rt_version)
 {
     if (NULL == expr_runtime) {
         return -1;
@@ -837,10 +838,6 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name)
         }
     }
 
-    log_info(expr_rt->logger, MODULE_EXPR,
-             "table[%s] committing %zu expr rules for rebuilding adapter_hs engine", 
-             table_name, rule_cnt);
-
     int ret = 0;
     struct adapter_hs *new_adapter_hs = NULL;
     struct adapter_hs *old_adapter_hs = NULL;
@@ -861,7 +858,13 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name)
         maat_garbage_bagging(expr_rt->ref_garbage_bin, old_adapter_hs, NULL, garbage_adapter_hs_free);
     }
     rcu_hash_commit(expr_rt->item_htable);
+
     expr_rt->rule_num = rule_cnt;
+    expr_rt->version = maat_rt_version;
+
+    log_info(expr_rt->logger, MODULE_EXPR,
+             "table[%s] commit %zu expr rules and rebuild adapter_hs completed, version:%lld", 
+             table_name, rule_cnt, expr_rt->version);
 
     if (rules != NULL) {
         FREE(rules);
@@ -882,6 +885,16 @@ long long expr_runtime_rule_count(void *expr_runtime)
     
     struct expr_runtime *expr_rt = (struct expr_runtime *)expr_runtime;
     return expr_rt->rule_num;
+}
+
+long long expr_runtime_get_version(void *expr_runtime)
+{
+    if (NULL == expr_runtime) {
+        return -1;
+    }
+
+    struct expr_runtime *expr_rt = (struct expr_runtime *)expr_runtime;
+    return expr_rt->version;
 }
 
 int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *data, 

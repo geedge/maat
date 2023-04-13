@@ -257,10 +257,10 @@ struct maat_runtime* maat_runtime_create(long long version, struct maat *maat_in
 }
 
 void maat_runtime_commit(struct maat_runtime *maat_rt, int update_type, 
-                         struct log_handle *logger)
+                         long long maat_rt_version, struct log_handle *logger)
 {
 	for (size_t i = 0; i < maat_rt->max_table_num; i++) {
-		table_manager_commit_runtime(maat_rt->ref_tbl_mgr, i, update_type);
+		table_manager_commit_runtime(maat_rt->ref_tbl_mgr, i, update_type, maat_rt_version);
 	}
 
     maat_rt->last_update_time = time(NULL);
@@ -429,7 +429,8 @@ void maat_finish_cb(void *u_param)
     maat_plugin_table_all_callback_finish(maat_instance->tbl_mgr);
 
     if (maat_instance->creating_maat_rt != NULL) {
-        maat_runtime_commit(maat_instance->creating_maat_rt, MAAT_UPDATE_TYPE_FULL, maat_instance->logger);
+        maat_runtime_commit(maat_instance->creating_maat_rt, MAAT_UPDATE_TYPE_FULL, 
+                            maat_instance->creating_maat_rt->version, maat_instance->logger);
         maat_instance->creating_maat_rt->rule_num = maat_runtime_rule_num(maat_instance->creating_maat_rt);
         log_info(maat_instance->logger, MODULE_MAAT_RULE, 
                  "Full config version %llu load %d entries complete", 
@@ -437,7 +438,8 @@ void maat_finish_cb(void *u_param)
                  maat_instance->creating_maat_rt->rule_num);
     } else if (maat_instance->maat_rt != NULL) {
         maat_instance->maat_rt->version = maat_instance->maat_version;
-        maat_runtime_commit(maat_instance->maat_rt, MAAT_UPDATE_TYPE_INC, maat_instance->logger);
+        maat_runtime_commit(maat_instance->maat_rt, MAAT_UPDATE_TYPE_INC,
+                            maat_instance->maat_rt->version, maat_instance->logger);
         maat_instance->maat_rt->rule_num = maat_runtime_rule_num(maat_instance->maat_rt);
         log_info(maat_instance->logger, MODULE_MAAT_RULE, 
                  "Inc config version %llu load %d entries complete", 
@@ -445,7 +447,8 @@ void maat_finish_cb(void *u_param)
                  maat_instance->maat_rt->rule_num);
     } else {
         log_info(maat_instance->logger, MODULE_MAAT_RULE,
-                 "Version %d has no valid rules, plugin callback complete.", maat_instance->maat_version);
+                 "Version %d has no valid rules, plugin callback complete.", 
+                 maat_instance->maat_version);
     }
 
     maat_instance->new_version = INVALID_VERSION;
@@ -557,7 +560,8 @@ void *rule_monitor_loop(void *arg)
                 time_t time_window = time(NULL) - maat_instance->maat_rt->last_update_time;
                 
                 if (time_window >= maat_instance->rule_effect_interval_ms / 1000) {
-                    maat_runtime_commit(maat_instance->maat_rt, MAAT_UPDATE_TYPE_INC, maat_instance->logger);
+                    maat_runtime_commit(maat_instance->maat_rt, MAAT_UPDATE_TYPE_INC, 
+                                        maat_instance->maat_rt->version, maat_instance->logger);
                     log_info(maat_instance->logger, MODULE_MAAT_RULE,
 							 "Actual update config version %u, %d entries load to maat runtime.",
 							 maat_instance->maat_rt->version, maat_instance->maat_rt->rule_num);
