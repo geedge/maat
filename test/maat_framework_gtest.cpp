@@ -337,7 +337,6 @@ static void random_keyword_generate(char *keyword_buf, size_t sz)
 	return;
 }
 
-#if 1
 class MaatFlagScan : public testing::Test
 {
 protected:
@@ -5555,7 +5554,7 @@ TEST_F(MaatRollbackTest, FullConfigRollback) {
     maat_state_free(state);
     state = NULL;
 }
-#endif
+
 int main(int argc, char ** argv)
 {
 	int ret=0;

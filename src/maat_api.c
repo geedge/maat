@@ -1507,7 +1507,7 @@ int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data
 
     void *expr_rt = table_manager_get_runtime(maat_instance->tbl_mgr, maat_stream->physical_table_id);
     assert(expr_rt != NULL);
-
+    
     long long cur_expr_rt_version = expr_runtime_get_version(expr_rt);
     if (maat_stream->expr_rt_version != cur_expr_rt_version) {
         return MAAT_SCAN_OK;

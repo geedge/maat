@@ -441,6 +441,11 @@ void maat_table_free(struct maat_table *maat_tbl)
         maat_tbl->runtime = NULL;
     }
 
+    if (maat_tbl->updating_runtime != NULL) {
+        maat_table_runtime_free(maat_tbl->updating_runtime, maat_tbl->table_type);
+        maat_tbl->updating_runtime = NULL;
+    }
+    
     FREE(maat_tbl);
 }
 
@@ -877,6 +882,7 @@ void table_commit_updating_runtime(struct table_manager *tbl_mgr, int table_id,
 
     void *runtime = table_manager_get_runtime(tbl_mgr, table_id);
     tbl_mgr->tbl[table_id]->runtime = updating_rt;
+    
     if (runtime != NULL) {
         enum table_type *arg = ALLOC(enum table_type, 1);
         *arg = table_type;
@@ -902,7 +908,7 @@ void table_commit_runtime(struct table_manager *tbl_mgr, int table_id,
                   __FUNCTION__, __LINE__, table_id);
         return;
     }
-
+   
     struct maat_table *ptable = tbl_mgr->tbl[table_id];
     if (table_ops[table_type].commit_runtime != NULL) {
         table_ops[table_type].commit_runtime(runtime, ptable->table_name, maat_rt_version);

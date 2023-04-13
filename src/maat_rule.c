@@ -292,12 +292,7 @@ void maat_runtime_destroy(struct maat_runtime *maat_rt)
     if (NULL == maat_rt) {
         return;
     }
-
-    if (maat_rt->ref_tbl_mgr != NULL) {
-        table_manager_runtime_destroy(maat_rt->ref_tbl_mgr);
-        maat_rt->ref_tbl_mgr = NULL;
-    }
-
+    
     if (maat_rt->sequence_map != NULL) {
         maat_kv_store_free(maat_rt->sequence_map);
         maat_rt->sequence_map = NULL;

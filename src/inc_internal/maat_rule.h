@@ -97,7 +97,7 @@ struct maat_runtime {
     struct table_manager *ref_tbl_mgr; //share with maat instance
     size_t max_table_num;
     
-    uint32_t rule_num;
+    long long rule_num;
     struct maat_kv_store *sequence_map;
 
     struct maat_garbage_bin *ref_garbage_bin;

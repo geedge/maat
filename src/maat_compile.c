@@ -31,10 +31,10 @@ struct compile_schema {
     int compile_id_column;
     int rule_tag_column;
     int declared_clause_num_column;
-	struct ex_data_schema ex_schema;
-    int set_flag;
     int table_id; //ugly
     char table_name[NAME_MAX];
+    int set_flag;
+    struct ex_data_schema ex_schema;
     struct table_manager *ref_tbl_mgr;
     struct log_handle *logger;
 
