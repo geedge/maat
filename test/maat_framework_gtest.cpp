@@ -336,7 +336,75 @@ static void random_keyword_generate(char *keyword_buf, size_t sz)
 	keyword_buf[i]='\0';
 	return;
 }
+#if 0
+class MaatIris : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+     
 
+        logger = log_handle_create("./maat_framework_gtest.log", 0);        
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_iris(opts, "./redis_dump", "./redis_dump");
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_accept_tags(opts, accept_tags);
+
+        const char *table_info_path = "./tsg_static_tableinfo.json";
+        _shared_maat_instance = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+        if (NULL == _shared_maat_instance) {
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
+                      "[%s:%d] create maat instance in MaatIris failed.",
+                      __FUNCTION__, __LINE__);
+        }
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_instance);
+        log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_instance;
+};
+
+struct maat *MaatIris::_shared_maat_instance;
+struct log_handle *MaatIris::logger;
+
+TEST_F(MaatIris, basic) {
+     const char *app_id_table_name = "TSG_OBJ_APP_ID";
+     const char *ip_table_name = "TSG_SECURITY_SOURCE_ADDR";
+    struct maat *maat_instance = MaatIris::_shared_maat_instance;
+    struct log_handle *logger = MaatIris::logger;
+
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+    int table_id = maat_get_table_id(maat_instance, app_id_table_name);
+    int ret = maat_scan_integer(maat_instance, table_id, 32, results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    
+    uint32_t ip_addr;
+    inet_pton(AF_INET, "192.168.64.25", &ip_addr);
+    uint16_t port = htons(100);
+
+    table_id = maat_get_table_id(maat_instance, ip_table_name);
+    ASSERT_GT(table_id, 0);
+    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6,
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 1054275);
+
+    maat_state_free(state);
+}
+#endif
+
+#if 1
 class MaatFlagScan : public testing::Test
 {
 protected:
@@ -5554,7 +5622,7 @@ TEST_F(MaatRollbackTest, FullConfigRollback) {
     maat_state_free(state);
     state = NULL;
 }
-
+#endif
 int main(int argc, char ** argv)
 {
 	int ret=0;
