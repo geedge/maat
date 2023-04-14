@@ -75,10 +75,11 @@ struct maat_item {
 struct compile_rule {
 	long long magic_num;
     long long compile_id;
+    char table_name[NAME_MAX];
     char *table_line;
     size_t table_line_len;
 	int declared_clause_num;
-	struct compile_schema *ref_table;
+	struct compile_schema *ref_schema;
 	void **ex_data;
 };
 
@@ -272,7 +273,7 @@ void *rule_monitor_loop(void *arg);
 
 long long maat_runtime_get_sequence(struct maat_runtime *maat_rt, const char *key);
 
-int maat_read_full_config(struct maat *maat_instance);
+void maat_read_full_config(struct maat *maat_instance);
 
 /* maat command API for internal */
 redisContext *maat_cmd_connect_redis(const char *redis_ip, int redis_port,

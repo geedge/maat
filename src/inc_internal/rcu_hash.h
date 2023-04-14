@@ -50,12 +50,16 @@ int rcu_hash_del(struct rcu_hash_table *htable, const char *key, size_t key_len)
 */
 void *rcu_hash_find(struct rcu_hash_table *htable, const char *key, size_t key_len);
 
+void *rcu_updating_hash_find(struct rcu_hash_table *htable, const char *key, size_t key_len);
+
 /**
  * @brief list all effective nodes
  * 
  * @retval the number of effective nodes
 */
 size_t rcu_hash_list(struct rcu_hash_table *htable, void ***data_array);
+
+size_t rcu_updating_hash_list(struct rcu_hash_table *htable, void ***data_array);
 
 size_t rcu_hash_count(struct rcu_hash_table *htable);
 

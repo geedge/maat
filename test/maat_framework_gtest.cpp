@@ -4437,7 +4437,7 @@ TEST_F(MaatCmdTest, UpdateIPPlugin) {
         EXPECT_GT(ret, 0);
     }
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     int ex_data_counter = 0;
 	ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,

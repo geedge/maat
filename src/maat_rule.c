@@ -470,12 +470,7 @@ void *rule_monitor_loop(void *arg)
     if (maat_instance->deferred_load != 0) {
         log_info(maat_instance->logger, MODULE_MAAT_RULE, 
                  "Deferred Loading ON, updating in %s:%d", __FUNCTION__, __LINE__);
-        ret = maat_read_full_config(maat_instance);
-        if (ret < 0) {
-            log_error(maat_instance->logger, MODULE_MAAT_RULE,
-                      "[%s:%d] maat read full config failed",
-                      __FUNCTION__, __LINE__);
-        }
+        maat_read_full_config(maat_instance);
     }
     pthread_mutex_unlock(&(maat_instance->background_update_mutex));
 

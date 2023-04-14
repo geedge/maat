@@ -110,6 +110,7 @@ TEST(EXDataRuntime, Update) {
     ex_data_free_cb(table_id, (void **)&res_data2, 0, NULL);
 
     ex_data_runtime_free(ex_data_rt);
+    FREE(container_schema);
 }
 
 int main(int argc, char ** argv)

@@ -218,7 +218,7 @@ int maat_options_set_logger(struct maat_options *opts, const char *log_path, enu
     return 0;
 }
 
-int maat_read_full_config(struct maat *maat_instance)
+void maat_read_full_config(struct maat *maat_instance)
 {
     int ret = -1;
     char err_str[NAME_MAX] = {0};
@@ -245,7 +245,6 @@ int maat_read_full_config(struct maat *maat_instance)
                           "[%s:%d] At initiation: NO effective rule in redis %s:%hu db%d",
                           __FUNCTION__, __LINE__, mr_ctx->redis_ip, mr_ctx->redis_port, 
                           mr_ctx->redis_db);
-                return -1;
             }
             break;
         case DATA_SOURCE_IRIS_FILE:
@@ -257,7 +256,6 @@ int maat_read_full_config(struct maat *maat_instance)
                 log_error(maat_instance->logger, MODULE_MAAT_API, 
                           "[%s:%d] At initiation: NO effective rule in %s",
                           __FUNCTION__, __LINE__, maat_instance->iris_ctx.full_idx_dir);
-                return -1;
             }
             break;
         case DATA_SOURCE_JSON_FILE:
@@ -278,7 +276,6 @@ int maat_read_full_config(struct maat *maat_instance)
                 log_error(maat_instance->logger, MODULE_MAAT_API, 
                           "[%s:%d] At initiation: NO effective rule in %s",
                           __FUNCTION__, __LINE__, maat_instance->json_ctx.iris_file);
-                return -1;
             }
             break;
         default:
@@ -292,8 +289,6 @@ int maat_read_full_config(struct maat *maat_instance)
         maat_instance->maat_version = maat_instance->maat_rt->version;
         maat_instance->last_full_version = maat_instance->maat_rt->version;
     }
-
-    return 0;
 }
 
 struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
@@ -384,11 +379,7 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     maat_instance->g2g_table_id = table_manager_get_group2group_table_id(maat_instance->tbl_mgr);
 
     if (0 == maat_instance->deferred_load) {
-        int ret = maat_read_full_config(maat_instance);
-        if (ret < 0) {
-            log_error(maat_instance->logger, MODULE_MAAT_API, 
-                      "[%s:%d] maat read full config failed", __FUNCTION__, __LINE__);
-        }
+        maat_read_full_config(maat_instance);
     }
 
     pthread_create(&(maat_instance->cfg_mon_thread), NULL, rule_monitor_loop, (void *)maat_instance);

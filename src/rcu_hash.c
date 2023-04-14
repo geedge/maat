@@ -247,6 +247,28 @@ void *rcu_hash_find(struct rcu_hash_table *htable, const char *key, size_t key_l
     return NULL;
 }
 
+void *rcu_updating_hash_find(struct rcu_hash_table *htable, const char *key, size_t key_len)
+{
+     if (NULL == htable || NULL == key || 0 == key_len) {
+        return NULL;
+    }
+
+    struct rcu_hash_node *node = NULL;
+    if (htable->effective_hash == 'a') {
+        HASH_FIND(hh_b, htable->hashmap_b, key, key_len, node);
+        if (node != NULL) {
+            return node->data;
+        }
+    } else {
+        HASH_FIND(hh_a, htable->hashmap_a, key, key_len, node);
+        if (node != NULL) {
+            return node->data;
+        }
+    }
+
+    return NULL;
+}
+
 size_t rcu_hash_count(struct rcu_hash_table *htable)
 {
     if (NULL == htable) {
@@ -329,4 +351,33 @@ size_t rcu_hash_list(struct rcu_hash_table *htable, void ***data_array)
     }
 
 	return node_cnt;
+}
+
+size_t rcu_updating_hash_list(struct rcu_hash_table *htable, void ***data_array)
+{
+    if (NULL == htable || NULL == data_array) {
+        return 0;
+    }
+    
+    size_t i = 0;
+    size_t node_cnt = 0;
+	struct rcu_hash_node *node = NULL, *tmp = NULL;
+	
+    if (htable->effective_hash == 'a') {
+        node_cnt = HASH_CNT(hh_b, htable->hashmap_b);
+        *data_array = ALLOC(void *, node_cnt);
+        HASH_ITER(hh_b, htable->hashmap_b, node, tmp) {
+            (*data_array)[i] = node->data;
+            i++;
+        }
+    } else {
+        node_cnt = HASH_CNT(hh_a, htable->hashmap_a);
+        *data_array = ALLOC(void *, node_cnt);
+        HASH_ITER(hh_a, htable->hashmap_a, node, tmp) {
+            (*data_array)[i] = node->data;
+            i++;
+        }
+    }
+
+    return node_cnt;
 }
