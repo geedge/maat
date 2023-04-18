@@ -548,8 +548,6 @@ int ip_plugin_runtime_get_ex_data(void *ip_plugin_runtime, const struct ip_addr 
     }
 
     struct scan_result results[n_ex_data];
-	memset(results, 0, sizeof(results));
-
     struct ip_data ip_data = *(const struct ip_data *)ip_addr;
 	if (ip_data.type == IPv4) {
 		ip_data.ipv4 = ntohl(ip_data.ipv4);

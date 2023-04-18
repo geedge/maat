@@ -749,7 +749,6 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
     }
 
     unsigned long long pattern_ids[MAX_SCANNER_HIT_PATTERN_NUM];
-    memset(pattern_ids, 0, sizeof(unsigned long long) * MAX_SCANNER_HIT_PATTERN_NUM);
 
     for (size_t i = 0; i < n_pattern_id; i++) {
         if (i >= MAX_SCANNER_HIT_PATTERN_NUM) {

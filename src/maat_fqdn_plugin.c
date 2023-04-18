@@ -510,7 +510,6 @@ int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, const char *query
     }
 
     struct FQDN_match results[n_ex_data];
-	memset(results, 0, sizeof(results));
 
     assert(fqdn_plugin_rt->engine != NULL);
 	int n_result = FQDN_engine_search(fqdn_plugin_rt->engine, query_fqdn, strlen(query_fqdn), results, n_ex_data);

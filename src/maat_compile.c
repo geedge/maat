@@ -1924,7 +1924,6 @@ int maat_compile_state_update(struct rcu_hash_table *item_htable, int vtable_id,
 {
     struct maat_item *item = NULL;
     long long hit_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
-    memset(hit_group_ids, -1, sizeof(hit_group_ids));
     size_t hit_group_cnt = 0;
 
     for (size_t i = 0; i < hit_item_cnt; i++) {
@@ -1970,7 +1969,6 @@ int maat_compile_state_update(struct rcu_hash_table *item_htable, int vtable_id,
     }
 
     long long top_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
-    memset(top_group_ids, -1, sizeof(top_group_ids));
     int top_group_cnt = group2group_runtime_get_top_groups(g2g_rt, hit_group_ids,
                                                            hit_group_cnt,
                                                            top_group_ids);

@@ -540,7 +540,6 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
     }
 
     struct interval_result hit_results[MAX_SCANNER_HIT_ITEM_NUM];
-    memset(hit_results, 0, sizeof(hit_results));
     
     int n_hit_item = interval_matcher_match(interval_rt->matcher, integer, 
                                             hit_results, MAX_SCANNER_HIT_ITEM_NUM);
@@ -559,8 +558,6 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
     struct maat_item_inner *item = NULL;
     int real_hit_item_cnt = 0;
     long long district_id = state->district_id;
-
-    memset(hit_item_ids, -1, sizeof(hit_item_ids));
 
     for (int i = 0; i < n_hit_item; i++) {
         item = (struct maat_item_inner *)(hit_results[i].user_tag);

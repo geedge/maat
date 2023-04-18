@@ -514,7 +514,6 @@ int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, unsigned long lon
     }
 
     struct bool_expr_match results[n_ex_data];
-	memset(results, 0, sizeof(results));
 
     n_item = ull_dedup(item_ids, n_item);
     assert(bool_plugin_rt->matcher != NULL);
