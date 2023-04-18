@@ -265,7 +265,6 @@ void maat_read_full_config(struct maat *maat_instance)
                 log_error(maat_instance->logger, MODULE_MAAT_API, 
                           "[%s:%d] Maat re-initiate with JSON file %s failed: %s", 
                           __FUNCTION__, __LINE__, maat_instance->json_ctx.json_file, err_str);
-                return -1;
             }
             
             config_monitor_traverse(maat_instance->maat_version,

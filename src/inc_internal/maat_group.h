@@ -23,6 +23,7 @@ extern "C"
 #include "maat_table.h"
 
 struct maat_group;
+struct group2group_runtime;
 
 /* group2group schema API */
 void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
@@ -35,8 +36,8 @@ void *group2group_runtime_new(void *g2g_schema, int max_thread_num,
                               struct log_handle *logger);
 void group2group_runtime_free(void *g2g_runtime);
 
-void maat_group_ref_inc(struct maat_group *group);
-void maat_group_ref_dec(struct maat_group *group);
+void maat_group_ref_inc(struct group2group_runtime *g2g_rt, struct maat_group *group);
+void maat_group_ref_dec(struct group2group_runtime *g2g_rt, struct maat_group *group);
 
 struct maat_group *group2group_runtime_add_group(void *g2g_runtime, long long group_id);
 void group2group_runtime_remove_group(void *g2g_runtime, struct maat_group *group);

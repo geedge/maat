@@ -50,7 +50,7 @@ struct rcu_hash_node {
     struct rcu_hash_table *htable;
 
     UT_hash_handle hh_a;
-    UT_hash_handle hh_b;   
+    UT_hash_handle hh_b;
 };
 
 void rcu_hash_garbage_queue_free(struct rcu_hash_garbage_q *garbage_q)

@@ -1777,7 +1777,7 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
             if (g2c_item->not_flag) {
                 g2c_rt->not_flag_group--;
             }
-            maat_group_ref_dec(group);
+            maat_group_ref_dec(g2g_rt, group);
             g2c_rt->rule_num--;
         }
     } else {
@@ -1792,7 +1792,7 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
             if (g2c_item->not_flag) {
                 g2c_rt->not_flag_group++;
             }
-            maat_group_ref_inc(group);
+            maat_group_ref_inc(g2g_rt, group);
             g2c_rt->rule_num++;
         }
     }

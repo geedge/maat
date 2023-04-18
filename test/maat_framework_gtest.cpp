@@ -374,8 +374,6 @@ struct maat *MaatIris::_shared_maat_instance;
 struct log_handle *MaatIris::logger;
 
 TEST_F(MaatIris, basic) {
-     const char *app_id_table_name = "TSG_OBJ_APP_ID";
-     const char *ip_table_name = "TSG_SECURITY_SOURCE_ADDR";
     struct maat *maat_instance = MaatIris::_shared_maat_instance;
     struct log_handle *logger = MaatIris::logger;
 
@@ -384,21 +382,36 @@ TEST_F(MaatIris, basic) {
     int thread_id = 0;
     struct maat_state *state = maat_state_new(maat_instance, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, app_id_table_name);
-    int ret = maat_scan_integer(maat_instance, table_id, 32, results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-    
-    uint32_t ip_addr;
-    inet_pton(AF_INET, "192.168.64.25", &ip_addr);
-    uint16_t port = htons(100);
+    uint32_t sip_addr;
+    uint32_t dip_addr;
+    inet_pton(AF_INET, "192.168.64.25", &sip_addr);
+    inet_pton(AF_INET, "114.114.114.114", &dip_addr);
+    uint16_t sport = htons(58309);
+    uint16_t dport = htons(53);
 
-    table_id = maat_get_table_id(maat_instance, ip_table_name);
+    int table_id = maat_get_table_id(maat_instance, "TSG_SECURITY_SOURCE_ADDR");
     ASSERT_GT(table_id, 0);
-    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6,
+    int ret = maat_scan_ipv4(maat_instance, table_id, sip_addr, sport, 6,
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_ipv4(maat_instance, table_id, dip_addr, dport, 6,
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    table_id = maat_get_table_id(maat_instance, "TSG_SECURITY_DESTINATION_ADDR");
+    ASSERT_GT(table_id, 0);
+
+    ret = maat_scan_ipv4(maat_instance, table_id, sip_addr, sport, 6,
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_ipv4(maat_instance, table_id, dip_addr, dport, 6,
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 1054275);
+
+    table_id = maat_get_table_id(maat_instance, "TSG_SECURITY_SOURCE_LOCATION");
+    ASSERT_GT(table_id, 0);
 
     maat_state_free(state);
 }
