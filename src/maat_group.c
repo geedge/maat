@@ -61,7 +61,7 @@ struct group2group_runtime {
     struct maat_group_topology *group_topo;
     long long version;
 	long long rule_num;
-
+    long long update_err_cnt;
     int updating_flag;
     pthread_rwlock_t rwlock;
     struct maat_garbage_bin *ref_garbage_bin;
@@ -137,7 +137,7 @@ struct maat_group_topology *maat_group_topology_new(struct log_handle *logger)
     return group_topo;
 }
 
-void *group2group_runtime_new(void *g2g_schema, int max_thread_num,
+void *group2group_runtime_new(void *g2g_schema, size_t max_thread_num,
                               struct maat_garbage_bin *garbage_bin, 
                               struct log_handle *logger)
 {
@@ -609,12 +609,14 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
 	struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
+        g2g_rt->update_err_cnt++;
         return -1;
     }
 
     struct group2group_item *g2g_item = group2group_item_new(line, schema, table_name, 
                                                              g2g_rt->logger);
     if (NULL == g2g_item) {
+        g2g_rt->update_err_cnt++;
         return -1;
     }
     
@@ -624,6 +626,8 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
                                                           g2g_item->super_group_id);
         if (0 == ret) {
             g2g_rt->rule_num--;
+        } else {
+            g2g_rt->update_err_cnt++;
         }
     } else {
         //add
@@ -631,6 +635,8 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
                                                      g2g_item->super_group_id);
         if (0 == ret) {
             g2g_rt->rule_num++;
+        } else {
+            g2g_rt->update_err_cnt++;
         }
     }
     group2group_item_free(g2g_item);
@@ -672,6 +678,16 @@ long long group2group_runtime_rule_count(void *g2g_runtime)
     
     struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
     return g2g_rt->rule_num;
+}
+
+long long group2group_runtime_update_err_count(void *g2g_runtime)
+{
+    if (NULL == g2g_runtime) {
+        return 0;
+    }
+    
+    struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
+    return g2g_rt->update_err_cnt;
 }
 
 int group2group_runtime_get_top_groups(void *g2g_runtime, long long *group_ids, 

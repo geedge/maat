@@ -50,7 +50,7 @@ int plugin_table_set_ex_container_schema(void *plugin_schema, int table_id,
 struct ex_container_schema *plugin_table_get_ex_container_schema(void *plugin_schema);
 
 /* plugin runtime API */
-void *plugin_runtime_new(void *plugin_schema, int max_thread_num,
+void *plugin_runtime_new(void *plugin_schema, size_t max_thread_num,
                          struct maat_garbage_bin *garbage_bin, 
                          struct log_handle *logger);
 void plugin_runtime_free(void *plugin_runtime);
@@ -61,6 +61,8 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema, const char 
 int plugin_runtime_commit(void *plugin_runtime, const char *table_name, long long maat_rt_version);
 
 long long plugin_runtime_rule_count(void *plugin_runtime);
+
+long long plugin_runtime_update_err_count(void *plugin_runtime);
 
 struct ex_data_runtime *plugin_runtime_get_ex_data_rt(void *plugin_runtime);
 

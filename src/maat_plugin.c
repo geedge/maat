@@ -33,6 +33,7 @@ struct plugin_runtime {
     struct ex_data_runtime *ex_data_rt;
     long long version;
     long long rule_num;
+    long long update_err_cnt;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
 };
@@ -56,9 +57,6 @@ struct plugin_schema {
     int table_id; //ugly
     struct table_manager *ref_tbl_mgr;
     struct log_handle *logger;
-
-    unsigned long long update_err_cnt;
-    unsigned long long unmatch_tag_cnt;
 };
 
 static int read_integer_array(char *string, int *array, int size)
@@ -263,7 +261,7 @@ struct ex_container_schema *plugin_table_get_ex_container_schema(void *plugin_sc
     return &(schema->container_schema);
 }
 
-void *plugin_runtime_new(void *plugin_schema, int max_thread_num,
+void *plugin_runtime_new(void *plugin_schema, size_t max_thread_num,
                          struct maat_garbage_bin *garbage_bin, 
                          struct log_handle *logger)
 {
@@ -357,7 +355,6 @@ int plugin_accept_tag_match(struct plugin_schema *schema, const char *table_name
             log_error(logger, MODULE_PLUGIN,
                       "[%s:%d] plugin table:%s has no rule_tag, line:%s",
                       __FUNCTION__, __LINE__, table_name, line);
-            schema->update_err_cnt++;
             return TAG_MATCH_ERR;
         }
 
@@ -370,12 +367,10 @@ int plugin_accept_tag_match(struct plugin_schema *schema, const char *table_name
                 log_error(logger, MODULE_PLUGIN,
                           "[%s:%d] plugin table:%s has invalid tag format, line:%s",
                           __FUNCTION__, __LINE__, table_name, line);
-                schema->update_err_cnt++;
                 return TAG_MATCH_ERR;
             }
 
             if (TAG_MATCH_UNMATCHED == ret) {
-                schema->unmatch_tag_cnt++;
                 return TAG_MATCH_UNMATCHED;
             }
         }
@@ -397,17 +392,20 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
     struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
+        plugin_rt->update_err_cnt++;
         return -1;
     }
 
     int ret = plugin_accept_tag_match(schema, table_name, line, plugin_rt->logger);
     if (ret == TAG_MATCH_UNMATCHED) {
+        plugin_rt->update_err_cnt++;
         return -1;
     }
 
     size_t key_offset = 0, key_len = 0;
     ret = get_column_pos(line, schema->key_column, &key_offset, &key_len);
     if (ret < 0) {
+        plugin_rt->update_err_cnt++;
         return -1;
     }
 
@@ -422,7 +420,7 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
     ret = plugin_runtime_update_row(plugin_rt, schema, table_name, line, 
                                     key, key_len, is_valid);
     if (ret < 0) {
-        schema->update_err_cnt++;
+        plugin_rt->update_err_cnt++;
         return -1;
     }
 
@@ -468,6 +466,16 @@ long long plugin_runtime_rule_count(void *plugin_runtime)
     
     struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
     return plugin_rt->rule_num;
+}
+
+long long plugin_runtime_update_err_count(void *plugin_runtime)
+{
+    if (NULL == plugin_runtime) {
+        return 0;
+    }
+    
+    struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
+    return plugin_rt->update_err_cnt;
 }
 
 struct ex_data_runtime *plugin_runtime_get_ex_data_rt(void *plugin_runtime)

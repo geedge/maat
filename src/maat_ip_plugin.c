@@ -10,6 +10,7 @@
 
 #include <assert.h>
 
+#include "alignment.h"
 #include "log/log.h"
 #include "maat_utils.h"
 #include "maat_ip_plugin.h"
@@ -41,8 +42,13 @@ struct ip_plugin_runtime {
     struct ex_data_runtime *ex_data_rt;
     long long version;
     long long rule_num;
+    long long update_err_cnt;
+    size_t n_worker_thread;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
+
+    long long *scan_cnt;
+    long long *scan_cpu_time;
 };
 
 void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
@@ -346,7 +352,7 @@ int ip_plugin_runtime_update_row(struct ip_plugin_runtime *ip_plugin_rt,
     return 0;
 }
 
-void *ip_plugin_runtime_new(void *ip_plugin_schema, int max_thread_num,
+void *ip_plugin_runtime_new(void *ip_plugin_schema, size_t max_thread_num,
                             struct maat_garbage_bin *garbage_bin, 
                             struct log_handle *logger)
 {
@@ -362,8 +368,11 @@ void *ip_plugin_runtime_new(void *ip_plugin_schema, int max_thread_num,
         ex_data_runtime_set_ex_container_schema(ip_plugin_rt->ex_data_rt, &(schema->container_schema));
     }
 
+    ip_plugin_rt->n_worker_thread = max_thread_num;
     ip_plugin_rt->ref_garbage_bin = garbage_bin;
     ip_plugin_rt->logger = logger;
+
+    ip_plugin_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
 
     return ip_plugin_rt;
 }
@@ -385,6 +394,16 @@ void ip_plugin_runtime_free(void *ip_plugin_runtime)
         ip_plugin_rt->ex_data_rt = NULL;
     }
 
+    if (ip_plugin_rt->scan_cnt != NULL) {
+        alignment_int64_array_free(ip_plugin_rt->scan_cnt);
+        ip_plugin_rt->scan_cnt = NULL;
+    }
+
+    if (ip_plugin_rt->scan_cpu_time != NULL) {
+        alignment_int64_array_free(ip_plugin_rt->scan_cpu_time);
+        ip_plugin_rt->scan_cpu_time = NULL;
+    }
+
     FREE(ip_plugin_rt);
 }
 
@@ -404,11 +423,13 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
 
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
+        ip_plugin_rt->update_err_cnt++;
         return -1;
     }
 
     int ret = get_column_pos(line, schema->item_id_column, &item_id_offset, &item_id_len);
     if (ret < 0) {
+        ip_plugin_rt->update_err_cnt++;
         return -1;
     }
 
@@ -417,6 +438,7 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
             // add
             ip_plugin_rule = ip_plugin_rule_new(line, schema, table_name, ip_plugin_rt->logger);
             if (NULL == ip_plugin_rule) {
+                ip_plugin_rt->update_err_cnt++;
                 return -1;
             }
         }
@@ -429,6 +451,7 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
             if (ip_plugin_rule != NULL) {
                 ip_plugin_rule_free(ip_plugin_rule);
             }
+            ip_plugin_rt->update_err_cnt++;
             return -1;
         }
     } else {
@@ -562,4 +585,62 @@ int ip_plugin_runtime_get_ex_data(void *ip_plugin_runtime, const struct ip_addr 
                                                                     (struct ex_container *)results[i].tag);
 	}
 	return n_result;
+}
+
+void ip_plugin_runtime_perf_stat(void *ip_plugin_runtime, struct timespec *start, 
+                                 struct timespec *end, int thread_id)
+{
+    if (NULL == ip_plugin_runtime || thread_id < 0) {
+        return;
+    }
+
+    struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
+    alignment_int64_array_add(ip_plugin_rt->scan_cnt, thread_id, 1);
+
+    if (start != NULL && end != NULL) {
+        if (NULL == ip_plugin_rt->scan_cpu_time) {
+            ip_plugin_rt->scan_cpu_time = alignment_int64_array_alloc(ip_plugin_rt->n_worker_thread);
+        }
+
+        long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 + (end->tv_nsec - start->tv_nsec);
+        alignment_int64_array_add(ip_plugin_rt->scan_cpu_time, thread_id, consume_time);
+    }
+}
+
+long long ip_plugin_runtime_scan_count(void *ip_plugin_runtime)
+{
+    if (NULL == ip_plugin_runtime) {
+        return 0;
+    }
+
+    struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
+    long long sum = alignment_int64_array_sum(ip_plugin_rt->scan_cnt, 
+                                              ip_plugin_rt->n_worker_thread);
+    alignment_int64_array_reset(ip_plugin_rt->scan_cnt, ip_plugin_rt->n_worker_thread);
+
+    return sum;
+}
+
+long long ip_plugin_runtime_scan_cpu_time(void *ip_plugin_runtime)
+{
+    if (NULL == ip_plugin_runtime) {
+        return 0;
+    }
+
+    struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
+    long long sum = alignment_int64_array_sum(ip_plugin_rt->scan_cpu_time, 
+                                              ip_plugin_rt->n_worker_thread);
+    alignment_int64_array_reset(ip_plugin_rt->scan_cpu_time, ip_plugin_rt->n_worker_thread);
+
+    return sum;
+}
+
+long long ip_plugin_runtime_update_err_count(void *ip_plugin_runtime)
+{
+    if (NULL == ip_plugin_runtime) {
+        return 0;
+    }
+
+    struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
+    return ip_plugin_rt->update_err_cnt;
 }

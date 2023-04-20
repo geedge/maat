@@ -48,13 +48,16 @@ struct flag_runtime {
     struct rcu_hash_table *item_htable;  //store this flag table's all maat_item which will be used in flag_runtime_scan
     long long rule_num;
     long long version;
+    size_t n_worker_thread;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
     int district_num;
     struct maat_kv_store *district_map;
     struct maat_kv_store *tmp_district_map;
 
+    long long update_err_cnt;
     long long *scan_cnt;
+    long long *scan_cpu_time;
     long long *hit_cnt;
 };
 
@@ -164,7 +167,7 @@ void flag_maat_item_free(void *user_ctx, void *data)
     maat_item_free(item);
 }
 
-void *flag_runtime_new(void *flag_schema, int max_thread_num,
+void *flag_runtime_new(void *flag_schema, size_t max_thread_num,
                        struct maat_garbage_bin *garbage_bin, 
                        struct log_handle *logger)
 {
@@ -176,6 +179,7 @@ void *flag_runtime_new(void *flag_schema, int max_thread_num,
 
     flag_rt->htable = rcu_hash_new(flag_ex_data_free, NULL);
     flag_rt->item_htable = rcu_hash_new(flag_maat_item_free, NULL);
+    flag_rt->n_worker_thread = max_thread_num;
     flag_rt->ref_garbage_bin = garbage_bin;
     flag_rt->logger = logger;
     flag_rt->district_map = maat_kv_store_new();
@@ -223,6 +227,11 @@ void flag_runtime_free(void *flag_runtime)
     if (flag_rt->scan_cnt != NULL) {
         alignment_int64_array_free(flag_rt->scan_cnt);
         flag_rt->scan_cnt = NULL;
+    }
+
+    if (flag_rt->scan_cpu_time != NULL) {
+        alignment_int64_array_free(flag_rt->scan_cpu_time);
+        flag_rt->scan_cpu_time = NULL;
     }
 
     FREE(flag_rt);
@@ -399,6 +408,7 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table
 
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
+        flag_rt->update_err_cnt++;
         return -1;
     } else if (0 == is_valid) {
         //delete
@@ -407,6 +417,7 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table
         //add
         struct flag_item *flag_item = flag_item_new(line, schema, flag_rt);
         if (NULL == flag_item) {
+            flag_rt->update_err_cnt++;
             return -1;
         }
 
@@ -419,6 +430,7 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table
                       __FUNCTION__, __LINE__, table_name, item_id);
             flag_item_free(flag_item);
             maat_item_free(item);
+            flag_rt->update_err_cnt++;
             return -1;
         }
 
@@ -428,6 +440,7 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table
             log_error(flag_rt->logger, MODULE_FLAG, 
                       "[%s:%d] [table:%s] transform flag_item(item_id:%lld) to flag_rule failed",
                       __FUNCTION__, __LINE__, table_name, item_id);
+            flag_rt->update_err_cnt++;
             return -1;
         }
     }
@@ -439,6 +452,7 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table
             flag_rule_free(flag_rule);
             flag_rule = NULL;
         }
+        flag_rt->update_err_cnt++;
         return -1;
     }
 
@@ -579,12 +593,83 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
     return group_hit_cnt;
 }
 
-void flag_runtime_scan_hit_inc(struct flag_runtime *flag_rt, int thread_id)
+void flag_runtime_hit_inc(struct flag_runtime *flag_rt, int thread_id)
 {
+    if (NULL == flag_rt || thread_id < 0) {
+        return;
+    }
+
     alignment_int64_array_add(flag_rt->hit_cnt, thread_id, 1);
 }
 
-long long flag_runtime_scan_hit_sum(struct flag_runtime *flag_rt, int n_thread)
+void flag_runtime_perf_stat(struct flag_runtime *flag_rt, struct timespec *start,
+                            struct timespec *end, int thread_id)
 {
-    return alignment_int64_array_sum(flag_rt->hit_cnt, n_thread);
+    if (NULL == flag_rt || thread_id < 0) {
+        return;
+    }
+
+    alignment_int64_array_add(flag_rt->scan_cnt, thread_id, 1);
+
+    if (start != NULL && end != NULL) {
+        if (NULL == flag_rt->scan_cpu_time) {
+            flag_rt->scan_cpu_time = alignment_int64_array_alloc(flag_rt->n_worker_thread);
+        }
+
+        long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 + 
+                                 (end->tv_nsec - start->tv_nsec);
+        alignment_int64_array_add(flag_rt->scan_cpu_time, thread_id, consume_time);
+    }
 }
+
+long long flag_runtime_scan_count(void *flag_runtime)
+{
+    if (NULL == flag_runtime) {
+        return 0;
+    }
+
+    struct flag_runtime *flag_rt = (struct flag_runtime *)flag_runtime;
+    long long sum = alignment_int64_array_sum(flag_rt->scan_cnt, 
+                                              flag_rt->n_worker_thread);
+    alignment_int64_array_reset(flag_rt->scan_cnt, flag_rt->n_worker_thread);
+
+    return sum;
+}
+
+long long flag_runtime_scan_cpu_time(void *flag_runtime)
+{
+    if (NULL == flag_runtime) {
+        return 0;
+    }
+
+    struct flag_runtime *flag_rt = (struct flag_runtime *)flag_runtime;
+    long long sum = alignment_int64_array_sum(flag_rt->scan_cpu_time, 
+                                              flag_rt->n_worker_thread);
+    alignment_int64_array_reset(flag_rt->scan_cpu_time, flag_rt->n_worker_thread);
+
+    return sum;
+}
+
+long long flag_runtime_hit_count(void *flag_runtime)
+{
+    if (NULL == flag_runtime) {
+        return 0;
+    }
+
+    struct flag_runtime *flag_rt = (struct flag_runtime *)flag_runtime;
+    long long sum = alignment_int64_array_sum(flag_rt->hit_cnt, 
+                                              flag_rt->n_worker_thread);
+    alignment_int64_array_reset(flag_rt->hit_cnt, flag_rt->n_worker_thread);
+
+    return sum;
+}
+
+long long flag_runtime_update_err_count(void *flag_runtime)
+{
+    if (NULL == flag_runtime) {
+        return 0;
+    }
+
+    struct flag_runtime *flag_rt = (struct flag_runtime *)flag_runtime;
+    return flag_rt->update_err_cnt;
+}  

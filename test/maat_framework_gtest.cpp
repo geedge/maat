@@ -417,7 +417,6 @@ TEST_F(MaatIris, basic) {
 }
 #endif
 
-#if 1
 class MaatFlagScan : public testing::Test
 {
 protected:
@@ -436,6 +435,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
@@ -678,6 +678,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
@@ -685,7 +686,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in MaatStringScan failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -1382,6 +1383,7 @@ protected:
         maat_options_set_foreign_cont_dir(opts, "./foreign_files/");
         maat_options_set_rule_effect_interval_ms(opts, 0); 
         maat_options_set_gc_timeout_ms(opts, 0); // start GC immediately
+        maat_options_set_stat_file(opts, "./stat.log");
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
     }
@@ -1473,6 +1475,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
@@ -1480,7 +1483,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in MaatIPScan failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -1710,7 +1713,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in MaatIntervalScan failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -1801,7 +1804,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in NOTLogic failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -2093,7 +2096,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in PluginTable failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -2249,7 +2252,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in IPPluginTable failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -2390,7 +2393,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in FQDNPluginTable failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -2558,7 +2561,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in BoolPluginTable failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -2648,7 +2651,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in VirtualTable failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -2709,7 +2712,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in CompileTable failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -2883,7 +2886,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in Policy failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -3132,7 +3135,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in TableInfo failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -3296,7 +3299,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in HierarchyTest failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -4477,7 +4480,7 @@ TEST_F(MaatCmdTest, PluginEXData) {
 	ret = maat_cmd_set_line(maat_instance, &line_rule);
 	EXPECT_GT(ret, 0);
 	
-	sleep(WAIT_FOR_EFFECTIVE_S);
+	sleep(WAIT_FOR_EFFECTIVE_S * 2);
     const char *key2 = "192.168.0.2";
 	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(maat_instance, 
                                                               table_id, key2);
@@ -5484,7 +5487,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in MaatRollbackTest failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -5635,7 +5638,7 @@ TEST_F(MaatRollbackTest, FullConfigRollback) {
     maat_state_free(state);
     state = NULL;
 }
-#endif
+
 int main(int argc, char ** argv)
 {
 	int ret=0;

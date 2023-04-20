@@ -26,11 +26,14 @@ struct maat_options {
     char instance_name[NAME_MAX];
     char foreign_cont_dir[NAME_MAX];
     char log_path[PATH_MAX];
+    char stat_file[PATH_MAX];
     size_t nr_worker_threads;
     char *accept_tags;
     int rule_effect_interval_ms;
     int rule_update_checking_interval_ms;
     int gc_timeout_ms;
+    int stat_on;
+    int perf_on;
     int deferred_load_on;
     int log_level;
     enum data_source input_mode;

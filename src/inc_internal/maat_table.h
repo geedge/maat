@@ -37,7 +37,6 @@ enum table_type {
     TABLE_TYPE_BOOL_PLUGIN,
     //above are physical table
     TABLE_TYPE_VIRTUAL,
-    TABLE_TYPE_COMPOSITION,
     TABLE_TYPE_COMPILE,
     TABLE_TYPE_GROUP2GROUP,
 	TABLE_TYPE_GROUP2COMPILE,
@@ -49,14 +48,18 @@ struct table_manager;
 struct table_manager *
 table_manager_create(const char *table_info_path, const char *accept_tags,
                      struct maat_garbage_bin *garbage_bin, struct log_handle *logger);
-int table_manager_runtime_create(struct table_manager *tbl_mgr, int max_thread_num,
+int table_manager_runtime_create(struct table_manager *tbl_mgr, size_t max_thread_num,
                                  struct maat_garbage_bin *garbage_bin);
 
 void table_manager_runtime_destroy(struct table_manager *tbl_mgr);
 void table_manager_destroy(struct table_manager *tbl_mgr);
 
+size_t table_manager_table_size(struct table_manager *tbl_mgr);
 size_t table_manager_table_count(struct table_manager *tbl_mgr);
+
 int table_manager_get_table_id(struct table_manager *tbl_mgr, const char *name);
+const char *table_manager_get_table_name(struct table_manager *tbl_mgr, int table_id);
+
 enum table_type table_manager_get_table_type(struct table_manager *tbl_mgr, int table_id);
 
 int table_manager_get_defaut_compile_table_id(struct table_manager *tbl_mgr);
@@ -78,6 +81,14 @@ void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id,
                                   int update_type, long long maat_rt_version);
 
 long long table_manager_runtime_rule_count(struct table_manager *tbl_mgr, int table_id);
+
+long long table_manager_runtime_scan_count(struct table_manager *tbl_mgr, int table_id);
+
+long long table_manager_runtime_scan_cpu_time(struct table_manager *tbl_mgr, int table_id);
+
+long long table_manager_runtime_hit_count(struct table_manager *tbl_mgr, int table_id);
+
+long long table_manager_runtime_update_err_count(struct table_manager *tbl_mgr, int table_id);
 
 #ifdef __cplusplus
 }

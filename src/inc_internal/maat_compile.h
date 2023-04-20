@@ -44,7 +44,7 @@ int compile_table_set_ex_data_schema(struct compile_schema *compile_schema, int 
                                      long argl, void *argp);
 
 /* compile runtime API */
-void *compile_runtime_new(void *compile_schema, int max_thread_num,
+void *compile_runtime_new(void *compile_schema, size_t max_thread_num,
                           struct maat_garbage_bin *garbage_bin, 
                           struct log_handle *logger);
 void compile_runtime_free(void *compile_runtime);
@@ -57,6 +57,8 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema, const ch
 int compile_runtime_commit(void *compile_runtime, const char *table_name, long long maat_rt_version);
 
 long long compile_runtime_rule_count(void *compile_runtime);
+
+long long compile_runtime_update_err_count(void *compile_runtime);
 
 int compile_runtime_match(struct compile_runtime *compile_rt, long long *compile_ids,
                           size_t compile_ids_size, struct maat_state *state);
@@ -73,7 +75,7 @@ void compile_runtime_ex_data_iterate(struct compile_runtime *compile_rt,
                                      struct compile_schema *compile_schema);
 
 /* group2compile runtime API */
-void *group2compile_runtime_new(void *g2c_schema, int max_thread_num,
+void *group2compile_runtime_new(void *g2c_schema, size_t max_thread_num,
                                 struct maat_garbage_bin *garbage_bin, 
                                 struct log_handle *logger);
 void group2compile_runtime_init(void *g2c_runtime, void *compile_runtime, void *g2g_runtime);
@@ -82,7 +84,11 @@ void group2compile_runtime_free(void *g2c_runtime);
 int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema, const char *table_name, 
                                  const char *line, int valid_column);
 
+long long group2compile_runtime_not_group_count(void *g2c_runtime);
+
 long long group2compile_runtime_rule_count(void *g2c_runtime);
+
+long long group2compile_runtime_update_err_count(void *g2c_runtime);
 
 /* maat compile state API */
 struct maat_compile_state;

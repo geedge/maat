@@ -28,7 +28,7 @@ void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 void interval_schema_free(void *interval_schema);
 
 /* interval runtime API */
-void *interval_runtime_new(void *interval_schema, int max_thread_num,
+void *interval_runtime_new(void *interval_schema, size_t max_thread_num,
                            struct maat_garbage_bin *garbage_bin, 
                            struct log_handle *logger);
 void interval_runtime_free(void *interval_runtime);
@@ -52,8 +52,18 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
 int interval_runtime_set_scan_district(struct interval_runtime *interval_rt, const char *district, 
                                        size_t district_len, long long *district_id);
                                        
-void interval_runtime_scan_hit_inc(struct interval_runtime *interval_rt, int thread_id);
-long long interval_runtime_scan_hit_sum(struct interval_runtime *interval_rt, int n_thread);
+void interval_runtime_hit_inc(struct interval_runtime *interval_rt, int thread_id);
+
+void interval_runtime_perf_stat(struct interval_runtime *interval_rt, struct timespec *start,
+                                struct timespec *end, int thread_id);
+
+long long interval_runtime_scan_count(void *interval_runtime);
+
+long long interval_runtime_scan_cpu_time(void *interval_runtime);
+
+long long interval_runtime_hit_count(void *interval_runtime);
+
+long long interval_runtime_update_err_cnt(void *interval_runtime);
 
 #ifdef __cplusplus
 }

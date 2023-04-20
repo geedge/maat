@@ -10,6 +10,7 @@
 
 #include <assert.h>
 
+#include "alignment.h"
 #include "maat_fqdn_plugin.h"
 #include "maat_utils.h"
 #include "maat_table.h"
@@ -37,8 +38,13 @@ struct fqdn_plugin_runtime {
     struct ex_data_runtime *ex_data_rt;
     long long version;
     long long rule_num;
+    long long update_err_cnt;
+    size_t n_worker_thread;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
+
+    long long *scan_cnt;
+    long long *scan_cpu_time;
 };
 
 void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
@@ -162,7 +168,7 @@ void fqdn_rule_free(struct FQDN_rule *fqdn_rule)
 	free(fqdn_rule);
 }
 
-void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, int max_thread_num,
+void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, size_t max_thread_num,
                               struct maat_garbage_bin *garbage_bin, 
                               struct log_handle *logger)
 {
@@ -178,8 +184,10 @@ void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, int max_thread_num,
         ex_data_runtime_set_ex_container_schema(fqdn_plugin_rt->ex_data_rt, &(schema->container_schema));
     }
 
+    fqdn_plugin_rt->n_worker_thread = max_thread_num;
     fqdn_plugin_rt->ref_garbage_bin = garbage_bin;
     fqdn_plugin_rt->logger = logger;
+    fqdn_plugin_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
 
     return fqdn_plugin_rt;
 }
@@ -199,6 +207,16 @@ void fqdn_plugin_runtime_free(void *fqdn_plugin_runtime)
     if (fqdn_plugin_rt->ex_data_rt != NULL) {
         ex_data_runtime_free(fqdn_plugin_rt->ex_data_rt);
         fqdn_plugin_rt->ex_data_rt = NULL;
+    }
+
+    if (fqdn_plugin_rt->scan_cnt != NULL) {
+        alignment_int64_array_free(fqdn_plugin_rt->scan_cnt);
+        fqdn_plugin_rt->scan_cnt = NULL;
+    }
+
+    if (fqdn_plugin_rt->scan_cpu_time != NULL) {
+        alignment_int64_array_free(fqdn_plugin_rt->scan_cpu_time);
+        fqdn_plugin_rt->scan_cpu_time = NULL;
     }
 
     FREE(fqdn_plugin_rt);
@@ -360,11 +378,13 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
 
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
+        fqdn_plugin_rt->update_err_cnt++;
         return -1;
     }
 
     int ret = get_column_pos(line, schema->item_id_column, &item_id_offset, &item_id_len);
     if (ret < 0) {
+        fqdn_plugin_rt->update_err_cnt++;
         return -1;
     }
 
@@ -373,6 +393,7 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
             // add
             fqdn_plugin_rule = fqdn_plugin_rule_new(line, schema, table_name, fqdn_plugin_rt->logger);
             if (NULL == fqdn_plugin_rule) {
+                fqdn_plugin_rt->update_err_cnt++;
                 return -1;
             }
         }
@@ -385,6 +406,7 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
             if (fqdn_plugin_rule != NULL) {
                 fqdn_plugin_rule_free(fqdn_plugin_rule);
             }
+            fqdn_plugin_rt->update_err_cnt++;
             return -1;
         }
     } else {
@@ -519,4 +541,62 @@ int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, const char *query
 	}
 
 	return n_result;
+}
+
+void fqdn_plugin_runtime_perf_stat(void *fqdn_plugin_runtime, struct timespec *start, 
+                                   struct timespec *end, int thread_id)
+{
+    if (NULL == fqdn_plugin_runtime || thread_id < 0) {
+        return;
+    }
+
+    struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+    alignment_int64_array_add(fqdn_plugin_rt->scan_cnt, thread_id, 1);
+
+    if (start != NULL && end != NULL) {
+        if (NULL == fqdn_plugin_rt->scan_cpu_time) {
+            fqdn_plugin_rt->scan_cpu_time = alignment_int64_array_alloc(fqdn_plugin_rt->n_worker_thread);
+        }
+
+        long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 + (end->tv_nsec - start->tv_nsec);
+        alignment_int64_array_add(fqdn_plugin_rt->scan_cpu_time, thread_id, consume_time);
+    }
+}
+
+long long fqdn_plugin_runtime_scan_count(void *fqdn_plugin_runtime)
+{
+    if (NULL == fqdn_plugin_runtime) {
+        return 0;
+    }
+
+    struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+    long long sum = alignment_int64_array_sum(fqdn_plugin_rt->scan_cnt, 
+                                              fqdn_plugin_rt->n_worker_thread);
+    alignment_int64_array_reset(fqdn_plugin_rt->scan_cnt, fqdn_plugin_rt->n_worker_thread);
+
+    return sum;
+}
+
+long long fqdn_plugin_runtime_scan_cpu_time(void *fqdn_plugin_runtime)
+{
+    if (NULL == fqdn_plugin_runtime) {
+        return 0;
+    }
+
+    struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+    long long sum = alignment_int64_array_sum(fqdn_plugin_rt->scan_cpu_time, 
+                                              fqdn_plugin_rt->n_worker_thread);
+    alignment_int64_array_reset(fqdn_plugin_rt->scan_cpu_time, fqdn_plugin_rt->n_worker_thread);
+
+    return sum;
+}
+
+long long fqdn_plugin_runtime_update_err_count(void *fqdn_plugin_runtime)
+{
+    if (NULL == fqdn_plugin_runtime) {
+        return 0;
+    }
+
+    struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+    return fqdn_plugin_rt->update_err_cnt;
 }

@@ -71,10 +71,14 @@ struct ip_runtime {
     struct rcu_hash_table *item_htable;  //store this ip table's all maat_item which will be used in ip_runtime_scan
     long long version;
     long long rule_num;
+    long long ipv6_rule_num;
+    long long update_err_cnt;
+    size_t n_worker_thread;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
 
     long long *scan_cnt;
+    long long *scan_cpu_time;
     long long *hit_cnt;
 };
 
@@ -375,7 +379,7 @@ void ip_maat_item_free(void *user_ctx, void *data)
     maat_item_free(item);
 }
 
-void *ip_runtime_new(void *ip_schema, int max_thread_num,
+void *ip_runtime_new(void *ip_schema, size_t max_thread_num,
                      struct maat_garbage_bin *garbage_bin, 
                      struct log_handle *logger)
 {
@@ -387,6 +391,7 @@ void *ip_runtime_new(void *ip_schema, int max_thread_num,
 
     ip_rt->htable = rcu_hash_new(ip_ex_data_free, NULL);
     ip_rt->item_htable = rcu_hash_new(ip_maat_item_free, NULL);
+    ip_rt->n_worker_thread = max_thread_num;
     ip_rt->ref_garbage_bin = garbage_bin;
     ip_rt->logger = logger;
 
@@ -431,6 +436,11 @@ void ip_runtime_free(void *ip_runtime)
     if (ip_rt->scan_cnt != NULL) {
         alignment_int64_array_free(ip_rt->scan_cnt);
         ip_rt->scan_cnt = NULL;
+    }
+
+    if (ip_rt->scan_cpu_time != NULL) {
+        alignment_int64_array_free(ip_rt->scan_cpu_time);
+        ip_rt->scan_cpu_time = NULL;
     }
 
     FREE(ip_rt);
@@ -497,11 +507,13 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
     struct ip_runtime *ip_rt = (struct ip_runtime *)ip_runtime;
     long long item_id = get_column_value(line, schema->item_id_column);
     if (item_id < 0) {
+        ip_rt->update_err_cnt++;
         return -1;
     }
 
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
+        ip_rt->update_err_cnt++;
         return -1;
     } else if (0 == is_valid) {
         //delete
@@ -510,6 +522,7 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
         //add
         ip_item = ip_item_new(line, schema, ip_rt->logger);
         if (NULL == ip_item) {
+            ip_rt->update_err_cnt++;
             return -1;
         }
 
@@ -522,6 +535,7 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
                       __FUNCTION__, __LINE__, table_name, item_id);
             ip_item_free(ip_item);
             maat_item_free(item);
+            ip_rt->update_err_cnt++;
             return -1;
         }
     }
@@ -533,6 +547,7 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
             ip_item_free(ip_item);
             ip_item = NULL;
         }
+        ip_rt->update_err_cnt++;
         return -1;
     }
 
@@ -559,6 +574,7 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name, long long maat_r
     }
 
     rcu_hash_commit(ip_rt->htable);
+    ip_rt->ipv6_rule_num = 0;
 
     struct ip_rule *rules = NULL;
     struct interval_rule *intval_rules = NULL;
@@ -569,6 +585,10 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name, long long maat_r
         intval_rules = ALLOC(struct interval_rule, rule_cnt);
         for (size_t i = 0; i < rule_cnt; i++) {
             struct ip_item *item = (struct ip_item *)ex_data_array[i];
+            if (item->addr_type == IPv6) {
+                ip_rt->ipv6_rule_num++;
+            }
+
             ip_item_to_ip_rule(item, &rules[i]);
             ip_item_to_port_rule(item, &intval_rules[i]);
         }
@@ -645,6 +665,16 @@ long long ip_runtime_rule_count(void *ip_runtime)
     
     struct ip_runtime *ip_rt = (struct ip_runtime *)ip_runtime;
     return ip_rt->rule_num;
+}
+
+long long ip_runtime_ipv6_rule_count(void *ip_runtime)
+{
+     if (NULL == ip_runtime) {
+        return 0;
+    }
+    
+    struct ip_runtime *ip_rt = (struct ip_runtime *)ip_runtime;
+    return ip_rt->ipv6_rule_num;
 }
 
 int validate_port(struct rcu_hash_table *htable, const char *key, size_t key_len,
@@ -777,12 +807,80 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
     return group_hit_cnt;
 }
 
-void ip_runtime_scan_hit_inc(struct ip_runtime *ip_rt, int thread_id)
+void ip_runtime_hit_inc(struct ip_runtime *ip_rt, int thread_id)
 {
+    if (NULL == ip_rt || thread_id < 0) {
+        return;
+    }
+
     alignment_int64_array_add(ip_rt->hit_cnt, thread_id, 1);
 }
 
-long long ip_runtime_scan_hit_sum(struct ip_runtime *ip_rt, int n_thread)
+void ip_runtime_perf_stat(struct ip_runtime *ip_rt, struct timespec *start,
+                          struct timespec *end, int thread_id)
 {
-    return alignment_int64_array_sum(ip_rt->hit_cnt, n_thread);
+    if (NULL == ip_rt || thread_id < 0) {
+        return;
+    }
+
+    alignment_int64_array_add(ip_rt->scan_cnt, thread_id, 1);
+    
+    if (start != NULL && end != NULL) {
+        if (NULL == ip_rt->scan_cpu_time) {
+            ip_rt->scan_cpu_time = alignment_int64_array_alloc(ip_rt->n_worker_thread);
+        }
+
+        long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 + end->tv_nsec - start->tv_nsec;
+        alignment_int64_array_add(ip_rt->scan_cpu_time, thread_id, consume_time);
+    }
+}
+
+long long ip_runtime_scan_count(void *ip_runtime)
+{
+    if (NULL == ip_runtime) {
+        return 0;
+    }
+
+    struct ip_runtime *ip_rt = (struct ip_runtime *)ip_runtime;
+    long long sum = alignment_int64_array_sum(ip_rt->scan_cnt, ip_rt->n_worker_thread);
+    alignment_int64_array_reset(ip_rt->scan_cnt, ip_rt->n_worker_thread);
+
+    return sum;
+}
+
+long long ip_runtime_scan_cpu_time(void *ip_runtime)
+{
+    if (NULL == ip_runtime) {
+        return 0;
+    }
+
+    struct ip_runtime *ip_rt = (struct ip_runtime *)ip_runtime;
+    long long sum = alignment_int64_array_sum(ip_rt->scan_cpu_time, 
+                                              ip_rt->n_worker_thread);
+    alignment_int64_array_reset(ip_rt->scan_cpu_time, ip_rt->n_worker_thread);
+
+    return sum;
+}
+
+long long ip_runtime_hit_count(void *ip_runtime)
+{
+    if (NULL == ip_runtime) {
+        return 0;
+    }
+
+    struct ip_runtime *ip_rt = (struct ip_runtime *)ip_runtime;
+    long long sum = alignment_int64_array_sum(ip_rt->hit_cnt, ip_rt->n_worker_thread);
+    alignment_int64_array_reset(ip_rt->hit_cnt, ip_rt->n_worker_thread);
+
+    return sum;
+}
+
+long long ip_runtime_update_err_count(void *ip_runtime)
+{
+    if (NULL == ip_runtime) {
+        return 0;
+    }
+
+    struct ip_runtime *ip_rt = (struct ip_runtime *)ip_runtime;
+    return ip_rt->update_err_cnt;
 }

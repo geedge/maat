@@ -62,22 +62,6 @@ struct ip_addr {
     };
 };
 
-struct ipv4_tuple {
-    unsigned int sip;       /* network order */
-    unsigned int dip;       /* network order */
-    unsigned short sport;   /* network order */
-    unsigned short dport;   /* network order */
-    int protocol;
-};
- 
-struct ipv6_tuple {
-    unsigned int sip[4] ;   /* network order */
-    unsigned int dip[4] ;   /* network order */
-    unsigned short sport;   /* network order */
-    unsigned short dport;   /* network order */
-    int protocol;
-};
-
 enum log_level { 
     LOG_LEVEL_TRACE, 
     LOG_LEVEL_DEBUG, 
@@ -118,6 +102,8 @@ int maat_options_set_iris(struct maat_options *opts, const char *full_directory,
 int maat_options_set_json_file(struct maat_options *opts, const char *json_filename);
 int maat_options_set_redis(struct maat_options *opts, const char *redis_ip, 
                            uint16_t redis_port, int redis_db);
+
+int maat_options_set_stat_file(struct maat_options *opts, const char *stat_filename);
 
 /* maat_instance API */
 struct maat *maat_new(struct maat_options *opts, const char *table_info_path);
@@ -192,20 +178,10 @@ int maat_scan_ipv4(struct maat *instance, int table_id,
                    long long *results, size_t n_result, 
                    size_t *n_hit_result, struct maat_state *state);
 
-int maat_scan_ipv4_tuple4(struct maat *instance, int table_id,
-                          const struct ipv4_tuple *tuple, long long *results,
-                          size_t n_result, size_t *n_hit_result,
-                          struct maat_state *state);
-
 int maat_scan_ipv6(struct maat *instance, int table_id,
                    uint8_t *ip_addr, uint16_t port, int protocol,
                    long long *results, size_t n_result, 
                    size_t *n_hit_result, struct maat_state *state);
-
-int maat_scan_ipv6_tuple4(struct maat *instance, int table_id,
-                          const struct ipv6_tuple *tuple, long long *results,
-                          size_t n_result, size_t *n_hit_result,
-                          struct maat_state *state);
 
 int maat_scan_string(struct maat *instance, int table_id,
                      const char *data, size_t data_len, long long *results, 

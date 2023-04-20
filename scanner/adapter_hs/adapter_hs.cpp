@@ -121,9 +121,6 @@ int _hs_alloc_scratch(hs_database_t *db, hs_scratch_t **scratches, size_t n_work
             log_error(logger, MODULE_ADAPTER_HS,
                       "[%s:%d] Unable to query scratch size", __FUNCTION__, __LINE__);
             return -1;
-        } else {
-            log_info(logger, MODULE_ADAPTER_HS,
-                     "[%s:%d] scratch[%d] size:%zu", __FUNCTION__, __LINE__, i, scratch_size);
         }
     }
 

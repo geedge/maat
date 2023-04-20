@@ -45,6 +45,8 @@ struct interval_runtime {
     struct rcu_hash_table *item_htable;  //store this interval table's all maat_item which will be used in interval_runtime_scan
     long long version;
     long long rule_num;
+    long long update_err_cnt;
+    size_t n_worker_thread;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
     int district_num;
@@ -52,6 +54,7 @@ struct interval_runtime {
     struct maat_kv_store *tmp_district_map;
 
     long long *scan_cnt;
+    long long *scan_cpu_time;
     long long *hit_cnt;
 };
 
@@ -161,7 +164,7 @@ void interval_maat_item_free(void *user_ctx, void *data)
     maat_item_free(item);
 }
 
-void *interval_runtime_new(void *interval_schema, int max_thread_num,
+void *interval_runtime_new(void *interval_schema, size_t max_thread_num,
                            struct maat_garbage_bin *garbage_bin, 
                            struct log_handle *logger)
 {
@@ -173,6 +176,7 @@ void *interval_runtime_new(void *interval_schema, int max_thread_num,
 
     interval_rt->htable = rcu_hash_new(interval_ex_data_free, NULL);
     interval_rt->item_htable = rcu_hash_new(interval_maat_item_free, NULL);
+    interval_rt->n_worker_thread = max_thread_num;
     interval_rt->ref_garbage_bin = garbage_bin;
     interval_rt->logger = logger;
     interval_rt->district_map = maat_kv_store_new();
@@ -220,6 +224,11 @@ void interval_runtime_free(void *interval_runtime)
     if (interval_rt->scan_cnt != NULL) {
         alignment_int64_array_free(interval_rt->scan_cnt);
         interval_rt->scan_cnt = NULL;
+    }
+
+    if (interval_rt->scan_cpu_time != NULL) {
+        alignment_int64_array_free(interval_rt->scan_cpu_time);
+        interval_rt->scan_cpu_time = NULL;
     }
 
     FREE(interval_rt);
@@ -391,11 +400,13 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
 
     long long item_id = get_column_value(line, schema->item_id_column);
     if (item_id < 0) {
+        interval_rt->update_err_cnt++;
         return -1;
     }
 
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
+        interval_rt->update_err_cnt++;
         return -1;
     } else if (0 == is_valid) {
         //delete
@@ -404,6 +415,7 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
         //add
         struct interval_item *interval_item = interval_item_new(line, schema, interval_rt);
         if (NULL == interval_item) {
+            interval_rt->update_err_cnt++;
             return -1;
         }
 
@@ -416,6 +428,7 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
                       __FUNCTION__, __LINE__, table_name, item_id);
             interval_item_free(interval_item);
             maat_item_free(item);
+            interval_rt->update_err_cnt++;
             return -1;
         }
 
@@ -425,6 +438,7 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
             log_error(interval_rt->logger, MODULE_INTERVAL, 
                       "[%s:%d] [table:%s] transform interval_item(item_id:%lld) to interval_rule failed",
                       __FUNCTION__, __LINE__, table_name, item_id);
+            interval_rt->update_err_cnt++;
             return -1;
         }
     }
@@ -436,6 +450,7 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
             interval_rule_free(interval_rule);
             interval_rule = NULL;
         }
+        interval_rt->update_err_cnt++;
         return -1;
     }
 
@@ -576,12 +591,80 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
     return group_hit_cnt;
 }
 
-void interval_runtime_scan_hit_inc(struct interval_runtime *interval_rt, int thread_id)
+void interval_runtime_hit_inc(struct interval_runtime *interval_rt, int thread_id)
 {
+    if (NULL == interval_rt || thread_id < 0) {
+        return;
+    }
+
     alignment_int64_array_add(interval_rt->hit_cnt, thread_id, 1);
 }
 
-long long interval_runtime_scan_hit_sum(struct interval_runtime *interval_rt, int n_thread)
+void interval_runtime_perf_stat(struct interval_runtime *interval_rt, struct timespec *start,
+                                struct timespec *end, int thread_id)
 {
-    return alignment_int64_array_sum(interval_rt->hit_cnt, n_thread);
+    if (NULL == interval_rt || thread_id < 0) {
+        return;
+    }
+
+    alignment_int64_array_add(interval_rt->scan_cnt, thread_id, 1);
+    
+    if (start != NULL && end != NULL) {
+        if (NULL == interval_rt->scan_cpu_time) {
+            interval_rt->scan_cpu_time = alignment_int64_array_alloc(interval_rt->n_worker_thread);
+        }
+
+        long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 + end->tv_nsec - start->tv_nsec;
+        alignment_int64_array_add(interval_rt->scan_cpu_time, thread_id, consume_time);
+    }
+}
+
+long long interval_runtime_scan_count(void *interval_runtime)
+{
+    if (NULL == interval_runtime) {
+        return 0;
+    }
+
+    struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
+    long long sum = alignment_int64_array_sum(interval_rt->scan_cnt, interval_rt->n_worker_thread);
+    alignment_int64_array_reset(interval_rt->scan_cnt, interval_rt->n_worker_thread);
+
+    return sum;
+}
+
+long long interval_runtime_scan_cpu_time(void *interval_runtime)
+{
+    if (NULL == interval_runtime) {
+        return 0;
+    }
+
+    struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
+    long long sum = alignment_int64_array_sum(interval_rt->scan_cpu_time, 
+                                              interval_rt->n_worker_thread);
+    alignment_int64_array_reset(interval_rt->scan_cpu_time, interval_rt->n_worker_thread);
+
+    return sum;
+}
+
+long long interval_runtime_hit_count(void *interval_runtime)
+{
+    if (NULL == interval_runtime) {
+        return 0;
+    }
+
+    struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
+    long long sum = alignment_int64_array_sum(interval_rt->hit_cnt, interval_rt->n_worker_thread);
+    alignment_int64_array_reset(interval_rt->hit_cnt, interval_rt->n_worker_thread);
+
+    return sum;
+}
+
+long long interval_runtime_update_err_cnt(void *interval_runtime)
+{
+    if (NULL == interval_runtime) {
+        return 0;
+    }
+
+    struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
+    return interval_rt->update_err_cnt;
 }

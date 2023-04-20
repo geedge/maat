@@ -25,6 +25,7 @@
 #include "maat_table.h"
 #include "maat_compile.h"
 #include "maat_plugin.h"
+#include "maat_stat.h"
 #include "ip_matcher.h"
 #include "alignment.h"
 #include "maat_garbage_collection.h"
@@ -561,15 +562,19 @@ void *rule_monitor_loop(void *arg)
 			pthread_mutex_unlock(&(maat_instance->background_update_mutex));
 		}
         maat_garbage_collect_routine(maat_instance->garbage_bin);
+        if ((1 == maat_instance->stat_on) && (time(NULL) % 2 == 0)) {
+            maat_stat_output(maat_instance->stat, maat_instance->maat_version, maat_instance->perf_on);
+        }
     }
 
     maat_runtime_destroy(maat_instance->maat_rt);
     maat_garbage_bin_free(maat_instance->garbage_bin);
     table_manager_destroy(maat_instance->tbl_mgr); //table manager MUST be freed at last.
 
-    alignment_int64_array_free(maat_instance->thread_call_cnt);
-    alignment_int64_array_free(maat_instance->hit_cnt);
-    alignment_int64_array_free(maat_instance->not_grp_hit_cnt);
+    if (maat_instance->stat != NULL) {
+        maat_stat_free(maat_instance->stat);
+        maat_instance->stat = NULL;
+    }
 
     if (maat_instance->input_mode == DATA_SOURCE_REDIS) {
         if (maat_instance->mr_ctx.read_ctx != NULL) {

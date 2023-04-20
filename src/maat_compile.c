@@ -75,7 +75,7 @@ struct compile_runtime {
     time_t version;
     struct maat_clause *clause_by_literals_hash;
     long long rule_num;
-
+    long long update_err_cnt;
     struct bool_expr_match *expr_match_buff;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -85,6 +85,7 @@ struct group2compile_runtime {
     long long not_flag_group;
     long long version;
     long long rule_num;
+    long long update_err_cnt;
     struct compile_runtime *ref_compile_rt;
     struct group2group_runtime *ref_g2g_rt;
 };
@@ -552,7 +553,7 @@ void compile_item_free(struct compile_item *compile_item)
     FREE(compile_item);
 }
 
-void *compile_runtime_new(void *compile_schema, int max_thread_num,
+void *compile_runtime_new(void *compile_schema, size_t max_thread_num,
                           struct maat_garbage_bin *garbage_bin, 
                           struct log_handle *logger)
 {
@@ -624,7 +625,7 @@ void compile_runtime_init(void *compile_runtime, struct maat_runtime *maat_rt)
     compile_rt->ref_maat_rt = maat_rt;
 }
 
-void *group2compile_runtime_new(void *g2c_schema, int max_thread_num,
+void *group2compile_runtime_new(void *g2c_schema, size_t max_thread_num,
                                 struct maat_garbage_bin *garbage_bin, 
                                 struct log_handle *logger)
 {
@@ -1576,7 +1577,7 @@ void *compile_runtime_get_ex_data(struct compile_runtime *compile_rt,
 	return ex_data;
 }
 
-void compile_runtime_add_compile(struct compile_runtime *compile_rt, struct compile_schema *schema,
+int compile_runtime_add_compile(struct compile_runtime *compile_rt, struct compile_schema *schema,
                                  long long compile_id, const char *table_name, const char *line)
 {
     struct compile_item *compile_item = NULL;
@@ -1584,7 +1585,7 @@ void compile_runtime_add_compile(struct compile_runtime *compile_rt, struct comp
 
     compile_item = compile_item_new(line, schema, table_name, compile_rt->logger);
     if (NULL == compile_item) {
-        return;
+        return -1;
     }
 
     struct compile_rule *compile_rule = compile_rule_new(compile_item, schema, table_name, line);
@@ -1646,6 +1647,8 @@ void compile_runtime_add_compile(struct compile_runtime *compile_rt, struct comp
             rcu_hash_add(compile_rt->cfg_hash_tbl, (char *)&compile_id, sizeof(long long), compile);
         }
     }
+
+    return 0;
 }
 
 void compile_runtime_del_compile(struct compile_runtime *compile_rt, long long compile_id)
@@ -1717,11 +1720,13 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
     struct compile_runtime *compile_rt = (struct compile_runtime *)compile_runtime;
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
+        compile_rt->update_err_cnt++;
         return -1;
     }
 
     long long compile_id = get_column_value(line, schema->compile_id_column);
     if (compile_id < 0) {
+        compile_rt->update_err_cnt++;
         return -1;
     }
 
@@ -1730,7 +1735,11 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
         compile_runtime_del_compile(compile_rt, compile_id);
     } else {
         // add
-        compile_runtime_add_compile(compile_rt, schema, compile_id, table_name, line);
+        int ret = compile_runtime_add_compile(compile_rt, schema, compile_id, 
+                                              table_name, line);
+        if (ret < 0) {
+            compile_rt->update_err_cnt++;
+        }
     }
 
     return 0;
@@ -1750,6 +1759,7 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
     struct group2group_runtime *g2g_rt = g2c_rt->ref_g2g_rt;
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
+        g2c_rt->update_err_cnt++;
         return -1;
     } 
     
@@ -1757,6 +1767,7 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
     struct group2compile_item *g2c_item = group2compile_item_new(line, schema, table_name,
                                                                  compile_rt->logger);
     if (NULL == g2c_item) {
+        g2c_rt->update_err_cnt++;
         return -1;
     }
 
@@ -1769,6 +1780,7 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
                       "[%s:%d] Remove group %d from compile %d failed, group is not exisited.",
                       __FUNCTION__, __LINE__, g2c_item->group_id, g2c_item->compile_id);
             group2compile_item_free(g2c_item);
+            g2c_rt->update_err_cnt++;
             return -1;
         }
 
@@ -1779,6 +1791,8 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
             }
             maat_group_ref_dec(g2g_rt, group);
             g2c_rt->rule_num--;
+        } else {
+            g2c_rt->update_err_cnt++;
         }
     } else {
         //add
@@ -1794,12 +1808,23 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
             }
             maat_group_ref_inc(g2g_rt, group);
             g2c_rt->rule_num++;
+        } else {
+            g2c_rt->update_err_cnt++;
         }
     }
     
-
     group2compile_item_free(g2c_item);
     return ret;
+}
+
+long long group2compile_runtime_not_group_count(void *g2c_runtime)
+{
+     if (NULL == g2c_runtime) {
+        return 0;
+    }
+    
+    struct group2compile_runtime *g2c_rt = (struct group2compile_runtime *)g2c_runtime;
+    return g2c_rt->not_flag_group;
 }
 
 long long group2compile_runtime_rule_count(void *g2c_runtime)
@@ -1810,6 +1835,16 @@ long long group2compile_runtime_rule_count(void *g2c_runtime)
     
     struct group2compile_runtime *g2c_rt = (struct group2compile_runtime *)g2c_runtime;
     return g2c_rt->rule_num;
+}
+
+long long group2compile_runtime_update_err_count(void *g2c_runtime)
+{   
+    if (NULL == g2c_runtime) {
+        return 0;
+    }
+
+    struct group2compile_runtime *g2c_rt = (struct group2compile_runtime *)g2c_runtime;
+    return g2c_rt->update_err_cnt;
 }
 
 int compile_runtime_commit(void *compile_runtime, const char *table_name, long long maat_rt_version)
@@ -1862,6 +1897,16 @@ long long compile_runtime_rule_count(void *compile_runtime)
     
     struct compile_runtime *compile_rt = (struct compile_runtime *)compile_runtime;
     return compile_rt->rule_num;
+}
+
+long long compile_runtime_update_err_count(void *compile_runtime)
+{   
+    if (NULL == compile_runtime) {
+        return 0;
+    }
+
+    struct compile_runtime *compile_rt = (struct compile_runtime *)compile_runtime;
+    return compile_rt->update_err_cnt;
 }
 
 static int compile_sort_para_compare(const struct compile_sort_para *a,

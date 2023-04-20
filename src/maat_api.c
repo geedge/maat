@@ -39,6 +39,7 @@
 #include "maat_fqdn_plugin.h"
 #include "maat_bool_plugin.h"
 #include "maat_virtual.h"
+#include "maat_stat.h"
 
 #define MODULE_MAAT_API	 module_name_str("maat.api")
 
@@ -154,11 +155,21 @@ int maat_options_set_deferred_load_on(struct maat_options *opts)
 
 int maat_options_set_stat_on(struct maat_options *opts)
 {
+    if (NULL == opts) {
+        return -1;
+    }
+
+    opts->stat_on = 1;
     return 0;
 }
 
 int maat_options_set_perf_on(struct maat_options *opts)
 {
+    if (NULL == opts) {
+        return -1;
+    }
+
+    opts->perf_on = 1;
     return 0;
 }
 
@@ -203,6 +214,16 @@ int maat_options_set_redis(struct maat_options *opts, const char *redis_ip,
     opts->redis_ctx.redis_db = redis_db;
     opts->input_mode = DATA_SOURCE_REDIS;
 
+    return 0;
+}
+
+int maat_options_set_stat_file(struct maat_options *opts, const char *stat_filename)
+{
+    size_t str_len = MIN(sizeof(opts->stat_file), strlen(stat_filename));
+
+    memcpy(opts->stat_file, stat_filename, str_len);
+    opts->stat_on = 1;
+    
     return 0;
 }
 
@@ -290,6 +311,32 @@ void maat_read_full_config(struct maat *maat_instance)
     }
 }
 
+void _maat_free(struct maat *maat_instance)
+{
+    if (NULL == maat_instance) {
+        return;
+    }
+
+    if (maat_instance->logger != NULL) {
+        log_handle_destroy(maat_instance->logger);
+        maat_instance->logger = NULL;
+    }
+    
+    if (maat_instance->garbage_bin != NULL) {
+        maat_garbage_bin_free(maat_instance->garbage_bin);
+        maat_instance->garbage_bin = NULL;
+    }
+    
+    if (maat_instance->stat != NULL) {
+        maat_stat_free(maat_instance->stat);
+        maat_instance->stat = NULL;
+    }
+
+    pthread_mutex_destroy(&(maat_instance->background_update_mutex));
+
+    FREE(maat_instance);
+}
+
 struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
 {
     if (NULL == opts || NULL == table_info_path) {
@@ -357,14 +404,14 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     maat_instance->rule_effect_interval_ms = opts->rule_effect_interval_ms;
     maat_instance->rule_update_checking_interval_ms = opts->rule_update_checking_interval_ms;
     maat_instance->gc_timeout_ms = opts->gc_timeout_ms;
+    maat_instance->stat_on = opts->stat_on;
+    maat_instance->perf_on = opts->perf_on;
     maat_instance->deferred_load = opts->deferred_load_on;
     memcpy(maat_instance->foreign_cont_dir, opts->foreign_cont_dir, strlen(opts->foreign_cont_dir));
     garbage_gc_timeout_s = (maat_instance->rule_effect_interval_ms / 1000) +
                                 (maat_instance->gc_timeout_ms / 1000);
     maat_instance->garbage_bin = maat_garbage_bin_new(garbage_gc_timeout_s);
-    maat_instance->thread_call_cnt = alignment_int64_array_alloc(opts->nr_worker_threads);
-    maat_instance->hit_cnt = alignment_int64_array_alloc(opts->nr_worker_threads);
-    maat_instance->not_grp_hit_cnt = alignment_int64_array_alloc(opts->nr_worker_threads);
+    maat_instance->stat = maat_stat_new(opts->stat_file, opts->nr_worker_threads, maat_instance->logger);
 
     pthread_mutex_init(&(maat_instance->background_update_mutex), NULL);
 
@@ -381,18 +428,16 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
         maat_read_full_config(maat_instance);
     }
 
+    if (1 == maat_instance->stat_on) {
+        maat_stat_init(maat_instance->stat, maat_instance->tbl_mgr, maat_instance->garbage_bin, 
+                       maat_instance->instance_name);
+    }
+
     pthread_create(&(maat_instance->cfg_mon_thread), NULL, rule_monitor_loop, (void *)maat_instance);
 
     return maat_instance;
 failed:
-    log_handle_destroy(maat_instance->logger);
-    table_manager_destroy(maat_instance->tbl_mgr);
-    maat_garbage_bin_free(maat_instance->garbage_bin);
-    alignment_int64_array_free(maat_instance->thread_call_cnt);
-    alignment_int64_array_free(maat_instance->hit_cnt);
-    alignment_int64_array_free(maat_instance->not_grp_hit_cnt);
-    pthread_mutex_destroy(&(maat_instance->background_update_mutex));
-    FREE(maat_instance);
+    _maat_free(maat_instance);
     return NULL;
 }
 
@@ -881,7 +926,7 @@ int flag_scan(struct table_manager *tbl_mgr, int thread_id, long long flag,
         return group_hit_cnt;
     }
 
-    flag_runtime_scan_hit_inc((struct flag_runtime *)flag_rt, thread_id);
+    flag_runtime_hit_inc((struct flag_runtime *)flag_rt, thread_id);
 
     return group_hit_cnt;
 }
@@ -911,7 +956,7 @@ int interval_scan(struct table_manager *tbl_mgr, int thread_id, long long intege
         return group_hit_cnt;
     }
 
-    interval_runtime_scan_hit_inc((struct interval_runtime *)interval_rt, thread_id);
+    interval_runtime_hit_inc((struct interval_runtime *)interval_rt, thread_id);
 
     return group_hit_cnt;
 }
@@ -938,7 +983,7 @@ int ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_addr,
         return group_hit_cnt;
     }
 
-    ip_runtime_scan_hit_inc((struct ip_runtime *)ip_rt, thread_id);
+    ip_runtime_hit_inc((struct ip_runtime *)ip_rt, thread_id);
     
     return group_hit_cnt;
 }
@@ -964,7 +1009,7 @@ int ipv6_scan(struct table_manager *tbl_mgr, int thread_id, uint8_t *ip_addr,
         return group_hit_cnt;
     }
 
-    ip_runtime_scan_hit_inc((struct ip_runtime *)ip_rt, thread_id);
+    ip_runtime_hit_inc((struct ip_runtime *)ip_rt, thread_id);
     
     return group_hit_cnt;
 }
@@ -994,7 +1039,7 @@ int string_scan(struct table_manager *tbl_mgr, int thread_id, const char *data, 
         return group_hit_cnt;
     }
 
-    expr_runtime_scan_hit_inc((struct expr_runtime *)expr_rt, thread_id);
+    expr_runtime_hit_inc((struct expr_runtime *)expr_rt, thread_id);
 
     return group_hit_cnt;
 }
@@ -1029,7 +1074,7 @@ int expr_stream_scan(struct maat_stream *stream, const char *data, size_t data_l
         return group_hit_cnt;
     }
 
-    expr_runtime_scan_hit_inc((struct expr_runtime *)expr_rt, stream->thread_id);
+    expr_runtime_hit_inc((struct expr_runtime *)expr_rt, stream->thread_id);
 
     return group_hit_cnt;
 }
@@ -1070,6 +1115,11 @@ int maat_scan_flag(struct maat *maat_instance, int table_id,
         return MAAT_SCAN_ERR;
     }
 
+    struct timespec start, end;
+    if (1 == maat_instance->perf_on) {
+        clock_gettime(CLOCK_MONOTONIC, &start);
+    }
+
     state->scan_cnt++;
 
     if (NULL == maat_instance->maat_rt) {
@@ -1096,7 +1146,7 @@ int maat_scan_flag(struct maat *maat_instance, int table_id,
     }
 
     maat_runtime_ref_inc(maat_instance->maat_rt, state->thread_id);
-    alignment_int64_array_add(maat_instance->thread_call_cnt, state->thread_id, 1);
+    alignment_int64_array_add(maat_instance->stat->thread_call_cnt, state->thread_id, 1);
 
     int hit_group_cnt = flag_scan(maat_instance->tbl_mgr, state->thread_id, flag,
                                   physical_table_id, vtable_id, state);
@@ -1106,28 +1156,37 @@ int maat_scan_flag(struct maat *maat_instance, int table_id,
 
     size_t sum_hit_compile_cnt = 0;
     if (hit_group_cnt > 0 || scan_status_should_compile_NOT(state)) {
-        // come here means group_hit_cnt > 0, at least MAAT_SCAN_HALF_HIT, or MAAT_SCAN_HIT
         sum_hit_compile_cnt = group_to_compile(maat_instance, results, n_result, state);
         *n_hit_result = sum_hit_compile_cnt;
     }
 
     if (sum_hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_instance->hit_cnt, state->thread_id, 1);
+        alignment_int64_array_add(maat_instance->stat->hit_cnt, state->thread_id, 1);
         if (0 == hit_group_cnt) {
             //hit NOT group
-             alignment_int64_array_add(maat_instance->not_grp_hit_cnt, state->thread_id, 1);
+             alignment_int64_array_add(maat_instance->stat->not_grp_hit_cnt, state->thread_id, 1);
         }
-        return MAAT_SCAN_HIT;
+    }
+
+    void *flag_rt = table_manager_get_runtime(maat_instance->tbl_mgr, physical_table_id);
+    assert(flag_rt != NULL);
+
+    if (1 == maat_instance->perf_on) {
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        flag_runtime_perf_stat(flag_rt, &start, &end, state->thread_id);
     } else {
-        // sum_hit_compile_cnt == 0
-        if (hit_group_cnt > 0) {
-            return MAAT_SCAN_HALF_HIT;
-        }
+        flag_runtime_perf_stat(flag_rt, NULL, NULL, state->thread_id);
     }
 
     maat_runtime_ref_dec(maat_instance->maat_rt, state->thread_id);
 
-    return MAAT_SCAN_OK;
+    if (sum_hit_compile_cnt > 0) {
+        return MAAT_SCAN_HIT;
+    } else if (hit_group_cnt > 0) {
+        return MAAT_SCAN_HALF_HIT;
+    } else {
+        return MAAT_SCAN_OK;
+    }
 }
 
 int maat_scan_integer(struct maat *maat_instance, int table_id,
@@ -1140,6 +1199,11 @@ int maat_scan_integer(struct maat *maat_instance, int table_id,
         return MAAT_SCAN_ERR;
     }
     
+    struct timespec start, end;
+    if (1 == maat_instance->perf_on) {
+        clock_gettime(CLOCK_MONOTONIC, &start);
+    }
+
     state->scan_cnt++;
 
     if (NULL == maat_instance->maat_rt) {
@@ -1166,7 +1230,7 @@ int maat_scan_integer(struct maat *maat_instance, int table_id,
     }
 
     maat_runtime_ref_inc(maat_instance->maat_rt, state->thread_id);
-    alignment_int64_array_add(maat_instance->thread_call_cnt, state->thread_id, 1);
+    alignment_int64_array_add(maat_instance->stat->thread_call_cnt, state->thread_id, 1);
 
     int hit_group_cnt = interval_scan(maat_instance->tbl_mgr, state->thread_id, integer,
                                       physical_table_id, vtable_id, state);
@@ -1176,28 +1240,37 @@ int maat_scan_integer(struct maat *maat_instance, int table_id,
     
     size_t sum_hit_compile_cnt = 0;
     if (hit_group_cnt > 0 || scan_status_should_compile_NOT(state)) {
-        // come here means group_hit_cnt > 0, at least MAAT_SCAN_HALF_HIT, or MAAT_SCAN_HIT
         sum_hit_compile_cnt = group_to_compile(maat_instance, results, n_result, state);
         *n_hit_result = sum_hit_compile_cnt;
     }
 
     if (sum_hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_instance->hit_cnt, state->thread_id, 1);
+        alignment_int64_array_add(maat_instance->stat->hit_cnt, state->thread_id, 1);
         if (0 == hit_group_cnt) {
             //hit NOT group
-             alignment_int64_array_add(maat_instance->not_grp_hit_cnt, state->thread_id, 1);
+             alignment_int64_array_add(maat_instance->stat->not_grp_hit_cnt, state->thread_id, 1);
         }
-        return MAAT_SCAN_HIT;
+    }
+
+    void *interval_rt = table_manager_get_runtime(maat_instance->tbl_mgr, physical_table_id);
+    assert(interval_rt != NULL);
+
+    if (1 == maat_instance->perf_on) {
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        interval_runtime_perf_stat(interval_rt, &start, &end, state->thread_id);
     } else {
-        // sum_hit_compile_cnt == 0
-        if (hit_group_cnt > 0) {
-            return MAAT_SCAN_HALF_HIT;
-        }
+        interval_runtime_perf_stat(interval_rt, NULL, NULL, state->thread_id);
     }
 
     maat_runtime_ref_dec(maat_instance->maat_rt, state->thread_id);
 
-    return MAAT_SCAN_OK;
+    if (sum_hit_compile_cnt > 0) {
+        return MAAT_SCAN_HIT;
+    } else if (hit_group_cnt > 0) {
+        return MAAT_SCAN_HALF_HIT;
+    } else {
+        return MAAT_SCAN_OK;
+    }
 }
 
 int maat_scan_ipv4(struct maat *maat_instance, int table_id,
@@ -1211,6 +1284,11 @@ int maat_scan_ipv4(struct maat *maat_instance, int table_id,
         return MAAT_SCAN_ERR;
     }
 
+    struct timespec start, end;
+    if (1 == maat_instance->perf_on) {
+        clock_gettime(CLOCK_MONOTONIC, &start);
+    }
+
     state->scan_cnt++;
 
     if (NULL == maat_instance->maat_rt) {
@@ -1237,7 +1315,7 @@ int maat_scan_ipv4(struct maat *maat_instance, int table_id,
     }
 
     maat_runtime_ref_inc(maat_instance->maat_rt, state->thread_id);
-    alignment_int64_array_add(maat_instance->thread_call_cnt, state->thread_id, 1);
+    alignment_int64_array_add(maat_instance->stat->thread_call_cnt, state->thread_id, 1);
 
     int hit_group_cnt = ipv4_scan(maat_instance->tbl_mgr, state->thread_id, ip_addr, port, protocol,
                                   physical_table_id, vtable_id, state);
@@ -1247,36 +1325,37 @@ int maat_scan_ipv4(struct maat *maat_instance, int table_id,
     
     size_t sum_hit_compile_cnt = 0;
     if (hit_group_cnt > 0 || scan_status_should_compile_NOT(state)) {
-        // come here means group_hit_cnt > 0, at least MAAT_SCAN_HALF_HIT, or MAAT_SCAN_HIT
         sum_hit_compile_cnt = group_to_compile(maat_instance, results, n_result, state);
         *n_hit_result = sum_hit_compile_cnt;
     }
 
     if (sum_hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_instance->hit_cnt, state->thread_id, 1);
+        alignment_int64_array_add(maat_instance->stat->hit_cnt, state->thread_id, 1);
         if (0 == hit_group_cnt) {
             //hit NOT group
-             alignment_int64_array_add(maat_instance->not_grp_hit_cnt, state->thread_id, 1);
+             alignment_int64_array_add(maat_instance->stat->not_grp_hit_cnt, state->thread_id, 1);
         }
-        return MAAT_SCAN_HIT;
+    }
+
+    void *ip_rt = table_manager_get_runtime(maat_instance->tbl_mgr, physical_table_id);
+    assert(ip_rt != NULL);
+
+    if (1 == maat_instance->perf_on) {
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        ip_runtime_perf_stat(ip_rt, &start, &end, state->thread_id);
     } else {
-        // n_hit_compile == 0
-        if (hit_group_cnt > 0) {
-            return MAAT_SCAN_HALF_HIT;
-        }
+        ip_runtime_perf_stat(ip_rt, NULL, NULL, state->thread_id);
     }
 
     maat_runtime_ref_dec(maat_instance->maat_rt, state->thread_id);
 
-    return MAAT_SCAN_OK;
-}
-
-int maat_scan_ipv4_tuple4(struct maat *instance, int table_id,
-                          const struct ipv4_tuple *tuple4, long long *results,
-                          size_t n_result, size_t *n_hit_result,
-                          struct maat_state *state)
-{
-    return MAAT_SCAN_OK;
+    if (sum_hit_compile_cnt > 0) {
+        return MAAT_SCAN_HIT;
+    } else if (hit_group_cnt > 0) {
+        return MAAT_SCAN_HALF_HIT;
+    } else {
+        return MAAT_SCAN_OK;
+    }
 }
 
 int maat_scan_ipv6(struct maat *maat_instance, int table_id,
@@ -1290,6 +1369,11 @@ int maat_scan_ipv6(struct maat *maat_instance, int table_id,
         return MAAT_SCAN_ERR;
     }
 
+    struct timespec start, end;
+    if (1 == maat_instance->perf_on) {
+        clock_gettime(CLOCK_MONOTONIC, &start);
+    }
+
     state->scan_cnt++;
 
     if (NULL == maat_instance->maat_rt) {
@@ -1316,7 +1400,7 @@ int maat_scan_ipv6(struct maat *maat_instance, int table_id,
     }
 
     maat_runtime_ref_inc(maat_instance->maat_rt, state->thread_id);
-    alignment_int64_array_add(maat_instance->thread_call_cnt, state->thread_id, 1);
+    alignment_int64_array_add(maat_instance->stat->thread_call_cnt, state->thread_id, 1);
 
     int hit_group_cnt = ipv6_scan(maat_instance->tbl_mgr, state->thread_id, ip_addr, port, protocol, 
                                   physical_table_id, vtable_id, state);
@@ -1326,36 +1410,37 @@ int maat_scan_ipv6(struct maat *maat_instance, int table_id,
 
     size_t sum_hit_compile_cnt = 0;
     if (hit_group_cnt > 0 || scan_status_should_compile_NOT(state)) {
-        // come here means group_hit_cnt > 0, at least MAAT_SCAN_HALF_HIT, or MAAT_SCAN_HIT
         sum_hit_compile_cnt = group_to_compile(maat_instance, results, n_result, state);
         *n_hit_result = sum_hit_compile_cnt;
     }
 
     if (sum_hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_instance->hit_cnt, state->thread_id, 1);
+        alignment_int64_array_add(maat_instance->stat->hit_cnt, state->thread_id, 1);
         if (0 == hit_group_cnt) {
             //hit NOT group
-             alignment_int64_array_add(maat_instance->not_grp_hit_cnt, state->thread_id, 1);
+             alignment_int64_array_add(maat_instance->stat->not_grp_hit_cnt, state->thread_id, 1);
         }
-        return MAAT_SCAN_HIT;
+    }
+
+    void *ip_rt = table_manager_get_runtime(maat_instance->tbl_mgr, physical_table_id);
+    assert(ip_rt != NULL);
+
+    if (1 == maat_instance->perf_on) {
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        ip_runtime_perf_stat(ip_rt, &start, &end, state->thread_id);
     } else {
-        // n_hit_compile == 0
-        if (hit_group_cnt > 0) {
-            return MAAT_SCAN_HALF_HIT;
-        }
+        ip_runtime_perf_stat(ip_rt, NULL, NULL, state->thread_id);
     }
 
     maat_runtime_ref_dec(maat_instance->maat_rt, state->thread_id);
 
-    return MAAT_SCAN_OK;
-}
-
-int maat_scan_ipv6_tuple4(struct maat *instance, int table_id,
-                          const struct ipv6_tuple *tuple, long long *results,
-                          size_t n_result, size_t *n_hit_result,
-                          struct maat_state *state)
-{
-    return MAAT_SCAN_OK;
+    if (sum_hit_compile_cnt > 0) {
+        return MAAT_SCAN_HIT;
+    } else if (hit_group_cnt > 0) {
+        return MAAT_SCAN_HALF_HIT;
+    } else {
+        return MAAT_SCAN_OK;
+    }
 }
 
 int maat_scan_string(struct maat *maat_instance, int table_id, const char *data, 
@@ -1368,6 +1453,11 @@ int maat_scan_string(struct maat *maat_instance, int table_id, const char *data,
         return MAAT_SCAN_ERR;
     }
     
+    struct timespec start, end;
+    if (1 == maat_instance->perf_on) {
+        clock_gettime(CLOCK_MONOTONIC, &start);
+    }
+
     state->scan_cnt++;
 
     if (NULL == maat_instance->maat_rt) {
@@ -1394,7 +1484,7 @@ int maat_scan_string(struct maat *maat_instance, int table_id, const char *data,
     }
 
     maat_runtime_ref_inc(maat_instance->maat_rt, state->thread_id);
-    alignment_int64_array_add(maat_instance->thread_call_cnt, state->thread_id, 1);
+    alignment_int64_array_add(maat_instance->stat->thread_call_cnt, state->thread_id, 1);
 
     int hit_group_cnt = string_scan(maat_instance->tbl_mgr, state->thread_id, data, data_len, 
                                     physical_table_id, vtable_id, state);
@@ -1404,28 +1494,37 @@ int maat_scan_string(struct maat *maat_instance, int table_id, const char *data,
 
      size_t sum_hit_compile_cnt = 0;
     if (hit_group_cnt > 0 || scan_status_should_compile_NOT(state)) {
-        // come here means group_hit_cnt > 0, at least MAAT_SCAN_HALF_HIT, or MAAT_SCAN_HIT
         sum_hit_compile_cnt = group_to_compile(maat_instance, results, n_result, state);
         *n_hit_result = sum_hit_compile_cnt;
     }
 
     if (sum_hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_instance->hit_cnt, state->thread_id, 1);
+        alignment_int64_array_add(maat_instance->stat->hit_cnt, state->thread_id, 1);
         if (0 == hit_group_cnt) {
             //hit NOT group
-             alignment_int64_array_add(maat_instance->not_grp_hit_cnt, state->thread_id, 1);
+             alignment_int64_array_add(maat_instance->stat->not_grp_hit_cnt, state->thread_id, 1);
         }
-        return MAAT_SCAN_HIT;
+    }
+
+    void *expr_rt = table_manager_get_runtime(maat_instance->tbl_mgr, physical_table_id);
+    assert(expr_rt != NULL);
+
+    if (1 == maat_instance->perf_on) {
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        expr_runtime_perf_stat(expr_rt, data_len, &start, &end, state->thread_id);
     } else {
-        // n_hit_compile == 0
-        if (hit_group_cnt > 0) {
-            return MAAT_SCAN_HALF_HIT;
-        }
+        expr_runtime_perf_stat(expr_rt, data_len, NULL, NULL, state->thread_id);
     }
 
     maat_runtime_ref_dec(maat_instance->maat_rt, state->thread_id);
 
-    return MAAT_SCAN_OK;
+    if (sum_hit_compile_cnt > 0) {
+        return MAAT_SCAN_HIT;
+    } else if (hit_group_cnt > 0) {
+        return MAAT_SCAN_HALF_HIT;
+    } else {
+        return MAAT_SCAN_OK;
+    }
 }
 
 struct maat_stream *maat_stream_new(struct maat *maat_instance, int table_id, 
@@ -1488,6 +1587,11 @@ int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data
         return MAAT_SCAN_ERR;
     }
 
+    struct timespec start, end;
+    if (1 == maat_stream->ref_maat_instance->perf_on) {
+        clock_gettime(CLOCK_MONOTONIC, &start);
+    }
+
     state->scan_cnt++;
 
     struct maat *maat_instance = maat_stream->ref_maat_instance;
@@ -1503,7 +1607,7 @@ int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data
         return MAAT_SCAN_OK;
     }
 
-    alignment_int64_array_add(maat_stream->ref_maat_instance->thread_call_cnt, maat_stream->thread_id, 1);
+    alignment_int64_array_add(maat_instance->stat->thread_call_cnt, maat_stream->thread_id, 1);
 
     int hit_group_cnt = expr_stream_scan(maat_stream, data, data_len, state);
     if (hit_group_cnt < 0) {
@@ -1512,26 +1616,32 @@ int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data
 
     size_t sum_hit_compile_cnt = 0;
     if (hit_group_cnt > 0 || scan_status_should_compile_NOT(state)) {
-        // come here means group_hit_cnt > 0, at least MAAT_SCAN_HALF_HIT, or MAAT_SCAN_HIT
-        sum_hit_compile_cnt = group_to_compile(maat_stream->ref_maat_instance, results, n_result, state);
+        sum_hit_compile_cnt = group_to_compile(maat_instance, results, n_result, state);
         *n_hit_result = sum_hit_compile_cnt;
     }
 
     if (sum_hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_stream->ref_maat_instance->hit_cnt, maat_stream->thread_id, 1);
+        alignment_int64_array_add(maat_instance->stat->hit_cnt, maat_stream->thread_id, 1);
         if (0 == hit_group_cnt) {
             //hit NOT group
-             alignment_int64_array_add(maat_stream->ref_maat_instance->not_grp_hit_cnt, maat_stream->thread_id, 1);
+             alignment_int64_array_add(maat_instance->stat->not_grp_hit_cnt, maat_stream->thread_id, 1);
         }
-        return MAAT_SCAN_HIT;
-    } else {
-        // n_hit_compile == 0
-        if (hit_group_cnt > 0) {
-            return MAAT_SCAN_HALF_HIT;
-        }
-    }    
+    }  
 
-    return sum_hit_compile_cnt;
+    if (1 == maat_instance->perf_on) {
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        expr_runtime_perf_stat(expr_rt, data_len, &start, &end, state->thread_id);
+    } else {
+        expr_runtime_perf_stat(expr_rt, data_len, NULL, NULL, state->thread_id);
+    }
+
+     if (sum_hit_compile_cnt > 0) {
+        return MAAT_SCAN_HIT;
+    } else if (hit_group_cnt > 0) {
+        return MAAT_SCAN_HALF_HIT;
+    } else {
+        return MAAT_SCAN_OK;
+    }
 }
 
 void maat_stream_free(struct maat_stream *maat_stream)
@@ -1540,7 +1650,11 @@ void maat_stream_free(struct maat_stream *maat_stream)
         return;
     }
 
-    expr_runtime_stream_close(maat_stream->s_handle);
+     void *expr_rt = table_manager_get_runtime(maat_stream->ref_maat_instance->tbl_mgr, 
+                                              maat_stream->physical_table_id);
+    assert(expr_rt != NULL);
+
+    expr_runtime_stream_close(expr_rt, maat_stream->thread_id, maat_stream->s_handle);
     FREE(maat_stream);
 }
 

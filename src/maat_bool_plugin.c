@@ -10,6 +10,7 @@
 
 #include <assert.h>
 
+#include "alignment.h"
 #include "maat_bool_plugin.h"
 #include "bool_matcher.h"
 #include "maat_utils.h"
@@ -36,8 +37,13 @@ struct bool_plugin_runtime {
     struct ex_data_runtime *ex_data_rt;
     long long version;
     long long rule_num;
+    size_t n_worker_thread;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
+
+    long long update_err_cnt;
+    long long *scan_cnt;
+    long long *scan_cpu_time;
 };
 
 /* bool plugin schema API */
@@ -169,7 +175,7 @@ size_t ull_dedup(unsigned long long item_ids[], size_t n_item)
 	return index + 1;
 }
 
-void *bool_plugin_runtime_new(void *bool_plugin_schema, int max_thread_num,
+void *bool_plugin_runtime_new(void *bool_plugin_schema, size_t max_thread_num,
                               struct maat_garbage_bin *garbage_bin, 
                               struct log_handle *logger)
 {
@@ -185,8 +191,10 @@ void *bool_plugin_runtime_new(void *bool_plugin_schema, int max_thread_num,
         ex_data_runtime_set_ex_container_schema(bool_plugin_rt->ex_data_rt, &(schema->container_schema));
     }
 
+    bool_plugin_rt->n_worker_thread = max_thread_num;
     bool_plugin_rt->ref_garbage_bin = garbage_bin;
     bool_plugin_rt->logger = logger;
+    bool_plugin_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
 
     return bool_plugin_rt;
 }
@@ -206,6 +214,16 @@ void bool_plugin_runtime_free(void *bool_plugin_runtime)
     if (bool_plugin_rt->ex_data_rt != NULL) {
         ex_data_runtime_free(bool_plugin_rt->ex_data_rt);
         bool_plugin_rt->ex_data_rt = NULL;
+    }
+
+    if (bool_plugin_rt->scan_cnt != NULL) {
+        alignment_int64_array_free(bool_plugin_rt->scan_cnt);
+        bool_plugin_rt->scan_cnt = NULL;
+    }
+
+    if (bool_plugin_rt->scan_cpu_time != NULL) {
+        alignment_int64_array_free(bool_plugin_rt->scan_cpu_time);
+        bool_plugin_rt->scan_cpu_time = NULL;
     }
 
     FREE(bool_plugin_rt);
@@ -364,11 +382,13 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
 
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
+        bool_plugin_rt->update_err_cnt++;
         return -1;
     }
 
     int ret = get_column_pos(line, schema->item_id_column, &item_id_offset, &item_id_len);
     if (ret < 0) {
+        bool_plugin_rt->update_err_cnt++;
         return -1;
     }
 
@@ -377,6 +397,7 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
             // add
             bool_expr = bool_plugin_expr_new(line, schema, table_name, bool_plugin_rt->logger);
             if (NULL == bool_expr) {
+                bool_plugin_rt->update_err_cnt++;
                 return -1;
             }
         }
@@ -389,6 +410,7 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
             if (bool_expr != NULL) {
                 bool_plugin_expr_free(bool_expr);
             }
+            bool_plugin_rt->update_err_cnt++;
             return -1;
         }
     } else {
@@ -406,7 +428,8 @@ void garbage_bool_matcher_free(void *matcher, void *arg)
     bool_matcher_free(bm);
 }
 
-int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name, long long maat_rt_version)
+int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name,
+                               long long maat_rt_version)
 {
     if (NULL == bool_plugin_runtime) {
         return -1;
@@ -524,4 +547,62 @@ int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, unsigned long lon
 	}
 
 	return n_result;
+}
+
+void bool_plugin_runtime_perf_stat(void *bool_plugin_runtime, struct timespec *start, 
+                                   struct timespec *end, int thread_id)
+{
+    if (NULL == bool_plugin_runtime || thread_id < 0) {
+        return;
+    }
+
+    struct bool_plugin_runtime *bool_plugin_rt = (struct bool_plugin_runtime *)bool_plugin_runtime;
+    alignment_int64_array_add(bool_plugin_rt->scan_cnt, thread_id, 1);
+
+    if (start != NULL && end != NULL) {
+        if (NULL == bool_plugin_rt->scan_cpu_time) {
+            bool_plugin_rt->scan_cpu_time = alignment_int64_array_alloc(bool_plugin_rt->n_worker_thread);
+        }
+
+        long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 + (end->tv_nsec - start->tv_nsec);
+        alignment_int64_array_add(bool_plugin_rt->scan_cpu_time, thread_id, consume_time);
+    }
+}
+
+long long bool_plugin_runtime_scan_count(void *bool_plugin_runtime)
+{
+    if (NULL == bool_plugin_runtime) {
+        return 0;
+    }
+
+    struct bool_plugin_runtime *bool_plugin_rt = (struct bool_plugin_runtime *)bool_plugin_runtime;
+    long long sum = alignment_int64_array_sum(bool_plugin_rt->scan_cnt, 
+                                              bool_plugin_rt->n_worker_thread);
+    alignment_int64_array_reset(bool_plugin_rt->scan_cnt, bool_plugin_rt->n_worker_thread);
+
+    return sum;
+}
+
+long long bool_plugin_runtime_scan_cpu_time(void *bool_plugin_runtime)
+{
+    if (NULL == bool_plugin_runtime) {
+        return 0;
+    }
+
+    struct bool_plugin_runtime *bool_plugin_rt = (struct bool_plugin_runtime *)bool_plugin_runtime;
+    long long sum = alignment_int64_array_sum(bool_plugin_rt->scan_cpu_time, 
+                                              bool_plugin_rt->n_worker_thread);
+    alignment_int64_array_reset(bool_plugin_rt->scan_cpu_time, bool_plugin_rt->n_worker_thread);
+
+    return sum;
+}
+
+long long bool_plugin_runtime_update_err_count(void *bool_plugin_runtime)
+{
+    if (NULL == bool_plugin_runtime) {
+        return 0;
+    }
+
+    struct bool_plugin_runtime *bool_plugin_rt = (struct bool_plugin_runtime *)bool_plugin_runtime;
+    return bool_plugin_rt->update_err_cnt;
 }

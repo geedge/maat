@@ -15,7 +15,7 @@ include_directories(/opt/MESA/include/)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_FLAGS "-fPIC -Wall") 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -Wall")
-set(MAAT_DEPEND_DYN_LIB pthread m crypto z)
+set(MAAT_DEPEND_DYN_LIB pthread m crypto z fieldstat3)
 include_directories(include)
 
 #for ASAN

@@ -31,7 +31,7 @@ void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 void group2group_schema_free(void *g2g_schema);
 
 /* group2group runtime API */
-void *group2group_runtime_new(void *g2g_schema, int max_thread_num,
+void *group2group_runtime_new(void *g2g_schema, size_t max_thread_num,
                               struct maat_garbage_bin *garbage_bin,
                               struct log_handle *logger);
 void group2group_runtime_free(void *g2g_runtime);
@@ -52,6 +52,8 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema, const char *
 int group2group_runtime_commit(void *g2g_runtime, const char *table_name, long long maat_rt_version);
 
 long long group2group_runtime_rule_count(void *g2g_runtime);
+
+long long group2group_runtime_update_err_count(void *g2g_runtime);
 
 #ifdef __cplusplus
 }

@@ -27,12 +27,15 @@ extern "C"
 
 #include "hiredis/hiredis.h"
 #include "uthash/uthash.h"
+#include "log/log.h"
+#include "fieldstat.h"
 #include "maat_command.h"
-//#include "ip_matcher.h"
+#include "maat_limits.h"
 #include "maat.h"
 #include "maat_kv.h"
 #include "maat_table.h"
 #include "maat_virtual.h"
+#include "maat_stat.h"
 
 #define MAX_TABLE_NUM	1024
 #define MAX_COMPILE_TABLE_NUM 16
@@ -168,6 +171,31 @@ struct rule_tag {
 	char *tag_val;
 };
 
+struct maat_stat {
+    char stat_file[PATH_MAX];
+    struct fieldstat_instance *fs_handle;
+    int total_stat_id[MAX_MAAT_STAT_NUM];
+    int fs_status_id[MAX_MAAT_STAT_NUM];
+	int fs_column_id[MAX_TABLE_NUM][MAX_MAAT_STAT_NUM];
+    struct log_handle *logger;
+    struct table_manager *ref_tbl_mgr;
+    struct maat_garbage_bin *ref_garbage_bin;
+    size_t nr_worker_thread;
+    int cmd_q_cnt;
+    
+
+    long long *thread_call_cnt;
+    long long *hit_cnt;
+    long long *not_grp_hit_cnt;
+
+    long long scan_bytes;
+	long long scan_cnt;
+    long long update_err_cnt;
+    long long scan_err_cnt;
+    long long zombie_rs_stream;
+    long long line_cmd_acc_num;
+};
+
 struct maat {
     char instance_name[NAME_MAX];
 
@@ -188,7 +216,7 @@ struct maat {
 
     int is_running;
     pthread_mutex_t background_update_mutex;
-    int nr_worker_thread;
+    size_t nr_worker_thread;
     
     long long maat_version;
     long long last_full_version;
@@ -200,6 +228,8 @@ struct maat {
 
     int cumulative_update_off; //Default: cumulative update on
 
+    int stat_on;
+    int perf_on;
     struct maat_garbage_bin *garbage_bin;
 
     int default_compile_table_id;
@@ -216,13 +246,7 @@ struct maat {
     long long new_version;
 
     /* statistics */
-    long long line_cmd_acc_num;
-
-    long long *thread_call_cnt;
-    long long *hit_cnt;
-    long long *not_grp_hit_cnt;
-
-    long long scan_err_cnt;
+    struct maat_stat *stat;
 };
 
 enum district_flag {

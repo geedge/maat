@@ -29,7 +29,7 @@ void *flag_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 void flag_schema_free(void *flag_schema);
 
 /* flag runtime API */
-void *flag_runtime_new(void *flag_schema, int max_thread_num,
+void *flag_runtime_new(void *flag_schema, size_t max_thread_num,
                        struct maat_garbage_bin *garbage_bin, 
                        struct log_handle *logger);
 void flag_runtime_free(void *flag_runtime);
@@ -53,8 +53,18 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, long long fla
 int flag_runtime_set_scan_district(struct flag_runtime *flag_rt, const char *district, 
                                     size_t district_len, long long *district_id);
 
-void flag_runtime_scan_hit_inc(struct flag_runtime *flag_rt, int thread_id);
-long long flag_runtime_scan_hit_sum(struct flag_runtime *flag_rt, int n_thread);
+void flag_runtime_hit_inc(struct flag_runtime *flag_rt, int thread_id);
+
+void flag_runtime_perf_stat(struct flag_runtime *flag_rt, struct timespec *start,
+                            struct timespec *end, int thread_id);
+
+long long flag_runtime_scan_count(void *flag_runtime);
+
+long long flag_runtime_scan_cpu_time(void *flag_runtime);
+
+long long flag_runtime_hit_count(void *flag_runtime);
+
+long long flag_runtime_update_err_count(void *flag_runtime);
 
 #ifdef __cplusplus
 }

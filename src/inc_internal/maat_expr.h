@@ -27,7 +27,7 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 void expr_schema_free(void *expr_schema);
 
 /* expr runtime API */
-void *expr_runtime_new(void *expr_schema, int max_thread_num, 
+void *expr_runtime_new(void *expr_schema, size_t max_thread_num, 
                        struct maat_garbage_bin *garbage_bin, 
                        struct log_handle *logger);
 void expr_runtime_free(void *expr_runtime);
@@ -38,6 +38,8 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema, const char *table
 int expr_runtime_commit(void *expr_runtime, const char *table_name, long long maat_rt_version);
 
 long long expr_runtime_rule_count(void *expr_runtime);
+
+long long expr_runtime_regex_rule_count(void *expr_runtime);
 
 long long expr_runtime_get_version(void *expr_runtime);
 
@@ -55,13 +57,30 @@ struct adapter_hs_stream *expr_runtime_stream_open(struct expr_runtime *expr_rt,
 int expr_runtime_stream_scan(struct expr_runtime *expr_rt, struct adapter_hs_stream *s_handle, 
                              const char *data, size_t data_len,
                              int vtable_id, struct maat_state *state);
-void expr_runtime_stream_close(struct adapter_hs_stream *s_handle);
+
+void expr_runtime_stream_close(struct expr_runtime *expr_rt, int thread_id, 
+                               struct adapter_hs_stream *s_handle);
 
 int expr_runtime_set_scan_district(struct expr_runtime *expr_rt, const char *district, 
                                    size_t district_len, long long *district_id);
 
-void expr_runtime_scan_hit_inc(struct expr_runtime *expr_rt, int thread_id);
-long long expr_runtime_scan_hit_sum(struct expr_runtime *expr_rt, int n_thread);
+void expr_runtime_hit_inc(struct expr_runtime *expr_rt, int thread_id);
+
+void expr_runtime_perf_stat(struct expr_runtime *flag_rt, size_t scan_len, 
+                            struct timespec *start, struct timespec *end, 
+                            int thread_id);
+
+long long expr_runtime_scan_count(void *expr_runtime);
+
+long long expr_runtime_scan_cpu_time(void *expr_runtime);
+
+long long expr_runtime_hit_count(void *expr_runtime);
+
+long long expr_runtime_update_err_count(void *expr_runtime);
+
+long long expr_runtime_scan_bytes(struct expr_runtime *expr_rt);
+
+long long expr_runtime_stream_num(struct expr_runtime *expr_rt);
 
 #ifdef __cplusplus
 }

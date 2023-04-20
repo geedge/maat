@@ -37,7 +37,7 @@ int bool_plugin_table_set_ex_container_schema(void *bool_plugin_schema, int tabl
 struct ex_container_schema *bool_plugin_table_get_ex_container_schema(void *bool_plugin_schema);
 
 /* ip plugin runtime API */
-void *bool_plugin_runtime_new(void *bool_plugin_schema, int max_thread_num,
+void *bool_plugin_runtime_new(void *bool_plugin_schema, size_t max_thread_num,
                               struct maat_garbage_bin *garbage_bin, 
                               struct log_handle *logger);
 void bool_plugin_runtime_free(void *bool_plugin_runtime);
@@ -45,7 +45,8 @@ void bool_plugin_runtime_free(void *bool_plugin_runtime);
 int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_schema, 
                                 const char *table_name, const char *line, int valid_column);
 
-int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name, long long maat_rt_version);
+int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name,
+                               long long maat_rt_version);
 
 long long bool_plugin_runtime_rule_count(void *bool_plugin_runtime);
 
@@ -53,6 +54,15 @@ struct ex_data_runtime *bool_plugin_runtime_get_ex_data_rt(void *bool_plugin_run
 
 int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, unsigned long long *item_ids, 
                                     size_t n_item, void **ex_data_array, size_t n_ex_data);
+
+void bool_plugin_runtime_perf_stat(void *bool_plugin_runtime, struct timespec *start, 
+                                   struct timespec *end, int thread_id);
+
+long long bool_plugin_runtime_scan_count(void *bool_plugin_runtime);
+
+long long bool_plugin_runtime_scan_cpu_time(void *bool_plugin_runtime);
+
+long long bool_plugin_runtime_update_err_count(void *bool_plugin_runtime);
 
 #ifdef __cplusplus
 }

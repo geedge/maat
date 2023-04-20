@@ -377,7 +377,7 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
 	}
 
 	ret = success_cnt;
-	maat_instance->line_cmd_acc_num += success_cnt;
+	maat_instance->stat->line_cmd_acc_num += success_cnt;
 
 error_out:
 	maat_cmd_clear_rule_cache(s_rule);

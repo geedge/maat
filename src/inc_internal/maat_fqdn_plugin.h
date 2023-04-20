@@ -39,7 +39,7 @@ int fqdn_plugin_table_set_ex_container_schema(void *fqdn_plugin_schema, int tabl
 struct ex_container_schema *fqdn_plugin_table_get_ex_container_schema(void *fqdn_plugin_schema);
 
 /* fqdn plugin runtime API */
-void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, int max_thread_num,
+void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, size_t max_thread_num,
                               struct maat_garbage_bin *garbage_bin, 
                               struct log_handle *logger);
 void fqdn_plugin_runtime_free(void *fqdn_plugin_runtime);
@@ -47,7 +47,8 @@ void fqdn_plugin_runtime_free(void *fqdn_plugin_runtime);
 int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_schema, 
                                 const char *table_name, const char *line, int valid_column);
 
-int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name, long long maat_rt_version);
+int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name,
+                               long long maat_rt_version);
 
 long long fqdn_plugin_runtime_rule_count(void *fqdn_plugin_runtime);
 
@@ -57,6 +58,15 @@ int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, const char *fqdn,
                                     void **ex_data_array, size_t n_ex_data);
 
 void fqdn_rule_free(struct FQDN_rule *fqdn_rule);
+
+void fqdn_plugin_runtime_perf_stat(void *fqdn_plugin_runtime, struct timespec *start, 
+                                   struct timespec *end, int thread_id);
+
+long long fqdn_plugin_runtime_scan_count(void *fqdn_plugin_runtime);
+
+long long fqdn_plugin_runtime_scan_cpu_time(void *fqdn_plugin_runtime);
+
+long long fqdn_plugin_runtime_update_err_count(void *fqdn_plugin_runtime);
 
 #ifdef __cplusplus
 }
