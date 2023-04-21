@@ -31,15 +31,12 @@ struct compile_schema {
     int compile_id_column;
     int rule_tag_column;
     int declared_clause_num_column;
-    int table_id; //ugly
-    char table_name[NAME_MAX];
     int set_flag;
     struct ex_data_schema ex_schema;
     struct table_manager *ref_tbl_mgr;
     struct log_handle *logger;
-
-    unsigned long long update_err_cnt;
-    unsigned long long unmatch_tag_cnt;
+    int table_id; //ugly
+    char table_name[NAME_MAX];
 };
 
 struct group2compile_schema {
@@ -475,7 +472,6 @@ int compile_accept_tag_match(struct compile_schema *schema, const char *line,
             log_error(logger, MODULE_COMPILE,
                       "[%s:%d] compile table:%s has no rule_tag in line:%s",
                       __FUNCTION__, __LINE__, table_name, line);
-            schema->update_err_cnt++;
             return TAG_MATCH_ERR;
         }
 
@@ -488,12 +484,10 @@ int compile_accept_tag_match(struct compile_schema *schema, const char *line,
                 log_error(logger, MODULE_COMPILE,
                           "[%s:%d] compile table:%s has invalid tag format in line:%s",
                           __FUNCTION__, __LINE__, table_name, line);
-                schema->update_err_cnt++;
                 return TAG_MATCH_ERR;
             }
 
             if (TAG_MATCH_UNMATCHED == ret) {
-                schema->unmatch_tag_cnt++;
                 return TAG_MATCH_UNMATCHED;
             }
         }
@@ -988,7 +982,8 @@ size_t maat_compile_bool_matcher_match(struct compile_runtime *compile_rt, int i
 {
     size_t ud_result_cnt = 0;
 	struct maat_compile *compile = NULL;
-	struct bool_expr_match *expr_match = compile_rt->expr_match_buff + compile_state->thread_id * MAX_SCANNER_HIT_COMPILE_NUM;
+	struct bool_expr_match *expr_match = compile_rt->expr_match_buff + 
+                                         (compile_state->thread_id * MAX_SCANNER_HIT_COMPILE_NUM);
     assert(compile_state->thread_id >= 0);
 
     if (0 == compile_state->compile_rt_version) {
@@ -1004,13 +999,14 @@ size_t maat_compile_bool_matcher_match(struct compile_runtime *compile_rt, int i
 	//TODO:mytest need to delete
 	#if 0
 	unsigned long long *p = utarray_eltptr(compile_state->all_hit_clauses, 0);
-	for (p = (unsigned long long *)utarray_front(compile_state->all_hit_clauses); p != NULL; p = (unsigned long long *)utarray_next(compile_state->all_hit_clauses, p))
-	{
+	for (p = (unsigned long long *)utarray_front(compile_state->all_hit_clauses); p != NULL; 
+         p = (unsigned long long *)utarray_next(compile_state->all_hit_clauses, p)) {
 		printf("before bool_matcher_match compile_rt:%p compile_state clause_id:%llu\n",  compile_rt, *p);
 	}
 	#endif
 	
-	int bool_match_ret = bool_matcher_match(compile_rt->bm, (unsigned long long *)utarray_eltptr(compile_state->all_hit_clauses, 0),
+	int bool_match_ret = bool_matcher_match(compile_rt->bm, 
+                                            (unsigned long long *)utarray_eltptr(compile_state->all_hit_clauses, 0),
 											utarray_len(compile_state->all_hit_clauses), 
                                             expr_match, MAX_SCANNER_HIT_COMPILE_NUM);
 	for (int i = 0; i < bool_match_ret && ud_result_cnt < ud_array_size; i++) {

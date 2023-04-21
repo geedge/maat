@@ -28,9 +28,6 @@ struct fqdn_plugin_schema {
     int table_id;
     struct table_manager *ref_tbl_mgr;
     struct log_handle *logger;
-
-    unsigned long long update_err_cnt;
-    unsigned long long unmatch_tag_cnt;
 };
 
 struct fqdn_plugin_runtime {
@@ -236,7 +233,6 @@ int fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema, const char *
             log_error(logger, MODULE_FQDN_PLUGIN,
                       "[%s:%d] fqdn_plugin table(table_id:%d) has no rule_tag, line:%s",
                       __FUNCTION__, __LINE__, schema->table_id, line);
-            schema->update_err_cnt++;
             return TAG_MATCH_ERR;
         }
 
@@ -249,12 +245,10 @@ int fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema, const char *
                 log_error(logger, MODULE_FQDN_PLUGIN,
                           "[%s:%d] fqdn_plugin table(table_id:%d) has invalid tag format, line:%s",
                           __FUNCTION__, __LINE__, schema->table_id, line);
-                schema->update_err_cnt++;
                 return TAG_MATCH_ERR;
             }
 
             if (TAG_MATCH_UNMATCHED == ret) {
-                schema->unmatch_tag_cnt++;
                 return TAG_MATCH_UNMATCHED;
             }
         }

@@ -32,9 +32,6 @@ struct ip_plugin_schema {
     int table_id; //ugly
     struct table_manager *ref_tbl_mgr;
     struct log_handle *logger;
-
-    unsigned long long update_err_cnt;
-    unsigned long long unmatch_tag_cnt;
 };
 
 struct ip_plugin_runtime {
@@ -145,7 +142,6 @@ int ip_plugin_accept_tag_match(struct ip_plugin_schema *schema, const char *line
             log_error(logger, MODULE_IP_PLUGIN,
                       "[%s:%d] ip_plugin table(table_id:%d) has no rule_tag, line:%s",
                       __FUNCTION__, __LINE__, schema->table_id, line);
-            schema->update_err_cnt++;
             return TAG_MATCH_ERR;
         }
 
@@ -158,12 +154,10 @@ int ip_plugin_accept_tag_match(struct ip_plugin_schema *schema, const char *line
                 log_error(logger, MODULE_IP_PLUGIN,
                           "[%s:%d] ip_plugin table(table_id:%d) has invalid tag format, line:%s",
                           __FUNCTION__, __LINE__, schema->table_id, line);
-                schema->update_err_cnt++;
                 return TAG_MATCH_ERR;
             }
 
             if (TAG_MATCH_UNMATCHED == ret) {
-                schema->unmatch_tag_cnt++;
                 return TAG_MATCH_UNMATCHED;
             }
         }

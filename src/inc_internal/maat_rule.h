@@ -78,12 +78,12 @@ struct maat_item {
 struct compile_rule {
 	long long magic_num;
     long long compile_id;
-    char table_name[NAME_MAX];
     char *table_line;
     size_t table_line_len;
-	int declared_clause_num;
 	struct compile_schema *ref_schema;
 	void **ex_data;
+    int declared_clause_num;
+    char table_name[NAME_MAX];
 };
 
 struct group2group_rule {
