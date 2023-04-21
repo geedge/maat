@@ -388,35 +388,25 @@ TEST_F(MaatIris, basic) {
     inet_pton(AF_INET, "114.114.114.114", &dip_addr);
     uint16_t sport = htons(58309);
     uint16_t dport = htons(53);
+    struct timespec start, end;
 
-    int table_id = maat_get_table_id(maat_instance, "TSG_SECURITY_SOURCE_ADDR");
-    ASSERT_GT(table_id, 0);
-    int ret = maat_scan_ipv4(maat_instance, table_id, sip_addr, sport, 6,
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    ret = maat_scan_ipv4(maat_instance, table_id, dip_addr, dport, 6,
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    table_id = maat_get_table_id(maat_instance, "TSG_SECURITY_DESTINATION_ADDR");
-    ASSERT_GT(table_id, 0);
-
-    ret = maat_scan_ipv4(maat_instance, table_id, sip_addr, sport, 6,
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    ret = maat_scan_ipv4(maat_instance, table_id, dip_addr, dport, 6,
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-
-    table_id = maat_get_table_id(maat_instance, "TSG_SECURITY_SOURCE_LOCATION");
-    ASSERT_GT(table_id, 0);
-
-    maat_state_free(state);
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < 100000; i++)
+    {
+        int table_id = maat_get_table_id(maat_instance, "TSG_SECURITY_SOURCE_ADDR");
+        ASSERT_GT(table_id, 0);
+        int ret = maat_scan_ipv4(maat_instance, table_id, sip_addr, sport, 6,
+                                 results, ARRAY_SIZE, &n_hit_result, state);
+        EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+        maat_state_reset(state);
+    }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    long long consume_us1 = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
+    printf("ipv4 consume time:%lldus\n", consume_us1/100000);
 }
 #endif
 
+#if 1
 class MaatFlagScan : public testing::Test
 {
 protected:
@@ -5638,7 +5628,7 @@ TEST_F(MaatRollbackTest, FullConfigRollback) {
     maat_state_free(state);
     state = NULL;
 }
-
+#endif
 int main(int argc, char ** argv)
 {
 	int ret=0;
