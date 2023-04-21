@@ -1,3 +1,4 @@
+include_directories(/opt/MESA/include/MESA/)
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/src/inc_internal)
 include_directories(${PROJECT_SOURCE_DIR}/deps)
