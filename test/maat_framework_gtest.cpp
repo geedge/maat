@@ -432,7 +432,6 @@ TEST_F(MaatIris, basic) {
 }
 #endif
 
-#if 0
 class MaatFlagScan : public testing::Test
 {
 protected:
@@ -3193,7 +3192,7 @@ TEST_F(TableInfo, Conjunction) {
     maat_state_free(state);
     state = NULL;
 }
-#endif
+
 class MaatFileTest : public testing::Test
 {
 protected:
@@ -3207,8 +3206,8 @@ protected:
         maat_options_set_caller_thread_number(opts, g_thread_num);
         maat_options_set_instance_name(opts, "files");
         maat_options_set_iris(opts, rule_folder, rule_folder);
-        //maat_options_set_rule_update_checking_interval_ms(opts, scan_interval_ms);
-        //maat_options_set_rule_effect_interval_ms(opts, effective_interval_ms);
+        maat_options_set_rule_update_checking_interval_ms(opts, scan_interval_ms);
+        maat_options_set_rule_effect_interval_ms(opts, effective_interval_ms);
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
 
         _shared_maat_instance = maat_new(opts, table_info);
@@ -3289,7 +3288,7 @@ TEST_F(MaatFileTest, StreamFiles) {
 
     free(name_list);
 }
-#if 0
+
 class HierarchyTest : public testing::Test
 {
 protected:
@@ -5654,7 +5653,7 @@ TEST_F(MaatRollbackTest, FullConfigRollback) {
     maat_state_free(state);
     state = NULL;
 }
-#endif
+
 int main(int argc, char ** argv)
 {
 	int ret=0;

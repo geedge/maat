@@ -248,7 +248,7 @@ struct maat_runtime* maat_runtime_create(long long version, struct maat *maat_in
     }
 
     maat_rt->ref_tbl_mgr = maat_instance->tbl_mgr;
-	maat_rt->max_table_num = table_manager_table_count(maat_instance->tbl_mgr);
+	maat_rt->max_table_num = table_manager_table_size(maat_instance->tbl_mgr);
     maat_rt->sequence_map = maat_kv_store_new();
     maat_rt->logger = maat_instance->logger;
     maat_rt->ref_garbage_bin = maat_instance->garbage_bin;
@@ -324,12 +324,12 @@ void maat_start_cb(long long new_version, int update_type, void *u_param)
 	struct maat *maat_instance = (struct maat *)u_param;
 	maat_instance->new_version = new_version;
     size_t i = 0;
-    size_t table_cnt = table_manager_table_count(maat_instance->tbl_mgr);
+    size_t max_table_cnt = table_manager_table_size(maat_instance->tbl_mgr);
     enum table_type table_type = TABLE_TYPE_INVALID;
 
 	if (update_type == MAAT_UPDATE_TYPE_FULL) {
 		maat_instance->creating_maat_rt = maat_runtime_create(new_version, maat_instance);
-        for (i = 0; i < table_cnt; i++) {
+        for (i = 0; i < max_table_cnt; i++) {
             table_type = table_manager_get_table_type(maat_instance->tbl_mgr, i);
             if (table_type == TABLE_TYPE_COMPILE) {
                 // compile runtime need a reference to maat runtime
@@ -341,7 +341,7 @@ void maat_start_cb(long long new_version, int update_type, void *u_param)
 		maat_instance->maat_version = new_version;
 	}
 
-    for (i = 0; i < table_cnt; i++) {
+    for (i = 0; i < max_table_cnt; i++) {
         table_type = table_manager_get_table_type(maat_instance->tbl_mgr, i);
         if (table_type == TABLE_TYPE_PLUGIN) {
             void *schema = table_manager_get_schema(maat_instance->tbl_mgr, i);
@@ -404,10 +404,10 @@ long long maat_runtime_rule_num(struct maat_runtime *maat_rt)
 
 void maat_plugin_table_all_callback_finish(struct table_manager *tbl_mgr)
 {
-    size_t table_cnt = table_manager_table_count(tbl_mgr);
+    size_t max_table_cnt = table_manager_table_size(tbl_mgr);
     enum table_type table_type = TABLE_TYPE_INVALID;
 
-    for (size_t i = 0; i < table_cnt; i++) {
+    for (size_t i = 0; i < max_table_cnt; i++) {
         table_type = table_manager_get_table_type(tbl_mgr, i);
         if (table_type != TABLE_TYPE_PLUGIN) {
             continue;
