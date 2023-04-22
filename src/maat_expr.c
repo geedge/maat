@@ -1071,7 +1071,7 @@ void expr_runtime_perf_stat(struct expr_runtime *expr_rt, size_t scan_len,
             expr_rt->scan_cpu_time = alignment_int64_array_alloc(expr_rt->n_worker_thread);
         }
 
-        long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 + end->tv_nsec - start->tv_nsec;
+        long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 + (end->tv_nsec - start->tv_nsec);
         alignment_int64_array_add(expr_rt->scan_cpu_time, thread_id, consume_time);
     }
 }

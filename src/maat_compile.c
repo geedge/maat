@@ -199,6 +199,7 @@ void maat_compile_free(struct maat_compile *compile)
 	struct maat_clause_state *clause_state = NULL;
 	if (compile->user_data && compile->user_data_free) {
 		compile->user_data_free(compile->user_data);
+        compile->user_data = NULL;
 	}
 
 	for (int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {

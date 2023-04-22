@@ -471,11 +471,6 @@ void maat_table_free(struct maat_table *maat_tbl)
         return;
     }
 
-    if (maat_tbl->schema != NULL) {
-        maat_table_schema_free(maat_tbl->schema, maat_tbl->table_type);
-        maat_tbl->schema = NULL;
-    }
-
     if (maat_tbl->runtime != NULL) {
         maat_table_runtime_free(maat_tbl->runtime, maat_tbl->table_type);
         maat_tbl->runtime = NULL;
@@ -484,6 +479,11 @@ void maat_table_free(struct maat_table *maat_tbl)
     if (maat_tbl->updating_runtime != NULL) {
         maat_table_runtime_free(maat_tbl->updating_runtime, maat_tbl->table_type);
         maat_tbl->updating_runtime = NULL;
+    }
+    
+    if (maat_tbl->schema != NULL) {
+        maat_table_schema_free(maat_tbl->schema, maat_tbl->table_type);
+        maat_tbl->schema = NULL;
     }
     
     FREE(maat_tbl);

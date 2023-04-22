@@ -70,6 +70,7 @@ void ex_data_runtime_free(struct ex_data_runtime *ex_data_rt)
 
     if (ex_data_rt->htable != NULL) {
         rcu_hash_free(ex_data_rt->htable);
+        ex_data_rt->htable = NULL;
     }
 
     FREE(ex_data_rt);
@@ -172,6 +173,7 @@ void ex_container_free(void *user_ctx, void *data)
     /* free ex_container->custom_data */
     if (container->custom_data != NULL && container_schema->custom_data_free != NULL) {
         container_schema->custom_data_free(container->custom_data);
+        container->custom_data = NULL;
     }
 
     /* free ex_container->ex_data */
@@ -179,6 +181,7 @@ void ex_container_free(void *user_ctx, void *data)
         container_schema->ex_schema.free_func(container_schema->table_id, &(container->ex_data),
                                               container_schema->ex_schema.argl,
                                               container_schema->ex_schema.argp);
+        container->ex_data = NULL;
     }
 
     FREE(container);

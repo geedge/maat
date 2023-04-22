@@ -31,8 +31,7 @@ enum MAAT_FS_STATUS {
 	STATUS_GROUP_REF_NUM,
 	STATUS_GROUP_REF_NOT_NUM,
 	STATUS_COMPILE_RULE_NUM,
-	STATUS_OUTER_MID_NUM,
-	STATUS_INNER_MID_NUM,
+	STATUS_MAAT_STATE_NUM,
 	STATUS_GARBAGE_QSIZE,
 	STATUS_TOTAL_SCAN_LEN,
 	STATUS_TOTAL_SCAN_CNT,
@@ -90,8 +89,8 @@ void maat_fieldstat_register(struct maat_stat *stat)
                                                                      "compile", NULL, 0);
     stat->fs_status_id[STATUS_GARBAGE_QSIZE] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
                                                                   "garbage_num", NULL, 0);
-    stat->fs_status_id[STATUS_OUTER_MID_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
-                                                                  "outer_mid", NULL, 0);
+    stat->fs_status_id[STATUS_MAAT_STATE_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
+                                                                  "maat_state", NULL, 0);
     stat->fs_status_id[STATUS_ZOMBIE_RS_STREAM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
                                                                      "z_stream", NULL, 0);
     stat->fs_status_id[STATUS_NOT_GROUP_HIT] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 

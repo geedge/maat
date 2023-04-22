@@ -433,11 +433,6 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
 	if (ret < 0) {
 		return -1;
 	}
-
-	if (!maat_instance->is_running) {
-        size_t len = MIN(strlen(json_filename), sizeof(maat_instance->json_ctx.json_file));
-		strncpy(maat_instance->json_ctx.json_file, json_filename, len);
-	}
 	
 	ret = stat(json_filename, &fstat_buf);
 	maat_instance->json_ctx.last_md5_time = fstat_buf.st_ctim;

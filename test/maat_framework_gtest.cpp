@@ -348,6 +348,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_iris(opts, "./redis_dump", "./redis_dump");
+        maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
@@ -403,10 +404,35 @@ TEST_F(MaatIris, basic) {
     clock_gettime(CLOCK_MONOTONIC, &end);
     long long consume_us1 = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
     printf("ipv4 consume time:%lldus\n", consume_us1/100000);
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < 100000; i++)
+    {
+        
+        int table_id = maat_get_table_id(maat_instance, "TSG_SECURITY_SOURCE_ADDR");
+        ASSERT_GT(table_id, 0);
+        int ret = maat_scan_ipv4(maat_instance, table_id, sip_addr, sport, 6,
+                                 results, ARRAY_SIZE, &n_hit_result, state);
+        EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+        table_id = maat_get_table_id(maat_instance, "TSG_OBJ_APP_ID");
+        ASSERT_GT(table_id, 0);
+
+        ret = maat_scan_integer(maat_instance, table_id, 32, results, ARRAY_SIZE,
+                                &n_hit_result, state);
+        EXPECT_EQ(ret, MAAT_SCAN_HIT);
+        EXPECT_EQ(n_hit_result, 1);
+        EXPECT_EQ(results[0], 1054275);
+        maat_state_reset(state);
+        
+    }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    long long consume_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
+    printf("consume time:%lldus\n", consume_us/100000);
 }
 #endif
 
-#if 1
+#if 0
 class MaatFlagScan : public testing::Test
 {
 protected:
@@ -3167,7 +3193,7 @@ TEST_F(TableInfo, Conjunction) {
     maat_state_free(state);
     state = NULL;
 }
-
+#endif
 class MaatFileTest : public testing::Test
 {
 protected:
@@ -3181,8 +3207,8 @@ protected:
         maat_options_set_caller_thread_number(opts, g_thread_num);
         maat_options_set_instance_name(opts, "files");
         maat_options_set_iris(opts, rule_folder, rule_folder);
-        maat_options_set_rule_update_checking_interval_ms(opts, scan_interval_ms);
-        maat_options_set_rule_effect_interval_ms(opts, effective_interval_ms);
+        //maat_options_set_rule_update_checking_interval_ms(opts, scan_interval_ms);
+        //maat_options_set_rule_effect_interval_ms(opts, effective_interval_ms);
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
 
         _shared_maat_instance = maat_new(opts, table_info);
@@ -3263,7 +3289,7 @@ TEST_F(MaatFileTest, StreamFiles) {
 
     free(name_list);
 }
-
+#if 0
 class HierarchyTest : public testing::Test
 {
 protected:

@@ -32,8 +32,8 @@
 
 #define MODULE_MAAT_RULE	 module_name_str("maat.rule")
 
-struct maat_item *maat_item_new(long long item_id, long long group_id, void *user_data,
-                                void (*user_data_free)(void *))
+struct maat_item *maat_item_new(long long item_id, long long group_id,
+                                void *user_data, void (*user_data_free)(void *))
 {
 	struct maat_item *item = NULL;
 	item = ALLOC(struct maat_item, 1);
@@ -53,7 +53,7 @@ void maat_item_free(void *maat_item)
 		item->user_data = NULL;
 	}
 
-	free(item);
+	FREE(item);
 }
 
 static int compare_each_tag(cJSON *tag_obj, const struct rule_tag *accept_tags, size_t n_accept_tag)
