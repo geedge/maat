@@ -49,8 +49,6 @@ struct maat_group_topology {
     struct maat_group *hash_group_by_id;	 //key: group_id, value: struct maat_group *.
 	struct maat_group *hash_group_by_vertex; //key: vetex_id, value: struct maat_group *. Multimap (Items with multiple keys).
     igraph_t group_graph;
-    igraph_integer_t group_graph_vcount;
-	igraph_vector_t dfs_vids;
 	igraph_integer_t grp_vertex_id_generator;
 
     struct log_handle *logger;
@@ -331,10 +329,8 @@ void group_topology_remove_group(struct maat_group_topology *group_topo,
 	//We should not call igraph_delete_vertices, because this is function changes the ids of the vertices.
 	//igraph_delete_vertices(&hier->group_graph, igraph_vss_1(group->vertex_id));
 
-	
 	HASH_DELETE(hh_group_id, group_topo->hash_group_by_id, group);
 	HASH_DELETE(hh_vertex_id, group_topo->hash_group_by_vertex, group);
-
 	group_vertex_free(group);
 }
 
@@ -370,7 +366,7 @@ int group_topology_add_group_to_group(struct maat_group_topology *group_topo,
 
     igraph_integer_t edge_id;
 	int ret = igraph_get_eid(&group_topo->group_graph, &edge_id, group->vertex_id, 
-                         super_group->vertex_id, IGRAPH_DIRECTED, /*error*/ 0);
+                             super_group->vertex_id, IGRAPH_DIRECTED, /*error*/ 0);
 	
     //No duplicated edges between two groups.
     if (edge_id > 0) {
@@ -397,7 +393,7 @@ int group_topology_remove_group_from_group(struct maat_group_topology *group_top
     }
 
 	//No hash write operation, LOCK protection is unnecessary.
-	struct maat_group *group = group_topology_add_group(group_topo, group_id);
+	struct maat_group *group = group_topology_find_group(group_topo, group_id);
 	if (NULL == group) {
 		log_error(group_topo->logger, MODULE_GROUP,
 				  "[%s:%d] Del group %d from group %d failed, group %d not exisited.",
@@ -405,7 +401,7 @@ int group_topology_remove_group_from_group(struct maat_group_topology *group_top
 		return -1;	
 	}
 
-    struct maat_group *super_group = group_topology_add_group(group_topo, super_group_id);
+    struct maat_group *super_group = group_topology_find_group(group_topo, super_group_id);
 	if (NULL == super_group) {
 		log_error(group_topo->logger, MODULE_GROUP,
 				  "[%s:%d] Del group %d from group %d failed, superior group %d not exisited.",
@@ -478,8 +474,9 @@ int group_topology_build_top_groups(struct maat_group_topology *group_topo)
 		return -1;
 	}
 
-	group_topo->group_graph_vcount = igraph_vcount(&group_topo->group_graph);
-	igraph_vector_init(&(group_topo->dfs_vids), group_topo->group_graph_vcount);
+	igraph_integer_t group_graph_vcount = igraph_vcount(&group_topo->group_graph);
+    igraph_vector_t dfs_vids;
+	igraph_vector_init(&dfs_vids, group_graph_vcount);
 	
 	HASH_ITER (hh_group_id, group_topo->hash_group_by_id, group, tmp) {
 		top_group_cnt = 0;
@@ -496,7 +493,7 @@ int group_topology_build_top_groups(struct maat_group_topology *group_topo)
 
 		//A group is referenced by superior groups.
         if (group->ref_by_super_group_cnt > 0) {
-            igraph_vector_t *vids = &(group_topo->dfs_vids);
+            igraph_vector_t *vids = &dfs_vids;
             igraph_dfs(&group_topo->group_graph, group->vertex_id, IGRAPH_OUT,
                        0, vids, NULL, NULL, NULL, NULL, NULL, NULL);
 
@@ -527,7 +524,7 @@ int group_topology_build_top_groups(struct maat_group_topology *group_topo)
             FREE(temp_group_ids);
         }
 	}
-	igraph_vector_destroy(&(group_topo->dfs_vids));
+	igraph_vector_destroy(&dfs_vids);
 
 	return 0;
 }
