@@ -36,3 +36,6 @@ file(COPY maat_json.json DESTINATION ../tools/)
 file(COPY ntcrule DESTINATION ./)
 file(COPY testdata DESTINATION ./)
 file(COPY test_streamfiles DESTINATION ./)
+
+include(GoogleTest)
+gtest_discover_tests(maat_framework_gtest)

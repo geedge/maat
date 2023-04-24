@@ -15,7 +15,7 @@
 
 #define ARRAY_SIZE              10
 #define HIT_PATH_SIZE           128
-#define	WAIT_FOR_EFFECTIVE_S	1
+#define	WAIT_FOR_EFFECTIVE_S	2
 
 const char *table_info_path = "./table_info.conf";
 const char *json_path="./maat_json.json";
@@ -432,6 +432,7 @@ TEST_F(MaatIris, basic) {
 }
 #endif
 
+
 class MaatFlagScan : public testing::Test
 {
 protected:
@@ -674,7 +675,7 @@ TEST_F(MaatFlagScan, FlagPlus) {
     maat_state_free(state);
     state = NULL;
 }
-
+#if 1
 class MaatStringScan : public testing::Test
 {
 protected:
@@ -1344,7 +1345,7 @@ TEST_F(MaatStringScan, dynamic_config) {
                               keywords, NULL, 1, 0, 0, 0); /* EXPR_TYPE_AND MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     ret = maat_scan_string(maat_instance, table_id, data, strlen(data), results, 
                            ARRAY_SIZE, &n_hit_result, state);
@@ -1367,7 +1368,7 @@ TEST_F(MaatStringScan, dynamic_config) {
     ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_DEL, compile_id, NULL, 1, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     ret = maat_scan_string(maat_instance, table_id, data, strlen(data), results, 
                            ARRAY_SIZE, &n_hit_result, state);
@@ -1428,7 +1429,7 @@ TEST_F(MaatStreamScan, dynamic_config) {
     int ret = test_add_expr_command(maat_instance, table_name, compile1_id, 0, keywords1);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     int table_id = maat_get_table_id(maat_instance, table_name);
 	ASSERT_GT(table_id, 0);
@@ -1459,7 +1460,7 @@ TEST_F(MaatStreamScan, dynamic_config) {
     EXPECT_EQ(results[0], compile1_id);
     maat_state_reset(state);
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     // Inc config has taken effect, stream reference old expr_runtime, should not hit compile
     ret = maat_stream_scan(sp, scan_data1, strlen(scan_data1), results, ARRAY_SIZE,
@@ -1669,7 +1670,7 @@ TEST_F(MaatIPScan, dynamic_config) {
                             IPv4, "100.100.100.100", "100.100.100.100", 100, 100, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     ret = maat_scan_ipv4(maat_instance, table_id, sip, port, proto, results, 
                          ARRAY_SIZE, &n_hit_result, state);
@@ -1693,7 +1694,7 @@ TEST_F(MaatIPScan, dynamic_config) {
                                  compile_id, NULL, 1, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     ret = maat_scan_ipv4(maat_instance, table_id, sip, port, proto, results, 
                          ARRAY_SIZE, &n_hit_result, state);
@@ -2809,7 +2810,7 @@ TEST_F(CompileTable, CompileRuleUpdate) {
     int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile_id, NULL, 1, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
     ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_DEL, compile_id, NULL, 1, 0);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -3751,7 +3752,7 @@ TEST_F(MaatCmdTest, RuleIDRecycle) {
 
     long long rule_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
     test_add_expr_command(maat_instance, table_name, rule_id, 0, keywords);
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
                                results, ARRAY_SIZE, &n_hit_result, state);
@@ -3761,7 +3762,7 @@ TEST_F(MaatCmdTest, RuleIDRecycle) {
     EXPECT_EQ(results[0], rule_id);
 
     del_command(maat_instance, rule_id);
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
                                results, ARRAY_SIZE, &n_hit_result, state);
@@ -3769,7 +3770,7 @@ TEST_F(MaatCmdTest, RuleIDRecycle) {
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     test_add_expr_command(maat_instance, table_name, rule_id, 0, keywords);
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     memset(results, 0, sizeof(results));
     ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
@@ -3806,7 +3807,7 @@ TEST_F(MaatCmdTest, ReturnRuleIDWithDescendingOrder) {
         test_add_expr_command(maat_instance, table_name, expect_rule_id[i], 0, keywords);
     }
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     memset(results, 0, sizeof(results));
     int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
@@ -4354,7 +4355,7 @@ TEST_F(MaatCmdTest, SetFile) {
 
     ret = maat_cmd_set_line(maat_instance, &line_rule);
     EXPECT_EQ(ret, 1);
-	sleep(WAIT_FOR_EFFECTIVE_S * 2);//wait for callback triggered.
+	sleep(WAIT_FOR_EFFECTIVE_S);//wait for callback triggered.
 	EXPECT_EQ(g_test_foregin_read_OK, 1);
 
     g_test_foreign_del_OK = 0;
@@ -4395,7 +4396,7 @@ TEST_F(MaatCmdTest, SetFile) {
 
     ret = maat_cmd_set_line(maat_instance, &line_rule);
     EXPECT_EQ(ret, 1);
-	sleep(WAIT_FOR_EFFECTIVE_S * 2);//wait for callback triggered.
+	sleep(WAIT_FOR_EFFECTIVE_S);//wait for callback triggered.
 	EXPECT_EQ(g_test_foregin_read_OK, 1);
 }
 
@@ -4467,7 +4468,7 @@ TEST_F(MaatCmdTest, PluginEXData) {
         EXPECT_GT(ret, 0);
     }
 	
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
     int ex_data_counter = 0;
 	ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
 								               plugin_ex_new_cb,
@@ -4495,7 +4496,7 @@ TEST_F(MaatCmdTest, PluginEXData) {
 	ret = maat_cmd_set_line(maat_instance, &line_rule);
 	EXPECT_GT(ret, 0);
 	
-	sleep(WAIT_FOR_EFFECTIVE_S * 2);
+	sleep(WAIT_FOR_EFFECTIVE_S);
     const char *key2 = "192.168.0.2";
 	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(maat_instance, 
                                                               table_id, key2);
@@ -4536,7 +4537,7 @@ TEST_F(MaatCmdTest, UpdateIPPlugin) {
         EXPECT_GT(ret, 0);
     }
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     int ex_data_counter = 0;
 	ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
@@ -4585,7 +4586,7 @@ TEST_F(MaatCmdTest, UpdateIPPlugin) {
         EXPECT_GT(ret, 0);
     }
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     memset(results, 0, sizeof(results));
     ret = maat_ip_plugin_table_get_ex_data(maat_instance, table_id, &ipv4, (void **)results, ARRAY_SIZE);
@@ -4628,7 +4629,7 @@ TEST_F(MaatCmdTest, UpdateFQDNPlugin) {
         EXPECT_GT(ret, 0);
     }
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     int ex_data_counter = 0;
     ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
@@ -4707,7 +4708,7 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
         EXPECT_GT(ret, 0);
     }
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     int ex_data_counter = 0;
     ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
@@ -4738,7 +4739,7 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
         ret = maat_cmd_set_line(maat_instance, &line_rule);
         EXPECT_GT(ret, 0);
     }
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     memset(results, 0, sizeof(results));
     ret = maat_bool_plugin_table_get_ex_data(maat_instance, table_id, items, 3,
@@ -4748,6 +4749,7 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
 		bool_plugin_ex_free_cb(0, (void**)&(results[i]), 0, NULL);
 	}
 }
+
 #define COMPILE_ID_NUMS 1000
 TEST_F(MaatCmdTest, GroupInMassCompiles) {
     const char* g2c_table_name = "GROUP2COMPILE";
@@ -4817,7 +4819,7 @@ TEST_F(MaatCmdTest, GroupInMassCompiles) {
                                        target_compile_id, 0, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     const char* http_url1 = "https://www.baidu.com/s?wd=tsg";
 	const char* http_url2 = "https://www.baidu.com/s?wd=zhengzhou&rsv_spt=1&rsv_iqid=0x8b4cae8100000560&issp=1&f=8&rsv_bp=1";
@@ -4925,7 +4927,7 @@ TEST_F(MaatCmdTest, HitPath) {
                               NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     const char* http_url = "en.wikipedia.org/wiki/Path_(graph_theory)";
 	const char* http_resp_hdr_cookie = "laptop=thinkpad X1 extrem;time=2020-02-11T15:34:00;main[XWJOKE]=hoho; Hm_lvt_bbac0322e6ee13093f98d5c4b5a10912=1578874808;";
@@ -4954,7 +4956,8 @@ TEST_F(MaatCmdTest, HitPath) {
     EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
 	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
-	EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
+	//EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
+    EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, table_id);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
 
@@ -5096,7 +5099,7 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
     ret = intval_table_set_line(maat_instance, app_id_table_name, MAAT_OP_ADD, item21_id,
                                 group21_id, 31, 31, NULL, 0);
     EXPECT_EQ(ret, 1);
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -5137,7 +5140,7 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
                                 group22_id, 32, 32, NULL, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     table_id = maat_get_table_id(maat_instance, app_id_table_name);
     ret = maat_scan_integer(maat_instance, table_id, 31, results, ARRAY_SIZE,
@@ -5224,7 +5227,7 @@ TEST_F(MaatCmdTest, GroupEdit) {
                                 scan_app_id, scan_app_id, NULL, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     table_id = maat_get_table_id(maat_instance, ip_table_name);
     ASSERT_GT(table_id, 0);
@@ -5296,7 +5299,7 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
                             IPv4, "192.168.73.163", "192.168.73.180", 0, 65535, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.73.169", &ip_addr);
@@ -5368,7 +5371,7 @@ TEST_F(MaatCmdTest, UpdateDeadLockDetection) {
                               "part-1", NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     const char* scan_data1 = "scan string part-1.";
 	const char* scan_data2 = "scan string part-2.";
@@ -5643,7 +5646,7 @@ TEST_F(MaatRollbackTest, FullConfigRollback) {
     EXPECT_EQ(ret, 0);
     redisFree(c);
 
-    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data), 
                                results, ARRAY_SIZE, &n_hit_result, state);
@@ -5653,6 +5656,7 @@ TEST_F(MaatRollbackTest, FullConfigRollback) {
     maat_state_free(state);
     state = NULL;
 }
+#endif
 
 int main(int argc, char ** argv)
 {

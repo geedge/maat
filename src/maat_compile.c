@@ -103,7 +103,6 @@ struct group2compile_runtime {
     long long rule_num;
     long long update_err_cnt;
     struct compile_runtime *ref_compile_rt;
-    struct group2group_runtime *ref_g2g_rt;
 };
 
 struct maat_clause_state {
@@ -668,7 +667,6 @@ void group2compile_runtime_init(void *g2c_runtime, void *compile_runtime,
     struct group2compile_runtime *g2c_rt = (struct group2compile_runtime *)g2c_runtime;
 
     g2c_rt->ref_compile_rt = (struct compile_runtime *)compile_runtime;
-    g2c_rt->ref_g2g_rt = (struct group2group_runtime *)g2g_runtime;
 }
 
 void group2compile_runtime_free(void *g2c_runtime)
@@ -1509,12 +1507,17 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt,
 
         for (size_t j = 0; j < n_internal_hit_path && (n_internal_hit_path + new_hit_path_cnt) < array_size; j++) {
 			if (hit_path_array[j].top_group_id < 0) {
-				continue;
-			}
+                literal_id.group_id = hit_path_array[j].sub_group_id;
+			} else {
+                literal_id.group_id = hit_path_array[j].top_group_id;
+            }
 
-			literal_id.group_id = hit_path_array[j].top_group_id;
 			literal_id.vtable_id = hit_path_array[j].vtable_id;
 			if (maat_compile_has_literal(compile, &literal_id)) {
+                if (hit_path_array[j].top_group_id < 0) {
+                    hit_path_array[j].top_group_id = hit_path_array[j].sub_group_id;
+                }
+
 				if (hit_path_array[j].compile_id < 0) {
 					hit_path_array[j].compile_id = compile->compile_id;
 				} else {
@@ -1810,7 +1813,7 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
     struct group2compile_schema *schema = (struct group2compile_schema *)g2c_schema;
     struct group2compile_runtime *g2c_rt = (struct group2compile_runtime *)g2c_runtime;
     struct compile_runtime *compile_rt = g2c_rt->ref_compile_rt;
-    struct group2group_runtime *g2g_rt = g2c_rt->ref_g2g_rt;
+
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
         g2c_rt->update_err_cnt++;
@@ -1825,42 +1828,24 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
         return -1;
     }
 
-     struct maat_group *group = NULL;
     if (0 == is_valid) {
         //delete
-        group = group2group_runtime_find_group(g2g_rt, g2c_item->group_id);
-        if (!group) {
-            log_error(compile_rt->logger, MODULE_COMPILE,
-                      "[%s:%d] Remove group %d from compile %d failed, group is not exisited.",
-                      __FUNCTION__, __LINE__, g2c_item->group_id, g2c_item->compile_id);
-            group2compile_item_free(g2c_item);
-            g2c_rt->update_err_cnt++;
-            return -1;
-        }
-
         ret = maat_remove_group_from_compile(compile_rt->cfg_hash_tbl, g2c_item, compile_rt->logger);
         if (0 == ret) {
             if (g2c_item->not_flag) {
                 g2c_rt->not_flag_group--;
             }
-            maat_group_ref_dec(g2g_rt, group);
             g2c_rt->rule_num--;
         } else {
             g2c_rt->update_err_cnt++;
         }
     } else {
         //add
-        group = group2group_runtime_find_group(g2g_rt, g2c_item->group_id);
-	    if (!group) {
-	 	    group = group2group_runtime_add_group(g2g_rt, g2c_item->group_id);
-	    }
-
         ret = maat_add_group_to_compile(compile_rt->cfg_hash_tbl, g2c_item, compile_rt->logger);
         if (0 == ret) {
             if (g2c_item->not_flag) {
                 g2c_rt->not_flag_group++;
             }
-            maat_group_ref_inc(g2g_rt, group);
             g2c_rt->rule_num++;
         } else {
             g2c_rt->update_err_cnt++;
@@ -2091,6 +2076,11 @@ int maat_compile_state_update(struct rcu_hash_table *item_htable, int vtable_id,
                                              top_group_ids[j], vtable_id);
     }
 
+    for (int j = 0; j < hit_group_cnt; j++) {
+        maat_compile_state_update_hit_clause(state->compile_state, compile_rt,
+                                             hit_group_ids[j], vtable_id);
+    }
+
     return 0;
 }
 
@@ -2129,7 +2119,7 @@ size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *comp
         }
 
         struct maat_hit_path tmp_path;
-        for (int j = 0; j < top_group_cnt && hit_path_cnt < array_size; j++, hit_path_cnt++) {
+        for (int j = 0; j < top_group_cnt && hit_path_cnt < array_size; j++) {
             memset(&tmp_path, 0, sizeof(tmp_path));
             tmp_path.Nth_scan = internal_path->Nth_scan;
             tmp_path.item_id = internal_path->item_id;
@@ -2137,6 +2127,10 @@ size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *comp
             tmp_path.top_group_id = top_group_ids[j];
             tmp_path.vtable_id = internal_path->vtable_id;
             tmp_path.compile_id = -1;
+
+            if (tmp_path.sub_group_id == tmp_path.top_group_id) {
+                continue;
+            }
 
             /* check if internal_path is duplicated from hit_path_array[] element */
             if (hit_path_cnt > 0) {
@@ -2146,6 +2140,7 @@ size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *comp
             }
 
             hit_path_array[hit_path_cnt] = tmp_path;
+            hit_path_cnt++;
         }
     }
 

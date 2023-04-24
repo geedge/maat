@@ -371,6 +371,10 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     }
     system_cmd_mkdir(maat_instance->foreign_cont_dir);
 
+    if (0 == strlen(opts->stat_file)) {
+        snprintf(opts->stat_file, sizeof(opts->stat_file), "maat.fs3");
+    }
+
     maat_instance->input_mode = opts->input_mode;
 
     switch (maat_instance->input_mode) {
@@ -429,8 +433,13 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     }
 
     if (1 == maat_instance->stat_on) {
-        maat_stat_init(maat_instance->stat, maat_instance->tbl_mgr, maat_instance->garbage_bin, 
-                       maat_instance->instance_name);
+        int ret = maat_stat_init(maat_instance->stat, maat_instance->tbl_mgr, maat_instance->garbage_bin, 
+                                 maat_instance->instance_name);
+        if (ret < 0) {
+            log_error(maat_instance->logger, MODULE_MAAT_API,
+                     "[%s:%d] maat_stat_init failed.", __FUNCTION__, __LINE__);
+            goto failed;
+        }
     }
 
     pthread_create(&(maat_instance->cfg_mon_thread), NULL, rule_monitor_loop, (void *)maat_instance);

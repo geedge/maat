@@ -762,9 +762,6 @@ int table_manager_get_table_id(struct table_manager *tbl_mgr, const char *name)
     long long table_id = -1;
     int ret = maat_kv_read(tbl_mgr->tablename2id_map, name, &table_id);
 	if (ret < 0) {
-        log_error(tbl_mgr->logger, MODULE_TABLE, 
-                  "[%s:%d] table:%s is not registered", 
-                  __FUNCTION__, __LINE__, name);
 		return -1;
 	}
 

@@ -12,7 +12,7 @@
 #define MODULE_FRAMEWORK_PERF_GTEST	 module_name_str("maat.framework_perf_gtest")
 
 #define ARRAY_SIZE              10
-#define	WAIT_FOR_EFFECTIVE_S	1
+#define	WAIT_FOR_EFFECTIVE_S	2
 #define PERF_THREAD_NUM         5
 
 const char *table_info_path = "./table_info.conf";

@@ -111,7 +111,7 @@ void maat_fieldstat_register(struct maat_stat *stat)
                                                                  "line_cmd/s", NULL, 0);
 }
 
-void maat_fieldstat_table_row_register(struct maat_stat *stat, struct table_manager *tbl_mgr,
+int maat_fieldstat_table_row_register(struct maat_stat *stat, struct table_manager *tbl_mgr,
                                        int table_id)
 {
     size_t max_table_cnt = table_manager_table_size(tbl_mgr);
@@ -119,7 +119,7 @@ void maat_fieldstat_table_row_register(struct maat_stat *stat, struct table_mana
                                            stat->total_stat_id);
     if (ret < 0) {
         log_error(stat->logger, MODULE_MAAT_STAT, "fieldstat_register_table_row Sum failed.");
-        return;
+        return -1;
     }
 
     for (size_t i = 0; i < max_table_cnt; i++) {
@@ -136,9 +136,11 @@ void maat_fieldstat_table_row_register(struct maat_stat *stat, struct table_mana
         if (ret < 0) {
             log_error(stat->logger, MODULE_MAAT_STAT,
                       "fieldstat_register_table_row %s failed.", table_name);
-            return;
+            return -1;
         }
-    }     
+    }
+
+    return 0; 
 }
 
 struct maat_stat *maat_stat_new(const char *stat_file, size_t max_thread_num, struct log_handle *logger)
@@ -186,28 +188,30 @@ void maat_stat_free(struct maat_stat *stat)
     free(stat);
 }
 
-void maat_stat_init(struct maat_stat *stat, struct table_manager *tbl_mgr, 
+int maat_stat_init(struct maat_stat *stat, struct table_manager *tbl_mgr, 
                     struct maat_garbage_bin *garbage_bin, const char *stat_inst_name)
 {
+    if (NULL == stat || NULL == tbl_mgr || NULL == garbage_bin ||
+        NULL == stat_inst_name) {
+        return -1;
+    }
+
 	stat->fs_handle = fieldstat_instance_new(stat_inst_name);
     if (NULL == stat->fs_handle) {
-        log_error(stat->logger, MODULE_MAAT_STAT,
-                  "fieldstat_instance_new failed.");
-        return;
+        log_error(stat->logger, MODULE_MAAT_STAT, "fieldstat_instance_new failed.");
+        return -1;
     }
 
     int ret = fieldstat_set_local_output(stat->fs_handle, stat->stat_file, "default");
     if (ret < 0) {
-        log_error(stat->logger, MODULE_MAAT_STAT, 
-                  "fieldstat_set_local_output failed.");
-        return;
+        log_error(stat->logger, MODULE_MAAT_STAT, "fieldstat_set_local_output failed.");
+        return -1;
     }
 
     ret = fieldstat_disable_background_thread(stat->fs_handle);
     if (ret < 0) {
-        log_error(stat->logger, MODULE_MAAT_STAT, 
-                  "fieldstat_disable_background_thread failed.");
-        return;
+        log_error(stat->logger, MODULE_MAAT_STAT, "fieldstat_disable_background_thread failed.");
+        return -1;
     }
 
     maat_fieldstat_register(stat);
@@ -218,10 +222,19 @@ void maat_stat_init(struct maat_stat *stat, struct table_manager *tbl_mgr,
     int fs_table_id = fieldstat_register_table(stat->fs_handle, stat_inst_name, 
                                                common_column_name, common_column_type, 
                                                n_column);
+    if (fs_table_id < 0) {
+        log_error(stat->logger, MODULE_MAAT_STAT, "fieldstat_register_table failed.");
+        return -1;
+    }
 
-    maat_fieldstat_table_row_register(stat, tbl_mgr, fs_table_id);
+    ret = maat_fieldstat_table_row_register(stat, tbl_mgr, fs_table_id);
+    if (ret < 0) {
+        return -1;
+    }
 
     fieldstat_instance_start(stat->fs_handle);
+
+    return 0;
 }
 
 void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)

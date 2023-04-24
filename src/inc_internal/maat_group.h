@@ -36,21 +36,14 @@ void *group2group_runtime_new(void *g2g_schema, size_t max_thread_num,
                               struct log_handle *logger);
 void group2group_runtime_free(void *g2g_runtime);
 
-void maat_group_ref_inc(struct group2group_runtime *g2g_rt, struct maat_group *group);
-void maat_group_ref_dec(struct group2group_runtime *g2g_rt, struct maat_group *group);
-
-struct maat_group *group2group_runtime_add_group(void *g2g_runtime, long long group_id);
-void group2group_runtime_remove_group(void *g2g_runtime, struct maat_group *group);
-struct maat_group *group2group_runtime_find_group(void *g2g_runtime, long long group_id);
-
-int group2group_runtime_get_top_groups(void *g2g_runtime, long long *group_ids, 
-                                       size_t n_group_ids, long long *top_group_ids);
-
 int group2group_runtime_update(void *g2g_runtime, void *g2g_schema, const char *table_name, 
                                const char *line, int valid_column);
 
 int group2group_runtime_commit(void *g2g_runtime, const char *table_name, long long maat_rt_version);
 
+int group2group_runtime_get_top_groups(void *g2g_runtime, long long *group_ids, 
+                                       size_t n_group_ids, long long *top_group_ids);
+                                       
 long long group2group_runtime_rule_count(void *g2g_runtime);
 
 long long group2group_runtime_update_err_count(void *g2g_runtime);
