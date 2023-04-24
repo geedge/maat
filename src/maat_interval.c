@@ -183,6 +183,7 @@ void *interval_runtime_new(void *interval_schema, size_t max_thread_num,
 
     interval_rt->hit_cnt = alignment_int64_array_alloc(max_thread_num);
     interval_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
+    interval_rt->scan_cpu_time = alignment_int64_array_alloc(max_thread_num);
 
     return interval_rt;
 }
@@ -610,10 +611,6 @@ void interval_runtime_perf_stat(struct interval_runtime *interval_rt, struct tim
     alignment_int64_array_add(interval_rt->scan_cnt, thread_id, 1);
     
     if (start != NULL && end != NULL) {
-        if (NULL == interval_rt->scan_cpu_time) {
-            interval_rt->scan_cpu_time = alignment_int64_array_alloc(interval_rt->n_worker_thread);
-        }
-
         long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 + end->tv_nsec - start->tv_nsec;
         alignment_int64_array_add(interval_rt->scan_cpu_time, thread_id, consume_time);
     }

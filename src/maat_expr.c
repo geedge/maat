@@ -470,6 +470,7 @@ void *expr_runtime_new(void *expr_schema, size_t max_thread_num,
     expr_rt->hit_cnt = alignment_int64_array_alloc(max_thread_num);
     expr_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
     expr_rt->scan_bytes = alignment_int64_array_alloc(max_thread_num);
+    expr_rt->scan_cpu_time = alignment_int64_array_alloc(max_thread_num);
     expr_rt->stream_num = alignment_int64_array_alloc(max_thread_num);
 
     return expr_rt;
@@ -1067,10 +1068,6 @@ void expr_runtime_perf_stat(struct expr_runtime *expr_rt, size_t scan_len,
     alignment_int64_array_add(expr_rt->scan_bytes, thread_id, scan_len);
 
     if (start != NULL && end != NULL) {
-        if (NULL == expr_rt->scan_cpu_time) {
-            expr_rt->scan_cpu_time = alignment_int64_array_alloc(expr_rt->n_worker_thread);
-        }
-
         long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 + (end->tv_nsec - start->tv_nsec);
         alignment_int64_array_add(expr_rt->scan_cpu_time, thread_id, consume_time);
     }

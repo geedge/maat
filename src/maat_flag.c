@@ -186,6 +186,7 @@ void *flag_runtime_new(void *flag_schema, size_t max_thread_num,
 
     flag_rt->hit_cnt = alignment_int64_array_alloc(max_thread_num);
     flag_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
+    flag_rt->scan_cpu_time = alignment_int64_array_alloc(max_thread_num);
 
     return flag_rt;
 }
@@ -612,10 +613,6 @@ void flag_runtime_perf_stat(struct flag_runtime *flag_rt, struct timespec *start
     alignment_int64_array_add(flag_rt->scan_cnt, thread_id, 1);
 
     if (start != NULL && end != NULL) {
-        if (NULL == flag_rt->scan_cpu_time) {
-            flag_rt->scan_cpu_time = alignment_int64_array_alloc(flag_rt->n_worker_thread);
-        }
-
         long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 + 
                                  (end->tv_nsec - start->tv_nsec);
         alignment_int64_array_add(flag_rt->scan_cpu_time, thread_id, consume_time);

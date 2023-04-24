@@ -185,6 +185,7 @@ void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, size_t max_thread_num,
     fqdn_plugin_rt->ref_garbage_bin = garbage_bin;
     fqdn_plugin_rt->logger = logger;
     fqdn_plugin_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
+    fqdn_plugin_rt->scan_cpu_time = alignment_int64_array_alloc(max_thread_num);
 
     return fqdn_plugin_rt;
 }
@@ -548,10 +549,6 @@ void fqdn_plugin_runtime_perf_stat(void *fqdn_plugin_runtime, struct timespec *s
     alignment_int64_array_add(fqdn_plugin_rt->scan_cnt, thread_id, 1);
 
     if (start != NULL && end != NULL) {
-        if (NULL == fqdn_plugin_rt->scan_cpu_time) {
-            fqdn_plugin_rt->scan_cpu_time = alignment_int64_array_alloc(fqdn_plugin_rt->n_worker_thread);
-        }
-
         long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 + (end->tv_nsec - start->tv_nsec);
         alignment_int64_array_add(fqdn_plugin_rt->scan_cpu_time, thread_id, consume_time);
     }

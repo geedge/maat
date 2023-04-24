@@ -192,6 +192,7 @@ void *bool_plugin_runtime_new(void *bool_plugin_schema, size_t max_thread_num,
     bool_plugin_rt->ref_garbage_bin = garbage_bin;
     bool_plugin_rt->logger = logger;
     bool_plugin_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
+    bool_plugin_rt->scan_cpu_time = alignment_int64_array_alloc(max_thread_num);
 
     return bool_plugin_rt;
 }
@@ -554,10 +555,6 @@ void bool_plugin_runtime_perf_stat(void *bool_plugin_runtime, struct timespec *s
     alignment_int64_array_add(bool_plugin_rt->scan_cnt, thread_id, 1);
 
     if (start != NULL && end != NULL) {
-        if (NULL == bool_plugin_rt->scan_cpu_time) {
-            bool_plugin_rt->scan_cpu_time = alignment_int64_array_alloc(bool_plugin_rt->n_worker_thread);
-        }
-
         long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 + (end->tv_nsec - start->tv_nsec);
         alignment_int64_array_add(bool_plugin_rt->scan_cpu_time, thread_id, consume_time);
     }

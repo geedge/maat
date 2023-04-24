@@ -367,7 +367,8 @@ void *ip_plugin_runtime_new(void *ip_plugin_schema, size_t max_thread_num,
     ip_plugin_rt->logger = logger;
 
     ip_plugin_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
-
+    ip_plugin_rt->scan_cpu_time = alignment_int64_array_alloc(max_thread_num);
+    
     return ip_plugin_rt;
 }
 
@@ -592,10 +593,6 @@ void ip_plugin_runtime_perf_stat(void *ip_plugin_runtime, struct timespec *start
     alignment_int64_array_add(ip_plugin_rt->scan_cnt, thread_id, 1);
 
     if (start != NULL && end != NULL) {
-        if (NULL == ip_plugin_rt->scan_cpu_time) {
-            ip_plugin_rt->scan_cpu_time = alignment_int64_array_alloc(ip_plugin_rt->n_worker_thread);
-        }
-
         long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 + (end->tv_nsec - start->tv_nsec);
         alignment_int64_array_add(ip_plugin_rt->scan_cpu_time, thread_id, consume_time);
     }
