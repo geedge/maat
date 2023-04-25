@@ -189,14 +189,14 @@ void maat_stat_free(struct maat_stat *stat)
 }
 
 int maat_stat_init(struct maat_stat *stat, struct table_manager *tbl_mgr, 
-                    struct maat_garbage_bin *garbage_bin, const char *stat_inst_name)
+                    struct maat_garbage_bin *garbage_bin)
 {
-    if (NULL == stat || NULL == tbl_mgr || NULL == garbage_bin ||
-        NULL == stat_inst_name) {
+    if (NULL == stat || NULL == tbl_mgr || NULL == garbage_bin) {
         return -1;
     }
 
-	stat->fs_handle = fieldstat_instance_new(stat_inst_name);
+    const char *instance_name = "maat_stat";
+	stat->fs_handle = fieldstat_instance_new(instance_name);
     if (NULL == stat->fs_handle) {
         log_error(stat->logger, MODULE_MAAT_STAT, "fieldstat_instance_new failed.");
         return -1;
@@ -219,7 +219,7 @@ int maat_stat_init(struct maat_stat *stat, struct table_manager *tbl_mgr,
     stat->ref_tbl_mgr = tbl_mgr;
     stat->ref_garbage_bin = garbage_bin;
     size_t n_column = sizeof(common_column_name) / sizeof(common_column_name[0]);
-    int fs_table_id = fieldstat_register_table(stat->fs_handle, stat_inst_name, 
+    int fs_table_id = fieldstat_register_table(stat->fs_handle, instance_name, 
                                                common_column_name, common_column_type, 
                                                n_column);
     if (fs_table_id < 0) {

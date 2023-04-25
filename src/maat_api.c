@@ -433,8 +433,7 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     }
 
     if (1 == maat_instance->stat_on) {
-        int ret = maat_stat_init(maat_instance->stat, maat_instance->tbl_mgr, maat_instance->garbage_bin, 
-                                 maat_instance->instance_name);
+        int ret = maat_stat_init(maat_instance->stat, maat_instance->tbl_mgr, maat_instance->garbage_bin);
         if (ret < 0) {
             log_error(maat_instance->logger, MODULE_MAAT_API,
                      "[%s:%d] maat_stat_init failed.", __FUNCTION__, __LINE__);
