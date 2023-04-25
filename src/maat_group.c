@@ -50,7 +50,6 @@ struct maat_group_topology {
 	struct maat_group *hash_group_by_vertex; //key: vetex_id, value: struct maat_group *. Multimap (Items with multiple keys).
     igraph_t group_graph;
 	igraph_integer_t grp_vertex_id_generator;
-
     struct log_handle *logger;
 };
 
@@ -158,44 +157,45 @@ void maat_group_topology_free(struct maat_group_topology *group_topo)
 
 struct maat_group *maat_group_clone(struct maat_group *group)
 {
-    struct maat_group *copy_group = ALLOC(struct maat_group, 1);
+    struct maat_group *group_copy = ALLOC(struct maat_group, 1);
 
-    copy_group->group_id = group->group_id;
-    copy_group->vertex_id = group->vertex_id;
-    copy_group->ref_by_sub_group_cnt = group->ref_by_sub_group_cnt;
-    copy_group->ref_by_super_group_cnt = group->ref_by_super_group_cnt;
-    copy_group->top_group_cnt = group->top_group_cnt;
-    if (copy_group->top_group_cnt > 0) {
-        copy_group->top_group_ids = ALLOC(long long, copy_group->top_group_cnt);
-        memcpy(copy_group->top_group_ids, group->top_group_ids, 
-               copy_group->top_group_cnt * sizeof(long long));
+    group_copy->group_id = group->group_id;
+    group_copy->vertex_id = group->vertex_id;
+    group_copy->ref_by_sub_group_cnt = group->ref_by_sub_group_cnt;
+    group_copy->ref_by_super_group_cnt = group->ref_by_super_group_cnt;
+    group_copy->top_group_cnt = group->top_group_cnt;
+    if (group_copy->top_group_cnt > 0) {
+        group_copy->top_group_ids = ALLOC(long long, group_copy->top_group_cnt);
+        memcpy(group_copy->top_group_ids, group->top_group_ids, 
+               group_copy->top_group_cnt * sizeof(long long));
     }
 
-    return copy_group;
+    return group_copy;
 }
 
-struct maat_group_topology *maat_group_topology_clone(struct maat_group_topology *src_group_topo)
+struct maat_group_topology *maat_group_topology_clone(struct maat_group_topology *group_topo)
 {
-    if (NULL == src_group_topo) {
+    if (NULL == group_topo) {
         return NULL;
     }
 
-    struct maat_group_topology *copy_group_topo = ALLOC(struct maat_group_topology, 1);
+    struct maat_group_topology *group_topo_copy = ALLOC(struct maat_group_topology, 1);
 
     struct maat_group *group = NULL, *tmp_group = NULL;
-    HASH_ITER(hh_group_id, copy_group_topo->hash_group_by_id, group, tmp_group) {
-        struct maat_group *copy_group = maat_group_clone(group);
+    HASH_ITER(hh_group_id, group_topo->hash_group_by_id, group, tmp_group) {
+        struct maat_group *group_copy = maat_group_clone(group);
 
-        HASH_ADD(hh_group_id, copy_group_topo->hash_group_by_id, group_id, 
-                 sizeof(copy_group->group_id), copy_group);
-        HASH_ADD(hh_vertex_id, copy_group_topo->hash_group_by_vertex, vertex_id,
-                sizeof(copy_group->vertex_id), copy_group);
+        HASH_ADD(hh_group_id, group_topo_copy->hash_group_by_id, group_id, 
+                 sizeof(group_copy->group_id), group_copy);
+        HASH_ADD(hh_vertex_id, group_topo_copy->hash_group_by_vertex, vertex_id,
+                sizeof(group_copy->vertex_id), group_copy);
     }
 
-    igraph_copy(&(copy_group_topo->group_graph), &(src_group_topo->group_graph));
-    copy_group_topo->grp_vertex_id_generator = src_group_topo->grp_vertex_id_generator;
+    igraph_copy(&(group_topo_copy->group_graph), &(group_topo->group_graph));
+    group_topo_copy->grp_vertex_id_generator = group_topo->grp_vertex_id_generator;
+    group_topo_copy->logger = group_topo->logger;
 
-    return copy_group_topo;
+    return group_topo_copy;
 }
 
 void *group2group_runtime_new(void *g2g_schema, size_t max_thread_num,
