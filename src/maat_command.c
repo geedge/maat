@@ -1,10 +1,10 @@
 /*
 **********************************************************************************************
-*	File: maat_command.cpp
+*	File: maat_command.c
 *   Description:
 *	Authors: Liu WenTan <liuwentan@geedgenetworks.com>
 *	Date:    2022-10-31
-*   Copyright: (c) 2018-2022 Geedge Networks, Inc. All rights reserved.
+*   Copyright: (c) Since 2022 Geedge Networks, Ltd. All rights reserved.
 ***********************************************************************************************
 */
 
@@ -170,13 +170,14 @@ int redis_flushDB(redisContext *ctx, int db_index, struct log_handle *logger)
 	return redis_transaction_success;
 }
 
-static int connect_redis_for_write(struct source_redis_ctx *mr_ctx,
+static int connect_redis_for_write(struct source_redis_ctx *redis_ctx,
                                    struct log_handle *logger)
 {
-	assert(mr_ctx->write_ctx == NULL);
-	mr_ctx->write_ctx = maat_cmd_connect_redis(mr_ctx->redis_ip, mr_ctx->redis_port,
-                                               mr_ctx->redis_db, logger);
-	if (NULL == mr_ctx->write_ctx) {
+	assert(redis_ctx->write_ctx == NULL);
+	redis_ctx->write_ctx = maat_cmd_connect_redis(redis_ctx->redis_ip, 
+                                                  redis_ctx->redis_port,
+                                                  redis_ctx->redis_db, logger);
+	if (NULL == redis_ctx->write_ctx) {
 		return -1;
 	} else {
 		return 0;
@@ -185,15 +186,14 @@ static int connect_redis_for_write(struct source_redis_ctx *mr_ctx,
 
 redisContext *get_redis_ctx_for_write(struct maat *maat_instance)
 {
-	if (NULL == maat_instance->mr_ctx.write_ctx) {
-		int ret = connect_redis_for_write(&(maat_instance->mr_ctx),
+	if (NULL == maat_instance->opts.redis_ctx.write_ctx) {
+		int ret = connect_redis_for_write(&(maat_instance->opts.redis_ctx),
                                           maat_instance->logger);
-		if(ret!=0)
-		{
+		if (ret != 0) {
 			return NULL;
 		}
 	}
-	return maat_instance->mr_ctx.write_ctx;
+	return maat_instance->opts.redis_ctx.write_ctx;
 }
 
 int maat_cmd_flushDB(struct maat *maat_instance)
@@ -206,8 +206,8 @@ int maat_cmd_flushDB(struct maat *maat_instance)
 	}
 
 	do {
-		ret = redis_flushDB(maat_instance->mr_ctx.write_ctx,
-                             maat_instance->mr_ctx.redis_db,
+		ret = redis_flushDB(maat_instance->opts.redis_ctx.write_ctx,
+                             maat_instance->opts.redis_ctx.redis_db,
                              maat_instance->logger);
 	} while(0 == ret);
 	
@@ -389,7 +389,7 @@ error_out:
 int maat_cmd_set_file(struct maat *maat_instance, const char *key, const char *value, 
                       size_t size, enum maat_operation op)
 {
-	redisContext *ctx = maat_instance->mr_ctx.write_ctx;
+	redisContext *ctx = maat_instance->opts.redis_ctx.write_ctx;
 	if (NULL == ctx) {
 		log_error(maat_instance->logger, MODULE_MAAT_COMMAND, 
                   "[%s:%d] failed: Redis is not connected.", 

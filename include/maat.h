@@ -99,7 +99,15 @@ int maat_options_set_logger(struct maat_options *opts, const char *log_path, enu
 
 int maat_options_set_iris(struct maat_options *opts, const char *full_directory, 
                           const char *increment_directory);
+
 int maat_options_set_json_file(struct maat_options *opts, const char *json_filename);
+
+/* Indicate whether the JSON file is compressed by gzip */
+int maat_options_set_json_file_gzip_flag(struct maat_options *opts, int gzip_flag);
+
+/* Specify the decryption key for the JSON file to be decrypted */
+int maat_options_set_json_file_decrypt_key(struct maat_options *opts, const char *decrypt_key);
+
 int maat_options_set_redis(struct maat_options *opts, const char *redis_ip, 
                            uint16_t redis_port, int redis_db);
 

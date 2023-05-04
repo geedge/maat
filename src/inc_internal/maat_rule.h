@@ -171,6 +171,36 @@ struct rule_tag {
 	char *tag_val;
 };
 
+struct maat_options {
+    char instance_name[NAME_MAX];
+    char foreign_cont_dir[NAME_MAX];
+    char decrypt_algo[MAX_KEYWORDS_STR];
+    char decrypt_key[MAX_KEYWORDS_STR];
+    char log_path[PATH_MAX];
+    int log_level;
+    char stat_file[PATH_MAX];
+    size_t nr_worker_thread;
+    char *accept_tags;
+
+    int stat_on;
+    int perf_on;
+    int deferred_load_on;
+
+    int maat_json_is_gzipped;
+    int cumulative_update_off; //Default: cumulative update on
+
+    int gc_timeout_ms;
+    int rule_effect_interval_ms;
+    int rule_update_checking_interval_ms;
+
+    enum data_source input_mode;
+    union {
+        struct source_iris_ctx iris_ctx;
+        struct source_json_ctx json_ctx;
+        struct source_redis_ctx redis_ctx;
+    };
+};
+
 struct maat_stat {
     char stat_file[PATH_MAX];
     struct fieldstat_instance *fs_handle;
@@ -197,53 +227,26 @@ struct maat_stat {
 };
 
 struct maat {
-    char instance_name[NAME_MAX];
-
     struct maat_runtime *maat_rt;
     struct maat_runtime *creating_maat_rt;
-
     struct table_manager *tbl_mgr;
+    struct maat_options opts;
 
-    enum data_source input_mode;
-    union {
-        struct source_iris_ctx iris_ctx;
-        struct source_json_ctx json_ctx;
-        struct source_redis_ctx mr_ctx;
-    };
-
-    struct log_handle *logger;
-    int deferred_load;
-
-    int is_running;
-    pthread_mutex_t background_update_mutex;
-    size_t nr_worker_thread;
-    
     long long maat_version;
     long long last_full_version;
+    long long load_specific_version;  //Default: Load the Latest. Only valid in redis mode, and maybe failed for too old
+    /* internal state */
+    long long new_version;
+
+    int is_running;
     pthread_t cfg_mon_thread;
+    pthread_mutex_t background_update_mutex;
 
-    int rule_effect_interval_ms;
-    int rule_update_checking_interval_ms;
-    int gc_timeout_ms; //garbage collection timeout_ms;
-
-    int cumulative_update_off; //Default: cumulative update on
-
-    int stat_on;
-    int perf_on;
+    struct log_handle *logger;
     struct maat_garbage_bin *garbage_bin;
 
     int default_compile_table_id;
     int g2g_table_id; //group2group table id
-
-    char decrypt_key[NAME_MAX];
-	char decrypt_algo[NAME_MAX];
-    int maat_json_is_gzipped;
-
-    long long load_specific_version;  //Default: Load the Latest. Only valid in redis mode, and maybe failed for too old
-    char foreign_cont_dir[NAME_MAX];
-
-    /* internal state */
-    long long new_version;
 
     /* statistics */
     struct maat_stat *stat;

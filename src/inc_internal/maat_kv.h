@@ -1,10 +1,10 @@
 /*
 **********************************************************************************************
-*	File: maat_kv_map.h
+*	File: maat_kv.h
 *   Description: str2int map api
 *	Authors: Zheng chao <zhengchao@geedgenetworks.com>
 *	Date:    2022-10-31
-*   Copyright: (c) 2018-2022 Geedge Networks, Inc. All rights reserved.
+*   Copyright: (c) Since 2022 Geedge Networks, Ltd. All rights reserved.
 ***********************************************************************************************
 */
 

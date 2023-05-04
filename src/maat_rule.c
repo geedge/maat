@@ -1,9 +1,9 @@
 /**********************************************************************************************
-*	File: maat_rule.cpp
+*	File: maat_rule.c
 *   Description:
 *	Authors: Liu WenTan <liuwentan@geedgenetworks.com>
 *	Date:    2022-10-31
-*   Copyright: (c) 2018-2022 Geedge Networks, Inc. All rights reserved.
+*   Copyright: (c) Since 2022 Geedge Networks, Ltd. All rights reserved.
 ***********************************************************************************************
 */
 
@@ -240,7 +240,7 @@ struct maat_runtime* maat_runtime_create(long long version, struct maat *maat_in
 	struct maat_runtime *maat_rt = ALLOC(struct maat_runtime, 1);
 
 	maat_rt->version = version;
-	int ret = table_manager_runtime_create(maat_instance->tbl_mgr, maat_instance->nr_worker_thread,
+	int ret = table_manager_runtime_create(maat_instance->tbl_mgr, maat_instance->opts.nr_worker_thread,
                                            maat_instance->garbage_bin);
     if (ret < 0) {
         FREE(maat_rt);
@@ -252,7 +252,7 @@ struct maat_runtime* maat_runtime_create(long long version, struct maat *maat_in
     maat_rt->sequence_map = maat_kv_store_new();
     maat_rt->logger = maat_instance->logger;
     maat_rt->ref_garbage_bin = maat_instance->garbage_bin;
-    maat_rt->ref_cnt = alignment_int64_array_alloc(maat_instance->nr_worker_thread);
+    maat_rt->ref_cnt = alignment_int64_array_alloc(maat_instance->opts.nr_worker_thread);
     
     return maat_rt;
 }
@@ -457,8 +457,8 @@ void *rule_monitor_loop(void *arg)
     char maat_name[16] = {0};
     struct maat *maat_instance = (struct maat *)arg;
 
-    if (strlen(maat_instance->instance_name) > 0) {
-        snprintf(maat_name, sizeof(maat_name), "MAAT_%s", maat_instance->instance_name);
+    if (strlen(maat_instance->opts.instance_name) > 0) {
+        snprintf(maat_name, sizeof(maat_name), "MAAT_%s", maat_instance->opts.instance_name);
     } else {
         snprintf(maat_name, sizeof(maat_name), "MAAT");
     }
@@ -468,7 +468,7 @@ void *rule_monitor_loop(void *arg)
 
     pthread_mutex_lock(&(maat_instance->background_update_mutex));
     /* if deferred load on */
-    if (maat_instance->deferred_load != 0) {
+    if (maat_instance->opts.deferred_load_on != 0) {
         log_info(maat_instance->logger, MODULE_MAAT_RULE, 
                  "Deferred Loading ON, updating in %s:%d", __FUNCTION__, __LINE__);
         maat_read_full_config(maat_instance);
@@ -480,42 +480,44 @@ void *rule_monitor_loop(void *arg)
     struct stat attrib;
     while (maat_instance->is_running) {
         log_info(maat_instance->logger, MODULE_MAAT_RULE, "%s:%d.............", __FUNCTION__, __LINE__);
-        usleep(maat_instance->rule_update_checking_interval_ms * 1000);
+        usleep(maat_instance->opts.rule_update_checking_interval_ms * 1000);
 		if (0 == pthread_mutex_trylock(&(maat_instance->background_update_mutex))) {
-			switch (maat_instance->input_mode) {
+			switch (maat_instance->opts.input_mode) {
                 case DATA_SOURCE_REDIS:
                     redis_monitor_traverse(maat_instance->maat_version,
-                                            &(maat_instance->mr_ctx),
+                                            &(maat_instance->opts.redis_ctx),
                                             maat_start_cb, maat_update_cb, maat_finish_cb,
                                             maat_instance);
                     break;
 				case DATA_SOURCE_IRIS_FILE:
 					config_monitor_traverse(maat_instance->maat_version, 
-											maat_instance->iris_ctx.inc_idx_dir,
+											maat_instance->opts.iris_ctx.inc_idx_dir,
 											maat_start_cb, maat_update_cb, maat_finish_cb,
-											maat_instance, maat_instance->logger);
+											maat_instance, maat_instance->opts.decrypt_key,
+                                            maat_instance->logger);
 					break;
                 case DATA_SOURCE_JSON_FILE:
                     memset(md5_tmp, 0, sizeof(md5_tmp));
-				    stat(maat_instance->json_ctx.json_file, &attrib);
-					if (memcmp(&attrib.st_ctim, &(maat_instance->json_ctx.last_md5_time), sizeof(attrib.st_ctim))) {
-						maat_instance->json_ctx.last_md5_time = attrib.st_ctim;
-						md5_file(maat_instance->json_ctx.json_file, md5_tmp);
-						if (0 != strcmp(md5_tmp, maat_instance->json_ctx.effective_json_md5)) {
-							ret = load_maat_json_file(maat_instance, maat_instance->json_ctx.json_file, 
+				    stat(maat_instance->opts.json_ctx.json_file, &attrib);
+					if (memcmp(&attrib.st_ctim, &(maat_instance->opts.json_ctx.last_md5_time), sizeof(attrib.st_ctim))) {
+						maat_instance->opts.json_ctx.last_md5_time = attrib.st_ctim;
+						md5_file(maat_instance->opts.json_ctx.json_file, md5_tmp);
+						if (0 != strcmp(md5_tmp, maat_instance->opts.json_ctx.effective_json_md5)) {
+							ret = load_maat_json_file(maat_instance, maat_instance->opts.json_ctx.json_file, 
                                                       err_str, sizeof(err_str));
 							if (ret < 0) {
 								log_error(maat_instance->logger, MODULE_MAAT_RULE, 
                                           "[%s:%d] Maat re-initiate with JSON file %s (md5=%s)failed: %s\n",
-										  __FUNCTION__, __LINE__, maat_instance->json_ctx.json_file, 
+										  __FUNCTION__, __LINE__, maat_instance->opts.json_ctx.json_file, 
                                           md5_tmp, err_str);
 							} else {
-								config_monitor_traverse(0, maat_instance->json_ctx.iris_file,
+								config_monitor_traverse(0, maat_instance->opts.json_ctx.iris_file,
 														maat_start_cb, maat_update_cb, maat_finish_cb,
-														maat_instance, maat_instance->logger);
+														maat_instance, maat_instance->opts.decrypt_key,
+                                                        maat_instance->logger);
 								log_info(maat_instance->logger, MODULE_MAAT_RULE, 
                                          "Maat re-initiate with JSON file %s success, md5: %s\n",
-										 maat_instance->json_ctx.json_file, md5_tmp);
+										 maat_instance->opts.json_ctx.json_file, md5_tmp);
 							}
 						}
 					}
@@ -550,7 +552,7 @@ void *rule_monitor_loop(void *arg)
 			if (maat_instance->maat_rt != NULL) {
                 time_t time_window = time(NULL) - maat_instance->maat_rt->last_update_time;
                 
-                if (time_window >= maat_instance->rule_effect_interval_ms / 1000) {
+                if (time_window >= maat_instance->opts.rule_effect_interval_ms / 1000) {
                     maat_runtime_commit(maat_instance->maat_rt, MAAT_UPDATE_TYPE_INC, 
                                         maat_instance->maat_rt->version, maat_instance->logger);
                     log_info(maat_instance->logger, MODULE_MAAT_RULE,
@@ -562,8 +564,8 @@ void *rule_monitor_loop(void *arg)
 			pthread_mutex_unlock(&(maat_instance->background_update_mutex));
 		}
         maat_garbage_collect_routine(maat_instance->garbage_bin);
-        if ((1 == maat_instance->stat_on) && (time(NULL) % 2 == 0)) {
-            maat_stat_output(maat_instance->stat, maat_instance->maat_version, maat_instance->perf_on);
+        if ((1 == maat_instance->opts.stat_on) && (time(NULL) % 2 == 0)) {
+            maat_stat_output(maat_instance->stat, maat_instance->maat_version, maat_instance->opts.perf_on);
         }
     }
 
@@ -576,16 +578,21 @@ void *rule_monitor_loop(void *arg)
         maat_instance->stat = NULL;
     }
 
-    if (maat_instance->input_mode == DATA_SOURCE_REDIS) {
-        if (maat_instance->mr_ctx.read_ctx != NULL) {
-            redisFree(maat_instance->mr_ctx.read_ctx);
-            maat_instance->mr_ctx.read_ctx = NULL;
+    if (maat_instance->opts.input_mode == DATA_SOURCE_REDIS) {
+        if (maat_instance->opts.redis_ctx.read_ctx != NULL) {
+            redisFree(maat_instance->opts.redis_ctx.read_ctx);
+            maat_instance->opts.redis_ctx.read_ctx = NULL;
         }
 
-        if (maat_instance->mr_ctx.write_ctx != NULL) {
-            redisFree(maat_instance->mr_ctx.write_ctx);
-            maat_instance->mr_ctx.write_ctx = NULL;
+        if (maat_instance->opts.redis_ctx.write_ctx != NULL) {
+            redisFree(maat_instance->opts.redis_ctx.write_ctx);
+            maat_instance->opts.redis_ctx.write_ctx = NULL;
         }
+    }
+
+    if (maat_instance->opts.accept_tags != NULL) {
+        FREE(maat_instance->opts.accept_tags);
+        maat_instance->opts.accept_tags = NULL;
     }
 
     log_handle_destroy(maat_instance->logger);

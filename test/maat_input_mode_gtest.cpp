@@ -189,7 +189,7 @@ TEST(redis_mode, maat_scan_string) {
     char tmp_iris_full_idx_path[PATH_MAX] = {0};
     snprintf(tmp_iris_full_idx_path, sizeof(tmp_iris_full_idx_path), "%s/index", json_iris_path);
     config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, count_line_num_cb, NULL, 
-                            &total_line_cnt, g_logger);
+                            &total_line_cnt, NULL, g_logger);
 
     struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
     s_rule->ref_ctx = c;
@@ -198,7 +198,7 @@ TEST(redis_mode, maat_scan_string) {
 
     absolute_expire_time = server_time + 300;
     config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, make_serial_rule, NULL, 
-                            s_rule, g_logger);
+                            s_rule, NULL, g_logger);
     s_rule->ref_ctx = NULL;
     int success_cnt = 0;
     do {

@@ -125,7 +125,8 @@ int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
     size_t total_line_cnt = 0;
     char tmp_iris_full_idx_path[PATH_MAX] = {0};
     snprintf(tmp_iris_full_idx_path, sizeof(tmp_iris_full_idx_path), "%s/index", json_iris_path);
-    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, count_line_num_cb, NULL, &total_line_cnt, logger);
+    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, count_line_num_cb, NULL,
+                            &total_line_cnt, NULL, logger);
 
     struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
     s_rule->ref_ctx = c;
@@ -135,7 +136,8 @@ int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
     }
 
     absolute_expire_time = server_time + 300;
-    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, make_serial_rule, NULL, s_rule, logger);
+    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, make_serial_rule, NULL,
+                            s_rule, NULL, logger);
     s_rule->ref_ctx = NULL;
     line_idx = 0;
     absolute_expire_time = 0;
@@ -432,6 +434,104 @@ TEST_F(MaatIris, basic) {
 }
 #endif
 
+const char* watched_json="./json_update/maat.json";
+const char* old_json="./json_update/old.json";
+const char* new_json="./json_update/new.json";
+const char* corrupted_json="./json_update/corrupted.json";
+const char* json_decrypt_key="himaat!";
+const char* tmp_gzipped_file_name="./json_update/tmp_gzipped_json.gz";
+
+class JsonUpdate : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        system_cmd_gzip(old_json, tmp_gzipped_file_name);
+        system_cmd_encrypt(tmp_gzipped_file_name, watched_json, json_decrypt_key);
+
+        int scan_interval_ms = 500;
+        logger = log_handle_create("./maat_framework_gtest.log", 0);
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_instance_name(opts, "firewall");
+        maat_options_set_json_file(opts, watched_json);
+        maat_options_set_json_file_gzip_flag(opts, 1);
+        maat_options_set_json_file_decrypt_key(opts, json_decrypt_key);
+        maat_options_set_rule_update_checking_interval_ms(opts, scan_interval_ms);
+
+        _shared_maat_instance = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+        if (NULL == _shared_maat_instance) {
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
+                      "[%s:%d] create maat instance in JsonUpdate failed.",
+                      __FUNCTION__, __LINE__);
+            assert(0);
+        }
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_instance);
+        log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_instance;
+};
+
+struct maat *JsonUpdate::_shared_maat_instance;
+struct log_handle *JsonUpdate::logger;
+
+void scan_with_old_or_new_cfg(struct maat *maat_instance, int is_old)
+{
+    const char *hit_old_data = "Hello world! I'm eve.";
+    const char *hit_new_data = "Maat was borned in MESA.";
+    const char *table_name = "HTTP_URL";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+    int table_id = maat_get_table_id(maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+    int ret = maat_scan_string(maat_instance, table_id, hit_old_data,
+                               strlen(hit_old_data), results, ARRAY_SIZE,
+                               &n_hit_result, state);
+    if (is_old) {
+        EXPECT_EQ(ret, MAAT_SCAN_HIT);
+        EXPECT_TRUE(results[0] == 1);
+    } else {
+        EXPECT_EQ(ret, MAAT_SCAN_OK);
+    }
+    maat_state_reset(state);
+
+    ret = maat_scan_string(maat_instance, table_id, hit_new_data,
+                           strlen(hit_new_data), results, ARRAY_SIZE,
+                           &n_hit_result, state);
+    if (!is_old) {
+        EXPECT_EQ(ret, MAAT_SCAN_HIT);
+        EXPECT_EQ(results[0], 2);
+    } else {
+        EXPECT_EQ(ret, MAAT_SCAN_OK);
+    }
+
+    maat_state_free(state);
+}
+
+TEST_F(JsonUpdate, OldCfg) {
+    scan_with_old_or_new_cfg(JsonUpdate::_shared_maat_instance, 1);
+}
+
+TEST_F(JsonUpdate, NewCfg) {
+    system_cmd_gzip(corrupted_json, tmp_gzipped_file_name);
+    system_cmd_encrypt(tmp_gzipped_file_name, watched_json, json_decrypt_key);
+    sleep(2);
+    scan_with_old_or_new_cfg(JsonUpdate::_shared_maat_instance, 1);
+
+    system_cmd_gzip(new_json, tmp_gzipped_file_name);
+    int ret = system_cmd_encrypt(tmp_gzipped_file_name, watched_json, json_decrypt_key);
+    EXPECT_EQ(ret, 0);
+    sleep(5);
+    scan_with_old_or_new_cfg(JsonUpdate::_shared_maat_instance, 0);
+}
 
 class MaatFlagScan : public testing::Test
 {

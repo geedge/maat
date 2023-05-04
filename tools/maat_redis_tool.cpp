@@ -262,7 +262,7 @@ int write_config_to_redis(redisContext *c, char *json_filename, struct log_handl
     }
 
     size_t total_line_cnt = 0;
-    config_monitor_traverse(0, tmp_iris_path, NULL, count_line_num_cb, NULL, &total_line_cnt, logger);
+    config_monitor_traverse(0, tmp_iris_path, NULL, count_line_num_cb, NULL, &total_line_cnt, NULL, logger);
 
     struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
     s_rule->ref_ctx = c;
@@ -272,7 +272,7 @@ int write_config_to_redis(redisContext *c, char *json_filename, struct log_handl
     }
 
     s_rule->timeout = server_time + 300;
-    config_monitor_traverse(0, tmp_iris_path, NULL, make_serial_rule, NULL, s_rule, logger);
+    config_monitor_traverse(0, tmp_iris_path, NULL, make_serial_rule, NULL, s_rule, NULL, logger);
     s_rule->ref_ctx = NULL;
     line_idx = 0;
 
@@ -467,7 +467,7 @@ int main(int argc, char * argv[])
 		}
 
 		size_t total_line_cnt = 0;
-		config_monitor_traverse(0, tmp_iris_path, NULL, count_line_num_cb, NULL, &total_line_cnt, logger);
+		config_monitor_traverse(0, tmp_iris_path, NULL, count_line_num_cb, NULL, &total_line_cnt, NULL, logger);
 		log_error(logger, MODULE_REDIS_TOOL, "Serialize %s to %zu lines, write temp file to %s .", 
                   json_file, total_line_cnt, tmp_iris_path);
 
@@ -484,7 +484,7 @@ int main(int argc, char * argv[])
 			s_rule->timeout = server_time + timeout;
 		}
         log_info(logger, MODULE_REDIS_TOOL, "Timeout = %lld\n", s_rule->timeout);
-        config_monitor_traverse(0, tmp_iris_path, NULL, make_serial_rule, NULL, s_rule, logger);
+        config_monitor_traverse(0, tmp_iris_path, NULL, make_serial_rule, NULL, s_rule, NULL, logger);
         s_rule->ref_ctx = NULL;
 
         int success_cnt = 0;

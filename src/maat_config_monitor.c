@@ -30,10 +30,11 @@ struct cm_table_info_t
 	char table_name[NAME_MAX];
 	char cfg_path[NAME_MAX];
 	int cfg_num;
-	char encryp_algorithm[NAME_MAX];
+	char encrypt_algo[NAME_MAX];
 };
 
-int cm_read_cfg_index_file(const char* path, struct cm_table_info_t* idx, int size)
+int cm_read_cfg_index_file(const char* path, struct cm_table_info_t* idx, int size,
+                           struct log_handle *logger)
 {
 	int ret = 0;
 	int i = 0;
@@ -44,10 +45,9 @@ int cm_read_cfg_index_file(const char* path, struct cm_table_info_t* idx, int si
 	while (!feof(fp)) {
 		memset(line, 0, sizeof(line));
 		fgets(line, sizeof(line), fp);
-		ret=sscanf(line,"%s\t%d\t%s\t%s",idx[i].table_name
-								,&(idx[i].cfg_num)
-								,idx[i].cfg_path
-								,idx[i].encryp_algorithm);
+		ret = sscanf(line, "%s\t%d\t%s\t%s", idx[i].table_name, &(idx[i].cfg_num),
+                     idx[i].cfg_path ,idx[i].encrypt_algo);
+
 		//jump over empty line
 		if (!(ret == 3 || ret == 4) || idx[i].cfg_num == 0) {
 			continue;
@@ -55,14 +55,15 @@ int cm_read_cfg_index_file(const char* path, struct cm_table_info_t* idx, int si
 
 		ret = stat(idx[i].cfg_path, &file_info);
 		if (ret != 0) {
-			//log_error
+			log_error(logger, MODULE_CONFIG_MONITOR, "%s of %s not exisit",
+					  idx[i].cfg_path, path);
 			fclose(fp);
 			return -1;
 		}
 
 		i++;
 		if (i == size) {
-			//log_error
+			log_error(logger, MODULE_CONFIG_MONITOR, "Too much lines in %s", path);
 			break;
 		}
 	}
@@ -111,37 +112,57 @@ char *read_nxt_line_from_buff(const char *buff, size_t buff_size,
 
 int cm_read_table_file(struct cm_table_info_t *index,
 						int (*update_fn)(const char *, const char *, void *),
-						void *u_param, struct log_handle *logger)
+						void *u_param, const char *dec_key, struct log_handle *logger)
 {
-	int cfg_num = 0,i  =0;
 	int ret = 0;
-	char line[MAX_CONFIG_LINE]={0};
-	char *ret_str=NULL;
-	char *table_file_buff=NULL;
-	size_t file_sz = 0;
-	size_t file_offset = 0;
+    size_t file_sz = 0;
+	char *file_buff = NULL;
+    char error_string[NAME_MAX];
+	
+    if (strlen(index->encrypt_algo) > 0) {
+        //JSON file has been encrypted
+        if (NULL == dec_key || 0 == strlen(dec_key)) {
+            log_error(logger, MODULE_CONFIG_MONITOR, 
+                      "update error, no key to decrypt %s.", index->cfg_path);
+            return -1;
+        }
 
-	ret = load_file_to_memory(index->cfg_path, (unsigned char **)&table_file_buff, &file_sz);
-	if (ret < 0) {
-		log_error(logger, MODULE_CONFIG_MONITOR, "[%s:%d] open %s failed.", 
-                  __FUNCTION__, __LINE__, index->cfg_path);
-		return -1;
-	}
+        ret = decrypt_open(index->cfg_path, dec_key, index->encrypt_algo,
+                          (unsigned char**)&file_buff, &file_sz, error_string,
+                          sizeof(error_string));
+        if (ret < 0) {
+            log_error(logger, MODULE_CONFIG_MONITOR,
+                      "update error, decrypt %s failed: %s", index->cfg_path, error_string);
+            return -1;
+        }
+    } else {
+        // not encrypted
+        ret = load_file_to_memory(index->cfg_path, (unsigned char **)&file_buff, &file_sz);
+	    if (ret < 0) {
+		    log_error(logger, MODULE_CONFIG_MONITOR, "[%s:%d] open %s failed.", 
+                      __FUNCTION__, __LINE__, index->cfg_path);
+		    return -1;
+	    }
+    }
 
-	read_nxt_line_from_buff(table_file_buff, file_sz, &file_offset, line, sizeof(line));
+    size_t file_offset = 0;
+    char line[MAX_CONFIG_LINE] = {0};
+	read_nxt_line_from_buff(file_buff, file_sz, &file_offset, line, sizeof(line));
+
+    int cfg_num = 0;
 	sscanf(line, "%d\n", &cfg_num);
 
 	if(cfg_num != index->cfg_num) {
-        FREE(table_file_buff);
+        FREE(file_buff);
         log_error(logger, MODULE_CONFIG_MONITOR, "[%s:%d] file %s config num not matched",
                   __FUNCTION__, __LINE__, index->cfg_path);
 		return -1;
 	}
 
-	for (i = 0; i < cfg_num; i++) {
+	for (int i = 0; i < cfg_num; i++) {
 		line[sizeof(line) - 1] = '\0';
 
-		ret_str = read_nxt_line_from_buff(table_file_buff, file_sz, &file_offset, line, sizeof(line));
+		char *ret_str = read_nxt_line_from_buff(file_buff, file_sz, &file_offset, line, sizeof(line));
 		if (ret_str == NULL) {
 			log_error(logger, MODULE_CONFIG_MONITOR, "[%s:%d] file %s line_num %d less than claimed %d",
                        __FUNCTION__, __LINE__, index->cfg_path, i, cfg_num);
@@ -160,7 +181,7 @@ int cm_read_table_file(struct cm_table_info_t *index,
 		}
 	}
 
-	FREE(table_file_buff);
+	FREE(file_buff);
 	
 	return 0;
 }
@@ -317,7 +338,7 @@ int get_new_idx_path(long long current_version, const char *file_dir,
 void config_monitor_traverse(long long current_version, const char *idx_dir,
 							 void (*start_fn)(long long, int, void *),
 							 int (*update_fn)(const char *, const char *, void *),
-							 void (*finish_fn)(void *), void *u_param,
+							 void (*finish_fn)(void *), void *u_param, const char *dec_key,
                              struct log_handle *logger)
 {
 	size_t i = 0;
@@ -332,7 +353,7 @@ void config_monitor_traverse(long long current_version, const char *idx_dir,
 	if (update_type != MAAT_UPDATE_TYPE_INVALID) {
 		for (i = 0; i < idx_path_num; i++) {
             log_info(logger, MODULE_CONFIG_MONITOR, "load %s", idx_path_array[i]);
-			int table_num = cm_read_cfg_index_file(idx_path_array[i], table_array, MAX_TABLE_NUM);
+			int table_num = cm_read_cfg_index_file(idx_path_array[i], table_array, MAX_TABLE_NUM, logger);
 			if (table_num < 0) {
 				log_error(logger, MODULE_CONFIG_MONITOR, 
                           "[%s:%d] load %s failed, abandon update", 
@@ -348,7 +369,7 @@ void config_monitor_traverse(long long current_version, const char *idx_dir,
 			}
 
 			for (int j = 0; j < table_num; j++) {
-				cm_read_table_file(table_array + j, update_fn, u_param, logger);
+				cm_read_table_file(table_array + j, update_fn, u_param, dec_key, logger);
 			}
 
 			if (finish_fn != NULL) {
@@ -380,9 +401,9 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
             "Maat initial with JSON file %s, formating...", 
             json_filename);
 
-	if (strlen(maat_instance->decrypt_key) && strlen(maat_instance->decrypt_algo)) {
-		ret = decrypt_open(json_filename, maat_instance->decrypt_key, 
-                           maat_instance->decrypt_algo, 
+	if (strlen(maat_instance->opts.decrypt_key) && strlen(maat_instance->opts.decrypt_algo)) {
+		ret = decrypt_open(json_filename, maat_instance->opts.decrypt_key, 
+                           maat_instance->opts.decrypt_algo, 
                            (unsigned char **)&decrypted_buff, 
                            &decrypted_buff_sz, 
                            err_str, err_str_sz);
@@ -397,7 +418,7 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
 		json_buff_sz=decrypted_buff_sz;
 	}
     
-	if (maat_instance->maat_json_is_gzipped) {
+	if (maat_instance->opts.maat_json_is_gzipped) {
 		ret = gzip_uncompress(json_buff, json_buff_sz, &uncompressed_buff, 
                               &uncompressed_buff_sz);
 		FREE(json_buff);
@@ -424,10 +445,10 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
 	}
 
 	ret = json2iris((const char*)json_buff, json_filename, NULL,
-			        maat_instance->json_ctx.iris_file, 
-                    sizeof(maat_instance->json_ctx.iris_file),
-			        strlen(maat_instance->decrypt_key) ? maat_instance->decrypt_key : NULL,
-			        strlen(maat_instance->decrypt_algo) ? maat_instance->decrypt_algo : NULL,
+			        maat_instance->opts.json_ctx.iris_file, 
+                    sizeof(maat_instance->opts.json_ctx.iris_file),
+			        strlen(maat_instance->opts.decrypt_key) ? maat_instance->opts.decrypt_key : NULL,
+			        strlen(maat_instance->opts.decrypt_algo) ? maat_instance->opts.decrypt_algo : NULL,
                     maat_instance->logger);
 	FREE(json_buff);
 	if (ret < 0) {
@@ -435,16 +456,16 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
 	}
 	
 	ret = stat(json_filename, &fstat_buf);
-	maat_instance->json_ctx.last_md5_time = fstat_buf.st_ctim;
+	maat_instance->opts.json_ctx.last_md5_time = fstat_buf.st_ctim;
 	
-	md5_file(maat_instance->json_ctx.json_file, maat_instance->json_ctx.effective_json_md5);
+	md5_file(maat_instance->opts.json_ctx.json_file, maat_instance->opts.json_ctx.effective_json_md5);
 	log_info(maat_instance->logger, MODULE_CONFIG_MONITOR, 
             "JSON file %s md5: %s, generate index file %s OK",
-			maat_instance->json_ctx.json_file,
-			maat_instance->json_ctx.effective_json_md5,
-		    maat_instance->json_ctx.iris_file);
+			maat_instance->opts.json_ctx.json_file,
+			maat_instance->opts.json_ctx.effective_json_md5,
+		    maat_instance->opts.json_ctx.iris_file);
 
-	maat_instance->input_mode = DATA_SOURCE_JSON_FILE;
+	maat_instance->opts.input_mode = DATA_SOURCE_JSON_FILE;
 
 	return 0;	
 }

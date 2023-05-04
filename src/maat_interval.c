@@ -1,10 +1,10 @@
 /*
 **********************************************************************************************
-*	File: maat_interval.cpp
+*	File: maat_interval.c
 *   Description: 
 *	Authors: Liu WenTan <liuwentan@geedgenetworks.com>
 *	Date:    2022-10-31
-*   Copyright: (c) 2018-2022 Geedge Networks, Inc. All rights reserved.
+*   Copyright: (c) Since 2022 Geedge Networks, Ltd. All rights reserved.
 ***********************************************************************************************
 */
 

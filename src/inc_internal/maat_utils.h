@@ -4,7 +4,7 @@
 *   Description: maat utils entry
 *	Authors: Liu WenTan <liuwentan@geedgenetworks.com>
 *	Date:    2022-10-31
-*   Copyright: (c) 2018-2022 Geedge Networks, Inc. All rights reserved.
+*   Copyright: (c) Since 2022 Geedge Networks, Ltd. All rights reserved.
 ***********************************************************************************************
 */
 
@@ -115,6 +115,10 @@ size_t memcat(void **dest, size_t offset, size_t *n_dest, const void *src, size_
 int system_cmd_mkdir(const char* path);
 
 int system_cmd_rmdir(const char *dir);
+
+int system_cmd_gzip(const char *src_file, const char *dst_file);
+
+int system_cmd_encrypt(const char *src_file, const char *dst_file, const char *password);
 
 #ifdef __cplusplus
 }

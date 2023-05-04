@@ -1,10 +1,10 @@
 /*
 **********************************************************************************************
-*	File: maat_expr.cpp
+*	File: maat_expr.c
 *   Description: 
 *	Authors: Liu WenTan <liuwentan@geedgenetworks.com>
 *	Date:    2022-10-31
-*   Copyright: (c) 2018-2022 Geedge Networks, Inc. All rights reserved.
+*   Copyright: (c) Since 2022 Geedge Networks, Ltd. All rights reserved.
 ***********************************************************************************************
 */
 

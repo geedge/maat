@@ -4,7 +4,7 @@
 *   Description: maat redis monitor api
 *	Authors: Liu WenTan <liuwentan@geedgenetworks.com>
 *	Date:    2022-11-29
-*   Copyright: (c) 2018-2022 Geedge Networks, Inc. All rights reserved.
+*   Copyright: (c) Since 2022 Geedge Networks, Ltd. All rights reserved.
 ***********************************************************************************************
 */
 

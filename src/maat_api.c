@@ -18,7 +18,6 @@
 #include "json2iris.h"
 #include "maat.h"
 #include "maat_rule.h"
-#include "maat_common.h"
 #include "maat_kv.h"
 #include "maat_command.h"
 #include "maat_ex_data.h"
@@ -58,7 +57,7 @@ struct maat_options* maat_options_new(void)
 {
     struct maat_options *options = ALLOC(struct maat_options, 1);
 
-    options->nr_worker_threads = 1;
+    options->nr_worker_thread = 1;
     options->deferred_load_on = 0;
     options->rule_effect_interval_ms = 60 * 1000;
     options->rule_update_checking_interval_ms = 1 * 1000;
@@ -75,10 +74,6 @@ void maat_options_free(struct maat_options *opts)
         return;
     }
 
-    if (opts->accept_tags != NULL) {
-        FREE(opts->accept_tags);
-    }
-
     FREE(opts);
 }
 
@@ -88,7 +83,7 @@ int maat_options_set_caller_thread_number(struct maat_options *opts, size_t n_th
         return -1;
     }
 
-    opts->nr_worker_threads = n_thread;
+    opts->nr_worker_thread = n_thread;
     return 0;
 }
 
@@ -206,6 +201,30 @@ int maat_options_set_json_file(struct maat_options *opts, const char *json_filen
     return 0;
 }
 
+int maat_options_set_json_file_gzip_flag(struct maat_options *opts, int gzip_flag)
+{
+    if (NULL == opts || (gzip_flag != 0 && gzip_flag != 1)) {
+        return -1;
+    }
+
+    opts->maat_json_is_gzipped = gzip_flag;
+
+    return 0;
+}
+
+int maat_options_set_json_file_decrypt_key(struct maat_options *opts, const char *decrypt_key)
+{
+    if (NULL == opts || NULL == decrypt_key) {
+        return -1;
+    }
+
+    size_t str_len = MIN(sizeof(opts->decrypt_key), strlen(decrypt_key));
+
+    memcpy(opts->decrypt_key, decrypt_key, str_len);
+
+    return 0;
+}
+
 int maat_options_set_redis(struct maat_options *opts, const char *redis_ip,
                            uint16_t redis_port, int redis_db)
 {
@@ -243,20 +262,20 @@ void maat_read_full_config(struct maat *maat_instance)
 {
     int ret = -1;
     char err_str[NAME_MAX] = {0};
-    struct source_redis_ctx *mr_ctx = NULL;
+    struct source_redis_ctx *redis_ctx = NULL;
 
-    switch (maat_instance->input_mode) {
+    switch (maat_instance->opts.input_mode) {
         case DATA_SOURCE_REDIS:
-            mr_ctx = &(maat_instance->mr_ctx);
+            redis_ctx = &(maat_instance->opts.redis_ctx);
             log_info(maat_instance->logger, MODULE_MAAT_API, 
                      "Maat initiate from Redis %s:%hu db%d", 
-                     mr_ctx->redis_ip, mr_ctx->redis_port, mr_ctx->redis_db);
-            mr_ctx->read_ctx = maat_cmd_connect_redis(mr_ctx->redis_ip,
-                                                      mr_ctx->redis_port, 
-                                                      mr_ctx->redis_db,
-                                                      maat_instance->logger);
-            if (mr_ctx->read_ctx != NULL) {
-                redis_monitor_traverse(maat_instance->maat_version, mr_ctx,
+                     redis_ctx->redis_ip, redis_ctx->redis_port, redis_ctx->redis_db);
+            redis_ctx->read_ctx = maat_cmd_connect_redis(redis_ctx->redis_ip,
+                                                         redis_ctx->redis_port, 
+                                                         redis_ctx->redis_db,
+                                                         maat_instance->logger);
+            if (redis_ctx->read_ctx != NULL) {
+                redis_monitor_traverse(maat_instance->maat_version, redis_ctx,
 									   maat_start_cb, maat_update_cb, maat_finish_cb,
 									   maat_instance);
             }
@@ -264,38 +283,40 @@ void maat_read_full_config(struct maat *maat_instance)
             if (NULL == maat_instance->creating_maat_rt) {
                 log_error(maat_instance->logger, MODULE_MAAT_API, 
                           "[%s:%d] At initiation: NO effective rule in redis %s:%hu db%d",
-                          __FUNCTION__, __LINE__, mr_ctx->redis_ip, mr_ctx->redis_port, 
-                          mr_ctx->redis_db);
+                          __FUNCTION__, __LINE__, redis_ctx->redis_ip, redis_ctx->redis_port, 
+                          redis_ctx->redis_db);
             }
             break;
         case DATA_SOURCE_IRIS_FILE:
 			config_monitor_traverse(maat_instance->maat_version,
-                                    maat_instance->iris_ctx.full_idx_dir,
+                                    maat_instance->opts.iris_ctx.full_idx_dir,
                                     maat_start_cb, maat_update_cb, maat_finish_cb,
-                                    maat_instance, maat_instance->logger);
+                                    maat_instance, maat_instance->opts.decrypt_key,
+                                    maat_instance->logger);
             if (NULL == maat_instance->creating_maat_rt) {
                 log_error(maat_instance->logger, MODULE_MAAT_API, 
                           "[%s:%d] At initiation: NO effective rule in %s",
-                          __FUNCTION__, __LINE__, maat_instance->iris_ctx.full_idx_dir);
+                          __FUNCTION__, __LINE__, maat_instance->opts.iris_ctx.full_idx_dir);
             }
             break;
         case DATA_SOURCE_JSON_FILE:
-            ret = load_maat_json_file(maat_instance, maat_instance->json_ctx.json_file,
+            ret = load_maat_json_file(maat_instance, maat_instance->opts.json_ctx.json_file,
                                       err_str, sizeof(err_str));
             if (ret < 0) {
                 log_error(maat_instance->logger, MODULE_MAAT_API, 
                           "[%s:%d] Maat re-initiate with JSON file %s failed: %s", 
-                          __FUNCTION__, __LINE__, maat_instance->json_ctx.json_file, err_str);
+                          __FUNCTION__, __LINE__, maat_instance->opts.json_ctx.json_file, err_str);
             }
             
             config_monitor_traverse(maat_instance->maat_version,
-                                    maat_instance->json_ctx.iris_file,
+                                    maat_instance->opts.json_ctx.iris_file,
                                     maat_start_cb, maat_update_cb, maat_finish_cb,
-                                    maat_instance, maat_instance->logger);
+                                    maat_instance, maat_instance->opts.decrypt_key,
+                                    maat_instance->logger);
             if (NULL == maat_instance->creating_maat_rt) {
                 log_error(maat_instance->logger, MODULE_MAAT_API, 
                           "[%s:%d] At initiation: NO effective rule in %s",
-                          __FUNCTION__, __LINE__, maat_instance->json_ctx.iris_file);
+                          __FUNCTION__, __LINE__, maat_instance->opts.json_ctx.iris_file);
             }
             break;
         default:
@@ -332,6 +353,11 @@ void _maat_free(struct maat *maat_instance)
         maat_instance->stat = NULL;
     }
 
+    if (maat_instance->opts.accept_tags != NULL) {
+        FREE(maat_instance->opts.accept_tags);
+        maat_instance->opts.accept_tags = NULL;
+    }
+    
     pthread_mutex_destroy(&(maat_instance->background_update_mutex));
 
     FREE(maat_instance);
@@ -343,83 +369,59 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
         return NULL;
     }
 
-    int garbage_gc_timeout_s = 0;
     struct maat *maat_instance = ALLOC(struct maat, 1);
-    
-    if (strlen(opts->log_path) != 0) {
-        maat_instance->logger = log_handle_create(opts->log_path, opts->log_level);
+
+    maat_instance->opts = *opts;
+
+    if (strlen(maat_instance->opts.log_path) != 0) {
+        maat_instance->logger = log_handle_create(maat_instance->opts.log_path,
+                                                  maat_instance->opts.log_level);
     } else {
         char log_path[1024] = {0};
-        if (strlen(maat_instance->instance_name) > 0) {
-            snprintf(log_path, sizeof(log_path), "%s.log", 
-                     maat_instance->instance_name);
+        if (strlen(maat_instance->opts.instance_name) > 0) {
+            snprintf(log_path, sizeof(log_path), "%s.log", maat_instance->opts.instance_name);
         } else {
             snprintf(log_path, sizeof(log_path), "maat.log");
         }
-        maat_instance->logger = log_handle_create(log_path, opts->log_level);
+        maat_instance->logger = log_handle_create(log_path, maat_instance->opts.log_level);
     }
 
-    if (0 == strlen(opts->foreign_cont_dir)) {
-        snprintf(maat_instance->foreign_cont_dir, sizeof(maat_instance->foreign_cont_dir),
+    if (0 == strlen(maat_instance->opts.foreign_cont_dir)) {
+        snprintf(maat_instance->opts.foreign_cont_dir, sizeof(maat_instance->opts.foreign_cont_dir),
                  "%s_files", table_info_path);
-    } else {
-        memcpy(maat_instance->foreign_cont_dir, opts->foreign_cont_dir, strlen(opts->foreign_cont_dir));
-        size_t len = strlen(maat_instance->foreign_cont_dir);
-        if (maat_instance->foreign_cont_dir[len - 1] == '/') {
-            maat_instance->foreign_cont_dir[len - 1] = '\0';
-        }
     }
-    system_cmd_mkdir(maat_instance->foreign_cont_dir);
+   
+    system_cmd_mkdir(maat_instance->opts.foreign_cont_dir);
 
-    if (0 == strlen(opts->stat_file)) {
-        snprintf(opts->stat_file, sizeof(opts->stat_file), "maat.fs3");
+    if (0 == strlen(maat_instance->opts.stat_file)) {
+        snprintf(maat_instance->opts.stat_file, sizeof(maat_instance->opts.stat_file), "maat.fs3");
     }
 
-    maat_instance->input_mode = opts->input_mode;
-
-    switch (maat_instance->input_mode) {
-        case DATA_SOURCE_REDIS:
-            memcpy(maat_instance->mr_ctx.redis_ip, opts->redis_ctx.redis_ip,
-                   strlen(opts->redis_ctx.redis_ip));
-            maat_instance->mr_ctx.redis_port = opts->redis_ctx.redis_port;
-            maat_instance->mr_ctx.redis_db = opts->redis_ctx.redis_db;
-            break;
-        case DATA_SOURCE_IRIS_FILE:
-            memcpy(maat_instance->iris_ctx.full_idx_dir, opts->iris_ctx.full_idx_dir,
-                   strlen(opts->iris_ctx.full_idx_dir));
-            memcpy(maat_instance->iris_ctx.inc_idx_dir, opts->iris_ctx.inc_idx_dir,
-                   strlen(opts->iris_ctx.inc_idx_dir));
-            break;
-        case DATA_SOURCE_JSON_FILE:
-            memcpy(maat_instance->json_ctx.json_file, opts->json_ctx.json_file,
-                   strlen(opts->json_ctx.json_file));
-            break;
-        default:
-            log_error(maat_instance->logger, MODULE_MAAT_API, 
-                      "[%s:%d] data source(%d) unsupported", 
-                      __FUNCTION__, __LINE__, maat_instance->input_mode);
-            goto failed;
-    }
+    snprintf(maat_instance->opts.decrypt_algo, sizeof(maat_instance->opts.decrypt_algo), "aes-256-cbc");
 
     maat_instance->is_running = 0;
     maat_instance->maat_version = 0;
     maat_instance->last_full_version = 0;
-    maat_instance->nr_worker_thread = opts->nr_worker_threads;
-    maat_instance->rule_effect_interval_ms = opts->rule_effect_interval_ms;
-    maat_instance->rule_update_checking_interval_ms = opts->rule_update_checking_interval_ms;
-    maat_instance->gc_timeout_ms = opts->gc_timeout_ms;
-    maat_instance->stat_on = opts->stat_on;
-    maat_instance->perf_on = opts->perf_on;
-    maat_instance->deferred_load = opts->deferred_load_on;
-    memcpy(maat_instance->foreign_cont_dir, opts->foreign_cont_dir, strlen(opts->foreign_cont_dir));
-    garbage_gc_timeout_s = (maat_instance->rule_effect_interval_ms / 1000) +
-                                (maat_instance->gc_timeout_ms / 1000);
+
+    int garbage_gc_timeout_s = (maat_instance->opts.rule_effect_interval_ms / 1000) +
+                            (maat_instance->opts.gc_timeout_ms / 1000);
+
+    if (maat_instance->opts.input_mode != DATA_SOURCE_IRIS_FILE &&
+        maat_instance->opts.input_mode != DATA_SOURCE_JSON_FILE &&
+        maat_instance->opts.input_mode != DATA_SOURCE_REDIS) {
+        log_error(maat_instance->logger, MODULE_MAAT_API, 
+                       "[%s:%d] data source(%d) unsupported", 
+                       __FUNCTION__, __LINE__, maat_instance->opts.input_mode);
+        goto failed;
+    }
+
     maat_instance->garbage_bin = maat_garbage_bin_new(garbage_gc_timeout_s);
-    maat_instance->stat = maat_stat_new(opts->stat_file, opts->nr_worker_threads, maat_instance->logger);
+    maat_instance->stat = maat_stat_new(maat_instance->opts.stat_file, maat_instance->opts.nr_worker_thread, 
+                                        maat_instance->logger);
 
     pthread_mutex_init(&(maat_instance->background_update_mutex), NULL);
 
-    maat_instance->tbl_mgr = table_manager_create(table_info_path, opts->accept_tags,
+    maat_instance->tbl_mgr = table_manager_create(table_info_path, maat_instance->opts.accept_tags,
                                                   maat_instance->garbage_bin, maat_instance->logger);
     if (NULL == maat_instance->tbl_mgr) {
         goto failed;
@@ -428,11 +430,11 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     maat_instance->default_compile_table_id = table_manager_get_defaut_compile_table_id(maat_instance->tbl_mgr);
     maat_instance->g2g_table_id = table_manager_get_group2group_table_id(maat_instance->tbl_mgr);
 
-    if (0 == maat_instance->deferred_load) {
+    if (0 == maat_instance->opts.deferred_load_on) {
         maat_read_full_config(maat_instance);
     }
 
-    if (1 == maat_instance->stat_on) {
+    if (1 == maat_instance->opts.stat_on) {
         int ret = maat_stat_init(maat_instance->stat, maat_instance->tbl_mgr, maat_instance->garbage_bin);
         if (ret < 0) {
             log_error(maat_instance->logger, MODULE_MAAT_API,
@@ -1124,7 +1126,7 @@ int maat_scan_flag(struct maat *maat_instance, int table_id,
     }
 
     struct timespec start, end;
-    if (1 == maat_instance->perf_on) {
+    if (1 == maat_instance->opts.perf_on) {
         clock_gettime(CLOCK_MONOTONIC, &start);
     }
 
@@ -1179,7 +1181,7 @@ int maat_scan_flag(struct maat *maat_instance, int table_id,
     void *flag_rt = table_manager_get_runtime(maat_instance->tbl_mgr, physical_table_id);
     assert(flag_rt != NULL);
 
-    if (1 == maat_instance->perf_on) {
+    if (1 == maat_instance->opts.perf_on) {
         clock_gettime(CLOCK_MONOTONIC, &end);
         flag_runtime_perf_stat(flag_rt, &start, &end, state->thread_id);
     } else {
@@ -1208,7 +1210,7 @@ int maat_scan_integer(struct maat *maat_instance, int table_id,
     }
     
     struct timespec start, end;
-    if (1 == maat_instance->perf_on) {
+    if (1 == maat_instance->opts.perf_on) {
         clock_gettime(CLOCK_MONOTONIC, &start);
     }
 
@@ -1263,7 +1265,7 @@ int maat_scan_integer(struct maat *maat_instance, int table_id,
     void *interval_rt = table_manager_get_runtime(maat_instance->tbl_mgr, physical_table_id);
     assert(interval_rt != NULL);
 
-    if (1 == maat_instance->perf_on) {
+    if (1 == maat_instance->opts.perf_on) {
         clock_gettime(CLOCK_MONOTONIC, &end);
         interval_runtime_perf_stat(interval_rt, &start, &end, state->thread_id);
     } else {
@@ -1293,7 +1295,7 @@ int maat_scan_ipv4(struct maat *maat_instance, int table_id,
     }
 
     struct timespec start, end;
-    if (1 == maat_instance->perf_on) {
+    if (1 == maat_instance->opts.perf_on) {
         clock_gettime(CLOCK_MONOTONIC, &start);
     }
 
@@ -1348,7 +1350,7 @@ int maat_scan_ipv4(struct maat *maat_instance, int table_id,
     void *ip_rt = table_manager_get_runtime(maat_instance->tbl_mgr, physical_table_id);
     assert(ip_rt != NULL);
 
-    if (1 == maat_instance->perf_on) {
+    if (1 == maat_instance->opts.perf_on) {
         clock_gettime(CLOCK_MONOTONIC, &end);
         ip_runtime_perf_stat(ip_rt, &start, &end, state->thread_id);
     } else {
@@ -1378,7 +1380,7 @@ int maat_scan_ipv6(struct maat *maat_instance, int table_id,
     }
 
     struct timespec start, end;
-    if (1 == maat_instance->perf_on) {
+    if (1 == maat_instance->opts.perf_on) {
         clock_gettime(CLOCK_MONOTONIC, &start);
     }
 
@@ -1433,7 +1435,7 @@ int maat_scan_ipv6(struct maat *maat_instance, int table_id,
     void *ip_rt = table_manager_get_runtime(maat_instance->tbl_mgr, physical_table_id);
     assert(ip_rt != NULL);
 
-    if (1 == maat_instance->perf_on) {
+    if (1 == maat_instance->opts.perf_on) {
         clock_gettime(CLOCK_MONOTONIC, &end);
         ip_runtime_perf_stat(ip_rt, &start, &end, state->thread_id);
     } else {
@@ -1462,7 +1464,7 @@ int maat_scan_string(struct maat *maat_instance, int table_id, const char *data,
     }
     
     struct timespec start, end;
-    if (1 == maat_instance->perf_on) {
+    if (1 == maat_instance->opts.perf_on) {
         clock_gettime(CLOCK_MONOTONIC, &start);
     }
 
@@ -1517,7 +1519,7 @@ int maat_scan_string(struct maat *maat_instance, int table_id, const char *data,
     void *expr_rt = table_manager_get_runtime(maat_instance->tbl_mgr, physical_table_id);
     assert(expr_rt != NULL);
 
-    if (1 == maat_instance->perf_on) {
+    if (1 == maat_instance->opts.perf_on) {
         clock_gettime(CLOCK_MONOTONIC, &end);
         expr_runtime_perf_stat(expr_rt, data_len, &start, &end, state->thread_id);
     } else {
@@ -1596,7 +1598,7 @@ int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data
     }
 
     struct timespec start, end;
-    if (1 == maat_stream->ref_maat_instance->perf_on) {
+    if (1 == maat_stream->ref_maat_instance->opts.perf_on) {
         clock_gettime(CLOCK_MONOTONIC, &start);
     }
 
@@ -1636,7 +1638,7 @@ int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data
         }
     }  
 
-    if (1 == maat_instance->perf_on) {
+    if (1 == maat_instance->opts.perf_on) {
         clock_gettime(CLOCK_MONOTONIC, &end);
         expr_runtime_perf_stat(expr_rt, data_len, &start, &end, state->thread_id);
     } else {

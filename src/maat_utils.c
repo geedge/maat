@@ -1,10 +1,10 @@
 /*
 **********************************************************************************************
-*	File: maat_utils.cpp
+*	File: maat_utils.c
 *   Description:
 *	Authors: Liu WenTan <liuwentan@geedgenetworks.com>
 *	Date:    2022-10-31
-*   Copyright: (c) 2018-2022 Geedge Networks, Inc. All rights reserved.
+*   Copyright: (c) Since 2022 Geedge Networks, Ltd. All rights reserved.
 ***********************************************************************************************
 */
 
@@ -237,6 +237,21 @@ int system_cmd_rmdir(const char *dir)
 	return system(cmd);
 }
 
+int system_cmd_gzip(const char *src_file, const char *dst_file)
+{
+    char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
+	snprintf(cmd, sizeof(cmd), "gzip -9 < %s > %s", src_file, dst_file);
+    return system(cmd);
+}
+
+int system_cmd_encrypt(const char *src_file, const char *dst_file, const char *password)
+{
+    char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
+	snprintf(cmd, sizeof(cmd), "openssl enc -e -aes-256-cbc -k %s -p -nosalt -in %s -out %s -md md5",
+             password, src_file, dst_file);
+	return system(cmd);
+}
+
 char *md5_file(const char *filename, char *md5string)
 {
 	unsigned char md5[MD5_DIGEST_LENGTH] = {0};
@@ -322,6 +337,7 @@ int crypt_memory(const unsigned char *inbuf, size_t inlen, unsigned char **pp_ou
 
 	out_buff_offset += out_blk_len;
 	EVP_CIPHER_CTX_free(ctx);
+    EVP_cleanup();
 	*out_sz = out_buff_offset;
 	return 0;	
 	
@@ -381,10 +397,10 @@ int gzip_uncompress(const unsigned char *in_compressed_data, size_t in_compresse
 	int z_result;
 	int ret = -1;
 	size_t buffer_sz = in_compressed_sz * 2;	
-	*out_uncompressed_data = (unsigned char *)malloc(buffer_sz);
+    *out_uncompressed_data = ALLOC(unsigned char, buffer_sz);
 
 	do {
-		*out_uncompressed_sz=buffer_sz;
+		*out_uncompressed_sz = buffer_sz;
 		z_result = gzip_uncompress_one_try(in_compressed_data, in_compressed_sz,
 			                                out_uncompressed_data, out_uncompressed_sz);
 		switch (z_result) {
@@ -394,6 +410,7 @@ int gzip_uncompress(const unsigned char *in_compressed_data, size_t in_compresse
 			case Z_BUF_ERROR:
 				buffer_sz *= 2;
 				*out_uncompressed_data = (unsigned char *)realloc(*out_uncompressed_data, buffer_sz);
+                memset(*out_uncompressed_data, 0, buffer_sz);
 				break;
 			default:
 				ret = -1;

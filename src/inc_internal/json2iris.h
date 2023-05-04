@@ -2,9 +2,9 @@
 **********************************************************************************************
 *	File: json2iris.h
 *   Description: rule for transform json2iris
-*	Authors: Liu WenTan <liuwentan@geedgenetworks.com>
+*	Authors: Zheng chao <zhengchao@geedgenetworks.com>
 *	Date:    2022-10-31
-*   Copyright: (c) 2018-2022 Geedge Networks, Inc. All rights reserved.
+*   Copyright: (c) Since 2022 Geedge Networks, Ltd. All rights reserved.
 ***********************************************************************************************
 */
 

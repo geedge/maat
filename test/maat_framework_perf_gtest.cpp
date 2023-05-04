@@ -130,7 +130,8 @@ static int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
     size_t total_line_cnt = 0;
     char tmp_iris_full_idx_path[PATH_MAX] = {0};
     snprintf(tmp_iris_full_idx_path, sizeof(tmp_iris_full_idx_path), "%s/index", json_iris_path);
-    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, count_line_num_cb, NULL, &total_line_cnt, logger);
+    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, count_line_num_cb, NULL,
+                            &total_line_cnt, NULL, logger);
 
     struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
     long long server_time = maat_cmd_redis_server_time_s(c);
@@ -139,7 +140,8 @@ static int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
     }
 
     absolute_expire_time = server_time + 300;
-    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, make_serial_rule, NULL, s_rule, logger);
+    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, make_serial_rule, NULL,
+                            s_rule, NULL, logger);
     line_idx = 0;
     absolute_expire_time = 0;
 

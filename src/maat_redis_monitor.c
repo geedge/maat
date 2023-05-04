@@ -1,9 +1,9 @@
 /**********************************************************************************************
-*	File: maat_redis_monitor.cpp
+*	File: maat_redis_monitor.c
 *   Description:
 *	Authors: Liu WenTan <liuwentan@geedgenetworks.com>
 *	Date:    2022-11-29
-*   Copyright: (c) 2018-2022 Geedge Networks, Inc. All rights reserved.
+*   Copyright: (c) Since 2022 Geedge Networks, Ltd. All rights reserved.
 ***********************************************************************************************
 */
 
@@ -1401,7 +1401,7 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
                                             maat_instance->load_specific_version, 
                                             &new_version, maat_instance->tbl_mgr, 
                                             &rule_list, &update_type, 
-                                            maat_instance->cumulative_update_off,
+                                            maat_instance->opts.cumulative_update_off,
                                             maat_instance->logger);
 	//redis communication error
     if (rule_num < 0) {		
@@ -1442,7 +1442,7 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 		}
 
 		ret = get_foreign_keys_define(mr_ctx->read_ctx, rule_list, rule_num, 
-                                      maat_instance, maat_instance->foreign_cont_dir);
+                                      maat_instance, maat_instance->opts.foreign_cont_dir);
 		if (ret > 0) {
 			maat_cmd_get_foreign_conts(mr_ctx->read_ctx, rule_list, rule_num, 0, 
                                        maat_instance->logger);
