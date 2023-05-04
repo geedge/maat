@@ -3,3 +3,6 @@
 
 # build
 build/*
+
+#Mac
+.DS_Store
