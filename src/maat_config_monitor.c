@@ -414,8 +414,8 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
 			return -1;
 		}
 
-		json_buff=decrypted_buff;
-		json_buff_sz=decrypted_buff_sz;
+		json_buff = decrypted_buff;
+		json_buff_sz = decrypted_buff_sz;
 	}
     
 	if (maat_instance->opts.maat_json_is_gzipped) {

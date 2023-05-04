@@ -314,7 +314,7 @@ int crypt_memory(const unsigned char *inbuf, size_t inlen, unsigned char **pp_ou
 	EVP_CipherInit_ex(ctx, cipher, NULL, NULL, NULL, do_encrypt);
 	OPENSSL_assert(EVP_CIPHER_CTX_key_length(ctx) % 16 == 0);
 	OPENSSL_assert(EVP_CIPHER_CTX_iv_length(ctx) == 16);
-	 
+
 	/* Now we can set key and IV */
 	//It should be set to 1 for encryption, 0 for decryption and -1 to leave the value unchanged (the actual value of 'enc' being supplied in a previous call).
 	EVP_CipherInit_ex(ctx, NULL, NULL, cipher_key, cipher_iv, -1);

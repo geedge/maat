@@ -102,8 +102,11 @@ int maat_options_set_iris(struct maat_options *opts, const char *full_directory,
 
 int maat_options_set_json_file(struct maat_options *opts, const char *json_filename);
 
-/* Indicate whether the JSON file is compressed by gzip */
-int maat_options_set_json_file_gzip_flag(struct maat_options *opts, int gzip_flag);
+/** 
+ * Indicate whether the JSON file is compressed by gzip 
+ * flag: 1(compressed) 0(uncompressed)
+ * */
+int maat_options_set_json_file_gzip_flag(struct maat_options *opts, int flag);
 
 /* Specify the decryption key for the JSON file to be decrypted */
 int maat_options_set_json_file_decrypt_key(struct maat_options *opts, const char *decrypt_key);

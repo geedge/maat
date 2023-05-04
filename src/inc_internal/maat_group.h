@@ -41,8 +41,9 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema, const char *
 
 int group2group_runtime_commit(void *g2g_runtime, const char *table_name, long long maat_rt_version);
 
-int group2group_runtime_get_top_groups(void *g2g_runtime, long long *group_ids, 
-                                       size_t n_group_ids, long long *top_group_ids);
+size_t group2group_runtime_get_super_groups(void *g2g_runtime, long long *group_ids, 
+                                            size_t n_group_ids, long long *super_group_ids,
+                                            size_t super_group_ids_size);
                                        
 long long group2group_runtime_rule_count(void *g2g_runtime);
 

@@ -268,7 +268,7 @@ struct maat_state {
 	int thread_id;
     int compile_table_id;
 	enum district_flag is_set_district;
-	enum last_scan_flag is_last_scan;
+    enum last_scan_flag is_last_scan;
 	long long district_id; //-1: Any District; -2: Unkonwn District;
 	int scan_cnt;
 	struct maat_compile_state *compile_state;

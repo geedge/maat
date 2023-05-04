@@ -108,7 +108,7 @@ struct group2compile_runtime {
 struct maat_clause_state {
 	long long clause_id;
 	UT_array *ut_literal_ids;
-    char not_flag; // 1 byte
+	char not_flag; // 1 byte
 	char in_use;   // 1 byte
     char pad[6];   // for 8 bytes alignment
 };
@@ -126,7 +126,7 @@ struct maat_compile {
     char table_name[NAME_MAX];
 	int actual_clause_num;
 	int declared_clause_num;
-	int not_clause_cnt;
+    int not_clause_cnt;
 	void *user_data;
 	void (*user_data_free)(void *);
 	UT_hash_handle hh;
@@ -146,7 +146,7 @@ struct maat_compile_state {
 	int Nth_scan;
     time_t compile_rt_version;
 	size_t this_scan_hit_item_cnt;
-	int	not_clause_hitted_flag;
+    int	not_clause_hitted_flag;
 	int is_no_count_scan;
 	size_t hit_path_cnt;
 
@@ -802,7 +802,7 @@ int maat_compile_clause_add_literal(struct maat_compile *compile,
 {
 	struct maat_clause_state *clause_state = compile->clause_states + clause_index;
 
-	clause_state->not_flag = clause_not_flag;
+    clause_state->not_flag = clause_not_flag;
 	if (!clause_state->in_use) {
 		clause_state->in_use = 1;
 		compile->actual_clause_num++;
@@ -893,7 +893,6 @@ struct bool_matcher *maat_compile_bool_matcher_new(struct compile_runtime *compi
         has_clause_num = 0;
         for (i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
             struct maat_clause_state *clause_state = iter_compile->clause_states + i;
-            clause_state->clause_id = 0;
             if (!clause_state->in_use) {
                 continue;
             }
@@ -918,7 +917,6 @@ struct bool_matcher *maat_compile_bool_matcher_new(struct compile_runtime *compi
                 if (iter_compile->clause_states[i].not_flag) {
                     iter_compile->not_clause_cnt++;
                 }
-
 // TODO:mytest need to delete
 #if 0
 				struct maat_literal_id *p = NULL;
@@ -1250,8 +1248,7 @@ int maat_add_group_to_compile(struct rcu_hash_table *hash_tbl, struct group2comp
             /* compile neither in effective hash nor in updating hash, so new one */
             compile = maat_compile_new(compile_id);
             assert(compile != NULL);
-            ret = maat_compile_clause_add_literal(compile, &literal_id, g2c_item->clause_index,
-                                                  g2c_item->not_flag);
+            ret = maat_compile_clause_add_literal(compile, &literal_id, g2c_item->clause_index, g2c_item->not_flag);
             if (ret < 0) {
                 log_error(logger, MODULE_COMPILE,
                           "[%s:%d] add literal_id{group_id:%d, vtable_id:%d} to clause_index: %d of compile %d failed",
@@ -1999,8 +1996,10 @@ int compile_runtime_match(struct compile_runtime *compile_rt, long long *compile
     struct compile_rule *compile_rules[compile_ids_size];
     
     // all hit clause_id -> compile_id
-    size_t bool_match_ret = maat_compile_bool_matcher_match(compile_rt, is_last_scan, compile_state,
-                                                            (void **)compile_rules, compile_ids_size);
+    size_t bool_match_ret = maat_compile_bool_matcher_match(compile_rt, is_last_scan,
+                                                            compile_state,
+                                                            (void **)compile_rules,
+                                                            compile_ids_size);
     if (bool_match_ret > 0) {
         qsort(compile_rules, bool_match_ret, sizeof(struct compile_rule *), 
               compare_compile_rule);
@@ -2063,17 +2062,19 @@ int maat_compile_state_update(struct rcu_hash_table *item_htable, int vtable_id,
         return 0;
     }
 
-    long long top_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
-    int top_group_cnt = group2group_runtime_get_top_groups(g2g_rt, hit_group_ids,
-                                                           hit_group_cnt,
-                                                           top_group_ids);
-    if (top_group_cnt >= MAX_SCANNER_HIT_GROUP_NUM) {
-        top_group_cnt = MAX_SCANNER_HIT_GROUP_NUM;
+    long long super_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
+    //hit_group_ids also will be added to super_group_ids
+    size_t super_group_cnt = group2group_runtime_get_super_groups(g2g_rt, hit_group_ids,
+                                                                  hit_group_cnt,
+                                                                  super_group_ids,
+                                                                  MAX_SCANNER_HIT_GROUP_NUM);
+    if (super_group_cnt >= MAX_SCANNER_HIT_GROUP_NUM) {
+        super_group_cnt = MAX_SCANNER_HIT_GROUP_NUM;
     }
 
-    for (int j = 0; j < top_group_cnt; j++) {
+    for (int j = 0; j < super_group_cnt; j++) {
         maat_compile_state_update_hit_clause(state->compile_state, compile_rt,
-                                             top_group_ids[j], vtable_id);
+                                             super_group_ids[j], vtable_id);
     }
 
     for (int j = 0; j < hit_group_cnt; j++) {
@@ -2085,9 +2086,9 @@ int maat_compile_state_update(struct rcu_hash_table *item_htable, int vtable_id,
 }
 
 size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *compile_state,
-                                        struct group2group_runtime *g2g_rt,
-                                        struct maat_hit_path *hit_path_array, 
-                                        size_t array_size)
+                                                 struct group2group_runtime *g2g_rt,
+                                                 struct maat_hit_path *hit_path_array, 
+                                                 size_t array_size)
 {
     size_t hit_path_cnt = 0;
     struct maat_internal_hit_path *internal_path = NULL;
@@ -2097,11 +2098,11 @@ size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *comp
         /*
             NOTE: maybe one item has been deleted, but it's item_id still exist in internal_hit_paths
         */
-        long long top_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
-        memset(top_group_ids, -1, sizeof(top_group_ids));
-        int top_group_cnt = group2group_runtime_get_top_groups(g2g_rt, &(internal_path->group_id),
-                                                               1, top_group_ids);
-        if (top_group_cnt <= 0) {
+        long long super_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
+        memset(super_group_ids, -1, sizeof(super_group_ids));
+        size_t super_group_cnt = group2group_runtime_get_super_groups(g2g_rt, &(internal_path->group_id),
+                                                                   1, super_group_ids, MAX_SCANNER_HIT_GROUP_NUM);
+        if (0 == super_group_cnt) {
             /*
                 item->group_id has no top group, this group can only be referenced by compile
                 ------------------------------------------------------------------------------
@@ -2115,16 +2116,16 @@ size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *comp
                     NOTE: Add the hit path as long as the item is hit
 
             */
-            top_group_cnt = 1; // add one hit path which top_group_ids[0] = -1
+            super_group_cnt = 1; // add one hit path which top_group_ids[0] = -1
         }
 
         struct maat_hit_path tmp_path;
-        for (int j = 0; j < top_group_cnt && hit_path_cnt < array_size; j++) {
+        for (int j = 0; j < super_group_cnt && hit_path_cnt < array_size; j++) {
             memset(&tmp_path, 0, sizeof(tmp_path));
             tmp_path.Nth_scan = internal_path->Nth_scan;
             tmp_path.item_id = internal_path->item_id;
             tmp_path.sub_group_id = internal_path->group_id;
-            tmp_path.top_group_id = top_group_ids[j];
+            tmp_path.top_group_id = super_group_ids[j];
             tmp_path.vtable_id = internal_path->vtable_id;
             tmp_path.compile_id = -1;
 

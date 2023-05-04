@@ -15,6 +15,7 @@
 #include "maat_group.h"
 #include "maat_utils.h"
 #include "uthash/uthash.h"
+#include "uthash/utarray.h"
 #include "igraph/igraph.h"
 #include "maat_kv.h"
 
@@ -23,11 +24,13 @@
 struct group2group_item {
     long long group_id;
     long long super_group_id;
+    int is_exclude;
 };
 
 struct group2group_schema {
     int group_id_column;
     int super_group_id_column;
+    int is_exclude_column;
     int table_id;//ugly
     struct table_manager *ref_tbl_mgr;
 };
@@ -38,16 +41,16 @@ struct maat_group {
 	int ref_by_super_group_cnt;
 	int ref_by_sub_group_cnt;
 
-	size_t top_group_cnt;
-	long long *top_group_ids;
+	UT_array *incl_super_group_ids;
+    UT_array *excl_super_group_ids;
 
 	UT_hash_handle hh_group_id;
 	UT_hash_handle hh_vertex_id;
 };
 
 struct maat_group_topology {
-    struct maat_group *hash_group_by_id;	 //key: group_id, value: struct maat_group *.
-	struct maat_group *hash_group_by_vertex; //key: vetex_id, value: struct maat_group *. Multimap (Items with multiple keys).
+    struct maat_group *hash_by_group_id;	 //key: group_id, value: struct maat_group *.
+	struct maat_group *hash_by_vertex_id; //key: vetex_id, value: struct maat_group *. Multimap (Items with multiple keys).
     igraph_t group_graph;
 	igraph_integer_t grp_vertex_id_generator;
     struct log_handle *logger;
@@ -64,6 +67,21 @@ struct group2group_runtime {
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
 };
+
+UT_icd ut_group_id_icd = {sizeof(long long), NULL, NULL, NULL};
+
+static inline int compare_group_id(const void *a, const void *b)
+{
+	long long ret = *(const long long *)a - *(const long long *)b;
+
+	if (0 == ret) {
+		return 0;
+	} else if(ret < 0) {
+		return -1;
+	} else {
+		return 1;
+	}
+}
 
 void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
                              const char *table_name, struct log_handle *logger)
@@ -93,7 +111,8 @@ void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         g2g_schema->group_id_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_GROUP, 
-                  "[%s:%d] table %s has no group_id column", table_name);
+                  "[%s:%d] table %s has no group_id column",
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -102,7 +121,18 @@ void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         g2g_schema->super_group_id_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_GROUP, 
-                  "[%s:%d] table %s has no super_group_id column", table_name);
+                  "[%s:%d] table %s has no super_group_id column",
+                  __FUNCTION__, __LINE__, table_name);
+        goto error;
+    }
+
+    custom_item = cJSON_GetObjectItem(item, "is_exclude");
+    if (custom_item != NULL && custom_item->type == cJSON_Number) {
+        g2g_schema->is_exclude_column = custom_item->valueint;
+    } else {
+        log_error(logger, MODULE_GROUP, 
+                  "[%s:%d] table %s has no is_exclude column",
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -120,7 +150,10 @@ void group2group_schema_free(void *g2g_schema)
 
 void group_vertex_free(struct maat_group *group)
 {
-	FREE(group->top_group_ids);
+	utarray_free(group->incl_super_group_ids);
+    utarray_free(group->excl_super_group_ids);
+    group->incl_super_group_ids = NULL;
+    group->excl_super_group_ids = NULL;
 	FREE(group);
 }
 
@@ -129,10 +162,10 @@ struct maat_group_topology *maat_group_topology_new(struct log_handle *logger)
     struct maat_group_topology *group_topo = ALLOC(struct maat_group_topology, 1);
     UNUSED int ret = 0;
 
-    group_topo->hash_group_by_id = NULL;
-    group_topo->hash_group_by_vertex = NULL;
+    group_topo->hash_by_group_id = NULL;
+    group_topo->hash_by_vertex_id = NULL;
 
-    ret = igraph_empty(&group_topo->group_graph, 0, IGRAPH_DIRECTED);
+    ret = igraph_empty(&(group_topo->group_graph), 0, IGRAPH_DIRECTED);
     assert(ret == IGRAPH_SUCCESS);
 
     group_topo->logger = logger;
@@ -144,12 +177,12 @@ void maat_group_topology_free(struct maat_group_topology *group_topo)
 {
     struct maat_group *group = NULL, *tmp_group = NULL;
 
-    HASH_CLEAR(hh_vertex_id, group_topo->hash_group_by_vertex);//No need group memory clean up.
-	HASH_ITER(hh_group_id, group_topo->hash_group_by_id, group, tmp_group) {
-		HASH_DELETE(hh_group_id, group_topo->hash_group_by_id, group);
+    HASH_CLEAR(hh_vertex_id, group_topo->hash_by_vertex_id);//No need group memory clean up.
+	HASH_ITER(hh_group_id, group_topo->hash_by_group_id, group, tmp_group) {
+		HASH_DELETE(hh_group_id, group_topo->hash_by_group_id, group);
 		group_vertex_free(group);
 	}
-	assert(group_topo->hash_group_by_id == NULL);	
+	assert(group_topo->hash_by_group_id == NULL);	
 	
 	igraph_destroy(&group_topo->group_graph);
     FREE(group_topo);
@@ -163,11 +196,18 @@ struct maat_group *maat_group_clone(struct maat_group *group)
     group_copy->vertex_id = group->vertex_id;
     group_copy->ref_by_sub_group_cnt = group->ref_by_sub_group_cnt;
     group_copy->ref_by_super_group_cnt = group->ref_by_super_group_cnt;
-    group_copy->top_group_cnt = group->top_group_cnt;
-    if (group_copy->top_group_cnt > 0) {
-        group_copy->top_group_ids = ALLOC(long long, group_copy->top_group_cnt);
-        memcpy(group_copy->top_group_ids, group->top_group_ids, 
-               group_copy->top_group_cnt * sizeof(long long));
+    utarray_new(group_copy->incl_super_group_ids, &ut_group_id_icd);
+    utarray_new(group_copy->excl_super_group_ids, &ut_group_id_icd);
+
+    long long *p = NULL;
+    for (p = (long long *)utarray_front(group->incl_super_group_ids); p != NULL;
+         p = (long long *)utarray_next(group->incl_super_group_ids, p)) {
+        utarray_push_back(group_copy->incl_super_group_ids, p);
+    }
+
+    for (p = (long long *)utarray_front(group->excl_super_group_ids); p != NULL;
+         p = (long long *)utarray_next(group->excl_super_group_ids, p)) {
+        utarray_push_back(group_copy->excl_super_group_ids, p);
     }
 
     return group_copy;
@@ -182,12 +222,12 @@ struct maat_group_topology *maat_group_topology_clone(struct maat_group_topology
     struct maat_group_topology *group_topo_copy = ALLOC(struct maat_group_topology, 1);
 
     struct maat_group *group = NULL, *tmp_group = NULL;
-    HASH_ITER(hh_group_id, group_topo->hash_group_by_id, group, tmp_group) {
+    HASH_ITER(hh_group_id, group_topo->hash_by_group_id, group, tmp_group) {
         struct maat_group *group_copy = maat_group_clone(group);
 
-        HASH_ADD(hh_group_id, group_topo_copy->hash_group_by_id, group_id, 
+        HASH_ADD(hh_group_id, group_topo_copy->hash_by_group_id, group_id, 
                  sizeof(group_copy->group_id), group_copy);
-        HASH_ADD(hh_vertex_id, group_topo_copy->hash_group_by_vertex, vertex_id,
+        HASH_ADD(hh_vertex_id, group_topo_copy->hash_by_vertex_id, vertex_id,
                 sizeof(group_copy->vertex_id), group_copy);
     }
 
@@ -263,6 +303,16 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
     }
     g2g_item->super_group_id = atoll(line + column_offset);
 
+    ret = get_column_pos(line, g2g_schema->is_exclude_column, 
+                         &column_offset, &column_len);
+    if (ret < 0) {
+        log_error(logger, MODULE_GROUP,
+                  "[%s:%d] group2group table:%s line:%s has no is_exclude",
+                  __FUNCTION__, __LINE__, table_name, line);
+        goto error;
+    }
+    g2g_item->is_exclude = atoi(line + column_offset);
+
     return g2g_item;
 error:
     FREE(g2g_item);
@@ -293,17 +343,19 @@ struct maat_group *group_topology_add_group(struct maat_group_topology *group_to
 	struct maat_group *group = ALLOC(struct maat_group, 1);
 	group->group_id = group_id;
 	group->vertex_id = group_topo->grp_vertex_id_generator++;
+    utarray_new(group->incl_super_group_ids, &ut_group_id_icd);
+    utarray_new(group->excl_super_group_ids, &ut_group_id_icd);
 
 	assert(igraph_vcount(&group_topo->group_graph)==group->vertex_id);
 	igraph_add_vertices(&group_topo->group_graph, 1, NULL);	//Add 1 vertice.
 	
-	HASH_ADD(hh_group_id, group_topo->hash_group_by_id, group_id, sizeof(group->group_id), group);
-	HASH_ADD(hh_vertex_id, group_topo->hash_group_by_vertex, vertex_id, sizeof(group->vertex_id), group);
+	HASH_ADD(hh_group_id, group_topo->hash_by_group_id, group_id, sizeof(group->group_id), group);
+	HASH_ADD(hh_vertex_id, group_topo->hash_by_vertex_id, vertex_id, sizeof(group->vertex_id), group);
     
 	return group;
 }
 
-void group_topology_remove_group(struct maat_group_topology *group_topo,
+void group_topology_del_group(struct maat_group_topology *group_topo,
                                  struct maat_group *group)
 {
     if (NULL == group_topo || NULL == group) {
@@ -325,12 +377,12 @@ void group_topology_remove_group(struct maat_group_topology *group_topo,
 		assert(0);
 	}
 	igraph_vector_destroy(&v);
-	assert(group->top_group_ids==NULL);
+	assert(group->incl_super_group_ids==NULL);
+    assert(group->excl_super_group_ids==NULL);
 	//We should not call igraph_delete_vertices, because this is function changes the ids of the vertices.
-	//igraph_delete_vertices(&hier->group_graph, igraph_vss_1(group->vertex_id));
 
-	HASH_DELETE(hh_group_id, group_topo->hash_group_by_id, group);
-	HASH_DELETE(hh_vertex_id, group_topo->hash_group_by_vertex, group);
+	HASH_DELETE(hh_group_id, group_topo->hash_by_group_id, group);
+	HASH_DELETE(hh_vertex_id, group_topo->hash_by_vertex_id, group);
 	group_vertex_free(group);
 }
 
@@ -342,13 +394,68 @@ struct maat_group *group_topology_find_group(struct maat_group_topology *group_t
     }
 
     struct maat_group *group = NULL;
-    HASH_FIND(hh_group_id, group_topo->hash_group_by_id, &group_id, sizeof(group_id), group);
+    HASH_FIND(hh_group_id, group_topo->hash_by_group_id, &group_id, sizeof(group_id), group);
 
     return group;
 }
 
+void maat_group_reference_super_group(struct maat_group *group, long long super_group_id,
+                                      int is_exclude)
+{
+    if (NULL == group || super_group_id < 0) {
+        return;
+    }
+
+    if (0 == is_exclude) {
+        //include superior group
+        if (!utarray_find(group->incl_super_group_ids, &super_group_id,
+                          compare_group_id)) {
+            utarray_push_back(group->incl_super_group_ids, &super_group_id);
+            utarray_sort(group->incl_super_group_ids, compare_group_id);
+        }
+    } else {
+        //exclude superior group
+        if (!utarray_find(group->excl_super_group_ids, &super_group_id,
+                          compare_group_id)) {
+            utarray_push_back(group->excl_super_group_ids, &super_group_id);
+            utarray_sort(group->excl_super_group_ids, compare_group_id);
+        }
+    }
+}
+
+void maat_group_dereference_super_group(struct maat_group *group, long long super_group_id,
+                                        int is_exclude)
+{
+    if (NULL == group || super_group_id < 0) {
+        return;
+    }
+
+    size_t remove_idx = 0;
+
+    if (0 == is_exclude) {
+        //include superior group
+        if (!utarray_find(group->incl_super_group_ids, &super_group_id, compare_group_id)) {
+            return;
+        }
+
+        remove_idx = utarray_eltidx(group->incl_super_group_ids, &super_group_id);
+        utarray_erase(group->incl_super_group_ids, remove_idx, 1);
+        utarray_sort(group->incl_super_group_ids, compare_group_id);
+    } else {
+        //exclude superior group
+        if (!utarray_find(group->excl_super_group_ids, &super_group_id, compare_group_id)) {
+            return;
+        }
+
+        remove_idx = utarray_eltidx(group->excl_super_group_ids, &super_group_id);
+        utarray_erase(group->excl_super_group_ids, remove_idx, 1);
+        utarray_sort(group->excl_super_group_ids, compare_group_id);
+    }
+}
+
 int group_topology_add_group_to_group(struct maat_group_topology *group_topo, 
-                                      long long group_id, long long super_group_id)
+                                      long long group_id, long long super_group_id,
+                                      int is_exclude)
 {
     if (NULL == group_topo) {
         return -1;
@@ -363,6 +470,8 @@ int group_topology_add_group_to_group(struct maat_group_topology *group_topo,
 	if (NULL == super_group) {
 		super_group = group_topology_add_group(group_topo, super_group_id);
 	}
+
+    maat_group_reference_super_group(group, super_group_id, is_exclude);
 
     igraph_integer_t edge_id;
 	int ret = igraph_get_eid(&group_topo->group_graph, &edge_id, group->vertex_id, 
@@ -385,8 +494,9 @@ int group_topology_add_group_to_group(struct maat_group_topology *group_topo,
 	return ret;
 }
 
-int group_topology_remove_group_from_group(struct maat_group_topology *group_topo, 
-                                           long long group_id, long long super_group_id)
+int group_topology_del_group_from_group(struct maat_group_topology *group_topo, 
+                                        long long group_id, long long super_group_id,
+                                        int is_exclude)
 {
     if (NULL == group_topo) {
         return -1;
@@ -409,6 +519,8 @@ int group_topology_remove_group_from_group(struct maat_group_topology *group_top
 		return -1;	
 	}
 
+    maat_group_dereference_super_group(group, super_group_id, is_exclude);
+    
 	igraph_es_t es;
 	igraph_integer_t edge_num_before = 0, edge_num_after = 0;
 
@@ -439,32 +551,11 @@ int group_topology_remove_group_from_group(struct maat_group_topology *group_top
 	return 0;
 }
 
-static size_t effective_vertices_count(igraph_vector_t *vids)
-{
-    size_t i = 0;
-	int tmp_vid = 0;
-
-	for (i = 0; i < (size_t)igraph_vector_size(vids); i++) {
-		tmp_vid = (int) VECTOR(*vids)[i];
-		if (tmp_vid < 0) {
-			break;
-		}
-	}
-
-	return i;
-}
-
-int group_topology_build_top_groups(struct maat_group_topology *group_topo)
+int group_topology_build_super_groups(struct maat_group_topology *group_topo)
 {
     if (NULL == group_topo) {
         return -1;
     }
-
-	struct maat_group *group = NULL, *tmp = NULL;
-	struct maat_group *super_group = NULL;
-	int tmp_vid = 0;
-	size_t top_group_cnt = 0;
-	long long *temp_group_ids = NULL;
 
 	igraph_bool_t is_dag;
 	igraph_is_dag(&(group_topo->group_graph), &is_dag);
@@ -474,57 +565,18 @@ int group_topology_build_top_groups(struct maat_group_topology *group_topo)
 		return -1;
 	}
 
-	igraph_integer_t group_graph_vcount = igraph_vcount(&group_topo->group_graph);
-    igraph_vector_t dfs_vids;
-	igraph_vector_init(&dfs_vids, group_graph_vcount);
-	
-	HASH_ITER (hh_group_id, group_topo->hash_group_by_id, group, tmp) {
-		top_group_cnt = 0;
-		temp_group_ids = NULL;
-        
+    struct maat_group *group = NULL, *tmp_group = NULL;
+	HASH_ITER (hh_group_id, group_topo->hash_by_group_id, group, tmp_group) {
 		//Orphan, Not reference by any one, free it.
 		if (0 == group->ref_by_super_group_cnt
 			&& 0 == group->ref_by_sub_group_cnt) {
 		
-			FREE(group->top_group_ids);
-			group_topology_remove_group(group_topo, group);
+			FREE(group->incl_super_group_ids);
+            FREE(group->excl_super_group_ids);
+			group_topology_del_group(group_topo, group);
 			continue;
 		}
-
-		//A group is referenced by superior groups.
-        if (group->ref_by_super_group_cnt > 0) {
-            igraph_vector_t *vids = &dfs_vids;
-            igraph_dfs(&group_topo->group_graph, group->vertex_id, IGRAPH_OUT,
-                       0, vids, NULL, NULL, NULL, NULL, NULL, NULL);
-
-            temp_group_ids = ALLOC(long long, effective_vertices_count(vids));
-
-            for (size_t i = 0; i < (size_t)igraph_vector_size(vids); i++) {
-                tmp_vid = (int)VECTOR(*vids)[i];
-                if (tmp_vid < 0) {
-                    break;
-                }
-
-                HASH_FIND(hh_vertex_id, group_topo->hash_group_by_vertex, &tmp_vid,
-                          sizeof(tmp_vid), super_group);
-
-                temp_group_ids[top_group_cnt] = super_group->group_id;
-                top_group_cnt++;
-            }
-        }
-
-        FREE(group->top_group_ids);
-		group->top_group_cnt = top_group_cnt;
-        if (top_group_cnt > 0) {
-            group->top_group_ids = ALLOC(long long, group->top_group_cnt);
-		    memcpy(group->top_group_ids, temp_group_ids, sizeof(long long)*group->top_group_cnt);
-        }
-		
-        if (temp_group_ids != NULL) {
-            FREE(temp_group_ids);
-        }
 	}
-	igraph_vector_destroy(&dfs_vids);
 
 	return 0;
 }
@@ -562,8 +614,8 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
 
     if (0 == is_valid) {
         //delete
-        ret = group_topology_remove_group_from_group(g2g_rt->updating_group_topo, g2g_item->group_id, 
-                                                     g2g_item->super_group_id);
+        ret = group_topology_del_group_from_group(g2g_rt->updating_group_topo, g2g_item->group_id, 
+                                                  g2g_item->super_group_id, g2g_item->is_exclude);
         if (0 == ret) {
             g2g_rt->rule_num--;
         } else {
@@ -572,7 +624,7 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
     } else {
         //add
         ret = group_topology_add_group_to_group(g2g_rt->updating_group_topo, g2g_item->group_id, 
-                                                g2g_item->super_group_id);
+                                                g2g_item->super_group_id, g2g_item->is_exclude);
         if (0 == ret) {
             g2g_rt->rule_num++;
         } else {
@@ -601,7 +653,7 @@ int group2group_runtime_commit(void *g2g_runtime, const char *table_name, long l
         return 0;
     }
 
-    int ret = group_topology_build_top_groups(g2g_rt->updating_group_topo);
+    int ret = group_topology_build_super_groups(g2g_rt->updating_group_topo);
     if (ret < 0) {
         log_error(g2g_rt->logger, MODULE_GROUP, 
                   "[%s:%d] table[%s] group2group runtime commit failed", 
@@ -619,10 +671,116 @@ int group2group_runtime_commit(void *g2g_runtime, const char *table_name, long l
     g2g_rt->version = maat_rt_version;
 
     log_info(g2g_rt->logger, MODULE_GROUP,
-             "table[%s] commit %zu g2g rules and rebuild top_groups completed, version:%lld",
+             "table[%s] commit %zu g2g rules and rebuild super_groups completed, version:%lld",
              table_name, g2g_rt->rule_num, g2g_rt->version);
 
     return 0;
+}
+
+#define MAX_RECURSION_DEPTH 5
+void get_one_round_hit_group_ids(struct maat_group_topology *group_topo, UT_array *hit_group_ids,
+                                 UT_array *all_hit_group_ids, size_t depth)
+{
+    UT_array *incl_super_group_ids;
+    UT_array *excl_super_group_ids;
+    UT_array *one_round_hit_group_ids;
+
+    if (depth >= MAX_RECURSION_DEPTH) {
+        return;
+    }
+
+    utarray_new(incl_super_group_ids, &ut_group_id_icd);
+    utarray_new(excl_super_group_ids, &ut_group_id_icd);
+    utarray_new(one_round_hit_group_ids, &ut_group_id_icd);
+
+    long long *p = NULL;
+    for (p = (long long *)utarray_front(hit_group_ids); p != NULL;
+         p = (long long *)utarray_next(hit_group_ids, p)) {
+        struct maat_group *group = group_topology_find_group(group_topo, *p);
+        if (NULL == group) {
+            continue;
+        }
+
+        long long *tmp = NULL;
+        for (tmp = (long long *)utarray_front(group->incl_super_group_ids); tmp != NULL;
+             tmp = (long long *)utarray_next(group->incl_super_group_ids, tmp)) {
+            utarray_push_back(incl_super_group_ids, tmp);
+        }
+
+        for (tmp = (long long *)utarray_front(group->excl_super_group_ids); tmp != NULL;
+             tmp = (long long *)utarray_next(group->excl_super_group_ids, tmp)) {
+            utarray_push_back(excl_super_group_ids, tmp);
+        }
+    }
+
+    for (p = (long long *)utarray_front(incl_super_group_ids); p != NULL;
+         p = (long long *)utarray_next(incl_super_group_ids, p)) {
+        if (utarray_find(excl_super_group_ids, p, compare_group_id)) {
+            continue;
+        }
+        utarray_push_back(one_round_hit_group_ids, p);
+        utarray_push_back(all_hit_group_ids, p);
+    }
+
+    utarray_free(incl_super_group_ids);
+    utarray_free(excl_super_group_ids);
+
+    if (utarray_len(one_round_hit_group_ids) == 0) {
+        goto next;
+    }
+
+    depth++;
+    get_one_round_hit_group_ids(group_topo, one_round_hit_group_ids, all_hit_group_ids, depth);
+next: 
+    utarray_free(one_round_hit_group_ids);
+}
+
+size_t group_topology_get_super_groups(struct maat_group_topology *group_topo, 
+                                       long long *group_ids, size_t n_group_ids,
+                                       long long *super_group_ids,
+                                       size_t super_group_ids_size)
+{
+    size_t i = 0, idx = 0, depth = 0;
+    UT_array *one_round_hit_group_ids;
+    UT_array *all_hit_group_ids;
+
+    utarray_new(one_round_hit_group_ids, &ut_group_id_icd);
+    utarray_new(all_hit_group_ids, &ut_group_id_icd);
+
+    for (i = 0; i < n_group_ids; i++) {
+        utarray_push_back(one_round_hit_group_ids, &(group_ids[i]));
+    }
+
+    get_one_round_hit_group_ids(group_topo, one_round_hit_group_ids, all_hit_group_ids, depth);
+
+    long long *p = NULL;
+    for (p = (long long *)utarray_front(all_hit_group_ids); p != NULL;
+         p = (long long *)utarray_next(all_hit_group_ids, p)) {
+        if (idx >= super_group_ids_size) {
+            break;
+        }
+
+        super_group_ids[idx++] = *p;
+    }
+
+    utarray_free(one_round_hit_group_ids);
+    utarray_free(all_hit_group_ids);
+
+    return idx;
+}
+
+size_t group2group_runtime_get_super_groups(void *g2g_runtime, long long *group_ids, 
+                                            size_t n_group_ids, long long *super_group_ids,
+                                            size_t super_group_ids_size)
+{
+    if (NULL == g2g_runtime || NULL == group_ids || 0 == n_group_ids) {
+        return 0;
+    }
+    
+    struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
+
+    return group_topology_get_super_groups(g2g_rt->group_topo, group_ids, n_group_ids,
+                                           super_group_ids, super_group_ids_size);
 }
 
 long long group2group_runtime_rule_count(void *g2g_runtime)
@@ -643,28 +801,4 @@ long long group2group_runtime_update_err_count(void *g2g_runtime)
     
     struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
     return g2g_rt->update_err_cnt;
-}
-
-int group2group_runtime_get_top_groups(void *g2g_runtime, long long *group_ids, 
-                                       size_t n_group_ids, long long *top_group_ids)
-{
-    if (NULL == g2g_runtime || NULL == group_ids || 0 == n_group_ids) {
-        return -1;
-    }
-    
-    size_t top_group_index = 0;
-    struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
-
-    for (size_t i = 0; i < n_group_ids; i++) {
-        struct maat_group *group = group_topology_find_group(g2g_rt->group_topo, group_ids[i]);
-        if (!group) {
-            continue;
-        }
-
-        for (size_t j = 0; j < group->top_group_cnt; j++) {
-            top_group_ids[top_group_index++] = group->top_group_ids[j];
-        }
-    }
-
-    return top_group_index;
 }

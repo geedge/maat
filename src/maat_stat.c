@@ -29,7 +29,7 @@ enum MAAT_FS_STATUS {
 	STATUS_PLUGIN_CACHE_NUM,
 	STATUS_PLUGIN_ACC_NUM,
 	STATUS_GROUP_REF_NUM,
-	STATUS_GROUP_REF_NOT_NUM,
+    STATUS_GROUP_REF_NOT_NUM,
 	STATUS_COMPILE_RULE_NUM,
 	STATUS_MAAT_STATE_NUM,
 	STATUS_GARBAGE_QSIZE,
@@ -39,7 +39,7 @@ enum MAAT_FS_STATUS {
 	STATUS_ICONV_ERR_CNT,
 	STATUS_SCAN_ERR_CNT,
 	STATUS_ZOMBIE_RS_STREAM,
-	STATUS_NOT_GROUP_HIT,
+    STATUS_NOT_GROUP_HIT,
 	STATUS_CMD_NUM,
 	STATUS_CMD_Q_SIZE,
 	STATUS_CMD_LINE_NUM
@@ -273,6 +273,7 @@ void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
                 break;
             case TABLE_TYPE_GROUP2GROUP:
                 g2g_rule_num += group2group_runtime_rule_count(runtime);
+                //TODO exclude group num
                 break;
             case TABLE_TYPE_EXPR:
             case TABLE_TYPE_EXPR_PLUS:

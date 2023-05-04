@@ -194,10 +194,10 @@ int group2compile_table_set_line(struct maat *maat_instance, const char *table_n
 }
 
 int group2group_table_set_line(struct maat *maat_instance, const char *table_name, enum maat_operation op,
-                               long long group_id, long long superior_group_id, int expire_after)
+                               long long group_id, long long superior_group_id, int is_exclude, int expire_after)
 {
     char table_line[128] = {0};
-    sprintf(table_line, "%lld\t%lld\t%d", group_id, superior_group_id, op);
+    sprintf(table_line, "%lld\t%lld\t%d\t%d", group_id, superior_group_id, is_exclude, op);
 
     struct maat_cmd_line line_rule;
     line_rule.rule_id = TO_GROUP2X_KEY(group_id, superior_group_id);
@@ -2150,6 +2150,351 @@ TEST_F(NOTLogic, ScanNotIP) {
     state = NULL;
 }
 
+class ExcludeLogic : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+        char redis_ip[64] = "127.0.0.1";
+        int redis_port = 6379;
+        int redis_db = 0;
+
+        logger = log_handle_create("./maat_framework_gtest.log", 0);  
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+        if (ret < 0) {
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
+                      "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
+        }
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_accept_tags(opts, accept_tags);
+
+        _shared_maat_instance = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+        if (NULL == _shared_maat_instance) {
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
+                      "[%s:%d] create maat instance in NOTLogic failed.",
+                      __FUNCTION__, __LINE__);
+        }
+    }
+
+    static void TearDownTestCase() {
+       maat_free(_shared_maat_instance);
+       log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_instance;
+};
+
+struct maat *ExcludeLogic::_shared_maat_instance;
+struct log_handle *ExcludeLogic::logger;
+
+TEST_F(ExcludeLogic, ScanExcludeAtFirst) {
+    const char *string_should_not_hit = "This string ONLY contains must-not-contained-string-of-rule-199.";
+	const char *string_should_hit = "This string contains must-contained-string-of-rule-199";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+	const char *not_hit_table_name = "KEYWORDS_TABLE";
+    const char *hit_table_name = "HTTP_URL";
+    struct maat *maat_instance = ExcludeLogic::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+    int not_hit_table_id = maat_get_table_id(maat_instance, not_hit_table_name);
+    ASSERT_GT(not_hit_table_id, 0);
+
+    int ret = maat_scan_string(maat_instance, not_hit_table_id, string_should_not_hit, strlen(string_should_not_hit), 
+						       results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    int hit_table_id =  maat_get_table_id(maat_instance, hit_table_name);
+    ASSERT_GT(hit_table_id, 0);
+
+    ret = maat_scan_string(maat_instance, hit_table_id, string_should_hit, strlen(string_should_hit), 
+						   results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 199);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(ExcludeLogic, ScanExcludeAtLast) {
+    const char *string_should_hit = "This string ONLY contains must-contained-string-of-rule-200.";
+	const char *string_should_not_hit = "This string contains both must-contained-string-of-rule-200 and must-not-contained-string-of-rule-200.";
+	long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+	const char *table_name = "HTTP_URL";
+    struct maat *maat_instance = ExcludeLogic::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+	int table_id = maat_get_table_id(maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+	int ret = maat_scan_string(maat_instance, table_id, string_should_hit, strlen(string_should_hit), 
+						       results, ARRAY_SIZE, &n_hit_result, state);
+						
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+	EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 200);
+    maat_state_reset(state);
+	
+	ret = maat_scan_string(maat_instance, table_id, string_should_not_hit, strlen(string_should_not_hit), 
+						   results, ARRAY_SIZE, &n_hit_result, state);
+	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+	maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(ExcludeLogic, ScanIrrelavantAtLast) {
+    const char *string_should_hit = "This string ONLY contains must-contained-string-of-rule-200.";
+	const char *string_irrelevant = "This string contains nothing to hit.";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    const char *hit_table_name = "HTTP_URL";
+    const char *not_hit_table_name = "KEYWORDS_TABLE";
+    struct maat *maat_instance = ExcludeLogic::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+    int hit_table_id = maat_get_table_id(maat_instance, hit_table_name);
+    ASSERT_GT(hit_table_id, 0);
+
+    int ret = maat_scan_string(maat_instance, hit_table_id, string_should_hit, strlen(string_should_hit), 
+						       results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 200);
+
+    int not_hit_table_id = maat_get_table_id(maat_instance, not_hit_table_name);
+    ASSERT_GT(hit_table_id, 0);
+
+    ret = maat_scan_string(maat_instance, not_hit_table_id, string_irrelevant, strlen(string_irrelevant), 
+						       results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(ExcludeLogic, ScanVirtualTable) {
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_instance = ExcludeLogic::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    const char *table_name = "VIRTUAL_IP_PLUS_TABLE";
+
+    int table_id = maat_get_table_id(maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+    uint32_t should_hit_ip;
+    uint32_t should_not_hit_ip;
+    inet_pton(AF_INET, "100.64.1.1", &should_hit_ip);
+    
+    uint16_t port = htons(5210);
+
+    int ret = maat_scan_ipv4(maat_instance, table_id, should_hit_ip, port, 6,
+                             results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 202);
+    maat_state_reset(state);
+
+    inet_pton(AF_INET, "100.64.1.5", &should_hit_ip);
+    ret = maat_scan_ipv4(maat_instance, table_id, should_hit_ip, port, 6,
+                             results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 202);
+    maat_state_reset(state);
+
+    inet_pton(AF_INET, "100.64.1.6", &should_not_hit_ip);
+    ret = maat_scan_ipv4(maat_instance, table_id, should_not_hit_ip, port, 6,
+                             results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    maat_state_reset(state);
+
+    inet_pton(AF_INET, "100.64.1.11", &should_not_hit_ip);
+    ret = maat_scan_ipv4(maat_instance, table_id, should_not_hit_ip, port, 6,
+                             results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    maat_state_reset(state);
+    
+    maat_state_free(state);
+}
+
+TEST_F(ExcludeLogic, ScanWithMultiClause) {
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_instance = ExcludeLogic::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    const char *ip_table_name = "VIRTUAL_IP_PLUS_TABLE";
+
+    int ip_table_id = maat_get_table_id(maat_instance, ip_table_name);
+    ASSERT_GT(ip_table_id, 0);
+
+    uint32_t ip_addr;
+    inet_pton(AF_INET, "192.168.50.43", &ip_addr);
+    uint16_t port = htons(56168);
+
+    int ret = maat_scan_ipv4(maat_instance, ip_table_id, ip_addr, port, 6,
+                             results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    inet_pton(AF_INET, "47.92.108.93", &ip_addr);
+    port = htons(443);
+    ret = maat_scan_ipv4(maat_instance, ip_table_id, ip_addr, port, 6,
+                             results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    const char *expr_table_name = "HTTP_RESPONSE_KEYWORDS";
+    int expr_table_id = maat_get_table_id(maat_instance, expr_table_name);
+    ASSERT_GT(expr_table_id, 0);
+
+    const char *should_hit_expr = "www.baidu.com";
+    ret = maat_scan_string(maat_instance, expr_table_id, should_hit_expr, strlen(should_hit_expr),
+                            results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 203);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+// TEST_F(ExcludeLogic, ScanHitAtLastEmptyExpr) {
+//     const char *string_should_not_hit = "This string should not hit.";
+// 	const char *string_match_no_region = "This string is matched against a empty table.";
+//     long long results[ARRAY_SIZE] = {0};
+//     size_t n_hit_result = 0;
+//     int thread_id = 0;
+//     const char *not_hit_table_name = "HTTP_URL";
+//     const char *hit_table_name = "IP_PLUS_CONFIG";
+//     const char *empty_table_name = "EMPTY_KEYWORD";
+//     struct maat *maat_instance = ExcludeLogic::_shared_maat_instance;
+//     struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+//     int not_hit_table_id = maat_get_table_id(maat_instance, not_hit_table_name);
+//     ASSERT_GT(not_hit_table_id, 0);
+
+//     int ret = maat_scan_string(maat_instance, not_hit_table_id,
+//                                string_should_not_hit, strlen(string_should_not_hit), 
+//                                results, ARRAY_SIZE, &n_hit_result, state);
+//     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+//     uint32_t sip;
+//     inet_pton(AF_INET, "10.0.8.186", &sip);
+//     uint16_t port = htons(18611);
+//     int proto = 6;
+
+//     int hit_table_id = maat_get_table_id(maat_instance, hit_table_name);
+//     ASSERT_GT(hit_table_id, 0);
+
+//     ret = maat_scan_ipv4(maat_instance, hit_table_id, sip, port, proto, results, 
+//                          ARRAY_SIZE, &n_hit_result, state);
+//     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+//     EXPECT_EQ(n_hit_result, 1);
+//     EXPECT_EQ(results[0], 186);
+
+//     int empty_table_id = maat_get_table_id(maat_instance, empty_table_name);
+//     ASSERT_GT(empty_table_id, 0);
+
+//     ret = maat_scan_string(maat_instance, empty_table_id, string_match_no_region, 
+//                            strlen(string_match_no_region), results, ARRAY_SIZE, 
+//                            &n_hit_result, state);
+//     EXPECT_EQ(ret, MAAT_SCAN_OK);
+    
+//     maat_state_free(state);
+//     state = NULL;
+// }
+
+// TEST_F(ExcludeLogic, ScanHitAtLastEmptyInteger) {
+//     const char *string_should_not_hit = "This string should not hit.";
+//     long long results[ARRAY_SIZE] = {0};
+//     size_t n_hit_result = 0;
+//     int thread_id = 0;
+//     const char *not_hit_table_name = "HTTP_URL";
+//     const char *hit_table_name = "IP_PLUS_CONFIG";
+//     const char *empty_table_name = "EMPTY_INTERGER";
+//     struct maat *maat_instance = ExcludeLogic::_shared_maat_instance;
+//     struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+//     int not_hit_table_id = maat_get_table_id(maat_instance, not_hit_table_name);
+//     ASSERT_GT(not_hit_table_id, 0);
+
+//     int ret = maat_scan_string(maat_instance, not_hit_table_id, string_should_not_hit, 
+//                                strlen(string_should_not_hit), results, ARRAY_SIZE, 
+//                                &n_hit_result, state);
+//     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+//     uint32_t sip;
+//     inet_pton(AF_INET, "10.0.8.187", &sip);
+//     uint16_t port = htons(18611);
+//     int proto = 6;
+
+//     int hit_table_id = maat_get_table_id(maat_instance, hit_table_name);
+//     ASSERT_GT(hit_table_id, 0);
+
+//     ret = maat_scan_ipv4(maat_instance, hit_table_id, sip, port, proto,
+//                          results, ARRAY_SIZE, &n_hit_result, state);
+//     EXPECT_EQ(ret, MAAT_SCAN_HIT);
+//     EXPECT_EQ(n_hit_result, 1);
+//     EXPECT_EQ(results[0], 187);
+
+//     int empty_table_id = maat_get_table_id(maat_instance, empty_table_name);
+//     ASSERT_GT(empty_table_id, 0);
+
+//     ret = maat_scan_integer(maat_instance, empty_table_id, 2015,
+//                             results, ARRAY_SIZE, &n_hit_result, state);
+//     EXPECT_EQ(ret, MAAT_SCAN_OK);
+    
+//     maat_state_free(state);
+//     state = NULL;
+// }
+
+TEST_F(ExcludeLogic, ScanNotIP) {
+    const char *string_should_hit = "This string ONLY contains must-contained-string-of-rule-201.";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    const char *hit_table_name = "HTTP_URL";
+    const char *not_hit_table_name = "IP_CONFIG";
+    struct maat *maat_instance = ExcludeLogic::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+
+    int hit_table_id = maat_get_table_id(maat_instance, hit_table_name);
+    ASSERT_GT(hit_table_id, 0);
+
+    int ret = maat_scan_string(maat_instance, hit_table_id, string_should_hit, 
+                               strlen(string_should_hit), results, ARRAY_SIZE, 
+                               &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 201);
+
+    uint32_t sip;
+    inet_pton(AF_INET, "10.0.6.205", &sip);
+    uint16_t port = htons(50001);
+    int proto = 6;
+
+    int not_hit_table_id = maat_get_table_id(maat_instance, not_hit_table_name);
+    ASSERT_GT(not_hit_table_id, 0);
+
+    ret = maat_scan_ipv4(maat_instance, not_hit_table_id, sip, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
 void maat_read_entry_start_cb(int update_type, void *u_para)
 {
 
@@ -3964,7 +4309,7 @@ TEST_F(MaatCmdTest, SubGroup) {
     //group2 -> group1 -> compile1
     long long group2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
     ret = group2group_table_set_line(maat_instance, g2g_table_name, MAAT_OP_ADD,
-                                     group2_id, group1_id, 0);
+                                     group2_id, group1_id, 0, 0);
     EXPECT_EQ(ret, 1);
 
     /* item1 -> group2 -> group1 -> compile1
@@ -4033,7 +4378,7 @@ TEST_F(MaatCmdTest, SubGroup) {
     */
     long long group3_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
     ret = group2group_table_set_line(maat_instance, g2g_table_name, MAAT_OP_ADD, group3_id,
-                                     group1_id, 0);
+                                     group1_id, 0, 0);
     EXPECT_EQ(ret, 1);
 
     long long item2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
@@ -4999,7 +5344,7 @@ TEST_F(MaatCmdTest, HitPath) {
     */
     long long group2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
     ret = group2group_table_set_line(maat_instance, g2g_table_name, MAAT_OP_ADD, group2_id,
-                                     group21_id, 0);
+                                     group21_id, 0, 0);
     EXPECT_EQ(ret, 1);
 
     /*       item1 -> group1 -> compile1

@@ -670,7 +670,7 @@ int write_region_rule(cJSON *region_json, int compile_id, int group_id,
 	return ret;
 }
 
-int write_group2compile_line(int group_id, int compile_id, int group_not_flag, 
+int write_group2compile_line(int group_id, int compile_id, int group_not_flag,
                              int clause_index, const char *vtable, 
                              struct iris_description *p_iris,
                              struct iris_table *g2c_table)
@@ -696,7 +696,7 @@ int write_group2compile_line(int group_id, int compile_id, int group_not_flag,
 	return 0;
 }
 
-int write_group2group_line(int group_id, int super_group_id,
+int write_group2group_line(int group_id, int super_group_id, int is_exclude,
                            struct iris_description *p_iris)
 {
 	char buff[4096] = {0};
@@ -705,8 +705,8 @@ int write_group2group_line(int group_id, int super_group_id,
         return -1;
     }
 
-	snprintf(buff, sizeof(buff), "%d\t%d\t1\n", group_id, 
-            super_group_id);
+	snprintf(buff, sizeof(buff), "%d\t%d\t%d\t1\n", group_id, 
+            super_group_id, is_exclude);
 	table->write_pos += memcat(&(table->buff), table->write_pos, 
                                &(table->buff_sz), buff, strlen(buff));
 	table->line_count++;
@@ -714,14 +714,14 @@ int write_group2group_line(int group_id, int super_group_id,
 	return 0;
 }
 
-int write_group_rule(cJSON *group_json, int parent_id, 
+int write_group_rule(cJSON *group_json, const char *parent_name, int parent_id, 
                      int parent_type, int tracking_compile_id, 
                      int Nth_group, struct iris_description *p_iris, 
                      struct log_handle *logger)
 {
     int ret = 0;
     int group_not_flag = 0;
-    int clause_index = 0;
+    int clause_index = 0, is_exclude = 0;
 	const char *str_parent_type[2] = {"compile", "group"};
 	const char *group_name = NULL;
     const char *virtual_table = NULL;
@@ -734,6 +734,13 @@ int write_group_rule(cJSON *group_json, int parent_id,
 		group_name = item->valuestring;
 	}
 
+    item = cJSON_GetObjectItem(group_json, "is_exclude");
+    if (NULL == item || item->type != cJSON_Number) {
+		is_exclude = 0;
+	} else {
+		is_exclude = item->valueint;
+	}
+
 	if (parent_type == PARENT_TYPE_COMPILE) {
 		item = cJSON_GetObjectItem(group_json, "virtual_table");
 		if (NULL == item || item->type != cJSON_String) {
@@ -742,7 +749,7 @@ int write_group_rule(cJSON *group_json, int parent_id,
 			virtual_table = item->valuestring;
 		}
 
-		item = cJSON_GetObjectItem(group_json, "not_flag");
+        item = cJSON_GetObjectItem(group_json, "not_flag");
 		if (NULL == item || item->type != cJSON_Number) {
 			group_not_flag = 0;
 		} else {
@@ -790,8 +797,9 @@ int write_group_rule(cJSON *group_json, int parent_id,
 			int i = 0;
 			cJSON_ArrayForEach(item, sub_groups) {
 				i++;
-				ret = write_group_rule(item, group_info->group_id, PARENT_TYPE_GROUP, 
-                                       tracking_compile_id, i, p_iris, logger);
+				ret = write_group_rule(item, group_name, group_info->group_id,
+                                       PARENT_TYPE_GROUP, tracking_compile_id,
+                                       i, p_iris, logger);
 				if (ret < 0) {
 					return -1;
 				}
@@ -806,10 +814,14 @@ int write_group_rule(cJSON *group_json, int parent_id,
 	}
 
 	if (parent_type == PARENT_TYPE_COMPILE) {
+        // printf("[group2compile] group:[%s:%d] parent:[%s:%d]\n",
+        //         group_info->group_name, group_info->group_id, parent_name, parent_id);
 		ret = write_group2compile_line(group_info->group_id, parent_id, group_not_flag,
                                        clause_index, virtual_table, p_iris, g2c_table);
 	} else {
-		ret = write_group2group_line(group_info->group_id, parent_id, p_iris);
+        // printf("[group2group] group:[%s:%d] parent:[%s:%d]\n",
+        //         group_info->group_name, group_info->group_id, parent_name, parent_id);
+		ret = write_group2group_line(group_info->group_id, parent_id, is_exclude, p_iris);
 	}
 
 	if (ret < 0) {
@@ -1018,8 +1030,8 @@ int write_iris(cJSON *json, struct iris_description *p_iris,
 				parent_group = group_info_add_unsafe(p_iris, parent_group_name);
 			}
 
-			ret = write_group_rule(group_obj, parent_group->group_id, PARENT_TYPE_GROUP, 
-                                   0, 0, p_iris, logger);
+			ret = write_group_rule(group_obj, parent_group_name, parent_group->group_id,
+                                   PARENT_TYPE_GROUP, 0, 0, p_iris, logger);
 			if (ret < 0) {
 				return -1;
 			}
@@ -1061,8 +1073,8 @@ int write_iris(cJSON *json, struct iris_description *p_iris,
 			i = 0;
             cJSON *group_obj = NULL;
 			cJSON_ArrayForEach(group_obj, group_array) {
-				ret = write_group_rule(group_obj, compile_id, PARENT_TYPE_COMPILE, 
-                                       compile_id, i, p_iris, logger);
+				ret = write_group_rule(group_obj, "referenced by compile", compile_id,
+                                       PARENT_TYPE_COMPILE, compile_id, i, p_iris, logger);
 				if (ret < 0) {
 					return -1;
 				}

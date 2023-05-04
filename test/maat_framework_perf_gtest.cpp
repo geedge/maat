@@ -341,12 +341,12 @@ void *perf_string_scan_thread(void *arg)
     struct timespec start, end;
     const char *scan_data = "String TEST should hit";
     long long results[ARRAY_SIZE] = {0};
+    int hit_times = 0;
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_instance, param->thread_id);
 
     int table_id = maat_get_table_id(maat_instance, table_name);
-    int hit_times = 0;
-
+    
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < param->test_count; i++) {
         int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
@@ -400,24 +400,18 @@ void *perf_ip_scan_thread(void *arg)
     int ret = inet_pton(AF_INET, ip_str, &ip_addr);
     EXPECT_EQ(ret, 1);
     
-    int table_id = maat_get_table_id(maat_instance, table_name);
     int hit_times = 0;
-    int not_hit_times = 0;
-    clock_gettime(CLOCK_MONOTONIC, &start);
-
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
-    printf("param->thread_id:%d\n", param->thread_id);
     struct maat_state *state = maat_state_new(maat_instance, param->thread_id);
+    int table_id = maat_get_table_id(maat_instance, table_name);
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < param->test_count; i++) {
         int ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6,
                                  results, ARRAY_SIZE, &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
             hit_times++;
-        } else {
-            not_hit_times++;
-            log_info(param->logger, MODULE_FRAMEWORK_PERF_GTEST, 
-                    "thread_id:%d no hit_times:%d ", param->thread_id, not_hit_times);
         }
         maat_state_reset(state);
     }

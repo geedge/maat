@@ -2381,6 +2381,317 @@
                     ]
                 }
             ]
+        },
+        {
+            "compile_id": 199,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "ExcludeLogic.ScanNotAtLast",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "ExcludeLogicGroup199",
+                    "sub_groups":[
+                        {
+                            "group_name": "ExcludeLogicGroup199_1",
+                            "is_exclude": 0,
+                            "clause_index": 0,
+                            "regions": [
+                                {
+                                    "table_name": "HTTP_URL",
+                                    "table_type": "expr",
+                                    "table_content": {
+                                        "keywords": "must-contained-string-of-rule-199",
+                                        "expr_type": "none",
+                                        "match_method": "sub",
+                                        "format": "uncase plain"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "group_name": "ExcludeLogicGroup199_2",
+                            "is_exclude": 1,
+                            "clause_index": 0,
+                            "regions": [
+                                {
+                                    "table_name": "KEYWORDS_TABLE",
+                                    "table_type": "expr",
+                                    "table_content": {
+                                        "keywords": "must-not-contained-string-of-rule-199",
+                                        "expr_type": "none",
+                                        "match_method": "sub",
+                                        "format": "uncase plain"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 200,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "ExcludeLogic.OneRegion",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "ExcludeLogicGroup200",
+                    "sub_groups":[
+                        {
+                            "group_name": "ExcludeLogicGroup200_1",
+                            "is_exclude": 0,
+                            "clause_index": 0,
+                            "regions": [
+                                {
+                                    "table_name": "HTTP_URL",
+                                    "table_type": "expr",
+                                    "table_content": {
+                                        "keywords": "must-contained-string-of-rule-200",
+                                        "expr_type": "none",
+                                        "match_method": "sub",
+                                        "format": "uncase plain"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "group_name": "ExcludeLogicGroup200_2",
+                            "is_exclude": 1,
+                            "clause_index": 0,
+                            "regions": [
+                                {
+                                    "table_name": "HTTP_URL",
+                                    "table_type": "expr",
+                                    "table_content": {
+                                        "keywords": "must-not-contained-string-of-rule-200",
+                                        "expr_type": "none",
+                                        "match_method": "sub",
+                                        "format": "uncase plain"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 201,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "ExcludeLogic.ScanNotIP",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "ExcludeLogicGroup201",
+                    "sub_groups":[
+                        {
+                            "group_name": "ExcludeLogicGroup201_1",
+                            "is_exclude": 0,
+                            "clause_index": 0,
+                            "regions": [
+                                {
+                                    "table_name": "HTTP_URL",
+                                    "table_type": "expr",
+                                    "table_content": {
+                                        "keywords": "must-contained-string-of-rule-201",
+                                        "expr_type": "none",
+                                        "match_method": "sub",
+                                        "format": "uncase plain"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "group_name": "123_IP_group",
+                            "is_exclude": 1,
+                            "clause_index": 0
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 202,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "null",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "ExcludeLogicGroup202",
+                    "virtual_table": "VIRTUAL_IP_PLUS_TABLE",
+                    "clause_index": 0,
+                    "sub_groups":[
+                        {
+                            "group_name": "ExcludeLogicGroup202_1",
+                            "is_exclude": 0,
+                            "regions": [
+                                {
+                                    "table_type": "ip_plus",
+                                    "table_name": "IP_PLUS_CONFIG",
+                                    "table_content": {
+                                        "addr_type": "ipv4",
+                                        "addr_format": "range",
+                                        "ip1": "100.64.1.0",
+                                        "ip2": "100.64.1.20",
+                                        "port_format": "range",
+                                        "port1": "5210",
+                                        "port2": "5211",
+                                        "protocol": 6
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "group_name": "ExcludeLogicGroup202_2",
+                            "is_exclude": 1,
+                            "regions": [
+                                {
+                                    "table_type": "ip_plus",
+                                    "table_name": "IP_PLUS_CONFIG",
+                                    "table_content": {
+                                        "addr_type": "ipv4",
+                                        "addr_format": "range",
+                                        "ip1": "100.64.1.6",
+                                        "ip2": "100.64.1.10",
+                                        "port_format": "range",
+                                        "port1": "5210",
+                                        "port2": "5211",
+                                        "protocol": 6
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "group_name": "ExcludeLogicGroup202_3",
+                            "is_exclude": 1,
+                            "regions": [
+                                {
+                                    "table_type": "ip_plus",
+                                    "table_name": "IP_PLUS_CONFIG",
+                                    "table_content": {
+                                        "addr_type": "ipv4",
+                                        "addr_format": "range",
+                                        "ip1": "100.64.1.11",
+                                        "ip2": "100.64.1.20",
+                                        "port_format": "range",
+                                        "port1": "5210",
+                                        "port2": "5211",
+                                        "protocol": 6
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 203,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "null",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "ExcludeLogicGroup203_1",
+                    "virtual_table": "VIRTUAL_IP_PLUS_SOURCE",
+                    "clause_index": 0,
+                    "regions": [
+                        {
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_type": "ip_plus",
+                            "table_content": {
+                                "addr_type": "ipv4",
+                                "addr_format": "range",
+                                "ip1": "192.168.50.43",
+                                "ip2": "192.168.50.43",
+                                "port_format": "range",
+                                "port1": "56168",
+                                "port2": "56168",
+                                "protocol": -1,
+                                "direction": "double"
+                            }
+
+                        }
+                    ]
+                },
+                {
+                    "group_name": "ExcludeLogicGroup203_2",
+                    "virtual_table": "VIRTUAL_IP_PLUS_DESTINATION",
+                    "clause_index": 1,
+                    "regions": [
+                        {
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_type": "ip_plus",
+                            "table_content": {
+                                "addr_type": "ipv4",
+                                "addr_format": "range",
+                                "ip1": "47.92.108.93",
+                                "ip2": "47.92.108.93",
+                                "port_format": "range",
+                                "port1": "443",
+                                "port2": "443",
+                                "protocol": -1,
+                                "direction": "double"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "group_name": "ExcludeLogicGroup203_3",
+                    "virtual_table": "HTTP_RESPONSE_KEYWORDS",
+                    "clause_index": 2,
+                    "sub_groups": [
+                        {
+                            "group_name": "ExcludeLogicGroup203_3_1",
+                            "is_exclude": 0,
+                            "regions": [
+                                {
+                                    "table_type":"expr",
+                                    "table_name":"KEYWORDS_TABLE",
+                                    "table_content":{
+                                        "format":"uncase plain",
+                                        "match_method":"suffix",
+                                        "keywords":".com",
+                                        "expr_type":"none"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "group_name": "ExcludeLogicGroup203_3_2",
+                            "is_exclude": 1,
+                            "regions": [
+                                {
+                                    "table_type":"expr",
+                                    "table_name":"KEYWORDS_TABLE",
+                                    "table_content":{
+                                        "format":"uncase plain",
+                                        "match_method":"complete",
+                                        "keywords":"jianshu.com",
+                                        "expr_type":"none"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "plugin_table": [

@@ -201,13 +201,13 @@ int maat_options_set_json_file(struct maat_options *opts, const char *json_filen
     return 0;
 }
 
-int maat_options_set_json_file_gzip_flag(struct maat_options *opts, int gzip_flag)
+int maat_options_set_json_file_gzip_flag(struct maat_options *opts, int flag)
 {
-    if (NULL == opts || (gzip_flag != 0 && gzip_flag != 1)) {
+    if (NULL == opts || (flag != 0 && flag != 1)) {
         return -1;
     }
 
-    opts->maat_json_is_gzipped = gzip_flag;
+    opts->maat_json_is_gzipped = flag;
 
     return 0;
 }
@@ -612,79 +612,102 @@ int generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int table_
     return ret;
 }
 
-int generic_plugin_runtime_commit_ex_schema(void *runtime, void *schema, const char *table_name,
-                                             int table_id, enum table_type table_type, int valid_column)
+void plugin_runtime_commit_ex_schema(void *runtime, void *schema, const char *table_name,
+                                     int valid_column)
 {
-    if (NULL == runtime || NULL == schema || valid_column < 0) {
-        return -1;
-    }
-
-    struct ex_container_schema *container_schema = NULL;
-    struct ex_data_runtime *ex_data_rt = NULL;
-
-    switch (table_type) {
-        case TABLE_TYPE_PLUGIN:
-            container_schema = plugin_table_get_ex_container_schema(schema);
-            ex_data_rt = plugin_runtime_get_ex_data_rt(runtime);
-            ex_data_runtime_set_ex_container_schema(ex_data_rt, container_schema);
-            break;
-        case TABLE_TYPE_IP_PLUGIN:
-            container_schema = ip_plugin_table_get_ex_container_schema(schema);
-            ex_data_rt = ip_plugin_runtime_get_ex_data_rt(runtime);
-            ex_data_runtime_set_ex_container_schema(ex_data_rt, container_schema);
-            break;
-        case TABLE_TYPE_FQDN_PLUGIN:
-            container_schema = fqdn_plugin_table_get_ex_container_schema(schema);
-            ex_data_rt = fqdn_plugin_runtime_get_ex_data_rt(runtime);
-            ex_data_runtime_set_ex_container_schema(ex_data_rt, container_schema);
-            break;
-        case TABLE_TYPE_BOOL_PLUGIN:
-            container_schema = bool_plugin_table_get_ex_container_schema(schema);
-            ex_data_rt = bool_plugin_runtime_get_ex_data_rt(runtime);
-            ex_data_runtime_set_ex_container_schema(ex_data_rt, container_schema);
-            break;
-        default:
-            break;
-    }
-    
+    struct ex_container_schema *container_schema = plugin_table_get_ex_container_schema(schema);
+    struct ex_data_runtime *ex_data_rt = plugin_runtime_get_ex_data_rt(runtime);
+    ex_data_runtime_set_ex_container_schema(ex_data_rt, container_schema);
 
     size_t n_cached_row = ex_data_runtime_cached_row_count(ex_data_rt);
     for (size_t i = 0; i < n_cached_row; i++) {
         const char *row = ex_data_runtime_cached_row_get(ex_data_rt, i);
-        switch (table_type) {
-            case TABLE_TYPE_PLUGIN:
-                plugin_runtime_update(runtime, schema, table_name, row, valid_column);
-                break;
-            case TABLE_TYPE_IP_PLUGIN:
-                ip_plugin_runtime_update(runtime, schema, table_name, row, valid_column);
-                break;
-            case TABLE_TYPE_FQDN_PLUGIN:
-                fqdn_plugin_runtime_update(runtime, schema, table_name, row, valid_column);
-                break;
-            case TABLE_TYPE_BOOL_PLUGIN:
-                bool_plugin_runtime_update(runtime, schema, table_name, row, valid_column);
-                break;
-            default:
-                break;
-        }
+        plugin_runtime_update(runtime, schema, table_name, row, valid_column);
     }
+
     ex_data_runtime_clear_row_cache(ex_data_rt);
+    plugin_runtime_commit(runtime, table_name, 0);
+}
+
+void ip_plugin_runtime_commit_ex_schema(void *runtime, void *schema, const char *table_name,
+                                        int valid_column)
+{
+    struct ex_container_schema *container_schema = ip_plugin_table_get_ex_container_schema(schema);
+    struct ex_data_runtime *ex_data_rt = ip_plugin_runtime_get_ex_data_rt(runtime);
+    ex_data_runtime_set_ex_container_schema(ex_data_rt, container_schema);
+
+    size_t n_cached_row = ex_data_runtime_cached_row_count(ex_data_rt);
+    for (size_t i = 0; i < n_cached_row; i++) {
+        const char *row = ex_data_runtime_cached_row_get(ex_data_rt, i);
+        ip_plugin_runtime_update(runtime, schema, table_name, row, valid_column);
+    }
+
+    ex_data_runtime_clear_row_cache(ex_data_rt);
+    ip_plugin_runtime_commit(runtime, table_name, 0);
+}
+
+void fqdn_plugin_runtime_commit_ex_schema(void *runtime, void *schema, const char *table_name,
+                                          int valid_column)
+{
+    struct ex_container_schema *container_schema = fqdn_plugin_table_get_ex_container_schema(schema);
+    struct ex_data_runtime *ex_data_rt = fqdn_plugin_runtime_get_ex_data_rt(runtime);
+    ex_data_runtime_set_ex_container_schema(ex_data_rt, container_schema);
+
+    size_t n_cached_row = ex_data_runtime_cached_row_count(ex_data_rt);
+    for (size_t i = 0; i < n_cached_row; i++) {
+        const char *row = ex_data_runtime_cached_row_get(ex_data_rt, i);
+        fqdn_plugin_runtime_update(runtime, schema, table_name, row, valid_column);
+    }
+
+    ex_data_runtime_clear_row_cache(ex_data_rt);
+    fqdn_plugin_runtime_commit(runtime, table_name, 0);
+}
+
+void bool_plugin_runtime_commit_ex_schema(void *runtime, void *schema, const char *table_name,
+                                          int valid_column)
+{
+    struct ex_container_schema *container_schema = bool_plugin_table_get_ex_container_schema(schema);
+    struct ex_data_runtime *ex_data_rt = bool_plugin_runtime_get_ex_data_rt(runtime);
+    ex_data_runtime_set_ex_container_schema(ex_data_rt, container_schema);
+
+    size_t n_cached_row = ex_data_runtime_cached_row_count(ex_data_rt);
+    for (size_t i = 0; i < n_cached_row; i++) {
+        const char *row = ex_data_runtime_cached_row_get(ex_data_rt, i);
+        bool_plugin_runtime_update(runtime, schema, table_name, row, valid_column);
+    }
+
+    ex_data_runtime_clear_row_cache(ex_data_rt);
+    bool_plugin_runtime_commit(runtime, table_name, 0);
+}
+
+int generic_plugin_runtime_commit_ex_schema(void *runtime, void *schema, const char *table_name,
+                                            enum table_type table_type, int valid_column,
+                                            struct log_handle *logger)
+{
+    if (NULL == runtime || NULL == schema || valid_column < 0) {
+        log_error(logger, MODULE_MAAT_API, 
+                 "[%s:%d] input parameter invalid, runtime:%p, schema:%p, valid_column:%d",
+                 __FUNCTION__, __LINE__, runtime, schema, valid_column);
+        return -1;
+    }
 
     switch (table_type) {
         case TABLE_TYPE_PLUGIN:
-            plugin_runtime_commit(runtime, table_name, 0);
+            plugin_runtime_commit_ex_schema(runtime, schema, table_name, valid_column);
             break;
         case TABLE_TYPE_IP_PLUGIN:
-            ip_plugin_runtime_commit(runtime, table_name, 0);
+            ip_plugin_runtime_commit_ex_schema(runtime, schema, table_name, valid_column);
             break;
         case TABLE_TYPE_FQDN_PLUGIN:
-            fqdn_plugin_runtime_commit(runtime, table_name, 0);
+            fqdn_plugin_runtime_commit_ex_schema(runtime, schema, table_name, valid_column);
             break;
         case TABLE_TYPE_BOOL_PLUGIN:
-            bool_plugin_runtime_commit(runtime, table_name, 0);
+            bool_plugin_runtime_commit_ex_schema(runtime, schema, table_name, valid_column);
             break;
         default:
-            break;
+            log_error(logger, MODULE_MAAT_API, 
+                      "[%s:%d] table_type:%d invalid", __FUNCTION__, __LINE__, table_type);
+            return -1;
     }
 
     return 0;
@@ -714,11 +737,15 @@ int generic_plugin_table_ex_schema_register(struct maat *maat_instance,
         table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
         valid_column = table_manager_get_valid_column(maat_instance->tbl_mgr, table_id);
         if (table_type == TABLE_TYPE_INVALID || valid_column < 0) {
+            log_error(maat_instance->logger, MODULE_MAAT_API, 
+                      "[%s:%d] table_type:%d or valid_column:%d invalid",
+                      __FUNCTION__, __LINE__, table_type, valid_column);
             return -1;
         }
 
-        ret = generic_plugin_runtime_commit_ex_schema(runtime, schema, table_name, table_id, 
-                                                      table_type, valid_column);
+        ret = generic_plugin_runtime_commit_ex_schema(runtime, schema, table_name, 
+                                                      table_type, valid_column,
+                                                      maat_instance->logger);
     }
 
     return ret;
@@ -740,6 +767,9 @@ int maat_plugin_table_ex_schema_register(struct maat *maat_instance,
 
     int table_id = maat_get_table_id(maat_instance, table_name);
     if (table_id < 0) {
+        log_error(maat_instance->logger, MODULE_MAAT_API,
+                  "[%s:%d] [table:%s] is not registered before.",
+                  __FUNCTION__, __LINE__, table_name);
         return -1;
     }
 
@@ -749,12 +779,10 @@ int maat_plugin_table_ex_schema_register(struct maat *maat_instance,
     enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
     if (TABLE_TYPE_COMPILE == table_type) {
         ret = compile_table_ex_schema_register(maat_instance, table_id, 
-                                               new_func, free_func, dup_func,
-                                               argl, argp);
+                                               new_func, free_func, dup_func, argl, argp);
     } else {
         ret = generic_plugin_table_ex_schema_register(maat_instance, table_name, table_id,
-                                                      new_func, free_func, dup_func,
-                                                      argl, argp);
+                                                      new_func, free_func, dup_func, argl, argp);
     }
 
     pthread_mutex_unlock(&(maat_instance->background_update_mutex));
