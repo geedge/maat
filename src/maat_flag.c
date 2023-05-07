@@ -40,17 +40,20 @@ struct flag_item {
     long long district_id;
     long long flag;
     long long flag_mask;
+    void *user_data;
+    void (*user_data_free)(void *data);
 };
 
 struct flag_runtime {
     struct flag_matcher *matcher;
-    struct rcu_hash_table *htable;       //store flag rule for rebuild flag_matcher instance
-    struct rcu_hash_table *item_htable;  //store this flag table's all maat_item which will be used in flag_runtime_scan
+    struct rcu_hash_table *flag_item_hash;
+
     long long rule_num;
     long long version;
     size_t n_worker_thread;
-    struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
+    struct maat_garbage_bin *ref_garbage_bin;
+
     int district_num;
     struct maat_kv_store *district_map;
     struct maat_kv_store *tmp_district_map;
@@ -155,16 +158,25 @@ void flag_schema_free(void *flag_schema)
     FREE(flag_schema);
 }
 
-void flag_ex_data_free(void *user_ctx, void *data)
+void flag_item_free(struct flag_item *item)
 {
-    struct flag_item *flag_item = (struct flag_item *)data;
-    FREE(flag_item);
+    if (NULL == item) {
+        return;
+    }
+
+    if (item->user_data != NULL && item->user_data_free != NULL) {
+        item->user_data_free(item->user_data);
+        item->user_data = NULL;
+    }
+
+    FREE(item);
 }
 
-void flag_maat_item_free(void *user_ctx, void *data)
+void flag_item_free_cb(void *user_ctx, void *data)
 {
-    struct maat_item *item = (struct maat_item *)data;
-    maat_item_free(item);
+    struct flag_item *item = (struct flag_item *)data;
+    
+    flag_item_free(item);
 }
 
 void *flag_runtime_new(void *flag_schema, size_t max_thread_num,
@@ -177,8 +189,7 @@ void *flag_runtime_new(void *flag_schema, size_t max_thread_num,
 
     struct flag_runtime *flag_rt = ALLOC(struct flag_runtime, 1);
 
-    flag_rt->htable = rcu_hash_new(flag_ex_data_free, NULL);
-    flag_rt->item_htable = rcu_hash_new(flag_maat_item_free, NULL);
+    flag_rt->flag_item_hash = rcu_hash_new(flag_item_free_cb, NULL);
     flag_rt->n_worker_thread = max_thread_num;
     flag_rt->ref_garbage_bin = garbage_bin;
     flag_rt->logger = logger;
@@ -198,14 +209,9 @@ void flag_runtime_free(void *flag_runtime)
     }
 
     struct flag_runtime *flag_rt = (struct flag_runtime *)flag_runtime;
-    if (flag_rt->htable != NULL) {
-        rcu_hash_free(flag_rt->htable);
-        flag_rt->htable = NULL;
-    }
-
-    if (flag_rt->item_htable != NULL) {
-        rcu_hash_free(flag_rt->item_htable);
-        flag_rt->item_htable = NULL;
+    if (flag_rt->flag_item_hash != NULL) {
+        rcu_hash_free(flag_rt->flag_item_hash);
+        flag_rt->flag_item_hash = NULL;
     }
 
     if (flag_rt->matcher != NULL) {
@@ -239,20 +245,20 @@ void flag_runtime_free(void *flag_runtime)
 }
 
 int flag_runtime_update_row(struct flag_runtime *flag_rt, char *key, size_t key_len,
-                            long long item_id, struct flag_rule *rule, int is_valid)
+                            struct flag_item *item, int is_valid)
 {
     int ret = -1;
 
     if (0 == is_valid) {
         //delete
-        rcu_hash_del(flag_rt->htable, key, key_len);
+        rcu_hash_del(flag_rt->flag_item_hash, key, key_len);
     } else {
         //add
-        ret = rcu_hash_add(flag_rt->htable, key, key_len, (void *)rule);
+        ret = rcu_hash_add(flag_rt->flag_item_hash, key, key_len, (void *)item);
         if (ret < 0) {
             log_error(flag_rt->logger, MODULE_FLAG,
-                      "[%s:%d] flag rule(rule_id:%lld) add to flag runtime htable failed", 
-                      __FUNCTION__, __LINE__, item_id);
+                      "[%s:%d] flag item(item_id:%lld) add to flag_item_hash failed", 
+                      __FUNCTION__, __LINE__, item->item_id);
             return -1;
         }
     }
@@ -365,26 +371,16 @@ error:
     return NULL;
 }
 
-void flag_item_free(struct flag_item *item)
+struct flag_rule flag_item_to_flag_rule(struct flag_item *item)
 {
-    FREE(item);
-}
+    struct flag_rule rule;
 
-struct flag_rule *flag_item_to_flag_rule(struct flag_item *item, void *user_data)
-{
-    struct flag_rule *rule = ALLOC(struct flag_rule, 1);
-
-    rule->rule_id = item->item_id;
-    rule->flag = item->flag;
-    rule->mask = item->flag_mask;
-    rule->user_tag = user_data;
+    rule.rule_id = item->item_id;
+    rule.flag = item->flag;
+    rule.mask = item->flag_mask;
+    rule.user_tag = item->user_data;
 
     return rule;
-}
-
-void flag_rule_free(struct flag_rule *rule)
-{
-    FREE(rule);
 }
 
 int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table_name, 
@@ -395,10 +391,6 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table
         return -1;
     }
 
-    int ret = -1;
-    struct maat_item_inner *u_para = NULL;
-    struct maat_item *item = NULL;
-    struct flag_rule *flag_rule = NULL;
     struct flag_schema *schema = (struct flag_schema *)flag_schema;
     struct flag_runtime *flag_rt = (struct flag_runtime *)flag_runtime;
 
@@ -411,47 +403,29 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table
     if (is_valid < 0) {
         flag_rt->update_err_cnt++;
         return -1;
-    } else if (0 == is_valid) {
-        //delete
-       rcu_hash_del(flag_rt->item_htable, (char *)&item_id, sizeof(item_id));
-    } else {
-        //add
-        struct flag_item *flag_item = flag_item_new(line, schema, flag_rt);
+    }
+
+    struct flag_item *flag_item = NULL;
+    if (1 == is_valid) {
+        flag_item = flag_item_new(line, schema, flag_rt);
         if (NULL == flag_item) {
             flag_rt->update_err_cnt++;
             return -1;
         }
 
-        u_para = maat_item_inner_new(flag_item->group_id, item_id, flag_item->district_id);
-        item = maat_item_new(item_id, flag_item->group_id, u_para, maat_item_inner_free);
-        ret = rcu_hash_add(flag_rt->item_htable, (char *)&(item_id), sizeof(item_id), item);
-        if (ret < 0) {
-            log_error(flag_rt->logger, MODULE_FLAG, 
-                      "[%s:%d] [table:%s] flag runtime add item(item_id:%lld) failed", 
-                      __FUNCTION__, __LINE__, table_name, item_id);
-            flag_item_free(flag_item);
-            maat_item_free(item);
-            flag_rt->update_err_cnt++;
-            return -1;
-        }
-
-        flag_rule = flag_item_to_flag_rule(flag_item, u_para);
-        flag_item_free(flag_item);
-        if (NULL == flag_rule) {
-            log_error(flag_rt->logger, MODULE_FLAG, 
-                      "[%s:%d] [table:%s] transform flag_item(item_id:%lld) to flag_rule failed",
-                      __FUNCTION__, __LINE__, table_name, item_id);
-            flag_rt->update_err_cnt++;
-            return -1;
-        }
+        struct maat_item_inner *inner_item = maat_item_inner_new(flag_item->item_id,
+                                                                 flag_item->group_id,
+                                                                 flag_item->district_id);
+        flag_item->user_data = inner_item;
+        flag_item->user_data_free = maat_item_inner_free;
     }
 
-    char *key = (char *)&item_id;
-    ret = flag_runtime_update_row(flag_rt, key, sizeof(long long), item_id, flag_rule, is_valid);
+    int ret = flag_runtime_update_row(flag_rt, (char *)&item_id, sizeof(long long),
+                                      flag_item, is_valid);
     if (ret < 0) {
-        if (flag_rule != NULL) {
-            flag_rule_free(flag_rule);
-            flag_rule = NULL;
+        if (flag_item != NULL) {
+            flag_item_free(flag_item);
+            flag_item = NULL;
         }
         flag_rt->update_err_cnt++;
         return -1;
@@ -466,7 +440,8 @@ void garbage_flag_matcher_free(void *flag_matcher, void *arg)
     flag_matcher_free(matcher);
 }
 
-int flag_runtime_commit(void *flag_runtime, const char *table_name, long long maat_rt_version)
+int flag_runtime_commit(void *flag_runtime, const char *table_name,
+                        long long maat_rt_version)
 {
     if (NULL == flag_runtime) {
         return -1;
@@ -474,12 +449,10 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name, long long ma
 
     struct flag_runtime *flag_rt = (struct flag_runtime *)flag_runtime;
 
-    int updating_flag = rcu_hash_is_updating(flag_rt->htable);
+    int updating_flag = rcu_hash_is_updating(flag_rt->flag_item_hash);
     if (0 == updating_flag) {
         return 0;
     }
-
-    rcu_hash_commit(flag_rt->htable);
     
     if (flag_rt->tmp_district_map != NULL) {
         struct maat_kv_store *tmp_map = flag_rt->district_map;
@@ -491,11 +464,13 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name, long long ma
 
     struct flag_rule *rules = NULL;
     void **ex_data_array = NULL;
-    size_t rule_cnt = rcu_hash_list(flag_rt->htable, &ex_data_array);
+
+    size_t rule_cnt = rcu_updating_hash_list(flag_rt->flag_item_hash, &ex_data_array);
     if (rule_cnt > 0) {
         rules = ALLOC(struct flag_rule, rule_cnt);
         for (size_t i = 0; i < rule_cnt; i++) {
-            rules[i] = *(struct flag_rule *)ex_data_array[i];
+            struct flag_item *flag_item = (struct flag_item *)ex_data_array[i];
+            rules[i] = flag_item_to_flag_rule(flag_item);
         }
     }
 
@@ -515,12 +490,13 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name, long long ma
 
     old_flag_matcher = flag_rt->matcher;
     flag_rt->matcher = new_flag_matcher;
+    rcu_hash_commit(flag_rt->flag_item_hash);
+
     if (old_flag_matcher != NULL) {
         maat_garbage_bagging(flag_rt->ref_garbage_bin, old_flag_matcher, NULL,
                              garbage_flag_matcher_free);
     }
-    rcu_hash_commit(flag_rt->item_htable);
-
+    
     flag_rt->rule_num = rule_cnt;
     flag_rt->version = maat_rt_version;
 
@@ -566,32 +542,35 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
     }
 
     if (n_hit_item > MAX_SCANNER_HIT_ITEM_NUM) {
-        log_info(flag_rt->logger, MODULE_FLAG, 
-                 "hit flag item count:%d exceed maxium:%d", 
-                 n_hit_item, MAX_SCANNER_HIT_ITEM_NUM);
         n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
     }
     
-    long long hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
-    struct maat_item_inner *item = NULL;
-    int real_hit_item_cnt = 0;
+    struct maat_item hit_maat_items[MAX_SCANNER_HIT_ITEM_NUM];
+    struct maat_item_inner *inner_item = NULL;
+    size_t real_hit_item_cnt = 0;
     long long district_id = state->district_id;
     
     for (int i = 0; i < n_hit_item; i++) {
-        item = (struct maat_item_inner *)(hit_results[i].user_tag);
-        if (item->district_id == district_id || item->district_id == DISTRICT_ANY) {
-            hit_item_ids[real_hit_item_cnt++] = hit_results[i].rule_id;
+        inner_item = (struct maat_item_inner *)(hit_results[i].user_tag);
+        if (inner_item->district_id == district_id || inner_item->district_id == DISTRICT_ANY) {
+            long long item_id = hit_results[i].rule_id;
+            struct flag_item *flag_item = (struct flag_item *)rcu_hash_find(flag_rt->flag_item_hash, 
+                                                                            (char *)&item_id,
+                                                                            sizeof(long long));
+            if (!flag_item) {
+                // item config has been deleted
+                continue;
+            }
+
+            hit_maat_items[real_hit_item_cnt].item_id = item_id;
+            hit_maat_items[real_hit_item_cnt].group_id = flag_item->group_id;
+            real_hit_item_cnt++;
         }
     }
 
-    size_t group_hit_cnt = 0;
-    int ret = maat_compile_state_update(flag_rt->item_htable, vtable_id, hit_item_ids, 
-                                        n_hit_item, &group_hit_cnt, state);
-    if (ret < 0) {
-        return -1;
-    }
+    maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
 
-    return group_hit_cnt;
+    return real_hit_item_cnt;
 }
 
 void flag_runtime_hit_inc(struct flag_runtime *flag_rt, int thread_id)

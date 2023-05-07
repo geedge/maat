@@ -69,9 +69,6 @@ struct maat_item_inner {
 struct maat_item {
 	long long item_id;
 	long long group_id;
-	
-	void *user_data;
-    void (*user_data_free)(void *data);
 };
 
 #define	COMPILE_RULE_MAGIC	0x1a2b3c4d
@@ -282,11 +279,8 @@ size_t parse_accept_tag(const char *value, struct rule_tag **result, struct log_
 
 int compare_accept_tag(const char *value, const struct rule_tag *accept_tags, size_t n_accept_tag);
 
-struct maat_item *maat_item_new(long long item_id, long long group_id, void *user_data, void (*user_data_free)(void *));
-
-void maat_item_free(void *maat_item);
-
-struct maat_item_inner *maat_item_inner_new(long long group_id, long long item_id, long long district_id);
+struct maat_item_inner *maat_item_inner_new(long long item_id, long long group_id,
+                                            long long district_id);
 
 void maat_item_inner_free(void *item_inner);
 

@@ -37,22 +37,25 @@ struct interval_item {
     long long district_id;
     int low_bound;
     int up_bound;
+    void *user_data;
+    void (*user_data_free)(void *data);
 };
 
 struct interval_runtime {
     struct interval_matcher *matcher;
-    struct rcu_hash_table *htable;       //store interval rule for rebuild interval_matcher instance
-    struct rcu_hash_table *item_htable;  //store this interval table's all maat_item which will be used in interval_runtime_scan
+    struct rcu_hash_table *int_item_hash;       //store interval rule for rebuild interval_matcher instance
+
     long long version;
     long long rule_num;
-    long long update_err_cnt;
     size_t n_worker_thread;
-    struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
+    struct maat_garbage_bin *ref_garbage_bin;
+
     int district_num;
     struct maat_kv_store *district_map;
     struct maat_kv_store *tmp_district_map;
 
+    long long update_err_cnt;
     long long *scan_cnt;
     long long *scan_cpu_time;
     long long *hit_cnt;
@@ -152,16 +155,24 @@ void interval_schema_free(void *interval_schema)
     FREE(interval_schema);
 }
 
-void interval_ex_data_free(void *user_ctx, void *data)
+void interval_item_free(struct interval_item *item)
 {
-    struct interval_item *item = (struct interval_item *)data;
+    if (NULL == item) {
+        return;
+    }
+
+    if (item->user_data != NULL && item->user_data_free != NULL) {
+        item->user_data_free(item->user_data);
+        item->user_data = NULL;
+    }
+
     FREE(item);
 }
 
-void interval_maat_item_free(void *user_ctx, void *data)
+void interval_item_free_cb(void *user_ctx, void *data)
 {
-    struct maat_item *item = (struct maat_item *)data;
-    maat_item_free(item);
+    struct interval_item *item = (struct interval_item *)data;
+    interval_item_free(item);
 }
 
 void *interval_runtime_new(void *interval_schema, size_t max_thread_num,
@@ -174,8 +185,7 @@ void *interval_runtime_new(void *interval_schema, size_t max_thread_num,
 
     struct interval_runtime *interval_rt = ALLOC(struct interval_runtime, 1);
 
-    interval_rt->htable = rcu_hash_new(interval_ex_data_free, NULL);
-    interval_rt->item_htable = rcu_hash_new(interval_maat_item_free, NULL);
+    interval_rt->int_item_hash = rcu_hash_new(interval_item_free_cb, NULL);
     interval_rt->n_worker_thread = max_thread_num;
     interval_rt->ref_garbage_bin = garbage_bin;
     interval_rt->logger = logger;
@@ -195,14 +205,9 @@ void interval_runtime_free(void *interval_runtime)
     }
 
     struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
-    if (interval_rt->htable != NULL) {
-        rcu_hash_free(interval_rt->htable);
-        interval_rt->htable = NULL;
-    }
-
-    if (interval_rt->item_htable != NULL) {
-        rcu_hash_free(interval_rt->item_htable);
-        interval_rt->item_htable = NULL;
+    if (interval_rt->int_item_hash != NULL) {
+        rcu_hash_free(interval_rt->int_item_hash);
+        interval_rt->int_item_hash = NULL;
     }
 
     if (interval_rt->matcher != NULL) {
@@ -339,43 +344,33 @@ error:
     return NULL;
 }
 
-void interval_item_free(void *interval_item)
+struct interval_rule interval_item_to_interval_rule(struct interval_item *item)
 {
-    FREE(interval_item);
-}
+    struct interval_rule rule;
 
-struct interval_rule *interval_item_to_interval_rule(struct interval_item *item, void *user_data)
-{
-    struct interval_rule *rule = ALLOC(struct interval_rule, 1);
-
-    rule->start = item->low_bound;
-    rule->end = item->up_bound;
-    rule->result.rule_id = item->item_id;
-    rule->result.user_tag = user_data;
+    rule.start = item->low_bound;
+    rule.end = item->up_bound;
+    rule.result.rule_id = item->item_id;
+    rule.result.user_tag = item->user_data;
 
     return rule;
 }
 
-void interval_rule_free(struct interval_rule *rule)
-{
-    FREE(rule);
-}
-
 int interval_runtime_update_row(struct interval_runtime *interval_rt, char *key, size_t key_len,
-                                long long item_id, struct interval_rule *rule, int is_valid)
+                                struct interval_item *item, int is_valid)
 {
     int ret = -1;
 
     if (0 == is_valid) {
         //delete
-        rcu_hash_del(interval_rt->htable, key, key_len);
+        rcu_hash_del(interval_rt->int_item_hash, key, key_len);
     } else {
         //add
-        ret = rcu_hash_add(interval_rt->htable, key, key_len, (void *)rule);
+        ret = rcu_hash_add(interval_rt->int_item_hash, key, key_len, (void *)item);
         if (ret < 0) {
             log_error(interval_rt->logger, MODULE_INTERVAL,
-                      "[%s:%d] interval rule(rule_id:%lld) add to interval runtime htable failed", 
-                      __FUNCTION__, __LINE__, item_id);
+                      "[%s:%d] interval item(item_id:%lld) add to interavl_item_hash failed", 
+                      __FUNCTION__, __LINE__, item->item_id);
             return -1;
         }
     }
@@ -392,10 +387,6 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
         return -1;
     }
 
-    int ret = -1;
-    struct maat_item_inner *u_para = NULL;
-    struct maat_item *item = NULL;
-    struct interval_rule *interval_rule = NULL;
     struct interval_schema *schema = (struct interval_schema *)interval_schema;
     struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
 
@@ -409,47 +400,30 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
     if (is_valid < 0) {
         interval_rt->update_err_cnt++;
         return -1;
-    } else if (0 == is_valid) {
-        //delete
-        rcu_hash_del(interval_rt->item_htable, (char *)&item_id, sizeof(item_id));
-    } else {
+    }
+    
+    struct interval_item *interval_item = NULL;
+    if (1 == is_valid) {
         //add
-        struct interval_item *interval_item = interval_item_new(line, schema, interval_rt);
+        interval_item = interval_item_new(line, schema, interval_rt);
         if (NULL == interval_item) {
             interval_rt->update_err_cnt++;
             return -1;
         }
 
-        u_para = maat_item_inner_new(interval_item->group_id, item_id, interval_item->district_id);
-        item = maat_item_new(item_id, interval_item->group_id, u_para, maat_item_inner_free);
-        ret = rcu_hash_add(interval_rt->item_htable, (char *)&(item_id), sizeof(item_id), item);
-        if (ret < 0) {
-            log_error(interval_rt->logger, MODULE_INTERVAL, 
-                      "[%s:%d] [table:%s] interval runtime add item(item_id:%lld) failed", 
-                      __FUNCTION__, __LINE__, table_name, item_id);
-            interval_item_free(interval_item);
-            maat_item_free(item);
-            interval_rt->update_err_cnt++;
-            return -1;
-        }
-
-        interval_rule = interval_item_to_interval_rule(interval_item, u_para);
-        interval_item_free(interval_item);
-        if (NULL == interval_rule) {
-            log_error(interval_rt->logger, MODULE_INTERVAL, 
-                      "[%s:%d] [table:%s] transform interval_item(item_id:%lld) to interval_rule failed",
-                      __FUNCTION__, __LINE__, table_name, item_id);
-            interval_rt->update_err_cnt++;
-            return -1;
-        }
+        struct maat_item_inner *inner_item = maat_item_inner_new(interval_item->item_id,
+                                                                 interval_item->group_id,
+                                                                 interval_item->district_id);
+        interval_item->user_data = inner_item;
+        interval_item->user_data_free = maat_item_inner_free;
     }
 
-    char *key = (char *)&item_id;
-    ret = interval_runtime_update_row(interval_rt, key, sizeof(long long), item_id, interval_rule, is_valid);
+    int ret = interval_runtime_update_row(interval_rt, (char *)&item_id, sizeof(long long),
+                                          interval_item, is_valid);
     if (ret < 0) {
-        if (interval_rule != NULL) {
-            interval_rule_free(interval_rule);
-            interval_rule = NULL;
+        if (interval_item != NULL) {
+            interval_item_free(interval_item);
+            interval_item = NULL;
         }
         interval_rt->update_err_cnt++;
         return -1;
@@ -472,12 +446,10 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name, long
 
     struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
 
-    int updating_flag = rcu_hash_is_updating(interval_rt->htable);
+    int updating_flag = rcu_hash_is_updating(interval_rt->int_item_hash);
     if (0 == updating_flag) {
         return 0;
     }
-
-    rcu_hash_commit(interval_rt->htable);
 
     if (interval_rt->tmp_district_map != NULL) {
         struct maat_kv_store *tmp_map = interval_rt->district_map;
@@ -489,11 +461,13 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name, long
 
     void **ex_data_array = NULL;
     struct interval_rule *rules = NULL;
-    size_t rule_cnt = rcu_hash_list(interval_rt->htable, &ex_data_array);
+
+    size_t rule_cnt = rcu_updating_hash_list(interval_rt->int_item_hash, &ex_data_array);
     if (rule_cnt > 0) {
         rules = ALLOC(struct interval_rule, rule_cnt);
         for (size_t i = 0; i < rule_cnt; i++) {
-            rules[i] = *(struct interval_rule *)ex_data_array[i];
+            struct interval_item *interval_item = (struct interval_item *)ex_data_array[i];
+            rules[i] = interval_item_to_interval_rule(interval_item);
         }
     }
 
@@ -513,12 +487,13 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name, long
 
     old_interval_matcher = interval_rt->matcher;
     interval_rt->matcher = new_interval_matcher;
+    rcu_hash_commit(interval_rt->int_item_hash);
+
     if (old_interval_matcher != NULL) {
         maat_garbage_bagging(interval_rt->ref_garbage_bin, old_interval_matcher, NULL,
                             garbage_interval_matcher_free);
     }
-    rcu_hash_commit(interval_rt->item_htable);
-
+    
     interval_rt->rule_num = rule_cnt;
     interval_rt->version = maat_rt_version;
     
@@ -564,32 +539,35 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
     }
 
     if (n_hit_item > MAX_SCANNER_HIT_ITEM_NUM) {
-        log_info(interval_rt->logger, MODULE_INTERVAL, 
-                 "hit interval item count:%d exceed maxium:%d", 
-                 n_hit_item, MAX_SCANNER_HIT_ITEM_NUM);
         n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
     }
     
-    long long hit_item_ids[MAX_SCANNER_HIT_ITEM_NUM];
-    struct maat_item_inner *item = NULL;
-    int real_hit_item_cnt = 0;
+    struct maat_item hit_maat_items[MAX_SCANNER_HIT_ITEM_NUM];
+    struct maat_item_inner *inner_item = NULL;
+    size_t real_hit_item_cnt = 0;
     long long district_id = state->district_id;
-
+    
     for (int i = 0; i < n_hit_item; i++) {
-        item = (struct maat_item_inner *)(hit_results[i].user_tag);
-        if (item->district_id == district_id || item->district_id == DISTRICT_ANY) {
-            hit_item_ids[real_hit_item_cnt++] = hit_results[i].rule_id;
+        inner_item = (struct maat_item_inner *)(hit_results[i].user_tag);
+        if (inner_item->district_id == district_id || inner_item->district_id == DISTRICT_ANY) {
+            long long item_id = hit_results[i].rule_id;
+            struct interval_item *int_item = (struct interval_item *)rcu_hash_find(interval_rt->int_item_hash, 
+                                                                                  (char *)&item_id,
+                                                                                  sizeof(long long));
+            if (!int_item) {
+                // item config has been deleted
+                continue;
+            }
+
+            hit_maat_items[real_hit_item_cnt].item_id = item_id;
+            hit_maat_items[real_hit_item_cnt].group_id = int_item->group_id;
+            real_hit_item_cnt++;
         }
     }
 
-    size_t group_hit_cnt = 0;
-    int ret = maat_compile_state_update(interval_rt->item_htable, vtable_id, hit_item_ids, 
-                                        n_hit_item, &group_hit_cnt, state);
-    if (ret < 0) {
-        return -1;
-    }
+    maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
 
-    return group_hit_cnt;
+    return real_hit_item_cnt;
 }
 
 void interval_runtime_hit_inc(struct interval_runtime *interval_rt, int thread_id)

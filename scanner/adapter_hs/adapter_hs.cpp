@@ -239,7 +239,7 @@ void populate_compile_data(struct adpt_hs_compile_data *compile_data, int index,
 
     /* set flags */
     compile_data->flags[index] |= HS_FLAG_SOM_LEFTMOST;
-    if (case_sensitive == HS_CASE_INSESITIVE) {
+    if (case_sensitive == HS_CASE_INSENSITIVE) {
         compile_data->flags[index] |= HS_FLAG_CASELESS;
     }
 
@@ -248,7 +248,7 @@ void populate_compile_data(struct adpt_hs_compile_data *compile_data, int index,
     memcpy(compile_data->patterns[index], pat, pat_len);
 }
 
-struct bool_expr *bool_exprs_new(struct hs_expr *exprs, size_t n_expr, struct pattern_attribute *pattern_attr,
+struct bool_expr *bool_exprs_new(struct expr_rule *rules, size_t n_rule, struct pattern_attribute *pattern_attr,
                                  struct adpt_hs_compile_data *literal_cd, struct adpt_hs_compile_data *regex_cd,
                                  size_t *n_pattern)
 {
@@ -256,35 +256,35 @@ struct bool_expr *bool_exprs_new(struct hs_expr *exprs, size_t n_expr, struct pa
     uint32_t literal_index = 0;
     uint32_t regex_index = 0;
 
-    struct bool_expr *bool_exprs = ALLOC(struct bool_expr, n_expr);
+    struct bool_expr *bool_exprs = ALLOC(struct bool_expr, n_rule);
     if (NULL == bool_exprs) {
         return NULL;
     }
 
     /* populate adpt_hs_compile_data and bool_expr */
-    for (size_t i = 0; i < n_expr; i++) {
+    for (size_t i = 0; i < n_rule; i++) {
 
-        for (size_t j = 0; j < exprs[i].n_patterns; j++) {
+        for (size_t j = 0; j < rules[i].n_patterns; j++) {
             pattern_attr[pattern_index].pattern_id = pattern_index;
-            pattern_attr[pattern_index].match_mode = exprs[i].patterns[j].match_mode;
+            pattern_attr[pattern_index].match_mode = rules[i].patterns[j].match_mode;
             
             if (pattern_attr[pattern_index].match_mode == HS_MATCH_MODE_SUB || 
                 pattern_attr[pattern_index].match_mode == HS_MATCH_MODE_EXACTLY) {
-                pattern_attr[pattern_index].offset.start = exprs[i].patterns[j].start_offset;
-                pattern_attr[pattern_index].offset.end = exprs[i].patterns[j].end_offset;
+                pattern_attr[pattern_index].offset.start = rules[i].patterns[j].start_offset;
+                pattern_attr[pattern_index].offset.end = rules[i].patterns[j].end_offset;
             }
 
             /* literal pattern */
-            if (exprs[i].patterns[j].pattern_type == HS_PATTERN_TYPE_STR) {
+            if (rules[i].patterns[j].pattern_type == HS_PATTERN_TYPE_STR) {
                 populate_compile_data(literal_cd, literal_index, pattern_index, 
-                                      exprs[i].patterns[j].pat, exprs[i].patterns[j].pat_len,
-                                      exprs[i].patterns[j].case_sensitive);
+                                      rules[i].patterns[j].pat, rules[i].patterns[j].pat_len,
+                                      rules[i].patterns[j].case_sensitive);
                 literal_index++;
             } else {
                 /* regex pattern */
                 populate_compile_data(regex_cd, regex_index, pattern_index, 
-                                      exprs[i].patterns[j].pat, exprs[i].patterns[j].pat_len,
-                                      exprs[i].patterns[j].case_sensitive);
+                                      rules[i].patterns[j].pat, rules[i].patterns[j].pat_len,
+                                      rules[i].patterns[j].case_sensitive);
                 regex_index++;
             }
 
@@ -293,10 +293,10 @@ struct bool_expr *bool_exprs_new(struct hs_expr *exprs, size_t n_expr, struct pa
             // printf("item_id:%llu, pat:%s pat_len:%zu\n", 
             //         bool_exprs[i].items[j].item_id, exprs[i].patterns[j].pat, exprs[i].patterns[j].pat_len);
         }
-        //printf("expr_id:%lld item_num:%zu\n", exprs[i].expr_id, exprs[i].n_patterns);
-        bool_exprs[i].expr_id = exprs[i].expr_id;
-        bool_exprs[i].item_num = exprs[i].n_patterns;
-        bool_exprs[i].user_tag = exprs[i].user_tag;
+        
+        bool_exprs[i].expr_id = rules[i].expr_id;
+        bool_exprs[i].item_num = rules[i].n_patterns;
+        bool_exprs[i].user_tag = rules[i].user_tag;
     }
 
     *n_pattern = pattern_index;
@@ -305,10 +305,10 @@ struct bool_expr *bool_exprs_new(struct hs_expr *exprs, size_t n_expr, struct pa
 }
 
 struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
-                                  struct hs_expr *exprs, size_t n_expr,
+                                  struct expr_rule *rules, size_t n_rule,
                                   struct log_handle *logger)
 {
-    if (0 == n_worker_thread || NULL == exprs || 0 == n_expr) {
+    if (0 == n_worker_thread || NULL == rules || 0 == n_rule) {
         log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] input parameters illegal!",
                   __FUNCTION__, __LINE__);
         return NULL;
@@ -317,23 +317,23 @@ struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
     /* get the sum of pattern */
     size_t literal_pattern_num = 0;
     size_t regex_pattern_num = 0;
-    for (size_t i = 0; i < n_expr; i++) {
-        if (exprs[i].n_patterns > MAX_EXPR_PATTERN_NUM) {
+    for (size_t i = 0; i < n_rule; i++) {
+        if (rules[i].n_patterns > MAX_EXPR_PATTERN_NUM) {
             log_error(logger, MODULE_ADAPTER_HS, 
                       "[%s:%d] the number of patterns in one expression should less than %d",
                       __FUNCTION__, __LINE__, MAX_EXPR_PATTERN_NUM);
             return NULL;
         }
 
-        for (size_t j = 0; j < exprs[i].n_patterns; j++) {
+        for (size_t j = 0; j < rules[i].n_patterns; j++) {
             /* pat_len should not 0 */
-            if (0 == exprs[i].patterns[j].pat_len) {
+            if (0 == rules[i].patterns[j].pat_len) {
                 log_error(logger, MODULE_ADAPTER_HS,
                           "[%s:%d] expr pattern length should not 0", __FUNCTION__, __LINE__);
                 return NULL;
             }
 
-            if (exprs[i].patterns[j].pattern_type == HS_PATTERN_TYPE_STR) {
+            if (rules[i].patterns[j].pattern_type == HS_PATTERN_TYPE_STR) {
                 literal_pattern_num++;
             } else {
                 regex_pattern_num++;
@@ -362,9 +362,9 @@ struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
     hs_instance->hs_attr = ALLOC(struct pattern_attribute, pattern_cnt);
     hs_instance->logger = logger;
     hs_instance->n_worker_thread = n_worker_thread;
-    hs_instance->n_expr = n_expr;
+    hs_instance->n_expr = n_rule;
 
-    struct bool_expr *bool_exprs = bool_exprs_new(exprs, n_expr, hs_instance->hs_attr,
+    struct bool_expr *bool_exprs = bool_exprs_new(rules, n_rule, hs_instance->hs_attr,
                                                   literal_cd, regex_cd, &pattern_cnt);
     if (NULL == bool_exprs) {
         return NULL;
@@ -390,11 +390,11 @@ struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
     size_t mem_size = 0;
     int hs_ret = 0;
     hs_instance->hs_rt = ALLOC(struct adapter_hs_runtime, 1);
-    hs_instance->hs_rt->bm = bool_matcher_new(bool_exprs, n_expr, &mem_size);
+    hs_instance->hs_rt->bm = bool_matcher_new(bool_exprs, n_rule, &mem_size);
     if (hs_instance->hs_rt->bm != NULL) {
         log_info(logger, MODULE_ADAPTER_HS, 
                  "Adapter_hs module: build bool matcher of %zu expressions with %zu bytes memory", 
-                 n_expr, mem_size);
+                 n_rule, mem_size);
     } else {
         log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] Adapter_hs module: build bool matcher failed",
                   __FUNCTION__, __LINE__);
@@ -771,7 +771,7 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
     }
 
     for (int index = 0; index < bool_matcher_ret; index++) {
-        results[index].item_id = bool_matcher_results[index].expr_id;
+        results[index].rule_id = bool_matcher_results[index].expr_id;
         results[index].user_tag = bool_matcher_results[index].user_tag;
     }
     *n_hit_result = bool_matcher_ret;

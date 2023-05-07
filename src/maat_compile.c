@@ -2012,35 +2012,22 @@ int compile_runtime_match(struct compile_runtime *compile_rt, long long *compile
     return MIN(bool_match_ret, compile_ids_size);
 }
 
-int maat_compile_state_update(struct rcu_hash_table *item_htable, int vtable_id,
-                              long long *hit_item_ids, size_t hit_item_cnt,
-                              size_t *n_hit_group_id, struct maat_state *state)
+void maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
+                              size_t n_hit_item, struct maat_state *state)
 {
-    struct maat_item *item = NULL;
+    size_t i = 0;
+    size_t hit_cnt = n_hit_item;
     long long hit_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
-    size_t hit_group_cnt = 0;
 
-    for (size_t i = 0; i < hit_item_cnt; i++) {
-        item = (struct maat_item *)rcu_hash_find(item_htable, (char *)&(hit_item_ids[i]), sizeof(long long));
-        //assert(item != NULL);
-        if (!item) {
-            // item config has been deleted
-            continue;
-        }
-
-        if (hit_group_cnt >= MAX_SCANNER_HIT_GROUP_NUM) {
-            hit_group_cnt = MAX_SCANNER_HIT_GROUP_NUM;
-            //Prevent group_id_array out of bounds
-        } else {
-            hit_group_ids[hit_group_cnt++] = item->group_id;
-        }
-
-        // update hit path
-        maat_compile_state_update_hit_path(state->compile_state, hit_item_ids[i], 
-                                           item->group_id, vtable_id, state->scan_cnt, i);
+    if (hit_cnt >= MAX_SCANNER_HIT_GROUP_NUM) {
+        hit_cnt = MAX_SCANNER_HIT_GROUP_NUM;
     }
 
-    *n_hit_group_id = hit_group_cnt;
+    for (i = 0; i < hit_cnt; i++) {
+        maat_compile_state_update_hit_path(state->compile_state, hit_items[i].item_id, 
+                                           hit_items[i].group_id, vtable_id, state->scan_cnt, i);
+        hit_group_ids[i] = hit_items[i].group_id;
+    }
 
     /* update hit clause */
     int compile_table_id = -1;
@@ -2053,20 +2040,19 @@ int maat_compile_state_update(struct rcu_hash_table *item_htable, int vtable_id,
     void *compile_rt = table_manager_get_runtime(state->maat_instance->tbl_mgr,
                                                  compile_table_id);
     if (NULL == compile_rt) {
-        return 0;
+        return;
     }
 
     void *g2g_rt = table_manager_get_runtime(state->maat_instance->tbl_mgr,
                                              state->maat_instance->g2g_table_id);
     if (NULL == g2g_rt) {
-        return 0;
+        return;
     }
 
+    
     long long super_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
-    //hit_group_ids also will be added to super_group_ids
     size_t super_group_cnt = group2group_runtime_get_super_groups(g2g_rt, hit_group_ids,
-                                                                  hit_group_cnt,
-                                                                  super_group_ids,
+                                                                  hit_cnt, super_group_ids,
                                                                   MAX_SCANNER_HIT_GROUP_NUM);
     if (super_group_cnt >= MAX_SCANNER_HIT_GROUP_NUM) {
         super_group_cnt = MAX_SCANNER_HIT_GROUP_NUM;
@@ -2077,12 +2063,10 @@ int maat_compile_state_update(struct rcu_hash_table *item_htable, int vtable_id,
                                              super_group_ids[j], vtable_id);
     }
 
-    for (int j = 0; j < hit_group_cnt; j++) {
+    for (int j = 0; j < hit_cnt; j++) {
         maat_compile_state_update_hit_clause(state->compile_state, compile_rt,
                                              hit_group_ids[j], vtable_id);
     }
-
-    return 0;
 }
 
 size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *compile_state,

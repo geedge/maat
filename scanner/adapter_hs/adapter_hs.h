@@ -43,11 +43,11 @@ enum hs_pattern_type {
 
 enum hs_case_sensitive {
     HS_CASE_SENSITIVE = 0,
-    HS_CASE_INSESITIVE
+    HS_CASE_INSENSITIVE
 };
 
 struct hs_scan_result {
-    long long item_id;
+    long long rule_id;
     void *user_tag;
 };
 
@@ -74,7 +74,7 @@ struct hs_pattern {
 };
 
 /* logic AND expression, such as (pattern1 & pattern2) */
-struct hs_expr {
+struct expr_rule {
     long long expr_id;
     size_t n_patterns;
     struct hs_pattern patterns[MAX_EXPR_PATTERN_NUM];
@@ -85,13 +85,13 @@ struct hs_expr {
  * @brief new adapter_hs instance
  * 
  * @param nr_worker_threads: the number of scan threads which will call adapter_hs_scan()
- * @param expr_array:        logic AND expression's array
- * @param n_expr_arrays:     the number of logic AND expression's array
+ * @param rules:             logic AND expression's array
+ * @param n_rule:            the number of logic AND expression's array
  * 
  * @retval the pointer to adapter_hs instance
 */
 struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
-                                  struct hs_expr *exprs, size_t n_expr,
+                                  struct expr_rule *rules, size_t n_rule,
                                   struct log_handle *logger);
 
 /**

@@ -32,30 +32,6 @@
 
 #define MODULE_MAAT_RULE	 module_name_str("maat.rule")
 
-struct maat_item *maat_item_new(long long item_id, long long group_id,
-                                void *user_data, void (*user_data_free)(void *))
-{
-	struct maat_item *item = NULL;
-	item = ALLOC(struct maat_item, 1);
-	item->group_id = group_id;
-	item->item_id = item_id;
-	item->user_data = user_data;
-    item->user_data_free = user_data_free;
-
-	return item;
-}
-
-void maat_item_free(void *maat_item)
-{
-    struct maat_item *item = (struct maat_item *)maat_item;
-	if (item->user_data_free && item->user_data) {
-		item->user_data_free(item->user_data);
-		item->user_data = NULL;
-	}
-
-	FREE(item);
-}
-
 static int compare_each_tag(cJSON *tag_obj, const struct rule_tag *accept_tags, size_t n_accept_tag)
 {
     if (NULL == tag_obj || NULL == accept_tags) {
@@ -210,7 +186,8 @@ error:
 	return ret;
 }
 
-struct maat_item_inner *maat_item_inner_new(long long group_id, long long item_id, long long district_id)
+struct maat_item_inner *maat_item_inner_new(long long item_id, long long group_id,
+                                            long long district_id)
 {
 	struct maat_item_inner *item = ALLOC(struct maat_item_inner, 1);
 	item->magic_num = ITEM_RULE_MAGIC;
