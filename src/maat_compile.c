@@ -2084,8 +2084,8 @@ size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *comp
         */
         long long super_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
         memset(super_group_ids, -1, sizeof(super_group_ids));
-        size_t super_group_cnt = group2group_runtime_get_super_groups(g2g_rt, &(internal_path->group_id),
-                                                                   1, super_group_ids, MAX_SCANNER_HIT_GROUP_NUM);
+        size_t super_group_cnt = group2group_runtime_get_super_groups(g2g_rt, &(internal_path->group_id), 1,
+                                                                      super_group_ids, MAX_SCANNER_HIT_GROUP_NUM);
         if (0 == super_group_cnt) {
             /*
                 item->group_id has no top group, this group can only be referenced by compile

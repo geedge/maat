@@ -2667,7 +2667,7 @@
                                     "table_content":{
                                         "format":"uncase plain",
                                         "match_method":"suffix",
-                                        "keywords":".com",
+                                        "keywords":"jianshu.com",
                                         "expr_type":"none"
                                     }
                                 }
@@ -2683,7 +2683,124 @@
                                     "table_content":{
                                         "format":"uncase plain",
                                         "match_method":"complete",
-                                        "keywords":"jianshu.com",
+                                        "keywords":"www.jianshu.com",
+                                        "expr_type":"none"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 204,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "null",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "ExcludeLogicGroup204_1",
+                    "virtual_table": "VIRTUAL_IP_PLUS_SOURCE",
+                    "clause_index": 0,
+                    "regions": [
+                        {
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_type": "ip_plus",
+                            "table_content": {
+                                "addr_type": "ipv4",
+                                "addr_format": "range",
+                                "ip1": "100.64.2.0",
+                                "ip2": "100.64.2.5",
+                                "port_format": "range",
+                                "port1": "56168",
+                                "port2": "56168",
+                                "protocol": -1,
+                                "direction": "double"
+                            }
+
+                        }
+                    ]
+                },
+                {
+                    "group_name": "ExcludeLogicGroup204_2",
+                    "virtual_table": "VIRTUAL_IP_PLUS_DESTINATION",
+                    "clause_index": 1,
+                    "regions": [
+                        {
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_type": "ip_plus",
+                            "table_content": {
+                                "addr_type": "ipv4",
+                                "addr_format": "range",
+                                "ip1": "100.64.2.6",
+                                "ip2": "100.64.2.10",
+                                "port_format": "range",
+                                "port1": "443",
+                                "port2": "443",
+                                "protocol": -1,
+                                "direction": "double"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "group_name": "ExcludeLogicGroup204_3",
+                    "virtual_table": "HTTP_RESPONSE_KEYWORDS",
+                    "clause_index": 2,
+                    "sub_groups": [
+                        {
+                            "group_name": "ExcludeLogicGroup204_3_1",
+                            "is_exclude": 0,
+                            "sub_groups" : [
+                                {
+                                    "group_name": "ExcludeLogicGroup204_3_1_1",
+                                    "is_exclude": 0,
+                                    "regions": [
+                                        {
+                                            "table_type":"expr",
+                                            "table_name":"KEYWORDS_TABLE",
+                                            "table_content":{
+                                                "format":"uncase plain",
+                                                "match_method":"suffix",
+                                                "keywords":"baidu.com",
+                                                "expr_type":"none"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "group_name": "ExcludeLogicGroup204_3_1_2",
+                                    "is_exclude": 1,
+                                    "regions": [
+                                        {
+                                            "table_type":"expr",
+                                            "table_name":"KEYWORDS_TABLE",
+                                            "table_content":{
+                                                "format":"uncase plain",
+                                                "match_method":"complete",
+                                                "keywords":"www.baidu.com",
+                                                "expr_type":"none"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "group_name": "ExcludeLogicGroup204_3_2",
+                            "is_exclude": 1,
+                            "regions": [
+                                {
+                                    "table_type":"expr",
+                                    "table_name":"KEYWORDS_TABLE",
+                                    "table_content":{
+                                        "format":"uncase plain",
+                                        "match_method":"complete",
+                                        "keywords":"mail.baidu.com",
                                         "expr_type":"none"
                                     }
                                 }

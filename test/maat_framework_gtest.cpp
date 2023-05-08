@@ -2358,15 +2358,74 @@ TEST_F(ExcludeLogic, ScanWithMultiClause) {
     int expr_table_id = maat_get_table_id(maat_instance, expr_table_name);
     ASSERT_GT(expr_table_id, 0);
 
-    const char *should_hit_expr = "www.baidu.com";
-    ret = maat_scan_string(maat_instance, expr_table_id, should_hit_expr, strlen(should_hit_expr),
-                            results, ARRAY_SIZE, &n_hit_result, state);
+    const char *should_not_hit_expr = "www.jianshu.com";
+    ret = maat_scan_string(maat_instance, expr_table_id, should_not_hit_expr,
+                           strlen(should_not_hit_expr), results, ARRAY_SIZE,
+                           &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    const char *should_hit_expr = "mail.jianshu.com";
+    ret = maat_scan_string(maat_instance, expr_table_id, should_hit_expr,
+                           strlen(should_hit_expr), results, ARRAY_SIZE,
+                           &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 203);
 
     maat_state_free(state);
     state = NULL;
+}
+
+TEST_F(ExcludeLogic, ExcludeInDifferentLevel) {
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_instance = ExcludeLogic::_shared_maat_instance;
+    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    const char *ip_table_name = "VIRTUAL_IP_PLUS_TABLE";
+
+    int ip_table_id = maat_get_table_id(maat_instance, ip_table_name);
+    ASSERT_GT(ip_table_id, 0);
+
+    uint32_t ip_addr;
+    inet_pton(AF_INET, "100.64.2.1", &ip_addr);
+    uint16_t port = htons(56168);
+
+    int ret = maat_scan_ipv4(maat_instance, ip_table_id, ip_addr, port, 6,
+                             results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    inet_pton(AF_INET, "100.64.2.6", &ip_addr);
+    port = htons(443);
+
+    ret = maat_scan_ipv4(maat_instance, ip_table_id, ip_addr, port, 6,
+                             results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    const char *expr_table_name = "HTTP_RESPONSE_KEYWORDS";
+    int expr_table_id = maat_get_table_id(maat_instance, expr_table_name);
+    ASSERT_GT(expr_table_id, 0);
+
+    const char *should_not_hit_expr1 = "www.baidu.com";
+    ret = maat_scan_string(maat_instance, expr_table_id, should_not_hit_expr1,
+                           strlen(should_not_hit_expr1), results, ARRAY_SIZE, 
+                           &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    const char *should_not_hit_expr2 = "mail.baidu.com";
+    ret = maat_scan_string(maat_instance, expr_table_id, should_not_hit_expr2,
+                           strlen(should_not_hit_expr2), results, ARRAY_SIZE, 
+                           &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    const char *should_hit_expr = "hit.baidu.com";
+    ret = maat_scan_string(maat_instance, expr_table_id, should_hit_expr, strlen(should_hit_expr),
+                            results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 204);
+
+    maat_state_free(state);
 }
 
 // TEST_F(ExcludeLogic, ScanHitAtLastEmptyExpr) {
