@@ -126,8 +126,11 @@ void ex_data_runtime_clear_row_cache(struct ex_data_runtime *ex_data_rt)
         return;
     }
 
-    utarray_free(ex_data_rt->cache_rows);
-    ex_data_rt->cache_rows = NULL;
+    if (ex_data_rt->cache_rows != NULL) {
+        utarray_free(ex_data_rt->cache_rows);
+        ex_data_rt->cache_rows = NULL;
+    }
+    
     ex_data_rt->cache_row_num = 0;
     ex_data_rt->cache_size = 0;
 }

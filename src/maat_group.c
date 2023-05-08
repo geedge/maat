@@ -153,15 +153,25 @@ void group2group_schema_free(void *g2g_schema)
 
 void group_vertex_free(struct maat_group *group)
 {
-	utarray_free(group->incl_super_group_ids);
-    utarray_free(group->excl_super_group_ids);
-    utarray_free(group->incl_sub_group_ids);
-    utarray_free(group->excl_sub_group_ids);
-
-    group->incl_super_group_ids = NULL;
-    group->excl_super_group_ids = NULL;
-    group->incl_sub_group_ids = NULL;
-    group->excl_sub_group_ids = NULL;
+    if (group->incl_super_group_ids != NULL) {
+        utarray_free(group->incl_super_group_ids);
+        group->incl_super_group_ids = NULL;
+    }
+	
+    if (group->excl_super_group_ids != NULL) {
+        utarray_free(group->excl_super_group_ids);
+        group->excl_super_group_ids = NULL;
+    }
+    
+    if (group->incl_sub_group_ids != NULL) {
+        utarray_free(group->incl_sub_group_ids);
+        group->incl_sub_group_ids = NULL;
+    }
+    
+    if (group->excl_sub_group_ids != NULL) {
+        utarray_free(group->excl_sub_group_ids);
+        group->excl_sub_group_ids = NULL;
+    }
 
 	FREE(group);
 }
@@ -648,16 +658,6 @@ int group_topology_build_super_groups(struct maat_group_topology *group_topo)
 		//Orphan, Not reference by any one, free it.
 		if (0 == group->ref_by_super_group_cnt
 			&& 0 == group->ref_by_sub_group_cnt) {
-			utarray_free(group->incl_super_group_ids);
-            utarray_free(group->excl_super_group_ids);
-            utarray_free(group->incl_sub_group_ids);
-            utarray_free(group->excl_sub_group_ids);
-
-            group->incl_super_group_ids = NULL;
-            group->excl_super_group_ids = NULL;
-            group->incl_sub_group_ids = NULL;
-            group->excl_sub_group_ids = NULL;
-
 			group_topology_del_group(group_topo, group);
 			continue;
 		}
@@ -877,7 +877,6 @@ void verify_candidate_super_group_ids(struct maat_group_topology *group_topo, UT
     verify_candidate_super_group_ids(group_topo, kept_group_ids, all_hit_group_ids, depth);
 next:
     utarray_free(kept_group_ids);
-    kept_group_ids = NULL;
 }
 
 size_t group_topology_get_super_groups(struct maat_group_topology *group_topo, 

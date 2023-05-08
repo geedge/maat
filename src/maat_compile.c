@@ -592,8 +592,12 @@ void literal2clause_hash_free(struct literal_clause *hash)
 
     HASH_ITER(hh, hash, l2c_val, tmp_l2c_val) {
         HASH_DEL(hash, l2c_val);
-        utarray_free(l2c_val->clause_ids);
-        free(l2c_val);
+        if (l2c_val->clause_ids != NULL) {
+            utarray_free(l2c_val->clause_ids);
+            l2c_val->clause_ids = NULL;
+        }
+        
+        FREE(l2c_val);
     }
     assert(hash == NULL);
 }
@@ -1414,9 +1418,21 @@ void maat_compile_state_free(struct maat_compile_state *compile_state)
         return;
     }
     
-    utarray_free(compile_state->internal_hit_paths);
-	utarray_free(compile_state->all_hit_clauses);
-	utarray_free(compile_state->this_scan_hit_clauses);
+    if (compile_state->internal_hit_paths != NULL) {
+        utarray_free(compile_state->internal_hit_paths);
+        compile_state->internal_hit_paths = NULL;
+    }
+    
+    if (compile_state->all_hit_clauses != NULL) {
+        utarray_free(compile_state->all_hit_clauses);
+        compile_state->all_hit_clauses = NULL;
+    }
+	
+    if (compile_state->this_scan_hit_clauses != NULL) {
+        utarray_free(compile_state->this_scan_hit_clauses);
+        compile_state->this_scan_hit_clauses = NULL;
+    }
+	
 	free(compile_state);
 }
 

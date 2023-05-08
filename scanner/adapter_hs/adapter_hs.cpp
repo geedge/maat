@@ -666,8 +666,10 @@ void adapter_hs_stream_close(struct adapter_hs_stream *hs_stream)
         same as hs_attr */
     hs_stream->ref_hs_rt = NULL;
     hs_stream->matched_pat->ref_hs_attr = NULL;
-    utarray_free(hs_stream->matched_pat->pattern_ids);
-    hs_stream->matched_pat->pattern_ids = NULL;
+    if (hs_stream->matched_pat->pattern_ids != NULL) {
+        utarray_free(hs_stream->matched_pat->pattern_ids);
+        hs_stream->matched_pat->pattern_ids = NULL;
+    }
 
     FREE(hs_stream->matched_pat);
     FREE(hs_stream);
