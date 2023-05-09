@@ -69,7 +69,7 @@ struct ip_item {
 struct ip_runtime {
 	struct ip_matcher *ip_matcher;
     struct interval_matcher *intval_matcher;
-    struct rcu_hash_table *ip_item_hash;
+    struct rcu_hash_table *item_hash;
 
     long long version;
     long long rule_num;
@@ -394,7 +394,7 @@ void *ip_runtime_new(void *ip_schema, size_t max_thread_num,
 
     struct ip_runtime *ip_rt = ALLOC(struct ip_runtime, 1);
 
-    ip_rt->ip_item_hash = rcu_hash_new(ip_item_free_cb, NULL);
+    ip_rt->item_hash = rcu_hash_new(ip_item_free_cb, NULL);
     ip_rt->n_worker_thread = max_thread_num;
     ip_rt->ref_garbage_bin = garbage_bin;
     ip_rt->logger = logger;
@@ -423,9 +423,9 @@ void ip_runtime_free(void *ip_runtime)
         ip_rt->intval_matcher = NULL;
     }
 
-    if (ip_rt->ip_item_hash != NULL) {
-        rcu_hash_free(ip_rt->ip_item_hash);
-        ip_rt->ip_item_hash = NULL;
+    if (ip_rt->item_hash != NULL) {
+        rcu_hash_free(ip_rt->item_hash);
+        ip_rt->item_hash = NULL;
     }
 
     if (ip_rt->hit_cnt != NULL) {
@@ -476,10 +476,10 @@ int ip_runtime_update_row(struct ip_runtime *ip_rt, char *key, size_t key_len,
     
     if (0 == is_valid) {
         // delete
-        rcu_hash_del(ip_rt->ip_item_hash, key, key_len);
+        rcu_hash_del(ip_rt->item_hash, key, key_len);
     } else {
         // add
-        ret = rcu_hash_add(ip_rt->ip_item_hash, key, key_len, (void *)item);
+        ret = rcu_hash_add(ip_rt->item_hash, key, key_len, (void *)item);
         if (ret < 0) {
             log_error(ip_rt->logger, MODULE_IP,
                       "[%s:%d] ip item(item_id:%lld) add to ip runtime htable failed", 
@@ -558,7 +558,7 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name, long long maat_r
 
     struct ip_runtime *ip_rt = (struct ip_runtime *)ip_runtime;
 
-    int updating_flag = rcu_hash_is_updating(ip_rt->ip_item_hash);
+    int updating_flag = rcu_hash_is_updating(ip_rt->item_hash);
     if (0 == updating_flag) {
         return 0;
     }
@@ -569,7 +569,7 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name, long long maat_r
     struct interval_rule *intval_rules = NULL;
     void **ex_data_array = NULL;
 
-    size_t rule_cnt = rcu_updating_hash_list(ip_rt->ip_item_hash, &ex_data_array);
+    size_t rule_cnt = rcu_updating_hash_list(ip_rt->item_hash, &ex_data_array);
     if (rule_cnt > 0) {
         rules = ALLOC(struct ip_rule, rule_cnt);
         intval_rules = ALLOC(struct interval_rule, rule_cnt);
@@ -612,7 +612,7 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name, long long maat_r
 
     old_ip_matcher = ip_rt->ip_matcher;
     ip_rt->ip_matcher = new_ip_matcher;
-    rcu_hash_commit(ip_rt->ip_item_hash);
+    rcu_hash_commit(ip_rt->item_hash);
 
     if (old_ip_matcher != NULL) {
         maat_garbage_bagging(ip_rt->ref_garbage_bin, old_ip_matcher, NULL,
@@ -745,7 +745,7 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
 
         for (int i = 0; i < n_hit_port_item; i++) {
             long long item_id = port_results[i].rule_id;
-            struct ip_item *ip_item = (struct ip_item *)rcu_hash_find(ip_rt->ip_item_hash,
+            struct ip_item *ip_item = (struct ip_item *)rcu_hash_find(ip_rt->item_hash,
                                                                       (char *)&item_id,
                                                                       sizeof(long long));
             if (!ip_item) {
@@ -775,7 +775,7 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
 
         for (size_t i = 0; i < n_hit_ip_item; i++) {
             long long item_id = ip_results[i].rule_id;
-            struct ip_item *ip_item = (struct ip_item *)rcu_hash_find(ip_rt->ip_item_hash,
+            struct ip_item *ip_item = (struct ip_item *)rcu_hash_find(ip_rt->item_hash,
                                                                       (char *)&item_id,
                                                                       sizeof(long long));
             if (!ip_item) {

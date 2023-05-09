@@ -79,6 +79,21 @@ static size_t hex2bin(char *hex, int hex_len, char *binary, size_t size)
 	return resultlen;
 }
 
+enum hs_pattern_type pattern_type_str_to_enum(const char *str)
+{
+    enum hs_pattern_type pattern_type = HS_PATTERN_TYPE_MAX;
+
+    if (strcmp(str, "regex") == 0) {
+        pattern_type = HS_PATTERN_TYPE_REG;
+    } else if (strcmp(str, "literal") == 0) {
+        pattern_type = HS_PATTERN_TYPE_STR;
+    } else {
+        assert(0);
+    }
+
+    return pattern_type;
+}
+
 int parse_config_file(const char *filename, struct expr_rule exprs[], size_t *n_expr)
 {
     unsigned char *json_buff = NULL;
@@ -129,7 +144,13 @@ int parse_config_file(const char *filename, struct expr_rule exprs[], size_t *n_
         size_t pattern_cnt = cJSON_GetArraySize(tmp_item);
         for (size_t j = 0; j < pattern_cnt; j++) {
             cJSON *pat_item = cJSON_GetArrayItem(tmp_item, j);
-            cJSON *item = cJSON_GetObjectItem(pat_item, "match_method");
+
+            cJSON *item = cJSON_GetObjectItem(pat_item, "pattern_type");
+            if (item != NULL && item->type == cJSON_String) {
+                exprs[i].patterns[j].pattern_type = pattern_type_str_to_enum(item->valuestring);
+            }
+
+            item = cJSON_GetObjectItem(pat_item, "match_method");
             if (item != NULL && item->type == cJSON_String) {
                 exprs[i].patterns[j].match_mode = match_method_to_match_mode(item->valuestring);
             }
@@ -146,7 +167,7 @@ int parse_config_file(const char *filename, struct expr_rule exprs[], size_t *n_
 
             item = cJSON_GetObjectItem(pat_item, "pattern");
             if (item != NULL && item->type == cJSON_String) {
-                exprs[i].patterns[j].pat = ALLOC(char, strlen(item->valuestring));
+                exprs[i].patterns[j].pat = ALLOC(char, strlen(item->valuestring) + 1);
 
                 if (exprs[i].patterns[j].is_hexbin == 1) {
                     size_t pat_str_len = strlen(item->valuestring) + 1;
@@ -676,6 +697,23 @@ that the edges be all directed in the same direction.";
 
     adapter_hs_free(hs_instance);
     hs_instance = NULL;                          
+}
+
+TEST(adapter_hs_scan, regex_expression_check)
+{
+    struct expr_rule rules[64] = {0};
+    size_t n_rule = 0;
+    
+    int ret = parse_config_file("./regex_expr.conf", rules, &n_rule);
+    EXPECT_EQ(ret, 0);
+
+    for (size_t i = 0; i < n_rule; i++) {
+        for (size_t j = 0; j < rules[i].n_patterns; j++) {
+            adapter_hs_verify_regex_expression(rules[i].patterns[j].pat, g_logger);
+        }
+    }
+
+    expr_array_free(rules, n_rule);
 }
 
 int main(int argc, char **argv)

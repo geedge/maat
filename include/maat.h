@@ -123,6 +123,13 @@ void maat_free(struct maat *instance);
 /* maat helper API */
 int maat_helper_read_column(const char *table_line, int Nth_column, 
                             size_t *column_offset, size_t *column_len);
+/**
+ * verify if regex expression is legal
+ * 
+ * @param The NULL-terminated expression to parse. 
+ * @retval 0(legal) -1(illegal)
+ **/                           
+int maat_helper_verify_regex_expression(const char *expression);
 
 /* maat table API */
 int maat_get_table_id(struct maat *instance, const char *table_name);

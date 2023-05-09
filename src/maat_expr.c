@@ -70,7 +70,7 @@ struct expr_item {
 
 struct expr_runtime {
     struct adapter_hs *hs;
-    struct rcu_hash_table *expr_item_hash;      // store hs_expr rule for rebuild adapter_hs instance
+    struct rcu_hash_table *item_hash;      // store hs_expr rule for rebuild adapter_hs instance
 
     long long version;  //expr_rt version
     long long rule_num;
@@ -200,6 +200,47 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
     }
     expr_item->group_id = atoll(line + column_offset);
 
+    ret = get_column_pos(line, expr_schema->keywords_column, &column_offset, &column_len);
+    if (ret < 0) {
+        log_error(expr_rt->logger, MODULE_EXPR, 
+                  "[%s:%d] expr table(table_id:%d) line:%s has no keywords",
+                  __FUNCTION__, __LINE__, expr_schema->table_id, line);
+        goto error;
+    }
+
+    if (column_len >= MAX_KEYWORDS_STR) {
+        log_error(expr_rt->logger, MODULE_EXPR, 
+                  "[%s:%d] expr table(table_id:%d) line:%s keywords length too long",
+                  __FUNCTION__, __LINE__, expr_schema->table_id, line);
+        goto error;
+    }
+    memcpy(expr_item->keywords, (line + column_offset), column_len);
+
+    ret = get_column_pos(line, expr_schema->expr_type_column, &column_offset, &column_len);
+    if (ret < 0) {
+        log_error(expr_rt->logger, MODULE_EXPR, 
+                  "[%s:%d] expr table(table_id:%d) line:%s has no expr_type",
+                  __FUNCTION__, __LINE__, expr_schema->table_id, line);
+        goto error;
+    }
+    
+    expr_type = atoi(line + column_offset);
+    expr_item->expr_type = int_to_expr_type(expr_type);
+    if (expr_item->expr_type == EXPR_TYPE_INVALID) {
+        log_error(expr_rt->logger, MODULE_EXPR, 
+                  "[%s:%d] expr table(table_id:%d) line:%s has invalid expr_type",
+                 __FUNCTION__, __LINE__, expr_schema->table_id, line);
+        goto error;
+    } else if (expr_item->expr_type == EXPR_TYPE_REGEX) {
+        ret = adapter_hs_verify_regex_expression(expr_item->keywords, expr_rt->logger);
+        if (ret < 0) {
+            log_error(expr_rt->logger, MODULE_EXPR, 
+                      "[%s:%d] expr table(table_id:%d) regex expression(item_id:%lld):%s illegal, will be dropped",
+                      __FUNCTION__, __LINE__, expr_schema->table_id, expr_item->item_id, expr_item->keywords);
+            goto error;
+        }
+    }
+   
     table_type = table_manager_get_table_type(expr_schema->ref_tbl_mgr, expr_schema->table_id);
     if (table_type == TABLE_TYPE_EXPR_PLUS) {
         ret = get_column_pos(line, expr_schema->district_column, &column_offset, &column_len);
@@ -221,23 +262,6 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
         expr_item->district_id = expr_runtime_get_district_id(expr_rt, district);
     } else {
         expr_item->district_id = DISTRICT_ANY;
-    }
-
-    ret = get_column_pos(line, expr_schema->expr_type_column, &column_offset, &column_len);
-    if (ret < 0) {
-        log_error(expr_rt->logger, MODULE_EXPR, 
-                  "[%s:%d] expr table(table_id:%d) line:%s has no expr_type",
-                  __FUNCTION__, __LINE__, expr_schema->table_id, line);
-        goto error;
-    }
-    
-    expr_type = atoi(line + column_offset);
-    expr_item->expr_type = int_to_expr_type(expr_type);
-    if (expr_item->expr_type == EXPR_TYPE_INVALID) {
-        log_error(expr_rt->logger, MODULE_EXPR, 
-                  "[%s:%d] expr table(table_id:%d) line:%s has invalid expr_type",
-                 __FUNCTION__, __LINE__, expr_schema->table_id, line);
-        goto error;
     }
 
     ret = get_column_pos(line, expr_schema->match_method_column, &column_offset, &column_len);
@@ -285,22 +309,6 @@ struct expr_item *expr_item_new(const char *line, struct expr_schema *expr_schem
                       __FUNCTION__, __LINE__, expr_schema->table_id, line, db_hexbin);
             goto error;
     }
-    
-    ret = get_column_pos(line, expr_schema->keywords_column, &column_offset, &column_len);
-    if (ret < 0) {
-        log_error(expr_rt->logger, MODULE_EXPR, 
-                  "[%s:%d] expr table(table_id:%d) line:%s has no keywords",
-                  __FUNCTION__, __LINE__, expr_schema->table_id, line);
-        goto error;
-    }
-
-    if (column_len >= MAX_KEYWORDS_STR) {
-        log_error(expr_rt->logger, MODULE_EXPR, 
-                  "[%s:%d] expr table(table_id:%d) line:%s keywords length too long",
-                  __FUNCTION__, __LINE__, expr_schema->table_id, line);
-        goto error;
-    }
-    memcpy(expr_item->keywords, (line + column_offset), column_len);
 
     return expr_item;
 error:
@@ -461,7 +469,7 @@ void *expr_runtime_new(void *expr_schema, size_t max_thread_num,
 
     struct expr_runtime *expr_rt = ALLOC(struct expr_runtime, 1);
 
-    expr_rt->expr_item_hash = rcu_hash_new(expr_item_free_cb, NULL);
+    expr_rt->item_hash = rcu_hash_new(expr_item_free_cb, NULL);
     expr_rt->n_worker_thread = max_thread_num;
     expr_rt->ref_garbage_bin = garbage_bin;
     expr_rt->logger = logger;
@@ -488,9 +496,9 @@ void expr_runtime_free(void *expr_runtime)
         expr_rt->hs = NULL;
     }
 
-    if (expr_rt->expr_item_hash != NULL) {
-        rcu_hash_free(expr_rt->expr_item_hash);
-        expr_rt->expr_item_hash = NULL;
+    if (expr_rt->item_hash != NULL) {
+        rcu_hash_free(expr_rt->item_hash);
+        expr_rt->item_hash = NULL;
     }
 
     assert(expr_rt->tmp_district_map == NULL);
@@ -535,13 +543,13 @@ int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key, size_t key_
 
     if (0 == is_valid) {
         //delete
-        rcu_hash_del(expr_rt->expr_item_hash, key, key_len);
+        rcu_hash_del(expr_rt->item_hash, key, key_len);
     } else {
         //add
-        ret = rcu_hash_add(expr_rt->expr_item_hash, key, key_len, (void *)item);
+        ret = rcu_hash_add(expr_rt->item_hash, key, key_len, (void *)item);
         if (ret < 0) {
             log_error(expr_rt->logger, MODULE_EXPR,
-                      "[%s:%d] expr item(item_id:%lld) add to expr_item_hash failed", 
+                      "[%s:%d] expr item(item_id:%lld) add to item_hash failed", 
                       __FUNCTION__, __LINE__, item->item_id);
             return -1;
         }
@@ -809,7 +817,7 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name, long long ma
 
     struct expr_runtime *expr_rt = (struct expr_runtime *)expr_runtime;
 
-    int updating_flag = rcu_hash_is_updating(expr_rt->expr_item_hash);
+    int updating_flag = rcu_hash_is_updating(expr_rt->item_hash);
     if (0 == updating_flag) {
         return 0;
     }
@@ -828,7 +836,7 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name, long long ma
     struct expr_rule *rules = NULL;
     void **ex_data_array = NULL;
 
-    size_t rule_cnt = rcu_updating_hash_list(expr_rt->expr_item_hash, &ex_data_array);
+    size_t rule_cnt = rcu_updating_hash_list(expr_rt->item_hash, &ex_data_array);
     if (rule_cnt > 0) {
         rules = ALLOC(struct expr_rule, rule_cnt);
         for (i = 0; i < rule_cnt; i++) {
@@ -859,7 +867,7 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name, long long ma
 
     old_adapter_hs = expr_rt->hs;
     expr_rt->hs = new_adapter_hs;
-    rcu_hash_commit(expr_rt->expr_item_hash);
+    rcu_hash_commit(expr_rt->item_hash);
 
     if (old_adapter_hs != NULL) {
         maat_garbage_bagging(expr_rt->ref_garbage_bin, old_adapter_hs, NULL, garbage_adapter_hs_free);
@@ -954,7 +962,7 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *d
         inner_item = (struct maat_item_inner *)(hit_results[i].user_tag);
         if (inner_item->district_id == district_id || inner_item->district_id == DISTRICT_ANY) {
             long long item_id = hit_results[i].rule_id;
-            struct expr_item *expr_item = (struct expr_item *)rcu_hash_find(expr_rt->expr_item_hash, 
+            struct expr_item *expr_item = (struct expr_item *)rcu_hash_find(expr_rt->item_hash, 
                                                                             (char *)&item_id,
                                                                             sizeof(long long));
             if (!expr_item) {
@@ -1019,7 +1027,7 @@ int expr_runtime_stream_scan(struct expr_runtime *expr_rt, struct adapter_hs_str
 
     for (size_t i = 0; i < n_hit_item; i++) {
         long long item_id = hit_results[i].rule_id;
-        struct expr_item *expr_item = (struct expr_item *)rcu_hash_find(expr_rt->expr_item_hash,
+        struct expr_item *expr_item = (struct expr_item *)rcu_hash_find(expr_rt->item_hash,
                                                                         (char *)&item_id,
                                                                         sizeof(long long));
         if (!expr_item) {

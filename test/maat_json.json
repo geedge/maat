@@ -2809,6 +2809,33 @@
                     ]
                 }
             ]
+        },
+        {
+            "compile_id": 205,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "StringScan.RegexExpressionIllegal",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "expr",
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_content": {
+                                "keywords": "123^456",
+                                "expr_type": "regex",
+                                "format": "uncase plain",
+                                "match_method": "sub"
+                            }
+                        }
+                    ],
+                    "group_name": "Untitled"
+                }
+            ]
         }
     ],
     "plugin_table": [

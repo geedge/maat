@@ -27,6 +27,7 @@
 #include "maat_compile.h"
 #include "alignment.h"
 #include "ip_matcher.h"
+#include "adapter_hs.h"
 #include "maat_garbage_collection.h"
 #include "maat_group.h"
 #include "maat_expr.h"
@@ -469,6 +470,15 @@ int maat_helper_read_column(const char *table_line, int Nth_column,
                             size_t *column_offset, size_t *column_len)
 {
     return get_column_pos(table_line, Nth_column, column_offset, column_len);
+}
+
+int maat_helper_verify_regex_expression(const char *regex_expr)
+{
+    if (NULL == regex_expr) {
+        return -1;
+    }
+
+    return adapter_hs_verify_regex_expression(regex_expr, NULL);
 }
 
 int maat_get_table_id(struct maat *maat_instance, const char *table_name)

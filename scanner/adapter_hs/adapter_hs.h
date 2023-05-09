@@ -81,6 +81,8 @@ struct expr_rule {
     void *user_tag;
 };
 
+int adapter_hs_verify_regex_expression(const char *regex_expr,
+                                       struct log_handle *logger);
 /**
  * @brief new adapter_hs instance
  * 

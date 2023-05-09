@@ -304,6 +304,40 @@ struct bool_expr *bool_exprs_new(struct expr_rule *rules, size_t n_rule, struct 
     return bool_exprs;
 }
 
+int verify_regex_expression(const char *regex_str, struct log_handle *logger)
+{
+    hs_expr_info_t *info = NULL;
+    hs_compile_error_t *error = NULL;
+
+    hs_error_t err = hs_expression_info(regex_str, HS_FLAG_CASELESS, &info, &error);
+    if (err != HS_SUCCESS) {
+        // Expression will fail compilation and report error elsewhere.
+        if (logger != NULL) {
+            log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] illegal regex expression: \"%s\": %s",
+                  __FUNCTION__, __LINE__, regex_str, error->message);
+        }
+        
+        FREE(info);
+        hs_free_compile_error(error);
+        return -1;
+    }
+
+    if (info != NULL) {
+        FREE(info);
+    }
+
+    return 0;
+}
+
+int adapter_hs_verify_regex_expression(const char *regex_expr, struct log_handle *logger)
+{
+    if (NULL == regex_expr) {
+        return -1;
+    }
+
+    return verify_regex_expression(regex_expr, logger);
+}
+
 struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
                                   struct expr_rule *rules, size_t n_rule,
                                   struct log_handle *logger)
@@ -666,6 +700,7 @@ void adapter_hs_stream_close(struct adapter_hs_stream *hs_stream)
         same as hs_attr */
     hs_stream->ref_hs_rt = NULL;
     hs_stream->matched_pat->ref_hs_attr = NULL;
+
     if (hs_stream->matched_pat->pattern_ids != NULL) {
         utarray_free(hs_stream->matched_pat->pattern_ids);
         hs_stream->matched_pat->pattern_ids = NULL;

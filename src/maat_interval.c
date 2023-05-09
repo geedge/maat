@@ -43,7 +43,7 @@ struct interval_item {
 
 struct interval_runtime {
     struct interval_matcher *matcher;
-    struct rcu_hash_table *int_item_hash;       //store interval rule for rebuild interval_matcher instance
+    struct rcu_hash_table *item_hash;       //store interval rule for rebuild interval_matcher instance
 
     long long version;
     long long rule_num;
@@ -185,7 +185,7 @@ void *interval_runtime_new(void *interval_schema, size_t max_thread_num,
 
     struct interval_runtime *interval_rt = ALLOC(struct interval_runtime, 1);
 
-    interval_rt->int_item_hash = rcu_hash_new(interval_item_free_cb, NULL);
+    interval_rt->item_hash = rcu_hash_new(interval_item_free_cb, NULL);
     interval_rt->n_worker_thread = max_thread_num;
     interval_rt->ref_garbage_bin = garbage_bin;
     interval_rt->logger = logger;
@@ -205,9 +205,9 @@ void interval_runtime_free(void *interval_runtime)
     }
 
     struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
-    if (interval_rt->int_item_hash != NULL) {
-        rcu_hash_free(interval_rt->int_item_hash);
-        interval_rt->int_item_hash = NULL;
+    if (interval_rt->item_hash != NULL) {
+        rcu_hash_free(interval_rt->item_hash);
+        interval_rt->item_hash = NULL;
     }
 
     if (interval_rt->matcher != NULL) {
@@ -363,10 +363,10 @@ int interval_runtime_update_row(struct interval_runtime *interval_rt, char *key,
 
     if (0 == is_valid) {
         //delete
-        rcu_hash_del(interval_rt->int_item_hash, key, key_len);
+        rcu_hash_del(interval_rt->item_hash, key, key_len);
     } else {
         //add
-        ret = rcu_hash_add(interval_rt->int_item_hash, key, key_len, (void *)item);
+        ret = rcu_hash_add(interval_rt->item_hash, key, key_len, (void *)item);
         if (ret < 0) {
             log_error(interval_rt->logger, MODULE_INTERVAL,
                       "[%s:%d] interval item(item_id:%lld) add to interavl_item_hash failed", 
@@ -446,7 +446,7 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name, long
 
     struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
 
-    int updating_flag = rcu_hash_is_updating(interval_rt->int_item_hash);
+    int updating_flag = rcu_hash_is_updating(interval_rt->item_hash);
     if (0 == updating_flag) {
         return 0;
     }
@@ -462,7 +462,7 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name, long
     void **ex_data_array = NULL;
     struct interval_rule *rules = NULL;
 
-    size_t rule_cnt = rcu_updating_hash_list(interval_rt->int_item_hash, &ex_data_array);
+    size_t rule_cnt = rcu_updating_hash_list(interval_rt->item_hash, &ex_data_array);
     if (rule_cnt > 0) {
         rules = ALLOC(struct interval_rule, rule_cnt);
         for (size_t i = 0; i < rule_cnt; i++) {
@@ -487,7 +487,7 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name, long
 
     old_interval_matcher = interval_rt->matcher;
     interval_rt->matcher = new_interval_matcher;
-    rcu_hash_commit(interval_rt->int_item_hash);
+    rcu_hash_commit(interval_rt->item_hash);
 
     if (old_interval_matcher != NULL) {
         maat_garbage_bagging(interval_rt->ref_garbage_bin, old_interval_matcher, NULL,
@@ -551,7 +551,7 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
         inner_item = (struct maat_item_inner *)(hit_results[i].user_tag);
         if (inner_item->district_id == district_id || inner_item->district_id == DISTRICT_ANY) {
             long long item_id = hit_results[i].rule_id;
-            struct interval_item *int_item = (struct interval_item *)rcu_hash_find(interval_rt->int_item_hash, 
+            struct interval_item *int_item = (struct interval_item *)rcu_hash_find(interval_rt->item_hash, 
                                                                                   (char *)&item_id,
                                                                                   sizeof(long long));
             if (!int_item) {
