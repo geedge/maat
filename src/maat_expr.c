@@ -624,7 +624,6 @@ int expr_item_to_expr_rule(struct expr_item *expr_item, struct expr_rule *expr_r
 
     switch (expr_item->expr_type) {
         case EXPR_TYPE_AND:
-        case EXPR_TYPE_REGEX:
             for (i = 0, pos = expr_item->keywords; ; i++, pos = NULL) {
                 tmp = strtok_r_esc(pos, '&', &saveptr);
                 if (NULL == tmp) {
@@ -639,11 +638,7 @@ int expr_item_to_expr_rule(struct expr_item *expr_item, struct expr_rule *expr_r
                 }
 
                 sub_key_array[i] = tmp;
-                if (expr_item->expr_type == EXPR_TYPE_REGEX) {
-                    sub_key_array[i] = str_unescape_and(sub_key_array[i]);
-                } else {
-                    sub_key_array[i] = str_unescape(sub_key_array[i]);
-                }
+                sub_key_array[i] = str_unescape(sub_key_array[i]); 
             }
             sub_expr_cnt = i;
             break;
@@ -688,6 +683,10 @@ int expr_item_to_expr_rule(struct expr_item *expr_item, struct expr_rule *expr_r
             sub_expr_cnt = 1;
             sub_key_array[0] = expr_item->keywords;
             sub_key_array[0] = str_unescape(sub_key_array[0]);
+            break;
+        case EXPR_TYPE_REGEX:
+            sub_expr_cnt = 1;
+            sub_key_array[0] = expr_item->keywords;
             break;
         default:
             log_error(logger, MODULE_EXPR, 

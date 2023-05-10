@@ -168,25 +168,6 @@ char *strtok_r_esc(char *s, const char delim, char **save_ptr)
 	*save_ptr = token;
 
     return s;  
-} 
-
-char *str_unescape_and(char *s)
-{
-	size_t i = 0;
-    size_t j = 0;
-
-	for (i = 0,j = 0; i < strlen(s); i++) {
-		if (s[i] == '\\' && s[i+1] == '&') {
-			s[j] = '&';
-			i++;
-			j++;
-		} else {
-			s[j] = s[i];
-			j++;
-		}
-	}
-	s[j] = '\0';
-	return s;
 }
 
 char *str_unescape(char *s)
