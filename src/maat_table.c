@@ -30,11 +30,6 @@
 
 #define MODULE_TABLE  module_name_str("maat.table")
 
-struct table_item {
-    enum table_type table_type;
-    void *custom_item;
-};
-
 struct maat_table {
     int table_id;
     char table_name[NAME_MAX];
@@ -402,7 +397,7 @@ static int compare_each_tag_set(cJSON *tag_set, const struct rule_tag *accept_ta
 
 //@param value {"tag_sets":[[{"tag":"location","value":["北京/朝阳/华严北里","上海/浦东/陆家嘴"]},{"tag":"isp","value":["电信","移动"]}],[{"tag":"location","value":["北京"]},{"tag":"isp","value":["联通"]}]]}
 //@return 1 on match, 0 on not match, -1 on error.
-int compare_accept_tag(const char *value, const struct rule_tag *accept_tags, size_t n_accept_tag)
+static int compare_accept_tag(const char *value, const struct rule_tag *accept_tags, size_t n_accept_tag)
 {
 	int ret = TAG_MATCH_ERR;
     int n_set = 0;
@@ -970,12 +965,6 @@ void *table_manager_get_schema(struct table_manager *tbl_mgr, int table_id)
     }
     
     return tbl_mgr->tbl[table_id]->schema;
-}
-
-struct ex_data_schema *
-table_manager_get_table_ex_data_schema(struct table_manager *tbl_mgr, int table_id)
-{
-    return NULL;
 }
 
 int table_manager_get_valid_column(struct table_manager *tbl_mgr, int table_id)

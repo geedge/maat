@@ -2134,10 +2134,6 @@ size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *comp
             tmp_path.vtable_id = internal_path->vtable_id;
             tmp_path.compile_id = -1;
 
-            if (tmp_path.sub_group_id == tmp_path.top_group_id) {
-                continue;
-            }
-
             /* check if internal_path is duplicated from hit_path_array[] element */
             if (hit_path_cnt > 0) {
                 if (maat_compile_is_hit_path_existed(hit_path_array, hit_path_cnt, &tmp_path)) {
