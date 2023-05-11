@@ -283,6 +283,161 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
     }
 };
 
+//@param value is a JSON, like {"tags":[{"tag":"location","value":"北京/朝阳/华严北里/甲22号},{"tag":"isp","value":"电信"}]}
+size_t parse_accept_tag(const char *value, struct rule_tag **result, struct log_handle *logger)
+{
+    if (NULL == value || NULL == result || NULL == logger) {
+        return 0;
+    }
+
+	cJSON *json = cJSON_Parse(value);
+	if (!json) {
+		log_error(logger, MODULE_TABLE,
+				 "[%s:%d] parse accept tag Error before: %-200.200s", 
+                 __FUNCTION__, __LINE__, cJSON_GetErrorPtr());
+		return 0;
+	}
+
+	cJSON *tag = NULL, *tmp = NULL;
+	cJSON *array = cJSON_GetObjectItem(json, "tags");
+	int n_tag = cJSON_GetArraySize(array);
+	struct rule_tag *p = ALLOC(struct rule_tag, n_tag);
+
+	for (int i = 0; i < n_tag; i++) {
+		tag = cJSON_GetArrayItem(array, i);
+		tmp = cJSON_GetObjectItem(tag, "tag");
+		p[i].tag_name = maat_strdup(tmp->valuestring);
+		tmp = cJSON_GetObjectItem(tag, "value");
+		p[i].tag_val = maat_strdup(tmp->valuestring);
+	}
+
+	cJSON_Delete(json);
+	*result = p;
+	return n_tag;
+}
+
+static int compare_each_tag(cJSON *tag_obj, const struct rule_tag *accept_tags, size_t n_accept_tag)
+{
+    if (NULL == tag_obj || NULL == accept_tags) {
+        return TAG_MATCH_ERR;
+    }
+
+	cJSON *tab_name_obj = cJSON_GetObjectItem(tag_obj, "tag");
+	if (NULL == tab_name_obj || tab_name_obj->type != cJSON_String) {
+		return TAG_MATCH_ERR;
+	}
+
+	const char *tag_name = tab_name_obj->valuestring;
+	cJSON *tag_vals_array = cJSON_GetObjectItem(tag_obj, "value");
+	if (NULL == tag_vals_array || tag_vals_array->type != cJSON_Array) {
+		return TAG_MATCH_ERR;
+	}
+
+    int name_matched = 0;
+	int n_val = cJSON_GetArraySize(tag_vals_array);
+	for (size_t i = 0; i < n_accept_tag; i++) {
+		if (0 != strcmp(accept_tags[i].tag_name, tag_name)) {
+			continue;
+		}
+		name_matched++;
+
+		for (int j = 0; j < n_val; j++) {
+			cJSON *tag_val_obj = cJSON_GetArrayItem(tag_vals_array, j);
+			if (NULL == tag_val_obj || tag_val_obj->type != cJSON_String) {
+				return TAG_MATCH_ERR;
+			}
+
+			const char *tag_val = tag_val_obj->valuestring;
+			// compare a/b/c with a/b/c/d is a miss.
+			if (strlen(accept_tags[i].tag_val) < strlen(tag_val)) {
+				continue;
+			}
+
+			// compare a1a2/b1/c1 with a1a2/b/ is a miss.
+			//make sure the overlap is ended with a '/' 
+            if (0 == strncmp(accept_tags[i].tag_val, tag_val, strlen(tag_val)) &&
+				(strlen(accept_tags[i].tag_val) == strlen(tag_val) || 
+                 accept_tags[i].tag_val[strlen(tag_val)] == '/')) {
+				return TAG_MATCH_MATCHED;
+			}
+		}
+	}
+
+	//no matched name is considered as a 
+	if (name_matched > 0) {
+		return TAG_MATCH_UNMATCHED;
+	} else {
+		return TAG_MATCH_MATCHED;
+	}
+}
+
+//@param tag_set likes [{"tag":"location","value":["北京/朝阳/华严北里","上海/浦东/陆家嘴"]},{"tag":"isp","value":["电信","移动"]}]
+static int compare_each_tag_set(cJSON *tag_set, const struct rule_tag *accept_tags, size_t n_accept_tag)
+{
+	int matched = 0;
+
+	int n_tag = cJSON_GetArraySize(tag_set);
+	for (int i = 0; i < n_tag; i++) {
+		cJSON *tag_obj = cJSON_GetArrayItem(tag_set, i);
+		if (NULL == tag_obj || tag_obj->type != cJSON_Object) {
+			return TAG_MATCH_ERR;
+		}
+
+		int ret = compare_each_tag(tag_obj,  accept_tags, n_accept_tag);
+		if (ret < 0) {
+			return TAG_MATCH_ERR;
+		}
+
+		if(1 == ret) {
+			matched++;
+		}
+	}
+
+	if (matched == n_tag) {
+		return TAG_MATCH_MATCHED;
+	} else {
+		return TAG_MATCH_UNMATCHED;
+	}
+}
+
+//@param value {"tag_sets":[[{"tag":"location","value":["北京/朝阳/华严北里","上海/浦东/陆家嘴"]},{"tag":"isp","value":["电信","移动"]}],[{"tag":"location","value":["北京"]},{"tag":"isp","value":["联通"]}]]}
+//@return 1 on match, 0 on not match, -1 on error.
+int compare_accept_tag(const char *value, const struct rule_tag *accept_tags, size_t n_accept_tag)
+{
+	int ret = TAG_MATCH_ERR;
+    int n_set = 0;
+    cJSON *tag_set = NULL;
+    cJSON *tag_set_array = NULL;
+    
+	cJSON *root = cJSON_Parse(value);
+	if (NULL == root) {
+		goto error;
+	}
+
+	tag_set_array = cJSON_GetObjectItem(root, "tag_sets");
+	if (NULL == tag_set_array || tag_set_array->type != cJSON_Array) {
+		goto error;
+	}
+
+	n_set = cJSON_GetArraySize(tag_set_array);
+	for (int i = 0; i < n_set; i++) {
+		tag_set = cJSON_GetArrayItem(tag_set_array, i);
+		if (NULL == tag_set || tag_set->type != cJSON_Array) {
+			goto error;
+		}
+
+		ret = compare_each_tag_set(tag_set, accept_tags, n_accept_tag);
+        //match or error occurs.
+		if (ret != TAG_MATCH_UNMATCHED) {
+			break;
+		}
+	}
+
+error:
+	cJSON_Delete(root);
+	return ret;
+}
+
 void *maat_table_schema_new(cJSON *json, const char *table_name, 
                             enum table_type table_type, 
                             struct table_manager *tbl_mgr, 

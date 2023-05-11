@@ -82,6 +82,17 @@ struct literal_clause {
     UT_hash_handle hh;
 };
 
+struct compile_rule {
+	long long magic_num;
+    long long compile_id;
+    char *table_line;
+    size_t table_line_len;
+	struct compile_schema *ref_schema;
+	void **ex_data;
+    int declared_clause_num;
+    char table_name[NAME_MAX];
+};
+
 /* compile_runtime and group2compile_runtime share compile_hash_map */
 struct compile_runtime {
 	struct bool_matcher *bm;
@@ -147,7 +158,6 @@ struct maat_compile_state {
     time_t compile_rt_version;
 	size_t this_scan_hit_item_cnt;
     int	not_clause_hitted_flag;
-	int is_no_count_scan;
 	size_t hit_path_cnt;
 
 	UT_array *internal_hit_paths;
@@ -159,12 +169,11 @@ UT_icd ut_literal_id_icd = {sizeof(struct maat_literal_id), NULL, NULL, NULL};
 UT_icd ut_clause_id_icd = {sizeof(long long), NULL, NULL, NULL};
 UT_icd ut_hit_path_icd = {sizeof(struct maat_internal_hit_path), NULL, NULL, NULL};
 
-#define MAAT_HIER_COMPILE_MAGIC	0x4a5b6c7d
 struct maat_compile *maat_compile_new(long long compile_id)
 {
 	struct maat_compile *compile = ALLOC(struct maat_compile, 1);
 
-	compile->magic = MAAT_HIER_COMPILE_MAGIC;
+	compile->magic = MAAT_COMPILE_MAGIC;
 	compile->compile_id = compile_id;
 
     for(int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {	
@@ -275,11 +284,6 @@ void rule_ex_data_new_cb(void *user_data, void *param, const char *table_name, i
 {
 	struct ex_data_schema *ex_schema = (struct ex_data_schema *)param;
 	struct compile_rule *compile = (struct compile_rule *)user_data;
-	
-	// if(compile->ref_table->table_id!=ex_desc->table_id)
-	// {
-	// 	return;
-	// }
 
 	void *ad = rule_ex_data_new(table_name, table_id, compile->table_line, ex_schema);
 	*compile->ex_data = ad;
@@ -299,6 +303,7 @@ void compile_runtime_user_data_iterate(struct compile_runtime *compile_rt,
             callback(compile->user_data, param, compile->table_name, table_id);
         }
     }
+
     FREE(data_array);
 }
 
@@ -1123,6 +1128,7 @@ size_t maat_compile_bool_matcher_match(struct compile_runtime *compile_rt, int i
 	return ud_result_cnt;
 }
 
+#define	COMPILE_RULE_MAGIC	0x1a2b3c4d
 struct compile_rule *compile_rule_new(struct compile_item *compile_item,
                                       struct compile_schema *schema,
                                       const char *table_name,
@@ -1404,7 +1410,6 @@ void maat_compile_state_reset(struct maat_compile_state *compile_state)
     compile_state->compile_rt_version = 0;
     compile_state->this_scan_hit_item_cnt = 0;
     compile_state->not_clause_hitted_flag = 0;
-    compile_state->is_no_count_scan = 0;
     compile_state->hit_path_cnt = 0;
 
     utarray_clear(compile_state->internal_hit_paths);

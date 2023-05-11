@@ -400,7 +400,7 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
         const char *key = line + item_id_offset;
         size_t key_len = item_id_len;
         ret = bool_plugin_runtime_update_row(bool_plugin_rt, table_name, line, key, key_len, 
-                                            bool_expr, is_valid);
+                                             bool_expr, is_valid);
         if (ret < 0) {
             if (bool_expr != NULL) {
                 bool_plugin_expr_free(bool_expr);

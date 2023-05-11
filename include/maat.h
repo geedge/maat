@@ -127,7 +127,7 @@ int maat_helper_read_column(const char *table_line, int Nth_column,
  * verify if regex expression is legal
  * 
  * @param The NULL-terminated expression to parse. 
- * @retval 0(legal) -1(illegal)
+ * @retval 1(legal) 0(illegal)
  **/                           
 int maat_helper_verify_regex_expression(const char *expression);
 

@@ -258,7 +258,7 @@ void test_add_expr_command(struct maat *maat_instance, const char *table_name,
                            const char *keywords)
 {
     long long compile_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, "COMPILE", MAAT_OP_ADD, compile_id, NULL, 1, 0);
+    int ret = compile_table_set_line(maat_instance, "COMPILE", MAAT_OP_ADD, compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long group_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
@@ -276,7 +276,7 @@ void test_add_ip_command(struct maat *maat_instance, const char *table_name,
                          const char *ip, uint16_t port)
 {
     long long compile_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, "COMPILE", MAAT_OP_ADD, compile_id, NULL, 1, 0);
+    int ret = compile_table_set_line(maat_instance, "COMPILE", MAAT_OP_ADD, compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long group_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);

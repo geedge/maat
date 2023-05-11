@@ -16,8 +16,6 @@ extern "C"
 {
 #endif
 
-#include "maat_rule.h"
-
 #include <stdint.h>
 
 void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,

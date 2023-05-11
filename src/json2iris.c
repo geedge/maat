@@ -623,8 +623,8 @@ int write_region_rule(cJSON *region_json, int compile_id, int group_id,
 	}
 
 	const char *table_type_str = item->valuestring;
-    enum table_type table_type = TABLE_TYPE_EXPR;
-	int ret = maat_kv_read(p_iris->str2int_map, table_type_str, (long long *)&(table_type));
+    long long table_type_int;
+	int ret = maat_kv_read(p_iris->str2int_map, table_type_str, &(table_type_int));
 	if (ret != 1) {
 		log_error(logger, MODULE_JSON2IRIS, 
                   "[%s:%d] compile rule %d table name %s's table_type %s invalid",
@@ -645,9 +645,8 @@ int write_region_rule(cJSON *region_json, int compile_id, int group_id,
 	cJSON_AddNumberToObject(table_content, "group_id", group_id);
 	cJSON_AddNumberToObject(table_content, "is_valid", 1);
 
-    struct iris_table *table_info = query_table_info(p_iris, table_name, table_type);
-	switch(table_type)
-	{
+    struct iris_table *table_info = query_table_info(p_iris, table_name, table_type_int);
+	switch (table_type_int) {
         case TABLE_TYPE_FLAG:
         case TABLE_TYPE_FLAG_PLUS:
             ret = write_flag_line(table_content, p_iris, table_info, logger);
@@ -714,7 +713,7 @@ int write_group2group_line(int group_id, int super_group_id, int is_exclude,
 	return 0;
 }
 
-int write_group_rule(cJSON *group_json, const char *parent_name, int parent_id, 
+int write_group_rule(cJSON *group_json, int parent_id, 
                      int parent_type, int tracking_compile_id, 
                      int Nth_group, struct iris_description *p_iris, 
                      struct log_handle *logger)
@@ -797,9 +796,8 @@ int write_group_rule(cJSON *group_json, const char *parent_name, int parent_id,
 			int i = 0;
 			cJSON_ArrayForEach(item, sub_groups) {
 				i++;
-				ret = write_group_rule(item, group_name, group_info->group_id,
-                                       PARENT_TYPE_GROUP, tracking_compile_id,
-                                       i, p_iris, logger);
+				ret = write_group_rule(item, group_info->group_id, PARENT_TYPE_GROUP,
+                                       tracking_compile_id, i, p_iris, logger);
 				if (ret < 0) {
 					return -1;
 				}
@@ -814,13 +812,9 @@ int write_group_rule(cJSON *group_json, const char *parent_name, int parent_id,
 	}
 
 	if (parent_type == PARENT_TYPE_COMPILE) {
-        // printf("[group2compile] group:[%s:%d] parent:[%s:%d]\n",
-        //         group_info->group_name, group_info->group_id, parent_name, parent_id);
 		ret = write_group2compile_line(group_info->group_id, parent_id, group_not_flag,
                                        clause_index, virtual_table, p_iris, g2c_table);
 	} else {
-        // printf("[group2group] group:[%s:%d] parent:[%s:%d]\n",
-        //         group_info->group_name, group_info->group_id, parent_name, parent_id);
 		ret = write_group2group_line(group_info->group_id, parent_id, is_exclude, p_iris);
 	}
 
@@ -1030,8 +1024,8 @@ int write_iris(cJSON *json, struct iris_description *p_iris,
 				parent_group = group_info_add_unsafe(p_iris, parent_group_name);
 			}
 
-			ret = write_group_rule(group_obj, parent_group_name, parent_group->group_id,
-                                   PARENT_TYPE_GROUP, 0, 0, p_iris, logger);
+			ret = write_group_rule(group_obj, parent_group->group_id, PARENT_TYPE_GROUP,
+                                   0, 0, p_iris, logger);
 			if (ret < 0) {
 				return -1;
 			}
@@ -1073,8 +1067,8 @@ int write_iris(cJSON *json, struct iris_description *p_iris,
 			i = 0;
             cJSON *group_obj = NULL;
 			cJSON_ArrayForEach(group_obj, group_array) {
-				ret = write_group_rule(group_obj, "referenced by compile", compile_id,
-                                       PARENT_TYPE_COMPILE, compile_id, i, p_iris, logger);
+				ret = write_group_rule(group_obj, compile_id, PARENT_TYPE_COMPILE,
+                                       compile_id, i, p_iris, logger);
 				if (ret < 0) {
 					return -1;
 				}

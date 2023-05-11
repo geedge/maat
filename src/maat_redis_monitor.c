@@ -14,8 +14,11 @@
 #include <stdio.h>
 
 #include "maat.h"
+#include "log/log.h"
 #include "maat_utils.h"
+#include "maat_rule.h"
 #include "maat_command.h"
+#include "hiredis/hiredis.h"
 #include "maat_config_monitor.h"
 #include "maat_redis_monitor.h"
 #include "maat_plugin.h"
@@ -39,6 +42,13 @@ const char *foreign_source_prefix = "redis://";
 const char *foreign_key_prefix = "__FILE_";
 
 const char *mr_op_str[] = {"DEL", "ADD", "RENEW_TIMEOUT"};
+
+#define	POSSIBLE_REDIS_REPLY_SIZE	2
+struct expected_reply {
+	int s_rule_seq;
+	int possible_reply_num;
+	redisReply possible_replies[POSSIBLE_REDIS_REPLY_SIZE];
+};
 
 char *get_foreign_cont_filename(const char *table_name, long long rule_id, 
                                 const char *foreign_key, const char *dir)

@@ -21,12 +21,9 @@ extern "C"
 #include <linux/limits.h>
 #include <sys/time.h>
 #include <pthread.h>
-#include <sys/queue.h>
 #include <dirent.h>
 #include <openssl/md5.h>
 
-#include "hiredis/hiredis.h"
-#include "uthash/uthash.h"
 #include "log/log.h"
 #include "fieldstat.h"
 #include "maat_command.h"
@@ -36,6 +33,7 @@ extern "C"
 #include "maat_table.h"
 #include "maat_virtual.h"
 #include "maat_stat.h"
+#include "hiredis/hiredis.h"
 
 #define MAX_TABLE_NUM	1024
 #define MAX_COMPILE_TABLE_NUM 16
@@ -55,37 +53,16 @@ enum tag_match {
     TAG_MATCH_MATCHED
 };
 
-#define	ITEM_RULE_MAGIC 0x4d3c2b1a
 struct maat_item_inner {
 	long long magic_num;
 	long long item_id;
 	long long group_id;
 	long long district_id;
-	int expr_id_cnt;
-	int expr_id_lb;	//low boundary
-	int expr_id_ub;	//up boundary
 };
 
 struct maat_item {
 	long long item_id;
 	long long group_id;
-};
-
-#define	COMPILE_RULE_MAGIC	0x1a2b3c4d
-struct compile_rule {
-	long long magic_num;
-    long long compile_id;
-    char *table_line;
-    size_t table_line_len;
-	struct compile_schema *ref_schema;
-	void **ex_data;
-    int declared_clause_num;
-    char table_name[NAME_MAX];
-};
-
-struct group2group_rule {
-    long long group_id;
-	long long super_group_id;
 };
 
 struct maat_runtime {
@@ -105,6 +82,11 @@ struct maat_runtime {
     struct log_handle *logger;
 };
 
+struct rule_tag {
+	char *tag_name;
+	char *tag_val;
+};
+
 enum data_source {
     DATA_SOURCE_NONE = 0,
     DATA_SOURCE_REDIS,
@@ -117,55 +99,20 @@ struct source_iris_ctx {
     char full_idx_dir[NAME_MAX];
 };
 
-struct source_json_ctx
-{
+struct source_json_ctx {
 	char json_file[NAME_MAX];
 	char iris_file[NAME_MAX];
 	char effective_json_md5[MD5_DIGEST_LENGTH*2+1];
 	struct timespec last_md5_time;
 };
 
-struct source_redis_ctx
-{
+struct source_redis_ctx {
 	redisContext *read_ctx;
 	redisContext *write_ctx;
 	char redis_ip[64];
 	uint16_t redis_port;
 	int redis_db;
 	time_t last_reconnect_time;
-};
-
-struct foreign_key {
-	int column;
-	char *key;
-    size_t key_len;
-	char *filename;
-};
-
-//rm= Redis Maat
-struct serial_rule {
-	enum maat_operation op;//0: delete, 1: add.
-	long long rule_id;
-	long long timeout;			// absolute unix time.
-	char table_name[NAME_MAX];
-	char *table_line;
-	int n_foreign;
-	struct foreign_key *f_keys;
-    redisContext *ref_ctx;
-	TAILQ_ENTRY(serial_rule) entries;
-    UT_hash_handle hh;
-};
-
-#define	POSSIBLE_REDIS_REPLY_SIZE	2
-struct expected_reply {
-	int s_rule_seq;
-	int possible_reply_num;
-	redisReply possible_replies[POSSIBLE_REDIS_REPLY_SIZE];
-};
-
-struct rule_tag {
-	char *tag_name;
-	char *tag_val;
 };
 
 struct maat_options {
@@ -275,20 +222,10 @@ int my_scandir(const char *dir, struct dirent ***namelist,
               int(*filter)(const struct dirent *),
               int(*compar)(const void *, const void *));
 
-size_t parse_accept_tag(const char *value, struct rule_tag **result, struct log_handle *logger);
-
-int compare_accept_tag(const char *value, const struct rule_tag *accept_tags, size_t n_accept_tag);
-
 struct maat_item_inner *maat_item_inner_new(long long item_id, long long group_id,
                                             long long district_id);
 
 void maat_item_inner_free(void *item_inner);
-
-void maat_start_cb(long long new_version, int update_type, void *u_para);
-
-int maat_update_cb(const char *table_name, const char *line, void *u_para);
-
-void maat_finish_cb(void *u_para);
 
 void *rule_monitor_loop(void *arg);
 
@@ -296,51 +233,12 @@ long long maat_runtime_get_sequence(struct maat_runtime *maat_rt, const char *ke
 
 void maat_read_full_config(struct maat *maat_instance);
 
-/* maat command API for internal */
-redisContext *maat_cmd_connect_redis(const char *redis_ip, int redis_port,
-                                     int redis_db, struct log_handle *logger);
-
-redisReply *maat_cmd_wrap_redis_command(redisContext *c, const char *format, ...);
-
-int maat_cmd_wrap_redis_get_reply(redisContext *c, redisReply **reply);
-
-long long maat_cmd_redis_server_time_s(redisContext *c);
-
-long long maat_cmd_read_redis_integer(const redisReply *reply);
-
-int maat_cmd_get_valid_flag_offset(const char *line, int column_seq);
-
-const char *maat_cmd_find_Nth_column(const char *line, int Nth, int *column_len);
-
-int maat_cmd_write_rule(redisContext *c, struct serial_rule *s_rule, 
-                        size_t serial_rule_num, long long server_time, 
-                        struct log_handle *logger);
-
-void maat_cmd_clear_rule_cache(struct serial_rule *s_rule);
-
-int maat_cmd_get_rm_key_list(redisContext *c, long long instance_version, 
-                             long long desired_version, long long *new_version, 
-                             struct table_manager *tbl_mgr, struct serial_rule **list, 
-                             int *update_type, int cumulative_off, struct log_handle *logger);
-
-int maat_cmd_get_redis_value(redisContext *c, struct serial_rule *rule_list, 
-                             int rule_num, int print_process, struct log_handle *logger);
-
-int maat_cmd_get_foreign_keys_by_prefix(redisContext *ctx, struct serial_rule *rule_list, 
-                                        int rule_num, const char* dir, struct log_handle *logger);
-
-void maat_cmd_get_foreign_conts(redisContext *c, struct serial_rule *rule_list, 
-                                int rule_num, int print_fn, struct log_handle *logger);
-
-void maat_cmd_rewrite_table_line_with_foreign(struct serial_rule *s_rule);
-
-void maat_cmd_set_serial_rule(struct serial_rule *rule, enum maat_operation op,
-                              long long rule_id, const char *table_name,
-                              const char *line, long long timeout);
-
 void garbage_ip_matcher_free(void *ip_matcher, void *arg);
+
 void garbage_interval_matcher_free(void *ip_matcher, void *arg);
+
 void garbage_bool_matcher_free(void *bool_matcher, void *arg);
+
 void garbage_maat_kv_store_free(void *kv_store, void *arg);
 
 #ifdef __cplusplus

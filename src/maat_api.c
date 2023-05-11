@@ -259,80 +259,6 @@ int maat_options_set_logger(struct maat_options *opts, const char *log_path, enu
     return 0;
 }
 
-void maat_read_full_config(struct maat *maat_instance)
-{
-    int ret = -1;
-    char err_str[NAME_MAX] = {0};
-    struct source_redis_ctx *redis_ctx = NULL;
-
-    switch (maat_instance->opts.input_mode) {
-        case DATA_SOURCE_REDIS:
-            redis_ctx = &(maat_instance->opts.redis_ctx);
-            log_info(maat_instance->logger, MODULE_MAAT_API, 
-                     "Maat initiate from Redis %s:%hu db%d", 
-                     redis_ctx->redis_ip, redis_ctx->redis_port, redis_ctx->redis_db);
-            redis_ctx->read_ctx = maat_cmd_connect_redis(redis_ctx->redis_ip,
-                                                         redis_ctx->redis_port, 
-                                                         redis_ctx->redis_db,
-                                                         maat_instance->logger);
-            if (redis_ctx->read_ctx != NULL) {
-                redis_monitor_traverse(maat_instance->maat_version, redis_ctx,
-									   maat_start_cb, maat_update_cb, maat_finish_cb,
-									   maat_instance);
-            }
-
-            if (NULL == maat_instance->creating_maat_rt) {
-                log_error(maat_instance->logger, MODULE_MAAT_API, 
-                          "[%s:%d] At initiation: NO effective rule in redis %s:%hu db%d",
-                          __FUNCTION__, __LINE__, redis_ctx->redis_ip, redis_ctx->redis_port, 
-                          redis_ctx->redis_db);
-            }
-            break;
-        case DATA_SOURCE_IRIS_FILE:
-			config_monitor_traverse(maat_instance->maat_version,
-                                    maat_instance->opts.iris_ctx.full_idx_dir,
-                                    maat_start_cb, maat_update_cb, maat_finish_cb,
-                                    maat_instance, maat_instance->opts.decrypt_key,
-                                    maat_instance->logger);
-            if (NULL == maat_instance->creating_maat_rt) {
-                log_error(maat_instance->logger, MODULE_MAAT_API, 
-                          "[%s:%d] At initiation: NO effective rule in %s",
-                          __FUNCTION__, __LINE__, maat_instance->opts.iris_ctx.full_idx_dir);
-            }
-            break;
-        case DATA_SOURCE_JSON_FILE:
-            ret = load_maat_json_file(maat_instance, maat_instance->opts.json_ctx.json_file,
-                                      err_str, sizeof(err_str));
-            if (ret < 0) {
-                log_error(maat_instance->logger, MODULE_MAAT_API, 
-                          "[%s:%d] Maat re-initiate with JSON file %s failed: %s", 
-                          __FUNCTION__, __LINE__, maat_instance->opts.json_ctx.json_file, err_str);
-            }
-            
-            config_monitor_traverse(maat_instance->maat_version,
-                                    maat_instance->opts.json_ctx.iris_file,
-                                    maat_start_cb, maat_update_cb, maat_finish_cb,
-                                    maat_instance, maat_instance->opts.decrypt_key,
-                                    maat_instance->logger);
-            if (NULL == maat_instance->creating_maat_rt) {
-                log_error(maat_instance->logger, MODULE_MAAT_API, 
-                          "[%s:%d] At initiation: NO effective rule in %s",
-                          __FUNCTION__, __LINE__, maat_instance->opts.json_ctx.iris_file);
-            }
-            break;
-        default:
-            break;
-    }
-
-    maat_instance->maat_rt = maat_instance->creating_maat_rt;
-    maat_instance->creating_maat_rt = NULL;
-    maat_instance->is_running = 1;
-    if (maat_instance->maat_rt != NULL) {
-        maat_instance->maat_version = maat_instance->maat_rt->version;
-        maat_instance->last_full_version = maat_instance->maat_rt->version;
-    }
-}
-
 void _maat_free(struct maat *maat_instance)
 {
     if (NULL == maat_instance) {
@@ -475,10 +401,15 @@ int maat_helper_read_column(const char *table_line, int Nth_column,
 int maat_helper_verify_regex_expression(const char *regex_expr)
 {
     if (NULL == regex_expr) {
-        return -1;
+        return 0;
     }
 
-    return adapter_hs_verify_regex_expression(regex_expr, NULL);
+    int ret = adapter_hs_verify_regex_expression(regex_expr, NULL);
+    if (ret < 0) {
+        return 0;
+    } else {
+        return 1;
+    }
 }
 
 int maat_get_table_id(struct maat *maat_instance, const char *table_name)

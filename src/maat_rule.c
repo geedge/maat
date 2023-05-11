@@ -32,160 +32,7 @@
 
 #define MODULE_MAAT_RULE	 module_name_str("maat.rule")
 
-static int compare_each_tag(cJSON *tag_obj, const struct rule_tag *accept_tags, size_t n_accept_tag)
-{
-    if (NULL == tag_obj || NULL == accept_tags) {
-        return TAG_MATCH_ERR;
-    }
-
-	cJSON *tab_name_obj = cJSON_GetObjectItem(tag_obj, "tag");
-	if (NULL == tab_name_obj || tab_name_obj->type != cJSON_String) {
-		return TAG_MATCH_ERR;
-	}
-
-	const char *tag_name = tab_name_obj->valuestring;
-	cJSON *tag_vals_array = cJSON_GetObjectItem(tag_obj, "value");
-	if (NULL == tag_vals_array || tag_vals_array->type != cJSON_Array) {
-		return TAG_MATCH_ERR;
-	}
-
-    int name_matched = 0;
-	int n_val = cJSON_GetArraySize(tag_vals_array);
-	for (size_t i = 0; i < n_accept_tag; i++) {
-		if (0 != strcmp(accept_tags[i].tag_name, tag_name)) {
-			continue;
-		}
-		name_matched++;
-
-		for (int j = 0; j < n_val; j++) {
-			cJSON *tag_val_obj = cJSON_GetArrayItem(tag_vals_array, j);
-			if (NULL == tag_val_obj || tag_val_obj->type != cJSON_String) {
-				return TAG_MATCH_ERR;
-			}
-
-			const char *tag_val = tag_val_obj->valuestring;
-			// compare a/b/c with a/b/c/d is a miss.
-			if (strlen(accept_tags[i].tag_val) < strlen(tag_val)) {
-				continue;
-			}
-
-			// compare a1a2/b1/c1 with a1a2/b/ is a miss.
-			//make sure the overlap is ended with a '/' 
-            if (0 == strncmp(accept_tags[i].tag_val, tag_val, strlen(tag_val)) &&
-				(strlen(accept_tags[i].tag_val) == strlen(tag_val) || accept_tags[i].tag_val[strlen(tag_val)] == '/')) {
-				return TAG_MATCH_MATCHED;
-			}
-		}
-	}
-
-	//no matched name is considered as a 
-	if (name_matched > 0) {
-		return TAG_MATCH_UNMATCHED;
-	} else {
-		return TAG_MATCH_MATCHED;
-	}
-}
-
-//@param tag_set likes [{"tag":"location","value":["北京/朝阳/华严北里","上海/浦东/陆家嘴"]},{"tag":"isp","value":["电信","移动"]}]
-static int compare_each_tag_set(cJSON *tag_set, const struct rule_tag *accept_tags, size_t n_accept_tag)
-{
-	int matched = 0;
-
-	int n_tag = cJSON_GetArraySize(tag_set);
-	for (int i = 0; i < n_tag; i++) {
-		cJSON *tag_obj = cJSON_GetArrayItem(tag_set, i);
-		if (NULL == tag_obj || tag_obj->type != cJSON_Object) {
-			return TAG_MATCH_ERR;
-		}
-
-		int ret = compare_each_tag(tag_obj,  accept_tags, n_accept_tag);
-		if (ret < 0) {
-			return TAG_MATCH_ERR;
-		}
-
-		if(1 == ret) {
-			matched++;
-		}
-	}
-
-	if (matched == n_tag) {
-		return TAG_MATCH_MATCHED;
-	} else {
-		return TAG_MATCH_UNMATCHED;
-	}
-}
-
-//@param value is a JSON, like {"tags":[{"tag":"location","value":"北京/朝阳/华严北里/甲22号},{"tag":"isp","value":"电信"}]}
-size_t parse_accept_tag(const char *value, struct rule_tag **result, struct log_handle *logger)
-{
-    if (NULL == value || NULL == result || NULL == logger) {
-        return 0;
-    }
-
-	cJSON *json = cJSON_Parse(value);
-	if (!json) {
-		log_error(logger, MODULE_MAAT_RULE,
-				 "[%s:%d] parse accept tag Error before: %-200.200s", 
-                 __FUNCTION__, __LINE__, cJSON_GetErrorPtr());
-		return 0;
-	}
-
-	cJSON *tag = NULL, *tmp = NULL;
-	cJSON *array = cJSON_GetObjectItem(json, "tags");
-	int n_tag = cJSON_GetArraySize(array);
-	struct rule_tag *p = ALLOC(struct rule_tag, n_tag);
-
-	for (int i = 0; i < n_tag; i++) {
-		tag = cJSON_GetArrayItem(array, i);
-		tmp = cJSON_GetObjectItem(tag, "tag");
-		p[i].tag_name = maat_strdup(tmp->valuestring);
-		tmp = cJSON_GetObjectItem(tag, "value");
-		p[i].tag_val = maat_strdup(tmp->valuestring);
-	}
-
-	cJSON_Delete(json);
-	*result = p;
-	return n_tag;
-}
-
-//@param value {"tag_sets":[[{"tag":"location","value":["北京/朝阳/华严北里","上海/浦东/陆家嘴"]},{"tag":"isp","value":["电信","移动"]}],[{"tag":"location","value":["北京"]},{"tag":"isp","value":["联通"]}]]}
-//@return 1 on match, 0 on not match, -1 on error.
-int compare_accept_tag(const char *value, const struct rule_tag *accept_tags, size_t n_accept_tag)
-{
-	int ret = TAG_MATCH_ERR;
-    int n_set = 0;
-    cJSON *tag_set = NULL;
-    cJSON *tag_set_array = NULL;
-    
-	cJSON *root = cJSON_Parse(value);
-	if (NULL == root) {
-		goto error;
-	}
-
-	tag_set_array = cJSON_GetObjectItem(root, "tag_sets");
-	if (NULL == tag_set_array || tag_set_array->type != cJSON_Array) {
-		goto error;
-	}
-
-	n_set = cJSON_GetArraySize(tag_set_array);
-	for (int i = 0; i < n_set; i++) {
-		tag_set = cJSON_GetArrayItem(tag_set_array, i);
-		if (NULL == tag_set || tag_set->type != cJSON_Array) {
-			goto error;
-		}
-
-		ret = compare_each_tag_set(tag_set, accept_tags, n_accept_tag);
-        //match or error occurs.
-		if (ret != TAG_MATCH_UNMATCHED) {
-			break;
-		}
-	}
-
-error:
-	cJSON_Delete(root);
-	return ret;
-}
-
+#define	ITEM_RULE_MAGIC 0x4d3c2b1a
 struct maat_item_inner *maat_item_inner_new(long long item_id, long long group_id,
                                             long long district_id)
 {
@@ -206,7 +53,6 @@ void maat_item_inner_free(void *item_inner)
     
     struct maat_item_inner *item = (struct maat_item_inner *)item_inner;
 	assert(item->magic_num == ITEM_RULE_MAGIC);
-	assert(item->expr_id_cnt == 0 || item->expr_id_cnt == item->expr_id_ub - item->expr_id_lb + 1);
 	item->magic_num = 0;
 
 	free(item);
@@ -242,58 +88,6 @@ void maat_runtime_commit(struct maat_runtime *maat_rt, int update_type,
 	}
 
     maat_rt->last_update_time = time(NULL);
-}
-
-long long maat_runtime_get_sequence(struct maat_runtime *maat_rt, const char *key)
-{
-    if (NULL == maat_rt || NULL == key) {
-        return -1;
-    }
-
-    long long sequence = 0;
-    int map_ret = maat_kv_read(maat_rt->sequence_map, key, &sequence);
-    if (map_ret < 0) {
-        maat_kv_register(maat_rt->sequence_map, key, sequence);
-    } else {
-        sequence++;
-        int ret = maat_kv_write(maat_rt->sequence_map, key, sequence);
-        if (ret < 0) {
-            return -1;
-        }
-    }
-
-    return sequence;
-}
-
-void maat_runtime_destroy(struct maat_runtime *maat_rt)
-{
-    if (NULL == maat_rt) {
-        return;
-    }
-    
-    if (maat_rt->sequence_map != NULL) {
-        maat_kv_store_free(maat_rt->sequence_map);
-        maat_rt->sequence_map = NULL;
-    }
-
-    if (maat_rt->ref_cnt != NULL) {
-        alignment_int64_array_free(maat_rt->ref_cnt);
-        maat_rt->ref_cnt = NULL;
-    }
-    
-    FREE(maat_rt);
-}
-
-void garbage_maat_kv_store_free(void *kv_store, void *arg)
-{
-    struct maat_kv_store *store = (struct maat_kv_store *)kv_store;
-    maat_kv_store_free(store);
-}
-
-void garbage_maat_runtime_destroy(void *maat_runtime, void *arg)
-{
-    struct maat_runtime *maat_rt = (struct maat_runtime *)maat_runtime;
-    maat_runtime_destroy(maat_rt);
 }
 
 void maat_start_cb(long long new_version, int update_type, void *u_param)
@@ -425,6 +219,132 @@ void maat_finish_cb(void *u_param)
     }
 
     maat_instance->new_version = INVALID_VERSION;
+}
+
+void maat_read_full_config(struct maat *maat_instance)
+{
+    int ret = -1;
+    char err_str[NAME_MAX] = {0};
+    struct source_redis_ctx *redis_ctx = NULL;
+
+    switch (maat_instance->opts.input_mode) {
+        case DATA_SOURCE_REDIS:
+            redis_ctx = &(maat_instance->opts.redis_ctx);
+            log_info(maat_instance->logger, MODULE_MAAT_RULE, 
+                     "Maat initiate from Redis %s:%hu db%d", 
+                     redis_ctx->redis_ip, redis_ctx->redis_port, redis_ctx->redis_db);
+            redis_ctx->read_ctx = maat_cmd_connect_redis(redis_ctx->redis_ip,
+                                                         redis_ctx->redis_port, 
+                                                         redis_ctx->redis_db,
+                                                         maat_instance->logger);
+            if (redis_ctx->read_ctx != NULL) {
+                redis_monitor_traverse(maat_instance->maat_version, redis_ctx,
+									   maat_start_cb, maat_update_cb, maat_finish_cb,
+									   maat_instance);
+            }
+
+            if (NULL == maat_instance->creating_maat_rt) {
+                log_error(maat_instance->logger, MODULE_MAAT_RULE, 
+                          "[%s:%d] At initiation: NO effective rule in redis %s:%hu db%d",
+                          __FUNCTION__, __LINE__, redis_ctx->redis_ip, redis_ctx->redis_port, 
+                          redis_ctx->redis_db);
+            }
+            break;
+        case DATA_SOURCE_IRIS_FILE:
+			config_monitor_traverse(maat_instance->maat_version,
+                                    maat_instance->opts.iris_ctx.full_idx_dir,
+                                    maat_start_cb, maat_update_cb, maat_finish_cb,
+                                    maat_instance, maat_instance->opts.decrypt_key,
+                                    maat_instance->logger);
+            if (NULL == maat_instance->creating_maat_rt) {
+                log_error(maat_instance->logger, MODULE_MAAT_RULE, 
+                          "[%s:%d] At initiation: NO effective rule in %s",
+                          __FUNCTION__, __LINE__, maat_instance->opts.iris_ctx.full_idx_dir);
+            }
+            break;
+        case DATA_SOURCE_JSON_FILE:
+            ret = load_maat_json_file(maat_instance, maat_instance->opts.json_ctx.json_file,
+                                      err_str, sizeof(err_str));
+            if (ret < 0) {
+                log_error(maat_instance->logger, MODULE_MAAT_RULE, 
+                          "[%s:%d] Maat re-initiate with JSON file %s failed: %s", 
+                          __FUNCTION__, __LINE__, maat_instance->opts.json_ctx.json_file, err_str);
+            }
+            
+            config_monitor_traverse(maat_instance->maat_version,
+                                    maat_instance->opts.json_ctx.iris_file,
+                                    maat_start_cb, maat_update_cb, maat_finish_cb,
+                                    maat_instance, maat_instance->opts.decrypt_key,
+                                    maat_instance->logger);
+            if (NULL == maat_instance->creating_maat_rt) {
+                log_error(maat_instance->logger, MODULE_MAAT_RULE, 
+                          "[%s:%d] At initiation: NO effective rule in %s",
+                          __FUNCTION__, __LINE__, maat_instance->opts.json_ctx.iris_file);
+            }
+            break;
+        default:
+            break;
+    }
+
+    maat_instance->maat_rt = maat_instance->creating_maat_rt;
+    maat_instance->creating_maat_rt = NULL;
+    maat_instance->is_running = 1;
+    if (maat_instance->maat_rt != NULL) {
+        maat_instance->maat_version = maat_instance->maat_rt->version;
+        maat_instance->last_full_version = maat_instance->maat_rt->version;
+    }
+}
+
+long long maat_runtime_get_sequence(struct maat_runtime *maat_rt, const char *key)
+{
+    if (NULL == maat_rt || NULL == key) {
+        return -1;
+    }
+
+    long long sequence = 0;
+    int map_ret = maat_kv_read(maat_rt->sequence_map, key, &sequence);
+    if (map_ret < 0) {
+        maat_kv_register(maat_rt->sequence_map, key, sequence);
+    } else {
+        sequence++;
+        int ret = maat_kv_write(maat_rt->sequence_map, key, sequence);
+        if (ret < 0) {
+            return -1;
+        }
+    }
+
+    return sequence;
+}
+
+void maat_runtime_destroy(struct maat_runtime *maat_rt)
+{
+    if (NULL == maat_rt) {
+        return;
+    }
+    
+    if (maat_rt->sequence_map != NULL) {
+        maat_kv_store_free(maat_rt->sequence_map);
+        maat_rt->sequence_map = NULL;
+    }
+
+    if (maat_rt->ref_cnt != NULL) {
+        alignment_int64_array_free(maat_rt->ref_cnt);
+        maat_rt->ref_cnt = NULL;
+    }
+    
+    FREE(maat_rt);
+}
+
+void garbage_maat_kv_store_free(void *kv_store, void *arg)
+{
+    struct maat_kv_store *store = (struct maat_kv_store *)kv_store;
+    maat_kv_store_free(store);
+}
+
+void garbage_maat_runtime_destroy(void *maat_runtime, void *arg)
+{
+    struct maat_runtime *maat_rt = (struct maat_runtime *)maat_runtime;
+    maat_runtime_destroy(maat_rt);
 }
 
 void *rule_monitor_loop(void *arg)

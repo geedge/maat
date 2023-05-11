@@ -800,7 +800,7 @@
                             "table_name": "HTTP_URL",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "Cookie:\\s&head",
+                                "keywords": "Cookie:\\s.*head",
                                 "expr_type": "regex",
                                 "match_method": "sub",
                                 "format": "uncase plain"

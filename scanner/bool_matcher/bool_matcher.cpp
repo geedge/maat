@@ -68,7 +68,7 @@ struct bool_matcher * bool_matcher_new(struct bool_expr * exprs, size_t expr_num
 	for(unsigned int i=0; i<expr_num; i++)
 	{
 		unsigned int min_count=-1;
-		unsigned long long item_id;
+		unsigned long long item_id = 0;
 		for(unsigned int j=0; j<exprs[i].item_num; j++)
 		{
 			if(exprs[i].items[j].not_flag==0)

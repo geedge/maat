@@ -222,7 +222,14 @@ int my_scandir(const char *dir, struct dirent ***namelist,
 		n++;
 		if (n >= DIR_ENT_SIZE) {
 			DIR_ENT_SIZE += ENLARGE_STEP;
-			list = (struct dirent **)realloc((void*)list, DIR_ENT_SIZE * sizeof(struct dirent *));
+            struct dirent **tmp_list = (struct dirent **)realloc((void*)list, DIR_ENT_SIZE * sizeof(struct dirent *));
+            if (tmp_list != NULL) {
+                list = tmp_list;
+            } else {
+                FREE(list);
+                closedir(od);
+                return -1;
+            }
 		}
 	} 
 

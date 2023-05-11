@@ -113,7 +113,6 @@ int load_file_to_memory(const char *file_name, unsigned char **pp_out, size_t *o
 	read_size = fread(*pp_out, 1, *out_sz, fp);
 	if (read_size != *out_sz) {
 		FREE(*pp_out);
-		return -1;
 	}	
 	
 	fclose(fp);
