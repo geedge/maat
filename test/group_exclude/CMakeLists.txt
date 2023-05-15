@@ -1,0 +1,4 @@
+include_directories(${PROJECT_SOURCE_DIR}/src/inc_internal)
+
+add_executable(group_exclude_gtest group_exclude_gtest.cpp)
+target_link_libraries(group_exclude_gtest maat_frame_static gtest_static)

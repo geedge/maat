@@ -6,9 +6,6 @@ include_directories(${PROJECT_SOURCE_DIR}/scanner)
 include_directories(${PROJECT_SOURCE_DIR}/scanner/adapter_hs)
 include_directories(${PROJECT_SOURCE_DIR}/scanner/ip_matcher)
 
-add_executable(maat_api_gtest maat_api_gtest.cpp)
-target_link_libraries(maat_api_gtest maat_frame_shared gtest_static)
-
 add_executable(rcu_hash_gtest rcu_hash_gtest.cpp)
 target_link_libraries(rcu_hash_gtest maat_frame_static gtest_static)
 
@@ -27,6 +24,8 @@ target_link_libraries(adapter_hs_gtest maat_frame_static gtest_static)
 add_executable(maat_ex_data_gtest maat_ex_data_gtest.cpp)
 target_link_libraries(maat_ex_data_gtest maat_frame_static gtest_static)
 
+add_subdirectory(group_exclude)
+
 file(COPY table_info.conf DESTINATION ./)
 file(COPY file_test_tableinfo.conf DESTINATION ./)
 file(COPY literal_expr.conf DESTINATION ./)
@@ -37,6 +36,7 @@ file(COPY ntcrule DESTINATION ./)
 file(COPY testdata DESTINATION ./)
 file(COPY test_streamfiles DESTINATION ./)
 file(COPY json_update DESTINATION ./)
+file(COPY group_exclude DESTINATION ./)
 
 include(GoogleTest)
 gtest_discover_tests(maat_framework_gtest)

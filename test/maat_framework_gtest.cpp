@@ -775,7 +775,7 @@ TEST_F(MaatFlagScan, FlagPlus) {
     maat_state_free(state);
     state = NULL;
 }
-#if 1
+
 class MaatStringScan : public testing::Test
 {
 protected:
@@ -6160,7 +6160,6 @@ TEST_F(MaatRollbackTest, FullConfigRollback) {
     maat_state_free(state);
     state = NULL;
 }
-#endif
 
 int main(int argc, char ** argv)
 {

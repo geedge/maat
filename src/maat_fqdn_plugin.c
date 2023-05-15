@@ -1,10 +1,10 @@
 /*
 **********************************************************************************************
-*	File: maat_fqdn_plugin.cpp
+*	File: maat_fqdn_plugin.c
 *   Description: 
 *	Authors: Liu wentan <liuwentan@geedgenetworks.com>
 *	Date:    2022-10-31
-*   Copyright: (c) 2018-2022 Geedge Networks, Inc. All rights reserved.
+*   Copyright: (c) Since 2022 Geedge Networks, Ltd. All rights reserved.
 ***********************************************************************************************
 */
 
