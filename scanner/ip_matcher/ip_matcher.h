@@ -27,92 +27,73 @@ extern "C"
 {
 #endif
 
-	 enum IP_TYPE
-	{
-		IPv4=4,
-		IPv6=6
+	 enum IP_TYPE {
+		IPv4 = 4,
+		IPv6 = 6
 	};
 
-	/* ������ĵ���IPv4���� */
-	struct ipv4_range
-	{
-		unsigned int	start_ip;   /* IP��Χ�½� */
-		unsigned int	end_ip;     /* IP��Χ�Ͻ� */
+	struct ipv4_range {
+		unsigned int start_ip;   /* lower boundary(network-order) */
+		unsigned int end_ip;     /* upper boundary(network-order) */
 	};
 
-	/* ������ĵ���IPv6���� */
-	struct ipv6_range
-	{
-		unsigned int	start_ip[4];  /* IP��Χ�½磬�� Big-Endian ģʽ�洢 */
-		unsigned int	end_ip[4];    /* IP��Χ�Ͻ磬�� Big-Endian ģʽ�洢 */
+	struct ipv6_range {
+		unsigned int start_ip[4];  /* lower boundary(network-order) */
+		unsigned int end_ip[4];    /* upper boundary(network-order) */
 	};
 
-	/* ͨ�õ�ip�������� */
-	struct ip_rule
-	{
-		enum IP_TYPE type;           /* �������ͣ�ipv4��ipv6 */
-		long long rule_id;		    /* ����ID */
-		void* user_tag;              /* �û��Զ������ݣ�����ʱ��ƥ�������� */
-		union								
-		{
-			struct ipv4_range ipv4_rule;  /*������ĵ���IPv4����*/
-			struct ipv6_range ipv6_rule;  /*������ĵ���IPv6����*/
+	/* common type for ip rule */
+	struct ip_rule {
+		enum IP_TYPE type;          /* IPv4 or IPv6 */
+		long long rule_id;		    /* rule id */
+		void *user_tag;             /* point to user-defined data which will return with hit results */
+		union {
+			struct ipv4_range ipv4_rule;
+			struct ipv6_range ipv6_rule;
 		};
 	};
 
-	/* ͨ�õĴ�ɨ���������� */
-	struct ip_data
-	{
-		enum IP_TYPE type;			/* �������ͣ�ipv4��ipv6 */
-		union                       /* ����rule_type�������ݸ�����ipv4����ipv6 */
-		{
-			unsigned int ipv4;		/* ipv4����*/
-			unsigned int ipv6[4];	/* ipv6���ݣ��� Big-Endian ģʽ�洢*/
+	/* common type for scan data */
+	struct ip_data {
+		enum IP_TYPE type;			/* IPv4 or IPv6 */
+		union {
+			unsigned int ipv4;      /* network order */
+			unsigned int ipv6[4];   /* network order */
 		};
 	};
 
-
-		/* ��������ʽ��ɨ�������� */
-	struct scan_result
-	{
-		long long  rule_id;	/* �����ID */		
-		void *        tag;		/* �û��Զ������ݣ�����ʱ��ƥ�������� */
+	/* data type for scan result */
+	struct scan_result {
+		long long rule_id;	/* rule id */		
+		void *tag;		    /* point to the same address as user_tag in struct ip_rule which has same rule_id */
 	};
-
 
 	struct ip_matcher;
 
-	/* 
-	���ܣ���������Ĺ��������?���� 
-	������
-		rules[in]��һ��ip����
-		rule_num[in]������Ĺ�������?
-		mem_use[out]���ڴ�������
-	����ֵ��
-		ipɨ����,���ؿ�ָ������ɨ����ʧ��
-	*/
-	struct ip_matcher* ip_matcher_new(struct ip_rule * rules, size_t rule_num, size_t * mem_use);
+	/**
+     * @brief create an ip_matcher instance
+     * 
+     * @param rules[input]:    a set of ip rules
+     * @param rule_num[input]: the number of ip rules
+     * @param mem_use[output]: memory used by ip_matcher
+    */
+	struct ip_matcher *ip_matcher_new(struct ip_rule *rules, size_t rule_num, size_t *mem_use);
 
-	/*
-	���ܣ�����ipɨ�����������ip���ݽ���ɨ��
-	������
-		matcher[in]��ipɨ����
-		data[in]������Ĵ��?��ip����
-		result[in]�����ؽ����?����
-		size[in]���������Ĵ�С
-	����ֵ��
-		���н����������?<=size��������ֵΪ-1��ʾ������
-		
-	*/
-	int ip_matcher_match(struct ip_matcher* matcher, struct ip_data * data, 
-                         struct scan_result* result, size_t size);
+	/**
+     * @brief scan ip_data to find out if has matched rules in ip_matcher
+     * 
+     * @param matcher[intput]: ip_matcher which created by ip_matcher_new
+     * @param data[intput]:    ip_data to be scanned
+     * @param result[input]:   result array to store the rule_id and user_tag if there are matching rules
+     * @param size[input]:     result array size
+    */
+	int ip_matcher_match(struct ip_matcher *matcher, struct ip_data *data, 
+                         struct scan_result *result, size_t size);
 
-	/*
-	���ܣ�����һ��ipɨ����
-	������
-		matcher[in]�������ٵ�ipɨ����ָ��
-	*/
-	void ip_matcher_free(struct ip_matcher* matcher);
+	/**
+     * @brief destroy ip_matcher instance
+    */
+	void ip_matcher_free(struct ip_matcher *matcher);
 
 #ifdef __cplusplus
 }

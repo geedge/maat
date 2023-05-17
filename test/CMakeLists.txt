@@ -21,6 +21,9 @@ target_link_libraries(maat_framework_perf_gtest maat_frame_static gtest_static)
 add_executable(adapter_hs_gtest adapter_hs_gtest.cpp)
 target_link_libraries(adapter_hs_gtest maat_frame_static gtest_static)
 
+add_executable(ip_matcher_gtest ip_matcher_gtest.cpp)
+target_link_libraries(ip_matcher_gtest maat_frame_static gtest_static)
+
 add_executable(maat_ex_data_gtest maat_ex_data_gtest.cpp)
 target_link_libraries(maat_ex_data_gtest maat_frame_static gtest_static)
 

@@ -94,7 +94,8 @@ long long CSuccinctHash::init(unsigned int keys[], unsigned int values[], unsign
 	}
 	int tn=m_RT[(1U<<(m_hash_bits-8))].A;
 
-	m_kv_ptr=new unsigned int[tn+1];
+	m_kv_ptr=new unsigned int[tn+2]();
+
 	FOR(i, tn+1) m_kv_ptr[i]=0;
 	FOR(i, num)
 	{
@@ -103,7 +104,7 @@ long long CSuccinctHash::init(unsigned int keys[], unsigned int values[], unsign
 		unsigned int idx=rank(h);
 		m_kv_ptr[idx]++;
 	}
-	FOR(i, tn) m_kv_ptr[i+1]+=m_kv_ptr[i];
+	FOR(i, tn+1) m_kv_ptr[i+1]+=m_kv_ptr[i];
 
 	m_kv_array=new unsigned int[2*num];
 	FOR(i, num)
