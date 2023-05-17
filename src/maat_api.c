@@ -40,6 +40,7 @@
 #include "maat_bool_plugin.h"
 #include "maat_virtual.h"
 #include "maat_stat.h"
+#include "uthash/utarray.h"
 
 #define MODULE_MAAT_API	 module_name_str("maat.api")
 
@@ -1804,19 +1805,20 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
         compile_table_id = maat_instance->default_compile_table_id;
     }
 
-    void *g2g_runtime = table_manager_get_runtime(maat_instance->tbl_mgr, maat_instance->g2g_table_id);
-    size_t internal_hit_path_cnt = maat_compile_state_get_internal_hit_paths(state->compile_state, 
-                                                                            (struct group2group_runtime *)g2g_runtime,
-                                                                             paths, n_path);
-    
     void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr, compile_table_id);
     if (NULL == compile_rt) {
-        return internal_hit_path_cnt;
+        return -1;
     }
-        
+
+    void *g2g_runtime = table_manager_get_runtime(maat_instance->tbl_mgr, maat_instance->g2g_table_id);
+    size_t internal_hit_path_cnt = maat_compile_state_get_internal_hit_paths(state->compile_state,
+                                                                             (struct compile_runtime *)compile_rt,
+                                                                             (struct group2group_runtime *)g2g_runtime,
+                                                                             paths, n_path);
+
     return compile_runtime_get_hit_paths((struct compile_runtime *)compile_rt,
-                                          state->compile_state, paths, n_path,
-                                          internal_hit_path_cnt);
+                                                        state->compile_state, paths, n_path,
+                                                        internal_hit_path_cnt);
 }
 
 int maat_state_get_hit_objects(struct maat_state *state, struct maat_hit_object *objs, size_t n_obj)

@@ -169,7 +169,6 @@ TEST_F(MaatGroupExclude, level_3_basic) {
     char table_line[1024];
     struct group2group_rule rules;
     const char *table_name = "EXCLUDE_GROUP2GROUP";
-    //struct log_handle *logger = MaatGroupExclude::logger;
 
     int ret = parse_config_file("group_exclude_L3.conf", &rules);
     EXPECT_EQ(ret, 0);
@@ -184,13 +183,42 @@ TEST_F(MaatGroupExclude, level_3_basic) {
 
     group2group_runtime_commit(g2g_runtime, table_name, 1);
 
-    long long hit_group_ids[2] = {11, 4};
+    long long hit_group_ids[2] = {11, 13};
     long long super_group_ids[MAX_ITEM_NUM];
     size_t super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
                                                                   super_group_ids, MAX_ITEM_NUM);
-    for (size_t i = 0; i < super_group_cnt; i++) {
-        printf("super_group_ids[%zu]:%lld\n", i, super_group_ids[i]);
-    }
+    EXPECT_EQ(super_group_cnt, 2);
+    EXPECT_EQ(super_group_ids[0], 2);
+    EXPECT_EQ(super_group_ids[1], 7);
+    
+    //delete group_id = 7, super_group_id = 6, is_exclude = 1
+    memset(table_line, 0, sizeof(table_line));
+    sprintf(table_line, "%lld\t%lld\t%d\t%d", rules.del_items[0].group_id,
+            rules.del_items[0].super_group_id, rules.del_items[0].is_exclude, 0);
+    group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+    group2group_runtime_commit(g2g_runtime, table_name, 2);
+
+    super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
+                                                                  super_group_ids, MAX_ITEM_NUM);
+    EXPECT_EQ(super_group_cnt, 3);
+    EXPECT_EQ(super_group_ids[0], 1);
+    EXPECT_EQ(super_group_ids[1], 6);
+    EXPECT_EQ(super_group_ids[2], 7);
+
+    //delete group_id = 13, super_group_id = 4, is_exclude = 1
+    memset(table_line, 0, sizeof(table_line));
+    sprintf(table_line, "%lld\t%lld\t%d\t%d", rules.del_items[1].group_id,
+            rules.del_items[1].super_group_id, rules.del_items[1].is_exclude, 0);
+    group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+    group2group_runtime_commit(g2g_runtime, table_name, 3);
+
+    super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
+                                                                  super_group_ids, MAX_ITEM_NUM);
+    EXPECT_EQ(super_group_cnt, 4);
+    EXPECT_EQ(super_group_ids[0], 1);
+    EXPECT_EQ(super_group_ids[1], 4);
+    EXPECT_EQ(super_group_ids[2], 6);
+    EXPECT_EQ(super_group_ids[3], 7);
 }
 
 int main(int argc, char ** argv)

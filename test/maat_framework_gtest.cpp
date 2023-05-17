@@ -5415,6 +5415,18 @@ TEST_F(MaatCmdTest, HitPath) {
                               "time=2020-02-11", "Cookie", 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
+    /*
+            item1 -> group1 -> group11
+                        \
+                          \ -> compile1
+                                  /
+     item2 -> group2 -> group21 _/             
+    */
+    long long group11_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
+    ret = group2group_table_set_line(maat_instance, g2g_table_name, MAAT_OP_ADD, group1_id,
+                                     group11_id, 0, 0);
+    EXPECT_EQ(ret, 1);
+    
     //item3 -> group3, group3 is not referenced by any compile.
     long long item3_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
     long long group3_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);

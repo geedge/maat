@@ -93,6 +93,12 @@ struct compile_rule {
     char table_name[NAME_MAX];
 };
 
+struct group_reference {
+    long long group_id;
+    size_t ref_by_compile_cnt;
+    UT_hash_handle hh;
+};
+
 /* compile_runtime and group2compile_runtime share compile_hash_map */
 struct compile_runtime {
 	struct bool_matcher *bm;
@@ -101,6 +107,8 @@ struct compile_runtime {
     time_t version;
     struct maat_clause *clause_by_literals_hash;
     struct literal_clause *literal2clause_hash;
+    struct group_reference *group_ref_hash;
+    pthread_mutex_t mutex;
     long long rule_num;
     long long update_err_cnt;
     struct bool_expr_match *expr_match_buff;
@@ -573,8 +581,11 @@ void *compile_runtime_new(void *compile_schema, size_t max_thread_num,
     compile_rt->version = time(NULL);
     compile_rt->cfg_hash_tbl = rcu_hash_new(rcu_maat_compile_free, NULL);
     compile_rt->clause_by_literals_hash = NULL;
+    compile_rt->literal2clause_hash = NULL;
+    compile_rt->group_ref_hash = NULL;
     compile_rt->logger = logger;
     compile_rt->ref_garbage_bin = garbage_bin;
+    pthread_mutex_init(&(compile_rt->mutex), NULL);
 
     return compile_rt;
 }
@@ -591,7 +602,7 @@ static void maat_clause_hash_free(struct maat_clause *clause_hash)
 	}
 }
 
-void literal2clause_hash_free(struct literal_clause *hash)
+static void literal2clause_hash_free(struct literal_clause *hash)
 {
     struct literal_clause *l2c_val = NULL, *tmp_l2c_val = NULL;
 
@@ -605,6 +616,17 @@ void literal2clause_hash_free(struct literal_clause *hash)
         FREE(l2c_val);
     }
     assert(hash == NULL);
+}
+
+static void group_reference_hash_free(struct group_reference *group_ref_hash)
+{
+    struct group_reference *group_ref = NULL, *tmp_group_ref = NULL;
+
+    HASH_ITER(hh, group_ref_hash, group_ref, tmp_group_ref) {
+        HASH_DEL(group_ref_hash, group_ref);
+        FREE(group_ref);
+    }
+    assert(group_ref_hash == NULL);
 }
 
 void garbage_literal2clause_hash_free(void *l2c_hash, void *arg)
@@ -639,6 +661,14 @@ void compile_runtime_free(void *compile_runtime)
         maat_clause_hash_free(compile_rt->clause_by_literals_hash);
         compile_rt->clause_by_literals_hash = NULL;
     }
+
+    pthread_mutex_lock(&(compile_rt->mutex));
+    if (compile_rt->group_ref_hash != NULL) {
+        group_reference_hash_free(compile_rt->group_ref_hash);
+        compile_rt->group_ref_hash = NULL;
+    }
+    pthread_mutex_unlock(&(compile_rt->mutex));
+    pthread_mutex_destroy(&(compile_rt->mutex));
 
     if (compile_rt->expr_match_buff != NULL) {
         FREE(compile_rt->expr_match_buff);
@@ -1457,7 +1487,7 @@ static int maat_compile_hit_path_add(UT_array *hit_paths, long long item_id, lon
 	return 1;
 }
 
-static int maat_compile_has_literal(struct maat_compile* compile,
+static int maat_compile_has_literal(struct maat_compile *compile,
                                     struct maat_literal_id *literal_id)
 {
 	int i = 0;
@@ -1503,7 +1533,6 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt,
     size_t new_hit_path_cnt = 0;
     struct maat_compile *compile = NULL;
     struct maat_literal_id literal_id = {0, 0};
-    struct maat_hit_path tmp_path;
     struct bool_expr_match *expr_match = compile_rt->expr_match_buff + compile_state->thread_id * MAX_SCANNER_HIT_COMPILE_NUM;
     assert(compile_state->thread_id >= 0);
 
@@ -1540,7 +1569,7 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt,
 					hit_path_array[j].compile_id = compile->compile_id;
 				} else {
                     // means same literal_id hit more than one compile_id
-					tmp_path = hit_path_array[j];
+					struct maat_hit_path tmp_path = hit_path_array[j];
 					tmp_path.compile_id = compile->compile_id;
 					if(maat_compile_is_hit_path_existed(hit_path_array, n_internal_hit_path + new_hit_path_cnt, &tmp_path)) {
 						hit_path_array[n_internal_hit_path + new_hit_path_cnt] = tmp_path;
@@ -1846,9 +1875,24 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
         return -1;
     }
 
+    struct group_reference *group_ref = NULL;
     if (0 == is_valid) {
         //delete
-        ret = maat_remove_group_from_compile(compile_rt->cfg_hash_tbl, g2c_item, compile_rt->logger);
+        pthread_mutex_lock(&(compile_rt->mutex));
+        HASH_FIND(hh, compile_rt->group_ref_hash, (char *)&(g2c_item->group_id),
+                  sizeof(long long), group_ref);
+        if (group_ref != NULL) {
+            if (0 == group_ref->ref_by_compile_cnt) {
+                HASH_DEL(compile_rt->group_ref_hash, group_ref);
+                FREE(group_ref);
+            } else {
+                group_ref->ref_by_compile_cnt--;
+            }
+        }
+        pthread_mutex_unlock(&(compile_rt->mutex));
+
+        ret = maat_remove_group_from_compile(compile_rt->cfg_hash_tbl, g2c_item,
+                                             compile_rt->logger);
         if (0 == ret) {
             if (g2c_item->not_flag) {
                 g2c_rt->not_flag_group--;
@@ -1859,6 +1903,18 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
         }
     } else {
         //add
+        pthread_mutex_lock(&(compile_rt->mutex));
+        HASH_FIND(hh, compile_rt->group_ref_hash, (char *)&(g2c_item->group_id),
+                  sizeof(long long), group_ref);
+        if (NULL == group_ref) {
+            group_ref = ALLOC(struct group_reference, 1);
+            group_ref->group_id = g2c_item->group_id;
+            HASH_ADD_KEYPTR(hh, compile_rt->group_ref_hash, (char *)&(group_ref->group_id),
+                            sizeof(long long), group_ref);   
+        }
+        group_ref->ref_by_compile_cnt++;
+        pthread_mutex_unlock(&(compile_rt->mutex));
+
         ret = maat_add_group_to_compile(compile_rt->cfg_hash_tbl, g2c_item, compile_rt->logger);
         if (0 == ret) {
             if (g2c_item->not_flag) {
@@ -1872,6 +1928,20 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
     
     group2compile_item_free(g2c_item);
     return ret;
+}
+
+int group_referenced_by_compile(struct compile_runtime *compile_rt, long long group_id)
+{
+    struct group_reference *group_ref = NULL;
+    pthread_mutex_lock(&(compile_rt->mutex));
+    HASH_FIND(hh, compile_rt->group_ref_hash, (char *)&group_id, sizeof(long long), group_ref);
+    if (group_ref != NULL) {
+        pthread_mutex_unlock(&(compile_rt->mutex));
+        return 1;
+    }
+    pthread_mutex_unlock(&(compile_rt->mutex));
+
+    return 0;
 }
 
 long long group2compile_runtime_not_group_count(void *g2c_runtime)
@@ -2090,7 +2160,9 @@ void maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
     }
 }
 
+UT_icd ut_compile_group_id_icd = {sizeof(long long), NULL, NULL, NULL};
 size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *compile_state,
+                                                 struct compile_runtime *compile_rt,
                                                  struct group2group_runtime *g2g_rt,
                                                  struct maat_hit_path *hit_path_array, 
                                                  size_t array_size)
@@ -2104,46 +2176,54 @@ size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *comp
             NOTE: maybe one item has been deleted, but it's item_id still exist in internal_hit_paths
         */
         long long super_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
-        memset(super_group_ids, -1, sizeof(super_group_ids));
+        UT_array *valid_super_group_ids;
+        utarray_new(valid_super_group_ids, &ut_compile_group_id_icd);
+
         size_t super_group_cnt = group2group_runtime_get_super_groups(g2g_rt, &(internal_path->group_id), 1,
                                                                       super_group_ids, MAX_SCANNER_HIT_GROUP_NUM);
-        if (0 == super_group_cnt) {
-            /*
-                item->group_id has no top group, this group can only be referenced by compile
-                ------------------------------------------------------------------------------
-                for example:
-                    compile1 -> group1 -> group2 -> item1
-                    group3 -> item2
-
-                    group1 and group3 has no top group
-                    group1 is referenced by compile1, group3 is not referenced by any compile
-
-                    NOTE: Add the hit path as long as the item is hit
-
-            */
-            super_group_cnt = 1; // add one hit path which top_group_ids[0] = -1
+        /* if super group is not referenced by compile, drop it */
+        for (size_t idx = 0; idx < super_group_cnt; idx++) {
+            if (0 == group_referenced_by_compile(compile_rt, super_group_ids[idx])) {
+                continue;
+            }
+            utarray_push_back(valid_super_group_ids, &super_group_ids[idx]);
         }
 
+        /*
+            if internal_path->group_id can be referenced directly by compile, 
+            so add it to hit_path which super_group_ids is -1
+            ------------------------------------------------------------------------------
+            NOTE: Add the hit path as long as the item is hit
+        */
+        if (0 == utarray_len(valid_super_group_ids)) {
+            long long super_group_id = -1;
+            utarray_push_back(valid_super_group_ids, &super_group_id);
+        }
+        
+        long long *p = NULL;
         struct maat_hit_path tmp_path;
-        for (int j = 0; j < super_group_cnt && hit_path_cnt < array_size; j++) {
+    
+        for (p = utarray_front(valid_super_group_ids); p != NULL && hit_path_cnt < array_size;
+             p = utarray_next(valid_super_group_ids, p)) {
             memset(&tmp_path, 0, sizeof(tmp_path));
             tmp_path.Nth_scan = internal_path->Nth_scan;
             tmp_path.item_id = internal_path->item_id;
             tmp_path.sub_group_id = internal_path->group_id;
-            tmp_path.top_group_id = super_group_ids[j];
+            tmp_path.top_group_id = *p;
             tmp_path.vtable_id = internal_path->vtable_id;
             tmp_path.compile_id = -1;
 
-            /* check if internal_path is duplicated from hit_path_array[] element */
+           /* check if internal_path is duplicated from hit_path_array[] element */
             if (hit_path_cnt > 0) {
                 if (maat_compile_is_hit_path_existed(hit_path_array, hit_path_cnt, &tmp_path)) {
                     continue;
                 }
             }
-
+           
             hit_path_array[hit_path_cnt] = tmp_path;
             hit_path_cnt++;
         }
+        utarray_free(valid_super_group_ids);
     }
 
     return hit_path_cnt;
