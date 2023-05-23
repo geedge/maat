@@ -56,7 +56,7 @@ void *bool_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->table_id = item->valueint;
     } else {
         log_error(logger, MODULE_BOOL_PLUGIN, 
-                  "[%s:%d] table %s has no table_id column", 
+                  "[%s:%d] table: <%s> schema has no table_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -64,7 +64,7 @@ void *bool_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     item = cJSON_GetObjectItem(json, "custom");
     if (NULL == item || item->type != cJSON_Object) {
         log_error(logger, MODULE_BOOL_PLUGIN, 
-                  "[%s:%d] table %s has no custom column", 
+                  "[%s:%d] table: <%s> schema has no custom column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -74,7 +74,7 @@ void *bool_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->item_id_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_BOOL_PLUGIN, 
-                  "[%s:%d] table %s has no item_id column", 
+                  "[%s:%d] table: <%s> schema has no item_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -84,7 +84,7 @@ void *bool_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->bool_expr_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_BOOL_PLUGIN, 
-                  "[%s:%d] table %s has no bool_expr column", 
+                  "[%s:%d] table: <%s> schema has no bool_expr column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -185,7 +185,8 @@ void *bool_plugin_runtime_new(void *bool_plugin_schema, size_t max_thread_num,
 
     bool_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, logger);
     if (1 == schema->container_schema.set_flag) {
-        ex_data_runtime_set_ex_container_schema(bool_plugin_rt->ex_data_rt, &(schema->container_schema));
+        ex_data_runtime_set_ex_container_schema(bool_plugin_rt->ex_data_rt,
+                                                &(schema->container_schema));
     }
 
     bool_plugin_rt->n_worker_thread = max_thread_num;
@@ -254,8 +255,8 @@ int bool_plugin_runtime_update_row(struct bool_plugin_runtime *bool_plugin_rt,
     return 0;
 }
 
-int bool_plugin_accept_tag_match(struct bool_plugin_schema *schema, const char *line,
-                                 struct log_handle *logger)
+int bool_plugin_accept_tag_match(struct bool_plugin_schema *schema, const char *table_name,
+                                 const char *line, struct log_handle *logger)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
@@ -266,8 +267,8 @@ int bool_plugin_accept_tag_match(struct bool_plugin_schema *schema, const char *
                                  &column_offset, &column_len);
         if (ret < 0) {
             log_error(logger, MODULE_BOOL_PLUGIN,
-                      "[%s:%d] bool_plugin table(table_id:%d) has no rule_tag, line:%s",
-                      __FUNCTION__, __LINE__, schema->table_id, line);
+                      "[%s:%d] table: <%s> has no rule_tag in line:%s",
+                      __FUNCTION__, __LINE__, table_name, line);
             return TAG_MATCH_ERR;
         }
 
@@ -278,12 +279,15 @@ int bool_plugin_accept_tag_match(struct bool_plugin_schema *schema, const char *
             FREE(tag_str);
             if (TAG_MATCH_ERR == ret) {
                 log_error(logger, MODULE_BOOL_PLUGIN,
-                          "[%s:%d] bool_plugin table(table_id:%d) has invalid tag format, line:%s",
-                          __FUNCTION__, __LINE__, schema->table_id, line);
+                          "[%s:%d] table: <%s> has invalid tag format in line:%s",
+                          __FUNCTION__, __LINE__, table_name, line);
                 return TAG_MATCH_ERR;
             }
 
             if (TAG_MATCH_UNMATCHED == ret) {
+                log_error(logger, MODULE_BOOL_PLUGIN,
+                          "[%s:%d] table: <%s> has unmatched tag in line:%s",
+                          __FUNCTION__, __LINE__, table_name, line);
                 return TAG_MATCH_UNMATCHED;
             }
         }
@@ -296,7 +300,7 @@ struct bool_expr *
 bool_plugin_expr_new(const char *line, struct bool_plugin_schema *schema,
                      const char *table_name, struct log_handle *logger)
 {
-    int ret = bool_plugin_accept_tag_match(schema, line, logger);
+    int ret = bool_plugin_accept_tag_match(schema, table_name, line, logger);
     if (ret == TAG_MATCH_UNMATCHED) {
         return NULL;
     }
@@ -312,7 +316,7 @@ bool_plugin_expr_new(const char *line, struct bool_plugin_schema *schema,
     ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_BOOL_PLUGIN, 
-                  "[%s:%d] bool_plugin table:%s line:%s has no item_id column",
+                  "[%s:%d] table: <%s> has no item_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
@@ -321,7 +325,7 @@ bool_plugin_expr_new(const char *line, struct bool_plugin_schema *schema,
     ret = get_column_pos(line, schema->bool_expr_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_BOOL_PLUGIN, 
-                  "[%s:%d] bool_plugin table:%s line:%s has no bool_expr column",
+                  "[%s:%d] table: <%s> has no bool_expr in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
@@ -337,7 +341,7 @@ bool_plugin_expr_new(const char *line, struct bool_plugin_schema *schema,
         n_item++;
         if (ret != 1 || n_item > MAX_ITEMS_PER_BOOL_EXPR) {
             log_error(logger, MODULE_BOOL_PLUGIN, 
-                      "[%s:%d] bool_plugin table:%s line:%s has invalid format of bool_expr column",
+                      "[%s:%d] table: <%s> has invalid format of bool_expr in line:%s",
                       __FUNCTION__, __LINE__, table_name, line);
             goto error;
         }

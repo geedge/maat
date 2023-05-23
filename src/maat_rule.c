@@ -55,7 +55,7 @@ void maat_item_inner_free(void *item_inner)
 	assert(item->magic_num == ITEM_RULE_MAGIC);
 	item->magic_num = 0;
 
-	free(item);
+	FREE(item);
 }
 
 struct maat_runtime* maat_runtime_create(long long version, struct maat *maat_instance)

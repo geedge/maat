@@ -411,16 +411,28 @@ int get_inc_key_list(long long instance_version, long long target_version,
 
 void serial_rule_free(struct serial_rule *s_rule)
 {
+    if (NULL == s_rule) {
+        return;
+    }
+
     if (s_rule->table_line != NULL) {
 		FREE(s_rule->table_line);
 	}
 
 	if (s_rule->n_foreign > 0) {
 		for (int i = 0; i < s_rule->n_foreign; i++) {
-			FREE(s_rule->f_keys[i].filename);
-			FREE(s_rule->f_keys[i].key);
+            if (s_rule->f_keys[i].filename != NULL) {
+                FREE(s_rule->f_keys[i].filename);
+            }
+			
+            if (s_rule->f_keys[i].key != NULL) {
+                FREE(s_rule->f_keys[i].key);
+            }
 		}
-		FREE(s_rule->f_keys);
+
+        if (s_rule->f_keys != NULL) {
+            FREE(s_rule->f_keys);
+        }
 	}
 
 	FREE(s_rule);

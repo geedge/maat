@@ -2836,6 +2836,112 @@
                     "group_name": "Untitled"
                 }
             ]
+        },
+        {
+            "compile_id": 206,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "duplicateRuleFor191",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "expr",
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_content": {
+                                "keywords": "54455354",
+                                "expr_type": "none",
+                                "format": "hexbin",
+                                "match_method": "sub"
+                            }
+                        }
+                    ],
+                    "group_name": "Untitled"
+                }
+            ]
+        },
+        {
+            "compile_id": 207,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "duplicateRuleFor192",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "flag",
+                            "table_name": "FLAG_CONFIG",
+                            "table_content": {
+                                "flag": 1,
+                                "flag_mask": 3
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 208,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "duplicateRuleFor154",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "ip_plus",
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv4",
+                                "addr_format": "range",
+                                "ip1": "10.0.7.100",
+                                "ip2": "10.0.7.106",
+                                "port_format": "range",
+                                "port1": "65530",
+                                "port2": "65535",
+                                "protocol": 6
+                            }
+                        }
+                    ],
+                    "not_flag": 0
+                }
+            ]
+        },
+        {
+            "compile_id": 209,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "duplicateRuleFor179",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_name": "INTERGER_PLUS",
+                            "table_type": "interval_plus",
+                            "table_content": {
+                                "district": "interval.plus",
+                                "low_boundary": 2020,
+                                "up_boundary": 2020
+                            }
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "plugin_table": [

@@ -423,7 +423,6 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
     if (ret < 0) {
         if (interval_item != NULL) {
             interval_item_free(interval_item);
-            interval_item = NULL;
         }
         interval_rt->update_err_cnt++;
         return -1;

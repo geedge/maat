@@ -118,7 +118,6 @@ struct compile_runtime {
 
 struct group2compile_runtime {
     long long not_flag_group;
-    long long version;
     long long rule_num;
     long long update_err_cnt;
     struct compile_runtime *ref_compile_rt;
@@ -229,7 +228,7 @@ void maat_compile_free(struct maat_compile *compile)
 		clause_state->in_use = 0;
 	}
 	compile->magic = 0;
-	free(compile);
+	FREE(compile);
 }
 
 void rcu_maat_compile_free(void *user_ctx, void *data)
@@ -328,14 +327,15 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         compile_schema->table_id = item->valueint;
     } else {
         log_error(logger, MODULE_COMPILE, 
-                  "[%s:%d] table %s has no table_id column", table_name);
+                  "[%s:%d] table: <%s> schema has no table_id column",
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
    	item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
         log_error(logger, MODULE_COMPILE, 
-                  "[%s:%d] table %s has no custom column", 
+                  "[%s:%d] table: <%s> schema has no custom column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -345,7 +345,8 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         compile_schema->compile_id_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_COMPILE, 
-                  "[%s:%d] table %s has no compile_id column", table_name);
+                  "[%s:%d] table: <%s> schema has no compile_id column",
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -359,7 +360,8 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         compile_schema->declared_clause_num_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_COMPILE, 
-                  "[%s:%d] table %s has no clause_num column", table_name);
+                  "[%s:%d] table: <%s> schema has no clause_num column",
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -386,7 +388,7 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         g2c_schema->table_id = item->valueint;
     } else {
         log_error(logger, MODULE_COMPILE, 
-                  "[%s:%d] table %s has no table_id column", 
+                  "[%s:%d] table: <%s> schema has no table_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -396,7 +398,7 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         g2c_schema->associated_compile_table_id = item->valueint;
     } else {
         log_error(logger, MODULE_COMPILE, 
-                  "[%s:%d] table %s has no associated_compile_table_id column", 
+                  "[%s:%d] table: <%s> schema has no associated_compile_table_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -404,7 +406,7 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
         log_error(logger, MODULE_COMPILE, 
-                  "[%s:%d] table %s has no custom column", 
+                  "[%s:%d] table: <%s> schema has no custom column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -414,7 +416,7 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         g2c_schema->group_id_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_COMPILE, 
-                  "[%s:%d] table %s has no group_id column", 
+                  "[%s:%d] table: <%s> schema has no group_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -424,7 +426,7 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         g2c_schema->compile_id_column = custom_item->valueint;
     } else {
          log_error(logger, MODULE_COMPILE, 
-                  "[%s:%d] table %s has no compile_id column", 
+                  "[%s:%d] table: <%s> schema has no compile_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -434,7 +436,7 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         g2c_schema->not_flag_column = custom_item->valueint;
     } else {
          log_error(logger, MODULE_COMPILE, 
-                  "[%s:%d] table %s has no not_flag column", 
+                  "[%s:%d] table: <%s> schema has no not_flag column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -444,7 +446,7 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         g2c_schema->vtable_name_column = custom_item->valueint;
     } else {
          log_error(logger, MODULE_COMPILE, 
-                  "[%s:%d] table %s has no virtual_table_name column", 
+                  "[%s:%d] table: <%s> schema has no virtual_table_name column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -454,7 +456,7 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         g2c_schema->clause_index_column = custom_item->valueint;
     } else {
          log_error(logger, MODULE_COMPILE, 
-                  "[%s:%d] table %s has no clause_index column", 
+                  "[%s:%d] table: <%s> schema has no clause_index column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -490,7 +492,7 @@ int compile_accept_tag_match(struct compile_schema *schema, const char *line,
                                  &column_offset, &column_len);
         if (ret < 0) {
             log_error(logger, MODULE_COMPILE,
-                      "[%s:%d] compile table:%s has no rule_tag in line:%s",
+                      "[%s:%d] table: <%s> has no rule_tag in line:%s",
                       __FUNCTION__, __LINE__, table_name, line);
             return TAG_MATCH_ERR;
         }
@@ -502,12 +504,15 @@ int compile_accept_tag_match(struct compile_schema *schema, const char *line,
             FREE(tag_str);
             if (TAG_MATCH_ERR == ret) {
                 log_error(logger, MODULE_COMPILE,
-                          "[%s:%d] compile table:%s has invalid tag format in line:%s",
+                          "[%s:%d] table: <%s> has invalid tag format in line:%s",
                           __FUNCTION__, __LINE__, table_name, line);
                 return TAG_MATCH_ERR;
             }
 
             if (TAG_MATCH_UNMATCHED == ret) {
+                log_error(logger, MODULE_COMPILE,
+                          "[%s:%d] table: <%s> has unmatched tag in line:%s",
+                          __FUNCTION__, __LINE__, table_name, line);
                 return TAG_MATCH_UNMATCHED;
             }
         }
@@ -522,9 +527,6 @@ compile_item_new(const char *line, struct compile_schema *compile_schema,
 {
     int ret = compile_accept_tag_match(compile_schema, line, table_name, logger);
     if (ret == TAG_MATCH_UNMATCHED) {
-        log_error(logger, MODULE_COMPILE,
-                  "[%s:%d] compile table:%s accept tag unmatched in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
         return NULL;
     }
 
@@ -536,7 +538,7 @@ compile_item_new(const char *line, struct compile_schema *compile_schema,
                              &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_COMPILE,
-                  "[%s:%d] compile table:%s has no compile_id in line:%s",
+                  "[%s:%d] table: <%s> has no compile_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
@@ -546,7 +548,7 @@ compile_item_new(const char *line, struct compile_schema *compile_schema,
                          &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_COMPILE,
-                  "[%s:%d] compile table:%s has no clause_num in line:%s",
+                  "[%s:%d] table: <%s> has no clause_num in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
 		goto error;
     }
@@ -577,7 +579,8 @@ void *compile_runtime_new(void *compile_schema, size_t max_thread_num,
 
     struct compile_runtime *compile_rt = ALLOC(struct compile_runtime, 1);
 
-    compile_rt->expr_match_buff = ALLOC(struct bool_expr_match, max_thread_num * MAX_SCANNER_HIT_COMPILE_NUM);
+    compile_rt->expr_match_buff = ALLOC(struct bool_expr_match, 
+                                        max_thread_num * MAX_SCANNER_HIT_COMPILE_NUM);
     compile_rt->version = time(NULL);
     compile_rt->cfg_hash_tbl = rcu_hash_new(rcu_maat_compile_free, NULL);
     compile_rt->clause_by_literals_hash = NULL;
@@ -746,7 +749,7 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
     int ret = get_column_pos(line, g2c_schema->group_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_COMPILE,
-				  "[%s:%d] group2compile table:%s line:%s has no group_id",
+				  "[%s:%d] table: <%s> has no group_id in line:%s",
 				  __FUNCTION__, __LINE__, table_name, line);
 		goto error;
     }
@@ -755,7 +758,7 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
     ret = get_column_pos(line, g2c_schema->compile_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_COMPILE,
-				  "[%s:%d] group2compile table:%s line:%s has no compile_id",
+				  "[%s:%d] table: <%s> has no compile_id in line:%s",
 				  __FUNCTION__, __LINE__, table_name, line);
 		goto error;
     }
@@ -764,7 +767,7 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
     ret = get_column_pos(line, g2c_schema->not_flag_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_COMPILE,
-				  "[%s:%d] group2compile table:%s line:%s has no NOT_flag",
+				  "[%s:%d] table: <%s> has no NOT_flag in line:%s ",
 				  __FUNCTION__, __LINE__, table_name, line);
 		goto error;
     }
@@ -773,14 +776,14 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
     ret = get_column_pos(line, g2c_schema->vtable_name_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_COMPILE,
-				  "[%s:%d] group2compile table:%s line:%s has no virtual_table_name",
+				  "[%s:%d] table: <%s> has no virtual_table_name in line:%s",
 				  __FUNCTION__, __LINE__, table_name, line);
 		goto error;
     }
 
     if (column_len > NAME_MAX) {
         log_error(logger, MODULE_COMPILE, 
-                  "[%s:%d] group2compile table:%s line:%s virtual_table_name length too long",
+                  "[%s:%d] table: <%s> virtual_table_name length too long in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
@@ -791,8 +794,8 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
         g2c_item->vtable_id = table_manager_get_table_id(g2c_schema->ref_tbl_mgr, vtable_name);
         if (g2c_item->vtable_id < 0) {
             log_error(logger, MODULE_COMPILE,
-                      "[%s:%d] group2compile table:%s line:%s unknown virtual table:%s",
-                      __FUNCTION__, __LINE__, table_name, line, vtable_name);
+                      "[%s:%d] table: <%s> has unknown virtual table:%s in line:%s",
+                      __FUNCTION__, __LINE__, table_name, vtable_name, line);
             goto error;
         }
     }
@@ -800,7 +803,7 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
     ret = get_column_pos(line, g2c_schema->clause_index_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_COMPILE,
-                  "[%s:%d] group2compile table:%s line:%s has no clause_index",
+                  "[%s:%d] table: <%s> has no clause_index in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
@@ -960,7 +963,7 @@ struct bool_matcher *maat_compile_bool_matcher_new(struct compile_runtime *compi
 #if 0
 				struct maat_literal_id *p = NULL;
 				for(p = (struct maat_literal_id *)utarray_front(iter_compile->clause_states[i].ut_literal_ids); p!=NULL; 
-                    p=(struct maat_literal_id *)utarray_next(iter_compile->clause_states[i].ut_literal_ids,p)) {
+                    p = (struct maat_literal_id *)utarray_next(iter_compile->clause_states[i].ut_literal_ids, p)) {
     				printf("<before bool_matcher_new> compile_rt:%p compile_id:%lld, clause_id:%llu, literal{%lld: %lld}\n", 
 							compile_rt, iter_compile->compile_id, iter_compile->clause_states[i].clause_id, p->group_id, p->vtable_id);
   				}
@@ -986,8 +989,8 @@ struct bool_matcher *maat_compile_bool_matcher_new(struct compile_runtime *compi
     // STEP 3, build bool matcher
     size_t mem_size = 0;
     if (0 == expr_cnt) {
-        log_error(compile_rt->logger, MODULE_COMPILE, "[%s:%d] No bool expression to build bool matcher.",
-                  __FUNCTION__, __LINE__);
+        log_error(compile_rt->logger, MODULE_COMPILE,
+                  "[%s:%d] No bool expression to build bool matcher.", __FUNCTION__, __LINE__);
         FREE(bool_expr_array);
         return NULL;
     }
@@ -995,7 +998,8 @@ struct bool_matcher *maat_compile_bool_matcher_new(struct compile_runtime *compi
     struct bool_matcher *bm = bool_matcher_new(bool_expr_array, expr_cnt, &mem_size);
     if (bm != NULL) {
         log_info(compile_rt->logger, MODULE_COMPILE,
-                 "Build bool matcher of %zu expressions with %zu bytes memory.", expr_cnt, mem_size);
+                 "Build bool matcher of %zu expressions with %zu bytes memory.",
+                 expr_cnt, mem_size);
     } else {
         log_error(compile_rt->logger, MODULE_COMPILE, "[%s:%d] Build bool matcher failed!",
                   __FUNCTION__, __LINE__);
@@ -1215,14 +1219,21 @@ void compile_rule_free(struct compile_rule *compile_rule)
     struct compile_schema *schema = compile_rule->ref_schema;
     assert(compile_rule->magic_num == COMPILE_RULE_MAGIC);
 
-    if (1 == schema->set_flag)
-    {
+    if (1 == schema->set_flag) {
         rule_ex_data_free(schema->table_id, compile_rule->ex_data, &(schema->ex_schema));
         *compile_rule->ex_data = NULL;
     }
-    FREE(compile_rule->ex_data);
+
+    if (compile_rule->ex_data != NULL) {
+        FREE(compile_rule->ex_data);
+    }
+    
     compile_rule->declared_clause_num = -1;
-    FREE(compile_rule->table_line);
+
+    if (compile_rule->table_line != NULL) {
+        FREE(compile_rule->table_line);
+    }
+    
     FREE(compile_rule);
 }
 
@@ -1468,7 +1479,7 @@ void maat_compile_state_free(struct maat_compile_state *compile_state)
         compile_state->this_scan_hit_clauses = NULL;
     }
 	
-	free(compile_state);
+	FREE(compile_state);
 }
 
 static int maat_compile_hit_path_add(UT_array *hit_paths, long long item_id, long long group_id,
@@ -1533,7 +1544,8 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt,
     size_t new_hit_path_cnt = 0;
     struct maat_compile *compile = NULL;
     struct maat_literal_id literal_id = {0, 0};
-    struct bool_expr_match *expr_match = compile_rt->expr_match_buff + compile_state->thread_id * MAX_SCANNER_HIT_COMPILE_NUM;
+    struct bool_expr_match *expr_match = compile_rt->expr_match_buff + 
+                                         (compile_state->thread_id * MAX_SCANNER_HIT_COMPILE_NUM);
     assert(compile_state->thread_id >= 0);
 
     if (compile_state->compile_rt_version != compile_rt->version) {
@@ -1910,7 +1922,7 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
             group_ref = ALLOC(struct group_reference, 1);
             group_ref->group_id = g2c_item->group_id;
             HASH_ADD_KEYPTR(hh, compile_rt->group_ref_hash, (char *)&(group_ref->group_id),
-                            sizeof(long long), group_ref);   
+                            sizeof(long long), group_ref);
         }
         group_ref->ref_by_compile_cnt++;
         pthread_mutex_unlock(&(compile_rt->mutex));
@@ -1933,6 +1945,7 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
 int group_referenced_by_compile(struct compile_runtime *compile_rt, long long group_id)
 {
     struct group_reference *group_ref = NULL;
+
     pthread_mutex_lock(&(compile_rt->mutex));
     HASH_FIND(hh, compile_rt->group_ref_hash, (char *)&group_id, sizeof(long long), group_ref);
     if (group_ref != NULL) {

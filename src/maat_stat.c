@@ -185,7 +185,7 @@ void maat_stat_free(struct maat_stat *stat)
         stat->fs_handle = NULL;
     }
 
-    free(stat);
+    FREE(stat);
 }
 
 int maat_stat_init(struct maat_stat *stat, struct table_manager *tbl_mgr, 
@@ -287,8 +287,7 @@ void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
                 break;
         }
 
-        if (table_type == TABLE_TYPE_PLUGIN || table_type == TABLE_TYPE_COMPILE ||
-            table_type == TABLE_TYPE_GROUP2COMPILE || table_type == TABLE_TYPE_GROUP2GROUP) {
+        if (table_type == TABLE_TYPE_PLUGIN ) {
             continue;
         }
 

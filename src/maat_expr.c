@@ -444,6 +444,10 @@ void expr_rule_reset(struct expr_rule *rule)
 
 void expr_item_free(struct expr_item *item)
 {
+    if (NULL == item) {
+        return;
+    }
+    
     if (item->user_data != NULL && 
         item->user_data_free != NULL) {
         item->user_data_free(item->user_data);
@@ -737,15 +741,6 @@ int expr_item_to_expr_rule(struct expr_item *expr_item, struct expr_rule *expr_r
     expr_rule->user_tag = expr_item->user_data;
     expr_rule->n_patterns = sub_expr_cnt;
     
-    //mytest
-    // printf("expr_rule->expr_id:%u\n", expr_rule->expr_id);
-    // printf("expr_rule->n_patterns:%zu\n", expr_rule->n_patterns);
-    // for (size_t i = 0; i < expr_rule->n_patterns; i++) {
-    //     printf("expr_rule->patterns[%zu].pat:%s\n", i, expr_rule->patterns[i].pat);
-    //     printf("expr_rule->patterns[%zu].pat_len:%zu\n", i, expr_rule->patterns[i].pat_len);
-    //     printf("expr_rule->patterns[%zu].l_offset:%d\n", i, expr_rule->patterns[i].l_offset);
-    //     printf("expr_rule->patterns[%zu].r_offset:%d\n", i, expr_rule->patterns[i].r_offset);
-    // }
     return 0;
 }
 
@@ -876,8 +871,8 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name, long long ma
     expr_rt->version = maat_rt_version;
 
     log_info(expr_rt->logger, MODULE_EXPR,
-             "table[%s] commit %zu expr rules and rebuild adapter_hs completed, version:%lld", 
-             table_name, rule_cnt, expr_rt->version);
+             "table[%s] has %zu rules, commit %zu expr rules and rebuild adapter_hs completed, version:%lld", 
+             table_name, rule_cnt, real_rule_cnt, expr_rt->version);
 
     if (rules != NULL) {
         for (i = 0; i < rule_cnt; i++) {

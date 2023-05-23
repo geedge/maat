@@ -535,7 +535,6 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
     if (ret < 0) {
         if (ip_item != NULL) {
             ip_item_free(ip_item);
-            ip_item = NULL;
         }
         ip_rt->update_err_cnt++;
         return -1;

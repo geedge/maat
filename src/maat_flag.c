@@ -425,7 +425,6 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table
     if (ret < 0) {
         if (flag_item != NULL) {
             flag_item_free(flag_item);
-            flag_item = NULL;
         }
         flag_rt->update_err_cnt++;
         return -1;

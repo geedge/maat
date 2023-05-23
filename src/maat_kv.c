@@ -48,10 +48,15 @@ struct maat_kv_pair* maat_kv_pair_new(const char* key, size_t keylen, long long 
 	return kv;
 }
 
-void maat_kv_pair_free(struct maat_kv_pair* kv)
+void maat_kv_pair_free(struct maat_kv_pair *kv)
 {
-	FREE(kv->key);
-	kv->key = NULL;
+    if (NULL == kv) {
+        return;
+    }
+
+    if (kv->key != NULL) {
+        FREE(kv->key);
+    }
 
 	FREE(kv);
 }
@@ -62,7 +67,7 @@ struct maat_kv_store* maat_kv_store_new(void)
 	return store;
 }
 
-void maat_kv_store_free(struct maat_kv_store* store)
+void maat_kv_store_free(struct maat_kv_store *store)
 {
 	if (NULL == store) {
 		return;
@@ -79,7 +84,7 @@ void maat_kv_store_free(struct maat_kv_store* store)
 	FREE(store);
 }
 
-int maat_kv_register_unNull(struct maat_kv_store* store, const char *key, size_t keylen, long long value)
+int maat_kv_register_unNull(struct maat_kv_store *store, const char *key, size_t keylen, long long value)
 {
 	if (keylen > MAAT_KV_MAX_KEY_LEN) {
 		return -1;

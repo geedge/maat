@@ -153,6 +153,10 @@ void group2group_schema_free(void *g2g_schema)
 
 void group_vertex_free(struct maat_group *group)
 {
+    if (NULL == group) {
+        return;
+    }
+
     if (group->incl_super_group_ids != NULL) {
         utarray_free(group->incl_super_group_ids);
         group->incl_super_group_ids = NULL;
@@ -194,6 +198,10 @@ struct maat_group_topology *maat_group_topology_new(struct log_handle *logger)
 
 void maat_group_topology_free(struct maat_group_topology *group_topo)
 {
+    if (NULL == group_topo) {
+        return;
+    }
+    
     struct maat_group *group = NULL, *tmp_group = NULL;
 
     HASH_CLEAR(hh_vertex_id, group_topo->hash_by_vertex_id);//No need group memory clean up.
@@ -770,7 +778,7 @@ void get_candidate_super_group_ids(struct maat_group_topology *group_topo,
 {
     long long *p = NULL;
 
-     //Find super candidates
+    //Find super candidates
     for (p = (long long *)utarray_front(hit_group_ids); p != NULL;
          p = (long long *)utarray_next(hit_group_ids, p)) {
         struct maat_group *group = group_topology_find_group(group_topo, *p);
@@ -792,6 +800,74 @@ void get_candidate_super_group_ids(struct maat_group_topology *group_topo,
     }
 }
 
+void verify_group_by_sub_include_groups(struct maat_group *group, UT_array *candidate_group_ids, 
+                                        UT_array *kept_super_group_ids, UT_array *all_hit_group_ids)
+{
+    size_t remove_idx = 0;
+    long long *tmp_id = NULL;
+
+    // delete groups whose all incl sub not in all_hit_group_ids
+    if (utarray_len(group->incl_sub_group_ids) != 0) {
+        int sub_incl_flag = 0;
+
+        for (tmp_id = (long long *)utarray_front(group->incl_sub_group_ids); tmp_id != NULL;
+             tmp_id = (long long *)utarray_next(group->incl_sub_group_ids, tmp_id)) {
+            if (utarray_find(candidate_group_ids, tmp_id, compare_group_id)) {
+                sub_incl_flag = 1;
+                break;
+            }
+        }
+
+        if (0 == sub_incl_flag) {
+            tmp_id = utarray_find(all_hit_group_ids, &(group->group_id), compare_group_id);
+            if (tmp_id != NULL) {
+                remove_idx = utarray_eltidx(all_hit_group_ids, tmp_id);
+                utarray_erase(all_hit_group_ids, remove_idx, 1);
+            }
+
+            tmp_id = utarray_find(kept_super_group_ids, &(group->group_id), compare_group_id);
+            if (tmp_id != NULL) {
+                remove_idx = utarray_eltidx(kept_super_group_ids, tmp_id);
+                utarray_erase(kept_super_group_ids, remove_idx, 1);
+            }
+        }
+    }
+}
+
+void verify_group_by_sub_exclude_groups(struct maat_group *group, UT_array *candidate_group_ids, 
+                                        UT_array *kept_super_group_ids, UT_array *all_hit_group_ids)
+{
+    if (0 == utarray_len(group->excl_sub_group_ids)) {
+        return;
+    }
+
+    // delete groups whose excl sub in all_hit_group_ids
+    int sub_excl_flag = 0;
+    long long *tmp_id = NULL;
+    for (tmp_id = (long long *)utarray_front(group->excl_sub_group_ids); tmp_id != NULL;
+         tmp_id = (long long *)utarray_next(group->excl_sub_group_ids, tmp_id)) {
+        if (utarray_find(candidate_group_ids, tmp_id, compare_group_id)) {
+            sub_excl_flag = 1;
+            break;
+        }
+    }
+
+    if (1 == sub_excl_flag) {
+        size_t remove_idx = 0;
+        tmp_id = utarray_find(all_hit_group_ids, &(group->group_id), compare_group_id);
+        if (tmp_id != NULL) {
+            remove_idx = utarray_eltidx(all_hit_group_ids, tmp_id);
+            utarray_erase(all_hit_group_ids, remove_idx, 1);
+        }
+
+        tmp_id = utarray_find(kept_super_group_ids, &(group->group_id), compare_group_id);
+        if (tmp_id != NULL) {
+            remove_idx = utarray_eltidx(kept_super_group_ids, tmp_id);
+            utarray_erase(kept_super_group_ids, remove_idx, 1);
+        }
+    }
+}
+
 void verify_candidate_super_group_ids(struct maat_group_topology *group_topo,
                                       UT_array *candidate_super_group_ids,
                                       UT_array *all_hit_group_ids,
@@ -802,6 +878,7 @@ void verify_candidate_super_group_ids(struct maat_group_topology *group_topo,
 
     utarray_new(candidate_group_ids, &ut_group_id_icd);
 
+    /* merge this round of candidate super groups with hit groups from the previous round */
     for (p = (long long *)utarray_front(candidate_super_group_ids); p != NULL;
          p = (long long *)utarray_next(candidate_super_group_ids, p)) {
         utarray_push_back(candidate_group_ids, p);
@@ -832,10 +909,11 @@ void verify_candidate_super_group_ids(struct maat_group_topology *group_topo,
             }
         }
 
-        //delete group_id from kept_group_ids
+        //kept super groups should not store this group
         if (1 == sub_excl_flag) {
             continue;
         }
+
         utarray_push_back(kept_super_group_ids, p);
         utarray_sort(kept_super_group_ids, compare_group_id);
 
@@ -855,7 +933,8 @@ void verify_candidate_super_group_ids(struct maat_group_topology *group_topo,
     }
 
     /**
-     * delete groups whose all incl sub is non-exist in all_hit_group_ids
+     * 1. delete groups whose excl sub in all_hit_group_ids
+     * 2. delete groups whose all incl sub is non-exist in all_hit_group_ids
     */
     for (p = (long long *)utarray_front(candidate_group_ids); p != NULL;
          p = (long long *)utarray_next(candidate_group_ids, p)) {
@@ -864,38 +943,15 @@ void verify_candidate_super_group_ids(struct maat_group_topology *group_topo,
             continue;
         }
 
-        if (0 == utarray_len(group->incl_sub_group_ids)) {
-            continue;
-        }
-
-        int sub_incl_flag = 0;
-        long long *tmp_id = NULL;
-        for (tmp_id = (long long *)utarray_front(group->incl_sub_group_ids); tmp_id != NULL;
-             tmp_id = (long long *)utarray_next(group->incl_sub_group_ids, tmp_id)) {
-            if (utarray_find(candidate_group_ids, tmp_id, compare_group_id)) {
-                sub_incl_flag = 1;
-                break;
-            }
-        }
-
-        if (0 == sub_incl_flag) {
-            tmp_id = utarray_find(all_hit_group_ids, p, compare_group_id);
-            assert(tmp_id != NULL);
-            size_t remove_idx = utarray_eltidx(all_hit_group_ids, tmp_id);
-            utarray_erase(all_hit_group_ids, remove_idx, 1);
-
-            tmp_id = utarray_find(kept_super_group_ids, p, compare_group_id);
-            if (tmp_id != NULL) {
-                remove_idx = utarray_eltidx(kept_super_group_ids, tmp_id);
-                utarray_erase(kept_super_group_ids, remove_idx, 1);
-            }
-        }
+        verify_group_by_sub_exclude_groups(group, candidate_group_ids,
+                                           kept_super_group_ids, all_hit_group_ids);
+        verify_group_by_sub_include_groups(group, candidate_group_ids,
+                                           kept_super_group_ids, all_hit_group_ids);
     }
 
     utarray_free(candidate_group_ids);
 }
 
-#define MAX_RECURSION_DEPTH 5
 void get_super_group_ids(struct maat_group_topology *group_topo, UT_array *hit_group_ids,
                          UT_array *all_hit_group_ids, size_t depth)
 {
@@ -903,6 +959,8 @@ void get_super_group_ids(struct maat_group_topology *group_topo, UT_array *hit_g
     UT_array *kept_super_group_ids;
 
     if (depth >= MAX_RECURSION_DEPTH) {
+        log_error(group_topo->logger, MODULE_GROUP,
+                  "[%s:%d]exceed max recursion depth(5)", __FUNCTION__, __LINE__);
         return;
     }
 
@@ -911,7 +969,7 @@ void get_super_group_ids(struct maat_group_topology *group_topo, UT_array *hit_g
 
     /**
        candidate super groups means all hit groups' super include group,
-       no need to consider super exclude groups
+       don't consider super exclude groups
        for example:
             hit_groups = {g4, g11}
             g4's super include groups  = {g7, g8}
@@ -941,9 +999,12 @@ void get_super_group_ids(struct maat_group_topology *group_topo, UT_array *hit_g
               x     \  /    \         \
              x       \/      \         \
             g3       g4      g5        g11
-            candidates = {g4, g11, g7, g8, g12}
-            g12's sub_exclude g8 in candidates, so g12 should be dropped
-            after verify candidates, all hit super groups = {g7, g8}, 
+            candidate super groups = {g7, g8, g12}
+            verify logic:
+                1. g12's sub_exclude g8 in candidates, so g12 should be dropped
+                2. g7 & g8, their sub_include in hit groups, so kept them
+                   if their all sub_include not exist in hit groups, they should be dropped
+            after verify candidates, kept super groups = {g7, g8}, 
                                      all hit groups = {g4, g11, g7, g8}
     */
     verify_candidate_super_group_ids(group_topo, candidate_super_group_ids, all_hit_group_ids,

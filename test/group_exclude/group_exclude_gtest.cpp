@@ -11,6 +11,7 @@
 
 #define MAX_ITEM_NUM 64
 #define WAIT_FOR_EFFECTIVE_S 2
+#define MAX_G2G_SCAN_TIMES (1000 * 1000)
 
 const char *table_info_path = "./table_info.conf";
 
@@ -138,37 +139,33 @@ protected:
             log_error(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_schema_new failed.");
             assert(0);
         }
-
-        g2g_runtime = group2group_runtime_new(g2g_schema, 1, garbage_bin, logger);
-        if (NULL == g2g_runtime) {
-            log_error(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
-            assert(0);
-        }
-        
     }
 
     static void TearDownTestCase() {
         log_handle_destroy(logger);
         maat_garbage_bin_free(garbage_bin);
-        group2group_runtime_free(g2g_runtime);
         group2group_schema_free(g2g_schema);
     }
 
     static void *g2g_schema;
-    static void *g2g_runtime;
     static struct log_handle *logger;
     static struct maat_garbage_bin *garbage_bin;
 };
 
 void *MaatGroupExclude::g2g_schema;
-void *MaatGroupExclude::g2g_runtime;
 struct log_handle *MaatGroupExclude::logger;
 struct maat_garbage_bin *MaatGroupExclude::garbage_bin;
 
-TEST_F(MaatGroupExclude, level_3_basic) {
+TEST_F(MaatGroupExclude, level_3_function) {
     char table_line[1024];
     struct group2group_rule rules;
     const char *table_name = "EXCLUDE_GROUP2GROUP";
+
+    void *g2g_runtime = group2group_runtime_new(g2g_schema, 1, garbage_bin, logger);
+    if (NULL == g2g_runtime) {
+        log_error(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
+        assert(0);
+    }
 
     int ret = parse_config_file("group_exclude_L3.conf", &rules);
     EXPECT_EQ(ret, 0);
@@ -199,7 +196,7 @@ TEST_F(MaatGroupExclude, level_3_basic) {
     group2group_runtime_commit(g2g_runtime, table_name, 2);
 
     super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
-                                                                  super_group_ids, MAX_ITEM_NUM);
+                                                            super_group_ids, MAX_ITEM_NUM);
     EXPECT_EQ(super_group_cnt, 3);
     EXPECT_EQ(super_group_ids[0], 1);
     EXPECT_EQ(super_group_ids[1], 6);
@@ -213,12 +210,290 @@ TEST_F(MaatGroupExclude, level_3_basic) {
     group2group_runtime_commit(g2g_runtime, table_name, 3);
 
     super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
-                                                                  super_group_ids, MAX_ITEM_NUM);
+                                                            super_group_ids, MAX_ITEM_NUM);
     EXPECT_EQ(super_group_cnt, 4);
     EXPECT_EQ(super_group_ids[0], 1);
     EXPECT_EQ(super_group_ids[1], 4);
     EXPECT_EQ(super_group_ids[2], 6);
     EXPECT_EQ(super_group_ids[3], 7);
+
+    group2group_runtime_free(g2g_runtime);
+}
+
+TEST_F(MaatGroupExclude, level_3_perf) {
+    char table_line[1024];
+    struct group2group_rule rules;
+    const char *table_name = "EXCLUDE_GROUP2GROUP";
+
+    void *g2g_runtime = group2group_runtime_new(g2g_schema, 1, garbage_bin, logger);
+    if (NULL == g2g_runtime) {
+        log_error(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
+        assert(0);
+    }
+
+    int ret = parse_config_file("group_exclude_L3.conf", &rules);
+    EXPECT_EQ(ret, 0);
+
+    for (size_t i = 0; i < rules.n_add_item; i++) {
+        memset(table_line, 0, sizeof(table_line));
+
+        sprintf(table_line, "%lld\t%lld\t%d\t%d", rules.add_items[i].group_id,
+                rules.add_items[i].super_group_id, rules.add_items[i].is_exclude, 1);
+        group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+    }
+
+    group2group_runtime_commit(g2g_runtime, table_name, 4);
+
+    long long hit_group_ids[2] = {11, 13};
+    long long super_group_ids[MAX_ITEM_NUM];
+    size_t super_group_cnt = 0;
+    struct timespec start, end;
+    struct log_handle *logger = MaatGroupExclude::logger;
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < MAX_G2G_SCAN_TIMES; i++) {
+        super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
+                                                           super_group_ids, MAX_ITEM_NUM);
+        EXPECT_EQ(super_group_cnt, 2);
+        EXPECT_EQ(super_group_ids[0], 2);
+        EXPECT_EQ(super_group_ids[1], 7);
+    }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+    log_info(logger, MODULE_GROUP_EXCLUDE_GTEST, "level_3_basic hit 2 super_groups scan consume time %lldms",
+             time_elapse_ms);
+
+    //delete group_id = 7, super_group_id = 6, is_exclude = 1
+    memset(table_line, 0, sizeof(table_line));
+    sprintf(table_line, "%lld\t%lld\t%d\t%d", rules.del_items[0].group_id,
+            rules.del_items[0].super_group_id, rules.del_items[0].is_exclude, 0);
+    group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+    group2group_runtime_commit(g2g_runtime, table_name, 5);
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < MAX_G2G_SCAN_TIMES; i++) {
+        super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
+                                                           super_group_ids, MAX_ITEM_NUM);
+        EXPECT_EQ(super_group_cnt, 3);
+        EXPECT_EQ(super_group_ids[0], 1);
+        EXPECT_EQ(super_group_ids[1], 6);
+        EXPECT_EQ(super_group_ids[2], 7);
+    }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+    log_info(logger, MODULE_GROUP_EXCLUDE_GTEST, "level_3_basic hit 3 super_groups scan consume time %lldms",
+             time_elapse_ms);
+
+    //delete group_id = 13, super_group_id = 4, is_exclude = 1
+    memset(table_line, 0, sizeof(table_line));
+    sprintf(table_line, "%lld\t%lld\t%d\t%d", rules.del_items[1].group_id,
+            rules.del_items[1].super_group_id, rules.del_items[1].is_exclude, 0);
+    group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+    group2group_runtime_commit(g2g_runtime, table_name, 6);
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < MAX_G2G_SCAN_TIMES; i++) {
+        super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
+                                                           super_group_ids, MAX_ITEM_NUM);
+        EXPECT_EQ(super_group_cnt, 4);
+        EXPECT_EQ(super_group_ids[0], 1);
+        EXPECT_EQ(super_group_ids[1], 4);
+        EXPECT_EQ(super_group_ids[2], 6);
+        EXPECT_EQ(super_group_ids[3], 7);
+    }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+    log_info(logger, MODULE_GROUP_EXCLUDE_GTEST, "level_3_basic hit 4 super_groups scan consume time %lldms",
+             time_elapse_ms);
+
+    group2group_runtime_free(g2g_runtime);
+}
+
+TEST_F(MaatGroupExclude, level_4_function) {
+    char table_line[1024];
+    struct group2group_rule rules;
+    const char *table_name = "EXCLUDE_GROUP2GROUP";
+
+    void *g2g_runtime = group2group_runtime_new(g2g_schema, 1, garbage_bin, logger);
+    if (NULL == g2g_runtime) {
+        log_error(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
+        assert(0);
+    }
+
+    int ret = parse_config_file("group_exclude_L4.conf", &rules);
+    EXPECT_EQ(ret, 0);
+
+    for (size_t i = 0; i < rules.n_add_item; i++) {
+        memset(table_line, 0, sizeof(table_line));
+
+        sprintf(table_line, "%lld\t%lld\t%d\t%d", rules.add_items[i].group_id,
+                rules.add_items[i].super_group_id, rules.add_items[i].is_exclude, 1);
+        group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+    }
+
+    group2group_runtime_commit(g2g_runtime, table_name, 7);
+
+    long long hit_group_ids[2] = {14, 16};
+    long long super_group_ids[MAX_ITEM_NUM];
+    size_t super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
+                                                                  super_group_ids, MAX_ITEM_NUM);
+    EXPECT_EQ(super_group_cnt, 5);
+    EXPECT_EQ(super_group_ids[0], 4);
+    EXPECT_EQ(super_group_ids[1], 7);
+    EXPECT_EQ(super_group_ids[2], 8);
+    EXPECT_EQ(super_group_ids[3], 9);
+    EXPECT_EQ(super_group_ids[4], 10);
+    
+    //delete group_id = 10, super_group_id = 6, is_exclude = 1
+    memset(table_line, 0, sizeof(table_line));
+    sprintf(table_line, "%lld\t%lld\t%d\t%d", rules.del_items[0].group_id,
+            rules.del_items[0].super_group_id, rules.del_items[0].is_exclude, 0);
+    group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+    group2group_runtime_commit(g2g_runtime, table_name, 8);
+
+    super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
+                                                            super_group_ids, MAX_ITEM_NUM);
+    EXPECT_EQ(super_group_cnt, 7);
+    EXPECT_EQ(super_group_ids[0], 1);
+    EXPECT_EQ(super_group_ids[1], 4);
+    EXPECT_EQ(super_group_ids[2], 6);
+    EXPECT_EQ(super_group_ids[3], 7);
+    EXPECT_EQ(super_group_ids[4], 8);
+    EXPECT_EQ(super_group_ids[5], 9);
+    EXPECT_EQ(super_group_ids[6], 10);
+
+    group2group_runtime_free(g2g_runtime);
+}
+
+TEST_F(MaatGroupExclude, level_4_perf) {
+    char table_line[1024];
+    struct group2group_rule rules;
+    const char *table_name = "EXCLUDE_GROUP2GROUP";
+
+    void *g2g_runtime = group2group_runtime_new(g2g_schema, 1, garbage_bin, logger);
+    if (NULL == g2g_runtime) {
+        log_error(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
+        assert(0);
+    }
+
+    int ret = parse_config_file("group_exclude_L4.conf", &rules);
+    EXPECT_EQ(ret, 0);
+
+    for (size_t i = 0; i < rules.n_add_item; i++) {
+        memset(table_line, 0, sizeof(table_line));
+
+        sprintf(table_line, "%lld\t%lld\t%d\t%d", rules.add_items[i].group_id,
+                rules.add_items[i].super_group_id, rules.add_items[i].is_exclude, 1);
+        group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+    }
+
+    group2group_runtime_commit(g2g_runtime, table_name, 7);
+
+    long long hit_group_ids[2] = {14, 16};
+    long long super_group_ids[MAX_ITEM_NUM];
+    size_t super_group_cnt = 0;
+    struct timespec start, end;
+    struct log_handle *logger = MaatGroupExclude::logger;
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < MAX_G2G_SCAN_TIMES; i++) {
+        super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
+                                                           super_group_ids, MAX_ITEM_NUM);
+        EXPECT_EQ(super_group_cnt, 5);
+        EXPECT_EQ(super_group_ids[0], 4);
+        EXPECT_EQ(super_group_ids[1], 7);
+        EXPECT_EQ(super_group_ids[2], 8);
+        EXPECT_EQ(super_group_ids[3], 9);
+        EXPECT_EQ(super_group_ids[4], 10);
+    }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+    log_info(logger, MODULE_GROUP_EXCLUDE_GTEST, "level_4_basic hit 5 super_groups scan consume time %lldms",
+             time_elapse_ms);
+    
+    //delete group_id = 10, super_group_id = 6, is_exclude = 1
+    memset(table_line, 0, sizeof(table_line));
+    sprintf(table_line, "%lld\t%lld\t%d\t%d", rules.del_items[0].group_id,
+            rules.del_items[0].super_group_id, rules.del_items[0].is_exclude, 0);
+    group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+    group2group_runtime_commit(g2g_runtime, table_name, 8);
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < MAX_G2G_SCAN_TIMES; i++) {
+        super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
+                                                           super_group_ids, MAX_ITEM_NUM);
+        EXPECT_EQ(super_group_cnt, 7);
+        EXPECT_EQ(super_group_ids[0], 1);
+        EXPECT_EQ(super_group_ids[1], 4);
+        EXPECT_EQ(super_group_ids[2], 6);
+        EXPECT_EQ(super_group_ids[3], 7);
+        EXPECT_EQ(super_group_ids[4], 8);
+        EXPECT_EQ(super_group_ids[5], 9);
+        EXPECT_EQ(super_group_ids[6], 10);
+    }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+    log_info(logger, MODULE_GROUP_EXCLUDE_GTEST, "level_4_basic hit 7 super_groups scan consume time %lldms",
+             time_elapse_ms);
+
+    group2group_runtime_free(g2g_runtime);
+}
+
+TEST_F(MaatGroupExclude, level_exceed_function) {
+    char table_line[1024];
+    struct group2group_rule rules;
+    const char *table_name = "EXCLUDE_GROUP2GROUP";
+
+    void *g2g_runtime = group2group_runtime_new(g2g_schema, 1, garbage_bin, logger);
+    if (NULL == g2g_runtime) {
+        log_error(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
+        assert(0);
+    }
+
+    int ret = parse_config_file("group_exclude_exceed.conf", &rules);
+    EXPECT_EQ(ret, 0);
+
+    for (size_t i = 0; i < rules.n_add_item; i++) {
+        memset(table_line, 0, sizeof(table_line));
+
+        sprintf(table_line, "%lld\t%lld\t%d\t%d", rules.add_items[i].group_id,
+                rules.add_items[i].super_group_id, rules.add_items[i].is_exclude, 1);
+        group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+    }
+
+    group2group_runtime_commit(g2g_runtime, table_name, 8);
+
+    long long hit_group_ids[2] = {7, 13};
+    long long super_group_ids[MAX_ITEM_NUM];
+    size_t super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
+                                                                  super_group_ids, MAX_ITEM_NUM);
+    EXPECT_EQ(super_group_cnt, 6);
+    EXPECT_EQ(super_group_ids[0], 4);
+    EXPECT_EQ(super_group_ids[1], 5);
+    EXPECT_EQ(super_group_ids[2], 8);
+    EXPECT_EQ(super_group_ids[3], 10);
+    EXPECT_EQ(super_group_ids[4], 11);
+    EXPECT_EQ(super_group_ids[5], 12);
+
+    //delete group_id = 13, super_group_id = 10, is_exclude = 0
+    memset(table_line, 0, sizeof(table_line));
+    sprintf(table_line, "%lld\t%lld\t%d\t%d", rules.del_items[0].group_id,
+            rules.del_items[0].super_group_id, rules.del_items[0].is_exclude, 0);
+    group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
+    group2group_runtime_commit(g2g_runtime, table_name, 9);
+
+    hit_group_ids[0] = 7;
+    hit_group_ids[1] = 10;
+    super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
+                                                            super_group_ids, MAX_ITEM_NUM);
+    EXPECT_EQ(super_group_cnt, 5);
+    EXPECT_EQ(super_group_ids[0], 2);
+    EXPECT_EQ(super_group_ids[1], 4);
+    EXPECT_EQ(super_group_ids[2], 5);
+    EXPECT_EQ(super_group_ids[3], 8);
+    EXPECT_EQ(super_group_ids[4], 11);
+
+    group2group_runtime_free(g2g_runtime);
 }
 
 int main(int argc, char ** argv)

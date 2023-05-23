@@ -283,7 +283,6 @@ void _maat_free(struct maat *maat_instance)
 
     if (maat_instance->opts.accept_tags != NULL) {
         FREE(maat_instance->opts.accept_tags);
-        maat_instance->opts.accept_tags = NULL;
     }
     
     pthread_mutex_destroy(&(maat_instance->background_update_mutex));
@@ -529,20 +528,21 @@ int generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int table_
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
     switch (table_type) {
         case TABLE_TYPE_PLUGIN:
-            ret = plugin_table_set_ex_container_schema(schema, table_id, new_func, free_func, dup_func, 
-                                                       free, argl, argp);
+            ret = plugin_table_set_ex_container_schema(schema, table_id, new_func, free_func,
+                                                       dup_func, free, argl, argp);
             break;
         case TABLE_TYPE_IP_PLUGIN:
-            ret = ip_plugin_table_set_ex_container_schema(schema, table_id, new_func, free_func, dup_func, 
-                                                          free, argl, argp);
+            ret = ip_plugin_table_set_ex_container_schema(schema, table_id, new_func, free_func,
+                                                          dup_func, free, argl, argp);
             break;
         case TABLE_TYPE_FQDN_PLUGIN:
-            ret = fqdn_plugin_table_set_ex_container_schema(schema, table_id, new_func, free_func, dup_func, 
-                                                            (void (*)(void *))fqdn_rule_free, argl, argp);
+            ret = fqdn_plugin_table_set_ex_container_schema(schema, table_id, new_func, free_func,
+                                                            dup_func, (void (*)(void *))fqdn_rule_free,
+                                                            argl, argp);
             break;
         case TABLE_TYPE_BOOL_PLUGIN:
-            ret = bool_plugin_table_set_ex_container_schema(schema, table_id, new_func, free_func, dup_func, 
-                                                            free, argl, argp);
+            ret = bool_plugin_table_set_ex_container_schema(schema, table_id, new_func, free_func,
+                                                            dup_func, free, argl, argp);
             break;
         default:
             log_error(logger, MODULE_MAAT_API,
@@ -720,18 +720,19 @@ int maat_plugin_table_ex_schema_register(struct maat *maat_instance,
     int ret = -1;
     enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
     if (TABLE_TYPE_COMPILE == table_type) {
-        ret = compile_table_ex_schema_register(maat_instance, table_id, 
-                                               new_func, free_func, dup_func, argl, argp);
+        ret = compile_table_ex_schema_register(maat_instance, table_id, new_func, free_func,
+                                               dup_func, argl, argp);
     } else {
-        ret = generic_plugin_table_ex_schema_register(maat_instance, table_name, table_id,
-                                                      new_func, free_func, dup_func, argl, argp);
+        ret = generic_plugin_table_ex_schema_register(maat_instance, table_name, table_id, new_func,
+                                                      free_func, dup_func, argl, argp);
     }
 
     pthread_mutex_unlock(&(maat_instance->background_update_mutex));
     return ret;
 }
 
-void *maat_plugin_table_get_ex_data(struct maat *maat_instance, int table_id, const char *key)
+void *maat_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
+                                    const char *key)
 {
 
     if (NULL == maat_instance || table_id < 0 || table_id >= MAX_TABLE_NUM 
@@ -768,7 +769,7 @@ void *maat_plugin_table_get_ex_data(struct maat *maat_instance, int table_id, co
 }
 
 int maat_ip_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
-                                     const struct ip_addr *ip_addr, void **ex_data_array, 
+                                     const struct ip_addr *ip_addr, void **ex_data_array,
                                      size_t n_ex_data)
 {
     if (NULL == maat_instance || table_id < 0 || table_id >= MAX_TABLE_NUM 

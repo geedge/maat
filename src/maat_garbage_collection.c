@@ -42,8 +42,12 @@ struct maat_garbage_bin *maat_garbage_bin_new(int default_timeout)
 	return bin;
 }
 
-void maat_garbage_bin_free(struct maat_garbage_bin* bin)
+void maat_garbage_bin_free(struct maat_garbage_bin *bin)
 {
+    if (NULL == bin) {
+        return;
+    }
+
 	struct maat_garbage_bag *p = NULL;
 
 	while ((p = TAILQ_FIRST(&bin->garbage_q)) != NULL) {
@@ -51,6 +55,7 @@ void maat_garbage_bin_free(struct maat_garbage_bin* bin)
         if (p->arg != NULL) {
             FREE(p->arg);
         }
+
 		TAILQ_REMOVE(&bin->garbage_q, p, entries);
 		FREE(p);
 		bin->bag_cnt--;
@@ -59,12 +64,16 @@ void maat_garbage_bin_free(struct maat_garbage_bin* bin)
 	FREE(bin);
 }
 
-size_t  maat_garbage_bin_get_size(struct maat_garbage_bin* bin)
+size_t maat_garbage_bin_get_size(struct maat_garbage_bin *bin)
 {
+    if (NULL == bin) {
+        return 0;
+    }
+    
 	return bin->bag_cnt;
 }
 
-void maat_garbage_bagging(struct maat_garbage_bin* bin, void* garbage, void *arg,
+void maat_garbage_bagging(struct maat_garbage_bin *bin, void *garbage, void *arg,
                           void (* func)(void *, void *))
 {
 	struct maat_garbage_bag *bag = ALLOC(struct maat_garbage_bag, 1);
@@ -77,7 +86,8 @@ void maat_garbage_bagging(struct maat_garbage_bin* bin, void* garbage, void *arg
 	TAILQ_INSERT_TAIL(&bin->garbage_q, bag, entries);
 	bin->bag_cnt++;
 }
-void maat_garbage_collect_routine(struct maat_garbage_bin* bin)
+
+void maat_garbage_collect_routine(struct maat_garbage_bin *bin)
 {
 	struct maat_garbage_bag *p = NULL, *tmp = NULL;
 	size_t n_clollected = 0, n_bag = 0;
@@ -101,9 +111,10 @@ void maat_garbage_collect_routine(struct maat_garbage_bin* bin)
 	bin->bag_cnt -= n_clollected;
 }
 
-void maat_garbage_collect_by_force(struct maat_garbage_bin* bin)
+void maat_garbage_collect_by_force(struct maat_garbage_bin *bin)
 {
 	struct maat_garbage_bag *p = NULL;
+
 	while ((p = TAILQ_FIRST(&bin->garbage_q)) != NULL) {
 		p->garbage_free(p->garbage, p->arg);
         if (p->arg != NULL) {

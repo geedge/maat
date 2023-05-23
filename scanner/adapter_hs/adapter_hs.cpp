@@ -223,9 +223,18 @@ void adpt_hs_compile_data_free(struct adpt_hs_compile_data *hs_cd)
             FREE(hs_cd->patterns[i]);
         }
 
-        FREE(hs_cd->patterns);
+        FREE(hs_cd->patterns); 
+    }
+
+    if (hs_cd->pattern_lens != NULL) {
         FREE(hs_cd->pattern_lens);
+    }
+
+    if (hs_cd->ids != NULL) {
         FREE(hs_cd->ids);
+    }
+
+    if (hs_cd->flags != NULL) {
         FREE(hs_cd->flags);
     }
 
@@ -290,8 +299,6 @@ struct bool_expr *bool_exprs_new(struct expr_rule *rules, size_t n_rule, struct 
 
             bool_exprs[i].items[j].item_id = pattern_index++;
             bool_exprs[i].items[j].not_flag = 0;
-            // printf("item_id:%llu, pat:%s pat_len:%zu\n", 
-            //         bool_exprs[i].items[j].item_id, exprs[i].patterns[j].pat, exprs[i].patterns[j].pat_len);
         }
         
         bool_exprs[i].expr_id = rules[i].expr_id;
@@ -405,21 +412,6 @@ struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
     }
     hs_instance->n_patterns = pattern_cnt;
     
-    //mytest
-    // for (size_t i = 0; i < n_expr; i++) {
-    //     {
-    //         printf("<before bool_matcher_new> exprs[%zu] expr_id:%llu, item_num:%zu\n",
-    //                i, bool_exprs[i].expr_id, bool_exprs[i].item_num);
-    //         printf("item_id: ");
-    //         for (size_t j = 0; j < bool_exprs[i].item_num; j++)
-    //         {
-    //             printf("%llu ", bool_exprs[i].items[j].item_id);
-    //         }
-    //     }
-    //     printf("\n");
-    // }
-    
-    
     /* create bool matcher */
     size_t mem_size = 0;
     int hs_ret = 0;
@@ -502,7 +494,6 @@ void adapter_hs_free(struct adapter_hs *hs_instance)
             }
 
             FREE(hs_instance->hs_rt->literal_scratches);
-            hs_instance->hs_rt->literal_scratches = NULL;
         }
         
 
@@ -515,7 +506,6 @@ void adapter_hs_free(struct adapter_hs *hs_instance)
             }
 
             FREE(hs_instance->hs_rt->regex_scratches);
-            hs_instance->hs_rt->regex_scratches = NULL;
         }
         
         if (hs_instance->hs_rt->bm != NULL) {

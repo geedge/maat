@@ -56,7 +56,7 @@ void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->table_id = item->valueint;
     } else {
         log_error(logger, MODULE_FQDN_PLUGIN, 
-                  "[%s:%d] table %s has no table_id column", 
+                  "[%s:%d] table: <%s> schema has no table_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -64,7 +64,7 @@ void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     item = cJSON_GetObjectItem(json, "custom");
     if (NULL == item || item->type != cJSON_Object) {
         log_error(logger, MODULE_FQDN_PLUGIN, 
-                  "[%s:%d] table %s has no custom column", 
+                  "[%s:%d] table: <%s> schema has no custom column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -74,7 +74,7 @@ void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->item_id_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_FQDN_PLUGIN, 
-                  "[%s:%d] table %s has no item_id column", 
+                  "[%s:%d] table: <%s> schema has no item_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -84,7 +84,7 @@ void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->suffix_flag_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_FQDN_PLUGIN, 
-                  "[%s:%d] table %s has no suffix_match_method column", 
+                  "[%s:%d] table: <%s> schema has no suffix_match_method column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -95,7 +95,7 @@ void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->fqdn_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_FQDN_PLUGIN, 
-                  "[%s:%d] table %s has no fqdn column", 
+                  "[%s:%d] table: <%s> schema has no fqdn column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -159,9 +159,15 @@ struct ex_container_schema *fqdn_plugin_table_get_ex_container_schema(void *fqdn
 
 void fqdn_rule_free(struct FQDN_rule *fqdn_rule)
 {
+    if (NULL == fqdn_rule) {
+        return;
+    }
+
 	assert(fqdn_rule->user_tag == NULL);
-	free(fqdn_rule->FQDN);
-	fqdn_rule->FQDN = NULL;
+    if (fqdn_rule->FQDN != NULL) {
+        FREE(fqdn_rule->FQDN);
+    }
+	
 	free(fqdn_rule);
 }
 
@@ -220,8 +226,8 @@ void fqdn_plugin_runtime_free(void *fqdn_plugin_runtime)
     FREE(fqdn_plugin_rt);
 }
 
-int fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema, const char *line,
-                                 struct log_handle *logger)
+int fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema, const char *table_name,
+                                 const char *line, struct log_handle *logger)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
@@ -232,8 +238,8 @@ int fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema, const char *
                                  &column_offset, &column_len);
         if (ret < 0) {
             log_error(logger, MODULE_FQDN_PLUGIN,
-                      "[%s:%d] fqdn_plugin table(table_id:%d) has no rule_tag, line:%s",
-                      __FUNCTION__, __LINE__, schema->table_id, line);
+                      "[%s:%d] table: <%s> has no rule_tag in line:%s",
+                      __FUNCTION__, __LINE__, table_name, line);
             return TAG_MATCH_ERR;
         }
 
@@ -244,12 +250,15 @@ int fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema, const char *
             FREE(tag_str);
             if (TAG_MATCH_ERR == ret) {
                 log_error(logger, MODULE_FQDN_PLUGIN,
-                          "[%s:%d] fqdn_plugin table(table_id:%d) has invalid tag format, line:%s",
-                          __FUNCTION__, __LINE__, schema->table_id, line);
+                          "[%s:%d] table: <%s> has invalid tag format in line:%s",
+                          __FUNCTION__, __LINE__, table_name, line);
                 return TAG_MATCH_ERR;
             }
 
             if (TAG_MATCH_UNMATCHED == ret) {
+                log_error(logger, MODULE_FQDN_PLUGIN,
+                          "[%s:%d] table: <%s> has unmatched tag in line:%s",
+                          __FUNCTION__, __LINE__, table_name, line);
                 return TAG_MATCH_UNMATCHED;
             }
         }
@@ -262,7 +271,7 @@ struct FQDN_rule *
 fqdn_plugin_rule_new(const char *line, struct fqdn_plugin_schema *schema,
                      const char *table_name, struct log_handle *logger)
 {
-     int ret = fqdn_plugin_accept_tag_match(schema, line, logger);
+     int ret = fqdn_plugin_accept_tag_match(schema, table_name, line, logger);
     if (ret == TAG_MATCH_UNMATCHED) {
         return NULL;
     }
@@ -276,7 +285,7 @@ fqdn_plugin_rule_new(const char *line, struct fqdn_plugin_schema *schema,
     ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_FQDN_PLUGIN, 
-                  "[%s:%d] fqdn_plugin table:%s line:%s has no item_id column",
+                  "[%s:%d] table: <%s> has no item_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
@@ -285,7 +294,7 @@ fqdn_plugin_rule_new(const char *line, struct fqdn_plugin_schema *schema,
     ret = get_column_pos(line, schema->suffix_flag_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_FQDN_PLUGIN, 
-                  "[%s:%d] fqdn_plugin table:%s line:%s has no suffix_match_method column",
+                  "[%s:%d] table: <%s> has no suffix_match_method in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
@@ -294,7 +303,7 @@ fqdn_plugin_rule_new(const char *line, struct fqdn_plugin_schema *schema,
     ret = get_column_pos(line, schema->fqdn_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_FQDN_PLUGIN, 
-                  "[%s:%d] fqdn_plugin table:%s line:%s has no fqdn column",
+                  "[%s:%d] table: <%s> has no fqdn in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
@@ -323,6 +332,10 @@ error:
 
 void fqdn_plugin_rule_free(struct FQDN_rule *rule)
 {
+    if (NULL == rule) {
+        return;
+    }
+    
     if (rule->FQDN != NULL) {
         FREE(rule->FQDN);
     }
@@ -386,7 +399,8 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
     if (1 == schema->container_schema.set_flag) {
         if (1 == is_valid) {
             // add
-            fqdn_plugin_rule = fqdn_plugin_rule_new(line, schema, table_name, fqdn_plugin_rt->logger);
+            fqdn_plugin_rule = fqdn_plugin_rule_new(line, schema, table_name,
+                                                    fqdn_plugin_rt->logger);
             if (NULL == fqdn_plugin_rule) {
                 fqdn_plugin_rt->update_err_cnt++;
                 return -1;
@@ -396,7 +410,7 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
         const char *key = line + item_id_offset;
         size_t key_len = item_id_len;
         ret = fqdn_plugin_runtime_update_row(fqdn_plugin_rt, table_name, line, key, key_len, 
-                                                 fqdn_plugin_rule, is_valid);
+                                             fqdn_plugin_rule, is_valid);
         if (ret < 0) {
             if (fqdn_plugin_rule != NULL) {
                 fqdn_plugin_rule_free(fqdn_plugin_rule);
@@ -419,7 +433,8 @@ void garbage_fqdn_engine_free(void *fqdn_engine, void *arg)
     FQDN_engine_free(engine);
 }
 
-int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name, long long maat_rt_version)
+int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name,
+                               long long maat_rt_version)
 {
      if (NULL == fqdn_plugin_runtime) {
         return -1;
