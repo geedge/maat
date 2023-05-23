@@ -19,8 +19,8 @@ int ipmatcher_VERSION_2020_05_13 = 0;
 
 struct ip_matcher
 {
-	CRuleMatch *	ipv4_matcher;
-	CRuleMatch *	ipv6_matcher;
+	CRuleMatch *ipv4_matcher;
+	CRuleMatch *ipv6_matcher;
 
 #ifdef RULESCAN_DEBUG
 	//for test
@@ -29,41 +29,34 @@ struct ip_matcher
 #endif
 };
 
-CRuleMatch * new_rule_matcher(enum IP_TYPE type)
+CRuleMatch *new_rule_matcher(enum IP_TYPE type)
 {
-	if(type==IPv4)
-	{
+	if (type == IPv4) {
 		return new CIPv4Match();
-	}
-	else if(type==IPv6)
-	{
+	} else if(type == IPv6) {
 		return new CIPv6Match();
-	}
-	else
-	{
+	} else {
 		return NULL;
 	}
 }
 
-struct ip_matcher * ip_matcher_new(struct ip_rule * rules, size_t rule_num, 
-                                   size_t * mem_use)
+struct ip_matcher *ip_matcher_new(struct ip_rule *rules, size_t rule_num, 
+                                  size_t *mem_use)
 {
-	if(rules == NULL || rule_num == 0)
-	{
+	if (rules == NULL || rule_num == 0) {
 		return NULL;
 	}
 
-	long long mem_bytes=0;
+	long long mem_bytes = 0;
 
-	struct ip_matcher * matcher = new struct ip_matcher;
+	struct ip_matcher *matcher = new struct ip_matcher;
 	mem_bytes = sizeof(struct ip_matcher);
 	matcher->ipv4_matcher = NULL;
 	matcher->ipv6_matcher = NULL;
 
 	map<long long, struct ip_rule> ipv4_rules;
 	map<long long, struct ip_rule> ipv6_rules;
-	for(size_t i = 0; i < rule_num; i++)
-	{
+	for (size_t i = 0; i < rule_num; i++) {
 		long long id = rules[i].rule_id;
 		if(rules[i].type == IPv4)
 			ipv4_rules[id] = rules[i];
@@ -72,14 +65,12 @@ struct ip_matcher * ip_matcher_new(struct ip_rule * rules, size_t rule_num,
 	}
 
 	//����ipv4ɨ����
-	if(ipv4_rules.size() != 0)
-	{	
-		CRuleMatch * v4_matcher = new CIPv4Match;
+	if (ipv4_rules.size() != 0) {	
+		CRuleMatch *v4_matcher = new CIPv4Match;
 		long long ret = v4_matcher->initialize(ipv4_rules);
-		if(ret<0)
-		{
+		if (ret < 0) {
 			delete v4_matcher;
-			v4_matcher=NULL;
+			v4_matcher = NULL;
 			return NULL;
 		}
 

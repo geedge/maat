@@ -168,7 +168,7 @@ void fqdn_rule_free(struct FQDN_rule *fqdn_rule)
         FREE(fqdn_rule->FQDN);
     }
 	
-	free(fqdn_rule);
+	FREE(fqdn_rule);
 }
 
 void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, size_t max_thread_num,

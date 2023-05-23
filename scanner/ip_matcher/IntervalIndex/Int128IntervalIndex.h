@@ -24,12 +24,10 @@ using namespace std;
 
 struct uint128_t
 {
-	unsigned long long I[2];//¸ßÎ»->µÍÎ»£ºI[1]I[0]
+	unsigned long long I[2];//ï¿½ï¿½Î»->ï¿½ï¿½Î»ï¿½ï¿½I[1]I[0]
 
-	uint128_t(const unsigned int * a=NULL)
-	{ 
-		if(a!=NULL)
-		{
+	uint128_t(const unsigned int *a = NULL) { 
+		if (a != NULL) {
 			I[0] = a[2];
 			I[0] = (I[0]<<32)|a[3];
 			I[1] = a[0];
@@ -37,28 +35,27 @@ struct uint128_t
 		}
 	}
 
-	uint128_t& operator=(const uint128_t& rhs)
-	{
-		for(int i=0; i<2; i++) I[i]=rhs.I[i];
+	uint128_t& operator=(const uint128_t& rhs) {
+		for (int i = 0; i < 2; i++) {
+            I[i]=rhs.I[i];
+        }
+
 		return *this;
 	}
 
-	uint128_t& operator--()
-	{
-		if(I[0]==0) I[1]--;
+	uint128_t& operator--() {
+		if(I[0] == 0) I[1]--;
 		I[0]--;
 		return *this;
 	}
 
-	uint128_t& operator++()
-	{
+	uint128_t& operator++() {
 		I[0]++;
-		if(I[0]==0) I[1]++;
+		if (I[0] == 0) I[1]++;
 		return *this;
 	}
 
-	uint128_t operator<<(int n) const
-	{
+	uint128_t operator<<(int n) const {
 		uint128_t t = *this;
 		int k=n>>6;
 		n&=63;
@@ -71,8 +68,7 @@ struct uint128_t
 		return t;
 	}
 
-	uint128_t operator>>(int n) const
-	{
+	uint128_t operator>>(int n) const {
 		uint128_t t = *this;
 		int k=n>>6;
 		n&=63;
@@ -86,8 +82,7 @@ struct uint128_t
 
 	}
 
-	void ornot(unsigned int * mask)
-	{
+	void ornot(unsigned int * mask) {
 		unsigned long long m = mask[1];
 		m = (m<<32)|mask[0];
 		unsigned long long n = mask[3];
@@ -96,13 +91,11 @@ struct uint128_t
 		I[1] |= ~n;
 	}
 
-	bool is_all_zeros() const
-	{
+	bool is_all_zeros() const {
 		return (I[0] == 0)&&(I[1] == 0);
 	}
 
-	bool is_all_ones() const
-	{
+	bool is_all_ones() const {
 		return ((~I[0])==0)&&((~I[1])==0);
 	}
 };
@@ -123,27 +116,27 @@ public:
 
 	long long PreProcessing(const vector<uint128_t>& a, const vector<uint128_t>& b);
 
-	int Find(const uint128_t * key, unsigned int * result, unsigned int size);
+	int Find(const uint128_t *key, unsigned int *result, unsigned int size);
 
 private:
 	long long process_single(const vector<uint128_t>& a);
-	int Find_single(const uint128_t * key, unsigned int * result, unsigned int size);
+	int Find_single(const uint128_t *key, unsigned int *result, unsigned int size);
 
 	long long process_interval(const vector<uint128_t>& a, const vector<uint128_t>& b);
-	int Find_interval(const uint128_t * key, unsigned int * result, unsigned int size);
+	int Find_interval(const uint128_t *key, unsigned int *result, unsigned int size);
 
 private:
-	bool          m_is_single;
+	bool m_is_single;
 	CSuccinctHash m_ip_hash;
-	uint128_t *   m_array;
+	uint128_t *m_array;
 
-	unsigned int *	m_IndexForMaxInt;
-	long long		m_iEndPointsNum;
-	uint128_t *		m_pEndPoints;
-	long long *		m_pIDPtr;
-	unsigned int *	m_pIDList;
-	int				m_L[65537];
-	unsigned int *	m_IndexForWholeInterval;
+	unsigned int *m_IndexForMaxInt;
+	long long m_iEndPointsNum;
+	uint128_t *m_pEndPoints;
+	long long *m_pIDPtr;
+	unsigned int *m_pIDList;
+	int m_L[65537];
+	unsigned int *m_IndexForWholeInterval;
 };
 
 #endif

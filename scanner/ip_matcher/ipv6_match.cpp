@@ -25,7 +25,7 @@ using namespace std;
 
 //#define DEBUG_IPV6_MATCH
 
-bool cmp(ipv6_rule_t a, ipv6_rule_t b)
+bool cmp_ipv6_rule(ipv6_rule_t a, ipv6_rule_t b)
 {
 
 	uint128_t l_a(a.rule.start_ip);
@@ -33,7 +33,6 @@ bool cmp(ipv6_rule_t a, ipv6_rule_t b)
 	uint128_t l_b(b.rule.start_ip);
 	uint128_t h_b(b.rule.end_ip);
 
-	//�ֱ��������ipv6��������䷶Χ
 	uint128_t interval_a = h_a - l_a;
 	uint128_t interval_b = h_b - l_b;
 
@@ -62,30 +61,28 @@ CIPv6Match::~CIPv6Match()
 
 long long CIPv6Match::initialize(const map<long long, struct ip_rule>& rules)
 {
-	m_rnum=rules.size();
-	if(m_rnum==0) return 0;
+	m_rnum = rules.size();
+	if (m_rnum == 0) {
+        return 0;
+    }
 
-	long long mem_bytes=0;
+	long long mem_bytes = 0;
 
 	m_rules = new ipv6_rule_t[m_rnum];
+	mem_bytes += (sizeof(struct ipv6_range) + sizeof(unsigned int) + sizeof(void *)) * m_rnum;
 
-	mem_bytes+=(sizeof(struct ipv6_range)+sizeof(unsigned int)+sizeof(void *))*m_rnum;
-
-	unsigned int i=0;
-	for(map<long long, struct ip_rule>::const_iterator it=rules.begin(); it!=rules.end(); ++it)
-	{
+	unsigned int i = 0;
+	for (map<long long, struct ip_rule>::const_iterator it = rules.begin(); it != rules.end(); ++it) {
 		struct ipv6_range arule = it->second.ipv6_rule;;
 		m_rules[i].rule = arule;
 		m_rules[i].rule_id = it->first;
 		m_rules[i++].tag = it->second.user_tag;
 	}
 
-	//���ݵ���ip�ķ�Χ��С����
-	sort(&m_rules[0], &m_rules[m_rnum],cmp);
+	sort(&m_rules[0], &m_rules[m_rnum], cmp_ipv6_rule);
 
-	vector<uint128_t>    A, B;
-	for(i = 0; i < m_rnum; i++)
-	{
+	vector<uint128_t> A, B;
+	for (i = 0; i < m_rnum; i++) {
 		uint128_t a(m_rules[i].rule.start_ip);
 		uint128_t b(m_rules[i].rule.end_ip);
 		A.push_back(a);
@@ -93,11 +90,14 @@ long long CIPv6Match::initialize(const map<long long, struct ip_rule>& rules)
 	}
 
 	m_ipv6Indexer = new CInt128IntervalIndex;
-	mem_bytes+=sizeof(CInt128IntervalIndex);
+	mem_bytes += sizeof(CInt128IntervalIndex);
+    
 	long long ret = m_ipv6Indexer->PreProcessing(A, B);
-	if(ret<0) return -1;
-	mem_bytes+=ret;
+	if (ret < 0) {
+        return -1;
+    }
 
+	mem_bytes += ret;
 
 	return mem_bytes;
 }

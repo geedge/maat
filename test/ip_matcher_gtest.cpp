@@ -109,9 +109,9 @@ TEST(ipv6_matcher_match, OneSingleIPv6Rule) {
 }
 
 TEST(ipv6_matcher_match, MultiSingleIPv6Rule) {
-    const char *ip1_str = "1001:da8:205:1::101";
-    const char *ip2_str = "1001:da8:205:1::102";
-    const char *ip3_str = "1001:da8:205:1::103";
+    const char *ip1_str = "2607:5d00:2:2::56:22";
+    const char *ip2_str = "2607:5d00:2:2::50:25";
+    const char *ip3_str = "2607:5d00:2:2::64:203";
     struct ip_rule rule[3];
     rule[0].rule_id = 100;
     rule[0].type = IPv6;

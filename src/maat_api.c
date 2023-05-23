@@ -388,6 +388,7 @@ void maat_free(struct maat *maat_instance)
     while (0 == maat_instance->is_running) {
         usleep(500 * 1000); 
     }
+    
     maat_instance->is_running = 0;
 	pthread_join(maat_instance->cfg_mon_thread, &ret);
 }
@@ -443,6 +444,14 @@ int maat_table_callback_register(struct maat *maat_instance, int table_id,
 
     pthread_mutex_lock(&(maat_instance->background_update_mutex));
     void *schema = table_manager_get_schema(maat_instance->tbl_mgr, table_id);
+    if (NULL == schema) {
+        pthread_mutex_unlock(&(maat_instance->background_update_mutex));
+        log_error(maat_instance->logger, MODULE_MAAT_API,
+                  "[%s:%d] table(table_id:%d) schema is NULL, register callback failed",
+                  __FUNCTION__, __LINE__, table_id);
+        return -1;
+    }
+
     ret = plugin_table_add_callback(schema, table_id, start, update, finish, 
                                     u_para, maat_instance->logger);
     if (ret < 0) {
@@ -456,10 +465,16 @@ int maat_table_callback_register(struct maat *maat_instance, int table_id,
     }
 
     void *runtime = table_manager_get_runtime(maat_instance->tbl_mgr, table_id);
-    enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
-    assert(table_type == TABLE_TYPE_PLUGIN);
-    size_t row_cnt = plugin_runtime_cached_row_count(runtime);
 
+    enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
+    if (table_type != TABLE_TYPE_PLUGIN) {
+        pthread_mutex_unlock(&(maat_instance->background_update_mutex));
+        log_error(maat_instance->logger, MODULE_MAAT_API, 
+                  "[%s:%d] table type:%d illegal", __FUNCTION__, __LINE__, table_type);
+        return -1;
+    }
+
+    size_t row_cnt = plugin_runtime_cached_row_count(runtime);
     if (row_cnt > 0) {
         if (start != NULL) {
             start(MAAT_UPDATE_TYPE_FULL, u_para);
@@ -1679,11 +1694,13 @@ void maat_state_free(struct maat_state *state)
         return;
     }
 
-    assert(state->compile_state != NULL);
-    maat_compile_state_free(state->compile_state);
-    state->compile_state = NULL;
+    if (state->compile_state != NULL) {
+        maat_compile_state_free(state->compile_state);
+        state->compile_state = NULL;
+    }
+    
     state->maat_instance = NULL;
-    free(state);
+    FREE(state);
 }
 
 int maat_state_set_scan_district(struct maat_state *state, int vtable_id, 

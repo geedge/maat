@@ -1414,7 +1414,6 @@ int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
             
             if (0 == copy_compile->actual_clause_num && NULL == copy_compile->user_data) {
                 maat_compile_free(copy_compile);
-                copy_compile = NULL;
             } else {
                 rcu_hash_add(hash_tbl, (char *)&compile_id, sizeof(long long), copy_compile);
             }
@@ -1706,7 +1705,6 @@ int compile_runtime_add_compile(struct compile_runtime *compile_rt, struct compi
 
     struct compile_rule *compile_rule = compile_rule_new(compile_item, schema, table_name, line);
     compile_item_free(compile_item);
-    compile_item = NULL;
 
     int updating_flag = rcu_hash_is_updating(compile_rt->cfg_hash_tbl);
     if (1 == updating_flag) {
@@ -1756,7 +1754,7 @@ int compile_runtime_add_compile(struct compile_runtime *compile_rt, struct compi
             /* add copy_compile to rcu hash */
             rcu_hash_add(compile_rt->cfg_hash_tbl, (char *)&compile_id, sizeof(long long), copy_compile);
         } else {
-             compile = maat_compile_new(compile_rule->compile_id);
+            compile = maat_compile_new(compile_rule->compile_id);
             assert(compile != NULL);
             maat_compile_set(compile, table_name, compile_rule->declared_clause_num,
                              compile_rule, (void (*)(void *))compile_rule_free);
@@ -1815,7 +1813,6 @@ void compile_runtime_del_compile(struct compile_runtime *compile_rt, long long c
 
             if (0 == copy_compile->actual_clause_num) {
                 maat_compile_free(copy_compile);
-                copy_compile = NULL;
             } else {
                 rcu_hash_add(compile_rt->cfg_hash_tbl, (char *)&compile_id, 
                              sizeof(long long), copy_compile);
