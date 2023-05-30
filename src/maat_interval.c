@@ -73,7 +73,7 @@ void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->table_id = item->valueint;
     } else {
         log_error(logger, MODULE_INTERVAL, 
-                  "[%s:%d] table %s has no table_id column", 
+                  "[%s:%d] interval table:<%s> schema has no table_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -85,7 +85,7 @@ void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
         log_error(logger, MODULE_INTERVAL, 
-                  "[%s:%d] table %s has no custom column", 
+                  "[%s:%d] interval table:<%s> schema has no custom column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -95,7 +95,7 @@ void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->item_id_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_INTERVAL, 
-                  "[%s:%d] table %s has no item_id column", 
+                  "[%s:%d] interval table:<%s> schema has no item_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -105,7 +105,7 @@ void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->group_id_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_INTERVAL, 
-                  "[%s:%d] table %s has no group_id column", 
+                  "[%s:%d] interval table:<%s> schema has no group_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -117,7 +117,7 @@ void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr,
             schema->district_column = custom_item->valueint;
         } else {
             log_error(logger, MODULE_INTERVAL, 
-                  "[%s:%d] interval_plus table %s has no district column", 
+                  "[%s:%d] interval_plus table:<%s> schema has no district column", 
                   __FUNCTION__, __LINE__, table_name);
             goto error;
         }
@@ -128,7 +128,7 @@ void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->low_bound_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_INTERVAL, 
-                  "[%s:%d] table %s has no low_bound column", 
+                  "[%s:%d] interval table:<%s> schema has no low_bound column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -138,7 +138,7 @@ void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->up_bound_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_INTERVAL, 
-                  "[%s:%d] table %s has no up_bound column", 
+                  "[%s:%d] interval table:<%s> schema has no up_bound column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -240,7 +240,8 @@ void interval_runtime_free(void *interval_runtime)
     FREE(interval_rt);
 }
 
-long long interval_runtime_get_district_id(struct interval_runtime *interval_rt, const char *district)
+long long interval_runtime_get_district_id(struct interval_runtime *interval_rt,
+                                           const char *district)
 {
     long long district_id = DISTRICT_ANY;
 
@@ -261,53 +262,60 @@ long long interval_runtime_get_district_id(struct interval_runtime *interval_rt,
 	return district_id;
 }
 
-int interval_runtime_set_scan_district(struct interval_runtime *interval_rt, const char *district, 
-                                       size_t district_len, long long *district_id)
+int interval_runtime_set_scan_district(struct interval_runtime *interval_rt,
+                                       const char *district, size_t district_len,
+                                       long long *district_id)
 {
     if (NULL == interval_rt || NULL == district || 0 == district_len) {
         return -1;
     }
 
-    return maat_kv_read_unNull(interval_rt->district_map, district, district_len, district_id);
+    return maat_kv_read_unNull(interval_rt->district_map, district, district_len,
+                               district_id);
 }
 
-struct interval_item *interval_item_new(const char *line, struct interval_schema *schema,
-                                        struct interval_runtime *interval_rt)
+struct interval_item *
+interval_item_new(struct interval_schema *schema, const char *table_name,
+                  const char *line, struct interval_runtime *interval_rt)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
     enum table_type table_type = TABLE_TYPE_INVALID;
     struct interval_item *item = ALLOC(struct interval_item, 1);
 
-    int ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
+    int ret = get_column_pos(line, schema->item_id_column, &column_offset,
+                             &column_len);
     if (ret < 0) {
         log_error(interval_rt->logger, MODULE_INTERVAL, 
-                  "[%s:%d] interval table(table_id:%d) line:%s has no item_id",
-                  __FUNCTION__, __LINE__, schema->table_id, line);
+                  "[%s:%d] interval table:<%s> has no item_id in line:%s",
+                  __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
     item->item_id = atoll(line + column_offset);
 
-    ret = get_column_pos(line, schema->group_id_column, &column_offset, &column_len);
+    ret = get_column_pos(line, schema->group_id_column, &column_offset,
+                         &column_len);
     if (ret < 0) {
         log_error(interval_rt->logger, MODULE_INTERVAL, 
-                  "[%s:%d] interval table(table_id:%d) line:%s has no group_id",
-                  __FUNCTION__, __LINE__, schema->table_id, line);
+                  "[%s:%d] interval table:<%s> has no group_id in line:%s",
+                  __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
     item->group_id = atoll(line + column_offset);
 
     table_type = table_manager_get_table_type(schema->ref_tbl_mgr, schema->table_id);
     if (table_type == TABLE_TYPE_INTERVAL_PLUS) {
-        ret = get_column_pos(line, schema->district_column, &column_offset, &column_len);
+        ret = get_column_pos(line, schema->district_column, &column_offset,
+                             &column_len);
         if (ret < 0) {
             goto error;
         }
 
         if (column_len >= MAX_DISTRICT_STR) {
             log_error(interval_rt->logger, MODULE_INTERVAL, 
-                      "[%s:%d] interval_plus table(table_id:%d) line:%s district length too long",
-                      __FUNCTION__, __LINE__, schema->table_id, line);
+                      "[%s:%d] interval_plus table:<%s> district length exceed "
+                      "maxium:%d in line:%s", __FUNCTION__, __LINE__, table_name,
+                      MAX_DISTRICT_STR, line);
             goto error;
         }
 
@@ -323,8 +331,8 @@ struct interval_item *interval_item_new(const char *line, struct interval_schema
     ret = get_column_pos(line, schema->low_bound_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(interval_rt->logger, MODULE_INTERVAL, 
-                  "[%s:%d] interval table(table_id:%d) line:%s has no low_bound",
-                  __FUNCTION__, __LINE__, schema->table_id, line);
+                  "[%s:%d] interval table:<%s> has no low_bound in line:%s",
+                  __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
     item->low_bound = atoi(line + column_offset);
@@ -332,8 +340,8 @@ struct interval_item *interval_item_new(const char *line, struct interval_schema
     ret = get_column_pos(line, schema->up_bound_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(interval_rt->logger, MODULE_INTERVAL, 
-                  "[%s:%d] interval table(table_id:%d) line:%s has no up_bound",
-                  __FUNCTION__, __LINE__, schema->table_id, line);
+                  "[%s:%d] interval table:<%s> has no up_bound in line:%s",
+                  __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
     item->up_bound = atoi(line + column_offset);
@@ -356,8 +364,9 @@ struct interval_rule interval_item_to_interval_rule(struct interval_item *item)
     return rule;
 }
 
-int interval_runtime_update_row(struct interval_runtime *interval_rt, char *key, size_t key_len,
-                                struct interval_item *item, int is_valid)
+int interval_runtime_update_row(struct interval_runtime *interval_rt, char *key,
+                                size_t key_len, struct interval_item *item,
+                                int is_valid)
 {
     int ret = -1;
 
@@ -369,8 +378,9 @@ int interval_runtime_update_row(struct interval_runtime *interval_rt, char *key,
         ret = rcu_hash_add(interval_rt->item_hash, key, key_len, (void *)item);
         if (ret < 0) {
             log_error(interval_rt->logger, MODULE_INTERVAL,
-                      "[%s:%d] interval item(item_id:%lld) add to interavl_item_hash failed", 
-                      __FUNCTION__, __LINE__, item->item_id);
+                      "[%s:%d] interval item(item_id:%lld) add to "
+                      "interavl_item_hash failed", __FUNCTION__, __LINE__,
+                      item->item_id);
             return -1;
         }
     }
@@ -392,12 +402,20 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
 
     long long item_id = get_column_value(line, schema->item_id_column);
     if (item_id < 0) {
+        log_error(interval_rt->logger, MODULE_INTERVAL,
+                  "[%s:%d] interval table:<%s> has no item_id(column seq:%d)"
+                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
+                  schema->item_id_column, line);
         interval_rt->update_err_cnt++;
         return -1;
     }
 
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
+        log_error(interval_rt->logger, MODULE_INTERVAL,
+                  "[%s:%d] interval table:<%s> has no is_valid(column seq:%d)"
+                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
+                  valid_column, line);
         interval_rt->update_err_cnt++;
         return -1;
     }
@@ -405,7 +423,7 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
     struct interval_item *interval_item = NULL;
     if (1 == is_valid) {
         //add
-        interval_item = interval_item_new(line, schema, interval_rt);
+        interval_item = interval_item_new(schema, table_name, line, interval_rt);
         if (NULL == interval_item) {
             interval_rt->update_err_cnt++;
             return -1;
@@ -437,7 +455,8 @@ void garbage_interval_matcher_free(void *interval_matcher, void *arg)
     interval_matcher_free(matcher);
 }
 
-int interval_runtime_commit(void *interval_runtime, const char *table_name, long long maat_rt_version)
+int interval_runtime_commit(void *interval_runtime, const char *table_name,
+                            long long maat_rt_version)
 {
     if (NULL == interval_runtime) {
         return -1;
@@ -478,8 +497,9 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name, long
         new_interval_matcher = interval_matcher_new(rules, rule_cnt);
         if (NULL == new_interval_matcher) {
             log_error(interval_rt->logger, MODULE_INTERVAL,
-                      "[%s:%d] table[%s]rebuild interval_matcher engine failed when update %zu interval rules",
-                      __FUNCTION__, __LINE__, table_name, rule_cnt);
+                      "[%s:%d] table[%s]rebuild interval_matcher engine failed "
+                      "when update %zu interval rules", __FUNCTION__, __LINE__,
+                      table_name, rule_cnt);
             ret = -1;
         }
     }
@@ -497,8 +517,8 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name, long
     interval_rt->version = maat_rt_version;
     
     log_info(interval_rt->logger, MODULE_INTERVAL,
-             "table[%s] commit %zu interval rules and rebuild interval_matcher completed, version:%lld", 
-             table_name, rule_cnt, interval_rt->version);
+             "table[%s] commit %zu interval rules and rebuild interval_matcher "
+             "completed, version:%lld", table_name, rule_cnt, interval_rt->version);
 
     if (rules != NULL) {
         FREE(rules);
@@ -543,16 +563,18 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
     
     struct maat_item hit_maat_items[MAX_SCANNER_HIT_ITEM_NUM];
     struct maat_item_inner *inner_item = NULL;
+    struct interval_item *int_item = NULL;
     size_t real_hit_item_cnt = 0;
     long long district_id = state->district_id;
     
     for (int i = 0; i < n_hit_item; i++) {
         inner_item = (struct maat_item_inner *)(hit_results[i].user_tag);
-        if (inner_item->district_id == district_id || inner_item->district_id == DISTRICT_ANY) {
+        if (inner_item->district_id == district_id ||
+            inner_item->district_id == DISTRICT_ANY) {
             long long item_id = hit_results[i].rule_id;
-            struct interval_item *int_item = (struct interval_item *)rcu_hash_find(interval_rt->item_hash, 
-                                                                                  (char *)&item_id,
-                                                                                  sizeof(long long));
+            int_item = (struct interval_item *)rcu_hash_find(interval_rt->item_hash, 
+                                                             (char *)&item_id,
+                                                             sizeof(long long));
             if (!int_item) {
                 // item config has been deleted
                 continue;
@@ -578,8 +600,9 @@ void interval_runtime_hit_inc(struct interval_runtime *interval_rt, int thread_i
     alignment_int64_array_add(interval_rt->hit_cnt, thread_id, 1);
 }
 
-void interval_runtime_perf_stat(struct interval_runtime *interval_rt, struct timespec *start,
-                                struct timespec *end, int thread_id)
+void interval_runtime_perf_stat(struct interval_runtime *interval_rt,
+                                struct timespec *start, struct timespec *end,
+                                int thread_id)
 {
     if (NULL == interval_rt || thread_id < 0) {
         return;
@@ -588,7 +611,8 @@ void interval_runtime_perf_stat(struct interval_runtime *interval_rt, struct tim
     alignment_int64_array_add(interval_rt->scan_cnt, thread_id, 1);
     
     if (start != NULL && end != NULL) {
-        long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 + end->tv_nsec - start->tv_nsec;
+        long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 +
+                                 (end->tv_nsec - start->tv_nsec);
         alignment_int64_array_add(interval_rt->scan_cpu_time, thread_id, consume_time);
     }
 }
@@ -600,7 +624,8 @@ long long interval_runtime_scan_count(void *interval_runtime)
     }
 
     struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
-    long long sum = alignment_int64_array_sum(interval_rt->scan_cnt, interval_rt->n_worker_thread);
+    long long sum = alignment_int64_array_sum(interval_rt->scan_cnt,
+                                              interval_rt->n_worker_thread);
     alignment_int64_array_reset(interval_rt->scan_cnt, interval_rt->n_worker_thread);
 
     return sum;
@@ -627,7 +652,8 @@ long long interval_runtime_hit_count(void *interval_runtime)
     }
 
     struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
-    long long sum = alignment_int64_array_sum(interval_rt->hit_cnt, interval_rt->n_worker_thread);
+    long long sum = alignment_int64_array_sum(interval_rt->hit_cnt,
+                                              interval_rt->n_worker_thread);
     alignment_int64_array_reset(interval_rt->hit_cnt, interval_rt->n_worker_thread);
 
     return sum;

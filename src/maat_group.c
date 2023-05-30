@@ -97,14 +97,15 @@ void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         g2g_schema->table_id = item->valueint;
     } else {
         log_error(logger, MODULE_GROUP, 
-                  "[%s:%d] table %s has no table_id column", table_name);
+                  "[%s:%d] g2g table:<%s> schema has no table_id column",
+                  __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
         log_error(logger, MODULE_GROUP, 
-                  "[%s:%d] table %s has no custom column", 
+                  "[%s:%d] g2g table:<%s> schema has no custom column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -114,7 +115,7 @@ void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         g2g_schema->group_id_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_GROUP, 
-                  "[%s:%d] table %s has no group_id column",
+                  "[%s:%d] g2g table:<%s> schema has no group_id column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -124,7 +125,7 @@ void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         g2g_schema->super_group_id_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_GROUP, 
-                  "[%s:%d] table %s has no super_group_id column",
+                  "[%s:%d] g2g table:<%s> schema has no super_group_id column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -134,7 +135,7 @@ void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         g2g_schema->is_exclude_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_GROUP, 
-                  "[%s:%d] table %s has no is_exclude column",
+                  "[%s:%d] g2g table:<%s> schema has no is_exclude column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -327,7 +328,7 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
                              &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_GROUP,
-                  "[%s:%d] group2group table:%s line:%s has no group_id",
+                  "[%s:%d] g2g table:<%s> has no group_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
@@ -337,7 +338,7 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
                          &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_GROUP,
-                  "[%s:%d] group2group table:%s line:%s has no super_group_id",
+                  "[%s:%d] g2 table:<%s> has no super_group_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
@@ -347,7 +348,7 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
                          &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_GROUP,
-                  "[%s:%d] group2group table:%s line:%s has no is_exclude",
+                  "[%s:%d] g2g table:<%s> has no is_exclude in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
@@ -684,6 +685,10 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
 	struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
+        log_error(g2g_rt->logger, MODULE_GROUP,
+                  "[%s:%d] g2g table:<%s> has no is_valid(column seq:%d)"
+                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
+                  valid_column, line);
         g2g_rt->update_err_cnt++;
         return -1;
     }
@@ -765,8 +770,8 @@ int group2group_runtime_commit(void *g2g_runtime, const char *table_name,
     g2g_rt->version = maat_rt_version;
 
     log_info(g2g_rt->logger, MODULE_GROUP,
-             "table[%s] commit %zu g2g rules and rebuild super_groups completed, version:%lld",
-             table_name, g2g_rt->rule_num, g2g_rt->version);
+             "table[%s] commit %zu g2g rules and rebuild super_groups completed,"
+             " version:%lld", table_name, g2g_rt->rule_num, g2g_rt->version);
 
     return 0;
 }

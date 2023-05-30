@@ -76,7 +76,7 @@ void *flag_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->table_id = item->valueint;
     } else {
         log_error(logger, MODULE_FLAG, 
-                  "[%s:%d] table %s has no table_id column", 
+                  "[%s:%d] flag table:<%s> schema has no table_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -88,7 +88,7 @@ void *flag_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
         log_error(logger, MODULE_FLAG, 
-                  "[%s:%d] table %s has no custom column", 
+                  "[%s:%d] flag table:<%s> schema has no custom column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -98,7 +98,7 @@ void *flag_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->item_id_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_FLAG, 
-                  "[%s:%d] table %s has no item_id column", 
+                  "[%s:%d] flag table:<%s> schema has no item_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -108,7 +108,7 @@ void *flag_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->group_id_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_FLAG, 
-                  "[%s:%d] table %s has no group_id column", 
+                  "[%s:%d] flag table:<%s> schema has no group_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -120,7 +120,7 @@ void *flag_schema_new(cJSON *json, struct table_manager *tbl_mgr,
             schema->district_column = custom_item->valueint;
         } else {
             log_error(logger, MODULE_FLAG, 
-                  "[%s:%d] flag_plus table %s has no district column", 
+                  "[%s:%d] flag_plus table:<%s> schema has no district column", 
                   __FUNCTION__, __LINE__, table_name);
             goto error;
         }
@@ -131,7 +131,7 @@ void *flag_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->flag_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_FLAG, 
-                  "[%s:%d] table %s has no flag column", 
+                  "[%s:%d] flag table:<%s> schema has no flag column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -141,7 +141,7 @@ void *flag_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->flag_mask_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_FLAG, 
-                  "[%s:%d] table %s has no flag_mask column", 
+                  "[%s:%d] flag table:<%s> schema has no flag_mask column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -297,43 +297,47 @@ int flag_runtime_set_scan_district(struct flag_runtime *flag_rt, const char *dis
     return maat_kv_read_unNull(flag_rt->district_map, district, district_len, district_id);
 }
 
-struct flag_item *flag_item_new(const char *line, struct flag_schema *schema,
-                                struct flag_runtime *flag_rt)
+struct flag_item *flag_item_new(struct flag_schema *schema, const char *table_name,
+                                const char *line, struct flag_runtime *flag_rt)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
     enum table_type table_type = TABLE_TYPE_INVALID;
     struct flag_item *item = ALLOC(struct flag_item, 1);
 
-    int ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
+    int ret = get_column_pos(line, schema->item_id_column, &column_offset,
+                             &column_len);
     if (ret < 0) {
         log_error(flag_rt->logger, MODULE_FLAG, 
-                  "[%s:%d] flag table(table_id:%d) line:%s has no item_id",
-                  __FUNCTION__, __LINE__, schema->table_id, line);
+                  "[%s:%d] flag table:<%s> has no item_id in line:%s",
+                  __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
     item->item_id = atoll(line + column_offset);
 
-    ret = get_column_pos(line, schema->group_id_column, &column_offset, &column_len);
+    ret = get_column_pos(line, schema->group_id_column, &column_offset,
+                         &column_len);
     if (ret < 0) {
         log_error(flag_rt->logger, MODULE_FLAG, 
-                  "[%s:%d] flag table(table_id:%d) line:%s has no group_id",
-                  __FUNCTION__, __LINE__, schema->table_id, line);
+                  "[%s:%d] flag table:<%s> has no group_id in line:%s",
+                  __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
     item->group_id = atoll(line + column_offset);
 
     table_type = table_manager_get_table_type(schema->ref_tbl_mgr, schema->table_id);
     if (table_type == TABLE_TYPE_INTERVAL_PLUS) {
-        ret = get_column_pos(line, schema->district_column, &column_offset, &column_len);
+        ret = get_column_pos(line, schema->district_column, &column_offset,
+                             &column_len);
         if (ret < 0) {
             goto error;
         }
 
         if (column_len >= MAX_DISTRICT_STR) {
             log_error(flag_rt->logger, MODULE_FLAG, 
-                      "[%s:%d] flag_plus table(table_id:%d) line:%s district length too long",
-                      __FUNCTION__, __LINE__, schema->table_id, line);
+                      "[%s:%d] flag_plus table:<%s> district length exceed "
+                      "maxium:%d in line:%s", __FUNCTION__, __LINE__, table_name,
+                      MAX_DISTRICT_STR, line);
             goto error;
         }
 
@@ -349,8 +353,8 @@ struct flag_item *flag_item_new(const char *line, struct flag_schema *schema,
     ret = get_column_pos(line, schema->flag_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(flag_rt->logger, MODULE_FLAG, 
-                  "[%s:%d] flag table(table_id:%d) line:%s has no flag",
-                  __FUNCTION__, __LINE__, schema->table_id, line);
+                  "[%s:%d] flag table:<%s> has no flag in line:%s",
+                  __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
 
@@ -359,8 +363,8 @@ struct flag_item *flag_item_new(const char *line, struct flag_schema *schema,
      ret = get_column_pos(line, schema->flag_mask_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(flag_rt->logger, MODULE_FLAG, 
-                  "[%s:%d] flag table(table_id:%d) line:%s has no flag_mask",
-                  __FUNCTION__, __LINE__, schema->table_id, line);
+                  "[%s:%d] flag table:<%s> has no flag_mask in line:%s",
+                  __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
     item->flag_mask = strtoull(line + column_offset, NULL, 0);
@@ -383,7 +387,7 @@ struct flag_rule flag_item_to_flag_rule(struct flag_item *item)
     return rule;
 }
 
-int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table_name, 
+int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table_name,
                         const char *line, int valid_column)
 {
     if (NULL == flag_runtime || NULL == flag_schema ||
@@ -396,18 +400,26 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table
 
     long long item_id = get_column_value(line, schema->item_id_column);
     if (item_id < 0) {
+        log_error(flag_rt->logger, MODULE_FLAG,
+                  "[%s:%d] flag table:<%s> has no item_id(column seq:%d)"
+                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
+                  schema->item_id_column, line);
         return -1;
     }
 
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
+        log_error(flag_rt->logger, MODULE_FLAG,
+                  "[%s:%d] flag table:<%s> has no is_valid(column seq:%d)"
+                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
+                  valid_column, line);
         flag_rt->update_err_cnt++;
         return -1;
     }
 
     struct flag_item *flag_item = NULL;
     if (1 == is_valid) {
-        flag_item = flag_item_new(line, schema, flag_rt);
+        flag_item = flag_item_new(schema, table_name, line, flag_rt);
         if (NULL == flag_item) {
             flag_rt->update_err_cnt++;
             return -1;
@@ -481,8 +493,9 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name,
         new_flag_matcher = flag_matcher_new(rules, rule_cnt);
         if (NULL == new_flag_matcher) {
             log_error(flag_rt->logger, MODULE_FLAG,
-                      "[%s:%d] table[%s] rebuild flag_matcher engine failed when update %zu flag rules",
-                      __FUNCTION__, __LINE__, table_name, rule_cnt);
+                      "[%s:%d] table[%s] rebuild flag_matcher engine failed "
+                      "when update %zu flag rules", __FUNCTION__, __LINE__,
+                      table_name, rule_cnt);
             ret = -1;
         }
     }
@@ -500,8 +513,8 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name,
     flag_rt->version = maat_rt_version;
 
     log_info(flag_rt->logger, MODULE_FLAG,
-             "table[%s] commit %zu flag rules and rebuild flag_matcher completed, version:%lld", 
-             table_name, rule_cnt, flag_rt->version);
+             "table[%s] commit %zu flag rules and rebuild flag_matcher completed,"
+             " version:%lld", table_name, rule_cnt, flag_rt->version);
 
     if (rules != NULL) {
         FREE(rules);
@@ -546,16 +559,18 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
     
     struct maat_item hit_maat_items[MAX_SCANNER_HIT_ITEM_NUM];
     struct maat_item_inner *inner_item = NULL;
+    struct flag_item *flag_item = NULL;
     size_t real_hit_item_cnt = 0;
     long long district_id = state->district_id;
     
     for (int i = 0; i < n_hit_item; i++) {
         inner_item = (struct maat_item_inner *)(hit_results[i].user_tag);
-        if (inner_item->district_id == district_id || inner_item->district_id == DISTRICT_ANY) {
+        if (inner_item->district_id == district_id ||
+            inner_item->district_id == DISTRICT_ANY) {
             long long item_id = hit_results[i].rule_id;
-            struct flag_item *flag_item = (struct flag_item *)rcu_hash_find(flag_rt->item_hash, 
-                                                                            (char *)&item_id,
-                                                                            sizeof(long long));
+            flag_item = (struct flag_item *)rcu_hash_find(flag_rt->item_hash, 
+                                                          (char *)&item_id,
+                                                          sizeof(long long));
             if (!flag_item) {
                 // item config has been deleted
                 continue;

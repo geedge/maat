@@ -453,6 +453,7 @@ protected:
         logger = log_handle_create("./maat_framework_gtest.log", 0);
         struct maat_options *opts = maat_options_new();
         maat_options_set_instance_name(opts, "firewall");
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_json_file(opts, watched_json);
         maat_options_set_json_file_gzip_flag(opts, 1);
         maat_options_set_json_file_decrypt_key(opts, json_decrypt_key);
@@ -2592,14 +2593,16 @@ TEST_F(PluginTable, EX_DATA) {
 
     const char *key1 = "HeBei";
     struct plugin_ud *ud = NULL;
-    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id, key1);
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+                                                           key1, strlen(key1));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "Shijiazhuang");
     EXPECT_EQ(ud->id, 1);
     plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 
     const char *key2 = "ShanDong";
-    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id, key2);
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+                                                           key2, strlen(key2));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "Jinan");
     EXPECT_EQ(ud->id, 3);
@@ -2624,17 +2627,81 @@ TEST_F(PluginTable, KEY_TYPE) {
 
     long long key1 = 11111111;
     struct plugin_ud *ud = NULL;
-    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id, (char *)&key1);
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+                                                           (char *)&key1, sizeof(long long));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "Shijiazhuang");
     EXPECT_EQ(ud->id, 1);
     plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 
     long long key2 = 33333333;
-    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id, (char *)&key2);
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+                                                           (char *)&key2, sizeof(long long));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "Jinan");
     EXPECT_EQ(ud->id, 3);
+    plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
+}
+
+TEST_F(PluginTable, IP_KEY_TYPE) {
+    const char *table_name = "TEST_PLUGIN_IP_KEY_TYPE_TABLE";
+    struct maat *maat_instance = PluginTable::_shared_maat_instance;
+
+    int table_id = maat_get_table_id(maat_instance, table_name);
+    ASSERT_GT(table_id, 0);
+
+    int plugin_ex_data_counter = 0;
+    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
+                                                   plugin_EX_new_cb,
+                                                   plugin_EX_free_cb,
+                                                   plugin_EX_dup_cb,
+                                                   0, &plugin_ex_data_counter);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(plugin_ex_data_counter, 4);
+
+    uint32_t ipv4_addr1;
+    ret = inet_pton(AF_INET, "100.64.1.1", &ipv4_addr1);
+    EXPECT_EQ(ret, 1);
+
+    struct plugin_ud *ud = NULL;
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+                                                           (char *)&ipv4_addr1, sizeof(ipv4_addr1));
+    ASSERT_TRUE(ud != NULL);
+    EXPECT_STREQ(ud->value, "XiZang");
+    EXPECT_EQ(ud->id, 4);
+    plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
+
+    uint32_t ipv4_addr2;
+    ret = inet_pton(AF_INET, "100.64.1.2", &ipv4_addr2);
+    EXPECT_EQ(ret, 1);
+
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+                                                           (char *)&ipv4_addr2, sizeof(ipv4_addr2));
+    ASSERT_TRUE(ud != NULL);
+    EXPECT_STREQ(ud->value, "XinJiang");
+    EXPECT_EQ(ud->id, 4);
+    plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
+
+    uint8_t ipv6_addr1[16];
+    ret = inet_pton(AF_INET6, "2001:da8:205:1::101", ipv6_addr1);
+    EXPECT_EQ(ret, 1);
+
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+                                                           (char *)ipv6_addr1, sizeof(ipv6_addr1));
+    ASSERT_TRUE(ud != NULL);
+    EXPECT_STREQ(ud->value, "GuiZhou");
+    EXPECT_EQ(ud->id, 6);
+    plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
+
+    uint8_t ipv6_addr2[16];
+    ret = inet_pton(AF_INET6, "1001:da8:205:1::101", ipv6_addr2);
+    EXPECT_EQ(ret, 1);
+
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+                                                           (char *)ipv6_addr2, sizeof(ipv6_addr2));
+    ASSERT_TRUE(ud != NULL);
+    EXPECT_STREQ(ud->value, "SiChuan");
+    EXPECT_EQ(ud->id, 6);
     plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 }
 
@@ -3438,7 +3505,7 @@ TEST_F(Policy, CompileEXData) {
     EXPECT_EQ(results[0], 198);
 
     void *ex_data = maat_plugin_table_get_ex_data(maat_instance, compile_table_id, 
-                                                 (char *)&results[0]);
+                                                 (char *)&results[0], sizeof(long long));
     ASSERT_TRUE(ex_data!=NULL);
     struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
 	EXPECT_EQ(param->id, 7799);
@@ -4892,8 +4959,8 @@ TEST_F(MaatCmdTest, PluginEXData) {
 	
 	struct user_info *uinfo = NULL;
     const char *key1 = "192.168.0.2";
-	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(maat_instance, 
-                                                              table_id, key1);
+	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+                                                              key1, strlen(key1));
 	ASSERT_TRUE(uinfo != NULL);
 	EXPECT_EQ(0, strcmp(uinfo->name, "liuqiangdong"));
 	EXPECT_EQ(uinfo->id, 2);
@@ -4910,8 +4977,8 @@ TEST_F(MaatCmdTest, PluginEXData) {
 	
 	sleep(WAIT_FOR_EFFECTIVE_S);
     const char *key2 = "192.168.0.2";
-	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(maat_instance, 
-                                                              table_id, key2);
+	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+                                                              key2, strlen(key2));
 	ASSERT_TRUE(uinfo == NULL);
 }
 

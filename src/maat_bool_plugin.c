@@ -56,7 +56,7 @@ void *bool_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->table_id = item->valueint;
     } else {
         log_error(logger, MODULE_BOOL_PLUGIN, 
-                  "[%s:%d] table: <%s> schema has no table_id column", 
+                  "[%s:%d] bool_plugin table:<%s> schema has no table_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -64,7 +64,7 @@ void *bool_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     item = cJSON_GetObjectItem(json, "custom");
     if (NULL == item || item->type != cJSON_Object) {
         log_error(logger, MODULE_BOOL_PLUGIN, 
-                  "[%s:%d] table: <%s> schema has no custom column", 
+                  "[%s:%d] bool_plugin table:<%s> schema has no custom column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -74,7 +74,7 @@ void *bool_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->item_id_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_BOOL_PLUGIN, 
-                  "[%s:%d] table: <%s> schema has no item_id column", 
+                  "[%s:%d] bool_plugin table:<%s> schema has no item_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -84,7 +84,7 @@ void *bool_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->bool_expr_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_BOOL_PLUGIN, 
-                  "[%s:%d] table: <%s> schema has no bool_expr column", 
+                  "[%s:%d] bool_plugin table:<%s> schema has no bool_expr column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -122,8 +122,8 @@ int bool_plugin_table_set_ex_container_schema(void *bool_plugin_schema, int tabl
 
     if (1 == schema->container_schema.set_flag) {
         log_error(schema->logger, MODULE_BOOL_PLUGIN, 
-                  "[%s:%d] bool_plugin table(table_id:%d) ex_container_schema has been set, can't set again",
-                  __FUNCTION__, __LINE__, table_id);
+                  "[%s:%d] bool_plugin table(table_id:%d) ex_container_schema"
+                  " has been set, can't set again", __FUNCTION__, __LINE__, table_id);
         return -1;
     }
 
@@ -139,7 +139,8 @@ int bool_plugin_table_set_ex_container_schema(void *bool_plugin_schema, int tabl
     return 0;
 }
 
-struct ex_container_schema *bool_plugin_table_get_ex_container_schema(void *bool_plugin_schema)
+struct ex_container_schema *
+bool_plugin_table_get_ex_container_schema(void *bool_plugin_schema)
 {
     struct bool_plugin_schema *schema = (struct bool_plugin_schema *)bool_plugin_schema;
 
@@ -244,7 +245,8 @@ int bool_plugin_runtime_update_row(struct bool_plugin_runtime *bool_plugin_rt,
         }
     } else {
         // add
-        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, table_name, row, key, key_len);
+        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, table_name, row,
+                                                    key, key_len);
         struct ex_container *ex_container = ex_container_new(ex_data, (void *)expr);
         ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
         if (ret < 0) {
@@ -267,7 +269,7 @@ int bool_plugin_accept_tag_match(struct bool_plugin_schema *schema, const char *
                                  &column_offset, &column_len);
         if (ret < 0) {
             log_error(logger, MODULE_BOOL_PLUGIN,
-                      "[%s:%d] table: <%s> has no rule_tag in line:%s",
+                      "[%s:%d] bool_plugin table:<%s> has no rule_tag in line:%s",
                       __FUNCTION__, __LINE__, table_name, line);
             return TAG_MATCH_ERR;
         }
@@ -279,14 +281,14 @@ int bool_plugin_accept_tag_match(struct bool_plugin_schema *schema, const char *
             FREE(tag_str);
             if (TAG_MATCH_ERR == ret) {
                 log_error(logger, MODULE_BOOL_PLUGIN,
-                          "[%s:%d] table: <%s> has invalid tag format in line:%s",
+                          "[%s:%d] bool_plugin table:<%s> has invalid tag format in line:%s",
                           __FUNCTION__, __LINE__, table_name, line);
                 return TAG_MATCH_ERR;
             }
 
             if (TAG_MATCH_UNMATCHED == ret) {
                 log_error(logger, MODULE_BOOL_PLUGIN,
-                          "[%s:%d] table: <%s> has unmatched tag in line:%s",
+                          "[%s:%d] bool_plugin table:<%s> has unmatched tag in line:%s",
                           __FUNCTION__, __LINE__, table_name, line);
                 return TAG_MATCH_UNMATCHED;
             }
@@ -297,8 +299,8 @@ int bool_plugin_accept_tag_match(struct bool_plugin_schema *schema, const char *
 }
 
 struct bool_expr *
-bool_plugin_expr_new(const char *line, struct bool_plugin_schema *schema,
-                     const char *table_name, struct log_handle *logger)
+bool_plugin_expr_new(struct bool_plugin_schema *schema, const char *table_name,
+                     const char *line, struct log_handle *logger)
 {
     int ret = bool_plugin_accept_tag_match(schema, table_name, line, logger);
     if (ret == TAG_MATCH_UNMATCHED) {
@@ -316,7 +318,7 @@ bool_plugin_expr_new(const char *line, struct bool_plugin_schema *schema,
     ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_BOOL_PLUGIN, 
-                  "[%s:%d] table: <%s> has no item_id in line:%s",
+                  "[%s:%d] bool_plugin table:<%s> has no item_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
@@ -325,7 +327,7 @@ bool_plugin_expr_new(const char *line, struct bool_plugin_schema *schema,
     ret = get_column_pos(line, schema->bool_expr_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_BOOL_PLUGIN, 
-                  "[%s:%d] table: <%s> has no bool_expr in line:%s",
+                  "[%s:%d] bool_plugin table:<%s> has no bool_expr in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
@@ -341,8 +343,8 @@ bool_plugin_expr_new(const char *line, struct bool_plugin_schema *schema,
         n_item++;
         if (ret != 1 || n_item > MAX_ITEMS_PER_BOOL_EXPR) {
             log_error(logger, MODULE_BOOL_PLUGIN, 
-                      "[%s:%d] table: <%s> has invalid format of bool_expr in line:%s",
-                      __FUNCTION__, __LINE__, table_name, line);
+                      "[%s:%d] bool_plugin table:<%s> has invalid format of "
+                      "bool_expr in line:%s", __FUNCTION__, __LINE__, table_name, line);
             goto error;
         }
     }
@@ -381,12 +383,20 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
 
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
+        log_error(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
+                  "[%s:%d] bool_plugin table:<%s> has no is_valid(column seq:%d)"
+                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
+                  valid_column, line);
         bool_plugin_rt->update_err_cnt++;
         return -1;
     }
 
     int ret = get_column_pos(line, schema->item_id_column, &item_id_offset, &item_id_len);
     if (ret < 0) {
+        log_error(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
+                  "[%s:%d] bool_plugin table:<%s> has no item_id(column seq:%d)"
+                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
+                  schema->item_id_column, line);
         bool_plugin_rt->update_err_cnt++;
         return -1;
     }
@@ -394,7 +404,7 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
     if (1 == schema->container_schema.set_flag) {
         if (1 == is_valid) {
             // add
-            bool_expr = bool_plugin_expr_new(line, schema, table_name, bool_plugin_rt->logger);
+            bool_expr = bool_plugin_expr_new(schema, table_name, line, bool_plugin_rt->logger);
             if (NULL == bool_expr) {
                 bool_plugin_rt->update_err_cnt++;
                 return -1;
@@ -468,8 +478,9 @@ int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name
         new_bool_matcher = bool_matcher_new(rules, rule_cnt, &mem_used);
         if (NULL == new_bool_matcher) {
             log_error(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
-                      "[%s:%d] table[%s] rebuild bool_matcher engine failed when update %zu bool_plugin rules",
-                      __FUNCTION__, __LINE__, table_name, rule_cnt);
+                      "[%s:%d] table[%s] rebuild bool_matcher engine failed when "
+                      "update %zu bool_plugin rules", __FUNCTION__, __LINE__,
+                      table_name, rule_cnt);
             ret = -1;
         }
     }
@@ -487,8 +498,8 @@ int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name
     }
 
     log_info(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
-             "table[%s] commit %zu bool_plugin rules and rebuild bool_matcher completed, version:%lld", 
-             table_name, rule_cnt, bool_plugin_rt->version);
+             "table[%s] commit %zu bool_plugin rules and rebuild bool_matcher completed"
+             ", version:%lld", table_name, rule_cnt, bool_plugin_rt->version);
 
     if (rules != NULL) {
         FREE(rules);
@@ -559,7 +570,8 @@ void bool_plugin_runtime_perf_stat(void *bool_plugin_runtime, struct timespec *s
     alignment_int64_array_add(bool_plugin_rt->scan_cnt, thread_id, 1);
 
     if (start != NULL && end != NULL) {
-        long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 + (end->tv_nsec - start->tv_nsec);
+        long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 +
+                                 (end->tv_nsec - start->tv_nsec);
         alignment_int64_array_add(bool_plugin_rt->scan_cpu_time, thread_id, consume_time);
     }
 }

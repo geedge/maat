@@ -34,7 +34,7 @@ void *virtual_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
     if (NULL == item || item->type != cJSON_Number) {
         log_error(logger, MODULE_VIRTUAL, 
-                  "[%s:%d] virtual table %s has no table_id column", 
+                  "[%s:%d] virtual table:<%s> schema has no table_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -43,7 +43,7 @@ void *virtual_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     item = cJSON_GetObjectItem(json, "physical_table");
     if (NULL == item || item->type != cJSON_String) {
         log_error(logger, MODULE_VIRTUAL, 
-                  "[%s:%d] virtual table %s has no physical_table column", 
+                  "[%s:%d] virtual table:<%s> schema has no physical_table column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }

@@ -17,7 +17,6 @@ extern "C"
 #endif
 
 #define MAX_KEYWORDS_STR     1024
-
 #define MAX_MAAT_STAT_NUM    64
                              
 #ifdef __cplusplus

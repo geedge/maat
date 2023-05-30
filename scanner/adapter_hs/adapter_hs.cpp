@@ -32,7 +32,7 @@ pid_t hs_gettid()
 static const char *hs_module_name_str(const char *name)
 {
 	static __thread char module[64];
-	snprintf(module,sizeof(module),"%s(%d)", name, hs_gettid());
+	snprintf(module, sizeof(module), "%s(%d)", name, hs_gettid());
     
 	return module;
 }
