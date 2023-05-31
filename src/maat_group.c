@@ -64,6 +64,7 @@ struct group2group_runtime {
     struct maat_group_topology *updating_group_topo;
     long long version;
 	long long rule_num;
+    long long excl_rule_num; //exclude g2g rule num
     long long update_err_cnt;
     int updating_flag;
 
@@ -714,6 +715,9 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
                                                   g2g_item->is_exclude);
         if (0 == ret) {
             g2g_rt->rule_num--;
+            if (1 == g2g_item->is_exclude) {
+                g2g_rt->excl_rule_num--;
+            }
         } else {
             g2g_rt->update_err_cnt++;
         }
@@ -725,6 +729,9 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
                                                 g2g_item->is_exclude);
         if (0 == ret) {
             g2g_rt->rule_num++;
+            if (1 == g2g_item->is_exclude) {
+                g2g_rt->excl_rule_num++;
+            }
         } else {
             g2g_rt->update_err_cnt++;
         }
@@ -1086,6 +1093,16 @@ long long group2group_runtime_rule_count(void *g2g_runtime)
     
     struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
     return g2g_rt->rule_num;
+}
+
+long long group2group_runtime_exclude_rule_count(void *g2g_runtime)
+{
+    if (NULL == g2g_runtime) {
+        return 0;
+    }
+    
+    struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
+    return g2g_rt->excl_rule_num;
 }
 
 long long group2group_runtime_update_err_count(void *g2g_runtime)

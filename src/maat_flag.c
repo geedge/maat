@@ -425,11 +425,9 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table
             return -1;
         }
 
-        struct maat_item_inner *inner_item = maat_item_inner_new(flag_item->item_id,
-                                                                 flag_item->group_id,
-                                                                 flag_item->district_id);
-        flag_item->user_data = inner_item;
-        flag_item->user_data_free = maat_item_inner_free;
+        struct item_district *item_dist = item_district_new(flag_item->district_id);
+        flag_item->user_data = item_dist;
+        flag_item->user_data_free = item_district_free;
     }
 
     int ret = flag_runtime_update_row(flag_rt, (char *)&item_id, sizeof(long long),
@@ -558,15 +556,15 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
     }
     
     struct maat_item hit_maat_items[MAX_SCANNER_HIT_ITEM_NUM];
-    struct maat_item_inner *inner_item = NULL;
+    struct item_district *item_dist = NULL;
     struct flag_item *flag_item = NULL;
     size_t real_hit_item_cnt = 0;
     long long district_id = state->district_id;
     
     for (int i = 0; i < n_hit_item; i++) {
-        inner_item = (struct maat_item_inner *)(hit_results[i].user_tag);
-        if (inner_item->district_id == district_id ||
-            inner_item->district_id == DISTRICT_ANY) {
+        item_dist = (struct item_district *)(hit_results[i].user_tag);
+        long long tag_district_id = item_district_id(item_dist);
+        if (tag_district_id == district_id || tag_district_id == DISTRICT_ANY) {
             long long item_id = hit_results[i].rule_id;
             flag_item = (struct flag_item *)rcu_hash_find(flag_rt->item_hash, 
                                                           (char *)&item_id,

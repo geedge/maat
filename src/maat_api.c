@@ -932,8 +932,8 @@ int interval_scan(struct table_manager *tbl_mgr, int thread_id, long long intege
 {
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, physical_table_id);
-    if (table_type == TABLE_TYPE_INTERVAL_PLUS && DISTRICT_FLAG_UNSET == state->is_set_district) {
-        // maat_instance->scan_err_cnt++;
+    if (table_type == TABLE_TYPE_INTERVAL_PLUS && 
+        DISTRICT_FLAG_UNSET == state->is_set_district) {
         return -1;
     }
 
@@ -1014,8 +1014,8 @@ int string_scan(struct table_manager *tbl_mgr, int thread_id, const char *data, 
                 int physical_table_id, int vtable_id, struct maat_state *state)
 {
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, physical_table_id);
-    if (table_type == TABLE_TYPE_EXPR_PLUS && DISTRICT_FLAG_UNSET == state->is_set_district) {
-        // maat_instance->scan_err_cnt++;
+    if (table_type == TABLE_TYPE_EXPR_PLUS && 
+        DISTRICT_FLAG_UNSET == state->is_set_district) {
         return -1;
     }
 
@@ -1051,7 +1051,6 @@ int expr_stream_scan(struct maat_stream *stream, const char *data, size_t data_l
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, stream->physical_table_id);
     if (table_type == TABLE_TYPE_EXPR_PLUS && 
         DISTRICT_FLAG_UNSET == state->is_set_district) {
-        // maat_instance->scan_err_cnt++;
         return -1;
     }
 
@@ -1133,11 +1132,13 @@ int maat_scan_flag(struct maat *maat_instance, int table_id,
     }
     
     if (physical_table_id < 0) {
+        maat_instance->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
     table_type = table_manager_get_table_type(maat_instance->tbl_mgr, physical_table_id);
     if (table_type != TABLE_TYPE_FLAG && table_type != TABLE_TYPE_FLAG_PLUS) {
+        maat_instance->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
@@ -1147,6 +1148,7 @@ int maat_scan_flag(struct maat *maat_instance, int table_id,
     int hit_group_cnt = flag_scan(maat_instance->tbl_mgr, state->thread_id, flag,
                                   physical_table_id, vtable_id, state);
     if (hit_group_cnt < 0) {
+        maat_instance->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
@@ -1217,11 +1219,13 @@ int maat_scan_integer(struct maat *maat_instance, int table_id,
     }
     
     if (physical_table_id < 0) {
+        maat_instance->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
     table_type = table_manager_get_table_type(maat_instance->tbl_mgr, physical_table_id);
     if (table_type != TABLE_TYPE_INTERVAL && table_type != TABLE_TYPE_INTERVAL_PLUS) {
+        maat_instance->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
@@ -1231,6 +1235,7 @@ int maat_scan_integer(struct maat *maat_instance, int table_id,
     int hit_group_cnt = interval_scan(maat_instance->tbl_mgr, state->thread_id, integer,
                                       physical_table_id, vtable_id, state);
     if (hit_group_cnt < 0) {
+        maat_instance->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
     
@@ -1302,11 +1307,13 @@ int maat_scan_ipv4(struct maat *maat_instance, int table_id,
     }
     
     if (physical_table_id < 0) {
+        maat_instance->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
     table_type = table_manager_get_table_type(maat_instance->tbl_mgr, physical_table_id);
     if (table_type != TABLE_TYPE_IP_PLUS) {
+        maat_instance->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
@@ -1316,6 +1323,7 @@ int maat_scan_ipv4(struct maat *maat_instance, int table_id,
     int hit_group_cnt = ipv4_scan(maat_instance->tbl_mgr, state->thread_id, ip_addr, port, protocol,
                                   physical_table_id, vtable_id, state);
     if (hit_group_cnt < 0) {
+        maat_instance->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
     
@@ -1387,11 +1395,13 @@ int maat_scan_ipv6(struct maat *maat_instance, int table_id,
     }
     
     if (physical_table_id < 0) {
+        maat_instance->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
     table_type = table_manager_get_table_type(maat_instance->tbl_mgr, physical_table_id);
     if (table_type != TABLE_TYPE_IP_PLUS) {
+        maat_instance->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
@@ -1401,6 +1411,7 @@ int maat_scan_ipv6(struct maat *maat_instance, int table_id,
     int hit_group_cnt = ipv6_scan(maat_instance->tbl_mgr, state->thread_id, ip_addr, port, protocol, 
                                   physical_table_id, vtable_id, state);
     if (hit_group_cnt < 0) {
+        maat_instance->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
@@ -1471,11 +1482,13 @@ int maat_scan_string(struct maat *maat_instance, int table_id, const char *data,
     }
     
     if (physical_table_id < 0) {
+        maat_instance->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
     table_type = table_manager_get_table_type(maat_instance->tbl_mgr, physical_table_id);
     if (table_type != TABLE_TYPE_EXPR && table_type != TABLE_TYPE_EXPR_PLUS) {
+        maat_instance->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
@@ -1485,10 +1498,11 @@ int maat_scan_string(struct maat *maat_instance, int table_id, const char *data,
     int hit_group_cnt = string_scan(maat_instance->tbl_mgr, state->thread_id, data, data_len, 
                                     physical_table_id, vtable_id, state);
     if (hit_group_cnt < 0) {
+        maat_instance->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
-     size_t sum_hit_compile_cnt = 0;
+    size_t sum_hit_compile_cnt = 0;
     if (hit_group_cnt > 0 || scan_status_should_compile_NOT(state)) {
         sum_hit_compile_cnt = group_to_compile(maat_instance, results, n_result, state);
         *n_hit_result = sum_hit_compile_cnt;
@@ -1607,6 +1621,7 @@ int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data
 
     int hit_group_cnt = expr_stream_scan(maat_stream, data, data_len, state);
     if (hit_group_cnt < 0) {
+        maat_instance->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
@@ -1669,6 +1684,8 @@ struct maat_state *maat_state_new(struct maat *maat_instance, int thread_id)
     state->thread_id = thread_id;
 
     state->compile_state = maat_compile_state_new(thread_id);
+    alignment_int64_array_add(maat_instance->stat->maat_state_cnt, thread_id, 1);
+
     return state;
 }
 
@@ -1694,6 +1711,11 @@ void maat_state_free(struct maat_state *state)
         return;
     }
 
+    assert(state->maat_instance != NULL);
+    
+    struct maat *maat_instance = state->maat_instance;
+    long long thread_id = state->thread_id;
+
     if (state->compile_state != NULL) {
         maat_compile_state_free(state->compile_state);
         state->compile_state = NULL;
@@ -1701,6 +1723,8 @@ void maat_state_free(struct maat_state *state)
     
     state->maat_instance = NULL;
     FREE(state);
+    
+    alignment_int64_array_add(maat_instance->stat->maat_state_cnt, thread_id, -1);
 }
 
 int maat_state_set_scan_district(struct maat_state *state, int vtable_id, 

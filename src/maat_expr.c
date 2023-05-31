@@ -797,11 +797,9 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
             return -1;
         }
 
-        struct maat_item_inner *inner_item = maat_item_inner_new(expr_item->item_id,
-                                                                 expr_item->group_id,
-                                                                 expr_item->district_id);
-        expr_item->user_data = inner_item;
-        expr_item->user_data_free = maat_item_inner_free;
+        struct item_district *item_dist = item_district_new(expr_item->district_id);
+        expr_item->user_data = item_dist;
+        expr_item->user_data_free = item_district_free;
     }
 
     int ret = expr_runtime_update_row(expr_rt, (char *)&item_id, sizeof(long long),
@@ -848,6 +846,7 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
     int ret = 0;
     size_t i = 0;
     size_t real_rule_cnt = 0;
+    size_t real_regex_rule_cnt = 0;
     struct expr_rule *rules = NULL;
     void **ex_data_array = NULL;
 
@@ -856,14 +855,17 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
         rules = ALLOC(struct expr_rule, rule_cnt);
         for (i = 0; i < rule_cnt; i++) {
             struct expr_item *expr_item = (struct expr_item *)ex_data_array[i];
-            struct expr_rule tmp_rule;
+            struct expr_rule tmp_rule = {0};
             ret = expr_item_to_expr_rule(expr_item, &tmp_rule, expr_rt->logger);
             if (ret < 0) {
                 continue;
             }
 
-            rules[i] = tmp_rule;
-            real_rule_cnt++;
+            rules[real_rule_cnt++] = tmp_rule;
+
+            if (expr_item->expr_type == EXPR_TYPE_REGEX) {
+                real_regex_rule_cnt++;
+            }
         }
     }
 
@@ -871,12 +873,12 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
     struct adapter_hs *old_adapter_hs = NULL;
 
     if (rule_cnt > 0) {
-        new_adapter_hs = adapter_hs_new(expr_rt->n_worker_thread, rules, rule_cnt,
+        new_adapter_hs = adapter_hs_new(expr_rt->n_worker_thread, rules, real_rule_cnt,
                                         expr_rt->logger);
         if (NULL == new_adapter_hs) {
             log_error(expr_rt->logger, MODULE_EXPR,
                       "[%s:%d] table[%s] rebuild adapter_hs engine failed when update"
-                      " %zu expr rules", __FUNCTION__, __LINE__, table_name, rule_cnt);
+                      " %zu expr rules", __FUNCTION__, __LINE__, table_name, real_rule_cnt);
             ret = -1;
         }
     }
@@ -890,13 +892,14 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
                              garbage_adapter_hs_free);
     }
     
-    expr_rt->rule_num = rule_cnt;
+    expr_rt->rule_num = real_rule_cnt;
+    expr_rt->regex_rule_num = real_regex_rule_cnt;
     expr_rt->version = maat_rt_version;
 
     log_info(expr_rt->logger, MODULE_EXPR,
-             "table[%s] has %zu rules, commit %zu expr rules and rebuild adapter_hs"
-             " completed, version:%lld", table_name, rule_cnt, real_rule_cnt,
-             expr_rt->version);
+             "table[%s] has %zu rules, commit %zu expr rules(regex rules:%zu) "
+             "and rebuild adapter_hs completed, version:%lld", table_name, rule_cnt,
+             real_rule_cnt, real_regex_rule_cnt, expr_rt->version);
 
     if (rules != NULL) {
         for (i = 0; i < rule_cnt; i++) {
@@ -973,15 +976,15 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
     }
     
     struct maat_item hit_maat_items[MAX_SCANNER_HIT_ITEM_NUM];
-    struct maat_item_inner *inner_item = NULL;
+    struct item_district *item_dist = NULL;
     struct expr_item *expr_item = NULL;
     size_t real_hit_item_cnt = 0;
     long long district_id = state->district_id;
     
     for (size_t i = 0; i < n_hit_item; i++) {
-        inner_item = (struct maat_item_inner *)(hit_results[i].user_tag);
-        if (inner_item->district_id == district_id || 
-            inner_item->district_id == DISTRICT_ANY) {
+        item_dist = (struct item_district *)(hit_results[i].user_tag);
+        long long tag_district_id = item_district_id(item_dist);
+        if (tag_district_id == district_id || tag_district_id == DISTRICT_ANY) {
             long long item_id = hit_results[i].rule_id;
             expr_item = (struct expr_item *)rcu_hash_find(expr_rt->item_hash, 
                                                           (char *)&item_id,

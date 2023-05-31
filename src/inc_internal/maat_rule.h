@@ -53,13 +53,6 @@ enum tag_match {
     TAG_MATCH_MATCHED
 };
 
-struct maat_item_inner {
-	long long magic_num;
-	long long item_id;
-	long long group_id;
-	long long district_id;
-};
-
 struct maat_item {
 	long long item_id;
 	long long group_id;
@@ -161,10 +154,8 @@ struct maat_stat {
     long long *thread_call_cnt;
     long long *hit_cnt;
     long long *not_grp_hit_cnt;
+    long long *maat_state_cnt;
 
-    long long scan_bytes;
-	long long scan_cnt;
-    long long update_err_cnt;
     long long scan_err_cnt;
     long long zombie_rs_stream;
     long long line_cmd_acc_num;
@@ -222,10 +213,11 @@ int my_scandir(const char *dir, struct dirent ***namelist,
               int(*filter)(const struct dirent *),
               int(*compar)(const void *, const void *));
 
-struct maat_item_inner *maat_item_inner_new(long long item_id, long long group_id,
-                                            long long district_id);
+struct item_district *item_district_new(long long district_id);
 
-void maat_item_inner_free(void *item_inner);
+void item_district_free(void *item_district);
+
+long long item_district_id(struct item_district *item_dist);
 
 void *rule_monitor_loop(void *arg);
 

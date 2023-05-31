@@ -308,6 +308,8 @@ protected:
         }
 
         struct maat_options *opts = maat_options_new();
+        maat_options_set_stat_file(opts, "./stat.log");
+        maat_options_set_perf_on(opts);
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
         maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
@@ -522,6 +524,8 @@ protected:
         }
 
         struct maat_options *opts = maat_options_new();
+        maat_options_set_stat_file(opts, "./stat.log");
+        maat_options_set_perf_on(opts);
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
         maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
@@ -674,6 +678,8 @@ protected:
         }
 
         struct maat_options *opts = maat_options_new();
+        maat_options_set_stat_file(opts, "./stat.log");
+        maat_options_set_perf_on(opts);
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
         maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
@@ -766,6 +772,8 @@ protected:
         }
 
         struct maat_options *opts = maat_options_new();
+        maat_options_set_stat_file(opts, "./stat.log");
+        maat_options_set_perf_on(opts);
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
         maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
@@ -994,6 +1002,8 @@ protected:
         }
 
         struct maat_options *opts = maat_options_new();
+        maat_options_set_stat_file(opts, "./stat.log");
+        maat_options_set_perf_on(opts);
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
         maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
@@ -1191,6 +1201,8 @@ protected:
         const char *table_info = "./tsg_table_info.conf";
 
         struct maat_options *opts = maat_options_new();
+        maat_options_set_stat_file(opts, "./stat.log");
+        maat_options_set_perf_on(opts);
         maat_options_set_iris(opts, rule_folder, rule_folder);
         maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_caller_thread_number(opts, 5);

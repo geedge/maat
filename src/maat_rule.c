@@ -32,30 +32,38 @@
 
 #define MODULE_MAAT_RULE	 module_name_str("maat.rule")
 
-#define	ITEM_RULE_MAGIC 0x4d3c2b1a
-struct maat_item_inner *maat_item_inner_new(long long item_id, long long group_id,
-                                            long long district_id)
-{
-	struct maat_item_inner *item = ALLOC(struct maat_item_inner, 1);
-	item->magic_num = ITEM_RULE_MAGIC;
-	item->item_id = item_id;
-	item->group_id = group_id;
-	item->district_id = district_id;
+struct item_district {
+	long long magic_num;
+	long long district_id;
+};
 
-	return item;
+#define	ITEM_RULE_MAGIC 0x4d3c2b1a
+struct item_district *
+item_district_new(long long district_id)
+{
+	struct item_district *item_dist = ALLOC(struct item_district, 1);
+	item_dist->magic_num = ITEM_RULE_MAGIC;
+	item_dist->district_id = district_id;
+
+	return item_dist;
 }
 
-void maat_item_inner_free(void *item_inner)
+void item_district_free(void *item_district)
 {
-    if (NULL == item_inner) {
+    if (NULL == item_district) {
         return;
     }
     
-    struct maat_item_inner *item = (struct maat_item_inner *)item_inner;
-	assert(item->magic_num == ITEM_RULE_MAGIC);
-	item->magic_num = 0;
+    struct item_district *item_dist = (struct item_district *)item_district;
+	assert(item_dist->magic_num == ITEM_RULE_MAGIC);
+	item_dist->magic_num = 0;
 
-	FREE(item);
+	FREE(item_dist);
+}
+
+long long item_district_id(struct item_district *item_dist)
+{
+    return item_dist->district_id;
 }
 
 struct maat_runtime* maat_runtime_create(long long version, struct maat *maat_instance)
@@ -63,7 +71,8 @@ struct maat_runtime* maat_runtime_create(long long version, struct maat *maat_in
 	struct maat_runtime *maat_rt = ALLOC(struct maat_runtime, 1);
 
 	maat_rt->version = version;
-	int ret = table_manager_runtime_create(maat_instance->tbl_mgr, maat_instance->opts.nr_worker_thread,
+	int ret = table_manager_runtime_create(maat_instance->tbl_mgr,
+                                           maat_instance->opts.nr_worker_thread,
                                            maat_instance->garbage_bin);
     if (ret < 0) {
         FREE(maat_rt);
@@ -376,7 +385,11 @@ void *rule_monitor_loop(void *arg)
     char err_str[NAME_MAX] = {0};
     struct stat attrib;
     while (maat_instance->is_running) {
-        log_info(maat_instance->logger, MODULE_MAAT_RULE, "%s:%d.............", __FUNCTION__, __LINE__);
+        if (time(NULL) % 10 == 0) {
+            log_info(maat_instance->logger, MODULE_MAAT_RULE,
+                     "%s thread still alive.........", __FUNCTION__);
+        }
+
         usleep(maat_instance->opts.rule_update_checking_interval_ms * 1000);
 		if (0 == pthread_mutex_trylock(&(maat_instance->background_update_mutex))) {
 			switch (maat_instance->opts.input_mode) {

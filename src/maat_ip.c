@@ -62,8 +62,6 @@ struct ip_item {
     uint16_t min_port;
     uint16_t max_port;
     int proto;
-    void *user_data;
-    void (*user_data_free)(void *data);
 };
 
 struct ip_runtime {
@@ -386,12 +384,7 @@ void ip_item_free(struct ip_item *item)
     if (NULL == item) {
         return;
     }
-
-    if (item->user_data != NULL && item->user_data_free != NULL) {
-        item->user_data_free(item->user_data);
-        item->user_data = NULL;
-    }
-
+    
     FREE(item);
 }
 
@@ -547,12 +540,6 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
             ip_rt->update_err_cnt++;
             return -1;
         }
-
-        struct maat_item_inner *inner_item = maat_item_inner_new(ip_item->item_id,
-                                                                 ip_item->group_id,
-                                                                 0);
-        ip_item->user_data = inner_item;
-        ip_item->user_data_free = maat_item_inner_free;
     }
     
     int ret = ip_runtime_update_row(ip_rt, (char *)&item_id, sizeof(long long),

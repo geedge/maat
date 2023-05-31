@@ -47,6 +47,8 @@ size_t group2group_runtime_get_super_groups(void *g2g_runtime, long long *group_
                                        
 long long group2group_runtime_rule_count(void *g2g_runtime);
 
+long long group2group_runtime_exclude_rule_count(void *g2g_runtime);
+
 long long group2group_runtime_update_err_count(void *g2g_runtime);
 
 #ifdef __cplusplus
