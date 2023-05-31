@@ -20,8 +20,8 @@
 #define MODULE_VIRTUAL	 module_name_str("maat.virtual")
 
 struct virtual_schema {
-    char physical_table[NAME_MAX];
-    int table_id;
+    int vtable_id;
+    int physical_table_id;
     struct table_manager *ref_tbl_mgr;
 };
 
@@ -38,7 +38,7 @@ void *virtual_schema_new(cJSON *json, struct table_manager *tbl_mgr,
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
-    schema->table_id = item->valueint;
+    schema->vtable_id = item->valueint;
 
     item = cJSON_GetObjectItem(json, "physical_table");
     if (NULL == item || item->type != cJSON_String) {
@@ -48,7 +48,13 @@ void *virtual_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    memcpy(schema->physical_table, item->valuestring, strlen(item->valuestring));
+    schema->physical_table_id = table_manager_get_table_id(tbl_mgr, item->valuestring);
+    if (schema->physical_table_id < 0) {
+        log_error(logger, MODULE_VIRTUAL, 
+                  "[%s:%d] virtual table:<%s>'s physical table:<%s> unregistered.", 
+                  __FUNCTION__, __LINE__, table_name, item->valuestring);
+        goto error;
+    }
    
     return schema;
 error:
@@ -69,5 +75,5 @@ int virtual_table_get_physical_table_id(void *virtual_schema)
 
     struct virtual_schema *schema = (struct virtual_schema *)virtual_schema;
 
-    return table_manager_get_table_id(schema->ref_tbl_mgr, schema->physical_table);
+    return schema->physical_table_id;
 }

@@ -134,7 +134,6 @@ struct maat_clause_state {
 struct compile_sort_para {
 	int declared_clause_num;
 	long long compile_id;
-	void *user;
 };
 
 #define MAAT_COMPILE_MAGIC	0x4a5b6c7d
@@ -2095,12 +2094,10 @@ static int compile_sort_para_compare(const struct compile_sort_para *a,
 }
 
 static void compile_sort_para_set(struct compile_sort_para *para, 
-                                  const struct compile_rule *compile_relation,
-                                  void *user)
+                                  const struct compile_rule *rule)
 {
-	para->compile_id = compile_relation->compile_id;
-	para->declared_clause_num = compile_relation->declared_clause_num;
-	para->user = user;
+	para->compile_id = rule->compile_id;
+	para->declared_clause_num = rule->declared_clause_num;
 }
 
 static int compare_compile_rule(const void *a, const void *b)
@@ -2109,8 +2106,8 @@ static int compare_compile_rule(const void *a, const void *b)
 	const struct compile_rule *rb = *(const struct compile_rule **)b;
 	
 	struct compile_sort_para sa, sb;
-	compile_sort_para_set(&sa, ra, NULL);
-	compile_sort_para_set(&sb, rb, NULL);
+	compile_sort_para_set(&sa, ra);
+	compile_sort_para_set(&sb, rb);
 
 	return compile_sort_para_compare(&sa, &sb);
 }
