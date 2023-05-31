@@ -747,7 +747,7 @@ int maat_plugin_table_ex_schema_register(struct maat *maat_instance,
 }
 
 void *maat_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
-                                    const char *key, size_t key_len)
+                                    const char *key)
 {
 
     if (NULL == maat_instance || table_id < 0 || table_id >= MAX_TABLE_NUM 
@@ -773,10 +773,9 @@ void *maat_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
     void *ret = NULL;
     enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
     if (TABLE_TYPE_COMPILE == table_type) {
-        assert(key_len == sizeof(long long));
         ret = compile_runtime_get_ex_data(runtime, schema, *(long long *)key);
     } else if (TABLE_TYPE_PLUGIN == table_type) {
-        ret = plugin_runtime_get_ex_data(runtime, schema, key, key_len);
+        ret = plugin_runtime_get_ex_data(runtime, schema, key, strlen(key));
     } else {
         return NULL;
     }
