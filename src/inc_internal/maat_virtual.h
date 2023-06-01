@@ -38,7 +38,7 @@ void *virtual_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
 void virtual_schema_free(void *virtual_schema);
 
-int virtual_table_get_physical_table_id(void *virtual_schema);
+int vtable_get_physical_table_id(struct table_manager *tbl_mgr, int vtable_id);
 
 #ifdef __cplusplus
 }

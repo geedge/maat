@@ -2147,6 +2147,10 @@ void maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
         hit_cnt = MAX_SCANNER_HIT_GROUP_NUM;
     }
 
+    if (NULL == state->compile_state) {
+        state->compile_state = maat_compile_state_new(state->thread_id);
+    }
+    
     for (i = 0; i < hit_cnt; i++) {
         maat_compile_state_update_hit_path(state->compile_state, hit_items[i].item_id, 
                                            hit_items[i].group_id, vtable_id, state->scan_cnt, i);

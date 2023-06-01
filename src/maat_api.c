@@ -869,7 +869,7 @@ int maat_bool_plugin_table_get_ex_data(struct maat *maat_instance, int table_id,
 
 static inline int scan_status_should_compile_NOT(struct maat_state *state)
 {
-	if (state && (LAST_SCAN_SET == state->is_last_scan) && state->compile_state 
+	if (state && (LAST_SCAN_SET == state->is_last_scan) && state->compile_state
         && maat_compile_state_has_NOT_clause(state->compile_state)) {
 		return 1;
 	} 
@@ -883,20 +883,6 @@ size_t hit_group_to_compile(void *compile_runtime, long long *compile_ids,
     size_t n_hit_compile = compile_runtime_match((struct compile_runtime *)compile_runtime,
                                                  compile_ids, compile_ids_size, state);
     return n_hit_compile;
-}
-
-static int vtable_get_physical_table_id(struct table_manager *tbl_mgr, int table_id)
-{
-    enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
-
-    if (table_type != TABLE_TYPE_VIRTUAL) {
-        return -1;
-    }
-
-    // find physical table id
-    void *virtual_schema = table_manager_get_schema(tbl_mgr, table_id);
-    assert(virtual_schema != NULL);
-    return virtual_table_get_physical_table_id(virtual_schema);
 }
 
 int flag_scan(struct table_manager *tbl_mgr, int thread_id, long long flag,
@@ -1683,7 +1669,7 @@ struct maat_state *maat_state_new(struct maat *maat_instance, int thread_id)
     state->district_id = DISTRICT_ANY;
     state->thread_id = thread_id;
 
-    state->compile_state = maat_compile_state_new(thread_id);
+    //state->compile_state no need to alloc memory at this point, but alloc it after hitting items
     alignment_int64_array_add(maat_instance->stat->maat_state_cnt, thread_id, 1);
 
     return state;
@@ -1701,8 +1687,9 @@ void maat_state_reset(struct maat_state *state)
     state->district_id = DISTRICT_ANY;
     state->scan_cnt = 0;
 
-    assert(state->compile_state != NULL);
-    maat_compile_state_reset(state->compile_state);
+    if (state->compile_state != NULL) {
+        maat_compile_state_reset(state->compile_state);
+    }
 }
 
 void maat_state_free(struct maat_state *state)

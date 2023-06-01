@@ -67,7 +67,7 @@ void virtual_schema_free(void *virtual_schema)
     FREE(virtual_schema);
 }
 
-int virtual_table_get_physical_table_id(void *virtual_schema)
+static int virtual_table_get_physical_table_id(void *virtual_schema)
 {
     if (NULL == virtual_schema) {
         return 0;
@@ -76,4 +76,18 @@ int virtual_table_get_physical_table_id(void *virtual_schema)
     struct virtual_schema *schema = (struct virtual_schema *)virtual_schema;
 
     return schema->physical_table_id;
+}
+
+int vtable_get_physical_table_id(struct table_manager *tbl_mgr, int table_id)
+{
+    enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
+
+    if (table_type != TABLE_TYPE_VIRTUAL) {
+        return -1;
+    }
+
+    // find physical table id
+    void *virtual_schema = table_manager_get_schema(tbl_mgr, table_id);
+    assert(virtual_schema != NULL);
+    return virtual_table_get_physical_table_id(virtual_schema);
 }
