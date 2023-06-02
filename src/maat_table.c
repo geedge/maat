@@ -612,12 +612,12 @@ static int register_tablename2id(cJSON *json, struct maat_kv_store *tablename2id
                 return -1;
             }
 
-            if (maat_kv_read(tablename2id_map, tmp_item->valuestring, &tmp_table_id) > 0) {
-                log_error(logger, MODULE_TABLE,
-                          "[%s:%d] table:<%s>(table_id:%lld) has already been registered, can't register again",
-                          __FUNCTION__, __LINE__, tmp_item->valuestring, tmp_table_id);
-                return -1;
-            }
+            // if (maat_kv_read(tablename2id_map, tmp_item->valuestring, &tmp_table_id) > 0) {
+            //     log_error(logger, MODULE_TABLE,
+            //               "[%s:%d] table:<%s>(table_id:%lld) has already been registered, can't register again",
+            //               __FUNCTION__, __LINE__, tmp_item->valuestring, tmp_table_id);
+            //     return -1;
+            // }
 
             maat_kv_register(tablename2id_map, tmp_item->valuestring, table_id);
         }
@@ -638,12 +638,12 @@ static int register_tablename2id(cJSON *json, struct maat_kv_store *tablename2id
         return -1;
     }
 
-    if (maat_kv_read(tablename2id_map, item->valuestring, &tmp_table_id) > 0) {
-        log_error(logger, MODULE_TABLE,
-                  "[%s:%d] table:<%s>(table_id:%lld) has already been registered, can't register again",
-                  __FUNCTION__, __LINE__, item->valuestring, tmp_table_id);
-        return -1;
-    }
+    // if (maat_kv_read(tablename2id_map, item->valuestring, &tmp_table_id) > 0) {
+    //     log_error(logger, MODULE_TABLE,
+    //               "[%s:%d] table:<%s>(table_id:%lld) has already been registered, can't register again",
+    //               __FUNCTION__, __LINE__, item->valuestring, tmp_table_id);
+    //     return -1;
+    // }
 
     maat_kv_register(tablename2id_map, item->valuestring, table_id);
 

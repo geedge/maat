@@ -23,6 +23,7 @@
 #include "../bool_matcher/bool_matcher.h"
 
 #define MAX_OFFSET_NUM 1024
+#define MAX_HIT_PATTERN_NUM  512
 
 pid_t hs_gettid() 
 {
@@ -549,6 +550,10 @@ int matched_event_cb(unsigned int id, unsigned long long from,
         return 0;
     }
 
+    if (utarray_len(matched_pat->pattern_ids) >= MAX_HIT_PATTERN_NUM) {
+        return 0;
+    }
+
     // duplicate pattern_id
     if (utarray_find(matched_pat->pattern_ids, &pattern_id, compare_pattern_id)) {
         return 0;
@@ -628,7 +633,7 @@ struct adapter_hs_stream *adapter_hs_stream_open(struct adapter_hs *hs_instance,
     hs_stream->matched_pat->ref_hs_attr = hs_instance->hs_attr;
     hs_stream->matched_pat->n_patterns = hs_instance->n_patterns;
     utarray_new(hs_stream->matched_pat->pattern_ids, &ut_pattern_id_icd);
-    utarray_reserve(hs_stream->matched_pat->pattern_ids, hs_instance->n_patterns);
+    utarray_reserve(hs_stream->matched_pat->pattern_ids, MAX_HIT_PATTERN_NUM);
 
     int err_count = 0;
     if (hs_instance->hs_rt->literal_db != NULL) {
@@ -769,19 +774,10 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
         return 0;
     }
 
-    if (n_pattern_id > MAX_SCANNER_HIT_PATTERN_NUM) {
-        n_pattern_id = MAX_SCANNER_HIT_PATTERN_NUM;
-    }
-
-    unsigned long long pattern_ids[MAX_SCANNER_HIT_PATTERN_NUM];
+    unsigned long long pattern_ids[n_pattern_id];
 
     for (size_t i = 0; i < n_pattern_id; i++) {
-        if (i >= MAX_SCANNER_HIT_PATTERN_NUM) {
-            break;
-        }
-
-        unsigned long long pattern_id = *(unsigned long long *)utarray_eltptr(hs_stream->matched_pat->pattern_ids, i);
-        pattern_ids[i] = pattern_id;
+        pattern_ids[i] = *(unsigned long long *)utarray_eltptr(hs_stream->matched_pat->pattern_ids, i);
     }
 
     int ret = 0;
@@ -802,6 +798,7 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
         results[index].user_tag = bool_matcher_results[index].user_tag;
     }
     *n_hit_result = bool_matcher_ret;
+
 next:
     FREE(bool_matcher_results);
     utarray_clear(hs_stream->matched_pat->pattern_ids);
