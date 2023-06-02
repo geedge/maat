@@ -927,13 +927,13 @@ void verify_candidate_super_group_ids(struct maat_group_topology *group_topo,
         }
 
         utarray_push_back(kept_super_group_ids, p);
-        utarray_sort(kept_super_group_ids, compare_group_id);
-
+        
         if (!utarray_find(all_hit_group_ids, p, compare_group_id)) {
             utarray_push_back(all_hit_group_ids, p);
             utarray_sort(all_hit_group_ids, compare_group_id);
         }
     }
+    utarray_sort(kept_super_group_ids, compare_group_id);
 
     /**
      * candidate_group_ids clone all_hit_group_ids
@@ -1080,8 +1080,23 @@ size_t group2group_runtime_get_super_groups(void *g2g_runtime, long long *group_
     }
     
     struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
+    long long g2g_group_ids[n_group_ids];
+    size_t g2g_group_ids_cnt = 0;
+    
+    for (size_t i = 0; i < n_group_ids; i++) {
+        struct maat_group *group = group_topology_find_group(g2g_rt->group_topo, group_ids[i]);
+        if (NULL == group) {
+            continue;
+        }
 
-    return group_topology_get_super_groups(g2g_rt->group_topo, group_ids, n_group_ids,
+        g2g_group_ids[g2g_group_ids_cnt++] = group_ids[i];
+    }
+
+    if (0 == g2g_group_ids_cnt) {
+        return 0;
+    }
+
+    return group_topology_get_super_groups(g2g_rt->group_topo, g2g_group_ids, g2g_group_ids_cnt,
                                            super_group_ids, super_group_ids_size);
 }
 
