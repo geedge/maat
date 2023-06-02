@@ -592,6 +592,7 @@ static int register_tablename2id(cJSON *json, struct maat_kv_store *tablename2id
         return -1;
     }
    
+    int ret = 0;
     long long tmp_table_id = 0;
     if (item != NULL) {
         int n_table_name = cJSON_GetArraySize(item);
@@ -607,17 +608,20 @@ static int register_tablename2id(cJSON *json, struct maat_kv_store *tablename2id
 
             if (strlen(tmp_item->valuestring) >= NAME_MAX) {
                 log_error(logger, MODULE_TABLE,
-                          "[%s:%d] table(table_id:%d) db_tables string %s length exceed maxium:%d",
-                          __FUNCTION__, __LINE__, table_id, tmp_item->valuestring, NAME_MAX);
+                          "[%s:%d] table(table_id:%d) db_tables string %s length "
+                          "exceed maxium:%d", __FUNCTION__, __LINE__, table_id,
+                          tmp_item->valuestring, NAME_MAX);
                 return -1;
             }
 
-            // if (maat_kv_read(tablename2id_map, tmp_item->valuestring, &tmp_table_id) > 0) {
-            //     log_error(logger, MODULE_TABLE,
-            //               "[%s:%d] table:<%s>(table_id:%lld) has already been registered, can't register again",
-            //               __FUNCTION__, __LINE__, tmp_item->valuestring, tmp_table_id);
-            //     return -1;
-            // }
+            ret = maat_kv_read(tablename2id_map, tmp_item->valuestring, &tmp_table_id);
+            if (ret > 0 && tmp_table_id != table_id) {
+                log_error(logger, MODULE_TABLE,
+                          "[%s:%d] table:<%s>(table_id:%lld) has already been registered"
+                          ", can't register again", __FUNCTION__, __LINE__,
+                          tmp_item->valuestring, tmp_table_id);
+                return -1;
+            }
 
             maat_kv_register(tablename2id_map, tmp_item->valuestring, table_id);
         }
@@ -638,12 +642,14 @@ static int register_tablename2id(cJSON *json, struct maat_kv_store *tablename2id
         return -1;
     }
 
-    // if (maat_kv_read(tablename2id_map, item->valuestring, &tmp_table_id) > 0) {
-    //     log_error(logger, MODULE_TABLE,
-    //               "[%s:%d] table:<%s>(table_id:%lld) has already been registered, can't register again",
-    //               __FUNCTION__, __LINE__, item->valuestring, tmp_table_id);
-    //     return -1;
-    // }
+    ret = maat_kv_read(tablename2id_map, item->valuestring, &tmp_table_id);
+    if (ret > 0 && tmp_table_id != table_id) {
+        log_error(logger, MODULE_TABLE,
+                  "[%s:%d] table:<%s>(table_id:%lld) has already been registered,"
+                  " can't register again", __FUNCTION__, __LINE__, item->valuestring,
+                  tmp_table_id);
+        return -1;
+    }
 
     maat_kv_register(tablename2id_map, item->valuestring, table_id);
 

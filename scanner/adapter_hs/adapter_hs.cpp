@@ -22,7 +22,7 @@
 #include "maat_utils.h"
 #include "../bool_matcher/bool_matcher.h"
 
-#define MAX_OFFSET_NUM 1024
+#define MAX_OFFSET_NUM       1024
 #define MAX_HIT_PATTERN_NUM  512
 
 pid_t hs_gettid() 

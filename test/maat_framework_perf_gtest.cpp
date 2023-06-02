@@ -14,6 +14,7 @@
 #define ARRAY_SIZE              10
 #define	WAIT_FOR_EFFECTIVE_S	2
 #define PERF_THREAD_NUM         5
+#define PERF_SCAN_COUNT        1000 * 1000
 
 const char *table_info_path = "./table_info.conf";
 const char *json_filename = "maat_json.json";
@@ -475,7 +476,7 @@ TEST_F(MaatPerfStringScan, MultiThread) {
         thread_params[i].maat_instance = maat_instance;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = 1 * 1000 * 1000;
+        thread_params[i].test_count = PERF_SCAN_COUNT;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
 
@@ -629,7 +630,7 @@ TEST_F(MaatPerfStreamScan, MultiThread) {
         thread_params[i].maat_instance = maat_instance;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = 100 * 1000;
+        thread_params[i].test_count = PERF_SCAN_COUNT / 10;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
 
@@ -723,7 +724,7 @@ TEST_F(MaatPerfIPScan, MultiThread)
         thread_params[i].maat_instance = maat_instance;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = 10 * 1000 * 1000;
+        thread_params[i].test_count = PERF_SCAN_COUNT;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
 
@@ -953,7 +954,7 @@ TEST_F(MaatPerfFQDNPluginScan, MultiThread) {
         thread_params[i].maat_instance = maat_instance;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = 1 * 1000 * 1000;
+        thread_params[i].test_count = PERF_SCAN_COUNT;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
 
@@ -1161,7 +1162,7 @@ TEST_F(MaatPerfBoolPluginScan, MultiThread) {
         thread_params[i].maat_instance = maat_instance;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = 1 * 1000 * 1000;
+        thread_params[i].test_count = PERF_SCAN_COUNT;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
 
