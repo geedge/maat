@@ -51,10 +51,12 @@ void compile_runtime_free(void *compile_runtime);
 
 void compile_runtime_init(void *compile_runtime, struct maat_runtime *maat_rt);
 
-int compile_runtime_update(void *compile_runtime, void *compile_schema, const char *table_name, 
-                           const char *line, int valid_column);
+int compile_runtime_update(void *compile_runtime, void *compile_schema,
+                           const char *table_name, const char *line,
+                           int valid_column);
 
-int compile_runtime_commit(void *compile_runtime, const char *table_name, long long maat_rt_version);
+int compile_runtime_commit(void *compile_runtime, const char *table_name,
+                           long long maat_rt_version);
 
 long long compile_runtime_rule_count(void *compile_runtime);
 
@@ -78,11 +80,13 @@ void compile_runtime_ex_data_iterate(struct compile_runtime *compile_rt,
 void *group2compile_runtime_new(void *g2c_schema, size_t max_thread_num,
                                 struct maat_garbage_bin *garbage_bin, 
                                 struct log_handle *logger);
-void group2compile_runtime_init(void *g2c_runtime, void *compile_runtime, void *g2g_runtime);
+void group2compile_runtime_init(void *g2c_runtime, void *compile_runtime,
+                                void *g2g_runtime);
 void group2compile_runtime_free(void *g2c_runtime);
 
-int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema, const char *table_name, 
-                                 const char *line, int valid_column);
+int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
+                                 const char *table_name, const char *line,
+                                 int valid_column);
 
 long long group2compile_runtime_not_group_count(void *g2c_runtime);
 
@@ -104,6 +108,9 @@ size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *comp
                                                  struct group2group_runtime *g2g_rt,
                                                  struct maat_hit_path *hit_path_array, 
                                                  size_t array_size);
+size_t maat_compile_state_get_hit_groups(struct maat_compile_state *compile_state,
+                                         struct maat_hit_group *hit_group_array,
+                                         size_t array_size);
 
 int maat_compile_state_has_NOT_clause(struct maat_compile_state *compile_state);
 

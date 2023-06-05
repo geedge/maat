@@ -5366,10 +5366,10 @@ TEST_F(MaatCmdTest, HitPath) {
 	const char* http_resp_hdr_cookie = "laptop=thinkpad X1 extrem;time=2020-02-11T15:34:00;"
                                        "main[XWJOKE]=hoho; Hm_lvt_bbac0322e6ee13093f98d5c4b5a10912=1578874808;";
 
-    int table_id = maat_get_table_id(maat_instance, "HTTP_REQUEST_HEADER");
-    ASSERT_GT(table_id, 0);
+    int http_req_table_id = maat_get_table_id(maat_instance, "HTTP_REQUEST_HEADER");
+    ASSERT_GT(http_req_table_id, 0);
 
-    ret = maat_state_set_scan_district(state, table_id, "URL", strlen("URL"));
+    ret = maat_state_set_scan_district(state, http_req_table_id, "URL", strlen("URL"));
     EXPECT_EQ(ret, 0);
 
     int Nth_scan = 0;
@@ -5377,9 +5377,18 @@ TEST_F(MaatCmdTest, HitPath) {
     Nth_scan++;
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
-    ret = maat_scan_string(maat_instance, table_id, http_url, strlen(http_url),
+    ret = maat_scan_string(maat_instance, http_req_table_id, http_url, strlen(http_url),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    struct maat_hit_group hit_groups[128];
+    memset(hit_groups, 0, sizeof(hit_groups));
+    int n_hit_group = maat_state_get_hit_groups(state, hit_groups, sizeof(hit_groups));
+    EXPECT_EQ(n_hit_group, 2);
+    EXPECT_EQ(hit_groups[0].group_id, group1_id);
+    EXPECT_EQ(hit_groups[0].vtable_id, http_req_table_id);
+    EXPECT_EQ(hit_groups[1].group_id, group11_id);
+    EXPECT_EQ(hit_groups[1].vtable_id, http_req_table_id);
 
     struct maat_hit_path hit_path[128];
     memset(hit_path, 0, sizeof(hit_path));
@@ -5392,21 +5401,32 @@ TEST_F(MaatCmdTest, HitPath) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	//EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
     EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, table_id);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, http_req_table_id);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
 
-    table_id = maat_get_table_id(maat_instance, "HTTP_RESPONSE_HEADER");
-	ASSERT_GT(table_id, 0);
+    int http_res_table_id = maat_get_table_id(maat_instance, "HTTP_RESPONSE_HEADER");
+	ASSERT_GT(http_res_table_id, 0);
 
-    ret = maat_state_set_scan_district(state, table_id, "Cookie", strlen("Cookie"));
+    ret = maat_state_set_scan_district(state, http_res_table_id, "Cookie", strlen("Cookie"));
     EXPECT_EQ(ret, 0);
 
     Nth_scan++;
-    ret = maat_scan_string(maat_instance, table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
+    ret = maat_scan_string(maat_instance, http_res_table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
                           results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], compile1_id);
+
+    n_hit_group = maat_state_get_hit_groups(state, hit_groups, sizeof(hit_groups));
+    EXPECT_EQ(n_hit_group, 4);
+    EXPECT_EQ(hit_groups[0].group_id, group1_id);
+    EXPECT_EQ(hit_groups[0].vtable_id, http_req_table_id);
+    EXPECT_EQ(hit_groups[1].group_id, group21_id);
+    EXPECT_EQ(hit_groups[1].vtable_id, http_res_table_id);
+    EXPECT_EQ(hit_groups[2].group_id, group2_id);
+    EXPECT_EQ(hit_groups[2].vtable_id, http_res_table_id);
+    EXPECT_EQ(hit_groups[3].group_id, group11_id);
+    EXPECT_EQ(hit_groups[3].vtable_id, http_req_table_id);
 
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 2);
@@ -5422,7 +5442,7 @@ TEST_F(MaatCmdTest, HitPath) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, table_id);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, http_res_table_id);
 	EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
 
     const char* keywords1="In graph theory, a path in a graph is a finite or infinite \
@@ -5432,14 +5452,28 @@ are all distinct (and since the vertices are distinct, so are the edges). ";
 sequence of edges which joins a sequence of distinct vertices, but with the added restriction\
 that the edges be all directed in the same direction.";
 
-    table_id = maat_get_table_id(maat_instance, keywords_table_name);
-    ASSERT_GT(table_id, 0);
+    int keywords_table_id = maat_get_table_id(maat_instance, keywords_table_name);
+    ASSERT_GT(keywords_table_id, 0);
 
-    struct maat_stream *stream = maat_stream_new(maat_instance, table_id, state);
+    struct maat_stream *stream = maat_stream_new(maat_instance, keywords_table_id, state);
     Nth_scan++;
     ret = maat_stream_scan(stream, keywords1, strlen(keywords1), results, ARRAY_SIZE,
                           &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    n_hit_group = maat_state_get_hit_groups(state, hit_groups, sizeof(hit_groups));
+    EXPECT_EQ(n_hit_group, 5);
+    EXPECT_EQ(hit_groups[0].group_id, group1_id);
+    EXPECT_EQ(hit_groups[0].vtable_id, http_req_table_id);
+    EXPECT_EQ(hit_groups[1].group_id, group21_id);
+    EXPECT_EQ(hit_groups[1].vtable_id, http_res_table_id);
+    EXPECT_EQ(hit_groups[2].group_id, group2_id);
+    EXPECT_EQ(hit_groups[2].vtable_id, http_res_table_id);
+    EXPECT_EQ(hit_groups[3].group_id, group11_id);
+    EXPECT_EQ(hit_groups[3].vtable_id, http_req_table_id);
+    EXPECT_EQ(hit_groups[4].group_id, group4_id);
+    EXPECT_EQ(hit_groups[4].vtable_id, 0); //physical table(keywords_table) vtable_id is 0
+
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 3);
 
@@ -5452,16 +5486,31 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
 
-    table_id = maat_get_table_id(maat_instance, ip_table_name);
-    ASSERT_GT(table_id, 0);
+    int ip_table_id = maat_get_table_id(maat_instance, ip_table_name);
+    ASSERT_GT(ip_table_id, 0);
 
     Nth_scan++;
     uint32_t ip_addr;
     inet_pton(AF_INET, "220.181.38.148", &ip_addr);
     uint16_t port = htons(17272);
-    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6, results, ARRAY_SIZE,
+    ret = maat_scan_ipv4(maat_instance, ip_table_id, ip_addr, port, 6, results, ARRAY_SIZE,
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    n_hit_group = maat_state_get_hit_groups(state, hit_groups, sizeof(hit_groups));
+    EXPECT_EQ(n_hit_group, 6);
+    EXPECT_EQ(hit_groups[0].group_id, group1_id);
+    EXPECT_EQ(hit_groups[0].vtable_id, http_req_table_id);
+    EXPECT_EQ(hit_groups[1].group_id, group21_id);
+    EXPECT_EQ(hit_groups[1].vtable_id, http_res_table_id);
+    EXPECT_EQ(hit_groups[2].group_id, group2_id);
+    EXPECT_EQ(hit_groups[2].vtable_id, http_res_table_id);
+    EXPECT_EQ(hit_groups[3].group_id, group11_id);
+    EXPECT_EQ(hit_groups[3].vtable_id, http_req_table_id);
+    EXPECT_EQ(hit_groups[4].group_id, group3_id);
+    EXPECT_EQ(hit_groups[4].vtable_id, 0); //physical table(ip_table) vtable_id is 0
+    EXPECT_EQ(hit_groups[5].group_id, group4_id);
+    EXPECT_EQ(hit_groups[5].vtable_id, 0); //physical table(keywords_table) vtable_id is 0
 
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 4);

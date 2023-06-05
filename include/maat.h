@@ -36,9 +36,9 @@ struct maat_hit_path {
 	long long compile_id;
 };
 
-struct maat_hit_object {
-    int vtable_id;
+struct maat_hit_group {
     long long group_id;
+    int vtable_id;
 };
 
 enum maat_scan_status {
@@ -235,11 +235,11 @@ int maat_state_set_scan_compile_table(struct maat_state *state, int compile_tabl
 int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *paths, 
                              size_t n_path);
 
-int maat_state_get_hit_objects(struct maat_state *state, struct maat_hit_object *objs, 
-                               size_t n_obj);
+int maat_state_get_hit_groups(struct maat_state *state, struct maat_hit_group *groups, 
+                              size_t n_group);
 
 /* return hit object compile_id */
-int maat_hit_object_compile_id(struct maat *instance, struct maat_hit_object *obj);
+int maat_hit_group_compile_id(struct maat *instance, struct maat_hit_group *group);
 
 #ifdef __cplusplus
 }

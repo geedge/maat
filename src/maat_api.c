@@ -1846,16 +1846,21 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
                                                                              paths, n_path);
 
     return compile_runtime_get_hit_paths((struct compile_runtime *)compile_rt,
-                                                        state->compile_state, paths, n_path,
-                                                        internal_hit_path_cnt);
+                                         state->compile_state, paths, n_path,
+                                         internal_hit_path_cnt);
 }
 
-int maat_state_get_hit_objects(struct maat_state *state, struct maat_hit_object *objs, size_t n_obj)
+int maat_state_get_hit_groups(struct maat_state *state, struct maat_hit_group *groups, 
+                              size_t n_group)
 {
-    return 0;
+    if (NULL == state || NULL == groups || 0 == n_group) {
+        return -1;
+    }
+
+    return maat_compile_state_get_hit_groups(state->compile_state, groups, n_group);
 }
 
-int maat_hit_object_compile_id(struct maat *instance, struct maat_hit_object *obj)
+int maat_hit_group_compile_id(struct maat *instance, struct maat_hit_group *group)
 {
     return 0;
 }
