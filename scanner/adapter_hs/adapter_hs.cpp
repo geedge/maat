@@ -48,14 +48,20 @@ struct adpt_hs_compile_data {
     unsigned int n_patterns;
 };
 
+struct adapter_hs_scratch {
+    hs_scratch_t **literal_scratches;
+    hs_scratch_t **regex_scratches;
+    struct bool_expr_match **bool_match_buffs;
+};
+
 /* adapter_hs runtime */
 struct adapter_hs_runtime {
     hs_database_t *literal_db;
     hs_database_t *regex_db;
 
-    hs_scratch_t **literal_scratches;
-    hs_scratch_t **regex_scratches;
-
+    // hs_scratch_t **literal_scratches;
+    // hs_scratch_t **regex_scratches;
+    struct adapter_hs_scratch *scratch;
     struct bool_matcher *bm;
 };
 
@@ -134,17 +140,19 @@ static int adpt_hs_alloc_scratch(struct adapter_hs_runtime *hs_rt, size_t n_work
     int ret = 0;
 
     if (pattern_type == HS_PATTERN_TYPE_STR) {
-        hs_rt->literal_scratches = ALLOC(hs_scratch_t *, n_worker_thread);
-        ret = _hs_alloc_scratch(hs_rt->literal_db, hs_rt->literal_scratches, n_worker_thread, logger);
+        hs_rt->scratch->literal_scratches = ALLOC(hs_scratch_t *, n_worker_thread);
+        ret = _hs_alloc_scratch(hs_rt->literal_db, hs_rt->scratch->literal_scratches,
+                                n_worker_thread, logger);
         if (ret < 0) {
-            FREE(hs_rt->literal_scratches);
+            FREE(hs_rt->scratch->literal_scratches);
             return -1;
         }
     } else {
-        hs_rt->regex_scratches = ALLOC(hs_scratch_t *, n_worker_thread);
-        ret = _hs_alloc_scratch(hs_rt->regex_db, hs_rt->regex_scratches, n_worker_thread, logger);
+        hs_rt->scratch->regex_scratches = ALLOC(hs_scratch_t *, n_worker_thread);
+        ret = _hs_alloc_scratch(hs_rt->regex_db, hs_rt->scratch->regex_scratches,
+                                n_worker_thread, logger);
         if (ret < 0) {
-            FREE(hs_rt->regex_scratches);
+            FREE(hs_rt->scratch->regex_scratches);
             return -1;
         }
     }
@@ -448,6 +456,12 @@ struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
         goto error;
     }
 
+    hs_instance->hs_rt->scratch = ALLOC(struct adapter_hs_scratch, 1);
+    hs_instance->hs_rt->scratch->bool_match_buffs = ALLOC(struct bool_expr_match *, n_worker_thread);
+    for (size_t i = 0; i < n_worker_thread; i++) {
+        hs_instance->hs_rt->scratch->bool_match_buffs[i] = ALLOC(struct bool_expr_match, hs_instance->n_expr);
+    }
+
     /* literal and regex scratch can't reuse */
     if (literal_pattern_num > 0) {
         ret = adpt_hs_alloc_scratch(hs_instance->hs_rt, n_worker_thread, HS_PATTERN_TYPE_STR, logger);
@@ -486,27 +500,38 @@ void adapter_hs_free(struct adapter_hs *hs_instance)
             hs_instance->hs_rt->regex_db = NULL;
         }
 
-        if (hs_instance->hs_rt->literal_scratches != NULL) {
-            for (size_t i = 0; i < hs_instance->n_worker_thread; i++) {
-                if (hs_instance->hs_rt->literal_scratches[i] != NULL) {
-                    hs_free_scratch(hs_instance->hs_rt->literal_scratches[i]);
-                    hs_instance->hs_rt->literal_scratches[i] = NULL;
+        if (hs_instance->hs_rt->scratch != NULL) {
+            if (hs_instance->hs_rt->scratch->literal_scratches != NULL) {
+                for (size_t i = 0; i < hs_instance->n_worker_thread; i++) {
+                    if (hs_instance->hs_rt->scratch->literal_scratches[i] != NULL) {
+                        hs_free_scratch(hs_instance->hs_rt->scratch->literal_scratches[i]);
+                        hs_instance->hs_rt->scratch->literal_scratches[i] = NULL;
+                    }
                 }
+                FREE(hs_instance->hs_rt->scratch->literal_scratches);
             }
 
-            FREE(hs_instance->hs_rt->literal_scratches);
-        }
-        
-
-        if (hs_instance->hs_rt->regex_scratches != NULL) {
-            for (size_t i = 0; i < hs_instance->n_worker_thread; i++) {
-                if (hs_instance->hs_rt->regex_scratches[i] != NULL) {
-                    hs_free_scratch(hs_instance->hs_rt->regex_scratches[i]);
-                    hs_instance->hs_rt->regex_scratches[i] = NULL;
+            if (hs_instance->hs_rt->scratch->regex_scratches != NULL) {
+                for (size_t i = 0; i < hs_instance->n_worker_thread; i++) {
+                    if (hs_instance->hs_rt->scratch->regex_scratches[i] != NULL) {
+                        hs_free_scratch(hs_instance->hs_rt->scratch->regex_scratches[i]);
+                        hs_instance->hs_rt->scratch->regex_scratches[i] = NULL;
+                    }
                 }
+                FREE(hs_instance->hs_rt->scratch->regex_scratches);
             }
 
-            FREE(hs_instance->hs_rt->regex_scratches);
+            if (hs_instance->hs_rt->scratch->bool_match_buffs != NULL) {
+                for (size_t i = 0; i < hs_instance->n_worker_thread; i++) {
+                    if (hs_instance->hs_rt->scratch->bool_match_buffs[i] != NULL) {
+                        FREE(hs_instance->hs_rt->scratch->bool_match_buffs[i]);
+                    }
+                }
+
+                FREE(hs_instance->hs_rt->scratch->bool_match_buffs);
+            }
+
+            FREE(hs_instance->hs_rt->scratch);
         }
         
         if (hs_instance->hs_rt->bm != NULL) {
@@ -658,7 +683,6 @@ struct adapter_hs_stream *adapter_hs_stream_open(struct adapter_hs *hs_instance,
 
     return hs_stream;
 error:
-    //TODO: hs_stream->hs_rt->scratches[thread_id] may be free twice
     if (hs_stream->literal_stream != NULL) {
         hs_close_stream(hs_stream->literal_stream, NULL, NULL, NULL);
         hs_stream->literal_stream = NULL;
@@ -731,9 +755,9 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
 
     int err_scratch_flag = 0;
     if (hs_stream->literal_stream != NULL) {
-        if (hs_stream->ref_hs_rt->literal_scratches != NULL) {
+        if (hs_stream->ref_hs_rt->scratch->literal_scratches != NULL) {
             err = hs_scan_stream(hs_stream->literal_stream, data, data_len,
-                                 0, hs_stream->ref_hs_rt->literal_scratches[thread_id],
+                                 0, hs_stream->ref_hs_rt->scratch->literal_scratches[thread_id],
                                  matched_event_cb, hs_stream->matched_pat);
             if (err != HS_SUCCESS) {
                 err_count++;
@@ -746,9 +770,9 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
     }
 
     if (hs_stream->regex_stream != NULL) {
-        if (hs_stream->ref_hs_rt->regex_scratches != NULL) {
+        if (hs_stream->ref_hs_rt->scratch->regex_scratches != NULL) {
             err = hs_scan_stream(hs_stream->regex_stream, data, data_len,
-                                 0, hs_stream->ref_hs_rt->regex_scratches[thread_id],
+                                 0, hs_stream->ref_hs_rt->scratch->regex_scratches[thread_id],
                                  matched_event_cb, hs_stream->matched_pat);
             if (err != HS_SUCCESS) {
                 err_count++;
@@ -781,7 +805,7 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
     }
 
     int ret = 0;
-    struct bool_expr_match *bool_matcher_results = ALLOC(struct bool_expr_match, hs_stream->n_expr);
+    struct bool_expr_match *bool_matcher_results = hs_stream->ref_hs_rt->scratch->bool_match_buffs[thread_id];
     int bool_matcher_ret = bool_matcher_match(hs_stream->ref_hs_rt->bm, pattern_ids, n_pattern_id,
                                               bool_matcher_results, hs_stream->n_expr);
     if (bool_matcher_ret < 0) {
@@ -800,7 +824,6 @@ int adapter_hs_scan_stream(struct adapter_hs_stream *hs_stream, const char *data
     *n_hit_result = bool_matcher_ret;
 
 next:
-    FREE(bool_matcher_results);
     utarray_clear(hs_stream->matched_pat->pattern_ids);
 
     return ret;

@@ -1311,7 +1311,7 @@ int maat_add_group_to_compile(struct rcu_hash_table *hash_tbl, struct group2comp
                                                   g2c_item->not_flag);
             if (ret < 0) {
                 log_error(logger, MODULE_COMPILE,
-                          "[%s:%d] add literal_id{group_id:%d, vtable_id:%d} to clause_index: %d"
+                          "[%s:%d] add literal_id{group_id:%lld, vtable_id:%d} to clause_index: %d"
                           " of compile %d failed", __FUNCTION__, __LINE__, g2c_item->group_id,
                           g2c_item->vtable_id, g2c_item->clause_index, compile_id);
             }
@@ -1323,7 +1323,7 @@ int maat_add_group_to_compile(struct rcu_hash_table *hash_tbl, struct group2comp
                                                   g2c_item->not_flag);
             if (ret < 0) {
                 log_error(logger, MODULE_COMPILE,
-                          "[%s:%d] add literal_id{group_id:%d, vtable_id:%d} to clause_index: %d"
+                          "[%s:%d] add literal_id{group_id:%lld, vtable_id:%d} to clause_index: %d"
                           " of compile %d failed", __FUNCTION__, __LINE__, g2c_item->group_id,
                           g2c_item->vtable_id, g2c_item->clause_index, compile_id);
             }
@@ -1351,7 +1351,7 @@ int maat_add_group_to_compile(struct rcu_hash_table *hash_tbl, struct group2comp
                                                   g2c_item->not_flag);
             if (ret < 0) {
                 log_error(logger, MODULE_COMPILE,
-                          "[%s:%d] add literal_id{group_id:%d, vtable_id:%d} to clause_index: %d"
+                          "[%s:%d] add literal_id{group_id:%lld, vtable_id:%d} to clause_index: %d"
                           " of compile %d failed", __FUNCTION__, __LINE__, g2c_item->group_id,
                           g2c_item->vtable_id, g2c_item->clause_index, compile_id);
             }
@@ -1364,7 +1364,7 @@ int maat_add_group_to_compile(struct rcu_hash_table *hash_tbl, struct group2comp
                                                   g2c_item->not_flag);
             if (ret < 0) {
                 log_error(logger, MODULE_COMPILE,
-                          "[%s:%d] add literal_id{group_id:%d, vtable_id:%d} to clause_index: %d"
+                          "[%s:%d] add literal_id{group_id:%lld, vtable_id:%d} to clause_index: %d"
                           " of compile %d failed",  __FUNCTION__, __LINE__, g2c_item->group_id,
                           g2c_item->vtable_id, g2c_item->clause_index, compile_id);
             }
@@ -1390,7 +1390,7 @@ int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
                                          sizeof(long long));
         if (NULL == compile) {
             log_error(logger, MODULE_COMPILE,
-                      "[%s:%d] Remove group %d from compile %d failed, compile"
+                      "[%s:%d] Remove group_id:%lld from compile_id:%lld failed, compile"
                       " is not exisited.", __FUNCTION__, __LINE__, g2c_item->group_id,
                       compile_id);
             return -1;
@@ -1400,8 +1400,8 @@ int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
                                                      g2c_item->clause_index);
             if (ret < 0) {
                 log_error(logger, MODULE_COMPILE,
-                          "[%s:%d] Remove group %d vtable_id %d from clause %d of "
-                          "compile %d failed, literal is not in compile.", __FUNCTION__,
+                          "[%s:%d] Remove group_id:%lld vtable_id %d from clause %d of "
+                          "compile_id:%lld failed, literal is not in compile.", __FUNCTION__,
                           __LINE__, g2c_item->group_id, g2c_item->vtable_id,
                           g2c_item->clause_index, compile_id);
             }
@@ -1433,8 +1433,8 @@ int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
                                                      g2c_item->clause_index);
             if (ret < 0) {
                 log_error(logger, MODULE_COMPILE,
-                          "[%s:%d] Remove group %d vtable_id %d from clause %d of compile"
-                          " %d failed, literal is not in compile.", __FUNCTION__, __LINE__,
+                          "[%s:%d] Remove group_id:%lld vtable_id %d from clause %d of compile_id:"
+                          "%lld failed, literal is not in compile.", __FUNCTION__, __LINE__,
                           g2c_item->group_id, g2c_item->vtable_id, g2c_item->clause_index,
                           compile_id);
             }
@@ -1446,7 +1446,7 @@ int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
             }
         } else {
             log_error(logger, MODULE_COMPILE,
-                      "[%s:%d] Remove group %d from compile %d failed, compile is not exisited.",
+                      "[%s:%d] Remove group_id:%lld from compile_id:%lld failed, compile is not exisited.",
                       __FUNCTION__, __LINE__, g2c_item->group_id, compile_id);
             return -1;
         }
