@@ -367,7 +367,8 @@ static int compare_each_tag(cJSON *tag_obj, const struct rule_tag *accept_tags, 
 }
 
 //@param tag_set likes [{"tag":"location","value":["北京/朝阳/华严北里","上海/浦东/陆家嘴"]},{"tag":"isp","value":["电信","移动"]}]
-static int compare_each_tag_set(cJSON *tag_set, const struct rule_tag *accept_tags, size_t n_accept_tag)
+static int compare_each_tag_set(cJSON *tag_set, const struct rule_tag *accept_tags,
+                                size_t n_accept_tag)
 {
 	int matched = 0;
 
@@ -433,8 +434,8 @@ error:
 	return ret;
 }
 
-void *maat_table_schema_new(cJSON *json, const char *table_name, 
-                            enum table_type table_type, 
+void *maat_table_schema_new(cJSON *json, const char *table_name,
+                            enum table_type table_type,
                             struct table_manager *tbl_mgr, 
                             struct log_handle *logger)
 {

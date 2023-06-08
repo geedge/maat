@@ -296,7 +296,8 @@ int crypt_memory(const unsigned char *inbuf, size_t inlen, unsigned char **pp_ou
 	OPENSSL_assert(EVP_CIPHER_CTX_iv_length(ctx) == 16);
 
 	/* Now we can set key and IV */
-	//It should be set to 1 for encryption, 0 for decryption and -1 to leave the value unchanged (the actual value of 'enc' being supplied in a previous call).
+	//It should be set to 1 for encryption, 0 for decryption and -1 
+    //to leave the value unchanged (the actual value of 'enc' being supplied in a previous call).
 	EVP_CipherInit_ex(ctx, NULL, NULL, cipher_key, cipher_iv, -1);
     int out_blk_len = 0;
     int out_buff_offset = 0;
@@ -389,7 +390,8 @@ int gzip_uncompress(const unsigned char *in_compressed_data, size_t in_compresse
 				break;			
 			case Z_BUF_ERROR:
 				buffer_sz *= 2;
-				*out_uncompressed_data = (unsigned char *)realloc(*out_uncompressed_data, buffer_sz);
+				*out_uncompressed_data = (unsigned char *)realloc(*out_uncompressed_data,
+                                                                  buffer_sz);
                 memset(*out_uncompressed_data, 0, buffer_sz);
 				break;
 			default:
@@ -440,7 +442,7 @@ enum port_format port_format_str2int(const char *format)
     return PORT_FORMAT_UNKNOWN;
 }
 
-int ip_format2range(int ip_type, enum ip_format format, const char *ip1, const char *ip2, 
+int ip_format2range(int ip_type, enum ip_format format, const char *ip1, const char *ip2,
                     uint32_t range_begin[], uint32_t range_end[])
 {
 	int cidr = 0;

@@ -1227,8 +1227,7 @@ struct compile_rule *compile_rule_clone(struct compile_rule *rule)
     new_rule->table_line = ALLOC(char, new_rule->table_line_len);
     memcpy(new_rule->table_line, rule->table_line, new_rule->table_line_len);
 
-    if (1 == rule->ref_schema->set_flag)
-    {
+    if (1 == rule->ref_schema->set_flag) {
         *(new_rule->ex_data) = rule_ex_data_new(rule->table_name, rule->ref_schema->table_id,
                                                 rule->table_line, &(rule->ref_schema->ex_schema));
     }

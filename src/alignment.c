@@ -33,7 +33,8 @@ inline long long alignment_int64_array_sum(long long *array, int size)
 	return sum;
 }
 
-inline long long alignment_int64_array_add(long long *array, int offset, long long op_val)
+inline long long alignment_int64_array_add(long long *array, int offset,
+                                           long long op_val)
 {
 	int idx = (CPU_CACHE_ALIGMENT / sizeof(long long)) * offset;
 	array[idx] += op_val;

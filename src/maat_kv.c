@@ -84,7 +84,8 @@ void maat_kv_store_free(struct maat_kv_store *store)
 	FREE(store);
 }
 
-int maat_kv_register_unNull(struct maat_kv_store *store, const char *key, size_t keylen, long long value)
+int maat_kv_register_unNull(struct maat_kv_store *store, const char *key,
+                            size_t keylen, long long value)
 {
 	if (keylen > MAAT_KV_MAX_KEY_LEN) {
 		return -1;
@@ -112,7 +113,8 @@ int maat_kv_register(struct maat_kv_store* store, const char *key, long long val
 	return ret;
 }
 
-int maat_kv_read_unNull(struct maat_kv_store *store, const char* key, size_t keylen, long long *value)
+int maat_kv_read_unNull(struct maat_kv_store *store, const char* key,
+                        size_t keylen, long long *value)
 {
 	struct maat_kv_pair *kv = NULL;
 	char key_lowercase[MAAT_KV_MAX_KEY_LEN] = {0};
@@ -136,7 +138,8 @@ int maat_kv_read(struct maat_kv_store *store, const char * key, long long *value
 	return maat_kv_read_unNull(store, key, strlen(key), value);
 }
 
-int maat_kv_write_unNull(struct maat_kv_store* store, const char* key, size_t keylen, long long value)
+int maat_kv_write_unNull(struct maat_kv_store* store, const char* key,
+                         size_t keylen, long long value)
 {
     struct maat_kv_pair *kv = NULL;
 	char key_lowercase[MAAT_KV_MAX_KEY_LEN] = {0};

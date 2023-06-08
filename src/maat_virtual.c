@@ -43,7 +43,7 @@ void *virtual_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     item = cJSON_GetObjectItem(json, "physical_table");
     if (NULL == item || item->type != cJSON_String) {
         log_error(logger, MODULE_VIRTUAL, 
-                  "[%s:%d] virtual table:<%s> schema has no physical_table column", 
+                  "[%s:%d] virtual table:<%s> schema has no physical_table column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -51,11 +51,11 @@ void *virtual_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     schema->physical_table_id = table_manager_get_table_id(tbl_mgr, item->valuestring);
     if (schema->physical_table_id < 0) {
         log_error(logger, MODULE_VIRTUAL, 
-                  "[%s:%d] virtual table:<%s>'s physical table:<%s> unregistered.", 
+                  "[%s:%d] virtual table:<%s>'s physical table:<%s> unregistered.",
                   __FUNCTION__, __LINE__, table_name, item->valuestring);
         goto error;
     }
-   
+
     return schema;
 error:
     FREE(schema);
