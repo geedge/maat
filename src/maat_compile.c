@@ -93,12 +93,6 @@ struct compile_rule {
     char table_name[MAX_NAME_STR_LEN];
 };
 
-struct group_reference {
-    long long group_id;
-    size_t ref_by_compile_cnt;
-    UT_hash_handle hh;
-};
-
 /* compile_runtime and group2compile_runtime share compile_hash_map */
 struct compile_runtime {
 	struct bool_matcher *bm;
@@ -107,9 +101,8 @@ struct compile_runtime {
     time_t version;
     struct maat_clause *clause_by_literals_hash;
     struct literal_clause *literal2clause_hash;
-    struct group_reference *group_ref_hash;
     struct group2compile_runtime *ref_g2c_rt;
-    pthread_mutex_t mutex;
+
     long long rule_num;
     long long update_err_cnt;
     struct bool_expr_match *expr_match_buff;
@@ -583,10 +576,8 @@ void *compile_runtime_new(void *compile_schema, size_t max_thread_num,
     compile_rt->cfg_hash_tbl = rcu_hash_new(rcu_maat_compile_free, NULL);
     compile_rt->clause_by_literals_hash = NULL;
     compile_rt->literal2clause_hash = NULL;
-    compile_rt->group_ref_hash = NULL;
     compile_rt->logger = logger;
     compile_rt->ref_garbage_bin = garbage_bin;
-    pthread_mutex_init(&(compile_rt->mutex), NULL);
 
     return compile_rt;
 }
@@ -617,17 +608,6 @@ static void literal2clause_hash_free(struct literal_clause *hash)
         FREE(l2c_val);
     }
     assert(hash == NULL);
-}
-
-static void group_reference_hash_free(struct group_reference *group_ref_hash)
-{
-    struct group_reference *group_ref = NULL, *tmp_group_ref = NULL;
-
-    HASH_ITER(hh, group_ref_hash, group_ref, tmp_group_ref) {
-        HASH_DEL(group_ref_hash, group_ref);
-        FREE(group_ref);
-    }
-    assert(group_ref_hash == NULL);
 }
 
 void garbage_literal2clause_hash_free(void *l2c_hash, void *arg)
@@ -662,14 +642,6 @@ void compile_runtime_free(void *compile_runtime)
         maat_clause_hash_free(compile_rt->clause_by_literals_hash);
         compile_rt->clause_by_literals_hash = NULL;
     }
-
-    pthread_mutex_lock(&(compile_rt->mutex));
-    if (compile_rt->group_ref_hash != NULL) {
-        group_reference_hash_free(compile_rt->group_ref_hash);
-        compile_rt->group_ref_hash = NULL;
-    }
-    pthread_mutex_unlock(&(compile_rt->mutex));
-    pthread_mutex_destroy(&(compile_rt->mutex));
 
     if (compile_rt->expr_match_buff != NULL) {
         FREE(compile_rt->expr_match_buff);
@@ -1930,22 +1902,8 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
         return -1;
     }
 
-    struct group_reference *group_ref = NULL;
     if (0 == is_valid) {
         //delete
-        pthread_mutex_lock(&(compile_rt->mutex));
-        HASH_FIND(hh, compile_rt->group_ref_hash, (char *)&(g2c_item->group_id),
-                  sizeof(long long), group_ref);
-        if (group_ref != NULL) {
-            if (0 == group_ref->ref_by_compile_cnt) {
-                HASH_DEL(compile_rt->group_ref_hash, group_ref);
-                FREE(group_ref);
-            } else {
-                group_ref->ref_by_compile_cnt--;
-            }
-        }
-        pthread_mutex_unlock(&(compile_rt->mutex));
-
         ret = maat_remove_group_from_compile(compile_rt->cfg_hash_tbl, g2c_item,
                                              compile_rt->logger);
         if (0 == ret) {
@@ -1958,18 +1916,6 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
         }
     } else {
         //add
-        pthread_mutex_lock(&(compile_rt->mutex));
-        HASH_FIND(hh, compile_rt->group_ref_hash, (char *)&(g2c_item->group_id),
-                  sizeof(long long), group_ref);
-        if (NULL == group_ref) {
-            group_ref = ALLOC(struct group_reference, 1);
-            group_ref->group_id = g2c_item->group_id;
-            HASH_ADD_KEYPTR(hh, compile_rt->group_ref_hash, (char *)&(group_ref->group_id),
-                            sizeof(long long), group_ref);
-        }
-        group_ref->ref_by_compile_cnt++;
-        pthread_mutex_unlock(&(compile_rt->mutex));
-
         ret = maat_add_group_to_compile(compile_rt->cfg_hash_tbl, g2c_item, compile_rt->logger);
         if (0 == ret) {
             if (g2c_item->not_flag) {
@@ -1983,21 +1929,6 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
     
     group2compile_item_free(g2c_item);
     return ret;
-}
-
-int group_referenced_by_compile(struct compile_runtime *compile_rt, long long group_id)
-{
-    struct group_reference *group_ref = NULL;
-
-    pthread_mutex_lock(&(compile_rt->mutex));
-    HASH_FIND(hh, compile_rt->group_ref_hash, (char *)&group_id, sizeof(long long), group_ref);
-    if (group_ref != NULL) {
-        pthread_mutex_unlock(&(compile_rt->mutex));
-        return 1;
-    }
-    pthread_mutex_unlock(&(compile_rt->mutex));
-
-    return 0;
 }
 
 long long group2compile_runtime_not_group_count(void *g2c_runtime)
@@ -2177,7 +2108,7 @@ void maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
     }
     
     for (i = 0; i < hit_cnt; i++) {
-        maat_compile_state_update_hit_path(state->compile_state, hit_items[i].item_id, 
+        maat_compile_state_update_hit_path(state->compile_state, hit_items[i].item_id,
                                            hit_items[i].group_id, vtable_id, state->scan_cnt, i);
         hit_group_ids[i] = hit_items[i].group_id;
     }
@@ -2290,22 +2221,17 @@ size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *comp
                                                                       super_group_ids, MAX_SCANNER_HIT_GROUP_NUM);
         /* if super group is not referenced by compile, drop it */
         for (size_t idx = 0; idx < super_group_cnt; idx++) {
-            if (0 == group_referenced_by_compile(compile_rt, super_group_ids[idx])) {
-                continue;
-            }
             utarray_push_back(valid_super_group_ids, &super_group_ids[idx]);
         }
 
         /*
-            if internal_path->group_id can be referenced directly by compile, 
+            internal_path->group_id can be referenced directly by compile, 
             so add it to hit_path which super_group_ids is -1
             ------------------------------------------------------------------------------
             NOTE: Add the hit path as long as the item is hit
         */
-        if (0 == utarray_len(valid_super_group_ids)) {
-            long long super_group_id = -1;
-            utarray_push_back(valid_super_group_ids, &super_group_id);
-        }
+        long long super_group_id = -1;
+        utarray_push_back(valid_super_group_ids, &super_group_id);
         
         long long *p = NULL;
         struct maat_hit_path tmp_path;

@@ -5506,14 +5506,21 @@ TEST_F(MaatCmdTest, HitPath) {
     struct maat_hit_path hit_path[128];
     memset(hit_path, 0, sizeof(hit_path));
     int n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
-    EXPECT_EQ(n_read, 1);
+    EXPECT_EQ(n_read, 2);
 
     int path_idx = 0;
     EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
 	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
-	//EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
-    EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group11_id);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, http_req_table_id);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
+    path_idx++;
+    EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, http_req_table_id);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
 
@@ -5542,15 +5549,25 @@ TEST_F(MaatCmdTest, HitPath) {
     EXPECT_EQ(hit_groups[3].vtable_id, http_req_table_id);
 
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
-    EXPECT_EQ(n_read, 2);
+    EXPECT_EQ(n_read, 4);
+    
+    path_idx = 0;
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan-1);
+	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group11_id);
+    EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
+    path_idx++;
+    ASSERT_EQ(path_idx, 1);
+    EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan-1);
 	EXPECT_EQ(hit_path[path_idx].item_id, item1_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
     EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
 
     path_idx++;
-    ASSERT_EQ(path_idx, 1);
+    ASSERT_EQ(path_idx, 2);
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
 	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
@@ -5558,6 +5575,14 @@ TEST_F(MaatCmdTest, HitPath) {
 	EXPECT_EQ(hit_path[path_idx].vtable_id, http_res_table_id);
 	EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
 
+    path_idx++;
+    ASSERT_EQ(path_idx, 3);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, http_res_table_id);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
     const char* keywords1="In graph theory, a path in a graph is a finite or infinite \
 sequence of edges which joins a sequence of vertices which, by most definitions,\
 are all distinct (and since the vertices are distinct, so are the edges). ";
@@ -5588,10 +5613,10 @@ that the edges be all directed in the same direction.";
     EXPECT_EQ(hit_groups[4].vtable_id, 0); //physical table(keywords_table) vtable_id is 0
 
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
-    EXPECT_EQ(n_read, 3);
+    EXPECT_EQ(n_read, 5);
 
     path_idx++;
-	ASSERT_EQ(path_idx, 2);
+	ASSERT_EQ(path_idx, 4);
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
 	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
@@ -5626,10 +5651,10 @@ that the edges be all directed in the same direction.";
     EXPECT_EQ(hit_groups[5].vtable_id, 0); //physical table(keywords_table) vtable_id is 0
 
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
-    EXPECT_EQ(n_read, 4);
+    EXPECT_EQ(n_read, 6);
 
     path_idx++;
-	ASSERT_EQ(path_idx, 3);
+	ASSERT_EQ(path_idx, 5);
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
 	EXPECT_EQ(hit_path[path_idx].item_id, item3_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3_id);
@@ -5643,10 +5668,10 @@ that the edges be all directed in the same direction.";
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
-    EXPECT_EQ(n_read, 5);
+    EXPECT_EQ(n_read, 7);
 
     path_idx++;
-	ASSERT_EQ(path_idx, 4);
+	ASSERT_EQ(path_idx, 6);
 	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
 	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
