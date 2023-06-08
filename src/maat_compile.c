@@ -24,6 +24,7 @@
 #include "maat_group.h"
 #include "maat_ex_data.h"
 #include "maat_table.h"
+#include "alignment.h"
 
 #define MODULE_COMPILE	 module_name_str("maat.compile")
 #define MAX_TABLE_LINE_SIZE  (1024 * 16)
@@ -2185,8 +2186,11 @@ void maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
         hit_cnt = MAX_SCANNER_HIT_GROUP_NUM;
     }
 
+    struct maat *maat_instance = state->maat_instance;
     if (NULL == state->compile_state) {
         state->compile_state = maat_compile_state_new(state->thread_id);
+        alignment_int64_array_add(maat_instance->stat->maat_compile_state_cnt,
+                                  state->thread_id, 1);
     }
     
     for (i = 0; i < hit_cnt; i++) {
@@ -2200,17 +2204,17 @@ void maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
     if (state->compile_table_id > 0) {
         compile_table_id = state->compile_table_id;
     } else {
-        compile_table_id = state->maat_instance->default_compile_table_id;
+        compile_table_id = maat_instance->default_compile_table_id;
     }
 
-    void *compile_rt = table_manager_get_runtime(state->maat_instance->tbl_mgr,
+    void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr,
                                                  compile_table_id);
     if (NULL == compile_rt) {
         return;
     }
 
-    void *g2g_rt = table_manager_get_runtime(state->maat_instance->tbl_mgr,
-                                             state->maat_instance->g2g_table_id);
+    void *g2g_rt = table_manager_get_runtime(maat_instance->tbl_mgr,
+                                             maat_instance->g2g_table_id);
     if (NULL == g2g_rt) {
         return;
     }

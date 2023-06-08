@@ -1729,6 +1729,8 @@ void maat_state_free(struct maat_state *state)
     if (state->compile_state != NULL) {
         maat_compile_state_free(state->compile_state);
         state->compile_state = NULL;
+        alignment_int64_array_add(maat_instance->stat->maat_compile_state_cnt,
+                                  state->thread_id, -1);
     }
     
     state->maat_instance = NULL;

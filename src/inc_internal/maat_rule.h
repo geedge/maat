@@ -155,6 +155,7 @@ struct maat_stat {
     long long *hit_cnt;
     long long *not_grp_hit_cnt;
     long long *maat_state_cnt;
+    long long *maat_compile_state_cnt;
 
     long long scan_err_cnt;
     long long zombie_rs_stream;
