@@ -32,7 +32,7 @@
 
 struct maat_table {
     int table_id;
-    char table_name[NAME_MAX];
+    char table_name[MAX_NAME_STR_LEN];
     enum table_type table_type;
     int valid_column;
     void *schema;

@@ -65,7 +65,7 @@ long long compile_runtime_update_err_count(void *compile_runtime);
 int compile_runtime_match(struct compile_runtime *compile_rt, long long *compile_ids,
                           size_t compile_ids_size, struct maat_state *state);
 
-size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt,
+size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, int thread_id,
 									 struct maat_compile_state *compile_state, 
                                   	 struct maat_hit_path *hit_path_array, 
                                      size_t array_size, size_t n_internal_hit_path);
@@ -96,7 +96,7 @@ long long group2compile_runtime_update_err_count(void *g2c_runtime);
 
 /* maat compile state API */
 struct maat_compile_state;
-struct maat_compile_state *maat_compile_state_new(int thread_id);
+struct maat_compile_state *maat_compile_state_new(void);
 void maat_compile_state_reset(struct maat_compile_state *compile_state);
 void maat_compile_state_free(struct maat_compile_state *compile_state);
 
@@ -109,6 +109,7 @@ size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *comp
                                                  struct maat_hit_path *hit_path_array, 
                                                  size_t array_size);
 size_t maat_compile_state_get_hit_groups(struct maat_compile_state *compile_state,
+                                         struct group2group_runtime *g2g_rt,
                                          struct maat_hit_group *hit_group_array,
                                          size_t array_size);
 

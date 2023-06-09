@@ -42,7 +42,7 @@ struct group_info {
 };
 
 struct iris_table {
-	char table_name[NAME_MAX];
+	char table_name[MAX_NAME_STR_LEN];
 	char table_path[PATH_MAX];
 	int line_count;
 	enum table_type table_type;

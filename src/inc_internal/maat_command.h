@@ -24,6 +24,7 @@ extern "C"
 #include "log/log.h"
 #include "uthash/uthash.h"
 #include "hiredis/hiredis.h"
+#include "maat_limits.h"
 
 enum maat_operation {
 	MAAT_OP_DEL = 0,
@@ -50,7 +51,7 @@ struct serial_rule {
 	enum maat_operation op;//0: delete, 1: add.
 	long long rule_id;
 	long long timeout;			// absolute unix time.
-	char table_name[NAME_MAX];
+	char table_name[MAX_NAME_STR_LEN];
 	char *table_line;
 	int n_foreign;
 	struct foreign_key *f_keys;

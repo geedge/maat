@@ -34,11 +34,11 @@ struct interval_schema {
 struct interval_item {
     long long item_id;
     long long group_id;
-    long long district_id;
     int low_bound;
     int up_bound;
     void *user_data;
     void (*user_data_free)(void *data);
+    int district_id;
 };
 
 struct interval_runtime {
@@ -240,8 +240,8 @@ void interval_runtime_free(void *interval_runtime)
     FREE(interval_rt);
 }
 
-long long interval_runtime_get_district_id(struct interval_runtime *interval_rt,
-                                           const char *district)
+int interval_runtime_get_district_id(struct interval_runtime *interval_rt,
+                                     const char *district)
 {
     long long district_id = DISTRICT_ANY;
 
@@ -259,7 +259,7 @@ long long interval_runtime_get_district_id(struct interval_runtime *interval_rt,
         }
 	}
 
-	return district_id;
+	return (int)district_id;
 }
 
 int interval_runtime_set_scan_district(struct interval_runtime *interval_rt,
@@ -270,8 +270,8 @@ int interval_runtime_set_scan_district(struct interval_runtime *interval_rt,
         return -1;
     }
 
-    return maat_kv_read_unNull(interval_rt->district_map, district, district_len,
-                               district_id);
+    return maat_kv_read_unNull(interval_rt->district_map, district,
+                               district_len, district_id);
 }
 
 struct interval_item *
@@ -563,11 +563,11 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
     struct item_district *item_dist = NULL;
     struct interval_item *int_item = NULL;
     size_t real_hit_item_cnt = 0;
-    long long district_id = state->district_id;
+    int district_id = state->district_id;
     
     for (int i = 0; i < n_hit_item; i++) {
         item_dist = (struct item_district *)(hit_results[i].user_tag);
-        long long tag_district_id = item_district_id(item_dist);
+        int tag_district_id = item_district_id(item_dist);
         if (tag_district_id == district_id || tag_district_id == DISTRICT_ANY) {
             long long item_id = hit_results[i].rule_id;
             int_item = (struct interval_item *)rcu_hash_find(interval_rt->item_hash, 

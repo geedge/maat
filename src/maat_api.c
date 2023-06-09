@@ -1772,6 +1772,7 @@ int maat_state_set_scan_district(struct maat_state *state, int vtable_id,
     }
 
     int ret = -1;
+    long long district_id;
     table_type = table_manager_get_table_type(maat_instance->tbl_mgr,
                                               physical_table_id);
     void *runtime = table_manager_get_runtime(maat_instance->tbl_mgr,
@@ -1781,18 +1782,15 @@ int maat_state_set_scan_district(struct maat_state *state, int vtable_id,
     switch (table_type) {
         case TABLE_TYPE_FLAG_PLUS:
             ret = flag_runtime_set_scan_district((struct flag_runtime *)runtime,
-                                                 district, district_len,
-                                                 &(state->district_id));
+                                                 district, district_len, &district_id);
             break;
         case TABLE_TYPE_EXPR_PLUS:
             ret = expr_runtime_set_scan_district((struct expr_runtime *)runtime,
-                                                 district, district_len,
-                                                 &(state->district_id));
+                                                 district, district_len, &district_id);
             break;
         case TABLE_TYPE_INTERVAL_PLUS:
             ret = interval_runtime_set_scan_district((struct interval_runtime *)runtime,
-                                                     district, district_len,
-                                                     &(state->district_id));
+                                                     district, district_len, &district_id);
             break;
         default:
             log_error(maat_instance->logger, MODULE_MAAT_API, 
@@ -1803,6 +1801,8 @@ int maat_state_set_scan_district(struct maat_state *state, int vtable_id,
 
     if (ret < 0) {
         state->district_id = DISTRICT_UNKNOWN;
+    } else {
+        state->district_id = (int)district_id;
     }
 
     state->is_set_district = DISTRICT_FLAG_SET;
@@ -1881,9 +1881,8 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
                                                                              (struct group2group_runtime *)g2g_runtime,
                                                                              paths, n_path);
 
-    return compile_runtime_get_hit_paths((struct compile_runtime *)compile_rt,
-                                         state->compile_state, paths, n_path,
-                                         internal_hit_path_cnt);
+    return compile_runtime_get_hit_paths((struct compile_runtime *)compile_rt, state->thread_id,
+                                         state->compile_state, paths, n_path, internal_hit_path_cnt);
 }
 
 int maat_state_get_hit_groups(struct maat_state *state, struct maat_hit_group *groups, 
@@ -1893,7 +1892,11 @@ int maat_state_get_hit_groups(struct maat_state *state, struct maat_hit_group *g
         return -1;
     }
 
-    return maat_compile_state_get_hit_groups(state->compile_state, groups, n_group);
+    void *g2g_runtime = table_manager_get_runtime(state->maat_instance->tbl_mgr,
+                                                  state->maat_instance->g2g_table_id);
+    return maat_compile_state_get_hit_groups(state->compile_state,
+                                             (struct group2group_runtime *)g2g_runtime,
+                                             groups, n_group);
 }
 
 int maat_hit_group_compile_id(struct maat *instance, struct maat_hit_group *group)

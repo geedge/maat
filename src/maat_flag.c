@@ -37,11 +37,11 @@ struct flag_schema {
 struct flag_item {
     long long item_id;
     long long group_id;
-    long long district_id;
     long long flag;
     long long flag_mask;
     void *user_data;
     void (*user_data_free)(void *data);
+    int district_id;
 };
 
 struct flag_runtime {
@@ -266,7 +266,7 @@ int flag_runtime_update_row(struct flag_runtime *flag_rt, char *key, size_t key_
     return 0;
 }
 
-long long flag_runtime_get_district_id(struct flag_runtime *flag_rt, const char *district)
+int flag_runtime_get_district_id(struct flag_runtime *flag_rt, const char *district)
 {
     long long district_id = DISTRICT_ANY;
 
@@ -284,7 +284,7 @@ long long flag_runtime_get_district_id(struct flag_runtime *flag_rt, const char 
         }
 	}
 
-	return district_id;
+	return (int)district_id;
 }
 
 int flag_runtime_set_scan_district(struct flag_runtime *flag_rt, const char *district, 
@@ -559,11 +559,11 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
     struct item_district *item_dist = NULL;
     struct flag_item *flag_item = NULL;
     size_t real_hit_item_cnt = 0;
-    long long district_id = state->district_id;
+    int district_id = state->district_id;
     
     for (int i = 0; i < n_hit_item; i++) {
         item_dist = (struct item_district *)(hit_results[i].user_tag);
-        long long tag_district_id = item_district_id(item_dist);
+        int tag_district_id = item_district_id(item_dist);
         if (tag_district_id == district_id || tag_district_id == DISTRICT_ANY) {
             long long item_id = hit_results[i].rule_id;
             flag_item = (struct flag_item *)rcu_hash_find(flag_rt->item_hash, 

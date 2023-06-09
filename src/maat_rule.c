@@ -33,16 +33,13 @@
 #define MODULE_MAAT_RULE	 module_name_str("maat.rule")
 
 struct item_district {
-	long long magic_num;
-	long long district_id;
+	int district_id;
 };
 
-#define	ITEM_RULE_MAGIC 0x4d3c2b1a
 struct item_district *
-item_district_new(long long district_id)
+item_district_new(int district_id)
 {
 	struct item_district *item_dist = ALLOC(struct item_district, 1);
-	item_dist->magic_num = ITEM_RULE_MAGIC;
 	item_dist->district_id = district_id;
 
 	return item_dist;
@@ -53,15 +50,11 @@ void item_district_free(void *item_district)
     if (NULL == item_district) {
         return;
     }
-    
-    struct item_district *item_dist = (struct item_district *)item_district;
-	assert(item_dist->magic_num == ITEM_RULE_MAGIC);
-	item_dist->magic_num = 0;
 
-	FREE(item_dist);
+	FREE(item_district);
 }
 
-long long item_district_id(struct item_district *item_dist)
+int item_district_id(struct item_district *item_dist)
 {
     return item_dist->district_id;
 }

@@ -201,24 +201,24 @@ enum last_scan_flag {
 
 struct maat_state {
 	struct maat *maat_instance;
-	int thread_id;
-    int compile_table_id;
-	enum district_flag is_set_district;
-    enum last_scan_flag is_last_scan;
-	long long district_id; //-1: Any District; -2: Unkonwn District;
-	int scan_cnt;
-	struct maat_compile_state *compile_state;
+    struct maat_compile_state *compile_state;
+    int scan_cnt;
+    int district_id; //-1: Any District; -2: Unkonwn District;
+	uint16_t thread_id;
+    int16_t compile_table_id;
+	uint8_t is_set_district;
+    uint8_t is_last_scan;
 };
 
 int my_scandir(const char *dir, struct dirent ***namelist,
               int(*filter)(const struct dirent *),
               int(*compar)(const void *, const void *));
 
-struct item_district *item_district_new(long long district_id);
+struct item_district *item_district_new(int district_id);
 
 void item_district_free(void *item_district);
 
-long long item_district_id(struct item_district *item_dist);
+int item_district_id(struct item_district *item_dist);
 
 void *rule_monitor_loop(void *arg);
 

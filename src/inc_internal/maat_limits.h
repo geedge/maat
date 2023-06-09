@@ -18,7 +18,8 @@ extern "C"
 
 #define MAX_KEYWORDS_STR     1024
 #define MAX_MAAT_STAT_NUM    64
-                             
+#define MAX_NAME_STR_LEN     64
+
 #ifdef __cplusplus
 }
 #endif
