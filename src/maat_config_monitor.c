@@ -27,7 +27,7 @@
 
 struct cm_table_info_t
 {
-	char table_name[NAME_MAX];
+	char table_name[MAX_NAME_STR_LEN];
 	char cfg_path[NAME_MAX];
 	int cfg_num;
 	char encrypt_algo[NAME_MAX];

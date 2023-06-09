@@ -167,7 +167,6 @@ struct maat_compile_state {
 	UT_array *internal_hit_paths;
 	UT_array *all_hit_clauses;
 	UT_array *this_scan_hit_clauses;
-    // UT_array *all_hit_groups;
 };
 
 UT_icd ut_literal_id_icd = {sizeof(struct maat_literal_id), NULL, NULL, NULL};
@@ -1478,28 +1477,36 @@ void maat_compile_state_reset(struct maat_compile_state *compile_state)
     utarray_clear(compile_state->this_scan_hit_clauses);
 }
 
-void maat_compile_state_free(struct maat_compile_state *compile_state)
+void maat_compile_state_free(struct maat_compile_state *compile_state,
+                             struct maat *maat_instance, int thread_id)
 {
     if (NULL == compile_state) {
         return;
     }
     
+    long long free_bytes = 0;
     if (compile_state->internal_hit_paths != NULL) {
+        free_bytes += utarray_len(compile_state->internal_hit_paths) * sizeof(struct maat_internal_hit_path);
         utarray_free(compile_state->internal_hit_paths);
         compile_state->internal_hit_paths = NULL;
     }
     
     if (compile_state->all_hit_clauses != NULL) {
+        free_bytes += utarray_len(compile_state->all_hit_clauses) * sizeof(long long);
         utarray_free(compile_state->all_hit_clauses);
         compile_state->all_hit_clauses = NULL;
     }
 	
     if (compile_state->this_scan_hit_clauses != NULL) {
+        free_bytes += utarray_len(compile_state->this_scan_hit_clauses) * sizeof(long long);
         utarray_free(compile_state->this_scan_hit_clauses);
         compile_state->this_scan_hit_clauses = NULL;
     }
-
+	
 	FREE(compile_state);
+
+    free_bytes += sizeof(struct maat_compile_state);
+    alignment_int64_array_add(maat_instance->stat->maat_state_free_bytes, thread_id, free_bytes);
 }
 
 static int maat_compile_hit_path_add(UT_array *hit_paths, long long item_id,

@@ -98,7 +98,8 @@ long long group2compile_runtime_update_err_count(void *g2c_runtime);
 struct maat_compile_state;
 struct maat_compile_state *maat_compile_state_new(void);
 void maat_compile_state_reset(struct maat_compile_state *compile_state);
-void maat_compile_state_free(struct maat_compile_state *compile_state);
+void maat_compile_state_free(struct maat_compile_state *compile_state,
+                             struct maat *maat_instance, int thread_id);
 
 void maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
                               size_t n_hit_item, struct maat_state *state);

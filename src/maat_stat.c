@@ -33,6 +33,8 @@ enum MAAT_FS_STATUS {
     STATUS_GROUP_REF_EXCL_NUM, //group reference exclude group num
 	STATUS_COMPILE_RULE_NUM,
 	STATUS_MAAT_STATE_NUM,
+    STATUS_MAAT_STATE_FREE_NUM,
+    STATUS_MAAT_STATE_FREE_BYTES,
     STATUS_COMPILE_STATE_NUM,
 	STATUS_GARBAGE_QSIZE,
 	STATUS_TOTAL_SCAN_BYTES,
@@ -99,6 +101,10 @@ void maat_fieldstat_register(struct maat_stat *stat)
                                                                   "garbage_num", NULL, 0);
     stat->fs_status_id[STATUS_MAAT_STATE_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
                                                                   "maat_state", NULL, 0);
+    stat->fs_status_id[STATUS_MAAT_STATE_FREE_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
+                                                                        "maat_state_free_cnt", NULL, 0);
+    stat->fs_status_id[STATUS_MAAT_STATE_FREE_BYTES] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
+                                                                          "maat_state_free_bytes", NULL, 0);
     stat->fs_status_id[STATUS_COMPILE_STATE_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
                                                                      "maat_compile_state", NULL, 0);
     stat->fs_status_id[STATUS_ZOMBIE_RS_STREAM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
@@ -215,6 +221,8 @@ struct maat_stat *maat_stat_new(const char *stat_file, size_t max_thread_num,
     stat->not_grp_hit_cnt = alignment_int64_array_alloc(max_thread_num);
     stat->maat_state_cnt = alignment_int64_array_alloc(max_thread_num);
     stat->maat_compile_state_cnt = alignment_int64_array_alloc(max_thread_num);
+    stat->maat_state_free_cnt = alignment_int64_array_alloc(max_thread_num);
+    stat->maat_state_free_bytes = alignment_int64_array_alloc(max_thread_num);
 
     return stat;
 }
@@ -248,6 +256,16 @@ void maat_stat_free(struct maat_stat *stat)
     if (stat->maat_compile_state_cnt != NULL) {
         alignment_int64_array_free(stat->maat_compile_state_cnt);
         stat->maat_compile_state_cnt = NULL;
+    }
+
+    if (stat->maat_state_free_cnt != NULL) {
+        alignment_int64_array_free(stat->maat_state_free_cnt);
+        stat->maat_state_free_cnt = NULL;
+    }
+
+    if (stat->maat_state_free_bytes != NULL) {
+        alignment_int64_array_free(stat->maat_state_free_bytes);
+        stat->maat_state_free_bytes = NULL;
     }
 
     if (stat->fs_handle != NULL) {
@@ -451,6 +469,10 @@ void maat_stat_output(struct maat_stat *stat, long long maat_version, int perf_o
                                                             stat->nr_worker_thread);
     long long maat_state_cnt = alignment_int64_array_sum(stat->maat_state_cnt,
                                                          stat->nr_worker_thread);
+    long long maat_state_free_cnt = alignment_int64_array_sum(stat->maat_state_free_cnt,
+                                                              stat->nr_worker_thread);
+    long long maat_state_free_bytes = alignment_int64_array_sum(stat->maat_state_free_bytes,
+                                                                stat->nr_worker_thread);
     long long maat_compile_state_cnt = alignment_int64_array_sum(stat->maat_compile_state_cnt,
                                                                  stat->nr_worker_thread);
     long long not_grp_hit_cnt = alignment_int64_array_sum(stat->not_grp_hit_cnt,
@@ -466,6 +488,10 @@ void maat_stat_output(struct maat_stat *stat, long long maat_version, int perf_o
                         table_cnt);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_MAAT_STATE_NUM],
                         maat_state_cnt);
+    fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_MAAT_STATE_FREE_NUM],
+                        maat_state_free_cnt);
+    fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_MAAT_STATE_FREE_BYTES],
+                        maat_state_free_bytes);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_COMPILE_STATE_NUM],
                         maat_compile_state_cnt);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_NOT_GROUP_HIT],

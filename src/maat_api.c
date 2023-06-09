@@ -1727,10 +1727,10 @@ void maat_state_free(struct maat_state *state)
     long long thread_id = state->thread_id;
 
     if (state->compile_state != NULL) {
-        maat_compile_state_free(state->compile_state);
+        maat_compile_state_free(state->compile_state, maat_instance, thread_id);
         state->compile_state = NULL;
         alignment_int64_array_add(maat_instance->stat->maat_compile_state_cnt,
-                                  state->thread_id, -1);
+                                  thread_id, -1);
     }
     
     state->maat_instance = NULL;
@@ -1738,6 +1738,10 @@ void maat_state_free(struct maat_state *state)
     
     alignment_int64_array_add(maat_instance->stat->maat_state_cnt,
                               thread_id, -1);
+    alignment_int64_array_add(maat_instance->stat->maat_state_free_cnt,
+                              thread_id, 1);
+    alignment_int64_array_add(maat_instance->stat->maat_state_free_bytes,
+                              thread_id, sizeof(struct maat_state));
 }
 
 int maat_state_set_scan_district(struct maat_state *state, int vtable_id, 
