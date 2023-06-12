@@ -27,7 +27,6 @@
 #include "alignment.h"
 
 #define MODULE_COMPILE	 module_name_str("maat.compile")
-#define MAX_TABLE_LINE_SIZE  (1024 * 16)
 
 struct compile_schema {
     int compile_id_column;
@@ -139,7 +138,7 @@ struct compile_sort_para {
 
 #define MAAT_COMPILE_MAGIC	0x4a5b6c7d
 struct maat_compile {
-	uint32_t magic;
+	uint32_t magic_num;
     int actual_clause_num;
 	int declared_clause_num;
     int not_clause_cnt;
@@ -178,7 +177,7 @@ struct maat_compile *maat_compile_new(long long compile_id)
 {
 	struct maat_compile *compile = ALLOC(struct maat_compile, 1);
 
-	compile->magic = MAAT_COMPILE_MAGIC;
+	compile->magic_num = MAAT_COMPILE_MAGIC;
 	compile->compile_id = compile_id;
 
     for(int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {	
@@ -225,7 +224,7 @@ void maat_compile_free(struct maat_compile *compile)
 		
 		clause_state->in_use = 0;
 	}
-	compile->magic = 0;
+	compile->magic_num = 0;
 	FREE(compile);
 }
 
@@ -1156,7 +1155,7 @@ size_t maat_compile_bool_matcher_match(struct compile_runtime *compile_rt, int i
                                             expr_match, MAX_SCANNER_HIT_COMPILE_NUM);
 	for (int i = 0; i < bool_match_ret && ud_result_cnt < ud_array_size; i++) {
 		compile = (struct maat_compile *)expr_match[i].user_tag;
-		assert(compile->magic == MAAT_COMPILE_MAGIC);
+		assert(compile->magic_num == MAAT_COMPILE_MAGIC);
 		assert((unsigned long long)compile->compile_id == expr_match[i].expr_id);
 		if (0 == compile->actual_clause_num) {
 			continue;
@@ -1259,7 +1258,7 @@ struct maat_compile *maat_compile_clone(struct maat_compile *compile, int deep_c
 {
     struct maat_compile *new_compile = ALLOC(struct maat_compile, 1);
 
-    new_compile->magic = compile->magic;
+    new_compile->magic_num = compile->magic_num;
     new_compile->compile_id = compile->compile_id;
     new_compile->actual_clause_num = compile->actual_clause_num;
     new_compile->declared_clause_num = compile->declared_clause_num;
@@ -1586,7 +1585,7 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, int thr
                                             MAX_SCANNER_HIT_COMPILE_NUM);
 	for (int idx = 0; idx < bool_match_ret; idx++) {
         compile = (struct maat_compile *)expr_match[idx].user_tag;
-		assert(compile->magic == MAAT_COMPILE_MAGIC);
+		assert(compile->magic_num == MAAT_COMPILE_MAGIC);
 		assert((unsigned long long)compile->compile_id == expr_match[idx].expr_id);
 		if (0 == compile->actual_clause_num || NULL == compile->user_data) {
 			continue;

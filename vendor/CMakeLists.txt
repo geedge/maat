@@ -39,9 +39,9 @@ ExternalProject_Add(ragel PREFIX ragel
 	                INSTALL_COMMAND make install
 	                BUILD_IN_SOURCE 1)
 
-# HyperScan 5.4.0
+# HyperScan 5.4.2
 ExternalProject_Add(hyperscan PREFIX hyperscan
-                    URL ${CMAKE_CURRENT_SOURCE_DIR}/hyperscan-5.4.0.tar.gz
+                    URL ${CMAKE_CURRENT_SOURCE_DIR}/hyperscan-5.4.2.tar.gz
 	                DEPENDS ragel
 	                CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${VENDOR_BUILD} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS="-fPIC" -DCMAKE_CXX_FLAGS="-fPIC")
 

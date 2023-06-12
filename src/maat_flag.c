@@ -46,7 +46,7 @@ struct flag_item {
 
 struct flag_runtime {
     struct flag_matcher *matcher;
-    struct rcu_hash_table *item_hash;
+    struct rcu_hash_table *item_hash; // <item_id, struct flag_item>
 
     long long rule_num;
     long long version;

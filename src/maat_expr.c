@@ -70,7 +70,7 @@ struct expr_item {
 
 struct expr_runtime {
     struct adapter_hs *hs;
-    struct rcu_hash_table *item_hash;      // store hs_expr rule for rebuild adapter_hs instance
+    struct rcu_hash_table *item_hash;      // <item_id, struct expr_item>
 
     long long version;  //expr_rt version
     long long rule_num;

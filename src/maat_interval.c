@@ -43,7 +43,7 @@ struct interval_item {
 
 struct interval_runtime {
     struct interval_matcher *matcher;
-    struct rcu_hash_table *item_hash;       //store interval rule for rebuild interval_matcher instance
+    struct rcu_hash_table *item_hash;  // <item_id, struct interval_item>
 
     long long version;
     long long rule_num;

@@ -67,7 +67,7 @@ struct ip_item {
 struct ip_runtime {
 	struct ip_matcher *ip_matcher;
     struct interval_matcher *intval_matcher;
-    struct rcu_hash_table *item_hash;
+    struct rcu_hash_table *item_hash;  // <item_id, struct ip_item>
 
     long long version;
     long long rule_num;
