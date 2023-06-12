@@ -2812,7 +2812,7 @@ void ip_plugin_ex_new_cb(const char *table_name, int table_id, const char *key,
 	ret = get_column_pos(table_line, 5, &column_offset, &column_len);	
 	EXPECT_EQ(ret, 0);
 
-	ud->buffer = (char *)calloc(sizeof(char), column_len + 1);
+	ud->buffer = ALLOC(char, column_len + 1);
 	strncpy(ud->buffer, table_line + column_offset, column_len);
 	ud->ref_cnt = 1;
 	*ad = ud;
@@ -3037,7 +3037,7 @@ void bool_plugin_ex_new_cb(const char *table_name, int table_id, const char *key
 	ret = get_column_pos(table_line, 3, &column_offset, &column_len);	
 	EXPECT_EQ(ret, 0);
 
-	ud->name = (char *)malloc(column_len+1);
+	ud->name = ALLOC(char, column_len+1);
 	memcpy(ud->name, table_line+column_offset, column_len);
 	ud->ref_cnt = 1;
 	*ad = ud;
@@ -4065,16 +4065,21 @@ protected:
         maat_options_set_foreign_cont_dir(opts, "./foreign_files/");
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
+
+        _ex_data_counter = ALLOC(int, 1);
     }
 
     static void TearDownTestCase() {
         maat_free(_shared_maat_instance);
+        FREE(_ex_data_counter);
     } 
 
     static struct maat *_shared_maat_instance;
+    static int *_ex_data_counter;
 };
 
 struct maat *MaatCmdTest::_shared_maat_instance;
+int *MaatCmdTest::_ex_data_counter;
 
 TEST_F(MaatCmdTest, SetIP) {
     long long version_before = 0;
@@ -4766,7 +4771,7 @@ void prepare_file_to_set(const char* filename, char** file_buff, size_t *file_si
 	int i=0;
 	struct stat file_info;
 	unsigned char md5[MD5_DIGEST_LENGTH];
-	char md5string[MD5_DIGEST_LENGTH+1];
+	char md5string[2*MD5_DIGEST_LENGTH+1];
 	memset(md5, 0, sizeof(md5));
 	memset(md5string, 0, sizeof(md5string));
 
@@ -4962,6 +4967,7 @@ TEST_F(MaatCmdTest, PluginEXData) {
     const char *table_name = "TEST_PLUGIN_EXDATA_TABLE";
     const int TEST_CMD_LINE_NUM = 4;
     struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+    int *ex_data_counter = MaatCmdTest::_ex_data_counter;
 	const char *table_line_add[TEST_CMD_LINE_NUM] = {"1\t192.168.0.1\tmahuateng\t1\t0",
 							                     "2\t192.168.0.2\tliuqiangdong\t1\t0",
 							                     "3\t192.168.0.3\tmayun\t1\t0",
@@ -4992,14 +4998,14 @@ TEST_F(MaatCmdTest, PluginEXData) {
     }
 	
     sleep(WAIT_FOR_EFFECTIVE_S);
-    int ex_data_counter = 0;
+    *ex_data_counter = 0;
 	ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
 								               plugin_ex_new_cb,
 								               plugin_ex_free_cb,
 								               plugin_ex_dup_cb,
-								               0, &ex_data_counter);
+								               0, ex_data_counter);
 	ASSERT_TRUE(ret >= 0);
-	EXPECT_EQ(ex_data_counter, TEST_CMD_LINE_NUM);
+	EXPECT_EQ(*ex_data_counter, TEST_CMD_LINE_NUM);
 	
 	struct user_info *uinfo = NULL;
     const char *key1 = "192.168.0.2";
@@ -5030,6 +5036,7 @@ TEST_F(MaatCmdTest, UpdateIPPlugin) {
     const char *table_name = "TEST_IP_PLUGIN_WITH_EXDATA";
 	const int TEST_CMD_LINE_NUM = 4;
 	struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+    int *ex_data_counter = MaatCmdTest::_ex_data_counter;
 	const char *table_line_add[TEST_CMD_LINE_NUM] = {
         "101\t4\t192.168.30.99\t192.168.30.101\tSomething-like-json\t1\trange",
 		"102\t4\t192.168.30.90\t192.168.30.128\tBigger-range-should-in-the-back\t1\trange",
@@ -5062,14 +5069,14 @@ TEST_F(MaatCmdTest, UpdateIPPlugin) {
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    int ex_data_counter = 0;
+    *ex_data_counter = 0;
 	ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
 								               ip_plugin_ex_new_cb,
 								               ip_plugin_ex_free_cb,
 								               ip_plugin_ex_dup_cb,
-								               0, &ex_data_counter);
+								               0, ex_data_counter);
 	ASSERT_TRUE(ret >= 0);
-	EXPECT_EQ(ex_data_counter, TEST_CMD_LINE_NUM);
+	EXPECT_EQ(*ex_data_counter, TEST_CMD_LINE_NUM);
 
     struct ip_addr ipv4, ipv6;
     struct ip_plugin_ud *results[ARRAY_SIZE];
@@ -5123,6 +5130,7 @@ TEST_F(MaatCmdTest, UpdateFQDNPlugin) {
     const char *table_name = "TEST_FQDN_PLUGIN_WITH_EXDATA";
 	const int TEST_CMD_LINE_NUM = 5;
 	struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+    int *ex_data_counter = MaatCmdTest::_ex_data_counter;
     const char *table_line_add[TEST_CMD_LINE_NUM]={
 		"201\t0\twww.example1.com\tcatid=1\t1",
 		"202\t1\t.example1.com\tcatid=1\t1",
@@ -5157,14 +5165,14 @@ TEST_F(MaatCmdTest, UpdateFQDNPlugin) {
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    int ex_data_counter = 0;
+    *ex_data_counter = 0;
     ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
                                                fqdn_plugin_ex_new_cb,
                                                fqdn_plugin_ex_free_cb,
                                                fqdn_plugin_ex_dup_cb,
-                                               0, &ex_data_counter);
+                                               0, ex_data_counter);
     ASSERT_TRUE(ret >= 0);
-	EXPECT_EQ(ex_data_counter, 5);
+	EXPECT_EQ(*ex_data_counter, 5);
 
     struct fqdn_plugin_ud *results[ARRAY_SIZE];
     memset(results, 0, sizeof(results));
@@ -5200,6 +5208,7 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
     const char *table_name = "TEST_BOOL_PLUGIN_WITH_EXDATA";
 	const int TEST_CMD_LINE_NUM = 6;
 	struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+    int *ex_data_counter = MaatCmdTest::_ex_data_counter;
     const char *table_line_add[TEST_CMD_LINE_NUM] = {
 		"301\t1&2&1000\ttunnel1\t1",
 		"302\t101&102\ttunnel2\t1",
@@ -5236,14 +5245,14 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    int ex_data_counter = 0;
+    *ex_data_counter = 0;
     ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
 								               bool_plugin_ex_new_cb,
 								               bool_plugin_ex_free_cb,
 								               bool_plugin_ex_dup_cb,
-								               0, &ex_data_counter);
+								               0, ex_data_counter);
 	ASSERT_TRUE(ret>=0);
-	EXPECT_EQ(ex_data_counter, 6);
+	EXPECT_EQ(*ex_data_counter, 6);
 
     unsigned long long items[] = {101, 102, 1000};
     struct bool_plugin_ud *results[ARRAY_SIZE];
