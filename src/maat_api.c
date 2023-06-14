@@ -44,6 +44,11 @@
 
 #define MODULE_MAAT_API	 module_name_str("maat.api")
 
+enum district_flag {
+    DISTRICT_FLAG_UNSET,
+    DISTRICT_FLAG_SET
+};
+
 struct maat_stream {
     struct maat *ref_maat_instance;
     struct adapter_hs_stream *s_handle; //each physical table open one stream
@@ -353,9 +358,6 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     if (NULL == maat_instance->tbl_mgr) {
         goto failed;
     }
-
-    maat_instance->default_compile_table_id = table_manager_get_defaut_compile_table_id(maat_instance->tbl_mgr);
-    maat_instance->g2g_table_id = table_manager_get_group2group_table_id(maat_instance->tbl_mgr);
 
     if (0 == maat_instance->opts.deferred_load_on) {
         maat_read_full_config(maat_instance);
@@ -1072,7 +1074,7 @@ size_t group_to_compile(struct maat *maat_instance, long long *results, size_t n
     if (state->compile_table_id > 0) {
         compile_table_id = state->compile_table_id;
     } else {
-        compile_table_id = maat_instance->default_compile_table_id;
+        compile_table_id = table_manager_get_default_compile_table_id(maat_instance->tbl_mgr);
     }
 
     void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr, compile_table_id);
@@ -1869,7 +1871,7 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
     if (state->compile_table_id > 0) {
         compile_table_id = state->compile_table_id;
     } else {
-        compile_table_id = maat_instance->default_compile_table_id;
+        compile_table_id = table_manager_get_default_compile_table_id(maat_instance->tbl_mgr);
     }
 
     void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr,
@@ -1878,8 +1880,9 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
         return -1;
     }
 
-    void *g2g_runtime = table_manager_get_runtime(maat_instance->tbl_mgr,
-                                                  maat_instance->g2g_table_id);
+    int g2g_table_id = table_manager_get_group2group_table_id(maat_instance->tbl_mgr);
+    void *g2g_runtime = table_manager_get_runtime(maat_instance->tbl_mgr, g2g_table_id);
+
     size_t internal_hit_path_cnt = maat_compile_state_get_internal_hit_paths(state->compile_state,
                                                                              (struct compile_runtime *)compile_rt,
                                                                              (struct group2group_runtime *)g2g_runtime,
@@ -1896,8 +1899,9 @@ int maat_state_get_hit_groups(struct maat_state *state, struct maat_hit_group *g
         return -1;
     }
 
-    void *g2g_runtime = table_manager_get_runtime(state->maat_instance->tbl_mgr,
-                                                  state->maat_instance->g2g_table_id);
+    int g2g_table_id = table_manager_get_group2group_table_id(state->maat_instance->tbl_mgr);
+    void *g2g_runtime = table_manager_get_runtime(state->maat_instance->tbl_mgr, g2g_table_id);
+
     return maat_compile_state_get_hit_groups(state->compile_state,
                                              (struct group2group_runtime *)g2g_runtime,
                                              groups, n_group);

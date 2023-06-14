@@ -425,9 +425,11 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table
             return -1;
         }
 
-        struct item_district *item_dist = item_district_new(flag_item->district_id);
-        flag_item->user_data = item_dist;
-        flag_item->user_data_free = item_district_free;
+        int *item_district_id = ALLOC(int, 1);
+        *item_district_id = flag_item->district_id;
+
+        flag_item->user_data = item_district_id;
+        flag_item->user_data_free = free;
     }
 
     int ret = flag_runtime_update_row(flag_rt, (char *)&item_id, sizeof(long long),
@@ -555,20 +557,16 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
         n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
     }
     
-    struct maat_item hit_maat_items[MAX_SCANNER_HIT_ITEM_NUM];
-    struct item_district *item_dist = NULL;
-    struct flag_item *flag_item = NULL;
+    struct maat_item hit_maat_items[n_hit_item];
     size_t real_hit_item_cnt = 0;
-    int district_id = state->district_id;
     
     for (int i = 0; i < n_hit_item; i++) {
-        item_dist = (struct item_district *)(hit_results[i].user_tag);
-        int tag_district_id = item_district_id(item_dist);
-        if (tag_district_id == district_id || tag_district_id == DISTRICT_ANY) {
+        int tag_district_id = *(int *)(hit_results[i].user_tag);
+        if (tag_district_id == state->district_id || tag_district_id == DISTRICT_ANY) {
             long long item_id = hit_results[i].rule_id;
-            flag_item = (struct flag_item *)rcu_hash_find(flag_rt->item_hash, 
-                                                          (char *)&item_id,
-                                                          sizeof(long long));
+            struct flag_item *flag_item = (struct flag_item *)rcu_hash_find(flag_rt->item_hash, 
+                                                                            (char *)&item_id,
+                                                                            sizeof(long long));
             if (!flag_item) {
                 // item config has been deleted
                 continue;

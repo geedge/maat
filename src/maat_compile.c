@@ -45,7 +45,7 @@ struct group2compile_schema {
     int not_flag_column;
     int vtable_name_column;
     int clause_index_column;
-    char associated_compile_table_id;
+    int asso_compile_table_id; //asso is abbreviation for associated
     int table_id;//ugly
     struct table_manager *ref_tbl_mgr;
 };
@@ -61,7 +61,7 @@ struct group2compile_item {
     int not_flag;
     int vtable_id;
     int clause_index;
-    int associated_compile_table_id;
+    int asso_compile_table_id;
 };
 
 struct maat_literal_id {
@@ -108,6 +108,7 @@ struct compile_runtime {
     struct maat_clause *clause_by_literals_hash;
     struct literal_clause *literal2clause_hash;
     struct group_reference *group_ref_hash;
+    struct group2compile_runtime *ref_g2c_rt;
     pthread_mutex_t mutex;
     long long rule_num;
     long long update_err_cnt;
@@ -392,7 +393,7 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     item = cJSON_GetObjectItem(json, "associated_compile_table_id");
     if (item != NULL && item->type == cJSON_Number) {
-        g2c_schema->associated_compile_table_id = item->valueint;
+        g2c_schema->asso_compile_table_id = item->valueint;
     } else {
         log_error(logger, MODULE_COMPILE, 
                   "[%s:%d] table: <%s> schema has no associated_compile_table_id column", 
@@ -474,7 +475,7 @@ int group2compile_associated_compile_table_id(void *g2c_schema)
 {
     struct group2compile_schema *schema = (struct group2compile_schema *)g2c_schema;
 
-    return schema->associated_compile_table_id;
+    return schema->asso_compile_table_id;
 }
 
 int compile_accept_tag_match(struct compile_schema *schema, const char *line,
@@ -677,14 +678,21 @@ void compile_runtime_free(void *compile_runtime)
     FREE(compile_rt);
 }
 
-void compile_runtime_init(void *compile_runtime, struct maat_runtime *maat_rt)
+void compile_runtime_init(void *compile_runtime, struct maat_runtime *maat_rt,
+                          void *g2c_runtime)
 {
     if (NULL == compile_runtime) {
         return;
     }
 
     struct compile_runtime *compile_rt = (struct compile_runtime *)compile_runtime;
-    compile_rt->ref_maat_rt = maat_rt;
+    if (maat_rt != NULL) {
+        compile_rt->ref_maat_rt = maat_rt;
+    }
+    
+    if (g2c_runtime != NULL) {
+        compile_rt->ref_g2c_rt = g2c_runtime;
+    }
 }
 
 void *group2compile_runtime_new(void *g2c_schema, size_t max_thread_num,
@@ -700,8 +708,7 @@ void *group2compile_runtime_new(void *g2c_schema, size_t max_thread_num,
     return g2c_rt;
 }
 
-void group2compile_runtime_init(void *g2c_runtime, void *compile_runtime, 
-                                void *g2g_runtime)
+void group2compile_runtime_init(void *g2c_runtime, void *compile_runtime)
 {
     struct group2compile_runtime *g2c_rt = (struct group2compile_runtime *)g2c_runtime;
 
@@ -1648,7 +1655,6 @@ void maat_compile_state_update_hit_clause(struct maat_compile_state *compile_sta
     
 	struct maat_literal_id literal_id = {group_id, vtable_id};
     struct literal_clause *l2c_val = NULL;
-    long long *clause_id = 0;
     struct compile_runtime *compile_rt = (struct compile_runtime *)compile_runtime;
     
     HASH_FIND(hh, compile_rt->literal2clause_hash, &literal_id, sizeof(literal_id), l2c_val);
@@ -1657,6 +1663,7 @@ void maat_compile_state_update_hit_clause(struct maat_compile_state *compile_sta
     }
 
     size_t i = 0;
+    long long *clause_id = 0;
     size_t new_clause_idx = utarray_len(compile_state->this_scan_hit_clauses);
     for (i = 0; i < utarray_len(l2c_val->clause_ids); i++) {
         clause_id = (long long *)utarray_eltptr(l2c_val->clause_ids, i);
@@ -2180,7 +2187,7 @@ void maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
     if (state->compile_table_id > 0) {
         compile_table_id = state->compile_table_id;
     } else {
-        compile_table_id = maat_instance->default_compile_table_id;
+        compile_table_id = table_manager_get_default_compile_table_id(maat_instance->tbl_mgr);
     }
 
     void *compile_rt = table_manager_get_runtime(maat_instance->tbl_mgr,
@@ -2189,13 +2196,12 @@ void maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
         return;
     }
 
-    void *g2g_rt = table_manager_get_runtime(maat_instance->tbl_mgr,
-                                             maat_instance->g2g_table_id);
+    int g2g_table_id = table_manager_get_group2group_table_id(maat_instance->tbl_mgr);
+    void *g2g_rt = table_manager_get_runtime(maat_instance->tbl_mgr, g2g_table_id);
     if (NULL == g2g_rt) {
         return;
     }
 
-    
     long long super_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
     size_t super_group_cnt = group2group_runtime_get_super_groups(g2g_rt, hit_group_ids,
                                                                   hit_cnt, super_group_ids,

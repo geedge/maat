@@ -23,8 +23,6 @@ const char *json_filename = "maat_json.json";
 
 size_t g_thread_num = 4;
 
-extern int system_cmd_rmdir(const char *dir);
-
 void wait_for_cmd_effective(struct maat *maat_instance, long long version_before)
 {
 	long long version_after = version_before;
@@ -355,7 +353,7 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
-        const char *table_info_path = "./tsg_static_tableinfo.json";
+        const char *table_info_path = "./test_table_info.conf";
         _shared_maat_instance = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_instance) {

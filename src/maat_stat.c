@@ -164,6 +164,11 @@ int maat_fieldstat_table_row_register(struct maat_stat *stat, struct table_manag
             continue;
         }
 
+        enum table_type table_type = table_manager_get_table_type(tbl_mgr, i);
+        if (table_type == TABLE_TYPE_VIRTUAL) {
+            continue;
+        }
+        
         const char *table_name = table_manager_get_table_name(tbl_mgr, i);
         assert(table_name != NULL);
 
@@ -376,7 +381,7 @@ void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
                 break;
         }
 
-        if (table_type == TABLE_TYPE_PLUGIN) {
+        if (table_type == TABLE_TYPE_PLUGIN || table_type == TABLE_TYPE_VIRTUAL) {
             continue;
         }
 
@@ -388,23 +393,28 @@ void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
         total_rule_num += rule_num;
 
         if (table_type == TABLE_TYPE_EXPR || table_type == TABLE_TYPE_EXPR_PLUS) {
-            fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_REGEX_NUM], regex_rule_num);
+            fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_REGEX_NUM],
+                                regex_rule_num);
             long long stream_num = expr_runtime_stream_num(runtime);
-            fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_STREAM_NUM], stream_num);
+            fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_STREAM_NUM],
+                                stream_num);
             total_stream_num += stream_num;
 
             long long input_bytes = expr_runtime_scan_bytes(runtime);
-            fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_SCAN_BYTES], input_bytes);
+            fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_SCAN_BYTES],
+                                input_bytes);
             total_input_bytes += input_bytes;
         }
 
         if (table_type == TABLE_TYPE_IP_PLUS) {
-            fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_REGEX_NUM], ipv6_rule_num);
+            fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_REGEX_NUM],
+                                ipv6_rule_num);
         }
 
         if (1 == perf_on) {
             long long scan_cpu_time = table_manager_runtime_scan_cpu_time(stat->ref_tbl_mgr, i);
-            fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_CPU_TIME], scan_cpu_time);
+            fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_CPU_TIME],
+                                scan_cpu_time);
             total_scan_cpu_time += scan_cpu_time;
         }
 

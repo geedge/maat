@@ -62,7 +62,7 @@ const char *table_manager_get_table_name(struct table_manager *tbl_mgr, int tabl
 
 enum table_type table_manager_get_table_type(struct table_manager *tbl_mgr, int table_id);
 
-int table_manager_get_defaut_compile_table_id(struct table_manager *tbl_mgr);
+int table_manager_get_default_compile_table_id(struct table_manager *tbl_mgr);
 int table_manager_get_group2group_table_id(struct table_manager *tbl_mgr);
 
 int table_manager_get_valid_column(struct table_manager *tbl_mgr, int table_id);

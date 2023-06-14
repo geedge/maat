@@ -429,9 +429,11 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
             return -1;
         }
 
-        struct item_district *item_dist = item_district_new(interval_item->district_id);
-        interval_item->user_data = item_dist;
-        interval_item->user_data_free = item_district_free;
+        int *item_district_id = ALLOC(int, 1);
+        *item_district_id = interval_item->district_id;
+
+        interval_item->user_data = item_district_id;
+        interval_item->user_data_free = free;
     }
 
     int ret = interval_runtime_update_row(interval_rt, (char *)&item_id, sizeof(long long),
@@ -559,20 +561,16 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
         n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
     }
     
-    struct maat_item hit_maat_items[MAX_SCANNER_HIT_ITEM_NUM];
-    struct item_district *item_dist = NULL;
-    struct interval_item *int_item = NULL;
+    struct maat_item hit_maat_items[n_hit_item];
     size_t real_hit_item_cnt = 0;
-    int district_id = state->district_id;
     
     for (int i = 0; i < n_hit_item; i++) {
-        item_dist = (struct item_district *)(hit_results[i].user_tag);
-        int tag_district_id = item_district_id(item_dist);
-        if (tag_district_id == district_id || tag_district_id == DISTRICT_ANY) {
+        int tag_district_id = *(int *)(hit_results[i].user_tag);
+        if (tag_district_id == state->district_id || tag_district_id == DISTRICT_ANY) {
             long long item_id = hit_results[i].rule_id;
-            int_item = (struct interval_item *)rcu_hash_find(interval_rt->item_hash, 
-                                                             (char *)&item_id,
-                                                             sizeof(long long));
+            struct interval_item *int_item = (struct interval_item *)rcu_hash_find(interval_rt->item_hash, 
+                                                                                  (char *)&item_id,
+                                                                                  sizeof(long long));
             if (!int_item) {
                 // item config has been deleted
                 continue;

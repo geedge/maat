@@ -32,33 +32,6 @@
 
 #define MODULE_MAAT_RULE	 module_name_str("maat.rule")
 
-struct item_district {
-	int district_id;
-};
-
-struct item_district *
-item_district_new(int district_id)
-{
-	struct item_district *item_dist = ALLOC(struct item_district, 1);
-	item_dist->district_id = district_id;
-
-	return item_dist;
-}
-
-void item_district_free(void *item_district)
-{
-    if (NULL == item_district) {
-        return;
-    }
-
-	FREE(item_district);
-}
-
-int item_district_id(struct item_district *item_dist)
-{
-    return item_dist->district_id;
-}
-
 struct maat_runtime* maat_runtime_create(long long version, struct maat *maat_instance)
 {
 	struct maat_runtime *maat_rt = ALLOC(struct maat_runtime, 1);
@@ -107,7 +80,7 @@ void maat_start_cb(long long new_version, int update_type, void *u_param)
             if (table_type == TABLE_TYPE_COMPILE) {
                 // compile runtime need a reference to maat runtime
                 void *compile_rt = table_manager_get_updating_runtime(maat_instance->tbl_mgr, i);
-                compile_runtime_init(compile_rt, maat_instance->creating_maat_rt);
+                compile_runtime_init(compile_rt, maat_instance->creating_maat_rt, NULL);
             }
         }
     } else {

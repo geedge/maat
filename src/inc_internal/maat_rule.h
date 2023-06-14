@@ -183,16 +183,8 @@ struct maat {
     struct log_handle *logger;
     struct maat_garbage_bin *garbage_bin;
 
-    int default_compile_table_id;
-    int g2g_table_id; //group2group table id
-
     /* statistics */
     struct maat_stat *stat;
-};
-
-enum district_flag {
-    DISTRICT_FLAG_UNSET,
-    DISTRICT_FLAG_SET
 };
 
 enum last_scan_flag {
@@ -215,12 +207,6 @@ struct maat_state {
 int my_scandir(const char *dir, struct dirent ***namelist,
               int(*filter)(const struct dirent *),
               int(*compar)(const void *, const void *));
-
-struct item_district *item_district_new(int district_id);
-
-void item_district_free(void *item_district);
-
-int item_district_id(struct item_district *item_dist);
 
 void *rule_monitor_loop(void *arg);
 

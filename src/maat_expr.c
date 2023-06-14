@@ -797,9 +797,11 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
             return -1;
         }
 
-        struct item_district *item_dist = item_district_new(expr_item->district_id);
-        expr_item->user_data = item_dist;
-        expr_item->user_data_free = item_district_free;
+        int *item_district_id = ALLOC(int, 1);
+        *item_district_id = expr_item->district_id;
+        
+        expr_item->user_data = item_district_id;
+        expr_item->user_data_free = free;
     }
 
     int ret = expr_runtime_update_row(expr_rt, (char *)&item_id, sizeof(long long),
@@ -975,32 +977,23 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
         n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
     }
     
-    struct maat_item hit_maat_items[MAX_SCANNER_HIT_ITEM_NUM];
-    struct item_district *item_dist = NULL;
-    struct expr_item *expr_item = NULL;
+    struct maat_item hit_maat_items[n_hit_item];
     size_t real_hit_item_cnt = 0;
-    int district_id = state->district_id;
     
     for (size_t i = 0; i < n_hit_item; i++) {
-        item_dist = (struct item_district *)(hit_results[i].user_tag);
-        int tag_district_id = item_district_id(item_dist);
-        if (tag_district_id == district_id || tag_district_id == DISTRICT_ANY) {
+        int tag_district_id = *(int *)(hit_results[i].user_tag);
+        if (tag_district_id == state->district_id || tag_district_id == DISTRICT_ANY) {
             long long item_id = hit_results[i].rule_id;
-            expr_item = (struct expr_item *)rcu_hash_find(expr_rt->item_hash, 
-                                                          (char *)&item_id,
-                                                          sizeof(long long));
+            struct expr_item *expr_item = (struct expr_item *)rcu_hash_find(expr_rt->item_hash, 
+                                                                            (char *)&item_id,
+                                                                            sizeof(long long));
             if (!expr_item) {
                 // item config has been deleted
                 continue;
             }
 
-            if (real_hit_item_cnt >= MAX_SCANNER_HIT_GROUP_NUM) {
-                real_hit_item_cnt = MAX_SCANNER_HIT_GROUP_NUM;
-                // Prevent group_id_array out of bounds
-            } else {
-                hit_maat_items[real_hit_item_cnt].item_id = item_id;
-                hit_maat_items[real_hit_item_cnt].group_id = expr_item->group_id;
-            }
+            hit_maat_items[real_hit_item_cnt].item_id = item_id;
+            hit_maat_items[real_hit_item_cnt].group_id = expr_item->group_id;
             
             real_hit_item_cnt++;
         }
@@ -1050,7 +1043,7 @@ int expr_runtime_stream_scan(struct expr_runtime *expr_rt,
         n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
     }
     
-    struct maat_item hit_maat_items[MAX_SCANNER_HIT_ITEM_NUM];
+    struct maat_item hit_maat_items[n_hit_item];
     struct expr_item *expr_item = NULL;
     size_t real_hit_item_cnt = 0;
 

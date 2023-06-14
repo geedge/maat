@@ -856,12 +856,9 @@ int table_manager_runtime_create(struct table_manager *tbl_mgr, size_t max_threa
             continue;
         }
 
-        int associated_compile_table_id = group2compile_associated_compile_table_id(schema);
-        void *compile_updating_rt = table_manager_get_updating_runtime(tbl_mgr, associated_compile_table_id);
-        int g2g_group_id = table_manager_get_group2group_table_id(tbl_mgr);
-        void *g2g_updating_rt = table_manager_get_updating_runtime(tbl_mgr, g2g_group_id);
-        
-        group2compile_runtime_init(g2c_updating_rt, compile_updating_rt, g2g_updating_rt);
+        int asso_compile_table_id = group2compile_associated_compile_table_id(schema);
+        void *compile_updating_rt = table_manager_get_updating_runtime(tbl_mgr, asso_compile_table_id);
+        group2compile_runtime_init(g2c_updating_rt, compile_updating_rt);
     }
 
     return 0;
@@ -973,7 +970,7 @@ enum table_type table_manager_get_table_type(struct table_manager *tbl_mgr, int 
     return tbl_mgr->tbl[table_id]->table_type;
 }
 
-int table_manager_get_defaut_compile_table_id(struct table_manager *tbl_mgr)
+int table_manager_get_default_compile_table_id(struct table_manager *tbl_mgr)
 {
     return tbl_mgr->default_compile_table_id;
 }
