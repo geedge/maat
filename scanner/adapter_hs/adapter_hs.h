@@ -86,15 +86,14 @@ int adapter_hs_verify_regex_expression(const char *regex_expr,
 /**
  * @brief new adapter_hs instance
  * 
- * @param nr_worker_threads: the number of scan threads which will call adapter_hs_scan()
  * @param rules:             logic AND expression's array
  * @param n_rule:            the number of logic AND expression's array
+ * @param nr_worker_threads: the number of scan threads which will call adapter_hs_scan()
  * 
  * @retval the pointer to adapter_hs instance
 */
-struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
-                                  struct expr_rule *rules, size_t n_rule,
-                                  struct log_handle *logger);
+struct adapter_hs *adapter_hs_new(struct expr_rule *rules, size_t n_rule,
+                                  size_t n_worker_thread, struct log_handle *logger);
 
 /**
  * @brief scan input data to match logic AND expression, return all matched expr_id

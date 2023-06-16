@@ -49,8 +49,7 @@ void *compile_runtime_new(void *compile_schema, size_t max_thread_num,
                           struct log_handle *logger);
 void compile_runtime_free(void *compile_runtime);
 
-void compile_runtime_init(void *compile_runtime, struct maat_runtime *maat_rt,
-                          void *g2c_runtime);
+void compile_runtime_init(void *compile_runtime, struct maat_runtime *maat_rt);
 
 int compile_runtime_update(void *compile_runtime, void *compile_schema,
                            const char *table_name, const char *line,
@@ -81,7 +80,9 @@ void compile_runtime_ex_data_iterate(struct compile_runtime *compile_rt,
 void *group2compile_runtime_new(void *g2c_schema, size_t max_thread_num,
                                 struct maat_garbage_bin *garbage_bin, 
                                 struct log_handle *logger);
+
 void group2compile_runtime_init(void *g2c_runtime, void *compile_runtime);
+
 void group2compile_runtime_free(void *g2c_runtime);
 
 int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,

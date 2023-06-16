@@ -103,8 +103,8 @@ struct adapter_hs_stream {
     struct log_handle *logger;
 };
 
-int _hs_alloc_scratch(hs_database_t *db, hs_scratch_t **scratches, size_t n_worker_thread,
-                      struct log_handle *logger)
+int _hs_alloc_scratch(hs_database_t *db, hs_scratch_t **scratches,
+                      size_t n_worker_thread, struct log_handle *logger)
 {
     size_t scratch_size = 0;
 
@@ -119,14 +119,16 @@ int _hs_alloc_scratch(hs_database_t *db, hs_scratch_t **scratches, size_t n_work
         hs_error_t err = hs_clone_scratch(scratches[0], &scratches[i]);
         if (err != HS_SUCCESS) {
             log_error(logger, MODULE_ADAPTER_HS,
-                      "[%s:%d] Unable to clone scratch", __FUNCTION__, __LINE__);
+                      "[%s:%d] Unable to clone scratch",
+                      __FUNCTION__, __LINE__);
             return -1;
         }
 
         err = hs_scratch_size(scratches[i], &scratch_size);
         if (err != HS_SUCCESS) {
             log_error(logger, MODULE_ADAPTER_HS,
-                      "[%s:%d] Unable to query scratch size", __FUNCTION__, __LINE__);
+                      "[%s:%d] Unable to query scratch size",
+                      __FUNCTION__, __LINE__);
             return -1;
         }
     }
@@ -134,8 +136,10 @@ int _hs_alloc_scratch(hs_database_t *db, hs_scratch_t **scratches, size_t n_work
     return 0;
 }
 
-static int adpt_hs_alloc_scratch(struct adapter_hs_runtime *hs_rt, size_t n_worker_thread,
-                                 enum hs_pattern_type pattern_type, struct log_handle *logger)
+static int adpt_hs_alloc_scratch(struct adapter_hs_runtime *hs_rt,
+                                 size_t n_worker_thread,
+                                 enum hs_pattern_type pattern_type,
+                                 struct log_handle *logger)
 {
     int ret = 0;
 
@@ -178,9 +182,11 @@ static int adpt_hs_build_database(struct adapter_hs_runtime *hs_rt,
     }
 
     if (literal_cd != NULL) {
-        err = hs_compile_lit_multi((const char *const *)literal_cd->patterns, literal_cd->flags,
-                                    literal_cd->ids, literal_cd->pattern_lens, literal_cd->n_patterns, 
-                                    HS_MODE_STREAM, NULL, &hs_rt->literal_db, &compile_err);
+        err = hs_compile_lit_multi((const char *const *)literal_cd->patterns,
+                                    literal_cd->flags,literal_cd->ids,
+                                    literal_cd->pattern_lens, literal_cd->n_patterns, 
+                                    HS_MODE_STREAM | HS_MODE_SOM_HORIZON_SMALL, NULL,
+                                    &hs_rt->literal_db, &compile_err);
         if (err != HS_SUCCESS) {
             if (compile_err) {
                 log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] compile error: %s", 
@@ -193,9 +199,10 @@ static int adpt_hs_build_database(struct adapter_hs_runtime *hs_rt,
     }
     
     if (regex_cd != NULL) {
-        err = hs_compile_multi((const char *const *)regex_cd->patterns, regex_cd->flags, regex_cd->ids, 
-                                regex_cd->n_patterns, HS_MODE_STREAM | HS_MODE_SOM_HORIZON_SMALL, NULL, 
-                                &hs_rt->regex_db, &compile_err);
+        err = hs_compile_multi((const char *const *)regex_cd->patterns,
+                                regex_cd->flags, regex_cd->ids, regex_cd->n_patterns,
+                                HS_MODE_STREAM | HS_MODE_SOM_HORIZON_SMALL,
+                                NULL, &hs_rt->regex_db, &compile_err);
         if (err != HS_SUCCESS) {
             if (compile_err) {
                 log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] compile error: %s",
@@ -250,8 +257,8 @@ void adpt_hs_compile_data_free(struct adpt_hs_compile_data *hs_cd)
     FREE(hs_cd);
 }
 
-void populate_compile_data(struct adpt_hs_compile_data *compile_data, int index, int pattern_id,
-                          char *pat, size_t pat_len, int case_sensitive)
+void populate_compile_data(struct adpt_hs_compile_data *compile_data, int index,
+                           int pattern_id, char *pat, size_t pat_len, int case_sensitive)
 {
     compile_data->ids[index] = pattern_id;
 
@@ -266,8 +273,10 @@ void populate_compile_data(struct adpt_hs_compile_data *compile_data, int index,
     memcpy(compile_data->patterns[index], pat, pat_len);
 }
 
-struct bool_expr *bool_exprs_new(struct expr_rule *rules, size_t n_rule, struct pattern_attribute *pattern_attr,
-                                 struct adpt_hs_compile_data *literal_cd, struct adpt_hs_compile_data *regex_cd,
+struct bool_expr *bool_exprs_new(struct expr_rule *rules, size_t n_rule,
+                                 struct pattern_attribute *pattern_attr,
+                                 struct adpt_hs_compile_data *literal_cd,
+                                 struct adpt_hs_compile_data *regex_cd,
                                  size_t *n_pattern)
 {
     uint32_t pattern_index = 0;
@@ -329,8 +338,9 @@ int verify_regex_expression(const char *regex_str, struct log_handle *logger)
     if (err != HS_SUCCESS) {
         // Expression will fail compilation and report error elsewhere.
         if (logger != NULL) {
-            log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] illegal regex expression: \"%s\": %s",
-                  __FUNCTION__, __LINE__, regex_str, error->message);
+            log_error(logger, MODULE_ADAPTER_HS,
+                      "[%s:%d] illegal regex expression: \"%s\": %s",
+                      __FUNCTION__, __LINE__, regex_str, error->message);
         }
         
         FREE(info);
@@ -354,13 +364,12 @@ int adapter_hs_verify_regex_expression(const char *regex_expr, struct log_handle
     return verify_regex_expression(regex_expr, logger);
 }
 
-struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
-                                  struct expr_rule *rules, size_t n_rule,
-                                  struct log_handle *logger)
+struct adapter_hs *adapter_hs_new(struct expr_rule *rules, size_t n_rule,
+                                  size_t n_worker_thread, struct log_handle *logger)
 {
     if (0 == n_worker_thread || NULL == rules || 0 == n_rule) {
-        log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] input parameters illegal!",
-                  __FUNCTION__, __LINE__);
+        log_error(logger, MODULE_ADAPTER_HS,
+                  "[%s:%d] input parameters illegal!", __FUNCTION__, __LINE__);
         return NULL;
     }
 
@@ -370,8 +379,9 @@ struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
     for (size_t i = 0; i < n_rule; i++) {
         if (rules[i].n_patterns > MAX_EXPR_PATTERN_NUM) {
             log_error(logger, MODULE_ADAPTER_HS, 
-                      "[%s:%d] the number of patterns in one expression should less than %d",
-                      __FUNCTION__, __LINE__, MAX_EXPR_PATTERN_NUM);
+                      "[%s:%d] the number of patterns in one expression "
+                      "should less than %d", __FUNCTION__, __LINE__,
+                      MAX_EXPR_PATTERN_NUM);
             return NULL;
         }
 
@@ -379,7 +389,8 @@ struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
             /* pat_len should not 0 */
             if (0 == rules[i].patterns[j].pat_len) {
                 log_error(logger, MODULE_ADAPTER_HS,
-                          "[%s:%d] expr pattern length should not 0", __FUNCTION__, __LINE__);
+                          "[%s:%d] expr pattern length should not 0",
+                          __FUNCTION__, __LINE__);
                 return NULL;
             }
 
@@ -392,8 +403,8 @@ struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
     }
 
     if (0 == literal_pattern_num && 0 == regex_pattern_num) {
-        log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] exprs has no valid pattern",
-                  __FUNCTION__, __LINE__);
+        log_error(logger, MODULE_ADAPTER_HS,
+                  "[%s:%d] exprs has no valid pattern", __FUNCTION__, __LINE__);
         return NULL;
     }
 
@@ -408,30 +419,32 @@ struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
     }
     
     size_t pattern_cnt = literal_pattern_num + regex_pattern_num;
-    struct adapter_hs *hs_instance = ALLOC(struct adapter_hs, 1);
-    hs_instance->hs_attr = ALLOC(struct pattern_attribute, pattern_cnt);
-    hs_instance->logger = logger;
-    hs_instance->n_worker_thread = n_worker_thread;
-    hs_instance->n_expr = n_rule;
+    struct adapter_hs *hs_inst = ALLOC(struct adapter_hs, 1);
+    hs_inst->hs_attr = ALLOC(struct pattern_attribute, pattern_cnt);
+    hs_inst->logger = logger;
+    hs_inst->n_worker_thread = n_worker_thread;
+    hs_inst->n_expr = n_rule;
 
-    struct bool_expr *bool_exprs = bool_exprs_new(rules, n_rule, hs_instance->hs_attr,
+    struct bool_expr *bool_exprs = bool_exprs_new(rules, n_rule, hs_inst->hs_attr,
                                                   literal_cd, regex_cd, &pattern_cnt);
     if (NULL == bool_exprs) {
         return NULL;
     }
-    hs_instance->n_patterns = pattern_cnt;
+    hs_inst->n_patterns = pattern_cnt;
     
     /* create bool matcher */
     size_t mem_size = 0;
     int hs_ret = 0;
-    hs_instance->hs_rt = ALLOC(struct adapter_hs_runtime, 1);
-    hs_instance->hs_rt->bm = bool_matcher_new(bool_exprs, n_rule, &mem_size);
-    if (hs_instance->hs_rt->bm != NULL) {
+
+    hs_inst->hs_rt = ALLOC(struct adapter_hs_runtime, 1);
+    hs_inst->hs_rt->bm = bool_matcher_new(bool_exprs, n_rule, &mem_size);
+    if (hs_inst->hs_rt->bm != NULL) {
         log_info(logger, MODULE_ADAPTER_HS, 
-                 "Adapter_hs module: build bool matcher of %zu expressions with %zu bytes memory", 
-                 n_rule, mem_size);
+                 "Adapter_hs module: build bool matcher of %zu expressions"
+                 " with %zu bytes memory", n_rule, mem_size);
     } else {
-        log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] Adapter_hs module: build bool matcher failed",
+        log_error(logger, MODULE_ADAPTER_HS,
+                  "[%s:%d] Adapter_hs module: build bool matcher failed",
                   __FUNCTION__, __LINE__);
         
         hs_ret = -1;
@@ -439,7 +452,7 @@ struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
     FREE(bool_exprs);
 
     /* build hs database */
-    int ret = adpt_hs_build_database(hs_instance->hs_rt, literal_cd, regex_cd, logger);
+    int ret = adpt_hs_build_database(hs_inst->hs_rt, literal_cd, regex_cd, logger);
     if (ret < 0) {
         hs_ret = -1;
     }
@@ -456,97 +469,101 @@ struct adapter_hs *adapter_hs_new(size_t n_worker_thread,
         goto error;
     }
 
-    hs_instance->hs_rt->scratch = ALLOC(struct adapter_hs_scratch, 1);
-    hs_instance->hs_rt->scratch->bool_match_buffs = ALLOC(struct bool_expr_match *, n_worker_thread);
+    hs_inst->hs_rt->scratch = ALLOC(struct adapter_hs_scratch, 1);
+    hs_inst->hs_rt->scratch->bool_match_buffs = ALLOC(struct bool_expr_match *,
+                                                      n_worker_thread);
     for (size_t i = 0; i < n_worker_thread; i++) {
-        hs_instance->hs_rt->scratch->bool_match_buffs[i] = ALLOC(struct bool_expr_match, hs_instance->n_expr);
+        hs_inst->hs_rt->scratch->bool_match_buffs[i] = ALLOC(struct bool_expr_match,
+                                                             hs_inst->n_expr);
     }
 
     /* literal and regex scratch can't reuse */
     if (literal_pattern_num > 0) {
-        ret = adpt_hs_alloc_scratch(hs_instance->hs_rt, n_worker_thread, HS_PATTERN_TYPE_STR, logger);
+        ret = adpt_hs_alloc_scratch(hs_inst->hs_rt, n_worker_thread,
+                                    HS_PATTERN_TYPE_STR, logger);
         if (ret < 0) {
             goto error;
         }
     }
 
     if (regex_pattern_num > 0) {
-        ret = adpt_hs_alloc_scratch(hs_instance->hs_rt, n_worker_thread, HS_PATTERN_TYPE_REG, logger);
+        ret = adpt_hs_alloc_scratch(hs_inst->hs_rt, n_worker_thread,
+                                    HS_PATTERN_TYPE_REG, logger);
         if (ret < 0) {
             goto error;
         }
     }
 
-    return hs_instance;
+    return hs_inst;
 error:
-    adapter_hs_free(hs_instance);
+    adapter_hs_free(hs_inst);
     return NULL;
 }
 
-void adapter_hs_free(struct adapter_hs *hs_instance)
+void adapter_hs_free(struct adapter_hs *hs_inst)
 {
-    if (NULL == hs_instance) {
+    if (NULL == hs_inst) {
         return;
     }
 
-    if (hs_instance->hs_rt != NULL) {
-        if (hs_instance->hs_rt->literal_db != NULL) {
-            hs_free_database(hs_instance->hs_rt->literal_db);
-            hs_instance->hs_rt->literal_db = NULL;
+    if (hs_inst->hs_rt != NULL) {
+        if (hs_inst->hs_rt->literal_db != NULL) {
+            hs_free_database(hs_inst->hs_rt->literal_db);
+            hs_inst->hs_rt->literal_db = NULL;
         }
 
-        if (hs_instance->hs_rt->regex_db != NULL) {
-            hs_free_database(hs_instance->hs_rt->regex_db);
-            hs_instance->hs_rt->regex_db = NULL;
+        if (hs_inst->hs_rt->regex_db != NULL) {
+            hs_free_database(hs_inst->hs_rt->regex_db);
+            hs_inst->hs_rt->regex_db = NULL;
         }
 
-        if (hs_instance->hs_rt->scratch != NULL) {
-            if (hs_instance->hs_rt->scratch->literal_scratches != NULL) {
-                for (size_t i = 0; i < hs_instance->n_worker_thread; i++) {
-                    if (hs_instance->hs_rt->scratch->literal_scratches[i] != NULL) {
-                        hs_free_scratch(hs_instance->hs_rt->scratch->literal_scratches[i]);
-                        hs_instance->hs_rt->scratch->literal_scratches[i] = NULL;
+        if (hs_inst->hs_rt->scratch != NULL) {
+            if (hs_inst->hs_rt->scratch->literal_scratches != NULL) {
+                for (size_t i = 0; i < hs_inst->n_worker_thread; i++) {
+                    if (hs_inst->hs_rt->scratch->literal_scratches[i] != NULL) {
+                        hs_free_scratch(hs_inst->hs_rt->scratch->literal_scratches[i]);
+                        hs_inst->hs_rt->scratch->literal_scratches[i] = NULL;
                     }
                 }
-                FREE(hs_instance->hs_rt->scratch->literal_scratches);
+                FREE(hs_inst->hs_rt->scratch->literal_scratches);
             }
 
-            if (hs_instance->hs_rt->scratch->regex_scratches != NULL) {
-                for (size_t i = 0; i < hs_instance->n_worker_thread; i++) {
-                    if (hs_instance->hs_rt->scratch->regex_scratches[i] != NULL) {
-                        hs_free_scratch(hs_instance->hs_rt->scratch->regex_scratches[i]);
-                        hs_instance->hs_rt->scratch->regex_scratches[i] = NULL;
+            if (hs_inst->hs_rt->scratch->regex_scratches != NULL) {
+                for (size_t i = 0; i < hs_inst->n_worker_thread; i++) {
+                    if (hs_inst->hs_rt->scratch->regex_scratches[i] != NULL) {
+                        hs_free_scratch(hs_inst->hs_rt->scratch->regex_scratches[i]);
+                        hs_inst->hs_rt->scratch->regex_scratches[i] = NULL;
                     }
                 }
-                FREE(hs_instance->hs_rt->scratch->regex_scratches);
+                FREE(hs_inst->hs_rt->scratch->regex_scratches);
             }
 
-            if (hs_instance->hs_rt->scratch->bool_match_buffs != NULL) {
-                for (size_t i = 0; i < hs_instance->n_worker_thread; i++) {
-                    if (hs_instance->hs_rt->scratch->bool_match_buffs[i] != NULL) {
-                        FREE(hs_instance->hs_rt->scratch->bool_match_buffs[i]);
+            if (hs_inst->hs_rt->scratch->bool_match_buffs != NULL) {
+                for (size_t i = 0; i < hs_inst->n_worker_thread; i++) {
+                    if (hs_inst->hs_rt->scratch->bool_match_buffs[i] != NULL) {
+                        FREE(hs_inst->hs_rt->scratch->bool_match_buffs[i]);
                     }
                 }
 
-                FREE(hs_instance->hs_rt->scratch->bool_match_buffs);
+                FREE(hs_inst->hs_rt->scratch->bool_match_buffs);
             }
 
-            FREE(hs_instance->hs_rt->scratch);
+            FREE(hs_inst->hs_rt->scratch);
         }
         
-        if (hs_instance->hs_rt->bm != NULL) {
-            bool_matcher_free(hs_instance->hs_rt->bm);
-            hs_instance->hs_rt->bm = NULL;
+        if (hs_inst->hs_rt->bm != NULL) {
+            bool_matcher_free(hs_inst->hs_rt->bm);
+            hs_inst->hs_rt->bm = NULL;
         }
 
-        FREE(hs_instance->hs_rt);
+        FREE(hs_inst->hs_rt);
     }
 
-    if (hs_instance->hs_attr != NULL) {
-        FREE(hs_instance->hs_attr);
+    if (hs_inst->hs_attr != NULL) {
+        FREE(hs_inst->hs_attr);
     }
 
-    FREE(hs_instance);
+    FREE(hs_inst);
 }
 
 static inline int compare_pattern_id(const void *a, const void *b)
@@ -641,7 +658,8 @@ int matched_event_cb(unsigned int id, unsigned long long from,
 }
 
 UT_icd ut_pattern_id_icd = {sizeof(unsigned long long), NULL, NULL, NULL};
-struct adapter_hs_stream *adapter_hs_stream_open(struct adapter_hs *hs_instance, int thread_id)
+struct adapter_hs_stream *
+adapter_hs_stream_open(struct adapter_hs *hs_instance, int thread_id)
 {
     if (NULL == hs_instance || thread_id < 0) {
         return NULL;
@@ -662,17 +680,21 @@ struct adapter_hs_stream *adapter_hs_stream_open(struct adapter_hs *hs_instance,
 
     int err_count = 0;
     if (hs_instance->hs_rt->literal_db != NULL) {
-        err = hs_open_stream(hs_instance->hs_rt->literal_db, 0, &hs_stream->literal_stream);
+        err = hs_open_stream(hs_instance->hs_rt->literal_db, 0,
+                             &hs_stream->literal_stream);
         if (err != HS_SUCCESS) {
-            log_error(hs_instance->logger, MODULE_ADAPTER_HS, "hs_open_stream failed, hs err:%d", err);
+            log_error(hs_instance->logger, MODULE_ADAPTER_HS,
+                      "hs_open_stream failed, hs err:%d", err);
             err_count++;
         }
     }
 
     if (hs_instance->hs_rt->regex_db != NULL) {
-        err = hs_open_stream(hs_instance->hs_rt->regex_db, 0, &hs_stream->regex_stream);
+        err = hs_open_stream(hs_instance->hs_rt->regex_db, 0,
+                             &hs_stream->regex_stream);
         if (err != HS_SUCCESS) {
-            log_error(hs_instance->logger, MODULE_ADAPTER_HS, "hs_open_stream failed, hs err:%d", err);
+            log_error(hs_instance->logger, MODULE_ADAPTER_HS,
+                      "hs_open_stream failed, hs err:%d", err);
             err_count++;
         }
     }

@@ -22,7 +22,7 @@ const char *json_filename = "maat_json.json";
 struct thread_param {
 	int thread_id;
 	int test_count;
-	struct maat *maat_instance;
+	struct maat *maat_inst;
 	const char *table_name;
 	long long time_elapse_ms;
     struct log_handle *logger;
@@ -162,7 +162,7 @@ static int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
     return 0;
 }
 
-static int compile_table_set_line(struct maat *maat_instance, const char *table_name,
+static int compile_table_set_line(struct maat *maat_inst, const char *table_name,
                                   enum maat_operation op, long long compile_id,
                                   const char *user_region, int clause_num, int expire_after)
 {
@@ -176,10 +176,10 @@ static int compile_table_set_line(struct maat *maat_instance, const char *table_
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
 
-    return maat_cmd_set_line(maat_instance, &line_rule);
+    return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-static int group2compile_table_set_line(struct maat *maat_instance, const char *table_name,
+static int group2compile_table_set_line(struct maat *maat_inst, const char *table_name,
                                         enum maat_operation op, long long group_id, long long compile_id,
                                         int not_flag, const char *vtable_name, int clause_num,
                                         int expire_after)
@@ -194,20 +194,20 @@ static int group2compile_table_set_line(struct maat *maat_instance, const char *
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
 
-    return maat_cmd_set_line(maat_instance, &line_rule);
+    return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-static int expr_table_set_line(struct maat *maat_instance, const char *table_name, enum maat_operation op,
+static int expr_table_set_line(struct maat *maat_inst, const char *table_name, enum maat_operation op,
                                long long item_id, long long group_id, const char *keywords, const char *district,
                                int expr_type, int match_method, int is_hexbin, int expire_after)
 {
     char table_line[1024] = {0};
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     if (table_id < 0) {
         return 0;
     }
     
-    enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
+    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     assert(table_type == TABLE_TYPE_EXPR || table_type == TABLE_TYPE_EXPR_PLUS);
 
     if (table_type == TABLE_TYPE_EXPR_PLUS) {
@@ -224,15 +224,15 @@ static int expr_table_set_line(struct maat *maat_instance, const char *table_nam
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
 
-    return maat_cmd_set_line(maat_instance, &line_rule);
+    return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-static int ip_table_set_line(struct maat *maat_instance, const char *table_name, enum maat_operation op,
+static int ip_table_set_line(struct maat *maat_inst, const char *table_name, enum maat_operation op,
                              long long item_id, long long group_id, enum IP_TYPE type, const char *ip1, 
                              const char *ip2, uint16_t port_min, uint16_t port_max, int expire_after)
 {
     char table_line[1024] = {0};
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     if (table_id < 0) {
         return 0;
     }
@@ -252,41 +252,41 @@ static int ip_table_set_line(struct maat *maat_instance, const char *table_name,
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
 
-    return maat_cmd_set_line(maat_instance, &line_rule);
+    return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-void test_add_expr_command(struct maat *maat_instance, const char *table_name, 
+void test_add_expr_command(struct maat *maat_inst, const char *table_name, 
                            const char *keywords)
 {
-    long long compile_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, "COMPILE", MAAT_OP_ADD, compile_id, "null", 1, 0);
+    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_ADD, compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    long long group_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, "GROUP2COMPILE", MAAT_OP_ADD, group_id,
+    long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD, group_id,
                                        compile_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    long long item_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, table_name, MAAT_OP_ADD, item_id, group_id,
+    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id, group_id,
                               keywords, NULL, 1, 0, 0, 0);
     EXPECT_EQ(ret, 1);
 }
 
-void test_add_ip_command(struct maat *maat_instance, const char *table_name, 
+void test_add_ip_command(struct maat *maat_inst, const char *table_name, 
                          const char *ip, uint16_t port)
 {
-    long long compile_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, "COMPILE", MAAT_OP_ADD, compile_id, "null", 1, 0);
+    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_ADD, compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    long long group_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, "GROUP2COMPILE", MAAT_OP_ADD, group_id,
+    long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD, group_id,
                                        compile_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    long long item_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = ip_table_set_line(maat_instance, table_name, MAAT_OP_ADD, item_id, group_id,
+    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = ip_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id, group_id,
                             IPv4, ip, ip, port, port, 0);
     EXPECT_EQ(ret, 1);
 }
@@ -316,9 +316,9 @@ protected:
         maat_options_set_accept_tags(opts, accept_tags);
         maat_options_set_caller_thread_number(opts, 5);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
@@ -326,34 +326,34 @@ protected:
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *MaatPerfStringScan::_shared_maat_instance;
+struct maat *MaatPerfStringScan::_shared_maat_inst;
 struct log_handle *MaatPerfStringScan::logger;
 
 void *perf_string_scan_thread(void *arg)
 {
     struct thread_param *param = (struct thread_param *)arg;
-    struct maat *maat_instance = param->maat_instance;
+    struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
     struct timespec start, end;
     const char *scan_data = "String TEST should hit";
     long long results[ARRAY_SIZE] = {0};
     int hit_times = 0;
     size_t n_hit_result = 0;
-    struct maat_state *state = maat_state_new(maat_instance, param->thread_id);
+    struct maat_state *state = maat_state_new(maat_inst, param->thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < param->test_count; i++) {
-        int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
+        int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                                    results, ARRAY_SIZE, &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
             hit_times++;
@@ -374,14 +374,14 @@ void *perf_string_scan_thread(void *arg)
 void *perf_string_update_thread(void *arg)
 {
     struct thread_param *param = (struct thread_param *)arg;
-    struct maat *maat_instance = param->maat_instance;
+    struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
     const int CMD_EXPR_NUM = 10;
     char keyword_buf[128];
 
     for (int i = 0; i < CMD_EXPR_NUM; i++) {
         random_keyword_generate(keyword_buf, sizeof(keyword_buf));
-        test_add_expr_command(maat_instance, table_name, keyword_buf);
+        test_add_expr_command(maat_inst, table_name, keyword_buf);
         sleep(1);
     }
 
@@ -394,7 +394,7 @@ void *perf_string_update_thread(void *arg)
 void *perf_ip_scan_thread(void *arg)
 {
     struct thread_param *param = (struct thread_param *)arg;
-    struct maat *maat_instance = param->maat_instance;
+    struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
     struct timespec start, end;
     char ip_str[32] = "10.0.7.100";
@@ -407,12 +407,12 @@ void *perf_ip_scan_thread(void *arg)
     int hit_times = 0;
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
-    struct maat_state *state = maat_state_new(maat_instance, param->thread_id);
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    struct maat_state *state = maat_state_new(maat_inst, param->thread_id);
+    int table_id = maat_get_table_id(maat_inst, table_name);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < param->test_count; i++) {
-        int ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6,
+        int ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6,
                                  results, ARRAY_SIZE, &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
             hit_times++;
@@ -433,7 +433,7 @@ void *perf_ip_scan_thread(void *arg)
 void *perf_ip_update_thread(void *arg)
 {
     struct thread_param *param = (struct thread_param *)arg;
-    struct maat *maat_instance = param->maat_instance;
+    struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
     const int CMD_EXPR_NUM = 10;
     char ip_str[10][32] = {
@@ -450,7 +450,7 @@ void *perf_ip_update_thread(void *arg)
 
     uint16_t port = 65530;
     for (int i = 0; i < CMD_EXPR_NUM; i++) {
-        test_add_ip_command(maat_instance, table_name, ip_str[i], port);
+        test_add_ip_command(maat_inst, table_name, ip_str[i], port);
         sleep(1);
     }
 
@@ -462,9 +462,9 @@ void *perf_ip_update_thread(void *arg)
 
 TEST_F(MaatPerfStringScan, MultiThread) {
     const char *table_name = "KEYWORDS_TABLE";
-    struct maat *maat_instance = MaatPerfStringScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatPerfStringScan::_shared_maat_inst;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     pthread_t threads[PERF_THREAD_NUM + 1];
@@ -473,7 +473,7 @@ TEST_F(MaatPerfStringScan, MultiThread) {
     int *is_all_hit = NULL;
 
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
-        thread_params[i].maat_instance = maat_instance;
+        thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
         thread_params[i].test_count = PERF_SCAN_COUNT;
@@ -502,7 +502,7 @@ TEST_F(MaatPerfStringScan, MultiThread) {
     }
     scan_per_second = scan_count * 1000 / time_elapse_ms;
     //EXPECT_GT(scan_per_second, 800 * 1000);
-    log_info(maat_instance->logger, MODULE_FRAMEWORK_PERF_GTEST,
+    log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST,
              "StringScan match rate on %d-threads speed %lld lookups/s/thread",
              PERF_THREAD_NUM, scan_per_second);
 }
@@ -532,9 +532,9 @@ protected:
         maat_options_set_accept_tags(opts, accept_tags);
         maat_options_set_caller_thread_number(opts, 5);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
@@ -542,21 +542,21 @@ protected:
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *MaatPerfStreamScan::_shared_maat_instance;
+struct maat *MaatPerfStreamScan::_shared_maat_inst;
 struct log_handle *MaatPerfStreamScan::logger;
 
 void *perf_stream_scan_thread(void *arg)
 {
     struct thread_param *param = (struct thread_param *)arg;
-    struct maat *maat_instance = param->maat_instance;
+    struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
     struct timespec start, end;
     const char *scan_data = "http://www.cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
@@ -565,13 +565,13 @@ void *perf_stream_scan_thread(void *arg)
     size_t n_hit_result = 0;
     struct maat_state *state_array[ARRAY_SIZE];
     struct maat_stream *sp[ARRAY_SIZE];
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < param->test_count; i++) {
         for (int j = 0; j < ARRAY_SIZE; j++) {
-            state_array[j] = maat_state_new(maat_instance, param->thread_id);
-            sp[j] = maat_stream_new(maat_instance, table_id, state_array[j]);
+            state_array[j] = maat_state_new(maat_inst, param->thread_id);
+            sp[j] = maat_stream_new(maat_inst, table_id, state_array[j]);
 
             ret = maat_stream_scan(sp[j], scan_data, strlen(scan_data), results, ARRAY_SIZE,
                                     &n_hit_result, state_array[j]);
@@ -597,14 +597,14 @@ void *perf_stream_scan_thread(void *arg)
 void *perf_stream_update_thread(void *arg)
 {
     struct thread_param *param = (struct thread_param *)arg;
-    struct maat *maat_instance = param->maat_instance;
+    struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
     const int CMD_EXPR_NUM = 10;
     char keyword_buf[128];
 
     for (int i = 0; i < CMD_EXPR_NUM; i++) {
         random_keyword_generate(keyword_buf, sizeof(keyword_buf));
-        test_add_expr_command(maat_instance, table_name, keyword_buf);
+        test_add_expr_command(maat_inst, table_name, keyword_buf);
         sleep(1);
     }
 
@@ -616,9 +616,9 @@ void *perf_stream_update_thread(void *arg)
 
 TEST_F(MaatPerfStreamScan, MultiThread) {
     const char *table_name = "HTTP_URL";
-    struct maat *maat_instance = MaatPerfStreamScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatPerfStreamScan::_shared_maat_inst;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     pthread_t threads[PERF_THREAD_NUM + 1];
@@ -627,7 +627,7 @@ TEST_F(MaatPerfStreamScan, MultiThread) {
     int *is_all_hit = NULL;
 
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
-        thread_params[i].maat_instance = maat_instance;
+        thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
         thread_params[i].test_count = PERF_SCAN_COUNT / 10;
@@ -656,7 +656,7 @@ TEST_F(MaatPerfStreamScan, MultiThread) {
     }
     scan_per_second = scan_count * 1000 / time_elapse_ms;
 
-    log_info(maat_instance->logger, MODULE_FRAMEWORK_PERF_GTEST,
+    log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST,
              "StreamScan match rate on %d-threads speed %lld lookups/s/thread",
              PERF_THREAD_NUM, scan_per_second);
 }
@@ -686,9 +686,9 @@ protected:
         maat_options_set_accept_tags(opts, accept_tags);
         maat_options_set_caller_thread_number(opts, 5);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
@@ -696,23 +696,23 @@ protected:
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *MaatPerfIPScan::_shared_maat_instance;
+struct maat *MaatPerfIPScan::_shared_maat_inst;
 struct log_handle *MaatPerfIPScan::logger;
 
 TEST_F(MaatPerfIPScan, MultiThread)
 {
     const char *table_name = "IP_PLUS_CONFIG";
-    struct maat *maat_instance = MaatPerfIPScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatPerfIPScan::_shared_maat_inst;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     pthread_t threads[PERF_THREAD_NUM + 1];
@@ -721,7 +721,7 @@ TEST_F(MaatPerfIPScan, MultiThread)
     int *is_all_hit = NULL;
 
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
-        thread_params[i].maat_instance = maat_instance;
+        thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
         thread_params[i].test_count = PERF_SCAN_COUNT;
@@ -750,7 +750,7 @@ TEST_F(MaatPerfIPScan, MultiThread)
     }
     scan_per_second = scan_count * 1000 / time_elapse_ms;
 
-    log_info(maat_instance->logger, MODULE_FRAMEWORK_PERF_GTEST,
+    log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST,
              "IPScan match rate on %d-threads speed %lld lookups/s/thread",
              PERF_THREAD_NUM, scan_per_second);
 }
@@ -780,9 +780,9 @@ protected:
         maat_options_set_accept_tags(opts, accept_tags);
         maat_options_set_caller_thread_number(opts, 5);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
@@ -790,15 +790,15 @@ protected:
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *MaatPerfFQDNPluginScan::_shared_maat_instance;
+struct maat *MaatPerfFQDNPluginScan::_shared_maat_inst;
 struct log_handle *MaatPerfFQDNPluginScan::logger;
 
 struct perf_fqdn_plugin_ud {
@@ -846,11 +846,11 @@ void perf_fqdn_plugin_EX_dup_cb(int table_id, void **to, void **from, long argl,
 void* perf_fqdn_plugin_scan_thread(void *arg)
 {
 	struct thread_param *param = (struct thread_param *)arg;
-	struct maat *maat_instance = param->maat_instance;
+	struct maat *maat_inst = param->maat_inst;
 	struct perf_fqdn_plugin_ud *result[ARRAY_SIZE];
 
 	int i=0, j=0, ret=0, hit_times=0;
-	int table_id = maat_get_table_id(maat_instance, param->table_name);
+	int table_id = maat_get_table_id(maat_inst, param->table_name);
 
 	memset(&result, 0, sizeof(result));
 	struct timespec start, end;
@@ -858,7 +858,7 @@ void* perf_fqdn_plugin_scan_thread(void *arg)
 	clock_gettime(CLOCK_MONOTONIC, &start);
 	for (i = 0; i < param->test_count; i++) {
 	
-		ret = maat_fqdn_plugin_table_get_ex_data(maat_instance, table_id, 
+		ret = maat_fqdn_plugin_table_get_ex_data(maat_inst, table_id, 
                                                  "r3---sn-i3belne6.example2.com",
                                                  (void**)result, ARRAY_SIZE);
 		if (ret == 2) {
@@ -907,20 +907,20 @@ void random_fqdn_generate(char *fqdn_buff, int sz)
 void *perf_fqdn_plugin_update_thread(void *arg)
 {
 	struct thread_param *param = (struct thread_param *)arg;
-	struct maat *maat_instance = param->maat_instance;
+	struct maat *maat_inst = param->maat_inst;
 	const int CMD_EXPR_NUM = 20;
 	int i = 0;
 	struct maat_cmd_line line_rule;
 	char line_buff[1024], fqdn_buff[256];
 
 	for (i = 0; i < CMD_EXPR_NUM; i++) {
-		line_rule.rule_id = (int)maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
+		line_rule.rule_id = (int)maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
 		line_rule.table_name = param->table_name;
 		random_fqdn_generate(fqdn_buff, sizeof(fqdn_buff));
 		snprintf(line_buff, 1024, "%lld\t1\t%s\tcatid=4\t1", line_rule.rule_id, fqdn_buff);
 		line_rule.table_line = line_buff;
 		line_rule.expire_after = 0;
-		maat_cmd_set_line(maat_instance, &line_rule);
+		maat_cmd_set_line(maat_inst, &line_rule);
 		sleep(WAIT_FOR_EFFECTIVE_S);
 	}
 
@@ -931,11 +931,11 @@ void *perf_fqdn_plugin_update_thread(void *arg)
 }
 
 TEST_F(MaatPerfFQDNPluginScan, MultiThread) {
-    struct maat *maat_instance = MaatPerfFQDNPluginScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatPerfFQDNPluginScan::_shared_maat_inst;
     const char *table_name = "TEST_FQDN_PLUGIN_WITH_EXDATA";
     int fqdn_plugin_ex_data_counter = 0;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     pthread_t threads[PERF_THREAD_NUM + 1];
@@ -943,7 +943,7 @@ TEST_F(MaatPerfFQDNPluginScan, MultiThread) {
     int i = 0;
     int *is_all_hit = NULL;
 
-    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
+    int ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
                                                  perf_fqdn_plugin_EX_new_cb,
                                                  perf_fqdn_plugin_EX_free_cb,
                                                  perf_fqdn_plugin_EX_dup_cb,
@@ -951,7 +951,7 @@ TEST_F(MaatPerfFQDNPluginScan, MultiThread) {
     ASSERT_TRUE(ret>=0);
 
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
-        thread_params[i].maat_instance = maat_instance;
+        thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
         thread_params[i].test_count = PERF_SCAN_COUNT;
@@ -980,7 +980,7 @@ TEST_F(MaatPerfFQDNPluginScan, MultiThread) {
     }
     scan_per_second = scan_count * 1000 / time_elapse_ms;
 
-    log_info(maat_instance->logger, MODULE_FRAMEWORK_PERF_GTEST,
+    log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST,
              "FQDNPluginScan match rate on %d-threads speed %lld lookups/s/thread",
              PERF_THREAD_NUM, scan_per_second);
 }
@@ -1010,9 +1010,9 @@ protected:
         maat_options_set_accept_tags(opts, accept_tags);
         maat_options_set_caller_thread_number(opts, 5);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] create maat instance in BoolPluginScan failed.",
                       __FUNCTION__, __LINE__);
@@ -1020,15 +1020,15 @@ protected:
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *MaatPerfBoolPluginScan::_shared_maat_instance;
+struct maat *MaatPerfBoolPluginScan::_shared_maat_inst;
 struct log_handle *MaatPerfBoolPluginScan::logger;
 
 struct bool_plugin_ud {
@@ -1076,11 +1076,11 @@ void perf_bool_plugin_ex_dup_cb(int table_id, void **to, void **from, long argl,
 void* perf_bool_plugin_scan_thread(void *arg)
 {
 	struct thread_param *param = (struct thread_param *)arg;
-	struct maat *maat_instance = param->maat_instance;
+	struct maat *maat_inst = param->maat_inst;
 	struct perf_fqdn_plugin_ud *result[ARRAY_SIZE];
 
 	int i=0, j=0, ret=0, hit_times=0;
-	int table_id = maat_get_table_id(maat_instance, param->table_name);
+	int table_id = maat_get_table_id(maat_inst, param->table_name);
 
 	memset(&result, 0, sizeof(result));
 	struct timespec start, end;
@@ -1089,7 +1089,7 @@ void* perf_bool_plugin_scan_thread(void *arg)
 	clock_gettime(CLOCK_MONOTONIC, &start);
 	for (i = 0; i < param->test_count; i++) {
 	
-		ret = maat_bool_plugin_table_get_ex_data(maat_instance, table_id, items_4,
+		ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_id, items_4,
                                                  sizeof(items_4)/sizeof(unsigned long long),
                                                  (void**)result, 6);
 		if (ret == 1) {
@@ -1116,19 +1116,19 @@ void* perf_bool_plugin_scan_thread(void *arg)
 void *perf_bool_plugin_update_thread(void *arg)
 {
 	struct thread_param *param = (struct thread_param *)arg;
-	struct maat *maat_instance = param->maat_instance;
+	struct maat *maat_inst = param->maat_inst;
 	const int CMD_EXPR_NUM = 20;
 	int i = 0;
 	struct maat_cmd_line line_rule;
 	char line_buff[1024];
 
 	for (i = 0; i < CMD_EXPR_NUM; i++) {
-		line_rule.rule_id = (int)maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
+		line_rule.rule_id = (int)maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
 		line_rule.table_name = param->table_name;
 		snprintf(line_buff, 1024, "%lld\t1&%d\ttunnel2\t1", line_rule.rule_id, i);
 		line_rule.table_line = line_buff;
 		line_rule.expire_after = 0;
-		maat_cmd_set_line(maat_instance, &line_rule);
+		maat_cmd_set_line(maat_inst, &line_rule);
 		sleep(WAIT_FOR_EFFECTIVE_S);
 	}
 
@@ -1141,12 +1141,12 @@ void *perf_bool_plugin_update_thread(void *arg)
 TEST_F(MaatPerfBoolPluginScan, MultiThread) {
     int ex_data_counter = 0;
     const char *table_name = "TEST_BOOL_PLUGIN_WITH_EXDATA";
-    struct maat *maat_instance = MaatPerfBoolPluginScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatPerfBoolPluginScan::_shared_maat_inst;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
 	ASSERT_GT(table_id, 0);
 
-    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
+    int ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
 								                   perf_bool_plugin_ex_new_cb,
 								                   perf_bool_plugin_ex_free_cb,
 								                   perf_bool_plugin_ex_dup_cb,
@@ -1159,7 +1159,7 @@ TEST_F(MaatPerfBoolPluginScan, MultiThread) {
     int *is_all_hit = NULL;
 
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
-        thread_params[i].maat_instance = maat_instance;
+        thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
         thread_params[i].test_count = PERF_SCAN_COUNT;
@@ -1188,7 +1188,7 @@ TEST_F(MaatPerfBoolPluginScan, MultiThread) {
     }
     scan_per_second = scan_count * 1000 / time_elapse_ms;
 
-    log_info(maat_instance->logger, MODULE_FRAMEWORK_PERF_GTEST,
+    log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST,
              "BoolPluginScan match rate on %d-threads speed %lld lookups/s/thread",
              PERF_THREAD_NUM, scan_per_second);
 }
@@ -1208,9 +1208,9 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_caller_thread_number(opts, 5);
 
-        _shared_maat_instance = maat_new(opts, table_info);
+        _shared_maat_inst = maat_new(opts, table_info);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] create maat instance in MaatPerfFileScan failed.",
                       __FUNCTION__, __LINE__);
@@ -1218,15 +1218,15 @@ protected:
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *MaatPerfFileScan::_shared_maat_instance;
+struct maat *MaatPerfFileScan::_shared_maat_inst;
 struct log_handle *MaatPerfFileScan::logger;
 
 struct perf_ip_plugin_ud {
@@ -1274,9 +1274,9 @@ static void *ip_plugin_get_thread(void *arg)
 	const char *table_name = "TSG_IP_LOCATION_BUILT_IN";
 	int test_times = 1000*1000, hit_times = 0;
 	int ret = 0, i=0, j=0;
-	struct maat *maat_instance = (struct maat *)arg;
+	struct maat *maat_inst = (struct maat *)arg;
 
-	int table_id = maat_get_table_id(maat_instance, table_name);
+	int table_id = maat_get_table_id(maat_inst, table_name);
 
     struct timespec start, end;
 	struct ip_addr ipv4;
@@ -1287,7 +1287,7 @@ static void *ip_plugin_get_thread(void *arg)
     clock_gettime(CLOCK_MONOTONIC, &start);
     struct perf_ip_plugin_ud *results[ARRAY_SIZE];
 	for (i = 0; i < test_times; i++) {
-		ret = maat_ip_plugin_table_get_ex_data(maat_instance, table_id, &ipv4, (void**)results, 4);
+		ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv4, (void**)results, 4);
 		if (ret > 0) {
 			hit_times++;
 		}
@@ -1299,7 +1299,7 @@ static void *ip_plugin_get_thread(void *arg)
     clock_gettime(CLOCK_MONOTONIC, &end);
 
     long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
-    log_info(maat_instance->logger, MODULE_FRAMEWORK_PERF_GTEST, 
+    log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST, 
              "ip_plugin_get_ex_data time_elapse:%lldms hit_times:%d", 
               time_elapse_ms, hit_times);
 
@@ -1309,15 +1309,15 @@ static void *ip_plugin_get_thread(void *arg)
 }
 
 TEST_F(MaatPerfFileScan, IPPlugin) {
-    struct maat *maat_instance = MaatPerfFileScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatPerfFileScan::_shared_maat_inst;
     const char* table_name = "TSG_IP_LOCATION_BUILT_IN";
     int ip_plugin_ex_data_counter = 0;
     int* is_all_hit = NULL;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
+    int ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
                                                    perf_ip_plugin_EX_new_cb,
                                                    perf_ip_plugin_EX_free_cb,
                                                    perf_ip_plugin_EX_dup_cb,
@@ -1328,7 +1328,7 @@ TEST_F(MaatPerfFileScan, IPPlugin) {
     pthread_t threads[PERF_THREAD_NUM];
 
 	for (i = 0; i < PERF_THREAD_NUM; i++) {
-		pthread_create(&(threads[i]), NULL, ip_plugin_get_thread, maat_instance);
+		pthread_create(&(threads[i]), NULL, ip_plugin_get_thread, maat_inst);
 	}
 
 	for (i = 0; i < PERF_THREAD_NUM; i++) {

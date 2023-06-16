@@ -184,31 +184,31 @@ static int connect_redis_for_write(struct source_redis_ctx *redis_ctx,
 	}
 }
 
-redisContext *get_redis_ctx_for_write(struct maat *maat_instance)
+redisContext *get_redis_ctx_for_write(struct maat *maat_inst)
 {
-	if (NULL == maat_instance->opts.redis_ctx.write_ctx) {
-		int ret = connect_redis_for_write(&(maat_instance->opts.redis_ctx),
-                                          maat_instance->logger);
+	if (NULL == maat_inst->opts.redis_ctx.write_ctx) {
+		int ret = connect_redis_for_write(&(maat_inst->opts.redis_ctx),
+                                          maat_inst->logger);
 		if (ret != 0) {
 			return NULL;
 		}
 	}
-	return maat_instance->opts.redis_ctx.write_ctx;
+	return maat_inst->opts.redis_ctx.write_ctx;
 }
 
-int maat_cmd_flushDB(struct maat *maat_instance)
+int maat_cmd_flushDB(struct maat *maat_inst)
 {
 	int ret = 0;
 
-	redisContext *write_ctx = get_redis_ctx_for_write(maat_instance);
+	redisContext *write_ctx = get_redis_ctx_for_write(maat_inst);
 	if (NULL == write_ctx) {
 		return -1;
 	}
 
 	do {
-		ret = redis_flushDB(maat_instance->opts.redis_ctx.write_ctx,
-                             maat_instance->opts.redis_ctx.redis_db,
-                             maat_instance->logger);
+		ret = redis_flushDB(maat_inst->opts.redis_ctx.write_ctx,
+                             maat_inst->opts.redis_ctx.redis_db,
+                             maat_inst->logger);
 	} while(0 == ret);
 	
     return 0;
@@ -317,13 +317,13 @@ int maat_cmd_wrap_redis_get_reply(redisContext *c, redisReply **reply)
 	return redisGetReply(c, (void **)reply);
 }
 
-int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *line_rule)
+int maat_cmd_set_line(struct maat *maat_inst, const struct maat_cmd_line *line_rule)
 {
     int i = 0;
 	int ret = 0;
 	long long absolute_expire_time = 0;
 
-	redisContext *write_ctx = get_redis_ctx_for_write(maat_instance);
+	redisContext *write_ctx = get_redis_ctx_for_write(maat_inst);
 	if (NULL == write_ctx) {
 		return -1;
 	}
@@ -335,18 +335,18 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
 
 	struct serial_rule *s_rule = ALLOC(struct serial_rule, 1);
 
-    int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, line_rule->table_name);
+    int table_id = table_manager_get_table_id(maat_inst->tbl_mgr, line_rule->table_name);
     if (table_id < 0) {
-        log_error(maat_instance->logger, MODULE_MAAT_COMMAND, 
+        log_error(maat_inst->logger, MODULE_MAAT_COMMAND, 
                   "[%s:%d] Command set line id %lld failed: unknown table %s", 
                   __FUNCTION__, __LINE__, line_rule->rule_id, line_rule->table_name);
         FREE(s_rule);
         return -1;
     }
 
-    int valid_column = table_manager_get_valid_column(maat_instance->tbl_mgr, table_id);
+    int valid_column = table_manager_get_valid_column(maat_inst->tbl_mgr, table_id);
     if (valid_column < 0) {
-        log_error(maat_instance->logger, MODULE_MAAT_COMMAND,
+        log_error(maat_inst->logger, MODULE_MAAT_COMMAND,
                   "[%s:%d] Command set line id %lld failed: table %s is not a plugin or ip_plugin table",
                   __FUNCTION__, __LINE__, line_rule->rule_id, line_rule->table_name);
         FREE(s_rule);
@@ -355,7 +355,7 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
    
     int valid_offset = maat_cmd_get_valid_flag_offset(line_rule->table_line, valid_column);
     if (valid_offset < 0) {
-        log_error(maat_instance->logger, MODULE_MAAT_COMMAND,
+        log_error(maat_inst->logger, MODULE_MAAT_COMMAND,
                   "[%s:%d] Command set line id %lld failed: table %s valid_offset error",
                   __FUNCTION__, __LINE__, line_rule->rule_id, line_rule->table_name);
         FREE(s_rule);
@@ -370,14 +370,14 @@ int maat_cmd_set_line(struct maat *maat_instance, const struct maat_cmd_line *li
     maat_cmd_set_serial_rule(s_rule + i, (enum maat_operation)is_valid, line_rule->rule_id,
                              line_rule->table_name, line_rule->table_line, absolute_expire_time);
 
-    int success_cnt = maat_cmd_write_rule(write_ctx, s_rule, 1, server_time, maat_instance->logger);
+    int success_cnt = maat_cmd_write_rule(write_ctx, s_rule, 1, server_time, maat_inst->logger);
 	if (success_cnt != 1) {
 		ret = -1;
 		goto error_out;
 	}
 
 	ret = success_cnt;
-	maat_instance->stat->line_cmd_acc_num += success_cnt;
+	maat_inst->stat->line_cmd_acc_num += success_cnt;
 
 error_out:
 	maat_cmd_clear_rule_cache(s_rule);
@@ -386,12 +386,12 @@ error_out:
 	return ret;
 }
 
-int maat_cmd_set_file(struct maat *maat_instance, const char *key, const char *value, 
+int maat_cmd_set_file(struct maat *maat_inst, const char *key, const char *value, 
                       size_t size, enum maat_operation op)
 {
-	redisContext *ctx = maat_instance->opts.redis_ctx.write_ctx;
+	redisContext *ctx = maat_inst->opts.redis_ctx.write_ctx;
 	if (NULL == ctx) {
-		log_error(maat_instance->logger, MODULE_MAAT_COMMAND, 
+		log_error(maat_inst->logger, MODULE_MAAT_COMMAND, 
                   "[%s:%d] failed: Redis is not connected.", 
                   __FUNCTION__, __LINE__);
 		return -1;
@@ -411,7 +411,7 @@ int maat_cmd_set_file(struct maat *maat_instance, const char *key, const char *v
 
 	redisReply *reply = NULL;
 	if (0 != strncmp(key, foreign_key_prefix, strlen(foreign_key_prefix))) {
-		log_error(maat_instance->logger, MODULE_MAAT_COMMAND, 
+		log_error(maat_inst->logger, MODULE_MAAT_COMMAND, 
                  "Invalid File key, prefix %s is mandatory.", foreign_key_prefix);
 		return -1;
 	}
@@ -430,7 +430,7 @@ int maat_cmd_set_file(struct maat *maat_instance, const char *key, const char *v
 	}
 
 	if (NULL == reply || reply->type == REDIS_REPLY_NIL || reply->type == REDIS_REPLY_ERROR) {
-		log_error(maat_instance->logger, MODULE_MAAT_COMMAND, 
+		log_error(maat_inst->logger, MODULE_MAAT_COMMAND, 
                   "Set file failed, maybe Redis is busy.");
 		freeReplyObject(reply);
 		reply = NULL;
@@ -442,11 +442,11 @@ int maat_cmd_set_file(struct maat *maat_instance, const char *key, const char *v
 	return 1;
 }
 
-long long maat_cmd_incrby(struct maat *maat_instance, const char *key, int increment)
+long long maat_cmd_incrby(struct maat *maat_inst, const char *key, int increment)
 {
 	long long result = 0;
 
-	redisContext *write_ctx = get_redis_ctx_for_write(maat_instance);
+	redisContext *write_ctx = get_redis_ctx_for_write(maat_inst);
 	if (NULL == write_ctx) {
 		return -1;
 	}
@@ -464,26 +464,26 @@ long long maat_cmd_incrby(struct maat *maat_instance, const char *key, int incre
 	return result;		
 }
 
-long long maat_cmd_get_config_version(struct maat *maat_instance)
+long long maat_cmd_get_config_version(struct maat *maat_inst)
 {
     long long new_version = -1;
 
-    if (maat_instance->new_version != INVALID_VERSION) {
-        new_version = maat_instance->new_version;
+    if (maat_inst->new_version != INVALID_VERSION) {
+        new_version = maat_inst->new_version;
     } else {
-        new_version = maat_instance->maat_version;
+        new_version = maat_inst->maat_version;
     }
 
     return new_version;
 }
 
-int maat_cmd_config_is_updating(struct maat *maat_instance)
+int maat_cmd_config_is_updating(struct maat *maat_inst)
 {
     int ret = 0;
 
-    if (0 == pthread_mutex_trylock(&(maat_instance->background_update_mutex))) {
+    if (0 == pthread_mutex_trylock(&(maat_inst->background_update_mutex))) {
         ret = 0;
-        pthread_mutex_unlock(&(maat_instance->background_update_mutex));
+        pthread_mutex_unlock(&(maat_inst->background_update_mutex));
     } else {
         ret = 1;
     }

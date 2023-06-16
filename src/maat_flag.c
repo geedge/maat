@@ -49,7 +49,6 @@ struct flag_runtime {
     struct rcu_hash_table *item_hash; // <item_id, struct flag_item>
 
     long long rule_num;
-    long long version;
     size_t n_worker_thread;
     struct log_handle *logger;
     struct maat_garbage_bin *ref_garbage_bin;
@@ -510,11 +509,10 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name,
     }
     
     flag_rt->rule_num = rule_cnt;
-    flag_rt->version = maat_rt_version;
 
     log_info(flag_rt->logger, MODULE_FLAG,
              "table[%s] commit %zu flag rules and rebuild flag_matcher completed,"
-             " version:%lld", table_name, rule_cnt, flag_rt->version);
+             " version:%lld", table_name, rule_cnt, maat_rt_version);
 
     if (rules != NULL) {
         FREE(rules);

@@ -70,32 +70,55 @@ enum log_level {
     LOG_LEVEL_ERROR, 
     LOG_LEVEL_FATAL 
 };
+
 /* update_type: MAAT_UPDATE_TYPE_FULL or MAAT_UPDATE_TYPE_INC */
 typedef void maat_start_callback_t(int update_type, void *u_param);
+
 typedef void maat_update_callback_t(int table_id, const char *table_line, void *u_para);
+
 typedef void maat_finish_callback_t(void *u_para);
 
 typedef void maat_ex_new_func_t(const char *table_name, int table_id, const char *key, 
                                 const char *table_line, void **ad, long argl, void *argp);
+
 typedef void maat_ex_free_func_t(int table_id, void **ad, long argl, void *argp);
+
 typedef void maat_ex_dup_func_t(int table_id, void **to, void **from, long argl, void *argp);
 
 /* maat_instance options API */
 struct maat_options;
+
 struct maat_options *maat_options_new(void);
+
 void maat_options_free(struct maat_options *opts);
 
-int maat_options_set_caller_thread_number(struct maat_options *opts, size_t n_thread);
-int maat_options_set_accept_tags(struct maat_options *opts, const char *accept_tags);
-int maat_options_set_rule_effect_interval_ms(struct maat_options *opts, int interval_ms);
-int maat_options_set_rule_update_checking_interval_ms(struct maat_options *opts, int interval_ms);
-int maat_options_set_gc_timeout_ms(struct maat_options *opts, int interval_ms);
+/**
+ * @brief set maat instance name
+ * 
+ * @note The maximum length of instance_name is 15 bytes
+*/
 int maat_options_set_instance_name(struct maat_options *opts, const char *instance_name);
+
+int maat_options_set_caller_thread_number(struct maat_options *opts, size_t n_thread);
+
+int maat_options_set_accept_tags(struct maat_options *opts, const char *accept_tags);
+
+int maat_options_set_rule_effect_interval_ms(struct maat_options *opts, int interval_ms);
+
+int maat_options_set_rule_update_checking_interval_ms(struct maat_options *opts, int interval_ms);
+
+int maat_options_set_gc_timeout_ms(struct maat_options *opts, int interval_ms);
+
 int maat_options_set_deferred_load_on(struct maat_options *opts);
+
 int maat_options_set_stat_on(struct maat_options *opts);
+
 int maat_options_set_perf_on(struct maat_options *opts);
+
 int maat_options_set_foreign_cont_dir(struct maat_options *opts, const char *dir);
-int maat_options_set_logger(struct maat_options *opts, const char *log_path, enum log_level level);
+
+int maat_options_set_logger(struct maat_options *opts, const char *log_path,
+                            enum log_level level);
 
 int maat_options_set_iris(struct maat_options *opts, const char *full_directory, 
                           const char *increment_directory);

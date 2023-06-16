@@ -118,7 +118,7 @@ void _get_foregin_keys(struct serial_rule *p_rule, int *foreign_columns,
 }
 
 int get_foreign_keys_define(redisContext *ctx, struct serial_rule *rule_list, 
-                            int rule_num, struct maat *maat_instance, const char *dir)
+                            int rule_num, struct maat *maat_inst, const char *dir)
 {
 	int rule_with_foreign_key = 0;
 
@@ -127,9 +127,9 @@ int get_foreign_keys_define(redisContext *ctx, struct serial_rule *rule_list,
 			continue;
 		}
 
-        int table_id = table_manager_get_table_id(maat_instance->tbl_mgr, rule_list[i].table_name);
-		void *schema = table_manager_get_schema(maat_instance->tbl_mgr, table_id);
-        enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
+        int table_id = table_manager_get_table_id(maat_inst->tbl_mgr, rule_list[i].table_name);
+		void *schema = table_manager_get_schema(maat_inst->tbl_mgr, table_id);
+        enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
 		if (!schema || table_type != TABLE_TYPE_PLUGIN) {
 			continue;
 		}
@@ -141,7 +141,7 @@ int get_foreign_keys_define(redisContext *ctx, struct serial_rule *rule_list,
             continue;
         }
 
-		_get_foregin_keys(rule_list+i, foreign_columns, n_foreign_column, dir, maat_instance->logger);
+		_get_foregin_keys(rule_list+i, foreign_columns, n_foreign_column, dir, maat_inst->logger);
 		rule_with_foreign_key++;
 	}
 
@@ -1380,14 +1380,14 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
     int no_table_num = 0;
     int call_update_num = 0;
     int valid_column = -1;
-    struct maat *maat_instance = (struct maat *)u_param;
+    struct maat *maat_inst = (struct maat *)u_param;
 
     //authorized to write
 	if (mr_ctx->write_ctx != NULL && mr_ctx->write_ctx->err == 0) {
 		//For thread safe, deliberately use redis_read_ctx but not redis_write_ctx.
 		if (1 == redlock_try_lock(mr_ctx->read_ctx, mr_expire_lock, mr_expire_lock_timeout_ms)) {
-			check_maat_expiration(mr_ctx->read_ctx, maat_instance->logger);
-			cleanup_update_status(mr_ctx->read_ctx, maat_instance->logger);
+			check_maat_expiration(mr_ctx->read_ctx, maat_inst->logger);
+			cleanup_update_status(mr_ctx->read_ctx, maat_inst->logger);
 			redlock_unlock(mr_ctx->read_ctx, mr_expire_lock);
 		}
 	}
@@ -1402,12 +1402,12 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 			redisFree(mr_ctx->read_ctx);
             mr_ctx->read_ctx = NULL;
 		}
-		log_info(maat_instance->logger, MODULE_REDIS_MONITOR, "Reconnecting...");
+		log_info(maat_inst->logger, MODULE_REDIS_MONITOR, "Reconnecting...");
 
 		mr_ctx->read_ctx = maat_cmd_connect_redis(mr_ctx->redis_ip, 
                                                   mr_ctx->redis_port, 
                                                   mr_ctx->redis_db,
-                                                  maat_instance->logger);
+                                                  maat_inst->logger);
 		if (NULL == mr_ctx->read_ctx) {
 			return;
 		} else {
@@ -1420,11 +1420,11 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
     int update_type = MAAT_UPDATE_TYPE_INC;
 
 	int rule_num = maat_cmd_get_rm_key_list(mr_ctx->read_ctx, version, 
-                                            maat_instance->load_specific_version, 
-                                            &new_version, maat_instance->tbl_mgr, 
+                                            maat_inst->load_specific_version, 
+                                            &new_version, maat_inst->tbl_mgr, 
                                             &rule_list, &update_type, 
-                                            maat_instance->opts.cumulative_update_off,
-                                            maat_instance->logger);
+                                            maat_inst->opts.cumulative_update_off,
+                                            maat_inst->logger);
 	//redis communication error
     if (rule_num < 0) {		
 		redisFree(mr_ctx->read_ctx);
@@ -1432,7 +1432,7 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 		return;
 	}
 
-	maat_instance->load_specific_version = 0;//only valid for one time.
+	maat_inst->load_specific_version = 0;//only valid for one time.
     //error or nothing changed
 	if (0 == rule_num && update_type == MAAT_UPDATE_TYPE_INC) {
 		return;
@@ -1440,12 +1440,12 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 
 	if (rule_num > 0) {
 		ret = maat_cmd_get_redis_value(mr_ctx->read_ctx, rule_list, rule_num, 
-                                       0, maat_instance->logger);
+                                       0, maat_inst->logger);
         //redis communication error
 		if (ret < 0) {
 			redisFree(mr_ctx->read_ctx);
 			mr_ctx->read_ctx = NULL;
-			log_error(maat_instance->logger, MODULE_REDIS_MONITOR, 
+			log_error(maat_inst->logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Get Redis value failed, abandon update and close connection",
                       __FUNCTION__, __LINE__);
 			goto clean_up;
@@ -1458,21 +1458,21 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 		}
 
 		if (empty_value_num == rule_num) {
-			log_info(maat_instance->logger, MODULE_REDIS_MONITOR, 
+			log_info(maat_inst->logger, MODULE_REDIS_MONITOR, 
                      "All %d rules are empty, abandon update", empty_value_num);
 			goto clean_up;
 		}
 
 		ret = get_foreign_keys_define(mr_ctx->read_ctx, rule_list, rule_num, 
-                                      maat_instance, maat_instance->opts.foreign_cont_dir);
+                                      maat_inst, maat_inst->opts.foreign_cont_dir);
 		if (ret > 0) {
 			maat_cmd_get_foreign_conts(mr_ctx->read_ctx, rule_list, rule_num, 0, 
-                                       maat_instance->logger);
+                                       maat_inst->logger);
 		}
 	}
 
 	start_fn(new_version, update_type, u_param);
-	log_info(maat_instance->logger, MODULE_REDIS_MONITOR, 
+	log_info(maat_inst->logger, MODULE_REDIS_MONITOR, 
              "Start %s update: %lld -> %lld (%d entries)",
 			 update_type == MAAT_UPDATE_TYPE_INC ? "INC" : "FULL", 
              version, new_version, rule_num);
@@ -1482,7 +1482,7 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 			continue;
 		}
 
-		table_id = table_manager_get_table_id(maat_instance->tbl_mgr, rule_list[i].table_name);
+		table_id = table_manager_get_table_id(maat_inst->tbl_mgr, rule_list[i].table_name);
 		//Unrecognized table.
         if (table_id < 0) {
 			no_table_num++;
@@ -1490,10 +1490,10 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 		}
 
 		if (rule_list[i].op == MAAT_OP_DEL) {
-			valid_column = table_manager_get_valid_column(maat_instance->tbl_mgr, table_id);
+			valid_column = table_manager_get_valid_column(maat_inst->tbl_mgr, table_id);
 			ret = invalidate_line(rule_list[i].table_line, valid_column);
 			if (ret < 0) {
-				log_error(maat_instance->logger, MODULE_REDIS_MONITOR, 
+				log_error(maat_inst->logger, MODULE_REDIS_MONITOR, 
                           "[%s:%d] Invalidate line failed, invaid format %s", 
                           __FUNCTION__, __LINE__, rule_list[i].table_line);
 				continue;
@@ -1511,7 +1511,7 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 	finish_fn(u_param);
 
 	if (call_update_num < rule_num) {		
-		log_error(maat_instance->logger, MODULE_REDIS_MONITOR, 
+		log_error(maat_inst->logger, MODULE_REDIS_MONITOR, 
                   "[%s:%d] Load %d entries to match engine, no table: %d, empty value: %d",
 				  __FUNCTION__, __LINE__, call_update_num, no_table_num, empty_value_num);
 	}

@@ -235,23 +235,23 @@ TEST(adapter_hs_init, invalid_input_parameter)
     struct expr_rule rules[64];
     size_t n_rule = 0;
 
-    struct adapter_hs *hs_instance = adapter_hs_new(1, NULL, 0, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(NULL, 0, 1, g_logger);
     EXPECT_TRUE(hs_instance == NULL);
 
-    hs_instance = adapter_hs_new(1, rules, n_rule, g_logger);
+    hs_instance = adapter_hs_new(rules, n_rule, 1, g_logger);
     EXPECT_TRUE(hs_instance == NULL);
 
     n_rule = 1;
     rules[0].expr_id = 101;
     rules[0].n_patterns = 10;
-    hs_instance = adapter_hs_new(1, rules, n_rule, g_logger);
+    hs_instance = adapter_hs_new(rules, n_rule, 1, g_logger);
     EXPECT_TRUE(hs_instance == NULL);
 
     memset(rules, 0, sizeof(rules));
     n_rule = 1;
     rules[0].expr_id = 101;
     rules[0].n_patterns = 1;
-    hs_instance = adapter_hs_new(1, rules, n_rule, g_logger);
+    hs_instance = adapter_hs_new(rules, n_rule, 1, g_logger);
     EXPECT_TRUE(hs_instance == NULL);
 }
 
@@ -263,7 +263,7 @@ TEST(adapter_hs_scan, literal_sub_has_normal_offset)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_new(1, rules, n_rule, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(rules, n_rule, 1, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(rules, n_rule);
 
@@ -310,7 +310,7 @@ TEST(adapter_hs_scan, literal_sub_has_left_unlimit_offset)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_new(1, rules, n_rule, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(rules, n_rule, 1, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(rules, n_rule);
 
@@ -358,7 +358,7 @@ TEST(adapter_hs_scan, literal_sub_has_right_unlimit_offset)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_new(1, rules, n_rule, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(rules, n_rule, 1, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(rules, n_rule);
 
@@ -413,7 +413,7 @@ TEST(adapter_hs_scan, literal_sub_with_no_offset)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_new(1, rules, n_rule, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(rules, n_rule, 1, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(rules, n_rule);
 
@@ -460,7 +460,7 @@ TEST(adapter_hs_scan, literal_exactly)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_new(1, rules, n_rule, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(rules, n_rule, 1, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(rules, n_rule);
 
@@ -501,7 +501,7 @@ TEST(adapter_hs_scan, literal_prefix)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_new(1, rules, n_rule, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(rules, n_rule, 1, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(rules, n_rule);
 
@@ -551,7 +551,7 @@ TEST(adapter_hs_scan, literal_suffix)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_new(1, rules, n_rule, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(rules, n_rule, 1, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(rules, n_rule);
 
@@ -601,7 +601,7 @@ TEST(adapter_hs_scan, literal_sub_with_hexbin)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_new(1, rules, n_rule, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(rules, n_rule, 1, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(rules, n_rule);
 
@@ -633,7 +633,7 @@ TEST(adapter_hs_scan, literal_with_chinese)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_new(1, rules, n_rule, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(rules, n_rule, 1, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(rules, n_rule);
 
@@ -657,7 +657,7 @@ TEST(adapter_hs_scan, same_pattern_different_offset)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_new(1, rules, n_rule, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(rules, n_rule, 1, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(rules, n_rule);
 
@@ -681,7 +681,7 @@ TEST(adapter_hs_scan, long_scan_data)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct adapter_hs *hs_instance = adapter_hs_new(1, rules, n_rule, g_logger);
+    struct adapter_hs *hs_instance = adapter_hs_new(rules, n_rule, 1, g_logger);
     EXPECT_TRUE(hs_instance != NULL);
     expr_array_free(rules, n_rule);
 

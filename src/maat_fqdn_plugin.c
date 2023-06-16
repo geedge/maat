@@ -33,7 +33,6 @@ struct fqdn_plugin_schema {
 struct fqdn_plugin_runtime {
     struct FQDN_engine *engine;
     struct ex_data_runtime *ex_data_rt;
-    long long version;
     long long rule_num;
     long long update_err_cnt;
     size_t n_worker_thread;
@@ -499,13 +498,10 @@ int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name
     }
 
     fqdn_plugin_rt->rule_num = rule_cnt;
-    if (maat_rt_version != 0) {
-        fqdn_plugin_rt->version = maat_rt_version;
-    }
 
     log_info(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
              "table[%s] commit %zu fqdn_plugin rules and rebuild FQDN engine completed"
-             ", version:%lld", table_name, rule_cnt, fqdn_plugin_rt->version);
+             ", version:%lld", table_name, rule_cnt, maat_rt_version);
 
     if (rules != NULL) {
         FREE(rules);

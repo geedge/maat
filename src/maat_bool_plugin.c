@@ -32,7 +32,6 @@ struct bool_plugin_schema {
 struct bool_plugin_runtime {
     struct bool_matcher *matcher;
     struct ex_data_runtime *ex_data_rt;
-    long long version;
     long long rule_num;
     size_t n_worker_thread;
     struct maat_garbage_bin *ref_garbage_bin;
@@ -493,13 +492,10 @@ int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name
     }
 
     bool_plugin_rt->rule_num = rule_cnt;
-    if (maat_rt_version != 0) {
-        bool_plugin_rt->version = maat_rt_version;
-    }
 
     log_info(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
              "table[%s] commit %zu bool_plugin rules and rebuild bool_matcher completed"
-             ", version:%lld", table_name, rule_cnt, bool_plugin_rt->version);
+             ", version:%lld", table_name, rule_cnt, maat_rt_version);
 
     if (rules != NULL) {
         FREE(rules);

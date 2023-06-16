@@ -45,7 +45,6 @@ struct interval_runtime {
     struct interval_matcher *matcher;
     struct rcu_hash_table *item_hash;  // <item_id, struct interval_item>
 
-    long long version;
     long long rule_num;
     size_t n_worker_thread;
     struct log_handle *logger;
@@ -514,11 +513,10 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name,
     }
     
     interval_rt->rule_num = rule_cnt;
-    interval_rt->version = maat_rt_version;
     
     log_info(interval_rt->logger, MODULE_INTERVAL,
              "table[%s] commit %zu interval rules and rebuild interval_matcher "
-             "completed, version:%lld", table_name, rule_cnt, interval_rt->version);
+             "completed, version:%lld", table_name, rule_cnt, maat_rt_version);
 
     if (rules != NULL) {
         FREE(rules);

@@ -69,7 +69,6 @@ struct ip_runtime {
     struct interval_matcher *intval_matcher;
     struct rcu_hash_table *item_hash;  // <item_id, struct ip_item>
 
-    long long version;
     long long rule_num;
     long long ipv6_rule_num;
     size_t n_worker_thread;
@@ -641,11 +640,10 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name,
     }
 
     ip_rt->rule_num = rule_cnt;
-    ip_rt->version = maat_rt_version;
     
     log_info(ip_rt->logger, MODULE_IP,
              "table[%s] commit %zu ip rules and rebuild ip_matcher completed"
-             ", version:%lld", table_name, rule_cnt, ip_rt->version);
+             ", version:%lld", table_name, rule_cnt, maat_rt_version);
 
     if (rules != NULL) {
         FREE(rules);

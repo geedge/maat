@@ -37,33 +37,33 @@ TEST(json_mode, maat_scan_string) {
     maat_options_set_json_file(opts, json_path);
     maat_options_set_logger(opts, "./maat_input_mode_gtest.log", LOG_LEVEL_INFO);
 
-    struct maat *maat_instance = maat_new(opts, table_info_path);
-    EXPECT_TRUE(maat_instance != NULL);
+    struct maat *maat_inst = maat_new(opts, table_info_path);
+    EXPECT_TRUE(maat_inst != NULL);
 
     const char *table_name = "KEYWORDS_TABLE";
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     long long results[5] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data), 
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data), 
                                results, sizeof(results), &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 182);
 
-    long long clause_id = maat_runtime_get_sequence(maat_instance->maat_rt, "test_seq");
+    long long clause_id = maat_runtime_get_sequence(maat_inst->maat_rt, "test_seq");
     EXPECT_EQ(clause_id, 0);
-    clause_id = maat_runtime_get_sequence(maat_instance->maat_rt, "test_seq");
+    clause_id = maat_runtime_get_sequence(maat_inst->maat_rt, "test_seq");
     EXPECT_EQ(clause_id, 1);
-    clause_id = maat_runtime_get_sequence(maat_instance->maat_rt, "test_seq");
+    clause_id = maat_runtime_get_sequence(maat_inst->maat_rt, "test_seq");
     EXPECT_EQ(clause_id, 2);
 
     maat_options_free(opts);
     maat_state_free(state);
     state = NULL;
-    maat_free(maat_instance);
+    maat_free(maat_inst);
 }
 
 TEST(iris_mode, maat_scan_string) {
@@ -93,17 +93,17 @@ TEST(iris_mode, maat_scan_string) {
     maat_options_set_iris(opts, tmp_iris_full_idx_path, tmp_iris_inc_idx_path);
     maat_options_set_logger(opts, "./maat_input_mode_gtest.log", LOG_LEVEL_INFO);
 
-    struct maat *maat_instance = maat_new(opts, table_info_path);
-    EXPECT_TRUE(maat_instance != NULL);
+    struct maat *maat_inst = maat_new(opts, table_info_path);
+    EXPECT_TRUE(maat_inst != NULL);
 
     const char *table_name = "KEYWORDS_TABLE";
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     long long results[5] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data), 
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data), 
                                results, sizeof(results), &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -112,7 +112,7 @@ TEST(iris_mode, maat_scan_string) {
     maat_options_free(opts);
     maat_state_free(state);
     state = NULL;
-    maat_free(maat_instance);
+    maat_free(maat_inst);
 }
 
 int count_line_num_cb(const char *table_name, const char *line, void *u_para)
@@ -217,15 +217,15 @@ TEST(redis_mode, maat_scan_string) {
     maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
     maat_options_set_logger(opts, "./maat_input_mode_gtest.log", LOG_LEVEL_INFO);
 
-    struct maat *maat_instance = maat_new(opts, table_info_path);
+    struct maat *maat_inst = maat_new(opts, table_info_path);
     const char *table_name = "KEYWORDS_TABLE";
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     long long results[5] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data), 
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data), 
                                results, sizeof(results), &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -234,7 +234,7 @@ TEST(redis_mode, maat_scan_string) {
     maat_options_free(opts);
     maat_state_free(state);
     state = NULL;
-    maat_free(maat_instance);
+    maat_free(maat_inst);
 }
 
 int main(int argc, char ** argv)

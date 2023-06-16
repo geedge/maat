@@ -62,7 +62,6 @@ struct maat_group_topology {
 struct group2group_runtime {
     struct maat_group_topology *group_topo;
     struct maat_group_topology *updating_group_topo;
-    long long version;
 	long long rule_num;
     long long excl_rule_num; //exclude g2g rule num
     long long update_err_cnt;
@@ -774,11 +773,10 @@ int group2group_runtime_commit(void *g2g_runtime, const char *table_name,
 
     maat_garbage_bagging(g2g_rt->ref_garbage_bin, old_group_topo, NULL, 
                          garbage_maat_group_topology_free);
-    g2g_rt->version = maat_rt_version;
 
     log_info(g2g_rt->logger, MODULE_GROUP,
              "table[%s] commit %zu g2g rules and rebuild super_groups completed,"
-             " version:%lld", table_name, g2g_rt->rule_num, g2g_rt->version);
+             " version:%lld", table_name, g2g_rt->rule_num, maat_rt_version);
 
     return 0;
 }

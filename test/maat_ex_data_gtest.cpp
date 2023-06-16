@@ -12,7 +12,7 @@
 const char *table_info_path = "./table_info.conf";
 const char *json_filename = "maat_json.json";
 struct log_handle *g_logger = NULL;
-struct maat *g_maat_instance = NULL;
+struct maat *g_maat_inst = NULL;
 
 struct user_info {
 	char name[256];
@@ -55,7 +55,7 @@ void ex_data_dup_cb(int table_id,	void **to, void **from, long argl, void *argp)
 
 TEST(EXDataRuntime, Update) {
     const char *table_name = "TEST_PLUGIN_EXDATA_TABLE";
-	int table_id = maat_get_table_id(g_maat_instance, table_name);
+	int table_id = maat_get_table_id(g_maat_inst, table_name);
 	ASSERT_GT(table_id, 0);
 
     int ex_data_counter = 0;
@@ -145,14 +145,14 @@ int main(int argc, char ** argv)
     snprintf(json_path, sizeof(json_path), "./%s", json_filename);
     maat_options_set_json_file(opts, json_path);
 
-    g_maat_instance = maat_new(opts, table_info_path);
+    g_maat_inst = maat_new(opts, table_info_path);
     maat_options_free(opts);
-    EXPECT_TRUE(g_maat_instance != NULL);
+    EXPECT_TRUE(g_maat_inst != NULL);
 
 	ret=RUN_ALL_TESTS();
 
     log_handle_destroy(g_logger);
-    maat_free(g_maat_instance);
-    g_maat_instance = NULL;
+    maat_free(g_maat_inst);
+    g_maat_inst = NULL;
 	return ret;
 }

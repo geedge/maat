@@ -23,15 +23,15 @@ const char *json_filename = "maat_json.json";
 
 size_t g_thread_num = 4;
 
-void wait_for_cmd_effective(struct maat *maat_instance, long long version_before)
+void wait_for_cmd_effective(struct maat *maat_inst, long long version_before)
 {
 	long long version_after = version_before;
 	int is_updating = 1;
 	long long wating_us = 0, sleep_us = 1000 * 100;
 
 	while (is_updating || version_before == version_after) {
-		is_updating = maat_cmd_config_is_updating(maat_instance);
-        version_after = maat_cmd_get_config_version(maat_instance);
+		is_updating = maat_cmd_config_is_updating(maat_inst);
+        version_after = maat_cmd_get_config_version(maat_inst);
 		
 		usleep(sleep_us);//waiting for commands go into effect
 		wating_us += sleep_us;
@@ -156,7 +156,7 @@ int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
     return 0;
 }
 
-int compile_table_set_line(struct maat *maat_instance, const char *table_name,
+int compile_table_set_line(struct maat *maat_inst, const char *table_name,
                            enum maat_operation op, long long compile_id,
                            const char *user_region, int clause_num, int expire_after)
 {
@@ -170,10 +170,10 @@ int compile_table_set_line(struct maat *maat_instance, const char *table_name,
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
 
-    return maat_cmd_set_line(maat_instance, &line_rule);
+    return maat_cmd_set_line(maat_inst, &line_rule);
 }
 #define TO_GROUP2X_KEY(group_id, parent_id)	((unsigned long)group_id<<32|parent_id)
-int group2compile_table_set_line(struct maat *maat_instance, const char *table_name,
+int group2compile_table_set_line(struct maat *maat_inst, const char *table_name,
                                  enum maat_operation op, long long group_id, long long compile_id,
                                  int not_flag, const char *vtable_name, int clause_index,
                                  int expire_after)
@@ -188,10 +188,10 @@ int group2compile_table_set_line(struct maat *maat_instance, const char *table_n
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
 
-    return maat_cmd_set_line(maat_instance, &line_rule);
+    return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-int group2group_table_set_line(struct maat *maat_instance, const char *table_name, enum maat_operation op,
+int group2group_table_set_line(struct maat *maat_inst, const char *table_name, enum maat_operation op,
                                long long group_id, long long superior_group_id, int is_exclude, int expire_after)
 {
     char table_line[128] = {0};
@@ -203,20 +203,20 @@ int group2group_table_set_line(struct maat *maat_instance, const char *table_nam
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
 
-    return maat_cmd_set_line(maat_instance, &line_rule);
+    return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-int expr_table_set_line(struct maat *maat_instance, const char *table_name, enum maat_operation op,
+int expr_table_set_line(struct maat *maat_inst, const char *table_name, enum maat_operation op,
                         long long item_id, long long group_id, const char *keywords, const char *district,
                         int expr_type, int match_method, int is_hexbin, int expire_after)
 {
     char table_line[1024] = {0};
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     if (table_id < 0) {
         return 0;
     }
     
-    enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
+    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     assert(table_type == TABLE_TYPE_EXPR || table_type == TABLE_TYPE_EXPR_PLUS);
 
     if (table_type == TABLE_TYPE_EXPR_PLUS) {
@@ -233,20 +233,20 @@ int expr_table_set_line(struct maat *maat_instance, const char *table_name, enum
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
 
-    return maat_cmd_set_line(maat_instance, &line_rule);
+    return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-int intval_table_set_line(struct maat *maat_instance, const char *table_name, enum maat_operation op,
+int intval_table_set_line(struct maat *maat_inst, const char *table_name, enum maat_operation op,
                           long long item_id, long long group_id, unsigned int low_boundary,
                           unsigned int up_boundary, const char *district, int expire_after)
 {
     char table_line[1024] = {0};
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     if (table_id < 0) {
         return 0;
     }
 
-    enum table_type table_type = table_manager_get_table_type(maat_instance->tbl_mgr, table_id);
+    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     assert(table_type == TABLE_TYPE_INTERVAL || table_type == TABLE_TYPE_INTERVAL_PLUS);
 
     if (table_type == TABLE_TYPE_INTERVAL_PLUS) {
@@ -263,15 +263,15 @@ int intval_table_set_line(struct maat *maat_instance, const char *table_name, en
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
 
-    return maat_cmd_set_line(maat_instance, &line_rule);
+    return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-int ip_table_set_line(struct maat *maat_instance, const char *table_name, enum maat_operation op,
+int ip_table_set_line(struct maat *maat_inst, const char *table_name, enum maat_operation op,
                       long long item_id, long long group_id, enum IP_TYPE type, const char *ip1, 
                       const char *ip2, uint16_t port_min, uint16_t port_max, int expire_after)
 {
     char table_line[1024] = {0};
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     if (table_id < 0) {
         return 0;
     }
@@ -290,10 +290,10 @@ int ip_table_set_line(struct maat *maat_instance, const char *table_name, enum m
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
 
-    return maat_cmd_set_line(maat_instance, &line_rule);
+    return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-int test_add_expr_command(struct maat *maat_instance, const char *expr_table, 
+int test_add_expr_command(struct maat *maat_inst, const char *expr_table, 
                           long long compile_id, int timeout, const char *keywords)
 {
     char huge_serv_def[1024 * 2] = {0};
@@ -301,26 +301,26 @@ int test_add_expr_command(struct maat *maat_instance, const char *expr_table,
     memset(huge_serv_def, 's', sizeof(huge_serv_def) - 1);
     huge_serv_def[sizeof(huge_serv_def) - 1] = '\0';
 
-    int ret = compile_table_set_line(maat_instance, "COMPILE", MAAT_OP_ADD, compile_id, 
+    int ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_ADD, compile_id, 
                                      huge_serv_def, 1, timeout);
     EXPECT_EQ(ret, 1);
 
-    long long group_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, "GROUP2COMPILE", MAAT_OP_ADD, group_id, 
+    long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD, group_id, 
                                        compile_id, 0, "null", 1, timeout);
     EXPECT_EQ(ret, 1);
 
-    long long item_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, expr_table, MAAT_OP_ADD, item_id, group_id, keywords, 
+    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, expr_table, MAAT_OP_ADD, item_id, group_id, keywords, 
                               "null", 1, 0, 0, 0);
     EXPECT_EQ(ret, 1);
 
     return ret;
 }
 
-int del_command(struct maat *maat_instance, int compile_id)
+int del_command(struct maat *maat_inst, int compile_id)
 {
-    return compile_table_set_line(maat_instance, "COMPILE", MAAT_OP_DEL, compile_id, "null", 1, 0);
+    return compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_DEL, compile_id, "null", 1, 0);
 }
 
 static void random_keyword_generate(char *keyword_buf, size_t sz)
@@ -354,9 +354,9 @@ protected:
         maat_options_set_accept_tags(opts, accept_tags);
 
         const char *table_info_path = "./test_table_info.conf";
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatIris failed.",
                       __FUNCTION__, __LINE__);
@@ -364,25 +364,25 @@ protected:
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *MaatIris::_shared_maat_instance;
+struct maat *MaatIris::_shared_maat_inst;
 struct log_handle *MaatIris::logger;
 
 TEST_F(MaatIris, basic) {
-    struct maat *maat_instance = MaatIris::_shared_maat_instance;
+    struct maat *maat_inst = MaatIris::_shared_maat_inst;
     struct log_handle *logger = MaatIris::logger;
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     uint32_t sip_addr;
     uint32_t dip_addr;
@@ -395,9 +395,9 @@ TEST_F(MaatIris, basic) {
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < 100000; i++)
     {
-        int table_id = maat_get_table_id(maat_instance, "TSG_SECURITY_SOURCE_ADDR");
+        int table_id = maat_get_table_id(maat_inst, "TSG_SECURITY_SOURCE_ADDR");
         ASSERT_GT(table_id, 0);
-        int ret = maat_scan_ipv4(maat_instance, table_id, sip_addr, sport, 6,
+        int ret = maat_scan_ipv4(maat_inst, table_id, sip_addr, sport, 6,
                                  results, ARRAY_SIZE, &n_hit_result, state);
         EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
         maat_state_reset(state);
@@ -410,16 +410,16 @@ TEST_F(MaatIris, basic) {
     for (int i = 0; i < 100000; i++)
     {
         
-        int table_id = maat_get_table_id(maat_instance, "TSG_SECURITY_SOURCE_ADDR");
+        int table_id = maat_get_table_id(maat_inst, "TSG_SECURITY_SOURCE_ADDR");
         ASSERT_GT(table_id, 0);
-        int ret = maat_scan_ipv4(maat_instance, table_id, sip_addr, sport, 6,
+        int ret = maat_scan_ipv4(maat_inst, table_id, sip_addr, sport, 6,
                                  results, ARRAY_SIZE, &n_hit_result, state);
         EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-        table_id = maat_get_table_id(maat_instance, "TSG_OBJ_APP_ID");
+        table_id = maat_get_table_id(maat_inst, "TSG_OBJ_APP_ID");
         ASSERT_GT(table_id, 0);
 
-        ret = maat_scan_integer(maat_instance, table_id, 32, results, ARRAY_SIZE,
+        ret = maat_scan_integer(maat_inst, table_id, 32, results, ARRAY_SIZE,
                                 &n_hit_result, state);
         EXPECT_EQ(ret, MAAT_SCAN_HIT);
         EXPECT_EQ(n_hit_result, 1);
@@ -457,9 +457,9 @@ protected:
         maat_options_set_json_file_decrypt_key(opts, json_decrypt_key);
         maat_options_set_rule_update_checking_interval_ms(opts, scan_interval_ms);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in JsonUpdate failed.",
                       __FUNCTION__, __LINE__);
@@ -468,18 +468,18 @@ protected:
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *JsonUpdate::_shared_maat_instance;
+struct maat *JsonUpdate::_shared_maat_inst;
 struct log_handle *JsonUpdate::logger;
 
-void scan_with_old_or_new_cfg(struct maat *maat_instance, int is_old)
+void scan_with_old_or_new_cfg(struct maat *maat_inst, int is_old)
 {
     const char *hit_old_data = "Hello world! I'm eve.";
     const char *hit_new_data = "Maat was borned in MESA.";
@@ -487,12 +487,12 @@ void scan_with_old_or_new_cfg(struct maat *maat_instance, int is_old)
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    int ret = maat_scan_string(maat_instance, table_id, hit_old_data,
+    int ret = maat_scan_string(maat_inst, table_id, hit_old_data,
                                strlen(hit_old_data), results, ARRAY_SIZE,
                                &n_hit_result, state);
     if (is_old) {
@@ -503,7 +503,7 @@ void scan_with_old_or_new_cfg(struct maat *maat_instance, int is_old)
     }
     maat_state_reset(state);
 
-    ret = maat_scan_string(maat_instance, table_id, hit_new_data,
+    ret = maat_scan_string(maat_inst, table_id, hit_new_data,
                            strlen(hit_new_data), results, ARRAY_SIZE,
                            &n_hit_result, state);
     if (!is_old) {
@@ -517,20 +517,20 @@ void scan_with_old_or_new_cfg(struct maat *maat_instance, int is_old)
 }
 
 TEST_F(JsonUpdate, OldCfg) {
-    scan_with_old_or_new_cfg(JsonUpdate::_shared_maat_instance, 1);
+    scan_with_old_or_new_cfg(JsonUpdate::_shared_maat_inst, 1);
 }
 
 TEST_F(JsonUpdate, NewCfg) {
     system_cmd_gzip(corrupted_json, tmp_gzipped_file_name);
     system_cmd_encrypt(tmp_gzipped_file_name, watched_json, json_decrypt_key);
     sleep(2);
-    scan_with_old_or_new_cfg(JsonUpdate::_shared_maat_instance, 1);
+    scan_with_old_or_new_cfg(JsonUpdate::_shared_maat_inst, 1);
 
     system_cmd_gzip(new_json, tmp_gzipped_file_name);
     int ret = system_cmd_encrypt(tmp_gzipped_file_name, watched_json, json_decrypt_key);
     EXPECT_EQ(ret, 0);
     sleep(5);
-    scan_with_old_or_new_cfg(JsonUpdate::_shared_maat_instance, 0);
+    scan_with_old_or_new_cfg(JsonUpdate::_shared_maat_inst, 0);
 }
 
 class MaatFlagScan : public testing::Test
@@ -556,9 +556,9 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
@@ -566,31 +566,31 @@ protected:
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *MaatFlagScan::_shared_maat_instance;
+struct maat *MaatFlagScan::_shared_maat_inst;
 struct log_handle *MaatFlagScan::logger;
 
 TEST_F(MaatFlagScan, basic) {
     const char *flag_table_name = "FLAG_CONFIG";
-    struct maat *maat_instance = MaatFlagScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatFlagScan::_shared_maat_inst;
 
-    int flag_table_id = maat_get_table_id(maat_instance, flag_table_name);
+    int flag_table_id = maat_get_table_id(maat_inst, flag_table_name);
     //compile_id:192 flag: 0000 0001 mask: 0000 0011
     //scan_data: 0000 1001 or 0000 1101 should hit
     long long scan_data = 9;
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int ret = maat_scan_flag(maat_instance, flag_table_id, scan_data, results,
+    int ret = maat_scan_flag(maat_inst, flag_table_id, scan_data, results,
                              ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
@@ -606,7 +606,7 @@ TEST_F(MaatFlagScan, basic) {
     scan_data = 13;
     memset(results, 0, sizeof(results));
     n_hit_result = 0;
-    ret = maat_scan_flag(maat_instance, flag_table_id, scan_data, results, 
+    ret = maat_scan_flag(maat_inst, flag_table_id, scan_data, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
@@ -617,7 +617,7 @@ TEST_F(MaatFlagScan, basic) {
     scan_data = 6;
     memset(results, 0, sizeof(results));
     n_hit_result = 0;
-    ret = maat_scan_flag(maat_instance, flag_table_id, scan_data, results, 
+    ret = maat_scan_flag(maat_inst, flag_table_id, scan_data, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     EXPECT_EQ(n_hit_result, 0);
@@ -628,19 +628,19 @@ TEST_F(MaatFlagScan, basic) {
 TEST_F(MaatFlagScan, withExprRegion) {
     const char *flag_table_name = "FLAG_CONFIG";
     const char *expr_table_name = "HTTP_URL";
-    struct maat *maat_instance = MaatFlagScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatFlagScan::_shared_maat_inst;
 
-    int flag_table_id = maat_get_table_id(maat_instance, flag_table_name);
-    int expr_table_id = maat_get_table_id(maat_instance, expr_table_name);
+    int flag_table_id = maat_get_table_id(maat_inst, flag_table_name);
+    int expr_table_id = maat_get_table_id(maat_inst, expr_table_name);
     //compile_id:193 flag: 0000 0010 mask: 0000 0011
     //scan_data: 0000 0010 or 0000 0100 should hit
     long long flag_scan_data = 2;
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int ret = maat_scan_flag(maat_instance, flag_table_id, flag_scan_data, results, 
+    int ret = maat_scan_flag(maat_inst, flag_table_id, flag_scan_data, results, 
                              ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     EXPECT_EQ(n_hit_result, 0);
@@ -651,7 +651,7 @@ TEST_F(MaatFlagScan, withExprRegion) {
     EXPECT_NE(n_read, 0);
 
     const char *expr_scan_data = "hello world";
-    ret = maat_scan_string(maat_instance, expr_table_id, expr_scan_data, 
+    ret = maat_scan_string(maat_inst, expr_table_id, expr_scan_data, 
                            strlen(expr_scan_data), results, ARRAY_SIZE, 
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -663,9 +663,9 @@ TEST_F(MaatFlagScan, withExprRegion) {
 
 TEST_F(MaatFlagScan, hitMultiCompile) {
     const char *flag_table_name = "FLAG_CONFIG";
-    struct maat *maat_instance = MaatFlagScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatFlagScan::_shared_maat_inst;
 
-    int flag_table_id = maat_get_table_id(maat_instance, flag_table_name);
+    int flag_table_id = maat_get_table_id(maat_inst, flag_table_name);
     //compile_id:192 flag: 0000 0001 mask: 0000 0011
     //compile_id:194 flag: 0001 0101 mask: 0001 1111
     //scan_data: 0001 0101 should hit compile192 and compile194
@@ -673,9 +673,9 @@ TEST_F(MaatFlagScan, hitMultiCompile) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int ret = maat_scan_flag(maat_instance, flag_table_id, flag_scan_data, results, 
+    int ret = maat_scan_flag(maat_inst, flag_table_id, flag_scan_data, results, 
                              ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 3);
@@ -684,7 +684,7 @@ TEST_F(MaatFlagScan, hitMultiCompile) {
     EXPECT_EQ(results[2], 192);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_flag(maat_instance, flag_table_id, flag_scan_data, results, 
+    ret = maat_scan_flag(maat_inst, flag_table_id, flag_scan_data, results, 
                              ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -699,18 +699,18 @@ TEST_F(MaatFlagScan, hitMultiCompile) {
 
 TEST_F(MaatFlagScan, hitRepeatedCompile) {
     const char *flag_table_name = "FLAG_CONFIG";
-    struct maat *maat_instance = MaatFlagScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatFlagScan::_shared_maat_inst;
 
-    int flag_table_id = maat_get_table_id(maat_instance, flag_table_name);
+    int flag_table_id = maat_get_table_id(maat_inst, flag_table_name);
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     //compile_id:192 flag: 0000 0001 mask: 0000 0011
     //scan_data: 0000 1001 or 0000 1101 should hit
     long long flag_scan_data1 = 9; 
-    int ret = maat_scan_flag(maat_instance, flag_table_id, flag_scan_data1, results, 
+    int ret = maat_scan_flag(maat_inst, flag_table_id, flag_scan_data1, results, 
                              ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
@@ -722,14 +722,14 @@ TEST_F(MaatFlagScan, hitRepeatedCompile) {
     //scan_data: 0001 0101 should hit compile192 and compile194
 	long long flag_scan_data2 = 21;
     memset(results, 0, sizeof(results));
-    ret = maat_scan_flag(maat_instance, flag_table_id, flag_scan_data2, results, 
+    ret = maat_scan_flag(maat_inst, flag_table_id, flag_scan_data2, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 194);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_flag(maat_instance, flag_table_id, flag_scan_data2, results, 
+    ret = maat_scan_flag(maat_inst, flag_table_id, flag_scan_data2, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -745,31 +745,31 @@ TEST_F(MaatFlagScan, hitRepeatedCompile) {
 TEST_F(MaatFlagScan, FlagPlus) {
     const char *flag_table_name = "FLAG_PLUS_CONFIG";
     const char *region_name = "I love China";
-    struct maat *maat_instance = MaatFlagScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatFlagScan::_shared_maat_inst;
 
-    int flag_table_id = maat_get_table_id(maat_instance, flag_table_name);
+    int flag_table_id = maat_get_table_id(maat_inst, flag_table_name);
     //compile_id:196 flag: 0001 1111 mask: 0000 1111
     //scan_data: 0000 1111 or 0001 1111 should hit
     long long scan_data1 = 15;
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int ret = maat_scan_flag(maat_instance, flag_table_id, scan_data1, results,
+    int ret = maat_scan_flag(maat_inst, flag_table_id, scan_data1, results,
                              ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_ERR);
  
     ret = maat_state_set_scan_district(state, flag_table_id, region_name, strlen(region_name));
     ASSERT_EQ(ret, 0);
 
-    ret = maat_scan_flag(maat_instance, flag_table_id, scan_data1, results,
+    ret = maat_scan_flag(maat_inst, flag_table_id, scan_data1, results,
                              ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 196);
 
-    ret = maat_scan_flag(maat_instance, flag_table_id, scan_data1, results,
+    ret = maat_scan_flag(maat_inst, flag_table_id, scan_data1, results,
                              ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -804,9 +804,9 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatStringScan failed.",
                       __FUNCTION__, __LINE__);
@@ -814,31 +814,31 @@ protected:
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *MaatStringScan::_shared_maat_instance;
+struct maat *MaatStringScan::_shared_maat_inst;
 struct log_handle *MaatStringScan::logger;
 
 TEST_F(MaatStringScan, ScanDataOnlyOneByte) {
     const char *table_name = "HTTP_URL";
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatStringScan::_shared_maat_inst;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
     const char scan_data = 0x20;
 
-    int ret = maat_scan_string(maat_instance, table_id, &scan_data, sizeof(scan_data),
+    int ret = maat_scan_string(maat_inst, table_id, &scan_data, sizeof(scan_data),
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     EXPECT_EQ(n_hit_result, 0);
@@ -848,18 +848,18 @@ TEST_F(MaatStringScan, ScanDataOnlyOneByte) {
 
 TEST_F(MaatStringScan, Full) {
     const char *table_name = "HTTP_URL";
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatStringScan::_shared_maat_inst;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
     const char *scan_data = "http://www.cyberessays.com/search_results.php?action=search&query=username,abckkk,1234567";
 
-    int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data), 
+    int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data), 
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -875,11 +875,11 @@ TEST_F(MaatStringScan, Regex) {
     int thread_id = 0;
     const char *cookie = "Cookie: Txa123aheadBCAxd";
     const char *table_name = "HTTP_URL";
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
-    ret = maat_scan_string(maat_instance, table_id, cookie, strlen(cookie),
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ret = maat_scan_string(maat_inst, table_id, cookie, strlen(cookie),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(results[0], 146);
@@ -896,17 +896,17 @@ TEST_F(MaatStringScan, ExprPlus) {
 	const char *scan_data1 = "http://www.cyberessays.com/search_results.php?action=search&query=abckkk,1234567";
 	const char *scan_data2 = "Addis Sapphire Hotel";
     const char *table_name = "HTTP_SIGNATURE";
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
-	int ret = maat_scan_string(maat_instance, table_id, scan_data1, strlen(scan_data1), 
+    int table_id = maat_get_table_id(maat_inst, table_name);
+	int ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1), 
 						        results, ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_ERR);//Should return error for district not setting.
 
 	ret = maat_state_set_scan_district(state, table_id, region_name1, strlen(region_name1));
 	ASSERT_EQ(ret, 0);
-	ret = maat_scan_string(maat_instance, table_id, scan_data1, strlen(scan_data1), 
+	ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1), 
 						   results, ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
 	EXPECT_EQ(results[0], 128);
@@ -914,7 +914,7 @@ TEST_F(MaatStringScan, ExprPlus) {
 
 	ret = maat_state_set_scan_district(state, table_id, region_name2, strlen(region_name2));
 	ASSERT_EQ(ret, 0);
-	ret = maat_scan_string(maat_instance, table_id, scan_data2, strlen(scan_data2), 
+	ret = maat_scan_string(maat_inst, table_id, scan_data2, strlen(scan_data2), 
 						   results, ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
 	EXPECT_EQ(results[0], 190);
@@ -927,8 +927,8 @@ TEST_F(MaatStringScan, ExprPlusWithOffset)
 	long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 	const char *region_name = "Payload";
 	unsigned char udp_payload_not_hit[] = { /* Stun packet */
 							0x00, 0x03, 0x00, 0x4a, 0x21, 0x12, 0xa4, 0x42, 
@@ -957,17 +957,17 @@ TEST_F(MaatStringScan, ExprPlusWithOffset)
 							0xf6, 0x30, 0x81, 0xf4, 0x3f, 0xc2, 0x19, 0x6a, 
 							0x68, 0x61, 0x93, 0x08, 0xc0, 0x0a };
 
-	int table_id = maat_get_table_id(maat_instance, "APP_PAYLOAD");
+	int table_id = maat_get_table_id(maat_inst, "APP_PAYLOAD");
 	ASSERT_GT(table_id, 0);
 
 	int ret = maat_state_set_scan_district(state, table_id, region_name, strlen(region_name));
 	EXPECT_EQ(ret, 0);
 
-	ret = maat_scan_string(maat_instance, table_id, (char*)udp_payload_not_hit, sizeof(udp_payload_not_hit), 
+	ret = maat_scan_string(maat_inst, table_id, (char*)udp_payload_not_hit, sizeof(udp_payload_not_hit), 
 						   results, ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-	ret = maat_scan_string(maat_instance, table_id, (char*)udp_payload_hit, sizeof(udp_payload_hit), 
+	ret = maat_scan_string(maat_inst, table_id, (char*)udp_payload_hit, sizeof(udp_payload_hit), 
 						   results, ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
 	EXPECT_EQ(results[0], 148);
@@ -980,31 +980,31 @@ TEST_F(MaatStringScan, ExprPlusWithHex) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 	const char *scan_data1 = "text/html; charset=UTF-8";
 	const char *scan_data2 = "Batman\\:Take me Home.Superman/:Fine,stay with me.";
 	const char *region_name1 = "Content-Type";
 	const char *region_name2 = "User-Agent";
 
-	int table_id = maat_get_table_id(maat_instance, "HTTP_SIGNATURE");
+	int table_id = maat_get_table_id(maat_inst, "HTTP_SIGNATURE");
 	ASSERT_GT(table_id, 0);
 
 	int ret = maat_state_set_scan_district(state, table_id, region_name1, strlen(region_name1));
 	ASSERT_EQ(ret, 0);
-	ret = maat_scan_string(maat_instance, table_id, scan_data1, strlen(scan_data1), 
+	ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1), 
 						   results, ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(results[0], 156);
 
     ret = maat_state_set_scan_district(state, table_id, region_name2, strlen(region_name2));
 	ASSERT_EQ(ret, 0);
-	ret = maat_scan_string(maat_instance, table_id, scan_data1, strlen(scan_data1), 
+	ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1), 
 						   results, ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_OK); //maat-v3 consider as half hit, it's unreasonable
     
-    table_id = maat_get_table_id(maat_instance, "KEYWORDS_TABLE");
-    ret = maat_scan_string(maat_instance, table_id, scan_data2, strlen(scan_data2),
+    table_id = maat_get_table_id(maat_inst, "KEYWORDS_TABLE");
+    ret = maat_scan_string(maat_inst, table_id, scan_data2, strlen(scan_data2),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(results[0], 132);                    
@@ -1016,27 +1016,27 @@ TEST_F(MaatStringScan, ExprAndExprPlus) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
     const char *expr_table_name = "HTTP_URL";
     const char *expr_plus_table_name = "HTTP_SIGNATURE";
     const char *region_name = "I love China";
     const char *scan_data = "today is Monday and yesterday is Tuesday";
 
-    int expr_table_id = maat_get_table_id(maat_instance, expr_table_name);
-    int expr_plus_table_id = maat_get_table_id(maat_instance, expr_plus_table_name);
+    int expr_table_id = maat_get_table_id(maat_inst, expr_table_name);
+    int expr_plus_table_id = maat_get_table_id(maat_inst, expr_plus_table_name);
 
-    int ret = maat_scan_string(maat_instance, expr_plus_table_id, scan_data, strlen(scan_data),
+    int ret = maat_scan_string(maat_inst, expr_plus_table_id, scan_data, strlen(scan_data),
                                 results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_ERR);
 
     ret = maat_state_set_scan_district(state, expr_plus_table_id, region_name, strlen(region_name));
     ASSERT_EQ(ret, 0);
-    ret = maat_scan_string(maat_instance, expr_plus_table_id, scan_data, strlen(scan_data),
+    ret = maat_scan_string(maat_inst, expr_plus_table_id, scan_data, strlen(scan_data),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_string(maat_instance, expr_table_id, scan_data, strlen(scan_data),
+    ret = maat_scan_string(maat_inst, expr_table_id, scan_data, strlen(scan_data),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(results[0], 195);
@@ -1048,8 +1048,8 @@ TEST_F(MaatStringScan, ShouldNotHitExprPlus) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 	const char *region_name = "tcp.payload";
 	unsigned char udp_payload_not_hit[] = { /* Stun packet */
 							0x00, 0x03, 0x00, 0x4a, 0x21, 0x12, 0xa4, 0x42, 
@@ -1065,13 +1065,13 @@ TEST_F(MaatStringScan, ShouldNotHitExprPlus) {
 							0xf6, 0x30, 0x81, 0xf4, 0x3f, 0xc2, 0x19, 0x6a, 
 							0x68, 0x61, 0x93, 0x08, 0xc0, 0x0a, 0xab, 0x00 };
 
-	int table_id = maat_get_table_id(maat_instance, "APP_PAYLOAD");
+	int table_id = maat_get_table_id(maat_inst, "APP_PAYLOAD");
 	ASSERT_GT(table_id, 0);
 
 	int ret = maat_state_set_scan_district(state, table_id, region_name, strlen(region_name));
 	ASSERT_EQ(ret, 0);
     
-	ret = maat_scan_string(maat_instance, table_id, (char *)udp_payload_not_hit, sizeof(udp_payload_not_hit), 
+	ret = maat_scan_string(maat_inst, table_id, (char *)udp_payload_not_hit, sizeof(udp_payload_not_hit), 
 						   results, ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_OK); //maat-v3 consider as half hit, it's unreasonable
 	maat_state_free(state);
@@ -1081,14 +1081,14 @@ TEST_F(MaatStringScan, ShouldNotHitExprPlus) {
 TEST_F(MaatStringScan, Expr8) {
     const char *table_name = "KEYWORDS_TABLE";
     int thread_id = 0;
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    struct maat *maat_inst = MaatStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
 
-    int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data), 
+    int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data), 
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -1106,21 +1106,21 @@ TEST_F(MaatStringScan, HexBinCaseSensitive) {
     const char *table_name = "KEYWORDS_TABLE";
 	const char *scan_data1 = "String TeST should not hit.";
 	const char *scan_data2 = "String TEST should hit";
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatStringScan::_shared_maat_inst;
     int thread_id = 0;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    int ret = maat_scan_string(maat_instance, table_id, scan_data1, strlen(scan_data1), 
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    int ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1), 
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     maat_state_reset(state);
 
-    ret = maat_scan_string(maat_instance, table_id, scan_data2, strlen(scan_data2), 
+    ret = maat_scan_string(maat_inst, table_id, scan_data2, strlen(scan_data2), 
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
@@ -1149,16 +1149,16 @@ TEST_F(MaatStringScan, BugReport20190325) {
                                  0x00, 0x31, 0x3a, 0x47, 0x32, 0x2e, 0x34, 0x30,
                                  0x00};
     const char *table_name = "TROJAN_PAYLOAD";
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatStringScan::_shared_maat_inst;
     int thread_id = 0;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    int ret = maat_scan_string(maat_instance, table_id, (char *)scan_data, sizeof(scan_data), 
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    int ret = maat_scan_string(maat_inst, table_id, (char *)scan_data, sizeof(scan_data), 
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -1173,22 +1173,22 @@ TEST_F(MaatStringScan, PrefixAndSuffix) {
 	const char *hit_prefix = "ceshi3@mailhost.cn11111111111";
     const char *cont_sz_table_name = "CONTENT_SIZE";
     const char *mail_addr_table_name = "MAIL_ADDR";
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatStringScan::_shared_maat_inst;
     int thread_id = 0;
 
-    int cont_sz_table_id = maat_get_table_id(maat_instance, cont_sz_table_name);
+    int cont_sz_table_id = maat_get_table_id(maat_inst, cont_sz_table_name);
     ASSERT_GT(cont_sz_table_id, 0);
 
-    int mail_addr_table_id = maat_get_table_id(maat_instance, mail_addr_table_name);
+    int mail_addr_table_id = maat_get_table_id(maat_inst, mail_addr_table_name);
     ASSERT_GT(mail_addr_table_id, 0);
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    int ret = maat_scan_integer(maat_instance, cont_sz_table_id, 2015, results,
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    int ret = maat_scan_integer(maat_inst, cont_sz_table_id, 2015, results,
                                 ARRAY_SIZE, &n_hit_result, state);
     
-    ret = maat_scan_string(maat_instance, mail_addr_table_id, hit_twice, strlen(hit_twice), 
+    ret = maat_scan_string(maat_inst, mail_addr_table_id, hit_twice, strlen(hit_twice), 
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
@@ -1196,15 +1196,15 @@ TEST_F(MaatStringScan, PrefixAndSuffix) {
     EXPECT_EQ(results[1], 152);
     maat_state_reset(state);
 
-    ret = maat_scan_string(maat_instance, mail_addr_table_id, hit_suffix, strlen(hit_suffix), 
+    ret = maat_scan_string(maat_inst, mail_addr_table_id, hit_suffix, strlen(hit_suffix), 
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 151);
 
-    ret = maat_scan_integer(maat_instance, cont_sz_table_id, 2015, results,
+    ret = maat_scan_integer(maat_inst, cont_sz_table_id, 2015, results,
                                 ARRAY_SIZE, &n_hit_result, state);
-    ret = maat_scan_string(maat_instance, mail_addr_table_id, hit_prefix, strlen(hit_prefix), 
+    ret = maat_scan_string(maat_inst, mail_addr_table_id, hit_prefix, strlen(hit_prefix), 
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -1216,16 +1216,16 @@ TEST_F(MaatStringScan, PrefixAndSuffix) {
 TEST_F(MaatStringScan, MaatUnescape) {
     const char *scan_data = "Batman\\:Take me Home.Superman/:Fine,stay with me.";
 	const char *table_name = "KEYWORDS_TABLE";
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatStringScan::_shared_maat_inst;
     int thread_id = 0;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data), 
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data), 
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -1240,17 +1240,17 @@ TEST_F(MaatStringScan, OffsetChunk64) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
 	FILE *fp = fopen(file_name, "r");
 	ASSERT_FALSE(fp==NULL);
 
     char scan_data[64];
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    struct maat_stream *sp = maat_stream_new(maat_instance, table_id, state);
+    struct maat_stream *sp = maat_stream_new(maat_inst, table_id, state);
 	ASSERT_TRUE(sp != NULL);
 
     int ret = 0;
@@ -1279,17 +1279,17 @@ TEST_F(MaatStringScan, OffsetChunk1460) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
 	FILE *fp = fopen(file_name, "r");
 	ASSERT_FALSE(fp==NULL);
 
     char scan_data[1460];
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    struct maat_stream *sp = maat_stream_new(maat_instance, table_id, state);
+    struct maat_stream *sp = maat_stream_new(maat_inst, table_id, state);
 	ASSERT_TRUE(sp != NULL);
 
     int ret = 0;
@@ -1319,16 +1319,16 @@ TEST_F(MaatStringScan, StreamScanUTF8) {
     size_t n_hit_result = 0;
     int thread_id = 0;
     char scan_data[2048];
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
 	FILE *fp = fopen(file_name, "r");
 	ASSERT_FALSE(fp == NULL);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    struct maat_stream *sp = maat_stream_new(maat_instance, table_id, state);
+    struct maat_stream *sp = maat_stream_new(maat_inst, table_id, state);
     ASSERT_FALSE(sp == NULL);
 
     int pass_flag = 0;
@@ -1354,15 +1354,15 @@ TEST_F(MaatStringScan, StreamInput) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 	const char *scan_data = "http://www.cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
 	const char *table_name = "HTTP_URL";
 
-	int table_id = maat_get_table_id(maat_instance, table_name);
+	int table_id = maat_get_table_id(maat_inst, table_name);
 	ASSERT_GT(table_id, 0);
 
-	struct maat_stream *sp = maat_stream_new(maat_instance, table_id, state);
+	struct maat_stream *sp = maat_stream_new(maat_inst, table_id, state);
 	ASSERT_TRUE(sp != NULL);
 
 	int ret = maat_stream_scan(sp, "www.cyberessays.com", strlen("www.cyberessays.com"),
@@ -1385,11 +1385,11 @@ TEST_F(MaatStringScan, dynamic_config) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = MaatStringScan::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
-    int ret = maat_scan_string(maat_instance, table_id, data, strlen(data), results, 
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    int ret = maat_scan_string(maat_inst, table_id, data, strlen(data), results, 
                                ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     EXPECT_EQ(n_hit_result, 0);
@@ -1399,26 +1399,26 @@ TEST_F(MaatStringScan, dynamic_config) {
     const char *g2c_table_name = "GROUP2COMPILE";
 
     /* compile table add line */
-    long long compile_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile_id, "null", 1, 0);
+    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* group2compile table add line */
-    long long group_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group_id,
+    long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group_id,
                                        compile_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* expr table add line */
-    long long item_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
+    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     const char *keywords = "welcome to maat";
-    ret = expr_table_set_line(maat_instance, table_name, MAAT_OP_ADD, item_id, group_id,
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id, group_id,
                               keywords, NULL, 1, 0, 0, 0); /* EXPR_TYPE_AND MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_string(maat_instance, table_id, data, strlen(data), results, 
+    ret = maat_scan_string(maat_inst, table_id, data, strlen(data), results, 
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -1426,22 +1426,22 @@ TEST_F(MaatStringScan, dynamic_config) {
     maat_state_reset(state);
 
     /* expr table del line */
-    ret = expr_table_set_line(maat_instance, table_name, MAAT_OP_DEL, item_id, group_id,
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_DEL, item_id, group_id,
                               keywords, NULL, 1, 0, 0, 0); /* EXPR_TYPE_AND MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
     /* group2compile table del line */
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_DEL, group_id,
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL, group_id,
                                        compile_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* compile table del line */
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_DEL, compile_id, "null", 1, 0);
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL, compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_string(maat_instance, table_id, data, strlen(data), results, 
+    ret = maat_scan_string(maat_inst, table_id, data, strlen(data), results, 
                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     EXPECT_EQ(n_hit_result, 0);
@@ -1461,28 +1461,28 @@ protected:
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
-        assert(_shared_maat_instance != NULL);
+        _shared_maat_inst = maat_new(opts, table_info_path);
+        assert(_shared_maat_inst != NULL);
        
-        maat_cmd_flushDB(_shared_maat_instance);
-        maat_free(_shared_maat_instance);
+        maat_cmd_flushDB(_shared_maat_inst);
+        maat_free(_shared_maat_inst);
 
         maat_options_set_foreign_cont_dir(opts, "./foreign_files/");
         maat_options_set_rule_effect_interval_ms(opts, 0); 
         maat_options_set_gc_timeout_ms(opts, 0); // start GC immediately
         maat_options_set_stat_file(opts, "./stat.log");
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
     } 
 
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *MaatStreamScan::_shared_maat_instance;
+struct maat *MaatStreamScan::_shared_maat_inst;
 
 TEST_F(MaatStreamScan, dynamic_config) {
 	const char *scan_data1 = "hello world cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
@@ -1492,20 +1492,20 @@ TEST_F(MaatStreamScan, dynamic_config) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = MaatStreamScan::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatStreamScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     // STEP 1: add keywords1 and wait scan stream to hit
-    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = test_add_expr_command(maat_instance, table_name, compile1_id, 0, keywords1);
+    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = test_add_expr_command(maat_inst, table_name, compile1_id, 0, keywords1);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
 	ASSERT_GT(table_id, 0);
 
-	struct maat_stream *sp = maat_stream_new(maat_instance, table_id, state);
+	struct maat_stream *sp = maat_stream_new(maat_inst, table_id, state);
 	ASSERT_TRUE(sp != NULL);
 
 	ret = maat_stream_scan(sp, "www.cyberessays.com", strlen("www.cyberessays.com"),
@@ -1520,8 +1520,8 @@ TEST_F(MaatStreamScan, dynamic_config) {
 
     // STEP 2: Inc config update, use same stream to scan and wait old expr_runtime invalid 
     random_keyword_generate(keyword_buf, sizeof(keyword_buf));
-    long long compile_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    ret = test_add_expr_command(maat_instance, table_name, compile_id, 0, keyword_buf);
+    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = test_add_expr_command(maat_inst, table_name, compile_id, 0, keyword_buf);
     EXPECT_EQ(ret, 1);
 
     // Inc config has not yet taken effect, stream scan can hit compile
@@ -1567,9 +1567,9 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatIPScan failed.",
                       __FUNCTION__, __LINE__);
@@ -1577,23 +1577,23 @@ protected:
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *MaatIPScan::_shared_maat_instance;
+struct maat *MaatIPScan::_shared_maat_inst;
 struct log_handle *MaatIPScan::logger;
 
 TEST_F(MaatIPScan, IPv4_IPPort) {
     const char *table_name = "IP_PLUS_CONFIG";
-    struct maat *maat_instance = MaatIPScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatIPScan::_shared_maat_inst;
     int thread_id = 0;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     char ip_str[32] = "10.0.7.100";
@@ -1605,8 +1605,8 @@ TEST_F(MaatIPScan, IPv4_IPPort) {
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    ret = maat_scan_ipv4(maat_instance, table_id, sip, port, proto, 
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    ret = maat_scan_ipv4(maat_inst, table_id, sip, port, proto, 
                          results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
@@ -1618,10 +1618,10 @@ TEST_F(MaatIPScan, IPv4_IPPort) {
 
 TEST_F(MaatIPScan, IPv4_Port) {
     const char *table_name = "IP_PLUS_CONFIG";
-    struct maat *maat_instance = MaatIPScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatIPScan::_shared_maat_inst;
     int thread_id = 0;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     char ip_str[32] = "0.0.0.0";
@@ -1633,14 +1633,14 @@ TEST_F(MaatIPScan, IPv4_Port) {
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    ret = maat_scan_ipv4(maat_instance, table_id, sip, port, proto, 
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    ret = maat_scan_ipv4(maat_inst, table_id, sip, port, proto, 
                          results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     maat_state_reset(state);
 
     port = htons(64999);
-    ret = maat_scan_ipv4(maat_instance, table_id, sip, port, proto, 
+    ret = maat_scan_ipv4(maat_inst, table_id, sip, port, proto, 
                          results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -1652,10 +1652,10 @@ TEST_F(MaatIPScan, IPv4_Port) {
 
 TEST_F(MaatIPScan, IPv6_IPPort) {
     const char *table_name = "IP_PLUS_CONFIG";
-    struct maat *maat_instance = MaatIPScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatIPScan::_shared_maat_inst;
     int thread_id = 0;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     char ip_str[32] = "1001:da8:205:1::101";
     uint8_t sip[16];
     int ret = inet_pton(AF_INET6, ip_str, &sip);
@@ -1665,8 +1665,8 @@ TEST_F(MaatIPScan, IPv6_IPPort) {
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    ret = maat_scan_ipv6(maat_instance, table_id, sip, port, proto, 
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    ret = maat_scan_ipv6(maat_inst, table_id, sip, port, proto, 
                          results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -1678,10 +1678,10 @@ TEST_F(MaatIPScan, IPv6_IPPort) {
 
 TEST_F(MaatIPScan, BugReport20210515) {
     const char *table_name = "IP_CONFIG";
-    struct maat *maat_instance = MaatIPScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatIPScan::_shared_maat_inst;
     int thread_id = 0;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     char ip_str[64] = "2409:8915:3430:7e7:8c9b:ff2a:7aa1:e74";
     uint8_t ip_addr[sizeof(struct in6_addr)];
     int ret = inet_pton(AF_INET6, ip_str, &ip_addr);
@@ -1691,8 +1691,8 @@ TEST_F(MaatIPScan, BugReport20210515) {
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    ret = maat_scan_ipv6(maat_instance, table_id, ip_addr, port, proto, 
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    ret = maat_scan_ipv6(maat_inst, table_id, ip_addr, port, proto, 
                          results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -1702,10 +1702,10 @@ TEST_F(MaatIPScan, BugReport20210515) {
 
 TEST_F(MaatIPScan, dynamic_config) {
     const char *table_name = "IP_PLUS_CONFIG";
-    struct maat *maat_instance = MaatIPScan::_shared_maat_instance;
+    struct maat *maat_inst = MaatIPScan::_shared_maat_inst;
     int thread_id = 0;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     char ip_str[32] = "100.100.100.100";
     uint32_t sip;
     int ret = inet_pton(AF_INET, ip_str, &sip);
@@ -1715,8 +1715,8 @@ TEST_F(MaatIPScan, dynamic_config) {
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    ret = maat_scan_ipv4(maat_instance, table_id, sip, port, proto, 
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    ret = maat_scan_ipv4(maat_inst, table_id, sip, port, proto, 
                          results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     EXPECT_EQ(n_hit_result, 0);
@@ -1726,26 +1726,26 @@ TEST_F(MaatIPScan, dynamic_config) {
     const char *g2c_table_name = "GROUP2COMPILE";
 
      /* compile table add line */
-    long long compile_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, 
+    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, 
                                  compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* group2compile table add line */
-    long long group_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, 
+    long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
                                        group_id, compile_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* ip table add line */
-    long long item_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = ip_table_set_line(maat_instance, table_name, MAAT_OP_ADD, item_id, group_id,
+    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = ip_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id, group_id,
                             IPv4, "100.100.100.100", "100.100.100.100", 100, 100, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_ipv4(maat_instance, table_id, sip, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, table_id, sip, port, proto, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -1753,23 +1753,23 @@ TEST_F(MaatIPScan, dynamic_config) {
     maat_state_reset(state);
 
     /* ip table del line */
-    ret = ip_table_set_line(maat_instance, table_name, MAAT_OP_DEL, item_id, group_id,
+    ret = ip_table_set_line(maat_inst, table_name, MAAT_OP_DEL, item_id, group_id,
                             IPv4, "100.100.100.100", "100.100.100.100", 100, 100, 0);
     EXPECT_EQ(ret, 1);
 
     /* group2compile table del line */
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_DEL, group_id,
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL, group_id,
                                        compile_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* compile table del line */
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_DEL, 
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL, 
                                  compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_ipv4(maat_instance, table_id, sip, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, table_id, sip, port, proto, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -1799,9 +1799,9 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatIntervalScan failed.",
                       __FUNCTION__, __LINE__);
@@ -1809,15 +1809,15 @@ protected:
     }
 
     static void TearDownTestCase() {
-       maat_free(_shared_maat_instance);
+       maat_free(_shared_maat_inst);
        log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *MaatIntervalScan::_shared_maat_instance;
+struct maat *MaatIntervalScan::_shared_maat_inst;
 struct log_handle *MaatIntervalScan::logger;
 
 TEST_F(MaatIntervalScan, Pure) {	
@@ -1825,19 +1825,19 @@ TEST_F(MaatIntervalScan, Pure) {
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *table_name = "CONTENT_SIZE";
-    struct maat *maat_instance = MaatIntervalScan::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatIntervalScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     unsigned int scan_data1 = 2015;
 
-	int ret = maat_scan_integer(maat_instance, table_id, scan_data1, results, ARRAY_SIZE, 
+	int ret = maat_scan_integer(maat_inst, table_id, scan_data1, results, ARRAY_SIZE, 
                                 &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 	maat_state_reset(state);
 
     unsigned int scan_data2 = 300;
-    ret = maat_scan_integer(maat_instance, table_id, scan_data2, results, ARRAY_SIZE, 
+    ret = maat_scan_integer(maat_inst, table_id, scan_data2, results, ARRAY_SIZE, 
                             &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     EXPECT_EQ(n_hit_result, 0);
@@ -1850,17 +1850,17 @@ TEST_F(MaatIntervalScan, IntervalPlus) {
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *table_name = "INTERGER_PLUS";
-    struct maat *maat_instance = MaatIntervalScan::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatIntervalScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     const char *district_str = "interval.plus";
 
     int ret = maat_state_set_scan_district(state, table_id, district_str, strlen(district_str));
     EXPECT_EQ(ret, 0);
 
     unsigned int scan_data1 = 2020;
-	ret = maat_scan_integer(maat_instance, table_id, scan_data1, results, ARRAY_SIZE, 
+	ret = maat_scan_integer(maat_inst, table_id, scan_data1, results, ARRAY_SIZE, 
                                 &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
@@ -1892,9 +1892,9 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in NOTLogic failed.",
                       __FUNCTION__, __LINE__);
@@ -1902,15 +1902,15 @@ protected:
     }
 
     static void TearDownTestCase() {
-       maat_free(_shared_maat_instance);
+       maat_free(_shared_maat_inst);
        log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *NOTLogic::_shared_maat_instance;
+struct maat *NOTLogic::_shared_maat_inst;
 struct log_handle *NOTLogic::logger;
 
 TEST_F(NOTLogic, OneRegion) {
@@ -1921,14 +1921,14 @@ TEST_F(NOTLogic, OneRegion) {
     size_t n_hit_result = 0;
     int thread_id = 0;
 	const char *table_name = "HTTP_URL";
-    struct maat *maat_instance = NOTLogic::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = NOTLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-	int table_id = maat_get_table_id(maat_instance, table_name);
+	int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     maat_state_set_last_scan(state);
-	int ret = maat_scan_string(maat_instance, table_id, string_should_hit, strlen(string_should_hit), 
+	int ret = maat_scan_string(maat_inst, table_id, string_should_hit, strlen(string_should_hit), 
 						       results, ARRAY_SIZE, &n_hit_result, state);
 						
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -1937,7 +1937,7 @@ TEST_F(NOTLogic, OneRegion) {
     maat_state_reset(state);
 	
     maat_state_set_last_scan(state);
-	ret = maat_scan_string(maat_instance, table_id, string_should_not_hit, strlen(string_should_not_hit), 
+	ret = maat_scan_string(maat_inst, table_id, string_should_not_hit, strlen(string_should_not_hit), 
 						   results, ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 	maat_state_free(state);
@@ -1953,21 +1953,21 @@ TEST_F(NOTLogic, ScanNotAtLast) {
     int thread_id = 0;
 	const char *hit_table_name = "HTTP_URL";
     const char *not_hit_table_name = "KEYWORDS_TABLE";
-    struct maat *maat_instance = NOTLogic::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = NOTLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int hit_table_id = maat_get_table_id(maat_instance, hit_table_name);
+    int hit_table_id = maat_get_table_id(maat_inst, hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
-    int ret = maat_scan_string(maat_instance, hit_table_id, string_should_hit, strlen(string_should_hit), 
+    int ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit, strlen(string_should_hit), 
 						       results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    int not_hit_table_id =  maat_get_table_id(maat_instance, not_hit_table_name);
+    int not_hit_table_id =  maat_get_table_id(maat_inst, not_hit_table_name);
     ASSERT_GT(not_hit_table_id, 0);
 
 	maat_state_set_last_scan(state);
-    ret = maat_scan_string(maat_instance, not_hit_table_id, string_should_not_hit, strlen(string_should_not_hit), 
+    ret = maat_scan_string(maat_inst, not_hit_table_id, string_should_not_hit, strlen(string_should_not_hit), 
 						       results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     maat_state_free(state);
@@ -1982,21 +1982,21 @@ TEST_F(NOTLogic, ScanIrrelavantAtLast) {
     int thread_id = 0;
     const char *hit_table_name = "HTTP_URL";
     const char *not_hit_table_name = "KEYWORDS_TABLE";
-    struct maat *maat_instance = NOTLogic::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = NOTLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int hit_table_id = maat_get_table_id(maat_instance, hit_table_name);
+    int hit_table_id = maat_get_table_id(maat_inst, hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
-    int ret = maat_scan_string(maat_instance, hit_table_id, string_should_hit, strlen(string_should_hit), 
+    int ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit, strlen(string_should_hit), 
 						       results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    int not_hit_table_id = maat_get_table_id(maat_instance, not_hit_table_name);
+    int not_hit_table_id = maat_get_table_id(maat_inst, not_hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
     maat_state_set_last_scan(state);
-    ret = maat_scan_string(maat_instance, not_hit_table_id, string_irrelevant, strlen(string_irrelevant), 
+    ret = maat_scan_string(maat_inst, not_hit_table_id, string_irrelevant, strlen(string_irrelevant), 
 						       results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -2014,13 +2014,13 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyExpr) {
     const char *not_hit_table_name = "HTTP_URL";
     const char *hit_table_name = "IP_PLUS_CONFIG";
     const char *empty_table_name = "EMPTY_KEYWORD";
-    struct maat *maat_instance = NOTLogic::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = NOTLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int not_hit_table_id = maat_get_table_id(maat_instance, not_hit_table_name);
+    int not_hit_table_id = maat_get_table_id(maat_inst, not_hit_table_name);
     ASSERT_GT(not_hit_table_id, 0);
 
-    int ret = maat_scan_string(maat_instance, not_hit_table_id,
+    int ret = maat_scan_string(maat_inst, not_hit_table_id,
                                string_should_not_hit, strlen(string_should_not_hit), 
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
@@ -2030,18 +2030,18 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyExpr) {
     uint16_t port = htons(18611);
     int proto = 6;
 
-    int hit_table_id = maat_get_table_id(maat_instance, hit_table_name);
+    int hit_table_id = maat_get_table_id(maat_inst, hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
-    ret = maat_scan_ipv4(maat_instance, hit_table_id, sip, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, hit_table_id, sip, port, proto, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    int empty_table_id = maat_get_table_id(maat_instance, empty_table_name);
+    int empty_table_id = maat_get_table_id(maat_inst, empty_table_name);
     ASSERT_GT(empty_table_id, 0);
 
     maat_state_set_last_scan(state);
-    ret = maat_scan_string(maat_instance, empty_table_id, string_match_no_region, 
+    ret = maat_scan_string(maat_inst, empty_table_id, string_match_no_region, 
                            strlen(string_match_no_region), results, ARRAY_SIZE, 
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -2059,13 +2059,13 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyInteger) {
     const char *not_hit_table_name = "HTTP_URL";
     const char *hit_table_name = "IP_PLUS_CONFIG";
     const char *empty_table_name = "EMPTY_INTERGER";
-    struct maat *maat_instance = NOTLogic::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = NOTLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int not_hit_table_id = maat_get_table_id(maat_instance, not_hit_table_name);
+    int not_hit_table_id = maat_get_table_id(maat_inst, not_hit_table_name);
     ASSERT_GT(not_hit_table_id, 0);
 
-    int ret = maat_scan_string(maat_instance, not_hit_table_id, string_should_not_hit, 
+    int ret = maat_scan_string(maat_inst, not_hit_table_id, string_should_not_hit, 
                                strlen(string_should_not_hit), results, ARRAY_SIZE, 
                                &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
@@ -2075,18 +2075,18 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyInteger) {
     uint16_t port = htons(18611);
     int proto = 6;
 
-    int hit_table_id = maat_get_table_id(maat_instance, hit_table_name);
+    int hit_table_id = maat_get_table_id(maat_inst, hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
-    ret = maat_scan_ipv4(maat_instance, hit_table_id, sip, port, proto,
+    ret = maat_scan_ipv4(maat_inst, hit_table_id, sip, port, proto,
                          results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    int empty_table_id = maat_get_table_id(maat_instance, empty_table_name);
+    int empty_table_id = maat_get_table_id(maat_inst, empty_table_name);
     ASSERT_GT(empty_table_id, 0);
 
     maat_state_set_last_scan(state);
-    ret = maat_scan_integer(maat_instance, empty_table_id, 2015,
+    ret = maat_scan_integer(maat_inst, empty_table_id, 2015,
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(results[0], 187);
@@ -2101,13 +2101,13 @@ TEST_F(NOTLogic, ScanNotIP) {
     int thread_id = 0;
     const char *hit_table_name = "HTTP_URL";
     const char *not_hit_table_name = "IP_CONFIG";
-    struct maat *maat_instance = NOTLogic::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = NOTLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int hit_table_id = maat_get_table_id(maat_instance, hit_table_name);
+    int hit_table_id = maat_get_table_id(maat_inst, hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
-    int ret = maat_scan_string(maat_instance, hit_table_id, string_should_hit, 
+    int ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit, 
                                strlen(string_should_hit), results, ARRAY_SIZE, 
                                &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
@@ -2117,11 +2117,11 @@ TEST_F(NOTLogic, ScanNotIP) {
     uint16_t port = htons(50001);
     int proto = 6;
 
-    int not_hit_table_id = maat_get_table_id(maat_instance, not_hit_table_name);
+    int not_hit_table_id = maat_get_table_id(maat_inst, not_hit_table_name);
     ASSERT_GT(not_hit_table_id, 0);
 
     maat_state_set_last_scan(state);
-    ret = maat_scan_ipv4(maat_instance, not_hit_table_id, sip, port, proto, 
+    ret = maat_scan_ipv4(maat_inst, not_hit_table_id, sip, port, proto, 
                          results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     maat_state_free(state);
@@ -2150,9 +2150,9 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in NOTLogic failed.",
                       __FUNCTION__, __LINE__);
@@ -2160,15 +2160,15 @@ protected:
     }
 
     static void TearDownTestCase() {
-       maat_free(_shared_maat_instance);
+       maat_free(_shared_maat_inst);
        log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *ExcludeLogic::_shared_maat_instance;
+struct maat *ExcludeLogic::_shared_maat_inst;
 struct log_handle *ExcludeLogic::logger;
 
 TEST_F(ExcludeLogic, ScanExcludeAtFirst) {
@@ -2179,20 +2179,20 @@ TEST_F(ExcludeLogic, ScanExcludeAtFirst) {
     int thread_id = 0;
 	const char *not_hit_table_name = "KEYWORDS_TABLE";
     const char *hit_table_name = "HTTP_URL";
-    struct maat *maat_instance = ExcludeLogic::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = ExcludeLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int not_hit_table_id = maat_get_table_id(maat_instance, not_hit_table_name);
+    int not_hit_table_id = maat_get_table_id(maat_inst, not_hit_table_name);
     ASSERT_GT(not_hit_table_id, 0);
 
-    int ret = maat_scan_string(maat_instance, not_hit_table_id, string_should_not_hit, strlen(string_should_not_hit), 
+    int ret = maat_scan_string(maat_inst, not_hit_table_id, string_should_not_hit, strlen(string_should_not_hit), 
 						       results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    int hit_table_id =  maat_get_table_id(maat_instance, hit_table_name);
+    int hit_table_id =  maat_get_table_id(maat_inst, hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
-    ret = maat_scan_string(maat_instance, hit_table_id, string_should_hit, strlen(string_should_hit), 
+    ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit, strlen(string_should_hit), 
 						   results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -2209,13 +2209,13 @@ TEST_F(ExcludeLogic, ScanExcludeAtLast) {
     size_t n_hit_result = 0;
     int thread_id = 0;
 	const char *table_name = "HTTP_URL";
-    struct maat *maat_instance = ExcludeLogic::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = ExcludeLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-	int table_id = maat_get_table_id(maat_instance, table_name);
+	int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-	int ret = maat_scan_string(maat_instance, table_id, string_should_hit, strlen(string_should_hit), 
+	int ret = maat_scan_string(maat_inst, table_id, string_should_hit, strlen(string_should_hit), 
 						       results, ARRAY_SIZE, &n_hit_result, state);
 						
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -2223,7 +2223,7 @@ TEST_F(ExcludeLogic, ScanExcludeAtLast) {
     EXPECT_EQ(results[0], 200);
     maat_state_reset(state);
 	
-	ret = maat_scan_string(maat_instance, table_id, string_should_not_hit, strlen(string_should_not_hit), 
+	ret = maat_scan_string(maat_inst, table_id, string_should_not_hit, strlen(string_should_not_hit), 
 						   results, ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 	maat_state_free(state);
@@ -2238,22 +2238,22 @@ TEST_F(ExcludeLogic, ScanIrrelavantAtLast) {
     int thread_id = 0;
     const char *hit_table_name = "HTTP_URL";
     const char *not_hit_table_name = "KEYWORDS_TABLE";
-    struct maat *maat_instance = ExcludeLogic::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = ExcludeLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int hit_table_id = maat_get_table_id(maat_instance, hit_table_name);
+    int hit_table_id = maat_get_table_id(maat_inst, hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
-    int ret = maat_scan_string(maat_instance, hit_table_id, string_should_hit, strlen(string_should_hit), 
+    int ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit, strlen(string_should_hit), 
 						       results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 200);
 
-    int not_hit_table_id = maat_get_table_id(maat_instance, not_hit_table_name);
+    int not_hit_table_id = maat_get_table_id(maat_inst, not_hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
-    ret = maat_scan_string(maat_instance, not_hit_table_id, string_irrelevant, strlen(string_irrelevant), 
+    ret = maat_scan_string(maat_inst, not_hit_table_id, string_irrelevant, strlen(string_irrelevant), 
 						       results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     
@@ -2265,11 +2265,11 @@ TEST_F(ExcludeLogic, ScanVirtualTable) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = ExcludeLogic::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = ExcludeLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
     const char *table_name = "VIRTUAL_IP_PLUS_TABLE";
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     uint32_t should_hit_ip;
@@ -2278,7 +2278,7 @@ TEST_F(ExcludeLogic, ScanVirtualTable) {
     
     uint16_t port = htons(5210);
 
-    int ret = maat_scan_ipv4(maat_instance, table_id, should_hit_ip, port, 6,
+    int ret = maat_scan_ipv4(maat_inst, table_id, should_hit_ip, port, 6,
                              results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -2286,7 +2286,7 @@ TEST_F(ExcludeLogic, ScanVirtualTable) {
     maat_state_reset(state);
 
     inet_pton(AF_INET, "100.64.1.5", &should_hit_ip);
-    ret = maat_scan_ipv4(maat_instance, table_id, should_hit_ip, port, 6,
+    ret = maat_scan_ipv4(maat_inst, table_id, should_hit_ip, port, 6,
                              results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -2294,13 +2294,13 @@ TEST_F(ExcludeLogic, ScanVirtualTable) {
     maat_state_reset(state);
 
     inet_pton(AF_INET, "100.64.1.6", &should_not_hit_ip);
-    ret = maat_scan_ipv4(maat_instance, table_id, should_not_hit_ip, port, 6,
+    ret = maat_scan_ipv4(maat_inst, table_id, should_not_hit_ip, port, 6,
                              results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     maat_state_reset(state);
 
     inet_pton(AF_INET, "100.64.1.11", &should_not_hit_ip);
-    ret = maat_scan_ipv4(maat_instance, table_id, should_not_hit_ip, port, 6,
+    ret = maat_scan_ipv4(maat_inst, table_id, should_not_hit_ip, port, 6,
                              results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     maat_state_reset(state);
@@ -2312,39 +2312,39 @@ TEST_F(ExcludeLogic, ScanWithMultiClause) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = ExcludeLogic::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = ExcludeLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
     const char *ip_table_name = "VIRTUAL_IP_PLUS_TABLE";
 
-    int ip_table_id = maat_get_table_id(maat_instance, ip_table_name);
+    int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(ip_table_id, 0);
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.50.43", &ip_addr);
     uint16_t port = htons(56168);
 
-    int ret = maat_scan_ipv4(maat_instance, ip_table_id, ip_addr, port, 6,
+    int ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
                              results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     inet_pton(AF_INET, "47.92.108.93", &ip_addr);
     port = htons(443);
-    ret = maat_scan_ipv4(maat_instance, ip_table_id, ip_addr, port, 6,
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
                              results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     const char *expr_table_name = "HTTP_RESPONSE_KEYWORDS";
-    int expr_table_id = maat_get_table_id(maat_instance, expr_table_name);
+    int expr_table_id = maat_get_table_id(maat_inst, expr_table_name);
     ASSERT_GT(expr_table_id, 0);
 
     const char *should_not_hit_expr = "www.jianshu.com";
-    ret = maat_scan_string(maat_instance, expr_table_id, should_not_hit_expr,
+    ret = maat_scan_string(maat_inst, expr_table_id, should_not_hit_expr,
                            strlen(should_not_hit_expr), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     const char *should_hit_expr = "mail.jianshu.com";
-    ret = maat_scan_string(maat_instance, expr_table_id, should_hit_expr,
+    ret = maat_scan_string(maat_inst, expr_table_id, should_hit_expr,
                            strlen(should_hit_expr), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -2359,46 +2359,46 @@ TEST_F(ExcludeLogic, ExcludeInDifferentLevel) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = ExcludeLogic::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = ExcludeLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
     const char *ip_table_name = "VIRTUAL_IP_PLUS_TABLE";
 
-    int ip_table_id = maat_get_table_id(maat_instance, ip_table_name);
+    int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(ip_table_id, 0);
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "100.64.2.1", &ip_addr);
     uint16_t port = htons(56168);
 
-    int ret = maat_scan_ipv4(maat_instance, ip_table_id, ip_addr, port, 6,
+    int ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
                              results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     inet_pton(AF_INET, "100.64.2.6", &ip_addr);
     port = htons(443);
 
-    ret = maat_scan_ipv4(maat_instance, ip_table_id, ip_addr, port, 6,
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
                              results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     const char *expr_table_name = "HTTP_RESPONSE_KEYWORDS";
-    int expr_table_id = maat_get_table_id(maat_instance, expr_table_name);
+    int expr_table_id = maat_get_table_id(maat_inst, expr_table_name);
     ASSERT_GT(expr_table_id, 0);
 
     const char *should_not_hit_expr1 = "www.baidu.com";
-    ret = maat_scan_string(maat_instance, expr_table_id, should_not_hit_expr1,
+    ret = maat_scan_string(maat_inst, expr_table_id, should_not_hit_expr1,
                            strlen(should_not_hit_expr1), results, ARRAY_SIZE, 
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     const char *should_not_hit_expr2 = "mail.baidu.com";
-    ret = maat_scan_string(maat_instance, expr_table_id, should_not_hit_expr2,
+    ret = maat_scan_string(maat_inst, expr_table_id, should_not_hit_expr2,
                            strlen(should_not_hit_expr2), results, ARRAY_SIZE, 
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     const char *should_hit_expr = "hit.baidu.com";
-    ret = maat_scan_string(maat_instance, expr_table_id, should_hit_expr, strlen(should_hit_expr),
+    ret = maat_scan_string(maat_inst, expr_table_id, should_hit_expr, strlen(should_hit_expr),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -2414,13 +2414,13 @@ TEST_F(ExcludeLogic, ScanNotIP) {
     int thread_id = 0;
     const char *hit_table_name = "HTTP_URL";
     const char *not_hit_table_name = "IP_CONFIG";
-    struct maat *maat_instance = ExcludeLogic::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = ExcludeLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int hit_table_id = maat_get_table_id(maat_instance, hit_table_name);
+    int hit_table_id = maat_get_table_id(maat_inst, hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
-    int ret = maat_scan_string(maat_instance, hit_table_id, string_should_hit, 
+    int ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit, 
                                strlen(string_should_hit), results, ARRAY_SIZE, 
                                &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -2432,10 +2432,10 @@ TEST_F(ExcludeLogic, ScanNotIP) {
     uint16_t port = htons(50001);
     int proto = 6;
 
-    int not_hit_table_id = maat_get_table_id(maat_instance, not_hit_table_name);
+    int not_hit_table_id = maat_get_table_id(maat_inst, not_hit_table_name);
     ASSERT_GT(not_hit_table_id, 0);
 
-    ret = maat_scan_ipv4(maat_instance, not_hit_table_id, sip, port, proto, 
+    ret = maat_scan_ipv4(maat_inst, not_hit_table_id, sip, port, proto, 
                          results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -2502,9 +2502,9 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in PluginTable failed.",
                       __FUNCTION__, __LINE__);
@@ -2512,27 +2512,27 @@ protected:
     }
 
     static void TearDownTestCase() {
-       maat_free(_shared_maat_instance);
+       maat_free(_shared_maat_inst);
        log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *PluginTable::_shared_maat_instance;
+struct maat *PluginTable::_shared_maat_inst;
 struct log_handle *PluginTable::logger;
 
 TEST_F(PluginTable, Callback) {
     const char *table_name = "QD_ENTRY_INFO";
-    struct maat *maat_instance = PluginTable::_shared_maat_instance;
+    struct maat *maat_inst = PluginTable::_shared_maat_inst;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
-    int ret = maat_table_callback_register(maat_instance, table_id, 
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    int ret = maat_table_callback_register(maat_inst, table_id, 
                                            maat_read_entry_start_cb,
                                            maat_read_entry_cb, 
                                            maat_read_entry_finish_cb,
-                                           maat_instance);
+                                           maat_inst);
     EXPECT_EQ(ret, 0);
 }
 
@@ -2575,13 +2575,13 @@ void plugin_EX_dup_cb(int table_id, void **to, void **from, long argl, void *arg
 
 TEST_F(PluginTable, EX_DATA) {
     const char *table_name = "TEST_PLUGIN_EXDATA_TABLE";
-    struct maat *maat_instance = PluginTable::_shared_maat_instance;
+    struct maat *maat_inst = PluginTable::_shared_maat_inst;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     int plugin_ex_data_counter = 0;
-    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
+    int ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
                                                    plugin_EX_new_cb,
                                                    plugin_EX_free_cb,
                                                    plugin_EX_dup_cb,
@@ -2591,7 +2591,7 @@ TEST_F(PluginTable, EX_DATA) {
 
     const char *key1 = "HeBei";
     struct plugin_ud *ud = NULL;
-    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_id,
                                                            key1, strlen(key1));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "Shijiazhuang");
@@ -2599,7 +2599,7 @@ TEST_F(PluginTable, EX_DATA) {
     plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 
     const char *key2 = "ShanDong";
-    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_id,
                                                            key2, strlen(key2));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "Jinan");
@@ -2609,13 +2609,13 @@ TEST_F(PluginTable, EX_DATA) {
 
 TEST_F(PluginTable, LONG_KEY_TYPE) {
     const char *table_name = "TEST_PLUGIN_LONG_KEY_TYPE_TABLE";
-    struct maat *maat_instance = PluginTable::_shared_maat_instance;
+    struct maat *maat_inst = PluginTable::_shared_maat_inst;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     int plugin_ex_data_counter = 0;
-    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
+    int ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
                                                    plugin_EX_new_cb,
                                                    plugin_EX_free_cb,
                                                    plugin_EX_dup_cb,
@@ -2625,7 +2625,7 @@ TEST_F(PluginTable, LONG_KEY_TYPE) {
 
     long long key1 = 11111111;
     struct plugin_ud *ud = NULL;
-    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_id,
                                                            (char *)&key1, sizeof(long long));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "Shijiazhuang");
@@ -2633,7 +2633,7 @@ TEST_F(PluginTable, LONG_KEY_TYPE) {
     plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 
     long long key2 = 33333333;
-    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_id,
                                                            (char *)&key2, sizeof(long long));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "Jinan");
@@ -2641,20 +2641,20 @@ TEST_F(PluginTable, LONG_KEY_TYPE) {
     plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 
     int key3 = 22222222;
-    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_id,
                                                            (char *)&key3, sizeof(key3));
     ASSERT_TRUE(ud == NULL);
 }
 
 TEST_F(PluginTable, INT_KEY_TYPE) {
     const char *table_name = "TEST_PLUGIN_INT_KEY_TYPE_TABLE";
-    struct maat *maat_instance = PluginTable::_shared_maat_instance;
+    struct maat *maat_inst = PluginTable::_shared_maat_inst;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     int plugin_ex_data_counter = 0;
-    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
+    int ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
                                                    plugin_EX_new_cb,
                                                    plugin_EX_free_cb,
                                                    plugin_EX_dup_cb,
@@ -2664,7 +2664,7 @@ TEST_F(PluginTable, INT_KEY_TYPE) {
 
     int key1 = 101;
     struct plugin_ud *ud = NULL;
-    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_id,
                                                            (char *)&key1, sizeof(key1));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "China");
@@ -2672,7 +2672,7 @@ TEST_F(PluginTable, INT_KEY_TYPE) {
     plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 
     int key2 = 102;
-    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_id,
                                                            (char *)&key2, sizeof(key2));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "America");
@@ -2680,20 +2680,20 @@ TEST_F(PluginTable, INT_KEY_TYPE) {
     plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 
     long long key3 = 103;
-    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_id,
                                                            (char *)&key3, sizeof(key3));
     ASSERT_TRUE(ud == NULL);
 }
 
 TEST_F(PluginTable, IP_KEY_TYPE) {
     const char *table_name = "TEST_PLUGIN_IP_KEY_TYPE_TABLE";
-    struct maat *maat_instance = PluginTable::_shared_maat_instance;
+    struct maat *maat_inst = PluginTable::_shared_maat_inst;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     int plugin_ex_data_counter = 0;
-    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
+    int ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
                                                    plugin_EX_new_cb,
                                                    plugin_EX_free_cb,
                                                    plugin_EX_dup_cb,
@@ -2706,7 +2706,7 @@ TEST_F(PluginTable, IP_KEY_TYPE) {
     EXPECT_EQ(ret, 1);
 
     struct plugin_ud *ud = NULL;
-    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_id,
                                                            (char *)&ipv4_addr1, sizeof(ipv4_addr1));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "XiZang");
@@ -2717,7 +2717,7 @@ TEST_F(PluginTable, IP_KEY_TYPE) {
     ret = inet_pton(AF_INET, "100.64.1.2", &ipv4_addr2);
     EXPECT_EQ(ret, 1);
 
-    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_id,
                                                            (char *)&ipv4_addr2, sizeof(ipv4_addr2));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "XinJiang");
@@ -2728,7 +2728,7 @@ TEST_F(PluginTable, IP_KEY_TYPE) {
     ret = inet_pton(AF_INET6, "2001:da8:205:1::101", ipv6_addr1);
     EXPECT_EQ(ret, 1);
 
-    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_id,
                                                            (char *)ipv6_addr1, sizeof(ipv6_addr1));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "GuiZhou");
@@ -2739,7 +2739,7 @@ TEST_F(PluginTable, IP_KEY_TYPE) {
     ret = inet_pton(AF_INET6, "1001:da8:205:1::101", ipv6_addr2);
     EXPECT_EQ(ret, 1);
 
-    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+    ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_id,
                                                            (char *)ipv6_addr2, sizeof(ipv6_addr2));
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "SiChuan");
@@ -2769,9 +2769,9 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in IPPluginTable failed.",
                       __FUNCTION__, __LINE__);
@@ -2779,15 +2779,15 @@ protected:
     }
 
     static void TearDownTestCase() {
-       maat_free(_shared_maat_instance);
+       maat_free(_shared_maat_inst);
        log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *IPPluginTable::_shared_maat_instance;
+struct maat *IPPluginTable::_shared_maat_inst;
 struct log_handle *IPPluginTable::logger;
 
 struct ip_plugin_ud {
@@ -2837,12 +2837,12 @@ void ip_plugin_ex_dup_cb(int table_id, void **to, void **from, long argl, void *
 TEST_F(IPPluginTable, EX_DATA) {
     int ip_plugin_ex_data_counter = 0;
     const char *table_name = "TEST_IP_PLUGIN_WITH_EXDATA";
-    struct maat *maat_instance = IPPluginTable::_shared_maat_instance;
+    struct maat *maat_inst = IPPluginTable::_shared_maat_inst;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
+    int ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
                                                    ip_plugin_ex_new_cb,
                                                    ip_plugin_ex_free_cb,
                                                    ip_plugin_ex_dup_cb,
@@ -2856,7 +2856,7 @@ TEST_F(IPPluginTable, EX_DATA) {
     EXPECT_EQ(ret, 1);
 
     struct ip_plugin_ud *results[ARRAY_SIZE];
-    ret = maat_ip_plugin_table_get_ex_data(maat_instance, table_id, &ipv4, 
+    ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv4, 
                                            (void **)results, ARRAY_SIZE);
     EXPECT_EQ(ret, 2);
     EXPECT_EQ(results[0]->rule_id, 101);
@@ -2872,7 +2872,7 @@ TEST_F(IPPluginTable, EX_DATA) {
     inet_pton(AF_INET6, "2001:db8:1234::5210", &(ipv6.ipv6));
     memset(results, 0, sizeof(results));
 
-	ret = maat_ip_plugin_table_get_ex_data(maat_instance, table_id, &ipv6, 
+	ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv6, 
                                            (void**)results, ARRAY_SIZE);
 	EXPECT_EQ(ret, 2);
 	EXPECT_EQ(results[0]->rule_id, 104);
@@ -2884,7 +2884,7 @@ TEST_F(IPPluginTable, EX_DATA) {
 
 	//Reproduce BugReport-Liumengyan-20210515
 	inet_pton(AF_INET6, "240e:97c:4010:104::17", &(ipv6.ipv6));
-	ret = maat_ip_plugin_table_get_ex_data(maat_instance, table_id, &ipv6, 
+	ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv6, 
                                            (void**)results, ARRAY_SIZE);
 	EXPECT_EQ(ret, 0);
 }
@@ -2911,9 +2911,9 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in FQDNPluginTable failed.",
                       __FUNCTION__, __LINE__);
@@ -2921,15 +2921,15 @@ protected:
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *FQDNPluginTable::_shared_maat_instance;
+struct maat *FQDNPluginTable::_shared_maat_inst;
 struct log_handle *FQDNPluginTable::logger;
 
 #define FQDN_PLUGIN_EX_DATA
@@ -2978,13 +2978,13 @@ void fqdn_plugin_ex_dup_cb(int table_id, void **to, void **from, long argl, void
 
 TEST_F(FQDNPluginTable, EX_DATA) {
     const char *table_name = "TEST_FQDN_PLUGIN_WITH_EXDATA";
-    struct maat *maat_instance = FQDNPluginTable::_shared_maat_instance;
+    struct maat *maat_inst = FQDNPluginTable::_shared_maat_inst;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     int fqdn_plugin_ex_data_counter = 0;
-    int ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
+    int ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
                                                     fqdn_plugin_ex_new_cb,
                                                     fqdn_plugin_ex_free_cb,
                                                     fqdn_plugin_ex_dup_cb,
@@ -2995,7 +2995,7 @@ TEST_F(FQDNPluginTable, EX_DATA) {
     int i = 0;
     struct fqdn_plugin_ud *result[4];
 
-	ret = maat_fqdn_plugin_table_get_ex_data(maat_instance, table_id, "www.example1.com", (void**)result, 4);
+	ret = maat_fqdn_plugin_table_get_ex_data(maat_inst, table_id, "www.example1.com", (void**)result, 4);
 	ASSERT_EQ(ret, 2);
 	EXPECT_EQ(result[0]->rule_id, 201);
 	EXPECT_EQ(result[1]->rule_id, 202);
@@ -3004,10 +3004,10 @@ TEST_F(FQDNPluginTable, EX_DATA) {
 		fqdn_plugin_ex_free_cb(0, (void**)&(result[i]), 0, NULL);
 	}
 
-	ret = maat_fqdn_plugin_table_get_ex_data(maat_instance, table_id, "www.example3.com", (void**)result, 4);
+	ret = maat_fqdn_plugin_table_get_ex_data(maat_inst, table_id, "www.example3.com", (void**)result, 4);
 	EXPECT_EQ(ret, 0);
 
-	ret = maat_fqdn_plugin_table_get_ex_data(maat_instance, table_id, "r3---sn-i3belne6.example2.com", (void**)result, 4);
+	ret = maat_fqdn_plugin_table_get_ex_data(maat_inst, table_id, "r3---sn-i3belne6.example2.com", (void**)result, 4);
 	ASSERT_EQ(ret, 2);
 	EXPECT_TRUE(result[0]->rule_id == 205 || result[0]->rule_id == 204);
 	
@@ -3080,9 +3080,9 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in BoolPluginTable failed.",
                       __FUNCTION__, __LINE__);
@@ -3090,26 +3090,26 @@ protected:
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *BoolPluginTable::_shared_maat_instance;
+struct maat *BoolPluginTable::_shared_maat_inst;
 struct log_handle *BoolPluginTable::logger;
 
 TEST_F(BoolPluginTable, EX_DATA) {
     int ex_data_counter = 0, i = 0;
 	const char *table_name = "TEST_BOOL_PLUGIN_WITH_EXDATA";
-    struct maat *maat_instance = BoolPluginTable::_shared_maat_instance;
+    struct maat *maat_inst = BoolPluginTable::_shared_maat_inst;
 
-	int table_id = maat_get_table_id(maat_instance, table_name);
+	int table_id = maat_get_table_id(maat_inst, table_name);
 	ASSERT_GT(table_id, 0);
 
-	int ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
+	int ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
 								                   bool_plugin_ex_new_cb,
 								                   bool_plugin_ex_free_cb,
 								                   bool_plugin_ex_dup_cb,
@@ -3119,7 +3119,7 @@ TEST_F(BoolPluginTable, EX_DATA) {
 
 	struct bool_plugin_ud *result[6];
 	unsigned long long items_1[] = {999};
-	ret = maat_bool_plugin_table_get_ex_data(maat_instance, table_id, items_1,
+	ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_id, items_1,
                                              1, (void**)result, 6);
 	EXPECT_EQ(ret, 0);
 	for (i = 0; i < ret; i++) {
@@ -3127,7 +3127,7 @@ TEST_F(BoolPluginTable, EX_DATA) {
 	}
 
 	unsigned long long items_2[] = {1, 2, 1000};
-	ret = maat_bool_plugin_table_get_ex_data(maat_instance, table_id, items_2,
+	ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_id, items_2,
                                              3, (void**)result, 6);
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0]->id, 301);
@@ -3136,7 +3136,7 @@ TEST_F(BoolPluginTable, EX_DATA) {
 	}
 
 	unsigned long long items_3[]={101, 102, 1000};
-	ret = maat_bool_plugin_table_get_ex_data(maat_instance, table_id, items_3,
+	ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_id, items_3,
                                              3, (void**)result, 6);
 	EXPECT_EQ(ret, 4);
 	for (i = 0; i < ret; i++) {
@@ -3144,7 +3144,7 @@ TEST_F(BoolPluginTable, EX_DATA) {
 	}
 
 	unsigned long long items_4[]={7, 0, 1, 2, 3, 4, 5, 6, 7, 7, 7};
-	ret = maat_bool_plugin_table_get_ex_data(maat_instance, table_id, items_4,
+	ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_id, items_4,
                                              sizeof(items_4)/sizeof(unsigned long long),
                                              (void**)result, 6);
 	EXPECT_EQ(ret, 1);	
@@ -3176,9 +3176,9 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in VirtualTable failed.",
                       __FUNCTION__, __LINE__);
@@ -3186,15 +3186,15 @@ protected:
     }
 
     static void TearDownTestCase() {
-       maat_free(_shared_maat_instance);
+       maat_free(_shared_maat_inst);
        log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *VirtualTable::_shared_maat_instance;
+struct maat *VirtualTable::_shared_maat_inst;
 struct log_handle *VirtualTable::logger;
 
 TEST_F(VirtualTable, basic) {
@@ -3202,13 +3202,13 @@ TEST_F(VirtualTable, basic) {
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *table_name = "HTTP_RESPONSE_KEYWORDS";
-    struct maat *maat_instance = VirtualTable::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = VirtualTable::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     char scan_data[128] = "string1, string2, string3, string4, string5, string6, string7, string8";
     
-    int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
+    int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                                 results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     EXPECT_EQ(n_hit_result, 0);
@@ -3238,9 +3238,9 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in CompileTable failed.",
                       __FUNCTION__, __LINE__);
@@ -3248,15 +3248,15 @@ protected:
     }
 
     static void TearDownTestCase() {
-       maat_free(_shared_maat_instance);
+       maat_free(_shared_maat_inst);
        log_handle_destroy(logger);
     }    
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *CompileTable::_shared_maat_instance;
+struct maat *CompileTable::_shared_maat_inst;
 struct log_handle *CompileTable::logger;
 
 struct rule_ex_param {
@@ -3317,15 +3317,15 @@ void compile_ex_param_dup(int table_id, void **to, void **from, long argl, void 
 }
 
 TEST_F(CompileTable, CompileRuleUpdate) {
-    struct maat *maat_instance = CompileTable::_shared_maat_instance;
+    struct maat *maat_inst = CompileTable::_shared_maat_inst;
 
     const char *compile_table_name = "COMPILE";
-    long long compile_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile_id, "null", 1, 0);
+    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_DEL, compile_id, "null", 1, 0);
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL, compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
 }
@@ -3337,12 +3337,12 @@ TEST_F(CompileTable, Conjunction1) {
     const char *scan_data = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNAC"
                             "ELwBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
     const char *table_name = "HTTP_URL";
-    struct maat *maat_instance = CompileTable::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    struct maat *maat_inst = CompileTable::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
+    int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
@@ -3364,13 +3364,13 @@ TEST_F(CompileTable, Conjunction2) {
     const char *scan_data = "i.ytimg.com/vi/OtCNcustg_I/hqdefault.jpg?sqp=-oaymwEZCNACELw"
                             "BSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLDOp_5fHMaCA9XZuJdCRv4DNDorMg";
     const char *table_name = "HTTP_URL";
-    struct maat *maat_instance = CompileTable::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = CompileTable::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
+    int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
@@ -3381,7 +3381,7 @@ TEST_F(CompileTable, Conjunction2) {
     int n_read = maat_state_get_hit_paths(state, hit_path, HIT_PATH_SIZE);
     EXPECT_EQ(n_read, 2);
 
-    ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
+    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -3414,9 +3414,9 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in Policy failed.",
                       __FUNCTION__, __LINE__);
@@ -3424,15 +3424,15 @@ protected:
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
     }    
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
 
-struct maat *Policy::_shared_maat_instance;
+struct maat *Policy::_shared_maat_inst;
 struct log_handle *Policy::logger;
 
 void accept_tags_entry_cb(int table_id, const char *table_line, void *u_para)
@@ -3449,13 +3449,13 @@ void accept_tags_entry_cb(int table_id, const char *table_line, void *u_para)
 
 TEST_F(Policy, PluginRuleTags1) {
     const char *table_name = "TEST_EFFECTIVE_RANGE_TABLE";
-    struct maat *maat_instance = Policy::_shared_maat_instance;
+    struct maat *maat_inst = Policy::_shared_maat_inst;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     int callback_times=0;
-	int ret = maat_table_callback_register(maat_instance, table_id,
+	int ret = maat_table_callback_register(maat_inst, table_id,
 							               NULL,
 							               accept_tags_entry_cb, 
 							               NULL,
@@ -3472,13 +3472,13 @@ void accept_tags_entry2_cb(int table_id, const char *table_line, void *u_para)
 
 TEST_F(Policy, PluginRuleTags2) {
     const char *table_name = "IR_INTERCEPT_IP";
-    struct maat *maat_instance = Policy::_shared_maat_instance;
+    struct maat *maat_inst = Policy::_shared_maat_inst;
 
-	int table_id = maat_get_table_id(maat_instance, table_name);
+	int table_id = maat_get_table_id(maat_inst, table_name);
 	ASSERT_GT(table_id, 0);
 
 	int callback_times = 0;
-	int ret = maat_table_callback_register(maat_instance, table_id,
+	int ret = maat_table_callback_register(maat_inst, table_id,
 							               NULL,
 							               accept_tags_entry2_cb, 
 							               NULL,
@@ -3494,18 +3494,18 @@ TEST_F(Policy, CompileRuleTags) {
 	const char *should_hit = "string bbb should hit";
 	const char *should_not_hit = "string aaa should not hit";
 	const char *table_name = "HTTP_URL";
-	struct maat *maat_instance = Policy::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+	struct maat *maat_inst = Policy::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
 	ASSERT_GT(table_id, 0);
 
-	int ret = maat_scan_string(maat_instance, table_id, should_not_hit, 
+	int ret = maat_scan_string(maat_inst, table_id, should_not_hit, 
                                strlen(should_not_hit), results, ARRAY_SIZE,
 						        &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 	
-	ret = maat_scan_string(maat_instance, table_id, should_hit, 
+	ret = maat_scan_string(maat_inst, table_id, should_hit, 
                            strlen(should_hit), results, ARRAY_SIZE,
 						   &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -3522,14 +3522,14 @@ TEST_F(Policy, CompileEXData) {
 	const char *table_name = "HTTP_URL";
     const char *compile_table_name = "COMPILE_FIREWALL";
 	const char *expect_name = "I have a name";
-    struct maat *maat_instance = Policy::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = Policy::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
-    int compile_table_id = maat_get_table_id(maat_instance, compile_table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    int compile_table_id = maat_get_table_id(maat_inst, compile_table_name);
 
     int ex_data_counter = 0;
-    int ret = maat_plugin_table_ex_schema_register(maat_instance, compile_table_name,
+    int ret = maat_plugin_table_ex_schema_register(maat_inst, compile_table_name,
                                                     compile_ex_param_new,
                                                     compile_ex_param_free,
                                                     compile_ex_param_dup,
@@ -3540,13 +3540,13 @@ TEST_F(Policy, CompileEXData) {
     ret = maat_state_set_scan_compile_table(state, compile_table_id);
     EXPECT_EQ(ret, 0);
 
-    ret = maat_scan_string(maat_instance, table_id, url, strlen(url),
+    ret = maat_scan_string(maat_inst, table_id, url, strlen(url),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 198);
 
-    void *ex_data = maat_plugin_table_get_ex_data(maat_instance, compile_table_id, 
+    void *ex_data = maat_plugin_table_get_ex_data(maat_inst, compile_table_id, 
                                                  (char *)&results[0], sizeof(long long));
     ASSERT_TRUE(ex_data!=NULL);
     struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
@@ -3564,25 +3564,25 @@ TEST_F(Policy, SubGroup) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = Policy::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = Policy::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 	const char *scan_data = "ceshi6@mailhost.cn";
 	
 	uint32_t ip_addr;
 	inet_pton(AF_INET,"10.0.6.205", &ip_addr);
     uint16_t port = htons(50001);
 
-	int table_id = maat_get_table_id(maat_instance, "MAIL_ADDR");
+	int table_id = maat_get_table_id(maat_inst, "MAIL_ADDR");
 	ASSERT_GT(table_id, 0);
 	
-	int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data), 
+	int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data), 
 						       results, ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 	
-	table_id = maat_get_table_id(maat_instance, "IP_CONFIG");	
+	table_id = maat_get_table_id(maat_inst, "IP_CONFIG");	
 	ASSERT_GT(table_id, 0);
 	
-	ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6,
+	ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6,
                          results, ARRAY_SIZE, &n_hit_result, state);	
 	
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -3596,13 +3596,13 @@ TEST_F(Policy, EvaluationOrder) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = Policy::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = Policy::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, "HTTP_URL");
+    int table_id = maat_get_table_id(maat_inst, "HTTP_URL");
 	ASSERT_GT(table_id, 0);
 
-    int ret = maat_scan_string(maat_instance, table_id, url, strlen(url),
+    int ret = maat_scan_string(maat_inst, table_id, url, strlen(url),
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 3);
@@ -3614,11 +3614,11 @@ TEST_F(Policy, EvaluationOrder) {
     inet_pton(AF_INET, "192.168.23.23", &ip_addr);
     uint16_t port = htons(65530);
 
-    table_id = maat_get_table_id(maat_instance, "IP_PLUS_CONFIG");
+    table_id = maat_get_table_id(maat_inst, "IP_PLUS_CONFIG");
     ASSERT_GT(table_id, 0);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6,
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6,
                          results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -3664,9 +3664,9 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in TableInfo failed.",
                       __FUNCTION__, __LINE__);
@@ -3674,15 +3674,15 @@ protected:
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
     }   
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance; 
+    static struct maat *_shared_maat_inst; 
 };
 
-struct maat *TableInfo::_shared_maat_instance;
+struct maat *TableInfo::_shared_maat_inst;
 struct log_handle *TableInfo::logger;
 
 TEST_F(TableInfo, Conjunction) {
@@ -3692,16 +3692,16 @@ TEST_F(TableInfo, Conjunction) {
     const char *scan_data = "soq is using table conjunction function.http://www.3300av.com/novel/27122.txt";
     const char *table_name = "HTTP_URL";
     const char *conj_table_name = "HTTP_HOST";
-    struct maat *maat_instance = TableInfo::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = TableInfo::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    int conj_table_id = maat_get_table_id(maat_instance, conj_table_name);
+    int conj_table_id = maat_get_table_id(maat_inst, conj_table_name);
     ASSERT_GT(conj_table_id, 0);
 
-    int ret = maat_scan_string(maat_instance, conj_table_id, scan_data, strlen(scan_data),
+    int ret = maat_scan_string(maat_inst, conj_table_id, scan_data, strlen(scan_data),
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
@@ -3728,34 +3728,34 @@ protected:
         maat_options_set_rule_effect_interval_ms(opts, effective_interval_ms);
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
 
-        _shared_maat_instance = maat_new(opts, table_info);
+        _shared_maat_inst = maat_new(opts, table_info);
         maat_options_free(opts);
-        EXPECT_TRUE(_shared_maat_instance != NULL);
+        EXPECT_TRUE(_shared_maat_inst != NULL);
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
     }
 
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
-struct maat *MaatFileTest::_shared_maat_instance;
+struct maat *MaatFileTest::_shared_maat_inst;
 
 TEST_F(MaatFileTest, StreamFiles) {
     const char test_data_dir[64] = "./test_streamfiles";
     const char *table_name = "NTC_HTTP_REQ_BODY";
     int thread_id = 0;
-    struct maat *maat_instance = MaatFileTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatFileTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     struct dirent **name_list;
     int n = my_scandir(test_data_dir, &name_list, NULL, 
                        (int (*)(const void*, const void*))alphasort);
     ASSERT_GT(n, 0);
-    struct maat_stream *stream = maat_stream_new(maat_instance, table_id, state);
+    struct maat_stream *stream = maat_stream_new(maat_inst, table_id, state);
     ASSERT_FALSE(stream == NULL);
 
     struct stat file_info;
@@ -3829,9 +3829,9 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in HierarchyTest failed.",
                       __FUNCTION__, __LINE__);
@@ -3839,15 +3839,15 @@ protected:
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
     }   
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance; 
+    static struct maat *_shared_maat_inst; 
 };
 
-struct maat *HierarchyTest::_shared_maat_instance;
+struct maat *HierarchyTest::_shared_maat_inst;
 struct log_handle *HierarchyTest::logger;
 
 TEST_F(HierarchyTest, VirtualOfOnePhysical)
@@ -3859,20 +3859,20 @@ TEST_F(HierarchyTest, VirtualOfOnePhysical)
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = HierarchyTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = HierarchyTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, url_table_name);
+    int table_id = maat_get_table_id(maat_inst, url_table_name);
     ASSERT_GT(table_id, 0);
 
-    int ret = maat_scan_string(maat_instance, table_id, http_url, strlen(http_url),
+    int ret = maat_scan_string(maat_inst, table_id, http_url, strlen(http_url),
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    table_id = maat_get_table_id(maat_instance, keywords_table_name);
+    table_id = maat_get_table_id(maat_inst, keywords_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_string(maat_instance, table_id, http_content, strlen(http_content),
+    ret = maat_scan_string(maat_inst, table_id, http_content, strlen(http_content),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -3880,7 +3880,7 @@ TEST_F(HierarchyTest, VirtualOfOnePhysical)
     maat_state_reset(state);
 
     const char *should_not_hit = "2018-10-05 is a keywords of table KEYWORDS_TABLE. Should not hit.";
-    ret = maat_scan_string(maat_instance, table_id, should_not_hit, strlen(should_not_hit),
+    ret = maat_scan_string(maat_inst, table_id, should_not_hit, strlen(should_not_hit),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     maat_state_free(state);
@@ -3895,26 +3895,26 @@ TEST_F(HierarchyTest, VirtualWithVirtual) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = HierarchyTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = HierarchyTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, req_table_name);
+    int table_id = maat_get_table_id(maat_inst, req_table_name);
     ASSERT_GT(table_id, 0);
 
     int ret = maat_state_set_scan_district(state, table_id, "User-Agent", strlen("User-Agent"));
     EXPECT_EQ(ret, 0);
 
-    ret = maat_scan_string(maat_instance, table_id, http_req_hdr_ua, strlen(http_req_hdr_ua),
+    ret = maat_scan_string(maat_inst, table_id, http_req_hdr_ua, strlen(http_req_hdr_ua),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    table_id = maat_get_table_id(maat_instance, res_table_name);
+    table_id = maat_get_table_id(maat_inst, res_table_name);
     ASSERT_GT(table_id, 0);
 
     ret = maat_state_set_scan_district(state, table_id, "Cookie", strlen("Cookie"));
     EXPECT_EQ(ret, 0);
 
-    ret = maat_scan_string(maat_instance, table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
+    ret = maat_scan_string(maat_inst, table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -3931,26 +3931,26 @@ TEST_F(HierarchyTest, OneGroupInTwoVirtual) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = HierarchyTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = HierarchyTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, req_table_name);
+    int table_id = maat_get_table_id(maat_inst, req_table_name);
     ASSERT_GT(table_id, 0);
 
     int ret = maat_state_set_scan_district(state, table_id, "Cookie", strlen("Cookie"));
     EXPECT_EQ(ret, 0);
 
-    ret = maat_scan_string(maat_instance, table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
+    ret = maat_scan_string(maat_inst, table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    table_id = maat_get_table_id(maat_instance, res_table_name);
+    table_id = maat_get_table_id(maat_inst, res_table_name);
     ASSERT_GT(table_id, 0);
 
     ret = maat_state_set_scan_district(state, table_id, "Cookie", strlen("Cookie"));
     EXPECT_EQ(ret, 0);
 
-    ret = maat_scan_string(maat_instance, table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
+    ret = maat_scan_string(maat_inst, table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -3970,23 +3970,23 @@ TEST_F(HierarchyTest, TwoVirtualInOneClause) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = HierarchyTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = HierarchyTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     //--------------------------------------
 	//			Source ASN & Dest ASN
 	//--------------------------------------
-    int table_id = maat_get_table_id(maat_instance, src_asn_table_name);
+    int table_id = maat_get_table_id(maat_inst, src_asn_table_name);
     ASSERT_GT(table_id, 0);
 
-    int ret = maat_scan_string(maat_instance, table_id, src_asn, strlen(src_asn),
+    int ret = maat_scan_string(maat_inst, table_id, src_asn, strlen(src_asn),
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    table_id = maat_get_table_id(maat_instance, dst_asn_table_name);
+    table_id = maat_get_table_id(maat_inst, dst_asn_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_string(maat_instance, table_id, dst_asn, strlen(dst_asn),
+    ret = maat_scan_string(maat_inst, table_id, dst_asn, strlen(dst_asn),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -3997,21 +3997,21 @@ TEST_F(HierarchyTest, TwoVirtualInOneClause) {
     //--------------------------------------
 	//			Source IP & Dest ASN
 	//--------------------------------------
-    table_id = maat_get_table_id(maat_instance, ip_table_name);
+    table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.40.88", &ip_addr);
     uint16_t port = htons(8888);
 
-    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6,
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6,
                          results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    table_id = maat_get_table_id(maat_instance, dst_asn_table_name);
+    table_id = maat_get_table_id(maat_inst, dst_asn_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_string(maat_instance, table_id, dst_asn, strlen(dst_asn),
+    ret = maat_scan_string(maat_inst, table_id, dst_asn, strlen(dst_asn),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -4022,17 +4022,17 @@ TEST_F(HierarchyTest, TwoVirtualInOneClause) {
     //--------------------------------------
 	//			Source Geo & Dest ASN
 	//--------------------------------------
-    table_id = maat_get_table_id(maat_instance, src_ip_geo_table_name);
+    table_id = maat_get_table_id(maat_inst, src_ip_geo_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_string(maat_instance, table_id, my_county, strlen(my_county),
+    ret = maat_scan_string(maat_inst, table_id, my_county, strlen(my_county),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    table_id = maat_get_table_id(maat_instance, dst_asn_table_name);
+    table_id = maat_get_table_id(maat_inst, dst_asn_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_string(maat_instance, table_id, dst_asn, strlen(dst_asn),
+    ret = maat_scan_string(maat_inst, table_id, dst_asn, strlen(dst_asn),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -4054,29 +4054,29 @@ protected:
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
-        assert(_shared_maat_instance != NULL);
+        _shared_maat_inst = maat_new(opts, table_info_path);
+        assert(_shared_maat_inst != NULL);
        
-        maat_cmd_flushDB(_shared_maat_instance);
-        maat_free(_shared_maat_instance);
+        maat_cmd_flushDB(_shared_maat_inst);
+        maat_free(_shared_maat_inst);
 
         maat_options_set_foreign_cont_dir(opts, "./foreign_files/");
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
 
         _ex_data_counter = ALLOC(int, 1);
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
         FREE(_ex_data_counter);
     } 
 
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
     static int *_ex_data_counter;
 };
 
-struct maat *MaatCmdTest::_shared_maat_instance;
+struct maat *MaatCmdTest::_shared_maat_inst;
 int *MaatCmdTest::_ex_data_counter;
 
 TEST_F(MaatCmdTest, SetIP) {
@@ -4087,18 +4087,18 @@ TEST_F(MaatCmdTest, SetIP) {
 	const char *ip_table_name = "IP_CONFIG";
 	const char *compile_table_name = "COMPILE";
     const char *g2c_table_name = "GROUP2COMPILE";
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     /* compile table add line */
-    long long compile_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile_id, 
+    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile_id, 
                                      "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* group2compile table add line */
-    long long group_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group_id,
+    long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group_id,
                                        compile_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -4107,13 +4107,13 @@ TEST_F(MaatCmdTest, SetIP) {
     const char *ip2 = "172.0.0.1";
     uint16_t port_min = 53331;
     uint16_t port_max = 53331;
-    long long item_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = ip_table_set_line(maat_instance, ip_table_name, MAAT_OP_ADD, item_id, group_id,
+    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item_id, group_id,
                             IPv4, ip1, ip2, port_min, port_max, 0);
     EXPECT_EQ(ret, 1);
 
-    version_before = maat_cmd_get_config_version(maat_instance);
-    wait_for_cmd_effective(maat_instance, version_before);
+    version_before = maat_cmd_get_config_version(maat_inst);
+    wait_for_cmd_effective(maat_inst, version_before);
    
     uint32_t sip;
     ret = inet_pton(AF_INET, ip1, &sip);
@@ -4121,10 +4121,10 @@ TEST_F(MaatCmdTest, SetIP) {
     uint16_t port = htons(53331);
     int proto = 6;
 
-    int table_id = maat_get_table_id(maat_instance, ip_table_name);
+    int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GE(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_instance, table_id, sip, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, table_id, sip, port, proto, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -4146,49 +4146,49 @@ TEST_F(MaatCmdTest, SetExpr) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     maat_cmd_str_escape(escape_buff1, sizeof(escape_buff1), keywords1);
     maat_cmd_str_escape(escape_buff2, sizeof(escape_buff2), keywords2);
     snprintf(keywords, sizeof(keywords), "%s&%s", escape_buff1, escape_buff2);
-	long long compile_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 2);
+	long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 2);
 
-    test_add_expr_command(maat_instance, table_name, compile_id - 1, 0, keywords);
-    test_add_expr_command(maat_instance, table_name, compile_id, 0, keywords);
-    long long version_before = maat_cmd_get_config_version(maat_instance);
+    test_add_expr_command(maat_inst, table_name, compile_id - 1, 0, keywords);
+    test_add_expr_command(maat_inst, table_name, compile_id, 0, keywords);
+    long long version_before = maat_cmd_get_config_version(maat_inst);
 
-    wait_for_cmd_effective(maat_instance, version_before);
+    wait_for_cmd_effective(maat_inst, version_before);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     memset(results, 0, sizeof(results));
-    int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
+    int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                                 results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_TRUE(results[0] == compile_id || results[0] == (compile_id - 1));
     maat_state_reset(state);
 
 
-    ret = compile_table_set_line(maat_instance, "COMPILE", MAAT_OP_DEL, compile_id-1, 
+    ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_DEL, compile_id-1, 
                                  "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = compile_table_set_line(maat_instance, "COMPILE", MAAT_OP_DEL, compile_id, 
+    ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_DEL, compile_id, 
                                  "null", 1, 0);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
+    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     maat_state_reset(state);
 
     int timeout = 1;
-    compile_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    test_add_expr_command(maat_instance, table_name, compile_id, timeout, keywords);
+    compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    test_add_expr_command(maat_inst, table_name, compile_id, timeout, keywords);
     sleep(timeout + 1);
-    ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
+    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     maat_state_free(state);
@@ -4209,49 +4209,49 @@ TEST_F(MaatCmdTest, SetExpr8) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     /* compile table add line */
-    long long compile_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile_id, "null", 1, 0);
+    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* group2compile table add line */
-    long long group_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group_id,
+    long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group_id,
                                         compile_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* expr table add line */
-    long long item_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, table_name, MAAT_OP_ADD, item_id, group_id,
+    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id, group_id,
                               keywords8, NULL, 1, 0, 0, 0); /* EXPR_TYPE_AND MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_string(maat_instance, table_id, scan_data8, strlen(scan_data8),
+    ret = maat_scan_string(maat_inst, table_id, scan_data8, strlen(scan_data8),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], compile_id);
     maat_state_reset(state);
 
-    ret = expr_table_set_line(maat_instance, table_name, MAAT_OP_DEL, item_id, group_id,
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_DEL, item_id, group_id,
                               keywords8, NULL, 1, 0, 0, 0);
     EXPECT_EQ(ret, 1);
     
-    ret = expr_table_set_line(maat_instance, table_name, MAAT_OP_ADD, item_id, group_id,
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id, group_id,
                               keywords7, NULL, 1, 0, 0, 0);
    
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     memset(&results, 0, sizeof(results));
-    ret = maat_scan_string(maat_instance, table_id, scan_data7, strlen(scan_data7),
+    ret = maat_scan_string(maat_inst, table_id, scan_data7, strlen(scan_data7),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -4267,36 +4267,36 @@ TEST_F(MaatCmdTest, RuleIDRecycle) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    long long rule_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    test_add_expr_command(maat_instance, table_name, rule_id, 0, keywords);
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    test_add_expr_command(maat_inst, table_name, rule_id, 0, keywords);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
+    int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                                results, ARRAY_SIZE, &n_hit_result, state);
     maat_state_reset(state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], rule_id);
 
-    del_command(maat_instance, rule_id);
+    del_command(maat_inst, rule_id);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
+    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                                results, ARRAY_SIZE, &n_hit_result, state);
     maat_state_reset(state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    test_add_expr_command(maat_instance, table_name, rule_id, 0, keywords);
+    test_add_expr_command(maat_inst, table_name, rule_id, 0, keywords);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
+    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                                results, ARRAY_SIZE, &n_hit_result, state);
     maat_state_free(state);
     state = NULL;
@@ -4313,27 +4313,27 @@ TEST_F(MaatCmdTest, ReturnRuleIDWithDescendingOrder) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     int i = 0;
     int repeat_times = 4;
     long long expect_rule_id[ARRAY_SIZE] = {0};
-    long long rule_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", repeat_times);
+    long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", repeat_times);
 
     for (i = 0; i < repeat_times; i++) {
         //add in ascending order
         expect_rule_id[i] = rule_id + 1 - repeat_times + i;
-        test_add_expr_command(maat_instance, table_name, expect_rule_id[i], 0, keywords);
+        test_add_expr_command(maat_inst, table_name, expect_rule_id[i], 0, keywords);
     }
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     memset(results, 0, sizeof(results));
-    int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
+    int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                                 results, ARRAY_SIZE, &n_hit_result, state);
     maat_state_free(state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -4355,40 +4355,40 @@ TEST_F(MaatCmdTest, SubGroup) {
 	const char *keyword2 = "ask.leju.com/b&/detail/12189672562229248/?&?bi=tg\\&type=sina-pc\\&&\\&pos="
                            "index-dbtlwzl\\&&\\&type=sina-pc\\&pos=index-dbtlwzl\\&";
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
      /* compile table add line */
      //compile1
-    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, 
+    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, 
                                      compile1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     //compile2
-    long long compile2_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, 
+    long long compile2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, 
                                  compile2_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* group2compile table add line */
     //group1 -> compile1
-    long long group1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, 
+    long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
                                        group1_id, compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     //group1 -> compile2
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, 
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
                                        group1_id, compile2_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     //group2 -> group1 -> compile1
-    long long group2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2group_table_set_line(maat_instance, g2g_table_name, MAAT_OP_ADD,
+    long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
                                      group2_id, group1_id, 0, 0);
     EXPECT_EQ(ret, 1);
 
@@ -4396,15 +4396,15 @@ TEST_F(MaatCmdTest, SubGroup) {
                              \
                               \ _  compile2
     */
-    long long item_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, table_name, MAAT_OP_ADD, item_id, group2_id,
+    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id, group2_id,
                               keyword1, NULL, 1, 0, 0, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
 
     sleep(4);
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
-    ret = maat_scan_string(maat_instance, table_id, scan_data1, strlen(scan_data1),
+    ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
@@ -4416,12 +4416,12 @@ TEST_F(MaatCmdTest, SubGroup) {
                           \
                            \_ X -> compile2
     */
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_DEL, group1_id,
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL, group1_id,
                                       compile2_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    sleep(2);
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_string(maat_instance, table_id, scan_data1, strlen(scan_data1), results,
+    ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1), results,
                           ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -4432,19 +4432,19 @@ TEST_F(MaatCmdTest, SubGroup) {
                   \
                    \_ -> compile2
     */
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_DEL, group1_id,
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL, group1_id,
                                       compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_DEL, compile1_id,
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL, compile1_id,
                                  "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group2_id,
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group2_id,
                                         compile2_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(2);
-    ret = maat_scan_string(maat_instance, table_id, scan_data1, strlen(scan_data1),
+    ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -4456,16 +4456,16 @@ TEST_F(MaatCmdTest, SubGroup) {
                    \_ -> compile2
         item2 -> group3
     */
-    long long group3_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2group_table_set_line(maat_instance, g2g_table_name, MAAT_OP_ADD, group3_id,
+    long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD, group3_id,
                                      group1_id, 0, 0);
     EXPECT_EQ(ret, 1);
 
-    long long item2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, table_name, MAAT_OP_ADD, item2_id, group3_id,
+    long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item2_id, group3_id,
                               keyword2, NULL, 1, 0, 0, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
     sleep(2);
-    ret = maat_scan_string(maat_instance, table_id, scan_data2, strlen(scan_data2),
+    ret = maat_scan_string(maat_inst, table_id, scan_data2, strlen(scan_data2),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     maat_state_reset(state);
@@ -4475,22 +4475,22 @@ TEST_F(MaatCmdTest, SubGroup) {
                    \_ -> compile2
         item2 -> group3
     */
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile1_id,
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile1_id,
                                  "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group1_id,
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group1_id,
                                        compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_DEL, compile1_id,
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL, compile1_id,
                                  "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_DEL, group1_id,
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL, group1_id,
                                        compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(2);
-    ret = maat_scan_string(maat_instance, table_id, scan_data1, strlen(scan_data1),
+    ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -4507,27 +4507,27 @@ TEST_F(MaatCmdTest, RefGroup) {
 	const char* keyword1 = "something-should-not-hit";
 	const char* keyword2 = "facebook.com/help/2297503110373101";
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     //TODO: value=0 MAAT_OPT_ENABLE_UPDATE
-    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, 
+    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, 
                                      compile1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     //group1 -> compile1
-    long long group1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group1_id,
+    long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group1_id,
                                        compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     //item1 -> group1 -> compile1
-    long long item1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, table_name, MAAT_OP_ADD, item1_id, group1_id,
+    long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item1_id, group1_id,
                               keyword1, NULL, 1, 0, 0, 0); /* EXPR_TYPE_AND MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
@@ -4540,26 +4540,26 @@ TEST_F(MaatCmdTest, RefGroup) {
                                 /
                 item2 -> group2
     */
-    long long group2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group2_id,
+    long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group2_id,
                                        compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    long long item2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, table_name, MAAT_OP_ADD, item2_id, group2_id,
+    long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item2_id, group2_id,
                               keyword2, NULL, 1, 0, 0, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_DEL, 
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL, 
                                  compile1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, 
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, 
                                  compile1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_DEL, 
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL, 
                                        group1_id, compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, 
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
                                        group2_id, compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -4569,7 +4569,7 @@ TEST_F(MaatCmdTest, RefGroup) {
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
-    ret = maat_scan_string(maat_instance, table_id, scan_data1, strlen(scan_data1),
+    ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -4583,23 +4583,23 @@ TEST_F(MaatCmdTest, VirtualTable) {
 	const char* compile_table_name = "COMPILE";
 	const char* table_name="HTTP_SIGNATURE";
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, 
+    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, 
                                      compile1_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
     //group1 -> compile1
-    long long group1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group1_id,
+    long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group1_id,
                                        compile1_id, 0, "HTTP_REQUEST_HEADER", 1, 0);
     EXPECT_EQ(ret, 1);
 
     //item1 -> group1 -> compile1
-    long long item1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, table_name, MAAT_OP_ADD, item1_id, group1_id,
+    long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item1_id, group1_id,
                               "AppleWebKit", "User-Agent", 0, 0, 0, 0);/*EXPR_TYPE_STRING MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
@@ -4607,8 +4607,8 @@ TEST_F(MaatCmdTest, VirtualTable) {
                               /
                       group2_/
     */
-    long long group2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group2_id,
+    long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group2_id,
                                        compile1_id, 0, "HTTP_RESPONSE_HEADER", 2, 0);
     EXPECT_EQ(ret, 1);
 
@@ -4616,8 +4616,8 @@ TEST_F(MaatCmdTest, VirtualTable) {
                               /
               item2 -> group2/
     */
-    long long item2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, table_name, MAAT_OP_ADD, item2_id, group2_id,
+    long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item2_id, group2_id,
                               "uid=12345678;", "Cookie", 0, 0, 0, 0);/*EXPR_TYPE_STRING MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
@@ -4629,23 +4629,23 @@ TEST_F(MaatCmdTest, VirtualTable) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
 
-    int table_id = maat_get_table_id(maat_instance, "HTTP_REQUEST_HEADER");
+    int table_id = maat_get_table_id(maat_inst, "HTTP_REQUEST_HEADER");
     ASSERT_GT(table_id, 0);
 
     ret = maat_state_set_scan_district(state, table_id, "User-Agent", strlen("User-Agent"));
     EXPECT_EQ(ret, 0);
 
-    ret = maat_scan_string(maat_instance, table_id, http_req_hdr_ua, strlen(http_req_hdr_ua),
+    ret = maat_scan_string(maat_inst, table_id, http_req_hdr_ua, strlen(http_req_hdr_ua),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    table_id = maat_get_table_id(maat_instance, "HTTP_RESPONSE_HEADER");
+    table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
     ASSERT_GT(table_id, 0);
 
     ret = maat_state_set_scan_district(state, table_id, "Cookie", strlen("Cookie"));
     EXPECT_EQ(ret, 0);
 
-    ret = maat_scan_string(maat_instance, table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
+    ret = maat_scan_string(maat_inst, table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -4653,24 +4653,24 @@ TEST_F(MaatCmdTest, VirtualTable) {
     maat_state_reset(state);
 
     //delete group1
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_DEL, group1_id,
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL, group1_id,
                                        compile1_id, 0, "HTTP_REQUEST_HEADER", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_DEL, compile1_id,
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL, compile1_id,
                                  "null", 2, 0);
     EXPECT_EQ(ret, 1);
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile1_id,
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile1_id,
                                  "null", 1, 0);
     EXPECT_EQ(ret, 1);
     sleep(2);
 
-    table_id = maat_get_table_id(maat_instance, "HTTP_RESPONSE_HEADER");
+    table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
     ASSERT_GT(table_id, 0);
 
     ret = maat_state_set_scan_district(state, table_id, "Cookie", strlen("Cookie"));
     EXPECT_EQ(ret, 0);
 
-    ret = maat_scan_string(maat_instance, table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
+    ret = maat_scan_string(maat_inst, table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -4684,7 +4684,7 @@ TEST_F(MaatCmdTest, SetLines) {
     const int TEST_CMD_LINE_NUM = 4;
     const char *table_name = "QD_ENTRY_INFO";
     struct maat_cmd_line line_rule;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
     long long expect_rule_id[TEST_CMD_LINE_NUM] = {0};
     const char *table_line_add[TEST_CMD_LINE_NUM] = {
         "1\t192.168.0.1\t100\t1",
@@ -4701,13 +4701,13 @@ TEST_F(MaatCmdTest, SetLines) {
     int ret = 0;
 
     for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
-        expect_rule_id[i] = maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
+        expect_rule_id[i] = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
         line_rule.rule_id = expect_rule_id[i];
         line_rule.table_name = table_name;
         line_rule.table_line = table_line_add[i];
         line_rule.expire_after = 0;
 
-        ret = maat_cmd_set_line(maat_instance, &line_rule);
+        ret = maat_cmd_set_line(maat_inst, &line_rule);
         EXPECT_GT(ret, 0);
     }
 
@@ -4718,7 +4718,7 @@ TEST_F(MaatCmdTest, SetLines) {
         line_rule.table_line = table_line_del[i];
         line_rule.expire_after = 0;
 
-        ret = maat_cmd_set_line(maat_instance, &line_rule);
+        ret = maat_cmd_set_line(maat_inst, &line_rule);
         EXPECT_GT(ret, 0);
     }
 }
@@ -4735,13 +4735,13 @@ void pause_update_test_entry_cb(int table_id,const char* table_line,void* u_para
 }
 
 TEST_F(MaatCmdTest, PauseUpdate) {
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
     const char *table_name = "QD_ENTRY_INFO";
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    int ret = maat_table_callback_register(maat_instance, table_id, NULL,
+    int ret = maat_table_callback_register(maat_inst, table_id, NULL,
                                            pause_update_test_entry_cb,
                                            NULL, NULL);
     //TODO: value = 0 MAAT_OPT_ENABLE_UPDATE
@@ -4749,13 +4749,13 @@ TEST_F(MaatCmdTest, PauseUpdate) {
 
     char *line = NULL;
     struct maat_cmd_line line_rule;
-    line_rule.rule_id = maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
+    line_rule.rule_id = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
     line_rule.table_name = table_name;
     asprintf(&line, "1\t192.168.0.1\t101\t1");
     line_rule.table_line = line;
     line_rule.expire_after = 0;
 
-    ret = maat_cmd_set_line(maat_instance, &line_rule);
+    ret = maat_cmd_set_line(maat_inst, &line_rule);
     EXPECT_EQ(ret, 1);
     free(line);
     
@@ -4840,13 +4840,13 @@ void foreign_key_test_entry_cb(int table_id, const char *table_line, void *u_par
 }
 
 TEST_F(MaatCmdTest, SetFile) {
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
     const char* table_name = "TEST_FOREIGN_KEY";
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    int ret = maat_table_callback_register(maat_instance, table_id, NULL,
+    int ret = maat_table_callback_register(maat_inst, table_id, NULL,
                                            foreign_key_test_entry_cb,
                                            NULL, NULL);
     EXPECT_EQ(ret, 0);
@@ -4857,13 +4857,13 @@ TEST_F(MaatCmdTest, SetFile) {
 	size_t file_size = 0;
 
     prepare_file_to_set(file1_name, &file_buff, &file_size, file1_key, sizeof(file1_key));
-    ret = maat_cmd_set_file(maat_instance, file1_key, file_buff, file_size, MAAT_OP_ADD);
+    ret = maat_cmd_set_file(maat_inst, file1_key, file_buff, file_size, MAAT_OP_ADD);
 	EXPECT_EQ(ret, 1);
 	free(file_buff);
 	file_buff = NULL;
 
     prepare_file_to_set(file2_name, &file_buff, &file_size, file2_key, sizeof(file2_key));
-	ret = maat_cmd_set_file(maat_instance, file2_key, file_buff, file_size, MAAT_OP_ADD);
+	ret = maat_cmd_set_file(maat_inst, file2_key, file_buff, file_size, MAAT_OP_ADD);
 	EXPECT_EQ(ret, 1);
 	free(file_buff);
 	file_buff = NULL;
@@ -4872,22 +4872,22 @@ TEST_F(MaatCmdTest, SetFile) {
     char line[1024] = {0};
     int tag = 0;
     struct maat_cmd_line line_rule;
-    line_rule.rule_id = maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
+    line_rule.rule_id = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
     line_rule.table_name = table_name;
     snprintf(line, sizeof(line),"%lld\t2\t%d\t1\t%s\tredis://%s\t%s\tredis://%s\tEnd",
              line_rule.rule_id, tag, file1_name, file1_key, file2_name, file2_key);
     line_rule.table_line = line;
     line_rule.expire_after = 0;
 
-    ret = maat_cmd_set_line(maat_instance, &line_rule);
+    ret = maat_cmd_set_line(maat_inst, &line_rule);
     EXPECT_EQ(ret, 1);
 	sleep(WAIT_FOR_EFFECTIVE_S);//wait for callback triggered.
 	EXPECT_EQ(g_test_foregin_read_OK, 1);
 
     g_test_foreign_del_OK = 0;
-    ret = maat_cmd_set_file(maat_instance, file1_key, NULL, 0, MAAT_OP_DEL);
+    ret = maat_cmd_set_file(maat_inst, file1_key, NULL, 0, MAAT_OP_DEL);
     EXPECT_EQ(ret, 1);
-    ret = maat_cmd_set_file(maat_instance, file2_key, NULL, 0, MAAT_OP_DEL);
+    ret = maat_cmd_set_file(maat_inst, file2_key, NULL, 0, MAAT_OP_DEL);
     EXPECT_EQ(ret, 1);
 
     struct maat_cmd_line line_rule_del;
@@ -4898,7 +4898,7 @@ TEST_F(MaatCmdTest, SetFile) {
              line_rule.rule_id, tag, file1_name, file1_key, file2_name, file2_key);
     line_rule_del.table_line = line;
     line_rule_del.expire_after = 0;
-    ret = maat_cmd_set_line(maat_instance, &line_rule_del);
+    ret = maat_cmd_set_line(maat_inst, &line_rule_del);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
@@ -4911,7 +4911,7 @@ TEST_F(MaatCmdTest, SetFile) {
     // Test empty file, file key is a string "null".
     memset(&line_rule, 0, sizeof(line_rule));
     memset(line, 0, sizeof(line));
-    line_rule.rule_id = maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
+    line_rule.rule_id = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
     line_rule.table_name=table_name;
     snprintf(line, sizeof(line),"%lld\t2\t%d\t1\t%s\tredis://%s\t%s\t%s\tEnd",
              line_rule.rule_id, tag, file1_name, file1_key, empty_file_name, "null");
@@ -4920,7 +4920,7 @@ TEST_F(MaatCmdTest, SetFile) {
 
     g_test_foregin_read_OK = 0;
 
-    ret = maat_cmd_set_line(maat_instance, &line_rule);
+    ret = maat_cmd_set_line(maat_inst, &line_rule);
     EXPECT_EQ(ret, 1);
 	sleep(WAIT_FOR_EFFECTIVE_S);//wait for callback triggered.
 	EXPECT_EQ(g_test_foregin_read_OK, 1);
@@ -4964,7 +4964,7 @@ void plugin_ex_dup_cb(int table_id,	void **to, void **from, long argl, void *arg
 TEST_F(MaatCmdTest, PluginEXData) {
     const char *table_name = "TEST_PLUGIN_EXDATA_TABLE";
     const int TEST_CMD_LINE_NUM = 4;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
     int *ex_data_counter = MaatCmdTest::_ex_data_counter;
 	const char *table_line_add[TEST_CMD_LINE_NUM] = {"1\t192.168.0.1\tmahuateng\t1\t0",
 							                     "2\t192.168.0.2\tliuqiangdong\t1\t0",
@@ -4976,7 +4976,7 @@ TEST_F(MaatCmdTest, PluginEXData) {
 							                     "3\t192.168.0.3\tmayun\t0\t0",
 							                     "4\t192.168.0.4\tliyanhong\t0\t0"};
 
-	int table_id = maat_get_table_id(maat_instance, table_name);
+	int table_id = maat_get_table_id(maat_inst, table_name);
 	ASSERT_GT(table_id, 0);
     
     int i = 0, ret = 0;
@@ -4985,19 +4985,19 @@ TEST_F(MaatCmdTest, PluginEXData) {
     /* 1st line */
     for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
         memset(&line_rule, 0, sizeof(line_rule));
-        rule_id[i] = maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
+        rule_id[i] = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
         line_rule.rule_id = rule_id[i];
         line_rule.table_name = table_name;
         line_rule.table_line = table_line_add[i];
         line_rule.expire_after = 0;
 
-        ret = maat_cmd_set_line(maat_instance, &line_rule);
+        ret = maat_cmd_set_line(maat_inst, &line_rule);
         EXPECT_GT(ret, 0);
     }
 	
     sleep(WAIT_FOR_EFFECTIVE_S);
     *ex_data_counter = 0;
-	ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
+	ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
 								               plugin_ex_new_cb,
 								               plugin_ex_free_cb,
 								               plugin_ex_dup_cb,
@@ -5007,7 +5007,7 @@ TEST_F(MaatCmdTest, PluginEXData) {
 	
 	struct user_info *uinfo = NULL;
     const char *key1 = "192.168.0.2";
-	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(maat_inst, table_id,
                                                               key1, strlen(key1));
 	ASSERT_TRUE(uinfo != NULL);
 	EXPECT_EQ(0, strcmp(uinfo->name, "liuqiangdong"));
@@ -5020,12 +5020,12 @@ TEST_F(MaatCmdTest, PluginEXData) {
     line_rule.table_line = table_line_del[1];
     line_rule.expire_after = 0;
 
-	ret = maat_cmd_set_line(maat_instance, &line_rule);
+	ret = maat_cmd_set_line(maat_inst, &line_rule);
 	EXPECT_GT(ret, 0);
 	
 	sleep(WAIT_FOR_EFFECTIVE_S);
     const char *key2 = "192.168.0.2";
-	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(maat_instance, table_id,
+	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(maat_inst, table_id,
                                                               key2, strlen(key2));
 	ASSERT_TRUE(uinfo == NULL);
 }
@@ -5033,7 +5033,7 @@ TEST_F(MaatCmdTest, PluginEXData) {
 TEST_F(MaatCmdTest, UpdateIPPlugin) {
     const char *table_name = "TEST_IP_PLUGIN_WITH_EXDATA";
 	const int TEST_CMD_LINE_NUM = 4;
-	struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+	struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
     int *ex_data_counter = MaatCmdTest::_ex_data_counter;
 	const char *table_line_add[TEST_CMD_LINE_NUM] = {
         "101\t4\t192.168.30.99\t192.168.30.101\tSomething-like-json\t1\trange",
@@ -5046,7 +5046,7 @@ TEST_F(MaatCmdTest, UpdateIPPlugin) {
         "103\t6\t2001:db8:1234::\t2001:db8:1235::\tBigger-range-should-in-the-back\t0\trange",
 		"104\t6\t2001:db8:1234::1\t2001:db8:1234::5210\tSomething-like-json\t0\trange"};
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
     
     int i = 0, ret = 0;
@@ -5055,20 +5055,20 @@ TEST_F(MaatCmdTest, UpdateIPPlugin) {
     //add lines
     for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
         memset(&line_rule, 0, sizeof(line_rule));
-        rule_id[i] = maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
+        rule_id[i] = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
         line_rule.rule_id = rule_id[i];
         line_rule.table_name = table_name;
         line_rule.table_line = table_line_add[i];
         line_rule.expire_after = 0;
 
-        ret = maat_cmd_set_line(maat_instance, &line_rule);
+        ret = maat_cmd_set_line(maat_inst, &line_rule);
         EXPECT_GT(ret, 0);
     }
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     *ex_data_counter = 0;
-	ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
+	ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
 								               ip_plugin_ex_new_cb,
 								               ip_plugin_ex_free_cb,
 								               ip_plugin_ex_dup_cb,
@@ -5082,7 +5082,7 @@ TEST_F(MaatCmdTest, UpdateIPPlugin) {
     inet_pton(AF_INET, "192.168.30.100", &(ipv4.ipv4));
 
     memset(results, 0, sizeof(results));
-    ret = maat_ip_plugin_table_get_ex_data(maat_instance, table_id, &ipv4,
+    ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv4,
                                            (void **)results, ARRAY_SIZE);
     EXPECT_EQ(ret, 2);
     EXPECT_EQ(results[0]->rule_id, 101);
@@ -5095,7 +5095,7 @@ TEST_F(MaatCmdTest, UpdateIPPlugin) {
     inet_pton(AF_INET6, "2001:db8:1234::5210", &(ipv6.ipv6));
 
     memset(results, 0, sizeof(results));
-    ret = maat_ip_plugin_table_get_ex_data(maat_instance, table_id, &ipv6,
+    ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv6,
                                            (void **)results, ARRAY_SIZE);
     EXPECT_EQ(ret, 2);
     EXPECT_EQ(results[0]->rule_id, 104);
@@ -5112,14 +5112,14 @@ TEST_F(MaatCmdTest, UpdateIPPlugin) {
         line_rule.table_line = table_line_del[i];
         line_rule.expire_after = 0;
 
-        ret = maat_cmd_set_line(maat_instance, &line_rule);
+        ret = maat_cmd_set_line(maat_inst, &line_rule);
         EXPECT_GT(ret, 0);
     }
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     memset(results, 0, sizeof(results));
-    ret = maat_ip_plugin_table_get_ex_data(maat_instance, table_id, &ipv4,
+    ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv4,
                                           (void **)results, ARRAY_SIZE);
     EXPECT_EQ(ret, 0);
 }
@@ -5127,7 +5127,7 @@ TEST_F(MaatCmdTest, UpdateIPPlugin) {
 TEST_F(MaatCmdTest, UpdateFQDNPlugin) {
     const char *table_name = "TEST_FQDN_PLUGIN_WITH_EXDATA";
 	const int TEST_CMD_LINE_NUM = 5;
-	struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+	struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
     int *ex_data_counter = MaatCmdTest::_ex_data_counter;
     const char *table_line_add[TEST_CMD_LINE_NUM]={
 		"201\t0\twww.example1.com\tcatid=1\t1",
@@ -5142,7 +5142,7 @@ TEST_F(MaatCmdTest, UpdateFQDNPlugin) {
 		"204\t0\tr3---sn-i3belne6.example2.com\tcatid=3\t0",
 		"205\t0\tr3---sn-i3belne6.example2.com\tcatid=3\t0"};
     
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
     
     int i = 0, ret = 0;
@@ -5151,20 +5151,20 @@ TEST_F(MaatCmdTest, UpdateFQDNPlugin) {
     //add lines
     for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
         memset(&line_rule, 0, sizeof(line_rule));
-        rule_id[i] = maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
+        rule_id[i] = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
         line_rule.rule_id = rule_id[i];
         line_rule.table_name = table_name;
         line_rule.table_line = table_line_add[i];
         line_rule.expire_after = 0;
 
-        ret = maat_cmd_set_line(maat_instance, &line_rule);
+        ret = maat_cmd_set_line(maat_inst, &line_rule);
         EXPECT_GT(ret, 0);
     }
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     *ex_data_counter = 0;
-    ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
+    ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
                                                fqdn_plugin_ex_new_cb,
                                                fqdn_plugin_ex_free_cb,
                                                fqdn_plugin_ex_dup_cb,
@@ -5175,7 +5175,7 @@ TEST_F(MaatCmdTest, UpdateFQDNPlugin) {
     struct fqdn_plugin_ud *results[ARRAY_SIZE];
     memset(results, 0, sizeof(results));
 
-    ret = maat_fqdn_plugin_table_get_ex_data(maat_instance, table_id,
+    ret = maat_fqdn_plugin_table_get_ex_data(maat_inst, table_id,
                                              "r3---sn-i3belne6.example2.com", 
                                              (void**)results, ARRAY_SIZE);
     ASSERT_EQ(ret, 2);
@@ -5191,12 +5191,12 @@ TEST_F(MaatCmdTest, UpdateFQDNPlugin) {
         line_rule.table_line = table_line_del[i];
         line_rule.expire_after = 0;
 
-        ret = maat_cmd_set_line(maat_instance, &line_rule);
+        ret = maat_cmd_set_line(maat_inst, &line_rule);
         EXPECT_GT(ret, 0);
     }
 
     sleep(WAIT_FOR_EFFECTIVE_S);
-    ret = maat_fqdn_plugin_table_get_ex_data(maat_instance, table_id, 
+    ret = maat_fqdn_plugin_table_get_ex_data(maat_inst, table_id, 
                                             "r3---sn-i3belne6.example2.com", 
                                             (void**)results, ARRAY_SIZE);
     ASSERT_EQ(ret, 0);                                 
@@ -5205,7 +5205,7 @@ TEST_F(MaatCmdTest, UpdateFQDNPlugin) {
 TEST_F(MaatCmdTest, UpdateBoolPlugin) {
     const char *table_name = "TEST_BOOL_PLUGIN_WITH_EXDATA";
 	const int TEST_CMD_LINE_NUM = 6;
-	struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
+	struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
     int *ex_data_counter = MaatCmdTest::_ex_data_counter;
     const char *table_line_add[TEST_CMD_LINE_NUM] = {
 		"301\t1&2&1000\ttunnel1\t1",
@@ -5222,7 +5222,7 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
 		"305\t0&1&2&3&4&5&6&7\ttunnel5\t0",
 		"306\t101&101\tinvalid\t0"};
     
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
     
     long long rule_id[TEST_CMD_LINE_NUM] = {0};
@@ -5231,20 +5231,20 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
 
     for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
         memset(&line_rule, 0, sizeof(line_rule));
-        rule_id[i] = maat_cmd_incrby(maat_instance, "TEST_PLUG_SEQ", 1);
+        rule_id[i] = maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
         line_rule.rule_id = rule_id[i];
         line_rule.table_name = table_name;
         line_rule.table_line = table_line_add[i];
         line_rule.expire_after = 0;
 
-        ret = maat_cmd_set_line(maat_instance, &line_rule);
+        ret = maat_cmd_set_line(maat_inst, &line_rule);
         EXPECT_GT(ret, 0);
     }
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     *ex_data_counter = 0;
-    ret = maat_plugin_table_ex_schema_register(maat_instance, table_name,
+    ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
 								               bool_plugin_ex_new_cb,
 								               bool_plugin_ex_free_cb,
 								               bool_plugin_ex_dup_cb,
@@ -5255,7 +5255,7 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
     unsigned long long items[] = {101, 102, 1000};
     struct bool_plugin_ud *results[ARRAY_SIZE];
     memset(results, 0, sizeof(results));
-    ret = maat_bool_plugin_table_get_ex_data(maat_instance, table_id, items, 3,
+    ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_id, items, 3,
                                              (void **)results, ARRAY_SIZE);
     EXPECT_EQ(ret, 4);
 	for (i = 0; i < ret; i++) {
@@ -5269,13 +5269,13 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
         line_rule.table_line = table_line_del[i];
         line_rule.expire_after = 0;
 
-        ret = maat_cmd_set_line(maat_instance, &line_rule);
+        ret = maat_cmd_set_line(maat_inst, &line_rule);
         EXPECT_GT(ret, 0);
     }
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     memset(results, 0, sizeof(results));
-    ret = maat_bool_plugin_table_get_ex_data(maat_instance, table_id, items, 3,
+    ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_id, items, 3,
                                              (void **)results, ARRAY_SIZE);
     EXPECT_EQ(ret, 2);
     for (i = 0; i < ret; i++) {
@@ -5290,27 +5290,27 @@ TEST_F(MaatCmdTest, GroupInMassCompiles) {
 	const char* table_url = "HTTP_URL";
 	const char* table_appid = "APP_ID";
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     //item_url1 -> group1
-    long long group1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    long long item1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    int ret = expr_table_set_line(maat_instance, table_url, MAAT_OP_ADD, item1_id, group1_id,
+    long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    int ret = expr_table_set_line(maat_inst, table_url, MAAT_OP_ADD, item1_id, group1_id,
                               "baidu.com&tsg", NULL, 1, 0, 0, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
     //item_url2 -> group2
-    long long group2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    long long item2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, table_url, MAAT_OP_ADD, item2_id, group2_id,
+    long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, table_url, MAAT_OP_ADD, item2_id, group2_id,
                               "baidu.com&zhengzhou", NULL, 1, 0, 0, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
     //item_appid -> group3
-    long long group3_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    long long item3_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = intval_table_set_line(maat_instance, table_appid, MAAT_OP_ADD, item3_id, group3_id,
+    long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = intval_table_set_line(maat_inst, table_appid, MAAT_OP_ADD, item3_id, group3_id,
                                 100, 100, NULL, 0);
     EXPECT_EQ(ret, 1);
 
@@ -5321,18 +5321,18 @@ TEST_F(MaatCmdTest, GroupInMassCompiles) {
     int i = 0;
     long long compile_id[COMPILE_ID_NUMS] = {0};
     for (i = 0; i < COMPILE_ID_NUMS; i++) {
-        compile_id[i] = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-        ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile_id[i],
+        compile_id[i] = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+        ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile_id[i],
                                      "mass_compile", 2, 0);
         EXPECT_EQ(ret, 1);
     }
 
     for (i = 0; i < COMPILE_ID_NUMS; i++) {
-        ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group1_id,
+        ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group1_id,
                                            compile_id[i], 0, "null", 0, 0);
         EXPECT_EQ(ret, 1);
 
-        ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group3_id,
+        ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group3_id,
                                            compile_id[i], 0, "null", 2, 0);
         EXPECT_EQ(ret, 1);
     }
@@ -5341,14 +5341,14 @@ TEST_F(MaatCmdTest, GroupInMassCompiles) {
                                     /
               item_appid -> group3_/
     */
-    long long target_compile_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, target_compile_id,
+    long long target_compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, target_compile_id,
                                  "null", 2, 0);
     EXPECT_EQ(ret, 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group2_id,
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group2_id,
                                        target_compile_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group3_id,
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group3_id,
                                        target_compile_id, 0, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
@@ -5358,30 +5358,30 @@ TEST_F(MaatCmdTest, GroupInMassCompiles) {
 	const char* http_url2 = "https://www.baidu.com/s?wd=zhengzhou&rsv_spt=1"
                              "&rsv_iqid=0x8b4cae8100000560&issp=1&f=8&rsv_bp=1";
 
-    int url_table_id = maat_get_table_id(maat_instance, table_url);
+    int url_table_id = maat_get_table_id(maat_inst, table_url);
     ASSERT_GT(url_table_id, 0);
 
-    int appid_table_id = maat_get_table_id(maat_instance, table_appid);
+    int appid_table_id = maat_get_table_id(maat_inst, table_appid);
     ASSERT_GT(appid_table_id, 0);
 
     long long results[4] = {0};
     size_t n_hit_result = 0;
-    ret = maat_scan_string(maat_instance, url_table_id, http_url2, strlen(http_url2),
+    ret = maat_scan_string(maat_inst, url_table_id, http_url2, strlen(http_url2),
                            results, 4, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_integer(maat_instance, appid_table_id, 100, results, 4,
+    ret = maat_scan_integer(maat_inst, appid_table_id, 100, results, 4,
                             &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], target_compile_id);
     maat_state_reset(state);
 
-    ret = maat_scan_string(maat_instance, url_table_id, http_url1, strlen(http_url1),
+    ret = maat_scan_string(maat_inst, url_table_id, http_url1, strlen(http_url1),
                            results, 4, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_integer(maat_instance, appid_table_id, 100, results, 4,
+    ret = maat_scan_integer(maat_inst, appid_table_id, 100, results, 4,
                             &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 4);
@@ -5397,24 +5397,24 @@ TEST_F(MaatCmdTest, HitPath) {
 	const char *ip_table_name = "IP_CONFIG";
 	const char *keywords_table_name = "KEYWORDS_TABLE";
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     /* compile1 */
-    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile1_id,
+    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile1_id,
                                      "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
     //group1 -> compile1
-    long long group1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group1_id,
+    long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group1_id,
                                        compile1_id, 0, "HTTP_REQUEST_HEADER", 1, 0);
     EXPECT_EQ(ret, 1);
 
     //item1 -> group1 -> compile1
-    long long item1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, http_sig_table_name, MAAT_OP_ADD, item1_id, group1_id,
+    long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD, item1_id, group1_id,
                               "graph_theory", "URL", 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
@@ -5422,8 +5422,8 @@ TEST_F(MaatCmdTest, HitPath) {
                              /
                     group21_/
     */
-    long long group21_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group21_id,
+    long long group21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group21_id,
                                        compile1_id, 0, "HTTP_RESPONSE_HEADER", 2, 0);
     EXPECT_EQ(ret, 1);
 
@@ -5431,8 +5431,8 @@ TEST_F(MaatCmdTest, HitPath) {
                             /
         group2 -> group21 _/
     */
-    long long group2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2group_table_set_line(maat_instance, g2g_table_name, MAAT_OP_ADD, group2_id,
+    long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD, group2_id,
                                      group21_id, 0, 0);
     EXPECT_EQ(ret, 1);
 
@@ -5440,8 +5440,8 @@ TEST_F(MaatCmdTest, HitPath) {
                                     /
        item2 -> group2 -> group21 _/
     */
-    long long item2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, http_sig_table_name, MAAT_OP_ADD, item2_id, group2_id,
+    long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD, item2_id, group2_id,
                               "time=2020-02-11", "Cookie", 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
@@ -5452,23 +5452,23 @@ TEST_F(MaatCmdTest, HitPath) {
                                   /
      item2 -> group2 -> group21 _/             
     */
-    long long group11_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2group_table_set_line(maat_instance, g2g_table_name, MAAT_OP_ADD, group1_id,
+    long long group11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD, group1_id,
                                      group11_id, 0, 0);
     EXPECT_EQ(ret, 1);
     
     //item3 -> group3, group3 is not referenced by any compile.
-    long long item3_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    long long group3_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = ip_table_set_line(maat_instance, ip_table_name, MAAT_OP_ADD, item3_id, group3_id,
+    long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_id, group3_id,
                             IPv4, "220.181.38.148", "220.181.38.149", 0, 65535, 0);
     EXPECT_EQ(ret, 1);
 
     char temp[1024]={0};
     //item4 -> group4, group4 is not referenced by any compile.
-    long long item4_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    long long group4_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = expr_table_set_line(maat_instance, keywords_table_name, MAAT_OP_ADD, item4_id, group4_id,
+    long long item4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    long long group4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD, item4_id, group4_id,
                               maat_cmd_str_escape(temp, sizeof(temp), "a finite or infinite"),
                               NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
@@ -5479,7 +5479,7 @@ TEST_F(MaatCmdTest, HitPath) {
 	const char* http_resp_hdr_cookie = "laptop=thinkpad X1 extrem;time=2020-02-11T15:34:00;"
                                        "main[XWJOKE]=hoho; Hm_lvt_bbac0322e6ee13093f98d5c4b5a10912=1578874808;";
 
-    int http_req_table_id = maat_get_table_id(maat_instance, "HTTP_REQUEST_HEADER");
+    int http_req_table_id = maat_get_table_id(maat_inst, "HTTP_REQUEST_HEADER");
     ASSERT_GT(http_req_table_id, 0);
 
     ret = maat_state_set_scan_district(state, http_req_table_id, "URL", strlen("URL"));
@@ -5490,7 +5490,7 @@ TEST_F(MaatCmdTest, HitPath) {
     Nth_scan++;
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
-    ret = maat_scan_string(maat_instance, http_req_table_id, http_url, strlen(http_url),
+    ret = maat_scan_string(maat_inst, http_req_table_id, http_url, strlen(http_url),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -5524,14 +5524,14 @@ TEST_F(MaatCmdTest, HitPath) {
 	EXPECT_EQ(hit_path[path_idx].vtable_id, http_req_table_id);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
 
-    int http_res_table_id = maat_get_table_id(maat_instance, "HTTP_RESPONSE_HEADER");
+    int http_res_table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
 	ASSERT_GT(http_res_table_id, 0);
 
     ret = maat_state_set_scan_district(state, http_res_table_id, "Cookie", strlen("Cookie"));
     EXPECT_EQ(ret, 0);
 
     Nth_scan++;
-    ret = maat_scan_string(maat_instance, http_res_table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
+    ret = maat_scan_string(maat_inst, http_res_table_id, http_resp_hdr_cookie, strlen(http_resp_hdr_cookie),
                           results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -5590,10 +5590,10 @@ are all distinct (and since the vertices are distinct, so are the edges). ";
 sequence of edges which joins a sequence of distinct vertices, but with the added restriction\
 that the edges be all directed in the same direction.";
 
-    int keywords_table_id = maat_get_table_id(maat_instance, keywords_table_name);
+    int keywords_table_id = maat_get_table_id(maat_inst, keywords_table_name);
     ASSERT_GT(keywords_table_id, 0);
 
-    struct maat_stream *stream = maat_stream_new(maat_instance, keywords_table_id, state);
+    struct maat_stream *stream = maat_stream_new(maat_inst, keywords_table_id, state);
     Nth_scan++;
     ret = maat_stream_scan(stream, keywords1, strlen(keywords1), results, ARRAY_SIZE,
                           &n_hit_result, state);
@@ -5624,14 +5624,14 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
 
-    int ip_table_id = maat_get_table_id(maat_instance, ip_table_name);
+    int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(ip_table_id, 0);
 
     Nth_scan++;
     uint32_t ip_addr;
     inet_pton(AF_INET, "220.181.38.148", &ip_addr);
     uint16_t port = htons(17272);
-    ret = maat_scan_ipv4(maat_instance, ip_table_id, ip_addr, port, 6, results, ARRAY_SIZE,
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6, results, ARRAY_SIZE,
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -5689,11 +5689,11 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
 	const char* ip_table_name = "IP_PLUS_CONFIG";
     const char *app_id_table_name = "APP_ID";
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile1_id,
+    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile1_id,
                                      "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
@@ -5701,23 +5701,23 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
                                           /
            item21 -> group21 -> clause2 _/
     */
-    long long group11_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group11_id,
+    long long group11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group11_id,
                                        compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    long long item11_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = ip_table_set_line(maat_instance, ip_table_name, MAAT_OP_ADD, item11_id, group11_id,
+    long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item11_id, group11_id,
                             IPv4, "192.168.2.1", "192.168.2.4", 0, 65535, 0);
     EXPECT_EQ(ret, 1);
 
-    long long group21_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group21_id,
+    long long group21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group21_id,
                                        compile1_id, 0, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    long long item21_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = intval_table_set_line(maat_instance, app_id_table_name, MAAT_OP_ADD, item21_id,
+    long long item21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = intval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD, item21_id,
                                 group21_id, 31, 31, NULL, 0);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -5728,14 +5728,14 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
     inet_pton(AF_INET, "192.168.2.2", &ip_addr);
     uint16_t port = htons(50001);
 
-    int table_id = maat_get_table_id(maat_instance, ip_table_name);
-    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6, results, ARRAY_SIZE, 
+    int table_id = maat_get_table_id(maat_inst, ip_table_name);
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6, results, ARRAY_SIZE, 
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     int scan_app_id = 32;
-    table_id = maat_get_table_id(maat_instance, app_id_table_name);
-    ret = maat_scan_integer(maat_instance, table_id, scan_app_id, results, ARRAY_SIZE,
+    table_id = maat_get_table_id(maat_inst, app_id_table_name);
+    ret = maat_scan_integer(maat_inst, table_id, scan_app_id, results, ARRAY_SIZE,
                             &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -5744,31 +5744,31 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
            item21 -> group21 -> clause2 _/
           item22 -> group22 -> clause3 _/
     */
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_DEL, compile1_id,
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL, compile1_id,
                                  "null", 2, 0);
     EXPECT_EQ(ret, 1);
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile1_id,
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile1_id,
                                  "null", 3, 0);
     EXPECT_EQ(ret, 1);
 
-    long long group22_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group22_id,
+    long long group22_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group22_id,
                                        compile1_id, 0, "null", 3, 0);
     EXPECT_EQ(ret, 1);
 
-    long long item22_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = intval_table_set_line(maat_instance, app_id_table_name, MAAT_OP_ADD, item22_id,
+    long long item22_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = intval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD, item22_id,
                                 group22_id, 32, 32, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    table_id = maat_get_table_id(maat_instance, app_id_table_name);
-    ret = maat_scan_integer(maat_instance, table_id, 31, results, ARRAY_SIZE,
+    table_id = maat_get_table_id(maat_inst, app_id_table_name);
+    ret = maat_scan_integer(maat_inst, table_id, 31, results, ARRAY_SIZE,
                             &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_integer(maat_instance, table_id, scan_app_id, results, ARRAY_SIZE,
+    ret = maat_scan_integer(maat_inst, table_id, scan_app_id, results, ARRAY_SIZE,
                             &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -5783,34 +5783,34 @@ TEST_F(MaatCmdTest, GroupEdit) {
 	const char *ip_table_name = "IP_PLUS_CONFIG"; 
     const char *app_id_table_name = "APP_ID";
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile1_id,
+    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile1_id,
                                      "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
     /* item11 -> group11 -> clause1 -> compile1
            item21 -> group21 -> clause2 _/
     */
-    long long group11_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group11_id,
+    long long group11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group11_id,
                                        compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    long long item11_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = ip_table_set_line(maat_instance, ip_table_name, MAAT_OP_ADD, item11_id, group11_id, 
+    long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item11_id, group11_id, 
                             IPv4, "192.168.3.1", "192.168.3.4", 0, 65535, 0);
     EXPECT_EQ(ret, 1);
 
-    long long group21_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group21_id,
+    long long group21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group21_id,
                                        compile1_id, 0, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    long long item21_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = intval_table_set_line(maat_instance, app_id_table_name, MAAT_OP_ADD, item21_id,
+    long long item21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = intval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD, item21_id,
                                 group21_id, 41, 41, NULL, 0);
     EXPECT_EQ(ret, 1);
 
@@ -5823,18 +5823,18 @@ TEST_F(MaatCmdTest, GroupEdit) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
 
-    int table_id = maat_get_table_id(maat_instance, ip_table_name);
+    int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6, results, ARRAY_SIZE,
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6, results, ARRAY_SIZE,
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    table_id = maat_get_table_id(maat_instance, app_id_table_name);
+    table_id = maat_get_table_id(maat_inst, app_id_table_name);
     ASSERT_GT(table_id, 0);
 
     int scan_app_id = 42;
-    ret = maat_scan_integer(maat_instance, table_id, scan_app_id, results, ARRAY_SIZE,
+    ret = maat_scan_integer(maat_inst, table_id, scan_app_id, results, ARRAY_SIZE,
                             &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     maat_state_reset(state);
@@ -5843,24 +5843,24 @@ TEST_F(MaatCmdTest, GroupEdit) {
             item21 -> group21 -> clause2 _/
               item22 -> /
     */
-    long long item22_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = intval_table_set_line(maat_instance, app_id_table_name, MAAT_OP_ADD, item22_id, group21_id,
+    long long item22_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = intval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD, item22_id, group21_id,
                                 scan_app_id, scan_app_id, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    table_id = maat_get_table_id(maat_instance, ip_table_name);
+    table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6, results, ARRAY_SIZE,
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6, results, ARRAY_SIZE,
                          &n_hit_result, state);
     //TODO: EXPECT_EQ(ret,?)
 
-    table_id = maat_get_table_id(maat_instance, app_id_table_name);
+    table_id = maat_get_table_id(maat_inst, app_id_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_integer(maat_instance, table_id, scan_app_id, results, ARRAY_SIZE,
+    ret = maat_scan_integer(maat_inst, table_id, scan_app_id, results, ARRAY_SIZE,
                             &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -5876,20 +5876,20 @@ TEST_F(MaatCmdTest, GroupEdit) {
     /* item11 -> group11 -> clause1 -> compile1
            item21 -> group21 -> clause2 _/
     */
-    ret = intval_table_set_line(maat_instance, app_id_table_name, MAAT_OP_DEL, item22_id, group21_id,
+    ret = intval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_DEL, item22_id, group21_id,
                                 scan_app_id, scan_app_id, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     memset(results, 0, sizeof(results));
-    table_id = maat_get_table_id(maat_instance, ip_table_name);
-    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6, results, ARRAY_SIZE,
+    table_id = maat_get_table_id(maat_inst, ip_table_name);
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6, results, ARRAY_SIZE,
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    table_id = maat_get_table_id(maat_instance, app_id_table_name);
-    ret = maat_scan_integer(maat_instance, table_id, scan_app_id, results, ARRAY_SIZE,
+    table_id = maat_get_table_id(maat_inst, app_id_table_name);
+    ret = maat_scan_integer(maat_inst, table_id, scan_app_id, results, ARRAY_SIZE,
                             &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     maat_state_free(state);
@@ -5901,22 +5901,22 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
 	const char* compile_table_name = "COMPILE";
 	const char* ip_table_name = "IP_PLUS_CONFIG";
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile1_id,
+    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile1_id,
                                      "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     //item11 -> group11 -> clause1 -> compile1
-    long long group11_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group11_id,
+    long long group11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group11_id,
                                        compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    long long item11_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = ip_table_set_line(maat_instance, ip_table_name, MAAT_OP_ADD, item11_id, group11_id, 
+    long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item11_id, group11_id, 
                             IPv4, "192.168.73.163", "192.168.73.180", 0, 65535, 0);
     EXPECT_EQ(ret, 1);
 
@@ -5929,20 +5929,20 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
 
-    int table_id = maat_get_table_id(maat_instance, ip_table_name);
+    int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6, results, ARRAY_SIZE,
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6, results, ARRAY_SIZE,
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], compile1_id);
 
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_DEL, compile1_id,
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL, compile1_id,
                                  "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_DEL, group11_id,
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL, group11_id,
                                         compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -5951,7 +5951,7 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
     time_t update_time = time(NULL);
 	time_t now = update_time;
 	while (now - update_time < 3) {
-		ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, 6, results, ARRAY_SIZE,
+		ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6, results, ARRAY_SIZE,
                              &n_hit_result, state);
 		if (ret == MAAT_SCAN_HIT) {
 			hit_cnt++;
@@ -5972,23 +5972,23 @@ TEST_F(MaatCmdTest, UpdateDeadLockDetection) {
 	const char* compile_table_name = "COMPILE";
 	const char* table_http_url = "HTTP_URL";
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile1_id,
+    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile1_id,
                                      "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     //group1 -> compile1
-    long long group1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group1_id,
+    long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group1_id,
                                        compile1_id, 0, "null", 0, 0);
     EXPECT_EQ(ret, 1);
 
     //item1 -> group1 -> compile1
-    long long item1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, table_http_url, MAAT_OP_ADD, item1_id, group1_id,
+    long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, table_http_url, MAAT_OP_ADD, item1_id, group1_id,
                               "part-1", NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
@@ -6000,42 +6000,42 @@ TEST_F(MaatCmdTest, UpdateDeadLockDetection) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
 
-    int table_id = maat_get_table_id(maat_instance, table_http_url);
+    int table_id = maat_get_table_id(maat_inst, table_http_url);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_string(maat_instance, table_id, scan_data1, strlen(scan_data1),
+    ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1),
                           results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], compile1_id);
 
-    long long compile2_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile2_id,
+    long long compile2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile2_id,
                                  "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     //group2 -> compile2
-    long long group2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group2_id,
+    long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group2_id,
                                        compile2_id, 0, "null", 0, 0);
     EXPECT_EQ(ret, 1);
 
     //item2 -> group2 -> compile2
-    long long item2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, table_http_url, MAAT_OP_ADD, item2_id, group2_id,
+    long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, table_http_url, MAAT_OP_ADD, item2_id, group2_id,
                               "part-2", NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     //DON'T DO THIS!!!
 	//Roll back version, trigger full udpate.
 	//This operation generates some FATAL logs in test_maat_redis.log.yyyy-mm-dd.
-	maat_cmd_incrby(maat_instance, "MAAT_VERSION", -100);
+	maat_cmd_incrby(maat_inst, "MAAT_VERSION", -100);
 
     //Wating for scanner garbage collect expiration.
 	sleep(10);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_string(maat_instance, table_id, scan_data2, strlen(scan_data2),
+    ret = maat_scan_string(maat_inst, table_id, scan_data2, strlen(scan_data2),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT); //After full update, clause ids are re-orgnized, therefore mid are not compatible to the new scanner (hierarchy).
     maat_state_free(state);
@@ -6047,17 +6047,17 @@ TEST_F(MaatCmdTest, StreamScanWhenExprTableIncUpdate) {
 	const char* compile_table_name = "COMPILE";
 	const char* scan_table_name = "KEYWORDS_TABLE";
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile1_id,
+    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile1_id,
                                      "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     //group1 -> compile1
-    long long group1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group1_id,
+    long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group1_id,
                                        compile1_id, 0, "null", 0, 0);
     EXPECT_EQ(ret, 1);
 
@@ -6067,17 +6067,17 @@ TEST_F(MaatCmdTest, StreamScanWhenExprTableIncUpdate) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
 
-    int table_id = maat_get_table_id(maat_instance, scan_table_name);
+    int table_id = maat_get_table_id(maat_inst, scan_table_name);
     ASSERT_GT(table_id, 0);
 
-    struct maat_stream *stream = maat_stream_new(maat_instance, table_id, state);
+    struct maat_stream *stream = maat_stream_new(maat_inst, table_id, state);
     ret = maat_stream_scan(stream, scan_data, strlen(scan_data), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     //item1 -> group1 -> compile1
-    long long item1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, scan_table_name, MAAT_OP_ADD, item1_id, group1_id,
+    long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, scan_table_name, MAAT_OP_ADD, item1_id, group1_id,
                               "stream-keywords-001-inc-update", NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
@@ -6092,7 +6092,7 @@ TEST_F(MaatCmdTest, StreamScanWhenExprTableIncUpdate) {
     
     maat_stream_free(stream);
 
-    stream = maat_stream_new(maat_instance, table_id, state);
+    stream = maat_stream_new(maat_inst, table_id, state);
     ret = maat_stream_scan(stream, scan_data, strlen(scan_data), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -6109,23 +6109,23 @@ TEST_F(MaatCmdTest, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
 	const char* compile_table_name = "COMPILE";
 	const char* scan_table_name = "KEYWORDS_TABLE";
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile1_id,
+    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile1_id,
                                      "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     //group1 -> compile1
-    long long group1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group1_id,
+    long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group1_id,
                                        compile1_id, 0, "null", 0, 0);
     EXPECT_EQ(ret, 1);
 
     //item1 -> group1 -> compile1
-    long long item1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, scan_table_name, MAAT_OP_ADD, item1_id, group1_id,
+    long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, scan_table_name, MAAT_OP_ADD, item1_id, group1_id,
                               "stream-keywords-002", NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
@@ -6135,10 +6135,10 @@ TEST_F(MaatCmdTest, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
 
-    int table_id = maat_get_table_id(maat_instance, scan_table_name);
+    int table_id = maat_get_table_id(maat_inst, scan_table_name);
     ASSERT_GT(table_id, 0);
 
-    struct maat_stream *stream = maat_stream_new(maat_instance, table_id, state);
+    struct maat_stream *stream = maat_stream_new(maat_inst, table_id, state);
     ret = maat_stream_scan(stream, scan_data, strlen(scan_data), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -6149,7 +6149,7 @@ TEST_F(MaatCmdTest, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
 	//Roll back version, trigger full update.	
 	//This operation generates FATAL logs in test_maat_redis.log.yyyy-mm-dd.
 	//For example: Add group 22 vt_id 0 to clause 2 of compile 979 failed, group is already exisited
-	maat_cmd_incrby(maat_instance, "MAAT_VERSION", -100);
+	maat_cmd_incrby(maat_inst, "MAAT_VERSION", -100);
 
 	//Wating for scanner garbage collect expiration.
 	sleep(10);
@@ -6169,23 +6169,23 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenIncUpdate) {
 	const char *expr_table_name = "KEYWORDS_TABLE";
     const char *ip_table_name = "IP_PLUS_CONFIG";
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile1_id,
+    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile1_id,
                                      "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
     //group1 -> compile1
-    long long group1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group1_id,
+    long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group1_id,
                                        compile1_id, 0, "null", 0, 0);
     EXPECT_EQ(ret, 1);
 
     //item1 -> group1 -> compile1
-    long long item1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, expr_table_name, MAAT_OP_ADD, item1_id, group1_id,
+    long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD, item1_id, group1_id,
                               "stream-keywords-003", NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
@@ -6193,13 +6193,13 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenIncUpdate) {
                             /
          item2 -> group2 --/
     */
-    long long item2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    long long group2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = ip_table_set_line(maat_instance, ip_table_name, MAAT_OP_ADD, item2_id, group2_id,
+    long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item2_id, group2_id,
                             IPv4, "100.100.100.1", "100.100.100.1", 100, 100, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group2_id,
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group2_id,
                                         compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -6215,26 +6215,26 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenIncUpdate) {
     uint16_t port = htons(100);
     int proto = 6;
 
-    int table_id = maat_get_table_id(maat_instance, ip_table_name);
+    int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, proto, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     //add compile2 for compile runtime inc update
-    long long compile2_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile2_id,
+    long long compile2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile2_id,
                                  "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     const char *scan_data = "Here is a stream-keywords-003, this should hit.";
-    table_id = maat_get_table_id(maat_instance, expr_table_name);
+    table_id = maat_get_table_id(maat_inst, expr_table_name);
     ASSERT_GT(table_id, 0);
 
-    struct maat_stream *stream = maat_stream_new(maat_instance, table_id, state);
+    struct maat_stream *stream = maat_stream_new(maat_inst, table_id, state);
     ret = maat_stream_scan(stream, scan_data, strlen(scan_data), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -6244,9 +6244,9 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenIncUpdate) {
     /* 
         becase compile1_id has been returned, maat_scan_xx will not return duplicate compile_id again
     */
-    table_id = maat_get_table_id(maat_instance, ip_table_name);
+    table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
-    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, proto, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -6261,23 +6261,23 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenFullUpdate) {
 	const char *ip_table_name = "IP_PLUS_CONFIG";
     const char *expr_table_name = "KEYWORDS_TABLE";
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile1_id,
+    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile1_id,
                                      "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     //group1 -> compile1
-    long long group1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group1_id,
+    long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group1_id,
                                        compile1_id, 0, "null", 0, 0);
     EXPECT_EQ(ret, 1);
 
     //item1 -> group1 -> compile1
-    long long item1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, expr_table_name, MAAT_OP_ADD, item1_id, group1_id,
+    long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD, item1_id, group1_id,
                               "stream-keywords-004", NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
@@ -6285,13 +6285,13 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenFullUpdate) {
                             /
          item2 -> group2 --/
     */
-    long long item2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    long long group2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = ip_table_set_line(maat_instance, ip_table_name, MAAT_OP_ADD, item2_id, group2_id,
+    long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item2_id, group2_id,
                             IPv4, "100.100.100.2", "100.100.100.2", 100, 100, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group2_id,
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group2_id,
                                         compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -6307,25 +6307,25 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenFullUpdate) {
     uint16_t port = htons(100);
     int proto = 6;
 
-    int table_id = maat_get_table_id(maat_instance, ip_table_name);
+    int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, proto, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     //DON'T DO THIS!!!
 	//Roll back version, trigger full update.	
-	maat_cmd_incrby(maat_instance, "MAAT_VERSION", -100);
+	maat_cmd_incrby(maat_inst, "MAAT_VERSION", -100);
 
 	//Wating for scanner garbage collect expiration.
 	sleep(10);
 
     const char *scan_data = "Here is a stream-keywords-004, this should hit.";
-    table_id = maat_get_table_id(maat_instance, expr_table_name);
+    table_id = maat_get_table_id(maat_inst, expr_table_name);
     ASSERT_GT(table_id, 0);
 
-    struct maat_stream *stream = maat_stream_new(maat_instance, table_id, state);
+    struct maat_stream *stream = maat_stream_new(maat_inst, table_id, state);
     ret = maat_stream_scan(stream, scan_data, strlen(scan_data), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
@@ -6334,9 +6334,9 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenFullUpdate) {
        After full updating, new compile_rt version is different from that of maat_state,
        so MAAT_SCAN_HIT will never happen.
     */
-    table_id = maat_get_table_id(maat_instance, ip_table_name);
+    table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
-    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, proto, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -6352,23 +6352,23 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenIncUpdate) {
     const char *ip_table_name = "IP_PLUS_CONFIG";
     const char *keywords = "IP&stringinc";
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile1_id,
+    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile1_id,
                                      "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
     //group1 -> compile1
-    long long group1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group1_id,
+    long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group1_id,
                                        compile1_id, 0, "null", 0, 0);
     EXPECT_EQ(ret, 1);
 
     //item1 -> group1 -> compile1
-    long long item1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, expr_table_name, MAAT_OP_ADD, item1_id, group1_id,
+    long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD, item1_id, group1_id,
                               keywords, NULL, 1, 0, 0, 0); /*EXPR_TYPE_AND MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
@@ -6376,13 +6376,13 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenIncUpdate) {
                             /
          item2 -> group2 --/
     */
-    long long item2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    long long group2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = ip_table_set_line(maat_instance, ip_table_name, MAAT_OP_ADD, item2_id, group2_id,
+    long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item2_id, group2_id,
                             IPv4, "100.100.100.1", "100.100.100.1", 100, 100, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group2_id,
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group2_id,
                                         compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -6398,26 +6398,26 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenIncUpdate) {
     uint16_t port = htons(100);
     int proto = 6;
 
-    int table_id = maat_get_table_id(maat_instance, ip_table_name);
+    int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, proto, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     //add compile2 for compile runtime inc update
-    long long compile2_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile2_id,
+    long long compile2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile2_id,
                                  "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     const char *scan_data = "Here is a IP and stringinc, this should hit.";
-    table_id = maat_get_table_id(maat_instance, expr_table_name);
+    table_id = maat_get_table_id(maat_inst, expr_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
+    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -6426,9 +6426,9 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenIncUpdate) {
     /* 
         becase compile1_id has been returned, maat_scan_xx will not return duplicate compile_id again
     */
-    table_id = maat_get_table_id(maat_instance, ip_table_name);
+    table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
-    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, proto, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -6443,23 +6443,23 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenFullupdate) {
     const char *expr_table_name = "HTTP_URL";
     const char *keywords = "IP&string";
     int thread_id = 0;
-    struct maat *maat_instance = MaatCmdTest::_shared_maat_instance;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    long long compile1_id = maat_cmd_incrby(maat_instance, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_instance, compile_table_name, MAAT_OP_ADD, compile1_id,
+    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile1_id,
                                      "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     //group1 -> compile1
-    long long group1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group1_id,
+    long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group1_id,
                                        compile1_id, 0, "null", 0, 0);
     EXPECT_EQ(ret, 1);
 
     //item1 -> group1 -> compile1
-    long long item1_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_instance, expr_table_name, MAAT_OP_ADD, item1_id, group1_id,
+    long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD, item1_id, group1_id,
                               keywords, "null", 1, 0, 0, 0); /*EXPR_TYPE_AND MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
@@ -6467,13 +6467,13 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenFullupdate) {
                             /
          item2 -> group2 --/
     */
-    long long item2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_REGION", 1);
-    long long group2_id = maat_cmd_incrby(maat_instance, "SEQUENCE_GROUP", 1);
-    ret = ip_table_set_line(maat_instance, ip_table_name, MAAT_OP_ADD, item2_id, group2_id,
+    long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item2_id, group2_id,
                             IPv4, "100.100.100.3", "100.100.100.3", 100, 100, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_instance, g2c_table_name, MAAT_OP_ADD, group2_id,
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group2_id,
                                         compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -6489,25 +6489,25 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenFullupdate) {
     uint16_t port = htons(100);
     int proto = 6;
 
-    int table_id = maat_get_table_id(maat_instance, ip_table_name);
+    int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, proto, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     //DON'T DO THIS!!!
 	//Roll back version, trigger full update.	
-	maat_cmd_incrby(maat_instance, "MAAT_VERSION", -100);
+	maat_cmd_incrby(maat_inst, "MAAT_VERSION", -100);
 
 	//Wating for scanner garbage collect expiration.
 	sleep(10);
 
     const char *scan_data = "scan IP and string, this should hit.";
-    table_id = maat_get_table_id(maat_instance, expr_table_name);
+    table_id = maat_get_table_id(maat_inst, expr_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),
+    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -6515,10 +6515,10 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenFullupdate) {
        After full updating, new compile_rt version is different from that of maat_state,
        so MAAT_SCAN_HIT will never happen.
     */
-    table_id = maat_get_table_id(maat_instance, ip_table_name);
+    table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_instance, table_id, ip_addr, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, proto, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -6548,9 +6548,9 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
-        _shared_maat_instance = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
-        if (NULL == _shared_maat_instance) {
+        if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_GTEST,
                       "[%s:%d] create maat instance in MaatRollbackTest failed.",
                       __FUNCTION__, __LINE__);
@@ -6558,14 +6558,14 @@ protected:
     }
 
     static void TearDownTestCase() {
-        maat_free(_shared_maat_instance);
+        maat_free(_shared_maat_inst);
         log_handle_destroy(logger);
     }
 
     static struct log_handle *logger;
-    static struct maat *_shared_maat_instance;
+    static struct maat *_shared_maat_inst;
 };
-struct maat *MaatRollbackTest::_shared_maat_instance;
+struct maat *MaatRollbackTest::_shared_maat_inst;
 struct log_handle *MaatRollbackTest::logger;
 
 static int clear_config_in_redis(redisContext *c, struct log_handle *logger)
@@ -6657,19 +6657,19 @@ static int rollback_redis_version(redisContext *c, struct log_handle *logger)
 
 TEST_F(MaatRollbackTest, FullConfigRollback) {
     const char *table_name = "HTTP_URL";
-    struct maat *maat_instance = MaatRollbackTest::_shared_maat_instance;
+    struct maat *maat_inst = MaatRollbackTest::_shared_maat_inst;
     struct log_handle *logger = MaatRollbackTest::logger;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
     const char *scan_data = "http://www.cyberessays.com/search_results.php?action=search&query=username,abckkk,1234567";
 
-    int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data), 
+    int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data), 
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -6695,7 +6695,7 @@ TEST_F(MaatRollbackTest, FullConfigRollback) {
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data), 
+    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data), 
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -6706,19 +6706,19 @@ TEST_F(MaatRollbackTest, FullConfigRollback) {
 
 TEST_F(MaatRollbackTest, FullConfigRollbackWhenScanUnfinished) {
     const char *table_name = "HTTP_URL";
-    struct maat *maat_instance = MaatRollbackTest::_shared_maat_instance;
+    struct maat *maat_inst = MaatRollbackTest::_shared_maat_inst;
     struct log_handle *logger = MaatRollbackTest::logger;
 
-    int table_id = maat_get_table_id(maat_instance, table_name);
+    int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    struct maat_state *state = maat_state_new(maat_instance, thread_id);
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
     const char *scan_data = "http://www.cyberessays.com/search_results.php?action=search&query=username,abckkk,1234567";
 
-    int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data), 
+    int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data), 
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -6744,7 +6744,7 @@ TEST_F(MaatRollbackTest, FullConfigRollbackWhenScanUnfinished) {
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data), 
+    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data), 
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);

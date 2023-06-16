@@ -392,7 +392,7 @@ void config_monitor_traverse(long long current_version, const char *idx_dir,
 	FREE(idx_path_array);
 }
 
-int load_maat_json_file(struct maat *maat_instance, const char *json_filename, 
+int load_maat_json_file(struct maat *maat_inst, const char *json_filename, 
                         char *err_str, size_t err_str_sz)
 {
 	int ret = 0;
@@ -404,18 +404,18 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
     size_t decrypted_buff_sz = 0; 
     size_t uncompressed_buff_sz = 0;
 
-	log_info(maat_instance->logger, MODULE_CONFIG_MONITOR, 
+	log_info(maat_inst->logger, MODULE_CONFIG_MONITOR, 
             "Maat initial with JSON file %s, formating...", 
             json_filename);
 
-	if (strlen(maat_instance->opts.decrypt_key) && strlen(maat_instance->opts.decrypt_algo)) {
-		ret = decrypt_open(json_filename, maat_instance->opts.decrypt_key, 
-                           maat_instance->opts.decrypt_algo, 
+	if (strlen(maat_inst->opts.decrypt_key) && strlen(maat_inst->opts.decrypt_algo)) {
+		ret = decrypt_open(json_filename, maat_inst->opts.decrypt_key, 
+                           maat_inst->opts.decrypt_algo, 
                            (unsigned char **)&decrypted_buff, 
                            &decrypted_buff_sz, 
                            err_str, err_str_sz);
 		if (ret < 0) {
-			log_error(maat_instance->logger, MODULE_CONFIG_MONITOR, 
+			log_error(maat_inst->logger, MODULE_CONFIG_MONITOR, 
                       "[%s:%d] Decrypt Maat JSON file %s failed", 
                       __FUNCTION__, __LINE__, json_filename);
 			return -1;
@@ -425,12 +425,12 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
 		json_buff_sz = decrypted_buff_sz;
 	}
     
-	if (maat_instance->opts.maat_json_is_gzipped) {
+	if (maat_inst->opts.maat_json_is_gzipped) {
 		ret = gzip_uncompress(json_buff, json_buff_sz, &uncompressed_buff, 
                               &uncompressed_buff_sz);
 		FREE(json_buff);
 		if (ret < 0) {
-			log_error(maat_instance->logger, MODULE_CONFIG_MONITOR, 
+			log_error(maat_inst->logger, MODULE_CONFIG_MONITOR, 
                       "[%s:%d] Uncompress Maat JSON file %s failed", 
                       __FUNCTION__, __LINE__, json_filename);
 			return -1;
@@ -444,7 +444,7 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
 	if (NULL == json_buff) {	
 		ret = load_file_to_memory(json_filename, &json_buff, &json_buff_sz);
 		if (ret < 0) {
-			log_error(maat_instance->logger, MODULE_CONFIG_MONITOR, 
+			log_error(maat_inst->logger, MODULE_CONFIG_MONITOR, 
                       "[%s:%d] Read Maat JSON file %s failed", 
                       __FUNCTION__, __LINE__, json_filename);
 			return -1;
@@ -452,27 +452,27 @@ int load_maat_json_file(struct maat *maat_instance, const char *json_filename,
 	}
 
 	ret = json2iris((const char*)json_buff, json_filename, NULL,
-			        maat_instance->opts.json_ctx.iris_file, 
-                    sizeof(maat_instance->opts.json_ctx.iris_file),
-			        strlen(maat_instance->opts.decrypt_key) ? maat_instance->opts.decrypt_key : NULL,
-			        strlen(maat_instance->opts.decrypt_algo) ? maat_instance->opts.decrypt_algo : NULL,
-                    maat_instance->logger);
+			        maat_inst->opts.json_ctx.iris_file, 
+                    sizeof(maat_inst->opts.json_ctx.iris_file),
+			        strlen(maat_inst->opts.decrypt_key) ? maat_inst->opts.decrypt_key : NULL,
+			        strlen(maat_inst->opts.decrypt_algo) ? maat_inst->opts.decrypt_algo : NULL,
+                    maat_inst->logger);
 	FREE(json_buff);
 	if (ret < 0) {
 		return -1;
 	}
 	
 	ret = stat(json_filename, &fstat_buf);
-	maat_instance->opts.json_ctx.last_md5_time = fstat_buf.st_ctim;
+	maat_inst->opts.json_ctx.last_md5_time = fstat_buf.st_ctim;
 	
-	md5_file(maat_instance->opts.json_ctx.json_file, maat_instance->opts.json_ctx.effective_json_md5);
-	log_info(maat_instance->logger, MODULE_CONFIG_MONITOR, 
+	md5_file(maat_inst->opts.json_ctx.json_file, maat_inst->opts.json_ctx.effective_json_md5);
+	log_info(maat_inst->logger, MODULE_CONFIG_MONITOR, 
             "JSON file %s md5: %s, generate index file %s OK",
-			maat_instance->opts.json_ctx.json_file,
-			maat_instance->opts.json_ctx.effective_json_md5,
-		    maat_instance->opts.json_ctx.iris_file);
+			maat_inst->opts.json_ctx.json_file,
+			maat_inst->opts.json_ctx.effective_json_md5,
+		    maat_inst->opts.json_ctx.iris_file);
 
-	maat_instance->opts.input_mode = DATA_SOURCE_JSON_FILE;
+	maat_inst->opts.input_mode = DATA_SOURCE_JSON_FILE;
 
 	return 0;	
 }

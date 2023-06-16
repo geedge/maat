@@ -36,7 +36,6 @@ extern "C"
 #include "hiredis/hiredis.h"
 
 #define MAX_TABLE_NUM	1024
-#define MAX_COMPILE_TABLE_NUM 16
 
 #define	DISTRICT_ANY	   -1
 #define	DISTRICT_UNKNOWN   -2
@@ -109,13 +108,13 @@ struct source_redis_ctx {
 };
 
 struct maat_options {
-    char instance_name[NAME_MAX];
+    char inst_name[MAX_INSTANCE_NAME_LEN + 1];
     char foreign_cont_dir[NAME_MAX];
     char decrypt_algo[MAX_KEYWORDS_STR];
     char decrypt_key[MAX_KEYWORDS_STR];
     char log_path[PATH_MAX];
     int log_level;
-    char stat_file[PATH_MAX];
+    char stat_file[NAME_MAX];
     size_t nr_worker_thread;
     char *accept_tags;
 
@@ -194,7 +193,7 @@ enum last_scan_flag {
 };
 
 struct maat_state {
-	struct maat *maat_instance;
+	struct maat *maat_inst;
     struct maat_compile_state *compile_state;
     int scan_cnt;
     int district_id; //-1: Any District; -2: Unkonwn District;

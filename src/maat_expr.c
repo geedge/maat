@@ -875,7 +875,7 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
     struct adapter_hs *old_adapter_hs = NULL;
 
     if (rule_cnt > 0) {
-        new_adapter_hs = adapter_hs_new(expr_rt->n_worker_thread, rules, real_rule_cnt,
+        new_adapter_hs = adapter_hs_new(rules, real_rule_cnt, expr_rt->n_worker_thread,
                                         expr_rt->logger);
         if (NULL == new_adapter_hs) {
             log_error(expr_rt->logger, MODULE_EXPR,

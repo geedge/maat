@@ -44,7 +44,7 @@ struct rcu_hash_table {
 struct rcu_hash_node {
     char *key;
     size_t key_len;
-    void *data; //table_runtime解析成两个成员
+    void *data;
 
     /* htable the node belongs to */
     struct rcu_hash_table *htable;

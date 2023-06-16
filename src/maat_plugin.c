@@ -33,7 +33,6 @@ struct plugin_callback_schema {
 struct plugin_runtime {
     long long acc_line_num;
     struct ex_data_runtime *ex_data_rt;
-    long long version;
     long long rule_num;
     long long update_err_cnt;
     struct maat_garbage_bin *ref_garbage_bin;
@@ -572,13 +571,10 @@ int plugin_runtime_commit(void *plugin_runtime, const char *table_name,
     ex_data_runtime_commit(ex_data_rt);
     
     plugin_rt->rule_num = ex_data_runtime_ex_container_count(ex_data_rt);
-    if (maat_rt_version != 0) {
-        plugin_rt->version = maat_rt_version;
-    }
     
     log_info(plugin_rt->logger, MODULE_PLUGIN,
              "table[%s] commit %zu plugin rules, version:%lld", 
-             table_name, plugin_rt->rule_num, plugin_rt->version);
+             table_name, plugin_rt->rule_num, maat_rt_version);
 
     return 0;
 }

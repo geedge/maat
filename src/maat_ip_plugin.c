@@ -37,7 +37,6 @@ struct ip_plugin_schema {
 struct ip_plugin_runtime {
 	struct ip_matcher *ip_matcher;
     struct ex_data_runtime *ex_data_rt;
-    long long version;
     long long rule_num;
     long long update_err_cnt;
     size_t n_worker_thread;
@@ -539,13 +538,10 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name,
     }
     
     ip_plugin_rt->rule_num = rule_cnt;
-    if (maat_rt_version != 0) {
-        ip_plugin_rt->version = maat_rt_version;
-    }
 
     log_info(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
              "table[%s] commit %zu ip_plugin rules and rebuild ip_matcher "
-             "completed, version:%lld", table_name, rule_cnt, ip_plugin_rt->version);
+             "completed, version:%lld", table_name, rule_cnt, maat_rt_version);
 
     if (rules != NULL) {
         FREE(rules);
