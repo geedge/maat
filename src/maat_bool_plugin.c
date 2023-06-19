@@ -23,6 +23,7 @@ struct bool_plugin_schema {
     int item_id_column;
     int bool_expr_column;
     int rule_tag_column;
+    int gc_timeout_s;
     struct ex_container_schema container_schema;
     int table_id;
     struct table_manager *ref_tbl_mgr;
@@ -92,6 +93,12 @@ void *bool_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     custom_item = cJSON_GetObjectItem(item, "rule_tag");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->rule_tag_column = custom_item->valueint;
+    }
+
+    //gc_timeout_s is optional
+    custom_item = cJSON_GetObjectItem(item, "gc_timeout_s");
+    if (custom_item != NULL && custom_item->type == cJSON_Number) {
+        schema->gc_timeout_s = custom_item->valueint;
     }
 
     schema->ref_tbl_mgr = tbl_mgr;
@@ -183,7 +190,8 @@ void *bool_plugin_runtime_new(void *bool_plugin_schema, size_t max_thread_num,
     struct bool_plugin_schema *schema = (struct bool_plugin_schema *)bool_plugin_schema;
     struct bool_plugin_runtime *bool_plugin_rt = ALLOC(struct bool_plugin_runtime, 1);
 
-    bool_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, logger);
+    bool_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, schema->gc_timeout_s,
+                                                     logger);
     if (1 == schema->container_schema.set_flag) {
         ex_data_runtime_set_ex_container_schema(bool_plugin_rt->ex_data_rt,
                                                 &(schema->container_schema));

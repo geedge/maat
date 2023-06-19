@@ -16,13 +16,13 @@ void data_free(void *user_ctx, void *data)
 }
 
 TEST(rcu_hash_new, invalid_input_parameter) {
-    struct rcu_hash_table *htable = rcu_hash_new(NULL, NULL);
+    struct rcu_hash_table *htable = rcu_hash_new(NULL, NULL, 0);
     EXPECT_TRUE(htable == NULL);
 }
 
 TEST(rcu_hash_add_one_node, single_thread) {
     /* add one node to hash */
-    struct rcu_hash_table *htable = rcu_hash_new(data_free, NULL);
+    struct rcu_hash_table *htable = rcu_hash_new(data_free, NULL, 0);
     EXPECT_TRUE(htable != NULL);
 
     struct user_data *data = ALLOC(struct user_data, 1);
@@ -69,7 +69,7 @@ TEST(rcu_hash_add_one_node, single_thread) {
 
 TEST(rcu_hash_add_multi_node, single_thread) {
     /* add multi node to hash */
-    struct rcu_hash_table *htable = rcu_hash_new(data_free, NULL);
+    struct rcu_hash_table *htable = rcu_hash_new(data_free, NULL, 0);
     EXPECT_TRUE(htable != NULL);
 
     struct user_data *data0 = ALLOC(struct user_data, 1);
@@ -163,7 +163,7 @@ TEST(rcu_hash_add_multi_node, single_thread) {
 
 TEST(rcu_hash_del_one_node, single_thread) {
     /* case1: add and del before commit */
-    struct rcu_hash_table *htable = rcu_hash_new(data_free, NULL);
+    struct rcu_hash_table *htable = rcu_hash_new(data_free, NULL, 0);
     EXPECT_TRUE(htable != NULL);
 
     struct user_data *data = ALLOC(struct user_data, 1);
@@ -243,7 +243,7 @@ TEST(rcu_hash_del_one_node, single_thread) {
 
 TEST(rcu_hash_del_multi_node, single_thread) {
     /* case1: add and del before commit */
-    struct rcu_hash_table *htable = rcu_hash_new(data_free, NULL);
+    struct rcu_hash_table *htable = rcu_hash_new(data_free, NULL, 0);
     EXPECT_TRUE(htable != NULL);
 
     struct user_data *data1 = ALLOC(struct user_data, 1);
@@ -288,7 +288,7 @@ TEST(rcu_hash_del_multi_node, single_thread) {
 }
 
 TEST(rcu_hash_add_with_same_key, single_thread) {
-    struct rcu_hash_table *htable = rcu_hash_new(data_free, NULL);
+    struct rcu_hash_table *htable = rcu_hash_new(data_free, NULL, 0);
     EXPECT_TRUE(htable != NULL);
 
     char key[64] = "http_url";
@@ -327,7 +327,7 @@ TEST(rcu_hash_add_with_same_key, single_thread) {
 }
 
 TEST(rcu_hash_del_with_same_key, single_thread) {
-    struct rcu_hash_table *htable = rcu_hash_new(data_free, NULL);
+    struct rcu_hash_table *htable = rcu_hash_new(data_free, NULL, 0);
     EXPECT_TRUE(htable != NULL);
 
     char key[64] = "http_url";
@@ -372,7 +372,7 @@ TEST(rcu_hash_del_with_same_key, single_thread) {
 }
 
 TEST(rcu_hash_modify_with_same_key, single_thread) {
-    struct rcu_hash_table *htable = rcu_hash_new(data_free, NULL);
+    struct rcu_hash_table *htable = rcu_hash_new(data_free, NULL, 0);
     EXPECT_TRUE(htable != NULL);
 
     char key[64] = "http_url";
@@ -463,7 +463,7 @@ int main(int argc, char ** argv)
 	int ret=0;
 	::testing::InitGoogleTest(&argc, argv);
 
-    g_htable = rcu_hash_new(data_free, NULL);
+    g_htable = rcu_hash_new(data_free, NULL, 0);
 
 	ret=RUN_ALL_TESTS();
 

@@ -28,8 +28,9 @@ struct ip_plugin_schema {
 	int end_ip_column;
     int addr_format_column;
 	int rule_tag_column;
-	struct ex_container_schema container_schema;
+    int gc_timeout_s;
     int table_id; //ugly
+	struct ex_container_schema container_schema;
     struct table_manager *ref_tbl_mgr;
     struct log_handle *logger;
 };
@@ -128,6 +129,12 @@ void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     custom_item = cJSON_GetObjectItem(item, "rule_tag");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->rule_tag_column = custom_item->valueint;
+    }
+
+    //gc_timeout_s is optional
+    custom_item = cJSON_GetObjectItem(item, "gc_timeout_s");
+    if (custom_item != NULL && custom_item->type == cJSON_Number) {
+        schema->gc_timeout_s = custom_item->valueint;
     }
 
     schema->ref_tbl_mgr = tbl_mgr;
@@ -379,7 +386,8 @@ void *ip_plugin_runtime_new(void *ip_plugin_schema, size_t max_thread_num,
     struct ip_plugin_schema *schema = (struct ip_plugin_schema *)ip_plugin_schema;
     struct ip_plugin_runtime *ip_plugin_rt = ALLOC(struct ip_plugin_runtime, 1);
 
-    ip_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, logger);
+    ip_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, schema->gc_timeout_s,
+                                                   logger);
     if (1 == schema->container_schema.set_flag) {
         ex_data_runtime_set_ex_container_schema(ip_plugin_rt->ex_data_rt,
                                                 &(schema->container_schema));

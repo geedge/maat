@@ -804,7 +804,6 @@ struct log_handle *MaatPerfFQDNPluginScan::logger;
 struct perf_fqdn_plugin_ud {
 	long long rule_id;
 	int catid;
-	int ref_cnt;
 };
 
 void perf_fqdn_plugin_EX_new_cb(const char *table_name, int table_id, const char *key, 
@@ -822,7 +821,7 @@ void perf_fqdn_plugin_EX_new_cb(const char *table_name, int table_id, const char
 	EXPECT_EQ(ret, 0);
 
 	sscanf(table_line+column_offset, "catid=%d",&ud->catid);
-	ud->ref_cnt = 1;
+
 	*ad = ud;
 	(*counter)++;
 }
@@ -830,16 +829,15 @@ void perf_fqdn_plugin_EX_new_cb(const char *table_name, int table_id, const char
 void perf_fqdn_plugin_EX_free_cb(int table_id, void **ad, long argl, void *argp)
 {
 	struct perf_fqdn_plugin_ud *u = (struct perf_fqdn_plugin_ud *)(*ad);
-	if ((__sync_sub_and_fetch(&u->ref_cnt, 1) == 0)) {
-		free(u);
-		*ad = NULL;
-	}
+
+	free(u);
+	*ad = NULL;
 }
 
 void perf_fqdn_plugin_EX_dup_cb(int table_id, void **to, void **from, long argl, void *argp)
 {
 	struct perf_fqdn_plugin_ud *u = (struct perf_fqdn_plugin_ud *)(*from);
-	__sync_add_and_fetch(&(u->ref_cnt), 1);
+
 	*to = u;
 }
 
@@ -1034,8 +1032,8 @@ struct log_handle *MaatPerfBoolPluginScan::logger;
 struct bool_plugin_ud {
 	int id;
 	char *name;
-	int ref_cnt;
 };
+
 void perf_bool_plugin_ex_new_cb(const char *table_name, int table_id, const char *key, 
                            const char *table_line, void **ad, long argl, void *argp)
 {
@@ -1052,24 +1050,24 @@ void perf_bool_plugin_ex_new_cb(const char *table_name, int table_id, const char
 
 	ud->name = (char *)malloc(column_len+1);
 	memcpy(ud->name, table_line+column_offset, column_len);
-	ud->ref_cnt = 1;
+
 	*ad = ud;
 	(*counter)++;
 }
+
 void perf_bool_plugin_ex_free_cb(int table_id, void **ad, long argl, void *argp)
 {
 	struct bool_plugin_ud *u = (struct bool_plugin_ud *)(*ad);
-	if ((__sync_sub_and_fetch(&u->ref_cnt, 1) == 0))
-	{
-		free(u->name);
-		free(u);
-		*ad = NULL;
-	}
+
+	free(u->name);
+	free(u);
+	*ad = NULL;
 }
+
 void perf_bool_plugin_ex_dup_cb(int table_id, void **to, void **from, long argl, void *argp)
 {
 	struct bool_plugin_ud *u = (struct bool_plugin_ud *)(*from);
-	__sync_add_and_fetch(&(u->ref_cnt), 1);
+
 	*to = u;
 }
 
@@ -1231,7 +1229,6 @@ struct log_handle *MaatPerfFileScan::logger;
 
 struct perf_ip_plugin_ud {
 	long long rule_id;
-	int ref_cnt;
 };
 
 void perf_ip_plugin_EX_new_cb(const char *table_name, int table_id, const char *key, 
@@ -1248,7 +1245,6 @@ void perf_ip_plugin_EX_new_cb(const char *table_name, int table_id, const char *
 	ret = maat_helper_read_column(table_line, 5, &column_offset, &column_len);	
 	EXPECT_EQ(ret, 0);
 
-	ud->ref_cnt = 1;
 	*ad = ud;
 	(*counter)++;
 }
@@ -1256,16 +1252,15 @@ void perf_ip_plugin_EX_new_cb(const char *table_name, int table_id, const char *
 void perf_ip_plugin_EX_free_cb(int table_id, void **ad, long argl, void *argp)
 {
 	struct perf_ip_plugin_ud *u = (struct perf_ip_plugin_ud*)(*ad);
-	if ((__sync_sub_and_fetch(&u->ref_cnt, 1) == 0)) {
-		free(u);
-		*ad = NULL;
-	}
+
+	free(u);
+	*ad = NULL;
 }
 
 void perf_ip_plugin_EX_dup_cb(int table_id, void **to, void **from, long argl, void *argp)
 {
 	struct perf_ip_plugin_ud *u = (struct perf_ip_plugin_ud*)(*from);
-	__sync_add_and_fetch(&(u->ref_cnt), 1);
+
 	*to = u;
 }
 

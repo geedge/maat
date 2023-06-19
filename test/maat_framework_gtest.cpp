@@ -2445,7 +2445,6 @@ TEST_F(ExcludeLogic, ScanNotIP) {
 
 void maat_read_entry_start_cb(int update_type, void *u_para)
 {
-
 }
 
 void maat_read_entry_cb(int table_id, const char *table_line, void *u_para)
@@ -2459,25 +2458,13 @@ void maat_read_entry_cb(int table_id, const char *table_line, void *u_para)
 	sscanf(table_line, "%d\t%s\t%d\t%d", &seq,ip_str, &entry_id, &is_valid);
 	inet_pton(AF_INET, ip_str, &ip_uint);
 	if (local_ip_nr == ip_uint) {
-		if (is_valid == 1) {
-			//printf("Load entry id %d success.\n",entry_id);
-			EXPECT_EQ(entry_id, 101);
-		} else {
-			//printf("Offload entry id %d success.\n",entry_id);
-		}
+        EXPECT_EQ(is_valid, 1);
+        EXPECT_EQ(entry_id, 101);
 	}
 }
 
 void maat_read_entry_finish_cb(void *u_para)
 {
-	//Maat_feather_t feather=u_para;
-	// long long version=0;
-	// int ret=0,is_last_updating_table=0;
-	// ret=Maat_read_state(feather,MAAT_STATE_VERSION, &version, sizeof(version));
-	// EXPECT_EQ(ret, 0);
-	// ret=Maat_read_state(feather,MAAT_STATE_LAST_UPDATING_TABLE, &is_last_updating_table, sizeof(is_last_updating_table));
-	// EXPECT_EQ(ret, 0);
-	//printf("Maat Version %lld at plugin finish callback, is_last_update=%d.\n",version,is_last_updating_table);
 }
 
 class PluginTable : public testing::Test
@@ -2537,10 +2524,9 @@ TEST_F(PluginTable, Callback) {
 }
 
 struct plugin_ud {
-	char key[256];
-    char value[256];
+	char key[32];
+    char value[32];
     int id;
-	int ref_cnt;
 };
 
 void plugin_EX_new_cb(const char *table_name, int table_id, const char *key, 
@@ -2552,7 +2538,7 @@ void plugin_EX_new_cb(const char *table_name, int table_id, const char *key,
     
 	int ret = sscanf(table_line, "%d\t%s\t%s\t%d\t%d", &(ud->id), ud->key, ud->value, &valid, &tag);
     EXPECT_EQ(ret, 5);
-    ud->ref_cnt = 1;
+
     *ad = ud;
 	(*counter)++;
 }
@@ -2560,16 +2546,16 @@ void plugin_EX_new_cb(const char *table_name, int table_id, const char *key,
 void plugin_EX_free_cb(int table_id, void **ad, long argl, void *argp)
 {
 	struct plugin_ud *ud = (struct plugin_ud *)(*ad);
-	if ((__sync_sub_and_fetch(&ud->ref_cnt, 1) == 0)) {
-		free(ud);
-		*ad = NULL;
-	}
+
+    memset(ud, 0, sizeof(struct plugin_ud));
+	free(ud);
+	*ad = NULL;
 }
 
 void plugin_EX_dup_cb(int table_id, void **to, void **from, long argl, void *argp)
 {
 	struct plugin_ud *ud = (struct plugin_ud *)(*from);
-	__sync_add_and_fetch(&(ud->ref_cnt), 1);
+
 	*to = ud;
 }
 
@@ -2596,7 +2582,6 @@ TEST_F(PluginTable, EX_DATA) {
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "Shijiazhuang");
     EXPECT_EQ(ud->id, 1);
-    plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 
     const char *key2 = "ShanDong";
     ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_id,
@@ -2604,7 +2589,6 @@ TEST_F(PluginTable, EX_DATA) {
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "Jinan");
     EXPECT_EQ(ud->id, 3);
-    plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 }
 
 TEST_F(PluginTable, LONG_KEY_TYPE) {
@@ -2630,7 +2614,6 @@ TEST_F(PluginTable, LONG_KEY_TYPE) {
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "Shijiazhuang");
     EXPECT_EQ(ud->id, 1);
-    plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 
     long long key2 = 33333333;
     ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_id,
@@ -2638,7 +2621,6 @@ TEST_F(PluginTable, LONG_KEY_TYPE) {
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "Jinan");
     EXPECT_EQ(ud->id, 3);
-    plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 
     int key3 = 22222222;
     ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_id,
@@ -2669,7 +2651,6 @@ TEST_F(PluginTable, INT_KEY_TYPE) {
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "China");
     EXPECT_EQ(ud->id, 1);
-    plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 
     int key2 = 102;
     ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_id,
@@ -2677,7 +2658,6 @@ TEST_F(PluginTable, INT_KEY_TYPE) {
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "America");
     EXPECT_EQ(ud->id, 2);
-    plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 
     long long key3 = 103;
     ud = (struct plugin_ud *)maat_plugin_table_get_ex_data(maat_inst, table_id,
@@ -2711,7 +2691,6 @@ TEST_F(PluginTable, IP_KEY_TYPE) {
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "XiZang");
     EXPECT_EQ(ud->id, 4);
-    plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 
     uint32_t ipv4_addr2;
     ret = inet_pton(AF_INET, "100.64.1.2", &ipv4_addr2);
@@ -2722,7 +2701,6 @@ TEST_F(PluginTable, IP_KEY_TYPE) {
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "XinJiang");
     EXPECT_EQ(ud->id, 4);
-    plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 
     uint8_t ipv6_addr1[16];
     ret = inet_pton(AF_INET6, "2001:da8:205:1::101", ipv6_addr1);
@@ -2733,7 +2711,6 @@ TEST_F(PluginTable, IP_KEY_TYPE) {
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "GuiZhou");
     EXPECT_EQ(ud->id, 6);
-    plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 
     uint8_t ipv6_addr2[16];
     ret = inet_pton(AF_INET6, "1001:da8:205:1::101", ipv6_addr2);
@@ -2744,7 +2721,6 @@ TEST_F(PluginTable, IP_KEY_TYPE) {
     ASSERT_TRUE(ud != NULL);
     EXPECT_STREQ(ud->value, "SiChuan");
     EXPECT_EQ(ud->id, 6);
-    plugin_EX_free_cb(table_id, (void **)&ud, 0, NULL);
 }
 
 class IPPluginTable : public testing::Test
@@ -2793,7 +2769,7 @@ struct log_handle *IPPluginTable::logger;
 struct ip_plugin_ud {
 	long long rule_id;
 	char *buffer;
-	int ref_cnt;
+    size_t buf_len;
 };
 void ip_plugin_ex_new_cb(const char *table_name, int table_id, const char *key, 
                          const char *table_line, void **ad, long argl, void *argp)
@@ -2812,7 +2788,8 @@ void ip_plugin_ex_new_cb(const char *table_name, int table_id, const char *key,
 
 	ud->buffer = ALLOC(char, column_len + 1);
 	strncpy(ud->buffer, table_line + column_offset, column_len);
-	ud->ref_cnt = 1;
+
+    ud->buf_len = column_len + 1;
 	*ad = ud;
 	(*counter)++;
 }
@@ -2820,17 +2797,17 @@ void ip_plugin_ex_new_cb(const char *table_name, int table_id, const char *key,
 void ip_plugin_ex_free_cb(int table_id, void **ad, long argl, void *argp)
 {
 	struct ip_plugin_ud *ud = (struct ip_plugin_ud *)(*ad);
-	if ((__sync_sub_and_fetch(&ud->ref_cnt, 1) == 0)) {
-		free(ud->buffer);
-		free(ud);
-		*ad = NULL;
-	}
+
+    memset(ud->buffer, 0, ud->buf_len);
+	free(ud->buffer);
+	free(ud);
+	*ad = NULL;
 }
 
 void ip_plugin_ex_dup_cb(int table_id, void **to, void **from, long argl, void *argp)
 {
 	struct ip_plugin_ud *ud = (struct ip_plugin_ud *)(*from);
-	__sync_add_and_fetch(&(ud->ref_cnt), 1);
+	
 	*to = ud;
 }
 
@@ -2862,11 +2839,6 @@ TEST_F(IPPluginTable, EX_DATA) {
     EXPECT_EQ(results[0]->rule_id, 101);
     EXPECT_EQ(results[1]->rule_id, 102);
 
-    int i = 0;
-    for (i = 0; i < ret; i++) {
-		ip_plugin_ex_free_cb(0, (void**)&(results[i]), 0, NULL);
-	}
-
     struct ip_addr ipv6;
     ipv6.ip_type = IPv6;
     inet_pton(AF_INET6, "2001:db8:1234::5210", &(ipv6.ipv6));
@@ -2877,10 +2849,6 @@ TEST_F(IPPluginTable, EX_DATA) {
 	EXPECT_EQ(ret, 2);
 	EXPECT_EQ(results[0]->rule_id, 104);
 	EXPECT_EQ(results[1]->rule_id, 103);
-
-	for (i = 0; i < ret; i++) {
-		ip_plugin_ex_free_cb(0, (void**)&(results[i]), 0, NULL);
-	}
 
 	//Reproduce BugReport-Liumengyan-20210515
 	inet_pton(AF_INET6, "240e:97c:4010:104::17", &(ipv6.ipv6));
@@ -2937,7 +2905,6 @@ struct fqdn_plugin_ud
 {
 	int rule_id;
 	int catid;
-	int ref_cnt;
 };
 
 void fqdn_plugin_ex_new_cb(const char *table_name, int table_id, const char *key, 
@@ -2955,7 +2922,7 @@ void fqdn_plugin_ex_new_cb(const char *table_name, int table_id, const char *key
 	EXPECT_EQ(ret, 0);
 
 	sscanf(table_line + column_offset, "catid=%d", &ud->catid);
-	ud->ref_cnt = 1;
+
 	*ad = ud;
 	(*counter)++;
 }
@@ -2963,16 +2930,15 @@ void fqdn_plugin_ex_new_cb(const char *table_name, int table_id, const char *key
 void fqdn_plugin_ex_free_cb(int table_id, void **ad, long argl, void *argp)
 {
 	struct fqdn_plugin_ud *u = (struct fqdn_plugin_ud *)(*ad);
-	if ((__sync_sub_and_fetch(&u->ref_cnt, 1) == 0)) {
-		free(u);
-		*ad = NULL;
-	}
+
+	free(u);
+	*ad = NULL;
 }
 
 void fqdn_plugin_ex_dup_cb(int table_id, void **to, void **from, long argl, void *argp)
 {
 	struct fqdn_plugin_ud *u = (struct fqdn_plugin_ud *)(*from);
-	__sync_add_and_fetch(&(u->ref_cnt), 1);
+
 	*to = u;
 }
 
@@ -2992,7 +2958,6 @@ TEST_F(FQDNPluginTable, EX_DATA) {
     ASSERT_TRUE(ret>=0);
 	EXPECT_EQ(fqdn_plugin_ex_data_counter, 5);
 
-    int i = 0;
     struct fqdn_plugin_ud *result[4];
 
 	ret = maat_fqdn_plugin_table_get_ex_data(maat_inst, table_id, "www.example1.com", (void**)result, 4);
@@ -3000,26 +2965,18 @@ TEST_F(FQDNPluginTable, EX_DATA) {
 	EXPECT_EQ(result[0]->rule_id, 201);
 	EXPECT_EQ(result[1]->rule_id, 202);
 
-	for (i = 0; i < ret; i++) {
-		fqdn_plugin_ex_free_cb(0, (void**)&(result[i]), 0, NULL);
-	}
-
 	ret = maat_fqdn_plugin_table_get_ex_data(maat_inst, table_id, "www.example3.com", (void**)result, 4);
 	EXPECT_EQ(ret, 0);
 
 	ret = maat_fqdn_plugin_table_get_ex_data(maat_inst, table_id, "r3---sn-i3belne6.example2.com", (void**)result, 4);
 	ASSERT_EQ(ret, 2);
 	EXPECT_TRUE(result[0]->rule_id == 205 || result[0]->rule_id == 204);
-	
-	for (i = 0; i < ret; i++) {
-		fqdn_plugin_ex_free_cb(0, (void**)&(result[i]), 0, NULL);
-	}
 }
 
 struct bool_plugin_ud {
 	int id;
 	char *name;
-	int ref_cnt;
+    size_t name_len;
 };
 void bool_plugin_ex_new_cb(const char *table_name, int table_id, const char *key, 
                            const char *table_line, void **ad, long argl, void *argp)
@@ -3037,24 +2994,25 @@ void bool_plugin_ex_new_cb(const char *table_name, int table_id, const char *key
 
 	ud->name = ALLOC(char, column_len+1);
 	memcpy(ud->name, table_line+column_offset, column_len);
-	ud->ref_cnt = 1;
+	ud->name_len = column_len + 1;
+    
 	*ad = ud;
 	(*counter)++;
 }
 void bool_plugin_ex_free_cb(int table_id, void **ad, long argl, void *argp)
 {
 	struct bool_plugin_ud *u = (struct bool_plugin_ud *)(*ad);
-	if ((__sync_sub_and_fetch(&u->ref_cnt, 1) == 0))
-	{
-		free(u->name);
-		free(u);
-		*ad = NULL;
-	}
+	
+	memset(u->name, 0, u->name_len);
+	free(u->name);
+	free(u);
+	*ad = NULL;
+	
 }
 void bool_plugin_ex_dup_cb(int table_id, void **to, void **from, long argl, void *argp)
 {
 	struct bool_plugin_ud *u = (struct bool_plugin_ud *)(*from);
-	__sync_add_and_fetch(&(u->ref_cnt), 1);
+	
 	*to = u;
 }
 
@@ -3102,7 +3060,7 @@ struct maat *BoolPluginTable::_shared_maat_inst;
 struct log_handle *BoolPluginTable::logger;
 
 TEST_F(BoolPluginTable, EX_DATA) {
-    int ex_data_counter = 0, i = 0;
+    int ex_data_counter = 0;
 	const char *table_name = "TEST_BOOL_PLUGIN_WITH_EXDATA";
     struct maat *maat_inst = BoolPluginTable::_shared_maat_inst;
 
@@ -3122,26 +3080,17 @@ TEST_F(BoolPluginTable, EX_DATA) {
 	ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_id, items_1,
                                              1, (void**)result, 6);
 	EXPECT_EQ(ret, 0);
-	for (i = 0; i < ret; i++) {
-        bool_plugin_ex_free_cb(0, (void**)&(result[i]), 0, NULL);
-	}
 
 	unsigned long long items_2[] = {1, 2, 1000};
 	ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_id, items_2,
                                              3, (void**)result, 6);
 	EXPECT_EQ(ret, 1);
 	EXPECT_EQ(result[0]->id, 301);
-	for (i = 0; i < ret; i++) {
-        bool_plugin_ex_free_cb(0, (void**)&(result[i]), 0, NULL);
-	}
 
 	unsigned long long items_3[]={101, 102, 1000};
 	ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_id, items_3,
                                              3, (void**)result, 6);
 	EXPECT_EQ(ret, 4);
-	for (i = 0; i < ret; i++) {
-        bool_plugin_ex_free_cb(0, (void**)&(result[i]), 0, NULL);
-	}
 
 	unsigned long long items_4[]={7, 0, 1, 2, 3, 4, 5, 6, 7, 7, 7};
 	ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_id, items_4,
@@ -3149,9 +3098,6 @@ TEST_F(BoolPluginTable, EX_DATA) {
                                              (void**)result, 6);
 	EXPECT_EQ(ret, 1);	
 	EXPECT_EQ(result[0]->id, 305);
-	for (i = 0; i < ret; i++) {
-        bool_plugin_ex_free_cb(0, (void**)&(result[i]), 0, NULL);
-	}
 }
 
 class VirtualTable : public testing::Test
@@ -3260,10 +3206,8 @@ struct maat *CompileTable::_shared_maat_inst;
 struct log_handle *CompileTable::logger;
 
 struct rule_ex_param {
-	int ref_cnt;
 	char name[NAME_MAX];
 	int id;
-	pthread_mutex_t lock;
 };
 
 void compile_ex_param_new(const char *table_name, int table_id, const char *key, 
@@ -3272,9 +3216,7 @@ void compile_ex_param_new(const char *table_name, int table_id, const char *key,
 	int *counter = (int *)argp;
 	*ad = NULL;
 
-	struct rule_ex_param *param = (struct rule_ex_param *)calloc(sizeof(struct rule_ex_param), 1);
-	param->ref_cnt = 1;
-	pthread_mutex_init(&(param->lock), NULL);
+	struct rule_ex_param *param = ALLOC(struct rule_ex_param, 1);
 	
     int compile_id = 0;
     int service_id = 0;
@@ -3298,21 +3240,14 @@ void compile_ex_param_free(int table_id, void **ad, long argl, void *argp)
 	}
 
 	struct rule_ex_param *param = (struct rule_ex_param *)*ad;
-	pthread_mutex_lock(&(param->lock));
-	param->ref_cnt--;
-	if (param->ref_cnt > 0) {	
-		pthread_mutex_unlock(&(param->lock));
-		return;
-	}
+
 	free(param);
 }
 
 void compile_ex_param_dup(int table_id, void **to, void **from, long argl, void *argp)
 {
 	struct rule_ex_param *from_param = *((struct rule_ex_param **)from);
-	pthread_mutex_lock(&(from_param->lock));
-	from_param->ref_cnt++;
-	pthread_mutex_unlock(&(from_param->lock));
+
 	*((struct rule_ex_param**)to) = from_param;
 }
 
@@ -3321,11 +3256,13 @@ TEST_F(CompileTable, CompileRuleUpdate) {
 
     const char *compile_table_name = "COMPILE";
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile_id, "null", 1, 0);
+    int ret = compile_table_set_line(maat_inst, compile_table_name,
+                                     MAAT_OP_ADD, compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
-    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL, compile_id, "null", 1, 0);
+    ret = compile_table_set_line(maat_inst, compile_table_name,
+                                 MAAT_OP_DEL, compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
 }
@@ -3397,7 +3334,8 @@ class Policy : public testing::Test
 {
 protected:
     static void SetUpTestCase() {
-        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
+                                  "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
@@ -3554,7 +3492,6 @@ TEST_F(Policy, CompileEXData) {
 
     str_unescape(param->name);
 	EXPECT_EQ(strcmp(param->name, expect_name), 0);
-	compile_ex_param_free(compile_table_id, &ex_data, 0, NULL);
 
 	maat_state_free(state);
     state = NULL;
@@ -4930,17 +4867,16 @@ struct user_info {
 	char name[256];
 	char ip_addr[32];
 	int id;
-	int ref_cnt;
 };
 void plugin_ex_new_cb(const char *table_name, int table_id, const char *key, 
                       const char *table_line, void **ad, long argl, void *argp)
 {
 	int *counter = (int *)argp;
 	struct user_info *u = ALLOC(struct user_info, 1);
-	int valid = 0, tag = 0;
-	int ret = sscanf(table_line, "%d\t%s\t%s%d\t%d", &(u->id), u->ip_addr, u->name, &valid, &tag);
-	EXPECT_EQ(ret, 5);
-	u->ref_cnt = 1;
+
+	int ret = sscanf(table_line, "%d\t%s\t%s", &(u->id), u->ip_addr, u->name);
+	EXPECT_EQ(ret, 3);
+
 	*ad = u;
 	(*counter)++;
 }
@@ -4948,16 +4884,16 @@ void plugin_ex_new_cb(const char *table_name, int table_id, const char *key,
 void plugin_ex_free_cb(int table_id, void **ad, long argl, void *argp)
 {
 	struct user_info *u = (struct user_info *)(*ad);
-	if ((__sync_sub_and_fetch(&u->ref_cnt, 1) == 0)) {
-		free(u);
-		*ad = NULL;
-	}
+
+    memset(u, 0, sizeof(struct user_info));
+	free(u);
+	*ad = NULL;
 }
 
 void plugin_ex_dup_cb(int table_id,	void **to, void **from, long argl, void *argp)
 {
 	struct user_info *u = (struct user_info *)(*from);
-	__sync_add_and_fetch(&(u->ref_cnt), 1);
+
 	*to = u;
 }
 
@@ -4966,15 +4902,19 @@ TEST_F(MaatCmdTest, PluginEXData) {
     const int TEST_CMD_LINE_NUM = 4;
     struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
     int *ex_data_counter = MaatCmdTest::_ex_data_counter;
-	const char *table_line_add[TEST_CMD_LINE_NUM] = {"1\t192.168.0.1\tmahuateng\t1\t0",
-							                     "2\t192.168.0.2\tliuqiangdong\t1\t0",
-							                     "3\t192.168.0.3\tmayun\t1\t0",
-							                     "4\t192.168.0.4\tliyanhong\t1\t0"};
+	const char *table_line_add[TEST_CMD_LINE_NUM] = {
+        "1\t192.168.0.1\tmahuateng\t1\t0",
+		"2\t192.168.0.2\tliuqiangdong\t1\t0",
+		"3\t192.168.0.3\tmayun\t1\t0",
+		"4\t192.168.0.4\tliyanhong\t1\t0"
+    };
 
-    const char *table_line_del[TEST_CMD_LINE_NUM] = {"1\t192.168.0.1\tmahuateng\t0\t0",
-							                     "2\t192.168.0.2\tliuqiangdong\t0\t0",
-							                     "3\t192.168.0.3\tmayun\t0\t0",
-							                     "4\t192.168.0.4\tliyanhong\t0\t0"};
+    const char *table_line_del[TEST_CMD_LINE_NUM] = {
+        "1\t192.168.0.1\tmahuateng\t0\t0",
+		"2\t192.168.0.2\tliuqiangdong\t0\t0",
+		"3\t192.168.0.3\tmayun\t0\t0",
+		"4\t192.168.0.4\tliyanhong\t0\t0"
+    };
 
 	int table_id = maat_get_table_id(maat_inst, table_name);
 	ASSERT_GT(table_id, 0);
@@ -4996,6 +4936,7 @@ TEST_F(MaatCmdTest, PluginEXData) {
     }
 	
     sleep(WAIT_FOR_EFFECTIVE_S);
+
     *ex_data_counter = 0;
 	ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
 								               plugin_ex_new_cb,
@@ -5005,14 +4946,14 @@ TEST_F(MaatCmdTest, PluginEXData) {
 	ASSERT_TRUE(ret >= 0);
 	EXPECT_EQ(*ex_data_counter, TEST_CMD_LINE_NUM);
 	
-	struct user_info *uinfo = NULL;
+	struct user_info *uinfo1 = NULL;
     const char *key1 = "192.168.0.2";
-	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(maat_inst, table_id,
-                                                              key1, strlen(key1));
-	ASSERT_TRUE(uinfo != NULL);
-	EXPECT_EQ(0, strcmp(uinfo->name, "liuqiangdong"));
-	EXPECT_EQ(uinfo->id, 2);
-	plugin_ex_free_cb(table_id, (void**)&uinfo, 0, NULL);
+
+	uinfo1 = (struct user_info *)maat_plugin_table_get_ex_data(maat_inst, table_id,
+                                                               key1, strlen(key1));
+	ASSERT_TRUE(uinfo1 != NULL);
+	EXPECT_EQ(0, strcmp(uinfo1->name, "liuqiangdong"));
+	EXPECT_EQ(uinfo1->id, 2);
     
     memset(&line_rule, 0, sizeof(line_rule));
     line_rule.rule_id = rule_id[1];
@@ -5023,11 +4964,19 @@ TEST_F(MaatCmdTest, PluginEXData) {
 	ret = maat_cmd_set_line(maat_inst, &line_rule);
 	EXPECT_GT(ret, 0);
 	
-	sleep(WAIT_FOR_EFFECTIVE_S);
-    const char *key2 = "192.168.0.2";
-	uinfo = (struct user_info *)maat_plugin_table_get_ex_data(maat_inst, table_id,
-                                                              key2, strlen(key2));
-	ASSERT_TRUE(uinfo == NULL);
+	sleep(WAIT_FOR_EFFECTIVE_S); //gc_timeout_s == 3 which configured in table_info
+
+    struct user_info *uinfo2 = NULL;
+	uinfo2 = (struct user_info *)maat_plugin_table_get_ex_data(maat_inst, table_id,
+                                                               key1, strlen(key1));
+	ASSERT_TRUE(uinfo2 == NULL);
+
+    //the data pointed by uinfo1 has in garbage queue, but not be freed yet
+    EXPECT_EQ(0, strcmp(uinfo1->name, "liuqiangdong"));
+	EXPECT_EQ(uinfo1->id, 2);
+
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    //excced gc_timeout_s, the data pointed by uinfo1 has been freed
 }
 
 TEST_F(MaatCmdTest, UpdateIPPlugin) {
@@ -5087,9 +5036,6 @@ TEST_F(MaatCmdTest, UpdateIPPlugin) {
     EXPECT_EQ(ret, 2);
     EXPECT_EQ(results[0]->rule_id, 101);
     EXPECT_EQ(results[1]->rule_id, 102);
-    for (i = 0; i < ret; i++) {
-        ip_plugin_ex_free_cb(table_id, (void **)&(results[i]), 0, NULL);
-    }
 
     ipv6.ip_type = 6;
     inet_pton(AF_INET6, "2001:db8:1234::5210", &(ipv6.ipv6));
@@ -5100,9 +5046,6 @@ TEST_F(MaatCmdTest, UpdateIPPlugin) {
     EXPECT_EQ(ret, 2);
     EXPECT_EQ(results[0]->rule_id, 104);
     EXPECT_EQ(results[1]->rule_id, 103);
-    for (i = 0; i < ret; i++) {
-        ip_plugin_ex_free_cb(table_id, (void **)&(results[i]), 0, NULL);
-    }
 
     //del lines
     for (i = 0; i < TEST_CMD_LINE_NUM; i++) {
@@ -5179,9 +5122,6 @@ TEST_F(MaatCmdTest, UpdateFQDNPlugin) {
                                              "r3---sn-i3belne6.example2.com", 
                                              (void**)results, ARRAY_SIZE);
     ASSERT_EQ(ret, 2);
-    for (i = 0; i < ret; i++) {
-		fqdn_plugin_ex_free_cb(0, (void**)&(results[i]), 0, NULL);
-	}
 
     //del lines
     for (i = 3; i < TEST_CMD_LINE_NUM; i++) {
@@ -5258,9 +5198,6 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
     ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_id, items, 3,
                                              (void **)results, ARRAY_SIZE);
     EXPECT_EQ(ret, 4);
-	for (i = 0; i < ret; i++) {
-		bool_plugin_ex_free_cb(0, (void**)&(results[i]), 0, NULL);
-	}
 
     for (i = 3; i < TEST_CMD_LINE_NUM; i++) {
         memset(&line_rule, 0, sizeof(line_rule));
@@ -5278,9 +5215,6 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
     ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_id, items, 3,
                                              (void **)results, ARRAY_SIZE);
     EXPECT_EQ(ret, 2);
-    for (i = 0; i < ret; i++) {
-		bool_plugin_ex_free_cb(0, (void**)&(results[i]), 0, NULL);
-	}
 }
 
 #define COMPILE_ID_NUMS 1000

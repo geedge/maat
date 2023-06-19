@@ -27,6 +27,7 @@ struct ex_data_runtime {
 
     struct rcu_hash_table *htable; // store ex_container
     struct ex_container_schema *ref_container_schema;
+    int gc_timeout_s;
 	int table_id;
 
     struct log_handle *logger;
@@ -40,7 +41,7 @@ void cache_row_free(void *p)
 UT_icd ut_cache_row_icd = {sizeof(char*), NULL, NULL, cache_row_free};
 
 struct ex_data_runtime *
-ex_data_runtime_new(int table_id, struct log_handle *logger)
+ex_data_runtime_new(int table_id, int gc_timeout_s, struct log_handle *logger)
 {
     if (table_id < 0 || NULL == logger) {
         return NULL;
@@ -50,6 +51,7 @@ ex_data_runtime_new(int table_id, struct log_handle *logger)
 
     utarray_new(ex_data_rt->cache_rows, &ut_cache_row_icd);
     ex_data_rt->htable = NULL;
+    ex_data_rt->gc_timeout_s = gc_timeout_s;
     ex_data_rt->table_id = table_id;
     ex_data_rt->logger = logger;
 
@@ -181,7 +183,8 @@ void ex_container_free(void *user_ctx, void *data)
 
     /* free ex_container->ex_data */
     if (container->ex_data != NULL && container_schema->ex_schema.free_func != NULL) {
-        container_schema->ex_schema.free_func(container_schema->table_id, &(container->ex_data),
+        container_schema->ex_schema.free_func(container_schema->table_id,
+                                              &(container->ex_data),
                                               container_schema->ex_schema.argl,
                                               container_schema->ex_schema.argp);
         container->ex_data = NULL;
@@ -202,7 +205,9 @@ int ex_data_runtime_add_ex_container(struct ex_data_runtime *ex_data_rt,
     if (NULL == ex_data_rt->htable) {
         /* ex_data_rt->ref_container_schema has been set */
         assert(ex_data_rt->ref_container_schema != NULL);
-        ex_data_rt->htable = rcu_hash_new(ex_container_free, ex_data_rt->ref_container_schema);
+        ex_data_rt->htable = rcu_hash_new(ex_container_free,
+                                          ex_data_rt->ref_container_schema,
+                                          ex_data_rt->gc_timeout_s);
     }
 
     return rcu_hash_add(ex_data_rt->htable, key, key_len, ex_container);
@@ -292,4 +297,15 @@ size_t ex_data_runtime_list_ex_container(struct ex_data_runtime *ex_data_rt,
                                          struct ex_container ***ex_container)
 {
     return rcu_hash_list(ex_data_rt->htable, (void ***)ex_container);
+}
+
+void ex_data_runtime_garbage_collect_routine(struct ex_data_runtime *ex_data_rt)
+{
+    if (NULL == ex_data_rt) {
+        return;
+    }
+
+    if (ex_data_rt->htable != NULL) {
+        rcu_hash_garbage_collect_routine(ex_data_rt->htable);
+    }
 }

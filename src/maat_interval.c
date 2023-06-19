@@ -184,7 +184,7 @@ void *interval_runtime_new(void *interval_schema, size_t max_thread_num,
 
     struct interval_runtime *interval_rt = ALLOC(struct interval_runtime, 1);
 
-    interval_rt->item_hash = rcu_hash_new(interval_item_free_cb, NULL);
+    interval_rt->item_hash = rcu_hash_new(interval_item_free_cb, NULL, 0);
     interval_rt->n_worker_thread = max_thread_num;
     interval_rt->ref_garbage_bin = garbage_bin;
     interval_rt->logger = logger;

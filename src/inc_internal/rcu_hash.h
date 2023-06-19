@@ -23,7 +23,8 @@ typedef void data_free_fn(void *user_ctx, void *data);
 /* rcu hash table */
 struct rcu_hash_table;
 
-struct rcu_hash_table *rcu_hash_new(data_free_fn *free_fn, void *arg);
+struct rcu_hash_table *
+rcu_hash_new(data_free_fn *free_fn, void *user_ctx, int gc_timeout_s);
 
 void rcu_hash_free(struct rcu_hash_table *htable);
 
@@ -74,6 +75,8 @@ int rcu_hash_is_updating(struct rcu_hash_table *htable);
  * @brief make add/del effective
 */
 void rcu_hash_commit(struct rcu_hash_table *htable);
+
+void rcu_hash_garbage_collect_routine(struct rcu_hash_table *htable);
 
 #ifdef __cplusplus
 }

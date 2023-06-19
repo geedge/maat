@@ -33,10 +33,11 @@ struct compile_schema {
     int rule_tag_column;
     int declared_clause_num_column;
     int set_flag;
+    int gc_timeout_s;
+    int table_id; //ugly
     struct ex_data_schema ex_schema;
     struct table_manager *ref_tbl_mgr;
     struct log_handle *logger;
-    int table_id; //ugly
 };
 
 struct group2compile_schema {
@@ -308,13 +309,13 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
                          const char *table_name,
                          struct log_handle *logger)
 {
-	struct compile_schema *compile_schema = ALLOC(struct compile_schema, 1);
-    compile_schema->logger = logger;
+	struct compile_schema *schema = ALLOC(struct compile_schema, 1);
+    schema->logger = logger;
 
 	cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
     if (item != NULL && item->type == cJSON_Number) {
-        compile_schema->table_id = item->valueint;
+        schema->table_id = item->valueint;
     } else {
         log_error(logger, MODULE_COMPILE, 
                   "[%s:%d] table: <%s> schema has no table_id column",
@@ -332,7 +333,7 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     custom_item = cJSON_GetObjectItem(item, "compile_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        compile_schema->compile_id_column = custom_item->valueint;
+        schema->compile_id_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_COMPILE, 
                   "[%s:%d] table: <%s> schema has no compile_id column",
@@ -342,12 +343,12 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     custom_item = cJSON_GetObjectItem(item, "tags");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        compile_schema->rule_tag_column = custom_item->valueint;
+        schema->rule_tag_column = custom_item->valueint;
     }
 
     custom_item = cJSON_GetObjectItem(item, "clause_num");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        compile_schema->declared_clause_num_column = custom_item->valueint;
+        schema->declared_clause_num_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_COMPILE, 
                   "[%s:%d] table: <%s> schema has no clause_num column",
@@ -355,10 +356,16 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    compile_schema->ref_tbl_mgr = tbl_mgr;
-	return compile_schema;
+    //gc_timeout_s is optional
+    custom_item = cJSON_GetObjectItem(item, "gc_timeout_s");
+    if (custom_item != NULL && custom_item->type == cJSON_Number) {
+        schema->gc_timeout_s = custom_item->valueint;
+    }
+
+    schema->ref_tbl_mgr = tbl_mgr;
+	return schema;
 error:
-	FREE(compile_schema);
+	FREE(schema);
 	return NULL;
 }
 
@@ -567,12 +574,14 @@ void *compile_runtime_new(void *compile_schema, size_t max_thread_num,
         return NULL;
     }
 
+    struct compile_schema *schema = (struct compile_schema *)compile_schema;
     struct compile_runtime *compile_rt = ALLOC(struct compile_runtime, 1);
 
     compile_rt->expr_match_buff = ALLOC(struct bool_expr_match, 
                                         max_thread_num * MAX_SCANNER_HIT_COMPILE_NUM);
     compile_rt->version = time(NULL);
-    compile_rt->cfg_hash = rcu_hash_new(rcu_compile_cfg_free, NULL);
+    compile_rt->cfg_hash = rcu_hash_new(rcu_compile_cfg_free, NULL,
+                                        schema->gc_timeout_s);
     compile_rt->clause_by_literals_hash = NULL;
     compile_rt->literal2clause_hash = NULL;
     compile_rt->logger = logger;
@@ -2111,11 +2120,9 @@ void maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
     }
 
     /* update hit clause */
-    int compile_table_id = -1;
+    int compile_table_id = table_manager_get_default_compile_table_id(maat_inst->tbl_mgr);
     if (state->compile_table_id > 0) {
         compile_table_id = state->compile_table_id;
-    } else {
-        compile_table_id = table_manager_get_default_compile_table_id(maat_inst->tbl_mgr);
     }
 
     struct compile_runtime *compile_rt = table_manager_get_runtime(maat_inst->tbl_mgr,

@@ -20,6 +20,7 @@
 #include "maat_table.h"
 
 #define MODULE_PLUGIN	 module_name_str("maat.plugin")
+
 #define IPV4 4
 #define IPV6 6
 
@@ -53,6 +54,7 @@ struct plugin_schema {
     int key_column;
     int addr_type_column;
     int rule_tag_column;
+    int gc_timeout_s;
     int n_foreign;
     int foreign_columns[MAX_FOREIGN_CLMN_NUM];
     size_t cb_cnt;
@@ -168,6 +170,11 @@ void *plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
                     schema->foreign_columns[i] = foreign_item->valueint;
                 }
             }
+        }
+
+        custom_item = cJSON_GetObjectItem(item, "gc_timeout_s");
+        if (custom_item != NULL && custom_item->type == cJSON_Number) {
+            schema->gc_timeout_s = custom_item->valueint;
         }
     }
 
@@ -298,7 +305,9 @@ void *plugin_runtime_new(void *plugin_schema, size_t max_thread_num,
     struct plugin_schema *schema = (struct plugin_schema *)plugin_schema;
     struct plugin_runtime *plugin_rt = ALLOC(struct plugin_runtime, 1);
     
-    plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, logger);
+    plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id,
+                                                schema->gc_timeout_s,
+                                                logger);
     if (1 == schema->container_schema.set_flag) {
         ex_data_runtime_set_ex_container_schema(plugin_rt->ex_data_rt,
                                                 &(schema->container_schema));

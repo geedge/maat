@@ -171,10 +171,18 @@ int maat_plugin_table_ex_schema_register(struct maat *instance, const char *tabl
                                          maat_ex_dup_func_t *dup_func,
                                          long argl, void *argp);
 /** 
- * returned data is duplicated by dup_func of maat_plugin_table_ex_schema_register, 
- *  caller is responsible to free the data. 
- *  NOTE: support three key type(integer, pointer, ip_addr) specified in table_info.conf
- *        if use ip_addr key type, then key should be ip address in network order.
+ *  xx_plugin_table_get_ex_data
+ *  returned data is duplicated by dup_func of maat_plugin_table_ex_schema_register, 
+ *  caller is responsible to free the data.
+ * 
+ *  free_func support gargbage collection(gc), gc timeout(default 0) can be configured
+ *  in table_info which means maat will not call free_func until the timeout expires
+ */
+
+/** 
+ *  NOTE: only plugin table support three key type(integer, pointer, ip_addr) 
+ *        specified in table_info.conf. If use ip_addr key type, then key should be 
+ *        ip address in network order.
 */
 void *maat_plugin_table_get_ex_data(struct maat *instance, int table_id,
                                     const char *key, size_t key_len);

@@ -43,8 +43,11 @@ struct ex_container_schema {
 struct ex_data_runtime;
 
 /* ex_data_runtime API */
-struct ex_data_runtime *ex_data_runtime_new(int table_id, struct log_handle *logger);
+struct ex_data_runtime *
+ex_data_runtime_new(int table_id, int gc_timeout_s, struct log_handle *logger);
+
 void ex_data_runtime_free(struct ex_data_runtime *ex_data_rt);
+
 void ex_data_runtime_commit(struct ex_data_runtime *ex_data_rt);
 
 /* ex_data_runtime cache row API */
@@ -89,6 +92,8 @@ void *ex_data_runtime_get_ex_data_by_container(struct ex_data_runtime *ex_data_r
                                                
 void *ex_data_runtime_get_custom_data(struct ex_data_runtime *ex_data_rt, 
                                       const char *key, size_t key_len);
+
+void ex_data_runtime_garbage_collect_routine(struct ex_data_runtime *ex_data_rt);
 
 #ifdef __cplusplus
 }

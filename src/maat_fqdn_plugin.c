@@ -24,8 +24,9 @@ struct fqdn_plugin_schema {
     int suffix_flag_column;
     int fqdn_column;
     int rule_tag_column;
-    struct ex_container_schema container_schema;
+    int gc_timeout_s;
     int table_id;
+    struct ex_container_schema container_schema;
     struct table_manager *ref_tbl_mgr;
     struct log_handle *logger;
 };
@@ -105,6 +106,12 @@ void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->rule_tag_column = custom_item->valueint;
     }
 
+    //gc_timeout_s is optional
+    custom_item = cJSON_GetObjectItem(item, "gc_timeout_s");
+    if (custom_item != NULL && custom_item->type == cJSON_Number) {
+        schema->gc_timeout_s = custom_item->valueint;
+    }
+
     schema->ref_tbl_mgr = tbl_mgr;
     return schema;
 error:
@@ -182,7 +189,8 @@ void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, size_t max_thread_num,
     struct fqdn_plugin_schema *schema = (struct fqdn_plugin_schema *)fqdn_plugin_schema;
     struct fqdn_plugin_runtime *fqdn_plugin_rt = ALLOC(struct fqdn_plugin_runtime, 1);
 
-    fqdn_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, logger);
+    fqdn_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, schema->gc_timeout_s,
+                                                     logger);
     if (1 == schema->container_schema.set_flag) {
         ex_data_runtime_set_ex_container_schema(fqdn_plugin_rt->ex_data_rt,
                                                 &(schema->container_schema));

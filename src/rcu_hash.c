@@ -18,6 +18,7 @@
 #include "maat_utils.h"
 
 struct rcu_hash_garbage_bag {
+    time_t create_time;
 	void *garbage;
 	void (* garbage_free)(void *garbage);
 	TAILQ_ENTRY(rcu_hash_garbage_bag) entries;
@@ -37,6 +38,7 @@ struct rcu_hash_table {
 
     struct rcu_hash_garbage_q garbage_q;
     size_t garbage_q_len;
+    int gc_timeout_s;
 
     pthread_mutex_t update_mutex;
 };
@@ -53,7 +55,7 @@ struct rcu_hash_node {
     UT_hash_handle hh_b;
 };
 
-void rcu_hash_garbage_queue_free(struct rcu_hash_garbage_q *garbage_q)
+void rcu_hash_garbage_collect_force(struct rcu_hash_garbage_q *garbage_q)
 {
 	struct rcu_hash_garbage_bag *p = NULL;
 
@@ -64,11 +66,28 @@ void rcu_hash_garbage_queue_free(struct rcu_hash_garbage_q *garbage_q)
 	}
 }
 
-void rcu_hash_garbage_bagging(struct rcu_hash_garbage_q* garbage_q, 
-                              void* garbage, void (* func)(void *))
+void rcu_hash_garbage_collect_routine(struct rcu_hash_table *htable)
+{
+    struct rcu_hash_garbage_bag *p = NULL, *tmp = NULL;
+    time_t now = time(NULL);
+
+    for (p = TAILQ_FIRST(&(htable->garbage_q)); p != NULL; p = tmp) {
+        tmp = TAILQ_NEXT(p, entries);
+        if ((now - p->create_time) > htable->gc_timeout_s ||
+            htable->gc_timeout_s == 0) {
+            p->garbage_free(p->garbage);
+            TAILQ_REMOVE(&htable->garbage_q, p, entries);
+            FREE(p);
+        }
+    }
+}
+
+void rcu_hash_garbage_bagging(struct rcu_hash_garbage_q *garbage_q, 
+                              void *garbage, void (* func)(void *))
 {
 	struct rcu_hash_garbage_bag *bag = ALLOC(struct rcu_hash_garbage_bag, 1);
 
+    bag->create_time = time(NULL);
 	bag->garbage = garbage;
 	bag->garbage_free = func;
 	TAILQ_INSERT_TAIL(garbage_q, bag, entries);
@@ -90,7 +109,8 @@ void rcu_hash_node_free(struct rcu_hash_node *node)
     FREE(node);
 }
 
-struct rcu_hash_table *rcu_hash_new(data_free_fn *free_fn, void *user_ctx)
+struct rcu_hash_table *
+rcu_hash_new(data_free_fn *free_fn, void *user_ctx, int gc_timeout_s)
 {
     if (NULL == free_fn) {
         return NULL;
@@ -102,6 +122,7 @@ struct rcu_hash_table *rcu_hash_new(data_free_fn *free_fn, void *user_ctx)
     htable->effective_hash = 'a';
     TAILQ_INIT(&htable->garbage_q);
     htable->garbage_q_len = 0;
+    htable->gc_timeout_s = gc_timeout_s; 
     htable->data_free_fn = free_fn;
     htable->user_ctx = user_ctx;
     pthread_mutex_init(&htable->update_mutex, NULL);
@@ -129,7 +150,7 @@ void rcu_hash_free(struct rcu_hash_table *htable)
         }
     }
 
-    rcu_hash_garbage_queue_free(&(htable->garbage_q));
+    rcu_hash_garbage_collect_force(&(htable->garbage_q));
     pthread_mutex_destroy(&htable->update_mutex);
 
     FREE(htable);
@@ -322,7 +343,7 @@ void rcu_hash_commit(struct rcu_hash_table *htable)
     }
     htable->is_updating = 0;
 
-    rcu_hash_garbage_queue_free(&(htable->garbage_q));
+    rcu_hash_garbage_collect_routine(htable);
     htable->garbage_q_len = 0;
     
     pthread_mutex_unlock(&htable->update_mutex);

@@ -166,6 +166,23 @@ void maat_plugin_table_all_callback_finish(struct table_manager *tbl_mgr)
     }
 }
 
+void maat_plugin_table_garbage_collect_routine(struct table_manager *tbl_mgr)
+{
+    size_t max_table_cnt = table_manager_table_size(tbl_mgr);
+    enum table_type table_type = TABLE_TYPE_INVALID;
+
+    for (size_t i = 0; i < max_table_cnt; i++) {
+        table_type = table_manager_get_table_type(tbl_mgr, i);
+        if (table_type != TABLE_TYPE_PLUGIN) {
+            continue;
+        }
+
+        void *plugin_runtime = table_manager_get_runtime(tbl_mgr, i);
+        struct ex_data_runtime *ex_data_rt = plugin_runtime_get_ex_data_rt(plugin_runtime);
+        ex_data_runtime_garbage_collect_routine(ex_data_rt);
+    }
+}
+
 void maat_finish_cb(void *u_param)
 {
 	struct maat *maat_inst = (struct maat *)u_param;
@@ -449,6 +466,8 @@ void *rule_monitor_loop(void *arg)
 		}
 
         maat_garbage_collect_routine(maat_inst->garbage_bin);
+        maat_plugin_table_garbage_collect_routine(maat_inst->tbl_mgr);
+
         if ((1 == maat_inst->opts.stat_on) && (time(NULL) % 2 == 0)) {
             maat_stat_output(maat_inst->stat, maat_inst->maat_version, maat_inst->opts.perf_on);
         }

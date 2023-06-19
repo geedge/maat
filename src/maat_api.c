@@ -57,7 +57,7 @@ struct maat_stream {
     struct log_handle *logger;
     int thread_id;
     int vtable_id;
-    int physical_table_id;
+    int phy_table_id;
 };
 
 struct maat_options* maat_options_new(void)
@@ -219,7 +219,8 @@ int maat_options_set_json_file_gzip_flag(struct maat_options *opts, int flag)
     return 0;
 }
 
-int maat_options_set_json_file_decrypt_key(struct maat_options *opts, const char *decrypt_key)
+int maat_options_set_json_file_decrypt_key(struct maat_options *opts,
+                                           const char *decrypt_key)
 {
     if (NULL == opts || NULL == decrypt_key) {
         return -1;
@@ -253,7 +254,8 @@ int maat_options_set_stat_file(struct maat_options *opts, const char *stat_filen
     return 0;
 }
 
-int maat_options_set_logger(struct maat_options *opts, const char *log_path, enum log_level level)
+int maat_options_set_logger(struct maat_options *opts, const char *log_path,
+                            enum log_level level)
 {
     if (NULL == opts || NULL == log_path || strlen(log_path) >= PATH_MAX) {
         return -1;
@@ -348,13 +350,14 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     }
 
     maat_inst->garbage_bin = maat_garbage_bin_new(garbage_gc_timeout_s);
-    maat_inst->stat = maat_stat_new(maat_inst->opts.stat_file, maat_inst->opts.nr_worker_thread, 
-                                        maat_inst->logger);
+    maat_inst->stat = maat_stat_new(maat_inst->opts.stat_file,
+                                    maat_inst->opts.nr_worker_thread, 
+                                    maat_inst->logger);
 
     pthread_mutex_init(&(maat_inst->background_update_mutex), NULL);
 
     maat_inst->tbl_mgr = table_manager_create(table_info_path, maat_inst->opts.accept_tags,
-                                                  maat_inst->garbage_bin, maat_inst->logger);
+                                              maat_inst->garbage_bin, maat_inst->logger);
     if (NULL == maat_inst->tbl_mgr) {
         goto failed;
     }
@@ -536,8 +539,8 @@ int generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int table_
     void *schema = table_manager_get_schema(tbl_mgr, table_id);
     if (NULL == schema) {
         log_error(logger, MODULE_MAAT_API, 
-                  "[%s:%d], table(table_id:%d) is not registered, can't register ex_container_schema", 
-                  __FUNCTION__, __LINE__, table_id);
+                  "[%s:%d], table(table_id:%d) is not registered, can't "
+                  "register ex_container_schema", __FUNCTION__, __LINE__, table_id);
         return -1;
     }
 
@@ -545,21 +548,25 @@ int generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int table_
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
     switch (table_type) {
         case TABLE_TYPE_PLUGIN:
-            ret = plugin_table_set_ex_container_schema(schema, table_id, new_func, free_func,
-                                                       dup_func, free, argl, argp);
+            ret = plugin_table_set_ex_container_schema(schema, table_id,
+                                                       new_func, free_func, dup_func,
+                                                       free, argl, argp);
             break;
         case TABLE_TYPE_IP_PLUGIN:
-            ret = ip_plugin_table_set_ex_container_schema(schema, table_id, new_func, free_func,
-                                                          dup_func, free, argl, argp);
+            ret = ip_plugin_table_set_ex_container_schema(schema, table_id,
+                                                          new_func, free_func, dup_func,
+                                                          free, argl, argp);
             break;
         case TABLE_TYPE_FQDN_PLUGIN:
-            ret = fqdn_plugin_table_set_ex_container_schema(schema, table_id, new_func, free_func,
-                                                            dup_func, (void (*)(void *))fqdn_rule_free,
+            ret = fqdn_plugin_table_set_ex_container_schema(schema, table_id,
+                                                            new_func, free_func, dup_func,
+                                                            (void (*)(void *))fqdn_rule_free,
                                                             argl, argp);
             break;
         case TABLE_TYPE_BOOL_PLUGIN:
-            ret = bool_plugin_table_set_ex_container_schema(schema, table_id, new_func, free_func,
-                                                            dup_func, free, argl, argp);
+            ret = bool_plugin_table_set_ex_container_schema(schema, table_id,
+                                                            new_func, free_func, dup_func,
+                                                            free, argl, argp);
             break;
         default:
             log_error(logger, MODULE_MAAT_API,
@@ -571,11 +578,15 @@ int generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int table_
     return ret;
 }
 
-void plugin_runtime_commit_ex_schema(void *runtime, void *schema, const char *table_name,
+void plugin_runtime_commit_ex_schema(void *runtime, void *schema,
+                                     const char *table_name,
                                      int valid_column)
 {
-    struct ex_container_schema *container_schema = plugin_table_get_ex_container_schema(schema);
-    struct ex_data_runtime *ex_data_rt = plugin_runtime_get_ex_data_rt(runtime);
+    struct ex_container_schema *container_schema = NULL;
+    struct ex_data_runtime *ex_data_rt = NULL;
+
+    container_schema = plugin_table_get_ex_container_schema(schema);
+    ex_data_rt = plugin_runtime_get_ex_data_rt(runtime);
     ex_data_runtime_set_ex_container_schema(ex_data_rt, container_schema);
 
     size_t n_cached_row = ex_data_runtime_cached_row_count(ex_data_rt);
@@ -588,11 +599,15 @@ void plugin_runtime_commit_ex_schema(void *runtime, void *schema, const char *ta
     plugin_runtime_commit(runtime, table_name, 0);
 }
 
-void ip_plugin_runtime_commit_ex_schema(void *runtime, void *schema, const char *table_name,
+void ip_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
+                                        const char *table_name,
                                         int valid_column)
 {
-    struct ex_container_schema *container_schema = ip_plugin_table_get_ex_container_schema(schema);
-    struct ex_data_runtime *ex_data_rt = ip_plugin_runtime_get_ex_data_rt(runtime);
+    struct ex_container_schema *container_schema = NULL;
+    struct ex_data_runtime *ex_data_rt = NULL;
+
+    container_schema = ip_plugin_table_get_ex_container_schema(schema);
+    ex_data_rt = ip_plugin_runtime_get_ex_data_rt(runtime);
     ex_data_runtime_set_ex_container_schema(ex_data_rt, container_schema);
 
     size_t n_cached_row = ex_data_runtime_cached_row_count(ex_data_rt);
@@ -605,11 +620,15 @@ void ip_plugin_runtime_commit_ex_schema(void *runtime, void *schema, const char 
     ip_plugin_runtime_commit(runtime, table_name, 0);
 }
 
-void fqdn_plugin_runtime_commit_ex_schema(void *runtime, void *schema, const char *table_name,
+void fqdn_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
+                                          const char *table_name,
                                           int valid_column)
 {
-    struct ex_container_schema *container_schema = fqdn_plugin_table_get_ex_container_schema(schema);
-    struct ex_data_runtime *ex_data_rt = fqdn_plugin_runtime_get_ex_data_rt(runtime);
+    struct ex_container_schema *container_schema = NULL;
+    struct ex_data_runtime *ex_data_rt = NULL;
+
+    container_schema = fqdn_plugin_table_get_ex_container_schema(schema);
+    ex_data_rt = fqdn_plugin_runtime_get_ex_data_rt(runtime);
     ex_data_runtime_set_ex_container_schema(ex_data_rt, container_schema);
 
     size_t n_cached_row = ex_data_runtime_cached_row_count(ex_data_rt);
@@ -622,11 +641,15 @@ void fqdn_plugin_runtime_commit_ex_schema(void *runtime, void *schema, const cha
     fqdn_plugin_runtime_commit(runtime, table_name, 0);
 }
 
-void bool_plugin_runtime_commit_ex_schema(void *runtime, void *schema, const char *table_name,
+void bool_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
+                                          const char *table_name,
                                           int valid_column)
 {
-    struct ex_container_schema *container_schema = bool_plugin_table_get_ex_container_schema(schema);
-    struct ex_data_runtime *ex_data_rt = bool_plugin_runtime_get_ex_data_rt(runtime);
+    struct ex_container_schema *container_schema = NULL;
+    struct ex_data_runtime *ex_data_rt = NULL;
+
+    container_schema = bool_plugin_table_get_ex_container_schema(schema);
+    ex_data_rt = bool_plugin_runtime_get_ex_data_rt(runtime);
     ex_data_runtime_set_ex_container_schema(ex_data_rt, container_schema);
 
     size_t n_cached_row = ex_data_runtime_cached_row_count(ex_data_rt);
@@ -789,8 +812,8 @@ void *maat_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
 }
 
 int maat_ip_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
-                                     const struct ip_addr *ip_addr, void **ex_data_array,
-                                     size_t n_ex_data)
+                                     const struct ip_addr *ip_addr,
+                                     void **ex_data_array, size_t n_ex_data)
 {
     if (NULL == maat_inst || table_id < 0 || table_id >= MAX_TABLE_NUM 
         || NULL == ip_addr || NULL == ex_data_array || 0 == n_ex_data) {
@@ -891,9 +914,9 @@ size_t hit_group_to_compile(void *compile_runtime, long long *compile_ids,
 }
 
 int flag_scan(struct table_manager *tbl_mgr, int thread_id, long long flag,
-              int physical_table_id, int vtable_id, struct maat_state *state)
+              int phy_table_id, int vtable_id, struct maat_state *state)
 {
-    enum table_type table_type = table_manager_get_table_type(tbl_mgr, physical_table_id);
+    enum table_type table_type = table_manager_get_table_type(tbl_mgr, phy_table_id);
     if (table_type == TABLE_TYPE_FLAG_PLUS && 
         DISTRICT_FLAG_UNSET == state->is_set_district) {
         return -1;
@@ -903,7 +926,7 @@ int flag_scan(struct table_manager *tbl_mgr, int thread_id, long long flag,
         return -1;
     }
 
-    void *flag_rt = table_manager_get_runtime(tbl_mgr, physical_table_id);
+    void *flag_rt = table_manager_get_runtime(tbl_mgr, phy_table_id);
     if (NULL == flag_rt) {
         return -1;
     }
@@ -920,10 +943,10 @@ int flag_scan(struct table_manager *tbl_mgr, int thread_id, long long flag,
 }
 
 int interval_scan(struct table_manager *tbl_mgr, int thread_id, long long integer,
-                  int physical_table_id, int vtable_id, struct maat_state *state)
+                  int phy_table_id, int vtable_id, struct maat_state *state)
 {
 
-    enum table_type table_type = table_manager_get_table_type(tbl_mgr, physical_table_id);
+    enum table_type table_type = table_manager_get_table_type(tbl_mgr, phy_table_id);
     if (table_type == TABLE_TYPE_INTERVAL_PLUS && 
         DISTRICT_FLAG_UNSET == state->is_set_district) {
         return -1;
@@ -933,7 +956,7 @@ int interval_scan(struct table_manager *tbl_mgr, int thread_id, long long intege
         return -1;
     }
 
-    void *interval_rt = table_manager_get_runtime(tbl_mgr, physical_table_id);
+    void *interval_rt = table_manager_get_runtime(tbl_mgr, phy_table_id);
     if (NULL == interval_rt) {
         return -1;
     }
@@ -950,16 +973,16 @@ int interval_scan(struct table_manager *tbl_mgr, int thread_id, long long intege
 }
 
 int ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_addr,
-              uint16_t port, int proto, int physical_table_id, int vtable_id, 
+              uint16_t port, int proto, int phy_table_id, int vtable_id, 
               struct maat_state *state)
 {
 
-    enum table_type table_type = table_manager_get_table_type(tbl_mgr, physical_table_id);
+    enum table_type table_type = table_manager_get_table_type(tbl_mgr, phy_table_id);
     if (table_type != TABLE_TYPE_IP_PLUS) {
         return -1;
     }
 
-    void *ip_rt = table_manager_get_runtime(tbl_mgr, physical_table_id);
+    void *ip_rt = table_manager_get_runtime(tbl_mgr, phy_table_id);
     if (NULL == ip_rt) {
         return -1;
     }
@@ -976,17 +999,17 @@ int ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_addr,
     return group_hit_cnt;
 }
 
-int ipv6_scan(struct table_manager *tbl_mgr, int thread_id, uint8_t *ip_addr,
-              uint16_t port, int proto, int physical_table_id, int vtable_id, 
-              struct maat_state *state)
+int ipv6_scan(struct table_manager *tbl_mgr, int thread_id,
+              uint8_t *ip_addr, uint16_t port, int proto, 
+              int phy_table_id, int vtable_id, struct maat_state *state)
 {
 
-    enum table_type table_type = table_manager_get_table_type(tbl_mgr, physical_table_id);
+    enum table_type table_type = table_manager_get_table_type(tbl_mgr, phy_table_id);
     if (table_type != TABLE_TYPE_IP_PLUS) {
         return -1;
     }
 
-    void *ip_rt = table_manager_get_runtime(tbl_mgr, physical_table_id);
+    void *ip_rt = table_manager_get_runtime(tbl_mgr, phy_table_id);
     if (NULL == ip_rt) {
         return -1;
     }
@@ -1002,10 +1025,11 @@ int ipv6_scan(struct table_manager *tbl_mgr, int thread_id, uint8_t *ip_addr,
     return group_hit_cnt;
 }
 
-int string_scan(struct table_manager *tbl_mgr, int thread_id, const char *data, size_t data_len,
-                int physical_table_id, int vtable_id, struct maat_state *state)
+int string_scan(struct table_manager *tbl_mgr, int thread_id,
+                const char *data, size_t data_len, int phy_table_id,
+                int vtable_id, struct maat_state *state)
 {
-    enum table_type table_type = table_manager_get_table_type(tbl_mgr, physical_table_id);
+    enum table_type table_type = table_manager_get_table_type(tbl_mgr, phy_table_id);
     if (table_type == TABLE_TYPE_EXPR_PLUS && 
         DISTRICT_FLAG_UNSET == state->is_set_district) {
         return -1;
@@ -1015,7 +1039,7 @@ int string_scan(struct table_manager *tbl_mgr, int thread_id, const char *data, 
         return -1;
     }
 
-    void *expr_rt = table_manager_get_runtime(tbl_mgr, physical_table_id);
+    void *expr_rt = table_manager_get_runtime(tbl_mgr, phy_table_id);
     if (NULL == expr_rt) {
         return -1;
     }
@@ -1032,15 +1056,16 @@ int string_scan(struct table_manager *tbl_mgr, int thread_id, const char *data, 
     return group_hit_cnt;
 }
 
-int expr_stream_scan(struct maat_stream *stream, const char *data, size_t data_len, 
-                     struct maat_state *state)
+int expr_stream_scan(struct maat_stream *stream, const char *data,
+                     size_t data_len, struct maat_state *state)
 {
     if (NULL == stream || NULL == data) {
         return 0;
     }
 
+    enum table_type table_type = TABLE_TYPE_INVALID;
     struct table_manager *tbl_mgr = stream->ref_maat_inst->tbl_mgr;
-    enum table_type table_type = table_manager_get_table_type(tbl_mgr, stream->physical_table_id);
+    table_type = table_manager_get_table_type(tbl_mgr, stream->phy_table_id);
     if (table_type == TABLE_TYPE_EXPR_PLUS && 
         DISTRICT_FLAG_UNSET == state->is_set_district) {
         return -1;
@@ -1050,13 +1075,14 @@ int expr_stream_scan(struct maat_stream *stream, const char *data, size_t data_l
         return -1;
     }
 
-    void *expr_rt = table_manager_get_runtime(tbl_mgr, stream->physical_table_id);
+    void *expr_rt = table_manager_get_runtime(tbl_mgr, stream->phy_table_id);
     if (NULL == expr_rt) {
         return -1;
     }
 
-    int group_hit_cnt = expr_runtime_stream_scan((struct expr_runtime *)expr_rt, stream->handle,
-                                                 data, data_len, stream->vtable_id, state);
+    int group_hit_cnt = expr_runtime_stream_scan((struct expr_runtime *)expr_rt,
+                                                 stream->handle, data, data_len,
+                                                 stream->vtable_id, state);
     if (group_hit_cnt <= 0) {
         return group_hit_cnt;
     }
@@ -1069,13 +1095,11 @@ int expr_stream_scan(struct maat_stream *stream, const char *data, size_t data_l
 size_t group_to_compile(struct maat *maat_inst, long long *results, size_t n_result,
                         struct maat_state *state)
 {
-    int compile_table_id = -1;
+    int compile_table_id = table_manager_get_default_compile_table_id(maat_inst->tbl_mgr);
 
     if (state->compile_table_id > 0) {
         compile_table_id = state->compile_table_id;
-    } else {
-        compile_table_id = table_manager_get_default_compile_table_id(maat_inst->tbl_mgr);
-    }
+    } 
 
     void *compile_rt = table_manager_get_runtime(maat_inst->tbl_mgr, compile_table_id);
     if (NULL == compile_rt) {
@@ -1114,21 +1138,21 @@ int maat_scan_flag(struct maat *maat_inst, int table_id,
     }
 
     int vtable_id = 0;
-    int physical_table_id = -1;
-    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
+    int phy_table_id = table_id;
+    enum table_type table_type = TABLE_TYPE_INVALID;
+
+    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_VIRTUAL) {
-        physical_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr, table_id);
+        phy_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr, table_id);
         vtable_id = table_id;
-    } else {
-        physical_table_id = table_id;
     }
     
-    if (physical_table_id < 0) {
+    if (phy_table_id < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
-    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, physical_table_id);
+    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, phy_table_id);
     if (table_type != TABLE_TYPE_FLAG && table_type != TABLE_TYPE_FLAG_PLUS) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
@@ -1138,7 +1162,7 @@ int maat_scan_flag(struct maat *maat_inst, int table_id,
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
 
     int hit_group_cnt = flag_scan(maat_inst->tbl_mgr, state->thread_id, flag,
-                                  physical_table_id, vtable_id, state);
+                                  phy_table_id, vtable_id, state);
     if (hit_group_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
@@ -1159,7 +1183,7 @@ int maat_scan_flag(struct maat *maat_inst, int table_id,
         }
     }
 
-    void *flag_rt = table_manager_get_runtime(maat_inst->tbl_mgr, physical_table_id);
+    void *flag_rt = table_manager_get_runtime(maat_inst->tbl_mgr, phy_table_id);
     assert(flag_rt != NULL);
 
     if (1 == maat_inst->opts.perf_on) {
@@ -1202,23 +1226,21 @@ int maat_scan_integer(struct maat *maat_inst, int table_id,
     }
 
     int vtable_id = 0;
-    int physical_table_id = -1;
-    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr,
-                                                              table_id);
+    int phy_table_id = table_id;
+    enum table_type table_type = TABLE_TYPE_INVALID;
+
+    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_VIRTUAL) {
-        physical_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr,
-                                                         table_id);
+        phy_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr, table_id);
         vtable_id = table_id;
-    } else {
-        physical_table_id = table_id;
     }
     
-    if (physical_table_id < 0) {
+    if (phy_table_id < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
-    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, physical_table_id);
+    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, phy_table_id);
     if (table_type != TABLE_TYPE_INTERVAL && table_type != TABLE_TYPE_INTERVAL_PLUS) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
@@ -1228,7 +1250,7 @@ int maat_scan_integer(struct maat *maat_inst, int table_id,
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
 
     int hit_group_cnt = interval_scan(maat_inst->tbl_mgr, state->thread_id, integer,
-                                      physical_table_id, vtable_id, state);
+                                      phy_table_id, vtable_id, state);
     if (hit_group_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
@@ -1249,8 +1271,7 @@ int maat_scan_integer(struct maat *maat_inst, int table_id,
         }
     }
 
-    void *interval_rt = table_manager_get_runtime(maat_inst->tbl_mgr,
-                                                  physical_table_id);
+    void *interval_rt = table_manager_get_runtime(maat_inst->tbl_mgr, phy_table_id);
     assert(interval_rt != NULL);
 
     if (1 == maat_inst->opts.perf_on) {
@@ -1293,23 +1314,21 @@ int maat_scan_ipv4(struct maat *maat_inst, int table_id, uint32_t ip_addr,
     }
 
     int vtable_id = 0;
-    int physical_table_id = -1;
-    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr,
-                                                              table_id);
+    int phy_table_id = table_id;
+    enum table_type table_type = TABLE_TYPE_INVALID;
+
+    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_VIRTUAL) {
-        physical_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr,
-                                                         table_id);
+        phy_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr, table_id);
         vtable_id = table_id;
-    } else {
-        physical_table_id = table_id;
     }
     
-    if (physical_table_id < 0) {
+    if (phy_table_id < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
-    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, physical_table_id);
+    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, phy_table_id);
     if (table_type != TABLE_TYPE_IP_PLUS) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
@@ -1319,7 +1338,7 @@ int maat_scan_ipv4(struct maat *maat_inst, int table_id, uint32_t ip_addr,
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
 
     int hit_group_cnt = ipv4_scan(maat_inst->tbl_mgr, state->thread_id, ip_addr,
-                                  port, protocol, physical_table_id, vtable_id, state);
+                                  port, protocol, phy_table_id, vtable_id, state);
     if (hit_group_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
@@ -1340,7 +1359,7 @@ int maat_scan_ipv4(struct maat *maat_inst, int table_id, uint32_t ip_addr,
         }
     }
 
-    void *ip_rt = table_manager_get_runtime(maat_inst->tbl_mgr, physical_table_id);
+    void *ip_rt = table_manager_get_runtime(maat_inst->tbl_mgr, phy_table_id);
     assert(ip_rt != NULL);
 
     if (1 == maat_inst->opts.perf_on) {
@@ -1384,23 +1403,21 @@ int maat_scan_ipv6(struct maat *maat_inst, int table_id,
     }
 
     int vtable_id = 0;
-    int physical_table_id = -1;
-    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr,
-                                                              table_id);
+    int phy_table_id = table_id;
+    enum table_type table_type = TABLE_TYPE_INVALID;
+
+    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_VIRTUAL) {
-        physical_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr,
-                                                         table_id);
+        phy_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr, table_id);
         vtable_id = table_id;
-    } else {
-        physical_table_id = table_id;
     }
     
-    if (physical_table_id < 0) {
+    if (phy_table_id < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
-    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, physical_table_id);
+    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, phy_table_id);
     if (table_type != TABLE_TYPE_IP_PLUS) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
@@ -1410,7 +1427,7 @@ int maat_scan_ipv6(struct maat *maat_inst, int table_id,
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
 
     int hit_group_cnt = ipv6_scan(maat_inst->tbl_mgr, state->thread_id, ip_addr,
-                                  port, protocol, physical_table_id, vtable_id, state);
+                                  port, protocol, phy_table_id, vtable_id, state);
     if (hit_group_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
@@ -1431,7 +1448,7 @@ int maat_scan_ipv6(struct maat *maat_inst, int table_id,
         }
     }
 
-    void *ip_rt = table_manager_get_runtime(maat_inst->tbl_mgr, physical_table_id);
+    void *ip_rt = table_manager_get_runtime(maat_inst->tbl_mgr, phy_table_id);
     assert(ip_rt != NULL);
 
     if (1 == maat_inst->opts.perf_on) {
@@ -1474,23 +1491,21 @@ int maat_scan_string(struct maat *maat_inst, int table_id, const char *data,
     }
 
     int vtable_id = 0;
-    int physical_table_id = -1;
-    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr,
-                                                              table_id);
+    int phy_table_id = table_id;
+    enum table_type table_type = TABLE_TYPE_INVALID;
+    
+    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_VIRTUAL) {
-        physical_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr,
-                                                         table_id);
+        phy_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr, table_id);
         vtable_id = table_id;
-    } else {
-        physical_table_id = table_id;
     }
     
-    if (physical_table_id < 0) {
+    if (phy_table_id < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
-    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, physical_table_id);
+    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, phy_table_id);
     if (table_type != TABLE_TYPE_EXPR && table_type != TABLE_TYPE_EXPR_PLUS) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
@@ -1499,8 +1514,8 @@ int maat_scan_string(struct maat *maat_inst, int table_id, const char *data,
     maat_runtime_ref_inc(maat_inst->maat_rt, state->thread_id);
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
 
-    int hit_group_cnt = string_scan(maat_inst->tbl_mgr, state->thread_id, data, data_len,
-                                    physical_table_id, vtable_id, state);
+    int hit_group_cnt = string_scan(maat_inst->tbl_mgr, state->thread_id, data,
+                                    data_len, phy_table_id, vtable_id, state);
     if (hit_group_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
@@ -1521,7 +1536,7 @@ int maat_scan_string(struct maat *maat_inst, int table_id, const char *data,
         }
     }
 
-    void *expr_rt = table_manager_get_runtime(maat_inst->tbl_mgr, physical_table_id);
+    void *expr_rt = table_manager_get_runtime(maat_inst->tbl_mgr, phy_table_id);
     assert(expr_rt != NULL);
 
     if (1 == maat_inst->opts.perf_on) {
@@ -1554,31 +1569,28 @@ struct maat_stream *maat_stream_new(struct maat *maat_inst, int table_id,
     stream->ref_maat_inst = maat_inst;
     stream->last_full_version = maat_inst->last_full_version;
     stream->thread_id = state->thread_id;
+    stream->phy_table_id = table_id;
     stream->logger = maat_inst->logger;
 
-    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr,
-                                                              table_id);
+    enum table_type table_type = TABLE_TYPE_INVALID;
+
+    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_VIRTUAL) {
-        stream->physical_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr,
-                                                                 table_id);
+        stream->phy_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr, table_id);
         stream->vtable_id = table_id;
-    } else {
-        stream->physical_table_id = table_id;
-        stream->vtable_id = 0;
     }
     
-    if (stream->physical_table_id < 0) {
+    if (stream->phy_table_id < 0) {
         return NULL;
     }
 
-    table_type = table_manager_get_table_type(maat_inst->tbl_mgr,
-                                              stream->physical_table_id);
+    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, stream->phy_table_id);
     if (table_type != TABLE_TYPE_EXPR && table_type != TABLE_TYPE_EXPR_PLUS) {
         return NULL;
     }
 
     void *expr_rt = table_manager_get_runtime(stream->ref_maat_inst->tbl_mgr,
-                                              stream->physical_table_id);
+                                              stream->phy_table_id);
     assert(expr_rt != NULL);
     stream->expr_rt_version = expr_runtime_get_version(expr_rt);
 
@@ -1619,7 +1631,7 @@ int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data
     }
 
     void *expr_rt = table_manager_get_runtime(maat_inst->tbl_mgr,
-                                              maat_stream->physical_table_id);
+                                              maat_stream->phy_table_id);
     assert(expr_rt != NULL);
     
     long long cur_expr_rt_version = expr_runtime_get_version(expr_rt);
@@ -1675,7 +1687,7 @@ void maat_stream_free(struct maat_stream *maat_stream)
 
     struct maat *maat_inst = maat_stream->ref_maat_inst;
     void *expr_rt = table_manager_get_runtime(maat_inst->tbl_mgr, 
-                                              maat_stream->physical_table_id);
+                                              maat_stream->phy_table_id);
     assert(expr_rt != NULL);
 
     long long cur_expr_rt_version = expr_runtime_get_version(expr_rt);
@@ -1756,7 +1768,7 @@ void maat_state_free(struct maat_state *state)
                               thread_id, sizeof(struct maat_state));
 }
 
-int maat_state_set_scan_district(struct maat_state *state, int vtable_id, 
+int maat_state_set_scan_district(struct maat_state *state, int table_id, 
                                  const char *district, size_t district_len)
 {
     if (NULL == state || NULL == district || 0 == district_len) {
@@ -1772,8 +1784,8 @@ int maat_state_set_scan_district(struct maat_state *state, int vtable_id,
         return -1;
     }
 
-    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr,
-                                                              vtable_id);
+    enum table_type table_type = TABLE_TYPE_INVALID;
+    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     if (table_type != TABLE_TYPE_FLAG_PLUS && table_type != TABLE_TYPE_EXPR_PLUS &&
         table_type != TABLE_TYPE_INTERVAL_PLUS && table_type != TABLE_TYPE_VIRTUAL) {
         log_error(maat_inst->logger, MODULE_MAAT_API, 
@@ -1781,18 +1793,16 @@ int maat_state_set_scan_district(struct maat_state *state, int vtable_id,
         return -1;
     }
 
-    int physical_table_id = vtable_id;
+    int phy_table_id = table_id;
     if (table_type == TABLE_TYPE_VIRTUAL) {
-        physical_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr,
-                                                         vtable_id);
+        phy_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr, table_id);
     }
 
     int ret = -1;
     long long district_id;
-    table_type = table_manager_get_table_type(maat_inst->tbl_mgr,
-                                              physical_table_id);
-    void *runtime = table_manager_get_runtime(maat_inst->tbl_mgr,
-                                              physical_table_id);
+
+    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, phy_table_id);
+    void *runtime = table_manager_get_runtime(maat_inst->tbl_mgr, phy_table_id);
     assert(runtime != NULL);
     
     switch (table_type) {
@@ -1877,15 +1887,12 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
         return -1;
     }
 
-    int compile_table_id = -1;
+    int compile_table_id = table_manager_get_default_compile_table_id(maat_inst->tbl_mgr);
     if (state->compile_table_id > 0) {
         compile_table_id = state->compile_table_id;
-    } else {
-        compile_table_id = table_manager_get_default_compile_table_id(maat_inst->tbl_mgr);
     }
 
-    void *compile_rt = table_manager_get_runtime(maat_inst->tbl_mgr,
-                                                 compile_table_id);
+    void *compile_rt = table_manager_get_runtime(maat_inst->tbl_mgr, compile_table_id);
     if (NULL == compile_rt) {
         return -1;
     }

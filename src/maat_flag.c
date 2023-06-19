@@ -188,7 +188,7 @@ void *flag_runtime_new(void *flag_schema, size_t max_thread_num,
 
     struct flag_runtime *flag_rt = ALLOC(struct flag_runtime, 1);
 
-    flag_rt->item_hash = rcu_hash_new(flag_item_free_cb, NULL);
+    flag_rt->item_hash = rcu_hash_new(flag_item_free_cb, NULL, 0);
     flag_rt->n_worker_thread = max_thread_num;
     flag_rt->ref_garbage_bin = garbage_bin;
     flag_rt->logger = logger;

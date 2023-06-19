@@ -403,7 +403,7 @@ void *ip_runtime_new(void *ip_schema, size_t max_thread_num,
 
     struct ip_runtime *ip_rt = ALLOC(struct ip_runtime, 1);
 
-    ip_rt->item_hash = rcu_hash_new(ip_item_free_cb, NULL);
+    ip_rt->item_hash = rcu_hash_new(ip_item_free_cb, NULL, 0);
     ip_rt->n_worker_thread = max_thread_num;
     ip_rt->ref_garbage_bin = garbage_bin;
     ip_rt->logger = logger;
