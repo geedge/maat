@@ -2798,7 +2798,10 @@ void ip_plugin_ex_free_cb(int table_id, void **ad, long argl, void *argp)
 {
 	struct ip_plugin_ud *ud = (struct ip_plugin_ud *)(*ad);
 
+    ud->rule_id = 0;
     memset(ud->buffer, 0, ud->buf_len);
+    ud->buf_len = 0;
+
 	free(ud->buffer);
 	free(ud);
 	*ad = NULL;
@@ -2931,6 +2934,9 @@ void fqdn_plugin_ex_free_cb(int table_id, void **ad, long argl, void *argp)
 {
 	struct fqdn_plugin_ud *u = (struct fqdn_plugin_ud *)(*ad);
 
+    u->rule_id = 0;
+    u->catid = 0;
+
 	free(u);
 	*ad = NULL;
 }
@@ -3003,7 +3009,10 @@ void bool_plugin_ex_free_cb(int table_id, void **ad, long argl, void *argp)
 {
 	struct bool_plugin_ud *u = (struct bool_plugin_ud *)(*ad);
 	
+    u->id = 0;
 	memset(u->name, 0, u->name_len);
+    u->name_len = 0;
+
 	free(u->name);
 	free(u);
 	*ad = NULL;
@@ -5059,12 +5068,18 @@ TEST_F(MaatCmdTest, UpdateIPPlugin) {
         EXPECT_GT(ret, 0);
     }
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S); //gc_timeout_s == 3 which configured in table_info
 
-    memset(results, 0, sizeof(results));
     ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv4,
                                           (void **)results, ARRAY_SIZE);
     EXPECT_EQ(ret, 0);
+
+    //the data pointed by results[idx] has in garbage queue, but not be freed yet
+    EXPECT_EQ(results[0]->rule_id, 104);
+    EXPECT_EQ(results[1]->rule_id, 103);
+
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    //excced gc_timeout_s, the data pointed by results[idx] has been freed
 }
 
 TEST_F(MaatCmdTest, UpdateFQDNPlugin) {
@@ -5122,6 +5137,7 @@ TEST_F(MaatCmdTest, UpdateFQDNPlugin) {
                                              "r3---sn-i3belne6.example2.com", 
                                              (void**)results, ARRAY_SIZE);
     ASSERT_EQ(ret, 2);
+    EXPECT_EQ(results[0]->catid, 3);
 
     //del lines
     for (i = 3; i < TEST_CMD_LINE_NUM; i++) {
@@ -5140,6 +5156,10 @@ TEST_F(MaatCmdTest, UpdateFQDNPlugin) {
                                             "r3---sn-i3belne6.example2.com", 
                                             (void**)results, ARRAY_SIZE);
     ASSERT_EQ(ret, 0);                                 
+    EXPECT_EQ(results[0]->catid, 3);
+
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    //excced gc_timeout_s, the data pointed by results[idx] has been freed
 }
 
 TEST_F(MaatCmdTest, UpdateBoolPlugin) {
@@ -5198,6 +5218,7 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
     ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_id, items, 3,
                                              (void **)results, ARRAY_SIZE);
     EXPECT_EQ(ret, 4);
+    EXPECT_EQ(results[0]->name_len, 8);
 
     for (i = 3; i < TEST_CMD_LINE_NUM; i++) {
         memset(&line_rule, 0, sizeof(line_rule));
@@ -5211,10 +5232,13 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
     }
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    memset(results, 0, sizeof(results));
     ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_id, items, 3,
                                              (void **)results, ARRAY_SIZE);
     EXPECT_EQ(ret, 2);
+    EXPECT_EQ(results[0]->name_len, 8);
+
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+    //excced gc_timeout_s, the data pointed by results[idx] has been freed
 }
 
 #define COMPILE_ID_NUMS 1000

@@ -76,6 +76,8 @@ void *compile_runtime_get_ex_data(struct compile_runtime *compile_rt,
 void compile_runtime_ex_data_iterate(struct compile_runtime *compile_rt,
                                      struct compile_schema *compile_schema);
 
+void compile_runtime_garbage_collect_routine(void *compile_runtime);
+
 /* group2compile runtime API */
 void *group2compile_runtime_new(void *g2c_schema, size_t max_thread_num,
                                 struct maat_garbage_bin *garbage_bin, 

@@ -25,6 +25,9 @@
 #include "maat_table.h"
 #include "maat_compile.h"
 #include "maat_plugin.h"
+#include "maat_ip_plugin.h"
+#include "maat_fqdn_plugin.h"
+#include "maat_bool_plugin.h"
 #include "maat_stat.h"
 #include "ip_matcher.h"
 #include "alignment.h"
@@ -170,16 +173,41 @@ void maat_plugin_table_garbage_collect_routine(struct table_manager *tbl_mgr)
 {
     size_t max_table_cnt = table_manager_table_size(tbl_mgr);
     enum table_type table_type = TABLE_TYPE_INVALID;
+    void *runtime = NULL;
+    struct ex_data_runtime *ex_data_rt = NULL;
 
     for (size_t i = 0; i < max_table_cnt; i++) {
         table_type = table_manager_get_table_type(tbl_mgr, i);
-        if (table_type != TABLE_TYPE_PLUGIN) {
-            continue;
-        }
 
-        void *plugin_runtime = table_manager_get_runtime(tbl_mgr, i);
-        struct ex_data_runtime *ex_data_rt = plugin_runtime_get_ex_data_rt(plugin_runtime);
-        ex_data_runtime_garbage_collect_routine(ex_data_rt);
+        switch (table_type) {
+            case TABLE_TYPE_COMPILE:
+                runtime = table_manager_get_runtime(tbl_mgr, i);
+                compile_runtime_garbage_collect_routine(runtime);
+                break;
+            case TABLE_TYPE_PLUGIN:
+                runtime = table_manager_get_runtime(tbl_mgr, i);
+                ex_data_rt = plugin_runtime_get_ex_data_rt(runtime);
+                break;
+            case TABLE_TYPE_IP_PLUGIN:
+                runtime = table_manager_get_runtime(tbl_mgr, i);
+                ex_data_rt = ip_plugin_runtime_get_ex_data_rt(runtime);
+                break;
+            case TABLE_TYPE_FQDN_PLUGIN:
+                runtime = table_manager_get_runtime(tbl_mgr, i);
+                ex_data_rt = fqdn_plugin_runtime_get_ex_data_rt(runtime);
+                break;
+            case TABLE_TYPE_BOOL_PLUGIN:
+                runtime = table_manager_get_runtime(tbl_mgr, i);
+                ex_data_rt = bool_plugin_runtime_get_ex_data_rt(runtime);
+                break;
+            default:
+                break;
+        }
+        
+        if (ex_data_rt != NULL) {
+            ex_data_runtime_garbage_collect_routine(ex_data_rt);
+            ex_data_rt = NULL;
+        }
     }
 }
 

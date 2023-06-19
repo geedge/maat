@@ -580,8 +580,7 @@ void *compile_runtime_new(void *compile_schema, size_t max_thread_num,
     compile_rt->expr_match_buff = ALLOC(struct bool_expr_match, 
                                         max_thread_num * MAX_SCANNER_HIT_COMPILE_NUM);
     compile_rt->version = time(NULL);
-    compile_rt->cfg_hash = rcu_hash_new(rcu_compile_cfg_free, NULL,
-                                        schema->gc_timeout_s);
+    compile_rt->cfg_hash = rcu_hash_new(rcu_compile_cfg_free, NULL, schema->gc_timeout_s);
     compile_rt->clause_by_literals_hash = NULL;
     compile_rt->literal2clause_hash = NULL;
     compile_rt->logger = logger;
@@ -2264,4 +2263,16 @@ size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *comp
     }
 
     return hit_path_cnt;
+}
+
+void compile_runtime_garbage_collect_routine(void *compile_runtime)
+{
+    if (NULL == compile_runtime) {
+        return;
+    }
+
+    struct compile_runtime *compile_rt = (struct compile_runtime *)compile_runtime;
+    if (compile_rt->cfg_hash != NULL) {
+        rcu_hash_garbage_collect_routine(compile_rt->cfg_hash);
+    }
 }
