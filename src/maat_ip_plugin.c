@@ -154,8 +154,9 @@ void ip_plugin_schema_free(void *ip_plugin_schema)
     FREE(ip_plugin_schema);
 }
 
-int ip_plugin_accept_tag_match(struct ip_plugin_schema *schema, const char *table_name,
-                               const char *line, struct log_handle *logger)
+static int ip_plugin_accept_tag_match(struct ip_plugin_schema *schema,
+                                      const char *table_name, const char *line,
+                                      struct log_handle *logger)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
@@ -195,7 +196,7 @@ int ip_plugin_accept_tag_match(struct ip_plugin_schema *schema, const char *tabl
     return TAG_MATCH_MATCHED;
 }
 
-struct ip_rule *
+static struct ip_rule *
 ip_plugin_rule_new(struct ip_plugin_schema *schema, const char *table_name,
                    const char *line, struct log_handle *logger)
 {
@@ -305,7 +306,7 @@ error:
     return NULL;
 }
 
-void ip_plugin_rule_free(struct ip_rule *rule)
+static void ip_plugin_rule_free(struct ip_rule *rule)
 {
     FREE(rule);
 }
@@ -345,10 +346,10 @@ struct ex_container_schema *ip_plugin_table_get_ex_container_schema(void *ip_plu
     return &(schema->container_schema);
 }
 
-int ip_plugin_runtime_update_row(struct ip_plugin_runtime *ip_plugin_rt,
-                                 const char *table_name, const char *row, 
-                                 const char *key, size_t key_len, 
-                                 struct ip_rule *ip_plugin_rule, int is_valid)
+static int ip_plugin_runtime_update_row(struct ip_plugin_runtime *ip_plugin_rt,
+                                        const char *table_name, const char *row, 
+                                        const char *key, size_t key_len, 
+                                        struct ip_rule *ip_plugin_rule, int is_valid)
 {
     int ret = -1;
     struct ex_data_runtime *ex_data_rt = ip_plugin_rt->ex_data_rt;
@@ -611,23 +612,6 @@ int ip_plugin_runtime_get_ex_data(void *ip_plugin_runtime, const struct ip_addr 
                                                                     (struct ex_container *)results[i].tag);
 	}
 	return n_result;
-}
-
-void ip_plugin_runtime_perf_stat(void *ip_plugin_runtime, struct timespec *start, 
-                                 struct timespec *end, int thread_id)
-{
-    if (NULL == ip_plugin_runtime || thread_id < 0) {
-        return;
-    }
-
-    struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
-    alignment_int64_array_add(ip_plugin_rt->scan_cnt, thread_id, 1);
-
-    if (start != NULL && end != NULL) {
-        long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 +
-                                 (end->tv_nsec - start->tv_nsec);
-        alignment_int64_array_add(ip_plugin_rt->scan_cpu_time, thread_id, consume_time);
-    }
 }
 
 long long ip_plugin_runtime_scan_count(void *ip_plugin_runtime)

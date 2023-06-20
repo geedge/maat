@@ -97,8 +97,6 @@ long long maat_cmd_read_redis_integer(const redisReply *reply);
 
 int maat_cmd_get_valid_flag_offset(const char *line, int column_seq);
 
-const char *maat_cmd_find_Nth_column(const char *line, int Nth, int *column_len);
-
 int maat_cmd_write_rule(redisContext *c, struct serial_rule *s_rule, 
                         size_t serial_rule_num, long long server_time, 
                         struct log_handle *logger);

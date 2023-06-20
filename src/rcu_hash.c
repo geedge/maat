@@ -55,14 +55,15 @@ struct rcu_hash_node {
     UT_hash_handle hh_b;
 };
 
-void rcu_hash_garbage_collect_force(struct rcu_hash_garbage_q *garbage_q)
+static void rcu_hash_garbage_collect_force(struct rcu_hash_table *htable)
 {
 	struct rcu_hash_garbage_bag *p = NULL;
 
-	while ((p = TAILQ_FIRST(garbage_q)) != NULL) {
+	while ((p = TAILQ_FIRST(&(htable->garbage_q))) != NULL) {
 		p->garbage_free(p->garbage);
-		TAILQ_REMOVE(garbage_q, p, entries);
+		TAILQ_REMOVE(&(htable->garbage_q), p, entries);
 		FREE(p);
+        htable->garbage_q_len--;
 	}
 }
 
@@ -76,14 +77,15 @@ void rcu_hash_garbage_collect_routine(struct rcu_hash_table *htable)
         if ((now - p->create_time) > htable->gc_timeout_s ||
             htable->gc_timeout_s == 0) {
             p->garbage_free(p->garbage);
-            TAILQ_REMOVE(&htable->garbage_q, p, entries);
+            TAILQ_REMOVE(&(htable->garbage_q), p, entries);
             FREE(p);
+            htable->garbage_q_len--;
         }
     }
 }
 
-void rcu_hash_garbage_bagging(struct rcu_hash_garbage_q *garbage_q, 
-                              void *garbage, void (* func)(void *))
+static void rcu_hash_garbage_bagging(struct rcu_hash_garbage_q *garbage_q, 
+                                     void *garbage, void (* func)(void *))
 {
 	struct rcu_hash_garbage_bag *bag = ALLOC(struct rcu_hash_garbage_bag, 1);
 
@@ -93,7 +95,7 @@ void rcu_hash_garbage_bagging(struct rcu_hash_garbage_q *garbage_q,
 	TAILQ_INSERT_TAIL(garbage_q, bag, entries);
 }
 
-void rcu_hash_node_free(struct rcu_hash_node *node)
+static void rcu_hash_node_free(struct rcu_hash_node *node)
 {
     if (NULL == node) {
         return;
@@ -150,13 +152,13 @@ void rcu_hash_free(struct rcu_hash_table *htable)
         }
     }
 
-    rcu_hash_garbage_collect_force(&(htable->garbage_q));
+    rcu_hash_garbage_collect_force(htable);
     pthread_mutex_destroy(&htable->update_mutex);
 
     FREE(htable);
 }
 
-void rcu_hash_commit_prepare(struct rcu_hash_table *htable)
+static void rcu_hash_commit_prepare(struct rcu_hash_table *htable)
 {
     struct rcu_hash_node *node = NULL;
     struct rcu_hash_node *tmp = NULL;

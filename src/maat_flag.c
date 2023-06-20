@@ -157,7 +157,7 @@ void flag_schema_free(void *flag_schema)
     FREE(flag_schema);
 }
 
-void flag_item_free(struct flag_item *item)
+static void flag_item_free(struct flag_item *item)
 {
     if (NULL == item) {
         return;
@@ -171,7 +171,7 @@ void flag_item_free(struct flag_item *item)
     FREE(item);
 }
 
-void flag_item_free_cb(void *user_ctx, void *data)
+static void flag_item_free_cb(void *user_ctx, void *data)
 {
     struct flag_item *item = (struct flag_item *)data;
     
@@ -243,8 +243,9 @@ void flag_runtime_free(void *flag_runtime)
     FREE(flag_rt);
 }
 
-int flag_runtime_update_row(struct flag_runtime *flag_rt, char *key, size_t key_len,
-                            struct flag_item *item, int is_valid)
+static int flag_runtime_update_row(struct flag_runtime *flag_rt, char *key,
+                                   size_t key_len, struct flag_item *item,
+                                   int is_valid)
 {
     int ret = -1;
 
@@ -265,7 +266,8 @@ int flag_runtime_update_row(struct flag_runtime *flag_rt, char *key, size_t key_
     return 0;
 }
 
-int flag_runtime_get_district_id(struct flag_runtime *flag_rt, const char *district)
+static int flag_runtime_get_district_id(struct flag_runtime *flag_rt,
+                                        const char *district)
 {
     long long district_id = DISTRICT_ANY;
 
@@ -296,8 +298,9 @@ int flag_runtime_set_scan_district(struct flag_runtime *flag_rt, const char *dis
     return maat_kv_read_unNull(flag_rt->district_map, district, district_len, district_id);
 }
 
-struct flag_item *flag_item_new(struct flag_schema *schema, const char *table_name,
-                                const char *line, struct flag_runtime *flag_rt)
+static struct flag_item *
+flag_item_new(struct flag_schema *schema, const char *table_name,
+              const char *line, struct flag_runtime *flag_rt)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
@@ -374,7 +377,7 @@ error:
     return NULL;
 }
 
-struct flag_rule flag_item_to_flag_rule(struct flag_item *item)
+static struct flag_rule flag_item_to_flag_rule(struct flag_item *item)
 {
     struct flag_rule rule;
 
@@ -386,8 +389,9 @@ struct flag_rule flag_item_to_flag_rule(struct flag_item *item)
     return rule;
 }
 
-int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table_name,
-                        const char *line, int valid_column)
+int flag_runtime_update(void *flag_runtime, void *flag_schema,
+                        const char *table_name, const char *line,
+                        int valid_column)
 {
     if (NULL == flag_runtime || NULL == flag_schema ||
         NULL == line) {
@@ -444,7 +448,7 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema, const char *table
     return 0;
 }
 
-void garbage_flag_matcher_free(void *flag_matcher, void *arg)
+static void garbage_flag_matcher_free(void *flag_matcher, void *arg)
 {
     struct flag_matcher *matcher = (struct flag_matcher *)flag_matcher;
     flag_matcher_free(matcher);

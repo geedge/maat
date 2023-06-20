@@ -35,7 +35,8 @@
 
 #define MODULE_MAAT_RULE	 module_name_str("maat.rule")
 
-struct maat_runtime* maat_runtime_create(long long version, struct maat *maat_inst)
+static struct maat_runtime *
+maat_runtime_create(long long version, struct maat *maat_inst)
 {
 	struct maat_runtime *maat_rt = ALLOC(struct maat_runtime, 1);
 
@@ -58,8 +59,27 @@ struct maat_runtime* maat_runtime_create(long long version, struct maat *maat_in
     return maat_rt;
 }
 
-void maat_runtime_commit(struct maat_runtime *maat_rt, int update_type, 
-                         long long maat_rt_version, struct log_handle *logger)
+static void maat_runtime_destroy(struct maat_runtime *maat_rt)
+{
+    if (NULL == maat_rt) {
+        return;
+    }
+    
+    if (maat_rt->sequence_map != NULL) {
+        maat_kv_store_free(maat_rt->sequence_map);
+        maat_rt->sequence_map = NULL;
+    }
+
+    if (maat_rt->ref_cnt != NULL) {
+        alignment_int64_array_free(maat_rt->ref_cnt);
+        maat_rt->ref_cnt = NULL;
+    }
+    
+    FREE(maat_rt);
+}
+
+static void maat_runtime_commit(struct maat_runtime *maat_rt, int update_type, 
+                                long long maat_rt_version, struct log_handle *logger)
 {
 	for (size_t i = 0; i < maat_rt->max_table_num; i++) {
 		table_manager_commit_runtime(maat_rt->ref_tbl_mgr, i, update_type, maat_rt_version);
@@ -68,7 +88,7 @@ void maat_runtime_commit(struct maat_runtime *maat_rt, int update_type,
     maat_rt->last_update_time = time(NULL);
 }
 
-void maat_start_cb(long long new_version, int update_type, void *u_param)
+static void maat_start_cb(long long new_version, int update_type, void *u_param)
 {
     size_t i = 0;
     enum table_type table_type = TABLE_TYPE_INVALID;
@@ -101,7 +121,7 @@ void maat_start_cb(long long new_version, int update_type, void *u_param)
     }
 }
 
-int maat_update_cb(const char *table_name, const char *line, void *u_param)
+static int maat_update_cb(const char *table_name, const char *line, void *u_param)
 {
 	if (NULL == table_name || NULL == line || NULL == u_param) {
 		return 0;
@@ -138,7 +158,7 @@ int maat_update_cb(const char *table_name, const char *line, void *u_param)
 	return 0;
 }
 
-long long maat_runtime_rule_num(struct maat_runtime *maat_rt)
+static long long maat_runtime_rule_num(struct maat_runtime *maat_rt)
 {
 	long long total = 0;
 	
@@ -146,14 +166,15 @@ long long maat_runtime_rule_num(struct maat_runtime *maat_rt)
         long long rule_cnt = table_manager_runtime_rule_count(maat_rt->ref_tbl_mgr, i);
 		total += rule_cnt;
         if (rule_cnt != 0) {
-            log_info(maat_rt->logger, MODULE_MAAT_RULE, "table:%d rule count:%lld", i, rule_cnt);
+            log_info(maat_rt->logger, MODULE_MAAT_RULE,
+                     "table:%d rule count:%lld", i, rule_cnt);
         }
 	}
 
 	return total;
 }
 
-void maat_plugin_table_all_callback_finish(struct table_manager *tbl_mgr)
+static void maat_plugin_table_all_callback_finish(struct table_manager *tbl_mgr)
 {
     size_t max_table_cnt = table_manager_table_size(tbl_mgr);
     enum table_type table_type = TABLE_TYPE_INVALID;
@@ -169,7 +190,7 @@ void maat_plugin_table_all_callback_finish(struct table_manager *tbl_mgr)
     }
 }
 
-void maat_plugin_table_garbage_collect_routine(struct table_manager *tbl_mgr)
+static void maat_plugin_table_garbage_collect_routine(struct table_manager *tbl_mgr)
 {
     size_t max_table_cnt = table_manager_table_size(tbl_mgr);
     enum table_type table_type = TABLE_TYPE_INVALID;
@@ -211,7 +232,7 @@ void maat_plugin_table_garbage_collect_routine(struct table_manager *tbl_mgr)
     }
 }
 
-void maat_finish_cb(void *u_param)
+static void maat_finish_cb(void *u_param)
 {
 	struct maat *maat_inst = (struct maat *)u_param;
 
@@ -338,32 +359,13 @@ long long maat_runtime_get_sequence(struct maat_runtime *maat_rt, const char *ke
     return sequence;
 }
 
-void maat_runtime_destroy(struct maat_runtime *maat_rt)
-{
-    if (NULL == maat_rt) {
-        return;
-    }
-    
-    if (maat_rt->sequence_map != NULL) {
-        maat_kv_store_free(maat_rt->sequence_map);
-        maat_rt->sequence_map = NULL;
-    }
-
-    if (maat_rt->ref_cnt != NULL) {
-        alignment_int64_array_free(maat_rt->ref_cnt);
-        maat_rt->ref_cnt = NULL;
-    }
-    
-    FREE(maat_rt);
-}
-
 void garbage_maat_kv_store_free(void *kv_store, void *arg)
 {
     struct maat_kv_store *store = (struct maat_kv_store *)kv_store;
     maat_kv_store_free(store);
 }
 
-void garbage_maat_runtime_destroy(void *maat_runtime, void *arg)
+static void garbage_maat_runtime_destroy(void *maat_runtime, void *arg)
 {
     struct maat_runtime *maat_rt = (struct maat_runtime *)maat_runtime;
     maat_runtime_destroy(maat_rt);

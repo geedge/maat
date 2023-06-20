@@ -28,14 +28,15 @@ struct maat_kv_store
 	struct maat_kv_pair* hash;
 };
 
-void strlowercase(const char* src, size_t src_len, char* dst, size_t dst_sz)
+static void strlowercase(const char* src, size_t src_len, char* dst, size_t dst_sz)
 {
 	for (size_t i = 0; i < src_len && i < dst_sz; i++) {
 		dst[i] = tolower(src[i]);
 	}
 }
 
-struct maat_kv_pair* maat_kv_pair_new(const char* key, size_t keylen, long long value)
+static struct maat_kv_pair *
+maat_kv_pair_new(const char* key, size_t keylen, long long value)
 {	
 	struct maat_kv_pair *kv = ALLOC(struct maat_kv_pair, 1);
 
@@ -48,7 +49,7 @@ struct maat_kv_pair* maat_kv_pair_new(const char* key, size_t keylen, long long 
 	return kv;
 }
 
-void maat_kv_pair_free(struct maat_kv_pair *kv)
+static void maat_kv_pair_free(struct maat_kv_pair *kv)
 {
     if (NULL == kv) {
         return;
@@ -84,8 +85,8 @@ void maat_kv_store_free(struct maat_kv_store *store)
 	FREE(store);
 }
 
-int maat_kv_register_unNull(struct maat_kv_store *store, const char *key,
-                            size_t keylen, long long value)
+static int maat_kv_register_unNull(struct maat_kv_store *store, const char *key,
+                            	   size_t keylen, long long value)
 {
 	if (keylen > MAAT_KV_MAX_KEY_LEN) {
 		return -1;

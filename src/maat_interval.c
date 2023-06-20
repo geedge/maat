@@ -154,7 +154,7 @@ void interval_schema_free(void *interval_schema)
     FREE(interval_schema);
 }
 
-void interval_item_free(struct interval_item *item)
+static void interval_item_free(struct interval_item *item)
 {
     if (NULL == item) {
         return;
@@ -168,7 +168,7 @@ void interval_item_free(struct interval_item *item)
     FREE(item);
 }
 
-void interval_item_free_cb(void *user_ctx, void *data)
+static void interval_item_free_cb(void *user_ctx, void *data)
 {
     struct interval_item *item = (struct interval_item *)data;
     interval_item_free(item);
@@ -239,8 +239,8 @@ void interval_runtime_free(void *interval_runtime)
     FREE(interval_rt);
 }
 
-int interval_runtime_get_district_id(struct interval_runtime *interval_rt,
-                                     const char *district)
+static int interval_runtime_get_district_id(struct interval_runtime *interval_rt,
+                                            const char *district)
 {
     long long district_id = DISTRICT_ANY;
 
@@ -273,7 +273,7 @@ int interval_runtime_set_scan_district(struct interval_runtime *interval_rt,
                                district_len, district_id);
 }
 
-struct interval_item *
+static struct interval_item *
 interval_item_new(struct interval_schema *schema, const char *table_name,
                   const char *line, struct interval_runtime *interval_rt)
 {
@@ -351,7 +351,8 @@ error:
     return NULL;
 }
 
-struct interval_rule interval_item_to_interval_rule(struct interval_item *item)
+static struct interval_rule
+interval_item_to_interval_rule(struct interval_item *item)
 {
     struct interval_rule rule;
 
@@ -363,9 +364,9 @@ struct interval_rule interval_item_to_interval_rule(struct interval_item *item)
     return rule;
 }
 
-int interval_runtime_update_row(struct interval_runtime *interval_rt, char *key,
-                                size_t key_len, struct interval_item *item,
-                                int is_valid)
+static int interval_runtime_update_row(struct interval_runtime *interval_rt,
+                                       char *key, size_t key_len,
+                                       struct interval_item *item, int is_valid)
 {
     int ret = -1;
 

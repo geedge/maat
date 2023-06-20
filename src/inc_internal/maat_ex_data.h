@@ -90,9 +90,6 @@ void *ex_data_runtime_get_ex_data_by_key(struct ex_data_runtime *ex_data_rt,
 void *ex_data_runtime_get_ex_data_by_container(struct ex_data_runtime *ex_data_rt,
                                                struct ex_container *ex_container);
                                                
-void *ex_data_runtime_get_custom_data(struct ex_data_runtime *ex_data_rt, 
-                                      const char *key, size_t key_len);
-
 void ex_data_runtime_garbage_collect_routine(struct ex_data_runtime *ex_data_rt);
 
 #ifdef __cplusplus

@@ -217,8 +217,9 @@ void ip_schema_free(void *ip_schema)
     FREE(ip_schema);
 }
 
-struct ip_item *ip_item_new(struct ip_schema *ip_schema, const char *table_name,
-                            const char *line, struct log_handle *logger)
+static struct ip_item *
+ip_item_new(struct ip_schema *ip_schema, const char *table_name,
+            const char *line, struct log_handle *logger)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
@@ -378,7 +379,7 @@ error:
     return NULL;
 }
 
-void ip_item_free(struct ip_item *item)
+static void ip_item_free(struct ip_item *item)
 {
     if (NULL == item) {
         return;
@@ -387,7 +388,7 @@ void ip_item_free(struct ip_item *item)
     FREE(item);
 }
 
-void ip_item_free_cb(void *user_ctx, void *data)
+static void ip_item_free_cb(void *user_ctx, void *data)
 {
     struct ip_item *item = (struct ip_item *)data;
     ip_item_free(item);
@@ -455,7 +456,7 @@ void ip_runtime_free(void *ip_runtime)
     FREE(ip_rt);
 }
 
-void ip_item_to_ip_rule(struct ip_item *item, struct ip_rule *rule)
+static void ip_item_to_ip_rule(struct ip_item *item, struct ip_rule *rule)
 {
     if (IPv4 == item->addr_type) {
         rule->type = IPv4;
@@ -471,15 +472,15 @@ void ip_item_to_ip_rule(struct ip_item *item, struct ip_rule *rule)
     rule->rule_id = item->item_id;
 }
 
-void ip_item_to_port_rule(struct ip_item *item, struct interval_rule *rule)
+static void ip_item_to_port_rule(struct ip_item *item, struct interval_rule *rule)
 {
     rule->start = item->min_port;
     rule->end = item->max_port;
     rule->result.rule_id = item->item_id;
 }
 
-int ip_runtime_update_row(struct ip_runtime *ip_rt, char *key, size_t key_len, 
-                          struct ip_item *item, int is_valid)
+static int ip_runtime_update_row(struct ip_runtime *ip_rt, char *key, size_t key_len, 
+                                 struct ip_item *item, int is_valid)
 {
     int ret = -1;
     
@@ -680,7 +681,7 @@ long long ip_runtime_ipv6_rule_count(void *ip_runtime)
     return ip_rt->ipv6_rule_num;
 }
 
-int validate_port(struct ip_item *item, uint16_t port, int proto)
+static int validate_port(struct ip_item *item, uint16_t port, int proto)
 {
     uint16_t host_port = ntohs(port);
 
@@ -695,7 +696,7 @@ int validate_port(struct ip_item *item, uint16_t port, int proto)
     return 0;
 }
 
-int validate_proto(struct ip_item *item, int proto)
+static int validate_proto(struct ip_item *item, int proto)
 {
     if (item->proto != -1 && item->proto != proto) {
         return -1;

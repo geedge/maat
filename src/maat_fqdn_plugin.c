@@ -235,8 +235,9 @@ void fqdn_plugin_runtime_free(void *fqdn_plugin_runtime)
     FREE(fqdn_plugin_rt);
 }
 
-int fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema, const char *table_name,
-                                 const char *line, struct log_handle *logger)
+static int fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema,
+                                        const char *table_name, const char *line,
+                                        struct log_handle *logger)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
@@ -276,7 +277,7 @@ int fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema, const char *
     return TAG_MATCH_MATCHED;
 }
 
-struct FQDN_rule *
+static struct FQDN_rule *
 fqdn_plugin_rule_new(const char *line, struct fqdn_plugin_schema *schema,
                      const char *table_name, struct log_handle *logger)
 {
@@ -339,7 +340,7 @@ error:
     return NULL;
 }
 
-void fqdn_plugin_rule_free(struct FQDN_rule *rule)
+static void fqdn_plugin_rule_free(struct FQDN_rule *rule)
 {
     if (NULL == rule) {
         return;
@@ -352,11 +353,11 @@ void fqdn_plugin_rule_free(struct FQDN_rule *rule)
     FREE(rule);
 }
 
-int fqdn_plugin_runtime_update_row(struct fqdn_plugin_runtime *fqdn_plugin_rt,
-                                   const char *table_name, const char *row, 
-                                   const char *key, size_t key_len, 
-                                   struct FQDN_rule *fqdn_plugin_rule, 
-                                   int is_valid)
+static int fqdn_plugin_runtime_update_row(struct fqdn_plugin_runtime *fqdn_plugin_rt,
+                                          const char *table_name, const char *row, 
+                                          const char *key, size_t key_len, 
+                                          struct FQDN_rule *fqdn_plugin_rule, 
+                                          int is_valid)
 {
     int ret = -1;
     struct ex_data_runtime *ex_data_rt = fqdn_plugin_rt->ex_data_rt;
@@ -445,7 +446,7 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
     return 0;
 }
 
-void garbage_fqdn_engine_free(void *fqdn_engine, void *arg)
+static void garbage_fqdn_engine_free(void *fqdn_engine, void *arg)
 {
     struct FQDN_engine *engine = (struct FQDN_engine *)fqdn_engine;
     FQDN_engine_free(engine);
@@ -568,23 +569,6 @@ int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, const char *query
 	}
 
 	return n_result;
-}
-
-void fqdn_plugin_runtime_perf_stat(void *fqdn_plugin_runtime, struct timespec *start, 
-                                   struct timespec *end, int thread_id)
-{
-    if (NULL == fqdn_plugin_runtime || thread_id < 0) {
-        return;
-    }
-
-    struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
-    alignment_int64_array_add(fqdn_plugin_rt->scan_cnt, thread_id, 1);
-
-    if (start != NULL && end != NULL) {
-        long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 +
-                                 (end->tv_nsec - start->tv_nsec);
-        alignment_int64_array_add(fqdn_plugin_rt->scan_cpu_time, thread_id, consume_time);
-    }
 }
 
 long long fqdn_plugin_runtime_scan_count(void *fqdn_plugin_runtime)

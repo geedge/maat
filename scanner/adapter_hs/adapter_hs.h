@@ -31,14 +31,12 @@ enum hs_match_mode {
     HS_MATCH_MODE_EXACTLY = 1,  /* scan data must match pattern exactly */
     HS_MATCH_MODE_PREFIX,       /* pattern must in the head of scan_data */
     HS_MATCH_MODE_SUFFIX,       /* pattern must in the end of scan_data */
-    HS_MATCH_MODE_SUB,           /* pattern must in the range[l_offset, r_offset] of scan_data */
-    HS_MATCH_MODE_MAX
+    HS_MATCH_MODE_SUB           /* pattern must in the range[l_offset, r_offset] of scan_data */
 };
 
 enum hs_pattern_type {
     HS_PATTERN_TYPE_STR = 0,  /* pure literal string */
-    HS_PATTERN_TYPE_REG,      /* regex expression */
-    HS_PATTERN_TYPE_MAX
+    HS_PATTERN_TYPE_REG       /* regex expression */
 };
 
 enum hs_case_sensitive {

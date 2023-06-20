@@ -50,8 +50,8 @@ struct expected_reply {
 	redisReply possible_replies[POSSIBLE_REDIS_REPLY_SIZE];
 };
 
-char *get_foreign_cont_filename(const char *table_name, long long rule_id, 
-                                const char *foreign_key, const char *dir)
+static char *get_foreign_cont_filename(const char *table_name, long long rule_id, 
+                                	   const char *foreign_key, const char *dir)
 {
 	char buffer[512] = {0};
 
@@ -63,8 +63,44 @@ char *get_foreign_cont_filename(const char *table_name, long long rule_id,
 	return filename;
 }
 
-void _get_foregin_keys(struct serial_rule *p_rule, int *foreign_columns, 
-                       int n_foreign, const char *dir, struct log_handle *logger)
+static const char *maat_cmd_find_Nth_column(const char *line, int Nth, int *column_len)
+{
+    size_t i = 0;
+	int j = 0;
+	size_t start=0, end=0;
+	size_t line_len = strlen(line);
+
+	for (i = 0; i < line_len; i++) {
+		if (line[i] != ' ' && line[i] != '\t') {
+			continue;
+		}
+
+		j++;
+		if (j == Nth - 1) {
+			start = i + 1;
+		}
+
+		if(j == Nth) {
+			end = i;
+			break;
+		}
+	}
+
+	if (start == end) {
+		return NULL;
+	}
+
+	if (end == 0) {
+		end = i;
+	}
+
+	*column_len = end - start;
+
+	return line + start;
+}
+
+static void _get_foregin_keys(struct serial_rule *p_rule, int *foreign_columns, 
+                       		  int n_foreign, const char *dir, struct log_handle *logger)
 {
 	int foreign_key_size = 0;
 	p_rule->f_keys = ALLOC(struct foreign_key, n_foreign);
@@ -117,8 +153,8 @@ void _get_foregin_keys(struct serial_rule *p_rule, int *foreign_columns,
 	}
 }
 
-int get_foreign_keys_define(redisContext *ctx, struct serial_rule *rule_list, 
-                            int rule_num, struct maat *maat_inst, const char *dir)
+static int get_foreign_keys_define(redisContext *ctx, struct serial_rule *rule_list, 
+                            	   int rule_num, struct maat *maat_inst, const char *dir)
 {
 	int rule_with_foreign_key = 0;
 
@@ -181,14 +217,13 @@ int maat_cmd_get_foreign_keys_by_prefix(redisContext *ctx, struct serial_rule *r
 	return rule_with_foreign_key;
 }
 
-struct foreign_conts_track
-{
+struct foreign_conts_track {
 	int rule_idx;
 	int foreign_idx;
 };
 
-int _get_maat_redis_value(redisContext *c, struct serial_rule *rule_list, int rule_num,
-                          struct log_handle *logger)
+static int _get_maat_redis_value(redisContext *c, struct serial_rule *rule_list,
+								 int rule_num, struct log_handle *logger)
 {
 	int i = 0;
     int failed_cnt = 0;
@@ -317,9 +352,9 @@ int maat_cmd_get_redis_value(redisContext *c, struct serial_rule *rule_list,
 	return 0;
 }
 
-int get_inc_key_list(long long instance_version, long long target_version, 
-                     redisContext *c, struct serial_rule **list, 
-                     struct log_handle *logger)
+static int get_inc_key_list(long long instance_version, long long target_version, 
+                     		redisContext *c, struct serial_rule **list, 
+                     		struct log_handle *logger)
 {	
 	//Returns all the elements in the sorted set at key with a score that instance_version < score <= redis_version.
 	//The elements are considered to be ordered from low to high scores(instance_version).
@@ -409,7 +444,7 @@ int get_inc_key_list(long long instance_version, long long target_version,
 	return rule_num;
 }
 
-void serial_rule_free(struct serial_rule *s_rule)
+static void serial_rule_free(struct serial_rule *s_rule)
 {
     if (NULL == s_rule) {
         return;
@@ -438,7 +473,7 @@ void serial_rule_free(struct serial_rule *s_rule)
 	FREE(s_rule);
 }
 
-struct serial_rule *serial_rule_clone(const struct serial_rule *s_rule)
+static struct serial_rule *serial_rule_clone(const struct serial_rule *s_rule)
 {
     struct serial_rule *new_rule = ALLOC(struct serial_rule, 1);
 
@@ -462,9 +497,9 @@ struct serial_rule *serial_rule_clone(const struct serial_rule *s_rule)
     return new_rule;
 }
 
-int recovery_history_version(const struct serial_rule *current, int current_num, 
-                             const struct serial_rule *changed, int changed_num, 
-                             struct serial_rule **history_result)
+static int recovery_history_version(const struct serial_rule *current, int current_num, 
+                             		const struct serial_rule *changed, int changed_num, 
+                             		struct serial_rule **history_result)
 {
 	int i = 0;
     int ret = 0;
@@ -739,15 +774,16 @@ FULL_UPDATE:
 	return rule_num ;
 }
 
-void _get_foreign_conts(redisContext *c, struct serial_rule *rule_list, 
-                        int rule_num, int print_fn, struct log_handle *logger)
+static void _get_foreign_conts(redisContext *c, struct serial_rule *rule_list, 
+                        	   int rule_num, int print_fn, struct log_handle *logger)
 {
 	int i = 0;
     int j = 0;
 	UNUSED int ret = 0;
 	int key_num = 0;
 	struct serial_rule *s_rule = NULL;
-    struct foreign_conts_track *track = ALLOC(struct foreign_conts_track, rule_num * MAX_FOREIGN_CLMN_NUM); 
+    struct foreign_conts_track *track = ALLOC(struct foreign_conts_track,
+											  rule_num * MAX_FOREIGN_CLMN_NUM); 
 
 	for (i = 0; i < rule_num; i++) {
 		s_rule = rule_list + i;
@@ -851,7 +887,7 @@ void maat_cmd_get_foreign_conts(redisContext *c, struct serial_rule *rule_list,
 	}
 }
 
-int invalidate_line(char *line, int column_seq)
+static int invalidate_line(char *line, int column_seq)
 {
     if (NULL == line || column_seq < 0) {
         return -1;
@@ -898,8 +934,8 @@ void maat_cmd_rewrite_table_line_with_foreign(struct serial_rule *s_rule)
 	s_rule->table_line = rewrite_line;
 }
 
-void expected_reply_add(struct expected_reply* expected, int s_rule_seq, 
-                        int type, long long integer)
+static void expected_reply_add(struct expected_reply* expected, int s_rule_seq, 
+                        	   int type, long long integer)
 {
 	int i = expected->possible_reply_num;
 	assert(i < POSSIBLE_REDIS_REPLY_SIZE);
@@ -909,7 +945,8 @@ void expected_reply_add(struct expected_reply* expected, int s_rule_seq,
 	expected->possible_reply_num++;
 }
 
-int redlock_try_lock(redisContext *c, const char *lock_name, long long expire)
+static int redlock_try_lock(redisContext *c, const char *lock_name,
+							long long expire)
 {
 	int ret = 0;
     
@@ -927,9 +964,9 @@ int redlock_try_lock(redisContext *c, const char *lock_name, long long expire)
 	return ret;
 }
 
-long long exec_serial_rule_begin(redisContext* c, size_t rule_num, 
-                                 size_t renew_rule_num, int *renew_allowed, 
-                                 long long *transaction_version)
+static long long exec_serial_rule_begin(redisContext* c, size_t rule_num, 
+                                 		size_t renew_rule_num, int *renew_allowed, 
+                                 		long long *transaction_version)
 {
 	int ret = -1;
 	redisReply *data_reply = NULL;
@@ -961,7 +998,7 @@ long long exec_serial_rule_begin(redisContext* c, size_t rule_num,
 	return ret;
 }
 
-void redlock_unlock(redisContext *c, const char *lock_name)
+static void redlock_unlock(redisContext *c, const char *lock_name)
 {
 	redisReply *reply = maat_cmd_wrap_redis_command(c, "DEL %s", lock_name);
 	freeReplyObject(reply);
@@ -977,9 +1014,9 @@ const char* lua_exec_done=
 "redis.call(\'del\', KEYS[4]);"
 "redis.call(\'zadd\', KEYS[3], ARGV[1], maat_version);"
 "return maat_version;";
-redisReply* exec_serial_rule_end(redisContext *c, const char *transaction_list, 
-                                 long long server_time, int renew_allowed, 
-                                 struct expected_reply *expect_reply,  size_t *cnt)
+static redisReply* exec_serial_rule_end(redisContext *c, const char *transaction_list, 
+                                 		long long server_time, int renew_allowed, 
+                                 		struct expected_reply *expect_reply,  size_t *cnt)
 {
 	redisReply *data_reply = NULL;
 
@@ -1007,10 +1044,10 @@ redisReply* exec_serial_rule_end(redisContext *c, const char *transaction_list,
 	return data_reply;
 }
 
-void exec_serial_rule(redisContext *c,	const char *transaction_list, 
-                      struct serial_rule *s_rule, size_t rule_num,  
-                      struct expected_reply *expect_reply, size_t *cnt, 
-                      size_t offset, int renew_allowed)
+static void exec_serial_rule(redisContext *c,	const char *transaction_list, 
+                      		struct serial_rule *s_rule, size_t rule_num,  
+                      		struct expected_reply *expect_reply, size_t *cnt, 
+                      		size_t offset, int renew_allowed)
 {
     size_t i = 0;
     size_t append_cmd_cnt = 0;
@@ -1123,7 +1160,8 @@ void exec_serial_rule(redisContext *c,	const char *transaction_list,
 	}
 }
 
-int mr_operation_success(redisReply *actual_reply, struct expected_reply *expected)
+static int mr_operation_success(redisReply *actual_reply,
+								struct expected_reply *expected)
 {
 	if (expected->possible_replies[0].type != actual_reply->type) {
 		return 0;
@@ -1252,7 +1290,7 @@ error_out:
 	return success_cnt;
 }
 
-void cleanup_update_status(redisContext *c, struct log_handle *logger)
+static void cleanup_update_status(redisContext *c, struct log_handle *logger)
 {
 	long long version_upper_bound = 0;
     long long version_lower_bound = 0;
@@ -1323,7 +1361,7 @@ error_out:
 	reply = NULL;
 }
 
-void check_maat_expiration(redisContext *c, struct log_handle *logger)
+static void check_maat_expiration(redisContext *c, struct log_handle *logger)
 {
 	UNUSED int ret = 0;
 

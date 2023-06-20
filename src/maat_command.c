@@ -107,7 +107,8 @@ long long maat_cmd_read_redis_integer(const redisReply *reply)
 	return 0;
 }
 
-int redis_flushDB(redisContext *ctx, int db_index, struct log_handle *logger)
+static int redis_flushDB(redisContext *ctx, int db_index,
+						 struct log_handle *logger)
 {
 	long long maat_redis_version = 0;
 	
@@ -184,7 +185,7 @@ static int connect_redis_for_write(struct source_redis_ctx *redis_ctx,
 	}
 }
 
-redisContext *get_redis_ctx_for_write(struct maat *maat_inst)
+static redisContext *get_redis_ctx_for_write(struct maat *maat_inst)
 {
 	if (NULL == maat_inst->opts.redis_ctx.write_ctx) {
 		int ret = connect_redis_for_write(&(maat_inst->opts.redis_ctx),
@@ -274,42 +275,6 @@ long long maat_cmd_redis_server_time_s(redisContext *c)
 	}
 
 	return server_time;
-}
-
-const char *maat_cmd_find_Nth_column(const char *line, int Nth, int *column_len)
-{
-    size_t i = 0;
-	int j = 0;
-	size_t start=0, end=0;
-	size_t line_len = strlen(line);
-
-	for (i = 0; i < line_len; i++) {
-		if (line[i] != ' ' && line[i] != '\t') {
-			continue;
-		}
-
-		j++;
-		if (j == Nth - 1) {
-			start = i + 1;
-		}
-
-		if(j == Nth) {
-			end = i;
-			break;
-		}
-	}
-
-	if (start == end) {
-		return NULL;
-	}
-
-	if (end == 0) {
-		end = i;
-	}
-
-	*column_len = end - start;
-
-	return line + start;
 }
 
 int maat_cmd_wrap_redis_get_reply(redisContext *c, redisReply **reply)

@@ -334,10 +334,10 @@ void plugin_runtime_free(void *plugin_runtime)
     FREE(plugin_rt);
 }
 
-int plugin_runtime_update_row(struct plugin_runtime *plugin_rt, 
-                              struct plugin_schema *plugin_schema, 
-                              const char *table_name, const char *row, 
-                              const char *key, size_t key_len, int is_valid)
+static int plugin_runtime_update_row(struct plugin_runtime *plugin_rt, 
+                                     struct plugin_schema *plugin_schema, 
+                                     const char *table_name, const char *row, 
+                                     const char *key, size_t key_len, int is_valid)
 {
     int ret = -1;
     struct ex_container_schema *container_schema = &(plugin_schema->container_schema);
@@ -380,8 +380,9 @@ int plugin_runtime_update_row(struct plugin_runtime *plugin_rt,
     return 0;
 }
 
-int plugin_accept_tag_match(struct plugin_schema *schema, const char *table_name,
-                            const char *line, struct log_handle *logger)
+static int plugin_accept_tag_match(struct plugin_schema *schema,
+                                   const char *table_name, const char *line,
+                                   struct log_handle *logger)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
@@ -422,9 +423,10 @@ int plugin_accept_tag_match(struct plugin_schema *schema, const char *table_name
     return TAG_MATCH_MATCHED;
 }
 
-int plugin_table_line_get_key(struct plugin_schema *schema, const char *table_name,
-                           const char *line, char *dst_key, size_t *dst_key_len,
-                           struct log_handle *logger)
+static int plugin_table_line_get_key(struct plugin_schema *schema,
+                                     const char *table_name, const char *line,
+                                     char *dst_key, size_t *dst_key_len,
+                                     struct log_handle *logger)
 {
     size_t key_offset = 0, key_len = 0;
     

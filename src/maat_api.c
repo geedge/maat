@@ -267,7 +267,7 @@ int maat_options_set_logger(struct maat_options *opts, const char *log_path,
     return 0;
 }
 
-void _maat_free(struct maat *maat_inst)
+static void _maat_free(struct maat *maat_inst)
 {
     if (NULL == maat_inst) {
         return;
@@ -504,11 +504,11 @@ int maat_table_callback_register(struct maat *maat_inst, int table_id,
     return 0;
 }
 
-int compile_table_ex_schema_register(struct maat *maat_inst, int table_id,
-                                     maat_ex_new_func_t *new_func,
-                                     maat_ex_free_func_t *free_func,
-                                     maat_ex_dup_func_t *dup_func,
-                                     long argl, void *argp)
+static int compile_table_ex_schema_register(struct maat *maat_inst, int table_id,
+                                            maat_ex_new_func_t *new_func,
+                                            maat_ex_free_func_t *free_func,
+                                            maat_ex_dup_func_t *dup_func,
+                                            long argl, void *argp)
 {
     void *schema = table_manager_get_schema(maat_inst->tbl_mgr, table_id);
     assert(schema != NULL);
@@ -530,11 +530,12 @@ int compile_table_ex_schema_register(struct maat *maat_inst, int table_id,
     return 0;    
 }
 
-int generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int table_id,
-									   maat_ex_new_func_t *new_func,
-									   maat_ex_free_func_t *free_func,
-									   maat_ex_dup_func_t *dup_func,
-									   long argl, void *argp, struct log_handle *logger)
+static int generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int table_id,
+									          maat_ex_new_func_t *new_func,
+									          maat_ex_free_func_t *free_func,
+									          maat_ex_dup_func_t *dup_func,
+									          long argl, void *argp,
+                                              struct log_handle *logger)
 {
     void *schema = table_manager_get_schema(tbl_mgr, table_id);
     if (NULL == schema) {
@@ -578,9 +579,9 @@ int generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int table_
     return ret;
 }
 
-void plugin_runtime_commit_ex_schema(void *runtime, void *schema,
-                                     const char *table_name,
-                                     int valid_column)
+static void plugin_runtime_commit_ex_schema(void *runtime, void *schema,
+                                            const char *table_name,
+                                            int valid_column)
 {
     struct ex_container_schema *container_schema = NULL;
     struct ex_data_runtime *ex_data_rt = NULL;
@@ -599,9 +600,9 @@ void plugin_runtime_commit_ex_schema(void *runtime, void *schema,
     plugin_runtime_commit(runtime, table_name, 0);
 }
 
-void ip_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
-                                        const char *table_name,
-                                        int valid_column)
+static void ip_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
+                                               const char *table_name,
+                                               int valid_column)
 {
     struct ex_container_schema *container_schema = NULL;
     struct ex_data_runtime *ex_data_rt = NULL;
@@ -620,9 +621,9 @@ void ip_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
     ip_plugin_runtime_commit(runtime, table_name, 0);
 }
 
-void fqdn_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
-                                          const char *table_name,
-                                          int valid_column)
+static void fqdn_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
+                                                 const char *table_name,
+                                                 int valid_column)
 {
     struct ex_container_schema *container_schema = NULL;
     struct ex_data_runtime *ex_data_rt = NULL;
@@ -641,9 +642,9 @@ void fqdn_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
     fqdn_plugin_runtime_commit(runtime, table_name, 0);
 }
 
-void bool_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
-                                          const char *table_name,
-                                          int valid_column)
+static void bool_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
+                                                 const char *table_name,
+                                                 int valid_column)
 {
     struct ex_container_schema *container_schema = NULL;
     struct ex_data_runtime *ex_data_rt = NULL;
@@ -662,9 +663,11 @@ void bool_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
     bool_plugin_runtime_commit(runtime, table_name, 0);
 }
 
-int generic_plugin_runtime_commit_ex_schema(void *runtime, void *schema, const char *table_name,
-                                            enum table_type table_type, int valid_column,
-                                            struct log_handle *logger)
+static int generic_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
+                                                   const char *table_name,
+                                                   enum table_type table_type,
+                                                   int valid_column,
+                                                   struct log_handle *logger)
 {
     if (NULL == runtime || NULL == schema || valid_column < 0) {
         log_error(logger, MODULE_MAAT_API, 
@@ -695,12 +698,12 @@ int generic_plugin_runtime_commit_ex_schema(void *runtime, void *schema, const c
     return 0;
 }
 
-int generic_plugin_table_ex_schema_register(struct maat *maat_inst, 
-                                            const char *table_name, int table_id,
-									        maat_ex_new_func_t *new_func,
-									        maat_ex_free_func_t *free_func,
-									        maat_ex_dup_func_t *dup_func,
-									        long argl, void *argp)
+static int generic_plugin_table_ex_schema_register(struct maat *maat_inst, 
+                                                   const char *table_name, int table_id,
+									               maat_ex_new_func_t *new_func,
+									               maat_ex_free_func_t *free_func,
+									               maat_ex_dup_func_t *dup_func,
+									               long argl, void *argp)
 {
     int ret = generic_plugin_table_set_ex_schema(maat_inst->tbl_mgr, table_id, 
                                                  new_func, free_func, dup_func,
@@ -905,16 +908,16 @@ static inline int scan_status_should_compile_NOT(struct maat_state *state)
     return 0;
 }
 
-size_t hit_group_to_compile(void *compile_runtime, long long *compile_ids,
-                            size_t compile_ids_size, struct maat_state *state)
+static size_t hit_group_to_compile(void *compile_runtime, long long *compile_ids,
+                                   size_t compile_ids_size, struct maat_state *state)
 {
     size_t n_hit_compile = compile_runtime_match((struct compile_runtime *)compile_runtime,
                                                  compile_ids, compile_ids_size, state);
     return n_hit_compile;
 }
 
-int flag_scan(struct table_manager *tbl_mgr, int thread_id, long long flag,
-              int phy_table_id, int vtable_id, struct maat_state *state)
+static int flag_scan(struct table_manager *tbl_mgr, int thread_id, long long flag,
+                     int phy_table_id, int vtable_id, struct maat_state *state)
 {
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, phy_table_id);
     if (table_type == TABLE_TYPE_FLAG_PLUS && 
@@ -942,8 +945,8 @@ int flag_scan(struct table_manager *tbl_mgr, int thread_id, long long flag,
     return group_hit_cnt;
 }
 
-int interval_scan(struct table_manager *tbl_mgr, int thread_id, long long integer,
-                  int phy_table_id, int vtable_id, struct maat_state *state)
+static int interval_scan(struct table_manager *tbl_mgr, int thread_id, long long integer,
+                         int phy_table_id, int vtable_id, struct maat_state *state)
 {
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, phy_table_id);
@@ -972,9 +975,9 @@ int interval_scan(struct table_manager *tbl_mgr, int thread_id, long long intege
     return group_hit_cnt;
 }
 
-int ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_addr,
-              uint16_t port, int proto, int phy_table_id, int vtable_id, 
-              struct maat_state *state)
+static int ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_addr,
+                     uint16_t port, int proto, int phy_table_id, int vtable_id, 
+                     struct maat_state *state)
 {
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, phy_table_id);
@@ -999,9 +1002,9 @@ int ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_addr,
     return group_hit_cnt;
 }
 
-int ipv6_scan(struct table_manager *tbl_mgr, int thread_id,
-              uint8_t *ip_addr, uint16_t port, int proto, 
-              int phy_table_id, int vtable_id, struct maat_state *state)
+static int ipv6_scan(struct table_manager *tbl_mgr, int thread_id,
+                     uint8_t *ip_addr, uint16_t port, int proto, 
+                     int phy_table_id, int vtable_id, struct maat_state *state)
 {
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, phy_table_id);
@@ -1025,9 +1028,9 @@ int ipv6_scan(struct table_manager *tbl_mgr, int thread_id,
     return group_hit_cnt;
 }
 
-int string_scan(struct table_manager *tbl_mgr, int thread_id,
-                const char *data, size_t data_len, int phy_table_id,
-                int vtable_id, struct maat_state *state)
+static int string_scan(struct table_manager *tbl_mgr, int thread_id,
+                       const char *data, size_t data_len, int phy_table_id,
+                       int vtable_id, struct maat_state *state)
 {
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, phy_table_id);
     if (table_type == TABLE_TYPE_EXPR_PLUS && 
@@ -1056,8 +1059,8 @@ int string_scan(struct table_manager *tbl_mgr, int thread_id,
     return group_hit_cnt;
 }
 
-int expr_stream_scan(struct maat_stream *stream, const char *data,
-                     size_t data_len, struct maat_state *state)
+static int expr_stream_scan(struct maat_stream *stream, const char *data,
+                            size_t data_len, struct maat_state *state)
 {
     if (NULL == stream || NULL == data) {
         return 0;
@@ -1092,8 +1095,8 @@ int expr_stream_scan(struct maat_stream *stream, const char *data,
     return group_hit_cnt;
 }
 
-size_t group_to_compile(struct maat *maat_inst, long long *results, size_t n_result,
-                        struct maat_state *state)
+static size_t group_to_compile(struct maat *maat_inst, long long *results,
+                               size_t n_result, struct maat_state *state)
 {
     int compile_table_id = table_manager_get_default_compile_table_id(maat_inst->tbl_mgr);
 

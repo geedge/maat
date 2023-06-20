@@ -86,9 +86,9 @@ struct translate_command {
 	int default_int;
 };
 
-struct iris_table *query_table_info(struct iris_description *p_iris, 
-                                    const char *table_name, 
-                                    enum table_type table_type)
+static struct iris_table *query_table_info(struct iris_description *p_iris, 
+                                    	   const char *table_name, 
+                                    	   enum table_type table_type)
 {
     if (NULL == p_iris || NULL == table_name || 
         table_type == TABLE_TYPE_INVALID) {
@@ -112,7 +112,7 @@ struct iris_table *query_table_info(struct iris_description *p_iris,
 	return table_info;
 }
 
-void free_iris_table_info(void *p)
+static void free_iris_table_info(void *p)
 {
 	struct iris_table *table = (struct iris_table *)p;
     if (table != NULL) {
@@ -121,11 +121,11 @@ void free_iris_table_info(void *p)
     FREE(table);
 }
 
-int set_iris_descriptor(const char *json_file, cJSON *json,
-                        const char *encrypt_key, const char *encrypt_algo, 
-                        const char *compile_tn, const char *group2compile_tn,
-                        const char* group2group_tn, redisContext *redis_write_ctx,
-                        struct iris_description *iris_cfg)
+static int set_iris_descriptor(const char *json_file, cJSON *json,
+                        	   const char *encrypt_key, const char *encrypt_algo, 
+                        	   const char *compile_tn, const char *group2compile_tn,
+                        	   const char* group2group_tn, redisContext *redis_write_ctx,
+                        	   struct iris_description *iris_cfg)
 {
 	memset(iris_cfg, 0, sizeof(struct iris_description));
 	snprintf(iris_cfg->tmp_iris_dir, sizeof(iris_cfg->tmp_iris_dir),
@@ -191,7 +191,7 @@ int set_iris_descriptor(const char *json_file, cJSON *json,
 	return 0;
 }
 
-void clear_iris_descriptor(struct iris_description *iris_cfg)
+static void clear_iris_descriptor(struct iris_description *iris_cfg)
 {
 	if (iris_cfg->group_name_map != NULL) {
         struct group_info *node = NULL;
@@ -218,7 +218,7 @@ void clear_iris_descriptor(struct iris_description *iris_cfg)
 	return;
 }
 
-int create_tmp_dir(struct iris_description *p)
+static int create_tmp_dir(struct iris_description *p)
 {
 	if ((access(p->tmp_iris_dir,F_OK)) < 0) {
 		if ((mkdir(p->tmp_iris_dir, 0777)) < 0) {
@@ -235,9 +235,9 @@ int create_tmp_dir(struct iris_description *p)
 	return 0;
 }
 
-int write_plugin_line(cJSON *plug_table_json, int sequence,
-                      struct iris_description *p_iris, 
-                      struct log_handle *logger)
+static int write_plugin_line(cJSON *plug_table_json, int sequence,
+                      		 struct iris_description *p_iris, 
+                      		 struct log_handle *logger)
 {
 	cJSON *item = cJSON_GetObjectItem(plug_table_json, "table_name");
 	if (NULL == item || item->type != cJSON_String) {
@@ -347,9 +347,9 @@ static int get_region_seq(struct iris_description *iris_cfg)
 	return sequence;
 }
 
-int direct_write_rule(cJSON *json, struct maat_kv_store *str2int, 
-                      struct translate_command *cmd, int cmd_cnt, 
-                      struct iris_table *table, struct log_handle *logger)
+static int direct_write_rule(cJSON *json, struct maat_kv_store *str2int, 
+                      		 struct translate_command *cmd, int cmd_cnt, 
+                      		 struct iris_table *table, struct log_handle *logger)
 {
 	int i = 0;
     int ret = -1;
@@ -420,8 +420,8 @@ error_out:
 	return ret;
 }
 
-int write_flag_line(cJSON *region_json, struct iris_description *p_iris, 
-                    struct iris_table *table, struct log_handle *logger)
+static int write_flag_line(cJSON *region_json, struct iris_description *p_iris, 
+                    	   struct iris_table *table, struct log_handle *logger)
 {
     struct translate_command json_cmd[MAX_COLUMN_NUM];
 	int cmd_cnt = 0;
@@ -457,8 +457,8 @@ int write_flag_line(cJSON *region_json, struct iris_description *p_iris,
                              json_cmd, cmd_cnt, table, logger);
 }
 
-int write_expr_line(cJSON *region_json, struct iris_description *p_iris,
-                    struct iris_table *table, struct log_handle *logger)
+static int write_expr_line(cJSON *region_json, struct iris_description *p_iris,
+                    	   struct iris_table *table, struct log_handle *logger)
 {
 	struct translate_command json_cmd[MAX_COLUMN_NUM];
 	int cmd_cnt = 0;
@@ -505,8 +505,8 @@ int write_expr_line(cJSON *region_json, struct iris_description *p_iris,
                              json_cmd, cmd_cnt, table, logger);
 }
 
-int write_ip_plus_line(cJSON *region_json, struct iris_description *p_iris,
-                       struct iris_table *table, struct log_handle *logger)
+static int write_ip_plus_line(cJSON *region_json, struct iris_description *p_iris,
+                       		  struct iris_table *table, struct log_handle *logger)
 {
 	struct translate_command json_cmd[MAX_COLUMN_NUM];
 	int cmd_cnt = 0;
@@ -575,8 +575,8 @@ int write_ip_plus_line(cJSON *region_json, struct iris_description *p_iris,
                              json_cmd, cmd_cnt, table, logger);
 }
 
-int write_intval_line(cJSON *region_json, struct iris_description *p_iris,
-                      struct iris_table *table, struct log_handle *logger)
+static int write_intval_line(cJSON *region_json, struct iris_description *p_iris,
+                      		 struct iris_table *table, struct log_handle *logger)
 {
 	struct translate_command json_cmd[MAX_COLUMN_NUM];
 	int cmd_cnt = 0;
@@ -612,8 +612,8 @@ int write_intval_line(cJSON *region_json, struct iris_description *p_iris,
                              json_cmd, cmd_cnt, table, logger);
 }
 
-int write_region_rule(cJSON *region_json, int compile_id, int group_id,
-                      struct iris_description *p_iris, struct log_handle *logger)
+static int write_region_rule(cJSON *region_json, int compile_id, int group_id,
+                      		 struct iris_description *p_iris, struct log_handle *logger)
 {
     cJSON *item = cJSON_GetObjectItem(region_json, "table_name");
 	if (NULL == item || item->type != cJSON_String) {
@@ -682,10 +682,10 @@ int write_region_rule(cJSON *region_json, int compile_id, int group_id,
 	return ret;
 }
 
-int write_group2compile_line(int group_id, int compile_id, int group_not_flag,
-                             int clause_index, const char *vtable, 
-                             struct iris_description *p_iris,
-                             struct iris_table *g2c_table)
+static int write_group2compile_line(int group_id, int compile_id, int group_not_flag,
+                             		int clause_index, const char *vtable, 
+                             		struct iris_description *p_iris,
+                             		struct iris_table *g2c_table)
 {
 	char buff[4096] = {0};
     struct iris_table *table = NULL;
@@ -708,8 +708,8 @@ int write_group2compile_line(int group_id, int compile_id, int group_not_flag,
 	return 0;
 }
 
-int write_group2group_line(int group_id, int super_group_id, int is_exclude,
-                           struct iris_description *p_iris)
+static int write_group2group_line(int group_id, int super_group_id, int is_exclude,
+                           		  struct iris_description *p_iris)
 {
 	char buff[4096] = {0};
 	struct iris_table *table = p_iris->group2group_table;
@@ -726,10 +726,10 @@ int write_group2group_line(int group_id, int super_group_id, int is_exclude,
 	return 0;
 }
 
-int write_group_rule(cJSON *group_json, int parent_id, 
-                     int parent_type, int tracking_compile_id, 
-                     int Nth_group, struct iris_description *p_iris, 
-                     struct log_handle *logger)
+static int write_group_rule(cJSON *group_json, int parent_id, 
+                     		int parent_type, int tracking_compile_id, 
+                     		int Nth_group, struct iris_description *p_iris, 
+                     		struct log_handle *logger)
 {
     int ret = 0;
     int group_not_flag = 0;
@@ -842,8 +842,8 @@ int write_group_rule(cJSON *group_json, int parent_id,
 	return 0;
 }
 
-int write_compile_line(cJSON *compile, struct iris_description *p_iris,
-                       struct log_handle *logger)
+static int write_compile_line(cJSON *compile, struct iris_description *p_iris,
+                       		  struct log_handle *logger)
 {
 	cJSON *item=cJSON_GetObjectItem(compile, "compile_id");
 	if (item->type != cJSON_Number) {
@@ -948,7 +948,8 @@ int write_compile_line(cJSON *compile, struct iris_description *p_iris,
 	return compile_id;
 }
 
-void write_table_idx(struct iris_description *p_iris, struct iris_table *table)
+static void write_table_idx(struct iris_description *p_iris,
+							struct iris_table *table)
 {
 	char line_cnt_str[32] = {0};
     char err_str[256] = {0};
@@ -966,24 +967,25 @@ void write_table_idx(struct iris_description *p_iris, struct iris_table *table)
         unsigned char *encrypt_buff = NULL;
         size_t encrypt_buff_sz = 0;
 		ret = crypt_memory(buff, table_file_sz, &encrypt_buff, 
-                                &encrypt_buff_sz, p_iris->encrypt_key, 
-                                p_iris->encrypt_algo, 1, err_str, sizeof(err_str));
+                           &encrypt_buff_sz, p_iris->encrypt_key, 
+                           p_iris->encrypt_algo, 1, err_str, sizeof(err_str));
 		assert(ret == 0);
 		fwrite(encrypt_buff, encrypt_buff_sz, 1, table_fp);
-		fprintf(p_iris->idx_fp, "%s\t%d\t%s\t%s\n", table->table_name, table->line_count, 
-                table->table_path, p_iris->encrypt_algo);
+		fprintf(p_iris->idx_fp, "%s\t%d\t%s\t%s\n", table->table_name,
+				table->line_count, table->table_path, p_iris->encrypt_algo);
 		FREE(encrypt_buff);
 	} else {
 		fwrite(buff, table_file_sz, 1, table_fp);		
-		fprintf(p_iris->idx_fp, "%s\t%d\t%s\n", table->table_name, table->line_count, 
-                table->table_path);
+		fprintf(p_iris->idx_fp, "%s\t%d\t%s\n", table->table_name,
+				table->line_count, table->table_path);
 	}
 
 	fclose(table_fp);
 	FREE(buff);
 }
 
-int write_index_file(struct iris_description *p_iris, struct log_handle *logger)
+static int write_index_file(struct iris_description *p_iris,
+							struct log_handle *logger)
 {
 	p_iris->idx_fp = fopen(p_iris->index_path, "w");
 	if (NULL == p_iris->idx_fp) {
@@ -1005,8 +1007,8 @@ int write_index_file(struct iris_description *p_iris, struct log_handle *logger)
 	return 0;
 }
 
-int write_iris(cJSON *json, struct iris_description *p_iris, 
-               struct log_handle *logger)
+static int write_iris(cJSON *json, struct iris_description *p_iris, 
+               		  struct log_handle *logger)
 {
 	int i=0;
 	int ret=0;

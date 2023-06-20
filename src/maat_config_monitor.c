@@ -33,8 +33,8 @@ struct cm_table_info_t
 	char encrypt_algo[NAME_MAX];
 };
 
-int cm_read_cfg_index_file(const char* path, struct cm_table_info_t* idx, int size,
-                           struct log_handle *logger)
+static int cm_read_cfg_index_file(const char *path, struct cm_table_info_t *idx,
+								  int size, struct log_handle *logger)
 {
 	int ret = 0;
 	int i = 0;
@@ -72,7 +72,7 @@ int cm_read_cfg_index_file(const char* path, struct cm_table_info_t* idx, int si
 	return i;
 }
 
-const char *path2filename(const char *path)
+static const char *path2filename(const char *path)
 {
 	int i = 0;
 	for (i = strlen(path);i > 0;i--) {
@@ -83,8 +83,8 @@ const char *path2filename(const char *path)
 	return path + i + 1;
 }
 
-char *read_nxt_line_from_buff(const char *buff, size_t buff_size, 
-                              size_t *offset, char *line, int line_size)
+static char *read_nxt_line_from_buff(const char *buff, size_t buff_size, 
+                              		 size_t *offset, char *line, int line_size)
 {
 	int this_offset=0;
 	const char* p;
@@ -110,9 +110,10 @@ char *read_nxt_line_from_buff(const char *buff, size_t buff_size,
 	return line;
 }
 
-int cm_read_table_file(struct cm_table_info_t *index,
-						int (*update_fn)(const char *, const char *, void *),
-						void *u_param, const char *dec_key, struct log_handle *logger)
+static int cm_read_table_file(struct cm_table_info_t *index,
+							  int (*update_fn)(const char *, const char *, void *),
+							  void *u_param, const char *dec_key,
+							  struct log_handle *logger)
 {
 	int ret = 0;
     size_t file_sz = 0;
@@ -123,7 +124,8 @@ int cm_read_table_file(struct cm_table_info_t *index,
         //JSON file has been encrypted
         if (NULL == dec_key || 0 == strlen(dec_key)) {
             log_error(logger, MODULE_CONFIG_MONITOR, 
-                      "update error, no key to decrypt %s.", index->cfg_path);
+                      "update error, no key to decrypt %s.",
+					  index->cfg_path);
             return -1;
         }
 
@@ -132,7 +134,8 @@ int cm_read_table_file(struct cm_table_info_t *index,
                           sizeof(error_string));
         if (ret < 0) {
             log_error(logger, MODULE_CONFIG_MONITOR,
-                      "update error, decrypt %s failed: %s", index->cfg_path, error_string);
+                      "update error, decrypt %s failed: %s",
+					  index->cfg_path, error_string);
             return -1;
         }
     } else {
@@ -154,7 +157,8 @@ int cm_read_table_file(struct cm_table_info_t *index,
 
 	if(cfg_num != index->cfg_num) {
         FREE(file_buff);
-        log_error(logger, MODULE_CONFIG_MONITOR, "[%s:%d] file %s config num not matched",
+        log_error(logger, MODULE_CONFIG_MONITOR,
+				  "[%s:%d] file %s config num not matched",
                   __FUNCTION__, __LINE__, index->cfg_path);
 		return -1;
 	}
@@ -162,15 +166,18 @@ int cm_read_table_file(struct cm_table_info_t *index,
 	for (int i = 0; i < cfg_num; i++) {
 		line[sizeof(line) - 1] = '\0';
 
-		char *ret_str = read_nxt_line_from_buff(file_buff, file_sz, &file_offset, line, sizeof(line));
+		char *ret_str = read_nxt_line_from_buff(file_buff, file_sz, &file_offset,
+												line, sizeof(line));
 		if (ret_str == NULL) {
-			log_error(logger, MODULE_CONFIG_MONITOR, "[%s:%d] file %s line_num %d less than claimed %d",
+			log_error(logger, MODULE_CONFIG_MONITOR,
+					  "[%s:%d] file %s line_num %d less than claimed %d",
                        __FUNCTION__, __LINE__, index->cfg_path, i, cfg_num);
 			break;
 		}
 
 		if(line[sizeof(line) - 1] != '\0') {
-			log_error(logger, MODULE_CONFIG_MONITOR, "[%s:%d] line size more than %u at of file %s:%d",
+			log_error(logger, MODULE_CONFIG_MONITOR,
+					  "[%s:%d] line size more than %u at of file %s:%d",
                        __FUNCTION__, __LINE__, sizeof(line), index->cfg_path, i);
 			continue;
 		}
@@ -222,7 +229,8 @@ int my_scandir(const char *dir, struct dirent ***namelist,
 		n++;
 		if (n >= DIR_ENT_SIZE) {
 			DIR_ENT_SIZE += ENLARGE_STEP;
-            struct dirent **tmp_list = (struct dirent **)realloc((void*)list, DIR_ENT_SIZE * sizeof(struct dirent *));
+            struct dirent **tmp_list = (struct dirent **)realloc((void*)list,
+										DIR_ENT_SIZE * sizeof(struct dirent *));
             if (tmp_list != NULL) {
                 list = tmp_list;
             } else {
@@ -243,49 +251,57 @@ int my_scandir(const char *dir, struct dirent ***namelist,
 	return n; 
 }
 
-int filter_fn(const struct dirent *ent)
+static int filter_fn(const struct dirent *ent)
 {
     return (strncmp(ent->d_name,"full_config_index",strlen("full_config_index")) == 0 ||
    	        strncmp(ent->d_name,"inc_config_index",strlen("inc_config_index")) == 0);
 }
 
-int get_new_idx_path(long long current_version, const char *file_dir, 
-                     char ***idx_path, size_t *idx_num, struct log_handle *logger)
+static int get_new_idx_path(long long current_version, const char *file_dir, 
+                     	    char ***idx_path, size_t *idx_num,
+							struct log_handle *logger)
 {
 	struct dirent **namelist = NULL;
 	int update_type = MAAT_UPDATE_TYPE_INVALID;
 	
-	int n = my_scandir(file_dir, &namelist, filter_fn, (int (*)(const void*, const void*))alphasort);
+	int n = my_scandir(file_dir, &namelist, filter_fn,
+					   (int (*)(const void*, const void*))alphasort);
 	if (n < 0) {
-		log_error(logger, MODULE_CONFIG_MONITOR, "[%s:%d] scan dir error", __FUNCTION__, __LINE__);
+		log_error(logger, MODULE_CONFIG_MONITOR,
+				  "[%s:%d] scan dir error", __FUNCTION__, __LINE__);
 		return update_type;
 	}
 
-    long long latest_full_version = 0;
-    long long latest_inc_version = 0;
+	int i = 0;
     int full_file_idx = 0;
     int *inc_file_idx = ALLOC(int, n);
 	int inc_idx_num = 0;
-    int i = 0;
+    long long latest_inc_version = 0;
+	long long latest_full_version = 0;
+
 	for (i = 0; i < n; i++) {
 		long long config_seq = 0;
         char update_str[32] = {0};
         
-		if ((strcmp(namelist[i]->d_name, ".") == 0) || (strcmp(namelist[i]->d_name, "..") == 0)) {
+		if ((strcmp(namelist[i]->d_name, ".") == 0) ||
+			(strcmp(namelist[i]->d_name, "..") == 0)) {
 			continue;
 		}
 
 		if (strlen(namelist[i]->d_name) > 42) {
 			log_error(logger, MODULE_CONFIG_MONITOR, 
-                      "[%s:%d] config file %s filename too long, should like full_config_index.000000000001", 
-                      __FUNCTION__, __LINE__, namelist[i]->d_name);
+                      "[%s:%d] config file %s filename too long, should like"
+					  " full_config_index.000000000001",
+					  __FUNCTION__, __LINE__, namelist[i]->d_name);
 			continue;
 		}
 
-		int ret = sscanf(namelist[i]->d_name,"%[a-zA-Z]_config_index.%lld", update_str, &config_seq);
+		int ret = sscanf(namelist[i]->d_name,"%[a-zA-Z]_config_index.%lld",
+						 update_str, &config_seq);
 		if (ret != 2) {
 			log_error(logger, MODULE_CONFIG_MONITOR, 
-                      "[%s:%d] config file %s filename error, should like full_config_index.000000000001",
+                      "[%s:%d] config file %s filename error, should like"
+					  " full_config_index.000000000001",
                       __FUNCTION__, __LINE__, namelist[i]->d_name);
 			continue;
 		}
@@ -316,16 +332,20 @@ int get_new_idx_path(long long current_version, const char *file_dir,
         *idx_path = (char **)malloc(sizeof(char **));
 		path_len = strlen(file_dir) + strlen(namelist[full_file_idx]->d_name) + 1 + 1;
 		(*idx_path)[0] = (char *)malloc(path_len);
-		snprintf((*idx_path)[0], path_len, "%s/%s", file_dir, namelist[full_file_idx]->d_name);
+		snprintf((*idx_path)[0], path_len, "%s/%s", file_dir,
+				 namelist[full_file_idx]->d_name);
 		*idx_num = 1;
 		update_type = MAAT_UPDATE_TYPE_FULL;
 	} else if (latest_inc_version > current_version) {
-		//inc update,it's possible that do inc after full update in this function,but we'll process it at next loop.
+		/* Inc update, it's possible that do inc after Full update, 
+		   but we'll process it at next loop.
+		*/
 		*idx_path = (char **)malloc(sizeof(char **) * inc_idx_num);
 		for (i = 0; i < inc_idx_num; i++) {
 			path_len = strlen(file_dir) + strlen(namelist[inc_file_idx[i]]->d_name) + 1 + 1;
 			(*idx_path)[i] = (char *)malloc(path_len);
-			snprintf((*idx_path)[i], path_len, "%s/%s", file_dir, namelist[inc_file_idx[i]]->d_name);
+			snprintf((*idx_path)[i], path_len, "%s/%s", file_dir,
+					 namelist[inc_file_idx[i]]->d_name);
 		}
 		*idx_num = inc_idx_num;
 		update_type = MAAT_UPDATE_TYPE_INC;
@@ -345,8 +365,8 @@ int get_new_idx_path(long long current_version, const char *file_dir,
 void config_monitor_traverse(long long current_version, const char *idx_dir,
 							 void (*start_fn)(long long, int, void *),
 							 int (*update_fn)(const char *, const char *, void *),
-							 void (*finish_fn)(void *), void *u_param, const char *dec_key,
-                             struct log_handle *logger)
+							 void (*finish_fn)(void *), void *u_param,
+							 const char *dec_key, struct log_handle *logger)
 {
 	size_t i = 0;
 	long long new_version = 0;

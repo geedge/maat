@@ -92,7 +92,7 @@ struct expr_runtime {
     long long *scan_bytes;
 };
 
-enum expr_type int_to_expr_type(int expr_type)
+static enum expr_type int_to_expr_type(int expr_type)
 {
     enum expr_type type = EXPR_TYPE_INVALID;
 
@@ -116,7 +116,7 @@ enum expr_type int_to_expr_type(int expr_type)
     return type;
 }
 
-enum hs_match_mode int_to_match_mode(int match_method)
+static enum hs_match_mode int_to_match_mode(int match_method)
 {
     enum hs_match_mode mode = HS_MATCH_MODE_INVALID;
 
@@ -140,7 +140,8 @@ enum hs_match_mode int_to_match_mode(int match_method)
     return mode;
 }
 
-int expr_runtime_get_district_id(struct expr_runtime *expr_rt, const char *district)
+static int expr_runtime_get_district_id(struct expr_runtime *expr_rt,
+                                        const char *district)
 {
     long long district_id = DISTRICT_ANY;
 
@@ -171,8 +172,9 @@ int expr_runtime_set_scan_district(struct expr_runtime *expr_rt, const char *dis
     return maat_kv_read_unNull(expr_rt->district_map, district, district_len, district_id);
 }
 
-struct expr_item *expr_item_new(struct expr_schema *expr_schema, const char *table_name,
-                                const char *line, struct expr_runtime *expr_rt)
+static struct expr_item *
+expr_item_new(struct expr_schema *expr_schema, const char *table_name,
+              const char *line, struct expr_runtime *expr_rt)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
@@ -434,7 +436,7 @@ void expr_schema_free(void *expr_schema)
     FREE(expr_schema);
 }
 
-void expr_rule_reset(struct expr_rule *rule)
+static void expr_rule_reset(struct expr_rule *rule)
 {
     if (NULL == rule) {
         return;
@@ -445,7 +447,7 @@ void expr_rule_reset(struct expr_rule *rule)
     }
 }
 
-void expr_item_free(struct expr_item *item)
+static void expr_item_free(struct expr_item *item)
 {
     if (NULL == item) {
         return;
@@ -460,7 +462,7 @@ void expr_item_free(struct expr_item *item)
     FREE(item);
 }
 
-void expr_item_free_cb(void *user_ctx, void *data)
+static void expr_item_free_cb(void *user_ctx, void *data)
 {
     struct expr_item *item = (struct expr_item *)data;
     expr_item_free(item);
@@ -543,8 +545,9 @@ void expr_runtime_free(void *expr_runtime)
     FREE(expr_rt);
 }
 
-int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key, size_t key_len, 
-                            struct expr_item *item, int is_valid)
+static int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key,
+                                   size_t key_len, struct expr_item *item,
+                                   int is_valid)
 {
     int ret = -1;
 
@@ -565,9 +568,9 @@ int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key, size_t key_
     return 0;
 }
 
-enum hs_pattern_type expr_type2pattern_type(enum expr_type expr_type)
+static enum hs_pattern_type expr_type2pattern_type(enum expr_type expr_type)
 {
-    enum hs_pattern_type pattern_type = HS_PATTERN_TYPE_MAX;
+    enum hs_pattern_type pattern_type;
 
     switch (expr_type) {
         case EXPR_TYPE_STRING:
@@ -613,8 +616,9 @@ static size_t hex2bin(char *hex, int hex_len, char *binary, size_t size)
 }
 
 #define MAAT_MAX_EXPR_ITEM_NUM	8
-int expr_item_to_expr_rule(struct expr_item *expr_item, struct expr_rule *expr_rule,
-                           struct log_handle *logger)
+static int expr_item_to_expr_rule(struct expr_item *expr_item,
+                                  struct expr_rule *expr_rule,
+                                  struct log_handle *logger)
 {
     size_t i = 0;
     size_t sub_expr_cnt = 0;
@@ -817,7 +821,7 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
     return 0;
 }
 
-void garbage_adapter_hs_free(void *adapter_hs, void *arg)
+static void garbage_adapter_hs_free(void *adapter_hs, void *arg)
 {
     struct adapter_hs *hs = (struct adapter_hs *)adapter_hs;
     adapter_hs_free(hs);

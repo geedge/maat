@@ -9,7 +9,7 @@ struct log_handle *g_logger = NULL;
 
 enum hs_match_mode match_method_to_match_mode(const char *method)
 {
-    enum hs_match_mode mode = HS_MATCH_MODE_MAX;
+    enum hs_match_mode mode = HS_MATCH_MODE_INVALID;
 
     if (strcmp(method, "sub") == 0) {
         mode = HS_MATCH_MODE_SUB;
@@ -81,7 +81,7 @@ static size_t hex2bin(char *hex, int hex_len, char *binary, size_t size)
 
 enum hs_pattern_type pattern_type_str_to_enum(const char *str)
 {
-    enum hs_pattern_type pattern_type = HS_PATTERN_TYPE_MAX;
+    enum hs_pattern_type pattern_type;
 
     if (strcmp(str, "regex") == 0) {
         pattern_type = HS_PATTERN_TYPE_REG;

@@ -164,7 +164,7 @@ static int cmp_ull_p(const void *p1, const void *p2)
 	}
 }
 
-size_t ull_dedup(unsigned long long item_ids[], size_t n_item)
+static size_t ull_dedup(unsigned long long item_ids[], size_t n_item)
 {
     size_t index = 0;
 
@@ -236,10 +236,10 @@ void bool_plugin_runtime_free(void *bool_plugin_runtime)
     FREE(bool_plugin_rt);
 }
 
-int bool_plugin_runtime_update_row(struct bool_plugin_runtime *bool_plugin_rt,
-                                   const char *table_name, const char *row, 
-                                   const char *key, size_t key_len, 
-                                   struct bool_expr *expr, int is_valid)
+static int bool_plugin_runtime_update_row(struct bool_plugin_runtime *bool_plugin_rt,
+                                          const char *table_name, const char *row, 
+                                          const char *key, size_t key_len, 
+                                          struct bool_expr *expr, int is_valid)
 {
     int ret = -1;
     struct ex_data_runtime *ex_data_rt = bool_plugin_rt->ex_data_rt;
@@ -264,8 +264,9 @@ int bool_plugin_runtime_update_row(struct bool_plugin_runtime *bool_plugin_rt,
     return 0;
 }
 
-int bool_plugin_accept_tag_match(struct bool_plugin_schema *schema, const char *table_name,
-                                 const char *line, struct log_handle *logger)
+static int bool_plugin_accept_tag_match(struct bool_plugin_schema *schema,
+                                        const char *table_name, const char *line,
+                                        struct log_handle *logger)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
@@ -305,7 +306,7 @@ int bool_plugin_accept_tag_match(struct bool_plugin_schema *schema, const char *
     return TAG_MATCH_MATCHED;
 }
 
-struct bool_expr *
+static struct bool_expr *
 bool_plugin_expr_new(struct bool_plugin_schema *schema, const char *table_name,
                      const char *line, struct log_handle *logger)
 {
@@ -370,7 +371,7 @@ error:
     return NULL;
 }
 
-void bool_plugin_expr_free(struct bool_expr *expr)
+static void bool_plugin_expr_free(struct bool_expr *expr)
 {
     FREE(expr);
 }
@@ -561,23 +562,6 @@ int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, unsigned long lon
 	}
 
 	return n_result;
-}
-
-void bool_plugin_runtime_perf_stat(void *bool_plugin_runtime, struct timespec *start, 
-                                   struct timespec *end, int thread_id)
-{
-    if (NULL == bool_plugin_runtime || thread_id < 0) {
-        return;
-    }
-
-    struct bool_plugin_runtime *bool_plugin_rt = (struct bool_plugin_runtime *)bool_plugin_runtime;
-    alignment_int64_array_add(bool_plugin_rt->scan_cnt, thread_id, 1);
-
-    if (start != NULL && end != NULL) {
-        long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 +
-                                 (end->tv_nsec - start->tv_nsec);
-        alignment_int64_array_add(bool_plugin_rt->scan_cpu_time, thread_id, consume_time);
-    }
 }
 
 long long bool_plugin_runtime_scan_count(void *bool_plugin_runtime)

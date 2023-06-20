@@ -55,9 +55,6 @@ struct ex_data_runtime *ip_plugin_runtime_get_ex_data_rt(void *ip_plugin_runtime
 int ip_plugin_runtime_get_ex_data(void *ip_plugin_runtime, const struct ip_addr *ip_addr, 
                                   void **ex_data_array, size_t n_ex_data_array);
 
-void ip_plugin_runtime_perf_stat(void *ip_plugin_runtime, struct timespec *start, 
-                                   struct timespec *end, int thread_id);
-
 long long ip_plugin_runtime_scan_count(void *ip_plugin_runtime);
 
 long long ip_plugin_runtime_scan_cpu_time(void *ip_plugin_runtime);

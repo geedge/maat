@@ -270,19 +270,6 @@ void *ex_data_runtime_get_ex_data_by_container(struct ex_data_runtime *ex_data_r
     return dup_ex_data;
 }
 
-void *ex_data_runtime_get_custom_data(struct ex_data_runtime *ex_data_rt, 
-                                      const char *key, size_t key_len)
-{
-    struct ex_container *ex_container = NULL;
-    ex_container = (struct ex_container *)rcu_hash_find(ex_data_rt->htable, 
-                                                             key, key_len);
-    if (NULL == ex_container) {
-        return NULL;
-    }
-
-    return ex_container->custom_data;
-}
-
 size_t ex_data_runtime_ex_container_count(struct ex_data_runtime *ex_data_rt)
 {
     return rcu_hash_count(ex_data_rt->htable);

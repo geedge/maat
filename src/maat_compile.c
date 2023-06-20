@@ -167,7 +167,7 @@ UT_icd ut_clause_id_icd = {sizeof(long long), NULL, NULL, NULL};
 UT_icd ut_hit_group_icd = {sizeof(struct maat_hit_group), NULL, NULL, NULL};
 UT_icd ut_hit_path_icd = {sizeof(struct maat_internal_hit_path), NULL, NULL, NULL};
 
-struct maat_compile *maat_compile_new(long long compile_id)
+static struct maat_compile *maat_compile_new(long long compile_id)
 {
 	struct maat_compile *compile = ALLOC(struct maat_compile, 1);
 
@@ -183,9 +183,9 @@ struct maat_compile *maat_compile_new(long long compile_id)
 	return compile;
 }
 
-int maat_compile_set(struct maat_compile *compile, const char *table_name,
-                     int declared_clause_num, void *user_data, 
-                     void (*user_data_free)(void *))
+static int maat_compile_set(struct maat_compile *compile, const char *table_name,
+                            int declared_clause_num, void *user_data, 
+                            void (*user_data_free)(void *))
 {
 	if (user_data != NULL && NULL == user_data_free) {
 		return -1;
@@ -200,7 +200,7 @@ int maat_compile_set(struct maat_compile *compile, const char *table_name,
 	return 0;
 }
 
-void maat_compile_free(struct maat_compile *compile)
+static void maat_compile_free(struct maat_compile *compile)
 {
 	struct maat_clause_state *clause_state = NULL;
 	if (compile->user_data && compile->user_data_free) {
@@ -222,7 +222,7 @@ void maat_compile_free(struct maat_compile *compile)
 	FREE(compile);
 }
 
-void rcu_compile_cfg_free(void *user_ctx, void *data)
+static void rcu_compile_cfg_free(void *user_ctx, void *data)
 {
     struct maat_compile *compile = (struct maat_compile *)data;
     maat_compile_free(compile);
@@ -236,8 +236,8 @@ int compile_table_set_ex_data_schema(struct compile_schema *compile_schema, int 
 {
 	if (1 == compile_schema->set_flag) {
         log_error(compile_schema->logger, MODULE_COMPILE, 
-                  "[%s:%d] compile table(table_id:%d)ex schema has been set already, can't set again",
-                  __FUNCTION__, __LINE__, table_id);
+                  "[%s:%d] compile table(table_id:%d)ex schema has been set already,"
+                  " can't set again", __FUNCTION__, __LINE__, table_id);
 		return -1;
 	}
 
@@ -251,10 +251,12 @@ int compile_table_set_ex_data_schema(struct compile_schema *compile_schema, int 
 	return 0;
 }
 
-void *compile_runtime_get_user_data(struct compile_runtime *compile_rt, long long compile_id)
+static void *compile_runtime_get_user_data(struct compile_runtime *compile_rt,
+                                           long long compile_id)
 {
     struct maat_compile *compile = rcu_hash_find(compile_rt->cfg_hash,
-                                                 (char *)&compile_id, sizeof(long long));
+                                                 (char *)&compile_id,
+                                                 sizeof(long long));
     void *ret = NULL;
     if (compile != NULL) {
         ret = compile->user_data;
@@ -263,8 +265,9 @@ void *compile_runtime_get_user_data(struct compile_runtime *compile_rt, long lon
     return ret;
 }
 
-void *rule_ex_data_new(const char *table_name, int table_id, const char *table_line, 
-                       struct ex_data_schema *ex_schema)
+static void *rule_ex_data_new(const char *table_name, int table_id,
+                              const char *table_line, 
+                              struct ex_data_schema *ex_schema)
 {
 	void *ex_data = NULL;
 
@@ -273,12 +276,14 @@ void *rule_ex_data_new(const char *table_name, int table_id, const char *table_l
     return ex_data;
 }
 
-void rule_ex_data_free(int table_id, void **ex_data, const struct ex_data_schema *ex_schema)
+static void rule_ex_data_free(int table_id, void **ex_data,
+                              const struct ex_data_schema *ex_schema)
 {
 	ex_schema->free_func(table_id, ex_data, ex_schema->argl, ex_schema->argp);
 }
 
-void rule_ex_data_new_cb(void *user_data, void *param, const char *table_name, int table_id)
+static void rule_ex_data_new_cb(void *user_data, void *param,
+                                const char *table_name, int table_id)
 {
 	struct ex_data_schema *ex_schema = (struct ex_data_schema *)param;
 	struct compile_rule *compile = (struct compile_rule *)user_data;
@@ -287,9 +292,9 @@ void rule_ex_data_new_cb(void *user_data, void *param, const char *table_name, i
 	*compile->ex_data = ad;
 }
 
-void compile_runtime_user_data_iterate(struct compile_runtime *compile_rt, 
-                                       void (*callback)(void *user_data, void *param, const char *table_name, int table_id), 
-                                       void *param, int table_id)
+static void compile_runtime_user_data_iterate(struct compile_runtime *compile_rt, 
+                                              void (*callback)(void *user_data, void *param, const char *table_name, int table_id), 
+                                              void *param, int table_id)
 {
     /* I'm in background_update_mutex, config update can't happen, so no need to lock cfg_hash */
     void **data_array = NULL;
@@ -477,8 +482,8 @@ int group2compile_associated_compile_table_id(void *g2c_schema)
     return schema->asso_compile_table_id;
 }
 
-int compile_accept_tag_match(struct compile_schema *schema, const char *line,
-                             const char *table_name, struct log_handle *logger)
+static int compile_accept_tag_match(struct compile_schema *schema, const char *line,
+                                    const char *table_name, struct log_handle *logger)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
@@ -518,7 +523,7 @@ int compile_accept_tag_match(struct compile_schema *schema, const char *line,
     return TAG_MATCH_MATCHED;
 }
 
-struct compile_item *
+static struct compile_item *
 compile_item_new(const char *line, struct compile_schema *compile_schema,
                  const char *table_name, struct log_handle *logger)
 {
@@ -557,7 +562,7 @@ error:
     return NULL;
 }
 
-void compile_item_free(struct compile_item *compile_item)
+static void compile_item_free(struct compile_item *compile_item)
 {
     if (NULL == compile_item) {
         return;
@@ -617,7 +622,7 @@ static void literal2clause_hash_free(struct literal_clause *hash)
     assert(hash == NULL);
 }
 
-void garbage_literal2clause_hash_free(void *l2c_hash, void *arg)
+static void garbage_literal2clause_hash_free(void *l2c_hash, void *arg)
 {
     literal2clause_hash_free((struct literal_clause *)l2c_hash);
 }
@@ -696,7 +701,7 @@ void group2compile_runtime_free(void *g2c_runtime)
     FREE(g2c_runtime);
 }
 
-int is_valid_table_name(const char *str)
+static int is_valid_table_name(const char *str)
 {
 	size_t integer_cnt=0;
 	for (size_t i = 0; i < strlen(str); i++) {
@@ -713,7 +718,7 @@ int is_valid_table_name(const char *str)
 	return 1;
 }
 
-struct group2compile_item *
+static struct group2compile_item *
 group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema,
                        const char *table_name, struct log_handle *logger)
 {
@@ -799,7 +804,7 @@ error:
     return NULL;
 }
 
-void group2compile_item_free(struct group2compile_item *g2c_item)
+static void group2compile_item_free(struct group2compile_item *g2c_item)
 {
     if (NULL == g2c_item) {
         return;
@@ -808,7 +813,7 @@ void group2compile_item_free(struct group2compile_item *g2c_item)
     FREE(g2c_item);
 }
 
-int compare_literal_id(const void *pa, const void *pb)
+static int compare_literal_id(const void *pa, const void *pb)
 {
 	struct maat_literal_id *la = (struct maat_literal_id *)pa;
 	struct maat_literal_id *lb = (struct maat_literal_id *)pb;
@@ -821,9 +826,9 @@ int compare_literal_id(const void *pa, const void *pb)
 	return ret;
 }
 
-int maat_compile_clause_add_literal(struct maat_compile *compile,
-                                    struct maat_literal_id *literal_id,
-									int clause_index, int clause_not_flag)
+static int maat_compile_clause_add_literal(struct maat_compile *compile,
+                                           struct maat_literal_id *literal_id,
+									       int clause_index, int clause_not_flag)
 {
 	struct maat_clause_state *clause_state = compile->clause_states + clause_index;
 
@@ -848,9 +853,9 @@ int maat_compile_clause_add_literal(struct maat_compile *compile,
 	return 0;
 }
 
-int maat_compile_clause_remove_literal(struct maat_compile *compile,
-                                       struct maat_literal_id *literal_id,
-                                       int clause_index)
+static int maat_compile_clause_remove_literal(struct maat_compile *compile,
+                                              struct maat_literal_id *literal_id,
+                                              int clause_index)
 {
     struct maat_clause_state* clause_state = compile->clause_states + clause_index;
 	struct maat_literal_id *tmp = NULL;
@@ -896,7 +901,7 @@ maat_clause_hash_fetch_clause(struct compile_runtime *compile_rt,
 	return clause;
 }
 
-struct bool_matcher *
+static struct bool_matcher *
 maat_compile_bool_matcher_new(struct compile_runtime *compile_rt, size_t *compile_cnt)
 {
 	if (NULL == compile_rt) {
@@ -1020,7 +1025,7 @@ static inline int compare_hit_group(const void *pa, const void *pb)
 	return ret;
 }
 
-struct literal_clause *
+static struct literal_clause *
 maat_compile_build_literal2clause_hash(struct compile_runtime *compile_rt)
 {
     if (NULL == compile_rt) {
@@ -1101,9 +1106,10 @@ static size_t compile_state_if_new_hit_compile(struct maat_compile_state *compil
 	return r_in_c_cnt;
 }
 
-size_t maat_compile_bool_matcher_match(struct compile_runtime *compile_rt, int is_last_scan,
-                                       struct maat_compile_state *compile_state, int thread_id,
-                                       void **user_data_array, size_t ud_array_size)
+static size_t maat_compile_bool_matcher_match(struct compile_runtime *compile_rt,
+                                              int is_last_scan, int thread_id,
+                                              struct maat_compile_state *compile_state, 
+                                              void **user_data_array, size_t ud_array_size)
 {
     size_t ud_result_cnt = 0;
 	struct maat_compile *compile = NULL;
@@ -1162,10 +1168,9 @@ size_t maat_compile_bool_matcher_match(struct compile_runtime *compile_rt, int i
 }
 
 #define	COMPILE_RULE_MAGIC	0x1a2b3c4d
-struct compile_rule *compile_rule_new(struct compile_item *compile_item,
-                                      struct compile_schema *schema,
-                                      const char *table_name,
-                                      const char *table_line)
+static struct compile_rule *
+compile_rule_new(struct compile_item *compile_item, struct compile_schema *schema,
+                 const char *table_name, const char *table_line)
 {
     struct compile_rule *compile_rule = ALLOC(struct compile_rule, 1);
 
@@ -1190,7 +1195,7 @@ struct compile_rule *compile_rule_new(struct compile_item *compile_item,
     return compile_rule;
 }
 
-struct compile_rule *compile_rule_clone(struct compile_rule *rule)
+static struct compile_rule *compile_rule_clone(struct compile_rule *rule)
 {
     struct compile_rule *new_rule = ALLOC(struct compile_rule, 1);
 
@@ -1212,7 +1217,7 @@ struct compile_rule *compile_rule_clone(struct compile_rule *rule)
     return new_rule;
 }
 
-void compile_rule_free(struct compile_rule *compile_rule)
+static void compile_rule_free(struct compile_rule *compile_rule)
 {
     struct compile_schema *schema = compile_rule->ref_schema;
     assert(compile_rule->magic_num == COMPILE_RULE_MAGIC);
@@ -1236,7 +1241,8 @@ void compile_rule_free(struct compile_rule *compile_rule)
     FREE(compile_rule);
 }
 
-struct maat_compile *maat_compile_clone(struct maat_compile *compile, int deep_copy)
+static struct maat_compile *
+maat_compile_clone(struct maat_compile *compile, int deep_copy)
 {
     struct maat_compile *new_compile = ALLOC(struct maat_compile, 1);
 
@@ -1270,8 +1276,9 @@ struct maat_compile *maat_compile_clone(struct maat_compile *compile, int deep_c
     return new_compile;
 }
 
-int maat_add_group_to_compile(struct rcu_hash_table *hash_tbl, struct group2compile_item *g2c_item,
-                              struct log_handle *logger)
+static int maat_add_group_to_compile(struct rcu_hash_table *hash_tbl,
+                                     struct group2compile_item *g2c_item,
+                                     struct log_handle *logger)
 {
 	int ret = -1;
     long long compile_id = g2c_item->compile_id;
@@ -1351,9 +1358,9 @@ int maat_add_group_to_compile(struct rcu_hash_table *hash_tbl, struct group2comp
     return ret;
 }
 
-int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
-                                   struct group2compile_item *g2c_item,
-                                   struct log_handle *logger)
+static int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
+                                          struct group2compile_item *g2c_item,
+                                          struct log_handle *logger)
 {
 	int ret = -1;
     long long compile_id = g2c_item->compile_id;
@@ -1605,9 +1612,9 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, int thr
     return (n_internal_hit_path + new_hit_path_cnt);
 }
 
-void maat_compile_state_update_hit_path(struct maat_compile_state *compile_state,
-                                        long long item_id, long long group_id,
-                                        int vtable_id, int Nth_scan, int Nth_item_result)
+static void maat_compile_state_update_hit_path(struct maat_compile_state *compile_state,
+                                               long long item_id, long long group_id,
+                                               int vtable_id, int Nth_scan, int Nth_item_result)
 {
 	if (compile_state->Nth_scan != Nth_scan) {
 		assert(compile_state->this_scan_hit_item_flag == 0);
@@ -1621,9 +1628,9 @@ void maat_compile_state_update_hit_path(struct maat_compile_state *compile_state
 	compile_state->this_scan_hit_item_flag = 1;
 }
 
-void maat_compile_state_update_hit_clause(struct maat_compile_state *compile_state,
-                                          struct compile_runtime *compile_rt,
-                                          long long group_id, int vtable_id)
+static void maat_compile_state_update_hit_clause(struct maat_compile_state *compile_state,
+                                                 struct compile_runtime *compile_rt,
+                                                 long long group_id, int vtable_id)
 {
     if (NULL == compile_state || NULL == compile_rt) {
         return;
@@ -1702,8 +1709,10 @@ void *compile_runtime_get_ex_data(struct compile_runtime *compile_rt,
 	return ex_data;
 }
 
-int compile_runtime_add_compile(struct compile_runtime *compile_rt, struct compile_schema *schema,
-                                 long long compile_id, const char *table_name, const char *line)
+static int compile_runtime_add_compile(struct compile_runtime *compile_rt,
+                                       struct compile_schema *schema,
+                                       long long compile_id, const char *table_name,
+                                       const char *line)
 {
     struct compile_item *compile_item = NULL;
     struct maat_compile *compile = NULL;
@@ -1775,7 +1784,8 @@ int compile_runtime_add_compile(struct compile_runtime *compile_rt, struct compi
     return 0;
 }
 
-void compile_runtime_del_compile(struct compile_runtime *compile_rt, long long compile_id)
+static void compile_runtime_del_compile(struct compile_runtime *compile_rt,
+                                        long long compile_id)
 {
     struct maat_compile *compile = NULL;
 
@@ -2079,7 +2089,7 @@ int compile_runtime_match(struct compile_runtime *compile_rt, long long *compile
     
     // all hit clause_id -> compile_id
     size_t bool_match_ret = maat_compile_bool_matcher_match(compile_rt, is_last_scan,
-                                                            compile_state, state->thread_id,
+                                                            state->thread_id, compile_state, 
                                                             (void **)compile_rules,
                                                             compile_ids_size);
     if (bool_match_ret > 0) {

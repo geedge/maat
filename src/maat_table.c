@@ -279,7 +279,8 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
 };
 
 //@param value is a JSON, like {"tags":[{"tag":"location","value":"北京/朝阳/华严北里/甲22号},{"tag":"isp","value":"电信"}]}
-size_t parse_accept_tag(const char *value, struct rule_tag **result, struct log_handle *logger)
+static size_t parse_accept_tag(const char *value, struct rule_tag **result,
+                               struct log_handle *logger)
 {
     if (NULL == value || NULL == result || NULL == logger) {
         return 0;
@@ -311,7 +312,8 @@ size_t parse_accept_tag(const char *value, struct rule_tag **result, struct log_
 	return n_tag;
 }
 
-static int compare_each_tag(cJSON *tag_obj, const struct rule_tag *accept_tags, size_t n_accept_tag)
+static int compare_each_tag(cJSON *tag_obj, const struct rule_tag *accept_tags,
+                            size_t n_accept_tag)
 {
     if (NULL == tag_obj || NULL == accept_tags) {
         return TAG_MATCH_ERR;
@@ -396,9 +398,11 @@ static int compare_each_tag_set(cJSON *tag_set, const struct rule_tag *accept_ta
 	}
 }
 
-//@param value {"tag_sets":[[{"tag":"location","value":["北京/朝阳/华严北里","上海/浦东/陆家嘴"]},{"tag":"isp","value":["电信","移动"]}],[{"tag":"location","value":["北京"]},{"tag":"isp","value":["联通"]}]]}
+//@param value {"tag_sets":[[{"tag":"location","value":["北京/朝阳/华严北里","上海/浦东/陆家嘴"]},
+//{"tag":"isp","value":["电信","移动"]}],[{"tag":"location","value":["北京"]},{"tag":"isp","value":["联通"]}]]}
 //@return 1 on match, 0 on not match, -1 on error.
-static int compare_accept_tag(const char *value, const struct rule_tag *accept_tags, size_t n_accept_tag)
+static int compare_accept_tag(const char *value, const struct rule_tag *accept_tags,
+                              size_t n_accept_tag)
 {
 	int ret = TAG_MATCH_ERR;
     int n_set = 0;
@@ -434,10 +438,10 @@ error:
 	return ret;
 }
 
-void *maat_table_schema_new(cJSON *json, const char *table_name,
-                            enum table_type table_type,
-                            struct table_manager *tbl_mgr, 
-                            struct log_handle *logger)
+static void *maat_table_schema_new(cJSON *json, const char *table_name,
+                                   enum table_type table_type,
+                                   struct table_manager *tbl_mgr, 
+                                   struct log_handle *logger)
 {
     void *schema = NULL;
 
@@ -448,7 +452,7 @@ void *maat_table_schema_new(cJSON *json, const char *table_name,
     return schema;
 }
 
-void maat_table_schema_free(void *schema, enum table_type table_type)
+static void maat_table_schema_free(void *schema, enum table_type table_type)
 {
     if (NULL == schema) {
         return;
@@ -478,8 +482,9 @@ static void register_reserved_word(struct maat_kv_store *reserved_word_map)
     maat_kv_register(reserved_word_map, "virtual", TABLE_TYPE_VIRTUAL);
 }
 
-struct maat_table *maat_table_new(cJSON *json, struct maat_kv_store *reserved_word_map,
-                                  struct log_handle *logger)
+static struct maat_table *
+maat_table_new(cJSON *json, struct maat_kv_store *reserved_word_map,
+               struct log_handle *logger)
 {
     struct maat_table *ptable = ALLOC(struct maat_table, 1);
 
@@ -501,7 +506,8 @@ struct maat_table *maat_table_new(cJSON *json, struct maat_kv_store *reserved_wo
     // already validate in register_tablename2id
     if (item->type == cJSON_Array) {
         cJSON *tmp_item = cJSON_GetArrayItem(item, 0);
-        memcpy(ptable->table_name, tmp_item->valuestring, strlen(tmp_item->valuestring));
+        memcpy(ptable->table_name, tmp_item->valuestring,
+                strlen(tmp_item->valuestring));
     } else {
         //cJSON_String
         memcpy(ptable->table_name, item->valuestring, strlen(item->valuestring));
@@ -515,11 +521,13 @@ struct maat_table *maat_table_new(cJSON *json, struct maat_kv_store *reserved_wo
         goto error;
     }
 
-    ret = maat_kv_read(reserved_word_map, item->valuestring, (long long *)&(ptable->table_type));
+    ret = maat_kv_read(reserved_word_map, item->valuestring,
+                      (long long *)&(ptable->table_type));
     if (ret < 0) {
         log_error(logger, MODULE_TABLE, 
                   "[%s:%d] table:%s table_type %s is illegal", 
-                  __FUNCTION__, __LINE__, ptable->table_name, item->valuestring);
+                  __FUNCTION__, __LINE__, ptable->table_name,
+                  item->valuestring);
         goto error;
     }
 
@@ -541,7 +549,7 @@ error:
     return NULL;
 }
 
-void maat_table_runtime_free(void *runtime, enum table_type table_type)
+static void maat_table_runtime_free(void *runtime, enum table_type table_type)
 {
     if (NULL == runtime) {
         return;
@@ -552,7 +560,7 @@ void maat_table_runtime_free(void *runtime, enum table_type table_type)
     }
 }
 
-void maat_table_free(struct maat_table *maat_tbl)
+static void maat_table_free(struct maat_table *maat_tbl)
 {
     if (NULL == maat_tbl) {
         return;
@@ -791,8 +799,10 @@ next:
     return tbl_mgr;
 }
 
-void *maat_table_runtime_new(void *schema, enum table_type table_type, size_t max_thread_num, 
-                             struct maat_garbage_bin *garbage_bin, struct log_handle *logger)
+static void *maat_table_runtime_new(void *schema, enum table_type table_type,
+                                    size_t max_thread_num,
+                                    struct maat_garbage_bin *garbage_bin,
+                                    struct log_handle *logger)
 {
     void *runtime = NULL;
 
@@ -804,7 +814,7 @@ void *maat_table_runtime_new(void *schema, enum table_type table_type, size_t ma
     return runtime;
 }
 
-void garbage_maat_table_runtime_free(void *runtime, void *arg)
+static void garbage_maat_table_runtime_free(void *runtime, void *arg)
 {
     enum table_type type = *(enum table_type *)arg;
     maat_table_runtime_free(runtime, type);

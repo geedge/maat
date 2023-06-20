@@ -77,7 +77,7 @@ enum field_type common_column_type[] = {
 };
 
 #define	MAX_CONJ_NAME_LEN	22
-void maat_fieldstat_register(struct maat_stat *stat)
+static void maat_fieldstat_register(struct maat_stat *stat)
 {
     stat->fs_status_id[STATUS_VERSION] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE,
                                                             "version", NULL, 0);
@@ -123,8 +123,9 @@ void maat_fieldstat_register(struct maat_stat *stat)
                                                                  "line_cmd/s", NULL, 0);
 }
 
-int maat_fieldstat_table_row_register(struct maat_stat *stat, struct table_manager *tbl_mgr,
-                                       int table_id)
+static int maat_fieldstat_table_row_register(struct maat_stat *stat,
+                                             struct table_manager *tbl_mgr,
+                                             int table_id)
 {
     size_t max_table_cnt = table_manager_table_size(tbl_mgr);
     int ret = fieldstat_register_table_row(stat->fs_handle, table_id, "Sum", NULL, 0,
@@ -331,7 +332,7 @@ int maat_stat_init(struct maat_stat *stat, struct table_manager *tbl_mgr,
     return 0;
 }
 
-void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
+static void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
 {
     long long plugin_cache_num = 0, plugin_rule_num = 0, g2c_not_group_num = 0;
     long long compile_rule_num = 0, g2c_rule_num = 0, g2g_rule_num = 0;
