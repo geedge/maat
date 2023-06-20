@@ -558,9 +558,11 @@ int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, const char *query
         return 0;
     }
 
-    struct FQDN_match results[n_ex_data];
+    if (NULL == fqdn_plugin_rt->engine) {
+        return 0;
+    }
 
-    assert(fqdn_plugin_rt->engine != NULL);
+    struct FQDN_match results[n_ex_data];
 	int n_result = FQDN_engine_search(fqdn_plugin_rt->engine, query_fqdn, strlen(query_fqdn),
                                       results, n_ex_data);
 	for (int i = 0; i < n_result; i++) {

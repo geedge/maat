@@ -960,9 +960,12 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
         return 0;
     }
 
+    if (NULL == expr_rt->hs) {
+        return 0;
+    }
+
     size_t n_hit_item = 0;
     struct hs_scan_result hit_results[MAX_SCANNER_HIT_ITEM_NUM];
-    
     int ret = adapter_hs_scan(expr_rt->hs, thread_id, data, data_len, 
                               hit_results, MAX_SCANNER_HIT_ITEM_NUM, 
                               &n_hit_item);

@@ -551,10 +551,13 @@ int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, unsigned long lon
         return 0;
     }
 
-    struct bool_expr_match results[n_ex_data];
+    if (NULL == bool_plugin_rt->matcher) {
+        return 0;
+    }
 
+    struct bool_expr_match results[n_ex_data];
     n_item = ull_dedup(item_ids, n_item);
-    assert(bool_plugin_rt->matcher != NULL);
+    
 	int n_result = bool_matcher_match(bool_plugin_rt->matcher, item_ids, n_item, results, n_ex_data);
 	for (int i = 0; i < n_result; i++) {
 		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(bool_plugin_rt->ex_data_rt,

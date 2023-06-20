@@ -548,8 +548,11 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
         return 0;
     }
 
+    if (NULL == interval_rt->matcher) {
+        return 0;
+    }
+
     struct interval_result hit_results[MAX_SCANNER_HIT_ITEM_NUM];
-    
     int n_hit_item = interval_matcher_match(interval_rt->matcher, integer, 
                                             hit_results, MAX_SCANNER_HIT_ITEM_NUM);
     if (n_hit_item <= 0) {

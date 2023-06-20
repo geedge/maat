@@ -597,6 +597,10 @@ int ip_plugin_runtime_get_ex_data(void *ip_plugin_runtime, const struct ip_addr 
         return 0;
     }
 
+    if (NULL == ip_plugin_rt->ip_matcher) {
+        return 0;
+    }
+
     struct scan_result results[n_ex_data];
     struct ip_data ip_data = *(const struct ip_data *)ip_addr;
 	if (ip_data.type == IPv4) {
@@ -605,7 +609,6 @@ int ip_plugin_runtime_get_ex_data(void *ip_plugin_runtime, const struct ip_addr 
 		ipv6_ntoh(ip_data.ipv6);
 	}
 
-    assert(ip_plugin_rt->ip_matcher != NULL);
 	int n_result = ip_matcher_match(ip_plugin_rt->ip_matcher, &ip_data, results, n_ex_data);
 	for (int i = 0; i < n_result; i++) {
 		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(ip_plugin_rt->ex_data_rt,

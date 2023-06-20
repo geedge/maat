@@ -862,10 +862,6 @@ void* perf_fqdn_plugin_scan_thread(void *arg)
 		if (ret == 2) {
 			hit_times++;
 		}
-
-		for (j = 0; j < ret; j++) {
-			perf_fqdn_plugin_EX_free_cb(0, (void**)&(result[j]), 0, NULL);
-		}
 	}
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
@@ -1093,10 +1089,6 @@ void* perf_bool_plugin_scan_thread(void *arg)
 		if (ret == 1) {
 			hit_times++;
 		}
-
-		for (j = 0; j < ret; j++) {
-			perf_bool_plugin_ex_free_cb(0, (void**)&(result[j]), 0, NULL);
-		}
 	}
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
@@ -1285,10 +1277,6 @@ static void *ip_plugin_get_thread(void *arg)
 		ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv4, (void**)results, 4);
 		if (ret > 0) {
 			hit_times++;
-		}
-
-		for (j = 0; j < ret; j++) {
-			perf_ip_plugin_EX_free_cb(table_id, (void**)&(results[j]), 0, NULL);
 		}
 	}
     clock_gettime(CLOCK_MONOTONIC, &end);

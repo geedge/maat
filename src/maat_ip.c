@@ -714,12 +714,11 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
         return 0;
     }
     
-    struct scan_result ip_results[MAX_SCANNER_HIT_ITEM_NUM];
-
     /* if ip_addr = "0.0.0.0" means any ip */
     int any_ip_flag = 0;
-
     struct ip_data scan_data;
+    struct scan_result ip_results[MAX_SCANNER_HIT_ITEM_NUM];
+
     if (ip_type == IPv4) {
         scan_data.type = IPv4;
         scan_data.ipv4 = ntohl(*(uint32_t *)ip_addr);
@@ -746,6 +745,11 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
     if (1 == any_ip_flag) {
         struct interval_result port_results[MAX_SCANNER_HIT_ITEM_NUM];
         uint16_t host_port = ntohs(port);
+
+        if (NULL == ip_rt->intval_matcher) {
+            return 0;
+        }
+
         int n_hit_port_item = interval_matcher_match(ip_rt->intval_matcher, host_port, 
                                                      port_results, MAX_SCANNER_HIT_ITEM_NUM);
         if (n_hit_port_item <= 0) {
@@ -776,6 +780,10 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
             real_hit_item_cnt++;
         }
     } else {
+        if (NULL == ip_rt->ip_matcher) {
+            return 0;
+        }
+        
         int n_hit_ip_item = ip_matcher_match(ip_rt->ip_matcher, &scan_data,
                                              ip_results, MAX_SCANNER_HIT_ITEM_NUM);
         if (n_hit_ip_item <= 0) {

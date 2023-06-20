@@ -428,13 +428,23 @@ int maat_get_table_id(struct maat *maat_inst, const char *table_name)
     return table_id;
 }
 
-static inline void maat_runtime_ref_inc(struct maat_runtime *maat_rt, int thread_id)
+static inline void maat_runtime_ref_inc(struct maat_runtime *maat_rt,
+                                        int thread_id)
 {
+    if (NULL == maat_rt) {
+        return;
+    }
+
 	alignment_int64_array_add(maat_rt->ref_cnt, thread_id, 1);
 }
 
-static inline void maat_runtime_ref_dec(struct maat_runtime *maat_rt, int thread_id)
+static inline void maat_runtime_ref_dec(struct maat_runtime *maat_rt,
+                                        int thread_id)
 {
+    if (NULL == maat_rt) {
+        return;
+    }
+
 	alignment_int64_array_add(maat_rt->ref_cnt, thread_id, -1);
 }
 
