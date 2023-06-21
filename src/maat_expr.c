@@ -64,7 +64,6 @@ struct expr_item {
     int is_hexbin;
     int is_case_sensitive;
     void *user_data;
-    void (*user_data_free)(void *data);
     int district_id;
 };
 
@@ -453,10 +452,8 @@ static void expr_item_free(struct expr_item *item)
         return;
     }
     
-    if (item->user_data != NULL && 
-        item->user_data_free != NULL) {
-        item->user_data_free(item->user_data);
-        item->user_data = NULL;
+    if (item->user_data != NULL) {
+        FREE(item->user_data);
     }
 
     FREE(item);
@@ -805,7 +802,6 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
         *item_district_id = expr_item->district_id;
         
         expr_item->user_data = item_district_id;
-        expr_item->user_data_free = free;
     }
 
     int ret = expr_runtime_update_row(expr_rt, (char *)&item_id, sizeof(long long),

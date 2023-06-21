@@ -40,7 +40,6 @@ struct flag_item {
     long long flag;
     long long flag_mask;
     void *user_data;
-    void (*user_data_free)(void *data);
     int district_id;
 };
 
@@ -163,9 +162,8 @@ static void flag_item_free(struct flag_item *item)
         return;
     }
 
-    if (item->user_data != NULL && item->user_data_free != NULL) {
-        item->user_data_free(item->user_data);
-        item->user_data = NULL;
+    if (item->user_data != NULL) {
+        FREE(item->user_data);
     }
 
     FREE(item);
@@ -432,7 +430,6 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
         *item_district_id = flag_item->district_id;
 
         flag_item->user_data = item_district_id;
-        flag_item->user_data_free = free;
     }
 
     int ret = flag_runtime_update_row(flag_rt, (char *)&item_id, sizeof(long long),

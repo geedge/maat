@@ -37,7 +37,6 @@ struct interval_item {
     int low_bound;
     int up_bound;
     void *user_data;
-    void (*user_data_free)(void *data);
     int district_id;
 };
 
@@ -160,9 +159,8 @@ static void interval_item_free(struct interval_item *item)
         return;
     }
 
-    if (item->user_data != NULL && item->user_data_free != NULL) {
-        item->user_data_free(item->user_data);
-        item->user_data = NULL;
+    if (item->user_data != NULL) {
+        FREE(item->user_data);
     }
 
     FREE(item);
@@ -433,7 +431,6 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
         *item_district_id = interval_item->district_id;
 
         interval_item->user_data = item_district_id;
-        interval_item->user_data_free = free;
     }
 
     int ret = interval_runtime_update_row(interval_rt, (char *)&item_id, sizeof(long long),

@@ -139,8 +139,7 @@ struct maat_compile {
     int not_clause_cnt;
 	long long compile_id;
     char table_name[MAX_NAME_STR_LEN];
-	void *user_data;
-	void (*user_data_free)(void *);
+	void *user_data; // compile_rule
 	struct maat_clause_state clause_states[MAX_ITEMS_PER_BOOL_EXPR];
 };
 
@@ -185,27 +184,57 @@ static struct maat_compile *maat_compile_new(long long compile_id)
 }
 
 static int maat_compile_set(struct maat_compile *compile, const char *table_name,
-                            int declared_clause_num, void *user_data, 
-                            void (*user_data_free)(void *))
+                            int declared_clause_num, void *user_data)
 {
-	if (user_data != NULL && NULL == user_data_free) {
-		return -1;
-	}
+    if (NULL == compile) {
+        return -1;
+    }
 
     memset(compile->table_name, 0, sizeof(compile->table_name));
     memcpy(compile->table_name, table_name, sizeof(compile->table_name));
 	compile->declared_clause_num = declared_clause_num;
 	compile->user_data = user_data;
-	compile->user_data_free = user_data_free;
 
 	return 0;
+}
+
+static void rule_ex_data_free(int table_id, void **ex_data,
+                              const struct ex_data_schema *ex_schema)
+{
+	ex_schema->free_func(table_id, ex_data, ex_schema->argl, ex_schema->argp);
+}
+
+#define	COMPILE_RULE_MAGIC	0x1a2b3c4d
+static void compile_rule_free(struct compile_rule *compile_rule)
+{
+    struct compile_schema *schema = compile_rule->ref_schema;
+    assert(compile_rule->magic_num == COMPILE_RULE_MAGIC);
+
+    if (1 == schema->set_flag) {
+        rule_ex_data_free(schema->table_id, compile_rule->ex_data,
+                          &(schema->ex_schema));
+        *compile_rule->ex_data = NULL;
+    }
+
+    if (compile_rule->ex_data != NULL) {
+        FREE(compile_rule->ex_data);
+    }
+    
+    compile_rule->declared_clause_num = -1;
+
+    if (compile_rule->table_line != NULL) {
+        FREE(compile_rule->table_line);
+    }
+    
+    FREE(compile_rule);
 }
 
 static void maat_compile_free(struct maat_compile *compile)
 {
 	struct maat_clause_state *clause_state = NULL;
-	if (compile->user_data && compile->user_data_free) {
-		compile->user_data_free(compile->user_data);
+
+	if (compile->user_data != NULL) {
+		compile_rule_free(compile->user_data);
         compile->user_data = NULL;
 	}
 
@@ -275,12 +304,6 @@ static void *rule_ex_data_new(const char *table_name, int table_id,
 	ex_schema->new_func(table_name, table_id, NULL, table_line, &ex_data, 
                         ex_schema->argl, ex_schema->argp);
     return ex_data;
-}
-
-static void rule_ex_data_free(int table_id, void **ex_data,
-                              const struct ex_data_schema *ex_schema)
-{
-	ex_schema->free_func(table_id, ex_data, ex_schema->argl, ex_schema->argp);
 }
 
 static void rule_ex_data_new_cb(void *user_data, void *param,
@@ -1170,7 +1193,6 @@ static size_t maat_compile_bool_matcher_match(struct compile_runtime *compile_rt
 	return ud_result_cnt;
 }
 
-#define	COMPILE_RULE_MAGIC	0x1a2b3c4d
 static struct compile_rule *
 compile_rule_new(struct compile_item *compile_item, struct compile_schema *schema,
                  const char *table_name, const char *table_line)
@@ -1220,30 +1242,6 @@ static struct compile_rule *compile_rule_clone(struct compile_rule *rule)
     return new_rule;
 }
 
-static void compile_rule_free(struct compile_rule *compile_rule)
-{
-    struct compile_schema *schema = compile_rule->ref_schema;
-    assert(compile_rule->magic_num == COMPILE_RULE_MAGIC);
-
-    if (1 == schema->set_flag) {
-        rule_ex_data_free(schema->table_id, compile_rule->ex_data,
-                          &(schema->ex_schema));
-        *compile_rule->ex_data = NULL;
-    }
-
-    if (compile_rule->ex_data != NULL) {
-        FREE(compile_rule->ex_data);
-    }
-    
-    compile_rule->declared_clause_num = -1;
-
-    if (compile_rule->table_line != NULL) {
-        FREE(compile_rule->table_line);
-    }
-    
-    FREE(compile_rule);
-}
-
 static struct maat_compile *
 maat_compile_clone(struct maat_compile *compile, int deep_copy)
 {
@@ -1255,7 +1253,6 @@ maat_compile_clone(struct maat_compile *compile, int deep_copy)
     new_compile->declared_clause_num = compile->declared_clause_num;
     memcpy(new_compile->table_name, compile->table_name, sizeof(new_compile->table_name));
     new_compile->not_clause_cnt = compile->not_clause_cnt;
-    new_compile->user_data_free = compile->user_data_free;
     if (1 == deep_copy && compile->user_data != NULL) {
         new_compile->user_data = compile_rule_clone((struct compile_rule *)compile->user_data);
     }
@@ -1742,14 +1739,12 @@ static int compile_runtime_add_compile(struct compile_runtime *compile_rt,
            ******************************************************************/
 
             /* compile has group2compile_table info, so set compile_table info */
-            maat_compile_set(compile, table_name, compile_rule->declared_clause_num,
-                             compile_rule, (void (*)(void *))compile_rule_free);
+            maat_compile_set(compile, table_name, compile_rule->declared_clause_num, compile_rule);
         } else {
             // compile neither in effective hash nor in updating hash
             compile = maat_compile_new(compile_rule->compile_id);
             assert(compile != NULL);
-            maat_compile_set(compile, table_name, compile_rule->declared_clause_num,
-                             compile_rule, (void (*)(void *))compile_rule_free);
+            maat_compile_set(compile, table_name, compile_rule->declared_clause_num, compile_rule);
             rcu_hash_add(compile_rt->cfg_hash, (char *)&compile_id, sizeof(long long), compile);
         }
     } else {
@@ -1771,20 +1766,28 @@ static int compile_runtime_add_compile(struct compile_runtime *compile_rt,
             rcu_hash_del(compile_rt->cfg_hash, (char *)&compile_id, sizeof(long long));
 
             /* copy_compile has group2compile_table info, so set compile_table info */
-            maat_compile_set(copy_compile, table_name, compile_rule->declared_clause_num,
-                             compile_rule, (void (*)(void *))compile_rule_free);
+            maat_compile_set(copy_compile, table_name, compile_rule->declared_clause_num, compile_rule);
             /* add copy_compile to rcu hash */
             rcu_hash_add(compile_rt->cfg_hash, (char *)&compile_id, sizeof(long long), copy_compile);
         } else {
             compile = maat_compile_new(compile_rule->compile_id);
             assert(compile != NULL);
-            maat_compile_set(compile, table_name, compile_rule->declared_clause_num,
-                             compile_rule, (void (*)(void *))compile_rule_free);
+            maat_compile_set(compile, table_name, compile_rule->declared_clause_num, compile_rule);
             rcu_hash_add(compile_rt->cfg_hash, (char *)&compile_id, sizeof(long long), compile);
         }
     }
 
     return 0;
+}
+
+void garbage_compile_rule_free(void *data, void *arg)
+{
+    struct compile_rule *compile_rule = (struct compile_rule *)data;
+    if (NULL == compile_rule) {
+        return;
+    }
+
+    compile_rule_free(compile_rule);
 }
 
 static void compile_runtime_del_compile(struct compile_runtime *compile_rt,
@@ -1805,8 +1808,9 @@ static void compile_runtime_del_compile(struct compile_runtime *compile_rt,
                 2. rcu_hash_commit(htable)       ==> undo
                 because it's in updating hash, we can modify it directly
             ******************************************************************/
-            if (compile->user_data_free && compile->user_data) {
-                compile->user_data_free(compile->user_data);
+            if (compile->user_data != NULL) {
+                maat_garbage_bagging(compile_rt->ref_garbage_bin, compile->user_data, NULL,
+                                     garbage_compile_rule_free);
                 compile->user_data = NULL;
             }
 
