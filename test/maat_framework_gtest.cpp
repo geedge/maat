@@ -4116,7 +4116,6 @@ TEST_F(MaatCmdTest, SetExpr) {
     EXPECT_TRUE(results[0] == compile_id || results[0] == (compile_id - 1));
     maat_state_reset(state);
 
-
     ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_DEL, compile_id-1, 
                                  "null", 1, 0);
     EXPECT_EQ(ret, 1);

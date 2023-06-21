@@ -27,6 +27,7 @@
 #include "alignment.h"
 
 #define MODULE_COMPILE	 module_name_str("maat.compile")
+#define DEFAULT_GC_TIMEOUT_S 10
 
 struct compile_schema {
     int compile_id_column;
@@ -293,7 +294,8 @@ static void rule_ex_data_new_cb(void *user_data, void *param,
 }
 
 static void compile_runtime_user_data_iterate(struct compile_runtime *compile_rt, 
-                                              void (*callback)(void *user_data, void *param, const char *table_name, int table_id), 
+                                              void (*callback)(void *user_data, void *param, 
+                                                               const char *table_name, int table_id),
                                               void *param, int table_id)
 {
     /* I'm in background_update_mutex, config update can't happen, so no need to lock cfg_hash */
@@ -585,7 +587,8 @@ void *compile_runtime_new(void *compile_schema, size_t max_thread_num,
     compile_rt->expr_match_buff = ALLOC(struct bool_expr_match, 
                                         max_thread_num * MAX_SCANNER_HIT_COMPILE_NUM);
     compile_rt->version = time(NULL);
-    compile_rt->cfg_hash = rcu_hash_new(rcu_compile_cfg_free, NULL, schema->gc_timeout_s);
+    compile_rt->cfg_hash = rcu_hash_new(rcu_compile_cfg_free, NULL,
+                                        schema->gc_timeout_s + DEFAULT_GC_TIMEOUT_S);
     compile_rt->clause_by_literals_hash = NULL;
     compile_rt->literal2clause_hash = NULL;
     compile_rt->logger = logger;
@@ -1790,7 +1793,6 @@ static void compile_runtime_del_compile(struct compile_runtime *compile_rt,
     struct maat_compile *compile = NULL;
 
     int updating_flag = rcu_hash_is_updating(compile_rt->cfg_hash);
-
     if (1 == updating_flag) {
         // find in updating hash
         compile = rcu_updating_hash_find(compile_rt->cfg_hash, (char *)&compile_id,
@@ -2003,8 +2005,8 @@ int compile_runtime_commit(void *compile_runtime, const char *table_name,
         ret = -1;
     } else {
         log_info(compile_rt->logger, MODULE_COMPILE,
-             "table[%s] commit %zu compile rules and rebuild compile bool_matcher"
-             " completed, version:%lld", table_name, compile_cnt, maat_rt_version);
+                 "table[%s] commit %zu compile rules and rebuild compile bool_matcher"
+                 " completed, version:%lld", table_name, compile_cnt, maat_rt_version);
     }
 
     struct literal_clause *old_literal2clause = NULL;
@@ -2015,9 +2017,23 @@ int compile_runtime_commit(void *compile_runtime, const char *table_name,
     old_literal2clause = compile_rt->literal2clause_hash;
     old_bool_matcher = compile_rt->bm;
 
+    /*
+        rule_monitor_loop thread
+        STEP_1. compile_rt->bm = new_bool_matcher
+        STEP_2: rcu_hash_commit(new_compile)
+
+        scan thread
+        Assume_1. If scan thread is using bool_matcher_match(compile_rt->bm) 
+                  before STEP_1 or after STEP_2, it's ok.
+        Assume_2. If scan thread is using bool_matcher_match(compile_rt->bm) 
+                  between STEP_1 and STEP_2. 
+                  P1: If new compile is hit and returned, then caller can get this compile's
+                      ex_data by using maat_plugin_table_get_ex_data(hit_compile_id) because
+                      STEP_2 is fast enough.
+    */
+
     compile_rt->bm = new_bool_matcher;
     compile_rt->literal2clause_hash = new_literal2clause;
-
     rcu_hash_commit(compile_rt->cfg_hash);
 
     maat_garbage_bagging(compile_rt->ref_garbage_bin, old_bool_matcher, NULL,

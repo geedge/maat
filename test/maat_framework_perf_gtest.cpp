@@ -847,7 +847,7 @@ void* perf_fqdn_plugin_scan_thread(void *arg)
 	struct maat *maat_inst = param->maat_inst;
 	struct perf_fqdn_plugin_ud *result[ARRAY_SIZE];
 
-	int i=0, j=0, ret=0, hit_times=0;
+	int i=0, ret=0, hit_times=0;
 	int table_id = maat_get_table_id(maat_inst, param->table_name);
 
 	memset(&result, 0, sizeof(result));
@@ -1073,7 +1073,7 @@ void* perf_bool_plugin_scan_thread(void *arg)
 	struct maat *maat_inst = param->maat_inst;
 	struct perf_fqdn_plugin_ud *result[ARRAY_SIZE];
 
-	int i=0, j=0, ret=0, hit_times=0;
+	int i=0, ret=0, hit_times=0;
 	int table_id = maat_get_table_id(maat_inst, param->table_name);
 
 	memset(&result, 0, sizeof(result));
@@ -1260,7 +1260,7 @@ static void *ip_plugin_get_thread(void *arg)
 {
 	const char *table_name = "TSG_IP_LOCATION_BUILT_IN";
 	int test_times = 1000*1000, hit_times = 0;
-	int ret = 0, i=0, j=0;
+	int ret = 0, i = 0;
 	struct maat *maat_inst = (struct maat *)arg;
 
 	int table_id = maat_get_table_id(maat_inst, table_name);
