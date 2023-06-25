@@ -3249,7 +3249,7 @@ void compile_ex_param_free(int table_id, void **ad, long argl, void *argp)
 	}
 
 	struct rule_ex_param *param = (struct rule_ex_param *)*ad;
-
+    memset(param, 0, sizeof(struct rule_ex_param));
 	free(param);
 }
 
@@ -4007,6 +4007,7 @@ protected:
         maat_free(_shared_maat_inst);
 
         maat_options_set_foreign_cont_dir(opts, "./foreign_files/");
+        maat_options_set_rule_effect_interval_ms(opts, 1000);
         _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
 
@@ -4903,6 +4904,52 @@ void plugin_ex_dup_cb(int table_id,	void **to, void **from, long argl, void *arg
 	struct user_info *u = (struct user_info *)(*from);
 
 	*to = u;
+}
+
+TEST_F(MaatCmdTest, CompileEXData) {
+    const char *compile_table_name = "COMPILE_FIREWALL";
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    int *ex_data_counter = MaatCmdTest::_ex_data_counter;
+    int compile_table_id = maat_get_table_id(maat_inst, compile_table_name);
+    EXPECT_GT(compile_table_id, 0);
+
+    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
+                                     compile1_id, "test:compile1,1111", 1, 0);
+    EXPECT_EQ(ret, 1);
+
+    long long compile2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
+                                 compile2_id, "test:compile2,2222", 1, 0);
+    sleep(WAIT_FOR_EFFECTIVE_S);
+
+    *ex_data_counter = 0;
+    ret = maat_plugin_table_ex_schema_register(maat_inst, compile_table_name,
+                                               compile_ex_param_new,
+                                               compile_ex_param_free,
+                                               compile_ex_param_dup,
+                                               0, ex_data_counter);
+    ASSERT_TRUE(ret == 0);
+    EXPECT_EQ(*ex_data_counter, 2);
+
+    void *ex_data = maat_plugin_table_get_ex_data(maat_inst, compile_table_id,
+                                                 (char *)&compile1_id, sizeof(long long));
+    ASSERT_TRUE(ex_data != NULL);
+    struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
+	EXPECT_EQ(param->id, 1111);
+
+    ex_data = maat_plugin_table_get_ex_data(maat_inst, compile_table_id,
+                                            (char *)&compile2_id, sizeof(long long));
+    ASSERT_TRUE(ex_data != NULL);
+    param = (struct rule_ex_param *)ex_data;
+	EXPECT_EQ(param->id, 2222);
+
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL,
+                                 compile2_id, "test:compile2,2222", 1, 0);
+    sleep(WAIT_FOR_EFFECTIVE_S * 5);
+    EXPECT_EQ(param->id, 2222); 
+    sleep(2);
+    //excced gc_timeout_s(11s), the data pointed by param has been freed
 }
 
 TEST_F(MaatCmdTest, PluginEXData) {
