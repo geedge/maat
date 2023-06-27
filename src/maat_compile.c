@@ -2162,9 +2162,6 @@ void maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
 
     int g2g_table_id = table_manager_get_group2group_table_id(maat_inst->tbl_mgr);
     void *g2g_rt = table_manager_get_runtime(maat_inst->tbl_mgr, g2g_table_id);
-    if (NULL == g2g_rt) {
-        return;
-    }
 
     long long super_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
     size_t super_group_cnt = group2group_runtime_get_super_groups(g2g_rt, hit_group_ids,
@@ -2252,7 +2249,6 @@ size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *comp
 
         size_t super_group_cnt = group2group_runtime_get_super_groups(g2g_rt, &(internal_path->group_id), 1,
                                                                       super_group_ids, MAX_SCANNER_HIT_GROUP_NUM);
-        /* if super group is not referenced by compile, drop it */
         for (size_t idx = 0; idx < super_group_cnt; idx++) {
             utarray_push_back(valid_super_group_ids, &super_group_ids[idx]);
         }
