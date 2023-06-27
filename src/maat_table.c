@@ -982,11 +982,19 @@ enum table_type table_manager_get_table_type(struct table_manager *tbl_mgr, int 
 
 int table_manager_get_default_compile_table_id(struct table_manager *tbl_mgr)
 {
+    if (NULL == tbl_mgr) {
+        return -1;
+    }
+
     return tbl_mgr->default_compile_table_id;
 }
 
 int table_manager_get_group2group_table_id(struct table_manager *tbl_mgr)
 {
+    if (NULL == tbl_mgr) {
+        return -1;
+    }
+
     return tbl_mgr->g2g_table_id;
 }
 
@@ -1018,11 +1026,19 @@ int table_manager_get_valid_column(struct table_manager *tbl_mgr, int table_id)
 
 size_t table_manager_accept_tags_count(struct table_manager *tbl_mgr)
 {
+    if (NULL == tbl_mgr) {
+        return -1;
+    }
+
     return tbl_mgr->n_accept_tag;
 }
 
 int table_manager_accept_tags_match(struct table_manager *tbl_mgr, const char *tags)
 {
+    if (NULL == tbl_mgr) {
+        return -1;
+    }
+    
     return compare_accept_tag(tags, tbl_mgr->accept_tags, tbl_mgr->n_accept_tag);
 }
 

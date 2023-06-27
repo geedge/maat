@@ -1900,6 +1900,10 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
         return -1;
     }
 
+    if (NULL == state->compile_state) {
+        return 0;
+    }
+
     int compile_table_id = table_manager_get_default_compile_table_id(maat_inst->tbl_mgr);
     if (state->compile_table_id > 0) {
         compile_table_id = state->compile_table_id;
@@ -1929,6 +1933,10 @@ int maat_state_get_hit_groups(struct maat_state *state, struct maat_hit_group *g
         return -1;
     }
 
+    if (NULL == state->compile_state) {
+        return 0;
+    }
+    
     int g2g_table_id = table_manager_get_group2group_table_id(state->maat_inst->tbl_mgr);
     void *g2g_runtime = table_manager_get_runtime(state->maat_inst->tbl_mgr, g2g_table_id);
 
