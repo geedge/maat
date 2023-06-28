@@ -596,7 +596,7 @@ TEST_F(MaatFlagScan, basic) {
     EXPECT_EQ(n_hit_result, 2);
     EXPECT_EQ(results[0], 207);
     EXPECT_EQ(results[1], 192);
-
+    
     struct maat_hit_path hit_path[HIT_PATH_SIZE] = {0};
     int n_read = 0;
     n_read = maat_state_get_hit_paths(state, hit_path, HIT_PATH_SIZE);
@@ -5498,6 +5498,9 @@ TEST_F(MaatCmdTest, HitPath) {
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
+    size_t scan_count = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_count, 1);
+
     struct maat_hit_group hit_groups[128];
     memset(hit_groups, 0, sizeof(hit_groups));
     int n_hit_group = maat_state_get_hit_groups(state, hit_groups, sizeof(hit_groups));
@@ -5540,6 +5543,8 @@ TEST_F(MaatCmdTest, HitPath) {
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], compile1_id);
+    scan_count = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_count, 2);
 
     n_hit_group = maat_state_get_hit_groups(state, hit_groups, sizeof(hit_groups));
     EXPECT_EQ(n_hit_group, 4);
@@ -5602,6 +5607,8 @@ that the edges be all directed in the same direction.";
     ret = maat_stream_scan(stream, keywords1, strlen(keywords1), results, ARRAY_SIZE,
                           &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    scan_count = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_count, 3);
 
     n_hit_group = maat_state_get_hit_groups(state, hit_groups, sizeof(hit_groups));
     EXPECT_EQ(n_hit_group, 5);
@@ -5638,6 +5645,8 @@ that the edges be all directed in the same direction.";
     ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6, results, ARRAY_SIZE,
                          &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    scan_count = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_count, 4);
 
     n_hit_group = maat_state_get_hit_groups(state, hit_groups, sizeof(hit_groups));
     EXPECT_EQ(n_hit_group, 6);
@@ -5670,6 +5679,8 @@ that the edges be all directed in the same direction.";
     ret = maat_stream_scan(stream, keywords2, strlen(keywords2), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    scan_count = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_count, 5);
 
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 7);

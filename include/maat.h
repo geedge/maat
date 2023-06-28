@@ -268,6 +268,8 @@ int maat_state_set_scan_compile_table(struct maat_state *state, int compile_tabl
 
 int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *paths, 
                              size_t n_path);
+                             
+size_t maat_state_get_scan_count(struct maat_state *state);
 
 int maat_state_get_hit_groups(struct maat_state *state, struct maat_hit_group *groups, 
                               size_t n_group);

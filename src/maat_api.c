@@ -1926,6 +1926,15 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
                                          state->compile_state, paths, n_path, internal_hit_path_cnt);
 }
 
+size_t maat_state_get_scan_count(struct maat_state *state)
+{
+    if (NULL == state) {
+        return 0;
+    }
+
+    return state->scan_cnt;
+}
+
 int maat_state_get_hit_groups(struct maat_state *state, struct maat_hit_group *groups, 
                               size_t n_group)
 {
