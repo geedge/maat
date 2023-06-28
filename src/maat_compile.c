@@ -1600,7 +1600,7 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, int thr
                     // means same literal_id hit more than one compile_id
 					struct maat_hit_path tmp_path = hit_path_array[j];
 					tmp_path.compile_id = compile->compile_id;
-					if(maat_compile_is_hit_path_existed(hit_path_array, n_internal_hit_path + new_hit_path_cnt, &tmp_path)) {
+					if(!maat_compile_is_hit_path_existed(hit_path_array, n_internal_hit_path + new_hit_path_cnt, &tmp_path)) {
 						hit_path_array[n_internal_hit_path + new_hit_path_cnt] = tmp_path;
 						new_hit_path_cnt++;
 					}

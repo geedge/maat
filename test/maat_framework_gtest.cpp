@@ -5687,6 +5687,99 @@ that the edges be all directed in the same direction.";
     state = NULL;
 }
 
+TEST_F(MaatCmdTest, SameSuperGroupRefByMultiCompile) {
+    char temp[1024]={0};
+    int thread_id = 0;
+    const char *g2g_table_name = "GROUP2GROUP";
+	const char *g2c_table_name = "GROUP2COMPILE";
+	const char *compile_table_name = "COMPILE";
+	const char *http_sig_table_name = "HTTP_SIGNATURE";
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+
+    /* item5 -> group5 -> group52 -> compile2
+                              \
+                               \ -> compile3
+    */
+    long long item5_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    long long group5_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    int ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD, item5_id, group5_id,
+                                  maat_cmd_str_escape(temp, sizeof(temp), "same supergroup referenced by multi compile"),
+                                  "KEY", 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+    EXPECT_EQ(ret, 1);
+
+    long long group52_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD, group5_id,
+                                     group52_id, 0, 0);
+    EXPECT_EQ(ret, 1);
+
+    long long compile2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile2_id,
+                                 "HTTP_RESPONSE_HEADER", 1, 0);
+    EXPECT_EQ(ret, 1);
+
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group52_id,
+                                       compile2_id, 0, "HTTP_RESPONSE_HEADER", 0, 0);
+    EXPECT_EQ(ret, 1);
+
+    long long compile3_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile3_id,
+                                 "HTTP_RESPONSE_HEADER", 1, 0);
+    EXPECT_EQ(ret, 1);
+
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group52_id,
+                                       compile3_id, 0, "HTTP_RESPONSE_HEADER", 0, 0);
+    EXPECT_EQ(ret, 1);
+
+    sleep(WAIT_FOR_EFFECTIVE_S);
+
+    int http_res_table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
+	ASSERT_GT(http_res_table_id, 0);
+
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    ret = maat_state_set_scan_district(state, http_res_table_id, "KEY", strlen("KEY"));
+    EXPECT_EQ(ret, 0);
+    
+    const char *http_res_key_str = "same supergroup referenced by multi compile";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_hit_path hit_path[128];
+
+    ret = maat_scan_string(maat_inst, http_res_table_id, http_res_key_str, strlen(http_res_key_str), 
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 2);
+    EXPECT_EQ(results[0], compile3_id);
+    EXPECT_EQ(results[1], compile2_id);
+    
+    memset(hit_path, 0, sizeof(hit_path));
+    int n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    EXPECT_EQ(n_read, 3);
+
+    int path_idx = 0;
+    EXPECT_EQ(hit_path[path_idx].Nth_scan, 1);
+    EXPECT_EQ(hit_path[path_idx].item_id, item5_id);
+    EXPECT_EQ(hit_path[path_idx].sub_group_id, group5_id);
+    EXPECT_EQ(hit_path[path_idx].top_group_id, group52_id);
+    EXPECT_EQ(hit_path[path_idx].compile_id, compile3_id);
+
+    path_idx++;
+    EXPECT_EQ(hit_path[path_idx].Nth_scan, 1);
+    EXPECT_EQ(hit_path[path_idx].item_id, item5_id);
+    EXPECT_EQ(hit_path[path_idx].sub_group_id, group5_id);
+    EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
+    EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
+    path_idx++;
+    EXPECT_EQ(hit_path[path_idx].Nth_scan, 1);
+    EXPECT_EQ(hit_path[path_idx].item_id, item5_id);
+    EXPECT_EQ(hit_path[path_idx].sub_group_id, group5_id);
+    EXPECT_EQ(hit_path[path_idx].top_group_id, group52_id);
+    EXPECT_EQ(hit_path[path_idx].compile_id, compile2_id);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
 TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
     const char *g2c_table_name = "GROUP2COMPILE";
 	const char* compile_table_name = "COMPILE";
