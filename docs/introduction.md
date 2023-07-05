@@ -1,28 +1,30 @@
-# 概念
+# Concepts
 
-Item，对网络属性的过滤条件，某一字段的配置
+Item: As a filter for network attributes, the smallest unit of a rule
 
-- 例1，指定HTTP协议中UserAgent包含子串“Chrome”和“11.8.1”
-- 例2，指定HTTP协议中域名以“.emodao.com”结尾
-- 例3，指定客户端IP地址属于202.118.101.*这个C段
-- 例4，指定HTTP协议中传输的文件摘要为” FsOmaK3utZafWYt/i[7203:46299992]”
+- Eg1: specify that the UserAgent field in the HTTP protocol contains substrings "Chrome" and "11.8.1".
+- Eg2: specify that the domain name in the HTTP protocol ends with ".emodao.com"
+- Eg3: specify client IP address belongs to the C segment of 202.118.101.*
 
-Item的类型包括字符串过滤条件（如关键词、正则表达式）、IP过滤条件（掩码、CIDR、范围）、数值区间和内容摘要（Stream Fuzzy Hash）。
+The types of Items include string(such as keywords, regular expression), IP(mask, CIDR, range) and numeric range
 
-分组配置，Group，又称Object，是Item的集合
+Group(Object): Collection of Items, the constraints of group are as follows:
 
-- 一个Item属于一个Group，同一Group中的多个Item是“或”的关系；
-- 一个Group可以被其它Group包含（Include）或排除（Exclude）
-- Group支持多层嵌套
-- 一个Group可以被多个Compile引用
+- An Item only belongs to one group, but one group can has multiple items. The multiple items under the same group are logical 'OR' relationships.
+- A Group can be included or excluded by other groups. The multiple included groups under the same superior group are logical 'OR' relationship. Between included group and excluded group under the same superior group are logical 'AND' relationship.
+- Group supports multi-level nesting
+- A Group can be referenced by multiple compiles.
 
-编译配置是由多个Group和虚拟表组成的合取范式
+Compile(Policy): A conjunctive normal form(CNF) consisting of multiple groups and virtual tables
 
-- 合取范式可以包含最多8个子句（Clause），同一个编译中的多个子句之间可以是“与”和“非”运算。
-- 一个子句包含若干个Literal，Literal虚拟表（可选）和Group组成，之间是“或”运算。在配置加载过程中会按照同一个子句中的虚拟表+分组ID的组合生成唯一的Clause ID，Clause ID不会被不同的组合重用。
-- 例如，对于同时符合上面例1、例2、例3的访问进行重定向操作，重定向策略ID=31(重定向地址为www.baidu.com，黑名单5分钟)，记录日志
+- A Compile can contain up to 8 clauses and multiple clauses in the same compile can be logical 'AND' and logical 'NOT' relationships.
+- A Clause consists of several Literals and the relationship between them is a logical 'OR'. A Literal consists of virtual table and group. During the configuration loading process, a unique Clause ID will be generated based on the combination of virtual table ID and group ID in the same clause.
+
 
 ![CNF](./imgs/CNF.jpg)
+
+Configuration Diagram
+![configuration Diagram](./imgs/configuration_diagram.png)
 
 ## Group/Object Nesting and Hierarchies
 
@@ -84,18 +86,20 @@ Now, let's see a graph of hierarchy example, where the dotted line means exclude
 | g4, g11                         | g7, g8, g9                     |
 | g1, g2                          | g9                             |
 
-## 定义
+## Defined Terms
 
-| **名词**                    | **解释**                                                     |
+| **Term**                    | **Description**                                                      |
 | --------------------------- | ------------------------------------------------------------ |
-| Instance                    | MAAT的句柄                                                   |
-| Item                        | 针对一个数据中某一域的配置，如HTTP协议中的URL、DNS协议的IP地址等。 |
-| Group/Object                | 一条或多条域配置的集合，分组内的域配置之间是或的关系。       |
-| Compile (编译配置)          | 描述通过一条或多条分组配置“与”“非”运算，所执行的业务规则。   |
-| Table（配置表）             | 在数据库表文件和规则扫描之间的抽象层，既可以是存储域配置、分组配置、编译配置的实体表，也可以是实体表的组合、虚拟和连接。 |
-| Table Schema （配置表模式） | 定义配置表中存放的配置类型和字段格式                         |
-| Table Runtime               |                                                              |
-| Maat State                  | 用于记录扫描多个多流量属性的中间状态                         |
-| Maat Stream                 | 用于流式文本扫描的句柄                                       |
-| Hit Path（命中路径）        | 从待扫描数据的角度，描述其域ID->子分组ID->顶级分组ID（含虚拟表名）->编译配置的ID序列，称为命中路径。 |
-| Redis                       | 内存数据库，参见https://redis.io/  ，通过其主从备份机制实现配置的多级同步。 |
+| Instance                    | Maat handle                                                  |
+| Item                        | Configuration of a certain field，such as URL field in HTTP protocol, client ip address field in DNS protocol etc.|
+| Group(Object)               | A collection of one or more Items, the multiple items under the same Group are logical 'OR' relationships |
+| Compile(Policy)             | A rule for several Groups logical AND or NOT operations   |
+| Table                       | Different types of configurations have different tables, such as ip table, keywords table, group2compile table, compile table etc.  |
+| Physical Table              | The actual table in the database |
+| Virtual Table               | Table that do not exist in the database and only references physical table |
+| Table Schema                | Define the table type and the meaning of each column in the table |
+| Table Runtime               | The runtime of each table in memory which is used for scanning |
+| Maat State                  | Store intermediate state of multiple scans |
+| Maat Stream                 | Handle of streaming file scanning |
+| Hit Path                    | From the perspective of data to be scanned, describe the hit ID sequence: item_id -> sub_group_id -> superior_group_id(virtual_table_id) -> compile_id |
+| Redis                       | In-memory data store，see https://redis.io/. It has a leader follower replication to ensure the high availability of configuration |

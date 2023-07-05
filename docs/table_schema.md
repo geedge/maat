@@ -1,208 +1,364 @@
 # Table Schema
 
-自Maat 4.0，Item ID、Group ID、Compile ID的取值范围为0～2^63，即C语言long long类型。
+Since Maat 4.0，The range of item_id(group_id, compile_id) is 0～2^63，which is 8 bytes.
 
-## Item Table Schema
+## Item Table
 
-每个Item表必须包含
+Each item table must has the following columns
 
-- Item ID，唯一标识一个Item。在一个Maat实例中，不同表的Item ID不得重复。
-- Group ID，表明该Item所属的Group，一个Item属于且仅属于一个Group。
-- 有效标志字段，1表示生效，在增量更新中表示添加；0表示失效，在增量更新中表示删除。
+- item_id: In a maat instance, the item ID is globally unique, meaning that the item IDs of different tables must not be duplicate.
+- group_id: Indicate the group to which the item belongs, an item belongs to only one group.
+- is_valid: In incremental updates, 1(valid means add) 0(invalid means del)
 
-不同类型的表还根据各自需要定义了不同的字段。
+Different types of tables also have different fields defined according to their respective needs.
 
-### 字符串类域配置（含扩展后的）
+### 1. String item table
+Describe matching rules for strings.
 
-用以描述针对字符串的匹配规则，匹配类型由expr_type字段描述，包括：
+#### table schema
+| **FieldName**    | **type**       | **NULL** | **constraint** |
+| ---------------- | -------------- | -------- | ------- |
+| **item_id**      | LONG LONG      | N        | primary key |
+| **group_id**     | LONG LONG      | N        | group2group or group2compile table's group_id |
+| **keywords**     | VARCHAR2(1024) | N        | field to match during scanning |
+| **expr_type**    | INT            | N        | 0(keywords), 1(AND expr), 2(regular expr), 3(substring with offset)
+| **match_method** | INT            | N        | only useful when expr_type is 0 |
+| **is_hexbin**    | INT            | N        | 0(not HEX & case insensitive, this is default value)  1(HEX & case sensitive)  2(not HEX & case sensitive) |
+| **is_valid**     | INT            | N        | 0(invalid), 1(valid) |
 
-- 非表达式匹配方式，分为0：子串匹配；1：右匹配；2：左匹配；3：完全匹配
-- 与表达式，最多支持8个子串或正则的与。
-- 正则表达式
-- 带偏移量的子串匹配，即规定某个字符串出现在某个位置的规则
-  - 偏移量从0开始计算，为[offset_start, offset_end]的闭区间。
-  - 多个带偏移量的子串可以与
+Matching rules for string，expr_type column represents the expression type.
 
-Maat4.0后，仅支持UTF-8，不再进行编码转换。对于二进制格式的配置，其关键字格式为十六进制字符串，例如“欢乐”表示成“bbb6c0d6”，字母不区分大小写。关键字的内容不能包含空格、tab、回车等不可见字符，即不能包含ASCII范围0x00至0x1F及0x7F，如需要包含这些字符，需要进行转义，参见“关键字转义表”。该表以外使用反斜线引导的符号按普通字符串处理，如’\t’将按照字符串”\t”处理。
+1. keywords matching(0), match_method column as follows
+    - substring matching (0)
+    - suffix matching    (1)
+    - prefix matching    (2)
+    - exactly matching   (3)
+2. AND expression(1), supports up to 8 substrings.
+3. Regular expression(2)
+4. substring matching with offset(3)
+  - offset start with 0, [offset_start, offset_end] closed interval
+  - multiple substrings with offset are logical AND
 
-&符号在是MAAT中与表达式的连接运算符号，关键字中出现的&符号，必须使用’\&’进行转义。
+Since Maat4.0，only support UTF-8，no more encoding conversion。For binary format configurations, the keyword is hexadecimal, such as the keyword "hello" is represented as "68656C6C6F". A keyword can't contain invisible characters such as spaces, tabs, and CR, which are ASCII codes 0x00 to 0x1F and 0x7F.
+If these characters need to be used, they must be escaped, refer to the "keywords escape table".
+Characters led by backslashes outside this table are processed as ordinary strings, such as '\t' will be processed as the string "\t".
 
-表 2关键字转义表
+The symbol '&' means conjunction operation in AND expression. So if the keywords has '&', it must be escaped by '\&'.
 
-| **字符名称** | ANSII码 | 转义后的符号 |
-| ------------ | ------- | ------------ |
-| 反斜线，’\’  | 0x5c    | \\           |
-| &            | 0x26    | \&           |
-| 空格         | 0x20    | \b           |
+**keywords escape table**
 
-长度约束：
+| **symbol** | **ASCII code** | **symbol after escape** |
+| ---------- | -------------- | ----------------------- |
+| \          | 0x5c           | \\\                     |
+| &          | 0x26           | \\&                     |
+| blank space| 0x20           | \b                      |
 
-- 单个子串不小于3字节；
-- 与表达式中的单个子串不小于3字节；
-- 与表达式最多支持8个子串进行与运算，即7个&；
-- 与表达式整体不超过1024字节，包括&；
+Length constraint：
 
-表 3字符串类表格式
+- Single substring no less than 3 bytes；
+- No less than 3 bytes for a single substring in AND expression；
+- Support up to 8 substrings in one AND expression, expr = substr1 & substr2 & substr3 & substr4 & substr5 & substr6 & substr7 & substr8
+- The length of one AND expression should not exceed 1024 bytes(including '&')
 
-| **名称**                                      | **字段名称** | **类型**       | **空值** | **约束**                                                     |
-| --------------------------------------------- | ------------ | -------------- | -------- | ------------------------------------------------------------ |
-| **配置****ID**                                | region_id    | INT            | N        | 由同一config_id的不同域拆分而成，**主键**，各表不重复，以下各表中region_id/group_id/compile_id取值均为0～2^31。 |
-| **分组ID**                                    | group_id     | INT            | N        | 分组关系表中的group_id                                       |
-| **关键字**                                    | keywords     | VARCHAR2(1024) | N        | expr_type:1,2,3时， keywords中’&’为与运算操作符,子表达式中的’&’符号用’\&’转义。  expr_type:3时，格式为  offset_s1-offset_e1:keyword1&  offset_s2-offset_e2:keyword2  expr_type:4时，格式为  <offset_s1,offset_e1><,>:keyword1&<offset_s2,offset_e2><distance,within>:keyword2 |
-| **表达式类型**                                | expr_type    | INT            | N        | 0:无表达式,1:表示为与表达式,2:正则表达式,3:带偏移量的子串匹配,4:带偏移量和相对位置的子串匹配(暂未支持) |
-| **匹配方式**                                  | match_method | INT            | N        | expr_type:0时有意义，其它情况必须置0。  0：子串匹配；1：右匹配；2：左匹配；3：完全匹配 |
-| **是否****HEX****格式二进制，大小写敏感匹配** | is_hexbin    | INT            | N        | 默认为0:大小写不敏感，且非HEX  1:HEX格式二进制，大小写敏感  2:大小写敏感，且非HEX  二进制格式是一种特殊的编码，受table_info.conf文件中do_merge控制 |
-| **有效标志**                                  | is_valid     | INT            | N        | 0无效，1有效                                                 |
 
-###  IP类域配置（含扩展后的）
+### 2. IP item table
 
-用以描述IP地址的匹配规则，地址和端口都用字符串表示，其中IPv4为点分十进制，IPv6为冒号分隔的16进制。
+Describe matching rules for IP address. Both the address and port are represented by string, IPv4 is dotted decimal and IPv6 is colon separated hexadecimal.
 
-表 4 IP类表格式
+#### table schema
 
-| **名称**           | **字段名称**  | **类型**     | **空值** | **约束**                                                     |
-| ------------------ | ------------- | ------------ | -------- | ------------------------------------------------------------ |
-| **域配置****ID**   | region_id     | INT          | N        | 由配置汇总表中统一id的不同域拆分而成，**主键**，各表不重复   |
-| **分组ID**         | group_id      | INT          | N        | 分组关系表中的group_id                                       |
-| **地址类型**       | addr_type     | INT          | N        | Ipv4=4,ipv6=6                                                |
-| **源IP****地址**   | src_ip        | VARCHAR2(40) | N        | 0.0.0.0值表示任意                                            |
-| **源IP****掩码**   | mask_src_ip   | VARCHAR2(40) | N        | IPv4:255.255.255.255和0.0.0.0表示无掩码，即精确IP匹配；  IPv6：ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff  和::（两个半角冒号）表示无掩码，即精确匹配。非0掩码值必须是2的指数幂，下同 |
-| **源端口**         | src_port      | VARCHAR2(6)  | N        | 0值表示任意                                                  |
-| **源端口掩码**     | mask_src_port | VARCHAR2(6)  | N        | 65535表示无掩码，即精确端口匹配，0表示任意                   |
-| **目的IP**         | dst_ip        | VARCHAR2(40) | N        | 0.0.0.0值表示任意                                            |
-| **目的IP****掩码** | mask_dst_ip   | VARCHAR2(40) | N        | 同源IP掩码                                                   |
-| **目的端口**       | dst_port      | VARCHAR2(6)  | N        | 0值表示任意                                                  |
-| **目的端口掩码**   | mask_dst_port | VARCHAR2(6)  | N        | 同源端口掩码                                                 |
-| **协议(tcp/udp)**  | protocol      | INT          | N        | 6表示TCP，17表示UDP，无限制默认为0。可自解释，取值范围为0~65535。  对于多层嵌套地址的匹配需求，如第二层为UDP协议的某个IPv4地址，可以用protocol的高8位表示嵌套层数，低八位表示协议类型. |
-| **方向**           | direction     | INT          | N        | 0无方向（双向），1有方向（单向）                             |
-| **有效标志**       | is_valid      | INT          | N        | 0无效，1有效                                                 |
+| **FieldName** | **type**     | **NULL** | **constraint** |
+| ------------- | ------------ | -------- | -------------- |
+| item_id       | LONG LONG    | N        | primary key |
+| group_id      | LONG LONG    | N        | group2group or group2compile table's group_id |
+| addr_type     | INT          | N        | Ipv4 = 4 Ipv6 = 6 |
+| addr_format   | VARCHAR2(40) | N        | ip addr format, single/range/CIDR/mask |
+| ip1           | VARCHAR2(40) | N        | start ip |
+| ip2           | VARCHAR2(40) | N        | end ip |
+| port_format   | VARCHAR2(40) | N        | port format, single/range |
+| port1         | VARCHAR2(6)  | N        | start port number |
+| port2         | VARCHAR2(6)  | N        | end port number |
+| protocol      | INT          | N        | default(-1) TCP(6) UDP(17), user define field |
+| is_valid      | INT          | N        | 0(invalid), 1(valid) |
 
-### 数值类域配置
+### 3. Numeric item table
 
-用以判断数值是否位于某个区间。
+Determine whether an integer is within a certain numerical range.
 
-表 6数值类表格式
+#### table schema
 
-| **名称**         | **字段名称** | **类型** | **空值** | **约束**                                                   |
-| ---------------- | ------------ | -------- | -------- | ---------------------------------------------------------- |
-| **域配置****ID** | region_id    | INT      | N        | 由配置汇总表中统一id的不同域拆分而成，**主键**，各表不重复 |
-| **分组ID**       | group_id     | INT      | N        | 分组关系表中的group_id                                     |
-| **数值下界**     | low_boundary | INT      | N        | 数据区间的下界，包含lb，取值范围0~2^32-1  lb<=ub           |
-| **数值上界**     | up_boundary  | INT      | N        | 数据区间的上界，包含ub，取值范围0~2^32-1                   |
-| **有效标志**     | is_valid     | INT      | N        | 0无效，1有效                                               |
+| **FieldName** | **type** | **NULL** | **constraint** |
+| ------------- | -------- | -------- | -------------- |
+| item_id      | INT      | N        | primary key |
+| group_id     | INT      | N        | group2group or group2compile table's group_id |
+| low_boundary | INT      | N        | lower bound of the numerical range(including lb), 0 ~ (2^32 - 1)|
+| up_boundary  | INT      | N        | upper bound of the numerical range(including ub), 0 ~ (2^32 - 1)|
+| is_valid     | INT      | N        | 0(invalid), 1(valid) |
 
-### 文件摘要类域配置（Todo）
 
-用以描述需要使用摘要进行比对的规则。摘要生成digest_gen工具参见xx节。 
+### 4. Group2group table
 
-表 8摘要类表格式
+Describe the relationship between groups.
 
-| **名称**         | **字段名称** | **类型**      | **空值** | **约束**                                                   |
-| ---------------- | ------------ | ------------- | -------- | ---------------------------------------------------------- |
-| **域配置****ID** | region_id    | INT           | N        | 由配置汇总表中统一id的不同域拆分而成，**主键**，各表不重复 |
-| **分组ID**       | group_id     | INT           | N        | 分组关系表中的group_id                                     |
-| **原始长度**     | raw_len      | NUMBER        | N        | 生成摘要的原始文件长度                                     |
-| **文件摘要**     | digest       | VARCHAR(4000) | N        | 使用专用工具生成的摘要字符串                               |
-| **匹配置信度**   | cfds_level   | INT           | N        | 匹配置信度，1～10                                          |
-| **有效标志**     | is_valid     | INT           | N        | 0无效，1有效                                               |
+#### table schema
 
-### Group To Group Relation 分组关系表
+| **FieldName**     | **type**  | **NULL** | **constraint** |
+| ----------------- | --------- | -------- | ---------------|
+| group_id          | LONG LONG | N        | reference from xx_item table's group_id |
+| superior_group_id | LONG LONG | N        | group_id include or exclude specified super_group_id |
+| is_exlude         | Bool      | N        | 0(include) 1(exclude) |
+| is_valid          | Bool      | N        | 0(invalid), 1(valid) |
 
-描述分组与分组间的关系。
+### 5. Group2compile table
 
-表 12分组关系表格式
+Describe the relationship between group and compile.
 
-| 名称       | 字段名称          | 类型  | 空值 | **约束**                       |
-| ---------- | ----------------- | ----- | ---- | ------------------------------ |
-| 分组ID     | group_id          | INT64 | N    | 引用自各域配置表的group_id字段 |
-| 上级分组ID | superior_group_id | INT64 | N    |                                |
-| 排除标志位 | is_exlude         | Bool  | N    |                                |
-| 有效标志   | is_valid          | Bool  | N    | 0无效，1有效                   |
+#### table schema
 
-## Compile Group Relation 分组编译表
+| **FieldName** | **type**      | **NULL** | **constraint** |
+| ------------- | ------------- | -------- | ------- |
+| group_id      | LONG LONG     | N        | reference from xx_item table's group_id|
+| compile_id    | LONG LONG     | N        | compile ID |
+| is_valid      | INT           | N        | 0(invalid), 1(valid) |
+| not_flag      | INT           | N        | logical 'NOT', identify a NOT clause, 0(no) 1(yes) |
+| virtual_table | VARCHAR2(256) | N        | virtual table name, default:”null” |
+| Nth_clause    | INT           | N        | the clause seq in (conjunctive normal form)CNF, from 0 to 7. groups with the same clause ID are logical 'OR' |
 
-描述分组与编译之间的关系。
+NOTE: If group_id is invalid in xx_item table, it must be marked as invalid in this table.
 
-Maat 2.8后不再兼容无分组模式。
+### 6. Compile table
 
-\0.    表 13配置分组表格式
+Describe the specific policy, One maat instance can has multiple compile tables with different names.
 
-| **名称**           | **字段名称**  | **类型**      | **空值** | **约束**                                                     |
-| ------------------ | ------------- | ------------- | -------- | ------------------------------------------------------------ |
-| **分组****ID**     | group_id      | INT           | N        | 引用自各域配置表的group_id字段                               |
-| **编译配置ID**     | compile_id    | INT           | N        | 编译配置ID                                                   |
-| **有效标志**       | is_valid      | INT           | N        | 0无效，1有效                                                 |
-| **非运算标志位**   | not_flag      | INT           | N        | “非关系”分组标识，0：否，1：是。当parent是编译配置（parent_id=0）时有效。 |
-| **分组所属虚拟表** | virtual_table | VARCHAR2(256) | N        | 默认为”null”。                                               |
-| **子句序号**       | Nth_clause    | INT           | N        | group所属的合取范式（编译配置）中子句的编号，从0到7，相同子句ID的group在分组中是“或”关系。 |
+#### table schema
 
-注意：若该表中某group_id不包含有效的域配置时，必须标记为无效，否则会导致包含该分组的编译配置无法命中。
+| **FieldName**    | **type**       | **NULL** | **constraint** |
+| ---------------- | -------------- | -------- | --------------- |
+| compile_id       | LONG LONG      | N        | primary key, policy ID |
+| service          | INT            | N        | such as URL keywords or User Agent etc. |
+| action           | VARCHAR(1)     | N        | recommended definitions: 0(Blocking) 1(Monitoring) 2(whitelist) |
+| do_blacklist     | VARCHAR(1)     | N        | 0(no)，1(yes)  transparent to maat |
+| do_log           | VARCHAR(1)     | N        | 0(no)，1(yes)，default 1 transparent to maat |
+| tags             | VARCHAR2(1024) | N        | default 0，means no tag |
+| user_region      | VARCHAR2(8192) | N        | default 0  transparent to maat |
+| is_valid         | INT            | N        | 0(invalid)，1(valid)  |
+| clause_num       | INT            | N        | no more than 8 clauses |
+| evaluation_order | DOUBLE | N     |          | default 0 |
 
-析取与合取：[https://baike.baidu.com/item/%E6%9E%90%E5%8F%96](https://baike.baidu.com/item/析取)
 
-## Compile 配置编译
+### 7. Plugin table
 
-描述每一条具体策略的业务信息，一个Maat示例下可以有多个不同名称的编译配置表。
+There is no fixed format for configuration of the plugin table, which is determined by business side. The plugin table support three types of keys: pointer, integer and ip_addr.
 
-表 14配置编译表格式
+**pointer key(compatible with maat3)**
 
-| **名称**                      | **字段名称**     | **类型**             | **空值** | **约束**                                                     |
-| ----------------------------- | ---------------- | -------------------- | -------- | ------------------------------------------------------------ |
-| **编译配置****ID**            | compile_id       | INT                  | N        | 通常有数据库中的SEQ类型生成，主键，本表不重复，被配置分组表引用 |
-| **业务****ID**                | service          | INT                  | N        | 如URL关键字业务，User  Agent业务等                           |
-| **动作**                      | action           | VARCHAR(1)           | N        | 推荐定义:0:阻断，1：监测，2：白名单  应用可自解释            |
-| **是否黑名单**                | do_blacklist     | VARCHAR(1)           | N        | 0:不需要，1:需要  应用可自解释                               |
-| **是否生成日志**              | do_log           | VARCHAR(1)           | N        | 0:不需要，1:需要，默认为1  应用可自解释                      |
-| **生效范围****/****配置标签** | tags             | VARCHAR2(1024)       | N        | 默认值为0，表示无标签；分区域下发参见本文档“配置生效标签”一节。 |
-| **用户自定义域**              | user_region      | VARCHAR2(8192)       | N        | 默认值为0  应用可自解释                                      |
-| **有效标志**                  | is_valid         | INT                  | N        | 0无效，1有效                                                 |
-| **包含子句数量**              | clause_num       | INT                  | N        | 包含不超过8个子句，用以克服多个表中域配置或分组配置不能原子下发的问题 |
-| **执行顺序**                  | evaluation_order | DOUBLE[[1\]](#_ftn1) | N        | 默认值为0，执行顺序在最后；非0时，执行顺序号越大，执行顺序越靠后；详见6.7 |
+(1) schema
+```
+{
+    "table_id":1,
+    "table_name":"TEST_PLUGIN_POINTER_KEY_TYPE",
+    "table_type":"plugin",
+    "valid_column":4,
+    "custom": {
+        "key_type":"pointer",
+        "key":2,
+        "tag":5
+    }
+}
+```
 
-[[1\]](#_ftnref1) 使用双精度浮点数而不是整数表示执行顺序，可以保证一条编译配置执行顺序的修改不会影响其它配置。例如：有顺序执行的4条编译配置a、b、c、d，将d的执行顺序调整到b之前，修改d.exec_seq = (a.exec_seq + b.exec_seq) /2。配置生成侧可以周期性的重置exec_seq为顺序整数，以减少小数点位数。 
+(2) plugin table configuration
+```
+{
+    "table_name": "TEST_PLUGIN_POINTER_KEY_TYPE",
+    "table_content": [
+        "1\tHeBei\tShijiazhuang\t1\t0",
+        "2\tHeNan\tZhengzhou\t1\t0",
+        "3\tShanDong\tJinan\t1\t0",
+        "4\tShanXi\tTaiyuan\t1\t0"
+    ]
+}
+```
 
-## Plugin 回调类配置
+(3) get_ex_data
+```
+const char *key1 = "HeBei";
+const char *table_name = "TEST_PLUGIN_POINTER_KEY_TYPE";
 
-这类配置没有固定格式，由业务自己定义，用于非扫描类配置或不需要做统一扫描的配置。注册回调函数后，配置更新时Maat负责在会将表ID和表行作为参数回调，注册的方式有两种：
+int table_id = maat_get_table_id(maat_instance, table_name);
+maat_plugin_table_get_ex_data(maat_instance, table_id, key1, strlen(key1));
+```
 
-1. 回调表注册函数Maat_table_callback_register，支持注册最多8组回调函数，出于节省内存的考虑，只有第一个注册的回调函数能够得到全量配置，后继注册函数无法得到第一次注册到本次注册之间更新的内容。
-2. 回调表Extra Data注册函数Maat_plugin_EX_register，仅支持注册1组回调函数。
+**integer key**
 
-### Plain Plugin
+support integers of different lengths, such as int(4 bytes), long long(8 bytes).
 
-使用字符串做为Key的简单KV更新、查询。
+(1) schema
+```
+{
+    "table_id":1,
+    "table_name":"TEST_PLUGIN_INT_KEY_TYPE",
+    "table_type":"plugin",
+    "valid_column":4,
+    "custom": {
+        "key_type":"integer",
+        "key_len":4
+        "key":2,
+        "tag":5
+    }
+}
 
-### IP Plugin
+{
+    "table_id":2,
+    "table_name":"TEST_PLUGIN_LONG_KEY_TYPE",
+    "table_type":"plugin",
+    "valid_column":4,
+    "custom": {
+        "key_type":"integer",
+        "key_len":8
+        "key":2,
+        "tag":5
+    }
+}
+```
 
-类似回调类配置，其Key为IP范围。
+(2) plugin table configuration
+```
+{
+    "table_name": "TEST_PLUGIN_INT_KEY_TYPE",
+    "table_content": [
+        "1\t101\tChina\t1\t0",
+        "2\t102\tAmerica\t1\t0",
+        "3\t103\tRussia\t1\t0",
+        "4\t104\tJapan\t1\t0"
+    ]
+}
 
-### FQDN Plugin
+{
+    "table_name": "TEST_PLUGIN_LONG_KEY_TYPE",
+    "table_content": [
+        "1\t11111111\tShijiazhuang\t1\t0",
+        "2\t22222222\tZhengzhou\t1\t0",
+        "3\t33333333\tJinan\t1\t0",
+        "4\t44444444\tTaiyuan\t1\t0"
+    ]
+}
+```
 
-按照域名层级“.”扫描输入的字符串。
+(3) get_ex_data
+```
+//int
+int key1 = 101;
+const char *table_name = "TEST_PLUGIN_INT_KEY_TYPE";
 
-返回结果顺序：
+int table_id = maat_get_table_id(maat_instance, table_name);
+maat_plugin_table_get_ex_data(maat_instance, table_id, key1, sizeof(key1));
 
-1、按照命中规则的长度递减排序； 
+//long long
+long long key2 = 11111111;
+const char *table_name = "TEST_PLUGIN_LONG_KEY_TYPE";
 
-2、相同长度的规则（即重复的规则），后插入的规则先返回（因为实现时后插入的规则放在在哈希桶的前面）； 
+table_id = maat_get_table_id(maat_instance, table_name);
+maat_plugin_table_get_ex_data(maat_instance, table_id, key2, sizeof(key2));
+```
 
-例如，对于如下4条规则（假设均为后缀匹配）：
+**ip_addr key**
 
+support ip address(ipv4 or ipv6) as key.
+
+(1) schema
+```
+{
+    "table_id":1,
+    "table_name":"TEST_PLUGIN_IP_KEY_TYPE",
+    "table_type":"plugin",
+    "valid_column":4,
+    "custom": {
+        "key_type":"ip_addr",
+        "addr_type":1,
+        "key":2
+    }
+}
+```
+The addr_type column indicates whether the key is a v4 or v6 address.
+
+(2) plugin table configuration
+```
+{
+    "table_name": "TEST_PLUGIN_IP_KEY_TYPE",
+    "table_content": [
+        "4\t100.64.1.1\tXiZang\t1\t0",
+        "4\t100.64.1.2\tXinJiang\t1\t0",
+        "6\t2001:da8:205:1::101\tGuiZhou\t1\t0",
+        "6\t1001:da8:205:1::101\tSiChuan\t1\t0"
+    ]
+}
+```
+
+(3) get_ex_data
+```
+uint32_t ipv4_addr;
+inet_pton(AF_INET, "100.64.1.1", &ipv4_addr);
+const char *table_name = "TEST_PLUGIN_IP_KEY_TYPE";
+
+table_id = maat_get_table_id(maat_instance, table_name);
+maat_plugin_table_get_ex_data(maat_instance, table_id, (char *)&ipv4_addr, sizeof(ipv4_addr));
+```
+
+
+### 8. IP Plugin table
+
+Similar to plugin table but the key of maat_ip_plugin_table_get_ex_data is ip address.
+
+### 9. FQDN Plugin table
+
+Scan the input string according to the domain name hierarchy '.'
+
+Return results order:
+1. sort by decreasing the length of the hit rule
+
+2. 
+
+For example:
 1. example.com.cn
 2. com.cn
 3. example.com.cn
 4. cn
 5. ample.com.cn
 
- 如果输入example.com.cn，则返回结果顺序为：3，1，2，4。规则5中的ample不是域名层级的一部分，不返回。
+ If the input string is example.com.cn，则返回结果顺序为：3，1，2，4。规则5中的ample不是域名层级的一部分，不返回。
 
-### Boolean Expression Plugin
+### 10. BoolPlugin table
 
 按照布尔表达式扫描输入的整数数组，如[100,1000,2,3]。
 
 布尔表达式规则为“&”分隔的数字，例如“1&2&1000”。
 
-## Foreign Files 内容外键
+### 11. Virtual Table
+
+虚拟一个配置表，其内容为特定物理域配置表的视图。实践中，通常采用网络流量的属性作为虚拟表名，如HTTP_HOST、SSL_SNI等。一个虚拟表可以建立在多个不同类型的物理表之上，但不允许建立在其它虚拟表上。
+
+虚拟表以分组为单位引用实体表中的域配置，引用关系在分组关系表中描述。一个分组可被同一个编译配置的不同虚拟表引用。例如下表，一个关键字的分组keyword_group_1，被一条compile_1的Request Body和Response Body两个虚拟表引用。
+
+| **分组ID**          | **父ID**  | **有效标志** | **非运算标志位** | **父节点类型** | **分组所属虚拟表** |
+| ------------------- | --------- | ------------ | ---------------- | -------------- | ------------------ |
+| **keyword_group_1** | compile_1 | 1            | 0                | 0              | REQUEST_BODY       |
+| **keyword_group_1** | compile_1 | 1            | 0                | 0              | RESPONSE_BODY      |
+
+### 12. Conjunction Table
+
+表名不同，但table id相同的表。旨在数据库表文件和MAAT API之间提供一个虚拟层，通过API调用一次扫描，即可扫描多张同类配置表。
+
+使用方法：
+
+1. 在配置表描述文件中，将需要连接的多个表共用一个table_id；
+2. 通过Maat_table_register注册被连接表中的任意一个表名，使用该id进行扫描。
+
+被连接的配置表的各项属性以在配置表描述文件（table_info.conf）中第一个出现的同ID描述行为准，同一table_id下最多支持8个配置表。
+
+支持所有类型表的连接，包括各类域配置、回调类配置。配置分组和配置编译的连接没有意义。
+
+## Foreign Files
 
 回调类配置中，特定字段可以指向一个外部内容，目前支持指向Redis中的一个key。
 
@@ -220,7 +376,7 @@ Maat 2.8后不再兼容无分组模式。
 
 ​    内容外键的声明方法，参见本文档-配置表描述文件一节。
 
-## 配置生效标签
+## Tags
 
 通过将Maat接受标签与配置标签的匹配，实现有选择的配置加载。其中配置标签是一个标签数组的集合，记为”tag_sets”，Maat接受标签是标签数组，记为”tags”。
 
@@ -262,27 +418,3 @@ Maat实例初始化时，可以设置自身的标签信息，称为接受标签�
 - Maat实例的接受标签和配置标签的交集为空时，Maat会接受该配置。
 
 当配置标签为“0”或“{}”时，无论Maat实例的接受标签是什么都会接受，这一特性用于向前兼容未设置标签的配置。  
-
-## Virtual Table 虚拟表
-
-虚拟一个配置表，其内容为特定物理域配置表的视图。实践中，通常采用网络流量的属性作为虚拟表名，如HTTP_HOST、SSL_SNI等。一个虚拟表可以建立在多个不同类型的物理表之上，但不允许建立在其它虚拟表上。
-
-虚拟表以分组为单位引用实体表中的域配置，引用关系在分组关系表中描述。一个分组可被同一个编译配置的不同虚拟表引用。例如下表，一个关键字的分组keyword_group_1，被一条compile_1的Request Body和Response Body两个虚拟表引用。
-
-| **分组ID**          | **父ID**  | **有效标志** | **非运算标志位** | **父节点类型** | **分组所属虚拟表** |
-| ------------------- | --------- | ------------ | ---------------- | -------------- | ------------------ |
-| **keyword_group_1** | compile_1 | 1            | 0                | 0              | REQUEST_BODY       |
-| **keyword_group_1** | compile_1 | 1            | 0                | 0              | RESPONSE_BODY      |
-
-## Conjunction Table 连接表
-
-表名不同，但table id相同的表。旨在数据库表文件和MAAT API之间提供一个虚拟层，通过API调用一次扫描，即可扫描多张同类配置表。
-
-使用方法：
-
-1. 在配置表描述文件中，将需要连接的多个表共用一个table_id；
-2. 通过Maat_table_register注册被连接表中的任意一个表名，使用该id进行扫描。
-
-被连接的配置表的各项属性以在配置表描述文件（table_info.conf）中第一个出现的同ID描述行为准，同一table_id下最多支持8个配置表。
-
-支持所有类型表的连接，包括各类域配置、回调类配置。配置分组和配置编译的连接没有意义。

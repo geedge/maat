@@ -2,7 +2,6 @@
   <img src="./docs/imgs/maat_logo.png" height="40px" alt="swarmkv logo"/>
 </h1>
 
-
 **Unified description framework for network flow processing configuration**
 
 ## Origin
@@ -13,14 +12,13 @@ The Maat framework abstracts the configuration in network flow processing. It su
 
 Maat supports three configuration loading modes.
 
-* Redis mode(for production): the data source is usually a relational database, such as Oracle, MySQL.
-* JSON File mode(for production and debugging)
-* IRIS File mode(for troubleshooting)
+* **Redis mode**(for production): the data source is usually a relational database, such as Oracle, MySQL.
+* **JSON File mode**(for production and debugging)
+* **IRIS File mode**(for troubleshooting)
 
-Note: Redis mode and JSON File mode support configuration dynamic loading
+**Note**: Redis mode and JSON File mode support configuration dynamic loading
 
 Maat is used as a dynamic library by applications and it's API is defined in the header file(maat.h).
-
 
 ## Building
 ```shell
@@ -30,15 +28,11 @@ make
 make install
 ```
 
-dynamic lib `./build/src/libmaat4.so`
-
-static lib  `./build/src/libmaat4.a`
-
 ## Sample
 A complete use case consists of three parts
-* table schema: define how to parse rule in different table, that is specify what each column in a table represents.
-* rule: different types of rules are stored in tables of the corresponding type.
-* scanning API: used by application to find whether scan data has hit loaded rules.
+* **table schema**: define how to parse rule in different table, that is specify what each column in a table represents.
+* **rule**: different types of rules are stored in tables of the corresponding type.
+* **scanning API**: used by application to find whether scan data has hit loaded rules.
 
 
 ### 1. table schema
@@ -138,6 +132,7 @@ Rules are stored in a json file(such as maat_json.json), which is loaded when ma
 }
 ```
 
+### 3. scanning API
 Given an example for how to use maat API (JSON File mode)
 ```C
 #include <assert.h>
@@ -175,7 +170,7 @@ int main()
     const char *scan_data = "Hello Maat, nice to meet you";
 
     /**
-     * Becase maat instance has loaded rule in table_inf.conf which keywords is "Hello Maat",
+     * Becase maat instance has loaded rule in table_info.conf which keywords is "Hello Maat",
        so maat_scan_string should return hit flag and rule's compile_id stored in results array.
     */
     int ret = maat_scan_string(maat_instance, table_id, scan_data, strlen(scan_data),

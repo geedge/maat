@@ -1,43 +1,32 @@
 # Tools
 
-## maat_redis_tool工具
+## maat_redis_tool
+1. Dump the configuration in redis to a local IRIS format file.
 
-可以将redis中的生效配置dump为本地IRIS格式的配置文件，即文件配置加载接口所描述的格式。
+2. Write the configuration in JSON format to redis. Note: Group multiplexing is not supported in this mode.
 
-可以将json格式的配置写入redis。注意：该模式下不支持分组复用。
+For specific usage, run ./maat_redis_tool -h
 
-具体用法，参照./maat_redis_tool  -? 的输出。
-
-## digest_gen工具
-
-可以计算文件的SFH摘要，比较两个SFH摘要的相似度，比较普通字符串的相似度。
-
-具体用法，参照./digest_gen –? 的输出。
-
-## 使用gzip命令压缩JSON配置
-
-Maat_set_feather_opt的MAAT_OPT_JSON_IS_GZIPPED参数可以压缩后的规则文件。
+## compress JSON configuration using gzip command
 
 ```shell
-[zhengchao@GDNT-BJ-DEV1 ~]$ gzip -9 < maat_json.json > maat_json.json.gz
+$ gzip -9 < maat_json.json > maat_json.json.gz
 ```
 
-可以和下面的加密命令联合使用，应**先压缩后加密**。
+maat_options_set_json_file_gzip_flag can indicate whether maat instance needs to decompress the json configuration before loading it. This API can be used in conjunction with the encryption command below, compressed first and then encrypted.
 
-## 使用openssl enc对配置加解密
+## using openssl enc to encrypt/decrypt configuration
 
-Maat_set_feather_opt的MAAT_OPT_DECRYPT_KEY参数可以加载加密的规则文件，文件可以通过命令行进行加解密（openssl 版本小于 v1.1.0）。
+maat_options_set_json_file_decrypt_key can specify the decryption key for the JSON file to be decrypted.
 
-加密：
+encrypt：
 
 ```shell
-[zhengchao@GDNT-BJ-DEV1 ~]$ openssl enc -e -aes-128-cbc -k 123456 -p  -nosalt -in inputfile.txt -out encryptfile.txt  
+$ openssl enc -e -aes-128-cbc -k 123456 -p  -nosalt -in inputfile.txt -out encryptfile.txt  
 ```
 
-解密：
+decrypt：
 
+```shell
+$ openssl enc -d -aes-128-cbc -k 123456 -p -nosalt -in encryptfile.txt -out tmp.txt 
 ```
-[zhengchao@GDNT-BJ-DEV1 ~]$ openssl enc -d -aes-128-cbc -k 123456 -p -nosalt -in encryptfile.txt -out tmp.txt 
-```
-
-原理参见：https://blog.csdn.net/littlefang/article/details/72972266
