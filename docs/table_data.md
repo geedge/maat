@@ -1,8 +1,142 @@
 # Table Data
 
-输入必须使用UTF-8 without BOM编码，例如MySQL使用utf8mb4（而不是utf8，参考：永远不要在MySQL中使用UTF8编码）。
+Input must use UTF-8 without BOM encoding, for example, MySQL use utf8mb4.
 
-## 行列式文件格式（IRIS）
+Maat supports three configuration loading modes.
+- [Redis mode](#1-redis-mode)
+- [Iris mode](#2-iris-mode)
+- [Json mode](#3-json-mode)
+
+## 1.<a name='Redis mode'></a> Redis mode
+
+Maat可以通过Redis的主从同步机制，实现配置的分发。本节介绍MAAT加载Redis中配置时，对存储结构的要求。和数据库一样，Redis存储结构的设计上不需要考虑编译、分组和域的逻辑层次。由配置更新线程，通过行列式配置重构各层次间的组合关系。
+![Sync Rule with Redis](./imgs/data-sync-with-redis.png)
+
+### 1.1 Transactional Write
+表 26 MAAT Redis中定义的数据结构
+
+| Redis KEY               | 名称             | 结构       | 用途                                                         |
+| ------------------------------------------------------ | ---------------- | -------------- | ------------------------- |
+| MAAT_VERSION            | primary version  | INTERGER  | 标识Redis中配置的版本号。当redis中版本号大于MAAT中配置版本号时，会去读取MAAT_UPDATE_STATUS。 |
+| MAAT_PRE_VERSION        | 预备版本         | INTERGER   |        |
+| MAAT_TRANSACTION_xx     | 事务配置状态     | LIST        | 用于临时存储事务中的配置状态，xx为MAAT_PRE_VERSION其中的状态在事务结束后会被更新到MAAT_UPDATE_STATUS，本身被删除。 |
+| MAAT_UPDATE_STATUS      | 配置状态         | sorted set, member是配置规则，score 为版本号，详见11.3      | MAAT会用ZRANGEBYSCORE命令读取。                              |
+| MAAT_RULE_TIMER         | 主配置超时信息   | sorted set, member是配置规则，score为超时间，详见11.4       | MAAT配置更新线程会定时检查超时状况，并设置超时状态。         |
+| MAAT_VERSION_TIMER      | 版本创建时间     | sorted Set  | 存储了每个版本的创建时间，score为版本创建时间，member 为version，用以将MAAT_UPDATE_STATUS维持在一个较小的规模。 |
+| MAAT_LABEL_INDEX        | 标签索引         | sorted set, element 是配置表名，编译配置ID，score为label_id |      |
+| EFFECTIVE_RULE:TableName,ID  OBSOLETE_RULE:TableName,ID | 主配置 |string     | 生效中的配置，结构与10.3中的行结构相同，MAAT会逐条加载。  |
+| SEQUENCE_ REGION       | 域ID生成序列号   | INTERGER  | 用于生产者生成不重复的region_id                              |
+| SEQUENCE_ GROUP        | 分组ID生成序列号 | INTERGER  | 用于生产者生成不重复的group_id                               |
+| EXPIRE_OP_LOCK         | 分布式锁        | 字符串”locked"   | 用于保证最多只有一个写者进行淘汰。                       |
+
+
+Maat command API 可直接将配置写入 redis
+```c
+struct maat_cmd_line {
+	const char *table_name;
+	const char *table_line;
+	long long rule_id;		// for MAAT_OP_DEL, only rule_id and table_name are necessary.
+	int expire_after;	   //expired after $timeout$ seconds, set to 0 for never timeout.
+};
+
+int maat_cmd_set_line(struct maat *maat_inst, const struct maat_cmd_line *line_rule);
+
+Example:
+    char table_line[1024] = {0};
+    long long item_id = 100;
+    long long group_id = 200;
+    const char *keywords = "Hello&Maat";
+    int expr_type = 1; //EXPR_TYPE_AND
+    int match_method = 0; //MATCH_METHOD_SUB
+    int is_hexbin = 0;
+    int op = 1; //add
+
+    sprintf(table_line, "%lld\t%lld\t%s\t%d\t%d\t%d\t%d", item_id, group_id,
+            keywords, expr_type, match_method, is_hexbin, op);
+
+    struct maat_cmd_line line_rule;
+    line_rule.rule_id = item_id;
+    line_rule.table_line = table_line;
+    line_rule.table_name = table_name;
+    line_rule.expire_after = expire_after;
+
+    int ret = maat_cmd_set_line(maat_inst, &line_rule);
+```
+
+### 1.2 主版本号、预备版本号与Lua Script
+
+生产者写入配置时，先对预备版本号加1，并作为写入配置状态的score，待写入完成后，再对主版本号加1。放弃WATCH MAAT_VERSION的事务。这一方法可以大幅提高写入性能，除ID冲突外，可确保写入成功。
+
+当有多个生产者时，可能存在配置状态与主版本号不一致的问题。主版本号为v，某次更新时在配置状态中声明的版本号为u，消费者增量更新时有以下情况：
+
+- 若v=u，则版本号一致，配置正常加载；
+- 若v>u，该情况不存在。因为只有配置状态修改完成，主版本号才会增加1。换句话说，每次写入都是先增加预备版本号，后增加主版本号，所以主版本号必然小于或等于配置状态中的最大版本号。
+  - 错误：三个生产者情况下，有问题，如下表。
+- 若v<u，说明两个生产者中，先启动写入的并没有先完成。此时，本次只更新到版本v，留待下次轮询再更新至u。
+
+消费者全量更新时不看配置状态，直接读取全部有效配置，因为配置写入和主版本号增加1在同一个事务中执行，读取到的全量配置版本必定与主版本一致。
+
+有多个生产者的情况下，可能丢失配置更新消息状态：
+
+| **Time** | **Producer1**            | **Producer2**            | **Producer3**            | **consmuer**                                    |
+| -------- | ------------------------ | ------------------------ | ------------------------ | ----------------------------------------------- |
+| **0**    | 准备更新mv=3924, tv=3925 |                          |                          |                                                 |
+| **1**    |                          | 准备更新mv=3924, tv=3926 |                          |                                                 |
+| **2**    |                          |                          | 准备更新mv=3924, tv=3927 |                                                 |
+| **3**    |                          |                          | 更新完毕mv=3925, tv=3927 | Get version 3925, zrangebyscore拿不到3925的状态 |
+| **4**    |                          | 更新完毕mv=3926, tv=3926 |                          | Maat版本号升到3926，报错:noncontigous           |
+| **5**    | 更新完毕mv=3927, tv=3925 |                          |                          | 3925被跳过                                      |
+
+
+在事务结束部分，采用lua script检查事务版本号transaction_version与主版本号maat_version：
+
+- tv==mv，无需修正
+- tv>mv，本次更新的增量将在下一次
+- tv<mv，如何识别本次事务写入配置状态的规则呢？然后才能将其score改为mv
+
+为了解决事物结束时，transaction version<maat_version的问题，使用redis list MAAT_TRANSACTION_xx存储配置更新状态，xx取自MAAT_PRE_VERSION，事务结束时再用lua script同步MAAT_UPDATE_STATUS，并删除MAAT_TRANSACTION_xx。
+
+![Add and Delete Operation](./imgs/add-del-rule-with-redis.png)
+
+#### 1.3 MAAT_UPDATE_STATUS
+
+该结构中使用Sorted Set存储了主配置的变化状态，score为版本号，member为配置状态。member的0～2字节描述了更新指令：
+
+1. ADD，即配置增加，结构为ADD,TableName,ID；
+2. DEL，即配置删除，结构为DEL,TableName,ID；
+
+MAAT在发现MAAT_VERSION变化后，会用ZRANGEBYSCORE读取更新的配置状态（按VERSION升序），并检测第一个配置的Score，如该Score>Maat版本+1，则说明有遗漏的更新（网络长时间中断），启用全量更新流程。
+
+对于DEL状态，如果查询不到对应的主配置状态，同样说明有遗漏更新（网络中断时间超过OBSOLETE_RULE超时时间），启用全量更新流程。
+
+#### MAAT_EXPIRE_TIMER
+
+该结构使用Sorted Set存储了主配置的超时信息，score为绝对超时时间，member的结构为TableName,ID。
+
+
+#### MAAT_VERSION_TIMER
+
+该结构使用Sorted Set存储了每个版本的创建时间，score为版本创建时间，member为 版本号（version），即MAAT_UPDATE_STATUS的score，用以将MAAT_UPDATE_STATUS维持在一个较小的规模。
+
+#### 主配置结构
+
+有两类配置命名方式：
+
+1. EFFECTIVE_RULE:TableName,ID 表示正在生效的配置；
+2. OBSOLETE_RULE:TableName,ID 表示已经删除的配置，这些配置超时（EXPIRE）后会被Redis删除。
+
+### Load From Redis
+Maat实例的工作线程定时轮询Redis中MAAT_VERSION，如果大于实例的MAAT_VERSION则进行更新。
+
+![Load from Redis](./imgs/load-data-from-redis.png)
+
+### 读写性能
+
+为保证事务，Redis需工作在单机+主从模式。带超时的配置写入5000条/秒，无超时配置10000条/秒。
+
+
+
+## 2.<a name='Iris mode'></a> Iris mode
 
 在Maat可以监听全量和增量目录下的文件来更新配置运行时变化，下面对这种模式下的文件格式进行介绍。
 
@@ -60,106 +194,7 @@
 2. 在配置汇总表中增加该配置的汇总信息，注意要和库表文件中的compile_id一致，且不能与已有compile_id冲突，修改文件第一行的行数
 3. 在库表索引文件中修改配置汇总表和域表的行数
 
-## Redis配置加载接口
-
-Maat可以通过Redis的主从同步机制，实现配置的分发。本节介绍MAAT加载Redis中配置时，对存储结构的要求。和数据库一样，Redis存储结构的设计上不需要考虑编译、分组和域的逻辑层次。由配置更新线程，通过行列式配置重构各层次间的组合关系。
-![Sync Rule with Redis](./imgs/data-sync-with-redis.png)
-
-### Transactional Write
-表 26 MAAT Redis中定义的数据结构
-
-| Redis KEY                                               | 名称             | 结构                                                        | 用途                                                         |
-| ------------------------------------------------------- | ---------------- | ----------------------------------------------------------- | ------------------------------------------------------------ |
-| MAAT_VERSION                                            | 主版本号         | INTERGER                                                    | 标识Redis中配置的版本号。当redis中版本号大于MAAT中配置版本号时，会去读取MAAT_UPDATE_STATUS。 |
-| MAAT_PRE_VERSION                                        | 预备版本号       | INTERGER                                                    |                                                              |
-| MAAT_TRANSACTION_xx                                     | 事务配置状态     | LIST                                                        | 用于临时存储事务中的配置状态，xx为MAAT_PRE_VERSION其中的状态在事务结束后会被更新到MAAT_UPDATE_STATUS，本身被删除。 |
-| MAAT_UPDATE_STATUS                                      | 配置状态         | sorted set, member是配置规则，score 为版本号，详见11.3      | MAAT会用ZRANGEBYSCORE命令读取。                              |
-| MAAT_RULE_TIMER                                         | 主配置超时信息   | sorted set, member是配置规则，score为超时间，详见11.4       | MAAT配置更新线程会定时检查超时状况，并设置超时状态。         |
-| MAAT_VERSION_TIMER                                      | 版本创建时间     | sorted Set                                                  | 存储了每个版本的创建时间，score为版本创建时间，member 为version，用以将MAAT_UPDATE_STATUS维持在一个较小的规模。 |
-| MAAT_LABEL_INDEX                                        | 标签索引         | sorted set, element 是配置表名，编译配置ID，score为label_id |                                                              |
-| EFFECTIVE_RULE:TableName,ID  OBSOLETE_RULE:TableName,ID | 主配置           | string                                                      | 生效中的配置，结构与10.3中的行结构相同，MAAT会逐条加载。     |
-| SEQUENCE_ REGION                                        | 域ID生成序列号   | INTERGER                                                    | 用于生产者生成不重复的region_id                              |
-| SEQUENCE_ GROUP                                         | 分组ID生成序列号 | INTERGER                                                    | 用于生产者生成不重复的group_id                               |
-| EXPIRE_OP_LOCK                                          | 分布式锁         | 字符串”locked”                                              | 用于保证最多只有一个写者进行淘汰。                           |
-
-源码中reset_redis4maat.sh工具或Maat_cmd_flushDB函数可以对redis进行初始化。
-
-#### 主版本号、预备版本号与Lua Script
-
-生产者写入配置时，先对预备版本号加1，并作为写入配置状态的score，待写入完成后，再对主版本号加1。放弃WATCH MAAT_VERSION的事务。这一方法可以大幅提高写入性能，除ID冲突外，可确保写入成功。
-
-当有多个生产者时，可能存在配置状态与主版本号不一致的问题。主版本号为v，某次更新时在配置状态中声明的版本号为u，消费者增量更新时有以下情况：
-
-- 若v=u，则版本号一致，配置正常加载；
-- 若v>u，该情况不存在。因为只有配置状态修改完成，主版本号才会增加1。换句话说，每次写入都是先增加预备版本号，后增加主版本号，所以主版本号必然小于或等于配置状态中的最大版本号。
-  - 错误：三个生产者情况下，有问题，如下表。
-- 若v<u，说明两个生产者中，先启动写入的并没有先完成。此时，本次只更新到版本v，留待下次轮询再更新至u。
-
-消费者全量更新时不看配置状态，直接读取全部有效配置，因为配置写入和主版本号增加1在同一个事务中执行，读取到的全量配置版本必定与主版本一致。
-
-有多个生产者的情况下，可能丢失配置更新消息状态：
-
-| **Time** | **Producer1**            | **Producer2**            | **Producer3**            | **consmuer**                                    |
-| -------- | ------------------------ | ------------------------ | ------------------------ | ----------------------------------------------- |
-| **0**    | 准备更新mv=3924, tv=3925 |                          |                          |                                                 |
-| **1**    |                          | 准备更新mv=3924, tv=3926 |                          |                                                 |
-| **2**    |                          |                          | 准备更新mv=3924, tv=3927 |                                                 |
-| **3**    |                          |                          | 更新完毕mv=3925, tv=3927 | Get version 3925, zrangebyscore拿不到3925的状态 |
-| **4**    |                          | 更新完毕mv=3926, tv=3926 |                          | Maat版本号升到3926，报错:noncontigous           |
-| **5**    | 更新完毕mv=3927, tv=3925 |                          |                          | 3925被跳过                                      |
-
-
-
-
-在事务结束部分，采用lua script检查事务版本号transaction_version与主版本号maat_version：
-
-- tv==mv，无需修正
-- tv>mv，本次更新的增量将在下一次
-- tv<mv，如何识别本次事务写入配置状态的规则呢？然后才能将其score改为mv
-
-为了解决事物结束时，transaction version<maat_version的问题，使用redis list MAAT_TRANSACTION_xx存储配置更新状态，xx取自MAAT_PRE_VERSION，事务结束时再用lua script同步MAAT_UPDATE_STATUS，并删除MAAT_TRANSACTION_xx。
-
-![Add and Delete Operation](./imgs/add-del-rule-with-redis.png)
-
-####  MAAT_UPDATE_STATUS
-
-该结构中使用Sorted Set存储了主配置的变化状态，score为版本号，member为配置状态。member的0～2字节描述了更新指令：
-
-1. ADD，即配置增加，结构为ADD,TableName,ID；
-2. DEL，即配置删除，结构为DEL,TableName,ID；
-
-MAAT在发现MAAT_VERSION变化后，会用ZRANGEBYSCORE读取更新的配置状态（按VERSION升序），并检测第一个配置的Score，如该Score>Maat版本+1，则说明有遗漏的更新（网络长时间中断），启用全量更新流程。
-
-对于DEL状态，如果查询不到对应的主配置状态，同样说明有遗漏更新（网络中断时间超过OBSOLETE_RULE超时时间），启用全量更新流程。
-
-#### MAAT_EXPIRE_TIMER
-
-该结构使用Sorted Set存储了主配置的超时信息，score为绝对超时时间，member的结构为TableName,ID。
-
-删除配置时，exec_serial_rule会关联删除该索引。
-
-#### MAAT_VERSION_TIMER
-
-该结构使用Sorted Set存储了每个版本的创建时间，score为版本创建时间，member为 版本号（version），即MAAT_UPDATE_STATUS的score，用以将MAAT_UPDATE_STATUS维持在一个较小的规模。
-
-#### 主配置结构
-
-有两类配置命名方式：
-
-1. EFFECTIVE_RULE:TableName,ID 表示正在生效的配置；
-2. OBSOLETE_RULE:TableName,ID 表示已经删除的配置，这些配置超时（EXPIRE）后会被Redis删除。
-
-### Load From Redis
-Maat实例的工作线程定时轮询Redis中MAAT_VERSION，如果大于实例的MAAT_VERSION则进行更新。
-
-![Load from Redis](./imgs/load-data-from-redis.png)
-
-### 读写性能
-
-为保证事物，Redis需工作在单机+主从模式。带超时的配置写入5000条/秒，无超时配置10000条/秒。
-
-
-## JSON配置加载接口
+## 3.<a name='Json mode'></a> Json mode
 
 使用Maat_summon_feather_jsonMaat_set_feather_opt函数通过选项MAAT_OPT_JSON_FILE_PATH设置，进行JSON格式配置的加载。Maat在初始化后，一旦检测到文件MD5值的变化，则以全量更新的方式加载变化的json文件。
 
@@ -457,10 +492,6 @@ Maat的配置管理线程会针对增量索引文件目录进行扫描，在初�
 
 文件扫描间隔和配置生效间隔，可以通过Maat_set_feather_opt设置，详见本文档“函数接口”一章。
 
-### 引用计数
-
-引用计数机制为了避免多个变量多线程读写，因Cache一致性和伪共享问题导致速度降低，采用为每个线程分配64字节对齐的引用计数变量。
-
 ### 延迟删除机制
 
 Maat使用延时删除机制，在不使用锁的前提下保证线程安全。
@@ -476,11 +507,3 @@ c)    需要修改时，获得mutex后访问
 扫描线程中：
 
 a)    需要读取时，获得mutex后访问
-
-### 强制卸载机制
-
-rulescan内部使用引用计数方式，管理待删除的自动机，其引用计数的加减周期是一次扫描函数的调用（而不是一次流式扫描）。满足MAAT实现强制卸载机制的条件。
-
-所谓强制卸载机制，是指在一次流式扫描过程中，配置发生更新后，强制卸载该次扫描所引用的自动机，回收所占用内存。后续引用旧自动机的流式字符串扫描将不做任何命中，直接返回。
-
-由于组合扫描为对MAAT的扫描器进行引用计数，替换前后各自使用当前的bool matcher，进行规则组合运算，不受此影响。

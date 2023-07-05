@@ -195,4 +195,6 @@ int main()
 
 * [Scan API](./docs/scan_api.md)
 
+* [Thread mode](./docs/thread_mode.md)
+
 * [Tools](./docs/tools.md)

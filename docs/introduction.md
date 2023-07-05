@@ -1,21 +1,34 @@
 # Concepts
 
-Item: As a filter for network attributes, the smallest unit of a rule
+**Item**: As a filter for network attributes, the smallest unit of a rule
 
-- Eg1: specify that the UserAgent field in the HTTP protocol contains substrings "Chrome" and "11.8.1".
+- Eg1: specify that the UserAgent field in the HTTP protocol contains substrings "Chrome" and "11.8.1",   
+   
+   &ensp;&ensp; HTTP UserAgent: Chrome & 11.8.1
+
 - Eg2: specify that the domain name in the HTTP protocol ends with ".emodao.com"
+   
+   &ensp;&ensp; HTTP HOST: *.emodao.com
+
 - Eg3: specify client IP address belongs to the C segment of 202.118.101.*
 
-The types of Items include string(such as keywords, regular expression), IP(mask, CIDR, range) and numeric range
+   &ensp;&ensp; Source IP: 202.11.101.0/24
 
-Group(Object): Collection of Items, the constraints of group are as follows:
+There are multiple types of items stored in corresponding tables such as string, IP and numerical range, more details can be found in [Item table](./table_schema.md#item-table)
 
-- An Item only belongs to one group, but one group can has multiple items. The multiple items under the same group are logical 'OR' relationships.
-- A Group can be included or excluded by other groups. The multiple included groups under the same superior group are logical 'OR' relationship. Between included group and excluded group under the same superior group are logical 'AND' relationship.
+**Group(Object)**: Collection of Items, the constraints of group are as follows:
+
+- An Item only belongs to one group, but one group can has multiple items. The multiple items under the same group are logical 'OR' relationships. e.g.(g1 = item1 | item2)
+
+- A Group can be included or excluded by other groups. The multiple included groups under the same superior group are logical 'OR' relationship. e.g.(g3 = incl-g1 | incl-g2). Between included group and excluded group under the same superior group are logical 'AND' relationship. e.g.(g4 = incl-g1 & excl-g2)
+
 - Group supports multi-level nesting
+
 - A Group can be referenced by multiple compiles.
 
-Compile(Policy): A conjunctive normal form(CNF) consisting of multiple groups and virtual tables
+The relationship between group and group is stored in the [group2group table](./table_schema.md#4-group2group-table), while the relationship between group and compile is stored in the [group2compile table](./table_schema.md#5-group2compile-table).
+
+**Compile(Policy)**: A conjunctive normal form(CNF) consisting of multiple groups and virtual tables
 
 - A Compile can contain up to 8 clauses and multiple clauses in the same compile can be logical 'AND' and logical 'NOT' relationships.
 - A Clause consists of several Literals and the relationship between them is a logical 'OR'. A Literal consists of virtual table and group. During the configuration loading process, a unique Clause ID will be generated based on the combination of virtual table ID and group ID in the same clause.
