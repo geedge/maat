@@ -21,6 +21,7 @@
 #include "maat_utils.h"
 #include "maat_rule.h"
 #include "uthash/uthash.h"
+#include "maat_redis_monitor.h"
 
 #define MODULE_JSON2IRIS  module_name_str("maat.json2iris")
 
@@ -300,7 +301,7 @@ static int get_group_seq(struct iris_description *iris_cfg)
 	if (NULL == iris_cfg->redis_write_ctx) {
 		sequence = iris_cfg->group_cnt;
 	} else {
-		data_reply = maat_cmd_wrap_redis_command(iris_cfg->redis_write_ctx, 
+		data_reply = maat_wrap_redis_command(iris_cfg->redis_write_ctx, 
                                                  "INCRBY %s 1", mr_group_id_var);
 		sequence = (int)data_reply->integer - 1;
 		freeReplyObject(data_reply);
@@ -337,8 +338,8 @@ static int get_region_seq(struct iris_description *iris_cfg)
 	if (NULL == iris_cfg->redis_write_ctx) {
 		sequence = iris_cfg->region_cnt;
 	} else {
-		redisReply *data_reply = maat_cmd_wrap_redis_command(iris_cfg->redis_write_ctx,
-                                                            "INCRBY %s 1", mr_region_id_var);
+		redisReply *data_reply = maat_wrap_redis_command(iris_cfg->redis_write_ctx,
+                                                         "INCRBY %s 1", mr_region_id_var);
 		sequence = (int)data_reply->integer - 1;
 		freeReplyObject(data_reply);
 	}

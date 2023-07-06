@@ -1,0 +1,432 @@
+{
+    "compile_table": "COMPILE",
+    "group2compile_table": "GROUP2COMPILE",
+    "group2group_table": "GROUP2GROUP",
+    "rules": [
+        {
+            "compile_id": 125,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "anything",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "action=search\\&query=(.*)",
+                                "expr_type": "regex",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 128,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "StringScan.ExprPlus",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_name": "HTTP_SIGNATURE",
+                            "table_type": "expr_plus",
+                            "table_content": {
+                                "district": "HtTP\\bUrL",
+                                "keywords": "abckkk&123",
+                                "expr_type": "and",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 132,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "string\\bunescape",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "TakeMeHome",
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "Take\\bme\\bHome&Batman\\",
+                                "expr_type": "and",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 136,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "offset_string",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_name": "IMAGE_FP",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "4362-4458:323031333A30333A30372032333A35363A313000323031333A30333A30372032333A35363A3130000000FFE20C584943435F50524F46494C4500010100000C484C696E6F021000006D6E74725247422058595A2007CE00020009000600310000",
+                                "expr_type": "offset",
+                                "match_method": "none",
+                                "format": "hexbin"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 146,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "StringScan.Regex",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "Cookie:\\s.*head",
+                                "expr_type": "regex",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 148,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "StringScan.ExprPlusWithOffset",
+            "effective_rage": 0,
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_name": "APP_PAYLOAD",
+                            "table_type": "expr_plus",
+                            "table_content": {
+                                "format": "hexbin",
+                                "match_method": "sub",
+                                "district": "Payload",
+                                "keywords": "1-1:03&9-10:2d&14-16:2d34&19-21:2d&24-25:2d",
+                                "expr_type": "offset"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 150,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "StringScan.BugReport20190325",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "expr",
+                            "table_name": "TROJAN_PAYLOAD",
+                            "table_content": {
+                                "keywords": "0-4:01000000",
+                                "expr_type": "offset",
+                                "format": "hexbin",
+                                "match_method": "sub"
+                            }
+                        }
+                    ],
+                    "group_name": "billgates_regist1"
+                },
+                {
+                    "regions": [
+                        {
+                            "table_type": "expr",
+                            "table_name": "TROJAN_PAYLOAD",
+                            "table_content": {
+                                "keywords": "1:G2.40",
+                                "expr_type": "none",
+                                "format": "uncase plain",
+                                "match_method": "sub"
+                            }
+                        }
+                    ],
+                    "group_name": "billgates_regist2"
+                }
+            ]
+        },
+        {
+            "compile_id": 151,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "StringScan.PrefixAndSuffix",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "expr",
+                            "table_name": "MAIL_ADDR",
+                            "table_content": {
+                                "keywords": "ceshi3@mailhost.cn",
+                                "expr_type": "none",
+                                "format": "uncase plain",
+                                "match_method": "suffix"
+                            }
+                        }
+                    ],
+                    "group_name": "Untitled"
+                }
+            ]
+        },
+        {
+            "compile_id": 156,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "ExprPlusWithHex",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_name": "HTTP_SIGNATURE",
+                            "table_type": "expr_plus",
+                            "table_content": {
+                                "district": "Content-Type",
+                                "keywords": "2f68746d6c",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "hexbin"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 157,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "StringScan.StreamScanUTF8",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "expr",
+                            "table_name": "TROJAN_PAYLOAD",
+                            "table_content": {
+                                "keywords": "我的订单",
+                                "expr_type": "none",
+                                "format": "none",
+                                "match_method": "sub"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 182,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "8-expr",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "string1&string2&string3&string4&string5&string6&string7&string8",
+                                "expr_type": "and",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 190,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "StringScan.ExprPlus",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_name": "HTTP_SIGNATURE",
+                            "table_type": "expr_plus",
+                            "table_content": {
+                                "district": "我的DistrIct",
+                                "keywords": "addis&sapphire",
+                                "expr_type": "and",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 191,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "StringScan.HexBinCaseSensitive",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "expr",
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_content": {
+                                "keywords": "54455354",
+                                "expr_type": "none",
+                                "format": "hexbin",
+                                "match_method": "sub"
+                            }
+                        }
+                    ],
+                    "group_name": "Untitled"
+                }
+            ]
+        },
+        {
+            "compile_id": 195,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "anything",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_name": "HTTP_SIGNATURE",
+                            "table_type": "expr_plus",
+                            "table_content": {
+                                "district": "I love China",
+                                "keywords": "today&yesterday",
+                                "expr_type": "and",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "Monday",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 206,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "duplicateRuleFor191",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "expr",
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_content": {
+                                "keywords": "54455354",
+                                "expr_type": "none",
+                                "format": "hexbin",
+                                "match_method": "sub"
+                            }
+                        }
+                    ],
+                    "group_name": "Untitled"
+                }
+            ]
+        }
+    ]
+}

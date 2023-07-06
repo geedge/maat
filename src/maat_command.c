@@ -18,6 +18,7 @@
 #include "maat_rule.h"
 #include "hiredis/hiredis.h"
 #include "maat_config_monitor.h"
+#include "maat_redis_monitor.h"
 
 #define MODULE_MAAT_COMMAND	 module_name_str("maat.command")
 
@@ -34,7 +35,7 @@ extern const char *mr_label_sset;
 
 extern const int MAAT_REDIS_SYNC_TIME;
 
-redisReply *maat_cmd_wrap_redis_command(redisContext *c, const char *format, ...)
+redisReply *maat_wrap_redis_command(redisContext *c, const char *format, ...)
 {
 	va_list ap;
 	void *reply = NULL;
@@ -54,7 +55,7 @@ redisReply *maat_cmd_wrap_redis_command(redisContext *c, const char *format, ...
 	return (redisReply *)reply;
 }
 
-redisContext *maat_cmd_connect_redis(const char *redis_ip, int redis_port,
+redisContext *maat_connect_redis(const char *redis_ip, int redis_port,
                                      int redis_db, struct log_handle *logger)
 {
 	struct timeval connect_timeout;
@@ -80,14 +81,14 @@ redisContext *maat_cmd_connect_redis(const char *redis_ip, int redis_port,
 	}
 
 	redisEnableKeepAlive(c);
-	redisReply *reply = maat_cmd_wrap_redis_command(c, "select %d", redis_db);
+	redisReply *reply = maat_wrap_redis_command(c, "select %d", redis_db);
 	freeReplyObject(reply);
 	reply = NULL;
 
 	return c;
 }
 
-long long maat_cmd_read_redis_integer(const redisReply *reply)
+long long maat_read_redis_integer(const redisReply *reply)
 {
 	switch (reply->type) {
 		case REDIS_REPLY_INTEGER:
@@ -112,26 +113,26 @@ static int redis_flushDB(redisContext *ctx, int db_index,
 {
 	long long maat_redis_version = 0;
 	
-	redisReply *data_reply = maat_cmd_wrap_redis_command(ctx, "WATCH MAAT_VERSION");
+	redisReply *data_reply = maat_wrap_redis_command(ctx, "WATCH MAAT_VERSION");
 	freeReplyObject(data_reply);
 	data_reply = NULL;
 
-	data_reply = maat_cmd_wrap_redis_command(ctx, "GET MAAT_VERSION");
+	data_reply = maat_wrap_redis_command(ctx, "GET MAAT_VERSION");
 	if (data_reply->type == REDIS_REPLY_NIL) {
 		maat_redis_version = 0;
 	} else {
-		maat_redis_version = maat_cmd_read_redis_integer(data_reply);
+		maat_redis_version = maat_read_redis_integer(data_reply);
 		maat_redis_version++;
 		freeReplyObject(data_reply);
 		data_reply = NULL;
 	}
 
-	data_reply = maat_cmd_wrap_redis_command(ctx, "DBSIZE");
-	long long dbsize = maat_cmd_read_redis_integer(data_reply);
+	data_reply = maat_wrap_redis_command(ctx, "DBSIZE");
+	long long dbsize = maat_read_redis_integer(data_reply);
 	freeReplyObject(data_reply);
 	data_reply = NULL;
 
-	data_reply = maat_cmd_wrap_redis_command(ctx, "MULTI");
+	data_reply = maat_wrap_redis_command(ctx, "MULTI");
 	freeReplyObject(data_reply);
 	data_reply = NULL;
 	
@@ -152,7 +153,7 @@ static int redis_flushDB(redisContext *ctx, int db_index,
     int ret = 0;
     int redis_transaction_success = 1;
 	for (int i = 0; i < append_cmd_cnt; i++) {
-		ret = maat_cmd_wrap_redis_get_reply(ctx, &data_reply);
+		ret = maat_wrap_redis_get_reply(ctx, &data_reply);
 		if (ret == REDIS_OK) {
 			if (data_reply->type == REDIS_REPLY_NIL) {
 				redis_transaction_success = 0;
@@ -175,7 +176,7 @@ static int connect_redis_for_write(struct source_redis_ctx *redis_ctx,
                                    struct log_handle *logger)
 {
 	assert(redis_ctx->write_ctx == NULL);
-	redis_ctx->write_ctx = maat_cmd_connect_redis(redis_ctx->redis_ip, 
+	redis_ctx->write_ctx = maat_connect_redis(redis_ctx->redis_ip, 
                                                   redis_ctx->redis_port,
                                                   redis_ctx->redis_db, logger);
 	if (NULL == redis_ctx->write_ctx) {
@@ -215,40 +216,7 @@ int maat_cmd_flushDB(struct maat *maat_inst)
     return 0;
 }
 
-void maat_cmd_clear_rule_cache(struct serial_rule *s_rule)
-{
-	if (s_rule->table_line != NULL) {
-		FREE(s_rule->table_line);
-	}
-
-	if (s_rule->n_foreign > 0) {
-		for (int i = 0; i < s_rule->n_foreign; i++) {
-			FREE(s_rule->f_keys[i].filename);
-			FREE(s_rule->f_keys[i].key);
-		}
-
-		FREE(s_rule->f_keys);
-	}
-
-	memset(s_rule, 0, sizeof(struct serial_rule));
-}
-
-void maat_cmd_set_serial_rule(struct serial_rule *rule, enum maat_operation op,
-                              long long rule_id, const char *table_name,
-                              const char *line, long long timeout)
-{
-	memset(rule, 0, sizeof(struct serial_rule));
-    rule->op = op;
-	rule->rule_id = rule_id;
-	rule->timeout = timeout;
-	assert(strlen(table_name) < sizeof(rule->table_name));
-	strncpy(rule->table_name, table_name, sizeof(rule->table_name));
-	if (line != NULL) {
-		rule->table_line = maat_strdup(line);
-	}
-}
-
-int maat_cmd_get_valid_flag_offset(const char *line, int column_seq)
+int maat_get_valid_flag_offset(const char *line, int column_seq)
 {	
     size_t offset = 0;
     size_t len = 0;
@@ -263,11 +231,11 @@ int maat_cmd_get_valid_flag_offset(const char *line, int column_seq)
 	return offset;
 }
 
-long long maat_cmd_redis_server_time_s(redisContext *c)
+long long maat_redis_server_time_s(redisContext *c)
 {
 	long long server_time = 0;
 
-	redisReply *data_reply = maat_cmd_wrap_redis_command(c, "TIME"); 
+	redisReply *data_reply = maat_wrap_redis_command(c, "TIME"); 
 	if (data_reply->type == REDIS_REPLY_ARRAY) {
 		server_time = atoll(data_reply->element[0]->str);
 		freeReplyObject(data_reply);
@@ -277,7 +245,7 @@ long long maat_cmd_redis_server_time_s(redisContext *c)
 	return server_time;
 }
 
-int maat_cmd_wrap_redis_get_reply(redisContext *c, redisReply **reply)
+int maat_wrap_redis_get_reply(redisContext *c, redisReply **reply)
 {
 	return redisGetReply(c, (void **)reply);
 }
@@ -293,7 +261,7 @@ int maat_cmd_set_line(struct maat *maat_inst, const struct maat_cmd_line *line_r
 		return -1;
 	}
 
-	long long server_time = maat_cmd_redis_server_time_s(write_ctx);
+	long long server_time = maat_redis_server_time_s(write_ctx);
 	if(!server_time) {
 		return -1;
 	}
@@ -318,7 +286,7 @@ int maat_cmd_set_line(struct maat *maat_inst, const struct maat_cmd_line *line_r
         return -1;
     }
    
-    int valid_offset = maat_cmd_get_valid_flag_offset(line_rule->table_line, valid_column);
+    int valid_offset = maat_get_valid_flag_offset(line_rule->table_line, valid_column);
     if (valid_offset < 0) {
         log_error(maat_inst->logger, MODULE_MAAT_COMMAND,
                   "[%s:%d] Command set line id %lld failed: table %s valid_offset error",
@@ -332,8 +300,8 @@ int maat_cmd_set_line(struct maat *maat_inst, const struct maat_cmd_line *line_r
         absolute_expire_time = server_time + line_rule->expire_after;
     }
 
-    maat_cmd_set_serial_rule(s_rule + i, (enum maat_operation)is_valid, line_rule->rule_id,
-                             line_rule->table_name, line_rule->table_line, absolute_expire_time);
+    maat_set_serial_rule(s_rule + i, (enum maat_operation)is_valid, line_rule->rule_id,
+                         line_rule->table_name, line_rule->table_line, absolute_expire_time);
 
     int success_cnt = maat_cmd_write_rule(write_ctx, s_rule, 1, server_time, maat_inst->logger);
 	if (success_cnt != 1) {
@@ -345,7 +313,7 @@ int maat_cmd_set_line(struct maat *maat_inst, const struct maat_cmd_line *line_r
 	maat_inst->stat->line_cmd_acc_num += success_cnt;
 
 error_out:
-	maat_cmd_clear_rule_cache(s_rule);
+	maat_clear_rule_cache(s_rule);
 	FREE(s_rule);
 
 	return ret;
@@ -387,7 +355,7 @@ int maat_cmd_set_file(struct maat *maat_inst, const char *key, const char *value
                                                    arg_vec, len_vec);
 			break;
 		case MAAT_OP_DEL:	
-			reply = maat_cmd_wrap_redis_command(ctx, "EXPIRE %s %d", key, MAAT_REDIS_SYNC_TIME);
+			reply = maat_wrap_redis_command(ctx, "EXPIRE %s %d", key, MAAT_REDIS_SYNC_TIME);
 			break;
 		default:
 			return -1;
@@ -416,7 +384,7 @@ long long maat_cmd_incrby(struct maat *maat_inst, const char *key, int increment
 		return -1;
 	}
 
-	redisReply *data_reply = maat_cmd_wrap_redis_command(write_ctx, "INCRBY %s %d", key, increment); 
+	redisReply *data_reply = maat_wrap_redis_command(write_ctx, "INCRBY %s %d", key, increment); 
 	if (data_reply->type == REDIS_REPLY_INTEGER) {
 		result = data_reply->integer;
 	} else {
@@ -427,64 +395,4 @@ long long maat_cmd_incrby(struct maat *maat_inst, const char *key, int increment
 	data_reply = NULL;
     
 	return result;		
-}
-
-long long maat_cmd_get_config_version(struct maat *maat_inst)
-{
-    long long new_version = -1;
-
-    if (maat_inst->new_version != INVALID_VERSION) {
-        new_version = maat_inst->new_version;
-    } else {
-        new_version = maat_inst->maat_version;
-    }
-
-    return new_version;
-}
-
-int maat_cmd_config_is_updating(struct maat *maat_inst)
-{
-    int ret = 0;
-
-    if (0 == pthread_mutex_trylock(&(maat_inst->background_update_mutex))) {
-        ret = 0;
-        pthread_mutex_unlock(&(maat_inst->background_update_mutex));
-    } else {
-        ret = 1;
-    }
-
-    return ret;
-}
-
-char *maat_cmd_str_escape(char *dst, int size, const char *src)
-{
-    int i = 0, j = 0;
-	int len = strlen(src);
-
-	for (i = 0, j = 0; i < len && j < size; i++) {
-		switch (src[i]) {
-			case '&':
-				dst[j] = '\\';
-				dst[j+1] = '&';
-				j += 2;
-				break;
-			case ' ':
-				dst[j] = '\\';
-				dst[j+1] = 'b';//space,0x20;
-				j += 2;
-				break;
-			case '\\':
-				dst[j] = '\\';
-				dst[j+1] = '\\';
-				j += 2;
-				break;
-			default:
-				dst[j] = src[i];
-				j++;	//undo the followed i++
-				break;
-		}
-	}
-	dst[j] = '\0';
-
-	return dst;
 }

@@ -57,4 +57,5 @@ target_link_libraries(maat_frame_shared adapter-static)
 # install
 set(CMAKE_INSTALL_PREFIX /opt/MESA/)
 install(FILES ${PROJECT_SOURCE_DIR}/include/maat.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/MESA/ COMPONENT HEADER)
+install(FILES ${PROJECT_SOURCE_DIR}/include/maat_command.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/MESA/ COMPONENT HEADER)
 install(TARGETS maat_frame_shared LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/ COMPONENT LIBRARIES)

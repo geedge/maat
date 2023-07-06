@@ -169,6 +169,39 @@ char *strtok_r_esc(char *s, const char delim, char **save_ptr)
     return s;  
 }
 
+char *str_escape(char *dst, int size, const char *src)
+{
+    int i = 0, j = 0;
+	int len = strlen(src);
+
+	for (i = 0, j = 0; i < len && j < size; i++) {
+		switch (src[i]) {
+			case '&':
+				dst[j] = '\\';
+				dst[j+1] = '&';
+				j += 2;
+				break;
+			case ' ':
+				dst[j] = '\\';
+				dst[j+1] = 'b';//space,0x20;
+				j += 2;
+				break;
+			case '\\':
+				dst[j] = '\\';
+				dst[j+1] = '\\';
+				j += 2;
+				break;
+			default:
+				dst[j] = src[i];
+				j++;	//undo the followed i++
+				break;
+		}
+	}
+	dst[j] = '\0';
+
+	return dst;
+}
+
 char *str_unescape(char *s)
 {
 	size_t i=0;

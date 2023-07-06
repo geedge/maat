@@ -2,19 +2,16 @@
 
 **Item**: As a filter for network attributes, the smallest unit of a rule
 
-- Eg1: specify that the UserAgent field in the HTTP protocol contains substrings "Chrome" and "11.8.1",   
-   
+- Eg1: specify that the UserAgent field in the HTTP protocol contains substrings "Chrome" and "11.8.1",  
    &ensp;&ensp; HTTP UserAgent: Chrome & 11.8.1
 
-- Eg2: specify that the domain name in the HTTP protocol ends with ".emodao.com"
-   
+- Eg2: specify that the domain name in the HTTP protocol ends with ".emodao.com"  
    &ensp;&ensp; HTTP HOST: *.emodao.com
 
-- Eg3: specify client IP address belongs to the C segment of 202.118.101.*
-
+- Eg3: specify client IP address belongs to the C segment of 202.118.101.*  
    &ensp;&ensp; Source IP: 202.11.101.0/24
 
-There are multiple types of items stored in corresponding tables such as string, IP and numerical range, more details can be found in [Item table](./table_schema.md#item-table)
+There are multiple types of items stored in corresponding tables such as string, IP and numerical range, more details can be found in [Item table](./table_schema.md#item-table).
 
 **Group(Object)**: Collection of Items, the constraints of group are as follows:
 
@@ -31,13 +28,14 @@ The relationship between group and group is stored in the [group2group table](./
 **Compile(Policy)**: A conjunctive normal form(CNF) consisting of multiple groups and virtual tables
 
 - A Compile can contain up to 8 clauses and multiple clauses in the same compile can be logical 'AND' and logical 'NOT' relationships.
-- A Clause consists of several Literals and the relationship between them is a logical 'OR'. A Literal consists of virtual table and group. During the configuration loading process, a unique Clause ID will be generated based on the combination of virtual table ID and group ID in the same clause.
+
+- A Clause consists of several Literals and the relationship between them is a logical 'OR'. A Literal consists of virtual table and group. During the rules loading process, a unique Clause ID will be generated based on the combination of virtual table ID and group ID in the same clause.
 
 
 ![CNF](./imgs/CNF.jpg)
 
-Configuration Diagram
-![configuration Diagram](./imgs/configuration_diagram.png)
+Rule Diagram
+![Rule Diagram](./imgs/rule_diagram.png)
 
 ## Group/Object Nesting and Hierarchies
 
@@ -50,16 +48,22 @@ An object defines a subset of an object type, such as network addresses or port 
 There are rules of precedence to take into account when defining objects:
 
 - Excluding has precedence over including in the same object.
+
 - Items in a superior object have precedence over items in a subordinate object.
+
 - Items in a superior object are not taken into account in a subordinate object, if the subordinate object is used directly in a rule.
+
 - Peer objects (different subordinate objects of the same superior object) do not affect each other.
 
 In short, to determine the set defined by an object, perform the following calculation:
 
 1. For each subordinate object (remember sibling objects do not affect each other):
-   1. Add included items.
-   2. Subtract excluded items.
+   - Add included items.
+   
+   - Subtract excluded items.
+
 2. Add included items in the object itself, overriding any excludes in the subordinate objects.
+
 3. Subtract excluded items in the object itself.
 
 The following figure shows an object with an included set and an excluded subset.
@@ -87,7 +91,6 @@ Now, let's see a graph of hierarchy example, where the dotted line means exclude
 ![object-hierarchy-example](./imgs/object-hierarchy-example.png)
 
 
-
 | **Matched subordinate objects** | **Activated superior Objects** |
 | ------------------------------- | ------------------------------ |
 | g1, g3                          | g6, g9                         |
@@ -104,10 +107,10 @@ Now, let's see a graph of hierarchy example, where the dotted line means exclude
 | **Term**                    | **Description**                                                      |
 | --------------------------- | ------------------------------------------------------------ |
 | Instance                    | Maat handle                                                  |
-| Item                        | Configuration of a certain field，such as URL field in HTTP protocol, client ip address field in DNS protocol etc.|
+| Item                        | Rule of a certain field，such as URL field in HTTP protocol, client ip address field in DNS protocol etc.|
 | Group(Object)               | A collection of one or more Items, the multiple items under the same Group are logical 'OR' relationships |
 | Compile(Policy)             | A rule for several Groups logical AND or NOT operations   |
-| Table                       | Different types of configurations have different tables, such as ip table, keywords table, group2compile table, compile table etc.  |
+| Table                       | Different types of rules have different tables, such as ip table, keywords table, group2compile table, compile table etc.  |
 | Physical Table              | The actual table in the database |
 | Virtual Table               | Table that do not exist in the database and only references physical table |
 | Table Schema                | Define the table type and the meaning of each column in the table |
@@ -115,4 +118,4 @@ Now, let's see a graph of hierarchy example, where the dotted line means exclude
 | Maat State                  | Store intermediate state of multiple scans |
 | Maat Stream                 | Handle of streaming file scanning |
 | Hit Path                    | From the perspective of data to be scanned, describe the hit ID sequence: item_id -> sub_group_id -> superior_group_id(virtual_table_id) -> compile_id |
-| Redis                       | In-memory data store，see https://redis.io/. It has a leader follower replication to ensure the high availability of configuration |
+| Redis                       | In-memory data store，see https://redis.io/. It has a leader follower replication to ensure the high availability of rules |

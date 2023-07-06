@@ -2,7 +2,7 @@
 
 Input must use UTF-8 without BOM encoding, for example, MySQL use utf8mb4.
 
-Maat supports three configuration loading modes.
+Maat supports three rule loading modes.
 - [Redis mode](#1-redis-mode)
 - [Iris mode](#2-iris-mode)
 - [Json mode](#3-json-mode)
@@ -391,8 +391,6 @@ Maat实例的工作线程定时轮询Redis中MAAT_VERSION，如果大于实例�
 }
 
 ```
-
-
 
 ## 组合配置写入示例 
 

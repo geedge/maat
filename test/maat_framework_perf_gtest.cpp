@@ -8,6 +8,7 @@
 #include "maat_command.h"
 #include "json2iris.h"
 #include "maat_config_monitor.h"
+#include "maat_redis_monitor.h"
 
 #define MODULE_FRAMEWORK_PERF_GTEST	 module_name_str("maat.framework_perf_gtest")
 
@@ -78,7 +79,8 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 		buff[strlen(buff)-1]='\0';
 	}
 
-	maat_cmd_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, rule_id, table_name, buff, absolute_expire_time);
+	maat_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, rule_id, table_name,
+                         buff, absolute_expire_time);
 	line_idx++;
 
     FREE(buff);
@@ -93,12 +95,12 @@ static int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
 
     snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
 
-    redisContext *c = maat_cmd_connect_redis(redis_ip, redis_port, redis_db, logger);
+    redisContext *c = maat_connect_redis(redis_ip, redis_port, redis_db, logger);
     if (NULL == c) {
         return -1;
     }
 
-    redisReply *reply = maat_cmd_wrap_redis_command(c, "flushdb");
+    redisReply *reply = maat_wrap_redis_command(c, "flushdb");
     if (NULL == reply) {
         return -1;
     } else {
@@ -135,7 +137,7 @@ static int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
                             &total_line_cnt, NULL, logger);
 
     struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
-    long long server_time = maat_cmd_redis_server_time_s(c);
+    long long server_time = maat_redis_server_time_s(c);
     if (server_time < 0) {
         return -1;
     }
@@ -154,7 +156,7 @@ static int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
     EXPECT_EQ(success_cnt, (int)total_line_cnt);
 
     for (size_t i = 0; i < total_line_cnt; i++) {
-        maat_cmd_clear_rule_cache(s_rule + i);
+        maat_clear_rule_cache(s_rule + i);
     }
     FREE(s_rule);
     redisFree(c);

@@ -4,6 +4,7 @@
 #include "json2iris.h"
 #include "maat_table.h"
 #include "maat_config_monitor.h"
+#include "maat_redis_monitor.h"
 
 #include <gtest/gtest.h>
 
@@ -135,18 +136,18 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 	}
 
     const char *redis_rule_key = "TEST_RULE_KEY";
-    redisReply *reply = maat_cmd_wrap_redis_command(ctx, "INCRBY %s %d", redis_rule_key, 1);
+    redisReply *reply = maat_wrap_redis_command(ctx, "INCRBY %s %d", redis_rule_key, 1);
 	if (reply->type == REDIS_REPLY_NIL) {
 		printf("incrby redis_rule_key:%s failed.", redis_rule_key);
         return -1;
 	} else {
-		s_rule->rule_id = maat_cmd_read_redis_integer(reply);
+		s_rule->rule_id = maat_read_redis_integer(reply);
 		freeReplyObject(reply);
 		reply = NULL;
 	}
 
-	maat_cmd_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, s_rule->rule_id, table_name, 
-                             buff, absolute_expire_time);
+	maat_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, s_rule->rule_id, table_name, 
+                         buff, absolute_expire_time);
     (s_rule + line_idx)->ref_ctx = ctx;
 	line_idx++;
 
@@ -163,10 +164,10 @@ TEST(redis_mode, maat_scan_string) {
 
     snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
 
-    redisContext *c = maat_cmd_connect_redis(redis_ip, redis_port, redis_db, g_logger);
+    redisContext *c = maat_connect_redis(redis_ip, redis_port, redis_db, g_logger);
     EXPECT_TRUE(c != NULL);
 
-    redisReply *reply = maat_cmd_wrap_redis_command(c, "flushdb");
+    redisReply *reply = maat_wrap_redis_command(c, "flushdb");
     EXPECT_TRUE(reply != NULL);
     freeReplyObject(reply);
 	reply = NULL;
@@ -193,7 +194,7 @@ TEST(redis_mode, maat_scan_string) {
 
     struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
     s_rule->ref_ctx = c;
-    long long server_time = maat_cmd_redis_server_time_s(c);
+    long long server_time = maat_redis_server_time_s(c);
     EXPECT_NE(server_time, -1);
 
     absolute_expire_time = server_time + 300;
@@ -208,7 +209,7 @@ TEST(redis_mode, maat_scan_string) {
     EXPECT_EQ(success_cnt, (int)total_line_cnt);
 
     for (size_t i = 0; i < total_line_cnt; i++) {
-        maat_cmd_clear_rule_cache(s_rule + i);
+        maat_clear_rule_cache(s_rule + i);
     }
     FREE(s_rule);
     redisFree(c);

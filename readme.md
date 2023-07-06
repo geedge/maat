@@ -193,6 +193,8 @@ int main()
 
 * [Rules](./docs/table_data.md)
 
+* [Logic (AND | OR | NOT)](./docs/logic%20(AND%20%7C%20OR%20%7C%20NOT).md)
+
 * [Scan API](./docs/scan_api.md)
 
 * [Thread mode](./docs/thread_mode.md)

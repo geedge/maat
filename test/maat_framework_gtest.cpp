@@ -10,6 +10,7 @@
 #include "json2iris.h"
 #include "log/log.h"
 #include "maat_config_monitor.h"
+#include "maat_redis_monitor.h"
 
 #define MODULE_FRAMEWORK_GTEST	 module_name_str("maat.framework_gtest")
 
@@ -22,21 +23,6 @@ const char *json_path="./maat_json.json";
 const char *json_filename = "maat_json.json";
 
 size_t g_thread_num = 4;
-
-void wait_for_cmd_effective(struct maat *maat_inst, long long version_before)
-{
-	long long version_after = version_before;
-	int is_updating = 1;
-	long long wating_us = 0, sleep_us = 1000 * 100;
-
-	while (is_updating || version_before == version_after) {
-		is_updating = maat_cmd_config_is_updating(maat_inst);
-        version_after = maat_cmd_get_config_version(maat_inst);
-		
-		usleep(sleep_us);//waiting for commands go into effect
-		wating_us += sleep_us;
-	}
-}
 
 int count_line_num_cb(const char *table_name, const char *line, void *u_para)
 {
@@ -58,18 +44,18 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 	}
 
     const char *redis_rule_key = "TEST_RULE_KEY";
-    redisReply *reply = maat_cmd_wrap_redis_command(ctx, "INCRBY %s %d", redis_rule_key, 1);
+    redisReply *reply = maat_wrap_redis_command(ctx, "INCRBY %s %d", redis_rule_key, 1);
 	if (reply->type == REDIS_REPLY_NIL) {
 		printf("incrby redis_rule_key:%s failed.", redis_rule_key);
         return -1;
 	} else {
-		s_rule->rule_id = maat_cmd_read_redis_integer(reply);
+		s_rule->rule_id = maat_read_redis_integer(reply);
 		freeReplyObject(reply);
 		reply = NULL;
 	}
 
-	maat_cmd_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, s_rule->rule_id, table_name, 
-                             buff, absolute_expire_time);
+	maat_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, s_rule->rule_id, table_name, 
+                         buff, absolute_expire_time);
     (s_rule + line_idx)->ref_ctx = ctx;
 	line_idx++;
 
@@ -85,12 +71,12 @@ int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
 
     snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
 
-    redisContext *c = maat_cmd_connect_redis(redis_ip, redis_port, redis_db, logger);
+    redisContext *c = maat_connect_redis(redis_ip, redis_port, redis_db, logger);
     if (NULL == c) {
         return -1;
     }
 
-    redisReply *reply = maat_cmd_wrap_redis_command(c, "flushdb");
+    redisReply *reply = maat_wrap_redis_command(c, "flushdb");
     if (NULL == reply) {
         return -1;
     } else {
@@ -128,7 +114,7 @@ int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
 
     struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
     s_rule->ref_ctx = c;
-    long long server_time = maat_cmd_redis_server_time_s(c);
+    long long server_time = maat_redis_server_time_s(c);
     if (server_time < 0) {
         return -1;
     }
@@ -148,7 +134,7 @@ int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
     EXPECT_EQ(success_cnt, (int)total_line_cnt);
 
     for (size_t i = 0; i < total_line_cnt; i++) {
-        maat_cmd_clear_rule_cache(s_rule + i);
+        maat_clear_rule_cache(s_rule + i);
     }
     FREE(s_rule);
     redisFree(c);
@@ -4027,7 +4013,6 @@ struct maat *MaatCmdTest::_shared_maat_inst;
 int *MaatCmdTest::_ex_data_counter;
 
 TEST_F(MaatCmdTest, SetIP) {
-    long long version_before = 0;
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
@@ -4059,8 +4044,7 @@ TEST_F(MaatCmdTest, SetIP) {
                             IPv4, ip1, ip2, port_min, port_max, 0);
     EXPECT_EQ(ret, 1);
 
-    version_before = maat_cmd_get_config_version(maat_inst);
-    wait_for_cmd_effective(maat_inst, version_before);
+    sleep(WAIT_FOR_EFFECTIVE_S);
    
     uint32_t sip;
     ret = inet_pton(AF_INET, ip1, &sip);
@@ -4096,16 +4080,15 @@ TEST_F(MaatCmdTest, SetExpr) {
     struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    maat_cmd_str_escape(escape_buff1, sizeof(escape_buff1), keywords1);
-    maat_cmd_str_escape(escape_buff2, sizeof(escape_buff2), keywords2);
+    str_escape(escape_buff1, sizeof(escape_buff1), keywords1);
+    str_escape(escape_buff2, sizeof(escape_buff2), keywords2);
     snprintf(keywords, sizeof(keywords), "%s&%s", escape_buff1, escape_buff2);
 	long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 2);
 
     test_add_expr_command(maat_inst, table_name, compile_id - 1, 0, keywords);
     test_add_expr_command(maat_inst, table_name, compile_id, 0, keywords);
-    long long version_before = maat_cmd_get_config_version(maat_inst);
-
-    wait_for_cmd_effective(maat_inst, version_before);
+    
+    sleep(WAIT_FOR_EFFECTIVE_S);
 
     int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
@@ -5473,7 +5456,7 @@ TEST_F(MaatCmdTest, HitPath) {
     long long item4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD, item4_id, group4_id,
-                              maat_cmd_str_escape(temp, sizeof(temp), "a finite or infinite"),
+                              str_escape(temp, sizeof(temp), "a finite or infinite"),
                               NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
@@ -5714,7 +5697,7 @@ TEST_F(MaatCmdTest, SameSuperGroupRefByMultiCompile) {
     long long item5_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group5_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     int ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD, item5_id, group5_id,
-                                  maat_cmd_str_escape(temp, sizeof(temp), "same supergroup referenced by multi compile"),
+                                  str_escape(temp, sizeof(temp), "same supergroup referenced by multi compile"),
                                   "KEY", 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
@@ -6679,7 +6662,7 @@ struct log_handle *MaatRollbackTest::logger;
 static int clear_config_in_redis(redisContext *c, struct log_handle *logger)
 {
     long long redis_version = 0;
-    redisReply *reply = maat_cmd_wrap_redis_command(c, "GET MAAT_VERSION");
+    redisReply *reply = maat_wrap_redis_command(c, "GET MAAT_VERSION");
     if (reply != NULL) {
 		if (reply->type == REDIS_REPLY_NIL || reply->type == REDIS_REPLY_ERROR) {
 			log_error(logger, MODULE_FRAMEWORK_GTEST, 
@@ -6696,7 +6679,7 @@ static int clear_config_in_redis(redisContext *c, struct log_handle *logger)
 		return -1;
 	}
 
-    redis_version = maat_cmd_read_redis_integer(reply);
+    redis_version = maat_read_redis_integer(reply);
 	if (redis_version < 0) {
 		if (reply->type == REDIS_REPLY_ERROR) {
 			log_error(logger, MODULE_FRAMEWORK_GTEST, 
@@ -6711,7 +6694,7 @@ static int clear_config_in_redis(redisContext *c, struct log_handle *logger)
 	freeReplyObject(reply);
 	reply = NULL;
 
-    reply = maat_cmd_wrap_redis_command(c, "MULTI");
+    reply = maat_wrap_redis_command(c, "MULTI");
 	freeReplyObject(reply);
 	reply = NULL;
 	
@@ -6731,7 +6714,7 @@ static int clear_config_in_redis(redisContext *c, struct log_handle *logger)
 
     int redis_transaction_success = 1;
     for (int i = 0; i < append_cmd_cnt; i++) {
-		int ret = maat_cmd_wrap_redis_get_reply(c, &reply);
+		int ret = maat_wrap_redis_get_reply(c, &reply);
 		if (ret == REDIS_OK) {
 			if (reply->type == REDIS_REPLY_NIL) {
 				redis_transaction_success = 0;
@@ -6750,7 +6733,7 @@ static int clear_config_in_redis(redisContext *c, struct log_handle *logger)
 
 static int rollback_redis_version(redisContext *c, struct log_handle *logger)
 {
-    redisReply *reply = maat_cmd_wrap_redis_command(c, "SET MAAT_VERSION 0");
+    redisReply *reply = maat_wrap_redis_command(c, "SET MAAT_VERSION 0");
     if (NULL == reply) {
         log_error(logger, MODULE_FRAMEWORK_GTEST, 
                   "[%s:%d] set MAAT_VERSION failed, Redis Communication error: %s", 
@@ -6788,7 +6771,7 @@ TEST_F(MaatRollbackTest, FullConfigRollback) {
     char redis_ip[64] = "127.0.0.1";
     int redis_port = 6379;
     int redis_db = 0;
-    redisContext *c = maat_cmd_connect_redis(redis_ip, redis_port, redis_db, logger);
+    redisContext *c = maat_connect_redis(redis_ip, redis_port, redis_db, logger);
     EXPECT_TRUE(c != NULL);
 
     ret = clear_config_in_redis(c, logger);
@@ -6837,7 +6820,7 @@ TEST_F(MaatRollbackTest, FullConfigRollbackWhenScanUnfinished) {
     char redis_ip[64] = "127.0.0.1";
     int redis_port = 6379;
     int redis_db = 0;
-    redisContext *c = maat_cmd_connect_redis(redis_ip, redis_port, redis_db, logger);
+    redisContext *c = maat_connect_redis(redis_ip, redis_port, redis_db, logger);
     EXPECT_TRUE(c != NULL);
 
     ret = clear_config_in_redis(c, logger);

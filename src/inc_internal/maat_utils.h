@@ -93,6 +93,7 @@ int load_file_to_memory(const char *file_name, unsigned char **pp_out, size_t *o
 
 char *strtok_r_esc(char *s, const char delim, char **save_ptr);
 
+char *str_escape(char *dst, int size, const char *src);
 char *str_unescape(char *s);
 
 char *md5_file(const char *filename, char *md5string);

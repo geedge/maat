@@ -276,7 +276,7 @@ void maat_read_full_config(struct maat *maat_inst)
             log_info(maat_inst->logger, MODULE_MAAT_RULE, 
                      "Maat initiate from Redis %s:%hu db%d", 
                      redis_ctx->redis_ip, redis_ctx->redis_port, redis_ctx->redis_db);
-            redis_ctx->read_ctx = maat_cmd_connect_redis(redis_ctx->redis_ip,
+            redis_ctx->read_ctx = maat_connect_redis(redis_ctx->redis_ip,
                                                          redis_ctx->redis_port, 
                                                          redis_ctx->redis_db,
                                                          maat_inst->logger);

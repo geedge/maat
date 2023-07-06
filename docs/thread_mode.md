@@ -46,10 +46,11 @@ int main()
     maat_options_set_caller_thread_number(opts, thread_num);
     struct maat *maat_inst = maat_new(opts, table_info_path);
 
+    size_t i = 0;
     pthread_t threads[thread_num];
     struct thread_param thread_params[thread_num];
 
-    for (size_t i = 0; i < thread_num; i++) {
+    for (i = 0; i < thread_num; i++) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;

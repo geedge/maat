@@ -29,7 +29,7 @@ Item tables are further subdivided into different types of subtables as follows:
 
 Each item table must has the following columns:
 
-- item_id: In a maat instance, the item id is globally unique, meaning that the item IDs of different tables must not be duplicate.
+- item_id: In a maat instance, the item id is globally unique, meaning that the item id of different tables must not be duplicate.
 
 - group_id: Indicate the group to which the item belongs, an item belongs to only one group.
 
@@ -48,7 +48,7 @@ Describe matching rules for strings.
 | **group_id**     | LONG LONG      | N        | group2group or group2compile table's group_id |
 | **keywords**     | VARCHAR2(1024) | N        | field to match during scanning |
 | **expr_type**    | INT            | N        | 0(keywords), 1(AND expr), 2(regular expr), 3(substring with offset)
-| **match_method** | INT            | N        | only useful when expr_type is 0 |
+| **match_method** | INT            | N        | only useful when expr_type is 0. 0(sub), 1(suffix), 2(prefix), 3(exactly) |
 | **is_hexbin**    | INT            | N        | 0(not HEX & case insensitive, this is default value)  1(HEX & case sensitive)  2(not HEX & case sensitive) |
 | **is_valid**     | INT            | N        | 0(invalid), 1(valid) |
 
@@ -123,7 +123,7 @@ Describe matching rules for strings.
     For example: substring expr: "1-1:48&3-4:4C4C", scan_data: "HELLO" will hit, "HLLO" will not hit.
     **Note**: 48('H') 4C('L')
 
-&ensp;&ensp;Since Maat4.0，only support UTF-8，no more encoding conversion。For binary format configurations, the keyword is hexadecimal, such as the keyword "hello" is represented as "68656C6C6F". A keyword can't contain invisible characters such as spaces, tabs, and CR, which are ASCII codes 0x00 to 0x1F and 0x7F. If these characters need to be used, they must be escaped, refer to the "keywords escape table". Characters led by backslashes outside this table are processed as ordinary strings, such as '\t' will be processed as the string "\t".
+&ensp;&ensp;Since Maat4.0，only support UTF-8，no more encoding conversion。For binary format rules, the keyword is hexadecimal, such as the keyword "hello" is represented as "68656C6C6F". A keyword can't contain invisible characters such as spaces, tabs, and CR, which are ASCII codes 0x00 to 0x1F and 0x7F. If these characters need to be used, they must be escaped, refer to the "keywords escape table". Characters led by backslashes outside this table are processed as ordinary strings, such as '\t' will be processed as the string "\t".
 
 The symbol '&' means conjunction operation in AND expression. So if the keywords has '&', it must be escaped by '\&'.
 
@@ -603,18 +603,18 @@ Describe the specific policy, One maat instance can has multiple compile tables 
 
 ### 5. <a name='plugintable'></a> plugin table
 
-There is no fixed format for configuration of the plugin table, which is determined by business side. The plugin table supports two sets of callback functions, registered with **maat_table_callback_register** and **maat_plugin_table_ex_schema_register** respectively.
+There is no fixed rule format of the plugin table, which is determined by business side. The plugin table supports two sets of callback functions, registered with **maat_table_callback_register** and **maat_plugin_table_ex_schema_register** respectively.
 
 maat_table_callback_register
 ```c
 /*
-    When the plugin table configurations are updated, start will be called first and only once, then update will be called by each configuration item, and finish will be called last and only once.
+    When the plugin table rules are updated, start will be called first and only once, then update will be called by each rule item, and finish will be called last and only once.
 
-    If configurations have been loaded but maat_table_callback_register has not yet been called, maat will cache the loaded configurations and perform the callbacks(start, update, finish) when registration is complete.
+    If rules have been loaded but maat_table_callback_register has not yet been called, maat will cache the loaded rules and perform the callbacks(start, update, finish) when registration is complete.
 */
 
 typedef void maat_start_callback_t(int update_type, ...);
-//table_line points to one complete configuration line, such as: "1\tHeBei\tShijiazhuang\t1\t0"
+//table_line points to one complete rule line, such as: "1\tHeBei\tShijiazhuang\t1\t0"
 typedef void maat_update_callback_t(..., const char *table_line, ...);
 typedef void maat_finish_callback_t(...);
 
@@ -643,7 +643,7 @@ int maat_plugin_table_ex_schema_register(...,
                                          ...);
 ```
 
-three types of keys(pointer, integer and ip_addr) for ex_data callback.
+Plugin table supports three types of keys(pointer, integer and ip_addr) for ex_data callback.
 
 **pointer key(compatible with maat3)**
 
@@ -662,7 +662,7 @@ three types of keys(pointer, integer and ip_addr) for ex_data callback.
 }
 ```
 
-(2) plugin table configuration
+(2) plugin table rules
 ```json
 {
     "table_name": "TEST_PLUGIN_POINTER_KEY_TYPE",
@@ -722,7 +722,7 @@ support integers of different lengths, such as int(4 bytes), long long(8 bytes).
 }
 ```
 
-(2) plugin table configuration
+(2) plugin table rules
 ```
 {
     "table_name": "TEST_PLUGIN_INT_KEY_TYPE",
@@ -782,7 +782,7 @@ support ip address(ipv4 or ipv6) as key.
 ```
 The addr_type column indicates whether the key is a v4 or v6 address.
 
-(2) plugin table configuration
+(2) plugin table rules
 ```
 {
     "table_name": "TEST_PLUGIN_IP_KEY_TYPE",
