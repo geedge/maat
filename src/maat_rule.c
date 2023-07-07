@@ -344,7 +344,7 @@ long long maat_runtime_get_sequence(struct maat_runtime *maat_rt, const char *ke
         return -1;
     }
 
-    long long sequence = 0;
+    long long sequence = 1;
     int map_ret = maat_kv_read(maat_rt->sequence_map, key, &sequence);
     if (map_ret < 0) {
         maat_kv_register(maat_rt->sequence_map, key, sequence);

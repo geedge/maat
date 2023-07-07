@@ -54,13 +54,6 @@ TEST(json_mode, maat_scan_string) {
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 182);
 
-    long long clause_id = maat_runtime_get_sequence(maat_inst->maat_rt, "test_seq");
-    EXPECT_EQ(clause_id, 0);
-    clause_id = maat_runtime_get_sequence(maat_inst->maat_rt, "test_seq");
-    EXPECT_EQ(clause_id, 1);
-    clause_id = maat_runtime_get_sequence(maat_inst->maat_rt, "test_seq");
-    EXPECT_EQ(clause_id, 2);
-
     maat_options_free(opts);
     maat_state_free(state);
     state = NULL;

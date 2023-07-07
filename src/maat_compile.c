@@ -53,8 +53,13 @@ struct group2compile_schema {
 };
 
 struct compile_item {
-    long long compile_id;
     int declared_clause_num;
+    long long compile_id;
+    char *table_line;
+    size_t table_line_len;
+	struct compile_schema *ref_schema;
+	void **ex_data;
+    char table_name[MAX_NAME_STR_LEN];
 };
 
 struct group2compile_item {
@@ -71,28 +76,10 @@ struct maat_literal_id {
 	long long vtable_id;
 };
 
-struct maat_clause {
-	long long clause_id;
-	size_t n_literal_id;
-	struct maat_literal_id *literal_ids;
-	UT_hash_handle hh;
-};
-
 struct literal_clause {
     struct maat_literal_id key;
     UT_array *clause_ids;
     UT_hash_handle hh;
-};
-
-struct compile_rule {
-	uint32_t magic_num;
-    int declared_clause_num;
-    long long compile_id;
-    char *table_line;
-    size_t table_line_len;
-	struct compile_schema *ref_schema;
-	void **ex_data;
-    char table_name[MAX_NAME_STR_LEN];
 };
 
 /* compile_runtime and group2compile_runtime share compile_hash_map */
@@ -101,7 +88,6 @@ struct compile_runtime {
     struct rcu_hash_table *cfg_hash; // <compile_id, struct maat_compile>
     struct maat_runtime *ref_maat_rt;
     time_t version;
-    struct maat_clause *clause_by_literals_hash;
     struct literal_clause *literal2clause_hash;
 
     long long rule_num;
@@ -118,7 +104,7 @@ struct group2compile_runtime {
     struct compile_runtime *ref_compile_rt;
 };
 
-struct maat_clause_state {
+struct maat_clause {
 	long long clause_id;
 	UT_array *ut_literal_ids;
 	char not_flag; // 1 byte
@@ -139,8 +125,8 @@ struct maat_compile {
     int not_clause_cnt;
 	long long compile_id;
     char table_name[MAX_NAME_STR_LEN];
-	void *user_data; // compile_rule
-	struct maat_clause_state clause_states[MAX_ITEMS_PER_BOOL_EXPR];
+	void *user_data; // compile_item
+	struct maat_clause clauses[MAX_ITEMS_PER_BOOL_EXPR];
 };
 
 struct maat_internal_hit_path {
@@ -175,9 +161,9 @@ static struct maat_compile *maat_compile_new(long long compile_id)
 	compile->compile_id = compile_id;
 
     for(int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {	
-		utarray_new(compile->clause_states[i].ut_literal_ids, &ut_literal_id_icd);
-		compile->clause_states[i].in_use=0;
-        compile->clause_states[i].clause_id = -1;
+		utarray_new(compile->clauses[i].ut_literal_ids, &ut_literal_id_icd);
+		compile->clauses[i].in_use = 0;
+        compile->clauses[i].clause_id = 0;
 	}
 
 	return compile;
@@ -198,56 +184,158 @@ static int maat_compile_set(struct maat_compile *compile, const char *table_name
 	return 0;
 }
 
+static void *rule_ex_data_new(const char *table_name, int table_id,
+                              const char *table_line, 
+                              struct ex_data_schema *ex_schema)
+{
+	void *ex_data = NULL;
+
+	ex_schema->new_func(table_name, table_id, NULL, table_line, &ex_data, 
+                        ex_schema->argl, ex_schema->argp);
+    return ex_data;
+}
+
 static void rule_ex_data_free(int table_id, void **ex_data,
                               const struct ex_data_schema *ex_schema)
 {
 	ex_schema->free_func(table_id, ex_data, ex_schema->argl, ex_schema->argp);
 }
 
-#define	COMPILE_RULE_MAGIC	0x1a2b3c4d
-static void compile_rule_free(struct compile_rule *compile_rule)
+static int compile_accept_tag_match(struct compile_schema *schema, const char *line,
+                                    const char *table_name, struct log_handle *logger)
 {
-    struct compile_schema *schema = compile_rule->ref_schema;
-    assert(compile_rule->magic_num == COMPILE_RULE_MAGIC);
+    size_t column_offset = 0;
+    size_t column_len = 0;
+    size_t n_tag = table_manager_accept_tags_count(schema->ref_tbl_mgr);
+
+    if (schema->rule_tag_column > 0 && n_tag > 0) {
+        int ret = get_column_pos(line, schema->rule_tag_column, 
+                                 &column_offset, &column_len);
+        if (ret < 0) {
+            log_error(logger, MODULE_COMPILE,
+                      "[%s:%d] table: <%s> has no rule_tag in line:%s",
+                      __FUNCTION__, __LINE__, table_name, line);
+            return TAG_MATCH_ERR;
+        }
+
+        if (column_len > 2) {
+            char *tag_str = ALLOC(char, column_len + 1);
+            memcpy(tag_str, (line + column_offset), column_len);
+            ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
+            FREE(tag_str);
+            if (TAG_MATCH_ERR == ret) {
+                log_error(logger, MODULE_COMPILE,
+                          "[%s:%d] table: <%s> has invalid tag format in line:%s",
+                          __FUNCTION__, __LINE__, table_name, line);
+                return TAG_MATCH_ERR;
+            }
+
+            if (TAG_MATCH_UNMATCHED == ret) {
+                log_error(logger, MODULE_COMPILE,
+                          "[%s:%d] table: <%s> has unmatched tag in line:%s",
+                          __FUNCTION__, __LINE__, table_name, line);
+                return TAG_MATCH_UNMATCHED;
+            }
+        }
+    }
+
+    return TAG_MATCH_MATCHED;
+}
+
+static struct compile_item *
+compile_item_new(const char *table_line, struct compile_schema *schema,
+                 const char *table_name, struct log_handle *logger)
+{
+    int ret = compile_accept_tag_match(schema, table_line, table_name, logger);
+    if (ret == TAG_MATCH_UNMATCHED) {
+        return NULL;
+    }
+
+    size_t column_offset = 0;
+    size_t column_len = 0;
+    struct compile_item *compile_item = ALLOC(struct compile_item, 1);
+
+    ret = get_column_pos(table_line, schema->compile_id_column,
+                         &column_offset, &column_len);
+    if (ret < 0) {
+        log_error(logger, MODULE_COMPILE,
+                  "[%s:%d] table: <%s> has no compile_id in line:%s",
+                  __FUNCTION__, __LINE__, table_name, table_line);
+        goto error;
+    }
+    compile_item->compile_id = atoll(table_line + column_offset);
+
+    ret = get_column_pos(table_line, schema->declared_clause_num_column,
+                         &column_offset, &column_len);
+    if (ret < 0) {
+        log_error(logger, MODULE_COMPILE,
+                  "[%s:%d] table: <%s> has no clause_num in line:%s",
+                  __FUNCTION__, __LINE__, table_name, table_line);
+		goto error;
+    }
+    compile_item->declared_clause_num = atoi(table_line + column_offset);
+
+    compile_item->ref_schema = schema;
+    compile_item->ex_data = ALLOC(void *, 1);
+    memcpy(compile_item->table_name, table_name, sizeof(compile_item->table_name));
+    compile_item->table_line_len = strlen(table_line) + 1;
+    compile_item->table_line = ALLOC(char, compile_item->table_line_len);
+    memcpy(compile_item->table_line, table_line, compile_item->table_line_len);
 
     if (1 == schema->set_flag) {
-        rule_ex_data_free(schema->table_id, compile_rule->ex_data,
-                          &(schema->ex_schema));
-        *compile_rule->ex_data = NULL;
+        *(compile_item->ex_data) = rule_ex_data_new(table_name, schema->table_id,
+                                                    compile_item->table_line,
+                                                    &(schema->ex_schema));
+    }
+    return compile_item;
+error:
+    FREE(compile_item);
+    return NULL;
+}
+
+static void compile_item_free(struct compile_item *item)
+{
+    struct compile_schema *schema = item->ref_schema;
+
+    if (1 == schema->set_flag) {
+        rule_ex_data_free(schema->table_id, item->ex_data, &(schema->ex_schema));
+        *item->ex_data = NULL;
     }
 
-    if (compile_rule->ex_data != NULL) {
-        FREE(compile_rule->ex_data);
+    if (item->ex_data != NULL) {
+        FREE(item->ex_data);
     }
     
-    compile_rule->declared_clause_num = -1;
+    item->declared_clause_num = -1;
 
-    if (compile_rule->table_line != NULL) {
-        FREE(compile_rule->table_line);
+    if (item->table_line != NULL) {
+        FREE(item->table_line);
     }
     
-    FREE(compile_rule);
+    FREE(item);
 }
 
 static void maat_compile_free(struct maat_compile *compile)
 {
-	struct maat_clause_state *clause_state = NULL;
+	struct maat_clause *clause = NULL;
 
 	if (compile->user_data != NULL) {
-		compile_rule_free(compile->user_data);
+		compile_item_free(compile->user_data);
         compile->user_data = NULL;
 	}
 
 	for (int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
-		clause_state = compile->clause_states + i;
+		clause = compile->clauses + i;
 
-        if (clause_state->ut_literal_ids != NULL) {
-            utarray_free(clause_state->ut_literal_ids);
-		    clause_state->ut_literal_ids = NULL;
+        if (clause->ut_literal_ids != NULL) {
+            utarray_free(clause->ut_literal_ids);
+		    clause->ut_literal_ids = NULL;
         }
 		
-		clause_state->in_use = 0;
+		clause->in_use = 0;
+        clause->clause_id = 0;
 	}
+
 	compile->magic_num = 0;
 	FREE(compile);
 }
@@ -295,22 +383,11 @@ static void *compile_runtime_get_user_data(struct compile_runtime *compile_rt,
     return ret;
 }
 
-static void *rule_ex_data_new(const char *table_name, int table_id,
-                              const char *table_line, 
-                              struct ex_data_schema *ex_schema)
-{
-	void *ex_data = NULL;
-
-	ex_schema->new_func(table_name, table_id, NULL, table_line, &ex_data, 
-                        ex_schema->argl, ex_schema->argp);
-    return ex_data;
-}
-
 static void rule_ex_data_new_cb(void *user_data, void *param,
                                 const char *table_name, int table_id)
 {
 	struct ex_data_schema *ex_schema = (struct ex_data_schema *)param;
-	struct compile_rule *compile = (struct compile_rule *)user_data;
+	struct compile_item *compile = (struct compile_item *)user_data;
 
 	void *ad = rule_ex_data_new(table_name, table_id, compile->table_line, ex_schema);
 	*compile->ex_data = ad;
@@ -507,95 +584,6 @@ int group2compile_associated_compile_table_id(void *g2c_schema)
     return schema->asso_compile_table_id;
 }
 
-static int compile_accept_tag_match(struct compile_schema *schema, const char *line,
-                                    const char *table_name, struct log_handle *logger)
-{
-    size_t column_offset = 0;
-    size_t column_len = 0;
-    size_t n_tag = table_manager_accept_tags_count(schema->ref_tbl_mgr);
-
-    if (schema->rule_tag_column > 0 && n_tag > 0) {
-        int ret = get_column_pos(line, schema->rule_tag_column, 
-                                 &column_offset, &column_len);
-        if (ret < 0) {
-            log_error(logger, MODULE_COMPILE,
-                      "[%s:%d] table: <%s> has no rule_tag in line:%s",
-                      __FUNCTION__, __LINE__, table_name, line);
-            return TAG_MATCH_ERR;
-        }
-
-        if (column_len > 2) {
-            char *tag_str = ALLOC(char, column_len + 1);
-            memcpy(tag_str, (line + column_offset), column_len);
-            ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
-            FREE(tag_str);
-            if (TAG_MATCH_ERR == ret) {
-                log_error(logger, MODULE_COMPILE,
-                          "[%s:%d] table: <%s> has invalid tag format in line:%s",
-                          __FUNCTION__, __LINE__, table_name, line);
-                return TAG_MATCH_ERR;
-            }
-
-            if (TAG_MATCH_UNMATCHED == ret) {
-                log_error(logger, MODULE_COMPILE,
-                          "[%s:%d] table: <%s> has unmatched tag in line:%s",
-                          __FUNCTION__, __LINE__, table_name, line);
-                return TAG_MATCH_UNMATCHED;
-            }
-        }
-    }
-
-    return TAG_MATCH_MATCHED;
-}
-
-static struct compile_item *
-compile_item_new(const char *line, struct compile_schema *compile_schema,
-                 const char *table_name, struct log_handle *logger)
-{
-    int ret = compile_accept_tag_match(compile_schema, line, table_name, logger);
-    if (ret == TAG_MATCH_UNMATCHED) {
-        return NULL;
-    }
-
-    size_t column_offset = 0;
-    size_t column_len = 0;
-    struct compile_item *compile_item = ALLOC(struct compile_item, 1);
-
-    ret = get_column_pos(line, compile_schema->compile_id_column, 
-                             &column_offset, &column_len);
-    if (ret < 0) {
-        log_error(logger, MODULE_COMPILE,
-                  "[%s:%d] table: <%s> has no compile_id in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-    compile_item->compile_id = atoll(line + column_offset);
-
-    ret = get_column_pos(line, compile_schema->declared_clause_num_column, 
-                         &column_offset, &column_len);
-    if (ret < 0) {
-        log_error(logger, MODULE_COMPILE,
-                  "[%s:%d] table: <%s> has no clause_num in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-		goto error;
-    }
-    compile_item->declared_clause_num = atoi(line + column_offset);
-
-    return compile_item;
-error:
-    FREE(compile_item);
-    return NULL;
-}
-
-static void compile_item_free(struct compile_item *compile_item)
-{
-    if (NULL == compile_item) {
-        return;
-    }
-
-    FREE(compile_item);
-}
-
 void *compile_runtime_new(void *compile_schema, size_t max_thread_num,
                           struct maat_garbage_bin *garbage_bin, 
                           struct log_handle *logger)
@@ -612,24 +600,11 @@ void *compile_runtime_new(void *compile_schema, size_t max_thread_num,
     compile_rt->version = time(NULL);
     compile_rt->cfg_hash = rcu_hash_new(rcu_compile_cfg_free, NULL,
                                         schema->gc_timeout_s + DEFAULT_GC_TIMEOUT_S);
-    compile_rt->clause_by_literals_hash = NULL;
     compile_rt->literal2clause_hash = NULL;
     compile_rt->logger = logger;
     compile_rt->ref_garbage_bin = garbage_bin;
 
     return compile_rt;
-}
-
-static void maat_clause_hash_free(struct maat_clause *clause_hash)
-{
-	struct maat_clause *clause = NULL, *tmp_clause = NULL;
-
-	HASH_ITER (hh, clause_hash, clause, tmp_clause) {
-		HASH_DEL(clause_hash, clause);
-		FREE(clause->literal_ids);
-		clause->n_literal_id = 0;
-		FREE(clause);
-	}
 }
 
 static void literal2clause_hash_free(struct literal_clause *hash)
@@ -674,11 +649,6 @@ void compile_runtime_free(void *compile_runtime)
     if (compile_rt->literal2clause_hash != NULL) {
         literal2clause_hash_free(compile_rt->literal2clause_hash);
         compile_rt->literal2clause_hash = NULL;
-    }
-
-    if (compile_rt->clause_by_literals_hash != NULL) {
-        maat_clause_hash_free(compile_rt->clause_by_literals_hash);
-        compile_rt->clause_by_literals_hash = NULL;
     }
 
     if (compile_rt->expr_match_buff != NULL) {
@@ -856,24 +826,24 @@ static int maat_compile_clause_add_literal(struct maat_compile *compile,
                                            struct maat_literal_id *literal_id,
 									       int clause_index, int clause_not_flag)
 {
-	struct maat_clause_state *clause_state = compile->clause_states + clause_index;
+	struct maat_clause *clause = compile->clauses + clause_index;
 
-    clause_state->not_flag = clause_not_flag;
-	if (!clause_state->in_use) {
-		clause_state->in_use = 1;
+    clause->not_flag = clause_not_flag;
+	if (!clause->in_use) {
+		clause->in_use = 1;
 		compile->actual_clause_num++;
 	}
 
 	struct maat_literal_id *tmp = NULL;
-    tmp = (struct maat_literal_id *)utarray_find(clause_state->ut_literal_ids,
+    tmp = (struct maat_literal_id *)utarray_find(clause->ut_literal_ids,
                                                  literal_id, compare_literal_id);
 	if (tmp) {
         assert(tmp->group_id == literal_id->group_id);
         assert(tmp->vtable_id == literal_id->vtable_id);
 		return -1;
 	} else {
-		utarray_push_back(clause_state->ut_literal_ids, literal_id);
-		utarray_sort(clause_state->ut_literal_ids, compare_literal_id);
+		utarray_push_back(clause->ut_literal_ids, literal_id);
+		utarray_sort(clause->ut_literal_ids, compare_literal_id);
 	}
 
 	return 0;
@@ -883,9 +853,9 @@ static int maat_compile_clause_remove_literal(struct maat_compile *compile,
                                               struct maat_literal_id *literal_id,
                                               int clause_index)
 {
-    struct maat_clause_state* clause_state = compile->clause_states + clause_index;
+    struct maat_clause *clause = compile->clauses + clause_index;
 	struct maat_literal_id *tmp = NULL;
-    tmp = (struct maat_literal_id *)utarray_find(clause_state->ut_literal_ids,
+    tmp = (struct maat_literal_id *)utarray_find(clause->ut_literal_ids,
                                                  literal_id, compare_literal_id);
 	if (tmp) {
 		assert(*(unsigned long long*)tmp == *(unsigned long long*)(literal_id));
@@ -893,38 +863,15 @@ static int maat_compile_clause_remove_literal(struct maat_compile *compile,
 		return -1;
 	}
 
-	size_t remove_idx = utarray_eltidx(clause_state->ut_literal_ids, tmp);
-	utarray_erase(clause_state->ut_literal_ids, remove_idx, 1);
+	size_t remove_idx = utarray_eltidx(clause->ut_literal_ids, tmp);
+	utarray_erase(clause->ut_literal_ids, remove_idx, 1);
 
-	if (0 == utarray_len(clause_state->ut_literal_ids)) {
-		clause_state->in_use = 0;
+	if (0 == utarray_len(clause->ut_literal_ids)) {
+		clause->in_use = 0;
 		compile->actual_clause_num--;
 	}
 
 	return 0;
-}
-
-static const struct maat_clause *
-maat_clause_hash_fetch_clause(struct compile_runtime *compile_rt,
-							  struct maat_literal_id *literal_ids, 
-                              size_t n_literal_id)
-{
-	struct maat_clause *clause = NULL;
-    
-	HASH_FIND(hh, compile_rt->clause_by_literals_hash, literal_ids, 
-              n_literal_id * sizeof(struct maat_literal_id), clause);
-	if (NULL == clause) {
-		clause = ALLOC(struct maat_clause, 1);
-		clause->clause_id = maat_runtime_get_sequence(compile_rt->ref_maat_rt, "clause_id");
-		clause->n_literal_id = n_literal_id;
-		clause->literal_ids = ALLOC(struct maat_literal_id, n_literal_id);
-		memcpy(clause->literal_ids, literal_ids, n_literal_id * sizeof(struct maat_literal_id));
-		
-		HASH_ADD_KEYPTR(hh, compile_rt->clause_by_literals_hash, clause->literal_ids, 
-                        n_literal_id * sizeof(struct maat_literal_id), clause);
-	}
-
-	return clause;
 }
 
 static struct bool_matcher *
@@ -936,8 +883,6 @@ maat_compile_bool_matcher_new(struct compile_runtime *compile_rt, size_t *compil
 
     size_t i = 0, j = 0, idx = 0;
     int has_clause_num = 0;
-    const struct maat_clause *clause = NULL;
-    struct maat_literal_id *literal_ids = NULL;
 
     // STEP 1, update clause_id of each compile and literal
     void **data_array = NULL;
@@ -949,16 +894,15 @@ maat_compile_bool_matcher_new(struct compile_runtime *compile_rt, size_t *compil
         iter_compile = (struct maat_compile *)data_array[idx];
         has_clause_num = 0;
         for (i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
-            struct maat_clause_state *clause_state = iter_compile->clause_states + i;
-            if (!clause_state->in_use) {
+            struct maat_clause *clause = iter_compile->clauses + i;
+            if (!clause->in_use) {
                 continue;
             }
 
             has_clause_num++;
-            literal_ids = (struct maat_literal_id *)utarray_eltptr(clause_state->ut_literal_ids, 0);
-            size_t n_literal_id = utarray_len(clause_state->ut_literal_ids);
-            clause = maat_clause_hash_fetch_clause(compile_rt, literal_ids, n_literal_id);
-            clause_state->clause_id = clause->clause_id;
+            if (0 == clause->clause_id) {
+                clause->clause_id = maat_runtime_get_sequence(compile_rt->ref_maat_rt, "clause_id");
+            }
         }
         assert(has_clause_num == iter_compile->actual_clause_num);
     }
@@ -970,22 +914,21 @@ maat_compile_bool_matcher_new(struct compile_runtime *compile_rt, size_t *compil
     for (idx = 0; idx < rule_cnt; idx++) {
         iter_compile = (struct maat_compile *)data_array[idx];
         for (i = 0, j = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
-            if (iter_compile->clause_states[i].in_use) {
-                if (iter_compile->clause_states[i].not_flag) {
+            if (iter_compile->clauses[i].in_use) {
+                if (iter_compile->clauses[i].not_flag) {
                     iter_compile->not_clause_cnt++;
                 }
 // TODO:mytest need to delete
 #if 0
 				struct maat_literal_id *p = NULL;
-				for(p = (struct maat_literal_id *)utarray_front(iter_compile->clause_states[i].ut_literal_ids); p!=NULL; 
-                    p = (struct maat_literal_id *)utarray_next(iter_compile->clause_states[i].ut_literal_ids, p)) {
+				for(p = (struct maat_literal_id *)utarray_front(iter_compile->clauses[i].ut_literal_ids); p!=NULL; 
+                    p = (struct maat_literal_id *)utarray_next(iter_compile->clauses[i].ut_literal_ids, p)) {
     				printf("<before bool_matcher_new> compile_rt:%p compile_id:%lld, clause_id:%llu, literal{%lld: %lld}\n", 
-							compile_rt, iter_compile->compile_id, iter_compile->clause_states[i].clause_id, p->group_id, p->vtable_id);
+							compile_rt, iter_compile->compile_id, iter_compile->clauses[i].clause_id, p->group_id, p->vtable_id);
   				}
 #endif
-                bool_expr_array[expr_cnt].items[j].item_id = iter_compile->clause_states[i].clause_id;
-                bool_expr_array[expr_cnt].items[j].not_flag = iter_compile->clause_states[i].not_flag;
-
+                bool_expr_array[expr_cnt].items[j].item_id = iter_compile->clauses[i].clause_id;
+                bool_expr_array[expr_cnt].items[j].not_flag = iter_compile->clauses[i].not_flag;
                 j++;
             }
         }
@@ -1059,7 +1002,6 @@ maat_compile_build_literal2clause_hash(struct compile_runtime *compile_rt)
     }
 
     void **data_array = NULL;
-    struct maat_clause_state *clause_state = NULL;
     struct maat_literal_id *tmp_literal_id = NULL;
     struct literal_clause *l2c_value = NULL;
     struct literal_clause *literal2clause_hash = NULL;
@@ -1068,13 +1010,13 @@ maat_compile_build_literal2clause_hash(struct compile_runtime *compile_rt)
     for (size_t idx = 0; idx < compile_cnt; idx++) {
         struct maat_compile *compile = (struct maat_compile *)data_array[idx];
         for (size_t i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
-            clause_state = compile->clause_states + i;
-            if (!clause_state->in_use) {
+            struct maat_clause *clause = compile->clauses + i;
+            if (!clause->in_use) {
                 continue;
             }
 
-            for (size_t j = 0; j < utarray_len(clause_state->ut_literal_ids); j++) {
-                tmp_literal_id = (struct maat_literal_id *)utarray_eltptr(clause_state->ut_literal_ids, j);
+            for (size_t j = 0; j < utarray_len(clause->ut_literal_ids); j++) {
+                tmp_literal_id = (struct maat_literal_id *)utarray_eltptr(clause->ut_literal_ids, j);
                 HASH_FIND(hh, literal2clause_hash, tmp_literal_id, sizeof(struct maat_literal_id), l2c_value);
                 if (NULL == l2c_value) {
                     l2c_value = ALLOC(struct literal_clause, 1);
@@ -1083,10 +1025,10 @@ maat_compile_build_literal2clause_hash(struct compile_runtime *compile_rt)
                     HASH_ADD(hh, literal2clause_hash, key, sizeof(l2c_value->key), l2c_value);
                 }
 
-                if (utarray_find(l2c_value->clause_ids, &(clause_state->clause_id), compare_clause_id)) {
+                if (utarray_find(l2c_value->clause_ids, &(clause->clause_id), compare_clause_id)) {
                     continue;
                 }
-                utarray_push_back(l2c_value->clause_ids, &(clause_state->clause_id));
+                utarray_push_back(l2c_value->clause_ids, &(clause->clause_id));
                 utarray_sort(l2c_value->clause_ids, compare_clause_id);
             }
         }
@@ -1098,15 +1040,15 @@ maat_compile_build_literal2clause_hash(struct compile_runtime *compile_rt)
 
 static int maat_compile_has_clause(struct maat_compile *compile, long long clause_id)
 {
-	struct maat_clause_state *clause_state = NULL;
+	struct maat_clause *clause = NULL;
 
 	for (size_t i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
-		clause_state = compile->clause_states + i;
-		if (!clause_state->in_use) {
+		clause = compile->clauses + i;
+		if (!clause->in_use) {
 			continue;
 		}
 
-		if (clause_state->clause_id == clause_id) {
+		if (clause->clause_id == clause_id) {
 			return 1;
 		}
 	}
@@ -1193,53 +1135,25 @@ static size_t maat_compile_bool_matcher_match(struct compile_runtime *compile_rt
 	return ud_result_cnt;
 }
 
-static struct compile_rule *
-compile_rule_new(struct compile_item *compile_item, struct compile_schema *schema,
-                 const char *table_name, const char *table_line)
+static struct compile_item *compile_item_clone(struct compile_item *item)
 {
-    struct compile_rule *compile_rule = ALLOC(struct compile_rule, 1);
+    struct compile_item *new_item = ALLOC(struct compile_item, 1);
 
-    compile_rule->magic_num = COMPILE_RULE_MAGIC;
-    compile_rule->declared_clause_num = compile_item->declared_clause_num;
-    compile_rule->ref_schema = schema;
-    compile_rule->ex_data = ALLOC(void *, 1);
-    memcpy(compile_rule->table_name, table_name, sizeof(compile_rule->table_name));
-    compile_rule->table_line_len = strlen(table_line) + 1;
-    compile_rule->table_line = ALLOC(char, compile_rule->table_line_len);
-    memcpy(compile_rule->table_line, table_line, compile_rule->table_line_len);
+    new_item->compile_id = item->compile_id;
+    new_item->declared_clause_num = item->declared_clause_num;
+    new_item->ref_schema = item->ref_schema;
+    new_item->ex_data = ALLOC(void *, 1);
+    memcpy(new_item->table_name, item->table_name, sizeof(new_item->table_name));
+    new_item->table_line_len = item->table_line_len;
+    new_item->table_line = ALLOC(char, new_item->table_line_len);
+    memcpy(new_item->table_line, item->table_line, new_item->table_line_len);
 
-    if (1 == schema->set_flag)
-    {
-        *(compile_rule->ex_data) = rule_ex_data_new(table_name, schema->table_id,
-                                                    compile_rule->table_line,
-                                                    &(schema->ex_schema));
+    if (1 == item->ref_schema->set_flag) {
+        *(new_item->ex_data) = rule_ex_data_new(item->table_name, item->ref_schema->table_id,
+                                                item->table_line, &(item->ref_schema->ex_schema));
     }
 
-    compile_rule->compile_id = compile_item->compile_id;
-
-    return compile_rule;
-}
-
-static struct compile_rule *compile_rule_clone(struct compile_rule *rule)
-{
-    struct compile_rule *new_rule = ALLOC(struct compile_rule, 1);
-
-    new_rule->magic_num = rule->magic_num;
-    new_rule->declared_clause_num = rule->declared_clause_num;
-    new_rule->ref_schema = rule->ref_schema;
-    new_rule->ex_data = ALLOC(void *, 1);
-    memcpy(new_rule->table_name, rule->table_name, sizeof(new_rule->table_name));
-    new_rule->table_line_len = rule->table_line_len;
-    new_rule->table_line = ALLOC(char, new_rule->table_line_len);
-    memcpy(new_rule->table_line, rule->table_line, new_rule->table_line_len);
-
-    if (1 == rule->ref_schema->set_flag) {
-        *(new_rule->ex_data) = rule_ex_data_new(rule->table_name, rule->ref_schema->table_id,
-                                                rule->table_line, &(rule->ref_schema->ex_schema));
-    }
-    new_rule->compile_id = rule->compile_id;
-
-    return new_rule;
+    return new_item;
 }
 
 static struct maat_compile *
@@ -1254,22 +1168,22 @@ maat_compile_clone(struct maat_compile *compile, int deep_copy)
     memcpy(new_compile->table_name, compile->table_name, sizeof(new_compile->table_name));
     new_compile->not_clause_cnt = compile->not_clause_cnt;
     if (1 == deep_copy && compile->user_data != NULL) {
-        new_compile->user_data = compile_rule_clone((struct compile_rule *)compile->user_data);
+        new_compile->user_data = compile_item_clone((struct compile_item *)compile->user_data);
     }
 
     struct maat_literal_id *literal_id = NULL;
     for (int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
-        new_compile->clause_states[i].clause_id = compile->clause_states[i].clause_id;
-        new_compile->clause_states[i].in_use = compile->clause_states[i].in_use;
-        new_compile->clause_states[i].not_flag = compile->clause_states[i].not_flag;
-        utarray_new(new_compile->clause_states[i].ut_literal_ids, &ut_literal_id_icd);
-        for (int j = 0; j < utarray_len(compile->clause_states[i].ut_literal_ids); j++) {
-            literal_id = (struct maat_literal_id *)utarray_eltptr(compile->clause_states[i].ut_literal_ids, j);
-            utarray_push_back(new_compile->clause_states[i].ut_literal_ids, literal_id);
+        new_compile->clauses[i].clause_id = compile->clauses[i].clause_id;
+        new_compile->clauses[i].in_use = compile->clauses[i].in_use;
+        new_compile->clauses[i].not_flag = compile->clauses[i].not_flag;
+        utarray_new(new_compile->clauses[i].ut_literal_ids, &ut_literal_id_icd);
+        for (int j = 0; j < utarray_len(compile->clauses[i].ut_literal_ids); j++) {
+            literal_id = (struct maat_literal_id *)utarray_eltptr(compile->clauses[i].ut_literal_ids, j);
+            utarray_push_back(new_compile->clauses[i].ut_literal_ids, literal_id);
         }
 
-        for (int k = 0; k < utarray_len(new_compile->clause_states[i].ut_literal_ids); k++) {
-            literal_id = (struct maat_literal_id *)utarray_eltptr(new_compile->clause_states[i].ut_literal_ids, k);
+        for (int k = 0; k < utarray_len(new_compile->clauses[i].ut_literal_ids); k++) {
+            literal_id = (struct maat_literal_id *)utarray_eltptr(new_compile->clauses[i].ut_literal_ids, k);
         }
     }
 
@@ -1520,15 +1434,14 @@ static int maat_compile_has_literal(struct maat_compile *compile,
 {
 	int i = 0;
 	struct maat_literal_id *tmp = NULL;
-	struct maat_clause_state *clause_state = NULL;
 
 	for (i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
-		clause_state = compile->clause_states+i;
-		if(!clause_state->in_use) {
+		struct maat_clause *clause = compile->clauses+i;
+		if(!clause->in_use) {
 			continue;
 		}
 
-		tmp = (struct maat_literal_id*)utarray_find(clause_state->ut_literal_ids,
+		tmp = (struct maat_literal_id*)utarray_find(clause->ut_literal_ids,
                                                     literal_id, compare_literal_id);
 		if (tmp) {
 			assert(tmp->group_id == literal_id->group_id && 
@@ -1647,6 +1560,7 @@ static void maat_compile_state_update_hit_clause(struct maat_compile_state *comp
     size_t i = 0;
     long long *clause_id = 0;
     size_t new_clause_idx = utarray_len(compile_state->this_scan_hit_clauses);
+
     for (i = 0; i < utarray_len(l2c_val->clause_ids); i++) {
         clause_id = (long long *)utarray_eltptr(l2c_val->clause_ids, i);
         if (utarray_find(compile_state->all_hit_clauses, clause_id, compare_clause_id)) {
@@ -1686,26 +1600,24 @@ void compile_runtime_ex_data_iterate(struct compile_runtime *compile_rt,
 }
 
 void *compile_runtime_get_ex_data(struct compile_runtime *compile_rt, 
-                                  struct compile_schema *compile_schema, 
+                                  struct compile_schema *schema, 
                                   long long compile_id)
 {
-	if (NULL == compile_rt || NULL == compile_schema || compile_id < 0 ||
-        (0 == compile_schema->set_flag)) {
+	if (NULL == compile_rt || NULL == schema || compile_id < 0
+        || (0 == schema->set_flag)) {
 		return NULL;
 	}
 
-    struct compile_rule *compile_rule = NULL;
-    compile_rule = (struct compile_rule *)compile_runtime_get_user_data(compile_rt,
-                                                                        compile_id);
-    if (NULL == compile_rule) {
+    struct compile_item *item = NULL;
+    item = (struct compile_item *)compile_runtime_get_user_data(compile_rt,
+                                                                compile_id);
+    if (NULL == item) {
         return NULL;
     }
    
     void *ex_data = NULL;
-    compile_schema->ex_schema.dup_func(compile_schema->table_id, &ex_data, 
-                                       compile_rule->ex_data, 
-                                       compile_schema->ex_schema.argl, 
-                                       compile_schema->ex_schema.argp);
+    schema->ex_schema.dup_func(schema->table_id, &ex_data, item->ex_data, 
+                               schema->ex_schema.argl, schema->ex_schema.argp);
 	return ex_data;
 }
 
@@ -1714,17 +1626,13 @@ static int compile_runtime_add_compile(struct compile_runtime *compile_rt,
                                        long long compile_id, const char *table_name,
                                        const char *line)
 {
-    struct compile_item *compile_item = NULL;
     struct maat_compile *compile = NULL;
-
-    compile_item = compile_item_new(line, schema, table_name, compile_rt->logger);
+    struct compile_item *compile_item = compile_item_new(line, schema, table_name,
+                                                         compile_rt->logger);
     if (NULL == compile_item) {
         return -1;
     }
-
-    struct compile_rule *compile_rule = compile_rule_new(compile_item, schema, table_name, line);
-    compile_item_free(compile_item);
-
+    
     int updating_flag = rcu_hash_is_updating(compile_rt->cfg_hash);
     if (1 == updating_flag) {
         compile = rcu_updating_hash_find(compile_rt->cfg_hash, (char *)&compile_id,
@@ -1739,12 +1647,12 @@ static int compile_runtime_add_compile(struct compile_runtime *compile_rt,
            ******************************************************************/
 
             /* compile has group2compile_table info, so set compile_table info */
-            maat_compile_set(compile, table_name, compile_rule->declared_clause_num, compile_rule);
+            maat_compile_set(compile, table_name, compile_item->declared_clause_num, compile_item);
         } else {
             // compile neither in effective hash nor in updating hash
-            compile = maat_compile_new(compile_rule->compile_id);
+            compile = maat_compile_new(compile_item->compile_id);
             assert(compile != NULL);
-            maat_compile_set(compile, table_name, compile_rule->declared_clause_num, compile_rule);
+            maat_compile_set(compile, table_name, compile_item->declared_clause_num, compile_item);
             rcu_hash_add(compile_rt->cfg_hash, (char *)&compile_id, sizeof(long long), compile);
         }
     } else {
@@ -1766,13 +1674,13 @@ static int compile_runtime_add_compile(struct compile_runtime *compile_rt,
             rcu_hash_del(compile_rt->cfg_hash, (char *)&compile_id, sizeof(long long));
 
             /* copy_compile has group2compile_table info, so set compile_table info */
-            maat_compile_set(copy_compile, table_name, compile_rule->declared_clause_num, compile_rule);
+            maat_compile_set(copy_compile, table_name, compile_item->declared_clause_num, compile_item);
             /* add copy_compile to rcu hash */
             rcu_hash_add(compile_rt->cfg_hash, (char *)&compile_id, sizeof(long long), copy_compile);
         } else {
-            compile = maat_compile_new(compile_rule->compile_id);
+            compile = maat_compile_new(compile_item->compile_id);
             assert(compile != NULL);
-            maat_compile_set(compile, table_name, compile_rule->declared_clause_num, compile_rule);
+            maat_compile_set(compile, table_name, compile_item->declared_clause_num, compile_item);
             rcu_hash_add(compile_rt->cfg_hash, (char *)&compile_id, sizeof(long long), compile);
         }
     }
@@ -1780,14 +1688,15 @@ static int compile_runtime_add_compile(struct compile_runtime *compile_rt,
     return 0;
 }
 
-void garbage_compile_rule_free(void *data, void *arg)
+void garbage_compile_item_free(void *data, void *arg)
 {
-    struct compile_rule *compile_rule = (struct compile_rule *)data;
-    if (NULL == compile_rule) {
+    if (NULL == data) {
         return;
     }
 
-    compile_rule_free(compile_rule);
+    struct compile_item *compile_item = (struct compile_item *)data;
+
+    compile_item_free(compile_item);
 }
 
 static void compile_runtime_del_compile(struct compile_runtime *compile_rt,
@@ -1810,7 +1719,7 @@ static void compile_runtime_del_compile(struct compile_runtime *compile_rt,
             ******************************************************************/
             if (compile->user_data != NULL) {
                 maat_garbage_bagging(compile_rt->ref_garbage_bin, compile->user_data, NULL,
-                                     garbage_compile_rule_free);
+                                     garbage_compile_item_free);
                 compile->user_data = NULL;
             }
 
@@ -2082,16 +1991,16 @@ static int compile_sort_para_compare(const struct compile_sort_para *a,
 }
 
 static void compile_sort_para_set(struct compile_sort_para *para, 
-                                  const struct compile_rule *rule)
+                                  const struct compile_item *item)
 {
-	para->compile_id = rule->compile_id;
-	para->declared_clause_num = rule->declared_clause_num;
+	para->compile_id = item->compile_id;
+	para->declared_clause_num = item->declared_clause_num;
 }
 
-static int compare_compile_rule(const void *a, const void *b)
+static int compare_compile_item(const void *a, const void *b)
 {
-	const struct compile_rule *ra = *(const struct compile_rule **)a;
-	const struct compile_rule *rb = *(const struct compile_rule **)b;
+	const struct compile_item *ra = *(const struct compile_item **)a;
+	const struct compile_item *rb = *(const struct compile_item **)b;
 	
 	struct compile_sort_para sa, sb;
 	compile_sort_para_set(&sa, ra);
@@ -2105,20 +2014,20 @@ int compile_runtime_match(struct compile_runtime *compile_rt, long long *compile
 {
     struct maat_compile_state *compile_state = state->compile_state;
     int is_last_scan = state->is_last_scan;
-    struct compile_rule *compile_rules[compile_ids_size];
+    struct compile_item *compile_items[compile_ids_size];
     
     // all hit clause_id -> compile_id
     size_t bool_match_ret = maat_compile_bool_matcher_match(compile_rt, is_last_scan,
                                                             state->thread_id, compile_state, 
-                                                            (void **)compile_rules,
+                                                            (void **)compile_items,
                                                             compile_ids_size);
     if (bool_match_ret > 0) {
-        qsort(compile_rules, bool_match_ret, sizeof(struct compile_rule *), 
-              compare_compile_rule);
+        qsort(compile_items, bool_match_ret, sizeof(struct compile_item *), 
+              compare_compile_item);
     }
    
     for (size_t i = 0; i < bool_match_ret; i++) {
-        compile_ids[i] = compile_rules[i]->compile_id;
+        compile_ids[i] = compile_items[i]->compile_id;
 	}
     
     return MIN(bool_match_ret, compile_ids_size);

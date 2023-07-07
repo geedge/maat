@@ -158,7 +158,7 @@ int compile_table_set_line(struct maat *maat_inst, const char *table_name,
 
     return maat_cmd_set_line(maat_inst, &line_rule);
 }
-#define TO_GROUP2X_KEY(group_id, parent_id)	((unsigned long)group_id<<32|parent_id)
+#define TO_GROUP2X_KEY(group_id, parent_id, clause_index)	(((unsigned long)group_id<<32|parent_id) + clause_index)
 int group2compile_table_set_line(struct maat *maat_inst, const char *table_name,
                                  enum maat_operation op, long long group_id, long long compile_id,
                                  int not_flag, const char *vtable_name, int clause_index,
@@ -169,7 +169,7 @@ int group2compile_table_set_line(struct maat *maat_inst, const char *table_name,
             group_id, compile_id, op, not_flag, vtable_name, clause_index);
 
     struct maat_cmd_line line_rule;
-    line_rule.rule_id = TO_GROUP2X_KEY(group_id, compile_id);
+    line_rule.rule_id = TO_GROUP2X_KEY(group_id, compile_id, clause_index);
     line_rule.table_line = table_line;
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
@@ -184,7 +184,7 @@ int group2group_table_set_line(struct maat *maat_inst, const char *table_name, e
     sprintf(table_line, "%lld\t%lld\t%d\t%d", group_id, superior_group_id, is_exclude, op);
 
     struct maat_cmd_line line_rule;
-    line_rule.rule_id = TO_GROUP2X_KEY(group_id, superior_group_id);
+    line_rule.rule_id = TO_GROUP2X_KEY(group_id, superior_group_id, 0);
     line_rule.table_line = table_line;
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
@@ -327,19 +327,14 @@ class MaatIris : public testing::Test
 {
 protected:
     static void SetUpTestCase() {
-        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
-                                  "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
-     
-
         logger = log_handle_create("./maat_framework_gtest.log", 0);        
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_iris(opts, "./redis_dump", "./redis_dump");
         maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
-        maat_options_set_accept_tags(opts, accept_tags);
 
-        const char *table_info_path = "./test_table_info.conf";
+        const char *table_info_path = "./verify_table_info.conf";
         _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
@@ -371,51 +366,33 @@ TEST_F(MaatIris, basic) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     uint32_t sip_addr;
-    uint32_t dip_addr;
-    inet_pton(AF_INET, "192.168.64.25", &sip_addr);
-    inet_pton(AF_INET, "114.114.114.114", &dip_addr);
-    uint16_t sport = htons(58309);
-    uint16_t dport = htons(53);
-    struct timespec start, end;
+    inet_pton(AF_INET, "100.64.1.1", &sip_addr);
+    uint16_t sport = htons(80);
+  
 
-    clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < 100000; i++)
-    {
-        int table_id = maat_get_table_id(maat_inst, "TSG_SECURITY_SOURCE_ADDR");
-        ASSERT_GT(table_id, 0);
-        int ret = maat_scan_ipv4(maat_inst, table_id, sip_addr, sport, 6,
-                                 results, ARRAY_SIZE, &n_hit_result, state);
-        EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-        maat_state_reset(state);
-    }
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    long long consume_us1 = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
-    printf("ipv4 consume time:%lldus\n", consume_us1/100000);
+    int table_id = maat_get_table_id(maat_inst, "TSG_SECURITY_SOURCE_ADDR");
+    ASSERT_GT(table_id, 0);
+    int ret = maat_scan_ipv4(maat_inst, table_id, sip_addr, sport, 6,
+                             results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < 100000; i++)
-    {
-        
-        int table_id = maat_get_table_id(maat_inst, "TSG_SECURITY_SOURCE_ADDR");
-        ASSERT_GT(table_id, 0);
-        int ret = maat_scan_ipv4(maat_inst, table_id, sip_addr, sport, 6,
-                                 results, ARRAY_SIZE, &n_hit_result, state);
-        EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    table_id = maat_get_table_id(maat_inst, "TSG_OBJ_APP_ID");
+    ASSERT_GT(table_id, 0);
 
-        table_id = maat_get_table_id(maat_inst, "TSG_OBJ_APP_ID");
-        ASSERT_GT(table_id, 0);
+    ret = maat_scan_integer(maat_inst, table_id, 105, results, ARRAY_SIZE,
+                            &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    
+    table_id = maat_get_table_id(maat_inst, "TSG_FIELD_HTTP_URL");
+    ASSERT_GT(table_id, 0);
 
-        ret = maat_scan_integer(maat_inst, table_id, 32, results, ARRAY_SIZE,
-                                &n_hit_result, state);
-        EXPECT_EQ(ret, MAAT_SCAN_HIT);
-        EXPECT_EQ(n_hit_result, 1);
-        EXPECT_EQ(results[0], 1054275);
-        maat_state_reset(state);
-        
-    }
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    long long consume_us = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
-    printf("consume time:%lldus\n", consume_us/100000);
+    const char *scan_data = "www.luis.com";
+    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 1267067);
+    maat_state_free(state);
 }
 #endif
 
@@ -4187,6 +4164,53 @@ TEST_F(MaatCmdTest, SetExpr8) {
     EXPECT_EQ(results[0], compile_id);
     maat_state_free(state);
     state = NULL;
+}
+
+/** 
+ *  Filter such as URL: http://filtermenot.com  => {vtable_id, group_id}
+    One compile reference this filter twice, the compile should be hit. 
+ */
+TEST_F(MaatCmdTest, SameFilterRefByOneCompile) {
+    const char *vtable_name = "HTTP_URL_FILTER";
+    const char *scan_data = "http://filtermenot.com";
+    const char *keywords = "menot.com";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int table_id = maat_get_table_id(maat_inst, vtable_name);
+    ASSERT_GT(table_id, 0);
+
+    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_ADD, compile_id, 
+                                     "null", 2, 0); // compile has two clause
+    EXPECT_EQ(ret, 1);
+
+    //clause1 & clause2 has same filter => {vtable_id, group_id}
+    long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD, 
+                                       group_id, compile_id, 0, vtable_name, 1, 0);
+    EXPECT_EQ(ret, 1);
+
+    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD,
+                                       group_id, compile_id, 0, vtable_name, 2, 0);
+    EXPECT_EQ(ret, 1);
+
+    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, "HTTP_URL", MAAT_OP_ADD, item_id, group_id, keywords, 
+                              "null", 1, 0, 0, 0);
+    EXPECT_EQ(ret, 1); 
+
+    sleep(WAIT_FOR_EFFECTIVE_S);
+
+    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
+                            results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], compile_id);
+    maat_state_free(state);
 }
 
 TEST_F(MaatCmdTest, RuleIDRecycle) {

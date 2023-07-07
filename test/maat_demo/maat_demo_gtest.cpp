@@ -34,7 +34,7 @@ int compile_table_set_line(struct maat *maat_inst, const char *table_name,
     return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-#define TO_GROUP2X_KEY(group_id, parent_id)	((unsigned long)group_id<<32|parent_id)
+#define TO_GROUP2X_KEY(group_id, parent_id, clause_index)	(((unsigned long)group_id<<32|parent_id) + clause_index)
 int group2compile_table_set_line(struct maat *maat_inst, const char *table_name,
                                  enum maat_operation op, long long group_id,
                                  long long compile_id, int not_flag, 
@@ -46,7 +46,7 @@ int group2compile_table_set_line(struct maat *maat_inst, const char *table_name,
             group_id, compile_id, op, not_flag, vtable_name, clause_index);
 
     struct maat_cmd_line line_rule;
-    line_rule.rule_id = TO_GROUP2X_KEY(group_id, compile_id);
+    line_rule.rule_id = TO_GROUP2X_KEY(group_id, compile_id, clause_index);
     line_rule.table_line = table_line;
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
