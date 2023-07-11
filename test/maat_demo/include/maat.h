@@ -54,6 +54,11 @@ enum maat_update_type {
     MAAT_UPDATE_TYPE_INC
 };
 
+enum maat_list_type {
+    MAAT_LIST_TYPE_FULL = 1,
+    MAAT_LIST_TYPE_INC
+};
+
 struct ip_addr {
     int ip_type;             //4: IPv4, 6: IPv6
     union {
@@ -271,8 +276,8 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
                              
 size_t maat_state_get_scan_count(struct maat_state *state);
 
-int maat_state_get_hit_groups(struct maat_state *state, struct maat_hit_group *groups, 
-                              size_t n_group);
+int maat_state_get_hit_groups(struct maat_state *state, enum maat_list_type type,
+                              struct maat_hit_group *groups, size_t n_group);
 
 /* return hit object compile_id */
 int maat_hit_group_compile_id(struct maat *instance, struct maat_hit_group *group);

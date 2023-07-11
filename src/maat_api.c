@@ -1935,8 +1935,8 @@ size_t maat_state_get_scan_count(struct maat_state *state)
     return state->scan_cnt;
 }
 
-int maat_state_get_hit_groups(struct maat_state *state, struct maat_hit_group *groups, 
-                              size_t n_group)
+int maat_state_get_hit_groups(struct maat_state *state, enum maat_list_type type,
+                              struct maat_hit_group *groups, size_t n_group)
 {
     if (NULL == state || NULL == groups || 0 == n_group) {
         return -1;
@@ -1951,7 +1951,7 @@ int maat_state_get_hit_groups(struct maat_state *state, struct maat_hit_group *g
 
     return maat_compile_state_get_hit_groups(state->compile_state,
                                              (struct group2group_runtime *)g2g_runtime,
-                                             groups, n_group);
+                                             type, groups, n_group);
 }
 
 int maat_hit_group_compile_id(struct maat *instance, struct maat_hit_group *group)

@@ -112,8 +112,10 @@ size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *comp
                                                  struct group2group_runtime *g2g_rt,
                                                  struct maat_hit_path *hit_path_array, 
                                                  size_t array_size);
+
 size_t maat_compile_state_get_hit_groups(struct maat_compile_state *compile_state,
                                          struct group2group_runtime *g2g_rt,
+                                         enum maat_list_type type,
                                          struct maat_hit_group *hit_group_array,
                                          size_t array_size);
 

@@ -5510,7 +5510,15 @@ TEST_F(MaatCmdTest, HitPath) {
 
     struct maat_hit_group hit_groups[128];
     memset(hit_groups, 0, sizeof(hit_groups));
-    int n_hit_group = maat_state_get_hit_groups(state, hit_groups, sizeof(hit_groups));
+    int n_hit_group = maat_state_get_hit_groups(state, MAAT_LIST_TYPE_FULL, hit_groups, sizeof(hit_groups));
+    EXPECT_EQ(n_hit_group, 2);
+    EXPECT_EQ(hit_groups[0].group_id, group1_id);
+    EXPECT_EQ(hit_groups[0].vtable_id, http_req_table_id);
+    EXPECT_EQ(hit_groups[1].group_id, group11_id);
+    EXPECT_EQ(hit_groups[1].vtable_id, http_req_table_id);
+
+    memset(hit_groups, 0, sizeof(hit_groups));
+    n_hit_group = maat_state_get_hit_groups(state, MAAT_LIST_TYPE_INC, hit_groups, sizeof(hit_groups));
     EXPECT_EQ(n_hit_group, 2);
     EXPECT_EQ(hit_groups[0].group_id, group1_id);
     EXPECT_EQ(hit_groups[0].vtable_id, http_req_table_id);
@@ -5553,7 +5561,7 @@ TEST_F(MaatCmdTest, HitPath) {
     scan_count = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_count, 2);
 
-    n_hit_group = maat_state_get_hit_groups(state, hit_groups, sizeof(hit_groups));
+    n_hit_group = maat_state_get_hit_groups(state, MAAT_LIST_TYPE_FULL, hit_groups, sizeof(hit_groups));
     EXPECT_EQ(n_hit_group, 4);
     EXPECT_EQ(hit_groups[0].group_id, group1_id);
     EXPECT_EQ(hit_groups[0].vtable_id, http_req_table_id);
@@ -5563,6 +5571,14 @@ TEST_F(MaatCmdTest, HitPath) {
     EXPECT_EQ(hit_groups[2].vtable_id, http_res_table_id);
     EXPECT_EQ(hit_groups[3].group_id, group11_id);
     EXPECT_EQ(hit_groups[3].vtable_id, http_req_table_id);
+
+    memset(hit_groups, 0, sizeof(hit_groups));
+    n_hit_group = maat_state_get_hit_groups(state, MAAT_LIST_TYPE_INC, hit_groups, sizeof(hit_groups));
+    EXPECT_EQ(n_hit_group, 2);
+    EXPECT_EQ(hit_groups[0].group_id, group21_id);
+    EXPECT_EQ(hit_groups[0].vtable_id, http_res_table_id);
+    EXPECT_EQ(hit_groups[1].group_id, group2_id);
+    EXPECT_EQ(hit_groups[1].vtable_id, http_res_table_id);
 
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 4);
@@ -5617,7 +5633,7 @@ that the edges be all directed in the same direction.";
     scan_count = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_count, 3);
 
-    n_hit_group = maat_state_get_hit_groups(state, hit_groups, sizeof(hit_groups));
+    n_hit_group = maat_state_get_hit_groups(state, MAAT_LIST_TYPE_FULL, hit_groups, sizeof(hit_groups));
     EXPECT_EQ(n_hit_group, 5);
     EXPECT_EQ(hit_groups[0].group_id, group1_id);
     EXPECT_EQ(hit_groups[0].vtable_id, http_req_table_id);
@@ -5629,6 +5645,12 @@ that the edges be all directed in the same direction.";
     EXPECT_EQ(hit_groups[3].vtable_id, http_req_table_id);
     EXPECT_EQ(hit_groups[4].group_id, group4_id);
     EXPECT_EQ(hit_groups[4].vtable_id, 0); //physical table(keywords_table) vtable_id is 0
+
+    memset(hit_groups, 0, sizeof(hit_groups));
+    n_hit_group = maat_state_get_hit_groups(state, MAAT_LIST_TYPE_INC, hit_groups, sizeof(hit_groups));
+    EXPECT_EQ(n_hit_group, 1);
+    EXPECT_EQ(hit_groups[0].group_id, group4_id);
+    EXPECT_EQ(hit_groups[0].vtable_id, 0); //physical table(keywords_table) vtable_id is 0 
 
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 5);
@@ -5655,7 +5677,7 @@ that the edges be all directed in the same direction.";
     scan_count = maat_state_get_scan_count(state);
     EXPECT_EQ(scan_count, 4);
 
-    n_hit_group = maat_state_get_hit_groups(state, hit_groups, sizeof(hit_groups));
+    n_hit_group = maat_state_get_hit_groups(state, MAAT_LIST_TYPE_FULL, hit_groups, sizeof(hit_groups));
     EXPECT_EQ(n_hit_group, 6);
     EXPECT_EQ(hit_groups[0].group_id, group1_id);
     EXPECT_EQ(hit_groups[0].vtable_id, http_req_table_id);
@@ -5670,6 +5692,12 @@ that the edges be all directed in the same direction.";
     EXPECT_EQ(hit_groups[5].group_id, group4_id);
     EXPECT_EQ(hit_groups[5].vtable_id, 0); //physical table(keywords_table) vtable_id is 0
 
+    memset(hit_groups, 0, sizeof(hit_groups));
+    n_hit_group = maat_state_get_hit_groups(state, MAAT_LIST_TYPE_INC, hit_groups, sizeof(hit_groups));
+    EXPECT_EQ(n_hit_group, 1);
+    EXPECT_EQ(hit_groups[0].group_id, group3_id);
+    EXPECT_EQ(hit_groups[0].vtable_id, 0); //physical table(keywords_table) vtable_id is 0
+ 
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 6);
 
