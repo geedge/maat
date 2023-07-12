@@ -43,9 +43,6 @@ struct ip_plugin_runtime {
     size_t n_worker_thread;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
-
-    long long *scan_cnt;
-    long long *scan_cpu_time;
 };
 
 void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
@@ -397,9 +394,6 @@ void *ip_plugin_runtime_new(void *ip_plugin_schema, size_t max_thread_num,
     ip_plugin_rt->n_worker_thread = max_thread_num;
     ip_plugin_rt->ref_garbage_bin = garbage_bin;
     ip_plugin_rt->logger = logger;
-
-    ip_plugin_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
-    ip_plugin_rt->scan_cpu_time = alignment_int64_array_alloc(max_thread_num);
     
     return ip_plugin_rt;
 }
@@ -419,16 +413,6 @@ void ip_plugin_runtime_free(void *ip_plugin_runtime)
     if (ip_plugin_rt->ex_data_rt != NULL) {
         ex_data_runtime_free(ip_plugin_rt->ex_data_rt);
         ip_plugin_rt->ex_data_rt = NULL;
-    }
-
-    if (ip_plugin_rt->scan_cnt != NULL) {
-        alignment_int64_array_free(ip_plugin_rt->scan_cnt);
-        ip_plugin_rt->scan_cnt = NULL;
-    }
-
-    if (ip_plugin_rt->scan_cpu_time != NULL) {
-        alignment_int64_array_free(ip_plugin_rt->scan_cpu_time);
-        ip_plugin_rt->scan_cpu_time = NULL;
     }
 
     FREE(ip_plugin_rt);
@@ -615,34 +599,6 @@ int ip_plugin_runtime_get_ex_data(void *ip_plugin_runtime, const struct ip_addr 
                                                                     (struct ex_container *)results[i].tag);
 	}
 	return n_result;
-}
-
-long long ip_plugin_runtime_scan_count(void *ip_plugin_runtime)
-{
-    if (NULL == ip_plugin_runtime) {
-        return 0;
-    }
-
-    struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
-    long long sum = alignment_int64_array_sum(ip_plugin_rt->scan_cnt, 
-                                              ip_plugin_rt->n_worker_thread);
-    alignment_int64_array_reset(ip_plugin_rt->scan_cnt, ip_plugin_rt->n_worker_thread);
-
-    return sum;
-}
-
-long long ip_plugin_runtime_scan_cpu_time(void *ip_plugin_runtime)
-{
-    if (NULL == ip_plugin_runtime) {
-        return 0;
-    }
-
-    struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
-    long long sum = alignment_int64_array_sum(ip_plugin_rt->scan_cpu_time, 
-                                              ip_plugin_rt->n_worker_thread);
-    alignment_int64_array_reset(ip_plugin_rt->scan_cpu_time, ip_plugin_rt->n_worker_thread);
-
-    return sum;
 }
 
 long long ip_plugin_runtime_update_err_count(void *ip_plugin_runtime)

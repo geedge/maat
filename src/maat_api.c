@@ -794,7 +794,7 @@ void *maat_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
         || NULL == key) {
         return NULL;
     }
-    
+
     struct maat_runtime *maat_rt = maat_inst->maat_rt;
     if (NULL == maat_rt) {
         return NULL;
@@ -817,8 +817,6 @@ void *maat_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
         ret = compile_runtime_get_ex_data(runtime, schema, *(long long *)key);
     } else if (TABLE_TYPE_PLUGIN == table_type) {
         ret = plugin_runtime_get_ex_data(runtime, schema, key, key_len);
-    } else {
-        return NULL;
     }
 
     return ret;

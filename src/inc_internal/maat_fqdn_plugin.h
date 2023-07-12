@@ -59,10 +59,6 @@ int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, const char *fqdn,
 
 void fqdn_rule_free(struct FQDN_rule *fqdn_rule);
 
-long long fqdn_plugin_runtime_scan_count(void *fqdn_plugin_runtime);
-
-long long fqdn_plugin_runtime_scan_cpu_time(void *fqdn_plugin_runtime);
-
 long long fqdn_plugin_runtime_update_err_count(void *fqdn_plugin_runtime);
 
 #ifdef __cplusplus

@@ -39,8 +39,6 @@ struct bool_plugin_runtime {
     struct log_handle *logger;
 
     long long update_err_cnt;
-    long long *scan_cnt;
-    long long *scan_cpu_time;
 };
 
 /* bool plugin schema API */
@@ -200,8 +198,6 @@ void *bool_plugin_runtime_new(void *bool_plugin_schema, size_t max_thread_num,
     bool_plugin_rt->n_worker_thread = max_thread_num;
     bool_plugin_rt->ref_garbage_bin = garbage_bin;
     bool_plugin_rt->logger = logger;
-    bool_plugin_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
-    bool_plugin_rt->scan_cpu_time = alignment_int64_array_alloc(max_thread_num);
 
     return bool_plugin_rt;
 }
@@ -221,16 +217,6 @@ void bool_plugin_runtime_free(void *bool_plugin_runtime)
     if (bool_plugin_rt->ex_data_rt != NULL) {
         ex_data_runtime_free(bool_plugin_rt->ex_data_rt);
         bool_plugin_rt->ex_data_rt = NULL;
-    }
-
-    if (bool_plugin_rt->scan_cnt != NULL) {
-        alignment_int64_array_free(bool_plugin_rt->scan_cnt);
-        bool_plugin_rt->scan_cnt = NULL;
-    }
-
-    if (bool_plugin_rt->scan_cpu_time != NULL) {
-        alignment_int64_array_free(bool_plugin_rt->scan_cpu_time);
-        bool_plugin_rt->scan_cpu_time = NULL;
     }
 
     FREE(bool_plugin_rt);
@@ -565,34 +551,6 @@ int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, unsigned long lon
 	}
 
 	return n_result;
-}
-
-long long bool_plugin_runtime_scan_count(void *bool_plugin_runtime)
-{
-    if (NULL == bool_plugin_runtime) {
-        return 0;
-    }
-
-    struct bool_plugin_runtime *bool_plugin_rt = (struct bool_plugin_runtime *)bool_plugin_runtime;
-    long long sum = alignment_int64_array_sum(bool_plugin_rt->scan_cnt, 
-                                              bool_plugin_rt->n_worker_thread);
-    alignment_int64_array_reset(bool_plugin_rt->scan_cnt, bool_plugin_rt->n_worker_thread);
-
-    return sum;
-}
-
-long long bool_plugin_runtime_scan_cpu_time(void *bool_plugin_runtime)
-{
-    if (NULL == bool_plugin_runtime) {
-        return 0;
-    }
-
-    struct bool_plugin_runtime *bool_plugin_rt = (struct bool_plugin_runtime *)bool_plugin_runtime;
-    long long sum = alignment_int64_array_sum(bool_plugin_rt->scan_cpu_time, 
-                                              bool_plugin_rt->n_worker_thread);
-    alignment_int64_array_reset(bool_plugin_rt->scan_cpu_time, bool_plugin_rt->n_worker_thread);
-
-    return sum;
 }
 
 long long bool_plugin_runtime_update_err_count(void *bool_plugin_runtime)

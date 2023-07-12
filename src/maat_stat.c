@@ -382,7 +382,7 @@ static void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
                 break;
         }
 
-        if (table_type == TABLE_TYPE_PLUGIN || table_type == TABLE_TYPE_VIRTUAL) {
+        if (table_type == TABLE_TYPE_VIRTUAL) {
             continue;
         }
 
@@ -392,6 +392,11 @@ static void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
         long long rule_num = table_manager_runtime_rule_count(stat->ref_tbl_mgr, i);
         fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_RULE_NUM], rule_num);
         total_rule_num += rule_num;
+
+        if (table_type == TABLE_TYPE_PLUGIN || table_type == TABLE_TYPE_IP_PLUGIN ||
+            table_type == TABLE_TYPE_BOOL_PLUGIN || table_type == TABLE_TYPE_FQDN_PLUGIN) {
+            continue;
+        }
 
         if (table_type == TABLE_TYPE_EXPR || table_type == TABLE_TYPE_EXPR_PLUS) {
             fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_REGEX_NUM],

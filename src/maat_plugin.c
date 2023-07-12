@@ -373,8 +373,9 @@ static int plugin_runtime_update_row(struct plugin_runtime *plugin_rt,
         }
     }
     
-    if ((0 == container_schema->set_flag) && (0 == cb_count)) {
+    if (0 == container_schema->set_flag) {
         ex_data_runtime_cache_row_put(plugin_rt->ex_data_rt, row);
+        plugin_rt->rule_num = ex_data_runtime_cached_row_count(plugin_rt->ex_data_rt);
     }
 
     return 0;

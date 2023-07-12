@@ -39,9 +39,6 @@ struct fqdn_plugin_runtime {
     size_t n_worker_thread;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
-
-    long long *scan_cnt;
-    long long *scan_cpu_time;
 };
 
 void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
@@ -199,8 +196,6 @@ void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, size_t max_thread_num,
     fqdn_plugin_rt->n_worker_thread = max_thread_num;
     fqdn_plugin_rt->ref_garbage_bin = garbage_bin;
     fqdn_plugin_rt->logger = logger;
-    fqdn_plugin_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
-    fqdn_plugin_rt->scan_cpu_time = alignment_int64_array_alloc(max_thread_num);
 
     return fqdn_plugin_rt;
 }
@@ -220,16 +215,6 @@ void fqdn_plugin_runtime_free(void *fqdn_plugin_runtime)
     if (fqdn_plugin_rt->ex_data_rt != NULL) {
         ex_data_runtime_free(fqdn_plugin_rt->ex_data_rt);
         fqdn_plugin_rt->ex_data_rt = NULL;
-    }
-
-    if (fqdn_plugin_rt->scan_cnt != NULL) {
-        alignment_int64_array_free(fqdn_plugin_rt->scan_cnt);
-        fqdn_plugin_rt->scan_cnt = NULL;
-    }
-
-    if (fqdn_plugin_rt->scan_cpu_time != NULL) {
-        alignment_int64_array_free(fqdn_plugin_rt->scan_cpu_time);
-        fqdn_plugin_rt->scan_cpu_time = NULL;
     }
 
     FREE(fqdn_plugin_rt);
@@ -571,34 +556,6 @@ int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, const char *query
 	}
 
 	return n_result;
-}
-
-long long fqdn_plugin_runtime_scan_count(void *fqdn_plugin_runtime)
-{
-    if (NULL == fqdn_plugin_runtime) {
-        return 0;
-    }
-
-    struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
-    long long sum = alignment_int64_array_sum(fqdn_plugin_rt->scan_cnt, 
-                                              fqdn_plugin_rt->n_worker_thread);
-    alignment_int64_array_reset(fqdn_plugin_rt->scan_cnt, fqdn_plugin_rt->n_worker_thread);
-
-    return sum;
-}
-
-long long fqdn_plugin_runtime_scan_cpu_time(void *fqdn_plugin_runtime)
-{
-    if (NULL == fqdn_plugin_runtime) {
-        return 0;
-    }
-
-    struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
-    long long sum = alignment_int64_array_sum(fqdn_plugin_rt->scan_cpu_time, 
-                                              fqdn_plugin_rt->n_worker_thread);
-    alignment_int64_array_reset(fqdn_plugin_rt->scan_cpu_time, fqdn_plugin_rt->n_worker_thread);
-
-    return sum;
 }
 
 long long fqdn_plugin_runtime_update_err_count(void *fqdn_plugin_runtime)

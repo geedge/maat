@@ -55,10 +55,6 @@ struct ex_data_runtime *bool_plugin_runtime_get_ex_data_rt(void *bool_plugin_run
 int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, unsigned long long *item_ids, 
                                     size_t n_item, void **ex_data_array, size_t n_ex_data);
 
-long long bool_plugin_runtime_scan_count(void *bool_plugin_runtime);
-
-long long bool_plugin_runtime_scan_cpu_time(void *bool_plugin_runtime);
-
 long long bool_plugin_runtime_update_err_count(void *bool_plugin_runtime);
 
 #ifdef __cplusplus
