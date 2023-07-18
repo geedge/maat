@@ -28,21 +28,17 @@ enum MAAT_FS_STATUS {
 	STATUS_TABLE_NUM,
 	STATUS_PLUGIN_CACHE_NUM,
 	STATUS_PLUGIN_ACC_NUM,
-	STATUS_GROUP_REF_NUM,
     STATUS_GROUP_REF_NOT_NUM,
     STATUS_GROUP_REF_EXCL_NUM, //group reference exclude group num
-	STATUS_COMPILE_RULE_NUM,
 	STATUS_MAAT_STATE_NUM,
     STATUS_MAAT_STATE_FREE_NUM,
     STATUS_MAAT_STATE_FREE_BYTES,
     STATUS_COMPILE_STATE_NUM,
 	STATUS_GARBAGE_QSIZE,
-	STATUS_TOTAL_SCAN_BYTES,
-	STATUS_TOTAL_SCAN_CNT,
 	STATUS_UPDATE_ERR_CNT,
-	STATUS_ICONV_ERR_CNT,
 	STATUS_SCAN_ERR_CNT,
-	STATUS_ZOMBIE_RS_STREAM,
+	STATUS_STREAM_NUM,
+    STATUS_ZOMBIE_STREAM_NUM,
     STATUS_NOT_GROUP_HIT,
 	STATUS_CMD_LINE_NUM
 };
@@ -50,7 +46,6 @@ enum MAAT_FS_STATUS {
 enum MAAT_FS_COLUMN {
 	COLUMN_RULE_NUM = 0,
 	COLUMN_REGEX_NUM,
-	COLUMN_STREAM_NUM,
 	COLUMN_SCAN_CNT,
 	COLUMN_SCAN_BYTES,
 	COLUMN_CPU_TIME, //microseconds
@@ -60,8 +55,8 @@ enum MAAT_FS_COLUMN {
     COLUMN_HIT_RATE  //scan hit rate(hit_cnt/scan_cnt)
 };
 
-const char *common_column_name[] = {"rule", "reg/v6", "stream", "scan_cnt", "scan_bytes",
-                                    "scan_cpu_time", "hit_cnt", "IN_Bps", "IN_Tps", "hit_rate"};
+const char *common_column_name[] = {"rule", "reg/v6", "scan_cnt", "scan_bytes", "scan_cpu_time", 
+                                    "hit_cnt", "IN_Bps", "IN_Tps", "hit_rate"};
 
 enum field_type common_column_type[] = {
     FIELD_TYPE_GAUGE,
@@ -89,14 +84,12 @@ static void maat_fieldstat_register(struct maat_stat *stat)
                                                                      "plug_cached", NULL, 0);
     stat->fs_status_id[STATUS_PLUGIN_ACC_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
                                                                    "plug_acc", NULL, 0);
-    stat->fs_status_id[STATUS_GROUP_REF_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
-                                                                  "group", NULL, 0);
     stat->fs_status_id[STATUS_GROUP_REF_NOT_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
                                                                       "not_grp", NULL, 0);
+    stat->fs_status_id[STATUS_NOT_GROUP_HIT] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
+                                                                  "not_grp_hit", NULL, 0);
     stat->fs_status_id[STATUS_GROUP_REF_EXCL_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
                                                                       "excl_grp", NULL, 0);
-    stat->fs_status_id[STATUS_COMPILE_RULE_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
-                                                                     "compile", NULL, 0);
     stat->fs_status_id[STATUS_GARBAGE_QSIZE] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
                                                                   "garbage_num", NULL, 0);
     stat->fs_status_id[STATUS_MAAT_STATE_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
@@ -107,14 +100,10 @@ static void maat_fieldstat_register(struct maat_stat *stat)
                                                                           "maat_state_free_bytes", NULL, 0);
     stat->fs_status_id[STATUS_COMPILE_STATE_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
                                                                      "maat_compile_state", NULL, 0);
-    stat->fs_status_id[STATUS_ZOMBIE_RS_STREAM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
-                                                                     "z_stream", NULL, 0);
-    stat->fs_status_id[STATUS_NOT_GROUP_HIT] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
-                                                                  "nt_grp_hit", NULL, 0);
-    stat->fs_status_id[STATUS_TOTAL_SCAN_BYTES] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
-                                                                   "scan_bytes", NULL, 0);
-    stat->fs_status_id[STATUS_TOTAL_SCAN_CNT] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
-                                                                  "scan_times", NULL, 0);
+    stat->fs_status_id[STATUS_STREAM_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
+                                                               "stream_num", NULL, 0);
+    stat->fs_status_id[STATUS_ZOMBIE_STREAM_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
+                                                                      "z_stream_num", NULL, 0);
     stat->fs_status_id[STATUS_UPDATE_ERR_CNT] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
                                                                    "update_error", NULL, 0);
     stat->fs_status_id[STATUS_SCAN_ERR_CNT] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
@@ -222,6 +211,7 @@ struct maat_stat *maat_stat_new(const char *stat_file, size_t max_thread_num,
 
     stat->nr_worker_thread = max_thread_num;
     stat->logger = logger;
+    stat->stream_num = alignment_int64_array_alloc(max_thread_num);
     stat->thread_call_cnt = alignment_int64_array_alloc(max_thread_num);
     stat->hit_cnt = alignment_int64_array_alloc(max_thread_num);
     stat->not_grp_hit_cnt = alignment_int64_array_alloc(max_thread_num);
@@ -237,6 +227,11 @@ void maat_stat_free(struct maat_stat *stat)
 {
     if (NULL == stat) {
         return;
+    }
+
+    if (stat->stream_num != NULL) {
+        alignment_int64_array_free(stat->stream_num);
+        stat->stream_num = NULL;
     }
 
     if (stat->thread_call_cnt != NULL) {
@@ -334,12 +329,11 @@ int maat_stat_init(struct maat_stat *stat, struct table_manager *tbl_mgr,
 
 static void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
 {
-    long long plugin_cache_num = 0, plugin_rule_num = 0, g2c_not_group_num = 0;
-    long long compile_rule_num = 0, g2c_rule_num = 0, g2g_rule_num = 0;
-    long long total_rule_num = 0, total_stream_num = 0, total_input_bytes = 0;
+    long long plugin_cache_num = 0, plugin_rule_num = 0;
+    long long total_rule_num = 0, total_input_bytes = 0;
     long long total_scan_cnt = 0, total_scan_cpu_time = 0, total_regex_num = 0;
     long long total_ipv6_num = 0, total_hit_cnt = 0, total_update_err = 0;
-    long long g2g_excl_rule_num = 0;
+    long long g2c_not_group_num = 0, g2g_excl_rule_num = 0;
     size_t max_table_count = table_manager_table_size(stat->ref_tbl_mgr);
 
     for (size_t i = 0; i < max_table_count; i++) {
@@ -360,15 +354,10 @@ static void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
                 plugin_cache_num += plugin_runtime_cached_row_count(runtime);
                 plugin_rule_num += plugin_runtime_rule_count(runtime);
                 break;
-            case TABLE_TYPE_COMPILE:
-                compile_rule_num += compile_runtime_rule_count(runtime);
-                break;
             case TABLE_TYPE_GROUP2COMPILE:
-                g2c_rule_num += group2compile_runtime_rule_count(runtime);
                 g2c_not_group_num += group2compile_runtime_not_group_count(runtime);
                 break;
             case TABLE_TYPE_GROUP2GROUP:
-                g2g_rule_num += group2group_runtime_rule_count(runtime);
                 g2g_excl_rule_num += group2group_runtime_exclude_rule_count(runtime);
                 break;
             case TABLE_TYPE_EXPR:
@@ -401,11 +390,6 @@ static void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
         if (table_type == TABLE_TYPE_EXPR || table_type == TABLE_TYPE_EXPR_PLUS) {
             fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_REGEX_NUM],
                                 regex_rule_num);
-            long long stream_num = expr_runtime_stream_num(runtime);
-            fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_STREAM_NUM],
-                                stream_num);
-            total_stream_num += stream_num;
-
             long long input_bytes = expr_runtime_scan_bytes(runtime);
             fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_SCAN_BYTES],
                                 input_bytes);
@@ -439,10 +423,10 @@ static void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
                         total_rule_num);
     fieldstat_value_set(stat->fs_handle, stat->total_stat_id[COLUMN_REGEX_NUM],
                         total_regex_num);
-    fieldstat_value_set(stat->fs_handle, stat->total_stat_id[COLUMN_STREAM_NUM],
-                        total_stream_num);
     fieldstat_value_set(stat->fs_handle, stat->total_stat_id[COLUMN_SCAN_CNT],
                         total_scan_cnt);
+    fieldstat_value_set(stat->fs_handle, stat->total_stat_id[COLUMN_HIT_CNT],
+                        total_hit_cnt);
     fieldstat_value_set(stat->fs_handle, stat->total_stat_id[COLUMN_SCAN_BYTES],
                         total_input_bytes);
 
@@ -451,28 +435,18 @@ static void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
                             total_scan_cpu_time);
     }
 
-    fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_TOTAL_SCAN_BYTES],
-                        total_input_bytes);
-    fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_TOTAL_SCAN_CNT],
-                        total_scan_cnt);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_UPDATE_ERR_CNT],
                         total_update_err);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_SCAN_ERR_CNT],
                         stat->scan_err_cnt);
-    fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_ZOMBIE_RS_STREAM],
-                        stat->zombie_rs_stream);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_PLUGIN_CACHE_NUM],
                         plugin_cache_num);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_PLUGIN_ACC_NUM],
                         plugin_rule_num);
-    fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_GROUP_REF_NUM],
-                        g2c_rule_num);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_GROUP_REF_NOT_NUM],
                         g2c_not_group_num);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_GROUP_REF_EXCL_NUM],
                         g2g_excl_rule_num);
-    fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_COMPILE_RULE_NUM],
-                        compile_rule_num);
 }
 
 void maat_stat_output(struct maat_stat *stat, long long maat_version, int perf_on)
@@ -483,6 +457,8 @@ void maat_stat_output(struct maat_stat *stat, long long maat_version, int perf_o
 
     long long active_thread_num = alignment_int64_array_cnt(stat->thread_call_cnt, 
                                                             stat->nr_worker_thread);
+    long long stream_num = alignment_int64_array_sum(stat->stream_num,
+                                                     stat->nr_worker_thread);                                                    
     long long maat_state_cnt = alignment_int64_array_sum(stat->maat_state_cnt,
                                                          stat->nr_worker_thread);
     long long maat_state_free_cnt = alignment_int64_array_sum(stat->maat_state_free_cnt,
@@ -516,7 +492,10 @@ void maat_stat_output(struct maat_stat *stat, long long maat_version, int perf_o
                         stat->line_cmd_acc_num);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_GARBAGE_QSIZE],
                         garbage_q_len);
-
+    fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_STREAM_NUM],
+                        stream_num);
+    fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_ZOMBIE_STREAM_NUM],
+                        stat->zombie_rs_stream);
     maat_fieldstat_table_row_output(stat, perf_on);
 
 	fieldstat_passive_output(stat->fs_handle);

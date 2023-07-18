@@ -80,8 +80,6 @@ long long expr_runtime_update_err_count(void *expr_runtime);
 
 long long expr_runtime_scan_bytes(struct expr_runtime *expr_rt);
 
-long long expr_runtime_stream_num(struct expr_runtime *expr_rt);
-
 #ifdef __cplusplus
 }
 #endif

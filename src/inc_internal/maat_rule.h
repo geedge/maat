@@ -60,7 +60,6 @@ struct maat_item {
 struct maat_runtime {
     /* maat_runtime can be created and destroy dynamic, so need version info */
     long long version;
-
     time_t last_update_time;
 
     long long *ref_cnt;
@@ -151,6 +150,7 @@ struct maat_stat {
     
 
     long long *thread_call_cnt;
+    long long *stream_num;
     long long *hit_cnt;
     long long *not_grp_hit_cnt;
     long long *maat_state_cnt;

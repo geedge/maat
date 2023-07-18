@@ -87,7 +87,6 @@ struct expr_runtime {
     long long *scan_cpu_time;
     long long *hit_cnt;
     long long update_err_cnt;
-    long long *stream_num;
     long long *scan_bytes;
 };
 
@@ -485,7 +484,6 @@ void *expr_runtime_new(void *expr_schema, size_t max_thread_num,
     expr_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
     expr_rt->scan_bytes = alignment_int64_array_alloc(max_thread_num);
     expr_rt->scan_cpu_time = alignment_int64_array_alloc(max_thread_num);
-    expr_rt->stream_num = alignment_int64_array_alloc(max_thread_num);
 
     return expr_rt;
 }
@@ -527,11 +525,6 @@ void expr_runtime_free(void *expr_runtime)
     if (expr_rt->hit_cnt != NULL) {
         alignment_int64_array_free(expr_rt->hit_cnt);
         expr_rt->hit_cnt = NULL;
-    }
-
-    if (expr_rt->stream_num != NULL) {
-        alignment_int64_array_free(expr_rt->stream_num);
-        expr_rt->stream_num = NULL;
     }
 
     if (expr_rt->scan_bytes != NULL) {
@@ -1014,9 +1007,12 @@ expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id)
         return NULL;
     }
 
-    alignment_int64_array_add(expr_rt->stream_num, thread_id, 1);
+    struct adapter_hs_stream *stream = adapter_hs_stream_open(expr_rt->hs, thread_id);
+    if (NULL == stream) {
+        return NULL;
+    }
 
-    return adapter_hs_stream_open(expr_rt->hs, thread_id);
+    return stream;
 }
 
 int expr_runtime_stream_scan(struct expr_runtime *expr_rt,
@@ -1073,7 +1069,10 @@ int expr_runtime_stream_scan(struct expr_runtime *expr_rt,
 void expr_runtime_stream_close(struct expr_runtime *expr_rt, int thread_id, 
                                struct adapter_hs_stream *s_handle)
 {
-    alignment_int64_array_add(expr_rt->stream_num, thread_id, -1);
+    if (NULL == expr_rt || thread_id < 0 || NULL == s_handle) {
+        return;
+    }
+
     adapter_hs_stream_close(s_handle);
 }
 
@@ -1165,19 +1164,6 @@ long long expr_runtime_scan_bytes(struct expr_runtime *expr_rt)
     long long sum = alignment_int64_array_sum(expr_rt->scan_bytes, 
                                               expr_rt->n_worker_thread);
     alignment_int64_array_reset(expr_rt->scan_bytes, expr_rt->n_worker_thread);
-
-    return sum;
-}
-
-long long expr_runtime_stream_num(struct expr_runtime *expr_rt)
-{
-    if (NULL == expr_rt) {
-        return 0;
-    }
-
-    long long sum = alignment_int64_array_sum(expr_rt->stream_num,
-                                              expr_rt->n_worker_thread);
-    alignment_int64_array_reset(expr_rt->stream_num, expr_rt->n_worker_thread);
 
     return sum;
 }

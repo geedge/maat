@@ -1759,6 +1759,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
@@ -1852,6 +1853,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
@@ -2110,6 +2112,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
@@ -2449,6 +2452,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
@@ -2705,6 +2709,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
@@ -2842,6 +2847,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
@@ -3007,6 +3013,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
@@ -3091,6 +3098,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
@@ -3153,6 +3161,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
@@ -3321,6 +3330,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
@@ -3569,6 +3579,7 @@ protected:
         }
 
         struct maat_options *opts = maat_options_new();
+        maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
@@ -3632,6 +3643,7 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_caller_thread_number(opts, g_thread_num);
         maat_options_set_instance_name(opts, "files");
+        maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_iris(opts, rule_folder, rule_folder);
         maat_options_set_rule_update_checking_interval_ms(opts, scan_interval_ms);
         maat_options_set_rule_effect_interval_ms(opts, effective_interval_ms);
@@ -3735,6 +3747,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
 
@@ -3961,6 +3974,7 @@ protected:
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
 
         _shared_maat_inst = maat_new(opts, table_info_path);
