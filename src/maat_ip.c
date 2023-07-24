@@ -681,7 +681,7 @@ long long ip_runtime_ipv6_rule_count(void *ip_runtime)
     return ip_rt->ipv6_rule_num;
 }
 
-static int validate_port(struct ip_item *item, uint16_t port, int proto)
+static int validate_port_proto(struct ip_item *item, uint16_t port, int proto)
 {
     uint16_t host_port = ntohs(port);
 
@@ -689,15 +689,6 @@ static int validate_port(struct ip_item *item, uint16_t port, int proto)
         return -1;
     }
     
-    if (item->proto != -1 && item->proto != proto) {
-        return -1;
-    }
-
-    return 0;
-}
-
-static int validate_proto(struct ip_item *item, int proto)
-{
     if (item->proto != -1 && item->proto != proto) {
         return -1;
     }
@@ -714,105 +705,56 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
         return 0;
     }
     
-    /* if ip_addr = "0.0.0.0" means any ip */
-    int any_ip_flag = 0;
     struct ip_data scan_data;
     struct scan_result ip_results[MAX_SCANNER_HIT_ITEM_NUM];
 
     if (ip_type == IPv4) {
         scan_data.type = IPv4;
         scan_data.ipv4 = ntohl(*(uint32_t *)ip_addr);
-        if (0 == scan_data.ipv4) {
-            any_ip_flag = 1;
-        }
     } else {
         scan_data.type = IPv6;
         for (int i = 0; i < 4; i++) {
             scan_data.ipv6[i] = *((uint32_t *)ip_addr + i);
         }
         ipv6_ntoh(scan_data.ipv6);
-        if (0 == scan_data.ipv6[0] && 0 == scan_data.ipv6[1] &&
-            0 == scan_data.ipv6[2] && 0 == scan_data.ipv6[3]) {
-            any_ip_flag = 1;
-        }
     }
 
     int ret = 0;
     size_t real_hit_item_cnt = 0;
     struct maat_item hit_maat_items[MAX_SCANNER_HIT_ITEM_NUM];
 
-    // any ip, so scan port+proto
-    if (1 == any_ip_flag) {
-        struct interval_result port_results[MAX_SCANNER_HIT_ITEM_NUM];
-        uint16_t host_port = ntohs(port);
+    if (NULL == ip_rt->ip_matcher) {
+        return 0;
+    }
 
-        if (NULL == ip_rt->intval_matcher) {
-            return 0;
+    int n_hit_ip_item = ip_matcher_match(ip_rt->ip_matcher, &scan_data,
+                                         ip_results, MAX_SCANNER_HIT_ITEM_NUM);
+    if (n_hit_ip_item <= 0) {
+        return n_hit_ip_item;
+    }
+
+    if (n_hit_ip_item > MAX_SCANNER_HIT_ITEM_NUM) {
+        n_hit_ip_item = MAX_SCANNER_HIT_ITEM_NUM;
+    }
+
+    for (size_t i = 0; i < n_hit_ip_item; i++) {
+        long long item_id = ip_results[i].rule_id;
+        struct ip_item *ip_item = (struct ip_item *)rcu_hash_find(ip_rt->item_hash,
+                                                                 (char *)&item_id,
+                                                                 sizeof(long long));
+        if (!ip_item) {
+            // item config has been deleted
+            continue;
         }
 
-        int n_hit_port_item = interval_matcher_match(ip_rt->intval_matcher, host_port, 
-                                                     port_results, MAX_SCANNER_HIT_ITEM_NUM);
-        if (n_hit_port_item <= 0) {
-            return n_hit_port_item;
+        ret = validate_port_proto(ip_item, port, proto);
+        if (ret < 0) {
+            continue;
         }
 
-        if (n_hit_port_item > MAX_SCANNER_HIT_ITEM_NUM) {
-            n_hit_port_item = MAX_SCANNER_HIT_ITEM_NUM;
-        }
-
-        for (int i = 0; i < n_hit_port_item; i++) {
-            long long item_id = port_results[i].rule_id;
-            struct ip_item *ip_item = (struct ip_item *)rcu_hash_find(ip_rt->item_hash,
-                                                                      (char *)&item_id,
-                                                                      sizeof(long long));
-            if (!ip_item) {
-                // item config has been deleted
-                continue;
-            }
-
-            ret = validate_proto(ip_item, proto);
-            if (ret < 0) {
-                continue;
-            }
-
-            hit_maat_items[real_hit_item_cnt].item_id = port_results[i].rule_id;
-            hit_maat_items[real_hit_item_cnt].group_id = ip_item->group_id;
-            real_hit_item_cnt++;
-        }
-    } else {
-        if (NULL == ip_rt->ip_matcher) {
-            return 0;
-        }
-        
-        int n_hit_ip_item = ip_matcher_match(ip_rt->ip_matcher, &scan_data,
-                                             ip_results, MAX_SCANNER_HIT_ITEM_NUM);
-        if (n_hit_ip_item <= 0) {
-            return n_hit_ip_item;
-        }
-
-        if (n_hit_ip_item > MAX_SCANNER_HIT_ITEM_NUM) {
-            n_hit_ip_item = MAX_SCANNER_HIT_ITEM_NUM;
-        }
-
-        for (size_t i = 0; i < n_hit_ip_item; i++) {
-            long long item_id = ip_results[i].rule_id;
-            struct ip_item *ip_item = (struct ip_item *)rcu_hash_find(ip_rt->item_hash,
-                                                                      (char *)&item_id,
-                                                                      sizeof(long long));
-            if (!ip_item) {
-                // item config has been deleted
-                continue;
-            }
-
-            ret = validate_port(ip_item, port, proto);
-            if (ret < 0) {
-                continue;
-            }
-
-            hit_maat_items[real_hit_item_cnt].item_id = ip_results[i].rule_id;
-            hit_maat_items[real_hit_item_cnt].group_id = ip_item->group_id;
-            real_hit_item_cnt++;
-        }
+        hit_maat_items[real_hit_item_cnt].item_id = ip_results[i].rule_id;
+        hit_maat_items[real_hit_item_cnt].group_id = ip_item->group_id;
+        real_hit_item_cnt++;
     }
 
     maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);

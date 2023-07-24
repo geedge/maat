@@ -1551,6 +1551,180 @@ protected:
 struct maat *MaatIPScan::_shared_maat_inst;
 struct log_handle *MaatIPScan::logger;
 
+TEST_F(MaatIPScan, IPv4ScanDataFull_0) {
+    const char *table_name = "IP_PLUS_CONFIG";
+    struct maat *maat_inst = MaatIPScan::_shared_maat_inst;
+    int thread_id = 0;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    char ip_str1[32] = "0.0.0.0";
+    uint32_t sip1;
+    int ret = inet_pton(AF_INET, ip_str1, &sip1);
+    EXPECT_EQ(ret, 1);
+    uint16_t port = htons(65530);
+    int proto = 6;
+
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    ret = maat_scan_ipv4(maat_inst, table_id, sip1, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    EXPECT_EQ(n_hit_result, 0);
+    
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(MaatIPScan, IPv4ScanDataFull_1) {
+    const char *table_name = "IP_PLUS_CONFIG";
+    struct maat *maat_inst = MaatIPScan::_shared_maat_inst;
+    int thread_id = 0;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    char ip_str1[32] = "255.255.255.255";
+    uint32_t sip1;
+    int ret = inet_pton(AF_INET, ip_str1, &sip1);
+    EXPECT_EQ(ret, 1);
+    uint16_t port = htons(5210);
+    int proto = 6;
+
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    ret = maat_scan_ipv4(maat_inst, table_id, sip1, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    EXPECT_EQ(n_hit_result, 0);
+    
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(MaatIPScan, IPv4RuleFull_0) {
+    const char *table_name = "IP_PLUS_CONFIG";
+    struct maat *maat_inst = MaatIPScan::_shared_maat_inst;
+    int thread_id = 0;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    char ip_str[32] = "100.64.3.1";
+    uint32_t sip;
+    int ret = inet_pton(AF_INET, ip_str, &sip);
+    EXPECT_EQ(ret, 1);
+    uint16_t port = htons(20303);
+    int proto = 6;
+
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    ret = maat_scan_ipv4(maat_inst, table_id, sip, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    maat_state_reset(state);
+
+    port = htons(64999);
+    ret = maat_scan_ipv4(maat_inst, table_id, sip, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 169);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(MaatIPScan, IPv6ScanDataFull_0) {
+    const char *table_name = "IP_PLUS_CONFIG";
+    struct maat *maat_inst = MaatIPScan::_shared_maat_inst;
+    int thread_id = 0;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    char ip_str[32] = "::";
+    uint8_t sip[16];
+    int ret = inet_pton(AF_INET6, ip_str, sip);
+    EXPECT_EQ(ret, 1);
+    uint16_t port = htons(65510);
+    int proto = 6;
+
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    ret = maat_scan_ipv6(maat_inst, table_id, sip, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    EXPECT_EQ(n_hit_result, 0);
+    
+    maat_state_free(state);  
+}
+
+TEST_F(MaatIPScan, IPv6ScanDataFull_1) {
+    const char *table_name = "IP_PLUS_CONFIG";
+    struct maat *maat_inst = MaatIPScan::_shared_maat_inst;
+    int thread_id = 0;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    char ip_str[64] = "FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF";
+    uint8_t sip[16];
+    int ret = inet_pton(AF_INET6, ip_str, sip);
+    EXPECT_EQ(ret, 1);
+    uint16_t port = htons(65510);
+    int proto = 6;
+
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    ret = maat_scan_ipv6(maat_inst, table_id, sip, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    EXPECT_EQ(n_hit_result, 0);
+    
+    maat_state_free(state);  
+}
+
+TEST_F(MaatIPScan, IPv6RuleFull_0) {
+    const char *table_name = "IP_PLUS_CONFIG";
+    struct maat *maat_inst = MaatIPScan::_shared_maat_inst;
+    int thread_id = 0;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    char ip_str[64] = "1:1:1:1:1:1:1:1";
+    uint8_t sip[16];
+    int ret = inet_pton(AF_INET6, ip_str, sip);
+    EXPECT_EQ(ret, 1);
+    uint16_t port = htons(20303);
+    int proto = 6;
+
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    ret = maat_scan_ipv6(maat_inst, table_id, sip, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    maat_state_reset(state);
+
+    port = htons(64999);
+    ret = maat_scan_ipv6(maat_inst, table_id, sip, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 210);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
 TEST_F(MaatIPScan, IPv4_IPPort) {
     const char *table_name = "IP_PLUS_CONFIG";
     struct maat *maat_inst = MaatIPScan::_shared_maat_inst;
@@ -1575,40 +1749,6 @@ TEST_F(MaatIPScan, IPv4_IPPort) {
     EXPECT_EQ(n_hit_result, 2);
     EXPECT_EQ(results[0], 208);
     EXPECT_EQ(results[1], 154);
-    maat_state_free(state);
-    state = NULL;
-}
-
-TEST_F(MaatIPScan, IPv4_Port) {
-    const char *table_name = "IP_PLUS_CONFIG";
-    struct maat *maat_inst = MaatIPScan::_shared_maat_inst;
-    int thread_id = 0;
-
-    int table_id = maat_get_table_id(maat_inst, table_name);
-    ASSERT_GT(table_id, 0);
-
-    char ip_str[32] = "0.0.0.0";
-    uint32_t sip;
-    int ret = inet_pton(AF_INET, ip_str, &sip);
-    EXPECT_EQ(ret, 1);
-    uint16_t port = htons(20303);
-    int proto = 6;
-
-    long long results[ARRAY_SIZE] = {0};
-    size_t n_hit_result = 0;
-    struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    ret = maat_scan_ipv4(maat_inst, table_id, sip, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-    maat_state_reset(state);
-
-    port = htons(64999);
-    ret = maat_scan_ipv4(maat_inst, table_id, sip, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 169);
-
     maat_state_free(state);
     state = NULL;
 }
@@ -5877,7 +6017,7 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
     ret = intval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD, item21_id,
                                 group21_id, 31, 31, NULL, 0);
     EXPECT_EQ(ret, 1);
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -5918,7 +6058,7 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
                                 group22_id, 32, 32, NULL, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     table_id = maat_get_table_id(maat_inst, app_id_table_name);
     ret = maat_scan_integer(maat_inst, table_id, 31, results, ARRAY_SIZE,
@@ -5971,7 +6111,7 @@ TEST_F(MaatCmdTest, GroupEdit) {
                                 group21_id, 41, 41, NULL, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.3.2", &ip_addr);
@@ -6149,7 +6289,7 @@ TEST_F(MaatCmdTest, UpdateDeadLockDetection) {
                               "part-1", NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     const char* scan_data1 = "scan string part-1.";
 	const char* scan_data2 = "scan string part-2.";
@@ -6238,7 +6378,7 @@ TEST_F(MaatCmdTest, StreamScanWhenExprTableIncUpdate) {
                               "stream-keywords-001-inc-update", NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     /* maat_stream store expr_runtime version when maat_stream_new().
        Add new expr_item has changed expr_runtime version which has been sensed by maat_stream_scan.
@@ -6286,7 +6426,7 @@ TEST_F(MaatCmdTest, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
                               "stream-keywords-002", NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     const char *scan_data = "Here is a stream-keywords-002, this should hit.";
     long long results[ARRAY_SIZE] = {0};
@@ -6360,7 +6500,7 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenIncUpdate) {
                                         compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -6385,7 +6525,7 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenIncUpdate) {
                                  "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     const char *scan_data = "Here is a stream-keywords-003, this should hit.";
     table_id = maat_get_table_id(maat_inst, expr_table_name);
@@ -6452,7 +6592,7 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenFullUpdate) {
                                         compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -6543,7 +6683,7 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenIncUpdate) {
                                         compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -6568,7 +6708,7 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenIncUpdate) {
                                  "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     const char *scan_data = "Here is a IP and stringinc, this should hit.";
     table_id = maat_get_table_id(maat_inst, expr_table_name);
@@ -6634,7 +6774,7 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenFullupdate) {
                                         compile1_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;

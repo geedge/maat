@@ -2942,7 +2942,38 @@
                     ]
                 }
             ]
-        }
+        },
+        {
+            "compile_id": 210,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "ipv6_::",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "ip_plus",
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv6",
+                                "addr_format": "CIDR",
+                                "ip1": "::",
+                                "ip2": "0",
+                                "port_format": "range",
+                                "port1": "64000",
+                                "port2": "64999",
+                                "protocol": 6
+                            }
+                        }
+                    ],
+                    "not_flag": 0
+                }
+            ]
+        } 
     ],
     "plugin_table": [
         {
