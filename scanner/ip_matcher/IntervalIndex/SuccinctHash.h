@@ -20,6 +20,13 @@
 
 #include "sigmastar_tools.h"
 
+struct packedRT_t
+{
+	unsigned long long bitmap[4];
+	unsigned int A;
+	unsigned char B[4];
+};
+
 class CSuccinctHash
 {
 public:

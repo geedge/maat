@@ -52,14 +52,13 @@ long long expr_runtime_get_version(void *expr_runtime);
 int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *data, 
                       size_t data_len, int vtable_id, struct maat_state *state);
 
-struct adapter_hs_stream *expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id);
+struct expr_matcher_stream *expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id);
 
-int expr_runtime_stream_scan(struct expr_runtime *expr_rt, struct adapter_hs_stream *s_handle, 
-                             const char *data, size_t data_len,
-                             int vtable_id, struct maat_state *state);
+int expr_runtime_stream_scan(struct expr_runtime *expr_rt, struct expr_matcher_stream *s_handle, 
+                             const char *data, size_t data_len, int vtable_id, struct maat_state *state);
 
 void expr_runtime_stream_close(struct expr_runtime *expr_rt, int thread_id, 
-                               struct adapter_hs_stream *s_handle);
+                               struct expr_matcher_stream *stream);
 
 int expr_runtime_set_scan_district(struct expr_runtime *expr_rt, const char *district, 
                                    size_t district_len, long long *district_id);

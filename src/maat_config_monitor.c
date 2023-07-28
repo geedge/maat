@@ -151,7 +151,6 @@ static int cm_read_table_file(struct cm_table_info_t *index,
     size_t file_offset = 0;
     char line[MAX_CONFIG_LINE] = {0};
 	read_nxt_line_from_buff(file_buff, file_sz, &file_offset, line, sizeof(line));
-
     int cfg_num = 0;
 	sscanf(line, "%d\n", &cfg_num);
 

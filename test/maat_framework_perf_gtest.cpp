@@ -55,7 +55,6 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 	char *buff = ALLOC(char, strlen(line) + 1);
     
     memcpy(buff, line, strlen(line) + 1);
-
 	while (buff[strlen(buff) - 1] == '\n' || buff[strlen(buff) - 1] == '\t') {
 		buff[strlen(buff) - 1] = '\0';
 	}

@@ -498,6 +498,10 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name,
                       "when update %zu interval rules", __FUNCTION__, __LINE__,
                       table_name, rule_cnt);
             ret = -1;
+        } else {
+            log_info(interval_rt->logger, MODULE_INTERVAL,
+                     "table[%s] commit %zu interval rules and rebuild interval_matcher "
+                     "completed, version:%lld", table_name, rule_cnt, maat_rt_version);
         }
     }
 
@@ -511,10 +515,6 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name,
     }
     
     interval_rt->rule_num = rule_cnt;
-    
-    log_info(interval_rt->logger, MODULE_INTERVAL,
-             "table[%s] commit %zu interval rules and rebuild interval_matcher "
-             "completed, version:%lld", table_name, rule_cnt, maat_rt_version);
 
     if (rules != NULL) {
         FREE(rules);

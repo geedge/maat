@@ -497,6 +497,10 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name,
                       "when update %zu flag rules", __FUNCTION__, __LINE__,
                       table_name, rule_cnt);
             ret = -1;
+        } else {
+            log_info(flag_rt->logger, MODULE_FLAG,
+                     "table[%s] commit %zu flag rules and rebuild flag_matcher completed,"
+                     " version:%lld", table_name, rule_cnt, maat_rt_version);
         }
     }
 
@@ -510,10 +514,6 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name,
     }
     
     flag_rt->rule_num = rule_cnt;
-
-    log_info(flag_rt->logger, MODULE_FLAG,
-             "table[%s] commit %zu flag rules and rebuild flag_matcher completed,"
-             " version:%lld", table_name, rule_cnt, maat_rt_version);
 
     if (rules != NULL) {
         FREE(rules);

@@ -612,6 +612,10 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name,
                       "when update %zu ip rules", __FUNCTION__, __LINE__,
                       table_name, rule_cnt);
             ret = -1;
+        } else {
+            log_info(ip_rt->logger, MODULE_IP,
+                     "table[%s] commit %zu ip rules and rebuild ip_matcher completed"
+                     ", version:%lld", table_name, rule_cnt, maat_rt_version);
         }
 
         new_intval_matcher = interval_matcher_new(intval_rules, rule_cnt);
@@ -642,10 +646,6 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name,
 
     ip_rt->rule_num = rule_cnt;
     
-    log_info(ip_rt->logger, MODULE_IP,
-             "table[%s] commit %zu ip rules and rebuild ip_matcher completed"
-             ", version:%lld", table_name, rule_cnt, maat_rt_version);
-
     if (rules != NULL) {
         FREE(rules);
     }

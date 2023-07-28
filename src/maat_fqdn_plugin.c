@@ -481,6 +481,10 @@ int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name
                       " %zu fqdn_plugin rules", __FUNCTION__, __LINE__, table_name,
                       rule_cnt);
             ret = -1;
+        } else {
+            log_info(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
+                     "table[%s] commit %zu fqdn_plugin rules and rebuild FQDN engine"
+                     " completed, version:%lld", table_name, rule_cnt, maat_rt_version);
         }
     }
 
@@ -492,10 +496,6 @@ int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name
     }
 
     fqdn_plugin_rt->rule_num = rule_cnt;
-
-    log_info(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
-             "table[%s] commit %zu fqdn_plugin rules and rebuild FQDN engine completed"
-             ", version:%lld", table_name, rule_cnt, maat_rt_version);
 
     if (rules != NULL) {
         FREE(rules);

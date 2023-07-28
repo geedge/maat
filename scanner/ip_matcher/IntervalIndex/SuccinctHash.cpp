@@ -36,6 +36,43 @@ inline unsigned int myhash(unsigned int key)
 	return h;
 }
 
+static void * aligned_malloc(size_t size, size_t align)
+{
+	void * malloc_ptr;
+	void * aligned_ptr;
+
+	/* Error if align is not a power of two.  */
+	if (align & (align - 1))
+	{
+		return ((void*) 0);
+	}
+
+	if (align==0 || size == 0)
+	{
+		return ((void *) 0);
+	}
+
+	malloc_ptr = malloc (sizeof(void *) + align - 1 + size);
+	if (!malloc_ptr)
+	{
+		return ((void *) 0);
+	}
+
+	aligned_ptr = (void *) (((size_t)malloc_ptr + sizeof(void *) + align-1) & ~(align-1));
+  
+	((void **) aligned_ptr) [-1] = malloc_ptr;
+
+	return aligned_ptr;
+}
+
+static void aligned_free(void * aligned_ptr)
+{
+	if (aligned_ptr)
+	{
+		free (((void **) aligned_ptr) [-1]);
+	}
+}
+
 CSuccinctHash::CSuccinctHash()
 {
 	m_RT=NULL;

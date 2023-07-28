@@ -222,7 +222,7 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 	while(buff[strlen(line) - 1] == '\n' || buff[strlen(line) - 1] == '\t') {
 		buff[strlen(line) - 1] = '\0';
 	}
-
+	
     const char *redis_rule_key = "TEST_RULE_KEY";
     redisReply *reply = maat_wrap_redis_command(ctx, "INCRBY %s %d", redis_rule_key, 1);
 	if (reply->type == REDIS_REPLY_NIL) {

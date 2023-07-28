@@ -37,12 +37,12 @@
 
 #define FOR(i, n) for(int i=0, _n=(int)(n); i<_n; i++)
 
-struct packedRT_t
+typedef struct packedRT
 {
 	unsigned long long bitmap[4];
 	unsigned int A;
 	unsigned char B[4];
-};
+}packedRT_t;
 
 static void * aligned_malloc(size_t size, size_t align)
 {

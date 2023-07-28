@@ -27,19 +27,6 @@ using namespace std;
 
 //#define DEBUG_PARTITION
 
-int initialize_sigmastar_tools();
-
-struct packedRT_t
-{
-	unsigned long long bitmap[4];
-	unsigned int A;
-	unsigned char B[4];
-};
-
-void * aligned_malloc(size_t size, size_t align);
-
-void aligned_free(void * aligned_ptr);
-
 #if (defined __linux__) && (defined __SSE4_2__)
 #define USE_SSE_INSTR
 #endif

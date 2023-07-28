@@ -476,6 +476,10 @@ int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name
                       "update %zu bool_plugin rules", __FUNCTION__, __LINE__,
                       table_name, rule_cnt);
             ret = -1;
+        } else {
+             log_info(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
+                      "table[%s] commit %zu bool_plugin rules and rebuild bool_matcher"
+                      " completed, version:%lld", table_name, rule_cnt, maat_rt_version);
         }
     }
 
@@ -487,10 +491,6 @@ int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name
     }
 
     bool_plugin_rt->rule_num = rule_cnt;
-
-    log_info(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
-             "table[%s] commit %zu bool_plugin rules and rebuild bool_matcher completed"
-             ", version:%lld", table_name, rule_cnt, maat_rt_version);
 
     if (rules != NULL) {
         FREE(rules);
