@@ -987,9 +987,12 @@ static inline int compare_hit_group(const void *pa, const void *pb)
 	struct maat_hit_group *la=(struct maat_hit_group *)pa;
 	struct maat_hit_group *lb=(struct maat_hit_group *)pb;
 
-	long long ret = la->group_id - lb->group_id;
+	long long ret = la->item_id - lb->item_id;
 	if (ret == 0) {
-		ret = la->vtable_id - lb->vtable_id;
+		ret = la->group_id - lb->group_id;
+        if (ret == 0) {
+            ret = la->vtable_id - lb->vtable_id;
+        }
 	}
 
 	return ret;
@@ -2139,6 +2142,7 @@ size_t maat_compile_state_get_hit_groups(struct maat_compile_state *compile_stat
 
         for (size_t idx = 0; idx < super_group_cnt; idx++) {
             struct maat_hit_group hit_group;
+            hit_group.item_id = internal_path->item_id;
             hit_group.group_id = super_group_ids[idx];
             hit_group.vtable_id = internal_path->vtable_id;
             if (utarray_find(all_hit_groups, &hit_group, compare_hit_group)) {

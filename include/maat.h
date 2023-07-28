@@ -37,6 +37,7 @@ struct maat_hit_path {
 };
 
 struct maat_hit_group {
+    long long item_id;
     long long group_id;
     int vtable_id;
 };
