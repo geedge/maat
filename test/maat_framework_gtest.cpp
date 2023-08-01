@@ -767,7 +767,7 @@ protected:
         maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
-        maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_RS);
+        //maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS); //default
 
         _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
@@ -1952,7 +1952,7 @@ TEST_F(MaatRsStringScan, StreamScanUTF8) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    char scan_data[2048];
+    char scan_data[1500];
     struct maat *maat_inst = MaatRsStringScan::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -1968,6 +1968,7 @@ TEST_F(MaatRsStringScan, StreamScanUTF8) {
     int pass_flag = 0;
     while (0 == feof(fp)) {
 		size_t read_size = fread(scan_data, 1, sizeof(scan_data), fp);
+        //read_size can't exceed 1500
 		int ret = maat_stream_scan(sp, scan_data, read_size, results, ARRAY_SIZE,
                                     &n_hit_result, state);
 		if (ret == MAAT_SCAN_HIT) {

@@ -65,7 +65,7 @@ struct adapter_rs_runtime {
     struct bool_matcher *bm;
 };
 
-/* adapter_hs instance */
+/* adapter_rs instance */
 struct adapter_rs {
     size_t n_worker_thread;
     size_t n_expr;
@@ -106,7 +106,7 @@ int adapter_rs_verify_regex_expression(const char *regex_expr,
     return ret;
 }
 /**
- * @brief build hs block database for literal string and regex expression respectively
+ * @brief build rs database for literal string and regex expression respectively
  * 
  * @retval 0(success) -1(failed)
 */
@@ -196,7 +196,7 @@ static struct bool_expr *bool_exprs_new(struct expr_rule *rules, size_t n_rule,
 
     struct bool_expr *bool_exprs = ALLOC(struct bool_expr, n_rule);
 
-    /* populate adpt_hs_compile_data and bool_expr */
+    /* populate adpt_rs_compile_data and bool_expr */
     for (size_t i = 0; i < n_rule; i++) {
 
         for (size_t j = 0; j < rules[i].n_patterns; j++) {
@@ -276,22 +276,22 @@ void *adapter_rs_new(struct expr_rule *rules, size_t n_rule,
 
     rs_inst->rs_rt = ALLOC(struct adapter_rs_runtime, 1);
 
-    //hs_rt->bm
+    //rs_rt->bm
     rs_inst->rs_rt->bm = bool_matcher_new(bool_exprs, n_rule, &mem_size);
     if (rs_inst->rs_rt->bm != NULL) {
         log_info(logger, MODULE_ADAPTER_RS, 
-                 "Adapter_hs module: build bool matcher of %zu expressions"
+                 "Adapter_rs module: build bool matcher of %zu expressions"
                  " with %zu bytes memory", n_rule, mem_size);
     } else {
         log_error(logger, MODULE_ADAPTER_RS,
-                  "[%s:%d] Adapter_hs module: build bool matcher failed",
+                  "[%s:%d] Adapter_rs module: build bool matcher failed",
                   __FUNCTION__, __LINE__);
         
         rs_ret = -1;
     }
     FREE(bool_exprs);
 
-    /* build hs database hs_rt->literal_db & hs_rt->regex_db */
+    /* build rs database rs_rt->literal_db & rs_rt->regex_db */
     int ret = adpt_rs_build_database(rs_inst->rs_rt, n_worker_thread,
                                      literal_cd, regex_cd, logger);
     if (ret < 0) {
@@ -577,16 +577,6 @@ int adapter_rs_scan_stream(void *rs_stream, const char *data, size_t data_len,
         return -1;
     }
     
-    /* 
-        In streaming mode, a non-zero return from the user-specified event-handler
-        function has consequences for the rest of that stream's lifetime: when a
-        non-zero return occurs, it signals that no more of the stream should be
-        scanned. Consequently if the user makes a subsequent call to
-        `hs_scan_stream` on a stream whose processing was terminated in this way,
-        hs_scan_stream will return `HS_SCAN_TERMINATED`. This case has not been
-        demonstrated in pcapscan, as its callback always returns 0. 
-    */
-
     int ret = 0, err_count = 0;
     struct adapter_rs_stream *stream = (struct adapter_rs_stream *)rs_stream;
     int thread_id = stream->thread_id;

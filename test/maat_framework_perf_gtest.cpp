@@ -256,8 +256,54 @@ static int ip_table_set_line(struct maat *maat_inst, const char *table_name, enu
     return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-void test_add_expr_command(struct maat *maat_inst, const char *table_name, 
-                           const char *keywords)
+static int integer_table_set_line(struct maat *maat_inst, const char *table_name,
+                                  enum maat_operation op, long long item_id,
+                                  long long group_id, int low_bound, int up_bound,
+                                  int expire_after)
+{
+    char table_line[1024] = {0};
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    if (table_id < 0) {
+        return 0;
+    }
+
+    sprintf(table_line, "%lld\t%lld\t%d\t%d\t%d",
+            item_id, group_id, low_bound, up_bound, op);
+    struct maat_cmd_line line_rule;
+
+    line_rule.rule_id = item_id;
+    line_rule.table_line = table_line;
+    line_rule.table_name = table_name;
+    line_rule.expire_after = expire_after;
+
+    return maat_cmd_set_line(maat_inst, &line_rule);
+}
+
+static int flag_table_set_line(struct maat *maat_inst, const char *table_name,
+                                  enum maat_operation op, long long item_id,
+                                  long long group_id, long long flag,
+                                  long long flag_mask, int expire_after)
+{
+    char table_line[1024] = {0};
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    if (table_id < 0) {
+        return 0;
+    }
+
+    sprintf(table_line, "%lld\t%lld\t%lld\t%lld\t%d",
+            item_id, group_id, flag, flag_mask, op);
+    struct maat_cmd_line line_rule;
+
+    line_rule.rule_id = item_id;
+    line_rule.table_line = table_line;
+    line_rule.table_name = table_name;
+    line_rule.expire_after = expire_after;
+
+    return maat_cmd_set_line(maat_inst, &line_rule);
+}
+
+static void test_add_expr_command(struct maat *maat_inst, const char *table_name, 
+                                  const char *keywords)
 {
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
     int ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_ADD, compile_id, "null", 1, 0);
@@ -270,12 +316,12 @@ void test_add_expr_command(struct maat *maat_inst, const char *table_name,
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id, group_id,
-                              keywords, NULL, 1, 0, 0, 0);
+                              keywords, "null", 1, 0, 0, 0);
     EXPECT_EQ(ret, 1);
 }
 
-void test_add_ip_command(struct maat *maat_inst, const char *table_name, 
-                         const char *ip, uint16_t port)
+static void test_add_ip_command(struct maat *maat_inst, const char *table_name, 
+                                const char *ip, uint16_t port)
 {
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
     int ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_ADD, compile_id, "null", 1, 0);
@@ -289,6 +335,42 @@ void test_add_ip_command(struct maat *maat_inst, const char *table_name,
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id, group_id,
                             IPv4, ip, ip, port, port, 0);
+    EXPECT_EQ(ret, 1);
+}
+
+static void test_add_integer_command(struct maat *maat_inst, const char *table_name, 
+                                     int low_bound, int up_bound)
+{
+    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_ADD, compile_id, "null", 1, 0);
+    EXPECT_EQ(ret, 1);
+
+    long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD, group_id,
+                                       compile_id, 0, "null", 1, 0);
+    EXPECT_EQ(ret, 1);
+
+    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = integer_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id, group_id,
+                                 low_bound, up_bound, 0);
+    EXPECT_EQ(ret, 1);
+}
+
+static void test_add_flag_command(struct maat *maat_inst, const char *table_name, 
+                                  long long flag, long long flag_mask)
+{
+    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_ADD, compile_id, "null", 1, 0);
+    EXPECT_EQ(ret, 1);
+
+    long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD, group_id,
+                                       compile_id, 0, "null", 1, 0);
+    EXPECT_EQ(ret, 1);
+
+    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = flag_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id, group_id,
+                              flag, flag_mask, 0);
     EXPECT_EQ(ret, 1);
 }
 
@@ -344,7 +426,7 @@ void *perf_string_scan_thread(void *arg)
     struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
     struct timespec start, end;
-    const char *scan_data = "String TEST should hit";
+    const char *scan_data = "today and yesterday should hit";
     long long results[ARRAY_SIZE] = {0};
     int hit_times = 0;
     size_t n_hit_result = 0;
@@ -392,13 +474,67 @@ void *perf_string_update_thread(void *arg)
     return is_all_hit;
 }
 
+void *perf_regex_scan_thread(void *arg)
+{
+    struct thread_param *param = (struct thread_param *)arg;
+    struct maat *maat_inst = param->maat_inst;
+    const char *table_name = param->table_name;
+    struct timespec start, end;
+    const char *scan_data = "http://www.cyberessays.com/search_results.php?action=search&query=username,abckkk,1234567";
+    long long results[ARRAY_SIZE] = {0};
+    int hit_times = 0;
+    size_t n_hit_result = 0;
+    struct maat_state *state = maat_state_new(maat_inst, param->thread_id);
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < param->test_count; i++) {
+        int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
+                                   results, ARRAY_SIZE, &n_hit_result, state);
+        if (ret == MAAT_SCAN_HIT) {
+            hit_times++;
+        }
+        maat_state_reset(state);
+    }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+    int *is_all_hit = ALLOC(int, 1);
+    *is_all_hit = (hit_times == param->test_count ? 1 : 0);
+    log_info(param->logger, MODULE_FRAMEWORK_PERF_GTEST, 
+             "thread_id:%d regex_scan time_elapse:%lldms hit_times:%d", 
+             param->thread_id, param->time_elapse_ms, hit_times);
+    return is_all_hit;
+}
+
+void *perf_regex_update_thread(void *arg)
+{
+    struct thread_param *param = (struct thread_param *)arg;
+    struct maat *maat_inst = param->maat_inst;
+    const char *table_name = param->table_name;
+    const int CMD_EXPR_NUM = 10;
+    char keyword_buf[128];
+
+    for (int i = 0; i < CMD_EXPR_NUM; i++) {
+        random_keyword_generate(keyword_buf, sizeof(keyword_buf));
+        test_add_expr_command(maat_inst, table_name, keyword_buf);
+        sleep(1);
+    }
+
+    int *is_all_hit = ALLOC(int, 1);
+    *is_all_hit = 1;
+    
+    return is_all_hit;
+}
+
 void *perf_ip_scan_thread(void *arg)
 {
     struct thread_param *param = (struct thread_param *)arg;
     struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
     struct timespec start, end;
-    char ip_str[32] = "10.0.7.100";
+    char ip_str[32] = "10.0.0.1";
     uint32_t ip_addr;
     uint16_t port = htons(65530);
 
@@ -461,8 +597,113 @@ void *perf_ip_update_thread(void *arg)
     return is_all_hit;
 }
 
-TEST_F(MaatPerfStringScan, MultiThread) {
-    const char *table_name = "KEYWORDS_TABLE";
+void *perf_integer_scan_thread(void *arg)
+{
+    struct thread_param *param = (struct thread_param *)arg;
+    struct maat *maat_inst = param->maat_inst;
+    const char *table_name = param->table_name;
+    struct timespec start, end;
+    int hit_times = 0;
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+
+    struct maat_state *state = maat_state_new(maat_inst, param->thread_id);
+    int table_id = maat_get_table_id(maat_inst, table_name);
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < param->test_count; i++) {
+        int ret = maat_scan_integer(maat_inst, table_id, 3000, results,
+                                    ARRAY_SIZE, &n_hit_result, state);
+        if (ret == MAAT_SCAN_HIT) {
+            hit_times++;
+        }
+        maat_state_reset(state);
+    }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + 
+                            (end.tv_nsec - start.tv_nsec) / 1000000;
+    int *is_all_hit = ALLOC(int, 1);
+    *is_all_hit = (hit_times == param->test_count ? 1 : 0);
+    log_info(param->logger, MODULE_FRAMEWORK_PERF_GTEST, 
+             "thread_id:%d integer_scan time_elapse:%lldms hit_times:%d", 
+             param->thread_id, param->time_elapse_ms, hit_times);
+    return is_all_hit;
+}
+
+void *perf_integer_update_thread(void *arg)
+{
+    struct thread_param *param = (struct thread_param *)arg;
+    struct maat *maat_inst = param->maat_inst;
+    const char *table_name = param->table_name;
+    const int CMD_EXPR_NUM = 10;
+
+    for (int i = 0; i < CMD_EXPR_NUM; i++) {
+        test_add_integer_command(maat_inst, table_name, 3001+i, 3001+i);
+        sleep(1);
+    }
+
+    int *is_all_hit = ALLOC(int, 1);
+    *is_all_hit = 1;
+    
+    return is_all_hit;
+}
+
+void *perf_flag_scan_thread(void *arg)
+{
+    struct thread_param *param = (struct thread_param *)arg;
+    struct maat *maat_inst = param->maat_inst;
+    const char *table_name = param->table_name;
+    struct timespec start, end;
+    int hit_times = 0;
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    long long scan_data = 15;
+
+    struct maat_state *state = maat_state_new(maat_inst, param->thread_id);
+    int table_id = maat_get_table_id(maat_inst, table_name);
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < param->test_count; i++) {
+        int ret = maat_scan_flag(maat_inst, table_id, scan_data, results,
+                                 ARRAY_SIZE, &n_hit_result, state);
+        if (ret == MAAT_SCAN_HIT) {
+            hit_times++;
+        }
+        maat_state_reset(state);
+    }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
+                            (end.tv_nsec - start.tv_nsec) / 1000000;
+    int *is_all_hit = ALLOC(int, 1);
+    *is_all_hit = (hit_times == param->test_count ? 1 : 0);
+    log_info(param->logger, MODULE_FRAMEWORK_PERF_GTEST, 
+             "thread_id:%d flag_scan time_elapse:%lldms hit_times:%d", 
+             param->thread_id, param->time_elapse_ms, hit_times);
+    return is_all_hit;
+}
+
+void *perf_flag_update_thread(void *arg)
+{
+    struct thread_param *param = (struct thread_param *)arg;
+    struct maat *maat_inst = param->maat_inst;
+    const char *table_name = param->table_name;
+    const int CMD_EXPR_NUM = 10;
+
+    for (int i = 0; i < CMD_EXPR_NUM; i++) {
+        test_add_flag_command(maat_inst, table_name, i, 15);
+        sleep(1);
+    }
+
+    int *is_all_hit = ALLOC(int, 1);
+    *is_all_hit = 1;
+    
+    return is_all_hit;
+}
+
+TEST_F(MaatPerfStringScan, LiteralMultiThread) {
+    const char *table_name = "EXPR_LITERAL_PERF_CONFIG";
     struct maat *maat_inst = MaatPerfStringScan::_shared_maat_inst;
 
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -502,9 +743,55 @@ TEST_F(MaatPerfStringScan, MultiThread) {
 		free(is_all_hit);
     }
     scan_per_second = scan_count * 1000 / time_elapse_ms;
-    //EXPECT_GT(scan_per_second, 800 * 1000);
     log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST,
              "StringScan match rate on %d-threads speed %lld lookups/s/thread",
+             PERF_THREAD_NUM, scan_per_second);
+}
+
+TEST_F(MaatPerfStringScan, RegexMultiThread) {
+    const char *table_name = "EXPR_REGEX_PERF_CONFIG";
+    struct maat *maat_inst = MaatPerfStringScan::_shared_maat_inst;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    pthread_t threads[PERF_THREAD_NUM + 1];
+    struct thread_param thread_params[PERF_THREAD_NUM + 1];
+    int i = 0;
+    int *is_all_hit = NULL;
+
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        thread_params[i].maat_inst = maat_inst;
+        thread_params[i].thread_id = i;
+        thread_params[i].table_name = table_name;
+        thread_params[i].test_count = PERF_SCAN_COUNT;
+        thread_params[i].time_elapse_ms = 0;
+        thread_params[i].logger = logger;
+
+        if (i < PERF_THREAD_NUM) {
+            pthread_create(&threads[i], NULL, perf_regex_scan_thread, thread_params+i);
+        } else {
+            thread_params[i].test_count = 0;
+            pthread_create(&threads[i], NULL, perf_regex_update_thread, thread_params+i);
+        }
+    }
+
+    long long time_elapse_ms = 0;
+    long long scan_count = 0;
+    long long scan_per_second = 0;
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        pthread_join(threads[i], (void **)&is_all_hit);
+        time_elapse_ms += thread_params[i].time_elapse_ms;
+		scan_count += thread_params[i].test_count;
+
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit = 0;
+		free(is_all_hit);
+    }
+    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    
+    log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST,
+             "RegexScan match rate on %d-threads speed %lld lookups/s/thread",
              PERF_THREAD_NUM, scan_per_second);
 }
 
@@ -560,34 +847,31 @@ void *perf_stream_scan_thread(void *arg)
     struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
     struct timespec start, end;
-    const char *scan_data = "http://www.cyberessays.com/search_results.php?action=search&query=yulingjing,abckkk,1234567";
+    const char *scan_data = "http://www.cyberessays.com/search_results.php?today and yesterday";
     long long results[ARRAY_SIZE] = {0};
     int ret = 0, hit_times = 0;
     size_t n_hit_result = 0;
-    struct maat_state *state_array[ARRAY_SIZE];
-    struct maat_stream *sp[ARRAY_SIZE];
+
     int table_id = maat_get_table_id(maat_inst, table_name);
-    
+    struct maat_state *state = maat_state_new(maat_inst, param->thread_id);
+    struct maat_stream *sp = maat_stream_new(maat_inst, table_id, state);
+
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < param->test_count; i++) {
-        for (int j = 0; j < ARRAY_SIZE; j++) {
-            state_array[j] = maat_state_new(maat_inst, param->thread_id);
-            sp[j] = maat_stream_new(maat_inst, table_id, state_array[j]);
-
-            ret = maat_stream_scan(sp[j], scan_data, strlen(scan_data), results, ARRAY_SIZE,
-                                    &n_hit_result, state_array[j]);
-            if (ret == MAAT_SCAN_HIT) {
-                hit_times++;
-            }
-            maat_stream_free(sp[j]);
-            maat_state_free(state_array[j]);
+        ret = maat_stream_scan(sp, scan_data, strlen(scan_data), results, ARRAY_SIZE,
+                                &n_hit_result, state);
+        if (ret == MAAT_SCAN_HIT) {
+            hit_times++;
         }
+        maat_state_reset(state);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
+    maat_stream_free(sp);
+    maat_state_free(state);
 
     param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
     int *is_all_hit = ALLOC(int, 1);
-    *is_all_hit = ((hit_times == param->test_count*ARRAY_SIZE) ? 1 : 0);
+    *is_all_hit = ((hit_times == param->test_count) ? 1 : 0);
 
     log_info(param->logger, MODULE_FRAMEWORK_PERF_GTEST, 
              "thread_id:%d stream_scan time_elapse:%lldms hit_times:%d", 
@@ -595,64 +879,40 @@ void *perf_stream_scan_thread(void *arg)
     return is_all_hit;
 }
 
-void *perf_stream_update_thread(void *arg)
-{
-    struct thread_param *param = (struct thread_param *)arg;
-    struct maat *maat_inst = param->maat_inst;
-    const char *table_name = param->table_name;
-    const int CMD_EXPR_NUM = 10;
-    char keyword_buf[128];
-
-    for (int i = 0; i < CMD_EXPR_NUM; i++) {
-        random_keyword_generate(keyword_buf, sizeof(keyword_buf));
-        test_add_expr_command(maat_inst, table_name, keyword_buf);
-        sleep(1);
-    }
-
-    int *is_all_hit = ALLOC(int, 1);
-    *is_all_hit = 1;
-    
-    return is_all_hit;
-}
-
 TEST_F(MaatPerfStreamScan, MultiThread) {
-    const char *table_name = "HTTP_URL";
+    const char *table_name = "EXPR_LITERAL_PERF_CONFIG";
     struct maat *maat_inst = MaatPerfStreamScan::_shared_maat_inst;
 
     int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    pthread_t threads[PERF_THREAD_NUM + 1];
-    struct thread_param thread_params[PERF_THREAD_NUM + 1];
+    pthread_t threads[PERF_THREAD_NUM];
+    struct thread_param thread_params[PERF_THREAD_NUM];
     int i = 0;
     int *is_all_hit = NULL;
 
-    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+    for (i = 0; i < PERF_THREAD_NUM; i++) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = PERF_SCAN_COUNT / 10;
+        thread_params[i].test_count = PERF_SCAN_COUNT;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
 
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_stream_scan_thread, thread_params+i);
-        } else {
-            thread_params[i].test_count = 0;
-            pthread_create(&threads[i], NULL, perf_stream_update_thread, thread_params+i);
-        }
+        } 
     }
 
     long long time_elapse_ms = 0;
     long long scan_count = 0;
     long long scan_per_second = 0;
-    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+    for (i = 0; i < PERF_THREAD_NUM; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
 		scan_count += thread_params[i].test_count;
         //maybe expr_runtime rebuild in stream_scan, so should not expect is_all_hit always 1
-		//EXPECT_EQ(*is_all_hit, 1);
-		*is_all_hit = 0;
+		EXPECT_EQ(*is_all_hit, 1);
 		free(is_all_hit);
     }
     scan_per_second = scan_count * 1000 / time_elapse_ms;
@@ -710,7 +970,7 @@ struct log_handle *MaatPerfIPScan::logger;
 
 TEST_F(MaatPerfIPScan, MultiThread)
 {
-    const char *table_name = "IP_PLUS_CONFIG";
+    const char *table_name = "IP_PERF_CONFIG";
     struct maat *maat_inst = MaatPerfIPScan::_shared_maat_inst;
 
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -753,6 +1013,192 @@ TEST_F(MaatPerfIPScan, MultiThread)
 
     log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST,
              "IPScan match rate on %d-threads speed %lld lookups/s/thread",
+             PERF_THREAD_NUM, scan_per_second);
+}
+
+class MaatPerfIntegerScan : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
+                                  "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+        char redis_ip[64] = "127.0.0.1";
+        int redis_port = 6379;
+        int redis_db = 0;
+
+        logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+        if (ret < 0) {
+            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+                      "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
+        }
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_stat_file(opts, "./stat.log");
+        maat_options_set_perf_on(opts);
+        maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_accept_tags(opts, accept_tags);
+        maat_options_set_caller_thread_number(opts, 5);
+
+        _shared_maat_inst = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+        if (NULL == _shared_maat_inst) {
+            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      __FUNCTION__, __LINE__);
+        }
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_inst);
+        log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_inst;
+};
+
+struct maat *MaatPerfIntegerScan::_shared_maat_inst;
+struct log_handle *MaatPerfIntegerScan::logger;
+
+TEST_F(MaatPerfIntegerScan, MultiThread) {
+    const char *table_name = "INTEGER_PERF_CONFIG";
+    struct maat *maat_inst = MaatPerfIntegerScan::_shared_maat_inst;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    pthread_t threads[PERF_THREAD_NUM + 1];
+    struct thread_param thread_params[PERF_THREAD_NUM + 1];
+    int i = 0;
+    int *is_all_hit = NULL;
+
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        thread_params[i].maat_inst = maat_inst;
+        thread_params[i].thread_id = i;
+        thread_params[i].table_name = table_name;
+        thread_params[i].test_count = PERF_SCAN_COUNT;
+        thread_params[i].time_elapse_ms = 0;
+        thread_params[i].logger = logger;
+
+        if (i < PERF_THREAD_NUM) {
+            pthread_create(&threads[i], NULL, perf_integer_scan_thread, thread_params+i);
+        } else {
+            thread_params[i].test_count = 0;
+            pthread_create(&threads[i], NULL, perf_integer_update_thread, thread_params+i);
+        }
+    }
+
+    long long time_elapse_ms = 0;
+    long long scan_count = 0;
+    long long scan_per_second = 0;
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        pthread_join(threads[i], (void **)&is_all_hit);
+        time_elapse_ms += thread_params[i].time_elapse_ms;
+		scan_count += thread_params[i].test_count;
+
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit = 0;
+		free(is_all_hit);
+    }
+    scan_per_second = scan_count * 1000 / time_elapse_ms;
+
+    log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST,
+             "IntegerScan match rate on %d-threads speed %lld lookups/s/thread",
+             PERF_THREAD_NUM, scan_per_second);
+}
+
+class MaatPerfFlagScan : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
+                                  "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+        char redis_ip[64] = "127.0.0.1";
+        int redis_port = 6379;
+        int redis_db = 0;
+
+        logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+        if (ret < 0) {
+            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+                      "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
+        }
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_stat_file(opts, "./stat.log");
+        maat_options_set_perf_on(opts);
+        maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_accept_tags(opts, accept_tags);
+        maat_options_set_caller_thread_number(opts, 5);
+
+        _shared_maat_inst = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+        if (NULL == _shared_maat_inst) {
+            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      __FUNCTION__, __LINE__);
+        }
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_inst);
+        log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_inst;
+};
+
+struct maat *MaatPerfFlagScan::_shared_maat_inst;
+struct log_handle *MaatPerfFlagScan::logger;
+
+TEST_F(MaatPerfFlagScan, MultiThread) {
+    const char *table_name = "FLAG_PERF_CONFIG";
+    struct maat *maat_inst = MaatPerfFlagScan::_shared_maat_inst;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    pthread_t threads[PERF_THREAD_NUM + 1];
+    struct thread_param thread_params[PERF_THREAD_NUM + 1];
+    int i = 0;
+    int *is_all_hit = NULL;
+
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        thread_params[i].maat_inst = maat_inst;
+        thread_params[i].thread_id = i;
+        thread_params[i].table_name = table_name;
+        thread_params[i].test_count = PERF_SCAN_COUNT;
+        thread_params[i].time_elapse_ms = 0;
+        thread_params[i].logger = logger;
+
+        if (i < PERF_THREAD_NUM) {
+            pthread_create(&threads[i], NULL, perf_flag_scan_thread, thread_params+i);
+        } else {
+            thread_params[i].test_count = 0;
+            pthread_create(&threads[i], NULL, perf_flag_update_thread, thread_params+i);
+        }
+    }
+
+    long long time_elapse_ms = 0;
+    long long scan_count = 0;
+    long long scan_per_second = 0;
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        pthread_join(threads[i], (void **)&is_all_hit);
+        time_elapse_ms += thread_params[i].time_elapse_ms;
+		scan_count += thread_params[i].test_count;
+
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit = 0;
+		free(is_all_hit);
+    }
+    scan_per_second = scan_count * 1000 / time_elapse_ms;
+
+    log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST,
+             "FlagScan match rate on %d-threads speed %lld lookups/s/thread",
              PERF_THREAD_NUM, scan_per_second);
 }
 

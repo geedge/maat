@@ -34,6 +34,7 @@ add_executable(maat_ex_data_gtest maat_ex_data_gtest.cpp)
 target_link_libraries(maat_ex_data_gtest maat_frame_static gtest_static)
 
 add_subdirectory(group_exclude)
+add_subdirectory(benchmark)
 
 file(COPY table_info.conf DESTINATION ./)
 file(COPY tsg_table_info.conf DESTINATION ./)
@@ -47,6 +48,7 @@ file(COPY testdata DESTINATION ./)
 file(COPY test_streamfiles DESTINATION ./)
 file(COPY json_update DESTINATION ./)
 file(COPY group_exclude DESTINATION ./)
+file(COPY benchmark DESTINATION ./)
 
 include(GoogleTest)
 gtest_discover_tests(maat_framework_gtest)

@@ -252,7 +252,6 @@ int maat_wrap_redis_get_reply(redisContext *c, redisReply **reply)
 
 int maat_cmd_set_line(struct maat *maat_inst, const struct maat_cmd_line *line_rule)
 {
-    int i = 0;
 	int ret = 0;
 	long long absolute_expire_time = 0;
 
@@ -268,42 +267,42 @@ int maat_cmd_set_line(struct maat *maat_inst, const struct maat_cmd_line *line_r
 
 	struct serial_rule *s_rule = ALLOC(struct serial_rule, 1);
 
-    int table_id = table_manager_get_table_id(maat_inst->tbl_mgr, line_rule->table_name);
-    if (table_id < 0) {
-        log_error(maat_inst->logger, MODULE_MAAT_COMMAND, 
-                  "[%s:%d] Command set line id %lld failed: unknown table %s", 
-                  __FUNCTION__, __LINE__, line_rule->rule_id, line_rule->table_name);
-        FREE(s_rule);
-        return -1;
-    }
+	int table_id = table_manager_get_table_id(maat_inst->tbl_mgr, line_rule->table_name);
+	if (table_id < 0) {
+		log_error(maat_inst->logger, MODULE_MAAT_COMMAND,
+				  "[%s:%d] Command set line id %lld failed: unknown table %s",
+				  __FUNCTION__, __LINE__, line_rule->rule_id, line_rule->table_name);
+		FREE(s_rule);
+		return -1;
+	}
 
-    int valid_column = table_manager_get_valid_column(maat_inst->tbl_mgr, table_id);
-    if (valid_column < 0) {
-        log_error(maat_inst->logger, MODULE_MAAT_COMMAND,
-                  "[%s:%d] Command set line id %lld failed: table %s is not a plugin or ip_plugin table",
-                  __FUNCTION__, __LINE__, line_rule->rule_id, line_rule->table_name);
-        FREE(s_rule);
-        return -1;
-    }
-   
-    int valid_offset = maat_get_valid_flag_offset(line_rule->table_line, valid_column);
-    if (valid_offset < 0) {
-        log_error(maat_inst->logger, MODULE_MAAT_COMMAND,
-                  "[%s:%d] Command set line id %lld failed: table %s valid_offset error",
-                  __FUNCTION__, __LINE__, line_rule->rule_id, line_rule->table_name);
-        FREE(s_rule);
-        return -1;
-    }
+	int valid_column = table_manager_get_valid_column(maat_inst->tbl_mgr, table_id);
+	if (valid_column < 0) {
+		log_error(maat_inst->logger, MODULE_MAAT_COMMAND,
+				  "[%s:%d] Command set line id %lld failed: table %s is not a plugin or ip_plugin table",
+				  __FUNCTION__, __LINE__, line_rule->rule_id, line_rule->table_name);
+		FREE(s_rule);
+		return -1;
+	}
 
-    int is_valid = atoi(line_rule->table_line + valid_offset);
-    if (line_rule->expire_after > 0) {
-        absolute_expire_time = server_time + line_rule->expire_after;
-    }
+	int valid_offset = maat_get_valid_flag_offset(line_rule->table_line, valid_column);
+	if (valid_offset < 0) {
+		log_error(maat_inst->logger, MODULE_MAAT_COMMAND,
+				  "[%s:%d] Command set line id %lld failed: table %s valid_offset error",
+				  __FUNCTION__, __LINE__, line_rule->rule_id, line_rule->table_name);
+		FREE(s_rule);
+		return -1;
+	}
 
-    maat_set_serial_rule(s_rule + i, (enum maat_operation)is_valid, line_rule->rule_id,
+	int is_valid = atoi(line_rule->table_line + valid_offset);
+	if (line_rule->expire_after > 0) {
+		absolute_expire_time = server_time + line_rule->expire_after;
+	}
+
+    maat_set_serial_rule(s_rule, (enum maat_operation)is_valid, line_rule->rule_id,
                          line_rule->table_name, line_rule->table_line, absolute_expire_time);
 
-    int success_cnt = maat_cmd_write_rule(write_ctx, s_rule, 1, server_time, maat_inst->logger);
+	int success_cnt = maat_cmd_write_rule(write_ctx, s_rule, 1, server_time, maat_inst->logger);
 	if (success_cnt != 1) {
 		ret = -1;
 		goto error_out;

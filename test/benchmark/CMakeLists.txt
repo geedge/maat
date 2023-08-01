@@ -1,0 +1,7 @@
+include_directories(${PROJECT_SOURCE_DIR}/src/inc_internal)
+
+add_executable(benchmark_hs_gtest benchmark_hs_gtest.cpp)
+target_link_libraries(benchmark_hs_gtest maat_frame_static gtest_static)
+
+add_executable(benchmark_rs_gtest benchmark_rs_gtest.cpp)
+target_link_libraries(benchmark_rs_gtest maat_frame_static gtest_static)
