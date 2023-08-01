@@ -140,6 +140,7 @@ struct maat_internal_hit_path {
 struct maat_compile_state {
     uint8_t this_scan_hit_item_flag;
     uint8_t not_clause_hit_flag;
+    uint8_t inc_hit_path_flag;
 	int Nth_scan;
     time_t compile_rt_version;
 
@@ -1379,6 +1380,7 @@ void maat_compile_state_reset(struct maat_compile_state *compile_state)
     compile_state->compile_rt_version = 0;
     compile_state->this_scan_hit_item_flag = 0;
     compile_state->not_clause_hit_flag = 0;
+    compile_state->inc_hit_path_flag = 0;
 
     utarray_clear(compile_state->internal_hit_paths);
     utarray_clear(compile_state->internal_inc_hit_paths);
@@ -1544,9 +1546,13 @@ static void maat_compile_state_update_hit_path(struct maat_compile_state *compil
 	if (compile_state->Nth_scan != Nth_scan) {
 		assert(compile_state->this_scan_hit_item_flag == 0);
 		compile_state->Nth_scan = Nth_scan;
-        utarray_clear(compile_state->internal_inc_hit_paths);
 		utarray_clear(compile_state->this_scan_hit_clauses);
 	}
+
+    if (1 == compile_state->inc_hit_path_flag) {
+        compile_state->inc_hit_path_flag = 0;
+        utarray_clear(compile_state->internal_inc_hit_paths);
+    }
 
     maat_compile_hit_path_add(compile_state->internal_inc_hit_paths, item_id, group_id,
                               vtable_id, Nth_scan, Nth_item_result);
@@ -2128,6 +2134,7 @@ size_t maat_compile_state_get_hit_groups(struct maat_compile_state *compile_stat
         tmp_hit_path = compile_state->internal_hit_paths;
     } else if (type == MAAT_LIST_TYPE_INC) {
         tmp_hit_path = compile_state->internal_inc_hit_paths;
+        compile_state->inc_hit_path_flag = 1;
     }
 
     for (i = 0; i < utarray_len(tmp_hit_path); i++) {

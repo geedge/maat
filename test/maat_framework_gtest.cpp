@@ -6506,6 +6506,7 @@ TEST_F(MaatCmdTest, HitGroup) {
     EXPECT_EQ(hit_groups[1].group_id, group2_id);
     EXPECT_EQ(hit_groups[1].vtable_id, http_res_table_id);
 
+
     const char* keywords1="In graph theory, hit group item forth";
     const char *keywords2="To test one group hit group item fifth";
     
@@ -6540,13 +6541,6 @@ TEST_F(MaatCmdTest, HitGroup) {
     EXPECT_EQ(hit_groups[4].item_id, item4_id);
     EXPECT_EQ(hit_groups[4].group_id, group4_id);
     EXPECT_EQ(hit_groups[4].vtable_id, 0); //physical table(keywords_table) vtable_id is 0
-
-    memset(hit_groups, 0, sizeof(hit_groups));
-    n_hit_group = maat_state_get_hit_groups(state, MAAT_LIST_TYPE_INC, hit_groups, 128);
-    EXPECT_EQ(n_hit_group, 1);
-    EXPECT_EQ(hit_groups[0].item_id, item4_id);
-    EXPECT_EQ(hit_groups[0].group_id, group4_id);
-    EXPECT_EQ(hit_groups[0].vtable_id, 0); //physical table(keywords_table) vtable_id is 0 
 
     int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(ip_table_id, 0);
@@ -6588,11 +6582,15 @@ TEST_F(MaatCmdTest, HitGroup) {
 
     memset(hit_groups, 0, sizeof(hit_groups));
     n_hit_group = maat_state_get_hit_groups(state, MAAT_LIST_TYPE_INC, hit_groups, 128);
-    EXPECT_EQ(n_hit_group, 1);
+    EXPECT_EQ(n_hit_group, 2);
     EXPECT_EQ(hit_groups[0].item_id, item3_id);
     EXPECT_EQ(hit_groups[0].group_id, group3_id);
     EXPECT_EQ(hit_groups[0].vtable_id, 0); //physical table(keywords_table) vtable_id is 0
  
+    EXPECT_EQ(hit_groups[1].item_id, item4_id);
+    EXPECT_EQ(hit_groups[1].group_id, group4_id);
+    EXPECT_EQ(hit_groups[1].vtable_id, 0);
+
     ret = maat_stream_scan(stream, keywords2, strlen(keywords2), results, ARRAY_SIZE,
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
