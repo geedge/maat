@@ -821,7 +821,7 @@ static int write_group_rule(cJSON *group_json, int parent_id,
 		if (NULL == region_json && NULL == sub_groups) {
 			log_info(logger, MODULE_JSON2IRIS, 
                      "[%s:%d] A group of compile rule %d has neither regions, "
-                     "sub groups, nor refered another exisited group", 
+                     "sub groups, nor refered another existed group", 
                      __FUNCTION__, __LINE__, tracking_compile_id);
 		}
 	}

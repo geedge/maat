@@ -165,6 +165,69 @@ void generate_group2compile_sample(const char *table_name, int sample_count)
     fclose(fp);
 }
 
+void *perf_regex_scan_thread(void *arg)
+{
+    struct thread_param *param = (struct thread_param *)arg;
+    struct maat *maat_inst = param->maat_inst;
+    const char *table_name = param->table_name;
+    struct timespec start, end;
+    const char *scan_data = "Maat was the goddness of harmony, justice, and truth in ancient Egyptian."
+                            "Request from User-Agent: Chrome, will go to yyy.abc.net";
+    long long results[ARRAY_SIZE] = {0};
+    int hit_times = 0;
+    size_t n_hit_result = 0;
+    struct maat_state *state = maat_state_new(maat_inst, param->thread_id);
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < param->test_count; i++) {
+        int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
+                                   results, ARRAY_SIZE, &n_hit_result, state);
+        if (ret == MAAT_SCAN_HIT) {
+            hit_times++;
+        }
+        maat_state_reset(state);
+    }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
+                            (end.tv_nsec - start.tv_nsec) / 1000000;
+    int *is_all_hit = ALLOC(int, 1);
+    *is_all_hit = (hit_times == param->test_count ? 1 : 0);
+    log_info(param->logger, MODULE_BENCHMARK_GTEST, 
+             "thread_id:%d rule_count:%d regex_scan time_elapse:%lldms hit_times:%d", 
+             param->thread_id, param->rule_count, param->time_elapse_ms, hit_times);
+
+    return is_all_hit;
+}
+
+void *perf_regex_update_thread(void *arg)
+{
+    struct thread_param *param = (struct thread_param *)arg;
+    const char *table_name = param->table_name;
+    const int CMD_EXPR_NUM = 10;
+    char keyword_buf[128];
+
+    for (int i = 0; i < CMD_EXPR_NUM; i++) {
+        random_keyword_generate(keyword_buf, sizeof(keyword_buf));
+        FILE *fp = fopen(table_name, "a+");
+        if (NULL == fp) {
+            continue;
+        }
+
+        fprintf(fp, "%d\t%d\t%s\t1\t0\t0\t1\n", 2000001+i, 2000001+i, keyword_buf);
+        fclose(fp);
+
+        sleep(1);
+    }
+
+    int *is_all_hit = ALLOC(int, 1);
+    *is_all_hit = 1;
+    
+    return is_all_hit;
+}
+
 void *perf_literal_scan_thread(void *arg)
 {
     struct thread_param *param = (struct thread_param *)arg;
@@ -463,12 +526,861 @@ void *perf_flag_update_thread(void *arg)
     return is_all_hit;
 }
 
+class Regex100BenchmarkGTest : public ::testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        logger = log_handle_create("./benchmark_hs_gtest.log", 0);
+
+        FILE *fp = fopen("full_config_index.0000001", "w+");
+        if (NULL == fp) {
+            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            return;
+        }
+        fprintf(fp, "REGEX_100\t100\t./regex_rules/REGEX_100\n");
+        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
+        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fclose(fp);
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_iris(opts, "./", "./");
+        maat_options_set_rule_effect_interval_ms(opts, 1000);
+        maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
+        _shared_maat_inst = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_inst);
+        log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_inst;
+};
+
+struct maat *Regex100BenchmarkGTest::_shared_maat_inst;
+struct log_handle *Regex100BenchmarkGTest::logger;
+
+TEST_F(Regex100BenchmarkGTest, LiteralScan) {
+    const char *table_name = "REGEX_100";
+    struct maat *maat_inst = Regex100BenchmarkGTest::_shared_maat_inst;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    pthread_t threads[PERF_THREAD_NUM + 1];
+    struct thread_param thread_params[PERF_THREAD_NUM + 1];
+    int i = 0;
+    int *is_all_hit = NULL;
+
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        thread_params[i].maat_inst = maat_inst;
+        thread_params[i].thread_id = i;
+        thread_params[i].table_name = table_name;
+        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].rule_count = 100;
+        thread_params[i].time_elapse_ms = 0;
+        thread_params[i].logger = logger;
+
+        if (i < PERF_THREAD_NUM) {
+            pthread_create(&threads[i], NULL, perf_regex_scan_thread, thread_params+i);
+        } else {
+            thread_params[i].test_count = 0;
+            pthread_create(&threads[i], NULL, perf_regex_update_thread, thread_params+i);
+        }
+    }
+
+    long long time_elapse_ms = 0;
+    long long scan_count = 0;
+    long long scan_per_second = 0;
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        pthread_join(threads[i], (void **)&is_all_hit);
+        time_elapse_ms += thread_params[i].time_elapse_ms;
+		scan_count += thread_params[i].test_count;
+
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit = 0;
+		free(is_all_hit);
+    }
+    scan_per_second = scan_count * 1000 / time_elapse_ms;
+   
+    log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
+             "Regex100Scan match rate on %d-threads speed %lld lookups/s/thread",
+             PERF_THREAD_NUM, scan_per_second);
+}
+
+class Regex200BenchmarkGTest : public ::testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        logger = log_handle_create("./benchmark_hs_gtest.log", 0);
+
+        FILE *fp = fopen("full_config_index.0000001", "w+");
+        if (NULL == fp) {
+            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            return;
+        }
+        fprintf(fp, "REGEX_200\t200\t./regex_rules/REGEX_200\n");
+        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
+        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fclose(fp);
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_iris(opts, "./", "./");
+        maat_options_set_rule_effect_interval_ms(opts, 1000);
+        maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
+        _shared_maat_inst = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_inst);
+        log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_inst;
+};
+
+struct maat *Regex200BenchmarkGTest::_shared_maat_inst;
+struct log_handle *Regex200BenchmarkGTest::logger;
+
+TEST_F(Regex200BenchmarkGTest, LiteralScan) {
+    const char *table_name = "REGEX_200";
+    struct maat *maat_inst = Regex200BenchmarkGTest::_shared_maat_inst;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    pthread_t threads[PERF_THREAD_NUM + 1];
+    struct thread_param thread_params[PERF_THREAD_NUM + 1];
+    int i = 0;
+    int *is_all_hit = NULL;
+
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        thread_params[i].maat_inst = maat_inst;
+        thread_params[i].thread_id = i;
+        thread_params[i].table_name = table_name;
+        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].rule_count = 200;
+        thread_params[i].time_elapse_ms = 0;
+        thread_params[i].logger = logger;
+
+        if (i < PERF_THREAD_NUM) {
+            pthread_create(&threads[i], NULL, perf_regex_scan_thread, thread_params+i);
+        } else {
+            thread_params[i].test_count = 0;
+            pthread_create(&threads[i], NULL, perf_regex_update_thread, thread_params+i);
+        }
+    }
+
+    long long time_elapse_ms = 0;
+    long long scan_count = 0;
+    long long scan_per_second = 0;
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        pthread_join(threads[i], (void **)&is_all_hit);
+        time_elapse_ms += thread_params[i].time_elapse_ms;
+		scan_count += thread_params[i].test_count;
+
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit = 0;
+		free(is_all_hit);
+    }
+    scan_per_second = scan_count * 1000 / time_elapse_ms;
+   
+    log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
+             "Regex200Scan match rate on %d-threads speed %lld lookups/s/thread",
+             PERF_THREAD_NUM, scan_per_second);
+}
+
+class Regex300BenchmarkGTest : public ::testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        logger = log_handle_create("./benchmark_hs_gtest.log", 0);
+
+        FILE *fp = fopen("full_config_index.0000001", "w+");
+        if (NULL == fp) {
+            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            return;
+        }
+        fprintf(fp, "REGEX_300\t300\t./regex_rules/REGEX_300\n");
+        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
+        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fclose(fp);
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_iris(opts, "./", "./");
+        maat_options_set_rule_effect_interval_ms(opts, 1000);
+        maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
+        _shared_maat_inst = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_inst);
+        log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_inst;
+};
+
+struct maat *Regex300BenchmarkGTest::_shared_maat_inst;
+struct log_handle *Regex300BenchmarkGTest::logger;
+
+TEST_F(Regex300BenchmarkGTest, LiteralScan) {
+    const char *table_name = "REGEX_300";
+    struct maat *maat_inst = Regex300BenchmarkGTest::_shared_maat_inst;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    pthread_t threads[PERF_THREAD_NUM + 1];
+    struct thread_param thread_params[PERF_THREAD_NUM + 1];
+    int i = 0;
+    int *is_all_hit = NULL;
+
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        thread_params[i].maat_inst = maat_inst;
+        thread_params[i].thread_id = i;
+        thread_params[i].table_name = table_name;
+        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].rule_count = 300;
+        thread_params[i].time_elapse_ms = 0;
+        thread_params[i].logger = logger;
+
+        if (i < PERF_THREAD_NUM) {
+            pthread_create(&threads[i], NULL, perf_regex_scan_thread, thread_params+i);
+        } else {
+            thread_params[i].test_count = 0;
+            pthread_create(&threads[i], NULL, perf_regex_update_thread, thread_params+i);
+        }
+    }
+
+    long long time_elapse_ms = 0;
+    long long scan_count = 0;
+    long long scan_per_second = 0;
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        pthread_join(threads[i], (void **)&is_all_hit);
+        time_elapse_ms += thread_params[i].time_elapse_ms;
+		scan_count += thread_params[i].test_count;
+
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit = 0;
+		free(is_all_hit);
+    }
+    scan_per_second = scan_count * 1000 / time_elapse_ms;
+   
+    log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
+             "Regex300Scan match rate on %d-threads speed %lld lookups/s/thread",
+             PERF_THREAD_NUM, scan_per_second);
+}
+
+class Regex500BenchmarkGTest : public ::testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        logger = log_handle_create("./benchmark_hs_gtest.log", 0);
+
+        FILE *fp = fopen("full_config_index.0000001", "w+");
+        if (NULL == fp) {
+            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            return;
+        }
+        fprintf(fp, "REGEX_500\t500\t./regex_rules/REGEX_500\n");
+        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
+        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fclose(fp);
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_iris(opts, "./", "./");
+        maat_options_set_rule_effect_interval_ms(opts, 1000);
+        maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
+        _shared_maat_inst = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_inst);
+        log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_inst;
+};
+
+struct maat *Regex500BenchmarkGTest::_shared_maat_inst;
+struct log_handle *Regex500BenchmarkGTest::logger;
+
+TEST_F(Regex500BenchmarkGTest, LiteralScan) {
+    const char *table_name = "REGEX_500";
+    struct maat *maat_inst = Regex500BenchmarkGTest::_shared_maat_inst;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    pthread_t threads[PERF_THREAD_NUM + 1];
+    struct thread_param thread_params[PERF_THREAD_NUM + 1];
+    int i = 0;
+    int *is_all_hit = NULL;
+
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        thread_params[i].maat_inst = maat_inst;
+        thread_params[i].thread_id = i;
+        thread_params[i].table_name = table_name;
+        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].rule_count = 500;
+        thread_params[i].time_elapse_ms = 0;
+        thread_params[i].logger = logger;
+
+        if (i < PERF_THREAD_NUM) {
+            pthread_create(&threads[i], NULL, perf_regex_scan_thread, thread_params+i);
+        } else {
+            thread_params[i].test_count = 0;
+            pthread_create(&threads[i], NULL, perf_regex_update_thread, thread_params+i);
+        }
+    }
+
+    long long time_elapse_ms = 0;
+    long long scan_count = 0;
+    long long scan_per_second = 0;
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        pthread_join(threads[i], (void **)&is_all_hit);
+        time_elapse_ms += thread_params[i].time_elapse_ms;
+		scan_count += thread_params[i].test_count;
+
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit = 0;
+		free(is_all_hit);
+    }
+    scan_per_second = scan_count * 1000 / time_elapse_ms;
+   
+    log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
+             "Regex500Scan match rate on %d-threads speed %lld lookups/s/thread",
+             PERF_THREAD_NUM, scan_per_second);
+}
+
+class Regex1KBenchmarkGTest : public ::testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        logger = log_handle_create("./benchmark_hs_gtest.log", 0);
+
+        FILE *fp = fopen("full_config_index.0000001", "w+");
+        if (NULL == fp) {
+            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            return;
+        }
+        fprintf(fp, "REGEX_1K\t1000\t./regex_rules/REGEX_1K\n");
+        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
+        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fclose(fp);
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_iris(opts, "./", "./");
+        maat_options_set_rule_effect_interval_ms(opts, 1000);
+        maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
+        _shared_maat_inst = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_inst);
+        log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_inst;
+};
+
+struct maat *Regex1KBenchmarkGTest::_shared_maat_inst;
+struct log_handle *Regex1KBenchmarkGTest::logger;
+
+TEST_F(Regex1KBenchmarkGTest, LiteralScan) {
+    const char *table_name = "REGEX_1K";
+    struct maat *maat_inst = Regex1KBenchmarkGTest::_shared_maat_inst;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    pthread_t threads[PERF_THREAD_NUM + 1];
+    struct thread_param thread_params[PERF_THREAD_NUM + 1];
+    int i = 0;
+    int *is_all_hit = NULL;
+
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        thread_params[i].maat_inst = maat_inst;
+        thread_params[i].thread_id = i;
+        thread_params[i].table_name = table_name;
+        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].rule_count = 1000;
+        thread_params[i].time_elapse_ms = 0;
+        thread_params[i].logger = logger;
+
+        if (i < PERF_THREAD_NUM) {
+            pthread_create(&threads[i], NULL, perf_regex_scan_thread, thread_params+i);
+        } else {
+            thread_params[i].test_count = 0;
+            pthread_create(&threads[i], NULL, perf_regex_update_thread, thread_params+i);
+        }
+    }
+
+    long long time_elapse_ms = 0;
+    long long scan_count = 0;
+    long long scan_per_second = 0;
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        pthread_join(threads[i], (void **)&is_all_hit);
+        time_elapse_ms += thread_params[i].time_elapse_ms;
+		scan_count += thread_params[i].test_count;
+
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit = 0;
+		free(is_all_hit);
+    }
+    scan_per_second = scan_count * 1000 / time_elapse_ms;
+   
+    log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
+             "Regex1KScan match rate on %d-threads speed %lld lookups/s/thread",
+             PERF_THREAD_NUM, scan_per_second);
+}
+
+class Regex2KBenchmarkGTest : public ::testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        logger = log_handle_create("./benchmark_hs_gtest.log", 0);
+
+        FILE *fp = fopen("full_config_index.0000001", "w+");
+        if (NULL == fp) {
+            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            return;
+        }
+        fprintf(fp, "REGEX_2K\t2000\t./regex_rules/REGEX_2K\n");
+        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
+        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fclose(fp);
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_iris(opts, "./", "./");
+        maat_options_set_rule_effect_interval_ms(opts, 1000);
+        maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
+        _shared_maat_inst = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_inst);
+        log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_inst;
+};
+
+struct maat *Regex2KBenchmarkGTest::_shared_maat_inst;
+struct log_handle *Regex2KBenchmarkGTest::logger;
+
+TEST_F(Regex2KBenchmarkGTest, LiteralScan) {
+    const char *table_name = "REGEX_2K";
+    struct maat *maat_inst = Regex2KBenchmarkGTest::_shared_maat_inst;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    pthread_t threads[PERF_THREAD_NUM + 1];
+    struct thread_param thread_params[PERF_THREAD_NUM + 1];
+    int i = 0;
+    int *is_all_hit = NULL;
+
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        thread_params[i].maat_inst = maat_inst;
+        thread_params[i].thread_id = i;
+        thread_params[i].table_name = table_name;
+        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].rule_count = 2000;
+        thread_params[i].time_elapse_ms = 0;
+        thread_params[i].logger = logger;
+
+        if (i < PERF_THREAD_NUM) {
+            pthread_create(&threads[i], NULL, perf_regex_scan_thread, thread_params+i);
+        } else {
+            thread_params[i].test_count = 0;
+            pthread_create(&threads[i], NULL, perf_regex_update_thread, thread_params+i);
+        }
+    }
+
+    long long time_elapse_ms = 0;
+    long long scan_count = 0;
+    long long scan_per_second = 0;
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        pthread_join(threads[i], (void **)&is_all_hit);
+        time_elapse_ms += thread_params[i].time_elapse_ms;
+		scan_count += thread_params[i].test_count;
+
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit = 0;
+		free(is_all_hit);
+    }
+    scan_per_second = scan_count * 1000 / time_elapse_ms;
+   
+    log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
+             "Regex2KScan match rate on %d-threads speed %lld lookups/s/thread",
+             PERF_THREAD_NUM, scan_per_second);
+}
+
+class Regex3KBenchmarkGTest : public ::testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        logger = log_handle_create("./benchmark_hs_gtest.log", 0);
+
+        FILE *fp = fopen("full_config_index.0000001", "w+");
+        if (NULL == fp) {
+            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            return;
+        }
+        fprintf(fp, "REGEX_3K\t3000\t./regex_rules/REGEX_3K\n");
+        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
+        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fclose(fp);
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_iris(opts, "./", "./");
+        maat_options_set_rule_effect_interval_ms(opts, 1000);
+        maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
+        _shared_maat_inst = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_inst);
+        log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_inst;
+};
+
+struct maat *Regex3KBenchmarkGTest::_shared_maat_inst;
+struct log_handle *Regex3KBenchmarkGTest::logger;
+
+TEST_F(Regex3KBenchmarkGTest, LiteralScan) {
+    const char *table_name = "REGEX_3K";
+    struct maat *maat_inst = Regex3KBenchmarkGTest::_shared_maat_inst;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    pthread_t threads[PERF_THREAD_NUM + 1];
+    struct thread_param thread_params[PERF_THREAD_NUM + 1];
+    int i = 0;
+    int *is_all_hit = NULL;
+
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        thread_params[i].maat_inst = maat_inst;
+        thread_params[i].thread_id = i;
+        thread_params[i].table_name = table_name;
+        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].rule_count = 3000;
+        thread_params[i].time_elapse_ms = 0;
+        thread_params[i].logger = logger;
+
+        if (i < PERF_THREAD_NUM) {
+            pthread_create(&threads[i], NULL, perf_regex_scan_thread, thread_params+i);
+        } else {
+            thread_params[i].test_count = 0;
+            pthread_create(&threads[i], NULL, perf_regex_update_thread, thread_params+i);
+        }
+    }
+
+    long long time_elapse_ms = 0;
+    long long scan_count = 0;
+    long long scan_per_second = 0;
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        pthread_join(threads[i], (void **)&is_all_hit);
+        time_elapse_ms += thread_params[i].time_elapse_ms;
+		scan_count += thread_params[i].test_count;
+
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit = 0;
+		free(is_all_hit);
+    }
+    scan_per_second = scan_count * 1000 / time_elapse_ms;
+   
+    log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
+             "Regex3KScan match rate on %d-threads speed %lld lookups/s/thread",
+             PERF_THREAD_NUM, scan_per_second);
+}
+
+class Regex5KBenchmarkGTest : public ::testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        logger = log_handle_create("./benchmark_hs_gtest.log", 0);
+
+        FILE *fp = fopen("full_config_index.0000001", "w+");
+        if (NULL == fp) {
+            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            return;
+        }
+        fprintf(fp, "REGEX_5K\t5000\t./regex_rules/REGEX_5K\n");
+        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
+        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fclose(fp);
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_iris(opts, "./", "./");
+        maat_options_set_rule_effect_interval_ms(opts, 1000);
+        maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
+        _shared_maat_inst = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_inst);
+        log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_inst;
+};
+
+struct maat *Regex5KBenchmarkGTest::_shared_maat_inst;
+struct log_handle *Regex5KBenchmarkGTest::logger;
+
+TEST_F(Regex5KBenchmarkGTest, LiteralScan) {
+    const char *table_name = "REGEX_5K";
+    struct maat *maat_inst = Regex5KBenchmarkGTest::_shared_maat_inst;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    pthread_t threads[PERF_THREAD_NUM + 1];
+    struct thread_param thread_params[PERF_THREAD_NUM + 1];
+    int i = 0;
+    int *is_all_hit = NULL;
+
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        thread_params[i].maat_inst = maat_inst;
+        thread_params[i].thread_id = i;
+        thread_params[i].table_name = table_name;
+        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].rule_count = 5000;
+        thread_params[i].time_elapse_ms = 0;
+        thread_params[i].logger = logger;
+
+        if (i < PERF_THREAD_NUM) {
+            pthread_create(&threads[i], NULL, perf_regex_scan_thread, thread_params+i);
+        } else {
+            thread_params[i].test_count = 0;
+            pthread_create(&threads[i], NULL, perf_regex_update_thread, thread_params+i);
+        }
+    }
+
+    long long time_elapse_ms = 0;
+    long long scan_count = 0;
+    long long scan_per_second = 0;
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        pthread_join(threads[i], (void **)&is_all_hit);
+        time_elapse_ms += thread_params[i].time_elapse_ms;
+		scan_count += thread_params[i].test_count;
+
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit = 0;
+		free(is_all_hit);
+    }
+    scan_per_second = scan_count * 1000 / time_elapse_ms;
+   
+    log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
+             "Regex5KScan match rate on %d-threads speed %lld lookups/s/thread",
+             PERF_THREAD_NUM, scan_per_second);
+}
+
+class Regex10KBenchmarkGTest : public ::testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        logger = log_handle_create("./benchmark_hs_gtest.log", 0);
+
+        FILE *fp = fopen("full_config_index.0000001", "w+");
+        if (NULL == fp) {
+            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            return;
+        }
+        fprintf(fp, "REGEX_10K\t10000\t./regex_rules/REGEX_10K\n");
+        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
+        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fclose(fp);
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_iris(opts, "./", "./");
+        maat_options_set_rule_effect_interval_ms(opts, 1000);
+        maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
+        _shared_maat_inst = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_inst);
+        log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_inst;
+};
+
+struct maat *Regex10KBenchmarkGTest::_shared_maat_inst;
+struct log_handle *Regex10KBenchmarkGTest::logger;
+
+TEST_F(Regex10KBenchmarkGTest, LiteralScan) {
+    const char *table_name = "REGEX_10K";
+    struct maat *maat_inst = Regex10KBenchmarkGTest::_shared_maat_inst;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    pthread_t threads[PERF_THREAD_NUM + 1];
+    struct thread_param thread_params[PERF_THREAD_NUM + 1];
+    int i = 0;
+    int *is_all_hit = NULL;
+
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        thread_params[i].maat_inst = maat_inst;
+        thread_params[i].thread_id = i;
+        thread_params[i].table_name = table_name;
+        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].rule_count = 10000;
+        thread_params[i].time_elapse_ms = 0;
+        thread_params[i].logger = logger;
+
+        if (i < PERF_THREAD_NUM) {
+            pthread_create(&threads[i], NULL, perf_regex_scan_thread, thread_params+i);
+        } else {
+            thread_params[i].test_count = 0;
+            pthread_create(&threads[i], NULL, perf_regex_update_thread, thread_params+i);
+        }
+    }
+
+    long long time_elapse_ms = 0;
+    long long scan_count = 0;
+    long long scan_per_second = 0;
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        pthread_join(threads[i], (void **)&is_all_hit);
+        time_elapse_ms += thread_params[i].time_elapse_ms;
+		scan_count += thread_params[i].test_count;
+
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit = 0;
+		free(is_all_hit);
+    }
+    scan_per_second = scan_count * 1000 / time_elapse_ms;
+   
+    log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
+             "Regex10KScan match rate on %d-threads speed %lld lookups/s/thread",
+             PERF_THREAD_NUM, scan_per_second);
+}
+
+class Regex15KBenchmarkGTest : public ::testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        logger = log_handle_create("./benchmark_hs_gtest.log", 0);
+
+        FILE *fp = fopen("full_config_index.0000001", "w+");
+        if (NULL == fp) {
+            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            return;
+        }
+        fprintf(fp, "REGEX_15K\t15000\t./regex_rules/REGEX_15K\n");
+        fprintf(fp, "COMPILE_PERF\t10\t./COMPILE_PERF\n");
+        fprintf(fp, "GROUP2COMPILE_PERF\t10\t./GROUP2COMPILE_PERF\n");
+        fclose(fp);
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_iris(opts, "./", "./");
+        maat_options_set_rule_effect_interval_ms(opts, 1000);
+        maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
+        _shared_maat_inst = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_inst);
+        log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_inst;
+};
+
+struct maat *Regex15KBenchmarkGTest::_shared_maat_inst;
+struct log_handle *Regex15KBenchmarkGTest::logger;
+
+TEST_F(Regex15KBenchmarkGTest, LiteralScan) {
+    const char *table_name = "REGEX_15K";
+    struct maat *maat_inst = Regex15KBenchmarkGTest::_shared_maat_inst;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    pthread_t threads[PERF_THREAD_NUM + 1];
+    struct thread_param thread_params[PERF_THREAD_NUM + 1];
+    int i = 0;
+    int *is_all_hit = NULL;
+
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        thread_params[i].maat_inst = maat_inst;
+        thread_params[i].thread_id = i;
+        thread_params[i].table_name = table_name;
+        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].rule_count = 15000;
+        thread_params[i].time_elapse_ms = 0;
+        thread_params[i].logger = logger;
+
+        if (i < PERF_THREAD_NUM) {
+            pthread_create(&threads[i], NULL, perf_regex_scan_thread, thread_params+i);
+        } else {
+            thread_params[i].test_count = 0;
+            pthread_create(&threads[i], NULL, perf_regex_update_thread, thread_params+i);
+        }
+    }
+
+    long long time_elapse_ms = 0;
+    long long scan_count = 0;
+    long long scan_per_second = 0;
+    for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
+        pthread_join(threads[i], (void **)&is_all_hit);
+        time_elapse_ms += thread_params[i].time_elapse_ms;
+		scan_count += thread_params[i].test_count;
+
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit = 0;
+		free(is_all_hit);
+    }
+    scan_per_second = scan_count * 1000 / time_elapse_ms;
+   
+    log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
+             "Regex15KScan match rate on %d-threads speed %lld lookups/s/thread",
+             PERF_THREAD_NUM, scan_per_second);
+}
+
 class Expr1KBenchmarkGTest : public ::testing::Test
 {
 protected:
     static void SetUpTestCase() {
         logger = log_handle_create("./benchmark_hs_gtest.log", 0);
-        ///printf("Start to generate test sample......\n");
         generate_expr_sample("EXPR_LITERAL_1K", 1000);
 
         FILE *fp = fopen("full_config_index.0000001", "w+");

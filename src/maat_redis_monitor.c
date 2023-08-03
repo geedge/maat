@@ -1138,7 +1138,7 @@ static void exec_serial_rule(redisContext *c,	const char *transaction_list,
 				(*cnt)++;
 				append_cmd_cnt++;
 				
-				//NX: Don't update already exisiting elements. Always add new elements.
+				//NX: Don't update already existing elements. Always add new elements.
 				redisAppendCommand(c, "RPUSH %s DEL,%s,%lld",
 						              transaction_list,
 						              s_rule[i].table_name,

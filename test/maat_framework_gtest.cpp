@@ -7466,7 +7466,7 @@ TEST_F(MaatCmdTest, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
     //DON'T DO THIS!!!
 	//Roll back version, trigger full update.	
 	//This operation generates FATAL logs in test_maat_redis.log.yyyy-mm-dd.
-	//For example: Add group 22 vt_id 0 to clause 2 of compile 979 failed, group is already exisited
+	//For example: Add group 22 vt_id 0 to clause 2 of compile 979 failed, group is already existed
 	maat_cmd_incrby(maat_inst, "MAAT_VERSION", -100);
 
 	//Wating for scanner garbage collect expiration.

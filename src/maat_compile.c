@@ -1293,7 +1293,7 @@ static int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
         if (NULL == compile) {
             log_error(logger, MODULE_COMPILE,
                       "[%s:%d] Remove group_id:%lld from compile_id:%lld failed, compile"
-                      " is not exisited.", __FUNCTION__, __LINE__, g2c_item->group_id,
+                      " is not existed.", __FUNCTION__, __LINE__, g2c_item->group_id,
                       compile_id);
             return -1;
         } else {
@@ -1349,7 +1349,7 @@ static int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
         } else {
             log_error(logger, MODULE_COMPILE,
                       "[%s:%d] Remove group_id:%lld from compile_id:%lld failed, "
-                      "compile is not exisited.", __FUNCTION__, __LINE__, 
+                      "compile is not existed.", __FUNCTION__, __LINE__, 
                       g2c_item->group_id, compile_id);
             return -1;
         }

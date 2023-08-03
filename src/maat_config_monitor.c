@@ -55,7 +55,7 @@ static int cm_read_cfg_index_file(const char *path, struct cm_table_info_t *idx,
 
 		ret = stat(idx[i].cfg_path, &file_info);
 		if (ret != 0) {
-			log_error(logger, MODULE_CONFIG_MONITOR, "%s of %s not exisit",
+			log_error(logger, MODULE_CONFIG_MONITOR, "%s of %s not exist",
 					  idx[i].cfg_path, path);
 			fclose(fp);
 			return -1;

@@ -40,6 +40,7 @@ static const char *hs_module_name_str(const char *name)
 #define MODULE_ADAPTER_HS	 hs_module_name_str("maat.adapter_hs")
 
 struct adpt_hs_compile_data {
+    enum expr_pattern_type pat_type;
     unsigned int *ids;
     unsigned int *flags;
     char **patterns;
@@ -198,7 +199,7 @@ static int adpt_hs_build_database(struct adapter_hs_runtime *hs_rt,
     if (regex_cd != NULL) {
         err = hs_compile_multi((const char *const *)regex_cd->patterns,
                                 regex_cd->flags, regex_cd->ids, regex_cd->n_patterns,
-                                HS_MODE_STREAM | HS_MODE_SOM_HORIZON_SMALL,
+                                HS_MODE_STREAM,
                                 NULL, &hs_rt->regex_db, &compile_err);
         if (err != HS_SUCCESS) {
             if (compile_err) {
@@ -213,9 +214,11 @@ static int adpt_hs_build_database(struct adapter_hs_runtime *hs_rt,
     return 0;
 }
 
-static struct adpt_hs_compile_data *adpt_hs_compile_data_new(size_t n_patterns)
+static struct adpt_hs_compile_data *
+adpt_hs_compile_data_new(enum expr_pattern_type pat_type, size_t n_patterns)
 {
     struct adpt_hs_compile_data *hs_cd = ALLOC(struct adpt_hs_compile_data, 1);
+    hs_cd->pat_type = pat_type;
     hs_cd->patterns = ALLOC(char *, n_patterns);
     hs_cd->pattern_lens = ALLOC(size_t, n_patterns);
     hs_cd->n_patterns = n_patterns;
@@ -261,7 +264,10 @@ static void populate_compile_data(struct adpt_hs_compile_data *compile_data,
     compile_data->ids[index] = pattern_id;
 
     /* set flags */
-    compile_data->flags[index] |= HS_FLAG_SOM_LEFTMOST;
+    if (compile_data->pat_type == EXPR_PATTERN_TYPE_STR) {
+        compile_data->flags[index] |= HS_FLAG_SOM_LEFTMOST;
+    }
+    
     if (case_sensitive == EXPR_CASE_INSENSITIVE) {
         compile_data->flags[index] |= HS_FLAG_CASELESS;
     }
@@ -372,11 +378,11 @@ void *adapter_hs_new(struct expr_rule *rules, size_t n_rule,
     struct adpt_hs_compile_data *regex_cd = NULL;
 
     if (n_literal_pattern > 0) {
-        literal_cd = adpt_hs_compile_data_new(n_literal_pattern);
+        literal_cd = adpt_hs_compile_data_new(EXPR_PATTERN_TYPE_STR, n_literal_pattern);
     }
    
     if (n_regex_pattern > 0) {
-        regex_cd = adpt_hs_compile_data_new(n_regex_pattern);
+        regex_cd = adpt_hs_compile_data_new(EXPR_PATTERN_TYPE_REG, n_regex_pattern);
     }
     
     size_t pattern_cnt = n_literal_pattern + n_regex_pattern;

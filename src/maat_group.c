@@ -582,7 +582,7 @@ static int group_topology_add_group_to_group(struct maat_group_topology *group_t
     //No duplicated edges between two groups.
     if (edge_id > 0) {
 		log_error(group_topo->logger, MODULE_GROUP,
-                  "[%s:%d] Add group %d to group %d failed, relation already exisited.",
+                  "[%s:%d] Add group %d to group %d failed, relation already existed.",
 				  __FUNCTION__, __LINE__, group->group_id, super_group->group_id);
 		ret = -1;
 	} else {
@@ -608,7 +608,7 @@ static int group_topology_del_group_from_group(struct maat_group_topology *group
 	struct maat_group *group = group_topology_find_group(group_topo, group_id);
 	if (NULL == group) {
 		log_error(group_topo->logger, MODULE_GROUP,
-				  "[%s:%d] Del group %d from group %d failed, group %d not exisited.",
+				  "[%s:%d] Del group %d from group %d failed, group %d not existed.",
 				  __FUNCTION__, __LINE__, group_id, super_group_id, group_id);
 		return -1;	
 	}
@@ -616,7 +616,7 @@ static int group_topology_del_group_from_group(struct maat_group_topology *group
     struct maat_group *super_group = group_topology_find_group(group_topo, super_group_id);
 	if (NULL == super_group) {
 		log_error(group_topo->logger, MODULE_GROUP,
-				  "[%s:%d] Del group %d from group %d failed, superior group %d not exisited.",
+				  "[%s:%d] Del group %d from group %d failed, superior group %d not existed.",
 				  __FUNCTION__, __LINE__, group_id, super_group_id, super_group_id);
 		return -1;	
 	}
