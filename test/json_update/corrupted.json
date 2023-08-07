@@ -1,5 +1,5 @@
 {
-    "compile_table": "COMPILE",
+    "compile_table": "COMPILE_DEFAULT",
     "group_table": "GROUP",
     "rules": [
         {

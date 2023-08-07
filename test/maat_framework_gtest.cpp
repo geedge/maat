@@ -287,12 +287,12 @@ int test_add_expr_command(struct maat *maat_inst, const char *expr_table,
     memset(huge_serv_def, 's', sizeof(huge_serv_def) - 1);
     huge_serv_def[sizeof(huge_serv_def) - 1] = '\0';
 
-    int ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_ADD, compile_id, 
+    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD, compile_id, 
                                      huge_serv_def, 1, timeout);
     EXPECT_EQ(ret, 1);
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD, group_id, 
+    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE_DEFAULT", MAAT_OP_ADD, group_id, 
                                        compile_id, 0, "null", 1, timeout);
     EXPECT_EQ(ret, 1);
 
@@ -306,7 +306,7 @@ int test_add_expr_command(struct maat *maat_inst, const char *expr_table,
 
 int del_command(struct maat *maat_inst, int compile_id)
 {
-    return compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_DEL, compile_id, "null", 1, 0);
+    return compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_DEL, compile_id, "null", 1, 0);
 }
 
 static void random_keyword_generate(char *keyword_buf, size_t sz)
@@ -461,6 +461,11 @@ void scan_with_old_or_new_cfg(struct maat *maat_inst, int is_old)
     if (is_old) {
         EXPECT_EQ(ret, MAAT_SCAN_HIT);
         EXPECT_TRUE(results[0] == 1);
+
+        int table_id = -1;
+        int table_cnt = maat_state_get_compile_table_ids(state, results, 1, &table_id);
+        EXPECT_EQ(table_cnt, 1);
+        EXPECT_EQ(table_id, 0);
     } else {
         EXPECT_EQ(ret, MAAT_SCAN_OK);
     }
@@ -1360,8 +1365,8 @@ TEST_F(MaatHsStringScan, dynamic_config) {
     EXPECT_EQ(n_hit_result, 0);
     maat_state_reset(state);
 
-    const char *compile_table_name = "COMPILE";
-    const char *g2c_table_name = "GROUP2COMPILE";
+    const char *compile_table_name = "COMPILE_DEFAULT";
+    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
 
     /* compile table add line */
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
@@ -2030,8 +2035,8 @@ TEST_F(MaatRsStringScan, dynamic_config) {
     EXPECT_EQ(n_hit_result, 0);
     maat_state_reset(state);
 
-    const char *compile_table_name = "COMPILE";
-    const char *g2c_table_name = "GROUP2COMPILE";
+    const char *compile_table_name = "COMPILE_DEFAULT";
+    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
 
     /* compile table add line */
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
@@ -2593,8 +2598,8 @@ TEST_F(MaatIPScan, dynamic_config) {
     EXPECT_EQ(n_hit_result, 0);
     maat_state_reset(state);
 
-    const char *compile_table_name = "COMPILE";
-    const char *g2c_table_name = "GROUP2COMPILE";
+    const char *compile_table_name = "COMPILE_DEFAULT";
+    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
 
      /* compile table add line */
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
@@ -4143,7 +4148,7 @@ void compile_ex_param_dup(int table_id, void **to, void **from, long argl, void 
 TEST_F(CompileTable, CompileRuleUpdate) {
     struct maat *maat_inst = CompileTable::_shared_maat_inst;
 
-    const char *compile_table_name = "COMPILE";
+    const char *compile_table_name = "COMPILE_DEFAULT";
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
     int ret = compile_table_set_line(maat_inst, compile_table_name,
                                      MAAT_OP_ADD, compile_id, "null", 1, 0);
@@ -4175,6 +4180,12 @@ TEST_F(CompileTable, Conjunction1) {
     EXPECT_EQ(results[0], 197);
     EXPECT_EQ(results[1], 141);
 
+    int table_ids[2] = {-1, -1};
+    ret = maat_state_get_compile_table_ids(state, results, 2, table_ids);
+    EXPECT_EQ(ret, 2);
+    EXPECT_EQ(table_ids[0], 0);
+    EXPECT_EQ(table_ids[1], 1);
+
     struct maat_hit_path hit_path[HIT_PATH_SIZE] = {0};
     int n_read = maat_state_get_hit_paths(state, hit_path, HIT_PATH_SIZE);
     EXPECT_EQ(n_read, 2);
@@ -4203,6 +4214,12 @@ TEST_F(CompileTable, Conjunction2) {
     EXPECT_EQ(results[0], 197);
     EXPECT_EQ(results[1], 141);
 
+    int table_ids[2] = {-1, -1};
+    ret = maat_state_get_compile_table_ids(state, results, 2, table_ids);
+    EXPECT_EQ(ret, 2);
+    EXPECT_EQ(table_ids[0], 0);
+    EXPECT_EQ(table_ids[1], 1);
+
     struct maat_hit_path hit_path[HIT_PATH_SIZE] = {0};
     int n_read = maat_state_get_hit_paths(state, hit_path, HIT_PATH_SIZE);
     EXPECT_EQ(n_read, 2);
@@ -4214,6 +4231,40 @@ TEST_F(CompileTable, Conjunction2) {
     memset(hit_path, 0, sizeof(hit_path));
     n_read = maat_state_get_hit_paths(state, hit_path, HIT_PATH_SIZE);
     EXPECT_EQ(n_read, 4);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(CompileTable, GetHitCompileTableID) {
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    const char *compile_table_name = "COMPILE_FIREWALL_CONJUNCTION";
+    const char *scan_data = "This is a firewall engine.";
+    const char *table_name = "HTTP_URL";
+    struct maat *maat_inst = CompileTable::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    int compile_table_id = maat_get_table_id(maat_inst, compile_table_name);
+    ASSERT_GT(table_id, 0);
+
+    int ret = maat_state_set_scan_compile_table(state, compile_table_id);
+    EXPECT_EQ(ret, 0);
+
+    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 198);
+
+    int hit_compile_table_id = -1;
+    ret = maat_state_get_compile_table_ids(state, results, 1, &hit_compile_table_id);
+    EXPECT_EQ(ret, 1);
+    EXPECT_EQ(hit_compile_table_id, 4);
 
     maat_state_free(state);
     state = NULL;
@@ -4348,16 +4399,18 @@ TEST_F(Policy, CompileEXData) {
     int thread_id = 0;
     const char *url = "firewall should hit";
 	const char *table_name = "HTTP_URL";
-    const char *compile_table_name = "COMPILE_FIREWALL";
+    const char *plugin_table_name = "COMPILE_FIREWALL_PLUGIN";
+    const char *compile_table_name = "COMPILE_FIREWALL_CONJUNCTION";
 	const char *expect_name = "I have a name";
     struct maat *maat_inst = Policy::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int table_id = maat_get_table_id(maat_inst, table_name);
+    int plugin_table_id = maat_get_table_id(maat_inst, plugin_table_name);
     int compile_table_id = maat_get_table_id(maat_inst, compile_table_name);
 
     int ex_data_counter = 0;
-    int ret = maat_plugin_table_ex_schema_register(maat_inst, compile_table_name,
+    int ret = maat_plugin_table_ex_schema_register(maat_inst, plugin_table_name,
                                                     compile_ex_param_new,
                                                     compile_ex_param_free,
                                                     compile_ex_param_dup,
@@ -4374,7 +4427,7 @@ TEST_F(Policy, CompileEXData) {
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 198);
 
-    void *ex_data = maat_plugin_table_get_ex_data(maat_inst, compile_table_id, 
+    void *ex_data = maat_plugin_table_get_ex_data(maat_inst, plugin_table_id, 
                                                  (char *)&results[0], sizeof(long long));
     ASSERT_TRUE(ex_data!=NULL);
     struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
@@ -4916,8 +4969,8 @@ TEST_F(MaatCmdTest, SetIP) {
     size_t n_hit_result = 0;
     int thread_id = 0;
 	const char *ip_table_name = "IP_CONFIG";
-	const char *compile_table_name = "COMPILE";
-    const char *g2c_table_name = "GROUP2COMPILE";
+	const char *compile_table_name = "COMPILE_DEFAULT";
+    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
     struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -4970,6 +5023,7 @@ TEST_F(MaatCmdTest, SetExpr) {
 	
 	const char *keywords1 = "Hiredis";
 	const char *keywords2 = "C Client";
+    const char *compile_table_name = "COMPILE_DEFAULT";
 	char escape_buff1[256], escape_buff2[256];
 	char keywords[512];
 
@@ -4999,10 +5053,10 @@ TEST_F(MaatCmdTest, SetExpr) {
     EXPECT_TRUE(results[0] == compile_id || results[0] == (compile_id - 1));
     maat_state_reset(state);
 
-    ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_DEL, compile_id-1, 
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL, compile_id-1, 
                                  "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_DEL, compile_id, 
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL, compile_id, 
                                  "null", 1, 0);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -5027,9 +5081,9 @@ TEST_F(MaatCmdTest, SetExpr8) {
     const char *scan_data8 = "string1, string2, string3, string4, string5, string6, string7, string8";
 	const char *scan_data7 = "string1, string2, string3, string4, string5, string6, string7";
 	
-	const char *compile_table_name = "COMPILE";
+	const char *compile_table_name = "COMPILE_DEFAULT";
 	const char *table_name = "KEYWORDS_TABLE";
-	const char *g2c_table_name = "GROUP2COMPILE";
+	const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
 	
 	const char *keywords8 = "string1&string2&string3&string4&string5&string6&string7&string8";
 	const char *keywords7 = "string1&string2&string3&string4&string5&string6&string7";
@@ -5096,6 +5150,8 @@ TEST_F(MaatCmdTest, SameFilterRefByOneCompile) {
     const char *vtable_name = "HTTP_URL_FILTER";
     const char *scan_data = "http://filtermenot.com";
     const char *keywords = "menot.com";
+    const char *compile_table_name = "COMPILE_DEFAULT";
+    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
@@ -5106,17 +5162,17 @@ TEST_F(MaatCmdTest, SameFilterRefByOneCompile) {
     ASSERT_GT(table_id, 0);
 
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_ADD, compile_id, 
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile_id, 
                                      "null", 2, 0); // compile has two clause
     EXPECT_EQ(ret, 1);
 
     //clause1 & clause2 has same filter => {vtable_id, group_id}
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD, 
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
                                        group_id, compile_id, 0, vtable_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
-    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD,
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
                                        group_id, compile_id, 0, vtable_name, 2, 0);
     EXPECT_EQ(ret, 1);
 
@@ -5220,9 +5276,9 @@ TEST_F(MaatCmdTest, ReturnRuleIDWithDescendingOrder) {
 
 TEST_F(MaatCmdTest, SubGroup) {
     const char *table_name = "HTTP_URL";
-	const char *g2c_table_name = "GROUP2COMPILE";
+	const char *compile_table_name = "COMPILE_DEFAULT";
+	const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
 	const char *g2g_table_name = "GROUP2GROUP";
-	const char *compile_table_name = "COMPILE";
 	const char *scan_data1 = "www.v2ex.com/t/573028#程序员的核心竞争力是什么";
 	const char *keyword1 = "程序员&核心竞争力";
 	const char *scan_data2 = "https://ask.leju.com/bj/detail/12189672562229248/?bi=tg&type=sina-pc"
@@ -5376,8 +5432,8 @@ TEST_F(MaatCmdTest, SubGroup) {
 
 TEST_F(MaatCmdTest, RefGroup) {
     const char *table_name = "HTTP_URL";
-	const char* g2c_table_name = "GROUP2COMPILE";
-	const char* compile_table_name = "COMPILE";
+	const char* compile_table_name = "COMPILE_DEFAULT";
+	const char* g2c_table_name = "GROUP2COMPILE_DEFAULT";
 	const char* scan_data1 = "m.facebook.com/help/2297503110373101?helpref=hc_nav&refid=69";
 	const char* keyword1 = "something-should-not-hit";
 	const char* keyword2 = "facebook.com/help/2297503110373101";
@@ -5454,8 +5510,8 @@ TEST_F(MaatCmdTest, RefGroup) {
 }
 
 TEST_F(MaatCmdTest, VirtualTable) {
-    const char* g2c_table_name = "GROUP2COMPILE";
-	const char* compile_table_name = "COMPILE";
+	const char* compile_table_name = "COMPILE_DEFAULT";
+    const char* g2c_table_name = "GROUP2COMPILE_DEFAULT";
 	const char* table_name="HTTP_SIGNATURE";
     int thread_id = 0;
     struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
@@ -5836,11 +5892,12 @@ void plugin_ex_dup_cb(int table_id,	void **to, void **from, long argl, void *arg
 }
 
 TEST_F(MaatCmdTest, CompileEXData) {
-    const char *compile_table_name = "COMPILE_FIREWALL";
+    const char *plugin_table_name = "COMPILE_FIREWALL_PLUGIN";
+    const char *compile_table_name = "COMPILE_FIREWALL_DEFAULT";
     struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
     int *ex_data_counter = MaatCmdTest::_ex_data_counter;
-    int compile_table_id = maat_get_table_id(maat_inst, compile_table_name);
-    EXPECT_GT(compile_table_id, 0);
+    int plugin_table_id = maat_get_table_id(maat_inst, plugin_table_name);
+    EXPECT_GT(plugin_table_id, 0);
 
     long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
     int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
@@ -5853,7 +5910,7 @@ TEST_F(MaatCmdTest, CompileEXData) {
     sleep(WAIT_FOR_EFFECTIVE_S);
 
     *ex_data_counter = 0;
-    ret = maat_plugin_table_ex_schema_register(maat_inst, compile_table_name,
+    ret = maat_plugin_table_ex_schema_register(maat_inst, plugin_table_name,
                                                compile_ex_param_new,
                                                compile_ex_param_free,
                                                compile_ex_param_dup,
@@ -5861,13 +5918,13 @@ TEST_F(MaatCmdTest, CompileEXData) {
     ASSERT_TRUE(ret == 0);
     EXPECT_EQ(*ex_data_counter, 2);
 
-    void *ex_data = maat_plugin_table_get_ex_data(maat_inst, compile_table_id,
+    void *ex_data = maat_plugin_table_get_ex_data(maat_inst, plugin_table_id,
                                                  (char *)&compile1_id, sizeof(long long));
     ASSERT_TRUE(ex_data != NULL);
     struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
 	EXPECT_EQ(param->id, 1111);
 
-    ex_data = maat_plugin_table_get_ex_data(maat_inst, compile_table_id,
+    ex_data = maat_plugin_table_get_ex_data(maat_inst, plugin_table_id,
                                             (char *)&compile2_id, sizeof(long long));
     ASSERT_TRUE(ex_data != NULL);
     param = (struct rule_ex_param *)ex_data;
@@ -5875,10 +5932,10 @@ TEST_F(MaatCmdTest, CompileEXData) {
 
     ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL,
                                  compile2_id, "test:compile2,2222", 1, 0);
-    sleep(WAIT_FOR_EFFECTIVE_S * 5);
+    sleep(WAIT_FOR_EFFECTIVE_S);
     EXPECT_EQ(param->id, 2222); 
     sleep(2);
-    //excced gc_timeout_s(11s), the data pointed by param has been freed
+    //excced gc_timeout_s(3s), the data pointed by param has been freed
 }
 
 TEST_F(MaatCmdTest, PluginEXData) {
@@ -6218,8 +6275,8 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
 
 #define COMPILE_ID_NUMS 1000
 TEST_F(MaatCmdTest, GroupInMassCompiles) {
-    const char* g2c_table_name = "GROUP2COMPILE";
-	const char* compile_table_name = "COMPILE";
+    const char* compile_table_name = "COMPILE_DEFAULT";
+    const char* g2c_table_name = "GROUP2COMPILE_DEFAULT";
 	const char* table_url = "HTTP_URL";
 	const char* table_appid = "APP_ID";
     int thread_id = 0;
@@ -6323,9 +6380,9 @@ TEST_F(MaatCmdTest, GroupInMassCompiles) {
 }
 
 TEST_F(MaatCmdTest, HitGroup) {
+    const char *compile_table_name = "COMPILE_DEFAULT";
+	const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
     const char *g2g_table_name = "GROUP2GROUP";
-	const char *g2c_table_name = "GROUP2COMPILE";
-	const char *compile_table_name = "COMPILE";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
 	const char *ip_table_name = "IP_CONFIG";
 	const char *keywords_table_name = "KEYWORDS_TABLE";
@@ -6652,9 +6709,9 @@ TEST_F(MaatCmdTest, HitGroup) {
 }
 
 TEST_F(MaatCmdTest, HitPath) {
-    const char *g2g_table_name = "GROUP2GROUP";
-	const char *g2c_table_name = "GROUP2COMPILE";
-	const char *compile_table_name = "COMPILE";
+    const char *compile_table_name = "COMPILE_DEFAULT";
+	const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
+	const char *g2g_table_name = "GROUP2GROUP";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
 	const char *ip_table_name = "IP_CONFIG";
 	const char *keywords_table_name = "KEYWORDS_TABLE";
@@ -6911,9 +6968,9 @@ that the edges be all directed in the same direction.";
 TEST_F(MaatCmdTest, SameSuperGroupRefByMultiCompile) {
     char temp[1024]={0};
     int thread_id = 0;
-    const char *g2g_table_name = "GROUP2GROUP";
-	const char *g2c_table_name = "GROUP2COMPILE";
-	const char *compile_table_name = "COMPILE";
+    const char *compile_table_name = "COMPILE_DEFAULT";
+	const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
+	const char *g2g_table_name = "GROUP2GROUP";
 	const char *http_sig_table_name = "HTTP_SIGNATURE";
     struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
 
@@ -7002,8 +7059,8 @@ TEST_F(MaatCmdTest, SameSuperGroupRefByMultiCompile) {
 }
 
 TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
-    const char *g2c_table_name = "GROUP2COMPILE";
-	const char* compile_table_name = "COMPILE";
+    const char* compile_table_name = "COMPILE_DEFAULT";
+    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
 	const char* ip_table_name = "IP_PLUS_CONFIG";
     const char *app_id_table_name = "APP_ID";
     int thread_id = 0;
@@ -7096,8 +7153,8 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
 }
 
 TEST_F(MaatCmdTest, GroupEdit) {
-    const char *g2c_table_name = "GROUP2COMPILE";
-	const char *compile_table_name = "COMPILE";
+    const char *compile_table_name = "COMPILE_DEFAULT";
+    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
 	const char *ip_table_name = "IP_PLUS_CONFIG"; 
     const char *app_id_table_name = "APP_ID";
     int thread_id = 0;
@@ -7215,8 +7272,8 @@ TEST_F(MaatCmdTest, GroupEdit) {
 }
 
 TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
-    const char* g2c_table_name = "GROUP2COMPILE";
-	const char* compile_table_name = "COMPILE";
+    const char* compile_table_name = "COMPILE_DEFAULT";
+    const char* g2c_table_name = "GROUP2COMPILE_DEFAULT";
 	const char* ip_table_name = "IP_PLUS_CONFIG";
     int thread_id = 0;
     struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
@@ -7286,8 +7343,8 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
 }
 
 TEST_F(MaatCmdTest, UpdateDeadLockDetection) {
-    const char* g2c_table_name = "GROUP2COMPILE";
-	const char* compile_table_name = "COMPILE";
+    const char* compile_table_name = "COMPILE_DEFAULT";
+    const char* g2c_table_name = "GROUP2COMPILE_DEFAULT";
 	const char* table_http_url = "HTTP_URL";
     int thread_id = 0;
     struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
@@ -7361,8 +7418,8 @@ TEST_F(MaatCmdTest, UpdateDeadLockDetection) {
 }
 
 TEST_F(MaatCmdTest, StreamScanWhenExprTableIncUpdate) {
-    const char* g2c_table_name = "GROUP2COMPILE";
-	const char* compile_table_name = "COMPILE";
+    const char* compile_table_name = "COMPILE_DEFAULT";
+    const char* g2c_table_name = "GROUP2COMPILE_DEFAULT";
 	const char* scan_table_name = "KEYWORDS_TABLE";
     int thread_id = 0;
     struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
@@ -7423,8 +7480,8 @@ TEST_F(MaatCmdTest, StreamScanWhenExprTableIncUpdate) {
 }
 
 TEST_F(MaatCmdTest, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
-    const char* g2c_table_name = "GROUP2COMPILE";
-	const char* compile_table_name = "COMPILE";
+    const char* compile_table_name = "COMPILE_DEFAULT";
+    const char* g2c_table_name = "GROUP2COMPILE_DEFAULT";
 	const char* scan_table_name = "KEYWORDS_TABLE";
     int thread_id = 0;
     struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
@@ -7482,8 +7539,8 @@ TEST_F(MaatCmdTest, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
 }
 
 TEST_F(MaatCmdTest, IPAndStreamScanWhenIncUpdate) {
-    const char *g2c_table_name = "GROUP2COMPILE";
-	const char *compile_table_name = "COMPILE";
+    const char *compile_table_name = "COMPILE_DEFAULT";
+    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
 	const char *expr_table_name = "KEYWORDS_TABLE";
     const char *ip_table_name = "IP_PLUS_CONFIG";
     int thread_id = 0;
@@ -7574,8 +7631,8 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenIncUpdate) {
 }
 
 TEST_F(MaatCmdTest, IPAndStreamScanWhenFullUpdate) {
-    const char *g2c_table_name = "GROUP2COMPILE";
-	const char *compile_table_name = "COMPILE";
+    const char *compile_table_name = "COMPILE_DEFAULT";
+    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
 	const char *ip_table_name = "IP_PLUS_CONFIG";
     const char *expr_table_name = "KEYWORDS_TABLE";
     int thread_id = 0;
@@ -7664,8 +7721,8 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenFullUpdate) {
 }
 
 TEST_F(MaatCmdTest, IPAndStringScanWhenIncUpdate) {
-     const char *g2c_table_name = "GROUP2COMPILE";
-	const char *compile_table_name = "COMPILE";
+    const char *compile_table_name = "COMPILE_DEFAULT";
+    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
 	const char *expr_table_name = "HTTP_URL";
     const char *ip_table_name = "IP_PLUS_CONFIG";
     const char *keywords = "IP&stringinc";
@@ -7755,8 +7812,8 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenIncUpdate) {
 }
 
 TEST_F(MaatCmdTest, IPAndStringScanWhenFullupdate) {
-    const char *g2c_table_name = "GROUP2COMPILE";
-    const char *compile_table_name = "COMPILE";
+    const char *compile_table_name = "COMPILE_DEFAULT";
+    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
     const char *ip_table_name = "IP_PLUS_CONFIG";
     const char *expr_table_name = "HTTP_URL";
     const char *keywords = "IP&string";

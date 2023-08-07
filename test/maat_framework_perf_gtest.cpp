@@ -306,11 +306,11 @@ static void test_add_expr_command(struct maat *maat_inst, const char *table_name
                                   const char *keywords)
 {
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_ADD, compile_id, "null", 1, 0);
+    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD, compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD, group_id,
+    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE_DEFAULT", MAAT_OP_ADD, group_id,
                                        compile_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -324,11 +324,11 @@ static void test_add_ip_command(struct maat *maat_inst, const char *table_name,
                                 const char *ip, uint16_t port)
 {
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_ADD, compile_id, "null", 1, 0);
+    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD, compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD, group_id,
+    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE_DEFAULT", MAAT_OP_ADD, group_id,
                                        compile_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -342,11 +342,11 @@ static void test_add_integer_command(struct maat *maat_inst, const char *table_n
                                      int low_bound, int up_bound)
 {
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_ADD, compile_id, "null", 1, 0);
+    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD, compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD, group_id,
+    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE_DEFAULT", MAAT_OP_ADD, group_id,
                                        compile_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -360,11 +360,11 @@ static void test_add_flag_command(struct maat *maat_inst, const char *table_name
                                   long long flag, long long flag_mask)
 {
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, "COMPILE", MAAT_OP_ADD, compile_id, "null", 1, 0);
+    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD, compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD, group_id,
+    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE_DEFAULT", MAAT_OP_ADD, group_id,
                                        compile_id, 0, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 

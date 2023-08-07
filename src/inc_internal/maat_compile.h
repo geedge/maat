@@ -37,12 +37,6 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 void group2compile_schema_free(void *g2c_schema);
 int group2compile_associated_compile_table_id(void *g2c_schema);
 
-int compile_table_set_ex_data_schema(struct compile_schema *compile_schema, int table_id,
-                                     maat_ex_new_func_t *new_func,
-                                     maat_ex_free_func_t *free_func,
-                                     maat_ex_dup_func_t *dup_func,
-                                     long argl, void *argp);
-
 /* compile runtime API */
 void *compile_runtime_new(void *compile_schema, size_t max_thread_num,
                           struct maat_garbage_bin *garbage_bin, 
@@ -69,14 +63,6 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, int thr
 									 struct maat_compile_state *compile_state, 
                                   	 struct maat_hit_path *hit_path_array, 
                                      size_t array_size, size_t n_internal_hit_path);
-
-void *compile_runtime_get_ex_data(struct compile_runtime *compile_rt, 
-                                  struct compile_schema *compile_schema, 
-                                  long long compile_id);
-void compile_runtime_ex_data_iterate(struct compile_runtime *compile_rt,
-                                     struct compile_schema *compile_schema);
-
-void compile_runtime_garbage_collect_routine(void *compile_runtime);
 
 /* group2compile runtime API */
 void *group2compile_runtime_new(void *g2c_schema, size_t max_thread_num,
@@ -118,6 +104,9 @@ size_t maat_compile_state_get_hit_groups(struct maat_compile_state *compile_stat
                                          enum maat_list_type type,
                                          struct maat_hit_group *hit_group_array,
                                          size_t array_size);
+
+int maat_compile_state_get_compile_table_id(struct maat_compile_state *compile_state,
+                                            long long compile_id);
 
 int maat_compile_state_has_NOT_clause(struct maat_compile_state *compile_state);
 

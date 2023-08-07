@@ -144,13 +144,13 @@ static int expr_runtime_get_district_id(struct expr_runtime *expr_rt,
 {
     long long district_id = DISTRICT_ANY;
 
-	int map_ret = maat_kv_read(expr_rt->district_map, district, &district_id);
+	int map_ret = maat_kv_read(expr_rt->district_map, district, &district_id, 1);
 	if (map_ret < 0) {
         if (NULL == expr_rt->tmp_district_map) {
             expr_rt->tmp_district_map = maat_kv_store_duplicate(expr_rt->district_map);
         }
         
-        map_ret = maat_kv_read(expr_rt->tmp_district_map, district, &district_id);
+        map_ret = maat_kv_read(expr_rt->tmp_district_map, district, &district_id, 1);
         if (map_ret < 0) {
             district_id = expr_rt->district_num;
 		    maat_kv_register(expr_rt->tmp_district_map, district, district_id);
@@ -168,7 +168,7 @@ int expr_runtime_set_scan_district(struct expr_runtime *expr_rt, const char *dis
         return -1;
     }
 
-    return maat_kv_read_unNull(expr_rt->district_map, district, district_len, district_id);
+    return maat_kv_read_unNull(expr_rt->district_map, district, district_len, district_id, 1);
 }
 
 static struct expr_item *

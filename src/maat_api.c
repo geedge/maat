@@ -522,32 +522,6 @@ int maat_table_callback_register(struct maat *maat_inst, int table_id,
     return 0;
 }
 
-static int compile_table_ex_schema_register(struct maat *maat_inst, int table_id,
-                                            maat_ex_new_func_t *new_func,
-                                            maat_ex_free_func_t *free_func,
-                                            maat_ex_dup_func_t *dup_func,
-                                            long argl, void *argp)
-{
-    void *schema = table_manager_get_schema(maat_inst->tbl_mgr, table_id);
-    assert(schema != NULL);
-
-    int ret = compile_table_set_ex_data_schema((struct compile_schema *)schema, table_id,
-                                                new_func, free_func, dup_func, 
-                                                argl, argp);
-    if (ret < 0) {
-        return -1;
-    }
-
-    if (maat_inst->maat_rt != NULL) {
-        void *runtime = table_manager_get_runtime(maat_inst->tbl_mgr, table_id);
-        assert(runtime != NULL);
-        compile_runtime_ex_data_iterate((struct compile_runtime *)runtime,
-                                        (struct compile_schema *)schema);
-    }
-
-    return 0;    
-}
-
 static int generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int table_id,
 									          maat_ex_new_func_t *new_func,
 									          maat_ex_free_func_t *free_func,
@@ -781,16 +755,14 @@ int maat_plugin_table_ex_schema_register(struct maat *maat_inst,
     int ret = -1;
     enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr,
                                                               table_id);
-    if (TABLE_TYPE_COMPILE == table_type) {
-        ret = compile_table_ex_schema_register(maat_inst, table_id, new_func,
-                                               free_func, dup_func, argl, argp);
-    } else {
+    if (table_type == TABLE_TYPE_PLUGIN || table_type == TABLE_TYPE_IP_PLUGIN ||
+        table_type == TABLE_TYPE_BOOL_PLUGIN || table_type == TABLE_TYPE_FQDN_PLUGIN ) {
         ret = generic_plugin_table_ex_schema_register(maat_inst, table_name,
                                                       table_id, new_func, free_func,
                                                       dup_func, argl, argp);
     }
-
     pthread_mutex_unlock(&(maat_inst->background_update_mutex));
+
     return ret;
 }
 
@@ -821,9 +793,7 @@ void *maat_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
     void *ret = NULL;
     enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr,
                                                               table_id);
-    if (TABLE_TYPE_COMPILE == table_type) {
-        ret = compile_runtime_get_ex_data(runtime, schema, *(long long *)key);
-    } else if (TABLE_TYPE_PLUGIN == table_type) {
+    if (TABLE_TYPE_PLUGIN == table_type) {
         ret = plugin_runtime_get_ex_data(runtime, schema, key, key_len);
     }
 
@@ -1897,6 +1867,22 @@ int maat_state_set_scan_compile_table(struct maat_state *state, int compile_tabl
     state->compile_table_id = compile_table_id;
 
     return 0;
+}
+
+int maat_state_get_compile_table_ids(struct maat_state *state, long long *compile_ids,
+                                     size_t n_compile_ids, int *compile_table_ids)
+{
+    if (NULL == state || NULL == compile_ids || 0 == n_compile_ids ||
+        NULL == compile_table_ids) {
+        return -1;
+    }
+
+    for (size_t i = 0; i < n_compile_ids; i++) {
+        compile_table_ids[i] = maat_compile_state_get_compile_table_id(state->compile_state,
+                                                                       compile_ids[i]);
+    }
+    
+    return n_compile_ids;
 }
 
 int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *paths,

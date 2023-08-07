@@ -269,13 +269,13 @@ static int flag_runtime_get_district_id(struct flag_runtime *flag_rt,
 {
     long long district_id = DISTRICT_ANY;
 
-	int map_ret = maat_kv_read(flag_rt->district_map, district, &district_id);
+	int map_ret = maat_kv_read(flag_rt->district_map, district, &district_id, 1);
 	if (map_ret < 0) {
         if (NULL == flag_rt->tmp_district_map) {
             flag_rt->tmp_district_map = maat_kv_store_duplicate(flag_rt->district_map);
         }
         
-        map_ret = maat_kv_read(flag_rt->tmp_district_map, district, &district_id);
+        map_ret = maat_kv_read(flag_rt->tmp_district_map, district, &district_id, 1);
         if (map_ret < 0) {
             district_id = flag_rt->district_num;
 		    maat_kv_register(flag_rt->tmp_district_map, district, district_id);
@@ -293,7 +293,7 @@ int flag_runtime_set_scan_district(struct flag_runtime *flag_rt, const char *dis
         return -1;
     }
     
-    return maat_kv_read_unNull(flag_rt->district_map, district, district_len, district_id);
+    return maat_kv_read_unNull(flag_rt->district_map, district, district_len, district_id, 1);
 }
 
 static struct flag_item *
