@@ -1688,6 +1688,28 @@
             ]
         },
         {
+            "compile_id": 175,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "ipv4_composition.match",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "ipv4_composition.source",
+                    "virtual_table": "COMPOSITION_IP_SOURCE",
+                    "not_flag": 0
+                },
+                {
+                    "group_name": "ipv4_composition.destination",
+                    "virtual_table": "COMPOSITION_IP_DESTINATION",
+                    "not_flag": 0
+                }
+            ]
+        },
+        {
             "compile_id": 176,
             "service": 0,
             "action": 0,
@@ -1716,6 +1738,24 @@
                         }
                     ],
                     "not_flag": 0
+                }
+            ]
+        },
+        {
+            "compile_id": 177,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "ipv4_composition.session.match",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "ipv4_composition.session",
+                    "virtual_table": "COMPOSITION_IP_SESSION",
+                    "not_flag": 0,
+                    "clause_index": 1
                 }
             ]
         },
@@ -1776,6 +1816,47 @@
                             }
                         }
                     ]
+                }
+            ]
+        },
+        {
+            "compile_id": 180,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "Hierarchy_VirtualWithTwoPhysical",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "FQDN_OBJ1",
+                    "virtual_table": "VIRTUAL_SSL_SNI",
+                    "not_flag": 0,
+                    "clause_index": 0
+                },
+                {
+                    "group_name": "FQDN_CAT1",
+                    "virtual_table": "VIRTUAL_SSL_SNI",
+                    "not_flag": 0,
+                    "clause_index": 0
+                }
+            ]
+        },
+        {
+            "compile_id": 181,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "ipv4_composition.match",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "IPv4-composition-source-only",
+                    "virtual_table": "COMPOSITION_IP_SOURCE",
+                    "not_flag": 0
                 }
             ]
         },
@@ -1858,6 +1939,28 @@
                             }
                         }
                     ]
+                }
+            ]
+        },
+        {
+            "compile_id": 185,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "ipv4_composition.NOT_match",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "IPv4-composition-NOT-client-ip",
+                    "virtual_table": "COMPOSITION_IP_SOURCE",
+                    "not_flag": 0
+                },
+                {
+                    "group_name": "IPv4-composition-NOT-server-ip",
+                    "virtual_table": "COMPOSITION_IP_DESTINATION",
+                    "not_flag": 1
                 }
             ]
         },
@@ -2258,7 +2361,7 @@
             "do_blacklist": 1,
             "do_log": 1,
             "user_region": "Something:I\\bhave\\ba\\bname,7799",
-            "compile_table_name": "COMPILE_FIREWALL_DEFAULT",
+            "compile_table_name": "COMPILE_FIREWALL",
             "is_valid": "yes",
             "groups": [
                 {
@@ -2870,135 +2973,7 @@
                     "not_flag": 0
                 }
             ]
-        },
-        {
-            "compile_id": 211,
-            "service": 0,
-            "action": 0,
-            "do_blacklist": 0,
-            "do_log": 0,
-            "effective_rage": 0,
-            "user_region": "ip_perf_test",
-            "is_valid": "yes",
-            "groups": [
-                {
-                    "regions": [
-                        {
-                            "table_type": "ip_plus",
-                            "table_name": "IP_PERF_CONFIG",
-                            "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "range",
-                                "ip1": "10.0.0.1",
-                                "ip2": "10.0.0.6",
-                                "port_format": "range",
-                                "port1": "65530",
-                                "port2": "65535",
-                                "protocol": 6
-                            }
-                        }
-                    ],
-                    "not_flag": 0
-                }
-            ]
-        },
-        {
-            "compile_id": 212,
-            "service": 1,
-            "action": 1,
-            "do_blacklist": 1,
-            "do_log": 1,
-            "user_region": "integer_perf_test",
-            "is_valid": "yes",
-            "groups": [
-                {
-                    "group_name": "Untitled",
-                    "regions": [
-                        {
-                            "table_name": "INTEGER_PERF_CONFIG",
-                            "table_type": "interval",
-                            "table_content": {
-                                "low_boundary": 3000,
-                                "up_boundary": 3000
-                            }
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "compile_id": 213,
-            "service": 1,
-            "action": 1,
-            "do_blacklist": 1,
-            "do_log": 1,
-            "user_region": "expr_perf_test",
-            "is_valid": "yes",
-            "groups": [
-                {
-                    "regions": [
-                        {
-                            "table_name": "EXPR_LITERAL_PERF_CONFIG",
-                            "table_type": "expr",
-                            "table_content": {
-                                "keywords": "today&yesterday",
-                                "expr_type": "and",
-                                "match_method": "sub",
-                                "format": "uncase plain"
-                            }
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "compile_id": 214,
-            "service": 0,
-            "action": 0,
-            "do_blacklist": 0,
-            "do_log": 0,
-            "user_region": "flag_perf_test",
-            "is_valid": "yes",
-            "groups": [
-                {
-                    "regions": [
-                        {
-                            "table_type": "flag",
-                            "table_name": "FLAG_PERF_CONFIG",
-                            "table_content": {
-                                "flag": 15,
-                                "flag_mask": 15
-                            }
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "compile_id": 215,
-            "service": 1,
-            "action": 1,
-            "do_blacklist": 1,
-            "do_log": 1,
-            "user_region": "expr_perf_test",
-            "is_valid": "yes",
-            "groups": [
-                {
-                    "regions": [
-                        {
-                            "table_name": "EXPR_REGEX_PERF_CONFIG",
-                            "table_type": "expr",
-                            "table_content": {
-                                "keywords": "action=search\\&query=(.*)",
-                                "expr_type": "regex",
-                                "match_method": "sub",
-                                "format": "uncase plain"
-                            }
-                        }
-                    ]
-                }
-            ]
-        }
+        } 
     ],
     "plugin_table": [
         {
@@ -3007,6 +2982,14 @@
                 "1\t192.168.0.1\t101\t1",
                 "2\t192.168.0.2\t102\t1",
                 "3\t192.168.1.1\t103\t1"
+            ]
+        },
+        {
+            "table_name": "TEST_PLUGIN_TABLE",
+            "table_content": [
+                "1\t3388\t99\t1",
+                "2\t3355\t66\t1",
+                "3\tcccc\t11\t1"
             ]
         },
         {

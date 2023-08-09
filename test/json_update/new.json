@@ -1,6 +1,6 @@
 {
-    "compile_table": "COMPILE_DEFAULT",
-    "group2compile_table": "GROUP2COMPILE_DEFAULT",
+    "compile_table": "COMPILE",
+    "group2compile_table": "GROUP2COMPILE",
     "group2group_table": "GROUP2GROUP",
     "rules": [
         {

@@ -47,11 +47,9 @@ struct table_manager {
     struct rule_tag *accept_tags;
     size_t n_accept_tag;
 
-    enum maat_expr_engine expr_engine;
     int default_compile_table_id;
     int g2g_table_id;
     struct maat_kv_store *tablename2id_map;
-    struct maat_kv_store *conj_tablename2id_map;
 
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -518,7 +516,7 @@ maat_table_new(cJSON *json, struct maat_kv_store *reserved_word_map,
     }
 
     ret = maat_kv_read(reserved_word_map, item->valuestring,
-                      (long long *)&(ptable->table_type), 1);
+                      (long long *)&(ptable->table_type));
     if (ret < 0) {
         log_error(logger, MODULE_TABLE, 
                   "[%s:%d] table:%s table_type %s is illegal", 
@@ -580,159 +578,90 @@ static void maat_table_free(struct maat_table *maat_tbl)
     FREE(maat_tbl);
 }
 
-int register_single_tablename2id(struct maat_kv_store *tablename2id_map, const char *table_name,
-                                 int table_id, struct log_handle *logger)
+static int register_tablename2id(cJSON *json, struct maat_kv_store *tablename2id_map,
+                                  struct log_handle *logger)
 {
-    if (strlen(table_name) >= NAME_MAX) {
-        log_error(logger, MODULE_TABLE,
-                  "[%s:%d] table:<%s> name length exceed maxium:%d",
-                  __FUNCTION__, __LINE__, table_name, NAME_MAX);
-        return -1;
-    }
-
-    long long tmp_table_id = -1;
-    int ret = maat_kv_read(tablename2id_map, table_name, &tmp_table_id, 1);
-    if (ret > 0 && tmp_table_id != table_id) {
-        log_error(logger, MODULE_TABLE,
-                  "[%s:%d] table:<%s>(table_id:%lld) has already been registered"
-                  ", can't register again",
-                  __FUNCTION__, __LINE__, table_name, tmp_table_id);
-        return -1;
-    }
-
-    maat_kv_register(tablename2id_map, table_name, table_id);
-    return 0;
-}
-
-static int register_conjunction_tablename2id(cJSON *root, struct maat_kv_store *conj_tablename2id_map,
-                                             struct log_handle *logger)
-{
-    int json_array_size = cJSON_GetArraySize(root);
-
-    for (int i = 0; i < json_array_size; i++) {
-        cJSON *json = cJSON_GetArrayItem(root, i);
-        cJSON *item = cJSON_GetObjectItem(json, "table_id");
-        int table_id = item->valueint;
-
-        item = cJSON_GetObjectItem(json, "db_tables");
-        if (NULL == item || item->type != cJSON_Array) {
-            continue;
-        }
-
-        int n_table_name = cJSON_GetArraySize(item);
-        for (int j = 0; j < n_table_name; j++) {
-            cJSON *tmp_item = cJSON_GetArrayItem(item, j);
-            if (NULL == tmp_item || tmp_item->type != cJSON_String) {
-                log_error(logger, MODULE_TABLE,
-                          "[%s:%d] table(table_id:%d) db_tables element format invalid"
-                          ", should be string", __FUNCTION__, __LINE__, table_id);
-                return -1;
-            }
-
-            int ret = maat_kv_append(conj_tablename2id_map, tmp_item->valuestring, table_id);
-            if (ret < 0) {
-                return -1;
-            }
-        }
-    }
-
-    return 0;
-}
-
-static int register_tablename2id(cJSON *root, struct maat_kv_store *tablename2id_map,
-                                 const char *table_info_path, struct log_handle *logger)
-{
-    int i = 0;
-    int json_array_size = cJSON_GetArraySize(root);
-
-    //pre register tablename2id
-    for (i = 0; i < json_array_size; i++) {
-        cJSON *json = cJSON_GetArrayItem(root, i);
-        if (NULL == json || json->type != cJSON_Object) {
-            log_error(logger, MODULE_TABLE,
-                      "[%s:%d] %s has invalid json object",
-                      __FUNCTION__, __LINE__, table_info_path);
-            return -1;
-        }
-
-        cJSON *item = cJSON_GetObjectItem(json, "table_id");
-        if (NULL == item || item->type != cJSON_Number) {
-            log_error(logger, MODULE_TABLE,
-                      "[%s:%d] %s has invalid json object, happened in table_id column ",
-                      __FUNCTION__, __LINE__, table_info_path);
-            return -1;
-        }
-        int table_id = item->valueint;
-
-        item = cJSON_GetObjectItem(json, "table_name");
-        if (NULL == item || item->type != cJSON_String) {
-            log_error(logger, MODULE_TABLE,
-                      "[%s:%d] %s has invalid json object, happened in table_name column",
-                      __FUNCTION__, __LINE__, table_info_path);
-            return -1;
-        }
-
-        int ret = register_single_tablename2id(tablename2id_map, item->valuestring,
-                                               table_id, logger);
-        if (ret < 0) {
-            return -1;
-        }
-    }
-
-    //register db_tables's table_name
-    for (i = 0; i < json_array_size; i++) {
-        cJSON *json = cJSON_GetArrayItem(root, i);
-        cJSON *item = cJSON_GetObjectItem(json, "table_id");
-        int table_id = item->valueint;
-
-        item = cJSON_GetObjectItem(json, "db_tables");
-        if (NULL == item || item->type != cJSON_Array) {
-            continue;
-        }
-
-        int n_table_name = cJSON_GetArraySize(item);
-        for (int j = 0; j < n_table_name; j++) {
-            cJSON *tmp_item = cJSON_GetArrayItem(item, j);
-            if (NULL == tmp_item || tmp_item->type != cJSON_String) {
-                log_error(logger, MODULE_TABLE,
-                          "[%s:%d] table(table_id:%d) db_tables element format invalid"
-                          ", should be string", __FUNCTION__, __LINE__, table_id);
-                return -1;
-            }
-
-            long long tmp_table_id = -1;
-            int ret = maat_kv_read(tablename2id_map, tmp_item->valuestring, &tmp_table_id, 1);
-            if (ret > 0) {
-                continue; 
-            }
-
-            ret = register_single_tablename2id(tablename2id_map, tmp_item->valuestring,
-                                               table_id, logger);
-            if (ret < 0) {
-                return -1;
-            }
-        }
-    }
-
-    return 0;
-}
-
-int maat_default_compile_table_id(cJSON *json, struct log_handle *logger)
-{
-    cJSON *item = cJSON_GetObjectItem(json, "default_compile_table");
+    cJSON *item = cJSON_GetObjectItem(json, "table_id");
     if (NULL == item || item->type != cJSON_Number) {
         return -1;
     }
+    int table_id = item->valueint;
 
-    item = cJSON_GetObjectItem(json, "table_id");
-    //item is cJSON_Number which has been checked in maat_table_new
-    return item->valueint;
+    item = cJSON_GetObjectItem(json, "db_tables");
+    if (item != NULL && item->type != cJSON_Array) {
+        log_error(logger, MODULE_TABLE, 
+                  "[%s:%d] table(table_id:%d) has db_tables, but format is invalid"
+                  ", should be array", __FUNCTION__, __LINE__, table_id);
+        return -1;
+    }
+   
+    int ret = 0;
+    long long tmp_table_id = 0;
+    if (item != NULL) {
+        int n_table_name = cJSON_GetArraySize(item);
+
+        for (int i = 0; i < n_table_name; i++) {
+            cJSON *tmp_item = cJSON_GetArrayItem(item, i);
+            if (NULL == tmp_item || tmp_item->type != cJSON_String) {
+                log_error(logger, MODULE_TABLE,
+                          "[%s:%d] table(table_id:%d) db_tables element format invalid"
+                          ", should be string", __FUNCTION__, __LINE__, table_id);
+                return -1;
+            }
+
+            if (strlen(tmp_item->valuestring) >= NAME_MAX) {
+                log_error(logger, MODULE_TABLE,
+                          "[%s:%d] table(table_id:%d) db_tables string %s length "
+                          "exceed maxium:%d", __FUNCTION__, __LINE__, table_id,
+                          tmp_item->valuestring, NAME_MAX);
+                return -1;
+            }
+
+            ret = maat_kv_read(tablename2id_map, tmp_item->valuestring, &tmp_table_id);
+            if (ret > 0 && tmp_table_id != table_id) {
+                log_error(logger, MODULE_TABLE,
+                          "[%s:%d] table:<%s>(table_id:%lld) has already been registered"
+                          ", can't register again", __FUNCTION__, __LINE__,
+                          tmp_item->valuestring, tmp_table_id);
+                return -1;
+            }
+
+            maat_kv_register(tablename2id_map, tmp_item->valuestring, table_id);
+        }
+    }
+
+    item = cJSON_GetObjectItem(json, "table_name");
+    if (NULL == item || item->type != cJSON_String) {
+        log_error(logger, MODULE_TABLE, 
+                  "[%s:%d] table(table_id:%d) has no table_name", 
+                  __FUNCTION__, __LINE__, table_id);
+        return -1;
+    }
+
+    if (strlen(item->valuestring) >= NAME_MAX) {
+        log_error(logger, MODULE_TABLE,
+                  "[%s:%d] table(table_id:%d) table_name %s length too long",
+                  __FUNCTION__, __LINE__, table_id, item->valuestring);
+        return -1;
+    }
+
+    ret = maat_kv_read(tablename2id_map, item->valuestring, &tmp_table_id);
+    if (ret > 0 && tmp_table_id != table_id) {
+        log_error(logger, MODULE_TABLE,
+                  "[%s:%d] table:<%s>(table_id:%lld) has already been registered,"
+                  " can't register again", __FUNCTION__, __LINE__, item->valuestring,
+                  tmp_table_id);
+        return -1;
+    }
+
+    maat_kv_register(tablename2id_map, item->valuestring, table_id);
+
+    return 0;
 }
 
 struct table_manager *
 table_manager_create(const char *table_info_path, const char *accept_tags,
-                     enum maat_expr_engine expr_engine, struct maat_garbage_bin *garbage_bin,
-                     struct log_handle *logger)
+                     struct maat_garbage_bin *garbage_bin, struct log_handle *logger)
 {
     if (NULL == table_info_path) {
         return NULL;
@@ -773,28 +702,23 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
     tbl_mgr->n_accept_tag = parse_accept_tag(accept_tags, &tbl_mgr->accept_tags, logger);
     tbl_mgr->logger = logger;
     tbl_mgr->tablename2id_map = maat_kv_store_new();
-    tbl_mgr->conj_tablename2id_map = maat_kv_store_new();
-    tbl_mgr->expr_engine = expr_engine;
     tbl_mgr->ref_garbage_bin = garbage_bin;
 
-    ret = register_tablename2id(root, tbl_mgr->tablename2id_map, table_info_path, logger);
-    if (ret < 0) {
-        log_error(logger, MODULE_TABLE,
-                  "[%s:%d] register_tablename2id failed.", __FUNCTION__, __LINE__);
-        FREE(json_buff);
-        cJSON_Delete(root);
-        table_manager_destroy(tbl_mgr);
-        return NULL;
-    }
+    for (int i = 0; i < json_array_size; i++) {
+        json = cJSON_GetArrayItem(root, i);
 
-    ret = register_conjunction_tablename2id(root, tbl_mgr->conj_tablename2id_map, logger);
-    if (ret < 0) {
-        log_error(logger, MODULE_TABLE,
-                  "[%s:%d] register_conjunction_tablename2id failed.", __FUNCTION__, __LINE__);
-        FREE(json_buff);
-        cJSON_Delete(root);
-        table_manager_destroy(tbl_mgr);
-        return NULL;
+        if (json != NULL && json->type == cJSON_Object) {
+            ret = register_tablename2id(json, tbl_mgr->tablename2id_map, logger);
+            if (ret < 0) {
+                log_error(logger, MODULE_TABLE, 
+                          "[%s:%d] register_tablename2id failed",
+                          __FUNCTION__, __LINE__);
+                FREE(json_buff);
+                cJSON_Delete(root);
+                table_manager_destroy(tbl_mgr);
+                return NULL;
+            }
+        }
     }
 
     int default_compile_table_id = -1;
@@ -812,27 +736,22 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
                 goto next;
             }
 
-            long long parent_table_ids[4];
-            int parent_table_cnt = table_manager_get_conj_parent_table_ids(tbl_mgr, maat_tbl->table_name,
-                                                                           parent_table_ids, 4);
-            if (parent_table_cnt <= 0) {
-                // if table has conjuncion parent, which can share schema and
-                // runtime with parent.
-                maat_tbl->schema = maat_table_schema_new(json, maat_tbl->table_name, maat_tbl->table_type,
-                                                         tbl_mgr, logger);
-                if (NULL == maat_tbl->schema) {
-                  log_error(logger, MODULE_TABLE,
-                            "[%s:%d] Maat table schema new failed, table_name:%s",
-                            __FUNCTION__, __LINE__, maat_tbl->table_name);
-                  ret = -1;
-                  goto next;
-                }
+            maat_tbl->schema = maat_table_schema_new(json, maat_tbl->table_name, 
+                                                     maat_tbl->table_type, tbl_mgr, logger);
+            if (NULL == maat_tbl->schema) {
+                log_error(logger, MODULE_TABLE, 
+                          "[%s:%d] Maat table schema new failed, table_name:%s", 
+                          __FUNCTION__, __LINE__, maat_tbl->table_name);
+                ret = -1;
+                goto next;
             }
-
+                     
             if (maat_tbl->table_type == TABLE_TYPE_COMPILE) {
                 if (default_compile_table_id < 0) {
-                    default_compile_table_id = maat_default_compile_table_id(json, logger);
-                } 
+                    default_compile_table_id = maat_tbl->table_id;
+                } else if (maat_tbl->table_id < default_compile_table_id) {
+                    default_compile_table_id = maat_tbl->table_id;
+                }
             }
 
             if (maat_tbl->table_type == TABLE_TYPE_GROUP2GROUP) { 
@@ -997,11 +916,6 @@ void table_manager_destroy(struct table_manager *tbl_mgr)
         tbl_mgr->tablename2id_map = NULL;
     }
 
-    if (tbl_mgr->conj_tablename2id_map != NULL) {
-        maat_kv_store_free(tbl_mgr->conj_tablename2id_map);
-        tbl_mgr->conj_tablename2id_map = NULL;
-    }
-
 	FREE(tbl_mgr);
 }
 
@@ -1019,30 +933,19 @@ size_t table_manager_table_count(struct table_manager *tbl_mgr)
     return tbl_mgr->n_table;
 }
 
-int table_manager_get_table_id(struct table_manager *tbl_mgr, const char *table_name)
+int table_manager_get_table_id(struct table_manager *tbl_mgr, const char *name)
 {
-    if (NULL == tbl_mgr || NULL == table_name) {
+    if (NULL == tbl_mgr || NULL == name) {
         return -1;
     }
 
     long long table_id = -1;
-    int ret = maat_kv_read(tbl_mgr->tablename2id_map, table_name, &table_id, 1);
+    int ret = maat_kv_read(tbl_mgr->tablename2id_map, name, &table_id);
 	if (ret < 0) {
 		return -1;
 	}
 
     return (int)table_id;
-}
-
-int table_manager_get_conj_parent_table_ids(struct table_manager *tbl_mgr, const char *table_name,
-                                            long long *table_ids_array, size_t n_table_ids_array)
-{
-    if (NULL == tbl_mgr || NULL == table_name) {
-        return -1;
-    }
-
-    return maat_kv_read(tbl_mgr->conj_tablename2id_map, table_name,
-                        table_ids_array, n_table_ids_array);
 }
 
 const char *table_manager_get_table_name(struct table_manager *tbl_mgr, int table_id)
@@ -1113,15 +1016,6 @@ int table_manager_get_valid_column(struct table_manager *tbl_mgr, int table_id)
     }
 
     return tbl_mgr->tbl[table_id]->valid_column;
-}
-
-enum maat_expr_engine table_manager_get_expr_engine(struct table_manager *tbl_mgr)
-{
-    if (NULL == tbl_mgr) {
-        return MAAT_EXPR_ENGINE_HS;
-    }
-
-    return tbl_mgr->expr_engine;
 }
 
 size_t table_manager_accept_tags_count(struct table_manager *tbl_mgr)

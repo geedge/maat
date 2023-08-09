@@ -58,34 +58,6 @@ add_dependencies(hyperscan_runtime_static hyperscan)
 set_property(TARGET hyperscan_runtime_static PROPERTY IMPORTED_LOCATION ${VENDOR_BUILD}/lib64/libhs_runtime.a)
 set_property(TARGET hyperscan_runtime_static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${VENDOR_BUILD}/include)
 
-#pcre-8.45
-ExternalProject_Add(pcre PREFIX pcre
-                    URL ${CMAKE_CURRENT_SOURCE_DIR}/pcre-8.45.tar.gz
-	                CONFIGURE_COMMAND ./configure --prefix=${VENDOR_BUILD}
-	                BUILD_COMMAND make	
-	                INSTALL_COMMAND make install
-	                BUILD_IN_SOURCE 1)
-
-ExternalProject_Get_Property(pcre INSTALL_DIR)
-file(MAKE_DIRECTORY ${VENDOR_BUILD}/include)
-
-#rulescan 3.0.1
-ExternalProject_Add(rulescan PREFIX rulescan
-                    URL ${CMAKE_CURRENT_SOURCE_DIR}/rulescan-3.0.1.tar.gz
-	                CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${VENDOR_BUILD} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_C_FLAGS="-fPIC" -DCMAKE_CXX_FLAGS="-fPIC")
-
-ExternalProject_Get_Property(rulescan INSTALL_DIR)
-file(MAKE_DIRECTORY ${VENDOR_BUILD}/include)
-
-#merge librulescan.a and libpcre.a => librs.a
-add_custom_command(OUTPUT ${VENDOR_BUILD}/lib/librs.a
-                   COMMAND ar crsT ${VENDOR_BUILD}/lib/librs.a ${VENDOR_BUILD}/lib/libpcre.a ${VENDOR_BUILD}/lib/librulescan.a
-                   DEPENDS pcre rulescan)
-add_custom_target(_merge ALL DEPENDS ${VENDOR_BUILD}/lib/librs.a)
-
-add_library(rulescan_static STATIC IMPORTED GLOBAL)
-set_property(TARGET rulescan_static PROPERTY IMPORTED_LOCATION ${VENDOR_BUILD}/lib/librs.a)
-
 # hiredis-1.1.0
 ExternalProject_Add(hiredis PREFIX hiredis
                     URL ${CMAKE_CURRENT_SOURCE_DIR}/hiredis-1.1.0.tar.gz

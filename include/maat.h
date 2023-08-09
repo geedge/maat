@@ -37,7 +37,6 @@ struct maat_hit_path {
 };
 
 struct maat_hit_group {
-    long long item_id;
     long long group_id;
     int vtable_id;
 };
@@ -58,11 +57,6 @@ enum maat_update_type {
 enum maat_list_type {
     MAAT_LIST_TYPE_FULL = 1,
     MAAT_LIST_TYPE_INC
-};
-
-enum maat_expr_engine {
-    MAAT_EXPR_ENGINE_HS = 0, //default engine(hyperscan)
-    MAAT_EXPR_ENGINE_RS      //rulescan
 };
 
 struct ip_addr {
@@ -149,8 +143,6 @@ int maat_options_set_redis(struct maat_options *opts, const char *redis_ip,
                            uint16_t redis_port, int redis_db);
 
 int maat_options_set_stat_file(struct maat_options *opts, const char *stat_filename);
-
-int maat_options_set_expr_engine(struct maat_options *opts, enum maat_expr_engine engine);
 
 /* maat_instance API */
 struct maat *maat_new(struct maat_options *opts, const char *table_info_path);
@@ -278,9 +270,6 @@ int maat_state_set_scan_district(struct maat_state *state, int table_id,
 int maat_state_set_last_scan(struct maat_state *state);
 
 int maat_state_set_scan_compile_table(struct maat_state *state, int compile_table_id);
-
-int maat_state_get_compile_table_ids(struct maat_state *state, long long *compile_ids,
-                                    size_t n_compile_ids, int *compile_table_ids);
 
 int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *paths, 
                              size_t n_path);
