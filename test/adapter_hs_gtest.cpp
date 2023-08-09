@@ -81,7 +81,7 @@ static size_t hex2bin(char *hex, int hex_len, char *binary, size_t size)
 
 enum hs_pattern_type pattern_type_str_to_enum(const char *str)
 {
-    enum hs_pattern_type pattern_type;
+    enum hs_pattern_type pattern_type = HS_PATTERN_TYPE_STR;
 
     if (strcmp(str, "regex") == 0) {
         pattern_type = HS_PATTERN_TYPE_REG;

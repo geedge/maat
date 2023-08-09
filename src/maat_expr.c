@@ -560,7 +560,7 @@ static int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key,
 
 static enum hs_pattern_type expr_type2pattern_type(enum expr_type expr_type)
 {
-    enum hs_pattern_type pattern_type;
+    enum hs_pattern_type pattern_type = HS_PATTERN_TYPE_STR;
 
     switch (expr_type) {
         case EXPR_TYPE_STRING:
