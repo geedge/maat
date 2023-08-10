@@ -19,6 +19,7 @@ extern "C"
 #include <stddef.h>
 #include <cJSON/cJSON.h>
 
+#include "maat.h"
 #include "log/log.h"
 #include "maat_garbage_collection.h"
 
@@ -47,7 +48,8 @@ struct table_manager;
 
 struct table_manager *
 table_manager_create(const char *table_info_path, const char *accept_tags,
-                     struct maat_garbage_bin *garbage_bin, struct log_handle *logger);
+                     enum maat_expr_engine expr_engine, struct maat_garbage_bin *garbage_bin,
+                     struct log_handle *logger);
 int table_manager_runtime_create(struct table_manager *tbl_mgr, size_t max_thread_num,
                                  struct maat_garbage_bin *garbage_bin);
 
@@ -66,6 +68,8 @@ int table_manager_get_default_compile_table_id(struct table_manager *tbl_mgr);
 int table_manager_get_group2group_table_id(struct table_manager *tbl_mgr);
 
 int table_manager_get_valid_column(struct table_manager *tbl_mgr, int table_id);
+
+enum maat_expr_engine table_manager_get_expr_engine(struct table_manager *tbl_mgr);
 
 size_t table_manager_accept_tags_count(struct table_manager *tbl_mgr);
 int table_manager_accept_tags_match(struct table_manager *tbl_mgr, const char *tags);

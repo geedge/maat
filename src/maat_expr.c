@@ -60,7 +60,7 @@ struct expr_item {
     long long group_id;
     char keywords[MAX_KEYWORDS_STR];
     enum expr_type expr_type;
-    enum hs_match_mode match_mode;
+    enum expr_match_mode match_mode;
     int is_hexbin;
     int is_case_sensitive;
     void *user_data;
@@ -68,7 +68,7 @@ struct expr_item {
 };
 
 struct expr_runtime {
-    struct adapter_hs *hs;
+    struct expr_matcher *matcher;
     struct rcu_hash_table *item_hash;      // <item_id, struct expr_item>
 
     long long version;  //expr_rt version
@@ -79,6 +79,7 @@ struct expr_runtime {
     struct log_handle *logger;
     struct maat_garbage_bin *ref_garbage_bin;
 
+    enum maat_expr_engine expr_engine;
     int district_num;
     struct maat_kv_store *district_map;
     struct maat_kv_store *tmp_district_map;
@@ -114,22 +115,22 @@ static enum expr_type int_to_expr_type(int expr_type)
     return type;
 }
 
-static enum hs_match_mode int_to_match_mode(int match_method)
+static enum expr_match_mode int_to_match_mode(int match_method)
 {
-    enum hs_match_mode mode = HS_MATCH_MODE_INVALID;
+    enum expr_match_mode mode = EXPR_MATCH_MODE_INVALID;
 
     switch (match_method) {
     case 0:
-        mode = HS_MATCH_MODE_SUB;
+        mode = EXPR_MATCH_MODE_SUB;
         break;
     case 1:
-        mode = HS_MATCH_MODE_SUFFIX;
+        mode = EXPR_MATCH_MODE_SUFFIX;
         break;
     case 2:
-        mode = HS_MATCH_MODE_PREFIX;
+        mode = EXPR_MATCH_MODE_PREFIX;
         break;
     case 3:
-        mode = HS_MATCH_MODE_EXACTLY;
+        mode = EXPR_MATCH_MODE_EXACTLY;
         break;
     default:
         break;
@@ -234,8 +235,8 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
                  __FUNCTION__, __LINE__, table_name, line);
         goto error;
     } else if (expr_item->expr_type == EXPR_TYPE_REGEX) {
-        ret = adapter_hs_verify_regex_expression(expr_item->keywords, expr_rt->logger);
-        if (ret < 0) {
+        ret = expr_matcher_verify_regex_expression(expr_item->keywords, expr_rt->logger);
+        if (0 == ret) {
             log_error(expr_rt->logger, MODULE_EXPR, 
                       "[%s:%d] expr table:<%s> regex expression(item_id:%lld):%s illegal,"
                       " will be dropped", __FUNCTION__, __LINE__, table_name,
@@ -277,7 +278,7 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
     
     match_method_type = atoi(line + column_offset);
     expr_item->match_mode = int_to_match_mode(match_method_type);
-    if (expr_item->match_mode == HS_MATCH_MODE_INVALID) {
+    if (expr_item->match_mode == EXPR_MATCH_MODE_INVALID) {
         log_error(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> has invalid match_method in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
@@ -472,12 +473,14 @@ void *expr_runtime_new(void *expr_schema, size_t max_thread_num,
         return NULL;
     }
 
+    struct expr_schema *schema = (struct expr_schema *)expr_schema;
     struct expr_runtime *expr_rt = ALLOC(struct expr_runtime, 1);
 
     expr_rt->item_hash = rcu_hash_new(expr_item_free_cb, NULL, 0);
     expr_rt->n_worker_thread = max_thread_num;
     expr_rt->ref_garbage_bin = garbage_bin;
     expr_rt->logger = logger;
+    expr_rt->expr_engine = table_manager_get_expr_engine(schema->ref_tbl_mgr);
     expr_rt->district_map = maat_kv_store_new();
 
     expr_rt->hit_cnt = alignment_int64_array_alloc(max_thread_num);
@@ -495,9 +498,9 @@ void expr_runtime_free(void *expr_runtime)
     }
 
     struct expr_runtime *expr_rt = (struct expr_runtime *)expr_runtime;
-    if (expr_rt->hs != NULL) {
-        adapter_hs_free(expr_rt->hs);
-        expr_rt->hs = NULL;
+    if (expr_rt->matcher != NULL) {
+        expr_matcher_free(expr_rt->matcher);
+        expr_rt->matcher = NULL;
     }
 
     if (expr_rt->item_hash != NULL) {
@@ -558,18 +561,18 @@ static int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key,
     return 0;
 }
 
-static enum hs_pattern_type expr_type2pattern_type(enum expr_type expr_type)
+static enum expr_pattern_type expr_type2pattern_type(enum expr_type expr_type)
 {
-    enum hs_pattern_type pattern_type;
+    enum expr_pattern_type pattern_type = EXPR_PATTERN_TYPE_STR;
 
     switch (expr_type) {
         case EXPR_TYPE_STRING:
         case EXPR_TYPE_AND:
         case EXPR_TYPE_OFFSET:
-            pattern_type = HS_PATTERN_TYPE_STR;
+            pattern_type = EXPR_PATTERN_TYPE_STR;
             break;
         case EXPR_TYPE_REGEX:
-            pattern_type = HS_PATTERN_TYPE_REG;
+            pattern_type = EXPR_PATTERN_TYPE_REG;
             break;
         default:
             break;
@@ -686,12 +689,12 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
             }
             sub_expr_cnt = i;
             break;
-        case EXPR_TYPE_STRING:
+        case EXPR_TYPE_STRING: //AND/OFFSET/STRING type expression use \b to represent blank(' ')
             sub_expr_cnt = 1;
             sub_key_array[0] = expr_item->keywords;
             sub_key_array[0] = str_unescape(sub_key_array[0]);
             break;
-        case EXPR_TYPE_REGEX:
+        case EXPR_TYPE_REGEX: //only regex type expression use \s to represent blank(' ')
             sub_expr_cnt = 1;
             sub_key_array[0] = expr_item->keywords;
             break;
@@ -710,15 +713,15 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
 
         if (TRUE == expr_item->is_case_sensitive) {
             // insensitive
-            expr_rule->patterns[i].case_sensitive = HS_CASE_SENSITIVE;
+            expr_rule->patterns[i].case_sensitive = EXPR_CASE_SENSITIVE;
         } else {
-            expr_rule->patterns[i].case_sensitive = HS_CASE_INSENSITIVE;
+            expr_rule->patterns[i].case_sensitive = EXPR_CASE_INSENSITIVE;
         }
 
-        expr_rule->patterns[i].pattern_type = expr_type2pattern_type(expr_item->expr_type);
+        expr_rule->patterns[i].type = expr_type2pattern_type(expr_item->expr_type);
 
         if (TRUE == expr_item->is_hexbin && 
-            expr_rule->patterns[i].pattern_type != HS_PATTERN_TYPE_REG) {
+            expr_rule->patterns[i].type != EXPR_PATTERN_TYPE_REG) {
             region_str_len = strlen(sub_key_array[i]) * 8 + 1;
 			region_string = ALLOC(char, region_str_len);
 			region_str_len = hex2bin(sub_key_array[i], strlen(sub_key_array[i]),
@@ -738,13 +741,13 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
         }
 
         expr_rule->patterns[i].match_mode = expr_item->match_mode;
-        if (expr_rule->patterns[i].match_mode == HS_MATCH_MODE_SUB) {
+        if (expr_rule->patterns[i].match_mode == EXPR_MATCH_MODE_SUB) {
             expr_rule->patterns[i].start_offset = key_left_offset[i];
             expr_rule->patterns[i].end_offset = key_right_offset[i];
         }
     }
     expr_rule->expr_id = expr_item->item_id;
-    expr_rule->user_tag = expr_item->user_data;
+    expr_rule->tag = expr_item->user_data;
     expr_rule->n_patterns = sub_expr_cnt;
     
     return 0;
@@ -810,10 +813,10 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
     return 0;
 }
 
-static void garbage_adapter_hs_free(void *adapter_hs, void *arg)
+static void garbage_expr_matcher_free(void *expr_matcher, void *arg)
 {
-    struct adapter_hs *hs = (struct adapter_hs *)adapter_hs;
-    adapter_hs_free(hs);
+    struct expr_matcher *matcher = (struct expr_matcher *)expr_matcher;
+    expr_matcher_free(matcher);
 }
 
 int expr_runtime_commit(void *expr_runtime, const char *table_name,
@@ -864,37 +867,41 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
         }
     }
 
-    struct adapter_hs *new_adapter_hs = NULL;
-    struct adapter_hs *old_adapter_hs = NULL;
+    struct expr_matcher *new_matcher = NULL;
+    struct expr_matcher *old_matcher = NULL;
 
     if (rule_cnt > 0) {
-        new_adapter_hs = adapter_hs_new(rules, real_rule_cnt, expr_rt->n_worker_thread,
-                                        expr_rt->logger);
-        if (NULL == new_adapter_hs) {
+        enum expr_engine_type engine_type = EXPR_ENGINE_TYPE_HS;
+        if (expr_rt->expr_engine == MAAT_EXPR_ENGINE_RS) {
+            engine_type = EXPR_ENGINE_TYPE_RS; 
+        }
+        
+        new_matcher = expr_matcher_new(rules, real_rule_cnt, engine_type, 
+                                       expr_rt->n_worker_thread, expr_rt->logger);
+        if (NULL == new_matcher) {
             log_error(expr_rt->logger, MODULE_EXPR,
-                      "[%s:%d] table[%s] rebuild adapter_hs engine failed when update"
+                      "[%s:%d] table[%s] rebuild expr_matcher failed when update"
                       " %zu expr rules", __FUNCTION__, __LINE__, table_name, real_rule_cnt);
             ret = -1;
+        } else {
+            log_info(expr_rt->logger, MODULE_EXPR,
+                     "table[%s] has %zu rules, commit %zu expr rules(regex rules:%zu) "
+                     "and rebuild adapter_hs completed, version:%lld", table_name, rule_cnt,
+                     real_rule_cnt, real_regex_rule_cnt, maat_rt_version);
         }
     }
 
-    old_adapter_hs = expr_rt->hs;
-    expr_rt->hs = new_adapter_hs;
+    old_matcher = expr_rt->matcher;
+    expr_rt->matcher = new_matcher;
     rcu_hash_commit(expr_rt->item_hash);
 
-    if (old_adapter_hs != NULL) {
-        maat_garbage_bagging(expr_rt->ref_garbage_bin, old_adapter_hs, NULL,
-                             garbage_adapter_hs_free);
+    if (old_matcher != NULL) {
+        maat_garbage_bagging(expr_rt->ref_garbage_bin, old_matcher, NULL, garbage_expr_matcher_free);
     }
     
     expr_rt->rule_num = real_rule_cnt;
     expr_rt->regex_rule_num = real_regex_rule_cnt;
     expr_rt->version = maat_rt_version;
-
-    log_info(expr_rt->logger, MODULE_EXPR,
-             "table[%s] has %zu rules, commit %zu expr rules(regex rules:%zu) "
-             "and rebuild adapter_hs completed, version:%lld", table_name, rule_cnt,
-             real_rule_cnt, real_regex_rule_cnt, expr_rt->version);
 
     if (rules != NULL) {
         for (i = 0; i < rule_cnt; i++) {
@@ -949,15 +956,14 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
         return 0;
     }
 
-    if (NULL == expr_rt->hs) {
+    if (NULL == expr_rt->matcher) {
         return 0;
     }
 
     size_t n_hit_item = 0;
-    struct hs_scan_result hit_results[MAX_SCANNER_HIT_ITEM_NUM];
-    int ret = adapter_hs_scan(expr_rt->hs, thread_id, data, data_len, 
-                              hit_results, MAX_SCANNER_HIT_ITEM_NUM, 
-                              &n_hit_item);
+    struct expr_scan_result hit_results[MAX_SCANNER_HIT_ITEM_NUM];
+    int ret = expr_matcher_match(expr_rt->matcher, thread_id, data, data_len, 
+                                 hit_results, MAX_SCANNER_HIT_ITEM_NUM, &n_hit_item);
     if (ret < 0) {
         return -1;
     }
@@ -1000,14 +1006,15 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
     return real_hit_item_cnt;
 }
 
-struct adapter_hs_stream *
+struct expr_matcher_stream *
 expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id)
 {
     if (NULL == expr_rt || thread_id < 0) {
         return NULL;
     }
 
-    struct adapter_hs_stream *stream = adapter_hs_stream_open(expr_rt->hs, thread_id);
+    struct expr_matcher_stream *stream = expr_matcher_stream_open(expr_rt->matcher,
+                                                                  thread_id);
     if (NULL == stream) {
         return NULL;
     }
@@ -1016,7 +1023,7 @@ expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id)
 }
 
 int expr_runtime_stream_scan(struct expr_runtime *expr_rt,
-                             struct adapter_hs_stream *s_handle,
+                             struct expr_matcher_stream *s_handle,
                              const char *data, size_t data_len,
                              int vtable_id, struct maat_state *state)
 {
@@ -1026,10 +1033,10 @@ int expr_runtime_stream_scan(struct expr_runtime *expr_rt,
     }
 
     size_t n_hit_item = 0;
-    struct hs_scan_result hit_results[MAX_SCANNER_HIT_ITEM_NUM];
+    struct expr_scan_result hit_results[MAX_SCANNER_HIT_ITEM_NUM];
 
-    int ret = adapter_hs_scan_stream(s_handle, data, data_len, hit_results,
-                                     MAX_SCANNER_HIT_ITEM_NUM, &n_hit_item);
+    int ret = expr_matcher_stream_match(s_handle, data, data_len, hit_results,
+                                        MAX_SCANNER_HIT_ITEM_NUM, &n_hit_item);
     if (ret < 0) {
         return -1;
     }
@@ -1067,13 +1074,13 @@ int expr_runtime_stream_scan(struct expr_runtime *expr_rt,
 }
 
 void expr_runtime_stream_close(struct expr_runtime *expr_rt, int thread_id, 
-                               struct adapter_hs_stream *s_handle)
+                               struct expr_matcher_stream *stream)
 {
-    if (NULL == expr_rt || thread_id < 0 || NULL == s_handle) {
+    if (NULL == expr_rt || thread_id < 0 || NULL == stream) {
         return;
     }
 
-    adapter_hs_stream_close(s_handle);
+    expr_matcher_stream_close(stream);
 }
 
 void expr_runtime_hit_inc(struct expr_runtime *expr_rt, int thread_id)

@@ -47,6 +47,7 @@ struct table_manager {
     struct rule_tag *accept_tags;
     size_t n_accept_tag;
 
+    enum maat_expr_engine expr_engine;
     int default_compile_table_id;
     int g2g_table_id;
     struct maat_kv_store *tablename2id_map;
@@ -661,7 +662,8 @@ static int register_tablename2id(cJSON *json, struct maat_kv_store *tablename2id
 
 struct table_manager *
 table_manager_create(const char *table_info_path, const char *accept_tags,
-                     struct maat_garbage_bin *garbage_bin, struct log_handle *logger)
+                     enum maat_expr_engine expr_engine, struct maat_garbage_bin *garbage_bin,
+                     struct log_handle *logger)
 {
     if (NULL == table_info_path) {
         return NULL;
@@ -702,6 +704,7 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
     tbl_mgr->n_accept_tag = parse_accept_tag(accept_tags, &tbl_mgr->accept_tags, logger);
     tbl_mgr->logger = logger;
     tbl_mgr->tablename2id_map = maat_kv_store_new();
+    tbl_mgr->expr_engine = expr_engine;
     tbl_mgr->ref_garbage_bin = garbage_bin;
 
     for (int i = 0; i < json_array_size; i++) {
@@ -1016,6 +1019,15 @@ int table_manager_get_valid_column(struct table_manager *tbl_mgr, int table_id)
     }
 
     return tbl_mgr->tbl[table_id]->valid_column;
+}
+
+enum maat_expr_engine table_manager_get_expr_engine(struct table_manager *tbl_mgr)
+{
+    if (NULL == tbl_mgr) {
+        return MAAT_EXPR_ENGINE_HS;
+    }
+
+    return tbl_mgr->expr_engine;
 }
 
 size_t table_manager_accept_tags_count(struct table_manager *tbl_mgr)

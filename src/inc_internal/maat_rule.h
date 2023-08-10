@@ -128,6 +128,7 @@ struct maat_options {
     int rule_effect_interval_ms;
     int rule_update_checking_interval_ms;
 
+    enum maat_expr_engine expr_engine;
     enum data_source input_mode;
     union {
         struct source_iris_ctx iris_ctx;

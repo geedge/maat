@@ -140,6 +140,7 @@ struct maat_internal_hit_path {
 struct maat_compile_state {
     uint8_t this_scan_hit_item_flag;
     uint8_t not_clause_hit_flag;
+    uint8_t inc_hit_path_flag;
 	int Nth_scan;
     time_t compile_rt_version;
 
@@ -987,9 +988,12 @@ static inline int compare_hit_group(const void *pa, const void *pb)
 	struct maat_hit_group *la=(struct maat_hit_group *)pa;
 	struct maat_hit_group *lb=(struct maat_hit_group *)pb;
 
-	long long ret = la->group_id - lb->group_id;
+	long long ret = la->item_id - lb->item_id;
 	if (ret == 0) {
-		ret = la->vtable_id - lb->vtable_id;
+		ret = la->group_id - lb->group_id;
+        if (ret == 0) {
+            ret = la->vtable_id - lb->vtable_id;
+        }
 	}
 
 	return ret;
@@ -1289,7 +1293,7 @@ static int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
         if (NULL == compile) {
             log_error(logger, MODULE_COMPILE,
                       "[%s:%d] Remove group_id:%lld from compile_id:%lld failed, compile"
-                      " is not exisited.", __FUNCTION__, __LINE__, g2c_item->group_id,
+                      " is not existed.", __FUNCTION__, __LINE__, g2c_item->group_id,
                       compile_id);
             return -1;
         } else {
@@ -1345,7 +1349,7 @@ static int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
         } else {
             log_error(logger, MODULE_COMPILE,
                       "[%s:%d] Remove group_id:%lld from compile_id:%lld failed, "
-                      "compile is not exisited.", __FUNCTION__, __LINE__, 
+                      "compile is not existed.", __FUNCTION__, __LINE__, 
                       g2c_item->group_id, compile_id);
             return -1;
         }
@@ -1376,6 +1380,7 @@ void maat_compile_state_reset(struct maat_compile_state *compile_state)
     compile_state->compile_rt_version = 0;
     compile_state->this_scan_hit_item_flag = 0;
     compile_state->not_clause_hit_flag = 0;
+    compile_state->inc_hit_path_flag = 0;
 
     utarray_clear(compile_state->internal_hit_paths);
     utarray_clear(compile_state->internal_inc_hit_paths);
@@ -1541,9 +1546,13 @@ static void maat_compile_state_update_hit_path(struct maat_compile_state *compil
 	if (compile_state->Nth_scan != Nth_scan) {
 		assert(compile_state->this_scan_hit_item_flag == 0);
 		compile_state->Nth_scan = Nth_scan;
-        utarray_clear(compile_state->internal_inc_hit_paths);
 		utarray_clear(compile_state->this_scan_hit_clauses);
 	}
+
+    if (1 == compile_state->inc_hit_path_flag) {
+        compile_state->inc_hit_path_flag = 0;
+        utarray_clear(compile_state->internal_inc_hit_paths);
+    }
 
     maat_compile_hit_path_add(compile_state->internal_inc_hit_paths, item_id, group_id,
                               vtable_id, Nth_scan, Nth_item_result);
@@ -2125,6 +2134,7 @@ size_t maat_compile_state_get_hit_groups(struct maat_compile_state *compile_stat
         tmp_hit_path = compile_state->internal_hit_paths;
     } else if (type == MAAT_LIST_TYPE_INC) {
         tmp_hit_path = compile_state->internal_inc_hit_paths;
+        compile_state->inc_hit_path_flag = 1;
     }
 
     for (i = 0; i < utarray_len(tmp_hit_path); i++) {
@@ -2139,6 +2149,7 @@ size_t maat_compile_state_get_hit_groups(struct maat_compile_state *compile_stat
 
         for (size_t idx = 0; idx < super_group_cnt; idx++) {
             struct maat_hit_group hit_group;
+            hit_group.item_id = internal_path->item_id;
             hit_group.group_id = super_group_ids[idx];
             hit_group.vtable_id = internal_path->vtable_id;
             if (utarray_find(all_hit_groups, &hit_group, compare_hit_group)) {
