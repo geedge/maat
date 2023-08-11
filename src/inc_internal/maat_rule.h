@@ -40,7 +40,7 @@ extern "C"
 #define	DISTRICT_ANY	   -1
 #define	DISTRICT_UNKNOWN   -2
 
-#define MAX_DISTRICT_STR   128
+#define MAX_DISTRICT_STR_LEN   128
 #define INVALID_VERSION    -1
 
 #define mr_region_id_var "SEQUENCE_REGION"
@@ -109,8 +109,8 @@ struct source_redis_ctx {
 struct maat_options {
     char inst_name[MAX_INSTANCE_NAME_LEN + 1];
     char foreign_cont_dir[NAME_MAX];
-    char decrypt_algo[MAX_KEYWORDS_STR];
-    char decrypt_key[MAX_KEYWORDS_STR];
+    char decrypt_algo[MAX_KEYWORDS_STR_LEN];
+    char decrypt_key[MAX_KEYWORDS_STR_LEN];
     char log_path[PATH_MAX];
     int log_level;
     char stat_file[NAME_MAX];

@@ -440,6 +440,14 @@ static int plugin_table_line_get_key(struct plugin_schema *schema,
         return -1;
     }
 
+    if (key_len > MAX_KEYWORDS_STR_LEN) {
+        log_error(logger, MODULE_PLUGIN,
+                  "[%s:%d] plugin table:<%s> key(column seq:%d) length exceed maxium:%d"
+                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
+                  schema->key_column, MAX_KEYWORDS_STR_LEN, line); 
+        return -1;
+    }
+
     const char *common_key = line + key_offset;
     if (schema->key_type == PLUGIN_KEY_TYPE_POINTER) {
         memcpy(dst_key, common_key, key_len);
@@ -543,7 +551,7 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
         return -1;
     }
 
-   char key[MAX_KEYWORDS_STR] = {0};
+    char key[MAX_KEYWORDS_STR_LEN + 1] = {0};
     size_t key_len = 0;
     ret = plugin_table_line_get_key(schema, table_name, line, key, &key_len,
                                     plugin_rt->logger);

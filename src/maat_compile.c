@@ -284,8 +284,8 @@ compile_item_new(const char *table_line, struct compile_schema *schema,
     compile_item->ref_schema = schema;
     compile_item->ex_data = ALLOC(void *, 1);
     memcpy(compile_item->table_name, table_name, sizeof(compile_item->table_name));
-    compile_item->table_line_len = strlen(table_line) + 1;
-    compile_item->table_line = ALLOC(char, compile_item->table_line_len);
+    compile_item->table_line_len = strlen(table_line);
+    compile_item->table_line = ALLOC(char, compile_item->table_line_len + 1);
     memcpy(compile_item->table_line, table_line, compile_item->table_line_len);
 
     if (1 == schema->set_flag) {
@@ -1154,7 +1154,7 @@ static struct compile_item *compile_item_clone(struct compile_item *item)
     new_item->ex_data = ALLOC(void *, 1);
     memcpy(new_item->table_name, item->table_name, sizeof(new_item->table_name));
     new_item->table_line_len = item->table_line_len;
-    new_item->table_line = ALLOC(char, new_item->table_line_len);
+    new_item->table_line = ALLOC(char, new_item->table_line_len + 1);
     memcpy(new_item->table_line, item->table_line, new_item->table_line_len);
 
     if (1 == item->ref_schema->set_flag) {

@@ -171,8 +171,8 @@ int parse_config_file(const char *filename, struct expr_rule exprs[], size_t *n_
                 exprs[i].patterns[j].pat = ALLOC(char, strlen(item->valuestring) + 1);
 
                 if (is_hexbin == 1) {
-                    size_t pat_str_len = strlen(item->valuestring) + 1;
-                    char *pat_str = ALLOC(char, pat_str_len);
+                    size_t pat_str_len = strlen(item->valuestring);
+                    char *pat_str = ALLOC(char, pat_str_len + 1);
                     pat_str_len = hex2bin(item->valuestring, strlen(item->valuestring), 
                                           pat_str, pat_str_len);
                     

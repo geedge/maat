@@ -308,15 +308,15 @@ interval_item_new(struct interval_schema *schema, const char *table_name,
             goto error;
         }
 
-        if (column_len >= MAX_DISTRICT_STR) {
+        if (column_len > MAX_DISTRICT_STR_LEN) {
             log_error(interval_rt->logger, MODULE_INTERVAL, 
                       "[%s:%d] interval_plus table:<%s> district length exceed "
-                      "maxium:%d in line:%s", __FUNCTION__, __LINE__, table_name,
-                      MAX_DISTRICT_STR, line);
+                      "maximum:%d in line:%s", __FUNCTION__, __LINE__, table_name,
+                      MAX_DISTRICT_STR_LEN, line);
             goto error;
         }
 
-        char district[MAX_DISTRICT_STR] = {0};
+        char district[MAX_DISTRICT_STR_LEN + 1] = {0};
         memcpy(district, (line + column_offset), column_len);
         assert(strlen(district) > 0);
         str_unescape(district);

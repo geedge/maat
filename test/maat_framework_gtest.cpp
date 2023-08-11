@@ -3875,7 +3875,7 @@ void bool_plugin_ex_new_cb(const char *table_name, int table_id, const char *key
 	ret = get_column_pos(table_line, 3, &column_offset, &column_len);	
 	EXPECT_EQ(ret, 0);
 
-	ud->name = ALLOC(char, column_len+1);
+	ud->name = ALLOC(char, column_len + 1);
 	memcpy(ud->name, table_line+column_offset, column_len);
 	ud->name_len = column_len + 1;
     
@@ -4606,7 +4606,7 @@ TEST_F(MaatFileTest, StreamFiles) {
 		ASSERT_TRUE(ret == 0);
 
 		file_size = file_info.st_size;
-		char *buff = ALLOC(char, file_size);
+		char *buff = ALLOC(char, file_size + 1);
 		FILE *fp = fopen(file_path, "rb");
 		if (fp == NULL) {
 			printf("fopen %s error.\n", file_path);
@@ -5655,7 +5655,7 @@ void prepare_file_to_set(const char* filename, char** file_buff, size_t *file_si
 	ASSERT_FALSE(fp == NULL);
 
 	*file_size = file_info.st_size;
-    *file_buff = ALLOC(char, *file_size);
+    *file_buff = ALLOC(char, *file_size + 1);
 	ret = fread(*file_buff, 1, *file_size, fp);
 	fclose(fp);
 	

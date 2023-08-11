@@ -139,7 +139,7 @@ static void _get_foregin_keys(struct serial_rule *p_rule, int *foreign_columns,
 					 __FUNCTION__, __LINE__, p_rule->table_name, p_rule->rule_id, p_foreign);
 		}
 
-		p_rule->f_keys[p_rule->n_foreign].key = ALLOC(char, foreign_key_size+1);
+		p_rule->f_keys[p_rule->n_foreign].key = ALLOC(char, foreign_key_size + 1);
 		memcpy(p_rule->f_keys[p_rule->n_foreign].key, p_foreign, foreign_key_size);
 		p_rule->f_keys[p_rule->n_foreign].filename = get_foreign_cont_filename(p_rule->table_name, 
                                                                                p_rule->rule_id, 
@@ -515,14 +515,14 @@ static struct serial_rule *serial_rule_clone(const struct serial_rule *s_rule)
     new_rule->timeout = s_rule->timeout;
     memcpy(new_rule->table_name, s_rule->table_name, strlen(s_rule->table_name));
     new_rule->n_foreign = s_rule->n_foreign;
-    new_rule->table_line = ALLOC(char, strlen(s_rule->table_line));
+    new_rule->table_line = ALLOC(char, strlen(s_rule->table_line) + 1);
     memcpy(new_rule->table_line, s_rule->table_line, strlen(s_rule->table_line));
 
     new_rule->f_keys = ALLOC(struct foreign_key, new_rule->n_foreign);
     for (int j = 0; j < new_rule->n_foreign; j++) {
-        new_rule->f_keys[j].key = ALLOC(char, s_rule->f_keys[j].key_len);
+        new_rule->f_keys[j].key = ALLOC(char, s_rule->f_keys[j].key_len + 1);
         memcpy(new_rule->f_keys[j].key, s_rule->f_keys[j].key, s_rule->f_keys[j].key_len);
-        new_rule->f_keys[j].filename = ALLOC(char, strlen(s_rule->f_keys[j].filename));
+        new_rule->f_keys[j].filename = ALLOC(char, strlen(s_rule->f_keys[j].filename) + 1);
         memcpy(new_rule->f_keys[j].filename, s_rule->f_keys[j].filename, 
                strlen(s_rule->f_keys[j].filename));
     }
@@ -945,7 +945,7 @@ void maat_rewrite_table_line_with_foreign(struct serial_rule *s_rule)
 		fn_size += strlen(s_rule->f_keys[i].filename);
 	}
 	
-    char *rewrite_line = ALLOC(char, strlen(s_rule->table_line) + fn_size);
+    char *rewrite_line = ALLOC(char, strlen(s_rule->table_line) + fn_size + 1);
     char *pos_rewrite_line = rewrite_line;
 	const char *pos_origin_line = s_rule->table_line;
 	

@@ -16,12 +16,9 @@ extern "C"
 {
 #endif
 
-#define MAX_KEYWORDS_STR     1024
-
+#define MAX_KEYWORDS_STR_LEN     1024
 #define MAX_MAAT_STAT_NUM    64
-
 #define MAX_NAME_STR_LEN     64
-
 #define MAX_INSTANCE_NAME_LEN 15
 
 #ifdef __cplusplus

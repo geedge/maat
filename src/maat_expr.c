@@ -58,7 +58,7 @@ enum match_method {
 struct expr_item {
     long long item_id;
     long long group_id;
-    char keywords[MAX_KEYWORDS_STR];
+    char keywords[MAX_KEYWORDS_STR_LEN + 1];
     enum expr_type expr_type;
     enum expr_match_mode match_mode;
     int is_hexbin;
@@ -211,7 +211,7 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
         goto error;
     }
 
-    if (column_len >= MAX_KEYWORDS_STR) {
+    if (column_len > MAX_KEYWORDS_STR_LEN) {
         log_error(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> keywords length too long in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
@@ -252,14 +252,15 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
             goto error;
         }
 
-        if (column_len >= MAX_DISTRICT_STR) {
+        if (column_len > MAX_DISTRICT_STR_LEN) {
             log_error(expr_rt->logger, MODULE_EXPR, 
-                      "[%s:%d] expr table:<%s> district length exceed maxium:%d in line:%s",
-                      __FUNCTION__, __LINE__, table_name, MAX_DISTRICT_STR, line);
+                      "[%s:%d] expr table:<%s> district length exceed maximum:%d"
+                      " in line:%s", __FUNCTION__, __LINE__, table_name,
+                      MAX_DISTRICT_STR_LEN, line);
             goto error;
         }
 
-        char district[MAX_DISTRICT_STR] = {0};
+        char district[MAX_DISTRICT_STR_LEN + 1] = {0};
         memcpy(district, (line + column_offset), column_len);
         assert(strlen(district) > 0);
         str_unescape(district);
@@ -722,8 +723,8 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
 
         if (TRUE == expr_item->is_hexbin && 
             expr_rule->patterns[i].type != EXPR_PATTERN_TYPE_REG) {
-            region_str_len = strlen(sub_key_array[i]) * 8 + 1;
-			region_string = ALLOC(char, region_str_len);
+            region_str_len = strlen(sub_key_array[i]) * 8;
+			region_string = ALLOC(char, region_str_len + 1);
 			region_str_len = hex2bin(sub_key_array[i], strlen(sub_key_array[i]),
                                      region_string, region_str_len);
         }

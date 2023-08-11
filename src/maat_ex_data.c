@@ -93,11 +93,11 @@ void ex_data_runtime_cache_row_put(struct ex_data_runtime *ex_data_rt, const cha
         return;
     }
 
-	size_t len = strlen(row) + 1;
-	char* row_copy = ALLOC(char, len);
+	size_t row_len = strlen(row);
+	char *row_copy = ALLOC(char, row_len + 1);
 
-	memcpy(row_copy, row, len);
-	ex_data_rt->cache_size += len;
+	memcpy(row_copy, row, row_len);
+	ex_data_rt->cache_size += row_len;
 	utarray_push_back(ex_data_rt->cache_rows, &row_copy);
 	ex_data_rt->cache_row_num++;	
 }
