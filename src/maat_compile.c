@@ -1083,10 +1083,9 @@ static size_t compile_state_if_new_hit_compile(struct maat_compile_state *compil
 	return r_in_c_cnt;
 }
 
-static size_t maat_compile_bool_matcher_match(struct compile_runtime *compile_rt,
-                                              int is_last_scan, int thread_id,
-                                              struct maat_compile_state *compile_state, 
-                                              void **user_data_array, size_t ud_array_size)
+size_t maat_compile_bool_matcher_match(struct compile_runtime *compile_rt, int compile_not_flag,
+                                       struct maat_compile_state *compile_state, int thread_id,
+                                       void **user_data_array, size_t ud_array_size)
 {
     size_t ud_result_cnt = 0;
 	struct maat_compile *compile = NULL;
@@ -1127,7 +1126,7 @@ static size_t maat_compile_bool_matcher_match(struct compile_runtime *compile_rt
 
         size_t n_new_hit_compile = compile_state_if_new_hit_compile(compile_state, compile);
         int this_scan_hit_item_flag = compile_state->this_scan_hit_item_flag;
-        if ((compile->not_clause_cnt > 0) && (LAST_SCAN_UNSET == is_last_scan)) {
+        if ((compile->not_clause_cnt > 0) && (COMPILE_NOT_UNSET == compile_not_flag)) {
             compile_state->not_clause_hit_flag = 1;
         } else if (compile->user_data) {
              if (n_new_hit_compile > 0 || 0 == this_scan_hit_item_flag) {
@@ -2053,12 +2052,12 @@ int compile_runtime_match(struct compile_runtime *compile_rt, long long *compile
                           size_t compile_ids_size, struct maat_state *state)
 {
     struct maat_compile_state *compile_state = state->compile_state;
-    int is_last_scan = state->is_last_scan;
+    int compile_NOT_flag = state->compile_NOT_flag;
     struct compile_item *compile_items[compile_ids_size];
     
     // all hit clause_id -> compile_id
-    size_t bool_match_ret = maat_compile_bool_matcher_match(compile_rt, is_last_scan,
-                                                            state->thread_id, compile_state, 
+    size_t bool_match_ret = maat_compile_bool_matcher_match(compile_rt, compile_NOT_flag,
+                                                            compile_state, state->thread_id,
                                                             (void **)compile_items,
                                                             compile_ids_size);
     if (bool_match_ret > 0) {

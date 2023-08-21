@@ -187,10 +187,9 @@ struct maat {
     struct maat_stat *stat;
 };
 
-enum last_scan_flag {
-    LAST_SCAN_UNSET,
-    LAST_SCAN_SET,
-    LAST_SCAN_FINISHED
+enum compile_not_flag {
+    COMPILE_NOT_UNSET,
+    COMPILE_NOT_SET
 };
 
 struct maat_state {
@@ -201,7 +200,7 @@ struct maat_state {
 	uint16_t thread_id;
     int16_t compile_table_id;
 	uint8_t is_set_district;
-    uint8_t is_last_scan;
+    uint8_t compile_NOT_flag;
 };
 
 int my_scandir(const char *dir, struct dirent ***namelist,

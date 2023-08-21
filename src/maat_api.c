@@ -916,8 +916,9 @@ int maat_bool_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
 
 static inline int scan_status_should_compile_NOT(struct maat_state *state)
 {
-	if (state && (LAST_SCAN_SET == state->is_last_scan) && state->compile_state
-        && maat_compile_state_has_NOT_clause(state->compile_state)) {
+	if (state && (COMPILE_NOT_SET == state->compile_NOT_flag) &&
+        state->compile_state && 
+        maat_compile_state_has_NOT_clause(state->compile_state)) {
 		return 1;
 	} 
 
@@ -1126,11 +1127,6 @@ static size_t group_to_compile(struct maat *maat_inst, long long *results,
     }
 
     size_t n_hit_compile = hit_group_to_compile(compile_rt, results, n_result, state);
-
-    assert(state->is_last_scan < LAST_SCAN_FINISHED);
-    if (LAST_SCAN_SET == state->is_last_scan) {
-        state->is_last_scan = LAST_SCAN_FINISHED;
-    }
 
     return n_hit_compile;
 }
@@ -1738,7 +1734,7 @@ struct maat_state *maat_state_new(struct maat *maat_inst, int thread_id)
 
     state->maat_inst = maat_inst;
     state->is_set_district = DISTRICT_FLAG_UNSET;
-    state->is_last_scan = LAST_SCAN_UNSET;
+    state->compile_NOT_flag = COMPILE_NOT_UNSET;
     state->district_id = DISTRICT_ANY;
     state->thread_id = thread_id;
 
@@ -1756,7 +1752,7 @@ void maat_state_reset(struct maat_state *state)
 
     state->compile_table_id = 0;
     state->is_set_district = DISTRICT_FLAG_UNSET;
-    state->is_last_scan = LAST_SCAN_UNSET;
+    state->compile_NOT_flag = COMPILE_NOT_UNSET;
     state->district_id = DISTRICT_ANY;
     state->scan_cnt = 0;
 
@@ -1862,7 +1858,7 @@ int maat_state_set_scan_district(struct maat_state *state, int table_id,
     return 0;
 }
 
-int maat_state_set_last_scan(struct maat_state *state)
+int maat_state_enable_compile_NOT(struct maat_state *state)
 {
     if (NULL == state) {
         return -1;
@@ -1875,8 +1871,19 @@ int maat_state_set_last_scan(struct maat_state *state)
         return -1;
     }
 
-    assert(state->is_last_scan == LAST_SCAN_UNSET);
-    state->is_last_scan = LAST_SCAN_SET;
+    assert(state->compile_NOT_flag == COMPILE_NOT_UNSET);
+    state->compile_NOT_flag = COMPILE_NOT_SET;
+
+    return 0;
+}
+
+int maat_state_disable_compile_NOT(struct maat_state *state)
+{
+     if (NULL == state) {
+        return -1;
+    }
+
+    state->compile_NOT_flag = COMPILE_NOT_UNSET;
 
     return 0;
 }

@@ -1732,6 +1732,7 @@ TEST_F(MaatRsStringScan, Expr8) {
     int n_read = 0;
     n_read = maat_state_get_hit_paths(state, hit_path, HIT_PATH_SIZE);
     EXPECT_NE(n_read, 0);
+
     maat_state_free(state);
     state = NULL;
 }
@@ -2800,7 +2801,7 @@ TEST_F(NOTLogic, OneRegion) {
 	int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    maat_state_set_last_scan(state);
+    maat_state_enable_compile_NOT(state);
 	int ret = maat_scan_string(maat_inst, table_id, string_should_hit, strlen(string_should_hit), 
 						       results, ARRAY_SIZE, &n_hit_result, state);
 						
@@ -2809,7 +2810,6 @@ TEST_F(NOTLogic, OneRegion) {
     EXPECT_EQ(results[0], 143);
     maat_state_reset(state);
 	
-    maat_state_set_last_scan(state);
 	ret = maat_scan_string(maat_inst, table_id, string_should_not_hit, strlen(string_should_not_hit), 
 						   results, ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
@@ -2839,7 +2839,7 @@ TEST_F(NOTLogic, ScanNotAtLast) {
     int not_hit_table_id =  maat_get_table_id(maat_inst, not_hit_table_name);
     ASSERT_GT(not_hit_table_id, 0);
 
-	maat_state_set_last_scan(state);
+	maat_state_enable_compile_NOT(state);
     ret = maat_scan_string(maat_inst, not_hit_table_id, string_should_not_hit, strlen(string_should_not_hit), 
 						       results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
@@ -2868,7 +2868,7 @@ TEST_F(NOTLogic, ScanIrrelavantAtLast) {
     int not_hit_table_id = maat_get_table_id(maat_inst, not_hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
-    maat_state_set_last_scan(state);
+    maat_state_enable_compile_NOT(state);
     ret = maat_scan_string(maat_inst, not_hit_table_id, string_irrelevant, strlen(string_irrelevant), 
 						       results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -2913,7 +2913,7 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyExpr) {
     int empty_table_id = maat_get_table_id(maat_inst, empty_table_name);
     ASSERT_GT(empty_table_id, 0);
 
-    maat_state_set_last_scan(state);
+    maat_state_enable_compile_NOT(state);
     ret = maat_scan_string(maat_inst, empty_table_id, string_match_no_region, 
                            strlen(string_match_no_region), results, ARRAY_SIZE, 
                            &n_hit_result, state);
@@ -2958,7 +2958,7 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyInteger) {
     int empty_table_id = maat_get_table_id(maat_inst, empty_table_name);
     ASSERT_GT(empty_table_id, 0);
 
-    maat_state_set_last_scan(state);
+    maat_state_enable_compile_NOT(state);
     ret = maat_scan_integer(maat_inst, empty_table_id, 2015,
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -2993,7 +2993,7 @@ TEST_F(NOTLogic, ScanNotIP) {
     int not_hit_table_id = maat_get_table_id(maat_inst, not_hit_table_name);
     ASSERT_GT(not_hit_table_id, 0);
 
-    maat_state_set_last_scan(state);
+    maat_state_enable_compile_NOT(state);
     ret = maat_scan_ipv4(maat_inst, not_hit_table_id, sip, port, proto, 
                          results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
