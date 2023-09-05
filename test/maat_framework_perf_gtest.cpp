@@ -403,7 +403,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in MaatStringScan failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -426,7 +426,7 @@ void *perf_string_scan_thread(void *arg)
     struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
     struct timespec start, end;
-    const char *scan_data = "today and yesterday should hit";
+    const char *scan_data = "http://www.cyberessays.com/search_results.php?action=search&query=username,abckkk,1234567";
     long long results[ARRAY_SIZE] = {0};
     int hit_times = 0;
     size_t n_hit_result = 0;
@@ -534,7 +534,7 @@ void *perf_ip_scan_thread(void *arg)
     struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
     struct timespec start, end;
-    char ip_str[32] = "10.0.0.1";
+    char ip_str[32] = "10.0.7.100";
     uint32_t ip_addr;
     uint16_t port = htons(65530);
 
@@ -658,7 +658,7 @@ void *perf_flag_scan_thread(void *arg)
     int hit_times = 0;
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
-    long long scan_data = 15;
+    long long scan_data = 9;
 
     struct maat_state *state = maat_state_new(maat_inst, param->thread_id);
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -703,7 +703,7 @@ void *perf_flag_update_thread(void *arg)
 }
 
 TEST_F(MaatPerfStringScan, LiteralMultiThread) {
-    const char *table_name = "EXPR_LITERAL_PERF_CONFIG";
+    const char *table_name = "HTTP_URL";
     struct maat *maat_inst = MaatPerfStringScan::_shared_maat_inst;
 
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -749,7 +749,7 @@ TEST_F(MaatPerfStringScan, LiteralMultiThread) {
 }
 
 TEST_F(MaatPerfStringScan, RegexMultiThread) {
-    const char *table_name = "EXPR_REGEX_PERF_CONFIG";
+    const char *table_name = "HTTP_URL";
     struct maat *maat_inst = MaatPerfStringScan::_shared_maat_inst;
 
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -824,7 +824,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in MaatStreamScan failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -847,7 +847,7 @@ void *perf_stream_scan_thread(void *arg)
     struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
     struct timespec start, end;
-    const char *scan_data = "http://www.cyberessays.com/search_results.php?today and yesterday";
+    const char *scan_data = "http://www.cyberessays.com/search_results.php?action=search&query=username,abckkk,1234567";
     long long results[ARRAY_SIZE] = {0};
     int ret = 0, hit_times = 0;
     size_t n_hit_result = 0;
@@ -880,7 +880,7 @@ void *perf_stream_scan_thread(void *arg)
 }
 
 TEST_F(MaatPerfStreamScan, MultiThread) {
-    const char *table_name = "EXPR_LITERAL_PERF_CONFIG";
+    const char *table_name = "HTTP_URL";
     struct maat *maat_inst = MaatPerfStreamScan::_shared_maat_inst;
 
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -951,7 +951,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in MaatIPScan failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -970,7 +970,7 @@ struct log_handle *MaatPerfIPScan::logger;
 
 TEST_F(MaatPerfIPScan, MultiThread)
 {
-    const char *table_name = "IP_PERF_CONFIG";
+    const char *table_name = "IP_PLUS_CONFIG";
     struct maat *maat_inst = MaatPerfIPScan::_shared_maat_inst;
 
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -1045,7 +1045,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in MaatIntegerScan failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -1063,7 +1063,7 @@ struct maat *MaatPerfIntegerScan::_shared_maat_inst;
 struct log_handle *MaatPerfIntegerScan::logger;
 
 TEST_F(MaatPerfIntegerScan, MultiThread) {
-    const char *table_name = "INTEGER_PERF_CONFIG";
+    const char *table_name = "CONTENT_SIZE";
     struct maat *maat_inst = MaatPerfIntegerScan::_shared_maat_inst;
 
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -1156,7 +1156,7 @@ struct maat *MaatPerfFlagScan::_shared_maat_inst;
 struct log_handle *MaatPerfFlagScan::logger;
 
 TEST_F(MaatPerfFlagScan, MultiThread) {
-    const char *table_name = "FLAG_PERF_CONFIG";
+    const char *table_name = "FLAG_CONFIG";
     struct maat *maat_inst = MaatPerfFlagScan::_shared_maat_inst;
 
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -1231,7 +1231,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in MaatFQDNPluginScan failed.",
                       __FUNCTION__, __LINE__);
         }
     }

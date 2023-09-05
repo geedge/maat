@@ -729,12 +729,12 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
 
     int n_hit_ip_item = ip_matcher_match(ip_rt->ip_matcher, &scan_data,
                                          ip_results, MAX_SCANNER_HIT_ITEM_NUM);
-    if (n_hit_ip_item <= 0) {
-        return n_hit_ip_item;
+    if (n_hit_ip_item < 0) {
+        return -1;
     }
 
-    if (n_hit_ip_item > MAX_SCANNER_HIT_ITEM_NUM) {
-        n_hit_ip_item = MAX_SCANNER_HIT_ITEM_NUM;
+    if (0 == n_hit_ip_item) {
+        goto next;
     }
 
     for (size_t i = 0; i < n_hit_ip_item; i++) {
@@ -757,9 +757,8 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
         real_hit_item_cnt++;
     }
 
-    maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
-
-    return real_hit_item_cnt;
+next:
+    return maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
 }
 
 void ip_runtime_hit_inc(struct ip_runtime *ip_rt, int thread_id)

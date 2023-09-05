@@ -283,10 +283,6 @@ void maat_state_free(struct maat_state *state);
 int maat_state_set_scan_district(struct maat_state *state, int table_id, 
                                  const char *district, size_t district_len);
 
-int maat_state_enable_compile_NOT(struct maat_state *state);
-
-int maat_state_disable_compile_NOT(struct maat_state *state);
-
 int maat_state_set_scan_compile_table(struct maat_state *state, int compile_table_id);
 
 int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *path_array, 
