@@ -1082,6 +1082,9 @@ static size_t group_topology_get_super_groups(struct maat_group_topology *group_
     long long *p = NULL;
     for (p = (long long *)utarray_front(all_hit_group_ids); p != NULL;
          p = (long long *)utarray_next(all_hit_group_ids, p)) {
+        if (idx >= super_group_ids_size) {
+            break;
+        }
         super_group_ids[idx++] = *p;
     }
 

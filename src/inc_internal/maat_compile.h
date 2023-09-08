@@ -117,7 +117,7 @@ size_t maat_compile_state_get_hit_groups(struct maat_compile_state *compile_stat
                                          struct group2group_runtime *g2g_rt,
                                          enum maat_list_type type,
                                          struct maat_hit_group *hit_group_array,
-                                         size_t array_size, struct log_handle *logger);
+                                         size_t group_array_size);
 
 int maat_compile_state_has_NOT_clause(struct maat_compile_state *compile_state);
 

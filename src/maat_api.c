@@ -1971,7 +1971,7 @@ int maat_state_get_hit_groups(struct maat_state *state, enum maat_list_type type
 
     return maat_compile_state_get_hit_groups(state->compile_state,
                                              (struct group2group_runtime *)g2g_runtime,
-                                             type, groups, n_group, state->maat_inst->logger);
+                                             type, groups, n_group);
 }
 
 int maat_hit_group_compile_id(struct maat *instance, struct maat_hit_group *group)

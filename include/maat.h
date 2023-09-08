@@ -295,6 +295,7 @@ size_t maat_state_get_scan_count(struct maat_state *state);
  * @param type: 
  *          MAAT_LIST_TYPE_FULL => get all hit groups after maat_state_new
  *          MAAT_LIST_TYPE_INC  => get hit groups for this scan
+ * NOTE: hit groups may be duplicated, only return hit sub group id
 */
 int maat_state_get_hit_groups(struct maat_state *state, enum maat_list_type type,
                               struct maat_hit_group *groups, size_t n_group);
