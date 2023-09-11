@@ -281,8 +281,8 @@ int maat_state_disable_compile_NOT(struct maat_state *state);
 
 int maat_state_set_scan_compile_table(struct maat_state *state, int compile_table_id);
 
-int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *paths, 
-                             size_t n_path);
+int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *path_array, 
+                             size_t array_size);
                              
 /**
  * @brief get the total number of scans after maat_state_new
@@ -290,15 +290,24 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
 size_t maat_state_get_scan_count(struct maat_state *state);
 
 /**
- * @brief get hit groups(full or incremental)
+ * @brief get direct hit groups(full or incremental)
  * 
  * @param type: 
  *          MAAT_LIST_TYPE_FULL => get all hit groups after maat_state_new
  *          MAAT_LIST_TYPE_INC  => get hit groups for this scan
- * NOTE: hit groups may be duplicated, only return hit sub group id
+ * NOTE: hit groups may be duplicated
 */
-int maat_state_get_hit_groups(struct maat_state *state, enum maat_list_type type,
-                              struct maat_hit_group *groups, size_t n_group);
+int maat_state_get_direct_hit_groups(struct maat_state *state, enum maat_list_type type,
+                                     struct maat_hit_group *group_array, size_t array_size);
+
+/**
+ * @brief get indirect hit groups
+ * 
+ * NOTE: hit groups may be duplicated
+*/
+int maat_state_get_indirect_hit_groups(struct maat_state *state,
+                                       struct maat_hit_group *group_array,
+                                       size_t array_size);
 
 /* return hit object compile_id */
 int maat_hit_group_compile_id(struct maat *instance, struct maat_hit_group *group);

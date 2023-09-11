@@ -68,7 +68,7 @@ int compile_runtime_match(struct compile_runtime *compile_rt, long long *compile
 size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, int thread_id,
 									 struct maat_compile_state *compile_state, 
                                   	 struct maat_hit_path *hit_path_array, 
-                                     size_t array_size, size_t n_internal_hit_path);
+                                     size_t array_size, size_t n_hit_path);
 
 void *compile_runtime_get_ex_data(struct compile_runtime *compile_rt, 
                                   struct compile_schema *compile_schema, 
@@ -113,11 +113,14 @@ size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *comp
                                                  struct maat_hit_path *hit_path_array, 
                                                  size_t array_size);
 
-size_t maat_compile_state_get_hit_groups(struct maat_compile_state *compile_state,
-                                         struct group2group_runtime *g2g_rt,
-                                         enum maat_list_type type,
-                                         struct maat_hit_group *hit_group_array,
-                                         size_t group_array_size);
+size_t maat_compile_state_get_direct_hit_groups(struct maat_compile_state *compile_state,
+                                                enum maat_list_type type,
+                                                struct maat_hit_group *group_array,
+                                                size_t array_size);
+
+size_t maat_compile_state_get_indirect_hit_groups(struct maat_compile_state *compile_state,
+                                                  struct maat_hit_group *group_array,
+                                                  size_t array_size);
 
 int maat_compile_state_has_NOT_clause(struct maat_compile_state *compile_state);
 

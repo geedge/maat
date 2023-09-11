@@ -1906,10 +1906,10 @@ int maat_state_set_scan_compile_table(struct maat_state *state, int compile_tabl
     return 0;
 }
 
-int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *paths,
-                             size_t n_path)
+int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *path_array,
+                             size_t array_size)
 {
-    if (NULL == state || NULL == paths || 0 == n_path) {
+    if (NULL == state || NULL == path_array || 0 == array_size) {
         return -1;
     }
 
@@ -1937,13 +1937,13 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
     int g2g_table_id = table_manager_get_group2group_table_id(maat_inst->tbl_mgr);
     void *g2g_runtime = table_manager_get_runtime(maat_inst->tbl_mgr, g2g_table_id);
 
-    size_t internal_hit_path_cnt = maat_compile_state_get_internal_hit_paths(state->compile_state,
-                                                                             (struct compile_runtime *)compile_rt,
-                                                                             (struct group2group_runtime *)g2g_runtime,
-                                                                             paths, n_path);
+    size_t hit_path_cnt = maat_compile_state_get_internal_hit_paths(state->compile_state,
+                                                                   (struct compile_runtime *)compile_rt,
+                                                                   (struct group2group_runtime *)g2g_runtime,
+                                                                    path_array, array_size);
 
     return compile_runtime_get_hit_paths((struct compile_runtime *)compile_rt, state->thread_id,
-                                         state->compile_state, paths, n_path, internal_hit_path_cnt);
+                                         state->compile_state, path_array, array_size, hit_path_cnt);
 }
 
 size_t maat_state_get_scan_count(struct maat_state *state)
@@ -1955,10 +1955,10 @@ size_t maat_state_get_scan_count(struct maat_state *state)
     return state->scan_cnt;
 }
 
-int maat_state_get_hit_groups(struct maat_state *state, enum maat_list_type type,
-                              struct maat_hit_group *groups, size_t n_group)
+int maat_state_get_direct_hit_groups(struct maat_state *state, enum maat_list_type type,
+                                     struct maat_hit_group *group_array, size_t array_size)
 {
-    if (NULL == state || NULL == groups || 0 == n_group) {
+    if (NULL == state || NULL == group_array || 0 == array_size) {
         return -1;
     }
 
@@ -1966,12 +1966,24 @@ int maat_state_get_hit_groups(struct maat_state *state, enum maat_list_type type
         return 0;
     }
     
-    int g2g_table_id = table_manager_get_group2group_table_id(state->maat_inst->tbl_mgr);
-    void *g2g_runtime = table_manager_get_runtime(state->maat_inst->tbl_mgr, g2g_table_id);
+    return maat_compile_state_get_direct_hit_groups(state->compile_state, type,
+                                                    group_array, array_size);
+}
 
-    return maat_compile_state_get_hit_groups(state->compile_state,
-                                             (struct group2group_runtime *)g2g_runtime,
-                                             type, groups, n_group);
+int maat_state_get_indirect_hit_groups(struct maat_state *state,
+                                       struct maat_hit_group *group_array,
+                                       size_t array_size)
+{
+    if (NULL == state || NULL == group_array || 0 == array_size) {
+        return -1;
+    }
+
+    if (NULL == state->compile_state) {
+        return 0;
+    }
+
+    return maat_compile_state_get_indirect_hit_groups(state->compile_state,
+                                                      group_array, array_size);
 }
 
 int maat_hit_group_compile_id(struct maat *instance, struct maat_hit_group *group)
