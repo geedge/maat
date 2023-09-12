@@ -3225,7 +3225,227 @@
                     ]
                 }
             ]
-        } 
+        },
+        {
+            "compile_id": 214,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "anything",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "virtual_table": "HTTP_DUMMY",
+                    "group_name": "NOTClauseAndExcludeGroup214_1",
+                    "not_flag": 0,
+                    "clause_index": 0,
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "keywords-dummy-214-1",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtual_table": "HTTP_DUMMY",
+                    "group_name": "NOTClauseAndExcludeGroup214_2",
+                    "not_flag": 1,
+                    "clause_index": 1,
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "keywords-dummy-214-2",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtual_table": "HTTP_DUMMY",
+                    "group_name": "NOTClauseAndExcludeGroup214_3",
+                    "not_flag": 1,
+                    "clause_index": 2,
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "keywords-dummy-214-3",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtual_table": "HTTP_DUMMY",
+                    "group_name": "NOTClauseAndExcludeGroup214_4",
+                    "not_flag": 1,
+                    "clause_index": 3,
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "keywords-dummy-214-4",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtual_table": "HTTP_DUMMY",
+                    "group_name": "NOTClauseAndExcludeGroup214_5",
+                    "not_flag": 1,
+                    "clause_index": 4,
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "keywords-dummy-214-5",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtual_table": "HTTP_DUMMY",
+                    "group_name": "NOTClauseAndExcludeGroup214_6",
+                    "not_flag": 1,
+                    "clause_index": 5,
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "keywords-dummy-214-6",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtual_table": "HTTP_DUMMY",
+                    "group_name": "NOTClauseAndExcludeGroup214_7",
+                    "not_flag": 1,
+                    "clause_index": 6,
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "keywords-dummy-214-7",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtual_table": "HTTP_DUMMY",
+                    "group_name": "NOTClauseAndExcludeGroup214_8",
+                    "not_flag": 1,
+                    "clause_index": 7,
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "keywords-dummy-214-8",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 215,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "anything",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "virtual_table": "HTTP_DUMMY",
+                    "group_name": "NOTClauseAndExcludeGroup215_1",
+                    "not_flag": 0,
+                    "clause_index": 0,
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "keywords-dummy-215-1",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtual_table": "HTTP_DUMMY",
+                    "group_name": "NOTClauseAndExcludeGroup215_2",
+                    "not_flag": 1,
+                    "clause_index": 1,
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "keywords-dummy-215-2",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtual_table": "HTTP_DUMMY",
+                    "group_name": "NOTClauseAndExcludeGroup215_3",
+                    "not_flag": 1,
+                    "clause_index": 2,
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "keywords-dummy-215-3",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
     ],
     "plugin_table": [
         {
