@@ -922,7 +922,9 @@ static void verify_candidate_super_group_ids(struct maat_group_topology *group_t
         prev_group_id = *p;
 
         struct maat_group *group = group_topology_find_group(group_topo, *p);
-        assert(group != NULL);
+        if (NULL == group) {
+            continue;
+        }
 
         //if group's sub excl in candidate_group_ids
         int sub_excl_flag = 0;
