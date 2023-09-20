@@ -807,15 +807,9 @@ static void get_candidate_super_group_ids(struct maat_group_topology *group_topo
             continue;
         }
 
-        long long *tmp = NULL;
-        for (tmp = (long long *)utarray_front(group->incl_super_group_ids); tmp != NULL;
-             tmp = (long long *)utarray_next(group->incl_super_group_ids, tmp)) {
-            if (utarray_find(super_group_ids, tmp, compare_group_id)) {
-                continue;
-            }
-
+        for (int i = 0; i < utarray_len(group->incl_super_group_ids); i++) {
+            long long *tmp = (long long *)utarray_eltptr(group->incl_super_group_ids, i);
             utarray_push_back(super_group_ids, tmp);
-            utarray_sort(super_group_ids, compare_group_id);
         }
     }
 }
@@ -912,13 +906,21 @@ static void verify_candidate_super_group_ids(struct maat_group_topology *group_t
          p = (long long *)utarray_next(all_hit_group_ids, p)) {
         utarray_push_back(candidate_group_ids, p);
     }
+
     utarray_sort(candidate_group_ids, compare_group_id);
 
     /**
      * verify sub exclude for candidate_super_group_ids
     */
+    long long prev_group_id = -1;
     for (p = (long long *)utarray_front(candidate_super_group_ids); p != NULL;
          p = (long long *)utarray_next(candidate_super_group_ids, p)) {
+        //filter duplicated group id
+        if (*p == prev_group_id) {
+            continue;
+        }
+        prev_group_id = *p;
+
         struct maat_group *group = group_topology_find_group(group_topo, *p);
         assert(group != NULL);
 
@@ -939,12 +941,10 @@ static void verify_candidate_super_group_ids(struct maat_group_topology *group_t
         }
 
         utarray_push_back(kept_super_group_ids, p);
-        
-        if (!utarray_find(all_hit_group_ids, p, compare_group_id)) {
-            utarray_push_back(all_hit_group_ids, p);
-            utarray_sort(all_hit_group_ids, compare_group_id);
-        }
+        utarray_push_back(all_hit_group_ids, p);
     }
+
+    utarray_sort(all_hit_group_ids, compare_group_id);
     utarray_sort(kept_super_group_ids, compare_group_id);
 
     /**
@@ -1062,11 +1062,9 @@ static size_t group_topology_get_super_groups(struct maat_group_topology *group_
     utarray_new(candidate_group_ids, &ut_group_id_icd);
 
     for (i = 0; i < n_group_ids; i++) {
-        utarray_push_back(candidate_group_ids, &(group_ids[i]));
         utarray_push_back(all_hit_group_ids, &(group_ids[i]));
+        utarray_push_back(candidate_group_ids, &(group_ids[i]));
     }
-    utarray_sort(candidate_group_ids, compare_group_id);
-    utarray_sort(all_hit_group_ids, compare_group_id);
 
     get_super_group_ids(group_topo, candidate_group_ids, all_hit_group_ids, 0);
 

@@ -2089,7 +2089,8 @@ void maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
                                            hit_items[i].group_id, vtable_id, state->scan_cnt);
     }
 
-    maat_compile_state_update_indirect_group(state->compile_state, super_group_ids, super_group_cnt, vtable_id);
+    maat_compile_state_update_indirect_group(state->compile_state, super_group_ids,
+                                             super_group_cnt, vtable_id);
 
     /* update hit clause */
     int compile_table_id = table_manager_get_default_compile_table_id(maat_inst->tbl_mgr);

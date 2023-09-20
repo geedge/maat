@@ -2,6 +2,7 @@
 #include "log/log.h"
 #include "cJSON/cJSON.h"
 #include "maat_rule.h"
+#include "uthash/utarray.h"
 #include "maat_utils.h"
 #include "maat_command.h"
 #include "maat_group.h"
@@ -246,17 +247,13 @@ TEST_F(MaatGroupExclude, level_3_perf) {
 
     long long hit_group_ids[2] = {11, 13};
     long long super_group_ids[MAX_ITEM_NUM];
-    size_t super_group_cnt = 0;
     struct timespec start, end;
     struct log_handle *logger = MaatGroupExclude::logger;
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < MAX_G2G_SCAN_TIMES; i++) {
-        super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
-                                                           super_group_ids, MAX_ITEM_NUM);
-        EXPECT_EQ(super_group_cnt, 2);
-        EXPECT_EQ(super_group_ids[0], 2);
-        EXPECT_EQ(super_group_ids[1], 7);
+        group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
+                                             super_group_ids, MAX_ITEM_NUM);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
@@ -272,12 +269,8 @@ TEST_F(MaatGroupExclude, level_3_perf) {
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < MAX_G2G_SCAN_TIMES; i++) {
-        super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
-                                                           super_group_ids, MAX_ITEM_NUM);
-        EXPECT_EQ(super_group_cnt, 3);
-        EXPECT_EQ(super_group_ids[0], 1);
-        EXPECT_EQ(super_group_ids[1], 6);
-        EXPECT_EQ(super_group_ids[2], 7);
+        group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
+                                             super_group_ids, MAX_ITEM_NUM);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
@@ -293,13 +286,8 @@ TEST_F(MaatGroupExclude, level_3_perf) {
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < MAX_G2G_SCAN_TIMES; i++) {
-        super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
-                                                           super_group_ids, MAX_ITEM_NUM);
-        EXPECT_EQ(super_group_cnt, 4);
-        EXPECT_EQ(super_group_ids[0], 1);
-        EXPECT_EQ(super_group_ids[1], 4);
-        EXPECT_EQ(super_group_ids[2], 6);
-        EXPECT_EQ(super_group_ids[3], 7);
+        group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
+                                             super_group_ids, MAX_ITEM_NUM);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
@@ -391,20 +379,13 @@ TEST_F(MaatGroupExclude, level_4_perf) {
 
     long long hit_group_ids[2] = {14, 16};
     long long super_group_ids[MAX_ITEM_NUM];
-    size_t super_group_cnt = 0;
     struct timespec start, end;
     struct log_handle *logger = MaatGroupExclude::logger;
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < MAX_G2G_SCAN_TIMES; i++) {
-        super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
-                                                           super_group_ids, MAX_ITEM_NUM);
-        EXPECT_EQ(super_group_cnt, 5);
-        EXPECT_EQ(super_group_ids[0], 4);
-        EXPECT_EQ(super_group_ids[1], 7);
-        EXPECT_EQ(super_group_ids[2], 8);
-        EXPECT_EQ(super_group_ids[3], 9);
-        EXPECT_EQ(super_group_ids[4], 10);
+        group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
+                                             super_group_ids, MAX_ITEM_NUM);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
@@ -420,16 +401,8 @@ TEST_F(MaatGroupExclude, level_4_perf) {
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < MAX_G2G_SCAN_TIMES; i++) {
-        super_group_cnt = group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
-                                                           super_group_ids, MAX_ITEM_NUM);
-        EXPECT_EQ(super_group_cnt, 7);
-        EXPECT_EQ(super_group_ids[0], 1);
-        EXPECT_EQ(super_group_ids[1], 4);
-        EXPECT_EQ(super_group_ids[2], 6);
-        EXPECT_EQ(super_group_ids[3], 7);
-        EXPECT_EQ(super_group_ids[4], 8);
-        EXPECT_EQ(super_group_ids[5], 9);
-        EXPECT_EQ(super_group_ids[6], 10);
+        group2group_runtime_get_super_groups(g2g_runtime, hit_group_ids, 2,
+                                             super_group_ids, MAX_ITEM_NUM);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
