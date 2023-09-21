@@ -31,8 +31,7 @@ enum MAAT_FS_STATUS {
     STATUS_GROUP_REF_NOT_NUM,
     STATUS_GROUP_REF_EXCL_NUM, //group reference exclude group num
 	STATUS_MAAT_STATE_NUM,
-    STATUS_MAAT_STATE_FREE_NUM,
-    STATUS_MAAT_STATE_FREE_BYTES,
+    STATUS_MAAT_PER_STATE_MEM,
     STATUS_COMPILE_STATE_NUM,
 	STATUS_GARBAGE_QSIZE,
 	STATUS_UPDATE_ERR_CNT,
@@ -93,13 +92,11 @@ static void maat_fieldstat_register(struct maat_stat *stat)
     stat->fs_status_id[STATUS_GARBAGE_QSIZE] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
                                                                   "garbage_num", NULL, 0);
     stat->fs_status_id[STATUS_MAAT_STATE_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
-                                                                  "maat_state", NULL, 0);
-    stat->fs_status_id[STATUS_MAAT_STATE_FREE_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
-                                                                        "maat_state_free_cnt", NULL, 0);
-    stat->fs_status_id[STATUS_MAAT_STATE_FREE_BYTES] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
-                                                                          "maat_state_free_bytes", NULL, 0);
+                                                                  "state_num", NULL, 0);
+    stat->fs_status_id[STATUS_MAAT_PER_STATE_MEM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
+                                                                        "per_state_mem(B)", NULL, 0);
     stat->fs_status_id[STATUS_COMPILE_STATE_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
-                                                                     "maat_compile_state", NULL, 0);
+                                                                     "compile_state_num", NULL, 0);
     stat->fs_status_id[STATUS_STREAM_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
                                                                "stream_num", NULL, 0);
     stat->fs_status_id[STATUS_ZOMBIE_STREAM_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
@@ -472,6 +469,11 @@ void maat_stat_output(struct maat_stat *stat, long long maat_version, int perf_o
     size_t table_cnt = table_manager_table_count(stat->ref_tbl_mgr);
     size_t garbage_q_len = maat_garbage_bin_get_size(stat->ref_garbage_bin);
 
+    long long per_state_mem = 0;
+    if (maat_state_free_cnt != 0) {
+        per_state_mem = maat_state_free_bytes / maat_state_free_cnt;
+    }
+    
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_VERSION],
                         maat_version);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_THRED_NUM],
@@ -480,10 +482,8 @@ void maat_stat_output(struct maat_stat *stat, long long maat_version, int perf_o
                         table_cnt);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_MAAT_STATE_NUM],
                         maat_state_cnt);
-    fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_MAAT_STATE_FREE_NUM],
-                        maat_state_free_cnt);
-    fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_MAAT_STATE_FREE_BYTES],
-                        maat_state_free_bytes);
+    fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_MAAT_PER_STATE_MEM],
+                        per_state_mem);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_COMPILE_STATE_NUM],
                         maat_compile_state_cnt);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_NOT_GROUP_HIT],

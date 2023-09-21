@@ -1422,6 +1422,10 @@ void maat_compile_state_free(struct maat_compile_state *compile_state,
 static void maat_compile_hit_path_add(UT_array *hit_paths, long long item_id,
                                      long long group_id, int vtable_id, int Nth_scan)
 {
+    if (NULL == hit_paths || utarray_len(hit_paths) >= MAX_HIT_PATH_NUM) {
+        return;
+    }
+    
 	struct maat_internal_hit_path new_path;
 
 	new_path.item_id = item_id;

@@ -52,6 +52,7 @@ extern "C"
 	(type *)( (char *)__mptr - offsetof(type,member) );})
 #endif
 
+#define MAX_HIT_PATH_NUM             4096
 #define	MAX_SCANNER_HIT_COMPILE_NUM  4096
 #define MAX_SCANNER_HIT_GROUP_NUM    4096
 #define MAX_SCANNER_HIT_ITEM_NUM     4096

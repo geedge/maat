@@ -7247,6 +7247,7 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
 		}
 		now = time(NULL);
 	}
+
 	//scan hit for at most 1 second (rule updating latency), miss for at least 2 seconds.
 	EXPECT_LE(hit_cnt, miss_cnt);
 	maat_state_free(state);                                    
