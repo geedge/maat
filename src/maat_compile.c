@@ -1381,33 +1381,33 @@ void maat_compile_state_free(struct maat_compile_state *compile_state,
     
     long long free_bytes = 0;
     if (compile_state->internal_hit_paths != NULL) {
-        free_bytes += utarray_len(compile_state->internal_hit_paths) * 
+        free_bytes += utarray_size(compile_state->internal_hit_paths) * 
                       sizeof(struct maat_internal_hit_path);
         utarray_free(compile_state->internal_hit_paths);
         compile_state->internal_hit_paths = NULL;
     }
     
     if (compile_state->internal_inc_hit_paths != NULL) {
-        free_bytes += utarray_len(compile_state->internal_inc_hit_paths) *
+        free_bytes += utarray_size(compile_state->internal_inc_hit_paths) *
                       sizeof(struct maat_internal_hit_path);
         utarray_free(compile_state->internal_inc_hit_paths);
         compile_state->internal_inc_hit_paths = NULL;
     }
 
     if (compile_state->all_hit_clauses != NULL) {
-        free_bytes += utarray_len(compile_state->all_hit_clauses) * sizeof(long long);
+        free_bytes += utarray_size(compile_state->all_hit_clauses) * sizeof(long long);
         utarray_free(compile_state->all_hit_clauses);
         compile_state->all_hit_clauses = NULL;
     }
 	
     if (compile_state->this_scan_hit_clauses != NULL) {
-        free_bytes += utarray_len(compile_state->this_scan_hit_clauses) * sizeof(long long);
+        free_bytes += utarray_size(compile_state->this_scan_hit_clauses) * sizeof(long long);
         utarray_free(compile_state->this_scan_hit_clauses);
         compile_state->this_scan_hit_clauses = NULL;
     }
 	
     if (compile_state->indirect_hit_groups != NULL) {
-        free_bytes += utarray_len(compile_state->indirect_hit_groups) * sizeof(struct maat_hit_group);
+        free_bytes += utarray_size(compile_state->indirect_hit_groups) * sizeof(struct maat_hit_group);
         utarray_free(compile_state->indirect_hit_groups);
         compile_state->indirect_hit_groups = NULL;
     }

@@ -125,6 +125,7 @@ typedef struct {
 } while(0)
 
 #define utarray_len(a) ((a)->i)
+#define utarray_size(a) ((a)->n)
 
 #define utarray_eltptr(a,j) (((j) < (a)->i) ? _utarray_eltptr(a,j) : NULL)
 #define _utarray_eltptr(a,j) ((void*)((a)->d + ((a)->icd.sz * (j))))
