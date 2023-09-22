@@ -22,9 +22,9 @@
 #include "maat_utils.h"
 #include "../../bool_matcher/bool_matcher.h"
 
-#define MAX_HIT_PATTERN_NUM  512
+#define MAX_HIT_PATTERN_NUM  1024
 
-pid_t hs_gettid() 
+pid_t hs_gettid()
 {
 	return syscall(SYS_gettid);
 }
@@ -584,11 +584,6 @@ static int matched_event_cb(unsigned int id, unsigned long long from,
     if (utarray_len(matched_pat->pattern_ids) >= MAX_HIT_PATTERN_NUM) {
         return 0;
     }
-
-    // duplicate pattern_id
-    if (utarray_find(matched_pat->pattern_ids, &pattern_id, compare_pattern_id)) {
-        return 0;
-    }
     
     int ret = 0;
     struct pattern_attribute pat_attr = matched_pat->ref_hs_attr[id];
@@ -640,7 +635,6 @@ static int matched_event_cb(unsigned int id, unsigned long long from,
    
     if (1 == ret) {
         utarray_push_back(matched_pat->pattern_ids, &pattern_id);
-        utarray_sort(matched_pat->pattern_ids, compare_pattern_id);
     }
     
     return 0;
@@ -834,8 +828,9 @@ int adapter_hs_scan_stream(void *hs_stream, const char *data, size_t data_len,
         return 0;
     }
 
-    unsigned long long pattern_ids[n_pattern_id];
+    utarray_sort(stream->matched_pat->pattern_ids, compare_pattern_id);
 
+    unsigned long long pattern_ids[n_pattern_id];
     for (size_t i = 0; i < n_pattern_id; i++) {
         pattern_ids[i] = *(unsigned long long *)utarray_eltptr(stream->matched_pat->pattern_ids, i);
     }
