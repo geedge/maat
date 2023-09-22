@@ -119,6 +119,8 @@ struct maat_options {
 
     int stat_on;
     int perf_on;
+    int hit_path_on;
+    int hit_group_on;
     int deferred_load_on;
 
     int maat_json_is_gzipped;

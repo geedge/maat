@@ -268,6 +268,28 @@ int maat_options_set_expr_engine(struct maat_options *opts,
     return 0;
 }
 
+int maat_options_set_hit_path_enabled(struct maat_options *opts)
+{
+    if (NULL == opts) {
+        return -1;
+    }
+
+    opts->hit_path_on = 1;
+
+    return 0;
+}
+
+int maat_options_set_hit_group_enabled(struct maat_options *opts)
+{
+    if (NULL == opts) {
+        return -1;
+    }
+
+    opts->hit_group_on = 1;
+
+    return 0;
+}
+
 int maat_options_set_logger(struct maat_options *opts, const char *log_path,
                             enum log_level level)
 {
@@ -1956,7 +1978,8 @@ size_t maat_state_get_scan_count(struct maat_state *state)
 }
 
 int maat_state_get_direct_hit_groups(struct maat_state *state, enum maat_list_type type,
-                                     struct maat_hit_group *group_array, size_t array_size)
+                                     struct maat_hit_group *group_array,
+                                     size_t array_size)
 {
     if (NULL == state || NULL == group_array || 0 == array_size) {
         return -1;

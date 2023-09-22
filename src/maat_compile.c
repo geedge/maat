@@ -144,15 +144,15 @@ struct maat_compile_state {
     time_t compile_rt_version;
 
 	UT_array *internal_hit_paths;
-    UT_array *internal_inc_hit_paths;
 	UT_array *all_hit_clauses;
 	UT_array *this_scan_hit_clauses;
+    UT_array *direct_hit_groups;
     UT_array *indirect_hit_groups;
 };
 
 UT_icd ut_literal_id_icd = {sizeof(struct maat_literal_id), NULL, NULL, NULL};
 UT_icd ut_clause_id_icd = {sizeof(long long), NULL, NULL, NULL};
-UT_icd ut_indirect_hit_group_icd = {sizeof(struct maat_hit_group), NULL, NULL, NULL};
+UT_icd ut_maat_hit_group_icd = {sizeof(struct maat_hit_group), NULL, NULL, NULL};
 UT_icd ut_hit_path_icd = {sizeof(struct maat_internal_hit_path), NULL, NULL, NULL};
 
 static struct maat_compile *maat_compile_new(long long compile_id)
@@ -1346,10 +1346,10 @@ struct maat_compile_state *maat_compile_state_new(void)
     struct maat_compile_state *compile_state = ALLOC(struct maat_compile_state, 1);
 
 	utarray_new(compile_state->internal_hit_paths, &ut_hit_path_icd);
-    utarray_new(compile_state->internal_inc_hit_paths, &ut_hit_path_icd);
 	utarray_new(compile_state->all_hit_clauses, &ut_clause_id_icd);
 	utarray_new(compile_state->this_scan_hit_clauses, &ut_clause_id_icd);
-    utarray_new(compile_state->indirect_hit_groups, &ut_indirect_hit_group_icd);
+    utarray_new(compile_state->direct_hit_groups, &ut_maat_hit_group_icd);
+    utarray_new(compile_state->indirect_hit_groups, &ut_maat_hit_group_icd);
 
 	return compile_state;
 }
@@ -1366,9 +1366,9 @@ void maat_compile_state_reset(struct maat_compile_state *compile_state)
     compile_state->not_clause_hit_flag = 0;
 
     utarray_clear(compile_state->internal_hit_paths);
-    utarray_clear(compile_state->internal_inc_hit_paths);
     utarray_clear(compile_state->all_hit_clauses);
     utarray_clear(compile_state->this_scan_hit_clauses);
+    utarray_clear(compile_state->direct_hit_groups);
     utarray_clear(compile_state->indirect_hit_groups);
 }
 
@@ -1387,13 +1387,6 @@ void maat_compile_state_free(struct maat_compile_state *compile_state,
         compile_state->internal_hit_paths = NULL;
     }
     
-    if (compile_state->internal_inc_hit_paths != NULL) {
-        free_bytes += utarray_size(compile_state->internal_inc_hit_paths) *
-                      sizeof(struct maat_internal_hit_path);
-        utarray_free(compile_state->internal_inc_hit_paths);
-        compile_state->internal_inc_hit_paths = NULL;
-    }
-
     if (compile_state->all_hit_clauses != NULL) {
         free_bytes += utarray_size(compile_state->all_hit_clauses) * sizeof(long long);
         utarray_free(compile_state->all_hit_clauses);
@@ -1406,6 +1399,12 @@ void maat_compile_state_free(struct maat_compile_state *compile_state,
         compile_state->this_scan_hit_clauses = NULL;
     }
 	
+    if (compile_state->direct_hit_groups != NULL) {
+        free_bytes += utarray_size(compile_state->direct_hit_groups) * sizeof(struct maat_hit_group);
+        utarray_free(compile_state->direct_hit_groups);
+        compile_state->direct_hit_groups = NULL;
+    }
+
     if (compile_state->indirect_hit_groups != NULL) {
         free_bytes += utarray_size(compile_state->indirect_hit_groups) * sizeof(struct maat_hit_group);
         utarray_free(compile_state->indirect_hit_groups);
@@ -1531,40 +1530,52 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, int thr
     return (n_hit_path + new_hit_path_cnt);
 }
 
-static void maat_compile_state_update_indirect_group(struct maat_compile_state *compile_state,
-                                                     long long *group_ids, size_t n_group_id,
-                                                     int vtable_id)
+static void maat_compile_state_update_direct_hit_groups(UT_array *hit_group_array,
+                                                        struct maat_item *hit_items,
+                                                        size_t n_hit_items, int vtable_id)
+{
+    if (NULL == hit_group_array) {
+        return;
+    }
+
+    struct maat_hit_group hit_group;
+    for (size_t i = 0; i < n_hit_items; i++) {
+        hit_group.item_id = hit_items[i].item_id;
+        hit_group.group_id = hit_items[i].group_id;
+        hit_group.vtable_id = vtable_id;
+        utarray_push_back(hit_group_array, &hit_group);
+    }
+}
+
+static void maat_compile_state_update_indirect_hit_groups(UT_array *hit_group_array,
+                                                          long long *group_ids,
+                                                          size_t n_group_ids, int vtable_id)
+{
+    if (NULL == hit_group_array) {
+        return;
+    }
+
+    struct maat_hit_group hit_group;
+    for (size_t i = 0; i < n_group_ids; i++) {
+        hit_group.item_id = 0;
+        hit_group.group_id = group_ids[i];
+        hit_group.vtable_id = vtable_id;
+        utarray_push_back(hit_group_array, &hit_group);
+    }
+}
+
+static void maat_compile_state_update_hit_paths(struct maat_compile_state *compile_state,
+                                                struct maat_item *hit_items, size_t n_hit_items,
+                                                int vtable_id, int Nth_scan)
 {
     if (NULL == compile_state) {
         return;
     }
 
-    struct maat_hit_group hit_group;
-    for (size_t i = 0; i < n_group_id; i++) {
-        hit_group.item_id = 0;
-        hit_group.group_id = group_ids[i];
-        hit_group.vtable_id = vtable_id;
-        utarray_push_back(compile_state->indirect_hit_groups, &hit_group);
+	for (size_t i = 0; i < n_hit_items; i++) {
+        maat_compile_hit_path_add(compile_state->internal_hit_paths, hit_items[i].item_id,
+                                  hit_items[i].group_id, vtable_id, Nth_scan);
     }
-}
-
-static void maat_compile_state_update_hit_path(struct maat_compile_state *compile_state,
-                                               long long item_id, long long group_id,
-                                               int vtable_id, int Nth_scan)
-{
-	if (compile_state->Nth_scan != Nth_scan) {
-		assert(compile_state->this_scan_hit_item_flag == 0);
-		compile_state->Nth_scan = Nth_scan;
-		utarray_clear(compile_state->this_scan_hit_clauses);
-	}
-
-    maat_compile_hit_path_add(compile_state->internal_inc_hit_paths, item_id,
-                              group_id, vtable_id, Nth_scan);
-
-    maat_compile_hit_path_add(compile_state->internal_hit_paths, item_id,
-                              group_id, vtable_id, Nth_scan);
-
-	compile_state->this_scan_hit_item_flag = 1;
 }
 
 static void maat_compile_state_update_hit_clause(struct maat_compile_state *compile_state,
@@ -2077,24 +2088,38 @@ void maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
                                   state->thread_id, 1);
     }
     
-    int g2g_table_id = table_manager_get_group2group_table_id(maat_inst->tbl_mgr);
-    void *g2g_rt = table_manager_get_runtime(maat_inst->tbl_mgr, g2g_table_id);
+    struct maat_compile_state *compile_state = state->compile_state;
+    if (hit_cnt > 0) {
+        if (compile_state->Nth_scan != state->scan_cnt) {
+		    assert(compile_state->this_scan_hit_item_flag == 0);
+		    compile_state->Nth_scan = state->scan_cnt;
+		    utarray_clear(compile_state->this_scan_hit_clauses);
+	    }
+        compile_state->this_scan_hit_item_flag = 1;
+    }
 
     for (i = 0; i < hit_cnt; i++) {
         hit_group_ids[i] = hit_items[i].group_id; 
     }
 
+    int g2g_table_id = table_manager_get_group2group_table_id(maat_inst->tbl_mgr);
+    void *g2g_rt = table_manager_get_runtime(maat_inst->tbl_mgr, g2g_table_id);
+
     long long super_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
     size_t super_group_cnt = group2group_runtime_get_super_groups(g2g_rt, hit_group_ids,
                                                                   hit_cnt, super_group_ids,
                                                                   MAX_SCANNER_HIT_GROUP_NUM);
-    for (i = 0; i < hit_cnt; i++) {
-        maat_compile_state_update_hit_path(state->compile_state, hit_items[i].item_id,
-                                           hit_items[i].group_id, vtable_id, state->scan_cnt);
-    }
+    if (1 == maat_inst->opts.hit_path_on) {
+        maat_compile_state_update_hit_paths(compile_state, hit_items, hit_cnt,
+                                            vtable_id, state->scan_cnt);
+    }    
 
-    maat_compile_state_update_indirect_group(state->compile_state, super_group_ids,
-                                             super_group_cnt, vtable_id);
+    if (1 == maat_inst->opts.hit_group_on) {
+        maat_compile_state_update_direct_hit_groups(compile_state->direct_hit_groups,
+                                                    hit_items, hit_cnt, vtable_id);
+        maat_compile_state_update_indirect_hit_groups(compile_state->indirect_hit_groups,
+                                                      super_group_ids, super_group_cnt, vtable_id);
+    }
 
     /* update hit clause */
     int compile_table_id = table_manager_get_default_compile_table_id(maat_inst->tbl_mgr);
@@ -2109,12 +2134,12 @@ void maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
     }
 
     for (int j = 0; j < super_group_cnt; j++) {
-        maat_compile_state_update_hit_clause(state->compile_state, compile_rt,
+        maat_compile_state_update_hit_clause(compile_state, compile_rt,
                                              super_group_ids[j], vtable_id);
     }
 
     for (int j = 0; j < hit_cnt; j++) {
-        maat_compile_state_update_hit_clause(state->compile_state, compile_rt,
+        maat_compile_state_update_hit_clause(compile_state, compile_rt,
                                              hit_group_ids[j], vtable_id);
     }
 }
@@ -2148,27 +2173,19 @@ size_t maat_compile_state_get_direct_hit_groups(struct maat_compile_state *compi
     if (NULL == compile_state) {
         return 0;
     }
-
     
-    UT_array *wanted_hit_path = NULL;
-    if (type == MAAT_LIST_TYPE_FULL) {
-        wanted_hit_path = compile_state->internal_hit_paths;
-    } else if (type == MAAT_LIST_TYPE_INC) {
-        wanted_hit_path = compile_state->internal_inc_hit_paths;
-    }
+    UT_array *direct_hit_group = compile_state->direct_hit_groups;
 
     size_t i = 0;
-    struct maat_internal_hit_path *path = NULL;
-    for (i = 0; i < utarray_len(wanted_hit_path) && i < array_size; i++) {
-        path = (struct maat_internal_hit_path *)utarray_eltptr(wanted_hit_path, i);
-        group_array[i].item_id = path->item_id;
-        group_array[i].group_id = path->group_id;
-        group_array[i].vtable_id = path->vtable_id;
+    struct maat_hit_group *group = NULL;
+    for (i = 0; i < utarray_len(direct_hit_group) && i < array_size; i++) {
+        group = (struct maat_hit_group *)utarray_eltptr(direct_hit_group, i);
+        group_array[i].item_id = group->item_id;
+        group_array[i].group_id = group->group_id;
+        group_array[i].vtable_id = group->vtable_id;
     }
    
-    if (type == MAAT_LIST_TYPE_INC) {
-        utarray_clear(compile_state->internal_inc_hit_paths);
-    }
+    utarray_clear(compile_state->direct_hit_groups);
 
     return i;
 }

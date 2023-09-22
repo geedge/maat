@@ -55,14 +55,14 @@ enum maat_update_type {
     MAAT_UPDATE_TYPE_INC
 };
 
-enum maat_list_type {
-    MAAT_LIST_TYPE_FULL = 1,
-    MAAT_LIST_TYPE_INC
-};
-
 enum maat_expr_engine {
     MAAT_EXPR_ENGINE_HS = 0, //default engine(hyperscan)
     MAAT_EXPR_ENGINE_RS      //rulescan
+};
+
+enum maat_list_type {
+    MAAT_LIST_TYPE_FULL = 1,
+    MAAT_LIST_TYPE_INC
 };
 
 struct ip_addr {
@@ -151,6 +151,10 @@ int maat_options_set_redis(struct maat_options *opts, const char *redis_ip,
 int maat_options_set_stat_file(struct maat_options *opts, const char *stat_filename);
 
 int maat_options_set_expr_engine(struct maat_options *opts, enum maat_expr_engine engine);
+
+int maat_options_set_hit_path_enabled(struct maat_options *opts);
+
+int maat_options_set_hit_group_enabled(struct maat_options *opts);
 
 /* maat_instance API */
 struct maat *maat_new(struct maat_options *opts, const char *table_info_path);
@@ -290,18 +294,16 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
 size_t maat_state_get_scan_count(struct maat_state *state);
 
 /**
- * @brief get direct hit groups(full or incremental)
+ * @brief direct group means group corresponding to item
  * 
- * @param type: 
- *          MAAT_LIST_TYPE_FULL => get all hit groups after maat_state_new
- *          MAAT_LIST_TYPE_INC  => get hit groups for this scan
  * NOTE: hit groups may be duplicated
 */
 int maat_state_get_direct_hit_groups(struct maat_state *state, enum maat_list_type type,
-                                     struct maat_hit_group *group_array, size_t array_size);
+                                     struct maat_hit_group *group_array,
+                                     size_t array_size);
 
 /**
- * @brief get indirect hit groups
+ * @brief indirect group means superior group
  * 
  * NOTE: hit groups may be duplicated
 */
