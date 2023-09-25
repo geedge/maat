@@ -562,6 +562,54 @@ void adapter_rs_stream_close(void *rs_stream)
     FREE(stream);
 }
 
+int adapter_rs_scan_match(struct bool_matcher *bm, UT_array *pattern_ids,
+                          struct bool_expr_match *match_buff, size_t buff_size,
+                          struct expr_scan_result *results, size_t n_result,
+                          size_t *n_hit_result)
+{
+    size_t n_pattern_id = utarray_len(pattern_ids);
+    if (0 == n_pattern_id) {
+        *n_hit_result = 0;
+        return 0;
+    }
+
+    utarray_sort(pattern_ids, compare_pattern_id);
+
+    unsigned long long prev_pattern_id = 0xFFFFFFFFFFFFFFFF;
+    unsigned long long tmp_pattern_id = 0;
+    size_t n_unique_pattern_id = 0;
+    unsigned long long unique_pattern_ids[n_pattern_id];
+
+    for (size_t i = 0; i < n_pattern_id; i++) {
+        tmp_pattern_id = *(unsigned long long *)utarray_eltptr(pattern_ids, i);
+        if (tmp_pattern_id != prev_pattern_id) {
+            unique_pattern_ids[n_unique_pattern_id++] = tmp_pattern_id;
+            prev_pattern_id = tmp_pattern_id;
+        }
+    }
+
+    int bool_matcher_ret = bool_matcher_match(bm, unique_pattern_ids,
+                                              n_unique_pattern_id,
+                                              match_buff, buff_size);
+    if (bool_matcher_ret < 0) {
+        goto next;
+    }
+
+    if (bool_matcher_ret > (int)n_result) {
+        bool_matcher_ret = n_result;
+    }
+
+    for (int index = 0; index < bool_matcher_ret; index++) {
+        results[index].rule_id = match_buff[index].expr_id;
+        results[index].user_tag = match_buff[index].user_tag;
+    }
+    *n_hit_result = bool_matcher_ret;
+
+next:
+    utarray_clear(pattern_ids);
+    return bool_matcher_ret;
+}
+
 int adapter_rs_scan_stream(void *rs_stream, const char *data, size_t data_len,
                            struct expr_scan_result *results, size_t n_result,
                            size_t *n_hit_result)
@@ -597,49 +645,10 @@ int adapter_rs_scan_stream(void *rs_stream, const char *data, size_t data_len,
         return -1;
     }
 
-    size_t n_pattern_id = utarray_len(matched_pat->pattern_ids);
-    if (0 == n_pattern_id) {
-        *n_hit_result = 0;
-        return 0;
-    }
-
-    utarray_sort(matched_pat->pattern_ids, compare_pattern_id);
-
-    unsigned long long prev_pattern_id = 0xFFFFFFFFFFFFFFFF;
-    unsigned long long tmp_pattern_id = 0;
-    size_t n_unique_pattern_id = 0;
-    unsigned long long unique_pattern_ids[n_pattern_id];
-
-    for (size_t i = 0; i < n_pattern_id; i++) {
-        tmp_pattern_id = *(unsigned long long *)utarray_eltptr(matched_pat->pattern_ids, i);
-        if (tmp_pattern_id != prev_pattern_id) {
-            unique_pattern_ids[n_unique_pattern_id++] = tmp_pattern_id;
-            prev_pattern_id = tmp_pattern_id;
-        }
-    } 
-
-    struct bool_expr_match *bool_matcher_results = rs_rt->bool_match_buffs[thread_id];
-    int bool_matcher_ret = bool_matcher_match(rs_rt->bm, unique_pattern_ids, n_unique_pattern_id,
-                                              bool_matcher_results, MAX_HIT_EXPR_NUM);
-    if (bool_matcher_ret < 0) {
-        ret = -1;
-        goto next;
-    }
-
-    if (bool_matcher_ret > (int)n_result) {
-        bool_matcher_ret = n_result;
-    }
-
-    for (int index = 0; index < bool_matcher_ret; index++) {
-        results[index].rule_id = bool_matcher_results[index].expr_id;
-        results[index].user_tag = bool_matcher_results[index].user_tag;
-    }
-    *n_hit_result = bool_matcher_ret;
-
-next:
-    utarray_clear(matched_pat->pattern_ids);
-
-    return ret;
+    return adapter_rs_scan_match(rs_rt->bm, matched_pat->pattern_ids,
+                                 rs_rt->bool_match_buffs[thread_id],
+                                 MAX_HIT_EXPR_NUM, results, n_result,
+                                 n_hit_result);
 }
 
 int adapter_rs_scan(void *rs_instance, int thread_id, const char *data, size_t data_len,
@@ -675,47 +684,8 @@ int adapter_rs_scan(void *rs_instance, int thread_id, const char *data, size_t d
         return -1;
     }
 
-    size_t n_pattern_id = utarray_len(matched_pat->pattern_ids);
-    if (0 == n_pattern_id) {
-        *n_hit_result = 0;
-        return 0;
-    }
-
-    utarray_sort(matched_pat->pattern_ids, compare_pattern_id);
-    
-    unsigned long long prev_pattern_id = 0xFFFFFFFFFFFFFFFF;
-    unsigned long long tmp_pattern_id = 0;
-    size_t n_unique_pattern_id = 0;
-    unsigned long long unique_pattern_ids[n_pattern_id];
-
-    for (size_t i = 0; i < n_pattern_id; i++) {
-        tmp_pattern_id = *(unsigned long long *)utarray_eltptr(matched_pat->pattern_ids, i);
-        if (tmp_pattern_id != prev_pattern_id) {
-            unique_pattern_ids[n_unique_pattern_id++] = tmp_pattern_id;
-            prev_pattern_id = tmp_pattern_id;
-        }
-    }
-
-    struct bool_expr_match *bool_matcher_results = rs_rt->bool_match_buffs[thread_id];
-    int bool_matcher_ret = bool_matcher_match(rs_rt->bm, unique_pattern_ids, n_unique_pattern_id,
-                                              bool_matcher_results, MAX_HIT_EXPR_NUM);
-    if (bool_matcher_ret < 0) {
-        ret = -1;
-        goto next;
-    }
-
-    if (bool_matcher_ret > (int)n_result) {
-        bool_matcher_ret = n_result;
-    }
-
-    for (int index = 0; index < bool_matcher_ret; index++) {
-        results[index].rule_id = bool_matcher_results[index].expr_id;
-        results[index].user_tag = bool_matcher_results[index].user_tag;
-    }
-    *n_hit_result = bool_matcher_ret;
-
-next:
-    utarray_clear(matched_pat->pattern_ids);
-
-    return ret;
+    return adapter_rs_scan_match(rs_rt->bm, matched_pat->pattern_ids,
+                                 rs_rt->bool_match_buffs[thread_id],
+                                 MAX_HIT_EXPR_NUM, results, n_result,
+                                 n_hit_result);
 }
