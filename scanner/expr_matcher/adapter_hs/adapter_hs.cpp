@@ -830,15 +830,24 @@ int adapter_hs_scan_stream(void *hs_stream, const char *data, size_t data_len,
 
     utarray_sort(stream->matched_pat->pattern_ids, compare_pattern_id);
 
-    unsigned long long pattern_ids[n_pattern_id];
+    unsigned long long prev_pattern_id = 0xFFFFFFFFFFFFFFFF;
+    unsigned long long tmp_pattern_id = 0;
+    size_t n_unique_pattern_id = 0;
+    unsigned long long unique_pattern_ids[n_pattern_id];
+
     for (size_t i = 0; i < n_pattern_id; i++) {
-        pattern_ids[i] = *(unsigned long long *)utarray_eltptr(stream->matched_pat->pattern_ids, i);
+        tmp_pattern_id = *(unsigned long long *)utarray_eltptr(stream->matched_pat->pattern_ids, i);
+        if (tmp_pattern_id != prev_pattern_id) {
+            unique_pattern_ids[n_unique_pattern_id++] = tmp_pattern_id;
+            prev_pattern_id = tmp_pattern_id;
+        }
     }
 
     int ret = 0;
     struct bool_expr_match *bool_matcher_results = scratch->bool_match_buffs[thread_id];
-    int bool_matcher_ret = bool_matcher_match(stream->ref_hs_rt->bm, pattern_ids, n_pattern_id,
-                                              bool_matcher_results, MAX_HIT_EXPR_NUM);
+    int bool_matcher_ret = bool_matcher_match(stream->ref_hs_rt->bm, unique_pattern_ids,
+                                              n_unique_pattern_id, bool_matcher_results,
+                                              MAX_HIT_EXPR_NUM);
     if (bool_matcher_ret < 0) {
         ret = -1;
         goto next;
