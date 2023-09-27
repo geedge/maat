@@ -205,16 +205,20 @@ void *maat_plugin_table_get_ex_data(struct maat *instance, int table_id,
                                     const char *key, size_t key_len);
                                      
 int maat_ip_plugin_table_get_ex_data(struct maat *instance, int table_id,
-                                     const struct ip_addr *ip, void **ex_data_array,
-                                     size_t n_ex_data);
+                                     const struct ip_addr *ip_addr,
+                                     void **ex_data_array, size_t array_size);
+
+int maat_ipport_plugin_table_get_ex_data(struct maat *instance, int table_id,
+                                         const struct ip_addr *ip_addr, uint16_t port,
+                                         void **ex_data_array, size_t array_size);
 
 int maat_fqdn_plugin_table_get_ex_data(struct maat *instance, int table_id,
                                        const char *fqdn, void **ex_data_array, 
-                                       size_t n_ex_data);
+                                       size_t array_size);
 
 int maat_bool_plugin_table_get_ex_data(struct maat *instance, int table_id,
                                        unsigned long long *item_ids, size_t n_item,
-                                       void **ex_data_array, size_t n_ex_data);
+                                       void **ex_data_array, size_t array_size);
 /* maat scan API */
 struct maat_state;
 

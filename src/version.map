@@ -10,6 +10,7 @@ global:
         maat_compile_table*;
         maat_plugin_table*;
         maat_ip_plugin_table*;
+        maat_ipport_plugin_table*;
         maat_fqdn_plugin_table*;
         maat_bool_plugin_table*;
         maat_scan*;

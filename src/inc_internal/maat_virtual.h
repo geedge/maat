@@ -19,20 +19,6 @@ extern "C"
 #include "cJSON/cJSON.h"
 #include "maat_table.h"
 
-enum scan_type {
-    SCAN_TYPE_INVALID = -1,
-	SCAN_TYPE_NONE = 0,
-	SCAN_TYPE_PLUGIN,
-	SCAN_TYPE_IP_PLUGIN,
-	SCAN_TYPE_FQDN_PLUGIN,
-	SCAN_TYPE_BOOL_PLUGIN,
-	SCAN_TYPE_IP,
-	SCAN_TYPE_INTERVAL,
-	SCAN_TYPE_STRING,
-    SCAN_TYPE_FLAG,
-	SCAN_TYPE_MAX
-};
-
 void *virtual_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
                          const char *table_name, struct log_handle *logger);
 

@@ -264,7 +264,7 @@ void *ex_data_runtime_get_ex_data_by_container(struct ex_data_runtime *ex_data_r
 
     void *dup_ex_data = NULL;
     container_schema->ex_schema.dup_func(ex_data_rt->table_id, &dup_ex_data, 
-                                         &(ex_container->ex_data), 
+                                         &(ex_container->ex_data),
                                          container_schema->ex_schema.argl, 
                                          container_schema->ex_schema.argp);
     return dup_ex_data;

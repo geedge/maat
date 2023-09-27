@@ -26,6 +26,7 @@
 #include "maat_compile.h"
 #include "maat_plugin.h"
 #include "maat_ip_plugin.h"
+#include "maat_ipport_plugin.h"
 #include "maat_fqdn_plugin.h"
 #include "maat_bool_plugin.h"
 #include "maat_stat.h"
@@ -212,6 +213,10 @@ static void maat_plugin_table_garbage_collect_routine(struct table_manager *tbl_
             case TABLE_TYPE_IP_PLUGIN:
                 runtime = table_manager_get_runtime(tbl_mgr, i);
                 ex_data_rt = ip_plugin_runtime_get_ex_data_rt(runtime);
+                break;
+            case TABLE_TYPE_IPPORT_PLUGIN:
+                runtime = table_manager_get_runtime(tbl_mgr, i);
+                ex_data_rt = ipport_plugin_runtime_get_ex_data_rt(runtime);
                 break;
             case TABLE_TYPE_FQDN_PLUGIN:
                 runtime = table_manager_get_runtime(tbl_mgr, i);

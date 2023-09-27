@@ -380,7 +380,8 @@ static void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
         total_rule_num += rule_num;
 
         if (table_type == TABLE_TYPE_PLUGIN || table_type == TABLE_TYPE_IP_PLUGIN ||
-            table_type == TABLE_TYPE_BOOL_PLUGIN || table_type == TABLE_TYPE_FQDN_PLUGIN) {
+            table_type == TABLE_TYPE_IPPORT_PLUGIN || table_type == TABLE_TYPE_BOOL_PLUGIN ||
+            table_type == TABLE_TYPE_FQDN_PLUGIN) {
             continue;
         }
 

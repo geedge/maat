@@ -34,6 +34,7 @@ enum table_type {
     TABLE_TYPE_INTERVAL_PLUS,
     TABLE_TYPE_PLUGIN,
     TABLE_TYPE_IP_PLUGIN,
+    TABLE_TYPE_IPPORT_PLUGIN,
     TABLE_TYPE_FQDN_PLUGIN,
     TABLE_TYPE_BOOL_PLUGIN,
     //above are physical table

@@ -3739,6 +3739,145 @@ TEST_F(IPPluginTable, EX_DATA) {
 	EXPECT_EQ(ret, 0);
 }
 
+class IPPortPluginTable : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
+                                  "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+        char redis_ip[64] = "127.0.0.1";
+        int redis_port = 6379;
+        int redis_db = 0;
+
+        logger = log_handle_create("./maat_framework_gtest.log", 0);  
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+        if (ret < 0) {
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
+                      "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
+        }
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_stat_file(opts, "./stat.log");
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_accept_tags(opts, accept_tags);
+
+        _shared_maat_inst = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+        if (NULL == _shared_maat_inst) {
+            log_error(logger, MODULE_FRAMEWORK_GTEST,
+                      "[%s:%d] create maat instance in IPPortPluginTable failed.",
+                      __FUNCTION__, __LINE__);
+        }
+    }
+
+    static void TearDownTestCase() {
+       maat_free(_shared_maat_inst);
+       log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_inst;
+};
+
+struct maat *IPPortPluginTable::_shared_maat_inst;
+struct log_handle *IPPortPluginTable::logger;
+
+struct ipport_plugin_ud {
+	long long rule_id;
+	char *buffer;
+    size_t buf_len;
+};
+void ipport_plugin_ex_new_cb(const char *table_name, int table_id, const char *key, 
+                         const char *table_line, void **ad, long argl, void *argp)
+{
+	int *counter = (int *)argp;
+	size_t column_offset=0, column_len=0;
+	struct ipport_plugin_ud *ud = ALLOC(struct ipport_plugin_ud, 1);
+
+	int ret = get_column_pos(table_line, 1, &column_offset, &column_len);
+	EXPECT_EQ(ret, 0);
+
+	ud->rule_id = atoll(table_line + column_offset);
+
+	ret = get_column_pos(table_line, 5, &column_offset, &column_len);	
+	EXPECT_EQ(ret, 0);
+
+	ud->buffer = ALLOC(char, column_len + 1);
+	strncpy(ud->buffer, table_line + column_offset, column_len);
+
+    ud->buf_len = column_len + 1;
+	*ad = ud;
+	(*counter)++;
+}
+
+void ipport_plugin_ex_free_cb(int table_id, void **ad, long argl, void *argp)
+{
+	struct ipport_plugin_ud *ud = (struct ipport_plugin_ud *)(*ad);
+
+    ud->rule_id = 0;
+    memset(ud->buffer, 0, ud->buf_len);
+    ud->buf_len = 0;
+
+	free(ud->buffer);
+	free(ud);
+	*ad = NULL;
+}
+
+void ipport_plugin_ex_dup_cb(int table_id, void **to, void **from, long argl, void *argp)
+{
+	struct ipport_plugin_ud *ud = (struct ipport_plugin_ud *)(*from);
+	
+	*to = ud;
+}
+
+TEST_F(IPPortPluginTable, EX_DATA) {
+    int ex_data_counter = 0;
+    const char *table_name = "TEST_IPPORT_PLUGIN_WITH_EXDATA";
+    struct maat *maat_inst = IPPortPluginTable::_shared_maat_inst;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    int ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
+                                                   ip_plugin_ex_new_cb,
+                                                   ip_plugin_ex_free_cb,
+                                                   ip_plugin_ex_dup_cb,
+                                                   0, &ex_data_counter);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ex_data_counter, 3);
+
+    struct ip_addr ipv4;
+    ipv4.ip_type = IPv4;
+    ret = inet_pton(AF_INET, "192.168.100.1", &ipv4.ipv4);
+    EXPECT_EQ(ret, 1);
+
+    uint16_t port = htons(150);
+
+    struct ipport_plugin_ud *results[ARRAY_SIZE];
+    ret = maat_ipport_plugin_table_get_ex_data(maat_inst, table_id, &ipv4, port,
+                                               (void **)results, ARRAY_SIZE);
+    EXPECT_EQ(ret, 1);
+    EXPECT_EQ(results[0]->rule_id, 101);
+
+    // struct ip_addr ipv6;
+    // ipv6.ip_type = IPv6;
+    // inet_pton(AF_INET6, "2001:db8:1234::5210", &(ipv6.ipv6));
+    // memset(results, 0, sizeof(results));
+
+	// ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv6, 
+    //                                        (void**)results, ARRAY_SIZE);
+	// EXPECT_EQ(ret, 2);
+	// EXPECT_EQ(results[0]->rule_id, 104);
+	// EXPECT_EQ(results[1]->rule_id, 103);
+
+	// //Reproduce BugReport-Liumengyan-20210515
+	// inet_pton(AF_INET6, "240e:97c:4010:104::17", &(ipv6.ipv6));
+	// ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv6, 
+    //                                        (void**)results, ARRAY_SIZE);
+	// EXPECT_EQ(ret, 0);
+}
+
 class FQDNPluginTable : public testing::Test
 {
 protected:

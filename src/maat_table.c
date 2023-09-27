@@ -23,6 +23,7 @@
 #include "maat_flag.h"
 #include "maat_plugin.h"
 #include "maat_ip_plugin.h"
+#include "maat_ipport_plugin.h"
 #include "maat_bool_plugin.h"
 #include "maat_fqdn_plugin.h"
 #include "maat_interval.h"
@@ -206,6 +207,17 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .commit_runtime = ip_plugin_runtime_commit,
         .rule_count = ip_plugin_runtime_rule_count,
         .update_err_count = ip_plugin_runtime_update_err_count
+    },
+    {
+        .type = TABLE_TYPE_IPPORT_PLUGIN,
+        .new_schema = ipport_plugin_schema_new,
+        .free_schema = ipport_plugin_schema_free,
+        .new_runtime = ipport_plugin_runtime_new,
+        .free_runtime = ipport_plugin_runtime_free,
+        .update_runtime = ipport_plugin_runtime_update,
+        .commit_runtime = ipport_plugin_runtime_commit,
+        .rule_count = ipport_plugin_runtime_rule_count,
+        .update_err_count = ipport_plugin_runtime_update_err_count
     },
     {
         .type = TABLE_TYPE_FQDN_PLUGIN,
@@ -472,6 +484,7 @@ static void register_reserved_word(struct maat_kv_store *reserved_word_map)
     maat_kv_register(reserved_word_map, "ip_plus", TABLE_TYPE_IP_PLUS);
     maat_kv_register(reserved_word_map, "plugin", TABLE_TYPE_PLUGIN);
     maat_kv_register(reserved_word_map, "ip_plugin", TABLE_TYPE_IP_PLUGIN);
+    maat_kv_register(reserved_word_map, "ipport_plugin", TABLE_TYPE_IPPORT_PLUGIN);
     maat_kv_register(reserved_word_map, "bool_plugin", TABLE_TYPE_BOOL_PLUGIN);
     maat_kv_register(reserved_word_map, "fqdn_plugin", TABLE_TYPE_FQDN_PLUGIN);
     maat_kv_register(reserved_word_map, "virtual", TABLE_TYPE_VIRTUAL);

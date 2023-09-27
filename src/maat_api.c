@@ -36,6 +36,7 @@
 #include "maat_ip.h"
 #include "maat_plugin.h"
 #include "maat_ip_plugin.h"
+#include "maat_ipport_plugin.h"
 #include "maat_fqdn_plugin.h"
 #include "maat_bool_plugin.h"
 #include "maat_virtual.h"
@@ -598,6 +599,11 @@ static int generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int
                                                           new_func, free_func, dup_func,
                                                           free, argl, argp);
             break;
+        case TABLE_TYPE_IPPORT_PLUGIN:
+            ret = ipport_plugin_table_set_ex_container_schema(schema, table_id,
+                                                              new_func, free_func, dup_func,
+                                                              free, argl, argp);
+            break;
         case TABLE_TYPE_FQDN_PLUGIN:
             ret = fqdn_plugin_table_set_ex_container_schema(schema, table_id,
                                                             new_func, free_func, dup_func,
@@ -661,6 +667,27 @@ static void ip_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
     ip_plugin_runtime_commit(runtime, table_name, 0);
 }
 
+static void ipport_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
+                                                   const char *table_name,
+                                                   int valid_column)
+{
+    struct ex_container_schema *container_schema = NULL;
+    struct ex_data_runtime *ex_data_rt = NULL;
+
+    container_schema = ipport_plugin_table_get_ex_container_schema(schema);
+    ex_data_rt = ipport_plugin_runtime_get_ex_data_rt(runtime);
+    ex_data_runtime_set_ex_container_schema(ex_data_rt, container_schema);
+
+    size_t n_cached_row = ex_data_runtime_cached_row_count(ex_data_rt);
+    for (size_t i = 0; i < n_cached_row; i++) {
+        const char *row = ex_data_runtime_cached_row_get(ex_data_rt, i);
+        ipport_plugin_runtime_update(runtime, schema, table_name, row, valid_column);
+    }
+
+    ex_data_runtime_clear_row_cache(ex_data_rt);
+    ipport_plugin_runtime_commit(runtime, table_name, 0);
+}
+
 static void fqdn_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
                                                  const char *table_name,
                                                  int valid_column)
@@ -722,6 +749,9 @@ static int generic_plugin_runtime_commit_ex_schema(void *runtime, void *schema,
             break;
         case TABLE_TYPE_IP_PLUGIN:
             ip_plugin_runtime_commit_ex_schema(runtime, schema, table_name, valid_column);
+            break;
+        case TABLE_TYPE_IPPORT_PLUGIN:
+            ipport_plugin_runtime_commit_ex_schema(runtime, schema, table_name, valid_column);
             break;
         case TABLE_TYPE_FQDN_PLUGIN:
             fqdn_plugin_runtime_commit_ex_schema(runtime, schema, table_name, valid_column);
@@ -854,10 +884,10 @@ void *maat_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
 
 int maat_ip_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
                                      const struct ip_addr *ip_addr,
-                                     void **ex_data_array, size_t n_ex_data)
+                                     void **ex_data_array, size_t array_size)
 {
     if (NULL == maat_inst || table_id < 0 || table_id >= MAX_TABLE_NUM 
-        || NULL == ip_addr || NULL == ex_data_array || 0 == n_ex_data) {
+        || NULL == ip_addr || NULL == ex_data_array || 0 == array_size) {
         return -1;
     }
     
@@ -871,21 +901,49 @@ int maat_ip_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
         return -1;
     }
 
-    int n_hit_ex_data = ip_plugin_runtime_get_ex_data(ip_plugin_rt, ip_addr, 
-                                                      ex_data_array, n_ex_data);
-    if (n_hit_ex_data < 0) {
+    int n_ex_data = ip_plugin_runtime_get_ex_data(ip_plugin_rt, ip_addr,
+                                                  ex_data_array, array_size);
+    if (n_ex_data < 0) {
         return -1;
     }
 
-    return n_hit_ex_data;
+    return n_ex_data;
+}
+
+int maat_ipport_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
+                                          const struct ip_addr *ip_addr, uint16_t port,
+                                          void **ex_data_array, size_t array_size)
+{
+    if (NULL == maat_inst || table_id < 0 || table_id >= MAX_TABLE_NUM 
+        || NULL == ip_addr || NULL == ex_data_array || 0 == array_size) {
+        return -1;
+    }
+
+    struct maat_runtime *maat_rt = maat_inst->maat_rt;
+    if (NULL == maat_rt) {
+        return -1;
+    }
+
+    void *ipport_plugin_rt = table_manager_get_runtime(maat_rt->ref_tbl_mgr, table_id);
+    if (NULL == ipport_plugin_rt) {
+        return -1;
+    }
+
+    int n_ex_data = ipport_plugin_runtime_get_ex_data(ipport_plugin_rt, ip_addr, port,
+                                                      ex_data_array, array_size);
+    if (n_ex_data < 0) {
+        return -1;
+    }
+
+    return n_ex_data;
 }
 
 int maat_fqdn_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
                                        const char *fqdn, void **ex_data_array, 
-                                       size_t n_ex_data)
+                                       size_t array_size)
 {
     if (NULL == maat_inst || table_id < 0 || table_id >= MAX_TABLE_NUM 
-        || NULL == fqdn || NULL == ex_data_array || 0 == n_ex_data) {
+        || NULL == fqdn || NULL == ex_data_array || 0 == array_size) {
         return -1;
     }
 
@@ -899,21 +957,21 @@ int maat_fqdn_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
         return -1;
     }
 
-    int n_hit_ex_data = fqdn_plugin_runtime_get_ex_data(fqdn_plugin_rt, fqdn,
-                                                        ex_data_array, n_ex_data);
-    if (n_hit_ex_data < 0) {
+    int n_ex_data = fqdn_plugin_runtime_get_ex_data(fqdn_plugin_rt, fqdn,
+                                                    ex_data_array, array_size);
+    if (n_ex_data < 0) {
         return -1;
     }
 
-    return n_hit_ex_data;
+    return n_ex_data;
 }
 
 int maat_bool_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
                                        unsigned long long *item_ids, size_t n_item,
-                                       void **ex_data_array, size_t n_ex_data)
+                                       void **ex_data_array, size_t array_size)
 {
     if (NULL == maat_inst || table_id < 0 || table_id >= MAX_TABLE_NUM 
-        || NULL == item_ids || NULL == ex_data_array || 0 == n_ex_data) {
+        || NULL == item_ids || NULL == ex_data_array || 0 == array_size) {
         return -1;
     }
     
@@ -927,13 +985,13 @@ int maat_bool_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
         return -1;
     }
 
-    int n_hit_ex_data = bool_plugin_runtime_get_ex_data(bool_plugin_rt, item_ids, n_item,
-                                                        ex_data_array, n_ex_data);
-    if (n_hit_ex_data < 0) {
+    int n_ex_data = bool_plugin_runtime_get_ex_data(bool_plugin_rt, item_ids, n_item,
+                                                    ex_data_array, array_size);
+    if (n_ex_data < 0) {
         return -1;
     }
 
-    return n_hit_ex_data;
+    return n_ex_data;
 }
 
 static inline int scan_status_should_compile_NOT(struct maat_state *state)

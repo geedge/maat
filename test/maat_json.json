@@ -3030,6 +3030,14 @@
             ]
         },
         {
+            "table_name": "TEST_IPPORT_PLUGIN_WITH_EXDATA",
+            "table_content": [
+                "101\t4\t192.168.100.1\t100\t200\t1",
+                "102\t4\t192.168.100.2\t100\t200\t1",
+                "103\t4\t192.168.100.1\t201\t300\t1"
+            ]
+        },
+        {
             "table_name": "TEST_FQDN_PLUGIN_WITH_EXDATA",
             "table_content": [
                 "201\t0\twww.example1.com\tcatid=1\t1",
