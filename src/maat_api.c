@@ -453,12 +453,12 @@ int maat_helper_verify_regex_expression(const char *regex_expr)
 
 int maat_get_table_id(struct maat *maat_inst, const char *table_name)
 {
-    int table_id = -1;
+    if (NULL == maat_inst || NULL == table_name) {
+        return -1;
+    }
 
     struct table_manager *table_mgr = maat_inst->tbl_mgr;
-    table_id = table_manager_get_table_id(table_mgr, table_name);
-    
-    return table_id;
+    return table_manager_get_table_id(table_mgr, table_name);
 }
 
 static inline void maat_runtime_ref_inc(struct maat_runtime *maat_rt, int thread_id)

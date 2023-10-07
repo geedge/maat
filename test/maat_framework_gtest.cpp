@@ -3840,42 +3840,41 @@ TEST_F(IPPortPluginTable, EX_DATA) {
     ASSERT_GT(table_id, 0);
 
     int ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
-                                                   ip_plugin_ex_new_cb,
-                                                   ip_plugin_ex_free_cb,
-                                                   ip_plugin_ex_dup_cb,
+                                                   ipport_plugin_ex_new_cb,
+                                                   ipport_plugin_ex_free_cb,
+                                                   ipport_plugin_ex_dup_cb,
                                                    0, &ex_data_counter);
     EXPECT_EQ(ret, 0);
-    EXPECT_EQ(ex_data_counter, 3);
+    EXPECT_EQ(ex_data_counter, 4);
 
     struct ip_addr ipv4;
     ipv4.ip_type = IPv4;
     ret = inet_pton(AF_INET, "192.168.100.1", &ipv4.ipv4);
     EXPECT_EQ(ret, 1);
 
-    uint16_t port = htons(150);
+    uint16_t port = htons(255);
 
     struct ipport_plugin_ud *results[ARRAY_SIZE];
     ret = maat_ipport_plugin_table_get_ex_data(maat_inst, table_id, &ipv4, port,
                                                (void **)results, ARRAY_SIZE);
-    EXPECT_EQ(ret, 1);
+    EXPECT_EQ(ret, 2);
     EXPECT_EQ(results[0]->rule_id, 101);
+    EXPECT_EQ(results[1]->rule_id, 103);
 
-    // struct ip_addr ipv6;
-    // ipv6.ip_type = IPv6;
-    // inet_pton(AF_INET6, "2001:db8:1234::5210", &(ipv6.ipv6));
-    // memset(results, 0, sizeof(results));
+    struct ip_addr ipv6;
+    ipv6.ip_type = IPv6;
+    inet_pton(AF_INET6, "2001:db8:1234::5210", ipv6.ipv6);
+    memset(results, 0, sizeof(results));
 
-	// ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv6, 
-    //                                        (void**)results, ARRAY_SIZE);
-	// EXPECT_EQ(ret, 2);
-	// EXPECT_EQ(results[0]->rule_id, 104);
-	// EXPECT_EQ(results[1]->rule_id, 103);
+	ret = maat_ipport_plugin_table_get_ex_data(maat_inst, table_id, &ipv6, port,
+                                              (void**)results, ARRAY_SIZE);
+	EXPECT_EQ(ret, 1);
+	EXPECT_EQ(results[0]->rule_id, 104);
 
-	// //Reproduce BugReport-Liumengyan-20210515
-	// inet_pton(AF_INET6, "240e:97c:4010:104::17", &(ipv6.ipv6));
-	// ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv6, 
-    //                                        (void**)results, ARRAY_SIZE);
-	// EXPECT_EQ(ret, 0);
+    inet_pton(AF_INET6, "240e:97c:4010:104::17", ipv6.ipv6);
+    ret = maat_ipport_plugin_table_get_ex_data(maat_inst, table_id, &ipv6, port,
+                                              (void**)results, ARRAY_SIZE);
+	EXPECT_EQ(ret, 0); 
 }
 
 class FQDNPluginTable : public testing::Test

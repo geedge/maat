@@ -532,7 +532,12 @@ int ipport_plugin_runtime_commit(void *ipport_plugin_runtime, const char *table_
 
 long long ipport_plugin_runtime_rule_count(void *ipport_plugin_runtime)
 {
-    return 0;
+    if (NULL == ipport_plugin_runtime) {
+        return 0;
+    }
+    
+    struct ipport_plugin_runtime *ipport_plugin_rt = (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+    return ipport_plugin_rt->rule_num;
 }
 
 struct ex_data_runtime *ipport_plugin_runtime_get_ex_data_rt(void *ipport_plugin_runtime)
@@ -607,5 +612,10 @@ int ipport_plugin_runtime_get_ex_data(void *ipport_plugin_runtime, const struct 
 
 long long ipport_plugin_runtime_update_err_count(void *ipport_plugin_runtime)
 {
-    return 0;
+    if (NULL == ipport_plugin_runtime) {
+        return 0;
+    }
+
+    struct ipport_plugin_runtime *ipport_plugin_rt = (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+    return ipport_plugin_rt->update_err_cnt;
 }
