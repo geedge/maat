@@ -553,6 +553,10 @@ struct ex_data_runtime *ipport_plugin_runtime_get_ex_data_rt(void *ipport_plugin
 
 static int validate_port(struct ipport_item *item, uint16_t port)
 {
+    if (NULL == item) {
+        return -1;
+    }
+    
     uint16_t host_port = ntohs(port);
 
     if (item->min_port > host_port || item->max_port < host_port) {
