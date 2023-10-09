@@ -561,10 +561,10 @@ static int validate_port(struct ipport_item *item, uint16_t port)
 }
 
 int ipport_plugin_runtime_get_ex_data(void *ipport_plugin_runtime, const struct ip_addr *ip_addr, 
-                                      uint16_t port, void **ex_data_array, size_t array_size)
+                                      uint16_t port, void **ex_data_array, size_t n_ex_data)
 {
     if (NULL == ipport_plugin_runtime || NULL == ip_addr ||
-        NULL == ex_data_array || 0 == array_size) {
+        NULL == ex_data_array || 0 == n_ex_data) {
         return -1;
     }
 
@@ -584,9 +584,8 @@ int ipport_plugin_runtime_get_ex_data(void *ipport_plugin_runtime, const struct 
 		ipv6_ntoh(ip_data.ipv6);
 	}
 
-    struct scan_result ip_results[MAX_SCANNER_HIT_ITEM_NUM];
-	int n_hit_ip_item = ip_matcher_match(ipport_plugin_rt->ip_matcher, &ip_data, ip_results,
-                                         MAX_SCANNER_HIT_ITEM_NUM);
+    struct scan_result ip_results[n_ex_data];
+	int n_hit_ip_item = ip_matcher_match(ipport_plugin_rt->ip_matcher, &ip_data, ip_results, n_ex_data);
     if (n_hit_ip_item <= 0) {
         return n_hit_ip_item;
     }

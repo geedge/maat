@@ -55,7 +55,7 @@ long long ipport_plugin_runtime_rule_count(void *ipport_plugin_runtime);
 struct ex_data_runtime *ipport_plugin_runtime_get_ex_data_rt(void *ipport_plugin_runtime);
 
 int ipport_plugin_runtime_get_ex_data(void *ipport_plugin_runtime, const struct ip_addr *ip_addr, 
-                                      uint16_t port, void **ex_data_array, size_t n_ex_data_array);
+                                      uint16_t port, void **ex_data_array, size_t n_ex_data);
 
 long long ipport_plugin_runtime_update_err_count(void *ipport_plugin_runtime);
 
