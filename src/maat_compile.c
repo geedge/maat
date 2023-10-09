@@ -2232,11 +2232,9 @@ int maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
     struct maat_compile_state *compile_state = state->compile_state;
     if (hit_cnt > 0) {
         if (compile_state->Nth_scan != state->scan_cnt) {
-		    assert(compile_state->this_scan_hit_item_flag == 0);
 		    compile_state->Nth_scan = state->scan_cnt;
 		    utarray_clear(compile_state->this_scan_hit_clauses);
 	    }
-        compile_state->this_scan_hit_item_flag = 1;
     }
 
     for (i = 0; i < hit_cnt; i++) {
