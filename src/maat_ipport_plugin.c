@@ -57,15 +57,14 @@ struct ipport_item {
 
 struct ipport_plugin_runtime {
     struct ip_matcher *ip_matcher;
-    struct interval_matcher *intval_matcher;
     struct rcu_hash_table *item_hash;  //<item_id, struct ipport_item>
-
-    long long rule_num;
-    long long update_err_cnt;
     struct ex_data_runtime *ex_data_rt;
     size_t n_worker_thread;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
+
+    long long rule_num;
+    long long update_err_cnt;
 };
 
 void *ipport_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
@@ -237,11 +236,6 @@ void ipport_plugin_runtime_free(void *ipport_plugin_runtime)
     if (ipport_plugin_rt->ip_matcher != NULL) {
         ip_matcher_free(ipport_plugin_rt->ip_matcher);
         ipport_plugin_rt->ip_matcher = NULL;
-    }
-
-    if (ipport_plugin_rt->intval_matcher != NULL) {
-        interval_matcher_free(ipport_plugin_rt->intval_matcher);
-        ipport_plugin_rt->intval_matcher = NULL;
     }
 
     if (ipport_plugin_rt->ex_data_rt != NULL) {
@@ -477,11 +471,9 @@ int ipport_plugin_runtime_commit(void *ipport_plugin_runtime, const char *table_
         return 0;
     }
 
-    ex_data_runtime_commit(ex_data_rt);
-
     struct ip_rule *rules = NULL;
     struct ex_container **ex_container = NULL;
-    size_t rule_cnt = ex_data_runtime_list_ex_container(ex_data_rt, &ex_container);
+    size_t rule_cnt = ex_data_runtime_list_updating_ex_container(ex_data_rt, &ex_container);
     if (rule_cnt > 0) {
         rules = ALLOC(struct ip_rule, rule_cnt);
         for (size_t i = 0; i < rule_cnt; i++) {
@@ -512,6 +504,8 @@ int ipport_plugin_runtime_commit(void *ipport_plugin_runtime, const char *table_
 
     old_ip_matcher = ipport_plugin_rt->ip_matcher;
     ipport_plugin_rt->ip_matcher = new_ip_matcher;
+    ex_data_runtime_commit(ex_data_rt);
+
     if (old_ip_matcher != NULL) {
         maat_garbage_bagging(ipport_plugin_rt->ref_garbage_bin, old_ip_matcher, NULL,
                              garbage_ip_matcher_free);

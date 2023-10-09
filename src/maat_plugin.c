@@ -32,12 +32,13 @@ struct plugin_callback_schema {
 };
 
 struct plugin_runtime {
-    long long acc_line_num;
     struct ex_data_runtime *ex_data_rt;
-    long long rule_num;
-    long long update_err_cnt;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
+
+    long long rule_num;
+    long long acc_line_num;
+    long long update_err_cnt;
 };
 
 enum plugin_key_type {

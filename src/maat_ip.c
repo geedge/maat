@@ -66,7 +66,6 @@ struct ip_item {
 
 struct ip_runtime {
 	struct ip_matcher *ip_matcher;
-    struct interval_matcher *intval_matcher;
     struct rcu_hash_table *item_hash;  // <item_id, struct ip_item>
 
     long long rule_num;
@@ -428,11 +427,6 @@ void ip_runtime_free(void *ip_runtime)
         ip_rt->ip_matcher = NULL;
     }
 
-    if (ip_rt->intval_matcher != NULL) {
-        interval_matcher_free(ip_rt->intval_matcher);
-        ip_rt->intval_matcher = NULL;
-    }
-
     if (ip_rt->item_hash != NULL) {
         rcu_hash_free(ip_rt->item_hash);
         ip_rt->item_hash = NULL;
@@ -601,9 +595,6 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name,
     struct ip_matcher *new_ip_matcher = NULL;
     struct ip_matcher *old_ip_matcher = NULL;
 
-    struct interval_matcher *new_intval_matcher = NULL;
-    struct interval_matcher *old_intval_matcher = NULL;
-
     if (rule_cnt > 0) {
         new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used);
         if (NULL == new_ip_matcher) {
@@ -617,15 +608,6 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name,
                      "table[%s] commit %zu ip rules and rebuild ip_matcher completed"
                      ", version:%lld", table_name, rule_cnt, maat_rt_version);
         }
-
-        new_intval_matcher = interval_matcher_new(intval_rules, rule_cnt);
-        if (NULL == new_intval_matcher) {
-            log_error(ip_rt->logger, MODULE_IP,
-                      "[%s:%d] table[%s] rebuild interval_matcher engine "
-                      "failed when update %zu ip rules", __FUNCTION__, __LINE__,
-                      table_name, rule_cnt);
-            ret = -1;
-        }
     }
 
     old_ip_matcher = ip_rt->ip_matcher;
@@ -635,13 +617,6 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name,
     if (old_ip_matcher != NULL) {
         maat_garbage_bagging(ip_rt->ref_garbage_bin, old_ip_matcher, NULL,
                              garbage_ip_matcher_free);
-    }
-
-    old_intval_matcher = ip_rt->intval_matcher;
-    ip_rt->intval_matcher = new_intval_matcher;
-    if (old_intval_matcher != NULL) {
-        maat_garbage_bagging(ip_rt->ref_garbage_bin, old_intval_matcher, NULL,
-                             garbage_interval_matcher_free);
     }
 
     ip_rt->rule_num = rule_cnt;

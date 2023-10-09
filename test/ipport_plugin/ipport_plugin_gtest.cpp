@@ -15,36 +15,22 @@
 
 const char *table_info_path = "./ipport_plugin_table_info.conf";
 const char *log_file = "./ipport_plugin_gtest.log";
+const char *g_ip_str = "192.0.2.0";
 
 class IPPortPluginTable : public testing::Test
 {
 protected:
     static void SetUpTestCase() {
         logger = log_handle_create(log_file, 0);
-        
-        // char iris_idx_path[PATH_MAX] = {0};
-        // snprintf(iris_idx_path, sizeof(iris_idx_path), "test_data/index");
-       
-        // struct maat_options *opts = maat_options_new();
-        // maat_options_set_iris(opts, iris_idx_path, iris_idx_path);
-        // maat_options_set_logger(opts, log_file, LOG_LEVEL_INFO);
-        // maat_options_set_stat_file(opts, "./stat.log");
-
-        // struct maat *_shared_maat_inst = maat_new(opts, table_info_path);
-        // assert(_shared_maat_inst);
-        // maat_options_free(opts);
     }
 
     static void TearDownTestCase() {
         log_handle_destroy(logger);
-        // maat_free(_shared_maat_inst);
     }
 
     static struct log_handle *logger;
-    // static struct maat *_shared_maat_inst;
 };
 
-// struct maat *IPPortPluginTable::_shared_maat_inst;
 struct log_handle *IPPortPluginTable::logger;
 
 int count_line_num_cb(const char *table_name, const char *line, void *u_para)
@@ -207,7 +193,7 @@ void *ipport_plugin_scan_thread(void *arg)
 
     struct ip_addr ipv4;
     ipv4.ip_type = 4;
-    int ret = inet_pton(AF_INET, "192.0.2.0", &ipv4.ipv4);
+    int ret = inet_pton(AF_INET, g_ip_str, &ipv4.ipv4);
     EXPECT_EQ(ret, 1);
 
     uint16_t port = htons(200);
@@ -236,7 +222,7 @@ void *ipport_plugin_scan_thread(void *arg)
 }
 
 static void test_add_ipport_plugin_command(struct maat *maat_inst, const char *table_name,
-                                           const char *ip_str, long long item_id)
+                                           long long item_id, const char *ip_str, int port1, int port2)
 {
     int table_id = maat_get_table_id(maat_inst, table_name);
     assert(table_id >= 0);
@@ -246,7 +232,29 @@ static void test_add_ipport_plugin_command(struct maat *maat_inst, const char *t
 
 
     char table_line[1024] = {0};
-    sprintf(table_line, "%lld\t4\t%s\t100\t200\t1", item_id, ip_str);
+    sprintf(table_line, "%lld\t4\t%s\t%d\t%d\t1", item_id, ip_str, port1, port2);
+
+    struct maat_cmd_line line_rule;
+    line_rule.rule_id = item_id;
+    line_rule.table_line = table_line;
+    line_rule.table_name = table_name;
+    line_rule.expire_after = 0;
+
+    maat_cmd_set_line(maat_inst, &line_rule);
+}
+
+static void test_del_ipport_plugin_command(struct maat *maat_inst, const char *table_name,
+                                           long long item_id, const char *ip_str, int port1, int port2)
+{
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    assert(table_id >= 0);
+    
+    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
+    assert(table_type == TABLE_TYPE_IPPORT_PLUGIN);
+
+
+    char table_line[1024] = {0};
+    sprintf(table_line, "%lld\t4\t%s\t%d\t%d\t0", item_id, ip_str, port1, port2);
 
     struct maat_cmd_line line_rule;
     line_rule.rule_id = item_id;
@@ -262,15 +270,20 @@ void *ipport_plugin_update_thread(void *arg)
     struct thread_param *param = (struct thread_param *)arg;
     struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
-    const int CMD_EXPR_NUM = 100;
-    char ip_buf[128] = {0};
+    const int CMD_EXPR_NUM = 1024;
     long long item_id = 9000000;
 
     for (int i = 0; i < CMD_EXPR_NUM; i++) {
-        sprintf(ip_buf, "172.16.1.%d", i);
-        test_add_ipport_plugin_command(maat_inst, table_name, ip_buf, item_id);
+        test_add_ipport_plugin_command(maat_inst, table_name, item_id, g_ip_str, i+201, i+201);
         item_id++;
         usleep(100 * 1000);
+    }
+
+    item_id = 9000000; 
+    for (int i = 0; i < CMD_EXPR_NUM; i++) {
+        test_del_ipport_plugin_command(maat_inst, table_name, item_id, g_ip_str, i+201, i+201);
+        usleep(100 * 1000);
+        item_id++;
     }
 
     int *is_all_hit = ALLOC(int, 1);

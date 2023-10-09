@@ -280,10 +280,10 @@ int ex_data_runtime_is_updating(struct ex_data_runtime *ex_data_rt)
     return rcu_hash_is_updating(ex_data_rt->htable);
 }
 
-size_t ex_data_runtime_list_ex_container(struct ex_data_runtime *ex_data_rt, 
-                                         struct ex_container ***ex_container)
+size_t ex_data_runtime_list_updating_ex_container(struct ex_data_runtime *ex_data_rt, 
+                                                  struct ex_container ***ex_container)
 {
-    return rcu_hash_list(ex_data_rt->htable, (void ***)ex_container);
+    return rcu_updating_hash_list(ex_data_rt->htable, (void ***)ex_container);
 }
 
 void ex_data_runtime_garbage_collect_routine(struct ex_data_runtime *ex_data_rt)

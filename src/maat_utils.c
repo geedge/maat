@@ -318,7 +318,7 @@ int crypt_memory(const unsigned char *inbuf, size_t inlen, unsigned char **pp_ou
 	int ret = EVP_BytesToKey(cipher, dgst, salt, (unsigned char *)key, 
                              strlen((const char *)key), 1, cipher_key, cipher_iv);
 	if(0 == ret) {
-		snprintf(err_str, err_str_sz, "Key and IV generatioin failed.");
+		snprintf(err_str, err_str_sz, "Key and IV generation failed.");
 		return 0;
 	}
 

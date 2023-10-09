@@ -77,8 +77,8 @@ int ex_data_runtime_add_ex_container(struct ex_data_runtime *ex_data_rt,
 int ex_data_runtime_del_ex_container(struct ex_data_runtime *ex_data_rt,
                                       const char *key, size_t key_len);
 
-size_t ex_data_runtime_list_ex_container(struct ex_data_runtime *ex_data_rt,
-                                         struct ex_container ***ex_container);
+size_t ex_data_runtime_list_updating_ex_container(struct ex_data_runtime *ex_data_rt,
+                                                  struct ex_container ***ex_container);
 
 size_t ex_data_runtime_ex_container_count(struct ex_data_runtime *ex_data_rt);
 
