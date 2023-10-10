@@ -57,6 +57,9 @@ extern "C"
 #define MAX_SCANNER_HIT_GROUP_NUM    4096
 #define MAX_SCANNER_HIT_ITEM_NUM     4096
 
+#define IPV4 4
+#define IPV6 6
+
 enum ip_format {
     IP_FORMAT_SINGLE = 1,
 	IP_FORMAT_RANGE,

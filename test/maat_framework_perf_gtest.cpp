@@ -238,9 +238,9 @@ static int ip_table_set_line(struct maat *maat_inst, const char *table_name, enu
         return 0;
     }
 
-    int ip_type = 4;
+    int ip_type = IPV4;
     if (type == IPv6) {
-        ip_type = 6;
+        ip_type = IPV6;
     }
 
     sprintf(table_line, "%lld\t%lld\t%d\t%s\t%s\t%s\t%s\t%u\t%u\t6\t%d", 

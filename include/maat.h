@@ -56,7 +56,7 @@ enum maat_update_type {
 };
 
 enum maat_expr_engine {
-    MAAT_EXPR_ENGINE_HS = 0, //default engine(hyperscan)
+    MAAT_EXPR_ENGINE_HS = 0, //hyperscan(default engine)
     MAAT_EXPR_ENGINE_RS      //rulescan
 };
 
@@ -66,10 +66,10 @@ enum maat_list_type {
 };
 
 struct ip_addr {
-    int ip_type;             //4: IPv4, 6: IPv6
+    int ip_type;             //4:IPV4, 6:IPV6
     union {
         unsigned int ipv4;   //network order
-        unsigned int ipv6[4];
+        unsigned int ipv6[4];//network order
     };
 };
 
@@ -208,6 +208,10 @@ int maat_ip_plugin_table_get_ex_data(struct maat *instance, int table_id,
                                      const struct ip_addr *ip_addr,
                                      void **ex_data_array, size_t array_size);
 
+/** 
+ * NOTE: @retval -1(ERROR) 0(no ex_data) 1(only one ex_data)
+ *      this function return only one ex_data if matched
+ */
 int maat_ipport_plugin_table_get_ex_data(struct maat *instance, int table_id,
                                          const struct ip_addr *ip_addr, uint16_t port,
                                          void **ex_data_array, size_t array_size);

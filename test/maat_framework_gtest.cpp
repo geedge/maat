@@ -262,9 +262,9 @@ int ip_table_set_line(struct maat *maat_inst, const char *table_name, enum maat_
         return 0;
     }
 
-    int ip_type = 4;
+    int ip_type = IPV4;
     if (type == IPv6) {
-        ip_type = 6;
+        ip_type = IPV6;
     }
 
     sprintf(table_line, "%lld\t%lld\t%d\t%s\t%s\t%s\t%s\t%u\t%u\t6\t%d", item_id, group_id, ip_type, 
@@ -3775,7 +3775,7 @@ TEST_F(IPPortPluginTable, EX_DATA) {
     EXPECT_EQ(ex_data_counter, 4);
 
     struct ip_addr ipv4;
-    ipv4.ip_type = IPv4;
+    ipv4.ip_type = IPV4;
     ret = inet_pton(AF_INET, "192.168.100.1", &ipv4.ipv4);
     EXPECT_EQ(ret, 1);
 
@@ -3784,9 +3784,8 @@ TEST_F(IPPortPluginTable, EX_DATA) {
     struct ipport_plugin_ud *results[ARRAY_SIZE];
     ret = maat_ipport_plugin_table_get_ex_data(maat_inst, table_id, &ipv4, port,
                                                (void **)results, ARRAY_SIZE);
-    EXPECT_EQ(ret, 2);
-    EXPECT_EQ(results[0]->rule_id, 101);
-    EXPECT_EQ(results[1]->rule_id, 103);
+    EXPECT_EQ(ret, 1);
+    EXPECT_EQ(results[0]->rule_id, 103);
 
     struct ip_addr ipv6;
     ipv6.ip_type = IPv6;
@@ -6082,7 +6081,7 @@ TEST_F(MaatCmdTest, UpdateIPPlugin) {
 
     struct ip_addr ipv4, ipv6;
     struct ip_plugin_ud *results[ARRAY_SIZE];
-    ipv4.ip_type = 4;
+    ipv4.ip_type = IPV4;
     inet_pton(AF_INET, "192.168.30.100", &(ipv4.ipv4));
 
     memset(results, 0, sizeof(results));

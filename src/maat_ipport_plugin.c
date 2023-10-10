@@ -13,8 +13,9 @@
 #include "alignment.h"
 #include "log/log.h"
 #include "maat_utils.h"
+#include "uthash/utarray.h"
 #include "maat_ipport_plugin.h"
-#include "ip_matcher.h"
+#include "ipport_matcher.h"
 #include "interval_matcher.h"
 #include "maat_rule.h"
 #include "maat_garbage_collection.h"
@@ -56,7 +57,7 @@ struct ipport_item {
 };
 
 struct ipport_plugin_runtime {
-    struct ip_matcher *ip_matcher;
+    struct ipport_matcher *matcher;
     struct rcu_hash_table *item_hash;  //<item_id, struct ipport_item>
     struct ex_data_runtime *ex_data_rt;
     size_t n_worker_thread;
@@ -233,9 +234,9 @@ void ipport_plugin_runtime_free(void *ipport_plugin_runtime)
     }
 
     struct ipport_plugin_runtime *ipport_plugin_rt = (struct ipport_plugin_runtime *)ipport_plugin_runtime;
-    if (ipport_plugin_rt->ip_matcher != NULL) {
-        ip_matcher_free(ipport_plugin_rt->ip_matcher);
-        ipport_plugin_rt->ip_matcher = NULL;
+    if (ipport_plugin_rt->matcher != NULL) {
+        ipport_matcher_free(ipport_plugin_rt->matcher);
+        ipport_plugin_rt->matcher = NULL;
     }
 
     if (ipport_plugin_rt->ex_data_rt != NULL) {
@@ -275,7 +276,7 @@ ipport_item_new(struct ipport_plugin_schema *schema, const char *table_name,
     }
     ipport_item->ip_type = atoi(line + column_offset);
 
-    if (ipport_item->ip_type != IPv4 && ipport_item->ip_type != IPv6) {
+    if (ipport_item->ip_type != IPV4 && ipport_item->ip_type != IPV6) {
         log_error(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport table:<%s> has invalid ip type:%d in line:%s",
                   __FUNCTION__, __LINE__, table_name, ipport_item->ip_type, line);
@@ -292,27 +293,28 @@ ipport_item_new(struct ipport_plugin_schema *schema, const char *table_name,
     }
     memcpy(ip_str, (line + column_offset), column_len);
 
-    if (IPv4 == ipport_item->ip_type) {
-        ret = ip_format2range(ipport_item->ip_type, IP_FORMAT_RANGE,
-                              ip_str, ip_str, &ipport_item->ipv4.min_ip,
-                              &ipport_item->ipv4.max_ip);
+    if (IPV4 == ipport_item->ip_type) {
+        uint32_t ipv4_addr = 0;
+		ret = inet_pton(AF_INET, ip_str, &ipv4_addr);
         if (ret < 0) {
             log_error(logger, MODULE_IPPORT_PLUGIN, 
                       "[%s:%d] ipport table:<%s> ip_format2range(ip4) failed in line:%s",
                       __FUNCTION__, __LINE__, table_name, line);
             goto error;
         }
+        ipport_item->ipv4.min_ip = ipv4_addr;
+        ipport_item->ipv4.max_ip = ipv4_addr;
     } else {
         //ipv6
-        ret = ip_format2range(ipport_item->ip_type, IP_FORMAT_RANGE,
-                              ip_str, ip_str, ipport_item->ipv6.min_ip,
-                              ipport_item->ipv6.max_ip);
+        uint32_t ipv6_addr[4] = {0};
+		ret = inet_pton(AF_INET6, ip_str, ipv6_addr);
         if (ret < 0) {
             log_error(logger, MODULE_IPPORT_PLUGIN, 
                       "[%s:%d] ipport table:<%s> ip_format2range(ip6) failed in line:%s",
                       __FUNCTION__, __LINE__, table_name, line);
             goto error;
         }
+        memcpy(ipport_item->ipv6.min_ip, ipv6_addr, sizeof(ipv6_addr));
     }
 
     ret = get_column_pos(line, schema->port1_column, &column_offset,
@@ -437,20 +439,26 @@ int ipport_plugin_runtime_update(void *ipport_plugin_runtime, void *ipport_plugi
     return 0;
 }
 
-static void ipport_item_to_ip_rule(struct ipport_item *item, struct ip_rule *rule)
+static void ipport_item_to_ipport_rule(struct ipport_item *item, struct ipport_rule *rule)
 {
-    if (IPv4 == item->ip_type) {
-        rule->type = IPv4;
-        rule->ipv4_rule.start_ip = item->ipv4.min_ip;
-        rule->ipv4_rule.end_ip = item->ipv4.max_ip;
+    if (IPV4 == item->ip_type) {
+        rule->ip.ip_type= IPV4;
+        rule->ip.ipv4 = item->ipv4.min_ip;
+        rule->port_range.min_port = item->min_port;
+        rule->port_range.max_port = item->max_port;
     } else {
-        rule->type = IPv6;
-        memcpy(rule->ipv6_rule.start_ip, item->ipv6.min_ip, 
-               sizeof(item->ipv6.min_ip));
-        memcpy(rule->ipv6_rule.end_ip, item->ipv6.max_ip, 
-               sizeof(item->ipv6.max_ip));
+        rule->ip.ip_type = IPV6;
+        memcpy(rule->ip.ipv6, item->ipv6.min_ip, sizeof(item->ipv6.min_ip));
+        rule->port_range.min_port = item->min_port;
+        rule->port_range.max_port = item->max_port;
     }
     rule->rule_id = item->item_id;
+}
+
+static void garbage_ipport_matcher_free(void *ipport_matcher, void *arg)
+{
+    struct ipport_matcher *matcher = (struct ipport_matcher *)ipport_matcher;
+    ipport_matcher_free(matcher);
 }
 
 int ipport_plugin_runtime_commit(void *ipport_plugin_runtime, const char *table_name,
@@ -471,44 +479,48 @@ int ipport_plugin_runtime_commit(void *ipport_plugin_runtime, const char *table_
         return 0;
     }
 
-    struct ip_rule *rules = NULL;
+    struct ipport_rule *rules = NULL;
     struct ex_container **ex_container = NULL;
     size_t rule_cnt = ex_data_runtime_list_updating_ex_container(ex_data_rt, &ex_container);
     if (rule_cnt > 0) {
-        rules = ALLOC(struct ip_rule, rule_cnt);
+        rules = ALLOC(struct ipport_rule, rule_cnt);
         for (size_t i = 0; i < rule_cnt; i++) {
             struct ipport_item *item = (struct ipport_item *)ex_container[i]->custom_data;
-            ipport_item_to_ip_rule(item, &rules[i]);
+            ipport_item_to_ipport_rule(item, &rules[i]);
             rules[i].user_tag = ex_container[i];
         }
     }
 
     int ret = 0;
-    size_t mem_used = 0;
-    struct ip_matcher *new_ip_matcher = NULL;
-    struct ip_matcher *old_ip_matcher = NULL;
+    struct ipport_matcher *new_matcher = NULL;
+    struct ipport_matcher *old_matcher = NULL;
 
     if (rule_cnt > 0) {
-        new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used);
-        if (NULL == new_ip_matcher) {
+        struct timespec start, end;
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        new_matcher = ipport_matcher_new(rules, rule_cnt);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+        if (NULL == new_matcher) {
             log_error(ipport_plugin_rt->logger, MODULE_IPPORT_PLUGIN,
-                      "[%s:%d] ipport_plugin table[%s] rebuild ip_matcher failed when "
+                      "[%s:%d] ipport_plugin table[%s] rebuild ipport_matcher failed when "
                       "update %zu rules", __FUNCTION__, __LINE__, table_name, rule_cnt);
             ret = -1;
         } else {
             log_info(ipport_plugin_rt->logger, MODULE_IPPORT_PLUGIN,
-                     "table[%s] commit %zu ipport_plugin rules and rebuild ip_matcher "
-                     "completed, version:%lld", table_name, rule_cnt, maat_rt_version);
+                     "table[%s] commit %zu ipport_plugin rules and rebuild ipport_matcher "
+                     "completed, version:%lld, consume:%lldms", table_name, rule_cnt,
+                     maat_rt_version, time_elapse_ms);
         }
     }
 
-    old_ip_matcher = ipport_plugin_rt->ip_matcher;
-    ipport_plugin_rt->ip_matcher = new_ip_matcher;
+    old_matcher = ipport_plugin_rt->matcher;
+    ipport_plugin_rt->matcher = new_matcher;
     ex_data_runtime_commit(ex_data_rt);
 
-    if (old_ip_matcher != NULL) {
-        maat_garbage_bagging(ipport_plugin_rt->ref_garbage_bin, old_ip_matcher, NULL,
-                             garbage_ip_matcher_free);
+    if (old_matcher != NULL) {
+        maat_garbage_bagging(ipport_plugin_rt->ref_garbage_bin, old_matcher, NULL,
+                             garbage_ipport_matcher_free);
     }
     
     ipport_plugin_rt->rule_num = rule_cnt;
@@ -573,26 +585,19 @@ int ipport_plugin_runtime_get_ex_data(void *ipport_plugin_runtime, const struct 
         return 0;
     }
 
-    if (NULL == ipport_plugin_rt->ip_matcher) {
+    if (NULL == ipport_plugin_rt->matcher) {
         return 0;
     }
 
-    struct ip_data ip_data = *(const struct ip_data *)ip_addr;
-	if (ip_data.type == IPv4) {
-		ip_data.ipv4 = ntohl(ip_data.ipv4);
-	} else {
-		ipv6_ntoh(ip_data.ipv6);
-	}
-
-    struct scan_result ip_results[n_ex_data];
-	int n_hit_ip_item = ip_matcher_match(ipport_plugin_rt->ip_matcher, &ip_data, ip_results, n_ex_data);
-    if (n_hit_ip_item <= 0) {
-        return n_hit_ip_item;
+    struct ipport_result results[n_ex_data];
+	int n_hit_item = ipport_matcher_match(ipport_plugin_rt->matcher, ip_addr, port, results, n_ex_data);
+    if (n_hit_item <= 0) {
+        return n_hit_item;
     }
 
     size_t hit_result_cnt = 0;
-    for (size_t i = 0; i < n_hit_ip_item; i++) {
-        struct ex_container *ex_container = ip_results[i].tag;
+    for (size_t i = 0; i < n_hit_item; i++) {
+        struct ex_container *ex_container = results[i].tag;
         struct ipport_item *item = (struct ipport_item *)ex_container->custom_data;
 
         int ret = validate_port(item, port);

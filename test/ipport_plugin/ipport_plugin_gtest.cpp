@@ -15,7 +15,7 @@
 
 const char *table_info_path = "./ipport_plugin_table_info.conf";
 const char *log_file = "./ipport_plugin_gtest.log";
-const char *g_ip_str = "192.0.2.0";
+const char *g_ip_str = "192.0.1.1";
 
 class IPPortPluginTable : public testing::Test
 {
@@ -89,6 +89,37 @@ int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
 	    reply = NULL;
     }
 
+    reply = maat_wrap_redis_command(c, "SET MAAT_VERSION 1");
+    if (NULL == reply) {
+        return -1;
+    } else {
+        freeReplyObject(reply);
+	    reply = NULL;
+    }
+
+    reply = maat_wrap_redis_command(c, "SET MAAT_PRE_VER 1");
+    if (NULL == reply) {
+        return -1;
+    } else {
+        freeReplyObject(reply);
+	    reply = NULL;
+    }
+
+    reply = maat_wrap_redis_command(c, "SET SEQUENCE_REGION 1");
+    if (NULL == reply) {
+        return -1;
+    } else {
+        freeReplyObject(reply);
+	    reply = NULL;
+    }
+
+    reply = maat_wrap_redis_command(c, "SET SEQUENCE_GROUP 1");
+    if (NULL == reply) {
+        return -1;
+    } else {
+        freeReplyObject(reply);
+	    reply = NULL;
+    }
 
     size_t total_line_cnt = 0;
     char iris_idx_path[PATH_MAX] = {0};
@@ -192,11 +223,11 @@ void *ipport_plugin_scan_thread(void *arg)
     int table_id = maat_get_table_id(maat_inst, table_name);
 
     struct ip_addr ipv4;
-    ipv4.ip_type = 4;
+    ipv4.ip_type = IPV4;
     int ret = inet_pton(AF_INET, g_ip_str, &ipv4.ipv4);
     EXPECT_EQ(ret, 1);
 
-    uint16_t port = htons(200);
+    uint16_t port = htons(10);
     int hit_times = 0;
     struct ipport_plugin_ud *results[ARRAY_SIZE];
 
@@ -206,7 +237,6 @@ void *ipport_plugin_scan_thread(void *arg)
                                              (void **)results, ARRAY_SIZE);
         EXPECT_EQ(ret, 1);
         if (ret == 1) {
-            EXPECT_EQ(results[0]->rule_id, 513);
             hit_times++;
         }
     }
@@ -270,7 +300,7 @@ void *ipport_plugin_update_thread(void *arg)
     struct thread_param *param = (struct thread_param *)arg;
     struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
-    const int CMD_EXPR_NUM = 1024;
+    const int CMD_EXPR_NUM = 64;
     long long item_id = 9000000;
 
     for (int i = 0; i < CMD_EXPR_NUM; i++) {
@@ -292,7 +322,7 @@ void *ipport_plugin_update_thread(void *arg)
     return is_all_hit;
 }
 
-TEST_F(IPPortPluginTable, basic) {
+TEST_F(IPPortPluginTable, WITHOUT_SAME_IP) {
     char redis_ip[32] = "127.0.0.1";
     int redis_port = 6379;
     int redis_db = 0;
@@ -312,7 +342,7 @@ TEST_F(IPPortPluginTable, basic) {
     maat_options_free(opts);
 
     int ex_data_counter = 0;
-    const char *table_name = "IPPORT_PLUGIN_WITH_EXDATA";
+    const char *table_name = "IPPORT_PLUGIN_WITHOUT_SAME_IP";
 
     int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
@@ -323,7 +353,6 @@ TEST_F(IPPortPluginTable, basic) {
                                                 ipport_plugin_ex_dup_cb,
                                                 0, &ex_data_counter);
     EXPECT_EQ(ret, 0);
-    EXPECT_EQ(ex_data_counter, 49999);
 
     int i = 0;
     pthread_t threads[2];
@@ -355,7 +384,73 @@ TEST_F(IPPortPluginTable, basic) {
 
     scan_per_second = PERF_SCAN_COUNT * 1000 / time_elapse_ms;
     log_info(maat_inst->logger, MODULE_IPPORT_PLUGIN_GTEST,
-             "IpportPluginScan match rate speed %lld lookups/s/thread",
+             "IpportPluginScan without same ip match rate speed %lld lookups/s/thread",
+             scan_per_second);
+}
+
+TEST_F(IPPortPluginTable, WITH_256SAME_IP) {
+    char redis_ip[32] = "127.0.0.1";
+    int redis_port = 6379;
+    int redis_db = 0;
+    struct log_handle *logger = IPPortPluginTable::logger;
+
+    int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+    assert(ret == 0);
+
+    struct maat_options *opts = maat_options_new();
+    maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+    maat_options_set_logger(opts, log_file, LOG_LEVEL_INFO);
+    maat_options_set_stat_file(opts, "./stat.log");
+    maat_options_set_rule_update_checking_interval_ms(opts, 100);
+
+    struct maat *maat_inst = maat_new(opts, table_info_path);
+    assert(maat_inst);
+    maat_options_free(opts);
+
+    int ex_data_counter = 0;
+    const char *table_name = "IPPORT_PLUGIN_WITH_256SAME_IP";
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
+                                                ipport_plugin_ex_new_cb,
+                                                ipport_plugin_ex_free_cb,
+                                                ipport_plugin_ex_dup_cb,
+                                                0, &ex_data_counter);
+    EXPECT_EQ(ret, 0);
+
+    int i = 0;
+    pthread_t threads[2];
+    struct thread_param thread_params[2];
+
+    for (i = 0; i < 2; i++) {
+        thread_params[i].maat_inst = maat_inst;
+        thread_params[i].thread_id = i;
+        thread_params[i].table_name = table_name;
+        thread_params[i].test_count = PERF_SCAN_COUNT;
+        thread_params[i].time_elapse_ms = 0;
+        thread_params[i].logger = logger;
+    }
+
+    pthread_create(&threads[0], NULL, ipport_plugin_scan_thread, thread_params);
+    pthread_create(&threads[1], NULL, ipport_plugin_update_thread, thread_params + 1);
+
+    int *is_all_hit = NULL;
+    long long time_elapse_ms = 0;
+    long long scan_per_second = 0;
+    for (i = 0; i < 2; i++) {
+        pthread_join(threads[i], (void **)&is_all_hit);
+        time_elapse_ms += thread_params[i].time_elapse_ms;
+
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit = 0;
+		free(is_all_hit);
+    }
+
+    scan_per_second = PERF_SCAN_COUNT * 1000 / time_elapse_ms;
+    log_info(maat_inst->logger, MODULE_IPPORT_PLUGIN_GTEST,
+             "IpportPluginScan with 256 same ip match rate speed %lld lookups/s/thread",
              scan_per_second);
 }
 

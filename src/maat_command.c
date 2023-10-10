@@ -108,8 +108,7 @@ long long maat_read_redis_integer(const redisReply *reply)
 	return 0;
 }
 
-static int redis_flushDB(redisContext *ctx, int db_index,
-						 struct log_handle *logger)
+static int redis_flushDB(redisContext *ctx, int db_index, struct log_handle *logger)
 {
 	long long maat_redis_version = 0;
 	

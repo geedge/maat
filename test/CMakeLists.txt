@@ -7,6 +7,7 @@ include_directories(${PROJECT_SOURCE_DIR}/scanner/expr_matcher)
 include_directories(${PROJECT_SOURCE_DIR}/scanner/expr_matcher/adapter_hs)
 include_directories(${PROJECT_SOURCE_DIR}/scanner/expr_matcher/adapter_rs)
 include_directories(${PROJECT_SOURCE_DIR}/scanner/ip_matcher)
+include_directories(${PROJECT_SOURCE_DIR}/scanner/ipport_matcher)
 include_directories(${PROJECT_SOURCE_DIR}/scanner/bool_matcher)
 
 add_executable(rcu_hash_gtest rcu_hash_gtest.cpp)
@@ -26,6 +27,9 @@ target_link_libraries(expr_matcher_gtest maat_frame_static gtest_static)
 
 add_executable(ip_matcher_gtest ip_matcher_gtest.cpp)
 target_link_libraries(ip_matcher_gtest maat_frame_static gtest_static)
+
+add_executable(ipport_matcher_gtest ipport_matcher_gtest.cpp)
+target_link_libraries(ipport_matcher_gtest maat_frame_static gtest_static)
 
 add_executable(bool_matcher_gtest bool_matcher_gtest.cpp)
 target_link_libraries(bool_matcher_gtest maat_frame_static gtest_static)

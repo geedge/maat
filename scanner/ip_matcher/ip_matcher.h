@@ -84,9 +84,9 @@ struct ip_matcher *ip_matcher_new(struct ip_rule *rules, size_t rule_num,
  * @brief scan ip_data to find out if has matched rules in ip_matcher
  *
  * @param matcher[intput]: ip_matcher which created by ip_matcher_new
- * @param data[intput]:    ip_data to be scanned
- * @param result[input]:   result array to store the rule_id and user_tag if there are matching rules
- * @param size[input]:     result array size
+ * @param data   [intput]: ip_data to be scanned
+ * @param result [output]: result array to store the rule_id and user_tag of the matching rules
+ * @param size   [input]:  result array size
  */
 int ip_matcher_match(struct ip_matcher *matcher, struct ip_data *data,
                      struct scan_result *result, size_t size);

@@ -481,12 +481,12 @@ int ip_format2range(int ip_type, enum ip_format format, const char *ip1, const c
 	int cidr = 0;
 	int ret = 0;
 
-	if (ip_type != 4 && ip_type != 6) {
+	if (ip_type != IPV4 && ip_type != IPV6) {
 		assert(0);
 		return -1;
 	}
 
-	if (ip_type == 4) {
+	if (ip_type == IPV4) {
         uint32_t ipv4_addr = 0;
 		ret = inet_pton(AF_INET, ip1, &ipv4_addr);
 		if (ret <= 0) {
