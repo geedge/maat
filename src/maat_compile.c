@@ -28,7 +28,13 @@
 
 #define MODULE_COMPILE	 module_name_str("maat.compile")
 #define DEFAULT_GC_TIMEOUT_S 10
-#define MAX_SUPER_GROUP_CNT 128
+#define MAX_SUPER_GROUP_CNT  128
+#define MAX_NOT_CLAUSE_NUM   8
+
+enum clause_not_flag {
+    CLAUSE_NOT_FLAG_UNSET = 0,
+    CLAUSE_NOT_FLAG_SET
+};
 
 struct compile_schema {
     int compile_id_column;
@@ -280,7 +286,16 @@ compile_item_new(const char *table_line, struct compile_schema *schema,
                   __FUNCTION__, __LINE__, table_name, table_line);
 		goto error;
     }
+
     compile_item->declared_clause_num = atoi(table_line + column_offset);
+    if (compile_item->declared_clause_num < 0 ||
+        compile_item->declared_clause_num > MAX_NOT_CLAUSE_NUM) {
+        log_error(logger, MODULE_COMPILE,
+                  "[%s:%d] table: <%s> clause_num:%d exceed maximum:%d in line:%s",
+                  __FUNCTION__, __LINE__, table_name, compile_item->declared_clause_num,
+                  MAX_NOT_CLAUSE_NUM, table_line);
+		goto error;
+    }
 
     compile_item->ref_schema = schema;
     compile_item->ex_data = ALLOC(void *, 1);
@@ -313,7 +328,7 @@ static void compile_item_free(struct compile_item *item)
         FREE(item->ex_data);
     }
     
-    item->declared_clause_num = -1;
+    item->declared_clause_num = 0;
 
     if (item->table_line != NULL) {
         FREE(item->table_line);
@@ -744,7 +759,7 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
 {
     size_t column_offset = 0;
     size_t column_len = 0;
-    char vtable_name[MAX_NAME_STR_LEN] = {0};
+    char vtable_name[MAX_NAME_STR_LEN + 1] = {0};
     struct group2compile_item *g2c_item = ALLOC(struct group2compile_item, 1);
 
     int ret = get_column_pos(line, g2c_schema->group_id_column, &column_offset,
@@ -775,7 +790,15 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
 				  __FUNCTION__, __LINE__, table_name, line);
 		goto error;
     }
+
     g2c_item->not_flag = atoi(line + column_offset);
+    if (g2c_item->not_flag != CLAUSE_NOT_FLAG_SET && 
+        g2c_item->not_flag != CLAUSE_NOT_FLAG_UNSET) {
+        log_error(logger, MODULE_COMPILE,
+				  "[%s:%d] g2c table:<%s>  NOT_flag:%d is illegal in line:%s ",
+				  __FUNCTION__, __LINE__, table_name, g2c_item->not_flag, line);
+		goto error;
+    }
 
     ret = get_column_pos(line, g2c_schema->vtable_name_column, &column_offset,
                          &column_len);
@@ -794,6 +817,7 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
         goto error;
     }
     
+    memset(vtable_name, 0, sizeof(vtable_name));
     memcpy(vtable_name, (line + column_offset), column_len);
     
     if (is_valid_table_name(vtable_name)) {
@@ -817,6 +841,13 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
     }
 
     g2c_item->clause_index = atoi(line + column_offset);
+    if (g2c_item->clause_index < 0 || g2c_item->clause_index >= MAX_NOT_CLAUSE_NUM) {
+        log_error(logger, MODULE_COMPILE,
+                  "[%s:%d] g2c table:<%s> clause_index:%d exceed maximum:%d in line:%s",
+                  __FUNCTION__, __LINE__, table_name, g2c_item->clause_index,
+                  MAX_NOT_CLAUSE_NUM, line);
+        goto error;
+    }
 
     return g2c_item;
 error:
@@ -1038,11 +1069,11 @@ maat_compile_build_literal2clause_hash(struct compile_runtime *compile_rt, int n
             }
 
             if (0 == not_flag) {
-                if (1 == clause->not_flag) {
+                if (CLAUSE_NOT_FLAG_SET == clause->not_flag) {
                     continue;
                 }
             } else {
-                if (0 == clause->not_flag) {
+                if (CLAUSE_NOT_FLAG_UNSET == clause->not_flag) {
                     continue;
                 }
             }
@@ -1920,7 +1951,6 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
     return 0;
 }
 
-#define MAX_NOT_CLAUSE_NUM 8
 int validate_vtable_not_clause(struct group2compile_runtime *g2c_rt,
                                struct table_manager *tbl_mgr, int vtable_id,
                                int is_valid, struct log_handle *logger)

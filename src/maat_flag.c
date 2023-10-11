@@ -360,7 +360,7 @@ flag_item_new(struct flag_schema *schema, const char *table_name,
 
     item->flag = strtoull(line + column_offset, NULL, 0);
 
-     ret = get_column_pos(line, schema->flag_mask_column, &column_offset, &column_len);
+    ret = get_column_pos(line, schema->flag_mask_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(flag_rt->logger, MODULE_FLAG, 
                   "[%s:%d] flag table:<%s> has no flag_mask in line:%s",

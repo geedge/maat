@@ -26,7 +26,6 @@ struct ip_plugin_schema {
 	int ip_type_column;
 	int start_ip_column;
 	int end_ip_column;
-    int addr_format_column;
 	int rule_tag_column;
     int gc_timeout_s;
     int table_id; //ugly
@@ -110,18 +109,6 @@ void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "addr_format");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->addr_format_column = custom_item->valueint;
-    } 
-    //TODO: just because test table has no addr_format
-    // else {
-    //     log_error(logger, MODULE_IP_PLUGIN, 
-    //               "[%s:%d] table: <%s> schema has no addr_format column", 
-    //               __FUNCTION__, __LINE__, table_name);
-    //     goto error;
-    // }
-
     // rule_tag is optional
     custom_item = cJSON_GetObjectItem(item, "rule_tag");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
@@ -204,7 +191,6 @@ ip_plugin_rule_new(struct ip_plugin_schema *schema, const char *table_name,
 
     size_t column_offset = 0;
     size_t column_len = 0;
-    char addr_format[16] = {0};
     char start_ip_str[40] = {0};
     char end_ip_str[40] = {0};
     struct ip_rule *ip_plugin_rule = ALLOC(struct ip_rule, 1);
@@ -233,27 +219,6 @@ ip_plugin_rule_new(struct ip_plugin_schema *schema, const char *table_name,
         goto error;
     }
 
-    //TODO: to be added again,
-    #if 0
-    ret = get_column_pos(line, schema->addr_format_column, &column_offset, &column_len);
-    if (ret < 0) {
-        log_error(logger, MODULE_IP_PLUGIN, 
-                  "[%s:%d] ip_plugin table(table_id:%d) line:%s has no addr_format column",
-                  __FUNCTION__, __LINE__, schema->table_id, line);
-        goto error;
-    }
-
-    memcpy(addr_format, (line + column_offset), column_len);
-    if (IP_FORMAT_UNKNOWN == ip_format_str2int(addr_format)) {
-        log_error(logger, MODULE_IP_PLUGIN, 
-                  "[%s:%d] ip_plugin table(table_id:%d) line:%s has invalid addr_format, should be range/CIDR",
-                  __FUNCTION__, __LINE__, schema->table_id, line);
-        goto error;
-    }
-    #endif
-    const char *tmp_str = "range";
-    memcpy(addr_format, tmp_str, strlen(tmp_str));
-
     ret = get_column_pos(line, schema->start_ip_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_IP_PLUGIN, 
@@ -273,7 +238,7 @@ ip_plugin_rule_new(struct ip_plugin_schema *schema, const char *table_name,
     strncpy(end_ip_str, line + column_offset, column_len);
 
     if (IPv4 == ip_plugin_rule->type) {
-        ret = ip_format2range(ip_plugin_rule->type, ip_format_str2int(addr_format),
+        ret = ip_format2range(ip_plugin_rule->type, IP_FORMAT_RANGE,
                               start_ip_str, end_ip_str, 
                               &ip_plugin_rule->ipv4_rule.start_ip, 
                               &ip_plugin_rule->ipv4_rule.end_ip);
@@ -285,7 +250,7 @@ ip_plugin_rule_new(struct ip_plugin_schema *schema, const char *table_name,
         }
     } else {
         //ipv6
-        ret = ip_format2range(ip_plugin_rule->type, ip_format_str2int(addr_format),
+        ret = ip_format2range(ip_plugin_rule->type, IP_FORMAT_RANGE,
                               start_ip_str, end_ip_str, 
                               ip_plugin_rule->ipv6_rule.start_ip,
                               ip_plugin_rule->ipv6_rule.end_ip);

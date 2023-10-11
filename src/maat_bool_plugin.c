@@ -304,7 +304,7 @@ bool_plugin_expr_new(struct bool_plugin_schema *schema, const char *table_name,
     size_t column_offset = 0;
     size_t column_len = 0;
     size_t n_item = 0;
-    char expr_buffer[BUFSIZ] = {0};
+    char expr_buffer[BUFSIZ + 1] = {0};
     unsigned long long items[MAX_ITEMS_PER_BOOL_EXPR] = {0};
     char *token = NULL, *sub_token = NULL, *saveptr;
     struct bool_expr *bool_expr = ALLOC(struct bool_expr, 1);
@@ -326,6 +326,7 @@ bool_plugin_expr_new(struct bool_plugin_schema *schema, const char *table_name,
         goto error;
     }
 
+    memset(expr_buffer, 0, sizeof(expr_buffer));
     memcpy(expr_buffer, line + column_offset, column_len);
     for (token = expr_buffer; ; token = NULL) {
         sub_token = strtok_r(token, "&", &saveptr);

@@ -24,6 +24,11 @@
 
 #define MODULE_IP	 module_name_str("maat.ip")
 
+#define IP_PROTO_ANY   -1
+#define IP_PROTO_ICMP   1
+#define IP_PROTO_TCP    6
+#define IP_PROTO_UDP   17
+
 struct ip_schema {
     int item_id_column;
     int group_id_column;
@@ -372,6 +377,14 @@ ip_item_new(struct ip_schema *ip_schema, const char *table_name,
         goto error;
     }
     ip_item->proto = atoi(line + column_offset);
+
+    if (ip_item->proto != IP_PROTO_ANY && ip_item->proto != IP_PROTO_ICMP &&
+        ip_item->proto != IP_PROTO_TCP && ip_item->proto != IP_PROTO_UDP) {
+        log_error(logger, MODULE_IP, 
+                  "[%s:%d] ip table:<%s> protocol:%d is illegal in line:%s",
+                  __FUNCTION__, __LINE__, table_name, ip_item->proto, line);
+        goto error;
+    }
 
     return ip_item;
 error:
