@@ -7197,6 +7197,272 @@ that the edges be all directed in the same direction.";
     state = NULL;
 }
 
+TEST_F(MaatCmdTest, HitPathHasNotGroup) {
+    const char *g2g_table_name = "GROUP2GROUP";
+	const char *g2c_table_name = "GROUP2COMPILE";
+	const char *compile_table_name = "COMPILE";
+	const char *http_sig_table_name = "HTTP_SIGNATURE";
+	const char *ip_table_name = "IP_CONFIG";
+	const char *keywords_table_name = "KEYWORDS_TABLE";
+    int thread_id = 0;
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    /* compile1 */
+    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile1_id,
+                                     "null", 2, 0);
+    EXPECT_EQ(ret, 1);
+
+    // !group1 -> compile1
+    long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group1_id,
+                                       compile1_id, 1, "HTTP_REQUEST_HEADER", 1, 0);
+    EXPECT_EQ(ret, 1);
+
+    // !(item1 -> group1) -> compile1
+    long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD, item1_id, group1_id,
+                              "math_theory", "URL", 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+    EXPECT_EQ(ret, 1);
+
+    /* !(item1 -> group1) -> compile1
+                             /
+                    group21_/
+    */
+    long long group21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group21_id,
+                                       compile1_id, 0, "HTTP_RESPONSE_HEADER", 2, 0);
+    EXPECT_EQ(ret, 1);
+
+    /* !(item1 -> group1) -> compile1
+                            /
+        group2 -> group21 _/
+    */
+    long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD, group2_id,
+                                     group21_id, 0, 0);
+    EXPECT_EQ(ret, 1);
+
+    /*       !(item1 -> group1) -> compile1
+                                    /
+       item2 -> group2 -> group21 _/
+    */
+    long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD, item2_id, group2_id,
+                              "time=2020-02-12", "Cookie", 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+    EXPECT_EQ(ret, 1);
+
+    /*
+          item1 -> group1 -> group11
+
+            !(item1 -> group1) -> compile1
+                                  /
+     item2 -> group2 -> group21 _/
+    */
+    long long group11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD, group1_id,
+                                     group11_id, 0, 0);
+    EXPECT_EQ(ret, 1);
+    
+    //item3 -> group3, group3 is not referenced by any compile.
+    long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_id, group3_id,
+                            IPv4, "220.181.38.158", "220.181.38.159", 0, 65535, 0);
+    EXPECT_EQ(ret, 1);
+
+    char temp[1024]={0};
+    //item4 -> group4, group4 is not referenced by any compile.
+    long long item4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    long long group4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD, item4_id, group4_id,
+                              str_escape(temp, sizeof(temp), "a finite and infinite"),
+                              NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+    EXPECT_EQ(ret, 1);
+
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+
+    const char* http_url = "en.wikipedia.org/wiki/Path_(chemistry_theory)";
+	const char* http_resp_hdr_cookie = "laptop=thinkpad X1 extrem;time=2020-02-12T15:34:00;"
+                                       "main[XWJOKE]=hoho; Hm_lvt_bbac0322e6ee13093f98d5c4b5a10912=1578874808;";
+
+    int http_req_table_id = maat_get_table_id(maat_inst, "HTTP_REQUEST_HEADER");
+    ASSERT_GT(http_req_table_id, 0);
+
+    ret = maat_state_set_scan_district(state, http_req_table_id, "URL", strlen("URL"));
+    EXPECT_EQ(ret, 0);
+
+    int Nth_scan = 0;
+
+    Nth_scan++;
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    ret = maat_scan_string(maat_inst, http_req_table_id, http_url, strlen(http_url),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    size_t scan_count = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_count, 1);
+
+    struct maat_hit_path hit_path[128];
+    memset(hit_path, 0, sizeof(hit_path));
+    int n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    EXPECT_EQ(n_read, 2);
+
+    int path_idx = 0;
+    EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, -1);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group11_id);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, http_req_table_id);
+    EXPECT_EQ(hit_path[path_idx].NOT_flag, 1);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
+    path_idx++;
+    EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, -1);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, http_req_table_id);
+    EXPECT_EQ(hit_path[path_idx].NOT_flag, 1);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
+    int http_res_table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
+	ASSERT_GT(http_res_table_id, 0);
+
+    ret = maat_state_set_scan_district(state, http_res_table_id, "Cookie", strlen("Cookie"));
+    EXPECT_EQ(ret, 0);
+
+    Nth_scan++;
+    ret = maat_scan_string(maat_inst, http_res_table_id, http_resp_hdr_cookie,
+                           strlen(http_resp_hdr_cookie), results, ARRAY_SIZE,
+                           &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], compile1_id);
+
+    scan_count = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_count, 2);
+
+    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    EXPECT_EQ(n_read, 4);
+    
+    path_idx = 0;
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan-1);
+	EXPECT_EQ(hit_path[path_idx].item_id, -1);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group11_id);
+    EXPECT_EQ(hit_path[path_idx].NOT_flag, 1);
+    EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
+    path_idx++;
+    ASSERT_EQ(path_idx, 1);
+    EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan-1);
+	EXPECT_EQ(hit_path[path_idx].item_id, -1);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
+    EXPECT_EQ(hit_path[path_idx].NOT_flag, 1);
+    EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
+
+    path_idx++;
+    ASSERT_EQ(path_idx, 2);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, http_res_table_id);
+    EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
+	EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
+
+    path_idx++;
+    ASSERT_EQ(path_idx, 3);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, http_res_table_id);
+    EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+   
+    const char *keywords1 = "In math theory, a finite and infinite come up all the time.";
+    const char *keywords2= "a finite and infinite come up again.";
+
+    int keywords_table_id = maat_get_table_id(maat_inst, keywords_table_name);
+    ASSERT_GT(keywords_table_id, 0);
+
+    struct maat_stream *stream = maat_stream_new(maat_inst, keywords_table_id, state);
+    Nth_scan++;
+    ret = maat_stream_scan(stream, keywords1, strlen(keywords1), results, ARRAY_SIZE,
+                          &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    scan_count = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_count, 3);
+
+    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    EXPECT_EQ(n_read, 5);
+
+    path_idx++;
+	ASSERT_EQ(path_idx, 4);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
+    EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
+    int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
+    ASSERT_GT(ip_table_id, 0);
+
+    Nth_scan++;
+    uint32_t ip_addr;
+    inet_pton(AF_INET, "220.181.38.158", &ip_addr);
+    uint16_t port = htons(17272);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6, results, ARRAY_SIZE,
+                         &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    scan_count = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_count, 4);
+ 
+    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    EXPECT_EQ(n_read, 6);
+
+    path_idx++;
+	ASSERT_EQ(path_idx, 5);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, item3_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
+    EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
+    Nth_scan++;   
+    ret = maat_stream_scan(stream, keywords2, strlen(keywords2), results, ARRAY_SIZE,
+                           &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    scan_count = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_count, 5);
+
+    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    EXPECT_EQ(n_read, 7);
+
+    path_idx++;
+	ASSERT_EQ(path_idx, 6);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
+    EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
+    maat_stream_free(stream);
+    maat_state_free(state);
+    state = NULL;
+}
+
 TEST_F(MaatCmdTest, SameSuperGroupRefByMultiCompile) {
     char temp[1024]={0};
     int thread_id = 0;

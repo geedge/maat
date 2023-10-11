@@ -30,6 +30,7 @@
 #define DEFAULT_GC_TIMEOUT_S 10
 #define MAX_SUPER_GROUP_CNT  128
 #define MAX_NOT_CLAUSE_NUM   8
+#define VTABLE_MAX_NOT_GROUP_NUM   8
 
 enum clause_not_flag {
     CLAUSE_NOT_FLAG_UNSET = 0,
@@ -148,6 +149,7 @@ struct maat_internal_hit_path {
 	long long group_id;
 	int Nth_scan;
 	int vtable_id;
+    int NOT_flag; // 1 means NOT clause
 };
 
 struct maat_compile_state {
@@ -1484,18 +1486,20 @@ void maat_compile_state_free(struct maat_compile_state *compile_state,
 }
 
 static void maat_compile_hit_path_add(UT_array *hit_paths, long long item_id,
-                                     long long group_id, int vtable_id, int Nth_scan)
+                                      long long group_id, int vtable_id, int NOT_flag,
+                                      int Nth_scan)
 {
     if (NULL == hit_paths || utarray_len(hit_paths) >= MAX_HIT_PATH_NUM) {
         return;
     }
     
 	struct maat_internal_hit_path new_path;
-
 	new_path.item_id = item_id;
 	new_path.Nth_scan = Nth_scan;
 	new_path.group_id = group_id;
 	new_path.vtable_id = vtable_id;
+    new_path.NOT_flag = NOT_flag;
+
 	utarray_push_back(hit_paths, &new_path);
 }
 
@@ -1572,6 +1576,7 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, int thr
             }
 
 			literal_id.vtable_id = hit_path_array[j].vtable_id;
+            literal_id.not_flag = hit_path_array[j].NOT_flag;
 			if (maat_compile_has_literal(compile, &literal_id)) {
                 if (hit_path_array[j].top_group_id < 0) {
                     hit_path_array[j].top_group_id = hit_path_array[j].sub_group_id;
@@ -1626,20 +1631,6 @@ static void maat_compile_state_update_indirect_hit_groups(UT_array *hit_group_ar
         hit_group.group_id = group_ids[i];
         hit_group.vtable_id = vtable_id;
         utarray_push_back(hit_group_array, &hit_group);
-    }
-}
-
-static void maat_compile_state_update_hit_paths(struct maat_compile_state *compile_state,
-                                                struct maat_item *hit_items, size_t n_hit_items,
-                                                int vtable_id, int Nth_scan)
-{
-    if (NULL == compile_state) {
-        return;
-    }
-
-	for (size_t i = 0; i < n_hit_items; i++) {
-        maat_compile_hit_path_add(compile_state->internal_hit_paths, hit_items[i].item_id,
-                                  hit_items[i].group_id, vtable_id, Nth_scan);
     }
 }
 
@@ -1703,10 +1694,11 @@ static inline int compare_group_id(const void *a, const void *b)
 	}
 }
 
-static int maat_compile_state_update_hit_not_clauses(struct maat_compile_state *compile_state,
-                                                     struct compile_runtime *compile_rt,
-                                                     long long *group_ids, size_t n_group_ids,
-                                                     int vtable_id)
+static size_t maat_compile_state_update_hit_not_clauses(struct maat_compile_state *compile_state,
+                                                        struct compile_runtime *compile_rt,
+                                                        long long *group_ids, size_t n_group_ids,
+                                                        int vtable_id, long long *NOT_group_ids_array,
+                                                        size_t NOT_group_ids_array_size)
 {
     if (NULL == compile_state || NULL == compile_rt) {
         return 0;
@@ -1716,8 +1708,10 @@ static int maat_compile_state_update_hit_not_clauses(struct maat_compile_state *
         qsort(group_ids, n_group_ids, sizeof(long long *), compare_group_id);
     }
 
-    int hit_group_cnt = 0;
+    size_t hit_NOT_group_cnt = 0;
     struct literal_clause *l2c_val = NULL, *tmp_l2c_val = NULL;
+
+    //NOTE: Each virtual table can reference up to VTABLE_MAX_NOT_GROUP_NUM groups
     HASH_ITER(hh, compile_rt->literal2not_clause_hash, l2c_val, tmp_l2c_val) {
         if (l2c_val->key.vtable_id != vtable_id) {
             continue;
@@ -1729,11 +1723,14 @@ static int maat_compile_state_update_hit_not_clauses(struct maat_compile_state *
             continue;
         }
 
+        if (hit_NOT_group_cnt < NOT_group_ids_array_size) {
+            NOT_group_ids_array[hit_NOT_group_cnt++] = l2c_val->key.group_id;
+        }
+
         exec_update_hit_clauses(compile_state, l2c_val->clause_ids);
-        hit_group_cnt++;
     }
 
-    return hit_group_cnt;
+    return hit_NOT_group_cnt;
 }
 
 void compile_runtime_ex_data_iterate(struct compile_runtime *compile_rt,
@@ -2278,10 +2275,12 @@ int maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
     size_t super_group_cnt = group2group_runtime_get_super_groups(g2g_rt, hit_group_ids,
                                                                   hit_cnt, super_group_ids,
                                                                   MAX_SCANNER_HIT_GROUP_NUM);
-    if (1 == maat_inst->opts.hit_path_on) {
-        maat_compile_state_update_hit_paths(compile_state, hit_items, hit_cnt,
-                                            vtable_id, state->scan_cnt);
-    }    
+    if (1 == maat_inst->opts.hit_path_on && hit_cnt > 0) {
+        for (i = 0; i < hit_cnt; i++) {
+            maat_compile_hit_path_add(compile_state->internal_hit_paths, hit_items[i].item_id,
+                                      hit_items[i].group_id, vtable_id, 0, state->scan_cnt);
+        }
+    }
 
     if (1 == maat_inst->opts.hit_group_on) {
         maat_compile_state_update_direct_hit_groups(compile_state->direct_hit_groups,
@@ -2311,8 +2310,18 @@ int maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
                                              hit_group_ids[i], vtable_id);
     }
 
-    int hit_not_cnt = maat_compile_state_update_hit_not_clauses(state->compile_state, compile_rt,
-                                                                hit_group_ids, hit_cnt, vtable_id);
+    long long hit_NOT_group_ids[VTABLE_MAX_NOT_GROUP_NUM];
+    size_t hit_not_cnt = maat_compile_state_update_hit_not_clauses(state->compile_state, compile_rt,
+                                                                   hit_group_ids, hit_cnt, vtable_id,
+                                                                   hit_NOT_group_ids, VTABLE_MAX_NOT_GROUP_NUM);
+    
+    if (1 == maat_inst->opts.hit_path_on && hit_not_cnt > 0) {
+        for (i = 0; i < hit_not_cnt; i++) {
+            maat_compile_hit_path_add(compile_state->internal_hit_paths, -1, hit_NOT_group_ids[i],
+                                      vtable_id, 1, state->scan_cnt);
+        }
+    }
+
     return (hit_cnt + hit_not_cnt);
 }
 
@@ -2407,6 +2416,7 @@ size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *comp
             tmp_path.sub_group_id = internal_path->group_id;
             tmp_path.top_group_id = *p;
             tmp_path.vtable_id = internal_path->vtable_id;
+            tmp_path.NOT_flag = internal_path->NOT_flag;
             tmp_path.compile_id = -1;
 
            /* check if internal_path is duplicated from hit_path_array[] element */
