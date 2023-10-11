@@ -877,8 +877,14 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
             engine_type = EXPR_ENGINE_TYPE_RS; 
         }
         
+        struct timespec start, end;
+        clock_gettime(CLOCK_MONOTONIC, &start);
         new_matcher = expr_matcher_new(rules, real_rule_cnt, engine_type, 
                                        expr_rt->n_worker_thread, expr_rt->logger);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + 
+                                   (end.tv_nsec - start.tv_nsec) / 1000000;
+
         if (NULL == new_matcher) {
             log_error(expr_rt->logger, MODULE_EXPR,
                       "[%s:%d] table[%s] rebuild expr_matcher failed when update"
@@ -887,8 +893,8 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
         } else {
             log_info(expr_rt->logger, MODULE_EXPR,
                      "table[%s] has %zu rules, commit %zu expr rules(regex rules:%zu) "
-                     "and rebuild adapter_hs completed, version:%lld", table_name, rule_cnt,
-                     real_rule_cnt, real_regex_rule_cnt, maat_rt_version);
+                     "and rebuild adapter_hs completed, version:%lld, consume:%lldms", table_name, rule_cnt,
+                     real_rule_cnt, real_regex_rule_cnt, maat_rt_version, time_elapse_ms);
         }
     }
 

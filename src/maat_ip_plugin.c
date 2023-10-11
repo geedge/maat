@@ -26,7 +26,6 @@ struct ip_plugin_schema {
 	int ip_type_column;
 	int start_ip_column;
 	int end_ip_column;
-    int addr_format_column;
 	int rule_tag_column;
     int gc_timeout_s;
     int table_id; //ugly
@@ -110,18 +109,6 @@ void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
-
-    custom_item = cJSON_GetObjectItem(item, "addr_format");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->addr_format_column = custom_item->valueint;
-    } 
-    //TODO: just because test table has no addr_format
-    // else {
-    //     log_error(logger, MODULE_IP_PLUGIN, 
-    //               "[%s:%d] table: <%s> schema has no addr_format column", 
-    //               __FUNCTION__, __LINE__, table_name);
-    //     goto error;
-    // }
 
     // rule_tag is optional
     custom_item = cJSON_GetObjectItem(item, "rule_tag");
@@ -491,7 +478,13 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name,
     struct ip_matcher *old_ip_matcher = NULL;
 
     if (rule_cnt > 0) {
+        struct timespec start, end;
+        clock_gettime(CLOCK_MONOTONIC, &start);
         new_ip_matcher = ip_matcher_new(rules, rule_cnt, &mem_used);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + 
+                                   (end.tv_nsec - start.tv_nsec) / 1000000;
+
         if (NULL == new_ip_matcher) {
             log_error(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
                       "[%s:%d] ip_plugin table[%s] rebuild ip_matcher failed when "
@@ -500,7 +493,8 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name,
         } else {
             log_info(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
                      "table[%s] commit %zu ip_plugin rules and rebuild ip_matcher "
-                     "completed, version:%lld", table_name, rule_cnt, maat_rt_version);
+                     "completed, version:%lld, consume:%lldms", table_name, rule_cnt,
+                     maat_rt_version, time_elapse_ms);
         }
     }
 

@@ -500,7 +500,8 @@ int ipport_plugin_runtime_commit(void *ipport_plugin_runtime, const char *table_
         clock_gettime(CLOCK_MONOTONIC, &start);
         new_matcher = ipport_matcher_new(rules, rule_cnt);
         clock_gettime(CLOCK_MONOTONIC, &end);
-        long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+        long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + 
+                                   (end.tv_nsec - start.tv_nsec) / 1000000;
         if (NULL == new_matcher) {
             log_error(ipport_plugin_rt->logger, MODULE_IPPORT_PLUGIN,
                       "[%s:%d] ipport_plugin table[%s] rebuild ipport_matcher failed when "

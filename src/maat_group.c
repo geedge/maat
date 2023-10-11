@@ -354,7 +354,14 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
+
     g2g_item->is_exclude = atoi(line + column_offset);
+    if (g2g_item->is_exclude != 0 && g2g_item->is_exclude != 1) {
+        log_error(logger, MODULE_GROUP,
+                  "[%s:%d] g2g table:<%s> is_exclude:%d is illegal in line:%s",
+                  __FUNCTION__, __LINE__, table_name, g2g_item->is_exclude, line);
+        goto error;
+    }
 
     return g2g_item;
 error:
@@ -768,7 +775,13 @@ int group2group_runtime_commit(void *g2g_runtime, const char *table_name,
         return 0;
     }
 
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
     int ret = group_topology_build_super_groups(g2g_rt->updating_group_topo);
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + 
+                               (end.tv_nsec - start.tv_nsec) / 1000000;
+
     if (ret < 0) {
         log_error(g2g_rt->logger, MODULE_GROUP, 
                   "[%s:%d] table[%s] group2group runtime commit failed", 
@@ -786,7 +799,8 @@ int group2group_runtime_commit(void *g2g_runtime, const char *table_name,
 
     log_info(g2g_rt->logger, MODULE_GROUP,
              "table[%s] commit %zu g2g rules and rebuild super_groups completed,"
-             " version:%lld", table_name, g2g_rt->rule_num, maat_rt_version);
+             " version:%lld, consume:%lldms", table_name, g2g_rt->rule_num,
+             maat_rt_version, time_elapse_ms);
 
     return 0;
 }

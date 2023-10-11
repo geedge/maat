@@ -491,7 +491,13 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name,
     struct interval_matcher *old_interval_matcher = NULL;
 
     if (rule_cnt > 0) {
+        struct timespec start, end;
+        clock_gettime(CLOCK_MONOTONIC, &start);
         new_interval_matcher = interval_matcher_new(rules, rule_cnt);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + 
+                                   (end.tv_nsec - start.tv_nsec) / 1000000;
+
         if (NULL == new_interval_matcher) {
             log_error(interval_rt->logger, MODULE_INTERVAL,
                       "[%s:%d] table[%s]rebuild interval_matcher engine failed "
@@ -501,7 +507,8 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name,
         } else {
             log_info(interval_rt->logger, MODULE_INTERVAL,
                      "table[%s] commit %zu interval rules and rebuild interval_matcher "
-                     "completed, version:%lld", table_name, rule_cnt, maat_rt_version);
+                     "completed, version:%lld, consume:%lldms", table_name, rule_cnt,
+                     maat_rt_version, time_elapse_ms);
         }
     }
 

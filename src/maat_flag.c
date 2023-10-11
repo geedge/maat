@@ -360,7 +360,7 @@ flag_item_new(struct flag_schema *schema, const char *table_name,
 
     item->flag = strtoull(line + column_offset, NULL, 0);
 
-     ret = get_column_pos(line, schema->flag_mask_column, &column_offset, &column_len);
+    ret = get_column_pos(line, schema->flag_mask_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(flag_rt->logger, MODULE_FLAG, 
                   "[%s:%d] flag table:<%s> has no flag_mask in line:%s",
@@ -490,7 +490,13 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name,
     struct flag_matcher *old_flag_matcher = NULL;
 
     if (rule_cnt > 0) {
+        struct timespec start, end;
+        clock_gettime(CLOCK_MONOTONIC, &start);
         new_flag_matcher = flag_matcher_new(rules, rule_cnt);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + 
+                                   (end.tv_nsec - start.tv_nsec) / 1000000;
+
         if (NULL == new_flag_matcher) {
             log_error(flag_rt->logger, MODULE_FLAG,
                       "[%s:%d] table[%s] rebuild flag_matcher engine failed "
@@ -500,7 +506,8 @@ int flag_runtime_commit(void *flag_runtime, const char *table_name,
         } else {
             log_info(flag_rt->logger, MODULE_FLAG,
                      "table[%s] commit %zu flag rules and rebuild flag_matcher completed,"
-                     " version:%lld", table_name, rule_cnt, maat_rt_version);
+                     " version:%lld, consume:%lldms", table_name, rule_cnt, maat_rt_version,
+                     time_elapse_ms);
         }
     }
 

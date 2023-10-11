@@ -21,7 +21,7 @@
 
 struct fqdn_plugin_schema {
     int item_id_column;
-    int suffix_flag_column;
+    int suffix_match_method_column;
     int fqdn_column;
     int rule_tag_column;
     int gc_timeout_s;
@@ -79,7 +79,7 @@ void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     custom_item = cJSON_GetObjectItem(item, "suffix_match_method");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->suffix_flag_column = custom_item->valueint;
+        schema->suffix_match_method_column = custom_item->valueint;
     } else {
         log_error(logger, MODULE_FQDN_PLUGIN, 
                   "[%s:%d] fqdn_plugin table:<%s> schema has no suffix_match_method column",
@@ -287,14 +287,22 @@ fqdn_plugin_rule_new(const char *line, struct fqdn_plugin_schema *schema,
     }
     fqdn_plugin_rule->id = atoi(line + column_offset);
 
-    ret = get_column_pos(line, schema->suffix_flag_column, &column_offset, &column_len);
+    ret = get_column_pos(line, schema->suffix_match_method_column, &column_offset, &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_FQDN_PLUGIN, 
                   "[%s:%d] fqdn_plugin table:<%s> has no suffix_match_method in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
+
     fqdn_plugin_rule->is_suffix_match = atoi(line + column_offset);
+    if (fqdn_plugin_rule->is_suffix_match != 0 &&
+        fqdn_plugin_rule->is_suffix_match != 1) {
+        log_error(logger, MODULE_FQDN_PLUGIN, 
+                  "[%s:%d] fqdn_plugin table:<%s> suffix_match_method:%d is illegal in line:%s",
+                  __FUNCTION__, __LINE__, table_name, fqdn_plugin_rule->is_suffix_match, line);
+        goto error;
+    }
 
     ret = get_column_pos(line, schema->fqdn_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -473,7 +481,13 @@ int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name
     struct FQDN_engine *old_fqdn_engine = NULL;
 
     if (rule_cnt > 0) {
+        struct timespec start, end;
+        clock_gettime(CLOCK_MONOTONIC, &start);
         new_fqdn_engine = FQDN_engine_new(rules, rule_cnt);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + 
+                                   (end.tv_nsec - start.tv_nsec) / 1000000;
+
         if (NULL == new_fqdn_engine) {
             log_error(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
                       "[%s:%d] table[%s] rebuild FQDN engine failed when update"
@@ -483,7 +497,8 @@ int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name
         } else {
             log_info(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
                      "table[%s] commit %zu fqdn_plugin rules and rebuild FQDN engine"
-                     " completed, version:%lld", table_name, rule_cnt, maat_rt_version);
+                     " completed, version:%lld, consume:%lldms", table_name, rule_cnt,
+                     maat_rt_version, time_elapse_ms);
         }
     }
 

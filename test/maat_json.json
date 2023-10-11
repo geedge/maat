@@ -3022,11 +3022,11 @@
         {
             "table_name": "TEST_IP_PLUGIN_WITH_EXDATA",
             "table_content": [
-                "101\t4\t192.168.30.99\t192.168.30.101\tSomething-like-json\t1\trange",
-                "102\t4\t192.168.30.90\t192.168.30.128\tBigger-range-should-in-the-back\t1\trange",
-                "103\t6\t2001:db8:1234::\t2001:db8:1235::\tBigger-range-should-in-the-back\t1\trange",
-                "104\t6\t2001:db8:1234::1\t2001:db8:1234::5210\tSomething-like-json\t1\trange",
-                "105\t6\t2620:100:3000::\t2620:0100:30ff:ffff:ffff:ffff:ffff:ffff\tBugreport-liumengyan-20210517\t1\trange"
+                "101\t4\t192.168.30.99\t192.168.30.101\tSomething-like-json\t1",
+                "102\t4\t192.168.30.90\t192.168.30.128\tBigger-range-should-in-the-back\t1",
+                "103\t6\t2001:db8:1234::\t2001:db8:1235::\tBigger-range-should-in-the-back\t1",
+                "104\t6\t2001:db8:1234::1\t2001:db8:1234::5210\tSomething-like-json\t1",
+                "105\t6\t2620:100:3000::\t2620:0100:30ff:ffff:ffff:ffff:ffff:ffff\tBugreport-liumengyan-20210517\t1"
             ]
         },
         {

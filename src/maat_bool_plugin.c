@@ -304,7 +304,7 @@ bool_plugin_expr_new(struct bool_plugin_schema *schema, const char *table_name,
     size_t column_offset = 0;
     size_t column_len = 0;
     size_t n_item = 0;
-    char expr_buffer[BUFSIZ] = {0};
+    char expr_buffer[BUFSIZ + 1] = {0};
     unsigned long long items[MAX_ITEMS_PER_BOOL_EXPR] = {0};
     char *token = NULL, *sub_token = NULL, *saveptr;
     struct bool_expr *bool_expr = ALLOC(struct bool_expr, 1);
@@ -467,7 +467,13 @@ int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name
     struct bool_matcher *old_bool_matcher = NULL;
 
     if (rule_cnt > 0) {
+        struct timespec start, end;
+        clock_gettime(CLOCK_MONOTONIC, &start);
         new_bool_matcher = bool_matcher_new(rules, rule_cnt, &mem_used);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + 
+                                   (end.tv_nsec - start.tv_nsec) / 1000000;
+
         if (NULL == new_bool_matcher) {
             log_error(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
                       "[%s:%d] table[%s] rebuild bool_matcher engine failed when "
@@ -477,7 +483,8 @@ int bool_plugin_runtime_commit(void *bool_plugin_runtime, const char *table_name
         } else {
              log_info(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
                       "table[%s] commit %zu bool_plugin rules and rebuild bool_matcher"
-                      " completed, version:%lld", table_name, rule_cnt, maat_rt_version);
+                      " completed, version:%lld, consume:%lldms", table_name, rule_cnt,
+                      maat_rt_version, time_elapse_ms);
         }
     }
 
