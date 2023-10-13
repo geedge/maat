@@ -39,6 +39,7 @@ struct bool_plugin_runtime {
 
     long long rule_num;
     long long update_err_cnt;
+    long long *scan_cnt;
 };
 
 /* bool plugin schema API */
@@ -198,6 +199,7 @@ void *bool_plugin_runtime_new(void *bool_plugin_schema, size_t max_thread_num,
     bool_plugin_rt->n_worker_thread = max_thread_num;
     bool_plugin_rt->ref_garbage_bin = garbage_bin;
     bool_plugin_rt->logger = logger;
+    bool_plugin_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
 
     return bool_plugin_rt;
 }
@@ -217,6 +219,11 @@ void bool_plugin_runtime_free(void *bool_plugin_runtime)
     if (bool_plugin_rt->ex_data_rt != NULL) {
         ex_data_runtime_free(bool_plugin_rt->ex_data_rt);
         bool_plugin_rt->ex_data_rt = NULL;
+    }
+
+    if (bool_plugin_rt->scan_cnt != NULL) {
+        alignment_int64_array_free(bool_plugin_rt->scan_cnt);
+        bool_plugin_rt->scan_cnt = NULL;
     }
 
     FREE(bool_plugin_rt);
@@ -568,4 +575,28 @@ long long bool_plugin_runtime_update_err_count(void *bool_plugin_runtime)
 
     struct bool_plugin_runtime *bool_plugin_rt = (struct bool_plugin_runtime *)bool_plugin_runtime;
     return bool_plugin_rt->update_err_cnt;
+}
+
+void bool_plugin_runtime_scan_inc(void *bool_plugin_runtime, int thread_id)
+{
+    if (NULL == bool_plugin_runtime || thread_id < 0) {
+        return;
+    }
+
+    struct bool_plugin_runtime *bool_plugin_rt = (struct bool_plugin_runtime *)bool_plugin_runtime;
+    alignment_int64_array_add(bool_plugin_rt->scan_cnt, thread_id, 1);
+}
+
+long long bool_plugin_runtime_scan_count(void *bool_plugin_runtime)
+{
+    if (NULL == bool_plugin_runtime) {
+        return 0;
+    }
+
+    struct bool_plugin_runtime *bool_plugin_rt = (struct bool_plugin_runtime *)bool_plugin_runtime;
+    long long sum = alignment_int64_array_sum(bool_plugin_rt->scan_cnt,
+                                              bool_plugin_rt->n_worker_thread);
+    alignment_int64_array_reset(bool_plugin_rt->scan_cnt, bool_plugin_rt->n_worker_thread);
+
+    return sum;
 }

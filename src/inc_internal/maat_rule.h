@@ -179,6 +179,7 @@ struct maat {
     long long new_version;
 
     int is_running;
+    int thread_counter;
     pthread_t cfg_mon_thread;
     pthread_mutex_t background_update_mutex;
 

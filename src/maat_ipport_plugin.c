@@ -66,6 +66,7 @@ struct ipport_plugin_runtime {
 
     long long rule_num;
     long long update_err_cnt;
+    long long *scan_cnt;
 };
 
 void *ipport_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
@@ -223,7 +224,8 @@ void *ipport_plugin_runtime_new(void *ipport_plugin_schema, size_t max_thread_nu
     ipport_plugin_rt->n_worker_thread = max_thread_num;
     ipport_plugin_rt->ref_garbage_bin = garbage_bin;
     ipport_plugin_rt->logger = logger;
-    
+    ipport_plugin_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
+
     return ipport_plugin_rt;
 }
 
@@ -242,6 +244,11 @@ void ipport_plugin_runtime_free(void *ipport_plugin_runtime)
     if (ipport_plugin_rt->ex_data_rt != NULL) {
         ex_data_runtime_free(ipport_plugin_rt->ex_data_rt);
         ipport_plugin_rt->ex_data_rt = NULL;
+    }
+
+    if (ipport_plugin_rt->scan_cnt != NULL) {
+        alignment_int64_array_free(ipport_plugin_rt->scan_cnt);
+        ipport_plugin_rt->scan_cnt = NULL;
     }
 
     FREE(ipport_plugin_rt);
@@ -621,4 +628,28 @@ long long ipport_plugin_runtime_update_err_count(void *ipport_plugin_runtime)
 
     struct ipport_plugin_runtime *ipport_plugin_rt = (struct ipport_plugin_runtime *)ipport_plugin_runtime;
     return ipport_plugin_rt->update_err_cnt;
+}
+
+void ipport_plugin_runtime_scan_inc(void *ipport_plugin_runtime, int thread_id)
+{
+    if (NULL == ipport_plugin_runtime || thread_id < 0) {
+        return;
+    }
+
+    struct ipport_plugin_runtime *ipport_plugin_rt = (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+    alignment_int64_array_add(ipport_plugin_rt->scan_cnt, thread_id, 1);
+}
+
+long long ipport_plugin_runtime_scan_count(void *ipport_plugin_runtime)
+{
+    if (NULL == ipport_plugin_runtime) {
+        return 0;
+    }
+
+    struct ipport_plugin_runtime *ipport_plugin_rt = (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+    long long sum = alignment_int64_array_sum(ipport_plugin_rt->scan_cnt,
+                                              ipport_plugin_rt->n_worker_thread);
+    alignment_int64_array_reset(ipport_plugin_rt->scan_cnt, ipport_plugin_rt->n_worker_thread);
+
+    return sum;
 }

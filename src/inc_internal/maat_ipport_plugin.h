@@ -59,6 +59,10 @@ int ipport_plugin_runtime_get_ex_data(void *ipport_plugin_runtime, const struct 
 
 long long ipport_plugin_runtime_update_err_count(void *ipport_plugin_runtime);
 
+void ipport_plugin_runtime_scan_inc(void *ipport_plugin_rt, int thread_id);
+
+long long ipport_plugin_runtime_scan_count(void *ipport_plugin_runtime);
+
 #ifdef __cplusplus
 }
 #endif

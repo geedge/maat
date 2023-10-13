@@ -194,6 +194,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .free_runtime = plugin_runtime_free,
         .update_runtime = plugin_runtime_update,
         .commit_runtime = plugin_runtime_commit,
+        .scan_count = plugin_runtime_scan_count,
         .rule_count = plugin_runtime_rule_count,
         .update_err_count = plugin_runtime_update_err_count
     },
@@ -205,6 +206,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .free_runtime = ip_plugin_runtime_free,
         .update_runtime = ip_plugin_runtime_update,
         .commit_runtime = ip_plugin_runtime_commit,
+        .scan_count = ip_plugin_runtime_scan_count,
         .rule_count = ip_plugin_runtime_rule_count,
         .update_err_count = ip_plugin_runtime_update_err_count
     },
@@ -217,6 +219,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .update_runtime = ipport_plugin_runtime_update,
         .commit_runtime = ipport_plugin_runtime_commit,
         .rule_count = ipport_plugin_runtime_rule_count,
+        .scan_count = ipport_plugin_runtime_scan_count,
         .update_err_count = ipport_plugin_runtime_update_err_count
     },
     {
@@ -227,6 +230,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .free_runtime = fqdn_plugin_runtime_free,
         .update_runtime = fqdn_plugin_runtime_update,
         .commit_runtime = fqdn_plugin_runtime_commit,
+        .scan_count = fqdn_plugin_runtime_scan_count,
         .rule_count = fqdn_plugin_runtime_rule_count,
         .update_err_count = fqdn_plugin_runtime_update_err_count
     },
@@ -238,6 +242,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .free_runtime = bool_plugin_runtime_free,
         .update_runtime = bool_plugin_runtime_update,
         .commit_runtime = bool_plugin_runtime_commit,
+        .scan_count = bool_plugin_runtime_scan_count,
         .rule_count = bool_plugin_runtime_rule_count,
         .update_err_count = bool_plugin_runtime_update_err_count
     },

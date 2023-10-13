@@ -160,6 +160,12 @@ int maat_options_set_hit_group_enabled(struct maat_options *opts);
 struct maat *maat_new(struct maat_options *opts, const char *table_info_path);
 void maat_free(struct maat *instance);
 
+/**
+ * Each thread can call this function initially, maat will maintain the thread_id internally,
+ * So it's no need to pass thread_id by maat_scan_xx and xx_plugin_get_ex_data API
+*/
+void maat_register_thread(struct maat *instance);
+
 /* maat helper API */
 int maat_helper_read_column(const char *table_line, int Nth_column, 
                             size_t *column_offset, size_t *column_len);

@@ -379,6 +379,10 @@ static void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
         fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_RULE_NUM], rule_num);
         total_rule_num += rule_num;
 
+        long long scan_cnt = table_manager_runtime_scan_count(stat->ref_tbl_mgr, i);
+        fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_SCAN_CNT], scan_cnt);
+        total_scan_cnt += scan_cnt;
+
         if (table_type == TABLE_TYPE_PLUGIN || table_type == TABLE_TYPE_IP_PLUGIN ||
             table_type == TABLE_TYPE_IPPORT_PLUGIN || table_type == TABLE_TYPE_BOOL_PLUGIN ||
             table_type == TABLE_TYPE_FQDN_PLUGIN) {
@@ -405,10 +409,6 @@ static void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
                                 scan_cpu_time);
             total_scan_cpu_time += scan_cpu_time;
         }
-
-        long long scan_cnt = table_manager_runtime_scan_count(stat->ref_tbl_mgr, i);
-        fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_SCAN_CNT], scan_cnt);
-        total_scan_cnt += scan_cnt;
 
         long long hit_cnt = table_manager_runtime_hit_count(stat->ref_tbl_mgr, i);
         fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_HIT_CNT], hit_cnt);

@@ -2973,6 +2973,134 @@
                     "not_flag": 0
                 }
             ]
+        },
+        {
+            "compile_id": 211,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "effective_rage": 0,
+            "user_region": "ip_perf_test",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "ip_plus",
+                            "table_name": "IP_PERF_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv4",
+                                "addr_format": "range",
+                                "ip1": "10.0.0.1",
+                                "ip2": "10.0.0.6",
+                                "port_format": "range",
+                                "port1": "65530",
+                                "port2": "65535",
+                                "protocol": 6
+                            }
+                        }
+                    ],
+                    "not_flag": 0
+                }
+            ]
+        },
+        {
+            "compile_id": 212,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "integer_perf_test",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "Untitled",
+                    "regions": [
+                        {
+                            "table_name": "INTEGER_PERF_CONFIG",
+                            "table_type": "interval",
+                            "table_content": {
+                                "low_boundary": 3000,
+                                "up_boundary": 3000
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 213,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "expr_perf_test",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_name": "EXPR_LITERAL_PERF_CONFIG",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "today&yesterday",
+                                "expr_type": "and",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 214,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "flag_perf_test",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_type": "flag",
+                            "table_name": "FLAG_PERF_CONFIG",
+                            "table_content": {
+                                "flag": 15,
+                                "flag_mask": 15
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 215,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "expr_perf_test",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "regions": [
+                        {
+                            "table_name": "EXPR_REGEX_PERF_CONFIG",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "action=search\\&query=(.*)",
+                                "expr_type": "regex",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
         } 
     ],
     "plugin_table": [

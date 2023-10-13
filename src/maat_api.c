@@ -436,6 +436,25 @@ void maat_free(struct maat *maat_inst)
 	pthread_join(maat_inst->cfg_mon_thread, &ret);
 }
 
+__thread int _thread_local_tid = -1;
+void maat_register_thread(struct maat *maat_inst)
+{
+    int thread_id = __sync_fetch_and_add(&maat_inst->thread_counter, 1);
+    assert(thread_id < maat_inst->opts.nr_worker_thread);
+
+    _thread_local_tid = thread_id;
+}
+
+static int _get_tid(struct maat *maat_inst)
+{
+    if (_thread_local_tid < 0 || 
+        _thread_local_tid >= maat_inst->opts.nr_worker_thread) {
+        return -1;
+    }
+
+    return _thread_local_tid;
+}
+
 int maat_helper_read_column(const char *table_line, int Nth_column, 
                             size_t *column_offset, size_t *column_len)
 {
@@ -870,6 +889,11 @@ void *maat_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
         return NULL;
     }
 
+    int thread_id = _get_tid(maat_inst);
+    if (thread_id >= 0 && thread_id < maat_inst->opts.nr_worker_thread) {
+        plugin_runtime_scan_inc(runtime, thread_id);
+    }
+
     void *ret = NULL;
     enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr,
                                                               table_id);
@@ -901,13 +925,12 @@ int maat_ip_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
         return -1;
     }
 
-    int n_ex_data = ip_plugin_runtime_get_ex_data(ip_plugin_rt, ip_addr,
-                                                  ex_data_array, array_size);
-    if (n_ex_data < 0) {
-        return -1;
+    int thread_id = _get_tid(maat_inst);
+    if (thread_id >= 0 && thread_id < maat_inst->opts.nr_worker_thread) {
+        ip_plugin_runtime_scan_inc(ip_plugin_rt, thread_id);
     }
 
-    return n_ex_data;
+    return ip_plugin_runtime_get_ex_data(ip_plugin_rt, ip_addr, ex_data_array, array_size);
 }
 
 int maat_ipport_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
@@ -929,13 +952,13 @@ int maat_ipport_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
         return -1;
     }
 
-    int n_ex_data = ipport_plugin_runtime_get_ex_data(ipport_plugin_rt, ip_addr, port,
-                                                      ex_data_array, array_size);
-    if (n_ex_data < 0) {
-        return -1;
+    int thread_id = _get_tid(maat_inst);
+    if (thread_id >= 0 && thread_id < maat_inst->opts.nr_worker_thread) {
+        ipport_plugin_runtime_scan_inc(ipport_plugin_rt, thread_id);
     }
 
-    return n_ex_data;
+    return ipport_plugin_runtime_get_ex_data(ipport_plugin_rt, ip_addr, port,
+                                             ex_data_array, array_size);
 }
 
 int maat_fqdn_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
@@ -957,13 +980,12 @@ int maat_fqdn_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
         return -1;
     }
 
-    int n_ex_data = fqdn_plugin_runtime_get_ex_data(fqdn_plugin_rt, fqdn,
-                                                    ex_data_array, array_size);
-    if (n_ex_data < 0) {
-        return -1;
+    int thread_id = _get_tid(maat_inst);
+    if (thread_id >= 0 && thread_id < maat_inst->opts.nr_worker_thread) {
+        fqdn_plugin_runtime_scan_inc(fqdn_plugin_rt, thread_id);
     }
 
-    return n_ex_data;
+    return fqdn_plugin_runtime_get_ex_data(fqdn_plugin_rt, fqdn, ex_data_array, array_size);
 }
 
 int maat_bool_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
@@ -985,13 +1007,13 @@ int maat_bool_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
         return -1;
     }
 
-    int n_ex_data = bool_plugin_runtime_get_ex_data(bool_plugin_rt, item_ids, n_item,
-                                                    ex_data_array, array_size);
-    if (n_ex_data < 0) {
-        return -1;
+    int thread_id = _get_tid(maat_inst);
+    if (thread_id >= 0 && thread_id < maat_inst->opts.nr_worker_thread) {
+        bool_plugin_runtime_scan_inc(bool_plugin_rt, thread_id);
     }
 
-    return n_ex_data;
+    return bool_plugin_runtime_get_ex_data(bool_plugin_rt, item_ids, n_item,
+                                           ex_data_array, array_size);
 }
 
 static inline int scan_status_should_compile_NOT(struct maat_state *state)

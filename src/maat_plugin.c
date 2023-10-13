@@ -18,6 +18,7 @@
 #include "maat_plugin.h"
 #include "maat_limits.h"
 #include "maat_table.h"
+#include "alignment.h"
 
 #define MODULE_PLUGIN	 module_name_str("maat.plugin")
 
@@ -33,12 +34,14 @@ struct plugin_callback_schema {
 
 struct plugin_runtime {
     struct ex_data_runtime *ex_data_rt;
+    size_t n_worker_thread;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
 
     long long rule_num;
     long long acc_line_num;
     long long update_err_cnt;
+    long long *scan_cnt;
 };
 
 enum plugin_key_type {
@@ -314,8 +317,10 @@ void *plugin_runtime_new(void *plugin_schema, size_t max_thread_num,
                                                 &(schema->container_schema));
     }
 
+    plugin_rt->n_worker_thread = max_thread_num;
     plugin_rt->ref_garbage_bin = garbage_bin;
     plugin_rt->logger = logger;
+    plugin_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
 
     return plugin_rt;
 }
@@ -330,6 +335,11 @@ void plugin_runtime_free(void *plugin_runtime)
     if (plugin_rt->ex_data_rt != NULL) {
         ex_data_runtime_free(plugin_rt->ex_data_rt);
         plugin_rt->ex_data_rt = NULL;
+    }
+
+    if (plugin_rt->scan_cnt != NULL) {
+        alignment_int64_array_free(plugin_rt->scan_cnt);
+        plugin_rt->scan_cnt = NULL;
     }
 
     FREE(plugin_rt);
@@ -673,4 +683,28 @@ void *plugin_runtime_get_ex_data(void *plugin_runtime, void *plugin_schema,
     }
     
     return ex_data_runtime_get_ex_data_by_key(plugin_rt->ex_data_rt, key, key_len);    
+}
+
+void plugin_runtime_scan_inc(void *plugin_runtime, int thread_id)
+{
+    if (NULL == plugin_runtime || thread_id < 0) {
+        return;
+    }
+
+    struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
+    alignment_int64_array_add(plugin_rt->scan_cnt, thread_id, 1);
+}
+
+long long plugin_runtime_scan_count(void *plugin_runtime)
+{
+    if (NULL == plugin_runtime) {
+        return 0;
+    }
+
+    struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
+    long long sum = alignment_int64_array_sum(plugin_rt->scan_cnt,
+                                              plugin_rt->n_worker_thread);
+    alignment_int64_array_reset(plugin_rt->scan_cnt, plugin_rt->n_worker_thread);
+
+    return sum;
 }
