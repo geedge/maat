@@ -14,16 +14,17 @@
 #include "maat_limits.h"
 #include "ipport_matcher.h"
 
-struct port_range_entity {
+struct port_range {
     long long rule_id;
     void *tag;
-    struct port_range range;
+    uint16_t min_port; /* host order */
+    uint16_t max_port; /* host order */
 };
 
 struct ipport_node {
-    char *key;      //key must be ipv4/ipv6 string
-    size_t key_len;
-    UT_array *port_range_entities; //array to store <struct port_range_entity>
+    int ip_type; //IPV4 or IPV6
+    uint32_t ip_addr[4];
+    UT_array *port_range_list; //array to store <struct port_range>
     UT_hash_handle hh;
 };
 
@@ -31,30 +32,30 @@ struct ipport_matcher {
     struct ipport_node *ipport_hash;
 };
 
-UT_icd ut_port_range_entity_icd = {sizeof(struct port_range_entity), NULL, NULL, NULL};
-static inline int compare_port_range_entity_for_sort(const void *a, const void *b)
+UT_icd ut_port_range_icd = {sizeof(struct port_range), NULL, NULL, NULL};
+static inline int compare_port_range_for_sort(const void *a, const void *b)
 {
-    struct port_range_entity entity_a = *(const struct port_range_entity *)a;
-    struct port_range_entity entity_b = *(const struct port_range_entity *)b;
+    struct port_range range_a = *(const struct port_range *)a;
+    struct port_range range_b = *(const struct port_range *)b;
 
-    int ret = entity_a.range.min_port - entity_b.range.min_port;
+    int ret = range_a.min_port - range_b.min_port;
     if (0 == ret) {
-        ret = entity_a.range.max_port - entity_b.range.max_port;
+        ret = range_a.max_port - range_b.max_port;
     }
 
     return ret;
 }
 
-static inline int compare_port_range_entity_for_find(const void *a, const void *b)
+static inline int compare_port_range_for_find(const void *a, const void *b)
 {
-    struct port_range_entity entity_a = *(const struct port_range_entity *)a;
-    struct port_range_entity entity_b = *(const struct port_range_entity *)b;
+    struct port_range range_a = *(const struct port_range *)a;
+    struct port_range range_b = *(const struct port_range *)b;
 
     int ret = -1;
-    if (entity_a.range.min_port >= entity_b.range.min_port &&
-        entity_a.range.min_port <= entity_b.range.max_port) {
+    if (range_a.min_port >= range_b.min_port &&
+        range_a.min_port <= range_b.max_port) {
         ret = 0;
-    } else if (entity_a.range.max_port < entity_b.range.min_port) {
+    } else if (range_a.max_port < range_b.min_port) {
         ret = -1;
     } else {
         ret = 1;
@@ -75,36 +76,43 @@ struct ipport_matcher *ipport_matcher_new(struct ipport_rule *rules, size_t rule
     size_t key_len = 0;
 
     for (size_t i = 0; i < rule_num; i++) {
-
         if (rules[i].ip.ip_type == IPV4) {
             key = (char *)&rules[i].ip.ipv4;
             key_len = 4;
         } else {
-            key = (char *)&rules[i].ip.ipv6;
+            key = (char *)rules[i].ip.ipv6;
             key_len = 16;
         }
 
         HASH_FIND(hh, matcher->ipport_hash, key, key_len, node);
-
         if (NULL == node) {
             node = ALLOC(struct ipport_node, 1);
-            node->key = ALLOC(char, key_len);
-            memcpy(node->key, key, key_len);
-            node->key_len = key_len;
-            utarray_new(node->port_range_entities, &ut_port_range_entity_icd);
-            HASH_ADD_KEYPTR(hh, matcher->ipport_hash, node->key, node->key_len, node);
+
+            if (rules[i].ip.ip_type == IPV4) {
+                node->ip_type = IPV4;
+                node->ip_addr[0] = rules[i].ip.ipv4;
+            } else {
+                node->ip_type = IPV6;
+                for (size_t j = 0; j < 4; j++) {
+                    node->ip_addr[j] = rules[i].ip.ipv6[j];
+                }
+            }
+
+            utarray_new(node->port_range_list, &ut_port_range_icd);
+            HASH_ADD_KEYPTR(hh, matcher->ipport_hash, (char *)node->ip_addr, key_len, node);
         }
         
-        struct port_range_entity entity;
-        entity.range = rules[i].port_range;
-        entity.rule_id = rules[i].rule_id;
-        entity.tag = rules[i].user_tag;
-        utarray_push_back(node->port_range_entities, &entity);
+        struct port_range range;
+        range.min_port = rules[i].min_port;
+        range.max_port = rules[i].max_port;
+        range.rule_id = rules[i].rule_id;
+        range.tag = rules[i].user_tag;
+        utarray_push_back(node->port_range_list, &range);
     }
 
     struct ipport_node *tmp_node = NULL;
     HASH_ITER(hh, matcher->ipport_hash, node, tmp_node) {
-        utarray_sort(node->port_range_entities, compare_port_range_entity_for_sort);
+        utarray_sort(node->port_range_list, compare_port_range_for_sort);
     }
 
     return matcher;
@@ -135,16 +143,16 @@ int ipport_matcher_match(struct ipport_matcher *matcher, const struct ip_addr *i
     }
 
     uint16_t host_port = ntohs(port);
-    struct port_range_entity entity;
-    entity.range.min_port = host_port;
-    entity.range.max_port = host_port;
+    struct port_range range;
+    range.min_port = host_port;
+    range.max_port = host_port;
 
-    struct port_range_entity *tmp_entity = NULL;
-    tmp_entity = (struct port_range_entity *)utarray_find(node->port_range_entities,
-                                                          &entity, compare_port_range_entity_for_find);
-    if (tmp_entity != NULL) {
-        result_array[0].rule_id = tmp_entity->rule_id;
-        result_array[0].tag = tmp_entity->tag;
+    struct port_range *tmp_range = NULL;
+    tmp_range = (struct port_range *)utarray_find(node->port_range_list,
+                                                  &range, compare_port_range_for_find);
+    if (tmp_range != NULL) {
+        result_array[0].rule_id = tmp_range->rule_id;
+        result_array[0].tag = tmp_range->tag;
         return 1;
     }
     
@@ -159,13 +167,9 @@ void ipport_matcher_free(struct ipport_matcher *matcher)
 
     struct ipport_node *node = NULL, *tmp_node = NULL;
     HASH_ITER(hh, matcher->ipport_hash, node, tmp_node) {
-        if (node->key != NULL) {
-            FREE(node->key);
-        }
-
-        if (node->port_range_entities != NULL) {
-            utarray_free(node->port_range_entities);
-            node->port_range_entities = NULL;
+        if (node->port_range_list != NULL) {
+            utarray_free(node->port_range_list);
+            node->port_range_list = NULL;
         }
         HASH_DEL(matcher->ipport_hash, node);
 

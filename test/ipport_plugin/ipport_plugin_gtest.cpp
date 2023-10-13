@@ -15,7 +15,7 @@
 
 const char *table_info_path = "./ipport_plugin_table_info.conf";
 const char *log_file = "./ipport_plugin_gtest.log";
-const char *g_ip_str = "192.0.1.1";
+const char *g_ip_str = "116.71.169.140";
 
 class IPPortPluginTable : public testing::Test
 {
@@ -208,6 +208,7 @@ void ipport_plugin_ex_dup_cb(int table_id, void **to, void **from, long argl, vo
 struct thread_param {
 	int thread_id;
 	int test_count;
+    uint16_t port;
 	struct maat *maat_inst;
 	const char *table_name;
 	long long time_elapse_ms;
@@ -227,7 +228,7 @@ void *ipport_plugin_scan_thread(void *arg)
     int ret = inet_pton(AF_INET, g_ip_str, &ipv4.ipv4);
     EXPECT_EQ(ret, 1);
 
-    uint16_t port = htons(10);
+    uint16_t port = htons(param->port);
     int hit_times = 0;
     struct ipport_plugin_ud *results[ARRAY_SIZE];
 
@@ -300,7 +301,7 @@ void *ipport_plugin_update_thread(void *arg)
     struct thread_param *param = (struct thread_param *)arg;
     struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
-    const int CMD_EXPR_NUM = 64;
+    const int CMD_EXPR_NUM = 256;
     long long item_id = 9000000;
 
     for (int i = 0; i < CMD_EXPR_NUM; i++) {
@@ -362,6 +363,7 @@ TEST_F(IPPortPluginTable, WITHOUT_SAME_IP) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
+        thread_params[i].port = 10;
         thread_params[i].test_count = PERF_SCAN_COUNT;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -382,6 +384,7 @@ TEST_F(IPPortPluginTable, WITHOUT_SAME_IP) {
 		free(is_all_hit);
     }
 
+    maat_free(maat_inst);
     scan_per_second = PERF_SCAN_COUNT * 1000 / time_elapse_ms;
     log_info(maat_inst->logger, MODULE_IPPORT_PLUGIN_GTEST,
              "IpportPluginScan without same ip match rate speed %lld lookups/s/thread",
@@ -428,6 +431,7 @@ TEST_F(IPPortPluginTable, WITH_256SAME_IP) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
+        thread_params[i].port = 10;
         thread_params[i].test_count = PERF_SCAN_COUNT;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -447,10 +451,78 @@ TEST_F(IPPortPluginTable, WITH_256SAME_IP) {
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
+    maat_free(maat_inst);
 
     scan_per_second = PERF_SCAN_COUNT * 1000 / time_elapse_ms;
     log_info(maat_inst->logger, MODULE_IPPORT_PLUGIN_GTEST,
              "IpportPluginScan with 256 same ip match rate speed %lld lookups/s/thread",
+             scan_per_second);
+}
+
+TEST_F(IPPortPluginTable, TSG_DYN_IPPORT_MAPPING) {
+    char redis_ip[32] = "127.0.0.1";
+    int redis_port = 6379;
+    int redis_db = 0;
+    struct log_handle *logger = IPPortPluginTable::logger;
+
+    int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+    assert(ret == 0);
+
+    struct maat_options *opts = maat_options_new();
+    maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+    maat_options_set_logger(opts, log_file, LOG_LEVEL_INFO);
+    maat_options_set_stat_file(opts, "./stat.log");
+    maat_options_set_rule_update_checking_interval_ms(opts, 100);
+
+    struct maat *maat_inst = maat_new(opts, table_info_path);
+    assert(maat_inst);
+    maat_options_free(opts);
+
+    int ex_data_counter = 0;
+    const char *table_name = "TSG_DYN_IPPORT_SUBSCRIBER_MAPPING";
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    ret = maat_plugin_table_ex_schema_register(maat_inst, table_name,
+                                                ipport_plugin_ex_new_cb,
+                                                ipport_plugin_ex_free_cb,
+                                                ipport_plugin_ex_dup_cb,
+                                                0, &ex_data_counter);
+    EXPECT_EQ(ret, 0);
+
+    int i = 0;
+    pthread_t threads[2];
+    struct thread_param thread_params[2];
+
+    for (i = 0; i < 2; i++) {
+        thread_params[i].maat_inst = maat_inst;
+        thread_params[i].thread_id = i;
+        thread_params[i].table_name = table_name;
+        thread_params[i].port = 45568;
+        thread_params[i].test_count = PERF_SCAN_COUNT;
+        thread_params[i].time_elapse_ms = 0;
+        thread_params[i].logger = logger;
+    }
+
+    pthread_create(&threads[0], NULL, ipport_plugin_scan_thread, thread_params);
+    pthread_create(&threads[1], NULL, ipport_plugin_update_thread, thread_params + 1);
+
+    int *is_all_hit = NULL;
+    long long time_elapse_ms = 0;
+    long long scan_per_second = 0;
+    for (i = 0; i < 2; i++) {
+        pthread_join(threads[i], (void **)&is_all_hit);
+        time_elapse_ms += thread_params[i].time_elapse_ms;
+		EXPECT_EQ(*is_all_hit, 1);
+		*is_all_hit = 0;
+		free(is_all_hit);
+    }
+    maat_free(maat_inst);
+
+    scan_per_second = PERF_SCAN_COUNT * 1000 / time_elapse_ms;
+    log_info(maat_inst->logger, MODULE_IPPORT_PLUGIN_GTEST,
+             "IpportPluginScan TSG_DYN_IPPORT_SUBSCRIBER_MAPPING match rate speed %lld lookups/s/thread",
              scan_per_second);
 }
 

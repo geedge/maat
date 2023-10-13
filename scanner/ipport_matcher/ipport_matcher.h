@@ -20,16 +20,12 @@ extern "C"
 
 #include "maat.h"
 
-struct port_range {
-    uint16_t min_port; /* host order */
-    uint16_t max_port; /* host order */
-};
-
 struct ipport_rule {
     long long rule_id; /* rule id */
     void *user_tag;    /* point to user-defined data which will return with hit results */
     struct ip_addr ip;
-    struct port_range port_range;
+    uint16_t min_port; /* host order */
+    uint16_t max_port; /* host order */
 };
 
 struct ipport_result {

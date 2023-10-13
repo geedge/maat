@@ -444,13 +444,13 @@ static void ipport_item_to_ipport_rule(struct ipport_item *item, struct ipport_r
     if (IPV4 == item->ip_type) {
         rule->ip.ip_type= IPV4;
         rule->ip.ipv4 = item->ipv4.min_ip;
-        rule->port_range.min_port = item->min_port;
-        rule->port_range.max_port = item->max_port;
+        rule->min_port = item->min_port;
+        rule->max_port = item->max_port;
     } else {
         rule->ip.ip_type = IPV6;
         memcpy(rule->ip.ipv6, item->ipv6.min_ip, sizeof(item->ipv6.min_ip));
-        rule->port_range.min_port = item->min_port;
-        rule->port_range.max_port = item->max_port;
+        rule->min_port = item->min_port;
+        rule->max_port = item->max_port;
     }
     rule->rule_id = item->item_id;
 }
