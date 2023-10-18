@@ -975,20 +975,13 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
         return -1;
     }
 
-    if (0 == n_hit_item) {
-        return 0;
-    }
-
-    if (n_hit_item > MAX_SCANNER_HIT_ITEM_NUM) {
-        log_info(expr_rt->logger, MODULE_EXPR, 
-                 "hit expr item count:%d exceed maxium:%d", 
-                 n_hit_item, MAX_SCANNER_HIT_ITEM_NUM);
-        n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
-    }
-    
     struct maat_item hit_maat_items[n_hit_item];
     size_t real_hit_item_cnt = 0;
-    
+
+    if (0 == n_hit_item) {
+        goto next;
+    }
+
     for (size_t i = 0; i < n_hit_item; i++) {
         int tag_district_id = *(int *)(hit_results[i].user_tag);
         if (tag_district_id == state->district_id || tag_district_id == DISTRICT_ANY) {
@@ -1008,9 +1001,8 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
         }
     }
 
-    maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
-
-    return real_hit_item_cnt;
+next:
+    return maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
 }
 
 struct expr_matcher_stream *
@@ -1048,17 +1040,13 @@ int expr_runtime_stream_scan(struct expr_runtime *expr_rt,
         return -1;
     }
 
-    if (0 == n_hit_item) {
-        return 0;
-    }
-
-    if (n_hit_item > MAX_SCANNER_HIT_ITEM_NUM) {
-        n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
-    }
-    
     struct maat_item hit_maat_items[n_hit_item];
     struct expr_item *expr_item = NULL;
     size_t real_hit_item_cnt = 0;
+
+    if (0 == n_hit_item) {
+        goto next;
+    }
 
     for (size_t i = 0; i < n_hit_item; i++) {
         long long item_id = hit_results[i].rule_id;
@@ -1075,9 +1063,8 @@ int expr_runtime_stream_scan(struct expr_runtime *expr_rt,
         real_hit_item_cnt++;
     }
 
-    maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
-
-    return real_hit_item_cnt;
+next:
+    return maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
 }
 
 void expr_runtime_stream_close(struct expr_runtime *expr_rt, int thread_id, 

@@ -403,7 +403,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in MaatStringScan failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -425,7 +425,6 @@ void *perf_string_scan_thread(void *arg)
     struct thread_param *param = (struct thread_param *)arg;
     struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
-    struct timespec start, end;
     const char *scan_data = "today and yesterday should hit";
     long long results[ARRAY_SIZE] = {0};
     int hit_times = 0;
@@ -435,6 +434,7 @@ void *perf_string_scan_thread(void *arg)
     int table_id = maat_get_table_id(maat_inst, table_name);
     maat_register_thread(maat_inst);
 
+    struct timespec start, end;
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < param->test_count; i++) {
         int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
@@ -446,7 +446,8 @@ void *perf_string_scan_thread(void *arg)
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
 
-    param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+    param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
+                            (end.tv_nsec - start.tv_nsec) / 1000000;
     int *is_all_hit = ALLOC(int, 1);
     *is_all_hit = (hit_times == param->test_count ? 1 : 0);
     log_info(param->logger, MODULE_FRAMEWORK_PERF_GTEST, 
@@ -669,7 +670,6 @@ TEST_F(MaatPerfRegexScan, RegexMultiThread) {
              PERF_THREAD_NUM, scan_per_second);
 }
 
-
 void *perf_integer_scan_thread(void *arg)
 {
     struct thread_param *param = (struct thread_param *)arg;
@@ -752,7 +752,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in MaatStreamScan failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -775,7 +775,7 @@ void *perf_stream_scan_thread(void *arg)
     struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
     struct timespec start, end;
-    const char *scan_data = "http://www.cyberessays.com/search_results.php?today and yesterday";
+    const char *scan_data = "http://www.cyberessays.com/search_results.php?action=search&query=username,abckkk,1234567";
     long long results[ARRAY_SIZE] = {0};
     int ret = 0, hit_times = 0;
     size_t n_hit_result = 0;
@@ -809,7 +809,7 @@ void *perf_stream_scan_thread(void *arg)
 }
 
 TEST_F(MaatPerfStreamScan, MultiThread) {
-    const char *table_name = "EXPR_LITERAL_PERF_CONFIG";
+    const char *table_name = "HTTP_URL";
     struct maat *maat_inst = MaatPerfStreamScan::_shared_maat_inst;
 
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -880,7 +880,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in MaatIPScan failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -928,7 +928,8 @@ void *perf_ip_scan_thread(void *arg)
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
 
-    param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+    param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
+                            (end.tv_nsec - start.tv_nsec) / 1000000;
     int *is_all_hit = ALLOC(int, 1);
     *is_all_hit = (hit_times == param->test_count ? 1 : 0);
     log_info(param->logger, MODULE_FRAMEWORK_PERF_GTEST, 
@@ -1044,7 +1045,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in MaatIntegerScan failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -1062,7 +1063,7 @@ struct maat *MaatPerfIntegerScan::_shared_maat_inst;
 struct log_handle *MaatPerfIntegerScan::logger;
 
 TEST_F(MaatPerfIntegerScan, MultiThread) {
-    const char *table_name = "INTEGER_PERF_CONFIG";
+    const char *table_name = "CONTENT_SIZE";
     struct maat *maat_inst = MaatPerfIntegerScan::_shared_maat_inst;
 
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -1283,7 +1284,7 @@ protected:
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] create maat instance in MaatFlagScan failed.",
+                      "[%s:%d] create maat instance in MaatFQDNPluginScan failed.",
                       __FUNCTION__, __LINE__);
         }
     }
@@ -1365,7 +1366,8 @@ void* perf_fqdn_plugin_scan_thread(void *arg)
 	}
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
-	param->time_elapse_ms = (end.tv_sec-start.tv_sec)*1000 + (end.tv_nsec-start.tv_nsec)/1000000;
+	param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + 
+                            (end.tv_nsec - start.tv_nsec) / 1000000;
 	int* is_all_hit = (int*)malloc(sizeof(int));
 	*is_all_hit = (hit_times == param->test_count) ? 1 : 0;
     log_info(param->logger, MODULE_FRAMEWORK_PERF_GTEST, 
@@ -1593,7 +1595,8 @@ void* perf_bool_plugin_scan_thread(void *arg)
 	}
 	clock_gettime(CLOCK_MONOTONIC, &end);
 
-	param->time_elapse_ms = (end.tv_sec-start.tv_sec)*1000 + (end.tv_nsec-start.tv_nsec)/1000000;
+	param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
+                            (end.tv_nsec - start.tv_nsec) / 1000000;
 	int* is_all_hit = (int*)malloc(sizeof(int));
 	*is_all_hit = (hit_times == param->test_count) ? 1 : 0;
 
@@ -1782,7 +1785,8 @@ static void *ip_plugin_get_thread(void *arg)
 	}
     clock_gettime(CLOCK_MONOTONIC, &end);
 
-    long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+    long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
+                                (end.tv_nsec - start.tv_nsec) / 1000000;
     log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST, 
              "ip_plugin_get_ex_data time_elapse:%lldms hit_times:%d", 
               time_elapse_ms, hit_times);

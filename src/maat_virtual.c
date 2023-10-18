@@ -13,7 +13,6 @@
 #include "maat_kv.h"
 #include "maat_utils.h"
 #include "log/log.h"
-#include "maat_virtual.h"
 #include "maat_rule.h"
 #include "maat_table.h"
 

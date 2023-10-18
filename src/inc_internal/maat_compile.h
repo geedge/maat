@@ -91,7 +91,7 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
                                  const char *table_name, const char *line,
                                  int valid_column);
 
-long long group2compile_runtime_not_group_count(void *g2c_runtime);
+long long group2compile_runtime_not_clause_count(void *g2c_runtime);
 
 long long group2compile_runtime_rule_count(void *g2c_runtime);
 
@@ -104,7 +104,7 @@ void maat_compile_state_reset(struct maat_compile_state *compile_state);
 void maat_compile_state_free(struct maat_compile_state *compile_state,
                              struct maat *maat_instance, int thread_id);
 
-void maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
+int maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
                               size_t n_hit_item, struct maat_state *state);
 
 size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *compile_state,

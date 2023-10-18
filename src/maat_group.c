@@ -363,6 +363,13 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
         goto error;
     }
 
+    if (g2g_item->is_exclude != 0 && g2g_item->is_exclude != 1) {
+        log_error(logger, MODULE_GROUP,
+                  "[%s:%d] g2g table:<%s> is_exclude:%d is illegal in line:%s",
+                  __FUNCTION__, __LINE__, table_name, g2g_item->is_exclude, line);
+        goto error;
+    }
+
     return g2g_item;
 error:
     FREE(g2g_item);

@@ -559,17 +559,17 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
     struct interval_result hit_results[MAX_SCANNER_HIT_ITEM_NUM];
     int n_hit_item = interval_matcher_match(interval_rt->matcher, integer, 
                                             hit_results, MAX_SCANNER_HIT_ITEM_NUM);
-    if (n_hit_item <= 0) {
-        return n_hit_item;
+    if (n_hit_item < 0) {
+        return -1;
     }
 
-    if (n_hit_item > MAX_SCANNER_HIT_ITEM_NUM) {
-        n_hit_item = MAX_SCANNER_HIT_ITEM_NUM;
-    }
-    
     struct maat_item hit_maat_items[n_hit_item];
     size_t real_hit_item_cnt = 0;
     
+    if (0 == n_hit_item) {
+        goto next;
+    }
+
     for (int i = 0; i < n_hit_item; i++) {
         int tag_district_id = *(int *)(hit_results[i].user_tag);
         if (tag_district_id == state->district_id || tag_district_id == DISTRICT_ANY) {
@@ -588,9 +588,8 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
         }
     }
 
-    maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
-
-    return real_hit_item_cnt;
+next:
+    return maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
 }
 
 void interval_runtime_hit_inc(struct interval_runtime *interval_rt, int thread_id)

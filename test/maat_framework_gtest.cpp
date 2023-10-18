@@ -776,7 +776,7 @@ TEST_F(MaatHsStringScan, Regex) {
     ret = maat_scan_string(maat_inst, table_id, cookie, strlen(cookie),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(results[0], 146);
+    EXPECT_EQ(results[0], 148);
     maat_state_free(state);
     state = NULL;
 }
@@ -864,7 +864,7 @@ TEST_F(MaatHsStringScan, ExprPlusWithOffset)
 	ret = maat_scan_string(maat_inst, table_id, (char*)udp_payload_hit, sizeof(udp_payload_hit), 
 						   results, ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
-	EXPECT_EQ(results[0], 148);
+	EXPECT_EQ(results[0], 149);
 	
 	maat_state_free(state);
     state = NULL;
@@ -1446,7 +1446,7 @@ TEST_F(MaatRsStringScan, Regex) {
     ret = maat_scan_string(maat_inst, table_id, cookie, strlen(cookie),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(results[0], 146);
+    EXPECT_EQ(results[0], 148);
     maat_state_free(state);
     state = NULL;
 }
@@ -1534,7 +1534,7 @@ TEST_F(MaatRsStringScan, ExprPlusWithOffset)
 	ret = maat_scan_string(maat_inst, table_id, (char*)udp_payload_hit, sizeof(udp_payload_hit), 
 						   results, ARRAY_SIZE, &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
-	EXPECT_EQ(results[0], 148);
+	EXPECT_EQ(results[0], 149);
 	
 	maat_state_free(state);
     state = NULL;
@@ -2623,7 +2623,7 @@ protected:
 struct maat *MaatIntervalScan::_shared_maat_inst;
 struct log_handle *MaatIntervalScan::logger;
 
-TEST_F(MaatIntervalScan, Pure) {	
+TEST_F(MaatIntervalScan, IntegerRange) {	
 	long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
@@ -2644,6 +2644,27 @@ TEST_F(MaatIntervalScan, Pure) {
                             &n_hit_result, state);
 	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     EXPECT_EQ(n_hit_result, 0);
+	maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(MaatIntervalScan, SingleInteger) {	
+	long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    const char *table_name = "CONTENT_SIZE";
+    struct maat *maat_inst = MaatIntervalScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    unsigned int scan_data1 = 3000;
+
+	int ret = maat_scan_integer(maat_inst, table_id, scan_data1, results, ARRAY_SIZE, 
+                                &n_hit_result, state);
+	EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 218);
+    
 	maat_state_free(state);
     state = NULL;
 }
@@ -2724,14 +2745,13 @@ TEST_F(NOTLogic, OneRegion) {
 	long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-	const char *table_name = "HTTP_URL";
+	const char *table_name = "HTTP_URL_FILTER";
     struct maat *maat_inst = NOTLogic::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
 	int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    maat_state_enable_compile_NOT(state);
 	int ret = maat_scan_string(maat_inst, table_id, string_should_hit, strlen(string_should_hit), 
 						       results, ARRAY_SIZE, &n_hit_result, state);
 						
@@ -2751,40 +2771,50 @@ TEST_F(NOTLogic, ScanNotAtLast) {
     const char *string_should_hit = "This string ONLY contains must-contained-string-of-rule-144.";
 	const char *string_should_not_hit = "This string contains both must-contained-string-of-rule-144 "
                                         "and must-not-contained-string-of-rule-144.";
+    const char *string_contain_nothing = "This string contains nothing.";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-	const char *hit_table_name = "HTTP_URL";
-    const char *not_hit_table_name = "KEYWORDS_TABLE";
+	const char *hit_table_name = "HTTP_URL_FILTER";
+    const char *not_hit_table_name = "HTTP_RESPONSE_KEYWORDS";
     struct maat *maat_inst = NOTLogic::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int hit_table_id = maat_get_table_id(maat_inst, hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
-    int ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit, strlen(string_should_hit), 
-						       results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit,
+                               strlen(string_should_hit), results, ARRAY_SIZE,
+                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     int not_hit_table_id =  maat_get_table_id(maat_inst, not_hit_table_name);
     ASSERT_GT(not_hit_table_id, 0);
 
-	maat_state_enable_compile_NOT(state);
-    ret = maat_scan_string(maat_inst, not_hit_table_id, string_should_not_hit, strlen(string_should_not_hit), 
-						       results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_string(maat_inst, not_hit_table_id, string_should_not_hit,
+                           strlen(string_should_not_hit), results, ARRAY_SIZE,
+                           &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_string(maat_inst, not_hit_table_id, string_contain_nothing,
+                           strlen(string_contain_nothing), results, ARRAY_SIZE,
+                           &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 144);
+ 
     maat_state_free(state);
     state = NULL;
 }
 
 TEST_F(NOTLogic, ScanIrrelavantAtLast) {
     const char *string_should_hit = "This string ONLY contains must-contained-string-of-rule-144.";
-	const char *string_irrelevant = "This string contiains nothing to hit.";
+	const char *string_irrelevant = "This string contains nothing to hit.";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    const char *hit_table_name = "HTTP_URL";
-    const char *not_hit_table_name = "KEYWORDS_TABLE";
+    const char *hit_table_name = "HTTP_URL_FILTER";
+    const char *not_hit_table_name = "HTTP_RESPONSE_KEYWORDS";
     struct maat *maat_inst = NOTLogic::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -2798,7 +2828,6 @@ TEST_F(NOTLogic, ScanIrrelavantAtLast) {
     int not_hit_table_id = maat_get_table_id(maat_inst, not_hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
-    maat_state_enable_compile_NOT(state);
     ret = maat_scan_string(maat_inst, not_hit_table_id, string_irrelevant, strlen(string_irrelevant), 
 						       results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -2814,7 +2843,7 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyExpr) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    const char *not_hit_table_name = "HTTP_URL";
+    const char *not_hit_table_name = "HTTP_URL_FILTER";
     const char *hit_table_name = "IP_PLUS_CONFIG";
     const char *empty_table_name = "EMPTY_KEYWORD";
     struct maat *maat_inst = NOTLogic::_shared_maat_inst;
@@ -2826,7 +2855,7 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyExpr) {
     int ret = maat_scan_string(maat_inst, not_hit_table_id,
                                string_should_not_hit, strlen(string_should_not_hit), 
                                results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     uint32_t sip;
     inet_pton(AF_INET, "10.0.8.186", &sip);
@@ -2838,18 +2867,18 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyExpr) {
 
     ret = maat_scan_ipv4(maat_inst, hit_table_id, sip, port, proto, results, 
                          ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 186);
 
     int empty_table_id = maat_get_table_id(maat_inst, empty_table_name);
     ASSERT_GT(empty_table_id, 0);
 
-    maat_state_enable_compile_NOT(state);
     ret = maat_scan_string(maat_inst, empty_table_id, string_match_no_region, 
                            strlen(string_match_no_region), results, ARRAY_SIZE, 
                            &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 186);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
     maat_state_free(state);
     state = NULL;
 }
@@ -2859,7 +2888,7 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyInteger) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    const char *not_hit_table_name = "HTTP_URL";
+    const char *not_hit_table_name = "HTTP_URL_FILTER";
     const char *hit_table_name = "IP_PLUS_CONFIG";
     const char *empty_table_name = "EMPTY_INTERGER";
     struct maat *maat_inst = NOTLogic::_shared_maat_inst;
@@ -2871,7 +2900,7 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyInteger) {
     int ret = maat_scan_string(maat_inst, not_hit_table_id, string_should_not_hit, 
                                strlen(string_should_not_hit), results, ARRAY_SIZE, 
                                &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     uint32_t sip;
     inet_pton(AF_INET, "10.0.8.187", &sip);
@@ -2883,16 +2912,17 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyInteger) {
 
     ret = maat_scan_ipv4(maat_inst, hit_table_id, sip, port, proto,
                          results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 187);
 
     int empty_table_id = maat_get_table_id(maat_inst, empty_table_name);
     ASSERT_GT(empty_table_id, 0);
 
-    maat_state_enable_compile_NOT(state);
     ret = maat_scan_integer(maat_inst, empty_table_id, 2015,
                             results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(results[0], 187);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
     maat_state_free(state);
     state = NULL;
 }
@@ -2903,7 +2933,7 @@ TEST_F(NOTLogic, ScanNotIP) {
     size_t n_hit_result = 0;
     int thread_id = 0;
     const char *hit_table_name = "HTTP_URL";
-    const char *not_hit_table_name = "IP_CONFIG";
+    const char *not_hit_table_name = "VIRTUAL_IP_CONFIG";
     struct maat *maat_inst = NOTLogic::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
@@ -2923,10 +2953,232 @@ TEST_F(NOTLogic, ScanNotIP) {
     int not_hit_table_id = maat_get_table_id(maat_inst, not_hit_table_name);
     ASSERT_GT(not_hit_table_id, 0);
 
-    maat_state_enable_compile_NOT(state);
     ret = maat_scan_ipv4(maat_inst, not_hit_table_id, sip, port, proto, 
                          results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    inet_pton(AF_INET, "10.1.0.0", &sip);
+    ret = maat_scan_ipv4(maat_inst, not_hit_table_id, sip, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 145);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(NOTLogic, MultiNotClause) {
+    const char *string_should_half_hit = "This string ONLY contains must-contained-string-of-rule-146.";
+    const char *string_should_not_hit = "This string contains must-contained-string-of-rule-146 and "
+                                         "must-contained-not-string-of-rule-146.";
+    const char *string_nothing = "This string contain nothing";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    const char *url_table_name = "HTTP_URL_FILTER";
+    const char *ip_table_name = "VIRTUAL_IP_CONFIG";
+    const char *http_table_name = "HTTP_RESPONSE_KEYWORDS";
+    struct maat *maat_inst = NOTLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int url_table_id = maat_get_table_id(maat_inst, url_table_name);
+    ASSERT_GT(url_table_id, 0);
+
+    int ret = maat_scan_string(maat_inst, url_table_id, string_should_half_hit, 
+                               strlen(string_should_half_hit), results, ARRAY_SIZE, 
+                               &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    uint32_t sip;
+    inet_pton(AF_INET, "10.1.0.0", &sip);
+    uint16_t port = htons(50001);
+    int proto = 6;
+
+    int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
+    ASSERT_GT(ip_table_id, 0);
+
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, sip, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    int http_table_id = maat_get_table_id(maat_inst, http_table_name);
+    ASSERT_GT(http_table_id, 0);
+
+    ret = maat_scan_string(maat_inst, http_table_id, string_should_not_hit, 
+                           strlen(string_should_not_hit), results, ARRAY_SIZE, 
+                           &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT); 
+    
+    ret = maat_scan_string(maat_inst, http_table_id, string_nothing, 
+                           strlen(string_nothing), results, ARRAY_SIZE, 
+                           &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT); 
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 146);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(NOTLogic, EightNotClause) {
+    const char *string_nothing = "This string contain nothing";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    const char *table_name1 = "HTTP_RESPONSE_KEYWORDS_1";
+    const char *table_name2 = "HTTP_RESPONSE_KEYWORDS_2";
+    const char *table_name3 = "HTTP_RESPONSE_KEYWORDS_3";
+    const char *table_name4 = "HTTP_RESPONSE_KEYWORDS_4";
+    const char *table_name5 = "HTTP_RESPONSE_KEYWORDS_5";
+    const char *table_name6 = "HTTP_RESPONSE_KEYWORDS_6";
+    const char *table_name7 = "HTTP_RESPONSE_KEYWORDS_7";
+    const char *table_name8 = "HTTP_RESPONSE_KEYWORDS_8";
+    struct maat *maat_inst = NOTLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int table_id1 = maat_get_table_id(maat_inst, table_name1);
+    ASSERT_GT(table_id1, 0);
+
+    int ret = maat_scan_string(maat_inst, table_id1, string_nothing, 
+                               strlen(string_nothing), results, ARRAY_SIZE, 
+                               &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    int table_id2 = maat_get_table_id(maat_inst, table_name2);
+    ASSERT_GT(table_id2, 0);
+
+    ret = maat_scan_string(maat_inst, table_id2, string_nothing, 
+                               strlen(string_nothing), results, ARRAY_SIZE, 
+                               &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    int table_id3 = maat_get_table_id(maat_inst, table_name3);
+    ASSERT_GT(table_id3, 0);
+
+    ret = maat_scan_string(maat_inst, table_id3, string_nothing, 
+                               strlen(string_nothing), results, ARRAY_SIZE, 
+                               &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    int table_id4 = maat_get_table_id(maat_inst, table_name4);
+    ASSERT_GT(table_id4, 0);
+
+    ret = maat_scan_string(maat_inst, table_id4, string_nothing, 
+                               strlen(string_nothing), results, ARRAY_SIZE, 
+                               &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    int table_id5 = maat_get_table_id(maat_inst, table_name5);
+    ASSERT_GT(table_id5, 0);
+
+    ret = maat_scan_string(maat_inst, table_id5, string_nothing, 
+                               strlen(string_nothing), results, ARRAY_SIZE, 
+                               &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    int table_id6 = maat_get_table_id(maat_inst, table_name6);
+    ASSERT_GT(table_id6, 0);
+
+    ret = maat_scan_string(maat_inst, table_id6, string_nothing, 
+                               strlen(string_nothing), results, ARRAY_SIZE, 
+                               &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    int table_id7 = maat_get_table_id(maat_inst, table_name7);
+    ASSERT_GT(table_id7, 0);
+
+    ret = maat_scan_string(maat_inst, table_id7, string_nothing, 
+                               strlen(string_nothing), results, ARRAY_SIZE, 
+                               &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    int table_id8 = maat_get_table_id(maat_inst, table_name8);
+    ASSERT_GT(table_id8, 0);
+
+    ret = maat_scan_string(maat_inst, table_id8, string_nothing, 
+                               strlen(string_nothing), results, ARRAY_SIZE, 
+                               &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT); 
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 147);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(NOTLogic, NotClauseAndExcludeGroup1) {
+    const char *string_should_not_hit = "This string ONLY contains must-contained-string-of-rule-200 and "
+                                         "must-not-contained-string-of-rule-200";
+    const char *string_should_half_hit = "This string ONLY contains must-contained-string-of-rule-200";
+    const char *string_nothing = "This string contain nothing";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    const char *url_table_name = "HTTP_URL_FILTER";
+    const char *http_table_name = "HTTP_RESPONSE_KEYWORDS";
+    struct maat *maat_inst = NOTLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int url_table_id = maat_get_table_id(maat_inst, url_table_name);
+    ASSERT_GT(url_table_id, 0);
+
+    int ret = maat_scan_string(maat_inst, url_table_id, string_should_not_hit, 
+                               strlen(string_should_not_hit), results, ARRAY_SIZE, 
+                               &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_string(maat_inst, url_table_id, string_should_half_hit, 
+                               strlen(string_should_half_hit), results, ARRAY_SIZE, 
+                               &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    int http_table_id = maat_get_table_id(maat_inst, http_table_name);
+    ASSERT_GT(http_table_id, 0);
+
+    ret = maat_scan_string(maat_inst, http_table_id, string_nothing, 
+                           strlen(string_nothing), results, ARRAY_SIZE, 
+                           &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 216);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(NOTLogic, NotClauseAndExcludeGroup2) {
+    const char *string1 = "This string ONLY contains mail.string-of-rule-217.com";
+    const char *string2= "This string ONLY contains www.string-of-rule-217.com";
+    const char *string_keywords = "This string contain keywords-for-compile-217";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    const char *url_table_name = "HTTP_URL_FILTER";
+    const char *http_table_name = "HTTP_RESPONSE_KEYWORDS";
+    struct maat *maat_inst = NOTLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int url_table_id = maat_get_table_id(maat_inst, url_table_name);
+    ASSERT_GT(url_table_id, 0);
+
+    int http_table_id = maat_get_table_id(maat_inst, http_table_name);
+    ASSERT_GT(http_table_id, 0);
+
+    int ret = maat_scan_string(maat_inst, http_table_id, string_keywords, strlen(string_keywords),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_string(maat_inst, url_table_id, string1, strlen(string1),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_string(maat_inst, url_table_id, string2, strlen(string2),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 217);
+
     maat_state_free(state);
     state = NULL;
 }
@@ -3008,7 +3260,8 @@ TEST_F(ExcludeLogic, ScanExcludeAtFirst) {
 
 TEST_F(ExcludeLogic, ScanExcludeAtLast) {
     const char *string_should_hit = "This string ONLY contains must-contained-string-of-rule-200.";
-	const char *string_should_not_hit = "This string contains both must-contained-string-of-rule-200 and must-not-contained-string-of-rule-200.";
+	const char *string_should_not_hit = "This string contains both must-contained-string-of-rule-200"
+                                        " and must-not-contained-string-of-rule-200.";
 	long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
@@ -3019,17 +3272,18 @@ TEST_F(ExcludeLogic, ScanExcludeAtLast) {
 	int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-	int ret = maat_scan_string(maat_inst, table_id, string_should_hit, strlen(string_should_hit), 
+    int ret = maat_scan_string(maat_inst, table_id, string_should_not_hit, strlen(string_should_not_hit), 
 						       results, ARRAY_SIZE, &n_hit_result, state);
+	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    maat_state_reset(state);
+	ret = maat_scan_string(maat_inst, table_id, string_should_hit, strlen(string_should_hit), 
+						   results, ARRAY_SIZE, &n_hit_result, state);
 						
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
 	EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 200);
-    maat_state_reset(state);
-	
-	ret = maat_scan_string(maat_inst, table_id, string_should_not_hit, strlen(string_should_not_hit), 
-						   results, ARRAY_SIZE, &n_hit_result, state);
-	EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
 	maat_state_free(state);
     state = NULL;
 }
@@ -5948,7 +6202,7 @@ TEST_F(MaatCmdTest, CompileEXData) {
     sleep(WAIT_FOR_EFFECTIVE_S * 5);
     EXPECT_EQ(param->id, 2222); 
     sleep(2);
-    //excced gc_timeout_s(11s), the data pointed by param has been freed
+    //exceed gc_timeout_s(11s), the data pointed by param has been freed
 }
 
 TEST_F(MaatCmdTest, PluginEXData) {
@@ -6030,7 +6284,7 @@ TEST_F(MaatCmdTest, PluginEXData) {
 	EXPECT_EQ(uinfo1->id, 2);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
-    //excced gc_timeout_s, the data pointed by uinfo1 has been freed
+    //exceed gc_timeout_s, the data pointed by uinfo1 has been freed
 }
 
 TEST_F(MaatCmdTest, UpdateIPPlugin) {
@@ -6124,7 +6378,7 @@ TEST_F(MaatCmdTest, UpdateIPPlugin) {
     EXPECT_EQ(results[1]->rule_id, 103);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
-    //excced gc_timeout_s, the data pointed by results[idx] has been freed
+    //exceed gc_timeout_s, the data pointed by results[idx] has been freed
 }
 
 TEST_F(MaatCmdTest, UpdateFQDNPlugin) {
@@ -6204,7 +6458,7 @@ TEST_F(MaatCmdTest, UpdateFQDNPlugin) {
     EXPECT_EQ(results[0]->catid, 3);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
-    //excced gc_timeout_s, the data pointed by results[idx] has been freed
+    //exceed gc_timeout_s, the data pointed by results[idx] has been freed
 }
 
 TEST_F(MaatCmdTest, UpdateBoolPlugin) {
@@ -6283,7 +6537,7 @@ TEST_F(MaatCmdTest, UpdateBoolPlugin) {
     EXPECT_EQ(results[0]->name_len, 8);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
-    //excced gc_timeout_s, the data pointed by results[idx] has been freed
+    //exceed gc_timeout_s, the data pointed by results[idx] has been freed
 }
 
 #define COMPILE_ID_NUMS 1000
@@ -6864,6 +7118,272 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+    maat_stream_free(stream);
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(MaatCmdTest, HitPathHasNotGroup) {
+    const char *g2g_table_name = "GROUP2GROUP";
+	const char *g2c_table_name = "GROUP2COMPILE";
+	const char *compile_table_name = "COMPILE";
+	const char *http_sig_table_name = "HTTP_SIGNATURE";
+	const char *ip_table_name = "IP_CONFIG";
+	const char *keywords_table_name = "KEYWORDS_TABLE";
+    int thread_id = 0;
+    struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    /* compile1 */
+    long long compile1_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    int ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD, compile1_id,
+                                     "null", 2, 0);
+    EXPECT_EQ(ret, 1);
+
+    // !group1 -> compile1
+    long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group1_id,
+                                       compile1_id, 1, "HTTP_REQUEST_HEADER", 1, 0);
+    EXPECT_EQ(ret, 1);
+
+    // !(item1 -> group1) -> compile1
+    long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD, item1_id, group1_id,
+                              "math_theory", "URL", 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+    EXPECT_EQ(ret, 1);
+
+    /* !(item1 -> group1) -> compile1
+                             /
+                    group21_/
+    */
+    long long group21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, group21_id,
+                                       compile1_id, 0, "HTTP_RESPONSE_HEADER", 2, 0);
+    EXPECT_EQ(ret, 1);
+
+    /* !(item1 -> group1) -> compile1
+                            /
+        group2 -> group21 _/
+    */
+    long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD, group2_id,
+                                     group21_id, 0, 0);
+    EXPECT_EQ(ret, 1);
+
+    /*       !(item1 -> group1) -> compile1
+                                    /
+       item2 -> group2 -> group21 _/
+    */
+    long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD, item2_id, group2_id,
+                              "time=2020-02-12", "Cookie", 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+    EXPECT_EQ(ret, 1);
+
+    /*
+          item1 -> group1 -> group11
+
+            !(item1 -> group1) -> compile1
+                                  /
+     item2 -> group2 -> group21 _/
+    */
+    long long group11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD, group1_id,
+                                     group11_id, 0, 0);
+    EXPECT_EQ(ret, 1);
+    
+    //item3 -> group3, group3 is not referenced by any compile.
+    long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_id, group3_id,
+                            IPv4, "220.181.38.158", "220.181.38.159", 0, 65535, 0);
+    EXPECT_EQ(ret, 1);
+
+    char temp[1024]={0};
+    //item4 -> group4, group4 is not referenced by any compile.
+    long long item4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    long long group4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD, item4_id, group4_id,
+                              str_escape(temp, sizeof(temp), "a finite and infinite"),
+                              NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+    EXPECT_EQ(ret, 1);
+
+    sleep(WAIT_FOR_EFFECTIVE_S * 2);
+
+    const char* http_url = "en.wikipedia.org/wiki/Path_(chemistry_theory)";
+	const char* http_resp_hdr_cookie = "laptop=thinkpad X1 extrem;time=2020-02-12T15:34:00;"
+                                       "main[XWJOKE]=hoho; Hm_lvt_bbac0322e6ee13093f98d5c4b5a10912=1578874808;";
+
+    int http_req_table_id = maat_get_table_id(maat_inst, "HTTP_REQUEST_HEADER");
+    ASSERT_GT(http_req_table_id, 0);
+
+    ret = maat_state_set_scan_district(state, http_req_table_id, "URL", strlen("URL"));
+    EXPECT_EQ(ret, 0);
+
+    int Nth_scan = 0;
+
+    Nth_scan++;
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    ret = maat_scan_string(maat_inst, http_req_table_id, http_url, strlen(http_url),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    size_t scan_count = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_count, 1);
+
+    struct maat_hit_path hit_path[128];
+    memset(hit_path, 0, sizeof(hit_path));
+    int n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    EXPECT_EQ(n_read, 2);
+
+    int path_idx = 0;
+    EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, -1);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group11_id);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, http_req_table_id);
+    EXPECT_EQ(hit_path[path_idx].NOT_flag, 1);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
+    path_idx++;
+    EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, -1);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, http_req_table_id);
+    EXPECT_EQ(hit_path[path_idx].NOT_flag, 1);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
+    int http_res_table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
+	ASSERT_GT(http_res_table_id, 0);
+
+    ret = maat_state_set_scan_district(state, http_res_table_id, "Cookie", strlen("Cookie"));
+    EXPECT_EQ(ret, 0);
+
+    Nth_scan++;
+    ret = maat_scan_string(maat_inst, http_res_table_id, http_resp_hdr_cookie,
+                           strlen(http_resp_hdr_cookie), results, ARRAY_SIZE,
+                           &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], compile1_id);
+
+    scan_count = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_count, 2);
+
+    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    EXPECT_EQ(n_read, 4);
+    
+    path_idx = 0;
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan-1);
+	EXPECT_EQ(hit_path[path_idx].item_id, -1);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group11_id);
+    EXPECT_EQ(hit_path[path_idx].NOT_flag, 1);
+    EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
+    path_idx++;
+    ASSERT_EQ(path_idx, 1);
+    EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan-1);
+	EXPECT_EQ(hit_path[path_idx].item_id, -1);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
+    EXPECT_EQ(hit_path[path_idx].NOT_flag, 1);
+    EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
+
+    path_idx++;
+    ASSERT_EQ(path_idx, 2);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, http_res_table_id);
+    EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
+	EXPECT_EQ(hit_path[path_idx].compile_id, compile1_id);
+
+    path_idx++;
+    ASSERT_EQ(path_idx, 3);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, item2_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, http_res_table_id);
+    EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+   
+    const char *keywords1 = "In math theory, a finite and infinite come up all the time.";
+    const char *keywords2= "a finite and infinite come up again.";
+
+    int keywords_table_id = maat_get_table_id(maat_inst, keywords_table_name);
+    ASSERT_GT(keywords_table_id, 0);
+
+    struct maat_stream *stream = maat_stream_new(maat_inst, keywords_table_id, state);
+    Nth_scan++;
+    ret = maat_stream_scan(stream, keywords1, strlen(keywords1), results, ARRAY_SIZE,
+                          &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    scan_count = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_count, 3);
+
+    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    EXPECT_EQ(n_read, 5);
+
+    path_idx++;
+	ASSERT_EQ(path_idx, 4);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
+    EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
+    int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
+    ASSERT_GT(ip_table_id, 0);
+
+    Nth_scan++;
+    uint32_t ip_addr;
+    inet_pton(AF_INET, "220.181.38.158", &ip_addr);
+    uint16_t port = htons(17272);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6, results, ARRAY_SIZE,
+                         &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    scan_count = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_count, 4);
+ 
+    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    EXPECT_EQ(n_read, 6);
+
+    path_idx++;
+	ASSERT_EQ(path_idx, 5);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, item3_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
+    EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
+    Nth_scan++;   
+    ret = maat_stream_scan(stream, keywords2, strlen(keywords2), results, ARRAY_SIZE,
+                           &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    scan_count = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_count, 5);
+
+    n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
+    EXPECT_EQ(n_read, 7);
+
+    path_idx++;
+	ASSERT_EQ(path_idx, 6);
+	EXPECT_EQ(hit_path[path_idx].Nth_scan, Nth_scan);
+	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
+	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
+	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
+    EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
+	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
+
     maat_stream_free(stream);
     maat_state_free(state);
     state = NULL;

@@ -155,7 +155,6 @@ struct maat_stat {
     long long *thread_call_cnt;
     long long *stream_num;
     long long *hit_cnt;
-    long long *not_grp_hit_cnt;
     long long *maat_state_cnt;
     long long *maat_compile_state_cnt;
     long long *maat_state_free_cnt;
@@ -190,11 +189,6 @@ struct maat {
     struct maat_stat *stat;
 };
 
-enum compile_not_flag {
-    COMPILE_NOT_UNSET,
-    COMPILE_NOT_SET
-};
-
 struct maat_state {
 	struct maat *maat_inst;
     struct maat_compile_state *compile_state;
@@ -203,7 +197,6 @@ struct maat_state {
 	uint16_t thread_id;
     int16_t compile_table_id;
 	uint8_t is_set_district;
-    uint8_t compile_NOT_flag;
 };
 
 int my_scandir(const char *dir, struct dirent ***namelist,

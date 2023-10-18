@@ -305,7 +305,7 @@ TEST(hs_expr_matcher_match, literal_sub_has_normal_offset)
     memset(result, 0, sizeof(result));
     n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 101);
     
@@ -313,7 +313,7 @@ TEST(hs_expr_matcher_match, literal_sub_has_normal_offset)
     memset(result, 0, sizeof(result));
     n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 101);
 
@@ -352,7 +352,7 @@ TEST(rs_expr_matcher_match, literal_sub_has_normal_offset)
     memset(result, 0, sizeof(result));
     n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 101);
     
@@ -360,7 +360,7 @@ TEST(rs_expr_matcher_match, literal_sub_has_normal_offset)
     memset(result, 0, sizeof(result));
     n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 101);
 
@@ -392,7 +392,7 @@ TEST(hs_expr_matcher_match, literal_sub_has_left_unlimit_offset)
     size_t n_result = 0;
 
     ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 102);
 
@@ -400,7 +400,7 @@ TEST(hs_expr_matcher_match, literal_sub_has_left_unlimit_offset)
     memset(result, 0, sizeof(result));
     n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 102);
 
@@ -408,7 +408,7 @@ TEST(hs_expr_matcher_match, literal_sub_has_left_unlimit_offset)
     memset(result, 0, sizeof(result));
     n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 102);
 
@@ -440,7 +440,7 @@ TEST(rs_expr_matcher_match, literal_sub_has_left_unlimit_offset)
     size_t n_result = 0;
 
     ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 102);
 
@@ -448,7 +448,7 @@ TEST(rs_expr_matcher_match, literal_sub_has_left_unlimit_offset)
     memset(result, 0, sizeof(result));
     n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 102);
 
@@ -456,7 +456,7 @@ TEST(rs_expr_matcher_match, literal_sub_has_left_unlimit_offset)
     memset(result, 0, sizeof(result));
     n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 102);
 
@@ -502,7 +502,7 @@ TEST(hs_expr_matcher_match, literal_sub_has_right_unlimit_offset)
     memset(result, 0, sizeof(result));
     n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 103);
 
@@ -510,7 +510,7 @@ TEST(hs_expr_matcher_match, literal_sub_has_right_unlimit_offset)
     memset(result, 0, sizeof(result));
     n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 103);
 
@@ -518,7 +518,7 @@ TEST(hs_expr_matcher_match, literal_sub_has_right_unlimit_offset)
     memset(result, 0, sizeof(result));
     n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data5, strlen(scan_data5), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 103);
 
@@ -557,7 +557,7 @@ TEST(rs_expr_matcher_match, literal_sub_has_right_unlimit_offset)
     memset(result, 0, sizeof(result));
     n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 103);
 
@@ -565,7 +565,7 @@ TEST(rs_expr_matcher_match, literal_sub_has_right_unlimit_offset)
     memset(result, 0, sizeof(result));
     n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 103);
 
@@ -573,7 +573,7 @@ TEST(rs_expr_matcher_match, literal_sub_has_right_unlimit_offset)
     memset(result, 0, sizeof(result));
     n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data5, strlen(scan_data5), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 103);
 
@@ -597,7 +597,7 @@ TEST(hs_expr_matcher_match, literal_sub_with_no_offset)
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 104);
 
@@ -605,7 +605,7 @@ TEST(hs_expr_matcher_match, literal_sub_with_no_offset)
     memset(result, 0, sizeof(result));
     n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 104);
 
@@ -613,7 +613,7 @@ TEST(hs_expr_matcher_match, literal_sub_with_no_offset)
     memset(result, 0, sizeof(result));
     n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 104);
 
@@ -644,7 +644,7 @@ TEST(rs_expr_matcher_match, literal_sub_with_no_offset)
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 104);
 
@@ -652,7 +652,7 @@ TEST(rs_expr_matcher_match, literal_sub_with_no_offset)
     memset(result, 0, sizeof(result));
     n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 104);
 
@@ -660,7 +660,7 @@ TEST(rs_expr_matcher_match, literal_sub_with_no_offset)
     memset(result, 0, sizeof(result));
     n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 104);
 
@@ -692,7 +692,7 @@ TEST(hs_expr_matcher_match, literal_exactly)
     size_t n_result = 0;
 
     ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 105);
 
@@ -733,7 +733,7 @@ TEST(rs_expr_matcher_match, literal_exactly)
     size_t n_result = 0;
 
     ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 105);
 
@@ -774,7 +774,7 @@ TEST(hs_expr_matcher_match, literal_prefix)
     size_t n_result = 0;
 
     ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 106);
 
@@ -799,7 +799,7 @@ TEST(hs_expr_matcher_match, literal_prefix)
     n_result = 0;
 
     ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 106);
 
@@ -824,7 +824,7 @@ TEST(rs_expr_matcher_match, literal_prefix)
     size_t n_result = 0;
 
     ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 106);
 
@@ -849,7 +849,7 @@ TEST(rs_expr_matcher_match, literal_prefix)
     n_result = 0;
 
     ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 106);
 
@@ -874,7 +874,7 @@ TEST(hs_expr_matcher_match, literal_suffix)
     size_t n_result = 0;
 
     ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 107);
 
@@ -883,7 +883,7 @@ TEST(hs_expr_matcher_match, literal_suffix)
     n_result = 0;
 
     ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 107);
 
@@ -924,7 +924,7 @@ TEST(rs_expr_matcher_match, literal_suffix)
     size_t n_result = 0;
 
     ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 107);
 
@@ -933,7 +933,7 @@ TEST(rs_expr_matcher_match, literal_suffix)
     n_result = 0;
 
     ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 107);
 
@@ -973,7 +973,7 @@ TEST(hs_expr_matcher_match, literal_sub_with_hex)
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 108);
 
@@ -1005,7 +1005,7 @@ TEST(rs_expr_matcher_match, literal_sub_with_hex)
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 108);
 
@@ -1037,7 +1037,7 @@ TEST(hs_expr_matcher_match, literal_with_chinese)
     struct expr_scan_result result0[64] = {0};
     size_t n_result0 = 0;
     ret = expr_matcher_match(matcher, 0, data0, strlen(data0), result0, 64, &n_result0);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result0, 1);
     EXPECT_EQ(result0[0].rule_id, 110);
 
@@ -1061,7 +1061,7 @@ TEST(rs_expr_matcher_match, literal_with_chinese)
     struct expr_scan_result result0[64] = {0};
     size_t n_result0 = 0;
     ret = expr_matcher_match(matcher, 0, data0, strlen(data0), result0, 64, &n_result0);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result0, 1);
     EXPECT_EQ(result0[0].rule_id, 110);
 
@@ -1085,7 +1085,7 @@ TEST(hs_expr_matcher_match, same_pattern_different_offset)
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
     ret = expr_matcher_match(matcher, 0, data, strlen(data), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 112);
 
@@ -1109,7 +1109,7 @@ TEST(rs_expr_matcher_match, same_pattern_different_offset)
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
     ret = expr_matcher_match(matcher, 0, data, strlen(data), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 112);
 
@@ -1135,7 +1135,7 @@ that the edges be all directed in the same direction.";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data, strlen(scan_data), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 113);
 
@@ -1161,7 +1161,7 @@ that the edges be all directed in the same direction.";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
     ret = expr_matcher_match(matcher, 0, scan_data, strlen(scan_data), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 113);
 
@@ -1213,7 +1213,7 @@ TEST(hs_expr_matcher_stream, basic)
     EXPECT_EQ(n_hit_result, 0);
 
     ret = expr_matcher_stream_match(stream, scan_data2, strlen(scan_data2), result, 64, &n_hit_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(result[0].rule_id, 113);
 
@@ -1249,7 +1249,7 @@ TEST(rs_expr_matcher_stream, basic)
     EXPECT_EQ(n_hit_result, 0);
 
     ret = expr_matcher_stream_match(stream, scan_data2, strlen(scan_data2), result, 64, &n_hit_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(result[0].rule_id, 113);
 
@@ -1308,7 +1308,7 @@ TEST(rs_expr_matcher, regex_basic)
     size_t n_result = 0;
 
     ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
-    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
     EXPECT_EQ(result[0].rule_id, 114);
 

@@ -385,6 +385,14 @@ ip_item_new(struct ip_schema *ip_schema, const char *table_name,
         goto error;
     }
 
+    if (ip_item->proto != IP_PROTO_ANY && ip_item->proto != IP_PROTO_ICMP &&
+        ip_item->proto != IP_PROTO_TCP && ip_item->proto != IP_PROTO_UDP) {
+        log_error(logger, MODULE_IP, 
+                  "[%s:%d] ip table:<%s> protocol:%d is illegal in line:%s",
+                  __FUNCTION__, __LINE__, table_name, ip_item->proto, line);
+        goto error;
+    }
+
     return ip_item;
 error:
     FREE(ip_item);
@@ -724,12 +732,12 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
 
     int n_hit_ip_item = ip_matcher_match(ip_rt->ip_matcher, &scan_data,
                                          ip_results, MAX_SCANNER_HIT_ITEM_NUM);
-    if (n_hit_ip_item <= 0) {
-        return n_hit_ip_item;
+    if (n_hit_ip_item < 0) {
+        return -1;
     }
 
-    if (n_hit_ip_item > MAX_SCANNER_HIT_ITEM_NUM) {
-        n_hit_ip_item = MAX_SCANNER_HIT_ITEM_NUM;
+    if (0 == n_hit_ip_item) {
+        goto next;
     }
 
     for (size_t i = 0; i < n_hit_ip_item; i++) {
@@ -752,9 +760,8 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
         real_hit_item_cnt++;
     }
 
-    maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
-
-    return real_hit_item_cnt;
+next:
+    return maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
 }
 
 void ip_runtime_hit_inc(struct ip_runtime *ip_rt, int thread_id)

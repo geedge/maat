@@ -333,6 +333,7 @@ bool_plugin_expr_new(struct bool_plugin_schema *schema, const char *table_name,
         goto error;
     }
 
+    memset(expr_buffer, 0, sizeof(expr_buffer));
     memcpy(expr_buffer, line + column_offset, column_len);
     for (token = expr_buffer; ; token = NULL) {
         sub_token = strtok_r(token, "&", &saveptr);
