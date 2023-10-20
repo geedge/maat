@@ -2024,8 +2024,9 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
     }
 
     if (1 == g2c_item->not_flag) {
-        ret = validate_vtable_not_clause(g2c_rt, schema->ref_tbl_mgr, g2c_item->vtable_id,
-                                         is_valid, compile_rt->logger);
+        ret = validate_vtable_not_clause(g2c_rt, schema->ref_tbl_mgr,
+                                         g2c_item->vtable_id, is_valid,
+                                         compile_rt->logger);
         if (ret < 0) {
             log_fatal(compile_rt->logger, MODULE_COMPILE,
                       "[%s:%d]validate NOT clause failed, abandon config:%s",
@@ -2273,7 +2274,7 @@ int maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
     }
 
     for (i = 0; i < hit_cnt; i++) {
-        hit_group_ids[i] = hit_items[i].group_id; 
+        hit_group_ids[i] = hit_items[i].group_id;
     }
 
     int g2g_table_id = table_manager_get_group2group_table_id(maat_inst->tbl_mgr);

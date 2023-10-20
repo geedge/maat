@@ -796,7 +796,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "NOTLogic.ScanMultiNotClause",
+            "user_region": "NOTLogic.NotExprClauseAndNotIPClause",
             "is_valid": "yes",
             "groups": [
                 {
@@ -3564,6 +3564,181 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "keywords-dummy-220-3",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 221,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "NOTLogic.ScanWithDistrict",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "NOTLogicGroup_221_1",
+                    "virtual_table": "HTTP_REQUEST_HEADER",
+                    "not_flag": 1,
+                    "regions": [
+                        {
+                            "table_name": "HTTP_SIGNATURE",
+                            "table_type": "expr_plus",
+                            "table_content": {
+                                "district": "User-Agent",
+                                "keywords": "Mozilla/5.0",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "group_name": "NOTLogicGroup_221_2",
+                    "not_flag": 0,
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "scan_with_district_221",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 222,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "NOTLogic.SameClauseHasMultiNotGroups",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "NOTLogicGroup_222_1",
+                    "virtual_table": "HTTP_URL_FILTER",
+                    "clause_index": 0,
+                    "not_flag": 1,
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "not_logic_compile_222_1",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "group_name": "NOTLogicGroup_222_2",
+                    "virtual_table": "HTTP_URL_FILTER",
+                    "clause_index": 0,
+                    "not_flag": 1,
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "not_logic_compile_222_2",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "group_name": "NOTLogicGroup_222_3",
+                    "virtual_table": "HTTP_URL_FILTER",
+                    "clause_index": 1,
+                    "not_flag": 0,
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "logic_compile_222_3",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 223,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "NOTLogic.MultiNotClause",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "NOTLogicGroup_223_1",
+                    "virtual_table": "HTTP_NOT_LOGIC",
+                    "not_flag": 1,
+                    "clause_index": 0,
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "not_logic_compile_223_1",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "group_name": "NOTLogicGroup_223_2",
+                    "virtual_table": "HTTP_NOT_LOGIC",
+                    "not_flag": 1,
+                    "clause_index": 1,
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "not_logic_compile_223_2",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "group_name": "NOTLogicGroup_223_1",
+                    "virtual_table": "HTTP_NOT_LOGIC",
+                    "not_flag": 1,
+                    "clause_index": 2,
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "not_logic_compile_223_3",
                                 "expr_type": "none",
                                 "match_method": "sub",
                                 "format": "uncase plain"
