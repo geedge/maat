@@ -91,8 +91,8 @@ struct literal_clause {
     UT_hash_handle hh;
 };
 
-struct vtable_not_clause {
-    int vtable_id;
+struct table_not_clause {
+    int table_id;
     int not_clause_num;
     UT_hash_handle hh;
 };
@@ -118,7 +118,7 @@ struct group2compile_runtime {
     long long rule_num;
     long long update_err_cnt;
     struct compile_runtime *ref_compile_rt;
-    struct vtable_not_clause *not_clause_hash;
+    struct table_not_clause *not_clause_hash;
 };
 
 struct maat_clause {
@@ -728,7 +728,7 @@ void group2compile_runtime_free(void *g2c_runtime)
 
     struct group2compile_runtime *g2c_rt = (struct group2compile_runtime *)g2c_runtime;
     if (g2c_rt->not_clause_hash != NULL) {
-        struct vtable_not_clause *not_clause = NULL, *tmp_not_clause = NULL;
+        struct table_not_clause *not_clause = NULL, *tmp_not_clause = NULL;
         HASH_ITER(hh, g2c_rt->not_clause_hash, not_clause, tmp_not_clause) {
             HASH_DEL(g2c_rt->not_clause_hash, not_clause);
             FREE(not_clause);
@@ -1949,20 +1949,12 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
     return 0;
 }
 
-int validate_vtable_not_clause(struct group2compile_runtime *g2c_rt,
-                               struct table_manager *tbl_mgr, int vtable_id,
-                               int is_valid, struct log_handle *logger)
+static int validate_table_not_clause(struct group2compile_runtime *g2c_rt,
+                                     struct table_manager *tbl_mgr, int table_id,
+                                     int is_valid, struct log_handle *logger)
 {
-    enum table_type table_type = table_manager_get_table_type(tbl_mgr, vtable_id);
-    if (table_type != TABLE_TYPE_VIRTUAL) {
-        log_fatal(logger, MODULE_COMPILE,
-                  "[%s:%d]table(table_id:%d) is not virtual table, can't own NOT clause.",
-                  __FUNCTION__, __LINE__, vtable_id);
-        return -1;
-    }
-
-    struct vtable_not_clause *not_clause = NULL;
-    HASH_FIND_INT(g2c_rt->not_clause_hash, &vtable_id, not_clause);
+    struct table_not_clause *not_clause = NULL;
+    HASH_FIND_INT(g2c_rt->not_clause_hash, &table_id, not_clause);
 
     if (0 == is_valid) {
         //delete
@@ -1974,15 +1966,15 @@ int validate_vtable_not_clause(struct group2compile_runtime *g2c_rt,
     } else {
         //add
         if (NULL == not_clause) {
-            not_clause = ALLOC(struct vtable_not_clause, 1);
-            not_clause->vtable_id = vtable_id;
+            not_clause = ALLOC(struct table_not_clause, 1);
+            not_clause->table_id = table_id;
             not_clause->not_clause_num++;
-            HASH_ADD_INT(g2c_rt->not_clause_hash, vtable_id, not_clause);
+            HASH_ADD_INT(g2c_rt->not_clause_hash, table_id, not_clause);
         } else {
             if (not_clause->not_clause_num >= MAX_NOT_CLAUSE_NUM) {
-                const char *table_name = table_manager_get_table_name(tbl_mgr, vtable_id);
+                const char *table_name = table_manager_get_table_name(tbl_mgr, table_id);
                 log_fatal(logger, MODULE_COMPILE,
-                          "[%s:%d]virtual table:<%s> NOT clause num exceed maximum:%d",
+                          "[%s:%d]table:<%s> NOT clause num exceed maximum:%d",
                           __FUNCTION__, __LINE__, table_name, MAX_NOT_CLAUSE_NUM);
                 return -1;
             }
@@ -2024,9 +2016,9 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
     }
 
     if (1 == g2c_item->not_flag) {
-        ret = validate_vtable_not_clause(g2c_rt, schema->ref_tbl_mgr,
-                                         g2c_item->vtable_id, is_valid,
-                                         compile_rt->logger);
+        ret = validate_table_not_clause(g2c_rt, schema->ref_tbl_mgr,
+                                        g2c_item->vtable_id, is_valid,
+                                        compile_rt->logger);
         if (ret < 0) {
             log_fatal(compile_rt->logger, MODULE_COMPILE,
                       "[%s:%d]validate NOT clause failed, abandon config:%s",
@@ -2251,7 +2243,7 @@ int compile_runtime_match(struct compile_runtime *compile_rt, long long *compile
     return MIN(bool_match_ret, compile_ids_size);
 }
 
-int maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
+int maat_compile_state_update(int phy_table_id, int vtable_id, struct maat_item *hit_items,
                               size_t n_hit_item, struct maat_state *state)
 {
     size_t i = 0, j = 0;
@@ -2266,12 +2258,8 @@ int maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
     }
     
     struct maat_compile_state *compile_state = state->compile_state;
-    if (hit_cnt > 0) {
-        if (compile_state->Nth_scan != state->scan_cnt) {
-		    compile_state->Nth_scan = state->scan_cnt;
-		    utarray_clear(compile_state->this_scan_hit_clauses);
-	    }
-    }
+    utarray_clear(compile_state->this_scan_hit_clauses);
+    compile_state->Nth_scan = state->scan_cnt;
 
     for (i = 0; i < hit_cnt; i++) {
         hit_group_ids[i] = hit_items[i].group_id;
@@ -2317,6 +2305,10 @@ int maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
     for (i = 0; i < hit_cnt; i++) {
         maat_compile_state_update_hit_clause(state->compile_state, compile_rt,
                                              hit_group_ids[i], vtable_id);
+    }
+
+    if (vtable_id == 0) {
+        vtable_id = phy_table_id;
     }
 
     long long hit_NOT_group_ids[VTABLE_MAX_NOT_GROUP_NUM];

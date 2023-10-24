@@ -3747,6 +3747,53 @@
                     ]
                 }
             ]
+        },
+        {
+            "compile_id": 224,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "NOTLogic.NotPhysicalTable",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "NOTLogicGroup_224_1",
+                    "virtual_table": "KEYWORDS_TABLE",
+                    "not_flag": 1,
+                    "clause_index": 0,
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "not_logic_compile_224_1",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "group_name": "NOTLogicGroup_224_2",
+                    "virtual_table": "HTTP_RESPONSE_KEYWORDS",
+                    "not_flag": 0,
+                    "clause_index": 1,
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "not_logic_compile_224_2",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "plugin_table": [

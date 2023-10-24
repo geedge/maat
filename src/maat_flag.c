@@ -544,7 +544,8 @@ long long flag_runtime_rule_count(void *flag_runtime)
 }
 
 int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, 
-                      long long flag, int vtable_id, struct maat_state *state)
+                      long long flag, int phy_table_id, int vtable_id,
+                      struct maat_state *state)
 {
     if (0 == flag_rt->rule_num) {
         //empty flag table
@@ -588,7 +589,7 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
     }
 
 next:
-    return maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
+    return maat_compile_state_update(phy_table_id, vtable_id, hit_maat_items, real_hit_item_cnt, state);
 }
 
 void flag_runtime_hit_inc(struct flag_runtime *flag_rt, int thread_id)

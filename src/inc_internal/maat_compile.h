@@ -104,7 +104,7 @@ void maat_compile_state_reset(struct maat_compile_state *compile_state);
 void maat_compile_state_free(struct maat_compile_state *compile_state,
                              struct maat *maat_instance, int thread_id);
 
-int maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
+int maat_compile_state_update(int phy_table_id, int vtable_id, struct maat_item *hit_items,
                               size_t n_hit_item, struct maat_state *state);
 
 size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *compile_state,

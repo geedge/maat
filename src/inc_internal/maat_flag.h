@@ -48,7 +48,7 @@ long long flag_runtime_rule_count(void *flag_runtime);
  * @retval the num of hit group_id
 */
 int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, long long flag,
-                      int vtable_id, struct maat_state *state);
+                      int phy_table_id, int vtable_id, struct maat_state *state);
 
 int flag_runtime_set_scan_district(struct flag_runtime *flag_rt, const char *district, 
                                     size_t district_len, long long *district_id);

@@ -47,7 +47,8 @@ long long interval_runtime_rule_count(void *interval_runtime);
  * @retval the num of hit group_id
 */
 int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id, 
-                          long long integer, int vtable_id, struct maat_state *state);
+                          long long integer, int phy_table_id, int vtable_id,
+                          struct maat_state *state);
 
 int interval_runtime_set_scan_district(struct interval_runtime *interval_rt, const char *district, 
                                        size_t district_len, long long *district_id);

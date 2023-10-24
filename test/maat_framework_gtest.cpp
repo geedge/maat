@@ -1064,7 +1064,7 @@ TEST_F(MaatHsStringScan, HexBinCaseSensitive) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
     int ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1), 
                                results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     maat_state_reset(state);
 
     ret = maat_scan_string(maat_inst, table_id, scan_data2, strlen(scan_data2), 
@@ -1793,7 +1793,7 @@ TEST_F(MaatRsStringScan, HexBinCaseSensitive) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
     int ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1), 
                                results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     maat_state_reset(state);
     ret = maat_scan_string(maat_inst, table_id, scan_data2, strlen(scan_data2), 
@@ -3221,45 +3221,42 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
     state = NULL;
 }
 
-#if 0
-TEST_F(NOTLogic, MultiNotClause) {
-    const char *string1 = "This string ONLY contains not_logic_compile_223_1.";
-    const char *string2 = "This string ONLY contains not_logic_compile_223_2.";
-    const char *string3 = "This string ONLY contains not_logic_compile_223_3.";
-    const char *string4 = "This string ONLY contains nothing";
+TEST_F(NOTLogic, NotPhysicalTable) {
+    const char *string1 = "This string ONLY contains not_logic_compile_224_1.";
+    const char *string2 = "This string ONLY contains not_logic_compile_224_2.";
+    const char *string3 = "This string ONLY contains nothing.";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    const char *table_name = "HTTP_NOT_LOGIC";
+    const char *phy_table_name = "KEYWORDS_TABLE";
+    const char *vtable_name = "HTTP_RESPONSE_KEYWORDS";
     struct maat *maat_inst = NOTLogic::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    int table_id = maat_get_table_id(maat_inst, table_name);
-    ASSERT_GT(table_id, 0);
+    int phy_table_id = maat_get_table_id(maat_inst, phy_table_name);
+    ASSERT_GT(phy_table_id, 0);
 
-    int ret = maat_scan_string(maat_inst, table_id, string1, 
+    int vtable_id = maat_get_table_id(maat_inst, vtable_name);
+    ASSERT_GT(vtable_id, 0);
+
+    int ret = maat_scan_string(maat_inst, phy_table_id, string1, 
                                strlen(string1), results, ARRAY_SIZE, 
                                &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_string(maat_inst, table_id, string2, strlen(string2),
+    ret = maat_scan_string(maat_inst, vtable_id, string2, strlen(string2),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_string(maat_inst, table_id, string3, strlen(string3),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    ret = maat_scan_string(maat_inst, table_id, string4, strlen(string4),
+    ret = maat_scan_string(maat_inst, phy_table_id, string3, strlen(string3),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 223);
+    EXPECT_EQ(results[0], 224);
 
     maat_state_free(state);
     state = NULL;
 }
-#endif
 
 TEST_F(NOTLogic, EightNotClause) {
     const char *string_nothing = "This string contain nothing";
@@ -3604,7 +3601,7 @@ TEST_F(ExcludeLogic, ScanIrrelavantAtLast) {
     ret = maat_scan_string(maat_inst, not_hit_table_id, string_irrelevant,
                            strlen(string_irrelevant), results, ARRAY_SIZE,
                            &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
     
     maat_state_free(state);
     state = NULL;
