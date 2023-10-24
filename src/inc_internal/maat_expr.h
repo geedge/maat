@@ -50,13 +50,12 @@ long long expr_runtime_get_version(void *expr_runtime);
  * @retval the num of hit group_id
 */
 int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *data, 
-                      size_t data_len, int phy_table_id, int vtable_id, struct maat_state *state);
+                      size_t data_len, int vtable_id, struct maat_state *state);
 
 struct expr_matcher_stream *expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id);
 
 int expr_runtime_stream_scan(struct expr_runtime *expr_rt, struct expr_matcher_stream *s_handle, 
-                             const char *data, size_t data_len, int phy_table_id, int vtable_id,
-                             struct maat_state *state);
+                             const char *data, size_t data_len, int vtable_id, struct maat_state *state);
 
 void expr_runtime_stream_close(struct expr_runtime *expr_rt, int thread_id, 
                                struct expr_matcher_stream *stream);

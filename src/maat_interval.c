@@ -545,8 +545,7 @@ long long interval_runtime_rule_count(void *interval_runtime)
 }
 
 int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id, 
-                          long long integer, int phy_table_id, int vtable_id,
-                          struct maat_state *state)
+                          long long integer, int vtable_id, struct maat_state *state)
 {
     if (0 == interval_rt->rule_num) {
         //empty interval table
@@ -590,7 +589,7 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
     }
 
 next:
-    return maat_compile_state_update(phy_table_id, vtable_id, hit_maat_items, real_hit_item_cnt, state);
+    return maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
 }
 
 void interval_runtime_hit_inc(struct interval_runtime *interval_rt, int thread_id)

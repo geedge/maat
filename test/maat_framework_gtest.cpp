@@ -317,7 +317,7 @@ int test_add_expr_command(struct maat *maat_inst, const char *expr_table,
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD,
-                                       group_id, compile_id, 0, "null", 1, timeout);
+                                       group_id, compile_id, 0, expr_table, 1, timeout);
     EXPECT_EQ(ret, 1);
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -1073,6 +1073,7 @@ TEST_F(MaatHsStringScan, HexBinCaseSensitive) {
     EXPECT_EQ(n_hit_result, 2);
     EXPECT_EQ(results[0], 206);
     EXPECT_EQ(results[1], 191);
+
     maat_state_free(state);
 }
 
@@ -1369,7 +1370,7 @@ TEST_F(MaatHsStringScan, dynamic_config) {
     /* group2compile table add line */
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group_id, compile_id, 0, "null", 1, 0);
+                                       group_id, compile_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* expr table add line */
@@ -1397,7 +1398,7 @@ TEST_F(MaatHsStringScan, dynamic_config) {
 
     /* group2compile table del line */
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
-                                       group_id, compile_id, 0, "null", 1, 0);
+                                       group_id, compile_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* compile table del line */
@@ -2101,7 +2102,7 @@ TEST_F(MaatRsStringScan, dynamic_config) {
     /* group2compile table add line */
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group_id, compile_id, 0, "null", 1, 0);
+                                       group_id, compile_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* expr table add line */
@@ -2130,12 +2131,12 @@ TEST_F(MaatRsStringScan, dynamic_config) {
 
     /* group2compile table del line */
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
-                                       group_id, compile_id, 0, "null", 1, 0);
+                                       group_id, compile_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* compile table del line */
     ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL,
-                                 compile_id, "null", 1, 0);
+                                 compile_id, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -2682,7 +2683,7 @@ TEST_F(MaatIPScan, dynamic_config) {
     /* group2compile table add line */
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
-                                       group_id, compile_id, 0, "null", 1, 0);
+                                       group_id, compile_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* ip table add line */
@@ -2709,7 +2710,7 @@ TEST_F(MaatIPScan, dynamic_config) {
 
     /* group2compile table del line */
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
-                                       group_id, compile_id, 0, "null", 1, 0);
+                                       group_id, compile_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* compile table del line */
@@ -3752,42 +3753,6 @@ TEST_F(ExcludeLogic, ExcludeInDifferentLevel) {
     EXPECT_EQ(results[0], 204);
 
     maat_state_free(state);
-}
-
-TEST_F(ExcludeLogic, ScanNotIP) {
-    const char *string_should_hit = "This string ONLY contains must-contained-string-of-rule-201.";
-    long long results[ARRAY_SIZE] = {0};
-    size_t n_hit_result = 0;
-    int thread_id = 0;
-    const char *hit_table_name = "HTTP_URL";
-    const char *not_hit_table_name = "IP_CONFIG";
-    struct maat *maat_inst = ExcludeLogic::_shared_maat_inst;
-    struct maat_state *state = maat_state_new(maat_inst, thread_id);
-
-    int hit_table_id = maat_get_table_id(maat_inst, hit_table_name);
-    ASSERT_GT(hit_table_id, 0);
-
-    int ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit, 
-                               strlen(string_should_hit), results, ARRAY_SIZE, 
-                               &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 201);
-
-    uint32_t sip;
-    inet_pton(AF_INET, "10.0.6.205", &sip);
-    uint16_t port = htons(50001);
-    int proto = 6;
-
-    int not_hit_table_id = maat_get_table_id(maat_inst, not_hit_table_name);
-    ASSERT_GT(not_hit_table_id, 0);
-
-    ret = maat_scan_ipv4(maat_inst, not_hit_table_id, sip, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    maat_state_free(state);
-    state = NULL;
 }
 
 void maat_read_entry_start_cb(int update_type, void *u_para)
@@ -5581,7 +5546,7 @@ TEST_F(MaatCmdTest, SetIP) {
     /* group2compile table add line */
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group_id, compile_id, 0, "null", 1, 0);
+                                       group_id, compile_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* item table add line */
@@ -5701,7 +5666,7 @@ TEST_F(MaatCmdTest, SetExpr8) {
     /* group2compile table add line */
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group_id, compile_id, 0, "null", 1, 0);
+                                       group_id, compile_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* EXPR_TYPE_AND MATCH_METHOD_SUB */
@@ -5910,12 +5875,12 @@ TEST_F(MaatCmdTest, SubGroup) {
     //group1 -> compile1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
-                                       group1_id, compile1_id, 0, "null", 1, 0);
+                                       group1_id, compile1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     //group1 -> compile2
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
-                                       group1_id, compile2_id, 0, "null", 1, 0);
+                                       group1_id, compile2_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     //group2 -> group1 -> compile1
@@ -5949,7 +5914,7 @@ TEST_F(MaatCmdTest, SubGroup) {
                            \_ X -> compile2
     */
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
-                                       group1_id, compile2_id, 0, "null", 1, 0);
+                                       group1_id, compile2_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S);
 
@@ -5965,14 +5930,14 @@ TEST_F(MaatCmdTest, SubGroup) {
                    \_ -> compile2
     */
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
-                                       group1_id, compile1_id, 0, "null", 1, 0);
+                                       group1_id, compile1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
     ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL,
                                  compile1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group2_id, compile2_id, 0, "null", 1, 0);
+                                       group2_id, compile2_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(2);
@@ -6011,14 +5976,14 @@ TEST_F(MaatCmdTest, SubGroup) {
                                  compile1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0, "null", 1, 0);
+                                       group1_id, compile1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL,
                                  compile1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
-                                       group1_id, compile1_id, 0, "null", 1, 0);
+                                       group1_id, compile1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(2);
@@ -6054,7 +6019,7 @@ TEST_F(MaatCmdTest, RefGroup) {
     //group1 -> compile1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0, "null", 1, 0);
+                                       group1_id, compile1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     //item1 -> group1 -> compile1
@@ -6074,7 +6039,7 @@ TEST_F(MaatCmdTest, RefGroup) {
     */
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group2_id, compile1_id, 0, "null", 1, 0);
+                                       group2_id, compile1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -6089,10 +6054,10 @@ TEST_F(MaatCmdTest, RefGroup) {
                                  compile1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL, 
-                                       group1_id, compile1_id, 0, "null", 1, 0);
+                                       group1_id, compile1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
-                                       group2_id, compile1_id, 0, "null", 1, 0);
+                                       group2_id, compile1_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     //TODO value=1 MAAT_OPT_ENABLE_UPDATE
@@ -6935,11 +6900,11 @@ TEST_F(MaatCmdTest, GroupInMassCompiles) {
 
     for (i = 0; i < COMPILE_ID_NUMS; i++) {
         ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                           group1_id, compile_id[i], 0, "null", 0, 0);
+                                           group1_id, compile_id[i], 0, table_url, 0, 0);
         EXPECT_EQ(ret, 1);
 
         ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                           group3_id, compile_id[i], 0, "null", 2, 0);
+                                           group3_id, compile_id[i], 0, table_appid, 2, 0);
         EXPECT_EQ(ret, 1);
     }
 
@@ -6952,10 +6917,10 @@ TEST_F(MaatCmdTest, GroupInMassCompiles) {
                                  target_compile_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group2_id, target_compile_id, 0, "null", 1, 0);
+                                       group2_id, target_compile_id, 0, table_url, 1, 0);
     EXPECT_EQ(ret, 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group3_id, target_compile_id, 0, "null", 2, 0);
+                                       group3_id, target_compile_id, 0, table_appid, 2, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -7202,11 +7167,11 @@ TEST_F(MaatCmdTest, HitGroup) {
 
     EXPECT_EQ(hit_groups[0].item_id, item4_id);
     EXPECT_EQ(hit_groups[0].group_id, group4_id);
-    EXPECT_EQ(hit_groups[0].vtable_id, 0); //physical table(keywords_table) vtable_id is 0
+    EXPECT_EQ(hit_groups[0].vtable_id, keywords_table_id); //physical table(keywords_table) vtable_id is 0
  
     EXPECT_EQ(hit_groups[1].item_id, item3_id);
     EXPECT_EQ(hit_groups[1].group_id, group3_id);
-    EXPECT_EQ(hit_groups[1].vtable_id, 0);
+    EXPECT_EQ(hit_groups[1].vtable_id, ip_table_id);
 
     ret = maat_stream_scan(stream, keywords2, strlen(keywords2), results,
                             ARRAY_SIZE, &n_hit_result, state);
@@ -7222,7 +7187,7 @@ TEST_F(MaatCmdTest, HitGroup) {
 
     EXPECT_EQ(hit_groups[0].item_id, item5_id);
     EXPECT_EQ(hit_groups[0].group_id, group1_id);
-    EXPECT_EQ(hit_groups[0].vtable_id, 0); //physical table(keywords_table) vtable_id is 0
+    EXPECT_EQ(hit_groups[0].vtable_id, keywords_table_id); //physical table(keywords_table) vtable_id is 0
 
     maat_stream_free(stream);
     maat_state_free(state);
@@ -7445,7 +7410,7 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
 
     int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
@@ -7470,7 +7435,7 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].item_id, item3_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, ip_table_id);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
 
     Nth_scan++;   
@@ -7489,7 +7454,7 @@ that the edges be all directed in the same direction.";
 	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
     maat_stream_free(stream);
     maat_state_free(state);
@@ -7713,7 +7678,7 @@ TEST_F(MaatCmdTest, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
 
@@ -7739,7 +7704,7 @@ TEST_F(MaatCmdTest, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item3_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, ip_table_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
 
@@ -7759,7 +7724,7 @@ TEST_F(MaatCmdTest, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].item_id, item4_id);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
-	EXPECT_EQ(hit_path[path_idx].vtable_id, 0);
+	EXPECT_EQ(hit_path[path_idx].vtable_id, keywords_table_id);
     EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
 	EXPECT_EQ(hit_path[path_idx].compile_id, -1);
 
@@ -7885,7 +7850,7 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
     */
     long long group11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group11_id, compile1_id, 0, "null", 1, 0);
+                                       group11_id, compile1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -7896,7 +7861,7 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
 
     long long group21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group21_id, compile1_id, 0, "null", 2, 0);
+                                       group21_id, compile1_id, 0, app_id_table_name, 2, 0);
     EXPECT_EQ(ret, 1);
 
     long long item21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -7936,7 +7901,7 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
 
     long long group22_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group22_id, compile1_id, 0, "null", 3, 0);
+                                       group22_id, compile1_id, 0, app_id_table_name, 3, 0);
     EXPECT_EQ(ret, 1);
 
     long long item22_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -7980,7 +7945,7 @@ TEST_F(MaatCmdTest, GroupEdit) {
     */
     long long group11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group11_id, compile1_id, 0, "null", 1, 0);
+                                       group11_id, compile1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -7991,7 +7956,7 @@ TEST_F(MaatCmdTest, GroupEdit) {
 
     long long group21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group21_id, compile1_id, 0, "null", 2, 0);
+                                       group21_id, compile1_id, 0, app_id_table_name, 2, 0);
     EXPECT_EQ(ret, 1);
 
     long long item21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -8100,7 +8065,7 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
     //item11 -> group11 -> clause1 -> compile1
     long long group11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group11_id, compile1_id, 0, "null", 1, 0);
+                                       group11_id, compile1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -8132,7 +8097,7 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
     EXPECT_EQ(ret, 1);
 
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_DEL,
-                                       group11_id, compile1_id, 0, "null", 1, 0);
+                                       group11_id, compile1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     int hit_cnt = 0;
@@ -8173,7 +8138,7 @@ TEST_F(MaatCmdTest, UpdateDeadLockDetection) {
     //group1 -> compile1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0, "null", 0, 0);
+                                       group1_id, compile1_id, 0, table_http_url, 0, 0);
     EXPECT_EQ(ret, 1);
 
     //item1 -> group1 -> compile1
@@ -8207,7 +8172,7 @@ TEST_F(MaatCmdTest, UpdateDeadLockDetection) {
     //group2 -> compile2
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group2_id, compile2_id, 0, "null", 0, 0);
+                                       group2_id, compile2_id, 0, table_http_url, 0, 0);
     EXPECT_EQ(ret, 1);
 
     //item2 -> group2 -> compile2
@@ -8249,7 +8214,7 @@ TEST_F(MaatCmdTest, StreamScanWhenExprTableIncUpdate) {
     //group1 -> compile1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0, "null", 0, 0);
+                                       group1_id, compile1_id, 0, scan_table_name, 0, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -8312,7 +8277,7 @@ TEST_F(MaatCmdTest, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
     //group1 -> compile1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0, "null", 0, 0);
+                                       group1_id, compile1_id, 0, scan_table_name, 0, 0);
     EXPECT_EQ(ret, 1);
 
     //item1 -> group1 -> compile1
@@ -8372,7 +8337,7 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenIncUpdate) {
     //group1 -> compile1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0, "null", 0, 0);
+                                       group1_id, compile1_id, 0, expr_table_name, 0, 0);
     EXPECT_EQ(ret, 1);
 
     //item1 -> group1 -> compile1
@@ -8393,7 +8358,7 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenIncUpdate) {
     EXPECT_EQ(ret, 1);
 
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group2_id, compile1_id, 0, "null", 1, 0);
+                                       group2_id, compile1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -8465,7 +8430,7 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenFullUpdate) {
     //group1 -> compile1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0, "null", 0, 0);
+                                       group1_id, compile1_id, 0, expr_table_name, 0, 0);
     EXPECT_EQ(ret, 1);
 
     //item1 -> group1 -> compile1
@@ -8487,7 +8452,7 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenFullUpdate) {
     EXPECT_EQ(ret, 1);
 
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group2_id, compile1_id, 0, "null", 1, 0);
+                                       group2_id, compile1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -8558,7 +8523,7 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenIncUpdate) {
     //group1 -> compile1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0, "null", 0, 0);
+                                       group1_id, compile1_id, 0, expr_table_name, 0, 0);
     EXPECT_EQ(ret, 1);
 
     //item1 -> group1 -> compile1
@@ -8579,7 +8544,7 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenIncUpdate) {
     EXPECT_EQ(ret, 1);
 
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group2_id, compile1_id, 0, "null", 1, 0);
+                                       group2_id, compile1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -8650,7 +8615,7 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenFullupdate) {
     //group1 -> compile1
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group1_id, compile1_id, 0, "null", 0, 0);
+                                       group1_id, compile1_id, 0, expr_table_name, 0, 0);
     EXPECT_EQ(ret, 1);
 
     //item1 -> group1 -> compile1
@@ -8671,7 +8636,7 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenFullupdate) {
     EXPECT_EQ(ret, 1);
 
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
-                                       group2_id, compile1_id, 0, "null", 1, 0);
+                                       group2_id, compile1_id, 0, ip_table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);

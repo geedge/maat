@@ -955,7 +955,7 @@ long long expr_runtime_get_version(void *expr_runtime)
 }
 
 int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
-                      const char *data, size_t data_len, int phy_table_id,
+                      const char *data, size_t data_len,
                       int vtable_id, struct maat_state *state)
 {
     if (0 == expr_rt->rule_num) {
@@ -1002,7 +1002,7 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
     }
 
 next:
-    return maat_compile_state_update(phy_table_id, vtable_id, hit_maat_items, real_hit_item_cnt, state);
+    return maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
 }
 
 struct expr_matcher_stream *
@@ -1024,8 +1024,7 @@ expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id)
 int expr_runtime_stream_scan(struct expr_runtime *expr_rt,
                              struct expr_matcher_stream *s_handle,
                              const char *data, size_t data_len,
-                             int phy_table_id, int vtable_id,
-                             struct maat_state *state)
+                             int vtable_id, struct maat_state *state)
 {
     if (0 == expr_rt->rule_num) {
         //empty expr table
@@ -1065,7 +1064,7 @@ int expr_runtime_stream_scan(struct expr_runtime *expr_rt,
     }
 
 next:
-    return maat_compile_state_update(phy_table_id, vtable_id, hit_maat_items, real_hit_item_cnt, state);
+    return maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
 }
 
 void expr_runtime_stream_close(struct expr_runtime *expr_rt, int thread_id, 

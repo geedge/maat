@@ -42,7 +42,7 @@ long long ip_runtime_ipv6_rule_count(void *ip_runtime);
 
 /* ip runtime scan API */
 int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type, 
-                    uint8_t *ip_addr, uint16_t port, int proto, int phy_table_id,
+                    uint8_t *ip_addr, uint16_t port, int proto,
                     int vtable_id, struct maat_state *state);
 
 void ip_runtime_hit_inc(struct ip_runtime *ip_rt, int thread_id);

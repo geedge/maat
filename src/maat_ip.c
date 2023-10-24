@@ -700,7 +700,7 @@ static int validate_port_proto(struct ip_item *item, uint16_t port, int proto)
 }
 
 int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type, 
-                    uint8_t *ip_addr, uint16_t port, int proto, int phy_table_id,
+                    uint8_t *ip_addr, uint16_t port, int proto,
                     int vtable_id, struct maat_state *state)
 {
     if (0 == ip_rt->rule_num) {
@@ -761,7 +761,7 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
     }
 
 next:
-    return maat_compile_state_update(phy_table_id, vtable_id, hit_maat_items, real_hit_item_cnt, state);
+    return maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
 }
 
 void ip_runtime_hit_inc(struct ip_runtime *ip_rt, int thread_id)

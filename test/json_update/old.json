@@ -14,6 +14,7 @@
             "groups": [
                 {
                     "group_name": "Untitled",
+                    "virtual_table": "HTTP_URL",
                     "regions": [
                         {
                             "table_name": "HTTP_URL",

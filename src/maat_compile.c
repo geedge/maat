@@ -2243,7 +2243,7 @@ int compile_runtime_match(struct compile_runtime *compile_rt, long long *compile
     return MIN(bool_match_ret, compile_ids_size);
 }
 
-int maat_compile_state_update(int phy_table_id, int vtable_id, struct maat_item *hit_items,
+int maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
                               size_t n_hit_item, struct maat_state *state)
 {
     size_t i = 0, j = 0;
@@ -2305,10 +2305,6 @@ int maat_compile_state_update(int phy_table_id, int vtable_id, struct maat_item 
     for (i = 0; i < hit_cnt; i++) {
         maat_compile_state_update_hit_clause(state->compile_state, compile_rt,
                                              hit_group_ids[i], vtable_id);
-    }
-
-    if (vtable_id == 0) {
-        vtable_id = phy_table_id;
     }
 
     long long hit_NOT_group_ids[VTABLE_MAX_NOT_GROUP_NUM];

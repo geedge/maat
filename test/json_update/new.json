@@ -13,6 +13,7 @@
             "is_valid": "yes",
             "groups": [
                 {
+                    "virtual_table": "HTTP_URL",
                     "regions": [
                         {
                             "table_name": "HTTP_URL",

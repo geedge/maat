@@ -1043,7 +1043,7 @@ static int flag_scan(struct table_manager *tbl_mgr, int thread_id, long long fla
     }
 
     int group_hit_cnt = flag_runtime_scan((struct flag_runtime *)flag_rt, thread_id,
-                                          flag, phy_table_id, vtable_id, state);
+                                          flag, vtable_id, state);
     if (group_hit_cnt <= 0) {
         return group_hit_cnt;
     }
@@ -1073,8 +1073,7 @@ static int interval_scan(struct table_manager *tbl_mgr, int thread_id, long long
     }
 
     int group_hit_cnt = interval_runtime_scan((struct interval_runtime *)interval_rt,
-                                              thread_id, integer, phy_table_id,
-                                              vtable_id, state);
+                                              thread_id, integer, vtable_id, state);
     if (group_hit_cnt <= 0) {
         return group_hit_cnt;
     }
@@ -1100,8 +1099,7 @@ static int ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_a
     }
 
     int group_hit_cnt = ip_runtime_scan((struct ip_runtime *)ip_rt, thread_id, IPv4,
-                                        (uint8_t *)&ip_addr, port, proto, phy_table_id,
-                                        vtable_id, state);
+                                        (uint8_t *)&ip_addr, port, proto, vtable_id, state);
     if (group_hit_cnt <= 0) {
         return group_hit_cnt;
     }
@@ -1127,8 +1125,7 @@ static int ipv6_scan(struct table_manager *tbl_mgr, int thread_id,
     }
 
     int group_hit_cnt = ip_runtime_scan((struct ip_runtime *)ip_rt, thread_id, IPv6,
-                                        ip_addr, port, proto, phy_table_id, vtable_id,
-                                        state);
+                                        ip_addr, port, proto, vtable_id, state);
     if (group_hit_cnt <= 0) {
         return group_hit_cnt;
     }
@@ -1159,7 +1156,7 @@ static int string_scan(struct table_manager *tbl_mgr, int thread_id,
 
     int group_hit_cnt = expr_runtime_scan((struct expr_runtime *)expr_rt,
                                           thread_id, data, data_len,
-                                          phy_table_id, vtable_id, state);
+                                          vtable_id, state);
     if (group_hit_cnt <= 0) {
         return group_hit_cnt;
     }
@@ -1195,8 +1192,7 @@ static int expr_stream_scan(struct maat_stream *stream, const char *data,
 
     int group_hit_cnt = expr_runtime_stream_scan((struct expr_runtime *)expr_rt,
                                                  stream->handle, data, data_len,
-                                                 stream->phy_table_id, stream->vtable_id,
-                                                 state);
+                                                 stream->vtable_id, state);
     if (group_hit_cnt <= 0) {
         return group_hit_cnt;
     }
@@ -1247,7 +1243,7 @@ int maat_scan_flag(struct maat *maat_inst, int table_id,
         return MAAT_SCAN_OK;
     }
 
-    int vtable_id = 0;
+    int vtable_id = table_id;
     int phy_table_id = table_id;
     enum table_type table_type = TABLE_TYPE_INVALID;
 
@@ -1331,7 +1327,7 @@ int maat_scan_integer(struct maat *maat_inst, int table_id,
         return MAAT_SCAN_OK;
     }
 
-    int vtable_id = 0;
+    int vtable_id = table_id;
     int phy_table_id = table_id;
     enum table_type table_type = TABLE_TYPE_INVALID;
 
@@ -1415,7 +1411,7 @@ int maat_scan_ipv4(struct maat *maat_inst, int table_id, uint32_t ip_addr,
         return MAAT_SCAN_OK;
     }
 
-    int vtable_id = 0;
+    int vtable_id = table_id;
     int phy_table_id = table_id;
     enum table_type table_type = TABLE_TYPE_INVALID;
 
@@ -1500,7 +1496,7 @@ int maat_scan_ipv6(struct maat *maat_inst, int table_id,
         return MAAT_SCAN_OK;
     }
 
-    int vtable_id = 0;
+    int vtable_id = table_id;
     int phy_table_id = table_id;
     enum table_type table_type = TABLE_TYPE_INVALID;
 
@@ -1584,7 +1580,7 @@ int maat_scan_string(struct maat *maat_inst, int table_id, const char *data,
         return MAAT_SCAN_OK;
     }
 
-    int vtable_id = 0;
+    int vtable_id = table_id;
     int phy_table_id = table_id;
     enum table_type table_type = TABLE_TYPE_INVALID;
     
@@ -1659,6 +1655,7 @@ struct maat_stream *maat_stream_new(struct maat *maat_inst, int table_id,
     stream->last_full_version = maat_inst->last_full_version;
     stream->thread_id = state->thread_id;
     stream->phy_table_id = table_id;
+    stream->vtable_id = table_id;
     stream->logger = maat_inst->logger;
 
     enum table_type table_type = TABLE_TYPE_INVALID;

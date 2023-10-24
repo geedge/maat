@@ -311,7 +311,7 @@ static void test_add_expr_command(struct maat *maat_inst, const char *table_name
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD, group_id,
-                                       compile_id, 0, "null", 1, 0);
+                                       compile_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -329,7 +329,7 @@ static void test_add_ip_command(struct maat *maat_inst, const char *table_name,
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD, group_id,
-                                       compile_id, 0, "null", 1, 0);
+                                       compile_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -347,7 +347,7 @@ static void test_add_integer_command(struct maat *maat_inst, const char *table_n
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD, group_id,
-                                       compile_id, 0, "null", 1, 0);
+                                       compile_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -365,7 +365,7 @@ static void test_add_flag_command(struct maat *maat_inst, const char *table_name
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE", MAAT_OP_ADD, group_id,
-                                       compile_id, 0, "null", 1, 0);
+                                       compile_id, 0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
