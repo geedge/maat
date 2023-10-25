@@ -811,6 +811,26 @@ TEST_F(MaatHsStringScan, Regex) {
     state = NULL;
 }
 
+TEST_F(MaatHsStringScan, BackslashR_N_Escape) {
+    int ret = 0;
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    const char *table_name = "KEYWORDS_TABLE";
+    const char *payload = "GET / HTTP/1.1\r\nHost: www.baidu.com\r\n\r\n";
+    struct maat *maat_inst = MaatHsStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ret = maat_scan_string(maat_inst, table_id, payload, strlen(payload),
+                            results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(results[0], 225);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
 TEST_F(MaatHsStringScan, ExprPlus) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -1526,6 +1546,26 @@ TEST_F(MaatRsStringScan, Regex) {
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 148);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(MaatRsStringScan, BackslashR_N_Escape) {
+    int ret = 0;
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    const char *table_name = "KEYWORDS_TABLE";
+    const char *payload = "GET / HTTP/1.1\r\nHost: www.baidu.com\r\n\r\n";
+    struct maat *maat_inst = MaatRsStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ret = maat_scan_string(maat_inst, table_id, payload, strlen(payload),
+                            results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(results[0], 225);
 
     maat_state_free(state);
     state = NULL;

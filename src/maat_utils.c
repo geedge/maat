@@ -219,6 +219,12 @@ char *str_unescape(char *s)
 				case '\\':
 					s[j] = '\\';
 					break;
+				case 'r':
+					s[j] = '\r';
+					break;
+				case 'n':
+					s[j] = '\n';
+					break;
 				default:
 					s[j] = s[i];
 					i--;	//undo the followed i++

@@ -3845,6 +3845,35 @@
                     ]
                 }
             ]
+        },
+        {
+            "compile_id": 225,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "Payload escape",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "group_name": "EscapeGroup_225_1",
+                    "virtual_table": "KEYWORDS_TABLE",
+                    "not_flag": 0,
+                    "clause_index": 0,
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "GET\\b/\\bHTTP/1.1\\r\\nHost:\\bwww.baidu.com\\r\\n\\r\\n",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "plugin_table": [
