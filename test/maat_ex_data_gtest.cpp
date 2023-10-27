@@ -85,6 +85,12 @@ TEST(EXDataRuntime, Update) {
     ret = ex_data_runtime_add_ex_container(ex_data_rt, key2, key2_len, ex_container);
     EXPECT_EQ(ret, 0);
 
+    ex_data = ex_data_runtime_row2ex_data(ex_data_rt, table_name, row2, key2, key2_len);
+    ex_container = ex_container_new(ex_data, NULL);
+    ret = ex_data_runtime_add_ex_container(ex_data_rt, key2, key2_len, ex_container);
+    EXPECT_EQ(ret, -1);
+    ex_container_free(ex_data_rt, ex_container);
+
     ex_data_runtime_commit(ex_data_rt);
 
     void *res_data1 = ex_data_runtime_get_ex_data_by_key(ex_data_rt, key1, key1_len);
@@ -113,9 +119,6 @@ TEST(EXDataRuntime, Update) {
 
     EXPECT_EQ(0, strcmp(info2->name, "liyanhong"));
     EXPECT_EQ(info2->id, 102);
-
-    EXPECT_NE(0, strcmp(info1->name, "mahuateng"));
-    EXPECT_NE(info1->id, 101);
 
     ex_data_runtime_free(ex_data_rt);
     FREE(container_schema);

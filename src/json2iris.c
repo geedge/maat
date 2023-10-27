@@ -213,6 +213,8 @@ static void clear_iris_descriptor(struct iris_description *iris_cfg)
 	}
 
 	maat_kv_store_free(iris_cfg->str2int_map);
+	iris_cfg->str2int_map = NULL;
+	
 	FREE(iris_cfg->encrypt_algo);
 	FREE(iris_cfg->encrypt_key);
     

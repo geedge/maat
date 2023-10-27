@@ -250,6 +250,7 @@ static int bool_plugin_runtime_update_row(struct bool_plugin_runtime *bool_plugi
         struct ex_container *ex_container = ex_container_new(ex_data, (void *)expr);
         ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
         if (ret < 0) {
+            ex_container_free(ex_data_rt, ex_container);
             return -1;
         }
     }

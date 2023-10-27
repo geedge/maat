@@ -165,15 +165,16 @@ struct ex_container *ex_container_new(void *ex_data, void *custom_data)
     return ex_container;
 }
 
-void ex_container_free(void *user_ctx, void *data)
+void ex_container_free(void *ex_data_runtime, void *ex_container)
 {
     /* schema is NULL if not call ex_data_runtime_set_ex_container_schema */
-    if (NULL == user_ctx || NULL == data) {
+    if (NULL == ex_data_runtime || NULL == ex_container) {
         return;
     }
 
-    struct ex_container *container = (struct ex_container *)data;
-    struct ex_container_schema *container_schema = (struct ex_container_schema *)user_ctx;
+    struct ex_container *container = (struct ex_container *)ex_container;
+    struct ex_data_runtime *ex_data_rt = (struct ex_data_runtime *)ex_data_runtime;
+    struct ex_container_schema *container_schema = ex_data_rt->ref_container_schema;
 
     /* free ex_container->custom_data */
     if (container->custom_data != NULL && container_schema->custom_data_free != NULL) {
@@ -205,8 +206,7 @@ int ex_data_runtime_add_ex_container(struct ex_data_runtime *ex_data_rt,
     if (NULL == ex_data_rt->htable) {
         /* ex_data_rt->ref_container_schema has been set */
         assert(ex_data_rt->ref_container_schema != NULL);
-        ex_data_rt->htable = rcu_hash_new(ex_container_free,
-                                          ex_data_rt->ref_container_schema,
+        ex_data_rt->htable = rcu_hash_new(ex_container_free, ex_data_rt,
                                           ex_data_rt->gc_timeout_s);
     }
 

@@ -428,10 +428,12 @@ void *adapter_hs_new(struct expr_rule *rules, size_t n_rule,
 
     if (literal_cd != NULL) {
         adpt_hs_compile_data_free(literal_cd);
+        literal_cd = NULL;
     }
 
     if (regex_cd != NULL) {
         adpt_hs_compile_data_free(regex_cd);
+        regex_cd = NULL;
     }
 
     if (hs_ret < 0) {

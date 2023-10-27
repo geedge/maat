@@ -300,10 +300,12 @@ void *adapter_rs_new(struct expr_rule *rules, size_t n_rule,
 
     if (literal_cd != NULL) {
         adpt_rs_compile_data_free(literal_cd);
+        literal_cd = NULL;
     }
 
     if (regex_cd != NULL) {
         adpt_rs_compile_data_free(regex_cd);
+        regex_cd = NULL;
     }
 
     if (rs_ret < 0) {
@@ -385,6 +387,7 @@ void adapter_rs_free(void *rs_instance)
             for (i = 0; i < rs_inst->n_worker_thread; i++) {
                 if (rs_inst->rs_rt->matched_pats[i] != NULL) {
                     utarray_free(rs_inst->rs_rt->matched_pats[i]->pattern_ids);
+                    rs_inst->rs_rt->matched_pats[i]->pattern_ids = NULL; 
                     FREE(rs_inst->rs_rt->matched_pats[i]);
                 }
             }

@@ -65,6 +65,8 @@ void ex_data_runtime_set_ex_container_schema(struct ex_data_runtime *ex_data_rt,
 
 struct ex_container *ex_container_new(void *ex_data, void *custom_data);
 
+void ex_container_free(void *ex_data_runtime, void *ex_container);
+
 /* ex_data_runtime ex data API */
 void *ex_data_runtime_row2ex_data(struct ex_data_runtime *ex_data_rt,
                                   const char *table_name, const char *row, 

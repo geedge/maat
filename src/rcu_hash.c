@@ -61,6 +61,7 @@ static void rcu_hash_garbage_collect_force(struct rcu_hash_table *htable)
 
 	while ((p = TAILQ_FIRST(&(htable->garbage_q))) != NULL) {
 		p->garbage_free(p->garbage);
+        p->garbage = NULL;
 		TAILQ_REMOVE(&(htable->garbage_q), p, entries);
 		FREE(p);
         htable->garbage_q_len--;
@@ -77,6 +78,7 @@ void rcu_hash_garbage_collect_routine(struct rcu_hash_table *htable)
         if ((now - p->create_time) > htable->gc_timeout_s ||
             htable->gc_timeout_s == 0) {
             p->garbage_free(p->garbage);
+            p->garbage = NULL;
             TAILQ_REMOVE(&(htable->garbage_q), p, entries);
             FREE(p);
             htable->garbage_q_len--;
@@ -107,6 +109,7 @@ static void rcu_hash_node_free(struct rcu_hash_node *node)
 
     if (node->data != NULL) {
         node->htable->data_free_fn(node->htable->user_ctx, node->data);
+        node->data = NULL;
     }
     FREE(node);
 }

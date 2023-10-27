@@ -369,6 +369,7 @@ static int plugin_runtime_update_row(struct plugin_runtime *plugin_rt,
             ret = ex_data_runtime_add_ex_container(plugin_rt->ex_data_rt, key, key_len,
                                                    ex_container);
             if (ret < 0) {
+                ex_container_free(plugin_rt->ex_data_rt, ex_container);
                 return -1;
             }
             plugin_rt->acc_line_num++;
