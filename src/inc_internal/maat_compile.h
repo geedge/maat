@@ -24,7 +24,7 @@ extern "C"
 
 struct compile_schema;
 struct compile_runtime;
-struct maat_compile_state;
+struct compile_state;
 struct group2group_runtime;
 
 /* compile schema API */
@@ -66,7 +66,7 @@ int compile_runtime_match(struct compile_runtime *compile_rt, long long *compile
                           size_t compile_ids_size, struct maat_state *state);
 
 size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, int thread_id,
-									 struct maat_compile_state *compile_state, 
+									 struct compile_state *compile_state, 
                                   	 struct maat_hit_path *hit_path_array, 
                                      size_t array_size, size_t n_hit_path);
 
@@ -98,31 +98,33 @@ long long group2compile_runtime_rule_count(void *g2c_runtime);
 long long group2compile_runtime_update_err_count(void *g2c_runtime);
 
 /* maat compile state API */
-struct maat_compile_state;
-struct maat_compile_state *maat_compile_state_new(void);
-void maat_compile_state_reset(struct maat_compile_state *compile_state);
-void maat_compile_state_free(struct maat_compile_state *compile_state,
-                             struct maat *maat_instance, int thread_id);
+struct compile_state;
+struct compile_state *compile_state_new(void);
 
-int maat_compile_state_update(int vtable_id, struct maat_item *hit_items,
-                              size_t n_hit_item, struct maat_state *state);
+void compile_state_reset(struct compile_state *compile_state);
 
-size_t maat_compile_state_get_internal_hit_paths(struct maat_compile_state *compile_state,
-                                                 struct compile_runtime *compile_rt,
-                                                 struct group2group_runtime *g2g_rt,
-                                                 struct maat_hit_path *hit_path_array, 
-                                                 size_t array_size);
+void compile_state_free(struct compile_state *compile_state, 
+                        struct maat *maat_instance, int thread_id);
 
-size_t maat_compile_state_get_direct_hit_groups(struct maat_compile_state *compile_state,
-                                                enum maat_list_type type,
-                                                struct maat_hit_group *group_array,
-                                                size_t array_size);
+int compile_state_update(int vtable_id, struct maat_item *hit_items,
+                         size_t n_hit_item, struct maat_state *state);
 
-size_t maat_compile_state_get_indirect_hit_groups(struct maat_compile_state *compile_state,
-                                                  struct maat_hit_group *group_array,
-                                                  size_t array_size);
+size_t compile_state_get_internal_hit_paths(struct compile_state *compile_state,
+                                            struct compile_runtime *compile_rt,
+                                            struct group2group_runtime *g2g_rt,
+                                            struct maat_hit_path *hit_path_array, 
+                                            size_t array_size);
 
-int maat_compile_state_has_NOT_clause(struct maat_compile_state *compile_state);
+size_t compile_state_get_direct_hit_groups(struct compile_state *compile_state,
+                                           enum maat_list_type type,
+                                           struct maat_hit_group *group_array,
+                                           size_t array_size);
+
+size_t compile_state_get_indirect_hit_groups(struct compile_state *compile_state,
+                                             struct maat_hit_group *group_array,
+                                             size_t array_size);
+
+int compile_state_has_NOT_clause(struct compile_state *compile_state);
 
 #ifdef __cplusplus
 }

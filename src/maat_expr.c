@@ -1002,7 +1002,7 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
     }
 
 next:
-    return maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
+    return compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
 }
 
 struct expr_matcher_stream *
@@ -1064,7 +1064,7 @@ int expr_runtime_stream_scan(struct expr_runtime *expr_rt,
     }
 
 next:
-    return maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
+    return compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
 }
 
 void expr_runtime_stream_close(struct expr_runtime *expr_rt, int thread_id, 

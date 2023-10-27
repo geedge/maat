@@ -209,7 +209,7 @@ struct maat_stat *maat_stat_new(const char *stat_file, size_t max_thread_num,
     stat->thread_call_cnt = alignment_int64_array_alloc(max_thread_num);
     stat->hit_cnt = alignment_int64_array_alloc(max_thread_num);
     stat->maat_state_cnt = alignment_int64_array_alloc(max_thread_num);
-    stat->maat_compile_state_cnt = alignment_int64_array_alloc(max_thread_num);
+    stat->compile_state_cnt = alignment_int64_array_alloc(max_thread_num);
     stat->maat_state_free_cnt = alignment_int64_array_alloc(max_thread_num);
     stat->maat_state_free_bytes = alignment_int64_array_alloc(max_thread_num);
 
@@ -242,9 +242,9 @@ void maat_stat_free(struct maat_stat *stat)
         stat->maat_state_cnt = NULL;
     }
 
-    if (stat->maat_compile_state_cnt != NULL) {
-        alignment_int64_array_free(stat->maat_compile_state_cnt);
-        stat->maat_compile_state_cnt = NULL;
+    if (stat->compile_state_cnt != NULL) {
+        alignment_int64_array_free(stat->compile_state_cnt);
+        stat->compile_state_cnt = NULL;
     }
 
     if (stat->maat_state_free_cnt != NULL) {
@@ -454,7 +454,7 @@ void maat_stat_output(struct maat_stat *stat, long long maat_version, int perf_o
                                                               stat->nr_worker_thread);
     long long maat_state_free_bytes = alignment_int64_array_sum(stat->maat_state_free_bytes,
                                                                 stat->nr_worker_thread);
-    long long maat_compile_state_cnt = alignment_int64_array_sum(stat->maat_compile_state_cnt,
+    long long compile_state_cnt = alignment_int64_array_sum(stat->compile_state_cnt,
                                                                  stat->nr_worker_thread);
     size_t table_cnt = table_manager_table_count(stat->ref_tbl_mgr);
     size_t garbage_q_len = maat_garbage_bin_get_size(stat->ref_garbage_bin);
@@ -475,7 +475,7 @@ void maat_stat_output(struct maat_stat *stat, long long maat_version, int perf_o
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_MAAT_PER_STATE_MEM],
                         per_state_mem);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_COMPILE_STATE_NUM],
-                        maat_compile_state_cnt);
+                        compile_state_cnt);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_CMD_LINE_NUM],
                         stat->line_cmd_acc_num);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_GARBAGE_QSIZE],

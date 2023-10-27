@@ -50,6 +50,11 @@ enum district_flag {
     DISTRICT_FLAG_SET
 };
 
+enum logic_not_flag {
+    LOGIC_NOT_FLAG_UNSET,
+    LOGIC_NOT_FLAG_SET
+};
+
 struct maat_stream {
     struct maat *ref_maat_inst;
     struct expr_matcher_stream *handle; //each physical table open one stream
@@ -1029,7 +1034,7 @@ static int flag_scan(struct table_manager *tbl_mgr, int thread_id, long long fla
 {
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, phy_table_id);
     if (table_type == TABLE_TYPE_FLAG_PLUS && 
-        DISTRICT_FLAG_UNSET == state->is_set_district) {
+        DISTRICT_FLAG_UNSET == state->district_flag) {
         return -1;
     }
 
@@ -1059,7 +1064,7 @@ static int interval_scan(struct table_manager *tbl_mgr, int thread_id, long long
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, phy_table_id);
     if (table_type == TABLE_TYPE_INTERVAL_PLUS && 
-        DISTRICT_FLAG_UNSET == state->is_set_district) {
+        DISTRICT_FLAG_UNSET == state->district_flag) {
         return -1;
     }
 
@@ -1141,7 +1146,7 @@ static int string_scan(struct table_manager *tbl_mgr, int thread_id,
 {
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, phy_table_id);
     if (table_type == TABLE_TYPE_EXPR_PLUS && 
-        DISTRICT_FLAG_UNSET == state->is_set_district) {
+        DISTRICT_FLAG_UNSET == state->district_flag) {
         return -1;
     }
 
@@ -1177,7 +1182,7 @@ static int expr_stream_scan(struct maat_stream *stream, const char *data,
     struct table_manager *tbl_mgr = stream->ref_maat_inst->tbl_mgr;
     table_type = table_manager_get_table_type(tbl_mgr, stream->phy_table_id);
     if (table_type == TABLE_TYPE_EXPR_PLUS && 
-        DISTRICT_FLAG_UNSET == state->is_set_district) {
+        DISTRICT_FLAG_UNSET == state->district_flag) {
         return -1;
     }
 
@@ -1794,7 +1799,7 @@ struct maat_state *maat_state_new(struct maat *maat_inst, int thread_id)
     struct maat_state *state = ALLOC(struct maat_state, 1);
 
     state->maat_inst = maat_inst;
-    state->is_set_district = DISTRICT_FLAG_UNSET;
+    state->district_flag = DISTRICT_FLAG_UNSET;
     state->district_id = DISTRICT_ANY;
     state->thread_id = thread_id;
 
@@ -1811,12 +1816,12 @@ void maat_state_reset(struct maat_state *state)
     }
 
     state->compile_table_id = 0;
-    state->is_set_district = DISTRICT_FLAG_UNSET;
+    state->district_flag = DISTRICT_FLAG_UNSET;
     state->district_id = DISTRICT_ANY;
     state->scan_cnt = 0;
 
     if (state->compile_state != NULL) {
-        maat_compile_state_reset(state->compile_state);
+        compile_state_reset(state->compile_state);
     }
 }
 
@@ -1832,9 +1837,9 @@ void maat_state_free(struct maat_state *state)
     long long thread_id = state->thread_id;
 
     if (state->compile_state != NULL) {
-        maat_compile_state_free(state->compile_state, maat_inst, thread_id);
+        compile_state_free(state->compile_state, maat_inst, thread_id);
         state->compile_state = NULL;
-        alignment_int64_array_add(maat_inst->stat->maat_compile_state_cnt,
+        alignment_int64_array_add(maat_inst->stat->compile_state_cnt,
                                   thread_id, -1);
     }
     
@@ -1847,6 +1852,16 @@ void maat_state_free(struct maat_state *state)
                               thread_id, 1);
     alignment_int64_array_add(maat_inst->stat->maat_state_free_bytes,
                               thread_id, sizeof(struct maat_state));
+}
+
+void maat_state_set_logic_not_disabled(struct maat_state *state)
+{
+
+}
+
+void maat_state_set_logic_not_enabled(struct maat_state *state)
+{
+
 }
 
 int maat_state_set_scan_district(struct maat_state *state, int table_id, 
@@ -1912,7 +1927,7 @@ int maat_state_set_scan_district(struct maat_state *state, int table_id,
         state->district_id = (int)district_id;
     }
 
-    state->is_set_district = DISTRICT_FLAG_SET;
+    state->district_flag = DISTRICT_FLAG_SET;
 
     return 0;
 }
@@ -1966,10 +1981,10 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
     int g2g_table_id = table_manager_get_group2group_table_id(maat_inst->tbl_mgr);
     void *g2g_runtime = table_manager_get_runtime(maat_inst->tbl_mgr, g2g_table_id);
 
-    size_t hit_path_cnt = maat_compile_state_get_internal_hit_paths(state->compile_state,
-                                                                   (struct compile_runtime *)compile_rt,
-                                                                   (struct group2group_runtime *)g2g_runtime,
-                                                                    path_array, array_size);
+    size_t hit_path_cnt = compile_state_get_internal_hit_paths(state->compile_state,
+                                                               (struct compile_runtime *)compile_rt,
+                                                               (struct group2group_runtime *)g2g_runtime,
+                                                               path_array, array_size);
 
     return compile_runtime_get_hit_paths((struct compile_runtime *)compile_rt, state->thread_id,
                                          state->compile_state, path_array, array_size, hit_path_cnt);
@@ -1996,8 +2011,8 @@ int maat_state_get_direct_hit_groups(struct maat_state *state, enum maat_list_ty
         return 0;
     }
     
-    return maat_compile_state_get_direct_hit_groups(state->compile_state, type,
-                                                    group_array, array_size);
+    return compile_state_get_direct_hit_groups(state->compile_state, type,
+                                               group_array, array_size);
 }
 
 int maat_state_get_indirect_hit_groups(struct maat_state *state,
@@ -2012,8 +2027,8 @@ int maat_state_get_indirect_hit_groups(struct maat_state *state,
         return 0;
     }
 
-    return maat_compile_state_get_indirect_hit_groups(state->compile_state,
-                                                      group_array, array_size);
+    return compile_state_get_indirect_hit_groups(state->compile_state,
+                                                 group_array, array_size);
 }
 
 int maat_hit_group_compile_id(struct maat *instance, struct maat_hit_group *group)

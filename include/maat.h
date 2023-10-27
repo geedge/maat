@@ -291,6 +291,10 @@ void maat_state_reset(struct maat_state *state);
 
 void maat_state_free(struct maat_state *state);
 
+void maat_state_set_logic_not_disabled(struct maat_state *state);
+
+void maat_state_set_logic_not_enabled(struct maat_state *state);
+
 int maat_state_set_scan_district(struct maat_state *state, int table_id, 
                                  const char *district, size_t district_len);
 

@@ -588,7 +588,7 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
     }
 
 next:
-    return maat_compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
+    return compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
 }
 
 void flag_runtime_hit_inc(struct flag_runtime *flag_rt, int thread_id)
