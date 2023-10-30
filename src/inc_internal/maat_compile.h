@@ -37,12 +37,6 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 void group2compile_schema_free(void *g2c_schema);
 int group2compile_associated_compile_table_id(void *g2c_schema);
 
-int compile_table_set_ex_data_schema(struct compile_schema *compile_schema, int table_id,
-                                     maat_ex_new_func_t *new_func,
-                                     maat_ex_free_func_t *free_func,
-                                     maat_ex_dup_func_t *dup_func,
-                                     long argl, void *argp);
-
 /* compile runtime API */
 void *compile_runtime_new(void *compile_schema, size_t max_thread_num,
                           struct maat_garbage_bin *garbage_bin, 
@@ -70,14 +64,6 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, int thr
                                   	 struct maat_hit_path *hit_path_array, 
                                      size_t array_size, size_t n_hit_path);
 
-void *compile_runtime_get_ex_data(struct compile_runtime *compile_rt, 
-                                  struct compile_schema *compile_schema, 
-                                  long long compile_id);
-void compile_runtime_ex_data_iterate(struct compile_runtime *compile_rt,
-                                     struct compile_schema *compile_schema);
-
-void compile_runtime_garbage_collect_routine(void *compile_runtime);
-
 /* group2compile runtime API */
 void *group2compile_runtime_new(void *g2c_schema, size_t max_thread_num,
                                 struct maat_garbage_bin *garbage_bin, 
@@ -103,7 +89,7 @@ struct compile_state *compile_state_new(void);
 
 void compile_state_reset(struct compile_state *compile_state);
 
-void compile_state_free(struct compile_state *compile_state, 
+void compile_state_free(struct compile_state *compile_state,
                         struct maat *maat_instance, int thread_id);
 
 int compile_state_update(int vtable_id, struct maat_item *hit_items,
@@ -116,15 +102,19 @@ size_t compile_state_get_internal_hit_paths(struct compile_state *compile_state,
                                             size_t array_size);
 
 size_t compile_state_get_direct_hit_groups(struct compile_state *compile_state,
-                                           enum maat_list_type type,
                                            struct maat_hit_group *group_array,
                                            size_t array_size);
+
+size_t compile_state_get_direct_hit_group_cnt(struct compile_state *compile_state);
 
 size_t compile_state_get_indirect_hit_groups(struct compile_state *compile_state,
                                              struct maat_hit_group *group_array,
                                              size_t array_size);
 
-int compile_state_has_NOT_clause(struct compile_state *compile_state);
+size_t compile_state_get_indirect_hit_group_cnt(struct compile_state *compile_state);
+
+int compile_state_get_compile_table_id(struct compile_state *compile_state,
+                                       long long compile_id);
 
 #ifdef __cplusplus
 }

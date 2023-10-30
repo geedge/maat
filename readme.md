@@ -38,7 +38,7 @@ A complete use case consists of three parts
 ### 1. table schema
 Table schema is stored in a json file(such as table_info.conf), which is loaded when maat instance is created.
 
-```shell
+```json
  [
     {
         "table_id":0,
@@ -53,9 +53,33 @@ Table schema is stored in a json file(such as table_info.conf), which is loaded 
     },
     {
         "table_id":1,
+        "table_name":"COMPILE_ALIAS",
+        "table_type":"compile",
+        "valid_column":8,
+        "custom": {
+            "compile_id":1,
+            "tags":6,
+            "clause_num":9
+        }
+    },
+    {
+        "table_id":2,
+        "table_name":"COMPILE_CONJUNCTION",
+        "db_tables":["COMPILE", "COMPILE_ALIAS"],
+        "default_compile_table":2, //key:indicate this is the default compile table, value:can be anything(not care)
+        "table_type":"compile",
+        "valid_column":8,
+        "custom": {
+            "compile_id":1,
+            "tags":6,
+            "clause_num":9
+        }
+    },
+    {
+        "table_id":3,
         "table_name":"GROUP2COMPILE",
         "table_type":"group2compile",
-        "associated_compile_table_id":0,
+        "associated_compile_table_id":2, //associate compile conjunction table
         "valid_column":3,
         "custom": {
             "group_id":1,
@@ -66,7 +90,7 @@ Table schema is stored in a json file(such as table_info.conf), which is loaded 
         }
     },
     {
-        "table_id":2,
+        "table_id":4,
         "table_name":"GROUP2GROUP",
         "table_type":"group2group",
         "valid_column":4,
@@ -77,7 +101,7 @@ Table schema is stored in a json file(such as table_info.conf), which is loaded 
         }
     },
     {
-        "table_id":3,
+        "table_id":5,
         "table_name":"HTTP_URL",
         "table_type":"expr",
         "valid_column":7,
@@ -95,7 +119,7 @@ Table schema is stored in a json file(such as table_info.conf), which is loaded 
 
 ### 2. rule
 Rules are stored in a json file(such as maat_json.json), which is loaded when maat instance is created.
-```shell
+```json
 {
     "compile_table": "COMPILE",
     "group2compile_table": "GROUP2COMPILE",

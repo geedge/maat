@@ -128,8 +128,7 @@ static int maat_update_cb(const char *table_name, const char *line, void *u_para
 		return 0;
 	}
 	
-	struct maat *maat_inst =(struct maat *)u_param; 
-	struct maat_runtime* maat_rt = NULL;
+	struct maat *maat_inst =(struct maat *)u_param;
 	int table_id = table_manager_get_table_id(maat_inst->tbl_mgr, table_name);
     if (table_id < 0) {
         log_error(maat_inst->logger, MODULE_MAAT_RULE, 
@@ -138,23 +137,36 @@ static int maat_update_cb(const char *table_name, const char *line, void *u_para
         return -1;
     }
 
-	void *schema = table_manager_get_schema(maat_inst->tbl_mgr, table_id);
-    if (NULL == schema) {
-        log_error(maat_inst->logger, MODULE_MAAT_RULE, 
-                  "[%s:%d] update warning, table name %s doesn't have table schema", 
-                  __FUNCTION__, __LINE__, table_name);
-        return -1;
-    }
-    
-	int update_type = MAAT_UPDATE_TYPE_INC;
-	if (maat_inst->creating_maat_rt != NULL) { //Full update
-		maat_rt = maat_inst->creating_maat_rt;
+    int update_type = MAAT_UPDATE_TYPE_INC;
+    if (maat_inst->creating_maat_rt != NULL) {  // Full update
         update_type = MAAT_UPDATE_TYPE_FULL;
-	} else {
-		maat_rt = maat_inst->maat_rt;
-	}
-    
-	table_manager_update_runtime(maat_rt->ref_tbl_mgr, table_name, table_id, line, update_type);
+    }
+
+    // find conjunction id for table_id
+    long long conj_parent_table_ids[4];
+    int conj_parent_table_cnt = table_manager_get_conj_parent_table_ids(maat_inst->tbl_mgr, table_name,
+                                                                        conj_parent_table_ids, 4);
+    if (conj_parent_table_cnt > 0) {
+        for (int i = 0; i < conj_parent_table_cnt; i++) {
+            int ret = table_manager_update_runtime(maat_inst->tbl_mgr, table_name,
+                                                   (int)conj_parent_table_ids[i], line, update_type);
+            if (ret < 0) {
+                log_error(maat_inst->logger, MODULE_MAAT_RULE,
+                          "[%s:%d] table<%s> update runtime error for rule:%s",
+                          __FUNCTION__, __LINE__, table_name, line);
+                continue; 
+            }
+        }
+    } else {
+        int ret = table_manager_update_runtime(maat_inst->tbl_mgr, table_name,
+                                               table_id, line, update_type);
+            if (ret < 0) {
+                log_error(maat_inst->logger, MODULE_MAAT_RULE,
+                          "[%s:%d] table<%s> update runtime error for rules:%s",
+                          __FUNCTION__, __LINE__, table_name, line);
+                return -1;
+            }
+    }
 
 	return 0;
 }
@@ -202,10 +214,6 @@ static void maat_plugin_table_garbage_collect_routine(struct table_manager *tbl_
         table_type = table_manager_get_table_type(tbl_mgr, i);
 
         switch (table_type) {
-            case TABLE_TYPE_COMPILE:
-                runtime = table_manager_get_runtime(tbl_mgr, i);
-                compile_runtime_garbage_collect_routine(runtime);
-                break;
             case TABLE_TYPE_PLUGIN:
                 runtime = table_manager_get_runtime(tbl_mgr, i);
                 ex_data_rt = plugin_runtime_get_ex_data_rt(runtime);
@@ -350,7 +358,7 @@ long long maat_runtime_get_sequence(struct maat_runtime *maat_rt, const char *ke
     }
 
     long long sequence = 1;
-    int map_ret = maat_kv_read(maat_rt->sequence_map, key, &sequence);
+    int map_ret = maat_kv_read(maat_rt->sequence_map, key, &sequence, 1);
     if (map_ret < 0) {
         maat_kv_register(maat_rt->sequence_map, key, sequence);
     } else {

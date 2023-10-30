@@ -61,11 +61,6 @@ enum maat_expr_engine {
     MAAT_EXPR_ENGINE_RS      //rulescan
 };
 
-enum maat_list_type {
-    MAAT_LIST_TYPE_FULL = 1,
-    MAAT_LIST_TYPE_INC
-};
-
 struct ip_addr {
     int ip_type;             //4:IPV4, 6:IPV6
     union {
@@ -302,6 +297,9 @@ int maat_state_set_scan_compile_table(struct maat_state *state, int compile_tabl
 
 int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *path_array, 
                              size_t array_size);
+
+int maat_state_get_compile_table_ids(struct maat_state *state, long long *compile_ids,
+                                    size_t n_compile_ids, int *compile_table_ids);
                              
 /**
  * @brief get the total number of scans after maat_state_new
@@ -313,9 +311,10 @@ size_t maat_state_get_scan_count(struct maat_state *state);
  * 
  * NOTE: hit groups may be duplicated
 */
-int maat_state_get_direct_hit_groups(struct maat_state *state, enum maat_list_type type,
+int maat_state_get_direct_hit_groups(struct maat_state *state,
                                      struct maat_hit_group *group_array,
                                      size_t array_size);
+size_t maat_state_get_direct_hit_group_cnt(struct maat_state *state);
 
 /**
  * @brief indirect group means superior group
@@ -325,9 +324,7 @@ int maat_state_get_direct_hit_groups(struct maat_state *state, enum maat_list_ty
 int maat_state_get_indirect_hit_groups(struct maat_state *state,
                                        struct maat_hit_group *group_array,
                                        size_t array_size);
-
-/* return hit object compile_id */
-int maat_hit_group_compile_id(struct maat *instance, struct maat_hit_group *group);
+size_t maat_state_get_indirect_hit_group_cnt(struct maat_state *state);
 
 #ifdef __cplusplus
 }

@@ -379,7 +379,7 @@ static int direct_write_rule(cJSON *json, struct maat_kv_store *str2int,
 		if (1 == cmd[i].str2int_flag) {
             long long int_value = 0;
 			char *p = item->valuestring;
-			ret = maat_kv_read(str2int, p, &int_value);			
+			ret = maat_kv_read(str2int, p, &int_value, 1);			
 			if (ret < 0) {
 				log_error(logger, MODULE_JSON2IRIS, 
                           "[%s:%d] %s's value %s is not valid format", 
@@ -638,7 +638,7 @@ static int write_region_rule(cJSON *region_json, int compile_id, int group_id,
 
 	const char *table_type_str = item->valuestring;
     long long table_type_int;
-	int ret = maat_kv_read(p_iris->str2int_map, table_type_str, &table_type_int);
+	int ret = maat_kv_read(p_iris->str2int_map, table_type_str, &table_type_int, 1);
 	if (ret != 1) {
 		log_error(logger, MODULE_JSON2IRIS, 
                   "[%s:%d] compile rule %d table name %s's table_type %s invalid",

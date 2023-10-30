@@ -11,10 +11,12 @@ The types of physical tables are as follows:
 - [ip_plugin table](#6-ip_plugin-table)
 - [fqdn_plugin table](#7-fqdn_plugin-table)
 - [bool_plugin table](#8-bool_plugin-table)
+- [virtual table](#9-virtual-table)
+- [conjunction table](#10-conjunction-table)
 
-Different physical tables can be combined into one table, see [conjunction table](#112-12-conjunction-table)
+Different physical tables can be combined into one table, see [conjunction table](#10-conjunction-table)
 
-A virtual table can only reference one physical table or conjuntion table, see [virtual table](#111-11-virtual-table)
+A virtual table can only reference one physical table or conjuntion table, see [virtual table](#9-virtual-table)
 
 ## 1. <a name='Itemtable'></a> Item table
 
@@ -166,9 +168,33 @@ table schema stored in table_info.conf
     },
     {
         "table_id":1,
+        "table_name":"COMPILE_ALIAS",
+        "table_type":"compile",
+        "valid_column":8,
+        "custom": {
+            "compile_id":1,
+            "tags":6,
+            "clause_num":9
+        }
+    },
+    {
+        "table_id":2,
+        "table_name":"COMPILE_CONJUNCTION",
+        "db_tables":["COMPILE", "COMPILE_ALIAS"],
+        "default_compile_table":2, //key:indicate this is the default compile table, value:can be anything(not care)
+        "table_type":"compile",
+        "valid_column":8,
+        "custom": {
+            "compile_id":1,
+            "tags":6,
+            "clause_num":9
+        }
+    },
+    {
+        "table_id":3,
         "table_name":"GROUP2COMPILE",
         "table_type":"group2compile",
-        "associated_compile_table_id":0,
+        "associated_compile_table_id":2, //associate compile conjunction table
         "valid_column":3,
         "custom": {
             "group_id":1,
@@ -179,7 +205,7 @@ table schema stored in table_info.conf
         }
     },
     {
-        "table_id":2,
+        "table_id":4,
         "table_name":"GROUP2GROUP",
         "table_type":"group2group",
         "valid_column":4,
@@ -190,7 +216,7 @@ table schema stored in table_info.conf
         }
     },
     {
-        "table_id":3,
+        "table_id":5,
         "table_name":"HTTP_URL",
         "table_type":"expr",
         "valid_column":7,
@@ -677,11 +703,26 @@ Plugin table supports three types of keys(pointer, integer and ip_addr) for ex_d
 
 (3) register callback
 ```c
+void plugin_EX_new_cb(const char *table_name, int table_id, const char *key, 
+                      const char *table_line, void **ad, long argl, void *argp);
 
+void plugin_EX_free_cb(int table_id, void **ad, long argl, void *argp);
+
+void plugin_EX_dup_cb(int table_id, void **to, void **from, long argl, void *argp);
+
+const char *table_name = "TEST_PLUGIN_POINTER_KEY_TYPE";
+int table_id = maat_get_table_id(maat_inst, table_name);
+
+int plugin_ex_data_counter = 0;
+maat_plugin_table_ex_schema_register(maat_inst, table_name,
+                                     plugin_EX_new_cb,
+                                     plugin_EX_free_cb,
+                                     plugin_EX_dup_cb,
+                                     0, &plugin_ex_data_counter);
 ```
 
 (4) get ex_data
-```
+```c
 const char *key1 = "HeBei";
 const char *table_name = "TEST_PLUGIN_POINTER_KEY_TYPE";
 
@@ -694,7 +735,7 @@ maat_plugin_table_get_ex_data(maat_instance, table_id, key1, strlen(key1));
 support integers of different lengths, such as int(4 bytes), long long(8 bytes).
 
 (1) schema
-```
+```json
 {
     "table_id":1,
     "table_name":"TEST_PLUGIN_INT_KEY_TYPE",
@@ -723,7 +764,7 @@ support integers of different lengths, such as int(4 bytes), long long(8 bytes).
 ```
 
 (2) plugin table rules
-```
+```json
 {
     "table_name": "TEST_PLUGIN_INT_KEY_TYPE",
     "table_content": [
@@ -745,21 +786,18 @@ support integers of different lengths, such as int(4 bytes), long long(8 bytes).
 }
 ```
 
-(3) get ex_data
-```
+(3) register callback
+same as above
+
+(4) get ex_data
+```c
 //int
-int key1 = 101;
+int key1 = 101; //key length must be 4 bytes which specified in table_info.conf
 const char *table_name = "TEST_PLUGIN_INT_KEY_TYPE";
 
 int table_id = maat_get_table_id(maat_instance, table_name);
 maat_plugin_table_get_ex_data(maat_instance, table_id, key1, sizeof(key1));
 
-//long long
-long long key2 = 11111111;
-const char *table_name = "TEST_PLUGIN_LONG_KEY_TYPE";
-
-table_id = maat_get_table_id(maat_instance, table_name);
-maat_plugin_table_get_ex_data(maat_instance, table_id, key2, sizeof(key2));
 ```
 
 **ip_addr key**
@@ -767,7 +805,7 @@ maat_plugin_table_get_ex_data(maat_instance, table_id, key2, sizeof(key2));
 support ip address(ipv4 or ipv6) as key.
 
 (1) schema
-```
+```json
 {
     "table_id":1,
     "table_name":"TEST_PLUGIN_IP_KEY_TYPE",
@@ -783,7 +821,7 @@ support ip address(ipv4 or ipv6) as key.
 The addr_type column indicates whether the key is a v4 or v6 address.
 
 (2) plugin table rules
-```
+```json
 {
     "table_name": "TEST_PLUGIN_IP_KEY_TYPE",
     "table_content": [
@@ -795,8 +833,11 @@ The addr_type column indicates whether the key is a v4 or v6 address.
 }
 ```
 
-(3) get ex_data
-```
+(3) register callback
+same as above
+
+(4) get ex_data
+```c
 uint32_t ipv4_addr;
 inet_pton(AF_INET, "100.64.1.1", &ipv4_addr);
 const char *table_name = "TEST_PLUGIN_IP_KEY_TYPE";
@@ -834,7 +875,7 @@ For example:
 
 布尔表达式规则为“&”分隔的数字，例如“1&2&1000”。
 
-### 1.11 <a name='virtualtable'></a> virtual table
+### 9. <a name='virtualtable'></a> virtual table
 
 虚拟一个配置表，其内容为特定物理域配置表的视图。实践中，通常采用网络流量的属性作为虚拟表名，如HTTP_HOST、SSL_SNI等。一个虚拟表可以建立在多个不同类型的物理表之上，但不允许建立在其它虚拟表上。
 
@@ -845,7 +886,7 @@ For example:
 | **keyword_group_1** | compile_1 | 1            | 0                | 0              | REQUEST_BODY       |
 | **keyword_group_1** | compile_1 | 1            | 0                | 0              | RESPONSE_BODY      |
 
-### 1.12 <a name='conjunctiontable'></a> conjunction table
+### 10. <a name='conjunctiontable'></a> conjunction table
 
 表名不同，但table id相同的表。旨在数据库表文件和MAAT API之间提供一个虚拟层，通过API调用一次扫描，即可扫描多张同类配置表。
 
@@ -858,7 +899,7 @@ For example:
 
 支持所有类型表的连接，包括各类域配置、回调类配置。配置分组和配置编译的连接没有意义。
 
-##  2. <a name='ForeignFiles'></a>Foreign Files
+### 11. <a name='ForeignFiles'></a>Foreign Files
 
 回调类配置中，特定字段可以指向一个外部内容，目前支持指向Redis中的一个key。
 
@@ -876,7 +917,7 @@ For example:
 
 ​    内容外键的声明方法，参见本文档-配置表描述文件一节。
 
-##  3. <a name='Tags'></a>Tags
+### 12. <a name='Tags'></a>Tags
 
 通过将Maat接受标签与配置标签的匹配，实现有选择的配置加载。其中配置标签是一个标签数组的集合，记为”tag_sets”，Maat接受标签是标签数组，记为”tags”。
 

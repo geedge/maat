@@ -58,7 +58,6 @@ struct ipport_item {
 
 struct ipport_plugin_runtime {
     struct ipport_matcher *matcher;
-    struct rcu_hash_table *item_hash;  //<item_id, struct ipport_item>
     struct ex_data_runtime *ex_data_rt;
     size_t n_worker_thread;
     struct maat_garbage_bin *ref_garbage_bin;

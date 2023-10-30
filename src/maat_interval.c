@@ -242,13 +242,13 @@ static int interval_runtime_get_district_id(struct interval_runtime *interval_rt
 {
     long long district_id = DISTRICT_ANY;
 
-	int map_ret = maat_kv_read(interval_rt->district_map, district, &district_id);
+	int map_ret = maat_kv_read(interval_rt->district_map, district, &district_id, 1);
 	if (map_ret < 0) {
         if (NULL == interval_rt->tmp_district_map) {
             interval_rt->tmp_district_map = maat_kv_store_duplicate(interval_rt->district_map);
         }
         
-        map_ret = maat_kv_read(interval_rt->tmp_district_map, district, &district_id);
+        map_ret = maat_kv_read(interval_rt->tmp_district_map, district, &district_id, 1);
         if (map_ret < 0) {
             district_id = interval_rt->district_num;
 		    maat_kv_register(interval_rt->tmp_district_map, district, district_id);
@@ -267,8 +267,8 @@ int interval_runtime_set_scan_district(struct interval_runtime *interval_rt,
         return -1;
     }
 
-    return maat_kv_read_unNull(interval_rt->district_map, district,
-                               district_len, district_id);
+    return maat_kv_read_unNull(interval_rt->district_map, district, district_len,
+                               district_id, 1);
 }
 
 static struct interval_item *
