@@ -118,7 +118,7 @@ struct group2compile_runtime {
 
 struct maat_clause {
 	long long clause_id;
-	UT_array *ut_literal_ids;
+	UT_array *literal_ids;
 	char not_flag; // 1 byte
 	char in_use;   // 1 byte
     char pad[6];   // for 8 bytes alignment
@@ -179,7 +179,7 @@ static struct maat_compile *maat_compile_new(long long compile_id)
 	compile->compile_id = compile_id;
 
     for(int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {	
-		utarray_new(compile->clauses[i].ut_literal_ids, &ut_literal_id_icd);
+		utarray_new(compile->clauses[i].literal_ids, &ut_literal_id_icd);
 		compile->clauses[i].in_use = 0;
         compile->clauses[i].clause_id = 0;
 	}
@@ -319,9 +319,9 @@ static void maat_compile_free(struct maat_compile *compile)
 	for (int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
 		clause = compile->clauses + i;
 
-        if (clause->ut_literal_ids != NULL) {
-            utarray_free(clause->ut_literal_ids);
-		    clause->ut_literal_ids = NULL;
+        if (clause->literal_ids != NULL) {
+            utarray_free(clause->literal_ids);
+		    clause->literal_ids = NULL;
         }
 		
 		clause->in_use = 0;
@@ -800,7 +800,7 @@ static int maat_compile_clause_add_literal(struct maat_compile *compile,
 	}
 
 	struct literal_id *tmp = NULL;
-    tmp = (struct literal_id *)utarray_find(clause->ut_literal_ids,
+    tmp = (struct literal_id *)utarray_find(clause->literal_ids,
                                             literal_id, compare_literal_id);
 	if (tmp) {
         assert(tmp->group_id == literal_id->group_id);
@@ -808,8 +808,8 @@ static int maat_compile_clause_add_literal(struct maat_compile *compile,
         assert(tmp->not_flag == literal_id->not_flag);
 		return -1;
 	} else {
-		utarray_push_back(clause->ut_literal_ids, literal_id);
-		utarray_sort(clause->ut_literal_ids, compare_literal_id);
+		utarray_push_back(clause->literal_ids, literal_id);
+		utarray_sort(clause->literal_ids, compare_literal_id);
 	}
 
 	return 0;
@@ -821,7 +821,7 @@ static int maat_compile_clause_remove_literal(struct maat_compile *compile,
 {
     struct maat_clause *clause = compile->clauses + clause_index;
 	struct literal_id *tmp = NULL;
-    tmp = (struct literal_id *)utarray_find(clause->ut_literal_ids,
+    tmp = (struct literal_id *)utarray_find(clause->literal_ids,
                                             literal_id, compare_literal_id);
 	if (tmp) {
 		assert(*(unsigned long long*)tmp == *(unsigned long long*)(literal_id));
@@ -829,10 +829,10 @@ static int maat_compile_clause_remove_literal(struct maat_compile *compile,
 		return -1;
 	}
 
-	size_t remove_idx = utarray_eltidx(clause->ut_literal_ids, tmp);
-	utarray_erase(clause->ut_literal_ids, remove_idx, 1);
+	size_t remove_idx = utarray_eltidx(clause->literal_ids, tmp);
+	utarray_erase(clause->literal_ids, remove_idx, 1);
 
-	if (0 == utarray_len(clause->ut_literal_ids)) {
+	if (0 == utarray_len(clause->literal_ids)) {
 		clause->in_use = 0;
 		compile->actual_clause_num--;
 	}
@@ -884,8 +884,8 @@ maat_compile_bool_matcher_new(struct compile_runtime *compile_rt, size_t *compil
 // TODO:mytest need to delete
 #if 0
 				struct literal_id *p = NULL;
-				for(p = (struct literal_id *)utarray_front(iter_compile->clauses[i].ut_literal_ids); p!=NULL; 
-                    p = (struct literal_id *)utarray_next(iter_compile->clauses[i].ut_literal_ids, p)) {
+				for(p = (struct literal_id *)utarray_front(iter_compile->clauses[i].literal_ids); p!=NULL; 
+                    p = (struct literal_id *)utarray_next(iter_compile->clauses[i].literal_ids, p)) {
     				printf("<before bool_matcher_new> compile_rt:%p compile_id:%lld, clause_id:%llu, literal{%lld: %d, %d}\n", 
 							compile_rt, iter_compile->compile_id, iter_compile->clauses[i].clause_id, p->group_id, p->vtable_id, p->not_flag);
   				}
@@ -1014,8 +1014,8 @@ maat_compile_build_literal2clause_hash(struct compile_runtime *compile_rt, int n
                 }
             }
 
-            for (size_t j = 0; j < utarray_len(clause->ut_literal_ids); j++) {
-                tmp_literal_id = (struct literal_id *)utarray_eltptr(clause->ut_literal_ids, j);
+            for (size_t j = 0; j < utarray_len(clause->literal_ids); j++) {
+                tmp_literal_id = (struct literal_id *)utarray_eltptr(clause->literal_ids, j);
                 HASH_FIND(hh, literal2clause_hash, tmp_literal_id, sizeof(struct literal_id), l2c_value);
                 if (NULL == l2c_value) {
                     l2c_value = ALLOC(struct literal_clause, 1);
@@ -1186,14 +1186,10 @@ maat_compile_clone(struct maat_compile *compile, int deep_copy)
         new_compile->clauses[i].clause_id = compile->clauses[i].clause_id;
         new_compile->clauses[i].in_use = compile->clauses[i].in_use;
         new_compile->clauses[i].not_flag = compile->clauses[i].not_flag;
-        utarray_new(new_compile->clauses[i].ut_literal_ids, &ut_literal_id_icd);
-        for (int j = 0; j < utarray_len(compile->clauses[i].ut_literal_ids); j++) {
-            literal_id = (struct literal_id *)utarray_eltptr(compile->clauses[i].ut_literal_ids, j);
-            utarray_push_back(new_compile->clauses[i].ut_literal_ids, literal_id);
-        }
-
-        for (int k = 0; k < utarray_len(new_compile->clauses[i].ut_literal_ids); k++) {
-            literal_id = (struct literal_id *)utarray_eltptr(new_compile->clauses[i].ut_literal_ids, k);
+        utarray_new(new_compile->clauses[i].literal_ids, &ut_literal_id_icd);
+        for (int j = 0; j < utarray_len(compile->clauses[i].literal_ids); j++) {
+            literal_id = (struct literal_id *)utarray_eltptr(compile->clauses[i].literal_ids, j);
+            utarray_push_back(new_compile->clauses[i].literal_ids, literal_id);
         }
     }
 
@@ -1478,7 +1474,7 @@ static int maat_compile_has_literal(struct maat_compile *compile,
 			continue;
 		}
 
-		tmp = (struct literal_id*)utarray_find(clause->ut_literal_ids,
+		tmp = (struct literal_id*)utarray_find(clause->literal_ids,
                                                literal_id, compare_literal_id);
 		if (tmp) {
 			assert(tmp->group_id == literal_id->group_id && 
@@ -1563,11 +1559,11 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, int thr
     return (n_hit_path + new_hit_path_cnt);
 }
 
-static void update_direct_hit_groups(UT_array *hit_group_array,
-                                     struct maat_item *hit_items,
-                                     size_t n_hit_items, int vtable_id)
+static void compile_state_add_direct_hit_groups(struct compile_state *compile_state,
+                                                struct maat_item *hit_items,
+                                                size_t n_hit_items, int vtable_id)
 {
-    if (NULL == hit_group_array) {
+    if (NULL == compile_state || NULL == hit_items) {
         return;
     }
 
@@ -1576,15 +1572,15 @@ static void update_direct_hit_groups(UT_array *hit_group_array,
         hit_group.item_id = hit_items[i].item_id;
         hit_group.group_id = hit_items[i].group_id;
         hit_group.vtable_id = vtable_id;
-        utarray_push_back(hit_group_array, &hit_group);
+        utarray_push_back(compile_state->direct_hit_groups, &hit_group);
     }
 }
 
-static void update_indirect_hit_groups(UT_array *hit_group_array,
-                                       long long *group_ids,
-                                       size_t n_group_ids, int vtable_id)
+static void compile_state_add_indirect_hit_groups(struct compile_state *compile_state,
+                                                  long long *group_ids,
+                                                  size_t n_group_ids, int vtable_id)
 {
-    if (NULL == hit_group_array) {
+    if (NULL == compile_state || NULL == group_ids) {
         return;
     }
 
@@ -1593,12 +1589,12 @@ static void update_indirect_hit_groups(UT_array *hit_group_array,
         hit_group.item_id = 0;
         hit_group.group_id = group_ids[i];
         hit_group.vtable_id = vtable_id;
-        utarray_push_back(hit_group_array, &hit_group);
+        utarray_push_back(compile_state->indirect_hit_groups, &hit_group);
     }
 }
 
-static void exec_update_hit_clauses(struct compile_state *compile_state,
-                                    UT_array *clause_id_array)
+static void compile_state_add_hit_clauses(struct compile_state *compile_state,
+                                          UT_array *clause_id_array)
 {
     size_t i = 0;
     long long *clause_id = NULL;
@@ -1624,9 +1620,9 @@ static void exec_update_hit_clauses(struct compile_state *compile_state,
     }
 }
 
-static void compile_state_update_hit_clause(struct compile_state *compile_state,
-                                            struct compile_runtime *compile_rt,
-                                            long long group_id, int vtable_id)
+static void compile_state_update_hit_clauses(struct compile_state *compile_state,
+                                             struct compile_runtime *compile_rt,
+                                             long long group_id, int vtable_id)
 {
     if (NULL == compile_state || NULL == compile_rt) {
         return;
@@ -1641,7 +1637,7 @@ static void compile_state_update_hit_clause(struct compile_state *compile_state,
         return;
     }
 
-    exec_update_hit_clauses(compile_state, l2c_val->clause_ids);
+    compile_state_add_hit_clauses(compile_state, l2c_val->clause_ids);
 }
 
 static inline int compare_group_id(const void *a, const void *b)
@@ -1690,7 +1686,7 @@ static size_t compile_state_update_hit_not_clauses(struct compile_state *compile
             NOT_group_ids_array[hit_NOT_group_cnt++] = l2c_val->key.group_id;
         }
 
-        exec_update_hit_clauses(compile_state, l2c_val->clause_ids);
+        compile_state_add_hit_clauses(compile_state, l2c_val->clause_ids);
     }
 
     return hit_NOT_group_cnt;
@@ -2231,9 +2227,9 @@ int compile_state_update(int vtable_id, struct maat_item *hit_items,
     }
 
     if (1 == maat_inst->opts.hit_group_on) {
-        update_direct_hit_groups(compile_state->direct_hit_groups, hit_items, hit_cnt, vtable_id);
-        update_indirect_hit_groups(compile_state->indirect_hit_groups,
-                                   super_group_ids, super_group_cnt, vtable_id);
+        compile_state_add_direct_hit_groups(compile_state, hit_items, hit_cnt, vtable_id);
+        compile_state_add_indirect_hit_groups(compile_state, super_group_ids,
+                                              super_group_cnt, vtable_id);
     }
 
     /* update hit clause */
@@ -2253,7 +2249,7 @@ int compile_state_update(int vtable_id, struct maat_item *hit_items,
     }
 
     for (i = 0; i < hit_cnt; i++) {
-        compile_state_update_hit_clause(state->compile_state, compile_rt,
+        compile_state_update_hit_clauses(state->compile_state, compile_rt,
                                         hit_group_ids[i], vtable_id);
     }
 
