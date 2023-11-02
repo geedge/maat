@@ -441,6 +441,10 @@ int ip_plugin_runtime_update(void *ip_plugin_runtime, void *ip_plugin_schema,
             ip_plugin_rt->update_err_cnt++;
             return -1;
         }
+
+        log_debug(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
+                 "ip_plugin table:<%s> update one line, key:%s, key_len:%zu, is_valid:%d",
+                 table_name, key, key_len, is_valid);
     } else {
         //ex_schema not set
         ex_data_runtime_cache_row_put(ip_plugin_rt->ex_data_rt, line);

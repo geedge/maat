@@ -425,6 +425,10 @@ int bool_plugin_runtime_update(void *bool_plugin_runtime, void *bool_plugin_sche
             bool_plugin_rt->update_err_cnt++;
             return -1;
         }
+
+        log_debug(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
+                  "bool_plugin table:<%s> update one line, key:%s, key_len:%zu, is_valid:%d",
+                  table_name, key, key_len, is_valid);
     } else {
         //ex_schema not set
         ex_data_runtime_cache_row_put(bool_plugin_rt->ex_data_rt, line);

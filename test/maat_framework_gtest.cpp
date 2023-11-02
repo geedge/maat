@@ -6639,6 +6639,7 @@ TEST_F(MaatCmdTest, PluginEXData) {
 	EXPECT_EQ(0, strcmp(uinfo1->name, "liuqiangdong"));
 	EXPECT_EQ(uinfo1->id, 2);
     
+    //DEL
     memset(&line_rule, 0, sizeof(line_rule));
     line_rule.rule_id = rule_id[1];
     line_rule.table_name = table_name;
@@ -6647,7 +6648,7 @@ TEST_F(MaatCmdTest, PluginEXData) {
 
 	ret = maat_cmd_set_line(maat_inst, &line_rule);
 	EXPECT_GT(ret, 0);
-	
+
 	sleep(WAIT_FOR_EFFECTIVE_S); //gc_timeout_s == 3 which configured in table_info
 
     struct user_info *uinfo2 = NULL;

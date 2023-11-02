@@ -711,7 +711,7 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
                          &column_len);
     if (ret < 0) {
         log_error(logger, MODULE_COMPILE,
-				  "[%s:%d] g2c table:<%s>has no virtual_table_name in line:%s",
+				  "[%s:%d] g2c table:<%s> has no virtual_table_name in line:%s",
 				  __FUNCTION__, __LINE__, table_name, line);
 		goto error;
     }

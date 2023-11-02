@@ -178,9 +178,11 @@ static long long maat_runtime_rule_num(struct maat_runtime *maat_rt)
 	for (size_t i = 0; i < maat_rt->max_table_num; i++) {
         long long rule_cnt = table_manager_runtime_rule_count(maat_rt->ref_tbl_mgr, i);
 		total += rule_cnt;
+
         if (rule_cnt != 0) {
             log_info(maat_rt->logger, MODULE_MAAT_RULE,
-                     "table:%d rule count:%lld", i, rule_cnt);
+                     "table:<%s>  rule count:%lld",
+                     table_manager_get_table_name(maat_rt->ref_tbl_mgr, i), rule_cnt);
         }
 	}
 

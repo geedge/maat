@@ -579,6 +579,10 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
         return -1;
     }
 
+    log_debug(plugin_rt->logger, MODULE_PLUGIN,
+              "plugin table:<%s> update one line, key:%s, key_len:%zu, is_valid:%d",
+              table_name, key, key_len, is_valid);
+
     return 0;
 }
 
