@@ -604,7 +604,7 @@ int maat_get_rm_key_list(redisContext *c, long long instance_version,
 	redisReply *reply = (redisReply *)redisCommand(c, "GET MAAT_VERSION");
 	if (reply != NULL) {
 		if (reply->type == REDIS_REPLY_NIL || reply->type == REDIS_REPLY_ERROR) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] GET MAAT_VERSION failed, maybe Redis is busy",
                       __FUNCTION__, __LINE__);
 			freeReplyObject(reply);
@@ -612,7 +612,7 @@ int maat_get_rm_key_list(redisContext *c, long long instance_version,
 			return -1;
 		}
 	} else {
-		log_error(logger, MODULE_REDIS_MONITOR, 
+		log_fatal(logger, MODULE_REDIS_MONITOR, 
                   "[%s:%d] GET MAAT_VERSION failed with NULL reply, error: %s",
                   __FUNCTION__, __LINE__, c->errstr);
 		return -1;
@@ -621,7 +621,7 @@ int maat_get_rm_key_list(redisContext *c, long long instance_version,
 	long long redis_version = maat_read_redis_integer(reply);
 	if (redis_version < 0) {
 		if (reply->type == REDIS_REPLY_ERROR) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Redis Communication error: %s", 
                       __FUNCTION__, __LINE__, reply->str);
 		}
@@ -640,7 +640,7 @@ int maat_get_rm_key_list(redisContext *c, long long instance_version,
 	}
 
 	if (redis_version < instance_version) {
-		log_error(logger, MODULE_REDIS_MONITOR, 
+		log_fatal(logger, MODULE_REDIS_MONITOR, 
                   "[%s:%d] VERSION roll back MAAT: %lld -> Redis: %lld", 
                   __FUNCTION__, __LINE__, instance_version, redis_version);
 		goto FULL_UPDATE;
@@ -667,7 +667,7 @@ int maat_get_rm_key_list(redisContext *c, long long instance_version,
 	} while (0 == rule_num && target_version <= redis_version && 1 == cumulative_off);
 
 	if (0 == rule_num) {
-		log_info(logger, MODULE_REDIS_MONITOR, 
+		log_fatal(logger, MODULE_REDIS_MONITOR, 
                  "Got nothing after ZRANGEBYSCORE %s (%lld %lld, cumulative %s", 
                  mr_status_sset, instance_version, target_version-1, 
                  cumulative_off == 1 ? "OFF" : "ON");
@@ -684,7 +684,7 @@ int maat_get_rm_key_list(redisContext *c, long long instance_version,
 	return rule_num;
 
 FULL_UPDATE:
-	log_info(logger, MODULE_REDIS_MONITOR, 
+	log_fatal(logger, MODULE_REDIS_MONITOR, 
              "Initiate full update from instance_version %lld to %lld", 
              instance_version, desired_version == 0 ? redis_version : desired_version);
 	size_t append_cmd_cnt = 0;
@@ -707,14 +707,14 @@ FULL_UPDATE:
 
 	reply = maat_wrap_redis_command(c, "EXEC");
 	if (NULL == reply) {
-		log_error(logger, MODULE_REDIS_MONITOR, 
+		log_fatal(logger, MODULE_REDIS_MONITOR, 
                   "[%s:%d] Redis Communication error: %s", 
                   __FUNCTION__, __LINE__, c->errstr);
 		return -1;
 	}
 
 	if (reply->type != REDIS_REPLY_ARRAY) {
-		log_error(logger, MODULE_REDIS_MONITOR, 
+		log_fatal(logger, MODULE_REDIS_MONITOR, 
                   "[%s:%d] Invalid Redis Key List type %d", 
                   __FUNCTION__, __LINE__, reply->type);
 		freeReplyObject(reply);
@@ -725,7 +725,7 @@ FULL_UPDATE:
 	*new_version = maat_read_redis_integer(reply->element[0]);
 	redisReply *sub_reply = reply->element[1];
 	if (sub_reply->type != REDIS_REPLY_ARRAY) {
-		log_error(logger, MODULE_REDIS_MONITOR, 
+		log_fatal(logger, MODULE_REDIS_MONITOR, 
                   "[%s:%d] Invalid Redis Key List type %d", 
                   __FUNCTION__, __LINE__, sub_reply->type);
 		freeReplyObject(reply);
@@ -737,7 +737,7 @@ FULL_UPDATE:
 	s_rule_array = ALLOC(struct serial_rule, sub_reply->elements);
 	for (i = 0, full_idx = 0; i < sub_reply->elements; i++) {
 		if (sub_reply->element[i]->type != REDIS_REPLY_STRING) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Invalid Redis Key Type: %d",
                       __FUNCTION__, __LINE__, sub_reply->element[i]->type);
 			continue;
@@ -750,7 +750,7 @@ FULL_UPDATE:
 
 		if (ret != 2 || s_rule_array[full_idx].rule_id < 0 || 
             strlen(s_rule_array[full_idx].table_name) == 0) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Invalid Redis Key Format: %s", 
                       __FUNCTION__, __LINE__, sub_reply->element[i]->str);
 			continue;
@@ -775,11 +775,11 @@ FULL_UPDATE:
 		int changed_rule_num = get_inc_key_list(desired_version, redis_version, 
                                                 c, &changed_rule_array, logger);
 		if (changed_rule_num < 0) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Recover history version %lld faild where as redis version is %lld", 
                       __FUNCTION__, __LINE__, desired_version, redis_version);
 		} else if(0 == changed_rule_num) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Nothing to recover from history version %lld to redis version is %lld", 
                       __FUNCTION__, __LINE__, desired_version, redis_version);
 		} else {
@@ -801,7 +801,7 @@ FULL_UPDATE:
 
 	*list = s_rule_array;
 	*update_type = MAAT_UPDATE_TYPE_FULL;
-	log_info(logger, MODULE_REDIS_MONITOR, 
+	log_fatal(logger, MODULE_REDIS_MONITOR, 
              "Full update %d keys of version %lld", rule_num, *new_version);
 
 	return rule_num ;
