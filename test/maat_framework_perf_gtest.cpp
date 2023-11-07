@@ -51,7 +51,7 @@ long long absolute_expire_time=0;
 int make_serial_rule(const char *table_name, const char *line, void *u_para)
 {
 	struct serial_rule *s_rule=(struct serial_rule *)u_para;
-	int rule_id = 0;
+	long long rule_id = 0;
 	char *buff = ALLOC(char, strlen(line) + 1);
     
     memcpy(buff, line, strlen(line) + 1);
@@ -69,7 +69,7 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 		 if (token == NULL)
 			 break;
 		 if (j == 0) {
-			sscanf(token,"%d", &rule_id);
+			sscanf(token,"%lld", &rule_id);
 		 }
  	}
 	
@@ -87,13 +87,9 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 	return 0;
 }
 
-static int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
-                          struct log_handle *logger)
+static int write_config_to_redis(const char *json_iris_path, char *redis_ip,
+                                 int redis_port, int redis_db, struct log_handle *logger)
 {
-    char json_iris_path[512] = {0};
-
-    snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
-
     redisContext *c = maat_connect_redis(redis_ip, redis_port, redis_db, logger);
     if (NULL == c) {
         return -1;
@@ -107,16 +103,13 @@ static int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
 	    reply = NULL;
     }
     
-    if (0 == access(json_iris_path, F_OK)) {
-        system_cmd_rmdir(json_iris_path);
-    }
-
     if (access(json_iris_path, F_OK) < 0) {
         char tmp_iris_path[128] = {0};
         char *json_buff = NULL;
         size_t json_buff_sz = 0;
         
-        int ret = load_file_to_memory(json_filename, (unsigned char **)&json_buff, &json_buff_sz);
+        int ret = load_file_to_memory(json_filename, (unsigned char **)&json_buff,
+                                      &json_buff_sz);
         if (ret < 0) {
             return -1;
         }
@@ -131,9 +124,11 @@ static int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
 
     size_t total_line_cnt = 0;
     char tmp_iris_full_idx_path[PATH_MAX] = {0};
-    snprintf(tmp_iris_full_idx_path, sizeof(tmp_iris_full_idx_path), "%s/index", json_iris_path);
-    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, count_line_num_cb, NULL,
-                            &total_line_cnt, NULL, logger);
+    snprintf(tmp_iris_full_idx_path, sizeof(tmp_iris_full_idx_path),
+             "%s/index", json_iris_path);
+
+    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, count_line_num_cb,
+                            NULL, &total_line_cnt, NULL, logger);
 
     struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
     long long server_time = maat_redis_server_time_s(c);
@@ -141,9 +136,9 @@ static int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
         return -1;
     }
 
-    absolute_expire_time = server_time + 300;
-    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, make_serial_rule, NULL,
-                            s_rule, NULL, logger);
+    //absolute_expire_time = server_time + 300;
+    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, make_serial_rule,
+                            NULL, s_rule, NULL, logger);
     line_idx = 0;
     absolute_expire_time = 0;
 
@@ -383,9 +378,11 @@ protected:
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
+        char json_iris_path[512] = {0};
 
+        snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
@@ -531,9 +528,11 @@ protected:
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
+        char json_iris_path[512] = {0};
 
+        snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
@@ -732,9 +731,11 @@ protected:
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
+        char json_iris_path[512] = {0};
 
+        snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
@@ -860,9 +861,11 @@ protected:
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
+        char json_iris_path[512] = {0};
 
+        snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
@@ -1025,9 +1028,11 @@ protected:
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
+        char json_iris_path[512] = {0};
 
+        snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
@@ -1118,9 +1123,11 @@ protected:
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
+        char json_iris_path[512] = {0};
 
+        snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
@@ -1264,9 +1271,11 @@ protected:
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
+        char json_iris_path[512] = {0};
 
+        snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
@@ -1490,9 +1499,11 @@ protected:
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
+        char json_iris_path[512] = {0};
 
+        snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
@@ -1692,7 +1703,7 @@ class MaatPerfFileScan : public testing::Test
 protected:
     static void SetUpTestCase() {
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        const char *rule_folder = "./tsgrule/full/index";
+        const char *rule_folder = "./tsgrule/index";
         const char *table_info = "./tsg_table_info.conf";
 
         struct maat_options *opts = maat_options_new();
@@ -1827,6 +1838,77 @@ TEST_F(MaatPerfFileScan, IPPlugin) {
 	}
 }
 
+class MaatTSGFqdnScan : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        char redis_ip[64] = "127.0.0.1";
+        int redis_port = 6379;
+        int redis_db = 0;
+        char json_iris_path[512] = {0};
+        const char *tsg_table_info = "./tsg_table_info.conf";
+
+        snprintf(json_iris_path, sizeof(json_iris_path), "./tsgrule");
+        logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
+        if (ret < 0) {
+            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+                      "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
+        }
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_stat_file(opts, "./stat.log");
+        maat_options_set_perf_on(opts);
+        maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
+
+        _shared_maat_inst = maat_new(opts, tsg_table_info);
+        maat_options_free(opts);
+        if (NULL == _shared_maat_inst) {
+            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+                       "[%s:%d] create maat instance in MaatTSGFqdnScan failed.",
+                      __FUNCTION__, __LINE__);
+        }
+    }
+
+    static void TearDownTestCase() {
+        maat_free(_shared_maat_inst);
+        log_handle_destroy(logger);
+    }
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_inst;
+};
+
+struct maat *MaatTSGFqdnScan::_shared_maat_inst;
+struct log_handle *MaatTSGFqdnScan::logger;
+
+#if 0
+TEST_F(MaatTSGFqdnScan, mem_used) {
+    char keyword_buf[128];
+    const char *table_name1 = "TSG_OBJ_FQDN";
+    const char *table_name2= "TSG_IP_ADDR";
+    struct maat *maat_inst = MaatTSGFqdnScan::_shared_maat_inst;
+    struct log_handle *logger = MaatTSGFqdnScan::logger;
+
+    for (size_t i = 0; i < 100; i++) {
+        random_keyword_generate(keyword_buf, sizeof(keyword_buf));
+        int ret = expr_table_set_line(maat_inst, table_name1, MAAT_OP_ADD,
+                                      600000000+i, 600000000+i, keyword_buf,
+                                      "null", 1, 0, 0, 0);
+        EXPECT_EQ(ret, 1);
+
+        ret = ip_table_set_line(maat_inst, table_name2, MAAT_OP_ADD,
+                                600000000+i, 600000000+i, IPv4, "100.64.1.1",
+                                "100.64.1.2", 1000, 2000, 0);
+        EXPECT_EQ(ret, 1);
+
+        log_info(logger, MODULE_FRAMEWORK_PERF_GTEST, "MaatTSGFqdnScan update one line");
+        sleep(150);
+    }
+}
+#endif
+
 class MaatPerfIPPortPluginScan : public testing::Test
 {
 protected:
@@ -1836,9 +1918,11 @@ protected:
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
+        char json_iris_path[512] = {0};
 
+        snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
             log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
