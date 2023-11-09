@@ -125,7 +125,7 @@ struct maat_options {
 
     int maat_json_is_gzipped;
     int cumulative_update_off; //Default: cumulative update on
-
+    
     int gc_timeout_ms;
     int rule_effect_interval_ms;
     int rule_update_checking_interval_ms;
@@ -173,7 +173,6 @@ struct maat {
 
     long long maat_version;
     long long last_full_version;
-    long long load_specific_version;  //Default: Load the Latest. Only valid in redis mode, and maybe failed for too old
     /* internal state */
     long long new_version;
 

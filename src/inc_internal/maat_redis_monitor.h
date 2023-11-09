@@ -79,9 +79,9 @@ void maat_get_foreign_conts(redisContext *c, struct serial_rule *rule_list,
 void maat_rewrite_table_line_with_foreign(struct serial_rule *s_rule);
 
 int maat_get_rm_key_list(redisContext *c, long long instance_version, 
-                         long long desired_version, long long *new_version, 
-                         struct table_manager *tbl_mgr, struct serial_rule **list, 
-                         int *update_type, int cumulative_off, struct log_handle *logger);
+                         long long *new_version, struct table_manager *tbl_mgr,
+                         struct serial_rule **list, int *update_type,
+                         int cumulative_off, struct log_handle *logger);
 
 void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 							void (*start_fn)(long long, int, void *),

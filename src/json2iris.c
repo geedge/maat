@@ -149,9 +149,7 @@ static int set_iris_descriptor(const char *json_file, cJSON *json,
 	maat_kv_register(iris_cfg->str2int_map, "string", TABLE_TYPE_EXPR);
 	maat_kv_register(iris_cfg->str2int_map, "expr", TABLE_TYPE_EXPR);
 	maat_kv_register(iris_cfg->str2int_map, "expr_plus", TABLE_TYPE_EXPR_PLUS);
-	maat_kv_register(iris_cfg->str2int_map, "intval", TABLE_TYPE_INTERVAL);
 	maat_kv_register(iris_cfg->str2int_map, "interval", TABLE_TYPE_INTERVAL);
-	maat_kv_register(iris_cfg->str2int_map, "intval_plus", TABLE_TYPE_INTERVAL_PLUS);
 	maat_kv_register(iris_cfg->str2int_map, "interval_plus", TABLE_TYPE_INTERVAL_PLUS);
 	
 	maat_kv_register(iris_cfg->str2int_map, "ipv4", 4);
@@ -578,7 +576,7 @@ static int write_ip_plus_line(cJSON *region_json, struct iris_description *p_iri
                              json_cmd, cmd_cnt, table, logger);
 }
 
-static int write_intval_line(cJSON *region_json, struct iris_description *p_iris,
+static int write_interval_line(cJSON *region_json, struct iris_description *p_iris,
                       		 struct iris_table *table, struct log_handle *logger)
 {
 	struct translate_command json_cmd[MAX_COLUMN_NUM];
@@ -676,7 +674,7 @@ static int write_region_rule(cJSON *region_json, int compile_id, int group_id,
 			break;
 		case TABLE_TYPE_INTERVAL:
 		case TABLE_TYPE_INTERVAL_PLUS:
-			ret = write_intval_line(table_content, p_iris, table_info, logger);
+			ret = write_interval_line(table_content, p_iris, table_info, logger);
 			break;
 		default:
 			assert(0);

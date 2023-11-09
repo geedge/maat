@@ -109,7 +109,7 @@ void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     }
 
     /* interval_plus has district */
-    if (strcmp(table_type, "intval_plus") == 0) {
+    if (strcmp(table_type, "interval_plus") == 0) {
         custom_item = cJSON_GetObjectItem(item, "district");
         if (custom_item != NULL && custom_item->type == cJSON_Number) {
             schema->district_column = custom_item->valueint;

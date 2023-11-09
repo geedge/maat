@@ -232,7 +232,7 @@ Maat实例的工作线程定时轮询Redis中MAAT_VERSION，如果大于实例�
                         {
                             "table_name": "IP_CONFIG", //域表表名和类型，应与配置表
 //描述文件一致
-                            "table_type": "ip",//类型包括 ip, string, intval 三种
+                            "table_type": "ip",//类型包括 ip, string, interval 三种
                             "table_content": {//以下是ip类配置表的格式
                                 "addr_type": "ipv4",//地址类型，可选ipv4和ipv6
                                 "src_ip": "10.0.6.201", 
@@ -306,7 +306,7 @@ Maat实例的工作线程定时轮询Redis中MAAT_VERSION，如果大于实例�
                     "regions": [
                         {
                             "table_name": "CONTENT_SIZE",
-                            "table_type": "intval",
+                            "table_type": "interval",
                             "table_content": {
                                 "low_boundary": 100, //上下界的约定参照数值类域配
                                 "up_boundary": 500  //置表定义

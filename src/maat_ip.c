@@ -593,13 +593,13 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name,
     ip_rt->ipv6_rule_num = 0;
 
     struct ip_rule *rules = NULL;
-    struct interval_rule *intval_rules = NULL;
+    struct interval_rule *interval_rules = NULL;
     void **ex_data_array = NULL;
 
     size_t rule_cnt = rcu_updating_hash_list(ip_rt->item_hash, &ex_data_array);
     if (rule_cnt > 0) {
         rules = ALLOC(struct ip_rule, rule_cnt);
-        intval_rules = ALLOC(struct interval_rule, rule_cnt);
+        interval_rules = ALLOC(struct interval_rule, rule_cnt);
         for (size_t i = 0; i < rule_cnt; i++) {
             struct ip_item *item = (struct ip_item *)ex_data_array[i];
             if (item->addr_type == IPv6) {
@@ -607,7 +607,7 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name,
             }
 
             ip_item_to_ip_rule(item, &rules[i]);
-            ip_item_to_port_rule(item, &intval_rules[i]);
+            ip_item_to_port_rule(item, &interval_rules[i]);
         }
     }
 
@@ -653,8 +653,8 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name,
         FREE(rules);
     }
     
-    if (intval_rules != NULL) {
-        FREE(intval_rules);
+    if (interval_rules != NULL) {
+        FREE(interval_rules);
     }
 
     if (ex_data_array != NULL) {

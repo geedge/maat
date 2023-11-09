@@ -24,8 +24,8 @@ Item tables are further subdivided into different types of subtables as follows:
 - [expr item table](#11-expr-item-table)
 - [expr_plus item table](#12-expr_plus-item-table)
 - [ip_plus item table](#13-ip_plus-item-table)
-- [intval item table](#14-numeric-range-item-table)
-- [intval_plus item table](#14-numeric-range-item-table)
+- [interval item table](#14-numeric-range-item-table)
+- [interval_plus item table](#14-numeric-range-item-table)
 - [flag item table](#15-flag-item-table)
 - [flag_plus item table](#16-flag_plus-item-table)
 

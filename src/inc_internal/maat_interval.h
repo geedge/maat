@@ -42,7 +42,7 @@ long long interval_runtime_rule_count(void *interval_runtime);
 
 /* interval runtime scan API */
 /**
- * @brief scan intval to get hit group_ids
+ * @brief scan interval to get hit group_ids
  * 
  * @retval the num of hit group_id
 */

@@ -68,7 +68,7 @@ int set_file_rulenum(const char *path, int rule_num)
 	return 0;
 }
 
-void read_rule_from_redis(redisContext *c, long long desire_version, const char *output_path, struct log_handle *logger)
+void read_rule_from_redis(redisContext *c, const char *output_path, struct log_handle *logger)
 {
 	int i = 0;
     int ret = 0;
@@ -83,13 +83,9 @@ void read_rule_from_redis(redisContext *c, long long desire_version, const char 
     FILE *index_fp = NULL;
     struct serial_rule *rule_list = NULL;
 
-	int rule_num = maat_get_rm_key_list(c, 0, desire_version, &version, NULL, &rule_list, &update_type, 0, logger);
+	int rule_num = maat_get_rm_key_list(c, 0, &version, NULL, &rule_list, &update_type, 0, logger);
 	if (0 == rule_num) {
-		if (desire_version != 0) {
-			printf("Read desired version %lld failed.\n", desire_version);
-		} else {
-			printf("No Effective Rules.\n");
-		}
+		printf("No Effective Rules.\n");
 		return;
 	}
 
@@ -396,12 +392,12 @@ int main(int argc, char * argv[])
     char upload_file[128] = {0};
     char log_path[128] = "./maat_redis_tool.log";
     int timeout = 0;
-	long long desired_version = 0;
+
 	strncpy(redis_ip, "127.0.0.1", sizeof(redis_ip));
 	strncpy(dump_dir, redis_dump_dir, sizeof(dump_dir));
 	struct log_handle *logger = log_handle_create(log_path, 0);
 
-	while ((oc = getopt(argc,argv,"h:p:n:d:v:f:j:t:u:")) != -1) {
+	while ((oc = getopt(argc,argv,"h:p:n:d:f:j:t:u:")) != -1) {
 		switch (oc) {
 			case 'h':
 				strncpy(redis_ip, optarg, sizeof(redis_ip));
@@ -418,9 +414,6 @@ int main(int argc, char * argv[])
 				if (dump_dir[strlen(dump_dir)-1] == '/') {
 					dump_dir[strlen(dump_dir)-1] = '\0';
 				}
-				break;
-			case 'v':
-				sscanf(optarg, "%lld", &desired_version);
 				break;
 			case 'j':
 				strncpy(json_file, optarg, sizeof(json_file));
@@ -450,7 +443,7 @@ int main(int argc, char * argv[])
 	if (mode == WORK_MODE_DUMP) {
 		log_info(logger, MODULE_REDIS_TOOL, "Reading key list from %s:%d db%d.", 
                  redis_ip, redis_port, redis_db);
-		read_rule_from_redis(c, desired_version, dump_dir, logger);
+		read_rule_from_redis(c, dump_dir, logger);
 	} else if(mode == WORK_MODE_JSON) {
         char *json_buff = NULL;
         size_t json_buff_sz = 0;

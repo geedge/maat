@@ -485,8 +485,8 @@ static void register_reserved_word(struct maat_kv_store *reserved_word_map)
     maat_kv_register(reserved_word_map, "flag_plus", TABLE_TYPE_FLAG_PLUS);
     maat_kv_register(reserved_word_map, "expr", TABLE_TYPE_EXPR);
     maat_kv_register(reserved_word_map, "expr_plus", TABLE_TYPE_EXPR_PLUS);
-    maat_kv_register(reserved_word_map, "intval", TABLE_TYPE_INTERVAL);
-    maat_kv_register(reserved_word_map, "intval_plus", TABLE_TYPE_INTERVAL_PLUS);
+    maat_kv_register(reserved_word_map, "interval", TABLE_TYPE_INTERVAL);
+    maat_kv_register(reserved_word_map, "interval_plus", TABLE_TYPE_INTERVAL_PLUS);
     maat_kv_register(reserved_word_map, "ip_plus", TABLE_TYPE_IP_PLUS);
     maat_kv_register(reserved_word_map, "plugin", TABLE_TYPE_PLUGIN);
     maat_kv_register(reserved_word_map, "ip_plugin", TABLE_TYPE_IP_PLUGIN);

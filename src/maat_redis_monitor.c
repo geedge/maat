@@ -477,125 +477,10 @@ void maat_set_serial_rule(struct serial_rule *rule, enum maat_operation op,
 	}
 }
 
-static void serial_rule_free(struct serial_rule *s_rule)
-{
-    if (NULL == s_rule) {
-        return;
-    }
-
-    if (s_rule->table_line != NULL) {
-		FREE(s_rule->table_line);
-	}
-
-	if (s_rule->n_foreign > 0) {
-		for (int i = 0; i < s_rule->n_foreign; i++) {
-            if (s_rule->f_keys[i].filename != NULL) {
-                FREE(s_rule->f_keys[i].filename);
-            }
-			
-            if (s_rule->f_keys[i].key != NULL) {
-                FREE(s_rule->f_keys[i].key);
-            }
-		}
-
-        if (s_rule->f_keys != NULL) {
-            FREE(s_rule->f_keys);
-        }
-	}
-
-	FREE(s_rule);
-}
-
-static struct serial_rule *serial_rule_clone(const struct serial_rule *s_rule)
-{
-    struct serial_rule *new_rule = ALLOC(struct serial_rule, 1);
-
-    new_rule->op = s_rule->op;
-    new_rule->rule_id = s_rule->rule_id;
-    new_rule->timeout = s_rule->timeout;
-    memcpy(new_rule->table_name, s_rule->table_name, strlen(s_rule->table_name));
-    new_rule->n_foreign = s_rule->n_foreign;
-    new_rule->table_line = ALLOC(char, strlen(s_rule->table_line) + 1);
-    memcpy(new_rule->table_line, s_rule->table_line, strlen(s_rule->table_line));
-
-    new_rule->f_keys = ALLOC(struct foreign_key, new_rule->n_foreign);
-    for (int j = 0; j < new_rule->n_foreign; j++) {
-        new_rule->f_keys[j].key = ALLOC(char, s_rule->f_keys[j].key_len + 1);
-        memcpy(new_rule->f_keys[j].key, s_rule->f_keys[j].key, s_rule->f_keys[j].key_len);
-        new_rule->f_keys[j].filename = ALLOC(char, strlen(s_rule->f_keys[j].filename) + 1);
-        memcpy(new_rule->f_keys[j].filename, s_rule->f_keys[j].filename, 
-               strlen(s_rule->f_keys[j].filename));
-    }
-
-    return new_rule;
-}
-
-static int recovery_history_version(const struct serial_rule *current, int current_num, 
-                             		const struct serial_rule *changed, int changed_num, 
-                             		struct serial_rule **history_result)
-{
-	int i = 0;
-    int ret = 0;
-	unsigned int history_num = 0;
-	int hash_slot_size = 1;
-	char hkey[256+20] = {0};
-	int tmp = current_num + changed_num;
-	for (; tmp > 0; tmp = tmp/2) {
-		hash_slot_size *= 2;
-	}
-
-    struct serial_rule *s_rule_map = NULL;
-    struct serial_rule *rule_node = NULL;
-	for (i = 0; i < current_num; i++) {
-		snprintf(hkey, sizeof(hkey), "%lld,%s", current[i].rule_id, current[i].table_name);
-        rule_node = serial_rule_clone(current + i);
-        HASH_ADD_KEYPTR(hh, s_rule_map, hkey, strlen(hkey), rule_node);
-	}
-
-	for (i = changed_num - 1; i >= 0; i--) {
-		snprintf(hkey, sizeof(hkey), "%lld,%s", changed[i].rule_id, changed[i].table_name);
-        //newly added rule is need to delete from current, so that history version can be recovered.
-		if (changed[i].op == MAAT_OP_ADD) {
-            rule_node = NULL;
-            HASH_FIND(hh, s_rule_map, hkey, strlen(hkey), rule_node);
-            if (rule_node != NULL) {
-                HASH_DELETE(hh, s_rule_map, rule_node);
-            }
-            serial_rule_free(rule_node);
-		} else {
-            rule_node = serial_rule_clone(changed + i);
-            HASH_ADD_KEYPTR(hh, s_rule_map, hkey, strlen(hkey), rule_node);
-		}
-	}
-
-	history_num = HASH_CNT(hh, s_rule_map);
-	struct serial_rule *array = ALLOC(struct serial_rule, history_num);
-    struct serial_rule *elem_node = NULL;
-    struct serial_rule *tmp_node = NULL;
-    i = 0;
-    HASH_ITER(hh, s_rule_map, elem_node, tmp_node) {
-        memcpy(&array[i], elem_node, sizeof(struct serial_rule));
-	    array[i].op = MAAT_OP_ADD;
-        i++;
-    }
-	elem_node = NULL;
-    tmp_node = NULL;
-
-	*history_result = array;
-	ret = history_num;
-
-    HASH_ITER(hh, s_rule_map, elem_node, tmp_node) {
-        HASH_DELETE(hh, s_rule_map, elem_node);
-        serial_rule_free(elem_node);
-    }
-
-	return ret;
-}
-
 int maat_get_rm_key_list(redisContext *c, long long instance_version, 
-                         long long desired_version, long long *new_version, 
-                         struct table_manager *tbl_mgr, struct serial_rule **list, 
-                         int *update_type, int cumulative_off, struct log_handle *logger)
+                         long long *new_version, struct table_manager *tbl_mgr,
+						 struct serial_rule **list, int *update_type,
+						 int cumulative_off, struct log_handle *logger)
 {
     int rule_num = 0;
 	long long target_version = 0;
@@ -635,7 +520,7 @@ int maat_get_rm_key_list(redisContext *c, long long instance_version,
 		return 0;
 	}
 
-	if (0 == instance_version || desired_version != 0) {
+	if (0 == instance_version) {
 		goto FULL_UPDATE;
 	}
 
@@ -668,9 +553,8 @@ int maat_get_rm_key_list(redisContext *c, long long instance_version,
 
 	if (0 == rule_num) {
 		log_info(logger, MODULE_REDIS_MONITOR, 
-                 "Got nothing after ZRANGEBYSCORE %s (%lld %lld, cumulative %s", 
-                 mr_status_sset, instance_version, target_version-1, 
-                 cumulative_off == 1 ? "OFF" : "ON");
+                 "Got nothing after ZRANGEBYSCORE %s (%lld %lld", 
+                 mr_status_sset, instance_version, target_version - 1);
 		return 0;
 	}
 
@@ -686,7 +570,7 @@ int maat_get_rm_key_list(redisContext *c, long long instance_version,
 FULL_UPDATE:
 	log_info(logger, MODULE_REDIS_MONITOR, 
              "Initiate full update from instance_version %lld to %lld", 
-             instance_version, desired_version == 0 ? redis_version : desired_version);
+             instance_version, redis_version);
 	size_t append_cmd_cnt = 0;
 	int ret = redisAppendCommand(c, "MULTI");
 	append_cmd_cnt++;
@@ -769,35 +653,6 @@ FULL_UPDATE:
 	rule_num = full_idx;
 	freeReplyObject(reply);
 	reply = NULL;
-
-	if (desired_version != 0) {
-        struct serial_rule *changed_rule_array = NULL;
-		int changed_rule_num = get_inc_key_list(desired_version, redis_version, 
-                                                c, &changed_rule_array, logger);
-		if (changed_rule_num < 0) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
-                      "[%s:%d] Recover history version %lld faild where as redis version is %lld", 
-                      __FUNCTION__, __LINE__, desired_version, redis_version);
-		} else if(0 == changed_rule_num) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
-                      "[%s:%d] Nothing to recover from history version %lld to redis version is %lld", 
-                      __FUNCTION__, __LINE__, desired_version, redis_version);
-		} else {
-            struct serial_rule *history_rule_array = NULL;
-			ret = recovery_history_version(s_rule_array, full_idx, changed_rule_array, 
-                                           changed_rule_num, &history_rule_array);
-			if (ret > 0) {
-				FREE(s_rule_array);
-				s_rule_array = history_rule_array;
-				rule_num = ret;
-				*new_version = desired_version;
-				log_info(logger, MODULE_REDIS_MONITOR, 
-                         "Successfully recovered from history version %lld to redis version is %lld", 
-                         desired_version, redis_version);
-			}
-		}		
-		FREE(changed_rule_array);
-	}
 
 	*list = s_rule_array;
 	*update_type = MAAT_UPDATE_TYPE_FULL;
@@ -1491,10 +1346,9 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
     int update_type = MAAT_UPDATE_TYPE_INC;
 
 	int rule_num = maat_get_rm_key_list(mr_ctx->read_ctx, version, 
-                                        maat_inst->load_specific_version, 
                                         &new_version, maat_inst->tbl_mgr, 
                                         &rule_list, &update_type, 
-                                        maat_inst->opts.cumulative_update_off,
+										maat_inst->opts.cumulative_update_off,
                                         maat_inst->logger);
 	//redis communication error
     if (rule_num < 0) {		
@@ -1503,7 +1357,6 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 		return;
 	}
 
-	maat_inst->load_specific_version = 0;//only valid for one time.
     //error or nothing changed
 	if (0 == rule_num && update_type == MAAT_UPDATE_TYPE_INC) {
 		return;

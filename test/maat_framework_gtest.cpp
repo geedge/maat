@@ -239,11 +239,11 @@ int expr_table_set_line(struct maat *maat_inst, const char *table_name,
     return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-int intval_table_set_line(struct maat *maat_inst, const char *table_name,
-                          enum maat_operation op, long long item_id,
-                          long long group_id, unsigned int low_boundary,
-                          unsigned int up_boundary, const char *district,
-                          int expire_after)
+int interval_table_set_line(struct maat *maat_inst, const char *table_name,
+                            enum maat_operation op, long long item_id,
+                            long long group_id, unsigned int low_boundary,
+                            unsigned int up_boundary, const char *district,
+                            int expire_after)
 {
     char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -6944,8 +6944,8 @@ TEST_F(MaatCmdTest, GroupInMassCompiles) {
     //item_appid -> group3
     long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = intval_table_set_line(maat_inst, table_appid, MAAT_OP_ADD, item3_id,
-                                group3_id, 100, 100, NULL, 0);
+    ret = interval_table_set_line(maat_inst, table_appid, MAAT_OP_ADD, item3_id,
+                                  group3_id, 100, 100, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     /*  item_url1 -> group1 -> compile[0 ~ COMPILE_ID_NUMS] 
@@ -7930,8 +7930,8 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
     EXPECT_EQ(ret, 1);
 
     long long item21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = intval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD,
-                                item21_id, group21_id, 31, 31, NULL, 0);
+    ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD,
+                                  item21_id, group21_id, 31, 31, NULL, 0);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
@@ -7970,8 +7970,8 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
     EXPECT_EQ(ret, 1);
 
     long long item22_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = intval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD,
-                                item22_id, group22_id, 32, 32, NULL, 0);
+    ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD,
+                                  item22_id, group22_id, 32, 32, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -8025,8 +8025,8 @@ TEST_F(MaatCmdTest, GroupEdit) {
     EXPECT_EQ(ret, 1);
 
     long long item21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = intval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD,
-                                item21_id, group21_id, 41, 41, NULL, 0);
+    ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD,
+                                  item21_id, group21_id, 41, 41, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -8059,9 +8059,9 @@ TEST_F(MaatCmdTest, GroupEdit) {
               item22 -> /
     */
     long long item22_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = intval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD,
-                                item22_id, group21_id, scan_app_id,
-                                scan_app_id, NULL, 0);
+    ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD,
+                                  item22_id, group21_id, scan_app_id,
+                                  scan_app_id, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -8092,7 +8092,7 @@ TEST_F(MaatCmdTest, GroupEdit) {
     /* item11 -> group11 -> clause1 -> compile1
            item21 -> group21 -> clause2 _/
     */
-    ret = intval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_DEL,
+    ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_DEL,
                                 item22_id, group21_id, scan_app_id,
                                 scan_app_id, NULL, 0);
     EXPECT_EQ(ret, 1);
