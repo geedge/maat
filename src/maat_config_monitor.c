@@ -55,7 +55,7 @@ static int cm_read_cfg_index_file(const char *path, struct cm_table_info_t *idx,
 
 		ret = stat(idx[i].cfg_path, &file_info);
 		if (ret != 0) {
-			log_error(logger, MODULE_CONFIG_MONITOR, "%s of %s not exist",
+			log_fatal(logger, MODULE_CONFIG_MONITOR, "%s of %s not exist",
 					  idx[i].cfg_path, path);
 			fclose(fp);
 			return -1;
@@ -63,7 +63,7 @@ static int cm_read_cfg_index_file(const char *path, struct cm_table_info_t *idx,
 
 		i++;
 		if (i == size) {
-			log_error(logger, MODULE_CONFIG_MONITOR, "Too much lines in %s", path);
+			log_fatal(logger, MODULE_CONFIG_MONITOR, "Too much lines in %s", path);
 			break;
 		}
 	}
@@ -123,7 +123,7 @@ static int cm_read_table_file(struct cm_table_info_t *index,
     if (strlen(index->encrypt_algo) > 0) {
         //JSON file has been encrypted
         if (NULL == dec_key || 0 == strlen(dec_key)) {
-            log_error(logger, MODULE_CONFIG_MONITOR, 
+            log_fatal(logger, MODULE_CONFIG_MONITOR, 
                       "update error, no key to decrypt %s.",
 					  index->cfg_path);
             return -1;
@@ -133,7 +133,7 @@ static int cm_read_table_file(struct cm_table_info_t *index,
                           (unsigned char**)&file_buff, &file_sz, error_string,
                           sizeof(error_string));
         if (ret < 0) {
-            log_error(logger, MODULE_CONFIG_MONITOR,
+            log_fatal(logger, MODULE_CONFIG_MONITOR,
                       "update error, decrypt %s failed: %s",
 					  index->cfg_path, error_string);
             return -1;
@@ -142,7 +142,7 @@ static int cm_read_table_file(struct cm_table_info_t *index,
         // not encrypted
         ret = load_file_to_memory(index->cfg_path, (unsigned char **)&file_buff, &file_sz);
 	    if (ret < 0) {
-		    log_error(logger, MODULE_CONFIG_MONITOR, "[%s:%d] open %s failed.", 
+		    log_fatal(logger, MODULE_CONFIG_MONITOR, "[%s:%d] open %s failed.", 
                       __FUNCTION__, __LINE__, index->cfg_path);
 		    return -1;
 	    }
@@ -156,7 +156,7 @@ static int cm_read_table_file(struct cm_table_info_t *index,
 
 	if(cfg_num != index->cfg_num) {
         FREE(file_buff);
-        log_error(logger, MODULE_CONFIG_MONITOR,
+        log_fatal(logger, MODULE_CONFIG_MONITOR,
 				  "[%s:%d] file %s config num not matched",
                   __FUNCTION__, __LINE__, index->cfg_path);
 		return -1;
@@ -168,14 +168,14 @@ static int cm_read_table_file(struct cm_table_info_t *index,
 		char *ret_str = read_nxt_line_from_buff(file_buff, file_sz, &file_offset,
 												line, sizeof(line));
 		if (ret_str == NULL) {
-			log_error(logger, MODULE_CONFIG_MONITOR,
+			log_fatal(logger, MODULE_CONFIG_MONITOR,
 					  "[%s:%d] file %s line_num %d less than claimed %d",
                        __FUNCTION__, __LINE__, index->cfg_path, i, cfg_num);
 			break;
 		}
 
 		if(line[sizeof(line) - 1] != '\0') {
-			log_error(logger, MODULE_CONFIG_MONITOR,
+			log_fatal(logger, MODULE_CONFIG_MONITOR,
 					  "[%s:%d] line size more than %u at of file %s:%d",
                        __FUNCTION__, __LINE__, sizeof(line), index->cfg_path, i);
 			continue;
@@ -266,7 +266,7 @@ static int get_new_idx_path(long long current_version, const char *file_dir,
 	int n = my_scandir(file_dir, &namelist, filter_fn,
 					   (int (*)(const void*, const void*))alphasort);
 	if (n < 0) {
-		log_error(logger, MODULE_CONFIG_MONITOR,
+		log_fatal(logger, MODULE_CONFIG_MONITOR,
 				  "[%s:%d] scan dir error", __FUNCTION__, __LINE__);
 		return update_type;
 	}
@@ -288,7 +288,7 @@ static int get_new_idx_path(long long current_version, const char *file_dir,
 		}
 
 		if (strlen(namelist[i]->d_name) > 42) {
-			log_error(logger, MODULE_CONFIG_MONITOR, 
+			log_fatal(logger, MODULE_CONFIG_MONITOR, 
                       "[%s:%d] config file %s filename too long, should like"
 					  " full_config_index.000000000001",
 					  __FUNCTION__, __LINE__, namelist[i]->d_name);
@@ -298,7 +298,7 @@ static int get_new_idx_path(long long current_version, const char *file_dir,
 		int ret = sscanf(namelist[i]->d_name,"%[a-zA-Z]_config_index.%lld",
 						 update_str, &config_seq);
 		if (ret != 2) {
-			log_error(logger, MODULE_CONFIG_MONITOR, 
+			log_fatal(logger, MODULE_CONFIG_MONITOR, 
                       "[%s:%d] config file %s filename error, should like"
 					  " full_config_index.000000000001",
                       __FUNCTION__, __LINE__, namelist[i]->d_name);
@@ -319,7 +319,7 @@ static int get_new_idx_path(long long current_version, const char *file_dir,
 				}
 			}
 		} else {
-			log_error(logger, MODULE_CONFIG_MONITOR, 
+			log_fatal(logger, MODULE_CONFIG_MONITOR, 
                       "[%s:%d] config file %s, not full or inc config", 
                       __FUNCTION__, __LINE__, namelist[i]->d_name);
 		}
@@ -381,7 +381,7 @@ void config_monitor_traverse(long long current_version, const char *idx_dir,
             log_info(logger, MODULE_CONFIG_MONITOR, "load %s", idx_path_array[i]);
 			int table_num = cm_read_cfg_index_file(idx_path_array[i], table_array, MAX_TABLE_NUM, logger);
 			if (table_num < 0) {
-				log_error(logger, MODULE_CONFIG_MONITOR, 
+				log_fatal(logger, MODULE_CONFIG_MONITOR, 
                           "[%s:%d] load %s failed, abandon update", 
                           __FUNCTION__, __LINE__, idx_path_array[i]);
 				break;
@@ -434,7 +434,7 @@ int load_maat_json_file(struct maat *maat_inst, const char *json_filename,
                            &decrypted_buff_sz, 
                            err_str, err_str_sz);
 		if (ret < 0) {
-			log_error(maat_inst->logger, MODULE_CONFIG_MONITOR, 
+			log_fatal(maat_inst->logger, MODULE_CONFIG_MONITOR, 
                       "[%s:%d] Decrypt Maat JSON file %s failed", 
                       __FUNCTION__, __LINE__, json_filename);
 			return -1;
@@ -449,7 +449,7 @@ int load_maat_json_file(struct maat *maat_inst, const char *json_filename,
                               &uncompressed_buff_sz);
 		FREE(json_buff);
 		if (ret < 0) {
-			log_error(maat_inst->logger, MODULE_CONFIG_MONITOR, 
+			log_fatal(maat_inst->logger, MODULE_CONFIG_MONITOR, 
                       "[%s:%d] Uncompress Maat JSON file %s failed", 
                       __FUNCTION__, __LINE__, json_filename);
 			return -1;
@@ -463,7 +463,7 @@ int load_maat_json_file(struct maat *maat_inst, const char *json_filename,
 	if (NULL == json_buff) {	
 		ret = load_file_to_memory(json_filename, &json_buff, &json_buff_sz);
 		if (ret < 0) {
-			log_error(maat_inst->logger, MODULE_CONFIG_MONITOR, 
+			log_fatal(maat_inst->logger, MODULE_CONFIG_MONITOR, 
                       "[%s:%d] Read Maat JSON file %s failed", 
                       __FUNCTION__, __LINE__, json_filename);
 			return -1;

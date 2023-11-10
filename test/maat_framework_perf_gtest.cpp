@@ -384,7 +384,7 @@ protected:
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
         int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
@@ -399,7 +399,7 @@ protected:
         _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] create maat instance in MaatStringScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -534,7 +534,7 @@ protected:
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
         int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
@@ -549,7 +549,7 @@ protected:
         _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] create maat instance in MaatRegexScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -737,7 +737,7 @@ protected:
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
         int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
@@ -752,7 +752,7 @@ protected:
         _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] create maat instance in MaatStreamScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -867,7 +867,7 @@ protected:
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
         int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
@@ -882,7 +882,7 @@ protected:
         _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] create maat instance in MaatIPScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -1034,7 +1034,7 @@ protected:
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
         int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
@@ -1049,7 +1049,7 @@ protected:
         _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] create maat instance in MaatIntegerScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -1129,7 +1129,7 @@ protected:
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
         int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
@@ -1144,7 +1144,7 @@ protected:
         _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -1277,7 +1277,7 @@ protected:
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
         int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
@@ -1292,7 +1292,7 @@ protected:
         _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] create maat instance in MaatFQDNPluginScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -1505,7 +1505,7 @@ protected:
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
         int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
@@ -1520,7 +1520,7 @@ protected:
         _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] create maat instance in BoolPluginScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -1716,7 +1716,7 @@ protected:
         _shared_maat_inst = maat_new(opts, table_info);
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] create maat instance in MaatPerfFileScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -1852,7 +1852,7 @@ protected:
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
         int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
@@ -1865,7 +1865,7 @@ protected:
         _shared_maat_inst = maat_new(opts, tsg_table_info);
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                        "[%s:%d] create maat instance in MaatTSGFqdnScan failed.",
                       __FUNCTION__, __LINE__);
         }
@@ -1924,7 +1924,7 @@ protected:
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
         int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
         if (ret < 0) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
         }
 
@@ -1939,7 +1939,7 @@ protected:
         _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);
         if (NULL == _shared_maat_inst) {
-            log_error(logger, MODULE_FRAMEWORK_PERF_GTEST,
+            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
                       "[%s:%d] create maat instance in MaatFlagScan failed.",
                       __FUNCTION__, __LINE__);
         }

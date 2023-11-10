@@ -98,7 +98,7 @@ int adapter_rs_verify_regex_expression(const char *regex_expr,
 {
     int ret = rs_verify_regex(regex_expr);
     if (ret == 0) {
-        log_error(logger, MODULE_ADAPTER_RS,
+        log_fatal(logger, MODULE_ADAPTER_RS,
                       "[%s:%d] illegal regex expression: \"%s\"",
                       __FUNCTION__, __LINE__, regex_expr);
     }
@@ -125,7 +125,7 @@ static int adpt_rs_build_database(struct adapter_rs_runtime *rs_rt,
         ret = rs_compile_lit(literal_cd->patterns, literal_cd->n_patterns,
                              &rs_rt->literal_db);
         if (ret < 0) {
-            log_error(logger, MODULE_ADAPTER_RS, "[%s:%d] compile error", 
+            log_fatal(logger, MODULE_ADAPTER_RS, "[%s:%d] compile error", 
                        __FUNCTION__, __LINE__);
             return -1;
         }
@@ -136,7 +136,7 @@ static int adpt_rs_build_database(struct adapter_rs_runtime *rs_rt,
         ret = rs_compile_regex(regex_cd->patterns, regex_cd->n_patterns,
                                n_worker_thread, &rs_rt->regex_db, &n_failed_pats);
         if (ret < 0) {
-            log_error(logger, MODULE_ADAPTER_RS, "[%s:%d] compile error",
+            log_fatal(logger, MODULE_ADAPTER_RS, "[%s:%d] compile error",
                       __FUNCTION__, __LINE__);
             return -1;
         }
@@ -283,7 +283,7 @@ void *adapter_rs_new(struct expr_rule *rules, size_t n_rule,
                  "Adapter_rs module: build bool matcher of %zu expressions"
                  " with %zu bytes memory", n_rule, mem_size);
     } else {
-        log_error(logger, MODULE_ADAPTER_RS,
+        log_fatal(logger, MODULE_ADAPTER_RS,
                   "[%s:%d] Adapter_rs module: build bool matcher failed",
                   __FUNCTION__, __LINE__);
         
@@ -507,7 +507,7 @@ void *adapter_rs_stream_open(void *rs_instance, int thread_id)
     if (rs_inst->rs_rt->literal_db != NULL) {
         rs_stream->literal_stream = rs_open_stream(rs_inst->rs_rt->literal_db, 0, 128);
         if (NULL == rs_stream->literal_stream) {
-            log_error(rs_inst->logger, MODULE_ADAPTER_RS, "rs_open_stream failed");
+            log_fatal(rs_inst->logger, MODULE_ADAPTER_RS, "rs_open_stream failed");
             err_count++;
         }
     }
@@ -515,7 +515,7 @@ void *adapter_rs_stream_open(void *rs_instance, int thread_id)
     if (rs_inst->rs_rt->regex_db != NULL) {
         rs_stream->regex_stream = rs_open_stream(rs_inst->rs_rt->regex_db, 0, 128);
         if (NULL == rs_stream->regex_stream) {
-            log_error(rs_inst->logger, MODULE_ADAPTER_RS, "rs_open_stream failed");
+            log_fatal(rs_inst->logger, MODULE_ADAPTER_RS, "rs_open_stream failed");
             err_count++;
         }
     }

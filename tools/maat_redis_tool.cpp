@@ -293,7 +293,7 @@ int rollback_redis_version(redisContext *c, struct log_handle *logger)
 {
     redisReply *reply = maat_wrap_redis_command(c, "SET MAAT_VERSION 0");
     if (NULL == reply) {
-        log_error(logger, MODULE_REDIS_TOOL, 
+        log_fatal(logger, MODULE_REDIS_TOOL, 
                   "[%s:%d] set MAAT_VERSION failed, Redis Communication error: %s", 
                   __FUNCTION__, __LINE__, c->errstr);
         return -1;
@@ -310,7 +310,7 @@ int clear_config_in_redis(redisContext *c, struct log_handle *logger)
     redisReply *reply = maat_wrap_redis_command(c, "GET MAAT_VERSION");
     if (reply != NULL) {
 		if (reply->type == REDIS_REPLY_NIL || reply->type == REDIS_REPLY_ERROR) {
-			log_error(logger, MODULE_REDIS_TOOL, 
+			log_fatal(logger, MODULE_REDIS_TOOL, 
                       "[%s:%d] GET MAAT_VERSION failed, maybe Redis is busy",
                       __FUNCTION__, __LINE__);
 			freeReplyObject(reply);
@@ -318,7 +318,7 @@ int clear_config_in_redis(redisContext *c, struct log_handle *logger)
 			return -1;
 		}
 	} else {
-		log_error(logger, MODULE_REDIS_TOOL, 
+		log_fatal(logger, MODULE_REDIS_TOOL, 
                   "[%s:%d] GET MAAT_VERSION failed with NULL reply, error: %s",
                   __FUNCTION__, __LINE__, c->errstr);
 		return -1;
@@ -327,7 +327,7 @@ int clear_config_in_redis(redisContext *c, struct log_handle *logger)
     redis_version = maat_read_redis_integer(reply);
 	if (redis_version < 0) {
 		if (reply->type == REDIS_REPLY_ERROR) {
-			log_error(logger, MODULE_REDIS_TOOL, 
+			log_fatal(logger, MODULE_REDIS_TOOL, 
                       "[%s:%d] Redis Communication error: %s", 
                       __FUNCTION__, __LINE__, reply->str);
 		}
@@ -449,27 +449,27 @@ int main(int argc, char * argv[])
         size_t json_buff_sz = 0;
 		int ret = load_file_to_memory(json_file, (unsigned char**)&json_buff, &json_buff_sz);
 		if (ret < 0) {
-			log_error(logger, MODULE_REDIS_TOOL, "open file:%s failed.", json_file);
+			log_fatal(logger, MODULE_REDIS_TOOL, "open file:%s failed.", json_file);
             return -1;
 		}
 
 		ret = json2iris(json_buff, json_file, c, tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL, logger);
 		FREE(json_buff);
         if (ret < 0) {
-			log_error(logger, MODULE_REDIS_TOOL, "Invalid json format.");
+			log_fatal(logger, MODULE_REDIS_TOOL, "Invalid json format.");
             return -1;
 		}
 
 		size_t total_line_cnt = 0;
 		config_monitor_traverse(0, tmp_iris_path, NULL, count_line_num_cb, NULL, &total_line_cnt, NULL, logger);
-		log_error(logger, MODULE_REDIS_TOOL, "Serialize %s to %zu lines, write temp file to %s .", 
+		log_fatal(logger, MODULE_REDIS_TOOL, "Serialize %s to %zu lines, write temp file to %s .", 
                   json_file, total_line_cnt, tmp_iris_path);
 
 		struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
         s_rule->ref_ctx = c;
 		long long server_time = maat_redis_server_time_s(c);
 		if (!server_time) {
-			log_error(logger, MODULE_REDIS_TOOL, "Get Redis Time failed.");
+			log_fatal(logger, MODULE_REDIS_TOOL, "Get Redis Time failed.");
             FREE(s_rule);
             return -1;
 		}
@@ -487,7 +487,7 @@ int main(int argc, char * argv[])
 		} while(success_cnt < 0);
 
 		if (success_cnt != (int)total_line_cnt) {
-			log_error(logger, MODULE_REDIS_TOOL, "Only Add %d of %zu, rule id maybe conflicts.", 
+			log_fatal(logger, MODULE_REDIS_TOOL, "Only Add %d of %zu, rule id maybe conflicts.", 
                       success_cnt, total_line_cnt);
 		}
 
@@ -499,19 +499,19 @@ int main(int argc, char * argv[])
 	} else if (mode == WORK_MODE_UPLOAD) {
         int ret = clear_config_in_redis(c, logger);
         if (ret < 0) {
-            log_error(logger, MODULE_REDIS_TOOL, "clear config in redis failed.");
+            log_fatal(logger, MODULE_REDIS_TOOL, "clear config in redis failed.");
             return -1;
         }
 
         ret = write_config_to_redis(c, upload_file, logger);
         if (ret < 0) {
-            log_error(logger, MODULE_REDIS_TOOL, "write config to redis failed.");
+            log_fatal(logger, MODULE_REDIS_TOOL, "write config to redis failed.");
             return -1;
         }
 
         ret = rollback_redis_version(c, logger);
         if (ret < 0) {
-            log_error(logger, MODULE_REDIS_TOOL, "rollback redis version failed.");
+            log_fatal(logger, MODULE_REDIS_TOOL, "rollback redis version failed.");
             return -1;
         }
         redisFree(c);

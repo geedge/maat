@@ -96,7 +96,7 @@ void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (item != NULL && item->type == cJSON_Number) {
         g2g_schema->table_id = item->valueint;
     } else {
-        log_error(logger, MODULE_GROUP, 
+        log_fatal(logger, MODULE_GROUP, 
                   "[%s:%d] g2g table:<%s> schema has no table_id column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -104,7 +104,7 @@ void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
-        log_error(logger, MODULE_GROUP, 
+        log_fatal(logger, MODULE_GROUP, 
                   "[%s:%d] g2g table:<%s> schema has no custom column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -114,7 +114,7 @@ void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         g2g_schema->group_id_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_GROUP, 
+        log_fatal(logger, MODULE_GROUP, 
                   "[%s:%d] g2g table:<%s> schema has no group_id column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -124,7 +124,7 @@ void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         g2g_schema->super_group_id_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_GROUP, 
+        log_fatal(logger, MODULE_GROUP, 
                   "[%s:%d] g2g table:<%s> schema has no super_group_id column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -134,7 +134,7 @@ void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         g2g_schema->is_exclude_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_GROUP, 
+        log_fatal(logger, MODULE_GROUP, 
                   "[%s:%d] g2g table:<%s> schema has no is_exclude column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -329,7 +329,7 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
     int ret = get_column_pos(line, g2g_schema->group_id_column,
                              &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_GROUP,
+        log_fatal(logger, MODULE_GROUP,
                   "[%s:%d] g2g table:<%s> has no group_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -339,7 +339,7 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
     ret = get_column_pos(line, g2g_schema->super_group_id_column, 
                          &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_GROUP,
+        log_fatal(logger, MODULE_GROUP,
                   "[%s:%d] g2 table:<%s> has no super_group_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -349,7 +349,7 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
     ret = get_column_pos(line, g2g_schema->is_exclude_column, 
                          &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_GROUP,
+        log_fatal(logger, MODULE_GROUP,
                   "[%s:%d] g2g table:<%s> has no is_exclude in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -357,14 +357,14 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
 
     g2g_item->is_exclude = atoi(line + column_offset);
     if (g2g_item->is_exclude != 0 && g2g_item->is_exclude != 1) {
-        log_error(logger, MODULE_GROUP,
+        log_fatal(logger, MODULE_GROUP,
                   "[%s:%d] g2g table:<%s> is_exclude:%d is illegal in line:%s",
                   __FUNCTION__, __LINE__, table_name, g2g_item->is_exclude, line);
         goto error;
     }
 
     if (g2g_item->is_exclude != 0 && g2g_item->is_exclude != 1) {
-        log_error(logger, MODULE_GROUP,
+        log_fatal(logger, MODULE_GROUP,
                   "[%s:%d] g2g table:<%s> is_exclude:%d is illegal in line:%s",
                   __FUNCTION__, __LINE__, table_name, g2g_item->is_exclude, line);
         goto error;
@@ -433,7 +433,7 @@ static void group_topology_del_group(struct maat_group_topology *group_topo,
 	igraph_neighbors(&group_topo->group_graph, &v, group->vertex_id, IGRAPH_ALL);
 	if (igraph_vector_size(&v) > 0) {
 		print_igraph_vector(&v, buff, sizeof(buff));
-		log_error(group_topo->logger, MODULE_GROUP, 
+		log_fatal(group_topo->logger, MODULE_GROUP, 
                  "[%s:%d] Del group %d exception, still reached by %s.",
 				  __FUNCTION__, __LINE__, group->vertex_id, buff);
 		assert(0);
@@ -595,7 +595,7 @@ static int group_topology_add_group_to_group(struct maat_group_topology *group_t
 	
     //No duplicated edges between two groups.
     if (edge_id > 0) {
-		log_error(group_topo->logger, MODULE_GROUP,
+		log_fatal(group_topo->logger, MODULE_GROUP,
                   "[%s:%d] Add group %d to group %d failed, relation already existed.",
 				  __FUNCTION__, __LINE__, group->group_id, super_group->group_id);
 		ret = -1;
@@ -621,7 +621,7 @@ static int group_topology_del_group_from_group(struct maat_group_topology *group
 	//No hash write operation, LOCK protection is unnecessary.
 	struct maat_group *group = group_topology_find_group(group_topo, group_id);
 	if (NULL == group) {
-		log_error(group_topo->logger, MODULE_GROUP,
+		log_fatal(group_topo->logger, MODULE_GROUP,
 				  "[%s:%d] Del group %d from group %d failed, group %d not existed.",
 				  __FUNCTION__, __LINE__, group_id, super_group_id, group_id);
 		return -1;	
@@ -629,7 +629,7 @@ static int group_topology_del_group_from_group(struct maat_group_topology *group
 
     struct maat_group *super_group = group_topology_find_group(group_topo, super_group_id);
 	if (NULL == super_group) {
-		log_error(group_topo->logger, MODULE_GROUP,
+		log_fatal(group_topo->logger, MODULE_GROUP,
 				  "[%s:%d] Del group %d from group %d failed, superior group %d not existed.",
 				  __FUNCTION__, __LINE__, group_id, super_group_id, super_group_id);
 		return -1;	
@@ -677,7 +677,7 @@ static int group_topology_build_super_groups(struct maat_group_topology *group_t
 	igraph_bool_t is_dag;
 	igraph_is_dag(&(group_topo->group_graph), &is_dag);
 	if (!is_dag) {
-		log_error(group_topo->logger, MODULE_GROUP,
+		log_fatal(group_topo->logger, MODULE_GROUP,
                   "[%s:%d] Sub group cycle detected!", __FUNCTION__, __LINE__);
 		return -1;
 	}
@@ -709,7 +709,7 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
 	struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
-        log_error(g2g_rt->logger, MODULE_GROUP,
+        log_fatal(g2g_rt->logger, MODULE_GROUP,
                   "[%s:%d] g2g table:<%s> has no is_valid(column seq:%d)"
                   " in table_line:%s", __FUNCTION__, __LINE__, table_name,
                   valid_column, line);
@@ -790,7 +790,7 @@ int group2group_runtime_commit(void *g2g_runtime, const char *table_name,
                                (end.tv_nsec - start.tv_nsec) / 1000000;
 
     if (ret < 0) {
-        log_error(g2g_rt->logger, MODULE_GROUP, 
+        log_fatal(g2g_rt->logger, MODULE_GROUP, 
                   "[%s:%d] table[%s] group2group runtime commit failed", 
                   __FUNCTION__, __LINE__, table_name);
         return -1;
@@ -1007,12 +1007,12 @@ static void get_super_group_ids(struct maat_group_topology *group_topo,
     UT_array *kept_super_group_ids;
 
     if (depth >= MAX_RECURSION_DEPTH) {
-        log_error(group_topo->logger, MODULE_GROUP,
+        log_fatal(group_topo->logger, MODULE_GROUP,
                   "[%s:%d]exceed max recursion depth(5)",
                   __FUNCTION__, __LINE__);
         for (int i = 0; i < utarray_len(hit_group_ids); i++) {
             long long *p = (long long *)utarray_eltptr(hit_group_ids, i);
-            log_error(group_topo->logger, MODULE_GROUP,
+            log_fatal(group_topo->logger, MODULE_GROUP,
                       "[%s:%d]group_id:%lld can't recursively get super group_id",
                       __FUNCTION__, __LINE__, *p);
         }

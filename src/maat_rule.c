@@ -131,7 +131,7 @@ static int maat_update_cb(const char *table_name, const char *line, void *u_para
 	struct maat *maat_inst =(struct maat *)u_param;
 	int table_id = table_manager_get_table_id(maat_inst->tbl_mgr, table_name);
     if (table_id < 0) {
-        log_error(maat_inst->logger, MODULE_MAAT_RULE, 
+        log_fatal(maat_inst->logger, MODULE_MAAT_RULE, 
 				  "[%s:%d] update warning, unknown table name %s", 
                   __FUNCTION__, __LINE__, table_name);
         return -1;
@@ -151,7 +151,7 @@ static int maat_update_cb(const char *table_name, const char *line, void *u_para
             int ret = table_manager_update_runtime(maat_inst->tbl_mgr, table_name,
                                                    (int)conj_parent_table_ids[i], line, update_type);
             if (ret < 0) {
-                log_error(maat_inst->logger, MODULE_MAAT_RULE,
+                log_fatal(maat_inst->logger, MODULE_MAAT_RULE,
                           "[%s:%d] table<%s> update runtime error for rule:%s",
                           __FUNCTION__, __LINE__, table_name, line);
                 continue; 
@@ -161,7 +161,7 @@ static int maat_update_cb(const char *table_name, const char *line, void *u_para
         int ret = table_manager_update_runtime(maat_inst->tbl_mgr, table_name,
                                                table_id, line, update_type);
             if (ret < 0) {
-                log_error(maat_inst->logger, MODULE_MAAT_RULE,
+                log_fatal(maat_inst->logger, MODULE_MAAT_RULE,
                           "[%s:%d] table<%s> update runtime error for rules:%s",
                           __FUNCTION__, __LINE__, table_name, line);
                 return -1;
@@ -302,7 +302,7 @@ void maat_read_full_config(struct maat *maat_inst)
             }
 
             if (NULL == maat_inst->creating_maat_rt) {
-                log_error(maat_inst->logger, MODULE_MAAT_RULE, 
+                log_fatal(maat_inst->logger, MODULE_MAAT_RULE, 
                           "[%s:%d] At initiation: NO effective rule in redis %s:%hu db%d",
                           __FUNCTION__, __LINE__, redis_ctx->redis_ip, redis_ctx->redis_port, 
                           redis_ctx->redis_db);
@@ -315,7 +315,7 @@ void maat_read_full_config(struct maat *maat_inst)
                                     maat_inst, maat_inst->opts.decrypt_key,
                                     maat_inst->logger);
             if (NULL == maat_inst->creating_maat_rt) {
-                log_error(maat_inst->logger, MODULE_MAAT_RULE, 
+                log_fatal(maat_inst->logger, MODULE_MAAT_RULE, 
                           "[%s:%d] At initiation: NO effective rule in %s",
                           __FUNCTION__, __LINE__, maat_inst->opts.iris_ctx.full_idx_dir);
             }
@@ -324,7 +324,7 @@ void maat_read_full_config(struct maat *maat_inst)
             ret = load_maat_json_file(maat_inst, maat_inst->opts.json_ctx.json_file,
                                       err_str, sizeof(err_str));
             if (ret < 0) {
-                log_error(maat_inst->logger, MODULE_MAAT_RULE, 
+                log_fatal(maat_inst->logger, MODULE_MAAT_RULE, 
                           "[%s:%d] Maat re-initiate with JSON file %s failed: %s", 
                           __FUNCTION__, __LINE__, maat_inst->opts.json_ctx.json_file, err_str);
             }
@@ -335,7 +335,7 @@ void maat_read_full_config(struct maat *maat_inst)
                                     maat_inst, maat_inst->opts.decrypt_key,
                                     maat_inst->logger);
             if (NULL == maat_inst->creating_maat_rt) {
-                log_error(maat_inst->logger, MODULE_MAAT_RULE, 
+                log_fatal(maat_inst->logger, MODULE_MAAT_RULE, 
                           "[%s:%d] At initiation: NO effective rule in %s",
                           __FUNCTION__, __LINE__, maat_inst->opts.json_ctx.iris_file);
             }
@@ -449,7 +449,7 @@ void *rule_monitor_loop(void *arg)
 							ret = load_maat_json_file(maat_inst, maat_inst->opts.json_ctx.json_file, 
                                                       err_str, sizeof(err_str));
 							if (ret < 0) {
-								log_error(maat_inst->logger, MODULE_MAAT_RULE, 
+								log_fatal(maat_inst->logger, MODULE_MAAT_RULE, 
                                           "[%s:%d] Maat re-initiate with JSON file %s (md5=%s)failed: %s\n",
 										  __FUNCTION__, __LINE__, maat_inst->opts.json_ctx.json_file, 
                                           md5_tmp, err_str);

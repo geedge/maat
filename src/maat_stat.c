@@ -114,7 +114,7 @@ static int maat_fieldstat_table_row_register(struct maat_stat *stat,
     int ret = fieldstat_register_table_row(stat->fs_handle, table_id, "Sum", NULL, 0,
                                            stat->total_stat_id);
     if (ret < 0) {
-        log_error(stat->logger, MODULE_MAAT_STAT, "fieldstat_register_table_row Sum failed.");
+        log_fatal(stat->logger, MODULE_MAAT_STAT, "fieldstat_register_table_row Sum failed.");
         return -1;
     }
 
@@ -122,7 +122,7 @@ static int maat_fieldstat_table_row_register(struct maat_stat *stat,
                                           stat->total_stat_id[COLUMN_SCAN_BYTES],
                                           stat->total_stat_id[COLUMN_CPU_TIME], 1000000000);
     if (ret < 0) {
-        log_error(stat->logger, MODULE_MAAT_STAT, "fieldstat set IN_Bps for Sum failed.");
+        log_fatal(stat->logger, MODULE_MAAT_STAT, "fieldstat set IN_Bps for Sum failed.");
         return -1;
     }
 
@@ -130,7 +130,7 @@ static int maat_fieldstat_table_row_register(struct maat_stat *stat,
                                           stat->total_stat_id[COLUMN_SCAN_CNT],
                                           stat->total_stat_id[COLUMN_CPU_TIME], 1000000000);
     if (ret < 0) {
-        log_error(stat->logger, MODULE_MAAT_STAT, "fieldstat set IN_Tps for Sum failed.");
+        log_fatal(stat->logger, MODULE_MAAT_STAT, "fieldstat set IN_Tps for Sum failed.");
         return -1;
     }
 
@@ -138,7 +138,7 @@ static int maat_fieldstat_table_row_register(struct maat_stat *stat,
                                           stat->total_stat_id[COLUMN_HIT_CNT],
                                           stat->total_stat_id[COLUMN_SCAN_CNT], 1);
     if (ret < 0) {
-        log_error(stat->logger, MODULE_MAAT_STAT, "fieldstat set hit_rate for Sum failed.");
+        log_fatal(stat->logger, MODULE_MAAT_STAT, "fieldstat set hit_rate for Sum failed.");
         return -1;
     }
 
@@ -159,7 +159,7 @@ static int maat_fieldstat_table_row_register(struct maat_stat *stat,
         ret = fieldstat_register_table_row(stat->fs_handle, table_id, table_name, NULL, 0,
                                            stat->fs_column_id[i]);
         if (ret < 0) {
-            log_error(stat->logger, MODULE_MAAT_STAT,
+            log_fatal(stat->logger, MODULE_MAAT_STAT,
                       "fieldstat_register_table_row %s failed.", table_name);
             return -1;
         }
@@ -168,7 +168,7 @@ static int maat_fieldstat_table_row_register(struct maat_stat *stat,
                                               stat->fs_column_id[i][COLUMN_SCAN_BYTES],
                                               stat->fs_column_id[i][COLUMN_CPU_TIME], 1000000000);
         if (ret < 0) {
-            log_error(stat->logger, MODULE_MAAT_STAT,
+            log_fatal(stat->logger, MODULE_MAAT_STAT,
                       "fieldstat set IN_Bps for %s failed.", table_name);
             return -1;
         }
@@ -177,7 +177,7 @@ static int maat_fieldstat_table_row_register(struct maat_stat *stat,
                                               stat->fs_column_id[i][COLUMN_SCAN_CNT],
                                               stat->fs_column_id[i][COLUMN_CPU_TIME], 1000000000);
         if (ret < 0) {
-            log_error(stat->logger, MODULE_MAAT_STAT,
+            log_fatal(stat->logger, MODULE_MAAT_STAT,
                       "fieldstat set IN_Tps for %s failed.", table_name);
             return -1;
         }
@@ -186,7 +186,7 @@ static int maat_fieldstat_table_row_register(struct maat_stat *stat,
                                               stat->fs_column_id[i][COLUMN_HIT_CNT],
                                               stat->fs_column_id[i][COLUMN_SCAN_CNT], 1);
         if (ret < 0) {
-            log_error(stat->logger, MODULE_MAAT_STAT,
+            log_fatal(stat->logger, MODULE_MAAT_STAT,
                       "fieldstat set hit_rate for %s failed.", table_name);
             return -1;
         }
@@ -275,19 +275,19 @@ int maat_stat_init(struct maat_stat *stat, struct table_manager *tbl_mgr,
     const char *instance_name = "maat_stat";
 	stat->fs_handle = fieldstat_instance_new(instance_name);
     if (NULL == stat->fs_handle) {
-        log_error(stat->logger, MODULE_MAAT_STAT, "fieldstat_instance_new failed.");
+        log_fatal(stat->logger, MODULE_MAAT_STAT, "fieldstat_instance_new failed.");
         return -1;
     }
 
     int ret = fieldstat_set_local_output(stat->fs_handle, stat->stat_file, "default");
     if (ret < 0) {
-        log_error(stat->logger, MODULE_MAAT_STAT, "fieldstat_set_local_output failed.");
+        log_fatal(stat->logger, MODULE_MAAT_STAT, "fieldstat_set_local_output failed.");
         return -1;
     }
 
     ret = fieldstat_disable_background_thread(stat->fs_handle);
     if (ret < 0) {
-        log_error(stat->logger, MODULE_MAAT_STAT,
+        log_fatal(stat->logger, MODULE_MAAT_STAT,
                   "fieldstat_disable_background_thread failed.");
         return -1;
     }
@@ -301,7 +301,7 @@ int maat_stat_init(struct maat_stat *stat, struct table_manager *tbl_mgr,
                                                common_column_name, common_column_type, 
                                                n_column);
     if (fs_table_id < 0) {
-        log_error(stat->logger, MODULE_MAAT_STAT, "fieldstat_register_table failed.");
+        log_fatal(stat->logger, MODULE_MAAT_STAT, "fieldstat_register_table failed.");
         return -1;
     }
 

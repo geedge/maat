@@ -92,8 +92,14 @@ void compile_state_reset(struct compile_state *compile_state);
 void compile_state_free(struct compile_state *compile_state,
                         struct maat *maat_instance, int thread_id);
 
-int compile_state_update(int vtable_id, struct maat_item *hit_items,
-                         size_t n_hit_item, struct maat_state *state);
+int compile_state_update(struct compile_state *compile_state, struct maat *maat_inst,
+                         int vtable_id, int custom_compile_tbl_id, int Nth_scan,
+                         struct maat_item *hit_items, size_t n_hit_item);
+
+void compile_state_not_logic_update(struct compile_state *compile_state, 
+                                    struct compile_runtime *compile_rt,
+                                    struct maat *maat_inst, int vtable_id,
+                                    int Nth_scan);
 
 size_t compile_state_get_internal_hit_paths(struct compile_state *compile_state,
                                             struct compile_runtime *compile_rt,

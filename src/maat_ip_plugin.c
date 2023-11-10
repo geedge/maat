@@ -57,7 +57,7 @@ void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
    if (item != NULL && item->type == cJSON_Number) {
         schema->table_id = item->valueint;
     } else {
-        log_error(logger, MODULE_IP_PLUGIN, 
+        log_fatal(logger, MODULE_IP_PLUGIN, 
                   "[%s:%d] ip_plugin table:<%s> schema has no table_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -65,7 +65,7 @@ void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     item = cJSON_GetObjectItem(json, "custom");
     if (NULL == item || item->type != cJSON_Object) {
-        log_error(logger, MODULE_IP_PLUGIN, 
+        log_fatal(logger, MODULE_IP_PLUGIN, 
                   "[%s:%d] ip_plugin table:<%s> schema has no custom column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -75,7 +75,7 @@ void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->item_id_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_IP_PLUGIN, 
+        log_fatal(logger, MODULE_IP_PLUGIN, 
                   "[%s:%d] ip_plugin table:<%s> schema has no item_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -85,7 +85,7 @@ void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->ip_type_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_IP_PLUGIN, 
+        log_fatal(logger, MODULE_IP_PLUGIN, 
                   "[%s:%d] ip_plugin table:<%s> schema has no ip_type column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -95,7 +95,7 @@ void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->start_ip_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_IP_PLUGIN, 
+        log_fatal(logger, MODULE_IP_PLUGIN, 
                   "[%s:%d] ip_plugin table:<%s> schema has no start_ip column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -105,7 +105,7 @@ void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->end_ip_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_IP_PLUGIN, 
+        log_fatal(logger, MODULE_IP_PLUGIN, 
                   "[%s:%d] ip_plugin table:<%s> schema has no end_ip column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -152,7 +152,7 @@ static int ip_plugin_accept_tag_match(struct ip_plugin_schema *schema,
         int ret = get_column_pos(line, schema->rule_tag_column, 
                                  &column_offset, &column_len);
         if (ret < 0) {
-            log_error(logger, MODULE_IP_PLUGIN,
+            log_fatal(logger, MODULE_IP_PLUGIN,
                       "[%s:%d] ip_plugin table:<%s> has no rule_tag in line:%s",
                       __FUNCTION__, __LINE__, table_name, line);
             return TAG_MATCH_ERR;
@@ -164,14 +164,14 @@ static int ip_plugin_accept_tag_match(struct ip_plugin_schema *schema,
             ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
             FREE(tag_str);
             if (TAG_MATCH_ERR == ret) {
-                log_error(logger, MODULE_IP_PLUGIN,
+                log_fatal(logger, MODULE_IP_PLUGIN,
                           "[%s:%d] ip_plugin table:<%s> has invalid tag format in line:%s",
                           __FUNCTION__, __LINE__, table_name, line);
                 return TAG_MATCH_ERR;
             }
 
             if (TAG_MATCH_UNMATCHED == ret) {
-                log_error(logger, MODULE_IP_PLUGIN,
+                log_fatal(logger, MODULE_IP_PLUGIN,
                           "[%s:%d] ip_plugin table:<%s> has unmatched tag in line:%s",
                           __FUNCTION__, __LINE__, table_name, line);
                 return TAG_MATCH_UNMATCHED;
@@ -199,7 +199,7 @@ ip_plugin_rule_new(struct ip_plugin_schema *schema, const char *table_name,
 
     ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_IP_PLUGIN, 
+        log_fatal(logger, MODULE_IP_PLUGIN, 
                   "[%s:%d] ip_plugin table:<%s> has no item_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -208,14 +208,14 @@ ip_plugin_rule_new(struct ip_plugin_schema *schema, const char *table_name,
 
     ret = get_column_pos(line, schema->ip_type_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_IP_PLUGIN, 
+        log_fatal(logger, MODULE_IP_PLUGIN, 
                   "[%s:%d] ip_plugin table:<%s> has no ip_type in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
     ip_plugin_rule->type = atoi(line + column_offset);
     if (ip_plugin_rule->type != IPv4 && ip_plugin_rule->type != IPv6) {
-        log_error(logger, MODULE_IP_PLUGIN, 
+        log_fatal(logger, MODULE_IP_PLUGIN, 
                   "[%s:%d] ip_plugin table:<%s> ip_type[%d] invalid in line:%s",
                   __FUNCTION__, __LINE__, table_name, ip_plugin_rule->type, line);
         goto error;
@@ -223,7 +223,7 @@ ip_plugin_rule_new(struct ip_plugin_schema *schema, const char *table_name,
 
     ret = get_column_pos(line, schema->start_ip_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_IP_PLUGIN, 
+        log_fatal(logger, MODULE_IP_PLUGIN, 
                   "[%s:%d] ip_plugin table:<%s> has no start_ip in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -232,7 +232,7 @@ ip_plugin_rule_new(struct ip_plugin_schema *schema, const char *table_name,
     
     ret = get_column_pos(line, schema->end_ip_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_IP_PLUGIN, 
+        log_fatal(logger, MODULE_IP_PLUGIN, 
                   "[%s:%d] ip_plugin table:<%s> has no end_ip in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -245,7 +245,7 @@ ip_plugin_rule_new(struct ip_plugin_schema *schema, const char *table_name,
                               &ip_plugin_rule->ipv4_rule.start_ip, 
                               &ip_plugin_rule->ipv4_rule.end_ip);
         if (ret < 0) {
-            log_error(logger, MODULE_IP_PLUGIN, 
+            log_fatal(logger, MODULE_IP_PLUGIN, 
                       "[%s:%d] ip_plugin table:<%s>> ip_format2range(ip4) failed in line:%s",
                       __FUNCTION__, __LINE__, table_name, line);
             goto error;
@@ -257,7 +257,7 @@ ip_plugin_rule_new(struct ip_plugin_schema *schema, const char *table_name,
                               ip_plugin_rule->ipv6_rule.start_ip,
                               ip_plugin_rule->ipv6_rule.end_ip);
         if (ret < 0) {
-            log_error(logger, MODULE_IP_PLUGIN, 
+            log_fatal(logger, MODULE_IP_PLUGIN, 
                       "[%s:%d] ip_plugin table:<%s> ip_format2range(ip6) failed in line:%s",
                       __FUNCTION__, __LINE__, table_name, line);
             goto error;
@@ -285,7 +285,7 @@ int ip_plugin_table_set_ex_container_schema(void *ip_plugin_schema, int table_id
     struct ip_plugin_schema *schema = (struct ip_plugin_schema *)ip_plugin_schema;
 
     if (1 == schema->container_schema.set_flag) {
-        log_error(schema->logger, MODULE_IP_PLUGIN, 
+        log_fatal(schema->logger, MODULE_IP_PLUGIN, 
                   "[%s:%d] ip_plugin table(table_id:%d) ex_container_schema has been set, can't set again",
                   __FUNCTION__, __LINE__, table_id);
         return -1;
@@ -498,7 +498,7 @@ int ip_plugin_runtime_commit(void *ip_plugin_runtime, const char *table_name,
                                    (end.tv_nsec - start.tv_nsec) / 1000000;
 
         if (NULL == new_ip_matcher) {
-            log_error(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
+            log_fatal(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
                       "[%s:%d] ip_plugin table[%s] rebuild ip_matcher failed when "
                       "update %zu rules", __FUNCTION__, __LINE__, table_name, rule_cnt);
             ret = -1;

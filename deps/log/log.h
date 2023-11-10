@@ -22,14 +22,21 @@ extern "C"
 
 struct log_handle;
 
-enum { LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL };
+enum { 
+    LOG_TRACE, 
+    LOG_DEBUG, 
+    LOG_INFO, 
+    LOG_WARN, 
+    LOG_ERROR, 
+    LOG_FATAL
+};
 
 #define log_debug(handle, module, fmt, ...)    log_print(handle, LOG_DEBUG, module, fmt, ##__VA_ARGS__)
 #define log_trace(handle, module, fmt, ...)    log_print(handle, LOG_TRACE, module,  fmt, ##__VA_ARGS__)
-#define log_info(handle, module, fmt, ...)	    log_print(handle, LOG_INFO, module, fmt, ##__VA_ARGS__)
-#define log_warn(handle, module, fmt, ...)		log_print(handle, LOG_WARN, module, fmt, ##__VA_ARGS__)
-#define log_error(handle, module, fmt, ...)	log_print(handle, LOG_ERROR, module, fmt, ##__VA_ARGS__)
-#define log_fatal(handle, module, fmt, ...)	log_print(handle, LOG_FATAL, module, fmt, ##__VA_ARGS__)
+#define log_info(handle, module, fmt, ...)	   log_print(handle, LOG_INFO, module, fmt, ##__VA_ARGS__)
+#define log_warn(handle, module, fmt, ...)	   log_print(handle, LOG_WARN, module, fmt, ##__VA_ARGS__)
+#define log_error(handle, module, fmt, ...)	   log_print(handle, LOG_ERROR, module, fmt, ##__VA_ARGS__)
+#define log_fatal(handle, module, fmt, ...)	   log_print(handle, LOG_FATAL, module, fmt, ##__VA_ARGS__)
 
 void log_print(struct log_handle *, int level, const char *module, const char *fmt, ...);
 void log_options_set_enable(struct log_handle *, int enable);

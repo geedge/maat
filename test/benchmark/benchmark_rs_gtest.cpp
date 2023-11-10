@@ -56,7 +56,7 @@ void generate_expr_sample(const char *table_name, int sample_count)
 {
     FILE *fp = fopen(table_name, "w+");
     if (NULL == fp) {
-        log_error(g_logger, "open file %s failed", table_name);
+        log_fatal(g_logger, "open file %s failed", table_name);
         return;
     }
 
@@ -76,7 +76,7 @@ void generate_ip_sample(const char *table_name, int sample_count)
 {
     FILE *fp = fopen(table_name, "w+");
     if (NULL == fp) {
-        log_error(g_logger, "open file %s failed", table_name);
+        log_fatal(g_logger, "open file %s failed", table_name);
         return;
     }
 
@@ -99,7 +99,7 @@ void generate_integer_sample(const char *table_name, int sample_count)
 {
     FILE *fp = fopen(table_name, "w+");
     if (NULL == fp) {
-        log_error(g_logger, "open file %s failed", table_name);
+        log_fatal(g_logger, "open file %s failed", table_name);
         return;
     }
 
@@ -117,7 +117,7 @@ void generate_flag_sample(const char *table_name, int sample_count)
 {
     FILE *fp = fopen(table_name, "w+");
     if (NULL == fp) {
-        log_error(g_logger, "open file %s failed", table_name);
+        log_fatal(g_logger, "open file %s failed", table_name);
         return;
     }
 
@@ -135,7 +135,7 @@ void generate_compile_sample(const char *table_name, int sample_count)
 {
     FILE *fp = fopen(table_name, "w+");
     if (NULL == fp) {
-        log_error(g_logger, "open file %s failed", table_name);
+        log_fatal(g_logger, "open file %s failed", table_name);
         return;
     }
 
@@ -152,7 +152,7 @@ void generate_group2compile_sample(const char *table_name, int sample_count)
 {
     FILE *fp = fopen(table_name, "w+");
     if (NULL == fp) {
-        log_error(g_logger, "open file %s failed", table_name);
+        log_fatal(g_logger, "open file %s failed", table_name);
         return;
     }
 
@@ -534,7 +534,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "REGEX_100\t100\t./regex_rules/REGEX_100\n");
@@ -620,7 +620,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "REGEX_200\t200\t./regex_rules/REGEX_200\n");
@@ -706,7 +706,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "REGEX_300\t300\t./regex_rules/REGEX_300\n");
@@ -793,7 +793,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "EXPR_LITERAL_1K 1000 ./EXPR_LITERAL_1K\n");
@@ -880,7 +880,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "EXPR_LITERAL_5K 5000 ./EXPR_LITERAL_5K\n");
@@ -967,7 +967,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "EXPR_LITERAL_10K 10000 ./EXPR_LITERAL_10K\n");
@@ -1054,7 +1054,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "EXPR_LITERAL_50K 50000 ./EXPR_LITERAL_50K\n");
@@ -1141,7 +1141,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "EXPR_LITERAL_100K 100000 ./EXPR_LITERAL_100K\n");
@@ -1228,7 +1228,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "EXPR_LITERAL_500K 500000 ./EXPR_LITERAL_500K\n");
@@ -1315,7 +1315,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "EXPR_LITERAL_1M 1000000 ./EXPR_LITERAL_1M\n");
@@ -1402,7 +1402,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "EXPR_LITERAL_2M 2000000 ./EXPR_LITERAL_2M\n");
@@ -1489,7 +1489,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "STREAM_1K 1000 ./STREAM_1K\n");
@@ -1573,7 +1573,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "STREAM_5K 5000 ./STREAM_5K\n");
@@ -1657,7 +1657,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "STREAM_10K 10000 ./STREAM_10K\n");
@@ -1741,7 +1741,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "STREAM_50K 50000 ./STREAM_50K\n");
@@ -1825,7 +1825,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "STREAM_100K 100000 ./STREAM_100K\n");
@@ -1909,7 +1909,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "STREAM_500K 500000 ./STREAM_500K\n");
@@ -1993,7 +1993,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "STREAM_1M 1000000 ./STREAM_1M\n");
@@ -2077,7 +2077,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "STREAM_2M 2000000 ./STREAM_2M\n");
@@ -2161,7 +2161,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "IP_1K 1000 ./IP_1K\n");
@@ -2248,7 +2248,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "IP_5K 5000 ./IP_5K\n");
@@ -2335,7 +2335,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "IP_10K 10000 ./IP_10K\n");
@@ -2422,7 +2422,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "IP_50K 50000 ./IP_50K\n");
@@ -2509,7 +2509,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "IP_100K 100000 ./IP_100K\n");
@@ -2596,7 +2596,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "IP_500K 500000 ./IP_500K\n");
@@ -2683,7 +2683,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "IP_1M 1000000 ./IP_1M\n");
@@ -2770,7 +2770,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "IP_5M 5000000 ./IP_5M\n");
@@ -2857,7 +2857,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "IP_10M 10000000 ./IP_10M\n");
@@ -2944,7 +2944,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "INTEGER_1K 1000 ./INTEGER_1K\n");
@@ -3031,7 +3031,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "INTEGER_5K 5000 ./INTEGER_5K\n");
@@ -3118,7 +3118,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "INTEGER_10K 10000 ./INTEGER_10K\n");
@@ -3205,7 +3205,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "FLAG_1K 1000 ./FLAG_1K\n");
@@ -3292,7 +3292,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "FLAG_5K 5000 ./FLAG_5K\n");
@@ -3379,7 +3379,7 @@ protected:
 
         FILE *fp = fopen("full_config_index.0000001", "w+");
         if (NULL == fp) {
-            log_error(g_logger, "open file %s failed", "full_config_index.0000001");
+            log_fatal(g_logger, "open file %s failed", "full_config_index.0000001");
             return;
         }
         fprintf(fp, "FLAG_10K 10000 ./FLAG_10K\n");

@@ -4,7 +4,7 @@
 
 多命中情况下，按包含分组数由多到少返回，分组数相同时，按编译配置ID由大到小的顺序返回。
 
-多命中扫描的最大命中次数，受MAX_SCANNER_HIT_NUM宏控制，当前为4096条。
+多命中扫描的最大命中次数，受MAX_HIT_NUM宏控制，当前为4096条。
 
 如果命中条数超出4096，则按照配置在IRIS库表文件出现的顺序返回。
 
@@ -18,7 +18,7 @@
 
 ## 结果缓存复用
 
-另外为了提高系统的性能，为每个scanner分配了一个region_rslt_buff，用以缓存域扫描命中的中间结果。通过malloc分配，长度为sizeof(scan_result_t)*MAX_SCANNER_HIT_NUM*scan_thread_num，当外部调用扫描时，根据thread_num参数，分配region_rslt_buff+MAX_SCANNER_HIT_NUM*thread_num供当前线程保存域中间扫描结果。
+另外为了提高系统的性能，为每个scanner分配了一个region_rslt_buff，用以缓存域扫描命中的中间结果。通过malloc分配，长度为sizeof(scan_result_t)*MAX_HIT_NUM*scan_thread_num，当外部调用扫描时，根据thread_num参数，分配region_rslt_buff+MAX_HIT_NUM*thread_num供当前线程保存域中间扫描结果。
 
 ### 命中结果返回条件
 

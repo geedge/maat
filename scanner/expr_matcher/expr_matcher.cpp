@@ -98,7 +98,7 @@ expr_matcher_new(struct expr_rule *rules, size_t n_rule, enum expr_engine_type e
 {
     if (NULL == rules || 0 == n_rule || 0 == n_worker_thread ||
         (engine_type != EXPR_ENGINE_TYPE_HS && engine_type != EXPR_ENGINE_TYPE_RS)) {
-        log_error(logger, MODULE_EXPR_MATCHER, "[%s:%d]engine type:%d is illegal", 
+        log_fatal(logger, MODULE_EXPR_MATCHER, "[%s:%d]engine type:%d is illegal", 
                   __FUNCTION__, __LINE__, engine_type);
         return NULL;
     }
@@ -109,7 +109,7 @@ expr_matcher_new(struct expr_rule *rules, size_t n_rule, enum expr_engine_type e
 
     for (i = 0; i < n_rule; i++) {
         if (rules[i].n_patterns > MAX_EXPR_PATTERN_NUM) {
-            log_error(logger, MODULE_EXPR_MATCHER, 
+            log_fatal(logger, MODULE_EXPR_MATCHER, 
                       "[%s:%d] the number of patterns in one expression should less than"
                       " %d", __FUNCTION__, __LINE__, MAX_EXPR_PATTERN_NUM);
             return NULL;
@@ -118,7 +118,7 @@ expr_matcher_new(struct expr_rule *rules, size_t n_rule, enum expr_engine_type e
         for (j = 0; j < rules[i].n_patterns; j++) {
             /* pat_len should not 0 */
             if (0 == rules[i].patterns[j].pat_len) {
-                log_error(logger, MODULE_EXPR_MATCHER,
+                log_fatal(logger, MODULE_EXPR_MATCHER,
                           "[%s:%d] expr pattern length should not 0",
                           __FUNCTION__, __LINE__);
                 return NULL;
@@ -133,7 +133,7 @@ expr_matcher_new(struct expr_rule *rules, size_t n_rule, enum expr_engine_type e
     }
 
     if (0 == literal_pat_num && 0 == regex_pat_num) {
-        log_error(logger, MODULE_EXPR_MATCHER,
+        log_fatal(logger, MODULE_EXPR_MATCHER,
                   "[%s:%d] exprs has no valid pattern", __FUNCTION__, __LINE__);
         return NULL;
     }
@@ -142,7 +142,7 @@ expr_matcher_new(struct expr_rule *rules, size_t n_rule, enum expr_engine_type e
                                                            regex_pat_num, n_worker_thread,
                                                            logger);
     if (NULL == engine) {
-        log_error(logger, MODULE_EXPR_MATCHER,
+        log_fatal(logger, MODULE_EXPR_MATCHER,
                   "[%s:%d]expr_matcher engine_new failed.", __FUNCTION__, __LINE__);
         return NULL;
     }
@@ -193,7 +193,7 @@ expr_matcher_stream_open(struct expr_matcher *matcher, int thread_id)
     void *s_handle = expr_engine_ops[matcher->engine_type].engine_stream_open(matcher->engine,
                                                                               thread_id);
     if (NULL == s_handle) {
-        log_error(matcher->logger, MODULE_EXPR_MATCHER,
+        log_fatal(matcher->logger, MODULE_EXPR_MATCHER,
                   "[%s:%d] expr_matcher engine_stream_open failed.",
                   __FUNCTION__, __LINE__);
         return NULL;

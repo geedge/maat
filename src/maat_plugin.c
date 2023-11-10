@@ -96,7 +96,7 @@ void *plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
     if (NULL == item || item->type != cJSON_Number) {
-        log_error(logger, MODULE_PLUGIN, 
+        log_fatal(logger, MODULE_PLUGIN, 
                   "[%s:%d]plugin table:<%s> schema has no table_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -108,7 +108,7 @@ void *plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (item != NULL && item->type == cJSON_Object) {
         custom_item = cJSON_GetObjectItem(item, "key");
         if (NULL == custom_item || custom_item->type != cJSON_Number) {
-            log_error(logger, MODULE_PLUGIN,
+            log_fatal(logger, MODULE_PLUGIN,
                       "[%s:%d]plugin table:<%s> schema has no key column",
                       __FUNCTION__, __LINE__, table_name);
             goto error;
@@ -117,7 +117,7 @@ void *plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
         custom_item = cJSON_GetObjectItem(item, "key_type");
         if (NULL == custom_item || custom_item->type != cJSON_String) {
-            log_error(logger, MODULE_PLUGIN,
+            log_fatal(logger, MODULE_PLUGIN,
                       "[%s:%d]plugin table:<%s> schema has no key_type column",
                       __FUNCTION__, __LINE__, table_name);
             goto error;
@@ -129,7 +129,7 @@ void *plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
             schema->key_type = PLUGIN_KEY_TYPE_INTEGER;
             custom_item = cJSON_GetObjectItem(item, "key_len");
             if (NULL == custom_item || custom_item->type != cJSON_Number) {
-                log_error(logger, MODULE_PLUGIN,
+                log_fatal(logger, MODULE_PLUGIN,
                           "[%s:%d]plugin table:<%s> schema integer key must"
                           " have key_len column", __FUNCTION__, __LINE__,
                           table_name);
@@ -140,7 +140,7 @@ void *plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
             schema->key_type = PLUGIN_KEY_TYPE_IP_ADDR;
             custom_item = cJSON_GetObjectItem(item, "addr_type");
             if (NULL == custom_item || custom_item->type != cJSON_Number) {
-                log_error(logger, MODULE_PLUGIN,
+                log_fatal(logger, MODULE_PLUGIN,
                           "[%s:%d]plugin table:<%s> schema ip_addr key must"
                           " have addr_type column", __FUNCTION__, __LINE__,
                           table_name);
@@ -148,7 +148,7 @@ void *plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
             }
             schema->addr_type_column = custom_item->valueint;
         } else {
-            log_error(logger, MODULE_PLUGIN,
+            log_fatal(logger, MODULE_PLUGIN,
                       "[%s:%d]plugin table:<%s> schema key_type:%s is illegal, "
                       "just allow {pointer}, {integer}, {ip_addr}",
                       __FUNCTION__, __LINE__, table_name, custom_item->valuestring);
@@ -212,7 +212,7 @@ int plugin_table_add_callback(void *plugin_schema, int table_id,
     size_t idx = schema->cb_cnt;
 
 	if (idx == MAX_PLUGIN_PER_TABLE) {
-        log_error(logger, MODULE_PLUGIN, 
+        log_fatal(logger, MODULE_PLUGIN, 
                   "[%s:%d] the plugin number of table_id: %d exceed maxium:%d", 
                   __FUNCTION__, __LINE__, table_id, MAX_PLUGIN_PER_TABLE);
 		return -1;
@@ -271,7 +271,7 @@ int plugin_table_set_ex_container_schema(void *plugin_schema, int table_id,
     struct plugin_schema *schema = (struct plugin_schema *)plugin_schema;
     
     if (1 == schema->container_schema.set_flag) {
-        log_error(schema->logger, MODULE_PLUGIN, 
+        log_fatal(schema->logger, MODULE_PLUGIN, 
                   "[%s:%d] plugin table(table_id:%d) ex_container_schema"
                   " has been set, can't set again", __FUNCTION__, __LINE__,
                   table_id);
@@ -405,7 +405,7 @@ static int plugin_accept_tag_match(struct plugin_schema *schema,
         int ret = get_column_pos(line, schema->rule_tag_column, &column_offset,
                                  &column_len);
         if (ret < 0) {
-            log_error(logger, MODULE_PLUGIN,
+            log_fatal(logger, MODULE_PLUGIN,
                       "[%s:%d] table: <%s> has no rule_tag(column_seq:%d) "
                       "in table_line:%s", __FUNCTION__, __LINE__, table_name,
                       schema->rule_tag_column, line);
@@ -418,14 +418,14 @@ static int plugin_accept_tag_match(struct plugin_schema *schema,
             ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
             FREE(tag_str);
             if (TAG_MATCH_ERR == ret) {
-                log_error(logger, MODULE_PLUGIN,
+                log_fatal(logger, MODULE_PLUGIN,
                           "[%s:%d] table: <%s> has invalid tag format in table_line:%s",
                           __FUNCTION__, __LINE__, table_name, line);
                 return TAG_MATCH_ERR;
             }
 
             if (TAG_MATCH_UNMATCHED == ret) {
-                log_error(logger, MODULE_PLUGIN,
+                log_fatal(logger, MODULE_PLUGIN,
                           "[%s:%d] table: <%s> has unmatched tag in table_line:%s",
                           __FUNCTION__, __LINE__, table_name, line);
                 return TAG_MATCH_UNMATCHED;
@@ -445,7 +445,7 @@ static int plugin_table_line_get_key(struct plugin_schema *schema,
     
     int ret = get_column_pos(line, schema->key_column, &key_offset, &key_len);
     if (ret < 0) {
-        log_error(logger, MODULE_PLUGIN,
+        log_fatal(logger, MODULE_PLUGIN,
                   "[%s:%d] plugin table:<%s> has no key(column seq:%d)"
                   " in table_line:%s", __FUNCTION__, __LINE__, table_name,
                   schema->key_column, line);
@@ -453,7 +453,7 @@ static int plugin_table_line_get_key(struct plugin_schema *schema,
     }
 
     if (key_len > MAX_KEYWORDS_STR_LEN) {
-        log_error(logger, MODULE_PLUGIN,
+        log_fatal(logger, MODULE_PLUGIN,
                   "[%s:%d] plugin table:<%s> key(column seq:%d) length exceed maxium:%d"
                   " in table_line:%s", __FUNCTION__, __LINE__, table_name,
                   schema->key_column, MAX_KEYWORDS_STR_LEN, line); 
@@ -475,7 +475,7 @@ static int plugin_table_line_get_key(struct plugin_schema *schema,
         *dst_key_len = schema->key_len;
     } else if (schema->key_type == PLUGIN_KEY_TYPE_IP_ADDR) {
         if (key_len >= INET6_ADDRSTRLEN) {
-            log_error(logger, MODULE_PLUGIN,
+            log_fatal(logger, MODULE_PLUGIN,
                       "[%s:%d] plugin table:<%s> ip_key too long(illegal) in "
                       "table_line:%s", __FUNCTION__, __LINE__, table_name, line);
             return -1;
@@ -486,7 +486,7 @@ static int plugin_table_line_get_key(struct plugin_schema *schema,
         ret = get_column_pos(line, schema->addr_type_column, &addr_type_offset,
                              &addr_type_len);
         if (ret < 0) {
-            log_error(logger, MODULE_PLUGIN,
+            log_fatal(logger, MODULE_PLUGIN,
                       "[%s:%d] plugin table:<%s> has no addr_type(column seq:%d)"
                       " in table_line:%s", __FUNCTION__, __LINE__, table_name,
                       schema->addr_type_column, line);
@@ -502,7 +502,7 @@ static int plugin_table_line_get_key(struct plugin_schema *schema,
             uint32_t ipv4_addr;
             ret = inet_pton(AF_INET, ip_key, &ipv4_addr);
             if (ret <= 0) {
-                log_error(logger, MODULE_PLUGIN,
+                log_fatal(logger, MODULE_PLUGIN,
                           "[%s:%d] plugin table:<%s> ipv4 key(column seq:%d)"
                           " illegal in table_line:%s", __FUNCTION__, __LINE__,
                           table_name, schema->key_column, line);
@@ -515,7 +515,7 @@ static int plugin_table_line_get_key(struct plugin_schema *schema,
             uint8_t ipv6_addr[16];
             ret = inet_pton(AF_INET6, ip_key, ipv6_addr);
             if (ret <= 0) {
-                log_error(logger, MODULE_PLUGIN,
+                log_fatal(logger, MODULE_PLUGIN,
                           "[%s:%d] plugin table:<%s> ipv6 key(column seq:%d)"
                           " illegal in table_line:%s", __FUNCTION__, __LINE__,
                           table_name, schema->key_column, line);
@@ -525,7 +525,7 @@ static int plugin_table_line_get_key(struct plugin_schema *schema,
             memcpy(dst_key, (char *)&ipv6_addr, sizeof(ipv6_addr));
             *dst_key_len = sizeof(ipv6_addr);
         } else {
-            log_error(logger, MODULE_PLUGIN,
+            log_fatal(logger, MODULE_PLUGIN,
                       "[%s:%d] plugin table:<%s> addr_type:%d illegal, just"
                       " allow{4, 6}, table_line:%s", __FUNCTION__, __LINE__,
                       table_name, addr_type, line);
@@ -549,7 +549,7 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
     struct plugin_runtime *plugin_rt = (struct plugin_runtime *)plugin_runtime;
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
-        log_error(plugin_rt->logger, MODULE_PLUGIN,
+        log_fatal(plugin_rt->logger, MODULE_PLUGIN,
                   "[%s:%d] plugin table:<%s> has no is_valid(column seq:%d)"
                   " in table_line:%s", __FUNCTION__, __LINE__, table_name,
                   valid_column, line);

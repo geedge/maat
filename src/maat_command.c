@@ -68,7 +68,7 @@ redisContext *maat_connect_redis(const char *redis_ip, int redis_port,
             printf("Unable to connect redis server %s:%d db%d, error: %s",
 				   redis_ip, redis_port, redis_db, c == NULL ? "Unknown" : c->errstr);
         } else {
-            log_error(logger, MODULE_MAAT_COMMAND, 
+            log_fatal(logger, MODULE_MAAT_COMMAND, 
                       "[%s:%d] Unable to connect redis server %s:%d db%d, error: %s",
 				      __FUNCTION__, __LINE__, redis_ip, redis_port, redis_db, 
                       c == NULL ? "Unknown" : c->errstr);
@@ -268,7 +268,7 @@ int maat_cmd_set_line(struct maat *maat_inst, const struct maat_cmd_line *line_r
 
 	int table_id = table_manager_get_table_id(maat_inst->tbl_mgr, line_rule->table_name);
 	if (table_id < 0) {
-		log_error(maat_inst->logger, MODULE_MAAT_COMMAND,
+		log_fatal(maat_inst->logger, MODULE_MAAT_COMMAND,
 				  "[%s:%d] Command set line id %lld failed: unknown table %s",
 				  __FUNCTION__, __LINE__, line_rule->rule_id, line_rule->table_name);
 		FREE(s_rule);
@@ -277,7 +277,7 @@ int maat_cmd_set_line(struct maat *maat_inst, const struct maat_cmd_line *line_r
 
 	int valid_column = table_manager_get_valid_column(maat_inst->tbl_mgr, table_id);
 	if (valid_column < 0) {
-		log_error(maat_inst->logger, MODULE_MAAT_COMMAND,
+		log_fatal(maat_inst->logger, MODULE_MAAT_COMMAND,
 				  "[%s:%d] Command set line id %lld failed: table %s is not a plugin or ip_plugin table",
 				  __FUNCTION__, __LINE__, line_rule->rule_id, line_rule->table_name);
 		FREE(s_rule);
@@ -286,7 +286,7 @@ int maat_cmd_set_line(struct maat *maat_inst, const struct maat_cmd_line *line_r
 
 	int valid_offset = maat_get_valid_flag_offset(line_rule->table_line, valid_column);
 	if (valid_offset < 0) {
-		log_error(maat_inst->logger, MODULE_MAAT_COMMAND,
+		log_fatal(maat_inst->logger, MODULE_MAAT_COMMAND,
 				  "[%s:%d] Command set line id %lld failed: table %s valid_offset error",
 				  __FUNCTION__, __LINE__, line_rule->rule_id, line_rule->table_name);
 		FREE(s_rule);
@@ -322,7 +322,7 @@ int maat_cmd_set_file(struct maat *maat_inst, const char *key, const char *value
 {
 	redisContext *ctx = maat_inst->opts.redis_ctx.write_ctx;
 	if (NULL == ctx) {
-		log_error(maat_inst->logger, MODULE_MAAT_COMMAND, 
+		log_fatal(maat_inst->logger, MODULE_MAAT_COMMAND, 
                   "[%s:%d] failed: Redis is not connected.", 
                   __FUNCTION__, __LINE__);
 		return -1;
@@ -342,7 +342,7 @@ int maat_cmd_set_file(struct maat *maat_inst, const char *key, const char *value
 
 	redisReply *reply = NULL;
 	if (0 != strncmp(key, foreign_key_prefix, strlen(foreign_key_prefix))) {
-		log_error(maat_inst->logger, MODULE_MAAT_COMMAND, 
+		log_fatal(maat_inst->logger, MODULE_MAAT_COMMAND, 
                  "Invalid File key, prefix %s is mandatory.", foreign_key_prefix);
 		return -1;
 	}
@@ -361,7 +361,7 @@ int maat_cmd_set_file(struct maat *maat_inst, const char *key, const char *value
 	}
 
 	if (NULL == reply || reply->type == REDIS_REPLY_NIL || reply->type == REDIS_REPLY_ERROR) {
-		log_error(maat_inst->logger, MODULE_MAAT_COMMAND, 
+		log_fatal(maat_inst->logger, MODULE_MAAT_COMMAND, 
                   "Set file failed, maybe Redis is busy.");
 		freeReplyObject(reply);
 		reply = NULL;

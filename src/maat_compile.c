@@ -30,7 +30,6 @@
 
 #define MAX_SUPER_GROUP_CNT        128
 #define MAX_NOT_CLAUSE_NUM         8
-#define VTABLE_MAX_NOT_GROUP_NUM   8
 
 enum clause_not_flag {
     CLAUSE_NOT_FLAG_UNSET = 0,
@@ -85,9 +84,17 @@ struct literal_clause {
     UT_hash_handle hh;
 };
 
-struct table_not_clause {
-    int table_id;
-    int not_clause_num;
+struct table_clause {
+    int vtable_id;
+    int actual_clause_num;
+    UT_array *clause_ids;
+    UT_array *group_ids;
+    UT_hash_handle hh;
+};
+
+struct table_group {
+    int vtable_id;
+    UT_array *group_ids;
     UT_hash_handle hh;
 };
 
@@ -113,7 +120,7 @@ struct group2compile_runtime {
     long long rule_num;
     long long update_err_cnt;
     struct compile_runtime *ref_compile_rt;
-    struct table_not_clause *not_clause_hash;
+    struct table_clause *tbl_not_clause_hash; //each virtual table's not clause number <= MAX_NOT_CLAUSE_NUM
 };
 
 struct maat_clause {
@@ -155,18 +162,22 @@ struct compile2table_id {
 
 struct compile_state {
 	int Nth_scan;
+    int this_scan_not_logic;
     time_t compile_rt_version;
 
 	UT_array *internal_hit_paths;
 	UT_array *all_hit_clauses;
 	UT_array *this_scan_hit_clauses;
+	UT_array *this_scan_hit_not_clauses;
     UT_array *direct_hit_groups;
     UT_array *indirect_hit_groups;
     UT_array *hit_compile_table_ids;
+    struct table_group *hit_not_groups;
 };
 
 UT_icd ut_literal_id_icd = {sizeof(struct literal_id), NULL, NULL, NULL};
 UT_icd ut_clause_id_icd = {sizeof(long long), NULL, NULL, NULL};
+UT_icd ut_compile_group_id_icd = {sizeof(long long), NULL, NULL, NULL};
 UT_icd ut_maat_hit_group_icd = {sizeof(struct maat_hit_group), NULL, NULL, NULL};
 UT_icd ut_hit_path_icd = {sizeof(struct internal_hit_path), NULL, NULL, NULL};
 UT_icd ut_hit_compile_table_id_icd = {sizeof(struct compile2table_id), NULL, NULL, NULL};
@@ -213,7 +224,7 @@ static int compile_accept_tag_match(struct compile_schema *schema, const char *l
         int ret = get_column_pos(line, schema->rule_tag_column, 
                                  &column_offset, &column_len);
         if (ret < 0) {
-            log_error(logger, MODULE_COMPILE,
+            log_fatal(logger, MODULE_COMPILE,
                       "[%s:%d] table: <%s> has no rule_tag in line:%s",
                       __FUNCTION__, __LINE__, table_name, line);
             return TAG_MATCH_ERR;
@@ -225,14 +236,14 @@ static int compile_accept_tag_match(struct compile_schema *schema, const char *l
             ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
             FREE(tag_str);
             if (TAG_MATCH_ERR == ret) {
-                log_error(logger, MODULE_COMPILE,
+                log_fatal(logger, MODULE_COMPILE,
                           "[%s:%d] table: <%s> has invalid tag format in line:%s",
                           __FUNCTION__, __LINE__, table_name, line);
                 return TAG_MATCH_ERR;
             }
 
             if (TAG_MATCH_UNMATCHED == ret) {
-                log_error(logger, MODULE_COMPILE,
+                log_fatal(logger, MODULE_COMPILE,
                           "[%s:%d] table: <%s> has unmatched tag in line:%s",
                           __FUNCTION__, __LINE__, table_name, line);
                 return TAG_MATCH_UNMATCHED;
@@ -259,7 +270,7 @@ compile_item_new(const char *table_line, struct compile_schema *schema,
     ret = get_column_pos(table_line, schema->compile_id_column,
                          &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_COMPILE,
+        log_fatal(logger, MODULE_COMPILE,
                   "[%s:%d] table: <%s> has no compile_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, table_line);
         goto error;
@@ -269,7 +280,7 @@ compile_item_new(const char *table_line, struct compile_schema *schema,
     ret = get_column_pos(table_line, schema->declared_clause_num_column,
                          &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_COMPILE,
+        log_fatal(logger, MODULE_COMPILE,
                   "[%s:%d] table: <%s> has no clause_num in line:%s",
                   __FUNCTION__, __LINE__, table_name, table_line);
 		goto error;
@@ -278,7 +289,7 @@ compile_item_new(const char *table_line, struct compile_schema *schema,
     compile_item->declared_clause_num = atoi(table_line + column_offset);
     if (compile_item->declared_clause_num < 0 ||
         compile_item->declared_clause_num > MAX_NOT_CLAUSE_NUM) {
-        log_error(logger, MODULE_COMPILE,
+        log_fatal(logger, MODULE_COMPILE,
                   "[%s:%d] table: <%s> clause_num:%d exceed maximum:%d in line:%s",
                   __FUNCTION__, __LINE__, table_name, compile_item->declared_clause_num,
                   MAX_NOT_CLAUSE_NUM, table_line);
@@ -355,7 +366,7 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (item != NULL && item->type == cJSON_Number) {
         schema->table_id = item->valueint;
     } else {
-        log_error(logger, MODULE_COMPILE, 
+        log_fatal(logger, MODULE_COMPILE, 
                   "[%s:%d] table: <%s> schema has no table_id column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -363,7 +374,7 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
    	item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
-        log_error(logger, MODULE_COMPILE, 
+        log_fatal(logger, MODULE_COMPILE, 
                   "[%s:%d] table: <%s> schema has no custom column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -373,7 +384,7 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->compile_id_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_COMPILE, 
+        log_fatal(logger, MODULE_COMPILE, 
                   "[%s:%d] table: <%s> schema has no compile_id column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -388,7 +399,7 @@ void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->declared_clause_num_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_COMPILE, 
+        log_fatal(logger, MODULE_COMPILE, 
                   "[%s:%d] table: <%s> schema has no clause_num column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -416,7 +427,7 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (item != NULL && item->type == cJSON_Number) {
         g2c_schema->table_id = item->valueint;
     } else {
-        log_error(logger, MODULE_COMPILE, 
+        log_fatal(logger, MODULE_COMPILE, 
                   "[%s:%d] table: <%s> schema has no table_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -426,7 +437,7 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (item != NULL && item->type == cJSON_Number) {
         g2c_schema->asso_compile_table_id = item->valueint;
     } else {
-        log_error(logger, MODULE_COMPILE, 
+        log_fatal(logger, MODULE_COMPILE, 
                   "[%s:%d] table: <%s> schema has no associated_compile_table_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -434,7 +445,7 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
-        log_error(logger, MODULE_COMPILE, 
+        log_fatal(logger, MODULE_COMPILE, 
                   "[%s:%d] table: <%s> schema has no custom column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -444,7 +455,7 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         g2c_schema->group_id_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_COMPILE, 
+        log_fatal(logger, MODULE_COMPILE, 
                   "[%s:%d] table: <%s> schema has no group_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -454,7 +465,7 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         g2c_schema->compile_id_column = custom_item->valueint;
     } else {
-         log_error(logger, MODULE_COMPILE, 
+         log_fatal(logger, MODULE_COMPILE, 
                   "[%s:%d] table: <%s> schema has no compile_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -464,7 +475,7 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         g2c_schema->not_flag_column = custom_item->valueint;
     } else {
-         log_error(logger, MODULE_COMPILE, 
+         log_fatal(logger, MODULE_COMPILE, 
                   "[%s:%d] table: <%s> schema has no not_flag column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -474,7 +485,7 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         g2c_schema->vtable_name_column = custom_item->valueint;
     } else {
-         log_error(logger, MODULE_COMPILE, 
+         log_fatal(logger, MODULE_COMPILE, 
                   "[%s:%d] table: <%s> schema has no virtual_table_name column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -484,7 +495,7 @@ void *group2compile_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         g2c_schema->clause_index_column = custom_item->valueint;
     } else {
-         log_error(logger, MODULE_COMPILE, 
+         log_fatal(logger, MODULE_COMPILE, 
                   "[%s:%d] table: <%s> schema has no clause_index column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -520,7 +531,7 @@ void *compile_runtime_new(void *compile_schema, size_t max_thread_num,
     struct compile_runtime *compile_rt = ALLOC(struct compile_runtime, 1);
 
     compile_rt->expr_match_buff = ALLOC(struct bool_expr_match, 
-                                        max_thread_num * MAX_SCANNER_HIT_COMPILE_NUM);
+                                        max_thread_num * MAX_HIT_COMPILE_NUM);
     compile_rt->version = time(NULL);
     compile_rt->cfg_hash = rcu_hash_new(rcu_compile_cfg_free, NULL, 0);
     compile_rt->tbl_cfg_hash = rcu_hash_new(rcu_compile_table_cfg_free, NULL, 0);
@@ -612,7 +623,7 @@ void *group2compile_runtime_new(void *g2c_schema, size_t max_thread_num,
     }
 
     struct group2compile_runtime *g2c_rt = ALLOC(struct group2compile_runtime, 1);
-    g2c_rt->not_clause_hash = NULL;
+    g2c_rt->tbl_not_clause_hash = NULL;
 
     return g2c_rt;
 }
@@ -631,14 +642,14 @@ void group2compile_runtime_free(void *g2c_runtime)
     }
 
     struct group2compile_runtime *g2c_rt = (struct group2compile_runtime *)g2c_runtime;
-    if (g2c_rt->not_clause_hash != NULL) {
-        struct table_not_clause *not_clause = NULL, *tmp_not_clause = NULL;
-        HASH_ITER(hh, g2c_rt->not_clause_hash, not_clause, tmp_not_clause) {
-            HASH_DEL(g2c_rt->not_clause_hash, not_clause);
+    if (g2c_rt->tbl_not_clause_hash != NULL) {
+        struct table_clause *not_clause = NULL, *tmp_not_clause = NULL;
+        HASH_ITER(hh, g2c_rt->tbl_not_clause_hash, not_clause, tmp_not_clause) {
+            HASH_DEL(g2c_rt->tbl_not_clause_hash, not_clause);
             FREE(not_clause);
         }
     }
-    assert(g2c_rt->not_clause_hash == NULL);
+    assert(g2c_rt->tbl_not_clause_hash == NULL);
 
     FREE(g2c_runtime);
 }
@@ -672,7 +683,7 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
     int ret = get_column_pos(line, g2c_schema->group_id_column, &column_offset,
                              &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_COMPILE,
+        log_fatal(logger, MODULE_COMPILE,
 				  "[%s:%d] g2c table:<%s> has no group_id in line:%s",
 				  __FUNCTION__, __LINE__, table_name, line);
 		goto error;
@@ -682,7 +693,7 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
     ret = get_column_pos(line, g2c_schema->compile_id_column, &column_offset,
                          &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_COMPILE,
+        log_fatal(logger, MODULE_COMPILE,
 				  "[%s:%d] g2c table:<%s> has no compile_id in line:%s",
 				  __FUNCTION__, __LINE__, table_name, line);
 		goto error;
@@ -692,7 +703,7 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
     ret = get_column_pos(line, g2c_schema->not_flag_column, &column_offset,
                          &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_COMPILE,
+        log_fatal(logger, MODULE_COMPILE,
 				  "[%s:%d] g2c table:<%s> has no NOT_flag in line:%s ",
 				  __FUNCTION__, __LINE__, table_name, line);
 		goto error;
@@ -701,7 +712,7 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
     g2c_item->not_flag = atoi(line + column_offset);
     if (g2c_item->not_flag != CLAUSE_NOT_FLAG_SET && 
         g2c_item->not_flag != CLAUSE_NOT_FLAG_UNSET) {
-        log_error(logger, MODULE_COMPILE,
+        log_fatal(logger, MODULE_COMPILE,
 				  "[%s:%d] g2c table:<%s>  NOT_flag:%d is illegal in line:%s ",
 				  __FUNCTION__, __LINE__, table_name, g2c_item->not_flag, line);
 		goto error;
@@ -710,14 +721,14 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
     ret = get_column_pos(line, g2c_schema->vtable_name_column, &column_offset,
                          &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_COMPILE,
+        log_fatal(logger, MODULE_COMPILE,
 				  "[%s:%d] g2c table:<%s> has no virtual_table_name in line:%s",
 				  __FUNCTION__, __LINE__, table_name, line);
 		goto error;
     }
 
     if (column_len > MAX_NAME_STR_LEN) {
-        log_error(logger, MODULE_COMPILE, 
+        log_fatal(logger, MODULE_COMPILE, 
                   "[%s:%d] g2c table:<%s> virtual_table_name length exceed "
                   "maxium:%d in line:%s", __FUNCTION__, __LINE__, table_name,
                   MAX_NAME_STR_LEN, line);
@@ -731,7 +742,7 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
         g2c_item->vtable_id = table_manager_get_table_id(g2c_schema->ref_tbl_mgr,
                                                          vtable_name);
         if (g2c_item->vtable_id < 0) {
-            log_error(logger, MODULE_COMPILE,
+            log_fatal(logger, MODULE_COMPILE,
                       "[%s:%d] g2c table:<%s> has unknown virtual table:%s in line:%s",
                       __FUNCTION__, __LINE__, table_name, vtable_name, line);
             goto error;
@@ -741,7 +752,7 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
     ret = get_column_pos(line, g2c_schema->clause_index_column, &column_offset,
                          &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_COMPILE,
+        log_fatal(logger, MODULE_COMPILE,
                   "[%s:%d] g2c table:<%s> has no clause_index in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -749,7 +760,7 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
 
     g2c_item->clause_index = atoi(line + column_offset);
     if (g2c_item->clause_index < 0 || g2c_item->clause_index >= MAX_NOT_CLAUSE_NUM) {
-        log_error(logger, MODULE_COMPILE,
+        log_fatal(logger, MODULE_COMPILE,
                   "[%s:%d] g2c table:<%s> clause_index:%d exceed maximum:%d in line:%s",
                   __FUNCTION__, __LINE__, table_name, g2c_item->clause_index,
                   MAX_NOT_CLAUSE_NUM, line);
@@ -910,7 +921,7 @@ maat_compile_bool_matcher_new(struct compile_runtime *compile_rt, size_t *compil
     // STEP 3, build bool matcher
     size_t mem_size = 0;
     if (0 == expr_cnt) {
-        log_error(compile_rt->logger, MODULE_COMPILE,
+        log_fatal(compile_rt->logger, MODULE_COMPILE,
                   "[%s:%d] No bool expression to build bool matcher.",
                   __FUNCTION__, __LINE__);
         FREE(bool_expr_array);
@@ -923,7 +934,7 @@ maat_compile_bool_matcher_new(struct compile_runtime *compile_rt, size_t *compil
                  "Build bool matcher of %zu expressions with %zu bytes memory.",
                  expr_cnt, mem_size);
     } else {
-        log_error(compile_rt->logger, MODULE_COMPILE,
+        log_fatal(compile_rt->logger, MODULE_COMPILE,
                   "[%s:%d] Build bool matcher failed!", __FUNCTION__, __LINE__);
     }
 
@@ -1058,17 +1069,28 @@ static int maat_compile_has_clause(struct maat_compile *compile, long long claus
 static size_t compile_state_if_new_hit_compile(struct compile_state *compile_state,
                                                struct maat_compile *compile)
 {
+    size_t i = 0;
 	size_t r_in_c_cnt = 0;
 	int ret = 0;
 
 	long long new_hit_clause_id = 0;
-	for (size_t i = 0; i < utarray_len(compile_state->this_scan_hit_clauses); i++) {
-		new_hit_clause_id = *(long long*)utarray_eltptr(compile_state->this_scan_hit_clauses, i);
-		ret = maat_compile_has_clause(compile, new_hit_clause_id);
-		if (ret) {
-			r_in_c_cnt++;
-		}
-	}
+    if (0 == compile_state->this_scan_not_logic) {
+        for (i = 0; i < utarray_len(compile_state->this_scan_hit_clauses); i++) {
+		    new_hit_clause_id = *(long long*)utarray_eltptr(compile_state->this_scan_hit_clauses, i);
+		    ret = maat_compile_has_clause(compile, new_hit_clause_id);
+		    if (ret) {
+			    r_in_c_cnt++;
+		    }
+	    }
+    } else {
+        for (i = 0; i < utarray_len(compile_state->this_scan_hit_not_clauses); i++) {
+		    new_hit_clause_id = *(long long*)utarray_eltptr(compile_state->this_scan_hit_not_clauses, i);
+		    ret = maat_compile_has_clause(compile, new_hit_clause_id);
+		    if (ret) {
+			    r_in_c_cnt++;
+		    }
+	    }
+    }
 
 	return r_in_c_cnt;
 }
@@ -1104,7 +1126,7 @@ static size_t maat_compile_bool_matcher_match(struct compile_runtime *compile_rt
     size_t ud_result_cnt = 0;
 	struct maat_compile *compile = NULL;
 	struct bool_expr_match *expr_match = compile_rt->expr_match_buff +
-                                         (thread_id * MAX_SCANNER_HIT_COMPILE_NUM);
+                                         (thread_id * MAX_HIT_COMPILE_NUM);
     assert(thread_id >= 0);
 
     if (0 == compile_state->compile_rt_version) {
@@ -1128,7 +1150,7 @@ static size_t maat_compile_bool_matcher_match(struct compile_runtime *compile_rt
 	int bool_match_ret = bool_matcher_match(compile_rt->bm, 
                                             (unsigned long long *)utarray_eltptr(compile_state->all_hit_clauses, 0),
 											utarray_len(compile_state->all_hit_clauses), 
-                                            expr_match, MAX_SCANNER_HIT_COMPILE_NUM);
+                                            expr_match, MAX_HIT_COMPILE_NUM);
 	for (int i = 0; i < bool_match_ret && ud_result_cnt < ud_array_size; i++) {
 		compile = (struct maat_compile *)expr_match[i].user_tag;
 		assert(compile->magic_num == MAAT_COMPILE_MAGIC);
@@ -1214,7 +1236,7 @@ static int maat_add_group_to_compile(struct rcu_hash_table *hash_tbl,
             ret = maat_compile_clause_add_literal(compile, &literal_id, g2c_item->clause_index,
                                                   g2c_item->not_flag);
             if (ret < 0) {
-                log_error(logger, MODULE_COMPILE,
+                log_fatal(logger, MODULE_COMPILE,
                           "[%s:%d] add literal_id{group_id:%lld, vtable_id:%d} to clause_index: %d"
                           " of compile %d failed", __FUNCTION__, __LINE__, g2c_item->group_id,
                           g2c_item->vtable_id, g2c_item->clause_index, compile_id);
@@ -1226,7 +1248,7 @@ static int maat_add_group_to_compile(struct rcu_hash_table *hash_tbl,
             ret = maat_compile_clause_add_literal(compile, &literal_id, g2c_item->clause_index,
                                                   g2c_item->not_flag);
             if (ret < 0) {
-                log_error(logger, MODULE_COMPILE,
+                log_fatal(logger, MODULE_COMPILE,
                           "[%s:%d] add literal_id{group_id:%lld, vtable_id:%d} to clause_index: %d"
                           " of compile %d failed", __FUNCTION__, __LINE__, g2c_item->group_id,
                           g2c_item->vtable_id, g2c_item->clause_index, compile_id);
@@ -1254,7 +1276,7 @@ static int maat_add_group_to_compile(struct rcu_hash_table *hash_tbl,
             ret = maat_compile_clause_add_literal(copy_compile, &literal_id, g2c_item->clause_index,
                                                   g2c_item->not_flag);
             if (ret < 0) {
-                log_error(logger, MODULE_COMPILE,
+                log_fatal(logger, MODULE_COMPILE,
                           "[%s:%d] add literal_id{group_id:%lld, vtable_id:%d} to clause_index: %d"
                           " of compile %d failed", __FUNCTION__, __LINE__, g2c_item->group_id,
                           g2c_item->vtable_id, g2c_item->clause_index, compile_id);
@@ -1267,7 +1289,7 @@ static int maat_add_group_to_compile(struct rcu_hash_table *hash_tbl,
             ret = maat_compile_clause_add_literal(compile, &literal_id, g2c_item->clause_index,
                                                   g2c_item->not_flag);
             if (ret < 0) {
-                log_error(logger, MODULE_COMPILE,
+                log_fatal(logger, MODULE_COMPILE,
                           "[%s:%d] add literal_id{group_id:%lld, vtable_id:%d} to clause_index: %d"
                           " of compile %d failed",  __FUNCTION__, __LINE__, g2c_item->group_id,
                           g2c_item->vtable_id, g2c_item->clause_index, compile_id);
@@ -1294,7 +1316,7 @@ static int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
         compile = rcu_updating_hash_find(hash_tbl, (char *)&compile_id,
                                          sizeof(long long));
         if (NULL == compile) {
-            log_error(logger, MODULE_COMPILE,
+            log_fatal(logger, MODULE_COMPILE,
                       "[%s:%d] Remove group_id:%lld from compile_id:%lld failed, compile"
                       " is not existed.", __FUNCTION__, __LINE__, g2c_item->group_id,
                       compile_id);
@@ -1304,7 +1326,7 @@ static int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
             ret = maat_compile_clause_remove_literal(compile, &literal_id,
                                                      g2c_item->clause_index);
             if (ret < 0) {
-                log_error(logger, MODULE_COMPILE,
+                log_fatal(logger, MODULE_COMPILE,
                           "[%s:%d] Remove group_id:%lld vtable_id %d from clause %d of "
                           "compile_id:%lld failed, literal is not in compile.", __FUNCTION__,
                           __LINE__, g2c_item->group_id, g2c_item->vtable_id,
@@ -1337,7 +1359,7 @@ static int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
             ret = maat_compile_clause_remove_literal(copy_compile, &literal_id,
                                                      g2c_item->clause_index);
             if (ret < 0) {
-                log_error(logger, MODULE_COMPILE,
+                log_fatal(logger, MODULE_COMPILE,
                           "[%s:%d] Remove group_id:%lld vtable_id %d from clause %d of compile_id:"
                           "%lld failed, literal is not in compile.", __FUNCTION__, __LINE__,
                           g2c_item->group_id, g2c_item->vtable_id, g2c_item->clause_index,
@@ -1350,7 +1372,7 @@ static int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
                 rcu_hash_add(hash_tbl, (char *)&compile_id, sizeof(long long), copy_compile);
             }
         } else {
-            log_error(logger, MODULE_COMPILE,
+            log_fatal(logger, MODULE_COMPILE,
                       "[%s:%d] Remove group_id:%lld from compile_id:%lld failed, "
                       "compile is not existed.", __FUNCTION__, __LINE__, 
                       g2c_item->group_id, compile_id);
@@ -1368,11 +1390,34 @@ struct compile_state *compile_state_new(void)
 	utarray_new(compile_state->internal_hit_paths, &ut_hit_path_icd);
 	utarray_new(compile_state->all_hit_clauses, &ut_clause_id_icd);
 	utarray_new(compile_state->this_scan_hit_clauses, &ut_clause_id_icd);
+	utarray_new(compile_state->this_scan_hit_not_clauses, &ut_clause_id_icd);
     utarray_new(compile_state->direct_hit_groups, &ut_maat_hit_group_icd);
     utarray_new(compile_state->indirect_hit_groups, &ut_maat_hit_group_icd);
     utarray_new(compile_state->hit_compile_table_ids, &ut_hit_compile_table_id_icd);
+    compile_state->hit_not_groups = NULL;
 
 	return compile_state;
+}
+
+static long long compile_state_hit_not_groups_free(struct compile_state *compile_state)
+{
+    if (NULL == compile_state) {
+        return 0;
+    }
+
+    long long free_bytes = 0;
+    struct table_group *tbl_group = NULL, *tmp_tbl_group = NULL;
+    HASH_ITER(hh, compile_state->hit_not_groups, tbl_group, tmp_tbl_group) {
+        free_bytes += (sizeof(tbl_group) + utarray_len(tbl_group->group_ids) * sizeof(long long));
+        HASH_DEL(compile_state->hit_not_groups, tbl_group);
+        if (tbl_group->group_ids != NULL) {
+            utarray_free(tbl_group->group_ids);
+            tbl_group->group_ids = NULL;
+        }
+        FREE(tbl_group);
+    }
+
+    return free_bytes;
 }
 
 void compile_state_reset(struct compile_state *compile_state)
@@ -1381,15 +1426,22 @@ void compile_state_reset(struct compile_state *compile_state)
         return;
     }
 
+    compile_state->this_scan_not_logic = 0;
     compile_state->Nth_scan = 0;
     compile_state->compile_rt_version = 0;
 
     utarray_clear(compile_state->internal_hit_paths);
     utarray_clear(compile_state->all_hit_clauses);
     utarray_clear(compile_state->this_scan_hit_clauses);
+    utarray_clear(compile_state->this_scan_hit_not_clauses);
     utarray_clear(compile_state->direct_hit_groups);
     utarray_clear(compile_state->indirect_hit_groups);
     utarray_clear(compile_state->hit_compile_table_ids);
+
+    struct table_group *tbl_group = NULL, *tmp_tbl_group = NULL;
+    HASH_ITER(hh, compile_state->hit_not_groups, tbl_group, tmp_tbl_group) {
+        utarray_clear(tbl_group->group_ids);
+    }
 }
 
 void compile_state_free(struct compile_state *compile_state,
@@ -1419,6 +1471,12 @@ void compile_state_free(struct compile_state *compile_state,
         compile_state->this_scan_hit_clauses = NULL;
     }
 	
+    if (compile_state->this_scan_hit_not_clauses != NULL) {
+        free_bytes += utarray_size(compile_state->this_scan_hit_not_clauses) * sizeof(long long);
+        utarray_free(compile_state->this_scan_hit_not_clauses);
+        compile_state->this_scan_hit_not_clauses = NULL;
+    }
+
     if (compile_state->direct_hit_groups != NULL) {
         free_bytes += utarray_size(compile_state->direct_hit_groups) * sizeof(struct maat_hit_group);
         utarray_free(compile_state->direct_hit_groups);
@@ -1437,6 +1495,8 @@ void compile_state_free(struct compile_state *compile_state,
         compile_state->hit_compile_table_ids = NULL;
     }
 
+    free_bytes += compile_state_hit_not_groups_free(compile_state);
+
 	FREE(compile_state);
 
     free_bytes += sizeof(struct compile_state);
@@ -1444,14 +1504,14 @@ void compile_state_free(struct compile_state *compile_state,
                               thread_id, free_bytes);
 }
 
-static void add_internal_hit_path(UT_array *hit_paths, long long item_id,
-                                  long long group_id, int vtable_id, int NOT_flag,
-                                  int Nth_scan)
+static void compile_state_add_internal_hit_path(struct compile_state *compile_state,
+                                                long long item_id, long long group_id,
+                                                int vtable_id, int NOT_flag, int Nth_scan)
 {
-    if (NULL == hit_paths || utarray_len(hit_paths) >= MAX_HIT_PATH_NUM) {
+    if (NULL == compile_state) {
         return;
     }
-    
+
 	struct internal_hit_path new_path;
 	new_path.item_id = item_id;
 	new_path.Nth_scan = Nth_scan;
@@ -1459,7 +1519,7 @@ static void add_internal_hit_path(UT_array *hit_paths, long long item_id,
 	new_path.vtable_id = vtable_id;
     new_path.NOT_flag = NOT_flag;
 
-	utarray_push_back(hit_paths, &new_path);
+	utarray_push_back(compile_state->internal_hit_paths, &new_path);
 }
 
 static int maat_compile_has_literal(struct maat_compile *compile,
@@ -1508,7 +1568,7 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, int thr
     struct maat_compile *compile = NULL;
     struct literal_id literal_id = {0, 0};
     struct bool_expr_match *expr_match = compile_rt->expr_match_buff + 
-                                         (thread_id * MAX_SCANNER_HIT_COMPILE_NUM);
+                                         (thread_id * MAX_HIT_COMPILE_NUM);
     assert(thread_id >= 0);
 
     if (compile_state->compile_rt_version != compile_rt->version) {
@@ -1517,8 +1577,8 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, int thr
 
     int bool_match_ret = bool_matcher_match(compile_rt->bm, 
                                             (unsigned long long *)utarray_eltptr(compile_state->all_hit_clauses, 0),
-											utarray_len(compile_state->all_hit_clauses), expr_match, 
-                                            MAX_SCANNER_HIT_COMPILE_NUM);
+											utarray_len(compile_state->all_hit_clauses), expr_match, MAX_HIT_COMPILE_NUM);
+
 	for (int idx = 0; idx < bool_match_ret; idx++) {
         compile = (struct maat_compile *)expr_match[idx].user_tag;
 		assert(compile->magic_num == MAAT_COMPILE_MAGIC);
@@ -1620,6 +1680,33 @@ static void compile_state_add_hit_clauses(struct compile_state *compile_state,
     }
 }
 
+static void compile_state_add_hit_not_clauses(struct compile_state *compile_state,
+                                              UT_array *clause_id_array)
+{
+    size_t i = 0;
+    long long *clause_id = NULL;
+    size_t new_clause_idx = utarray_len(compile_state->this_scan_hit_not_clauses);
+
+    for (i = 0; i < utarray_len(clause_id_array); i++) {
+        clause_id = (long long *)utarray_eltptr(clause_id_array, i);
+        if (utarray_find(compile_state->all_hit_clauses, clause_id, compare_clause_id)) {
+            continue;
+        }
+        utarray_push_back(compile_state->this_scan_hit_not_clauses, clause_id);
+    }
+
+    if ((utarray_len(compile_state->this_scan_hit_not_clauses) - new_clause_idx) > 0) {
+        utarray_reserve(compile_state->all_hit_clauses,
+                        utarray_len(compile_state->this_scan_hit_not_clauses) - new_clause_idx);
+
+        for (i = new_clause_idx; i < utarray_len(compile_state->this_scan_hit_not_clauses); i++) {
+            clause_id = (long long *)utarray_eltptr(compile_state->this_scan_hit_not_clauses, i);
+            utarray_push_back(compile_state->all_hit_clauses, clause_id);
+        }
+        utarray_sort(compile_state->all_hit_clauses, compare_clause_id);
+    }
+}
+
 static void compile_state_update_hit_clauses(struct compile_state *compile_state,
                                              struct compile_runtime *compile_rt,
                                              long long group_id, int vtable_id)
@@ -1653,43 +1740,58 @@ static inline int compare_group_id(const void *a, const void *b)
 	}
 }
 
-static size_t compile_state_update_hit_not_clauses(struct compile_state *compile_state,
-                                                  struct compile_runtime *compile_rt,
-                                                  long long *group_ids, size_t n_group_ids,
-                                                  int vtable_id, long long *NOT_group_ids_array,
-                                                  size_t NOT_group_ids_array_size)
+static void compile_state_cache_hit_not_groups(struct compile_state *compile_state,
+                                               struct compile_runtime *compile_rt,
+                                               long long *hit_group_ids,
+                                               size_t n_hit_group_id, int vtable_id)
 {
     if (NULL == compile_state || NULL == compile_rt) {
-        return 0;
+        return;
     }
 
-    if (n_group_ids != 0) {
-        qsort(group_ids, n_group_ids, sizeof(long long *), compare_group_id);
+    if (n_hit_group_id != 0) {
+        qsort(hit_group_ids, n_hit_group_id, sizeof(long long *), compare_group_id);
     }
 
-    size_t hit_NOT_group_cnt = 0;
+    struct table_group *tbl_group = NULL;
+    HASH_FIND(hh, compile_state->hit_not_groups, &vtable_id, sizeof(int), tbl_group);
+    if (tbl_group != NULL) {
+        for (size_t i = 0; i < n_hit_group_id; i++) {
+            long long *group_id = (long long *)utarray_find(tbl_group->group_ids,
+                                                            &hit_group_ids[i],
+                                                            compare_group_id);
+            if (NULL == group_id) {
+                continue;
+            }
+            size_t remove_idx = utarray_eltidx(tbl_group->group_ids, group_id);
+            utarray_erase(tbl_group->group_ids, remove_idx, 1);
+        }
+    }
+
     struct literal_clause *l2c_val = NULL, *tmp_l2c_val = NULL;
-
-    //NOTE: Each virtual table can reference up to VTABLE_MAX_NOT_GROUP_NUM groups
     HASH_ITER(hh, compile_rt->literal2not_clause_hash, l2c_val, tmp_l2c_val) {
         if (l2c_val->key.vtable_id != vtable_id) {
             continue;
         }
 
-        long long *tmp_group_id = bsearch(&(l2c_val->key.group_id), group_ids, n_group_ids,
-                                          sizeof(long long), compare_group_id);
+        long long *tmp_group_id = bsearch(&(l2c_val->key.group_id), hit_group_ids,
+                                          n_hit_group_id, sizeof(long long), compare_group_id);
         if (tmp_group_id != NULL) {
             continue;
         }
 
-        if (hit_NOT_group_cnt < NOT_group_ids_array_size) {
-            NOT_group_ids_array[hit_NOT_group_cnt++] = l2c_val->key.group_id;
+        if (NULL == tbl_group) {
+            tbl_group = ALLOC(struct table_group, 1);
+            tbl_group->vtable_id = vtable_id;
+            utarray_new(tbl_group->group_ids, &ut_compile_group_id_icd);
+            HASH_ADD_INT(compile_state->hit_not_groups, vtable_id, tbl_group);
         }
 
-        compile_state_add_hit_clauses(compile_state, l2c_val->clause_ids);
+        if (!utarray_find(tbl_group->group_ids, &(l2c_val->key.group_id), compare_group_id)) {
+            utarray_push_back(tbl_group->group_ids, &(l2c_val->key.group_id));
+            utarray_sort(tbl_group->group_ids, compare_group_id);
+        }
     }
-
-    return hit_NOT_group_cnt;
 }
 
 int compile_state_get_compile_table_id(struct compile_state *compile_state,
@@ -1853,7 +1955,7 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
     struct compile_runtime *compile_rt = (struct compile_runtime *)compile_runtime;
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
-        log_error(compile_rt->logger, MODULE_COMPILE,
+        log_fatal(compile_rt->logger, MODULE_COMPILE,
                   "[%s:%d] compile table:<%s> has no is_valid(column seq:%d)"
                   " in table_line:%s", __FUNCTION__, __LINE__, table_name,
                   valid_column, line);
@@ -1863,7 +1965,7 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
 
     long long compile_id = get_column_value(line, schema->compile_id_column);
     if (compile_id < 0) {
-        log_error(compile_rt->logger, MODULE_COMPILE,
+        log_fatal(compile_rt->logger, MODULE_COMPILE,
                   "[%s:%d] compile table:<%s> has no compile_id(column seq:%d)"
                   " in table_line:%s", __FUNCTION__, __LINE__, table_name,
                   schema->compile_id_column, line);
@@ -1899,32 +2001,32 @@ static int validate_table_not_clause(struct group2compile_runtime *g2c_rt,
                                      struct table_manager *tbl_mgr, int table_id,
                                      int is_valid, struct log_handle *logger)
 {
-    struct table_not_clause *not_clause = NULL;
-    HASH_FIND_INT(g2c_rt->not_clause_hash, &table_id, not_clause);
+    struct table_clause *not_clause = NULL;
+    HASH_FIND_INT(g2c_rt->tbl_not_clause_hash, &table_id, not_clause);
 
     if (0 == is_valid) {
         //delete
-        if (NULL == not_clause || 0 == not_clause->not_clause_num) {
+        if (NULL == not_clause || 0 == not_clause->actual_clause_num) {
             return 0;
         } else {
-            not_clause->not_clause_num--;
+            not_clause->actual_clause_num--;
         }
     } else {
         //add
         if (NULL == not_clause) {
-            not_clause = ALLOC(struct table_not_clause, 1);
-            not_clause->table_id = table_id;
-            not_clause->not_clause_num++;
-            HASH_ADD_INT(g2c_rt->not_clause_hash, table_id, not_clause);
+            not_clause = ALLOC(struct table_clause, 1);
+            not_clause->vtable_id = table_id;
+            not_clause->actual_clause_num++;
+            HASH_ADD_INT(g2c_rt->tbl_not_clause_hash, vtable_id, not_clause);
         } else {
-            if (not_clause->not_clause_num >= MAX_NOT_CLAUSE_NUM) {
+            if (not_clause->actual_clause_num >= MAX_NOT_CLAUSE_NUM) {
                 const char *table_name = table_manager_get_table_name(tbl_mgr, table_id);
                 log_fatal(logger, MODULE_COMPILE,
                           "[%s:%d]table:<%s> NOT clause num exceed maximum:%d",
                           __FUNCTION__, __LINE__, table_name, MAX_NOT_CLAUSE_NUM);
                 return -1;
             }
-            not_clause->not_clause_num++;
+            not_clause->actual_clause_num++;
         }
     }
     
@@ -1945,7 +2047,7 @@ int group2compile_runtime_update(void *g2c_runtime, void *g2c_schema,
 
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
-         log_error(compile_rt->logger, MODULE_COMPILE,
+         log_fatal(compile_rt->logger, MODULE_COMPILE,
                   "[%s:%d] g2c table:<%s> has no is_valid(column seq:%d)"
                   " in table_line:%s", __FUNCTION__, __LINE__, table_name,
                   valid_column, line);
@@ -2061,7 +2163,7 @@ int compile_runtime_commit(void *compile_runtime, const char *table_name,
                                (end.tv_nsec - start.tv_nsec) / 1000000;
 
     if (NULL == new_bool_matcher) {
-        log_error(compile_rt->logger, MODULE_COMPILE,
+        log_fatal(compile_rt->logger, MODULE_COMPILE,
                   "[%s:%d] table[%s] rebuild compile bool_matcher failed, compile"
                   " rules count:%zu", __FUNCTION__, __LINE__, table_name, compile_cnt);
         ret = -1;
@@ -2190,23 +2292,17 @@ int compile_runtime_match(struct compile_runtime *compile_rt, long long *compile
     return MIN(bool_match_ret, compile_ids_size);
 }
 
-int compile_state_update(int vtable_id, struct maat_item *hit_items,
-                         size_t n_hit_item, struct maat_state *state)
+int compile_state_update(struct compile_state *compile_state, struct maat *maat_inst,
+                         int vtable_id, int custom_compile_tbl_id, int Nth_scan,
+                         struct maat_item *hit_items, size_t n_hit_item)
 {
     size_t i = 0, j = 0;
     size_t hit_cnt = n_hit_item;
-    long long hit_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
-
-    struct maat *maat_inst = state->maat_inst;
-    if (NULL == state->compile_state) {
-        state->compile_state = compile_state_new();
-        alignment_int64_array_add(maat_inst->stat->compile_state_cnt,
-                                  state->thread_id, 1);
-    }
+    long long hit_group_ids[MAX_HIT_GROUP_NUM];
     
-    struct compile_state *compile_state = state->compile_state;
     utarray_clear(compile_state->this_scan_hit_clauses);
-    compile_state->Nth_scan = state->scan_cnt;
+    compile_state->this_scan_not_logic = 0;
+    compile_state->Nth_scan = Nth_scan;
 
     for (i = 0; i < hit_cnt; i++) {
         hit_group_ids[i] = hit_items[i].group_id;
@@ -2215,14 +2311,15 @@ int compile_state_update(int vtable_id, struct maat_item *hit_items,
     int g2g_table_id = table_manager_get_group2group_table_id(maat_inst->tbl_mgr);
     void *g2g_rt = table_manager_get_runtime(maat_inst->tbl_mgr, g2g_table_id);
 
-    long long super_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
+    long long super_group_ids[MAX_HIT_GROUP_NUM];
     size_t super_group_cnt = group2group_runtime_get_super_groups(g2g_rt, hit_group_ids,
                                                                   hit_cnt, super_group_ids,
-                                                                  MAX_SCANNER_HIT_GROUP_NUM);
+                                                                  MAX_HIT_GROUP_NUM);
     if (1 == maat_inst->opts.hit_path_on && hit_cnt > 0) {
         for (i = 0; i < hit_cnt; i++) {
-            add_internal_hit_path(compile_state->internal_hit_paths, hit_items[i].item_id,
-                                  hit_items[i].group_id, vtable_id, 0, state->scan_cnt);
+            compile_state_add_internal_hit_path(compile_state, hit_items[i].item_id,
+                                                hit_items[i].group_id, vtable_id,
+                                                0, Nth_scan);
         }
     }
 
@@ -2234,8 +2331,8 @@ int compile_state_update(int vtable_id, struct maat_item *hit_items,
 
     /* update hit clause */
     int compile_table_id = table_manager_get_default_compile_table_id(maat_inst->tbl_mgr);
-    if (state->compile_table_id > 0) {
-        compile_table_id = state->compile_table_id;
+    if (custom_compile_tbl_id > 0) {
+        compile_table_id = custom_compile_tbl_id;
     }
 
     struct compile_runtime *compile_rt = table_manager_get_runtime(maat_inst->tbl_mgr,
@@ -2244,28 +2341,56 @@ int compile_state_update(int vtable_id, struct maat_item *hit_items,
         return 0;
     }
 
-    for (j = 0; j < super_group_cnt && hit_cnt < MAX_SCANNER_HIT_GROUP_NUM; j++) {
+    for (j = 0; j < super_group_cnt && hit_cnt < MAX_HIT_GROUP_NUM; j++) {
         hit_group_ids[hit_cnt++] = super_group_ids[j];
     }
 
     for (i = 0; i < hit_cnt; i++) {
-        compile_state_update_hit_clauses(state->compile_state, compile_rt,
-                                        hit_group_ids[i], vtable_id);
+        compile_state_update_hit_clauses(compile_state, compile_rt,
+                                         hit_group_ids[i], vtable_id);
     }
 
-    long long hit_NOT_group_ids[VTABLE_MAX_NOT_GROUP_NUM];
-    size_t hit_not_cnt = compile_state_update_hit_not_clauses(state->compile_state, compile_rt,
-                                                              hit_group_ids, hit_cnt, vtable_id,
-                                                              hit_NOT_group_ids, VTABLE_MAX_NOT_GROUP_NUM);
-    
-    if (1 == maat_inst->opts.hit_path_on && hit_not_cnt > 0) {
-        for (i = 0; i < hit_not_cnt; i++) {
-            add_internal_hit_path(compile_state->internal_hit_paths, -1, hit_NOT_group_ids[i],
-                                  vtable_id, 1, state->scan_cnt);
+    compile_state_cache_hit_not_groups(compile_state, compile_rt, hit_group_ids,
+                                       hit_cnt, vtable_id); 
+    return hit_cnt;
+}
+
+void compile_state_not_logic_update(struct compile_state *compile_state,
+                                    struct compile_runtime *compile_rt,
+                                    struct maat *maat_inst, int vtable_id,
+                                    int Nth_scan)
+{
+    if (NULL == compile_state || NULL == maat_inst) {
+        return;
+    }
+
+    compile_state->this_scan_not_logic = 1;
+    compile_state->Nth_scan = Nth_scan;
+    utarray_clear(compile_state->this_scan_hit_not_clauses);
+
+    struct table_group *tbl_group = NULL;
+    HASH_FIND(hh, compile_state->hit_not_groups, &vtable_id, sizeof(int), tbl_group);
+    if (NULL == tbl_group) {
+        return;
+    }
+
+    struct literal_clause *l2c_val = NULL;
+    for (size_t i = 0; i < utarray_len(tbl_group->group_ids); i++) {
+        long long *group_id = utarray_eltptr(tbl_group->group_ids, i);
+        struct literal_id literal_id = {*group_id, vtable_id, 1};
+        
+        HASH_FIND(hh, compile_rt->literal2not_clause_hash, &literal_id,
+                  sizeof(struct literal_id), l2c_val);
+        if (NULL == l2c_val) {
+            continue;
+        }
+
+        compile_state_add_hit_not_clauses(compile_state, l2c_val->clause_ids);
+        if (1 == maat_inst->opts.hit_path_on) {
+            compile_state_add_internal_hit_path(compile_state, -1, *group_id,
+                                                vtable_id, 1, Nth_scan);
         }
     }
-
-    return (hit_cnt + hit_not_cnt);
 }
 
 size_t compile_state_get_indirect_hit_groups(struct compile_state *compile_state,
@@ -2332,7 +2457,6 @@ size_t compile_state_get_direct_hit_group_cnt(struct compile_state *compile_stat
     return utarray_len(compile_state->direct_hit_groups);
 }
 
-UT_icd ut_compile_group_id_icd = {sizeof(long long), NULL, NULL, NULL};
 size_t compile_state_get_internal_hit_paths(struct compile_state *compile_state,
                                             struct compile_runtime *compile_rt,
                                             struct group2group_runtime *g2g_rt,
@@ -2347,12 +2471,12 @@ size_t compile_state_get_internal_hit_paths(struct compile_state *compile_state,
         /*
             NOTE: maybe one item has been deleted, but it's item_id still exist in internal_hit_paths
         */
-        long long super_group_ids[MAX_SCANNER_HIT_GROUP_NUM];
+        long long super_group_ids[MAX_HIT_GROUP_NUM];
         UT_array *valid_super_group_ids;
         utarray_new(valid_super_group_ids, &ut_compile_group_id_icd);
 
         size_t super_group_cnt = group2group_runtime_get_super_groups(g2g_rt, &(internal_path->group_id), 1,
-                                                                      super_group_ids, MAX_SCANNER_HIT_GROUP_NUM);
+                                                                      super_group_ids, MAX_HIT_GROUP_NUM);
         for (size_t idx = 0; idx < super_group_cnt; idx++) {
             utarray_push_back(valid_super_group_ids, &super_group_ids[idx]);
         }

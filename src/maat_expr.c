@@ -187,7 +187,7 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
     int ret = get_column_pos(line, expr_schema->item_id_column, &column_offset,
                              &column_len);
     if (ret < 0) {
-        log_error(expr_rt->logger, MODULE_EXPR, 
+        log_fatal(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> has no item_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -197,7 +197,7 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
     ret = get_column_pos(line, expr_schema->group_id_column, &column_offset,
                          &column_len);
     if (ret < 0) {
-        log_error(expr_rt->logger, MODULE_EXPR, 
+        log_fatal(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> has no group_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -206,14 +206,14 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
 
     ret = get_column_pos(line, expr_schema->keywords_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(expr_rt->logger, MODULE_EXPR, 
+        log_fatal(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> has no keywords in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
 
     if (column_len > MAX_KEYWORDS_STR_LEN) {
-        log_error(expr_rt->logger, MODULE_EXPR, 
+        log_fatal(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> keywords length too long in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -222,7 +222,7 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
 
     ret = get_column_pos(line, expr_schema->expr_type_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(expr_rt->logger, MODULE_EXPR, 
+        log_fatal(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> has no expr_type in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -231,14 +231,14 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
     expr_type = atoi(line + column_offset);
     expr_item->expr_type = int_to_expr_type(expr_type);
     if (expr_item->expr_type == EXPR_TYPE_INVALID) {
-        log_error(expr_rt->logger, MODULE_EXPR, 
+        log_fatal(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> has invalid expr_type in line:%s",
                  __FUNCTION__, __LINE__, table_name, line);
         goto error;
     } else if (expr_item->expr_type == EXPR_TYPE_REGEX) {
         ret = expr_matcher_verify_regex_expression(expr_item->keywords, expr_rt->logger);
         if (0 == ret) {
-            log_error(expr_rt->logger, MODULE_EXPR, 
+            log_fatal(expr_rt->logger, MODULE_EXPR, 
                       "[%s:%d] expr table:<%s> regex expression(item_id:%lld):%s illegal,"
                       " will be dropped", __FUNCTION__, __LINE__, table_name,
                       expr_item->item_id, expr_item->keywords);
@@ -254,7 +254,7 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
         }
 
         if (column_len > MAX_DISTRICT_STR_LEN) {
-            log_error(expr_rt->logger, MODULE_EXPR, 
+            log_fatal(expr_rt->logger, MODULE_EXPR, 
                       "[%s:%d] expr table:<%s> district length exceed maximum:%d"
                       " in line:%s", __FUNCTION__, __LINE__, table_name,
                       MAX_DISTRICT_STR_LEN, line);
@@ -272,7 +272,7 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
 
     ret = get_column_pos(line, expr_schema->match_method_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(expr_rt->logger, MODULE_EXPR, 
+        log_fatal(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> has no match_method in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -281,7 +281,7 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
     match_method_type = atoi(line + column_offset);
     expr_item->match_mode = int_to_match_mode(match_method_type);
     if (expr_item->match_mode == EXPR_MATCH_MODE_INVALID) {
-        log_error(expr_rt->logger, MODULE_EXPR, 
+        log_fatal(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> has invalid match_method in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -289,7 +289,7 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
 
     ret = get_column_pos(line, expr_schema->is_hexbin_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(expr_rt->logger, MODULE_EXPR, 
+        log_fatal(expr_rt->logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> has no is_hexbin in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -310,7 +310,7 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
             expr_item->is_case_sensitive = TRUE;
             break;
         default:
-            log_error(expr_rt->logger, MODULE_EXPR, 
+            log_fatal(expr_rt->logger, MODULE_EXPR, 
                       "[%s:%d] expr table:<%s> has invalid hexbin value:%d in line:%s",
                       __FUNCTION__, __LINE__, table_name, db_hexbin, line);
             goto error;
@@ -333,7 +333,7 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (item != NULL && item->type == cJSON_Number) {
         expr_schema->table_id = item->valueint;
     } else {
-        log_error(logger, MODULE_EXPR, 
+        log_fatal(logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> schema has no table_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -345,7 +345,7 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
-        log_error(logger, MODULE_EXPR, 
+        log_fatal(logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> schema has no custom column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -355,7 +355,7 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         expr_schema->item_id_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_EXPR, 
+        log_fatal(logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> schema has no item_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -365,7 +365,7 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         expr_schema->group_id_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_EXPR, 
+        log_fatal(logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> schema has no group_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -375,7 +375,7 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         expr_schema->keywords_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_EXPR, 
+        log_fatal(logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> schema has no keywords column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -387,7 +387,7 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         if (custom_item != NULL && custom_item->type == cJSON_Number) {
             expr_schema->district_column = custom_item->valueint;
         } else {
-            log_error(logger, MODULE_EXPR, 
+            log_fatal(logger, MODULE_EXPR, 
                   "[%s:%d] expr_plus table:<%s> schema has no district column", 
                   __FUNCTION__, __LINE__, table_name);
             goto error;
@@ -398,7 +398,7 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         expr_schema->expr_type_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_EXPR, 
+        log_fatal(logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> schema has no expr_type column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -408,7 +408,7 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         expr_schema->match_method_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_EXPR, 
+        log_fatal(logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> schema has no match_method column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -418,7 +418,7 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         expr_schema->is_hexbin_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_EXPR, 
+        log_fatal(logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> schema has no is_hexbin column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -553,7 +553,7 @@ static int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key,
         //add
         ret = rcu_hash_add(expr_rt->item_hash, key, key_len, (void *)item);
         if (ret < 0) {
-            log_error(expr_rt->logger, MODULE_EXPR,
+            log_fatal(expr_rt->logger, MODULE_EXPR,
                       "[%s:%d] expr item(item_id:%lld) add to item_hash failed", 
                       __FUNCTION__, __LINE__, item->item_id);
             return -1;
@@ -637,7 +637,7 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
                 }
 
                 if (i >= MAAT_MAX_EXPR_ITEM_NUM) {
-                    log_error(logger, MODULE_EXPR,
+                    log_fatal(logger, MODULE_EXPR,
                               "[%s:%d]abandon config expr_item(item_id:%d) "
                               "too many patterns", __FUNCTION__, __LINE__,
                               expr_item->item_id);
@@ -657,7 +657,7 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
                 }
 
                 if (i >= MAAT_MAX_EXPR_ITEM_NUM) {
-                    log_error(logger, MODULE_EXPR,
+                    log_fatal(logger, MODULE_EXPR,
                               "[%s:%d]abandon config expr_item(item_id:%d) "
                               "too many patterns", __FUNCTION__, __LINE__,
                               expr_item->item_id);
@@ -669,7 +669,7 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
                        &(key_right_offset[i]));
 				if (!(key_left_offset[i] >= 0 && key_right_offset[i] > 0 
                       && key_left_offset[i] <= key_right_offset[i])) {
-					log_error(logger, MODULE_EXPR,
+					log_fatal(logger, MODULE_EXPR,
 							 "[%s:%d]abandon config expr_item(item_id:%d) "
                              "has invalid offset.", __FUNCTION__, __LINE__,
                              expr_item->item_id);
@@ -679,7 +679,7 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
 				sub_key_array[i] = (char *)memchr(sub_key_array[i], ':',
                                                   strlen(sub_key_array[i]));
 				if (NULL == sub_key_array[i]) {
-					log_error(logger, MODULE_EXPR,
+					log_fatal(logger, MODULE_EXPR,
 							"[%s:%d]abandon config expr_item(item_id:%d) "
                             "has invalid offset keyword format.",
                             __FUNCTION__, __LINE__, expr_item->item_id);
@@ -701,7 +701,7 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
             sub_key_array[0] = expr_item->keywords;
             break;
         default:
-            log_error(logger, MODULE_EXPR, 
+            log_fatal(logger, MODULE_EXPR, 
                       "[%s:%d]abandon config expr_item(item_id:%lld) has "
                       "invalid expr type=%d", __FUNCTION__, __LINE__,
                       expr_item->item_id, expr_item->expr_type);
@@ -769,7 +769,7 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
 
     long long item_id = get_column_value(line, schema->item_id_column);
     if (item_id < 0) {
-        log_error(expr_rt->logger, MODULE_EXPR,
+        log_fatal(expr_rt->logger, MODULE_EXPR,
                   "[%s:%d] expr table:<%s> has no item_id(column seq:%d)"
                   " in table_line:%s", __FUNCTION__, __LINE__, table_name,
                   schema->item_id_column, line);
@@ -779,7 +779,7 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
 
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
-        log_error(expr_rt->logger, MODULE_EXPR,
+        log_fatal(expr_rt->logger, MODULE_EXPR,
                   "[%s:%d] expr table:<%s> has no is_valid(column seq:%d)"
                   " in table_line:%s", __FUNCTION__, __LINE__, table_name,
                   valid_column, line);
@@ -887,7 +887,7 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
                                    (end.tv_nsec - start.tv_nsec) / 1000000;
 
         if (NULL == new_matcher) {
-            log_error(expr_rt->logger, MODULE_EXPR,
+            log_fatal(expr_rt->logger, MODULE_EXPR,
                       "[%s:%d] table[%s] rebuild expr_matcher failed when update"
                       " %zu expr rules", __FUNCTION__, __LINE__, table_name, real_rule_cnt);
             ret = -1;
@@ -969,9 +969,9 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
     }
 
     size_t n_hit_item = 0;
-    struct expr_scan_result hit_results[MAX_SCANNER_HIT_ITEM_NUM];
+    struct expr_scan_result hit_results[MAX_HIT_ITEM_NUM];
     int ret = expr_matcher_match(expr_rt->matcher, thread_id, data, data_len, 
-                                 hit_results, MAX_SCANNER_HIT_ITEM_NUM, &n_hit_item);
+                                 hit_results, MAX_HIT_ITEM_NUM, &n_hit_item);
     if (ret < 0) {
         return -1;
     }
@@ -1003,7 +1003,15 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
     }
 
 next:
-    return compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
+    if (NULL == state->compile_state) {
+        state->compile_state = compile_state_new();
+        alignment_int64_array_add(state->maat_inst->stat->compile_state_cnt,
+                                  state->thread_id, 1);
+    }
+
+    return compile_state_update(state->compile_state, state->maat_inst, vtable_id,
+                                state->compile_table_id, state->scan_cnt,
+                                hit_maat_items, real_hit_item_cnt);
 }
 
 struct expr_matcher_stream *
@@ -1033,10 +1041,10 @@ int expr_runtime_stream_scan(struct expr_runtime *expr_rt,
     }
 
     size_t n_hit_item = 0;
-    struct expr_scan_result hit_results[MAX_SCANNER_HIT_ITEM_NUM];
+    struct expr_scan_result hit_results[MAX_HIT_ITEM_NUM];
 
     int ret = expr_matcher_stream_match(s_handle, data, data_len, hit_results,
-                                        MAX_SCANNER_HIT_ITEM_NUM, &n_hit_item);
+                                        MAX_HIT_ITEM_NUM, &n_hit_item);
     if (ret < 0) {
         return -1;
     }
@@ -1065,7 +1073,15 @@ int expr_runtime_stream_scan(struct expr_runtime *expr_rt,
     }
 
 next:
-    return compile_state_update(vtable_id, hit_maat_items, real_hit_item_cnt, state);
+    if (NULL == state->compile_state) {
+        state->compile_state = compile_state_new();
+        alignment_int64_array_add(state->maat_inst->stat->compile_state_cnt,
+                                  state->thread_id, 1);
+    }
+
+    return compile_state_update(state->compile_state, state->maat_inst, vtable_id,
+                                state->compile_table_id, state->scan_cnt,
+                                hit_maat_items, real_hit_item_cnt);
 }
 
 void expr_runtime_stream_close(struct expr_runtime *expr_rt, int thread_id, 

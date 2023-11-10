@@ -110,7 +110,7 @@ static void _get_foregin_keys(struct serial_rule *p_rule, int *foreign_columns,
                                                          foreign_columns[i], 
                                                          &foreign_key_size);
 		if (NULL == p_foreign) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Get %s,%lld foreign keys failed: No %dth column",
 					  __FUNCTION__, __LINE__, p_rule->table_name, p_rule->rule_id, 
                       foreign_columns[i]);
@@ -123,7 +123,7 @@ static void _get_foregin_keys(struct serial_rule *p_rule, int *foreign_columns,
 		}
 
 		if (0 != strncmp(p_foreign, foreign_source_prefix, strlen(foreign_source_prefix))) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Get %s,%lld foreign key failed: Invalid source prefix %s",
 					  __FUNCTION__, __LINE__, p_rule->table_name, p_rule->rule_id, p_foreign);
 			continue;
@@ -245,7 +245,7 @@ static int _get_maat_redis_value(redisContext *c, struct serial_rule *rule_list,
 	for (i = 0; i < rule_num; i++) {
 		ret = maat_wrap_redis_get_reply(c, &reply);
 		if (ret == REDIS_ERR) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Redis GET %s:%s,%lld failed, redis server error", 
                       __FUNCTION__, __LINE__, mr_key_prefix[rule_list[i].op], 
                       rule_list[i].table_name, rule_list[i].rule_id);
@@ -260,7 +260,7 @@ static int _get_maat_redis_value(redisContext *c, struct serial_rule *rule_list,
 				retry_ids[failed_cnt] = i;
 				failed_cnt++;
 			} else {
-				log_error(logger, MODULE_REDIS_MONITOR, 
+				log_fatal(logger, MODULE_REDIS_MONITOR, 
                           "[%s:%d] Redis GET %s:%s,%lld failed",
                           __FUNCTION__, __LINE__, mr_key_prefix[rule_list[i].op],
 						  rule_list[i].table_name, rule_list[i].rule_id);
@@ -291,7 +291,7 @@ static int _get_maat_redis_value(redisContext *c, struct serial_rule *rule_list,
 		idx = retry_ids[i];
 		ret = maat_wrap_redis_get_reply(c, &reply);
 		if (ret == REDIS_ERR) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] redis command %s failed, redis server error", 
                       __FUNCTION__, __LINE__, redis_cmd);
 			FREE(retry_ids);
@@ -302,12 +302,12 @@ static int _get_maat_redis_value(redisContext *c, struct serial_rule *rule_list,
 			rule_list[idx].table_line = maat_strdup(reply->str);
 		} else if(reply->type==REDIS_REPLY_ERROR) {
             //Deal with Redis response: "Loading Redis is loading the database in memory" 
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] redis command %s error, reply type=%d, error str=%s", 
                       __FUNCTION__, __LINE__, redis_cmd, reply->type, reply->str);
 		} else {
             //Handle type "nil"
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] redis command %s failed, reply type=%d", 
                       __FUNCTION__, __LINE__, redis_cmd, reply->type);
 		}
@@ -362,7 +362,7 @@ static int get_inc_key_list(long long instance_version, long long target_version
                                                    mr_status_sset, instance_version,
                                                    target_version);
 	if (NULL == reply) {
-		log_error(logger, MODULE_REDIS_MONITOR, 
+		log_fatal(logger, MODULE_REDIS_MONITOR, 
                   "[%s:%d] GET %s failed with a NULL reply, error: %s", 
                   __FUNCTION__, __LINE__, mr_status_sset, c->errstr);
 		return -1;
@@ -381,7 +381,7 @@ static int get_inc_key_list(long long instance_version, long long target_version
                                                    mr_status_sset, 
                                                    reply->element[0]->str);
 	if (tmp_reply->type != REDIS_REPLY_STRING) {
-		log_error(logger, MODULE_REDIS_MONITOR, 
+		log_fatal(logger, MODULE_REDIS_MONITOR, 
                   "[%s:%d] ZSCORE %s %s failed Version: %lld->%lld", 
                   __FUNCTION__, __LINE__, mr_status_sset, 
                   reply->element[0]->str, instance_version, 
@@ -417,7 +417,7 @@ static int get_inc_key_list(long long instance_version, long long target_version
 		int ret = sscanf(reply->element[i]->str, "%3s,%[^,],%lld", 
                          op_str, s_rule[j].table_name, &(s_rule[j].rule_id));
 		if (ret != 3 || s_rule[i].rule_id < 0) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Invalid Redis Key: %s", 
                       __FUNCTION__, __LINE__, reply->element[i]->str);
 			continue;
@@ -428,7 +428,7 @@ static int get_inc_key_list(long long instance_version, long long target_version
 		} else if(strncmp(op_str, "DEL", strlen("DEL")) == 0) {
 			s_rule[j].op = MAAT_OP_DEL;
 		} else {
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                      "[%s:%d] Invalid Redis Key: %s", 
                      __FUNCTION__, __LINE__, reply->element[i]->str);
 			continue;
@@ -489,7 +489,7 @@ int maat_get_rm_key_list(redisContext *c, long long instance_version,
 	redisReply *reply = (redisReply *)redisCommand(c, "GET MAAT_VERSION");
 	if (reply != NULL) {
 		if (reply->type == REDIS_REPLY_NIL || reply->type == REDIS_REPLY_ERROR) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] GET MAAT_VERSION failed, maybe Redis is busy",
                       __FUNCTION__, __LINE__);
 			freeReplyObject(reply);
@@ -497,7 +497,7 @@ int maat_get_rm_key_list(redisContext *c, long long instance_version,
 			return -1;
 		}
 	} else {
-		log_error(logger, MODULE_REDIS_MONITOR, 
+		log_fatal(logger, MODULE_REDIS_MONITOR, 
                   "[%s:%d] GET MAAT_VERSION failed with NULL reply, error: %s",
                   __FUNCTION__, __LINE__, c->errstr);
 		return -1;
@@ -506,7 +506,7 @@ int maat_get_rm_key_list(redisContext *c, long long instance_version,
 	long long redis_version = maat_read_redis_integer(reply);
 	if (redis_version < 0) {
 		if (reply->type == REDIS_REPLY_ERROR) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Redis Communication error: %s", 
                       __FUNCTION__, __LINE__, reply->str);
 		}
@@ -525,7 +525,7 @@ int maat_get_rm_key_list(redisContext *c, long long instance_version,
 	}
 
 	if (redis_version < instance_version) {
-		log_error(logger, MODULE_REDIS_MONITOR, 
+		log_fatal(logger, MODULE_REDIS_MONITOR, 
                   "[%s:%d] VERSION roll back MAAT: %lld -> Redis: %lld", 
                   __FUNCTION__, __LINE__, instance_version, redis_version);
 		goto FULL_UPDATE;
@@ -568,7 +568,7 @@ int maat_get_rm_key_list(redisContext *c, long long instance_version,
 	return rule_num;
 
 FULL_UPDATE:
-	log_info(logger, MODULE_REDIS_MONITOR, 
+	log_fatal(logger, MODULE_REDIS_MONITOR, 
              "Initiate full update from instance_version %lld to %lld", 
              instance_version, redis_version);
 	size_t append_cmd_cnt = 0;
@@ -591,14 +591,14 @@ FULL_UPDATE:
 
 	reply = maat_wrap_redis_command(c, "EXEC");
 	if (NULL == reply) {
-		log_error(logger, MODULE_REDIS_MONITOR, 
+		log_fatal(logger, MODULE_REDIS_MONITOR, 
                   "[%s:%d] Redis Communication error: %s", 
                   __FUNCTION__, __LINE__, c->errstr);
 		return -1;
 	}
 
 	if (reply->type != REDIS_REPLY_ARRAY) {
-		log_error(logger, MODULE_REDIS_MONITOR, 
+		log_fatal(logger, MODULE_REDIS_MONITOR, 
                   "[%s:%d] Invalid Redis Key List type %d", 
                   __FUNCTION__, __LINE__, reply->type);
 		freeReplyObject(reply);
@@ -609,7 +609,7 @@ FULL_UPDATE:
 	*new_version = maat_read_redis_integer(reply->element[0]);
 	redisReply *sub_reply = reply->element[1];
 	if (sub_reply->type != REDIS_REPLY_ARRAY) {
-		log_error(logger, MODULE_REDIS_MONITOR, 
+		log_fatal(logger, MODULE_REDIS_MONITOR, 
                   "[%s:%d] Invalid Redis Key List type %d", 
                   __FUNCTION__, __LINE__, sub_reply->type);
 		freeReplyObject(reply);
@@ -621,7 +621,7 @@ FULL_UPDATE:
 	s_rule_array = ALLOC(struct serial_rule, sub_reply->elements);
 	for (i = 0, full_idx = 0; i < sub_reply->elements; i++) {
 		if (sub_reply->element[i]->type != REDIS_REPLY_STRING) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Invalid Redis Key Type: %d",
                       __FUNCTION__, __LINE__, sub_reply->element[i]->type);
 			continue;
@@ -634,7 +634,7 @@ FULL_UPDATE:
 
 		if (ret != 2 || s_rule_array[full_idx].rule_id < 0 || 
             strlen(s_rule_array[full_idx].table_name) == 0) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Invalid Redis Key Format: %s", 
                       __FUNCTION__, __LINE__, sub_reply->element[i]->str);
 			continue;
@@ -687,7 +687,7 @@ static void _get_foreign_conts(redisContext *c, struct serial_rule *rule_list,
 				
 				ret = remove(rule_list[i].f_keys[j].filename);
 				if (ret == -1) {
-					log_error(logger, MODULE_REDIS_MONITOR, 
+					log_fatal(logger, MODULE_REDIS_MONITOR, 
                               "[%s:%d] Foreign content file %s remove failed",
 							  __FUNCTION__, __LINE__, rule_list[i].f_keys[j].filename);
 				}
@@ -719,7 +719,7 @@ static void _get_foreign_conts(redisContext *c, struct serial_rule *rule_list,
 	for (i = 0; i < key_num; i++) {
 		ret = maat_wrap_redis_get_reply(c, &reply);
 		if (ret == REDIS_ERR) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Get %s,%lld foreign key %s content failed, redis server error",
                       __FUNCTION__, __LINE__,
 					  rule_list[track[i].rule_idx].table_name,
@@ -729,7 +729,7 @@ static void _get_foreign_conts(redisContext *c, struct serial_rule *rule_list,
 		}
 		
 		if (reply->type != REDIS_REPLY_STRING) {
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Get %s,%lld foreign key %s content failed",
                       __FUNCTION__, __LINE__,
                       rule_list[track[i].rule_idx].table_name,
@@ -740,7 +740,7 @@ static void _get_foreign_conts(redisContext *c, struct serial_rule *rule_list,
 			s_rule = rule_list+track[i].rule_idx;
 			FILE *fp = fopen(s_rule->f_keys[track[i].foreign_idx].filename, "w");
 			if (NULL == fp) {
-				log_error(logger, MODULE_REDIS_MONITOR, 
+				log_fatal(logger, MODULE_REDIS_MONITOR, 
                           "[%s:%d] Write foreign content failed: fopen %s error", __FUNCTION__,
 						  __LINE__, s_rule->f_keys[track[i].foreign_idx].filename);
 			} else {
@@ -1134,7 +1134,7 @@ int maat_cmd_write_rule(redisContext *c, struct serial_rule *s_rule,
 			}
 
 			rule_seq = expected_reply[i].s_rule_seq;
-			log_error(logger, MODULE_REDIS_MONITOR, 
+			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] %s %s %lld failed, rule id maybe conflict or not exist",
 					  __FUNCTION__, __LINE__, mr_op_str[s_rule[rule_seq].op], 
                       s_rule[rule_seq].table_name, s_rule[rule_seq].rule_id);
@@ -1159,7 +1159,7 @@ error_out:
 	if (renew_num > 0 && renew_allowed != 1) {
 		for (i = 0; i < (unsigned int)serial_rule_num; i++) {
 			if (s_rule[i].op == MAAT_OP_RENEW_TIMEOUT) {
-				log_error(logger, MODULE_REDIS_MONITOR, 
+				log_fatal(logger, MODULE_REDIS_MONITOR, 
                           "[%s:%d] %s %s %lld is not allowed due to lock contention",
                           __FUNCTION__, __LINE__, mr_op_str[MAAT_OP_RENEW_TIMEOUT],
                           s_rule[i].table_name, s_rule[i].rule_id);
@@ -1278,13 +1278,13 @@ static void check_maat_expiration(redisContext *c, struct log_handle *logger)
 
 	int success_cnt = maat_cmd_write_rule(c, s_rule, s_rule_num, server_time, logger);
     if (success_cnt < 0) {
-        log_error(logger, MODULE_REDIS_MONITOR, "[%s:%d] maat_cmd_write_rule failed.",
+        log_fatal(logger, MODULE_REDIS_MONITOR, "[%s:%d] maat_cmd_write_rule failed.",
                   __FUNCTION__, __LINE__);
     } else if (success_cnt == (int)s_rule_num) {
 		log_info(logger, MODULE_REDIS_MONITOR, 
                  "Succesfully expired %zu rules in Redis", s_rule_num);
 	} else {
-		log_error(logger, MODULE_REDIS_MONITOR, 
+		log_fatal(logger, MODULE_REDIS_MONITOR, 
                   "[%s:%d] Failed to expired %d of %zu rules in Redis, try later", 
                   __FUNCTION__, __LINE__, s_rule_num - success_cnt, s_rule_num);
 	}
@@ -1369,7 +1369,7 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 		if (ret < 0) {
 			redisFree(mr_ctx->read_ctx);
 			mr_ctx->read_ctx = NULL;
-			log_error(maat_inst->logger, MODULE_REDIS_MONITOR, 
+			log_fatal(maat_inst->logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Get Redis value failed, abandon update and close connection",
                       __FUNCTION__, __LINE__);
 			goto clean_up;
@@ -1417,7 +1417,7 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 			valid_column = table_manager_get_valid_column(maat_inst->tbl_mgr, table_id);
 			ret = validate_line(rule_list[i].table_line, valid_column);
 			if (ret < 0) {
-				log_error(maat_inst->logger, MODULE_REDIS_MONITOR, 
+				log_fatal(maat_inst->logger, MODULE_REDIS_MONITOR, 
                           "[%s:%d] Validate line failed, invaid format %s", 
                           __FUNCTION__, __LINE__, rule_list[i].table_line);
 				continue;
@@ -1435,7 +1435,7 @@ void redis_monitor_traverse(long long version, struct source_redis_ctx *mr_ctx,
 	finish_fn(u_param);
 
 	if (call_update_num < rule_num) {		
-		log_error(maat_inst->logger, MODULE_REDIS_MONITOR, 
+		log_fatal(maat_inst->logger, MODULE_REDIS_MONITOR, 
                   "[%s:%d] Load %d entries to match engine, no table: %d, empty value: %d",
 				  __FUNCTION__, __LINE__, call_update_num, no_table_num, empty_value_num);
 	}

@@ -79,7 +79,7 @@ void *ipport_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
    if (item != NULL && item->type == cJSON_Number) {
         schema->table_id = item->valueint;
     } else {
-        log_error(logger, MODULE_IPPORT_PLUGIN, 
+        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport_plugin table:<%s> schema has no table_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -87,7 +87,7 @@ void *ipport_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     item = cJSON_GetObjectItem(json, "custom");
     if (NULL == item || item->type != cJSON_Object) {
-        log_error(logger, MODULE_IPPORT_PLUGIN, 
+        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport_plugin table:<%s> schema has no custom column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -97,7 +97,7 @@ void *ipport_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->item_id_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_IPPORT_PLUGIN, 
+        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport_plugin table:<%s> schema has no item_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -107,7 +107,7 @@ void *ipport_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->ip_type_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_IPPORT_PLUGIN, 
+        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport_plugin table:<%s> schema has no ip_type column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -117,7 +117,7 @@ void *ipport_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->ip_addr_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_IPPORT_PLUGIN, 
+        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport_plugin table:<%s> schema has no ip_addr column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -127,7 +127,7 @@ void *ipport_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->port1_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_IPPORT_PLUGIN, 
+        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport_plugin table:<%s> schema has no port1 column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -137,7 +137,7 @@ void *ipport_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->port2_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_IPPORT_PLUGIN, 
+        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport_plugin table:<%s> schema has no port2 column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -176,7 +176,7 @@ int ipport_plugin_table_set_ex_container_schema(void *ipport_plugin_schema, int 
     struct ipport_plugin_schema *schema = (struct ipport_plugin_schema *)ipport_plugin_schema;
 
     if (1 == schema->container_schema.set_flag) {
-        log_error(schema->logger, MODULE_IPPORT_PLUGIN, 
+        log_fatal(schema->logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport_plugin table(table_id:%d) ex_container_schema has been set"
                   ", can't set again", __FUNCTION__, __LINE__, table_id);
         return -1;
@@ -265,7 +265,7 @@ ipport_item_new(struct ipport_plugin_schema *schema, const char *table_name,
     int ret = get_column_pos(line, schema->item_id_column, &column_offset,
                              &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_IPPORT_PLUGIN, 
+        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport table:<%s> has no item_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -275,7 +275,7 @@ ipport_item_new(struct ipport_plugin_schema *schema, const char *table_name,
     ret = get_column_pos(line, schema->ip_type_column, &column_offset,
                          &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_IPPORT_PLUGIN, 
+        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport table:<%s> has no ip_type in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -283,7 +283,7 @@ ipport_item_new(struct ipport_plugin_schema *schema, const char *table_name,
     ipport_item->ip_type = atoi(line + column_offset);
 
     if (ipport_item->ip_type != IPV4 && ipport_item->ip_type != IPV6) {
-        log_error(logger, MODULE_IPPORT_PLUGIN, 
+        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport table:<%s> has invalid ip type:%d in line:%s",
                   __FUNCTION__, __LINE__, table_name, ipport_item->ip_type, line);
         goto error;
@@ -292,7 +292,7 @@ ipport_item_new(struct ipport_plugin_schema *schema, const char *table_name,
     ret = get_column_pos(line, schema->ip_addr_column, &column_offset,
                          &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_IPPORT_PLUGIN, 
+        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport table:<%s> has no ip_addr in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -303,7 +303,7 @@ ipport_item_new(struct ipport_plugin_schema *schema, const char *table_name,
         uint32_t ipv4_addr = 0;
 		ret = inet_pton(AF_INET, ip_str, &ipv4_addr);
         if (ret < 0) {
-            log_error(logger, MODULE_IPPORT_PLUGIN, 
+            log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                       "[%s:%d] ipport table:<%s> ip_format2range(ip4) failed in line:%s",
                       __FUNCTION__, __LINE__, table_name, line);
             goto error;
@@ -315,7 +315,7 @@ ipport_item_new(struct ipport_plugin_schema *schema, const char *table_name,
         uint32_t ipv6_addr[4] = {0};
 		ret = inet_pton(AF_INET6, ip_str, ipv6_addr);
         if (ret < 0) {
-            log_error(logger, MODULE_IPPORT_PLUGIN, 
+            log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                       "[%s:%d] ipport table:<%s> ip_format2range(ip6) failed in line:%s",
                       __FUNCTION__, __LINE__, table_name, line);
             goto error;
@@ -326,7 +326,7 @@ ipport_item_new(struct ipport_plugin_schema *schema, const char *table_name,
     ret = get_column_pos(line, schema->port1_column, &column_offset,
                          &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_IPPORT_PLUGIN, 
+        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport table:<%s>) has no port1 in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -336,7 +336,7 @@ ipport_item_new(struct ipport_plugin_schema *schema, const char *table_name,
     ret = get_column_pos(line, schema->port2_column, &column_offset,
                          &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_IPPORT_PLUGIN, 
+        log_fatal(logger, MODULE_IPPORT_PLUGIN, 
                   "[%s:%d] ipport table:<%s> has no port2 in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -514,7 +514,7 @@ int ipport_plugin_runtime_commit(void *ipport_plugin_runtime, const char *table_
         long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + 
                                    (end.tv_nsec - start.tv_nsec) / 1000000;
         if (NULL == new_matcher) {
-            log_error(ipport_plugin_rt->logger, MODULE_IPPORT_PLUGIN,
+            log_fatal(ipport_plugin_rt->logger, MODULE_IPPORT_PLUGIN,
                       "[%s:%d] ipport_plugin table[%s] rebuild ipport_matcher failed when "
                       "update %zu rules", __FUNCTION__, __LINE__, table_name, rule_cnt);
             ret = -1;

@@ -122,13 +122,13 @@ protected:
         
         int ret = load_file_to_memory(table_info_path, &json_buff, &json_buff_size);
         if (ret < 0) {
-            log_error(logger, MODULE_GROUP_EXCLUDE_GTEST, "load_file_to_memory failed.");
+            log_fatal(logger, MODULE_GROUP_EXCLUDE_GTEST, "load_file_to_memory failed.");
             assert(0);
         }
 
         cJSON *root = cJSON_Parse((const char *)json_buff);
 	    if (!root) {
-            log_error(logger, MODULE_GROUP_EXCLUDE_GTEST, "cJSON_Parse failed.");
+            log_fatal(logger, MODULE_GROUP_EXCLUDE_GTEST, "cJSON_Parse failed.");
             assert(0);
 	    }
 
@@ -137,7 +137,7 @@ protected:
         cJSON_Delete(root);
 
         if (NULL == g2g_schema) {
-            log_error(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_schema_new failed.");
+            log_fatal(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_schema_new failed.");
             assert(0);
         }
     }
@@ -164,7 +164,7 @@ TEST_F(MaatGroupExclude, level_3_function) {
 
     void *g2g_runtime = group2group_runtime_new(g2g_schema, 1, garbage_bin, logger);
     if (NULL == g2g_runtime) {
-        log_error(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
+        log_fatal(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
         assert(0);
     }
 
@@ -228,7 +228,7 @@ TEST_F(MaatGroupExclude, level_3_perf) {
 
     void *g2g_runtime = group2group_runtime_new(g2g_schema, 1, garbage_bin, logger);
     if (NULL == g2g_runtime) {
-        log_error(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
+        log_fatal(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
         assert(0);
     }
 
@@ -304,7 +304,7 @@ TEST_F(MaatGroupExclude, level_4_function) {
 
     void *g2g_runtime = group2group_runtime_new(g2g_schema, 1, garbage_bin, logger);
     if (NULL == g2g_runtime) {
-        log_error(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
+        log_fatal(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
         assert(0);
     }
 
@@ -360,7 +360,7 @@ TEST_F(MaatGroupExclude, level_4_perf) {
 
     void *g2g_runtime = group2group_runtime_new(g2g_schema, 1, garbage_bin, logger);
     if (NULL == g2g_runtime) {
-        log_error(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
+        log_fatal(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
         assert(0);
     }
 
@@ -419,7 +419,7 @@ TEST_F(MaatGroupExclude, level_exceed_function) {
 
     void *g2g_runtime = group2group_runtime_new(g2g_schema, 1, garbage_bin, logger);
     if (NULL == g2g_runtime) {
-        log_error(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
+        log_fatal(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
         assert(0);
     }
 

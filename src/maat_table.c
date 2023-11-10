@@ -301,7 +301,7 @@ static size_t parse_accept_tag(const char *value, struct rule_tag **result,
 
 	cJSON *json = cJSON_Parse(value);
 	if (!json) {
-		log_error(logger, MODULE_TABLE,
+		log_fatal(logger, MODULE_TABLE,
 				 "[%s:%d] parse accept tag Error before: %-200.200s", 
                  __FUNCTION__, __LINE__, cJSON_GetErrorPtr());
 		return 0;
@@ -509,7 +509,7 @@ maat_table_new(cJSON *json, struct maat_kv_store *reserved_word_map,
     }
 
     if (item->valueint >= MAX_TABLE_NUM) {
-        log_error(logger, MODULE_TABLE,
+        log_fatal(logger, MODULE_TABLE,
                   "[%s:%d] table(table_id:%d) exceed maxium %d", 
                   __FUNCTION__, __LINE__, MAX_TABLE_NUM);
         goto error;
@@ -529,7 +529,7 @@ maat_table_new(cJSON *json, struct maat_kv_store *reserved_word_map,
 
     item = cJSON_GetObjectItem(json, "table_type");
     if (NULL == item || item->type != cJSON_String) {
-        log_error(logger, MODULE_TABLE, 
+        log_fatal(logger, MODULE_TABLE, 
                  "[%s:%d] table:%s has no table_type column", 
                  __FUNCTION__, __LINE__, ptable->table_name);
         goto error;
@@ -538,7 +538,7 @@ maat_table_new(cJSON *json, struct maat_kv_store *reserved_word_map,
     ret = maat_kv_read(reserved_word_map, item->valuestring,
                       (long long *)&(ptable->table_type), 1);
     if (ret < 0) {
-        log_error(logger, MODULE_TABLE, 
+        log_fatal(logger, MODULE_TABLE, 
                   "[%s:%d] table:%s table_type %s is illegal", 
                   __FUNCTION__, __LINE__, ptable->table_name,
                   item->valuestring);
@@ -548,7 +548,7 @@ maat_table_new(cJSON *json, struct maat_kv_store *reserved_word_map,
     item = cJSON_GetObjectItem(json, "valid_column");
     if (NULL == item || item->type != cJSON_Number) {
         if (ptable->table_type != TABLE_TYPE_VIRTUAL) {
-            log_error(logger, MODULE_TABLE, 
+            log_fatal(logger, MODULE_TABLE, 
                       "[%s:%d] table:%s has no valid column", 
                       __FUNCTION__, __LINE__, ptable->table_name);
             goto error;
@@ -603,7 +603,7 @@ static int register_single_tbl_name2id(struct maat_kv_store *tbl_name2id_map,
                                         struct log_handle *logger)
 {
     if (strlen(table_name) >= NAME_MAX) {
-        log_error(logger, MODULE_TABLE,
+        log_fatal(logger, MODULE_TABLE,
                   "[%s:%d] table:<%s> name length exceed maxium:%d",
                   __FUNCTION__, __LINE__, table_name, NAME_MAX);
         return -1;
@@ -612,7 +612,7 @@ static int register_single_tbl_name2id(struct maat_kv_store *tbl_name2id_map,
     long long tmp_table_id = -1;
     int ret = maat_kv_read(tbl_name2id_map, table_name, &tmp_table_id, 1);
     if (ret > 0 && tmp_table_id != table_id) {
-        log_error(logger, MODULE_TABLE,
+        log_fatal(logger, MODULE_TABLE,
                   "[%s:%d] table:<%s>(table_id:%lld) has already been registered"
                   ", can't register again",
                   __FUNCTION__, __LINE__, table_name, tmp_table_id);
@@ -642,7 +642,7 @@ static int register_conjunction_tbl_name2id(struct maat_kv_store *conj_tbl_name2
         for (int j = 0; j < n_table_name; j++) {
             cJSON *tmp_item = cJSON_GetArrayItem(item, j);
             if (NULL == tmp_item || tmp_item->type != cJSON_String) {
-                log_error(logger, MODULE_TABLE,
+                log_fatal(logger, MODULE_TABLE,
                           "[%s:%d] table(table_id:%d) db_tables element format invalid"
                           ", should be string", __FUNCTION__, __LINE__, table_id);
                 return -1;
@@ -668,7 +668,7 @@ static int register_tbl_name2id(struct maat_kv_store *tbl_name2id_map, cJSON *ro
     for (i = 0; i < json_array_size; i++) {
         cJSON *json = cJSON_GetArrayItem(root, i);
         if (NULL == json || json->type != cJSON_Object) {
-            log_error(logger, MODULE_TABLE,
+            log_fatal(logger, MODULE_TABLE,
                       "[%s:%d] %s has invalid json object",
                       __FUNCTION__, __LINE__, table_info_path);
             return -1;
@@ -676,7 +676,7 @@ static int register_tbl_name2id(struct maat_kv_store *tbl_name2id_map, cJSON *ro
 
         cJSON *item = cJSON_GetObjectItem(json, "table_id");
         if (NULL == item || item->type != cJSON_Number) {
-            log_error(logger, MODULE_TABLE,
+            log_fatal(logger, MODULE_TABLE,
                       "[%s:%d] %s has invalid json object, happened in table_id column ",
                       __FUNCTION__, __LINE__, table_info_path);
             return -1;
@@ -685,7 +685,7 @@ static int register_tbl_name2id(struct maat_kv_store *tbl_name2id_map, cJSON *ro
 
         item = cJSON_GetObjectItem(json, "table_name");
         if (NULL == item || item->type != cJSON_String) {
-            log_error(logger, MODULE_TABLE,
+            log_fatal(logger, MODULE_TABLE,
                       "[%s:%d] %s has invalid json object, happened in table_name column",
                       __FUNCTION__, __LINE__, table_info_path);
             return -1;
@@ -713,7 +713,7 @@ static int register_tbl_name2id(struct maat_kv_store *tbl_name2id_map, cJSON *ro
         for (int j = 0; j < n_table_name; j++) {
             cJSON *tmp_item = cJSON_GetArrayItem(item, j);
             if (NULL == tmp_item || tmp_item->type != cJSON_String) {
-                log_error(logger, MODULE_TABLE,
+                log_fatal(logger, MODULE_TABLE,
                           "[%s:%d] table(table_id:%d) db_tables element format invalid"
                           ", should be string", __FUNCTION__, __LINE__, table_id);
                 return -1;
@@ -761,7 +761,7 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
     size_t json_buff_sz = 0;
     int ret = load_file_to_memory(table_info_path, &json_buff, &json_buff_sz);
     if (ret < 0) {
-        log_error(logger, MODULE_TABLE, 
+        log_fatal(logger, MODULE_TABLE, 
                   "[%s:%d] Maat read table info %s error.",
                   __FUNCTION__, __LINE__, table_info_path);
         return NULL;
@@ -771,7 +771,7 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
     cJSON *json = NULL;
     root = cJSON_Parse((const char *)json_buff);
 	if (!root) {
-        log_error(logger, MODULE_TABLE, 
+        log_fatal(logger, MODULE_TABLE, 
                   "[%s:%d] error message: %-200.200s", 
                   __FUNCTION__, __LINE__, cJSON_GetErrorPtr());
         FREE(json_buff);
@@ -780,7 +780,7 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
     
     int json_array_size = cJSON_GetArraySize(root);
     if (json_array_size <= 0) {
-        log_error(logger, MODULE_TABLE, 
+        log_fatal(logger, MODULE_TABLE, 
                   "[%s:%d] invalid json content in %s", 
                   __FUNCTION__, __LINE__, table_info_path);
         FREE(json_buff);
@@ -798,7 +798,7 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
 
     ret = register_tbl_name2id(tbl_mgr->tbl_name2id_map, root, table_info_path, logger);
     if (ret < 0) {
-        log_error(logger, MODULE_TABLE,
+        log_fatal(logger, MODULE_TABLE,
                   "[%s:%d] register_tbl_name2id failed.", __FUNCTION__, __LINE__);
         FREE(json_buff);
         cJSON_Delete(root);
@@ -808,7 +808,7 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
 
     ret = register_conjunction_tbl_name2id(tbl_mgr->conj_tbl_name2id_map, root, logger);
     if (ret < 0) {
-        log_error(logger, MODULE_TABLE,
+        log_fatal(logger, MODULE_TABLE,
                   "[%s:%d] register_conjunction_tbl_name2id failed.", __FUNCTION__, __LINE__);
         FREE(json_buff);
         cJSON_Delete(root);
@@ -840,7 +840,7 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
                 maat_tbl->schema = maat_table_schema_new(json, maat_tbl->table_name, maat_tbl->table_type,
                                                          tbl_mgr, logger);
                 if (NULL == maat_tbl->schema) {
-                  log_error(logger, MODULE_TABLE,
+                  log_fatal(logger, MODULE_TABLE,
                             "[%s:%d] Maat table schema new failed, table_name:%s",
                             __FUNCTION__, __LINE__, maat_tbl->table_name);
                   ret = -1;
@@ -949,7 +949,7 @@ int table_manager_runtime_create(struct table_manager *tbl_mgr, size_t max_threa
 
         void *schema = table_manager_get_schema(tbl_mgr, i);
         if (NULL == schema) {
-            log_error(tbl_mgr->logger, MODULE_TABLE, 
+            log_fatal(tbl_mgr->logger, MODULE_TABLE, 
                       "[%s:%d] group2compile table(table_id:%d) schema is null",
                       __FUNCTION__, __LINE__, i);
             continue;
@@ -1208,7 +1208,7 @@ int table_manager_update_runtime(struct table_manager *tbl_mgr, const char *tabl
 
     int valid_column = table_manager_get_valid_column(tbl_mgr, table_id);
     if (valid_column < 0) {
-        log_error(tbl_mgr->logger, MODULE_TABLE, 
+        log_fatal(tbl_mgr->logger, MODULE_TABLE, 
                   "[%s:%d] table:%s has no valid column, can't update runtime",
                   __FUNCTION__, __LINE__, table_name);
         return -1;
@@ -1216,14 +1216,14 @@ int table_manager_update_runtime(struct table_manager *tbl_mgr, const char *tabl
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_INVALID) {
-        log_error(tbl_mgr->logger, MODULE_TABLE, 
+        log_fatal(tbl_mgr->logger, MODULE_TABLE, 
                   "[%s:%d] table:%s table_type is invalid, can't update runtime",
                   __FUNCTION__, __LINE__, table_name);
         return -1;
     }
 
     if (NULL == table_ops[table_type].update_runtime) {
-        log_error(tbl_mgr->logger, MODULE_TABLE, 
+        log_fatal(tbl_mgr->logger, MODULE_TABLE, 
                   "[%s:%d] table:%s has no update_runtime function, can't update runtime",
                   __FUNCTION__, __LINE__, table_name);
         return -1;
@@ -1243,7 +1243,7 @@ void table_commit_updating_runtime(struct table_manager *tbl_mgr, int table_id,
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_INVALID) {
-        log_error(tbl_mgr->logger, MODULE_TABLE, 
+        log_fatal(tbl_mgr->logger, MODULE_TABLE, 
                   "[%s:%d] table(table_id:%d) table_type is invalid, can't commit runtime",
                   __FUNCTION__, __LINE__, table_id);
         return;
@@ -1277,7 +1277,7 @@ void table_commit_runtime(struct table_manager *tbl_mgr, int table_id,
 
      enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_INVALID) {
-        log_error(tbl_mgr->logger, MODULE_TABLE, 
+        log_fatal(tbl_mgr->logger, MODULE_TABLE, 
                   "[%s:%d] table(table_id:%d) table_type is invalid, can't commit runtime",
                   __FUNCTION__, __LINE__, table_id);
         return;
@@ -1312,7 +1312,7 @@ long long table_manager_runtime_rule_count(struct table_manager *tbl_mgr, int ta
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_INVALID) {
-        log_error(tbl_mgr->logger, MODULE_TABLE, 
+        log_fatal(tbl_mgr->logger, MODULE_TABLE, 
                   "[%s:%d] table(table_id:%d) table_type is invalid, can't update runtime",
                   __FUNCTION__, __LINE__, table_id);
         return 0;
@@ -1334,7 +1334,7 @@ long long table_manager_runtime_scan_count(struct table_manager *tbl_mgr, int ta
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_INVALID) {
-        log_error(tbl_mgr->logger, MODULE_TABLE, 
+        log_fatal(tbl_mgr->logger, MODULE_TABLE, 
                   "[%s:%d] table(table_id:%d) table_type is invalid, can't get scan count",
                   __FUNCTION__, __LINE__, table_id);
         return 0;
@@ -1356,7 +1356,7 @@ long long table_manager_runtime_scan_cpu_time(struct table_manager *tbl_mgr, int
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_INVALID) {
-        log_error(tbl_mgr->logger, MODULE_TABLE, 
+        log_fatal(tbl_mgr->logger, MODULE_TABLE, 
                   "[%s:%d] table(table_id:%d) table_type is invalid, can't get scan cpu time",
                   __FUNCTION__, __LINE__, table_id);
         return 0;
@@ -1378,7 +1378,7 @@ long long table_manager_runtime_hit_count(struct table_manager *tbl_mgr, int tab
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_INVALID) {
-        log_error(tbl_mgr->logger, MODULE_TABLE, 
+        log_fatal(tbl_mgr->logger, MODULE_TABLE, 
                   "[%s:%d] table(table_id:%d) table_type is invalid, can't get hit count",
                   __FUNCTION__, __LINE__, table_id);
         return 0;
@@ -1400,7 +1400,7 @@ long long table_manager_runtime_update_err_count(struct table_manager *tbl_mgr, 
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_INVALID) {
-        log_error(tbl_mgr->logger, MODULE_TABLE, 
+        log_fatal(tbl_mgr->logger, MODULE_TABLE, 
                   "[%s:%d] table(table_id:%d) table_type is invalid, can't get hit count",
                   __FUNCTION__, __LINE__, table_id);
         return 0;

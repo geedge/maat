@@ -265,9 +265,18 @@ int maat_scan_ipv6(struct maat *instance, int table_id,
                    size_t *n_hit_result, struct maat_state *state);
 
 int maat_scan_string(struct maat *instance, int table_id,
-                     const char *data, size_t data_len, long long *results, 
-                     size_t n_result, size_t *n_hit_result, 
-                     struct maat_state *state);
+                     const char *data, size_t data_len,
+                     long long *results, size_t n_result,
+                     size_t *n_hit_result, struct maat_state *state);
+
+int maat_scan_group(struct maat *instance, int table_id,
+                    long long *group_ids, size_t n_group_id,
+                    long long *results, size_t n_result,
+                    size_t *n_hit_result, struct maat_state *state);
+
+int maat_scan_not_logic(struct maat *instance, int table_id,
+                        long long *results, size_t n_result,
+                        size_t *n_hit_result, struct maat_state *state);
 
 struct maat_stream;
 struct maat_stream *maat_stream_new(struct maat *instance, int table_id,
@@ -285,10 +294,6 @@ struct maat_state *maat_state_new(struct maat *instance, int thread_id);
 void maat_state_reset(struct maat_state *state);
 
 void maat_state_free(struct maat_state *state);
-
-void maat_state_set_logic_not_disabled(struct maat_state *state);
-
-void maat_state_set_logic_not_enabled(struct maat_state *state);
 
 int maat_state_set_scan_district(struct maat_state *state, int table_id, 
                                  const char *district, size_t district_len);

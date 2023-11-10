@@ -54,7 +54,7 @@ void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (item != NULL && item->type == cJSON_Number) {
         schema->table_id = item->valueint;
     } else {
-        log_error(logger, MODULE_FQDN_PLUGIN, 
+        log_fatal(logger, MODULE_FQDN_PLUGIN, 
                   "[%s:%d] fqdn_plugin table:<%s> schema has no table_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -62,7 +62,7 @@ void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 
     item = cJSON_GetObjectItem(json, "custom");
     if (NULL == item || item->type != cJSON_Object) {
-        log_error(logger, MODULE_FQDN_PLUGIN, 
+        log_fatal(logger, MODULE_FQDN_PLUGIN, 
                   "[%s:%d] fqdn_plugin table:<%s> schema has no custom column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -72,7 +72,7 @@ void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->item_id_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_FQDN_PLUGIN, 
+        log_fatal(logger, MODULE_FQDN_PLUGIN, 
                   "[%s:%d] fqdn_plugin table:<%s> schema has no item_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -82,7 +82,7 @@ void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->suffix_match_method_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_FQDN_PLUGIN, 
+        log_fatal(logger, MODULE_FQDN_PLUGIN, 
                   "[%s:%d] fqdn_plugin table:<%s> schema has no suffix_match_method column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -93,7 +93,7 @@ void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         schema->fqdn_column = custom_item->valueint;
     } else {
-        log_error(logger, MODULE_FQDN_PLUGIN, 
+        log_fatal(logger, MODULE_FQDN_PLUGIN, 
                   "[%s:%d] fqdn_plugin table:<%s> schema has no fqdn column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
@@ -137,7 +137,7 @@ int fqdn_plugin_table_set_ex_container_schema(void *fqdn_plugin_schema, int tabl
     struct fqdn_plugin_schema *schema = (struct fqdn_plugin_schema *)fqdn_plugin_schema;
 
     if (1 == schema->container_schema.set_flag) {
-        log_error(schema->logger, MODULE_FQDN_PLUGIN, 
+        log_fatal(schema->logger, MODULE_FQDN_PLUGIN, 
                   "[%s:%d] fqdn_plugin table(table_id:%d) ex_container_schema "
                   "has been set, can't set again", __FUNCTION__, __LINE__, table_id);
         return -1;
@@ -240,7 +240,7 @@ static int fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema,
         int ret = get_column_pos(line, schema->rule_tag_column, 
                                  &column_offset, &column_len);
         if (ret < 0) {
-            log_error(logger, MODULE_FQDN_PLUGIN,
+            log_fatal(logger, MODULE_FQDN_PLUGIN,
                       "[%s:%d] fqdn_plugin table:<%s> has no rule_tag in line:%s",
                       __FUNCTION__, __LINE__, table_name, line);
             return TAG_MATCH_ERR;
@@ -252,14 +252,14 @@ static int fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema,
             ret = table_manager_accept_tags_match(schema->ref_tbl_mgr, tag_str);
             FREE(tag_str);
             if (TAG_MATCH_ERR == ret) {
-                log_error(logger, MODULE_FQDN_PLUGIN,
+                log_fatal(logger, MODULE_FQDN_PLUGIN,
                           "[%s:%d] fqdn_plugin table:<%s> has invalid tag format in line:%s",
                           __FUNCTION__, __LINE__, table_name, line);
                 return TAG_MATCH_ERR;
             }
 
             if (TAG_MATCH_UNMATCHED == ret) {
-                log_error(logger, MODULE_FQDN_PLUGIN,
+                log_fatal(logger, MODULE_FQDN_PLUGIN,
                           "[%s:%d] fqdn_plugin table:<%s> has unmatched tag in line:%s",
                           __FUNCTION__, __LINE__, table_name, line);
                 return TAG_MATCH_UNMATCHED;
@@ -287,7 +287,7 @@ fqdn_plugin_rule_new(const char *line, struct fqdn_plugin_schema *schema,
 
     ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_FQDN_PLUGIN, 
+        log_fatal(logger, MODULE_FQDN_PLUGIN, 
                   "[%s:%d] fqdn_plugin table:<%s> has no item_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -296,7 +296,7 @@ fqdn_plugin_rule_new(const char *line, struct fqdn_plugin_schema *schema,
 
     ret = get_column_pos(line, schema->suffix_match_method_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_FQDN_PLUGIN, 
+        log_fatal(logger, MODULE_FQDN_PLUGIN, 
                   "[%s:%d] fqdn_plugin table:<%s> has no suffix_match_method in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -305,7 +305,7 @@ fqdn_plugin_rule_new(const char *line, struct fqdn_plugin_schema *schema,
     fqdn_plugin_rule->is_suffix_match = atoi(line + column_offset);
     if (fqdn_plugin_rule->is_suffix_match != 0 &&
         fqdn_plugin_rule->is_suffix_match != 1) {
-        log_error(logger, MODULE_FQDN_PLUGIN, 
+        log_fatal(logger, MODULE_FQDN_PLUGIN, 
                   "[%s:%d] fqdn_plugin table:<%s> suffix_match_method:%d is illegal in line:%s",
                   __FUNCTION__, __LINE__, table_name, fqdn_plugin_rule->is_suffix_match, line);
         goto error;
@@ -313,7 +313,7 @@ fqdn_plugin_rule_new(const char *line, struct fqdn_plugin_schema *schema,
 
     ret = get_column_pos(line, schema->fqdn_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_error(logger, MODULE_FQDN_PLUGIN, 
+        log_fatal(logger, MODULE_FQDN_PLUGIN, 
                   "[%s:%d] fqdn_plugin table:<%s> has no fqdn in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
@@ -399,7 +399,7 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
 
     int is_valid = get_column_value(line, valid_column);
     if (is_valid < 0) {
-        log_error(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
+        log_fatal(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
                   "[%s:%d] fqdn_plugin table:<%s> has no is_valid(column seq:%d)"
                   " in table_line:%s", __FUNCTION__, __LINE__, table_name,
                   valid_column, line);
@@ -409,7 +409,7 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
 
     int ret = get_column_pos(line, schema->item_id_column, &item_id_offset, &item_id_len);
     if (ret < 0) {
-        log_error(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
+        log_fatal(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
                   "[%s:%d] fqdn_plugin table:<%s> has no item_id(column seq:%d)"
                   " in table_line:%s", __FUNCTION__, __LINE__, table_name,
                   schema->item_id_column, line);
@@ -501,7 +501,7 @@ int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name
                                    (end.tv_nsec - start.tv_nsec) / 1000000;
 
         if (NULL == new_fqdn_engine) {
-            log_error(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
+            log_fatal(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
                       "[%s:%d] table[%s] rebuild FQDN engine failed when update"
                       " %zu fqdn_plugin rules", __FUNCTION__, __LINE__, table_name,
                       rule_cnt);

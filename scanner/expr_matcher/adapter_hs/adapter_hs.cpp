@@ -107,7 +107,7 @@ static int _hs_alloc_scratch(hs_database_t *db, hs_scratch_t **scratches,
     size_t scratch_size = 0;
 
     if (hs_alloc_scratch(db, &scratches[0]) != HS_SUCCESS) {
-        log_error(logger, MODULE_ADAPTER_HS,
+        log_fatal(logger, MODULE_ADAPTER_HS,
                   "[%s:%d] Unable to allocate scratch space. Exiting.",
                   __FUNCTION__, __LINE__);
         return -1;
@@ -116,7 +116,7 @@ static int _hs_alloc_scratch(hs_database_t *db, hs_scratch_t **scratches,
     for (size_t i = 1; i < n_worker_thread; i++) {
         hs_error_t err = hs_clone_scratch(scratches[0], &scratches[i]);
         if (err != HS_SUCCESS) {
-            log_error(logger, MODULE_ADAPTER_HS,
+            log_fatal(logger, MODULE_ADAPTER_HS,
                       "[%s:%d] Unable to clone scratch",
                       __FUNCTION__, __LINE__);
             return -1;
@@ -124,7 +124,7 @@ static int _hs_alloc_scratch(hs_database_t *db, hs_scratch_t **scratches,
 
         err = hs_scratch_size(scratches[i], &scratch_size);
         if (err != HS_SUCCESS) {
-            log_error(logger, MODULE_ADAPTER_HS,
+            log_fatal(logger, MODULE_ADAPTER_HS,
                       "[%s:%d] Unable to query scratch size",
                       __FUNCTION__, __LINE__);
             return -1;
@@ -187,7 +187,7 @@ static int adpt_hs_build_database(struct adapter_hs_runtime *hs_rt,
                                     &hs_rt->literal_db, &compile_err);
         if (err != HS_SUCCESS) {
             if (compile_err) {
-                log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] compile error: %s", 
+                log_fatal(logger, MODULE_ADAPTER_HS, "[%s:%d] compile error: %s", 
                           __FUNCTION__, __LINE__, compile_err->message);
             }
 
@@ -203,7 +203,7 @@ static int adpt_hs_build_database(struct adapter_hs_runtime *hs_rt,
                                 NULL, &hs_rt->regex_db, &compile_err);
         if (err != HS_SUCCESS) {
             if (compile_err) {
-                log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] compile error: %s",
+                log_fatal(logger, MODULE_ADAPTER_HS, "[%s:%d] compile error: %s",
                           __FUNCTION__, __LINE__, compile_err->message);
             }
             hs_free_compile_error(compile_err);
@@ -342,7 +342,7 @@ static int verify_regex_expression(const char *regex_str, struct log_handle *log
     if (err != HS_SUCCESS) {
         // Expression will fail compilation and report error elsewhere.
         if (logger != NULL) {
-            log_error(logger, MODULE_ADAPTER_HS,
+            log_fatal(logger, MODULE_ADAPTER_HS,
                       "[%s:%d] illegal regex expression: \"%s\": %s",
                       __FUNCTION__, __LINE__, regex_str, error->message);
         }
@@ -412,7 +412,7 @@ void *adapter_hs_new(struct expr_rule *rules, size_t n_rule,
                  "Adapter_hs module: build bool matcher of %zu expressions"
                  " with %zu bytes memory", n_rule, mem_size);
     } else {
-        log_error(logger, MODULE_ADAPTER_HS,
+        log_fatal(logger, MODULE_ADAPTER_HS,
                   "[%s:%d] Adapter_hs module: build bool matcher failed",
                   __FUNCTION__, __LINE__);
         
@@ -667,7 +667,7 @@ void *adapter_hs_stream_open(void *hs_instance, int thread_id)
         err = hs_open_stream(hs_inst->hs_rt->literal_db, 0,
                              &hs_stream->literal_stream);
         if (err != HS_SUCCESS) {
-            log_error(hs_inst->logger, MODULE_ADAPTER_HS,
+            log_fatal(hs_inst->logger, MODULE_ADAPTER_HS,
                       "hs_open_stream failed, hs err:%d", err);
             err_count++;
         }
@@ -677,7 +677,7 @@ void *adapter_hs_stream_open(void *hs_instance, int thread_id)
         err = hs_open_stream(hs_inst->hs_rt->regex_db, 0,
                              &hs_stream->regex_stream);
         if (err != HS_SUCCESS) {
-            log_error(hs_inst->logger, MODULE_ADAPTER_HS,
+            log_fatal(hs_inst->logger, MODULE_ADAPTER_HS,
                       "hs_open_stream failed, hs err:%d", err);
             err_count++;
         }
@@ -843,7 +843,7 @@ int adapter_hs_scan_stream(void *hs_stream, const char *data, size_t data_len,
                 err_count++;
             }
         } else {
-            log_error(stream->logger, MODULE_ADAPTER_HS,
+            log_fatal(stream->logger, MODULE_ADAPTER_HS,
                       "literal_scratches is null, thread_id:%d", thread_id);
             err_scratch_flag++;
         }
@@ -858,7 +858,7 @@ int adapter_hs_scan_stream(void *hs_stream, const char *data, size_t data_len,
                 err_count++;
             }
         } else {
-            log_error(stream->logger, MODULE_ADAPTER_HS,
+            log_fatal(stream->logger, MODULE_ADAPTER_HS,
                       "regex_scratches is null, thread_id:%d", thread_id);
             err_scratch_flag++;
         }
