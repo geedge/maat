@@ -31,7 +31,7 @@ struct group2group_schema {
     int group_id_column;
     int super_group_id_column;
     int is_exclude_column;
-    int table_id;//ugly
+    int table_id;
     struct table_manager *ref_tbl_mgr;
 };
 

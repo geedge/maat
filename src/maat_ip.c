@@ -40,7 +40,7 @@ struct ip_schema {
     int port1_column;
     int port2_column;
     int protocol_column;
-    int table_id; //ugly
+    int table_id;
     struct table_manager *ref_tbl_mgr;
 };
 

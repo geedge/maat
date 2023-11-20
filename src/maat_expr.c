@@ -34,7 +34,8 @@ struct expr_schema {
 	int expr_type_column;
     int match_method_column;
     int is_hexbin_column;
-    int table_id; //ugly
+    int table_id;
+    int expr_engine;
     struct table_manager *ref_tbl_mgr;
 };
 
@@ -327,6 +328,7 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 {
     char table_type[NAME_MAX] = {0};
 	struct expr_schema *expr_schema = ALLOC(struct expr_schema, 1);
+    expr_schema->expr_engine = EXPR_ENGINE_TYPE_MAX;
 
     cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
@@ -342,6 +344,20 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     /* table_type already validate in maat_table_new() */
     item = cJSON_GetObjectItem(json, "table_type");
     memcpy(table_type, item->valuestring, strlen(item->valuestring));
+
+    item = cJSON_GetObjectItem(json, "expr_engine");
+    if (item != NULL && item->type == cJSON_String) {
+        if (strcmp(item->valuestring, "hyperscan") == 0) {
+            expr_schema->expr_engine = EXPR_ENGINE_TYPE_HS;
+        } else if (strcmp(item->valuestring, "rulescan") == 0) {
+            expr_schema->expr_engine = EXPR_ENGINE_TYPE_RS;
+        } else {
+           log_fatal(logger, MODULE_EXPR, 
+                  "[%s:%d] expr table:<%s> schema has invalid expr_engine", 
+                  __FUNCTION__, __LINE__, table_name);
+            goto error; 
+        }
+    }
 
     item = cJSON_GetObjectItem(json, "custom");
     if (item == NULL || item->type != cJSON_Object) {
@@ -482,8 +498,13 @@ void *expr_runtime_new(void *expr_schema, size_t max_thread_num,
     expr_rt->n_worker_thread = max_thread_num;
     expr_rt->ref_garbage_bin = garbage_bin;
     expr_rt->logger = logger;
-    expr_rt->expr_engine = table_manager_get_expr_engine(schema->ref_tbl_mgr);
     expr_rt->district_map = maat_kv_store_new();
+
+    if (schema->expr_engine != EXPR_ENGINE_TYPE_MAX) {
+        expr_rt->expr_engine = schema->expr_engine;
+    } else {
+        expr_rt->expr_engine = table_manager_get_expr_engine(schema->ref_tbl_mgr);
+    }
 
     expr_rt->hit_cnt = alignment_int64_array_alloc(max_thread_num);
     expr_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
@@ -875,7 +896,7 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
     if (rule_cnt > 0) {
         enum expr_engine_type engine_type = EXPR_ENGINE_TYPE_HS;
         if (expr_rt->expr_engine == MAAT_EXPR_ENGINE_RS) {
-            engine_type = EXPR_ENGINE_TYPE_RS; 
+            engine_type = EXPR_ENGINE_TYPE_RS;
         }
         
         struct timespec start, end;
@@ -894,8 +915,9 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
         } else {
             log_info(expr_rt->logger, MODULE_EXPR,
                      "table[%s] has %zu rules, commit %zu expr rules(regex rules:%zu) "
-                     "and rebuild adapter_hs completed, version:%lld, consume:%lldms", table_name, rule_cnt,
-                     real_rule_cnt, real_regex_rule_cnt, maat_rt_version, time_elapse_ms);
+                     "and rebuild expr_matcher(%s) completed, version:%lld, consume:%lldms", table_name, rule_cnt,
+                     real_rule_cnt, real_regex_rule_cnt, engine_type == EXPR_ENGINE_TYPE_HS ? "hyperscan" : "rulescan",
+                     maat_rt_version, time_elapse_ms);
         }
     }
 

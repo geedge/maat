@@ -40,7 +40,7 @@ struct compile_schema {
     int compile_id_column;
     int rule_tag_column;
     int declared_clause_num_column;
-    int table_id; //ugly
+    int table_id;
     struct table_manager *ref_tbl_mgr;
     struct log_handle *logger;
 };
@@ -52,7 +52,7 @@ struct group2compile_schema {
     int vtable_name_column;
     int clause_index_column;
     int asso_compile_table_id; //asso is abbreviation for associated
-    int table_id;//ugly
+    int table_id;
     struct table_manager *ref_tbl_mgr;
 };
 

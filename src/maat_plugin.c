@@ -64,7 +64,7 @@ struct plugin_schema {
     size_t cb_cnt;
     struct plugin_callback_schema cb[MAX_PLUGIN_PER_TABLE];
     struct ex_container_schema container_schema;
-    int table_id; //ugly
+    int table_id;
     struct table_manager *ref_tbl_mgr;
     struct log_handle *logger;
 };

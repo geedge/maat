@@ -28,7 +28,7 @@ struct ip_plugin_schema {
 	int end_ip_column;
 	int rule_tag_column;
     int gc_timeout_s;
-    int table_id; //ugly
+    int table_id;
 	struct ex_container_schema container_schema;
     struct table_manager *ref_tbl_mgr;
     struct log_handle *logger;
