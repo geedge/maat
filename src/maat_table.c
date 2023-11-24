@@ -1138,7 +1138,7 @@ int table_manager_get_valid_column(struct table_manager *tbl_mgr, int table_id)
 enum maat_expr_engine table_manager_get_expr_engine(struct table_manager *tbl_mgr)
 {
     if (NULL == tbl_mgr) {
-        return EXPR_ENGINE_TYPE_HS;
+        return EXPR_ENGINE_TYPE_AUTO;
     }
 
     return tbl_mgr->engine_type;

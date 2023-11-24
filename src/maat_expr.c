@@ -506,8 +506,12 @@ void *expr_runtime_new(void *expr_schema, size_t max_thread_num,
     expr_rt->ref_garbage_bin = garbage_bin;
     expr_rt->logger = logger;
     expr_rt->district_map = maat_kv_store_new();
-    expr_rt->engine_type = schema->engine_type;
-
+    if (schema->engine_type == MAAT_EXPR_ENGINE_AUTO) {
+        expr_rt->engine_type = table_manager_get_expr_engine(schema->ref_tbl_mgr);
+    } else {
+        expr_rt->engine_type = schema->engine_type;
+    }
+    
     expr_rt->hit_cnt = alignment_int64_array_alloc(max_thread_num);
     expr_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
     expr_rt->scan_bytes = alignment_int64_array_alloc(max_thread_num);

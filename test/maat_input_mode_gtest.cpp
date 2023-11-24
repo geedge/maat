@@ -86,7 +86,7 @@ TEST(iris_mode, maat_scan_string) {
     struct maat_options *opts = maat_options_new();
     maat_options_set_iris(opts, tmp_iris_full_idx_path, tmp_iris_inc_idx_path);
     maat_options_set_logger(opts, "./maat_input_mode_gtest.log", LOG_LEVEL_INFO);
-
+     
     struct maat *maat_inst = maat_new(opts, table_info_path);
     EXPECT_TRUE(maat_inst != NULL);
 
@@ -235,7 +235,7 @@ int main(int argc, char ** argv)
 {
 	int ret=0;
 	::testing::InitGoogleTest(&argc, argv);
-    g_logger = log_handle_create("./input_mode_gtest.log", 0);
+    g_logger = log_handle_create("./maat_input_mode_gtest.log", 0);
 
     char json_iris_path[NAME_MAX] = {0};
     snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);

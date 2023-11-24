@@ -56,10 +56,16 @@ enum maat_update_type {
     MAAT_UPDATE_TYPE_INC
 };
 
+/**
+ * @brief auto means select engine automatically
+ *        regex rules always use hyperscan
+ *        literal rules: rule_num <= 50k, use hyperscan
+ *                       rule_num > 50k, use rulescan
+*/
 enum maat_expr_engine {
-    MAAT_EXPR_ENGINE_HS = 0, //hyperscan(default engine)
-    MAAT_EXPR_ENGINE_RS,      //rulescan
-    MAAT_EXPR_ENGINE_AUTO
+    MAAT_EXPR_ENGINE_HS = 0, //hyperscan
+    MAAT_EXPR_ENGINE_RS,     //rulescan
+    MAAT_EXPR_ENGINE_AUTO    //default
 };
 
 struct ip_addr {
