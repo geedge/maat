@@ -28,6 +28,7 @@
 #include "maat_fqdn_plugin.h"
 #include "maat_interval.h"
 #include "maat_virtual.h"
+#include "expr_matcher/expr_matcher.h"
 
 #define MODULE_TABLE  module_name_str("maat.table")
 
@@ -48,7 +49,7 @@ struct table_manager {
     struct rule_tag *accept_tags;
     size_t n_accept_tag;
 
-    enum maat_expr_engine expr_engine;
+    enum expr_engine_type engine_type;
     int default_compile_table_id;
     int g2g_table_id;
     struct maat_kv_store *tbl_name2id_map;
@@ -750,7 +751,7 @@ int maat_default_compile_table_id(cJSON *json, struct log_handle *logger)
 
 struct table_manager *
 table_manager_create(const char *table_info_path, const char *accept_tags,
-                     enum maat_expr_engine expr_engine, struct maat_garbage_bin *garbage_bin,
+                     enum maat_expr_engine engine_type, struct maat_garbage_bin *garbage_bin,
                      struct log_handle *logger)
 {
     if (NULL == table_info_path) {
@@ -793,7 +794,7 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
     tbl_mgr->logger = logger;
     tbl_mgr->tbl_name2id_map = maat_kv_store_new();
     tbl_mgr->conj_tbl_name2id_map = maat_kv_store_new();
-    tbl_mgr->expr_engine = expr_engine;
+    tbl_mgr->engine_type = engine_type;
     tbl_mgr->ref_garbage_bin = garbage_bin;
 
     ret = register_tbl_name2id(tbl_mgr->tbl_name2id_map, root, table_info_path, logger);
@@ -1137,10 +1138,10 @@ int table_manager_get_valid_column(struct table_manager *tbl_mgr, int table_id)
 enum maat_expr_engine table_manager_get_expr_engine(struct table_manager *tbl_mgr)
 {
     if (NULL == tbl_mgr) {
-        return MAAT_EXPR_ENGINE_HS;
+        return EXPR_ENGINE_TYPE_HS;
     }
 
-    return tbl_mgr->expr_engine;
+    return tbl_mgr->engine_type;
 }
 
 size_t table_manager_accept_tags_count(struct table_manager *tbl_mgr)

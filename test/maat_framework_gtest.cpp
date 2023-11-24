@@ -787,7 +787,7 @@ protected:
         maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
         maat_options_set_hit_path_enabled(opts);
-        //maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS); //default
+        maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
         _shared_maat_inst = maat_new(opts, table_info_path);
         maat_options_free(opts);

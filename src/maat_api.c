@@ -76,7 +76,7 @@ struct maat_options* maat_options_new(void)
     options->rule_update_checking_interval_ms = 1 * 1000;
     options->gc_timeout_ms = 10 * 1000;
     options->input_mode = DATA_SOURCE_NONE;
-    options->expr_engine = MAAT_EXPR_ENGINE_HS;
+    options->expr_engine = MAAT_EXPR_ENGINE_AUTO;
     options->log_level = 0;
 
     return options;
@@ -265,7 +265,9 @@ int maat_options_set_expr_engine(struct maat_options *opts,
                                  enum maat_expr_engine expr_engine)
 {
     if (NULL == opts || 
-       (expr_engine != MAAT_EXPR_ENGINE_HS && expr_engine != MAAT_EXPR_ENGINE_RS)) {
+       (expr_engine != MAAT_EXPR_ENGINE_HS && 
+        expr_engine != MAAT_EXPR_ENGINE_RS &&
+        expr_engine != MAAT_EXPR_ENGINE_AUTO)) {
         return -1;
     }
 

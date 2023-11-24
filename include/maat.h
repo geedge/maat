@@ -58,7 +58,8 @@ enum maat_update_type {
 
 enum maat_expr_engine {
     MAAT_EXPR_ENGINE_HS = 0, //hyperscan(default engine)
-    MAAT_EXPR_ENGINE_RS      //rulescan
+    MAAT_EXPR_ENGINE_RS,      //rulescan
+    MAAT_EXPR_ENGINE_AUTO
 };
 
 struct ip_addr {

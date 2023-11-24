@@ -17,12 +17,9 @@
 #include <sys/syscall.h> 
 
 #include "adapter_hs.h"
-#include "uthash/utarray.h"
 #include "uthash/uthash.h"
 #include "maat_utils.h"
 #include "../../bool_matcher/bool_matcher.h"
-
-#define MAX_HIT_PATTERN_NUM  1024
 
 pid_t hs_gettid()
 {
@@ -39,7 +36,7 @@ static const char *hs_module_name_str(const char *name)
 
 #define MODULE_ADAPTER_HS	 hs_module_name_str("maat.adapter_hs")
 
-struct adpt_hs_compile_data {
+struct hs_compile_data {
     enum expr_pattern_type pat_type;
     unsigned int *ids;
     unsigned int *flags;
@@ -48,61 +45,44 @@ struct adpt_hs_compile_data {
     unsigned int n_patterns;
 };
 
-struct adapter_hs_scratch {
-    hs_scratch_t **literal_scratches;
-    hs_scratch_t **regex_scratches;
-    struct bool_expr_match **bool_match_buffs;
-};
-
-struct adapter_hs_stream {
+struct hs_lit_stream {
     int thread_id;
-    hs_stream_t *literal_stream;
-    hs_stream_t *regex_stream;
-    struct adapter_hs_runtime *ref_hs_rt;
+    hs_stream_t *hs_stream;
+    struct hs_lit_engine *ref_hs_rt;
     struct matched_pattern *matched_pat;
     struct log_handle *logger;
 };
 
-/* adapter_hs runtime */
-struct adapter_hs_runtime {
-    hs_database_t *literal_db;
-    hs_database_t *regex_db;
-
-    struct adapter_hs_scratch *scratch;
-    struct adapter_hs_stream **streams;
-    struct bool_matcher *bm;
-};
-
-/* adapter_hs instance */
-struct adapter_hs {
-    size_t n_worker_thread;
-    size_t n_expr;
-    size_t n_patterns;
-    struct adapter_hs_runtime *hs_rt;
-    struct pattern_attribute *hs_attr;
+struct hs_regex_stream {
+    int thread_id;
+    hs_stream_t *hs_stream;
+    struct hs_regex_engine *ref_hs_rt;
+    struct matched_pattern *matched_pat;
     struct log_handle *logger;
 };
 
-struct pattern_offset {
-    long long start;
-    long long end;
+/* hs literal runtime */
+struct hs_lit_engine {
+    size_t n_thread;
+    hs_database_t *hs_db;
+    hs_scratch_t **hs_scratches;
+    struct hs_lit_stream **streams;
+    struct pattern_attribute *ref_pat_attr;
+    struct log_handle *logger;
 };
 
-struct pattern_attribute {
-    long long pattern_id;
-    enum expr_match_mode match_mode;
-    struct pattern_offset offset;
+/* hs regex runtime */
+struct hs_regex_engine {
+    size_t n_thread;
+    hs_database_t *hs_db;
+    hs_scratch_t **hs_scratches;
+    struct hs_regex_stream **streams;
+    struct pattern_attribute *ref_pat_attr;
+    struct log_handle *logger;
 };
 
-struct matched_pattern {
-    UT_array *pattern_ids;
-    size_t n_patterns;
-    struct pattern_attribute *ref_hs_attr;
-    size_t scan_data_len;
-};
-
-static int _hs_alloc_scratch(hs_database_t *db, hs_scratch_t **scratches,
-                             size_t n_worker_thread, struct log_handle *logger)
+static int hs_alloc_scratches(hs_database_t *db, hs_scratch_t **scratches,
+                              size_t n_worker_thread, struct log_handle *logger)
 {
     size_t scratch_size = 0;
 
@@ -134,205 +114,6 @@ static int _hs_alloc_scratch(hs_database_t *db, hs_scratch_t **scratches,
     return 0;
 }
 
-static int adpt_hs_alloc_scratch(struct adapter_hs_runtime *hs_rt,
-                                 size_t n_worker_thread,
-                                 enum expr_pattern_type pattern_type,
-                                 struct log_handle *logger)
-{
-    int ret = 0;
-
-    if (pattern_type == EXPR_PATTERN_TYPE_STR) {
-        hs_rt->scratch->literal_scratches = ALLOC(hs_scratch_t *, n_worker_thread);
-        ret = _hs_alloc_scratch(hs_rt->literal_db, hs_rt->scratch->literal_scratches,
-                                n_worker_thread, logger);
-        if (ret < 0) {
-            FREE(hs_rt->scratch->literal_scratches);
-            return -1;
-        }
-    } else {
-        hs_rt->scratch->regex_scratches = ALLOC(hs_scratch_t *, n_worker_thread);
-        ret = _hs_alloc_scratch(hs_rt->regex_db, hs_rt->scratch->regex_scratches,
-                                n_worker_thread, logger);
-        if (ret < 0) {
-            FREE(hs_rt->scratch->regex_scratches);
-            return -1;
-        }
-    }
-
-    return 0;
-}
-
-/**
- * @brief build hs block database for literal string and regex expression respectively
- * 
- * @retval 0(success) -1(failed)
-*/
-static int adpt_hs_build_database(struct adapter_hs_runtime *hs_rt, 
-                                  struct adpt_hs_compile_data *literal_cd, 
-                                  struct adpt_hs_compile_data *regex_cd, 
-                                  struct log_handle *logger)
-{
-    hs_error_t err;
-    hs_compile_error_t *compile_err = NULL;
-
-    if (NULL == hs_rt || (NULL == literal_cd && NULL == regex_cd)) {
-        return -1;
-    }
-
-    if (literal_cd != NULL) {
-        err = hs_compile_lit_multi((const char *const *)literal_cd->patterns,
-                                    literal_cd->flags,literal_cd->ids,
-                                    literal_cd->pattern_lens, literal_cd->n_patterns, 
-                                    HS_MODE_STREAM | HS_MODE_SOM_HORIZON_SMALL, NULL,
-                                    &hs_rt->literal_db, &compile_err);
-        if (err != HS_SUCCESS) {
-            if (compile_err) {
-                log_fatal(logger, MODULE_ADAPTER_HS, "[%s:%d] compile error: %s", 
-                          __FUNCTION__, __LINE__, compile_err->message);
-            }
-
-            hs_free_compile_error(compile_err);
-            return -1;
-        }
-    }
-    
-    if (regex_cd != NULL) {
-        err = hs_compile_multi((const char *const *)regex_cd->patterns,
-                                regex_cd->flags, regex_cd->ids, regex_cd->n_patterns,
-                                HS_MODE_STREAM,
-                                NULL, &hs_rt->regex_db, &compile_err);
-        if (err != HS_SUCCESS) {
-            if (compile_err) {
-                log_fatal(logger, MODULE_ADAPTER_HS, "[%s:%d] compile error: %s",
-                          __FUNCTION__, __LINE__, compile_err->message);
-            }
-            hs_free_compile_error(compile_err);
-            return -1;
-        }
-    }
-    
-    return 0;
-}
-
-static struct adpt_hs_compile_data *
-adpt_hs_compile_data_new(enum expr_pattern_type pat_type, size_t n_patterns)
-{
-    struct adpt_hs_compile_data *hs_cd = ALLOC(struct adpt_hs_compile_data, 1);
-    hs_cd->pat_type = pat_type;
-    hs_cd->patterns = ALLOC(char *, n_patterns);
-    hs_cd->pattern_lens = ALLOC(size_t, n_patterns);
-    hs_cd->n_patterns = n_patterns;
-    hs_cd->ids = ALLOC(unsigned int, n_patterns);
-    hs_cd->flags = ALLOC(unsigned int, n_patterns);
-
-    return hs_cd;
-}
-
-static void adpt_hs_compile_data_free(struct adpt_hs_compile_data *hs_cd)
-{
-    if (NULL == hs_cd) {
-        return;
-    }
-
-    if (hs_cd->patterns != NULL) {
-        for (size_t i = 0; i < hs_cd->n_patterns; i++) {
-            FREE(hs_cd->patterns[i]);
-        }
-
-        FREE(hs_cd->patterns); 
-    }
-
-    if (hs_cd->pattern_lens != NULL) {
-        FREE(hs_cd->pattern_lens);
-    }
-
-    if (hs_cd->ids != NULL) {
-        FREE(hs_cd->ids);
-    }
-
-    if (hs_cd->flags != NULL) {
-        FREE(hs_cd->flags);
-    }
-
-    FREE(hs_cd);
-}
-
-static void populate_compile_data(struct adpt_hs_compile_data *compile_data,
-                                  int index, int pattern_id, char *pat,
-                                  size_t pat_len, int case_sensitive)
-{
-    compile_data->ids[index] = pattern_id;
-
-    /* set flags */
-    if (compile_data->pat_type == EXPR_PATTERN_TYPE_STR) {
-        compile_data->flags[index] |= HS_FLAG_SOM_LEFTMOST;
-    }
-    
-    if (case_sensitive == EXPR_CASE_INSENSITIVE) {
-        compile_data->flags[index] |= HS_FLAG_CASELESS;
-    }
-
-    compile_data->pattern_lens[index] = pat_len;
-    compile_data->patterns[index] = ALLOC(char, pat_len + 1);
-    memcpy(compile_data->patterns[index], pat, pat_len);
-}
-
-static struct bool_expr *bool_exprs_new(struct expr_rule *rules, size_t n_rule,
-                                        struct pattern_attribute *pattern_attr,
-                                        struct adpt_hs_compile_data *literal_cd,
-                                        struct adpt_hs_compile_data *regex_cd,
-                                        size_t *n_pattern)
-{
-    uint32_t pattern_index = 0;
-    uint32_t literal_index = 0;
-    uint32_t regex_index = 0;
-
-    struct bool_expr *bool_exprs = ALLOC(struct bool_expr, n_rule);
-    if (NULL == bool_exprs) {
-        return NULL;
-    }
-
-    /* populate adpt_hs_compile_data and bool_expr */
-    for (size_t i = 0; i < n_rule; i++) {
-
-        for (size_t j = 0; j < rules[i].n_patterns; j++) {
-            pattern_attr[pattern_index].pattern_id = pattern_index;
-            pattern_attr[pattern_index].match_mode = rules[i].patterns[j].match_mode;
-            
-            if (pattern_attr[pattern_index].match_mode == EXPR_MATCH_MODE_SUB || 
-                pattern_attr[pattern_index].match_mode == EXPR_MATCH_MODE_EXACTLY) {
-                pattern_attr[pattern_index].offset.start = rules[i].patterns[j].start_offset;
-                pattern_attr[pattern_index].offset.end = rules[i].patterns[j].end_offset;
-            }
-
-            /* literal pattern */
-            if (rules[i].patterns[j].type == EXPR_PATTERN_TYPE_STR) {
-                populate_compile_data(literal_cd, literal_index, pattern_index, 
-                                      rules[i].patterns[j].pat, rules[i].patterns[j].pat_len,
-                                      rules[i].patterns[j].case_sensitive);
-                literal_index++;
-            } else {
-                /* regex pattern */
-                populate_compile_data(regex_cd, regex_index, pattern_index, 
-                                      rules[i].patterns[j].pat, rules[i].patterns[j].pat_len,
-                                      rules[i].patterns[j].case_sensitive);
-                regex_index++;
-            }
-
-            bool_exprs[i].items[j].item_id = pattern_index++;
-            bool_exprs[i].items[j].not_flag = 0;
-        }
-        
-        bool_exprs[i].expr_id = rules[i].expr_id;
-        bool_exprs[i].item_num = rules[i].n_patterns;
-        bool_exprs[i].user_tag = rules[i].tag;
-    }
-
-    *n_pattern = pattern_index;
-
-    return bool_exprs;
-}
-
 static int verify_regex_expression(const char *regex_str, struct log_handle *logger)
 {
     hs_expr_info_t *info = NULL;
@@ -359,7 +140,7 @@ static int verify_regex_expression(const char *regex_str, struct log_handle *log
     return 1;
 }
 
-int adapter_hs_verify_regex_expression(const char *regex_expr, struct log_handle *logger)
+int hs_verify_regex_expression(const char *regex_expr, struct log_handle *logger)
 {
     if (NULL == regex_expr) {
         return 0;
@@ -368,204 +149,72 @@ int adapter_hs_verify_regex_expression(const char *regex_expr, struct log_handle
     return verify_regex_expression(regex_expr, logger);
 }
 
-void *adapter_hs_new(struct expr_rule *rules, size_t n_rule,
-                     size_t n_literal_pattern, size_t n_regex_pattern,
-                     size_t n_worker_thread, struct log_handle *logger)
+void hs_lit_engine_free(void *hs_lit_engine)
 {
-    /* get the sum of pattern */
-    size_t i = 0;
-    struct adpt_hs_compile_data *literal_cd = NULL;
-    struct adpt_hs_compile_data *regex_cd = NULL;
-
-    if (n_literal_pattern > 0) {
-        literal_cd = adpt_hs_compile_data_new(EXPR_PATTERN_TYPE_STR, n_literal_pattern);
-    }
-   
-    if (n_regex_pattern > 0) {
-        regex_cd = adpt_hs_compile_data_new(EXPR_PATTERN_TYPE_REG, n_regex_pattern);
-    }
-    
-    size_t pattern_cnt = n_literal_pattern + n_regex_pattern;
-    struct adapter_hs *hs_inst = ALLOC(struct adapter_hs, 1);
-    hs_inst->hs_attr = ALLOC(struct pattern_attribute, pattern_cnt);
-    hs_inst->logger = logger;
-    hs_inst->n_worker_thread = n_worker_thread;
-    hs_inst->n_expr = n_rule;
-
-    struct bool_expr *bool_exprs = bool_exprs_new(rules, n_rule, hs_inst->hs_attr,
-                                                  literal_cd, regex_cd, &pattern_cnt);
-    if (NULL == bool_exprs) {
-        return NULL;
-    }
-    hs_inst->n_patterns = pattern_cnt;
-    
-    /* create bool matcher */
-    size_t mem_size = 0;
-    int hs_ret = 0;
-
-    hs_inst->hs_rt = ALLOC(struct adapter_hs_runtime, 1);
-
-    //hs_rt->bm
-    hs_inst->hs_rt->bm = bool_matcher_new(bool_exprs, n_rule, &mem_size);
-    if (hs_inst->hs_rt->bm != NULL) {
-        log_info(logger, MODULE_ADAPTER_HS, 
-                 "Adapter_hs module: build bool matcher of %zu expressions"
-                 " with %zu bytes memory", n_rule, mem_size);
-    } else {
-        log_fatal(logger, MODULE_ADAPTER_HS,
-                  "[%s:%d] Adapter_hs module: build bool matcher failed",
-                  __FUNCTION__, __LINE__);
-        
-        hs_ret = -1;
-    }
-    FREE(bool_exprs);
-
-    /* build hs database hs_rt->literal_db & hs_rt->regex_db */
-    int ret = adpt_hs_build_database(hs_inst->hs_rt, literal_cd, regex_cd, logger);
-    if (ret < 0) {
-        hs_ret = -1;
-    }
-
-    if (literal_cd != NULL) {
-        adpt_hs_compile_data_free(literal_cd);
-        literal_cd = NULL;
-    }
-
-    if (regex_cd != NULL) {
-        adpt_hs_compile_data_free(regex_cd);
-        regex_cd = NULL;
-    }
-
-    if (hs_ret < 0) {
-        goto error;
-    }
-
-    /* alloc scratch */
-    hs_inst->hs_rt->scratch = ALLOC(struct adapter_hs_scratch, 1);
-    hs_inst->hs_rt->scratch->bool_match_buffs = ALLOC(struct bool_expr_match *,
-                                                      n_worker_thread);
-    for (i = 0; i < n_worker_thread; i++) {
-        hs_inst->hs_rt->scratch->bool_match_buffs[i] = ALLOC(struct bool_expr_match,
-                                                             MAX_HIT_EXPR_NUM);
-    }
-
-    /* literal and regex scratch can't reuse */
-    if (n_literal_pattern > 0) {
-        ret = adpt_hs_alloc_scratch(hs_inst->hs_rt, n_worker_thread,
-                                    EXPR_PATTERN_TYPE_STR, logger);
-        if (ret < 0) {
-            goto error;
-        }
-    }
-
-    if (n_regex_pattern > 0) {
-        ret = adpt_hs_alloc_scratch(hs_inst->hs_rt, n_worker_thread,
-                                    EXPR_PATTERN_TYPE_REG, logger);
-        if (ret < 0) {
-            goto error;
-        }
-    }
-
-    hs_inst->hs_rt->streams = ALLOC(struct adapter_hs_stream *, n_worker_thread);
-    for (i = 0; i < n_worker_thread; i++) {
-        hs_inst->hs_rt->streams[i] = (struct adapter_hs_stream *)adapter_hs_stream_open(hs_inst, i);
-    }
-
-    return hs_inst;
-error:
-    adapter_hs_free(hs_inst);
-    return NULL;
-}
-
-void adapter_hs_free(void *hs_instance)
-{
-    if (NULL == hs_instance) {
+    if (NULL == hs_lit_engine) {
         return;
     }
 
-    struct adapter_hs *hs_inst = (struct adapter_hs *)hs_instance;
+    struct hs_lit_engine *hs_lit_inst = (struct hs_lit_engine *)hs_lit_engine;
     size_t i = 0;
 
-    if (hs_inst->hs_rt != NULL) {
-        if (hs_inst->hs_rt->literal_db != NULL) {
-            hs_free_database(hs_inst->hs_rt->literal_db);
-            hs_inst->hs_rt->literal_db = NULL;
-        }
-
-        if (hs_inst->hs_rt->regex_db != NULL) {
-            hs_free_database(hs_inst->hs_rt->regex_db);
-            hs_inst->hs_rt->regex_db = NULL;
-        }
-
-        if (hs_inst->hs_rt->scratch != NULL) {
-            if (hs_inst->hs_rt->scratch->literal_scratches != NULL) {
-                for (i = 0; i < hs_inst->n_worker_thread; i++) {
-                    if (hs_inst->hs_rt->scratch->literal_scratches[i] != NULL) {
-                        hs_free_scratch(hs_inst->hs_rt->scratch->literal_scratches[i]);
-                        hs_inst->hs_rt->scratch->literal_scratches[i] = NULL;
-                    }
-                }
-                FREE(hs_inst->hs_rt->scratch->literal_scratches);
-            }
-
-            if (hs_inst->hs_rt->scratch->regex_scratches != NULL) {
-                for (i = 0; i < hs_inst->n_worker_thread; i++) {
-                    if (hs_inst->hs_rt->scratch->regex_scratches[i] != NULL) {
-                        hs_free_scratch(hs_inst->hs_rt->scratch->regex_scratches[i]);
-                        hs_inst->hs_rt->scratch->regex_scratches[i] = NULL;
-                    }
-                }
-                FREE(hs_inst->hs_rt->scratch->regex_scratches);
-            }
-
-            if (hs_inst->hs_rt->scratch->bool_match_buffs != NULL) {
-                for (i = 0; i < hs_inst->n_worker_thread; i++) {
-                    if (hs_inst->hs_rt->scratch->bool_match_buffs[i] != NULL) {
-                        FREE(hs_inst->hs_rt->scratch->bool_match_buffs[i]);
-                    }
-                }
-
-                FREE(hs_inst->hs_rt->scratch->bool_match_buffs);
-            }
-
-            FREE(hs_inst->hs_rt->scratch);
-        }
-        
-        if (hs_inst->hs_rt->bm != NULL) {
-            bool_matcher_free(hs_inst->hs_rt->bm);
-            hs_inst->hs_rt->bm = NULL;
-        }
-
-        if (hs_inst->hs_rt->streams != NULL) {
-            for (i = 0; i < hs_inst->n_worker_thread; i++) {
-                if (hs_inst->hs_rt->streams[i] != NULL) {
-                    adapter_hs_stream_close(hs_inst->hs_rt->streams[i]);
-                    hs_inst->hs_rt->streams[i] = NULL;
-                }
-            }
-            FREE(hs_inst->hs_rt->streams);
-        }
-
-        FREE(hs_inst->hs_rt);
+    if (hs_lit_inst->hs_db != NULL) {
+        hs_free_database(hs_lit_inst->hs_db);
+        hs_lit_inst->hs_db = NULL;
     }
 
-    if (hs_inst->hs_attr != NULL) {
-        FREE(hs_inst->hs_attr);
+    if (hs_lit_inst->hs_scratches != NULL) {
+        for (i = 0; i < hs_lit_inst->n_thread; i++) {
+            if (hs_lit_inst->hs_scratches[i] != NULL) {
+                hs_free_scratch(hs_lit_inst->hs_scratches[i]);
+                hs_lit_inst->hs_scratches[i] = NULL;
+            }
+        }
+        FREE(hs_lit_inst->hs_scratches);
     }
 
-    FREE(hs_inst);
+    if (hs_lit_inst->streams != NULL) {
+        for (i = 0; i < hs_lit_inst->n_thread; i++) {
+            if (hs_lit_inst->streams[i] != NULL) {
+                hs_lit_stream_close(hs_lit_inst->streams[i]);
+                hs_lit_inst->streams[i] = NULL;
+            }
+        }
+        FREE(hs_lit_inst->streams);
+    }
+
+    FREE(hs_lit_inst);
 }
 
-static inline int compare_pattern_id(const void *a, const void *b)
+void *hs_lit_engine_new(struct expr_rule *rules, size_t n_rule,
+                         struct pattern_attribute *pat_attr,
+                         void *hs_lit_db, size_t n_thread,
+                         struct log_handle *logger)
 {
-	long long ret = *(const unsigned long long *)a - *(const unsigned long long *)b;
-	if (ret == 0) {
-		return 0;
-	} else if(ret < 0) {
-		return -1;
-	} else {
-		return 1;
-	}
+    struct hs_lit_engine *hs_lit_inst = ALLOC(struct hs_lit_engine, 1);
+    
+    hs_lit_inst->n_thread = n_thread;
+    hs_lit_inst->hs_db = (hs_database_t *)hs_lit_db;
+    hs_lit_inst->logger = logger;
+    hs_lit_inst->ref_pat_attr = pat_attr;
+    hs_lit_inst->hs_scratches = ALLOC(hs_scratch_t *, n_thread);
+    int ret = hs_alloc_scratches((hs_database_t *)hs_lit_db, hs_lit_inst->hs_scratches,
+                                 n_thread, logger);
+    if (ret < 0) {
+        log_fatal(logger, MODULE_ADAPTER_HS,
+                  "[%s:%d]alloc scratches for hs lit runtime failed.",
+                  __FUNCTION__, __LINE__);
+        FREE(hs_lit_inst->hs_scratches);
+        FREE(hs_lit_inst);
+        return NULL;
+    }
+
+    hs_lit_inst->streams = ALLOC(struct hs_lit_stream *, n_thread);
+    for (size_t i = 0; i < n_thread; i++) {
+        hs_lit_inst->streams[i] = (struct hs_lit_stream *)hs_lit_stream_open(hs_lit_inst, i);
+    }
+
+    return hs_lit_inst;
 }
 
 /**
@@ -579,16 +228,12 @@ static int matched_event_cb(unsigned int id, unsigned long long from,
     unsigned long long pattern_id = id;
     struct matched_pattern *matched_pat = (struct matched_pattern *)ctx;
 
-    if (id > matched_pat->n_patterns || id < 0) {
-        return 0;
-    }
-
     if (utarray_len(matched_pat->pattern_ids) >= MAX_HIT_PATTERN_NUM) {
         return 0;
     }
     
     int ret = 0;
-    struct pattern_attribute pat_attr = matched_pat->ref_hs_attr[id];
+    struct pattern_attribute pat_attr = matched_pat->ref_pat_attr[id];
     switch (pat_attr.match_mode) {
         case EXPR_MATCH_MODE_EXACTLY:
             if (0 == from && matched_pat->scan_data_len == to) {
@@ -643,89 +288,62 @@ static int matched_event_cb(unsigned int id, unsigned long long from,
 }
 
 UT_icd ut_hs_pattern_id_icd = {sizeof(unsigned long long), NULL, NULL, NULL};
-void *adapter_hs_stream_open(void *hs_instance, int thread_id)
+void *hs_lit_stream_open(void *hs_lit_engine, int thread_id)
 {
-    if (NULL == hs_instance || thread_id < 0) {
+    if (NULL == hs_lit_engine || thread_id < 0) {
         return NULL;
     }
     
-    struct adapter_hs *hs_inst = (struct adapter_hs *)hs_instance;
-    struct adapter_hs_stream *hs_stream = ALLOC(struct adapter_hs_stream, 1);
+    struct hs_lit_engine *hs_lit_inst = (struct hs_lit_engine *)hs_lit_engine;
+    struct hs_lit_stream *lit_stream = ALLOC(struct hs_lit_stream, 1);
     hs_error_t err;
 
-    hs_stream->logger = hs_inst->logger;
-    hs_stream->thread_id = thread_id;
-    hs_stream->ref_hs_rt = hs_inst->hs_rt;
-    hs_stream->matched_pat = ALLOC(struct matched_pattern, 1);
-    hs_stream->matched_pat->ref_hs_attr = hs_inst->hs_attr;
-    hs_stream->matched_pat->n_patterns = hs_inst->n_patterns;
-    utarray_new(hs_stream->matched_pat->pattern_ids, &ut_hs_pattern_id_icd);
-    utarray_reserve(hs_stream->matched_pat->pattern_ids, MAX_HIT_PATTERN_NUM);
+    lit_stream->logger = hs_lit_inst->logger;
+    lit_stream->thread_id = thread_id;
+    lit_stream->ref_hs_rt = hs_lit_inst;
+    lit_stream->matched_pat = ALLOC(struct matched_pattern, 1);
+    lit_stream->matched_pat->ref_pat_attr = hs_lit_inst->ref_pat_attr;
+    utarray_new(lit_stream->matched_pat->pattern_ids, &ut_hs_pattern_id_icd);
+    utarray_reserve(lit_stream->matched_pat->pattern_ids, MAX_HIT_PATTERN_NUM);
 
-    int err_count = 0;
-    if (hs_inst->hs_rt->literal_db != NULL) {
-        err = hs_open_stream(hs_inst->hs_rt->literal_db, 0,
-                             &hs_stream->literal_stream);
+    if (hs_lit_inst->hs_db != NULL) {
+        err = hs_open_stream(hs_lit_inst->hs_db, 0, &lit_stream->hs_stream);
         if (err != HS_SUCCESS) {
-            log_fatal(hs_inst->logger, MODULE_ADAPTER_HS,
+            log_fatal(hs_lit_inst->logger, MODULE_ADAPTER_HS,
                       "hs_open_stream failed, hs err:%d", err);
-            err_count++;
+            goto error;
         }
     }
 
-    if (hs_inst->hs_rt->regex_db != NULL) {
-        err = hs_open_stream(hs_inst->hs_rt->regex_db, 0,
-                             &hs_stream->regex_stream);
-        if (err != HS_SUCCESS) {
-            log_fatal(hs_inst->logger, MODULE_ADAPTER_HS,
-                      "hs_open_stream failed, hs err:%d", err);
-            err_count++;
-        }
-    }
-
-    if (err_count > 0) {
-        goto error;
-    }
-
-    return hs_stream;
+    return lit_stream;
 error:
-    if (hs_stream->literal_stream != NULL) {
-        hs_close_stream(hs_stream->literal_stream, NULL, NULL, NULL);
-        hs_stream->literal_stream = NULL;
+    if (lit_stream->hs_stream != NULL) {
+        hs_close_stream(lit_stream->hs_stream, NULL, NULL, NULL);
+        lit_stream->hs_stream = NULL;
     }
 
-    if (hs_stream->regex_stream != NULL) {
-        hs_close_stream(hs_stream->regex_stream, NULL, NULL, NULL);
-        hs_stream->regex_stream = NULL;
-    }
-
-    FREE(hs_stream);
+    FREE(lit_stream);
     return NULL;
 }
 
-void adapter_hs_stream_close(void *hs_stream)
+void hs_lit_stream_close(void *hs_lit_stream)
 {
-    if (NULL == hs_stream) {
+    if (NULL == hs_lit_stream) {
         return;
     }
 
-    struct adapter_hs_stream *stream = (struct adapter_hs_stream *)hs_stream;
+    struct hs_lit_stream *stream = (struct hs_lit_stream *)hs_lit_stream;
     if (stream->ref_hs_rt != NULL) {
-        if (stream->literal_stream != NULL) {
-            hs_close_stream(stream->literal_stream, NULL, NULL, NULL);
-            stream->literal_stream = NULL;
-        }
-        
-        if (stream->regex_stream != NULL) {
-            hs_close_stream(stream->regex_stream, NULL, NULL, NULL);
-            stream->regex_stream = NULL;
+        if (stream->hs_stream != NULL) {
+            hs_close_stream(stream->hs_stream, NULL, NULL, NULL);
+            stream->hs_stream = NULL;
         }
     }
 
     /* stream->hs_rt point to hs_instance->hs_rt which will call free 
         same as hs_attr */
     stream->ref_hs_rt = NULL;
-    stream->matched_pat->ref_hs_attr = NULL;
+    stream->matched_pat->ref_pat_attr = NULL;
 
     if (stream->matched_pat->pattern_ids != NULL) {
         utarray_free(stream->matched_pat->pattern_ids);
@@ -736,84 +354,63 @@ void adapter_hs_stream_close(void *hs_stream)
     FREE(stream);
 }
 
-static void adapter_hs_stream_reset(struct adapter_hs_stream *hs_stream)
+static void hs_lit_stream_reset(struct hs_lit_stream *hs_lit_stream)
 {
-    if (NULL == hs_stream) {
+    if (NULL == hs_lit_stream) {
         return;
     }
 
-    struct adapter_hs_scratch *scratch = hs_stream->ref_hs_rt->scratch;
-    if (hs_stream->literal_stream != NULL) {
-        hs_reset_stream(hs_stream->literal_stream, 0,
-                        scratch->literal_scratches[hs_stream->thread_id],
-                        matched_event_cb, hs_stream->matched_pat);
+    hs_scratch_t **scratches = hs_lit_stream->ref_hs_rt->hs_scratches;
+    if (hs_lit_stream->hs_stream != NULL) {
+        hs_reset_stream(hs_lit_stream->hs_stream, 0,
+                        scratches[hs_lit_stream->thread_id],
+                        matched_event_cb, hs_lit_stream->matched_pat);
     }
-
-    if (hs_stream->regex_stream != NULL) {
-        hs_reset_stream(hs_stream->regex_stream, 0,
-                        scratch->regex_scratches[hs_stream->thread_id],
-                        matched_event_cb, hs_stream->matched_pat);
-    }
-
-    utarray_clear(hs_stream->matched_pat->pattern_ids);
 }
 
-int adapter_hs_scan_match(struct bool_matcher *bm, UT_array *pattern_ids,
-                          struct bool_expr_match *match_buff, size_t buff_size,
-                          struct expr_scan_result *results, size_t n_result,
-                          size_t *n_hit_result)
+static void hs_regex_stream_reset(struct hs_regex_stream *hs_regex_stream)
 {
-    size_t n_pattern_id = utarray_len(pattern_ids);
-    if (0 == n_pattern_id) {
-        *n_hit_result = 0;
+    if (NULL == hs_regex_stream) {
+        return;
+    }
+
+    hs_scratch_t **scratches = hs_regex_stream->ref_hs_rt->hs_scratches;
+    if (hs_regex_stream->hs_stream != NULL) {
+        hs_reset_stream(hs_regex_stream->hs_stream, 0,
+                        scratches[hs_regex_stream->thread_id],
+                        matched_event_cb, hs_regex_stream->matched_pat);
+    }
+}
+
+static int gather_hit_pattern_id(struct matched_pattern *matched_pat,
+                                 unsigned long long *pattern_id_array,
+                                 size_t array_size, size_t *n_pattern_id)
+{
+    size_t pattern_id_cnt = utarray_len(matched_pat->pattern_ids);
+    if (0 == pattern_id_cnt) {
+        *n_pattern_id = 0;
         return 0;
     }
 
-    utarray_sort(pattern_ids, compare_pattern_id);
-
-    unsigned long long prev_pattern_id = 0xFFFFFFFFFFFFFFFF;
-    unsigned long long tmp_pattern_id = 0;
-    size_t n_unique_pattern_id = 0;
-    unsigned long long unique_pattern_ids[n_pattern_id];
-
-    for (size_t i = 0; i < n_pattern_id; i++) {
-        tmp_pattern_id = *(unsigned long long *)utarray_eltptr(pattern_ids, i);
-        if (tmp_pattern_id != prev_pattern_id) {
-            unique_pattern_ids[n_unique_pattern_id++] = tmp_pattern_id;
-            prev_pattern_id = tmp_pattern_id;
-        }
+    size_t array_index = 0;
+    for (size_t i = 0; i < pattern_id_cnt && array_index < array_size; i++) {
+        pattern_id_array[array_index++] = *(unsigned long long *)utarray_eltptr(matched_pat->pattern_ids, i);
     }
 
-    int bool_matcher_ret = bool_matcher_match(bm, unique_pattern_ids,
-                                              n_unique_pattern_id,
-                                              match_buff, buff_size);
-    if (bool_matcher_ret < 0) {
-        goto next;
-    }
+    *n_pattern_id = array_index;
+    utarray_clear(matched_pat->pattern_ids);
 
-    if (bool_matcher_ret > (int)n_result) {
-        bool_matcher_ret = n_result;
-    }
-
-    for (int index = 0; index < bool_matcher_ret; index++) {
-        results[index].rule_id = match_buff[index].expr_id;
-        results[index].user_tag = match_buff[index].user_tag;
-    }
-    *n_hit_result = bool_matcher_ret;
-
-next:
-    utarray_clear(pattern_ids);
-    return bool_matcher_ret;
+    return 0;
 }
 
-int adapter_hs_scan_stream(void *hs_stream, const char *data, size_t data_len,
-                           struct expr_scan_result *results, size_t n_result,
-                           size_t *n_hit_result)
+int hs_lit_stream_scan(void *hs_lit_stream, const char *data, size_t data_len,
+                       unsigned long long *pattern_id_array, size_t array_size,
+                       size_t *n_pattern_id)
 {
     hs_error_t err;
 
-    if (NULL == hs_stream || NULL == data || 0 == data_len ||
-        NULL == results || 0 == n_result || NULL == n_hit_result) {
+    if (NULL == hs_lit_stream || NULL == data || 0 == data_len ||
+        NULL == pattern_id_array || 0 == array_size || NULL == n_pattern_id) {
         return -1;
     }
     
@@ -826,69 +423,355 @@ int adapter_hs_scan_stream(void *hs_stream, const char *data, size_t data_len,
         hs_scan_stream will return `HS_SCAN_TERMINATED`. This case has not been
         demonstrated in pcapscan, as its callback always returns 0. 
     */
+    struct hs_lit_stream *lit_stream = (struct hs_lit_stream *)hs_lit_stream;
+    int thread_id = lit_stream->thread_id;
+    hs_scratch_t **scratches = lit_stream->ref_hs_rt->hs_scratches;
+    lit_stream->matched_pat->scan_data_len = data_len;
 
-    int err_count = 0;
-    struct adapter_hs_stream *stream = (struct adapter_hs_stream *)hs_stream;
-    int thread_id = stream->thread_id;
-    struct adapter_hs_scratch *scratch = stream->ref_hs_rt->scratch;
-    stream->matched_pat->scan_data_len = data_len;
-
-    int err_scratch_flag = 0;
-    if (stream->literal_stream != NULL) {
-        if (scratch->literal_scratches != NULL) {
-            err = hs_scan_stream(stream->literal_stream, data, data_len,
-                                 0, scratch->literal_scratches[thread_id],
-                                 matched_event_cb, stream->matched_pat);
+    if (lit_stream->hs_stream != NULL) {
+        if (scratches != NULL) {
+            err = hs_scan_stream(lit_stream->hs_stream, data, data_len,
+                                 0, scratches[thread_id], matched_event_cb,
+                                 lit_stream->matched_pat);
             if (err != HS_SUCCESS) {
-                err_count++;
+                return -1;
             }
         } else {
-            log_fatal(stream->logger, MODULE_ADAPTER_HS,
-                      "literal_scratches is null, thread_id:%d", thread_id);
-            err_scratch_flag++;
+            log_fatal(lit_stream->logger, MODULE_ADAPTER_HS,
+                      "literal scratches is null, thread_id:%d", thread_id);
+            return -1;
         }
     }
 
-    if (stream->regex_stream != NULL) {
-        if (scratch->regex_scratches != NULL) {
-            err = hs_scan_stream(stream->regex_stream, data, data_len,
-                                 0, scratch->regex_scratches[thread_id],
-                                 matched_event_cb, stream->matched_pat);
-            if (err != HS_SUCCESS) {
-                err_count++;
-            }
-        } else {
-            log_fatal(stream->logger, MODULE_ADAPTER_HS,
-                      "regex_scratches is null, thread_id:%d", thread_id);
-            err_scratch_flag++;
-        }
-    }
-
-    if (err_count == 2) {
-        return -1;
-    }
-
-    if (err_scratch_flag != 0) {
-        return -1;
-    }
-
-    return adapter_hs_scan_match(stream->ref_hs_rt->bm, stream->matched_pat->pattern_ids,
-                                 scratch->bool_match_buffs[thread_id], MAX_HIT_EXPR_NUM,
-                                 results, n_result, n_hit_result);
+    return gather_hit_pattern_id(lit_stream->matched_pat, pattern_id_array,
+                                 array_size, n_pattern_id);
 }
 
-int adapter_hs_scan(void *hs_instance, int thread_id, const char *data, size_t data_len, 
-                    struct expr_scan_result *results, size_t n_result, size_t *n_hit_result)
+int hs_lit_engine_scan(void *hs_lit_engine, int thread_id,
+                        const char *data, size_t data_len,
+                        unsigned long long *pattern_id_array,
+                        size_t array_size, size_t *n_pattern_id)
 {
-    if (NULL == hs_instance || NULL == data || (0 == data_len) || 
-        NULL == results || 0 == n_result || NULL == n_hit_result) {
+    if (NULL == hs_lit_engine || NULL == data || 0 == data_len) {
         return -1;
     }
 
-    struct adapter_hs *hs_inst = (struct adapter_hs *)hs_instance;
-    struct adapter_hs_stream *hs_stream = hs_inst->hs_rt->streams[thread_id];
-    assert(hs_stream != NULL);
+    struct hs_lit_engine *hs_lit_inst = (struct hs_lit_engine *)hs_lit_engine;
+    struct hs_lit_stream *hs_lit_stream = hs_lit_inst->streams[thread_id];
+    assert(hs_lit_stream != NULL);
 
-    adapter_hs_stream_reset(hs_stream);
-    return adapter_hs_scan_stream(hs_stream, data, data_len, results, n_result, n_hit_result);
+    hs_lit_stream_reset(hs_lit_stream);
+    return hs_lit_stream_scan(hs_lit_stream, data, data_len, pattern_id_array,
+                              array_size, n_pattern_id);
+}
+
+void hs_regex_engine_free(void *hs_regex_engine)
+{
+    if (NULL == hs_regex_engine) {
+        return;
+    }
+
+    struct hs_regex_engine *hs_regex_inst = (struct hs_regex_engine *)hs_regex_engine;
+    size_t i = 0;
+
+    if (hs_regex_inst->hs_db != NULL) {
+        hs_free_database(hs_regex_inst->hs_db);
+        hs_regex_inst->hs_db = NULL;
+    }
+
+    if (hs_regex_inst->hs_scratches != NULL) {
+        for (i = 0; i < hs_regex_inst->n_thread; i++) {
+            if (hs_regex_inst->hs_scratches[i] != NULL) {
+                hs_free_scratch(hs_regex_inst->hs_scratches[i]);
+                hs_regex_inst->hs_scratches[i] = NULL;
+            }
+        }
+        FREE(hs_regex_inst->hs_scratches);
+    }
+
+    if (hs_regex_inst->streams != NULL) {
+        for (i = 0; i < hs_regex_inst->n_thread; i++) {
+            if (hs_regex_inst->streams[i] != NULL) {
+                hs_regex_stream_close(hs_regex_inst->streams[i]);
+                hs_regex_inst->streams[i] = NULL;
+            }
+        }
+        FREE(hs_regex_inst->streams);
+    }
+
+    FREE(hs_regex_inst);
+}
+
+void *hs_regex_engine_new(struct expr_rule *rules, size_t n_rule,
+                           struct pattern_attribute *pat_attr,
+                           void *hs_regex_db, size_t n_thread,
+                           struct log_handle *logger)
+{
+    struct hs_regex_engine *hs_regex_inst = ALLOC(struct hs_regex_engine, 1);
+    
+    hs_regex_inst->n_thread = n_thread;
+    hs_regex_inst->hs_db = (hs_database_t *)hs_regex_db;
+    hs_regex_inst->ref_pat_attr = pat_attr;
+    hs_regex_inst->logger = logger;
+    hs_regex_inst->hs_scratches = ALLOC(hs_scratch_t *, n_thread);
+
+    int ret = hs_alloc_scratches((hs_database_t *)hs_regex_db,
+                                 hs_regex_inst->hs_scratches,
+                                 n_thread, logger);
+    if (ret < 0) {
+        log_fatal(logger, MODULE_ADAPTER_HS,
+                  "[%s:%d]alloc scratches for hs regex runtime failed.",
+                  __FUNCTION__, __LINE__);
+        FREE(hs_regex_inst->hs_scratches);
+        FREE(hs_regex_inst);
+        return NULL;
+    }
+
+    hs_regex_inst->streams = ALLOC(struct hs_regex_stream *, n_thread);
+    for (size_t i = 0; i < n_thread; i++) {
+        hs_regex_inst->streams[i] = (struct hs_regex_stream *)hs_regex_stream_open(hs_regex_inst, i);
+    }
+
+    return hs_regex_inst;
+}
+
+int hs_regex_engine_scan(void *hs_regex_engine, int thread_id,
+                          const char *data, size_t data_len,
+                          unsigned long long *pattern_id_array,
+                          size_t array_size, size_t *n_pattern_id)
+{
+    if (NULL == hs_regex_engine || NULL == data || 0 == data_len) {
+        return -1;
+    }
+
+    struct hs_regex_engine *hs_regex_inst = (struct hs_regex_engine *)hs_regex_engine;
+    struct hs_regex_stream *hs_regex_stream = hs_regex_inst->streams[thread_id];
+    assert(hs_regex_stream != NULL);
+
+    hs_regex_stream_reset(hs_regex_stream);
+    return hs_regex_stream_scan(hs_regex_stream, data, data_len, pattern_id_array,
+                                array_size, n_pattern_id);
+}
+
+void hs_regex_stream_close(void *hs_regex_stream)
+{
+    if (NULL == hs_regex_stream) {
+        return;
+    }
+
+    struct hs_regex_stream *stream = (struct hs_regex_stream *)hs_regex_stream;
+    if (stream->ref_hs_rt != NULL) {
+        if (stream->hs_stream != NULL) {
+            hs_close_stream(stream->hs_stream, NULL, NULL, NULL);
+            stream->hs_stream = NULL;
+        }
+    }
+
+    /* stream->hs_rt point to hs_instance->hs_rt which will call free 
+        same as hs_attr */
+    stream->ref_hs_rt = NULL;
+    stream->matched_pat->ref_pat_attr = NULL;
+
+    if (stream->matched_pat->pattern_ids != NULL) {
+        utarray_free(stream->matched_pat->pattern_ids);
+        stream->matched_pat->pattern_ids = NULL;
+    }
+
+    FREE(stream->matched_pat);
+    FREE(stream);
+}
+
+void *hs_regex_stream_open(void *hs_regex_engine, int thread_id)
+{
+    if (NULL == hs_regex_engine || thread_id < 0) {
+        return NULL;
+    }
+    
+    struct hs_regex_engine *hs_regex_inst = (struct hs_regex_engine *)hs_regex_engine;
+    struct hs_regex_stream *regex_stream = ALLOC(struct hs_regex_stream, 1);
+    hs_error_t err;
+
+    regex_stream->logger = hs_regex_inst->logger;
+    regex_stream->thread_id = thread_id;
+    regex_stream->ref_hs_rt = hs_regex_inst;
+    regex_stream->matched_pat = ALLOC(struct matched_pattern, 1);
+    regex_stream->matched_pat->ref_pat_attr = hs_regex_inst->ref_pat_attr;
+    utarray_new(regex_stream->matched_pat->pattern_ids, &ut_hs_pattern_id_icd);
+    utarray_reserve(regex_stream->matched_pat->pattern_ids, MAX_HIT_PATTERN_NUM);
+
+    if (hs_regex_inst->hs_db != NULL) {
+        err = hs_open_stream(hs_regex_inst->hs_db, 0, &regex_stream->hs_stream);
+        if (err != HS_SUCCESS) {
+            log_fatal(hs_regex_inst->logger, MODULE_ADAPTER_HS,
+                      "hs_open_stream failed, hs err:%d", err);
+            goto error;
+        }
+    }
+
+    return regex_stream;
+error:
+    hs_regex_stream_close(regex_stream); 
+    return NULL;
+}
+
+int hs_regex_stream_scan(void *hs_regex_stream, const char *data, size_t data_len,
+                         unsigned long long *pattern_id_array, size_t array_size,
+                         size_t *n_pattern_id)
+{
+    hs_error_t err;
+
+    if (NULL == hs_regex_stream || NULL == data || 0 == data_len) {
+        return -1;
+    }
+    
+    /* 
+        In streaming mode, a non-zero return from the user-specified event-handler
+        function has consequences for the rest of that stream's lifetime: when a
+        non-zero return occurs, it signals that no more of the stream should be
+        scanned. Consequently if the user makes a subsequent call to
+        `hs_scan_stream` on a stream whose processing was terminated in this way,
+        hs_scan_stream will return `HS_SCAN_TERMINATED`. This case has not been
+        demonstrated in pcapscan, as its callback always returns 0. 
+    */
+    struct hs_regex_stream *regex_stream = (struct hs_regex_stream *)hs_regex_stream;
+    int thread_id = regex_stream->thread_id;
+    hs_scratch_t **scratches = regex_stream->ref_hs_rt->hs_scratches;
+    regex_stream->matched_pat->scan_data_len = data_len;
+
+    if (regex_stream->hs_stream != NULL) {
+        if (scratches != NULL) {
+            err = hs_scan_stream(regex_stream->hs_stream, data, data_len,
+                                 0, scratches[thread_id], matched_event_cb,
+                                 regex_stream->matched_pat);
+            if (err != HS_SUCCESS) {
+                return -1;
+            }
+        } else {
+            log_fatal(regex_stream->logger, MODULE_ADAPTER_HS,
+                      "literal scratches is null, thread_id:%d", thread_id);
+            return -1;
+        }
+    }
+
+    return gather_hit_pattern_id(regex_stream->matched_pat, pattern_id_array,
+                                 array_size, n_pattern_id);
+}
+
+void *hs_compile_data_new(enum expr_pattern_type pat_type, size_t n_patterns)
+{
+    struct hs_compile_data *hs_cd = ALLOC(struct hs_compile_data, 1);
+
+    hs_cd->pat_type = pat_type;
+    hs_cd->patterns = ALLOC(char *, n_patterns);
+    hs_cd->pattern_lens = ALLOC(size_t, n_patterns);
+    hs_cd->n_patterns = n_patterns;
+    hs_cd->ids = ALLOC(unsigned int, n_patterns);
+    hs_cd->flags = ALLOC(unsigned int, n_patterns);
+
+    return hs_cd;
+}
+
+void hs_compile_data_free(void *compile_data)
+{
+    if (NULL == compile_data) {
+        return;
+    }
+
+    struct hs_compile_data *hs_cd = (struct hs_compile_data *)compile_data;
+    if (hs_cd->patterns != NULL) {
+        for (size_t i = 0; i < hs_cd->n_patterns; i++) {
+            FREE(hs_cd->patterns[i]);
+        }
+
+        FREE(hs_cd->patterns); 
+    }
+
+    if (hs_cd->pattern_lens != NULL) {
+        FREE(hs_cd->pattern_lens);
+    }
+
+    if (hs_cd->ids != NULL) {
+        FREE(hs_cd->ids);
+    }
+
+    if (hs_cd->flags != NULL) {
+        FREE(hs_cd->flags);
+    }
+
+    FREE(hs_cd);
+}
+
+void hs_populate_compile_data(void *compile_data, size_t index, int pattern_id,
+                              char *pat, size_t pat_len, int case_sensitive)
+{
+    struct hs_compile_data *hs_cd = (struct hs_compile_data *)compile_data;
+
+    hs_cd->ids[index] = pattern_id;
+
+    /* set flags */
+    if (hs_cd->pat_type == EXPR_PATTERN_TYPE_STR) {
+        hs_cd->flags[index] |= HS_FLAG_SOM_LEFTMOST;
+    }
+    
+    if (case_sensitive == EXPR_CASE_INSENSITIVE) {
+        hs_cd->flags[index] |= HS_FLAG_CASELESS;
+    }
+
+    hs_cd->pattern_lens[index] = pat_len;
+    hs_cd->patterns[index] = ALLOC(char, pat_len + 1);
+    memcpy(hs_cd->patterns[index], pat, pat_len);
+}
+
+int hs_build_lit_db(void **hs_lit_db, void *compile_data, struct log_handle *logger)
+{
+    if (NULL == hs_lit_db || NULL == compile_data) {
+        return -1;
+    }
+
+    struct hs_compile_data *lit_cd = (struct hs_compile_data *)compile_data;
+    hs_compile_error_t *compile_err = NULL;
+
+    if (lit_cd != NULL) {
+        hs_error_t err = hs_compile_lit_multi((const char *const *)lit_cd->patterns,
+                                    lit_cd->flags,lit_cd->ids, lit_cd->pattern_lens,
+                                    lit_cd->n_patterns, 
+                                    HS_MODE_STREAM | HS_MODE_SOM_HORIZON_SMALL,
+                                    NULL, (hs_database_t **)hs_lit_db, &compile_err);
+        if (err != HS_SUCCESS) {
+            if (compile_err) {
+                log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] compile error: %s", 
+                          __FUNCTION__, __LINE__, compile_err->message);
+            }
+
+            hs_free_compile_error(compile_err);
+            return -1;
+        }
+    }
+    
+    return 0;
+}
+
+int hs_build_regex_db(void **hs_regex_db, void *compile_data, struct log_handle *logger)
+{
+    if (NULL == hs_regex_db || NULL == compile_data) {
+        return -1;
+    }
+
+    struct hs_compile_data *regex_cd = (struct hs_compile_data *)compile_data;
+    hs_compile_error_t *compile_err = NULL;
+
+    hs_error_t err = hs_compile_multi((const char *const *)regex_cd->patterns,
+                                      regex_cd->flags, regex_cd->ids, regex_cd->n_patterns,
+                                      HS_MODE_STREAM, NULL, (hs_database_t **)hs_regex_db,
+                                      &compile_err);
+    if (err != HS_SUCCESS) {
+        if (compile_err) {
+            log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] compile error: %s",
+                      __FUNCTION__, __LINE__, compile_err->message);
+        }
+        hs_free_compile_error(compile_err);
+        return -1;
+    }
+    
+    return 0;
 }

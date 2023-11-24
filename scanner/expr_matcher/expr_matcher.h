@@ -21,12 +21,11 @@ extern "C"
 #include "log/log.h"
 
 #define MAX_EXPR_PATTERN_NUM  8   /* 每条与表达式最多由MAX_EXPR_ITEM_NUM个规则组成 */
-#define MAX_HIT_EXPR_NUM     1024
 
 enum expr_engine_type {
-    EXPR_ENGINE_TYPE_HS = 0, /* default engine */
+    EXPR_ENGINE_TYPE_HS = 0,
     EXPR_ENGINE_TYPE_RS,
-    EXPR_ENGINE_TYPE_MAX
+	EXPR_ENGINE_TYPE_AUTO
 };
 
 enum expr_pattern_type {
@@ -73,7 +72,7 @@ struct expr_scan_result {
 /* logic AND expression, such as (rule1 & rule2) */
 struct expr_rule {
 	long long expr_id;   /* AND expression ID */
-	size_t n_patterns;     
+	size_t n_patterns;
 	struct expr_pattern patterns[MAX_EXPR_PATTERN_NUM];
 	void *tag;           /* user defined data, return with hit result */
 };
@@ -89,25 +88,26 @@ int expr_matcher_verify_regex_expression(const char *regex_expr,
  * @param n_worker_threads: the number of scan threads which will call adapter_rs_scan()
  * 
 */
-struct expr_matcher *
-expr_matcher_new(struct expr_rule *rules, size_t n_rule, enum expr_engine_type type,
-                 size_t n_worker_thread, struct log_handle *logger);
+struct expr_matcher *expr_matcher_new(struct expr_rule *rules, size_t n_rule,
+				 					  enum expr_engine_type type, size_t n_thread,
+				 					  struct log_handle *logger);
 
 void expr_matcher_free(struct expr_matcher *matcher);
 
 /**
  * @brief scan input data to match logic AND expression, return all matched expr_id
  * 
- * @param matcher:  expr_matcher instance obtained by expr_matcher_new()
- * @param thread_id:    the thread_id of caller
- * @param scan_data:    data to be scanned
- * @param data_len:     the length of data to be scanned
- * @param result_array: the array to store hit expr_id which allocated by caller
+ * @param matcher:        expr_matcher instance obtained by expr_matcher_new()
+ * @param thread_id:      the thread_id of caller
+ * @param scan_data:      data to be scanned
+ * @param data_len:       the length of data to be scanned
+ * @param result_array:   the array to store hit expr_id which allocated by caller
  * @param n_result_array: number of elements in array of expr_id
 */
-int expr_matcher_match(struct expr_matcher *matcher, int thread_id, const char *scan_data,
-                       size_t data_len, struct expr_scan_result *result_array,
-                       size_t n_result_array, size_t *n_hit_results);
+int expr_matcher_match(struct expr_matcher *matcher, int thread_id,
+					   const char *data, size_t data_len,
+					   struct expr_scan_result *result_array,
+                       size_t array_size, size_t *n_hit_result);
 
 /**
  * @brief
@@ -118,9 +118,10 @@ expr_matcher_stream_open(struct expr_matcher *matcher, int thread_id);
 /**
  * @brief
  */
-int expr_matcher_stream_match(struct expr_matcher_stream *stream, const char *scan_data,
-						      size_t data_len, struct expr_scan_result *result_array, 
-						      size_t n_result_array, size_t *n_hit_results);
+int expr_matcher_stream_match(struct expr_matcher_stream *stream,
+							  const char *data, size_t data_len,
+							  struct expr_scan_result *result_array, 
+						      size_t array_size, size_t *n_hit_result);
 
 /**
  * @brief

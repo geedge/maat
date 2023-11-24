@@ -18,6 +18,7 @@
 #include "maat_kv.h"
 #include "maat_limits.h"
 #include "rcu_hash.h"
+#include "maat.h"
 #include "maat_rule.h"
 #include "maat_compile.h"
 #include "maat_group.h"
@@ -25,6 +26,12 @@
 #include "maat_garbage_collection.h"
 
 #define MODULE_EXPR	 module_name_str("maat.expr")
+
+/*
+    If expr_engine_type == MAAT_EXPR_ENGINE_AUTO, and the pattern number less than 50K,
+    expr_engine_type = MAAT_EXPR_ENGINE_HS; Otherwise expr_engine_type = MAAT_EXPR_ENGINE_RS
+*/
+#define ENGINE_TYPE_SWITCH_THRESHOLD 50000
 
 struct expr_schema {
 	int item_id_column;
@@ -35,7 +42,7 @@ struct expr_schema {
     int match_method_column;
     int is_hexbin_column;
     int table_id;
-    int expr_engine;
+    enum maat_expr_engine engine_type;
     struct table_manager *ref_tbl_mgr;
 };
 
@@ -80,7 +87,7 @@ struct expr_runtime {
     struct log_handle *logger;
     struct maat_garbage_bin *ref_garbage_bin;
 
-    enum maat_expr_engine expr_engine;
+    enum expr_engine_type engine_type;
     int district_num;
     struct maat_kv_store *district_map;
     struct maat_kv_store *tmp_district_map;
@@ -328,7 +335,7 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
 {
     char table_type[NAME_MAX] = {0};
 	struct expr_schema *expr_schema = ALLOC(struct expr_schema, 1);
-    expr_schema->expr_engine = EXPR_ENGINE_TYPE_MAX;
+    expr_schema->engine_type = MAAT_EXPR_ENGINE_AUTO;
 
     cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
@@ -348,9 +355,9 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     item = cJSON_GetObjectItem(json, "expr_engine");
     if (item != NULL && item->type == cJSON_String) {
         if (strcmp(item->valuestring, "hyperscan") == 0) {
-            expr_schema->expr_engine = EXPR_ENGINE_TYPE_HS;
+            expr_schema->engine_type = MAAT_EXPR_ENGINE_HS;
         } else if (strcmp(item->valuestring, "rulescan") == 0) {
-            expr_schema->expr_engine = EXPR_ENGINE_TYPE_RS;
+            expr_schema->engine_type = MAAT_EXPR_ENGINE_RS;
         } else {
            log_fatal(logger, MODULE_EXPR, 
                   "[%s:%d] expr table:<%s> schema has invalid expr_engine", 
@@ -499,12 +506,7 @@ void *expr_runtime_new(void *expr_schema, size_t max_thread_num,
     expr_rt->ref_garbage_bin = garbage_bin;
     expr_rt->logger = logger;
     expr_rt->district_map = maat_kv_store_new();
-
-    if (schema->expr_engine != EXPR_ENGINE_TYPE_MAX) {
-        expr_rt->expr_engine = schema->expr_engine;
-    } else {
-        expr_rt->expr_engine = table_manager_get_expr_engine(schema->ref_tbl_mgr);
-    }
+    expr_rt->engine_type = schema->engine_type;
 
     expr_rt->hit_cnt = alignment_int64_array_alloc(max_thread_num);
     expr_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
@@ -842,6 +844,18 @@ static void garbage_expr_matcher_free(void *expr_matcher, void *arg)
     expr_matcher_free(matcher);
 }
 
+const char *expr_engine_int2str(enum expr_engine_type type)
+{
+    switch (type) {
+        case EXPR_ENGINE_TYPE_HS:
+            return "hyperscan";
+        case EXPR_ENGINE_TYPE_RS:
+            return "rulescan";
+        default:
+            return "unknown";
+    }
+}
+
 int expr_runtime_commit(void *expr_runtime, const char *table_name,
                         long long maat_rt_version)
 {
@@ -867,6 +881,7 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
     int ret = 0;
     size_t i = 0;
     size_t real_rule_cnt = 0;
+    size_t real_lit_rule_cnt = 0;
     size_t real_regex_rule_cnt = 0;
     struct expr_rule *rules = NULL;
     void **ex_data_array = NULL;
@@ -886,7 +901,17 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
 
             if (expr_item->expr_type == EXPR_TYPE_REGEX) {
                 real_regex_rule_cnt++;
+            } else {
+                real_lit_rule_cnt++;
             }
+        }
+    }
+
+    if (expr_rt->engine_type == EXPR_ENGINE_TYPE_AUTO) {
+        if (real_lit_rule_cnt <= ENGINE_TYPE_SWITCH_THRESHOLD) {
+            expr_rt->engine_type = EXPR_ENGINE_TYPE_HS;
+        } else {
+            expr_rt->engine_type = EXPR_ENGINE_TYPE_RS;
         }
     }
 
@@ -894,17 +919,12 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
     struct expr_matcher *old_matcher = NULL;
 
     if (rule_cnt > 0) {
-        enum expr_engine_type engine_type = EXPR_ENGINE_TYPE_HS;
-        if (expr_rt->expr_engine == MAAT_EXPR_ENGINE_RS) {
-            engine_type = EXPR_ENGINE_TYPE_RS;
-        }
-        
         struct timespec start, end;
         clock_gettime(CLOCK_MONOTONIC, &start);
-        new_matcher = expr_matcher_new(rules, real_rule_cnt, engine_type, 
+        new_matcher = expr_matcher_new(rules, real_rule_cnt, expr_rt->engine_type,
                                        expr_rt->n_worker_thread, expr_rt->logger);
         clock_gettime(CLOCK_MONOTONIC, &end);
-        long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + 
+        long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
                                    (end.tv_nsec - start.tv_nsec) / 1000000;
 
         if (NULL == new_matcher) {
@@ -914,10 +934,10 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
             ret = -1;
         } else {
             log_info(expr_rt->logger, MODULE_EXPR,
-                     "table[%s] has %zu rules, commit %zu expr rules(regex rules:%zu) "
-                     "and rebuild expr_matcher(%s) completed, version:%lld, consume:%lldms", table_name, rule_cnt,
-                     real_rule_cnt, real_regex_rule_cnt, engine_type == EXPR_ENGINE_TYPE_HS ? "hyperscan" : "rulescan",
-                     maat_rt_version, time_elapse_ms);
+                     "table[%s] has %zu rules, commit %zu expr rules(literal_rules:%zu regex_rules:%zu)"
+                     " and rebuild expr_matcher(%s) completed, version:%lld, consume:%lldms",
+                     table_name, rule_cnt, real_rule_cnt, real_lit_rule_cnt, real_regex_rule_cnt,
+                     expr_engine_int2str(expr_rt->engine_type), maat_rt_version, time_elapse_ms);
         }
     }
 
