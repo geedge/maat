@@ -1951,8 +1951,6 @@ int maat_state_set_scan_district(struct maat_state *state, int table_id,
     assert(maat_inst != NULL);
 
     if (NULL == maat_inst->maat_rt) {
-        log_fatal(maat_inst->logger, MODULE_MAAT_API, 
-                  "maat runtime is NULL, can't set district");
         return -1;
     }
 
@@ -1960,8 +1958,6 @@ int maat_state_set_scan_district(struct maat_state *state, int table_id,
     table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     if (table_type != TABLE_TYPE_FLAG_PLUS && table_type != TABLE_TYPE_EXPR_PLUS &&
         table_type != TABLE_TYPE_INTERVAL_PLUS && table_type != TABLE_TYPE_VIRTUAL) {
-        log_fatal(maat_inst->logger, MODULE_MAAT_API, 
-                 "table_type:%d is invalid, can't set district", table_type);
         return -1;
     }
 
@@ -1971,7 +1967,7 @@ int maat_state_set_scan_district(struct maat_state *state, int table_id,
     }
 
     int ret = -1;
-    long long district_id;
+    long long district_id = DISTRICT_UNKNOWN;
 
     table_type = table_manager_get_table_type(maat_inst->tbl_mgr, phy_table_id);
     void *runtime = table_manager_get_runtime(maat_inst->tbl_mgr, phy_table_id);
@@ -1991,9 +1987,6 @@ int maat_state_set_scan_district(struct maat_state *state, int table_id,
                                                      district, district_len, &district_id);
             break;
         default:
-            log_fatal(maat_inst->logger, MODULE_MAAT_API, 
-                      "[%s:%d] table_type:%d can't set district", 
-                      __FUNCTION__, __LINE__, table_type);
             break;
     }
 
