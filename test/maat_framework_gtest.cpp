@@ -3404,7 +3404,7 @@ TEST_F(MaatGroupScan, basic) {
     int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GE(table_id, 0);
 
-    long long group_id = 158;
+    long long group_id = 247;
     int ret = maat_scan_group(maat_inst, table_id, &group_id, 1, results,
                               ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -3432,7 +3432,7 @@ TEST_F(MaatGroupScan, SetScanCompileTable) {
     int ret = maat_state_set_scan_compile_table(state, compile_table_id);
     EXPECT_EQ(ret, 0);
 
-    long long group_id = 159;
+    long long group_id = 248;
     ret = maat_scan_group(maat_inst, table_id, &group_id, 1, results,
                           ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
@@ -3545,14 +3545,11 @@ TEST_F(NOTLogic, ScanNotAtLast) {
     int hit_table_id = maat_get_table_id(maat_inst, hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
+    // scan string_should_hit(HTTP_URL_FILTER) & string_should_not_hit(HTTP_RESPONSE_KEYWORDS) => not hit compile
     int ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit,
                                strlen(string_should_hit), results, ARRAY_SIZE,
                                &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    ret = maat_scan_not_logic(maat_inst, hit_table_id, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     int not_hit_table_id =  maat_get_table_id(maat_inst, not_hit_table_name);
     ASSERT_GT(not_hit_table_id, 0);
@@ -3562,10 +3559,6 @@ TEST_F(NOTLogic, ScanNotAtLast) {
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, not_hit_table_id, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-    
     ret = maat_scan_string(maat_inst, not_hit_table_id, string_contain_nothing,
                            strlen(string_contain_nothing), results, ARRAY_SIZE,
                            &n_hit_result, state);
@@ -3573,7 +3566,24 @@ TEST_F(NOTLogic, ScanNotAtLast) {
 
     ret = maat_scan_not_logic(maat_inst, not_hit_table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT); 
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_reset(state);
+
+    //scan string_should_hit(HTTP_URL_FILTER) & nothing(HTTP_RESPONSE_KEYWORDS) => hit compile144
+    ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit,
+                               strlen(string_should_hit), results, ARRAY_SIZE,
+                               &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_string(maat_inst, not_hit_table_id, string_contain_nothing,
+                           strlen(string_contain_nothing), results, ARRAY_SIZE,
+                           &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_not_logic(maat_inst, not_hit_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 144);
  
@@ -3749,6 +3759,7 @@ TEST_F(NOTLogic, ScanNotIP) {
     int hit_table_id = maat_get_table_id(maat_inst, hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
+    // scan string_should_hit(HTTP_URL) & hit ip(VIRTUAL_IP_CONFIG) => not hit compile
     int ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit, 
                                strlen(string_should_hit), results, ARRAY_SIZE, 
                                &n_hit_result, state);
@@ -3773,6 +3784,14 @@ TEST_F(NOTLogic, ScanNotIP) {
     ret = maat_scan_not_logic(maat_inst, not_hit_table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_reset(state);
+
+    // scan string_should_hit(HTTP_URL) & not hit ip(VIRTUAL_IP_CONFIG) => hit compile145
+    ret = maat_scan_string(maat_inst, hit_table_id, string_should_hit, 
+                               strlen(string_should_hit), results, ARRAY_SIZE, 
+                               &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     inet_pton(AF_INET, "10.1.0.0", &sip);
     ret = maat_scan_ipv4(maat_inst, not_hit_table_id, sip, port, proto, 
@@ -3805,14 +3824,11 @@ TEST_F(NOTLogic, ScanNotWithDistrict) {
     int url_table_id = maat_get_table_id(maat_inst, url_table_name);
     ASSERT_GT(url_table_id, 0);
 
+    // scan string1(HTTP_URL) & string2(HTTP_REQUEST_HEADER) => not hit compile
     int ret = maat_scan_string(maat_inst, url_table_id, string1, 
                                strlen(string1), results, ARRAY_SIZE, 
                                &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    ret = maat_scan_not_logic(maat_inst, url_table_id, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     int virtual_table_id = maat_get_table_id(maat_inst, virtual_table_name);
     ASSERT_GT(virtual_table_id, 0);
@@ -3828,6 +3844,18 @@ TEST_F(NOTLogic, ScanNotWithDistrict) {
     ret = maat_scan_not_logic(maat_inst, virtual_table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_reset(state);
+
+    // scan string1(HTTP_URL) & string3(HTTP_REQUEST_HEADER) => hit compile221
+    ret = maat_scan_string(maat_inst, url_table_id, string1, 
+                           strlen(string1), results, ARRAY_SIZE, 
+                           &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_state_set_scan_district(state, virtual_table_id, district_str1,
+                                       strlen(district_str1));
+    ASSERT_EQ(ret, 0);
 
     ret = maat_scan_string(maat_inst, virtual_table_id, string3, strlen(string3),
                            results, ARRAY_SIZE, &n_hit_result, state);
@@ -3860,6 +3888,7 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
     int url_table_id = maat_get_table_id(maat_inst, url_table_name);
     ASSERT_GT(url_table_id, 0);
 
+    //scan string_should_half_hit(HTTP_URL_FILTER) & hit ip(VIRTUAL_IP_CONFIG) => not hit compile
     int ret = maat_scan_string(maat_inst, url_table_id, string_should_half_hit, 
                                strlen(string_should_half_hit), results, ARRAY_SIZE, 
                                &n_hit_result, state);
@@ -3870,7 +3899,7 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     uint32_t sip;
-    inet_pton(AF_INET, "10.1.0.0", &sip);
+    inet_pton(AF_INET, "10.0.6.201", &sip);
     uint16_t port = htons(50001);
     int proto = 6;
 
@@ -3879,12 +3908,15 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
 
     ret = maat_scan_ipv4(maat_inst, ip_table_id, sip, port, proto, 
                          results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     ret = maat_scan_not_logic(maat_inst, ip_table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
+    maat_state_reset(state);
+
+    // scan string_should_half_hit(HTTP_RESPONSE_KEYWORDS) & not hit ip(VIRTUAL_IP_CONFIG) => not hit compile
     int http_table_id = maat_get_table_id(maat_inst, http_table_name);
     ASSERT_GT(http_table_id, 0);
 
@@ -3897,12 +3929,38 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
+    inet_pton(AF_INET, "10.1.0.0", &sip);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, sip, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_not_logic(maat_inst, ip_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_reset(state);
+
+    // scan scan string_should_half_hit(HTTP_URL_FILTER) & not hit ip(VIRTUAL_IP_CONFIG) => hit compile146
+    ret = maat_scan_string(maat_inst, url_table_id, string_should_half_hit, 
+                               strlen(string_should_half_hit), results, ARRAY_SIZE, 
+                               &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
     ret = maat_scan_string(maat_inst, http_table_id, string_nothing, 
                            strlen(string_nothing), results, ARRAY_SIZE, 
                            &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK); 
 
     ret = maat_scan_not_logic(maat_inst, http_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    
+    inet_pton(AF_INET, "10.1.0.0", &sip);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, sip, port, proto, 
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_not_logic(maat_inst, ip_table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -3930,6 +3988,7 @@ TEST_F(NOTLogic, NotPhysicalTable) {
     int vtable_id = maat_get_table_id(maat_inst, vtable_name);
     ASSERT_GT(vtable_id, 0);
 
+    // scan hit string1(KEYWORDS_TABLE) & hit string2(HTTP_RESPONSE_KEYWORDS) => not hit compile
     int ret = maat_scan_string(maat_inst, phy_table_id, string1, 
                                strlen(string1), results, ARRAY_SIZE, 
                                &n_hit_result, state);
@@ -3943,17 +4002,20 @@ TEST_F(NOTLogic, NotPhysicalTable) {
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, vtable_id, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    maat_state_reset(state);
 
+    //scan not hit string1(KEYWORDS_TABLE) & hit string2(HTTP_RESPONSE_KEYWORDS) => hit compile224
     ret = maat_scan_string(maat_inst, phy_table_id, string3, strlen(string3),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_not_logic(maat_inst, phy_table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_string(maat_inst, vtable_id, string2, strlen(string2),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT); 
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 224);
 
@@ -4191,53 +4253,459 @@ TEST_F(NOTLogic, NotClauseAndExcludeGroup2) {
     state = NULL;
 }
 
-TEST_F(NOTLogic, SameClauseHasMultiNotGroups) {
-    const char *not_string1 = "This string ONLY contains not_logic_compile_222_1";
-    const char *not_string2 = "This string ONLY contains not_logic_compile_222_2";
-    const char *string3 = "This string contain logic_compile_222_3";
+TEST_F(NOTLogic, SingleNotClause) {
+    const char *string_nothing = "nothing string";
+    const char *string_should_hit = "string has not_logic_keywords_222";
+    const char *table_name = "HTTP_NOT_LOGIC_1";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    const char *table_name = "HTTP_URL_FILTER";
     struct maat *maat_inst = NOTLogic::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
 
-    int ret = maat_scan_string(maat_inst, table_id, not_string1, strlen(not_string1),
-                               results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    ret = maat_scan_string(maat_inst, table_id, string3, strlen(string3),
-                               results, ARRAY_SIZE, &n_hit_result, state);
+    //string_should_hit(HTTP_NOT_LOGIC_1) => not hit compile
+    int ret = maat_scan_string(maat_inst, table_id, string_should_hit,
+                               strlen(string_should_hit), results, ARRAY_SIZE,
+                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 222);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
-    ret = maat_scan_string(maat_inst, table_id, not_string1, strlen(not_string1),
+    //string nothing(HTTP_NOT_LOGIC_1) => hit compile222
+    ret = maat_scan_string(maat_inst, table_id, string_nothing, strlen(string_nothing),
                            results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    ret = maat_scan_string(maat_inst, table_id, not_string2, strlen(not_string2),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    ret = maat_scan_string(maat_inst, table_id, string3, strlen(string3),
-                           results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 222);
+    EXPECT_EQ(results[0], 222); 
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(NOTLogic, MultiNotClauses) {
+    const char *string_nothing = "nothing string";
+    const char *string1 = "string has not_logic_compile_223_1";
+    const char *string2 = "string has not_logic_compile_223_1";
+    const char *string3 = "string has not_logic_compile_223_1";
+    const char *table_name = "HTTP_NOT_LOGIC";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_inst = NOTLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    // compile223 = !string1 & !string2 & !string3
+    //Case1: scan string1 & !string2 & !string3
+    int ret = maat_scan_string(maat_inst, table_id, string1, strlen(string1),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_string(maat_inst, table_id, string_nothing, strlen(string_nothing),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_reset(state);
+
+    //Case2: scan !string1 & string2 & !string3
+    ret = maat_scan_string(maat_inst, table_id, string_nothing, strlen(string_nothing),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_string(maat_inst, table_id, string2, strlen(string2),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_reset(state);
+
+    //Case3: scan !string1 & !string2 & string3
+    ret = maat_scan_string(maat_inst, table_id, string_nothing, strlen(string_nothing),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_string(maat_inst, table_id, string3, strlen(string3),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_reset(state);
+    
+    //Case4: scan !string1 & !string2 & !string3
+    ret = maat_scan_string(maat_inst, table_id, string_nothing, strlen(string_nothing),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 223); 
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(NOTLogic, MultiGroupsInOneNotClause) {
+    const char *src_asn1 = "AS1234";
+    const char *src_asn2 = "AS6789";
+    const char *src_asn3 = "AS9001";
+    const char *src_asn_nothing = "nothing string";
+    const char *dst_asn = "AS2345";
+    const char *src_asn_table_name = "ASN_NOT_LOGIC";
+    const char *dst_asn_table_name = "DESTINATION_IP_ASN";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_inst = NOTLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    //--------------------------------------
+	//			Source ASN1 & Dest ASN => not hit compile
+	//--------------------------------------
+    int src_table_id = maat_get_table_id(maat_inst, src_asn_table_name);
+    ASSERT_GT(src_table_id, 0);
+
+    int ret = maat_scan_string(maat_inst, src_table_id, src_asn1, strlen(src_asn1),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, src_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);                          
+
+    int dst_table_id = maat_get_table_id(maat_inst, dst_asn_table_name);
+    ASSERT_GT(dst_table_id, 0);
+
+    ret = maat_scan_string(maat_inst, dst_table_id, dst_asn, strlen(dst_asn),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    maat_state_reset(state);
+
+    //--------------------------------------
+	//			Source ASN2 & Dest ASN => not hit compile
+	//--------------------------------------
+    ret = maat_scan_string(maat_inst, src_table_id, src_asn2, strlen(src_asn2),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, src_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_string(maat_inst, dst_table_id, dst_asn, strlen(dst_asn),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    maat_state_reset(state);
+
+    //--------------------------------------
+	//			Source ASN3 & Dest ASN => not hit compile
+	//--------------------------------------
+    ret = maat_scan_string(maat_inst, src_table_id, src_asn3, strlen(src_asn3),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, src_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_string(maat_inst, dst_table_id, dst_asn, strlen(dst_asn),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    maat_state_reset(state);
+
+    // Source nothing & Dest ASN => hit compile177
+    ret = maat_scan_string(maat_inst, src_table_id, src_asn_nothing,
+                           strlen(src_asn_nothing),results, ARRAY_SIZE,
+                           &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_not_logic(maat_inst, src_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_string(maat_inst, dst_table_id, dst_asn, strlen(dst_asn),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 177);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(NOTLogic, MultiLiteralsInOneNotClause) {
+    const char *src_asn1 = "AS1234";
+    const char *src_asn2 = "AS6789";
+    const char *src_nothing = "nothing";
+    const char *my_county = "Greece.Sparta";
+    const char *ip_table_name = "IP_PLUS_CONFIG";
+    const char *src_asn_table_name = "SOURCE_IP_ASN";
+    const char *ip_geo_table_name = "SOURCE_IP_GEO";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_inst = NOTLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int src_table_id = maat_get_table_id(maat_inst, src_asn_table_name);
+    ASSERT_GT(src_table_id, 0);
+
+    int ip_geo_table_id = maat_get_table_id(maat_inst, ip_geo_table_name);
+    ASSERT_GT(ip_geo_table_id, 0);
+
+    int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
+    ASSERT_GT(ip_table_id, 0); 
+
+    //-------------------------------------------
+	//			Source ASN1 & IP Geo
+	//-------------------------------------------
+    int ret = maat_scan_string(maat_inst, src_table_id, src_asn1, strlen(src_asn1),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_string(maat_inst, ip_geo_table_id, my_county, strlen(my_county),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, src_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_reset(state);
+
+    //-------------------------------------------
+	//			Source nothing & IP Geo
+	//-------------------------------------------
+    ret = maat_scan_string(maat_inst, src_table_id, src_nothing, strlen(src_nothing),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_string(maat_inst, ip_geo_table_id, my_county, strlen(my_county),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, src_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 181);
+
+    maat_state_reset(state);
+
+    //-------------------------------------------
+	//			Source ASN2 & IP Geo
+	//-------------------------------------------
+    ret = maat_scan_string(maat_inst, src_table_id, src_asn2, strlen(src_asn2),
+                            results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_string(maat_inst, ip_geo_table_id, my_county, strlen(my_county),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, src_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_reset(state);
+
+    //--------------------------------------
+	//			hit IP & IP Geo
+	//--------------------------------------
+    uint32_t ip_addr;
+    inet_pton(AF_INET, "192.168.40.88", &ip_addr);
+    uint16_t port = htons(8888);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_string(maat_inst, ip_geo_table_id, my_county, strlen(my_county),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, ip_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_reset(state);
+
+    //--------------------------------------
+	//			not hit IP & IP Geo
+	//--------------------------------------
+    inet_pton(AF_INET, "192.168.40.89", &ip_addr);
+
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_string(maat_inst, ip_geo_table_id, my_county, strlen(my_county),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, ip_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 181);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(NOTLogic, SameVtableInMultiClause) {
+    const char *src_asn1 = "AS1234";
+    const char *src_asn2 = "AS9002";
+    const char *src_asn3 = "AS9003";
+    const char *my_county = "Greece.Sparta";
+    const char *ip_table_name = "IP_PLUS_CONFIG";
+    const char *dst_asn_table_name = "DESTINATION_IP_ASN";
+    const char *ip_geo_table_name = "SOURCE_IP_GEO";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_inst = NOTLogic::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int dst_table_id = maat_get_table_id(maat_inst, dst_asn_table_name);
+    ASSERT_GT(dst_table_id, 0);
+
+    int ip_geo_table_id = maat_get_table_id(maat_inst, ip_geo_table_name);
+    ASSERT_GT(ip_geo_table_id, 0);
+
+    int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
+    ASSERT_GT(ip_table_id, 0); 
+
+    uint32_t ip_addr;
+    inet_pton(AF_INET, "192.168.40.88", &ip_addr);
+    uint16_t port = htons(8888);
+    //-------------------------------------------
+	//			Dest ASN1 & Dest ASN3 & IP Config
+	//-------------------------------------------
+    int ret = maat_scan_string(maat_inst, dst_table_id, src_asn1, strlen(src_asn1),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_string(maat_inst, dst_table_id, src_asn3, strlen(src_asn3),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, dst_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_reset(state);
+
+    //-------------------------------------------
+	//			Dest ASN2 & Dest ASN3 & IP Config
+	//-------------------------------------------
+    ret = maat_scan_string(maat_inst, dst_table_id, src_asn2, strlen(src_asn2),
+                            results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_string(maat_inst, dst_table_id, src_asn3, strlen(src_asn3),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, dst_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    maat_state_reset(state);
+
+    //-------------------------------------------
+	//			Dest IP Geo & Dest ASN3 & IP Config
+	//-------------------------------------------
+    ret = maat_scan_string(maat_inst, ip_geo_table_id, my_county, strlen(my_county),
+                            results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, ip_geo_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_string(maat_inst, dst_table_id, src_asn3, strlen(src_asn3),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, dst_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    maat_state_reset(state);
+
+    //-------------------------------------------
+	//			Dest ASN3 & IP Geo
+	//-------------------------------------------
+    ret = maat_scan_string(maat_inst, dst_table_id, src_asn3, strlen(src_asn3),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, dst_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);                          
+
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 185);
+
+    maat_state_reset(state);
+
+    //--------------------------------------
+	//			IP Config & IP Geo
+	//--------------------------------------
+    ret = maat_scan_string(maat_inst, dst_table_id, src_asn3, strlen(src_asn3),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    inet_pton(AF_INET, "192.168.40.89", &ip_addr);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_not_logic(maat_inst, dst_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_free(state);
     state = NULL;
@@ -6353,13 +6821,13 @@ TEST_F(HierarchyTest, OneGroupInTwoVirtual) {
     state = NULL;
 }
 
-TEST_F(HierarchyTest, TwoVirtualInOneClause) {
-    const char *src_asn = "AS1234", *dst_asn = "AS2345";
-	const char *my_county = "Greece.Sparta";
+TEST_F(HierarchyTest, MultiGroupsInOneClause) {
+    const char *src_asn1 = "AS1234";
+    const char *src_asn2 = "AS6789";
+    const char *src_asn3 = "AS9001";
+    const char *dst_asn = "AS2345";
     const char *src_asn_table_name = "SOURCE_IP_ASN";
     const char *dst_asn_table_name = "DESTINATION_IP_ASN";
-    const char *ip_table_name = "IP_CONFIG";
-    const char *src_ip_geo_table_name = "SOURCE_IP_GEO";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
@@ -6367,93 +6835,155 @@ TEST_F(HierarchyTest, TwoVirtualInOneClause) {
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     //--------------------------------------
-	//			Source ASN & Dest ASN
+	//			Source ASN1 & Dest ASN
 	//--------------------------------------
-    int table_id = maat_get_table_id(maat_inst, src_asn_table_name);
-    ASSERT_GT(table_id, 0);
+    int src_table_id = maat_get_table_id(maat_inst, src_asn_table_name);
+    ASSERT_GT(src_table_id, 0);
 
-    int ret = maat_scan_string(maat_inst, table_id, src_asn, strlen(src_asn),
+    int ret = maat_scan_string(maat_inst, src_table_id, src_asn1, strlen(src_asn1),
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, src_table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    table_id = maat_get_table_id(maat_inst, dst_asn_table_name);
-    ASSERT_GT(table_id, 0);
+    int dst_table_id = maat_get_table_id(maat_inst, dst_asn_table_name);
+    ASSERT_GT(dst_table_id, 0);
 
-    ret = maat_scan_string(maat_inst, table_id, dst_asn, strlen(dst_asn),
+    ret = maat_scan_string(maat_inst, dst_table_id, dst_asn, strlen(dst_asn),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 178);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+    ret = maat_scan_not_logic(maat_inst, dst_table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     maat_state_reset(state);
 
     //--------------------------------------
-	//			Source IP & Dest ASN
+	//			Source ASN2 & Dest ASN
 	//--------------------------------------
-    table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ASSERT_GT(table_id, 0);
+    ret = maat_scan_string(maat_inst, src_table_id, src_asn2, strlen(src_asn2),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, src_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_string(maat_inst, dst_table_id, dst_asn, strlen(dst_asn),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 178);
+
+    ret = maat_scan_not_logic(maat_inst, dst_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_reset(state);
+
+    //--------------------------------------
+	//			Source ASN3 & Dest ASN
+	//--------------------------------------
+    ret = maat_scan_string(maat_inst, src_table_id, src_asn3, strlen(src_asn3),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_not_logic(maat_inst, src_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_string(maat_inst, dst_table_id, dst_asn, strlen(dst_asn),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 178);
+
+    ret = maat_scan_not_logic(maat_inst, dst_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(HierarchyTest, MultiLiteralsInOneClause) {
+    const char *src_asn1 = "AS1234";
+    const char *src_asn2 = "AS6789";
+    const char *my_county = "Greece.Sparta";
+    const char *ip_table_name = "IP_CONFIG";
+    const char *src_asn_table_name = "SOURCE_IP_ASN";
+    const char *ip_geo_table_name = "SOURCE_IP_GEO";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_inst = HierarchyTest::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int src_table_id = maat_get_table_id(maat_inst, src_asn_table_name);
+    ASSERT_GT(src_table_id, 0);
+
+    int ip_geo_table_id = maat_get_table_id(maat_inst, ip_geo_table_name);
+    ASSERT_GT(ip_geo_table_id, 0);
+
+    int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
+    ASSERT_GT(ip_table_id, 0); 
+
+    //--------------------------------------
+	//			Source ASN1 & IP
+	//--------------------------------------
+
+    int ret = maat_scan_string(maat_inst, src_table_id, src_asn1, strlen(src_asn1),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.40.88", &ip_addr);
     uint16_t port = htons(8888);
 
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6,
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
                          results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
-    table_id = maat_get_table_id(maat_inst, dst_asn_table_name);
-    ASSERT_GT(table_id, 0);
-
-    ret = maat_scan_string(maat_inst, table_id, dst_asn, strlen(dst_asn),
-                           results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 178);
-
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    EXPECT_EQ(results[0], 180);
 
     maat_state_reset(state);
 
     //--------------------------------------
-	//			Source Geo & Dest ASN
+	//			IP Geo & IP
 	//--------------------------------------
-    table_id = maat_get_table_id(maat_inst, src_ip_geo_table_name);
-    ASSERT_GT(table_id, 0);
-
-    ret = maat_scan_string(maat_inst, table_id, my_county, strlen(my_county),
+    ret = maat_scan_string(maat_inst, ip_geo_table_id, my_county, strlen(my_county),
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
-    table_id = maat_get_table_id(maat_inst, dst_asn_table_name);
-    ASSERT_GT(table_id, 0);
-
-    ret = maat_scan_string(maat_inst, table_id, dst_asn, strlen(dst_asn),
-                           results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
+                         results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 178);
+    EXPECT_EQ(results[0], 180);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    maat_state_reset(state);
+
+    //--------------------------------------
+	//			(Source ASN2 | IP Geo) & IP
+	//--------------------------------------
+    ret = maat_scan_string(maat_inst, src_table_id, src_asn2, strlen(src_asn2),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_string(maat_inst, ip_geo_table_id, my_county, strlen(my_county),
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
+                         results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 180);
 
     maat_state_free(state);
     state = NULL;

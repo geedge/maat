@@ -660,7 +660,8 @@ static int write_region_rule(cJSON *region_json, int compile_id, int group_id,
 	return ret;
 }
 
-static int write_group2compile_line(int group_id, int compile_id, int group_not_flag,
+static int write_group2compile_line(int *group_ids, size_t n_group_id,
+									int compile_id, int group_not_flag,
                              		int clause_index, const char *vtable, 
                              		struct iris_description *p_iris,
                              		struct iris_table *g2c_table)
@@ -677,8 +678,22 @@ static int write_group2compile_line(int group_id, int compile_id, int group_not_
         table = p_iris->group2compile_table;
     }
 
-	snprintf(buff, sizeof(buff), "%d\t%d\t1\t%d\t%s\t%d\n", group_id, compile_id,
-             group_not_flag, vtable, clause_index);
+	if (n_group_id > 1) {
+		char tmp_str[64] = {0};
+		char group_id_str[2048] = {0};
+
+		for (size_t i = 0; i < n_group_id; i++) {
+			snprintf(tmp_str, sizeof(tmp_str), "%d,", group_ids[i]);
+			strcat(group_id_str, tmp_str);
+		}
+		group_id_str[strlen(group_id_str) - 1] = '\0';
+		snprintf(buff, sizeof(buff), "%s\t%d\t1\t%d\t%s\t%d\n", group_id_str, compile_id,
+             	 group_not_flag, vtable, clause_index);
+	} else {
+		snprintf(buff, sizeof(buff), "%d\t%d\t1\t%d\t%s\t%d\n", group_ids[0], compile_id,
+				 group_not_flag, vtable, clause_index);
+	}
+	
 	table->write_pos += memcat(&(table->buff), table->write_pos, &(table->buff_sz),
                                buff, strlen(buff));
 	table->line_count++;
@@ -714,15 +729,32 @@ static int write_group_rule(cJSON *group_json, int parent_id,
     int clause_index = 0, is_exclude = 0;
 	const char *str_parent_type[2] = {"compile", "group"};
 	const char *group_name = NULL;
+	char group_name_array[32][MAX_NAME_STR_LEN] = {{0},};
+	size_t group_name_cnt = 0;
 	long long group_id = -1;
     const char *virtual_table = NULL;
     struct iris_table *g2c_table = NULL;
 
 	cJSON *item = cJSON_GetObjectItem(group_json, "group_name");
-	if (NULL == item || item->type != cJSON_String) {
+	if (NULL == item) {
 		group_name = untitled_group_name;
-	} else {
+	} else if (item->type == cJSON_String) {
 		group_name = item->valuestring;
+	} else if (item->type == cJSON_Array) {
+		group_name_cnt = cJSON_GetArraySize(item);
+		assert(group_name_cnt <= 32);
+		for (size_t i = 0; i < group_name_cnt; i++) {
+			cJSON *tmp_json = cJSON_GetArrayItem(item, i);
+			if (NULL == tmp_json || tmp_json->type != cJSON_String) {
+				log_fatal(logger, MODULE_JSON2IRIS,
+					  "[%s:%d] group_name of compile:%d format error",
+					  __FUNCTION__, __LINE__, parent_id);
+				return -1;	
+			}
+			memset(group_name_array[i], 0, sizeof(group_name_array[i]));
+			memcpy(group_name_array[i], tmp_json->valuestring,
+				   strlen(tmp_json->valuestring));
+		}
 	}
 
 	item = cJSON_GetObjectItem(group_json, "group_id");
@@ -768,66 +800,89 @@ static int write_group_rule(cJSON *group_json, int parent_id,
 		group_not_flag = 0;
 	}
 
-	struct group_info *group_info = group_info_read(p_iris->group_name_map, group_name);
-    //exist group name, regions and sub groups will be ommit.
-	if (NULL == group_info) {
-		if (0 == strncasecmp(group_name, untitled_group_name, strlen(untitled_group_name))) {
-			group_id = untitled_group_id;
-		}
-
-		if (-1 == group_id) {
-			log_fatal(logger, MODULE_JSON2IRIS,
-					  "[%s:%d] group_name:<%s> has no group_id",
-					  __FUNCTION__, __LINE__, group_name);
-			return -1;
-		}
-
-		group_info = group_info_add_unsafe(p_iris, group_name, group_id);
-		cJSON *region_json = cJSON_GetObjectItem(group_json, "regions");
-		if (region_json != NULL) {
-            cJSON *region_rule = NULL;
-			cJSON_ArrayForEach(region_rule, region_json) {
-				ret = write_region_rule(region_rule, tracking_compile_id,
-                                        group_info->group_id, p_iris, logger);
-				if (ret < 0) {
-					log_fatal(logger, MODULE_JSON2IRIS, 
-                              "[%s:%d] compile rule %d write region error", 
-                              __FUNCTION__, __LINE__, tracking_compile_id);
-					return -1;
-				}
+    if (group_name_cnt > 0) {
+		int group_ids[group_name_cnt];
+		for (size_t i = 0; i < group_name_cnt; i++) {
+			struct group_info *group_info = group_info_read(p_iris->group_name_map,
+															group_name_array[i]);
+			if (NULL == group_info) {
+				log_fatal(logger, MODULE_JSON2IRIS, "[%s:%d] group_name:%s has no group_id",
+						  __FUNCTION__, __LINE__, group_name_array[i]);
+				return -1;
 			}
+			group_ids[i] = group_info->group_id;
 		}
-		
-        cJSON *sub_groups = cJSON_GetObjectItem(group_json, "sub_groups");
-		if (sub_groups != NULL) {
-			//recursively
-			int i = 0;
-			cJSON_ArrayForEach(item, sub_groups) {
-				i++;
-				ret = write_group_rule(item, group_info->group_id, PARENT_TYPE_GROUP,
-                                       tracking_compile_id, i, p_iris, logger);
-				if (ret < 0) {
-					return -1;
-				}
-			}
-		}
+		assert(parent_type == PARENT_TYPE_COMPILE);
+		ret = write_group2compile_line(group_ids, group_name_cnt, parent_id,
+                                       group_not_flag, clause_index,
+                                       virtual_table, p_iris, g2c_table);
 
-		if (NULL == region_json && NULL == sub_groups) {
-			log_info(logger, MODULE_JSON2IRIS, 
-                     "[%s:%d] A group of compile rule %d has neither regions, "
-                     "sub groups, nor refered another existed group", 
-                     __FUNCTION__, __LINE__, tracking_compile_id);
-		}
-	}
+    } else {
+        struct group_info *group_info = group_info_read(p_iris->group_name_map, group_name);
+        // exist group name, regions and sub groups will be ommit.
+        if (NULL == group_info) {
+        	if (0 == strncasecmp(group_name, untitled_group_name,
+                                 strlen(untitled_group_name))) {
+            	group_id = untitled_group_id;
+            }
 
-	if (parent_type == PARENT_TYPE_COMPILE) {
-		ret = write_group2compile_line(group_info->group_id, parent_id, group_not_flag,
-                                       clause_index, virtual_table, p_iris, g2c_table);
-	} else {
-		ret = write_group2group_line(group_info->group_id, parent_id, is_exclude, p_iris);
-	}
+            if (-1 == group_id) {
+            	log_fatal(logger, MODULE_JSON2IRIS,
+                    	  "[%s:%d] group_name:<%s> has no group_id", __FUNCTION__,
+                          __LINE__, group_name);
+            	return -1;
+            }
 
-	if (ret < 0) {
+            group_info = group_info_add_unsafe(p_iris, group_name, group_id);
+            cJSON *region_json = cJSON_GetObjectItem(group_json, "regions");
+            if (region_json != NULL) {
+            	cJSON *region_rule = NULL;
+            	cJSON_ArrayForEach(region_rule, region_json) {
+            		ret = write_region_rule(region_rule, tracking_compile_id,
+                                       		group_info->group_id, p_iris, logger);
+                	if (ret < 0) {
+                		log_fatal(logger, MODULE_JSON2IRIS,
+                        	  	  "[%s:%d] compile rule %d write region error",
+                              	  __FUNCTION__, __LINE__, tracking_compile_id);
+                		return -1;
+                	}
+              	}
+            }
+
+            cJSON *sub_groups = cJSON_GetObjectItem(group_json, "sub_groups");
+            if (sub_groups != NULL) {
+            	// recursively
+            	int i = 0;
+            	cJSON_ArrayForEach(item, sub_groups) {
+                	i++;
+                	ret = write_group_rule(item, group_info->group_id,
+                                       	   PARENT_TYPE_GROUP, tracking_compile_id,
+                                       	   i, p_iris, logger);
+                	if (ret < 0) {
+                  		return -1;
+                	}
+              	}
+            }
+
+            if (NULL == region_json && NULL == sub_groups) {
+            	log_info(logger, MODULE_JSON2IRIS,
+                    	 "[%s:%d] A group of compile rule %d has neither regions, "
+                         "sub groups, nor refered another existed group",
+                         __FUNCTION__, __LINE__, tracking_compile_id);
+            }
+        }
+
+        if (parent_type == PARENT_TYPE_COMPILE) {
+            ret = write_group2compile_line(&(group_info->group_id), 1, parent_id,
+                                           group_not_flag, clause_index,
+                                           virtual_table, p_iris, g2c_table);
+        } else {
+            ret = write_group2group_line(group_info->group_id, parent_id,
+                                         is_exclude, p_iris);
+        }
+    }
+
+    if (ret < 0) {
 		log_fatal(logger, MODULE_JSON2IRIS, 
                   "[%s:%d] %s rule %d write group error", 
                   __FUNCTION__, __LINE__, str_parent_type[parent_type], parent_id);

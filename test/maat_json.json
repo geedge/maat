@@ -36,34 +36,62 @@
             ]
         },
         {
-            "group_name": "financial-department-ip",
+            "group_name": "ASN6789",
             "group_id": 3,
             "regions": [
                 {
-                    "table_name": "IP_CONFIG",
-                    "table_type": "ip_plus",
+                    "table_name": "AS_NUMBER",
+                    "table_type": "expr",
                     "table_content": {
-                        "addr_type": "ipv4",
-                        "addr_format": "mask",
-                        "ip1": "192.168.40.88",
-                        "ip2": "255.255.255.255",
-                        "port_format": "range",
-                        "port1": "0",
-                        "port2": "65535",
-                        "protocol": 6
+                        "keywords": "AS6789",
+                        "expr_type": "none",
+                        "match_method": "exact",
+                        "format": "uncase plain"
                     }
                 }
             ]
         },
         {
-            "group_name": "Country-Sparta-IP",
+            "group_name": "ASN9001",
             "group_id": 4,
             "regions": [
                 {
-                    "table_name": "GeoLocation",
+                    "table_name": "AS_NUMBER",
                     "table_type": "expr",
                     "table_content": {
-                        "keywords": "Greece.Sparta",
+                        "keywords": "AS9001",
+                        "expr_type": "none",
+                        "match_method": "exact",
+                        "format": "uncase plain"
+                    }
+                }
+            ]
+        },
+        {
+            "group_name": "ASN9002",
+            "group_id": 5,
+            "regions": [
+                {
+                    "table_name": "AS_NUMBER",
+                    "table_type": "expr",
+                    "table_content": {
+                        "keywords": "AS9002",
+                        "expr_type": "none",
+                        "match_method": "exact",
+                        "format": "uncase plain"
+                    }
+                }
+            ]
+        },
+        {
+            "group_name": "ASN9003",
+            "group_id": 6,
+            "regions": [
+                {
+                    "table_name": "AS_NUMBER",
+                    "table_type": "expr",
+                    "table_content": {
+                        "keywords": "AS9003",
                         "expr_type": "none",
                         "match_method": "exact",
                         "format": "uncase plain"
@@ -73,7 +101,7 @@
         },
         {
             "group_name": "IPv4-composition-source-only",
-            "group_id": 5,
+            "group_id": 7,
             "regions": [
                 {
                     "table_type": "ip_plus",
@@ -93,7 +121,7 @@
         },
         {
             "group_name": "FQDN_OBJ1",
-            "group_id": 6,
+            "group_id": 8,
             "regions": [
                 {
                     "table_name": "KEYWORDS_TABLE",
@@ -109,7 +137,7 @@
         },
         {
             "group_name": "FQDN_CAT1",
-            "group_id": 7,
+            "group_id": 9,
             "regions": [
                 {
                     "table_name": "INTERGER_PLUS",
@@ -124,7 +152,7 @@
         },
         {
             "group_name": "IPv4-composition-NOT-client-ip",
-            "group_id": 8,
+            "group_id": 10,
             "regions": [
                 {
                     "table_type": "ip_plus",
@@ -144,7 +172,7 @@
         },
         {
             "group_name": "IPv4-composition-NOT-server-ip",
-            "group_id": 9,
+            "group_id": 11,
             "regions": [
                 {
                     "table_type": "ip_plus",
@@ -158,6 +186,82 @@
                         "port1": "1",
                         "port2": "443",
                         "protocol": 6
+                    }
+                }
+            ]
+        },
+        {
+            "group_name": "financial-department-ip",
+            "group_id": 12,
+            "regions": [
+                {
+                    "table_name": "IP_CONFIG",
+                    "table_type": "ip_plus",
+                    "table_content": {
+                        "addr_type": "ipv4",
+                        "addr_format": "mask",
+                        "ip1": "192.168.40.88",
+                        "ip2": "255.255.255.255",
+                        "port_format": "range",
+                        "port1": "0",
+                        "port2": "65535",
+                        "protocol": 6
+                    }
+                }
+            ]
+        },
+        {
+            "group_name": "security-department-ip",
+            "group_id": 13,
+            "regions": [
+                {
+                    "table_name": "IP_PLUS_CONFIG",
+                    "table_type": "ip_plus",
+                    "table_content": {
+                        "addr_type": "ipv4",
+                        "addr_format": "mask",
+                        "ip1": "192.168.40.88",
+                        "ip2": "255.255.255.255",
+                        "port_format": "range",
+                        "port1": "0",
+                        "port2": "65535",
+                        "protocol": 6
+                    }
+                }
+            ]
+        },
+        {
+            "group_name": "develop-department-ip",
+            "group_id": 14,
+            "regions": [
+                {
+                    "table_name": "IP_PLUS_CONFIG",
+                    "table_type": "ip_plus",
+                    "table_content": {
+                        "addr_type": "ipv4",
+                        "addr_format": "mask",
+                        "ip1": "192.168.40.88",
+                        "ip2": "255.255.255.255",
+                        "port_format": "range",
+                        "port1": "0",
+                        "port2": "65535",
+                        "protocol": 6
+                    }
+                }
+            ]
+        },
+        {
+            "group_name": "Country-Sparta-IP",
+            "group_id": 15,
+            "regions": [
+                {
+                    "table_name": "GeoLocation",
+                    "table_type": "expr",
+                    "table_content": {
+                        "keywords": "Greece.Sparta",
+                        "expr_type": "none",
+                        "match_method": "exact",
+                        "format": "uncase plain"
                     }
                 }
             ]
@@ -176,7 +280,7 @@
                 {
                     "virtual_table": "IP_CONFIG",
                     "group_name": "123_IP_group",
-                    "group_id": 10,
+                    "group_id": 100,
                     "regions": [
                         {
                             "table_name": "IP_CONFIG",
@@ -211,7 +315,7 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "123_url_group",
-                    "group_id": 11,
+                    "group_id": 101,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -243,7 +347,7 @@
                 {
                     "virtual_table": "CONTENT_SIZE",
                     "group_name": "124_interval_group",
-                    "group_id": 12,
+                    "group_id": 102,
                     "regions": [
                         {
                             "table_name": "CONTENT_SIZE",
@@ -269,7 +373,7 @@
                 {
                     "virtual_table":"HTTP_URL",
                     "group_name": "125_url_group",
-                    "group_id": 13,
+                    "group_id": 103,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -297,7 +401,7 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "126_url_group",
-                    "group_id": 14,
+                    "group_id": 105,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -314,7 +418,7 @@
                 {
                     "virtual_table": "CONTENT_SIZE",
                     "group_name": "126_interval_group",
-                    "group_id": 15,
+                    "group_id": 106,
                     "regions": [
                         {
                             "table_name": "CONTENT_SIZE",
@@ -340,7 +444,7 @@
                 {
                     "virtual_table": "HTTP_SIGNATURE",
                     "group_name": "128_expr_plus_group",
-                    "group_id": 16,
+                    "group_id": 107,
                     "regions": [
                         {
                             "table_name": "HTTP_SIGNATURE",
@@ -369,7 +473,7 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "129_url_group",
-                    "group_id": 17,
+                    "group_id": 108,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -397,7 +501,7 @@
                 {
                     "virtual_table": "KEYWORDS_TABLE",
                     "group_name": "130_keywords_group",
-                    "group_id": 18,
+                    "group_id": 109,
                     "regions": [
                         {
                             "table_name": "KEYWORDS_TABLE",
@@ -425,7 +529,7 @@
                 {
                     "virtual_table": "KEYWORDS_TABLE",
                     "group_name": "131_keywords_group",
-                    "group_id": 19,
+                    "group_id": 110,
                     "regions": [
                         {
                             "table_name": "KEYWORDS_TABLE",
@@ -453,7 +557,7 @@
                 {
                     "virtual_table": "KEYWORDS_TABLE",
                     "group_name": "TakeMeHome",
-                    "group_id": 20,
+                    "group_id": 111,
                     "regions": [
                         {
                             "table_name": "KEYWORDS_TABLE",
@@ -481,7 +585,7 @@
                 {
                     "virtual_table": "HTTP_HOST",
                     "group_name": "133_host_group",
-                    "group_id": 21,
+                    "group_id": 112,
                     "regions": [
                         {
                             "table_name": "HTTP_HOST",
@@ -509,7 +613,7 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "134_url_group",
-                    "group_id": 22,
+                    "group_id": 113,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -537,7 +641,7 @@
                 {
                     "virtual_table": "IMAGE_FP",
                     "group_name": "136_expr_group",
-                    "group_id": 23,
+                    "group_id": 114,
                     "regions": [
                         {
                             "table_name": "IMAGE_FP",
@@ -565,7 +669,7 @@
                 {
                     "virtual_table": "IMAGE_FP",
                     "group_name": "137_expr_group",
-                    "group_id": 24,
+                    "group_id": 115,
                     "regions": [
                         {
                             "table_name": "IMAGE_FP",
@@ -595,7 +699,7 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "138_url_group",
-                    "group_id": 25,
+                    "group_id": 116,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -625,7 +729,7 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "139_url_group",
-                    "group_id": 26,
+                    "group_id": 117,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -653,7 +757,7 @@
                 {
                     "virtual_table": "KEYWORDS_TABLE",
                     "group_name": "140_keywords_group",
-                    "group_id": 27,
+                    "group_id": 118,
                     "regions": [
                         {
                             "table_name": "KEYWORDS_TABLE",
@@ -683,7 +787,7 @@
                     "g2c_table_name": "GROUP2COMPILE_ALIAS",
                     "virtual_table": "HTTP_URL",
                     "group_name": "141_url_group",
-                    "group_id": 28,
+                    "group_id": 119,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -711,7 +815,7 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "142_url_group",
-                    "group_id": 29,
+                    "group_id": 120,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -739,7 +843,7 @@
                 {
                     "virtual_table": "HTTP_URL_FILTER",
                     "group_name": "143_url_group1",
-                    "group_id": 30,
+                    "group_id": 121,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -757,7 +861,7 @@
                 {
                     "virtual_table": "HTTP_URL_FILTER",
                     "group_name": "143_url_group2",
-                    "group_id": 31,
+                    "group_id": 122,
                     "not_flag": 1,
                     "regions": [
                         {
@@ -786,7 +890,7 @@
                 {
                     "virtual_table": "HTTP_URL_FILTER",
                     "group_name": "144_url_group",
-                    "group_id": 32,
+                    "group_id": 123,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -804,7 +908,7 @@
                 {
                     "virtual_table": "HTTP_RESPONSE_KEYWORDS",
                     "group_name": "144_keywords_group",
-                    "group_id": 33,
+                    "group_id": 124,
                     "not_flag": 1,
                     "regions": [
                         {
@@ -833,7 +937,7 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "145_url_group",
-                    "group_id": 34,
+                    "group_id": 125,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -867,7 +971,7 @@
                 {
                     "virtual_table": "HTTP_URL_FILTER",
                     "group_name": "146_url_group",
-                    "group_id": 35,
+                    "group_id": 126,
                     "not_flag": 0,
                     "clause_index": 0,
                     "regions": [
@@ -886,7 +990,7 @@
                 {
                     "virtual_table": "HTTP_RESPONSE_KEYWORDS",
                     "group_name": "146_keywords_group",
-                    "group_id": 36,
+                    "group_id": 127,
                     "not_flag": 1,
                     "clause_index": 1,
                     "regions": [
@@ -922,7 +1026,7 @@
                 {
                     "virtual_table": "HTTP_RESPONSE_KEYWORDS_1",
                     "group_name": "147_keywords_group1",
-                    "group_id": 37,
+                    "group_id": 128,
                     "not_flag": 1,
                     "clause_index": 0,
                     "regions": [
@@ -941,7 +1045,7 @@
                 {
                     "virtual_table": "HTTP_RESPONSE_KEYWORDS_2",
                     "group_name": "147_keywords_group2",
-                    "group_id": 38,
+                    "group_id": 129,
                     "not_flag": 1,
                     "clause_index": 1,
                     "regions": [
@@ -960,7 +1064,7 @@
                 {
                     "virtual_table": "HTTP_RESPONSE_KEYWORDS_3",
                     "group_name": "147_keywords_group3",
-                    "group_id": 39,
+                    "group_id": 130,
                     "not_flag": 1,
                     "clause_index": 2,
                     "regions": [
@@ -979,7 +1083,7 @@
                 {
                     "virtual_table": "HTTP_RESPONSE_KEYWORDS_4",
                     "group_name": "147_keywords_group4",
-                    "group_id": 40,
+                    "group_id": 131,
                     "not_flag": 1,
                     "clause_index": 3,
                     "regions": [
@@ -998,7 +1102,7 @@
                 {
                     "virtual_table": "HTTP_RESPONSE_KEYWORDS_5",
                     "group_name": "147_keywords_group5",
-                    "group_id": 41,
+                    "group_id": 132,
                     "not_flag": 1,
                     "clause_index": 4,
                     "regions": [
@@ -1017,7 +1121,7 @@
                 {
                     "virtual_table": "HTTP_RESPONSE_KEYWORDS_6",
                     "group_name": "147_keywords_group6",
-                    "group_id": 42,
+                    "group_id": 133,
                     "not_flag": 1,
                     "clause_index": 5,
                     "regions": [
@@ -1036,7 +1140,7 @@
                 {
                     "virtual_table": "HTTP_RESPONSE_KEYWORDS_7",
                     "group_name": "147_keywords_group7",
-                    "group_id": 43,
+                    "group_id": 134,
                     "not_flag": 1,
                     "clause_index": 6,
                     "regions": [
@@ -1055,7 +1159,7 @@
                 {
                     "virtual_table": "HTTP_RESPONSE_KEYWORDS_8",
                     "group_name": "147_keywords_group8",
-                    "group_id": 44,
+                    "group_id": 135,
                     "not_flag": 1,
                     "clause_index": 7,
                     "regions": [
@@ -1085,7 +1189,7 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "148_url_group",
-                    "group_id": 45,
+                    "group_id": 136,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -1113,7 +1217,7 @@
                 {
                     "virtual_table": "APP_PAYLOAD",
                     "group_name": "149_app_group",
-                    "group_id": 46,
+                    "group_id": 137,
                     "regions": [
                         {
                             "table_name": "APP_PAYLOAD",
@@ -1142,7 +1246,7 @@
                 {
                     "virtual_table": "TROJAN_PAYLOAD",
                     "group_name": "billgates_regist1",
-                    "group_id": 47,
+                    "group_id": 138,
                     "regions": [
                         {
                             "table_type": "expr",
@@ -1159,7 +1263,7 @@
                 {
                     "virtual_table": "TROJAN_PAYLOAD",
                     "group_name": "billgates_regist2",
-                    "group_id": 48,
+                    "group_id": 139,
                     "regions": [
                         {
                             "table_type": "expr",
@@ -1187,7 +1291,7 @@
                 {
                     "virtual_table": "MAIL_ADDR",
                     "group_name": "151_expr_group",
-                    "group_id": 49,
+                    "group_id": 140,
                     "regions": [
                         {
                             "table_type": "expr",
@@ -1215,7 +1319,7 @@
                 {
                     "virtual_table": "MAIL_ADDR",
                     "group_name": "152_mail_addr",
-                    "group_id": 50,
+                    "group_id": 141,
                     "regions": [
                         {
                             "table_type": "expr",
@@ -1242,7 +1346,7 @@
                 {
                     "virtual_table": "CONTENT_SIZE",
                     "group_name": "interval_group_refered",
-                    "group_id": 51,
+                    "group_id": 142,
                     "sub_groups": [
                         {
                             "group_name": "126_interval_group"
@@ -1263,7 +1367,7 @@
                 {
                     "virtual_table": "MAIL_ADDR",
                     "group_name": "153_expr_group",
-                    "group_id": 52,
+                    "group_id": 143,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -1287,7 +1391,7 @@
                 {
                     "virtual_table": "IP_CONFIG",
                     "group_name": "IP_group_refered",
-                    "group_id": 53,
+                    "group_id": 144,
                     "sub_groups": [
                         {
                             "group_name": "123_IP_group"
@@ -1308,7 +1412,7 @@
                 {
                     "virtual_table": "IP_PLUS_CONFIG",
                     "group_name": "154_IP_group",
-                    "group_id": 54,
+                    "group_id": 145,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -1341,7 +1445,8 @@
                 {
                     "virtual_table": "IP_PLUS_CONFIG",
                     "group_name": "155_IP_group",
-                    "group_id": 55,
+                    "group_id": 146,
+                    "not_flag": 0,
                     "regions": [
                         {
                             "table_type": "ip_plus",
@@ -1357,8 +1462,7 @@
                                 "protocol": 6
                             }
                         }
-                    ],
-                    "not_flag": 0
+                    ]
                 }
             ]
         },
@@ -1374,7 +1478,7 @@
                 {
                     "virtual_table": "HTTP_SIGNATURE",
                     "group_name": "156_expr_group",
-                    "group_id": 56,
+                    "group_id": 147,
                     "regions": [
                         {
                             "table_name": "HTTP_SIGNATURE",
@@ -1403,7 +1507,7 @@
                 {
                     "virtual_table": "TROJAN_PAYLOAD",
                     "group_name": "157_expr_group",
-                    "group_id": 57,
+                    "group_id": 148,
                     "regions": [
                         {
                             "table_type": "expr",
@@ -1431,7 +1535,7 @@
                 {
                     "virtual_table": "IP_PLUS_CONFIG",
                     "group_name": "158_IP_group",
-                    "group_id": 58,
+                    "group_id": 149,
                     "regions": [
                         {
                             "table_type": "ip_plus",
@@ -1463,7 +1567,7 @@
                 {
                     "virtual_table": "IP_PLUS_CONFIG",
                     "group_name": "159_IP_group",
-                    "group_id": 59,
+                    "group_id": 150,
                     "regions": [
                         {
                             "table_type": "ip_plus",
@@ -1500,7 +1604,7 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "160_url_group",
-                    "group_id": 60,
+                    "group_id": 151,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -1529,7 +1633,7 @@
                 {
                     "virtual_table": "HTTP_SIGNATURE",
                     "group_name": "vt_grp_http_sig1",
-                    "group_id": 61,
+                    "group_id": 152,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -1548,7 +1652,7 @@
                 {
                     "virtual_table": "HTTP_SIGNATURE",
                     "group_name": "vt_grp_http_sig2",
-                    "group_id": 62,
+                    "group_id": 153,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -1631,7 +1735,7 @@
                 {
                     "virtual_table": "KEYWORDS_TABLE",
                     "group_name": "164_keywords_group",
-                    "group_id": 63,
+                    "group_id": 154,
                     "regions": [
                         {
                             "table_name": "KEYWORDS_TABLE",
@@ -1660,7 +1764,7 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "165_url_group",
-                    "group_id": 64,
+                    "group_id": 155,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -1677,7 +1781,7 @@
                 {
                     "virtual_table": "IP_PLUS_CONFIG",
                     "group_name": "165_IP_group",
-                    "group_id": 65,
+                    "group_id": 156,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -1711,7 +1815,7 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "166_url_group",
-                    "group_id": 66,
+                    "group_id": 157,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -1740,7 +1844,7 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "167_url_group",
-                    "group_id": 67,
+                    "group_id": 158,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -1769,7 +1873,7 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "168_url_group",
-                    "group_id": 68,
+                    "group_id": 159,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -1797,7 +1901,7 @@
                 {
                     "virtual_table": "IP_PLUS_CONFIG",
                     "group_name": "169_IP_group",
-                    "group_id": 69,
+                    "group_id": 160,
                     "not_flag" : 0,
                     "regions": [
                         {
@@ -1830,7 +1934,7 @@
                 {
                     "virtual_table": "IP_PLUS_CONFIG",
                     "group_name": "ipv4_virtual.source",
-                    "group_id": 70,
+                    "group_id": 161,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -1863,7 +1967,7 @@
                 {
                     "virtual_table": "IP_PLUS_CONFIG",
                     "group_name": "ipv4_virtual.destination",
-                    "group_id": 71,
+                    "group_id": 162,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -1917,7 +2021,7 @@
                 {
                     "virtual_table": "IP_PLUS_CONFIG",
                     "group_name": "ipv4_composition.source",
-                    "group_id": 72,
+                    "group_id": 163,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -1950,7 +2054,7 @@
                 {
                     "virtual_table": "IP_PLUS_CONFIG",
                     "group_name": "ipv4_composition.destination",
-                    "group_id": 73,
+                    "group_id": 164,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -1983,7 +2087,7 @@
                 {
                     "virtual_table": "IP_PLUS_CONFIG",
                     "group_name": "ipv4_composition.session",
-                    "group_id": 74,
+                    "group_id": 165,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -2005,29 +2109,40 @@
             ]
         },
         {
+            "compile_id": 177,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "NOTLogic.MultiGroupsInOneNotClause",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "virtual_table": "ASN_NOT_LOGIC",
+                    "group_name": ["ASN1234", "ASN6789", "ASN9001"],
+                    "not_flag": 1,
+                    "clause_index": 0
+                },
+                {
+                    "virtual_table": "DESTINATION_IP_ASN",
+                    "group_name": "ASN2345",
+                    "not_flag": 0,
+                    "clause_index": 1
+                }
+            ]
+        },
+        {
             "compile_id": 178,
             "service": 1,
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "Hierarchy.TwoVirtualInOneClause",
+            "user_region": "Hierarchy.MultiGroupInOneClause",
             "is_valid": "yes",
             "groups": [
                 {
                     "virtual_table": "SOURCE_IP_ASN",
-                    "group_name": "ASN1234",
-                    "not_flag": 0,
-                    "clause_index": 0
-                },
-                {
-                    "virtual_table": "IP_CONFIG",
-                    "group_name": "financial-department-ip",
-                    "not_flag": 0,
-                    "clause_index": 0
-                },
-                {
-                    "virtual_table": "SOURCE_IP_GEO",
-                    "group_name": "Country-Sparta-IP",
+                    "group_name": ["ASN1234", "ASN6789", "ASN9001"],
                     "not_flag": 0,
                     "clause_index": 0
                 },
@@ -2051,7 +2166,7 @@
                 {
                     "virtual_table": "INTERGER_PLUS",
                     "group_name": "179_interval_group",
-                    "group_id": 75,
+                    "group_id": 166,
                     "regions": [
                         {
                             "table_name": "INTERGER_PLUS",
@@ -2067,6 +2182,64 @@
             ]
         },
         {
+            "compile_id": 180,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "Hierarchy.MultiGroupInOneClause",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "virtual_table": "SOURCE_IP_ASN",
+                    "group_name": ["ASN1234", "ASN6789", "ASN9001"],
+                    "not_flag": 0,
+                    "clause_index": 0
+                },
+                {
+                    "virtual_table": "SOURCE_IP_GEO",
+                    "group_name": "Country-Sparta-IP",
+                    "not_flag": 0,
+                    "clause_index": 0
+                },
+                {
+                    "virtual_table": "IP_CONFIG",
+                    "group_name": "financial-department-ip",
+                    "not_flag": 0,
+                    "clause_index": 1
+                }
+            ]
+        },
+        {
+            "compile_id": 181,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "NOTLogic.MultiLiteralsInOneNotClause",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "virtual_table": "SOURCE_IP_ASN",
+                    "group_name": ["ASN1234", "ASN6789", "ASN9001"],
+                    "not_flag": 1,
+                    "clause_index": 0
+                },
+                {
+                    "virtual_table": "IP_PLUS_CONFIG",
+                    "group_name": "develop-department-ip",
+                    "not_flag": 1,
+                    "clause_index": 0
+                },
+                {
+                    "virtual_table": "SOURCE_IP_GEO",
+                    "group_name": "Country-Sparta-IP",
+                    "not_flag": 0,
+                    "clause_index": 1
+                }
+            ]
+        },
+        {
             "compile_id": 182,
             "service": 1,
             "action": 1,
@@ -2078,7 +2251,7 @@
                 {
                     "virtual_table": "KEYWORDS_TABLE",
                     "group_name": "182_keywords_group",
-                    "group_id": 76,
+                    "group_id": 167,
                     "regions": [
                         {
                             "table_name": "KEYWORDS_TABLE",
@@ -2106,7 +2279,7 @@
                 {
                     "virtual_table": "CORNER_CASE_TABLE",
                     "group_name": "183_expr_group",
-                    "group_id": 77,
+                    "group_id": 168,
                     "regions": [
                         {
                             "table_name": "CORNER_CASE_TABLE",
@@ -2135,7 +2308,7 @@
                 {
                     "virtual_table": "IP_CONFIG",
                     "group_name": "184_IP_group",
-                    "group_id": 78,
+                    "group_id": 169,
                     "regions": [
                         {
                             "table_name": "IP_CONFIG",
@@ -2156,6 +2329,47 @@
             ]
         },
         {
+            "compile_id": 185,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "NOTLogic.SameVtableInMultiClause",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "virtual_table": "DESTINATION_IP_ASN",
+                    "group_name": ["ASN1234", "ASN6789", "ASN9001"],
+                    "not_flag": 1,
+                    "clause_index": 0
+                },
+                {
+                    "virtual_table": "SOURCE_IP_GEO",
+                    "group_name": "Country-Sparta-IP",
+                    "not_flag": 1,
+                    "clause_index": 0
+                },
+                {
+                    "virtual_table": "DESTINATION_IP_ASN",
+                    "group_name": "ASN9002",
+                    "not_flag": 1,
+                    "clause_index": 1
+                },
+                {
+                    "virtual_table": "DESTINATION_IP_ASN",
+                    "group_name": "ASN9003",
+                    "not_flag": 0,
+                    "clause_index": 2
+                },
+                {
+                    "virtual_table": "IP_PLUS_CONFIG",
+                    "group_name": "security-department-ip",
+                    "not_flag": 0,
+                    "clause_index": 3
+                }
+            ]
+        },
+        {
             "compile_id": 186,
             "service": 1,
             "action": 1,
@@ -2167,7 +2381,7 @@
                 {
                     "virtual_table": "HTTP_URL_FILTER",
                     "group_name": "186_expr_group",
-                    "group_id": 79,
+                    "group_id": 170,
                     "not_flag": 1,
                     "regions": [
                         {
@@ -2185,7 +2399,7 @@
                 {
                     "virtual_table": "IP_PLUS_CONFIG",
                     "group_name": "186_IP_group",
-                    "group_id": 80,
+                    "group_id": 171,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -2218,7 +2432,7 @@
                 {
                     "virtual_table": "HTTP_URL_FILTER",
                     "group_name": "187_url_group",
-                    "group_id": 81,
+                    "group_id": 172,
                     "not_flag": 1,
                     "regions": [
                         {
@@ -2236,7 +2450,7 @@
                 {
                     "virtual_table": "IP_PLUS_CONFIG",
                     "group_name": "187_IP_group",
-                    "group_id": 82,
+                    "group_id": 173,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -2269,7 +2483,7 @@
                 {
                     "virtual_table": "HTTP_URL_FILTER",
                     "group_name": "188_url_group",
-                    "group_id": 83,
+                    "group_id": 174,
                     "not_flag": 1,
                     "regions": [
                         {
@@ -2287,7 +2501,7 @@
                 {
                     "virtual_table": "IP_PLUS_CONFIG",
                     "group_name": "188_IP_group",
-                    "group_id": 84,
+                    "group_id": 175,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -2320,18 +2534,18 @@
                 {
                     "virtual_table": "APP_PAYLOAD",
                     "group_name": "189_app_group",
-                    "group_id": 85,
+                    "group_id": 176,
                     "regions": [
                         {
                             "table_name": "APP_PAYLOAD",
+                            "table_type": "expr_plus",
                             "table_content": {
                                 "format": "hexbin",
                                 "match_method": "sub",
                                 "district": "tcp.payload.c2s_first_data",
                                 "keywords": "ab00",
                                 "expr_type": "none"
-                            },
-                            "table_type": "expr_plus"
+                            }
                         }
                     ]
                 }
@@ -2349,7 +2563,7 @@
                 {
                     "virtual_table": "HTTP_SIGNATURE",
                     "group_name": "190_expr_group",
-                    "group_id": 86,
+                    "group_id": 177,
                     "regions": [
                         {
                             "table_name": "HTTP_SIGNATURE",
@@ -2378,7 +2592,7 @@
                 {
                     "virtual_table": "KEYWORDS_TABLE",
                     "group_name": "191_keywords_group",
-                    "group_id": 87,
+                    "group_id": 178,
                     "regions": [
                         {
                             "table_type": "expr",
@@ -2406,7 +2620,7 @@
                 {
                     "virtual_table": "FLAG_CONFIG",
                     "group_name": "192_flag_group",
-                    "group_id": 88,
+                    "group_id": 179,
                     "regions": [
                         {
                             "table_type": "flag",
@@ -2432,7 +2646,7 @@
                 {
                     "virtual_table": "FLAG_CONFIG",
                     "group_name": "193_flag_group",
-                    "group_id": 89,
+                    "group_id": 180,
                     "regions": [
                         {
                             "table_type": "flag",
@@ -2447,7 +2661,7 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "193_url_group",
-                    "group_id": 90,
+                    "group_id": 181,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -2475,7 +2689,7 @@
                 {
                     "virtual_table": "FLAG_CONFIG",
                     "group_name": "194_flag_group",
-                    "group_id": 91,
+                    "group_id": 182,
                     "regions": [
                         {
                             "table_type": "flag",
@@ -2501,7 +2715,7 @@
                 {
                     "virtual_table": "HTTP_SIGNATURE",
                     "group_name": "195_signature_group",
-                    "group_id": 92,
+                    "group_id": 183,
                     "regions": [
                         {
                             "table_name": "HTTP_SIGNATURE",
@@ -2519,7 +2733,7 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "195_url_group",
-                    "group_id": 93,
+                    "group_id": 184,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -2547,7 +2761,7 @@
                 {
                    "virtual_table": "FLAG_PLUS_CONFIG",
                     "group_name": "196_flag_group",
-                    "group_id": 94,
+                    "group_id": 185,
                     "regions": [
                         {
                             "table_type": "flag_plus",
@@ -2574,7 +2788,7 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "197_url_group",
-                    "group_id": 95,
+                    "group_id": 186,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -2604,7 +2818,7 @@
                     "g2c_table_name": "GROUP2COMPILE_FIREWALL",
                     "virtual_table": "HTTP_URL",
                     "group_name": "198_url_group",
-                    "group_id": 96,
+                    "group_id": 187,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -2632,11 +2846,11 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "ExcludeLogicGroup199",
-                    "group_id": 97,
+                    "group_id": 188,
                     "sub_groups":[
                         {
                             "group_name": "ExcludeLogicGroup199_1",
-                            "group_id": 98,
+                            "group_id": 189,
                             "is_exclude": 0,
                             "clause_index": 0,
                             "regions": [
@@ -2654,7 +2868,7 @@
                         },
                         {
                             "group_name": "ExcludeLogicGroup199_2",
-                            "group_id": 99,
+                            "group_id": 190,
                             "is_exclude": 1,
                             "clause_index": 0,
                             "regions": [
@@ -2686,12 +2900,12 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "ExcludeLogicGroup200",
-                    "group_id": 100,
+                    "group_id": 191,
                     "sub_groups":[
                         {
                             "virtual_table": "HTTP_URL",
                             "group_name": "ExcludeLogicGroup200_1",
-                            "group_id": 101,
+                            "group_id": 192,
                             "is_exclude": 0,
                             "clause_index": 0,
                             "regions": [
@@ -2710,7 +2924,7 @@
                         {
                             "virtual_table": "HTTP_URL",
                             "group_name": "ExcludeLogicGroup200_2",
-                            "group_id": 102,
+                            "group_id": 193,
                             "is_exclude": 1,
                             "clause_index": 0,
                             "regions": [
@@ -2742,12 +2956,12 @@
                 {
                     "virtual_table": "VIRTUAL_IP_PLUS_TABLE",
                     "group_name": "ExcludeLogicGroup202",
-                    "group_id": 103,
+                    "group_id": 194,
                     "clause_index": 0,
                     "sub_groups":[
                         {
                             "group_name": "ExcludeLogicGroup202_1",
-                            "group_id": 104,
+                            "group_id": 195,
                             "is_exclude": 0,
                             "regions": [
                                 {
@@ -2768,7 +2982,7 @@
                         },
                         {
                             "group_name": "ExcludeLogicGroup202_2",
-                            "group_id": 105,
+                            "group_id": 196,
                             "is_exclude": 1,
                             "regions": [
                                 {
@@ -2789,7 +3003,7 @@
                         },
                         {
                             "group_name": "ExcludeLogicGroup202_3",
-                            "group_id": 106,
+                            "group_id": 197,
                             "is_exclude": 1,
                             "regions": [
                                 {
@@ -2824,7 +3038,7 @@
                 {
                     "virtual_table": "VIRTUAL_IP_PLUS_SOURCE",
                     "group_name": "ExcludeLogicGroup203_1",
-                    "group_id": 107,
+                    "group_id": 198,
                     "clause_index": 0,
                     "regions": [
                         {
@@ -2848,7 +3062,7 @@
                 {
                     "virtual_table": "VIRTUAL_IP_PLUS_DESTINATION",
                     "group_name": "ExcludeLogicGroup203_2",
-                    "group_id": 108,
+                    "group_id": 199,
                     "clause_index": 1,
                     "regions": [
                         {
@@ -2871,12 +3085,12 @@
                 {
                     "virtual_table": "HTTP_RESPONSE_KEYWORDS",
                     "group_name": "ExcludeLogicGroup203_3",
-                    "group_id": 109,
+                    "group_id": 200,
                     "clause_index": 2,
                     "sub_groups": [
                         {
                             "group_name": "ExcludeLogicGroup203_3_1",
-                            "group_id": 110,
+                            "group_id": 201,
                             "is_exclude": 0,
                             "regions": [
                                 {
@@ -2893,7 +3107,7 @@
                         },
                         {
                             "group_name": "ExcludeLogicGroup203_3_2",
-                            "group_id": 111,
+                            "group_id": 202,
                             "is_exclude": 1,
                             "regions": [
                                 {
@@ -2924,7 +3138,7 @@
                 {
                     "virtual_table": "VIRTUAL_IP_PLUS_SOURCE",
                     "group_name": "ExcludeLogicGroup204_1",
-                    "group_id": 112,
+                    "group_id": 203,
                     "clause_index": 0,
                     "regions": [
                         {
@@ -2948,7 +3162,7 @@
                 {
                     "virtual_table": "VIRTUAL_IP_PLUS_DESTINATION",
                     "group_name": "ExcludeLogicGroup204_2",
-                    "group_id": 113,
+                    "group_id":204, 
                     "clause_index": 1,
                     "regions": [
                         {
@@ -2971,17 +3185,17 @@
                 {
                     "virtual_table": "HTTP_RESPONSE_KEYWORDS",
                     "group_name": "ExcludeLogicGroup204_3",
-                    "group_id": 114,
+                    "group_id": 205,
                     "clause_index": 2,
                     "sub_groups": [
                         {
                             "group_name": "ExcludeLogicGroup204_3_1",
-                            "group_id": 115,
+                            "group_id": 206,
                             "is_exclude": 0,
                             "sub_groups" : [
                                 {
                                     "group_name": "ExcludeLogicGroup204_3_1_1",
-                                    "group_id": 116,
+                                    "group_id": 207,
                                     "is_exclude": 0,
                                     "regions": [
                                         {
@@ -2998,7 +3212,7 @@
                                 },
                                 {
                                     "group_name": "ExcludeLogicGroup204_3_1_2",
-                                    "group_id": 117,
+                                    "group_id": 208,
                                     "is_exclude": 1,
                                     "regions": [
                                         {
@@ -3017,7 +3231,7 @@
                         },
                         {
                             "group_name": "ExcludeLogicGroup204_3_2",
-                            "group_id": 118,
+                            "group_id": 209,
                             "is_exclude": 1,
                             "regions": [
                                 {
@@ -3048,7 +3262,7 @@
                 {
                     "virtual_table": "KEYWORDS_TABLE",
                     "group_name": "205_keywords_group",
-                    "group_id": 119,
+                    "group_id": 210,
                     "regions": [
                         {
                             "table_type": "expr",
@@ -3076,7 +3290,7 @@
                 {
                     "virtual_table": "KEYWORDS_TABLE",
                     "group_name": "206_keywords_group",
-                    "group_id": 120,
+                    "group_id": 211,
                     "regions": [
                         {
                             "table_type": "expr",
@@ -3104,7 +3318,7 @@
                 {
                     "virtual_table": "FLAG_CONFIG",
                     "group_name": "207_flag_group",
-                    "group_id": 121,
+                    "group_id": 212,
                     "regions": [
                         {
                             "table_type": "flag",
@@ -3130,7 +3344,7 @@
                 {
                     "virtual_table": "IP_PLUS_CONFIG",
                     "group_name": "208_IP_group",
-                    "group_id": 122,
+                    "group_id": 213,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -3163,7 +3377,7 @@
                 {
                     "virtual_table": "INTERGER_PLUS",
                     "group_name": "209_interval_group",
-                    "group_id": 123,
+                    "group_id": 214,
                     "regions": [
                         {
                             "table_name": "INTERGER_PLUS",
@@ -3190,7 +3404,7 @@
                 {
                     "virtual_table": "IP_PLUS_CONFIG",
                     "group_name": "210_IP_group",
-                    "group_id": 124,
+                    "group_id": 215,
                     "regions": [
                         {
                             "table_type": "ip_plus",
@@ -3222,7 +3436,7 @@
                 {
                     "virtual_table": "IP_PERF_CONFIG",
                     "group_name": "211_IP_group",
-                    "group_id": 125,
+                    "group_id": 216,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -3255,7 +3469,7 @@
                 {
                     "virtual_table": "INTEGER_PERF_CONFIG",
                     "group_name": "212_interval_group",
-                    "group_id": 126,
+                    "group_id": 217,
                     "regions": [
                         {
                             "table_name": "INTEGER_PERF_CONFIG",
@@ -3281,7 +3495,7 @@
                 {
                     "virtual_table": "EXPR_LITERAL_PERF_CONFIG",
                     "group_name": "213_expr_group",
-                    "group_id": 127,
+                    "group_id": 218,
                     "regions": [
                         {
                             "table_name": "EXPR_LITERAL_PERF_CONFIG",
@@ -3309,7 +3523,7 @@
                 {
                     "virtual_table": "FLAG_PERF_CONFIG",
                     "group_name": "214_flag_group",
-                    "group_id": 128,
+                    "group_id": 219,
                     "regions": [
                         {
                             "table_type": "flag",
@@ -3335,7 +3549,7 @@
                 {
                     "virtual_table": "EXPR_REGEX_PERF_CONFIG",
                     "group_name": "215_expr_group",
-                    "group_id": 129,
+                    "group_id": 220,
                     "regions": [
                         {
                             "table_name": "EXPR_REGEX_PERF_CONFIG",
@@ -3369,7 +3583,7 @@
                 {
                     "virtual_table": "HTTP_RESPONSE_KEYWORDS",
                     "group_name": "NOTClauseAndExcludeGroup216",
-                    "group_id": 130,
+                    "group_id": 221,
                     "not_flag": 1,
                     "clause_index": 1,
                     "regions": [
@@ -3399,13 +3613,13 @@
                 {
                     "virtual_table": "HTTP_URL_FILTER",
                     "group_name": "NOTClauseAndExcludeGroup217_1",
-                    "group_id": 131,
+                    "group_id": 222,
                     "not_flag": 1,
                     "clause_index": 0,
                     "sub_groups": [
                         {
                             "group_name": "ExcludeLogicGroup217_1_1",
-                            "group_id": 132,
+                            "group_id": 223,
                             "is_exclude": 0,
                             "regions": [
                                 {
@@ -3422,7 +3636,7 @@
                         },
                         {
                             "group_name": "ExcludeLogicGroup217_1_2",
-                            "group_id": 133,
+                            "group_id": 224,
                             "is_exclude": 1,
                             "regions": [
                                 {
@@ -3442,7 +3656,7 @@
                 {
                     "virtual_table": "HTTP_RESPONSE_KEYWORDS",
                     "group_name": "NOTClauseAndExcludeGroup217_2",
-                    "group_id": 134,
+                    "group_id": 225,
                     "not_flag": 0,
                     "clause_index": 1,
                     "regions": [
@@ -3472,7 +3686,7 @@
                 {
                     "virtual_table": "CONTENT_SIZE",
                     "group_name": "218_interval_group",
-                    "group_id": 135,
+                    "group_id": 226,
                     "regions": [
                         {
                             "table_name": "CONTENT_SIZE",
@@ -3498,7 +3712,7 @@
                 {
                     "virtual_table": "HTTP_DUMMY",
                     "group_name": "NOTClauseAndExcludeGroup219_1",
-                    "group_id": 136,
+                    "group_id": 227,
                     "not_flag": 0,
                     "clause_index": 0,
                     "regions": [
@@ -3517,7 +3731,7 @@
                 {
                     "virtual_table": "HTTP_DUMMY",
                     "group_name": "NOTClauseAndExcludeGroup219_2",
-                    "group_id": 137,
+                    "group_id": 228,
                     "not_flag": 1,
                     "clause_index": 1,
                     "regions": [
@@ -3536,7 +3750,7 @@
                 {
                     "virtual_table": "HTTP_DUMMY",
                     "group_name": "NOTClauseAndExcludeGroup219_3",
-                    "group_id": 138,
+                    "group_id": 229,
                     "not_flag": 1,
                     "clause_index": 2,
                     "regions": [
@@ -3555,7 +3769,7 @@
                 {
                     "virtual_table": "HTTP_DUMMY",
                     "group_name": "NOTClauseAndExcludeGroup219_4",
-                    "group_id": 139,
+                    "group_id": 230,
                     "not_flag": 1,
                     "clause_index": 3,
                     "regions": [
@@ -3574,7 +3788,7 @@
                 {
                     "virtual_table": "HTTP_DUMMY",
                     "group_name": "NOTClauseAndExcludeGroup219_5",
-                    "group_id": 140,
+                    "group_id": 231,
                     "not_flag": 1,
                     "clause_index": 4,
                     "regions": [
@@ -3593,7 +3807,7 @@
                 {
                     "virtual_table": "HTTP_DUMMY",
                     "group_name": "NOTClauseAndExcludeGroup219_6",
-                    "group_id": 141,
+                    "group_id": 232,
                     "not_flag": 1,
                     "clause_index": 5,
                     "regions": [
@@ -3612,7 +3826,7 @@
                 {
                     "virtual_table": "HTTP_DUMMY",
                     "group_name": "NOTClauseAndExcludeGroup219_7",
-                    "group_id": 142,
+                    "group_id": 233,
                     "not_flag": 1,
                     "clause_index": 6,
                     "regions": [
@@ -3631,7 +3845,7 @@
                 {
                     "virtual_table": "HTTP_DUMMY",
                     "group_name": "NOTClauseAndExcludeGroup219_8",
-                    "group_id": 143,
+                    "group_id": 234,
                     "not_flag": 1,
                     "clause_index": 7,
                     "regions": [
@@ -3661,7 +3875,7 @@
                 {
                     "virtual_table": "HTTP_DUMMY",
                     "group_name": "NOTClauseAndExcludeGroup220_1",
-                    "group_id": 144,
+                    "group_id": 235,
                     "not_flag": 0,
                     "clause_index": 0,
                     "regions": [
@@ -3680,7 +3894,7 @@
                 {
                     "virtual_table": "HTTP_DUMMY",
                     "group_name": "NOTClauseAndExcludeGroup220_2",
-                    "group_id": 145,
+                    "group_id": 236,
                     "not_flag": 1,
                     "clause_index": 1,
                     "regions": [
@@ -3699,7 +3913,7 @@
                 {
                     "virtual_table": "HTTP_DUMMY",
                     "group_name": "NOTClauseAndExcludeGroup220_3",
-                    "group_id": 146,
+                    "group_id": 237,
                     "not_flag": 1,
                     "clause_index": 2,
                     "regions": [
@@ -3729,7 +3943,7 @@
                 {
                     "virtual_table": "HTTP_REQUEST_HEADER",
                     "group_name": "NOTLogicGroup_221_1",
-                    "group_id": 147,
+                    "group_id": 238,
                     "not_flag": 1,
                     "regions": [
                         {
@@ -3748,7 +3962,7 @@
                 {
                     "virtual_table": "HTTP_URL",
                     "group_name": "NOTLogicGroup_221_2",
-                    "group_id": 148,
+                    "group_id": 239,
                     "not_flag": 0,
                     "regions": [
                         {
@@ -3771,59 +3985,21 @@
             "action": 0,
             "do_blacklist": 0,
             "do_log": 0,
-            "user_region": "NOTLogic.SameClauseHasMultiNotGroups",
+            "user_region": "NOTLogic.SingleNotClause",
             "is_valid": "yes",
             "groups": [
                 {
-                    "virtual_table": "HTTP_URL_FILTER",
-                    "group_name": "NOTLogicGroup_222_1",
-                    "group_id": 149,
-                    "clause_index": 0,
+                    "virtual_table": "HTTP_NOT_LOGIC_1",
+                    "group_name": "NOTLogicGroup_222",
+                    "group_id": 240,
                     "not_flag": 1,
-                    "regions": [
-                        {
-                            "table_name": "HTTP_URL",
-                            "table_type": "expr",
-                            "table_content": {
-                                "keywords": "not_logic_compile_222_1",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
-                            }
-                        }
-                    ]
-                },
-                {
-                    "virtual_table": "HTTP_URL_FILTER",
-                    "group_name": "NOTLogicGroup_222_2",
-                    "group_id": 150,
                     "clause_index": 0,
-                    "not_flag": 1,
                     "regions": [
                         {
-                            "table_name": "HTTP_URL",
+                            "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "not_logic_compile_222_2",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
-                            }
-                        }
-                    ]
-                },
-                {
-                    "virtual_table": "HTTP_URL_FILTER",
-                    "group_name": "NOTLogicGroup_222_3",
-                    "group_id": 151,
-                    "clause_index": 1,
-                    "not_flag": 0,
-                    "regions": [
-                        {
-                            "table_name": "HTTP_URL",
-                            "table_type": "expr",
-                            "table_content": {
-                                "keywords": "logic_compile_222_3",
+                                "keywords": "not_logic_keywords_222",
                                 "expr_type": "none",
                                 "match_method": "sub",
                                 "format": "uncase plain"
@@ -3845,7 +4021,7 @@
                 {
                     "virtual_table": "HTTP_NOT_LOGIC",
                     "group_name": "NOTLogicGroup_223_1",
-                    "group_id": 152,
+                    "group_id": 241,
                     "not_flag": 1,
                     "clause_index": 0,
                     "regions": [
@@ -3864,7 +4040,7 @@
                 {
                     "virtual_table": "HTTP_NOT_LOGIC",
                     "group_name": "NOTLogicGroup_223_2",
-                    "group_id": 153,
+                    "group_id": 242,
                     "not_flag": 1,
                     "clause_index": 1,
                     "regions": [
@@ -3883,7 +4059,7 @@
                 {
                     "virtual_table": "HTTP_NOT_LOGIC",
                     "group_name": "NOTLogicGroup_223_1",
-                    "group_id": 154,
+                    "group_id": 243,
                     "not_flag": 1,
                     "clause_index": 2,
                     "regions": [
@@ -3913,7 +4089,7 @@
                 {
                     "virtual_table": "KEYWORDS_TABLE",
                     "group_name": "NOTLogicGroup_224_1",
-                    "group_id": 155,
+                    "group_id": 244,
                     "not_flag": 1,
                     "clause_index": 0,
                     "regions": [
@@ -3932,7 +4108,7 @@
                 {
                     "virtual_table": "HTTP_RESPONSE_KEYWORDS",
                     "group_name": "NOTLogicGroup_224_2",
-                    "group_id": 156,
+                    "group_id": 245,
                     "not_flag": 0,
                     "clause_index": 1,
                     "regions": [
@@ -3962,7 +4138,7 @@
                 {
                     "virtual_table": "KEYWORDS_TABLE",
                     "group_name": "EscapeGroup_225_1",
-                    "group_id": 157,
+                    "group_id": 246,
                     "not_flag": 0,
                     "clause_index": 0,
                     "regions": [
@@ -3992,7 +4168,7 @@
                 {
                     "virtual_table": "KEYWORDS_TABLE",
                     "group_name": "226_url_group",
-                    "group_id": 158
+                    "group_id":247 
                 }
             ]
         },
@@ -4009,7 +4185,7 @@
                 {
                     "virtual_table": "KEYWORDS_TABLE",
                     "group_name": "227_url_group",
-                    "group_id": 159,
+                    "group_id": 248,
                     "g2c_table_name": "GROUP2COMPILE_FIREWALL"
                 }
             ]

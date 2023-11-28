@@ -181,7 +181,7 @@ static long long maat_runtime_rule_num(struct maat_runtime *maat_rt)
 
         if (rule_cnt != 0) {
             log_info(maat_rt->logger, MODULE_MAAT_RULE,
-                     "table:<%s>  rule count:%lld",
+                     "table:<%s> rule_count:%lld",
                      table_manager_get_table_name(maat_rt->ref_tbl_mgr, i), rule_cnt);
         }
 	}

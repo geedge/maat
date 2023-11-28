@@ -739,7 +739,7 @@ int hs_build_lit_db(void **hs_lit_db, void *compile_data, struct log_handle *log
                                     NULL, (hs_database_t **)hs_lit_db, &compile_err);
         if (err != HS_SUCCESS) {
             if (compile_err) {
-                log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] compile error: %s", 
+                log_fatal(logger, MODULE_ADAPTER_HS, "[%s:%d] compile error: %s", 
                           __FUNCTION__, __LINE__, compile_err->message);
             }
 
@@ -766,7 +766,7 @@ int hs_build_regex_db(void **hs_regex_db, void *compile_data, struct log_handle 
                                       &compile_err);
     if (err != HS_SUCCESS) {
         if (compile_err) {
-            log_error(logger, MODULE_ADAPTER_HS, "[%s:%d] compile error: %s",
+            log_fatal(logger, MODULE_ADAPTER_HS, "[%s:%d] compile error: %s",
                       __FUNCTION__, __LINE__, compile_err->message);
         }
         hs_free_compile_error(compile_err);
