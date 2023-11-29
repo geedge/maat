@@ -436,14 +436,82 @@ static int plugin_accept_tag_match(struct plugin_schema *schema,
     return TAG_MATCH_MATCHED;
 }
 
+static int plugin_table_line_get_ip_key(struct plugin_schema *schema,
+                                        const char *table_name, const char *line,
+                                        const char *src_key, size_t src_key_len,
+                                        char *dst_key, size_t *dst_key_len,
+                                        struct log_handle *logger)
+{
+    if (src_key_len >= INET6_ADDRSTRLEN) {
+        log_fatal(logger, MODULE_PLUGIN,
+                  "[%s:%d] plugin table:<%s> ip_key too long exceed maximum:%d in "
+                  "table_line:%s", __FUNCTION__, __LINE__, table_name,
+                  INET6_ADDRSTRLEN, line);
+        return -1;
+    }
+
+    size_t addr_type_offset = 0, addr_type_len = 0;
+    int ret = get_column_pos(line, schema->addr_type_column,
+                             &addr_type_offset, &addr_type_len);
+    if (ret < 0) {
+        log_fatal(logger, MODULE_PLUGIN,
+                  "[%s:%d] plugin table:<%s> has no addr_type(column seq:%d)"
+                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
+                  schema->addr_type_column, line);
+        return -1;
+    }
+
+    char ip_key[INET6_ADDRSTRLEN] = {0};
+    // snprintf() write at most (key_len+1) bytes (including the terminating null{'\0}) to ip_key.
+    snprintf(ip_key, src_key_len + 1, "%s", src_key);
+
+    int addr_type = atoi(line + addr_type_offset);
+    if (IPV4 == addr_type) {
+        uint32_t ipv4_addr;
+        ret = inet_pton(AF_INET, ip_key, &ipv4_addr);
+        if (ret <= 0) {
+            log_fatal(logger, MODULE_PLUGIN,
+                      "[%s:%d] plugin table:<%s> ipv4 key(column seq:%d)"
+                      " illegal in table_line:%s",
+                      __FUNCTION__, __LINE__, table_name, schema->key_column, line);
+            return -1;
+        }
+
+        memcpy(dst_key, (char *)&ipv4_addr, sizeof(ipv4_addr));
+        *dst_key_len = sizeof(ipv4_addr);
+    } else if (IPV6 == addr_type) {
+        uint8_t ipv6_addr[16];
+        ret = inet_pton(AF_INET6, ip_key, ipv6_addr);
+        if (ret <= 0) {
+            log_fatal(logger, MODULE_PLUGIN,
+                      "[%s:%d] plugin table:<%s> ipv6 key(column seq:%d)"
+                      " illegal in table_line:%s",
+                      __FUNCTION__, __LINE__, table_name, schema->key_column, line);
+            return -1;
+        }
+
+        memcpy(dst_key, (char *)&ipv6_addr, sizeof(ipv6_addr));
+        *dst_key_len = sizeof(ipv6_addr);
+    } else {
+        log_fatal(logger, MODULE_PLUGIN,
+                  "[%s:%d] plugin table:<%s> addr_type:%d illegal, just"
+                  " allow{4, 6}, table_line:%s",
+                  __FUNCTION__, __LINE__, table_name, addr_type, line);
+        return -1;
+    }
+
+    return 0;
+}
+
 static int plugin_table_line_get_key(struct plugin_schema *schema,
                                      const char *table_name, const char *line,
+                                     const char *src_key, size_t src_key_len,
                                      char *dst_key, size_t *dst_key_len,
                                      struct log_handle *logger)
 {
-    size_t key_offset = 0, key_len = 0;
+    size_t plugin_key_offset = 0, plugin_key_len = 0;
     
-    int ret = get_column_pos(line, schema->key_column, &key_offset, &key_len);
+    int ret = get_column_pos(line, schema->key_column, &plugin_key_offset, &plugin_key_len);
     if (ret < 0) {
         log_fatal(logger, MODULE_PLUGIN,
                   "[%s:%d] plugin table:<%s> has no key(column seq:%d)"
@@ -452,85 +520,25 @@ static int plugin_table_line_get_key(struct plugin_schema *schema,
         return -1;
     }
 
-    if (key_len > MAX_KEYWORDS_STR_LEN) {
-        log_fatal(logger, MODULE_PLUGIN,
-                  "[%s:%d] plugin table:<%s> key(column seq:%d) length exceed maxium:%d"
-                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
-                  schema->key_column, MAX_KEYWORDS_STR_LEN, line); 
-        return -1;
-    }
+    
 
-    const char *common_key = line + key_offset;
     if (schema->key_type == PLUGIN_KEY_TYPE_POINTER) {
-        memcpy(dst_key, common_key, key_len);
-        *dst_key_len = key_len;
+        memcpy(dst_key, src_key, src_key_len);
+        *dst_key_len = src_key_len;
     } else if (schema->key_type == PLUGIN_KEY_TYPE_INTEGER) {
         if (schema->key_len == sizeof(long long)) {
-            long long key_ll = atoll(common_key);
+            long long key_ll = atoll(src_key);
             memcpy(dst_key, (char *)&key_ll, schema->key_len);
         } else {
-            int key_int = atoi(common_key);
+            int key_int = atoi(src_key);
             memcpy(dst_key, (char *)&key_int, schema->key_len);
         }
         *dst_key_len = schema->key_len;
-    } else if (schema->key_type == PLUGIN_KEY_TYPE_IP_ADDR) {
-        if (key_len >= INET6_ADDRSTRLEN) {
-            log_fatal(logger, MODULE_PLUGIN,
-                      "[%s:%d] plugin table:<%s> ip_key too long(illegal) in "
-                      "table_line:%s", __FUNCTION__, __LINE__, table_name, line);
-            return -1;
-        }
-
-        size_t addr_type_offset = 0, addr_type_len = 0;
-
-        ret = get_column_pos(line, schema->addr_type_column, &addr_type_offset,
-                             &addr_type_len);
-        if (ret < 0) {
-            log_fatal(logger, MODULE_PLUGIN,
-                      "[%s:%d] plugin table:<%s> has no addr_type(column seq:%d)"
-                      " in table_line:%s", __FUNCTION__, __LINE__, table_name,
-                      schema->addr_type_column, line);
-            return -1;
-        }
-
-        char ip_key[INET6_ADDRSTRLEN] = {0};
-        //snprintf() write at most (key_len+1) bytes (including the terminating null{'\0}) to ip_key.
-        snprintf(ip_key, key_len + 1, "%s", common_key);
-
-        int addr_type = atoi(line + addr_type_offset);
-        if (IPV4 == addr_type) {
-            uint32_t ipv4_addr;
-            ret = inet_pton(AF_INET, ip_key, &ipv4_addr);
-            if (ret <= 0) {
-                log_fatal(logger, MODULE_PLUGIN,
-                          "[%s:%d] plugin table:<%s> ipv4 key(column seq:%d)"
-                          " illegal in table_line:%s", __FUNCTION__, __LINE__,
-                          table_name, schema->key_column, line);
-                return -1;
-            }
-
-            memcpy(dst_key, (char *)&ipv4_addr, sizeof(ipv4_addr));
-            *dst_key_len = sizeof(ipv4_addr);
-        } else if (IPV6 == addr_type) {
-            uint8_t ipv6_addr[16];
-            ret = inet_pton(AF_INET6, ip_key, ipv6_addr);
-            if (ret <= 0) {
-                log_fatal(logger, MODULE_PLUGIN,
-                          "[%s:%d] plugin table:<%s> ipv6 key(column seq:%d)"
-                          " illegal in table_line:%s", __FUNCTION__, __LINE__,
-                          table_name, schema->key_column, line);
-                return -1;
-            }
-
-            memcpy(dst_key, (char *)&ipv6_addr, sizeof(ipv6_addr));
-            *dst_key_len = sizeof(ipv6_addr);
-        } else {
-            log_fatal(logger, MODULE_PLUGIN,
-                      "[%s:%d] plugin table:<%s> addr_type:%d illegal, just"
-                      " allow{4, 6}, table_line:%s", __FUNCTION__, __LINE__,
-                      table_name, addr_type, line);
-            return -1;
-        }
+    } else {
+        //PLUGIN_KEY_TYPE_IP_ADDR
+        return plugin_table_line_get_ip_key(schema, table_name, line, src_key,
+                                            src_key_len, dst_key, dst_key_len,
+                                            logger);
     }
 
     return 0;
@@ -563,26 +571,48 @@ int plugin_runtime_update(void *plugin_runtime, void *plugin_schema,
         return -1;
     }
 
-    char key[MAX_KEYWORDS_STR_LEN + 1] = {0};
-    size_t key_len = 0;
-    ret = plugin_table_line_get_key(schema, table_name, line, key, &key_len,
-                                    plugin_rt->logger);
+    size_t raw_key_offset = 0, raw_key_len = 0;
+    ret = get_column_pos(line, schema->key_column, &raw_key_offset, &raw_key_len);
+    if (ret < 0) {
+        log_fatal(plugin_rt->logger, MODULE_PLUGIN,
+                  "[%s:%d] plugin table:<%s> has no key(column seq:%d)"
+                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
+                  schema->key_column, line);
+        return -1;
+    }
+
+    if (raw_key_len > MAX_KEYWORDS_STR_LEN) {
+        log_fatal(plugin_rt->logger, MODULE_PLUGIN,
+                  "[%s:%d] plugin table:<%s> key(column seq:%d) length exceed maxium:%d"
+                  " in table_line:%s", __FUNCTION__, __LINE__, table_name,
+                  schema->key_column, MAX_KEYWORDS_STR_LEN, line); 
+        return -1;
+    }
+
+    const char *raw_key = line + raw_key_offset;
+    char hash_key[MAX_KEYWORDS_STR_LEN + 1] = {0};
+    size_t hash_key_len = 0;
+
+    ret = plugin_table_line_get_key(schema, table_name, line, raw_key, raw_key_len,
+                                    hash_key, &hash_key_len, plugin_rt->logger);
     if (ret < 0) {
         plugin_rt->update_err_cnt++;
         return -1;
     }
 
     ret = plugin_runtime_update_row(plugin_rt, schema, table_name, line, 
-                                    key, key_len, is_valid);
+                                    hash_key, hash_key_len, is_valid);
     if (ret < 0) {
         plugin_rt->update_err_cnt++;
         return -1;
     }
-
+    
+    char print_key[MAX_KEYWORDS_STR_LEN + 1] = {0};
+    memcpy(print_key, raw_key, raw_key_len);
     log_debug(plugin_rt->logger, MODULE_PLUGIN,
               "plugin table:<%s> update one line, key:%s, key_len:%zu, is_valid:%d",
-              table_name, key, key_len, is_valid);
-
+              table_name, print_key, raw_key_len, is_valid);
+    
     return 0;
 }
 

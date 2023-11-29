@@ -20,7 +20,7 @@ extern "C"
 
 #include "log/log.h"
 
-#define MAX_EXPR_PATTERN_NUM  8   /* 每条与表达式最多由MAX_EXPR_ITEM_NUM个规则组成 */
+#define MAX_EXPR_PATTERN_NUM  8
 
 enum expr_engine_type {
     EXPR_ENGINE_TYPE_HS = 0,

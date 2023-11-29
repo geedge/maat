@@ -5124,7 +5124,7 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
         maat_options_set_stat_file(opts, "./stat.log");
-        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_DEBUG);
         maat_options_set_accept_tags(opts, accept_tags);
 
         _shared_maat_inst = maat_new(opts, table_info_path);
