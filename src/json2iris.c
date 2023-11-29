@@ -687,10 +687,10 @@ static int write_group2compile_line(int *group_ids, size_t n_group_id,
 			strcat(group_id_str, tmp_str);
 		}
 		group_id_str[strlen(group_id_str) - 1] = '\0';
-		snprintf(buff, sizeof(buff), "%s\t%d\t1\t%d\t%s\t%d\n", group_id_str, compile_id,
+		snprintf(buff, sizeof(buff), "%s\t%d\t%d\t%s\t%d\t1\n", group_id_str, compile_id,
              	 group_not_flag, vtable, clause_index);
 	} else {
-		snprintf(buff, sizeof(buff), "%d\t%d\t1\t%d\t%s\t%d\n", group_ids[0], compile_id,
+		snprintf(buff, sizeof(buff), "%d\t%d\t%d\t%s\t%d\t1\n", group_ids[0], compile_id,
 				 group_not_flag, vtable, clause_index);
 	}
 	
@@ -962,20 +962,20 @@ static int write_compile_line(cJSON *compile, struct iris_description *p_iris,
 	compile_cmd[cmd_cnt].json_string = "tags";
 	compile_cmd[cmd_cnt].json_type = cJSON_String;
 	compile_cmd[cmd_cnt].empty_allowed = 1;
-	compile_cmd[cmd_cnt].default_string = "0";
+	compile_cmd[cmd_cnt].default_string = "{}";
 	cmd_cnt++;
 	
 	compile_cmd[cmd_cnt].json_string = "user_region";
 	compile_cmd[cmd_cnt].json_type = cJSON_String;
 	cmd_cnt++;
 	
+	compile_cmd[cmd_cnt].json_string = "clause_num";
+	compile_cmd[cmd_cnt].json_type = cJSON_Number;
+	cmd_cnt++;
+
 	compile_cmd[cmd_cnt].json_string = "is_valid";
 	compile_cmd[cmd_cnt].json_type = cJSON_String;
 	compile_cmd[cmd_cnt].str2int_flag = 1;
-	cmd_cnt++;
-	
-	compile_cmd[cmd_cnt].json_string = "clause_num";
-	compile_cmd[cmd_cnt].json_type = cJSON_Number;
 	cmd_cnt++;
 
     struct iris_table *table_info = NULL;

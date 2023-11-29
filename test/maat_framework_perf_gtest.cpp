@@ -160,11 +160,12 @@ static int write_config_to_redis(const char *json_iris_path, char *redis_ip,
 
 static int compile_table_set_line(struct maat *maat_inst, const char *table_name,
                                   enum maat_operation op, long long compile_id,
-                                  const char *user_region, int clause_num, int expire_after)
+                                  const char *user_region, int clause_num,
+                                  int expire_after)
 {
     char table_line[1024 * 16] = {0};
     sprintf(table_line, "%lld\t0\t0\t0\t0\t0\t%s\t%d\t%d\t0.0", 
-            compile_id, user_region, op, clause_num);
+            compile_id, user_region, clause_num, op);
 
     struct maat_cmd_line line_rule;
     line_rule.rule_id = compile_id;
@@ -176,13 +177,14 @@ static int compile_table_set_line(struct maat *maat_inst, const char *table_name
 }
 
 static int group2compile_table_set_line(struct maat *maat_inst, const char *table_name,
-                                        enum maat_operation op, long long group_id, long long compile_id,
-                                        int not_flag, const char *vtable_name, int clause_num,
+                                        enum maat_operation op, long long group_id,
+                                        long long compile_id, int not_flag,
+                                        const char *vtable_name, int clause_index,
                                         int expire_after)
 {
     char table_line[128] = {0};
-    sprintf(table_line, "%lld\t%lld\t%d\t%d\t%s\t%d", 
-            group_id, compile_id, op, not_flag, vtable_name, clause_num);
+    sprintf(table_line, "%lld\t%lld\t%d\t%s\t%d\t%d", 
+            group_id, compile_id, not_flag, vtable_name, clause_index, op);
 
     struct maat_cmd_line line_rule;
     line_rule.rule_id = group_id;
@@ -193,9 +195,11 @@ static int group2compile_table_set_line(struct maat *maat_inst, const char *tabl
     return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-static int expr_table_set_line(struct maat *maat_inst, const char *table_name, enum maat_operation op,
-                               long long item_id, long long group_id, const char *keywords, const char *district,
-                               int expr_type, int match_method, int is_hexbin, int expire_after)
+static int expr_table_set_line(struct maat *maat_inst, const char *table_name,
+                               enum maat_operation op, long long item_id,
+                               long long group_id, const char *keywords,
+                               const char *district, int expr_type,
+                               int match_method, int is_hexbin, int expire_after)
 {
     char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -207,11 +211,13 @@ static int expr_table_set_line(struct maat *maat_inst, const char *table_name, e
     assert(table_type == TABLE_TYPE_EXPR || table_type == TABLE_TYPE_EXPR_PLUS);
 
     if (table_type == TABLE_TYPE_EXPR_PLUS) {
-        sprintf(table_line, "%lld\t%lld\t%s\t%s\t%d\t%d\t%d\t%d", item_id, group_id, district,
-                keywords, expr_type, match_method, is_hexbin, op);
+        sprintf(table_line, "%lld\t%lld\t%s\t%s\t%d\t%d\t%d\t%d",
+                item_id, group_id, district, keywords, expr_type,
+                match_method, is_hexbin, op);
     } else {
-        sprintf(table_line, "%lld\t%lld\t%s\t%d\t%d\t%d\t%d", item_id, group_id, keywords, expr_type,
-            match_method, is_hexbin, op);
+        sprintf(table_line, "%lld\t%lld\t%s\t%d\t%d\t%d\t%d",
+                item_id, group_id, keywords, expr_type,
+                match_method, is_hexbin, op);
     }
 
     struct maat_cmd_line line_rule;
@@ -223,9 +229,11 @@ static int expr_table_set_line(struct maat *maat_inst, const char *table_name, e
     return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-static int ip_table_set_line(struct maat *maat_inst, const char *table_name, enum maat_operation op,
-                             long long item_id, long long group_id, enum IP_TYPE type, const char *ip1, 
-                             const char *ip2, uint16_t port_min, uint16_t port_max, int expire_after)
+static int ip_table_set_line(struct maat *maat_inst, const char *table_name,
+                             enum maat_operation op, long long item_id,
+                             long long group_id, enum IP_TYPE type, const char *ip1, 
+                             const char *ip2, uint16_t port_min, uint16_t port_max,
+                             int expire_after)
 {
     char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -301,17 +309,19 @@ static void test_add_expr_command(struct maat *maat_inst, const char *table_name
                                   const char *keywords)
 {
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD, compile_id, "null", 1, 0);
+    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD,
+                                     compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE_DEFAULT", MAAT_OP_ADD, group_id,
-                                       compile_id, 0, table_name, 1, 0);
+    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE_DEFAULT",
+                                       MAAT_OP_ADD, group_id, compile_id,
+                                       0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id, group_id,
-                              keywords, "null", 1, 0, 0, 0);
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
+                              group_id, keywords, "null", 1, 0, 0, 0);
     EXPECT_EQ(ret, 1);
 }
 
@@ -319,17 +329,19 @@ static void test_add_ip_command(struct maat *maat_inst, const char *table_name,
                                 const char *ip, uint16_t port)
 {
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD, compile_id, "null", 1, 0);
+    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD,
+                                     compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE_DEFAULT", MAAT_OP_ADD, group_id,
-                                       compile_id, 0, table_name, 1, 0);
+    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE_DEFAULT",
+                                       MAAT_OP_ADD, group_id, compile_id,
+                                       0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = ip_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id, group_id,
-                            IPv4, ip, ip, port, port, 0);
+    ret = ip_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
+                            group_id, IPv4, ip, ip, port, port, 0);
     EXPECT_EQ(ret, 1);
 }
 
@@ -337,17 +349,19 @@ static void test_add_integer_command(struct maat *maat_inst, const char *table_n
                                      int low_bound, int up_bound)
 {
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD, compile_id, "null", 1, 0);
+    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD,
+                                    compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE_DEFAULT", MAAT_OP_ADD, group_id,
-                                       compile_id, 0, table_name, 1, 0);
+    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE_DEFAULT",
+                                       MAAT_OP_ADD, group_id, compile_id,
+                                       0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = integer_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id, group_id,
-                                 low_bound, up_bound, 0);
+    ret = integer_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
+                                 group_id, low_bound, up_bound, 0);
     EXPECT_EQ(ret, 1);
 }
 
@@ -355,17 +369,19 @@ static void test_add_flag_command(struct maat *maat_inst, const char *table_name
                                   long long flag, long long flag_mask)
 {
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD, compile_id, "null", 1, 0);
+    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD,
+                                     compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE_DEFAULT", MAAT_OP_ADD, group_id,
-                                       compile_id, 0, table_name, 1, 0);
+    ret = group2compile_table_set_line(maat_inst, "GROUP2COMPILE_DEFAULT",
+                                       MAAT_OP_ADD, group_id, compile_id,
+                                       0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
-    ret = flag_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id, group_id,
-                              flag, flag_mask, 0);
+    ret = flag_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
+                              group_id, flag, flag_mask, 0);
     EXPECT_EQ(ret, 1);
 }
 
@@ -593,7 +609,8 @@ void *perf_regex_scan_thread(void *arg)
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
 
-    param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+    param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
+                            (end.tv_nsec - start.tv_nsec) / 1000000;
     int *is_all_hit = ALLOC(int, 1);
     *is_all_hit = (hit_times == param->test_count ? 1 : 0);
     log_info(param->logger, MODULE_FRAMEWORK_PERF_GTEST, 
@@ -799,7 +816,8 @@ void *perf_stream_scan_thread(void *arg)
     maat_stream_free(sp);
     maat_state_free(state);
 
-    param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+    param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
+                            (end.tv_nsec - start.tv_nsec) / 1000000;
     int *is_all_hit = ALLOC(int, 1);
     *is_all_hit = ((hit_times == param->test_count) ? 1 : 0);
 

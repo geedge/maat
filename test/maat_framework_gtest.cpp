@@ -153,7 +153,7 @@ int compile_table_set_line(struct maat *maat_inst, const char *table_name,
 {
     char table_line[1024 * 16] = {0};
     sprintf(table_line, "%lld\t0\t0\t0\t0\t0\t%s\t%d\t%d\t0.0", 
-            compile_id, user_region, op, clause_num);
+            compile_id, user_region, clause_num, op);
 
     struct maat_cmd_line line_rule;
     line_rule.rule_id = compile_id;
@@ -166,7 +166,6 @@ int compile_table_set_line(struct maat *maat_inst, const char *table_name,
 
 #define TO_GROUP2X_KEY(group_id, parent_id, clause_index) (((unsigned long)group_id<<32|parent_id) + clause_index)
 
-
 int group2compile_table_set_line(struct maat *maat_inst, const char *table_name,
                                  enum maat_operation op, long long group_id,
                                  long long compile_id, int not_flag,
@@ -174,8 +173,8 @@ int group2compile_table_set_line(struct maat *maat_inst, const char *table_name,
                                  int expire_after)
 {
     char table_line[128] = {0};
-    sprintf(table_line, "%lld\t%lld\t%d\t%d\t%s\t%d", 
-            group_id, compile_id, op, not_flag, vtable_name, clause_index);
+    sprintf(table_line, "%lld\t%lld\t%d\t%s\t%d\t%d", 
+            group_id, compile_id, not_flag, vtable_name, clause_index, op);
 
     struct maat_cmd_line line_rule;
     line_rule.rule_id = TO_GROUP2X_KEY(group_id, compile_id, clause_index);
