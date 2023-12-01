@@ -1007,12 +1007,12 @@ static void get_super_group_ids(struct maat_group_topology *group_topo,
     UT_array *kept_super_group_ids;
 
     if (depth >= MAX_RECURSION_DEPTH) {
-        log_fatal(group_topo->logger, MODULE_GROUP,
+        log_error(group_topo->logger, MODULE_GROUP,
                   "[%s:%d]exceed max recursion depth(5)",
                   __FUNCTION__, __LINE__);
         for (int i = 0; i < utarray_len(hit_group_ids); i++) {
             long long *p = (long long *)utarray_eltptr(hit_group_ids, i);
-            log_fatal(group_topo->logger, MODULE_GROUP,
+            log_error(group_topo->logger, MODULE_GROUP,
                       "[%s:%d]group_id:%lld can't recursively get super group_id",
                       __FUNCTION__, __LINE__, *p);
         }
