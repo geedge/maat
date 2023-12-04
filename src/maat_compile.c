@@ -1305,7 +1305,7 @@ static int maat_add_group_to_compile(struct rcu_hash_table *hash_tbl,
                                       struct group2compile_item *g2c_item,
                                       struct log_handle *logger)
 {
-	int ret = -1;
+	int ret = 0;
     long long compile_id = g2c_item->compile_id;
     struct maat_compile *compile = NULL;
 
@@ -1377,7 +1377,7 @@ static int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
                                            struct group2compile_item *g2c_item,
                                            struct log_handle *logger)
 {
-	int ret = -1;
+	int ret = 0;
     long long compile_id = g2c_item->compile_id;
     struct maat_compile *compile = NULL;
 
