@@ -132,10 +132,10 @@ struct clause_literal {
 
 struct compile_clause {
 	long long clause_id;
-    UT_array *literals;
-	char not_flag; // 1 byte
-	char in_use;   // 1 byte
-    char pad[6];   // for 8 bytes alignment
+    UT_array *literals; //struct clause_literal
+	char not_flag;      // 1 byte
+	char in_use;        // 1 byte
+    char pad[6];        // for 8 bytes alignment
 };
 
 struct compile_sort_para {
@@ -854,8 +854,8 @@ static inline int compare_group_id(const void *a, const void *b)
 	}
 }
 
-void compile_clause_add_literal(struct compile_clause *clause,
-                                struct group2compile_item *g2c_item)
+static void compile_clause_add_literal(struct compile_clause *clause,
+                                       struct group2compile_item *g2c_item)
 {
     struct clause_literal tmp_literal;
     tmp_literal.vtable_id = g2c_item->vtable_id;
@@ -865,7 +865,7 @@ void compile_clause_add_literal(struct compile_clause *clause,
     for (size_t i = 0; i < utarray_len(g2c_item->group_ids); i++) {
         tmp_literal.group_ids[i] = *(long long *)utarray_eltptr(g2c_item->group_ids, i);
     }
-    utarray_push_back(clause->literals, &tmp_literal); 
+    utarray_push_back(clause->literals, &tmp_literal);
 }
 
 void compile_clause_remove_literal(struct compile_clause *clause,
@@ -883,11 +883,12 @@ void compile_clause_remove_literal(struct compile_clause *clause,
     } 
 }
 
-int compile_clause_find_literal(struct compile_clause *clause,
-                                struct group2compile_item *g2c_item)
+static int maat_compile_clause_find_literal(struct maat_compile *compile,
+                                            struct group2compile_item *g2c_item)
 {
-    int found = 0;
+    struct compile_clause *clause = compile->clauses + g2c_item->clause_index;
     struct clause_literal *tmp_literal = NULL;
+    int found = 0;
 
     for (size_t i = 0; i < utarray_len(clause->literals); i++) {
         tmp_literal = (struct clause_literal *)utarray_eltptr(clause->literals, i);
@@ -899,8 +900,8 @@ int compile_clause_find_literal(struct compile_clause *clause,
     return found;
 }
 
-static int maat_compile_clause_add_literal(struct maat_compile *compile,
-                                           struct group2compile_item *g2c_item)
+static void maat_compile_clause_add_literal(struct maat_compile *compile,
+                                            struct group2compile_item *g2c_item)
 {
     struct compile_clause *clause = compile->clauses + g2c_item->clause_index;
 
@@ -911,35 +912,19 @@ static int maat_compile_clause_add_literal(struct maat_compile *compile,
         compile->actual_clause_num++;
     }
 
-    if (compile_clause_find_literal(clause, g2c_item) > 0) {
-        //found
-        return -1;
-    }
-
     compile_clause_add_literal(clause, g2c_item);
-
-    return 0;
 }
 
-static int maat_compile_clause_remove_literal(struct maat_compile *compile,
-                                              struct group2compile_item *g2c_item)
+static void maat_compile_clause_remove_literal(struct maat_compile *compile,
+                                               struct group2compile_item *g2c_item)
 {
     struct compile_clause *clause = compile->clauses + g2c_item->clause_index;
 
-
-    if (0 == compile_clause_find_literal(clause, g2c_item)) {
-        //not found
-        return -1;
-    }
-
     compile_clause_remove_literal(clause, g2c_item);
-
     if (0 == utarray_len(clause->literals)) {
         clause->in_use = 0;
         compile->actual_clause_num--;
     }
-    
-    return 0;
 }
 
 static struct bool_matcher *
@@ -1328,23 +1313,23 @@ static int maat_add_group_to_compile(struct rcu_hash_table *hash_tbl,
     if (1 == updating_flag) {
         compile = rcu_updating_hash_find(hash_tbl, (char *)&compile_id, sizeof(long long));
         if (compile != NULL) {
-            /* compile found in updating hash(added by compile runtime), it can be modified directly */
-            ret = maat_compile_clause_add_literal(compile, g2c_item);
-            if (ret < 0) {
+            ret = maat_compile_clause_find_literal(compile, g2c_item);
+            if (ret > 0) {
                 log_fatal(logger, MODULE_COMPILE,
-                          "[%s:%d] add clause(index:%d) to compile %lld failed",
-                          __FUNCTION__, __LINE__, g2c_item->clause_index, compile_id);
+                          "[%s:%d]compile:%lld clause(index:%d) already has vtable_id:%d's "
+                          "literal, can't add again", __FUNCTION__, __LINE__, compile->compile_id,
+                          g2c_item->clause_index, g2c_item->vtable_id);
+                return -1;
             }
+            /* compile found in updating hash(added by compile runtime), it can
+             * be modified directly */
+            maat_compile_clause_add_literal(compile, g2c_item);
         } else {
             /* compile neither in effective hash nor in updating hash, so new one */
             compile = maat_compile_new(compile_id);
             assert(compile != NULL);
-            ret = maat_compile_clause_add_literal(compile, g2c_item);
-            if (ret < 0) {
-                log_fatal(logger, MODULE_COMPILE,
-                          "[%s:%d] add clause(index:%d) to compile %lld failed",
-                          __FUNCTION__, __LINE__, g2c_item->clause_index, compile_id);
-            }
+
+            maat_compile_clause_add_literal(compile, g2c_item);
             rcu_hash_add(hash_tbl, (char *)&compile_id, sizeof(long long), compile);
         }
     } else {
@@ -1359,29 +1344,28 @@ static int maat_add_group_to_compile(struct rcu_hash_table *hash_tbl,
                 can only be deleted but not modified
                 before delete it, we need to make a copy for further use
             *********************************************************************/
+            ret = maat_compile_clause_find_literal(compile, g2c_item);
+            if (ret > 0) {
+                log_fatal(logger, MODULE_COMPILE,
+                          "[%s:%d]compile:%lld clause(index:%d) already has vtable_id:%d's "
+                          "literal, can't add again", __FUNCTION__, __LINE__, compile->compile_id,
+                          g2c_item->clause_index, g2c_item->vtable_id);
+                return -1;
+            }
+
             struct maat_compile *copy_compile = maat_compile_clone(compile, 1);
             assert(copy_compile != NULL);
 
             /* delete compile from rcu hash */
             rcu_hash_del(hash_tbl, (char *)&compile_id, sizeof(long long));
 
-            ret = maat_compile_clause_add_literal(copy_compile, g2c_item);
-            if (ret < 0) {
-                log_fatal(logger, MODULE_COMPILE,
-                          "[%s:%d] add clause(index:%d) to compile %lld failed",
-                          __FUNCTION__, __LINE__, g2c_item->clause_index, compile_id);
-            }
-
+            maat_compile_clause_add_literal(copy_compile, g2c_item);
             rcu_hash_add(hash_tbl, (char *)&compile_id, sizeof(long long), copy_compile);
         } else {
             compile = maat_compile_new(compile_id);
             assert(compile != NULL);
-            ret = maat_compile_clause_add_literal(compile, g2c_item);
-            if (ret < 0) {
-                log_fatal(logger, MODULE_COMPILE,
-                          "[%s:%d] add clause(index:%d) to compile %lld failed",
-                          __FUNCTION__, __LINE__, g2c_item->clause_index, compile_id);
-            }
+
+            maat_compile_clause_add_literal(compile, g2c_item);
             rcu_hash_add(hash_tbl, (char *)&compile_id, sizeof(long long), compile);
         }
     }
@@ -1408,15 +1392,17 @@ static int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
                       g2c_item->clause_index, compile_id);
             return -1;
         } else {
-            /* compile found in updating hash, it can be modified directly */
-            ret = maat_compile_clause_remove_literal(compile, g2c_item);
-            if (ret < 0) {
+            ret = maat_compile_clause_find_literal(compile, g2c_item);
+            if (0 == ret) {
                 log_fatal(logger, MODULE_COMPILE,
-                          "[%s:%d] Remove clause(index:%d) from compile %lld failed,"
-                          "clause not exist.", __FUNCTION__, __LINE__,
-                          g2c_item->clause_index, compile_id);
+                          "[%s:%d]compile:%lld clause(index:%d) has no vtable_id:%d's "
+                          "literal, can't be removed", __FUNCTION__, __LINE__,
+                          compile->compile_id, g2c_item->clause_index, g2c_item->vtable_id);
+                return -1;
             }
 
+            /* compile found in updating hash, it can be modified directly */
+            maat_compile_clause_remove_literal(compile, g2c_item);
             if (0 == compile->actual_clause_num && NULL == compile->user_data) {
                 rcu_hash_del(hash_tbl, (char *)&compile_id, sizeof(long long));
             } 
@@ -1425,6 +1411,15 @@ static int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
         //find in effetive hash
         compile = rcu_hash_find(hash_tbl, (char *)&compile_id, sizeof(long long));
         if (compile != NULL) {
+            ret = maat_compile_clause_find_literal(compile, g2c_item);
+            if (0 == ret) {
+                log_fatal(logger, MODULE_COMPILE,
+                          "[%s:%d]compile:%lld clause(index:%d) has no vtable_id:%d's "
+                          "literal, can't be removed", __FUNCTION__, __LINE__,
+                          compile->compile_id, g2c_item->clause_index, g2c_item->vtable_id);
+                return -1;
+            }
+
             /*******************************************************************
                 compile found in effective hash, which means
 
@@ -1439,15 +1434,8 @@ static int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
 
             /* delete compile from rcu hash */
             rcu_hash_del(hash_tbl, (char *)&compile_id, sizeof(long long));
+            maat_compile_clause_remove_literal(copy_compile, g2c_item);
 
-            ret = maat_compile_clause_remove_literal(copy_compile, g2c_item);
-            if (ret < 0) {
-                log_fatal(logger, MODULE_COMPILE,
-                          "[%s:%d] Remove clause(index:%d) from compile %lld failed,"
-                          "clause not exist.", __FUNCTION__, __LINE__,
-                          g2c_item->clause_index, compile_id);
-            }
-            
             if (0 == copy_compile->actual_clause_num && NULL == copy_compile->user_data) {
                 maat_compile_free(copy_compile);
             } else {
@@ -1787,8 +1775,8 @@ static void compile_state_add_exclude_not_clauses(struct compile_state *compile_
             continue;
         }
         utarray_push_back(compile_state->exclude_not_clauses, clause_id);
-        utarray_sort(compile_state->exclude_not_clauses, compare_clause_id);
     }
+    utarray_sort(compile_state->exclude_not_clauses, compare_clause_id);
 }
 
 static void compile_state_add_hit_not_clauses(struct compile_state *compile_state,
@@ -1895,8 +1883,11 @@ static void compile_state_cache_hit_not_groups(struct compile_state *compile_sta
 
         if (!utarray_find(tbl_group->group_ids, &(clause_id_kv->key.group_id), compare_group_id)) {
             utarray_push_back(tbl_group->group_ids, &(clause_id_kv->key.group_id));
-            utarray_sort(tbl_group->group_ids, compare_group_id);
         }
+    }
+
+    if (tbl_group != NULL) {
+        utarray_sort(tbl_group->group_ids, compare_group_id);
     }
 }
 
