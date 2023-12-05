@@ -38,8 +38,7 @@ typedef enum {
     RT_LOG_OP_IFACE_MAX,
 }log_op_iface;
 
-struct log_handle
-{
+struct log_handle {
     int level;
     int enable;
     FILE *fp;
@@ -56,62 +55,63 @@ static unsigned char month_str[12][4] = {"Jan", "Feb", "Mar", "Apr","May", "Jun"
 
 static int log_create_dir(const char *dir_path, int path_len)
 {
-    if(dir_path == NULL)
+    if (dir_path == NULL) {
         return -1;
+    }
 
-    char *buf = (char *)calloc(path_len+1, 1);
+    char *buf = (char *)calloc(path_len + 1, 1);
     int ret = -1;
 
     memcpy(buf, dir_path, path_len);
-    if(access(buf, R_OK) != 0)
-    {
-        if(mkdir(buf, 0755)!= 0)
+    if (access(buf, R_OK) != 0) {
+        if (mkdir(buf, 0755) != 0) {
             ret = -1;
-        else
-            ret =  0;
+        } else {
+            ret = 0;
+        }
+    } else {
+        ret = 1;
     }
-    else
-        ret =  1;
+
     free(buf);
     buf = NULL;
+
     return ret;
 }
 
 static void log_close_file(struct log_handle *handle)
 {
-	pthread_mutex_lock(&handle->mutex);
-	if(handle->fp != NULL)
-	{
-		fclose(handle->fp);
-		handle->fp = NULL;
-	}
-	pthread_mutex_unlock(&handle->mutex);
-	return;
+    pthread_mutex_lock(&handle->mutex);
+    if (handle->fp != NULL) {
+        fclose(handle->fp);
+        handle->fp = NULL;
+    }
+    pthread_mutex_unlock(&handle->mutex);
 }
 
 int log_open_file(char *file_name, struct log_handle *handle)
 {
-	FILE *fp = NULL;
-	log_close_file(handle);
-	if(NULL == (fp = fopen(file_name, "a")))
-	{
-		return -1;
-	}
+    FILE *fp = NULL;
+    log_close_file(handle);
+    if (NULL == (fp = fopen(file_name, "a"))) {
+        return -1;
+    }
+
     memcpy(handle->runtime_log_fn, file_name, strlen(file_name));
     handle->fp = fp;
-	return 0;
+
+    return 0;
 }
 
 static int log_create_path(const char *file_path)
 {
-    FILE *fp  = NULL;
+    FILE *fp = NULL;
 
-	if(file_path == NULL)
-		return 0;
+    if (file_path == NULL)
+        return 0;
 
     char *p_path = rindex(file_path, '/');
-    if(p_path==0)
-    {
+    if (p_path == 0) {
         return 0;
     }
 
@@ -119,22 +119,22 @@ static int log_create_path(const char *file_path)
     int path_len = p_path - file_path;
     int i = 0;
 
-    if(log_create_dir(file_path, path_len) >= 0)
+    if (log_create_dir(file_path, path_len) >= 0)
         return 0;
 
-    for(;i<=path_len;i++,p_cur++)
-    {
-        if(*p_cur == '/')
-        {
-            if(log_create_dir(file_path, i+1) < 0)
+    for (; i <= path_len; i++, p_cur++) {
+        if (*p_cur == '/') {
+            if (log_create_dir(file_path, i + 1) < 0)
                 return -1;
         }
     }
-    if(NULL == (fp = fopen(file_path, "w")))
-    {
-		return 0;
+
+    if (NULL == (fp = fopen(file_path, "w"))) {
+        return 0;
     }
+
     fclose(fp);
+
     return 1;
 }
 
@@ -142,31 +142,32 @@ int log_create_log_file(struct log_handle *handle)
 {
     time_t t;
     struct tm local_time;
-    char tmp_log_file_name[1024+128];
+    char tmp_log_file_name[1024 + 128];
 
     time(&t);
-    if(NULL == (localtime_r(&t, &local_time)))
-    {
+    if (NULL == (localtime_r(&t, &local_time))) {
         return 0;
     }
-    snprintf(tmp_log_file_name, sizeof(tmp_log_file_name), "%s.%04d-%02d-%02d", handle->defined_log_fn, local_time.tm_year + 1900, local_time.tm_mon + 1, local_time.tm_mday);
+    snprintf(tmp_log_file_name, sizeof(tmp_log_file_name), "%s.%04d-%02d-%02d",
+             handle->defined_log_fn, local_time.tm_year + 1900,
+             local_time.tm_mon + 1, local_time.tm_mday);
 
-    if(handle->fp == NULL)
-    {
-	    if(0 != log_open_file(tmp_log_file_name, handle)) return 0;
-    }
-    else
-    {
-	    if (0 != memcmp(tmp_log_file_name, handle->runtime_log_fn, strlen(tmp_log_file_name)))
-	    {
-		    if(0 != log_open_file(tmp_log_file_name, handle))return 0;
-	    }
+    if (handle->fp == NULL) {
+        if (0 != log_open_file(tmp_log_file_name, handle))
+            return 0;
+    } else {
+        if (0 != memcmp(tmp_log_file_name, handle->runtime_log_fn,
+                        strlen(tmp_log_file_name))) {
+            if (0 != log_open_file(tmp_log_file_name, handle))
+                return 0;
+        }
     }
 
     return 1;
 }
 
-static void log_print_file(struct log_handle *handle, int level, const char *module, va_list ap, const char *fmt)
+static void log_print_file(struct log_handle *handle, int level, const char *module,
+                           va_list ap, const char *fmt)
 {
     char buf[64]={0};
 	time_t t;
@@ -176,7 +177,8 @@ static void log_print_file(struct log_handle *handle, int level, const char *mod
 	time(&t);
     if(NULL == (localtime_r(&t, &local_time))) return;
     snprintf(buf, sizeof(buf), "%s %s %d %02d:%02d:%02d %d", weekday_str[local_time.tm_wday],
-             month_str[local_time.tm_mon], local_time.tm_mday, local_time.tm_hour, local_time.tm_min, local_time.tm_sec, local_time.tm_year+1900);
+             month_str[local_time.tm_mon], local_time.tm_mday, local_time.tm_hour,
+             local_time.tm_min, local_time.tm_sec, local_time.tm_year+1900);
 
     log_create_log_file(handle);
     fprintf(handle->fp, "%s, %s, %s, ", buf, level_str_map[level], module);
@@ -186,7 +188,8 @@ static void log_print_file(struct log_handle *handle, int level, const char *mod
     fflush(handle->fp);
 }
 
-static void log_print_console(struct log_handle *handle, int level, const char *module, va_list ap, const char *fmt)
+static void log_print_console(struct log_handle *handle, int level, const char *module,
+                              va_list ap, const char *fmt)
 {
     char buf[64]={0};
 	time_t t;
@@ -196,7 +199,8 @@ static void log_print_console(struct log_handle *handle, int level, const char *
 	time(&t);
     if(NULL == (localtime_r(&t, &local_time))) return;
     snprintf(buf, sizeof(buf), "%s %s %d %02d:%02d:%02d %d", weekday_str[local_time.tm_wday],
-             month_str[local_time.tm_mon], local_time.tm_mday, local_time.tm_hour, local_time.tm_min, local_time.tm_sec, local_time.tm_year+1900);
+             month_str[local_time.tm_mon], local_time.tm_mday, local_time.tm_hour,
+             local_time.tm_min, local_time.tm_sec, local_time.tm_year+1900);
     fprintf(handle->fp, "%s, %s, %s, ", buf, level_str_map[level], module);
 
     vfprintf(handle->fp, fmt, ap);
@@ -204,18 +208,16 @@ static void log_print_console(struct log_handle *handle, int level, const char *
     fflush(handle->fp);
 }
 
-void log_options_set_level(struct log_handle * handle, int level)
+void log_handle_set_level(struct log_handle * handle, int level)
 {
-    if(handle != NULL)
-    {
+    if (handle != NULL) {
         handle->level = level;
     }
 }
 
-void log_options_set_enable(struct log_handle * handle, int enable)
+void log_handle_set_enable(struct log_handle * handle, int enable)
 {
-    if(handle != NULL)
-    {
+    if (handle != NULL) {
         handle->enable = enable;
     }
 }
@@ -223,17 +225,15 @@ void log_options_set_enable(struct log_handle * handle, int enable)
 struct log_handle *log_handle_create(const char *file_path, int level)
 {
     struct log_handle *handle = ALLOC(struct log_handle, 1);
-    if(!handle)
-    {
+    if (!handle) {
         return NULL;
     }
-	handle->enable=1;
+    handle->enable = 1;
     handle->level = level;
     strncpy(handle->defined_log_fn, file_path, 1024);
-    pthread_mutex_init(&handle->mutex,NULL);
+    pthread_mutex_init(&handle->mutex, NULL);
 
-    if(handle->enable)
-    {
+    if (handle->enable) {
         log_create_path(handle->defined_log_fn);
     }
 
@@ -242,37 +242,32 @@ struct log_handle *log_handle_create(const char *file_path, int level)
 
 void log_handle_destroy(struct log_handle * handle)
 {
-    if(!handle)
-    {
+    if (!handle) {
         return;
     }
 
-    if(handle->iface == LOG_OP_IFACE_FILE && handle->fp != NULL)
-    {
+    if (handle->iface == LOG_OP_IFACE_FILE && handle->fp != NULL) {
         fclose(handle->fp);
-        handle->fp=NULL;
+        handle->fp = NULL;
     }
 
     pthread_mutex_destroy(&(handle->mutex));
     free(handle);
     handle = NULL;
-    return;
 }
 
 void log_print(struct log_handle *handle, int level, const char *module, const char *fmt, ...)
 {
     va_list ap;
 
-    if(handle->enable != 1 && level >= handle->level)
-    {
+    if (handle->enable != 1 && level >= handle->level) {
         handle->fp = stdout;
         handle->iface = LOG_OP_IFACE_CONSOLE;
         va_start(handle->ap, fmt);
         log_print_console(handle, level, module, ap, fmt);
         va_end(handle->ap);
     }
-    if (handle->enable == 1 && level >= handle->level)
-    {
+    if (handle->enable == 1 && level >= handle->level) {
         handle->iface = LOG_OP_IFACE_FILE;
         va_start(ap, fmt);
         log_print_file(handle, level, module, ap, fmt);

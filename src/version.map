@@ -6,6 +6,7 @@ global:
         maat_new;
         maat_free;
         maat_get_table_id;
+        maat_reload_log_level;
         maat_table*;
         maat_compile_table*;
         maat_plugin_table*;

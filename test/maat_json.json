@@ -2268,34 +2268,6 @@
             ]
         },
         {
-            "compile_id": 183,
-            "service": 1,
-            "action": 1,
-            "do_blacklist": 1,
-            "do_log": 1,
-            "user_region": "StringScan.RegexWithNotContains",
-            "is_valid": "yes",
-            "groups": [
-                {
-                    "virtual_table": "CORNER_CASE_TABLE",
-                    "group_name": "183_expr_group",
-                    "group_id": 168,
-                    "regions": [
-                        {
-                            "table_name": "CORNER_CASE_TABLE",
-                            "table_type": "expr",
-                            "table_content": {
-                                "keywords": "^(?=.*/rain/a/TWF2021042600418000)(?!new.qq.com).*",
-                                "expr_type": "regex",
-                                "match_method": "sub",
-                                "format": "uncase plain"
-                            }
-                        }
-                    ]
-                }
-            ]
-        },
-        {
             "compile_id": 184,
             "user_region": "APP_ID=6006740;Liumengyan-Bugreport-20210515",
             "description": "Hulu",

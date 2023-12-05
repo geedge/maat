@@ -1370,7 +1370,7 @@ static int maat_add_group_to_compile(struct rcu_hash_table *hash_tbl,
         }
     }
 
-    return ret;
+    return 0;
 }
 
 static int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
@@ -1450,7 +1450,7 @@ static int maat_remove_group_from_compile(struct rcu_hash_table *hash_tbl,
         }
     }
 
-    return ret;
+    return 0;
 }
 
 struct compile_state *compile_state_new(void)

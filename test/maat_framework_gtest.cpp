@@ -6999,7 +6999,7 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
         maat_options_set_stat_file(opts, "./stat.log");
-        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_FATAL);
         maat_options_set_hit_path_enabled(opts);
         maat_options_set_hit_group_enabled(opts);
 
@@ -7038,6 +7038,7 @@ TEST_F(MaatCmdTest, SetIP) {
     const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
     struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    maat_reload_log_level(maat_inst, LOG_LEVEL_INFO);
 
     /* compile table add line */
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);

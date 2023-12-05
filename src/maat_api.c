@@ -353,7 +353,7 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
 
     if (strlen(maat_inst->opts.log_path) != 0) {
         maat_inst->logger = log_handle_create(maat_inst->opts.log_path,
-                                                  maat_inst->opts.log_level);
+                                              maat_inst->opts.log_level);
     } else {
         char log_path[MAX_NAME_STR_LEN] = {0};
         if (strlen(maat_inst->opts.inst_name) > 0) {
@@ -441,6 +441,12 @@ void maat_free(struct maat *maat_inst)
     
     maat_inst->is_running = 0;
 	pthread_join(maat_inst->cfg_mon_thread, &ret);
+}
+
+void maat_reload_log_level(struct maat *maat_inst, enum log_level level)
+{
+    maat_inst->opts.log_level = level;
+    log_handle_set_level(maat_inst->logger, level);
 }
 
 __thread int _thread_local_tid = -1;
@@ -542,7 +548,8 @@ int maat_table_callback_register(struct maat *maat_inst, int table_id,
     if (table_type != TABLE_TYPE_PLUGIN) {
         pthread_mutex_unlock(&(maat_inst->background_update_mutex));
         log_fatal(maat_inst->logger, MODULE_MAAT_API, 
-                  "[%s:%d] table type:%d illegal", __FUNCTION__, __LINE__, table_type);
+                  "[%s:%d] table type:%d illegal",
+                  __FUNCTION__, __LINE__, table_type);
         return -1;
     }
 

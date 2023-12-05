@@ -39,8 +39,8 @@ enum {
 #define log_fatal(handle, module, fmt, ...)	   log_print(handle, LOG_FATAL, module, fmt, ##__VA_ARGS__)
 
 void log_print(struct log_handle *, int level, const char *module, const char *fmt, ...);
-void log_options_set_enable(struct log_handle *, int enable);
-void log_options_set_level(struct log_handle *, int level);
+void log_handle_set_enable(struct log_handle *, int enable);
+void log_handle_set_level(struct log_handle *, int level);
 
 struct log_handle * log_handle_create(const char *file_path, int level);
 void log_handle_destroy(struct log_handle *);

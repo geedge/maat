@@ -181,10 +181,7 @@ static int cm_read_table_file(struct cm_table_info_t *index,
 			continue;
 		}
 
-		ret = update_fn(index->table_name, line, u_param);
-		if (ret < 0) {
-			break;
-		}
+		update_fn(index->table_name, line, u_param);
 	}
 
 	FREE(file_buff);
