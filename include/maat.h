@@ -325,6 +325,7 @@ size_t maat_state_get_scan_count(struct maat_state *state);
  * @brief direct group means group corresponding to item
  * 
  * NOTE: hit groups may be duplicated
+ *       
 */
 int maat_state_get_direct_hit_groups(struct maat_state *state,
                                      struct maat_hit_group *group_array,
@@ -341,6 +342,12 @@ int maat_state_get_indirect_hit_groups(struct maat_state *state,
                                        size_t array_size);
 size_t maat_state_get_indirect_hit_group_cnt(struct maat_state *state);
 
+/**
+ * @brief get last scan hit group id(including direct/indirect)
+*/
+int maat_state_get_last_hit_group_ids(struct maat_state *state,
+                                      long long *group_id_array,
+                                      size_t array_size);
 #ifdef __cplusplus
 }
 #endif

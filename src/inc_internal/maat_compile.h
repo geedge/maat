@@ -119,6 +119,10 @@ size_t compile_state_get_indirect_hit_groups(struct compile_state *compile_state
 
 size_t compile_state_get_indirect_hit_group_cnt(struct compile_state *compile_state);
 
+size_t compile_state_get_last_hit_group_id(struct compile_state *compile_state,
+                                           long long *group_id_arary,
+                                           size_t array_size);
+
 int compile_state_get_compile_table_id(struct compile_state *compile_state,
                                        long long compile_id);
 

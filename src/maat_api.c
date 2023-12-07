@@ -2140,3 +2140,15 @@ size_t maat_state_get_indirect_hit_group_cnt(struct maat_state *state)
 
     return compile_state_get_indirect_hit_group_cnt(state->compile_state);
 }
+
+int maat_state_get_last_hit_group_ids(struct maat_state *state,
+                                      long long *group_id_array,
+                                      size_t array_size)
+{
+    if (NULL == state || NULL == state->compile_state) {
+        return 0;
+    }
+
+    return compile_state_get_last_hit_group_id(state->compile_state,
+                                               group_id_array, array_size);
+}

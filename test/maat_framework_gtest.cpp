@@ -8745,6 +8745,7 @@ TEST_F(MaatCmdTest, HitGroup) {
 
     struct maat_hit_group hit_groups[128];
     memset(hit_groups, 0, sizeof(hit_groups));
+
     size_t n_hit_group = maat_state_get_direct_hit_group_cnt(state);
     maat_state_get_direct_hit_groups(state, hit_groups, n_hit_group);
     EXPECT_EQ(n_hit_group, 1);
@@ -8760,8 +8761,14 @@ TEST_F(MaatCmdTest, HitGroup) {
     EXPECT_EQ(hit_groups[0].group_id, group11_id);
     EXPECT_EQ(hit_groups[0].vtable_id, http_req_table_id);
 
+    long long last_hit_group_ids[128] = {0};
+    size_t n_last_hit_group = maat_state_get_last_hit_group_ids(state, last_hit_group_ids, 128);
+    EXPECT_EQ(n_last_hit_group, 2);
+    EXPECT_EQ(last_hit_group_ids[0], group1_id);
+    EXPECT_EQ(last_hit_group_ids[1], group11_id);
+
     int http_res_table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
-	ASSERT_GT(http_res_table_id, 0);
+    ASSERT_GT(http_res_table_id, 0);
 
     const char *district_str1 = "Cookie";
     ret = maat_state_set_scan_district(state, http_res_table_id, district_str1,
@@ -8799,6 +8806,11 @@ TEST_F(MaatCmdTest, HitGroup) {
     EXPECT_EQ(hit_groups[0].group_id, group21_id);
     EXPECT_EQ(hit_groups[0].vtable_id, http_res_table_id);
     
+    n_last_hit_group = maat_state_get_last_hit_group_ids(state, last_hit_group_ids, 128);
+    EXPECT_EQ(n_last_hit_group, 2);
+    EXPECT_EQ(last_hit_group_ids[0], group2_id);
+    EXPECT_EQ(last_hit_group_ids[1], group21_id);
+
     const char* keywords1="In graph theory, hit group item forth";
     const char *keywords2="To test one group hit group item fifth";
     
@@ -8857,6 +8869,11 @@ TEST_F(MaatCmdTest, HitGroup) {
     EXPECT_EQ(hit_groups[0].item_id, item5_id);
     EXPECT_EQ(hit_groups[0].group_id, group1_id);
     EXPECT_EQ(hit_groups[0].vtable_id, keywords_table_id); //physical table(keywords_table) vtable_id is 0
+
+    n_last_hit_group = maat_state_get_last_hit_group_ids(state, last_hit_group_ids, 128);
+    EXPECT_EQ(n_last_hit_group, 2);
+    EXPECT_EQ(last_hit_group_ids[0], group1_id);
+    EXPECT_EQ(last_hit_group_ids[1], group11_id);
 
     maat_stream_free(stream);
     maat_state_free(state);
