@@ -62,7 +62,6 @@ struct compile_item {
     long long compile_id;
     char *table_line;
     size_t table_line_len;
-    char table_name[MAX_NAME_STR_LEN];
 };
 
 struct group2compile_item {
@@ -103,7 +102,6 @@ struct table_group {
 struct compile_runtime {
 	struct bool_matcher *bm;
     struct rcu_hash_table *cfg_hash;     // <compile_id, struct maat_compile>
-    struct rcu_hash_table *tbl_cfg_hash; // <compile_id, table_id>
     struct maat_runtime *ref_maat_rt;
     struct clause_id_kv *clause_id_kv_hash;     //store clause_ids(not_flag == 0)
     struct clause_id_kv *not_clause_id_kv_hash; //store NOT_clause_ids(not_flag == 1)
@@ -148,9 +146,9 @@ struct maat_compile {
 	uint32_t magic_num;
     int actual_clause_num;
 	int declared_clause_num;
-	long long compile_id;
-    char table_name[MAX_NAME_STR_LEN];
-	void *user_data; // compile_item
+    int table_id;
+    long long compile_id;
+    void *user_data; // compile_item
 	struct compile_clause clauses[MAX_ITEMS_PER_BOOL_EXPR];
 };
 
@@ -207,19 +205,18 @@ static struct maat_compile *maat_compile_new(long long compile_id)
 	return compile;
 }
 
-static int maat_compile_set(struct maat_compile *compile, const char *table_name,
+static int maat_compile_set(struct maat_compile *compile, int table_id,
                             int declared_clause_num, void *user_data)
 {
     if (NULL == compile) {
         return -1;
     }
 
-    memset(compile->table_name, 0, sizeof(compile->table_name));
-    memcpy(compile->table_name, table_name, sizeof(compile->table_name));
-	compile->declared_clause_num = declared_clause_num;
-	compile->user_data = user_data;
+    compile->table_id = table_id;
+    compile->declared_clause_num = declared_clause_num;
+    compile->user_data = user_data;
 
-	return 0;
+    return 0;
 }
 
 static int compile_accept_tag_match(struct compile_schema *schema, const char *line,
@@ -305,7 +302,6 @@ compile_item_new(const char *table_line, struct compile_schema *schema,
 		goto error;
     }
 
-    memcpy(compile_item->table_name, table_name, sizeof(compile_item->table_name));
     compile_item->table_line_len = strlen(table_line);
     compile_item->table_line = ALLOC(char, compile_item->table_line_len + 1);
     memcpy(compile_item->table_line, table_line, compile_item->table_line_len);
@@ -356,11 +352,6 @@ static void rcu_compile_cfg_free(void *user_ctx, void *data)
 {
     struct maat_compile *compile = (struct maat_compile *)data;
     maat_compile_free(compile);
-}
-
-static void rcu_compile_table_cfg_free(void *user_ctx, void *data)
-{
-    FREE(data);
 }
 
 void *compile_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
@@ -544,7 +535,6 @@ void *compile_runtime_new(void *compile_schema, size_t max_thread_num,
                                         max_thread_num * MAX_HIT_COMPILE_NUM);
     compile_rt->version = time(NULL);
     compile_rt->cfg_hash = rcu_hash_new(rcu_compile_cfg_free, NULL, COMPILE_GC_TIMEOUT_S);
-    compile_rt->tbl_cfg_hash = rcu_hash_new(rcu_compile_table_cfg_free, NULL, 0);
     compile_rt->clause_id_kv_hash = NULL;
     compile_rt->not_clause_id_kv_hash = NULL;
     compile_rt->logger = logger;
@@ -592,11 +582,6 @@ void compile_runtime_free(void *compile_runtime)
         compile_rt->cfg_hash = NULL;
     }
     
-    if (compile_rt->tbl_cfg_hash != NULL) {
-        rcu_hash_free(compile_rt->tbl_cfg_hash);
-        compile_rt->tbl_cfg_hash = NULL;
-    }
-
     if (compile_rt->clause_id_kv_hash != NULL) {
         clause_id_kv_hash_free(compile_rt->clause_id_kv_hash);
         compile_rt->clause_id_kv_hash = NULL;
@@ -1190,19 +1175,6 @@ static void compile_state_update_hit_compile_table_id(struct compile_state *comp
     }
 }
 
-static int compile_runtime_get_compile_table_id(struct compile_runtime *compile_rt,
-                                                long long compile_id)
-{
-    if (NULL == compile_rt || compile_id < 0) {
-        return -1;
-    }
-
-    int *table_id = rcu_hash_find(compile_rt->tbl_cfg_hash, (char *)&compile_id,
-                                  sizeof(long long));
-
-    return *table_id;
-}
-
 static size_t maat_compile_bool_matcher_match(struct compile_runtime *compile_rt,
                                               struct compile_state *compile_state,
                                               int thread_id, void **user_data_array,
@@ -1249,11 +1221,8 @@ static size_t maat_compile_bool_matcher_match(struct compile_runtime *compile_rt
         if (compile->user_data != NULL && n_new_hit_compile > 0) {
             user_data_array[ud_result_cnt] = compile->user_data;
 			ud_result_cnt++;
-
-            int table_id = compile_runtime_get_compile_table_id(compile_rt, compile->compile_id);
-            if (table_id >= 0) {
-                compile_state_update_hit_compile_table_id(compile_state, compile->compile_id, table_id);
-            }
+            compile_state_update_hit_compile_table_id(compile_state, compile->compile_id,
+                                                      compile->table_id);
         }
 	}
 
@@ -1266,7 +1235,6 @@ static struct compile_item *compile_item_clone(struct compile_item *item)
 
     new_item->compile_id = item->compile_id;
     new_item->declared_clause_num = item->declared_clause_num;
-    memcpy(new_item->table_name, item->table_name, sizeof(new_item->table_name));
     new_item->table_line_len = item->table_line_len;
     new_item->table_line = ALLOC(char, new_item->table_line_len + 1);
     memcpy(new_item->table_line, item->table_line, new_item->table_line_len);
@@ -1283,7 +1251,6 @@ maat_compile_clone(struct maat_compile *compile, int deep_copy)
     new_compile->compile_id = compile->compile_id;
     new_compile->actual_clause_num = compile->actual_clause_num;
     new_compile->declared_clause_num = compile->declared_clause_num;
-    memcpy(new_compile->table_name, compile->table_name, sizeof(new_compile->table_name));
     if (1 == deep_copy && compile->user_data != NULL) {
         new_compile->user_data = compile_item_clone((struct compile_item *)compile->user_data);
     }
@@ -1748,8 +1715,6 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, int thr
 {
     /* assign hit_path_array[].compile_id */
     size_t n_new_hit_path = 0;
-    size_t n_clause_index = 0;
-    int clause_index_array[MAX_ITEMS_PER_BOOL_EXPR] = {0};
     struct maat_compile *compile = NULL;
     struct clause_query_key key = {0, 0, 0};
     struct bool_expr_match *expr_match = compile_rt->expr_match_buff + 
@@ -1993,7 +1958,7 @@ int compile_state_get_compile_table_id(struct compile_state *compile_state,
 static int compile_runtime_add_compile(struct compile_runtime *compile_rt,
                                        struct compile_schema *schema,
                                        long long compile_id, const char *table_name,
-                                       const char *line)
+                                       const char *line, struct log_handle *logger)
 {
     struct maat_compile *compile = NULL;
     struct compile_item *compile_item = compile_item_new(line, schema, table_name,
@@ -2001,7 +1966,15 @@ static int compile_runtime_add_compile(struct compile_runtime *compile_rt,
     if (NULL == compile_item) {
         return -1;
     }
-    
+
+    int table_id = table_manager_get_table_id(schema->ref_tbl_mgr, table_name);
+    if (table_id < 0) {
+        log_fatal(logger, MODULE_COMPILE,
+                  "[%s:%d]table_name:%s has invalid table_id:%d, drop line:%s", __FUNCTION__,
+                  __LINE__, table_name, table_id, line);
+        return -1;
+    }
+
     int updating_flag = rcu_hash_is_updating(compile_rt->cfg_hash);
     if (1 == updating_flag) {
         compile = rcu_updating_hash_find(compile_rt->cfg_hash, (char *)&compile_id,
@@ -2016,12 +1989,12 @@ static int compile_runtime_add_compile(struct compile_runtime *compile_rt,
            ******************************************************************/
 
             /* compile has group2compile_table info, so set compile_table info */
-            maat_compile_set(compile, table_name, compile_item->declared_clause_num, compile_item);
+            maat_compile_set(compile, table_id, compile_item->declared_clause_num, compile_item);
         } else {
             // compile neither in effective hash nor in updating hash
             compile = maat_compile_new(compile_item->compile_id);
             assert(compile != NULL);
-            maat_compile_set(compile, table_name, compile_item->declared_clause_num, compile_item);
+            maat_compile_set(compile, table_id, compile_item->declared_clause_num, compile_item);
             rcu_hash_add(compile_rt->cfg_hash, (char *)&compile_id, sizeof(long long), compile);
         }
     } else {
@@ -2043,13 +2016,13 @@ static int compile_runtime_add_compile(struct compile_runtime *compile_rt,
             rcu_hash_del(compile_rt->cfg_hash, (char *)&compile_id, sizeof(long long));
 
             /* copy_compile has group2compile_table info, so set compile_table info */
-            maat_compile_set(copy_compile, table_name, compile_item->declared_clause_num, compile_item);
+            maat_compile_set(copy_compile, table_id, compile_item->declared_clause_num, compile_item);
             /* add copy_compile to rcu hash */
             rcu_hash_add(compile_rt->cfg_hash, (char *)&compile_id, sizeof(long long), copy_compile);
         } else {
             compile = maat_compile_new(compile_item->compile_id);
             assert(compile != NULL);
-            maat_compile_set(compile, table_name, compile_item->declared_clause_num, compile_item);
+            maat_compile_set(compile, table_id, compile_item->declared_clause_num, compile_item);
             rcu_hash_add(compile_rt->cfg_hash, (char *)&compile_id, sizeof(long long), compile);
         }
     }
@@ -2158,21 +2131,12 @@ int compile_runtime_update(void *compile_runtime, void *compile_schema,
     if (0 == is_valid) {
         // delete
         compile_runtime_del_compile(compile_rt, compile_id);
-        rcu_hash_del(compile_rt->tbl_cfg_hash, (char *)&compile_id, sizeof(long long));
     } else {
         // add
         int ret = compile_runtime_add_compile(compile_rt, schema, compile_id, 
-                                              table_name, line);
+                                              table_name, line, compile_rt->logger);
         if (ret < 0) {
             compile_rt->update_err_cnt++;
-        }
-
-        int *table_id = ALLOC(int, 1);
-        *table_id = table_manager_get_table_id(schema->ref_tbl_mgr, table_name);
-        ret = rcu_hash_add(compile_rt->tbl_cfg_hash, (char *)&compile_id, 
-                           sizeof(long long), table_id);
-        if (ret < 0) {
-            FREE(table_id);
         }
     }
 
@@ -2387,7 +2351,6 @@ int compile_runtime_commit(void *compile_runtime, const char *table_name,
     compile_rt->clause_id_kv_hash = new_clause_id_kv_hash;
     compile_rt->not_clause_id_kv_hash = new_not_clause_id_kv_hash;
     rcu_hash_commit(compile_rt->cfg_hash); //after commit, old cfg still available within COMPILE_GC_TIMEOUT_S.
-    rcu_hash_commit(compile_rt->tbl_cfg_hash);
 
     maat_garbage_bagging(compile_rt->ref_garbage_bin, old_bool_matcher, NULL,
                         garbage_bool_matcher_free);
