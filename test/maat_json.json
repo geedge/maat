@@ -1845,6 +1845,7 @@
                     "virtual_table": "HTTP_URL",
                     "group_name": "167_url_group",
                     "group_id": 158,
+                    "clause_index": 1,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -1857,6 +1858,12 @@
                             }
                         }
                     ]
+                },
+                {
+                    "virtual_table": "HTTP_URL",
+                    "group_name": "167_url_group",
+                    "group_id": 158,
+                    "clause_index": 3
                 }
             ]
         },
@@ -1872,20 +1879,15 @@
             "groups": [
                 {
                     "virtual_table": "HTTP_URL",
-                    "group_name": "168_url_group",
-                    "group_id": 159,
-                    "regions": [
-                        {
-                            "table_name": "HTTP_URL",
-                            "table_type": "expr",
-                            "table_content": {
-                                "keywords": "2019/12/27",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
-                            }
-                        }
-                    ]
+                    "group_name": "167_url_group",
+                    "group_id": 158,
+                    "clause_index": 2
+                },
+                {
+                    "virtual_table": "HTTP_URL",
+                    "group_name": "167_url_group",
+                    "group_id": 158,
+                    "clause_index": 6
                 }
             ]
         },
@@ -1902,6 +1904,7 @@
                     "virtual_table": "IP_PLUS_CONFIG",
                     "group_name": "169_IP_group",
                     "group_id": 160,
+                    "clause_index": 0,
                     "not_flag" : 0,
                     "regions": [
                         {

@@ -529,6 +529,7 @@ int group2compile_associated_compile_table_id(void *g2c_schema)
     return schema->asso_compile_table_id;
 }
 
+#define COMPILE_GC_TIMEOUT_S 5
 void *compile_runtime_new(void *compile_schema, size_t max_thread_num,
                           struct maat_garbage_bin *garbage_bin, 
                           struct log_handle *logger)
@@ -542,7 +543,7 @@ void *compile_runtime_new(void *compile_schema, size_t max_thread_num,
     compile_rt->expr_match_buff = ALLOC(struct bool_expr_match, 
                                         max_thread_num * MAX_HIT_COMPILE_NUM);
     compile_rt->version = time(NULL);
-    compile_rt->cfg_hash = rcu_hash_new(rcu_compile_cfg_free, NULL, 0);
+    compile_rt->cfg_hash = rcu_hash_new(rcu_compile_cfg_free, NULL, COMPILE_GC_TIMEOUT_S);
     compile_rt->tbl_cfg_hash = rcu_hash_new(rcu_compile_table_cfg_free, NULL, 0);
     compile_rt->clause_id_kv_hash = NULL;
     compile_rt->not_clause_id_kv_hash = NULL;
@@ -1641,6 +1642,39 @@ static int maat_compile_has_clause_query_key(struct maat_compile *compile,
 	return 0;
 }
 
+static size_t maat_compile_get_hit_clause_index(struct maat_compile *compile, 
+                                                int vtable_id, long long hit_group_id,
+                                                int *clause_idx_array, size_t array_size)
+{
+    size_t hit_clause_cnt = 0;
+    struct compile_clause *tmp_clause = NULL;
+
+    for (int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
+        tmp_clause = &compile->clauses[i];
+        if (!tmp_clause->in_use) {
+            continue;
+        }
+
+        struct clause_literal *tmp_cl = NULL;
+        for (size_t j = 0; j < utarray_len(tmp_clause->literals); j++) {
+            tmp_cl = (struct clause_literal *)utarray_eltptr(tmp_clause->literals, j);
+            if (tmp_cl->vtable_id != vtable_id) {
+                continue;
+            }
+
+            long long *tmp_group_id = bsearch(&hit_group_id, tmp_cl->group_ids,
+                                              tmp_cl->group_cnt, sizeof(long long),
+                                              compare_group_id);
+            if (tmp_group_id != NULL) {
+                clause_idx_array[hit_clause_cnt++] = i;
+                break;
+            }
+        }
+    }
+
+    return hit_clause_cnt;
+}
+
 static int maat_compile_is_hit_path_existed(const struct maat_hit_path *hit_paths,
                                             size_t n_path, const struct maat_hit_path *find)
 {
@@ -1653,13 +1687,69 @@ static int maat_compile_is_hit_path_existed(const struct maat_hit_path *hit_path
 	return 0;
 }
 
+void populate_hit_path_with_compile(struct maat_hit_path *hit_path_array,
+                                    size_t array_idx, size_t n_hit_path,
+                                    size_t *n_new_hit_path, struct maat_compile *compile)
+{
+    size_t i = 0;
+    size_t idx = array_idx;
+    size_t n_clause_index = 0;
+    size_t new_hit_path_cnt = *n_new_hit_path;
+    int clause_index_array[MAX_ITEMS_PER_BOOL_EXPR] = {0};
+
+    if (hit_path_array[idx].top_group_id < 0) {
+        hit_path_array[idx].top_group_id = hit_path_array[idx].sub_group_id;
+    }
+
+    struct maat_hit_path tmp_path;
+    if (hit_path_array[idx].compile_id < 0) {
+        hit_path_array[idx].compile_id = compile->compile_id;
+        // find out which clause in compile hit
+        n_clause_index = maat_compile_get_hit_clause_index(compile, hit_path_array[idx].vtable_id,
+                                                           hit_path_array[idx].top_group_id, clause_index_array,
+                                                           MAX_ITEMS_PER_BOOL_EXPR);
+        hit_path_array[idx].clause_index = clause_index_array[0];
+        if (n_clause_index > 1) {
+            for (i = 1; i < n_clause_index; i++) {
+                tmp_path = hit_path_array[idx];
+                tmp_path.clause_index = clause_index_array[i];
+                hit_path_array[n_hit_path + new_hit_path_cnt] = tmp_path;
+                new_hit_path_cnt++;
+            }
+        }
+    } else {
+        // means same clause_query_id hit more than one compile_id
+        tmp_path = hit_path_array[idx];
+        tmp_path.compile_id = compile->compile_id;
+        if (!maat_compile_is_hit_path_existed(hit_path_array, n_hit_path + new_hit_path_cnt, &tmp_path)) {
+            hit_path_array[n_hit_path + new_hit_path_cnt] = tmp_path;
+            new_hit_path_cnt++;
+            n_clause_index = maat_compile_get_hit_clause_index(compile, tmp_path.vtable_id, tmp_path.top_group_id,
+                                                               clause_index_array, MAX_ITEMS_PER_BOOL_EXPR);
+            hit_path_array[n_hit_path + new_hit_path_cnt - 1].clause_index = clause_index_array[0];
+            if (n_clause_index > 1) {
+                for (i = 1; i < n_clause_index; i++) {
+                    tmp_path = hit_path_array[n_hit_path + new_hit_path_cnt - 1];
+                    tmp_path.clause_index = clause_index_array[i];
+                    hit_path_array[n_hit_path + new_hit_path_cnt] = tmp_path;
+                    new_hit_path_cnt++;
+                }
+            }
+        }
+    }
+
+    *n_new_hit_path = new_hit_path_cnt;
+}
+
 size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, int thread_id,
 									 struct compile_state *compile_state, 
                                   	 struct maat_hit_path *hit_path_array, 
                                      size_t array_size, size_t n_hit_path)
 {
     /* assign hit_path_array[].compile_id */
-    size_t new_hit_path_cnt = 0;
+    size_t n_new_hit_path = 0;
+    size_t n_clause_index = 0;
+    int clause_index_array[MAX_ITEMS_PER_BOOL_EXPR] = {0};
     struct maat_compile *compile = NULL;
     struct clause_query_key key = {0, 0, 0};
     struct bool_expr_match *expr_match = compile_rt->expr_match_buff + 
@@ -1682,7 +1772,7 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, int thr
 			continue;
 		}
 
-        for (size_t j = 0; j < n_hit_path && (n_hit_path + new_hit_path_cnt) < array_size; j++) {
+        for (size_t j = 0; j < n_hit_path && (n_hit_path + n_new_hit_path) < array_size; j++) {
 			if (hit_path_array[j].top_group_id < 0) {
                 key.group_id = hit_path_array[j].sub_group_id;
 			} else {
@@ -1692,26 +1782,12 @@ size_t compile_runtime_get_hit_paths(struct compile_runtime *compile_rt, int thr
 			key.vtable_id = hit_path_array[j].vtable_id;
             key.not_flag = hit_path_array[j].NOT_flag;
 			if (maat_compile_has_clause_query_key(compile, &key)) {
-                if (hit_path_array[j].top_group_id < 0) {
-                    hit_path_array[j].top_group_id = hit_path_array[j].sub_group_id;
-                }
-
-				if (hit_path_array[j].compile_id < 0) {
-					hit_path_array[j].compile_id = compile->compile_id;
-				} else {
-                    // means same clause_query_id hit more than one compile_id
-					struct maat_hit_path tmp_path = hit_path_array[j];
-					tmp_path.compile_id = compile->compile_id;
-					if(!maat_compile_is_hit_path_existed(hit_path_array, n_hit_path + new_hit_path_cnt, &tmp_path)) {
-						hit_path_array[n_hit_path + new_hit_path_cnt] = tmp_path;
-						new_hit_path_cnt++;
-					}
-				}
+                populate_hit_path_with_compile(hit_path_array, j, n_hit_path, &n_new_hit_path, compile);
 			}
 		}
 	}
 
-    return (n_hit_path + new_hit_path_cnt);
+    return (n_hit_path + n_new_hit_path);
 }
 
 static void compile_state_add_direct_hit_groups(struct compile_state *compile_state,
@@ -2310,7 +2386,7 @@ int compile_runtime_commit(void *compile_runtime, const char *table_name,
     compile_rt->bm = new_bool_matcher;
     compile_rt->clause_id_kv_hash = new_clause_id_kv_hash;
     compile_rt->not_clause_id_kv_hash = new_not_clause_id_kv_hash;
-    rcu_hash_commit(compile_rt->cfg_hash);
+    rcu_hash_commit(compile_rt->cfg_hash); //after commit, old cfg still available within COMPILE_GC_TIMEOUT_S.
     rcu_hash_commit(compile_rt->tbl_cfg_hash);
 
     maat_garbage_bagging(compile_rt->ref_garbage_bin, old_bool_matcher, NULL,
@@ -2609,9 +2685,11 @@ size_t compile_state_get_internal_hit_paths(struct compile_state *compile_state,
             tmp_path.top_group_id = *p;
             tmp_path.vtable_id = internal_path->vtable_id;
             tmp_path.NOT_flag = internal_path->NOT_flag;
+            tmp_path.clause_index = -1;
             tmp_path.compile_id = -1;
 
-           /* check if internal_path is duplicated from hit_path_array[] element */
+            /* check if internal_path is duplicated from hit_path_array[]
+             * element */
             if (hit_path_cnt > 0) {
                 if (maat_compile_is_hit_path_existed(hit_path_array, hit_path_cnt, &tmp_path)) {
                     continue;
