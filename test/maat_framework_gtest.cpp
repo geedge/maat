@@ -6471,6 +6471,80 @@ TEST_F(Policy, EvaluationOrder) {
     maat_state_free(state);
 }
 
+TEST_F(Policy, NotClauseHitPath) {
+    const char *url_table_name = "HTTP_URL";
+    const char *ip_table_name = "VIRTUAL_IP_CONFIG";
+    const char *url = "www.youtube.com";
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    struct maat *maat_inst = Policy::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int url_table_id = maat_get_table_id(maat_inst, url_table_name);
+	ASSERT_GT(url_table_id, 0);
+
+    int ret = maat_scan_string(maat_inst, url_table_id, url, strlen(url),
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+
+    int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
+    ASSERT_GT(ip_table_id, 0);
+
+    uint32_t ip_addr;
+    inet_pton(AF_INET, "192.168.101.101", &ip_addr);
+    uint16_t port = htons(65530);
+
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6, results,
+                         ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_not_logic(maat_inst, ip_table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 228);
+
+    struct maat_hit_path hit_path[128];
+    memset(hit_path, 0, sizeof(hit_path));
+    size_t n_hit_path = maat_state_get_hit_paths(state, hit_path, 128);
+    EXPECT_EQ(n_hit_path, 4);
+
+    EXPECT_EQ(hit_path[0].Nth_scan, 1);
+    EXPECT_EQ(hit_path[0].vtable_id, url_table_id);
+    EXPECT_EQ(hit_path[0].NOT_flag, 0);
+    EXPECT_EQ(hit_path[0].clause_index, 1);
+    EXPECT_EQ(hit_path[0].sub_group_id, 249);
+    EXPECT_EQ(hit_path[0].top_group_id, 249);
+    EXPECT_EQ(hit_path[0].compile_id, 228);
+
+    EXPECT_EQ(hit_path[1].Nth_scan, 2);
+    EXPECT_EQ(hit_path[1].vtable_id, ip_table_id);
+    EXPECT_EQ(hit_path[1].NOT_flag, 1);
+    EXPECT_EQ(hit_path[1].clause_index, -1);
+    EXPECT_EQ(hit_path[1].sub_group_id, 100);
+    EXPECT_EQ(hit_path[1].top_group_id, 144);
+    EXPECT_EQ(hit_path[1].compile_id, -1);
+
+    EXPECT_EQ(hit_path[2].Nth_scan, 2);
+    EXPECT_EQ(hit_path[2].vtable_id, ip_table_id);
+    EXPECT_EQ(hit_path[2].NOT_flag, 1);
+    EXPECT_EQ(hit_path[2].clause_index, -1);
+    EXPECT_EQ(hit_path[2].sub_group_id, 100);
+    EXPECT_EQ(hit_path[2].top_group_id, -1);
+    EXPECT_EQ(hit_path[2].compile_id, -1);
+
+    EXPECT_EQ(hit_path[3].Nth_scan, 2);
+    EXPECT_EQ(hit_path[3].vtable_id, ip_table_id);
+    EXPECT_EQ(hit_path[3].NOT_flag, 1);
+    EXPECT_EQ(hit_path[3].clause_index, 2);
+    EXPECT_EQ(hit_path[3].sub_group_id, 250);
+    EXPECT_EQ(hit_path[3].top_group_id, 250);
+    EXPECT_EQ(hit_path[3].compile_id, 228);
+
+    maat_state_free(state);
+}
+
 TEST_F(Policy, ReadColumn) {
     const char *ip = "192.168.0.1";
 	const char *tmp = "something";

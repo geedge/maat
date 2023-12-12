@@ -4164,6 +4164,59 @@
                     "g2c_table_name": "GROUP2COMPILE_FIREWALL"
                 }
             ]
+        },
+        {
+            "compile_id": 228,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "NotClauseHitPath",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "virtual_table": "HTTP_URL",
+                    "group_name": "228_url_group",
+                    "group_id": 249,
+                    "not_flag": 0,
+                    "clause_index": 1,
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "youtube.com",
+                                "expr_type": "none",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtual_table": "VIRTUAL_IP_CONFIG",
+                    "group_name": "228_IP_group",
+                    "group_id": 250,
+                    "not_flag": 1,
+                    "clause_index": 2,
+                    "regions": [
+                        {
+                            "table_name": "IP_CONFIG",
+                            "table_type": "ip_plus",
+                            "table_content": {
+                                "addr_type": "ipv4",
+                                "addr_format": "mask",
+                                "ip1": "192.168.101.102",
+                                "ip2": "255.255.255.255",
+                                "port_format": "range",
+                                "port1": "0",
+                                "port2": "65535",
+                                "protocol": 6
+                            }
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "plugin_table": [
