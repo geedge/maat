@@ -123,6 +123,8 @@ size_t compile_state_get_last_hit_group_id(struct compile_state *compile_state,
                                            long long *group_id_arary,
                                            size_t array_size);
 
+size_t compile_state_get_last_hit_group_id_cnt(struct compile_state *compile_state);
+
 int compile_state_get_compile_table_id(struct compile_state *compile_state,
                                        long long compile_id);
 

@@ -8877,8 +8877,9 @@ TEST_F(MaatCmdTest, HitGroup) {
     EXPECT_EQ(hit_groups[0].group_id, group11_id);
     EXPECT_EQ(hit_groups[0].vtable_id, http_req_table_id);
 
+    size_t n_last_hit_group = maat_state_get_last_hit_group_id_cnt(state);
     long long last_hit_group_ids[128] = {0};
-    size_t n_last_hit_group = maat_state_get_last_hit_group_ids(state, last_hit_group_ids, 128);
+    maat_state_get_last_hit_group_ids(state, last_hit_group_ids, 128);
     EXPECT_EQ(n_last_hit_group, 2);
     EXPECT_EQ(last_hit_group_ids[0], group1_id);
     EXPECT_EQ(last_hit_group_ids[1], group11_id);
@@ -8922,7 +8923,8 @@ TEST_F(MaatCmdTest, HitGroup) {
     EXPECT_EQ(hit_groups[0].group_id, group21_id);
     EXPECT_EQ(hit_groups[0].vtable_id, http_res_table_id);
     
-    n_last_hit_group = maat_state_get_last_hit_group_ids(state, last_hit_group_ids, 128);
+    n_last_hit_group = maat_state_get_last_hit_group_id_cnt(state);
+    maat_state_get_last_hit_group_ids(state, last_hit_group_ids, 128);
     EXPECT_EQ(n_last_hit_group, 2);
     EXPECT_EQ(last_hit_group_ids[0], group2_id);
     EXPECT_EQ(last_hit_group_ids[1], group21_id);
@@ -8986,7 +8988,8 @@ TEST_F(MaatCmdTest, HitGroup) {
     EXPECT_EQ(hit_groups[0].group_id, group1_id);
     EXPECT_EQ(hit_groups[0].vtable_id, keywords_table_id); //physical table(keywords_table) vtable_id is 0
 
-    n_last_hit_group = maat_state_get_last_hit_group_ids(state, last_hit_group_ids, 128);
+    n_last_hit_group = maat_state_get_last_hit_group_id_cnt(state);
+    maat_state_get_last_hit_group_ids(state, last_hit_group_ids, 128);
     EXPECT_EQ(n_last_hit_group, 2);
     EXPECT_EQ(last_hit_group_ids[0], group1_id);
     EXPECT_EQ(last_hit_group_ids[1], group11_id);

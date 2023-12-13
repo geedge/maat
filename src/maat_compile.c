@@ -2578,6 +2578,11 @@ size_t compile_state_get_last_hit_group_id(struct compile_state *compile_state,
     return i;
 }
 
+size_t compile_state_get_last_hit_group_id_cnt(struct compile_state *compile_state)
+{
+    return utarray_len(compile_state->last_hit_group_ids);
+}
+
 size_t compile_state_get_direct_hit_groups(struct compile_state *compile_state,
                                            struct maat_hit_group *group_array,
                                            size_t array_size)

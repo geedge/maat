@@ -2152,3 +2152,12 @@ int maat_state_get_last_hit_group_ids(struct maat_state *state,
     return compile_state_get_last_hit_group_id(state->compile_state,
                                                group_id_array, array_size);
 }
+
+size_t maat_state_get_last_hit_group_id_cnt(struct maat_state *state)
+{
+    if (NULL == state || NULL == state->compile_state) {
+        return 0;
+    }
+
+    return compile_state_get_last_hit_group_id_cnt(state->compile_state);
+}

@@ -349,6 +349,9 @@ size_t maat_state_get_indirect_hit_group_cnt(struct maat_state *state);
 int maat_state_get_last_hit_group_ids(struct maat_state *state,
                                       long long *group_id_array,
                                       size_t array_size);
+
+size_t maat_state_get_last_hit_group_id_cnt(struct maat_state *state);
+
 #ifdef __cplusplus
 }
 #endif
