@@ -187,6 +187,8 @@ int maat_helper_verify_regex_expression(const char *expression);
 /* maat table API */
 int maat_get_table_id(struct maat *instance, const char *table_name);
 
+const char *maat_get_table_schema_tag(struct maat *instance, int table_id);
+
 /* return 0 if success, otherwise return -1 */
 int maat_table_callback_register(struct maat *instance, int table_id,
 								 maat_start_callback_t *start,

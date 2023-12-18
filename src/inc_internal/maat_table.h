@@ -79,6 +79,8 @@ int table_manager_get_conj_parent_table_ids(struct table_manager *tbl_mgr, const
 
 const char *table_manager_get_table_name(struct table_manager *tbl_mgr, int table_id);
 
+const char *table_manager_get_table_schema_tag(struct table_manager *tbl_mgr, int table_id);
+
 enum table_type table_manager_get_table_type(struct table_manager *tbl_mgr, int table_id);
 
 int table_manager_get_default_compile_table_id(struct table_manager *tbl_mgr);

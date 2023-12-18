@@ -34,7 +34,9 @@
 
 struct maat_table {
     int table_id;
-    char table_name[MAX_NAME_STR_LEN];
+    char table_name[MAX_NAME_STR_LEN + 1];
+    char schema_tag[MAX_TAG_STR_LEN + 1];
+    size_t schema_tag_len;
     enum table_type table_type;
     int valid_column;
     void *schema;
@@ -517,15 +519,45 @@ maat_table_new(cJSON *json, struct maat_kv_store *reserved_word_map,
     }
     ptable->table_id = item->valueint;
 
+    size_t str_len = 0;
     item = cJSON_GetObjectItem(json, "table_name");
     // already validate in register_tbl_name2id
     if (item->type == cJSON_Array) {
         cJSON *tmp_item = cJSON_GetArrayItem(item, 0);
-        memcpy(ptable->table_name, tmp_item->valuestring,
-                strlen(tmp_item->valuestring));
+        str_len = strlen(tmp_item->valuestring);
+        if (str_len > MAX_NAME_STR_LEN) {
+            log_fatal(logger, MODULE_TABLE,
+                      "[%s:%d] table:%s name length exceed maximum:%d",
+                      __FUNCTION__, __LINE__, tmp_item->valuestring,
+                      MAX_NAME_STR_LEN);
+            goto error;
+        }
+        memcpy(ptable->table_name, tmp_item->valuestring, str_len);
     } else {
         //cJSON_String
-        memcpy(ptable->table_name, item->valuestring, strlen(item->valuestring));
+        str_len = strlen(item->valuestring);
+        if (str_len > MAX_NAME_STR_LEN) {
+            log_fatal(logger, MODULE_TABLE,
+                      "[%s:%d] table:%s name length exceed maximum:%d",
+                      __FUNCTION__, __LINE__, item->valuestring,
+                      MAX_NAME_STR_LEN);
+            goto error;
+        }
+        memcpy(ptable->table_name, item->valuestring, str_len);
+    }
+
+    item = cJSON_GetObjectItem(json, "schema_tag");
+    if (item != NULL && item->type == cJSON_String) {
+        str_len = strlen(item->valuestring);
+        if (str_len > MAX_TAG_STR_LEN) {
+            log_fatal(logger, MODULE_TABLE,
+                      "[%s:%d] table:%s tag length exceed maximum:%d",
+                      __FUNCTION__, __LINE__, item->valuestring,
+                      MAX_TAG_STR_LEN);
+            goto error;
+        }
+        memcpy(ptable->schema_tag, item->valuestring, str_len);
+        ptable->schema_tag_len = str_len;
     }
 
     item = cJSON_GetObjectItem(json, "table_type");
@@ -537,7 +569,7 @@ maat_table_new(cJSON *json, struct maat_kv_store *reserved_word_map,
     }
 
     ret = maat_kv_read(reserved_word_map, item->valuestring,
-                      (long long *)&(ptable->table_type), 1);
+                       (long long *)&(ptable->table_type), 1);
     if (ret < 0) {
         log_fatal(logger, MODULE_TABLE, 
                   "[%s:%d] table:%s table_type %s is illegal", 
@@ -1076,6 +1108,19 @@ const char *table_manager_get_table_name(struct table_manager *tbl_mgr, int tabl
     }
 
     return tbl_mgr->tbl[table_id]->table_name;
+}
+
+const char *table_manager_get_table_schema_tag(struct table_manager *tbl_mgr, int table_id)
+{
+    if (NULL == tbl_mgr || table_id < 0) {
+        return NULL;
+    }
+
+    if (NULL == tbl_mgr->tbl[table_id] || 0 == tbl_mgr->tbl[table_id]->schema_tag_len) {
+        return NULL;
+    }
+
+    return tbl_mgr->tbl[table_id]->schema_tag;
 }
 
 enum table_type table_manager_get_table_type(struct table_manager *tbl_mgr, int table_id)

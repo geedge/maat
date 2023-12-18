@@ -5964,6 +5964,158 @@ TEST_F(VirtualTable, basic) {
     state = NULL;
 }
 
+class TableSchemaTag : public testing::Test
+{
+protected:
+    static void SetUpTestCase() {
+        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
+                                  "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+        char redis_ip[64] = "127.0.0.1";
+        int redis_port = 6379;
+        int redis_db = 0;
+
+        logger = log_handle_create("./maat_framework_gtest.log", 0);
+        int ret = write_config_to_redis(redis_ip, redis_port, redis_db, logger);
+        if (ret < 0) {
+            log_fatal(logger, MODULE_FRAMEWORK_GTEST,
+                      "[%s:%d] write config to redis failed.",
+                      __FUNCTION__, __LINE__);
+        }
+
+        struct maat_options *opts = maat_options_new();
+        maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
+        maat_options_set_stat_file(opts, "./stat.log");
+        maat_options_set_logger(opts, "./maat_framework_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_accept_tags(opts, accept_tags);
+        maat_options_set_hit_path_enabled(opts);
+
+        _shared_maat_inst = maat_new(opts, table_info_path);
+        maat_options_free(opts);
+        if (NULL == _shared_maat_inst) {
+            log_fatal(logger, MODULE_FRAMEWORK_GTEST,
+                      "[%s:%d] create maat instance in TableSchemaTag failed.",
+                      __FUNCTION__, __LINE__);
+        }
+    }
+
+    static void TearDownTestCase() {
+       maat_free(_shared_maat_inst);
+       log_handle_destroy(logger);
+    }    
+
+    static struct log_handle *logger;
+    static struct maat *_shared_maat_inst;
+};
+
+struct maat *TableSchemaTag::_shared_maat_inst;
+struct log_handle *TableSchemaTag::logger;
+
+TEST_F(TableSchemaTag, CompileTable) {
+    const char *compile1_table_name = "COMPILE_DEFAULT";
+    const char *compile2_table_name = "COMPILE_ALIAS";
+    const char *compile3_table_name = "COMPILE_CONJUNCTION";
+    const char *g2c_table_name = "GROUP2COMPILE";
+    struct maat *maat_inst = TableSchemaTag::_shared_maat_inst;
+
+    //COMPILE_DEFAULT
+    int compile1_table_id = maat_get_table_id(maat_inst, compile1_table_name);
+    EXPECT_EQ(compile1_table_id, 0);
+
+    const char *tag1 = maat_get_table_schema_tag(maat_inst, compile1_table_id);
+    EXPECT_TRUE(tag1 == NULL);
+
+    //COMPILE_ALIAS
+    int compile2_table_id = maat_get_table_id(maat_inst, compile2_table_name);
+    EXPECT_EQ(compile2_table_id, 1);
+
+    const char *tag2 = maat_get_table_schema_tag(maat_inst, compile2_table_id);
+    EXPECT_TRUE(tag2 != NULL);
+
+    int ret = strcmp(tag2, "{\"compile_alias\": \"compile\"}");
+    EXPECT_EQ(ret, 0);
+
+    //COMPILE_CONJUNCTION
+    int compile3_table_id = maat_get_table_id(maat_inst, compile3_table_name);
+    EXPECT_EQ(compile3_table_id, 2);
+
+    const char *tag3 = maat_get_table_schema_tag(maat_inst, compile3_table_id);
+    EXPECT_TRUE(tag3 != NULL);
+
+    ret = strcmp(tag3, "{\"compile_conjunction\": \"compile\"}");
+    EXPECT_EQ(ret, 0);
+
+    //GROUP2COMPILE
+    int g2c_table_id = maat_get_table_id(maat_inst, g2c_table_name);
+    EXPECT_EQ(g2c_table_id, 3);
+
+    const char *tag4 = maat_get_table_schema_tag(maat_inst, g2c_table_id);
+    EXPECT_TRUE(tag4 != NULL);
+
+    ret = strcmp(tag4, "{\"group2compile\": \"group2compile\"}");
+    EXPECT_EQ(ret, 0);
+
+    //COMPILE_PLUGIN
+    const char *plugin_table_name = "COMPILE_PLUGIN";
+    int plugin_table_id = maat_get_table_id(maat_inst, plugin_table_name);
+    EXPECT_EQ(plugin_table_id, 8);
+
+    const char *tag5 = maat_get_table_schema_tag(maat_inst, plugin_table_id);
+    EXPECT_TRUE(tag5 != NULL);
+
+    ret = strcmp(tag5, "{\"compile_plugin\": \"plugin\"}");
+    EXPECT_EQ(ret, 0);
+
+    //HTTP_REGION
+    const char *region_table_name = "HTTP_REGION";
+    const char *url_table_name = "HTTP_URL";
+    const char *host_table_name = "HTTP_HOST";
+
+    int region_table_id = maat_get_table_id(maat_inst, region_table_name);
+    EXPECT_EQ(region_table_id, 10);
+
+    int url_table_id = maat_get_table_id(maat_inst, url_table_name);
+    EXPECT_EQ(url_table_id, 10);
+
+    int host_table_id = maat_get_table_id(maat_inst, host_table_name);
+    EXPECT_EQ(host_table_id, 10);
+
+    const char *tag6 = maat_get_table_schema_tag(maat_inst, region_table_id);
+    EXPECT_TRUE(tag6 != NULL);
+
+    ret = strcmp(tag6, "{\"http_region\": \"expr\"}");
+    EXPECT_EQ(ret, 0);
+
+    //HTTP_RESPONSE_KEYWORDS
+    const char *vtable_name = "HTTP_RESPONSE_KEYWORDS";
+    int vtable_id = maat_get_table_id(maat_inst, vtable_name);
+    EXPECT_EQ(vtable_id, 25);
+
+    const char *tag7 = maat_get_table_schema_tag(maat_inst, vtable_id);
+    EXPECT_TRUE(tag7 != NULL);
+
+    ret = strcmp(tag7, "{\"http_response_keywords\": \"virtual\"}");
+    EXPECT_EQ(ret, 0);
+
+    //VIRTUAL_IP_PLUS_TABLE
+    const char *vtable1_name = "VIRTUAL_IP_PLUS_TABLE";
+    int vtable1_id = maat_get_table_id(maat_inst, vtable1_name);
+    EXPECT_EQ(vtable1_id, 28);
+
+    const char *vtable2_name = "VIRTUAL_IP_PLUS_SOURCE";
+    int vtable2_id = maat_get_table_id(maat_inst, vtable2_name);
+    EXPECT_EQ(vtable2_id, 28);
+
+    const char *vtable3_name = "VIRTUAL_IP_PLUS_DESTINATION";
+    int vtable3_id = maat_get_table_id(maat_inst, vtable3_name);
+    EXPECT_EQ(vtable3_id, 28);
+
+    const char *tag8 = maat_get_table_schema_tag(maat_inst, vtable1_id);
+    EXPECT_TRUE(tag8 != NULL);
+
+    ret = strcmp(tag8, "{\"virtual_ip_plus_table\": \"virtual\"}");
+    EXPECT_EQ(ret, 0);
+}
+
 class CompileTable : public testing::Test
 {
 protected:
@@ -6065,11 +6217,9 @@ TEST_F(CompileTable, CompileRuleUpdate) {
                                      MAAT_OP_ADD, compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    sleep(WAIT_FOR_EFFECTIVE_S);
     ret = compile_table_set_line(maat_inst, compile_table_name,
                                  MAAT_OP_DEL, compile_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
-    sleep(WAIT_FOR_EFFECTIVE_S);
 }
 
 TEST_F(CompileTable, Conjunction1) {

@@ -493,6 +493,16 @@ int maat_get_table_id(struct maat *maat_inst, const char *table_name)
     return table_manager_get_table_id(table_mgr, table_name);
 }
 
+const char *maat_get_table_schema_tag(struct maat *maat_inst, int table_id)
+{
+    if (NULL == maat_inst || table_id < 0) {
+        return NULL;
+    }
+
+    struct table_manager *table_mgr = maat_inst->tbl_mgr;
+    return table_manager_get_table_schema_tag(table_mgr, table_id);
+}
+
 static inline void maat_runtime_ref_inc(struct maat_runtime *maat_rt, int thread_id)
 {
     if (NULL == maat_rt) {
