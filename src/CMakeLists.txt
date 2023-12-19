@@ -37,7 +37,7 @@ include_directories(${PROJECT_SOURCE_DIR}/scanner/expr_matcher/adapter_rs)
 # Static Library Output
 add_library(maat_frame_static STATIC ${MAAT_SRC} ${LIB_SOURCE_FILES})
 set_target_properties(maat_frame_static PROPERTIES LINKER_LANGUAGE CXX)
-set_target_properties(maat_frame_static PROPERTIES OUTPUT_NAME maat4)
+set_target_properties(maat_frame_static PROPERTIES OUTPUT_NAME maatframe)
 set_target_properties(maat_frame_static PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 
 target_link_libraries(maat_frame_static hiredis-static ${MAAT_DEPEND_DYN_LIB})
@@ -47,7 +47,7 @@ target_link_libraries(maat_frame_static adapter-static)
 # Shared Library Output
 add_library(maat_frame_shared SHARED ${MAAT_SRC} ${LIB_SOURCE_FILES})
 set_target_properties(maat_frame_shared PROPERTIES LINKER_LANGUAGE CXX)
-set_target_properties(maat_frame_shared PROPERTIES OUTPUT_NAME maat4)
+set_target_properties(maat_frame_shared PROPERTIES OUTPUT_NAME maatframe)
 set_target_properties(maat_frame_shared PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 set_target_properties(maat_frame_shared PROPERTIES VERSION ${MAAT_FRAME_MAJOR_VERSION}.${MAAT_FRAME_MINOR_VERSION})
 set_target_properties(maat_frame_shared PROPERTIES SOVERSION ${MAAT_FRAME_MAJOR_VERSION})

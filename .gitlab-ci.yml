@@ -73,7 +73,7 @@ develop_build_debug_for_centos7:
     PULP3_REPO_NAME: framework-testing-x86_64.el7
     PULP3_DIST_NAME: framework-testing-x86_64.el7
   artifacts:
-    name: "maat4-$CI_COMMIT_REF_NAME-debug"
+    name: "maatframe-$CI_COMMIT_REF_NAME-debug"
     paths:
       - build/*.rpm
   only:
@@ -91,7 +91,7 @@ develop_build_release_for_centos7:
     PULP3_REPO_NAME: framework-testing-x86_64.el7
     PULP3_DIST_NAME: framework-testing-x86_64.el7
   artifacts:
-    name: "maat4-$CI_COMMIT_REF_NAME-release"
+    name: "maatframe-$CI_COMMIT_REF_NAME-release"
     paths:
       - build/*.rpm
   only:
@@ -108,7 +108,7 @@ release_build_debug_for_centos7:
     PULP3_DIST_NAME: framework-stable-x86_64.el7
   extends: .build_by_travis_for_centos7
   artifacts:
-    name: "maat4-$CI_COMMIT_REF_NAME-debug"
+    name: "maatframe-$CI_COMMIT_REF_NAME-debug"
     paths:
       - build/*.rpm
   only:
@@ -121,12 +121,12 @@ release_build_release_for_centos7:
     PACKAGE: 1
     UPLOAD: 1
     UPLOAD_SYMBOL_FILES: 1
-    SYMBOL_TARGET: libmaat4
+    SYMBOL_TARGET: libmaatframe
     PULP3_REPO_NAME: framework-stable-x86_64.el7
     PULP3_DIST_NAME: framework-stable-x86_64.el7
   extends: .build_by_travis_for_centos7
   artifacts:
-    name: "maat4-$CI_COMMIT_REF_NAME-release"
+    name: "maatframe-$CI_COMMIT_REF_NAME-release"
     paths:
       - build/*.rpm
   only:
@@ -164,7 +164,7 @@ develop_build_debug_for_centos8:
     PULP3_REPO_NAME: framework-testing-x86_64.el8
     PULP3_DIST_NAME: framework-testing-x86_64.el8
   artifacts:
-    name: "maat4-$CI_COMMIT_REF_NAME-debug"
+    name: "maatframe-$CI_COMMIT_REF_NAME-debug"
     paths:
       - build/*.rpm
   only:
@@ -182,7 +182,7 @@ develop_build_release_for_centos8:
     PULP3_REPO_NAME: framework-testing-x86_64.el8
     PULP3_DIST_NAME: framework-testing-x86_64.el8
   artifacts:
-    name: "maat4-$CI_COMMIT_REF_NAME-release"
+    name: "maatframe-$CI_COMMIT_REF_NAME-release"
     paths:
       - build/*.rpm
   only:
@@ -199,7 +199,7 @@ release_build_debug_for_centos8:
     PULP3_DIST_NAME: framework-stable-x86_64.el8
   extends: .build_by_travis_for_centos8
   artifacts:
-    name: "maat4-$CI_COMMIT_REF_NAME-debug"
+    name: "maatframe-$CI_COMMIT_REF_NAME-debug"
     paths:
       - build/*.rpm
   only:
@@ -212,12 +212,12 @@ release_build_release_for_centos8:
     PACKAGE: 1
     UPLOAD: 1
     UPLOAD_SYMBOL_FILES: 1
-    SYMBOL_TARGET: libmaat4
+    SYMBOL_TARGET: libmaatframe
     PULP3_REPO_NAME: framework-stable-x86_64.el8
     PULP3_DIST_NAME: framework-stable-x86_64.el8
   extends: .build_by_travis_for_centos8
   artifacts:
-    name: "maat4-$CI_COMMIT_REF_NAME-release"
+    name: "maatframe-$CI_COMMIT_REF_NAME-release"
     paths:
       - build/*.rpm
   only:
