@@ -1894,7 +1894,7 @@ static void compile_state_cache_hit_not_groups(struct compile_state *compile_sta
     }
 
     if (n_hit_group_id != 0) {
-        qsort(hit_group_ids, n_hit_group_id, sizeof(long long *), compare_group_id);
+        qsort(hit_group_ids, n_hit_group_id, sizeof(long long), compare_group_id);
     }
 
     struct table_group *tbl_group = NULL;
@@ -2426,7 +2426,7 @@ int compile_runtime_match(struct compile_runtime *compile_rt, long long *compile
                                                             (void **)compile_items,
                                                             compile_ids_size);
     if (bool_match_ret > 0) {
-        qsort(compile_items, bool_match_ret, sizeof(struct compile_item *), 
+        qsort(compile_items, bool_match_ret, sizeof(struct compile_item *),
               compare_compile_item);
     }
    

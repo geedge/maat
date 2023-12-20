@@ -18,6 +18,7 @@ extern "C"
 
 #include <stddef.h>
 #include "uthash/utarray.h"
+#include "bloom/bloom.h"
 #include "expr_matcher.h"
 
 #define MAX_HIT_PATTERN_NUM  1024
@@ -36,6 +37,7 @@ struct pattern_attribute {
 
 struct matched_pattern {
     UT_array *pattern_ids;
+    struct bloom *ref_bloom;
     struct pattern_attribute *ref_pat_attr;
     size_t scan_data_len;
 };

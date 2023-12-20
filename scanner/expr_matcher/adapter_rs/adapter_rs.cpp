@@ -63,7 +63,8 @@ struct rs_regex_stream {
 struct rs_lit_engine {
     size_t n_thread;
     rs_database_t *rs_db;
-    struct rs_lit_stream **streams;        /* per thread */
+    struct bloom **blooms;
+    struct rs_lit_stream **streams; /* per thread */
     struct pattern_attribute *ref_pat_attr;
     struct log_handle *logger;
 };
@@ -72,7 +73,8 @@ struct rs_lit_engine {
 struct rs_regex_engine {
     size_t n_thread;
     rs_database_t *rs_db;
-    struct rs_regex_stream **streams;        /* per thread */
+    struct bloom **blooms;
+    struct rs_regex_stream **streams; /* per thread */
     struct pattern_attribute *ref_pat_attr;
     struct log_handle *logger;
 };
@@ -187,6 +189,23 @@ static int matched_event_cb(unsigned int id, int pos_offset, int from, int to,
     unsigned long long pattern_id = id;
     struct matched_pattern *matched_pat = (struct matched_pattern *)ctx;
     
+    unsigned long long *tmp_pat_id = NULL;
+    if (utarray_len(matched_pat->pattern_ids) < (MAX_HIT_PATTERN_NUM / 10)) {
+        for (size_t i = 0; i < utarray_len(matched_pat->pattern_ids); i++) {
+            tmp_pat_id = (unsigned long long *)utarray_eltptr(matched_pat->pattern_ids, i);
+            if (*tmp_pat_id == pattern_id) {
+                return 0;
+            }
+        }
+    } else {
+        if (bloom_check(matched_pat->ref_bloom, (char *)&pattern_id,
+                        sizeof(unsigned long long)) == 1) {
+            return 0;
+        }
+        bloom_add(matched_pat->ref_bloom, (char *)&pattern_id,
+                  sizeof(unsigned long long));
+    }
+
     if (utarray_len(matched_pat->pattern_ids) >= MAX_HIT_PATTERN_NUM) {
         return 0;
     }
@@ -264,6 +283,7 @@ static int gather_hit_pattern_id(struct matched_pattern *matched_pat,
 
     *n_pattern_id = array_index;
     utarray_clear(matched_pat->pattern_ids);
+    bloom_reset(matched_pat->ref_bloom);
 
     return 0;
 }
@@ -279,6 +299,16 @@ void rs_lit_engine_free(void *rs_lit_engine)
     if (rs_lit_inst->rs_db != NULL) {
         rs_free_database(rs_lit_inst->rs_db);
         rs_lit_inst->rs_db = NULL;
+    }
+
+    if (rs_lit_inst->blooms != NULL) {
+        for (size_t i = 0; i < rs_lit_inst->n_thread; i++) {
+            if (rs_lit_inst->blooms[i] != NULL) {
+                bloom_free(rs_lit_inst->blooms[i]);
+                FREE(rs_lit_inst->blooms[i]);
+            }
+        }
+        FREE(rs_lit_inst->blooms);
     }
 
     if (rs_lit_inst->streams != NULL) {
@@ -306,8 +336,14 @@ void *rs_lit_engine_new(struct expr_rule *rules, size_t n_rule,
     rs_lit_inst->rs_db = (rs_database_t *)rs_lit_db;
     rs_lit_inst->ref_pat_attr = pat_attr;
     rs_lit_inst->logger = logger;
-    rs_lit_inst->streams = ALLOC(struct rs_lit_stream *, n_thread);
 
+    rs_lit_inst->blooms = ALLOC(struct bloom *, n_thread);
+    for (size_t i = 0; i < n_thread; i++) {
+        rs_lit_inst->blooms[i] = ALLOC(struct bloom, 1);
+        bloom_init2(rs_lit_inst->blooms[i], 1024, 0.001);
+    }
+
+    rs_lit_inst->streams = ALLOC(struct rs_lit_stream *, n_thread);
     for (size_t i = 0; i < n_thread; i++) {
         rs_lit_inst->streams[i] = (struct rs_lit_stream *)rs_lit_stream_open(rs_lit_inst, i);
     }
@@ -354,6 +390,7 @@ void *rs_lit_stream_open(void *rs_lit_engine, int thread_id)
     lit_stream->thread_id = thread_id;
     lit_stream->ref_rs_rt = rs_lit_inst;
     lit_stream->matched_pat = ALLOC(struct matched_pattern, 1);
+    lit_stream->matched_pat->ref_bloom = rs_lit_inst->blooms[thread_id];
     lit_stream->matched_pat->ref_pat_attr = rs_lit_inst->ref_pat_attr;
     utarray_new(lit_stream->matched_pat->pattern_ids, &ut_rs_pattern_id_icd);
     utarray_reserve(lit_stream->matched_pat->pattern_ids, MAX_HIT_PATTERN_NUM);
@@ -387,6 +424,7 @@ void rs_lit_stream_close(void *rs_lit_stream)
     /* rs_stream->rs_rt point to rs_instance->rs_rt which will call free 
         same as rs_attr */
     lit_stream->ref_rs_rt = NULL;
+    lit_stream->matched_pat->ref_bloom = NULL;
     lit_stream->matched_pat->ref_pat_attr = NULL;
 
     if (lit_stream->matched_pat->pattern_ids != NULL) {
@@ -434,6 +472,16 @@ void rs_regex_engine_free(void *rs_regex_engine)
         rs_regex_inst->rs_db = NULL;
     }
 
+    if (rs_regex_inst->blooms != NULL) {
+        for (size_t i = 0; i < rs_regex_inst->n_thread; i++) {
+            if (rs_regex_inst->blooms[i] != NULL) {
+                bloom_free(rs_regex_inst->blooms[i]);
+                FREE(rs_regex_inst->blooms[i]);
+            }
+        }
+        FREE(rs_regex_inst->blooms);
+    }
+
     if (rs_regex_inst->streams != NULL) {
         for (size_t i = 0; i < rs_regex_inst->n_thread; i++) {
             if (rs_regex_inst->streams[i] != NULL) {
@@ -459,8 +507,14 @@ void *rs_regex_engine_new(struct expr_rule *rules, size_t n_rule,
     rs_regex_inst->rs_db = (rs_database_t *)rs_regex_db;
     rs_regex_inst->ref_pat_attr = pat_attr;
     rs_regex_inst->logger = logger;
+
+    rs_regex_inst->blooms = ALLOC(struct bloom *, n_thread);
+    for (size_t i = 0; i < n_thread; i++) {
+        rs_regex_inst->blooms[i] = ALLOC(struct bloom, 1);
+        bloom_init2(rs_regex_inst->blooms[i], 1024, 0.001);
+    }
+
     rs_regex_inst->streams = ALLOC(struct rs_regex_stream *, n_thread);
-    
     for (size_t i = 0; i < n_thread; i++) {
         rs_regex_inst->streams[i] = (struct rs_regex_stream *)rs_regex_stream_open(rs_regex_inst, i);
     }
@@ -507,6 +561,7 @@ void *rs_regex_stream_open(void *rs_regex_engine, int thread_id)
     regex_stream->thread_id = thread_id;
     regex_stream->ref_rs_rt = rs_regex_inst;
     regex_stream->matched_pat = ALLOC(struct matched_pattern, 1);
+    regex_stream->matched_pat->ref_bloom = rs_regex_inst->blooms[thread_id];
     regex_stream->matched_pat->ref_pat_attr = rs_regex_inst->ref_pat_attr;
     utarray_new(regex_stream->matched_pat->pattern_ids, &ut_rs_pattern_id_icd);
     utarray_reserve(regex_stream->matched_pat->pattern_ids, MAX_HIT_PATTERN_NUM);
@@ -540,6 +595,7 @@ void rs_regex_stream_close(void *rs_regex_stream)
     /* rs_stream->rs_rt point to rs_instance->rs_rt which will call free 
         same as rs_attr */
     regex_stream->ref_rs_rt = NULL;
+    regex_stream->matched_pat->ref_bloom = NULL;
     regex_stream->matched_pat->ref_pat_attr = NULL;
 
     if (regex_stream->matched_pat->pattern_ids != NULL) {

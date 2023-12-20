@@ -13,6 +13,7 @@
 #include <sys/syscall.h>
 
 #include "log/log.h"
+#include "bloom/bloom.h"
 #include "maat_utils.h"
 #include "../bool_matcher/bool_matcher.h"
 #include "expr_matcher_inc.h"
@@ -409,7 +410,7 @@ static int expr_matcher_bool_matcher_match(struct bool_matcher *bm, struct bool_
     unsigned long long unique_pat_ids[n_hit_pattern];
     size_t n_unique_pat_id = 0;
 
-    qsort(hit_pattern_ids, n_hit_pattern, sizeof(unsigned long long *), compare_pattern_id);
+    qsort(hit_pattern_ids, n_hit_pattern, sizeof(unsigned long long), compare_pattern_id);
 
     for (size_t i = 0; i < n_hit_pattern; i++) {
         tmp_pat_id = hit_pattern_ids[i];

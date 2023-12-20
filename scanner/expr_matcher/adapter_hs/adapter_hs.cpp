@@ -18,6 +18,7 @@
 
 #include "adapter_hs.h"
 #include "uthash/uthash.h"
+#include "bloom/bloom.h"
 #include "maat_utils.h"
 #include "../../bool_matcher/bool_matcher.h"
 
@@ -66,6 +67,7 @@ struct hs_lit_engine {
     size_t n_thread;
     hs_database_t *hs_db;
     hs_scratch_t **hs_scratches;
+    struct bloom **blooms;
     struct hs_lit_stream **streams;
     struct pattern_attribute *ref_pat_attr;
     struct log_handle *logger;
@@ -76,6 +78,7 @@ struct hs_regex_engine {
     size_t n_thread;
     hs_database_t *hs_db;
     hs_scratch_t **hs_scratches;
+    struct bloom **blooms;
     struct hs_regex_stream **streams;
     struct pattern_attribute *ref_pat_attr;
     struct log_handle *logger;
@@ -163,6 +166,16 @@ void hs_lit_engine_free(void *hs_lit_engine)
         hs_lit_inst->hs_db = NULL;
     }
 
+    if (hs_lit_inst->blooms != NULL) {
+        for (i = 0; i < hs_lit_inst->n_thread; i++) {
+            if (hs_lit_inst->blooms[i] != NULL) {
+                bloom_free(hs_lit_inst->blooms[i]);
+                FREE(hs_lit_inst->blooms[i]);
+            }
+        }
+        FREE(hs_lit_inst->blooms);
+    }
+
     if (hs_lit_inst->hs_scratches != NULL) {
         for (i = 0; i < hs_lit_inst->n_thread; i++) {
             if (hs_lit_inst->hs_scratches[i] != NULL) {
@@ -197,6 +210,12 @@ void *hs_lit_engine_new(struct expr_rule *rules, size_t n_rule,
     hs_lit_inst->hs_db = (hs_database_t *)hs_lit_db;
     hs_lit_inst->logger = logger;
     hs_lit_inst->ref_pat_attr = pat_attr;
+    hs_lit_inst->blooms = ALLOC(struct bloom *, n_thread);
+    for (size_t i = 0; i < n_thread; i++) {
+        hs_lit_inst->blooms[i] = ALLOC(struct bloom, 1);
+        bloom_init2(hs_lit_inst->blooms[i], 1024, 0.001);
+    }
+
     hs_lit_inst->hs_scratches = ALLOC(hs_scratch_t *, n_thread);
     int ret = hs_alloc_scratches((hs_database_t *)hs_lit_db, hs_lit_inst->hs_scratches,
                                  n_thread, logger);
@@ -227,6 +246,23 @@ static int matched_event_cb(unsigned int id, unsigned long long from,
     // put id in set
     unsigned long long pattern_id = id;
     struct matched_pattern *matched_pat = (struct matched_pattern *)ctx;
+
+    unsigned long long *tmp_pat_id = NULL;
+    if (utarray_len(matched_pat->pattern_ids) < (MAX_HIT_PATTERN_NUM / 10)) {
+        for (size_t i = 0; i < utarray_len(matched_pat->pattern_ids); i++) {
+            tmp_pat_id = (unsigned long long *)utarray_eltptr(matched_pat->pattern_ids, i);
+            if (*tmp_pat_id == pattern_id) {
+                return 0;
+            }
+        }
+    } else {
+        if (bloom_check(matched_pat->ref_bloom, (char *)&pattern_id,
+                        sizeof(unsigned long long)) == 1) {
+            return 0;
+        }
+        bloom_add(matched_pat->ref_bloom, (char *)&pattern_id,
+                  sizeof(unsigned long long));
+    }
 
     if (utarray_len(matched_pat->pattern_ids) >= MAX_HIT_PATTERN_NUM) {
         return 0;
@@ -302,6 +338,7 @@ void *hs_lit_stream_open(void *hs_lit_engine, int thread_id)
     lit_stream->thread_id = thread_id;
     lit_stream->ref_hs_rt = hs_lit_inst;
     lit_stream->matched_pat = ALLOC(struct matched_pattern, 1);
+    lit_stream->matched_pat->ref_bloom = hs_lit_inst->blooms[thread_id];
     lit_stream->matched_pat->ref_pat_attr = hs_lit_inst->ref_pat_attr;
     utarray_new(lit_stream->matched_pat->pattern_ids, &ut_hs_pattern_id_icd);
     utarray_reserve(lit_stream->matched_pat->pattern_ids, MAX_HIT_PATTERN_NUM);
@@ -343,6 +380,7 @@ void hs_lit_stream_close(void *hs_lit_stream)
     /* stream->hs_rt point to hs_instance->hs_rt which will call free 
         same as hs_attr */
     stream->ref_hs_rt = NULL;
+    stream->matched_pat->ref_bloom = NULL;
     stream->matched_pat->ref_pat_attr = NULL;
 
     if (stream->matched_pat->pattern_ids != NULL) {
@@ -399,6 +437,7 @@ static int gather_hit_pattern_id(struct matched_pattern *matched_pat,
 
     *n_pattern_id = array_index;
     utarray_clear(matched_pat->pattern_ids);
+    bloom_reset(matched_pat->ref_bloom);
 
     return 0;
 }
@@ -479,6 +518,16 @@ void hs_regex_engine_free(void *hs_regex_engine)
         hs_regex_inst->hs_db = NULL;
     }
 
+    if (hs_regex_inst->blooms != NULL) {
+        for (i = 0; i < hs_regex_inst->n_thread; i++) {
+            if (hs_regex_inst->blooms[i] != NULL) {
+                bloom_free(hs_regex_inst->blooms[i]);
+                FREE(hs_regex_inst->blooms[i]);
+            }
+        }
+        FREE(hs_regex_inst->blooms);
+    }
+
     if (hs_regex_inst->hs_scratches != NULL) {
         for (i = 0; i < hs_regex_inst->n_thread; i++) {
             if (hs_regex_inst->hs_scratches[i] != NULL) {
@@ -513,8 +562,13 @@ void *hs_regex_engine_new(struct expr_rule *rules, size_t n_rule,
     hs_regex_inst->hs_db = (hs_database_t *)hs_regex_db;
     hs_regex_inst->ref_pat_attr = pat_attr;
     hs_regex_inst->logger = logger;
-    hs_regex_inst->hs_scratches = ALLOC(hs_scratch_t *, n_thread);
+    hs_regex_inst->blooms = ALLOC(struct bloom *, n_thread);
+    for (size_t i = 0; i < n_thread; i++) {
+        hs_regex_inst->blooms[i] = ALLOC(struct bloom, 1);
+        bloom_init2(hs_regex_inst->blooms[i], 1024, 0.001);
+    }
 
+    hs_regex_inst->hs_scratches = ALLOC(hs_scratch_t *, n_thread);
     int ret = hs_alloc_scratches((hs_database_t *)hs_regex_db,
                                  hs_regex_inst->hs_scratches,
                                  n_thread, logger);
@@ -570,6 +624,7 @@ void hs_regex_stream_close(void *hs_regex_stream)
     /* stream->hs_rt point to hs_instance->hs_rt which will call free 
         same as hs_attr */
     stream->ref_hs_rt = NULL;
+    stream->matched_pat->ref_bloom = NULL;
     stream->matched_pat->ref_pat_attr = NULL;
 
     if (stream->matched_pat->pattern_ids != NULL) {
@@ -595,6 +650,7 @@ void *hs_regex_stream_open(void *hs_regex_engine, int thread_id)
     regex_stream->thread_id = thread_id;
     regex_stream->ref_hs_rt = hs_regex_inst;
     regex_stream->matched_pat = ALLOC(struct matched_pattern, 1);
+    regex_stream->matched_pat->ref_bloom = hs_regex_inst->blooms[thread_id];
     regex_stream->matched_pat->ref_pat_attr = hs_regex_inst->ref_pat_attr;
     utarray_new(regex_stream->matched_pat->pattern_ids, &ut_hs_pattern_id_icd);
     utarray_reserve(regex_stream->matched_pat->pattern_ids, MAX_HIT_PATTERN_NUM);
