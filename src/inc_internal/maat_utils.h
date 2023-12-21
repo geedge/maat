@@ -20,6 +20,8 @@ extern "C"
 #include <stddef.h>
 #include <arpa/inet.h>
 
+#include "uthash/utarray.h"
+
 #define	TRUE	1
 #define	FALSE	0
 
@@ -121,6 +123,8 @@ int system_cmd_rmdir(const char *dir);
 int system_cmd_gzip(const char *src_file, const char *dst_file);
 
 int system_cmd_encrypt(const char *src_file, const char *dst_file, const char *password);
+
+int ids_str2longlong_array(const char *ids_str, UT_array *ids_array);
 
 #ifdef __cplusplus
 }

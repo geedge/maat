@@ -14,6 +14,7 @@
 #include "log/log.h"
 #include "maat_group.h"
 #include "maat_utils.h"
+#include "maat_limits.h"
 #include "uthash/uthash.h"
 #include "uthash/utarray.h"
 #include "igraph/igraph.h"
@@ -22,7 +23,7 @@
 #define MODULE_GROUP	 module_name_str("maat.group")
 
 struct group2group_item {
-    long long group_id;
+    UT_array *sub_group_ids;
     long long super_group_id;
     int is_exclude;
 };
@@ -325,6 +326,7 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
     size_t column_offset = 0;
     size_t column_len = 0;
     struct group2group_item *g2g_item = ALLOC(struct group2group_item, 1);
+    utarray_new(g2g_item->sub_group_ids, &ut_group_id_icd);
 
     int ret = get_column_pos(line, g2g_schema->group_id_column,
                              &column_offset, &column_len);
@@ -334,7 +336,24 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
-    g2g_item->group_id = atoll(line + column_offset);
+
+    char group_ids_str[MAX_GROUP_IDS_STR_LEN] = {0};
+    memcpy(group_ids_str, line + column_offset, MIN(MAX_GROUP_IDS_STR_LEN, column_len));
+
+    ret = ids_str2longlong_array(group_ids_str, g2g_item->sub_group_ids);
+    if (ret < 0) {
+        log_fatal(logger, MODULE_GROUP,
+				  "[%s:%d] g2c table:<%s> sub_group_ids str2longlong failed in line:%s",
+				  __FUNCTION__, __LINE__, table_name, line);
+		goto error; 
+    }
+
+    if (utarray_len(g2g_item->sub_group_ids) > MAX_GROUP_CNT) {
+        log_fatal(logger, MODULE_GROUP,
+				  "[%s:%d] g2c table:<%s> sub_group_ids exceed maximum:%d in line:%s",
+				  __FUNCTION__, __LINE__, table_name, MAX_GROUP_CNT, line);
+		goto error;
+    }
 
     ret = get_column_pos(line, g2g_schema->super_group_id_column, 
                          &column_offset, &column_len);
@@ -378,6 +397,15 @@ error:
 
 static void group2group_item_free(struct group2group_item *g2g_item)
 {
+    if (NULL == g2g_item) {
+        return;
+    }
+
+    if (g2g_item->sub_group_ids != NULL) {
+        utarray_free(g2g_item->sub_group_ids);
+        g2g_item->sub_group_ids = NULL;
+    }
+
     FREE(g2g_item);
 }
 
@@ -575,10 +603,10 @@ static int group_topology_add_group_to_group(struct maat_group_topology *group_t
     if (NULL == group_topo) {
         return -1;
     }
-	
+
     struct maat_group *group = group_topology_find_group(group_topo, group_id);
-	if (NULL == group) {
-		group = group_topology_add_group(group_topo, group_id);
+    if (NULL == group) {
+        group = group_topology_add_group(group_topo, group_id);
 	}
 	
     struct maat_group *super_group = group_topology_find_group(group_topo, super_group_id);
@@ -605,6 +633,15 @@ static int group_topology_add_group_to_group(struct maat_group_topology *group_t
 		group->ref_by_super_group_cnt++;
 		super_group->ref_by_sub_group_cnt++;
 		ret = 0;
+	}
+
+    igraph_bool_t is_dag;
+	igraph_is_dag(&(group_topo->group_graph), &is_dag);
+	if (!is_dag) {
+		log_fatal(group_topo->logger, MODULE_GROUP,
+                  "[%s:%d] Sub group cycle detected, sub_group_id:%lld, super_group_id:%lld!",
+                  __FUNCTION__, __LINE__, group_id, super_group_id);
+		return -1;
 	}
 
 	return ret;
@@ -704,7 +741,6 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
         return -1;
     }
 
-	int ret = -1;
     struct group2group_schema *schema = (struct group2group_schema *)g2g_schema;
 	struct group2group_runtime *g2g_rt = (struct group2group_runtime *)g2g_runtime;
     int is_valid = get_column_value(line, valid_column);
@@ -730,33 +766,38 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
         g2g_rt->updating_flag = 1;
     }
 
+    int ret = 0;
+    size_t i = 0;
+    long long *tmp_group_id = NULL;
     if (0 == is_valid) {
         //delete
-        ret = group_topology_del_group_from_group(g2g_rt->updating_group_topo,
-                                                  g2g_item->group_id, 
-                                                  g2g_item->super_group_id,
-                                                  g2g_item->is_exclude);
-        if (0 == ret) {
-            g2g_rt->rule_num--;
-            if (1 == g2g_item->is_exclude) {
-                g2g_rt->excl_rule_num--;
+        for (i = 0; i < utarray_len(g2g_item->sub_group_ids); i++) {
+            tmp_group_id = (long long *)utarray_eltptr(g2g_item->sub_group_ids, i);
+            ret = group_topology_del_group_from_group(g2g_rt->updating_group_topo, *tmp_group_id,
+                                                      g2g_item->super_group_id, g2g_item->is_exclude);
+            if (0 == ret) {
+                g2g_rt->rule_num--;
+                if (1 == g2g_item->is_exclude) {
+                    g2g_rt->excl_rule_num--;
+                }
+            } else {
+                g2g_rt->update_err_cnt++;
             }
-        } else {
-            g2g_rt->update_err_cnt++;
         }
     } else {
         //add
-        ret = group_topology_add_group_to_group(g2g_rt->updating_group_topo,
-                                                g2g_item->group_id,
-                                                g2g_item->super_group_id,
-                                                g2g_item->is_exclude);
-        if (0 == ret) {
-            g2g_rt->rule_num++;
-            if (1 == g2g_item->is_exclude) {
-                g2g_rt->excl_rule_num++;
+        for (i = 0; i < utarray_len(g2g_item->sub_group_ids); i++) {
+            tmp_group_id = (long long *)utarray_eltptr(g2g_item->sub_group_ids, i);
+            ret = group_topology_add_group_to_group(g2g_rt->updating_group_topo, *tmp_group_id,
+                                                    g2g_item->super_group_id, g2g_item->is_exclude);
+            if (0 == ret) {
+                g2g_rt->rule_num++;
+                if (1 == g2g_item->is_exclude) {
+                    g2g_rt->excl_rule_num++;
+                }
+            } else {
+                g2g_rt->update_err_cnt++;
             }
-        } else {
-            g2g_rt->update_err_cnt++;
         }
     }
     group2group_item_free(g2g_item);

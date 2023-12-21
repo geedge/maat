@@ -594,3 +594,30 @@ int ip_format2range(int ip_type, enum ip_format format, const char *ip1, const c
 	}
 	return 0;
 }
+
+int ids_str2longlong_array(const char *ids_str, UT_array *ids_array)
+{
+    int counter = 0;
+    char *str = NULL;
+    char *saveptr = NULL;
+    char *subtoken = NULL;
+    const char *seps = ",";
+    char *dup_line = maat_strdup(ids_str);
+
+    for (str = dup_line; ; str = NULL) {
+        subtoken = strtok_r(str, seps, &saveptr);
+        if (subtoken == NULL)
+            break;
+        long long group_id = atoll(subtoken);
+        utarray_push_back(ids_array, &group_id); 
+        counter++;
+    }
+
+    FREE(dup_line);
+
+    if (0 == counter) {
+        return -1;
+    }
+
+    return 0;
+}

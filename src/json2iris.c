@@ -701,7 +701,7 @@ static int write_group2compile_line(int *group_ids, size_t n_group_id,
 	return 0;
 }
 
-static int write_group2group_line(int group_id, int super_group_id, int is_exclude,
+static int write_group2group_line(int sub_group_id, int super_group_id, int is_exclude,
                            		  struct iris_description *p_iris)
 {
 	char buff[4096] = {0};
@@ -710,8 +710,9 @@ static int write_group2group_line(int group_id, int super_group_id, int is_exclu
         return -1;
     }
 
-	snprintf(buff, sizeof(buff), "%d\t%d\t%d\t1\n", group_id, 
-            super_group_id, is_exclude);
+	snprintf(buff, sizeof(buff), "%d\t%d\t%d\t1\n", sub_group_id, 
+             super_group_id, is_exclude);
+	
 	table->write_pos += memcat(&(table->buff), table->write_pos, 
                                &(table->buff_sz), buff, strlen(buff));
 	table->line_count++;

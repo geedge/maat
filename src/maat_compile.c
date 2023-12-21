@@ -28,8 +28,6 @@
 
 #define MODULE_COMPILE	 module_name_str("maat.compile")
 
-#define MAX_GROUP_CNT        128
-#define MAX_SUPER_GROUP_CNT  128
 #define MAX_NOT_CLAUSE_NUM   8
 
 enum clause_not_flag {
@@ -666,33 +664,6 @@ static int is_valid_table_name(const char *str)
 	return 1;
 }
 
-static int group_ids_str2longlong(const char *group_ids_str, UT_array *group_ids)
-{
-    int counter = 0;
-    char *str = NULL;
-    char *saveptr = NULL;
-    char *subtoken = NULL;
-    const char *seps = ",";
-    char *dup_line = maat_strdup(group_ids_str);
-
-    for (str = dup_line; ; str = NULL) {
-        subtoken = strtok_r(str, seps, &saveptr);
-        if (subtoken == NULL)
-            break;
-        long long group_id = atoll(subtoken);
-        utarray_push_back(group_ids, &group_id); 
-        counter++;
-    }
-
-    FREE(dup_line);
-
-    if (0 == counter) {
-        return -1;
-    }
-
-    return 0;
-}
-
 static void group2compile_item_free(struct group2compile_item *g2c_item)
 {
     if (NULL == g2c_item) {
@@ -729,7 +700,7 @@ group2compile_item_new(const char *line, struct group2compile_schema *g2c_schema
     char group_ids_str[MAX_GROUP_IDS_STR_LEN] = {0};
     memcpy(group_ids_str, line + column_offset, MIN(MAX_GROUP_IDS_STR_LEN, column_len));
 
-    ret = group_ids_str2longlong(group_ids_str, g2c_item->group_ids);
+    ret = ids_str2longlong_array(group_ids_str, g2c_item->group_ids);
     if (ret < 0) {
         log_fatal(logger, MODULE_COMPILE,
 				  "[%s:%d] g2c table:<%s> group_ids str2longlong failed in line:%s",
