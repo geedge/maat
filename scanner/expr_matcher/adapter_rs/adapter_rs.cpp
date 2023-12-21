@@ -19,6 +19,7 @@
 #include "adapter_rs.h"
 #include "uthash/utarray.h"
 #include "uthash/uthash.h"
+#include "bloom/bloom.h"
 #include "maat_utils.h"
 #include "../../bool_matcher/bool_matcher.h"
 
@@ -59,6 +60,7 @@ struct adapter_rs_runtime {
     rs_database_t *literal_db;
     rs_database_t *regex_db;
 
+    struct bloom **blooms;
     struct bool_expr_match **bool_match_buffs; /* per thread */
     struct adapter_rs_stream **streams;        /* per thread */
     struct matched_pattern **matched_pats;     /* per thread */
@@ -90,6 +92,7 @@ struct pattern_attribute {
 struct matched_pattern {
     UT_array *pattern_ids;
     size_t n_patterns;
+    struct bloom *ref_bloom;
     struct pattern_attribute *ref_rs_attr;
 };
 
@@ -310,6 +313,13 @@ void *adapter_rs_new(struct expr_rule *rules, size_t n_rule,
         goto error;
     }
 
+    /* alloc bloom filter */
+    rs_inst->rs_rt->blooms = ALLOC(struct bloom *, n_worker_thread);
+    for (i = 0; i < n_worker_thread; i++) {
+        rs_inst->rs_rt->blooms[i] = ALLOC(struct bloom, 1);
+        bloom_init2(rs_inst->rs_rt->blooms[i], 1024, 0.001);
+    }
+
     /* alloc scratch */
     rs_inst->rs_rt->bool_match_buffs = ALLOC(struct bool_expr_match *, n_worker_thread);
     for (i = 0; i < n_worker_thread; i++) {
@@ -326,8 +336,11 @@ void *adapter_rs_new(struct expr_rule *rules, size_t n_rule,
         rs_inst->rs_rt->matched_pats[i] = ALLOC(struct matched_pattern, 1);
         rs_inst->rs_rt->matched_pats[i]->ref_rs_attr = rs_inst->rs_attr;
         rs_inst->rs_rt->matched_pats[i]->n_patterns = rs_inst->n_patterns;
-        utarray_new(rs_inst->rs_rt->matched_pats[i]->pattern_ids, &ut_rs_pattern_id_icd);
-        utarray_reserve(rs_inst->rs_rt->matched_pats[i]->pattern_ids, MAX_HIT_PATTERN_NUM);
+        rs_inst->rs_rt->matched_pats[i]->ref_bloom = rs_inst->rs_rt->blooms[i];
+        utarray_new(rs_inst->rs_rt->matched_pats[i]->pattern_ids,
+                    &ut_rs_pattern_id_icd);
+        utarray_reserve(rs_inst->rs_rt->matched_pats[i]->pattern_ids,
+                        MAX_HIT_PATTERN_NUM);
     }
 
     return rs_inst;
@@ -354,6 +367,16 @@ void adapter_rs_free(void *rs_instance)
         if (rs_inst->rs_rt->regex_db != NULL) {
             rs_free_database(rs_inst->rs_rt->regex_db);
             rs_inst->rs_rt->regex_db = NULL;
+        }
+
+        if (rs_inst->rs_rt->blooms != NULL) {
+            for (i = 0; i < rs_inst->n_worker_thread; i++) {
+                if (rs_inst->rs_rt->blooms[i] != NULL) {
+                    bloom_free(rs_inst->rs_rt->blooms[i]);
+                    FREE(rs_inst->rs_rt->blooms[i]);
+                }
+            }
+            FREE(rs_inst->rs_rt->blooms);
         }
 
         if (rs_inst->rs_rt->bool_match_buffs != NULL) {
@@ -425,6 +448,23 @@ static int matched_event_cb(unsigned int id, int pos_offset, int from, int to,
     
     if (pattern_id > matched_pat->n_patterns || id < 0) {
         return 0;
+    }
+
+    unsigned long long *tmp_pat_id = NULL;
+    if (utarray_len(matched_pat->pattern_ids) < (MAX_HIT_PATTERN_NUM / 64)) {
+        for (size_t i = 0; i < utarray_len(matched_pat->pattern_ids); i++) {
+            tmp_pat_id = (unsigned long long *)utarray_eltptr(matched_pat->pattern_ids, i);
+            if (*tmp_pat_id == pattern_id) {
+                return 0;
+            }
+        }
+    } else {
+        if (bloom_check(matched_pat->ref_bloom, (char *)&pattern_id,
+                        sizeof(unsigned long long)) == 1) {
+            return 0;
+        }
+        bloom_add(matched_pat->ref_bloom, (char *)&pattern_id,
+                  sizeof(unsigned long long));
     }
 
     if (utarray_len(matched_pat->pattern_ids) >= MAX_HIT_PATTERN_NUM) {
@@ -640,7 +680,8 @@ int adapter_rs_scan_stream(void *rs_stream, const char *data, size_t data_len,
             err_count++;
         }
     }
-
+    bloom_reset(matched_pat->ref_bloom);
+    
     if (err_count == 2) {
         return -1;
     }
@@ -679,6 +720,8 @@ int adapter_rs_scan(void *rs_instance, int thread_id, const char *data, size_t d
             err_count++;
         }
     }
+
+    bloom_reset(matched_pat->ref_bloom);
 
     if (err_count == 2) {
         return -1;

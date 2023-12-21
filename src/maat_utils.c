@@ -260,7 +260,7 @@ int system_cmd_gzip(const char *src_file, const char *dst_file)
 int system_cmd_encrypt(const char *src_file, const char *dst_file, const char *password)
 {
     char cmd[MAX_SYSTEM_CMD_LEN] = { 0 };
-	snprintf(cmd, sizeof(cmd), "openssl enc -e -aes-256-cbc -k %s -p -nosalt -in %s -out %s -md md5",
+	snprintf(cmd, sizeof(cmd), "openssl enc -e -aes-256-cbc -k %s -nosalt -in %s -out %s -md md5",
              password, src_file, dst_file);
 	return system(cmd);
 }

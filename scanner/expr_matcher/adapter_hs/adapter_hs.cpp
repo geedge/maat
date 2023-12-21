@@ -19,6 +19,7 @@
 #include "adapter_hs.h"
 #include "uthash/utarray.h"
 #include "uthash/uthash.h"
+#include "bloom/bloom.h"
 #include "maat_utils.h"
 #include "../../bool_matcher/bool_matcher.h"
 
@@ -68,6 +69,7 @@ struct adapter_hs_runtime {
     hs_database_t *literal_db;
     hs_database_t *regex_db;
 
+    struct bloom **blooms;
     struct adapter_hs_scratch *scratch;
     struct adapter_hs_stream **streams;
     struct bool_matcher *bm;
@@ -97,6 +99,7 @@ struct pattern_attribute {
 struct matched_pattern {
     UT_array *pattern_ids;
     size_t n_patterns;
+    struct bloom *ref_bloom;
     struct pattern_attribute *ref_hs_attr;
     size_t scan_data_len;
 };
@@ -438,6 +441,13 @@ void *adapter_hs_new(struct expr_rule *rules, size_t n_rule,
         goto error;
     }
 
+    /* alloc bloom filter */
+    hs_inst->hs_rt->blooms = ALLOC(struct bloom *, n_worker_thread);
+    for (i = 0; i < n_worker_thread; i++) {
+        hs_inst->hs_rt->blooms[i] = ALLOC(struct bloom, 1);
+        bloom_init2(hs_inst->hs_rt->blooms[i], 1024, 0.001);
+    }
+
     /* alloc scratch */
     hs_inst->hs_rt->scratch = ALLOC(struct adapter_hs_scratch, 1);
     hs_inst->hs_rt->scratch->bool_match_buffs = ALLOC(struct bool_expr_match *,
@@ -493,6 +503,16 @@ void adapter_hs_free(void *hs_instance)
         if (hs_inst->hs_rt->regex_db != NULL) {
             hs_free_database(hs_inst->hs_rt->regex_db);
             hs_inst->hs_rt->regex_db = NULL;
+        }
+
+        if (hs_inst->hs_rt->blooms != NULL) {
+            for (i = 0; i < hs_inst->n_worker_thread; i++) {
+                if (hs_inst->hs_rt->blooms[i] != NULL) {
+                    bloom_free(hs_inst->hs_rt->blooms[i]);
+                    FREE(hs_inst->hs_rt->blooms[i]);
+                }
+            }
+            FREE(hs_inst->hs_rt->blooms);
         }
 
         if (hs_inst->hs_rt->scratch != NULL) {
@@ -581,6 +601,23 @@ static int matched_event_cb(unsigned int id, unsigned long long from,
         return 0;
     }
 
+    unsigned long long *tmp_pat_id = NULL;
+    if (utarray_len(matched_pat->pattern_ids) < (MAX_HIT_PATTERN_NUM / 64)) {
+        for (size_t i = 0; i < utarray_len(matched_pat->pattern_ids); i++) {
+            tmp_pat_id = (unsigned long long *)utarray_eltptr(matched_pat->pattern_ids, i);
+            if (*tmp_pat_id == pattern_id) {
+                return 0;
+            }
+        }
+    } else {
+        if (bloom_check(matched_pat->ref_bloom, (char *)&pattern_id,
+                        sizeof(unsigned long long)) == 1) {
+            return 0;
+        }
+        bloom_add(matched_pat->ref_bloom, (char *)&pattern_id,
+                  sizeof(unsigned long long));
+    }
+
     if (utarray_len(matched_pat->pattern_ids) >= MAX_HIT_PATTERN_NUM) {
         return 0;
     }
@@ -655,6 +692,7 @@ void *adapter_hs_stream_open(void *hs_instance, int thread_id)
     hs_stream->thread_id = thread_id;
     hs_stream->ref_hs_rt = hs_inst->hs_rt;
     hs_stream->matched_pat = ALLOC(struct matched_pattern, 1);
+    hs_stream->matched_pat->ref_bloom = hs_inst->hs_rt->blooms[thread_id];
     hs_stream->matched_pat->ref_hs_attr = hs_inst->hs_attr;
     hs_stream->matched_pat->n_patterns = hs_inst->n_patterns;
     utarray_new(hs_stream->matched_pat->pattern_ids, &ut_hs_pattern_id_icd);
@@ -723,6 +761,7 @@ void adapter_hs_stream_close(void *hs_stream)
     /* stream->hs_rt point to hs_instance->hs_rt which will call free 
         same as hs_attr */
     stream->ref_hs_rt = NULL;
+    stream->matched_pat->ref_bloom = NULL;
     stream->matched_pat->ref_hs_attr = NULL;
 
     if (stream->matched_pat->pattern_ids != NULL) {
@@ -862,6 +901,8 @@ int adapter_hs_scan_stream(void *hs_stream, const char *data, size_t data_len,
         }
     }
 
+    bloom_reset(stream->matched_pat->ref_bloom);
+    
     if (err_count == 2) {
         return -1;
     }
