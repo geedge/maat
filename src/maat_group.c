@@ -23,15 +23,15 @@
 #define MODULE_GROUP	 module_name_str("maat.group")
 
 struct group2group_item {
-    UT_array *incl_group_ids;
-    UT_array *excl_group_ids;
-    long long super_group_id;
+    long long group_id;
+    UT_array *incl_sub_group_ids;
+    UT_array *excl_sub_group_ids;
 };
 
 struct group2group_schema {
-    int incl_group_ids_column;
-    int super_group_id_column;
-    int excl_group_ids_column;
+    int group_id_column;
+    int incl_sub_group_ids_column;
+    int excl_sub_group_ids_column;
     int table_id;
     struct table_manager *ref_tbl_mgr;
 };
@@ -111,32 +111,32 @@ void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "incl_group_ids");
+    custom_item = cJSON_GetObjectItem(item, "group_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        g2g_schema->incl_group_ids_column = custom_item->valueint;
+        g2g_schema->group_id_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_GROUP, 
-                  "[%s:%d] g2g table:<%s> schema has no incl_group_ids column",
+                  "[%s:%d] g2g table:<%s> schema has no group_id column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "super_group_id");
+    custom_item = cJSON_GetObjectItem(item, "included_sub_group_ids");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        g2g_schema->super_group_id_column = custom_item->valueint;
+        g2g_schema->incl_sub_group_ids_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_GROUP, 
-                  "[%s:%d] g2g table:<%s> schema has no super_group_id column",
+                  "[%s:%d] g2g table:<%s> schema has no included_sub_group_ids column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "excl_group_ids");
+    custom_item = cJSON_GetObjectItem(item, "excluded_sub_group_ids");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        g2g_schema->excl_group_ids_column = custom_item->valueint;
+        g2g_schema->excl_sub_group_ids_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_GROUP, 
-                  "[%s:%d] g2g table:<%s> schema has no excl_group_ids column",
+                  "[%s:%d] g2g table:<%s> schema has no excluded_sub_group_ids column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -326,14 +326,24 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
     size_t column_offset = 0;
     size_t column_len = 0;
     struct group2group_item *g2g_item = ALLOC(struct group2group_item, 1);
-    utarray_new(g2g_item->incl_group_ids, &ut_group_id_icd);
-    utarray_new(g2g_item->excl_group_ids, &ut_group_id_icd);
+    utarray_new(g2g_item->incl_sub_group_ids, &ut_group_id_icd);
+    utarray_new(g2g_item->excl_sub_group_ids, &ut_group_id_icd);
 
-    int ret = get_column_pos(line, g2g_schema->incl_group_ids_column,
+    int ret = get_column_pos(line, g2g_schema->group_id_column, 
                              &column_offset, &column_len);
     if (ret < 0) {
         log_fatal(logger, MODULE_GROUP,
-                  "[%s:%d] g2g table:<%s> has no incl_group_ids in line:%s",
+                  "[%s:%d] g2 table:<%s> has no group_id in line:%s",
+                  __FUNCTION__, __LINE__, table_name, line);
+        goto error;
+    }
+    g2g_item->group_id = atoll(line + column_offset);
+
+    ret = get_column_pos(line, g2g_schema->incl_sub_group_ids_column,
+                         &column_offset, &column_len);
+    if (ret < 0) {
+        log_fatal(logger, MODULE_GROUP,
+                  "[%s:%d] g2g table:<%s> has no included_sub_group_ids in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
@@ -341,36 +351,26 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
     char group_ids_str[MAX_GROUP_IDS_STR_LEN] = {0};
     memcpy(group_ids_str, line + column_offset, MIN(MAX_GROUP_IDS_STR_LEN, column_len));
 
-    ret = ids_str2longlong_array(group_ids_str, g2g_item->incl_group_ids);
+    ret = ids_str2longlong_array(group_ids_str, g2g_item->incl_sub_group_ids);
     if (ret < 0) {
         log_fatal(logger, MODULE_GROUP,
-				  "[%s:%d] g2c table:<%s> incl_group_ids str2longlong failed in line:%s",
+				  "[%s:%d] g2c table:<%s> included_sub_group_ids str2longlong failed in line:%s",
 				  __FUNCTION__, __LINE__, table_name, line);
 		goto error; 
     }
 
-    if (utarray_len(g2g_item->incl_group_ids) > MAX_GROUP_CNT) {
+    if (utarray_len(g2g_item->incl_sub_group_ids) > MAX_GROUP_CNT) {
         log_fatal(logger, MODULE_GROUP,
-				  "[%s:%d] g2c table:<%s> incl_group_ids exceed maximum:%d in line:%s",
+				  "[%s:%d] g2c table:<%s> included_sub_group_ids exceed maximum:%d in line:%s",
 				  __FUNCTION__, __LINE__, table_name, MAX_GROUP_CNT, line);
 		goto error;
     }
 
-    ret = get_column_pos(line, g2g_schema->super_group_id_column, 
+    ret = get_column_pos(line, g2g_schema->excl_sub_group_ids_column, 
                          &column_offset, &column_len);
     if (ret < 0) {
         log_fatal(logger, MODULE_GROUP,
-                  "[%s:%d] g2 table:<%s> has no super_group_id in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-    g2g_item->super_group_id = atoll(line + column_offset);
-
-    ret = get_column_pos(line, g2g_schema->excl_group_ids_column, 
-                         &column_offset, &column_len);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_GROUP,
-                  "[%s:%d] g2g table:<%s> has no excl_group_ids in line:%s",
+                  "[%s:%d] g2g table:<%s> has no excluded_sub_group_ids in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
@@ -378,17 +378,17 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
     memset(group_ids_str, 0, sizeof(group_ids_str));
     memcpy(group_ids_str, line + column_offset, MIN(MAX_GROUP_IDS_STR_LEN, column_len));
 
-    ret = ids_str2longlong_array(group_ids_str, g2g_item->excl_group_ids);
+    ret = ids_str2longlong_array(group_ids_str, g2g_item->excl_sub_group_ids);
     if (ret < 0) {
         log_fatal(logger, MODULE_GROUP,
-				  "[%s:%d] g2c table:<%s> excl_group_ids str2longlong failed in line:%s",
+				  "[%s:%d] g2c table:<%s> excluded_sub_group_ids str2longlong failed in line:%s",
 				  __FUNCTION__, __LINE__, table_name, line);
 		goto error;
     }
 
-    if (utarray_len(g2g_item->excl_group_ids) > MAX_GROUP_CNT) {
+    if (utarray_len(g2g_item->excl_sub_group_ids) > MAX_GROUP_CNT) {
         log_fatal(logger, MODULE_GROUP,
-				  "[%s:%d] g2c table:<%s> excl_group_ids exceed maximum:%d in line:%s",
+				  "[%s:%d] g2c table:<%s> excluded_sub_group_ids exceed maximum:%d in line:%s",
 				  __FUNCTION__, __LINE__, table_name, MAX_GROUP_CNT, line);
 		goto error;
     } 
@@ -405,14 +405,14 @@ static void group2group_item_free(struct group2group_item *g2g_item)
         return;
     }
 
-    if (g2g_item->incl_group_ids != NULL) {
-        utarray_free(g2g_item->incl_group_ids);
-        g2g_item->incl_group_ids = NULL;
+    if (g2g_item->incl_sub_group_ids != NULL) {
+        utarray_free(g2g_item->incl_sub_group_ids);
+        g2g_item->incl_sub_group_ids = NULL;
     }
 
-    if (g2g_item->excl_group_ids != NULL) {
-        utarray_free(g2g_item->excl_group_ids);
-        g2g_item->excl_group_ids = NULL;
+    if (g2g_item->excl_sub_group_ids != NULL) {
+        utarray_free(g2g_item->excl_sub_group_ids);
+        g2g_item->excl_sub_group_ids = NULL;
     }
 
     FREE(g2g_item);
@@ -606,41 +606,41 @@ static void maat_group_dereference_sub_group(struct maat_group *group,
 }
 
 static int group_topology_add_group_to_group(struct maat_group_topology *group_topo, 
-                                             long long group_id, long long super_group_id,
+                                             long long group_id, long long sub_group_id,
                                              int is_exclude)
 {
     if (NULL == group_topo) {
         return -1;
     }
 
-    struct maat_group *group = group_topology_find_group(group_topo, group_id);
-    if (NULL == group) {
-        group = group_topology_add_group(group_topo, group_id);
+    struct maat_group *sub_group = group_topology_find_group(group_topo, sub_group_id);
+    if (NULL == sub_group) {
+        sub_group = group_topology_add_group(group_topo, sub_group_id);
 	}
 	
-    struct maat_group *super_group = group_topology_find_group(group_topo, super_group_id);
-	if (NULL == super_group) {
-		super_group = group_topology_add_group(group_topo, super_group_id);
+    struct maat_group *group = group_topology_find_group(group_topo, group_id);
+	if (NULL == group) {
+		group = group_topology_add_group(group_topo, group_id);
 	}
 
-    maat_group_reference_super_group(group, super_group_id, is_exclude);
-    maat_group_reference_sub_group(super_group, group_id, is_exclude);
+    maat_group_reference_super_group(sub_group, group_id, is_exclude);
+    maat_group_reference_sub_group(group, sub_group_id, is_exclude);
 
     igraph_integer_t edge_id;
-	int ret = igraph_get_eid(&group_topo->group_graph, &edge_id, group->vertex_id, 
-                             super_group->vertex_id, IGRAPH_DIRECTED, /*error*/ 0);
+	int ret = igraph_get_eid(&group_topo->group_graph, &edge_id, sub_group->vertex_id, 
+                             group->vertex_id, IGRAPH_DIRECTED, /*error*/ 0);
 	
     //No duplicated edges between two groups.
     if (edge_id > 0) {
 		log_fatal(group_topo->logger, MODULE_GROUP,
                   "[%s:%d] Add group %d to group %d failed, relation already existed.",
-				  __FUNCTION__, __LINE__, group->group_id, super_group->group_id);
+				  __FUNCTION__, __LINE__, sub_group->group_id, group->group_id);
 		ret = -1;
 	} else {
-		igraph_add_edge(&group_topo->group_graph, group->vertex_id, 
-                        super_group->vertex_id);
-		group->ref_by_super_group_cnt++;
-		super_group->ref_by_sub_group_cnt++;
+		igraph_add_edge(&group_topo->group_graph, sub_group->vertex_id, 
+                        group->vertex_id);
+		sub_group->ref_by_super_group_cnt++;
+		group->ref_by_sub_group_cnt++;
 		ret = 0;
 	}
 
@@ -648,8 +648,8 @@ static int group_topology_add_group_to_group(struct maat_group_topology *group_t
 	igraph_is_dag(&(group_topo->group_graph), &is_dag);
 	if (!is_dag) {
 		log_fatal(group_topo->logger, MODULE_GROUP,
-                  "[%s:%d] Sub group cycle detected, sub_group_id:%lld, super_group_id:%lld!",
-                  __FUNCTION__, __LINE__, group_id, super_group_id);
+                  "[%s:%d] Sub group cycle detected, sub_group_id:%lld, group_id:%lld!",
+                  __FUNCTION__, __LINE__, sub_group_id, group_id);
 		return -1;
 	}
 
@@ -657,7 +657,7 @@ static int group_topology_add_group_to_group(struct maat_group_topology *group_t
 }
 
 static int group_topology_del_group_from_group(struct maat_group_topology *group_topo, 
-                                               long long group_id, long long super_group_id,
+                                               long long group_id, long long sub_group_id,
                                                int is_exclude)
 {
     if (NULL == group_topo) {
@@ -665,24 +665,24 @@ static int group_topology_del_group_from_group(struct maat_group_topology *group
     }
 
 	//No hash write operation, LOCK protection is unnecessary.
-	struct maat_group *group = group_topology_find_group(group_topo, group_id);
+	struct maat_group *sub_group = group_topology_find_group(group_topo, sub_group_id);
+	if (NULL == sub_group) {
+		log_fatal(group_topo->logger, MODULE_GROUP,
+				  "[%s:%d] Del group %d from group %d failed, group %d not existed.",
+				  __FUNCTION__, __LINE__, sub_group_id, group_id, sub_group_id);
+		return -1;	
+	}
+
+    struct maat_group *group = group_topology_find_group(group_topo, group_id);
 	if (NULL == group) {
 		log_fatal(group_topo->logger, MODULE_GROUP,
 				  "[%s:%d] Del group %d from group %d failed, group %d not existed.",
-				  __FUNCTION__, __LINE__, group_id, super_group_id, group_id);
+				  __FUNCTION__, __LINE__, sub_group_id, group_id, group_id);
 		return -1;	
 	}
 
-    struct maat_group *super_group = group_topology_find_group(group_topo, super_group_id);
-	if (NULL == super_group) {
-		log_fatal(group_topo->logger, MODULE_GROUP,
-				  "[%s:%d] Del group %d from group %d failed, superior group %d not existed.",
-				  __FUNCTION__, __LINE__, group_id, super_group_id, super_group_id);
-		return -1;	
-	}
-
-    maat_group_dereference_super_group(group, super_group_id, is_exclude);
-    maat_group_dereference_sub_group(super_group, group_id, is_exclude);
+    maat_group_dereference_super_group(sub_group, group_id, is_exclude);
+    maat_group_dereference_sub_group(group, sub_group_id, is_exclude);
 
 	igraph_es_t es;
 	igraph_integer_t edge_num_before = 0, edge_num_after = 0;
@@ -694,8 +694,8 @@ static int group_topology_del_group_from_group(struct maat_group_topology *group
 	//first edge, the fifth is the first vertex of the second edge and so on. The last element
 	//of the argument list must be -1 to denote the end of the argument list.
 	//https://igraph.org/c/doc/igraph-Iterators.html#igraph_es_pairs_small
-	int ret = igraph_es_pairs_small(&es, IGRAPH_DIRECTED, group->vertex_id, 
-                                    super_group->vertex_id, -1);
+	int ret = igraph_es_pairs_small(&es, IGRAPH_DIRECTED, sub_group->vertex_id, 
+                                    group->vertex_id, -1);
 	assert(ret==IGRAPH_SUCCESS);
 	// ignore no such edge to abort().
 	igraph_set_error_handler(igraph_error_handler_ignore);
@@ -708,8 +708,8 @@ static int group_topology_del_group_from_group(struct maat_group_topology *group
 		return -1;
 	}
 
-	group->ref_by_super_group_cnt--;
-	super_group->ref_by_sub_group_cnt--;
+	sub_group->ref_by_super_group_cnt--;
+	group->ref_by_sub_group_cnt--;
 
 	return 0;
 }
@@ -777,13 +777,13 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
 
     int ret = 0;
     size_t i = 0;
-    long long *tmp_group_id = NULL;
+    long long *sub_group_id = NULL;
     if (0 == is_valid) {
         //delete
-        for (i = 0; i < utarray_len(g2g_item->incl_group_ids); i++) {
-            tmp_group_id = (long long *)utarray_eltptr(g2g_item->incl_group_ids, i);
-            ret = group_topology_del_group_from_group(g2g_rt->updating_group_topo, *tmp_group_id,
-                                                      g2g_item->super_group_id, 0);
+        for (i = 0; i < utarray_len(g2g_item->incl_sub_group_ids); i++) {
+            sub_group_id = (long long *)utarray_eltptr(g2g_item->incl_sub_group_ids, i);
+            ret = group_topology_del_group_from_group(g2g_rt->updating_group_topo,
+                                                      g2g_item->group_id, *sub_group_id, 0);
             if (0 == ret) {
                 g2g_rt->rule_num--;
             } else {
@@ -791,10 +791,10 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
             }
         }
 
-        for (i = 0; i < utarray_len(g2g_item->excl_group_ids); i++) {
-            tmp_group_id = (long long *)utarray_eltptr(g2g_item->excl_group_ids, i);
-            ret = group_topology_del_group_from_group(g2g_rt->updating_group_topo, *tmp_group_id,
-                                                      g2g_item->super_group_id, 1);
+        for (i = 0; i < utarray_len(g2g_item->excl_sub_group_ids); i++) {
+            sub_group_id = (long long *)utarray_eltptr(g2g_item->excl_sub_group_ids, i);
+            ret = group_topology_del_group_from_group(g2g_rt->updating_group_topo,
+                                                      g2g_item->group_id, *sub_group_id, 1);
             if (0 == ret) {
                 g2g_rt->rule_num--;
                 g2g_rt->excl_rule_num--;
@@ -804,10 +804,10 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
         }
     } else {
         //add
-        for (i = 0; i < utarray_len(g2g_item->incl_group_ids); i++) {
-            tmp_group_id = (long long *)utarray_eltptr(g2g_item->incl_group_ids, i);
-            ret = group_topology_add_group_to_group(g2g_rt->updating_group_topo, *tmp_group_id,
-                                                    g2g_item->super_group_id, 0);
+        for (i = 0; i < utarray_len(g2g_item->incl_sub_group_ids); i++) {
+            sub_group_id = (long long *)utarray_eltptr(g2g_item->incl_sub_group_ids, i);
+            ret = group_topology_add_group_to_group(g2g_rt->updating_group_topo,
+                                                    g2g_item->group_id, *sub_group_id, 0);
             if (0 == ret) {
                 g2g_rt->rule_num++;
             } else {
@@ -815,10 +815,10 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
             }
         }
 
-        for (i = 0; i < utarray_len(g2g_item->excl_group_ids); i++) {
-            tmp_group_id = (long long *)utarray_eltptr(g2g_item->excl_group_ids, i);
-            ret = group_topology_add_group_to_group(g2g_rt->updating_group_topo, *tmp_group_id,
-                                                    g2g_item->super_group_id, 1);
+        for (i = 0; i < utarray_len(g2g_item->excl_sub_group_ids); i++) {
+            sub_group_id = (long long *)utarray_eltptr(g2g_item->excl_sub_group_ids, i);
+            ret = group_topology_add_group_to_group(g2g_rt->updating_group_topo,
+                                                    g2g_item->group_id, *sub_group_id, 1);
             if (0 == ret) {
                 g2g_rt->rule_num++;
                 g2g_rt->excl_rule_num++;

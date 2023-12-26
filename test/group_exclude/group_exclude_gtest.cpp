@@ -19,9 +19,9 @@ const char *table_info_path = "./group_exclude_table_info.conf";
 const char *log_file = "./group_exclude_gtest.log";
 
 struct group_item {
-    char incl_ids_str[MAX_IDS_STR_LEN];
-    char excl_ids_str[MAX_IDS_STR_LEN];
-    long long super_group_id;
+    long long group_id;
+    char incl_sub_ids_str[MAX_IDS_STR_LEN];
+    char excl_sub_ids_str[MAX_IDS_STR_LEN];
 };
 
 struct group2group_rule {
@@ -63,20 +63,20 @@ static int parse_config_file(const char *filename, struct group2group_rule *rule
     rule_cnt = cJSON_GetArraySize(items_array);
     for (size_t i = 0; i < rule_cnt; i++) {
         cJSON *item_obj = cJSON_GetArrayItem(items_array, i);
-        cJSON *tmp_item = cJSON_GetObjectItem(item_obj, "incl_group_ids");
+        cJSON *tmp_item = cJSON_GetObjectItem(item_obj, "group_id");
+        if (tmp_item != NULL && tmp_item->type == cJSON_Number) {
+            rules->add_items[i].group_id = tmp_item->valueint;
+        }
+
+        tmp_item = cJSON_GetObjectItem(item_obj, "included_sub_group_ids");
         if (tmp_item != NULL && tmp_item->type == cJSON_String) {
-            memcpy(rules->add_items[i].incl_ids_str, tmp_item->valuestring,
+            memcpy(rules->add_items[i].incl_sub_ids_str, tmp_item->valuestring,
                    strlen(tmp_item->valuestring));
         }
 
-        tmp_item = cJSON_GetObjectItem(item_obj, "super_group_id");
-        if (tmp_item != NULL && tmp_item->type == cJSON_Number) {
-            rules->add_items[i].super_group_id = tmp_item->valueint;
-        }
-
-        tmp_item = cJSON_GetObjectItem(item_obj, "excl_group_ids");
+        tmp_item = cJSON_GetObjectItem(item_obj, "excluded_sub_group_ids");
         if (tmp_item != NULL && tmp_item->type == cJSON_String) {
-            memcpy(rules->add_items[i].excl_ids_str, tmp_item->valuestring,
+            memcpy(rules->add_items[i].excl_sub_ids_str, tmp_item->valuestring,
                    strlen(tmp_item->valuestring));
         }
     }
@@ -92,20 +92,20 @@ static int parse_config_file(const char *filename, struct group2group_rule *rule
     rule_cnt = cJSON_GetArraySize(items_array);
     for (size_t i = 0; i < rule_cnt; i++) {
         cJSON *item_obj = cJSON_GetArrayItem(items_array, i);
-        cJSON *tmp_item = cJSON_GetObjectItem(item_obj, "incl_group_ids");
+        cJSON *tmp_item = cJSON_GetObjectItem(item_obj, "group_id");
+        if (tmp_item != NULL && tmp_item->type == cJSON_Number) {
+            rules->del_items[i].group_id = tmp_item->valueint;
+        }
+
+        tmp_item = cJSON_GetObjectItem(item_obj, "included_sub_group_ids");
         if (tmp_item != NULL && tmp_item->type == cJSON_String) {
-            memcpy(rules->del_items[i].incl_ids_str, tmp_item->valuestring,
+            memcpy(rules->del_items[i].incl_sub_ids_str, tmp_item->valuestring,
                    strlen(tmp_item->valuestring));
         }
 
-        tmp_item = cJSON_GetObjectItem(item_obj, "super_group_id");
-        if (tmp_item != NULL && tmp_item->type == cJSON_Number) {
-            rules->del_items[i].super_group_id = tmp_item->valueint;
-        }
-
-        tmp_item = cJSON_GetObjectItem(item_obj, "excl_group_ids");
+        tmp_item = cJSON_GetObjectItem(item_obj, "excluded_sub_group_ids");
         if (tmp_item != NULL && tmp_item->type == cJSON_String) {
-            memcpy(rules->del_items[i].excl_ids_str, tmp_item->valuestring,
+            memcpy(rules->del_items[i].excl_sub_ids_str, tmp_item->valuestring,
                    strlen(tmp_item->valuestring));
         }
     }
@@ -182,8 +182,8 @@ TEST_F(MaatGroupExclude, level_3_function) {
     for (size_t i = 0; i < rules.n_add_item; i++) {
         memset(table_line, 0, sizeof(table_line));
 
-        sprintf(table_line, "%s\t%lld\t%s\t%d", rules.add_items[i].incl_ids_str,
-                rules.add_items[i].super_group_id, rules.add_items[i].excl_ids_str, 1);
+        sprintf(table_line, "%lld\t%s\t%s\t%d", rules.add_items[i].group_id,
+                rules.add_items[i].incl_sub_ids_str, rules.add_items[i].excl_sub_ids_str, 1);
         group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
     }
 
@@ -199,8 +199,8 @@ TEST_F(MaatGroupExclude, level_3_function) {
     
     //delete group_id = 7, super_group_id = 6, is_exclude = 1
     memset(table_line, 0, sizeof(table_line));
-    sprintf(table_line, "%s\t%lld\t%s\t%d", rules.del_items[0].incl_ids_str,
-            rules.del_items[0].super_group_id, rules.del_items[0].excl_ids_str, 0);
+    sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[0].group_id,
+            rules.del_items[0].incl_sub_ids_str, rules.del_items[0].excl_sub_ids_str, 0);
     group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
     group2group_runtime_commit(g2g_runtime, table_name, 2);
 
@@ -213,8 +213,8 @@ TEST_F(MaatGroupExclude, level_3_function) {
 
     //delete group_id = 13, super_group_id = 4, is_exclude = 1
     memset(table_line, 0, sizeof(table_line));
-    sprintf(table_line, "%s\t%lld\t%s\t%d", rules.del_items[1].incl_ids_str,
-            rules.del_items[1].super_group_id, rules.del_items[1].excl_ids_str, 0);
+    sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[1].group_id,
+            rules.del_items[1].incl_sub_ids_str, rules.del_items[1].excl_sub_ids_str, 0);
     group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
     group2group_runtime_commit(g2g_runtime, table_name, 3);
 
@@ -247,8 +247,8 @@ TEST_F(MaatGroupExclude, level_3_perf) {
     for (size_t i = 0; i < rules.n_add_item; i++) {
         memset(table_line, 0, sizeof(table_line));
 
-        sprintf(table_line, "%s\t%lld\t%s\t%d", rules.add_items[i].incl_ids_str,
-                rules.add_items[i].super_group_id, rules.add_items[i].excl_ids_str, 1);
+        sprintf(table_line, "%lld\t%s\t%s\t%d", rules.add_items[i].group_id,
+                rules.add_items[i].incl_sub_ids_str, rules.add_items[i].excl_sub_ids_str, 1);
         group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
     }
 
@@ -271,8 +271,8 @@ TEST_F(MaatGroupExclude, level_3_perf) {
 
     //delete group_id = 7, super_group_id = 6, is_exclude = 1
     memset(table_line, 0, sizeof(table_line));
-    sprintf(table_line, "%s\t%lld\t%s\t%d", rules.del_items[0].incl_ids_str,
-            rules.del_items[0].super_group_id, rules.del_items[0].excl_ids_str, 0);
+    sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[0].group_id,
+            rules.del_items[0].incl_sub_ids_str, rules.del_items[0].excl_sub_ids_str, 0);
     group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
     group2group_runtime_commit(g2g_runtime, table_name, 5);
 
@@ -288,8 +288,8 @@ TEST_F(MaatGroupExclude, level_3_perf) {
 
     //delete group_id = 13, super_group_id = 4, is_exclude = 1
     memset(table_line, 0, sizeof(table_line));
-    sprintf(table_line, "%s\t%lld\t%s\t%d", rules.del_items[1].incl_ids_str,
-            rules.del_items[1].super_group_id, rules.del_items[1].excl_ids_str, 0);
+    sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[1].group_id,
+            rules.del_items[1].incl_sub_ids_str, rules.del_items[1].excl_sub_ids_str, 0);
     group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
     group2group_runtime_commit(g2g_runtime, table_name, 6);
 
@@ -324,8 +324,8 @@ TEST_F(MaatGroupExclude, level_4_function) {
     for (size_t i = 0; i < rules.n_add_item; i++) {
         memset(table_line, 0, sizeof(table_line));
 
-        sprintf(table_line, "%s\t%lld\t%s\t%d", rules.add_items[i].incl_ids_str,
-                rules.add_items[i].super_group_id, rules.add_items[i].excl_ids_str, 1);
+        sprintf(table_line, "%lld\t%s\t%s\t%d", rules.add_items[i].group_id,
+                rules.add_items[i].incl_sub_ids_str, rules.add_items[i].excl_sub_ids_str, 1);
         group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
     }
 
@@ -344,8 +344,8 @@ TEST_F(MaatGroupExclude, level_4_function) {
     
     //delete group_id = 10, super_group_id = 6, is_exclude = 1
     memset(table_line, 0, sizeof(table_line));
-    sprintf(table_line, "%s\t%lld\t%s\t%d", rules.del_items[0].incl_ids_str,
-            rules.del_items[0].super_group_id, rules.del_items[0].excl_ids_str, 0);
+    sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[0].group_id,
+            rules.del_items[0].incl_sub_ids_str, rules.del_items[0].excl_sub_ids_str, 0);
     group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
     group2group_runtime_commit(g2g_runtime, table_name, 8);
 
@@ -381,8 +381,8 @@ TEST_F(MaatGroupExclude, level_4_perf) {
     for (size_t i = 0; i < rules.n_add_item; i++) {
         memset(table_line, 0, sizeof(table_line));
 
-        sprintf(table_line, "%s\t%lld\t%s\t%d", rules.add_items[i].incl_ids_str,
-                rules.add_items[i].super_group_id, rules.add_items[i].excl_ids_str, 1);
+        sprintf(table_line, "%lld\t%s\t%s\t%d", rules.add_items[i].group_id,
+                rules.add_items[i].incl_sub_ids_str, rules.add_items[i].excl_sub_ids_str, 1);
         group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
     }
 
@@ -405,8 +405,8 @@ TEST_F(MaatGroupExclude, level_4_perf) {
     
     //delete group_id = 10, super_group_id = 6, is_exclude = 1
     memset(table_line, 0, sizeof(table_line));
-    sprintf(table_line, "%s\t%lld\t%s\t%d", rules.del_items[0].incl_ids_str,
-            rules.del_items[0].super_group_id, rules.del_items[0].excl_ids_str, 0);
+    sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[0].group_id,
+            rules.del_items[0].incl_sub_ids_str, rules.del_items[0].excl_sub_ids_str, 0);
     group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
     group2group_runtime_commit(g2g_runtime, table_name, 8);
 
@@ -441,8 +441,8 @@ TEST_F(MaatGroupExclude, level_exceed_function) {
     for (size_t i = 0; i < rules.n_add_item; i++) {
         memset(table_line, 0, sizeof(table_line));
 
-        sprintf(table_line, "%s\t%lld\t%s\t%d", rules.add_items[i].incl_ids_str,
-                rules.add_items[i].super_group_id, rules.add_items[i].excl_ids_str, 1);
+        sprintf(table_line, "%lld\t%s\t%s\t%d", rules.add_items[i].group_id,
+                rules.add_items[i].incl_sub_ids_str, rules.add_items[i].excl_sub_ids_str, 1);
         group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
     }
 
@@ -462,8 +462,8 @@ TEST_F(MaatGroupExclude, level_exceed_function) {
 
     //delete group_id = 13, super_group_id = 10, is_exclude = 0
     memset(table_line, 0, sizeof(table_line));
-    sprintf(table_line, "%s\t%lld\t%s\t%d", rules.del_items[0].incl_ids_str,
-            rules.del_items[0].super_group_id, rules.del_items[0].excl_ids_str, 0);
+    sprintf(table_line, "%lld\t%s\t%s\t%d", rules.del_items[0].group_id,
+            rules.del_items[0].incl_sub_ids_str, rules.del_items[0].excl_sub_ids_str, 0);
     group2group_runtime_update(g2g_runtime, g2g_schema, table_name, table_line, 4);
     group2group_runtime_commit(g2g_runtime, table_name, 9);
 

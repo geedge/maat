@@ -187,15 +187,14 @@ int group2compile_table_set_line(struct maat *maat_inst, const char *table_name,
 
 int group2group_table_set_line(struct maat *maat_inst, const char *table_name,
                                enum maat_operation op, long long group_id,
-                               long long superior_group_id, int is_exclude,
-                               int expire_after)
+                               long long sub_group_id, int expire_after)
 {
     char table_line[128] = {0};
-    sprintf(table_line, "%lld\t%lld\t%d\t%d", group_id, superior_group_id,
-            is_exclude, op);
+    sprintf(table_line, "%lld\t%lld\t%s\t%d", group_id, sub_group_id,
+            "null", op);
 
     struct maat_cmd_line line_rule;
-    line_rule.rule_id = TO_GROUP2X_KEY(group_id, superior_group_id, 0);
+    line_rule.rule_id = TO_GROUP2X_KEY(group_id, sub_group_id, 0);
     line_rule.table_line = table_line;
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
@@ -7746,7 +7745,7 @@ TEST_F(MaatCmdTest, SubGroup) {
     //group2 -> group1 -> compile1
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
-                                     group2_id, group1_id, 0, 0);
+                                     group1_id, group2_id, 0);
     EXPECT_EQ(ret, 1);
 
     /* item1 -> group2 -> group1 -> compile1
@@ -7830,7 +7829,7 @@ TEST_F(MaatCmdTest, SubGroup) {
     */
     long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
-                                     group3_id, group1_id, 0, 0);
+                                     group1_id, group3_id, 0);
     EXPECT_EQ(ret, 1);
 
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
@@ -8927,7 +8926,7 @@ TEST_F(MaatCmdTest, HitGroup) {
     */
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
-                                     group2_id, group21_id, 0, 0);
+                                     group21_id, group2_id, 0);
     EXPECT_EQ(ret, 1);
 
     /*       item1 -> group1 -> compile1
@@ -8949,7 +8948,7 @@ TEST_F(MaatCmdTest, HitGroup) {
     */
     long long group11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
-                                     group1_id, group11_id, 0, 0);
+                                     group11_id, group1_id, 0);
     EXPECT_EQ(ret, 1);
     
     //item3 -> group3, group3 is not referenced by any compile.
@@ -9196,7 +9195,7 @@ TEST_F(MaatCmdTest, HitPathBasic) {
     */
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
-                                     group2_id, group21_id, 0, 0);
+                                     group21_id, group2_id, 0);
     EXPECT_EQ(ret, 1);
 
     /*       item1 -> group1 -> compile1
@@ -9218,7 +9217,7 @@ TEST_F(MaatCmdTest, HitPathBasic) {
     */
     long long group11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
-                                     group1_id, group11_id, 0, 0);
+                                     group11_id, group1_id, 0);
     EXPECT_EQ(ret, 1);
     
     //item3 -> group3, group3 is not referenced by any compile.
@@ -9498,7 +9497,7 @@ TEST_F(MaatCmdTest, HitPathAdvanced) {
     */
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
-                                     group2_id, group21_id, 0, 0);
+                                     group21_id, group2_id, 0);
     EXPECT_EQ(ret, 1);
 
     /*       item1 -> group1 -> compile1
@@ -9860,7 +9859,7 @@ TEST_F(MaatCmdTest, HitPathHasNotGroup) {
     */
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
-                                     group2_id, group21_id, 0, 0);
+                                     group21_id, group2_id, 0);
     EXPECT_EQ(ret, 1);
 
     /*       !(item1 -> group1) -> compile1
@@ -9882,7 +9881,7 @@ TEST_F(MaatCmdTest, HitPathHasNotGroup) {
     */
     long long group11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
-                                     group1_id, group11_id, 0, 0);
+                                     group11_id, group1_id, 0);
     EXPECT_EQ(ret, 1);
     
     //item3 -> group3, group3 is not referenced by any compile.
@@ -10132,7 +10131,7 @@ TEST_F(MaatCmdTest, SameSuperGroupRefByMultiCompile) {
 
     long long group52_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2group_table_set_line(maat_inst, g2g_table_name, MAAT_OP_ADD,
-                                     group5_id, group52_id, 0, 0);
+                                     group52_id, group5_id, 0);
     EXPECT_EQ(ret, 1);
 
     long long compile2_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);

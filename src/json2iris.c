@@ -42,8 +42,8 @@ enum maat_group_relation {
 struct group_info {
     int group_id;
     char group_name[NAME_MAX];
-    UT_array *incl_group_ids;
-    UT_array *excl_group_ids;
+    UT_array *incl_sub_group_ids;
+    UT_array *excl_sub_group_ids;
     UT_hash_handle hh;
 };
 
@@ -201,14 +201,14 @@ static void clear_iris_descriptor(struct iris_description *iris_cfg)
         struct group_info *node = NULL;
         struct group_info *tmp = NULL;
         HASH_ITER(hh, iris_cfg->group_name_map, node, tmp) {
-			if (node->incl_group_ids != NULL) {
-				utarray_free(node->incl_group_ids);
-				node->incl_group_ids = NULL;
+			if (node->incl_sub_group_ids != NULL) {
+				utarray_free(node->incl_sub_group_ids);
+				node->incl_sub_group_ids = NULL;
 			}
 
-			if (node->excl_group_ids != NULL) {
-				utarray_free(node->excl_group_ids);
-				node->excl_group_ids = NULL;
+			if (node->excl_sub_group_ids != NULL) {
+				utarray_free(node->excl_sub_group_ids);
+				node->excl_sub_group_ids = NULL;
 			}
 
             HASH_DELETE(hh, iris_cfg->group_name_map, node);
@@ -314,8 +314,8 @@ group_info_add_unsafe(struct iris_description *p_iris, const char *group_name,
 					  long long group_id)
 {
 	struct group_info *group_info = ALLOC(struct group_info, 1);
-	utarray_new(group_info->incl_group_ids, &ut_json2iris_group_id_icd);
-	utarray_new(group_info->excl_group_ids, &ut_json2iris_group_id_icd);
+	utarray_new(group_info->incl_sub_group_ids, &ut_json2iris_group_id_icd);
+	utarray_new(group_info->excl_sub_group_ids, &ut_json2iris_group_id_icd);
 
 	group_info->group_id = group_id;
 	strncpy(group_info->group_name, group_name, sizeof(group_info->group_name));
@@ -719,8 +719,8 @@ static int write_group2compile_line(int *group_ids, size_t n_group_id,
 	return 0;
 }
 
-static int write_group2group_line(int super_group_id, UT_array *incl_group_ids,
-								  UT_array *excl_group_ids,
+static int write_group2group_line(int group_id, UT_array *incl_sub_group_ids,
+								  UT_array *excl_sub_group_ids,
                            		  struct iris_description *p_iris)
 {
 	char buff[MAX_BUFF_LEN] = {0};
@@ -730,49 +730,49 @@ static int write_group2group_line(int super_group_id, UT_array *incl_group_ids,
     }
 
     size_t i = 0, pos = 0;
-    char incl_id_str[MAX_BUFF_LEN] = {0};
-    char excl_id_str[MAX_BUFF_LEN] = {0};
+    char incl_sub_group_id_str[MAX_BUFF_LEN] = {0};
+    char excl_sub_group_id_str[MAX_BUFF_LEN] = {0};
 
-	if (0 == utarray_len(incl_group_ids) &&
-		0 == utarray_len(excl_group_ids)) {
+	if (0 == utarray_len(incl_sub_group_ids) &&
+		0 == utarray_len(excl_sub_group_ids)) {
 		return 0;
 	}
 
 	int *tmp_id = NULL;
 	char tmp_str[MAX_GROUP_ID_STR] = {0};
-    for (i = 0; i < utarray_len(incl_group_ids); i++) {
-        tmp_id = (int *)utarray_eltptr(incl_group_ids, i);
+    for (i = 0; i < utarray_len(incl_sub_group_ids); i++) {
+        tmp_id = (int *)utarray_eltptr(incl_sub_group_ids, i);
         sprintf(tmp_str, "%d,", *tmp_id);
-        sprintf(incl_id_str + pos, "%s", tmp_str);
+        sprintf(incl_sub_group_id_str + pos, "%s", tmp_str);
         pos += strlen(tmp_str);
     }
 
 	const char *null_str = "null";
-    size_t str_len = strlen(incl_id_str);
+    size_t str_len = strlen(incl_sub_group_id_str);
 	if (str_len > 0) {
-		incl_id_str[str_len - 1] = '\0';
+		incl_sub_group_id_str[str_len - 1] = '\0';
 	} else {
-		memcpy(incl_id_str, null_str, strlen(null_str));
+		memcpy(incl_sub_group_id_str, null_str, strlen(null_str));
 	}
 	
 	pos = 0;
 	memset(tmp_str, 0, sizeof(tmp_str));
-	for (i = 0; i < utarray_len(excl_group_ids); i++) {
-        tmp_id = (int *)utarray_eltptr(excl_group_ids, i);
+	for (i = 0; i < utarray_len(excl_sub_group_ids); i++) {
+        tmp_id = (int *)utarray_eltptr(excl_sub_group_ids, i);
         sprintf(tmp_str, "%d,", *tmp_id);
-        sprintf(excl_id_str + pos, "%s", tmp_str);
+        sprintf(excl_sub_group_id_str + pos, "%s", tmp_str);
         pos += strlen(tmp_str);
     }
 
-	str_len = strlen(excl_id_str);
+	str_len = strlen(excl_sub_group_id_str);
 	if (str_len > 0) {
-		excl_id_str[str_len - 1] = '\0';
+		excl_sub_group_id_str[str_len - 1] = '\0';
 	} else {
-		memcpy(excl_id_str, null_str, strlen(null_str));
+		memcpy(excl_sub_group_id_str, null_str, strlen(null_str));
 	}
 
-    snprintf(buff, sizeof(buff), "%s\t%d\t%s\t1\n", incl_id_str,
-             super_group_id, excl_id_str);
+    snprintf(buff, sizeof(buff), "%d\t%s\t%s\t1\n", group_id,
+			 incl_sub_group_id_str, excl_sub_group_id_str);
 
     table->write_pos += memcat(&(table->buff), table->write_pos,
                                &(table->buff_sz), buff, strlen(buff));
@@ -1160,9 +1160,9 @@ int recursive_traverse_sub_groups(cJSON *group_obj, struct iris_description *p_i
 			is_exclude = tmp_item3->valueint;
 		}
 		if (0 == is_exclude) {
-			utarray_push_back(parent_group->incl_group_ids, &group_id);
+			utarray_push_back(parent_group->incl_sub_group_ids, &group_id);
 		} else {
-			utarray_push_back(parent_group->excl_group_ids, &group_id);
+			utarray_push_back(parent_group->excl_sub_group_ids, &group_id);
 		}
 
 		int ret = recursive_traverse_sub_groups(sub_group_obj, p_iris, logger);
@@ -1181,8 +1181,8 @@ static int write_group2group_rule(struct iris_description *p_iris,
     struct group_info *group_info = NULL, *tmp_group_info = NULL;
 
     HASH_ITER(hh, p_iris->group_name_map, group_info, tmp_group_info) {
-        ret = write_group2group_line(group_info->group_id, group_info->incl_group_ids,
-                                     group_info->excl_group_ids, p_iris);
+        ret = write_group2group_line(group_info->group_id, group_info->incl_sub_group_ids,
+                                     group_info->excl_sub_group_ids, p_iris);
 		if (ret < 0) {
         	log_fatal(logger, MODULE_JSON2IRIS,
                       "[%s:%d] write group2group line failed for super_group:%d",
@@ -1236,7 +1236,7 @@ static int write_iris(cJSON *json, struct iris_description *p_iris,
                 return -1;
             }
 
-            utarray_push_back(parent_group->incl_group_ids, &item->valueint);
+            utarray_push_back(parent_group->incl_sub_group_ids, &item->valueint);
             ret = write_group_rule(group_obj, parent_group->group_id,
             						PARENT_TYPE_GROUP, 0, 0, p_iris, logger);
 			if (ret < 0) {
