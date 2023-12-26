@@ -25,11 +25,13 @@
 
 #define MODULE_JSON2IRIS  module_name_str("maat.json2iris")
 
-#define	MAX_COLUMN_NUM	32
-#define MAX_PATH_LINE 512
+#define	MAX_COLUMN_NUM	 32
+#define MAX_PATH_LINE    512
+#define MAX_BUFF_LEN     4096
+#define MAX_GROUP_ID_STR 128
 
 const int json_version = 1;
-const char *untitled_group_name="Untitled";
+const char *untitled_group_name = "Untitled";
 long long untitled_group_id = 123456789;
 
 enum maat_group_relation {
@@ -38,8 +40,10 @@ enum maat_group_relation {
 };
 
 struct group_info {
-	int group_id;
-	char group_name[NAME_MAX];
+    int group_id;
+    char group_name[NAME_MAX];
+    UT_array *incl_group_ids;
+    UT_array *excl_group_ids;
     UT_hash_handle hh;
 };
 
@@ -197,6 +201,16 @@ static void clear_iris_descriptor(struct iris_description *iris_cfg)
         struct group_info *node = NULL;
         struct group_info *tmp = NULL;
         HASH_ITER(hh, iris_cfg->group_name_map, node, tmp) {
+			if (node->incl_group_ids != NULL) {
+				utarray_free(node->incl_group_ids);
+				node->incl_group_ids = NULL;
+			}
+
+			if (node->excl_group_ids != NULL) {
+				utarray_free(node->excl_group_ids);
+				node->excl_group_ids = NULL;
+			}
+
             HASH_DELETE(hh, iris_cfg->group_name_map, node);
             FREE(node);
         }
@@ -294,11 +308,15 @@ static struct group_info *group_info_read(struct group_info *group_name_map,
     return node;
 }
 
+UT_icd ut_json2iris_group_id_icd = {sizeof(int), NULL, NULL, NULL};
 static struct group_info *
 group_info_add_unsafe(struct iris_description *p_iris, const char *group_name,
 					  long long group_id)
 {
 	struct group_info *group_info = ALLOC(struct group_info, 1);
+	utarray_new(group_info->incl_group_ids, &ut_json2iris_group_id_icd);
+	utarray_new(group_info->excl_group_ids, &ut_json2iris_group_id_icd);
+
 	group_info->group_id = group_id;
 	strncpy(group_info->group_name, group_name, sizeof(group_info->group_name));
 
@@ -701,23 +719,66 @@ static int write_group2compile_line(int *group_ids, size_t n_group_id,
 	return 0;
 }
 
-static int write_group2group_line(int sub_group_id, int super_group_id, int is_exclude,
+static int write_group2group_line(int super_group_id, UT_array *incl_group_ids,
+								  UT_array *excl_group_ids,
                            		  struct iris_description *p_iris)
 {
-	char buff[4096] = {0};
+	char buff[MAX_BUFF_LEN] = {0};
 	struct iris_table *table = p_iris->group2group_table;
     if (NULL == table) {
         return -1;
     }
 
-	snprintf(buff, sizeof(buff), "%d\t%d\t%d\t1\n", sub_group_id, 
-             super_group_id, is_exclude);
-	
-	table->write_pos += memcat(&(table->buff), table->write_pos, 
-                               &(table->buff_sz), buff, strlen(buff));
-	table->line_count++;
+    size_t i = 0, pos = 0;
+    char incl_id_str[MAX_BUFF_LEN] = {0};
+    char excl_id_str[MAX_BUFF_LEN] = {0};
 
-	return 0;
+	if (0 == utarray_len(incl_group_ids) &&
+		0 == utarray_len(excl_group_ids)) {
+		return 0;
+	}
+
+	int *tmp_id = NULL;
+	char tmp_str[MAX_GROUP_ID_STR] = {0};
+    for (i = 0; i < utarray_len(incl_group_ids); i++) {
+        tmp_id = (int *)utarray_eltptr(incl_group_ids, i);
+        sprintf(tmp_str, "%d,", *tmp_id);
+        sprintf(incl_id_str + pos, "%s", tmp_str);
+        pos += strlen(tmp_str);
+    }
+
+	const char *null_str = "null";
+    size_t str_len = strlen(incl_id_str);
+	if (str_len > 0) {
+		incl_id_str[str_len - 1] = '\0';
+	} else {
+		memcpy(incl_id_str, null_str, strlen(null_str));
+	}
+	
+	pos = 0;
+	memset(tmp_str, 0, sizeof(tmp_str));
+	for (i = 0; i < utarray_len(excl_group_ids); i++) {
+        tmp_id = (int *)utarray_eltptr(excl_group_ids, i);
+        sprintf(tmp_str, "%d,", *tmp_id);
+        sprintf(excl_id_str + pos, "%s", tmp_str);
+        pos += strlen(tmp_str);
+    }
+
+	str_len = strlen(excl_id_str);
+	if (str_len > 0) {
+		excl_id_str[str_len - 1] = '\0';
+	} else {
+		memcpy(excl_id_str, null_str, strlen(null_str));
+	}
+
+    snprintf(buff, sizeof(buff), "%s\t%d\t%s\t1\n", incl_id_str,
+             super_group_id, excl_id_str);
+
+    table->write_pos += memcat(&(table->buff), table->write_pos,
+                               &(table->buff_sz), buff, strlen(buff));
+    table->line_count++;
+
+    return 0;
 }
 
 static int write_group_rule(cJSON *group_json, int parent_id, 
@@ -727,10 +788,9 @@ static int write_group_rule(cJSON *group_json, int parent_id,
 {
     int ret = 0;
     int group_not_flag = 0;
-    int clause_index = 0, is_exclude = 0;
-	const char *str_parent_type[2] = {"compile", "group"};
+    int clause_index = 0;
 	const char *group_name = NULL;
-	char group_name_array[32][MAX_NAME_STR_LEN] = {{0},};
+	char group_name_array[32][MAX_NAME_STR_LEN];
 	size_t group_name_cnt = 0;
 	long long group_id = -1;
     const char *virtual_table = NULL;
@@ -763,13 +823,6 @@ static int write_group_rule(cJSON *group_json, int parent_id,
 		group_id = item->valueint;
 	}
 
-    item = cJSON_GetObjectItem(group_json, "is_exclude");
-    if (NULL == item || item->type != cJSON_Number) {
-		is_exclude = 0;
-	} else {
-		is_exclude = item->valueint;
-	}
-
 	if (parent_type == PARENT_TYPE_COMPILE) {
 		item = cJSON_GetObjectItem(group_json, "virtual_table");
 		if (NULL == item || item->type != cJSON_String) {
@@ -797,8 +850,6 @@ static int write_group_rule(cJSON *group_json, int parent_id,
             g2c_table = query_table_info(p_iris, item->valuestring, 
                                          TABLE_TYPE_GROUP2COMPILE);
         }
-	} else {
-		group_not_flag = 0;
 	}
 
     if (group_name_cnt > 0) {
@@ -877,18 +928,14 @@ static int write_group_rule(cJSON *group_json, int parent_id,
             ret = write_group2compile_line(&(group_info->group_id), 1, parent_id,
                                            group_not_flag, clause_index,
                                            virtual_table, p_iris, g2c_table);
-        } else {
-            ret = write_group2group_line(group_info->group_id, parent_id,
-                                         is_exclude, p_iris);
-        }
+			if (ret < 0) {
+				log_fatal(logger, MODULE_JSON2IRIS, 
+                  		  "[%s:%d] compile:%d write group error", 
+                  		  __FUNCTION__, __LINE__, parent_id);
+				return -1;
+			}
+		}
     }
-
-    if (ret < 0) {
-		log_fatal(logger, MODULE_JSON2IRIS, 
-                  "[%s:%d] %s rule %d write group error", 
-                  __FUNCTION__, __LINE__, str_parent_type[parent_type], parent_id);
-		return -1;
-	}
 
 	return 0;
 }
@@ -1058,98 +1105,215 @@ static int write_index_file(struct iris_description *p_iris,
 	return 0;
 }
 
-static int write_iris(cJSON *json, struct iris_description *p_iris, 
-               		  struct log_handle *logger)
+int recursive_traverse_sub_groups(cJSON *group_obj, struct iris_description *p_iris,
+								  struct log_handle *logger)
 {
-	int i=0;
-	int ret=0;
-	static struct group_info *parent_group = NULL; //TODO
-	
-	cJSON *plug_tables = cJSON_GetObjectItem(json, "plugin_table");
-	if (plug_tables != NULL) {
+    cJSON *sub_group_array = cJSON_GetObjectItem(group_obj, "sub_groups");
+	if (NULL == sub_group_array) {
+		return 0;
+	}
+
+	cJSON *item = cJSON_GetObjectItem(group_obj, "group_name");
+	if (NULL == item || item->type != cJSON_String) {
+		log_fatal(logger, MODULE_JSON2IRIS,
+				  "[%s:%d] has no group_name before sub_groups.");
+		return -1;
+	}
+
+	const char *parent_group_name = item->valuestring;
+	struct group_info *parent_group = group_info_read(p_iris->group_name_map,
+													  item->valuestring);
+	if (NULL == parent_group) {
+		item = cJSON_GetObjectItem(group_obj, "group_id");
+		if (NULL == item || item->type != cJSON_Number) {
+			log_fatal(logger, MODULE_JSON2IRIS,
+				  	 "[%s:%d] group_name:%s has no group_id.", parent_group_name);
+			return -1;
+		}	
+		parent_group = group_info_add_unsafe(p_iris, parent_group_name, item->valueint);
+	}
+
+	cJSON *sub_group_obj = NULL;
+	cJSON_ArrayForEach(sub_group_obj, sub_group_array) {
+		cJSON *tmp_item1 = cJSON_GetObjectItem(sub_group_obj, "group_name");
+		if (NULL == tmp_item1 || tmp_item1->type != cJSON_String) {
+			log_fatal(logger, MODULE_JSON2IRIS,
+					  "[%s:%d]group:%s's sub_groups has no group_name",
+					  __FUNCTION__, __LINE__, parent_group_name);
+			return -1;
+		}
+
+		int group_id = -1;
+		int is_exclude = 0;
+		cJSON *tmp_item2 = cJSON_GetObjectItem(sub_group_obj, "group_id");
+		if (NULL == tmp_item2) {
+			struct group_info *group = group_info_read(p_iris->group_name_map,
+													   tmp_item1->valuestring);
+			assert(group != NULL);
+			group_id = group->group_id;
+		} else {
+			group_id = tmp_item2->valueint;
+		}
+
+		cJSON *tmp_item3 = cJSON_GetObjectItem(sub_group_obj, "is_exclude");
+		if (tmp_item3 != NULL && tmp_item3->type == cJSON_Number) {
+			is_exclude = tmp_item3->valueint;
+		}
+		if (0 == is_exclude) {
+			utarray_push_back(parent_group->incl_group_ids, &group_id);
+		} else {
+			utarray_push_back(parent_group->excl_group_ids, &group_id);
+		}
+
+		int ret = recursive_traverse_sub_groups(sub_group_obj, p_iris, logger);
+		if (ret < 0) {
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+static int write_group2group_rule(struct iris_description *p_iris,
+						    	  struct log_handle *logger)
+{
+    int ret = 0;
+    struct group_info *group_info = NULL, *tmp_group_info = NULL;
+
+    HASH_ITER(hh, p_iris->group_name_map, group_info, tmp_group_info) {
+        ret = write_group2group_line(group_info->group_id, group_info->incl_group_ids,
+                                     group_info->excl_group_ids, p_iris);
+		if (ret < 0) {
+        	log_fatal(logger, MODULE_JSON2IRIS,
+                      "[%s:%d] write group2group line failed for super_group:%d",
+					  __FUNCTION__, __LINE__, group_info->group_id);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int write_iris(cJSON *json, struct iris_description *p_iris,
+                      struct log_handle *logger)
+{
+    int i = 0;
+    int ret = 0;
+    static struct group_info *parent_group = NULL; // TODO
+
+    cJSON *plug_tables = cJSON_GetObjectItem(json, "plugin_table");
+    if (plug_tables != NULL) {
         cJSON *each_plug_table = NULL;
-		cJSON_ArrayForEach(each_plug_table, plug_tables) {
-			write_plugin_line(each_plug_table, i, p_iris, logger);
-			i++;
-		}
-	}
+        cJSON_ArrayForEach(each_plug_table, plug_tables) {
+            write_plugin_line(each_plug_table, i, p_iris, logger);
+            i++;
+        }
+    }
 
-	cJSON *group_array = cJSON_GetObjectItem(json, "groups");//sub-group to group
-	if (group_array != NULL) {
+    cJSON *group_array = cJSON_GetObjectItem(json, "groups"); // sub-group to group
+    if (group_array != NULL) {
         cJSON *group_obj = NULL;
-		cJSON_ArrayForEach(group_obj, group_array) {
+        cJSON_ArrayForEach(group_obj, group_array) {
             const char *parent_group_name = NULL;
-			cJSON *item = cJSON_GetObjectItem(group_obj, "parent_group");
-			if (NULL == item || item->type!=cJSON_String) {
-				parent_group_name = untitled_group_name;
-			} else {
-				parent_group_name = item->string;
-			}
+            cJSON *item = cJSON_GetObjectItem(group_obj, "parent_group");
+            if (NULL == item || item->type != cJSON_String) {
+                parent_group_name = untitled_group_name;
+            } else {
+                parent_group_name = item->string;
+            }
 
-			parent_group = group_info_read(p_iris->group_name_map, parent_group_name);
-			if(NULL == parent_group) {
-				parent_group = group_info_add_unsafe(p_iris, parent_group_name,
-													 untitled_group_id);
-			}
+            parent_group = group_info_read(p_iris->group_name_map, parent_group_name);
+            if (NULL == parent_group) {
+                parent_group = group_info_add_unsafe(p_iris, parent_group_name,
+                                                     untitled_group_id);
+            }
 
-			ret = write_group_rule(group_obj, parent_group->group_id,
-								   PARENT_TYPE_GROUP, 0, 0, p_iris, logger);
+            item = cJSON_GetObjectItem(group_obj, "group_id");
+            if (NULL == item || item->type != cJSON_Number) {
+                log_fatal(logger, MODULE_JSON2IRIS,
+                          "[%s:%d]Global groups has group with no group_id.",
+                          __FUNCTION__, __LINE__);
+                return -1;
+            }
+
+            utarray_push_back(parent_group->incl_group_ids, &item->valueint);
+            ret = write_group_rule(group_obj, parent_group->group_id,
+            						PARENT_TYPE_GROUP, 0, 0, p_iris, logger);
 			if (ret < 0) {
-				return -1;
-			}
-		}
-	}
+            	return -1;
+            }
+        }
+    }
 
-	int compile_cnt = 0;
-	cJSON *compile_array = cJSON_GetObjectItem(json, "rules");
-	if (compile_array != NULL) {
-		compile_cnt = cJSON_GetArraySize(compile_array);
-	}
+    int compile_cnt = 0;
+    cJSON *compile_array = cJSON_GetObjectItem(json, "rules");
+    if (compile_array != NULL) {
+        compile_cnt = cJSON_GetArraySize(compile_array);
+    }
 
-	if (compile_cnt > 0) {
+    if (compile_cnt > 0) {
         cJSON *compile_obj = NULL;
-		cJSON_ArrayForEach(compile_obj, compile_array) {
-			int compile_id = write_compile_line(compile_obj, p_iris, logger);
-			if (compile_id < 0) {
-				log_fatal(logger, MODULE_JSON2IRIS, "[%s:%d] In %d compile rule", 
-                          __FUNCTION__, __LINE__, i);
-				return -1;
-			}
+        cJSON_ArrayForEach(compile_obj, compile_array) {
+            int compile_id = write_compile_line(compile_obj, p_iris, logger);
+            if (compile_id < 0) {
+                log_fatal(logger, MODULE_JSON2IRIS,
+                          "[%s:%d] In %d compile rule",
+						  __FUNCTION__, __LINE__, i);
+                return -1;
+            }
 
-			group_array = cJSON_GetObjectItem(compile_obj, "groups");
-			if (NULL == group_array) {
-				log_fatal(logger, MODULE_JSON2IRIS, 
-                          "[%s:%d] compile rule %d have no group", 
+            group_array = cJSON_GetObjectItem(compile_obj, "groups");
+            if (NULL == group_array) {
+                log_fatal(logger, MODULE_JSON2IRIS,
+                          "[%s:%d] compile rule %d have no group",
+						  __FUNCTION__, __LINE__, compile_id);
+                return -1;
+            }
+
+            int group_cnt = cJSON_GetArraySize(group_array);
+            if (group_cnt <= 0) {
+                log_fatal(logger, MODULE_JSON2IRIS,
+                          "[%s:%d] compile rule %d have no groups",
                           __FUNCTION__, __LINE__, compile_id);
-				return -1;
-			}
+                return -1;
+            }
 
-			int group_cnt = cJSON_GetArraySize(group_array);
-			if (group_cnt <= 0) {
-				log_fatal(logger, MODULE_JSON2IRIS, 
-                          "[%s:%d] compile rule %d have no groups", 
-                          __FUNCTION__, __LINE__, compile_id);
-				return -1;
-			}
-
-			i = 0;
+            i = 0;
             cJSON *group_obj = NULL;
-			cJSON_ArrayForEach(group_obj, group_array) {
-				ret = write_group_rule(group_obj, compile_id, PARENT_TYPE_COMPILE,
+            cJSON_ArrayForEach(group_obj, group_array) {
+                ret = write_group_rule(group_obj, compile_id, PARENT_TYPE_COMPILE,
                                        compile_id, i, p_iris, logger);
-				if (ret < 0) {
-					return -1;
-				}
-				i++;
-			}
-		}
-	}
+                if (ret < 0) {
+                    return -1;
+                }
+                i++;
+            }
+        }
 
-	ret = write_index_file(p_iris, logger);
+        cJSON_ArrayForEach(compile_obj, compile_array) {
+            cJSON *group_array = cJSON_GetObjectItem(compile_obj, "groups");
+
+            cJSON *group_obj = NULL;
+            cJSON_ArrayForEach(group_obj, group_array) {
+                ret = recursive_traverse_sub_groups(group_obj, p_iris, logger);
+                if (ret < 0) {
+                    return -1;
+                }
+            }
+        }
+    }
+
+    ret = write_group2group_rule(p_iris, logger);
 	if (ret < 0) {
 		return -1;
 	}
-	return 0;
+
+    ret = write_index_file(p_iris, logger);
+    if (ret < 0) {
+        return -1;
+    }
+
+    return 0;
 }
 
 int json2iris(const char *json_buff, const char *json_filename,

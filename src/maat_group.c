@@ -23,15 +23,15 @@
 #define MODULE_GROUP	 module_name_str("maat.group")
 
 struct group2group_item {
-    UT_array *sub_group_ids;
+    UT_array *incl_group_ids;
+    UT_array *excl_group_ids;
     long long super_group_id;
-    int is_exclude;
 };
 
 struct group2group_schema {
-    int group_id_column;
+    int incl_group_ids_column;
     int super_group_id_column;
-    int is_exclude_column;
+    int excl_group_ids_column;
     int table_id;
     struct table_manager *ref_tbl_mgr;
 };
@@ -111,12 +111,12 @@ void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "group_id");
+    custom_item = cJSON_GetObjectItem(item, "incl_group_ids");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        g2g_schema->group_id_column = custom_item->valueint;
+        g2g_schema->incl_group_ids_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_GROUP, 
-                  "[%s:%d] g2g table:<%s> schema has no group_id column",
+                  "[%s:%d] g2g table:<%s> schema has no incl_group_ids column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -131,12 +131,12 @@ void *group2group_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "is_exclude");
+    custom_item = cJSON_GetObjectItem(item, "excl_group_ids");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        g2g_schema->is_exclude_column = custom_item->valueint;
+        g2g_schema->excl_group_ids_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_GROUP, 
-                  "[%s:%d] g2g table:<%s> schema has no is_exclude column",
+                  "[%s:%d] g2g table:<%s> schema has no excl_group_ids column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -326,13 +326,14 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
     size_t column_offset = 0;
     size_t column_len = 0;
     struct group2group_item *g2g_item = ALLOC(struct group2group_item, 1);
-    utarray_new(g2g_item->sub_group_ids, &ut_group_id_icd);
+    utarray_new(g2g_item->incl_group_ids, &ut_group_id_icd);
+    utarray_new(g2g_item->excl_group_ids, &ut_group_id_icd);
 
-    int ret = get_column_pos(line, g2g_schema->group_id_column,
+    int ret = get_column_pos(line, g2g_schema->incl_group_ids_column,
                              &column_offset, &column_len);
     if (ret < 0) {
         log_fatal(logger, MODULE_GROUP,
-                  "[%s:%d] g2g table:<%s> has no group_id in line:%s",
+                  "[%s:%d] g2g table:<%s> has no incl_group_ids in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
@@ -340,17 +341,17 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
     char group_ids_str[MAX_GROUP_IDS_STR_LEN] = {0};
     memcpy(group_ids_str, line + column_offset, MIN(MAX_GROUP_IDS_STR_LEN, column_len));
 
-    ret = ids_str2longlong_array(group_ids_str, g2g_item->sub_group_ids);
+    ret = ids_str2longlong_array(group_ids_str, g2g_item->incl_group_ids);
     if (ret < 0) {
         log_fatal(logger, MODULE_GROUP,
-				  "[%s:%d] g2c table:<%s> sub_group_ids str2longlong failed in line:%s",
+				  "[%s:%d] g2c table:<%s> incl_group_ids str2longlong failed in line:%s",
 				  __FUNCTION__, __LINE__, table_name, line);
 		goto error; 
     }
 
-    if (utarray_len(g2g_item->sub_group_ids) > MAX_GROUP_CNT) {
+    if (utarray_len(g2g_item->incl_group_ids) > MAX_GROUP_CNT) {
         log_fatal(logger, MODULE_GROUP,
-				  "[%s:%d] g2c table:<%s> sub_group_ids exceed maximum:%d in line:%s",
+				  "[%s:%d] g2c table:<%s> incl_group_ids exceed maximum:%d in line:%s",
 				  __FUNCTION__, __LINE__, table_name, MAX_GROUP_CNT, line);
 		goto error;
     }
@@ -365,29 +366,32 @@ group2group_item_new(const char *line, struct group2group_schema *g2g_schema,
     }
     g2g_item->super_group_id = atoll(line + column_offset);
 
-    ret = get_column_pos(line, g2g_schema->is_exclude_column, 
+    ret = get_column_pos(line, g2g_schema->excl_group_ids_column, 
                          &column_offset, &column_len);
     if (ret < 0) {
         log_fatal(logger, MODULE_GROUP,
-                  "[%s:%d] g2g table:<%s> has no is_exclude in line:%s",
+                  "[%s:%d] g2g table:<%s> has no excl_group_ids in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
 
-    g2g_item->is_exclude = atoi(line + column_offset);
-    if (g2g_item->is_exclude != 0 && g2g_item->is_exclude != 1) {
+    memset(group_ids_str, 0, sizeof(group_ids_str));
+    memcpy(group_ids_str, line + column_offset, MIN(MAX_GROUP_IDS_STR_LEN, column_len));
+
+    ret = ids_str2longlong_array(group_ids_str, g2g_item->excl_group_ids);
+    if (ret < 0) {
         log_fatal(logger, MODULE_GROUP,
-                  "[%s:%d] g2g table:<%s> is_exclude:%d is illegal in line:%s",
-                  __FUNCTION__, __LINE__, table_name, g2g_item->is_exclude, line);
-        goto error;
+				  "[%s:%d] g2c table:<%s> excl_group_ids str2longlong failed in line:%s",
+				  __FUNCTION__, __LINE__, table_name, line);
+		goto error;
     }
 
-    if (g2g_item->is_exclude != 0 && g2g_item->is_exclude != 1) {
+    if (utarray_len(g2g_item->excl_group_ids) > MAX_GROUP_CNT) {
         log_fatal(logger, MODULE_GROUP,
-                  "[%s:%d] g2g table:<%s> is_exclude:%d is illegal in line:%s",
-                  __FUNCTION__, __LINE__, table_name, g2g_item->is_exclude, line);
-        goto error;
-    }
+				  "[%s:%d] g2c table:<%s> excl_group_ids exceed maximum:%d in line:%s",
+				  __FUNCTION__, __LINE__, table_name, MAX_GROUP_CNT, line);
+		goto error;
+    } 
 
     return g2g_item;
 error:
@@ -401,9 +405,14 @@ static void group2group_item_free(struct group2group_item *g2g_item)
         return;
     }
 
-    if (g2g_item->sub_group_ids != NULL) {
-        utarray_free(g2g_item->sub_group_ids);
-        g2g_item->sub_group_ids = NULL;
+    if (g2g_item->incl_group_ids != NULL) {
+        utarray_free(g2g_item->incl_group_ids);
+        g2g_item->incl_group_ids = NULL;
+    }
+
+    if (g2g_item->excl_group_ids != NULL) {
+        utarray_free(g2g_item->excl_group_ids);
+        g2g_item->excl_group_ids = NULL;
     }
 
     FREE(g2g_item);
@@ -771,30 +780,48 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
     long long *tmp_group_id = NULL;
     if (0 == is_valid) {
         //delete
-        for (i = 0; i < utarray_len(g2g_item->sub_group_ids); i++) {
-            tmp_group_id = (long long *)utarray_eltptr(g2g_item->sub_group_ids, i);
+        for (i = 0; i < utarray_len(g2g_item->incl_group_ids); i++) {
+            tmp_group_id = (long long *)utarray_eltptr(g2g_item->incl_group_ids, i);
             ret = group_topology_del_group_from_group(g2g_rt->updating_group_topo, *tmp_group_id,
-                                                      g2g_item->super_group_id, g2g_item->is_exclude);
+                                                      g2g_item->super_group_id, 0);
             if (0 == ret) {
                 g2g_rt->rule_num--;
-                if (1 == g2g_item->is_exclude) {
-                    g2g_rt->excl_rule_num--;
-                }
+            } else {
+                g2g_rt->update_err_cnt++;
+            }
+        }
+
+        for (i = 0; i < utarray_len(g2g_item->excl_group_ids); i++) {
+            tmp_group_id = (long long *)utarray_eltptr(g2g_item->excl_group_ids, i);
+            ret = group_topology_del_group_from_group(g2g_rt->updating_group_topo, *tmp_group_id,
+                                                      g2g_item->super_group_id, 1);
+            if (0 == ret) {
+                g2g_rt->rule_num--;
+                g2g_rt->excl_rule_num--;
             } else {
                 g2g_rt->update_err_cnt++;
             }
         }
     } else {
         //add
-        for (i = 0; i < utarray_len(g2g_item->sub_group_ids); i++) {
-            tmp_group_id = (long long *)utarray_eltptr(g2g_item->sub_group_ids, i);
+        for (i = 0; i < utarray_len(g2g_item->incl_group_ids); i++) {
+            tmp_group_id = (long long *)utarray_eltptr(g2g_item->incl_group_ids, i);
             ret = group_topology_add_group_to_group(g2g_rt->updating_group_topo, *tmp_group_id,
-                                                    g2g_item->super_group_id, g2g_item->is_exclude);
+                                                    g2g_item->super_group_id, 0);
             if (0 == ret) {
                 g2g_rt->rule_num++;
-                if (1 == g2g_item->is_exclude) {
-                    g2g_rt->excl_rule_num++;
-                }
+            } else {
+                g2g_rt->update_err_cnt++;
+            }
+        }
+
+        for (i = 0; i < utarray_len(g2g_item->excl_group_ids); i++) {
+            tmp_group_id = (long long *)utarray_eltptr(g2g_item->excl_group_ids, i);
+            ret = group_topology_add_group_to_group(g2g_rt->updating_group_topo, *tmp_group_id,
+                                                    g2g_item->super_group_id, 1);
+            if (0 == ret) {
+                g2g_rt->rule_num++;
+                g2g_rt->excl_rule_num++;
             } else {
                 g2g_rt->update_err_cnt++;
             }

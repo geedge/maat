@@ -597,6 +597,10 @@ int ip_format2range(int ip_type, enum ip_format format, const char *ip1, const c
 
 int ids_str2longlong_array(const char *ids_str, UT_array *ids_array)
 {
+	if (strcmp(ids_str, "null") == 0) {
+        return 0;
+  	}
+
     int counter = 0;
     char *str = NULL;
     char *saveptr = NULL;
