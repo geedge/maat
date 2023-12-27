@@ -43,7 +43,7 @@ struct ip_plugin_runtime {
 
     long long rule_num;
     long long update_err_cnt;
-    long long *scan_cnt;
+    long long *scan_times;
 };
 
 void *ip_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
@@ -362,7 +362,7 @@ void *ip_plugin_runtime_new(void *ip_plugin_schema, size_t max_thread_num,
     ip_plugin_rt->n_worker_thread = max_thread_num;
     ip_plugin_rt->ref_garbage_bin = garbage_bin;
     ip_plugin_rt->logger = logger;
-    ip_plugin_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
+    ip_plugin_rt->scan_times = alignment_int64_array_alloc(max_thread_num);
 
     return ip_plugin_rt;
 }
@@ -384,9 +384,9 @@ void ip_plugin_runtime_free(void *ip_plugin_runtime)
         ip_plugin_rt->ex_data_rt = NULL;
     }
 
-    if (ip_plugin_rt->scan_cnt != NULL) {
-        alignment_int64_array_free(ip_plugin_rt->scan_cnt);
-        ip_plugin_rt->scan_cnt = NULL;
+    if (ip_plugin_rt->scan_times != NULL) {
+        alignment_int64_array_free(ip_plugin_rt->scan_times);
+        ip_plugin_rt->scan_times = NULL;
     }
 
     FREE(ip_plugin_rt);
@@ -596,26 +596,27 @@ long long ip_plugin_runtime_update_err_count(void *ip_plugin_runtime)
     return ip_plugin_rt->update_err_cnt;
 }
 
-void ip_plugin_runtime_scan_inc(void *ip_plugin_runtime, int thread_id)
+void ip_plugin_runtime_scan_times_inc(void *ip_plugin_runtime, int thread_id)
 {
     if (NULL == ip_plugin_runtime || thread_id < 0) {
         return;
     }
 
     struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
-    alignment_int64_array_add(ip_plugin_rt->scan_cnt, thread_id, 1);
+    alignment_int64_array_add(ip_plugin_rt->scan_times, thread_id, 1);
 }
 
-long long ip_plugin_runtime_scan_count(void *ip_plugin_runtime)
+long long ip_plugin_runtime_scan_times(void *ip_plugin_runtime)
 {
     if (NULL == ip_plugin_runtime) {
         return 0;
     }
 
     struct ip_plugin_runtime *ip_plugin_rt = (struct ip_plugin_runtime *)ip_plugin_runtime;
-    long long sum = alignment_int64_array_sum(ip_plugin_rt->scan_cnt,
+    long long sum = alignment_int64_array_sum(ip_plugin_rt->scan_times,
                                               ip_plugin_rt->n_worker_thread);
-    alignment_int64_array_reset(ip_plugin_rt->scan_cnt, ip_plugin_rt->n_worker_thread);
+    alignment_int64_array_reset(ip_plugin_rt->scan_times,
+                                ip_plugin_rt->n_worker_thread);
 
     return sum;
 }

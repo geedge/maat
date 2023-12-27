@@ -25,8 +25,7 @@
 
 #define	MAX_CONFIG_LINE	(1024 * 16)
 
-struct cm_table_info_t
-{
+struct cm_table_info_t {
 	char table_name[MAX_NAME_STR_LEN];
 	char cfg_path[NAME_MAX];
 	int cfg_num;
@@ -45,8 +44,8 @@ static int cm_read_cfg_index_file(const char *path, struct cm_table_info_t *idx,
 	while (!feof(fp)) {
 		memset(line, 0, sizeof(line));
 		fgets(line, sizeof(line), fp);
-		ret = sscanf(line, "%s\t%d\t%s\t%s", idx[i].table_name, &(idx[i].cfg_num),
-                     idx[i].cfg_path ,idx[i].encrypt_algo);
+		ret = sscanf(line, "%s\t%d\t%s\t%s", idx[i].table_name,
+					 &(idx[i].cfg_num), idx[i].cfg_path, idx[i].encrypt_algo);
 
 		//jump over empty line
 		if (!(ret == 3 || ret == 4) || idx[i].cfg_num == 0) {
@@ -140,7 +139,7 @@ static int cm_read_table_file(struct cm_table_info_t *index,
         }
     } else {
         // not encrypted
-        ret = load_file_to_memory(index->cfg_path, (unsigned char **)&file_buff, &file_sz);
+        ret = load_file_to_memory(index->cfg_path, (unsigned char**)&file_buff, &file_sz);
 	    if (ret < 0) {
 		    log_fatal(logger, MODULE_CONFIG_MONITOR, "[%s:%d] open %s failed.", 
                       __FUNCTION__, __LINE__, index->cfg_path);
@@ -193,12 +192,8 @@ static int cm_read_table_file(struct cm_table_info_t *index,
 #define	ENLARGE_STEP	1024
 int my_scandir(const char *dir, struct dirent ***namelist,
               int(*filter)(const struct dirent *),
-              int(*compar)(const void *, const void *))
+              int(*compare)(const void *, const void *))
 {
-	int n = 0;
-	int DIR_ENT_SIZE = ENLARGE_STEP;
-	struct dirent entry, *result;
-
 	if ((NULL == dir) || (NULL == namelist)) {
         return -1;
     }
@@ -207,25 +202,25 @@ int my_scandir(const char *dir, struct dirent ***namelist,
 	if (NULL == od) {
         return -1;
     }
-    
-    struct dirent **list = ALLOC(struct dirent *, DIR_ENT_SIZE);
-	while (0 == readdir_r(od, &entry, &result)) {
-		if (NULL == result) {
-			break;
-		}
 
-		if (filter && !filter(&entry)) {
+	int num = 0;
+	int DIR_ENT_SIZE = ENLARGE_STEP;
+    struct dirent *entry = NULL;
+    struct dirent **list = ALLOC(struct dirent *, DIR_ENT_SIZE);
+
+    while ((entry = readdir(od)) != NULL) {
+        if (filter && !filter(entry)) {
             continue;
         }
-		
-        struct dirent *p = ALLOC(struct dirent, 1);
-		memcpy((void *)p, (void *)(&entry), sizeof(struct dirent));
-		list[n] = p;
 
-		n++;
-		if (n >= DIR_ENT_SIZE) {
-			DIR_ENT_SIZE += ENLARGE_STEP;
-            struct dirent **tmp_list = (struct dirent **)realloc((void*)list,
+        struct dirent *p = ALLOC(struct dirent, 1);
+        memcpy((void *)p, (void *)entry, sizeof(struct dirent));
+        list[num] = p;
+
+        num++;
+        if (num >= DIR_ENT_SIZE) {
+            DIR_ENT_SIZE += ENLARGE_STEP;
+            struct dirent **tmp_list = (struct dirent **)realloc((void *)list,
 										DIR_ENT_SIZE * sizeof(struct dirent *));
             if (tmp_list != NULL) {
                 list = tmp_list;
@@ -234,17 +229,18 @@ int my_scandir(const char *dir, struct dirent ***namelist,
                 closedir(od);
                 return -1;
             }
-		}
-	} 
+        }
+        entry = readdir(od);
+    }
 
-	closedir(od); 
+    closedir(od); 
 	*namelist = list;
 
-	if (compar) {
-        qsort((void *)*namelist, n, sizeof(struct dirent *), compar); 
+	if (compare) {
+        qsort((void *)*namelist, num, sizeof(struct dirent *), compare); 
     }
 	
-	return n; 
+	return num; 
 }
 
 static int filter_fn(const struct dirent *ent)
@@ -372,11 +368,13 @@ void config_monitor_traverse(long long current_version, const char *idx_dir,
 
 	memset(table_array, 0, sizeof(table_array));
 
-	int update_type = get_new_idx_path(current_version, idx_dir, &idx_path_array, &idx_path_num, logger);
+	int update_type = get_new_idx_path(current_version, idx_dir, &idx_path_array,
+									   &idx_path_num, logger);
 	if (update_type != MAAT_UPDATE_TYPE_INVALID) {
 		for (i = 0; i < idx_path_num; i++) {
             log_info(logger, MODULE_CONFIG_MONITOR, "load %s", idx_path_array[i]);
-			int table_num = cm_read_cfg_index_file(idx_path_array[i], table_array, MAX_TABLE_NUM, logger);
+			int table_num = cm_read_cfg_index_file(idx_path_array[i], table_array,
+												   MAX_TABLE_NUM, logger);
 			if (table_num < 0) {
 				log_fatal(logger, MODULE_CONFIG_MONITOR, 
                           "[%s:%d] load %s failed, abandon update", 
@@ -386,7 +384,9 @@ void config_monitor_traverse(long long current_version, const char *idx_dir,
 
 			char str_not_care[256] = {0};
 			const char *table_filename = path2filename(idx_path_array[i]);
-			sscanf(table_filename, "%[a-zA-Z]_config_index.%lld", str_not_care, &new_version);
+			sscanf(table_filename, "%[a-zA-Z]_config_index.%lld",
+				   str_not_care, &new_version);
+
 			if (start_fn != NULL) {
 				start_fn(new_version, update_type, u_param);
 			}
@@ -424,11 +424,11 @@ int load_maat_json_file(struct maat *maat_inst, const char *json_filename,
             "Maat initial with JSON file %s, formating...", 
             json_filename);
 
-	if (strlen(maat_inst->opts.decrypt_key) && strlen(maat_inst->opts.decrypt_algo)) {
+	if (strlen(maat_inst->opts.decrypt_key) &&
+		strlen(maat_inst->opts.decrypt_algo)) {
 		ret = decrypt_open(json_filename, maat_inst->opts.decrypt_key, 
-                           maat_inst->opts.decrypt_algo, 
-                           (unsigned char **)&decrypted_buff, 
-                           &decrypted_buff_sz, 
+                           maat_inst->opts.decrypt_algo,
+                           &decrypted_buff, &decrypted_buff_sz, 
                            err_str, err_str_sz);
 		if (ret < 0) {
 			log_fatal(maat_inst->logger, MODULE_CONFIG_MONITOR, 

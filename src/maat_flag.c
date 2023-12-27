@@ -56,10 +56,13 @@ struct flag_runtime {
     struct maat_kv_store *district_map;
     struct maat_kv_store *tmp_district_map;
 
-    long long update_err_cnt;
-    long long *scan_cnt;
+    long long *scan_times;
     long long *scan_cpu_time;
-    long long *hit_cnt;
+
+    long long *hit_times;
+    long long *hit_item_num;
+
+    long long update_err_cnt;
 };
 
 void *flag_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
@@ -192,9 +195,11 @@ void *flag_runtime_new(void *flag_schema, size_t max_thread_num,
     flag_rt->logger = logger;
     flag_rt->district_map = maat_kv_store_new();
 
-    flag_rt->hit_cnt = alignment_int64_array_alloc(max_thread_num);
-    flag_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
+    flag_rt->scan_times = alignment_int64_array_alloc(max_thread_num);
     flag_rt->scan_cpu_time = alignment_int64_array_alloc(max_thread_num);
+
+    flag_rt->hit_times = alignment_int64_array_alloc(max_thread_num);
+    flag_rt->hit_item_num = alignment_int64_array_alloc(max_thread_num);
 
     return flag_rt;
 }
@@ -223,19 +228,24 @@ void flag_runtime_free(void *flag_runtime)
         flag_rt->district_map = NULL;
     }
 
-    if (flag_rt->hit_cnt != NULL) {
-        alignment_int64_array_free(flag_rt->hit_cnt);
-        flag_rt->hit_cnt = NULL;
-    }
-
-    if (flag_rt->scan_cnt != NULL) {
-        alignment_int64_array_free(flag_rt->scan_cnt);
-        flag_rt->scan_cnt = NULL;
+    if (flag_rt->scan_times != NULL) {
+        alignment_int64_array_free(flag_rt->scan_times);
+        flag_rt->scan_times = NULL;
     }
 
     if (flag_rt->scan_cpu_time != NULL) {
         alignment_int64_array_free(flag_rt->scan_cpu_time);
         flag_rt->scan_cpu_time = NULL;
+    }
+
+    if (flag_rt->hit_times != NULL) {
+        alignment_int64_array_free(flag_rt->hit_times);
+        flag_rt->hit_times = NULL;
+    }
+
+    if (flag_rt->hit_item_num != NULL) {
+        alignment_int64_array_free(flag_rt->hit_item_num);
+        flag_rt->hit_item_num = NULL;
     }
 
     FREE(flag_rt);
@@ -562,6 +572,11 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
         return -1;
     }
 
+    if (n_hit_item > 0) {
+        alignment_int64_array_add(flag_rt->hit_item_num, state->thread_id,
+                                  n_hit_item);
+    }
+    
     struct maat_item hit_maat_items[n_hit_item];
     size_t real_hit_item_cnt = 0;
 
@@ -595,17 +610,8 @@ next:
     }
 
     return compile_state_update(state->compile_state, state->maat_inst, vtable_id,
-                                state->compile_table_id, state->scan_cnt,
+                                state->compile_table_id, state->Nth_scan,
                                 hit_maat_items, real_hit_item_cnt);
-}
-
-void flag_runtime_hit_inc(struct flag_runtime *flag_rt, int thread_id)
-{
-    if (NULL == flag_rt || thread_id < 0) {
-        return;
-    }
-
-    alignment_int64_array_add(flag_rt->hit_cnt, thread_id, 1);
 }
 
 void flag_runtime_perf_stat(struct flag_runtime *flag_rt, struct timespec *start,
@@ -615,7 +621,7 @@ void flag_runtime_perf_stat(struct flag_runtime *flag_rt, struct timespec *start
         return;
     }
 
-    alignment_int64_array_add(flag_rt->scan_cnt, thread_id, 1);
+    alignment_int64_array_add(flag_rt->scan_times, thread_id, 1);
 
     if (start != NULL && end != NULL) {
         long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 + 
@@ -624,16 +630,56 @@ void flag_runtime_perf_stat(struct flag_runtime *flag_rt, struct timespec *start
     }
 }
 
-long long flag_runtime_scan_count(void *flag_runtime)
+long long flag_runtime_hit_times(void *flag_runtime)
 {
     if (NULL == flag_runtime) {
         return 0;
     }
 
     struct flag_runtime *flag_rt = (struct flag_runtime *)flag_runtime;
-    long long sum = alignment_int64_array_sum(flag_rt->scan_cnt, 
+    long long sum = alignment_int64_array_sum(flag_rt->hit_times, 
                                               flag_rt->n_worker_thread);
-    alignment_int64_array_reset(flag_rt->scan_cnt, flag_rt->n_worker_thread);
+    alignment_int64_array_reset(flag_rt->hit_times,
+                                flag_rt->n_worker_thread);
+
+    return sum;
+}
+
+void flag_runtime_hit_times_inc(struct flag_runtime *flag_rt, int thread_id)
+{
+    if (NULL == flag_rt || thread_id < 0) {
+        return;
+    }
+
+    alignment_int64_array_add(flag_rt->hit_times, thread_id, 1);
+}
+
+long long flag_runtime_hit_item_num(void *flag_runtime)
+{
+    if (NULL == flag_runtime) {
+        return 0;
+    }
+
+    struct flag_runtime *flag_rt = (struct flag_runtime *)flag_runtime;
+    long long sum = alignment_int64_array_sum(flag_rt->hit_item_num, 
+                                              flag_rt->n_worker_thread);
+    alignment_int64_array_reset(flag_rt->hit_item_num,
+                                flag_rt->n_worker_thread);
+
+    return sum;
+}
+
+long long flag_runtime_scan_times(void *flag_runtime)
+{
+    if (NULL == flag_runtime) {
+        return 0;
+    }
+
+    struct flag_runtime *flag_rt = (struct flag_runtime *)flag_runtime;
+    long long sum = alignment_int64_array_sum(flag_rt->scan_times, 
+                                              flag_rt->n_worker_thread);
+    alignment_int64_array_reset(flag_rt->scan_times,
+                                flag_rt->n_worker_thread);
 
     return sum;
 }
@@ -648,20 +694,6 @@ long long flag_runtime_scan_cpu_time(void *flag_runtime)
     long long sum = alignment_int64_array_sum(flag_rt->scan_cpu_time, 
                                               flag_rt->n_worker_thread);
     alignment_int64_array_reset(flag_rt->scan_cpu_time, flag_rt->n_worker_thread);
-
-    return sum;
-}
-
-long long flag_runtime_hit_count(void *flag_runtime)
-{
-    if (NULL == flag_runtime) {
-        return 0;
-    }
-
-    struct flag_runtime *flag_rt = (struct flag_runtime *)flag_runtime;
-    long long sum = alignment_int64_array_sum(flag_rt->hit_cnt, 
-                                              flag_rt->n_worker_thread);
-    alignment_int64_array_reset(flag_rt->hit_cnt, flag_rt->n_worker_thread);
 
     return sum;
 }

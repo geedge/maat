@@ -57,9 +57,9 @@ int ip_plugin_runtime_get_ex_data(void *ip_plugin_runtime, const struct ip_addr 
 
 long long ip_plugin_runtime_update_err_count(void *ip_plugin_runtime);
 
-void ip_plugin_runtime_scan_inc(void *ip_plugin_rt, int thread_id);
+void ip_plugin_runtime_scan_times_inc(void *ip_plugin_rt, int thread_id);
 
-long long ip_plugin_runtime_scan_count(void *ip_plugin_runtime);
+long long ip_plugin_runtime_scan_times(void *ip_plugin_runtime);
 
 #ifdef __cplusplus
 }

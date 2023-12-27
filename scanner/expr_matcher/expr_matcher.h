@@ -88,9 +88,10 @@ int expr_matcher_verify_regex_expression(const char *regex_expr,
  * @param n_worker_threads: the number of scan threads which will call adapter_rs_scan()
  * 
 */
-struct expr_matcher *expr_matcher_new(struct expr_rule *rules, size_t n_rule,
-				 					  enum expr_engine_type type, size_t n_thread,
-				 					  struct log_handle *logger);
+struct expr_matcher *
+expr_matcher_new(struct expr_rule *rules, size_t n_rule,
+				 enum expr_engine_type type, size_t n_thread,
+				 struct log_handle *logger);
 
 void expr_matcher_free(struct expr_matcher *matcher);
 
@@ -107,7 +108,8 @@ void expr_matcher_free(struct expr_matcher *matcher);
 int expr_matcher_match(struct expr_matcher *matcher, int thread_id,
 					   const char *data, size_t data_len,
 					   struct expr_scan_result *result_array,
-                       size_t array_size, size_t *n_hit_result);
+                       size_t array_size, size_t *n_hit_result,
+					   size_t *n_hit_pattern);
 
 /**
  * @brief
@@ -121,7 +123,8 @@ expr_matcher_stream_open(struct expr_matcher *matcher, int thread_id);
 int expr_matcher_stream_match(struct expr_matcher_stream *stream,
 							  const char *data, size_t data_len,
 							  struct expr_scan_result *result_array, 
-						      size_t array_size, size_t *n_hit_result);
+						      size_t array_size, size_t *n_hit_result,
+							  size_t *n_hit_pattern);
 
 /**
  * @brief

@@ -58,7 +58,7 @@ void table_manager_runtime_destroy(struct table_manager *tbl_mgr);
 void table_manager_destroy(struct table_manager *tbl_mgr);
 
 size_t table_manager_table_size(struct table_manager *tbl_mgr);
-size_t table_manager_table_count(struct table_manager *tbl_mgr);
+size_t table_manager_table_num(struct table_manager *tbl_mgr);
 
 int table_manager_get_table_id(struct table_manager *tbl_mgr, const char *table_name);
 /**
@@ -105,13 +105,14 @@ void table_manager_commit_runtime(struct table_manager *tbl_mgr, int table_id,
 
 long long table_manager_runtime_rule_count(struct table_manager *tbl_mgr, int table_id);
 
-long long table_manager_runtime_scan_count(struct table_manager *tbl_mgr, int table_id);
+long long table_manager_runtime_scan_times(struct table_manager *tbl_mgr, int table_id);
 
 long long table_manager_runtime_scan_cpu_time(struct table_manager *tbl_mgr, int table_id);
 
-long long table_manager_runtime_hit_count(struct table_manager *tbl_mgr, int table_id);
+long long table_manager_runtime_hit_item_num(struct table_manager *tbl_mgr, int table_id);
 
-long long table_manager_runtime_update_err_count(struct table_manager *tbl_mgr, int table_id);
+long long table_manager_runtime_update_err_count(struct table_manager *tbl_mgr,
+                                                 int table_id);
 
 #ifdef __cplusplus
 }

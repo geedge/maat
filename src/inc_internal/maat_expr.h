@@ -52,32 +52,38 @@ long long expr_runtime_get_version(void *expr_runtime);
 int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *data, 
                       size_t data_len, int vtable_id, struct maat_state *state);
 
-struct expr_matcher_stream *expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id);
+struct expr_runtime_stream *expr_runtime_stream_open(struct expr_runtime *expr_rt, int thread_id);
 
-int expr_runtime_stream_scan(struct expr_runtime *expr_rt, struct expr_matcher_stream *s_handle, 
-                             const char *data, size_t data_len, int vtable_id, struct maat_state *state);
+int expr_runtime_stream_scan(struct expr_runtime_stream *expr_rt_stream, const char *data,
+                             size_t data_len, int vtable_id, struct maat_state *state);
 
-void expr_runtime_stream_close(struct expr_runtime *expr_rt, int thread_id, 
-                               struct expr_matcher_stream *stream);
+void expr_runtime_stream_close(struct expr_runtime_stream *expr_rt_stream);
 
 int expr_runtime_set_scan_district(struct expr_runtime *expr_rt, const char *district, 
                                    size_t district_len, long long *district_id);
-
-void expr_runtime_hit_inc(struct expr_runtime *expr_rt, int thread_id);
 
 void expr_runtime_perf_stat(struct expr_runtime *flag_rt, size_t scan_len, 
                             struct timespec *start, struct timespec *end, 
                             int thread_id);
 
-long long expr_runtime_scan_count(void *expr_runtime);
+long long expr_runtime_scan_times(void *expr_runtime);
 
 long long expr_runtime_scan_cpu_time(void *expr_runtime);
 
-long long expr_runtime_hit_count(void *expr_runtime);
+long long expr_runtime_scan_bytes(struct expr_runtime *expr_rt);
+
+long long expr_runtime_hit_times(void *expr_runtime);
+
+void expr_runtime_hit_times_inc(struct expr_runtime *expr_rt, int thread_id);
+
+void expr_runtime_stream_hit_times_inc(struct expr_runtime_stream *expr_rt_stream,
+                                       int thread_id);
+
+long long expr_runtime_hit_item_num(void *expr_runtime);
+
+long long expr_runtime_hit_pattern_num(void *expr_runtime);
 
 long long expr_runtime_update_err_count(void *expr_runtime);
-
-long long expr_runtime_scan_bytes(struct expr_runtime *expr_rt);
 
 #ifdef __cplusplus
 }

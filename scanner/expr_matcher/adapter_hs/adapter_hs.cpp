@@ -404,6 +404,9 @@ static void hs_lit_stream_reset(struct hs_lit_stream *hs_lit_stream)
                         scratches[hs_lit_stream->thread_id],
                         matched_event_cb, hs_lit_stream->matched_pat);
     }
+
+    utarray_clear(hs_lit_stream->matched_pat->pattern_ids);
+    bloom_reset(hs_lit_stream->matched_pat->ref_bloom);
 }
 
 static void hs_regex_stream_reset(struct hs_regex_stream *hs_regex_stream)
@@ -418,6 +421,9 @@ static void hs_regex_stream_reset(struct hs_regex_stream *hs_regex_stream)
                         scratches[hs_regex_stream->thread_id],
                         matched_event_cb, hs_regex_stream->matched_pat);
     }
+    
+    utarray_clear(hs_regex_stream->matched_pat->pattern_ids);
+    bloom_reset(hs_regex_stream->matched_pat->ref_bloom);
 }
 
 static int gather_hit_pattern_id(struct matched_pattern *matched_pat,
@@ -436,8 +442,6 @@ static int gather_hit_pattern_id(struct matched_pattern *matched_pat,
     }
 
     *n_pattern_id = array_index;
-    utarray_clear(matched_pat->pattern_ids);
-    bloom_reset(matched_pat->ref_bloom);
 
     return 0;
 }

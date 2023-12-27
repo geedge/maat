@@ -282,8 +282,6 @@ static int gather_hit_pattern_id(struct matched_pattern *matched_pat,
     }
 
     *n_pattern_id = array_index;
-    utarray_clear(matched_pat->pattern_ids);
-    bloom_reset(matched_pat->ref_bloom);
 
     return 0;
 }
@@ -364,6 +362,9 @@ int rs_lit_engine_scan(void *rs_lit_engine, int thread_id,
     struct rs_lit_engine *rs_lit_inst = (struct rs_lit_engine *)rs_lit_engine;
     struct rs_lit_stream *rs_lit_stream = rs_lit_inst->streams[thread_id];
     assert(rs_lit_stream != NULL);
+
+    utarray_clear(rs_lit_stream->matched_pat->pattern_ids);
+    bloom_reset(rs_lit_stream->matched_pat->ref_bloom);
 
     if (rs_lit_inst->rs_db != NULL) {
         int ret = rs_scan(rs_lit_inst->rs_db, thread_id, data, data_len,
@@ -535,6 +536,9 @@ int rs_regex_engine_scan(void *rs_regex_engine, int thread_id,
     struct rs_regex_engine *rs_regex_inst = (struct rs_regex_engine *)rs_regex_engine;
     struct rs_regex_stream *rs_regex_stream = rs_regex_inst->streams[thread_id];
     assert(rs_regex_stream != NULL);
+
+    utarray_clear(rs_regex_stream->matched_pat->pattern_ids);
+    bloom_reset(rs_regex_stream->matched_pat->ref_bloom);
 
     if (rs_regex_inst->rs_db != NULL) {
         int ret = rs_scan(rs_regex_inst->rs_db, thread_id, data, data_len,

@@ -153,8 +153,8 @@ struct maat_stat {
     
 
     long long *thread_call_cnt;
-    long long *stream_num;
-    long long *hit_cnt;
+    long long *stream_cnt;
+    long long *hit_compile_cnt;
     long long *maat_state_cnt;
     long long *compile_state_cnt;
     long long *maat_state_free_cnt;
@@ -191,7 +191,7 @@ struct maat {
 struct maat_state {
 	struct maat *maat_inst;
     struct compile_state *compile_state;
-    int scan_cnt;
+    int Nth_scan;
     int district_id; //-1: Any District; -2: Unkonwn District;
 	uint16_t thread_id;
     int16_t compile_table_id;

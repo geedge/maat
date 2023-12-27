@@ -15,14 +15,14 @@
 #define ARRAY_SIZE              10
 #define	WAIT_FOR_EFFECTIVE_S	2
 #define PERF_THREAD_NUM         5
-#define PERF_SCAN_COUNT        1000 * 1000
+#define PERF_SCAN_TIMES        1000 * 1000
 
 const char *table_info_path = "./table_info.conf";
 const char *json_filename = "maat_json.json";
 
 struct thread_param {
 	int thread_id;
-	int test_count;
+	int test_times;
 	struct maat *maat_inst;
 	const char *table_name;
 	long long time_elapse_ms;
@@ -449,7 +449,7 @@ void *perf_string_scan_thread(void *arg)
 
     struct timespec start, end;
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < param->test_count; i++) {
+    for (int i = 0; i < param->test_times; i++) {
         int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                                    results, ARRAY_SIZE, &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
@@ -462,7 +462,7 @@ void *perf_string_scan_thread(void *arg)
     param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
                             (end.tv_nsec - start.tv_nsec) / 1000000;
     int *is_all_hit = ALLOC(int, 1);
-    *is_all_hit = (hit_times == param->test_count ? 1 : 0);
+    *is_all_hit = (hit_times == param->test_times ? 1 : 0);
     log_info(param->logger, MODULE_FRAMEWORK_PERF_GTEST, 
              "thread_id:%d string_scan time_elapse:%lldms hit_times:%d", 
              param->thread_id, param->time_elapse_ms, hit_times);
@@ -505,31 +505,31 @@ TEST_F(MaatPerfStringScan, LiteralMultiThread) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = PERF_SCAN_COUNT;
+        thread_params[i].test_times = PERF_SCAN_TIMES;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
 
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_string_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_string_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
     log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST,
              "StringScan match rate on %d-threads speed %lld lookups/s/thread",
              PERF_THREAD_NUM, scan_per_second);
@@ -599,7 +599,7 @@ void *perf_regex_scan_thread(void *arg)
     maat_register_thread(maat_inst);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < param->test_count; i++) {
+    for (int i = 0; i < param->test_times; i++) {
         int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                                    results, ARRAY_SIZE, &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
@@ -612,7 +612,7 @@ void *perf_regex_scan_thread(void *arg)
     param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
                             (end.tv_nsec - start.tv_nsec) / 1000000;
     int *is_all_hit = ALLOC(int, 1);
-    *is_all_hit = (hit_times == param->test_count ? 1 : 0);
+    *is_all_hit = (hit_times == param->test_times ? 1 : 0);
     log_info(param->logger, MODULE_FRAMEWORK_PERF_GTEST, 
              "thread_id:%d regex_scan time_elapse:%lldms hit_times:%d", 
              param->thread_id, param->time_elapse_ms, hit_times);
@@ -655,31 +655,31 @@ TEST_F(MaatPerfRegexScan, RegexMultiThread) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = PERF_SCAN_COUNT;
+        thread_params[i].test_times = PERF_SCAN_TIMES;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
 
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_regex_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_regex_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
     
     log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST,
              "RegexScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -701,7 +701,7 @@ void *perf_integer_scan_thread(void *arg)
     maat_register_thread(maat_inst);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < param->test_count; i++) {
+    for (int i = 0; i < param->test_times; i++) {
         int ret = maat_scan_integer(maat_inst, table_id, 3000, results,
                                     ARRAY_SIZE, &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
@@ -714,7 +714,7 @@ void *perf_integer_scan_thread(void *arg)
     param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + 
                             (end.tv_nsec - start.tv_nsec) / 1000000;
     int *is_all_hit = ALLOC(int, 1);
-    *is_all_hit = (hit_times == param->test_count ? 1 : 0);
+    *is_all_hit = (hit_times == param->test_times ? 1 : 0);
     log_info(param->logger, MODULE_FRAMEWORK_PERF_GTEST, 
              "thread_id:%d integer_scan time_elapse:%lldms hit_times:%d", 
              param->thread_id, param->time_elapse_ms, hit_times);
@@ -804,7 +804,7 @@ void *perf_stream_scan_thread(void *arg)
     maat_register_thread(maat_inst);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < param->test_count; i++) {
+    for (int i = 0; i < param->test_times; i++) {
         ret = maat_stream_scan(sp, scan_data, strlen(scan_data), results, ARRAY_SIZE,
                                 &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
@@ -819,7 +819,7 @@ void *perf_stream_scan_thread(void *arg)
     param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
                             (end.tv_nsec - start.tv_nsec) / 1000000;
     int *is_all_hit = ALLOC(int, 1);
-    *is_all_hit = ((hit_times == param->test_count) ? 1 : 0);
+    *is_all_hit = ((hit_times == param->test_times) ? 1 : 0);
 
     log_info(param->logger, MODULE_FRAMEWORK_PERF_GTEST, 
              "thread_id:%d stream_scan time_elapse:%lldms hit_times:%d", 
@@ -843,7 +843,7 @@ TEST_F(MaatPerfStreamScan, MultiThread) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = PERF_SCAN_COUNT;
+        thread_params[i].test_times = PERF_SCAN_TIMES;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
 
@@ -853,17 +853,17 @@ TEST_F(MaatPerfStreamScan, MultiThread) {
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
         //maybe expr_runtime rebuild in stream_scan, so should not expect is_all_hit always 1
 		EXPECT_EQ(*is_all_hit, 1);
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST,
              "StreamScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -939,7 +939,7 @@ void *perf_ip_scan_thread(void *arg)
     maat_register_thread(maat_inst);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < param->test_count; i++) {
+    for (int i = 0; i < param->test_times; i++) {
         int ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6,
                                  results, ARRAY_SIZE, &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
@@ -952,7 +952,7 @@ void *perf_ip_scan_thread(void *arg)
     param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
                             (end.tv_nsec - start.tv_nsec) / 1000000;
     int *is_all_hit = ALLOC(int, 1);
-    *is_all_hit = (hit_times == param->test_count ? 1 : 0);
+    *is_all_hit = (hit_times == param->test_times ? 1 : 0);
     log_info(param->logger, MODULE_FRAMEWORK_PERF_GTEST, 
              "thread_id:%d ip_scan time_elapse:%lldms hit_times:%d", 
              param->thread_id, param->time_elapse_ms, hit_times);
@@ -1006,31 +1006,31 @@ TEST_F(MaatPerfIPScan, MultiThread)
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = PERF_SCAN_COUNT;
+        thread_params[i].test_times = PERF_SCAN_TIMES;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
 
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_ip_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_ip_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST,
              "IPScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -1101,31 +1101,31 @@ TEST_F(MaatPerfIntegerScan, MultiThread) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = PERF_SCAN_COUNT;
+        thread_params[i].test_times = PERF_SCAN_TIMES;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
 
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_integer_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_integer_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST,
              "IntegerScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -1195,7 +1195,7 @@ void *perf_flag_scan_thread(void *arg)
     int table_id = maat_get_table_id(maat_inst, table_name);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < param->test_count; i++) {
+    for (int i = 0; i < param->test_times; i++) {
         int ret = maat_scan_flag(maat_inst, table_id, scan_data, results,
                                  ARRAY_SIZE, &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
@@ -1208,7 +1208,7 @@ void *perf_flag_scan_thread(void *arg)
     param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
                             (end.tv_nsec - start.tv_nsec) / 1000000;
     int *is_all_hit = ALLOC(int, 1);
-    *is_all_hit = (hit_times == param->test_count ? 1 : 0);
+    *is_all_hit = (hit_times == param->test_times ? 1 : 0);
     log_info(param->logger, MODULE_FRAMEWORK_PERF_GTEST, 
              "thread_id:%d flag_scan time_elapse:%lldms hit_times:%d", 
              param->thread_id, param->time_elapse_ms, hit_times);
@@ -1249,31 +1249,31 @@ TEST_F(MaatPerfFlagScan, MultiThread) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = PERF_SCAN_COUNT;
+        thread_params[i].test_times = PERF_SCAN_TIMES;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
 
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_flag_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_flag_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST,
              "FlagScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -1382,7 +1382,7 @@ void* perf_fqdn_plugin_scan_thread(void *arg)
 	struct timespec start, end;
 	
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	for (i = 0; i < param->test_count; i++) {
+	for (i = 0; i < param->test_times; i++) {
 	
 		ret = maat_fqdn_plugin_table_get_ex_data(maat_inst, table_id, 
                                                  "r3---sn-i3belne6.example2.com",
@@ -1396,7 +1396,7 @@ void* perf_fqdn_plugin_scan_thread(void *arg)
 	param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + 
                             (end.tv_nsec - start.tv_nsec) / 1000000;
 	int* is_all_hit = (int*)malloc(sizeof(int));
-	*is_all_hit = (hit_times == param->test_count) ? 1 : 0;
+	*is_all_hit = (hit_times == param->test_times) ? 1 : 0;
     log_info(param->logger, MODULE_FRAMEWORK_PERF_GTEST, 
              "thread_id:%d fqdn_plugin_get_ex_data time_elapse:%lldms hit_times:%d", 
              param->thread_id, param->time_elapse_ms, hit_times);
@@ -1477,31 +1477,31 @@ TEST_F(MaatPerfFQDNPluginScan, MultiThread) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = PERF_SCAN_COUNT;
+        thread_params[i].test_times = PERF_SCAN_TIMES;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
 
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_fqdn_plugin_scan_thread, thread_params + i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_fqdn_plugin_update_thread, thread_params + i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST,
              "FQDNPluginScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -1613,7 +1613,7 @@ void* perf_bool_plugin_scan_thread(void *arg)
 	unsigned long long items_4[]={7, 0, 1, 2, 3, 4, 5, 6, 7, 7, 7};
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	for (i = 0; i < param->test_count; i++) {
+	for (i = 0; i < param->test_times; i++) {
 	
 		ret = maat_bool_plugin_table_get_ex_data(maat_inst, table_id, items_4,
                                                  sizeof(items_4)/sizeof(unsigned long long),
@@ -1627,7 +1627,7 @@ void* perf_bool_plugin_scan_thread(void *arg)
 	param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
                             (end.tv_nsec - start.tv_nsec) / 1000000;
 	int* is_all_hit = (int*)malloc(sizeof(int));
-	*is_all_hit = (hit_times == param->test_count) ? 1 : 0;
+	*is_all_hit = (hit_times == param->test_times) ? 1 : 0;
 
     log_info(param->logger, MODULE_FRAMEWORK_PERF_GTEST, 
              "thread_id:%d bool_plugin_get_ex_data time_elapse:%lldms hit_times:%d", 
@@ -1685,31 +1685,31 @@ TEST_F(MaatPerfBoolPluginScan, MultiThread) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = PERF_SCAN_COUNT;
+        thread_params[i].test_times = PERF_SCAN_TIMES;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
 
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_bool_plugin_scan_thread, thread_params + i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_bool_plugin_update_thread, thread_params + i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST,
              "BoolPluginScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -1990,7 +1990,7 @@ static void *perf_ipport_plugin_scan_thread(void *arg)
 	inet_pton(AF_INET, "192.168.100.1", &ipv4.ipv4);	
     uint16_t port = htons(215);
 
-	for (i = 0; i < param->test_count; i++) {
+	for (i = 0; i < param->test_times; i++) {
 		ret = maat_ipport_plugin_table_get_ex_data(maat_inst, table_id, &ipv4,
                                                    port, (void**)results, 4);
 		if (ret > 0) {
@@ -1999,7 +1999,7 @@ static void *perf_ipport_plugin_scan_thread(void *arg)
 	}
 
 	int *is_all_hit = (int *)malloc(sizeof(int));
-	*is_all_hit = (hit_times == param->test_count) ? 1 : 0;
+	*is_all_hit = (hit_times == param->test_times) ? 1 : 0;
     log_info(maat_inst->logger, MODULE_FRAMEWORK_PERF_GTEST, 
              "ipport_plugin_get_ex_data hit_times:%d", hit_times);
 
@@ -2056,14 +2056,14 @@ TEST_F(MaatPerfIPPortPluginScan, MultiThread) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = PERF_SCAN_COUNT;
+        thread_params[i].test_times = PERF_SCAN_TIMES;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
 
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_ipport_plugin_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_ipport_plugin_update_thread, thread_params+i);
         }
 	}

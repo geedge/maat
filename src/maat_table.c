@@ -82,11 +82,13 @@ struct table_operations {
 
     long long (*rule_count)(void *runtime);
 
-    long long (*scan_count)(void *runtime);
+    long long (*scan_times)(void *runtime);
 
     long long (*scan_cpu_time)(void *runtime);
 
-    long long (*hit_count)(void *runtime);
+    long long (*hit_times)(void *runtime);
+
+    long long (*hit_item_num)(void *runtime);
 
     long long (*update_err_count)(void *runtime);
 };
@@ -101,9 +103,10 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .update_runtime = flag_runtime_update,
         .commit_runtime = flag_runtime_commit,
         .rule_count = flag_runtime_rule_count,
-        .scan_count = flag_runtime_scan_count,
+        .scan_times = flag_runtime_scan_times,
         .scan_cpu_time = flag_runtime_scan_cpu_time,
-        .hit_count = flag_runtime_hit_count,
+        .hit_times = flag_runtime_hit_times,
+        .hit_item_num = flag_runtime_hit_item_num,
         .update_err_count = flag_runtime_update_err_count
     },
     {
@@ -115,9 +118,10 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .update_runtime = flag_runtime_update,
         .commit_runtime = flag_runtime_commit,
         .rule_count = flag_runtime_rule_count,
-        .scan_count = flag_runtime_scan_count,
+        .scan_times = flag_runtime_scan_times,
         .scan_cpu_time = flag_runtime_scan_cpu_time,
-        .hit_count = flag_runtime_hit_count,
+        .hit_times = flag_runtime_hit_times,
+        .hit_item_num = flag_runtime_hit_item_num,
         .update_err_count = flag_runtime_update_err_count
     },
     {
@@ -129,9 +133,10 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .update_runtime = expr_runtime_update,
         .commit_runtime = expr_runtime_commit,
         .rule_count = expr_runtime_rule_count,
-        .scan_count = expr_runtime_scan_count,
+        .scan_times = expr_runtime_scan_times,
         .scan_cpu_time = expr_runtime_scan_cpu_time,
-        .hit_count = expr_runtime_hit_count,
+        .hit_times = expr_runtime_hit_times,
+        .hit_item_num = expr_runtime_hit_item_num,
         .update_err_count = expr_runtime_update_err_count
     },
     {
@@ -143,9 +148,10 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .update_runtime = expr_runtime_update,
         .commit_runtime = expr_runtime_commit,
         .rule_count = expr_runtime_rule_count,
-        .scan_count = expr_runtime_scan_count,
+        .scan_times = expr_runtime_scan_times,
         .scan_cpu_time = expr_runtime_scan_cpu_time,
-        .hit_count = expr_runtime_hit_count,
+        .hit_times = expr_runtime_hit_times,
+        .hit_item_num = expr_runtime_hit_item_num,
         .update_err_count = expr_runtime_update_err_count
     },
     {
@@ -157,9 +163,10 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .update_runtime = ip_runtime_update,
         .commit_runtime = ip_runtime_commit,
         .rule_count = ip_runtime_rule_count,
-        .scan_count = ip_runtime_scan_count,
+        .scan_times = ip_runtime_scan_times,
         .scan_cpu_time = ip_runtime_scan_cpu_time,
-        .hit_count = ip_runtime_hit_count,
+        .hit_times = ip_runtime_hit_times,
+        .hit_item_num = ip_runtime_hit_item_num,
         .update_err_count = ip_runtime_update_err_count
     },
     {
@@ -171,9 +178,10 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .update_runtime = interval_runtime_update,
         .commit_runtime = interval_runtime_commit,
         .rule_count = interval_runtime_rule_count,
-        .scan_count = interval_runtime_scan_count,
+        .scan_times = interval_runtime_scan_times,
         .scan_cpu_time = interval_runtime_scan_cpu_time,
-        .hit_count = interval_runtime_hit_count,
+        .hit_times = interval_runtime_hit_times,
+        .hit_item_num = interval_runtime_hit_item_num,
         .update_err_count = interval_runtime_update_err_cnt
     },
     {
@@ -185,9 +193,10 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .update_runtime = interval_runtime_update,
         .commit_runtime = interval_runtime_commit,
         .rule_count = interval_runtime_rule_count,
-        .scan_count = interval_runtime_scan_count,
+        .scan_times = interval_runtime_scan_times,
         .scan_cpu_time = interval_runtime_scan_cpu_time,
-        .hit_count = interval_runtime_hit_count,
+        .hit_times = interval_runtime_hit_times,
+        .hit_item_num = interval_runtime_hit_item_num,
         .update_err_count = interval_runtime_update_err_cnt
     },
     {
@@ -198,7 +207,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .free_runtime = plugin_runtime_free,
         .update_runtime = plugin_runtime_update,
         .commit_runtime = plugin_runtime_commit,
-        .scan_count = plugin_runtime_scan_count,
+        .scan_times = plugin_runtime_scan_times,
         .rule_count = plugin_runtime_rule_count,
         .update_err_count = plugin_runtime_update_err_count
     },
@@ -210,7 +219,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .free_runtime = ip_plugin_runtime_free,
         .update_runtime = ip_plugin_runtime_update,
         .commit_runtime = ip_plugin_runtime_commit,
-        .scan_count = ip_plugin_runtime_scan_count,
+        .scan_times = ip_plugin_runtime_scan_times,
         .rule_count = ip_plugin_runtime_rule_count,
         .update_err_count = ip_plugin_runtime_update_err_count
     },
@@ -222,8 +231,8 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .free_runtime = ipport_plugin_runtime_free,
         .update_runtime = ipport_plugin_runtime_update,
         .commit_runtime = ipport_plugin_runtime_commit,
+        .scan_times = ipport_plugin_runtime_scan_times,
         .rule_count = ipport_plugin_runtime_rule_count,
-        .scan_count = ipport_plugin_runtime_scan_count,
         .update_err_count = ipport_plugin_runtime_update_err_count
     },
     {
@@ -234,7 +243,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .free_runtime = fqdn_plugin_runtime_free,
         .update_runtime = fqdn_plugin_runtime_update,
         .commit_runtime = fqdn_plugin_runtime_commit,
-        .scan_count = fqdn_plugin_runtime_scan_count,
+        .scan_times = fqdn_plugin_runtime_scan_times,
         .rule_count = fqdn_plugin_runtime_rule_count,
         .update_err_count = fqdn_plugin_runtime_update_err_count
     },
@@ -246,7 +255,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .free_runtime = bool_plugin_runtime_free,
         .update_runtime = bool_plugin_runtime_update,
         .commit_runtime = bool_plugin_runtime_commit,
-        .scan_count = bool_plugin_runtime_scan_count,
+        .scan_times = bool_plugin_runtime_scan_times,
         .rule_count = bool_plugin_runtime_rule_count,
         .update_err_count = bool_plugin_runtime_update_err_count
     },
@@ -1062,7 +1071,7 @@ size_t table_manager_table_size(struct table_manager *tbl_mgr)
     return MAX_TABLE_NUM;
 }
 
-size_t table_manager_table_count(struct table_manager *tbl_mgr)
+size_t table_manager_table_num(struct table_manager *tbl_mgr)
 {
     if (NULL == tbl_mgr) {
         return 0;
@@ -1371,7 +1380,7 @@ long long table_manager_runtime_rule_count(struct table_manager *tbl_mgr, int ta
     return table_ops[table_type].rule_count(runtime);
 }
 
-long long table_manager_runtime_scan_count(struct table_manager *tbl_mgr, int table_id)
+long long table_manager_runtime_scan_times(struct table_manager *tbl_mgr, int table_id)
 {
     void *runtime = table_manager_get_runtime(tbl_mgr, table_id);
     if (NULL == runtime) {
@@ -1386,11 +1395,11 @@ long long table_manager_runtime_scan_count(struct table_manager *tbl_mgr, int ta
         return 0;
     }
 
-    if (NULL == table_ops[table_type].scan_count) {
+    if (NULL == table_ops[table_type].scan_times) {
         return 0;
     }
 
-    return table_ops[table_type].scan_count(runtime);
+    return table_ops[table_type].scan_times(runtime);
 }
 
 long long table_manager_runtime_scan_cpu_time(struct table_manager *tbl_mgr, int table_id)
@@ -1415,7 +1424,7 @@ long long table_manager_runtime_scan_cpu_time(struct table_manager *tbl_mgr, int
     return table_ops[table_type].scan_cpu_time(runtime);
 }
 
-long long table_manager_runtime_hit_count(struct table_manager *tbl_mgr, int table_id)
+long long table_manager_runtime_hit_item_num(struct table_manager *tbl_mgr, int table_id)
 {
     void *runtime = table_manager_get_runtime(tbl_mgr, table_id);
     if (NULL == runtime) {
@@ -1430,11 +1439,11 @@ long long table_manager_runtime_hit_count(struct table_manager *tbl_mgr, int tab
         return 0;
     }
 
-    if (NULL == table_ops[table_type].hit_count) {
+    if (NULL == table_ops[table_type].hit_item_num) {
         return 0;
     }
 
-    return table_ops[table_type].hit_count(runtime);
+    return table_ops[table_type].hit_item_num(runtime);
 }
 
 long long table_manager_runtime_update_err_count(struct table_manager *tbl_mgr, int table_id)

@@ -45,16 +45,18 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
                     uint8_t *ip_addr, uint16_t port, int proto,
                     int vtable_id, struct maat_state *state);
 
-void ip_runtime_hit_inc(struct ip_runtime *ip_rt, int thread_id);
-
 void ip_runtime_perf_stat(struct ip_runtime *ip_rt, struct timespec *start,
                           struct timespec *end, int thread_id);
 
-long long ip_runtime_scan_count(void *ip_runtime);
+long long ip_runtime_scan_times(void *ip_runtime);
 
 long long ip_runtime_scan_cpu_time(void *ip_runtime);
 
-long long ip_runtime_hit_count(void *ip_runtime);
+void ip_runtime_hit_times_inc(struct ip_runtime *ip_rt, int thread_id);
+
+long long ip_runtime_hit_times(void *ip_runtime);
+
+long long ip_runtime_hit_item_num(void *ip_runtime);
 
 long long ip_runtime_update_err_count(void *ip_runtime);
 

@@ -30,6 +30,7 @@ enum MAAT_FS_STATUS {
 	STATUS_PLUGIN_ACC_NUM,
     STATUS_CLAUSE_REF_NOT_NUM,
     STATUS_GROUP_REF_EXCL_NUM, //group reference exclude group num
+    STATUS_HIT_COMPILE_NUM,
 	STATUS_MAAT_STATE_NUM,
     STATUS_MAAT_PER_STATE_MEM,
     STATUS_COMPILE_STATE_NUM,
@@ -44,19 +45,23 @@ enum MAAT_FS_STATUS {
 enum MAAT_FS_COLUMN {
 	COLUMN_RULE_NUM = 0,
 	COLUMN_REGEX_NUM,
-	COLUMN_SCAN_CNT,
+	COLUMN_SCAN_TIMES, //the times of scan
+    COLUMN_HIT_TIMES,  //the times of hit compile
 	COLUMN_SCAN_BYTES,
-	COLUMN_CPU_TIME, //microseconds
-	COLUMN_HIT_CNT,
-    COLUMN_SCAN_BPS, //scan bytes per second
-    COLUMN_SCAN_TPS, //scan times per second
-    COLUMN_HIT_RATE  //scan hit rate(hit_cnt/scan_cnt)
+	COLUMN_SCAN_CPU_TIME,    //microseconds
+	COLUMN_HIT_ITEM_NUM,
+	COLUMN_HIT_PAT_NUM, //hit pattern num(only valid for expr/expr_plus table)
+    COLUMN_SCAN_BPS,    //scan bytes per second
+    COLUMN_SCAN_TPS,    //scan times per second
+    COLUMN_HIT_RATE     //scan hit rate(hit_times/scan_times)
 };
 
-const char *common_column_name[] = {"rule", "reg/v6", "scan_cnt", "scan_bytes", "scan_cpu_time", 
-                                    "hit_cnt", "IN_Bps", "IN_Tps", "hit_rate"};
+const char *common_column_name[] = {"rule", "reg/v6", "scan_times", "hit_times", "scan_bytes", "scan_cpu_time", 
+                                    "hit_item_num", "hit_pat_num", "IN_Bps", "IN_Tps", "hit_rate"};
 
 enum field_type common_column_type[] = {
+    FIELD_TYPE_GAUGE,
+    FIELD_TYPE_GAUGE,
     FIELD_TYPE_GAUGE,
     FIELD_TYPE_GAUGE,
     FIELD_TYPE_GAUGE,
@@ -88,6 +93,8 @@ static void maat_fieldstat_register(struct maat_stat *stat)
                                                                       "excl_grp", NULL, 0);
     stat->fs_status_id[STATUS_GARBAGE_QSIZE] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
                                                                   "garbage_num", NULL, 0);
+    stat->fs_status_id[STATUS_HIT_COMPILE_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
+                                                                    "hit_compile_num", NULL, 0);
     stat->fs_status_id[STATUS_MAAT_STATE_NUM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
                                                                   "state_num", NULL, 0);
     stat->fs_status_id[STATUS_MAAT_PER_STATE_MEM] = fieldstat_register(stat->fs_handle, FIELD_TYPE_GAUGE, 
@@ -120,23 +127,23 @@ static int maat_fieldstat_table_row_register(struct maat_stat *stat,
 
     ret = fieldstat_set_metric_ratio_para(stat->fs_handle, stat->total_stat_id[COLUMN_SCAN_BPS],
                                           stat->total_stat_id[COLUMN_SCAN_BYTES],
-                                          stat->total_stat_id[COLUMN_CPU_TIME], 1000000000);
+                                          stat->total_stat_id[COLUMN_SCAN_CPU_TIME], 1000000000);
     if (ret < 0) {
         log_fatal(stat->logger, MODULE_MAAT_STAT, "fieldstat set IN_Bps for Sum failed.");
         return -1;
     }
 
     ret = fieldstat_set_metric_ratio_para(stat->fs_handle, stat->total_stat_id[COLUMN_SCAN_TPS],
-                                          stat->total_stat_id[COLUMN_SCAN_CNT],
-                                          stat->total_stat_id[COLUMN_CPU_TIME], 1000000000);
+                                          stat->total_stat_id[COLUMN_SCAN_TIMES],
+                                          stat->total_stat_id[COLUMN_SCAN_CPU_TIME], 1000000000);
     if (ret < 0) {
         log_fatal(stat->logger, MODULE_MAAT_STAT, "fieldstat set IN_Tps for Sum failed.");
         return -1;
     }
 
     ret = fieldstat_set_metric_ratio_para(stat->fs_handle, stat->total_stat_id[COLUMN_HIT_RATE],
-                                          stat->total_stat_id[COLUMN_HIT_CNT],
-                                          stat->total_stat_id[COLUMN_SCAN_CNT], 1);
+                                          stat->total_stat_id[COLUMN_HIT_TIMES],
+                                          stat->total_stat_id[COLUMN_SCAN_TIMES], 1);
     if (ret < 0) {
         log_fatal(stat->logger, MODULE_MAAT_STAT, "fieldstat set hit_rate for Sum failed.");
         return -1;
@@ -166,7 +173,7 @@ static int maat_fieldstat_table_row_register(struct maat_stat *stat,
 
         ret = fieldstat_set_metric_ratio_para(stat->fs_handle, stat->fs_column_id[i][COLUMN_SCAN_BPS],
                                               stat->fs_column_id[i][COLUMN_SCAN_BYTES],
-                                              stat->fs_column_id[i][COLUMN_CPU_TIME], 1000000000);
+                                              stat->fs_column_id[i][COLUMN_SCAN_CPU_TIME], 1000000000);
         if (ret < 0) {
             log_fatal(stat->logger, MODULE_MAAT_STAT,
                       "fieldstat set IN_Bps for %s failed.", table_name);
@@ -174,8 +181,8 @@ static int maat_fieldstat_table_row_register(struct maat_stat *stat,
         }
 
         ret = fieldstat_set_metric_ratio_para(stat->fs_handle, stat->fs_column_id[i][COLUMN_SCAN_TPS],
-                                              stat->fs_column_id[i][COLUMN_SCAN_CNT],
-                                              stat->fs_column_id[i][COLUMN_CPU_TIME], 1000000000);
+                                              stat->fs_column_id[i][COLUMN_SCAN_TIMES],
+                                              stat->fs_column_id[i][COLUMN_SCAN_CPU_TIME], 1000000000);
         if (ret < 0) {
             log_fatal(stat->logger, MODULE_MAAT_STAT,
                       "fieldstat set IN_Tps for %s failed.", table_name);
@@ -183,8 +190,8 @@ static int maat_fieldstat_table_row_register(struct maat_stat *stat,
         }
 
         ret = fieldstat_set_metric_ratio_para(stat->fs_handle, stat->fs_column_id[i][COLUMN_HIT_RATE],
-                                              stat->fs_column_id[i][COLUMN_HIT_CNT],
-                                              stat->fs_column_id[i][COLUMN_SCAN_CNT], 1);
+                                              stat->fs_column_id[i][COLUMN_HIT_TIMES],
+                                              stat->fs_column_id[i][COLUMN_SCAN_TIMES], 1);
         if (ret < 0) {
             log_fatal(stat->logger, MODULE_MAAT_STAT,
                       "fieldstat set hit_rate for %s failed.", table_name);
@@ -205,9 +212,9 @@ struct maat_stat *maat_stat_new(const char *stat_file, size_t max_thread_num,
 
     stat->nr_worker_thread = max_thread_num;
     stat->logger = logger;
-    stat->stream_num = alignment_int64_array_alloc(max_thread_num);
+    stat->stream_cnt = alignment_int64_array_alloc(max_thread_num);
     stat->thread_call_cnt = alignment_int64_array_alloc(max_thread_num);
-    stat->hit_cnt = alignment_int64_array_alloc(max_thread_num);
+    stat->hit_compile_cnt = alignment_int64_array_alloc(max_thread_num);
     stat->maat_state_cnt = alignment_int64_array_alloc(max_thread_num);
     stat->compile_state_cnt = alignment_int64_array_alloc(max_thread_num);
     stat->maat_state_free_cnt = alignment_int64_array_alloc(max_thread_num);
@@ -222,9 +229,9 @@ void maat_stat_free(struct maat_stat *stat)
         return;
     }
 
-    if (stat->stream_num != NULL) {
-        alignment_int64_array_free(stat->stream_num);
-        stat->stream_num = NULL;
+    if (stat->stream_cnt != NULL) {
+        alignment_int64_array_free(stat->stream_cnt);
+        stat->stream_cnt = NULL;
     }
 
     if (stat->thread_call_cnt != NULL) {
@@ -232,9 +239,9 @@ void maat_stat_free(struct maat_stat *stat)
         stat->thread_call_cnt = NULL;
     }
 
-    if (stat->hit_cnt != NULL) {
-        alignment_int64_array_free(stat->hit_cnt);
-        stat->hit_cnt = NULL;
+    if (stat->hit_compile_cnt != NULL) {
+        alignment_int64_array_free(stat->hit_compile_cnt);
+        stat->hit_compile_cnt = NULL;
     }
 
     if (stat->maat_state_cnt != NULL) {
@@ -318,9 +325,9 @@ int maat_stat_init(struct maat_stat *stat, struct table_manager *tbl_mgr,
 static void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
 {
     long long plugin_cache_num = 0, plugin_rule_num = 0;
-    long long total_rule_num = 0, total_input_bytes = 0;
-    long long total_scan_cnt = 0, total_scan_cpu_time = 0, total_regex_num = 0;
-    long long total_ipv6_num = 0, total_hit_cnt = 0, total_update_err = 0;
+    long long total_rule_num = 0, total_input_bytes = 0, total_update_err = 0;
+    long long total_scan_times = 0, total_scan_cpu_time = 0, total_regex_num = 0;
+    long long total_ipv6_num = 0, total_hit_item_num = 0, total_hit_pattern_num = 0;
     long long g2c_not_clause_num = 0, g2g_excl_rule_num = 0;
     size_t max_table_count = table_manager_table_size(stat->ref_tbl_mgr);
 
@@ -370,9 +377,9 @@ static void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
         fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_RULE_NUM], rule_num);
         total_rule_num += rule_num;
 
-        long long scan_cnt = table_manager_runtime_scan_count(stat->ref_tbl_mgr, i);
-        fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_SCAN_CNT], scan_cnt);
-        total_scan_cnt += scan_cnt;
+        long long scan_times = table_manager_runtime_scan_times(stat->ref_tbl_mgr, i);
+        fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_SCAN_TIMES], scan_times);
+        total_scan_times += scan_times;
 
         if (table_type == TABLE_TYPE_PLUGIN || table_type == TABLE_TYPE_IP_PLUGIN ||
             table_type == TABLE_TYPE_IPPORT_PLUGIN || table_type == TABLE_TYPE_BOOL_PLUGIN ||
@@ -387,6 +394,11 @@ static void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
             fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_SCAN_BYTES],
                                 input_bytes);
             total_input_bytes += input_bytes;
+
+            long long hit_pattern_num = expr_runtime_hit_pattern_num(runtime);
+            fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_HIT_PAT_NUM],
+                                hit_pattern_num);
+            total_hit_pattern_num += hit_pattern_num;
         }
 
         if (table_type == TABLE_TYPE_IP_PLUS) {
@@ -396,14 +408,14 @@ static void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
 
         if (1 == perf_on) {
             long long scan_cpu_time = table_manager_runtime_scan_cpu_time(stat->ref_tbl_mgr, i);
-            fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_CPU_TIME],
+            fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_SCAN_CPU_TIME],
                                 scan_cpu_time);
             total_scan_cpu_time += scan_cpu_time;
         }
 
-        long long hit_cnt = table_manager_runtime_hit_count(stat->ref_tbl_mgr, i);
-        fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_HIT_CNT], hit_cnt);
-        total_hit_cnt += hit_cnt;
+        long long hit_item_num = table_manager_runtime_hit_item_num(stat->ref_tbl_mgr, i);
+        fieldstat_value_set(stat->fs_handle, stat->fs_column_id[i][COLUMN_HIT_ITEM_NUM], hit_item_num);
+        total_hit_item_num += hit_item_num;
 
         total_update_err += table_manager_runtime_update_err_count(stat->ref_tbl_mgr, i);
     }
@@ -412,15 +424,17 @@ static void maat_fieldstat_table_row_output(struct maat_stat *stat, int perf_on)
                         total_rule_num);
     fieldstat_value_set(stat->fs_handle, stat->total_stat_id[COLUMN_REGEX_NUM],
                         total_regex_num);
-    fieldstat_value_set(stat->fs_handle, stat->total_stat_id[COLUMN_SCAN_CNT],
-                        total_scan_cnt);
-    fieldstat_value_set(stat->fs_handle, stat->total_stat_id[COLUMN_HIT_CNT],
-                        total_hit_cnt);
+    fieldstat_value_set(stat->fs_handle, stat->total_stat_id[COLUMN_SCAN_TIMES],
+                        total_scan_times);
+    fieldstat_value_set(stat->fs_handle, stat->total_stat_id[COLUMN_HIT_ITEM_NUM],
+                        total_hit_item_num);
+    fieldstat_value_set(stat->fs_handle, stat->total_stat_id[COLUMN_HIT_PAT_NUM],
+                        total_hit_pattern_num);
     fieldstat_value_set(stat->fs_handle, stat->total_stat_id[COLUMN_SCAN_BYTES],
                         total_input_bytes);
 
     if (1 == perf_on) {
-        fieldstat_value_set(stat->fs_handle, stat->total_stat_id[COLUMN_CPU_TIME],
+        fieldstat_value_set(stat->fs_handle, stat->total_stat_id[COLUMN_SCAN_CPU_TIME],
                             total_scan_cpu_time);
     }
 
@@ -446,22 +460,25 @@ void maat_stat_output(struct maat_stat *stat, long long maat_version, int perf_o
 
     long long active_thread_num = alignment_int64_array_cnt(stat->thread_call_cnt, 
                                                             stat->nr_worker_thread);
-    long long stream_num = alignment_int64_array_sum(stat->stream_num,
-                                                     stat->nr_worker_thread);                                                    
-    long long maat_state_cnt = alignment_int64_array_sum(stat->maat_state_cnt,
+    long long stream_num = alignment_int64_array_sum(stat->stream_cnt,
+                                                     stat->nr_worker_thread);
+    long long hit_compile_num = alignment_int64_array_sum(stat->hit_compile_cnt,
+                                                          stat->nr_worker_thread);
+    long long maat_state_num = alignment_int64_array_sum(stat->maat_state_cnt,
                                                          stat->nr_worker_thread);
-    long long maat_state_free_cnt = alignment_int64_array_sum(stat->maat_state_free_cnt,
+    long long compile_state_num = alignment_int64_array_sum(stat->compile_state_cnt,
+                                                            stat->nr_worker_thread);
+    long long maat_state_free_num = alignment_int64_array_sum(stat->maat_state_free_cnt,
                                                               stat->nr_worker_thread);
     long long maat_state_free_bytes = alignment_int64_array_sum(stat->maat_state_free_bytes,
                                                                 stat->nr_worker_thread);
-    long long compile_state_cnt = alignment_int64_array_sum(stat->compile_state_cnt,
-                                                                 stat->nr_worker_thread);
-    size_t table_cnt = table_manager_table_count(stat->ref_tbl_mgr);
+    
+    size_t table_num = table_manager_table_num(stat->ref_tbl_mgr);
     size_t garbage_q_len = maat_garbage_bin_get_size(stat->ref_garbage_bin);
 
     long long per_state_mem = 0;
-    if (maat_state_free_cnt != 0) {
-        per_state_mem = maat_state_free_bytes / maat_state_free_cnt;
+    if (maat_state_free_num != 0) {
+        per_state_mem = maat_state_free_bytes / maat_state_free_num;
     }
     
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_VERSION],
@@ -469,13 +486,15 @@ void maat_stat_output(struct maat_stat *stat, long long maat_version, int perf_o
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_THRED_NUM],
                         active_thread_num);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_TABLE_NUM],
-                        table_cnt);
+                        table_num);
+    fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_HIT_COMPILE_NUM],
+                        hit_compile_num);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_MAAT_STATE_NUM],
-                        maat_state_cnt);
+                        maat_state_num);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_MAAT_PER_STATE_MEM],
                         per_state_mem);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_COMPILE_STATE_NUM],
-                        compile_state_cnt);
+                        compile_state_num);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_CMD_LINE_NUM],
                         stat->line_cmd_acc_num);
     fieldstat_value_set(stat->fs_handle, stat->fs_status_id[STATUS_GARBAGE_QSIZE],

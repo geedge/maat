@@ -270,9 +270,10 @@ void expr_matcher_free(struct expr_matcher *matcher)
     FREE(matcher);
 }
 
-struct expr_matcher *expr_matcher_new(struct expr_rule *rules, size_t n_rule,
-                                      enum expr_engine_type engine_type,
-                                      size_t n_thread, struct log_handle *logger)
+struct expr_matcher *
+expr_matcher_new(struct expr_rule *rules, size_t n_rule,
+                 enum expr_engine_type engine_type,
+                 size_t n_thread, struct log_handle *logger)
 {
     if (NULL == rules || 0 == n_rule || 0 == n_thread ||
         (engine_type != EXPR_ENGINE_TYPE_HS &&
@@ -443,7 +444,8 @@ next:
 int expr_matcher_match(struct expr_matcher *matcher, int thread_id,
                        const char *data, size_t data_len,
                        struct expr_scan_result *result_array,
-                       size_t array_size, size_t *n_hit_result)
+                       size_t array_size, size_t *n_hit_result,
+                       size_t *n_hit_pattern)
 {
     if (NULL == matcher || thread_id < 0 || NULL == data || 0 == data_len
         || NULL == result_array || 0 == array_size || NULL == n_hit_result) {
@@ -451,21 +453,21 @@ int expr_matcher_match(struct expr_matcher *matcher, int thread_id,
     }
 
     int err_count = 0;
-    unsigned long long lit_pattern_ids[MAX_HIT_PATTERN_NUM];
-    unsigned long long regex_pattern_ids[MAX_HIT_PATTERN_NUM];
-    size_t n_lit_pattern = 0;
-    size_t n_regex_pattern = 0;
-    size_t n_pattern = 0;
+    unsigned long long lit_pat_ids[MAX_HIT_PATTERN_NUM];
+    unsigned long long regex_pat_ids[MAX_HIT_PATTERN_NUM];
+    size_t lit_pat_cnt = 0;
+    size_t regex_pat_cnt = 0;
+    size_t pat_cnt = 0;
 
     int ret = engine_ops[matcher->engine_type].engine_scan(matcher->lit_runtime, thread_id,
-                                                           data, data_len, lit_pattern_ids,
-                                                           MAX_HIT_PATTERN_NUM, &n_lit_pattern);
+                                                           data, data_len, lit_pat_ids,
+                                                           MAX_HIT_PATTERN_NUM, &lit_pat_cnt);
     if (ret < 0) {
         err_count++;
     }
 
     ret = hs_regex_engine_scan(matcher->regex_runtime, thread_id, data, data_len,
-                               regex_pattern_ids, MAX_HIT_PATTERN_NUM, &n_regex_pattern);
+                               regex_pat_ids, MAX_HIT_PATTERN_NUM, &regex_pat_cnt);
     if (ret < 0) {
         err_count++;
     }
@@ -474,20 +476,22 @@ int expr_matcher_match(struct expr_matcher *matcher, int thread_id,
         return -1;
     }
 
-    n_pattern = n_lit_pattern + n_regex_pattern;
-    if (n_pattern > MAX_HIT_PATTERN_NUM) {
-        n_pattern = MAX_HIT_PATTERN_NUM;
+    pat_cnt = lit_pat_cnt + regex_pat_cnt;
+    *n_hit_pattern = pat_cnt;
+
+    if (pat_cnt > MAX_HIT_PATTERN_NUM) {
+        pat_cnt = MAX_HIT_PATTERN_NUM;
     }
 
     size_t j = 0;
-    for (size_t i = n_lit_pattern; i < n_pattern; i++, j++) {
-        lit_pattern_ids[i] = regex_pattern_ids[j];
+    for (size_t i = lit_pat_cnt; i < pat_cnt; i++, j++) {
+        lit_pat_ids[i] = regex_pat_ids[j];
     }
     
     struct bool_expr_match *match_buff = matcher->bool_match_buffs[thread_id];
 
     return expr_matcher_bool_matcher_match(matcher->bm, match_buff, MAX_HIT_PATTERN_NUM,
-                                           lit_pattern_ids, n_pattern, result_array,
+                                           lit_pat_ids, pat_cnt, result_array,
                                            array_size, n_hit_result);
 }
 
@@ -534,29 +538,31 @@ expr_matcher_stream_open(struct expr_matcher *matcher, int thread_id)
 int expr_matcher_stream_match(struct expr_matcher_stream *stream,
                               const char *data, size_t data_len,
                               struct expr_scan_result *result_array, 
-						      size_t array_size, size_t *n_hit_result)
+						      size_t array_size, size_t *n_hit_result,
+                              size_t *n_hit_pattern)
 {
-    if (NULL == stream || NULL == data || 0 == data_len || NULL == result_array
-        || 0 == array_size || NULL == n_hit_result) {
+    if (NULL == stream || NULL == data || 0 == data_len ||
+        NULL == result_array || 0 == array_size ||
+        NULL == n_hit_result) {
         return -1;
     }
 
     int err_count = 0;
-    unsigned long long lit_pattern_ids[MAX_HIT_PATTERN_NUM];
-    unsigned long long regex_pattern_ids[MAX_HIT_PATTERN_NUM];
-    size_t n_lit_pattern = 0;
-    size_t n_regex_pattern = 0;
-    size_t n_pattern = 0;
+    unsigned long long lit_pat_ids[MAX_HIT_PATTERN_NUM];
+    unsigned long long regex_pat_ids[MAX_HIT_PATTERN_NUM];
+    size_t lit_pat_cnt = 0;
+    size_t regex_pat_cnt = 0;
+    size_t pat_cnt = 0;
 
     int ret = engine_ops[stream->engine_type].scan_stream(stream->lit_stream, data, data_len,
-                                                           lit_pattern_ids, MAX_HIT_PATTERN_NUM,
-                                                           &n_lit_pattern);
+                                                           lit_pat_ids, MAX_HIT_PATTERN_NUM,
+                                                           &lit_pat_cnt);
     if (ret < 0) {
         err_count++;
     }
 
-    ret = hs_regex_stream_scan(stream->regex_stream, data, data_len, regex_pattern_ids,
-                               MAX_HIT_PATTERN_NUM, &n_regex_pattern);
+    ret = hs_regex_stream_scan(stream->regex_stream, data, data_len, regex_pat_ids,
+                               MAX_HIT_PATTERN_NUM, &regex_pat_cnt);
     if (ret < 0) {
         err_count++;
     }
@@ -565,22 +571,23 @@ int expr_matcher_stream_match(struct expr_matcher_stream *stream,
         return -1;
     }
 
-    n_pattern = n_lit_pattern + n_regex_pattern;
-    if (n_pattern > MAX_HIT_PATTERN_NUM) {
-        n_pattern = MAX_HIT_PATTERN_NUM;
+    pat_cnt = lit_pat_cnt + regex_pat_cnt;
+    *n_hit_pattern = pat_cnt;
+    if (pat_cnt > MAX_HIT_PATTERN_NUM) {
+        pat_cnt = MAX_HIT_PATTERN_NUM;
     }
 
     size_t j = 0;
-    for (size_t i = n_lit_pattern; i < n_pattern; i++, j++) {
-        lit_pattern_ids[i] = regex_pattern_ids[j];
+    for (size_t i = lit_pat_cnt; i < pat_cnt; i++, j++) {
+        lit_pat_ids[i] = regex_pat_ids[j];
     }
     
     struct expr_matcher *matcher = stream->ref_matcher;
     struct bool_expr_match *match_buff = matcher->bool_match_buffs[stream->thread_id];
 
     return expr_matcher_bool_matcher_match(matcher->bm, match_buff, MAX_HIT_PATTERN_NUM,
-                                           lit_pattern_ids, n_pattern, result_array,
-                                           array_size, n_hit_result);
+                                           lit_pat_ids, pat_cnt, result_array, array_size,
+                                           n_hit_result);
 }
 
 void expr_matcher_stream_close(struct expr_matcher_stream *stream)

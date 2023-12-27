@@ -52,16 +52,18 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
 int interval_runtime_set_scan_district(struct interval_runtime *interval_rt, const char *district, 
                                        size_t district_len, long long *district_id);
                                        
-void interval_runtime_hit_inc(struct interval_runtime *interval_rt, int thread_id);
-
 void interval_runtime_perf_stat(struct interval_runtime *interval_rt, struct timespec *start,
                                 struct timespec *end, int thread_id);
 
-long long interval_runtime_scan_count(void *interval_runtime);
+long long interval_runtime_scan_times(void *interval_runtime);
 
 long long interval_runtime_scan_cpu_time(void *interval_runtime);
 
-long long interval_runtime_hit_count(void *interval_runtime);
+void interval_runtime_hit_times_inc(struct interval_runtime *interval_rt, int thread_id);
+
+long long interval_runtime_hit_times(void *interval_runtime);
+
+long long interval_runtime_hit_item_num(void *interval_runtime);
 
 long long interval_runtime_update_err_cnt(void *interval_runtime);
 

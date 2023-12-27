@@ -79,10 +79,13 @@ struct ip_runtime {
     struct log_handle *logger;
     struct maat_garbage_bin *ref_garbage_bin;
     
-    long long update_err_cnt;
-    long long *scan_cnt;
+    long long *scan_times;
     long long *scan_cpu_time;
-    long long *hit_cnt;
+
+    long long *hit_times;
+    long long *hit_item_num;
+
+    long long update_err_cnt;
 };
 
 void *ip_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
@@ -429,9 +432,11 @@ void *ip_runtime_new(void *ip_schema, size_t max_thread_num,
     ip_rt->ref_garbage_bin = garbage_bin;
     ip_rt->logger = logger;
 
-    ip_rt->hit_cnt = alignment_int64_array_alloc(max_thread_num);
-    ip_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
+    ip_rt->scan_times = alignment_int64_array_alloc(max_thread_num);
     ip_rt->scan_cpu_time = alignment_int64_array_alloc(max_thread_num);
+
+    ip_rt->hit_times = alignment_int64_array_alloc(max_thread_num);
+    ip_rt->hit_item_num = alignment_int64_array_alloc(max_thread_num);
 
     return ip_rt;
 }
@@ -453,19 +458,24 @@ void ip_runtime_free(void *ip_runtime)
         ip_rt->item_hash = NULL;
     }
 
-    if (ip_rt->hit_cnt != NULL) {
-        alignment_int64_array_free(ip_rt->hit_cnt);
-        ip_rt->hit_cnt = NULL;
-    }
-
-    if (ip_rt->scan_cnt != NULL) {
-        alignment_int64_array_free(ip_rt->scan_cnt);
-        ip_rt->scan_cnt = NULL;
+    if (ip_rt->scan_times != NULL) {
+        alignment_int64_array_free(ip_rt->scan_times);
+        ip_rt->scan_times = NULL;
     }
 
     if (ip_rt->scan_cpu_time != NULL) {
         alignment_int64_array_free(ip_rt->scan_cpu_time);
         ip_rt->scan_cpu_time = NULL;
+    }
+
+    if (ip_rt->hit_times != NULL) {
+        alignment_int64_array_free(ip_rt->hit_times);
+        ip_rt->hit_times = NULL;
+    }
+
+   if (ip_rt->hit_item_num != NULL) {
+        alignment_int64_array_free(ip_rt->hit_item_num);
+        ip_rt->hit_item_num = NULL;
     }
 
     FREE(ip_rt);
@@ -760,6 +770,10 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
         real_hit_item_cnt++;
     }
 
+    if (real_hit_item_cnt > 0) {
+        alignment_int64_array_add(ip_rt->hit_item_num, state->thread_id,
+                                  real_hit_item_cnt);
+    }
 next:
     if (NULL == state->compile_state) {
         state->compile_state = compile_state_new();
@@ -768,17 +782,8 @@ next:
     }
 
     return compile_state_update(state->compile_state, state->maat_inst, vtable_id,
-                                state->compile_table_id, state->scan_cnt,
+                                state->compile_table_id, state->Nth_scan,
                                 hit_maat_items, real_hit_item_cnt);
-}
-
-void ip_runtime_hit_inc(struct ip_runtime *ip_rt, int thread_id)
-{
-    if (NULL == ip_rt || thread_id < 0) {
-        return;
-    }
-
-    alignment_int64_array_add(ip_rt->hit_cnt, thread_id, 1);
 }
 
 void ip_runtime_perf_stat(struct ip_runtime *ip_rt, struct timespec *start,
@@ -788,7 +793,7 @@ void ip_runtime_perf_stat(struct ip_runtime *ip_rt, struct timespec *start,
         return;
     }
 
-    alignment_int64_array_add(ip_rt->scan_cnt, thread_id, 1);
+    alignment_int64_array_add(ip_rt->scan_times, thread_id, 1);
     
     if (start != NULL && end != NULL) {
         long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 +
@@ -797,15 +802,17 @@ void ip_runtime_perf_stat(struct ip_runtime *ip_rt, struct timespec *start,
     }
 }
 
-long long ip_runtime_scan_count(void *ip_runtime)
+long long ip_runtime_scan_times(void *ip_runtime)
 {
     if (NULL == ip_runtime) {
         return 0;
     }
 
     struct ip_runtime *ip_rt = (struct ip_runtime *)ip_runtime;
-    long long sum = alignment_int64_array_sum(ip_rt->scan_cnt, ip_rt->n_worker_thread);
-    alignment_int64_array_reset(ip_rt->scan_cnt, ip_rt->n_worker_thread);
+    long long sum = alignment_int64_array_sum(ip_rt->scan_times,
+                                              ip_rt->n_worker_thread);
+    alignment_int64_array_reset(ip_rt->scan_times,
+                                ip_rt->n_worker_thread);
 
     return sum;
 }
@@ -824,16 +831,41 @@ long long ip_runtime_scan_cpu_time(void *ip_runtime)
     return sum;
 }
 
-long long ip_runtime_hit_count(void *ip_runtime)
+long long ip_runtime_hit_times(void *ip_runtime)
 {
     if (NULL == ip_runtime) {
         return 0;
     }
 
     struct ip_runtime *ip_rt = (struct ip_runtime *)ip_runtime;
-    long long sum = alignment_int64_array_sum(ip_rt->hit_cnt,
+    long long sum = alignment_int64_array_sum(ip_rt->hit_times,
                                               ip_rt->n_worker_thread);
-    alignment_int64_array_reset(ip_rt->hit_cnt, ip_rt->n_worker_thread);
+    alignment_int64_array_reset(ip_rt->hit_times,
+                                ip_rt->n_worker_thread);
+
+    return sum;
+}
+
+void ip_runtime_hit_times_inc(struct ip_runtime *ip_rt, int thread_id)
+{
+    if (NULL == ip_rt || thread_id < 0) {
+        return;
+    }
+
+    alignment_int64_array_add(ip_rt->hit_times, thread_id, 1);
+}
+
+long long ip_runtime_hit_item_num(void *ip_runtime)
+{
+    if (NULL == ip_runtime) {
+        return 0;
+    }
+
+    struct ip_runtime *ip_rt = (struct ip_runtime *)ip_runtime;
+    long long sum = alignment_int64_array_sum(ip_rt->hit_item_num,
+                                              ip_rt->n_worker_thread);
+    alignment_int64_array_reset(ip_rt->hit_item_num,
+                                ip_rt->n_worker_thread);
 
     return sum;
 }

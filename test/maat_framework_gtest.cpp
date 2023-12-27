@@ -9005,8 +9005,8 @@ TEST_F(MaatCmdTest, HitGroup) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    size_t scan_count = maat_state_get_scan_count(state);
-    EXPECT_EQ(scan_count, 1);
+    size_t scan_times = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_times, 1);
 
     struct maat_hit_group hit_groups[128];
     memset(hit_groups, 0, sizeof(hit_groups));
@@ -9052,8 +9052,8 @@ TEST_F(MaatCmdTest, HitGroup) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    scan_count = maat_state_get_scan_count(state);
-    EXPECT_EQ(scan_count, 2);
+    scan_times = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_times, 2);
 
     memset(hit_groups, 0, sizeof(hit_groups));
     n_hit_group = maat_state_get_direct_hit_group_cnt(state);
@@ -9088,8 +9088,8 @@ TEST_F(MaatCmdTest, HitGroup) {
     ret = maat_stream_scan(stream, keywords1, strlen(keywords1), results, ARRAY_SIZE,
                           &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
-    scan_count = maat_state_get_scan_count(state);
-    EXPECT_EQ(scan_count, 3);
+    scan_times = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_times, 3);
 
     int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(ip_table_id, 0);
@@ -9105,8 +9105,8 @@ TEST_F(MaatCmdTest, HitGroup) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    scan_count = maat_state_get_scan_count(state);
-    EXPECT_EQ(scan_count, 4);
+    scan_times = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_times, 4);
 
     memset(hit_groups, 0, sizeof(hit_groups));
     n_hit_group = maat_state_get_direct_hit_group_cnt(state);
@@ -9125,23 +9125,28 @@ TEST_F(MaatCmdTest, HitGroup) {
                             ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    scan_count = maat_state_get_scan_count(state);
-    EXPECT_EQ(scan_count, 5);
+    scan_times = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_times, 5);
 
     memset(hit_groups, 0, sizeof(hit_groups));
     n_hit_group = maat_state_get_direct_hit_group_cnt(state);
     maat_state_get_direct_hit_groups(state, hit_groups, n_hit_group);
-    EXPECT_EQ(n_hit_group, 1);
+    EXPECT_EQ(n_hit_group, 2);
 
     EXPECT_EQ(hit_groups[0].item_id, item5_id);
     EXPECT_EQ(hit_groups[0].group_id, group1_id);
     EXPECT_EQ(hit_groups[0].vtable_id, keywords_table_id); //physical table(keywords_table) vtable_id is 0
 
+    EXPECT_EQ(hit_groups[1].item_id, item4_id);
+    EXPECT_EQ(hit_groups[1].group_id, group4_id);
+    EXPECT_EQ(hit_groups[1].vtable_id, keywords_table_id); //physical table(keywords_table) vtable_id is 0
+
     n_last_hit_group = maat_state_get_last_hit_group_id_cnt(state);
     maat_state_get_last_hit_group_ids(state, last_hit_group_ids, 128);
-    EXPECT_EQ(n_last_hit_group, 2);
+    EXPECT_EQ(n_last_hit_group, 3);
     EXPECT_EQ(last_hit_group_ids[0], group1_id);
-    EXPECT_EQ(last_hit_group_ids[1], group11_id);
+    EXPECT_EQ(last_hit_group_ids[1], group4_id);
+    EXPECT_EQ(last_hit_group_ids[2], group11_id);
 
     maat_stream_free(stream);
     maat_state_free(state);
@@ -9263,8 +9268,8 @@ TEST_F(MaatCmdTest, HitPathBasic) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    size_t scan_count = maat_state_get_scan_count(state);
-    EXPECT_EQ(scan_count, 1);
+    size_t scan_times = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_times, 1);
 
     struct maat_hit_path hit_path[128];
     memset(hit_path, 0, sizeof(hit_path));
@@ -9306,8 +9311,8 @@ TEST_F(MaatCmdTest, HitPathBasic) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    scan_count = maat_state_get_scan_count(state);
-    EXPECT_EQ(scan_count, 2);
+    scan_times = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_times, 2);
 
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 4);
@@ -9364,8 +9369,8 @@ that the edges be all directed in the same direction.";
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    scan_count = maat_state_get_scan_count(state);
-    EXPECT_EQ(scan_count, 3);
+    scan_times = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_times, 3);
 
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 5);
@@ -9394,8 +9399,8 @@ that the edges be all directed in the same direction.";
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    scan_count = maat_state_get_scan_count(state);
-    EXPECT_EQ(scan_count, 4);
+    scan_times = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_times, 4);
  
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 6);
@@ -9418,8 +9423,8 @@ that the edges be all directed in the same direction.";
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    scan_count = maat_state_get_scan_count(state);
-    EXPECT_EQ(scan_count, 5);
+    scan_times = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_times, 5);
 
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 7);
@@ -9927,8 +9932,8 @@ TEST_F(MaatCmdTest, HitPathHasNotGroup) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    size_t scan_count = maat_state_get_scan_count(state);
-    EXPECT_EQ(scan_count, 1);
+    size_t scan_times = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_times, 1);
 
     struct maat_hit_path hit_path[128];
     memset(hit_path, 0, sizeof(hit_path));
@@ -9972,8 +9977,8 @@ TEST_F(MaatCmdTest, HitPathHasNotGroup) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    scan_count = maat_state_get_scan_count(state);
-    EXPECT_EQ(scan_count, 2);
+    scan_times = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_times, 2);
 
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 4);
@@ -10031,8 +10036,8 @@ TEST_F(MaatCmdTest, HitPathHasNotGroup) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    scan_count = maat_state_get_scan_count(state);
-    EXPECT_EQ(scan_count, 3);
+    scan_times = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_times, 3);
 
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 5);
@@ -10062,8 +10067,8 @@ TEST_F(MaatCmdTest, HitPathHasNotGroup) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    scan_count = maat_state_get_scan_count(state);
-    EXPECT_EQ(scan_count, 4);
+    scan_times = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_times, 4);
  
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 6);
@@ -10087,8 +10092,8 @@ TEST_F(MaatCmdTest, HitPathHasNotGroup) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    scan_count = maat_state_get_scan_count(state);
-    EXPECT_EQ(scan_count, 5);
+    scan_times = maat_state_get_scan_count(state);
+    EXPECT_EQ(scan_times, 5);
 
     n_read = maat_state_get_hit_paths(state, hit_path, sizeof(hit_path));
     EXPECT_EQ(n_read, 7);

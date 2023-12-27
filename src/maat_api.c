@@ -57,7 +57,7 @@ enum logic_not_flag {
 
 struct maat_stream {
     struct maat *ref_maat_inst;
-    struct expr_matcher_stream *handle; //each physical table open one stream
+    struct expr_runtime_stream *expr_rt_stream; //each physical table open one stream
     long long last_full_version;
     long long expr_rt_version;
     struct log_handle *logger;
@@ -888,7 +888,7 @@ void *maat_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
 
     int thread_id = _get_tid(maat_inst);
     if (thread_id >= 0 && thread_id < maat_inst->opts.nr_worker_thread) {
-        plugin_runtime_scan_inc(runtime, thread_id);
+        plugin_runtime_scan_times_inc(runtime, thread_id);
     }
 
     void *ret = NULL;
@@ -922,7 +922,7 @@ int maat_ip_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
 
     int thread_id = _get_tid(maat_inst);
     if (thread_id >= 0 && thread_id < maat_inst->opts.nr_worker_thread) {
-        ip_plugin_runtime_scan_inc(ip_plugin_rt, thread_id);
+        ip_plugin_runtime_scan_times_inc(ip_plugin_rt, thread_id);
     }
 
     return ip_plugin_runtime_get_ex_data(ip_plugin_rt, ip_addr, ex_data_array, array_size);
@@ -949,7 +949,7 @@ int maat_ipport_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
 
     int thread_id = _get_tid(maat_inst);
     if (thread_id >= 0 && thread_id < maat_inst->opts.nr_worker_thread) {
-        ipport_plugin_runtime_scan_inc(ipport_plugin_rt, thread_id);
+        ipport_plugin_runtime_scan_times_inc(ipport_plugin_rt, thread_id);
     }
 
     return ipport_plugin_runtime_get_ex_data(ipport_plugin_rt, ip_addr, port,
@@ -977,7 +977,7 @@ int maat_fqdn_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
 
     int thread_id = _get_tid(maat_inst);
     if (thread_id >= 0 && thread_id < maat_inst->opts.nr_worker_thread) {
-        fqdn_plugin_runtime_scan_inc(fqdn_plugin_rt, thread_id);
+        fqdn_plugin_runtime_scan_times_inc(fqdn_plugin_rt, thread_id);
     }
 
     return fqdn_plugin_runtime_get_ex_data(fqdn_plugin_rt, fqdn, ex_data_array, array_size);
@@ -1004,7 +1004,7 @@ int maat_bool_plugin_table_get_ex_data(struct maat *maat_inst, int table_id,
 
     int thread_id = _get_tid(maat_inst);
     if (thread_id >= 0 && thread_id < maat_inst->opts.nr_worker_thread) {
-        bool_plugin_runtime_scan_inc(bool_plugin_rt, thread_id);
+        bool_plugin_runtime_scan_times_inc(bool_plugin_rt, thread_id);
     }
 
     return bool_plugin_runtime_get_ex_data(bool_plugin_rt, item_ids, n_item,
@@ -1035,7 +1035,7 @@ static int flag_scan(struct table_manager *tbl_mgr, int thread_id, long long fla
         return group_hit_cnt;
     }
 
-    flag_runtime_hit_inc((struct flag_runtime *)flag_rt, thread_id);
+    flag_runtime_hit_times_inc((struct flag_runtime *)flag_rt, thread_id);
 
     return group_hit_cnt;
 }
@@ -1065,7 +1065,7 @@ static int interval_scan(struct table_manager *tbl_mgr, int thread_id, long long
         return group_hit_cnt;
     }
 
-    interval_runtime_hit_inc((struct interval_runtime *)interval_rt, thread_id);
+    interval_runtime_hit_times_inc((struct interval_runtime *)interval_rt, thread_id);
 
     return group_hit_cnt;
 }
@@ -1091,7 +1091,7 @@ static int ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_a
         return group_hit_cnt;
     }
 
-    ip_runtime_hit_inc((struct ip_runtime *)ip_rt, thread_id);
+    ip_runtime_hit_times_inc((struct ip_runtime *)ip_rt, thread_id);
     
     return group_hit_cnt;
 }
@@ -1117,7 +1117,7 @@ static int ipv6_scan(struct table_manager *tbl_mgr, int thread_id,
         return group_hit_cnt;
     }
 
-    ip_runtime_hit_inc((struct ip_runtime *)ip_rt, thread_id);
+    ip_runtime_hit_times_inc((struct ip_runtime *)ip_rt, thread_id);
     
     return group_hit_cnt;
 }
@@ -1148,43 +1148,7 @@ static int string_scan(struct table_manager *tbl_mgr, int thread_id,
         return group_hit_cnt;
     }
 
-    expr_runtime_hit_inc((struct expr_runtime *)expr_rt, thread_id);
-
-    return group_hit_cnt;
-}
-
-static int expr_stream_scan(struct maat_stream *stream, const char *data,
-                            size_t data_len, struct maat_state *state)
-{
-    if (NULL == stream || NULL == data) {
-        return 0;
-    }
-
-    enum table_type table_type = TABLE_TYPE_INVALID;
-    struct table_manager *tbl_mgr = stream->ref_maat_inst->tbl_mgr;
-    table_type = table_manager_get_table_type(tbl_mgr, stream->phy_table_id);
-    if (table_type == TABLE_TYPE_EXPR_PLUS && 
-        DISTRICT_FLAG_UNSET == state->district_flag) {
-        return -1;
-    }
-
-    if (table_type != TABLE_TYPE_EXPR && table_type != TABLE_TYPE_EXPR_PLUS) {
-        return -1;
-    }
-
-    void *expr_rt = table_manager_get_runtime(tbl_mgr, stream->phy_table_id);
-    if (NULL == expr_rt) {
-        return -1;
-    }
-
-    int group_hit_cnt = expr_runtime_stream_scan((struct expr_runtime *)expr_rt,
-                                                 stream->handle, data, data_len,
-                                                 stream->vtable_id, state);
-    if (group_hit_cnt <= 0) {
-        return group_hit_cnt;
-    }
-
-    expr_runtime_hit_inc((struct expr_runtime *)expr_rt, stream->thread_id);
+    expr_runtime_hit_times_inc((struct expr_runtime *)expr_rt, thread_id);
 
     return group_hit_cnt;
 }
@@ -1222,7 +1186,7 @@ int maat_scan_flag(struct maat *maat_inst, int table_id,
         clock_gettime(CLOCK_MONOTONIC, &start);
     }
 
-    state->scan_cnt++;
+    state->Nth_scan++;
 
     struct maat_runtime *maat_rt = maat_inst->maat_rt;
     if (NULL == maat_rt) {
@@ -1267,7 +1231,8 @@ int maat_scan_flag(struct maat *maat_inst, int table_id,
     }
 
     if (sum_hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_inst->stat->hit_cnt, state->thread_id, 1);
+        alignment_int64_array_add(maat_inst->stat->hit_compile_cnt, state->thread_id,
+                                  sum_hit_compile_cnt);
     }
 
     void *flag_rt = table_manager_get_runtime(maat_inst->tbl_mgr, phy_table_id);
@@ -1306,7 +1271,7 @@ int maat_scan_integer(struct maat *maat_inst, int table_id,
         clock_gettime(CLOCK_MONOTONIC, &start);
     }
 
-    state->scan_cnt++;
+    state->Nth_scan++;
 
     struct maat_runtime *maat_rt = maat_inst->maat_rt;
     if (NULL == maat_rt) {
@@ -1351,7 +1316,8 @@ int maat_scan_integer(struct maat *maat_inst, int table_id,
     }
 
     if (sum_hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_inst->stat->hit_cnt, state->thread_id, 1);
+        alignment_int64_array_add(maat_inst->stat->hit_compile_cnt, state->thread_id,
+                                  sum_hit_compile_cnt);
     }
 
     void *interval_rt = table_manager_get_runtime(maat_inst->tbl_mgr, phy_table_id);
@@ -1390,7 +1356,7 @@ int maat_scan_ipv4(struct maat *maat_inst, int table_id, uint32_t ip_addr,
         clock_gettime(CLOCK_MONOTONIC, &start);
     }
 
-    state->scan_cnt++;
+    state->Nth_scan++;
 
     struct maat_runtime *maat_rt = maat_inst->maat_rt;
     if (NULL == maat_rt) {
@@ -1435,7 +1401,8 @@ int maat_scan_ipv4(struct maat *maat_inst, int table_id, uint32_t ip_addr,
     }
 
     if (sum_hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_inst->stat->hit_cnt, state->thread_id, 1);
+        alignment_int64_array_add(maat_inst->stat->hit_compile_cnt, state->thread_id,
+                                  sum_hit_compile_cnt);
     }
 
     void *ip_rt = table_manager_get_runtime(maat_inst->tbl_mgr, phy_table_id);
@@ -1476,7 +1443,7 @@ int maat_scan_ipv6(struct maat *maat_inst, int table_id,
         clock_gettime(CLOCK_MONOTONIC, &start);
     }
 
-    state->scan_cnt++;
+    state->Nth_scan++;
 
     struct maat_runtime *maat_rt = maat_inst->maat_rt;
     if (NULL == maat_rt) {
@@ -1521,7 +1488,8 @@ int maat_scan_ipv6(struct maat *maat_inst, int table_id,
     }
 
     if (sum_hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_inst->stat->hit_cnt, state->thread_id, 1);
+        alignment_int64_array_add(maat_inst->stat->hit_compile_cnt, state->thread_id,
+                                  sum_hit_compile_cnt);
     }
 
     void *ip_rt = table_manager_get_runtime(maat_inst->tbl_mgr, phy_table_id);
@@ -1562,7 +1530,7 @@ int maat_scan_string(struct maat *maat_inst, int table_id,
         clock_gettime(CLOCK_MONOTONIC, &start);
     }
 
-    state->scan_cnt++;
+    state->Nth_scan++;
 
     struct maat_runtime *maat_rt = maat_inst->maat_rt;
     if (NULL == maat_rt) {
@@ -1607,7 +1575,8 @@ int maat_scan_string(struct maat *maat_inst, int table_id,
     }
 
     if (sum_hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_inst->stat->hit_cnt, state->thread_id, 1);
+        alignment_int64_array_add(maat_inst->stat->hit_compile_cnt, state->thread_id,
+                                  sum_hit_compile_cnt);
     }
 
     void *expr_rt = table_manager_get_runtime(maat_inst->tbl_mgr, phy_table_id);
@@ -1654,7 +1623,7 @@ static void maat_state_add_hit_group(struct maat_state *state, int table_id,
     }
 
     compile_state_update(state->compile_state, maat_inst, table_id,
-                         state->compile_table_id, state->scan_cnt,
+                         state->compile_table_id, state->Nth_scan,
                          hit_items, n_hit_item);
 }
 
@@ -1677,7 +1646,7 @@ static void maat_state_activate_hit_not_group(struct maat_state *state, int tabl
     }
 
     compile_state_not_logic_update(state->compile_state, compile_rt, maat_inst,
-                                   table_id, state->scan_cnt);
+                                   table_id, state->Nth_scan);
 }
 
 int maat_scan_group(struct maat *maat_inst, int table_id,
@@ -1692,7 +1661,7 @@ int maat_scan_group(struct maat *maat_inst, int table_id,
         return -1;
     }
 
-    state->scan_cnt++;
+    state->Nth_scan++;
 
     struct maat_runtime *maat_rt = maat_inst->maat_rt;
     if (NULL == maat_rt) {
@@ -1708,7 +1677,8 @@ int maat_scan_group(struct maat *maat_inst, int table_id,
 
     maat_runtime_ref_dec(maat_rt, state->thread_id);
     if (hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_inst->stat->hit_cnt, state->thread_id, 1);
+        alignment_int64_array_add(maat_inst->stat->hit_compile_cnt, state->thread_id,
+                                  hit_compile_cnt);
         return MAAT_SCAN_HIT;
     }
 
@@ -1743,7 +1713,8 @@ int maat_scan_not_logic(struct maat *maat_inst, int table_id,
 
     maat_runtime_ref_dec(maat_rt, state->thread_id);
     if (hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_inst->stat->hit_cnt, state->thread_id, 1);
+        alignment_int64_array_add(maat_inst->stat->hit_compile_cnt, state->thread_id,
+                                  hit_compile_cnt);
         return MAAT_SCAN_HIT;
     }
 
@@ -1789,19 +1760,52 @@ struct maat_stream *maat_stream_new(struct maat *maat_inst, int table_id,
     stream->expr_rt_version = expr_runtime_get_version(expr_rt);
 
     maat_runtime_ref_inc(maat_inst->maat_rt, state->thread_id);
-    struct expr_matcher_stream *handle = expr_runtime_stream_open((struct expr_runtime *)expr_rt, 
-                                                                  state->thread_id);
-    if (NULL == handle) {
+
+    struct expr_runtime_stream *expr_rt_stream = NULL;
+    expr_rt_stream = expr_runtime_stream_open((struct expr_runtime *)expr_rt,
+                                              state->thread_id);
+    if (NULL == expr_rt_stream) {
         goto error;
     }
-    alignment_int64_array_add(maat_inst->stat->stream_num, stream->thread_id, 1);
-    stream->handle = handle;
+
+    alignment_int64_array_add(maat_inst->stat->stream_cnt, stream->thread_id, 1);
+    stream->expr_rt_stream = expr_rt_stream;
 
     return stream;
 
 error:
     FREE(stream);
     return NULL;
+}
+
+static int expr_stream_scan(struct maat_stream *stream, const char *data,
+                            size_t data_len, struct maat_state *state)
+{
+    if (NULL == stream || NULL == data) {
+        return 0;
+    }
+
+    enum table_type table_type = TABLE_TYPE_INVALID;
+    struct table_manager *tbl_mgr = stream->ref_maat_inst->tbl_mgr;
+    table_type = table_manager_get_table_type(tbl_mgr, stream->phy_table_id);
+    if (table_type == TABLE_TYPE_EXPR_PLUS && 
+        DISTRICT_FLAG_UNSET == state->district_flag) {
+        return -1;
+    }
+
+    if (table_type != TABLE_TYPE_EXPR && table_type != TABLE_TYPE_EXPR_PLUS) {
+        return -1;
+    }
+
+    int group_hit_cnt = expr_runtime_stream_scan(stream->expr_rt_stream, data,
+                                                 data_len, stream->vtable_id, state);
+    if (group_hit_cnt <= 0) {
+        return group_hit_cnt;
+    }
+
+    expr_runtime_stream_hit_times_inc(stream->expr_rt_stream, stream->thread_id);
+
+    return group_hit_cnt;
 }
 
 int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data_len, 
@@ -1818,7 +1822,7 @@ int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data
         clock_gettime(CLOCK_MONOTONIC, &start);
     }
 
-    state->scan_cnt++;
+    state->Nth_scan++;
 
     struct maat *maat_inst = maat_stream->ref_maat_inst;
     if (maat_stream->last_full_version != maat_inst->last_full_version) {
@@ -1850,7 +1854,8 @@ int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data
     }
 
     if (sum_hit_compile_cnt > 0) {
-        alignment_int64_array_add(maat_inst->stat->hit_cnt, maat_stream->thread_id, 1);
+        alignment_int64_array_add(maat_inst->stat->hit_compile_cnt, maat_stream->thread_id,
+                                  sum_hit_compile_cnt);
     }  
 
     if (1 == maat_inst->opts.perf_on) {
@@ -1871,12 +1876,12 @@ int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data
 
 void maat_stream_free(struct maat_stream *maat_stream)
 {
-    if (NULL == maat_stream || NULL == maat_stream->handle) {
+    if (NULL == maat_stream) {
         return;
     }
 
     struct maat *maat_inst = maat_stream->ref_maat_inst;
-    void *expr_rt = table_manager_get_runtime(maat_inst->tbl_mgr, 
+    void *expr_rt = table_manager_get_runtime(maat_inst->tbl_mgr,
                                               maat_stream->phy_table_id);
     assert(expr_rt != NULL);
 
@@ -1888,8 +1893,13 @@ void maat_stream_free(struct maat_stream *maat_stream)
         maat_inst->stat->zombie_rs_stream--;
     }
 
-    alignment_int64_array_add(maat_inst->stat->stream_num, maat_stream->thread_id, -1);
-    expr_runtime_stream_close(expr_rt, maat_stream->thread_id, maat_stream->handle);
+    alignment_int64_array_add(maat_inst->stat->stream_cnt, maat_stream->thread_id, -1);
+
+    if (maat_stream->expr_rt_stream != NULL) {
+        expr_runtime_stream_close(maat_stream->expr_rt_stream);
+        maat_stream->expr_rt_stream = NULL;
+    }
+
     FREE(maat_stream);
 }
 
@@ -1921,7 +1931,7 @@ void maat_state_reset(struct maat_state *state)
     state->compile_table_id = 0;
     state->district_flag = DISTRICT_FLAG_UNSET;
     state->district_id = DISTRICT_ANY;
-    state->scan_cnt = 0;
+    state->Nth_scan = 0;
 
     if (state->compile_state != NULL) {
         compile_state_reset(state->compile_state);
@@ -2098,7 +2108,7 @@ size_t maat_state_get_scan_count(struct maat_state *state)
         return 0;
     }
 
-    return state->scan_cnt;
+    return state->Nth_scan;
 }
 
 int maat_state_get_direct_hit_groups(struct maat_state *state,

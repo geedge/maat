@@ -11,7 +11,7 @@
 
 #define MODULE_IPPORT_PLUGIN_GTEST module_name_str("maat.ipport_plugin_gtest")
 #define ARRAY_SIZE 10
-#define PERF_SCAN_COUNT 1000 * 1000
+#define PERF_scan_times 1000 * 1000
 
 const char *table_info_path = "./ipport_plugin_table_info.conf";
 const char *log_file = "./ipport_plugin_gtest.log";
@@ -252,15 +252,18 @@ void *ipport_plugin_scan_thread(void *arg)
     return is_all_hit;
 }
 
-static void test_add_ipport_plugin_command(struct maat *maat_inst, const char *table_name,
+static int test_add_ipport_plugin_command(struct maat *maat_inst, const char *table_name,
                                            long long item_id, const char *ip_str, int port1, int port2)
 {
     int table_id = maat_get_table_id(maat_inst, table_name);
-    assert(table_id >= 0);
-    
-    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
-    assert(table_type == TABLE_TYPE_IPPORT_PLUGIN);
+    if (table_id < 0) {
+        return -1;
+    }
 
+    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
+    if (table_type != TABLE_TYPE_IPPORT_PLUGIN) {
+        return -1;
+    }
 
     char table_line[1024] = {0};
     sprintf(table_line, "%lld\t4\t%s\t%d\t%d\t1", item_id, ip_str, port1, port2);
@@ -272,17 +275,22 @@ static void test_add_ipport_plugin_command(struct maat *maat_inst, const char *t
     line_rule.expire_after = 0;
 
     maat_cmd_set_line(maat_inst, &line_rule);
+
+    return 0;
 }
 
-static void test_del_ipport_plugin_command(struct maat *maat_inst, const char *table_name,
+static int test_del_ipport_plugin_command(struct maat *maat_inst, const char *table_name,
                                            long long item_id, const char *ip_str, int port1, int port2)
 {
     int table_id = maat_get_table_id(maat_inst, table_name);
-    assert(table_id >= 0);
-    
-    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
-    assert(table_type == TABLE_TYPE_IPPORT_PLUGIN);
+    if (table_id < 0) {
+        return -1;
+    }
 
+    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
+    if (table_type != TABLE_TYPE_IPPORT_PLUGIN) {
+        return -1;
+    }
 
     char table_line[1024] = {0};
     sprintf(table_line, "%lld\t4\t%s\t%d\t%d\t0", item_id, ip_str, port1, port2);
@@ -294,6 +302,8 @@ static void test_del_ipport_plugin_command(struct maat *maat_inst, const char *t
     line_rule.expire_after = 0;
 
     maat_cmd_set_line(maat_inst, &line_rule);
+
+    return 0;
 }
 
 void *ipport_plugin_update_thread(void *arg)
@@ -303,16 +313,29 @@ void *ipport_plugin_update_thread(void *arg)
     const char *table_name = param->table_name;
     const int CMD_EXPR_NUM = 256;
     long long item_id = 9000000;
+    int ret = 0;
 
     for (int i = 0; i < CMD_EXPR_NUM; i++) {
-        test_add_ipport_plugin_command(maat_inst, table_name, item_id, g_ip_str, i+201, i+201);
+        ret = test_add_ipport_plugin_command(maat_inst, table_name, item_id, g_ip_str, i+201, i+201);
+        if (ret < 0) {
+            log_fatal(param->logger, MODULE_IPPORT_PLUGIN_GTEST,
+                     "[%s:%d]add ipport rule(item_id:%lld) for table:%s failed.",
+                     __FUNCTION__, __LINE__, item_id, table_name);
+            continue;
+        }
         item_id++;
         usleep(100 * 1000);
     }
 
     item_id = 9000000; 
     for (int i = 0; i < CMD_EXPR_NUM; i++) {
-        test_del_ipport_plugin_command(maat_inst, table_name, item_id, g_ip_str, i+201, i+201);
+        ret = test_del_ipport_plugin_command(maat_inst, table_name, item_id, g_ip_str, i+201, i+201);
+        if (ret < 0) {
+            log_fatal(param->logger, MODULE_IPPORT_PLUGIN_GTEST,
+                     "[%s:%d]del ipport rule(item_id:%lld) for table:%s failed.",
+                     __FUNCTION__, __LINE__, item_id, table_name);
+            continue;
+        }
         usleep(100 * 1000);
         item_id++;
     }
@@ -364,7 +387,7 @@ TEST_F(IPPortPluginTable, WITHOUT_SAME_IP) {
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
         thread_params[i].port = 10;
-        thread_params[i].test_count = PERF_SCAN_COUNT;
+        thread_params[i].test_count = PERF_scan_times;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
     }
@@ -385,7 +408,7 @@ TEST_F(IPPortPluginTable, WITHOUT_SAME_IP) {
     }
 
     maat_free(maat_inst);
-    scan_per_second = PERF_SCAN_COUNT * 1000 / time_elapse_ms;
+    scan_per_second = PERF_scan_times * 1000 / time_elapse_ms;
     log_info(maat_inst->logger, MODULE_IPPORT_PLUGIN_GTEST,
              "IpportPluginScan without same ip match rate speed %lld lookups/s/thread",
              scan_per_second);
@@ -432,7 +455,7 @@ TEST_F(IPPortPluginTable, WITH_256SAME_IP) {
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
         thread_params[i].port = 10;
-        thread_params[i].test_count = PERF_SCAN_COUNT;
+        thread_params[i].test_count = PERF_scan_times;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
     }
@@ -453,7 +476,7 @@ TEST_F(IPPortPluginTable, WITH_256SAME_IP) {
     }
     maat_free(maat_inst);
 
-    scan_per_second = PERF_SCAN_COUNT * 1000 / time_elapse_ms;
+    scan_per_second = PERF_scan_times * 1000 / time_elapse_ms;
     log_info(maat_inst->logger, MODULE_IPPORT_PLUGIN_GTEST,
              "IpportPluginScan with 256 same ip match rate speed %lld lookups/s/thread",
              scan_per_second);

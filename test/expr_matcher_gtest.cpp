@@ -296,33 +296,42 @@ TEST(hs_expr_matcher_match, literal_sub_has_normal_offset)
     char scan_data1[64] = "hello aaa";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
+    size_t n_hit_pattern = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     char scan_data2[64] = "Ahello aaa";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 101);
     
     char scan_data3[64] = "Aahello aaa";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 101);
 
     char scan_data4[64] = "Aaahello aaa";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     expr_matcher_free(matcher);
     matcher = NULL;
@@ -343,33 +352,42 @@ TEST(rs_expr_matcher_match, literal_sub_has_normal_offset)
     char scan_data1[64] = "hello aaa";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
+    size_t n_hit_pattern = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     char scan_data2[64] = "Ahello aaa";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 101);
     
     char scan_data3[64] = "Aahello aaa";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result,
+                            64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 101);
 
     char scan_data4[64] = "Aaahello aaa";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     expr_matcher_free(matcher);
     matcher = NULL;
@@ -383,41 +401,51 @@ TEST(hs_expr_matcher_match, literal_sub_has_left_unlimit_offset)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello bbb";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
+    size_t n_hit_pattern = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 102);
 
     char scan_data2[64] = "Ahello bbb";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 102);
 
     char scan_data3[64] = "Aahello bbb";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 102);
 
     char scan_data4[64] = "Aaahello bbb";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result,
+                            64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     expr_matcher_free(matcher);
     matcher = NULL;
@@ -431,41 +459,51 @@ TEST(rs_expr_matcher_match, literal_sub_has_left_unlimit_offset)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello bbb";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
+    size_t n_hit_pattern = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 102);
 
     char scan_data2[64] = "Ahello bbb";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result,
+                            64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 102);
 
     char scan_data3[64] = "Aahello bbb";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 102);
 
     char scan_data4[64] = "Aaahello bbb";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     expr_matcher_free(matcher);
     matcher = NULL;
@@ -479,47 +517,59 @@ TEST(hs_expr_matcher_match, literal_sub_has_right_unlimit_offset)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello ccc";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
+    size_t n_hit_pattern = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     char scan_data2[64] = "1234hello ccc";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     char scan_data3[64] = "12345hello ccc";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 103);
 
     char scan_data4[64] = "12345hello cccAaBb";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 103);
 
     char scan_data5[64] = "123456hello cccAaBb";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data5, strlen(scan_data5), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data5, strlen(scan_data5), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 103);
 
     expr_matcher_free(matcher);
@@ -534,47 +584,59 @@ TEST(rs_expr_matcher_match, literal_sub_has_right_unlimit_offset)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
+                                                     1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello ccc";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
+    size_t n_hit_pattern = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     char scan_data2[64] = "1234hello ccc";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     char scan_data3[64] = "12345hello ccc";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 103);
 
     char scan_data4[64] = "12345hello cccAaBb";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 103);
 
     char scan_data5[64] = "123456hello cccAaBb";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data5, strlen(scan_data5), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data5, strlen(scan_data5), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 103);
 
     expr_matcher_free(matcher);
@@ -589,40 +651,51 @@ TEST(hs_expr_matcher_match, literal_sub_with_no_offset)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello ddd";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    size_t n_hit_pattern = 0;
+
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 104);
 
     char scan_data2[64] = "123hello ddd";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 104);
 
     char scan_data3[64] = "123hello ddd456";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 104);
 
     char scan_data4[64] = "helloddd";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     expr_matcher_free(matcher);
     matcher = NULL;
@@ -636,40 +709,51 @@ TEST(rs_expr_matcher_match, literal_sub_with_no_offset)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello ddd";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    size_t n_hit_pattern = 0;
+
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 104);
 
     char scan_data2[64] = "123hello ddd";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 104);
 
     char scan_data3[64] = "123hello ddd456";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 104);
 
     char scan_data4[64] = "helloddd";
     memset(result, 0, sizeof(result));
     n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     expr_matcher_free(matcher);
     matcher = NULL;
@@ -683,24 +767,29 @@ TEST(hs_expr_matcher_match, literal_exactly)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello eee";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
+    size_t n_hit_pattern = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                            64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 105);
 
     char scan_data2[64] = "Ahello eee";
     memset(result, 0, sizeof(result));
     n_result = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
 
@@ -708,9 +797,11 @@ TEST(hs_expr_matcher_match, literal_exactly)
     memset(result, 0, sizeof(result));
     n_result = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     expr_matcher_free(matcher);
     matcher = NULL;
@@ -724,34 +815,42 @@ TEST(rs_expr_matcher_match, literal_exactly)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello eee";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
+    size_t n_hit_pattern = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 105);
 
     char scan_data2[64] = "Ahello eee";
     memset(result, 0, sizeof(result));
     n_result = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     char scan_data3[64] = "hello eeeB";
     memset(result, 0, sizeof(result));
     n_result = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     expr_matcher_free(matcher);
     matcher = NULL;
@@ -765,42 +864,52 @@ TEST(hs_expr_matcher_match, literal_prefix)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello fff";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
+    size_t n_hit_pattern = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 106);
 
     char scan_data2[64] = "Ahello fff";
     memset(result, 0, sizeof(result));
     n_result = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     char scan_data3[64] = "Ahello fffBCD";
     memset(result, 0, sizeof(result));
     n_result = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     char scan_data4[64] = "hello fffBCD";
     memset(result, 0, sizeof(result));
     n_result = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 106);
 
     expr_matcher_free(matcher);
@@ -815,42 +924,52 @@ TEST(rs_expr_matcher_match, literal_prefix)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello fff";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
+    size_t n_hit_pattern = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 106);
 
     char scan_data2[64] = "Ahello fff";
     memset(result, 0, sizeof(result));
     n_result = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     char scan_data3[64] = "Ahello fffBCD";
     memset(result, 0, sizeof(result));
     n_result = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     char scan_data4[64] = "hello fffBCD";
     memset(result, 0, sizeof(result));
     n_result = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 106);
 
     expr_matcher_free(matcher);
@@ -865,43 +984,53 @@ TEST(hs_expr_matcher_match, literal_suffix)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello ggg";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
+    size_t n_hit_pattern = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 107);
 
     char scan_data2[64] = "ABChello ggg";
     memset(result, 0, sizeof(result));
     n_result = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result,
+                            64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 107);
 
     char scan_data3[64] = "ABChello gggDEF";
     memset(result, 0, sizeof(result));
     n_result = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     char scan_data4[64] = "hello gggDEF";
     memset(result, 0, sizeof(result));
     n_result = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result,
+                            64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     expr_matcher_free(matcher);
     matcher = NULL;
@@ -915,43 +1044,53 @@ TEST(rs_expr_matcher_match, literal_suffix)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "hello ggg";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
+    size_t n_hit_pattern = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                            64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 107);
 
     char scan_data2[64] = "ABChello ggg";
     memset(result, 0, sizeof(result));
     n_result = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 107);
 
     char scan_data3[64] = "ABChello gggDEF";
     memset(result, 0, sizeof(result));
     n_result = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data3, strlen(scan_data3), result,
+                            64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     char scan_data4[64] = "hello gggDEF";
     memset(result, 0, sizeof(result));
     n_result = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data4, strlen(scan_data4), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0);
 
     expr_matcher_free(matcher);
     matcher = NULL;
@@ -965,25 +1104,32 @@ TEST(hs_expr_matcher_match, literal_sub_with_hex)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "Content-Type: /html";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    size_t n_hit_pattern = 0;
+
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1);
     EXPECT_EQ(result[0].rule_id, 108);
 
     char scan_data2[64] = " html";
     memset(result, 0, sizeof(result));
     n_result = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0); 
 
     expr_matcher_free(matcher);
     matcher = NULL;
@@ -997,25 +1143,32 @@ TEST(rs_expr_matcher_match, literal_sub_with_hex)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
     char scan_data1[64] = "Content-Type: /html";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    size_t n_hit_pattern = 0;
+
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1); 
     EXPECT_EQ(result[0].rule_id, 108);
 
     char scan_data2[64] = " html";
     memset(result, 0, sizeof(result));
     n_result = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 0); 
 
     expr_matcher_free(matcher);
     matcher = NULL;
@@ -1029,16 +1182,21 @@ TEST(hs_expr_matcher_match, literal_with_chinese)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
     char data0[64] = "#中国 你好";
     struct expr_scan_result result0[64] = {0};
     size_t n_result0 = 0;
-    ret = expr_matcher_match(matcher, 0, data0, strlen(data0), result0, 64, &n_result0);
+    size_t n_hit_pattern = 0;
+
+    ret = expr_matcher_match(matcher, 0, data0, strlen(data0), result0, 64,
+                             &n_result0, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result0, 1);
+    EXPECT_EQ(n_hit_pattern, 1); 
     EXPECT_EQ(result0[0].rule_id, 110);
 
     expr_matcher_free(matcher);
@@ -1053,16 +1211,21 @@ TEST(rs_expr_matcher_match, literal_with_chinese)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
     char data0[64] = "#中国 你好";
     struct expr_scan_result result0[64] = {0};
     size_t n_result0 = 0;
-    ret = expr_matcher_match(matcher, 0, data0, strlen(data0), result0, 64, &n_result0);
+    size_t n_hit_pattern = 0;
+
+    ret = expr_matcher_match(matcher, 0, data0, strlen(data0), result0, 64,
+                             &n_result0, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result0, 1);
+    EXPECT_EQ(n_hit_pattern, 1); 
     EXPECT_EQ(result0[0].rule_id, 110);
 
     expr_matcher_free(matcher);
@@ -1077,16 +1240,21 @@ TEST(hs_expr_matcher_match, same_pattern_different_offset)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
     char data[64] = "onetoday,anothertoday";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
-    ret = expr_matcher_match(matcher, 0, data, strlen(data), result, 64, &n_result);
+    size_t n_hit_pattern = 0;
+
+    ret = expr_matcher_match(matcher, 0, data, strlen(data), result, 64,
+                             &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 3); 
     EXPECT_EQ(result[0].rule_id, 112);
 
     expr_matcher_free(matcher);
@@ -1101,16 +1269,21 @@ TEST(rs_expr_matcher_match, same_pattern_different_offset)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
     char data[64] = "onetoday,anothertoday";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
-    ret = expr_matcher_match(matcher, 0, data, strlen(data), result, 64, &n_result);
+    size_t n_hit_pattern = 0;
+
+    ret = expr_matcher_match(matcher, 0, data, strlen(data), result, 64,
+                             &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 3); 
     EXPECT_EQ(result[0].rule_id, 112);
 
     expr_matcher_free(matcher);
@@ -1125,7 +1298,8 @@ TEST(hs_expr_matcher_match, long_scan_data)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
@@ -1134,9 +1308,13 @@ sequence of edges which joins a sequence of distinct vertices, but with the adde
 that the edges be all directed in the same direction.";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data, strlen(scan_data), result, 64, &n_result);
+    size_t n_hit_pattern = 0;
+
+    ret = expr_matcher_match(matcher, 0, scan_data, strlen(scan_data), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 3);
     EXPECT_EQ(result[0].rule_id, 113);
 
     expr_matcher_free(matcher);
@@ -1151,7 +1329,8 @@ TEST(rs_expr_matcher_match, long_scan_data)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
@@ -1160,9 +1339,13 @@ sequence of edges which joins a sequence of distinct vertices, but with the adde
 that the edges be all directed in the same direction.";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
-    ret = expr_matcher_match(matcher, 0, scan_data, strlen(scan_data), result, 64, &n_result);
+    size_t n_hit_pattern = 0;
+
+    ret = expr_matcher_match(matcher, 0, scan_data, strlen(scan_data), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 3); 
     EXPECT_EQ(result[0].rule_id, 113);
 
     expr_matcher_free(matcher);
@@ -1194,7 +1377,8 @@ TEST(hs_expr_matcher_stream, basic)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
@@ -1203,18 +1387,23 @@ TEST(hs_expr_matcher_stream, basic)
 
     struct expr_scan_result result[64] = {0};
     size_t n_hit_result = 0;
+    size_t n_hit_pattern = 0;
     int thread_id = 0;
 
     struct expr_matcher_stream *stream = expr_matcher_stream_open(matcher, thread_id);
     EXPECT_TRUE(stream != NULL);
 
-    ret = expr_matcher_stream_match(stream, scan_data1, strlen(scan_data1), result, 64, &n_hit_result);
+    ret = expr_matcher_stream_match(stream, scan_data1, strlen(scan_data1), result,
+                                    64, &n_hit_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_hit_result, 0);
+    EXPECT_EQ(n_hit_pattern, 2); 
 
-    ret = expr_matcher_stream_match(stream, scan_data2, strlen(scan_data2), result, 64, &n_hit_result);
+    ret = expr_matcher_stream_match(stream, scan_data2, strlen(scan_data2), result,
+                                    64, &n_hit_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(n_hit_pattern, 3); 
     EXPECT_EQ(result[0].rule_id, 113);
 
     expr_matcher_stream_close(stream);
@@ -1230,7 +1419,8 @@ TEST(rs_expr_matcher_stream, basic)
     int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
@@ -1239,18 +1429,23 @@ TEST(rs_expr_matcher_stream, basic)
 
     struct expr_scan_result result[64] = {0};
     size_t n_hit_result = 0;
+    size_t n_hit_pattern = 0;
     int thread_id = 0;
 
     struct expr_matcher_stream *stream = expr_matcher_stream_open(matcher, thread_id);
     EXPECT_TRUE(stream != NULL);
 
-    ret = expr_matcher_stream_match(stream, scan_data1, strlen(scan_data1), result, 64, &n_hit_result);
+    ret = expr_matcher_stream_match(stream, scan_data1, strlen(scan_data1), result,
+                                    64, &n_hit_result, &n_hit_pattern);
     EXPECT_EQ(ret, 0);
     EXPECT_EQ(n_hit_result, 0);
+    EXPECT_EQ(n_hit_pattern, 2); 
 
-    ret = expr_matcher_stream_match(stream, scan_data2, strlen(scan_data2), result, 64, &n_hit_result);
+    ret = expr_matcher_stream_match(stream, scan_data2, strlen(scan_data2), result,
+                                    64, &n_hit_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(n_hit_pattern, 3); 
     EXPECT_EQ(result[0].rule_id, 113);
 
     expr_matcher_stream_close(stream);
@@ -1277,9 +1472,12 @@ TEST(hs_expr_matcher, regex_basic)
     //const char *scan_data2 = "8rain";
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
+    size_t n_hit_pattern = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1); 
     EXPECT_EQ(result[0].rule_id, 114);
 
     expr_matcher_free(matcher);
@@ -1297,7 +1495,8 @@ TEST(rs_expr_matcher, regex_basic)
     ret = expr_matcher_verify_regex_expression("[0-9]rain", g_logger);
     EXPECT_EQ(ret, 1);
 
-    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS, 1, g_logger);
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
+                                                    1, g_logger);
     EXPECT_TRUE(matcher != NULL);
     expr_array_free(rules, n_rule);
 
@@ -1306,14 +1505,53 @@ TEST(rs_expr_matcher, regex_basic)
     
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
+    size_t n_hit_pattern = 0;
 
-    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result, 64, &n_result);
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                             64, &n_result, &n_hit_pattern);
     EXPECT_EQ(ret, 1);
     EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1); 
     EXPECT_EQ(result[0].rule_id, 114);
 
     expr_matcher_free(matcher);
-    matcher = NULL;                  
+    matcher = NULL;
+}
+
+TEST(hs_expr_matcher, hit_pattern_num)
+{
+    struct expr_rule rules[64] = {0};
+    size_t n_rule = 0;
+    
+    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    EXPECT_EQ(ret, 0);
+
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
+                                                    1, g_logger);
+    EXPECT_TRUE(matcher != NULL);
+    expr_array_free(rules, n_rule);
+
+    const char *scan_data1 = "string has one two";
+    const char *scan_data2 = "string has one two three";
+    struct expr_scan_result result[64] = {0};
+    size_t n_result = 0;
+    size_t n_hit_pattern = 0;
+
+    ret = expr_matcher_match(matcher, 0, scan_data1, strlen(scan_data1), result,
+                             64, &n_result, &n_hit_pattern);
+    EXPECT_EQ(ret, 0);
+    EXPECT_EQ(n_result, 0);
+    EXPECT_EQ(n_hit_pattern, 2); 
+
+    ret = expr_matcher_match(matcher, 0, scan_data2, strlen(scan_data2), result,
+                             64, &n_result, &n_hit_pattern);
+    EXPECT_EQ(ret, 1);
+    EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 3);
+    EXPECT_EQ(result[0].rule_id, 115);
+
+    expr_matcher_free(matcher);
+    matcher = NULL;
 }
 
 int main(int argc, char **argv)

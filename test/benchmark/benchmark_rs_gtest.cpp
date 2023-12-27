@@ -25,14 +25,14 @@
 
 #define ARRAY_SIZE 10
 #define PERF_THREAD_NUM 5
-#define MAX_SCAN_COUNT 1000000
+#define MAX_scan_times 1000000
 
 const char *table_info_path = "./benchmark_table_info.conf";
 struct log_handle *g_logger = NULL;
 
 struct thread_param {
 	int thread_id;
-	int test_count;
+	int test_times;
     int rule_count;
 	struct maat *maat_inst;
 	const char *table_name;
@@ -183,7 +183,7 @@ void *perf_literal_scan_thread(void *arg)
     int table_id = maat_get_table_id(maat_inst, table_name);
     
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < param->test_count; i++) {
+    for (int i = 0; i < param->test_times; i++) {
         int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                                    results, ARRAY_SIZE, &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
@@ -196,7 +196,7 @@ void *perf_literal_scan_thread(void *arg)
     param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
                             (end.tv_nsec - start.tv_nsec) / 1000000;
     int *is_all_hit = ALLOC(int, 1);
-    *is_all_hit = (hit_times == param->test_count ? 1 : 0);
+    *is_all_hit = (hit_times == param->test_times ? 1 : 0);
     log_info(param->logger, MODULE_BENCHMARK_GTEST, 
              "thread_id:%d rule_count:%d literal_scan time_elapse:%lldms hit_times:%d", 
              param->thread_id, param->rule_count, param->time_elapse_ms, hit_times);
@@ -248,7 +248,7 @@ void *perf_stream_scan_thread(void *arg)
     struct maat_stream *sp = maat_stream_new(maat_inst, table_id, state);
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < param->test_count; i++) {
+    for (int i = 0; i < param->test_times; i++) {
         ret = maat_stream_scan(sp, scan_data, strlen(scan_data), results, ARRAY_SIZE,
                                 &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
@@ -263,7 +263,7 @@ void *perf_stream_scan_thread(void *arg)
     param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
                             (end.tv_nsec - start.tv_nsec) / 1000000;
     int *is_all_hit = ALLOC(int, 1);
-    *is_all_hit = ((hit_times == param->test_count) ? 1 : 0);
+    *is_all_hit = ((hit_times == param->test_times) ? 1 : 0);
 
     log_info(param->logger, MODULE_BENCHMARK_GTEST, 
              "thread_id:%d rule_count:%d stream_scan time_elapse:%lldms hit_times:%d", 
@@ -291,7 +291,7 @@ void *perf_ip_scan_thread(void *arg)
     int proto = 6;
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < param->test_count; i++) {
+    for (int i = 0; i < param->test_times; i++) {
         int ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, proto,
                                  results, ARRAY_SIZE, &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
@@ -304,7 +304,7 @@ void *perf_ip_scan_thread(void *arg)
     param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
                             (end.tv_nsec - start.tv_nsec) / 1000000;
     int *is_all_hit = ALLOC(int, 1);
-    *is_all_hit = (hit_times == param->test_count ? 1 : 0);
+    *is_all_hit = (hit_times == param->test_times ? 1 : 0);
     log_info(param->logger, MODULE_BENCHMARK_GTEST, 
              "thread_id:%d rule_count:%d ip_scan time_elapse:%lldms hit_times:%d", 
              param->thread_id, param->rule_count, param->time_elapse_ms, hit_times);
@@ -357,7 +357,7 @@ void *perf_integer_scan_thread(void *arg)
     long long scan_data = 1000000;
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < param->test_count; i++) {
+    for (int i = 0; i < param->test_times; i++) {
         int ret = maat_scan_integer(maat_inst, table_id, scan_data, results,
                                     ARRAY_SIZE, &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
@@ -370,7 +370,7 @@ void *perf_integer_scan_thread(void *arg)
     param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
                             (end.tv_nsec - start.tv_nsec) / 1000000;
     int *is_all_hit = ALLOC(int, 1);
-    *is_all_hit = (hit_times == param->test_count ? 1 : 0);
+    *is_all_hit = (hit_times == param->test_times ? 1 : 0);
     log_info(param->logger, MODULE_BENCHMARK_GTEST, 
              "thread_id:%d rule_count:%d integer_scan time_elapse:%lldms hit_times:%d", 
              param->thread_id, param->rule_count, param->time_elapse_ms, hit_times);
@@ -419,7 +419,7 @@ void *perf_flag_scan_thread(void *arg)
     long long scan_data = 1000000;
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < param->test_count; i++) {
+    for (int i = 0; i < param->test_times; i++) {
         int ret = maat_scan_flag(maat_inst, table_id, scan_data, results,
                                  ARRAY_SIZE, &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
@@ -432,7 +432,7 @@ void *perf_flag_scan_thread(void *arg)
     param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
                             (end.tv_nsec - start.tv_nsec) / 1000000;
     int *is_all_hit = ALLOC(int, 1);
-    *is_all_hit = (hit_times == param->test_count ? 1 : 0);
+    *is_all_hit = (hit_times == param->test_times ? 1 : 0);
     log_info(param->logger, MODULE_BENCHMARK_GTEST, 
              "thread_id:%d rule_count:%d flag_scan time_elapse:%lldms hit_times:%d", 
              param->thread_id, param->rule_count, param->time_elapse_ms, hit_times);
@@ -480,7 +480,7 @@ void *perf_regex_scan_thread(void *arg)
     int table_id = maat_get_table_id(maat_inst, table_name);
     
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < param->test_count; i++) {
+    for (int i = 0; i < param->test_times; i++) {
         int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                                    results, ARRAY_SIZE, &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
@@ -493,7 +493,7 @@ void *perf_regex_scan_thread(void *arg)
     param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
                             (end.tv_nsec - start.tv_nsec) / 1000000;
     int *is_all_hit = ALLOC(int, 1);
-    *is_all_hit = (hit_times == param->test_count ? 1 : 0);
+    *is_all_hit = (hit_times == param->test_times ? 1 : 0);
     log_info(param->logger, MODULE_BENCHMARK_GTEST, 
              "thread_id:%d rule_count:%d regex_scan time_elapse:%lldms hit_times:%d", 
              param->thread_id, param->rule_count, param->time_elapse_ms, hit_times);
@@ -587,7 +587,7 @@ TEST_F(Regex100BenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 100;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -595,24 +595,24 @@ TEST_F(Regex100BenchmarkGTest, LiteralScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_regex_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_regex_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Regex100Scan match rate on %d-threads speed %lld lookups/s/thread",
@@ -679,7 +679,7 @@ TEST_F(Regex200BenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 200;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -687,24 +687,24 @@ TEST_F(Regex200BenchmarkGTest, LiteralScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_regex_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_regex_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Regex200Scan match rate on %d-threads speed %lld lookups/s/thread",
@@ -771,7 +771,7 @@ TEST_F(Regex300BenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 300;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -779,24 +779,24 @@ TEST_F(Regex300BenchmarkGTest, LiteralScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_regex_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_regex_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Regex300Scan match rate on %d-threads speed %lld lookups/s/thread",
@@ -864,7 +864,7 @@ TEST_F(Expr1KBenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 1000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -872,24 +872,24 @@ TEST_F(Expr1KBenchmarkGTest, LiteralScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_literal_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_literal_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Expr1KLiteralScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -957,7 +957,7 @@ TEST_F(Expr5KBenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 5000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -965,24 +965,24 @@ TEST_F(Expr5KBenchmarkGTest, LiteralScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_literal_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_literal_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Expr5KLiteralScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -1050,7 +1050,7 @@ TEST_F(Expr10KBenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 10000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -1058,24 +1058,24 @@ TEST_F(Expr10KBenchmarkGTest, LiteralScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_literal_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_literal_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Expr10KLiteralScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -1143,7 +1143,7 @@ TEST_F(Expr50KBenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 50000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -1151,24 +1151,24 @@ TEST_F(Expr50KBenchmarkGTest, LiteralScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_literal_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_literal_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Expr50KLiteralScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -1236,7 +1236,7 @@ TEST_F(Expr100KBenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 100000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -1244,24 +1244,24 @@ TEST_F(Expr100KBenchmarkGTest, LiteralScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_literal_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_literal_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Expr100KLiteralScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -1329,7 +1329,7 @@ TEST_F(Expr500KBenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 500000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -1337,24 +1337,24 @@ TEST_F(Expr500KBenchmarkGTest, LiteralScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_literal_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_literal_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Expr500KLiteralScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -1422,7 +1422,7 @@ TEST_F(Expr1MBenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 1000000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -1430,24 +1430,24 @@ TEST_F(Expr1MBenchmarkGTest, LiteralScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_literal_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_literal_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Expr1MLiteralScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -1515,7 +1515,7 @@ TEST_F(Expr2MBenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 2000000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -1523,24 +1523,24 @@ TEST_F(Expr2MBenchmarkGTest, LiteralScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_literal_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_literal_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Expr2MLiteralScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -1608,7 +1608,7 @@ TEST_F(Stream1KBenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 1000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -1619,18 +1619,18 @@ TEST_F(Stream1KBenchmarkGTest, LiteralScan) {
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Stream1KScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -1698,7 +1698,7 @@ TEST_F(Stream5KBenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 5000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -1709,18 +1709,18 @@ TEST_F(Stream5KBenchmarkGTest, LiteralScan) {
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Stream5KScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -1788,7 +1788,7 @@ TEST_F(Stream10KBenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 10000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -1799,18 +1799,18 @@ TEST_F(Stream10KBenchmarkGTest, LiteralScan) {
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Stream10KScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -1878,7 +1878,7 @@ TEST_F(Stream50KBenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 50000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -1889,18 +1889,18 @@ TEST_F(Stream50KBenchmarkGTest, LiteralScan) {
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Stream50KScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -1968,7 +1968,7 @@ TEST_F(Stream100KBenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 100000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -1979,18 +1979,18 @@ TEST_F(Stream100KBenchmarkGTest, LiteralScan) {
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Stream100KScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -2058,7 +2058,7 @@ TEST_F(Stream500KBenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 500000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -2069,18 +2069,18 @@ TEST_F(Stream500KBenchmarkGTest, LiteralScan) {
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Stream500KScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -2148,7 +2148,7 @@ TEST_F(Stream1MBenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 1000000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -2159,18 +2159,18 @@ TEST_F(Stream1MBenchmarkGTest, LiteralScan) {
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Stream1MScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -2238,7 +2238,7 @@ TEST_F(Stream2MBenchmarkGTest, LiteralScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 2000000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -2249,18 +2249,18 @@ TEST_F(Stream2MBenchmarkGTest, LiteralScan) {
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
    
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Stream2MScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -2328,7 +2328,7 @@ TEST_F(IP1KBenchmarkGTest, IPScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 1000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -2336,24 +2336,24 @@ TEST_F(IP1KBenchmarkGTest, IPScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_ip_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_ip_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "IP1KScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -2421,7 +2421,7 @@ TEST_F(IP5KBenchmarkGTest, IPScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 5000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -2429,24 +2429,24 @@ TEST_F(IP5KBenchmarkGTest, IPScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_ip_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_ip_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "IP5KScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -2514,7 +2514,7 @@ TEST_F(IP10KBenchmarkGTest, IPScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 10000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -2522,24 +2522,24 @@ TEST_F(IP10KBenchmarkGTest, IPScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_ip_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_ip_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "IP10KScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -2607,7 +2607,7 @@ TEST_F(IP50KBenchmarkGTest, IPScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 50000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -2615,24 +2615,24 @@ TEST_F(IP50KBenchmarkGTest, IPScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_ip_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_ip_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "IP50KScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -2700,7 +2700,7 @@ TEST_F(IP100KBenchmarkGTest, IPScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 100000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -2708,24 +2708,24 @@ TEST_F(IP100KBenchmarkGTest, IPScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_ip_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_ip_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "IP100KScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -2793,7 +2793,7 @@ TEST_F(IP500KBenchmarkGTest, IPScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 500000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -2801,24 +2801,24 @@ TEST_F(IP500KBenchmarkGTest, IPScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_ip_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_ip_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "IP500KScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -2886,7 +2886,7 @@ TEST_F(IP1MBenchmarkGTest, IPScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 1000000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -2894,24 +2894,24 @@ TEST_F(IP1MBenchmarkGTest, IPScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_ip_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_ip_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "IP1MScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -2979,7 +2979,7 @@ TEST_F(IP5MBenchmarkGTest, IPScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 5000000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -2987,24 +2987,24 @@ TEST_F(IP5MBenchmarkGTest, IPScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_ip_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_ip_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "IP5MScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -3071,7 +3071,7 @@ TEST_F(IP10MBenchmarkGTest, IPScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 10000000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -3079,24 +3079,24 @@ TEST_F(IP10MBenchmarkGTest, IPScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_ip_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_ip_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "IP10MScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -3164,7 +3164,7 @@ TEST_F(Integer1KBenchmarkGTest, IntegerScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 1000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -3172,24 +3172,24 @@ TEST_F(Integer1KBenchmarkGTest, IntegerScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_integer_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_integer_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Integer1KScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -3257,7 +3257,7 @@ TEST_F(Integer5KBenchmarkGTest, IntegerScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 5000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -3265,24 +3265,24 @@ TEST_F(Integer5KBenchmarkGTest, IntegerScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_integer_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_integer_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Integer5KScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -3350,7 +3350,7 @@ TEST_F(Integer10KBenchmarkGTest, IntegerScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 10000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -3358,24 +3358,24 @@ TEST_F(Integer10KBenchmarkGTest, IntegerScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_integer_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_integer_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Integer10KScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -3443,7 +3443,7 @@ TEST_F(Flag1KBenchmarkGTest, FlagScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 1000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -3451,24 +3451,24 @@ TEST_F(Flag1KBenchmarkGTest, FlagScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_flag_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_flag_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Flag1KScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -3536,7 +3536,7 @@ TEST_F(Flag5KBenchmarkGTest, FlagScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 5000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -3544,24 +3544,24 @@ TEST_F(Flag5KBenchmarkGTest, FlagScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_flag_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_flag_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Flag5KScan match rate on %d-threads speed %lld lookups/s/thread",
@@ -3629,7 +3629,7 @@ TEST_F(Flag10KBenchmarkGTest, FlagScan) {
         thread_params[i].maat_inst = maat_inst;
         thread_params[i].thread_id = i;
         thread_params[i].table_name = table_name;
-        thread_params[i].test_count = MAX_SCAN_COUNT;
+        thread_params[i].test_times = MAX_scan_times;
         thread_params[i].rule_count = 10000;
         thread_params[i].time_elapse_ms = 0;
         thread_params[i].logger = logger;
@@ -3637,24 +3637,24 @@ TEST_F(Flag10KBenchmarkGTest, FlagScan) {
         if (i < PERF_THREAD_NUM) {
             pthread_create(&threads[i], NULL, perf_flag_scan_thread, thread_params+i);
         } else {
-            thread_params[i].test_count = 0;
+            thread_params[i].test_times = 0;
             pthread_create(&threads[i], NULL, perf_flag_update_thread, thread_params+i);
         }
     }
 
     long long time_elapse_ms = 0;
-    long long scan_count = 0;
+    long long scan_times = 0;
     long long scan_per_second = 0;
     for (i = 0; i < PERF_THREAD_NUM + 1; i++) {
         pthread_join(threads[i], (void **)&is_all_hit);
         time_elapse_ms += thread_params[i].time_elapse_ms;
-		scan_count += thread_params[i].test_count;
+		scan_times += thread_params[i].test_times;
 
 		EXPECT_EQ(*is_all_hit, 1);
 		*is_all_hit = 0;
 		free(is_all_hit);
     }
-    scan_per_second = scan_count * 1000 / time_elapse_ms;
+    scan_per_second = scan_times * 1000 / time_elapse_ms;
 
     log_info(maat_inst->logger, MODULE_BENCHMARK_GTEST,
              "Flag10KScan match rate on %d-threads speed %lld lookups/s/thread",

@@ -57,9 +57,9 @@ int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, unsigned long lon
 
 long long bool_plugin_runtime_update_err_count(void *bool_plugin_runtime);
 
-void bool_plugin_runtime_scan_inc(void *bool_plugin_runtime, int thread_id);
+void bool_plugin_runtime_scan_times_inc(void *bool_plugin_runtime, int thread_id);
 
-long long bool_plugin_runtime_scan_count(void *bool_plugin_runtime);
+long long bool_plugin_runtime_scan_times(void *bool_plugin_runtime);
 
 #ifdef __cplusplus
 }

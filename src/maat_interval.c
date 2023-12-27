@@ -53,10 +53,13 @@ struct interval_runtime {
     struct maat_kv_store *district_map;
     struct maat_kv_store *tmp_district_map;
 
-    long long update_err_cnt;
-    long long *scan_cnt;
+    long long *scan_times;
     long long *scan_cpu_time;
-    long long *hit_cnt;
+
+    long long *hit_times;
+    long long *hit_item_num;
+
+    long long update_err_cnt;
 };
 
 void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr, 
@@ -188,9 +191,10 @@ void *interval_runtime_new(void *interval_schema, size_t max_thread_num,
     interval_rt->logger = logger;
     interval_rt->district_map = maat_kv_store_new();
 
-    interval_rt->hit_cnt = alignment_int64_array_alloc(max_thread_num);
-    interval_rt->scan_cnt = alignment_int64_array_alloc(max_thread_num);
+    interval_rt->hit_times = alignment_int64_array_alloc(max_thread_num);
+    interval_rt->scan_times = alignment_int64_array_alloc(max_thread_num);
     interval_rt->scan_cpu_time = alignment_int64_array_alloc(max_thread_num);
+    interval_rt->hit_item_num = alignment_int64_array_alloc(max_thread_num);
 
     return interval_rt;
 }
@@ -219,19 +223,24 @@ void interval_runtime_free(void *interval_runtime)
         interval_rt->district_map = NULL;
     }
 
-    if (interval_rt->hit_cnt != NULL) {
-        alignment_int64_array_free(interval_rt->hit_cnt);
-        interval_rt->hit_cnt = NULL;
+    if (interval_rt->hit_times != NULL) {
+        alignment_int64_array_free(interval_rt->hit_times);
+        interval_rt->hit_times = NULL;
     }
 
-    if (interval_rt->scan_cnt != NULL) {
-        alignment_int64_array_free(interval_rt->scan_cnt);
-        interval_rt->scan_cnt = NULL;
+    if (interval_rt->scan_times != NULL) {
+        alignment_int64_array_free(interval_rt->scan_times);
+        interval_rt->scan_times = NULL;
     }
 
     if (interval_rt->scan_cpu_time != NULL) {
         alignment_int64_array_free(interval_rt->scan_cpu_time);
         interval_rt->scan_cpu_time = NULL;
+    }
+
+    if (interval_rt->hit_item_num != NULL) {
+        alignment_int64_array_free(interval_rt->hit_item_num);
+        interval_rt->hit_item_num = NULL;
     }
 
     FREE(interval_rt);
@@ -563,6 +572,11 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
         return -1;
     }
 
+    if (n_hit_item > 0) {
+        alignment_int64_array_add(interval_rt->hit_item_num, state->thread_id,
+                                  n_hit_item);
+    }
+
     struct maat_item hit_maat_items[n_hit_item];
     size_t real_hit_item_cnt = 0;
     
@@ -596,17 +610,8 @@ next:
     }
 
     return compile_state_update(state->compile_state, state->maat_inst, vtable_id,
-                                state->compile_table_id, state->scan_cnt,
+                                state->compile_table_id, state->Nth_scan,
                                 hit_maat_items, real_hit_item_cnt);
-}
-
-void interval_runtime_hit_inc(struct interval_runtime *interval_rt, int thread_id)
-{
-    if (NULL == interval_rt || thread_id < 0) {
-        return;
-    }
-
-    alignment_int64_array_add(interval_rt->hit_cnt, thread_id, 1);
 }
 
 void interval_runtime_perf_stat(struct interval_runtime *interval_rt,
@@ -617,7 +622,7 @@ void interval_runtime_perf_stat(struct interval_runtime *interval_rt,
         return;
     }
 
-    alignment_int64_array_add(interval_rt->scan_cnt, thread_id, 1);
+    alignment_int64_array_add(interval_rt->scan_times, thread_id, 1);
     
     if (start != NULL && end != NULL) {
         long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 +
@@ -626,16 +631,41 @@ void interval_runtime_perf_stat(struct interval_runtime *interval_rt,
     }
 }
 
-long long interval_runtime_scan_count(void *interval_runtime)
+long long interval_runtime_hit_times(void *interval_runtime)
 {
     if (NULL == interval_runtime) {
         return 0;
     }
 
     struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
-    long long sum = alignment_int64_array_sum(interval_rt->scan_cnt,
+    long long sum = alignment_int64_array_sum(interval_rt->hit_times,
                                               interval_rt->n_worker_thread);
-    alignment_int64_array_reset(interval_rt->scan_cnt, interval_rt->n_worker_thread);
+    alignment_int64_array_reset(interval_rt->hit_times,
+                                interval_rt->n_worker_thread);
+
+    return sum;
+}
+
+void interval_runtime_hit_times_inc(struct interval_runtime *interval_rt, int thread_id)
+{
+    if (NULL == interval_rt || thread_id < 0) {
+        return;
+    }
+
+    alignment_int64_array_add(interval_rt->hit_times, thread_id, 1);
+}
+
+long long interval_runtime_scan_times(void *interval_runtime)
+{
+    if (NULL == interval_runtime) {
+        return 0;
+    }
+
+    struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
+    long long sum = alignment_int64_array_sum(interval_rt->scan_times,
+                                              interval_rt->n_worker_thread);
+    alignment_int64_array_reset(interval_rt->scan_times,
+                                interval_rt->n_worker_thread);
 
     return sum;
 }
@@ -649,21 +679,23 @@ long long interval_runtime_scan_cpu_time(void *interval_runtime)
     struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
     long long sum = alignment_int64_array_sum(interval_rt->scan_cpu_time, 
                                               interval_rt->n_worker_thread);
-    alignment_int64_array_reset(interval_rt->scan_cpu_time, interval_rt->n_worker_thread);
+    alignment_int64_array_reset(interval_rt->scan_cpu_time,
+                                interval_rt->n_worker_thread);
 
     return sum;
 }
 
-long long interval_runtime_hit_count(void *interval_runtime)
+long long interval_runtime_hit_item_num(void *interval_runtime)
 {
     if (NULL == interval_runtime) {
         return 0;
     }
 
     struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
-    long long sum = alignment_int64_array_sum(interval_rt->hit_cnt,
+    long long sum = alignment_int64_array_sum(interval_rt->hit_item_num,
                                               interval_rt->n_worker_thread);
-    alignment_int64_array_reset(interval_rt->hit_cnt, interval_rt->n_worker_thread);
+    alignment_int64_array_reset(interval_rt->hit_item_num,
+                                interval_rt->n_worker_thread);
 
     return sum;
 }
