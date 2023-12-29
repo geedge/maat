@@ -331,11 +331,11 @@ static int get_region_seq(struct iris_description *iris_cfg)
 	int sequence = 0;
 
 	if (NULL == iris_cfg->redis_write_ctx) {
-		sequence = iris_cfg->region_cnt;
+		sequence = iris_cfg->region_cnt + 1;
 	} else {
 		redisReply *data_reply = maat_wrap_redis_command(iris_cfg->redis_write_ctx,
                                                          "INCRBY %s 1", mr_region_id_var);
-		sequence = (int)data_reply->integer - 1;
+		sequence = (int)data_reply->integer;
 		freeReplyObject(data_reply);
 	}
 	iris_cfg->region_cnt++;
