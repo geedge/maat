@@ -175,7 +175,7 @@ struct compile_state {
     UT_array *exclude_not_clauses;
     UT_array *direct_hit_groups;
     UT_array *indirect_hit_groups;
-    UT_array *last_hit_group_ids;
+    UT_array *last_hit_groups;
     UT_array *hit_compile_table_ids;
     struct table_group *hit_not_tbl_groups;
 };
@@ -1404,7 +1404,7 @@ struct compile_state *compile_state_new(void)
     utarray_new(compile_state->exclude_not_clauses, &ut_clause_id_icd);
     utarray_new(compile_state->direct_hit_groups, &ut_maat_hit_group_icd);
     utarray_new(compile_state->indirect_hit_groups, &ut_maat_hit_group_icd);
-    utarray_new(compile_state->last_hit_group_ids, &ut_compile_group_id_icd);
+    utarray_new(compile_state->last_hit_groups, &ut_maat_hit_group_icd);
     utarray_new(compile_state->hit_compile_table_ids, &ut_hit_compile_table_id_icd);
     compile_state->hit_not_tbl_groups = NULL;
 
@@ -1449,7 +1449,7 @@ void compile_state_reset(struct compile_state *compile_state)
     utarray_clear(compile_state->exclude_not_clauses);
     utarray_clear(compile_state->direct_hit_groups);
     utarray_clear(compile_state->indirect_hit_groups);
-    utarray_clear(compile_state->last_hit_group_ids);
+    utarray_clear(compile_state->last_hit_groups);
     utarray_clear(compile_state->hit_compile_table_ids);
 
     struct table_group *tbl_group = NULL, *tmp_tbl_group = NULL;
@@ -1509,10 +1509,10 @@ void compile_state_free(struct compile_state *compile_state,
         compile_state->indirect_hit_groups = NULL;
     }
 
-    if (compile_state->last_hit_group_ids != NULL) {
-        free_bytes += utarray_size(compile_state->last_hit_group_ids) * sizeof(long long);
-        utarray_free(compile_state->last_hit_group_ids);
-        compile_state->last_hit_group_ids = NULL;
+    if (compile_state->last_hit_groups != NULL) {
+        free_bytes += utarray_size(compile_state->last_hit_groups) * sizeof(struct maat_hit_group);
+        utarray_free(compile_state->last_hit_groups);
+        compile_state->last_hit_groups = NULL;
     }
 
     if (compile_state->hit_compile_table_ids != NULL) {
@@ -2415,15 +2415,20 @@ int compile_state_update(struct compile_state *compile_state, struct maat *maat_
     size_t i = 0, j = 0;
     size_t hit_cnt = n_hit_item;
     long long hit_group_ids[MAX_HIT_GROUP_NUM];
+    struct maat_hit_group hit_group;
 
     utarray_clear(compile_state->this_scan_hit_clauses);
-    utarray_clear(compile_state->last_hit_group_ids);
+    utarray_clear(compile_state->last_hit_groups);
     compile_state->this_scan_not_logic = 0;
     compile_state->Nth_scan = Nth_scan;
 
     for (i = 0; i < hit_cnt; i++) {
         hit_group_ids[i] = hit_items[i].group_id;
-        utarray_push_back(compile_state->last_hit_group_ids, &hit_items[i].group_id);
+
+        hit_group.item_id = hit_items[i].item_id;
+        hit_group.group_id = hit_items[i].group_id;
+        hit_group.vtable_id = vtable_id;
+        utarray_push_back(compile_state->last_hit_groups, &hit_group);
     }
 
     int g2g_table_id = table_manager_get_group2group_table_id(maat_inst->tbl_mgr);
@@ -2434,7 +2439,10 @@ int compile_state_update(struct compile_state *compile_state, struct maat *maat_
                                                                   hit_cnt, super_group_ids,
                                                                   MAX_HIT_GROUP_NUM);
     for (i = 0; i < super_group_cnt; i++) {
-        utarray_push_back(compile_state->last_hit_group_ids, &super_group_ids[i]);
+        hit_group.item_id = 0;
+        hit_group.group_id = super_group_ids[i];
+        hit_group.vtable_id = vtable_id;
+        utarray_push_back(compile_state->last_hit_groups, &hit_group);
     }
 
     if (1 == maat_inst->opts.hit_path_on && hit_cnt > 0) {
@@ -2536,22 +2544,22 @@ size_t compile_state_get_indirect_hit_group_cnt(struct compile_state *compile_st
     return utarray_len(compile_state->indirect_hit_groups);
 }
 
-size_t compile_state_get_last_hit_group_id(struct compile_state *compile_state,
-                                           long long *group_id_array,
-                                           size_t array_size)
+size_t compile_state_get_last_hit_groups(struct compile_state *compile_state,
+                                         struct maat_hit_group *group_array,
+                                         size_t array_size)
 {
     size_t i = 0;
 
-    for (i = 0; i < utarray_len(compile_state->last_hit_group_ids) && i < array_size; i++) {
-        group_id_array[i] = *(long long *)utarray_eltptr(compile_state->last_hit_group_ids, i);
+    for (i = 0; i < utarray_len(compile_state->last_hit_groups) && i < array_size; i++) {
+        group_array[i] = *(struct maat_hit_group *)utarray_eltptr(compile_state->last_hit_groups, i);
     }
 
     return i;
 }
 
-size_t compile_state_get_last_hit_group_id_cnt(struct compile_state *compile_state)
+size_t compile_state_get_last_hit_group_cnt(struct compile_state *compile_state)
 {
-    return utarray_len(compile_state->last_hit_group_ids);
+    return utarray_len(compile_state->last_hit_groups);
 }
 
 size_t compile_state_get_direct_hit_groups(struct compile_state *compile_state,

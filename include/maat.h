@@ -283,7 +283,7 @@ int maat_scan_string(struct maat *instance, int table_id,
                      size_t *n_hit_result, struct maat_state *state);
 
 int maat_scan_group(struct maat *instance, int table_id,
-                    long long *group_ids, size_t n_group_id,
+                    struct maat_hit_group *groups, size_t n_group,
                     long long *results, size_t n_result,
                     size_t *n_hit_result, struct maat_state *state);
 
@@ -346,13 +346,13 @@ int maat_state_get_indirect_hit_groups(struct maat_state *state,
 size_t maat_state_get_indirect_hit_group_cnt(struct maat_state *state);
 
 /**
- * @brief get last scan hit group id(including direct/indirect)
+ * @brief get last scan hit groups(including direct/indirect)
 */
-int maat_state_get_last_hit_group_ids(struct maat_state *state,
-                                      long long *group_id_array,
-                                      size_t array_size);
+int maat_state_get_last_hit_groups(struct maat_state *state,
+                                   struct maat_hit_group *group_array,
+                                   size_t array_size);
 
-size_t maat_state_get_last_hit_group_id_cnt(struct maat_state *state);
+size_t maat_state_get_last_hit_group_cnt(struct maat_state *state);
 
 #ifdef __cplusplus
 }

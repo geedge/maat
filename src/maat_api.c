@@ -1601,7 +1601,7 @@ int maat_scan_string(struct maat *maat_inst, int table_id,
 }
 
 static void maat_state_add_hit_group(struct maat_state *state, int table_id,
-                                     long long *group_ids, size_t n_group_id)
+                                     struct maat_hit_group *groups, size_t n_group)
 {
     struct maat *maat_inst = state->maat_inst;
 
@@ -1611,15 +1611,15 @@ static void maat_state_add_hit_group(struct maat_state *state, int table_id,
                                   state->thread_id, 1); 
     }
 
-    size_t n_hit_item = n_group_id;
-    if (n_group_id >= MAX_HIT_GROUP_NUM) {
+    size_t n_hit_item = n_group;
+    if (n_group >= MAX_HIT_GROUP_NUM) {
         n_hit_item = MAX_HIT_GROUP_NUM;
     }
 
     struct maat_item hit_items[n_hit_item];
     for (size_t i = 0; i < n_hit_item; i++) {
-        hit_items[i].item_id = 0;
-        hit_items[i].group_id = group_ids[i];
+        hit_items[i].item_id = groups[i].item_id;
+        hit_items[i].group_id = groups[i].group_id;
     }
 
     compile_state_update(state->compile_state, maat_inst, table_id,
@@ -1650,12 +1650,12 @@ static void maat_state_activate_hit_not_group(struct maat_state *state, int tabl
 }
 
 int maat_scan_group(struct maat *maat_inst, int table_id,
-                    long long *group_ids, size_t n_group_id,
+                    struct maat_hit_group *groups, size_t n_group,
                     long long *results, size_t n_result,
                     size_t *n_hit_result, struct maat_state *state)
 {
     if ((NULL == maat_inst) || table_id < 0 || table_id >= MAX_TABLE_NUM ||
-        (NULL == group_ids) || (0 == n_group_id) || (NULL == results) ||
+        (NULL == groups) || (0 == n_group) || (NULL == results) ||
         (0 == n_result) || (NULL == n_hit_result) || (NULL == state) ||
         (state->thread_id < 0)) {
         return -1;
@@ -1671,7 +1671,7 @@ int maat_scan_group(struct maat *maat_inst, int table_id,
     maat_runtime_ref_inc(maat_rt, state->thread_id);
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
 
-    maat_state_add_hit_group(state, table_id, group_ids, n_group_id);
+    maat_state_add_hit_group(state, table_id, groups, n_group);
     size_t hit_compile_cnt = group_to_compile(maat_inst, results, n_result, state);
     *n_hit_result = hit_compile_cnt;
 
@@ -2161,23 +2161,23 @@ size_t maat_state_get_indirect_hit_group_cnt(struct maat_state *state)
     return compile_state_get_indirect_hit_group_cnt(state->compile_state);
 }
 
-int maat_state_get_last_hit_group_ids(struct maat_state *state,
-                                      long long *group_id_array,
-                                      size_t array_size)
+int maat_state_get_last_hit_groups(struct maat_state *state,
+                                   struct maat_hit_group *group_array,
+                                   size_t array_size)
 {
     if (NULL == state || NULL == state->compile_state) {
         return 0;
     }
 
-    return compile_state_get_last_hit_group_id(state->compile_state,
-                                               group_id_array, array_size);
+    return compile_state_get_last_hit_groups(state->compile_state,
+                                             group_array, array_size);
 }
 
-size_t maat_state_get_last_hit_group_id_cnt(struct maat_state *state)
+size_t maat_state_get_last_hit_group_cnt(struct maat_state *state)
 {
     if (NULL == state || NULL == state->compile_state) {
         return 0;
     }
 
-    return compile_state_get_last_hit_group_id_cnt(state->compile_state);
+    return compile_state_get_last_hit_group_cnt(state->compile_state);
 }

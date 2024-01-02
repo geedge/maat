@@ -873,9 +873,9 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
                 goto next;
             }
 
-            long long parent_table_ids[4];
+            long long parent_table_ids[MAX_CONJ_PARENTS_NUM];
             int parent_table_cnt = table_manager_get_conj_parent_table_ids(tbl_mgr, maat_tbl->table_name,
-                                                                           parent_table_ids, 4);
+                                                                           parent_table_ids, MAX_CONJ_PARENTS_NUM);
             if (parent_table_cnt <= 0) {
                 // if table has conjuncion parent, which can share schema and
                 // runtime with parent.

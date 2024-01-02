@@ -24,6 +24,7 @@ extern "C"
 #define MAX_INSTANCE_NAME_LEN 15
 #define MAX_GROUP_IDS_STR_LEN 256
 #define MAX_GROUP_CNT         128
+#define MAX_CONJ_PARENTS_NUM  16
 
 #ifdef __cplusplus
 }

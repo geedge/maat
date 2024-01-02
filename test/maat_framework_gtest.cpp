@@ -3402,8 +3402,10 @@ TEST_F(MaatGroupScan, basic) {
     int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GE(table_id, 0);
 
-    long long group_id = 247;
-    int ret = maat_scan_group(maat_inst, table_id, &group_id, 1, results,
+    struct maat_hit_group hit_group;
+    hit_group.group_id = 247;
+    hit_group.vtable_id = table_id;
+    int ret = maat_scan_group(maat_inst, table_id, &hit_group, 1, results,
                               ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -3430,8 +3432,10 @@ TEST_F(MaatGroupScan, SetScanCompileTable) {
     int ret = maat_state_set_scan_compile_table(state, compile_table_id);
     EXPECT_EQ(ret, 0);
 
-    long long group_id = 248;
-    ret = maat_scan_group(maat_inst, table_id, &group_id, 1, results,
+    struct maat_hit_group hit_group;
+    hit_group.group_id = 248;
+    hit_group.vtable_id = table_id;
+    ret = maat_scan_group(maat_inst, table_id, &hit_group, 1, results,
                           ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -7531,7 +7535,10 @@ TEST_F(MaatCmdTest, MaatGroupScan) {
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_group(maat_inst, table_id, &group_id, 1, results, ARRAY_SIZE,
+    struct maat_hit_group hit_group;
+    hit_group.group_id = group_id;
+    hit_group.vtable_id = table_id;
+    ret = maat_scan_group(maat_inst, table_id, &hit_group, 1, results, ARRAY_SIZE,
                           &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -9026,12 +9033,18 @@ TEST_F(MaatCmdTest, HitGroup) {
     EXPECT_EQ(hit_groups[0].group_id, group11_id);
     EXPECT_EQ(hit_groups[0].vtable_id, http_req_table_id);
 
-    size_t n_last_hit_group = maat_state_get_last_hit_group_id_cnt(state);
-    long long last_hit_group_ids[128] = {0};
-    maat_state_get_last_hit_group_ids(state, last_hit_group_ids, 128);
+    size_t n_last_hit_group = maat_state_get_last_hit_group_cnt(state);
+    struct maat_hit_group last_hit_groups[128] = {0};
+    maat_state_get_last_hit_groups(state, last_hit_groups, 128);
     EXPECT_EQ(n_last_hit_group, 2);
-    EXPECT_EQ(last_hit_group_ids[0], group1_id);
-    EXPECT_EQ(last_hit_group_ids[1], group11_id);
+
+    EXPECT_EQ(last_hit_groups[0].item_id, item1_id);
+    EXPECT_EQ(last_hit_groups[0].group_id, group1_id);
+    EXPECT_EQ(last_hit_groups[0].vtable_id, http_req_table_id);
+
+    EXPECT_EQ(last_hit_groups[1].item_id, 0);
+    EXPECT_EQ(last_hit_groups[1].group_id, group11_id);
+    EXPECT_EQ(last_hit_groups[1].vtable_id, http_req_table_id);
 
     int http_res_table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
     ASSERT_GT(http_res_table_id, 0);
@@ -9072,11 +9085,17 @@ TEST_F(MaatCmdTest, HitGroup) {
     EXPECT_EQ(hit_groups[0].group_id, group21_id);
     EXPECT_EQ(hit_groups[0].vtable_id, http_res_table_id);
     
-    n_last_hit_group = maat_state_get_last_hit_group_id_cnt(state);
-    maat_state_get_last_hit_group_ids(state, last_hit_group_ids, 128);
+    n_last_hit_group = maat_state_get_last_hit_group_cnt(state);
+    maat_state_get_last_hit_groups(state, last_hit_groups, 128);
     EXPECT_EQ(n_last_hit_group, 2);
-    EXPECT_EQ(last_hit_group_ids[0], group2_id);
-    EXPECT_EQ(last_hit_group_ids[1], group21_id);
+
+    EXPECT_EQ(last_hit_groups[0].item_id, item2_id);
+    EXPECT_EQ(last_hit_groups[0].group_id, group2_id);
+    EXPECT_EQ(last_hit_groups[0].vtable_id, http_res_table_id);
+
+    EXPECT_EQ(last_hit_groups[1].item_id, 0);
+    EXPECT_EQ(last_hit_groups[1].group_id, group21_id);
+    EXPECT_EQ(last_hit_groups[1].vtable_id, http_res_table_id);
 
     const char* keywords1="In graph theory, hit group item forth";
     const char *keywords2="To test one group hit group item fifth";
@@ -9141,12 +9160,21 @@ TEST_F(MaatCmdTest, HitGroup) {
     EXPECT_EQ(hit_groups[1].group_id, group4_id);
     EXPECT_EQ(hit_groups[1].vtable_id, keywords_table_id); //physical table(keywords_table) vtable_id is 0
 
-    n_last_hit_group = maat_state_get_last_hit_group_id_cnt(state);
-    maat_state_get_last_hit_group_ids(state, last_hit_group_ids, 128);
+    n_last_hit_group = maat_state_get_last_hit_group_cnt(state);
+    maat_state_get_last_hit_groups(state, last_hit_groups, 128);
     EXPECT_EQ(n_last_hit_group, 3);
-    EXPECT_EQ(last_hit_group_ids[0], group1_id);
-    EXPECT_EQ(last_hit_group_ids[1], group4_id);
-    EXPECT_EQ(last_hit_group_ids[2], group11_id);
+
+    EXPECT_EQ(last_hit_groups[0].item_id, item5_id);
+    EXPECT_EQ(last_hit_groups[0].group_id, group1_id);
+    EXPECT_EQ(last_hit_groups[0].vtable_id, keywords_table_id);
+
+    EXPECT_EQ(last_hit_groups[1].item_id, item4_id);
+    EXPECT_EQ(last_hit_groups[1].group_id, group4_id);
+    EXPECT_EQ(last_hit_groups[1].vtable_id, keywords_table_id);
+
+    EXPECT_EQ(last_hit_groups[2].item_id, 0);
+    EXPECT_EQ(last_hit_groups[2].group_id, group11_id);
+    EXPECT_EQ(last_hit_groups[2].vtable_id, keywords_table_id);
 
     maat_stream_free(stream);
     maat_state_free(state);

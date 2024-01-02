@@ -143,9 +143,9 @@ static int maat_update_cb(const char *table_name, const char *line, void *u_para
     }
 
     // find conjunction id for table_id
-    long long conj_parent_table_ids[4];
+    long long conj_parent_table_ids[MAX_CONJ_PARENTS_NUM];
     int conj_parent_table_cnt = table_manager_get_conj_parent_table_ids(maat_inst->tbl_mgr, table_name,
-                                                                        conj_parent_table_ids, 4);
+                                                                        conj_parent_table_ids, MAX_CONJ_PARENTS_NUM);
     if (conj_parent_table_cnt > 0) {
         for (int i = 0; i < conj_parent_table_cnt; i++) {
             int ret = table_manager_update_runtime(maat_inst->tbl_mgr, table_name,
