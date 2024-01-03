@@ -347,6 +347,7 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
         return NULL;
     }
 
+    int garbage_gc_timeout_s = 0;
     struct maat *maat_inst = ALLOC(struct maat, 1);
 
     maat_inst->opts = *opts;
@@ -362,6 +363,11 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
             snprintf(log_path, sizeof(log_path), "maat.log");
         }
         maat_inst->logger = log_handle_create(log_path, maat_inst->opts.log_level);
+    }
+
+    if (NULL == maat_inst->logger) {
+        fprintf(stderr, "create log handle failed.\n");
+        goto failed;
     }
 
     if (0 == strlen(maat_inst->opts.foreign_cont_dir)) {
@@ -381,8 +387,8 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     maat_inst->maat_version = 0;
     maat_inst->last_full_version = 0;
 
-    int garbage_gc_timeout_s = (maat_inst->opts.rule_effect_interval_ms / 1000) +
-                            (maat_inst->opts.gc_timeout_ms / 1000);
+    garbage_gc_timeout_s = (maat_inst->opts.rule_effect_interval_ms / 1000) +
+                           (maat_inst->opts.gc_timeout_ms / 1000);
 
     if (maat_inst->opts.input_mode != DATA_SOURCE_IRIS_FILE &&
         maat_inst->opts.input_mode != DATA_SOURCE_JSON_FILE &&

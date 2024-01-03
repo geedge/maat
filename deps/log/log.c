@@ -59,18 +59,14 @@ static int log_create_dir(const char *dir_path, int path_len)
         return -1;
     }
 
-    char *buf = (char *)calloc(path_len + 1, 1);
-    int ret = -1;
+    char *buf = ALLOC(char, path_len + 1);
+    int ret = 0;
 
     memcpy(buf, dir_path, path_len);
     if (access(buf, R_OK) != 0) {
         if (mkdir(buf, 0755) != 0) {
             ret = -1;
-        } else {
-            ret = 0;
         }
-    } else {
-        ret = 1;
     }
 
     free(buf);
@@ -105,22 +101,22 @@ int log_open_file(char *file_name, struct log_handle *handle)
 
 static int log_create_path(const char *file_path)
 {
-    FILE *fp = NULL;
-
-    if (file_path == NULL)
-        return 0;
+    if (NULL == file_path) {
+        return -1;
+    }
 
     char *p_path = rindex(file_path, '/');
-    if (p_path == 0) {
-        return 0;
+    if (NULL == p_path) {
+        return -1;
     }
 
     const char *p_cur = file_path;
     int path_len = p_path - file_path;
     int i = 0;
 
-    if (log_create_dir(file_path, path_len) >= 0)
-        return 0;
+    if (log_create_dir(file_path, path_len) < 0) {
+        return -1;
+    }
 
     for (; i <= path_len; i++, p_cur++) {
         if (*p_cur == '/') {
@@ -129,13 +125,14 @@ static int log_create_path(const char *file_path)
         }
     }
 
-    if (NULL == (fp = fopen(file_path, "w"))) {
-        return 0;
+    FILE *fp = fopen(file_path, "w");
+    if (NULL == fp) {
+        return -1;
     }
 
     fclose(fp);
 
-    return 1;
+    return 0;
 }
 
 int log_create_log_file(struct log_handle *handle)
@@ -225,17 +222,20 @@ void log_handle_set_enable(struct log_handle * handle, int enable)
 struct log_handle *log_handle_create(const char *file_path, int level)
 {
     struct log_handle *handle = ALLOC(struct log_handle, 1);
-    if (!handle) {
+    if (NULL == handle) {
         return NULL;
     }
+
     handle->enable = 1;
     handle->level = level;
     strncpy(handle->defined_log_fn, file_path, 1024);
-    pthread_mutex_init(&handle->mutex, NULL);
-
-    if (handle->enable) {
-        log_create_path(handle->defined_log_fn);
+    
+    int ret = log_create_path(handle->defined_log_fn);
+    if (ret < 0) {
+        free(handle);
+        return NULL;
     }
+    pthread_mutex_init(&handle->mutex, NULL);
 
     return handle;
 }
