@@ -255,27 +255,24 @@ struct maat_state;
  *         MAAT_SCAN_HALF_HIT
  *         MAAT_SCAN_HIT       
 */
-int maat_scan_flag(struct maat *instance, int table_id,
-                   long long flag, long long *results, size_t n_result,
-                   size_t *n_hit_result, struct maat_state *state);
-int maat_scan_integer(struct maat *instance, int table_id,
-                      long long integer, long long *results, size_t n_result,
-                      size_t *n_hit_result, struct maat_state *state);
+int maat_scan_flag(struct maat *instance, int table_id, long long flag,
+                   long long *results, size_t n_result, size_t *n_hit_result,
+                   struct maat_state *state);
+
+int maat_scan_integer(struct maat *instance, int table_id, long long integer,
+                      long long *results, size_t n_result, size_t *n_hit_result,
+                      struct maat_state *state);
 
 /**
  * @param ip_addr: network ipv4 address
- * @param port:    network port
- * @param protocol: -1(ANY protocol) 1(ICMP) 6(TCP) 17(UDP)
 */
-int maat_scan_ipv4(struct maat *instance, int table_id,
-                   uint32_t ip_addr, uint16_t port, int protocol,
-                   long long *results, size_t n_result, 
-                   size_t *n_hit_result, struct maat_state *state);
+int maat_scan_ipv4(struct maat *instance, int table_id, uint32_t ip_addr,
+                   long long *results, size_t n_result, size_t *n_hit_result,
+                   struct maat_state *state);
 
-int maat_scan_ipv6(struct maat *instance, int table_id,
-                   uint8_t *ip_addr, uint16_t port, int protocol,
-                   long long *results, size_t n_result, 
-                   size_t *n_hit_result, struct maat_state *state);
+int maat_scan_ipv6(struct maat *instance, int table_id, uint8_t *ip_addr,
+                   long long *results, size_t n_result, size_t *n_hit_result,
+                   struct maat_state *state);
 
 int maat_scan_string(struct maat *instance, int table_id,
                      const char *data, size_t data_len,

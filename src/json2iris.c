@@ -539,30 +539,6 @@ static int write_ip_plus_line(cJSON *region_json, struct iris_description *p_iri
 	json_cmd[cmd_cnt].default_string = "255.255.255.255";
 	cmd_cnt++;
 
-	json_cmd[cmd_cnt].json_string = "port_format";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	json_cmd[cmd_cnt].empty_allowed = 1;
-	json_cmd[cmd_cnt].default_string = "mask";	
-	cmd_cnt++;	
-
-	json_cmd[cmd_cnt].json_string = "port1";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	json_cmd[cmd_cnt].empty_allowed = 1;
-	json_cmd[cmd_cnt].default_string = "0";
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "port2";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	json_cmd[cmd_cnt].empty_allowed = 1;
-	json_cmd[cmd_cnt].default_string = "65535";
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "protocol";
-	json_cmd[cmd_cnt].json_type = cJSON_Number;
-	json_cmd[cmd_cnt].empty_allowed = 1;
-	json_cmd[cmd_cnt].default_int = 0;
-	cmd_cnt++;
-
 	json_cmd[cmd_cnt].json_string = "is_valid";
 	json_cmd[cmd_cnt].json_type = cJSON_Number;
 	cmd_cnt++;

@@ -110,11 +110,7 @@
                         "addr_type": "ipv4",
                         "addr_format": "single",
                         "ip1": "192.168.50.24",
-                        "ip2": "192.168.50.24",
-                        "port_format": "range",
-                        "port1": "39000",
-                        "port2": "40000",
-                        "protocol": 6
+                        "ip2": "192.168.50.24"
                     }
                 }
             ]
@@ -161,11 +157,7 @@
                         "addr_type": "ipv4",
                         "addr_format": "single",
                         "ip1": "192.168.58.19",
-                        "ip2": "192.168.58.19",
-                        "port_format": "single",
-                        "port1": "20000",
-                        "port2": "20000",
-                        "protocol": 6
+                        "ip2": "192.168.58.19"
                     }
                 }
             ]
@@ -181,11 +173,7 @@
                         "addr_type": "ipv4",
                         "addr_format": "range",
                         "ip1": "10.0.1.20",
-                        "ip2": "10.0.1.25",
-                        "port_format": "range",
-                        "port1": "1",
-                        "port2": "443",
-                        "protocol": 6
+                        "ip2": "10.0.1.25"
                     }
                 }
             ]
@@ -201,11 +189,7 @@
                         "addr_type": "ipv4",
                         "addr_format": "mask",
                         "ip1": "192.168.40.88",
-                        "ip2": "255.255.255.255",
-                        "port_format": "range",
-                        "port1": "0",
-                        "port2": "65535",
-                        "protocol": 6
+                        "ip2": "255.255.255.255"
                     }
                 }
             ]
@@ -221,11 +205,7 @@
                         "addr_type": "ipv4",
                         "addr_format": "mask",
                         "ip1": "192.168.40.88",
-                        "ip2": "255.255.255.255",
-                        "port_format": "range",
-                        "port1": "0",
-                        "port2": "65535",
-                        "protocol": 6
+                        "ip2": "255.255.255.255"
                     }
                 }
             ]
@@ -241,11 +221,7 @@
                         "addr_type": "ipv4",
                         "addr_format": "mask",
                         "ip1": "192.168.40.88",
-                        "ip2": "255.255.255.255",
-                        "port_format": "range",
-                        "port1": "0",
-                        "port2": "65535",
-                        "protocol": 6
+                        "ip2": "255.255.255.255"
                     }
                 }
             ]
@@ -289,11 +265,7 @@
                                 "addr_type": "ipv4",
                                 "addr_format": "mask",
                                 "ip1": "10.0.6.201",
-                                "ip2": "255.255.0.0",
-                                "port_format": "range",
-                                "port1": "0",
-                                "port2": "65535",
-                                "protocol": 6
+                                "ip2": "255.255.255.255"
                             }
                         },
                         {
@@ -303,11 +275,7 @@
                                 "addr_type": "ipv6",
                                 "addr_format": "mask",
                                 "ip1": "2001:da8:205:1::101",
-                                "ip2": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:0000",
-                                "port_format": "range",
-                                "port1": "0",
-                                "port2": "65535",
-                                "protocol": 6
+                                "ip2": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:0000"
                             }
                         }
                     ]
@@ -1422,11 +1390,7 @@
                                 "addr_type": "ipv4",
                                 "addr_format": "range",
                                 "ip1": "10.0.7.100",
-                                "ip2": "10.0.7.106",
-                                "port_format": "range",
-                                "port1": "65530",
-                                "port2": "65535",
-                                "protocol": 6
+                                "ip2": "10.0.7.101"
                             }
                         }
                     ] 
@@ -1455,11 +1419,7 @@
                                 "addr_type": "ipv6",
                                 "addr_format": "range",
                                 "ip1": "1001:da8:205:1::101",
-                                "ip2": "1001:da8:205:1::201",
-                                "port_format": "range",
-                                "port1": "65510",
-                                "port2": "65520",
-                                "protocol": 6
+                                "ip2": "1001:da8:205:1::102"
                             }
                         }
                     ]
@@ -1544,11 +1504,7 @@
                                 "addr_type": "ipv4",
                                 "addr_format": "CIDR",
                                 "ip1": "192.168.0.1",
-                                "ip2": "32",
-                                "port_format": "range",
-                                "port1": "5210",
-                                "port2": "5211",
-                                "protocol": 6
+                                "ip2": "32"
                             }
                         }
                     ]
@@ -1576,11 +1532,7 @@
                                 "addr_type": "ipv6",
                                 "addr_format": "CIDR",
                                 "ip1": "2001:db8::",
-                                "ip2": "120",
-                                "port_format": "range",
-                                "port1": "65510",
-                                "port2": "65520",
-                                "protocol": 6
+                                "ip2": "120"
                             }
                         }
                     ]
@@ -1791,11 +1743,7 @@
                                 "addr_type": "ipv4",
                                 "addr_format": "CIDR",
                                 "ip1": "192.168.23.1",
-                                "ip2": "24",
-                                "port_format": "range",
-                                "port1": "65530",
-                                "port2": "65535",
-                                "protocol": -1
+                                "ip2": "24"
                             }
                         }
                     ]
@@ -1913,12 +1861,8 @@
                             "table_content": {
                                 "addr_type": "ipv4",
                                 "addr_format": "CIDR",
-                                "ip1": "0.0.0.0",
-                                "ip2": "0",
-                                "port_format": "range",
-                                "port1": "64000",
-                                "port2": "64999",
-                                "protocol": 6
+                                "ip1": "100.64.3.1",
+                                "ip2": "32"
                             }
                         }                      
                     ]
@@ -1947,11 +1891,7 @@
                                 "addr_type": "ipv4",
                                 "addr_format": "CIDR",
                                 "ip1": "192.168.40.10",
-                                "ip2": "32",
-                                "port_format": "range",
-                                "port1": "65531",
-                                "port2": "65535",
-                                "protocol": 6
+                                "ip2": "32"
                             }
                         }
                     ]
@@ -1980,131 +1920,7 @@
                                 "addr_type": "ipv4",
                                 "addr_format": "CIDR",
                                 "ip1": "192.168.231.46",
-                                "ip2": "32",
-                                "port_format": "range",
-                                "port1": "65532",
-                                "port2": "65535",
-                                "protocol": 6
-                            }
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "compile_id": 172,
-            "service": 0,
-            "action": 0,
-            "do_blacklist": 0,
-            "do_log": 0,
-            "user_region": "ipv4_virtual.match",
-            "is_valid": "yes",
-            "groups": [
-                {
-                    "virtual_table": "VIRTUAL_IP_PLUS_SOURCE",
-                    "group_name": "ipv4_virtual.source",
-                    "not_flag": 0
-                },
-                {
-                    "virtual_table": "VIRTUAL_IP_PLUS_DESTINATION",
-                    "group_name": "ipv4_virtual.destination",
-                    "not_flag": 0
-                }
-            ]
-        },
-        {
-            "compile_id": 173,
-            "service": 0,
-            "action": 0,
-            "do_blacklist": 0,
-            "do_log": 0,
-            "user_region": "IPScan.IPv4_composition.source",
-            "is_valid": "no",
-            "groups": [
-                {
-                    "virtual_table": "IP_PLUS_CONFIG",
-                    "group_name": "ipv4_composition.source",
-                    "group_id": 163,
-                    "not_flag": 0,
-                    "regions": [
-                        {
-                            "table_type": "ip_plus",
-                            "table_name": "IP_PLUS_CONFIG",
-                            "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "CIDR",
-                                "ip1": "192.168.40.11",
-                                "ip2": "32",
-                                "port_format": "range",
-                                "port1": "65530",
-                                "port2": "65535",
-                                "protocol": 6
-                            }
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "compile_id": 174,
-            "service": 0,
-            "action": 0,
-            "do_blacklist": 0,
-            "do_log": 0,
-            "user_region": "IPScan.IPv4_composition.destination",
-            "is_valid": "no",
-            "groups": [
-                {
-                    "virtual_table": "IP_PLUS_CONFIG",
-                    "group_name": "ipv4_composition.destination",
-                    "group_id": 164,
-                    "not_flag": 0,
-                    "regions": [
-                        {
-                            "table_type": "ip_plus",
-                            "table_name": "IP_PLUS_CONFIG",
-                            "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "CIDR",
-                                "ip1": "192.168.231.47",
-                                "ip2": "32",
-                                "port_format": "range",
-                                "port1": "65530",
-                                "port2": "65535",
-                                "protocol": 6
-                            }
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "compile_id": 176,
-            "service": 0,
-            "action": 0,
-            "do_blacklist": 0,
-            "do_log": 0,
-            "user_region": "IPScan.IPv4_composition.session",
-            "is_valid": "no",
-            "groups": [
-                {
-                    "virtual_table": "IP_PLUS_CONFIG",
-                    "group_name": "ipv4_composition.session",
-                    "group_id": 165,
-                    "not_flag": 0,
-                    "regions": [
-                        {
-                            "table_type": "ip_plus",
-                            "table_name": "IP_PLUS_CONFIG",
-                            "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "CIDR",
-                                "ip1": "192.168.40.11",
-                                "ip2": "2",
-                                "port_format": "range",
-                                "port1": "65530",
-                                "port2": "65535",
-                                "protocol": 6
+                                "ip2": "32"
                             }
                         }
                     ]
@@ -2292,11 +2108,7 @@
                                 "addr_type": "ipv6",
                                 "addr_format": "mask",
                                 "ip1": "::",
-                                "ip2": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
-                                "port_format": "single",
-                                "port1": "0",
-                                "port2": "0",
-                                "protocol": 0
+                                "ip2": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"
                             }
                         }
                     ]
@@ -2384,11 +2196,7 @@
                                 "addr_type": "ipv4",
                                 "addr_format": "single",
                                 "ip1": "10.0.8.186",
-                                "ip2": "10.0.8.186",
-                                "port_format": "single",
-                                "port1": "18611",
-                                "port2": "18611",
-                                "protocol": 6
+                                "ip2": "10.0.8.186"
                             }
                         }
                     ]
@@ -2435,11 +2243,7 @@
                                 "addr_type": "ipv4",
                                 "addr_format": "single",
                                 "ip1": "10.0.8.187",
-                                "ip2": "10.0.8.187",
-                                "port_format": "single",
-                                "port1": "18611",
-                                "port2": "18611",
-                                "protocol": 6
+                                "ip2": "10.0.8.187"
                             }
                         }
                     ]
@@ -2486,11 +2290,7 @@
                                 "addr_type": "ipv4",
                                 "addr_format": "single",
                                 "ip1": "10.0.8.188",
-                                "ip2": "10.0.8.188",
-                                "port_format": "single",
-                                "port1": "18611",
-                                "port2": "18611",
-                                "protocol": 6
+                                "ip2": "10.0.8.188"
                             }
                         }
                     ]
@@ -2946,11 +2746,7 @@
                                         "addr_type": "ipv4",
                                         "addr_format": "range",
                                         "ip1": "100.64.1.0",
-                                        "ip2": "100.64.1.20",
-                                        "port_format": "range",
-                                        "port1": "5210",
-                                        "port2": "5211",
-                                        "protocol": 6
+                                        "ip2": "100.64.1.20"
                                     }
                                 }
                             ]
@@ -2967,11 +2763,7 @@
                                         "addr_type": "ipv4",
                                         "addr_format": "range",
                                         "ip1": "100.64.1.6",
-                                        "ip2": "100.64.1.10",
-                                        "port_format": "range",
-                                        "port1": "5210",
-                                        "port2": "5211",
-                                        "protocol": 6
+                                        "ip2": "100.64.1.10"
                                     }
                                 }
                             ]
@@ -2988,11 +2780,7 @@
                                         "addr_type": "ipv4",
                                         "addr_format": "range",
                                         "ip1": "100.64.1.11",
-                                        "ip2": "100.64.1.20",
-                                        "port_format": "range",
-                                        "port1": "5210",
-                                        "port2": "5211",
-                                        "protocol": 6
+                                        "ip2": "100.64.1.20"
                                     }
                                 }
                             ]
@@ -3023,12 +2811,7 @@
                                 "addr_type": "ipv4",
                                 "addr_format": "range",
                                 "ip1": "192.168.50.43",
-                                "ip2": "192.168.50.43",
-                                "port_format": "range",
-                                "port1": "56168",
-                                "port2": "56168",
-                                "protocol": -1,
-                                "direction": "double"
+                                "ip2": "192.168.50.43"
                             }
 
                         }
@@ -3047,12 +2830,7 @@
                                 "addr_type": "ipv4",
                                 "addr_format": "range",
                                 "ip1": "47.92.108.93",
-                                "ip2": "47.92.108.93",
-                                "port_format": "range",
-                                "port1": "443",
-                                "port2": "443",
-                                "protocol": -1,
-                                "direction": "double"
+                                "ip2": "47.92.108.93"
                             }
                         }
                     ]
@@ -3123,12 +2901,7 @@
                                 "addr_type": "ipv4",
                                 "addr_format": "range",
                                 "ip1": "100.64.2.0",
-                                "ip2": "100.64.2.5",
-                                "port_format": "range",
-                                "port1": "56168",
-                                "port2": "56168",
-                                "protocol": -1,
-                                "direction": "double"
+                                "ip2": "100.64.2.5"
                             }
 
                         }
@@ -3147,12 +2920,7 @@
                                 "addr_type": "ipv4",
                                 "addr_format": "range",
                                 "ip1": "100.64.2.6",
-                                "ip2": "100.64.2.10",
-                                "port_format": "range",
-                                "port1": "443",
-                                "port2": "443",
-                                "protocol": -1,
-                                "direction": "double"
+                                "ip2": "100.64.2.10"
                             }
                         }
                     ]
@@ -3329,11 +3097,7 @@
                                 "addr_type": "ipv4",
                                 "addr_format": "range",
                                 "ip1": "10.0.7.100",
-                                "ip2": "10.0.7.106",
-                                "port_format": "range",
-                                "port1": "65530",
-                                "port2": "65535",
-                                "protocol": 6
+                                "ip2": "10.0.7.106"
                             }
                         }
                     ]
@@ -3388,11 +3152,7 @@
                                 "addr_type": "ipv6",
                                 "addr_format": "CIDR",
                                 "ip1": "::",
-                                "ip2": "0",
-                                "port_format": "range",
-                                "port1": "64000",
-                                "port2": "64999",
-                                "protocol": 6
+                                "ip2": "0"
                             }
                         }
                     ]
@@ -3421,11 +3181,7 @@
                                 "addr_type": "ipv4",
                                 "addr_format": "range",
                                 "ip1": "10.0.0.1",
-                                "ip2": "10.0.0.6",
-                                "port_format": "range",
-                                "port1": "65530",
-                                "port2": "65535",
-                                "protocol": 6
+                                "ip2": "10.0.0.6"
                             }
                         }
                     ]
@@ -4207,11 +3963,7 @@
                                 "addr_type": "ipv4",
                                 "addr_format": "mask",
                                 "ip1": "192.168.101.102",
-                                "ip2": "255.255.255.255",
-                                "port_format": "range",
-                                "port1": "0",
-                                "port2": "65535",
-                                "protocol": 6
+                                "ip2": "255.255.255.255"
                             }
                         }
                     ]

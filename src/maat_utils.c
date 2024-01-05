@@ -469,18 +469,6 @@ enum ip_format ip_format_str2int(const char *format)
 	return IP_FORMAT_UNKNOWN;
 }
 
-enum port_format port_format_str2int(const char *format)
-{
-    if (0 == strcasecmp(format, "single")) {
-        return PORT_FORMAT_SINGLE;
-    } else if (0 == strcasecmp(format, "range")) {
-        return PORT_FORMAT_RANGE;
-    } else {
-        assert(0);
-    }
-    return PORT_FORMAT_UNKNOWN;
-}
-
 int ip_format2range(int ip_type, enum ip_format format, const char *ip1, const char *ip2,
                     uint32_t range_begin[], uint32_t range_end[])
 {

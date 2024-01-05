@@ -1080,33 +1080,6 @@ static int interval_scan(struct table_manager *tbl_mgr, int thread_id, long long
 }
 
 static int ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_addr,
-                     uint16_t port, int proto, int phy_table_id, int vtable_id, 
-                     struct maat_state *state)
-{
-
-    enum table_type table_type = table_manager_get_table_type(tbl_mgr, phy_table_id);
-    if (table_type != TABLE_TYPE_IP_PLUS) {
-        return -1;
-    }
-
-    void *ip_rt = table_manager_get_runtime(tbl_mgr, phy_table_id);
-    if (NULL == ip_rt) {
-        return -1;
-    }
-
-    int group_hit_cnt = ip_runtime_scan((struct ip_runtime *)ip_rt, thread_id, IPv4,
-                                        (uint8_t *)&ip_addr, port, proto, vtable_id, state);
-    if (group_hit_cnt <= 0) {
-        return group_hit_cnt;
-    }
-
-    ip_runtime_hit_times_inc((struct ip_runtime *)ip_rt, thread_id);
-    
-    return group_hit_cnt;
-}
-
-static int ipv6_scan(struct table_manager *tbl_mgr, int thread_id,
-                     uint8_t *ip_addr, uint16_t port, int proto, 
                      int phy_table_id, int vtable_id, struct maat_state *state)
 {
 
@@ -1120,8 +1093,34 @@ static int ipv6_scan(struct table_manager *tbl_mgr, int thread_id,
         return -1;
     }
 
+    int group_hit_cnt = ip_runtime_scan((struct ip_runtime *)ip_rt, thread_id, IPv4,
+                                        (uint8_t *)&ip_addr, vtable_id, state);
+    if (group_hit_cnt <= 0) {
+        return group_hit_cnt;
+    }
+
+    ip_runtime_hit_times_inc((struct ip_runtime *)ip_rt, thread_id);
+    
+    return group_hit_cnt;
+}
+
+static int ipv6_scan(struct table_manager *tbl_mgr, int thread_id,
+                     uint8_t *ip_addr, int phy_table_id, int vtable_id,
+                     struct maat_state *state)
+{
+
+    enum table_type table_type = table_manager_get_table_type(tbl_mgr, phy_table_id);
+    if (table_type != TABLE_TYPE_IP_PLUS) {
+        return -1;
+    }
+
+    void *ip_rt = table_manager_get_runtime(tbl_mgr, phy_table_id);
+    if (NULL == ip_rt) {
+        return -1;
+    }
+
     int group_hit_cnt = ip_runtime_scan((struct ip_runtime *)ip_rt, thread_id, IPv6,
-                                        ip_addr, port, proto, vtable_id, state);
+                                        ip_addr, vtable_id, state);
     if (group_hit_cnt <= 0) {
         return group_hit_cnt;
     }
@@ -1351,12 +1350,12 @@ int maat_scan_integer(struct maat *maat_inst, int table_id,
 }
 
 int maat_scan_ipv4(struct maat *maat_inst, int table_id, uint32_t ip_addr,
-                   uint16_t port, int protocol, long long *results, size_t n_result, 
-                   size_t *n_hit_result, struct maat_state *state)
+                   long long *results, size_t n_result, size_t *n_hit_result,
+                   struct maat_state *state)
 {
     if ((NULL == maat_inst) || table_id < 0 || table_id >= MAX_TABLE_NUM ||
-        (protocol < -1) || (NULL == results) || (0 == n_result) ||
-        (NULL == n_hit_result) || (NULL == state) || (state->thread_id < 0)) {
+        (NULL == results) || (0 == n_result) || (NULL == n_hit_result) ||
+        (NULL == state) || (state->thread_id < 0)) {
         return MAAT_SCAN_ERR;
     }
 
@@ -1395,7 +1394,7 @@ int maat_scan_ipv4(struct maat *maat_inst, int table_id, uint32_t ip_addr,
 
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
     int hit_group_cnt = ipv4_scan(maat_inst->tbl_mgr, state->thread_id, ip_addr,
-                                  port, protocol, phy_table_id, vtable_id, state);
+                                  phy_table_id, vtable_id, state);
     if (hit_group_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
@@ -1435,15 +1434,13 @@ int maat_scan_ipv4(struct maat *maat_inst, int table_id, uint32_t ip_addr,
     }
 }
 
-int maat_scan_ipv6(struct maat *maat_inst, int table_id,
-                   uint8_t *ip_addr, uint16_t port, int protocol,
-                   long long *results, size_t n_result, 
-                   size_t *n_hit_result, struct maat_state *state)
+int maat_scan_ipv6(struct maat *maat_inst, int table_id, uint8_t *ip_addr,
+                   long long *results, size_t n_result, size_t *n_hit_result,
+                   struct maat_state *state)
 {
     if ((NULL == maat_inst) || table_id < 0 || table_id >= MAX_TABLE_NUM ||
-        (protocol < -1) || (NULL == ip_addr) || (NULL == results) ||
-        (0 == n_result) || (NULL == n_hit_result) || (NULL == state) ||
-        (state->thread_id < 0)) {
+        (NULL == ip_addr) || (NULL == results) || (0 == n_result) ||
+        (NULL == n_hit_result) || (NULL == state) || (state->thread_id < 0)) {
         return MAAT_SCAN_ERR;
     }
 
@@ -1482,7 +1479,7 @@ int maat_scan_ipv6(struct maat *maat_inst, int table_id,
 
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
     int hit_group_cnt = ipv6_scan(maat_inst->tbl_mgr, state->thread_id, ip_addr,
-                                  port, protocol, phy_table_id, vtable_id, state);
+                                  phy_table_id, vtable_id, state);
     if (hit_group_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;

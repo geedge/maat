@@ -232,8 +232,7 @@ static int expr_table_set_line(struct maat *maat_inst, const char *table_name,
 static int ip_table_set_line(struct maat *maat_inst, const char *table_name,
                              enum maat_operation op, long long item_id,
                              long long group_id, enum IP_TYPE type, const char *ip1, 
-                             const char *ip2, uint16_t port_min, uint16_t port_max,
-                             int expire_after)
+                             const char *ip2, int expire_after)
 {
     char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -246,9 +245,8 @@ static int ip_table_set_line(struct maat *maat_inst, const char *table_name,
         ip_type = IPV6;
     }
 
-    sprintf(table_line, "%lld\t%lld\t%d\t%s\t%s\t%s\t%s\t%u\t%u\t6\t%d", 
-            item_id, group_id, ip_type, "range", ip1, ip2, 
-            "range", port_min, port_max, op);
+    sprintf(table_line, "%lld\t%lld\t%d\t%s\t%s\t%s\t%d", 
+            item_id, group_id, ip_type, "range", ip1, ip2, op);
     struct maat_cmd_line line_rule;
     
     line_rule.rule_id = item_id;
@@ -259,10 +257,10 @@ static int ip_table_set_line(struct maat *maat_inst, const char *table_name,
     return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-static int integer_table_set_line(struct maat *maat_inst, const char *table_name,
-                                  enum maat_operation op, long long item_id,
-                                  long long group_id, int low_bound, int up_bound,
-                                  int expire_after)
+static int
+integer_table_set_line(struct maat *maat_inst, const char *table_name,
+    enum maat_operation op, long long item_id, long long group_id,
+    int low_boundary, int up_boundary, int expire_after)
 {
     char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -271,7 +269,7 @@ static int integer_table_set_line(struct maat *maat_inst, const char *table_name
     }
 
     sprintf(table_line, "%lld\t%lld\t%d\t%d\t%d",
-            item_id, group_id, low_bound, up_bound, op);
+            item_id, group_id, low_boundary, up_boundary, op);
     struct maat_cmd_line line_rule;
 
     line_rule.rule_id = item_id;
@@ -326,7 +324,7 @@ static void test_add_expr_command(struct maat *maat_inst, const char *table_name
 }
 
 static void test_add_ip_command(struct maat *maat_inst, const char *table_name, 
-                                const char *ip, uint16_t port)
+                                const char *ip)
 {
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
     int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD,
@@ -341,12 +339,12 @@ static void test_add_ip_command(struct maat *maat_inst, const char *table_name,
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                            group_id, IPv4, ip, ip, port, port, 0);
+                            group_id, IPv4, ip, ip, 0);
     EXPECT_EQ(ret, 1);
 }
 
 static void test_add_integer_command(struct maat *maat_inst, const char *table_name, 
-                                     int low_bound, int up_bound)
+                                     int low_boundary, int up_boundary)
 {
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
     int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD,
@@ -361,7 +359,7 @@ static void test_add_integer_command(struct maat *maat_inst, const char *table_n
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = integer_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                                 group_id, low_bound, up_bound, 0);
+                                 group_id, low_boundary, up_boundary, 0);
     EXPECT_EQ(ret, 1);
 }
 
@@ -926,7 +924,6 @@ void *perf_ip_scan_thread(void *arg)
     struct timespec start, end;
     char ip_str[32] = "10.0.0.1";
     uint32_t ip_addr;
-    uint16_t port = htons(65530);
 
     int ret = inet_pton(AF_INET, ip_str, &ip_addr);
     EXPECT_EQ(ret, 1);
@@ -940,8 +937,8 @@ void *perf_ip_scan_thread(void *arg)
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < param->test_times; i++) {
-        int ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6,
-                                 results, ARRAY_SIZE, &n_hit_result, state);
+        int ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results,
+                                 ARRAY_SIZE, &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
             hit_times++;
         }
@@ -977,9 +974,8 @@ void *perf_ip_update_thread(void *arg)
                             "10.0.7.109",
                             "10.0.7.110"};
 
-    uint16_t port = 65530;
     for (int i = 0; i < CMD_EXPR_NUM; i++) {
-        test_add_ip_command(maat_inst, table_name, ip_str[i], port);
+        test_add_ip_command(maat_inst, table_name, ip_str[i]);
         sleep(1);
     }
 
@@ -1918,7 +1914,7 @@ TEST_F(MaatTSGFqdnScan, mem_used) {
 
         ret = ip_table_set_line(maat_inst, table_name2, MAAT_OP_ADD,
                                 600000000+i, 600000000+i, IPv4, "100.64.1.1",
-                                "100.64.1.2", 1000, 2000, 0);
+                                "100.64.1.2", 0);
         EXPECT_EQ(ret, 1);
 
         log_info(logger, MODULE_FRAMEWORK_PERF_GTEST, "MaatTSGFqdnScan update one line");

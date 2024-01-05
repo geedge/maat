@@ -70,17 +70,9 @@ enum ip_format {
 	IP_FORMAT_UNKNOWN
 };
 
-enum port_format {
-	PORT_FORMAT_SINGLE = 1,
-	PORT_FORMAT_RANGE,
-	PORT_FORMAT_UNKNOWN
-};
-
 enum ip_format ip_format_str2int(const char *format);
 int ip_format2range(int ip_type, enum ip_format format, const char *ip1, const char *ip2, 
                     uint32_t range_begin[], uint32_t range_end[]);
-
-enum port_format port_format_str2int(const char *format);
 
 #define UNUSED	__attribute__((unused))
 

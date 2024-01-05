@@ -350,13 +350,11 @@ void *perf_ip_scan_thread(void *arg)
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "100.64.1.1", &ip_addr);
-    uint16_t port = htons(20000);
-    int proto = 6;
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < param->test_times; i++) {
-        int ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, proto,
-                                 results, ARRAY_SIZE, &n_hit_result, state);
+        int ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results,
+                                 ARRAY_SIZE, &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
             hit_times++;
         }

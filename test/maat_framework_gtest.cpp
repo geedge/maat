@@ -237,11 +237,11 @@ int expr_table_set_line(struct maat *maat_inst, const char *table_name,
     return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-int interval_table_set_line(struct maat *maat_inst, const char *table_name,
-                            enum maat_operation op, long long item_id,
-                            long long group_id, unsigned int low_boundary,
-                            unsigned int up_boundary, const char *district,
-                            int expire_after)
+int
+interval_table_set_line(struct maat *maat_inst, const char *table_name,
+    enum maat_operation op, long long item_id, long long group_id,
+    unsigned int low_boundary, unsigned int up_boundary,
+    const char *district, int expire_after)
 {
     char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -273,8 +273,7 @@ int interval_table_set_line(struct maat *maat_inst, const char *table_name,
 int ip_table_set_line(struct maat *maat_inst, const char *table_name,
                       enum maat_operation op, long long item_id,
                       long long group_id, enum IP_TYPE type, const char *ip1, 
-                      const char *ip2, uint16_t port_min, uint16_t port_max,
-                      int expire_after)
+                      const char *ip2, int expire_after)
 {
     char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -287,9 +286,8 @@ int ip_table_set_line(struct maat *maat_inst, const char *table_name,
         ip_type = IPV6;
     }
 
-    sprintf(table_line, "%lld\t%lld\t%d\t%s\t%s\t%s\t%s\t%u\t%u\t6\t%d",
-            item_id, group_id, ip_type, "range", ip1, ip2, "range",
-            port_min, port_max, op);
+    sprintf(table_line, "%lld\t%lld\t%d\t%s\t%s\t%s\t%d",
+            item_id, group_id, ip_type, "range", ip1, ip2, op);
     struct maat_cmd_line line_rule;
     
     line_rule.rule_id = item_id;
@@ -2832,14 +2830,12 @@ TEST_F(MaatIPScan, IPv4ScanDataFull_0) {
     uint32_t sip1;
     int ret = inet_pton(AF_INET, ip_str1, &sip1);
     EXPECT_EQ(ret, 1);
-    uint16_t port = htons(65530);
-    int proto = 6;
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    ret = maat_scan_ipv4(maat_inst, table_id, sip1, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_id, sip1, results,
+                         ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     EXPECT_EQ(n_hit_result, 0);
     
@@ -2863,14 +2859,12 @@ TEST_F(MaatIPScan, IPv4ScanDataFull_1) {
     uint32_t sip1;
     int ret = inet_pton(AF_INET, ip_str1, &sip1);
     EXPECT_EQ(ret, 1);
-    uint16_t port = htons(5210);
-    int proto = 6;
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    ret = maat_scan_ipv4(maat_inst, table_id, sip1, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_id, sip1, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     EXPECT_EQ(n_hit_result, 0);
     
@@ -2894,25 +2888,12 @@ TEST_F(MaatIPScan, IPv4RuleFull_0) {
     uint32_t sip;
     int ret = inet_pton(AF_INET, ip_str, &sip);
     EXPECT_EQ(ret, 1);
-    uint16_t port = htons(20303);
-    int proto = 6;
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    ret = maat_scan_ipv4(maat_inst, table_id, sip, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
-    maat_state_reset(state);
-
-    port = htons(64999);
-    ret = maat_scan_ipv4(maat_inst, table_id, sip, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_id, sip, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 169);
@@ -2937,17 +2918,16 @@ TEST_F(MaatIPScan, IPv6ScanDataFull_0) {
     uint8_t sip[16];
     int ret = inet_pton(AF_INET6, ip_str, sip);
     EXPECT_EQ(ret, 1);
-    uint16_t port = htons(65510);
-    int proto = 6;
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    ret = maat_scan_ipv6(maat_inst, table_id, sip, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-    EXPECT_EQ(n_hit_result, 0);
-    
+    ret = maat_scan_ipv6(maat_inst, table_id, sip, results, ARRAY_SIZE,
+                         &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 210);
+
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
@@ -2967,14 +2947,12 @@ TEST_F(MaatIPScan, IPv6ScanDataFull_1) {
     uint8_t sip[16];
     int ret = inet_pton(AF_INET6, ip_str, sip);
     EXPECT_EQ(ret, 1);
-    uint16_t port = htons(65510);
-    int proto = 6;
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    ret = maat_scan_ipv6(maat_inst, table_id, sip, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv6(maat_inst, table_id, sip, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     EXPECT_EQ(n_hit_result, 0);
     
@@ -2997,25 +2975,13 @@ TEST_F(MaatIPScan, IPv6RuleFull_0) {
     uint8_t sip[16];
     int ret = inet_pton(AF_INET6, ip_str, sip);
     EXPECT_EQ(ret, 1);
-    uint16_t port = htons(20303);
-    int proto = 6;
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    ret = maat_scan_ipv6(maat_inst, table_id, sip, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
-                              &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
-
-    maat_state_reset(state);
-
-    port = htons(64999);
-    ret = maat_scan_ipv6(maat_inst, table_id, sip, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv6(maat_inst, table_id, sip, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 210);
@@ -3040,14 +3006,12 @@ TEST_F(MaatIPScan, IPv4_IPPort) {
     uint32_t sip;
     int ret = inet_pton(AF_INET, ip_str, &sip);
     EXPECT_EQ(ret, 1);
-    uint16_t port = htons(65530);
-    int proto = 6;
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    ret = maat_scan_ipv4(maat_inst, table_id, sip, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_id, sip, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 2);
     EXPECT_EQ(results[0], 208);
@@ -3071,17 +3035,16 @@ TEST_F(MaatIPScan, IPv6_IPPort) {
     uint8_t sip[16];
     int ret = inet_pton(AF_INET6, ip_str, &sip);
     EXPECT_EQ(ret, 1);
-    uint16_t port = htons(65510);
-    int proto = 6;
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    ret = maat_scan_ipv6(maat_inst, table_id, sip, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv6(maat_inst, table_id, sip, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
-    EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 155);
+    EXPECT_EQ(n_hit_result, 2);
+    EXPECT_EQ(results[0], 210);
+    EXPECT_EQ(results[1], 155);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -3101,14 +3064,12 @@ TEST_F(MaatIPScan, BugReport20210515) {
     uint8_t ip_addr[sizeof(struct in6_addr)];
     int ret = inet_pton(AF_INET6, ip_str, &ip_addr);
     EXPECT_EQ(ret, 1);
-    uint16_t port = htons(41159);
-    int proto = 6;
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    ret = maat_scan_ipv6(maat_inst, table_id, ip_addr, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv6(maat_inst, table_id, ip_addr, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
@@ -3129,14 +3090,12 @@ TEST_F(MaatIPScan, dynamic_config) {
     uint32_t sip;
     int ret = inet_pton(AF_INET, ip_str, &sip);
     EXPECT_EQ(ret, 1);
-    uint16_t port = htons(100);
-    int proto = 6;
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
-    ret = maat_scan_ipv4(maat_inst, table_id, sip, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_id, sip, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     EXPECT_EQ(n_hit_result, 0);
 
@@ -3164,14 +3123,13 @@ TEST_F(MaatIPScan, dynamic_config) {
     /* ip table add line */
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                            group_id, IPv4, "100.100.100.100", "100.100.100.100",
-                            100, 100, 0);
+                            group_id, IPv4, "100.100.100.100", "100.100.100.100", 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_ipv4(maat_inst, table_id, sip, port, proto, results, 
-                         ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_id, sip, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], compile_id);
@@ -3184,8 +3142,7 @@ TEST_F(MaatIPScan, dynamic_config) {
 
     /* ip table del line */
     ret = ip_table_set_line(maat_inst, table_name, MAAT_OP_DEL, item_id,
-                            group_id, IPv4, "100.100.100.100", "100.100.100.100",
-                            100, 100, 0);
+                            group_id, IPv4, "100.100.100.100", "100.100.100.100", 0);
     EXPECT_EQ(ret, 1);
 
     /* group2compile table del line */
@@ -3200,8 +3157,8 @@ TEST_F(MaatIPScan, dynamic_config) {
 
     sleep(WAIT_FOR_EFFECTIVE_S);
 
-    ret = maat_scan_ipv4(maat_inst, table_id, sip, port, proto, results, 
-                         ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_id, sip, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
@@ -3660,14 +3617,12 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyExpr) {
 
     uint32_t sip;
     inet_pton(AF_INET, "10.0.8.186", &sip);
-    uint16_t port = htons(18611);
-    int proto = 6;
 
     int hit_table_id = maat_get_table_id(maat_inst, hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, hit_table_id, sip, port, proto, results, 
-                         ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, hit_table_id, sip, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 186);
@@ -3717,14 +3672,12 @@ TEST_F(NOTLogic, ScanHitAtLastEmptyInteger) {
 
     uint32_t sip;
     inet_pton(AF_INET, "10.0.8.187", &sip);
-    uint16_t port = htons(18611);
-    int proto = 6;
 
     int hit_table_id = maat_get_table_id(maat_inst, hit_table_name);
     ASSERT_GT(hit_table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, hit_table_id, sip, port, proto,
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, hit_table_id, sip, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 187);
@@ -3773,19 +3726,19 @@ TEST_F(NOTLogic, ScanNotIP) {
 
     uint32_t sip;
     inet_pton(AF_INET, "10.0.6.205", &sip);
-    uint16_t port = htons(50001);
-    int proto = 6;
 
     int not_hit_table_id = maat_get_table_id(maat_inst, not_hit_table_name);
     ASSERT_GT(not_hit_table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, not_hit_table_id, sip, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
+    ret = maat_scan_ipv4(maat_inst, not_hit_table_id, sip, results, ARRAY_SIZE,
+                         &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_not_logic(maat_inst, not_hit_table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 145);
 
     maat_state_reset(state);
 
@@ -3795,16 +3748,14 @@ TEST_F(NOTLogic, ScanNotIP) {
                                &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    inet_pton(AF_INET, "10.1.0.0", &sip);
-    ret = maat_scan_ipv4(maat_inst, not_hit_table_id, sip, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    inet_pton(AF_INET, "10.0.6.201", &sip);
+    ret = maat_scan_ipv4(maat_inst, not_hit_table_id, sip, results, ARRAY_SIZE,
+                         &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     ret = maat_scan_not_logic(maat_inst, not_hit_table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
-    EXPECT_EQ(ret, MAAT_SCAN_HIT); 
-    EXPECT_EQ(n_hit_result, 1);
-    EXPECT_EQ(results[0], 145);
+    EXPECT_EQ(ret, MAAT_SCAN_OK); 
 
     maat_state_free(state);
     state = NULL;
@@ -3902,14 +3853,12 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
 
     uint32_t sip;
     inet_pton(AF_INET, "10.0.6.201", &sip);
-    uint16_t port = htons(50001);
-    int proto = 6;
 
     int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(ip_table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, sip, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, sip, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     ret = maat_scan_not_logic(maat_inst, ip_table_id, results, ARRAY_SIZE,
@@ -3932,8 +3881,8 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     inet_pton(AF_INET, "10.1.0.0", &sip);
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, sip, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, sip, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_not_logic(maat_inst, ip_table_id, results, ARRAY_SIZE,
@@ -3958,8 +3907,8 @@ TEST_F(NOTLogic, NotUrlAndNotIp) {
     EXPECT_EQ(ret, MAAT_SCAN_OK);
     
     inet_pton(AF_INET, "10.1.0.0", &sip);
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, sip, port, proto, 
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, sip, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_not_logic(maat_inst, ip_table_id, results, ARRAY_SIZE,
@@ -4543,9 +4492,8 @@ TEST_F(NOTLogic, MultiLiteralsInOneNotClause) {
 	//--------------------------------------
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.40.88", &ip_addr);
-    uint16_t port = htons(8888);
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     ret = maat_scan_string(maat_inst, ip_geo_table_id, my_county, strlen(my_county),
@@ -4563,8 +4511,8 @@ TEST_F(NOTLogic, MultiLiteralsInOneNotClause) {
 	//--------------------------------------
     inet_pton(AF_INET, "192.168.40.89", &ip_addr);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_string(maat_inst, ip_geo_table_id, my_county, strlen(my_county),
@@ -4606,7 +4554,6 @@ TEST_F(NOTLogic, SameVtableInMultiClause) {
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.40.88", &ip_addr);
-    uint16_t port = htons(8888);
     //-------------------------------------------
 	//			Dest ASN1 & Dest ASN3 & IP Config
 	//-------------------------------------------
@@ -4618,8 +4565,8 @@ TEST_F(NOTLogic, SameVtableInMultiClause) {
                                results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     ret = maat_scan_not_logic(maat_inst, dst_table_id, results, ARRAY_SIZE,
@@ -4643,8 +4590,8 @@ TEST_F(NOTLogic, SameVtableInMultiClause) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     maat_state_reset(state);
@@ -4668,8 +4615,8 @@ TEST_F(NOTLogic, SameVtableInMultiClause) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results, ARRAY_SIZE,  
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     maat_state_reset(state);
@@ -4685,8 +4632,8 @@ TEST_F(NOTLogic, SameVtableInMultiClause) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);                          
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 185);
@@ -4701,8 +4648,8 @@ TEST_F(NOTLogic, SameVtableInMultiClause) {
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     inet_pton(AF_INET, "192.168.40.89", &ip_addr);
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     ret = maat_scan_not_logic(maat_inst, dst_table_id, results, ARRAY_SIZE,
@@ -4896,10 +4843,8 @@ TEST_F(ExcludeLogic, ScanVirtualTable) {
     uint32_t should_not_hit_ip;
     inet_pton(AF_INET, "100.64.1.1", &should_hit_ip);
     
-    uint16_t port = htons(5210);
-
-    int ret = maat_scan_ipv4(maat_inst, table_id, should_hit_ip, port, 6,
-                             results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_ipv4(maat_inst, table_id, should_hit_ip, results,
+                             ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 202);
@@ -4910,8 +4855,8 @@ TEST_F(ExcludeLogic, ScanVirtualTable) {
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     inet_pton(AF_INET, "100.64.1.5", &should_hit_ip);
-    ret = maat_scan_ipv4(maat_inst, table_id, should_hit_ip, port, 6,
-                             results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_id, should_hit_ip, results,
+                         ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 202);
@@ -4923,8 +4868,8 @@ TEST_F(ExcludeLogic, ScanVirtualTable) {
     maat_state_reset(state);
 
     inet_pton(AF_INET, "100.64.1.6", &should_not_hit_ip);
-    ret = maat_scan_ipv4(maat_inst, table_id, should_not_hit_ip, port, 6,
-                             results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_id, should_not_hit_ip, results,
+                         ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
@@ -4934,8 +4879,8 @@ TEST_F(ExcludeLogic, ScanVirtualTable) {
     maat_state_reset(state);
 
     inet_pton(AF_INET, "100.64.1.11", &should_not_hit_ip);
-    ret = maat_scan_ipv4(maat_inst, table_id, should_not_hit_ip, port, 6,
-                             results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_id, should_not_hit_ip, results,
+                        ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
@@ -4958,10 +4903,9 @@ TEST_F(ExcludeLogic, ScanWithMultiClause) {
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.50.43", &ip_addr);
-    uint16_t port = htons(56168);
 
-    int ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
-                             results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results,
+                            ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     ret = maat_scan_not_logic(maat_inst, ip_table_id, results, ARRAY_SIZE,
@@ -4969,9 +4913,8 @@ TEST_F(ExcludeLogic, ScanWithMultiClause) {
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     inet_pton(AF_INET, "47.92.108.93", &ip_addr);
-    port = htons(443);
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
-                             results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     ret = maat_scan_not_logic(maat_inst, ip_table_id, results, ARRAY_SIZE,
@@ -5021,10 +4964,9 @@ TEST_F(ExcludeLogic, ExcludeInDifferentLevel) {
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "100.64.2.1", &ip_addr);
-    uint16_t port = htons(56168);
 
-    int ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
-                             results, ARRAY_SIZE, &n_hit_result, state);
+    int ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results,
+                             ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     ret = maat_scan_not_logic(maat_inst, ip_table_id, results, ARRAY_SIZE,
@@ -5032,10 +4974,9 @@ TEST_F(ExcludeLogic, ExcludeInDifferentLevel) {
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
     inet_pton(AF_INET, "100.64.2.6", &ip_addr);
-    port = htons(443);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
-                             results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results,
+                         ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     ret = maat_scan_not_logic(maat_inst, ip_table_id, results, ARRAY_SIZE,
@@ -6501,8 +6442,7 @@ TEST_F(Policy, SubGroup) {
 	const char *scan_data = "ceshi6@mailhost.cn";
 	
 	uint32_t ip_addr;
-	inet_pton(AF_INET,"10.0.6.205", &ip_addr);
-    uint16_t port = htons(50001);
+	inet_pton(AF_INET,"10.0.6.201", &ip_addr);
 
 	int table_id = maat_get_table_id(maat_inst, "MAIL_ADDR");
 	ASSERT_GT(table_id, 0);
@@ -6518,8 +6458,8 @@ TEST_F(Policy, SubGroup) {
 	table_id = maat_get_table_id(maat_inst, "IP_CONFIG");	
 	ASSERT_GT(table_id, 0);
 	
-	ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6,
-                         results, ARRAY_SIZE, &n_hit_result, state);	
+	ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, ARRAY_SIZE,
+                         &n_hit_result, state);	
 	
 	EXPECT_EQ(ret, MAAT_SCAN_HIT);
 	EXPECT_EQ(results[0], 153);
@@ -6605,14 +6545,13 @@ TEST_F(Policy, EvaluationOrder) {
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.23.23", &ip_addr);
-    uint16_t port = htons(65530);
 
     table_id = maat_get_table_id(maat_inst, "IP_PLUS_CONFIG");
     ASSERT_GT(table_id, 0);
 
     memset(results, 0, sizeof(results));
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6,
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 165);
@@ -6646,9 +6585,8 @@ TEST_F(Policy, NotClauseHitPath) {
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.101.101", &ip_addr);
-    uint16_t port = htons(65530);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6, results,
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
@@ -7211,10 +7149,9 @@ TEST_F(HierarchyTest, MultiLiteralsInOneClause) {
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.40.88", &ip_addr);
-    uint16_t port = htons(8888);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 180);
@@ -7228,8 +7165,8 @@ TEST_F(HierarchyTest, MultiLiteralsInOneClause) {
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 180);
@@ -7247,8 +7184,8 @@ TEST_F(HierarchyTest, MultiLiteralsInOneClause) {
                            results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6,
-                         results, ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 180);
@@ -7324,11 +7261,9 @@ TEST_F(MaatCmdTest, SetIP) {
     /* item table add line */
     const char *ip1 = "172.0.0.1";
     const char *ip2 = "172.0.0.1";
-    uint16_t port_min = 53331;
-    uint16_t port_max = 53331;
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item_id,
-                            group_id, IPv4, ip1, ip2, port_min, port_max, 0);
+                            group_id, IPv4, ip1, ip2, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -7336,14 +7271,12 @@ TEST_F(MaatCmdTest, SetIP) {
     uint32_t sip;
     ret = inet_pton(AF_INET, ip1, &sip);
     EXPECT_EQ(ret, 1);
-    uint16_t port = htons(53331);
-    int proto = 6;
 
     int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GE(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, table_id, sip, port, proto, results, 
-                         ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_id, sip, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], compile_id);
@@ -8962,8 +8895,7 @@ TEST_F(MaatCmdTest, HitGroup) {
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_id,
-                            group3_id, IPv4, "220.181.38.150", "220.181.38.151",
-                            0, 65535, 0);
+                            group3_id, IPv4, "220.181.38.150", "220.181.38.151", 0);
     EXPECT_EQ(ret, 1);
 
     char temp[1024]={0};
@@ -9115,9 +9047,8 @@ TEST_F(MaatCmdTest, HitGroup) {
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "220.181.38.150", &ip_addr);
-    uint16_t port = htons(17272);
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6, results,
-                         ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     ret = maat_scan_not_logic(maat_inst, ip_table_id, results, ARRAY_SIZE,
@@ -9257,8 +9188,7 @@ TEST_F(MaatCmdTest, HitPathBasic) {
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_id,
-                            group3_id, IPv4, "220.181.38.148", "220.181.38.149",
-                            0, 65535, 0);
+                            group3_id, IPv4, "220.181.38.148", "220.181.38.149", 0);
     EXPECT_EQ(ret, 1);
 
     char temp[1024]={0};
@@ -9418,8 +9348,8 @@ that the edges be all directed in the same direction.";
     Nth_scan++;
     uint32_t ip_addr;
     inet_pton(AF_INET, "220.181.38.148", &ip_addr);
-    uint16_t port = htons(17272);
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6, results,
+
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -9571,8 +9501,7 @@ TEST_F(MaatCmdTest, HitPathAdvanced) {
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_id,
-                            group3_id, IPv4, "220.181.38.168", "220.181.38.169",
-                            0, 65535, 0);
+                            group3_id, IPv4, "220.181.38.168", "220.181.38.169", 0);
     EXPECT_EQ(ret, 1);
 
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
@@ -9697,12 +9626,11 @@ TEST_F(MaatCmdTest, HitPathAdvanced) {
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "220.181.38.168", &ip_addr);
-    uint16_t port = htons(17272);
 
     int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(ip_table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6, results,
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -9921,8 +9849,7 @@ TEST_F(MaatCmdTest, HitPathHasNotGroup) {
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_id,
-                            group3_id, IPv4, "220.181.38.158", "220.181.38.159",
-                            0, 65535, 0);
+                            group3_id, IPv4, "220.181.38.158", "220.181.38.159", 0);
     EXPECT_EQ(ret, 1);
 
     char temp[1024]={0};
@@ -10086,8 +10013,7 @@ TEST_F(MaatCmdTest, HitPathHasNotGroup) {
     Nth_scan++;
     uint32_t ip_addr;
     inet_pton(AF_INET, "220.181.38.158", &ip_addr);
-    uint16_t port = htons(17272);
-    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, port, 6, results,
+    ret = maat_scan_ipv4(maat_inst, ip_table_id, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -10267,8 +10193,7 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
 
     long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item11_id,
-                            group11_id, IPv4, "192.168.2.1", "192.168.2.4",
-                            0, 65535, 0);
+                            group11_id, IPv4, "192.168.2.1", "192.168.2.4", 0);
     EXPECT_EQ(ret, 1);
 
     long long group21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
@@ -10286,10 +10211,9 @@ TEST_F(MaatCmdTest, SameScanStatusWhenClauseUpdate_TSG6419) {
     size_t n_hit_result = 0;
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.2.2", &ip_addr);
-    uint16_t port = htons(50001);
 
     int table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6, results,
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -10378,8 +10302,7 @@ TEST_F(MaatCmdTest, GroupEdit) {
 
     long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item11_id,
-                            group11_id, IPv4, "192.168.3.1", "192.168.3.4",
-                            0, 65535, 0);
+                            group11_id, IPv4, "192.168.3.1", "192.168.3.4", 0);
     EXPECT_EQ(ret, 1);
 
     long long group21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
@@ -10396,7 +10319,6 @@ TEST_F(MaatCmdTest, GroupEdit) {
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.3.2", &ip_addr);
-    uint16_t port = htons(50001);
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -10404,7 +10326,7 @@ TEST_F(MaatCmdTest, GroupEdit) {
     int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6, results,
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -10441,7 +10363,7 @@ TEST_F(MaatCmdTest, GroupEdit) {
     table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6, results,
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
     //TODO: EXPECT_EQ(ret,?)
 
@@ -10477,7 +10399,7 @@ TEST_F(MaatCmdTest, GroupEdit) {
 
     memset(results, 0, sizeof(results));
     table_id = maat_get_table_id(maat_inst, ip_table_name);
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6, results,
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -10519,15 +10441,13 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
 
     long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item11_id,
-                            group11_id, IPv4, "192.168.73.163", "192.168.73.180",
-                            0, 65535, 0);
+                            group11_id, IPv4, "192.168.73.163", "192.168.73.180", 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
     uint32_t ip_addr;
     inet_pton(AF_INET, "192.168.73.169", &ip_addr);
-    uint16_t port = htons(50001);
 
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -10535,7 +10455,7 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
     int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6, results,
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results,
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
@@ -10558,7 +10478,7 @@ TEST_F(MaatCmdTest, CompileDelete_TSG6548) {
     time_t update_time = time(NULL);
 	time_t now = update_time;
 	while (now - update_time < 3) {
-		ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, 6, results,
+		ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results,
                              ARRAY_SIZE, &n_hit_result, state);
 		if (ret == MAAT_SCAN_HIT) {
 			hit_cnt++;
@@ -10835,8 +10755,7 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenIncUpdate) {
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item2_id,
-                            group2_id, IPv4, "100.100.100.1", "100.100.100.1",
-                            100, 100, 0);
+                            group2_id, IPv4, "100.100.100.1", "100.100.100.1", 0);
     EXPECT_EQ(ret, 1);
 
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
@@ -10852,13 +10771,10 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenIncUpdate) {
     ret = inet_pton(AF_INET, ip_str, &ip_addr);
     EXPECT_EQ(ret, 1);
 
-    uint16_t port = htons(100);
-    int proto = 6;
-
     int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -10894,7 +10810,7 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenIncUpdate) {
     */
     table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -10942,7 +10858,7 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenFullUpdate) {
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD,
                             item2_id, group2_id, IPv4, "100.100.100.2",
-                            "100.100.100.2", 100, 100, 0);
+                            "100.100.100.2", 0);
     EXPECT_EQ(ret, 1);
 
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
@@ -10958,13 +10874,10 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenFullUpdate) {
     ret = inet_pton(AF_INET, ip_str, &ip_addr);
     EXPECT_EQ(ret, 1);
 
-    uint16_t port = htons(100);
-    int proto = 6;
-
     int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -10998,7 +10911,7 @@ TEST_F(MaatCmdTest, IPAndStreamScanWhenFullUpdate) {
     */
     table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -11045,8 +10958,7 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenIncUpdate) {
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item2_id,
-                            group2_id, IPv4, "100.100.100.1", "100.100.100.1",
-                            100, 100, 0);
+                            group2_id, IPv4, "100.100.100.1", "100.100.100.1", 0);
     EXPECT_EQ(ret, 1);
 
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
@@ -11062,14 +10974,11 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenIncUpdate) {
     ret = inet_pton(AF_INET, ip_str, &ip_addr);
     EXPECT_EQ(ret, 1);
 
-    uint16_t port = htons(100);
-    int proto = 6;
-
     int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, proto, results, 
-                         ARRAY_SIZE, &n_hit_result, state);
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, ARRAY_SIZE,
+                         &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
@@ -11103,7 +11012,7 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenIncUpdate) {
     */
     table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -11149,8 +11058,7 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenFullupdate) {
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item2_id,
-                            group2_id, IPv4, "100.100.100.3", "100.100.100.3",
-                            100, 100, 0);
+                            group2_id, IPv4, "100.100.100.3", "100.100.100.3", 0);
     EXPECT_EQ(ret, 1);
 
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
@@ -11166,13 +11074,10 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenFullupdate) {
     ret = inet_pton(AF_INET, ip_str, &ip_addr);
     EXPECT_EQ(ret, 1);
 
-    uint16_t port = htons(100);
-    int proto = 6;
-
     int table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 
@@ -11206,7 +11111,7 @@ TEST_F(MaatCmdTest, IPAndStringScanWhenFullupdate) {
     table_id = maat_get_table_id(maat_inst, ip_table_name);
     ASSERT_GT(table_id, 0);
 
-    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, port, proto, results, 
+    ret = maat_scan_ipv4(maat_inst, table_id, ip_addr, results, 
                          ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT);
 

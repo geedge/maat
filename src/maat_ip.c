@@ -15,7 +15,6 @@
 #include "maat_utils.h"
 #include "maat_ex_data.h"
 #include "ip_matcher.h"
-#include "interval_matcher.h"
 #include "maat_ip.h"
 #include "maat_rule.h"
 #include "maat_compile.h"
@@ -24,11 +23,6 @@
 
 #define MODULE_IP	 module_name_str("maat.ip")
 
-#define IP_PROTO_ANY   -1
-#define IP_PROTO_ICMP   1
-#define IP_PROTO_TCP    6
-#define IP_PROTO_UDP   17
-
 struct ip_schema {
     int item_id_column;
     int group_id_column;
@@ -36,10 +30,6 @@ struct ip_schema {
     int addr_format_column;
     int ip1_column;
     int ip2_column;
-    int port_format_column;
-    int port1_column;
-    int port2_column;
-    int protocol_column;
     int table_id;
     struct table_manager *ref_tbl_mgr;
 };
@@ -63,10 +53,6 @@ struct ip_item {
         struct ipv6_item_rule ipv6;
     };
     enum ip_format ip_format;
-    enum port_format port_format;
-    uint16_t min_port;
-    uint16_t max_port;
-    int proto;
 };
 
 struct ip_runtime {
@@ -172,46 +158,6 @@ void *ip_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "port_format");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        ip_schema->port_format_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s> schema has no port_format column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "port1");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        ip_schema->port1_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s> schema has no port1 column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "port2");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        ip_schema->port2_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s> schema has no port2 column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "protocol");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        ip_schema->protocol_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s> schema has no protocol column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
     ip_schema->ref_tbl_mgr = tbl_mgr;
     return ip_schema;
 error:
@@ -231,7 +177,6 @@ ip_item_new(struct ip_schema *ip_schema, const char *table_name,
     size_t column_offset = 0;
     size_t column_len = 0;
     char addr_format[16] = {0};
-    char port_format[16] = {0};
     char ip1_str[40] = {0};
     char ip2_str[40] = {0};
     struct ip_item *ip_item = ALLOC(struct ip_item, 1);
@@ -329,71 +274,6 @@ ip_item_new(struct ip_schema *ip_schema, const char *table_name,
                       __FUNCTION__, __LINE__, table_name, line);
             goto error;
         }
-    }
-
-    ret = get_column_pos(line, ip_schema->port_format_column, &column_offset,
-                         &column_len);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_IP,
-                  "[%s:%d] ip table:<%s> has no port_format in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-    
-    memcpy(port_format, (line + column_offset), column_len);
-    if (PORT_FORMAT_UNKNOWN == port_format_str2int(port_format)) {
-        log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s> has invalid port_format, "
-                  "should be single/range in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-    ip_item->port_format = port_format_str2int(port_format);
-
-    ret = get_column_pos(line, ip_schema->port1_column, &column_offset,
-                         &column_len);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s>) has no port1 in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-    ip_item->min_port = atoi(line + column_offset);
-
-    ret = get_column_pos(line, ip_schema->port2_column, &column_offset,
-                         &column_len);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s> has no port2 in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-    ip_item->max_port = atoi(line + column_offset);
-
-    ret = get_column_pos(line, ip_schema->protocol_column, &column_offset,
-                         &column_len);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s> has no protocol in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-
-    ip_item->proto = atoi(line + column_offset);
-    if (ip_item->proto != IP_PROTO_ANY && ip_item->proto != IP_PROTO_ICMP &&
-        ip_item->proto != IP_PROTO_TCP && ip_item->proto != IP_PROTO_UDP) {
-        log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s> protocol:%d is illegal in line:%s",
-                  __FUNCTION__, __LINE__, table_name, ip_item->proto, line);
-        goto error;
-    }
-
-    if (ip_item->proto != IP_PROTO_ANY && ip_item->proto != IP_PROTO_ICMP &&
-        ip_item->proto != IP_PROTO_TCP && ip_item->proto != IP_PROTO_UDP) {
-        log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s> protocol:%d is illegal in line:%s",
-                  __FUNCTION__, __LINE__, table_name, ip_item->proto, line);
-        goto error;
     }
 
     return ip_item;
@@ -497,13 +377,6 @@ static void ip_item_to_ip_rule(struct ip_item *item, struct ip_rule *rule)
     rule->rule_id = item->item_id;
 }
 
-static void ip_item_to_port_rule(struct ip_item *item, struct interval_rule *rule)
-{
-    rule->start = item->min_port;
-    rule->end = item->max_port;
-    rule->result.rule_id = item->item_id;
-}
-
 static int ip_runtime_update_row(struct ip_runtime *ip_rt, char *key, size_t key_len, 
                                  struct ip_item *item, int is_valid)
 {
@@ -603,13 +476,11 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name,
     ip_rt->ipv6_rule_num = 0;
 
     struct ip_rule *rules = NULL;
-    struct interval_rule *interval_rules = NULL;
     void **ex_data_array = NULL;
 
     size_t rule_cnt = rcu_updating_hash_list(ip_rt->item_hash, &ex_data_array);
     if (rule_cnt > 0) {
         rules = ALLOC(struct ip_rule, rule_cnt);
-        interval_rules = ALLOC(struct interval_rule, rule_cnt);
         for (size_t i = 0; i < rule_cnt; i++) {
             struct ip_item *item = (struct ip_item *)ex_data_array[i];
             if (item->addr_type == IPv6) {
@@ -617,7 +488,6 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name,
             }
 
             ip_item_to_ip_rule(item, &rules[i]);
-            ip_item_to_port_rule(item, &interval_rules[i]);
         }
     }
 
@@ -663,10 +533,6 @@ int ip_runtime_commit(void *ip_runtime, const char *table_name,
         FREE(rules);
     }
     
-    if (interval_rules != NULL) {
-        FREE(interval_rules);
-    }
-
     if (ex_data_array != NULL) {
         FREE(ex_data_array);
     }
@@ -694,24 +560,8 @@ long long ip_runtime_ipv6_rule_count(void *ip_runtime)
     return ip_rt->ipv6_rule_num;
 }
 
-static int validate_port_proto(struct ip_item *item, uint16_t port, int proto)
-{
-    uint16_t host_port = ntohs(port);
-
-    if (item->min_port > host_port || item->max_port < host_port) {
-        return -1;
-    }
-    
-    if (item->proto != -1 && item->proto != proto) {
-        return -1;
-    }
-
-    return 0;
-}
-
 int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type, 
-                    uint8_t *ip_addr, uint16_t port, int proto,
-                    int vtable_id, struct maat_state *state)
+                    uint8_t *ip_addr, int vtable_id, struct maat_state *state)
 {
     if (0 == ip_rt->rule_num) {
         //empty ip table
@@ -757,11 +607,6 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
                                                                  sizeof(long long));
         if (!ip_item) {
             // item config has been deleted
-            continue;
-        }
-
-        ret = validate_port_proto(ip_item, port, proto);
-        if (ret < 0) {
             continue;
         }
 
