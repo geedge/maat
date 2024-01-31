@@ -55,6 +55,8 @@ struct ex_data_runtime *bool_plugin_runtime_get_ex_data_rt(void *bool_plugin_run
 int bool_plugin_runtime_get_ex_data(void *bool_plugin_runtime, unsigned long long *item_ids, 
                                     size_t n_item, void **ex_data_array, size_t n_ex_data);
 
+void bool_plugin_expr_free(void *bool_expr);
+
 long long bool_plugin_runtime_update_err_count(void *bool_plugin_runtime);
 
 void bool_plugin_runtime_scan_times_inc(void *bool_plugin_runtime, int thread_id);

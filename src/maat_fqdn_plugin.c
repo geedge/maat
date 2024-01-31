@@ -83,8 +83,9 @@ void *fqdn_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->suffix_match_method_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_FQDN_PLUGIN, 
-                  "[%s:%d] fqdn_plugin table:<%s> schema has no suffix_match_method column",
-                  __FUNCTION__, __LINE__, table_name);
+                  "[%s:%d] fqdn_plugin table:<%s> schema has no "
+                  "suffix_match_method column", __FUNCTION__,
+                  __LINE__, table_name);
         goto error;
     }
 
@@ -158,7 +159,8 @@ int fqdn_plugin_table_set_ex_container_schema(void *fqdn_plugin_schema, int tabl
 struct ex_container_schema *
 fqdn_plugin_table_get_ex_container_schema(void *fqdn_plugin_schema)
 {
-    struct fqdn_plugin_schema *schema = (struct fqdn_plugin_schema *)fqdn_plugin_schema;
+    struct fqdn_plugin_schema *schema =
+        (struct fqdn_plugin_schema *)fqdn_plugin_schema;
 
     return &(schema->container_schema);
 }
@@ -188,8 +190,9 @@ void *fqdn_plugin_runtime_new(void *fqdn_plugin_schema, size_t max_thread_num,
     struct fqdn_plugin_schema *schema = (struct fqdn_plugin_schema *)fqdn_plugin_schema;
     struct fqdn_plugin_runtime *fqdn_plugin_rt = ALLOC(struct fqdn_plugin_runtime, 1);
 
-    fqdn_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, schema->gc_timeout_s,
-                                                     logger);
+    fqdn_plugin_rt->ex_data_rt =
+        ex_data_runtime_new(schema->table_id, schema->gc_timeout_s, logger);
+
     if (1 == schema->container_schema.set_flag) {
         ex_data_runtime_set_ex_container_schema(fqdn_plugin_rt->ex_data_rt,
                                                 &(schema->container_schema));
@@ -209,7 +212,9 @@ void fqdn_plugin_runtime_free(void *fqdn_plugin_runtime)
         return;
     }
 
-    struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+    struct fqdn_plugin_runtime *fqdn_plugin_rt =
+        (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+
     if (fqdn_plugin_rt->engine != NULL) {
         FQDN_engine_free(fqdn_plugin_rt->engine);
         fqdn_plugin_rt->engine = NULL;
@@ -228,9 +233,10 @@ void fqdn_plugin_runtime_free(void *fqdn_plugin_runtime)
     FREE(fqdn_plugin_rt);
 }
 
-static int fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema,
-                                        const char *table_name, const char *line,
-                                        struct log_handle *logger)
+static int
+fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema,
+                             const char *table_name, const char *line,
+                             struct log_handle *logger)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
@@ -241,8 +247,9 @@ static int fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema,
                                  &column_offset, &column_len);
         if (ret < 0) {
             log_fatal(logger, MODULE_FQDN_PLUGIN,
-                      "[%s:%d] fqdn_plugin table:<%s> has no rule_tag in line:%s",
-                      __FUNCTION__, __LINE__, table_name, line);
+                      "[%s:%d] fqdn_plugin table:<%s> has no rule_tag"
+                      " in line:%s", __FUNCTION__, __LINE__, table_name,
+                      line);
             return TAG_MATCH_ERR;
         }
 
@@ -253,15 +260,17 @@ static int fqdn_plugin_accept_tag_match(struct fqdn_plugin_schema *schema,
             FREE(tag_str);
             if (TAG_MATCH_ERR == ret) {
                 log_fatal(logger, MODULE_FQDN_PLUGIN,
-                          "[%s:%d] fqdn_plugin table:<%s> has invalid tag format in line:%s",
-                          __FUNCTION__, __LINE__, table_name, line);
+                          "[%s:%d] fqdn_plugin table:<%s> has invalid "
+                          "tag format in line:%s", __FUNCTION__, __LINE__,
+                          table_name, line);
                 return TAG_MATCH_ERR;
             }
 
             if (TAG_MATCH_UNMATCHED == ret) {
                 log_fatal(logger, MODULE_FQDN_PLUGIN,
-                          "[%s:%d] fqdn_plugin table:<%s> has unmatched tag in line:%s",
-                          __FUNCTION__, __LINE__, table_name, line);
+                          "[%s:%d] fqdn_plugin table:<%s> has unmatched tag"
+                          " in line:%s", __FUNCTION__, __LINE__, table_name,
+                          line);
                 return TAG_MATCH_UNMATCHED;
             }
         }
@@ -285,7 +294,8 @@ fqdn_plugin_rule_new(const char *line, struct fqdn_plugin_schema *schema,
     size_t fqdn_len = 0;
     struct FQDN_rule *fqdn_plugin_rule = ALLOC(struct FQDN_rule, 1);
 
-    ret = get_column_pos(line, schema->item_id_column, &column_offset, &column_len);
+    ret = get_column_pos(line, schema->item_id_column,
+                         &column_offset, &column_len);
     if (ret < 0) {
         log_fatal(logger, MODULE_FQDN_PLUGIN, 
                   "[%s:%d] fqdn_plugin table:<%s> has no item_id in line:%s",
@@ -294,11 +304,12 @@ fqdn_plugin_rule_new(const char *line, struct fqdn_plugin_schema *schema,
     }
     fqdn_plugin_rule->id = atoi(line + column_offset);
 
-    ret = get_column_pos(line, schema->suffix_match_method_column, &column_offset, &column_len);
+    ret = get_column_pos(line, schema->suffix_match_method_column,
+                         &column_offset, &column_len);
     if (ret < 0) {
         log_fatal(logger, MODULE_FQDN_PLUGIN, 
-                  "[%s:%d] fqdn_plugin table:<%s> has no suffix_match_method in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
+                  "[%s:%d] fqdn_plugin table:<%s> has no suffix_match_method"
+                  " in line:%s", __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
 
@@ -306,12 +317,14 @@ fqdn_plugin_rule_new(const char *line, struct fqdn_plugin_schema *schema,
     if (fqdn_plugin_rule->is_suffix_match != 0 &&
         fqdn_plugin_rule->is_suffix_match != 1) {
         log_fatal(logger, MODULE_FQDN_PLUGIN, 
-                  "[%s:%d] fqdn_plugin table:<%s> suffix_match_method:%d is illegal in line:%s",
-                  __FUNCTION__, __LINE__, table_name, fqdn_plugin_rule->is_suffix_match, line);
+                  "[%s:%d] fqdn_plugin table:<%s> suffix_match_method:%d "
+                  "is illegal in line:%s", __FUNCTION__, __LINE__, table_name,
+                  fqdn_plugin_rule->is_suffix_match, line);
         goto error;
     }
 
-    ret = get_column_pos(line, schema->fqdn_column, &column_offset, &column_len);
+    ret = get_column_pos(line, schema->fqdn_column,
+                         &column_offset, &column_len);
     if (ret < 0) {
         log_fatal(logger, MODULE_FQDN_PLUGIN, 
                   "[%s:%d] fqdn_plugin table:<%s> has no fqdn in line:%s",
@@ -341,24 +354,12 @@ error:
     return NULL;
 }
 
-static void fqdn_plugin_rule_free(struct FQDN_rule *rule)
-{
-    if (NULL == rule) {
-        return;
-    }
-    
-    if (rule->FQDN != NULL) {
-        FREE(rule->FQDN);
-    }
-
-    FREE(rule);
-}
-
-static int fqdn_plugin_runtime_update_row(struct fqdn_plugin_runtime *fqdn_plugin_rt,
-                                          const char *table_name, const char *row, 
-                                          const char *key, size_t key_len, 
-                                          struct FQDN_rule *fqdn_plugin_rule, 
-                                          int is_valid)
+static int
+fqdn_plugin_runtime_update_row(struct fqdn_plugin_runtime *fqdn_plugin_rt,
+                               const char *table_name, const char *row, 
+                               const char *key, size_t key_len, 
+                               struct FQDN_rule *fqdn_plugin_rule,
+                               int is_valid)
 {
     int ret = -1;
     struct ex_data_runtime *ex_data_rt = fqdn_plugin_rt->ex_data_rt;
@@ -371,10 +372,13 @@ static int fqdn_plugin_runtime_update_row(struct fqdn_plugin_runtime *fqdn_plugi
         }
     } else {
         // add
-        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, table_name, row,
-                                                    key, key_len);
-        struct ex_container *ex_container = ex_container_new(ex_data, (void *)fqdn_plugin_rule);
-        ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
+        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, table_name,
+                                                    row, key, key_len);
+        struct ex_container *ex_container =
+            ex_container_new(ex_data, (void *)fqdn_plugin_rule);
+
+        ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len,
+                                               ex_container);
         if (ret < 0) {
             ex_container_free(ex_data_rt, ex_container);
             return -1;
@@ -384,8 +388,11 @@ static int fqdn_plugin_runtime_update_row(struct fqdn_plugin_runtime *fqdn_plugi
     return 0;
 }
 
-int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_schema,
-                               const char *table_name, const char *line, int valid_column)
+int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime,
+                               void *fqdn_plugin_schema,
+                               const char *table_name,
+                               const char *line,
+                               int valid_column)
 {
     if (NULL == fqdn_plugin_runtime || NULL == fqdn_plugin_schema || 
         NULL == line) {
@@ -393,8 +400,12 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
     }
 
     struct FQDN_rule *fqdn_plugin_rule = NULL;
-    struct fqdn_plugin_schema *schema = (struct fqdn_plugin_schema *)fqdn_plugin_schema;
-    struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+    struct fqdn_plugin_schema *schema =
+        (struct fqdn_plugin_schema *)fqdn_plugin_schema;
+
+    struct fqdn_plugin_runtime *fqdn_plugin_rt =
+        (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+
     size_t item_id_offset = 0, item_id_len = 0;
 
     int is_valid = get_column_value(line, valid_column);
@@ -407,7 +418,8 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
         return -1;
     }
 
-    int ret = get_column_pos(line, schema->item_id_column, &item_id_offset, &item_id_len);
+    int ret = get_column_pos(line, schema->item_id_column,
+                             &item_id_offset, &item_id_len);
     if (ret < 0) {
         log_fatal(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
                   "[%s:%d] fqdn_plugin table:<%s> has no item_id(column seq:%d)"
@@ -430,23 +442,25 @@ int fqdn_plugin_runtime_update(void *fqdn_plugin_runtime, void *fqdn_plugin_sche
 
         const char *key = line + item_id_offset;
         size_t key_len = item_id_len;
-        ret = fqdn_plugin_runtime_update_row(fqdn_plugin_rt, table_name, line, key, key_len, 
-                                             fqdn_plugin_rule, is_valid);
+        ret = fqdn_plugin_runtime_update_row(fqdn_plugin_rt, table_name, line,
+                                             key, key_len, fqdn_plugin_rule,
+                                             is_valid);
         if (ret < 0) {
-            if (fqdn_plugin_rule != NULL) {
-                fqdn_plugin_rule_free(fqdn_plugin_rule);
-            }
+            log_fatal(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
+                      "[%s:%d]fqdn_plugin table:<%s> update one line failed, "
+                      "line:%s", __FUNCTION__, __LINE__, table_name, line);
             fqdn_plugin_rt->update_err_cnt++;
             return -1;
         }
 
         log_debug(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
-                  "fqdn_plugin table:<%s> update one line, key:%s, key_len:%zu, is_valid:%d",
-                  table_name, key, key_len, is_valid);
+                  "fqdn_plugin table:<%s> update one line, key:%s, key_len:%zu,"
+                  "is_valid:%d", table_name, key, key_len, is_valid);
     } else {
         //ex_schema not set
         ex_data_runtime_cache_row_put(fqdn_plugin_rt->ex_data_rt, line);
-        fqdn_plugin_rt->rule_num = ex_data_runtime_cached_row_count(fqdn_plugin_rt->ex_data_rt);
+        fqdn_plugin_rt->rule_num =
+            ex_data_runtime_cached_row_count(fqdn_plugin_rt->ex_data_rt);
     }
 
     return 0;
@@ -458,14 +472,17 @@ static void garbage_fqdn_engine_free(void *fqdn_engine, void *arg)
     FQDN_engine_free(engine);
 }
 
-int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name,
+int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime,
+                               const char *table_name,
                                long long maat_rt_version)
 {
      if (NULL == fqdn_plugin_runtime) {
         return -1;
     }
 
-    struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+    struct fqdn_plugin_runtime *fqdn_plugin_rt =
+        (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+
     struct ex_data_runtime *ex_data_rt = fqdn_plugin_rt->ex_data_rt;
     if (NULL == ex_data_rt) {
         return -1;
@@ -478,12 +495,14 @@ int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name
 
     struct FQDN_rule *rules = NULL;
     struct ex_container **ex_container = NULL;
-    size_t rule_cnt = ex_data_runtime_list_updating_ex_container(ex_data_rt, &ex_container);
+    size_t rule_cnt = ex_data_runtime_list_updating_ex_container(ex_data_rt,
+                                                                &ex_container);
     if (rule_cnt > 0) {
         rules = ALLOC(struct FQDN_rule, rule_cnt);
         for (size_t i = 0; i < rule_cnt; i++) {
             rules[i] = *(struct FQDN_rule *)ex_container[i]->custom_data;
-            assert(rules[i].user_tag == ex_container[i] || rules[i].user_tag == NULL);
+            assert(rules[i].user_tag == ex_container[i] ||
+                   rules[i].user_tag == NULL);
             rules[i].user_tag = ex_container[i];
         }
     }
@@ -508,9 +527,9 @@ int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name
             ret = -1;
         } else {
             log_info(fqdn_plugin_rt->logger, MODULE_FQDN_PLUGIN,
-                     "table[%s] commit %zu fqdn_plugin rules and rebuild FQDN engine"
-                     " completed, version:%lld, consume:%lldms", table_name, rule_cnt,
-                     maat_rt_version, time_elapse_ms);
+                     "table[%s] commit %zu fqdn_plugin rules and rebuild"
+                     " FQDN engine completed, version:%lld, consume:%lldms",
+                     table_name, rule_cnt, maat_rt_version, time_elapse_ms);
         }
     }
 
@@ -519,8 +538,8 @@ int fqdn_plugin_runtime_commit(void *fqdn_plugin_runtime, const char *table_name
     ex_data_runtime_commit(ex_data_rt);
 
     if (old_fqdn_engine != NULL) {
-        maat_garbage_bagging(fqdn_plugin_rt->ref_garbage_bin, old_fqdn_engine, NULL,
-                             garbage_fqdn_engine_free);
+        maat_garbage_bagging(fqdn_plugin_rt->ref_garbage_bin, old_fqdn_engine,
+                             NULL, garbage_fqdn_engine_free);
     }
 
     fqdn_plugin_rt->rule_num = rule_cnt;
@@ -542,31 +561,39 @@ long long fqdn_plugin_runtime_rule_count(void *fqdn_plugin_runtime)
         return 0;
     }
     
-    struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+    struct fqdn_plugin_runtime *fqdn_plugin_rt =
+        (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+
     return fqdn_plugin_rt->rule_num;
 }
 
-struct ex_data_runtime *fqdn_plugin_runtime_get_ex_data_rt(void *fqdn_plugin_runtime)
+struct ex_data_runtime *
+fqdn_plugin_runtime_get_ex_data_rt(void *fqdn_plugin_runtime)
 {
     if (NULL == fqdn_plugin_runtime) {
         return NULL;
     }
 
-    struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+    struct fqdn_plugin_runtime *fqdn_plugin_rt =
+        (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
 
     return fqdn_plugin_rt->ex_data_rt;
 }
 
 
-int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, const char *query_fqdn, 
-                                    void **ex_data_array, size_t n_ex_data)
+int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime,
+                                    const char *query_fqdn, 
+                                    void **ex_data_array,
+                                    size_t n_ex_data)
 {
     if (NULL == fqdn_plugin_runtime || NULL == query_fqdn ||
         NULL == ex_data_array || 0 == n_ex_data) {
         return -1;
     }
 
-    struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+    struct fqdn_plugin_runtime *fqdn_plugin_rt =
+        (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+
     if (0 == fqdn_plugin_rt->rule_num) {
         return 0;
     }
@@ -576,11 +603,12 @@ int fqdn_plugin_runtime_get_ex_data(void *fqdn_plugin_runtime, const char *query
     }
 
     struct FQDN_match results[n_ex_data];
-	int n_result = FQDN_engine_search(fqdn_plugin_rt->engine, query_fqdn, strlen(query_fqdn),
-                                      results, n_ex_data);
+	int n_result = FQDN_engine_search(fqdn_plugin_rt->engine, query_fqdn,
+                                      strlen(query_fqdn), results, n_ex_data);
 	for (int i = 0; i < n_result; i++) {
-		ex_data_array[i] = ex_data_runtime_get_ex_data_by_container(fqdn_plugin_rt->ex_data_rt,
-                                                                    (struct ex_container *)results[i].user_tag);
+		ex_data_array[i] =
+            ex_data_runtime_get_ex_data_by_container(fqdn_plugin_rt->ex_data_rt,
+                                                     (struct ex_container *)results[i].user_tag);
 	}
 
 	return n_result;
@@ -592,7 +620,9 @@ long long fqdn_plugin_runtime_update_err_count(void *fqdn_plugin_runtime)
         return 0;
     }
 
-    struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+    struct fqdn_plugin_runtime *fqdn_plugin_rt =
+        (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+
     return fqdn_plugin_rt->update_err_cnt;
 }
 
@@ -602,7 +632,9 @@ void fqdn_plugin_runtime_scan_times_inc(void *fqdn_plugin_runtime, int thread_id
         return;
     }
 
-    struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+    struct fqdn_plugin_runtime *fqdn_plugin_rt =
+        (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+
     alignment_int64_array_add(fqdn_plugin_rt->scan_times, thread_id, 1);
 }
 
@@ -612,9 +644,12 @@ long long fqdn_plugin_runtime_scan_times(void *fqdn_plugin_runtime)
         return 0;
     }
 
-    struct fqdn_plugin_runtime *fqdn_plugin_rt = (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+    struct fqdn_plugin_runtime *fqdn_plugin_rt =
+        (struct fqdn_plugin_runtime *)fqdn_plugin_runtime;
+
     long long sum = alignment_int64_array_sum(fqdn_plugin_rt->scan_times,
                                               fqdn_plugin_rt->n_worker_thread);
+
     alignment_int64_array_reset(fqdn_plugin_rt->scan_times,
                                 fqdn_plugin_rt->n_worker_thread);
 

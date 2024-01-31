@@ -80,16 +80,18 @@ void *ipport_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->table_id = item->valueint;
     } else {
         log_fatal(logger, MODULE_IPPORT_PLUGIN, 
-                  "[%s:%d] ipport_plugin table:<%s> schema has no table_id column", 
-                  __FUNCTION__, __LINE__, table_name);
+                  "[%s:%d] ipport_plugin table:<%s> schema has no"
+                  " table_id column", __FUNCTION__, __LINE__,
+                  table_name);
         goto error;
     }
 
     item = cJSON_GetObjectItem(json, "custom");
     if (NULL == item || item->type != cJSON_Object) {
         log_fatal(logger, MODULE_IPPORT_PLUGIN, 
-                  "[%s:%d] ipport_plugin table:<%s> schema has no custom column", 
-                  __FUNCTION__, __LINE__, table_name);
+                  "[%s:%d] ipport_plugin table:<%s> schema has no"
+                  " custom column", __FUNCTION__, __LINE__,
+                  table_name);
         goto error;
     }
 
@@ -98,8 +100,9 @@ void *ipport_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->item_id_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_IPPORT_PLUGIN, 
-                  "[%s:%d] ipport_plugin table:<%s> schema has no item_id column", 
-                  __FUNCTION__, __LINE__, table_name);
+                  "[%s:%d] ipport_plugin table:<%s> schema has no"
+                  " item_id column", __FUNCTION__, __LINE__,
+                  table_name);
         goto error;
     }
 
@@ -108,8 +111,9 @@ void *ipport_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->ip_type_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_IPPORT_PLUGIN, 
-                  "[%s:%d] ipport_plugin table:<%s> schema has no ip_type column", 
-                  __FUNCTION__, __LINE__, table_name);
+                  "[%s:%d] ipport_plugin table:<%s> schema has no"
+                  " ip_type column", __FUNCTION__, __LINE__,
+                  table_name);
         goto error;
     }
 
@@ -118,8 +122,9 @@ void *ipport_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->ip_addr_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_IPPORT_PLUGIN, 
-                  "[%s:%d] ipport_plugin table:<%s> schema has no ip_addr column", 
-                  __FUNCTION__, __LINE__, table_name);
+                  "[%s:%d] ipport_plugin table:<%s> schema has no"
+                  " ip_addr column", __FUNCTION__, __LINE__,
+                  table_name);
         goto error;
     }
 
@@ -128,8 +133,8 @@ void *ipport_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->port1_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_IPPORT_PLUGIN, 
-                  "[%s:%d] ipport_plugin table:<%s> schema has no port1 column", 
-                  __FUNCTION__, __LINE__, table_name);
+                  "[%s:%d] ipport_plugin table:<%s> schema has no"
+                  " port1 column", __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -138,8 +143,8 @@ void *ipport_plugin_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->port2_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_IPPORT_PLUGIN, 
-                  "[%s:%d] ipport_plugin table:<%s> schema has no port2 column", 
-                  __FUNCTION__, __LINE__, table_name);
+                  "[%s:%d] ipport_plugin table:<%s> schema has no"
+                  " port2 column", __FUNCTION__, __LINE__, table_name);
         goto error;
     }
 
@@ -173,7 +178,8 @@ int ipport_plugin_table_set_ex_container_schema(void *ipport_plugin_schema, int 
                                                 void (*custom_data_free)(void *),
 							                    long argl, void *argp)
 {
-    struct ipport_plugin_schema *schema = (struct ipport_plugin_schema *)ipport_plugin_schema;
+    struct ipport_plugin_schema *schema =
+        (struct ipport_plugin_schema *)ipport_plugin_schema;
 
     if (1 == schema->container_schema.set_flag) {
         log_fatal(schema->logger, MODULE_IPPORT_PLUGIN, 
@@ -197,12 +203,14 @@ int ipport_plugin_table_set_ex_container_schema(void *ipport_plugin_schema, int 
 struct ex_container_schema *
 ipport_plugin_table_get_ex_container_schema(void *ipport_plugin_schema)
 {
-    struct ipport_plugin_schema *schema = (struct ipport_plugin_schema *)ipport_plugin_schema;
+    struct ipport_plugin_schema *schema =
+        (struct ipport_plugin_schema *)ipport_plugin_schema;
 
     return &(schema->container_schema);
 }
 
-void *ipport_plugin_runtime_new(void *ipport_plugin_schema, size_t max_thread_num,
+void *ipport_plugin_runtime_new(void *ipport_plugin_schema,
+                                size_t max_thread_num,
                                 struct maat_garbage_bin *garbage_bin, 
                                 struct log_handle *logger)
 {
@@ -210,11 +218,15 @@ void *ipport_plugin_runtime_new(void *ipport_plugin_schema, size_t max_thread_nu
         return NULL;
     }
 
-    struct ipport_plugin_schema *schema = (struct ipport_plugin_schema *)ipport_plugin_schema;
-    struct ipport_plugin_runtime *ipport_plugin_rt = ALLOC(struct ipport_plugin_runtime, 1);
+    struct ipport_plugin_schema *schema =
+        (struct ipport_plugin_schema *)ipport_plugin_schema;
 
-    ipport_plugin_rt->ex_data_rt = ex_data_runtime_new(schema->table_id, schema->gc_timeout_s,
-                                                       logger);
+    struct ipport_plugin_runtime *ipport_plugin_rt =
+        ALLOC(struct ipport_plugin_runtime, 1);
+
+    ipport_plugin_rt->ex_data_rt =
+        ex_data_runtime_new(schema->table_id, schema->gc_timeout_s, logger);
+
     if (1 == schema->container_schema.set_flag) {
         ex_data_runtime_set_ex_container_schema(ipport_plugin_rt->ex_data_rt,
                                                 &(schema->container_schema));
@@ -234,7 +246,9 @@ void ipport_plugin_runtime_free(void *ipport_plugin_runtime)
         return;
     }
 
-    struct ipport_plugin_runtime *ipport_plugin_rt = (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+    struct ipport_plugin_runtime *ipport_plugin_rt =
+        (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+
     if (ipport_plugin_rt->matcher != NULL) {
         ipport_matcher_free(ipport_plugin_rt->matcher);
         ipport_plugin_rt->matcher = NULL;
@@ -349,19 +363,20 @@ error:
     return NULL;
 }
 
-static void ipport_item_free(struct ipport_item *item)
+void ipport_item_free(void *ipport_item)
 {
-    if (NULL == item) {
+    if (NULL == ipport_item) {
         return;
     }
     
-    FREE(item);
+    FREE(ipport_item);
 }
 
-static int ipport_plugin_runtime_update_row(struct ipport_plugin_runtime *ipport_plugin_rt,
-                                            const char *table_name, const char *row, 
-                                            const char *key, size_t key_len, 
-                                            struct ipport_item *ipport_item, int is_valid)
+static int
+ipport_plugin_runtime_update_row(struct ipport_plugin_runtime *ipport_plugin_rt,
+                                 const char *table_name, const char *row, 
+                                 const char *key, size_t key_len, 
+                                 struct ipport_item *ipport_item, int is_valid)
 {
     int ret = -1;
     struct ex_data_runtime *ex_data_rt = ipport_plugin_rt->ex_data_rt;
@@ -377,9 +392,14 @@ static int ipport_plugin_runtime_update_row(struct ipport_plugin_runtime *ipport
         }
     } else {
         // add
-        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, table_name, row, key, key_len);
-        struct ex_container *ex_container = ex_container_new(ex_data, (void *)ipport_item);
-        ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
+        void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, table_name,
+                                                    row, key, key_len);
+
+        struct ex_container *ex_container = ex_container_new(ex_data,
+                                                            (void *)ipport_item);
+
+        ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len,
+                                               ex_container);
         if (ret < 0) {
             ex_container_free(ex_data_rt, ex_container);
             return -1;
@@ -389,8 +409,10 @@ static int ipport_plugin_runtime_update_row(struct ipport_plugin_runtime *ipport
     return 0;
 }
 
-int ipport_plugin_runtime_update(void *ipport_plugin_runtime, void *ipport_plugin_schema, 
-                                 const char *table_name, const char *line, int valid_column)
+int ipport_plugin_runtime_update(void *ipport_plugin_runtime,
+                                 void *ipport_plugin_schema, 
+                                 const char *table_name,
+                                 const char *line, int valid_column)
 {
     if (NULL == ipport_plugin_runtime || NULL == ipport_plugin_schema || 
         NULL == line) {
@@ -398,8 +420,12 @@ int ipport_plugin_runtime_update(void *ipport_plugin_runtime, void *ipport_plugi
     }
 
     struct ipport_item *ipport_item = NULL;
-    struct ipport_plugin_schema *schema = (struct ipport_plugin_schema *)ipport_plugin_schema;
-    struct ipport_plugin_runtime *ipport_plugin_rt = (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+    struct ipport_plugin_schema *schema =
+        (struct ipport_plugin_schema *)ipport_plugin_schema;
+
+    struct ipport_plugin_runtime *ipport_plugin_rt =
+        (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+
     size_t item_id_offset = 0, item_id_len = 0;
 
     int is_valid = get_column_value(line, valid_column);
@@ -408,8 +434,8 @@ int ipport_plugin_runtime_update(void *ipport_plugin_runtime, void *ipport_plugi
         return -1;
     }
 
-    int ret = get_column_pos(line, schema->item_id_column, &item_id_offset,
-                             &item_id_len);
+    int ret = get_column_pos(line, schema->item_id_column,
+                             &item_id_offset, &item_id_len);
     if (ret < 0) {
         ipport_plugin_rt->update_err_cnt++;
         return -1;
@@ -428,29 +454,32 @@ int ipport_plugin_runtime_update(void *ipport_plugin_runtime, void *ipport_plugi
 
         const char *key = line + item_id_offset;
         size_t key_len = item_id_len;
-        ret = ipport_plugin_runtime_update_row(ipport_plugin_rt, table_name, line,
-                                               key, key_len, ipport_item, is_valid);
+        ret = ipport_plugin_runtime_update_row(ipport_plugin_rt, table_name,
+                                               line, key, key_len, ipport_item,
+                                               is_valid);
         if (ret < 0) {
-            if (ipport_item != NULL) {
-                ipport_item_free(ipport_item);
-            }
+            log_fatal(ipport_plugin_rt->logger, MODULE_IPPORT_PLUGIN,
+                      "[%s:%d]ipport_plugin table:<%s> update one line failed, "
+                      "line:%s", __FUNCTION__, __LINE__, table_name, line);
             ipport_plugin_rt->update_err_cnt++;
             return -1;
         }
 
         log_debug(ipport_plugin_rt->logger, MODULE_IPPORT_PLUGIN,
-                 "ipport_plugin table:<%s> update one line, key:%s, key_len:%zu, is_valid:%d",
-                 table_name, key, key_len, is_valid);
+                 "ipport_plugin table:<%s> update one line, key:%s, key_len:%zu,"
+                 " is_valid:%d", table_name, key, key_len, is_valid);
     } else {
         //ex_schema not set
         ex_data_runtime_cache_row_put(ipport_plugin_rt->ex_data_rt, line);
-        ipport_plugin_rt->rule_num = ex_data_runtime_cached_row_count(ipport_plugin_rt->ex_data_rt);
+        ipport_plugin_rt->rule_num =
+            ex_data_runtime_cached_row_count(ipport_plugin_rt->ex_data_rt);
     }
 
     return 0;
 }
 
-static void ipport_item_to_ipport_rule(struct ipport_item *item, struct ipport_rule *rule)
+static void 
+ipport_item_to_ipport_rule(struct ipport_item *item, struct ipport_rule *rule)
 {
     if (IPV4 == item->ip_type) {
         rule->ip.ip_type= IPV4;
@@ -466,20 +495,26 @@ static void ipport_item_to_ipport_rule(struct ipport_item *item, struct ipport_r
     rule->rule_id = item->item_id;
 }
 
-static void garbage_ipport_matcher_free(void *ipport_matcher, void *arg)
+static void 
+garbage_ipport_matcher_free(void *ipport_matcher, void *arg)
 {
-    struct ipport_matcher *matcher = (struct ipport_matcher *)ipport_matcher;
+    struct ipport_matcher *matcher =
+        (struct ipport_matcher *)ipport_matcher;
+
     ipport_matcher_free(matcher);
 }
 
-int ipport_plugin_runtime_commit(void *ipport_plugin_runtime, const char *table_name,
+int ipport_plugin_runtime_commit(void *ipport_plugin_runtime,
+                                 const char *table_name,
                                  long long maat_rt_version)
 {
     if (NULL == ipport_plugin_runtime) {
         return -1;
     }
 
-    struct ipport_plugin_runtime *ipport_plugin_rt = (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+    struct ipport_plugin_runtime *ipport_plugin_rt =
+        (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+
     struct ex_data_runtime *ex_data_rt = ipport_plugin_rt->ex_data_rt;
     if (NULL == ex_data_rt) {
         return -1;
@@ -492,11 +527,14 @@ int ipport_plugin_runtime_commit(void *ipport_plugin_runtime, const char *table_
 
     struct ipport_rule *rules = NULL;
     struct ex_container **ex_container = NULL;
-    size_t rule_cnt = ex_data_runtime_list_updating_ex_container(ex_data_rt, &ex_container);
+    size_t rule_cnt = ex_data_runtime_list_updating_ex_container(ex_data_rt,
+                                                                &ex_container);
     if (rule_cnt > 0) {
         rules = ALLOC(struct ipport_rule, rule_cnt);
         for (size_t i = 0; i < rule_cnt; i++) {
-            struct ipport_item *item = (struct ipport_item *)ex_container[i]->custom_data;
+            struct ipport_item *item =
+                (struct ipport_item *)ex_container[i]->custom_data;
+
             ipport_item_to_ipport_rule(item, &rules[i]);
             rules[i].user_tag = ex_container[i];
         }
@@ -515,14 +553,15 @@ int ipport_plugin_runtime_commit(void *ipport_plugin_runtime, const char *table_
                                    (end.tv_nsec - start.tv_nsec) / 1000000;
         if (NULL == new_matcher) {
             log_fatal(ipport_plugin_rt->logger, MODULE_IPPORT_PLUGIN,
-                      "[%s:%d] ipport_plugin table[%s] rebuild ipport_matcher failed when "
-                      "update %zu rules", __FUNCTION__, __LINE__, table_name, rule_cnt);
+                      "[%s:%d] ipport_plugin table[%s] rebuild ipport_matcher"
+                      " failed when update %zu rules", __FUNCTION__, __LINE__,
+                      table_name, rule_cnt);
             ret = -1;
         } else {
             log_info(ipport_plugin_rt->logger, MODULE_IPPORT_PLUGIN,
-                     "table[%s] commit %zu ipport_plugin rules and rebuild ipport_matcher "
-                     "completed, version:%lld, consume:%lldms", table_name, rule_cnt,
-                     maat_rt_version, time_elapse_ms);
+                     "table[%s] commit %zu ipport_plugin rules and rebuild"
+                     " ipport_matcher completed, version:%lld, consume:%lldms",
+                     table_name, rule_cnt, maat_rt_version, time_elapse_ms);
         }
     }
 
@@ -531,8 +570,8 @@ int ipport_plugin_runtime_commit(void *ipport_plugin_runtime, const char *table_
     ex_data_runtime_commit(ex_data_rt);
 
     if (old_matcher != NULL) {
-        maat_garbage_bagging(ipport_plugin_rt->ref_garbage_bin, old_matcher, NULL,
-                             garbage_ipport_matcher_free);
+        maat_garbage_bagging(ipport_plugin_rt->ref_garbage_bin, old_matcher,
+                             NULL, garbage_ipport_matcher_free);
     }
     
     ipport_plugin_rt->rule_num = rule_cnt;
@@ -554,17 +593,21 @@ long long ipport_plugin_runtime_rule_count(void *ipport_plugin_runtime)
         return 0;
     }
     
-    struct ipport_plugin_runtime *ipport_plugin_rt = (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+    struct ipport_plugin_runtime *ipport_plugin_rt =
+        (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+
     return ipport_plugin_rt->rule_num;
 }
 
-struct ex_data_runtime *ipport_plugin_runtime_get_ex_data_rt(void *ipport_plugin_runtime)
+struct ex_data_runtime *
+ipport_plugin_runtime_get_ex_data_rt(void *ipport_plugin_runtime)
 {
     if (NULL == ipport_plugin_runtime) {
         return NULL;
     }
 
-    struct ipport_plugin_runtime *ipport_plugin_rt = (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+    struct ipport_plugin_runtime *ipport_plugin_rt =
+        (struct ipport_plugin_runtime *)ipport_plugin_runtime;
 
     return ipport_plugin_rt->ex_data_rt;
 }
@@ -584,15 +627,19 @@ static int validate_port(struct ipport_item *item, uint16_t port)
     return 0;
 }
 
-int ipport_plugin_runtime_get_ex_data(void *ipport_plugin_runtime, const struct ip_addr *ip_addr, 
-                                      uint16_t port, void **ex_data_array, size_t n_ex_data)
+int ipport_plugin_runtime_get_ex_data(void *ipport_plugin_runtime,
+                                      const struct ip_addr *ip_addr, 
+                                      uint16_t port, void **ex_data_array,
+                                      size_t n_ex_data)
 {
     if (NULL == ipport_plugin_runtime || NULL == ip_addr ||
         NULL == ex_data_array || 0 == n_ex_data) {
         return -1;
     }
 
-    struct ipport_plugin_runtime *ipport_plugin_rt = (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+    struct ipport_plugin_runtime *ipport_plugin_rt =
+        (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+
     if (0 == ipport_plugin_rt->rule_num) {
         return 0;
     }
@@ -602,7 +649,8 @@ int ipport_plugin_runtime_get_ex_data(void *ipport_plugin_runtime, const struct 
     }
 
     struct ipport_result results[n_ex_data];
-	int n_hit_item = ipport_matcher_match(ipport_plugin_rt->matcher, ip_addr, port, results, n_ex_data);
+	int n_hit_item = ipport_matcher_match(ipport_plugin_rt->matcher, ip_addr,
+                                          port, results, n_ex_data);
     if (n_hit_item <= 0) {
         return n_hit_item;
     }
@@ -617,8 +665,9 @@ int ipport_plugin_runtime_get_ex_data(void *ipport_plugin_runtime, const struct 
             continue;
         }
 
-        ex_data_array[hit_result_cnt++] = ex_data_runtime_get_ex_data_by_container(ipport_plugin_rt->ex_data_rt,
-                                                                                   ex_container); 
+        ex_data_array[hit_result_cnt++] = 
+            ex_data_runtime_get_ex_data_by_container(ipport_plugin_rt->ex_data_rt,
+                                                     ex_container); 
     }
 
 	return hit_result_cnt;
@@ -630,17 +679,22 @@ long long ipport_plugin_runtime_update_err_count(void *ipport_plugin_runtime)
         return 0;
     }
 
-    struct ipport_plugin_runtime *ipport_plugin_rt = (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+    struct ipport_plugin_runtime *ipport_plugin_rt =
+        (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+
     return ipport_plugin_rt->update_err_cnt;
 }
 
-void ipport_plugin_runtime_scan_times_inc(void *ipport_plugin_runtime, int thread_id)
+void ipport_plugin_runtime_scan_times_inc(void *ipport_plugin_runtime,
+                                          int thread_id)
 {
     if (NULL == ipport_plugin_runtime || thread_id < 0) {
         return;
     }
 
-    struct ipport_plugin_runtime *ipport_plugin_rt = (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+    struct ipport_plugin_runtime *ipport_plugin_rt =
+        (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+
     alignment_int64_array_add(ipport_plugin_rt->scan_times, thread_id, 1);
 }
 
@@ -650,9 +704,12 @@ long long ipport_plugin_runtime_scan_times(void *ipport_plugin_runtime)
         return 0;
     }
 
-    struct ipport_plugin_runtime *ipport_plugin_rt = (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+    struct ipport_plugin_runtime *ipport_plugin_rt =
+        (struct ipport_plugin_runtime *)ipport_plugin_runtime;
+
     long long sum = alignment_int64_array_sum(ipport_plugin_rt->scan_times,
                                               ipport_plugin_rt->n_worker_thread);
+                                              
     alignment_int64_array_reset(ipport_plugin_rt->scan_times,
                                 ipport_plugin_rt->n_worker_thread);
 

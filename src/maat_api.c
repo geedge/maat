@@ -620,12 +620,14 @@ static int generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int
         case TABLE_TYPE_IP_PLUGIN:
             ret = ip_plugin_table_set_ex_container_schema(schema, table_id,
                                                           new_func, free_func, dup_func,
-                                                          free, argl, argp);
+                                                          ip_plugin_rule_free,
+                                                          argl, argp);
             break;
         case TABLE_TYPE_IPPORT_PLUGIN:
             ret = ipport_plugin_table_set_ex_container_schema(schema, table_id,
                                                               new_func, free_func, dup_func,
-                                                              free, argl, argp);
+                                                              ipport_item_free,
+                                                              argl, argp);
             break;
         case TABLE_TYPE_FQDN_PLUGIN:
             ret = fqdn_plugin_table_set_ex_container_schema(schema, table_id,
@@ -636,7 +638,8 @@ static int generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int
         case TABLE_TYPE_BOOL_PLUGIN:
             ret = bool_plugin_table_set_ex_container_schema(schema, table_id,
                                                             new_func, free_func, dup_func,
-                                                            free, argl, argp);
+                                                            bool_plugin_expr_free,
+                                                            argl, argp);
             break;
         default:
             log_fatal(logger, MODULE_MAAT_API,

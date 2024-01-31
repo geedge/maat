@@ -57,6 +57,8 @@ struct ex_data_runtime *ipport_plugin_runtime_get_ex_data_rt(void *ipport_plugin
 int ipport_plugin_runtime_get_ex_data(void *ipport_plugin_runtime, const struct ip_addr *ip_addr, 
                                       uint16_t port, void **ex_data_array, size_t n_ex_data);
 
+void ipport_item_free(void *ipport_item);
+
 long long ipport_plugin_runtime_update_err_count(void *ipport_plugin_runtime);
 
 void ipport_plugin_runtime_scan_times_inc(void *ipport_plugin_rt, int thread_id);
