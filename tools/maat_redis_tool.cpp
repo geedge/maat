@@ -83,7 +83,7 @@ void read_rule_from_redis(redisContext *c, const char *output_path, struct log_h
     FILE *index_fp = NULL;
     struct serial_rule *rule_list = NULL;
 
-	int rule_num = maat_get_rm_key_list(c, 0, &version, NULL, &rule_list, &update_type, 0, logger);
+	int rule_num = maat_get_rm_key_list(c, 0, &version, NULL, &rule_list, &update_type, logger);
 	if (0 == rule_num) {
 		printf("No Effective Rules.\n");
 		return;

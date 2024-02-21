@@ -124,7 +124,6 @@ struct maat_options {
     int deferred_load_on;
 
     int maat_json_is_gzipped;
-    int cumulative_update_off; //Default: cumulative update on
     
     int gc_timeout_ms;
     int rule_effect_interval_ms;
