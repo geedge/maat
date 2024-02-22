@@ -220,7 +220,8 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 	}
 	
     const char *redis_rule_key = "TEST_RULE_KEY";
-    redisReply *reply = maat_wrap_redis_command(ctx, "INCRBY %s %d", redis_rule_key, 1);
+    redisReply *reply =
+		maat_wrap_redis_command(ctx, NULL, "INCRBY %s %d", redis_rule_key, 1);
 	if (reply->type == REDIS_REPLY_NIL) {
 		printf("incrby redis_rule_key:%s failed.", redis_rule_key);
         return -1;
@@ -230,8 +231,8 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 		reply = NULL;
 	}
 
-	maat_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, s_rule->rule_id, table_name, 
-                         buff, absolute_expire_time);
+	maat_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, s_rule->rule_id,
+						 table_name, buff, absolute_expire_time);
     (s_rule + line_idx)->ref_ctx = ctx;
 	line_idx++;
     FREE(buff);
@@ -239,27 +240,33 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 	return 0;
 }
 
-int write_config_to_redis(redisContext *c, char *json_filename, struct log_handle *logger)
+int write_config_to_redis(redisContext *c, char *json_filename,
+						  struct log_handle *logger)
 {
     char tmp_iris_path[128] = {0};
     char *json_buff = NULL;
     size_t json_buff_sz = 0;
 
-    snprintf(tmp_iris_path, sizeof(tmp_iris_path), "%s_iris_tmp", json_filename);
+    snprintf(tmp_iris_path, sizeof(tmp_iris_path),
+			  "%s_iris_tmp", json_filename);
 
-    int ret = load_file_to_memory(json_filename, (unsigned char **)&json_buff, &json_buff_sz);
+    int ret = load_file_to_memory(json_filename,
+								 (unsigned char **)&json_buff,
+								 &json_buff_sz);
     if (ret < 0) {
         return -1;
     }
 
-    ret = json2iris(json_buff, json_filename, c, tmp_iris_path, sizeof(tmp_iris_path), NULL, NULL, logger);
+    ret = json2iris(json_buff, json_filename, c, tmp_iris_path,
+				    sizeof(tmp_iris_path), NULL, NULL, logger);
     FREE(json_buff);
     if (ret < 0) {
         return -1;
     }
 
     size_t total_line_cnt = 0;
-    config_monitor_traverse(0, tmp_iris_path, NULL, count_line_num_cb, NULL, &total_line_cnt, NULL, logger);
+    config_monitor_traverse(0, tmp_iris_path, NULL, count_line_num_cb, NULL,
+							&total_line_cnt, NULL, logger);
 
     struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
     s_rule->ref_ctx = c;
@@ -269,13 +276,15 @@ int write_config_to_redis(redisContext *c, char *json_filename, struct log_handl
     }
 
     s_rule->timeout = server_time + 300;
-    config_monitor_traverse(0, tmp_iris_path, NULL, make_serial_rule, NULL, s_rule, NULL, logger);
+    config_monitor_traverse(0, tmp_iris_path, NULL, make_serial_rule, NULL,
+							s_rule, NULL, logger);
     s_rule->ref_ctx = NULL;
     line_idx = 0;
 
     int success_cnt = 0;
     do {
-        success_cnt = maat_cmd_write_rule(c, s_rule, total_line_cnt, server_time, logger);
+        success_cnt = maat_cmd_write_rule(c, s_rule, total_line_cnt,
+										  server_time, logger);
     } while (success_cnt < 0);
 
     assert(success_cnt == (int)total_line_cnt);
@@ -291,10 +300,12 @@ int write_config_to_redis(redisContext *c, char *json_filename, struct log_handl
 
 int rollback_redis_version(redisContext *c, struct log_handle *logger)
 {
-    redisReply *reply = maat_wrap_redis_command(c, "SET MAAT_VERSION 0");
+    redisReply *reply =
+		maat_wrap_redis_command(c, logger, "SET MAAT_VERSION 0");
     if (NULL == reply) {
         log_fatal(logger, MODULE_REDIS_TOOL, 
-                  "[%s:%d] set MAAT_VERSION failed, Redis Communication error: %s", 
+                  "[%s:%d] set MAAT_VERSION failed, "
+				  "Redis Communication error: %s", 
                   __FUNCTION__, __LINE__, c->errstr);
         return -1;
     }
@@ -307,9 +318,10 @@ int rollback_redis_version(redisContext *c, struct log_handle *logger)
 int clear_config_in_redis(redisContext *c, struct log_handle *logger)
 {
     long long redis_version = 0;
-    redisReply *reply = maat_wrap_redis_command(c, "GET MAAT_VERSION");
+    redisReply *reply = maat_wrap_redis_command(c, logger, "GET MAAT_VERSION");
     if (reply != NULL) {
-		if (reply->type == REDIS_REPLY_NIL || reply->type == REDIS_REPLY_ERROR) {
+		if (reply->type == REDIS_REPLY_NIL ||
+			reply->type == REDIS_REPLY_ERROR) {
 			log_fatal(logger, MODULE_REDIS_TOOL, 
                       "[%s:%d] GET MAAT_VERSION failed, maybe Redis is busy",
                       __FUNCTION__, __LINE__);
@@ -339,7 +351,7 @@ int clear_config_in_redis(redisContext *c, struct log_handle *logger)
 	freeReplyObject(reply);
 	reply = NULL;
 
-    reply = maat_wrap_redis_command(c, "MULTI");
+    reply = maat_wrap_redis_command(c, logger, "MULTI");
 	freeReplyObject(reply);
 	reply = NULL;
 	

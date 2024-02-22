@@ -44,7 +44,8 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 	}
 
     const char *redis_rule_key = "TEST_RULE_KEY";
-    redisReply *reply = maat_wrap_redis_command(ctx, "INCRBY %s %d", redis_rule_key, 1);
+    redisReply *reply = maat_wrap_redis_command(ctx, NULL, "INCRBY %s %d",
+                                                redis_rule_key, 1);
 	if (reply->type == REDIS_REPLY_NIL) {
 		printf("incrby redis_rule_key:%s failed.", redis_rule_key);
         return -1;
@@ -77,7 +78,7 @@ int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
         return -1;
     }
 
-    redisReply *reply = maat_wrap_redis_command(c, "flushdb");
+    redisReply *reply = maat_wrap_redis_command(c, logger, "flushdb");
     if (NULL == reply) {
         return -1;
     } else {
@@ -11168,9 +11169,10 @@ struct log_handle *MaatRollbackTest::logger;
 static int clear_config_in_redis(redisContext *c, struct log_handle *logger)
 {
     long long redis_version = 0;
-    redisReply *reply = maat_wrap_redis_command(c, "GET MAAT_VERSION");
+    redisReply *reply = maat_wrap_redis_command(c, logger, "GET MAAT_VERSION");
     if (reply != NULL) {
-		if (reply->type == REDIS_REPLY_NIL || reply->type == REDIS_REPLY_ERROR) {
+		if (reply->type == REDIS_REPLY_NIL ||
+            reply->type == REDIS_REPLY_ERROR) {
 			log_fatal(logger, MODULE_FRAMEWORK_GTEST, 
                       "[%s:%d] GET MAAT_VERSION failed, maybe Redis is busy",
                       __FUNCTION__, __LINE__);
@@ -11200,7 +11202,7 @@ static int clear_config_in_redis(redisContext *c, struct log_handle *logger)
 	freeReplyObject(reply);
 	reply = NULL;
 
-    reply = maat_wrap_redis_command(c, "MULTI");
+    reply = maat_wrap_redis_command(c, logger, "MULTI");
 	freeReplyObject(reply);
 	reply = NULL;
 	
@@ -11237,12 +11239,15 @@ static int clear_config_in_redis(redisContext *c, struct log_handle *logger)
     return 0;
 }
 
-static int rollback_redis_version(redisContext *c, struct log_handle *logger)
+static int
+rollback_redis_version(redisContext *c, struct log_handle *logger)
 {
-    redisReply *reply = maat_wrap_redis_command(c, "SET MAAT_VERSION 0");
+    redisReply *reply =
+        maat_wrap_redis_command(c, logger, "SET MAAT_VERSION 0");
     if (NULL == reply) {
         log_fatal(logger, MODULE_FRAMEWORK_GTEST, 
-                  "[%s:%d] set MAAT_VERSION failed, Redis Communication error: %s", 
+                  "[%s:%d] set MAAT_VERSION failed, "
+                  "Redis Communication error: %s", 
                   __FUNCTION__, __LINE__, c->errstr);
         return -1;
     }

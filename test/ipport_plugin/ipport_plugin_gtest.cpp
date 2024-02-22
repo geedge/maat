@@ -53,7 +53,8 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 	}
 
     const char *redis_rule_key = "TEST_RULE_KEY";
-    redisReply *reply = maat_wrap_redis_command(ctx, "INCRBY %s %d", redis_rule_key, 1);
+    redisReply *reply =
+        maat_wrap_redis_command(ctx, NULL, "INCRBY %s %d", redis_rule_key, 1);
 	if (reply->type == REDIS_REPLY_NIL) {
 		printf("incrby redis_rule_key:%s failed.", redis_rule_key);
         return -1;
@@ -63,8 +64,8 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 		reply = NULL;
 	}
 
-	maat_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, s_rule->rule_id, table_name, 
-                         buff, absolute_expire_time);
+	maat_set_serial_rule(s_rule + line_idx, MAAT_OP_ADD, s_rule->rule_id,
+                         table_name, buff, absolute_expire_time);
     (s_rule + line_idx)->ref_ctx = ctx;
 	line_idx++;
 
@@ -76,12 +77,13 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
                           struct log_handle *logger)
 {
-    redisContext *c = maat_connect_redis(redis_ip, redis_port, redis_db, logger);
+    redisContext *c =
+        maat_connect_redis(redis_ip, redis_port, redis_db, logger);
     if (NULL == c) {
         return -1;
     }
 
-    redisReply *reply = maat_wrap_redis_command(c, "flushdb");
+    redisReply *reply = maat_wrap_redis_command(c, logger, "flushdb");
     if (NULL == reply) {
         return -1;
     } else {
@@ -89,7 +91,7 @@ int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
 	    reply = NULL;
     }
 
-    reply = maat_wrap_redis_command(c, "SET MAAT_VERSION 1");
+    reply = maat_wrap_redis_command(c, logger, "SET MAAT_VERSION 1");
     if (NULL == reply) {
         return -1;
     } else {
@@ -97,7 +99,7 @@ int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
 	    reply = NULL;
     }
 
-    reply = maat_wrap_redis_command(c, "SET MAAT_PRE_VER 1");
+    reply = maat_wrap_redis_command(c, logger, "SET MAAT_PRE_VER 1");
     if (NULL == reply) {
         return -1;
     } else {
@@ -105,7 +107,7 @@ int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
 	    reply = NULL;
     }
 
-    reply = maat_wrap_redis_command(c, "SET SEQUENCE_REGION 1");
+    reply = maat_wrap_redis_command(c, logger, "SET SEQUENCE_REGION 1");
     if (NULL == reply) {
         return -1;
     } else {
@@ -113,7 +115,7 @@ int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
 	    reply = NULL;
     }
 
-    reply = maat_wrap_redis_command(c, "SET SEQUENCE_GROUP 1");
+    reply = maat_wrap_redis_command(c, logger, "SET SEQUENCE_GROUP 1");
     if (NULL == reply) {
         return -1;
     } else {
@@ -143,7 +145,8 @@ int write_config_to_redis(char *redis_ip, int redis_port, int redis_db,
 
     int success_cnt = 0;
     do {
-        success_cnt = maat_cmd_write_rule(c, s_rule, total_line_cnt, server_time, logger);
+        success_cnt = maat_cmd_write_rule(c, s_rule, total_line_cnt,
+                                          server_time, logger);
     } while (success_cnt < 0);
 
     EXPECT_EQ(success_cnt, (int)total_line_cnt);
@@ -162,8 +165,9 @@ struct ipport_plugin_ud {
 	char *buffer;
     size_t buf_len;
 };
-void ipport_plugin_ex_new_cb(const char *table_name, int table_id, const char *key, 
-                         const char *table_line, void **ad, long argl, void *argp)
+void ipport_plugin_ex_new_cb(const char *table_name, int table_id,
+                             const char *key, const char *table_line,
+                             void **ad, long argl, void *argp)
 {
 	int *counter = (int *)argp;
 	size_t column_offset=0, column_len=0;
@@ -198,7 +202,8 @@ void ipport_plugin_ex_free_cb(int table_id, void **ad, long argl, void *argp)
 	*ad = NULL;
 }
 
-void ipport_plugin_ex_dup_cb(int table_id, void **to, void **from, long argl, void *argp)
+void ipport_plugin_ex_dup_cb(int table_id, void **to, void **from,
+                             long argl, void *argp)
 {
 	struct ipport_plugin_ud *ud = (struct ipport_plugin_ud *)(*from);
 	
@@ -234,8 +239,9 @@ void *ipport_plugin_scan_thread(void *arg)
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < param->test_count; i++) {
-        ret = maat_ipport_plugin_table_get_ex_data(maat_inst, table_id, &ipv4, port,
-                                             (void **)results, ARRAY_SIZE);
+        ret = maat_ipport_plugin_table_get_ex_data(maat_inst, table_id, &ipv4,
+                                                   port, (void **)results,
+                                                   ARRAY_SIZE);
         EXPECT_EQ(ret, 1);
         if (ret == 1) {
             hit_times++;
@@ -243,7 +249,8 @@ void *ipport_plugin_scan_thread(void *arg)
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
 
-    param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+    param->time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
+                            (end.tv_nsec - start.tv_nsec) / 1000000;
     int *is_all_hit = ALLOC(int, 1);
     *is_all_hit = (hit_times == param->test_count ? 1 : 0);
     log_info(param->logger, MODULE_IPPORT_PLUGIN_GTEST, 
@@ -252,15 +259,18 @@ void *ipport_plugin_scan_thread(void *arg)
     return is_all_hit;
 }
 
-static int test_add_ipport_plugin_command(struct maat *maat_inst, const char *table_name,
-                                           long long item_id, const char *ip_str, int port1, int port2)
+static int
+test_add_ipport_plugin_command(struct maat *maat_inst, const char *table_name,
+                               long long item_id, const char *ip_str, int port1,
+                               int port2)
 {
     int table_id = maat_get_table_id(maat_inst, table_name);
     if (table_id < 0) {
         return -1;
     }
 
-    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
+    enum table_type table_type =
+        table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     if (table_type != TABLE_TYPE_IPPORT_PLUGIN) {
         return -1;
     }
@@ -279,15 +289,18 @@ static int test_add_ipport_plugin_command(struct maat *maat_inst, const char *ta
     return 0;
 }
 
-static int test_del_ipport_plugin_command(struct maat *maat_inst, const char *table_name,
-                                           long long item_id, const char *ip_str, int port1, int port2)
+static int
+test_del_ipport_plugin_command(struct maat *maat_inst, const char *table_name,
+                               long long item_id, const char *ip_str, int port1,
+                               int port2)
 {
     int table_id = maat_get_table_id(maat_inst, table_name);
     if (table_id < 0) {
         return -1;
     }
 
-    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
+    enum table_type table_type =
+        table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     if (table_type != TABLE_TYPE_IPPORT_PLUGIN) {
         return -1;
     }
@@ -316,7 +329,8 @@ void *ipport_plugin_update_thread(void *arg)
     int ret = 0;
 
     for (int i = 0; i < CMD_EXPR_NUM; i++) {
-        ret = test_add_ipport_plugin_command(maat_inst, table_name, item_id, g_ip_str, i+201, i+201);
+        ret = test_add_ipport_plugin_command(maat_inst, table_name, item_id,
+                                             g_ip_str, i+201, i+201);
         if (ret < 0) {
             log_fatal(param->logger, MODULE_IPPORT_PLUGIN_GTEST,
                      "[%s:%d]add ipport rule(item_id:%lld) for table:%s failed.",
@@ -329,7 +343,8 @@ void *ipport_plugin_update_thread(void *arg)
 
     item_id = 9000000; 
     for (int i = 0; i < CMD_EXPR_NUM; i++) {
-        ret = test_del_ipport_plugin_command(maat_inst, table_name, item_id, g_ip_str, i+201, i+201);
+        ret = test_del_ipport_plugin_command(maat_inst, table_name, item_id,
+                                             g_ip_str, i+201, i+201);
         if (ret < 0) {
             log_fatal(param->logger, MODULE_IPPORT_PLUGIN_GTEST,
                      "[%s:%d]del ipport rule(item_id:%lld) for table:%s failed.",
@@ -393,7 +408,8 @@ TEST_F(IPPortPluginTable, WITHOUT_SAME_IP) {
     }
 
     pthread_create(&threads[0], NULL, ipport_plugin_scan_thread, thread_params);
-    pthread_create(&threads[1], NULL, ipport_plugin_update_thread, thread_params + 1);
+    pthread_create(&threads[1], NULL, ipport_plugin_update_thread,
+                    thread_params + 1);
 
     int *is_all_hit = NULL;
     long long time_elapse_ms = 0;
@@ -410,8 +426,8 @@ TEST_F(IPPortPluginTable, WITHOUT_SAME_IP) {
     maat_free(maat_inst);
     scan_per_second = PERF_scan_times * 1000 / time_elapse_ms;
     log_info(maat_inst->logger, MODULE_IPPORT_PLUGIN_GTEST,
-             "IpportPluginScan without same ip match rate speed %lld lookups/s/thread",
-             scan_per_second);
+             "IpportPluginScan without same ip match rate speed"
+             " %lld lookups/s/thread", scan_per_second);
 }
 
 TEST_F(IPPortPluginTable, WITH_256SAME_IP) {
@@ -461,7 +477,8 @@ TEST_F(IPPortPluginTable, WITH_256SAME_IP) {
     }
 
     pthread_create(&threads[0], NULL, ipport_plugin_scan_thread, thread_params);
-    pthread_create(&threads[1], NULL, ipport_plugin_update_thread, thread_params + 1);
+    pthread_create(&threads[1], NULL, ipport_plugin_update_thread,
+                    thread_params + 1);
 
     int *is_all_hit = NULL;
     long long time_elapse_ms = 0;
@@ -478,8 +495,8 @@ TEST_F(IPPortPluginTable, WITH_256SAME_IP) {
 
     scan_per_second = PERF_scan_times * 1000 / time_elapse_ms;
     log_info(maat_inst->logger, MODULE_IPPORT_PLUGIN_GTEST,
-             "IpportPluginScan with 256 same ip match rate speed %lld lookups/s/thread",
-             scan_per_second);
+             "IpportPluginScan with 256 same ip match rate speed"
+             " %lld lookups/s/thread", scan_per_second);
 }
 
 int main(int argc, char ** argv)

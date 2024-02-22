@@ -402,9 +402,10 @@ get_inc_key_list(long long instance_version, long long target_version,
 		return 0;
 	}
 
-	redisReply *tmp_reply= maat_wrap_redis_command(c, "ZSCORE %s %s", 
-                                                   mr_status_sset, 
-                                                   reply->element[0]->str);
+	redisReply *tmp_reply =
+		maat_wrap_redis_command(c, logger, "ZSCORE %s %s", 
+                                mr_status_sset, 
+                                reply->element[0]->str);
 	if (tmp_reply->type != REDIS_REPLY_STRING) {
 		log_fatal(logger, MODULE_REDIS_MONITOR, 
                   "[%s:%d] ZSCORE %s %s failed Version: %lld->%lld", 
@@ -419,12 +420,15 @@ get_inc_key_list(long long instance_version, long long target_version,
 	}
 
 	long long nearest_rule_version = maat_read_redis_integer(tmp_reply);
-	freeReplyObject(tmp_reply);
-	tmp_reply = NULL;
 
 	if (nearest_rule_version < 0) {
+		log_fatal(logger, MODULE_REDIS_MONITOR,
+				  "[%s:%d]get nearest_rule_version failed, reply->type:%d",
+				  __FUNCTION__, __LINE__, tmp_reply->type);
+		freeReplyObject(tmp_reply);
 		return -1;
 	}
+	freeReplyObject(tmp_reply);
 
 	if (nearest_rule_version != instance_version + 1) {
 		log_info(logger, MODULE_REDIS_MONITOR, 
@@ -601,7 +605,7 @@ FULL_UPDATE:
 		reply = NULL;
 	}
 
-	reply = maat_wrap_redis_command(c, "EXEC");
+	reply = maat_wrap_redis_command(c, logger, "EXEC");
 	if (NULL == reply) {
 		log_fatal(logger, MODULE_REDIS_MONITOR, 
                   "[%s:%d] Redis Communication error: %s", 
@@ -844,8 +848,9 @@ void maat_rewrite_table_line_with_foreign(struct serial_rule *s_rule)
 	s_rule->table_line = rewrite_line;
 }
 
-static void expected_reply_add(struct expected_reply* expected, int s_rule_seq, 
-                        	   int type, long long integer)
+static void
+expected_reply_add(struct expected_reply* expected, int s_rule_seq, 
+                   int type, long long integer)
 {
 	int i = expected->possible_reply_num;
 	assert(i < REDIS_REPLY_SIZE);
@@ -855,13 +860,15 @@ static void expected_reply_add(struct expected_reply* expected, int s_rule_seq,
 	expected->possible_reply_num++;
 }
 
-static int redlock_try_lock(redisContext *c, const char *lock_name,
-							long long expire)
+static int
+redlock_try_lock(redisContext *c, const char *lock_name,
+				 long long expire)
 {
 	int ret = 0;
     
 	redisReply *reply =
-		maat_wrap_redis_command(c, "SET %s locked NX PX %lld", lock_name, expire);
+		maat_wrap_redis_command(c, NULL, "SET %s locked NX PX %lld",
+								lock_name, expire);
 	if (reply->type == REDIS_REPLY_NIL) {
 		ret = 0;
 	} else {
@@ -891,7 +898,7 @@ exec_serial_rule_begin(redisContext* c, size_t rule_num,
 	}
 
 	if (rule_num > renew_rule_num) {
-		data_reply = maat_wrap_redis_command(c, "INCRBY MAAT_PRE_VER 1");
+		data_reply = maat_wrap_redis_command(c, NULL, "INCRBY MAAT_PRE_VER 1");
 		*transaction_version = maat_read_redis_integer(data_reply);
 		freeReplyObject(data_reply);
 		data_reply = NULL; 
@@ -901,7 +908,7 @@ exec_serial_rule_begin(redisContext* c, size_t rule_num,
 	}
 
 	if (*renew_allowed == 1 || rule_num > renew_rule_num) {
-		data_reply = maat_wrap_redis_command(c, "MULTI");
+		data_reply = maat_wrap_redis_command(c, NULL, "MULTI");
 		freeReplyObject(data_reply);
 		data_reply = NULL;
 		ret = 0;
@@ -912,7 +919,7 @@ exec_serial_rule_begin(redisContext* c, size_t rule_num,
 
 static void redlock_unlock(redisContext *c, const char *lock_name)
 {
-	redisReply *reply = maat_wrap_redis_command(c, "DEL %s", lock_name);
+	redisReply *reply = maat_wrap_redis_command(c, NULL, "DEL %s", lock_name);
 	freeReplyObject(reply);
 	reply = NULL;
 }
@@ -941,7 +948,7 @@ exec_serial_rule_end(redisContext *c, const char *transaction_list,
 
 	if (strlen(transaction_list) > 0) {
 		data_reply =
-			maat_wrap_redis_command(c, "eval %s 4 MAAT_VERSION %s %s %s %lld",
+			maat_wrap_redis_command(c, NULL, "eval %s 4 MAAT_VERSION %s %s %s %lld",
 									lua_exec_done, mr_status_sset, mr_version_sset,
 									transaction_list, server_time);
 		freeReplyObject(data_reply);
@@ -950,7 +957,7 @@ exec_serial_rule_end(redisContext *c, const char *transaction_list,
 		(*cnt)++;
 	}
 
-	data_reply = maat_wrap_redis_command(c, "EXEC");
+	data_reply = maat_wrap_redis_command(c, NULL, "EXEC");
 
 	return data_reply;
 }
@@ -1225,7 +1232,7 @@ cleanup_update_status(redisContext *c, struct log_handle *logger)
 		return;
 	}
 
-	redisReply *reply = maat_wrap_redis_command(c, "MULTI");
+	redisReply *reply = maat_wrap_redis_command(c, logger, "MULTI");
 	freeReplyObject(reply);
 	reply = NULL;
 
@@ -1246,7 +1253,7 @@ cleanup_update_status(redisContext *c, struct log_handle *logger)
 	}
 
     redisReply *sub_reply = NULL;
-	reply = maat_wrap_redis_command(c, "EXEC");
+	reply = maat_wrap_redis_command(c, logger, "EXEC");
 	if (reply->type != REDIS_REPLY_ARRAY) {
 		goto error_out;
 	}
@@ -1269,7 +1276,7 @@ cleanup_update_status(redisContext *c, struct log_handle *logger)
 	reply = NULL;
 
 	//To deal with maat_version reset to 0, do NOT use -inf as lower bound intentionally.
-	reply = maat_wrap_redis_command(c, "ZREMRANGEBYSCORE %s %lld %lld", 
+	reply = maat_wrap_redis_command(c, logger, "ZREMRANGEBYSCORE %s %lld %lld", 
                                     mr_status_sset, version_lower_bound, 
                                     version_upper_bound);
 	entry_num = maat_read_redis_integer(reply);
@@ -1298,7 +1305,7 @@ check_maat_expiration(redisContext *c, struct log_handle *logger)
 	}
 
 	redisReply *data_reply =
-		maat_wrap_redis_command(c, "ZRANGEBYSCORE %s -inf %lld", 
+		maat_wrap_redis_command(c, logger, "ZRANGEBYSCORE %s -inf %lld", 
                                 mr_expire_sset, server_time);
 	if (data_reply->type != REDIS_REPLY_ARRAY ||
 		0 == data_reply->elements) {

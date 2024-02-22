@@ -87,15 +87,18 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 	return 0;
 }
 
-static int write_config_to_redis(const char *json_iris_path, char *redis_ip,
-                                 int redis_port, int redis_db, struct log_handle *logger)
+static int
+write_config_to_redis(const char *json_iris_path,
+                      char *redis_ip, int redis_port,
+                      int redis_db, struct log_handle *logger)
 {
-    redisContext *c = maat_connect_redis(redis_ip, redis_port, redis_db, logger);
+    redisContext *c =
+        maat_connect_redis(redis_ip, redis_port, redis_db, logger);
     if (NULL == c) {
         return -1;
     }
 
-    redisReply *reply = maat_wrap_redis_command(c, "flushdb");
+    redisReply *reply = maat_wrap_redis_command(c, logger, "flushdb");
     if (NULL == reply) {
         return -1;
     } else {
@@ -108,7 +111,8 @@ static int write_config_to_redis(const char *json_iris_path, char *redis_ip,
         char *json_buff = NULL;
         size_t json_buff_sz = 0;
         
-        int ret = load_file_to_memory(json_filename, (unsigned char **)&json_buff,
+        int ret = load_file_to_memory(json_filename,
+                                      (unsigned char **)&json_buff,
                                       &json_buff_sz);
         if (ret < 0) {
             return -1;
@@ -127,8 +131,9 @@ static int write_config_to_redis(const char *json_iris_path, char *redis_ip,
     snprintf(tmp_iris_full_idx_path, sizeof(tmp_iris_full_idx_path),
              "%s/index", json_iris_path);
 
-    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, count_line_num_cb,
-                            NULL, &total_line_cnt, NULL, logger);
+    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL,
+                            count_line_num_cb, NULL, &total_line_cnt,
+                            NULL, logger);
 
     struct serial_rule *s_rule = ALLOC(struct serial_rule, total_line_cnt);
     long long server_time = maat_redis_server_time_s(c);
@@ -137,14 +142,16 @@ static int write_config_to_redis(const char *json_iris_path, char *redis_ip,
     }
 
     //absolute_expire_time = server_time + 300;
-    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL, make_serial_rule,
-                            NULL, s_rule, NULL, logger);
+    config_monitor_traverse(0, tmp_iris_full_idx_path, NULL,
+                            make_serial_rule, NULL, s_rule,
+                            NULL, logger);
     line_idx = 0;
     absolute_expire_time = 0;
 
     int success_cnt = 0;
     do {
-        success_cnt = maat_cmd_write_rule(c, s_rule, total_line_cnt, server_time, logger);
+        success_cnt = maat_cmd_write_rule(c, s_rule, total_line_cnt,
+                                          server_time, logger);
     } while (success_cnt < 0);
 
     EXPECT_EQ(success_cnt, (int)total_line_cnt);
@@ -158,10 +165,11 @@ static int write_config_to_redis(const char *json_iris_path, char *redis_ip,
     return 0;
 }
 
-static int compile_table_set_line(struct maat *maat_inst, const char *table_name,
-                                  enum maat_operation op, long long compile_id,
-                                  const char *user_region, int clause_num,
-                                  int expire_after)
+static int
+compile_table_set_line(struct maat *maat_inst, const char *table_name,
+                       enum maat_operation op, long long compile_id,
+                       const char *user_region, int clause_num,
+                       int expire_after)
 {
     char table_line[1024 * 16] = {0};
     sprintf(table_line, "%lld\t0\t0\t0\t0\t0\t%s\t%d\t%d\t0.0", 
@@ -176,11 +184,12 @@ static int compile_table_set_line(struct maat *maat_inst, const char *table_name
     return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-static int group2compile_table_set_line(struct maat *maat_inst, const char *table_name,
-                                        enum maat_operation op, long long group_id,
-                                        long long compile_id, int not_flag,
-                                        const char *vtable_name, int clause_index,
-                                        int expire_after)
+static int
+group2compile_table_set_line(struct maat *maat_inst, const char *table_name,
+                             enum maat_operation op, long long group_id,
+                             long long compile_id, int not_flag,
+                             const char *vtable_name, int clause_index,
+                             int expire_after)
 {
     char table_line[128] = {0};
     sprintf(table_line, "%lld\t%lld\t%d\t%s\t%d\t%d", 
@@ -195,11 +204,12 @@ static int group2compile_table_set_line(struct maat *maat_inst, const char *tabl
     return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-static int expr_table_set_line(struct maat *maat_inst, const char *table_name,
-                               enum maat_operation op, long long item_id,
-                               long long group_id, const char *keywords,
-                               const char *district, int expr_type,
-                               int match_method, int is_hexbin, int expire_after)
+static int
+expr_table_set_line(struct maat *maat_inst, const char *table_name,
+                    enum maat_operation op, long long item_id,
+                    long long group_id, const char *keywords,
+                    const char *district, int expr_type,
+                    int match_method, int is_hexbin, int expire_after)
 {
     char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -207,7 +217,8 @@ static int expr_table_set_line(struct maat *maat_inst, const char *table_name,
         return 0;
     }
     
-    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
+    enum table_type table_type =
+        table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     assert(table_type == TABLE_TYPE_EXPR || table_type == TABLE_TYPE_EXPR_PLUS);
 
     if (table_type == TABLE_TYPE_EXPR_PLUS) {
@@ -229,10 +240,11 @@ static int expr_table_set_line(struct maat *maat_inst, const char *table_name,
     return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-static int ip_table_set_line(struct maat *maat_inst, const char *table_name,
-                             enum maat_operation op, long long item_id,
-                             long long group_id, enum IP_TYPE type, const char *ip1, 
-                             const char *ip2, int expire_after)
+static int
+ip_table_set_line(struct maat *maat_inst, const char *table_name,
+                  enum maat_operation op, long long item_id,
+                  long long group_id, enum IP_TYPE type,
+                  const char *ip1, const char *ip2, int expire_after)
 {
     char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -259,8 +271,9 @@ static int ip_table_set_line(struct maat *maat_inst, const char *table_name,
 
 static int
 integer_table_set_line(struct maat *maat_inst, const char *table_name,
-    enum maat_operation op, long long item_id, long long group_id,
-    int low_boundary, int up_boundary, int expire_after)
+                       enum maat_operation op, long long item_id,
+                       long long group_id, int low_boundary,
+                       int up_boundary, int expire_after)
 {
     char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -280,10 +293,11 @@ integer_table_set_line(struct maat *maat_inst, const char *table_name,
     return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-static int flag_table_set_line(struct maat *maat_inst, const char *table_name,
-                                  enum maat_operation op, long long item_id,
-                                  long long group_id, long long flag,
-                                  long long flag_mask, int expire_after)
+static int
+flag_table_set_line(struct maat *maat_inst, const char *table_name,
+                    enum maat_operation op, long long item_id,
+                    long long group_id, long long flag,
+                    long long flag_mask, int expire_after)
 {
     char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -303,12 +317,14 @@ static int flag_table_set_line(struct maat *maat_inst, const char *table_name,
     return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-static void test_add_expr_command(struct maat *maat_inst, const char *table_name, 
-                                  const char *keywords)
+static void
+test_add_expr_command(struct maat *maat_inst, const char *table_name, 
+                      const char *keywords)
 {
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD,
-                                     compile_id, "null", 1, 0);
+    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT",
+                                     MAAT_OP_ADD, compile_id, "null",
+                                     1, 0);
     EXPECT_EQ(ret, 1);
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
@@ -323,12 +339,14 @@ static void test_add_expr_command(struct maat *maat_inst, const char *table_name
     EXPECT_EQ(ret, 1);
 }
 
-static void test_add_ip_command(struct maat *maat_inst, const char *table_name, 
-                                const char *ip)
+static void
+test_add_ip_command(struct maat *maat_inst, const char *table_name, 
+                    const char *ip)
 {
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD,
-                                     compile_id, "null", 1, 0);
+    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT",
+                                     MAAT_OP_ADD, compile_id, "null",
+                                     1, 0);
     EXPECT_EQ(ret, 1);
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
@@ -343,12 +361,14 @@ static void test_add_ip_command(struct maat *maat_inst, const char *table_name,
     EXPECT_EQ(ret, 1);
 }
 
-static void test_add_integer_command(struct maat *maat_inst, const char *table_name, 
-                                     int low_boundary, int up_boundary)
+static void
+test_add_integer_command(struct maat *maat_inst, const char *table_name, 
+                         int low_boundary, int up_boundary)
 {
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD,
-                                    compile_id, "null", 1, 0);
+    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT",
+                                     MAAT_OP_ADD, compile_id, "null",
+                                     1, 0);
     EXPECT_EQ(ret, 1);
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
@@ -363,12 +383,14 @@ static void test_add_integer_command(struct maat *maat_inst, const char *table_n
     EXPECT_EQ(ret, 1);
 }
 
-static void test_add_flag_command(struct maat *maat_inst, const char *table_name, 
-                                  long long flag, long long flag_mask)
+static void
+test_add_flag_command(struct maat *maat_inst, const char *table_name, 
+                      long long flag, long long flag_mask)
 {
     long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
-    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT", MAAT_OP_ADD,
-                                     compile_id, "null", 1, 0);
+    int ret = compile_table_set_line(maat_inst, "COMPILE_DEFAULT",
+                                     MAAT_OP_ADD, compile_id, "null",
+                                     1, 0);
     EXPECT_EQ(ret, 1);
 
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
@@ -387,26 +409,31 @@ class MaatPerfStringScan : public testing::Test
 {
 protected:
     static void SetUpTestCase() {
-        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
-                                  "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+        const char *accept_tags =
+            "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
+            "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
         char json_iris_path[512] = {0};
 
-        snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
+        snprintf(json_iris_path, sizeof(json_iris_path),
+                 "./%s_iris_tmp", json_filename);
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port,
+                                        redis_db, logger);
         if (ret < 0) {
             log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
+                      "[%s:%d] write config to redis failed.",
+                      __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_perf_on(opts);
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log",
+                                LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
         maat_options_set_caller_thread_number(opts, 5);
 
@@ -448,8 +475,9 @@ void *perf_string_scan_thread(void *arg)
     struct timespec start, end;
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < param->test_times; i++) {
-        int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
-                                   results, ARRAY_SIZE, &n_hit_result, state);
+        int ret = maat_scan_string(maat_inst, table_id, scan_data,
+                                   strlen(scan_data), results, ARRAY_SIZE,
+                                   &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
             hit_times++;
         }
@@ -508,10 +536,12 @@ TEST_F(MaatPerfStringScan, LiteralMultiThread) {
         thread_params[i].logger = logger;
 
         if (i < PERF_THREAD_NUM) {
-            pthread_create(&threads[i], NULL, perf_string_scan_thread, thread_params+i);
+            pthread_create(&threads[i], NULL, perf_string_scan_thread,
+                           thread_params+i);
         } else {
             thread_params[i].test_times = 0;
-            pthread_create(&threads[i], NULL, perf_string_update_thread, thread_params+i);
+            pthread_create(&threads[i], NULL, perf_string_update_thread,
+                           thread_params+i);
         }
     }
 
@@ -537,26 +567,31 @@ class MaatPerfRegexScan : public testing::Test
 {
 protected:
     static void SetUpTestCase() {
-        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
-                                  "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+        const char *accept_tags =
+            "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
+            "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
         char json_iris_path[512] = {0};
 
-        snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
+        snprintf(json_iris_path, sizeof(json_iris_path),
+                 "./%s_iris_tmp", json_filename);
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port,
+                                        redis_db, logger);
         if (ret < 0) {
             log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
+                      "[%s:%d] write config to redis failed.",
+                      __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_perf_on(opts);
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log",
+                                LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
         maat_options_set_caller_thread_number(opts, 5);
 
@@ -587,7 +622,8 @@ void *perf_regex_scan_thread(void *arg)
     struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
     struct timespec start, end;
-    const char *scan_data = "http://www.cyberessays.com/search_results.php?action=search&query=username,abckkk,1234567";
+    const char *scan_data =
+        "http://www.cyberessays.com/search_results.php?action=search&query=username,abckkk,1234567";
     long long results[ARRAY_SIZE] = {0};
     int hit_times = 0;
     size_t n_hit_result = 0;
@@ -598,8 +634,9 @@ void *perf_regex_scan_thread(void *arg)
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < param->test_times; i++) {
-        int ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
-                                   results, ARRAY_SIZE, &n_hit_result, state);
+        int ret = maat_scan_string(maat_inst, table_id, scan_data,
+                                   strlen(scan_data), results, ARRAY_SIZE,
+                                   &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
             hit_times++;
         }
@@ -658,10 +695,12 @@ TEST_F(MaatPerfRegexScan, RegexMultiThread) {
         thread_params[i].logger = logger;
 
         if (i < PERF_THREAD_NUM) {
-            pthread_create(&threads[i], NULL, perf_regex_scan_thread, thread_params+i);
+            pthread_create(&threads[i], NULL, perf_regex_scan_thread,
+                           thread_params+i);
         } else {
             thread_params[i].test_times = 0;
-            pthread_create(&threads[i], NULL, perf_regex_update_thread, thread_params+i);
+            pthread_create(&threads[i], NULL, perf_regex_update_thread,
+                           thread_params+i);
         }
     }
 
@@ -741,26 +780,31 @@ class MaatPerfStreamScan : public testing::Test
 {
 protected:
     static void SetUpTestCase() {
-        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
-                                  "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+        const char *accept_tags =
+            "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
+            "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
         char json_iris_path[512] = {0};
 
-        snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
+        snprintf(json_iris_path, sizeof(json_iris_path),
+                  "./%s_iris_tmp", json_filename);
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port,
+                                        redis_db, logger);
         if (ret < 0) {
             log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
+                      "[%s:%d] write config to redis failed.",
+                      __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_perf_on(opts);
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log",
+                                LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
         maat_options_set_caller_thread_number(opts, 5);
 
@@ -791,7 +835,8 @@ void *perf_stream_scan_thread(void *arg)
     struct maat *maat_inst = param->maat_inst;
     const char *table_name = param->table_name;
     struct timespec start, end;
-    const char *scan_data = "http://www.cyberessays.com/search_results.php?action=search&query=username,abckkk,1234567";
+    const char *scan_data =
+        "http://www.cyberessays.com/search_results.php?action=search&query=username,abckkk,1234567";
     long long results[ARRAY_SIZE] = {0};
     int ret = 0, hit_times = 0;
     size_t n_hit_result = 0;
@@ -803,8 +848,8 @@ void *perf_stream_scan_thread(void *arg)
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < param->test_times; i++) {
-        ret = maat_stream_scan(sp, scan_data, strlen(scan_data), results, ARRAY_SIZE,
-                                &n_hit_result, state);
+        ret = maat_stream_scan(sp, scan_data, strlen(scan_data), results,
+                               ARRAY_SIZE, &n_hit_result, state);
         if (ret == MAAT_SCAN_HIT) {
             hit_times++;
         }
@@ -846,7 +891,8 @@ TEST_F(MaatPerfStreamScan, MultiThread) {
         thread_params[i].logger = logger;
 
         if (i < PERF_THREAD_NUM) {
-            pthread_create(&threads[i], NULL, perf_stream_scan_thread, thread_params+i);
+            pthread_create(&threads[i], NULL, perf_stream_scan_thread,
+                           thread_params+i);
         } 
     }
 
@@ -872,26 +918,31 @@ class MaatPerfIPScan : public testing::Test
 {
 protected:
     static void SetUpTestCase() {
-        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
-                                  "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+        const char *accept_tags =
+            "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
+            "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
         char json_iris_path[512] = {0};
 
-        snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
+        snprintf(json_iris_path, sizeof(json_iris_path),
+                 "./%s_iris_tmp", json_filename);
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port,
+                                        redis_db, logger);
         if (ret < 0) {
             log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
+                      "[%s:%d] write config to redis failed.",
+                      __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_perf_on(opts);
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log",
+                                LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
         maat_options_set_caller_thread_number(opts, 5);
 
@@ -1007,10 +1058,12 @@ TEST_F(MaatPerfIPScan, MultiThread)
         thread_params[i].logger = logger;
 
         if (i < PERF_THREAD_NUM) {
-            pthread_create(&threads[i], NULL, perf_ip_scan_thread, thread_params+i);
+            pthread_create(&threads[i], NULL, perf_ip_scan_thread,
+                           thread_params+i);
         } else {
             thread_params[i].test_times = 0;
-            pthread_create(&threads[i], NULL, perf_ip_update_thread, thread_params+i);
+            pthread_create(&threads[i], NULL, perf_ip_update_thread,
+                           thread_params+i);
         }
     }
 
@@ -1037,26 +1090,31 @@ class MaatPerfIntegerScan : public testing::Test
 {
 protected:
     static void SetUpTestCase() {
-        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
-                                  "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+        const char *accept_tags =
+            "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
+            "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
         char json_iris_path[512] = {0};
 
-        snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
+        snprintf(json_iris_path, sizeof(json_iris_path),
+                 "./%s_iris_tmp", json_filename);
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port,
+                                        redis_db, logger);
         if (ret < 0) {
             log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
+                      "[%s:%d] write config to redis failed.",
+                      __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_perf_on(opts);
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log",
+                                LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
         maat_options_set_caller_thread_number(opts, 5);
 
@@ -1102,10 +1160,12 @@ TEST_F(MaatPerfIntegerScan, MultiThread) {
         thread_params[i].logger = logger;
 
         if (i < PERF_THREAD_NUM) {
-            pthread_create(&threads[i], NULL, perf_integer_scan_thread, thread_params+i);
+            pthread_create(&threads[i], NULL, perf_integer_scan_thread,
+                            thread_params+i);
         } else {
             thread_params[i].test_times = 0;
-            pthread_create(&threads[i], NULL, perf_integer_update_thread, thread_params+i);
+            pthread_create(&threads[i], NULL, perf_integer_update_thread,
+                            thread_params+i);
         }
     }
 
@@ -1132,26 +1192,31 @@ class MaatPerfFlagScan : public testing::Test
 {
 protected:
     static void SetUpTestCase() {
-        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
-                                  "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+        const char *accept_tags =
+            "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
+            "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
         char json_iris_path[512] = {0};
 
-        snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
+        snprintf(json_iris_path, sizeof(json_iris_path),
+                 "./%s_iris_tmp", json_filename);
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port,
+                                        redis_db, logger);
         if (ret < 0) {
             log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
+                      "[%s:%d] write config to redis failed.",
+                      __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_perf_on(opts);
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log",
+                                LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
         maat_options_set_caller_thread_number(opts, 5);
 
@@ -1250,10 +1315,12 @@ TEST_F(MaatPerfFlagScan, MultiThread) {
         thread_params[i].logger = logger;
 
         if (i < PERF_THREAD_NUM) {
-            pthread_create(&threads[i], NULL, perf_flag_scan_thread, thread_params+i);
+            pthread_create(&threads[i], NULL, perf_flag_scan_thread,
+                            thread_params+i);
         } else {
             thread_params[i].test_times = 0;
-            pthread_create(&threads[i], NULL, perf_flag_update_thread, thread_params+i);
+            pthread_create(&threads[i], NULL, perf_flag_update_thread,
+                            thread_params+i);
         }
     }
 
@@ -1280,26 +1347,31 @@ class MaatPerfFQDNPluginScan : public testing::Test
 {
 protected:
     static void SetUpTestCase() {
-        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
-                                  "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+        const char *accept_tags =
+            "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
+            "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
         char json_iris_path[512] = {0};
 
-        snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
+        snprintf(json_iris_path, sizeof(json_iris_path),
+                 "./%s_iris_tmp", json_filename);
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port,
+                                        redis_db, logger);
         if (ret < 0) {
             log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
+                      "[%s:%d] write config to redis failed.",
+                      __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_perf_on(opts);
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log",
+                                LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
         maat_options_set_caller_thread_number(opts, 5);
 
@@ -1329,8 +1401,9 @@ struct perf_fqdn_plugin_ud {
 	int catid;
 };
 
-void perf_fqdn_plugin_EX_new_cb(const char *table_name, int table_id, const char *key, 
-                                const char *table_line, void **ad, long argl, void *argp)
+void perf_fqdn_plugin_EX_new_cb(const char *table_name, int table_id,
+                                const char *key, const char *table_line,
+                                void **ad, long argl, void *argp)
 {
 	int *counter=(int *)argp;
 	size_t column_offset=0, column_len=0;
@@ -1357,7 +1430,8 @@ void perf_fqdn_plugin_EX_free_cb(int table_id, void **ad, long argl, void *argp)
 	*ad = NULL;
 }
 
-void perf_fqdn_plugin_EX_dup_cb(int table_id, void **to, void **from, long argl, void *argp)
+void perf_fqdn_plugin_EX_dup_cb(int table_id, void **to, void **from,
+                                long argl, void *argp)
 {
 	struct perf_fqdn_plugin_ud *u = (struct perf_fqdn_plugin_ud *)(*from);
 
@@ -1436,7 +1510,8 @@ void *perf_fqdn_plugin_update_thread(void *arg)
 		line_rule.rule_id = (int)maat_cmd_incrby(maat_inst, "TEST_PLUG_SEQ", 1);
 		line_rule.table_name = param->table_name;
 		random_fqdn_generate(fqdn_buff, sizeof(fqdn_buff));
-		snprintf(line_buff, 1024, "%lld\t1\t%s\tcatid=4\t1", line_rule.rule_id, fqdn_buff);
+		snprintf(line_buff, 1024, "%lld\t1\t%s\tcatid=4\t1",
+                 line_rule.rule_id, fqdn_buff);
 		line_rule.table_line = line_buff;
 		line_rule.expire_after = 0;
 		maat_cmd_set_line(maat_inst, &line_rule);
@@ -1478,10 +1553,12 @@ TEST_F(MaatPerfFQDNPluginScan, MultiThread) {
         thread_params[i].logger = logger;
 
         if (i < PERF_THREAD_NUM) {
-            pthread_create(&threads[i], NULL, perf_fqdn_plugin_scan_thread, thread_params + i);
+            pthread_create(&threads[i], NULL, perf_fqdn_plugin_scan_thread,
+                            thread_params + i);
         } else {
             thread_params[i].test_times = 0;
-            pthread_create(&threads[i], NULL, perf_fqdn_plugin_update_thread, thread_params + i);
+            pthread_create(&threads[i], NULL, perf_fqdn_plugin_update_thread,
+                            thread_params + i);
         }
     }
 
@@ -1508,26 +1585,31 @@ class MaatPerfBoolPluginScan : public testing::Test
 {
 protected:
     static void SetUpTestCase() {
-        const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
-                                  "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+        const char *accept_tags =
+            "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
+            "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
         char json_iris_path[512] = {0};
 
-        snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
+        snprintf(json_iris_path, sizeof(json_iris_path),
+                 "./%s_iris_tmp", json_filename);
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port,
+                                        redis_db, logger);
         if (ret < 0) {
             log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
+                      "[%s:%d] write config to redis failed.",
+                      __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_perf_on(opts);
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log",
+                                LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
         maat_options_set_caller_thread_number(opts, 5);
 
@@ -1557,8 +1639,9 @@ struct bool_plugin_ud {
 	char *name;
 };
 
-void perf_bool_plugin_ex_new_cb(const char *table_name, int table_id, const char *key, 
-                           const char *table_line, void **ad, long argl, void *argp)
+void perf_bool_plugin_ex_new_cb(const char *table_name, int table_id,
+                                const char *key, const char *table_line,
+                                void **ad, long argl, void *argp)
 {
 	int *counter=(int *)argp;
 	size_t column_offset=0, column_len=0;
@@ -1587,7 +1670,8 @@ void perf_bool_plugin_ex_free_cb(int table_id, void **ad, long argl, void *argp)
 	*ad = NULL;
 }
 
-void perf_bool_plugin_ex_dup_cb(int table_id, void **to, void **from, long argl, void *argp)
+void perf_bool_plugin_ex_dup_cb(int table_id, void **to, void **from,
+                                long argl, void *argp)
 {
 	struct bool_plugin_ud *u = (struct bool_plugin_ud *)(*from);
 
@@ -1686,10 +1770,12 @@ TEST_F(MaatPerfBoolPluginScan, MultiThread) {
         thread_params[i].logger = logger;
 
         if (i < PERF_THREAD_NUM) {
-            pthread_create(&threads[i], NULL, perf_bool_plugin_scan_thread, thread_params + i);
+            pthread_create(&threads[i], NULL, perf_bool_plugin_scan_thread,
+                            thread_params + i);
         } else {
             thread_params[i].test_times = 0;
-            pthread_create(&threads[i], NULL, perf_bool_plugin_update_thread, thread_params + i);
+            pthread_create(&threads[i], NULL, perf_bool_plugin_update_thread,
+                            thread_params + i);
         }
     }
 
@@ -1724,7 +1810,8 @@ protected:
         maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_perf_on(opts);
         maat_options_set_iris(opts, rule_folder, rule_folder);
-        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log",
+                                LOG_LEVEL_INFO);
         maat_options_set_caller_thread_number(opts, 5);
 
         _shared_maat_inst = maat_new(opts, table_info);
@@ -1752,8 +1839,9 @@ struct perf_ip_plugin_ud {
 	long long rule_id;
 };
 
-void perf_ip_plugin_EX_new_cb(const char *table_name, int table_id, const char *key, 
-                              const char *table_line, void **ad, long argl, void *argp)
+void perf_ip_plugin_EX_new_cb(const char *table_name, int table_id,
+                              const char *key, const char *table_line,
+                              void **ad, long argl, void *argp)
 {
 	int *counter=(int *)argp, ret=0;
 	size_t column_offset=0, column_len=0;
@@ -1778,7 +1866,8 @@ void perf_ip_plugin_EX_free_cb(int table_id, void **ad, long argl, void *argp)
 	*ad = NULL;
 }
 
-void perf_ip_plugin_EX_dup_cb(int table_id, void **to, void **from, long argl, void *argp)
+void perf_ip_plugin_EX_dup_cb(int table_id, void **to, void **from,
+                              long argl, void *argp)
 {
 	struct perf_ip_plugin_ud *u = (struct perf_ip_plugin_ud*)(*from);
 
@@ -1803,7 +1892,8 @@ static void *ip_plugin_get_thread(void *arg)
     clock_gettime(CLOCK_MONOTONIC, &start);
     struct perf_ip_plugin_ud *results[ARRAY_SIZE];
 	for (i = 0; i < test_times; i++) {
-		ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv4, (void**)results, 4);
+		ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv4,
+                                               (void**)results, 4);
 		if (ret > 0) {
 			hit_times++;
 		}
@@ -1864,17 +1954,20 @@ protected:
 
         snprintf(json_iris_path, sizeof(json_iris_path), "./tsgrule");
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port,
+                                        redis_db, logger);
         if (ret < 0) {
             log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
+                      "[%s:%d] write config to redis failed.",
+                      __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_perf_on(opts);
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log",
+                                LOG_LEVEL_INFO);
 
         _shared_maat_inst = maat_new(opts, tsg_table_info);
         maat_options_free(opts);
@@ -1927,26 +2020,31 @@ class MaatPerfIPPortPluginScan : public testing::Test
 {
 protected:
     static void SetUpTestCase() {
-         const char *accept_tags = "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
-                                  "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
+         const char *accept_tags =
+            "{\"tags\":[{\"tag\":\"location\",\"value\":\"北京/朝阳/华严北里/甲22号\"},"
+            "{\"tag\":\"isp\",\"value\":\"移动\"},{\"tag\":\"location\",\"value\":\"Astana\"}]}";
         char redis_ip[64] = "127.0.0.1";
         int redis_port = 6379;
         int redis_db = 0;
         char json_iris_path[512] = {0};
 
-        snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
+        snprintf(json_iris_path, sizeof(json_iris_path),
+                 "./%s_iris_tmp", json_filename);
         logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port, redis_db, logger);
+        int ret = write_config_to_redis(json_iris_path, redis_ip, redis_port,
+                                        redis_db, logger);
         if (ret < 0) {
             log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] write config to redis failed.", __FUNCTION__, __LINE__);
+                      "[%s:%d] write config to redis failed.",
+                      __FUNCTION__, __LINE__);
         }
 
         struct maat_options *opts = maat_options_new();
         maat_options_set_stat_file(opts, "./stat.log");
         maat_options_set_perf_on(opts);
         maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log", LOG_LEVEL_INFO);
+        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log",
+                                LOG_LEVEL_INFO);
         maat_options_set_accept_tags(opts, accept_tags);
         maat_options_set_caller_thread_number(opts, 5);
 
@@ -2057,10 +2155,12 @@ TEST_F(MaatPerfIPPortPluginScan, MultiThread) {
         thread_params[i].logger = logger;
 
         if (i < PERF_THREAD_NUM) {
-            pthread_create(&threads[i], NULL, perf_ipport_plugin_scan_thread, thread_params+i);
+            pthread_create(&threads[i], NULL, perf_ipport_plugin_scan_thread,
+                            thread_params+i);
         } else {
             thread_params[i].test_times = 0;
-            pthread_create(&threads[i], NULL, perf_ipport_plugin_update_thread, thread_params+i);
+            pthread_create(&threads[i], NULL, perf_ipport_plugin_update_thread,
+                            thread_params+i);
         }
 	}
 

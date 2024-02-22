@@ -19,6 +19,7 @@ extern "C"
 #include <stdint.h>
 #include <sys/queue.h>
 
+#include "log/log.h"
 #include "hiredis/hiredis.h"
 #include "maat_command.h"
 #include "uthash/uthash.h"
@@ -51,9 +52,10 @@ void maat_set_serial_rule(struct serial_rule *rule, enum maat_operation op,
                           const char *line, long long timeout);
 
 redisContext *maat_connect_redis(const char *redis_ip, int redis_port,
-                                     int redis_db, struct log_handle *logger);
+                                 int redis_db, struct log_handle *logger);
 
-redisReply *maat_wrap_redis_command(redisContext *c, const char *format, ...);
+redisReply *maat_wrap_redis_command(redisContext *c, struct log_handle *logger,
+                                    const char *format, ...);
 
 int maat_wrap_redis_get_reply(redisContext *c, redisReply **reply);
 
@@ -68,10 +70,10 @@ int maat_cmd_write_rule(redisContext *c, struct serial_rule *s_rule,
                         struct log_handle *logger);
 
 int maat_get_redis_value(redisContext *c, struct serial_rule *rule_list, 
-                             int rule_num, int print_process, struct log_handle *logger);
+                         int rule_num, int print_process, struct log_handle *logger);
 
 int maat_get_foreign_keys_by_prefix(redisContext *ctx, struct serial_rule *rule_list, 
-                                    int rule_num, const char* dir, struct log_handle *logger);
+                                    int rule_num, const char *dir, struct log_handle *logger);
 
 void maat_get_foreign_conts(redisContext *c, struct serial_rule *rule_list, 
                             int rule_num, int print_fn, struct log_handle *logger);
