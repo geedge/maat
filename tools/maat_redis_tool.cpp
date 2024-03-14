@@ -27,11 +27,13 @@ void maat_tool_print_usage(void)
 	printf("\t-p [port], redis port, 6379 as default.\n");
 	printf("\t-n [db], redis db, 0 as default.\n");
 	printf("\t-d [dir], dump rules from redis to [dir], %s as default.\n", redis_dump_dir);
+	printf("\t-k yes, try to execute the 'keys EFFECTIVE_RULE:*' transaction, and give a specific reason if an error occurs\n");
     printf("\t-u [json_file], flush redis and upload all rules to redis, confirm the risk before proceeding\n");
 	printf("\t-v [version], dump specific [version] from redis, dump latest version as default.\n");
 	printf("\t-j [payload.json], add or delete rules as maat json. Must have field compile_table field, and plugin table's valid flag must be in the last column.\n");
 	printf("\t-t [timeout], timeout config after t seconds, default is 0 which means never timeout.\n");	
 	printf("example: ./maat_redis_tool -h 127.0.0.1 -p 6379 -d %s\n",redis_dump_dir);
+	printf("    ./maat_redis_tool -h 127.0.0.1 -p 6379 -k yes\n");
 	printf("	./maat_redis_tool -h 127.0.0.1 -p 6379 -j payload.json -t 300\n");
 }
 
@@ -388,9 +390,66 @@ int clear_config_in_redis(redisContext *c, struct log_handle *logger)
     return 0;
 }
 
+int exec_keys_transaction(redisContext *c, struct log_handle *logger)
+{
+	printf("Ready to execute [keys EFFECTIVE_RULE:*] transaction...\n");
+
+    size_t append_cmd_cnt = 0;
+    int ret = redisAppendCommand(c, "MULTI");
+	if (ret < 0) {
+		printf("redisAppendCommand(MULTI) failed.\n");
+		return -1;
+	}
+    append_cmd_cnt++;
+	
+    ret = redisAppendCommand(c, "GET MAAT_VERSION");
+	if (ret < 0) {
+		printf("redisAppendCommand(GET MAAT_VERSION) failed.\n");
+		return -1;
+	}
+    append_cmd_cnt++;
+
+    ret = redisAppendCommand(c, "KEYS EFFECTIVE_RULE:*");
+	if (ret < 0) {
+		printf("redisAppendCommand(KEYS EFFECTIVE_RULE:*) failed.\n");
+		return -1;
+	}
+    append_cmd_cnt++;
+
+    size_t i = 0;
+	redisReply *reply = NULL;
+
+    //consume reply "OK" and "QUEUED".
+    for (i = 0; i < append_cmd_cnt; i++) {
+        maat_wrap_redis_get_reply(c, &reply);
+        freeReplyObject(reply);
+        reply = NULL;
+    }
+
+    reply = maat_wrap_redis_command(c, logger, "EXEC");
+    if (NULL == reply) {
+        printf("[%s:%d] execute exec failed.: %s, "
+			   "check the log file to find the cause of the error.\n",
+               __FUNCTION__, __LINE__, c->errstr);
+        return -1;
+    }
+
+    if (reply->type != REDIS_REPLY_ARRAY) {
+        printf("[%s:%d] Invalid Redis Key List type %d\n",
+                __FUNCTION__, __LINE__, reply->type);
+        freeReplyObject(reply);
+        reply = NULL;
+        return -1;
+    }
+
+    printf("success!!!\n");
+    return 0;
+}
+
 #define	WORK_MODE_DUMP	0
 #define WORK_MODE_JSON	1
 #define WORK_MODE_UPLOAD 2
+#define WORK_MODE_TEST_TRANS 3
 
 int main(int argc, char * argv[])
 {
@@ -409,7 +468,7 @@ int main(int argc, char * argv[])
 	strncpy(dump_dir, redis_dump_dir, sizeof(dump_dir));
 	struct log_handle *logger = log_handle_create(log_path, 0);
 
-	while ((oc = getopt(argc,argv,"h:p:n:d:f:j:t:u:")) != -1) {
+	while ((oc = getopt(argc,argv,"h:p:n:d:f:j:t:u:k:")) != -1) {
 		switch (oc) {
 			case 'h':
 				strncpy(redis_ip, optarg, sizeof(redis_ip));
@@ -431,6 +490,9 @@ int main(int argc, char * argv[])
 				strncpy(json_file, optarg, sizeof(json_file));
 				mode = WORK_MODE_JSON;
 				break;
+			case 'k':
+				mode = WORK_MODE_TEST_TRANS;
+				break;
 			case 't':
 				sscanf(optarg,"%d", &timeout);
 				break;
@@ -451,6 +513,7 @@ int main(int argc, char * argv[])
 		return -1;
 	}
 
+	int ret = 0;
     char tmp_iris_path[128] = {0};
 	if (mode == WORK_MODE_DUMP) {
 		log_info(logger, MODULE_REDIS_TOOL, "Reading key list from %s:%d db%d.", 
@@ -459,7 +522,7 @@ int main(int argc, char * argv[])
 	} else if(mode == WORK_MODE_JSON) {
         char *json_buff = NULL;
         size_t json_buff_sz = 0;
-		int ret = load_file_to_memory(json_file, (unsigned char**)&json_buff, &json_buff_sz);
+		ret = load_file_to_memory(json_file, (unsigned char**)&json_buff, &json_buff_sz);
 		if (ret < 0) {
 			log_fatal(logger, MODULE_REDIS_TOOL, "open file:%s failed.", json_file);
             return -1;
@@ -509,7 +572,7 @@ int main(int argc, char * argv[])
 		FREE(s_rule);	
 		redisFree(c);
 	} else if (mode == WORK_MODE_UPLOAD) {
-        int ret = clear_config_in_redis(c, logger);
+        ret = clear_config_in_redis(c, logger);
         if (ret < 0) {
             log_fatal(logger, MODULE_REDIS_TOOL, "clear config in redis failed.");
             return -1;
@@ -527,7 +590,14 @@ int main(int argc, char * argv[])
             return -1;
         }
         redisFree(c);
-    }
+    } else if (mode == WORK_MODE_TEST_TRANS) {
+		ret = exec_keys_transaction(c, logger);
+		if (ret < 0) {
+			printf("[ERROR]: execute 'KEYS EFFECTIVE_RULE:*' failed.");
+			return -1;
+		}
+		redisFree(c);
+	}
 
 	return 0;
 }
