@@ -1402,6 +1402,28 @@ long long table_manager_runtime_scan_times(struct table_manager *tbl_mgr, int ta
     return table_ops[table_type].scan_times(runtime);
 }
 
+long long table_manager_runtime_hit_times(struct table_manager *tbl_mgr, int table_id)
+{
+    void *runtime = table_manager_get_runtime(tbl_mgr, table_id);
+    if (NULL == runtime) {
+        return 0;
+    }
+
+    enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
+    if (table_type == TABLE_TYPE_INVALID) {
+        log_fatal(tbl_mgr->logger, MODULE_TABLE, 
+                  "[%s:%d] table(table_id:%d) table_type is invalid, can't get scan count",
+                  __FUNCTION__, __LINE__, table_id);
+        return 0;
+    }
+
+    if (NULL == table_ops[table_type].hit_times) {
+        return 0;
+    }
+
+    return table_ops[table_type].hit_times(runtime);
+}
+
 long long table_manager_runtime_scan_cpu_time(struct table_manager *tbl_mgr, int table_id)
 {
     void *runtime = table_manager_get_runtime(tbl_mgr, table_id);

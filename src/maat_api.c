@@ -378,7 +378,7 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     system_cmd_mkdir(maat_inst->opts.foreign_cont_dir);
 
     if (0 == strlen(maat_inst->opts.stat_file)) {
-        snprintf(maat_inst->opts.stat_file, sizeof(maat_inst->opts.stat_file), "maat.fs3");
+        snprintf(maat_inst->opts.stat_file, sizeof(maat_inst->opts.stat_file), "maat_stat.fs");
     }
 
     snprintf(maat_inst->opts.decrypt_algo, sizeof(maat_inst->opts.decrypt_algo), "aes-256-cbc");

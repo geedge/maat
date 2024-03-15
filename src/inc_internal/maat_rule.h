@@ -25,7 +25,7 @@ extern "C"
 #include <openssl/md5.h>
 
 #include "log/log.h"
-#include "fieldstat.h"
+#include "fieldstat/fieldstat_easy.h"
 #include "maat_command.h"
 #include "maat_limits.h"
 #include "maat.h"
@@ -140,17 +140,17 @@ struct maat_options {
 
 struct maat_stat {
     char stat_file[PATH_MAX];
-    struct fieldstat_instance *fs_handle;
-    int total_stat_id[MAX_MAAT_STAT_NUM];
-    int fs_status_id[MAX_MAAT_STAT_NUM];
-	int fs_column_id[MAX_TABLE_NUM][MAX_MAAT_STAT_NUM];
+    struct fieldstat_easy *fs_handle;
+    int g_metric_id[MAX_MAAT_STAT_NUM];
+	int fs_column_id[MAX_MAAT_STAT_NUM];
+    char tag_value[MAX_TABLE_NUM][MAX_NAME_STR_LEN];
+    char sum_tag[MAX_NAME_STR_LEN];
     struct log_handle *logger;
     struct table_manager *ref_tbl_mgr;
     struct maat_garbage_bin *ref_garbage_bin;
     size_t nr_worker_thread;
     int cmd_q_cnt;
     
-
     long long *thread_call_cnt;
     long long *stream_cnt;
     long long *hit_compile_cnt;

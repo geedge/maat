@@ -39,6 +39,8 @@ TEST(json_mode, maat_scan_string) {
     char json_path[PATH_MAX] = {0};
     snprintf(json_path, sizeof(json_path), "./%s", json_filename);
     maat_options_set_json_file(opts, json_path);
+    maat_options_set_stat_on(opts);
+    maat_options_set_perf_on(opts);
     maat_options_set_logger(opts, "./maat_input_mode_gtest.log", LOG_LEVEL_INFO);
 
     struct maat *maat_inst = maat_new(opts, table_info_path);
@@ -93,6 +95,8 @@ TEST(iris_mode, maat_scan_string) {
              "%s/index", json_iris_path);
 
     struct maat_options *opts = maat_options_new();
+    maat_options_set_stat_on(opts);
+    maat_options_set_perf_on(opts);
     maat_options_set_iris(opts, tmp_iris_full_idx_path, tmp_iris_inc_idx_path);
     maat_options_set_logger(opts, "./maat_input_mode_gtest.log", LOG_LEVEL_INFO);
      
@@ -225,6 +229,8 @@ TEST(redis_mode, maat_scan_string) {
     redisFree(c);
 
     struct maat_options *opts = maat_options_new();
+    maat_options_set_stat_on(opts);
+    maat_options_set_perf_on(opts);
     maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
     maat_options_set_logger(opts, "./maat_input_mode_gtest.log",
                             LOG_LEVEL_INFO);

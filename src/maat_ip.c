@@ -582,7 +582,6 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
         ipv6_ntoh(scan_data.ipv6);
     }
 
-    int ret = 0;
     size_t real_hit_item_cnt = 0;
     struct maat_item hit_maat_items[MAX_HIT_ITEM_NUM];
 

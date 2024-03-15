@@ -23,10 +23,11 @@ struct maat_stat *maat_stat_new(const char *stat_file, size_t max_thread_num,
 
 void maat_stat_free(struct maat_stat *stat);
 
-int maat_stat_init(struct maat_stat *stat, struct table_manager *tbl_mgr, 
-                    struct maat_garbage_bin *garbage_bin);
+int maat_stat_init(struct maat_stat *stat, struct table_manager *tbl_mgr,
+                   struct maat_garbage_bin *garbage_bin);
 
-void maat_stat_output(struct maat_stat *stat, long long maat_version, int perf_on);
+void maat_stat_output(struct maat_stat *stat, struct table_manager *tbl_mgr,
+                      long long maat_version, int perf_on);
 
 #ifdef __cplusplus
 }

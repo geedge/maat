@@ -545,8 +545,8 @@ void *rule_monitor_loop(void *arg)
         maat_plugin_table_garbage_collect_routine(maat_inst->tbl_mgr);
 
         if ((1 == maat_inst->opts.stat_on) && (time(NULL) % 2 == 0)) {
-            maat_stat_output(maat_inst->stat, maat_inst->maat_version,
-                             maat_inst->opts.perf_on);
+            maat_stat_output(maat_inst->stat, maat_inst->tbl_mgr,
+                             maat_inst->maat_version, maat_inst->opts.perf_on);
         }
     }
 
