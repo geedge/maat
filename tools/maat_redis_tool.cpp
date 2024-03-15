@@ -27,13 +27,13 @@ void maat_tool_print_usage(void)
 	printf("\t-p [port], redis port, 6379 as default.\n");
 	printf("\t-n [db], redis db, 0 as default.\n");
 	printf("\t-d [dir], dump rules from redis to [dir], %s as default.\n", redis_dump_dir);
-	printf("\t-k yes, try to execute the 'keys EFFECTIVE_RULE:*' transaction, and give a specific reason if an error occurs\n");
+	printf("\t-k, try to execute the 'keys EFFECTIVE_RULE:*' transaction, and give a specific reason if an error occurs\n");
     printf("\t-u [json_file], flush redis and upload all rules to redis, confirm the risk before proceeding\n");
 	printf("\t-v [version], dump specific [version] from redis, dump latest version as default.\n");
 	printf("\t-j [payload.json], add or delete rules as maat json. Must have field compile_table field, and plugin table's valid flag must be in the last column.\n");
 	printf("\t-t [timeout], timeout config after t seconds, default is 0 which means never timeout.\n");	
 	printf("example: ./maat_redis_tool -h 127.0.0.1 -p 6379 -d %s\n",redis_dump_dir);
-	printf("    ./maat_redis_tool -h 127.0.0.1 -p 6379 -k yes\n");
+	printf("    ./maat_redis_tool -h 127.0.0.1 -p 6379 -k\n");
 	printf("	./maat_redis_tool -h 127.0.0.1 -p 6379 -j payload.json -t 300\n");
 }
 
@@ -393,6 +393,8 @@ int clear_config_in_redis(redisContext *c, struct log_handle *logger)
 int exec_keys_transaction(redisContext *c, struct log_handle *logger)
 {
 	printf("Ready to execute [keys EFFECTIVE_RULE:*] transaction...\n");
+	struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
 
     size_t append_cmd_cnt = 0;
     int ret = redisAppendCommand(c, "MULTI");
@@ -442,7 +444,13 @@ int exec_keys_transaction(redisContext *c, struct log_handle *logger)
         return -1;
     }
 
-    printf("success!!!\n");
+	redisReply *sub_reply = reply->element[1];
+	clock_gettime(CLOCK_MONOTONIC, &end);
+	long long time_elapse_s = (end.tv_sec - start.tv_sec) +
+                              (end.tv_nsec - start.tv_nsec) / 1000000000;
+    printf("success!!! consume time:%llds, rule_num:%zu\n",
+		   time_elapse_s, sub_reply->elements);
+
     return 0;
 }
 
@@ -468,7 +476,7 @@ int main(int argc, char * argv[])
 	strncpy(dump_dir, redis_dump_dir, sizeof(dump_dir));
 	struct log_handle *logger = log_handle_create(log_path, 0);
 
-	while ((oc = getopt(argc,argv,"h:p:n:d:f:j:t:u:k:")) != -1) {
+	while ((oc = getopt(argc,argv,"h:p:n:d:f:j:t:u:k")) != -1) {
 		switch (oc) {
 			case 'h':
 				strncpy(redis_ip, optarg, sizeof(redis_ip));

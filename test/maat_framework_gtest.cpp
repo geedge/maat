@@ -8444,20 +8444,20 @@ TEST_F(MaatCmdTest, PluginEXData) {
 }
 
 TEST_F(MaatCmdTest, UpdateIPPlugin) {
-    const char *table_name = "TEST_IP_PLUGIN_WITH_EXDATA";
+    const char *table_name = "TEST_IP_PLUGIN_WITH_ADDR_FORMAT";
 	const int TEST_CMD_LINE_NUM = 4;
 	struct maat *maat_inst = MaatCmdTest::_shared_maat_inst;
     int *ex_data_counter = MaatCmdTest::_ex_data_counter;
 	const char *table_line_add[TEST_CMD_LINE_NUM] = {
-        "101\t4\t192.168.30.99\t192.168.30.101\tSomething-like-json\t1",
-		"102\t4\t192.168.30.90\t192.168.30.128\tBigger-range-should-in-the-back\t1",
-        "103\t6\t2001:db8:1234::\t2001:db8:1235::\tBigger-range-should-in-the-back\t1",
-		"104\t6\t2001:db8:1234::1\t2001:db8:1234::5210\tSomething-like-json\t1"};
+        "101\t4\t192.168.30.98\t31\tSomething-like-json\t1\tCIDR",
+		"102\t4\t192.168.30.90\t192.168.30.128\tBigger-range-should-in-the-back\t1\trange",
+        "103\t6\t2001:db8:1234::\t2001:db8:1235::\tBigger-range-should-in-the-back\t1\trange",
+		"104\t6\t2001:db8:1234::1\t2001:db8:1234::5210\tSomething-like-json\t1\trange"};
     const char *table_line_del[TEST_CMD_LINE_NUM] = {
-        "101\t4\t192.168.30.99\t192.168.30.101\tSomething-like-json\t0",
-		"102\t4\t192.168.30.90\t192.168.30.128\tBigger-range-should-in-the-back\t0",
-        "103\t6\t2001:db8:1234::\t2001:db8:1235::\tBigger-range-should-in-the-back\t0",
-		"104\t6\t2001:db8:1234::1\t2001:db8:1234::5210\tSomething-like-json\t0"};
+        "101\t4\t192.168.30.98\t31\tSomething-like-json\t0\tcidr",
+		"102\t4\t192.168.30.90\t192.168.30.128\tBigger-range-should-in-the-back\t0\trange",
+        "103\t6\t2001:db8:1234::\t2001:db8:1235::\tBigger-range-should-in-the-back\t0\trange",
+		"104\t6\t2001:db8:1234::1\t2001:db8:1234::5210\tSomething-like-json\t0\trange"};
 
     int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
@@ -8492,7 +8492,7 @@ TEST_F(MaatCmdTest, UpdateIPPlugin) {
     struct ip_addr ipv4, ipv6;
     struct ip_plugin_ud *results[ARRAY_SIZE];
     ipv4.ip_type = IPV4;
-    inet_pton(AF_INET, "192.168.30.100", &(ipv4.ipv4));
+    inet_pton(AF_INET, "192.168.30.99", &(ipv4.ipv4));
 
     memset(results, 0, sizeof(results));
     ret = maat_ip_plugin_table_get_ex_data(maat_inst, table_id, &ipv4,
