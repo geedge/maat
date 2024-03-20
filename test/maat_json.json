@@ -3969,6 +3969,34 @@
                     ]
                 }
             ]
+        },
+        {
+            "compile_id": 229,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "StringScan.Regex",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "virtual_table": "HTTP_URL",
+                    "group_name": "229_url_group",
+                    "group_id": 251,
+                    "regions": [
+                        {
+                            "table_name": "HTTP_URL",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "\u00C9",
+                                "expr_type": "regex",
+                                "match_method": "sub",
+                                "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "plugin_table": [

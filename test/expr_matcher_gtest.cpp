@@ -286,7 +286,7 @@ TEST(hs_expr_matcher_match, literal_sub_has_normal_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
 
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS, 1, g_logger);
@@ -342,7 +342,7 @@ TEST(rs_expr_matcher_match, literal_sub_has_normal_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
 
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS, 1, g_logger);
@@ -398,7 +398,7 @@ TEST(hs_expr_matcher_match, literal_sub_has_left_unlimit_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
 
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
@@ -456,7 +456,7 @@ TEST(rs_expr_matcher_match, literal_sub_has_left_unlimit_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
 
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
@@ -514,7 +514,7 @@ TEST(hs_expr_matcher_match, literal_sub_has_right_unlimit_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
 
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
@@ -581,7 +581,7 @@ TEST(rs_expr_matcher_match, literal_sub_has_right_unlimit_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
 
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
@@ -648,7 +648,7 @@ TEST(hs_expr_matcher_match, literal_sub_with_no_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
@@ -706,7 +706,7 @@ TEST(rs_expr_matcher_match, literal_sub_with_no_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
@@ -764,7 +764,7 @@ TEST(hs_expr_matcher_match, literal_exactly)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
@@ -812,7 +812,7 @@ TEST(rs_expr_matcher_match, literal_exactly)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
@@ -861,7 +861,7 @@ TEST(hs_expr_matcher_match, literal_prefix)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
@@ -921,7 +921,7 @@ TEST(rs_expr_matcher_match, literal_prefix)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
@@ -981,7 +981,7 @@ TEST(hs_expr_matcher_match, literal_suffix)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
@@ -1041,7 +1041,7 @@ TEST(rs_expr_matcher_match, literal_suffix)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
@@ -1101,7 +1101,7 @@ TEST(hs_expr_matcher_match, literal_sub_with_hex)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
@@ -1140,7 +1140,7 @@ TEST(rs_expr_matcher_match, literal_sub_with_hex)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
@@ -1179,7 +1179,7 @@ TEST(hs_expr_matcher_match, literal_with_chinese)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
@@ -1208,7 +1208,7 @@ TEST(rs_expr_matcher_match, literal_with_chinese)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
@@ -1237,7 +1237,7 @@ TEST(hs_expr_matcher_match, same_pattern_different_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
@@ -1266,7 +1266,7 @@ TEST(rs_expr_matcher_match, same_pattern_different_offset)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
@@ -1295,7 +1295,7 @@ TEST(hs_expr_matcher_match, long_scan_data)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
@@ -1326,7 +1326,7 @@ TEST(rs_expr_matcher_match, long_scan_data)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
@@ -1374,7 +1374,7 @@ TEST(hs_expr_matcher_stream, basic)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,
@@ -1416,7 +1416,7 @@ TEST(rs_expr_matcher_stream, basic)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS,
@@ -1458,7 +1458,7 @@ TEST(hs_expr_matcher, regex_basic)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     ret = expr_matcher_verify_regex_expression("[0-9]rain", g_logger);
@@ -1489,7 +1489,7 @@ TEST(rs_expr_matcher, regex_basic)
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     ret = expr_matcher_verify_regex_expression("[0-9]rain", g_logger);
@@ -1501,7 +1501,6 @@ TEST(rs_expr_matcher, regex_basic)
     expr_array_free(rules, n_rule);
 
     const char *scan_data1 = "http://www.cyberessays.com/search_results.php?action=search&query=username,abckkk,1234567";
-    //const char *scan_data2 = "8rain";
     
     struct expr_scan_result result[64] = {0};
     size_t n_result = 0;
@@ -1518,12 +1517,66 @@ TEST(rs_expr_matcher, regex_basic)
     matcher = NULL;
 }
 
+TEST(hs_expr_matcher, regex_unicode)
+{
+    struct expr_rule rules[64] = {0};
+    size_t n_rule = 0;
+    
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    EXPECT_EQ(ret, 0);
+
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS, 1, g_logger);
+    EXPECT_TRUE(matcher != NULL);
+    expr_array_free(rules, n_rule);
+
+    const char *scan_data = "string contains É";
+    struct expr_scan_result result[64] = {0};
+    size_t n_result = 0;
+    size_t n_hit_pattern = 0;
+
+    ret = expr_matcher_match(matcher, 0, scan_data, strlen(scan_data), result,
+                             64, &n_result, &n_hit_pattern);
+    EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1); 
+    EXPECT_EQ(result[0].rule_id, 116);
+
+    expr_matcher_free(matcher);
+    matcher = NULL;                  
+}
+
+TEST(rs_expr_matcher, regex_unicode)
+{
+    struct expr_rule rules[64] = {0};
+    size_t n_rule = 0;
+    
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
+    EXPECT_EQ(ret, 0);
+
+    struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_RS, 1, g_logger);
+    EXPECT_TRUE(matcher != NULL);
+    expr_array_free(rules, n_rule);
+
+    const char *scan_data = "string contains É";
+    struct expr_scan_result result[64] = {0};
+    size_t n_result = 0;
+    size_t n_hit_pattern = 0;
+
+    ret = expr_matcher_match(matcher, 0, scan_data, strlen(scan_data), result,
+                             64, &n_result, &n_hit_pattern);
+    EXPECT_EQ(n_result, 1);
+    EXPECT_EQ(n_hit_pattern, 1); 
+    EXPECT_EQ(result[0].rule_id, 116);
+
+    expr_matcher_free(matcher);
+    matcher = NULL;                  
+}
+
 TEST(hs_expr_matcher, hit_pattern_num)
 {
     struct expr_rule rules[64] = {0};
     size_t n_rule = 0;
     
-    int ret = parse_config_file("./literal_expr.conf", rules, &n_rule);
+    int ret = parse_config_file("./expr_matcher.conf", rules, &n_rule);
     EXPECT_EQ(ret, 0);
 
     struct expr_matcher *matcher = expr_matcher_new(rules, n_rule, EXPR_ENGINE_TYPE_HS,

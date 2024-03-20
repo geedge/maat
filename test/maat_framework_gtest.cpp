@@ -869,16 +869,40 @@ TEST_F(MaatHsStringScan, Regex) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
-    const char *cookie = "Cookie: Txa123aheadBCAxd";
+    const char *scan_data = "Cookie: Txa123aheadBCAxd";
     const char *table_name = "HTTP_URL";
     struct maat *maat_inst = MaatHsStringScan::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
     int table_id = maat_get_table_id(maat_inst, table_name);
-    ret = maat_scan_string(maat_inst, table_id, cookie, strlen(cookie),
+    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(results[0], 148);
+
+    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(MaatHsStringScan, RegexUnicode) {
+    int ret = 0;
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    const char *scan_data = "String contains É";
+    const char *table_name = "HTTP_URL";
+    struct maat *maat_inst = MaatHsStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
+                            results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(results[0], 229);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1769,6 +1793,30 @@ TEST_F(MaatRsStringScan, Regex) {
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(n_hit_result, 1);
     EXPECT_EQ(results[0], 148);
+
+    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(MaatRsStringScan, RegexUnicode) {
+    int ret = 0;
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    const char *scan_data = "String contains É";
+    const char *table_name = "HTTP_URL";
+    struct maat *maat_inst = MaatRsStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ret = maat_scan_string(maat_inst, table_id, scan_data, strlen(scan_data),
+                            results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(results[0], 229);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);

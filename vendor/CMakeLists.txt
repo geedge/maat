@@ -22,18 +22,18 @@ set_property(TARGET gtest_static PROPERTY IMPORTED_LOCATION ${VENDOR_BUILD}/lib/
 set_property(TARGET gtest_static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${VENDOR_BUILD}/include)
 set_property(TARGET gtest_static PROPERTY INTERFACE_LINK_LIBRARIES pthread)
 
-# colm-0.13.0.5
+# colm-0.14.7
 ExternalProject_Add(colm PREFIX colm 
-                    URL ${CMAKE_CURRENT_SOURCE_DIR}/colm-0.13.0.5.tar.gz
+                    URL ${CMAKE_CURRENT_SOURCE_DIR}/colm-0.14.7.tar.gz
 	                CONFIGURE_COMMAND ./autogen.sh && ./configure --prefix=${VENDOR_BUILD}
 	                BUILD_COMMAND make	
 	                INSTALL_COMMAND make install
 	                BUILD_IN_SOURCE 1)
 
-# ragel-7.0.0.10
+# ragel-7.0.4
 ExternalProject_Add(ragel PREFIX ragel
-                    URL ${CMAKE_CURRENT_SOURCE_DIR}/ragel-7.0.0.10.tar.gz
-	                CONFIGURE_COMMAND ./autogen.sh && ./configure --prefix=${VENDOR_BUILD} --with-colm=${VENDOR_BUILD}
+                    URL ${CMAKE_CURRENT_SOURCE_DIR}/ragel-7.0.4.tar.gz
+	                CONFIGURE_COMMAND ./autogen.sh && ./configure --prefix=${VENDOR_BUILD} --disable-manual --with-colm=${VENDOR_BUILD}
 	                DEPENDS colm
 	                BUILD_COMMAND make	
 	                INSTALL_COMMAND make install
