@@ -104,7 +104,7 @@
             "group_id": 7,
             "regions": [
                 {
-                    "table_type": "ip_plus",
+                    "table_type":"ip",
                     "table_name": "IP_PLUS_CONFIG",
                     "table_content": {
                         "addr_type": "ipv4",
@@ -151,7 +151,7 @@
             "group_id": 10,
             "regions": [
                 {
-                    "table_type": "ip_plus",
+                    "table_type":"ip",
                     "table_name": "IP_PLUS_CONFIG",
                     "table_content": {
                         "addr_type": "ipv4",
@@ -167,7 +167,7 @@
             "group_id": 11,
             "regions": [
                 {
-                    "table_type": "ip_plus",
+                    "table_type":"ip",
                     "table_name": "IP_PLUS_CONFIG",
                     "table_content": {
                         "addr_type": "ipv4",
@@ -184,7 +184,7 @@
             "regions": [
                 {
                     "table_name": "IP_CONFIG",
-                    "table_type": "ip_plus",
+                    "table_type":"ip",
                     "table_content": {
                         "addr_type": "ipv4",
                         "addr_format": "mask",
@@ -200,7 +200,7 @@
             "regions": [
                 {
                     "table_name": "IP_PLUS_CONFIG",
-                    "table_type": "ip_plus",
+                    "table_type":"ip",
                     "table_content": {
                         "addr_type": "ipv4",
                         "addr_format": "mask",
@@ -216,7 +216,7 @@
             "regions": [
                 {
                     "table_name": "IP_PLUS_CONFIG",
-                    "table_type": "ip_plus",
+                    "table_type":"ip",
                     "table_content": {
                         "addr_type": "ipv4",
                         "addr_format": "mask",
@@ -260,7 +260,7 @@
                     "regions": [
                         {
                             "table_name": "IP_CONFIG",
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_content": {
                                 "addr_type": "ipv4",
                                 "addr_format": "mask",
@@ -270,7 +270,7 @@
                         },
                         {
                             "table_name": "IP_CONFIG",
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_content": {
                                 "addr_type": "ipv6",
                                 "addr_format": "mask",
@@ -1384,7 +1384,7 @@
                     "not_flag": 0,
                     "regions": [
                         {
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
                                 "addr_type": "ipv4",
@@ -1413,7 +1413,7 @@
                     "not_flag": 0,
                     "regions": [
                         {
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
                                 "addr_type": "ipv6",
@@ -1498,7 +1498,7 @@
                     "group_id": 149,
                     "regions": [
                         {
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
                                 "addr_type": "ipv4",
@@ -1526,7 +1526,7 @@
                     "group_id": 150,
                     "regions": [
                         {
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
                                 "addr_type": "ipv6",
@@ -1737,7 +1737,7 @@
                     "not_flag": 0,
                     "regions": [
                         {
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
                                 "addr_type": "ipv4",
@@ -1856,7 +1856,7 @@
                     "not_flag" : 0,
                     "regions": [
                         {
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
                                 "addr_type": "ipv4",
@@ -1885,7 +1885,7 @@
                     "not_flag": 0,
                     "regions": [
                         {
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
                                 "addr_type": "ipv4",
@@ -1914,7 +1914,7 @@
                     "not_flag": 0,
                     "regions": [
                         {
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
                                 "addr_type": "ipv4",
@@ -2103,7 +2103,7 @@
                     "regions": [
                         {
                             "table_name": "IP_CONFIG",
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_content": {
                                 "addr_type": "ipv6",
                                 "addr_format": "mask",
@@ -2190,7 +2190,7 @@
                     "not_flag": 0,
                     "regions": [
                         {
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
                                 "addr_type": "ipv4",
@@ -2237,7 +2237,7 @@
                     "not_flag": 0,
                     "regions": [
                         {
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
                                 "addr_type": "ipv4",
@@ -2284,7 +2284,7 @@
                     "not_flag": 0,
                     "regions": [
                         {
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
                                 "addr_type": "ipv4",
@@ -2740,7 +2740,7 @@
                             "is_exclude": 0,
                             "regions": [
                                 {
-                                    "table_type": "ip_plus",
+                                    "table_type":"ip",
                                     "table_name": "IP_PLUS_CONFIG",
                                     "table_content": {
                                         "addr_type": "ipv4",
@@ -2757,7 +2757,7 @@
                             "is_exclude": 1,
                             "regions": [
                                 {
-                                    "table_type": "ip_plus",
+                                    "table_type":"ip",
                                     "table_name": "IP_PLUS_CONFIG",
                                     "table_content": {
                                         "addr_type": "ipv4",
@@ -2774,7 +2774,7 @@
                             "is_exclude": 1,
                             "regions": [
                                 {
-                                    "table_type": "ip_plus",
+                                    "table_type":"ip",
                                     "table_name": "IP_PLUS_CONFIG",
                                     "table_content": {
                                         "addr_type": "ipv4",
@@ -2806,7 +2806,7 @@
                     "regions": [
                         {
                             "table_name": "IP_PLUS_CONFIG",
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_content": {
                                 "addr_type": "ipv4",
                                 "addr_format": "range",
@@ -2825,7 +2825,7 @@
                     "regions": [
                         {
                             "table_name": "IP_PLUS_CONFIG",
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_content": {
                                 "addr_type": "ipv4",
                                 "addr_format": "range",
@@ -2896,7 +2896,7 @@
                     "regions": [
                         {
                             "table_name": "IP_PLUS_CONFIG",
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_content": {
                                 "addr_type": "ipv4",
                                 "addr_format": "range",
@@ -2915,7 +2915,7 @@
                     "regions": [
                         {
                             "table_name": "IP_PLUS_CONFIG",
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_content": {
                                 "addr_type": "ipv4",
                                 "addr_format": "range",
@@ -3091,7 +3091,7 @@
                     "not_flag": 0,
                     "regions": [
                         {
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
                                 "addr_type": "ipv4",
@@ -3146,7 +3146,7 @@
                     "group_id": 215,
                     "regions": [
                         {
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
                                 "addr_type": "ipv6",
@@ -3175,7 +3175,7 @@
                     "not_flag": 0,
                     "regions": [
                         {
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_name": "IP_PERF_CONFIG",
                             "table_content": {
                                 "addr_type": "ipv4",
@@ -3958,7 +3958,7 @@
                     "regions": [
                         {
                             "table_name": "IP_CONFIG",
-                            "table_type": "ip_plus",
+                            "table_type":"ip",
                             "table_content": {
                                 "addr_type": "ipv4",
                                 "addr_format": "mask",
@@ -3992,6 +3992,93 @@
                                 "expr_type": "regex",
                                 "match_method": "sub",
                                 "format": "uncase plain"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 230,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "ipv6_::",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "virtual_table": "IP_PLUS_CONFIG",
+                    "group_name": "230_IP_group",
+                    "group_id": 256,
+                    "regions": [
+                        {
+                            "table_type":"ip",
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv6",
+                                "addr_format": "CIDR",
+                                "ip1": "2607:5d00:2:2::32:28",
+                                "ip2": "128",
+                                "port":"80-443"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 231,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "should_not_hit",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "virtual_table": "IP_PLUS_CONFIG",
+                    "group_name": "231_IP_group",
+                    "group_id": 257,
+                    "regions": [
+                        {
+                            "table_type":"ip",
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv6",
+                                "addr_format": "CIDR",
+                                "ip1": "2607:5d00:2:2::32:28",
+                                "ip2": "128",
+                                "port":"80"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 232,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "should_not_hit",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "virtual_table": "IP_PLUS_CONFIG",
+                    "group_name": "232_IP_group",
+                    "group_id": 258,
+                    "regions": [
+                        {
+                            "table_type":"ip",
+                            "table_name": "IP_PLUS_CONFIG",
+                            "table_content": {
+                                "addr_type": "ipv4",
+                                "addr_format": "CIDR",
+                                "ip1": "192.168.30.44",
+                                "ip2": "32",
+                                "port": "80"
                             }
                         }
                     ]

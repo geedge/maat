@@ -452,94 +452,82 @@ void *rule_monitor_loop(void *arg)
         }
 
         usleep(maat_inst->opts.rule_update_checking_interval_ms * 1000);
-
-		if (0 == pthread_mutex_trylock(&(maat_inst->background_update_mutex))) {
-			switch (maat_inst->opts.input_mode) {
-                case DATA_SOURCE_REDIS:
-                    redis_monitor_traverse(maat_inst->maat_version,
-                                           &(maat_inst->opts.redis_ctx),
-                                           maat_start_cb, maat_update_cb, maat_finish_cb,
-                                           maat_inst);
-                    break;
-				case DATA_SOURCE_IRIS_FILE:
-					config_monitor_traverse(maat_inst->maat_version, 
-											maat_inst->opts.iris_ctx.inc_idx_dir,
-											maat_start_cb, maat_update_cb, maat_finish_cb,
-											maat_inst, maat_inst->opts.decrypt_key,
-                                            maat_inst->logger);
-					break;
-                case DATA_SOURCE_JSON_FILE:
-                    memset(md5_tmp, 0, sizeof(md5_tmp));
-				    stat(maat_inst->opts.json_ctx.json_file, &attrib);
-					if (memcmp(&attrib.st_ctim, &(maat_inst->opts.json_ctx.last_md5_time),
-                               sizeof(attrib.st_ctim))) {
-						maat_inst->opts.json_ctx.last_md5_time = attrib.st_ctim;
-						md5_file(maat_inst->opts.json_ctx.json_file, md5_tmp);
-						if (0 != strcmp(md5_tmp, maat_inst->opts.json_ctx.effective_json_md5)) {
-							ret = load_maat_json_file(maat_inst, maat_inst->opts.json_ctx.json_file, 
-                                                      err_str, sizeof(err_str));
-							if (ret < 0) {
-								log_fatal(maat_inst->logger, MODULE_MAAT_RULE, 
-                                          "[%s:%d] Maat re-initiate with JSON file %s (md5=%s)failed: %s\n",
-										  __FUNCTION__, __LINE__, maat_inst->opts.json_ctx.json_file, 
-                                          md5_tmp, err_str);
-							} else {
-								config_monitor_traverse(0, maat_inst->opts.json_ctx.iris_file,
-														maat_start_cb, maat_update_cb, maat_finish_cb,
-														maat_inst, maat_inst->opts.decrypt_key,
-                                                        maat_inst->logger);
-								log_info(maat_inst->logger, MODULE_MAAT_RULE, 
-                                         "Maat re-initiate with JSON file %s success, md5: %s\n",
-										 maat_inst->opts.json_ctx.json_file, md5_tmp);
-							}
-						}
-					}
-                    break;
-				default:
-					break;
-			}
-
-			if (maat_inst->creating_maat_rt != NULL) {
-				struct maat_runtime *old_maat_rt = maat_inst->maat_rt;
-				maat_inst->maat_rt = maat_inst->creating_maat_rt;
-
-				if (old_maat_rt != NULL) {
-                    if (maat_inst->maat_rt->version > old_maat_rt->version) {
-                        log_info(maat_inst->logger, MODULE_MAAT_RULE, 
-                                 "Maat version updated %lld -> %lld\n", 
-                                 old_maat_rt->version, maat_inst->maat_rt->version);
-                    } else {
-                        log_info(maat_inst->logger, MODULE_MAAT_RULE, 
-                                 "Maat version roll back %lld -> %lld\n",
-                                 old_maat_rt->version, maat_inst->maat_rt->version);
+        pthread_mutex_lock(&(maat_inst->background_update_mutex));
+        
+        switch (maat_inst->opts.input_mode) {
+            case DATA_SOURCE_REDIS:
+                redis_monitor_traverse(maat_inst->maat_version,
+                                        &(maat_inst->opts.redis_ctx),
+                                        maat_start_cb, maat_update_cb, maat_finish_cb,
+                                        maat_inst);
+                break;
+            case DATA_SOURCE_IRIS_FILE:
+                config_monitor_traverse(maat_inst->maat_version, 
+                                        maat_inst->opts.iris_ctx.inc_idx_dir,
+                                        maat_start_cb, maat_update_cb, maat_finish_cb,
+                                        maat_inst, maat_inst->opts.decrypt_key,
+                                        maat_inst->logger);
+                break;
+            case DATA_SOURCE_JSON_FILE:
+                memset(md5_tmp, 0, sizeof(md5_tmp));
+                stat(maat_inst->opts.json_ctx.json_file, &attrib);
+                if (memcmp(&attrib.st_ctim, &(maat_inst->opts.json_ctx.last_md5_time),
+                            sizeof(attrib.st_ctim))) {
+                    maat_inst->opts.json_ctx.last_md5_time = attrib.st_ctim;
+                    md5_file(maat_inst->opts.json_ctx.json_file, md5_tmp);
+                    if (0 != strcmp(md5_tmp, maat_inst->opts.json_ctx.effective_json_md5)) {
+                        ret = load_maat_json_file(maat_inst, maat_inst->opts.json_ctx.json_file, 
+                                                    err_str, sizeof(err_str));
+                        if (ret < 0) {
+                            log_fatal(maat_inst->logger, MODULE_MAAT_RULE, 
+                                        "[%s:%d] Maat re-initiate with JSON file %s (md5=%s)failed: %s\n",
+                                        __FUNCTION__, __LINE__, maat_inst->opts.json_ctx.json_file, 
+                                        md5_tmp, err_str);
+                        } else {
+                            config_monitor_traverse(0, maat_inst->opts.json_ctx.iris_file,
+                                                    maat_start_cb, maat_update_cb, maat_finish_cb,
+                                                    maat_inst, maat_inst->opts.decrypt_key,
+                                                    maat_inst->logger);
+                            log_info(maat_inst->logger, MODULE_MAAT_RULE, 
+                                        "Maat re-initiate with JSON file %s success, md5: %s\n",
+                                        maat_inst->opts.json_ctx.json_file, md5_tmp);
+                        }
                     }
-
-                    maat_inst->stat->zombie_rs_stream +=
-                        alignment_int64_array_sum(old_maat_rt->ref_cnt, 
-                                                  maat_inst->opts.nr_worker_thread);
-                    maat_garbage_bagging(maat_inst->garbage_bin, old_maat_rt, NULL,
-                                         garbage_maat_runtime_destroy);
-				}
-
-				maat_inst->creating_maat_rt = NULL;
-				maat_inst->maat_version = maat_inst->maat_rt->version;
-				maat_inst->last_full_version = maat_inst->maat_rt->version;
-			}
-
-			if (maat_inst->maat_rt != NULL) {
-                time_t time_window = time(NULL) - maat_inst->maat_rt->last_update_time;
-                
-                if (time_window >= maat_inst->opts.rule_effect_interval_ms / 1000) {
-                    maat_runtime_commit(maat_inst->maat_rt, MAAT_UPDATE_TYPE_INC, 
-                                        maat_inst->maat_rt->version, maat_inst->logger);
-                    log_info(maat_inst->logger, MODULE_MAAT_RULE,
-							 "Actual update config version %u, %d entries load to maat runtime.",
-							 maat_inst->maat_rt->version, maat_inst->maat_rt->rule_num);
                 }
-			}
+                break;
+            default:
+                break;
+        }
 
-			pthread_mutex_unlock(&(maat_inst->background_update_mutex));
-		}
+        if (maat_inst->creating_maat_rt != NULL) {
+            struct maat_runtime *old_maat_rt = maat_inst->maat_rt;
+            maat_inst->maat_rt = maat_inst->creating_maat_rt;
+
+            if (old_maat_rt != NULL) {
+                if (maat_inst->maat_rt->version > old_maat_rt->version) {
+                    log_info(maat_inst->logger, MODULE_MAAT_RULE, 
+                                "Maat version updated %lld -> %lld\n", 
+                                old_maat_rt->version, maat_inst->maat_rt->version);
+                } else {
+                    log_info(maat_inst->logger, MODULE_MAAT_RULE, 
+                                "Maat version roll back %lld -> %lld\n",
+                                old_maat_rt->version, maat_inst->maat_rt->version);
+                }
+
+                maat_inst->stat->zombie_rs_stream +=
+                    alignment_int64_array_sum(old_maat_rt->ref_cnt, 
+                                                maat_inst->opts.nr_worker_thread);
+                maat_garbage_bagging(maat_inst->garbage_bin, old_maat_rt, NULL,
+                                        garbage_maat_runtime_destroy);
+            }
+
+            maat_inst->creating_maat_rt = NULL;
+            maat_inst->maat_version = maat_inst->maat_rt->version;
+            maat_inst->last_full_version = maat_inst->maat_rt->version;
+        }
+
+        pthread_mutex_unlock(&(maat_inst->background_update_mutex));
+		
 
         maat_garbage_collect_routine(maat_inst->garbage_bin);
         maat_plugin_table_garbage_collect_routine(maat_inst->tbl_mgr);

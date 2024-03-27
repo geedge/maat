@@ -10,26 +10,26 @@
 
 #define MODULE_INPUT_MODE_GTEST	 module_name_str("maat.input_mode_gtest")
 
-const char *table_info_path = "./table_info.conf";
-const char *json_filename = "maat_json.json";
+const char *g_table_info_path = "./table_info.conf";
+const char *g_json_filename = "maat_json.json";
 struct log_handle *g_logger = NULL;
 
 TEST(json_mode, maat_scan_string) {
     char tmp_iris_path[PATH_MAX] = {0};
     char json_iris_path[PATH_MAX] = {0};
     snprintf(json_iris_path, sizeof(json_iris_path),
-             "./%s_iris_tmp", json_filename);
+             "./%s_iris_tmp", g_json_filename);
 
     if (access(json_iris_path, F_OK) < 0) {
         char *json_buff = NULL;
         size_t json_buff_sz = 0;
 
-		int ret = load_file_to_memory(json_filename,
+		int ret = load_file_to_memory(g_json_filename,
                                      (unsigned char**)&json_buff,
                                      &json_buff_sz);
         EXPECT_NE(ret, -1);
 
-		ret = json2iris(json_buff, json_filename, NULL, tmp_iris_path,
+		ret = json2iris(json_buff, g_json_filename, NULL, tmp_iris_path,
                         sizeof(tmp_iris_path), NULL, NULL, g_logger);
         FREE(json_buff);
 		EXPECT_NE(ret, -1);
@@ -37,13 +37,13 @@ TEST(json_mode, maat_scan_string) {
 
 	struct maat_options *opts = maat_options_new();
     char json_path[PATH_MAX] = {0};
-    snprintf(json_path, sizeof(json_path), "./%s", json_filename);
+    snprintf(json_path, sizeof(json_path), "./%s", g_json_filename);
     maat_options_set_json_file(opts, json_path);
     maat_options_set_stat_on(opts);
     maat_options_set_perf_on(opts);
     maat_options_set_logger(opts, "./maat_input_mode_gtest.log", LOG_LEVEL_INFO);
 
-    struct maat *maat_inst = maat_new(opts, table_info_path);
+    struct maat *maat_inst = maat_new(opts, g_table_info_path);
     EXPECT_TRUE(maat_inst != NULL);
 
     const char *table_name = "KEYWORDS_TABLE";
@@ -70,18 +70,18 @@ TEST(iris_mode, maat_scan_string) {
     char tmp_iris_path[512] = {0};
     char json_iris_path[512] = {0};
     snprintf(json_iris_path, sizeof(json_iris_path),
-             "./%s_iris_tmp", json_filename);
+             "./%s_iris_tmp", g_json_filename);
 
     if (access(json_iris_path, F_OK) < 0) {
         char *json_buff = NULL;
         size_t json_buff_sz = 0;
 
-		int ret = load_file_to_memory(json_filename,
+		int ret = load_file_to_memory(g_json_filename,
                                      (unsigned char**)&json_buff,
                                      &json_buff_sz);
         EXPECT_NE(ret, -1);
 
-		ret = json2iris(json_buff, json_filename, NULL, tmp_iris_path,
+		ret = json2iris(json_buff, g_json_filename, NULL, tmp_iris_path,
                         sizeof(tmp_iris_path), NULL, NULL, g_logger);
         FREE(json_buff);
 		EXPECT_NE(ret, -1);
@@ -100,7 +100,7 @@ TEST(iris_mode, maat_scan_string) {
     maat_options_set_iris(opts, tmp_iris_full_idx_path, tmp_iris_inc_idx_path);
     maat_options_set_logger(opts, "./maat_input_mode_gtest.log", LOG_LEVEL_INFO);
      
-    struct maat *maat_inst = maat_new(opts, table_info_path);
+    struct maat *maat_inst = maat_new(opts, g_table_info_path);
     EXPECT_TRUE(maat_inst != NULL);
 
     const char *table_name = "KEYWORDS_TABLE";
@@ -171,7 +171,7 @@ TEST(redis_mode, maat_scan_string) {
     int redis_db = 0;
 
     snprintf(json_iris_path, sizeof(json_iris_path),
-             "./%s_iris_tmp", json_filename);
+             "./%s_iris_tmp", g_json_filename);
 
     redisContext *c =
         maat_connect_redis(redis_ip, redis_port, redis_db, g_logger);
@@ -187,12 +187,12 @@ TEST(redis_mode, maat_scan_string) {
         char *json_buff = NULL;
         size_t json_buff_sz = 0;
         
-        int ret = load_file_to_memory(json_filename,
+        int ret = load_file_to_memory(g_json_filename,
                                      (unsigned char **)&json_buff,
                                      &json_buff_sz);
         EXPECT_NE(ret, -1);
 
-        ret = json2iris(json_buff, json_filename, c, tmp_iris_path,
+        ret = json2iris(json_buff, g_json_filename, c, tmp_iris_path,
                         sizeof(tmp_iris_path), NULL, NULL, g_logger);
         FREE(json_buff);
         EXPECT_NE(ret, -1);
@@ -235,7 +235,7 @@ TEST(redis_mode, maat_scan_string) {
     maat_options_set_logger(opts, "./maat_input_mode_gtest.log",
                             LOG_LEVEL_INFO);
 
-    struct maat *maat_inst = maat_new(opts, table_info_path);
+    struct maat *maat_inst = maat_new(opts, g_table_info_path);
     const char *table_name = "KEYWORDS_TABLE";
     int table_id = maat_get_table_id(maat_inst, table_name);
     char scan_data[128] =
@@ -264,7 +264,7 @@ int main(int argc, char ** argv)
 
     char json_iris_path[NAME_MAX] = {0};
     snprintf(json_iris_path, sizeof(json_iris_path),
-             "./%s_iris_tmp", json_filename);
+             "./%s_iris_tmp", g_json_filename);
     if ((access(json_iris_path, F_OK)) == 0) {
         system_cmd_rmdir(json_iris_path);
     }

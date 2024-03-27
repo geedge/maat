@@ -9,8 +9,8 @@
 #include <gtest/gtest.h>
 #include <limits.h>
 
-const char *table_info_path = "./table_info.conf";
-const char *json_filename = "maat_json.json";
+const char *g_table_info_path = "./table_info.conf";
+const char *g_json_filename = "maat_json.json";
 struct log_handle *g_logger = NULL;
 struct maat *g_maat_inst = NULL;
 
@@ -133,7 +133,7 @@ int main(int argc, char ** argv)
 
     char json_iris_path[NAME_MAX] = {0};
     char tmp_iris_path[PATH_MAX] = {0};
-    snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", json_filename);
+    snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", g_json_filename);
     if ((access(json_iris_path, F_OK)) == 0) {
         system_cmd_rmdir(json_iris_path);
     }
@@ -142,10 +142,10 @@ int main(int argc, char ** argv)
         char *json_buff = NULL;
         size_t json_buff_sz = 0;
 
-		int ret = load_file_to_memory(json_filename, (unsigned char**)&json_buff, &json_buff_sz);
+		int ret = load_file_to_memory(g_json_filename, (unsigned char**)&json_buff, &json_buff_sz);
         EXPECT_NE(ret, -1);
 
-		ret = json2iris(json_buff, json_filename, NULL, tmp_iris_path, sizeof(tmp_iris_path),
+		ret = json2iris(json_buff, g_json_filename, NULL, tmp_iris_path, sizeof(tmp_iris_path),
                         NULL, NULL, g_logger);
         FREE(json_buff);
 		EXPECT_NE(ret, -1);
@@ -153,10 +153,10 @@ int main(int argc, char ** argv)
 
 	struct maat_options *opts = maat_options_new();
     char json_path[PATH_MAX] = {0};
-    snprintf(json_path, sizeof(json_path), "./%s", json_filename);
+    snprintf(json_path, sizeof(json_path), "./%s", g_json_filename);
     maat_options_set_json_file(opts, json_path);
 
-    g_maat_inst = maat_new(opts, table_info_path);
+    g_maat_inst = maat_new(opts, g_table_info_path);
     maat_options_free(opts);
     EXPECT_TRUE(g_maat_inst != NULL);
 

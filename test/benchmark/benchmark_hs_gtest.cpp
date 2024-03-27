@@ -27,7 +27,7 @@
 #define PERF_THREAD_NUM 5
 #define MAX_SCAN_TIMES 1000000
 
-const char *table_info_path = "./benchmark_table_info.conf";
+const char *g_table_info_path = "./benchmark_table_info.conf";
 struct log_handle *g_logger = NULL;
 
 struct thread_param {
@@ -547,11 +547,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -639,11 +638,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -731,11 +729,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -823,11 +820,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -915,11 +911,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -1007,11 +1002,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -1099,11 +1093,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -1191,11 +1184,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -1283,11 +1275,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -1375,11 +1366,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -1468,11 +1458,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -1561,11 +1550,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -1654,11 +1642,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -1747,11 +1734,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -1840,11 +1826,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -1933,11 +1918,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -2026,11 +2010,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -2119,11 +2102,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -2212,11 +2194,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -2302,11 +2283,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -2392,11 +2372,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -2482,11 +2461,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -2572,11 +2550,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -2662,11 +2639,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -2752,11 +2728,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -2842,11 +2817,10 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
         maat_options_set_expr_engine(opts, MAAT_EXPR_ENGINE_HS);
 
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -2932,9 +2906,8 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -3023,9 +2996,8 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -3114,9 +3086,8 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -3205,9 +3176,8 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -3296,9 +3266,8 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -3387,9 +3356,8 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -3478,9 +3446,8 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -3569,9 +3536,8 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -3660,9 +3626,8 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -3751,9 +3716,8 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -3842,9 +3806,8 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -3933,9 +3896,8 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -4024,9 +3986,8 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -4115,9 +4076,8 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 
@@ -4206,9 +4166,8 @@ protected:
         struct maat_options *opts = maat_options_new();
         maat_options_set_logger(opts, "./benchmark_hs_gtest.log", LOG_LEVEL_INFO);
         maat_options_set_iris(opts, "./", "./");
-        maat_options_set_rule_effect_interval_ms(opts, 1000);
         maat_options_set_caller_thread_number(opts, PERF_THREAD_NUM);
-        _shared_maat_inst = maat_new(opts, table_info_path);
+        _shared_maat_inst = maat_new(opts, g_table_info_path);
         maat_options_free(opts);
     }
 

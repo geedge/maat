@@ -283,7 +283,7 @@ static void fs_table_row_output(FILE *fp, struct maat_stat *stat, int perf_on)
             case TABLE_TYPE_EXPR_PLUS:
                 regex_rule_num = expr_runtime_regex_rule_count(runtime);
                 break;
-            case TABLE_TYPE_IP_PLUS:
+            case TABLE_TYPE_IP:
                 ipv6_rule_num = ip_runtime_ipv6_rule_count(runtime);
                 break;
             default:
@@ -350,7 +350,7 @@ static void fs_table_row_output(FILE *fp, struct maat_stat *stat, int perf_on)
             total_hit_pattern_num += hit_pattern_num;
         }
 
-        if (table_type == TABLE_TYPE_IP_PLUS) {
+        if (table_type == TABLE_TYPE_IP) {
             fieldstat_easy_counter_set(stat->fs_handle, 0,
                                        stat->fs_column_id[COLUMN_REGEX_NUM],
                                        &cell_tag, 1, ipv6_rule_num);

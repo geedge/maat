@@ -155,7 +155,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .update_err_count = expr_runtime_update_err_count
     },
     {
-        .type = TABLE_TYPE_IP_PLUS,
+        .type = TABLE_TYPE_IP,
         .new_schema = ip_schema_new,
         .free_schema = ip_schema_free,
         .new_runtime = ip_runtime_new,
@@ -499,7 +499,7 @@ static void register_reserved_word(struct maat_kv_store *reserved_word_map)
     maat_kv_register(reserved_word_map, "expr_plus", TABLE_TYPE_EXPR_PLUS);
     maat_kv_register(reserved_word_map, "interval", TABLE_TYPE_INTERVAL);
     maat_kv_register(reserved_word_map, "interval_plus", TABLE_TYPE_INTERVAL_PLUS);
-    maat_kv_register(reserved_word_map, "ip_plus", TABLE_TYPE_IP_PLUS);
+    maat_kv_register(reserved_word_map, "ip", TABLE_TYPE_IP);
     maat_kv_register(reserved_word_map, "plugin", TABLE_TYPE_PLUGIN);
     maat_kv_register(reserved_word_map, "ip_plugin", TABLE_TYPE_IP_PLUGIN);
     maat_kv_register(reserved_word_map, "ipport_plugin", TABLE_TYPE_IPPORT_PLUGIN);

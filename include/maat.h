@@ -118,8 +118,6 @@ int maat_options_set_caller_thread_number(struct maat_options *opts, size_t n_th
 
 int maat_options_set_accept_tags(struct maat_options *opts, const char *accept_tags);
 
-int maat_options_set_rule_effect_interval_ms(struct maat_options *opts, int interval_ms);
-
 int maat_options_set_rule_update_checking_interval_ms(struct maat_options *opts, int interval_ms);
 
 int maat_options_set_gc_timeout_ms(struct maat_options *opts, int interval_ms);
@@ -264,8 +262,16 @@ int maat_scan_integer(struct maat *instance, int table_id, long long integer,
                       struct maat_state *state);
 
 /**
- * @param ip_addr: network ipv4 address
+ * @param ip_addr: ipv4 address in network order
+ * @param port:    port in host order. If the port is not specified, use -1. Note that 0 is a valid port.
 */
+int maat_scan_ipv4_port(struct maat *instance, int table_id, uint32_t ip_addr, int port,
+                   long long *results, size_t n_result, size_t *n_hit_result,
+                   struct maat_state *state);
+
+int maat_scan_ipv6_port(struct maat *instance, int table_id, uint8_t *ip_addr, int port,
+                   long long *results, size_t n_result, size_t *n_hit_result,
+                   struct maat_state *state);
 int maat_scan_ipv4(struct maat *instance, int table_id, uint32_t ip_addr,
                    long long *results, size_t n_result, size_t *n_hit_result,
                    struct maat_state *state);

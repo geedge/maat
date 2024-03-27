@@ -15,7 +15,7 @@
 #define WAIT_FOR_EFFECTIVE_S 2
 #define MAX_G2G_SCAN_TIMES (1000 * 1000)
 
-const char *table_info_path = "./group_exclude_table_info.conf";
+const char *g_table_info_path = "./group_exclude_table_info.conf";
 const char *log_file = "./group_exclude_gtest.log";
 
 struct group_item {
@@ -127,7 +127,7 @@ protected:
         logger = log_handle_create(log_file, 0);
         garbage_bin = maat_garbage_bin_new(60);
         
-        int ret = load_file_to_memory(table_info_path, &json_buff, &json_buff_size);
+        int ret = load_file_to_memory(g_table_info_path, &json_buff, &json_buff_size);
         if (ret < 0) {
             log_fatal(logger, MODULE_GROUP_EXCLUDE_GTEST, "load_file_to_memory failed.");
             assert(0);

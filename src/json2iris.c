@@ -150,7 +150,7 @@ static int set_iris_descriptor(const char *json_file, cJSON *json,
 	
     maat_kv_register(iris_cfg->str2int_map, "flag", TABLE_TYPE_FLAG);
     maat_kv_register(iris_cfg->str2int_map, "flag_plus", TABLE_TYPE_FLAG_PLUS);
-	maat_kv_register(iris_cfg->str2int_map, "ip_plus", TABLE_TYPE_IP_PLUS);
+	maat_kv_register(iris_cfg->str2int_map, "ip", TABLE_TYPE_IP);
 	maat_kv_register(iris_cfg->str2int_map, "string", TABLE_TYPE_EXPR);
 	maat_kv_register(iris_cfg->str2int_map, "expr", TABLE_TYPE_EXPR);
 	maat_kv_register(iris_cfg->str2int_map, "expr_plus", TABLE_TYPE_EXPR_PLUS);
@@ -503,7 +503,7 @@ static int write_expr_line(cJSON *region_json, struct iris_description *p_iris,
                              json_cmd, cmd_cnt, table, logger);
 }
 
-static int write_ip_plus_line(cJSON *region_json, struct iris_description *p_iris,
+static int write_ip_line(cJSON *region_json, struct iris_description *p_iris,
                        		  struct iris_table *table, struct log_handle *logger)
 {
 	struct translate_command json_cmd[MAX_COLUMN_NUM];
@@ -539,6 +539,12 @@ static int write_ip_plus_line(cJSON *region_json, struct iris_description *p_iri
 	json_cmd[cmd_cnt].json_type = cJSON_String;
 	json_cmd[cmd_cnt].empty_allowed = 1;
 	json_cmd[cmd_cnt].default_string = "255.255.255.255";
+	cmd_cnt++;
+
+	json_cmd[cmd_cnt].json_string = "port";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
+	json_cmd[cmd_cnt].empty_allowed = 1;
+	json_cmd[cmd_cnt].default_string = "0-65535";
 	cmd_cnt++;
 
 	json_cmd[cmd_cnt].json_string = "is_valid";
@@ -642,8 +648,8 @@ static int write_region_rule(cJSON *region_json, int compile_id, int group_id,
 		case TABLE_TYPE_EXPR_PLUS:
 			ret = write_expr_line(table_content, p_iris, table_info, logger);
 			break;
-		case TABLE_TYPE_IP_PLUS:
-			ret = write_ip_plus_line(table_content, p_iris, table_info, logger);
+		case TABLE_TYPE_IP:
+			ret = write_ip_line(table_content, p_iris, table_info, logger);
 			break;
 		case TABLE_TYPE_INTERVAL:
 		case TABLE_TYPE_INTERVAL_PLUS:
@@ -701,7 +707,7 @@ static int write_group2group_line(int group_id, UT_array *incl_sub_group_ids,
 								  UT_array *excl_sub_group_ids,
                            		  struct iris_description *p_iris)
 {
-	char buff[MAX_BUFF_LEN] = {0};
+	char buff[MAX_BUFF_LEN*4] = {0};
 	struct iris_table *table = p_iris->group2group_table;
     if (NULL == table) {
         return -1;

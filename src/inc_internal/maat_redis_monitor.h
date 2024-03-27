@@ -22,6 +22,7 @@ extern "C"
 #include "log/log.h"
 #include "hiredis/hiredis.h"
 #include "maat_command.h"
+#include "maat_limits.h"
 #include "uthash/uthash.h"
 
 struct foreign_key {

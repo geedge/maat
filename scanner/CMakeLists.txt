@@ -11,7 +11,7 @@ set(SCANNER_SRC bool_matcher/bool_matcher.cpp expr_matcher/expr_matcher.cpp
                 expr_matcher/adapter_hs/adapter_hs.cpp expr_matcher/adapter_rs/adapter_rs.cpp
                 fqdn_engine/fqdn_engine.cpp ip_matcher/ip_matcher.cpp ip_matcher/ipv4_match.cpp 
                 ip_matcher/ipv6_match.cpp flag_matcher/flag_matcher.cpp interval_matcher/cgranges.c
-                interval_matcher/interval_matcher.cpp ipport_matcher/ipport_matcher.cpp)
+                interval_matcher/interval_matcher.cpp ipport_matcher/ipport_matcher.c)
 
 set(LIB_SOURCE_FILES ${PROJECT_SOURCE_DIR}/deps/bloom/bloom.c ${PROJECT_SOURCE_DIR}/deps/bloom/murmurhash2.c)
 

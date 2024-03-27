@@ -126,7 +126,6 @@ struct maat_options {
     int maat_json_is_gzipped;
     
     int gc_timeout_ms;
-    int rule_effect_interval_ms;
     int rule_update_checking_interval_ms;
 
     enum maat_expr_engine expr_engine;

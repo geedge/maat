@@ -31,6 +31,7 @@ struct ip_schema {
     int ip1_column;
     int ip2_column;
     int table_id;
+    int port_column;
     struct table_manager *ref_tbl_mgr;
 };
 
@@ -53,6 +54,8 @@ struct ip_item {
         struct ipv6_item_rule ipv6;
     };
     enum ip_format ip_format;
+    int port_start;
+    int port_end;
 };
 
 struct ip_runtime {
@@ -158,6 +161,12 @@ void *ip_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
+    custom_item = cJSON_GetObjectItem(item, "port");
+    if (custom_item != NULL && custom_item->type == cJSON_Number) {
+        ip_schema->port_column = custom_item->valueint;
+    } else {
+        ip_schema->port_column = 0;
+    }
     ip_schema->ref_tbl_mgr = tbl_mgr;
     return ip_schema;
 error:
@@ -275,7 +284,33 @@ ip_item_new(struct ip_schema *ip_schema, const char *table_name,
             goto error;
         }
     }
+    if(ip_schema->port_column>0)
+    {
+        ret = get_column_pos(line, ip_schema->port_column, &column_offset,
+                         &column_len);
+        if (ret < 0) {
+            log_fatal(logger, MODULE_IP, 
+                      "[%s:%d] ip table:<%s> has no port in line:%s",
+                      __FUNCTION__, __LINE__, table_name, line);
+            goto error;
+        }
+        char port_range[20] = {0};
+        memcpy(port_range, (line + column_offset), column_len);
 
+        //port range is port or port_start-port_end
+        if(strchr(port_range,'-')!=NULL){
+            char *port_start = strtok(port_range,"-");
+            char *port_end = strtok(NULL,"-");
+            ip_item->port_start = atoi(port_start);
+            ip_item->port_end = atoi(port_end);
+        } else {
+            ip_item->port_start = atoi(port_range);
+            ip_item->port_end = atoi(port_range);
+        }
+    } else {
+        ip_item->port_start = 0;
+        ip_item->port_end = 65535;
+    }
     return ip_item;
 error:
     FREE(ip_item);
@@ -306,7 +341,6 @@ void *ip_runtime_new(void *ip_schema, size_t max_thread_num,
     }
 
     struct ip_runtime *ip_rt = ALLOC(struct ip_runtime, 1);
-
     ip_rt->item_hash = rcu_hash_new(ip_item_free_cb, NULL, 0);
     ip_rt->n_worker_thread = max_thread_num;
     ip_rt->ref_garbage_bin = garbage_bin;
@@ -561,7 +595,7 @@ long long ip_runtime_ipv6_rule_count(void *ip_runtime)
 }
 
 int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type, 
-                    uint8_t *ip_addr, int vtable_id, struct maat_state *state)
+                    uint8_t *ip_addr, int port, int vtable_id, struct maat_state *state)
 {
     if (0 == ip_rt->rule_num) {
         //empty ip table
@@ -608,7 +642,16 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
             // item config has been deleted
             continue;
         }
-
+        if(port < 0 && ip_item->port_start!=0 && ip_item->port_end!=65535)
+        {
+            //If port is not speicified, an IP should NOT match rules with port range.
+            continue;
+        }
+        if(port >= 0 && (port<ip_item->port_start || port>ip_item->port_end)){
+            //If port is specified, the port should within the port range.
+            continue;
+        }
+        
         hit_maat_items[real_hit_item_cnt].item_id = ip_results[i].rule_id;
         hit_maat_items[real_hit_item_cnt].group_id = ip_item->group_id;
         real_hit_item_cnt++;

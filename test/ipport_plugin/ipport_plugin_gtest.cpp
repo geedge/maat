@@ -13,7 +13,7 @@
 #define ARRAY_SIZE 10
 #define PERF_scan_times 1000 * 1000
 
-const char *table_info_path = "./ipport_plugin_table_info.conf";
+const char *g_table_info_path = "./ipport_plugin_table_info.conf";
 const char *log_file = "./ipport_plugin_gtest.log";
 const char *g_ip_str = "116.71.169.140";
 
@@ -376,7 +376,7 @@ TEST_F(IPPortPluginTable, WITHOUT_SAME_IP) {
     maat_options_set_stat_file(opts, "./stat.log");
     maat_options_set_rule_update_checking_interval_ms(opts, 100);
 
-    struct maat *maat_inst = maat_new(opts, table_info_path);
+    struct maat *maat_inst = maat_new(opts, g_table_info_path);
     assert(maat_inst);
     maat_options_free(opts);
 
@@ -445,7 +445,7 @@ TEST_F(IPPortPluginTable, WITH_256SAME_IP) {
     maat_options_set_stat_file(opts, "./stat.log");
     maat_options_set_rule_update_checking_interval_ms(opts, 100);
 
-    struct maat *maat_inst = maat_new(opts, table_info_path);
+    struct maat *maat_inst = maat_new(opts, g_table_info_path);
     assert(maat_inst);
     maat_options_free(opts);
 

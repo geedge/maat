@@ -72,7 +72,6 @@ struct maat_options* maat_options_new(void)
 
     options->nr_worker_thread = 1;
     options->deferred_load_on = 0;
-    options->rule_effect_interval_ms = 60 * 1000;
     options->rule_update_checking_interval_ms = 1 * 1000;
     options->gc_timeout_ms = 10 * 1000;
     options->input_mode = DATA_SOURCE_NONE;
@@ -108,16 +107,6 @@ int maat_options_set_accept_tags(struct maat_options *opts, const char *accept_t
     }
 
     opts->accept_tags = maat_strdup(accept_tags);
-    return 0;
-}
-
-int maat_options_set_rule_effect_interval_ms(struct maat_options *opts, int interval_ms)
-{
-    if (NULL == opts || interval_ms < 0) {
-        return -1;
-    }
-
-    opts->rule_effect_interval_ms = interval_ms;
     return 0;
 }
 
@@ -387,8 +376,7 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     maat_inst->maat_version = 0;
     maat_inst->last_full_version = 0;
 
-    garbage_gc_timeout_s = (maat_inst->opts.rule_effect_interval_ms / 1000) +
-                           (maat_inst->opts.gc_timeout_ms / 1000);
+    garbage_gc_timeout_s = MAX(1, (maat_inst->opts.gc_timeout_ms / 1000) );
 
     if (maat_inst->opts.input_mode != DATA_SOURCE_IRIS_FILE &&
         maat_inst->opts.input_mode != DATA_SOURCE_JSON_FILE &&
@@ -429,6 +417,7 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     pthread_create(&(maat_inst->cfg_mon_thread), NULL, rule_monitor_loop, (void *)maat_inst);
 
     return maat_inst;
+
 failed:
     _maat_free(maat_inst);
     return NULL;
@@ -1079,12 +1068,12 @@ static int interval_scan(struct table_manager *tbl_mgr, int thread_id, long long
     return group_hit_cnt;
 }
 
-static int ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_addr,
+static int ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_addr, int port,
                      int phy_table_id, int vtable_id, struct maat_state *state)
 {
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, phy_table_id);
-    if (table_type != TABLE_TYPE_IP_PLUS) {
+    if (table_type != TABLE_TYPE_IP) {
         return -1;
     }
 
@@ -1094,7 +1083,7 @@ static int ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_a
     }
 
     int group_hit_cnt = ip_runtime_scan((struct ip_runtime *)ip_rt, thread_id, IPv4,
-                                        (uint8_t *)&ip_addr, vtable_id, state);
+                                        (uint8_t *)&ip_addr, port, vtable_id, state);
     if (group_hit_cnt <= 0) {
         return group_hit_cnt;
     }
@@ -1105,12 +1094,12 @@ static int ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_a
 }
 
 static int ipv6_scan(struct table_manager *tbl_mgr, int thread_id,
-                     uint8_t *ip_addr, int phy_table_id, int vtable_id,
+                     uint8_t *ip_addr, int port, int phy_table_id, int vtable_id,
                      struct maat_state *state)
 {
 
     enum table_type table_type = table_manager_get_table_type(tbl_mgr, phy_table_id);
-    if (table_type != TABLE_TYPE_IP_PLUS) {
+    if (table_type != TABLE_TYPE_IP) {
         return -1;
     }
 
@@ -1120,7 +1109,7 @@ static int ipv6_scan(struct table_manager *tbl_mgr, int thread_id,
     }
 
     int group_hit_cnt = ip_runtime_scan((struct ip_runtime *)ip_rt, thread_id, IPv6,
-                                        ip_addr, vtable_id, state);
+                                        ip_addr, port, vtable_id, state);
     if (group_hit_cnt <= 0) {
         return group_hit_cnt;
     }
@@ -1349,7 +1338,7 @@ int maat_scan_integer(struct maat *maat_inst, int table_id,
     }
 }
 
-int maat_scan_ipv4(struct maat *maat_inst, int table_id, uint32_t ip_addr,
+int maat_scan_ipv4_port(struct maat *maat_inst, int table_id, uint32_t ip_addr, int port,
                    long long *results, size_t n_result, size_t *n_hit_result,
                    struct maat_state *state)
 {
@@ -1387,13 +1376,13 @@ int maat_scan_ipv4(struct maat *maat_inst, int table_id, uint32_t ip_addr,
     }
 
     table_type = table_manager_get_table_type(maat_inst->tbl_mgr, phy_table_id);
-    if (table_type != TABLE_TYPE_IP_PLUS) {
+    if (table_type != TABLE_TYPE_IP) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
-    int hit_group_cnt = ipv4_scan(maat_inst->tbl_mgr, state->thread_id, ip_addr,
+    int hit_group_cnt = ipv4_scan(maat_inst->tbl_mgr, state->thread_id, ip_addr, port,
                                   phy_table_id, vtable_id, state);
     if (hit_group_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
@@ -1434,7 +1423,7 @@ int maat_scan_ipv4(struct maat *maat_inst, int table_id, uint32_t ip_addr,
     }
 }
 
-int maat_scan_ipv6(struct maat *maat_inst, int table_id, uint8_t *ip_addr,
+int maat_scan_ipv6_port(struct maat *maat_inst, int table_id, uint8_t *ip_addr, int port,
                    long long *results, size_t n_result, size_t *n_hit_result,
                    struct maat_state *state)
 {
@@ -1472,13 +1461,13 @@ int maat_scan_ipv6(struct maat *maat_inst, int table_id, uint8_t *ip_addr,
     }
 
     table_type = table_manager_get_table_type(maat_inst->tbl_mgr, phy_table_id);
-    if (table_type != TABLE_TYPE_IP_PLUS) {
+    if (table_type != TABLE_TYPE_IP) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
-    int hit_group_cnt = ipv6_scan(maat_inst->tbl_mgr, state->thread_id, ip_addr,
+    int hit_group_cnt = ipv6_scan(maat_inst->tbl_mgr, state->thread_id, ip_addr, port,
                                   phy_table_id, vtable_id, state);
     if (hit_group_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
@@ -1518,7 +1507,19 @@ int maat_scan_ipv6(struct maat *maat_inst, int table_id, uint8_t *ip_addr,
         return MAAT_SCAN_OK;
     }
 }
-
+#define PORT_IGNORED -1
+inline int maat_scan_ipv6(struct maat *instance, int table_id, uint8_t *ip_addr,
+                   long long *results, size_t n_result, size_t *n_hit_result,
+                   struct maat_state *state)
+{
+    return maat_scan_ipv6_port(instance, table_id, ip_addr, PORT_IGNORED, results, n_result, n_hit_result, state);
+}
+inline int maat_scan_ipv4(struct maat *instance, int table_id, uint32_t ip_addr,
+                   long long *results, size_t n_result, size_t *n_hit_result,
+                   struct maat_state *state)
+{
+    return maat_scan_ipv4_port(instance, table_id, ip_addr, PORT_IGNORED, results, n_result, n_hit_result, state);
+}
 int maat_scan_string(struct maat *maat_inst, int table_id,
                      const char *data, size_t data_len,
                      long long *results, size_t n_result,
