@@ -130,16 +130,14 @@ static void fs_table_row_register(struct maat_stat *stat)
     size_t max_table_cnt = table_manager_table_size(stat->ref_tbl_mgr);
     memcpy(stat->sum_tag, "Sum", strlen("Sum"));
 
-    size_t counter = 0;
     for (size_t i = 0; i < max_table_cnt; i++) {
         const char *table_name =
             table_manager_get_table_name(stat->ref_tbl_mgr, i);
         if (NULL == table_name) {
             continue;
         }
-        memcpy(stat->tag_value[counter], table_name,
-               MIN(strlen(table_name), sizeof(stat->tag_value[counter])));
-        counter++;
+        memcpy(stat->tag_value[i], table_name,
+               MIN(strlen(table_name), sizeof(stat->tag_value[i])));
     }
 }
 
