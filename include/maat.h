@@ -165,9 +165,9 @@ void maat_free(struct maat *instance);
 void maat_reload_log_level(struct maat *instance, enum log_level level);
 
 /**
- * Each thread can call this function initially, maat will maintain the
- * thread_id internally, So it's no need to pass thread_id by maat_scan_xx and
- * xx_plugin_get_ex_data API
+ * For xx_plugin table, each thread can call this function initially, maat will maintain the
+ * thread_id internally and the number of times the xx_plugin_table_get_ex_data interface
+ * is called by different threads is counted.
  */
 void maat_register_thread(struct maat *instance);
 

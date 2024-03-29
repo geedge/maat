@@ -8,7 +8,7 @@
 #include "maat_group.h"
 #include <gtest/gtest.h>
 
-#define MODULE_GROUP_EXCLUDE_GTEST	 module_name_str("maat.group_exclude_gtest")
+#define MODULE_GROUP_NESTING_GTEST	 module_name_str("maat.group_nesting_gtest")
 
 #define MAX_IDS_STR_LEN 64
 #define MAX_ITEM_NUM 64
@@ -129,13 +129,13 @@ protected:
         
         int ret = load_file_to_memory(g_table_info_path, &json_buff, &json_buff_size);
         if (ret < 0) {
-            log_fatal(logger, MODULE_GROUP_EXCLUDE_GTEST, "load_file_to_memory failed.");
+            log_fatal(logger, MODULE_GROUP_NESTING_GTEST, "load_file_to_memory failed.");
             assert(0);
         }
 
         cJSON *root = cJSON_Parse((const char *)json_buff);
 	    if (!root) {
-            log_fatal(logger, MODULE_GROUP_EXCLUDE_GTEST, "cJSON_Parse failed.");
+            log_fatal(logger, MODULE_GROUP_NESTING_GTEST, "cJSON_Parse failed.");
             assert(0);
 	    }
 
@@ -144,7 +144,7 @@ protected:
         cJSON_Delete(root);
 
         if (NULL == g2g_schema) {
-            log_fatal(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_schema_new failed.");
+            log_fatal(logger, MODULE_GROUP_NESTING_GTEST, "group2group_schema_new failed.");
             assert(0);
         }
     }
@@ -171,12 +171,12 @@ TEST_F(MaatGroupExclude, level_3_function) {
 
     void *g2g_runtime = group2group_runtime_new(g2g_schema, 1, garbage_bin, logger);
     if (NULL == g2g_runtime) {
-        log_fatal(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
+        log_fatal(logger, MODULE_GROUP_NESTING_GTEST, "group2group_runtime_new failed.");
         assert(0);
     }
 
     memset(&rules, 0, sizeof(rules));
-    int ret = parse_config_file("group_exclude_L3.conf", &rules);
+    int ret = parse_config_file("group_nesting_L3.conf", &rules);
     EXPECT_EQ(ret, 0);
 
     for (size_t i = 0; i < rules.n_add_item; i++) {
@@ -236,12 +236,12 @@ TEST_F(MaatGroupExclude, level_3_perf) {
 
     void *g2g_runtime = group2group_runtime_new(g2g_schema, 1, garbage_bin, logger);
     if (NULL == g2g_runtime) {
-        log_fatal(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
+        log_fatal(logger, MODULE_GROUP_NESTING_GTEST, "group2group_runtime_new failed.");
         assert(0);
     }
 
     memset(&rules, 0, sizeof(rules));
-    int ret = parse_config_file("group_exclude_L3.conf", &rules);
+    int ret = parse_config_file("group_nesting_L3.conf", &rules);
     EXPECT_EQ(ret, 0);
 
     for (size_t i = 0; i < rules.n_add_item; i++) {
@@ -266,7 +266,7 @@ TEST_F(MaatGroupExclude, level_3_perf) {
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
-    log_info(logger, MODULE_GROUP_EXCLUDE_GTEST, "level_3_basic hit 2 super_groups scan consume time %lldms",
+    log_info(logger, MODULE_GROUP_NESTING_GTEST, "level_3_basic hit 2 super_groups scan consume time %lldms",
              time_elapse_ms);
 
     //delete group_id = 7, super_group_id = 6, is_exclude = 1
@@ -283,7 +283,7 @@ TEST_F(MaatGroupExclude, level_3_perf) {
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
-    log_info(logger, MODULE_GROUP_EXCLUDE_GTEST, "level_3_basic hit 3 super_groups scan consume time %lldms",
+    log_info(logger, MODULE_GROUP_NESTING_GTEST, "level_3_basic hit 3 super_groups scan consume time %lldms",
              time_elapse_ms);
 
     //delete group_id = 13, super_group_id = 4, is_exclude = 1
@@ -300,7 +300,7 @@ TEST_F(MaatGroupExclude, level_3_perf) {
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
-    log_info(logger, MODULE_GROUP_EXCLUDE_GTEST, "level_3_basic hit 4 super_groups scan consume time %lldms",
+    log_info(logger, MODULE_GROUP_NESTING_GTEST, "level_3_basic hit 4 super_groups scan consume time %lldms",
              time_elapse_ms);
 
     group2group_runtime_free(g2g_runtime);
@@ -313,12 +313,12 @@ TEST_F(MaatGroupExclude, level_4_function) {
 
     void *g2g_runtime = group2group_runtime_new(g2g_schema, 1, garbage_bin, logger);
     if (NULL == g2g_runtime) {
-        log_fatal(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
+        log_fatal(logger, MODULE_GROUP_NESTING_GTEST, "group2group_runtime_new failed.");
         assert(0);
     }
 
     memset(&rules, 0, sizeof(rules));
-    int ret = parse_config_file("group_exclude_L4.conf", &rules);
+    int ret = parse_config_file("group_nesting_L4.conf", &rules);
     EXPECT_EQ(ret, 0);
 
     for (size_t i = 0; i < rules.n_add_item; i++) {
@@ -370,12 +370,12 @@ TEST_F(MaatGroupExclude, level_4_perf) {
 
     void *g2g_runtime = group2group_runtime_new(g2g_schema, 1, garbage_bin, logger);
     if (NULL == g2g_runtime) {
-        log_fatal(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
+        log_fatal(logger, MODULE_GROUP_NESTING_GTEST, "group2group_runtime_new failed.");
         assert(0);
     }
 
     memset(&rules, 0, sizeof(rules));
-    int ret = parse_config_file("group_exclude_L4.conf", &rules);
+    int ret = parse_config_file("group_nesting_L4.conf", &rules);
     EXPECT_EQ(ret, 0);
 
     for (size_t i = 0; i < rules.n_add_item; i++) {
@@ -400,7 +400,7 @@ TEST_F(MaatGroupExclude, level_4_perf) {
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
-    log_info(logger, MODULE_GROUP_EXCLUDE_GTEST, "level_4_basic hit 5 super_groups scan consume time %lldms",
+    log_info(logger, MODULE_GROUP_NESTING_GTEST, "level_4_basic hit 5 super_groups scan consume time %lldms",
              time_elapse_ms);
     
     //delete group_id = 10, super_group_id = 6, is_exclude = 1
@@ -417,7 +417,7 @@ TEST_F(MaatGroupExclude, level_4_perf) {
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
-    log_info(logger, MODULE_GROUP_EXCLUDE_GTEST, "level_4_basic hit 7 super_groups scan consume time %lldms",
+    log_info(logger, MODULE_GROUP_NESTING_GTEST, "level_4_basic hit 7 super_groups scan consume time %lldms",
              time_elapse_ms);
 
     group2group_runtime_free(g2g_runtime);
@@ -430,12 +430,12 @@ TEST_F(MaatGroupExclude, level_exceed_function) {
 
     void *g2g_runtime = group2group_runtime_new(g2g_schema, 1, garbage_bin, logger);
     if (NULL == g2g_runtime) {
-        log_fatal(logger, MODULE_GROUP_EXCLUDE_GTEST, "group2group_runtime_new failed.");
+        log_fatal(logger, MODULE_GROUP_NESTING_GTEST, "group2group_runtime_new failed.");
         assert(0);
     }
 
     memset(&rules, 0, sizeof(rules));
-    int ret = parse_config_file("group_exclude_exceed.conf", &rules);
+    int ret = parse_config_file("group_nesting_exceed.conf", &rules);
     EXPECT_EQ(ret, 0);
 
     for (size_t i = 0; i < rules.n_add_item; i++) {

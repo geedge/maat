@@ -1,73 +1,73 @@
 # 更新记录
 
-| 版本    | 时间       | 说明                                                        | 修订人       |
-| ------- | ---------- | --------------------------------------------------------- | -------- |
-| v4.0    | 2023-5-2   | Maat4.0，使用Markdown重新组织文档                    | 郑超、刘文坛 |
-| V3.7.0  | 2022-8-23  | 增加Boolean Expression 回调表；修正分组于子分组中的描述。| 郑超         |
-| V3.2.3  | 2021-7-15  | 增加组合扫描一节                                     | 郑超         |
-| V3.1.20 | 2021-4-28  | 增加加载gzip压缩后的JSON文件说明                      | 郑超         |
-| V3.1.5  | 2021-3-12  | 增加回调类FQDN表的匹配示例                            | 郑超         |
-| V3.1.4  | 2020-11-04 | 内容外键为“null”时，表示空文件。                       | 郑超         |
-| V3.1.1  | 2020-9-27  | 增加虚拟表建立在多个不同类型物理表上的说明                | 郑超         |
-| V3.1.0  | 2020-9-18  | 增加FQDN回调表                                       | 郑超         |
-| v3.0.4  | 2020-8-17  | 增加扩展的数值类域配置interval_plus                    | 郑超         |
-| v3.0    | 2020-6-29  | Maat 3.0, 支持子句，原分组表拆分为分组关系表和分组编译表   | 郑超         |
-| v2.8    | 2020-3-13  | 支持组合表                                           | 郑超         |
-| v2.8    | 2020-2-11  | 支持命中路径（Hit Path）                              | 郑超         |
-| v2.8    | 2020-2-4   | 支持策略按照执行顺序（Evaluation Order）排序            | 郑超         |
-| v2.8    | 2020-1-22  | Maat JSON文件支持加密，参见17.3                       | 郑超         |
-| v2.8    | 2019-7-28  | 1、 不再兼容无分组表的情况  2、 支持虚拟表               | 郑超         |
-| v2.7.2  | 2019-7-10  | 扩展类IP配置表支持CIDR格式。                           | 郑超         |
-| v2.7.1  | 2019-5-23  | 将富IP类配置表改名为扩展类IP配置表。                    | 郑超         |
-| v2.7.0  | 2019-5-12  | 1、 增加子分组关系说明  2、 增加富IP类配置的说明          | 郑超         |
-| v2.6.0  | 2019-1-8   | 1、增加“非”运算的说明；  2、文档和动态链接库版本号的前两位相同。 | 郑超         |
-| v2.3.3  | 2018-12-24 | 增加Extra Data和read column函数的说明；多命中情况下，按照配置ID由大到小返回命中结果。 | 郑超         |
-| v2.3.2  | 2018-12-03 | 支持运行态以全量通知的方式加载变化的json文件                 | 郑超         |
-| v2.3.1  | 2018-10-15 | 完善内容外键和配置生效标签的说明。                           | 郑超         |
-| v2.3.0  | 2018-9-26  | 增加内容外键和配置生效标签的说明。                           | 郑超         |
-| v2.2.5  | 2018-9-12  | 更正IP类域配置关于全0掩码表示任意说明，全0掩码为精确匹配。   | 郑超         |
-| v2.2.4  | 2018-08-09 | 在“配置表描述文件”一节中，说明编译配置表中用户自定义域转码的设置方法。 | 郑超         |
-| v2.2.3  | 2018-07-27 | 1、完善“常见故障处理->扫描结果与预想不一致”一节。    2、整理“配置表描述方式”一节。 | 郑超         |
-| v2.2.2  | 2018-07-05 | 支持超过128字节的用户自定义域                                | 郑超         |
-| v2.2.1  | 2018-05-25 | 更新Redis配置加载接口的事务机制。                            | 郑超         |
-| v2.1.2  | 2018-03-24 | 增加概述                                                     | 郑超         |
-| v2.1.1  | 2018-02-08 | 1、 maat_redis_tool支持写入json格式的配置到redis。  2、 增加Maat_read_state函数的使用说明。 | 郑超         |
-| v2.1.0  | 2017-10-04 | 提供maat_redis_tool，可以dump出redis中的maat配置。         | 郑超         |
-| v2.0.1  | 2017-08-22 | 支持配置延迟初始化                                        | 郑超         |
-| v2.0.0  | 2017-08-01 | 1.    支持从Redis加载配置；  2.    提供配置增删函数接口，即Maat Command API；  3.    支持相似性字符串匹配；  4.    提供辅助工具digest_gen，具备SFH摘要计算、编辑距离计算功能； | 郑超         |
-| v1.9.1  | 2017-06-24 | 可以提示MAAT组合扫描中最后一个域，可以提升与表达式运算性能。 | 郑超         |
-| v1.9.0  | 2017-06-09 | 支持对个别配置表进行加密                                  | 郑超         |
-| v1.8.4  | 2017-03-12 | 调整SNORT规则转换的目录结构                               | 郑超         |
-| v1.8.3  | 2016-12-30 | 1、增加设置实例名的功能；2、更新运行状态数据说明。           | 郑超         |
-| v1.8.2  | 2016-9-19  | JSON输入模式支持未命名分组，可将group_name配置为"Untitled"以表示非分组复用，由Maat自动生成group_id。 | 郑超         |
-| v1.8.1  | 2016-9-14  | 在IP类域配置表中增加多层嵌套IP匹配的指导方案。               | 郑超         |
-| v1.8.0  | 2016-09-02 | 增加配置表连接功能的说明                                  | 郑超         |
-| v1.7.1  | 2016-06-17 | 1.    通过转义方式，支持空格作为关键字;  2.    增加快速字符串扫描开关; | 郑超         |
-| v1.7.0  | 2016-04-03 | 单独设小节描述编码转换，增加UNICODE到ASCII转码功能的说明     | 郑超         |
-| v1.6.1  | 2016-03-24 | 完善配置分组表的字段说明。                                   | 郑超         |
-| v1.6.0  | 2016-02-11 | 1.    增加状态统计和性能统计描述，以及相应的函数接口调整；  2.    增加扩展的字符串类域配置的函数接口描述。 | 郑超         |
-| v1.5.0  | 2016-01-05 | 增加扩展的字符串类域配置，完善IP类域配置关于IPv6掩码的描述。 | 郑超         |
-| v1.4.4  | 2015-12-24 | 修改回调表的配置更新机制，以节约内存。                     | 郑超         |
-| v1.4.3  | 2015-12-02 | 完善数据库表间关系的描述，丰富界面设计要点。                 | 郑超         |
-| v1.4.2  | 2015-12-01 | 合并配置更新文件接口一章                                  | 郑超         |
-| v1.4.1  | 2015-11-23 | 完善摘要类配置的说明                                     | 郑超         |
-| v1.4.0  | 2015-11-06 | 增加文件摘要类域配置                                     | 郑超         |
-| v1.3.9  | 2015-07-24 | 提供Maat_set_feather_opt接口，Maat_20150724版本以上支持该功能。 | 郑超         |
-| v1.3.8  | 2015-07-06 | 润色概述中对三类配置的说明，增加编码转换句柄复用的说明。     | 郑超         |
-| v1.3.7  | 2015-06-16 | 增加常见故障处理的建议。                               | 郑超         |
-| v1.3.6  | 2015-06-10 | 1.    字符串域表增加相对位置的表达式类型;  2.    配置分组表支持非；  测试分支，暂不合并到主版本。 | 郑超         |
-| v1.3.5  | 2015-06-08 | 添加数据库表描述示例                                   | 郑超         |
-| v1.3.4  | 2015-05-22 | 可通过JSON加载回调类配置表                             | 郑超         |
-| v1.3.3  | 2015-05-13 | 增加对非组合域编译的快速处理路径，增加对命中结果返回条件的说明 | 郑超         |
-| v1.3.2  | 2015-04-13 | 扫描空配置的返回值由-1改为0                              | 郑超         |
-| v1.3.1  | 2015-03-02 | 对于GBK到BIG5的转码，将源编码改为GB2312                  | 郑超         |
-| v1.3    | 2015-02-20 | 增加JSON配置加载功能                                   | 郑超         |
-| v1.2.2  | 2015-01-06 | 增加强制卸载机制                                       | 郑超         |
-| v1.2.1  | 2015-01-05 | 扩展字符串类域配置的hexbin字段的定义                     | 郑超         |
-| v1.2.0  | 2014-12-20 | 增加配置更新机制的描述                                  | 郑超         |
-| v1.1.0  | 2014-12-12 | 增加函数接口的说明，修改引用计数避免伪共享                  | 郑超         |
-| v1.0.3  | 2014-12-03 | 采用垃圾回收机制保证线程安全                             | 郑超         |
-| v1.0.2  | 2014-11-26 | 支持正则分组                                          | 郑超         |
-| v1.0.1  | 2014-11-19 | IP类配置支持协议扫描                                   | 郑超         |
-| v1.0    | 2014-08-19 | 第一个稳定版                                          | 郑超         |
-| v0.1    | 2014-06-16 | 创建文档，包含表格式说明                                | 郑超         |
+| Version| Date      | Description | Author      |
+|--------|-----------|-------------|-------------|
+| v4.0   | 2023-5-2  | Maat 4.0, reorganize documentation using Markdown  | Zheng Chao, Liu Wentan |
+| v3.7.0 | 2022-8-23 | Add Boolean Expression callback table; correct descriptions of grouping within subgroups| Zheng Chao|
+| v3.2.3 | 2021-7-15 | Add section on composite scanning  | Zheng Chao  |
+| v3.1.20| 2021-4-28 | Add explanation for loading gzip-compressed JSON files | Zheng Chao  |
+| v3.1.5 | 2021-3-12 | Add matching examples for callback class FQDN table | Zheng Chao  |
+| v3.1.4 | 2020-11-04| When content foreign key is "null," it represents an empty file   | Zheng Chao  |
+| v3.1.1 | 2020-9-27 | Add explanation for creating virtual tables on multiple different types of physical tables | Zheng Chao  |
+| v3.1.0 | 2020-9-18 | Add FQDN callback table | Zheng Chao  |
+| v3.0.4 | 2020-8-17 | Add extended numerical domain configuration interval_plus  | Zheng Chao  |
+| v3.0   | 2020-6-29 | Maat 3.0, support clauses, original grouping table split into grouping relationship table and grouping compilation table | Zheng Chao  |
+| v2.8   | 2020-3-13 | Support composite tables   | Zheng Chao  |
+| v2.8   | 2020-2-11 | Support Hit Path  | Zheng Chao  |
+| v2.8   | 2020-2-4  | Support sorting strategies by Evaluation Order  | Zheng Chao  |
+| v2.8   | 2020-1-22 | Maat JSON file encryption support, see 17.3   | Zheng Chao  |
+| v2.8   | 2019-7-28 | 1. No longer compatible with no grouping tables  2. Support virtual tables | Zheng Chao  |
+| v2.7.2 | 2019-7-10 | Expand IP configuration table to support CIDR format | Zheng Chao  |
+| v2.7.1 | 2019-5-23 | Rename rich IP class configuration table to extended IP configuration table  | Zheng Chao  |
+| v2.7.0 | 2019-5-12 | 1. Add explanation for subgroup relationships  2. Add explanation for rich IP class configuration | Zheng Chao  |
+| v2.6.0 | 2019-1-8  | 1. Add explanation for "not" operation  2. Document and dynamic link library version numbers share the first two digits | Zheng Chao  |
+| v2.3.3 | 2018-12-24| Add explanation for Extra Data and read column function; in multiple hit scenarios, return results in descending order of configuration ID | Zheng Chao  |
+| v2.3.2 | 2018-12-03| Support runtime loading of changing JSON files in full notification mode | Zheng Chao  |
+| v2.3.1 | 2018-10-15| Improve explanation of content foreign keys and configuration effective tags | Zheng Chao  |
+| v2.3.0 | 2018-9-26 | Add explanation of content foreign keys and configuration effective tags | Zheng Chao  |
+| v2.2.5 | 2018-9-12 | Correct explanation of IP domain configuration regarding all 0 masks representing any to exact match | Zheng Chao  |
+| v2.2.4 | 2018-08-09| In "Configuration Table Description Files" section, explain how to set custom domain transcoding in compilation configuration table | Zheng Chao  |
+| v2.2.3 | 2018-07-27| 1. Enhance "Common Fault Handling -> Scan Results Inconsistent" section  2. Organize "Configuration Description Methods" section | Zheng Chao  |
+| v2.2.2 | 2018-07-05| Support user-defined domains exceeding 128 bytes | Zheng Chao  |
+| v2.2.1 | 2018-05-25| Update transaction mechanism for loading Redis configuration interface   | Zheng Chao  |
+| v2.1.2 | 2018-03-24 | Add overview    | Zheng Chao  |
+| v2.1.1 | 2018-02-08 | 1. maat_redis_tool supports writing JSON format configurations to Redis  2. Add instructions for using Maat_read_state function | Zheng Chao  |
+| v2.1.0 | 2017-10-04 | Provide maat_redis_tool to dump Maat configurations from Redis   | Zheng Chao  |
+| v2.0.1 | 2017-08-22 | Support delayed initialization for configurations  | Zheng Chao  |
+| v2.0.0 | 2017-08-01 | 1. Support loading configurations from Redis;  2.Provide configuration add and delete function interfaces, i.e., Maat Command API;  3.Support similarity string matching;  4.Provide auxiliary tool digest_gen, with SFH digest calculation and edit distance calculation functions. | Zheng Chao  |
+| v1.9.1 | 2017-06-24 | Can prompt the last domain in MAAT combination scan, which can improve performance with expression operations. | Zheng Chao  |
+| v1.9.0 | 2017-06-09 | Support encryption for individual configuration tables  | Zheng Chao |
+| v1.8.4 | 2017-03-12 | Adjust the directory structure of SNORT rule conversion  | Zheng Chao |
+| v1.8.3 | 2016-12-30 | 1. Add the functionality to set the instance name; 2. Update the explanation of running status data. | Zheng Chao         |
+| v1.8.2 | 2016-9-19  | JSON input mode supports unnamed groups, where group_name can be configured as "Untitled" to indicate non-group reuse, and Maat automatically generates group_id. | Zheng Chao         |
+| v1.8.1 | 2016-9-14  | Add guidance for nested IP matching in IP class domain configuration tables. | Zheng Chao         |
+| v1.8.0 | 2016-09-02 | Add explanation for configuration table connections   | Zheng Chao         |
+| v1.7.1 | 2016-06-17 | 1. Support spaces as keywords through escape mode;  2. Add a switch for fast string scanning; | Zheng Chao      |
+| v1.7.0  | 2016-04-03 | Add a section describing encoding conversion, and include instructions for UNICODE to ASCII transcoding functionality.     | Zheng Chao         |
+| v1.6.1  | 2016-03-24 | Improve the field description of configuration group tables.  | Zheng Chao |
+| v1.6.0  | 2016-02-11 | 1.    Add descriptions for status and performance statistics, and adjust corresponding function interfaces;  2.    Add function interface descriptions for extended string class domain configurations. | Zheng Chao         |
+| v1.5.0  | 2016-01-05 | Add extended string class domain configurations, and enhance descriptions for IPv6 mask in IP class domain configurations. | Zheng Chao         |
+| v1.4.4  | 2015-12-24 | Modify the configuration update mechanism for callback tables to save memory. | Zheng Chao         |
+| v1.4.3  | 2015-12-02 | Improve descriptions of database table relationships and enrich interface design points. | Zheng Chao         |
+| v1.4.2  | 2015-12-01 | Merge the chapter on configuration update file interfaces. | Zheng Chao  |
+| v1.4.1  | 2015-11-23 | Improve descriptions for summary class configurations | Zheng Chao |
+| v1.4.0  | 2015-11-06 | Add file summary class domain configurations | Zheng Chao         |
+| v1.3.9  | 2015-07-24 | Provide Maat_set_feather_opt interface, supported in versions Maat_20150724 and above. | Zheng Chao |
+| v1.3.8  | 2015-07-06 | Refine explanations of the three types of configurations in the overview, and add explanations for encoding handle reuse.     | Zheng Chao         |
+| v1.3.7  | 2015-06-16 | Add suggestions for common fault handling.| Zheng Chao         |
+| v1.3.6  | 2015-06-10 | 1. Add expression types for relative positions to string domain tables;  2. Support non-testing branches in configuration group tables, not yet merged into the main version. | Zheng Chao         |
+| v1.3.5  | 2015-06-08 | Add examples for database table descriptions | Zheng Chao         |
+| v1.3.4  | 2015-05-22 | Load callback class configurations through JSON | Zheng Chao |
+| v1.3.3  | 2015-05-13 | Add fast processing path for non-combined domain compilation, and explain conditions for returning hit results. | Zheng Chao  |
+| v1.3.2  | 2015-04-13 | Change return value for scanning empty configurations from -1 to 0 | Zheng Chao         |
+| v1.3.1  | 2015-03-02 | Change source encoding for GBK to BIG5 transcoding to GB2312 | Zheng Chao|
+| v1.3    | 2015-02-20 | Add JSON configuration loading functionality | Zheng Chao  |
+| v1.2.2  | 2015-01-06 | Add forced unloading mechanism | Zheng Chao         |
+| v1.2.1  | 2015-01-05 | Extend definition of hexbin field for string class domain configurations | Zheng Chao         |
+| v1.2.0  | 2014-12-20 | Add description for configuration update mechanism | Zheng Chao |
+| v1.1.0  | 2014-12-12 | Add descriptions for function interfaces, and modify reference counting to avoid false sharing | Zheng Chao         |
+| v1.0.3  | 2014-12-03 | Use garbage collection mechanism to ensure thread safety | Zheng Ch|
+| v1.0.2  | 2014-11-26 | Support regular expression grouping | Zheng Chao  |
+| v1.0.1  | 2014-11-19 | IP scanning supports protocol parameter | Zheng Chao  |
+| v1.0    | 2014-08-19 | First stable version  | Zheng Chao  |
+| v0.1    | 2014-06-16 | Create document and define table format | Zheng Chao  |
