@@ -481,8 +481,22 @@ Compile runtime loads the compile table and group2compile table configurations i
 
 On the data plane, services are provided externally through the maat API, primarily with the following three types of interfaces:
 
-1. maat_scan_xx: This interface dynamically generates the matched {item_id, group_id}.
+1. **maat_scan_xx**: This interface dynamically generates the hit {item_id, group_id}.
 
-* The matched item_id and group_id form a half-hit path.
+* The hit item_id and group_id form a half-hit path.
 
-* The group_id that is matched and the scanned `vtable_id` form the key {group_id, vtable_id, 0}. This key is used to find the matched clause_id in the clause_id hash. The final matched
+* The group_id that is hit and the scanned `vtable_id` form the key {group_id, vtable_id, 0}. This key is used to find the `hit clause_ids` in the clause_id hash.
+
+* Use the key {group_id, vtable_id, 1} to search for NOT_clause_ids in the NOT_clause_id hash and cache them as `exclude clause_ids`. These clause_ids need to be removed from all clause_ids that are eventually hit. This is because the scan hit {group_id, vtable_id, 0} => clause_id, leading to the deduction that {group_id, vtable_id, 1} => NOT_clause_id does not hit.
+
+* Identify the group_ids in vtable_id table that appear in the NOT_clause and add them to the `NOT_clause_group` set. Ensure that this set does not contain any group_id that was hit during scanning. If any such group_id is present, remove it from the set to form the final `NOT_clause_group` for the vtable_id table.
+
+* Use the hit clause_ids to determine if there are any hit compile_ids. If there are, populate the half-hit path which will become full-hit path.
+
+2. **maat_scan_not_logic**: This interface is used to activate NOT-clause logic.
+
+* Traverse the `NOT_clause_group` of `vtable_id`. For each `group_id`, form a key `{group_id, vtable_id, 1}` to obtain the `NOT_clause_id`. If it is in the `exclude clause_ids` set, ignore it; otherwise, add it to the `all hit clause_ids` set as a hit `NOT_clause_id`, and record the half-hit path of the NOT-clause.
+
+* Use the `all hit clause_ids` to calculate if there are any newly hit compile_ids. If there are, populate the half-hit path of the NOT-clause which will become full-hit path.
+
+3. **xx_get_hit_path**: This interface is used to retrieve the hit path.
