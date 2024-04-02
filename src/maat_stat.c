@@ -239,7 +239,7 @@ int maat_stat_init(struct maat_stat *stat, struct table_manager *tbl_mgr,
 static void fs_table_row_output(FILE *fp, struct maat_stat *stat, int perf_on)
 {
     long long plugin_cache_num = 0, plugin_rule_num = 0;
-    long long total_rule_num = 0, total_input_bytes = 0, total_update_err = 0;
+    long long total_rule_num = 0, total_scan_bytes = 0, total_update_err = 0;
     long long total_scan_times = 0, total_hit_times = 0, total_scan_cpu_time = 0;
     long long total_regex_num = 0, total_ipv6_num = 0;
     long long total_hit_item_num = 0, total_hit_pattern_num = 0;
@@ -288,58 +288,55 @@ static void fs_table_row_output(FILE *fp, struct maat_stat *stat, int perf_on)
                 break;
         }
 
-        if (table_type == TABLE_TYPE_VIRTUAL) {
-            continue;
-        }
-
-        total_regex_num += regex_rule_num;
-        total_ipv6_num += ipv6_rule_num;
-
         long long rule_num =
             table_manager_runtime_rule_count(stat->ref_tbl_mgr, i);
-
         cell_tag.value_str = stat->tag_value[i];
         fieldstat_easy_counter_set(stat->fs_handle, 0,
                                    stat->fs_column_id[COLUMN_RULE_NUM],
                                    &cell_tag, 1, rule_num);
-        total_rule_num += rule_num;
-
+        
         long long scan_times =
             table_manager_runtime_scan_times(stat->ref_tbl_mgr, i);
-
         fieldstat_easy_counter_set(stat->fs_handle, 0,
                                    stat->fs_column_id[COLUMN_SCAN_TIMES],
                                    &cell_tag, 1, scan_times);
-        total_scan_times += scan_times;
-
+        
         long long hit_times =
             table_manager_runtime_hit_times(stat->ref_tbl_mgr, i);
-
         fieldstat_easy_counter_set(stat->fs_handle, 0,
                                    stat->fs_column_id[COLUMN_HIT_TIMES],
                                    &cell_tag, 1, hit_times);
-        total_hit_times += hit_times;
 
-        if (table_type == TABLE_TYPE_PLUGIN ||
-            table_type == TABLE_TYPE_IP_PLUGIN ||
-            table_type == TABLE_TYPE_IPPORT_PLUGIN ||
-            table_type == TABLE_TYPE_BOOL_PLUGIN ||
-            table_type == TABLE_TYPE_FQDN_PLUGIN) {
-            continue;
-        }
+        long long scan_bytes =
+            table_manager_runtime_scan_bytes(stat->ref_tbl_mgr, i);
+        fieldstat_easy_counter_set(stat->fs_handle, 0,
+                                   stat->fs_column_id[COLUMN_SCAN_BYTES],
+                                   &cell_tag, 1, scan_bytes);
 
-        long long input_bytes = 0;
+        long long hit_item_num =
+            table_manager_runtime_hit_item_num(stat->ref_tbl_mgr, i);
+
+        fieldstat_easy_counter_set(stat->fs_handle, 0,
+                                   stat->fs_column_id[COLUMN_HIT_ITEM_NUM],
+                                   &cell_tag, 1, hit_item_num); 
+
+        if (table_type != TABLE_TYPE_VIRTUAL) {
+            total_regex_num += regex_rule_num;
+            total_ipv6_num += ipv6_rule_num;
+            total_rule_num += rule_num;
+            total_scan_times += scan_times;
+            total_hit_times += hit_times;
+            total_scan_bytes += scan_bytes;
+            total_hit_item_num += hit_item_num;
+            total_update_err +=
+            table_manager_runtime_update_err_count(stat->ref_tbl_mgr, i);
+        } 
+
         if (table_type == TABLE_TYPE_EXPR ||
             table_type == TABLE_TYPE_EXPR_PLUS) {
             fieldstat_easy_counter_set(stat->fs_handle, 0,
                                        stat->fs_column_id[COLUMN_REGEX_NUM],
                                        &cell_tag, 1, regex_rule_num);
-
-            input_bytes = expr_runtime_scan_bytes(runtime);
-            fieldstat_easy_counter_set(stat->fs_handle, 0,
-                                       stat->fs_column_id[COLUMN_SCAN_BYTES],
-                                       &cell_tag, 1, input_bytes);
-            total_input_bytes += input_bytes;
 
             long long hit_pattern_num = expr_runtime_hit_pattern_num(runtime);
             fieldstat_easy_counter_set(stat->fs_handle, 0,
@@ -354,6 +351,14 @@ static void fs_table_row_output(FILE *fp, struct maat_stat *stat, int perf_on)
                                        &cell_tag, 1, ipv6_rule_num);
         }
 
+        if (table_type == TABLE_TYPE_PLUGIN ||
+            table_type == TABLE_TYPE_IP_PLUGIN ||
+            table_type == TABLE_TYPE_IPPORT_PLUGIN ||
+            table_type == TABLE_TYPE_BOOL_PLUGIN ||
+            table_type == TABLE_TYPE_FQDN_PLUGIN) {
+            continue;
+        }
+
         if (1 == perf_on) {
             long long scan_cpu_time =
                 table_manager_runtime_scan_cpu_time(stat->ref_tbl_mgr, i);
@@ -362,17 +367,6 @@ static void fs_table_row_output(FILE *fp, struct maat_stat *stat, int perf_on)
                                        stat->fs_column_id[COLUMN_SCAN_CPU_TIME],
                                        &cell_tag, 1, scan_cpu_time); 
         }
-
-        long long hit_item_num =
-            table_manager_runtime_hit_item_num(stat->ref_tbl_mgr, i);
-
-        fieldstat_easy_counter_set(stat->fs_handle, 0,
-                                   stat->fs_column_id[COLUMN_HIT_ITEM_NUM],
-                                   &cell_tag, 1, hit_item_num); 
-        total_hit_item_num += hit_item_num;
-
-        total_update_err +=
-            table_manager_runtime_update_err_count(stat->ref_tbl_mgr, i);
     }
 
     cell_tag.value_str = stat->sum_tag;
@@ -396,7 +390,7 @@ static void fs_table_row_output(FILE *fp, struct maat_stat *stat, int perf_on)
                                &cell_tag, 1, total_hit_pattern_num);
     fieldstat_easy_counter_set(stat->fs_handle, 0,
                                stat->fs_column_id[COLUMN_SCAN_BYTES],
-                               &cell_tag, 1, total_input_bytes);
+                               &cell_tag, 1, total_scan_bytes);
     if (1 == perf_on) {
         fieldstat_easy_counter_set(stat->fs_handle, 0,
                                    stat->fs_column_id[COLUMN_SCAN_CPU_TIME],

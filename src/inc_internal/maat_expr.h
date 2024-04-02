@@ -66,15 +66,26 @@ void expr_runtime_perf_stat(struct expr_runtime *flag_rt, size_t scan_len,
                             struct timespec *start, struct timespec *end, 
                             int thread_id);
 
+void expr_runtime_scan_times_inc(struct expr_runtime *expr_rt, int thread_id);
+
 long long expr_runtime_scan_times(void *expr_runtime);
 
 long long expr_runtime_scan_cpu_time(void *expr_runtime);
 
-long long expr_runtime_scan_bytes(struct expr_runtime *expr_rt);
+void expr_runtime_scan_bytes_add(struct expr_runtime *expr_rt, int thread_id,
+                                 size_t scan_len);
+
+long long expr_runtime_scan_bytes(void *expr_runtime);
+
+void expr_runtime_hit_times_inc(struct expr_runtime *expr_rt, int thread_id);
 
 long long expr_runtime_hit_times(void *expr_runtime);
 
-void expr_runtime_hit_times_inc(struct expr_runtime *expr_rt, int thread_id);
+void expr_runtime_stream_scan_times_inc(struct expr_runtime_stream *expr_rt_stream,
+                                        int thread_id);
+
+void expr_runtime_stream_scan_bytes_add(struct expr_runtime_stream *expr_rt_stream,
+                                        int thread_id, size_t scan_len);
 
 void expr_runtime_stream_hit_times_inc(struct expr_runtime_stream *expr_rt_stream,
                                        int thread_id);

@@ -680,13 +680,20 @@ void ip_runtime_perf_stat(struct ip_runtime *ip_rt, struct timespec *start,
         return;
     }
 
-    alignment_int64_array_add(ip_rt->scan_times, thread_id, 1);
-    
     if (start != NULL && end != NULL) {
         long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 +
                                  (end->tv_nsec - start->tv_nsec);
         alignment_int64_array_add(ip_rt->scan_cpu_time, thread_id, consume_time);
     }
+}
+
+void ip_runtime_scan_times_inc(struct ip_runtime *ip_rt, int thread_id)
+{
+    if (NULL == ip_rt || thread_id < 0) {
+        return;
+    }
+
+    alignment_int64_array_add(ip_rt->scan_times, thread_id, 1);
 }
 
 long long ip_runtime_scan_times(void *ip_runtime)
@@ -718,6 +725,15 @@ long long ip_runtime_scan_cpu_time(void *ip_runtime)
     return sum;
 }
 
+void ip_runtime_hit_times_inc(struct ip_runtime *ip_rt, int thread_id)
+{
+    if (NULL == ip_rt || thread_id < 0) {
+        return;
+    }
+
+    alignment_int64_array_add(ip_rt->hit_times, thread_id, 1);
+}
+
 long long ip_runtime_hit_times(void *ip_runtime)
 {
     if (NULL == ip_runtime) {
@@ -731,15 +747,6 @@ long long ip_runtime_hit_times(void *ip_runtime)
                                 ip_rt->n_worker_thread);
 
     return sum;
-}
-
-void ip_runtime_hit_times_inc(struct ip_runtime *ip_rt, int thread_id)
-{
-    if (NULL == ip_rt || thread_id < 0) {
-        return;
-    }
-
-    alignment_int64_array_add(ip_rt->hit_times, thread_id, 1);
 }
 
 long long ip_runtime_hit_item_num(void *ip_runtime)

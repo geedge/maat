@@ -468,7 +468,8 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name,
         return -1;
     }
 
-    struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
+    struct interval_runtime *interval_rt =
+        (struct interval_runtime *)interval_runtime;
 
     int updating_flag = rcu_hash_is_updating(interval_rt->item_hash);
     if (0 == updating_flag) {
@@ -490,7 +491,8 @@ int interval_runtime_commit(void *interval_runtime, const char *table_name,
     if (rule_cnt > 0) {
         rules = ALLOC(struct interval_rule, rule_cnt);
         for (size_t i = 0; i < rule_cnt; i++) {
-            struct interval_item *interval_item = (struct interval_item *)ex_data_array[i];
+            struct interval_item *interval_item =
+                (struct interval_item *)ex_data_array[i];
             rules[i] = interval_item_to_interval_rule(interval_item);
         }
     }
@@ -549,7 +551,8 @@ long long interval_runtime_rule_count(void *interval_runtime)
         return 0;
     }
     
-    struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
+    struct interval_runtime *interval_rt =
+        (struct interval_runtime *)interval_runtime;
     return interval_rt->rule_num;
 }
 
@@ -572,11 +575,6 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
         return -1;
     }
 
-    if (n_hit_item > 0) {
-        alignment_int64_array_add(interval_rt->hit_item_num, state->thread_id,
-                                  n_hit_item);
-    }
-
     struct maat_item hit_maat_items[n_hit_item];
     size_t real_hit_item_cnt = 0;
     
@@ -586,11 +584,13 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
 
     for (int i = 0; i < n_hit_item; i++) {
         int tag_district_id = *(int *)(hit_results[i].user_tag);
-        if (tag_district_id == state->district_id || tag_district_id == DISTRICT_ANY) {
+        if (tag_district_id == state->district_id ||
+            tag_district_id == DISTRICT_ANY) {
             long long item_id = hit_results[i].rule_id;
-            struct interval_item *int_item = (struct interval_item *)rcu_hash_find(interval_rt->item_hash, 
-                                                                                  (char *)&item_id,
-                                                                                  sizeof(long long));
+            struct interval_item *int_item =
+                (struct interval_item *)rcu_hash_find(interval_rt->item_hash, 
+                                                     (char *)&item_id,
+                                                      sizeof(long long));
             if (!int_item) {
                 // item config has been deleted
                 continue;
@@ -600,6 +600,11 @@ int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id,
             hit_maat_items[real_hit_item_cnt].group_id = int_item->group_id;
             real_hit_item_cnt++;
         }
+    }
+
+    if (real_hit_item_cnt > 0) {
+        alignment_int64_array_add(interval_rt->hit_item_num, state->thread_id,
+                                  real_hit_item_cnt);
     }
 
 next:
@@ -622,8 +627,6 @@ void interval_runtime_perf_stat(struct interval_runtime *interval_rt,
         return;
     }
 
-    alignment_int64_array_add(interval_rt->scan_times, thread_id, 1);
-    
     if (start != NULL && end != NULL) {
         long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 +
                                  (end->tv_nsec - start->tv_nsec);
@@ -631,22 +634,8 @@ void interval_runtime_perf_stat(struct interval_runtime *interval_rt,
     }
 }
 
-long long interval_runtime_hit_times(void *interval_runtime)
-{
-    if (NULL == interval_runtime) {
-        return 0;
-    }
-
-    struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
-    long long sum = alignment_int64_array_sum(interval_rt->hit_times,
-                                              interval_rt->n_worker_thread);
-    alignment_int64_array_reset(interval_rt->hit_times,
-                                interval_rt->n_worker_thread);
-
-    return sum;
-}
-
-void interval_runtime_hit_times_inc(struct interval_runtime *interval_rt, int thread_id)
+void interval_runtime_hit_times_inc(struct interval_runtime *interval_rt,
+                                    int thread_id)
 {
     if (NULL == interval_rt || thread_id < 0) {
         return;
@@ -655,13 +644,42 @@ void interval_runtime_hit_times_inc(struct interval_runtime *interval_rt, int th
     alignment_int64_array_add(interval_rt->hit_times, thread_id, 1);
 }
 
+long long interval_runtime_hit_times(void *interval_runtime)
+{
+    if (NULL == interval_runtime) {
+        return 0;
+    }
+
+    struct interval_runtime *interval_rt =
+        (struct interval_runtime *)interval_runtime;
+
+    long long sum = alignment_int64_array_sum(interval_rt->hit_times,
+                                              interval_rt->n_worker_thread);
+    alignment_int64_array_reset(interval_rt->hit_times,
+                                interval_rt->n_worker_thread);
+
+    return sum;
+}
+
+void interval_runtime_scan_times_inc(struct interval_runtime *interval_rt,
+                                     int thread_id)
+{
+    if (NULL == interval_rt || thread_id < 0) {
+        return;
+    }
+
+    alignment_int64_array_add(interval_rt->scan_times, thread_id, 1);
+}
+
 long long interval_runtime_scan_times(void *interval_runtime)
 {
     if (NULL == interval_runtime) {
         return 0;
     }
 
-    struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
+    struct interval_runtime *interval_rt =
+        (struct interval_runtime *)interval_runtime;
+
     long long sum = alignment_int64_array_sum(interval_rt->scan_times,
                                               interval_rt->n_worker_thread);
     alignment_int64_array_reset(interval_rt->scan_times,
@@ -676,7 +694,9 @@ long long interval_runtime_scan_cpu_time(void *interval_runtime)
         return 0;
     }
 
-    struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
+    struct interval_runtime *interval_rt =
+        (struct interval_runtime *)interval_runtime;
+
     long long sum = alignment_int64_array_sum(interval_rt->scan_cpu_time, 
                                               interval_rt->n_worker_thread);
     alignment_int64_array_reset(interval_rt->scan_cpu_time,
@@ -691,7 +711,9 @@ long long interval_runtime_hit_item_num(void *interval_runtime)
         return 0;
     }
 
-    struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
+    struct interval_runtime *interval_rt =
+        (struct interval_runtime *)interval_runtime;
+
     long long sum = alignment_int64_array_sum(interval_rt->hit_item_num,
                                               interval_rt->n_worker_thread);
     alignment_int64_array_reset(interval_rt->hit_item_num,
@@ -706,6 +728,8 @@ long long interval_runtime_update_err_cnt(void *interval_runtime)
         return 0;
     }
 
-    struct interval_runtime *interval_rt = (struct interval_runtime *)interval_runtime;
+    struct interval_runtime *interval_rt =
+        (struct interval_runtime *)interval_runtime;
+
     return interval_rt->update_err_cnt;
 }

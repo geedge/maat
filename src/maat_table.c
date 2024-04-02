@@ -84,6 +84,8 @@ struct table_operations {
 
     long long (*scan_times)(void *runtime);
 
+    long long (*scan_bytes)(void *runtime);
+
     long long (*scan_cpu_time)(void *runtime);
 
     long long (*hit_times)(void *runtime);
@@ -134,6 +136,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .commit_runtime = expr_runtime_commit,
         .rule_count = expr_runtime_rule_count,
         .scan_times = expr_runtime_scan_times,
+        .scan_bytes = expr_runtime_scan_bytes,
         .scan_cpu_time = expr_runtime_scan_cpu_time,
         .hit_times = expr_runtime_hit_times,
         .hit_item_num = expr_runtime_hit_item_num,
@@ -149,6 +152,7 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .commit_runtime = expr_runtime_commit,
         .rule_count = expr_runtime_rule_count,
         .scan_times = expr_runtime_scan_times,
+        .scan_bytes = expr_runtime_scan_bytes,
         .scan_cpu_time = expr_runtime_scan_cpu_time,
         .hit_times = expr_runtime_hit_times,
         .hit_item_num = expr_runtime_hit_item_num,
@@ -263,10 +267,15 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .type = TABLE_TYPE_VIRTUAL,
         .new_schema = virtual_schema_new,
         .free_schema = virtual_schema_free,
-        .new_runtime = NULL,
-        .free_runtime = NULL,
+        .new_runtime = virtual_runtime_new,
+        .free_runtime = virtual_runtime_free,
         .update_runtime = NULL,
-        .commit_runtime = NULL
+        .commit_runtime = NULL,
+        .scan_times = virtual_runtime_scan_times,
+        .scan_bytes = virtual_runtime_scan_bytes,
+        .scan_cpu_time = virtual_runtime_scan_cpu_time,
+        .hit_times = virtual_runtime_hit_times,
+        .hit_item_num = virtual_runtime_hit_item_num
     },
     {
         .type = TABLE_TYPE_COMPILE,
@@ -1400,6 +1409,28 @@ long long table_manager_runtime_scan_times(struct table_manager *tbl_mgr, int ta
     }
 
     return table_ops[table_type].scan_times(runtime);
+}
+
+long long table_manager_runtime_scan_bytes(struct table_manager *tbl_mgr, int table_id)
+{
+    void *runtime = table_manager_get_runtime(tbl_mgr, table_id);
+    if (NULL == runtime) {
+        return 0;
+    }
+
+    enum table_type table_type = table_manager_get_table_type(tbl_mgr, table_id);
+    if (table_type == TABLE_TYPE_INVALID) {
+        log_fatal(tbl_mgr->logger, MODULE_TABLE, 
+                  "[%s:%d] table(table_id:%d) table_type is invalid, can't get scan bytes",
+                  __FUNCTION__, __LINE__, table_id);
+        return 0;
+    }
+
+    if (NULL == table_ops[table_type].scan_bytes) {
+        return 0;
+    }
+
+    return table_ops[table_type].scan_bytes(runtime);
 }
 
 long long table_manager_runtime_hit_times(struct table_manager *tbl_mgr, int table_id)

@@ -33,10 +33,12 @@ void *interval_runtime_new(void *interval_schema, size_t max_thread_num,
                            struct log_handle *logger);
 void interval_runtime_free(void *interval_runtime);
 
-int interval_runtime_update(void *interval_runtime, void *interval_schema, const char *table_name,
-                            const char *line, int valid_column);
+int interval_runtime_update(void *interval_runtime, void *interval_schema,
+                            const char *table_name, const char *line,
+                            int valid_column);
 
-int interval_runtime_commit(void *interval_runtime, const char *table_name, long long maat_rt_version);
+int interval_runtime_commit(void *interval_runtime, const char *table_name,
+                            long long maat_rt_version);
 
 long long interval_runtime_rule_count(void *interval_runtime);
 
@@ -49,17 +51,23 @@ long long interval_runtime_rule_count(void *interval_runtime);
 int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id, 
                           long long integer, int vtable_id, struct maat_state *state);
 
-int interval_runtime_set_scan_district(struct interval_runtime *interval_rt, const char *district, 
-                                       size_t district_len, long long *district_id);
+int interval_runtime_set_scan_district(struct interval_runtime *interval_rt,
+                                       const char *district, size_t district_len,
+                                       long long *district_id);
                                        
-void interval_runtime_perf_stat(struct interval_runtime *interval_rt, struct timespec *start,
-                                struct timespec *end, int thread_id);
+void interval_runtime_perf_stat(struct interval_runtime *interval_rt,
+                                struct timespec *start, struct timespec *end,
+                                int thread_id);
+
+void interval_runtime_scan_times_inc(struct interval_runtime *interval_rt,
+                                     int thread_id);
 
 long long interval_runtime_scan_times(void *interval_runtime);
 
 long long interval_runtime_scan_cpu_time(void *interval_runtime);
 
-void interval_runtime_hit_times_inc(struct interval_runtime *interval_rt, int thread_id);
+void interval_runtime_hit_times_inc(struct interval_runtime *interval_rt,
+                                    int thread_id);
 
 long long interval_runtime_hit_times(void *interval_runtime);
 

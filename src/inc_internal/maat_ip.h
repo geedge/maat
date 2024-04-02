@@ -47,6 +47,8 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
 void ip_runtime_perf_stat(struct ip_runtime *ip_rt, struct timespec *start,
                           struct timespec *end, int thread_id);
 
+void ip_runtime_scan_times_inc(struct ip_runtime *ip_rt, int thread_id);
+
 long long ip_runtime_scan_times(void *ip_runtime);
 
 long long ip_runtime_scan_cpu_time(void *ip_runtime);

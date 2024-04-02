@@ -1050,11 +1050,6 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
                                   n_hit_pattern);
     }
 
-    if (n_hit_item > 0) {
-        alignment_int64_array_add(expr_rt->hit_item_num, state->thread_id,
-                                  n_hit_item);
-    }
-
     struct maat_item hit_maat_items[n_hit_item];
     size_t real_hit_item_num = 0;
 
@@ -1076,9 +1071,13 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
 
             hit_maat_items[real_hit_item_num].item_id = item_id;
             hit_maat_items[real_hit_item_num].group_id = expr_item->group_id;
-            
             real_hit_item_num++;
         }
+    }
+
+    if (real_hit_item_num > 0) {
+        alignment_int64_array_add(expr_rt->hit_item_num, state->thread_id,
+                                  real_hit_item_num);
     }
 
 next:
@@ -1137,11 +1136,6 @@ int expr_runtime_stream_scan(struct expr_runtime_stream *expr_rt_stream,
                                   n_hit_pattern);
     }
 
-    if (n_hit_item > 0) {
-        alignment_int64_array_add(expr_rt->hit_item_num, state->thread_id,
-                                  n_hit_item);
-    }
-
     struct maat_item hit_maat_items[n_hit_item];
     struct expr_item *expr_item = NULL;
     size_t real_hit_item_cnt = 0;
@@ -1163,6 +1157,11 @@ int expr_runtime_stream_scan(struct expr_runtime_stream *expr_rt_stream,
         hit_maat_items[real_hit_item_cnt].item_id = item_id;
         hit_maat_items[real_hit_item_cnt].group_id = expr_item->group_id;
         real_hit_item_cnt++;
+    }
+
+    if (real_hit_item_cnt > 0) {
+        alignment_int64_array_add(expr_rt->hit_item_num, state->thread_id,
+                                  real_hit_item_cnt);
     }
 
 next:
@@ -1199,14 +1198,44 @@ void expr_runtime_perf_stat(struct expr_runtime *expr_rt, size_t scan_len,
         return;
     }
 
-    alignment_int64_array_add(expr_rt->scan_times, thread_id, 1);
-    alignment_int64_array_add(expr_rt->scan_bytes, thread_id, scan_len);
-
     if (start != NULL && end != NULL) {
         long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 +
                                  (end->tv_nsec - start->tv_nsec);
         alignment_int64_array_add(expr_rt->scan_cpu_time, thread_id, consume_time);
     }
+}
+
+void expr_runtime_scan_bytes_add(struct expr_runtime *expr_rt, int thread_id,
+                                 size_t scan_len)
+{
+    if (NULL == expr_rt || thread_id < 0 || 0 == scan_len) {
+        return;
+    }
+
+    alignment_int64_array_add(expr_rt->scan_bytes, thread_id, scan_len);
+}
+
+long long expr_runtime_scan_bytes(void *expr_runtime)
+{
+    if (NULL == expr_runtime) {
+        return 0;
+    }
+
+    struct expr_runtime *expr_rt = (struct expr_runtime *)expr_runtime;
+    long long sum = alignment_int64_array_sum(expr_rt->scan_bytes, 
+                                              expr_rt->n_worker_thread);
+    alignment_int64_array_reset(expr_rt->scan_bytes, expr_rt->n_worker_thread);
+
+    return sum;
+}
+
+void expr_runtime_scan_times_inc(struct expr_runtime *expr_rt, int thread_id)
+{
+    if (NULL == expr_rt || thread_id < 0) {
+        return;
+    } 
+
+    alignment_int64_array_add(expr_rt->scan_times, thread_id, 1);
 }
 
 long long expr_runtime_scan_times(void *expr_runtime)
@@ -1235,6 +1264,28 @@ long long expr_runtime_scan_cpu_time(void *expr_runtime)
     alignment_int64_array_reset(expr_rt->scan_cpu_time, expr_rt->n_worker_thread);
 
     return sum;
+}
+
+void expr_runtime_stream_scan_times_inc(struct expr_runtime_stream *expr_rt_stream,
+                                        int thread_id)
+{
+    if (NULL == expr_rt_stream || thread_id < 0) {
+        return;
+    }
+
+    struct expr_runtime *expr_rt = expr_rt_stream->ref_expr_rt;
+    alignment_int64_array_add(expr_rt->scan_times, thread_id, 1);
+}
+
+void expr_runtime_stream_scan_bytes_add(struct expr_runtime_stream *expr_rt_stream,
+                                        int thread_id, size_t scan_len)
+{
+     if (NULL == expr_rt_stream || thread_id < 0) {
+        return;
+    }
+
+     struct expr_runtime *expr_rt = expr_rt_stream->ref_expr_rt;
+    alignment_int64_array_add(expr_rt->scan_bytes, thread_id, scan_len);
 }
 
 void expr_runtime_hit_times_inc(struct expr_runtime *expr_rt, int thread_id)
@@ -1309,17 +1360,4 @@ long long expr_runtime_update_err_count(void *expr_runtime)
 
     struct expr_runtime *expr_rt = (struct expr_runtime *)expr_runtime;
     return expr_rt->update_err_cnt;
-}
-
-long long expr_runtime_scan_bytes(struct expr_runtime *expr_rt)
-{
-    if (NULL == expr_rt) {
-        return 0;
-    }
-
-    long long sum = alignment_int64_array_sum(expr_rt->scan_bytes, 
-                                              expr_rt->n_worker_thread);
-    alignment_int64_array_reset(expr_rt->scan_bytes, expr_rt->n_worker_thread);
-
-    return sum;
 }

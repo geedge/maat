@@ -567,16 +567,12 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
     }
 
     struct flag_result hit_results[MAX_HIT_ITEM_NUM];
-    int n_hit_item = flag_matcher_match(flag_rt->matcher, flag, hit_results, MAX_HIT_ITEM_NUM);
+    int n_hit_item = flag_matcher_match(flag_rt->matcher, flag, hit_results,
+                                        MAX_HIT_ITEM_NUM);
     if (n_hit_item < 0) {
         return -1;
     }
 
-    if (n_hit_item > 0) {
-        alignment_int64_array_add(flag_rt->hit_item_num, state->thread_id,
-                                  n_hit_item);
-    }
-    
     struct maat_item hit_maat_items[n_hit_item];
     size_t real_hit_item_cnt = 0;
 
@@ -586,11 +582,13 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
 
     for (int i = 0; i < n_hit_item; i++) {
         int tag_district_id = *(int *)(hit_results[i].user_tag);
-        if (tag_district_id == state->district_id || tag_district_id == DISTRICT_ANY) {
+        if (tag_district_id == state->district_id ||
+            tag_district_id == DISTRICT_ANY) {
             long long item_id = hit_results[i].rule_id;
-            struct flag_item *flag_item = (struct flag_item *)rcu_hash_find(flag_rt->item_hash, 
-                                                                            (char *)&item_id,
-                                                                            sizeof(long long));
+            struct flag_item *flag_item =
+                (struct flag_item *)rcu_hash_find(flag_rt->item_hash, 
+                                                  (char *)&item_id,
+                                                  sizeof(long long));
             if (!flag_item) {
                 // item config has been deleted
                 continue;
@@ -600,6 +598,11 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
             hit_maat_items[real_hit_item_cnt].group_id = flag_item->group_id;
             real_hit_item_cnt++;
         }
+    }
+
+    if (real_hit_item_cnt > 0) {
+        alignment_int64_array_add(flag_rt->hit_item_num, state->thread_id,
+                                  real_hit_item_cnt);
     }
 
 next:
@@ -621,13 +624,20 @@ void flag_runtime_perf_stat(struct flag_runtime *flag_rt, struct timespec *start
         return;
     }
 
-    alignment_int64_array_add(flag_rt->scan_times, thread_id, 1);
-
     if (start != NULL && end != NULL) {
         long long consume_time = (end->tv_sec - start->tv_sec) * 1000000000 + 
                                  (end->tv_nsec - start->tv_nsec);
         alignment_int64_array_add(flag_rt->scan_cpu_time, thread_id, consume_time);
     }
+}
+
+void flag_runtime_hit_times_inc(struct flag_runtime *flag_rt, int thread_id)
+{
+    if (NULL == flag_rt || thread_id < 0) {
+        return;
+    }
+
+    alignment_int64_array_add(flag_rt->hit_times, thread_id, 1);
 }
 
 long long flag_runtime_hit_times(void *flag_runtime)
@@ -645,15 +655,6 @@ long long flag_runtime_hit_times(void *flag_runtime)
     return sum;
 }
 
-void flag_runtime_hit_times_inc(struct flag_runtime *flag_rt, int thread_id)
-{
-    if (NULL == flag_rt || thread_id < 0) {
-        return;
-    }
-
-    alignment_int64_array_add(flag_rt->hit_times, thread_id, 1);
-}
-
 long long flag_runtime_hit_item_num(void *flag_runtime)
 {
     if (NULL == flag_runtime) {
@@ -667,6 +668,15 @@ long long flag_runtime_hit_item_num(void *flag_runtime)
                                 flag_rt->n_worker_thread);
 
     return sum;
+}
+
+void flag_runtime_scan_times_inc(struct flag_runtime *flag_rt, int thread_id)
+{
+    if (NULL == flag_rt || thread_id < 0) {
+        return;
+    }
+
+    alignment_int64_array_add(flag_rt->scan_times, thread_id, 1);
 }
 
 long long flag_runtime_scan_times(void *flag_runtime)
@@ -693,7 +703,8 @@ long long flag_runtime_scan_cpu_time(void *flag_runtime)
     struct flag_runtime *flag_rt = (struct flag_runtime *)flag_runtime;
     long long sum = alignment_int64_array_sum(flag_rt->scan_cpu_time, 
                                               flag_rt->n_worker_thread);
-    alignment_int64_array_reset(flag_rt->scan_cpu_time, flag_rt->n_worker_thread);
+    alignment_int64_array_reset(flag_rt->scan_cpu_time,
+                                flag_rt->n_worker_thread);
 
     return sum;
 }

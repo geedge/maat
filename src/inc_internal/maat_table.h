@@ -107,6 +107,8 @@ long long table_manager_runtime_rule_count(struct table_manager *tbl_mgr, int ta
 
 long long table_manager_runtime_scan_times(struct table_manager *tbl_mgr, int table_id);
 
+long long table_manager_runtime_scan_bytes(struct table_manager *tbl_mgr, int table_id);
+
 long long table_manager_runtime_hit_times(struct table_manager *tbl_mgr, int table_id);
 
 long long table_manager_runtime_scan_cpu_time(struct table_manager *tbl_mgr, int table_id);

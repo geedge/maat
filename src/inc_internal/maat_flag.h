@@ -58,13 +58,15 @@ int flag_runtime_set_scan_district(struct flag_runtime *flag_rt, const char *dis
 void flag_runtime_perf_stat(struct flag_runtime *flag_rt, struct timespec *start,
                             struct timespec *end, int thread_id);
 
+void flag_runtime_scan_times_inc(struct flag_runtime *flag_rt, int thread_id);
+
 long long flag_runtime_scan_times(void *flag_runtime);
 
 long long flag_runtime_scan_cpu_time(void *flag_runtime);
 
-long long flag_runtime_hit_times(void *flag_runtime);
-
 void flag_runtime_hit_times_inc(struct flag_runtime *flag_rt, int thread_id);
+
+long long flag_runtime_hit_times(void *flag_runtime);
 
 long long flag_runtime_hit_item_num(void *flag_runtime);
 
