@@ -30,19 +30,6 @@ struct thread_param {
     struct log_handle *logger;
 };
 
-void random_keyword_generate(char *keyword_buf, size_t sz)
-{
-#define MIN_KEYWORD_LEN	4
-    size_t i = 0;
-	size_t len = random() % (sz - 1 - MIN_KEYWORD_LEN) + MIN_KEYWORD_LEN;
-	for (i = 0; i < len; i++) {
-		keyword_buf[i] = 'a' + random() % ('z' - 'a');
-	}
-	keyword_buf[i] = '\0';
-}
-
-
-
 static void
 test_add_expr_command(struct maat *maat_inst, const char *table_name, 
                       const char *keywords)
@@ -1643,78 +1630,6 @@ TEST_F(MaatPerfFileScan, IPPlugin) {
 		free(is_all_hit);
 	}
 }
-
-class MaatTSGFqdnScan : public testing::Test
-{
-protected:
-    static void SetUpTestCase() {
-        char redis_ip[64] = "127.0.0.1";
-        int redis_port = 6379;
-        int redis_db = 0;
-        const char *tsg_table_info = "./tsg_table_info.conf";
-
-        logger = log_handle_create("./maat_framework_perf_gtest.log", 0);        
-        int ret = write_iris_to_redis("./tsgrule", redis_ip, redis_port,
-                                        redis_db, logger);
-        if (ret < 0) {
-            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                      "[%s:%d] write config to redis failed.",
-                      __FUNCTION__, __LINE__);
-        }
-
-        struct maat_options *opts = maat_options_new();
-        maat_options_set_stat_file(opts, "./stat.log");
-        maat_options_set_perf_on(opts);
-        maat_options_set_redis(opts, redis_ip, redis_port, redis_db);
-        maat_options_set_logger(opts, "./maat_framework_perf_gtest.log",
-                                LOG_LEVEL_INFO);
-
-        _shared_maat_inst = maat_new(opts, tsg_table_info);
-        maat_options_free(opts);
-        if (NULL == _shared_maat_inst) {
-            log_fatal(logger, MODULE_FRAMEWORK_PERF_GTEST,
-                       "[%s:%d] create maat instance in MaatTSGFqdnScan failed.",
-                      __FUNCTION__, __LINE__);
-        }
-    }
-
-    static void TearDownTestCase() {
-        maat_free(_shared_maat_inst);
-        log_handle_destroy(logger);
-    }
-
-    static struct log_handle *logger;
-    static struct maat *_shared_maat_inst;
-};
-
-struct maat *MaatTSGFqdnScan::_shared_maat_inst;
-struct log_handle *MaatTSGFqdnScan::logger;
-
-#if 0
-TEST_F(MaatTSGFqdnScan, mem_used) {
-    char keyword_buf[128];
-    const char *table_name1 = "TSG_OBJ_FQDN";
-    const char *table_name2= "TSG_IP_ADDR";
-    struct maat *maat_inst = MaatTSGFqdnScan::_shared_maat_inst;
-    struct log_handle *logger = MaatTSGFqdnScan::logger;
-
-    for (size_t i = 0; i < 100; i++) {
-        random_keyword_generate(keyword_buf, sizeof(keyword_buf));
-        int ret = expr_table_set_line(maat_inst, table_name1, MAAT_OP_ADD,
-                                      600000000+i, 600000000+i, keyword_buf,
-                                      "null", 1, 0, 0, 0);
-        EXPECT_EQ(ret, 1);
-
-        ret = ip_table_set_line(maat_inst, table_name2, MAAT_OP_ADD,
-                                600000000+i, 600000000+i, IPv4, "100.64.1.1",
-                                "100.64.1.2", 0);
-        EXPECT_EQ(ret, 1);
-
-        log_info(logger, MODULE_FRAMEWORK_PERF_GTEST, "MaatTSGFqdnScan update one line");
-        sleep(150);
-    }
-}
-#endif
 
 class MaatPerfIPPortPluginScan : public testing::Test
 {

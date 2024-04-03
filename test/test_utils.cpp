@@ -9,28 +9,34 @@
 #include <assert.h>
 #include <unistd.h>
 
-int count_line_num_cb(const char *table_name, const char *line, void *u_para)
+int line_idx = 0;
+long long absolute_expire_time = 0;
+
+static int
+count_line_num_cb(const char *table_name, const char *line, void *u_para)
 {
 	(*((unsigned int *)u_para))++;
 	return 0;
 }
 
-int line_idx = 0;
-long long absolute_expire_time = 0;
-int make_serial_rule(const char *table_name, const char *line, void *u_para)
+static int
+make_serial_rule(const char *table_name, const char *line, void *u_para)
 {
 	struct serial_rule *s_rule=(struct serial_rule *)u_para;
     redisContext *ctx = s_rule->ref_ctx;
 	char *buff = ALLOC(char, strlen(line) + 1);
 
     memcpy(buff, line, strlen(line) + 1);
-	while (buff[strlen(line) - 1] == '\n' || buff[strlen(line) - 1] == '\t') {
+
+	while (buff[strlen(line) - 1] == '\n' ||
+           buff[strlen(line) - 1] == '\t') {
 		buff[strlen(line) - 1] = '\0';
 	}
 
     const char *redis_rule_key = "TEST_RULE_KEY";
-    redisReply *reply = maat_wrap_redis_command(ctx, NULL, "INCRBY %s %d",
-                                                redis_rule_key, 1);
+    redisReply *reply =
+        maat_wrap_redis_command(ctx, NULL, "INCRBY %s %d", redis_rule_key, 1);
+
 	if (reply->type == REDIS_REPLY_NIL) {
 		printf("incrby redis_rule_key:%s failed.", redis_rule_key);
         return -1;
@@ -49,29 +55,32 @@ int make_serial_rule(const char *table_name, const char *line, void *u_para)
 
 	return 0;
 }
-int write_json_to_iris(const char* json_fn, char *iris_path, size_t path_sz, struct log_handle *logger)
+
+int write_json_to_iris(const char* json_fn, char *iris_path, size_t path_sz,
+                       struct log_handle *logger)
 {
 
     char *json_buff = NULL;
     size_t json_buff_sz = 0;
     
     int ret = load_file_to_memory(json_fn, (unsigned char **)&json_buff,
-                                    &json_buff_sz);
+                                  &json_buff_sz);
     if (ret < 0) {
         return -1;
     }
 
-    ret = json2iris(json_buff, json_fn, NULL, iris_path, 
-                    path_sz, NULL, NULL, logger);
+    ret = json2iris(json_buff, json_fn, NULL, iris_path, path_sz, NULL, NULL, logger);
     FREE(json_buff);
+
     if (ret < 0) {
         return -1;
     }
 
     return 0;
 }
-int write_iris_to_redis(const char* iris_path, char *redis_ip, int redis_port, int redis_db,
-                          struct log_handle *logger)
+
+int write_iris_to_redis(const char *iris_path, char *redis_ip, int redis_port,
+                        int redis_db, struct log_handle *logger)
 {
    redisContext *c = maat_connect_redis(redis_ip, redis_port, redis_db, logger);
     if (NULL == c) {
@@ -119,12 +128,21 @@ int write_iris_to_redis(const char* iris_path, char *redis_ip, int redis_port, i
     redisFree(c);
     return 0;
 }
-int write_json_to_redis(const char* json_filename, char *redis_ip, int redis_port, int redis_db,
-                          struct log_handle *logger)
+
+int write_json_to_redis(const char *json_filename, char *redis_ip, int redis_port,
+                        int redis_db, struct log_handle *logger)
 {
     char iris_path[512] = {0};
-    write_json_to_iris(json_filename, iris_path, sizeof(iris_path), logger);
-    write_iris_to_redis(iris_path, redis_ip, redis_port, redis_db, logger);
+
+    int ret = write_json_to_iris(json_filename, iris_path, sizeof(iris_path), logger);
+    if (ret < 0) {
+        return -1;
+    }
+
+    ret = write_iris_to_redis(iris_path, redis_ip, redis_port, redis_db, logger);
+    if (ret < 0) {
+        return -1;
+    }
 
     return 0;
 }
@@ -147,7 +165,8 @@ int compile_table_set_line(struct maat *maat_inst, const char *table_name,
     return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-#define TO_GROUP2X_KEY(group_id, parent_id, clause_index) (((unsigned long)group_id<<32|parent_id) + clause_index)
+#define TO_GROUP2X_KEY(group_id, parent_id, clause_index) \
+        (((unsigned long)group_id<<32|parent_id) + clause_index)
 
 int group2compile_table_set_line(struct maat *maat_inst, const char *table_name,
                                  enum maat_operation op, long long group_id,
@@ -197,9 +216,10 @@ int expr_table_set_line(struct maat *maat_inst, const char *table_name,
         return 0;
     }
     
-    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr,
-                                                              table_id);
-    assert(table_type == TABLE_TYPE_EXPR || table_type == TABLE_TYPE_EXPR_PLUS);
+    enum table_type table_type =
+        table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
+    assert(table_type == TABLE_TYPE_EXPR ||
+           table_type == TABLE_TYPE_EXPR_PLUS);
 
     if (table_type == TABLE_TYPE_EXPR_PLUS) {
         sprintf(table_line, "%lld\t%lld\t%s\t%s\t%d\t%d\t%d\t%d",
@@ -231,9 +251,10 @@ int interval_table_set_line(struct maat *maat_inst, const char *table_name,
         return 0;
     }
 
-    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr,
-                                                              table_id);
-    assert(table_type == TABLE_TYPE_INTERVAL || table_type == TABLE_TYPE_INTERVAL_PLUS);
+    enum table_type table_type =
+        table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
+    assert(table_type == TABLE_TYPE_INTERVAL ||
+           table_type == TABLE_TYPE_INTERVAL_PLUS);
 
     if (table_type == TABLE_TYPE_INTERVAL_PLUS) {
         sprintf(table_line, "%lld\t%lld\t%s\t%u\t%u\t%d",
@@ -254,8 +275,8 @@ int interval_table_set_line(struct maat *maat_inst, const char *table_name,
 
 int ip_table_set_line(struct maat *maat_inst, const char *table_name,
                       enum maat_operation op, long long item_id,
-                      long long group_id, enum IP_TYPE type, const char *ip1, 
-                      const char *ip2, int expire_after)
+                      long long group_id, enum IP_TYPE type,
+                      const char *ip1, const char *ip2, int expire_after)
 {
     char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -300,4 +321,16 @@ int flag_table_set_line(struct maat *maat_inst, const char *table_name,
     line_rule.expire_after = expire_after;
 
     return maat_cmd_set_line(maat_inst, &line_rule);
+}
+
+void random_keyword_generate(char *keyword_buf, size_t sz)
+{
+#define MIN_KEYWORD_LEN	4
+	size_t i = 0, len = 0;
+	len = random() % (sz - 1 - MIN_KEYWORD_LEN) + MIN_KEYWORD_LEN;
+
+	for (i = 0; i < len; i++) {
+		keyword_buf[i] = 'a' + random() % ('z' - 'a');
+	}
+	keyword_buf[i] = '\0';
 }

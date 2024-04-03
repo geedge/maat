@@ -58,19 +58,6 @@ int del_command(struct maat *maat_inst, int compile_id)
                                   compile_id, "null", 1, 0);
 }
 
-static void random_keyword_generate(char *keyword_buf, size_t sz)
-{
-#define MIN_KEYWORD_LEN	4
-	size_t i = 0;
-	size_t len = random() % (sz - 1 - MIN_KEYWORD_LEN) + MIN_KEYWORD_LEN;
-
-	for (i = 0; i < len; i++) {
-		keyword_buf[i] = 'a' + random() % ('z' - 'a');
-	}
-
-	keyword_buf[i] = '\0';
-}
-
 const char *watched_json = "./json_update/maat.json";
 const char *old_json = "./json_update/old.json";
 const char *new_json = "./json_update/new.json";

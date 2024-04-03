@@ -528,7 +528,6 @@ void *rule_monitor_loop(void *arg)
 
         pthread_mutex_unlock(&(maat_inst->background_update_mutex));
 		
-
         maat_garbage_collect_routine(maat_inst->garbage_bin);
         maat_plugin_table_garbage_collect_routine(maat_inst->tbl_mgr);
 

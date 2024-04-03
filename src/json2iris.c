@@ -92,9 +92,9 @@ struct translate_command {
 	int default_int;
 };
 
-static struct iris_table *query_table_info(struct iris_description *p_iris, 
-                                    	   const char *table_name, 
-                                    	   enum table_type table_type)
+static struct iris_table *
+query_table_info(struct iris_description *p_iris, const char *table_name, 
+                 enum table_type table_type)
 {
     if (NULL == p_iris || NULL == table_name || 
         table_type == TABLE_TYPE_INVALID) {
@@ -127,11 +127,12 @@ static void free_iris_table_info(void *p)
     FREE(table);
 }
 
-static int set_iris_descriptor(const char *json_file, cJSON *json,
-                        	   const char *encrypt_key, const char *encrypt_algo, 
-                        	   const char *compile_tn, const char *group2compile_tn,
-                        	   const char* group2group_tn, redisContext *redis_write_ctx,
-                        	   struct iris_description *iris_cfg)
+static int
+set_iris_descriptor(const char *json_file, cJSON *json,
+                    const char *encrypt_key, const char *encrypt_algo, 
+                    const char *compile_tn, const char *group2compile_tn,
+                    const char* group2group_tn, redisContext *redis_write_ctx,
+                    struct iris_description *iris_cfg)
 {
 	memset(iris_cfg, 0, sizeof(struct iris_description));
 	snprintf(iris_cfg->tmp_iris_dir, sizeof(iris_cfg->tmp_iris_dir),
@@ -251,9 +252,10 @@ static int create_tmp_dir(struct iris_description *p)
 	return 0;
 }
 
-static int write_plugin_line(cJSON *plug_table_json, int sequence,
-                      		 struct iris_description *p_iris, 
-                      		 struct log_handle *logger)
+static int
+write_plugin_line(cJSON *plug_table_json, int sequence,
+                  struct iris_description *p_iris, 
+                  struct log_handle *logger)
 {
 	cJSON *item = cJSON_GetObjectItem(plug_table_json, "table_name");
 	if (NULL == item || item->type != cJSON_String) {
@@ -345,9 +347,10 @@ static int get_region_seq(struct iris_description *iris_cfg)
 	return sequence;
 }
 
-static int direct_write_rule(cJSON *json, struct maat_kv_store *str2int, 
-                      		 struct translate_command *cmd, int cmd_cnt, 
-                      		 struct iris_table *table, struct log_handle *logger)
+static int
+direct_write_rule(cJSON *json, struct maat_kv_store *str2int, 
+                  struct translate_command *cmd, int cmd_cnt, 
+                  struct iris_table *table, struct log_handle *logger)
 {
 	int i = 0;
     int ret = -1;
@@ -404,9 +407,11 @@ static int direct_write_rule(cJSON *json, struct maat_kv_store *str2int,
 	for (i = 0; i < cmd_cnt; i++) {
 		table->write_pos += memcat(&(table->buff), table->write_pos, &table->buff_sz, 
                                    cmd[i].json_value, strlen(cmd[i].json_value));
-		table->write_pos += memcat(&(table->buff), table->write_pos, &table->buff_sz, "\t", 1);
+		table->write_pos += memcat(&(table->buff), table->write_pos,
+								   &table->buff_sz, "\t", 1);
 	}
-	table->write_pos += memcat(&(table->buff), table->write_pos, &table->buff_sz, "\n", 1);
+	table->write_pos += memcat(&(table->buff), table->write_pos,
+							   &table->buff_sz, "\n", 1);
 	table->line_count++;
 	ret = 0;
 error_out:	
@@ -418,8 +423,9 @@ error_out:
 	return ret;
 }
 
-static int write_flag_line(cJSON *region_json, struct iris_description *p_iris, 
-                    	   struct iris_table *table, struct log_handle *logger)
+static int
+write_flag_line(cJSON *region_json, struct iris_description *p_iris, 
+                struct iris_table *table, struct log_handle *logger)
 {
     struct translate_command json_cmd[MAX_COLUMN_NUM];
 	int cmd_cnt = 0;
@@ -455,8 +461,9 @@ static int write_flag_line(cJSON *region_json, struct iris_description *p_iris,
                              json_cmd, cmd_cnt, table, logger);
 }
 
-static int write_expr_line(cJSON *region_json, struct iris_description *p_iris,
-                    	   struct iris_table *table, struct log_handle *logger)
+static int
+write_expr_line(cJSON *region_json, struct iris_description *p_iris,
+                struct iris_table *table, struct log_handle *logger)
 {
 	struct translate_command json_cmd[MAX_COLUMN_NUM];
 	int cmd_cnt = 0;
@@ -503,8 +510,9 @@ static int write_expr_line(cJSON *region_json, struct iris_description *p_iris,
                              json_cmd, cmd_cnt, table, logger);
 }
 
-static int write_ip_line(cJSON *region_json, struct iris_description *p_iris,
-                       		  struct iris_table *table, struct log_handle *logger)
+static int
+write_ip_line(cJSON *region_json, struct iris_description *p_iris,
+              struct iris_table *table, struct log_handle *logger)
 {
 	struct translate_command json_cmd[MAX_COLUMN_NUM];
 	int cmd_cnt = 0;
@@ -555,8 +563,9 @@ static int write_ip_line(cJSON *region_json, struct iris_description *p_iris,
                              json_cmd, cmd_cnt, table, logger);
 }
 
-static int write_interval_line(cJSON *region_json, struct iris_description *p_iris,
-                      		 struct iris_table *table, struct log_handle *logger)
+static int
+write_interval_line(cJSON *region_json, struct iris_description *p_iris,
+                    struct iris_table *table, struct log_handle *logger)
 {
 	struct translate_command json_cmd[MAX_COLUMN_NUM];
 	int cmd_cnt = 0;
@@ -592,8 +601,9 @@ static int write_interval_line(cJSON *region_json, struct iris_description *p_ir
                              json_cmd, cmd_cnt, table, logger);
 }
 
-static int write_region_rule(cJSON *region_json, int compile_id, int group_id,
-                      		 struct iris_description *p_iris, struct log_handle *logger)
+static int
+write_region_rule(cJSON *region_json, int compile_id, int group_id,
+                  struct iris_description *p_iris, struct log_handle *logger)
 {
     cJSON *item = cJSON_GetObjectItem(region_json, "table_name");
 	if (NULL == item || item->type != cJSON_String) {
@@ -662,11 +672,12 @@ static int write_region_rule(cJSON *region_json, int compile_id, int group_id,
 	return ret;
 }
 
-static int write_group2compile_line(int *group_ids, size_t n_group_id,
-									int compile_id, int group_not_flag,
-                             		int clause_index, const char *vtable, 
-                             		struct iris_description *p_iris,
-                             		struct iris_table *g2c_table)
+static int
+write_group2compile_line(int *group_ids, size_t n_group_id,
+						 int compile_id, int group_not_flag,
+                         int clause_index, const char *vtable, 
+                         struct iris_description *p_iris,
+                         struct iris_table *g2c_table)
 {
 	char buff[4096] = {0};
     struct iris_table *table = NULL;
@@ -689,23 +700,24 @@ static int write_group2compile_line(int *group_ids, size_t n_group_id,
 			strcat(group_id_str, tmp_str);
 		}
 		group_id_str[strlen(group_id_str) - 1] = '\0';
-		snprintf(buff, sizeof(buff), "%s\t%d\t%d\t%s\t%d\t1\n", group_id_str, compile_id,
-             	 group_not_flag, vtable, clause_index);
+		snprintf(buff, sizeof(buff), "%s\t%d\t%d\t%s\t%d\t1\n", group_id_str,
+				 compile_id, group_not_flag, vtable, clause_index);
 	} else {
-		snprintf(buff, sizeof(buff), "%d\t%d\t%d\t%s\t%d\t1\n", group_ids[0], compile_id,
-				 group_not_flag, vtable, clause_index);
+		snprintf(buff, sizeof(buff), "%d\t%d\t%d\t%s\t%d\t1\n", group_ids[0],
+				 compile_id, group_not_flag, vtable, clause_index);
 	}
 	
-	table->write_pos += memcat(&(table->buff), table->write_pos, &(table->buff_sz),
-                               buff, strlen(buff));
+	table->write_pos += memcat(&(table->buff), table->write_pos,
+							   &(table->buff_sz), buff, strlen(buff));
 	table->line_count++;
 
 	return 0;
 }
 
-static int write_group2group_line(int group_id, UT_array *incl_sub_group_ids,
-								  UT_array *excl_sub_group_ids,
-                           		  struct iris_description *p_iris)
+static int
+write_group2group_line(int group_id, UT_array *incl_sub_group_ids,
+					   UT_array *excl_sub_group_ids,
+                       struct iris_description *p_iris)
 {
 	char buff[MAX_BUFF_LEN*4] = {0};
 	struct iris_table *table = p_iris->group2group_table;
@@ -765,10 +777,11 @@ static int write_group2group_line(int group_id, UT_array *incl_sub_group_ids,
     return 0;
 }
 
-static int write_group_rule(cJSON *group_json, int parent_id, 
-                     		int parent_type, int tracking_compile_id, 
-                     		int Nth_group, struct iris_description *p_iris, 
-                     		struct log_handle *logger)
+static int
+write_group_rule(cJSON *group_json, int parent_id, 
+                 int parent_type, int tracking_compile_id, 
+                 int Nth_group, struct iris_description *p_iris, 
+                 struct log_handle *logger)
 {
     int ret = 0;
     int group_not_flag = 0;
@@ -839,11 +852,12 @@ static int write_group_rule(cJSON *group_json, int parent_id,
     if (group_name_cnt > 0) {
 		int group_ids[group_name_cnt];
 		for (size_t i = 0; i < group_name_cnt; i++) {
-			struct group_info *group_info = group_info_read(p_iris->group_name_map,
-															group_name_array[i]);
+			struct group_info *group_info =
+				group_info_read(p_iris->group_name_map, group_name_array[i]);
 			if (NULL == group_info) {
-				log_fatal(logger, MODULE_JSON2IRIS, "[%s:%d] group_name:%s has no group_id",
-						  __FUNCTION__, __LINE__, group_name_array[i]);
+				log_fatal(logger, MODULE_JSON2IRIS, "[%s:%d] group_name:%s"
+						  " has no group_id", __FUNCTION__, __LINE__,
+						  group_name_array[i]);
 				return -1;
 			}
 			group_ids[i] = group_info->group_id;
@@ -854,7 +868,8 @@ static int write_group_rule(cJSON *group_json, int parent_id,
                                        virtual_table, p_iris, g2c_table);
 
     } else {
-        struct group_info *group_info = group_info_read(p_iris->group_name_map, group_name);
+        struct group_info *group_info =
+			group_info_read(p_iris->group_name_map, group_name);
         // exist group name, regions and sub groups will be ommit.
         if (NULL == group_info) {
         	if (0 == strncasecmp(group_name, untitled_group_name,
@@ -864,8 +879,8 @@ static int write_group_rule(cJSON *group_json, int parent_id,
 
             if (-1 == group_id) {
             	log_fatal(logger, MODULE_JSON2IRIS,
-                    	  "[%s:%d] group_name:<%s> has no group_id", __FUNCTION__,
-                          __LINE__, group_name);
+                    	  "[%s:%d] group_name:<%s> has no group_id",
+						  __FUNCTION__, __LINE__, group_name);
             	return -1;
             }
 
@@ -924,13 +939,15 @@ static int write_group_rule(cJSON *group_json, int parent_id,
 	return 0;
 }
 
-static int write_compile_line(cJSON *compile, struct iris_description *p_iris,
-                       		  struct log_handle *logger)
+static int
+write_compile_line(cJSON *compile, struct iris_description *p_iris,
+                   struct log_handle *logger)
 {
 	cJSON *item=cJSON_GetObjectItem(compile, "compile_id");
 	if (item->type != cJSON_Number) {
 		log_fatal(logger, MODULE_JSON2IRIS, 
-                  "[%s:%d] compile_id format not number", __FUNCTION__, __LINE__);
+                  "[%s:%d] compile_id format not number",
+				  __FUNCTION__, __LINE__);
 		return -1;
 	}
 	int compile_id = item->valueint;
@@ -1021,8 +1038,8 @@ static int write_compile_line(cJSON *compile, struct iris_description *p_iris,
 		table_info = query_table_info(p_iris, item->valuestring, TABLE_TYPE_COMPILE);
 	}
 	
-	int ret = direct_write_rule(compile, p_iris->str2int_map, compile_cmd, cmd_cnt, 
-                                table_info, logger);
+	int ret = direct_write_rule(compile, p_iris->str2int_map, compile_cmd,
+								cmd_cnt, table_info, logger);
 	if (ret < 0) {
 		return -1;
 	}
@@ -1073,7 +1090,8 @@ static int write_index_file(struct iris_description *p_iris,
 	if (NULL == p_iris->idx_fp) {
 		log_fatal(logger, MODULE_JSON2IRIS, 
                   "[%s:%d] index file %s fopen error %s",
-                  __FUNCTION__, __LINE__, p_iris->index_path, strerror(errno));
+                  __FUNCTION__, __LINE__, p_iris->index_path,
+				  strerror(errno));
 		return -1;
 	}
 
@@ -1165,8 +1183,10 @@ static int write_group2group_rule(struct iris_description *p_iris,
     struct group_info *group_info = NULL, *tmp_group_info = NULL;
 
     HASH_ITER(hh, p_iris->group_name_map, group_info, tmp_group_info) {
-        ret = write_group2group_line(group_info->group_id, group_info->incl_sub_group_ids,
-                                     group_info->excl_sub_group_ids, p_iris);
+        ret = write_group2group_line(group_info->group_id,
+									 group_info->incl_sub_group_ids,
+                                     group_info->excl_sub_group_ids,
+									 p_iris);
 		if (ret < 0) {
         	log_fatal(logger, MODULE_JSON2IRIS,
                       "[%s:%d] write group2group line failed for super_group:%d",

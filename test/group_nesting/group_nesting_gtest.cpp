@@ -33,7 +33,8 @@ struct group2group_rule {
 
 UT_icd ut_ex_group_id_icd = {sizeof(long long), NULL, NULL, NULL};
 
-static int parse_config_file(const char *filename, struct group2group_rule *rules)
+static int
+parse_config_file(const char *filename, struct group2group_rule *rules)
 {
     unsigned char *json_buff = NULL;
     size_t json_buff_size = 0;

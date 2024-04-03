@@ -90,7 +90,8 @@ void maat_options_free(struct maat_options *opts)
     FREE(opts);
 }
 
-int maat_options_set_caller_thread_number(struct maat_options *opts, size_t n_thread)
+int maat_options_set_caller_thread_number(struct maat_options *opts,
+                                          size_t n_thread)
 {
     if (NULL == opts) {
         return -1;
@@ -100,7 +101,8 @@ int maat_options_set_caller_thread_number(struct maat_options *opts, size_t n_th
     return 0;
 }
 
-int maat_options_set_accept_tags(struct maat_options *opts, const char *accept_tags)
+int maat_options_set_accept_tags(struct maat_options *opts,
+                                 const char *accept_tags)
 {
     if (NULL == opts || NULL == accept_tags) {
         return -1;
@@ -110,7 +112,8 @@ int maat_options_set_accept_tags(struct maat_options *opts, const char *accept_t
     return 0;
 }
 
-int maat_options_set_rule_update_checking_interval_ms(struct maat_options *opts, int interval_ms)
+int maat_options_set_rule_update_checking_interval_ms(struct maat_options *opts,
+                                                      int interval_ms)
 {
     if (NULL == opts || interval_ms < 0) {
         return -1;
@@ -130,7 +133,8 @@ int maat_options_set_gc_timeout_ms(struct maat_options *opts, int interval_ms)
     return 0;
 }
 
-int maat_options_set_instance_name(struct maat_options *opts, const char *instance_name)
+int maat_options_set_instance_name(struct maat_options *opts,
+                                   const char *instance_name)
 {
     if (NULL == opts || NULL == instance_name || 
         strlen(instance_name) > MAX_INSTANCE_NAME_LEN) {
@@ -171,7 +175,8 @@ int maat_options_set_perf_on(struct maat_options *opts)
     return 0;
 }
 
-int maat_options_set_foreign_cont_dir(struct maat_options *opts, const char *dir)
+int maat_options_set_foreign_cont_dir(struct maat_options *opts,
+                                      const char *dir)
 {
     if (NULL == opts || NULL == dir || strlen(dir) >= NAME_MAX) {
         return -1;
@@ -181,7 +186,8 @@ int maat_options_set_foreign_cont_dir(struct maat_options *opts, const char *dir
     return 0;
 }
 
-int maat_options_set_iris(struct maat_options *opts, const char *full_directory,
+int maat_options_set_iris(struct maat_options *opts,
+                          const char *full_directory,
                           const char *increment_directory)
 {
     if (NULL == opts || strlen(full_directory) >= NAME_MAX || 
@@ -189,16 +195,20 @@ int maat_options_set_iris(struct maat_options *opts, const char *full_directory,
         return -1;
     }
 
-    memcpy(opts->iris_ctx.full_idx_dir, full_directory, strlen(full_directory));
-    memcpy(opts->iris_ctx.inc_idx_dir, increment_directory, strlen(increment_directory));
+    memcpy(opts->iris_ctx.full_idx_dir, full_directory,
+           strlen(full_directory));
+    memcpy(opts->iris_ctx.inc_idx_dir, increment_directory,
+           strlen(increment_directory));
     opts->input_mode = DATA_SOURCE_IRIS_FILE;
 
     return 0;
 }
 
-int maat_options_set_json_file(struct maat_options *opts, const char *json_filename)
+int maat_options_set_json_file(struct maat_options *opts,
+                               const char *json_filename)
 {
-    strncpy(opts->json_ctx.json_file, json_filename, sizeof(opts->json_ctx.json_file));
+    strncpy(opts->json_ctx.json_file, json_filename,
+            sizeof(opts->json_ctx.json_file));
     opts->input_mode = DATA_SOURCE_JSON_FILE;
 
     return 0;
@@ -240,7 +250,8 @@ int maat_options_set_redis(struct maat_options *opts, const char *redis_ip,
     return 0;
 }
 
-int maat_options_set_stat_file(struct maat_options *opts, const char *stat_filename)
+int maat_options_set_stat_file(struct maat_options *opts,
+                               const char *stat_filename)
 {
     size_t str_len = MIN(sizeof(opts->stat_file), strlen(stat_filename));
 
@@ -347,9 +358,10 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     } else {
         char log_path[MAX_NAME_STR_LEN] = {0};
         if (strlen(maat_inst->opts.inst_name) > 0) {
-            snprintf(log_path, sizeof(log_path), "%s.log", maat_inst->opts.inst_name);
+            snprintf(log_path, sizeof(log_path), "%s.log",
+                     maat_inst->opts.inst_name);
         } else {
-            snprintf(log_path, sizeof(log_path), "maat.log");
+            snprintf(log_path, sizeof(log_path), "./maat.log");
         }
         maat_inst->logger = log_handle_create(log_path, maat_inst->opts.log_level);
     }
@@ -360,17 +372,20 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     }
 
     if (0 == strlen(maat_inst->opts.foreign_cont_dir)) {
-        snprintf(maat_inst->opts.foreign_cont_dir, sizeof(maat_inst->opts.foreign_cont_dir),
+        snprintf(maat_inst->opts.foreign_cont_dir,
+                 sizeof(maat_inst->opts.foreign_cont_dir),
                  "%s_files", table_info_path);
     }
    
     system_cmd_mkdir(maat_inst->opts.foreign_cont_dir);
 
     if (0 == strlen(maat_inst->opts.stat_file)) {
-        snprintf(maat_inst->opts.stat_file, sizeof(maat_inst->opts.stat_file), "maat_stat.fs");
+        snprintf(maat_inst->opts.stat_file, sizeof(maat_inst->opts.stat_file),
+                 "maat_stat.fs");
     }
 
-    snprintf(maat_inst->opts.decrypt_algo, sizeof(maat_inst->opts.decrypt_algo), "aes-256-cbc");
+    snprintf(maat_inst->opts.decrypt_algo, sizeof(maat_inst->opts.decrypt_algo),
+             "aes-256-cbc");
 
     maat_inst->is_running = 0;
     maat_inst->maat_version = 0;
@@ -394,9 +409,10 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
 
     pthread_mutex_init(&(maat_inst->background_update_mutex), NULL);
 
-    maat_inst->tbl_mgr = table_manager_create(table_info_path, maat_inst->opts.accept_tags,
-                                              maat_inst->opts.expr_engine, maat_inst->garbage_bin,
-                                              maat_inst->logger);
+    maat_inst->tbl_mgr =
+        table_manager_create(table_info_path, maat_inst->opts.accept_tags,
+                             maat_inst->opts.expr_engine, maat_inst->garbage_bin,
+                             maat_inst->logger);
     if (NULL == maat_inst->tbl_mgr) {
         goto failed;
     }
@@ -406,7 +422,8 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     }
 
     if (1 == maat_inst->opts.stat_on) {
-        int ret = maat_stat_init(maat_inst->stat, maat_inst->tbl_mgr, maat_inst->garbage_bin);
+        int ret = maat_stat_init(maat_inst->stat, maat_inst->tbl_mgr,
+                                 maat_inst->garbage_bin);
         if (ret < 0) {
             log_fatal(maat_inst->logger, MODULE_MAAT_API,
                      "[%s:%d] maat_stat_init failed.", __FUNCTION__, __LINE__);
@@ -414,7 +431,8 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
         }
     }
 
-    pthread_create(&(maat_inst->cfg_mon_thread), NULL, rule_monitor_loop, (void *)maat_inst);
+    pthread_create(&(maat_inst->cfg_mon_thread), NULL, rule_monitor_loop,
+                  (void *)maat_inst);
 
     return maat_inst;
 
@@ -488,7 +506,8 @@ int maat_get_table_id(struct maat *maat_inst, const char *table_name)
     return table_manager_get_table_id(table_mgr, table_name);
 }
 
-const char *maat_get_table_schema_tag(struct maat *maat_inst, int table_id)
+const char *
+maat_get_table_schema_tag(struct maat *maat_inst, int table_id)
 {
     if (NULL == maat_inst || table_id < 0) {
         return NULL;
@@ -498,18 +517,20 @@ const char *maat_get_table_schema_tag(struct maat *maat_inst, int table_id)
     return table_manager_get_table_schema_tag(table_mgr, table_id);
 }
 
-static inline void maat_runtime_ref_inc(struct maat_runtime *maat_rt, int thread_id)
+static inline void
+maat_runtime_ref_inc(struct maat_runtime *maat_rt, int thread_id)
 {
-    if (NULL == maat_rt) {
+    if (NULL == maat_rt || thread_id < 0) {
         return;
     }
 
 	alignment_int64_array_add(maat_rt->ref_cnt, thread_id, 1);
 }
 
-static inline void maat_runtime_ref_dec(struct maat_runtime *maat_rt, int thread_id)
+static inline void
+maat_runtime_ref_dec(struct maat_runtime *maat_rt, int thread_id)
 {
-    if (NULL == maat_rt) {
+    if (NULL == maat_rt || thread_id < 0) {
         return;
     }
 
@@ -530,8 +551,9 @@ int maat_table_callback_register(struct maat *maat_inst, int table_id,
     if (NULL == schema) {
         pthread_mutex_unlock(&(maat_inst->background_update_mutex));
         log_fatal(maat_inst->logger, MODULE_MAAT_API,
-                  "[%s:%d] table(table_id:%d) schema is NULL, register callback failed",
-                  __FUNCTION__, __LINE__, table_id);
+                  "[%s:%d] table(table_id:%d) schema is NULL, "
+                  "register callback failed", __FUNCTION__,
+                  __LINE__, table_id);
         return -1;
     }
 
@@ -549,7 +571,8 @@ int maat_table_callback_register(struct maat *maat_inst, int table_id,
 
     void *runtime = table_manager_get_runtime(maat_inst->tbl_mgr, table_id);
 
-    enum table_type table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
+    enum table_type table_type =
+        table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     if (table_type != TABLE_TYPE_PLUGIN) {
         pthread_mutex_unlock(&(maat_inst->background_update_mutex));
         log_fatal(maat_inst->logger, MODULE_MAAT_API, 
@@ -583,12 +606,13 @@ int maat_table_callback_register(struct maat *maat_inst, int table_id,
     return 0;
 }
 
-static int generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int table_id,
-									          maat_ex_new_func_t *new_func,
-									          maat_ex_free_func_t *free_func,
-									          maat_ex_dup_func_t *dup_func,
-									          long argl, void *argp,
-                                              struct log_handle *logger)
+static int
+generic_plugin_table_set_ex_schema(struct table_manager *tbl_mgr, int table_id,
+								   maat_ex_new_func_t *new_func,
+								   maat_ex_free_func_t *free_func,
+								   maat_ex_dup_func_t *dup_func,
+								   long argl, void *argp,
+                                   struct log_handle *logger)
 {
     void *schema = table_manager_get_schema(tbl_mgr, table_id);
     if (NULL == schema) {
@@ -1447,9 +1471,9 @@ int maat_scan_integer(struct maat *maat_inst, int table_id,
     }
 }
 
-int maat_scan_ipv4_port(struct maat *maat_inst, int table_id, uint32_t ip_addr, int port,
-                   long long *results, size_t n_result, size_t *n_hit_result,
-                   struct maat_state *state)
+int maat_scan_ipv4_port(struct maat *maat_inst, int table_id, uint32_t ip_addr,
+                        int port, long long *results, size_t n_result,
+                        size_t *n_hit_result, struct maat_state *state)
 {
     if ((NULL == maat_inst) || table_id < 0 || table_id >= MAX_TABLE_NUM ||
         (NULL == results) || (0 == n_result) || (NULL == n_hit_result) ||
@@ -1532,9 +1556,9 @@ int maat_scan_ipv4_port(struct maat *maat_inst, int table_id, uint32_t ip_addr, 
     }
 }
 
-int maat_scan_ipv6_port(struct maat *maat_inst, int table_id, uint8_t *ip_addr, int port,
-                   long long *results, size_t n_result, size_t *n_hit_result,
-                   struct maat_state *state)
+int maat_scan_ipv6_port(struct maat *maat_inst, int table_id, uint8_t *ip_addr,
+                        int port, long long *results, size_t n_result,
+                        size_t *n_hit_result, struct maat_state *state)
 {
     if ((NULL == maat_inst) || table_id < 0 || table_id >= MAX_TABLE_NUM ||
         (NULL == ip_addr) || (NULL == results) || (0 == n_result) ||
@@ -1616,6 +1640,7 @@ int maat_scan_ipv6_port(struct maat *maat_inst, int table_id, uint8_t *ip_addr, 
         return MAAT_SCAN_OK;
     }
 }
+
 #define PORT_IGNORED -1
 inline int maat_scan_ipv6(struct maat *instance, int table_id, uint8_t *ip_addr,
                    long long *results, size_t n_result, size_t *n_hit_result,
@@ -1624,6 +1649,7 @@ inline int maat_scan_ipv6(struct maat *instance, int table_id, uint8_t *ip_addr,
     return maat_scan_ipv6_port(instance, table_id, ip_addr, PORT_IGNORED,
                                results, n_result, n_hit_result, state);
 }
+
 inline int maat_scan_ipv4(struct maat *instance, int table_id, uint32_t ip_addr,
                    long long *results, size_t n_result, size_t *n_hit_result,
                    struct maat_state *state)
@@ -1631,6 +1657,7 @@ inline int maat_scan_ipv4(struct maat *instance, int table_id, uint32_t ip_addr,
     return maat_scan_ipv4_port(instance, table_id, ip_addr, PORT_IGNORED,
                                results, n_result, n_hit_result, state);
 }
+
 int maat_scan_string(struct maat *maat_inst, int table_id,
                      const char *data, size_t data_len,
                      long long *results, size_t n_result,

@@ -20,8 +20,9 @@ struct user_info {
 	int id;
 };
 
-void ex_data_new_cb(const char *table_name, int table_id, const char *key, const char *table_line, 
-                    void **ad, long argl, void *argp)
+static void
+ex_data_new_cb(const char *table_name, int table_id, const char *key,
+               const char *table_line, void **ad, long argl, void *argp)
 {
 	int *counter = (int *)argp;
 	struct user_info *u = ALLOC(struct user_info, 1);
@@ -33,7 +34,7 @@ void ex_data_new_cb(const char *table_name, int table_id, const char *key, const
 	(*counter)++;
 }
 
-void ex_data_free_cb(int table_id, void **ad, long argl, void *argp)
+static void ex_data_free_cb(int table_id, void **ad, long argl, void *argp)
 {
 	struct user_info *u = (struct user_info *)(*ad);
 
@@ -42,7 +43,8 @@ void ex_data_free_cb(int table_id, void **ad, long argl, void *argp)
 	*ad = NULL;
 }
 
-void ex_data_dup_cb(int table_id,	void **to, void **from, long argl, void *argp)
+static void
+ex_data_dup_cb(int table_id,	void **to, void **from, long argl, void *argp)
 {
 	struct user_info *u = (struct user_info *)(*from);
 	*to = u;
@@ -70,7 +72,8 @@ TEST(EXDataRuntime, Update) {
     const char *row1 = "101\t192.168.0.1\tmahuateng";
     const char *key1 = "192.168.0.1";
     size_t key1_len = strlen(key1);
-    void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, table_name, row1, key1, key1_len);
+    void *ex_data = ex_data_runtime_row2ex_data(ex_data_rt, table_name, row1,
+                                                key1, key1_len);
     EXPECT_EQ(ex_data_counter, 1);
 
     struct ex_container *ex_container = ex_container_new(ex_data, NULL);
@@ -130,27 +133,7 @@ int main(int argc, char ** argv)
 	::testing::InitGoogleTest(&argc, argv);
 
     g_logger = log_handle_create("./maat_ex_data_gtest.log", 0);
-
-    char json_iris_path[NAME_MAX] = {0};
-    char tmp_iris_path[PATH_MAX] = {0};
-    snprintf(json_iris_path, sizeof(json_iris_path), "./%s_iris_tmp", g_json_filename);
-    if ((access(json_iris_path, F_OK)) == 0) {
-        system_cmd_rmdir(json_iris_path);
-    }
-
-    if (access(json_iris_path, F_OK) < 0) {
-        char *json_buff = NULL;
-        size_t json_buff_sz = 0;
-
-		int ret = load_file_to_memory(g_json_filename, (unsigned char**)&json_buff, &json_buff_sz);
-        EXPECT_NE(ret, -1);
-
-		ret = json2iris(json_buff, g_json_filename, NULL, tmp_iris_path, sizeof(tmp_iris_path),
-                        NULL, NULL, g_logger);
-        FREE(json_buff);
-		EXPECT_NE(ret, -1);
-	}
-
+    
 	struct maat_options *opts = maat_options_new();
     char json_path[PATH_MAX] = {0};
     snprintf(json_path, sizeof(json_path), "./%s", g_json_filename);
