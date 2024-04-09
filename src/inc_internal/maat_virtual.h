@@ -49,8 +49,8 @@ void virtual_runtime_hit_times_inc(struct virtual_runtime *virt_rt,
 
 long long virtual_runtime_hit_times(void *virtual_runtime);
 
-void virtual_runtime_hit_item_num_add(void *virtual_runtime, int thread_id,
-                                      long long val);
+void virtual_runtime_hit_item_num_add(struct virtual_runtime *virt_rt,
+                                      int thread_id, long long val);
 
 long long virtual_runtime_hit_item_num(void *virtual_runtime);
 

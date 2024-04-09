@@ -222,14 +222,13 @@ long long virtual_runtime_hit_times(void *virtual_runtime)
     return sum;
 }
 
-void virtual_runtime_hit_item_num_add(void *virtual_runtime, int thread_id,
-                                      long long val)
+void virtual_runtime_hit_item_num_add(struct virtual_runtime *virt_rt,
+                                      int thread_id, long long val)
 {
-    if (NULL == virtual_runtime) {
+    if (NULL == virt_rt || thread_id < 0) {
         return;
     }
 
-    struct virtual_runtime *virt_rt = (struct virtual_runtime *)virtual_runtime; 
     alignment_int64_array_add(virt_rt->hit_item_num, thread_id, val);
 }
 

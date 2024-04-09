@@ -241,8 +241,7 @@ static void fs_table_row_output(FILE *fp, struct maat_stat *stat, int perf_on)
     long long plugin_cache_num = 0, plugin_rule_num = 0;
     long long total_rule_num = 0, total_scan_bytes = 0, total_update_err = 0;
     long long total_scan_times = 0, total_hit_times = 0, total_scan_cpu_time = 0;
-    long long total_regex_num = 0, total_ipv6_num = 0;
-    long long total_hit_item_num = 0, total_hit_pattern_num = 0;
+    long long total_regv6_num = 0, total_hit_item_num = 0, total_hit_pattern_num = 0;
     long long g2c_not_clause_num = 0, g2g_excl_rule_num = 0;
     struct fieldstat_tag cell_tag = {
         .key = "TBL",
@@ -319,18 +318,18 @@ static void fs_table_row_output(FILE *fp, struct maat_stat *stat, int perf_on)
         fieldstat_easy_counter_set(stat->fs_handle, 0,
                                    stat->fs_column_id[COLUMN_HIT_ITEM_NUM],
                                    &cell_tag, 1, hit_item_num); 
-
         if (table_type != TABLE_TYPE_VIRTUAL) {
-            total_regex_num += regex_rule_num;
-            total_ipv6_num += ipv6_rule_num;
+            total_regv6_num += regex_rule_num;
+            total_regv6_num += ipv6_rule_num;
             total_rule_num += rule_num;
-            total_scan_times += scan_times;
-            total_hit_times += hit_times;
-            total_scan_bytes += scan_bytes;
-            total_hit_item_num += hit_item_num;
-            total_update_err +=
+        }
+        
+        total_scan_times += scan_times;
+        total_hit_times += hit_times;
+        total_scan_bytes += scan_bytes;
+        total_hit_item_num += hit_item_num;
+        total_update_err +=
             table_manager_runtime_update_err_count(stat->ref_tbl_mgr, i);
-        } 
 
         if (table_type == TABLE_TYPE_EXPR ||
             table_type == TABLE_TYPE_EXPR_PLUS) {
@@ -375,7 +374,7 @@ static void fs_table_row_output(FILE *fp, struct maat_stat *stat, int perf_on)
                                &cell_tag, 1, total_rule_num);
     fieldstat_easy_counter_set(stat->fs_handle, 0,
                                stat->fs_column_id[COLUMN_REGEX_NUM],
-                               &cell_tag, 1, total_regex_num); 
+                               &cell_tag, 1, total_regv6_num); 
     fieldstat_easy_counter_set(stat->fs_handle, 0,
                                stat->fs_column_id[COLUMN_SCAN_TIMES],
                                &cell_tag, 1, total_scan_times);
@@ -434,7 +433,7 @@ static void fs_table_row_output(FILE *fp, struct maat_stat *stat, int perf_on)
 void maat_stat_output(struct maat_stat *stat, struct table_manager *tbl_mgr,
                       long long maat_version, int perf_on)
 {
-    if (NULL == stat) {
+    if (NULL == stat || NULL == stat->fs_handle) {
         return;
     }
     

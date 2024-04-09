@@ -3180,7 +3180,7 @@ protected:
 struct maat *MaatGroupScan::_shared_maat_inst;
 struct log_handle *MaatGroupScan::logger;
 
-TEST_F(MaatGroupScan, basic) {
+TEST_F(MaatGroupScan, PhysicalTable) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
@@ -3202,6 +3202,32 @@ TEST_F(MaatGroupScan, basic) {
 
     maat_state_free(state);
     state = NULL;
+    sleep(2);
+}
+
+TEST_F(MaatGroupScan, VirtualTable) {
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+	const char *table_name = "HTTP_RESPONSE_KEYWORDS";
+    struct maat *maat_inst = MaatGroupScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GE(table_id, 0);
+
+    struct maat_hit_group hit_group;
+    hit_group.group_id = 259;
+    hit_group.vtable_id = table_id;
+    int ret = maat_scan_group(maat_inst, table_id, &hit_group, 1, results,
+                              ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 233);
+
+    maat_state_free(state);
+    state = NULL;
+    sleep(2);
 }
 
 TEST_F(MaatGroupScan, SetScanCompileTable) {
@@ -3232,6 +3258,7 @@ TEST_F(MaatGroupScan, SetScanCompileTable) {
 
     maat_state_free(state);
     state = NULL;
+    sleep(2);
 }
 
 class NOTLogic : public testing::Test

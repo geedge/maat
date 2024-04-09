@@ -77,7 +77,8 @@ int table_manager_get_table_id(struct table_manager *tbl_mgr, const char *table_
 int table_manager_get_conj_parent_table_ids(struct table_manager *tbl_mgr, const char *table_name,
                                             long long *table_ids_array, size_t n_table_ids_array);
 
-const char *table_manager_get_table_name(struct table_manager *tbl_mgr, int table_id);
+const char *table_manager_get_table_name(struct table_manager *tbl_mgr,
+                                         int table_id);
 
 const char *table_manager_get_table_schema_tag(struct table_manager *tbl_mgr, int table_id);
 

@@ -1074,7 +1074,8 @@ flag_scan(struct table_manager *tbl_mgr, int thread_id, long long flag,
 
     if (virt_rt != NULL) {
         //Note: group_hit_cnt is equivalent to item_hit_cnt
-        virtual_runtime_hit_item_num_add(virt_rt, thread_id, group_hit_cnt);
+        virtual_runtime_hit_item_num_add((struct virtual_runtime *)virt_rt,
+                                         thread_id, group_hit_cnt);
         virtual_runtime_hit_times_inc((struct virtual_runtime *)virt_rt, thread_id);
     }
 
@@ -1125,7 +1126,8 @@ interval_scan(struct table_manager *tbl_mgr, int thread_id, long long integer,
 
     if (virt_rt != NULL) {
         //Note: group_hit_cnt is equivalent to item_hit_cnt
-        virtual_runtime_hit_item_num_add(virt_rt, thread_id, group_hit_cnt);
+        virtual_runtime_hit_item_num_add((struct virtual_runtime *)virt_rt,
+                                          thread_id, group_hit_cnt);
         virtual_runtime_hit_times_inc((struct virtual_runtime *)virt_rt, thread_id);
     }
 
@@ -1170,7 +1172,8 @@ ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_addr,
 
     if (virt_rt != NULL) {
         //Note: group_hit_cnt is equivalent to item_hit_cnt
-        virtual_runtime_hit_item_num_add(virt_rt, thread_id, group_hit_cnt);
+        virtual_runtime_hit_item_num_add((struct virtual_runtime *)virt_rt,
+                                          thread_id, group_hit_cnt);
         virtual_runtime_hit_times_inc((struct virtual_runtime *)virt_rt, thread_id);
     }
 
@@ -1215,7 +1218,8 @@ ipv6_scan(struct table_manager *tbl_mgr, int thread_id, uint8_t *ip_addr,
 
     if (virt_rt != NULL) {
         //Note: group_hit_cnt is equivalent to item_hit_cnt
-        virtual_runtime_hit_item_num_add(virt_rt, thread_id, group_hit_cnt);
+        virtual_runtime_hit_item_num_add((struct virtual_runtime *)virt_rt,
+                                          thread_id, group_hit_cnt);
         virtual_runtime_hit_times_inc((struct virtual_runtime *)virt_rt, thread_id);
     }
 
@@ -1270,7 +1274,8 @@ string_scan(struct table_manager *tbl_mgr, int thread_id,
 
     if (virt_rt != NULL) {
         //Note: group_hit_cnt is equivalent to item_hit_cnt
-        virtual_runtime_hit_item_num_add(virt_rt, thread_id, group_hit_cnt);
+        virtual_runtime_hit_item_num_add((struct virtual_runtime *)virt_rt,
+                                          thread_id, group_hit_cnt);
         virtual_runtime_hit_times_inc((struct virtual_runtime *)virt_rt, thread_id);
     }
 
@@ -1329,7 +1334,6 @@ int maat_scan_flag(struct maat *maat_inst, int table_id,
     table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_VIRTUAL) {
         phy_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr, table_id);
-        vtable_id = table_id;
     }
     
     if (phy_table_id < 0) {
@@ -1414,7 +1418,6 @@ int maat_scan_integer(struct maat *maat_inst, int table_id,
     table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_VIRTUAL) {
         phy_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr, table_id);
-        vtable_id = table_id;
     }
     
     if (phy_table_id < 0) {
@@ -1500,7 +1503,6 @@ int maat_scan_ipv4_port(struct maat *maat_inst, int table_id, uint32_t ip_addr,
     table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_VIRTUAL) {
         phy_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr, table_id);
-        vtable_id = table_id;
     }
     
     if (phy_table_id < 0) {
@@ -1585,7 +1587,6 @@ int maat_scan_ipv6_port(struct maat *maat_inst, int table_id, uint8_t *ip_addr,
     table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_VIRTUAL) {
         phy_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr, table_id);
-        vtable_id = table_id;
     }
     
     if (phy_table_id < 0) {
@@ -1689,7 +1690,6 @@ int maat_scan_string(struct maat *maat_inst, int table_id,
     table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
     if (table_type == TABLE_TYPE_VIRTUAL) {
         phy_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr, table_id);
-        vtable_id = table_id;
     }
     
     if (phy_table_id < 0) {
@@ -1815,6 +1815,22 @@ int maat_scan_group(struct maat *maat_inst, int table_id,
         return MAAT_SCAN_OK;
     }
 
+    int vtable_id = table_id;
+    enum table_type table_type = TABLE_TYPE_INVALID;
+
+    table_type = table_manager_get_table_type(maat_inst->tbl_mgr, table_id);
+    if (table_type == TABLE_TYPE_VIRTUAL) {
+        void *virt_rt = table_manager_get_runtime(maat_inst->tbl_mgr, vtable_id);
+        if (virt_rt != NULL) {
+            virtual_runtime_scan_times_inc((struct virtual_runtime *)virt_rt,
+                                            state->thread_id);
+            virtual_runtime_hit_times_inc((struct virtual_runtime *)virt_rt,
+                                           state->thread_id);
+            virtual_runtime_hit_item_num_add((struct virtual_runtime *)virt_rt,
+                                              state->thread_id, n_group);
+        }
+    }
+
     maat_runtime_ref_inc(maat_rt, state->thread_id);
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
 
@@ -1890,7 +1906,6 @@ struct maat_stream *maat_stream_new(struct maat *maat_inst, int table_id,
     if (table_type == TABLE_TYPE_VIRTUAL) {
         stream->phy_table_id = vtable_get_physical_table_id(maat_inst->tbl_mgr,
                                                             table_id);
-        stream->vtable_id = table_id;
     }
     
     if (stream->phy_table_id < 0) {
@@ -1972,7 +1987,8 @@ static int expr_stream_scan(struct maat_stream *stream, const char *data,
 
     if (virt_rt != NULL) {
         //Note: group_hit_cnt is equivalent to item_hit_cnt
-        virtual_runtime_hit_item_num_add(virt_rt, stream->thread_id, group_hit_cnt);
+        virtual_runtime_hit_item_num_add((struct virtual_runtime *)virt_rt,
+                                          stream->thread_id, group_hit_cnt);
         virtual_runtime_hit_times_inc((struct virtual_runtime *)virt_rt, stream->thread_id);
     }
 

@@ -777,6 +777,7 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
 
     int ret = 0;
     size_t i = 0;
+    int err_flag = 0;
     long long *sub_group_id = NULL;
     if (0 == is_valid) {
         //delete
@@ -784,10 +785,8 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
             sub_group_id = (long long *)utarray_eltptr(g2g_item->incl_sub_group_ids, i);
             ret = group_topology_del_group_from_group(g2g_rt->updating_group_topo,
                                                       g2g_item->group_id, *sub_group_id, 0);
-            if (0 == ret) {
-                g2g_rt->rule_num--;
-            } else {
-                g2g_rt->update_err_cnt++;
+            if (ret != 0) {
+                err_flag = 1;
             }
         }
 
@@ -795,12 +794,18 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
             sub_group_id = (long long *)utarray_eltptr(g2g_item->excl_sub_group_ids, i);
             ret = group_topology_del_group_from_group(g2g_rt->updating_group_topo,
                                                       g2g_item->group_id, *sub_group_id, 1);
-            if (0 == ret) {
-                g2g_rt->rule_num--;
-                g2g_rt->excl_rule_num--;
-            } else {
-                g2g_rt->update_err_cnt++;
+            if (ret != 0) {
+                err_flag = 1;
             }
+        }
+
+        if (1 == err_flag) {
+            g2g_rt->update_err_cnt++;
+        } else {
+            if (utarray_len(g2g_item->excl_sub_group_ids) > 0) {
+                g2g_rt->excl_rule_num--;
+            }
+            g2g_rt->rule_num--;
         }
     } else {
         //add
@@ -808,10 +813,8 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
             sub_group_id = (long long *)utarray_eltptr(g2g_item->incl_sub_group_ids, i);
             ret = group_topology_add_group_to_group(g2g_rt->updating_group_topo,
                                                     g2g_item->group_id, *sub_group_id, 0);
-            if (0 == ret) {
-                g2g_rt->rule_num++;
-            } else {
-                g2g_rt->update_err_cnt++;
+            if (ret != 0) {
+                err_flag = 1;
             }
         }
 
@@ -819,12 +822,18 @@ int group2group_runtime_update(void *g2g_runtime, void *g2g_schema,
             sub_group_id = (long long *)utarray_eltptr(g2g_item->excl_sub_group_ids, i);
             ret = group_topology_add_group_to_group(g2g_rt->updating_group_topo,
                                                     g2g_item->group_id, *sub_group_id, 1);
-            if (0 == ret) {
-                g2g_rt->rule_num++;
-                g2g_rt->excl_rule_num++;
-            } else {
-                g2g_rt->update_err_cnt++;
+            if (ret != 0) {
+                err_flag = 1;
             }
+        }
+
+        if (1 == err_flag) {
+            g2g_rt->update_err_cnt++;
+        } else {
+            if (utarray_len(g2g_item->excl_sub_group_ids) > 0) {
+                g2g_rt->excl_rule_num++;
+            }
+            g2g_rt->rule_num++;
         }
     }
     group2group_item_free(g2g_item);

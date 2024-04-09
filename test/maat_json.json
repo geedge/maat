@@ -4084,6 +4084,22 @@
                     ]
                 }
             ]
+        },
+        {
+            "compile_id": 233,
+            "service": 1,
+            "action": 1,
+            "do_blacklist": 1,
+            "do_log": 1,
+            "user_region": "maat_scan_group",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "virtual_table": "HTTP_RESPONSE_KEYWORDS",
+                    "group_name": "233_url_group",
+                    "group_id": 259
+                }
+            ]
         }
     ],
     "plugin_table": [
