@@ -96,6 +96,8 @@ int compile_state_update(struct compile_state *compile_state, struct maat *maat_
                          int vtable_id, int custom_compile_tbl_id, int Nth_scan,
                          struct maat_item *hit_items, size_t n_hit_item);
 
+void compile_state_clear_last_hit_group(struct compile_state *compile_state);
+
 void compile_state_not_logic_update(struct compile_state *compile_state, 
                                     struct compile_runtime *compile_rt,
                                     struct maat *maat_inst, int vtable_id,

@@ -19,7 +19,7 @@ extern "C"
 #define MAX_KEYWORDS_STR_LEN  1024
 #define MAX_TAG_STR_LEN       2048
 #define MAX_MAAT_STAT_NUM     64
-#define MAX_NAME_STR_LEN      64
+#define MAX_NAME_STR_LEN      128 
 #define MAX_IP_STR_LEN        64
 #define MAX_INSTANCE_NAME_LEN 15
 #define MAX_GROUP_IDS_STR_LEN 256

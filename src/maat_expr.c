@@ -1026,6 +1026,11 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
                       const char *data, size_t data_len,
                       int vtable_id, struct maat_state *state)
 {
+    //clear compile_state->last_hit_group
+    if (state != NULL && state->compile_state != NULL) {
+        compile_state_clear_last_hit_group(state->compile_state);
+    }
+
     if (0 == expr_rt->rule_num) {
         //empty expr table
         return 0;
@@ -1116,8 +1121,18 @@ int expr_runtime_stream_scan(struct expr_runtime_stream *expr_rt_stream,
                              int vtable_id, struct maat_state *state)
 {
     struct expr_runtime *expr_rt = expr_rt_stream->ref_expr_rt;
+
+    //clear compile_state->last_hit_group
+    if (state != NULL && state->compile_state != NULL) {
+        compile_state_clear_last_hit_group(state->compile_state);
+    }
+
     if (0 == expr_rt->rule_num) {
         //empty expr table
+        return 0;
+    }
+
+    if (NULL == expr_rt_stream->handle) {
         return 0;
     }
 

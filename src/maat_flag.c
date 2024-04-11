@@ -557,6 +557,11 @@ long long flag_runtime_rule_count(void *flag_runtime)
 int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, 
                       long long flag, int vtable_id, struct maat_state *state)
 {
+    //clear compile_state->last_hit_group
+    if (state != NULL && state->compile_state != NULL) {
+        compile_state_clear_last_hit_group(state->compile_state);
+    }
+
     if (0 == flag_rt->rule_num) {
         //empty flag table
         return 0;

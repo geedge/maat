@@ -1750,6 +1750,11 @@ static void maat_state_add_hit_group(struct maat_state *state, int table_id,
 {
     struct maat *maat_inst = state->maat_inst;
 
+    //clear compile_state->last_hit_group
+    if (state != NULL && state->compile_state != NULL) {
+        compile_state_clear_last_hit_group(state->compile_state);
+    }
+
     if (NULL == state->compile_state) {
         state->compile_state = compile_state_new();
         alignment_int64_array_add(maat_inst->stat->compile_state_cnt,
@@ -1790,6 +1795,11 @@ maat_state_activate_hit_not_group(struct maat_state *state, int table_id)
         table_manager_get_runtime(maat_inst->tbl_mgr, compile_table_id);
     if (NULL == compile_rt) {
         return;
+    }
+
+    //clear compile_state->last_hit_group
+    if (state != NULL && state->compile_state != NULL) {
+        compile_state_clear_last_hit_group(state->compile_state);
     }
 
     compile_state_not_logic_update(state->compile_state, compile_rt, maat_inst,

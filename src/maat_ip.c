@@ -597,11 +597,20 @@ long long ip_runtime_ipv6_rule_count(void *ip_runtime)
 int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type, 
                     uint8_t *ip_addr, int port, int vtable_id, struct maat_state *state)
 {
+    //clear compile_state->last_hit_group
+    if (state != NULL && state->compile_state != NULL) {
+        compile_state_clear_last_hit_group(state->compile_state);
+    }
+
     if (0 == ip_rt->rule_num) {
         //empty ip table
         return 0;
     }
     
+    if (NULL == ip_rt->ip_matcher) {
+        return 0;
+    }
+
     struct ip_data scan_data;
     struct scan_result ip_results[MAX_HIT_ITEM_NUM];
 
@@ -618,10 +627,6 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
 
     size_t real_hit_item_cnt = 0;
     struct maat_item hit_maat_items[MAX_HIT_ITEM_NUM];
-
-    if (NULL == ip_rt->ip_matcher) {
-        return 0;
-    }
 
     int n_hit_ip_item = ip_matcher_match(ip_rt->ip_matcher, &scan_data,
                                          ip_results, MAX_HIT_ITEM_NUM);
@@ -642,12 +647,13 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
             // item config has been deleted
             continue;
         }
-        if(port < 0 && ip_item->port_start!=0 && ip_item->port_end!=65535)
-        {
+
+        if (port < 0 && ip_item->port_start != 0 && ip_item->port_end != 65535) {
             //If port is not speicified, an IP should NOT match rules with port range.
             continue;
         }
-        if(port >= 0 && (port<ip_item->port_start || port>ip_item->port_end)){
+
+        if (port >= 0 && (port < ip_item->port_start || port > ip_item->port_end)) {
             //If port is specified, the port should within the port range.
             continue;
         }

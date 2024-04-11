@@ -2486,7 +2486,6 @@ int compile_state_update(struct compile_state *compile_state, struct maat *maat_
     struct maat_hit_group hit_group;
 
     utarray_clear(compile_state->this_scan_hit_clauses);
-    utarray_clear(compile_state->last_hit_groups);
     compile_state->this_scan_not_logic = 0;
     compile_state->Nth_scan = Nth_scan;
 
@@ -2550,6 +2549,15 @@ int compile_state_update(struct compile_state *compile_state, struct maat *maat_
     compile_state_cache_hit_not_groups(compile_state, compile_rt, hit_group_ids,
                                        hit_cnt, vtable_id); 
     return hit_cnt;
+}
+
+void compile_state_clear_last_hit_group(struct compile_state *compile_state)
+{
+    if (NULL == compile_state) {
+        return;
+    }
+
+    utarray_clear(compile_state->last_hit_groups);
 }
 
 void compile_state_not_logic_update(struct compile_state *compile_state,
