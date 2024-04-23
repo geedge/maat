@@ -671,14 +671,17 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
     char *sub_key_array[MAAT_MAX_EXPR_ITEM_NUM];
     int key_left_offset[MAAT_MAX_EXPR_ITEM_NUM];
     int key_right_offset[MAAT_MAX_EXPR_ITEM_NUM];
+    char tmp_keywords[MAX_KEYWORDS_STR_LEN + 1];
 
     /* -1 means offset no limit, As long as the pattern appears in the scan data, it will hit */
     memset(key_left_offset, -1, sizeof(key_left_offset));
     memset(key_right_offset, -1, sizeof(key_right_offset));
 
+    memcpy(tmp_keywords, expr_item->keywords, MAX_KEYWORDS_STR_LEN + 1);
+
     switch (expr_item->expr_type) {
         case EXPR_TYPE_AND:
-            for (i = 0, pos = expr_item->keywords; ; i++, pos = NULL) {
+            for (i = 0, pos = tmp_keywords; ; i++, pos = NULL) {
                 tmp = strtok_r_esc(pos, '&', &saveptr);
                 if (NULL == tmp) {
                     break;
@@ -698,7 +701,7 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
             sub_expr_cnt = i;
             break;
         case EXPR_TYPE_OFFSET:
-            for (i = 0, pos = expr_item->keywords; ; i++, pos = NULL) {
+            for (i = 0, pos = tmp_keywords; ; i++, pos = NULL) {
                 tmp = strtok_r_esc(pos, '&', &saveptr);
                 if (NULL == tmp) {
                     break;
@@ -741,12 +744,12 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
             break;
         case EXPR_TYPE_STRING: //AND/OFFSET/STRING type expression use \b to represent blank(' ')
             sub_expr_cnt = 1;
-            sub_key_array[0] = expr_item->keywords;
+            sub_key_array[0] = tmp_keywords;
             sub_key_array[0] = str_unescape(sub_key_array[0]);
             break;
         case EXPR_TYPE_REGEX: //only regex type expression use \s to represent blank(' ')
             sub_expr_cnt = 1;
-            sub_key_array[0] = expr_item->keywords;
+            sub_key_array[0] = tmp_keywords;
             break;
         default:
             log_fatal(logger, MODULE_EXPR, 
@@ -917,6 +920,7 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
         for (i = 0; i < rule_cnt; i++) {
             struct expr_item *expr_item = (struct expr_item *)ex_data_array[i];
             struct expr_rule tmp_rule = {0};
+
             ret = expr_item_to_expr_rule(expr_item, &tmp_rule, expr_rt->logger);
             if (ret < 0) {
                 continue;

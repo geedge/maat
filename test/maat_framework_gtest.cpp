@@ -650,6 +650,68 @@ TEST_F(HsStringScan, BackslashR_N_Escape) {
     state = NULL;
 }
 
+TEST_F(HsStringScan, BackslashR_N_Escape_IncUpdate) {
+    int ret = 0;
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    const char *table_name = "KEYWORDS_TABLE";
+    const char *payload = "html>\\r\\n";
+    struct maat *maat_inst = HsStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ret = maat_scan_string(maat_inst, table_id, payload, strlen(payload),
+                            results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(results[0], 234);
+
+    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    maat_state_reset(state);
+
+    const char *compile_table_name = "COMPILE_DEFAULT";
+    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
+
+    /* compile table add line */
+    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
+                                 compile_id, "null", 1, 0);
+    EXPECT_EQ(ret, 1);
+
+    /* group2compile table add line */
+    long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group_id, compile_id, 0, table_name, 1, 0);
+    EXPECT_EQ(ret, 1);
+
+    /* expr table add line */
+    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    const char *keywords = "html>\\\\r\\\\n";
+
+    /* EXPR_TYPE_AND MATCH_METHOD_SUB */
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
+                              group_id, keywords, NULL, 1, 0, 0, 0);
+    EXPECT_EQ(ret, 1);
+
+    sleep(WAIT_FOR_EFFECTIVE_S * 3);
+
+    ret = maat_scan_string(maat_inst, table_id, payload, strlen(payload), 
+                            results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 2);
+    EXPECT_EQ(results[0], 234);
+    EXPECT_EQ(results[1], compile_id);
+
+    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
 TEST_F(HsStringScan, ExprPlus) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -1555,6 +1617,68 @@ TEST_F(RsStringScan, BackslashR_N_Escape) {
                             results, ARRAY_SIZE, &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_HIT);
     EXPECT_EQ(results[0], 225);
+
+    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
+TEST_F(RsStringScan, BackslashR_N_Escape_IncUpdate) {
+    int ret = 0;
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    const char *table_name = "KEYWORDS_TABLE";
+    const char *payload = "html>\\r\\n";
+    struct maat *maat_inst = RsStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ret = maat_scan_string(maat_inst, table_id, payload, strlen(payload),
+                            results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(results[0], 234);
+
+    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+    maat_state_reset(state);
+
+    const char *compile_table_name = "COMPILE_DEFAULT";
+    const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
+
+    /* compile table add line */
+    long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
+    ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_ADD,
+                                 compile_id, "null", 1, 0);
+    EXPECT_EQ(ret, 1);
+
+    /* group2compile table add line */
+    long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
+    ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
+                                       group_id, compile_id, 0, table_name, 1, 0);
+    EXPECT_EQ(ret, 1);
+
+    /* expr table add line */
+    long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    const char *keywords = "html>\\\\r\\\\n";
+
+    /* EXPR_TYPE_AND MATCH_METHOD_SUB */
+    ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
+                              group_id, keywords, NULL, 1, 0, 0, 0);
+    EXPECT_EQ(ret, 1);
+
+    sleep(WAIT_FOR_EFFECTIVE_S * 3);
+
+    ret = maat_scan_string(maat_inst, table_id, payload, strlen(payload), 
+                            results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 2);
+    EXPECT_EQ(results[0], 234);
+    EXPECT_EQ(results[1], compile_id);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
