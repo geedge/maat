@@ -211,14 +211,14 @@ void maat_stat_free(struct maat_stat *stat)
     FREE(stat);
 }
 
-int maat_stat_init(struct maat_stat *stat, struct table_manager *tbl_mgr,
+int maat_stat_init(struct maat_stat *stat, const char *stat_name, struct table_manager *tbl_mgr,
                    struct maat_garbage_bin *garbage_bin)
 {
     if (NULL == stat || NULL == tbl_mgr) {
         return -1;
     }
 
-    const char *instance_name = "maat_stat";
+    const char *instance_name = stat_name == NULL ? "maat_stat" : stat_name;
 	stat->fs_handle = fieldstat_easy_new(1, instance_name, NULL, 0);
     if (NULL == stat->fs_handle) {
         log_fatal(stat->logger, MODULE_MAAT_STAT,

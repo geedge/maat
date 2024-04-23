@@ -23,7 +23,7 @@ struct maat_stat *maat_stat_new(const char *stat_file, size_t max_thread_num,
 
 void maat_stat_free(struct maat_stat *stat);
 
-int maat_stat_init(struct maat_stat *stat, struct table_manager *tbl_mgr,
+int maat_stat_init(struct maat_stat *stat, const char *stat_name, struct table_manager *tbl_mgr,
                    struct maat_garbage_bin *garbage_bin);
 
 void maat_stat_output(struct maat_stat *stat, struct table_manager *tbl_mgr,

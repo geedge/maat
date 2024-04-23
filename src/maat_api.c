@@ -422,7 +422,7 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
     }
 
     if (1 == maat_inst->opts.stat_on) {
-        int ret = maat_stat_init(maat_inst->stat, maat_inst->tbl_mgr,
+        int ret = maat_stat_init(maat_inst->stat, maat_inst->opts.inst_name, maat_inst->tbl_mgr,
                                  maat_inst->garbage_bin);
         if (ret < 0) {
             log_fatal(maat_inst->logger, MODULE_MAAT_API,
