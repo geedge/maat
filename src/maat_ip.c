@@ -423,7 +423,7 @@ static int ip_runtime_update_row(struct ip_runtime *ip_rt, char *key, size_t key
         // add
         ret = rcu_hash_add(ip_rt->item_hash, key, key_len, (void *)item);
         if (ret < 0) {
-            log_fatal(ip_rt->logger, MODULE_IP,
+            log_debug(ip_rt->logger, MODULE_IP,
                       "[%s:%d] ip item(item_id:%lld) add to ip runtime htable failed", 
                       __FUNCTION__, __LINE__, item->item_id);
             return -1;
@@ -480,8 +480,7 @@ int ip_runtime_update(void *ip_runtime, void *ip_schema,
         if (ip_item != NULL) {
             ip_item_free(ip_item);
         }
-        ip_rt->update_err_cnt++;
-        return -1;
+        //don't return failed, ignore the case of adding duplicate keys
     }
 
     return 0;

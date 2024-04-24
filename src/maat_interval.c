@@ -384,7 +384,7 @@ static int interval_runtime_update_row(struct interval_runtime *interval_rt,
         //add
         ret = rcu_hash_add(interval_rt->item_hash, key, key_len, (void *)item);
         if (ret < 0) {
-            log_fatal(interval_rt->logger, MODULE_INTERVAL,
+            log_debug(interval_rt->logger, MODULE_INTERVAL,
                       "[%s:%d] interval item(item_id:%lld) add to "
                       "interavl_item_hash failed", __FUNCTION__, __LINE__,
                       item->item_id);
@@ -448,8 +448,7 @@ int interval_runtime_update(void *interval_runtime, void *interval_schema,
         if (interval_item != NULL) {
             interval_item_free(interval_item);
         }
-        interval_rt->update_err_cnt++;
-        return -1;
+        //don't return failed, ignore the case of adding duplicate keys
     }
 
     return 0;

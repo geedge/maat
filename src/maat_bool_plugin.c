@@ -258,8 +258,11 @@ bool_plugin_runtime_update_row(struct bool_plugin_runtime *bool_plugin_rt,
         struct ex_container *ex_container = ex_container_new(ex_data, (void *)expr);
         ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len, ex_container);
         if (ret < 0) {
+            log_debug(bool_plugin_rt->logger, MODULE_BOOL_PLUGIN,
+                      "[%s:%d]bool_plugin table:<%s> add key failed, "
+                      "key:%s", __FUNCTION__, __LINE__, table_name, key);
             ex_container_free(ex_data_rt, ex_container);
-            return -1;
+            //don't return failed, ignore the case of adding duplicate keys
         }
     }
 

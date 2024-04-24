@@ -401,8 +401,11 @@ ipport_plugin_runtime_update_row(struct ipport_plugin_runtime *ipport_plugin_rt,
         ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len,
                                                ex_container);
         if (ret < 0) {
+            log_debug(ipport_plugin_rt->logger, MODULE_IPPORT_PLUGIN,
+                      "[%s:%d]ipport_plugin table:<%s> add key failed, "
+                      "key:%s", __FUNCTION__, __LINE__, table_name, key);
             ex_container_free(ex_data_rt, ex_container);
-            return -1;
+            //don't return failed, ignore the case of adding duplicate keys
         }
     }
 

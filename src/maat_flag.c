@@ -264,7 +264,7 @@ static int flag_runtime_update_row(struct flag_runtime *flag_rt, char *key,
         //add
         ret = rcu_hash_add(flag_rt->item_hash, key, key_len, (void *)item);
         if (ret < 0) {
-            log_fatal(flag_rt->logger, MODULE_FLAG,
+            log_debug(flag_rt->logger, MODULE_FLAG,
                       "[%s:%d] flag item(item_id:%lld) add to item_hash failed", 
                       __FUNCTION__, __LINE__, item->item_id);
             return -1;
@@ -449,8 +449,7 @@ int flag_runtime_update(void *flag_runtime, void *flag_schema,
         if (flag_item != NULL) {
             flag_item_free(flag_item);
         }
-        flag_rt->update_err_cnt++;
-        return -1;
+        //don't return failed, ignore the case of adding duplicate keys
     }
 
     return 0;

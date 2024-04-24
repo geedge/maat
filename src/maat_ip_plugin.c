@@ -385,8 +385,11 @@ ip_plugin_runtime_update_row(struct ip_plugin_runtime *ip_plugin_rt,
         ret = ex_data_runtime_add_ex_container(ex_data_rt, key, key_len,
                                                ex_container);
         if (ret < 0) {
+            log_debug(ip_plugin_rt->logger, MODULE_IP_PLUGIN,
+                      "[%s:%d]ip_plugin table:<%s> add key failed, "
+                      "key:%s", __FUNCTION__, __LINE__, table_name, key);
             ex_container_free(ex_data_rt, ex_container);
-            return -1;
+            //don't return failed, ignore the case of adding duplicate keys
         }
     }
 

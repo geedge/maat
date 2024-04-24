@@ -601,7 +601,7 @@ static int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key,
         //add
         ret = rcu_hash_add(expr_rt->item_hash, key, key_len, (void *)item);
         if (ret < 0) {
-            log_fatal(expr_rt->logger, MODULE_EXPR,
+            log_debug(expr_rt->logger, MODULE_EXPR,
                       "[%s:%d] expr item(item_id:%lld) add to item_hash failed", 
                       __FUNCTION__, __LINE__, item->item_id);
             return -1;
@@ -859,8 +859,7 @@ int expr_runtime_update(void *expr_runtime, void *expr_schema,
         if (expr_item != NULL) {
             expr_item_free(expr_item);
         }
-        expr_rt->update_err_cnt++;
-        return -1;
+        //don't return failed, ignore the case of adding duplicate keys
     }
 
     return 0;
