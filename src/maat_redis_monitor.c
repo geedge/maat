@@ -445,7 +445,7 @@ get_inc_key_list(long long instance_version, long long target_version,
 		assert(reply->element[i]->type == REDIS_REPLY_STRING);
 		int ret = sscanf(reply->element[i]->str, "%3s,%[^,],%lld", 
                          op_str, s_rule[j].table_name, &(s_rule[j].rule_id));
-		if (ret != 3 || s_rule[i].rule_id < 0) {
+		if (ret != 3 || s_rule[j].rule_id < 0) {
 			log_fatal(logger, MODULE_REDIS_MONITOR, 
                       "[%s:%d] Invalid Redis Key: %s", 
                       __FUNCTION__, __LINE__, reply->element[i]->str);

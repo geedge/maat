@@ -912,6 +912,7 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
     size_t real_regex_rule_cnt = 0;
     struct expr_rule *rules = NULL;
     void **ex_data_array = NULL;
+    enum expr_engine_type engine_type;
 
     size_t rule_cnt = rcu_updating_hash_list(expr_rt->item_hash, &ex_data_array);
     if (rule_cnt > 0) {
@@ -937,10 +938,12 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
 
     if (expr_rt->engine_type == EXPR_ENGINE_TYPE_AUTO) {
         if (real_lit_rule_cnt <= ENGINE_TYPE_SWITCH_THRESHOLD) {
-            expr_rt->engine_type = EXPR_ENGINE_TYPE_HS;
+            engine_type = EXPR_ENGINE_TYPE_HS;
         } else {
-            expr_rt->engine_type = EXPR_ENGINE_TYPE_RS;
+            engine_type = EXPR_ENGINE_TYPE_RS;
         }
+    } else {
+        engine_type = expr_rt->engine_type;
     }
 
     struct expr_matcher *new_matcher = NULL;
@@ -949,7 +952,7 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
     if (rule_cnt > 0) {
         struct timespec start, end;
         clock_gettime(CLOCK_MONOTONIC, &start);
-        new_matcher = expr_matcher_new(rules, real_rule_cnt, expr_rt->engine_type,
+        new_matcher = expr_matcher_new(rules, real_rule_cnt, engine_type,
                                        expr_rt->n_worker_thread, expr_rt->logger);
         clock_gettime(CLOCK_MONOTONIC, &end);
         long long time_elapse_ms = (end.tv_sec - start.tv_sec) * 1000 +
@@ -965,7 +968,7 @@ int expr_runtime_commit(void *expr_runtime, const char *table_name,
                      "table[%s] has %zu rules, commit %zu expr rules(literal_rules:%zu regex_rules:%zu)"
                      " and rebuild expr_matcher(%s) completed, version:%lld, consume:%lldms",
                      table_name, rule_cnt, real_rule_cnt, real_lit_rule_cnt, real_regex_rule_cnt,
-                     expr_engine_int2str(expr_rt->engine_type), maat_rt_version, time_elapse_ms);
+                     expr_engine_int2str(engine_type), maat_rt_version, time_elapse_ms);
         }
     }
 
