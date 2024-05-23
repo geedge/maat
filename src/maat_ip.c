@@ -299,8 +299,9 @@ ip_item_new(struct ip_schema *ip_schema, const char *table_name,
 
         //port range is port or port_start-port_end
         if(strchr(port_range,'-')!=NULL){
-            char *port_start = strtok(port_range,"-");
-            char *port_end = strtok(NULL,"-");
+            char *saveptr = NULL;
+            char *port_start = strtok_r(port_range,"-", &saveptr);
+            char *port_end = strtok_r(NULL,"-", &saveptr);
             ip_item->port_start = atoi(port_start);
             ip_item->port_end = atoi(port_end);
         } else {
