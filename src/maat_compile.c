@@ -888,6 +888,7 @@ static void maat_compile_clause_remove_literal(struct maat_compile *compile,
     compile_clause_remove_literal(clause, g2c_item);
     if (0 == utarray_len(clause->literals)) {
         clause->in_use = 0;
+        clause->clause_id = 0;
         compile->actual_clause_num--;
     }
 }

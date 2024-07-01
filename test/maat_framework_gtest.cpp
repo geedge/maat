@@ -3124,6 +3124,7 @@ TEST_F(IPScan, RuleUpdates) {
 }
 
 TEST_F(IPScan, RuleChangeClauseId) {
+    //This test is a reproduce of bug OMPUB-1343.
     const char *src_table_name = "VIRTUAL_IP_PLUS_SOURCE";
     const char *dst_table_name = "VIRTUAL_IP_PLUS_DESTINATION";
     const char *phy_ip_table_name = "IP_PLUS_CONFIG";
