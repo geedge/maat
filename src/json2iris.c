@@ -1027,6 +1027,16 @@ write_compile_line(cJSON *compile, struct iris_description *p_iris,
 	compile_cmd[cmd_cnt].str2int_flag = 1;
 	cmd_cnt++;
 
+	compile_cmd[cmd_cnt].json_string = "modified_time";
+	compile_cmd[cmd_cnt].json_type = cJSON_String;
+	compile_cmd[cmd_cnt].empty_allowed = 1;
+	time_t curr_time;
+	time(&curr_time);
+	char *temp = (char *)malloc(21);
+	snprintf(temp, 21, "%ld", curr_time);
+	compile_cmd[cmd_cnt].default_string = temp;
+	cmd_cnt++;
+
     struct iris_table *table_info = NULL;
 	item = cJSON_GetObjectItem(compile,"compile_table_name");
 	if (NULL == item || item->type != cJSON_String) {
