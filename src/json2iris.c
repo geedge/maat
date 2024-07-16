@@ -1032,7 +1032,7 @@ write_compile_line(cJSON *compile, struct iris_description *p_iris,
 	compile_cmd[cmd_cnt].empty_allowed = 1;
 	time_t curr_time;
 	time(&curr_time);
-	char *temp = (char *)malloc(21);
+	static char temp[21];
 	snprintf(temp, 21, "%ld", curr_time);
 	compile_cmd[cmd_cnt].default_string = temp;
 	cmd_cnt++;
