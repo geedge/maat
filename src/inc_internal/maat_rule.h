@@ -113,6 +113,7 @@ struct maat_options {
     char decrypt_key[MAX_KEYWORDS_STR_LEN];
     char log_path[PATH_MAX];
     int log_level;
+    size_t log_file_max_size_mb;
     char stat_file[NAME_MAX];
     size_t nr_worker_thread;
     char *accept_tags;

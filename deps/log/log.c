@@ -41,6 +41,9 @@ typedef enum {
 struct log_handle {
     int level;
     int enable;
+    int split_file_by_size;
+    size_t max_file_size_mb;
+    int file_index;
     FILE *fp;
     va_list ap;
 	char defined_log_fn[1024];
@@ -145,9 +148,29 @@ int log_create_log_file(struct log_handle *handle)
     if (NULL == (localtime_r(&t, &local_time))) {
         return 0;
     }
-    snprintf(tmp_log_file_name, sizeof(tmp_log_file_name), "%s.%04d-%02d-%02d",
+    snprintf(tmp_log_file_name, sizeof(tmp_log_file_name), "%s.%04d-%02d-%02d-%03d",
              handle->defined_log_fn, local_time.tm_year + 1900,
-             local_time.tm_mon + 1, local_time.tm_mday);
+             local_time.tm_mon + 1, local_time.tm_mday, handle->file_index);
+
+    if (handle->split_file_by_size) {
+        struct stat file_stat;
+
+        if (0 != memcmp(tmp_log_file_name, handle->runtime_log_fn, strlen(tmp_log_file_name))) {//new timestamp, reset file index
+            handle->file_index = 0;
+            snprintf(tmp_log_file_name, sizeof(tmp_log_file_name), "%s.%04d-%02d-%02d-%03d",
+                handle->defined_log_fn, local_time.tm_year + 1900,
+                local_time.tm_mon + 1, local_time.tm_mday, handle->file_index);
+        }
+
+        if (stat(tmp_log_file_name, &file_stat) == 0) {
+            if (file_stat.st_size >= (handle->max_file_size_mb * 1024 * 1024)) {
+                handle->file_index++;
+                snprintf(tmp_log_file_name, sizeof(tmp_log_file_name), "%s.%04d-%02d-%02d-%03d",
+                handle->defined_log_fn, local_time.tm_year + 1900,
+                local_time.tm_mon + 1, local_time.tm_mday, handle->file_index);
+            }
+        }
+    }
 
     if (handle->fp == NULL) {
         if (0 != log_open_file(tmp_log_file_name, handle))
@@ -216,6 +239,14 @@ void log_handle_set_enable(struct log_handle * handle, int enable)
 {
     if (handle != NULL) {
         handle->enable = enable;
+    }
+}
+
+void log_handle_set_file_max_size(struct log_handle *handle, size_t max_file_size_mb)
+{
+    if (handle != NULL) {
+        handle->split_file_by_size = 1;
+        handle->max_file_size_mb = max_file_size_mb;
     }
 }
 

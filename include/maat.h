@@ -133,6 +133,8 @@ int maat_options_set_foreign_cont_dir(struct maat_options *opts, const char *dir
 int maat_options_set_logger(struct maat_options *opts, const char *log_path,
                             enum log_level level);
 
+int maat_options_set_log_file_max_size(struct maat_options *opts,  size_t max_size_mb);//default is 500MB, 0 for unlimited
+
 int maat_options_set_iris(struct maat_options *opts, const char *full_directory, 
                           const char *increment_directory);
 

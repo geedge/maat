@@ -77,6 +77,7 @@ struct maat_options* maat_options_new(void)
     options->input_mode = DATA_SOURCE_NONE;
     options->expr_engine = MAAT_EXPR_ENGINE_AUTO;
     options->log_level = 0;
+    options->log_file_max_size_mb = 500;
 
     return options;
 }
@@ -311,6 +312,17 @@ int maat_options_set_logger(struct maat_options *opts, const char *log_path,
     return 0;
 }
 
+int maat_options_set_log_file_max_size(struct maat_options *opts,  size_t max_size_mb)
+{
+    if (NULL == opts || max_size_mb <= 0) {
+        return -1;
+    }
+
+    opts->log_file_max_size_mb = max_size_mb;
+
+    return 0;
+}
+
 static void _maat_free(struct maat *maat_inst)
 {
     if (NULL == maat_inst) {
@@ -364,6 +376,9 @@ struct maat *maat_new(struct maat_options *opts, const char *table_info_path)
             snprintf(log_path, sizeof(log_path), "./maat.log");
         }
         maat_inst->logger = log_handle_create(log_path, maat_inst->opts.log_level);
+    }
+    if (maat_inst->opts.log_file_max_size_mb != 0) {
+        log_handle_set_file_max_size(maat_inst->logger, maat_inst->opts.log_file_max_size_mb);
     }
 
     if (NULL == maat_inst->logger) {
