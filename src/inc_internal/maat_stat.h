@@ -26,7 +26,7 @@ void maat_stat_free(struct maat_stat *stat);
 int maat_stat_init(struct maat_stat *stat, const char *stat_name, struct table_manager *tbl_mgr,
                    struct maat_garbage_bin *garbage_bin);
 
-void maat_stat_output(struct maat_stat *stat, struct table_manager *tbl_mgr,
+void maat_stat_refresh(struct maat_stat *stat, struct table_manager *tbl_mgr,
                       long long maat_version, int perf_on);
 
 #ifdef __cplusplus

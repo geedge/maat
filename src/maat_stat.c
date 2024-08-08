@@ -233,10 +233,12 @@ int maat_stat_init(struct maat_stat *stat, const char *stat_name, struct table_m
     fs_table_column_register(stat);
     fs_table_row_register(stat);
 
+    fieldstat_easy_enable_auto_output(stat->fs_handle, stat->stat_file, 2);
+
     return 0;
 }
 
-static void fs_table_row_output(FILE *fp, struct maat_stat *stat, int perf_on)
+static void fs_table_row_refresh(struct maat_stat *stat, int perf_on)
 {
     long long plugin_cache_num = 0, plugin_rule_num = 0;
     long long total_rule_num = 0, total_scan_bytes = 0, total_update_err = 0;
@@ -420,27 +422,12 @@ static void fs_table_row_output(FILE *fp, struct maat_stat *stat, int perf_on)
                                stat->g_metric_id[STATUS_GROUP_REF_EXCL_NUM],
                                NULL, 0, g2g_excl_rule_num); 
 
-    char *buff = NULL;
-    size_t buff_len = 0;
-
-    fieldstat_easy_output(stat->fs_handle, &buff, &buff_len);
-    fwrite(buff, buff_len, 1, fp);
-    fflush(fp);
-
-    FREE(buff);
 }
 
-void maat_stat_output(struct maat_stat *stat, struct table_manager *tbl_mgr,
+void maat_stat_refresh(struct maat_stat *stat, struct table_manager *tbl_mgr,
                       long long maat_version, int perf_on)
 {
     if (NULL == stat || NULL == stat->fs_handle) {
-        return;
-    }
-    
-    FILE *fp = fopen(stat->stat_file, "w+");
-    if (NULL == fp) {
-        log_fatal(stat->logger, MODULE_MAAT_STAT, "open stat_file:%s failed.",
-                  stat->stat_file);
         return;
     }
 
@@ -507,7 +494,5 @@ void maat_stat_output(struct maat_stat *stat, struct table_manager *tbl_mgr,
                                stat->g_metric_id[STATUS_ZOMBIE_STREAM_NUM],
                                NULL, 0, stat->zombie_rs_stream); 
 
-    fs_table_row_output(fp, stat, perf_on);
-
-    fclose(fp);
+    fs_table_row_refresh(stat, perf_on);
 }
