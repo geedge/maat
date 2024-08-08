@@ -275,8 +275,7 @@ int interval_table_set_line(struct maat *maat_inst, const char *table_name,
 
 int ip_table_set_line(struct maat *maat_inst, const char *table_name,
                       enum maat_operation op, long long item_id,
-                      long long group_id, enum IP_TYPE type,
-                      const char *ip1, const char *ip2, int expire_after)
+                      long long group_id, const char *ip, int expire_after)
 {
     char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -284,13 +283,8 @@ int ip_table_set_line(struct maat *maat_inst, const char *table_name,
         return 0;
     }
 
-    int ip_type = IPV4;
-    if (type == IPv6) {
-        ip_type = IPV6;
-    }
-
-    sprintf(table_line, "%lld\t%lld\t%d\trange\t%s\t%s\t0-65535\t%d",
-            item_id, group_id, ip_type, ip1, ip2, op);
+    sprintf(table_line, "%lld\t%lld\t%s\t0-65535\t%d",
+            item_id, group_id, ip, op);
     struct maat_cmd_line line_rule;
     
     line_rule.rule_id = item_id;

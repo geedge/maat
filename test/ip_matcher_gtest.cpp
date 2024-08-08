@@ -10,19 +10,18 @@
 struct log_handle *g_logger = NULL;
 
 TEST(ipv4_matcher_match, OneSingleIPv4Rule) {
-    const char *ip1_str = "192.168.0.1";
+    const char *ip_str = "192.168.0.1";
     struct ip_rule rule;
     rule.rule_id = 100;
     rule.type = IPv4;
-    int ret = ip_format2range(4, IP_FORMAT_RANGE, ip1_str, ip1_str, 
-                              &rule.ipv4_rule.start_ip, &rule.ipv4_rule.end_ip);
+    int ret = ip_format2range(ip_str, IPV4, &rule.ipv4_rule.start_ip, &rule.ipv4_rule.end_ip);
     size_t mem_size = 0;
     struct ip_matcher *matcher = ip_matcher_new(&rule, 1, &mem_size);
     ASSERT_TRUE(matcher != NULL);
 
     struct ip_data data;
     data.type = IPv4;
-    inet_pton(AF_INET, ip1_str, &data.ipv4);
+    inet_pton(AF_INET, ip_str, &data.ipv4);
     data.ipv4 = ntohl(data.ipv4);
 
     struct scan_result results[MAX_ARRAY_SIZE];
@@ -38,20 +37,17 @@ TEST(ipv4_matcher_match, MultiSingleIPv4Rule) {
     struct ip_rule rule[3];
     rule[0].rule_id = 100;
     rule[0].type = IPv4;
-    int ret = ip_format2range(4, IP_FORMAT_RANGE, ip1_str, ip1_str, 
-                              &rule[0].ipv4_rule.start_ip, &rule[0].ipv4_rule.end_ip);
+    int ret = ip_format2range(ip1_str, IPV4, &rule[0].ipv4_rule.start_ip, &rule[0].ipv4_rule.end_ip);
     EXPECT_EQ(ret, 0);
 
     rule[1].rule_id = 200;
     rule[1].type = IPv4;
-    ret = ip_format2range(4, IP_FORMAT_RANGE, ip2_str, ip2_str, 
-                              &rule[1].ipv4_rule.start_ip, &rule[1].ipv4_rule.end_ip);
+    ret = ip_format2range(ip2_str, IPV4, &rule[1].ipv4_rule.start_ip, &rule[1].ipv4_rule.end_ip);
     EXPECT_EQ(ret, 0);
 
     rule[2].rule_id = 300;
     rule[2].type = IPv4;
-    ret = ip_format2range(4, IP_FORMAT_RANGE, ip3_str, ip3_str, 
-                              &rule[2].ipv4_rule.start_ip, &rule[2].ipv4_rule.end_ip);
+    ret = ip_format2range(ip3_str, IPV4, &rule[2].ipv4_rule.start_ip, &rule[2].ipv4_rule.end_ip);
     EXPECT_EQ(ret, 0);
 
     size_t mem_size = 0;
@@ -84,13 +80,11 @@ TEST(ipv4_matcher_match, MultiSingleIPv4Rule) {
 }
 
 TEST(ipv6_matcher_match, OneSingleIPv6Rule) {
-    const char *ip1_str = "1001:da8:205:1::101";
-    const char *ip2_str = "1001:da8:205:1::101";
+    const char *ip1_str = "1001:da8:205:1::101-1001:da8:205:1::101";
     struct ip_rule rule;
     rule.rule_id = 100;
     rule.type = IPv6;
-    int ret = ip_format2range(6, IP_FORMAT_RANGE, ip1_str, ip2_str, 
-                              rule.ipv6_rule.start_ip, rule.ipv6_rule.end_ip);
+    int ret = ip_format2range(ip1_str, IPV6, rule.ipv6_rule.start_ip, rule.ipv6_rule.end_ip);
     EXPECT_EQ(ret, 0);
 
     size_t mem_size = 0;
@@ -115,20 +109,17 @@ TEST(ipv6_matcher_match, MultiSingleIPv6Rule) {
     struct ip_rule rule[3];
     rule[0].rule_id = 100;
     rule[0].type = IPv6;
-    int ret = ip_format2range(6, IP_FORMAT_RANGE, ip1_str, ip1_str, 
-                              rule[0].ipv6_rule.start_ip, rule[0].ipv6_rule.end_ip);
+    int ret = ip_format2range(ip1_str, IPV6, rule[0].ipv6_rule.start_ip, rule[0].ipv6_rule.end_ip);
     EXPECT_EQ(ret, 0);
 
     rule[1].rule_id = 200;
     rule[1].type = IPv6;
-    ret = ip_format2range(6, IP_FORMAT_RANGE, ip2_str, ip2_str, 
-                          rule[1].ipv6_rule.start_ip, rule[1].ipv6_rule.end_ip);
+    ret = ip_format2range(ip2_str, IPV6, rule[1].ipv6_rule.start_ip, rule[1].ipv6_rule.end_ip);
     EXPECT_EQ(ret, 0);
 
     rule[2].rule_id = 300;
     rule[2].type = IPv6;
-    ret = ip_format2range(6, IP_FORMAT_RANGE, ip3_str, ip3_str, 
-                          rule[2].ipv6_rule.start_ip, rule[2].ipv6_rule.end_ip);
+    ret = ip_format2range(ip3_str, IPV6, rule[2].ipv6_rule.start_ip, rule[2].ipv6_rule.end_ip);
     EXPECT_EQ(ret, 0);
 
     size_t mem_size = 0;

@@ -26,10 +26,7 @@
 struct ip_schema {
     int item_id_column;
     int group_id_column;
-    int addr_type_column;
-    int addr_format_column;
-    int ip1_column;
-    int ip2_column;
+    int ip_column;
     int table_id;
     int port_column;
     struct table_manager *ref_tbl_mgr;
@@ -53,7 +50,6 @@ struct ip_item {
         struct ipv4_item_rule ipv4;
         struct ipv6_item_rule ipv6;
     };
-    enum ip_format ip_format;
     int port_start;
     int port_end;
 };
@@ -121,42 +117,12 @@ void *ip_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "addr_type");
+    custom_item = cJSON_GetObjectItem(item, "ip");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        ip_schema->addr_type_column = custom_item->valueint;
+        ip_schema->ip_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s> schema has no add_type column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "addr_format");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        ip_schema->addr_format_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s> schema has no addr_format column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "ip1");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        ip_schema->ip1_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s> schema has no ip1 column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "ip2");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        ip_schema->ip2_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s> schema has no ip2 column", 
+                  "[%s:%d] ip table:<%s> schema has no ip column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -185,9 +151,7 @@ ip_item_new(struct ip_schema *ip_schema, const char *table_name,
 {
     size_t column_offset = 0;
     size_t column_len = 0;
-    char addr_format[16] = {0};
-    char ip1_str[40] = {0};
-    char ip2_str[40] = {0};
+    char ip_str[128] = {0};
     struct ip_item *ip_item = ALLOC(struct ip_item, 1);
     
     int ret = get_column_pos(line, ip_schema->item_id_column, &column_offset,
@@ -210,41 +174,7 @@ ip_item_new(struct ip_schema *ip_schema, const char *table_name,
     }
     ip_item->group_id = atoll(line + column_offset);
 
-    ret = get_column_pos(line, ip_schema->addr_type_column, &column_offset,
-                         &column_len);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s> has no addr_type in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-    ip_item->addr_type = atoi(line + column_offset);
-
-    if (ip_item->addr_type != IPv4 && ip_item->addr_type != IPv6) {
-        log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s> has invalid addr type:%d in line:%s",
-                  __FUNCTION__, __LINE__, table_name, ip_item->addr_type, line);
-        goto error;
-    }
-
-    ret = get_column_pos(line, ip_schema->addr_format_column, &column_offset,
-                         &column_len);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_IP,
-                  "[%s:%d] ip table:<%s> has no addr_format in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-    memcpy(addr_format, (line + column_offset), column_len);
-    if (IP_FORMAT_UNKNOWN == ip_format_str2int(addr_format)) {
-        log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s> has invalid addr_format, "
-                  "should be single/range/CIDR/mask in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-
-    ret = get_column_pos(line, ip_schema->ip1_column, &column_offset,
+    ret = get_column_pos(line, ip_schema->ip_column, &column_offset,
                          &column_len);
     if (ret < 0) {
         log_fatal(logger, MODULE_IP, 
@@ -252,21 +182,16 @@ ip_item_new(struct ip_schema *ip_schema, const char *table_name,
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
-    memcpy(ip1_str, (line + column_offset), column_len);
+    memcpy(ip_str, (line + column_offset), column_len);
 
-    ret = get_column_pos(line, ip_schema->ip2_column, &column_offset,
-                         &column_len);
-    if (ret < 0) {
-        log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s> has no ip2 in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
+    if (strchr(ip_str, ':') != NULL) {
+		ip_item->addr_type = IPV6;
+	} else {
+		ip_item->addr_type = IPV4;
     }
-    memcpy(ip2_str, (line + column_offset), column_len);
 
     if (IPv4 == ip_item->addr_type) {
-        ret = ip_format2range(ip_item->addr_type, ip_format_str2int(addr_format),
-                              ip1_str, ip2_str, &ip_item->ipv4.min_ip, &ip_item->ipv4.max_ip);
+        ret = ip_format2range(ip_str, ip_item->addr_type, &ip_item->ipv4.min_ip, &ip_item->ipv4.max_ip);
         if (ret < 0) {
             log_fatal(logger, MODULE_IP, 
                       "[%s:%d] ip table:<%s> ip_format2range(ip4) failed in line:%s",
@@ -275,8 +200,7 @@ ip_item_new(struct ip_schema *ip_schema, const char *table_name,
         }
     } else {
         //ipv6
-        ret = ip_format2range(ip_item->addr_type, ip_format_str2int(addr_format),
-                              ip1_str, ip2_str, ip_item->ipv6.min_ip, ip_item->ipv6.max_ip);
+        ret = ip_format2range(ip_str, ip_item->addr_type, ip_item->ipv6.min_ip, ip_item->ipv6.max_ip);
         if (ret < 0) {
             log_fatal(logger, MODULE_IP, 
                       "[%s:%d] ip table:<%s> ip_format2range(ip6) failed in line:%s",
@@ -284,6 +208,7 @@ ip_item_new(struct ip_schema *ip_schema, const char *table_name,
             goto error;
         }
     }
+
     if(ip_schema->port_column>0)
     {
         ret = get_column_pos(line, ip_schema->port_column, &column_offset,

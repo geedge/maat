@@ -71,8 +71,7 @@ enum ip_format {
 };
 
 enum ip_format ip_format_str2int(const char *format);
-int ip_format2range(int ip_type, enum ip_format format, const char *ip1, const char *ip2, 
-                    uint32_t range_begin[], uint32_t range_end[]);
+int ip_format2range(const char *ip_str, int ip_type, uint32_t range_begin[], uint32_t range_end[]);
 
 #define UNUSED	__attribute__((unused))
 

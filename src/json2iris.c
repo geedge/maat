@@ -524,29 +524,12 @@ write_ip_line(cJSON *region_json, struct iris_description *p_iris,
 
 	json_cmd[cmd_cnt].json_string = "group_id";
 	json_cmd[cmd_cnt].json_type = cJSON_Number;
-	cmd_cnt++;
-	
-	json_cmd[cmd_cnt].json_string = "addr_type";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	json_cmd[cmd_cnt].str2int_flag = 1;
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "addr_format";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	json_cmd[cmd_cnt].empty_allowed = 1;
-	json_cmd[cmd_cnt].default_string = "mask";	
 	cmd_cnt++;	
 
-	json_cmd[cmd_cnt].json_string = "ip1";
+	json_cmd[cmd_cnt].json_string = "ip";
 	json_cmd[cmd_cnt].json_type = cJSON_String;
 	json_cmd[cmd_cnt].empty_allowed = 1;
 	json_cmd[cmd_cnt].default_string = "0.0.0.0";
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "ip2";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	json_cmd[cmd_cnt].empty_allowed = 1;
-	json_cmd[cmd_cnt].default_string = "255.255.255.255";
 	cmd_cnt++;
 
 	json_cmd[cmd_cnt].json_string = "port";
