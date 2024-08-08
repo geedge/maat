@@ -3077,7 +3077,7 @@ TEST_F(IPScan, RuleUpdates) {
     /* ip table add line */
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                            group_id, IPv4, "100.100.100.100", "100.100.100.100", 0);
+                            group_id, "100.100.100.100", 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -3096,7 +3096,7 @@ TEST_F(IPScan, RuleUpdates) {
 
     /* ip table del line */
     ret = ip_table_set_line(maat_inst, table_name, MAAT_OP_DEL, item_id,
-                            group_id, IPv4, "100.100.100.100", "100.100.100.100", 0);
+                            group_id, "100.100.100.100", 0);
     EXPECT_EQ(ret, 1);
 
     /* group2compile table del line */
@@ -3150,7 +3150,7 @@ TEST_F(IPScan, RuleChangeClauseId) {
     /* ip table add line */
     long long item_id1 = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_inst, phy_ip_table_name, MAAT_OP_ADD, item_id1,
-                            group_id1, IPv4, "1.1.1.1", "1.1.1.1", 0);
+                            group_id1, "1.1.1.1", 0);
     EXPECT_EQ(ret, 1);
 
     /* group2compile table add line */
@@ -3162,7 +3162,7 @@ TEST_F(IPScan, RuleChangeClauseId) {
     /* ip table add line */
     long long item_id2 = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_inst, phy_ip_table_name, MAAT_OP_ADD, item_id2,
-                            group_id2, IPv4, "11.11.11.11", "11.11.11.11", 0);
+                            group_id2, "11.11.11.11", 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -5483,7 +5483,7 @@ void ip_plugin_ex_new_cb(const char *table_name, int table_id, const char *key,
 
 	ud->rule_id = atoll(table_line + column_offset);
 
-	ret = get_column_pos(table_line, 5, &column_offset, &column_len);	
+	ret = get_column_pos(table_line, 4, &column_offset, &column_len);	
 	EXPECT_EQ(ret, 0);
 
 	ud->buffer = ALLOC(char, column_len + 1);
@@ -7379,10 +7379,9 @@ TEST_F(MaatCmd, SetIP) {
 
     /* item table add line */
     const char *ip1 = "172.0.0.1";
-    const char *ip2 = "172.0.0.1";
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item_id,
-                            group_id, IPv4, ip1, ip2, 0);
+                            group_id, ip1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -8567,15 +8566,15 @@ TEST_F(MaatCmd, UpdateIPPlugin) {
 	struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     int *ex_data_counter = MaatCmd::_ex_data_counter;
 	const char *table_line_add[TEST_CMD_LINE_NUM] = {
-        "101\t4\t192.168.30.98\t31\tSomething-like-json\t1\tCIDR",
-		"102\t4\t192.168.30.90\t192.168.30.128\tBigger-range-should-in-the-back\t1\trange",
-        "103\t6\t2001:db8:1234::\t2001:db8:1235::\tBigger-range-should-in-the-back\t1\trange",
-		"104\t6\t2001:db8:1234::1\t2001:db8:1234::5210\tSomething-like-json\t1\trange"};
+        "101\t4\t192.168.30.98/31\tSomething-like-json\t1",
+		"102\t4\t192.168.30.90-192.168.30.128\tBigger-range-should-in-the-back\t1",
+        "103\t6\t2001:db8:1234::-2001:db8:1235::\tBigger-range-should-in-the-back\t1",
+		"104\t6\t2001:db8:1234::1-2001:db8:1234::5210\tSomething-like-json\t1"};
     const char *table_line_del[TEST_CMD_LINE_NUM] = {
-        "101\t4\t192.168.30.98\t31\tSomething-like-json\t0\tcidr",
-		"102\t4\t192.168.30.90\t192.168.30.128\tBigger-range-should-in-the-back\t0\trange",
-        "103\t6\t2001:db8:1234::\t2001:db8:1235::\tBigger-range-should-in-the-back\t0\trange",
-		"104\t6\t2001:db8:1234::1\t2001:db8:1234::5210\tSomething-like-json\t0\trange"};
+        "101\t4\t192.168.30.98/31\tSomething-like-json\t0",
+		"102\t4\t192.168.30.90-192.168.30.128\tBigger-range-should-in-the-back\t0",
+        "103\t6\t2001:db8:1234::-2001:db8:1235::\tBigger-range-should-in-the-back\t0",
+		"104\t6\t2001:db8:1234::1-2001:db8:1234::5210\tSomething-like-json\t0"};
 
     int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);
@@ -9014,7 +9013,7 @@ TEST_F(MaatCmd, HitGroup) {
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_id,
-                            group3_id, IPv4, "220.181.38.150", "220.181.38.151", 0);
+                            group3_id, "220.181.38.150-220.181.38.151", 0);
     EXPECT_EQ(ret, 1);
 
     char temp[1024]={0};
@@ -9295,7 +9294,7 @@ TEST_F(MaatCmd, HitPathBasic) {
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_id,
-                            group3_id, IPv4, "220.181.38.148", "220.181.38.149", 0);
+                            group3_id, "220.181.38.148-220.181.38.149", 0);
     EXPECT_EQ(ret, 1);
 
     char temp[1024]={0};
@@ -9608,7 +9607,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_id,
-                            group3_id, IPv4, "220.181.38.168", "220.181.38.169", 0);
+                            group3_id, "220.181.38.168-220.181.38.169", 0);
     EXPECT_EQ(ret, 1);
 
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
@@ -9956,7 +9955,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item3_id,
-                            group3_id, IPv4, "220.181.38.158", "220.181.38.159", 0);
+                            group3_id, "220.181.38.158-220.181.38.159", 0);
     EXPECT_EQ(ret, 1);
 
     char temp[1024]={0};
@@ -10300,7 +10299,7 @@ TEST_F(MaatCmd, SameScanStatusWhenClauseUpdate_TSG6419) {
 
     long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item11_id,
-                            group11_id, IPv4, "192.168.2.1", "192.168.2.4", 0);
+                            group11_id, "192.168.2.1-192.168.2.4", 0);
     EXPECT_EQ(ret, 1);
 
     long long group21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
@@ -10409,7 +10408,7 @@ TEST_F(MaatCmd, GroupEdit) {
 
     long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item11_id,
-                            group11_id, IPv4, "192.168.3.1", "192.168.3.4", 0);
+                            group11_id, "192.168.3.1-192.168.3.4", 0);
     EXPECT_EQ(ret, 1);
 
     long long group21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
@@ -10548,7 +10547,7 @@ TEST_F(MaatCmd, CompileDelete_TSG6548) {
 
     long long item11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item11_id,
-                            group11_id, IPv4, "192.168.73.163", "192.168.73.180", 0);
+                            group11_id, "192.168.73.163-192.168.73.180", 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -10862,7 +10861,7 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item2_id,
-                            group2_id, IPv4, "100.100.100.1", "100.100.100.1", 0);
+                            group2_id, "100.100.100.1", 0);
     EXPECT_EQ(ret, 1);
 
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
@@ -10964,8 +10963,7 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD,
-                            item2_id, group2_id, IPv4, "100.100.100.2",
-                            "100.100.100.2", 0);
+                            item2_id, group2_id, "100.100.100.2", 0);
     EXPECT_EQ(ret, 1);
 
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
@@ -11065,7 +11063,7 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item2_id,
-                            group2_id, IPv4, "100.100.100.1", "100.100.100.1", 0);
+                            group2_id, "100.100.100.1", 0);
     EXPECT_EQ(ret, 1);
 
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
@@ -11165,7 +11163,7 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = ip_table_set_line(maat_inst, ip_table_name, MAAT_OP_ADD, item2_id,
-                            group2_id, IPv4, "100.100.100.3", "100.100.100.3", 0);
+                            group2_id, "100.100.100.3", 0);
     EXPECT_EQ(ret, 1);
 
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,

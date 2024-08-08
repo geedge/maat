@@ -453,7 +453,7 @@ size_t memcat(void **dest, size_t offset, size_t *n_dest, const void *src, size_
 	return n_src;
 }
 
-enum ip_format ip_format_str2int(const char *format)
+enum ip_format ip_format_str2int(const char *format)//TODO: need to delete?
 {
     if (0 == strcasecmp(format, "single")) {
         return IP_FORMAT_SINGLE;
@@ -469,117 +469,124 @@ enum ip_format ip_format_str2int(const char *format)
 	return IP_FORMAT_UNKNOWN;
 }
 
-int ip_format2range(int ip_type, enum ip_format format, const char *ip1, const char *ip2,
-                    uint32_t range_begin[], uint32_t range_end[])
+int ip_format2range(const char *ip_str, int ip_type, uint32_t range_begin[], uint32_t range_end[])
 {
-	int cidr = 0;
 	int ret = 0;
+	enum ip_format format = IP_FORMAT_UNKNOWN;
 
-	if (ip_type != IPV4 && ip_type != IPV6) {
-		assert(0);
-		return -1;
+	if (strchr(ip_str, '-') != NULL) {
+		format = IP_FORMAT_RANGE;
+	} else if (strchr(ip_str, '/') != NULL) {
+		format = IP_FORMAT_CIDR;
+	} else {
+		format = IP_FORMAT_SINGLE;
 	}
 
 	if (ip_type == IPV4) {
-        uint32_t ipv4_addr = 0;
-		ret = inet_pton(AF_INET, ip1, &ipv4_addr);
-		if (ret <= 0) {
-			return -1;
-		}
-
-		ipv4_addr = ntohl(ipv4_addr);
-        uint32_t ipv4_range_end = 0;
-        uint32_t ipv4_mask = 0;
+		uint32_t ipv4_addr_start = 0;
+		uint32_t ipv4_addr_end = 0;
+		char start_ip_str[16] = {0};
+		char end_ip_str[16] = {0};
+		int prefix_length = 0;
 		switch (format) {
-            case IP_FORMAT_SINGLE:
-			case IP_FORMAT_RANGE:
-				range_begin[0] = ipv4_addr;
-				ret = inet_pton(AF_INET, ip2, &ipv4_range_end);
-				if (ret <= 0) {
-					return -1;
-				}				
-				ipv4_range_end = ntohl(ipv4_range_end);
-				range_end[0] = ipv4_range_end;
-				break;
-            case IP_FORMAT_MASK:
-                ret = inet_pton(AF_INET, ip2, &ipv4_mask);
+			case IP_FORMAT_SINGLE:
+				ret = inet_pton(AF_INET, ip_str, &ipv4_addr_start);
 				if (ret <= 0) {
 					return -1;
 				}
-				ipv4_mask = ntohl(ipv4_mask);
-				range_begin[0] = ipv4_addr & ipv4_mask;
-				range_end[0] = ipv4_addr | ~ipv4_mask;
+				range_begin[0] = ntohl(ipv4_addr_start);
+				range_end[0] = range_begin[0];
+				break;
+			case IP_FORMAT_RANGE:
+				sscanf(ip_str, "%15[^-]-%15s", start_ip_str, end_ip_str);
+				ret = inet_pton(AF_INET, start_ip_str, &ipv4_addr_start);
+				if (ret <= 0) {
+					return -1;
+				}
+				ret = inet_pton(AF_INET, end_ip_str, &ipv4_addr_end);
+				if (ret <= 0) {
+					return -1;
+				}
+				range_begin[0] = ntohl(ipv4_addr_start);
+				range_end[0] = ntohl(ipv4_addr_end);
 				break;
 			case IP_FORMAT_CIDR:
-				cidr = atoi(ip2);
-				if (cidr > 32 || cidr < 0) {
+				sscanf(ip_str, "%15[^/]/%d", start_ip_str, &prefix_length);
+				if (prefix_length > 32 || prefix_length < 0) {
 					return -1;
 				}
-				ipv4_mask = (0xFFFFFFFFUL << (32 - cidr)) & 0xFFFFFFFFUL;
-				range_begin[0] = ipv4_addr & ipv4_mask;
-				range_end[0] = ipv4_addr | ~ipv4_mask;
+				ret = inet_pton(AF_INET, start_ip_str, &ipv4_addr_start);
+				if (ret <= 0) {
+					return -1;
+				}
+				ipv4_addr_start = ntohl(ipv4_addr_start);
+				uint32_t ipv4_mask = (0xFFFFFFFFUL << (32 - prefix_length)) & 0xFFFFFFFFUL;
+				range_begin[0] = ipv4_addr_start & ipv4_mask;
+				range_end[0] = ipv4_addr_start | ~ipv4_mask;
 				break;
 			default:
 				assert(0);
+		
 		}
 	} else {
-        //ipv6
-        int i = 0;
-        uint32_t ipv6_addr[4] = {0};
-        uint32_t ipv6_mask[4] = {0};
-        uint32_t ipv6_range_end[4] = {0};
-
-		ret = inet_pton(AF_INET6, ip1, ipv6_addr);
-		if (ret <= 0) {
-			return -1;
-		}
-		ipv6_ntoh(ipv6_addr);
-
+		//ipv6
+		uint32_t ipv6_addr_start[4] = {0};
+		uint32_t ipv6_mask[4] = {0};
+		uint32_t ipv6_addr_end[4] = {0};
+		char start_ip_str[40] = {0};
+		char end_ip_str[40] = {0};
+		int prefix_length = 0;
+		int i = 0;
 		switch (format) {
-            case IP_FORMAT_SINGLE:
-			case IP_FORMAT_RANGE:
-				ret = inet_pton(AF_INET6, ip2, ipv6_range_end);
+			case IP_FORMAT_SINGLE:
+				ret = inet_pton(AF_INET6, ip_str, ipv6_addr_start);
 				if (ret <= 0) {
 					return -1;
 				}
-				ipv6_ntoh(ipv6_range_end);
-
-				memcpy(range_begin, ipv6_addr, sizeof(ipv6_addr));				
-				memcpy(range_end, ipv6_range_end, sizeof(ipv6_range_end));
+				ipv6_ntoh(ipv6_addr_start);
+				memcpy(range_begin, ipv6_addr_start, sizeof(ipv6_addr_start));
+				memcpy(range_end, ipv6_addr_start, sizeof(ipv6_addr_start));
 				break;
-            case IP_FORMAT_MASK:
-				ret = inet_pton(AF_INET6, ip2, ipv6_mask);
+			case IP_FORMAT_RANGE:
+				sscanf(ip_str, "%39[^-]-%39s", start_ip_str, end_ip_str);
+				ret = inet_pton(AF_INET6, start_ip_str, ipv6_addr_start);
 				if (ret <= 0) {
 					return -1;
 				}
-				ipv6_ntoh(ipv6_mask);
-                
-				for (i = 0; i < 4; i++) {
-					range_begin[i]=ipv6_addr[i] & ipv6_mask[i];	
-					range_end[i] = ipv6_addr[i] | ~ipv6_mask[i];
+				ret = inet_pton(AF_INET6, end_ip_str, ipv6_addr_end);
+				if (ret <= 0) {
+					return -1;
 				}
+				ipv6_ntoh(ipv6_addr_start);
+				ipv6_ntoh(ipv6_addr_end);
+				memcpy(range_begin, ipv6_addr_start, sizeof(ipv6_addr_start));
+				memcpy(range_end, ipv6_addr_end, sizeof(ipv6_addr_end));
 				break;
 			case IP_FORMAT_CIDR:
-				cidr = atoi(ip2);
-				if (cidr > 128 || cidr < 0) {
+				sscanf(ip_str, "%39[^/]/%d", start_ip_str, &prefix_length);
+				if (prefix_length > 128 || prefix_length < 0) {
 					return -1;
 				}
-
+				ret = inet_pton(AF_INET6, start_ip_str, ipv6_addr_start);
+				if (ret <= 0) {
+					return -1;
+				}
+				ipv6_ntoh(ipv6_addr_start);
 				for (i = 0; i < 4; i++) {
-					int bit32 = 128 - cidr - 32 * (3 - i);
+					int bit32 = 128 - prefix_length - 32 * (3 - i);
 					if (bit32 < 0) {
-                        bit32 = 0;
-                    }
-                    
+						bit32 = 0;
+					}
 					ipv6_mask[i] = (0xFFFFFFFFUL << bit32) & 0xFFFFFFFFUL;
-					range_begin[i] = ipv6_addr[i] & ipv6_mask[i];	
-					range_end[i] = ipv6_addr[i] | ~ipv6_mask[i];
+					range_begin[i] = ipv6_addr_start[i] & ipv6_mask[i];
+					range_end[i] = ipv6_addr_start[i] | ~ipv6_mask[i];
 				}
 				break;
 			default:
 				assert(0);
 		}
 	}
+
 	return 0;
 }
 

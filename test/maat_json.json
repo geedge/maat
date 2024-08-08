@@ -107,10 +107,7 @@
                     "table_type":"ip",
                     "table_name": "IP_PLUS_CONFIG",
                     "table_content": {
-                        "addr_type": "ipv4",
-                        "addr_format": "single",
-                        "ip1": "192.168.50.24",
-                        "ip2": "192.168.50.24"
+                        "ip": "192.168.50.24"
                     }
                 }
             ]
@@ -154,10 +151,7 @@
                     "table_type":"ip",
                     "table_name": "IP_PLUS_CONFIG",
                     "table_content": {
-                        "addr_type": "ipv4",
-                        "addr_format": "single",
-                        "ip1": "192.168.58.19",
-                        "ip2": "192.168.58.19"
+                        "ip": "192.168.58.19"
                     }
                 }
             ]
@@ -170,10 +164,7 @@
                     "table_type":"ip",
                     "table_name": "IP_PLUS_CONFIG",
                     "table_content": {
-                        "addr_type": "ipv4",
-                        "addr_format": "range",
-                        "ip1": "10.0.1.20",
-                        "ip2": "10.0.1.25"
+                        "ip": "10.0.1.20-10.0.1.25"
                     }
                 }
             ]
@@ -186,10 +177,7 @@
                     "table_name": "IP_CONFIG",
                     "table_type":"ip",
                     "table_content": {
-                        "addr_type": "ipv4",
-                        "addr_format": "mask",
-                        "ip1": "192.168.40.88",
-                        "ip2": "255.255.255.255"
+                        "ip": "192.168.40.88/32"
                     }
                 }
             ]
@@ -202,10 +190,7 @@
                     "table_name": "IP_PLUS_CONFIG",
                     "table_type":"ip",
                     "table_content": {
-                        "addr_type": "ipv4",
-                        "addr_format": "mask",
-                        "ip1": "192.168.40.88",
-                        "ip2": "255.255.255.255"
+                        "ip": "192.168.40.88/32"
                     }
                 }
             ]
@@ -218,10 +203,7 @@
                     "table_name": "IP_PLUS_CONFIG",
                     "table_type":"ip",
                     "table_content": {
-                        "addr_type": "ipv4",
-                        "addr_format": "mask",
-                        "ip1": "192.168.40.88",
-                        "ip2": "255.255.255.255"
+                        "ip": "192.168.40.88/32"
                     }
                 }
             ]
@@ -262,20 +244,14 @@
                             "table_name": "IP_CONFIG",
                             "table_type":"ip",
                             "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "mask",
-                                "ip1": "10.0.6.201",
-                                "ip2": "255.255.255.255"
+                                "ip": "10.0.6.201/32"
                             }
                         },
                         {
                             "table_name": "IP_CONFIG",
                             "table_type":"ip",
                             "table_content": {
-                                "addr_type": "ipv6",
-                                "addr_format": "mask",
-                                "ip1": "2001:da8:205:1::101",
-                                "ip2": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:0000"
+                                "ip": "2001:da8:205:1::101/112"
                             }
                         }
                     ]
@@ -1387,10 +1363,7 @@
                             "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "range",
-                                "ip1": "10.0.7.100",
-                                "ip2": "10.0.7.101"
+                                "ip": "10.0.7.100-10.0.7.101"
                             }
                         }
                     ] 
@@ -1416,10 +1389,7 @@
                             "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
-                                "addr_type": "ipv6",
-                                "addr_format": "range",
-                                "ip1": "1001:da8:205:1::101",
-                                "ip2": "1001:da8:205:1::102"
+                                "ip": "1001:da8:205:1::101-1001:da8:205:1::102"
                             }
                         }
                     ]
@@ -1501,10 +1471,7 @@
                             "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "CIDR",
-                                "ip1": "192.168.0.1",
-                                "ip2": "32"
+                                "ip": "192.168.0.1/32"
                             }
                         }
                     ]
@@ -1529,10 +1496,7 @@
                             "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
-                                "addr_type": "ipv6",
-                                "addr_format": "CIDR",
-                                "ip1": "2001:db8::",
-                                "ip2": "120"
+                                "ip": "2001:db8::/120"
                             }
                         }
                     ]
@@ -1740,10 +1704,7 @@
                             "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "CIDR",
-                                "ip1": "192.168.23.1",
-                                "ip2": "24"
+                                "ip": "192.168.23.1/24"
                             }
                         }
                     ]
@@ -1859,10 +1820,7 @@
                             "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "CIDR",
-                                "ip1": "100.64.3.1",
-                                "ip2": "32"
+                                "ip": "100.64.3.1/32"
                             }
                         }                      
                     ]
@@ -1888,10 +1846,7 @@
                             "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "CIDR",
-                                "ip1": "192.168.40.10",
-                                "ip2": "32"
+                                "ip": "192.168.40.10/32"
                             }
                         }
                     ]
@@ -1917,10 +1872,7 @@
                             "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "CIDR",
-                                "ip1": "192.168.231.46",
-                                "ip2": "32"
+                                "ip": "192.168.231.46/32"
                             }
                         }
                     ]
@@ -2105,10 +2057,7 @@
                             "table_name": "IP_CONFIG",
                             "table_type":"ip",
                             "table_content": {
-                                "addr_type": "ipv6",
-                                "addr_format": "mask",
-                                "ip1": "::",
-                                "ip2": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"
+                                "ip": "::/128"
                             }
                         }
                     ]
@@ -2193,10 +2142,7 @@
                             "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "single",
-                                "ip1": "10.0.8.186",
-                                "ip2": "10.0.8.186"
+                                "ip": "10.0.8.186"
                             }
                         }
                     ]
@@ -2240,10 +2186,7 @@
                             "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "single",
-                                "ip1": "10.0.8.187",
-                                "ip2": "10.0.8.187"
+                                "ip": "10.0.8.187"
                             }
                         }
                     ]
@@ -2287,10 +2230,7 @@
                             "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "single",
-                                "ip1": "10.0.8.188",
-                                "ip2": "10.0.8.188"
+                                "ip": "10.0.8.188"
                             }
                         }
                     ]
@@ -2743,10 +2683,7 @@
                                     "table_type":"ip",
                                     "table_name": "IP_PLUS_CONFIG",
                                     "table_content": {
-                                        "addr_type": "ipv4",
-                                        "addr_format": "range",
-                                        "ip1": "100.64.1.0",
-                                        "ip2": "100.64.1.20"
+                                        "ip": "100.64.1.0-100.64.1.20"
                                     }
                                 }
                             ]
@@ -2760,10 +2697,7 @@
                                     "table_type":"ip",
                                     "table_name": "IP_PLUS_CONFIG",
                                     "table_content": {
-                                        "addr_type": "ipv4",
-                                        "addr_format": "range",
-                                        "ip1": "100.64.1.6",
-                                        "ip2": "100.64.1.10"
+                                        "ip": "100.64.1.6-100.64.1.10"
                                     }
                                 }
                             ]
@@ -2777,10 +2711,7 @@
                                     "table_type":"ip",
                                     "table_name": "IP_PLUS_CONFIG",
                                     "table_content": {
-                                        "addr_type": "ipv4",
-                                        "addr_format": "range",
-                                        "ip1": "100.64.1.11",
-                                        "ip2": "100.64.1.20"
+                                        "ip": "100.64.1.11-100.64.1.20"
                                     }
                                 }
                             ]
@@ -2808,10 +2739,7 @@
                             "table_name": "IP_PLUS_CONFIG",
                             "table_type":"ip",
                             "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "range",
-                                "ip1": "192.168.50.43",
-                                "ip2": "192.168.50.43"
+                                "ip": "192.168.50.43-192.168.50.43"
                             }
 
                         }
@@ -2827,10 +2755,7 @@
                             "table_name": "IP_PLUS_CONFIG",
                             "table_type":"ip",
                             "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "range",
-                                "ip1": "47.92.108.93",
-                                "ip2": "47.92.108.93"
+                                "ip": "47.92.108.93-47.92.108.93"
                             }
                         }
                     ]
@@ -2898,10 +2823,7 @@
                             "table_name": "IP_PLUS_CONFIG",
                             "table_type":"ip",
                             "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "range",
-                                "ip1": "100.64.2.0",
-                                "ip2": "100.64.2.5"
+                                "ip": "100.64.2.0-100.64.2.5"
                             }
 
                         }
@@ -2917,10 +2839,7 @@
                             "table_name": "IP_PLUS_CONFIG",
                             "table_type":"ip",
                             "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "range",
-                                "ip1": "100.64.2.6",
-                                "ip2": "100.64.2.10"
+                                "ip": "100.64.2.6-100.64.2.10"
                             }
                         }
                     ]
@@ -3094,10 +3013,7 @@
                             "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "range",
-                                "ip1": "10.0.7.100",
-                                "ip2": "10.0.7.106"
+                                "ip": "10.0.7.100-10.0.7.106"
                             }
                         }
                     ]
@@ -3149,10 +3065,7 @@
                             "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
-                                "addr_type": "ipv6",
-                                "addr_format": "CIDR",
-                                "ip1": "::",
-                                "ip2": "0"
+                                "ip": "::/0"
                             }
                         }
                     ]
@@ -3178,10 +3091,7 @@
                             "table_type":"ip",
                             "table_name": "IP_PERF_CONFIG",
                             "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "range",
-                                "ip1": "10.0.0.1",
-                                "ip2": "10.0.0.6"
+                                "ip": "10.0.0.1-10.0.0.6"
                             }
                         }
                     ]
@@ -3960,10 +3870,7 @@
                             "table_name": "IP_CONFIG",
                             "table_type":"ip",
                             "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "mask",
-                                "ip1": "192.168.101.102",
-                                "ip2": "255.255.255.255"
+                                "ip": "192.168.101.102/32"
                             }
                         }
                     ]
@@ -4016,10 +3923,7 @@
                             "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
-                                "addr_type": "ipv6",
-                                "addr_format": "CIDR",
-                                "ip1": "2607:5d00:2:2::32:28",
-                                "ip2": "128",
+                                "ip": "2607:5d00:2:2::32:28/128",
                                 "port":"80-443"
                             }
                         }
@@ -4045,10 +3949,7 @@
                             "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
-                                "addr_type": "ipv6",
-                                "addr_format": "CIDR",
-                                "ip1": "2607:5d00:2:2::32:28",
-                                "ip2": "128",
+                                "ip": "2607:5d00:2:2::32:28/128",
                                 "port":"80"
                             }
                         }
@@ -4074,10 +3975,7 @@
                             "table_type":"ip",
                             "table_name": "IP_PLUS_CONFIG",
                             "table_content": {
-                                "addr_type": "ipv4",
-                                "addr_format": "CIDR",
-                                "ip1": "192.168.30.44",
-                                "ip2": "32",
+                                "ip": "192.168.30.44/32",
                                 "port": "80"
                             }
                         }
@@ -4179,11 +4077,11 @@
         {
             "table_name": "TEST_IP_PLUGIN_WITH_EXDATA",
             "table_content": [
-                "101\t4\t192.168.30.99\t192.168.30.101\tSomething-like-json\t1",
-                "102\t4\t192.168.30.90\t192.168.30.128\tBigger-range-should-in-the-back\t1",
-                "103\t6\t2001:db8:1234::\t2001:db8:1235::\tBigger-range-should-in-the-back\t1",
-                "104\t6\t2001:db8:1234::1\t2001:db8:1234::5210\tSomething-like-json\t1",
-                "105\t6\t2620:100:3000::\t2620:0100:30ff:ffff:ffff:ffff:ffff:ffff\tBugreport-liumengyan-20210517\t1"
+                "101\t4\t192.168.30.99-192.168.30.101\tSomething-like-json\t1",
+                "102\t4\t192.168.30.90-192.168.30.128\tBigger-range-should-in-the-back\t1",
+                "103\t6\t2001:db8:1234::-2001:db8:1235::\tBigger-range-should-in-the-back\t1",
+                "104\t6\t2001:db8:1234::1-2001:db8:1234::5210\tSomething-like-json\t1",
+                "105\t6\t2620:100:3000::-2620:0100:30ff:ffff:ffff:ffff:ffff:ffff\tBugreport-liumengyan-20210517\t1"
             ]
         },
         {

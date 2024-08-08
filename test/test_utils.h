@@ -42,8 +42,7 @@ int interval_table_set_line(struct maat *maat_inst, const char *table_name,
 
 int ip_table_set_line(struct maat *maat_inst, const char *table_name,
                       enum maat_operation op, long long item_id,
-                      long long group_id, enum IP_TYPE type, const char *ip1, 
-                      const char *ip2, int expire_after);
+                      long long group_id, const char *ip, int expire_after);
 
 int flag_table_set_line(struct maat *maat_inst, const char *table_name,
                         enum maat_operation op, long long item_id,
