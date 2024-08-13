@@ -5764,7 +5764,7 @@ void fqdn_plugin_ex_new_cb(const char *table_name, int table_id, const char *key
 	EXPECT_EQ(ret, 0);
 
 	ud->rule_id = atoi(table_line + column_offset);
-	ret = get_column_pos(table_line, 4, &column_offset, &column_len);	
+	ret = get_column_pos(table_line, 3, &column_offset, &column_len);	
 	EXPECT_EQ(ret, 0);
 
 	sscanf(table_line + column_offset, "catid=%d", &ud->catid);
@@ -8660,17 +8660,17 @@ TEST_F(MaatCmd, UpdateFQDNPlugin) {
 	struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     int *ex_data_counter = MaatCmd::_ex_data_counter;
     const char *table_line_add[TEST_CMD_LINE_NUM]={
-		"201\t0\twww.example1.com\tcatid=1\t1",
-		"202\t1\t.example1.com\tcatid=1\t1",
-		"203\t0\tnews.example1.com\tcatid=2\t1",
-		"204\t0\tr3---sn-i3belne6.example2.com\tcatid=3\t1",
-		"205\t0\tr3---sn-i3belne6.example2.com\tcatid=3\t1"};
+		"201\twww.example1.com\tcatid=1\t1",
+		"202\t*.example1.com\tcatid=1\t1",
+		"203\tnews.example1.com\tcatid=2\t1",
+		"204\tr3---sn-i3belne6.example2.com\tcatid=3\t1",
+		"205\tr3---sn-i3belne6.example2.com\tcatid=3\t1"};
     const char *table_line_del[TEST_CMD_LINE_NUM]={
-		"201\t0\twww.example1.com\tcatid=1\t0",
-		"202\t1\t.example1.com\tcatid=1\t0",
-		"203\t0\tnews.example1.com\tcatid=2\t0",
-		"204\t0\tr3---sn-i3belne6.example2.com\tcatid=3\t0",
-		"205\t0\tr3---sn-i3belne6.example2.com\tcatid=3\t0"};
+		"201\twww.example1.com\tcatid=1\t0",
+		"202\t*.example1.com\tcatid=1\t0",
+		"203\tnews.example1.com\tcatid=2\t0",
+		"204\tr3---sn-i3belne6.example2.com\tcatid=3\t0",
+		"205\tr3---sn-i3belne6.example2.com\tcatid=3\t0"};
     
     int table_id = maat_get_table_id(maat_inst, table_name);
     ASSERT_GT(table_id, 0);

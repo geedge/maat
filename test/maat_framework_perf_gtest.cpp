@@ -1107,7 +1107,7 @@ void perf_fqdn_plugin_EX_new_cb(const char *table_name, int table_id,
 	EXPECT_EQ(ret, 0);
 
 	ud->rule_id = atoll(table_line+column_offset);
-	ret = maat_helper_read_column(table_line, 4, &column_offset, &column_len);	
+	ret = maat_helper_read_column(table_line, 3, &column_offset, &column_len);	
 	EXPECT_EQ(ret, 0);
 
 	sscanf(table_line+column_offset, "catid=%d",&ud->catid);
