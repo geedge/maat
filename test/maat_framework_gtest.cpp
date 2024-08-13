@@ -8841,7 +8841,7 @@ TEST_F(MaatCmd, GroupInMassCompiles) {
     long long group3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     long long item3_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = interval_table_set_line(maat_inst, table_appid, MAAT_OP_ADD, item3_id,
-                                  group3_id, 100, 100, NULL, 0);
+                                  group3_id, "100", NULL, 0);
     EXPECT_EQ(ret, 1);
 
     /*  item_url1 -> group1 -> compile[0 ~ COMPILE_ID_NUMS] 
@@ -10309,7 +10309,7 @@ TEST_F(MaatCmd, SameScanStatusWhenClauseUpdate_TSG6419) {
 
     long long item21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD,
-                                  item21_id, group21_id, 31, 31, NULL, 0);
+                                  item21_id, group21_id, "31", NULL, 0);
     EXPECT_EQ(ret, 1);
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
@@ -10356,7 +10356,7 @@ TEST_F(MaatCmd, SameScanStatusWhenClauseUpdate_TSG6419) {
 
     long long item22_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD,
-                                  item22_id, group22_id, 32, 32, NULL, 0);
+                                  item22_id, group22_id, "32", NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -10418,7 +10418,7 @@ TEST_F(MaatCmd, GroupEdit) {
 
     long long item21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD,
-                                  item21_id, group21_id, 41, 41, NULL, 0);
+                                  item21_id, group21_id, "41", NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -10458,10 +10458,11 @@ TEST_F(MaatCmd, GroupEdit) {
             item21 -> group21 -> clause2 _/
               item22 -> /
     */
+    char scan_app_id_str[8] = {0};
+    snprintf(scan_app_id_str, sizeof(scan_app_id_str), "%d", scan_app_id);
     long long item22_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_ADD,
-                                  item22_id, group21_id, scan_app_id,
-                                  scan_app_id, NULL, 0);
+                                  item22_id, group21_id, scan_app_id_str, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -10497,8 +10498,7 @@ TEST_F(MaatCmd, GroupEdit) {
            item21 -> group21 -> clause2 _/
     */
     ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_DEL,
-                                item22_id, group21_id, scan_app_id,
-                                scan_app_id, NULL, 0);
+                                item22_id, group21_id, scan_app_id_str, NULL, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);

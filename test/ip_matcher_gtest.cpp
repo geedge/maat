@@ -93,7 +93,7 @@ TEST(ipv6_matcher_match, OneSingleIPv6Rule) {
 
     struct ip_data data;
     data.type = IPv6;
-    inet_pton(AF_INET6, ip1_str, data.ipv6);
+    inet_pton(AF_INET6, "1001:da8:205:1::101", data.ipv6);
     ipv6_ntoh(data.ipv6);
 
     struct scan_result results[MAX_ARRAY_SIZE];

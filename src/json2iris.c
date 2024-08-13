@@ -567,13 +567,9 @@ write_interval_line(cJSON *region_json, struct iris_description *p_iris,
 		json_cmd[cmd_cnt].json_type = cJSON_String;
 		cmd_cnt++;
 	}
-		
-	json_cmd[cmd_cnt].json_string = "low_boundary";
-	json_cmd[cmd_cnt].json_type = cJSON_Number;
-	cmd_cnt++;
 
-	json_cmd[cmd_cnt].json_string = "up_boundary";
-	json_cmd[cmd_cnt].json_type = cJSON_Number;
+	json_cmd[cmd_cnt].json_string = "interval";
+	json_cmd[cmd_cnt].json_type = cJSON_String;
 	cmd_cnt++;
 
 	json_cmd[cmd_cnt].json_string = "is_valid";

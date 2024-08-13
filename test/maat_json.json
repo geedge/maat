@@ -137,8 +137,7 @@
                     "table_type": "interval_plus",
                     "table_content": {
                         "district": "fqdn_cat_id",
-                        "low_boundary": 1724,
-                        "up_boundary": 1724
+                        "interval": "1724"
                     }
                 }
             ]
@@ -297,8 +296,7 @@
                             "table_name": "CONTENT_SIZE",
                             "table_type": "interval",
                             "table_content": {
-                                "low_boundary": 100,
-                                "up_boundary": 500
+                                "interval": "100-500"
                             }
                         }
                     ]
@@ -368,8 +366,7 @@
                             "table_name": "CONTENT_SIZE",
                             "table_type": "interval",
                             "table_content": {
-                                "low_boundary": 2014,
-                                "up_boundary": 2016
+                                "interval": "2014-2016"
                             }
                         }
                     ]
@@ -1944,8 +1941,7 @@
                             "table_type": "interval_plus",
                             "table_content": {
                                 "district": "interval.plus",
-                                "low_boundary": 2020,
-                                "up_boundary": 2020
+                                "interval": "2020"
                             }
                         }
                     ]
@@ -3039,8 +3035,7 @@
                             "table_type": "interval_plus",
                             "table_content": {
                                 "district": "interval.plus",
-                                "low_boundary": 2020,
-                                "up_boundary": 2020
+                                "interval": "2020"
                             }
                         }
                     ]
@@ -3116,8 +3111,7 @@
                             "table_name": "INTEGER_PERF_CONFIG",
                             "table_type": "interval",
                             "table_content": {
-                                "low_boundary": 3000,
-                                "up_boundary": 3000
+                                "interval": "3000"
                             }
                         }
                     ]
@@ -3333,8 +3327,7 @@
                             "table_name": "CONTENT_SIZE",
                             "table_type": "interval",
                             "table_content": {
-                                "low_boundary": 3000,
-                                "up_boundary": 3000
+                                "interval": "3000"
                             }
                         }
                     ]

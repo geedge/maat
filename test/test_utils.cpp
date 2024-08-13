@@ -242,8 +242,7 @@ int expr_table_set_line(struct maat *maat_inst, const char *table_name,
 
 int interval_table_set_line(struct maat *maat_inst, const char *table_name,
     enum maat_operation op, long long item_id, long long group_id,
-    unsigned int low_boundary, unsigned int up_boundary,
-    const char *district, int expire_after)
+    const char *port_str, const char *district, int expire_after)
 {
     char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -257,11 +256,11 @@ int interval_table_set_line(struct maat *maat_inst, const char *table_name,
            table_type == TABLE_TYPE_INTERVAL_PLUS);
 
     if (table_type == TABLE_TYPE_INTERVAL_PLUS) {
-        sprintf(table_line, "%lld\t%lld\t%s\t%u\t%u\t%d",
-                item_id, group_id, district, low_boundary, up_boundary, op);
+        sprintf(table_line, "%lld\t%lld\t%s\t%s\t%d",
+                item_id, group_id, district, port_str, op);
     } else {
-        sprintf(table_line, "%lld\t%lld\t%u\t%u\t%d",
-                item_id, group_id, low_boundary, up_boundary, op);
+        sprintf(table_line, "%lld\t%lld\t%s\t%d",
+                item_id, group_id, port_str, op);
     }
 
     struct maat_cmd_line line_rule;

@@ -91,8 +91,10 @@ test_add_integer_command(struct maat *maat_inst, const char *table_name,
     EXPECT_EQ(ret, 1);
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
+    char interval_range_str[64] = {0};
+    snprintf(interval_range_str, sizeof(interval_range_str), "%d-%d", low_boundary, up_boundary);
     ret = interval_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                                 group_id, low_boundary, up_boundary, NULL, 0);
+                                 group_id, interval_range_str, NULL, 0);
     EXPECT_EQ(ret, 1);
 }
 

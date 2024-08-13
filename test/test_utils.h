@@ -35,10 +35,9 @@ int expr_table_set_line(struct maat *maat_inst, const char *table_name,
                         int match_method, int is_hexbin, int expire_after);
 
 int interval_table_set_line(struct maat *maat_inst, const char *table_name,
-                            enum maat_operation op, long long item_id,
-                            long long group_id, unsigned int low_boundary,
-                            unsigned int up_boundary, const char *district,
-                            int expire_after);
+                        enum maat_operation op, long long item_id, 
+                        long long group_id, const char *port_str, 
+                        const char *district, int expire_after);
 
 int ip_table_set_line(struct maat *maat_inst, const char *table_name,
                       enum maat_operation op, long long item_id,

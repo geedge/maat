@@ -25,8 +25,7 @@ struct interval_schema {
     int item_id_column;
     int group_id_column;
     int district_column;
-    int low_boundary_column;
-    int up_boundary_column;
+    int interval_column;
     int table_id;
     struct table_manager *ref_tbl_mgr;
 };
@@ -124,22 +123,12 @@ void *interval_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         }
     }
 
-    custom_item = cJSON_GetObjectItem(item, "low_boundary");
+    custom_item = cJSON_GetObjectItem(item, "interval");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->low_boundary_column = custom_item->valueint;
+        schema->interval_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_INTERVAL, 
-                  "[%s:%d] interval table:<%s> schema has no low_boundary column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "up_boundary");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->up_boundary_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_INTERVAL, 
-                  "[%s:%d] interval table:<%s> schema has no up_boundary column", 
+                  "[%s:%d] interval table:<%s> schema has no interval column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -287,6 +276,7 @@ interval_item_new(struct interval_schema *schema, const char *table_name,
     size_t column_offset = 0;
     size_t column_len = 0;
     enum table_type table_type = TABLE_TYPE_INVALID;
+    char port_str[16] = {0};
     struct interval_item *item = ALLOC(struct interval_item, 1);
 
     int ret = get_column_pos(line, schema->item_id_column, &column_offset,
@@ -334,23 +324,20 @@ interval_item_new(struct interval_schema *schema, const char *table_name,
         item->district_id = DISTRICT_ANY;
     }
 
-    ret = get_column_pos(line, schema->low_boundary_column, &column_offset, &column_len);
+    ret = get_column_pos(line, schema->interval_column, &column_offset, &column_len);
     if (ret < 0) {
         log_fatal(interval_rt->logger, MODULE_INTERVAL, 
-                  "[%s:%d] interval table:<%s> has no low_boundary in line:%s",
+                  "[%s:%d] interval table:<%s> has no interval in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
-    item->low_boundary = atoi(line + column_offset);
-
-    ret = get_column_pos(line, schema->up_boundary_column, &column_offset, &column_len);
-    if (ret < 0) {
-        log_fatal(interval_rt->logger, MODULE_INTERVAL, 
-                  "[%s:%d] interval table:<%s> has no up_boundary in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
+    memcpy(port_str, line + column_offset, column_len);
+    if (strchr(port_str, '-') != NULL) {
+        sscanf(port_str, "%d-%d", &item->low_boundary, &item->up_boundary);
+    } else {
+        item->low_boundary = atoi(port_str);
+        item->up_boundary = item->low_boundary;
     }
-    item->up_boundary = atoi(line + column_offset);
 
     return item;
 error:
