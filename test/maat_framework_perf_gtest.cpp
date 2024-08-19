@@ -48,7 +48,7 @@ test_add_expr_command(struct maat *maat_inst, const char *table_name,
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                              group_id, keywords, "null", 1, 0, 0, 0);
+                              group_id, keywords, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 }
 

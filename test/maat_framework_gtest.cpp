@@ -46,7 +46,7 @@ int test_add_expr_command(struct maat *maat_inst, const char *expr_table,
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, expr_table, MAAT_OP_ADD, item_id,
-                              group_id, keywords, "null", 1, 0, 0, 0);
+                              group_id, keywords, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
     return ret;
@@ -692,7 +692,7 @@ TEST_F(HsStringScan, BackslashR_N_Escape_IncUpdate) {
 
     /* EXPR_TYPE_AND MATCH_METHOD_SUB */
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                              group_id, keywords, NULL, 1, 0, 0, 0);
+                              group_id, keywords, NULL, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 3);
@@ -1403,7 +1403,7 @@ TEST_F(HsStringScan, dynamic_config) {
 
     /* EXPR_TYPE_AND MATCH_METHOD_SUB */
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                              group_id, keywords, NULL, 1, 0, 0, 0);
+                              group_id, keywords, NULL, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 3);
@@ -1422,7 +1422,7 @@ TEST_F(HsStringScan, dynamic_config) {
 
     /* EXPR_TYPE_AND MATCH_METHOD_SUB */
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_DEL, item_id,
-                              group_id, keywords, NULL, 1, 0, 0, 0);
+                              group_id, keywords, NULL, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* group2compile table del line */
@@ -1668,7 +1668,7 @@ TEST_F(RsStringScan, BackslashR_N_Escape_IncUpdate) {
 
     /* EXPR_TYPE_AND MATCH_METHOD_SUB */
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                              group_id, keywords, NULL, 1, 0, 0, 0);
+                              group_id, keywords, NULL, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 3);
@@ -2386,7 +2386,7 @@ TEST_F(RsStringScan, dynamic_config) {
 
      /* EXPR_TYPE_AND MATCH_METHOD_SUB */
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                              group_id, keywords, NULL, 1, 0, 0, 0);
+                              group_id, keywords, NULL, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -2405,7 +2405,7 @@ TEST_F(RsStringScan, dynamic_config) {
 
     /* EXPR_TYPE_AND MATCH_METHOD_SUB*/
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_DEL, item_id,
-                              group_id, keywords, NULL, 1, 0, 0, 0);
+                              group_id, keywords, NULL, 1, 0);
     EXPECT_EQ(ret, 1);
 
     /* group2compile table del line */
@@ -7415,7 +7415,6 @@ TEST_F(MaatCmd, SetExpr) {
 	const char *keywords1 = "Hiredis";
 	const char *keywords2 = "C Client";
     const char *compile_table_name = "COMPILE_DEFAULT";
-	char escape_buff1[256], escape_buff2[256];
 	char keywords[512];
 
     long long results[ARRAY_SIZE] = {0};
@@ -7424,9 +7423,7 @@ TEST_F(MaatCmd, SetExpr) {
     struct maat *maat_inst = MaatCmd::_shared_maat_inst;
     struct maat_state *state = maat_state_new(maat_inst, thread_id);
 
-    str_escape(escape_buff1, sizeof(escape_buff1), keywords1);
-    str_escape(escape_buff2, sizeof(escape_buff2), keywords2);
-    snprintf(keywords, sizeof(keywords), "%s&%s", escape_buff1, escape_buff2);
+    snprintf(keywords, sizeof(keywords), "%s&%s", keywords1, keywords2);
 	long long compile_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 2);
 
     test_add_expr_command(maat_inst, table_name, compile_id - 1, 0, keywords);
@@ -7515,7 +7512,7 @@ TEST_F(MaatCmd, SetExpr8) {
     /* EXPR_TYPE_AND MATCH_METHOD_SUB */
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                              group_id, keywords8, NULL, 1, 0, 0, 0);
+                              group_id, keywords8, NULL, 1, 0);
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -7536,11 +7533,11 @@ TEST_F(MaatCmd, SetExpr8) {
     maat_state_reset(state);
 
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_DEL, item_id,
-                              group_id, keywords8, NULL, 1, 0, 0, 0);
+                              group_id, keywords8, NULL, 1, 0);
     EXPECT_EQ(ret, 1);
     
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                              group_id, keywords7, NULL, 1, 0, 0, 0);
+                              group_id, keywords7, NULL, 1, 0);
    
     sleep(WAIT_FOR_EFFECTIVE_S);
 
@@ -7635,7 +7632,7 @@ TEST_F(MaatCmd, SameFilterRefByOneCompile) {
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, "HTTP_URL", MAAT_OP_ADD, item_id, group_id,
-                              keywords, "null", 1, 0, 0, 0);
+                              keywords, "null", 1, 0);
     EXPECT_EQ(ret, 1); 
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -7812,7 +7809,7 @@ TEST_F(MaatCmd, SubGroup) {
     */
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                              group2_id, keyword1, NULL, 1, 0, 0, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
+                              group2_id, keyword1, NULL, 1, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
 
@@ -7892,7 +7889,7 @@ TEST_F(MaatCmd, SubGroup) {
 
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item2_id,
-                              group3_id, keyword2, NULL, 1, 0, 0, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
+                              group3_id, keyword2, NULL, 1, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
     sleep(2);
     ret = maat_scan_string(maat_inst, table_id, scan_data2, strlen(scan_data2),
                             results, ARRAY_SIZE, &n_hit_result, state);
@@ -7967,7 +7964,7 @@ TEST_F(MaatCmd, RefGroup) {
     //item1 -> group1 -> compile1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item1_id,
-                              group1_id, keyword1, NULL, 1, 0, 0, 0); /* EXPR_TYPE_AND MATCH_METHOD_SUB */
+                              group1_id, keyword1, NULL, 1, 0); /* EXPR_TYPE_AND MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -7984,7 +7981,7 @@ TEST_F(MaatCmd, RefGroup) {
 
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item2_id,
-                              group2_id, keyword2, NULL, 1, 0, 0, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
+                              group2_id, keyword2, NULL, 1, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
     ret = compile_table_set_line(maat_inst, compile_table_name, MAAT_OP_DEL, 
@@ -8041,7 +8038,7 @@ TEST_F(MaatCmd, VirtualTable) {
     //item1 -> group1 -> compile1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item1_id,
-                              group1_id, "AppleWebKit", "User-Agent", 0, 0, 0, 0);/*EXPR_TYPE_STRING MATCH_METHOD_SUB */
+                              group1_id, "AppleWebKit", "User-Agent", 0, 0);/*EXPR_TYPE_STRING MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
     /* item1 -> group1 -> compile1
@@ -8060,7 +8057,7 @@ TEST_F(MaatCmd, VirtualTable) {
     */
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item2_id,
-                              group2_id, "uid=12345678;", "Cookie", 0, 0, 0, 0);/*EXPR_TYPE_STRING MATCH_METHOD_SUB */
+                              group2_id, "uid=12345678;", "Cookie", 0, 0);/*EXPR_TYPE_STRING MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S);
@@ -8827,14 +8824,14 @@ TEST_F(MaatCmd, GroupInMassCompiles) {
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     int ret = expr_table_set_line(maat_inst, table_url, MAAT_OP_ADD, item1_id,
-                                  group1_id, "baidu.com&tsg", NULL, 1, 0, 0, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
+                                  group1_id, "baidu.com&tsg", NULL, 1, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
     //item_url2 -> group2
     long long group2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, table_url, MAAT_OP_ADD, item2_id,
-                              group2_id, "baidu.com&zhengzhou", NULL, 1, 0, 0, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
+                              group2_id, "baidu.com&zhengzhou", NULL, 1, 0);/* EXPR_TYPE_AND MATCH_METHOD_SUB */
     EXPECT_EQ(ret, 1);
 
     //item_appid -> group3
@@ -8965,7 +8962,7 @@ TEST_F(MaatCmd, HitGroup) {
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
                               item1_id, group1_id, "hit group item first",
-                              "URL", 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              "URL", 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /* item1 -> group1 -> compile1
@@ -8994,7 +8991,7 @@ TEST_F(MaatCmd, HitGroup) {
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
                               item2_id, group2_id, "hit group item second",
-                              "Cookie", 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              "Cookie", 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /*
@@ -9016,13 +9013,11 @@ TEST_F(MaatCmd, HitGroup) {
                             group3_id, "220.181.38.150-220.181.38.151", 0);
     EXPECT_EQ(ret, 1);
 
-    char temp[1024]={0};
     //item4 -> group4, group4 is not referenced by any compile.
     long long item4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD,
-                              item4_id, group4_id, str_escape(temp, sizeof(temp),
-                              "hit group item forth"), NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              item4_id, group4_id, "hit group item forth", NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /*
@@ -9036,8 +9031,8 @@ TEST_F(MaatCmd, HitGroup) {
     long long item5_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD,
                               item5_id, group1_id,
-                              str_escape(temp, sizeof(temp), "hit group item fifth"),
-                              NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              "hit group item fifth",
+                              NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -9246,7 +9241,7 @@ TEST_F(MaatCmd, HitPathBasic) {
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
                               item1_id, group1_id, "graph_theory", "URL",
-                              0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /* item1 -> group1 -> compile1
@@ -9275,7 +9270,7 @@ TEST_F(MaatCmd, HitPathBasic) {
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
                               item2_id, group2_id, "time=2020-02-11", "Cookie",
-                              0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /*
@@ -9297,14 +9292,13 @@ TEST_F(MaatCmd, HitPathBasic) {
                             group3_id, "220.181.38.148-220.181.38.149", 0);
     EXPECT_EQ(ret, 1);
 
-    char temp[1024]={0};
     //item4 -> group4, group4 is not referenced by any compile.
     long long item4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD,
                               item4_id, group4_id,
-                              str_escape(temp, sizeof(temp), "a finite or infinite"),
-                              NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              "a finite or infinite",
+                              NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -9547,7 +9541,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD,
                               item1_id, group1_id, "computer_theory", NULL,
-                              0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /* item1 -> group1 -> compile1
@@ -9576,7 +9570,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD,
                               item2_id, group2_id, "social_theory", NULL,
-                              0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
    
     //compile2
@@ -9648,13 +9642,12 @@ TEST_F(MaatCmd, HitPathAdvanced) {
                         /
            item4 -> group4
     */
-    char temp[1024]={0};
     long long item4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD,
                               item4_id, group4_id,
-                              str_escape(temp, sizeof(temp), "basic and advanced"),
-                              NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              "basic and advanced",
+                              NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     ret = group2compile_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
@@ -9907,7 +9900,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
     // !(item1 -> group1) -> compile1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
-                              item1_id, group1_id, "math_theory", "URL", 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              item1_id, group1_id, "math_theory", "URL", 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /* !(item1 -> group1) -> compile1
@@ -9936,7 +9929,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
                               item2_id, group2_id, "time=2020-02-12", "Cookie",
-                              0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /*
@@ -9958,14 +9951,13 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
                             group3_id, "220.181.38.158-220.181.38.159", 0);
     EXPECT_EQ(ret, 1);
 
-    char temp[1024]={0};
     //item4 -> group4, group4 is not referenced by any compile.
     long long item4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     long long group4_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = expr_table_set_line(maat_inst, keywords_table_name, MAAT_OP_ADD,
                               item4_id, group4_id,
-                              str_escape(temp, sizeof(temp), "a finite and infinite"),
-                              NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              "a finite and infinite",
+                              NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -10174,7 +10166,6 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 }
 
 TEST_F(MaatCmd, SameSuperGroupRefByMultiCompile) {
-    char temp[1024]={0};
     int thread_id = 0;
     const char *g2g_table_name = "GROUP2GROUP";
 	const char *g2c_table_name = "GROUP2COMPILE_DEFAULT";
@@ -10190,8 +10181,8 @@ TEST_F(MaatCmd, SameSuperGroupRefByMultiCompile) {
     long long group5_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     int ret = expr_table_set_line(maat_inst, http_sig_table_name, MAAT_OP_ADD,
                                   item5_id, group5_id,
-                                  str_escape(temp, sizeof(temp), "same supergroup referenced by multi compile"),
-                                  "KEY", 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                                  "same supergroup referenced by multi compile",
+                                  "KEY", 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     long long group52_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
@@ -10623,7 +10614,7 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
     //item1 -> group1 -> compile1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, table_http_url, MAAT_OP_ADD, item1_id,
-                              group1_id, "part-1", NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              group1_id, "part-1", NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -10661,7 +10652,7 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
     //item2 -> group2 -> compile2
     long long item2_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, table_http_url, MAAT_OP_ADD, item2_id,
-                              group2_id, "part-2", NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              group2_id, "part-2", NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     //DON'T DO THIS!!!
@@ -10727,7 +10718,7 @@ TEST_F(MaatCmd, StreamScanWhenExprTableIncUpdate) {
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, scan_table_name, MAAT_OP_ADD,
                               item1_id, group1_id, "stream-keywords-001-inc-update",
-                              NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -10783,7 +10774,7 @@ TEST_F(MaatCmd, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
     //item1 -> group1 -> compile1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, scan_table_name, MAAT_OP_ADD, item1_id,
-                              group1_id, "stream-keywords-002", NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              group1_id, "stream-keywords-002", NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -10851,7 +10842,7 @@ TEST_F(MaatCmd, IPAndStreamScanWhenIncUpdate) {
     //item1 -> group1 -> compile1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD, item1_id,
-                              group1_id, "stream-keywords-003", NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              group1_id, "stream-keywords-003", NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /* item1 -> group1 -> compile1 
@@ -10953,7 +10944,7 @@ TEST_F(MaatCmd, IPAndStreamScanWhenFullUpdate) {
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD,
                               item1_id, group1_id, "stream-keywords-004",
-                              NULL, 0, 0, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
+                              NULL, 0, 0); /*EXPR_TYPE_STRING MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /* item1 -> group1 -> compile1 
@@ -11053,7 +11044,7 @@ TEST_F(MaatCmd, IPAndStringScanWhenIncUpdate) {
     //item1 -> group1 -> compile1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD, item1_id,
-                              group1_id, keywords, NULL, 1, 0, 0, 0); /*EXPR_TYPE_AND MATCH_METHOD_SUB*/
+                              group1_id, keywords, NULL, 1, 0); /*EXPR_TYPE_AND MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /* item1 -> group1 -> compile1 
@@ -11153,7 +11144,7 @@ TEST_F(MaatCmd, IPAndStringScanWhenFullupdate) {
     //item1 -> group1 -> compile1
     long long item1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, expr_table_name, MAAT_OP_ADD, item1_id,
-                              group1_id, keywords, "null", 1, 0, 0, 0); /*EXPR_TYPE_AND MATCH_METHOD_SUB*/
+                              group1_id, keywords, "null", 1, 0); /*EXPR_TYPE_AND MATCH_METHOD_SUB*/
     EXPECT_EQ(ret, 1);
 
     /* item1 -> group1 -> compile1 

@@ -120,7 +120,7 @@ int load_file_to_memory(const char *file_name, unsigned char **pp_out, size_t *o
 	return 0;
 }
 
-static char *strchr_esc(char *s, const char delim)
+char *strchr_esc(char *s, const char delim)
 {
 	char *token = NULL;
 
@@ -451,22 +451,6 @@ size_t memcat(void **dest, size_t offset, size_t *n_dest, const void *src, size_
 	memcpy((char *) * dest + offset, src, n_src);
     
 	return n_src;
-}
-
-enum ip_format ip_format_str2int(const char *format)//TODO: need to delete?
-{
-    if (0 == strcasecmp(format, "single")) {
-        return IP_FORMAT_SINGLE;
-    }else if (0 == strcasecmp(format, "range")) {
-		return IP_FORMAT_RANGE;
-	} else if (0 == strcasecmp(format, "CIDR")) {
-		return IP_FORMAT_CIDR;
-	} else if (0 == strcasecmp(format, "mask")) {
-        return IP_FORMAT_MASK;
-    } else {
-		assert(0);
-	}
-	return IP_FORMAT_UNKNOWN;
 }
 
 int ip_format2range(const char *ip_str, int ip_type, uint32_t range_begin[], uint32_t range_end[])

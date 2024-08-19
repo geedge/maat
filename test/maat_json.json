@@ -11,10 +11,8 @@
                     "table_name": "AS_NUMBER",
                     "table_type": "expr",
                     "table_content": {
-                        "keywords": "AS1234",
-                        "expr_type": "none",
-                        "match_method": "exact",
-                        "format": "uncase plain"
+                        "keywords": "^AS1234$",
+                        "expr_type": "and"
                     }
                 }
             ]
@@ -27,10 +25,8 @@
                     "table_name": "AS_NUMBER",
                     "table_type": "expr",
                     "table_content": {
-                        "keywords": "AS2345",
-                        "expr_type": "none",
-                        "match_method": "exact",
-                        "format": "uncase plain"
+                        "keywords": "^AS2345$",
+                        "expr_type": "and"
                     }
                 }
             ]
@@ -43,10 +39,8 @@
                     "table_name": "AS_NUMBER",
                     "table_type": "expr",
                     "table_content": {
-                        "keywords": "AS6789",
-                        "expr_type": "none",
-                        "match_method": "exact",
-                        "format": "uncase plain"
+                        "keywords": "^AS6789$",
+                        "expr_type": "and"
                     }
                 }
             ]
@@ -59,10 +53,8 @@
                     "table_name": "AS_NUMBER",
                     "table_type": "expr",
                     "table_content": {
-                        "keywords": "AS9001",
-                        "expr_type": "none",
-                        "match_method": "exact",
-                        "format": "uncase plain"
+                        "keywords": "^AS9001$",
+                        "expr_type": "and"
                     }
                 }
             ]
@@ -75,10 +67,8 @@
                     "table_name": "AS_NUMBER",
                     "table_type": "expr",
                     "table_content": {
-                        "keywords": "AS9002",
-                        "expr_type": "none",
-                        "match_method": "exact",
-                        "format": "uncase plain"
+                        "keywords": "^AS9002$",
+                        "expr_type": "and"
                     }
                 }
             ]
@@ -91,10 +81,8 @@
                     "table_name": "AS_NUMBER",
                     "table_type": "expr",
                     "table_content": {
-                        "keywords": "AS9003",
-                        "expr_type": "none",
-                        "match_method": "exact",
-                        "format": "uncase plain"
+                        "keywords": "^AS9003$",
+                        "expr_type": "and"
                     }
                 }
             ]
@@ -120,10 +108,8 @@
                     "table_name": "KEYWORDS_TABLE",
                     "table_type": "expr",
                     "table_content": {
-                        "keywords": "sports.example.com",
-                        "expr_type": "none",
-                        "match_method": "exact",
-                        "format": "uncase plain"
+                        "keywords": "^sports.example.com$",
+                        "expr_type": "and"
                     }
                 }
             ]
@@ -215,10 +201,8 @@
                     "table_name": "GeoLocation",
                     "table_type": "expr",
                     "table_content": {
-                        "keywords": "Greece.Sparta",
-                        "expr_type": "none",
-                        "match_method": "exact",
-                        "format": "uncase plain"
+                        "keywords": "^Greece.Sparta$",
+                        "expr_type": "and"
                     }
                 }
             ]
@@ -265,9 +249,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "abckkk&123",
-                                "expr_type": "and",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -322,9 +304,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "action=search\\&query=(.*)",
-                                "expr_type": "regex",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "regex"
                             }
                         }
                     ]
@@ -350,9 +330,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "should_not_hit_any_rule",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -393,9 +371,7 @@
                             "table_content": {
                                 "district": "HtTP\\bUrL",
                                 "keywords": "abckkk&123",
-                                "expr_type": "and",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -421,9 +397,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "C#中国",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -449,9 +423,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "2010&يىلىدىكى",
-                                "expr_type": "and",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -477,9 +449,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "سىياسىي",
-                                "expr_type": "and",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -504,10 +474,8 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "Take\\bme\\bHome&Batman\\",
-                                "expr_type": "and",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "keywords": "Take me Home&Batman\\",
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -533,9 +501,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "www.3300av.com",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -561,9 +527,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "novel&27122.txt",
-                                "expr_type": "and",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -588,10 +552,8 @@
                             "table_name": "IMAGE_FP",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "4362-4458:323031333A30333A30372032333A35363A313000323031333A30333A30372032333A35363A3130000000FFE20C584943435F50524F46494C4500010100000C484C696E6F021000006D6E74725247422058595A2007CE00020009000600310000",
-                                "expr_type": "offset",
-                                "match_method": "none",
-                                "format": "hexbin"
+                                "keywords": "(offset=4362,depth=4458)|323031333A30333A30372032333A35363A313000323031333A30333A30372032333A35363A3130000000FFE20C584943435F50524F46494C4500010100000C484C696E6F021000006D6E74725247422058595A2007CE00020009000600310000|",
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -616,10 +578,8 @@
                             "table_name": "IMAGE_FP",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "19339-19467:6CB2CB2F2028474C994991CCFC65CCA5E3B6FF001673985D157358610CACC674EE64CC27B5721CCDABD9CCA7C8E9F7BB1F54A930A6034D50F92711F5B2DACCB0715D2E6873CE5CE431DC701A194C260E9DB78CC89F2C84745869AB88349A3AE0412AB59D9ABA84EDEFFF0057FA4DA66D333698B5AD6F844DA2226D1CADAD5E44",
-                                "expr_type": "offset",
-                                "match_method": "none",
-                                "format": "hexbin"
+                                "keywords": "(offset=19339,depth=19467)|6CB2CB2F2028474C994991CCFC65CCA5E3B6FF001673985D157358610CACC674EE64CC27B5721CCDABD9CCA7C8E9F7BB1F54A930A6034D50F92711F5B2DACCB0715D2E6873CE5CE431DC701A194C260E9DB78CC89F2C84745869AB88349A3AE0412AB59D9ABA84EDEFFF0057FA4DA66D333698B5AD6F844DA2226D1CADAD5E44|",
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -647,9 +607,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "should&hit&aaa",
-                                "expr_type": "and",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -677,9 +635,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "should&hit&bbb",
-                                "expr_type": "and",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -705,9 +661,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "2018-10-05",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -735,9 +689,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "i.ytimg.com",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -763,9 +715,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": ",IgpwcjA0LnN2bzAzKgkxMjcuMC4wLjE",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -792,9 +742,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "must-contained-string-of-rule-143",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -810,9 +758,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "must-not-contained-string-of-rule-143",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -839,9 +785,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "must-contained-string-of-rule-144",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -857,9 +801,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "must-not-contained-string-of-rule-144",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -886,9 +828,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "must-contained-string-of-rule-145",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -921,9 +861,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "must-contained-string-of-rule-146",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -940,9 +878,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "must-contained-not-string-of-rule-146",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -976,9 +912,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "clause0-in-compile-147",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -995,9 +929,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "clause1-in-compile-147",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1014,9 +946,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "clause2-in-compile-147",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1033,9 +963,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "clause3-in-compile-147",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1052,9 +980,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "clause4-in-compile-147",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1071,9 +997,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "clause5-in-compile-147",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1090,9 +1014,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "clause6-in-compile-147",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1109,9 +1031,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "clause7-in-compile-147",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1137,9 +1057,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "Cookie:\\s.*head",
-                                "expr_type": "regex",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "regex"
                             }
                         }
                     ]
@@ -1164,11 +1082,9 @@
                             "table_name": "APP_PAYLOAD",
                             "table_type": "expr_plus",
                             "table_content": {
-                                "format": "hexbin",
-                                "match_method": "sub",
                                 "district": "Payload",
-                                "keywords": "1-1:03&9-10:2d&14-16:2d34&19-21:2d&24-25:2d",
-                                "expr_type": "offset"
+                                "keywords": "(offset=1,depth=1)|03|&(offset=9,depth=10)|2d|&(offset=14,depth=16)|2d34|&(offset=19,depth=21)|2d|&(offset=24,depth=25)|2d|",
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1193,10 +1109,8 @@
                             "table_type": "expr",
                             "table_name": "TROJAN_PAYLOAD",
                             "table_content": {
-                                "keywords": "0-4:01000000",
-                                "expr_type": "offset",
-                                "format": "hexbin",
-                                "match_method": "sub"
+                                "keywords": "(offset=0,depth=4)|01000000|",
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1211,9 +1125,7 @@
                             "table_name": "TROJAN_PAYLOAD",
                             "table_content": {
                                 "keywords": "1:G2.40",
-                                "expr_type": "none",
-                                "format": "uncase plain",
-                                "match_method": "sub"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1238,10 +1150,8 @@
                             "table_type": "expr",
                             "table_name": "MAIL_ADDR",
                             "table_content": {
-                                "keywords": "ceshi3@mailhost.cn",
-                                "expr_type": "none",
-                                "format": "uncase plain",
-                                "match_method": "suffix"
+                                "keywords": "ceshi3@mailhost.cn$",
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1266,20 +1176,16 @@
                             "table_type": "expr",
                             "table_name": "MAIL_ADDR",
                             "table_content": {
-                                "keywords": "ceshi3@mailhost.cn",
-                                "expr_type": "none",
-                                "format": "uncase plain",
-                                "match_method": "prefix"
+                                "keywords": "^ceshi3@mailhost.cn",
+                                "expr_type": "and"
                             }
                         },
                         {
                             "table_type": "expr",
                             "table_name": "MAIL_ADDR",
                             "table_content": {
-                                "keywords": "ceshi6@mailhost.cn",
-                                "expr_type": "none",
-                                "format": "uncase plain",
-                                "match_method": "prefix"
+                                "keywords": "^ceshi6@mailhost.cn",
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1315,10 +1221,8 @@
                             "table_type": "expr",
                             "table_name": "MAIL_ADDR",
                             "table_content": {
-                                "keywords": "ceshi4@mailhost.cn",
-                                "expr_type": "none",
-                                "format": "uncase plain",
-                                "match_method": "prefix"
+                                "keywords": "^ceshi4@mailhost.cn",
+                                "expr_type": "and"
                             }
                         }
                     ],
@@ -1412,10 +1316,8 @@
                             "table_type": "expr_plus",
                             "table_content": {
                                 "district": "Content-Type",
-                                "keywords": "2f68746d6c",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "hexbin"
+                                "keywords": "|2f68746d6c|",
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1441,9 +1343,7 @@
                             "table_name": "TROJAN_PAYLOAD",
                             "table_content": {
                                 "keywords": "我的订单",
-                                "expr_type": "none",
-                                "format": "none",
-                                "match_method": "sub"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1525,9 +1425,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "https://blog.csdn.net/littlefang/article/details/8213058",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1555,9 +1453,7 @@
                             "table_content": {
                                 "district": "User-Agent",
                                 "keywords": "Chrome/78.0.3904.108",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1574,9 +1470,7 @@
                             "table_content": {
                                 "district": "Cookie",
                                 "keywords": "uid=12345678",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         },
                         {
@@ -1585,9 +1479,7 @@
                             "table_content": {
                                 "district": "Cookie",
                                 "keywords": "sessionid=888888",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1654,10 +1546,8 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": ">ЗАО\\b«Севергазвтоматика\\bАйС»<",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "keywords": ">ЗАО «Севергазвтоматика АйС»<",
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1684,9 +1574,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "cavemancircus.com/",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1728,9 +1616,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "2019/12/27/pretty-girls-6",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -1758,9 +1644,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "2019/12/27",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -2025,9 +1909,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "string1&string2&string3&string4&string5&string6&string7&string8",
-                                "expr_type": "and",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -2121,9 +2003,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "must-not-contained-string-of-rule-186",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -2165,9 +2045,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "must-not-contained-string-of-rule-187",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -2209,9 +2087,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "must-not-contained-string-of-rule-188",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -2251,11 +2127,9 @@
                             "table_name": "APP_PAYLOAD",
                             "table_type": "expr_plus",
                             "table_content": {
-                                "format": "hexbin",
-                                "match_method": "sub",
                                 "district": "tcp.payload.c2s_first_data",
-                                "keywords": "ab00",
-                                "expr_type": "none"
+                                "keywords": "|ab00|",
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -2282,9 +2156,7 @@
                             "table_content": {
                                 "district": "我的DistrIct",
                                 "keywords": "addis&sapphire",
-                                "expr_type": "and",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -2309,10 +2181,8 @@
                             "table_type": "expr",
                             "table_name": "KEYWORDS_TABLE",
                             "table_content": {
-                                "keywords": "54455354",
-                                "expr_type": "none",
-                                "format": "hexbin",
-                                "match_method": "sub"
+                                "keywords": "|54455354|",
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -2379,9 +2249,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "hello",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -2434,9 +2302,7 @@
                             "table_content": {
                                 "district": "I love China",
                                 "keywords": "today&yesterday",
-                                "expr_type": "and",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -2451,9 +2317,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "Monday",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -2506,9 +2370,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "hqdefault.jpg",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -2536,9 +2398,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "firewall",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -2570,9 +2430,7 @@
                                     "table_type": "expr",
                                     "table_content": {
                                         "keywords": "must-contained-string-of-rule-199",
-                                        "expr_type": "none",
-                                        "match_method": "sub",
-                                        "format": "uncase plain"
+                                        "expr_type": "and"
                                     }
                                 }
                             ]
@@ -2588,9 +2446,7 @@
                                     "table_type": "expr",
                                     "table_content": {
                                         "keywords": "must-not-contained-string-of-rule-199",
-                                        "expr_type": "none",
-                                        "match_method": "sub",
-                                        "format": "uncase plain"
+                                        "expr_type": "and"
                                     }
                                 }
                             ]
@@ -2625,9 +2481,7 @@
                                     "table_type": "expr",
                                     "table_content": {
                                         "keywords": "must-contained-string-of-rule-200",
-                                        "expr_type": "none",
-                                        "match_method": "sub",
-                                        "format": "uncase plain"
+                                        "expr_type": "and"
                                     }
                                 }
                             ]
@@ -2644,9 +2498,7 @@
                                     "table_type": "expr",
                                     "table_content": {
                                         "keywords": "must-not-contained-string-of-rule-200",
-                                        "expr_type": "none",
-                                        "match_method": "sub",
-                                        "format": "uncase plain"
+                                        "expr_type": "and"
                                     }
                                 }
                             ]
@@ -2771,10 +2623,8 @@
                                     "table_type":"expr",
                                     "table_name":"KEYWORDS_TABLE",
                                     "table_content":{
-                                        "format":"uncase plain",
-                                        "match_method":"suffix",
-                                        "keywords":"jianshu.com",
-                                        "expr_type":"none"
+                                        "keywords":"jianshu.com$",
+                                        "expr_type":"and"
                                     }
                                 }
                             ]
@@ -2788,10 +2638,8 @@
                                     "table_type":"expr",
                                     "table_name":"KEYWORDS_TABLE",
                                     "table_content":{
-                                        "format":"uncase plain",
-                                        "match_method":"complete",
-                                        "keywords":"www.jianshu.com",
-                                        "expr_type":"none"
+                                        "keywords":"^www.jianshu.com$",
+                                        "expr_type":"and"
                                     }
                                 }
                             ]
@@ -2860,10 +2708,8 @@
                                             "table_type":"expr",
                                             "table_name":"KEYWORDS_TABLE",
                                             "table_content":{
-                                                "format":"uncase plain",
-                                                "match_method":"suffix",
-                                                "keywords":"baidu.com",
-                                                "expr_type":"none"
+                                                "keywords":"baidu.com$",
+                                                "expr_type":"and"
                                             }
                                         }
                                     ]
@@ -2877,10 +2723,8 @@
                                             "table_type":"expr",
                                             "table_name":"KEYWORDS_TABLE",
                                             "table_content":{
-                                                "format":"uncase plain",
-                                                "match_method":"complete",
-                                                "keywords":"www.baidu.com",
-                                                "expr_type":"none"
+                                                "keywords":"^www.baidu.com$",
+                                                "expr_type":"and"
                                             }
                                         }
                                     ]
@@ -2896,10 +2740,8 @@
                                     "table_type":"expr",
                                     "table_name":"KEYWORDS_TABLE",
                                     "table_content":{
-                                        "format":"uncase plain",
-                                        "match_method":"complete",
-                                        "keywords":"mail.baidu.com",
-                                        "expr_type":"none"
+                                        "keywords":"^mail.baidu.com$",
+                                        "expr_type":"and"
                                     }
                                 }
                             ]
@@ -2927,9 +2769,7 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_content": {
                                 "keywords": "123^456",
-                                "expr_type": "regex",
-                                "format": "uncase plain",
-                                "match_method": "sub"
+                                "expr_type": "regex"
                             }
                         }
                     ]
@@ -2954,10 +2794,8 @@
                             "table_type": "expr",
                             "table_name": "KEYWORDS_TABLE",
                             "table_content": {
-                                "keywords": "54455354",
-                                "expr_type": "none",
-                                "format": "hexbin",
-                                "match_method": "sub"
+                                "keywords": "|54455354|",
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3137,9 +2975,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "today&yesterday",
-                                "expr_type": "and",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3191,9 +3027,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "action=search\\&query=(.*)",
-                                "expr_type": "regex",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "regex"
                             }
                         }
                     ]
@@ -3227,9 +3061,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "keywords-for-compile-211",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3261,10 +3093,8 @@
                                     "table_name": "HTTP_URL",
                                     "table_type": "expr",
                                     "table_content": {
-                                        "keywords": "string-of-rule-217.com",
-                                        "expr_type": "none",
-                                        "match_method": "suffix",
-                                        "format": "uncase plain"
+                                        "keywords": "string-of-rule-217.com$",
+                                        "expr_type": "and"
                                     }
                                 }
                             ]
@@ -3279,9 +3109,7 @@
                                     "table_type": "expr",
                                     "table_content": {
                                         "keywords": "www.string-of-rule-217.com",
-                                        "expr_type": "none",
-                                        "match_method": "sub",
-                                        "format": "uncase plain"
+                                        "expr_type": "and"
                                     }
                                 }
                             ]
@@ -3300,9 +3128,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "keywords-for-compile-217",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3355,9 +3181,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "keywords-dummy-219-1",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3374,9 +3198,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "keywords-dummy-219-2",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3393,9 +3215,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "keywords-dummy-219-3",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3412,9 +3232,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "keywords-dummy-219-4",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3431,9 +3249,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "keywords-dummy-219-5",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3450,9 +3266,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "keywords-dummy-219-6",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3469,9 +3283,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "keywords-dummy-219-7",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3488,9 +3300,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "keywords-dummy-219-8",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3518,9 +3328,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "keywords-dummy-220-1",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3537,9 +3345,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "keywords-dummy-220-2",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3556,9 +3362,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "keywords-dummy-220-3",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3586,9 +3390,7 @@
                             "table_content": {
                                 "district": "User-Agent",
                                 "keywords": "Mozilla/5.0",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3604,9 +3406,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "scan_with_district_221",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3634,9 +3434,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "not_logic_keywords_222",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3664,9 +3462,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "not_logic_compile_223_1",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3683,9 +3479,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "not_logic_compile_223_2",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3702,9 +3496,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "not_logic_compile_223_3",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3732,9 +3524,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "not_logic_compile_224_1",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3751,9 +3541,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "not_logic_compile_224_2",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3780,10 +3568,8 @@
                             "table_name": "KEYWORDS_TABLE",
                             "table_type": "expr",
                             "table_content": {
-                                "keywords": "GET\\b/\\bHTTP/1.1\\r\\nHost:\\bwww.baidu.com\\r\\n\\r\\n",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "keywords": "GET / HTTP/1.1\\r\\nHost: www.baidu.com\\r\\n\\r\\n",
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3845,9 +3631,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "youtube.com",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]
@@ -3889,9 +3673,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "\u00C9",
-                                "expr_type": "regex",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "regex"
                             }
                         }
                     ]
@@ -4013,9 +3795,7 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "html>\\\\r\\\\n",
-                                "expr_type": "none",
-                                "match_method": "sub",
-                                "format": "uncase plain"
+                                "expr_type": "and"
                             }
                         }
                     ]

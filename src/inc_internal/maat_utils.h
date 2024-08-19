@@ -70,7 +70,6 @@ enum ip_format {
 	IP_FORMAT_UNKNOWN
 };
 
-enum ip_format ip_format_str2int(const char *format);
 int ip_format2range(const char *ip_str, int ip_type, uint32_t range_begin[], uint32_t range_end[]);
 
 #define UNUSED	__attribute__((unused))
@@ -88,6 +87,7 @@ long long get_column_value(const char *line, int column_seq);
 
 int load_file_to_memory(const char *file_name, unsigned char **pp_out, size_t *out_sz);
 
+char *strchr_esc(char *s, const char delim);
 char *strtok_r_esc(char *s, const char delim, char **save_ptr);
 
 char *str_escape(char *dst, int size, const char *src);

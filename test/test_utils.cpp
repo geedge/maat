@@ -207,8 +207,7 @@ int group2group_table_set_line(struct maat *maat_inst, const char *table_name,
 int expr_table_set_line(struct maat *maat_inst, const char *table_name,
                         enum maat_operation op, long long item_id,
                         long long group_id, const char *keywords,
-                        const char *district, int expr_type,
-                        int match_method, int is_hexbin, int expire_after)
+                        const char *district, int expr_type, int expire_after)
 {
     char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -222,13 +221,11 @@ int expr_table_set_line(struct maat *maat_inst, const char *table_name,
            table_type == TABLE_TYPE_EXPR_PLUS);
 
     if (table_type == TABLE_TYPE_EXPR_PLUS) {
-        sprintf(table_line, "%lld\t%lld\t%s\t%s\t%d\t%d\t%d\t%d",
-                item_id, group_id, district, keywords, expr_type,
-                match_method, is_hexbin, op);
+        sprintf(table_line, "%lld\t%lld\t%s\t%d\t%s\t%d",
+                item_id, group_id, district, expr_type, keywords, op);
     } else {
-        sprintf(table_line, "%lld\t%lld\t%s\t%d\t%d\t%d\t%d",
-                item_id, group_id, keywords, expr_type,
-                match_method, is_hexbin, op);
+        sprintf(table_line, "%lld\t%lld\t%d\t%s\t%d",
+                item_id, group_id, expr_type, keywords, op);
     }
 
     struct maat_cmd_line line_rule;

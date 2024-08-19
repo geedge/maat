@@ -38,9 +38,7 @@ struct expr_schema {
     int group_id_column;
 	int district_column;
 	int keywords_column;
-	int expr_type_column;
-    int match_method_column;
-    int is_hexbin_column;
+    int expr_type_column;
     int table_id;
     enum maat_expr_engine engine_type;
     struct table_manager *ref_tbl_mgr;
@@ -68,9 +66,6 @@ struct expr_item {
     long long group_id;
     char keywords[MAX_KEYWORDS_STR_LEN + 1];
     enum expr_type expr_type;
-    enum expr_match_mode match_mode;
-    int is_hexbin;
-    int is_case_sensitive;
     void *user_data;
     int district_id;
 };
@@ -113,46 +108,18 @@ static enum expr_type int_to_expr_type(int expr_type) {
 
     switch (expr_type) {
     case 0:
-        type = EXPR_TYPE_STRING;
-        break;
     case 1:
+    case 3:
         type = EXPR_TYPE_AND;
         break;
     case 2:
         type = EXPR_TYPE_REGEX;
-        break;
-    case 3:
-        type = EXPR_TYPE_OFFSET;
         break;
     default:
         break;
     }
 
     return type;
-}
-
-static enum expr_match_mode int_to_match_mode(int match_method)
-{
-    enum expr_match_mode mode = EXPR_MATCH_MODE_INVALID;
-
-    switch (match_method) {
-    case 0:
-        mode = EXPR_MATCH_MODE_SUB;
-        break;
-    case 1:
-        mode = EXPR_MATCH_MODE_SUFFIX;
-        break;
-    case 2:
-        mode = EXPR_MATCH_MODE_PREFIX;
-        break;
-    case 3:
-        mode = EXPR_MATCH_MODE_EXACTLY;
-        break;
-    default:
-        break;
-    }
-
-    return mode;
 }
 
 static int expr_runtime_get_district_id(struct expr_runtime *expr_rt,
@@ -194,9 +161,7 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
 {
     size_t column_offset = 0;
     size_t column_len = 0;
-    int db_hexbin = -1;
     int expr_type = -1;
-    int match_method_type = -1;
     enum table_type table_type = TABLE_TYPE_INVALID;
     struct expr_item *expr_item = ALLOC(struct expr_item, 1);
 
@@ -238,23 +203,23 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
 
     ret = get_column_pos(line, expr_schema->expr_type_column, &column_offset, &column_len);
     if (ret < 0) {
-        log_fatal(expr_rt->logger, MODULE_EXPR, 
+        log_fatal(expr_rt->logger, MODULE_EXPR,
                   "[%s:%d] expr table:<%s> has no expr_type in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
-    
+
     expr_type = atoi(line + column_offset);
     expr_item->expr_type = int_to_expr_type(expr_type);
     if (expr_item->expr_type == EXPR_TYPE_INVALID) {
-        log_fatal(expr_rt->logger, MODULE_EXPR, 
+        log_fatal(expr_rt->logger, MODULE_EXPR,
                   "[%s:%d] expr table:<%s> has invalid expr_type in line:%s",
                  __FUNCTION__, __LINE__, table_name, line);
         goto error;
     } else if (expr_item->expr_type == EXPR_TYPE_REGEX) {
         ret = expr_matcher_verify_regex_expression(expr_item->keywords, expr_rt->logger);
         if (0 == ret) {
-            log_fatal(expr_rt->logger, MODULE_EXPR, 
+            log_fatal(expr_rt->logger, MODULE_EXPR,
                       "[%s:%d] expr table:<%s> regex expression(item_id:%lld):%s illegal,"
                       " will be dropped", __FUNCTION__, __LINE__, table_name,
                       expr_item->item_id, expr_item->keywords);
@@ -284,52 +249,6 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
         expr_item->district_id = expr_runtime_get_district_id(expr_rt, district);
     } else {
         expr_item->district_id = DISTRICT_ANY;
-    }
-
-    ret = get_column_pos(line, expr_schema->match_method_column, &column_offset, &column_len);
-    if (ret < 0) {
-        log_fatal(expr_rt->logger, MODULE_EXPR, 
-                  "[%s:%d] expr table:<%s> has no match_method in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-    
-    match_method_type = atoi(line + column_offset);
-    expr_item->match_mode = int_to_match_mode(match_method_type);
-    if (expr_item->match_mode == EXPR_MATCH_MODE_INVALID) {
-        log_fatal(expr_rt->logger, MODULE_EXPR, 
-                  "[%s:%d] expr table:<%s> has invalid match_method in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-
-    ret = get_column_pos(line, expr_schema->is_hexbin_column, &column_offset, &column_len);
-    if (ret < 0) {
-        log_fatal(expr_rt->logger, MODULE_EXPR, 
-                  "[%s:%d] expr table:<%s> has no is_hexbin in line:%s",
-                  __FUNCTION__, __LINE__, table_name, line);
-        goto error;
-    }
-    db_hexbin = atoi(line + column_offset);
-
-    switch (db_hexbin) {
-        case 0:
-            expr_item->is_hexbin = FALSE;
-            expr_item->is_case_sensitive = FALSE;
-            break;
-        case 1:
-            expr_item->is_hexbin = TRUE;
-            expr_item->is_case_sensitive = TRUE;
-            break;
-        case 2:
-            expr_item->is_hexbin = FALSE;
-            expr_item->is_case_sensitive = TRUE;
-            break;
-        default:
-            log_fatal(expr_rt->logger, MODULE_EXPR, 
-                      "[%s:%d] expr table:<%s> has invalid hexbin value:%d in line:%s",
-                      __FUNCTION__, __LINE__, table_name, db_hexbin, line);
-            goto error;
     }
 
     return expr_item;
@@ -429,28 +348,8 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
         expr_schema->expr_type_column = custom_item->valueint;
     } else {
-        log_fatal(logger, MODULE_EXPR, 
-                  "[%s:%d] expr table:<%s> schema has no expr_type column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "match_method");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        expr_schema->match_method_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_EXPR, 
-                  "[%s:%d] expr table:<%s> schema has no match_method column", 
-                  __FUNCTION__, __LINE__, table_name);
-        goto error;
-    }
-
-    custom_item = cJSON_GetObjectItem(item, "is_hexbin");
-    if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        expr_schema->is_hexbin_column = custom_item->valueint;
-    } else {
-        log_fatal(logger, MODULE_EXPR, 
-                  "[%s:%d] expr table:<%s> schema has no is_hexbin column", 
+        log_fatal(logger, MODULE_EXPR,
+                  "[%s:%d] expr table:<%s> schema has no expr_type column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -611,26 +510,6 @@ static int expr_runtime_update_row(struct expr_runtime *expr_rt, char *key,
     return 0;
 }
 
-static enum expr_pattern_type expr_type2pattern_type(enum expr_type expr_type)
-{
-    enum expr_pattern_type pattern_type = EXPR_PATTERN_TYPE_STR;
-
-    switch (expr_type) {
-        case EXPR_TYPE_STRING:
-        case EXPR_TYPE_AND:
-        case EXPR_TYPE_OFFSET:
-            pattern_type = EXPR_PATTERN_TYPE_STR;
-            break;
-        case EXPR_TYPE_REGEX:
-            pattern_type = EXPR_PATTERN_TYPE_REG;
-            break;
-        default:
-            break;
-    }
-
-    return pattern_type;
-}
-
 static int convertHextoint(char srctmp)
 {
 	if (isdigit(srctmp)) {
@@ -658,6 +537,128 @@ static size_t hex2bin(char *hex, int hex_len, char *binary, size_t size)
 	return resultlen;
 }
 
+static int expr_keywords_to_expr_pattern(char *keywords, struct expr_pattern *pattern, struct log_handle *logger)
+{
+    char *ctrl_str = NULL;
+    char *expr_str = NULL;
+    int case_ctrl_flag = 0;
+
+    pattern->match_mode = EXPR_MATCH_MODE_SUB;
+    pattern->case_sensitive = EXPR_CASE_INSENSITIVE;
+    /* -1 means offset no limit, As long as the pattern appears in the scan data, it will hit */
+    pattern->start_offset = -1;
+    pattern->end_offset = -1;
+
+    if (keywords[0] == '(') {
+        ctrl_str = keywords + 1;
+        char *ctrl_str_end = strchr(ctrl_str, ')');
+        if (NULL == ctrl_str_end) {
+            return -1;
+        }
+        ctrl_str_end[0] = '\0';
+        expr_str = ctrl_str_end + 1;
+    } else {
+        expr_str = keywords;
+    }
+
+    if (ctrl_str != NULL) {
+        char case_switch[8] = {0};
+        char *nocase_str = strstr(ctrl_str, "nocase");
+        if (nocase_str) {
+            case_ctrl_flag = 1;
+            sscanf(nocase_str, "nocase=%s", case_switch);
+            if (strcmp(case_switch, "off") == 0) {
+                pattern->case_sensitive = EXPR_CASE_SENSITIVE;
+            } else {
+                pattern->case_sensitive = EXPR_CASE_INSENSITIVE;
+            }
+        }
+
+        char *offset_str = strstr(ctrl_str, "offset");
+        char *depth_str = strstr(ctrl_str, "depth");
+        if (offset_str && depth_str) {
+            sscanf(offset_str, "offset=%d", &pattern->start_offset);
+            sscanf(depth_str, "depth=%d", &pattern->end_offset);
+            pattern->match_mode = EXPR_MATCH_MODE_SUB;
+
+            if (pattern->start_offset < 0 || pattern->end_offset <= 0 || (pattern->start_offset > pattern->end_offset)) {
+                return -1;
+            }
+        }
+    }
+
+    if (expr_str[0] == '^') {
+        pattern->match_mode = EXPR_MATCH_MODE_PREFIX;
+        expr_str++;
+    }
+
+    char *expr_suffix = strchr_esc(expr_str, '$');
+    if (expr_suffix != NULL) {
+        expr_suffix[0] = '\0';
+        if (pattern->match_mode == EXPR_MATCH_MODE_PREFIX) {
+            pattern->match_mode = EXPR_MATCH_MODE_EXACTLY;
+        } else {
+            pattern->match_mode = EXPR_MATCH_MODE_SUFFIX;
+        }
+    }
+
+    char *hex_str_start = strchr_esc(expr_str, '|');
+    char *tmp_start_str = expr_str;
+    char *tmp_end_str = NULL;
+    char tmp_keywords[MAX_KEYWORDS_STR_LEN + 1] = {0};
+    size_t pattern_len = 0;
+
+    if (hex_str_start && !case_ctrl_flag) {
+        pattern->case_sensitive = EXPR_CASE_SENSITIVE;
+    }
+
+    while (hex_str_start != NULL) {
+        hex_str_start[0] = '\0';
+        hex_str_start++;
+
+        tmp_end_str = strchr_esc(hex_str_start, '|');
+        if (tmp_end_str == NULL) {
+            return -1;
+        }
+        tmp_end_str[0] = '\0';
+        tmp_end_str++;
+
+        size_t region_str_len = strlen(hex_str_start) * 8;
+        char *region_string = ALLOC(char, region_str_len + 1);
+        region_str_len = hex2bin(hex_str_start, strlen(hex_str_start), region_string, region_str_len);
+        
+        tmp_start_str = str_unescape(tmp_start_str);
+        snprintf(tmp_keywords + pattern_len, MAX_KEYWORDS_STR_LEN - pattern_len, "%s%s", tmp_start_str, region_string);
+        pattern_len = strlen(tmp_keywords);
+
+        if (region_string != NULL) {
+            FREE(region_string);
+        }
+
+        tmp_start_str = tmp_end_str;
+        hex_str_start = strchr_esc(tmp_start_str, '|');
+    }
+    if (tmp_end_str != NULL && tmp_end_str[0] != '\0') {
+        tmp_end_str = str_unescape(tmp_end_str);
+        snprintf(tmp_keywords + pattern_len, MAX_KEYWORDS_STR_LEN - pattern_len, "%s%s", tmp_start_str, tmp_end_str);
+        pattern_len = strlen(tmp_keywords);
+    }
+
+    if (pattern_len == 0) {
+        expr_str = str_unescape(expr_str);
+        pattern->pat_len = strlen(expr_str);
+        pattern->pat = ALLOC(char, pattern->pat_len + 1);
+        memcpy(pattern->pat, expr_str, pattern->pat_len);
+        
+    } else {
+        pattern->pat = ALLOC(char, pattern_len + 1);
+        memcpy(pattern->pat, tmp_keywords, pattern_len);
+        pattern->pat_len = pattern_len;
+    }
+
+    return 0;
+}
+
 #define MAAT_MAX_EXPR_ITEM_NUM	8
 static int expr_item_to_expr_rule(struct expr_item *expr_item,
                                   struct expr_rule *expr_rule,
@@ -668,14 +669,7 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
     char *pos = NULL;
     char *tmp = NULL;
     char *saveptr = NULL;
-    char *sub_key_array[MAAT_MAX_EXPR_ITEM_NUM];
-    int key_left_offset[MAAT_MAX_EXPR_ITEM_NUM];
-    int key_right_offset[MAAT_MAX_EXPR_ITEM_NUM];
     char tmp_keywords[MAX_KEYWORDS_STR_LEN + 1];
-
-    /* -1 means offset no limit, As long as the pattern appears in the scan data, it will hit */
-    memset(key_left_offset, -1, sizeof(key_left_offset));
-    memset(key_right_offset, -1, sizeof(key_right_offset));
 
     memcpy(tmp_keywords, expr_item->keywords, MAX_KEYWORDS_STR_LEN + 1);
 
@@ -689,116 +683,43 @@ static int expr_item_to_expr_rule(struct expr_item *expr_item,
 
                 if (i >= MAAT_MAX_EXPR_ITEM_NUM) {
                     log_fatal(logger, MODULE_EXPR,
-                              "[%s:%d]abandon config expr_item(item_id:%d) "
-                              "too many patterns", __FUNCTION__, __LINE__,
-                              expr_item->item_id);
+                            "[%s:%d]abandon config expr_item(item_id:%d) "
+                            "too many patterns", __FUNCTION__, __LINE__,
+                            expr_item->item_id);
                     return -1;
                 }
 
-                sub_key_array[i] = tmp;
-                sub_key_array[i] = str_unescape(sub_key_array[i]); 
-            }
-            sub_expr_cnt = i;
-            break;
-        case EXPR_TYPE_OFFSET:
-            for (i = 0, pos = tmp_keywords; ; i++, pos = NULL) {
-                tmp = strtok_r_esc(pos, '&', &saveptr);
-                if (NULL == tmp) {
-                    break;
-                }
-
-                if (i >= MAAT_MAX_EXPR_ITEM_NUM) {
+                if (expr_keywords_to_expr_pattern(tmp, &expr_rule->patterns[i], logger) < 0) {
                     log_fatal(logger, MODULE_EXPR,
-                              "[%s:%d]abandon config expr_item(item_id:%d) "
-                              "too many patterns", __FUNCTION__, __LINE__,
-                              expr_item->item_id);
+                            "[%s:%d]abandon config expr_item(item_id:%d) "
+                            "has invalid pattern %s", __FUNCTION__, __LINE__,
+                            expr_item->item_id, tmp);
                     return -1;
                 }
-
-                sub_key_array[i] = tmp;
-                sscanf(sub_key_array[i], "%d-%d:", &(key_left_offset[i]),
-                       &(key_right_offset[i]));
-				if (!(key_left_offset[i] >= 0 && key_right_offset[i] > 0 
-                      && key_left_offset[i] <= key_right_offset[i])) {
-					log_fatal(logger, MODULE_EXPR,
-							 "[%s:%d]abandon config expr_item(item_id:%d) "
-                             "has invalid offset.", __FUNCTION__, __LINE__,
-                             expr_item->item_id);
-                    return -1;
-				}
-
-				sub_key_array[i] = (char *)memchr(sub_key_array[i], ':',
-                                                  strlen(sub_key_array[i]));
-				if (NULL == sub_key_array[i]) {
-					log_fatal(logger, MODULE_EXPR,
-							"[%s:%d]abandon config expr_item(item_id:%d) "
-                            "has invalid offset keyword format.",
-                            __FUNCTION__, __LINE__, expr_item->item_id);
-                    return -1;
-				}
-
-				sub_key_array[i]++;//jump over ':'
-				sub_key_array[i] = str_unescape(sub_key_array[i]);
+                expr_rule->patterns[i].type = EXPR_PATTERN_TYPE_STR;
             }
             sub_expr_cnt = i;
             break;
-        case EXPR_TYPE_STRING: //AND/OFFSET/STRING type expression use \b to represent blank(' ')
+        case EXPR_TYPE_REGEX:
             sub_expr_cnt = 1;
-            sub_key_array[0] = tmp_keywords;
-            sub_key_array[0] = str_unescape(sub_key_array[0]);
-            break;
-        case EXPR_TYPE_REGEX: //only regex type expression use \s to represent blank(' ')
-            sub_expr_cnt = 1;
-            sub_key_array[0] = tmp_keywords;
+            size_t pat_len = strlen(tmp_keywords);
+            expr_rule->patterns[0].pat = ALLOC(char, pat_len + 1);
+            memcpy(expr_rule->patterns[0].pat, tmp_keywords, pat_len);
+            expr_rule->patterns[0].pat_len = pat_len;
+            expr_rule->patterns[0].type = EXPR_PATTERN_TYPE_REG;
+            expr_rule->patterns[0].match_mode = EXPR_MATCH_MODE_SUB;
+            expr_rule->patterns[0].case_sensitive = EXPR_CASE_INSENSITIVE;
+            expr_rule->patterns[0].start_offset = -1;
+            expr_rule->patterns[0].end_offset = -1;
             break;
         default:
             log_fatal(logger, MODULE_EXPR, 
-                      "[%s:%d]abandon config expr_item(item_id:%lld) has "
-                      "invalid expr type=%d", __FUNCTION__, __LINE__,
-                      expr_item->item_id, expr_item->expr_type);
+                    "[%s:%d]abandon config expr_item(item_id:%lld) has "
+                    "invalid expr type=%d", __FUNCTION__, __LINE__,
+                    expr_item->item_id, expr_item->expr_type);
             return -1;
     }
 
-    for (i = 0; i < sub_expr_cnt; i++) {
-        size_t region_str_len = 0;
-        char *region_string = NULL;
-        size_t sub_key_len = 0;
-
-        if (TRUE == expr_item->is_case_sensitive) {
-            // insensitive
-            expr_rule->patterns[i].case_sensitive = EXPR_CASE_SENSITIVE;
-        } else {
-            expr_rule->patterns[i].case_sensitive = EXPR_CASE_INSENSITIVE;
-        }
-
-        expr_rule->patterns[i].type = expr_type2pattern_type(expr_item->expr_type);
-
-        if (TRUE == expr_item->is_hexbin && 
-            expr_rule->patterns[i].type != EXPR_PATTERN_TYPE_REG) {
-            region_str_len = strlen(sub_key_array[i]) * 8;
-			region_string = ALLOC(char, region_str_len + 1);
-			region_str_len = hex2bin(sub_key_array[i], strlen(sub_key_array[i]),
-                                     region_string, region_str_len);
-        }
-
-        if (region_string != NULL) {
-            expr_rule->patterns[i].pat = ALLOC(char, region_str_len + 1);
-            memcpy(expr_rule->patterns[i].pat, region_string, region_str_len);
-            expr_rule->patterns[i].pat_len = region_str_len;
-            FREE(region_string);
-        } else {
-            sub_key_len = strlen(sub_key_array[i]);
-            expr_rule->patterns[i].pat = ALLOC(char, sub_key_len + 1);
-            memcpy(expr_rule->patterns[i].pat, sub_key_array[i], sub_key_len);
-            expr_rule->patterns[i].pat_len = sub_key_len;
-        }
-
-        expr_rule->patterns[i].match_mode = expr_item->match_mode;
-        if (expr_rule->patterns[i].match_mode == EXPR_MATCH_MODE_SUB) {
-            expr_rule->patterns[i].start_offset = key_left_offset[i];
-            expr_rule->patterns[i].end_offset = key_right_offset[i];
-        }
-    }
     expr_rule->expr_id = expr_item->item_id;
     expr_rule->tag = expr_item->user_data;
     expr_rule->n_patterns = sub_expr_cnt;

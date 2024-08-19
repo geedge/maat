@@ -31,8 +31,7 @@ int group2group_table_set_line(struct maat *maat_inst, const char *table_name,
 int expr_table_set_line(struct maat *maat_inst, const char *table_name,
                         enum maat_operation op, long long item_id,
                         long long group_id, const char *keywords,
-                        const char *district, int expr_type,
-                        int match_method, int is_hexbin, int expire_after);
+                        const char *district, int expr_type, int expire_after);
 
 int interval_table_set_line(struct maat *maat_inst, const char *table_name,
                         enum maat_operation op, long long item_id, 

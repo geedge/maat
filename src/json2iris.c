@@ -483,23 +483,13 @@ write_expr_line(cJSON *region_json, struct iris_description *p_iris,
 		cmd_cnt++;
 	}
 
-	json_cmd[cmd_cnt].json_string = "keywords";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	cmd_cnt++;
-
 	json_cmd[cmd_cnt].json_string = "expr_type";
 	json_cmd[cmd_cnt].json_type = cJSON_String;
 	json_cmd[cmd_cnt].str2int_flag = 1;
 	cmd_cnt++;
 
-	json_cmd[cmd_cnt].json_string = "match_method";
+	json_cmd[cmd_cnt].json_string = "keywords";
 	json_cmd[cmd_cnt].json_type = cJSON_String;
-	json_cmd[cmd_cnt].str2int_flag = 1;
-	cmd_cnt++;
-
-	json_cmd[cmd_cnt].json_string = "format";
-	json_cmd[cmd_cnt].json_type = cJSON_String;
-	json_cmd[cmd_cnt].str2int_flag = 1;
 	cmd_cnt++;
 
 	json_cmd[cmd_cnt].json_string = "is_valid";
