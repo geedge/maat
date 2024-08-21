@@ -16,7 +16,7 @@
 #include "maat_ex_data.h"
 #include "ip_matcher.h"
 #include "maat_ip.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "maat_compile.h"
 #include "alignment.h"
 #include "maat_garbage_collection.h"

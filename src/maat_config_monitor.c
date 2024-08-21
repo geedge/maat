@@ -17,7 +17,7 @@
 #include <unistd.h>
 
 #include "maat_utils.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "json2iris.h"
 #include "maat_config_monitor.h"
 

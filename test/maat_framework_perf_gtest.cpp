@@ -3,7 +3,7 @@
 #include "test_utils.h"
 #include "log/log.h"
 #include "maat.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "maat_utils.h"
 #include "ip_matcher.h"
 #include "maat_command.h"

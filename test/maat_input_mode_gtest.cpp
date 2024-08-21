@@ -1,6 +1,6 @@
 #include "maat.h"
 #include "maat_utils.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "json2iris.h"
 #include "test_utils.h"
 #include "maat_table.h"

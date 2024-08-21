@@ -13,7 +13,7 @@
 #include "maat_flag.h"
 #include "flag_matcher.h"
 #include "maat_utils.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "log/log.h"
 #include "uthash/uthash.h"
 #include "rcu_hash.h"

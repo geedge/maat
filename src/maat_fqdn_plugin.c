@@ -14,7 +14,7 @@
 #include "maat_fqdn_plugin.h"
 #include "maat_utils.h"
 #include "maat_table.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "maat_garbage_collection.h"
 
 #define MODULE_FQDN_PLUGIN	 module_name_str("maat.bool_plugin")

@@ -14,7 +14,7 @@
 #include "maat_utils.h"
 #include "log/log.h"
 #include "alignment.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "maat_table.h"
 
 #define MODULE_VIRTUAL	 module_name_str("maat.virtual")

@@ -5,7 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "maat_utils.h"
 #include "maat_command.h"
 #include "cJSON/cJSON.h"

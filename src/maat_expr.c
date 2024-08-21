@@ -19,7 +19,7 @@
 #include "maat_limits.h"
 #include "rcu_hash.h"
 #include "maat.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "maat_compile.h"
 #include "maat_group.h"
 #include "alignment.h"

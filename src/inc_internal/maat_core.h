@@ -1,6 +1,6 @@
 /*
 **********************************************************************************************
-*	File: maat_rule.h
+*	File: maat_core.h
 *   Description: maat rule entry
 *	Authors: Liu WenTan <liuwentan@geedgenetworks.com>
 *	Date:    2022-10-31

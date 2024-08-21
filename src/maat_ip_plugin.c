@@ -15,7 +15,7 @@
 #include "maat_utils.h"
 #include "maat_ip_plugin.h"
 #include "ip_matcher.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "maat_garbage_collection.h"
 
 #define MODULE_IP_PLUGIN	 module_name_str("maat.ip_plugin")

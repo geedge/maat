@@ -16,7 +16,7 @@
 #include "maat.h"
 #include "log/log.h"
 #include "maat_utils.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "maat_command.h"
 #include "hiredis/hiredis.h"
 #include "maat_config_monitor.h"

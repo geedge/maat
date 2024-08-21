@@ -2,7 +2,7 @@
 #include "maat_redis_monitor.h"
 #include "maat_utils.h"
 #include "maat_table.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "maat_config_monitor.h"
 #include "json2iris.h"
 

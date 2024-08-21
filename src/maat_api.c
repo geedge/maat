@@ -17,7 +17,7 @@
 #include "maat_utils.h"
 #include "json2iris.h"
 #include "maat.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "maat_kv.h"
 #include "maat_command.h"
 #include "maat_ex_data.h"

@@ -1,7 +1,7 @@
 #include "maat.h"
 #include "log/log.h"
 #include "cJSON/cJSON.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "maat_utils.h"
 #include "log/log.h"
 #include "../test_utils.h"

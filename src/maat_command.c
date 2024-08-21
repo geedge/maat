@@ -15,7 +15,7 @@
 
 #include "maat_utils.h"
 #include "maat_command.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "hiredis/hiredis.h"
 #include "maat_config_monitor.h"
 #include "maat_redis_monitor.h"

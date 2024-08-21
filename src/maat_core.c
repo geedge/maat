@@ -1,5 +1,5 @@
 /**********************************************************************************************
-*	File: maat_rule.c
+*	File: maat_core.c
 *   Description:
 *	Authors: Liu WenTan <liuwentan@geedgenetworks.com>
 *	Date:    2022-10-31
@@ -19,7 +19,7 @@
 #include "json2iris.h"
 #include "log/log.h"
 #include "maat_utils.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "maat_config_monitor.h"
 #include "maat_redis_monitor.h"
 #include "maat_table.h"

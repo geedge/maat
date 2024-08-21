@@ -16,7 +16,7 @@ extern "C"
 {
 #endif
 
-#include "maat_rule.h"
+#include "maat_core.h"
 
 struct maat_stat *maat_stat_new(const char *stat_file, size_t max_thread_num, 
                                 struct log_handle *logger);

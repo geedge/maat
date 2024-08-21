@@ -14,7 +14,7 @@
 
 #include "log/log.h"
 #include "maat_utils.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "maat_plugin.h"
 #include "maat_limits.h"
 #include "maat_table.h"

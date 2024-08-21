@@ -20,7 +20,7 @@ extern "C"
 #include "rcu_hash.h"
 #include "maat.h"
 #include "maat_kv.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 
 struct compile_schema;
 struct compile_runtime;

@@ -17,7 +17,7 @@
 #include "maat_ipport_plugin.h"
 #include "ipport_matcher.h"
 #include "interval_matcher.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "maat_garbage_collection.h"
 
 #define MODULE_IPPORT_PLUGIN	 module_name_str("maat.ipport_plugin")

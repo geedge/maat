@@ -10,7 +10,7 @@
 
 #include <assert.h>
 
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "maat_utils.h"
 #include "rcu_hash.h"
 #include "alignment.h"

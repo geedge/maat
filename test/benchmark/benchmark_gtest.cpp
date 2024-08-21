@@ -1,7 +1,7 @@
 #include "maat.h"
 #include "log/log.h"
 #include "maat_utils.h"
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "json2iris.h"
 #include "ip_matcher.h"
 #include "maat_table.h"

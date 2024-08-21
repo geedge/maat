@@ -18,7 +18,7 @@ extern "C"
 
 #include <stdint.h>
 
-#include "maat_rule.h"
+#include "maat_core.h"
 #include "cJSON/cJSON.h"
 #include "maat_table.h"
 
