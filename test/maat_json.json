@@ -369,7 +369,7 @@
                             "table_name": "HTTP_SIGNATURE",
                             "table_type": "expr_plus",
                             "table_content": {
-                                "district": "HtTP\\bUrL",
+                                "district": "HtTP UrL",
                                 "keywords": "abckkk&123",
                                 "expr_type": "and"
                             }
@@ -2342,7 +2342,7 @@
                             "table_type": "flag_plus",
                             "table_name": "FLAG_PLUS_CONFIG",
                             "table_content": {
-                                "district": "I love\\bChina",
+                                "district": "I love China",
                                 "flag": 30,
                                 "flag_mask": 14
                             }
@@ -2383,7 +2383,7 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "Something:I\\bhave\\ba\\bname,7799",
+            "user_region": "Something:I have a name,7799",
             "compile_table_name": "COMPILE_FIREWALL_DEFAULT",
             "is_valid": "yes",
             "groups": [
@@ -3795,6 +3795,60 @@
                             "table_type": "expr",
                             "table_content": {
                                 "keywords": "html>\\\\r\\\\n",
+                                "expr_type": "and"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 235,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "Payload escape",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "virtual_table": "KEYWORDS_TABLE",
+                    "group_name": "EscapeGroup_235_1",
+                    "group_id": 261,
+                    "not_flag": 0,
+                    "clause_index": 0,
+                    "regions": [
+                        {
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_type": "expr",
+                            "table_content": {
+                                "keywords": "\\(\\)abc\\^\\$def\\|",
+                                "expr_type": "and"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "compile_id": 236,
+            "service": 0,
+            "action": 0,
+            "do_blacklist": 0,
+            "do_log": 0,
+            "user_region": "StringScan.HexBinCombineString",
+            "is_valid": "yes",
+            "groups": [
+                {
+                    "virtual_table": "KEYWORDS_TABLE",
+                    "group_name": "236_keywords_group",
+                    "group_id": 262,
+                    "regions": [
+                        {
+                            "table_type": "expr",
+                            "table_name": "KEYWORDS_TABLE",
+                            "table_content": {
+                                "keywords": "cd |6162|",
                                 "expr_type": "and"
                             }
                         }

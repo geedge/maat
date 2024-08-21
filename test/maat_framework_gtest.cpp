@@ -712,6 +712,31 @@ TEST_F(HsStringScan, BackslashR_N_Escape_IncUpdate) {
     state = NULL;
 }
 
+TEST_F(HsStringScan, BackslashCtrlCharactor)
+{
+    int ret = 0;
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    const char *table_name = "KEYWORDS_TABLE";
+    const char *payload = "()abc^$def|";
+    struct maat *maat_inst = HsStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ret = maat_scan_string(maat_inst, table_id, payload, strlen(payload),
+                            results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(results[0], 235);
+
+    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
 TEST_F(HsStringScan, ExprPlus) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -1031,6 +1056,43 @@ TEST_F(HsStringScan, HexBinCaseSensitive) {
     EXPECT_EQ(n_hit_result, 2);
     EXPECT_EQ(results[0], 206);
     EXPECT_EQ(results[1], 191);
+
+    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_free(state);
+}
+
+TEST_F(HsStringScan, HexbinCombineString)
+{
+    const char *table_name = "KEYWORDS_TABLE";
+	const char *scan_data1 = "abcd ABCD";
+	const char *scan_data2 = "abcd abCD";
+    struct maat *maat_inst = HsStringScan::_shared_maat_inst;
+    int thread_id = 0;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    int ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1), 
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_reset(state);
+
+    ret = maat_scan_string(maat_inst, table_id, scan_data2, strlen(scan_data2), 
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 236);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
                               &n_hit_result, state);
@@ -1688,6 +1750,31 @@ TEST_F(RsStringScan, BackslashR_N_Escape_IncUpdate) {
     state = NULL;
 }
 
+TEST_F(RsStringScan, BackslashCtrlCharactor)
+{
+    int ret = 0;
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    int thread_id = 0;
+    const char *table_name = "KEYWORDS_TABLE";
+    const char *payload = "()abc^$def|";
+    struct maat *maat_inst = RsStringScan::_shared_maat_inst;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ret = maat_scan_string(maat_inst, table_id, payload, strlen(payload),
+                            results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(results[0], 235);
+
+    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_free(state);
+    state = NULL;
+}
+
 TEST_F(RsStringScan, ExprPlus) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -2019,6 +2106,43 @@ TEST_F(RsStringScan, HexBinCaseSensitive) {
 
     maat_state_free(state);
     state = NULL;
+}
+
+TEST_F(RsStringScan, HexbinCombineString)
+{
+    const char *table_name = "KEYWORDS_TABLE";
+	const char *scan_data1 = "abcd ABCD";
+	const char *scan_data2 = "abcd abCD";
+    struct maat *maat_inst = RsStringScan::_shared_maat_inst;
+    int thread_id = 0;
+
+    int table_id = maat_get_table_id(maat_inst, table_name);
+    ASSERT_GT(table_id, 0);
+
+    long long results[ARRAY_SIZE] = {0};
+    size_t n_hit_result = 0;
+    struct maat_state *state = maat_state_new(maat_inst, thread_id);
+    int ret = maat_scan_string(maat_inst, table_id, scan_data1, strlen(scan_data1), 
+                               results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_reset(state);
+
+    ret = maat_scan_string(maat_inst, table_id, scan_data2, strlen(scan_data2), 
+                           results, ARRAY_SIZE, &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_HIT);
+    EXPECT_EQ(n_hit_result, 1);
+    EXPECT_EQ(results[0], 236);
+
+    ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
+                              &n_hit_result, state);
+    EXPECT_EQ(ret, MAAT_SCAN_OK);
+
+    maat_state_free(state);
 }
 
 TEST_F(RsStringScan, BugReport20190325) {
@@ -6545,7 +6669,6 @@ TEST_F(Policy, CompileEXData) {
     struct rule_ex_param *param = (struct rule_ex_param *)ex_data;
 	EXPECT_EQ(param->id, 7799);
 
-    str_unescape(param->name);
 	EXPECT_EQ(strcmp(param->name, expect_name), 0);
 
 	maat_state_free(state);
@@ -7715,7 +7838,7 @@ TEST_F(MaatCmd, RuleIDRecycle) {
 TEST_F(MaatCmd, ReturnRuleIDWithDescendingOrder) {
     const char *table_name = "HTTP_URL";
 	const char *scan_data = "This string will hit mulptiple rules.";
-	const char *keywords = "string\\bwill\\bhit";
+	const char *keywords = "string will hit";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;

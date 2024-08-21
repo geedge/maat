@@ -213,8 +213,20 @@ char *str_unescape(char *s)
 				case '&':
 					s[j] = '&';
 					break;
-				case 'b':
-					s[j] = ' ';//space,0x20;
+				case '^':
+					s[j] = '^';
+					break;
+				case '$':
+					s[j] = '$';
+					break;
+				case '|':
+					s[j] = '|';
+					break;
+				case '(':
+					s[j] = '(';
+					break;
+				case ')':
+					s[j] = ')';
 					break;
 				case '\\':
 					s[j] = '\\';
