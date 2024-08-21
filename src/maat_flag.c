@@ -355,7 +355,6 @@ flag_item_new(struct flag_schema *schema, const char *table_name,
         char district[MAX_DISTRICT_STR_LEN + 1] = {0};
         memcpy(district, (line + column_offset), column_len);
         assert(strlen(district) > 0);
-        str_unescape(district);
         item->district_id = flag_runtime_get_district_id(flag_rt, district);
     } else {
         item->district_id = DISTRICT_ANY;

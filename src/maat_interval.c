@@ -318,7 +318,6 @@ interval_item_new(struct interval_schema *schema, const char *table_name,
         char district[MAX_DISTRICT_STR_LEN + 1] = {0};
         memcpy(district, (line + column_offset), column_len);
         assert(strlen(district) > 0);
-        str_unescape(district);
         item->district_id = interval_runtime_get_district_id(interval_rt, district);
     } else {
         item->district_id = DISTRICT_ANY;
