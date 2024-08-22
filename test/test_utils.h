@@ -20,7 +20,7 @@ int rule_table_set_line(struct maat *maat_inst, const char *table_name,
 
 int group2rule_table_set_line(struct maat *maat_inst, const char *table_name,
                                  enum maat_operation op, long long group_id,
-                                 long long rule_id, int not_flag,
+                                 long long rule_id, int negate_option,
                                  const char *attribute_name, int condition_index,
                                  int expire_after);
 

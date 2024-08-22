@@ -6845,7 +6845,7 @@ TEST_F(Policy, NotConditionHitPath) {
 
     EXPECT_EQ(hit_path[0].Nth_scan, 1);
     EXPECT_EQ(hit_path[0].attribute_id, url_table_id);
-    EXPECT_EQ(hit_path[0].NOT_flag, 0);
+    EXPECT_EQ(hit_path[0].negate_option, 0);
     EXPECT_EQ(hit_path[0].condition_index, 1);
     EXPECT_EQ(hit_path[0].sub_group_id, 249);
     EXPECT_EQ(hit_path[0].top_group_id, 249);
@@ -6853,7 +6853,7 @@ TEST_F(Policy, NotConditionHitPath) {
 
     EXPECT_EQ(hit_path[1].Nth_scan, 2);
     EXPECT_EQ(hit_path[1].attribute_id, ip_table_id);
-    EXPECT_EQ(hit_path[1].NOT_flag, 1);
+    EXPECT_EQ(hit_path[1].negate_option, 1);
     EXPECT_EQ(hit_path[1].condition_index, -1);
     EXPECT_EQ(hit_path[1].sub_group_id, 100);
     EXPECT_EQ(hit_path[1].top_group_id, 144);
@@ -6861,7 +6861,7 @@ TEST_F(Policy, NotConditionHitPath) {
 
     EXPECT_EQ(hit_path[2].Nth_scan, 2);
     EXPECT_EQ(hit_path[2].attribute_id, ip_table_id);
-    EXPECT_EQ(hit_path[2].NOT_flag, 1);
+    EXPECT_EQ(hit_path[2].negate_option, 1);
     EXPECT_EQ(hit_path[2].condition_index, -1);
     EXPECT_EQ(hit_path[2].sub_group_id, 100);
     EXPECT_EQ(hit_path[2].top_group_id, -1);
@@ -6869,7 +6869,7 @@ TEST_F(Policy, NotConditionHitPath) {
 
     EXPECT_EQ(hit_path[3].Nth_scan, 2);
     EXPECT_EQ(hit_path[3].attribute_id, ip_table_id);
-    EXPECT_EQ(hit_path[3].NOT_flag, 1);
+    EXPECT_EQ(hit_path[3].negate_option, 1);
     EXPECT_EQ(hit_path[3].condition_index, 2);
     EXPECT_EQ(hit_path[3].sub_group_id, 250);
     EXPECT_EQ(hit_path[3].top_group_id, 250);
@@ -10122,7 +10122,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group11_id);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, http_req_table_id);
-    EXPECT_EQ(hit_path[path_idx].NOT_flag, 1);
+    EXPECT_EQ(hit_path[path_idx].negate_option, 1);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     path_idx++;
@@ -10131,7 +10131,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, http_req_table_id);
-    EXPECT_EQ(hit_path[path_idx].NOT_flag, 1);
+    EXPECT_EQ(hit_path[path_idx].negate_option, 1);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     int http_res_table_id = maat_get_table_id(maat_inst, "HTTP_RESPONSE_HEADER");
@@ -10164,7 +10164,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].item_id, -1);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group11_id);
-    EXPECT_EQ(hit_path[path_idx].NOT_flag, 1);
+    EXPECT_EQ(hit_path[path_idx].negate_option, 1);
     EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     path_idx++;
@@ -10173,7 +10173,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].item_id, -1);
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
-    EXPECT_EQ(hit_path[path_idx].NOT_flag, 1);
+    EXPECT_EQ(hit_path[path_idx].negate_option, 1);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     path_idx++;
@@ -10183,7 +10183,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, http_res_table_id);
-    EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
+    EXPECT_EQ(hit_path[path_idx].negate_option, 0);
 	EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     path_idx++;
@@ -10193,7 +10193,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, http_res_table_id);
-    EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
+    EXPECT_EQ(hit_path[path_idx].negate_option, 0);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
    
     const char *keywords1 = "In math theory, a finite and infinite come up all the time.";
@@ -10225,7 +10225,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-    EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
+    EXPECT_EQ(hit_path[path_idx].negate_option, 0);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     int ip_table_id = maat_get_table_id(maat_inst, ip_table_name);
@@ -10255,7 +10255,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, ip_table_id);
-    EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
+    EXPECT_EQ(hit_path[path_idx].negate_option, 0);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     Nth_scan++;   
@@ -10280,7 +10280,7 @@ TEST_F(MaatCmd, HitPathHasNotGroup) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-    EXPECT_EQ(hit_path[path_idx].NOT_flag, 0);
+    EXPECT_EQ(hit_path[path_idx].negate_option, 0);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     maat_stream_free(stream);

@@ -30,9 +30,9 @@
 
 #define MAX_NOT_CONDITION_NUM   8
 
-enum condition_not_flag {
-    CONDITION_NOT_FLAG_UNSET = 0,
-    CONDITION_NOT_FLAG_SET
+enum condition_negate_option {
+    CONDITION_NEGATE_OPTION_UNSET = 0,
+    CONDITION_NEGATE_OPTION_SET
 };
 
 struct rule_schema {
@@ -47,7 +47,7 @@ struct rule_schema {
 struct group2rule_schema {
     int group_id_column;
     int rule_id_column;
-    int not_flag_column;
+    int negate_option_column;
     int attribute_name_column;
     int condition_index_column;
     int asso_rule_table_id; //asso is abbreviation for associated
@@ -65,7 +65,7 @@ struct rule_item {
 struct group2rule_item {
     UT_array *group_ids;
     long long rule_id;
-    int not_flag;
+    int negate_option;
     int attribute_id;
     int condition_index;
 };
@@ -73,7 +73,7 @@ struct group2rule_item {
 struct condition_query_key {
 	long long group_id;
     int attribute_id;
-    int not_flag;
+    int negate_option;
 };
 
 struct condition_id_kv {
@@ -101,8 +101,8 @@ struct rule_runtime {
 	struct bool_matcher *bm;
     struct rcu_hash_table *cfg_hash;     // <rule_id, struct maat_rule>
     struct maat_runtime *ref_maat_rt;
-    struct condition_id_kv *condition_id_kv_hash;     //store condition_ids(not_flag == 0)
-    struct condition_id_kv *not_condition_id_kv_hash; //store NOT_condition_ids(not_flag == 1)
+    struct condition_id_kv *condition_id_kv_hash;     //store condition_ids(negate_option == 0)
+    struct condition_id_kv *not_condition_id_kv_hash; //store NOT_condition_ids(negate_option == 1)
     struct bool_expr_match *expr_match_buff;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -117,7 +117,7 @@ struct group2rule_runtime {
     long long rule_num;
     long long update_err_cnt;
     struct rule_runtime *ref_rule_rt;
-    struct table_condition *tbl_not_condition_hash; //each attribute's not condition number <= MAX_NOT_CONDITION_NUM
+    struct table_condition *tbl_not_condition_hash; //each attribute's negate condition number <= MAX_NOT_CONDITION_NUM
 };
 
 struct condition_literal {
@@ -129,7 +129,7 @@ struct condition_literal {
 struct rule_condition {
 	long long condition_id;
     UT_array *literals; //struct condition_literal
-	char not_flag;      // 1 byte
+	char negate_option;      // 1 byte
 	char in_use;        // 1 byte
     char pad[6];        // for 8 bytes alignment
 };
@@ -155,7 +155,7 @@ struct internal_hit_path {
 	long long group_id;
 	int Nth_scan;
 	int attribute_id;
-    int NOT_flag; // 1 means NOT condition
+    int negate_option; // 1 means negate condition
 };
 
 struct rule2table_id {
@@ -469,12 +469,12 @@ void *group2rule_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "not_flag");
+    custom_item = cJSON_GetObjectItem(item, "negate_option");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        g2c_schema->not_flag_column = custom_item->valueint;
+        g2c_schema->negate_option_column = custom_item->valueint;
     } else {
          log_fatal(logger, MODULE_RULE, 
-                  "[%s:%d] table: <%s> schema has no not_flag column", 
+                  "[%s:%d] table: <%s> schema has no negate_option column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -732,21 +732,21 @@ group2rule_item_new(const char *line, struct group2rule_schema *g2c_schema,
     }
     g2c_item->rule_id = atoll(line + column_offset);
 
-    ret = get_column_pos(line, g2c_schema->not_flag_column, &column_offset,
+    ret = get_column_pos(line, g2c_schema->negate_option_column, &column_offset,
                          &column_len);
     if (ret < 0) {
         log_fatal(logger, MODULE_RULE,
-				  "[%s:%d] g2c table:<%s> has no NOT_flag in line:%s ",
+				  "[%s:%d] g2c table:<%s> has no negate_option in line:%s ",
 				  __FUNCTION__, __LINE__, table_name, line);
 		goto error;
     }
 
-    g2c_item->not_flag = atoi(line + column_offset);
-    if (g2c_item->not_flag != CONDITION_NOT_FLAG_SET && 
-        g2c_item->not_flag != CONDITION_NOT_FLAG_UNSET) {
+    g2c_item->negate_option = atoi(line + column_offset);
+    if (g2c_item->negate_option != CONDITION_NEGATE_OPTION_SET && 
+        g2c_item->negate_option != CONDITION_NEGATE_OPTION_UNSET) {
         log_fatal(logger, MODULE_RULE,
-				  "[%s:%d] g2c table:<%s>  NOT_flag:%d is illegal in line:%s ",
-				  __FUNCTION__, __LINE__, table_name, g2c_item->not_flag, line);
+				  "[%s:%d] g2c table:<%s>  negate_option:%d is illegal in line:%s ",
+				  __FUNCTION__, __LINE__, table_name, g2c_item->negate_option, line);
 		goto error;
     }
 
@@ -870,7 +870,7 @@ static void maat_rule_condition_add_literal(struct maat_rule *rule,
 {
     struct rule_condition *condition = rule->conditions + g2c_item->condition_index;
 
-    condition->not_flag = g2c_item->not_flag;
+    condition->negate_option = g2c_item->negate_option;
 
     if (0 == condition->in_use) {
         condition->in_use = 1;
@@ -944,12 +944,12 @@ maat_rule_bool_matcher_new(struct rule_runtime *rule_rt,
                     for (size_t it = 0; it < tmp_cl->group_cnt; it++) {
                         printf("<before bool_matcher_new> rule_rt:%p rule_id:%lld, condition_id:%llu, condition_query_key{%lld: %d, %d}\n", 
 							rule_rt, iter_rule->rule_id, iter_rule->conditions[i].condition_id, tmp_cl->group_ids[it],
-                            tmp_cl->attribute_id, iter_rule->conditions[i].not_flag);
+                            tmp_cl->attribute_id, iter_rule->conditions[i].negate_option);
                     }
   				}
 #endif
                 bool_expr_array[expr_cnt].items[j].item_id = iter_rule->conditions[i].condition_id;
-                bool_expr_array[expr_cnt].items[j].not_flag = 0;
+                bool_expr_array[expr_cnt].items[j].negate_option = 0;
                 j++;
             }
         }
@@ -1035,14 +1035,14 @@ static inline int compare_rule_id(const void *a, const void *b)
  * @brief build <condition_query_key, condition_id_array> hash for condition or not_condition
  * 
  * @param rule_rt: rule runtime handle
- * @param not_flag: specify whether to build condition or NOT_condition hash for rule runtime
+ * @param negate_option: specify whether to build condition or NOT_condition hash for rule runtime
  *                  0 -> condition hash
  *                  1 -> NOT_condition hash
  * 
  * @retval generated condition_id_kv_hash
 */
 static struct condition_id_kv *
-build_condition_id_kv_hash(struct rule_runtime *rule_rt, int not_flag)
+build_condition_id_kv_hash(struct rule_runtime *rule_rt, int negate_option)
 {
     if (NULL == rule_rt) {
         return NULL;
@@ -1060,12 +1060,12 @@ build_condition_id_kv_hash(struct rule_runtime *rule_rt, int not_flag)
                 continue;
             }
 
-            if (0 == not_flag) {
-                if (CONDITION_NOT_FLAG_SET == condition->not_flag) {
+            if (0 == negate_option) {
+                if (CONDITION_NEGATE_OPTION_SET == condition->negate_option) {
                     continue;
                 }
             } else {
-                if (CONDITION_NOT_FLAG_UNSET == condition->not_flag) {
+                if (CONDITION_NEGATE_OPTION_UNSET == condition->negate_option) {
                     continue;
                 }
             }
@@ -1076,7 +1076,7 @@ build_condition_id_kv_hash(struct rule_runtime *rule_rt, int not_flag)
 
                 for (size_t k = 0; k < tmp_cl->group_cnt; k++) {
                     struct condition_query_key key =
-                        {tmp_cl->group_ids[k], tmp_cl->attribute_id, condition->not_flag};
+                        {tmp_cl->group_ids[k], tmp_cl->attribute_id, condition->negate_option};
                     struct condition_id_kv *condition_id_kv = NULL;
                     
                     HASH_FIND(hh, condition_id_kv_hash, &key, sizeof(struct condition_query_key),
@@ -1256,7 +1256,7 @@ maat_rule_clone(struct maat_rule *rule, int deep_copy)
     for (size_t i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
         new_rule->conditions[i].condition_id = rule->conditions[i].condition_id;
         new_rule->conditions[i].in_use = rule->conditions[i].in_use;
-        new_rule->conditions[i].not_flag = rule->conditions[i].not_flag;
+        new_rule->conditions[i].negate_option = rule->conditions[i].negate_option;
         utarray_new(new_rule->conditions[i].literals, &ut_condition_literal_icd);
         for (size_t j = 0; j < utarray_len(rule->conditions[i].literals); j++) {
             tmp_literal =
@@ -1570,7 +1570,7 @@ void rule_state_free(struct rule_state *rule_state,
 static void
 rule_state_add_internal_hit_path(struct rule_state *rule_state,
                                     long long item_id, long long group_id,
-                                    int attribute_id, int NOT_flag, int Nth_scan)
+                                    int attribute_id, int negate_option, int Nth_scan)
 {
     if (NULL == rule_state) {
         return;
@@ -1581,7 +1581,7 @@ rule_state_add_internal_hit_path(struct rule_state *rule_state,
 	new_path.Nth_scan = Nth_scan;
 	new_path.group_id = group_id;
 	new_path.attribute_id = attribute_id;
-    new_path.NOT_flag = NOT_flag;
+    new_path.negate_option = negate_option;
 
 	utarray_push_back(rule_state->internal_hit_paths, &new_path);
 }
@@ -1602,7 +1602,7 @@ static int maat_rule_has_condition_query_key(struct maat_rule *rule,
                 continue;
             }
 
-            if (condition->not_flag != key->not_flag) {
+            if (condition->negate_option != key->negate_option) {
                 continue;
             }
 
@@ -1761,7 +1761,7 @@ size_t rule_runtime_get_hit_paths(struct rule_runtime *rule_rt, int thread_id,
             }
 
 			key.attribute_id = hit_path_array[j].attribute_id;
-            key.not_flag = hit_path_array[j].NOT_flag;
+            key.negate_option = hit_path_array[j].negate_option;
 			if (maat_rule_has_condition_query_key(rule, &key)) {
                 populate_hit_path_with_rule(hit_path_array, j, n_hit_path,
                                                &n_new_hit_path, rule);
@@ -1901,7 +1901,7 @@ rule_state_update_hit_conditions(struct rule_state *rule_state,
         rule_state_add_hit_conditions(rule_state, condition_id_kv->condition_ids);
     }
 
-    key.not_flag = 1;
+    key.negate_option = 1;
     HASH_FIND(hh, rule_rt->not_condition_id_kv_hash, &key, sizeof(key), condition_id_kv);
     if (condition_id_kv != NULL) {
         rule_state_add_exclude_not_conditions(rule_state, condition_id_kv->condition_ids);
@@ -2196,7 +2196,7 @@ static int validate_table_not_condition(struct group2rule_runtime *g2c_rt,
             if (not_condition->actual_condition_num >= MAX_NOT_CONDITION_NUM) {
                 const char *table_name = table_manager_get_table_name(tbl_mgr, table_id);
                 log_fatal(logger, MODULE_RULE,
-                          "[%s:%d]table:<%s> NOT condition num exceed maximum:%d",
+                          "[%s:%d]table:<%s> negate condition num exceed maximum:%d",
                           __FUNCTION__, __LINE__, table_name, MAX_NOT_CONDITION_NUM);
                 return -1;
             }
@@ -2237,13 +2237,13 @@ int group2rule_runtime_update(void *g2c_runtime, void *g2c_schema,
         return -1;
     }
 
-    if (1 == g2c_item->not_flag) {
+    if (1 == g2c_item->negate_option) {
         ret = validate_table_not_condition(g2c_rt, schema->ref_tbl_mgr,
                                         g2c_item->attribute_id, is_valid,
                                         rule_rt->logger);
         if (ret < 0) {
             log_fatal(rule_rt->logger, MODULE_RULE,
-                      "[%s:%d]validate NOT condition failed, abandon config:%s",
+                      "[%s:%d]validate negate condition failed, abandon config:%s",
                       __FUNCTION__, __LINE__, line);
             goto next;
         }
@@ -2254,7 +2254,7 @@ int group2rule_runtime_update(void *g2c_runtime, void *g2c_schema,
         ret = maat_remove_group_from_rule(rule_rt->cfg_hash, g2c_item,
                                              rule_rt->logger);
         if (0 == ret) {
-            if (g2c_item->not_flag) {
+            if (g2c_item->negate_option) {
                 g2c_rt->not_condition_cnt--;
             }
             g2c_rt->rule_num--;
@@ -2266,7 +2266,7 @@ int group2rule_runtime_update(void *g2c_runtime, void *g2c_schema,
         ret = maat_add_group_to_rule(rule_rt->cfg_hash, g2c_item,
                                         rule_rt->logger);
         if (0 == ret) {
-            if (g2c_item->not_flag) {
+            if (g2c_item->negate_option) {
                 g2c_rt->not_condition_cnt++;
             }
             g2c_rt->rule_num++;
@@ -2713,7 +2713,7 @@ size_t rule_state_get_internal_hit_paths(struct rule_state *rule_state,
             tmp_path.sub_group_id = internal_path->group_id;
             tmp_path.top_group_id = *p;
             tmp_path.attribute_id = internal_path->attribute_id;
-            tmp_path.NOT_flag = internal_path->NOT_flag;
+            tmp_path.negate_option = internal_path->negate_option;
             tmp_path.condition_index = -1;
             tmp_path.rule_id = -1;
 

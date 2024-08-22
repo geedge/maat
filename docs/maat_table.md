@@ -256,7 +256,7 @@ Describe the relationship between group and rule.
 | **group_ids**     | VARCHAR(256)  | group ids are separated by commas(g1,g2,g3) |
 | **rule_id**    | LONG LONG     | rule id |
 | **is_valid**      | INT           | 0(invalid), 1(valid) |
-| **not_flag**      | INT           | logical 'NOT', identify a NOT condition, 0(no) 1(yes) |
+| **negate_option**      | INT           | logical 'NOT', identify a negate condition, 0(no) 1(yes) |
 | **attribute** | VARCHAR2(256) | attribute name, NOT NULL |
 | **Nth_condition**    | INT           | the condition seq in (conjunctive normal form)CNF, from 0 to 7. groups with the same condition ID are logical 'OR' |
 
@@ -443,7 +443,7 @@ In addition to the rule table, there is also the group2rule table in the table s
 
 **Note:** This will involve the terminology of [condition](./terminology.md#condition).
 
-1. For expressions without NOT-conditions, returning the matched rule_id:
+1. For expressions without negate-conditions, returning the matched rule_id:
 
     * rule1 = condition1 & condition2 = {attribute1, g1} & {attribute2, g2}
 
@@ -451,7 +451,7 @@ In addition to the rule table, there is also the group2rule table in the table s
 
     Given the matched attribute_id and group_id, all matching rule_ids can be provided. For example, if scanning attribute1 matches g2 and attribute2 matches g3, rule_runtime will return the matched rule_id 2.
 
-2. For expressions with NOT-conditions, returning the matched rule_id:
+2. For expressions with negate-conditions, returning the matched rule_id:
 
     * rule3 = condition1 & !condition2 = {attribute1, g1} & !{attribute2, g2}
 
@@ -459,7 +459,7 @@ In addition to the rule table, there is also the group2rule table in the table s
 
     If scanning attribute1 matches g1 and attribute2 matches g3, rule_runtime will return the matched rule_id 4.
 
-3. If a rule_id is matched, the full hit path can be obtained: **item_id -> group_id ->** {super_group_id} -> condition{**attribute_id, not_flag, condition_index} -> rule_id**. If the matched group is not referenced by a rule, a half hit path can be obtained: **item_id -> group_id** -> {super_group_id}.
+3. If a rule_id is matched, the full hit path can be obtained: **item_id -> group_id ->** {super_group_id} -> condition{**attribute_id, negate_option, condition_index} -> rule_id**. If the matched group is not referenced by a rule, a half hit path can be obtained: **item_id -> group_id** -> {super_group_id}.
 
 4. Getting the matched group_ids and the count of hit groups.
 
@@ -473,9 +473,9 @@ Rule runtime loads the rule table and group2rule table configurations into memor
 
 1. All condition_ids under the same rule are used to construct AND expressions, and all rule AND expressions are used to build a bool_matcher.
 
-2. For not_flag=0 (conditions), a `condition_id hash` is built, key:{group_id, attribute_id, not_flag}, value:condition_id.
+2. For negate_option=0 (conditions), a `condition_id hash` is built, key:{group_id, attribute_id, negate_option}, value:condition_id.
 
-3. For not_flag=1 (NOT-conditions), a `NOT_condition_id hash` is built, key:{group_id, attribute_id, not_flag}, value:condition_id.
+3. For negate_option=1 (negate-conditions), a `NOT_condition_id hash` is built, key:{group_id, attribute_id, negate_option}, value:condition_id.
 
 * **Data Plane**
 
@@ -493,10 +493,10 @@ On the data plane, services are provided externally through the maat API, primar
 
 * Use the hit condition_ids to determine if there are any hit rule_ids. If there are, populate the half-hit path which will become full-hit path.
 
-2. **maat_scan_not_logic**: This interface is used to activate NOT-condition logic.
+2. **maat_scan_not_logic**: This interface is used to activate negate-condition logic.
 
-* Traverse the `NOT_condition_group` of `attribute_id`. For each `group_id`, form a key `{group_id, attribute_id, 1}` to obtain the `NOT_condition_id`. If it is in the `exclude condition_ids` set, ignore it; otherwise, add it to the `all hit condition_ids` set as a hit `NOT_condition_id`, and record the half-hit path of the NOT-condition.
+* Traverse the `NOT_condition_group` of `attribute_id`. For each `group_id`, form a key `{group_id, attribute_id, 1}` to obtain the `NOT_condition_id`. If it is in the `exclude condition_ids` set, ignore it; otherwise, add it to the `all hit condition_ids` set as a hit `NOT_condition_id`, and record the half-hit path of the negate-condition.
 
-* Use the `all hit condition_ids` to calculate if there are any newly hit rule_ids. If there are, populate the half-hit path of the NOT-condition which will become full-hit path.
+* Use the `all hit condition_ids` to calculate if there are any newly hit rule_ids. If there are, populate the half-hit path of the negate-condition which will become full-hit path.
 
 3. **xx_get_hit_path**: This interface is used to retrieve the hit path.

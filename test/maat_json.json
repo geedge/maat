@@ -735,7 +735,7 @@
                     "attribute": "HTTP_URL_FILTER",
                     "group_name": "143_url_group1",
                     "group_id": 121,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -751,7 +751,7 @@
                     "attribute": "HTTP_URL_FILTER",
                     "group_name": "143_url_group2",
                     "group_id": 122,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -778,7 +778,7 @@
                     "attribute": "HTTP_URL_FILTER",
                     "group_name": "144_url_group",
                     "group_id": 123,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -794,7 +794,7 @@
                     "attribute": "HTTP_RESPONSE_KEYWORDS",
                     "group_name": "144_keywords_group",
                     "group_id": 124,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "regions": [
                         {
                             "table_name": "KEYWORDS_TABLE",
@@ -821,7 +821,7 @@
                     "attribute": "HTTP_URL",
                     "group_name": "145_url_group",
                     "group_id": 125,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -836,7 +836,7 @@
                 {
                     "attribute": "ATTRIBUTE_IP_CONFIG",
                     "group_name": "123_IP_group",
-                    "not_flag": 1
+                    "negate_option": 1
                 }
             ]
         },
@@ -853,7 +853,7 @@
                     "attribute": "HTTP_URL_FILTER",
                     "group_name": "146_url_group",
                     "group_id": 126,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 0,
                     "regions": [
                         {
@@ -870,7 +870,7 @@
                     "attribute": "HTTP_RESPONSE_KEYWORDS",
                     "group_name": "146_keywords_group",
                     "group_id": 127,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 1,
                     "regions": [
                         {
@@ -886,7 +886,7 @@
                 {
                     "attribute": "ATTRIBUTE_IP_CONFIG",
                     "group_name": "123_IP_group",
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 2
                 }
             ]
@@ -904,7 +904,7 @@
                     "attribute": "HTTP_RESPONSE_KEYWORDS_1",
                     "group_name": "147_keywords_group1",
                     "group_id": 128,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 0,
                     "regions": [
                         {
@@ -921,7 +921,7 @@
                     "attribute": "HTTP_RESPONSE_KEYWORDS_2",
                     "group_name": "147_keywords_group2",
                     "group_id": 129,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 1,
                     "regions": [
                         {
@@ -938,7 +938,7 @@
                     "attribute": "HTTP_RESPONSE_KEYWORDS_3",
                     "group_name": "147_keywords_group3",
                     "group_id": 130,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 2,
                     "regions": [
                         {
@@ -955,7 +955,7 @@
                     "attribute": "HTTP_RESPONSE_KEYWORDS_4",
                     "group_name": "147_keywords_group4",
                     "group_id": 131,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 3,
                     "regions": [
                         {
@@ -972,7 +972,7 @@
                     "attribute": "HTTP_RESPONSE_KEYWORDS_5",
                     "group_name": "147_keywords_group5",
                     "group_id": 132,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 4,
                     "regions": [
                         {
@@ -989,7 +989,7 @@
                     "attribute": "HTTP_RESPONSE_KEYWORDS_6",
                     "group_name": "147_keywords_group6",
                     "group_id": 133,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 5,
                     "regions": [
                         {
@@ -1006,7 +1006,7 @@
                     "attribute": "HTTP_RESPONSE_KEYWORDS_7",
                     "group_name": "147_keywords_group7",
                     "group_id": 134,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 6,
                     "regions": [
                         {
@@ -1023,7 +1023,7 @@
                     "attribute": "HTTP_RESPONSE_KEYWORDS_8",
                     "group_name": "147_keywords_group8",
                     "group_id": 135,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 7,
                     "regions": [
                         {
@@ -1215,7 +1215,7 @@
                     "attribute": "MAIL_ADDR",
                     "group_name": "153_expr_group",
                     "group_id": 143,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "regions": [
                         {
                             "table_type": "expr",
@@ -1258,7 +1258,7 @@
                     "attribute": "IP_PLUS_CONFIG",
                     "group_name": "154_IP_group",
                     "group_id": 145,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "regions": [
                         {
                             "table_type":"ip",
@@ -1284,7 +1284,7 @@
                     "attribute": "IP_PLUS_CONFIG",
                     "group_name": "155_IP_group",
                     "group_id": 146,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "regions": [
                         {
                             "table_type":"ip",
@@ -1412,13 +1412,13 @@
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS",
                     "group_name": "TakeMeHome",
-                    "not_flag": 0
+                    "negate_option": 0
                 },
                 {
                     "attribute": "HTTP_URL",
                     "group_name": "160_url_group",
                     "group_id": 151,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -1445,7 +1445,7 @@
                     "attribute": "HTTP_SIGNATURE",
                     "group_name": "vt_grp_http_sig1",
                     "group_id": 152,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "regions": [
                         {
                             "table_name": "HTTP_SIGNATURE",
@@ -1462,7 +1462,7 @@
                     "attribute": "HTTP_SIGNATURE",
                     "group_name": "vt_grp_http_sig2",
                     "group_id": 153,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "regions": [
                         {
                             "table_name": "HTTP_SIGNATURE",
@@ -1498,12 +1498,12 @@
                 {
                     "attribute": "HTTP_REQUEST_HEADER",
                     "group_name": "vt_grp_http_sig1",
-                    "not_flag": 0
+                    "negate_option": 0
                 },
                 {
                     "attribute": "HTTP_RESPONSE_HEADER",
                     "group_name": "vt_grp_http_sig2",
-                    "not_flag": 0
+                    "negate_option": 0
                 }
             ]
         },
@@ -1519,12 +1519,12 @@
                 {
                     "attribute": "HTTP_REQUEST_HEADER",
                     "group_name": "vt_grp_http_sig2",
-                    "not_flag": 0
+                    "negate_option": 0
                 },
                 {
                     "attribute": "HTTP_RESPONSE_HEADER",
                     "group_name": "vt_grp_http_sig2",
-                    "not_flag": 0
+                    "negate_option": 0
                 }
             ]
         },
@@ -1583,7 +1583,7 @@
                     "attribute": "IP_PLUS_CONFIG",
                     "group_name": "165_IP_group",
                     "group_id": 156,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "regions": [
                         {
                             "table_type":"ip",
@@ -1695,7 +1695,7 @@
                     "group_name": "169_IP_group",
                     "group_id": 160,
                     "condition_index": 0,
-                    "not_flag" : 0,
+                    "negate_option" : 0,
                     "regions": [
                         {
                             "table_type":"ip",
@@ -1721,7 +1721,7 @@
                     "attribute": "IP_PLUS_CONFIG",
                     "group_name": "ipv4_attribute.source",
                     "group_id": 161,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "regions": [
                         {
                             "table_type":"ip",
@@ -1747,7 +1747,7 @@
                     "attribute": "IP_PLUS_CONFIG",
                     "group_name": "ipv4_attribute.destination",
                     "group_id": 162,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "regions": [
                         {
                             "table_type":"ip",
@@ -1772,13 +1772,13 @@
                 {
                     "attribute": "ASN_NOT_LOGIC",
                     "group_name": ["ASN1234", "ASN6789", "ASN9001"],
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 0
                 },
                 {
                     "attribute": "DESTINATION_IP_ASN",
                     "group_name": "ASN2345",
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 1
                 }
             ]
@@ -1795,13 +1795,13 @@
                 {
                     "attribute": "SOURCE_IP_ASN",
                     "group_name": ["ASN1234", "ASN6789", "ASN9001"],
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 0
                 },
                 {
                     "attribute": "DESTINATION_IP_ASN",
                     "group_name": "ASN2345",
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 1
                 }
             ]
@@ -1844,19 +1844,19 @@
                 {
                     "attribute": "SOURCE_IP_ASN",
                     "group_name": ["ASN1234", "ASN6789", "ASN9001"],
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 0
                 },
                 {
                     "attribute": "SOURCE_IP_GEO",
                     "group_name": "Country-Sparta-IP",
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 0
                 },
                 {
                     "attribute": "IP_CONFIG",
                     "group_name": "financial-department-ip",
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 1
                 }
             ]
@@ -1873,19 +1873,19 @@
                 {
                     "attribute": "SOURCE_IP_ASN",
                     "group_name": ["ASN1234", "ASN6789", "ASN9001"],
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 0
                 },
                 {
                     "attribute": "IP_PLUS_CONFIG",
                     "group_name": "develop-department-ip",
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 0
                 },
                 {
                     "attribute": "SOURCE_IP_GEO",
                     "group_name": "Country-Sparta-IP",
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 1
                 }
             ]
@@ -1954,31 +1954,31 @@
                 {
                     "attribute": "DESTINATION_IP_ASN",
                     "group_name": ["ASN1234", "ASN6789", "ASN9001"],
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 0
                 },
                 {
                     "attribute": "SOURCE_IP_GEO",
                     "group_name": "Country-Sparta-IP",
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 0
                 },
                 {
                     "attribute": "DESTINATION_IP_ASN",
                     "group_name": "ASN9002",
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 1
                 },
                 {
                     "attribute": "DESTINATION_IP_ASN",
                     "group_name": "ASN9003",
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 2
                 },
                 {
                     "attribute": "IP_PLUS_CONFIG",
                     "group_name": "security-department-ip",
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 3
                 }
             ]
@@ -1996,7 +1996,7 @@
                     "attribute": "HTTP_URL_FILTER",
                     "group_name": "186_expr_group",
                     "group_id": 170,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -2012,7 +2012,7 @@
                     "attribute": "IP_PLUS_CONFIG",
                     "group_name": "186_IP_group",
                     "group_id": 171,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "regions": [
                         {
                             "table_type":"ip",
@@ -2038,7 +2038,7 @@
                     "attribute": "HTTP_URL_FILTER",
                     "group_name": "187_url_group",
                     "group_id": 172,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -2054,7 +2054,7 @@
                     "attribute": "IP_PLUS_CONFIG",
                     "group_name": "187_IP_group",
                     "group_id": 173,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "regions": [
                         {
                             "table_type":"ip",
@@ -2080,7 +2080,7 @@
                     "attribute": "HTTP_URL_FILTER",
                     "group_name": "188_url_group",
                     "group_id": 174,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -2096,7 +2096,7 @@
                     "attribute": "IP_PLUS_CONFIG",
                     "group_name": "188_IP_group",
                     "group_id": 175,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "regions": [
                         {
                             "table_type":"ip",
@@ -2841,7 +2841,7 @@
                     "attribute": "IP_PLUS_CONFIG",
                     "group_name": "208_IP_group",
                     "group_id": 213,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "regions": [
                         {
                             "table_type":"ip",
@@ -2918,7 +2918,7 @@
                     "attribute": "IP_PERF_CONFIG",
                     "group_name": "211_IP_group",
                     "group_id": 216,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "regions": [
                         {
                             "table_type":"ip",
@@ -3046,14 +3046,14 @@
                 {
                     "attribute": "HTTP_URL_FILTER",
                     "group_name": "ExcludeLogicGroup200",
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 0
                 },
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS",
                     "group_name": "NOTConditionAndExcludeGroup216",
                     "group_id": 221,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 1,
                     "regions": [
                         {
@@ -3081,7 +3081,7 @@
                     "attribute": "HTTP_URL_FILTER",
                     "group_name": "NOTConditionAndExcludeGroup217_1",
                     "group_id": 222,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 0,
                     "sub_groups": [
                         {
@@ -3120,7 +3120,7 @@
                     "attribute": "HTTP_RESPONSE_KEYWORDS",
                     "group_name": "NOTConditionAndExcludeGroup217_2",
                     "group_id": 225,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 1,
                     "regions": [
                         {
@@ -3173,7 +3173,7 @@
                     "attribute": "HTTP_DUMMY",
                     "group_name": "NOTConditionAndExcludeGroup219_1",
                     "group_id": 227,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 0,
                     "regions": [
                         {
@@ -3190,7 +3190,7 @@
                     "attribute": "HTTP_DUMMY",
                     "group_name": "NOTConditionAndExcludeGroup219_2",
                     "group_id": 228,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 1,
                     "regions": [
                         {
@@ -3207,7 +3207,7 @@
                     "attribute": "HTTP_DUMMY",
                     "group_name": "NOTConditionAndExcludeGroup219_3",
                     "group_id": 229,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 2,
                     "regions": [
                         {
@@ -3224,7 +3224,7 @@
                     "attribute": "HTTP_DUMMY",
                     "group_name": "NOTConditionAndExcludeGroup219_4",
                     "group_id": 230,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 3,
                     "regions": [
                         {
@@ -3241,7 +3241,7 @@
                     "attribute": "HTTP_DUMMY",
                     "group_name": "NOTConditionAndExcludeGroup219_5",
                     "group_id": 231,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 4,
                     "regions": [
                         {
@@ -3258,7 +3258,7 @@
                     "attribute": "HTTP_DUMMY",
                     "group_name": "NOTConditionAndExcludeGroup219_6",
                     "group_id": 232,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 5,
                     "regions": [
                         {
@@ -3275,7 +3275,7 @@
                     "attribute": "HTTP_DUMMY",
                     "group_name": "NOTConditionAndExcludeGroup219_7",
                     "group_id": 233,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 6,
                     "regions": [
                         {
@@ -3292,7 +3292,7 @@
                     "attribute": "HTTP_DUMMY",
                     "group_name": "NOTConditionAndExcludeGroup219_8",
                     "group_id": 234,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 7,
                     "regions": [
                         {
@@ -3320,7 +3320,7 @@
                     "attribute": "HTTP_DUMMY",
                     "group_name": "NOTConditionAndExcludeGroup220_1",
                     "group_id": 235,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 0,
                     "regions": [
                         {
@@ -3337,7 +3337,7 @@
                     "attribute": "HTTP_DUMMY",
                     "group_name": "NOTConditionAndExcludeGroup220_2",
                     "group_id": 236,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 1,
                     "regions": [
                         {
@@ -3354,7 +3354,7 @@
                     "attribute": "HTTP_DUMMY",
                     "group_name": "NOTConditionAndExcludeGroup220_3",
                     "group_id": 237,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 2,
                     "regions": [
                         {
@@ -3382,7 +3382,7 @@
                     "attribute": "HTTP_REQUEST_HEADER",
                     "group_name": "NOTLogicGroup_221_1",
                     "group_id": 238,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "regions": [
                         {
                             "table_name": "HTTP_SIGNATURE",
@@ -3399,7 +3399,7 @@
                     "attribute": "HTTP_URL",
                     "group_name": "NOTLogicGroup_221_2",
                     "group_id": 239,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -3426,7 +3426,7 @@
                     "attribute": "HTTP_NOT_LOGIC_1",
                     "group_name": "NOTLogicGroup_222",
                     "group_id": 240,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 0,
                     "regions": [
                         {
@@ -3454,7 +3454,7 @@
                     "attribute": "HTTP_NOT_LOGIC",
                     "group_name": "NOTLogicGroup_223_1",
                     "group_id": 241,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 0,
                     "regions": [
                         {
@@ -3471,7 +3471,7 @@
                     "attribute": "HTTP_NOT_LOGIC",
                     "group_name": "NOTLogicGroup_223_2",
                     "group_id": 242,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 1,
                     "regions": [
                         {
@@ -3488,7 +3488,7 @@
                     "attribute": "HTTP_NOT_LOGIC",
                     "group_name": "NOTLogicGroup_223_1",
                     "group_id": 243,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 2,
                     "regions": [
                         {
@@ -3516,7 +3516,7 @@
                     "attribute": "KEYWORDS_TABLE",
                     "group_name": "NOTLogicGroup_224_1",
                     "group_id": 244,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 0,
                     "regions": [
                         {
@@ -3533,7 +3533,7 @@
                     "attribute": "HTTP_RESPONSE_KEYWORDS",
                     "group_name": "NOTLogicGroup_224_2",
                     "group_id": 245,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 1,
                     "regions": [
                         {
@@ -3561,7 +3561,7 @@
                     "attribute": "KEYWORDS_TABLE",
                     "group_name": "EscapeGroup_225_1",
                     "group_id": 246,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 0,
                     "regions": [
                         {
@@ -3623,7 +3623,7 @@
                     "attribute": "HTTP_URL",
                     "group_name": "228_url_group",
                     "group_id": 249,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 1,
                     "regions": [
                         {
@@ -3640,7 +3640,7 @@
                     "attribute": "ATTRIBUTE_IP_CONFIG",
                     "group_name": "228_IP_group",
                     "group_id": 250,
-                    "not_flag": 1,
+                    "negate_option": 1,
                     "condition_index": 2,
                     "regions": [
                         {
@@ -3787,7 +3787,7 @@
                     "attribute": "KEYWORDS_TABLE",
                     "group_name": "EscapeGroup_234_1",
                     "group_id": 260,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 0,
                     "regions": [
                         {
@@ -3815,7 +3815,7 @@
                     "attribute": "KEYWORDS_TABLE",
                     "group_name": "EscapeGroup_235_1",
                     "group_id": 261,
-                    "not_flag": 0,
+                    "negate_option": 0,
                     "condition_index": 0,
                     "regions": [
                         {

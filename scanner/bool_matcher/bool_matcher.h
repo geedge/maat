@@ -27,14 +27,14 @@ extern "C"
 
 #define MAX_ITEMS_PER_BOOL_EXPR 8
 
-    /* not_flag=0表示布尔项item_id必须出现；not_flag=1表示布尔项item_id不能出现 */
+    /* negate_option=0表示布尔项item_id必须出现；negate_option=1表示布尔项item_id不能出现 */
     struct bool_item
     {
         unsigned long long item_id;
-        unsigned char not_flag;
+        unsigned char negate_option;
     };
 
-    /* At least one item's not_flag should be 0. */
+    /* At least one item's negate_option should be 0. */
     struct bool_expr
     {
         unsigned long long expr_id;

@@ -124,7 +124,7 @@ rule(rule) = condition1 & !condition2
 
 The JSON configuration for the logical `OR` can be referenced at [unit_test Json configuration](../test/maat_json.json) with rule_id=145.
 
-The group_name: "123_IP_group" is a NOT condition of this rule.
+The group_name: "123_IP_group" is a negate condition of this rule.
 
 
 ## Group exclude

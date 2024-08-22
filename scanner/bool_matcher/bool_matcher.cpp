@@ -60,7 +60,7 @@ struct bool_matcher * bool_matcher_new(struct bool_expr * exprs, size_t expr_num
 	{
 		for(unsigned int j=0; j<exprs[i].item_num; j++)
 		{
-			if(exprs[i].items[j].not_flag==0) M1[exprs[i].items[j].item_id]++;
+			if(exprs[i].items[j].negate_option==0) M1[exprs[i].items[j].item_id]++;
 		}
 	}
 
@@ -71,7 +71,7 @@ struct bool_matcher * bool_matcher_new(struct bool_expr * exprs, size_t expr_num
 		unsigned long long item_id = 0;
 		for(unsigned int j=0; j<exprs[i].item_num; j++)
 		{
-			if(exprs[i].items[j].not_flag==0)
+			if(exprs[i].items[j].negate_option==0)
 			{
 				unsigned int c=M1[exprs[i].items[j].item_id];
 				if(c<min_count)
@@ -129,7 +129,7 @@ int do_match(struct bool_expr_item * expr, unsigned long long * item_ids, size_t
 	unsigned int i=0;
 	for(unsigned int j=0; j<expr->item_num; ++j)
 	{
-		if(expr->items[j].not_flag==0)
+		if(expr->items[j].negate_option==0)
 		{
 			while(i<item_num && item_ids[i]<expr->items[j].item_id) ++i;
 			if(i==item_num || item_ids[i]>expr->items[j].item_id) return 0;

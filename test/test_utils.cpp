@@ -170,13 +170,13 @@ int rule_table_set_line(struct maat *maat_inst, const char *table_name,
 
 int group2rule_table_set_line(struct maat *maat_inst, const char *table_name,
                                  enum maat_operation op, long long group_id,
-                                 long long rule_id, int not_flag,
+                                 long long rule_id, int negate_option,
                                  const char *attribute_name, int condition_index,
                                  int expire_after)
 {
     char table_line[128] = {0};
     sprintf(table_line, "%lld\t%lld\t%d\t%s\t%d\t%d", 
-            group_id, rule_id, not_flag, attribute_name, condition_index, op);
+            group_id, rule_id, negate_option, attribute_name, condition_index, op);
 
     struct maat_cmd_line line_rule;
     line_rule.rule_id = TO_GROUP2X_KEY(group_id, rule_id, condition_index);

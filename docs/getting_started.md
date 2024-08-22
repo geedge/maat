@@ -60,7 +60,7 @@ Table schema is stored in a json file(such as table_info.conf), which is loaded 
         "custom": {
             "group_id":1,
             "rule_id":2,
-            "not_flag":4,
+            "negate_option":4,
             "attribute_name":5,
             "condition_index":6
         }

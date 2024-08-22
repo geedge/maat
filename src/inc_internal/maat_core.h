@@ -195,7 +195,7 @@ struct maat_state {
 	uint16_t thread_id;
     int16_t rule_table_id;
 	uint8_t district_flag;
-    uint8_t logic_not_flag;
+    uint8_t logic_negate_option;
 };
 
 int my_scandir(const char *dir, struct dirent ***namelist,

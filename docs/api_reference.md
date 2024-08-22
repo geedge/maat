@@ -861,7 +861,7 @@ int maat_scan_not_logic(struct maat *instance, int table_id,
                         size_t *n_hit_result, struct maat_state *state);
 ```
 
-If the rule configuration contains NOT-conditions, this interface needs to be called to activate the calculation of rule_id involving NOT-conditions. This means that other scanning interfaces will not activate NOT-conditions except for calling this interface. When to call this interface is determined by the caller. For example, on a session, four packets were scanned with maat_scan_string and three rule_id were hit. The NOT-condition was expected to be activated, so this interface was called and two new rule_id were hit.
+If the rule configuration contains negate-conditions, this interface needs to be called to activate the calculation of rule_id involving negate-conditions. This means that other scanning interfaces will not activate negate-conditions except for calling this interface. When to call this interface is determined by the caller. For example, on a session, four packets were scanned with maat_scan_string and three rule_id were hit. The negate-condition was expected to be activated, so this interface was called and two new rule_id were hit.
 
 Since this interface only activates non-conditions and does not call the underlying scanning engine to perform actual scanning tasks, there is no data to be scanned.
 

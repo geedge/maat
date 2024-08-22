@@ -375,7 +375,7 @@ bool_plugin_expr_new(struct bool_plugin_schema *schema, const char *table_name,
     n_item = ull_dedup(items, n_item);
     for (size_t i = 0; i < n_item; i++) {
         bool_expr->items[i].item_id = items[i];
-        bool_expr->items[i].not_flag = 0;
+        bool_expr->items[i].negate_option = 0;
     }
 
     bool_expr->item_num = n_item;

@@ -22,7 +22,7 @@ The statistical information in the above figure is divided into two parts, part1
 
 - plug_acc_num: total number of configurations for plugin tables
 
-- NOT_condition_num: total number of NOT-conditions
+- NOT_condition_num: total number of negate-conditions
 
 - excl_grp_num: total number of exclude groups
 

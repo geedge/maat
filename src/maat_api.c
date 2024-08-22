@@ -50,9 +50,9 @@ enum district_flag {
     DISTRICT_FLAG_SET
 };
 
-enum logic_not_flag {
-    LOGIC_NOT_FLAG_UNSET,
-    LOGIC_NOT_FLAG_SET
+enum logic_negate_option {
+    LOGIC_NEGATE_OPTION_UNSET,
+    LOGIC_NEGATE_OPTION_SET
 };
 
 struct maat_stream {

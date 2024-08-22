@@ -30,7 +30,7 @@ struct maat;
 struct maat_hit_path {
     int Nth_scan;
     int attribute_id;    // 0 is not a attribute.
-    int NOT_flag;     // 1 means NOT condition(condition)
+    int negate_option;     // 1 means negate condition(condition)
     int condition_index; // 0 ~ 7
     long long item_id;
     long long sub_group_id;

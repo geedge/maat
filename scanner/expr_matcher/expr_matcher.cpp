@@ -221,7 +221,7 @@ static struct bool_expr *bool_exprs_new(struct expr_rule *rules, size_t n_rule,
             }
 
             bool_exprs[i].items[j].item_id = pattern_index++;
-            bool_exprs[i].items[j].not_flag = 0;
+            bool_exprs[i].items[j].negate_option = 0;
         }
         
         bool_exprs[i].expr_id = rules[i].expr_id;

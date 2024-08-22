@@ -643,7 +643,7 @@ write_region_rule(cJSON *region_json, int rule_id, int group_id,
 
 static int
 write_group2rule_line(int *group_ids, size_t n_group_id,
-						 int rule_id, int group_not_flag,
+						 int rule_id, int group_negate_option,
                          int condition_index, const char *attribute, 
                          struct iris_description *p_iris,
                          struct iris_table *g2c_table)
@@ -670,10 +670,10 @@ write_group2rule_line(int *group_ids, size_t n_group_id,
 		}
 		group_id_str[strlen(group_id_str) - 1] = '\0';
 		snprintf(buff, sizeof(buff), "%s\t%d\t%d\t%s\t%d\t1\n", group_id_str,
-				 rule_id, group_not_flag, attribute, condition_index);
+				 rule_id, group_negate_option, attribute, condition_index);
 	} else {
 		snprintf(buff, sizeof(buff), "%d\t%d\t%d\t%s\t%d\t1\n", group_ids[0],
-				 rule_id, group_not_flag, attribute, condition_index);
+				 rule_id, group_negate_option, attribute, condition_index);
 	}
 	
 	table->write_pos += memcat(&(table->buff), table->write_pos,
@@ -753,7 +753,7 @@ write_group_rule(cJSON *group_json, int parent_id,
                  struct log_handle *logger)
 {
     int ret = 0;
-    int group_not_flag = 0;
+    int group_negate_option = 0;
     int condition_index = 0;
 	const char *group_name = NULL;
 	char group_name_array[32][MAX_NAME_STR_LEN];
@@ -797,11 +797,11 @@ write_group_rule(cJSON *group_json, int parent_id,
 			attribute = item->valuestring;
 		}
 
-        item = cJSON_GetObjectItem(group_json, "not_flag");
+        item = cJSON_GetObjectItem(group_json, "negate_option");
 		if (NULL == item || item->type != cJSON_Number) {
-			group_not_flag = 0;
+			group_negate_option = 0;
 		} else {
-			group_not_flag = item->valueint;
+			group_negate_option = item->valueint;
 		}
 
 		item = cJSON_GetObjectItem(group_json, "condition_index");
@@ -833,7 +833,7 @@ write_group_rule(cJSON *group_json, int parent_id,
 		}
 		assert(parent_type == PARENT_TYPE_RULE);
 		ret = write_group2rule_line(group_ids, group_name_cnt, parent_id,
-                                       group_not_flag, condition_index,
+                                       group_negate_option, condition_index,
                                        attribute, p_iris, g2c_table);
 
     } else {
@@ -894,7 +894,7 @@ write_group_rule(cJSON *group_json, int parent_id,
 
         if (parent_type == PARENT_TYPE_RULE) {
             ret = write_group2rule_line(&(group_info->group_id), 1, parent_id,
-                                           group_not_flag, condition_index,
+                                           group_negate_option, condition_index,
                                            attribute, p_iris, g2c_table);
 			if (ret < 0) {
 				log_fatal(logger, MODULE_JSON2IRIS, 

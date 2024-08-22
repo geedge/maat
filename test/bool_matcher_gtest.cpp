@@ -15,9 +15,9 @@ TEST(bool_matcher_match, MultiExprWithSameID) {
     bool_expr_array->expr_id = 100;
     bool_expr_array->item_num = 2;
     bool_expr_array->items[0].item_id = 1;
-    bool_expr_array->items[0].not_flag = 0;
+    bool_expr_array->items[0].negate_option = 0;
     bool_expr_array->items[1].item_id = 1;
-    bool_expr_array->items[1].not_flag = 0;
+    bool_expr_array->items[1].negate_option = 0;
 
     size_t mem_size = 0;
     struct bool_matcher *bm = bool_matcher_new(bool_expr_array, 1, &mem_size);

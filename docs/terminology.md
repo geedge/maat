@@ -60,7 +60,7 @@ The relationship between group and rule is stored in the [group2rule table](./ma
 
 A condition consists of several Literals and the relationship between them is a `logical 'OR'`.
 
-Conditions are divided into two categories based on whether they contain the logical "NOT" operation: `condition` and `NOT-condition`. In Maat, the logical "NOT" only appears in the condition, which means that if you want to use the logical "NOT", you need to configure conditions for the rules.
+Conditions are divided into two categories based on whether they contain the logical "NOT" operation: `condition` and `negate-condition`. In Maat, the logical "NOT" only appears in the condition, which means that if you want to use the logical "NOT", you need to configure conditions for the rules.
 
 ## Literal
 
