@@ -44,7 +44,7 @@ extern "C"
 #define INVALID_VERSION    -1
 
 #define mr_region_id_var "SEQUENCE_REGION"
-#define mr_group_id_var	 "SEQUENCE_GROUP"
+#define mr_object_id_var	 "SEQUENCE_OBJECT"
 
 enum tag_match {
     TAG_MATCH_ERR = -1,
@@ -54,7 +54,7 @@ enum tag_match {
 
 struct maat_item {
 	long long item_id;
-	long long group_id;
+	long long object_id;
 };
 
 struct maat_runtime {
@@ -121,7 +121,7 @@ struct maat_options {
     int stat_on;
     int perf_on;
     int hit_path_on;
-    int hit_group_on;
+    int hit_object_on;
     int deferred_load_on;
 
     int maat_json_is_gzipped;

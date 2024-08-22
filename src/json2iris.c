@@ -28,22 +28,22 @@
 #define	MAX_COLUMN_NUM	 32
 #define MAX_PATH_LINE    512
 #define MAX_BUFF_LEN     4096
-#define MAX_GROUP_ID_STR 128
+#define MAX_OBJECT_ID_STR 128
 
 const int json_version = 1;
-const char *untitled_group_name = "Untitled";
-long long untitled_group_id = 123456789;
+const char *untitled_object_name = "Untitled";
+long long untitled_object_id = 123456789;
 
-enum maat_group_relation {
+enum maat_object_relation {
 	PARENT_TYPE_RULE = 0,
-	PARENT_TYPE_GROUP
+	PARENT_TYPE_OBJECT
 };
 
-struct group_info {
-    int group_id;
-    char group_name[NAME_MAX];
-    UT_array *incl_sub_group_ids;
-    UT_array *excl_sub_group_ids;
+struct object_info {
+    int object_id;
+    char object_name[NAME_MAX];
+    UT_array *incl_sub_object_ids;
+    UT_array *excl_sub_object_ids;
     UT_hash_handle hh;
 };
 
@@ -59,19 +59,19 @@ struct iris_table {
 };
 
 struct iris_description {
-	int group_cnt;
+	int object_cnt;
 	int region_cnt;
 	
 	char tmp_iris_dir[MAX_PATH_LINE];
 	char tmp_iris_index_dir[MAX_PATH_LINE];
 	char index_path[PATH_MAX];
 
-	struct iris_table *group_table;
-	struct iris_table *group2group_table;
-	struct iris_table *group2rule_table;
+	struct iris_table *object_table;
+	struct iris_table *object2object_table;
+	struct iris_table *object2rule_table;
 	struct iris_table *rule_table;
 
-	struct group_info *group_name_map;
+	struct object_info *object_name_map;
 	struct iris_table *iris_table_map;
 
 	struct maat_kv_store *str2int_map;
@@ -130,8 +130,8 @@ static void free_iris_table_info(void *p)
 static int
 set_iris_descriptor(const char *json_file, cJSON *json,
                     const char *encrypt_key, const char *encrypt_algo, 
-                    const char *rule_tn, const char *group2rule_tn,
-                    const char* group2group_tn, redisContext *redis_write_ctx,
+                    const char *rule_tn, const char *object2rule_tn,
+                    const char* object2object_tn, redisContext *redis_write_ctx,
                     struct iris_description *iris_cfg)
 {
 	memset(iris_cfg, 0, sizeof(struct iris_description));
@@ -183,10 +183,10 @@ set_iris_descriptor(const char *json_file, cJSON *json,
 
 	iris_cfg->rule_table = query_table_info(iris_cfg, rule_tn,
                                                TABLE_TYPE_RULE);
-	iris_cfg->group2rule_table = query_table_info(iris_cfg, group2rule_tn,
-                                                     TABLE_TYPE_GROUP2RULE);
-	iris_cfg->group2group_table = query_table_info(iris_cfg, group2group_tn,
-                                                   TABLE_TYPE_GROUP2GROUP);
+	iris_cfg->object2rule_table = query_table_info(iris_cfg, object2rule_tn,
+                                                     TABLE_TYPE_OBJECT2RULE);
+	iris_cfg->object2object_table = query_table_info(iris_cfg, object2object_tn,
+                                                   TABLE_TYPE_OBJECT2OBJECT);
 	
 	if (encrypt_key && encrypt_algo) {
 		iris_cfg->encrypt_key = maat_strdup(encrypt_key);
@@ -198,21 +198,21 @@ set_iris_descriptor(const char *json_file, cJSON *json,
 
 static void clear_iris_descriptor(struct iris_description *iris_cfg)
 {
-	if (iris_cfg->group_name_map != NULL) {
-        struct group_info *node = NULL;
-        struct group_info *tmp = NULL;
-        HASH_ITER(hh, iris_cfg->group_name_map, node, tmp) {
-			if (node->incl_sub_group_ids != NULL) {
-				utarray_free(node->incl_sub_group_ids);
-				node->incl_sub_group_ids = NULL;
+	if (iris_cfg->object_name_map != NULL) {
+        struct object_info *node = NULL;
+        struct object_info *tmp = NULL;
+        HASH_ITER(hh, iris_cfg->object_name_map, node, tmp) {
+			if (node->incl_sub_object_ids != NULL) {
+				utarray_free(node->incl_sub_object_ids);
+				node->incl_sub_object_ids = NULL;
 			}
 
-			if (node->excl_sub_group_ids != NULL) {
-				utarray_free(node->excl_sub_group_ids);
-				node->excl_sub_group_ids = NULL;
+			if (node->excl_sub_object_ids != NULL) {
+				utarray_free(node->excl_sub_object_ids);
+				node->excl_sub_object_ids = NULL;
 			}
 
-            HASH_DELETE(hh, iris_cfg->group_name_map, node);
+            HASH_DELETE(hh, iris_cfg->object_name_map, node);
             FREE(node);
         }
 	}
@@ -301,31 +301,31 @@ write_plugin_line(cJSON *plug_table_json, int sequence,
 	return 0;
 }
 
-static struct group_info *group_info_read(struct group_info *group_name_map,
-                                          const char *group_name)
+static struct object_info *object_info_read(struct object_info *object_name_map,
+                                          const char *object_name)
 {
-    struct group_info *node = NULL;
-    HASH_FIND(hh, group_name_map, group_name, strlen(group_name), node);
+    struct object_info *node = NULL;
+    HASH_FIND(hh, object_name_map, object_name, strlen(object_name), node);
 
     return node;
 }
 
-UT_icd ut_json2iris_group_id_icd = {sizeof(int), NULL, NULL, NULL};
-static struct group_info *
-group_info_add_unsafe(struct iris_description *p_iris, const char *group_name,
-					  long long group_id)
+UT_icd ut_json2iris_object_id_icd = {sizeof(int), NULL, NULL, NULL};
+static struct object_info *
+object_info_add_unsafe(struct iris_description *p_iris, const char *object_name,
+					  long long object_id)
 {
-	struct group_info *group_info = ALLOC(struct group_info, 1);
-	utarray_new(group_info->incl_sub_group_ids, &ut_json2iris_group_id_icd);
-	utarray_new(group_info->excl_sub_group_ids, &ut_json2iris_group_id_icd);
+	struct object_info *object_info = ALLOC(struct object_info, 1);
+	utarray_new(object_info->incl_sub_object_ids, &ut_json2iris_object_id_icd);
+	utarray_new(object_info->excl_sub_object_ids, &ut_json2iris_object_id_icd);
 
-	group_info->group_id = group_id;
-	strncpy(group_info->group_name, group_name, sizeof(group_info->group_name));
+	object_info->object_id = object_id;
+	strncpy(object_info->object_name, object_name, sizeof(object_info->object_name));
 
-    HASH_ADD_KEYPTR(hh, p_iris->group_name_map, group_info->group_name,
-                    strlen(group_name), group_info);
+    HASH_ADD_KEYPTR(hh, p_iris->object_name_map, object_info->object_name,
+                    strlen(object_name), object_info);
 
-	return group_info;
+	return object_info;
 }
 
 static int get_region_seq(struct iris_description *iris_cfg)
@@ -435,7 +435,7 @@ write_flag_line(cJSON *region_json, struct iris_description *p_iris,
 	json_cmd[cmd_cnt].json_type=cJSON_Number;
 	cmd_cnt++;
 
-	json_cmd[cmd_cnt].json_string = "group_id";
+	json_cmd[cmd_cnt].json_string = "object_id";
 	json_cmd[cmd_cnt].json_type = cJSON_Number;
 	cmd_cnt++;
 	
@@ -473,7 +473,7 @@ write_expr_line(cJSON *region_json, struct iris_description *p_iris,
 	json_cmd[cmd_cnt].json_type = cJSON_Number;
 	cmd_cnt++;
 
-	json_cmd[cmd_cnt].json_string = "group_id";
+	json_cmd[cmd_cnt].json_string = "object_id";
 	json_cmd[cmd_cnt].json_type = cJSON_Number;
 	cmd_cnt++;
 	
@@ -512,7 +512,7 @@ write_ip_line(cJSON *region_json, struct iris_description *p_iris,
 	json_cmd[cmd_cnt].json_type = cJSON_Number;
 	cmd_cnt++;
 
-	json_cmd[cmd_cnt].json_string = "group_id";
+	json_cmd[cmd_cnt].json_string = "object_id";
 	json_cmd[cmd_cnt].json_type = cJSON_Number;
 	cmd_cnt++;	
 
@@ -548,7 +548,7 @@ write_interval_line(cJSON *region_json, struct iris_description *p_iris,
 	json_cmd[cmd_cnt].json_type = cJSON_Number;
 	cmd_cnt++;
 
-	json_cmd[cmd_cnt].json_string = "group_id";
+	json_cmd[cmd_cnt].json_string = "object_id";
 	json_cmd[cmd_cnt].json_type = cJSON_Number;
 	cmd_cnt++;
 
@@ -571,7 +571,7 @@ write_interval_line(cJSON *region_json, struct iris_description *p_iris,
 }
 
 static int
-write_region_rule(cJSON *region_json, int rule_id, int group_id,
+write_region_rule(cJSON *region_json, int rule_id, int object_id,
                   struct iris_description *p_iris, struct log_handle *logger)
 {
     cJSON *item = cJSON_GetObjectItem(region_json, "table_name");
@@ -613,7 +613,7 @@ write_region_rule(cJSON *region_json, int rule_id, int group_id,
 
 	int region_id = get_region_seq(p_iris);
 	cJSON_AddNumberToObject(table_content, "region_id", region_id);
-	cJSON_AddNumberToObject(table_content, "group_id", group_id);
+	cJSON_AddNumberToObject(table_content, "object_id", object_id);
 	cJSON_AddNumberToObject(table_content, "is_valid", 1);
 
     struct iris_table *table_info = query_table_info(p_iris, table_name,
@@ -642,8 +642,8 @@ write_region_rule(cJSON *region_json, int rule_id, int group_id,
 }
 
 static int
-write_group2rule_line(int *group_ids, size_t n_group_id,
-						 int rule_id, int group_negate_option,
+write_object2rule_line(int *object_ids, size_t n_object_id,
+						 int rule_id, int object_negate_option,
                          int condition_index, const char *attribute, 
                          struct iris_description *p_iris,
                          struct iris_table *g2c_table)
@@ -654,26 +654,26 @@ write_group2rule_line(int *group_ids, size_t n_group_id,
     if (g2c_table != NULL) {
         table = g2c_table;
     } else {
-        if (NULL == p_iris->group2rule_table) {
+        if (NULL == p_iris->object2rule_table) {
             return -1;
         }
-        table = p_iris->group2rule_table;
+        table = p_iris->object2rule_table;
     }
 
-	if (n_group_id > 1) {
+	if (n_object_id > 1) {
 		char tmp_str[64] = {0};
-		char group_id_str[2048] = {0};
+		char object_id_str[2048] = {0};
 
-		for (size_t i = 0; i < n_group_id; i++) {
-			snprintf(tmp_str, sizeof(tmp_str), "%d,", group_ids[i]);
-			strcat(group_id_str, tmp_str);
+		for (size_t i = 0; i < n_object_id; i++) {
+			snprintf(tmp_str, sizeof(tmp_str), "%d,", object_ids[i]);
+			strcat(object_id_str, tmp_str);
 		}
-		group_id_str[strlen(group_id_str) - 1] = '\0';
-		snprintf(buff, sizeof(buff), "%s\t%d\t%d\t%s\t%d\t1\n", group_id_str,
-				 rule_id, group_negate_option, attribute, condition_index);
+		object_id_str[strlen(object_id_str) - 1] = '\0';
+		snprintf(buff, sizeof(buff), "%s\t%d\t%d\t%s\t%d\t1\n", object_id_str,
+				 rule_id, object_negate_option, attribute, condition_index);
 	} else {
-		snprintf(buff, sizeof(buff), "%d\t%d\t%d\t%s\t%d\t1\n", group_ids[0],
-				 rule_id, group_negate_option, attribute, condition_index);
+		snprintf(buff, sizeof(buff), "%d\t%d\t%d\t%s\t%d\t1\n", object_ids[0],
+				 rule_id, object_negate_option, attribute, condition_index);
 	}
 	
 	table->write_pos += memcat(&(table->buff), table->write_pos,
@@ -684,60 +684,60 @@ write_group2rule_line(int *group_ids, size_t n_group_id,
 }
 
 static int
-write_group2group_line(int group_id, UT_array *incl_sub_group_ids,
-					   UT_array *excl_sub_group_ids,
+write_object2object_line(int object_id, UT_array *incl_sub_object_ids,
+					   UT_array *excl_sub_object_ids,
                        struct iris_description *p_iris)
 {
 	char buff[MAX_BUFF_LEN*4] = {0};
-	struct iris_table *table = p_iris->group2group_table;
+	struct iris_table *table = p_iris->object2object_table;
     if (NULL == table) {
         return -1;
     }
 
     size_t i = 0, pos = 0;
-    char incl_sub_group_id_str[MAX_BUFF_LEN] = {0};
-    char excl_sub_group_id_str[MAX_BUFF_LEN] = {0};
+    char incl_sub_object_id_str[MAX_BUFF_LEN] = {0};
+    char excl_sub_object_id_str[MAX_BUFF_LEN] = {0};
 
-	if (0 == utarray_len(incl_sub_group_ids) &&
-		0 == utarray_len(excl_sub_group_ids)) {
+	if (0 == utarray_len(incl_sub_object_ids) &&
+		0 == utarray_len(excl_sub_object_ids)) {
 		return 0;
 	}
 
 	int *tmp_id = NULL;
-	char tmp_str[MAX_GROUP_ID_STR] = {0};
-    for (i = 0; i < utarray_len(incl_sub_group_ids); i++) {
-        tmp_id = (int *)utarray_eltptr(incl_sub_group_ids, i);
+	char tmp_str[MAX_OBJECT_ID_STR] = {0};
+    for (i = 0; i < utarray_len(incl_sub_object_ids); i++) {
+        tmp_id = (int *)utarray_eltptr(incl_sub_object_ids, i);
         sprintf(tmp_str, "%d,", *tmp_id);
-        sprintf(incl_sub_group_id_str + pos, "%s", tmp_str);
+        sprintf(incl_sub_object_id_str + pos, "%s", tmp_str);
         pos += strlen(tmp_str);
     }
 
 	const char *null_str = "null";
-    size_t str_len = strlen(incl_sub_group_id_str);
+    size_t str_len = strlen(incl_sub_object_id_str);
 	if (str_len > 0) {
-		incl_sub_group_id_str[str_len - 1] = '\0';
+		incl_sub_object_id_str[str_len - 1] = '\0';
 	} else {
-		memcpy(incl_sub_group_id_str, null_str, strlen(null_str));
+		memcpy(incl_sub_object_id_str, null_str, strlen(null_str));
 	}
 	
 	pos = 0;
 	memset(tmp_str, 0, sizeof(tmp_str));
-	for (i = 0; i < utarray_len(excl_sub_group_ids); i++) {
-        tmp_id = (int *)utarray_eltptr(excl_sub_group_ids, i);
+	for (i = 0; i < utarray_len(excl_sub_object_ids); i++) {
+        tmp_id = (int *)utarray_eltptr(excl_sub_object_ids, i);
         sprintf(tmp_str, "%d,", *tmp_id);
-        sprintf(excl_sub_group_id_str + pos, "%s", tmp_str);
+        sprintf(excl_sub_object_id_str + pos, "%s", tmp_str);
         pos += strlen(tmp_str);
     }
 
-	str_len = strlen(excl_sub_group_id_str);
+	str_len = strlen(excl_sub_object_id_str);
 	if (str_len > 0) {
-		excl_sub_group_id_str[str_len - 1] = '\0';
+		excl_sub_object_id_str[str_len - 1] = '\0';
 	} else {
-		memcpy(excl_sub_group_id_str, null_str, strlen(null_str));
+		memcpy(excl_sub_object_id_str, null_str, strlen(null_str));
 	}
 
-    snprintf(buff, sizeof(buff), "%d\t%s\t%s\t1\n", group_id,
-			 incl_sub_group_id_str, excl_sub_group_id_str);
+    snprintf(buff, sizeof(buff), "%d\t%s\t%s\t1\n", object_id,
+			 incl_sub_object_id_str, excl_sub_object_id_str);
 
     table->write_pos += memcat(&(table->buff), table->write_pos,
                                &(table->buff_sz), buff, strlen(buff));
@@ -747,119 +747,119 @@ write_group2group_line(int group_id, UT_array *incl_sub_group_ids,
 }
 
 static int
-write_group_rule(cJSON *group_json, int parent_id, 
+write_object_rule(cJSON *object_json, int parent_id, 
                  int parent_type, int tracking_rule_id, 
-                 int Nth_group, struct iris_description *p_iris, 
+                 int Nth_object, struct iris_description *p_iris, 
                  struct log_handle *logger)
 {
     int ret = 0;
-    int group_negate_option = 0;
+    int object_negate_option = 0;
     int condition_index = 0;
-	const char *group_name = NULL;
-	char group_name_array[32][MAX_NAME_STR_LEN];
-	size_t group_name_cnt = 0;
-	long long group_id = -1;
+	const char *object_name = NULL;
+	char object_name_array[32][MAX_NAME_STR_LEN];
+	size_t object_name_cnt = 0;
+	long long object_id = -1;
     const char *attribute = NULL;
     struct iris_table *g2c_table = NULL;
 
-	cJSON *item = cJSON_GetObjectItem(group_json, "group_name");
+	cJSON *item = cJSON_GetObjectItem(object_json, "object_name");
 	if (NULL == item) {
-		group_name = untitled_group_name;
+		object_name = untitled_object_name;
 	} else if (item->type == cJSON_String) {
-		group_name = item->valuestring;
+		object_name = item->valuestring;
 	} else if (item->type == cJSON_Array) {
-		group_name_cnt = cJSON_GetArraySize(item);
-		assert(group_name_cnt <= 32);
-		for (size_t i = 0; i < group_name_cnt; i++) {
+		object_name_cnt = cJSON_GetArraySize(item);
+		assert(object_name_cnt <= 32);
+		for (size_t i = 0; i < object_name_cnt; i++) {
 			cJSON *tmp_json = cJSON_GetArrayItem(item, i);
 			if (NULL == tmp_json || tmp_json->type != cJSON_String) {
 				log_fatal(logger, MODULE_JSON2IRIS,
-					  "[%s:%d] group_name of rule:%d format error",
+					  "[%s:%d] object_name of rule:%d format error",
 					  __FUNCTION__, __LINE__, parent_id);
 				return -1;	
 			}
-			memset(group_name_array[i], 0, sizeof(group_name_array[i]));
-			memcpy(group_name_array[i], tmp_json->valuestring,
+			memset(object_name_array[i], 0, sizeof(object_name_array[i]));
+			memcpy(object_name_array[i], tmp_json->valuestring,
 				   strlen(tmp_json->valuestring));
 		}
 	}
 
-	item = cJSON_GetObjectItem(group_json, "group_id");
+	item = cJSON_GetObjectItem(object_json, "object_id");
     if (item != NULL && item->type == cJSON_Number) {
-		group_id = item->valueint;
+		object_id = item->valueint;
 	}
 
 	if (parent_type == PARENT_TYPE_RULE) {
-		item = cJSON_GetObjectItem(group_json, "attribute");
+		item = cJSON_GetObjectItem(object_json, "attribute");
 		if (NULL == item || item->type != cJSON_String) {
 			attribute = "null";
 		} else {
 			attribute = item->valuestring;
 		}
 
-        item = cJSON_GetObjectItem(group_json, "negate_option");
+        item = cJSON_GetObjectItem(object_json, "negate_option");
 		if (NULL == item || item->type != cJSON_Number) {
-			group_negate_option = 0;
+			object_negate_option = 0;
 		} else {
-			group_negate_option = item->valueint;
+			object_negate_option = item->valueint;
 		}
 
-		item = cJSON_GetObjectItem(group_json, "condition_index");
+		item = cJSON_GetObjectItem(object_json, "condition_index");
 		if (NULL == item || item->type != cJSON_Number) {
-			condition_index = Nth_group;
+			condition_index = Nth_object;
 		} else {
 			condition_index = item->valueint;
 		}
 
-        item = cJSON_GetObjectItem(group_json, "g2c_table_name");
+        item = cJSON_GetObjectItem(object_json, "g2c_table_name");
         if (item != NULL && item->type == cJSON_String) {
             g2c_table = query_table_info(p_iris, item->valuestring, 
-                                         TABLE_TYPE_GROUP2RULE);
+                                         TABLE_TYPE_OBJECT2RULE);
         }
 	}
 
-    if (group_name_cnt > 0) {
-		int group_ids[group_name_cnt];
-		for (size_t i = 0; i < group_name_cnt; i++) {
-			struct group_info *group_info =
-				group_info_read(p_iris->group_name_map, group_name_array[i]);
-			if (NULL == group_info) {
-				log_fatal(logger, MODULE_JSON2IRIS, "[%s:%d] group_name:%s"
-						  " has no group_id", __FUNCTION__, __LINE__,
-						  group_name_array[i]);
+    if (object_name_cnt > 0) {
+		int object_ids[object_name_cnt];
+		for (size_t i = 0; i < object_name_cnt; i++) {
+			struct object_info *object_info =
+				object_info_read(p_iris->object_name_map, object_name_array[i]);
+			if (NULL == object_info) {
+				log_fatal(logger, MODULE_JSON2IRIS, "[%s:%d] object_name:%s"
+						  " has no object_id", __FUNCTION__, __LINE__,
+						  object_name_array[i]);
 				return -1;
 			}
-			group_ids[i] = group_info->group_id;
+			object_ids[i] = object_info->object_id;
 		}
 		assert(parent_type == PARENT_TYPE_RULE);
-		ret = write_group2rule_line(group_ids, group_name_cnt, parent_id,
-                                       group_negate_option, condition_index,
+		ret = write_object2rule_line(object_ids, object_name_cnt, parent_id,
+                                       object_negate_option, condition_index,
                                        attribute, p_iris, g2c_table);
 
     } else {
-        struct group_info *group_info =
-			group_info_read(p_iris->group_name_map, group_name);
-        // exist group name, regions and sub groups will be ommit.
-        if (NULL == group_info) {
-        	if (0 == strncasecmp(group_name, untitled_group_name,
-                                 strlen(untitled_group_name))) {
-            	group_id = untitled_group_id;
+        struct object_info *object_info =
+			object_info_read(p_iris->object_name_map, object_name);
+        // exist object name, regions and sub objects will be ommit.
+        if (NULL == object_info) {
+        	if (0 == strncasecmp(object_name, untitled_object_name,
+                                 strlen(untitled_object_name))) {
+            	object_id = untitled_object_id;
             }
 
-            if (-1 == group_id) {
+            if (-1 == object_id) {
             	log_fatal(logger, MODULE_JSON2IRIS,
-                    	  "[%s:%d] group_name:<%s> has no group_id",
-						  __FUNCTION__, __LINE__, group_name);
+                    	  "[%s:%d] object_name:<%s> has no object_id",
+						  __FUNCTION__, __LINE__, object_name);
             	return -1;
             }
 
-            group_info = group_info_add_unsafe(p_iris, group_name, group_id);
-            cJSON *region_json = cJSON_GetObjectItem(group_json, "regions");
+            object_info = object_info_add_unsafe(p_iris, object_name, object_id);
+            cJSON *region_json = cJSON_GetObjectItem(object_json, "regions");
             if (region_json != NULL) {
             	cJSON *region_rule = NULL;
             	cJSON_ArrayForEach(region_rule, region_json) {
             		ret = write_region_rule(region_rule, tracking_rule_id,
-                                       		group_info->group_id, p_iris, logger);
+                                       		object_info->object_id, p_iris, logger);
                 	if (ret < 0) {
                 		log_fatal(logger, MODULE_JSON2IRIS,
                         	  	  "[%s:%d] rule rule %d write region error",
@@ -869,14 +869,14 @@ write_group_rule(cJSON *group_json, int parent_id,
               	}
             }
 
-            cJSON *sub_groups = cJSON_GetObjectItem(group_json, "sub_groups");
-            if (sub_groups != NULL) {
+            cJSON *sub_objects = cJSON_GetObjectItem(object_json, "sub_objects");
+            if (sub_objects != NULL) {
             	// recursively
             	int i = 0;
-            	cJSON_ArrayForEach(item, sub_groups) {
+            	cJSON_ArrayForEach(item, sub_objects) {
                 	i++;
-                	ret = write_group_rule(item, group_info->group_id,
-                                       	   PARENT_TYPE_GROUP, tracking_rule_id,
+                	ret = write_object_rule(item, object_info->object_id,
+                                       	   PARENT_TYPE_OBJECT, tracking_rule_id,
                                        	   i, p_iris, logger);
                 	if (ret < 0) {
                   		return -1;
@@ -884,21 +884,21 @@ write_group_rule(cJSON *group_json, int parent_id,
               	}
             }
 
-            if (NULL == region_json && NULL == sub_groups) {
+            if (NULL == region_json && NULL == sub_objects) {
             	log_info(logger, MODULE_JSON2IRIS,
-                    	 "[%s:%d] A group of rule rule %d has neither regions, "
-                         "sub groups, nor refered another existed group",
+                    	 "[%s:%d] A object of rule rule %d has neither regions, "
+                         "sub objects, nor refered another existed object",
                          __FUNCTION__, __LINE__, tracking_rule_id);
             }
         }
 
         if (parent_type == PARENT_TYPE_RULE) {
-            ret = write_group2rule_line(&(group_info->group_id), 1, parent_id,
-                                           group_negate_option, condition_index,
+            ret = write_object2rule_line(&(object_info->object_id), 1, parent_id,
+                                           object_negate_option, condition_index,
                                            attribute, p_iris, g2c_table);
 			if (ret < 0) {
 				log_fatal(logger, MODULE_JSON2IRIS, 
-                  		  "[%s:%d] rule:%d write group error", 
+                  		  "[%s:%d] rule:%d write object error", 
                   		  __FUNCTION__, __LINE__, parent_id);
 				return -1;
 			}
@@ -921,14 +921,14 @@ write_rule_line(cJSON *rule, struct iris_description *p_iris,
 	}
 	int rule_id = item->valueint;
 
-    cJSON *group_array = cJSON_GetObjectItem(rule, "groups");
-    int group_num = cJSON_GetArraySize(group_array);
-    int *condition_ids = ALLOC(int, group_num);
+    cJSON *object_array = cJSON_GetObjectItem(rule, "objects");
+    int object_num = cJSON_GetArraySize(object_array);
+    int *condition_ids = ALLOC(int, object_num);
     int condition_num = 0;
-    cJSON *group_obj = NULL;
+    cJSON *object_obj = NULL;
 
-	cJSON_ArrayForEach(group_obj, group_array) {
-		item = cJSON_GetObjectItem(group_obj, "condition_index");
+	cJSON_ArrayForEach(object_obj, object_array) {
+		item = cJSON_GetObjectItem(object_obj, "condition_index");
 		if (item) {
             int i = 0;
 			int condition_index = item->valueint;
@@ -947,7 +947,7 @@ write_rule_line(cJSON *rule, struct iris_description *p_iris,
 	FREE(condition_ids);
 	
 	if (condition_num == 0) {
-		condition_num = group_num;
+		condition_num = object_num;
 	}
 
 	cJSON_AddNumberToObject(rule, "condition_num", condition_num);
@@ -1086,67 +1086,67 @@ static int write_index_file(struct iris_description *p_iris,
 	return 0;
 }
 
-int recursive_traverse_sub_groups(cJSON *group_obj, struct iris_description *p_iris,
+int recursive_traverse_sub_objects(cJSON *object_obj, struct iris_description *p_iris,
 								  struct log_handle *logger)
 {
-    cJSON *sub_group_array = cJSON_GetObjectItem(group_obj, "sub_groups");
-	if (NULL == sub_group_array) {
+    cJSON *sub_object_array = cJSON_GetObjectItem(object_obj, "sub_objects");
+	if (NULL == sub_object_array) {
 		return 0;
 	}
 
-	cJSON *item = cJSON_GetObjectItem(group_obj, "group_name");
+	cJSON *item = cJSON_GetObjectItem(object_obj, "object_name");
 	if (NULL == item || item->type != cJSON_String) {
 		log_fatal(logger, MODULE_JSON2IRIS,
-				  "[%s:%d] has no group_name before sub_groups.");
+				  "[%s:%d] has no object_name before sub_objects.");
 		return -1;
 	}
 
-	const char *parent_group_name = item->valuestring;
-	struct group_info *parent_group = group_info_read(p_iris->group_name_map,
+	const char *parent_object_name = item->valuestring;
+	struct object_info *parent_object = object_info_read(p_iris->object_name_map,
 													  item->valuestring);
-	if (NULL == parent_group) {
-		item = cJSON_GetObjectItem(group_obj, "group_id");
+	if (NULL == parent_object) {
+		item = cJSON_GetObjectItem(object_obj, "object_id");
 		if (NULL == item || item->type != cJSON_Number) {
 			log_fatal(logger, MODULE_JSON2IRIS,
-				  	 "[%s:%d] group_name:%s has no group_id.", parent_group_name);
+				  	 "[%s:%d] object_name:%s has no object_id.", parent_object_name);
 			return -1;
 		}	
-		parent_group = group_info_add_unsafe(p_iris, parent_group_name, item->valueint);
+		parent_object = object_info_add_unsafe(p_iris, parent_object_name, item->valueint);
 	}
 
-	cJSON *sub_group_obj = NULL;
-	cJSON_ArrayForEach(sub_group_obj, sub_group_array) {
-		cJSON *tmp_item1 = cJSON_GetObjectItem(sub_group_obj, "group_name");
+	cJSON *sub_object_obj = NULL;
+	cJSON_ArrayForEach(sub_object_obj, sub_object_array) {
+		cJSON *tmp_item1 = cJSON_GetObjectItem(sub_object_obj, "object_name");
 		if (NULL == tmp_item1 || tmp_item1->type != cJSON_String) {
 			log_fatal(logger, MODULE_JSON2IRIS,
-					  "[%s:%d]group:%s's sub_groups has no group_name",
-					  __FUNCTION__, __LINE__, parent_group_name);
+					  "[%s:%d]object:%s's sub_objects has no object_name",
+					  __FUNCTION__, __LINE__, parent_object_name);
 			return -1;
 		}
 
-		int group_id = -1;
+		int object_id = -1;
 		int is_exclude = 0;
-		cJSON *tmp_item2 = cJSON_GetObjectItem(sub_group_obj, "group_id");
+		cJSON *tmp_item2 = cJSON_GetObjectItem(sub_object_obj, "object_id");
 		if (NULL == tmp_item2) {
-			struct group_info *group = group_info_read(p_iris->group_name_map,
+			struct object_info *object = object_info_read(p_iris->object_name_map,
 													   tmp_item1->valuestring);
-			assert(group != NULL);
-			group_id = group->group_id;
+			assert(object != NULL);
+			object_id = object->object_id;
 		} else {
-			group_id = tmp_item2->valueint;
+			object_id = tmp_item2->valueint;
 		}
 
-		cJSON *tmp_item3 = cJSON_GetObjectItem(sub_group_obj, "is_exclude");
+		cJSON *tmp_item3 = cJSON_GetObjectItem(sub_object_obj, "is_exclude");
 		if (tmp_item3 != NULL && tmp_item3->type == cJSON_Number) {
 			is_exclude = tmp_item3->valueint;
 		}
 		if (0 == is_exclude) {
-			utarray_push_back(parent_group->incl_sub_group_ids, &group_id);
+			utarray_push_back(parent_object->incl_sub_object_ids, &object_id);
 		} else {
-			utarray_push_back(parent_group->excl_sub_group_ids, &group_id);
+			utarray_push_back(parent_object->excl_sub_object_ids, &object_id);
 		}
 
-		int ret = recursive_traverse_sub_groups(sub_group_obj, p_iris, logger);
+		int ret = recursive_traverse_sub_objects(sub_object_obj, p_iris, logger);
 		if (ret < 0) {
 			return -1;
 		}
@@ -1155,21 +1155,21 @@ int recursive_traverse_sub_groups(cJSON *group_obj, struct iris_description *p_i
 	return 0;
 }
 
-static int write_group2group_rule(struct iris_description *p_iris,
+static int write_object2object_rule(struct iris_description *p_iris,
 						    	  struct log_handle *logger)
 {
     int ret = 0;
-    struct group_info *group_info = NULL, *tmp_group_info = NULL;
+    struct object_info *object_info = NULL, *tmp_object_info = NULL;
 
-    HASH_ITER(hh, p_iris->group_name_map, group_info, tmp_group_info) {
-        ret = write_group2group_line(group_info->group_id,
-									 group_info->incl_sub_group_ids,
-                                     group_info->excl_sub_group_ids,
+    HASH_ITER(hh, p_iris->object_name_map, object_info, tmp_object_info) {
+        ret = write_object2object_line(object_info->object_id,
+									 object_info->incl_sub_object_ids,
+                                     object_info->excl_sub_object_ids,
 									 p_iris);
 		if (ret < 0) {
         	log_fatal(logger, MODULE_JSON2IRIS,
-                      "[%s:%d] write group2group line failed for super_group:%d",
-					  __FUNCTION__, __LINE__, group_info->group_id);
+                      "[%s:%d] write object2object line failed for super_object:%d",
+					  __FUNCTION__, __LINE__, object_info->object_id);
             return -1;
         }
     }
@@ -1182,7 +1182,7 @@ static int write_iris(cJSON *json, struct iris_description *p_iris,
 {
     int i = 0;
     int ret = 0;
-    static struct group_info *parent_group = NULL; // TODO
+    static struct object_info *parent_object = NULL; // TODO
 
     cJSON *plug_tables = cJSON_GetObjectItem(json, "plugin_table");
     if (plug_tables != NULL) {
@@ -1193,35 +1193,35 @@ static int write_iris(cJSON *json, struct iris_description *p_iris,
         }
     }
 
-    cJSON *group_array = cJSON_GetObjectItem(json, "groups"); // sub-group to group
-    if (group_array != NULL) {
-        cJSON *group_obj = NULL;
-        cJSON_ArrayForEach(group_obj, group_array) {
-            const char *parent_group_name = NULL;
-            cJSON *item = cJSON_GetObjectItem(group_obj, "parent_group");
+    cJSON *object_array = cJSON_GetObjectItem(json, "objects"); // sub-object to object
+    if (object_array != NULL) {
+        cJSON *object_obj = NULL;
+        cJSON_ArrayForEach(object_obj, object_array) {
+            const char *parent_object_name = NULL;
+            cJSON *item = cJSON_GetObjectItem(object_obj, "parent_object");
             if (NULL == item || item->type != cJSON_String) {
-                parent_group_name = untitled_group_name;
+                parent_object_name = untitled_object_name;
             } else {
-                parent_group_name = item->string;
+                parent_object_name = item->string;
             }
 
-            parent_group = group_info_read(p_iris->group_name_map, parent_group_name);
-            if (NULL == parent_group) {
-                parent_group = group_info_add_unsafe(p_iris, parent_group_name,
-                                                     untitled_group_id);
+            parent_object = object_info_read(p_iris->object_name_map, parent_object_name);
+            if (NULL == parent_object) {
+                parent_object = object_info_add_unsafe(p_iris, parent_object_name,
+                                                     untitled_object_id);
             }
 
-            item = cJSON_GetObjectItem(group_obj, "group_id");
+            item = cJSON_GetObjectItem(object_obj, "object_id");
             if (NULL == item || item->type != cJSON_Number) {
                 log_fatal(logger, MODULE_JSON2IRIS,
-                          "[%s:%d]Global groups has group with no group_id.",
+                          "[%s:%d]Global objects has object with no object_id.",
                           __FUNCTION__, __LINE__);
                 return -1;
             }
 
-            utarray_push_back(parent_group->incl_sub_group_ids, &item->valueint);
-            ret = write_group_rule(group_obj, parent_group->group_id,
-            						PARENT_TYPE_GROUP, 0, 0, p_iris, logger);
+            utarray_push_back(parent_object->incl_sub_object_ids, &item->valueint);
+            ret = write_object_rule(object_obj, parent_object->object_id,
+            						PARENT_TYPE_OBJECT, 0, 0, p_iris, logger);
 			if (ret < 0) {
             	return -1;
             }
@@ -1245,26 +1245,26 @@ static int write_iris(cJSON *json, struct iris_description *p_iris,
                 return -1;
             }
 
-            group_array = cJSON_GetObjectItem(rule_obj, "groups");
-            if (NULL == group_array) {
+            object_array = cJSON_GetObjectItem(rule_obj, "objects");
+            if (NULL == object_array) {
                 log_fatal(logger, MODULE_JSON2IRIS,
-                          "[%s:%d] rule rule %d have no group",
+                          "[%s:%d] rule rule %d have no object",
 						  __FUNCTION__, __LINE__, rule_id);
                 return -1;
             }
 
-            int group_cnt = cJSON_GetArraySize(group_array);
-            if (group_cnt <= 0) {
+            int object_cnt = cJSON_GetArraySize(object_array);
+            if (object_cnt <= 0) {
                 log_fatal(logger, MODULE_JSON2IRIS,
-                          "[%s:%d] rule rule %d have no groups",
+                          "[%s:%d] rule rule %d have no objects",
                           __FUNCTION__, __LINE__, rule_id);
                 return -1;
             }
 
             i = 0;
-            cJSON *group_obj = NULL;
-            cJSON_ArrayForEach(group_obj, group_array) {
-                ret = write_group_rule(group_obj, rule_id, PARENT_TYPE_RULE,
+            cJSON *object_obj = NULL;
+            cJSON_ArrayForEach(object_obj, object_array) {
+                ret = write_object_rule(object_obj, rule_id, PARENT_TYPE_RULE,
                                        rule_id, i, p_iris, logger);
                 if (ret < 0) {
                     return -1;
@@ -1274,11 +1274,11 @@ static int write_iris(cJSON *json, struct iris_description *p_iris,
         }
 
         cJSON_ArrayForEach(rule_obj, rule_array) {
-            cJSON *group_array = cJSON_GetObjectItem(rule_obj, "groups");
+            cJSON *object_array = cJSON_GetObjectItem(rule_obj, "objects");
 
-            cJSON *group_obj = NULL;
-            cJSON_ArrayForEach(group_obj, group_array) {
-                ret = recursive_traverse_sub_groups(group_obj, p_iris, logger);
+            cJSON *object_obj = NULL;
+            cJSON_ArrayForEach(object_obj, object_array) {
+                ret = recursive_traverse_sub_objects(object_obj, p_iris, logger);
                 if (ret < 0) {
                     return -1;
                 }
@@ -1286,7 +1286,7 @@ static int write_iris(cJSON *json, struct iris_description *p_iris,
         }
     }
 
-    ret = write_group2group_rule(p_iris, logger);
+    ret = write_object2object_rule(p_iris, logger);
 	if (ret < 0) {
 		return -1;
 	}
@@ -1307,8 +1307,8 @@ int json2iris(const char *json_buff, const char *json_filename,
     int ret = -1;
     cJSON *tmp_obj = NULL;
     const char *rule_tbl_name = NULL;
-    const char *group2rule_tbl_name = NULL;
-    const char *group2group_tbl_name = NULL;
+    const char *object2rule_tbl_name = NULL;
+    const char *object2object_tbl_name = NULL;
 	struct iris_description iris_cfg;
 
 	memset(&iris_cfg, 0, sizeof(iris_cfg));
@@ -1326,19 +1326,19 @@ int json2iris(const char *json_buff, const char *json_filename,
 		rule_tbl_name = tmp_obj->valuestring;
 	}
 
-	tmp_obj = cJSON_GetObjectItem(json, "group2rule_table");
+	tmp_obj = cJSON_GetObjectItem(json, "object2rule_table");
 	if (tmp_obj) {
-		group2rule_tbl_name = tmp_obj->valuestring;
+		object2rule_tbl_name = tmp_obj->valuestring;
 	}
 
-	tmp_obj = cJSON_GetObjectItem(json, "group2group_table");
+	tmp_obj = cJSON_GetObjectItem(json, "object2object_table");
 	if (tmp_obj) {
-		group2group_tbl_name = tmp_obj->valuestring;
+		object2object_tbl_name = tmp_obj->valuestring;
 	}
 
 	ret = set_iris_descriptor(json_filename, json, encrypt_key, encrypt_algo, 
-                              rule_tbl_name, group2rule_tbl_name, 
-                              group2group_tbl_name, redis_write_ctx, &iris_cfg);
+                              rule_tbl_name, object2rule_tbl_name, 
+                              object2object_tbl_name, redis_write_ctx, &iris_cfg);
 	if (ret < 0) {
 		goto error_out;
 	}

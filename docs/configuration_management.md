@@ -9,7 +9,7 @@ Maat supports three configuration loading modes:
 
 ## 1.<a name='Redis mode'></a> Redis mode
 
-As shown in the diagram below, the data source is stored in the relational database `MariaDB`. An adapter writes this data into the `leader redis`, which is then distributed through redis's `leader-follower synchronization` mechanism. The storage structure design in redis for configurations does not need to consider the logical relationships between rule, group, and item. Maat will construct these logical relationships internally after loading the configurations from redis.
+As shown in the diagram below, the data source is stored in the relational database `MariaDB`. An adapter writes this data into the `leader redis`, which is then distributed through redis's `leader-follower synchronization` mechanism. The storage structure design in redis for configurations does not need to consider the logical relationships between rule, object, and item. Maat will construct these logical relationships internally after loading the configurations from redis.
 
 <img src="./imgs/sync-with-redis.png" width="600" height="300" >
 
@@ -26,7 +26,7 @@ As shown in the diagram below, the data source is stored in the relational datab
 | MAAT_LABEL_INDEX   | Label index | Sorted Set, where the element is the configuration table name, rule_id, and the score is the label_id |      |
 | EFFECTIVE_RULE:TableName,ID  OBSOLETE_RULE:TableName,ID | Main configuration | string     | Active configurations, loaded one by one by MAAT.  |
 | SEQUENCE_REGION    | Region ID generation sequence   | INTEGER  | Used by producers to generate unique region_id(item_id)  |
-| SEQUENCE_GROUP     | Group ID generation sequence | INTEGER  | Used by producers to generate unique group_id  |
+| SEQUENCE_OBJECT     | Object ID generation sequence | INTEGER  | Used by producers to generate unique object_id  |
 | EXPIRE_OP_LOCK     | Distributed lock  | string "locked"   | Ensures that at most one writer performs eviction.  |
 
 `Note`: The following api supports writing one line of configuration to redis.

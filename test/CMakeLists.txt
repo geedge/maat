@@ -37,7 +37,7 @@ target_link_libraries(bool_matcher_gtest maat_frame_static gtest_static)
 add_executable(maat_ex_data_gtest maat_ex_data_gtest.cpp)
 target_link_libraries(maat_ex_data_gtest maat_frame_static gtest_static)
 
-add_subdirectory(group_nesting)
+add_subdirectory(object_nesting)
 add_subdirectory(ipport_plugin)
 add_subdirectory(benchmark)
 
@@ -52,7 +52,7 @@ file(COPY tsgrule DESTINATION ./)
 file(COPY testdata DESTINATION ./)
 file(COPY test_streamfiles DESTINATION ./)
 file(COPY json_update DESTINATION ./)
-file(COPY group_nesting DESTINATION ./)
+file(COPY object_nesting DESTINATION ./)
 file(COPY ipport_plugin DESTINATION ./)
 file(COPY benchmark DESTINATION ./)
 

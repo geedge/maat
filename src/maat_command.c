@@ -158,7 +158,7 @@ redis_flushDB(redisContext *ctx, int db_index, struct log_handle *logger)
 	append_cmd_cnt++;
 	redisAppendCommand(ctx, "SET %s 1", mr_region_id_var);
 	append_cmd_cnt++;
-	redisAppendCommand(ctx, "SET %s 1", mr_group_id_var);
+	redisAppendCommand(ctx, "SET %s 1", mr_object_id_var);
 	append_cmd_cnt++;
 	redisAppendCommand(ctx, "EXEC");
 	append_cmd_cnt++;

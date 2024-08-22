@@ -26,7 +26,7 @@
 
 struct flag_schema {
     int item_id_column;
-    int group_id_column;
+    int object_id_column;
     int district_column;
     int flag_column;
     int flag_mask_column;
@@ -36,7 +36,7 @@ struct flag_schema {
 
 struct flag_item {
     long long item_id;
-    long long group_id;
+    long long object_id;
     long long flag;
     long long flag_mask;
     void *user_data;
@@ -104,12 +104,12 @@ void *flag_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "group_id");
+    custom_item = cJSON_GetObjectItem(item, "object_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->group_id_column = custom_item->valueint;
+        schema->object_id_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_FLAG, 
-                  "[%s:%d] flag table:<%s> schema has no group_id column", 
+                  "[%s:%d] flag table:<%s> schema has no object_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -326,15 +326,15 @@ flag_item_new(struct flag_schema *schema, const char *table_name,
     }
     item->item_id = atoll(line + column_offset);
 
-    ret = get_column_pos(line, schema->group_id_column, &column_offset,
+    ret = get_column_pos(line, schema->object_id_column, &column_offset,
                          &column_len);
     if (ret < 0) {
         log_fatal(flag_rt->logger, MODULE_FLAG, 
-                  "[%s:%d] flag table:<%s> has no group_id in line:%s",
+                  "[%s:%d] flag table:<%s> has no object_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
-    item->group_id = atoll(line + column_offset);
+    item->object_id = atoll(line + column_offset);
 
     table_type = table_manager_get_table_type(schema->ref_tbl_mgr, schema->table_id);
     if (table_type == TABLE_TYPE_INTERVAL_PLUS) {
@@ -555,9 +555,9 @@ long long flag_runtime_rule_count(void *flag_runtime)
 int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, 
                       long long flag, int attribute_id, struct maat_state *state)
 {
-    //clear rule_state->last_hit_group
+    //clear rule_state->last_hit_object
     if (state != NULL && state->rule_state != NULL) {
-        rule_state_clear_last_hit_group(state->rule_state);
+        rule_state_clear_last_hit_object(state->rule_state);
     }
 
     if (0 == flag_rt->rule_num) {
@@ -598,7 +598,7 @@ int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id,
             }
 
             hit_maat_items[real_hit_item_cnt].item_id = item_id;
-            hit_maat_items[real_hit_item_cnt].group_id = flag_item->group_id;
+            hit_maat_items[real_hit_item_cnt].object_id = flag_item->object_id;
             real_hit_item_cnt++;
         }
     }

@@ -24,7 +24,7 @@ The statistical information in the above figure is divided into two parts, part1
 
 - NOT_condition_num: total number of negate-conditions
 
-- excl_grp_num: total number of exclude groups
+- excl_grp_num: total number of exclude objects
 
 - garbage_queue_len: number of elements in the garbage queue
 

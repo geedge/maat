@@ -43,9 +43,9 @@ long long flag_runtime_rule_count(void *flag_runtime);
 
 /* flag runtime scan API */
 /**
- * @brief scan flag to get hit group_ids
+ * @brief scan flag to get hit object_ids
  * 
- * @retval the num of hit group_id
+ * @retval the num of hit object_id
 */
 int flag_runtime_scan(struct flag_runtime *flag_rt, int thread_id, long long flag,
                       int attribute_id, struct maat_state *state);

@@ -17,7 +17,7 @@
 #include "alignment.h"
 #include "maat_ip.h"
 #include "maat_rule.h"
-#include "maat_group.h"
+#include "maat_object.h"
 #include "maat_plugin.h"
 #include "maat_expr.h"
 
@@ -30,7 +30,7 @@ enum MAAT_FS_STATUS {
 	STATUS_PLUGIN_CACHE_NUM,
 	STATUS_PLUGIN_ACC_NUM,
     STATUS_CONDITION_REF_NOT_NUM,
-    STATUS_GROUP_REF_EXCL_NUM, //group reference exclude group num
+    STATUS_OBJECT_REF_EXCL_NUM, //object reference exclude object num
     STATUS_HIT_RULE_NUM,
 	STATUS_MAAT_STATE_NUM,
     STATUS_MAAT_PER_STATE_MEM,
@@ -78,7 +78,7 @@ static void fs_global_metric_register(struct maat_stat *stat)
     stat->g_metric_id[STATUS_CONDITION_REF_NOT_NUM] =
         fieldstat_easy_register_counter(stat->fs_handle, "NOT_condition_num");
 
-    stat->g_metric_id[STATUS_GROUP_REF_EXCL_NUM] =
+    stat->g_metric_id[STATUS_OBJECT_REF_EXCL_NUM] =
         fieldstat_easy_register_counter(stat->fs_handle, "excl_grp");
 
     stat->g_metric_id[STATUS_GARBAGE_QUEUE_LEN] =
@@ -272,11 +272,11 @@ static void fs_table_row_refresh(struct maat_stat *stat, int perf_on)
                 plugin_cache_num += plugin_runtime_cached_row_count(runtime);
                 plugin_rule_num += plugin_runtime_rule_count(runtime);
                 break;
-            case TABLE_TYPE_GROUP2RULE:
-                g2c_not_condition_num += group2rule_runtime_not_condition_count(runtime);
+            case TABLE_TYPE_OBJECT2RULE:
+                g2c_not_condition_num += object2rule_runtime_not_condition_count(runtime);
                 break;
-            case TABLE_TYPE_GROUP2GROUP:
-                g2g_excl_rule_num += group2group_runtime_exclude_rule_count(runtime);
+            case TABLE_TYPE_OBJECT2OBJECT:
+                g2g_excl_rule_num += object2object_runtime_exclude_rule_count(runtime);
                 break;
             case TABLE_TYPE_EXPR:
             case TABLE_TYPE_EXPR_PLUS:
@@ -419,7 +419,7 @@ static void fs_table_row_refresh(struct maat_stat *stat, int perf_on)
                                NULL, 0, g2c_not_condition_num); 
 
     fieldstat_easy_counter_set(stat->fs_handle, 0,
-                               stat->g_metric_id[STATUS_GROUP_REF_EXCL_NUM],
+                               stat->g_metric_id[STATUS_OBJECT_REF_EXCL_NUM],
                                NULL, 0, g2g_excl_rule_num); 
 
 }

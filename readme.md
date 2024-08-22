@@ -28,7 +28,7 @@ Read [getting started](./docs/getting_started.md) for building steps and play wi
 
 * [Configuration management](./docs/configuration_management.md)
 
-* [Group hierarchy](./docs/group_hierarchy.md)
+* [Object hierarchy](./docs/object_hierarchy.md)
 
 * [Logical combinations](./docs/logical_combinations.md)
 

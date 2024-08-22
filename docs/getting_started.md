@@ -31,7 +31,7 @@ A complete use case consists of three parts:
 
 ### Case1
 
-In the scanning scenario, it is necessary to configure the schema of multiple tables, including the item table, group2rule table, and rule table. If there is also group nesting involved, the schema of the group2group table needs to be configured.
+In the scanning scenario, it is necessary to configure the schema of multiple tables, including the item table, object2rule table, and rule table. If there is also object nesting involved, the schema of the object2object table needs to be configured.
 
 **(1) table schema**
 
@@ -53,12 +53,12 @@ Table schema is stored in a json file(such as table_info.conf), which is loaded 
     },
     {
         "table_id":1,
-        "table_name":"GROUP2RULE",
-        "table_type":"group2rule",
-        "associated_rule_table_id":0, /* associate rule table_id, group2rule table shares the same runtime with the corresponding rule table, so it needs to be mapped to the corresponding rule table. */
+        "table_name":"OBJECT2RULE",
+        "table_type":"object2rule",
+        "associated_rule_table_id":0, /* associate rule table_id, object2rule table shares the same runtime with the corresponding rule table, so it needs to be mapped to the corresponding rule table. */
         "valid_column":3,
         "custom": {
-            "group_id":1,
+            "object_id":1,
             "rule_id":2,
             "negate_option":4,
             "attribute_name":5,
@@ -67,13 +67,13 @@ Table schema is stored in a json file(such as table_info.conf), which is loaded 
     },
     {
         "table_id":2,
-        "table_name":"GROUP2GROUP",
-        "table_type":"group2group",
+        "table_name":"OBJECT2OBJECT",
+        "table_type":"object2object",
         "valid_column":4,
         "custom": {
-            "group_id":1,
-            "included_sub_group_ids":2,
-            "excluded_sub_group_ids":3
+            "object_id":1,
+            "included_sub_object_ids":2,
+            "excluded_sub_object_ids":3
         }
     },
     {
@@ -83,7 +83,7 @@ Table schema is stored in a json file(such as table_info.conf), which is loaded 
         "valid_column":7,
         "custom": {
             "item_id":1,
-            "group_id":2,
+            "object_id":2,
             "keywords":3,
             "expr_type":4,
             "match_method":5,
@@ -99,8 +99,8 @@ Configurations are stored in a json file(such as maat_json.json), which is loade
 ```json
 {
     "rule_table": "RULE",
-    "group2rule_table": "GROUP2RULE",
-    "group2group_table": "GROUP2GROUP",
+    "object2rule_table": "OBJECT2RULE",
+    "object2object_table": "OBJECT2OBJECT",
     "rules": [
         {
             "rule_id": 123,
@@ -110,9 +110,9 @@ Configurations are stored in a json file(such as maat_json.json), which is loade
             "do_log": 1,
             "user_region": "anything",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
-                    "group_name": "Untitled",
+                    "object_name": "Untitled",
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -216,8 +216,8 @@ In the callback scenario, only the schema of the corresponding table needs to be
 ```json
 {
     "rule_table": "RULE",
-    "group2rule_table": "GROUP2RULE",
-    "group2group_table": "GROUP2GROUP",
+    "object2rule_table": "OBJECT2RULE",
+    "object2object_table": "OBJECT2OBJECT",
     "plugin_table": {
         "table_name": "TEST_IP_PLUGIN_WITH_EXDATA",
         "table_content": [

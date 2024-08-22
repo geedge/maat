@@ -25,7 +25,7 @@
 
 struct ip_schema {
     int item_id_column;
-    int group_id_column;
+    int object_id_column;
     int ip_column;
     int table_id;
     int port_column;
@@ -44,7 +44,7 @@ struct ipv6_item_rule {
 
 struct ip_item {
     long long item_id;
-    long long group_id;
+    long long object_id;
     int addr_type;
     union {
         struct ipv4_item_rule ipv4;
@@ -107,12 +107,12 @@ void *ip_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "group_id");
+    custom_item = cJSON_GetObjectItem(item, "object_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        ip_schema->group_id_column = custom_item->valueint;
+        ip_schema->object_id_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_IP, 
-                  "[%s:%d] ip table:<%s> schema has no group_id column", 
+                  "[%s:%d] ip table:<%s> schema has no object_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -164,15 +164,15 @@ ip_item_new(struct ip_schema *ip_schema, const char *table_name,
     }
     ip_item->item_id = atoll(line + column_offset);
 
-    ret = get_column_pos(line, ip_schema->group_id_column, &column_offset,
+    ret = get_column_pos(line, ip_schema->object_id_column, &column_offset,
                          &column_len);
     if (ret < 0) {
         log_fatal(logger, MODULE_IP,
-                  "[%s:%d] ip table:<%s> has no group_id in line:%s",
+                  "[%s:%d] ip table:<%s> has no object_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
-    ip_item->group_id = atoll(line + column_offset);
+    ip_item->object_id = atoll(line + column_offset);
 
     ret = get_column_pos(line, ip_schema->ip_column, &column_offset,
                          &column_len);
@@ -522,9 +522,9 @@ long long ip_runtime_ipv6_rule_count(void *ip_runtime)
 int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type, 
                     uint8_t *ip_addr, int port, int attribute_id, struct maat_state *state)
 {
-    //clear rule_state->last_hit_group
+    //clear rule_state->last_hit_object
     if (state != NULL && state->rule_state != NULL) {
-        rule_state_clear_last_hit_group(state->rule_state);
+        rule_state_clear_last_hit_object(state->rule_state);
     }
 
     if (0 == ip_rt->rule_num) {
@@ -584,7 +584,7 @@ int ip_runtime_scan(struct ip_runtime *ip_rt, int thread_id, int ip_type,
         }
         
         hit_maat_items[real_hit_item_cnt].item_id = ip_results[i].rule_id;
-        hit_maat_items[real_hit_item_cnt].group_id = ip_item->group_id;
+        hit_maat_items[real_hit_item_cnt].object_id = ip_item->object_id;
         real_hit_item_cnt++;
     }
 

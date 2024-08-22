@@ -21,7 +21,7 @@
 #include "igraph/igraph.h"
 #include "maat_rule.h"
 #include "maat_garbage_collection.h"
-#include "maat_group.h"
+#include "maat_object.h"
 #include "maat_ex_data.h"
 #include "maat_table.h"
 #include "alignment.h"
@@ -44,8 +44,8 @@ struct rule_schema {
     struct log_handle *logger;
 };
 
-struct group2rule_schema {
-    int group_id_column;
+struct object2rule_schema {
+    int object_id_column;
     int rule_id_column;
     int negate_option_column;
     int attribute_name_column;
@@ -62,8 +62,8 @@ struct rule_item {
     size_t table_line_len;
 };
 
-struct group2rule_item {
-    UT_array *group_ids;
+struct object2rule_item {
+    UT_array *object_ids;
     long long rule_id;
     int negate_option;
     int attribute_id;
@@ -71,7 +71,7 @@ struct group2rule_item {
 };
 
 struct condition_query_key {
-	long long group_id;
+	long long object_id;
     int attribute_id;
     int negate_option;
 };
@@ -86,17 +86,17 @@ struct table_condition {
     int attribute_id;
     int actual_condition_num;
     UT_array *condition_ids;
-    UT_array *group_ids;
+    UT_array *object_ids;
     UT_hash_handle hh;
 };
 
-struct table_group {
+struct table_object {
     int attribute_id;
-    UT_array *group_ids;
+    UT_array *object_ids;
     UT_hash_handle hh;
 };
 
-/* rule_runtime and group2rule_runtime share rule_hash_map */
+/* rule_runtime and object2rule_runtime share rule_hash_map */
 struct rule_runtime {
 	struct bool_matcher *bm;
     struct rcu_hash_table *cfg_hash;     // <rule_id, struct maat_rule>
@@ -112,7 +112,7 @@ struct rule_runtime {
     long long update_err_cnt;
 };
 
-struct group2rule_runtime {
+struct object2rule_runtime {
     long long not_condition_cnt;
     long long rule_num;
     long long update_err_cnt;
@@ -121,8 +121,8 @@ struct group2rule_runtime {
 };
 
 struct condition_literal {
-    long long group_ids[MAX_GROUP_CNT];
-    int group_cnt;
+    long long object_ids[MAX_OBJECT_CNT];
+    int object_cnt;
     int attribute_id;
 };
 
@@ -152,7 +152,7 @@ struct maat_rule {
 
 struct internal_hit_path {
     long long item_id;
-	long long group_id;
+	long long object_id;
 	int Nth_scan;
 	int attribute_id;
     int negate_option; // 1 means negate condition
@@ -173,17 +173,17 @@ struct rule_state {
 	UT_array *this_scan_hit_conditions;
 	UT_array *this_scan_hit_not_conditions;
     UT_array *exclude_not_conditions;
-    UT_array *direct_hit_groups;
-    UT_array *indirect_hit_groups;
-    UT_array *last_hit_groups;
+    UT_array *direct_hit_objects;
+    UT_array *indirect_hit_objects;
+    UT_array *last_hit_objects;
     UT_array *hit_rule_table_ids;
-    struct table_group *hit_not_tbl_groups;
+    struct table_object *hit_not_tbl_objects;
 };
 
 UT_icd ut_condition_id_icd = {sizeof(long long), NULL, NULL, NULL};
 UT_icd ut_condition_literal_icd = {sizeof(struct condition_literal), NULL, NULL, NULL};
-UT_icd ut_rule_group_id_icd = {sizeof(long long), NULL, NULL, NULL};
-UT_icd ut_maat_hit_group_icd = {sizeof(struct maat_hit_group), NULL, NULL, NULL};
+UT_icd ut_rule_object_id_icd = {sizeof(long long), NULL, NULL, NULL};
+UT_icd ut_maat_hit_object_icd = {sizeof(struct maat_hit_object), NULL, NULL, NULL};
 UT_icd ut_hit_path_icd = {sizeof(struct internal_hit_path), NULL, NULL, NULL};
 UT_icd ut_hit_rule_table_id_icd = {sizeof(struct rule2table_id), NULL, NULL, NULL};
 
@@ -415,10 +415,10 @@ void rule_schema_free(void *rule_schema)
 	FREE(rule_schema);
 }
 
-void *group2rule_schema_new(cJSON *json, struct table_manager *tbl_mgr,
+void *object2rule_schema_new(cJSON *json, struct table_manager *tbl_mgr,
                                const char *table_name, struct log_handle *logger)
 {
-	struct group2rule_schema *g2c_schema = ALLOC(struct group2rule_schema, 1);
+	struct object2rule_schema *g2c_schema = ALLOC(struct object2rule_schema, 1);
 
 	cJSON *custom_item = NULL;
     cJSON *item = cJSON_GetObjectItem(json, "table_id");
@@ -449,12 +449,12 @@ void *group2rule_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-	custom_item = cJSON_GetObjectItem(item, "group_id");
+	custom_item = cJSON_GetObjectItem(item, "object_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        g2c_schema->group_id_column = custom_item->valueint;
+        g2c_schema->object_id_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_RULE, 
-                  "[%s:%d] table: <%s> schema has no group_id column", 
+                  "[%s:%d] table: <%s> schema has no object_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -506,14 +506,14 @@ error:
 	return NULL;
 }
 
-void group2rule_schema_free(void *g2c_schema)
+void object2rule_schema_free(void *g2c_schema)
 {
 	FREE(g2c_schema);
 }
 
-int group2rule_associated_rule_table_id(void *g2c_schema)
+int object2rule_associated_rule_table_id(void *g2c_schema)
 {
-    struct group2rule_schema *schema = (struct group2rule_schema *)g2c_schema;
+    struct object2rule_schema *schema = (struct object2rule_schema *)g2c_schema;
 
     return schema->asso_rule_table_id;
 }
@@ -609,7 +609,7 @@ void rule_runtime_init(void *rule_runtime, struct maat_runtime *maat_rt)
     rule_rt->ref_maat_rt = maat_rt;
 }
 
-void *group2rule_runtime_new(void *g2c_schema, size_t max_thread_num,
+void *object2rule_runtime_new(void *g2c_schema, size_t max_thread_num,
                                 struct maat_garbage_bin *garbage_bin, 
                                 struct log_handle *logger)
 {
@@ -617,30 +617,30 @@ void *group2rule_runtime_new(void *g2c_schema, size_t max_thread_num,
         return NULL;
     }
 
-    struct group2rule_runtime *g2c_rt =
-        ALLOC(struct group2rule_runtime, 1);
+    struct object2rule_runtime *g2c_rt =
+        ALLOC(struct object2rule_runtime, 1);
 
     g2c_rt->tbl_not_condition_hash = NULL;
 
     return g2c_rt;
 }
 
-void group2rule_runtime_init(void *g2c_runtime, void *rule_runtime)
+void object2rule_runtime_init(void *g2c_runtime, void *rule_runtime)
 {
-    struct group2rule_runtime *g2c_rt =
-        (struct group2rule_runtime *)g2c_runtime;
+    struct object2rule_runtime *g2c_rt =
+        (struct object2rule_runtime *)g2c_runtime;
 
     g2c_rt->ref_rule_rt = (struct rule_runtime *)rule_runtime;
 }
 
-void group2rule_runtime_free(void *g2c_runtime)
+void object2rule_runtime_free(void *g2c_runtime)
 {
     if (NULL == g2c_runtime) {
         return;
     }
 
-    struct group2rule_runtime *g2c_rt =
-        (struct group2rule_runtime *)g2c_runtime;
+    struct object2rule_runtime *g2c_rt =
+        (struct object2rule_runtime *)g2c_runtime;
 
     if (g2c_rt->tbl_not_condition_hash != NULL) {
         struct table_condition *not_condition = NULL, *tmp_not_condition = NULL;
@@ -671,54 +671,54 @@ static int is_valid_table_name(const char *str)
 	return 1;
 }
 
-static void group2rule_item_free(struct group2rule_item *g2c_item)
+static void object2rule_item_free(struct object2rule_item *g2c_item)
 {
     if (NULL == g2c_item) {
         return;
     }
 
-    if (g2c_item->group_ids != NULL) {
-        utarray_free(g2c_item->group_ids);
-        g2c_item->group_ids = NULL;
+    if (g2c_item->object_ids != NULL) {
+        utarray_free(g2c_item->object_ids);
+        g2c_item->object_ids = NULL;
     }
 
     FREE(g2c_item);
 }
 
-static struct group2rule_item *
-group2rule_item_new(const char *line, struct group2rule_schema *g2c_schema,
+static struct object2rule_item *
+object2rule_item_new(const char *line, struct object2rule_schema *g2c_schema,
                        const char *table_name, struct log_handle *logger)
 {
     size_t column_offset = 0;
     size_t column_len = 0;
     char attribute_name[MAX_NAME_STR_LEN + 1] = {0};
-    struct group2rule_item *g2c_item = ALLOC(struct group2rule_item, 1);
-    utarray_new(g2c_item->group_ids, &ut_rule_group_id_icd);
+    struct object2rule_item *g2c_item = ALLOC(struct object2rule_item, 1);
+    utarray_new(g2c_item->object_ids, &ut_rule_object_id_icd);
 
-    int ret = get_column_pos(line, g2c_schema->group_id_column, &column_offset,
+    int ret = get_column_pos(line, g2c_schema->object_id_column, &column_offset,
                              &column_len);
     if (ret < 0) {
         log_fatal(logger, MODULE_RULE,
-				  "[%s:%d] g2c table:<%s> has no group_id in line:%s",
+				  "[%s:%d] g2c table:<%s> has no object_id in line:%s",
 				  __FUNCTION__, __LINE__, table_name, line);
 		goto error;
     }
 
-    char group_ids_str[MAX_GROUP_IDS_STR_LEN] = {0};
-    memcpy(group_ids_str, line + column_offset, MIN(MAX_GROUP_IDS_STR_LEN, column_len));
+    char object_ids_str[MAX_OBJECT_IDS_STR_LEN] = {0};
+    memcpy(object_ids_str, line + column_offset, MIN(MAX_OBJECT_IDS_STR_LEN, column_len));
 
-    ret = ids_str2longlong_array(group_ids_str, g2c_item->group_ids);
+    ret = ids_str2longlong_array(object_ids_str, g2c_item->object_ids);
     if (ret < 0) {
         log_fatal(logger, MODULE_RULE,
-				  "[%s:%d] g2c table:<%s> group_ids str2longlong failed in line:%s",
+				  "[%s:%d] g2c table:<%s> object_ids str2longlong failed in line:%s",
 				  __FUNCTION__, __LINE__, table_name, line);
 		goto error; 
     }
 
-    if (utarray_len(g2c_item->group_ids) > MAX_GROUP_CNT) {
+    if (utarray_len(g2c_item->object_ids) > MAX_OBJECT_CNT) {
         log_fatal(logger, MODULE_RULE,
-				  "[%s:%d] g2c table:<%s> group_ids exceed maximum:%d in line:%s",
-				  __FUNCTION__, __LINE__, table_name, MAX_GROUP_CNT, line);
+				  "[%s:%d] g2c table:<%s> object_ids exceed maximum:%d in line:%s",
+				  __FUNCTION__, __LINE__, table_name, MAX_OBJECT_CNT, line);
 		goto error;
     }
 
@@ -802,11 +802,11 @@ group2rule_item_new(const char *line, struct group2rule_schema *g2c_schema,
     return g2c_item;
 
 error:
-    group2rule_item_free(g2c_item);
+    object2rule_item_free(g2c_item);
     return NULL;
 }
 
-static inline int compare_group_id(const void *a, const void *b)
+static inline int compare_object_id(const void *a, const void *b)
 {
 	long long ret = *(const long long *)a - *(const long long *)b;
 
@@ -820,21 +820,21 @@ static inline int compare_group_id(const void *a, const void *b)
 }
 
 static void rule_condition_add_literal(struct rule_condition *condition,
-                                       struct group2rule_item *g2c_item)
+                                       struct object2rule_item *g2c_item)
 {
     struct condition_literal tmp_literal;
     tmp_literal.attribute_id = g2c_item->attribute_id;
-    tmp_literal.group_cnt = utarray_len(g2c_item->group_ids);
-    utarray_sort(g2c_item->group_ids, compare_group_id);
+    tmp_literal.object_cnt = utarray_len(g2c_item->object_ids);
+    utarray_sort(g2c_item->object_ids, compare_object_id);
 
-    for (size_t i = 0; i < utarray_len(g2c_item->group_ids); i++) {
-        tmp_literal.group_ids[i] = *(long long *)utarray_eltptr(g2c_item->group_ids, i);
+    for (size_t i = 0; i < utarray_len(g2c_item->object_ids); i++) {
+        tmp_literal.object_ids[i] = *(long long *)utarray_eltptr(g2c_item->object_ids, i);
     }
     utarray_push_back(condition->literals, &tmp_literal);
 }
 
 void rule_condition_remove_literal(struct rule_condition *condition,
-                                   struct group2rule_item *g2c_item)
+                                   struct object2rule_item *g2c_item)
 {
     struct condition_literal *tmp_literal = NULL;
 
@@ -849,7 +849,7 @@ void rule_condition_remove_literal(struct rule_condition *condition,
 }
 
 static int maat_rule_condition_find_literal(struct maat_rule *rule,
-                                            struct group2rule_item *g2c_item)
+                                            struct object2rule_item *g2c_item)
 {
     struct rule_condition *condition = rule->conditions + g2c_item->condition_index;
     struct condition_literal *tmp_literal = NULL;
@@ -866,7 +866,7 @@ static int maat_rule_condition_find_literal(struct maat_rule *rule,
 }
 
 static void maat_rule_condition_add_literal(struct maat_rule *rule,
-                                            struct group2rule_item *g2c_item)
+                                            struct object2rule_item *g2c_item)
 {
     struct rule_condition *condition = rule->conditions + g2c_item->condition_index;
 
@@ -881,7 +881,7 @@ static void maat_rule_condition_add_literal(struct maat_rule *rule,
 }
 
 static void maat_rule_condition_remove_literal(struct maat_rule *rule,
-                                               struct group2rule_item *g2c_item)
+                                               struct object2rule_item *g2c_item)
 {
     struct rule_condition *condition = rule->conditions + g2c_item->condition_index;
 
@@ -941,9 +941,9 @@ maat_rule_bool_matcher_new(struct rule_runtime *rule_rt,
                 struct condition_literal *tmp_cl = NULL;
 				for(tmp_cl = (struct condition_literal *)utarray_front(iter_rule->conditions[i].literals); tmp_cl !=NULL; 
                     tmp_cl = (struct condition_literal *)utarray_next(iter_rule->conditions[i].literals, tmp_cl)) {
-                    for (size_t it = 0; it < tmp_cl->group_cnt; it++) {
+                    for (size_t it = 0; it < tmp_cl->object_cnt; it++) {
                         printf("<before bool_matcher_new> rule_rt:%p rule_id:%lld, condition_id:%llu, condition_query_key{%lld: %d, %d}\n", 
-							rule_rt, iter_rule->rule_id, iter_rule->conditions[i].condition_id, tmp_cl->group_ids[it],
+							rule_rt, iter_rule->rule_id, iter_rule->conditions[i].condition_id, tmp_cl->object_ids[it],
                             tmp_cl->attribute_id, iter_rule->conditions[i].negate_option);
                     }
   				}
@@ -954,7 +954,7 @@ maat_rule_bool_matcher_new(struct rule_runtime *rule_rt,
             }
         }
 
-        // some rule may have zero groups, e.g. default policy.
+        // some rule may have zero objects, e.g. default policy.
         if (j == (size_t)iter_rule->declared_condition_num && j > 0) {
             bool_expr_array[expr_cnt].expr_id = iter_rule->rule_id;
             bool_expr_array[expr_cnt].user_tag = iter_rule;
@@ -1002,14 +1002,14 @@ static inline int compare_condition_id(const void *a, const void *b)
 	}
 }
 
-static inline int compare_hit_group(const void *pa, const void *pb)
+static inline int compare_hit_object(const void *pa, const void *pb)
 {
-	struct maat_hit_group *la=(struct maat_hit_group *)pa;
-	struct maat_hit_group *lb=(struct maat_hit_group *)pb;
+	struct maat_hit_object *la=(struct maat_hit_object *)pa;
+	struct maat_hit_object *lb=(struct maat_hit_object *)pb;
 
 	long long ret = la->item_id - lb->item_id;
 	if (0 == ret) {
-		ret = la->group_id - lb->group_id;
+		ret = la->object_id - lb->object_id;
         if (0 == ret) {
             ret = la->attribute_id - lb->attribute_id;
         }
@@ -1074,9 +1074,9 @@ build_condition_id_kv_hash(struct rule_runtime *rule_rt, int negate_option)
             for (size_t j = 0; j < utarray_len(condition->literals); j++) {
                 tmp_cl = (struct condition_literal *)utarray_eltptr(condition->literals, j);
 
-                for (size_t k = 0; k < tmp_cl->group_cnt; k++) {
+                for (size_t k = 0; k < tmp_cl->object_cnt; k++) {
                     struct condition_query_key key =
-                        {tmp_cl->group_ids[k], tmp_cl->attribute_id, condition->negate_option};
+                        {tmp_cl->object_ids[k], tmp_cl->attribute_id, condition->negate_option};
                     struct condition_id_kv *condition_id_kv = NULL;
                     
                     HASH_FIND(hh, condition_id_kv_hash, &key, sizeof(struct condition_query_key),
@@ -1268,8 +1268,8 @@ maat_rule_clone(struct maat_rule *rule, int deep_copy)
     return new_rule;
 }
 
-static int maat_add_group_to_rule(struct rcu_hash_table *hash_tbl,
-                                      struct group2rule_item *g2c_item,
+static int maat_add_object_to_rule(struct rcu_hash_table *hash_tbl,
+                                      struct object2rule_item *g2c_item,
                                       struct log_handle *logger)
 {
 	int ret = 0;
@@ -1340,8 +1340,8 @@ static int maat_add_group_to_rule(struct rcu_hash_table *hash_tbl,
     return 0;
 }
 
-static int maat_remove_group_from_rule(struct rcu_hash_table *hash_tbl,
-                                           struct group2rule_item *g2c_item,
+static int maat_remove_object_from_rule(struct rcu_hash_table *hash_tbl,
+                                           struct object2rule_item *g2c_item,
                                            struct log_handle *logger)
 {
 	int ret = 0;
@@ -1429,33 +1429,33 @@ struct rule_state *rule_state_new(void)
 	utarray_new(rule_state->this_scan_hit_conditions, &ut_condition_id_icd);
 	utarray_new(rule_state->this_scan_hit_not_conditions, &ut_condition_id_icd);
     utarray_new(rule_state->exclude_not_conditions, &ut_condition_id_icd);
-    utarray_new(rule_state->direct_hit_groups, &ut_maat_hit_group_icd);
-    utarray_new(rule_state->indirect_hit_groups, &ut_maat_hit_group_icd);
-    utarray_new(rule_state->last_hit_groups, &ut_maat_hit_group_icd);
+    utarray_new(rule_state->direct_hit_objects, &ut_maat_hit_object_icd);
+    utarray_new(rule_state->indirect_hit_objects, &ut_maat_hit_object_icd);
+    utarray_new(rule_state->last_hit_objects, &ut_maat_hit_object_icd);
     utarray_new(rule_state->hit_rule_table_ids, &ut_hit_rule_table_id_icd);
-    rule_state->hit_not_tbl_groups = NULL;
+    rule_state->hit_not_tbl_objects = NULL;
 
 	return rule_state;
 }
 
 static long long
-rule_state_hit_not_tbl_groups_free(struct rule_state *rule_state)
+rule_state_hit_not_tbl_objects_free(struct rule_state *rule_state)
 {
     if (NULL == rule_state) {
         return 0;
     }
 
     long long free_bytes = 0;
-    struct table_group *tbl_group = NULL, *tmp_tbl_group = NULL;
-    HASH_ITER(hh, rule_state->hit_not_tbl_groups, tbl_group, tmp_tbl_group) {
+    struct table_object *tbl_object = NULL, *tmp_tbl_object = NULL;
+    HASH_ITER(hh, rule_state->hit_not_tbl_objects, tbl_object, tmp_tbl_object) {
         free_bytes +=
-            (sizeof(tbl_group) + utarray_len(tbl_group->group_ids) * sizeof(long long));
-        HASH_DEL(rule_state->hit_not_tbl_groups, tbl_group);
-        if (tbl_group->group_ids != NULL) {
-            utarray_free(tbl_group->group_ids);
-            tbl_group->group_ids = NULL;
+            (sizeof(tbl_object) + utarray_len(tbl_object->object_ids) * sizeof(long long));
+        HASH_DEL(rule_state->hit_not_tbl_objects, tbl_object);
+        if (tbl_object->object_ids != NULL) {
+            utarray_free(tbl_object->object_ids);
+            tbl_object->object_ids = NULL;
         }
-        FREE(tbl_group);
+        FREE(tbl_object);
     }
 
     return free_bytes;
@@ -1476,14 +1476,14 @@ void rule_state_reset(struct rule_state *rule_state)
     utarray_clear(rule_state->this_scan_hit_conditions);
     utarray_clear(rule_state->this_scan_hit_not_conditions);
     utarray_clear(rule_state->exclude_not_conditions);
-    utarray_clear(rule_state->direct_hit_groups);
-    utarray_clear(rule_state->indirect_hit_groups);
-    utarray_clear(rule_state->last_hit_groups);
+    utarray_clear(rule_state->direct_hit_objects);
+    utarray_clear(rule_state->indirect_hit_objects);
+    utarray_clear(rule_state->last_hit_objects);
     utarray_clear(rule_state->hit_rule_table_ids);
 
-    struct table_group *tbl_group = NULL, *tmp_tbl_group = NULL;
-    HASH_ITER(hh, rule_state->hit_not_tbl_groups, tbl_group, tmp_tbl_group) {
-        utarray_clear(tbl_group->group_ids);
+    struct table_object *tbl_object = NULL, *tmp_tbl_object = NULL;
+    HASH_ITER(hh, rule_state->hit_not_tbl_objects, tbl_object, tmp_tbl_object) {
+        utarray_clear(tbl_object->object_ids);
     }
 }
 
@@ -1530,25 +1530,25 @@ void rule_state_free(struct rule_state *rule_state,
         rule_state->exclude_not_conditions = NULL;
     }
 
-    if (rule_state->direct_hit_groups != NULL) {
-        free_bytes += utarray_size(rule_state->direct_hit_groups) *
-                      sizeof(struct maat_hit_group);
-        utarray_free(rule_state->direct_hit_groups);
-        rule_state->direct_hit_groups = NULL;
+    if (rule_state->direct_hit_objects != NULL) {
+        free_bytes += utarray_size(rule_state->direct_hit_objects) *
+                      sizeof(struct maat_hit_object);
+        utarray_free(rule_state->direct_hit_objects);
+        rule_state->direct_hit_objects = NULL;
     }
 
-    if (rule_state->indirect_hit_groups != NULL) {
-        free_bytes += utarray_size(rule_state->indirect_hit_groups) *
-                      sizeof(struct maat_hit_group);
-        utarray_free(rule_state->indirect_hit_groups);
-        rule_state->indirect_hit_groups = NULL;
+    if (rule_state->indirect_hit_objects != NULL) {
+        free_bytes += utarray_size(rule_state->indirect_hit_objects) *
+                      sizeof(struct maat_hit_object);
+        utarray_free(rule_state->indirect_hit_objects);
+        rule_state->indirect_hit_objects = NULL;
     }
 
-    if (rule_state->last_hit_groups != NULL) {
-        free_bytes += utarray_size(rule_state->last_hit_groups) *
-                      sizeof(struct maat_hit_group);
-        utarray_free(rule_state->last_hit_groups);
-        rule_state->last_hit_groups = NULL;
+    if (rule_state->last_hit_objects != NULL) {
+        free_bytes += utarray_size(rule_state->last_hit_objects) *
+                      sizeof(struct maat_hit_object);
+        utarray_free(rule_state->last_hit_objects);
+        rule_state->last_hit_objects = NULL;
     }
 
     if (rule_state->hit_rule_table_ids != NULL) {
@@ -1558,7 +1558,7 @@ void rule_state_free(struct rule_state *rule_state,
         rule_state->hit_rule_table_ids = NULL;
     }
 
-    free_bytes += rule_state_hit_not_tbl_groups_free(rule_state);
+    free_bytes += rule_state_hit_not_tbl_objects_free(rule_state);
 
 	FREE(rule_state);
 
@@ -1569,7 +1569,7 @@ void rule_state_free(struct rule_state *rule_state,
 
 static void
 rule_state_add_internal_hit_path(struct rule_state *rule_state,
-                                    long long item_id, long long group_id,
+                                    long long item_id, long long object_id,
                                     int attribute_id, int negate_option, int Nth_scan)
 {
     if (NULL == rule_state) {
@@ -1579,7 +1579,7 @@ rule_state_add_internal_hit_path(struct rule_state *rule_state,
 	struct internal_hit_path new_path;
 	new_path.item_id = item_id;
 	new_path.Nth_scan = Nth_scan;
-	new_path.group_id = group_id;
+	new_path.object_id = object_id;
 	new_path.attribute_id = attribute_id;
     new_path.negate_option = negate_option;
 
@@ -1606,10 +1606,10 @@ static int maat_rule_has_condition_query_key(struct maat_rule *rule,
                 continue;
             }
 
-            long long *tmp_group_id = bsearch(&(key->group_id), tmp_cl->group_ids,
-                                              tmp_cl->group_cnt, sizeof(long long),
-                                              compare_group_id);
-            if (tmp_group_id != NULL) {
+            long long *tmp_object_id = bsearch(&(key->object_id), tmp_cl->object_ids,
+                                              tmp_cl->object_cnt, sizeof(long long),
+                                              compare_object_id);
+            if (tmp_object_id != NULL) {
                 return 1;
             }
         }
@@ -1620,7 +1620,7 @@ static int maat_rule_has_condition_query_key(struct maat_rule *rule,
 
 static size_t
 maat_rule_get_hit_condition_index(struct maat_rule *rule, 
-                                  int attribute_id, long long hit_group_id,
+                                  int attribute_id, long long hit_object_id,
                                   int *condition_idx_array, size_t array_size)
 {
     size_t hit_condition_cnt = 0;
@@ -1639,10 +1639,10 @@ maat_rule_get_hit_condition_index(struct maat_rule *rule,
                 continue;
             }
 
-            long long *tmp_group_id = bsearch(&hit_group_id, tmp_cl->group_ids,
-                                              tmp_cl->group_cnt, sizeof(long long),
-                                              compare_group_id);
-            if (tmp_group_id != NULL) {
+            long long *tmp_object_id = bsearch(&hit_object_id, tmp_cl->object_ids,
+                                              tmp_cl->object_cnt, sizeof(long long),
+                                              compare_object_id);
+            if (tmp_object_id != NULL) {
                 condition_idx_array[hit_condition_cnt++] = i;
                 break;
             }
@@ -1676,8 +1676,8 @@ void populate_hit_path_with_rule(struct maat_hit_path *hit_path_array,
     size_t new_hit_path_cnt = *n_new_hit_path;
     int condition_index_array[MAX_ITEMS_PER_BOOL_EXPR] = {0};
 
-    if (hit_path_array[idx].top_group_id < 0) {
-        hit_path_array[idx].top_group_id = hit_path_array[idx].sub_group_id;
+    if (hit_path_array[idx].top_object_id < 0) {
+        hit_path_array[idx].top_object_id = hit_path_array[idx].sub_object_id;
     }
 
     struct maat_hit_path tmp_path;
@@ -1686,7 +1686,7 @@ void populate_hit_path_with_rule(struct maat_hit_path *hit_path_array,
         // find out which condition in rule hit
         n_condition_index =
             maat_rule_get_hit_condition_index(rule, hit_path_array[idx].attribute_id,
-                                              hit_path_array[idx].top_group_id,
+                                              hit_path_array[idx].top_object_id,
                                               condition_index_array,
                                               MAX_ITEMS_PER_BOOL_EXPR);
         hit_path_array[idx].condition_index = condition_index_array[0];
@@ -1706,7 +1706,7 @@ void populate_hit_path_with_rule(struct maat_hit_path *hit_path_array,
             hit_path_array[n_hit_path + new_hit_path_cnt] = tmp_path;
             new_hit_path_cnt++;
             n_condition_index =
-                maat_rule_get_hit_condition_index(rule, tmp_path.attribute_id, tmp_path.top_group_id,
+                maat_rule_get_hit_condition_index(rule, tmp_path.attribute_id, tmp_path.top_object_id,
                                                   condition_index_array, MAX_ITEMS_PER_BOOL_EXPR);
             hit_path_array[n_hit_path + new_hit_path_cnt - 1].condition_index = condition_index_array[0];
             if (n_condition_index > 1) {
@@ -1754,10 +1754,10 @@ size_t rule_runtime_get_hit_paths(struct rule_runtime *rule_rt, int thread_id,
 		}
 
         for (size_t j = 0; j < n_hit_path && (n_hit_path + n_new_hit_path) < array_size; j++) {
-			if (hit_path_array[j].top_group_id < 0) {
-                key.group_id = hit_path_array[j].sub_group_id;
+			if (hit_path_array[j].top_object_id < 0) {
+                key.object_id = hit_path_array[j].sub_object_id;
 			} else {
-                key.group_id = hit_path_array[j].top_group_id;
+                key.object_id = hit_path_array[j].top_object_id;
             }
 
 			key.attribute_id = hit_path_array[j].attribute_id;
@@ -1773,7 +1773,7 @@ size_t rule_runtime_get_hit_paths(struct rule_runtime *rule_rt, int thread_id,
 }
 
 static void
-rule_state_add_direct_hit_groups(struct rule_state *rule_state,
+rule_state_add_direct_hit_objects(struct rule_state *rule_state,
                                     struct maat_item *hit_items,
                                     size_t n_hit_items, int attribute_id)
 {
@@ -1781,30 +1781,30 @@ rule_state_add_direct_hit_groups(struct rule_state *rule_state,
         return;
     }
 
-    struct maat_hit_group hit_group;
+    struct maat_hit_object hit_object;
     for (size_t i = 0; i < n_hit_items; i++) {
-        hit_group.item_id = hit_items[i].item_id;
-        hit_group.group_id = hit_items[i].group_id;
-        hit_group.attribute_id = attribute_id;
-        utarray_push_back(rule_state->direct_hit_groups, &hit_group);
+        hit_object.item_id = hit_items[i].item_id;
+        hit_object.object_id = hit_items[i].object_id;
+        hit_object.attribute_id = attribute_id;
+        utarray_push_back(rule_state->direct_hit_objects, &hit_object);
     }
 }
 
 static void
-rule_state_add_indirect_hit_groups(struct rule_state *rule_state,
-                                      long long *group_ids,
-                                      size_t n_group_ids, int attribute_id)
+rule_state_add_indirect_hit_objects(struct rule_state *rule_state,
+                                      long long *object_ids,
+                                      size_t n_object_ids, int attribute_id)
 {
-    if (NULL == rule_state || NULL == group_ids) {
+    if (NULL == rule_state || NULL == object_ids) {
         return;
     }
 
-    struct maat_hit_group hit_group;
-    for (size_t i = 0; i < n_group_ids; i++) {
-        hit_group.item_id = 0;
-        hit_group.group_id = group_ids[i];
-        hit_group.attribute_id = attribute_id;
-        utarray_push_back(rule_state->indirect_hit_groups, &hit_group);
+    struct maat_hit_object hit_object;
+    for (size_t i = 0; i < n_object_ids; i++) {
+        hit_object.item_id = 0;
+        hit_object.object_id = object_ids[i];
+        hit_object.attribute_id = attribute_id;
+        utarray_push_back(rule_state->indirect_hit_objects, &hit_object);
     }
 }
 
@@ -1887,13 +1887,13 @@ rule_state_add_hit_not_conditions(struct rule_state *rule_state,
 static void
 rule_state_update_hit_conditions(struct rule_state *rule_state,
                                  struct rule_runtime *rule_rt,
-                                 long long group_id, int attribute_id)
+                                 long long object_id, int attribute_id)
 {
     if (NULL == rule_state || NULL == rule_rt) {
         return;
     }
 
-    struct condition_query_key key = {group_id, attribute_id, 0};
+    struct condition_query_key key = {object_id, attribute_id, 0};
     struct condition_id_kv *condition_id_kv = NULL;
 
     HASH_FIND(hh, rule_rt->condition_id_kv_hash, &key, sizeof(key), condition_id_kv);
@@ -1909,31 +1909,31 @@ rule_state_update_hit_conditions(struct rule_state *rule_state,
 }
 
 static void
-rule_state_cache_hit_not_groups(struct rule_state *rule_state,
+rule_state_cache_hit_not_objects(struct rule_state *rule_state,
                                    struct rule_runtime *rule_rt,
-                                   long long *hit_group_ids,
-                                   size_t n_hit_group_id, int attribute_id)
+                                   long long *hit_object_ids,
+                                   size_t n_hit_object_id, int attribute_id)
 {
     if (NULL == rule_state || NULL == rule_rt) {
         return;
     }
 
-    if (n_hit_group_id != 0) {
-        qsort(hit_group_ids, n_hit_group_id, sizeof(long long), compare_group_id);
+    if (n_hit_object_id != 0) {
+        qsort(hit_object_ids, n_hit_object_id, sizeof(long long), compare_object_id);
     }
 
-    struct table_group *tbl_group = NULL;
-    HASH_FIND(hh, rule_state->hit_not_tbl_groups, &attribute_id, sizeof(int), tbl_group);
-    if (tbl_group != NULL) {
-        for (size_t i = 0; i < n_hit_group_id; i++) {
-            long long *group_id = (long long *)utarray_find(tbl_group->group_ids,
-                                                            &hit_group_ids[i],
-                                                            compare_group_id);
-            if (NULL == group_id) {
+    struct table_object *tbl_object = NULL;
+    HASH_FIND(hh, rule_state->hit_not_tbl_objects, &attribute_id, sizeof(int), tbl_object);
+    if (tbl_object != NULL) {
+        for (size_t i = 0; i < n_hit_object_id; i++) {
+            long long *object_id = (long long *)utarray_find(tbl_object->object_ids,
+                                                            &hit_object_ids[i],
+                                                            compare_object_id);
+            if (NULL == object_id) {
                 continue;
             }
-            size_t remove_idx = utarray_eltidx(tbl_group->group_ids, group_id);
-            utarray_erase(tbl_group->group_ids, remove_idx, 1);
+            size_t remove_idx = utarray_eltidx(tbl_object->object_ids, object_id);
+            utarray_erase(tbl_object->object_ids, remove_idx, 1);
         }
     }
 
@@ -1943,28 +1943,28 @@ rule_state_cache_hit_not_groups(struct rule_state *rule_state,
             continue;
         }
 
-        long long *tmp_group_id =
-            bsearch(&(condition_id_kv->key.group_id), hit_group_ids,
-                    n_hit_group_id, sizeof(long long), compare_group_id);
-        if (tmp_group_id != NULL) {
+        long long *tmp_object_id =
+            bsearch(&(condition_id_kv->key.object_id), hit_object_ids,
+                    n_hit_object_id, sizeof(long long), compare_object_id);
+        if (tmp_object_id != NULL) {
             continue;
         }
 
-        if (NULL == tbl_group) {
-            tbl_group = ALLOC(struct table_group, 1);
-            tbl_group->attribute_id = attribute_id;
-            utarray_new(tbl_group->group_ids, &ut_rule_group_id_icd);
-            HASH_ADD_INT(rule_state->hit_not_tbl_groups, attribute_id, tbl_group);
+        if (NULL == tbl_object) {
+            tbl_object = ALLOC(struct table_object, 1);
+            tbl_object->attribute_id = attribute_id;
+            utarray_new(tbl_object->object_ids, &ut_rule_object_id_icd);
+            HASH_ADD_INT(rule_state->hit_not_tbl_objects, attribute_id, tbl_object);
         }
 
-        if (!utarray_find(tbl_group->group_ids, &(condition_id_kv->key.group_id),
-                          compare_group_id)) {
-            utarray_push_back(tbl_group->group_ids, &(condition_id_kv->key.group_id));
+        if (!utarray_find(tbl_object->object_ids, &(condition_id_kv->key.object_id),
+                          compare_object_id)) {
+            utarray_push_back(tbl_object->object_ids, &(condition_id_kv->key.object_id));
         }
     }
 
-    if (tbl_group != NULL) {
-        utarray_sort(tbl_group->group_ids, compare_group_id);
+    if (tbl_object != NULL) {
+        utarray_sort(tbl_object->object_ids, compare_object_id);
     }
 }
 
@@ -2009,14 +2009,14 @@ rule_runtime_add_rule(struct rule_runtime *rule_rt,
                                          sizeof(long long));
         if (rule != NULL) {
             /****************************************************************
-               rule found in updating hash(added by group2rule runtime), which means
+               rule found in updating hash(added by object2rule runtime), which means
 
                1. rcu_hash_add(htable, rule) ==> finished
                2. rcu_hash_commit(htable)       ==> undo
                because it's in updating hash, we can modify it directly
            ******************************************************************/
 
-            /* rule has group2rule_table info, so set rule_table info */
+            /* rule has object2rule_table info, so set rule_table info */
             maat_rule_set(rule, table_id, rule_item->declared_condition_num, rule_item);
         } else {
             // rule neither in effective hash nor in updating hash
@@ -2029,7 +2029,7 @@ rule_runtime_add_rule(struct rule_runtime *rule_rt,
         rule = rcu_hash_find(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long));
         if (rule != NULL) {
             /********************************************************************************
-               rule found in effective hash(added by group2rule runtime), which means
+               rule found in effective hash(added by object2rule runtime), which means
 
                1. rcu_hash_add(htable, rule)  ==> finished
                2. rcu_hash_commit(htable)        ==> finished
@@ -2043,7 +2043,7 @@ rule_runtime_add_rule(struct rule_runtime *rule_rt,
             /* delete rule from rcu hash */
             rcu_hash_del(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long));
 
-            /* copy_rule has group2rule_table info, so set rule_table info */
+            /* copy_rule has object2rule_table info, so set rule_table info */
             maat_rule_set(copy_rule, table_id, rule_item->declared_condition_num, rule_item);
             /* add copy_rule to rcu hash */
             rcu_hash_add(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long), copy_rule);
@@ -2171,7 +2171,7 @@ int rule_runtime_update(void *rule_runtime, void *rule_schema,
     return 0;
 }
 
-static int validate_table_not_condition(struct group2rule_runtime *g2c_rt,
+static int validate_table_not_condition(struct object2rule_runtime *g2c_rt,
                                      struct table_manager *tbl_mgr, int table_id,
                                      int is_valid, struct log_handle *logger)
 {
@@ -2207,7 +2207,7 @@ static int validate_table_not_condition(struct group2rule_runtime *g2c_rt,
     return 0;
 }
 
-int group2rule_runtime_update(void *g2c_runtime, void *g2c_schema, 
+int object2rule_runtime_update(void *g2c_runtime, void *g2c_schema, 
                                  const char *table_name, const char *line, 
                                  int valid_column)
 {
@@ -2215,8 +2215,8 @@ int group2rule_runtime_update(void *g2c_runtime, void *g2c_schema,
         return -1;
     }
 
-    struct group2rule_schema *schema = (struct group2rule_schema *)g2c_schema;
-    struct group2rule_runtime *g2c_rt = (struct group2rule_runtime *)g2c_runtime;
+    struct object2rule_schema *schema = (struct object2rule_schema *)g2c_schema;
+    struct object2rule_runtime *g2c_rt = (struct object2rule_runtime *)g2c_runtime;
     struct rule_runtime *rule_rt = g2c_rt->ref_rule_rt;
 
     int is_valid = get_column_value(line, valid_column);
@@ -2230,8 +2230,8 @@ int group2rule_runtime_update(void *g2c_runtime, void *g2c_schema,
     } 
     
     int ret = -1;
-    struct group2rule_item *g2c_item =
-        group2rule_item_new(line, schema, table_name, rule_rt->logger);
+    struct object2rule_item *g2c_item =
+        object2rule_item_new(line, schema, table_name, rule_rt->logger);
     if (NULL == g2c_item) {
         g2c_rt->update_err_cnt++;
         return -1;
@@ -2251,7 +2251,7 @@ int group2rule_runtime_update(void *g2c_runtime, void *g2c_schema,
 
     if (0 == is_valid) {
         //delete
-        ret = maat_remove_group_from_rule(rule_rt->cfg_hash, g2c_item,
+        ret = maat_remove_object_from_rule(rule_rt->cfg_hash, g2c_item,
                                              rule_rt->logger);
         if (0 == ret) {
             if (g2c_item->negate_option) {
@@ -2263,7 +2263,7 @@ int group2rule_runtime_update(void *g2c_runtime, void *g2c_schema,
         }
     } else {
         //add
-        ret = maat_add_group_to_rule(rule_rt->cfg_hash, g2c_item,
+        ret = maat_add_object_to_rule(rule_rt->cfg_hash, g2c_item,
                                         rule_rt->logger);
         if (0 == ret) {
             if (g2c_item->negate_option) {
@@ -2276,42 +2276,42 @@ int group2rule_runtime_update(void *g2c_runtime, void *g2c_schema,
     }
 
 next:
-    group2rule_item_free(g2c_item);
+    object2rule_item_free(g2c_item);
     return ret;
 }
 
-long long group2rule_runtime_not_condition_count(void *g2c_runtime)
+long long object2rule_runtime_not_condition_count(void *g2c_runtime)
 {
      if (NULL == g2c_runtime) {
         return 0;
     }
     
-    struct group2rule_runtime *g2c_rt =
-        (struct group2rule_runtime *)g2c_runtime;
+    struct object2rule_runtime *g2c_rt =
+        (struct object2rule_runtime *)g2c_runtime;
 
     return g2c_rt->not_condition_cnt;
 }
 
-long long group2rule_runtime_rule_count(void *g2c_runtime)
+long long object2rule_runtime_rule_count(void *g2c_runtime)
 {
     if (NULL == g2c_runtime) {
         return 0;
     }
     
-    struct group2rule_runtime *g2c_rt =
-        (struct group2rule_runtime *)g2c_runtime;
+    struct object2rule_runtime *g2c_rt =
+        (struct object2rule_runtime *)g2c_runtime;
 
     return g2c_rt->rule_num;
 }
 
-long long group2rule_runtime_update_err_count(void *g2c_runtime)
+long long object2rule_runtime_update_err_count(void *g2c_runtime)
 {   
     if (NULL == g2c_runtime) {
         return 0;
     }
 
-    struct group2rule_runtime *g2c_rt =
-        (struct group2rule_runtime *)g2c_runtime;
+    struct object2rule_runtime *g2c_rt =
+        (struct object2rule_runtime *)g2c_runtime;
 
     return g2c_rt->update_err_cnt;
 }
@@ -2483,47 +2483,47 @@ int rule_state_update(struct rule_state *rule_state, struct maat *maat_inst,
 {
     size_t i = 0, j = 0;
     size_t hit_cnt = n_hit_item;
-    long long hit_group_ids[MAX_HIT_GROUP_NUM];
-    struct maat_hit_group hit_group;
+    long long hit_object_ids[MAX_HIT_OBJECT_NUM];
+    struct maat_hit_object hit_object;
 
     utarray_clear(rule_state->this_scan_hit_conditions);
     rule_state->this_scan_not_logic = 0;
     rule_state->Nth_scan = Nth_scan;
 
     for (i = 0; i < hit_cnt; i++) {
-        hit_group_ids[i] = hit_items[i].group_id;
+        hit_object_ids[i] = hit_items[i].object_id;
 
-        hit_group.item_id = hit_items[i].item_id;
-        hit_group.group_id = hit_items[i].group_id;
-        hit_group.attribute_id = attribute_id;
-        utarray_push_back(rule_state->last_hit_groups, &hit_group);
+        hit_object.item_id = hit_items[i].item_id;
+        hit_object.object_id = hit_items[i].object_id;
+        hit_object.attribute_id = attribute_id;
+        utarray_push_back(rule_state->last_hit_objects, &hit_object);
     }
 
-    int g2g_table_id = table_manager_get_group2group_table_id(maat_inst->tbl_mgr);
+    int g2g_table_id = table_manager_get_object2object_table_id(maat_inst->tbl_mgr);
     void *g2g_rt = table_manager_get_runtime(maat_inst->tbl_mgr, g2g_table_id);
 
-    long long super_group_ids[MAX_HIT_GROUP_NUM];
-    size_t super_group_cnt = group2group_runtime_get_super_groups(g2g_rt, hit_group_ids,
-                                                                  hit_cnt, super_group_ids,
-                                                                  MAX_HIT_GROUP_NUM);
-    for (i = 0; i < super_group_cnt; i++) {
-        hit_group.item_id = 0;
-        hit_group.group_id = super_group_ids[i];
-        hit_group.attribute_id = attribute_id;
-        utarray_push_back(rule_state->last_hit_groups, &hit_group);
+    long long super_object_ids[MAX_HIT_OBJECT_NUM];
+    size_t super_object_cnt = object2object_runtime_get_super_objects(g2g_rt, hit_object_ids,
+                                                                  hit_cnt, super_object_ids,
+                                                                  MAX_HIT_OBJECT_NUM);
+    for (i = 0; i < super_object_cnt; i++) {
+        hit_object.item_id = 0;
+        hit_object.object_id = super_object_ids[i];
+        hit_object.attribute_id = attribute_id;
+        utarray_push_back(rule_state->last_hit_objects, &hit_object);
     }
 
     if (1 == maat_inst->opts.hit_path_on && hit_cnt > 0) {
         for (i = 0; i < hit_cnt; i++) {
             rule_state_add_internal_hit_path(rule_state, hit_items[i].item_id,
-                                                hit_items[i].group_id, attribute_id, 0, Nth_scan);
+                                                hit_items[i].object_id, attribute_id, 0, Nth_scan);
         }
     }
 
-    if (1 == maat_inst->opts.hit_group_on) {
-        rule_state_add_direct_hit_groups(rule_state, hit_items, hit_cnt, attribute_id);
-        rule_state_add_indirect_hit_groups(rule_state, super_group_ids,
-                                              super_group_cnt, attribute_id);
+    if (1 == maat_inst->opts.hit_object_on) {
+        rule_state_add_direct_hit_objects(rule_state, hit_items, hit_cnt, attribute_id);
+        rule_state_add_indirect_hit_objects(rule_state, super_object_ids,
+                                              super_object_cnt, attribute_id);
     }
 
     /* update hit condition */
@@ -2538,27 +2538,27 @@ int rule_state_update(struct rule_state *rule_state, struct maat *maat_inst,
         return 0;
     }
 
-    for (j = 0; j < super_group_cnt && hit_cnt < MAX_HIT_GROUP_NUM; j++) {
-        hit_group_ids[hit_cnt++] = super_group_ids[j];
+    for (j = 0; j < super_object_cnt && hit_cnt < MAX_HIT_OBJECT_NUM; j++) {
+        hit_object_ids[hit_cnt++] = super_object_ids[j];
     }
 
     for (i = 0; i < hit_cnt; i++) {
         rule_state_update_hit_conditions(rule_state, rule_rt,
-                                         hit_group_ids[i], attribute_id);
+                                         hit_object_ids[i], attribute_id);
     }
 
-    rule_state_cache_hit_not_groups(rule_state, rule_rt, hit_group_ids,
+    rule_state_cache_hit_not_objects(rule_state, rule_rt, hit_object_ids,
                                        hit_cnt, attribute_id); 
     return hit_cnt;
 }
 
-void rule_state_clear_last_hit_group(struct rule_state *rule_state)
+void rule_state_clear_last_hit_object(struct rule_state *rule_state)
 {
     if (NULL == rule_state) {
         return;
     }
 
-    utarray_clear(rule_state->last_hit_groups);
+    utarray_clear(rule_state->last_hit_objects);
 }
 
 void rule_state_not_logic_update(struct rule_state *rule_state,
@@ -2574,16 +2574,16 @@ void rule_state_not_logic_update(struct rule_state *rule_state,
     rule_state->Nth_scan = Nth_scan;
     utarray_clear(rule_state->this_scan_hit_not_conditions);
 
-    struct table_group *tbl_group = NULL;
-    HASH_FIND(hh, rule_state->hit_not_tbl_groups, &attribute_id, sizeof(int), tbl_group);
-    if (NULL == tbl_group) {
+    struct table_object *tbl_object = NULL;
+    HASH_FIND(hh, rule_state->hit_not_tbl_objects, &attribute_id, sizeof(int), tbl_object);
+    if (NULL == tbl_object) {
         return;
     }
 
     struct condition_id_kv *condition_id_kv = NULL;
-    for (size_t i = 0; i < utarray_len(tbl_group->group_ids); i++) {
-        long long *group_id = utarray_eltptr(tbl_group->group_ids, i);
-        struct condition_query_key key = {*group_id, attribute_id, 1};
+    for (size_t i = 0; i < utarray_len(tbl_object->object_ids); i++) {
+        long long *object_id = utarray_eltptr(tbl_object->object_ids, i);
+        struct condition_query_key key = {*object_id, attribute_id, 1};
         
         HASH_FIND(hh, rule_rt->not_condition_id_kv_hash, &key, sizeof(key), condition_id_kv);
         if (NULL == condition_id_kv) {
@@ -2592,83 +2592,83 @@ void rule_state_not_logic_update(struct rule_state *rule_state,
 
         rule_state_add_hit_not_conditions(rule_state, condition_id_kv->condition_ids);
         if (1 == maat_inst->opts.hit_path_on) {
-            rule_state_add_internal_hit_path(rule_state, -1, *group_id,
+            rule_state_add_internal_hit_path(rule_state, -1, *object_id,
                                                 attribute_id, 1, Nth_scan);
         }
     }
 }
 
-size_t rule_state_get_indirect_hit_groups(struct rule_state *rule_state,
-                                             struct maat_hit_group *group_array,
+size_t rule_state_get_indirect_hit_objects(struct rule_state *rule_state,
+                                             struct maat_hit_object *object_array,
                                              size_t array_size)
 {
     size_t i = 0;
-    struct maat_hit_group *hit_group = NULL;
-    for (i = 0; i < utarray_len(rule_state->indirect_hit_groups) && i < array_size; i++) {
-        hit_group =
-            (struct maat_hit_group *)utarray_eltptr(rule_state->indirect_hit_groups, i);
-        group_array[i].item_id = hit_group->item_id;
-        group_array[i].group_id = hit_group->group_id;
-        group_array[i].attribute_id = hit_group->attribute_id;
+    struct maat_hit_object *hit_object = NULL;
+    for (i = 0; i < utarray_len(rule_state->indirect_hit_objects) && i < array_size; i++) {
+        hit_object =
+            (struct maat_hit_object *)utarray_eltptr(rule_state->indirect_hit_objects, i);
+        object_array[i].item_id = hit_object->item_id;
+        object_array[i].object_id = hit_object->object_id;
+        object_array[i].attribute_id = hit_object->attribute_id;
     }
 
-    utarray_clear(rule_state->indirect_hit_groups);
+    utarray_clear(rule_state->indirect_hit_objects);
 
     return i;
 }
 
-size_t rule_state_get_indirect_hit_group_cnt(struct rule_state *rule_state)
+size_t rule_state_get_indirect_hit_object_cnt(struct rule_state *rule_state)
 {
-    return utarray_len(rule_state->indirect_hit_groups);
+    return utarray_len(rule_state->indirect_hit_objects);
 }
 
-size_t rule_state_get_last_hit_groups(struct rule_state *rule_state,
-                                         struct maat_hit_group *group_array,
+size_t rule_state_get_last_hit_objects(struct rule_state *rule_state,
+                                         struct maat_hit_object *object_array,
                                          size_t array_size)
 {
     size_t i = 0;
 
-    for (i = 0; i < utarray_len(rule_state->last_hit_groups) && i < array_size; i++) {
-        group_array[i] =
-            *(struct maat_hit_group *)utarray_eltptr(rule_state->last_hit_groups, i);
+    for (i = 0; i < utarray_len(rule_state->last_hit_objects) && i < array_size; i++) {
+        object_array[i] =
+            *(struct maat_hit_object *)utarray_eltptr(rule_state->last_hit_objects, i);
     }
 
     return i;
 }
 
-size_t rule_state_get_last_hit_group_cnt(struct rule_state *rule_state)
+size_t rule_state_get_last_hit_object_cnt(struct rule_state *rule_state)
 {
-    return utarray_len(rule_state->last_hit_groups);
+    return utarray_len(rule_state->last_hit_objects);
 }
 
-size_t rule_state_get_direct_hit_groups(struct rule_state *rule_state,
-                                           struct maat_hit_group *group_array,
+size_t rule_state_get_direct_hit_objects(struct rule_state *rule_state,
+                                           struct maat_hit_object *object_array,
                                            size_t array_size)
 {
-    UT_array *direct_hit_group = rule_state->direct_hit_groups;
+    UT_array *direct_hit_object = rule_state->direct_hit_objects;
 
     size_t i = 0;
-    struct maat_hit_group *group = NULL;
-    for (i = 0; i < utarray_len(direct_hit_group) && i < array_size; i++) {
-        group = (struct maat_hit_group *)utarray_eltptr(direct_hit_group, i);
-        group_array[i].item_id = group->item_id;
-        group_array[i].group_id = group->group_id;
-        group_array[i].attribute_id = group->attribute_id;
+    struct maat_hit_object *object = NULL;
+    for (i = 0; i < utarray_len(direct_hit_object) && i < array_size; i++) {
+        object = (struct maat_hit_object *)utarray_eltptr(direct_hit_object, i);
+        object_array[i].item_id = object->item_id;
+        object_array[i].object_id = object->object_id;
+        object_array[i].attribute_id = object->attribute_id;
     }
    
-    utarray_clear(rule_state->direct_hit_groups);
+    utarray_clear(rule_state->direct_hit_objects);
 
     return i;
 }
 
-size_t rule_state_get_direct_hit_group_cnt(struct rule_state *rule_state)
+size_t rule_state_get_direct_hit_object_cnt(struct rule_state *rule_state)
 {
-    return utarray_len(rule_state->direct_hit_groups);
+    return utarray_len(rule_state->direct_hit_objects);
 }
 
 size_t rule_state_get_internal_hit_paths(struct rule_state *rule_state,
                                             struct rule_runtime *rule_rt,
-                                            struct group2group_runtime *g2g_rt,
+                                            struct object2object_runtime *g2g_rt,
                                             struct maat_hit_path *hit_path_array, 
                                             size_t array_size)
 {
@@ -2681,37 +2681,37 @@ size_t rule_state_get_internal_hit_paths(struct rule_state *rule_state,
         /*
             NOTE: maybe one item has been deleted, but it's item_id still exist in internal_hit_paths
         */
-        long long super_group_ids[MAX_HIT_GROUP_NUM];
-        UT_array *valid_super_group_ids;
-        utarray_new(valid_super_group_ids, &ut_rule_group_id_icd);
+        long long super_object_ids[MAX_HIT_OBJECT_NUM];
+        UT_array *valid_super_object_ids;
+        utarray_new(valid_super_object_ids, &ut_rule_object_id_icd);
 
-        size_t super_group_cnt =
-            group2group_runtime_get_super_groups(g2g_rt, &(internal_path->group_id), 1,
-                                                 super_group_ids, MAX_HIT_GROUP_NUM);
-        for (size_t idx = 0; idx < super_group_cnt; idx++) {
-            utarray_push_back(valid_super_group_ids, &super_group_ids[idx]);
+        size_t super_object_cnt =
+            object2object_runtime_get_super_objects(g2g_rt, &(internal_path->object_id), 1,
+                                                 super_object_ids, MAX_HIT_OBJECT_NUM);
+        for (size_t idx = 0; idx < super_object_cnt; idx++) {
+            utarray_push_back(valid_super_object_ids, &super_object_ids[idx]);
         }
 
         /*
-            internal_path->group_id can be referenced directly by rule, 
-            so add it to hit_path which super_group_ids is -1
+            internal_path->object_id can be referenced directly by rule, 
+            so add it to hit_path which super_object_ids is -1
             ------------------------------------------------------------------------------
             NOTE: Add the hit path as long as the item is hit
         */
-        long long super_group_id = -1;
-        utarray_push_back(valid_super_group_ids, &super_group_id);
+        long long super_object_id = -1;
+        utarray_push_back(valid_super_object_ids, &super_object_id);
         
         long long *p = NULL;
         struct maat_hit_path tmp_path;
     
-        for (p = utarray_front(valid_super_group_ids);
+        for (p = utarray_front(valid_super_object_ids);
              p != NULL && hit_path_cnt < array_size;
-             p = utarray_next(valid_super_group_ids, p)) {
+             p = utarray_next(valid_super_object_ids, p)) {
             memset(&tmp_path, 0, sizeof(tmp_path));
             tmp_path.Nth_scan = internal_path->Nth_scan;
             tmp_path.item_id = internal_path->item_id;
-            tmp_path.sub_group_id = internal_path->group_id;
-            tmp_path.top_group_id = *p;
+            tmp_path.sub_object_id = internal_path->object_id;
+            tmp_path.top_object_id = *p;
             tmp_path.attribute_id = internal_path->attribute_id;
             tmp_path.negate_option = internal_path->negate_option;
             tmp_path.condition_index = -1;
@@ -2729,7 +2729,7 @@ size_t rule_state_get_internal_hit_paths(struct rule_state *rule_state,
             hit_path_array[hit_path_cnt] = tmp_path;
             hit_path_cnt++;
         }
-        utarray_free(valid_super_group_ids);
+        utarray_free(valid_super_object_ids);
     }
 
     return hit_path_cnt;

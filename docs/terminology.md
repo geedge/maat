@@ -1,7 +1,7 @@
 # Terminology 
 
 * [Item](#item)
-* [Group(Object)](#groupobject)
+* [Object(Object)](#objectobject)
 * [Rule(Policy)](#rulepolicy)
 * [Condition(Condition)](#condition)
 * [Literal](#literal)
@@ -32,27 +32,27 @@ As a filter for network attributes, the smallest unit of a rule
 
 There are multiple types of items stored in corresponding tables such as string, IP and numerical range, more details can be found in [Item table](./maat_table.md#11-item-table).
 
-## Group(Object)
+## Object(Object)
 
-A group defines a set that can contain different types of items and can also reference other groups. The definition is made using items, which can be used to add to or exclude from the group definition. Groups can also have subordinate groups whose definitions are included in or excluded from the superior group.
+A object defines a set that can contain different types of items and can also reference other objects. The definition is made using items, which can be used to add to or exclude from the object definition. Objects can also have subordinate objects whose definitions are included in or excluded from the superior object.
 
-- An item only belongs to one group, but one group can has multiple items. The multiple items under the same group are logical 'OR' relationships. e.g.(g1 = item1 | item2).
+- An item only belongs to one object, but one object can has multiple items. The multiple items under the same object are logical 'OR' relationships. e.g.(g1 = item1 | item2).
 
-- A group can be included or excluded by other groups. For example, if group1 and group2 is included by group3, then the group3 is called the superior(super) group, and group1(group2) is called the subordinate(sub) group. There's a logical 'OR' relationship between the included sub groups under the same group, e.g.(g3 = incl-g1 | incl-g2). There's a logical 'AND' relationship between included group and excluded group under the same group, e.g.(g4 = incl-g1 & excl-g2).
+- A object can be included or excluded by other objects. For example, if object1 and object2 is included by object3, then the object3 is called the superior(super) object, and object1(object2) is called the subordinate(sub) object. There's a logical 'OR' relationship between the included sub objects under the same object, e.g.(g3 = incl-g1 | incl-g2). There's a logical 'AND' relationship between included object and excluded object under the same object, e.g.(g4 = incl-g1 & excl-g2).
 
-- Group supports multi-level nesting, see [group hierarchy](./overview.md#groupobject-nesting-and-hierarchies)
+- Object supports multi-level nesting, see [object hierarchy](./overview.md#objectobject-nesting-and-hierarchies)
 
-- A Group can be referenced by different rules.
+- A Object can be referenced by different rules.
 
-The relationship between group and group is stored in the [group2group table](./maat_table.md#14-group2group-table).
+The relationship between object and object is stored in the [object2object table](./maat_table.md#14-object2object-table).
 
 ## Rule(Policy)
 
-A conjunctive normal form(CNF) consisting of multiple groups and attributes.
+A conjunctive normal form(CNF) consisting of multiple objects and attributes.
 
 `Note`: A rule can contain up to 8 conditions and multiple conditions in the same rule can be logical 'AND' and logical 'NOT' relationships.
 
-The relationship between group and rule is stored in the [group2rule table](./maat_table.md#13-group2rule-table).
+The relationship between object and rule is stored in the [object2rule table](./maat_table.md#13-object2rule-table).
 
 <img src="./imgs/CNF.jpg" alt="exclude" style="zoom:80%" /> 
 
@@ -64,11 +64,11 @@ Conditions are divided into two categories based on whether they contain the log
 
 ## Literal
 
-A Literal consists of `attribute_id(attribute id)` and `group_id`. During the rules loading process, a unique condition_id  will be generated based on the combination of attribute_id and group_id in the same condition.
+A Literal consists of `attribute_id(attribute id)` and `object_id`. During the rules loading process, a unique condition_id  will be generated based on the combination of attribute_id and object_id in the same condition.
 
 ## Physical table
 
-Different rules are stored in different tables in the actual database, including [item table](./maat_table.md#11-item-table), [rule table](./maat_table.md#12-rule-table), [group2rule table](./maat_table.md#13-group2rule-table), [group2group table](./maat_table.md#14-group2group-table), and [xx_plugin table](./maat_table.md#15-plugin-table), and so on.
+Different rules are stored in different tables in the actual database, including [item table](./maat_table.md#11-item-table), [rule table](./maat_table.md#12-rule-table), [object2rule table](./maat_table.md#13-object2rule-table), [object2object table](./maat_table.md#14-object2object-table), and [xx_plugin table](./maat_table.md#15-plugin-table), and so on.
 
 ## Attribute
 
@@ -86,7 +86,7 @@ Defines the type of table and the configuration format, determining the specific
 
 ## Table runtime
 
-The runtime generated by loading the configuration in the table into memory. Different tables have different runtimes. The group2rule table is merged with the corresponding rule table to generate a rule runtime, meaning there is no separate group2rule runtime. 
+The runtime generated by loading the configuration in the table into memory. Different tables have different runtimes. The object2rule table is merged with the corresponding rule table to generate a rule runtime, meaning there is no separate object2rule runtime. 
 
 Different scanning api use runtimes of different tables. For example, the HTTP_URL table is of type expr, and its corresponding scanning interface is maat_scan_string. Therefore, when calling this scanning interface, the API internally uses the runtime of the HTTP_URL table to perform the actual scanning task.
 
@@ -112,11 +112,11 @@ Maat supports not only block-based scanning but also stream-based scanning. For 
 
 ## Half/Full hit
 
-From the diagram of [configuration relationship](./overview.md#12-configuration-relationship), it can be seen that if the group that is hit is not referenced by rule, or even if referenced by rule, but after logical operations no rule is hit, then this hit is called a half hit; if a rule is hit, then this hit is called a full hit.
+From the diagram of [configuration relationship](./overview.md#12-configuration-relationship), it can be seen that if the object that is hit is not referenced by rule, or even if referenced by rule, but after logical operations no rule is hit, then this hit is called a half hit; if a rule is hit, then this hit is called a full hit.
 
 ## Hit path
 
-From the relationship of item, group, and rule mentioned above, if a scan hits a certain rule, there must be a logical path composed of item_id -> group_id -> rule_id. Maat names this path the hit path. If a group has nested references, the hit path should be item_id -> sub_group_id -> group_id -> rule_id.
+From the relationship of item, object, and rule mentioned above, if a scan hits a certain rule, there must be a logical path composed of item_id -> object_id -> rule_id. Maat names this path the hit path. If a object has nested references, the hit path should be item_id -> sub_object_id -> object_id -> rule_id.
 
 ## Redis
 

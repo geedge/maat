@@ -44,9 +44,9 @@ long long interval_runtime_rule_count(void *interval_runtime);
 
 /* interval runtime scan API */
 /**
- * @brief scan interval to get hit group_ids
+ * @brief scan interval to get hit object_ids
  * 
- * @retval the num of hit group_id
+ * @retval the num of hit object_id
 */
 int interval_runtime_scan(struct interval_runtime *interval_rt, int thread_id, 
                           long long integer, int attribute_id, struct maat_state *state);

@@ -1,11 +1,11 @@
 {
     "rule_table": "RULE_DEFAULT",
-    "group2rule_table": "GROUP2RULE_DEFAULT",
-    "group2group_table": "GROUP2GROUP",
-    "groups": [
+    "object2rule_table": "OBJECT2RULE_DEFAULT",
+    "object2object_table": "OBJECT2OBJECT",
+    "objects": [
         {
-            "group_name": "ASN1234",
-            "group_id": 1,
+            "object_name": "ASN1234",
+            "object_id": 1,
             "regions": [
                 {
                     "table_name": "AS_NUMBER",
@@ -18,8 +18,8 @@
             ]
         },
         {
-            "group_name": "ASN2345",
-            "group_id": 2,
+            "object_name": "ASN2345",
+            "object_id": 2,
             "regions": [
                 {
                     "table_name": "AS_NUMBER",
@@ -32,8 +32,8 @@
             ]
         },
         {
-            "group_name": "ASN6789",
-            "group_id": 3,
+            "object_name": "ASN6789",
+            "object_id": 3,
             "regions": [
                 {
                     "table_name": "AS_NUMBER",
@@ -46,8 +46,8 @@
             ]
         },
         {
-            "group_name": "ASN9001",
-            "group_id": 4,
+            "object_name": "ASN9001",
+            "object_id": 4,
             "regions": [
                 {
                     "table_name": "AS_NUMBER",
@@ -60,8 +60,8 @@
             ]
         },
         {
-            "group_name": "ASN9002",
-            "group_id": 5,
+            "object_name": "ASN9002",
+            "object_id": 5,
             "regions": [
                 {
                     "table_name": "AS_NUMBER",
@@ -74,8 +74,8 @@
             ]
         },
         {
-            "group_name": "ASN9003",
-            "group_id": 6,
+            "object_name": "ASN9003",
+            "object_id": 6,
             "regions": [
                 {
                     "table_name": "AS_NUMBER",
@@ -88,8 +88,8 @@
             ]
         },
         {
-            "group_name": "IPv4-composition-source-only",
-            "group_id": 7,
+            "object_name": "IPv4-composition-source-only",
+            "object_id": 7,
             "regions": [
                 {
                     "table_type":"ip",
@@ -101,8 +101,8 @@
             ]
         },
         {
-            "group_name": "FQDN_OBJ1",
-            "group_id": 8,
+            "object_name": "FQDN_OBJ1",
+            "object_id": 8,
             "regions": [
                 {
                     "table_name": "KEYWORDS_TABLE",
@@ -115,8 +115,8 @@
             ]
         },
         {
-            "group_name": "FQDN_CAT1",
-            "group_id": 9,
+            "object_name": "FQDN_CAT1",
+            "object_id": 9,
             "regions": [
                 {
                     "table_name": "INTERGER_PLUS",
@@ -129,8 +129,8 @@
             ]
         },
         {
-            "group_name": "IPv4-composition-NOT-client-ip",
-            "group_id": 10,
+            "object_name": "IPv4-composition-NOT-client-ip",
+            "object_id": 10,
             "regions": [
                 {
                     "table_type":"ip",
@@ -142,8 +142,8 @@
             ]
         },
         {
-            "group_name": "IPv4-composition-NOT-server-ip",
-            "group_id": 11,
+            "object_name": "IPv4-composition-NOT-server-ip",
+            "object_id": 11,
             "regions": [
                 {
                     "table_type":"ip",
@@ -155,8 +155,8 @@
             ]
         },
         {
-            "group_name": "financial-department-ip",
-            "group_id": 12,
+            "object_name": "financial-department-ip",
+            "object_id": 12,
             "regions": [
                 {
                     "table_name": "IP_CONFIG",
@@ -168,8 +168,8 @@
             ]
         },
         {
-            "group_name": "security-department-ip",
-            "group_id": 13,
+            "object_name": "security-department-ip",
+            "object_id": 13,
             "regions": [
                 {
                     "table_name": "IP_PLUS_CONFIG",
@@ -181,8 +181,8 @@
             ]
         },
         {
-            "group_name": "develop-department-ip",
-            "group_id": 14,
+            "object_name": "develop-department-ip",
+            "object_id": 14,
             "regions": [
                 {
                     "table_name": "IP_PLUS_CONFIG",
@@ -194,8 +194,8 @@
             ]
         },
         {
-            "group_name": "Country-Sparta-IP",
-            "group_id": 15,
+            "object_name": "Country-Sparta-IP",
+            "object_id": 15,
             "regions": [
                 {
                     "table_name": "GeoLocation",
@@ -217,11 +217,11 @@
             "do_log": 1,
             "user_region": "escaped\\bdata:have\\ba\\bspace\\band\\ba\\b\\&\\bsymbol.",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "IP_CONFIG",
-                    "group_name": "123_IP_group",
-                    "group_id": 100,
+                    "object_name": "123_IP_object",
+                    "object_id": 100,
                     "regions": [
                         {
                             "table_name": "IP_CONFIG",
@@ -241,8 +241,8 @@
                 },
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "123_url_group",
-                    "group_id": 101,
+                    "object_name": "123_url_object",
+                    "object_id": 101,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -264,15 +264,15 @@
             "do_log": 1,
             "user_region": "anything",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute":"IP_CONFIG",
-                    "group_name": "123_IP_group"
+                    "object_name": "123_IP_object"
                 },
                 {
                     "attribute": "CONTENT_SIZE",
-                    "group_name": "124_interval_group",
-                    "group_id": 102,
+                    "object_name": "124_interval_object",
+                    "object_id": 102,
                     "regions": [
                         {
                             "table_name": "CONTENT_SIZE",
@@ -293,11 +293,11 @@
             "do_log": 1,
             "user_region": "anything",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute":"HTTP_URL",
-                    "group_name": "125_url_group",
-                    "group_id": 103,
+                    "object_name": "125_url_object",
+                    "object_id": 103,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -319,11 +319,11 @@
             "do_log": 1,
             "user_region": "anything",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "126_url_group",
-                    "group_id": 105,
+                    "object_name": "126_url_object",
+                    "object_id": 105,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -337,8 +337,8 @@
                 },
                 {
                     "attribute": "CONTENT_SIZE",
-                    "group_name": "126_interval_group",
-                    "group_id": 106,
+                    "object_name": "126_interval_object",
+                    "object_id": 106,
                     "regions": [
                         {
                             "table_name": "CONTENT_SIZE",
@@ -359,11 +359,11 @@
             "do_log": 1,
             "user_region": "StringScan.ExprPlus",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_SIGNATURE",
-                    "group_name": "128_expr_plus_group",
-                    "group_id": 107,
+                    "object_name": "128_expr_plus_object",
+                    "object_id": 107,
                     "regions": [
                         {
                             "table_name": "HTTP_SIGNATURE",
@@ -386,11 +386,11 @@
             "do_log": 1,
             "user_region": "utf8_中文",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "129_url_group",
-                    "group_id": 108,
+                    "object_name": "129_url_object",
+                    "object_id": 108,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -412,11 +412,11 @@
             "do_log": 1,
             "user_region": "utf8_维语",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "KEYWORDS_TABLE",
-                    "group_name": "130_keywords_group",
-                    "group_id": 109,
+                    "object_name": "130_keywords_object",
+                    "object_id": 109,
                     "regions": [
                         {
                             "table_name": "KEYWORDS_TABLE",
@@ -438,11 +438,11 @@
             "do_log": 1,
             "user_region": "utf8_维语2",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "KEYWORDS_TABLE",
-                    "group_name": "131_keywords_group",
-                    "group_id": 110,
+                    "object_name": "131_keywords_object",
+                    "object_id": 110,
                     "regions": [
                         {
                             "table_name": "KEYWORDS_TABLE",
@@ -464,11 +464,11 @@
             "do_log": 1,
             "user_region": "string\\bunescape",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "KEYWORDS_TABLE",
-                    "group_name": "TakeMeHome",
-                    "group_id": 111,
+                    "object_name": "TakeMeHome",
+                    "object_id": 111,
                     "regions": [
                         {
                             "table_name": "KEYWORDS_TABLE",
@@ -490,11 +490,11 @@
             "do_log": 1,
             "user_region": "13018_table_conjunction_test_part1\bnow_its_very_very_long0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz0123456789abcdefghijklmnopkrstuvwxyz",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_HOST",
-                    "group_name": "133_host_group",
-                    "group_id": 112,
+                    "object_name": "133_host_object",
+                    "object_id": 112,
                     "regions": [
                         {
                             "table_name": "HTTP_HOST",
@@ -516,11 +516,11 @@
             "do_log": 1,
             "user_region": "table_conjunction_test_part2",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "134_url_group",
-                    "group_id": 113,
+                    "object_name": "134_url_object",
+                    "object_id": 113,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -542,11 +542,11 @@
             "do_log": 1,
             "user_region": "offset_string",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "IMAGE_FP",
-                    "group_name": "136_expr_group",
-                    "group_id": 114,
+                    "object_name": "136_expr_object",
+                    "object_id": 114,
                     "regions": [
                         {
                             "table_name": "IMAGE_FP",
@@ -568,11 +568,11 @@
             "do_log": 1,
             "user_region": "offset_string",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "IMAGE_FP",
-                    "group_name": "137_expr_group",
-                    "group_id": 115,
+                    "object_name": "137_expr_object",
+                    "object_id": 115,
                     "regions": [
                         {
                             "table_name": "IMAGE_FP",
@@ -596,11 +596,11 @@
             "tags": "{\"tag_sets\":[[{\"tag\":\"location\",\"value\":[\"北京/朝阳/华严北里\",\"上海/浦东/陆家嘴\"]},{\"tag\":\"isp\",\"value\":[\"电信\",\"联通\"]}],[{\"tag\":\"location\",\"value\":[\"北京\"]},{\"tag\":\"isp\",\"value\":[\"联通\"]}]]}",
             "user_region": "Not\\baccepted\\btags",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "138_url_group",
-                    "group_id": 116,
+                    "object_name": "138_url_object",
+                    "object_id": 116,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -624,11 +624,11 @@
             "tags": "{\"tag_sets\":[[{\"tag\":\"location\",\"value\":[\"北京/朝阳/华严北里\"]},{\"tag\":\"isp\",\"value\":[\"电信\",\"移动\"]}]]}",
             "user_region": "Accepted\\btags",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "139_url_group",
-                    "group_id": 117,
+                    "object_name": "139_url_object",
+                    "object_id": 117,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -650,11 +650,11 @@
             "do_log": 1,
             "user_region": "file_streams",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "KEYWORDS_TABLE",
-                    "group_name": "140_keywords_group",
-                    "group_id": 118,
+                    "object_name": "140_keywords_object",
+                    "object_id": 118,
                     "regions": [
                         {
                             "table_name": "KEYWORDS_TABLE",
@@ -677,12 +677,12 @@
             "user_region": "Something:I\\bhave\\ba\\bname,7799",
             "rule_table_name": "RULE_ALIAS",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
-                    "g2c_table_name": "GROUP2RULE_ALIAS",
+                    "g2c_table_name": "OBJECT2RULE_ALIAS",
                     "attribute": "HTTP_URL",
-                    "group_name": "141_url_group",
-                    "group_id": 119,
+                    "object_name": "141_url_object",
+                    "object_id": 119,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -704,11 +704,11 @@
             "do_log": 1,
             "user_region": "StringScan.UTF8EncodedURL",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "142_url_group",
-                    "group_id": 120,
+                    "object_name": "142_url_object",
+                    "object_id": 120,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -730,11 +730,11 @@
             "do_log": 1,
             "user_region": "NOTLogic.OneRegion",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL_FILTER",
-                    "group_name": "143_url_group1",
-                    "group_id": 121,
+                    "object_name": "143_url_object1",
+                    "object_id": 121,
                     "negate_option": 0,
                     "regions": [
                         {
@@ -749,8 +749,8 @@
                 },
                 {
                     "attribute": "HTTP_URL_FILTER",
-                    "group_name": "143_url_group2",
-                    "group_id": 122,
+                    "object_name": "143_url_object2",
+                    "object_id": 122,
                     "negate_option": 1,
                     "regions": [
                         {
@@ -773,11 +773,11 @@
             "do_log": 1,
             "user_region": "NOTLogic.ScanNotAtLast",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL_FILTER",
-                    "group_name": "144_url_group",
-                    "group_id": 123,
+                    "object_name": "144_url_object",
+                    "object_id": 123,
                     "negate_option": 0,
                     "regions": [
                         {
@@ -792,8 +792,8 @@
                 },
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS",
-                    "group_name": "144_keywords_group",
-                    "group_id": 124,
+                    "object_name": "144_keywords_object",
+                    "object_id": 124,
                     "negate_option": 1,
                     "regions": [
                         {
@@ -816,11 +816,11 @@
             "do_log": 1,
             "user_region": "NOTLogic.ScanNotIP",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "145_url_group",
-                    "group_id": 125,
+                    "object_name": "145_url_object",
+                    "object_id": 125,
                     "negate_option": 0,
                     "regions": [
                         {
@@ -835,7 +835,7 @@
                 },
                 {
                     "attribute": "ATTRIBUTE_IP_CONFIG",
-                    "group_name": "123_IP_group",
+                    "object_name": "123_IP_object",
                     "negate_option": 1
                 }
             ]
@@ -848,11 +848,11 @@
             "do_log": 1,
             "user_region": "NOTLogic.NotExprConditionAndNotIPCondition",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL_FILTER",
-                    "group_name": "146_url_group",
-                    "group_id": 126,
+                    "object_name": "146_url_object",
+                    "object_id": 126,
                     "negate_option": 0,
                     "condition_index": 0,
                     "regions": [
@@ -868,8 +868,8 @@
                 },
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS",
-                    "group_name": "146_keywords_group",
-                    "group_id": 127,
+                    "object_name": "146_keywords_object",
+                    "object_id": 127,
                     "negate_option": 1,
                     "condition_index": 1,
                     "regions": [
@@ -885,7 +885,7 @@
                 },
                 {
                     "attribute": "ATTRIBUTE_IP_CONFIG",
-                    "group_name": "123_IP_group",
+                    "object_name": "123_IP_object",
                     "negate_option": 1,
                     "condition_index": 2
                 }
@@ -899,11 +899,11 @@
             "do_log": 1,
             "user_region": "NOTLogic.8NotCondition",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS_1",
-                    "group_name": "147_keywords_group1",
-                    "group_id": 128,
+                    "object_name": "147_keywords_object1",
+                    "object_id": 128,
                     "negate_option": 1,
                     "condition_index": 0,
                     "regions": [
@@ -919,8 +919,8 @@
                 },
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS_2",
-                    "group_name": "147_keywords_group2",
-                    "group_id": 129,
+                    "object_name": "147_keywords_object2",
+                    "object_id": 129,
                     "negate_option": 1,
                     "condition_index": 1,
                     "regions": [
@@ -936,8 +936,8 @@
                 },
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS_3",
-                    "group_name": "147_keywords_group3",
-                    "group_id": 130,
+                    "object_name": "147_keywords_object3",
+                    "object_id": 130,
                     "negate_option": 1,
                     "condition_index": 2,
                     "regions": [
@@ -953,8 +953,8 @@
                 },
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS_4",
-                    "group_name": "147_keywords_group4",
-                    "group_id": 131,
+                    "object_name": "147_keywords_object4",
+                    "object_id": 131,
                     "negate_option": 1,
                     "condition_index": 3,
                     "regions": [
@@ -970,8 +970,8 @@
                 },
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS_5",
-                    "group_name": "147_keywords_group5",
-                    "group_id": 132,
+                    "object_name": "147_keywords_object5",
+                    "object_id": 132,
                     "negate_option": 1,
                     "condition_index": 4,
                     "regions": [
@@ -987,8 +987,8 @@
                 },
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS_6",
-                    "group_name": "147_keywords_group6",
-                    "group_id": 133,
+                    "object_name": "147_keywords_object6",
+                    "object_id": 133,
                     "negate_option": 1,
                     "condition_index": 5,
                     "regions": [
@@ -1004,8 +1004,8 @@
                 },
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS_7",
-                    "group_name": "147_keywords_group7",
-                    "group_id": 134,
+                    "object_name": "147_keywords_object7",
+                    "object_id": 134,
                     "negate_option": 1,
                     "condition_index": 6,
                     "regions": [
@@ -1021,8 +1021,8 @@
                 },
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS_8",
-                    "group_name": "147_keywords_group8",
-                    "group_id": 135,
+                    "object_name": "147_keywords_object8",
+                    "object_id": 135,
                     "negate_option": 1,
                     "condition_index": 7,
                     "regions": [
@@ -1046,11 +1046,11 @@
             "do_log": 1,
             "user_region": "StringScan.Regex",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "148_url_group",
-                    "group_id": 136,
+                    "object_name": "148_url_object",
+                    "object_id": 136,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -1072,11 +1072,11 @@
             "do_log": 0,
             "user_region": "StringScan.ExprPlusWithOffset",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "APP_PAYLOAD",
-                    "group_name": "149_app_group",
-                    "group_id": 137,
+                    "object_name": "149_app_object",
+                    "object_id": 137,
                     "regions": [
                         {
                             "table_name": "APP_PAYLOAD",
@@ -1099,11 +1099,11 @@
             "do_log": 0,
             "user_region": "StringScan.BugReport20190325",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "TROJAN_PAYLOAD",
-                    "group_name": "billgates_regist1",
-                    "group_id": 138,
+                    "object_name": "billgates_regist1",
+                    "object_id": 138,
                     "regions": [
                         {
                             "table_type": "expr",
@@ -1117,8 +1117,8 @@
                 },
                 {
                     "attribute": "TROJAN_PAYLOAD",
-                    "group_name": "billgates_regist2",
-                    "group_id": 139,
+                    "object_name": "billgates_regist2",
+                    "object_id": 139,
                     "regions": [
                         {
                             "table_type": "expr",
@@ -1140,11 +1140,11 @@
             "do_log": 0,
             "user_region": "StringScan.PrefixAndSuffix",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "MAIL_ADDR",
-                    "group_name": "151_expr_group",
-                    "group_id": 140,
+                    "object_name": "151_expr_object",
+                    "object_id": 140,
                     "regions": [
                         {
                             "table_type": "expr",
@@ -1166,11 +1166,11 @@
             "do_log": 0,
             "user_region": "StringScan.PrefixAndSuffix",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "MAIL_ADDR",
-                    "group_name": "152_mail_addr",
-                    "group_id": 141,
+                    "object_name": "152_mail_addr",
+                    "object_id": 141,
                     "regions": [
                         {
                             "table_type": "expr",
@@ -1192,11 +1192,11 @@
                 },
                 {
                     "attribute": "CONTENT_SIZE",
-                    "group_name": "interval_group_refered",
-                    "group_id": 142,
-                    "sub_groups": [
+                    "object_name": "interval_object_refered",
+                    "object_id": 142,
+                    "sub_objects": [
                         {
-                            "group_name": "126_interval_group"
+                            "object_name": "126_interval_object"
                         }
                     ]
                 }
@@ -1208,13 +1208,13 @@
             "action": 0,
             "do_blacklist": 0,
             "do_log": 0,
-            "user_region": "Policy.SubGroup",
+            "user_region": "Policy.SubObject",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "MAIL_ADDR",
-                    "group_name": "153_expr_group",
-                    "group_id": 143,
+                    "object_name": "153_expr_object",
+                    "object_id": 143,
                     "negate_option": 0,
                     "regions": [
                         {
@@ -1226,20 +1226,20 @@
                             }
                         }
                     ],
-                    "sub_groups": [
+                    "sub_objects": [
                         {
                             "attribute": "MAIL_ADDR",
-                            "group_name": "152_mail_addr"
+                            "object_name": "152_mail_addr"
                         }
                     ] 
                 },
                 {
                     "attribute": "IP_CONFIG",
-                    "group_name": "IP_group_refered",
-                    "group_id": 144,
-                    "sub_groups": [
+                    "object_name": "IP_object_refered",
+                    "object_id": 144,
+                    "sub_objects": [
                         {
-                            "group_name": "123_IP_group"
+                            "object_name": "123_IP_object"
                         }
                     ]
                 }
@@ -1253,11 +1253,11 @@
             "do_log": 0,
             "user_region": "ipv4_plus",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "IP_PLUS_CONFIG",
-                    "group_name": "154_IP_group",
-                    "group_id": 145,
+                    "object_name": "154_IP_object",
+                    "object_id": 145,
                     "negate_option": 0,
                     "regions": [
                         {
@@ -1279,11 +1279,11 @@
             "do_log": 0,
             "user_region": "ipv6_plus",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "IP_PLUS_CONFIG",
-                    "group_name": "155_IP_group",
-                    "group_id": 146,
+                    "object_name": "155_IP_object",
+                    "object_id": 146,
                     "negate_option": 0,
                     "regions": [
                         {
@@ -1305,11 +1305,11 @@
             "do_log": 1,
             "user_region": "ExprPlusWithHex",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_SIGNATURE",
-                    "group_name": "156_expr_group",
-                    "group_id": 147,
+                    "object_name": "156_expr_object",
+                    "object_id": 147,
                     "regions": [
                         {
                             "table_name": "HTTP_SIGNATURE",
@@ -1332,11 +1332,11 @@
             "do_log": 0,
             "user_region": "StringScan.StreamScanUTF8",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "TROJAN_PAYLOAD",
-                    "group_name": "157_expr_group",
-                    "group_id": 148,
+                    "object_name": "157_expr_object",
+                    "object_id": 148,
                     "regions": [
                         {
                             "table_type": "expr",
@@ -1358,11 +1358,11 @@
             "do_log": 0,
             "user_region": "IPScan.IPv4_CIDR",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "IP_PLUS_CONFIG",
-                    "group_name": "158_IP_group",
-                    "group_id": 149,
+                    "object_name": "158_IP_object",
+                    "object_id": 149,
                     "regions": [
                         {
                             "table_type":"ip",
@@ -1383,11 +1383,11 @@
             "do_log": 0,
             "user_region": "IPScan.IPv6_CIDR",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "IP_PLUS_CONFIG",
-                    "group_name": "159_IP_group",
-                    "group_id": 150,
+                    "object_name": "159_IP_object",
+                    "object_id": 150,
                     "regions": [
                         {
                             "table_type":"ip",
@@ -1408,16 +1408,16 @@
             "do_log": 0,
             "user_region": "AttributeWithOnePhysical",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS",
-                    "group_name": "TakeMeHome",
+                    "object_name": "TakeMeHome",
                     "negate_option": 0
                 },
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "160_url_group",
-                    "group_id": 151,
+                    "object_name": "160_url_object",
+                    "object_id": 151,
                     "negate_option": 0,
                     "regions": [
                         {
@@ -1440,11 +1440,11 @@
             "do_log": 0,
             "user_region": "attribute_test_temp",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_SIGNATURE",
-                    "group_name": "vt_grp_http_sig1",
-                    "group_id": 152,
+                    "object_name": "vt_grp_http_sig1",
+                    "object_id": 152,
                     "negate_option": 0,
                     "regions": [
                         {
@@ -1460,8 +1460,8 @@
                 },
                 {
                     "attribute": "HTTP_SIGNATURE",
-                    "group_name": "vt_grp_http_sig2",
-                    "group_id": 153,
+                    "object_name": "vt_grp_http_sig2",
+                    "object_id": 153,
                     "negate_option": 0,
                     "regions": [
                         {
@@ -1494,15 +1494,15 @@
             "do_log": 0,
             "user_region": "AttributeWithAttribute",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_REQUEST_HEADER",
-                    "group_name": "vt_grp_http_sig1",
+                    "object_name": "vt_grp_http_sig1",
                     "negate_option": 0
                 },
                 {
                     "attribute": "HTTP_RESPONSE_HEADER",
-                    "group_name": "vt_grp_http_sig2",
+                    "object_name": "vt_grp_http_sig2",
                     "negate_option": 0
                 }
             ]
@@ -1513,17 +1513,17 @@
             "action": 0,
             "do_blacklist": 0,
             "do_log": 0,
-            "user_region": "OneGroupInTwoAttribute",
+            "user_region": "OneObjectInTwoAttribute",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_REQUEST_HEADER",
-                    "group_name": "vt_grp_http_sig2",
+                    "object_name": "vt_grp_http_sig2",
                     "negate_option": 0
                 },
                 {
                     "attribute": "HTTP_RESPONSE_HEADER",
-                    "group_name": "vt_grp_http_sig2",
+                    "object_name": "vt_grp_http_sig2",
                     "negate_option": 0
                 }
             ]
@@ -1536,11 +1536,11 @@
             "do_log": 1,
             "user_region": "CharsetWindows1251",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "KEYWORDS_TABLE",
-                    "group_name": "164_keywords_group",
-                    "group_id": 154,
+                    "object_name": "164_keywords_object",
+                    "object_id": 154,
                     "regions": [
                         {
                             "table_name": "KEYWORDS_TABLE",
@@ -1563,11 +1563,11 @@
             "user_region": "EvaluationOrder",
             "is_valid": "yes",
             "evaluation_order": "2.111",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "165_url_group",
-                    "group_id": 155,
+                    "object_name": "165_url_object",
+                    "object_id": 155,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -1581,8 +1581,8 @@
                 },
                 {
                     "attribute": "IP_PLUS_CONFIG",
-                    "group_name": "165_IP_group",
-                    "group_id": 156,
+                    "object_name": "165_IP_object",
+                    "object_id": 156,
                     "negate_option": 0,
                     "regions": [
                         {
@@ -1605,11 +1605,11 @@
             "user_region": "EvaluationOrder",
             "is_valid": "yes",
             "evaluation_order": "100.233",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "166_url_group",
-                    "group_id": 157,
+                    "object_name": "166_url_object",
+                    "object_id": 157,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -1632,11 +1632,11 @@
             "user_region": "EvaluationOrder",
             "is_valid": "yes",
             "evaluation_order": "300.999",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "167_url_group",
-                    "group_id": 158,
+                    "object_name": "167_url_object",
+                    "object_id": 158,
                     "condition_index": 1,
                     "regions": [
                         {
@@ -1651,8 +1651,8 @@
                 },
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "167_url_group",
-                    "group_id": 158,
+                    "object_name": "167_url_object",
+                    "object_id": 158,
                     "condition_index": 3
                 }
             ]
@@ -1666,17 +1666,17 @@
             "user_region": "EvaluationOrder",
             "is_valid": "yes",
             "evaluation_order": "0",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "167_url_group",
-                    "group_id": 158,
+                    "object_name": "167_url_object",
+                    "object_id": 158,
                     "condition_index": 2
                 },
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "167_url_group",
-                    "group_id": 158,
+                    "object_name": "167_url_object",
+                    "object_id": 158,
                     "condition_index": 6
                 }
             ]
@@ -1689,11 +1689,11 @@
             "do_log": 0,
             "user_region": "IPScan.IPv4_Any",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "IP_PLUS_CONFIG",
-                    "group_name": "169_IP_group",
-                    "group_id": 160,
+                    "object_name": "169_IP_object",
+                    "object_id": 160,
                     "condition_index": 0,
                     "negate_option" : 0,
                     "regions": [
@@ -1716,11 +1716,11 @@
             "do_log": 0,
             "user_region": "IPScan.IPv4_attribute.source",
             "is_valid": "no",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "IP_PLUS_CONFIG",
-                    "group_name": "ipv4_attribute.source",
-                    "group_id": 161,
+                    "object_name": "ipv4_attribute.source",
+                    "object_id": 161,
                     "negate_option": 0,
                     "regions": [
                         {
@@ -1742,11 +1742,11 @@
             "do_log": 0,
             "user_region": "IPScan.IPv4_attribute.destination",
             "is_valid": "no",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "IP_PLUS_CONFIG",
-                    "group_name": "ipv4_attribute.destination",
-                    "group_id": 162,
+                    "object_name": "ipv4_attribute.destination",
+                    "object_id": 162,
                     "negate_option": 0,
                     "regions": [
                         {
@@ -1766,18 +1766,18 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "NOTLogic.MultiGroupsInOneNotCondition",
+            "user_region": "NOTLogic.MultiObjectsInOneNotCondition",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "ASN_NOT_LOGIC",
-                    "group_name": ["ASN1234", "ASN6789", "ASN9001"],
+                    "object_name": ["ASN1234", "ASN6789", "ASN9001"],
                     "negate_option": 1,
                     "condition_index": 0
                 },
                 {
                     "attribute": "DESTINATION_IP_ASN",
-                    "group_name": "ASN2345",
+                    "object_name": "ASN2345",
                     "negate_option": 0,
                     "condition_index": 1
                 }
@@ -1789,18 +1789,18 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "Hierarchy.MultiGroupInOneCondition",
+            "user_region": "Hierarchy.MultiObjectInOneCondition",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "SOURCE_IP_ASN",
-                    "group_name": ["ASN1234", "ASN6789", "ASN9001"],
+                    "object_name": ["ASN1234", "ASN6789", "ASN9001"],
                     "negate_option": 0,
                     "condition_index": 0
                 },
                 {
                     "attribute": "DESTINATION_IP_ASN",
-                    "group_name": "ASN2345",
+                    "object_name": "ASN2345",
                     "negate_option": 0,
                     "condition_index": 1
                 }
@@ -1814,11 +1814,11 @@
             "do_log": 1,
             "user_region": "anything",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "INTERGER_PLUS",
-                    "group_name": "179_interval_group",
-                    "group_id": 166,
+                    "object_name": "179_interval_object",
+                    "object_id": 166,
                     "regions": [
                         {
                             "table_name": "INTERGER_PLUS",
@@ -1838,24 +1838,24 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "Hierarchy.MultiGroupInOneCondition",
+            "user_region": "Hierarchy.MultiObjectInOneCondition",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "SOURCE_IP_ASN",
-                    "group_name": ["ASN1234", "ASN6789", "ASN9001"],
+                    "object_name": ["ASN1234", "ASN6789", "ASN9001"],
                     "negate_option": 0,
                     "condition_index": 0
                 },
                 {
                     "attribute": "SOURCE_IP_GEO",
-                    "group_name": "Country-Sparta-IP",
+                    "object_name": "Country-Sparta-IP",
                     "negate_option": 0,
                     "condition_index": 0
                 },
                 {
                     "attribute": "IP_CONFIG",
-                    "group_name": "financial-department-ip",
+                    "object_name": "financial-department-ip",
                     "negate_option": 0,
                     "condition_index": 1
                 }
@@ -1869,22 +1869,22 @@
             "do_log": 1,
             "user_region": "NOTLogic.MultiLiteralsInOneNotCondition",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "SOURCE_IP_ASN",
-                    "group_name": ["ASN1234", "ASN6789", "ASN9001"],
+                    "object_name": ["ASN1234", "ASN6789", "ASN9001"],
                     "negate_option": 1,
                     "condition_index": 0
                 },
                 {
                     "attribute": "IP_PLUS_CONFIG",
-                    "group_name": "develop-department-ip",
+                    "object_name": "develop-department-ip",
                     "negate_option": 1,
                     "condition_index": 0
                 },
                 {
                     "attribute": "SOURCE_IP_GEO",
-                    "group_name": "Country-Sparta-IP",
+                    "object_name": "Country-Sparta-IP",
                     "negate_option": 0,
                     "condition_index": 1
                 }
@@ -1898,11 +1898,11 @@
             "do_log": 1,
             "user_region": "8-expr",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "KEYWORDS_TABLE",
-                    "group_name": "182_keywords_group",
-                    "group_id": 167,
+                    "object_name": "182_keywords_object",
+                    "object_id": 167,
                     "regions": [
                         {
                             "table_name": "KEYWORDS_TABLE",
@@ -1925,11 +1925,11 @@
             "do_log": 0,
             "action": 0,
             "service": 0,
-            "groups": [
+            "objects": [
                 {
                     "attribute": "IP_CONFIG",
-                    "group_name": "184_IP_group",
-                    "group_id": 169,
+                    "object_name": "184_IP_object",
+                    "object_id": 169,
                     "regions": [
                         {
                             "table_name": "IP_CONFIG",
@@ -1950,34 +1950,34 @@
             "do_log": 1,
             "user_region": "NOTLogic.SameAttributeInMultiCondition",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "DESTINATION_IP_ASN",
-                    "group_name": ["ASN1234", "ASN6789", "ASN9001"],
+                    "object_name": ["ASN1234", "ASN6789", "ASN9001"],
                     "negate_option": 1,
                     "condition_index": 0
                 },
                 {
                     "attribute": "SOURCE_IP_GEO",
-                    "group_name": "Country-Sparta-IP",
+                    "object_name": "Country-Sparta-IP",
                     "negate_option": 1,
                     "condition_index": 0
                 },
                 {
                     "attribute": "DESTINATION_IP_ASN",
-                    "group_name": "ASN9002",
+                    "object_name": "ASN9002",
                     "negate_option": 1,
                     "condition_index": 1
                 },
                 {
                     "attribute": "DESTINATION_IP_ASN",
-                    "group_name": "ASN9003",
+                    "object_name": "ASN9003",
                     "negate_option": 0,
                     "condition_index": 2
                 },
                 {
                     "attribute": "IP_PLUS_CONFIG",
-                    "group_name": "security-department-ip",
+                    "object_name": "security-department-ip",
                     "negate_option": 0,
                     "condition_index": 3
                 }
@@ -1991,11 +1991,11 @@
             "do_log": 1,
             "user_region": "NOTLogic.ScanHitAtLast",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL_FILTER",
-                    "group_name": "186_expr_group",
-                    "group_id": 170,
+                    "object_name": "186_expr_object",
+                    "object_id": 170,
                     "negate_option": 1,
                     "regions": [
                         {
@@ -2010,8 +2010,8 @@
                 },
                 {
                     "attribute": "IP_PLUS_CONFIG",
-                    "group_name": "186_IP_group",
-                    "group_id": 171,
+                    "object_name": "186_IP_object",
+                    "object_id": 171,
                     "negate_option": 0,
                     "regions": [
                         {
@@ -2033,11 +2033,11 @@
             "do_log": 1,
             "user_region": "NOTLogic.ScanHitAtLast",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL_FILTER",
-                    "group_name": "187_url_group",
-                    "group_id": 172,
+                    "object_name": "187_url_object",
+                    "object_id": 172,
                     "negate_option": 1,
                     "regions": [
                         {
@@ -2052,8 +2052,8 @@
                 },
                 {
                     "attribute": "IP_PLUS_CONFIG",
-                    "group_name": "187_IP_group",
-                    "group_id": 173,
+                    "object_name": "187_IP_object",
+                    "object_id": 173,
                     "negate_option": 0,
                     "regions": [
                         {
@@ -2075,11 +2075,11 @@
             "do_log": 1,
             "user_region": "NOTLogic.ScanHitAtLast",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL_FILTER",
-                    "group_name": "188_url_group",
-                    "group_id": 174,
+                    "object_name": "188_url_object",
+                    "object_id": 174,
                     "negate_option": 1,
                     "regions": [
                         {
@@ -2094,8 +2094,8 @@
                 },
                 {
                     "attribute": "IP_PLUS_CONFIG",
-                    "group_name": "188_IP_group",
-                    "group_id": 175,
+                    "object_name": "188_IP_object",
+                    "object_id": 175,
                     "negate_option": 0,
                     "regions": [
                         {
@@ -2117,11 +2117,11 @@
             "service": 0,
             "do_blacklist": 0,
             "user_region": "StringScan.ShouldNotHitExprPlus",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "APP_PAYLOAD",
-                    "group_name": "189_app_group",
-                    "group_id": 176,
+                    "object_name": "189_app_object",
+                    "object_id": 176,
                     "regions": [
                         {
                             "table_name": "APP_PAYLOAD",
@@ -2144,11 +2144,11 @@
             "do_log": 1,
             "user_region": "StringScan.ExprPlus",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_SIGNATURE",
-                    "group_name": "190_expr_group",
-                    "group_id": 177,
+                    "object_name": "190_expr_object",
+                    "object_id": 177,
                     "regions": [
                         {
                             "table_name": "HTTP_SIGNATURE",
@@ -2171,11 +2171,11 @@
             "do_log": 0,
             "user_region": "StringScan.HexBinCaseSensitive",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "KEYWORDS_TABLE",
-                    "group_name": "191_keywords_group",
-                    "group_id": 178,
+                    "object_name": "191_keywords_object",
+                    "object_id": 178,
                     "regions": [
                         {
                             "table_type": "expr",
@@ -2197,11 +2197,11 @@
             "do_log": 0,
             "user_region": "anything",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "FLAG_CONFIG",
-                    "group_name": "192_flag_group",
-                    "group_id": 179,
+                    "object_name": "192_flag_object",
+                    "object_id": 179,
                     "regions": [
                         {
                             "table_type": "flag",
@@ -2223,11 +2223,11 @@
             "do_log": 0,
             "user_region": "anything",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "FLAG_CONFIG",
-                    "group_name": "193_flag_group",
-                    "group_id": 180,
+                    "object_name": "193_flag_object",
+                    "object_id": 180,
                     "regions": [
                         {
                             "table_type": "flag",
@@ -2241,8 +2241,8 @@
                 },
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "193_url_group",
-                    "group_id": 181,
+                    "object_name": "193_url_object",
+                    "object_id": 181,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -2264,11 +2264,11 @@
             "do_log": 0,
             "user_region": "anything",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "FLAG_CONFIG",
-                    "group_name": "194_flag_group",
-                    "group_id": 182,
+                    "object_name": "194_flag_object",
+                    "object_id": 182,
                     "regions": [
                         {
                             "table_type": "flag",
@@ -2290,11 +2290,11 @@
             "do_log": 0,
             "user_region": "anything",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_SIGNATURE",
-                    "group_name": "195_signature_group",
-                    "group_id": 183,
+                    "object_name": "195_signature_object",
+                    "object_id": 183,
                     "regions": [
                         {
                             "table_name": "HTTP_SIGNATURE",
@@ -2309,8 +2309,8 @@
                 },
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "195_url_group",
-                    "group_id": 184,
+                    "object_name": "195_url_object",
+                    "object_id": 184,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -2332,11 +2332,11 @@
             "do_log": 0,
             "user_region": "anything",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                    "attribute": "FLAG_PLUS_CONFIG",
-                    "group_name": "196_flag_group",
-                    "group_id": 185,
+                    "object_name": "196_flag_object",
+                    "object_id": 185,
                     "regions": [
                         {
                             "table_type": "flag_plus",
@@ -2359,11 +2359,11 @@
             "do_log": 1,
             "user_region": "Something:I\\bhave\\ba\\bname,8866",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "197_url_group",
-                    "group_id": 186,
+                    "object_name": "197_url_object",
+                    "object_id": 186,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -2386,12 +2386,12 @@
             "user_region": "Something:I have a name,7799",
             "rule_table_name": "RULE_FIREWALL_DEFAULT",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
-                    "g2c_table_name": "GROUP2RULE_FIREWALL",
+                    "g2c_table_name": "OBJECT2RULE_FIREWALL",
                     "attribute": "HTTP_URL",
-                    "group_name": "198_url_group",
-                    "group_id": 187,
+                    "object_name": "198_url_object",
+                    "object_id": 187,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -2413,15 +2413,15 @@
             "do_log": 1,
             "user_region": "ExcludeLogic.ScanNotAtLast",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "ExcludeLogicGroup199",
-                    "group_id": 188,
-                    "sub_groups":[
+                    "object_name": "ExcludeLogicObject199",
+                    "object_id": 188,
+                    "sub_objects":[
                         {
-                            "group_name": "ExcludeLogicGroup199_1",
-                            "group_id": 189,
+                            "object_name": "ExcludeLogicObject199_1",
+                            "object_id": 189,
                             "is_exclude": 0,
                             "condition_index": 0,
                             "regions": [
@@ -2436,8 +2436,8 @@
                             ]
                         },
                         {
-                            "group_name": "ExcludeLogicGroup199_2",
-                            "group_id": 190,
+                            "object_name": "ExcludeLogicObject199_2",
+                            "object_id": 190,
                             "is_exclude": 1,
                             "condition_index": 0,
                             "regions": [
@@ -2463,16 +2463,16 @@
             "do_log": 1,
             "user_region": "ExcludeLogic.OneRegion",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "ExcludeLogicGroup200",
-                    "group_id": 191,
-                    "sub_groups":[
+                    "object_name": "ExcludeLogicObject200",
+                    "object_id": 191,
+                    "sub_objects":[
                         {
                             "attribute": "HTTP_URL",
-                            "group_name": "ExcludeLogicGroup200_1",
-                            "group_id": 192,
+                            "object_name": "ExcludeLogicObject200_1",
+                            "object_id": 192,
                             "is_exclude": 0,
                             "condition_index": 0,
                             "regions": [
@@ -2488,8 +2488,8 @@
                         },
                         {
                             "attribute": "HTTP_URL",
-                            "group_name": "ExcludeLogicGroup200_2",
-                            "group_id": 193,
+                            "object_name": "ExcludeLogicObject200_2",
+                            "object_id": 193,
                             "is_exclude": 1,
                             "condition_index": 0,
                             "regions": [
@@ -2515,16 +2515,16 @@
             "do_log": 1,
             "user_region": "null",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "ATTRIBUTE_IP_PLUS_TABLE",
-                    "group_name": "ExcludeLogicGroup202",
-                    "group_id": 194,
+                    "object_name": "ExcludeLogicObject202",
+                    "object_id": 194,
                     "condition_index": 0,
-                    "sub_groups":[
+                    "sub_objects":[
                         {
-                            "group_name": "ExcludeLogicGroup202_1",
-                            "group_id": 195,
+                            "object_name": "ExcludeLogicObject202_1",
+                            "object_id": 195,
                             "is_exclude": 0,
                             "regions": [
                                 {
@@ -2537,8 +2537,8 @@
                             ]
                         },
                         {
-                            "group_name": "ExcludeLogicGroup202_2",
-                            "group_id": 196,
+                            "object_name": "ExcludeLogicObject202_2",
+                            "object_id": 196,
                             "is_exclude": 1,
                             "regions": [
                                 {
@@ -2551,8 +2551,8 @@
                             ]
                         },
                         {
-                            "group_name": "ExcludeLogicGroup202_3",
-                            "group_id": 197,
+                            "object_name": "ExcludeLogicObject202_3",
+                            "object_id": 197,
                             "is_exclude": 1,
                             "regions": [
                                 {
@@ -2576,11 +2576,11 @@
             "do_log": 1,
             "user_region": "null",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "ATTRIBUTE_IP_PLUS_SOURCE",
-                    "group_name": "ExcludeLogicGroup203_1",
-                    "group_id": 198,
+                    "object_name": "ExcludeLogicObject203_1",
+                    "object_id": 198,
                     "condition_index": 0,
                     "regions": [
                         {
@@ -2595,8 +2595,8 @@
                 },
                 {
                     "attribute": "ATTRIBUTE_IP_PLUS_DESTINATION",
-                    "group_name": "ExcludeLogicGroup203_2",
-                    "group_id": 199,
+                    "object_name": "ExcludeLogicObject203_2",
+                    "object_id": 199,
                     "condition_index": 1,
                     "regions": [
                         {
@@ -2610,13 +2610,13 @@
                 },
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS",
-                    "group_name": "ExcludeLogicGroup203_3",
-                    "group_id": 200,
+                    "object_name": "ExcludeLogicObject203_3",
+                    "object_id": 200,
                     "condition_index": 2,
-                    "sub_groups": [
+                    "sub_objects": [
                         {
-                            "group_name": "ExcludeLogicGroup203_3_1",
-                            "group_id": 201,
+                            "object_name": "ExcludeLogicObject203_3_1",
+                            "object_id": 201,
                             "is_exclude": 0,
                             "regions": [
                                 {
@@ -2630,8 +2630,8 @@
                             ]
                         },
                         {
-                            "group_name": "ExcludeLogicGroup203_3_2",
-                            "group_id": 202,
+                            "object_name": "ExcludeLogicObject203_3_2",
+                            "object_id": 202,
                             "is_exclude": 1,
                             "regions": [
                                 {
@@ -2656,11 +2656,11 @@
             "do_log": 1,
             "user_region": "null",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "ATTRIBUTE_IP_PLUS_SOURCE",
-                    "group_name": "ExcludeLogicGroup204_1",
-                    "group_id": 203,
+                    "object_name": "ExcludeLogicObject204_1",
+                    "object_id": 203,
                     "condition_index": 0,
                     "regions": [
                         {
@@ -2675,8 +2675,8 @@
                 },
                 {
                     "attribute": "ATTRIBUTE_IP_PLUS_DESTINATION",
-                    "group_name": "ExcludeLogicGroup204_2",
-                    "group_id":204, 
+                    "object_name": "ExcludeLogicObject204_2",
+                    "object_id":204, 
                     "condition_index": 1,
                     "regions": [
                         {
@@ -2690,18 +2690,18 @@
                 },
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS",
-                    "group_name": "ExcludeLogicGroup204_3",
-                    "group_id": 205,
+                    "object_name": "ExcludeLogicObject204_3",
+                    "object_id": 205,
                     "condition_index": 2,
-                    "sub_groups": [
+                    "sub_objects": [
                         {
-                            "group_name": "ExcludeLogicGroup204_3_1",
-                            "group_id": 206,
+                            "object_name": "ExcludeLogicObject204_3_1",
+                            "object_id": 206,
                             "is_exclude": 0,
-                            "sub_groups" : [
+                            "sub_objects" : [
                                 {
-                                    "group_name": "ExcludeLogicGroup204_3_1_1",
-                                    "group_id": 207,
+                                    "object_name": "ExcludeLogicObject204_3_1_1",
+                                    "object_id": 207,
                                     "is_exclude": 0,
                                     "regions": [
                                         {
@@ -2715,8 +2715,8 @@
                                     ]
                                 },
                                 {
-                                    "group_name": "ExcludeLogicGroup204_3_1_2",
-                                    "group_id": 208,
+                                    "object_name": "ExcludeLogicObject204_3_1_2",
+                                    "object_id": 208,
                                     "is_exclude": 1,
                                     "regions": [
                                         {
@@ -2732,8 +2732,8 @@
                             ]
                         },
                         {
-                            "group_name": "ExcludeLogicGroup204_3_2",
-                            "group_id": 209,
+                            "object_name": "ExcludeLogicObject204_3_2",
+                            "object_id": 209,
                             "is_exclude": 1,
                             "regions": [
                                 {
@@ -2758,11 +2758,11 @@
             "do_log": 0,
             "user_region": "StringScan.RegexExpressionIllegal",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "KEYWORDS_TABLE",
-                    "group_name": "205_keywords_group",
-                    "group_id": 210,
+                    "object_name": "205_keywords_object",
+                    "object_id": 210,
                     "regions": [
                         {
                             "table_type": "expr",
@@ -2784,11 +2784,11 @@
             "do_log": 0,
             "user_region": "duplicateRuleFor191",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "KEYWORDS_TABLE",
-                    "group_name": "206_keywords_group",
-                    "group_id": 211,
+                    "object_name": "206_keywords_object",
+                    "object_id": 211,
                     "regions": [
                         {
                             "table_type": "expr",
@@ -2810,11 +2810,11 @@
             "do_log": 0,
             "user_region": "duplicateRuleFor192",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "FLAG_CONFIG",
-                    "group_name": "207_flag_group",
-                    "group_id": 212,
+                    "object_name": "207_flag_object",
+                    "object_id": 212,
                     "regions": [
                         {
                             "table_type": "flag",
@@ -2836,11 +2836,11 @@
             "do_log": 0,
             "user_region": "duplicateRuleFor154",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "IP_PLUS_CONFIG",
-                    "group_name": "208_IP_group",
-                    "group_id": 213,
+                    "object_name": "208_IP_object",
+                    "object_id": 213,
                     "negate_option": 0,
                     "regions": [
                         {
@@ -2862,11 +2862,11 @@
             "do_log": 1,
             "user_region": "duplicateRuleFor179",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "INTERGER_PLUS",
-                    "group_name": "209_interval_group",
-                    "group_id": 214,
+                    "object_name": "209_interval_object",
+                    "object_id": 214,
                     "regions": [
                         {
                             "table_name": "INTERGER_PLUS",
@@ -2888,11 +2888,11 @@
             "do_log": 0,
             "user_region": "ipv6_::",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "IP_PLUS_CONFIG",
-                    "group_name": "210_IP_group",
-                    "group_id": 215,
+                    "object_name": "210_IP_object",
+                    "object_id": 215,
                     "regions": [
                         {
                             "table_type":"ip",
@@ -2913,11 +2913,11 @@
             "do_log": 0,
             "user_region": "ip_perf_test",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "IP_PERF_CONFIG",
-                    "group_name": "211_IP_group",
-                    "group_id": 216,
+                    "object_name": "211_IP_object",
+                    "object_id": 216,
                     "negate_option": 0,
                     "regions": [
                         {
@@ -2939,11 +2939,11 @@
             "do_log": 1,
             "user_region": "integer_perf_test",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "INTEGER_PERF_CONFIG",
-                    "group_name": "212_interval_group",
-                    "group_id": 217,
+                    "object_name": "212_interval_object",
+                    "object_id": 217,
                     "regions": [
                         {
                             "table_name": "INTEGER_PERF_CONFIG",
@@ -2964,11 +2964,11 @@
             "do_log": 1,
             "user_region": "expr_perf_test",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "EXPR_LITERAL_PERF_CONFIG",
-                    "group_name": "213_expr_group",
-                    "group_id": 218,
+                    "object_name": "213_expr_object",
+                    "object_id": 218,
                     "regions": [
                         {
                             "table_name": "EXPR_LITERAL_PERF_CONFIG",
@@ -2990,11 +2990,11 @@
             "do_log": 0,
             "user_region": "flag_perf_test",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "FLAG_PERF_CONFIG",
-                    "group_name": "214_flag_group",
-                    "group_id": 219,
+                    "object_name": "214_flag_object",
+                    "object_id": 219,
                     "regions": [
                         {
                             "table_type": "flag",
@@ -3016,11 +3016,11 @@
             "do_log": 1,
             "user_region": "expr_perf_test",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "EXPR_REGEX_PERF_CONFIG",
-                    "group_name": "215_expr_group",
-                    "group_id": 220,
+                    "object_name": "215_expr_object",
+                    "object_id": 220,
                     "regions": [
                         {
                             "table_name": "EXPR_REGEX_PERF_CONFIG",
@@ -3040,19 +3040,19 @@
             "action": 0,
             "do_blacklist": 0,
             "do_log": 0,
-            "user_region": "NOTCondition&ExcludeGroup",
+            "user_region": "NOTCondition&ExcludeObject",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL_FILTER",
-                    "group_name": "ExcludeLogicGroup200",
+                    "object_name": "ExcludeLogicObject200",
                     "negate_option": 0,
                     "condition_index": 0
                 },
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS",
-                    "group_name": "NOTConditionAndExcludeGroup216",
-                    "group_id": 221,
+                    "object_name": "NOTConditionAndExcludeObject216",
+                    "object_id": 221,
                     "negate_option": 1,
                     "condition_index": 1,
                     "regions": [
@@ -3074,19 +3074,19 @@
             "action": 0,
             "do_blacklist": 0,
             "do_log": 0,
-            "user_region": "NOTCondition&ExcludeGroup",
+            "user_region": "NOTCondition&ExcludeObject",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL_FILTER",
-                    "group_name": "NOTConditionAndExcludeGroup217_1",
-                    "group_id": 222,
+                    "object_name": "NOTConditionAndExcludeObject217_1",
+                    "object_id": 222,
                     "negate_option": 1,
                     "condition_index": 0,
-                    "sub_groups": [
+                    "sub_objects": [
                         {
-                            "group_name": "ExcludeLogicGroup217_1_1",
-                            "group_id": 223,
+                            "object_name": "ExcludeLogicObject217_1_1",
+                            "object_id": 223,
                             "is_exclude": 0,
                             "regions": [
                                 {
@@ -3100,8 +3100,8 @@
                             ]
                         },
                         {
-                            "group_name": "ExcludeLogicGroup217_1_2",
-                            "group_id": 224,
+                            "object_name": "ExcludeLogicObject217_1_2",
+                            "object_id": 224,
                             "is_exclude": 1,
                             "regions": [
                                 {
@@ -3118,8 +3118,8 @@
                 },
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS",
-                    "group_name": "NOTConditionAndExcludeGroup217_2",
-                    "group_id": 225,
+                    "object_name": "NOTConditionAndExcludeObject217_2",
+                    "object_id": 225,
                     "negate_option": 0,
                     "condition_index": 1,
                     "regions": [
@@ -3143,11 +3143,11 @@
             "do_log": 1,
             "user_region": "anything",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "CONTENT_SIZE",
-                    "group_name": "218_interval_group",
-                    "group_id": 226,
+                    "object_name": "218_interval_object",
+                    "object_id": 226,
                     "regions": [
                         {
                             "table_name": "CONTENT_SIZE",
@@ -3168,11 +3168,11 @@
             "do_log": 1,
             "user_region": "anything",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_DUMMY",
-                    "group_name": "NOTConditionAndExcludeGroup219_1",
-                    "group_id": 227,
+                    "object_name": "NOTConditionAndExcludeObject219_1",
+                    "object_id": 227,
                     "negate_option": 0,
                     "condition_index": 0,
                     "regions": [
@@ -3188,8 +3188,8 @@
                 },
                 {
                     "attribute": "HTTP_DUMMY",
-                    "group_name": "NOTConditionAndExcludeGroup219_2",
-                    "group_id": 228,
+                    "object_name": "NOTConditionAndExcludeObject219_2",
+                    "object_id": 228,
                     "negate_option": 1,
                     "condition_index": 1,
                     "regions": [
@@ -3205,8 +3205,8 @@
                 },
                 {
                     "attribute": "HTTP_DUMMY",
-                    "group_name": "NOTConditionAndExcludeGroup219_3",
-                    "group_id": 229,
+                    "object_name": "NOTConditionAndExcludeObject219_3",
+                    "object_id": 229,
                     "negate_option": 1,
                     "condition_index": 2,
                     "regions": [
@@ -3222,8 +3222,8 @@
                 },
                 {
                     "attribute": "HTTP_DUMMY",
-                    "group_name": "NOTConditionAndExcludeGroup219_4",
-                    "group_id": 230,
+                    "object_name": "NOTConditionAndExcludeObject219_4",
+                    "object_id": 230,
                     "negate_option": 1,
                     "condition_index": 3,
                     "regions": [
@@ -3239,8 +3239,8 @@
                 },
                 {
                     "attribute": "HTTP_DUMMY",
-                    "group_name": "NOTConditionAndExcludeGroup219_5",
-                    "group_id": 231,
+                    "object_name": "NOTConditionAndExcludeObject219_5",
+                    "object_id": 231,
                     "negate_option": 1,
                     "condition_index": 4,
                     "regions": [
@@ -3256,8 +3256,8 @@
                 },
                 {
                     "attribute": "HTTP_DUMMY",
-                    "group_name": "NOTConditionAndExcludeGroup219_6",
-                    "group_id": 232,
+                    "object_name": "NOTConditionAndExcludeObject219_6",
+                    "object_id": 232,
                     "negate_option": 1,
                     "condition_index": 5,
                     "regions": [
@@ -3273,8 +3273,8 @@
                 },
                 {
                     "attribute": "HTTP_DUMMY",
-                    "group_name": "NOTConditionAndExcludeGroup219_7",
-                    "group_id": 233,
+                    "object_name": "NOTConditionAndExcludeObject219_7",
+                    "object_id": 233,
                     "negate_option": 1,
                     "condition_index": 6,
                     "regions": [
@@ -3290,8 +3290,8 @@
                 },
                 {
                     "attribute": "HTTP_DUMMY",
-                    "group_name": "NOTConditionAndExcludeGroup219_8",
-                    "group_id": 234,
+                    "object_name": "NOTConditionAndExcludeObject219_8",
+                    "object_id": 234,
                     "negate_option": 1,
                     "condition_index": 7,
                     "regions": [
@@ -3315,11 +3315,11 @@
             "do_log": 1,
             "user_region": "anything",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_DUMMY",
-                    "group_name": "NOTConditionAndExcludeGroup220_1",
-                    "group_id": 235,
+                    "object_name": "NOTConditionAndExcludeObject220_1",
+                    "object_id": 235,
                     "negate_option": 0,
                     "condition_index": 0,
                     "regions": [
@@ -3335,8 +3335,8 @@
                 },
                 {
                     "attribute": "HTTP_DUMMY",
-                    "group_name": "NOTConditionAndExcludeGroup220_2",
-                    "group_id": 236,
+                    "object_name": "NOTConditionAndExcludeObject220_2",
+                    "object_id": 236,
                     "negate_option": 1,
                     "condition_index": 1,
                     "regions": [
@@ -3352,8 +3352,8 @@
                 },
                 {
                     "attribute": "HTTP_DUMMY",
-                    "group_name": "NOTConditionAndExcludeGroup220_3",
-                    "group_id": 237,
+                    "object_name": "NOTConditionAndExcludeObject220_3",
+                    "object_id": 237,
                     "negate_option": 1,
                     "condition_index": 2,
                     "regions": [
@@ -3377,11 +3377,11 @@
             "do_log": 0,
             "user_region": "NOTLogic.ScanWithDistrict",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_REQUEST_HEADER",
-                    "group_name": "NOTLogicGroup_221_1",
-                    "group_id": 238,
+                    "object_name": "NOTLogicObject_221_1",
+                    "object_id": 238,
                     "negate_option": 1,
                     "regions": [
                         {
@@ -3397,8 +3397,8 @@
                 },
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "NOTLogicGroup_221_2",
-                    "group_id": 239,
+                    "object_name": "NOTLogicObject_221_2",
+                    "object_id": 239,
                     "negate_option": 0,
                     "regions": [
                         {
@@ -3421,11 +3421,11 @@
             "do_log": 0,
             "user_region": "NOTLogic.SingleNotCondition",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_NOT_LOGIC_1",
-                    "group_name": "NOTLogicGroup_222",
-                    "group_id": 240,
+                    "object_name": "NOTLogicObject_222",
+                    "object_id": 240,
                     "negate_option": 1,
                     "condition_index": 0,
                     "regions": [
@@ -3449,11 +3449,11 @@
             "do_log": 0,
             "user_region": "NOTLogic.MultiNotCondition",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_NOT_LOGIC",
-                    "group_name": "NOTLogicGroup_223_1",
-                    "group_id": 241,
+                    "object_name": "NOTLogicObject_223_1",
+                    "object_id": 241,
                     "negate_option": 1,
                     "condition_index": 0,
                     "regions": [
@@ -3469,8 +3469,8 @@
                 },
                 {
                     "attribute": "HTTP_NOT_LOGIC",
-                    "group_name": "NOTLogicGroup_223_2",
-                    "group_id": 242,
+                    "object_name": "NOTLogicObject_223_2",
+                    "object_id": 242,
                     "negate_option": 1,
                     "condition_index": 1,
                     "regions": [
@@ -3486,8 +3486,8 @@
                 },
                 {
                     "attribute": "HTTP_NOT_LOGIC",
-                    "group_name": "NOTLogicGroup_223_1",
-                    "group_id": 243,
+                    "object_name": "NOTLogicObject_223_1",
+                    "object_id": 243,
                     "negate_option": 1,
                     "condition_index": 2,
                     "regions": [
@@ -3511,11 +3511,11 @@
             "do_log": 0,
             "user_region": "NOTLogic.NotPhysicalTable",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "KEYWORDS_TABLE",
-                    "group_name": "NOTLogicGroup_224_1",
-                    "group_id": 244,
+                    "object_name": "NOTLogicObject_224_1",
+                    "object_id": 244,
                     "negate_option": 1,
                     "condition_index": 0,
                     "regions": [
@@ -3531,8 +3531,8 @@
                 },
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS",
-                    "group_name": "NOTLogicGroup_224_2",
-                    "group_id": 245,
+                    "object_name": "NOTLogicObject_224_2",
+                    "object_id": 245,
                     "negate_option": 0,
                     "condition_index": 1,
                     "regions": [
@@ -3556,11 +3556,11 @@
             "do_log": 0,
             "user_region": "Payload escape",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "KEYWORDS_TABLE",
-                    "group_name": "EscapeGroup_225_1",
-                    "group_id": 246,
+                    "object_name": "EscapeObject_225_1",
+                    "object_id": 246,
                     "negate_option": 0,
                     "condition_index": 0,
                     "regions": [
@@ -3582,13 +3582,13 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "maat_scan_group",
+            "user_region": "maat_scan_object",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "KEYWORDS_TABLE",
-                    "group_name": "226_url_group",
-                    "group_id":247 
+                    "object_name": "226_url_object",
+                    "object_id":247 
                 }
             ]
         },
@@ -3598,15 +3598,15 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "maat_scan_group",
+            "user_region": "maat_scan_object",
             "rule_table_name": "RULE_FIREWALL_DEFAULT",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "KEYWORDS_TABLE",
-                    "group_name": "227_url_group",
-                    "group_id": 248,
-                    "g2c_table_name": "GROUP2RULE_FIREWALL"
+                    "object_name": "227_url_object",
+                    "object_id": 248,
+                    "g2c_table_name": "OBJECT2RULE_FIREWALL"
                 }
             ]
         },
@@ -3618,11 +3618,11 @@
             "do_log": 1,
             "user_region": "NotConditionHitPath",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "228_url_group",
-                    "group_id": 249,
+                    "object_name": "228_url_object",
+                    "object_id": 249,
                     "negate_option": 0,
                     "condition_index": 1,
                     "regions": [
@@ -3638,8 +3638,8 @@
                 },
                 {
                     "attribute": "ATTRIBUTE_IP_CONFIG",
-                    "group_name": "228_IP_group",
-                    "group_id": 250,
+                    "object_name": "228_IP_object",
+                    "object_id": 250,
                     "negate_option": 1,
                     "condition_index": 2,
                     "regions": [
@@ -3662,11 +3662,11 @@
             "do_log": 1,
             "user_region": "StringScan.Regex",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_URL",
-                    "group_name": "229_url_group",
-                    "group_id": 251,
+                    "object_name": "229_url_object",
+                    "object_id": 251,
                     "regions": [
                         {
                             "table_name": "HTTP_URL",
@@ -3688,11 +3688,11 @@
             "do_log": 0,
             "user_region": "ipv6_::",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "IP_PLUS_CONFIG",
-                    "group_name": "230_IP_group",
-                    "group_id": 256,
+                    "object_name": "230_IP_object",
+                    "object_id": 256,
                     "regions": [
                         {
                             "table_type":"ip",
@@ -3714,11 +3714,11 @@
             "do_log": 0,
             "user_region": "should_not_hit",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "IP_PLUS_CONFIG",
-                    "group_name": "231_IP_group",
-                    "group_id": 257,
+                    "object_name": "231_IP_object",
+                    "object_id": 257,
                     "regions": [
                         {
                             "table_type":"ip",
@@ -3740,11 +3740,11 @@
             "do_log": 0,
             "user_region": "should_not_hit",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "IP_PLUS_CONFIG",
-                    "group_name": "232_IP_group",
-                    "group_id": 258,
+                    "object_name": "232_IP_object",
+                    "object_id": 258,
                     "regions": [
                         {
                             "table_type":"ip",
@@ -3764,13 +3764,13 @@
             "action": 1,
             "do_blacklist": 1,
             "do_log": 1,
-            "user_region": "maat_scan_group",
+            "user_region": "maat_scan_object",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "HTTP_RESPONSE_KEYWORDS",
-                    "group_name": "233_url_group",
-                    "group_id": 259
+                    "object_name": "233_url_object",
+                    "object_id": 259
                 }
             ]
         },
@@ -3782,11 +3782,11 @@
             "do_log": 0,
             "user_region": "Payload escape",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "KEYWORDS_TABLE",
-                    "group_name": "EscapeGroup_234_1",
-                    "group_id": 260,
+                    "object_name": "EscapeObject_234_1",
+                    "object_id": 260,
                     "negate_option": 0,
                     "condition_index": 0,
                     "regions": [
@@ -3810,11 +3810,11 @@
             "do_log": 0,
             "user_region": "Payload escape",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "KEYWORDS_TABLE",
-                    "group_name": "EscapeGroup_235_1",
-                    "group_id": 261,
+                    "object_name": "EscapeObject_235_1",
+                    "object_id": 261,
                     "negate_option": 0,
                     "condition_index": 0,
                     "regions": [
@@ -3838,11 +3838,11 @@
             "do_log": 0,
             "user_region": "StringScan.HexBinCombineString",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
                     "attribute": "KEYWORDS_TABLE",
-                    "group_name": "236_keywords_group",
-                    "group_id": 262,
+                    "object_name": "236_keywords_object",
+                    "object_id": 262,
                     "regions": [
                         {
                             "table_type": "expr",

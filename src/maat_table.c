@@ -19,7 +19,7 @@
 #include "maat_expr.h"
 #include "maat_ip.h"
 #include "maat_rule.h"
-#include "maat_group.h"
+#include "maat_object.h"
 #include "maat_flag.h"
 #include "maat_plugin.h"
 #include "maat_ip_plugin.h"
@@ -289,26 +289,26 @@ struct table_operations table_ops[TABLE_TYPE_MAX] = {
         .update_err_count = rule_runtime_update_err_count
     },
     {
-        .type = TABLE_TYPE_GROUP2GROUP,
-        .new_schema = group2group_schema_new,
-        .free_schema = group2group_schema_free,
-        .new_runtime = group2group_runtime_new,
-        .free_runtime = group2group_runtime_free,
-        .update_runtime = group2group_runtime_update,
-        .commit_runtime = group2group_runtime_commit,
-        .rule_count = group2group_runtime_rule_count,
-        .update_err_count = group2group_runtime_update_err_count
+        .type = TABLE_TYPE_OBJECT2OBJECT,
+        .new_schema = object2object_schema_new,
+        .free_schema = object2object_schema_free,
+        .new_runtime = object2object_runtime_new,
+        .free_runtime = object2object_runtime_free,
+        .update_runtime = object2object_runtime_update,
+        .commit_runtime = object2object_runtime_commit,
+        .rule_count = object2object_runtime_rule_count,
+        .update_err_count = object2object_runtime_update_err_count
     },
     {
-        .type = TABLE_TYPE_GROUP2RULE,
-        .new_schema = group2rule_schema_new,
-        .free_schema = group2rule_schema_free,
-        .new_runtime = group2rule_runtime_new,
-        .free_runtime = group2rule_runtime_free,
-        .update_runtime = group2rule_runtime_update,
+        .type = TABLE_TYPE_OBJECT2RULE,
+        .new_schema = object2rule_schema_new,
+        .free_schema = object2rule_schema_free,
+        .new_runtime = object2rule_runtime_new,
+        .free_runtime = object2rule_runtime_free,
+        .update_runtime = object2rule_runtime_update,
         .commit_runtime = NULL,
-        .rule_count = group2rule_runtime_rule_count,
-        .update_err_count = group2rule_runtime_update_err_count
+        .rule_count = object2rule_runtime_rule_count,
+        .update_err_count = object2rule_runtime_update_err_count
     }
 };
 
@@ -500,8 +500,8 @@ static void maat_table_schema_free(void *schema, enum table_type table_type)
 static void register_reserved_word(struct maat_kv_store *reserved_word_map)
 {
     maat_kv_register(reserved_word_map, "rule", TABLE_TYPE_RULE);
-    maat_kv_register(reserved_word_map, "group2rule", TABLE_TYPE_GROUP2RULE);
-    maat_kv_register(reserved_word_map, "group2group", TABLE_TYPE_GROUP2GROUP);
+    maat_kv_register(reserved_word_map, "object2rule", TABLE_TYPE_OBJECT2RULE);
+    maat_kv_register(reserved_word_map, "object2object", TABLE_TYPE_OBJECT2OBJECT);
     maat_kv_register(reserved_word_map, "flag", TABLE_TYPE_FLAG);
     maat_kv_register(reserved_word_map, "flag_plus", TABLE_TYPE_FLAG_PLUS);
     maat_kv_register(reserved_word_map, "expr", TABLE_TYPE_EXPR);
@@ -905,7 +905,7 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
                 } 
             }
 
-            if (maat_tbl->table_type == TABLE_TYPE_GROUP2GROUP) { 
+            if (maat_tbl->table_type == TABLE_TYPE_OBJECT2OBJECT) { 
                 g2g_table_id = maat_tbl->table_id;
             }
 
@@ -930,7 +930,7 @@ table_manager_create(const char *table_info_path, const char *accept_tags,
     tbl_mgr->g2g_table_id = g2g_table_id;
 
     log_info(logger, MODULE_TABLE, "default rule table id: %d", default_rule_table_id);
-    log_info(logger, MODULE_TABLE, "group2group table id: %d", g2g_table_id);
+    log_info(logger, MODULE_TABLE, "object2object table id: %d", g2g_table_id);
 next:
     FREE(json_buff);
     maat_kv_store_free(reserved_word_map);
@@ -990,18 +990,18 @@ int table_manager_runtime_create(struct table_manager *tbl_mgr, size_t max_threa
                                                                     garbage_bin, tbl_mgr->logger);
     }
 
-    /* group2rule runtime depends on associated rule runtime,
+    /* object2rule runtime depends on associated rule runtime,
        must make sure associated rule runtime already exist */
     for (i = 0; i < MAX_TABLE_NUM; i++) {
         table_type = table_manager_get_table_type(tbl_mgr, i);
-        if (table_type != TABLE_TYPE_GROUP2RULE) {
+        if (table_type != TABLE_TYPE_OBJECT2RULE) {
             continue;
         }
 
         void *schema = table_manager_get_schema(tbl_mgr, i);
         if (NULL == schema) {
             log_fatal(tbl_mgr->logger, MODULE_TABLE, 
-                      "[%s:%d] group2rule table(table_id:%d) schema is null",
+                      "[%s:%d] object2rule table(table_id:%d) schema is null",
                       __FUNCTION__, __LINE__, i);
             continue;
         }
@@ -1011,9 +1011,9 @@ int table_manager_runtime_create(struct table_manager *tbl_mgr, size_t max_threa
             continue;
         }
 
-        int asso_rule_table_id = group2rule_associated_rule_table_id(schema);
+        int asso_rule_table_id = object2rule_associated_rule_table_id(schema);
         void *rule_updating_rt = table_manager_get_updating_runtime(tbl_mgr, asso_rule_table_id);
-        group2rule_runtime_init(g2c_updating_rt, rule_updating_rt);
+        object2rule_runtime_init(g2c_updating_rt, rule_updating_rt);
     }
 
     return 0;
@@ -1163,7 +1163,7 @@ int table_manager_get_default_rule_table_id(struct table_manager *tbl_mgr)
     return tbl_mgr->default_rule_table_id;
 }
 
-int table_manager_get_group2group_table_id(struct table_manager *tbl_mgr)
+int table_manager_get_object2object_table_id(struct table_manager *tbl_mgr)
 {
     if (NULL == tbl_mgr) {
         return -1;

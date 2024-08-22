@@ -603,8 +603,8 @@ int ids_str2longlong_array(const char *ids_str, UT_array *ids_array)
         subtoken = strtok_r(str, seps, &saveptr);
         if (subtoken == NULL)
             break;
-        long long group_id = atoll(subtoken);
-        utarray_push_back(ids_array, &group_id); 
+        long long object_id = atoll(subtoken);
+        utarray_push_back(ids_array, &object_id); 
         counter++;
     }
 

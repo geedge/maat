@@ -33,21 +33,21 @@ struct maat_hit_path {
     int negate_option;     // 1 means negate condition(condition)
     int condition_index; // 0 ~ 7
     long long item_id;
-    long long sub_group_id;
-    long long top_group_id;
+    long long sub_object_id;
+    long long top_object_id;
     long long rule_id;
 };
 
-struct maat_hit_group {
+struct maat_hit_object {
     long long item_id;
-    long long group_id;
+    long long object_id;
     int attribute_id;
 };
 
 enum maat_scan_status {
     MAAT_SCAN_ERR = -1,  //scan error
-    MAAT_SCAN_OK,        //scan but not hit(group or rule)
-    MAAT_SCAN_HALF_HIT,  //half hit: hit group, not hit rule
+    MAAT_SCAN_OK,        //scan but not hit(object or rule)
+    MAAT_SCAN_HALF_HIT,  //half hit: hit object, not hit rule
     MAAT_SCAN_HIT        //scan hit rule
 };
 
@@ -158,7 +158,7 @@ int maat_options_set_expr_engine(struct maat_options *opts, enum maat_expr_engin
 
 int maat_options_set_hit_path_enabled(struct maat_options *opts);
 
-int maat_options_set_hit_group_enabled(struct maat_options *opts);
+int maat_options_set_hit_object_enabled(struct maat_options *opts);
 
 /* maat_instance API */
 struct maat *maat_new(struct maat_options *opts, const char *table_info_path);
@@ -287,8 +287,8 @@ int maat_scan_string(struct maat *instance, int table_id,
                      long long *results, size_t n_result,
                      size_t *n_hit_result, struct maat_state *state);
 
-int maat_scan_group(struct maat *instance, int table_id,
-                    struct maat_hit_group *groups, size_t n_group,
+int maat_scan_object(struct maat *instance, int table_id,
+                    struct maat_hit_object *objects, size_t n_object,
                     long long *results, size_t n_result,
                     size_t *n_hit_result, struct maat_state *state);
 
@@ -330,34 +330,34 @@ int maat_state_get_rule_table_ids(struct maat_state *state, long long *rule_ids,
 size_t maat_state_get_scan_count(struct maat_state *state);
 
 /**
- * @brief direct group means group corresponding to item
+ * @brief direct object means object corresponding to item
  * 
- * NOTE: hit groups may be duplicated
+ * NOTE: hit objects may be duplicated
  *       
 */
-int maat_state_get_direct_hit_groups(struct maat_state *state,
-                                     struct maat_hit_group *group_array,
+int maat_state_get_direct_hit_objects(struct maat_state *state,
+                                     struct maat_hit_object *object_array,
                                      size_t array_size);
-size_t maat_state_get_direct_hit_group_cnt(struct maat_state *state);
+size_t maat_state_get_direct_hit_object_cnt(struct maat_state *state);
 
 /**
- * @brief indirect group means superior group
+ * @brief indirect object means superior object
  * 
- * NOTE: hit groups may be duplicated
+ * NOTE: hit objects may be duplicated
 */
-int maat_state_get_indirect_hit_groups(struct maat_state *state,
-                                       struct maat_hit_group *group_array,
+int maat_state_get_indirect_hit_objects(struct maat_state *state,
+                                       struct maat_hit_object *object_array,
                                        size_t array_size);
-size_t maat_state_get_indirect_hit_group_cnt(struct maat_state *state);
+size_t maat_state_get_indirect_hit_object_cnt(struct maat_state *state);
 
 /**
- * @brief get last scan hit groups(including direct/indirect)
+ * @brief get last scan hit objects(including direct/indirect)
 */
-int maat_state_get_last_hit_groups(struct maat_state *state,
-                                   struct maat_hit_group *group_array,
+int maat_state_get_last_hit_objects(struct maat_state *state,
+                                   struct maat_hit_object *object_array,
                                    size_t array_size);
 
-size_t maat_state_get_last_hit_group_cnt(struct maat_state *state);
+size_t maat_state_get_last_hit_object_cnt(struct maat_state *state);
 
 #ifdef __cplusplus
 }

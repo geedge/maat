@@ -21,7 +21,7 @@
 #include "maat.h"
 #include "maat_core.h"
 #include "maat_rule.h"
-#include "maat_group.h"
+#include "maat_object.h"
 #include "alignment.h"
 #include "maat_garbage_collection.h"
 
@@ -35,7 +35,7 @@
 
 struct expr_schema {
 	int item_id_column;
-    int group_id_column;
+    int object_id_column;
 	int district_column;
 	int keywords_column;
     int expr_type_column;
@@ -63,7 +63,7 @@ enum match_method {
 
 struct expr_item {
     long long item_id;
-    long long group_id;
+    long long object_id;
     char keywords[MAX_KEYWORDS_STR_LEN + 1];
     enum expr_type expr_type;
     void *user_data;
@@ -175,15 +175,15 @@ expr_item_new(struct expr_schema *expr_schema, const char *table_name,
     }
     expr_item->item_id = atoll(line + column_offset);
 
-    ret = get_column_pos(line, expr_schema->group_id_column, &column_offset,
+    ret = get_column_pos(line, expr_schema->object_id_column, &column_offset,
                          &column_len);
     if (ret < 0) {
         log_fatal(expr_rt->logger, MODULE_EXPR, 
-                  "[%s:%d] expr table:<%s> has no group_id in line:%s",
+                  "[%s:%d] expr table:<%s> has no object_id in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
-    expr_item->group_id = atoll(line + column_offset);
+    expr_item->object_id = atoll(line + column_offset);
 
     ret = get_column_pos(line, expr_schema->keywords_column, &column_offset, &column_len);
     if (ret < 0) {
@@ -311,12 +311,12 @@ void *expr_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-	custom_item = cJSON_GetObjectItem(item, "group_id");
+	custom_item = cJSON_GetObjectItem(item, "object_id");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        expr_schema->group_id_column = custom_item->valueint;
+        expr_schema->object_id_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_EXPR, 
-                  "[%s:%d] expr table:<%s> schema has no group_id column", 
+                  "[%s:%d] expr table:<%s> schema has no object_id column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -953,9 +953,9 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
                       const char *data, size_t data_len,
                       int attribute_id, struct maat_state *state)
 {
-    //clear rule_state->last_hit_group
+    //clear rule_state->last_hit_object
     if (state != NULL && state->rule_state != NULL) {
-        rule_state_clear_last_hit_group(state->rule_state);
+        rule_state_clear_last_hit_object(state->rule_state);
     }
 
     if (0 == expr_rt->rule_num) {
@@ -1002,7 +1002,7 @@ int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id,
             }
 
             hit_maat_items[real_hit_item_num].item_id = item_id;
-            hit_maat_items[real_hit_item_num].group_id = expr_item->group_id;
+            hit_maat_items[real_hit_item_num].object_id = expr_item->object_id;
             real_hit_item_num++;
         }
     }
@@ -1049,9 +1049,9 @@ int expr_runtime_stream_scan(struct expr_runtime_stream *expr_rt_stream,
 {
     struct expr_runtime *expr_rt = expr_rt_stream->ref_expr_rt;
 
-    //clear rule_state->last_hit_group
+    //clear rule_state->last_hit_object
     if (state != NULL && state->rule_state != NULL) {
-        rule_state_clear_last_hit_group(state->rule_state);
+        rule_state_clear_last_hit_object(state->rule_state);
     }
 
     if (0 == expr_rt->rule_num) {
@@ -1097,7 +1097,7 @@ int expr_runtime_stream_scan(struct expr_runtime_stream *expr_rt_stream,
         }
 
         hit_maat_items[real_hit_item_cnt].item_id = item_id;
-        hit_maat_items[real_hit_item_cnt].group_id = expr_item->group_id;
+        hit_maat_items[real_hit_item_cnt].object_id = expr_item->object_id;
         real_hit_item_cnt++;
     }
 

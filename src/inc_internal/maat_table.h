@@ -40,8 +40,8 @@ enum table_type {
     //above are physical table
     TABLE_TYPE_ATTRIBUTE,
     TABLE_TYPE_RULE,
-    TABLE_TYPE_GROUP2GROUP,
-	TABLE_TYPE_GROUP2RULE,
+    TABLE_TYPE_OBJECT2OBJECT,
+	TABLE_TYPE_OBJECT2RULE,
     TABLE_TYPE_MAX
 };
 
@@ -85,7 +85,7 @@ const char *table_manager_get_table_schema_tag(struct table_manager *tbl_mgr, in
 enum table_type table_manager_get_table_type(struct table_manager *tbl_mgr, int table_id);
 
 int table_manager_get_default_rule_table_id(struct table_manager *tbl_mgr);
-int table_manager_get_group2group_table_id(struct table_manager *tbl_mgr);
+int table_manager_get_object2object_table_id(struct table_manager *tbl_mgr);
 
 int table_manager_get_valid_column(struct table_manager *tbl_mgr, int table_id);
 

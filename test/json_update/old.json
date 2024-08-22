@@ -1,7 +1,7 @@
 {
     "rule_table": "RULE_DEFAULT",
-    "group2rule_table": "GROUP2RULE_DEFAULT",
-    "group2group_table": "GROUP2GROUP",
+    "object2rule_table": "OBJECT2RULE_DEFAULT",
+    "object2object_table": "OBJECT2OBJECT",
     "rules": [
         {
             "rule_id": 1,
@@ -11,9 +11,9 @@
             "do_log": 1,
             "user_region": "anything",
             "is_valid": "yes",
-            "groups": [
+            "objects": [
                 {
-                    "group_name": "Untitled",
+                    "object_name": "Untitled",
                     "attribute": "HTTP_URL",
                     "regions": [
                         {

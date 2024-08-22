@@ -1,4 +1,0 @@
-include_directories(${PROJECT_SOURCE_DIR}/src/inc_internal)
-
-add_executable(group_nesting_gtest group_nesting_gtest.cpp)
-target_link_libraries(group_nesting_gtest maat_frame_static gtest_static)

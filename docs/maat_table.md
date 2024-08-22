@@ -12,8 +12,8 @@ Maat tables are divided into two categories: physical tables that actually exist
 The types of physical tables are as follows:
 - [item table](#11-item-table)
 - [rule table](#12-rule-table)
-- [group2rule table](#13-group2rule-table)
-- [group2group table](#14-group2group-table)
+- [object2rule table](#13-object2rule-table)
+- [object2object table](#14-object2object-table)
 - [plugin table](#15-plugin-table)
 - [ip_plugin table](#16-ip_plugin-table)
 - [fqdn_plugin table](#17-fqdn_plugin-table)
@@ -39,11 +39,11 @@ Each item table must has the following columns:
 
 - item_id: In a maat instance, the item id is globally unique, meaning that the item id of different tables must not be duplicate.
 
-- group_id: Indicate the group to which the item belongs, an item belongs to only one group.
+- object_id: Indicate the object to which the item belongs, an item belongs to only one object.
 
 - is_valid: In incremental updates, 1(valid means add) 0(invalid means del)
 
-The range of item_id(group_id, rule_id) is 0～2^63，which is 8 bytes.
+The range of item_id(object_id, rule_id) is 0～2^63，which is 8 bytes.
 
 #### 1.1.1 <a name='exprtable'></a> expr item table
 
@@ -52,7 +52,7 @@ Describe matching rules for strings.
 | **FieldName**    | **type**       | **constraint** |
 | ---------------- | -------------- | ------- |
 | **item_id**      | LONG LONG      | primary key |
-| **group_id**     | LONG LONG      | leaf group id, can be referenced by group2group & group2rule table |
+| **object_id**     | LONG LONG      | leaf object id, can be referenced by object2object & object2rule table |
 | **keywords**     | VARCHAR2(1024) | field to match during scanning |
 | **expr_type**    | INT            | 0(keywords), 1(AND expr), 2(regular expr), 3(substring with offset)
 | **match_method** | INT            | only useful when expr_type is 0. 0(sub), 1(suffix), 2(prefix), 3(exactly) |
@@ -68,7 +68,7 @@ The table schema is stored in table_info.conf.
     "valid_column":7,    //7th column(is_valid field)
     "custom": {
         "item_id":1,     //1st column(item_id field)
-        "group_id":2,    //2nd column(group_id field)
+        "object_id":2,    //2nd column(object_id field)
         "keywords":3,    //3rd column(keywords field)
         "expr_type":4,   //4th column(expr_type field)
         "match_method":5,//5th column(match_method field)
@@ -86,7 +86,7 @@ The table schema is stored in table_info.conf.
     "valid_column":7,
     "custom": {
         "item_id":1,
-        "group_id":2,
+        "object_id":2,
         "keywords":3,
         "expr_type":4,
         "match_method":5,
@@ -158,7 +158,7 @@ Describe extended matching rules for strings by adding the district column.
 | **FieldName**    | **type**       | **constraint** |
 | ---------------- | -------------- | ------- |
 | **item_id**      | LONG LONG      | primary key |
-| **group_id**     | LONG LONG      | leaf group id, can be referenced by group2group & group2rule table |
+| **object_id**     | LONG LONG      | leaf object id, can be referenced by object2object & object2rule table |
 | **district**     | VARCHAR2(1024) | describe the effective position of the keywords |
 | **keywords**     | VARCHAR2(1024) | field to match during scanning |
 | **expr_type**    | INT            | 0(keywords), 1(AND expr), 2(regular expr), 3(substring with offset)
@@ -183,7 +183,7 @@ Describe matching rules for IP address. Both the address and port are represente
 | **FieldName**  | **type**     | **constraint** |
 | -------------- | ------------ | -------------- |
 | **item_id**    | LONG LONG    | primary key |
-| **group_id**   | LONG LONG    | leaf group id, can be referenced by group2group & group2rule table |
+| **object_id**   | LONG LONG    | leaf object id, can be referenced by object2object & object2rule table |
 | **addr_type**  | INT          | Ipv4 = 4 Ipv6 = 6 |
 | **addr_format**| VARCHAR2(40) | ip addr format, single/range/CIDR/mask |
 | **ip1**        | VARCHAR2(40) | start ip |
@@ -197,7 +197,7 @@ Determine whether an integer is within a certain numerical range.
 | **FieldName**    | **type** | **constraint** |
 | ---------------- | -------- | -------------- |
 | **item_id**      | INT      | primary key |
-| **group_id**     | INT      | leaf group id, can be referenced by group2group & group2rule table |
+| **object_id**     | INT      | leaf object id, can be referenced by object2object & object2rule table |
 | **low_boundary** | INT      | lower bound of the numerical range(including lb), 0 ~ (2^32 - 1)|
 | **up_boundary**  | INT      | upper bound of the numerical range(including ub), 0 ~ (2^32 - 1)|
 | **is_valid**     | INT      | 0(invalid), 1(valid) |
@@ -209,7 +209,7 @@ Describe extended matching rules for integer by adding the district column.
 | **FieldName**    | **type** | **constraint** |
 | ---------------- | -------- | -------------- |
 | **item_id**      | INT      | primary key |
-| **group_id**     | INT      | leaf group id, can be referenced by group2group & group2rule table |
+| **object_id**     | INT      | leaf object id, can be referenced by object2object & object2rule table |
 | **district**     | VARCHAR2(1024)| describe the effective position of the keywords |
 | **low_boundary** | INT      | lower bound of the numerical range(including lb), 0 ~ (2^32 - 1)|
 | **up_boundary**  | INT      | upper bound of the numerical range(including ub), 0 ~ (2^32 - 1)|
@@ -220,7 +220,7 @@ Describe extended matching rules for integer by adding the district column.
 | **FieldName** | **type** | **constraint** |
 | ------------- | -------- | -------------- |
 | **item_id**   | INT      | primary key |
-| **group_id**  | INT      | leaf group id, can be referenced by group2group & group2rule table |
+| **object_id**  | INT      | leaf object id, can be referenced by object2object & object2rule table |
 | **flag**      | INT      | flag, 0 ~ (2^32 - 1)|
 | **flag_mask** | INT      | flag_mask, 0 ~ (2^32 - 1)|
 | **is_valid**  | INT      | 0(invalid), 1(valid) |
@@ -230,7 +230,7 @@ Describe extended matching rules for integer by adding the district column.
 | **FieldName** | **type** | **constraint** |
 | ------------- | -------- | -------------- |
 | **item_id**   | INT      | primary key |
-| **group_id**  | INT      | leaf group id, can be referenced by group2group & group2rule table |
+| **object_id**  | INT      | leaf object id, can be referenced by object2object & object2rule table |
 | **district**  | INT      | describe the effective position of the flag |
 | **flag**      | INT      | flag, 0 ~ (2^32 - 1)|
 | **flag_mask** | INT      | flag_mask, 0 ~ (2^32 - 1)|
@@ -247,30 +247,30 @@ Describe the specific policy, one maat instance can has multiple rule tables wit
 | **is_valid**   | INT            | 0(invalid)，1(valid)  |
 | **condition_num** | INT            | no more than 8 conditions |
 
-### 1.3 <a name='Group2RuleTable'></a> group2rule table
+### 1.3 <a name='Object2RuleTable'></a> object2rule table
 
-Describe the relationship between group and rule.
+Describe the relationship between object and rule.
 
 | **FieldName**     | **type**      | **constraint** |
 | ----------------- | ------------- | -------------- |
-| **group_ids**     | VARCHAR(256)  | group ids are separated by commas(g1,g2,g3) |
+| **object_ids**     | VARCHAR(256)  | object ids are separated by commas(g1,g2,g3) |
 | **rule_id**    | LONG LONG     | rule id |
 | **is_valid**      | INT           | 0(invalid), 1(valid) |
 | **negate_option**      | INT           | logical 'NOT', identify a negate condition, 0(no) 1(yes) |
 | **attribute** | VARCHAR2(256) | attribute name, NOT NULL |
-| **Nth_condition**    | INT           | the condition seq in (conjunctive normal form)CNF, from 0 to 7. groups with the same condition ID are logical 'OR' |
+| **Nth_condition**    | INT           | the condition seq in (conjunctive normal form)CNF, from 0 to 7. objects with the same condition ID are logical 'OR' |
 
-NOTE: If group_id is invalid in xx_item table, it must be marked as invalid in this table.
+NOTE: If object_id is invalid in xx_item table, it must be marked as invalid in this table.
 
-### 1.4 <a name='Group2GroupTable'></a> group2group table 
+### 1.4 <a name='Object2ObjectTable'></a> object2object table 
 
-Describe the relationship between groups.
+Describe the relationship between objects.
 
 | **FieldName**          | **type**     | **constraint** |
 | ---------------------- | ------------ | ---------------|
-| **group_id**           | LONG LONG    | reference from xx_item table's group_id |
-| **incl_sub_group_ids** | VARCHAR(256) | included sub group ids are separated by commas(g1,g2,g3)|
-| **excl_sub_group_ids** | VARCHAR(256) | excluded sub group ids are separated by commas(g4,g5)|
+| **object_id**           | LONG LONG    | reference from xx_item table's object_id |
+| **incl_sub_object_ids** | VARCHAR(256) | included sub object ids are separated by commas(g1,g2,g3)|
+| **excl_sub_object_ids** | VARCHAR(256) | excluded sub object ids are separated by commas(g4,g5)|
 | **is_valid**           | Bool         | (invalid), 1(valid) |
 
 
@@ -359,7 +359,7 @@ For example: HTTP_REGION is the conjunction of HTTP_URL and HTTP_HOST.
     "valid_column":7,
     "custom": {
         "item_id":1,
-        "group_id":2, 
+        "object_id":2, 
         "keywords":3,
         "expr_type":4,
         "match_method":5,
@@ -396,13 +396,13 @@ Before notifying the callback table, Maat fetches the foreign keys to local file
 
 By matching the tags accepted by Maat with the configuration tags, selective configuration loading is achieved. Configuration tags are a collection of tag arrays, denoted as "tag_sets", while Maat accepts tags are tag arrays denoted as "tags".
 
-Configuration tags are tags stored on compilation configurations or group configurations, identifying where the configuration is effective in which Maat instances. It consists of multiple tag sets, where multiple tags within a set are ANDed, and multiple values of a tag are ORed.
+Configuration tags are tags stored on compilation configurations or object configurations, identifying where the configuration is effective in which Maat instances. It consists of multiple tag sets, where multiple tags within a set are ANDed, and multiple values of a tag are ORed.
 
 ## 2. Table runtime
 
-Maat loads the configuration of different types of tables into memory to form the corresponding runtime for each table. We can see all table types from the table schema, and the runtime for the item table is similar, as it is an abstraction of the scanning engine. When we provide the data to be scanned and call the corresponding scanning interface, we can return whether the item is hit or not, and if it is hit, we can return the corresponding item’s group_id.
+Maat loads the configuration of different types of tables into memory to form the corresponding runtime for each table. We can see all table types from the table schema, and the runtime for the item table is similar, as it is an abstraction of the scanning engine. When we provide the data to be scanned and call the corresponding scanning interface, we can return whether the item is hit or not, and if it is hit, we can return the corresponding item’s object_id.
 
-From the [configuration relationship](./overview.md#12-configuration-relationship) diagram, we can see how the hit group is referenced by other groups or rules. If a hit group is referenced by other groups or rules, there will be one or more hit paths that follow the `item_id -> group_id` {-> super group_id} `-> rule_id`. This requires two special runtimes: group2group_runtime and rule_runtime. 
+From the [configuration relationship](./overview.md#12-configuration-relationship) diagram, we can see how the hit object is referenced by other objects or rules. If a hit object is referenced by other objects or rules, there will be one or more hit paths that follow the `item_id -> object_id` {-> super object_id} `-> rule_id`. This requires two special runtimes: object2object_runtime and rule_runtime. 
 
 Based on this, we can divide the runtime into the following three categories:
 
@@ -412,8 +412,8 @@ Based on this, we can divide the runtime into the following three categories:
     * flag_runtime
     * interval_runtime
 
-2. group & rule table runtime
-    * group2group_runtime
+2. object & rule table runtime
+    * object2object_runtime
     * rule_runtime
 
 3. xx_plugin table runtime
@@ -431,15 +431,15 @@ Among the four types of runtimes mentioned above, `expr_runtime` is relatively u
 
 **Note**: Due to the inability to unify the native rulescan usage with hyperscan, a partial refactoring has been done on rulescan. The refactored rulescan follows the same interface and usage as hyperscan, making it compatible with the design of the expr_matcher abstraction layer.
 
-### 2.2 group & rule table runtime
+### 2.2 object & rule table runtime
 
-#### 2.2.1 group2group runtime
+#### 2.2.1 object2object runtime
 
-The `group2group_runtime` is a runtime that is built based on the reference relationships between groups, which are stored in the [group2group table](#14-group2group-table). From the [group hierarchy](./group_hierarchy.md), we can understand that if a hit occurs in a leaf group that is referenced by other groups, there may be certain super groups that are also hit. This is exactly the functionality provided by this runtime.
+The `object2object_runtime` is a runtime that is built based on the reference relationships between objects, which are stored in the [object2object table](#14-object2object-table). From the [object hierarchy](./object_hierarchy.md), we can understand that if a hit occurs in a leaf object that is referenced by other objects, there may be certain super objects that are also hit. This is exactly the functionality provided by this runtime.
 
 #### 2.2.2 rule runtime
 
-In addition to the rule table, there is also the group2rule table in the table schema. However, from a runtime perspective, the configurations of these two tables together constitute rule_runtime. This means that there is no standalone group2rule_runtime. Rule_runtime is the most complex among all runtime types because it serves multiple functions.
+In addition to the rule table, there is also the object2rule table in the table schema. However, from a runtime perspective, the configurations of these two tables together constitute rule_runtime. This means that there is no standalone object2rule_runtime. Rule_runtime is the most complex among all runtime types because it serves multiple functions.
 
 **Note:** This will involve the terminology of [condition](./terminology.md#condition).
 
@@ -449,7 +449,7 @@ In addition to the rule table, there is also the group2rule table in the table s
 
     * rule2 = condition1 & condition2 = {attribute1, g2} & {attribute2, g3}
 
-    Given the matched attribute_id and group_id, all matching rule_ids can be provided. For example, if scanning attribute1 matches g2 and attribute2 matches g3, rule_runtime will return the matched rule_id 2.
+    Given the matched attribute_id and object_id, all matching rule_ids can be provided. For example, if scanning attribute1 matches g2 and attribute2 matches g3, rule_runtime will return the matched rule_id 2.
 
 2. For expressions with negate-conditions, returning the matched rule_id:
 
@@ -459,9 +459,9 @@ In addition to the rule table, there is also the group2rule table in the table s
 
     If scanning attribute1 matches g1 and attribute2 matches g3, rule_runtime will return the matched rule_id 4.
 
-3. If a rule_id is matched, the full hit path can be obtained: **item_id -> group_id ->** {super_group_id} -> condition{**attribute_id, negate_option, condition_index} -> rule_id**. If the matched group is not referenced by a rule, a half hit path can be obtained: **item_id -> group_id** -> {super_group_id}.
+3. If a rule_id is matched, the full hit path can be obtained: **item_id -> object_id ->** {super_object_id} -> condition{**attribute_id, negate_option, condition_index} -> rule_id**. If the matched object is not referenced by a rule, a half hit path can be obtained: **item_id -> object_id** -> {super_object_id}.
 
-4. Getting the matched group_ids and the count of hit groups.
+4. Getting the matched object_ids and the count of hit objects.
 
 The internal structure of rule_runtime is as follows, including the control plane for configuration loading and the data plane for external calls.
 
@@ -469,33 +469,33 @@ The internal structure of rule_runtime is as follows, including the control plan
 
 * **Control plane**
 
-Rule runtime loads the rule table and group2rule table configurations into memory, assigning a unique condition_id to all conditions of each rule. The following three parts are constructed based on the condition_id:
+Rule runtime loads the rule table and object2rule table configurations into memory, assigning a unique condition_id to all conditions of each rule. The following three parts are constructed based on the condition_id:
 
 1. All condition_ids under the same rule are used to construct AND expressions, and all rule AND expressions are used to build a bool_matcher.
 
-2. For negate_option=0 (conditions), a `condition_id hash` is built, key:{group_id, attribute_id, negate_option}, value:condition_id.
+2. For negate_option=0 (conditions), a `condition_id hash` is built, key:{object_id, attribute_id, negate_option}, value:condition_id.
 
-3. For negate_option=1 (negate-conditions), a `NOT_condition_id hash` is built, key:{group_id, attribute_id, negate_option}, value:condition_id.
+3. For negate_option=1 (negate-conditions), a `NOT_condition_id hash` is built, key:{object_id, attribute_id, negate_option}, value:condition_id.
 
 * **Data Plane**
 
 On the data plane, services are provided externally through the maat API, primarily with the following three types of interfaces:
 
-1. **maat_scan_xx**: This interface dynamically generates the hit {item_id, group_id}.
+1. **maat_scan_xx**: This interface dynamically generates the hit {item_id, object_id}.
 
-* The hit item_id and group_id form a half-hit path.
+* The hit item_id and object_id form a half-hit path.
 
-* The group_id that is hit and the scanned `attribute_id` form the key {group_id, attribute_id, 0}. This key is used to find the `hit condition_ids` in the condition_id hash.
+* The object_id that is hit and the scanned `attribute_id` form the key {object_id, attribute_id, 0}. This key is used to find the `hit condition_ids` in the condition_id hash.
 
-* Use the key {group_id, attribute_id, 1} to search for NOT_condition_ids in the NOT_condition_id hash and cache them as `exclude condition_ids`. These condition_ids need to be removed from all condition_ids that are eventually hit. This is because the scan hit {group_id, attribute_id, 0} => condition_id, leading to the deduction that {group_id, attribute_id, 1} => NOT_condition_id does not hit.
+* Use the key {object_id, attribute_id, 1} to search for NOT_condition_ids in the NOT_condition_id hash and cache them as `exclude condition_ids`. These condition_ids need to be removed from all condition_ids that are eventually hit. This is because the scan hit {object_id, attribute_id, 0} => condition_id, leading to the deduction that {object_id, attribute_id, 1} => NOT_condition_id does not hit.
 
-* Identify the group_ids in attribute_id table that appear in the NOT_condition and add them to the `NOT_condition_group` set. Ensure that this set does not contain any group_id that was hit during scanning. If any such group_id is present, remove it from the set to form the final `NOT_condition_group` for the attribute_id table.
+* Identify the object_ids in attribute_id table that appear in the NOT_condition and add them to the `NOT_condition_object` set. Ensure that this set does not contain any object_id that was hit during scanning. If any such object_id is present, remove it from the set to form the final `NOT_condition_object` for the attribute_id table.
 
 * Use the hit condition_ids to determine if there are any hit rule_ids. If there are, populate the half-hit path which will become full-hit path.
 
 2. **maat_scan_not_logic**: This interface is used to activate negate-condition logic.
 
-* Traverse the `NOT_condition_group` of `attribute_id`. For each `group_id`, form a key `{group_id, attribute_id, 1}` to obtain the `NOT_condition_id`. If it is in the `exclude condition_ids` set, ignore it; otherwise, add it to the `all hit condition_ids` set as a hit `NOT_condition_id`, and record the half-hit path of the negate-condition.
+* Traverse the `NOT_condition_object` of `attribute_id`. For each `object_id`, form a key `{object_id, attribute_id, 1}` to obtain the `NOT_condition_id`. If it is in the `exclude condition_ids` set, ignore it; otherwise, add it to the `all hit condition_ids` set as a hit `NOT_condition_id`, and record the half-hit path of the negate-condition.
 
 * Use the `all hit condition_ids` to calculate if there are any newly hit rule_ids. If there are, populate the half-hit path of the negate-condition which will become full-hit path.
 

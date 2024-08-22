@@ -45,9 +45,9 @@ long long expr_runtime_get_version(void *expr_runtime);
 
 /* expr runtime scan API */
 /**
- * @brief scan string to get hit group_ids
+ * @brief scan string to get hit object_ids
  * 
- * @retval the num of hit group_id
+ * @retval the num of hit object_id
 */
 int expr_runtime_scan(struct expr_runtime *expr_rt, int thread_id, const char *data, 
                       size_t data_len, int attribute_id, struct maat_state *state);

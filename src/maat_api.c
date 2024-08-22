@@ -29,7 +29,7 @@
 #include "ip_matcher.h"
 #include "adapter_hs.h"
 #include "maat_garbage_collection.h"
-#include "maat_group.h"
+#include "maat_object.h"
 #include "maat_expr.h"
 #include "maat_flag.h"
 #include "maat_interval.h"
@@ -288,13 +288,13 @@ int maat_options_set_hit_path_enabled(struct maat_options *opts)
     return 0;
 }
 
-int maat_options_set_hit_group_enabled(struct maat_options *opts)
+int maat_options_set_hit_object_enabled(struct maat_options *opts)
 {
     if (NULL == opts) {
         return -1;
     }
 
-    opts->hit_group_on = 1;
+    opts->hit_object_on = 1;
 
     return 0;
 }
@@ -1081,22 +1081,22 @@ flag_scan(struct table_manager *tbl_mgr, int thread_id, long long flag,
         }
     }
 
-    int group_hit_cnt = flag_runtime_scan((struct flag_runtime *)flag_rt,
+    int object_hit_cnt = flag_runtime_scan((struct flag_runtime *)flag_rt,
                                          thread_id, flag, attribute_id, state);
-    if (group_hit_cnt <= 0) {
-        return group_hit_cnt;
+    if (object_hit_cnt <= 0) {
+        return object_hit_cnt;
     }
 
     if (virt_rt != NULL) {
-        //Note: group_hit_cnt is equivalent to item_hit_cnt
+        //Note: object_hit_cnt is equivalent to item_hit_cnt
         attribute_runtime_hit_item_num_add((struct attribute_runtime *)virt_rt,
-                                         thread_id, group_hit_cnt);
+                                         thread_id, object_hit_cnt);
         attribute_runtime_hit_times_inc((struct attribute_runtime *)virt_rt, thread_id);
     }
 
     flag_runtime_hit_times_inc((struct flag_runtime *)flag_rt, thread_id);
 
-    return group_hit_cnt;
+    return object_hit_cnt;
 }
 
 static int
@@ -1133,22 +1133,22 @@ interval_scan(struct table_manager *tbl_mgr, int thread_id, long long integer,
         }
     }
 
-    int group_hit_cnt = interval_runtime_scan((struct interval_runtime *)interval_rt,
+    int object_hit_cnt = interval_runtime_scan((struct interval_runtime *)interval_rt,
                                               thread_id, integer, attribute_id, state);
-    if (group_hit_cnt <= 0) {
-        return group_hit_cnt;
+    if (object_hit_cnt <= 0) {
+        return object_hit_cnt;
     }
 
     if (virt_rt != NULL) {
-        //Note: group_hit_cnt is equivalent to item_hit_cnt
+        //Note: object_hit_cnt is equivalent to item_hit_cnt
         attribute_runtime_hit_item_num_add((struct attribute_runtime *)virt_rt,
-                                          thread_id, group_hit_cnt);
+                                          thread_id, object_hit_cnt);
         attribute_runtime_hit_times_inc((struct attribute_runtime *)virt_rt, thread_id);
     }
 
     interval_runtime_hit_times_inc((struct interval_runtime *)interval_rt, thread_id);
 
-    return group_hit_cnt;
+    return object_hit_cnt;
 }
 
 static int
@@ -1179,22 +1179,22 @@ ipv4_scan(struct table_manager *tbl_mgr, int thread_id, uint32_t ip_addr,
         }
     }
 
-    int group_hit_cnt = ip_runtime_scan((struct ip_runtime *)ip_rt, thread_id, IPv4,
+    int object_hit_cnt = ip_runtime_scan((struct ip_runtime *)ip_rt, thread_id, IPv4,
                                         (uint8_t *)&ip_addr, port, attribute_id, state);
-    if (group_hit_cnt <= 0) {
-        return group_hit_cnt;
+    if (object_hit_cnt <= 0) {
+        return object_hit_cnt;
     }
 
     if (virt_rt != NULL) {
-        //Note: group_hit_cnt is equivalent to item_hit_cnt
+        //Note: object_hit_cnt is equivalent to item_hit_cnt
         attribute_runtime_hit_item_num_add((struct attribute_runtime *)virt_rt,
-                                          thread_id, group_hit_cnt);
+                                          thread_id, object_hit_cnt);
         attribute_runtime_hit_times_inc((struct attribute_runtime *)virt_rt, thread_id);
     }
 
     ip_runtime_hit_times_inc((struct ip_runtime *)ip_rt, thread_id);
     
-    return group_hit_cnt;
+    return object_hit_cnt;
 }
 
 static int
@@ -1225,22 +1225,22 @@ ipv6_scan(struct table_manager *tbl_mgr, int thread_id, uint8_t *ip_addr,
         }
     }
 
-    int group_hit_cnt = ip_runtime_scan((struct ip_runtime *)ip_rt, thread_id, IPv6,
+    int object_hit_cnt = ip_runtime_scan((struct ip_runtime *)ip_rt, thread_id, IPv6,
                                         ip_addr, port, attribute_id, state);
-    if (group_hit_cnt <= 0) {
-        return group_hit_cnt;
+    if (object_hit_cnt <= 0) {
+        return object_hit_cnt;
     }
 
     if (virt_rt != NULL) {
-        //Note: group_hit_cnt is equivalent to item_hit_cnt
+        //Note: object_hit_cnt is equivalent to item_hit_cnt
         attribute_runtime_hit_item_num_add((struct attribute_runtime *)virt_rt,
-                                          thread_id, group_hit_cnt);
+                                          thread_id, object_hit_cnt);
         attribute_runtime_hit_times_inc((struct attribute_runtime *)virt_rt, thread_id);
     }
 
     ip_runtime_hit_times_inc((struct ip_runtime *)ip_rt, thread_id);
     
-    return group_hit_cnt;
+    return object_hit_cnt;
 }
 
 static int
@@ -1280,27 +1280,27 @@ string_scan(struct table_manager *tbl_mgr, int thread_id,
         }
     }
 
-    int group_hit_cnt = expr_runtime_scan((struct expr_runtime *)expr_rt,
+    int object_hit_cnt = expr_runtime_scan((struct expr_runtime *)expr_rt,
                                           thread_id, data, data_len,
                                           attribute_id, state);
-    if (group_hit_cnt <= 0) {
-        return group_hit_cnt;
+    if (object_hit_cnt <= 0) {
+        return object_hit_cnt;
     }
 
     if (virt_rt != NULL) {
-        //Note: group_hit_cnt is equivalent to item_hit_cnt
+        //Note: object_hit_cnt is equivalent to item_hit_cnt
         attribute_runtime_hit_item_num_add((struct attribute_runtime *)virt_rt,
-                                          thread_id, group_hit_cnt);
+                                          thread_id, object_hit_cnt);
         attribute_runtime_hit_times_inc((struct attribute_runtime *)virt_rt, thread_id);
     }
 
     expr_runtime_hit_times_inc((struct expr_runtime *)expr_rt, thread_id);
 
-    return group_hit_cnt;
+    return object_hit_cnt;
 }
 
 static size_t
-group_to_rule(struct maat *maat_inst, long long *results, size_t n_result,
+object_to_rule(struct maat *maat_inst, long long *results, size_t n_result,
                  struct maat_state *state)
 {
     int rule_table_id =
@@ -1363,9 +1363,9 @@ int maat_scan_flag(struct maat *maat_inst, int table_id,
     }
 
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
-    int hit_group_cnt = flag_scan(maat_inst->tbl_mgr, state->thread_id, flag,
+    int hit_object_cnt = flag_scan(maat_inst->tbl_mgr, state->thread_id, flag,
                                   phy_table_id, attribute_id, state);
-    if (hit_group_cnt < 0) {
+    if (hit_object_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
@@ -1373,8 +1373,8 @@ int maat_scan_flag(struct maat *maat_inst, int table_id,
     maat_runtime_ref_inc(maat_rt, state->thread_id);
 
     size_t sum_hit_rule_cnt = 0;
-    if (hit_group_cnt > 0) {
-        sum_hit_rule_cnt = group_to_rule(maat_inst, results, n_result, state);
+    if (hit_object_cnt > 0) {
+        sum_hit_rule_cnt = object_to_rule(maat_inst, results, n_result, state);
         *n_hit_result = sum_hit_rule_cnt;
     }
 
@@ -1397,7 +1397,7 @@ int maat_scan_flag(struct maat *maat_inst, int table_id,
 
     if (sum_hit_rule_cnt > 0) {
         return MAAT_SCAN_HIT;
-    } else if (hit_group_cnt > 0) {
+    } else if (hit_object_cnt > 0) {
         return MAAT_SCAN_HALF_HIT;
     } else {
         return MAAT_SCAN_OK;
@@ -1448,9 +1448,9 @@ int maat_scan_integer(struct maat *maat_inst, int table_id,
     }
 
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
-    int hit_group_cnt = interval_scan(maat_inst->tbl_mgr, state->thread_id, integer,
+    int hit_object_cnt = interval_scan(maat_inst->tbl_mgr, state->thread_id, integer,
                                       phy_table_id, attribute_id, state);
-    if (hit_group_cnt < 0) {
+    if (hit_object_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
@@ -1458,8 +1458,8 @@ int maat_scan_integer(struct maat *maat_inst, int table_id,
     maat_runtime_ref_inc(maat_rt, state->thread_id);
 
     size_t sum_hit_rule_cnt = 0;
-    if (hit_group_cnt > 0) {
-        sum_hit_rule_cnt = group_to_rule(maat_inst, results, n_result, state);
+    if (hit_object_cnt > 0) {
+        sum_hit_rule_cnt = object_to_rule(maat_inst, results, n_result, state);
         *n_hit_result = sum_hit_rule_cnt;
     }
 
@@ -1482,7 +1482,7 @@ int maat_scan_integer(struct maat *maat_inst, int table_id,
 
     if (sum_hit_rule_cnt > 0) {
         return MAAT_SCAN_HIT;
-    } else if (hit_group_cnt > 0) {
+    } else if (hit_object_cnt > 0) {
         return MAAT_SCAN_HALF_HIT;
     } else {
         return MAAT_SCAN_OK;
@@ -1532,9 +1532,9 @@ int maat_scan_ipv4_port(struct maat *maat_inst, int table_id, uint32_t ip_addr,
     }
 
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
-    int hit_group_cnt = ipv4_scan(maat_inst->tbl_mgr, state->thread_id, ip_addr, port,
+    int hit_object_cnt = ipv4_scan(maat_inst->tbl_mgr, state->thread_id, ip_addr, port,
                                   phy_table_id, attribute_id, state);
-    if (hit_group_cnt < 0) {
+    if (hit_object_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
@@ -1542,8 +1542,8 @@ int maat_scan_ipv4_port(struct maat *maat_inst, int table_id, uint32_t ip_addr,
     maat_runtime_ref_inc(maat_rt, state->thread_id);
 
     size_t sum_hit_rule_cnt = 0;
-    if (hit_group_cnt > 0) {
-        sum_hit_rule_cnt = group_to_rule(maat_inst, results, n_result, state);
+    if (hit_object_cnt > 0) {
+        sum_hit_rule_cnt = object_to_rule(maat_inst, results, n_result, state);
         *n_hit_result = sum_hit_rule_cnt;
     }
 
@@ -1566,7 +1566,7 @@ int maat_scan_ipv4_port(struct maat *maat_inst, int table_id, uint32_t ip_addr,
 
     if (sum_hit_rule_cnt > 0) {
         return MAAT_SCAN_HIT;
-    } else if (hit_group_cnt > 0) {
+    } else if (hit_object_cnt > 0) {
         return MAAT_SCAN_HALF_HIT;
     } else {
         return MAAT_SCAN_OK;
@@ -1616,9 +1616,9 @@ int maat_scan_ipv6_port(struct maat *maat_inst, int table_id, uint8_t *ip_addr,
     }
 
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
-    int hit_group_cnt = ipv6_scan(maat_inst->tbl_mgr, state->thread_id, ip_addr, port,
+    int hit_object_cnt = ipv6_scan(maat_inst->tbl_mgr, state->thread_id, ip_addr, port,
                                   phy_table_id, attribute_id, state);
-    if (hit_group_cnt < 0) {
+    if (hit_object_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
@@ -1626,8 +1626,8 @@ int maat_scan_ipv6_port(struct maat *maat_inst, int table_id, uint8_t *ip_addr,
     maat_runtime_ref_inc(maat_rt, state->thread_id);
 
     size_t sum_hit_rule_cnt = 0;
-    if (hit_group_cnt > 0) {
-        sum_hit_rule_cnt = group_to_rule(maat_inst, results, n_result, state);
+    if (hit_object_cnt > 0) {
+        sum_hit_rule_cnt = object_to_rule(maat_inst, results, n_result, state);
         *n_hit_result = sum_hit_rule_cnt;
     }
 
@@ -1650,7 +1650,7 @@ int maat_scan_ipv6_port(struct maat *maat_inst, int table_id, uint8_t *ip_addr,
 
     if (sum_hit_rule_cnt > 0) {
         return MAAT_SCAN_HIT;
-    } else if (hit_group_cnt > 0) {
+    } else if (hit_object_cnt > 0) {
         return MAAT_SCAN_HALF_HIT;
     } else {
         return MAAT_SCAN_OK;
@@ -1719,9 +1719,9 @@ int maat_scan_string(struct maat *maat_inst, int table_id,
     }
 
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
-    int hit_group_cnt = string_scan(maat_inst->tbl_mgr, state->thread_id, data,
+    int hit_object_cnt = string_scan(maat_inst->tbl_mgr, state->thread_id, data,
                                     data_len, phy_table_id, attribute_id, state);
-    if (hit_group_cnt < 0) {
+    if (hit_object_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
@@ -1729,8 +1729,8 @@ int maat_scan_string(struct maat *maat_inst, int table_id,
     maat_runtime_ref_inc(maat_rt, state->thread_id);
 
     size_t sum_hit_rule_cnt = 0;
-    if (hit_group_cnt > 0) {
-        sum_hit_rule_cnt = group_to_rule(maat_inst, results, n_result, state);
+    if (hit_object_cnt > 0) {
+        sum_hit_rule_cnt = object_to_rule(maat_inst, results, n_result, state);
         *n_hit_result = sum_hit_rule_cnt;
     }
 
@@ -1753,21 +1753,21 @@ int maat_scan_string(struct maat *maat_inst, int table_id,
 
     if (sum_hit_rule_cnt > 0) {
         return MAAT_SCAN_HIT;
-    } else if (hit_group_cnt > 0) {
+    } else if (hit_object_cnt > 0) {
         return MAAT_SCAN_HALF_HIT;
     } else {
         return MAAT_SCAN_OK;
     }
 }
 
-static void maat_state_add_hit_group(struct maat_state *state, int table_id,
-                                     struct maat_hit_group *groups, size_t n_group)
+static void maat_state_add_hit_object(struct maat_state *state, int table_id,
+                                     struct maat_hit_object *objects, size_t n_object)
 {
     struct maat *maat_inst = state->maat_inst;
 
-    //clear rule_state->last_hit_group
+    //clear rule_state->last_hit_object
     if (state != NULL && state->rule_state != NULL) {
-        rule_state_clear_last_hit_group(state->rule_state);
+        rule_state_clear_last_hit_object(state->rule_state);
     }
 
     if (NULL == state->rule_state) {
@@ -1776,15 +1776,15 @@ static void maat_state_add_hit_group(struct maat_state *state, int table_id,
                                   state->thread_id, 1); 
     }
 
-    size_t n_hit_item = n_group;
-    if (n_group >= MAX_HIT_GROUP_NUM) {
-        n_hit_item = MAX_HIT_GROUP_NUM;
+    size_t n_hit_item = n_object;
+    if (n_object >= MAX_HIT_OBJECT_NUM) {
+        n_hit_item = MAX_HIT_OBJECT_NUM;
     }
 
     struct maat_item hit_items[n_hit_item];
     for (size_t i = 0; i < n_hit_item; i++) {
-        hit_items[i].item_id = groups[i].item_id;
-        hit_items[i].group_id = groups[i].group_id;
+        hit_items[i].item_id = objects[i].item_id;
+        hit_items[i].object_id = objects[i].object_id;
     }
 
     rule_state_update(state->rule_state, maat_inst, table_id,
@@ -1793,7 +1793,7 @@ static void maat_state_add_hit_group(struct maat_state *state, int table_id,
 }
 
 static void
-maat_state_activate_hit_not_group(struct maat_state *state, int table_id)
+maat_state_activate_hit_not_object(struct maat_state *state, int table_id)
 {
     if (NULL == state) {
         return;
@@ -1812,22 +1812,22 @@ maat_state_activate_hit_not_group(struct maat_state *state, int table_id)
         return;
     }
 
-    //clear rule_state->last_hit_group
+    //clear rule_state->last_hit_object
     if (state != NULL && state->rule_state != NULL) {
-        rule_state_clear_last_hit_group(state->rule_state);
+        rule_state_clear_last_hit_object(state->rule_state);
     }
 
     rule_state_not_logic_update(state->rule_state, rule_rt, maat_inst,
                                    table_id, state->Nth_scan);
 }
 
-int maat_scan_group(struct maat *maat_inst, int table_id,
-                    struct maat_hit_group *groups, size_t n_group,
+int maat_scan_object(struct maat *maat_inst, int table_id,
+                    struct maat_hit_object *objects, size_t n_object,
                     long long *results, size_t n_result,
                     size_t *n_hit_result, struct maat_state *state)
 {
     if ((NULL == maat_inst) || table_id < 0 || table_id >= MAX_TABLE_NUM ||
-        (NULL == groups) || (0 == n_group) || (NULL == results) ||
+        (NULL == objects) || (0 == n_object) || (NULL == results) ||
         (0 == n_result) || (NULL == n_hit_result) || (NULL == state) ||
         (state->thread_id < 0)) {
         return -1;
@@ -1852,15 +1852,15 @@ int maat_scan_group(struct maat *maat_inst, int table_id,
             attribute_runtime_hit_times_inc((struct attribute_runtime *)virt_rt,
                                            state->thread_id);
             attribute_runtime_hit_item_num_add((struct attribute_runtime *)virt_rt,
-                                              state->thread_id, n_group);
+                                              state->thread_id, n_object);
         }
     }
 
     maat_runtime_ref_inc(maat_rt, state->thread_id);
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
 
-    maat_state_add_hit_group(state, table_id, groups, n_group);
-    size_t hit_rule_cnt = group_to_rule(maat_inst, results, n_result, state);
+    maat_state_add_hit_object(state, table_id, objects, n_object);
+    size_t hit_rule_cnt = object_to_rule(maat_inst, results, n_result, state);
     *n_hit_result = hit_rule_cnt;
 
     maat_runtime_ref_dec(maat_rt, state->thread_id);
@@ -1895,8 +1895,8 @@ int maat_scan_not_logic(struct maat *maat_inst, int table_id,
     maat_runtime_ref_inc(maat_rt, state->thread_id);
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt, state->thread_id, 1);
 
-    maat_state_activate_hit_not_group(state, table_id);
-    size_t hit_rule_cnt = group_to_rule(maat_inst, results, n_result, state);
+    maat_state_activate_hit_not_object(state, table_id);
+    size_t hit_rule_cnt = object_to_rule(maat_inst, results, n_result, state);
     *n_hit_result = hit_rule_cnt;
 
     maat_runtime_ref_dec(maat_rt, state->thread_id);
@@ -2004,22 +2004,22 @@ static int expr_stream_scan(struct maat_stream *stream, const char *data,
         }
     }
 
-    int group_hit_cnt = expr_runtime_stream_scan(stream->expr_rt_stream, data,
+    int object_hit_cnt = expr_runtime_stream_scan(stream->expr_rt_stream, data,
                                                  data_len, stream->attribute_id, state);
-    if (group_hit_cnt <= 0) {
-        return group_hit_cnt;
+    if (object_hit_cnt <= 0) {
+        return object_hit_cnt;
     }
 
     if (virt_rt != NULL) {
-        //Note: group_hit_cnt is equivalent to item_hit_cnt
+        //Note: object_hit_cnt is equivalent to item_hit_cnt
         attribute_runtime_hit_item_num_add((struct attribute_runtime *)virt_rt,
-                                          stream->thread_id, group_hit_cnt);
+                                          stream->thread_id, object_hit_cnt);
         attribute_runtime_hit_times_inc((struct attribute_runtime *)virt_rt, stream->thread_id);
     }
 
     expr_runtime_stream_hit_times_inc(stream->expr_rt_stream, stream->thread_id);
 
-    return group_hit_cnt;
+    return object_hit_cnt;
 }
 
 int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data_len, 
@@ -2055,15 +2055,15 @@ int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data
     alignment_int64_array_add(maat_inst->stat->thread_call_cnt,
                               maat_stream->thread_id, 1);
 
-    int hit_group_cnt = expr_stream_scan(maat_stream, data, data_len, state);
-    if (hit_group_cnt < 0) {
+    int hit_object_cnt = expr_stream_scan(maat_stream, data, data_len, state);
+    if (hit_object_cnt < 0) {
         maat_inst->stat->scan_err_cnt++;
         return MAAT_SCAN_ERR;
     }
 
     size_t sum_hit_rule_cnt = 0;
-    if (hit_group_cnt > 0) {
-        sum_hit_rule_cnt = group_to_rule(maat_inst, results, n_result, state);
+    if (hit_object_cnt > 0) {
+        sum_hit_rule_cnt = object_to_rule(maat_inst, results, n_result, state);
         *n_hit_result = sum_hit_rule_cnt;
     }
 
@@ -2081,7 +2081,7 @@ int maat_stream_scan(struct maat_stream *maat_stream, const char *data, int data
 
      if (sum_hit_rule_cnt > 0) {
         return MAAT_SCAN_HIT;
-    } else if (hit_group_cnt > 0) {
+    } else if (hit_object_cnt > 0) {
         return MAAT_SCAN_HALF_HIT;
     } else {
         return MAAT_SCAN_OK;
@@ -2309,13 +2309,13 @@ int maat_state_get_hit_paths(struct maat_state *state, struct maat_hit_path *pat
         return -1;
     }
 
-    int g2g_table_id = table_manager_get_group2group_table_id(maat_inst->tbl_mgr);
+    int g2g_table_id = table_manager_get_object2object_table_id(maat_inst->tbl_mgr);
     void *g2g_runtime = table_manager_get_runtime(maat_inst->tbl_mgr, g2g_table_id);
 
     size_t hit_path_cnt =
         rule_state_get_internal_hit_paths(state->rule_state,
                                             (struct rule_runtime *)rule_rt,
-                                            (struct group2group_runtime *)g2g_runtime,
+                                            (struct object2object_runtime *)g2g_runtime,
                                              path_array, array_size);
 
     return rule_runtime_get_hit_paths((struct rule_runtime *)rule_rt,
@@ -2332,11 +2332,11 @@ size_t maat_state_get_scan_count(struct maat_state *state)
     return state->Nth_scan;
 }
 
-int maat_state_get_direct_hit_groups(struct maat_state *state,
-                                     struct maat_hit_group *group_array,
+int maat_state_get_direct_hit_objects(struct maat_state *state,
+                                     struct maat_hit_object *object_array,
                                      size_t array_size)
 {
-    if (NULL == state || NULL == group_array || 0 == array_size) {
+    if (NULL == state || NULL == object_array || 0 == array_size) {
         return -1;
     }
 
@@ -2344,24 +2344,24 @@ int maat_state_get_direct_hit_groups(struct maat_state *state,
         return 0;
     }
     
-    return rule_state_get_direct_hit_groups(state->rule_state,
-                                               group_array, array_size);
+    return rule_state_get_direct_hit_objects(state->rule_state,
+                                               object_array, array_size);
 }
 
-size_t maat_state_get_direct_hit_group_cnt(struct maat_state *state)
+size_t maat_state_get_direct_hit_object_cnt(struct maat_state *state)
 {
     if (NULL == state || NULL == state->rule_state) {
         return 0;
     }
 
-    return rule_state_get_direct_hit_group_cnt(state->rule_state);
+    return rule_state_get_direct_hit_object_cnt(state->rule_state);
 }
 
-int maat_state_get_indirect_hit_groups(struct maat_state *state,
-                                       struct maat_hit_group *group_array,
+int maat_state_get_indirect_hit_objects(struct maat_state *state,
+                                       struct maat_hit_object *object_array,
                                        size_t array_size)
 {
-    if (NULL == state || NULL == group_array || 0 == array_size) {
+    if (NULL == state || NULL == object_array || 0 == array_size) {
         return -1;
     }
 
@@ -2369,36 +2369,36 @@ int maat_state_get_indirect_hit_groups(struct maat_state *state,
         return 0;
     }
 
-    return rule_state_get_indirect_hit_groups(state->rule_state,
-                                                 group_array, array_size);
+    return rule_state_get_indirect_hit_objects(state->rule_state,
+                                                 object_array, array_size);
 }
 
-size_t maat_state_get_indirect_hit_group_cnt(struct maat_state *state)
+size_t maat_state_get_indirect_hit_object_cnt(struct maat_state *state)
 {
     if (NULL == state || NULL == state->rule_state) {
         return 0;
     }
 
-    return rule_state_get_indirect_hit_group_cnt(state->rule_state);
+    return rule_state_get_indirect_hit_object_cnt(state->rule_state);
 }
 
-int maat_state_get_last_hit_groups(struct maat_state *state,
-                                   struct maat_hit_group *group_array,
+int maat_state_get_last_hit_objects(struct maat_state *state,
+                                   struct maat_hit_object *object_array,
                                    size_t array_size)
 {
     if (NULL == state || NULL == state->rule_state) {
         return 0;
     }
 
-    return rule_state_get_last_hit_groups(state->rule_state,
-                                             group_array, array_size);
+    return rule_state_get_last_hit_objects(state->rule_state,
+                                             object_array, array_size);
 }
 
-size_t maat_state_get_last_hit_group_cnt(struct maat_state *state)
+size_t maat_state_get_last_hit_object_cnt(struct maat_state *state)
 {
     if (NULL == state || NULL == state->rule_state) {
         return 0;
     }
 
-    return rule_state_get_last_hit_group_cnt(state->rule_state);
+    return rule_state_get_last_hit_object_cnt(state->rule_state);
 }

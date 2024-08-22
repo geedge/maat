@@ -40,15 +40,15 @@ test_add_expr_command(struct maat *maat_inst, const char *table_name,
                                      1, 0);
     EXPECT_EQ(ret, 1);
 
-    long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2rule_table_set_line(maat_inst, "GROUP2RULE_DEFAULT",
-                                       MAAT_OP_ADD, group_id, rule_id,
+    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    ret = object2rule_table_set_line(maat_inst, "OBJECT2RULE_DEFAULT",
+                                       MAAT_OP_ADD, object_id, rule_id,
                                        0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = expr_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                              group_id, keywords, "null", 1, 0);
+                              object_id, keywords, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 }
 
@@ -62,15 +62,15 @@ test_add_ip_command(struct maat *maat_inst, const char *table_name,
                                      1, 0);
     EXPECT_EQ(ret, 1);
 
-    long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2rule_table_set_line(maat_inst, "GROUP2RULE_DEFAULT",
-                                       MAAT_OP_ADD, group_id, rule_id,
+    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    ret = object2rule_table_set_line(maat_inst, "OBJECT2RULE_DEFAULT",
+                                       MAAT_OP_ADD, object_id, rule_id,
                                        0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = ip_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                            group_id, ip, 0);
+                            object_id, ip, 0);
     EXPECT_EQ(ret, 1);
 }
 
@@ -84,9 +84,9 @@ test_add_integer_command(struct maat *maat_inst, const char *table_name,
                                      1, 0);
     EXPECT_EQ(ret, 1);
 
-    long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2rule_table_set_line(maat_inst, "GROUP2RULE_DEFAULT",
-                                       MAAT_OP_ADD, group_id, rule_id,
+    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    ret = object2rule_table_set_line(maat_inst, "OBJECT2RULE_DEFAULT",
+                                       MAAT_OP_ADD, object_id, rule_id,
                                        0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
@@ -94,7 +94,7 @@ test_add_integer_command(struct maat *maat_inst, const char *table_name,
     char interval_range_str[64] = {0};
     snprintf(interval_range_str, sizeof(interval_range_str), "%d-%d", low_boundary, up_boundary);
     ret = interval_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                                 group_id, interval_range_str, NULL, 0);
+                                 object_id, interval_range_str, NULL, 0);
     EXPECT_EQ(ret, 1);
 }
 
@@ -108,15 +108,15 @@ test_add_flag_command(struct maat *maat_inst, const char *table_name,
                                      1, 0);
     EXPECT_EQ(ret, 1);
 
-    long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
-    ret = group2rule_table_set_line(maat_inst, "GROUP2RULE_DEFAULT",
-                                       MAAT_OP_ADD, group_id, rule_id,
+    long long object_id = maat_cmd_incrby(maat_inst, "SEQUENCE_OBJECT", 1);
+    ret = object2rule_table_set_line(maat_inst, "OBJECT2RULE_DEFAULT",
+                                       MAAT_OP_ADD, object_id, rule_id,
                                        0, table_name, 1, 0);
     EXPECT_EQ(ret, 1);
 
     long long item_id = maat_cmd_incrby(maat_inst, "SEQUENCE_REGION", 1);
     ret = flag_table_set_line(maat_inst, table_name, MAAT_OP_ADD, item_id,
-                              group_id, flag, flag_mask, 0);
+                              object_id, flag, flag_mask, 0);
     EXPECT_EQ(ret, 1);
 }
 

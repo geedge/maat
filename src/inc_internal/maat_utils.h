@@ -56,7 +56,7 @@ extern "C"
 
 #define MAX_HIT_PATH_NUM     4096
 #define	MAX_HIT_RULE_NUM  4096
-#define MAX_HIT_GROUP_NUM    4096
+#define MAX_HIT_OBJECT_NUM    4096
 #define MAX_HIT_ITEM_NUM     4096
 
 #define IPV4 4

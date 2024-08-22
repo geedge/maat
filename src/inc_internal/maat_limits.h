@@ -22,8 +22,8 @@ extern "C"
 #define MAX_NAME_STR_LEN      128 
 #define MAX_IP_STR_LEN        64
 #define MAX_INSTANCE_NAME_LEN 15
-#define MAX_GROUP_IDS_STR_LEN 256
-#define MAX_GROUP_CNT         128
+#define MAX_OBJECT_IDS_STR_LEN 256
+#define MAX_OBJECT_CNT         128
 #define MAX_CONJ_PARENTS_NUM  16
 
 #ifdef __cplusplus

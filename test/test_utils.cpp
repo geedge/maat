@@ -165,21 +165,21 @@ int rule_table_set_line(struct maat *maat_inst, const char *table_name,
     return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-#define TO_GROUP2X_KEY(group_id, parent_id, condition_index) \
-        (((unsigned long)group_id<<32|parent_id) + condition_index)
+#define TO_OBJECT2X_KEY(object_id, parent_id, condition_index) \
+        (((unsigned long)object_id<<32|parent_id) + condition_index)
 
-int group2rule_table_set_line(struct maat *maat_inst, const char *table_name,
-                                 enum maat_operation op, long long group_id,
+int object2rule_table_set_line(struct maat *maat_inst, const char *table_name,
+                                 enum maat_operation op, long long object_id,
                                  long long rule_id, int negate_option,
                                  const char *attribute_name, int condition_index,
                                  int expire_after)
 {
     char table_line[128] = {0};
     sprintf(table_line, "%lld\t%lld\t%d\t%s\t%d\t%d", 
-            group_id, rule_id, negate_option, attribute_name, condition_index, op);
+            object_id, rule_id, negate_option, attribute_name, condition_index, op);
 
     struct maat_cmd_line line_rule;
-    line_rule.rule_id = TO_GROUP2X_KEY(group_id, rule_id, condition_index);
+    line_rule.rule_id = TO_OBJECT2X_KEY(object_id, rule_id, condition_index);
     line_rule.table_line = table_line;
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
@@ -187,16 +187,16 @@ int group2rule_table_set_line(struct maat *maat_inst, const char *table_name,
     return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-int group2group_table_set_line(struct maat *maat_inst, const char *table_name,
-                               enum maat_operation op, long long group_id,
-                               long long sub_group_id, int expire_after)
+int object2object_table_set_line(struct maat *maat_inst, const char *table_name,
+                               enum maat_operation op, long long object_id,
+                               long long sub_object_id, int expire_after)
 {
     char table_line[128] = {0};
-    sprintf(table_line, "%lld\t%lld\t%s\t%d", group_id, sub_group_id,
+    sprintf(table_line, "%lld\t%lld\t%s\t%d", object_id, sub_object_id,
             "null", op);
 
     struct maat_cmd_line line_rule;
-    line_rule.rule_id = TO_GROUP2X_KEY(group_id, sub_group_id, 0);
+    line_rule.rule_id = TO_OBJECT2X_KEY(object_id, sub_object_id, 0);
     line_rule.table_line = table_line;
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;
@@ -206,7 +206,7 @@ int group2group_table_set_line(struct maat *maat_inst, const char *table_name,
 
 int expr_table_set_line(struct maat *maat_inst, const char *table_name,
                         enum maat_operation op, long long item_id,
-                        long long group_id, const char *keywords,
+                        long long object_id, const char *keywords,
                         const char *district, int expr_type, int expire_after)
 {
     char table_line[1024] = {0};
@@ -222,10 +222,10 @@ int expr_table_set_line(struct maat *maat_inst, const char *table_name,
 
     if (table_type == TABLE_TYPE_EXPR_PLUS) {
         sprintf(table_line, "%lld\t%lld\t%s\t%d\t%s\t%d",
-                item_id, group_id, district, expr_type, keywords, op);
+                item_id, object_id, district, expr_type, keywords, op);
     } else {
         sprintf(table_line, "%lld\t%lld\t%d\t%s\t%d",
-                item_id, group_id, expr_type, keywords, op);
+                item_id, object_id, expr_type, keywords, op);
     }
 
     struct maat_cmd_line line_rule;
@@ -238,7 +238,7 @@ int expr_table_set_line(struct maat *maat_inst, const char *table_name,
 }
 
 int interval_table_set_line(struct maat *maat_inst, const char *table_name,
-    enum maat_operation op, long long item_id, long long group_id,
+    enum maat_operation op, long long item_id, long long object_id,
     const char *port_str, const char *district, int expire_after)
 {
     char table_line[1024] = {0};
@@ -254,10 +254,10 @@ int interval_table_set_line(struct maat *maat_inst, const char *table_name,
 
     if (table_type == TABLE_TYPE_INTERVAL_PLUS) {
         sprintf(table_line, "%lld\t%lld\t%s\t%s\t%d",
-                item_id, group_id, district, port_str, op);
+                item_id, object_id, district, port_str, op);
     } else {
         sprintf(table_line, "%lld\t%lld\t%s\t%d",
-                item_id, group_id, port_str, op);
+                item_id, object_id, port_str, op);
     }
 
     struct maat_cmd_line line_rule;
@@ -271,7 +271,7 @@ int interval_table_set_line(struct maat *maat_inst, const char *table_name,
 
 int ip_table_set_line(struct maat *maat_inst, const char *table_name,
                       enum maat_operation op, long long item_id,
-                      long long group_id, const char *ip, int expire_after)
+                      long long object_id, const char *ip, int expire_after)
 {
     char table_line[1024] = {0};
     int table_id = maat_get_table_id(maat_inst, table_name);
@@ -280,7 +280,7 @@ int ip_table_set_line(struct maat *maat_inst, const char *table_name,
     }
 
     sprintf(table_line, "%lld\t%lld\t%s\t0-65535\t%d",
-            item_id, group_id, ip, op);
+            item_id, object_id, ip, op);
     struct maat_cmd_line line_rule;
     
     line_rule.rule_id = item_id;
@@ -292,7 +292,7 @@ int ip_table_set_line(struct maat *maat_inst, const char *table_name,
 }
 int flag_table_set_line(struct maat *maat_inst, const char *table_name,
                     enum maat_operation op, long long item_id,
-                    long long group_id, long long flag,
+                    long long object_id, long long flag,
                     long long flag_mask, int expire_after)
 {
     char table_line[1024] = {0};
@@ -302,7 +302,7 @@ int flag_table_set_line(struct maat *maat_inst, const char *table_name,
     }
 
     sprintf(table_line, "%lld\t%lld\t%lld\t%lld\t%d",
-            item_id, group_id, flag, flag_mask, op);
+            item_id, object_id, flag, flag_mask, op);
     struct maat_cmd_line line_rule;
 
     line_rule.rule_id = item_id;

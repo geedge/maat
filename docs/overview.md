@@ -7,7 +7,7 @@ Before proceeding, please make sure you are familiar with the [terminology](./te
 As mentioned in the readme, maat has two typical usage patterns:
 
 **Pattern 1**
-* Update rules in the item table, group2rule table, and rule table
+* Update rules in the item table, object2rule table, and rule table
 * Call the maat scanning api to determine if the actual traffic hits the effective rules
 * If a rule is hit, maat can provide detailed information about the hit rule
 
@@ -20,15 +20,15 @@ As mentioned in the readme, maat has two typical usage patterns:
 
 Different types of configurations are stored in different tables. For all configuration types, please refer to the [table schema](./maat_table.md#1-table-schema).
 
-The physical tables are mainly divided into three categories: the item table, group rule relationship table (rule table, group2rule table, group2group table), and xx_plugin table. The first two types of tables are used for maat traffic scanning, while the xx_plugin table is used as a callback table, which can obtain the detailed configuration information for a specific key.
+The physical tables are mainly divided into three categories: the item table, object rule relationship table (rule table, object2rule table, object2object table), and xx_plugin table. The first two types of tables are used for maat traffic scanning, while the xx_plugin table is used as a callback table, which can obtain the detailed configuration information for a specific key.
 
 ### 1.2 Configuration relationship
 
-As shown in the diagram below, maat organizes and abstracts configurations using terms such as item, group, literal, condition, rule, etc., allowing users to flexibly configure various policies. The term "literal" is an internal concept in maat and is not visible to external users.
+As shown in the diagram below, maat organizes and abstracts configurations using terms such as item, object, literal, condition, rule, etc., allowing users to flexibly configure various policies. The term "literal" is an internal concept in maat and is not visible to external users.
 
-In addition, groups support nesting. For more detailed information, please refer to [group hierarchy](./group_hierarchy.md).
+In addition, objects support nesting. For more detailed information, please refer to [object hierarchy](./object_hierarchy.md).
 
-If we define literal_id = {attribute_id, group_id}, then a literal is composed of one or more literal_ids. The multiple literal_ids that form the same condition have a logical “OR” relationship. The multiple conditions that form the same rule have a logical “AND” relationship, and there can be a maximum of 8 conditions within the same rule. In addition, the condition itself supports logical "NOT".
+If we define literal_id = {attribute_id, object_id}, then a literal is composed of one or more literal_ids. The multiple literal_ids that form the same condition have a logical “OR” relationship. The multiple conditions that form the same rule have a logical “AND” relationship, and there can be a maximum of 8 conditions within the same rule. In addition, the condition itself supports logical "NOT".
 
 <img src="./imgs/rule_diagram.png" width="800" height="450" > 
 
@@ -56,7 +56,7 @@ The diagram illustrates the overall architecture of maat, including the control 
 
 * **Data Plane**
 
-   When calling the maat scanning interface, it subsequently calls the table runtime of the corresponding table, then proceeds to the scanning engine. Upon the scanning engine returning a hit group, it further searches for the matching `rule_id` through group2group runtime, group2rule runtime, and rule runtime, which is then returned to the caller. In addition, if the caller is interested in the hit path, they can also retrieve it through the interfaces provided by maat.
+   When calling the maat scanning interface, it subsequently calls the table runtime of the corresponding table, then proceeds to the scanning engine. Upon the scanning engine returning a hit object, it further searches for the matching `rule_id` through object2object runtime, object2rule runtime, and rule runtime, which is then returned to the caller. In addition, if the caller is interested in the hit path, they can also retrieve it through the interfaces provided by maat.
 
    The scanning mentioned above all uses the `effective runtime`. If there are configuration changes, it will trigger the construction of `updating runtime`. Once this construction is completed, it will become effective runtime, and the original effective runtime will be put into the garbage collection queue waiting to be recycled.
 
@@ -102,7 +102,7 @@ maat_framework_perf_gtest: The performance test set is mainly used to test the t
 
 * benchmark: Maat performance benchmark test, testing the scanning time of different scanning interfaces under different scale rule sets.
 
-* group_nesting: Functionality and performance test set for group nesting.
+* object_nesting: Functionality and performance test set for object nesting.
 
 * ipport_plugin: Functionality and performance test set for the ipport_plugin table.
 
