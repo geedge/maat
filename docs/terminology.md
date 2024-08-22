@@ -3,7 +3,7 @@
 * [Item](#item)
 * [Group(Object)](#groupobject)
 * [Rule(Policy)](#rulepolicy)
-* [Clause(Condition)](#clause)
+* [Condition(Condition)](#condition)
 * [Literal](#literal)
 * [Physical table](#physical-table)
 * [Attribute](#attribute)
@@ -50,21 +50,21 @@ The relationship between group and group is stored in the [group2group table](./
 
 A conjunctive normal form(CNF) consisting of multiple groups and attributes.
 
-`Note`: A rule can contain up to 8 clauses and multiple clauses in the same rule can be logical 'AND' and logical 'NOT' relationships.
+`Note`: A rule can contain up to 8 conditions and multiple conditions in the same rule can be logical 'AND' and logical 'NOT' relationships.
 
 The relationship between group and rule is stored in the [group2rule table](./maat_table.md#13-group2rule-table).
 
 <img src="./imgs/CNF.jpg" alt="exclude" style="zoom:80%" /> 
 
-## Clause
+## Condition
 
-A clause consists of several Literals and the relationship between them is a `logical 'OR'`.
+A condition consists of several Literals and the relationship between them is a `logical 'OR'`.
 
-Clauses are divided into two categories based on whether they contain the logical "NOT" operation: `clause` and `NOT-clause`. In Maat, the logical "NOT" only appears in the clause, which means that if you want to use the logical "NOT", you need to configure clauses for the rules.
+Conditions are divided into two categories based on whether they contain the logical "NOT" operation: `condition` and `NOT-condition`. In Maat, the logical "NOT" only appears in the condition, which means that if you want to use the logical "NOT", you need to configure conditions for the rules.
 
 ## Literal
 
-A Literal consists of `attribute_id(attribute id)` and `group_id`. During the rules loading process, a unique clause_id  will be generated based on the combination of attribute_id and group_id in the same clause.
+A Literal consists of `attribute_id(attribute id)` and `group_id`. During the rules loading process, a unique condition_id  will be generated based on the combination of attribute_id and group_id in the same condition.
 
 ## Physical table
 

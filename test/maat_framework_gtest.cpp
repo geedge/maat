@@ -3247,7 +3247,7 @@ TEST_F(IPScan, RuleUpdates) {
     state = NULL;
 }
 
-TEST_F(IPScan, RuleChangeClauseId) {
+TEST_F(IPScan, RuleChangeConditionId) {
     //This test is a reproduce of bug OMPUB-1343.
     const char *src_table_name = "ATTRIBUTE_IP_PLUS_SOURCE";
     const char *dst_table_name = "ATTRIBUTE_IP_PLUS_DESTINATION";
@@ -4207,7 +4207,7 @@ TEST_F(NOTLogic, NotPhysicalTable) {
     state = NULL;
 }
 
-TEST_F(NOTLogic, EightNotClause) {
+TEST_F(NOTLogic, EightNotCondition) {
     const char *string_nothing = "This string contain nothing";
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
@@ -4325,7 +4325,7 @@ TEST_F(NOTLogic, EightNotClause) {
     state = NULL;
 }
 
-TEST_F(NOTLogic, NotClauseAndExcludeGroup1) {
+TEST_F(NOTLogic, NotConditionAndExcludeGroup1) {
     const char *string_should_not_hit = "This string ONLY contains must-contained-string-of-rule-200 and "
                                          "must-not-contained-string-of-rule-200";
     const char *string_should_half_hit = "This string ONLY contains must-contained-string-of-rule-200";
@@ -4377,7 +4377,7 @@ TEST_F(NOTLogic, NotClauseAndExcludeGroup1) {
     state = NULL;
 }
 
-TEST_F(NOTLogic, NotClauseAndExcludeGroup2) {
+TEST_F(NOTLogic, NotConditionAndExcludeGroup2) {
     const char *string1 = "This string ONLY contains mail.string-of-rule-217.com";
     const char *string2= "This string ONLY contains www.string-of-rule-217.com";
     const char *string_keywords = "This string contain keywords-for-rule-217";
@@ -4437,7 +4437,7 @@ TEST_F(NOTLogic, NotClauseAndExcludeGroup2) {
     state = NULL;
 }
 
-TEST_F(NOTLogic, SingleNotClause) {
+TEST_F(NOTLogic, SingleNotCondition) {
     const char *string_nothing = "nothing string";
     const char *string_should_hit = "string has not_logic_keywords_222";
     const char *table_name = "HTTP_NOT_LOGIC_1";
@@ -4477,7 +4477,7 @@ TEST_F(NOTLogic, SingleNotClause) {
     state = NULL;
 }
 
-TEST_F(NOTLogic, MultiNotClauses) {
+TEST_F(NOTLogic, MultiNotConditions) {
     const char *string_nothing = "nothing string";
     const char *string1 = "string has not_logic_rule_223_1";
     const char *string2 = "string has not_logic_rule_223_1";
@@ -4553,7 +4553,7 @@ TEST_F(NOTLogic, MultiNotClauses) {
     state = NULL;
 }
 
-TEST_F(NOTLogic, MultiGroupsInOneNotClause) {
+TEST_F(NOTLogic, MultiGroupsInOneNotCondition) {
     const char *src_asn1 = "AS1234";
     const char *src_asn2 = "AS6789";
     const char *src_asn3 = "AS9001";
@@ -4644,7 +4644,7 @@ TEST_F(NOTLogic, MultiGroupsInOneNotClause) {
     state = NULL;
 }
 
-TEST_F(NOTLogic, MultiLiteralsInOneNotClause) {
+TEST_F(NOTLogic, MultiLiteralsInOneNotCondition) {
     const char *src_asn1 = "AS1234";
     const char *src_asn2 = "AS6789";
     const char *src_nothing = "nothing";
@@ -4762,7 +4762,7 @@ TEST_F(NOTLogic, MultiLiteralsInOneNotClause) {
     state = NULL;
 }
 
-TEST_F(NOTLogic, SameAttributeInMultiClause) {
+TEST_F(NOTLogic, SameAttributeInMultiCondition) {
     const char *src_asn1 = "AS1234";
     const char *src_asn2 = "AS9002";
     const char *src_asn3 = "AS9003";
@@ -5124,7 +5124,7 @@ TEST_F(ExcludeLogic, ScanAttribute) {
     maat_state_free(state);
 }
 
-TEST_F(ExcludeLogic, ScanWithMultiClause) {
+TEST_F(ExcludeLogic, ScanWithMultiCondition) {
     long long results[ARRAY_SIZE] = {0};
     size_t n_hit_result = 0;
     int thread_id = 0;
@@ -6748,37 +6748,37 @@ TEST_F(Policy, EvaluationOrder) {
     EXPECT_EQ(hit_path[0].attribute_id, table_id);
     EXPECT_EQ(hit_path[0].sub_group_id, 158);
     EXPECT_EQ(hit_path[0].top_group_id, 158);
-    EXPECT_EQ(hit_path[0].clause_index, 2);
+    EXPECT_EQ(hit_path[0].condition_index, 2);
     EXPECT_EQ(hit_path[0].rule_id, 168);
 
     EXPECT_EQ(hit_path[1].attribute_id, table_id);
     EXPECT_EQ(hit_path[1].sub_group_id, 157);
     EXPECT_EQ(hit_path[1].top_group_id, 157);
-    EXPECT_EQ(hit_path[1].clause_index, 0);
+    EXPECT_EQ(hit_path[1].condition_index, 0);
     EXPECT_EQ(hit_path[1].rule_id, 166);
 
     EXPECT_EQ(hit_path[2].attribute_id, table_id);
     EXPECT_EQ(hit_path[2].sub_group_id, 155);
     EXPECT_EQ(hit_path[2].top_group_id, -1);
-    EXPECT_EQ(hit_path[2].clause_index, -1);
+    EXPECT_EQ(hit_path[2].condition_index, -1);
     EXPECT_EQ(hit_path[2].rule_id, -1);
 
     EXPECT_EQ(hit_path[3].attribute_id, table_id);
     EXPECT_EQ(hit_path[3].sub_group_id, 158);
     EXPECT_EQ(hit_path[3].top_group_id, 158);
-    EXPECT_EQ(hit_path[3].clause_index, 6);
+    EXPECT_EQ(hit_path[3].condition_index, 6);
     EXPECT_EQ(hit_path[3].rule_id, 168);
 
     EXPECT_EQ(hit_path[4].attribute_id, table_id);
     EXPECT_EQ(hit_path[4].sub_group_id, 158);
     EXPECT_EQ(hit_path[4].top_group_id, 158);
-    EXPECT_EQ(hit_path[4].clause_index, 1);
+    EXPECT_EQ(hit_path[4].condition_index, 1);
     EXPECT_EQ(hit_path[4].rule_id, 167);
 
     EXPECT_EQ(hit_path[5].attribute_id, table_id);
     EXPECT_EQ(hit_path[5].sub_group_id, 158);
     EXPECT_EQ(hit_path[5].top_group_id, 158);
-    EXPECT_EQ(hit_path[5].clause_index, 3);
+    EXPECT_EQ(hit_path[5].condition_index, 3);
     EXPECT_EQ(hit_path[5].rule_id, 167);
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
@@ -6805,7 +6805,7 @@ TEST_F(Policy, EvaluationOrder) {
     maat_state_free(state);
 }
 
-TEST_F(Policy, NotClauseHitPath) {
+TEST_F(Policy, NotConditionHitPath) {
     const char *url_table_name = "HTTP_URL";
     const char *ip_table_name = "ATTRIBUTE_IP_CONFIG";
     const char *url = "www.youtube.com";
@@ -6846,7 +6846,7 @@ TEST_F(Policy, NotClauseHitPath) {
     EXPECT_EQ(hit_path[0].Nth_scan, 1);
     EXPECT_EQ(hit_path[0].attribute_id, url_table_id);
     EXPECT_EQ(hit_path[0].NOT_flag, 0);
-    EXPECT_EQ(hit_path[0].clause_index, 1);
+    EXPECT_EQ(hit_path[0].condition_index, 1);
     EXPECT_EQ(hit_path[0].sub_group_id, 249);
     EXPECT_EQ(hit_path[0].top_group_id, 249);
     EXPECT_EQ(hit_path[0].rule_id, 228);
@@ -6854,7 +6854,7 @@ TEST_F(Policy, NotClauseHitPath) {
     EXPECT_EQ(hit_path[1].Nth_scan, 2);
     EXPECT_EQ(hit_path[1].attribute_id, ip_table_id);
     EXPECT_EQ(hit_path[1].NOT_flag, 1);
-    EXPECT_EQ(hit_path[1].clause_index, -1);
+    EXPECT_EQ(hit_path[1].condition_index, -1);
     EXPECT_EQ(hit_path[1].sub_group_id, 100);
     EXPECT_EQ(hit_path[1].top_group_id, 144);
     EXPECT_EQ(hit_path[1].rule_id, -1);
@@ -6862,7 +6862,7 @@ TEST_F(Policy, NotClauseHitPath) {
     EXPECT_EQ(hit_path[2].Nth_scan, 2);
     EXPECT_EQ(hit_path[2].attribute_id, ip_table_id);
     EXPECT_EQ(hit_path[2].NOT_flag, 1);
-    EXPECT_EQ(hit_path[2].clause_index, -1);
+    EXPECT_EQ(hit_path[2].condition_index, -1);
     EXPECT_EQ(hit_path[2].sub_group_id, 100);
     EXPECT_EQ(hit_path[2].top_group_id, -1);
     EXPECT_EQ(hit_path[2].rule_id, -1);
@@ -6870,7 +6870,7 @@ TEST_F(Policy, NotClauseHitPath) {
     EXPECT_EQ(hit_path[3].Nth_scan, 2);
     EXPECT_EQ(hit_path[3].attribute_id, ip_table_id);
     EXPECT_EQ(hit_path[3].NOT_flag, 1);
-    EXPECT_EQ(hit_path[3].clause_index, 2);
+    EXPECT_EQ(hit_path[3].condition_index, 2);
     EXPECT_EQ(hit_path[3].sub_group_id, 250);
     EXPECT_EQ(hit_path[3].top_group_id, 250);
     EXPECT_EQ(hit_path[3].rule_id, 228);
@@ -7269,7 +7269,7 @@ TEST_F(GroupHierarchy, OneGroupInTwoAttribute) {
     state = NULL;
 }
 
-TEST_F(GroupHierarchy, MultiGroupsInOneClause) {
+TEST_F(GroupHierarchy, MultiGroupsInOneCondition) {
     const char *src_asn1 = "AS1234";
     const char *src_asn2 = "AS6789";
     const char *src_asn3 = "AS9001";
@@ -7359,7 +7359,7 @@ TEST_F(GroupHierarchy, MultiGroupsInOneClause) {
     state = NULL;
 }
 
-TEST_F(GroupHierarchy, MultiLiteralsInOneClause) {
+TEST_F(GroupHierarchy, MultiLiteralsInOneCondition) {
     const char *src_asn1 = "AS1234";
     const char *src_asn2 = "AS6789";
     const char *my_county = "Greece.Sparta";
@@ -7740,10 +7740,10 @@ TEST_F(MaatCmd, SameFilterRefByOneRule) {
 
     long long rule_id = maat_cmd_incrby(maat_inst, "TEST_SEQ", 1);
     int ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_ADD,
-                                     rule_id, "null", 2, 0); // rule has two clause
+                                     rule_id, "null", 2, 0); // rule has two condition
     EXPECT_EQ(ret, 1);
 
-    //clause1 & clause2 has same filter => {attribute_id, group_id}
+    //condition1 & condition2 has same filter => {attribute_id, group_id}
     long long group_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD, 
                                        group_id, rule_id, 0, attribute_name, 1, 0);
@@ -9657,7 +9657,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     long long group1_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
                                        group1_id, rule1_id, 0,
-                                       "KEYWORDS_TABLE", 1, 0); //clause_index:1
+                                       "KEYWORDS_TABLE", 1, 0); //condition_index:1
     EXPECT_EQ(ret, 1);
 
     //item1 -> group1 -> rule1
@@ -9674,7 +9674,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     long long group21_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
                                        group21_id, rule1_id, 0,
-                                       "KEYWORDS_TABLE", 2, 0); //clause_index:2
+                                       "KEYWORDS_TABLE", 2, 0); //condition_index:2
     EXPECT_EQ(ret, 1);
 
     /* item1 -> group1 -> rule1
@@ -9711,7 +9711,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
     */
     ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
                                        group21_id, rule2_id, 0,
-                                       "KEYWORDS_TABLE", 3, 0); //clause_index:3
+                                       "KEYWORDS_TABLE", 3, 0); //condition_index:3
     EXPECT_EQ(ret, 1); 
 
     /*         item1 -> group1 -> rule1
@@ -9729,7 +9729,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 
     ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
                                        group3_id, rule2_id, 0,
-                                       "IP_CONFIG", 4, 0); //clause_index:4
+                                       "IP_CONFIG", 4, 0); //condition_index:4
     EXPECT_EQ(ret, 1); 
 
     /*         item1 -> group1 -> rule1
@@ -9748,7 +9748,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 
     ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
                                        group3_id, rule3_id, 0,
-                                       "IP_CONFIG", 5, 0); //clause_index:5
+                                       "IP_CONFIG", 5, 0); //condition_index:5
     EXPECT_EQ(ret, 1); 
 
     /*         item1 -> group1 -> rule1
@@ -9775,7 +9775,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 
     ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
                                        group4_id, rule3_id, 0,
-                                       "KEYWORDS_TABLE", 6, 0); //clause_index:6
+                                       "KEYWORDS_TABLE", 6, 0); //condition_index:6
     EXPECT_EQ(ret, 1); 
 
     sleep(WAIT_FOR_EFFECTIVE_S * 2);
@@ -9804,7 +9804,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].clause_index, -1);
+	EXPECT_EQ(hit_path[path_idx].condition_index, -1);
 	EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     ret = maat_scan_string(maat_inst, keywords_table_id, http_url_social,
@@ -9823,7 +9823,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].clause_index, 1);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 1);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     path_idx++;
@@ -9833,7 +9833,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].clause_index, 2);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 2);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     path_idx++;
@@ -9843,7 +9843,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].clause_index, -1);
+	EXPECT_EQ(hit_path[path_idx].condition_index, -1);
     EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     uint32_t ip_addr;
@@ -9868,7 +9868,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].clause_index, 1);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 1);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     path_idx++;
@@ -9878,7 +9878,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].clause_index, 3);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 3);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule2_id);
 
     path_idx++;
@@ -9888,7 +9888,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].clause_index, -1);
+	EXPECT_EQ(hit_path[path_idx].condition_index, -1);
     EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     path_idx++;
@@ -9898,7 +9898,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group3_id);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, ip_table_id);
-	EXPECT_EQ(hit_path[path_idx].clause_index, 4);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 4);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule2_id);
 
     path_idx++;
@@ -9908,7 +9908,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].clause_index, 2);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 2);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     const char *keywords1 = "In theory, basic and advanced is common";
@@ -9929,7 +9929,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group1_id);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].clause_index, 1);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 1);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     path_idx++;
@@ -9939,7 +9939,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].clause_index, 3);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 3);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule2_id);
 
     path_idx++;
@@ -9949,7 +9949,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, -1);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].clause_index, -1);
+	EXPECT_EQ(hit_path[path_idx].condition_index, -1);
     EXPECT_EQ(hit_path[path_idx].rule_id, -1);
 
     path_idx++;
@@ -9959,7 +9959,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group3_id);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, ip_table_id);
-	EXPECT_EQ(hit_path[path_idx].clause_index, 5);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 5);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule3_id);
 
     path_idx++;
@@ -9969,7 +9969,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group4_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group4_id);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].clause_index, 6);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 6);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule3_id);
 
     path_idx++;
@@ -9979,7 +9979,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group3_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group3_id);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, ip_table_id);
-	EXPECT_EQ(hit_path[path_idx].clause_index, 4);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 4);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule2_id);
 
     path_idx++;
@@ -9989,7 +9989,7 @@ TEST_F(MaatCmd, HitPathAdvanced) {
 	EXPECT_EQ(hit_path[path_idx].sub_group_id, group2_id);
 	EXPECT_EQ(hit_path[path_idx].top_group_id, group21_id);
 	EXPECT_EQ(hit_path[path_idx].attribute_id, keywords_table_id);
-	EXPECT_EQ(hit_path[path_idx].clause_index, 2);
+	EXPECT_EQ(hit_path[path_idx].condition_index, 2);
     EXPECT_EQ(hit_path[path_idx].rule_id, rule1_id);
 
     maat_state_free(state);
@@ -10388,7 +10388,7 @@ TEST_F(MaatCmd, SameSuperGroupRefByMultiRule) {
     state = NULL;
 }
 
-TEST_F(MaatCmd, SameScanStatusWhenClauseUpdate_TSG6419) {
+TEST_F(MaatCmd, SameScanStatusWhenConditionUpdate_TSG6419) {
     const char *g2c_table_name = "GROUP2RULE_DEFAULT";
 	const char* rule_table_name = "RULE_DEFAULT";
 	const char* ip_table_name = "IP_PLUS_CONFIG";
@@ -10402,9 +10402,9 @@ TEST_F(MaatCmd, SameScanStatusWhenClauseUpdate_TSG6419) {
                                      rule1_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    /* item11 -> group11 -> clause1 -> rule1
+    /* item11 -> group11 -> condition1 -> rule1
                                           /
-           item21 -> group21 -> clause2 _/
+           item21 -> group21 -> condition2 _/
     */
     long long group11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
@@ -10451,10 +10451,10 @@ TEST_F(MaatCmd, SameScanStatusWhenClauseUpdate_TSG6419) {
                               &n_hit_result, state);
     EXPECT_EQ(ret, MAAT_SCAN_OK);
 
-    /* item11 -> group11 -> clause1 -> rule1
+    /* item11 -> group11 -> condition1 -> rule1
                                           /
-           item21 -> group21 -> clause2 _/
-          item22 -> group22 -> clause3 _/
+           item21 -> group21 -> condition2 _/
+          item22 -> group22 -> condition3 _/
     */
     ret = rule_table_set_line(maat_inst, rule_table_name, MAAT_OP_DEL,
                                  rule1_id, "null", 2, 0);
@@ -10512,8 +10512,8 @@ TEST_F(MaatCmd, GroupEdit) {
                                      rule1_id, "null", 2, 0);
     EXPECT_EQ(ret, 1);
 
-    /* item11 -> group11 -> clause1 -> rule1
-           item21 -> group21 -> clause2 _/
+    /* item11 -> group11 -> condition1 -> rule1
+           item21 -> group21 -> condition2 _/
     */
     long long group11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
@@ -10568,8 +10568,8 @@ TEST_F(MaatCmd, GroupEdit) {
 
     maat_state_reset(state);
 
-    /* item11 -> group11 -> clause1 -> rule1
-            item21 -> group21 -> clause2 _/
+    /* item11 -> group11 -> condition1 -> rule1
+            item21 -> group21 -> condition2 _/
               item22 -> /
     */
     char scan_app_id_str[8] = {0};
@@ -10608,8 +10608,8 @@ TEST_F(MaatCmd, GroupEdit) {
     EXPECT_EQ(n_read, 2);
     maat_state_reset(state);
 
-    /* item11 -> group11 -> clause1 -> rule1
-           item21 -> group21 -> clause2 _/
+    /* item11 -> group11 -> condition1 -> rule1
+           item21 -> group21 -> condition2 _/
     */
     ret = interval_table_set_line(maat_inst, app_id_table_name, MAAT_OP_DEL,
                                 item22_id, group21_id, scan_app_id_str, NULL, 0);
@@ -10653,7 +10653,7 @@ TEST_F(MaatCmd, RuleDelete_TSG6548) {
                                      rule1_id, "null", 1, 0);
     EXPECT_EQ(ret, 1);
 
-    //item11 -> group11 -> clause1 -> rule1
+    //item11 -> group11 -> condition1 -> rule1
     long long group11_id = maat_cmd_incrby(maat_inst, "SEQUENCE_GROUP", 1);
     ret = group2rule_table_set_line(maat_inst, g2c_table_name, MAAT_OP_ADD,
                                        group11_id, rule1_id, 0, ip_table_name, 1, 0);
@@ -10789,7 +10789,7 @@ TEST_F(MaatCmd, UpdateDeadLockDetection) {
     memset(results, 0, sizeof(results));
     ret = maat_scan_string(maat_inst, table_id, scan_data2, strlen(scan_data2),
                            results, ARRAY_SIZE, &n_hit_result, state);
-    //After full update, clause ids are re-orgnized, therefore mid are not compatible to the new scanner (hierarchy).
+    //After full update, condition ids are re-orgnized, therefore mid are not compatible to the new scanner (hierarchy).
     EXPECT_EQ(ret, MAAT_SCAN_HALF_HIT); 
 
     ret = maat_scan_not_logic(maat_inst, table_id, results, ARRAY_SIZE,
@@ -10923,7 +10923,7 @@ TEST_F(MaatCmd, StreamScanSegfaultWhenVersionRollBack_TSG6324) {
     //DON'T DO THIS!!!
 	//Roll back version, trigger full update.	
 	//This operation generates FATAL logs in test_maat_redis.log.yyyy-mm-dd.
-	//For example: Add group 22 vt_id 0 to clause 2 of rule 979 failed, group is already existed
+	//For example: Add group 22 vt_id 0 to condition 2 of rule 979 failed, group is already existed
 	maat_cmd_incrby(maat_inst, "MAAT_VERSION", -100);
 
 	//Wating for scanner garbage collect expiration.

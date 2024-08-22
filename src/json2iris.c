@@ -644,7 +644,7 @@ write_region_rule(cJSON *region_json, int rule_id, int group_id,
 static int
 write_group2rule_line(int *group_ids, size_t n_group_id,
 						 int rule_id, int group_not_flag,
-                         int clause_index, const char *attribute, 
+                         int condition_index, const char *attribute, 
                          struct iris_description *p_iris,
                          struct iris_table *g2c_table)
 {
@@ -670,10 +670,10 @@ write_group2rule_line(int *group_ids, size_t n_group_id,
 		}
 		group_id_str[strlen(group_id_str) - 1] = '\0';
 		snprintf(buff, sizeof(buff), "%s\t%d\t%d\t%s\t%d\t1\n", group_id_str,
-				 rule_id, group_not_flag, attribute, clause_index);
+				 rule_id, group_not_flag, attribute, condition_index);
 	} else {
 		snprintf(buff, sizeof(buff), "%d\t%d\t%d\t%s\t%d\t1\n", group_ids[0],
-				 rule_id, group_not_flag, attribute, clause_index);
+				 rule_id, group_not_flag, attribute, condition_index);
 	}
 	
 	table->write_pos += memcat(&(table->buff), table->write_pos,
@@ -754,7 +754,7 @@ write_group_rule(cJSON *group_json, int parent_id,
 {
     int ret = 0;
     int group_not_flag = 0;
-    int clause_index = 0;
+    int condition_index = 0;
 	const char *group_name = NULL;
 	char group_name_array[32][MAX_NAME_STR_LEN];
 	size_t group_name_cnt = 0;
@@ -804,11 +804,11 @@ write_group_rule(cJSON *group_json, int parent_id,
 			group_not_flag = item->valueint;
 		}
 
-		item = cJSON_GetObjectItem(group_json, "clause_index");
+		item = cJSON_GetObjectItem(group_json, "condition_index");
 		if (NULL == item || item->type != cJSON_Number) {
-			clause_index = Nth_group;
+			condition_index = Nth_group;
 		} else {
-			clause_index = item->valueint;
+			condition_index = item->valueint;
 		}
 
         item = cJSON_GetObjectItem(group_json, "g2c_table_name");
@@ -833,7 +833,7 @@ write_group_rule(cJSON *group_json, int parent_id,
 		}
 		assert(parent_type == PARENT_TYPE_RULE);
 		ret = write_group2rule_line(group_ids, group_name_cnt, parent_id,
-                                       group_not_flag, clause_index,
+                                       group_not_flag, condition_index,
                                        attribute, p_iris, g2c_table);
 
     } else {
@@ -894,7 +894,7 @@ write_group_rule(cJSON *group_json, int parent_id,
 
         if (parent_type == PARENT_TYPE_RULE) {
             ret = write_group2rule_line(&(group_info->group_id), 1, parent_id,
-                                           group_not_flag, clause_index,
+                                           group_not_flag, condition_index,
                                            attribute, p_iris, g2c_table);
 			if (ret < 0) {
 				log_fatal(logger, MODULE_JSON2IRIS, 
@@ -923,34 +923,34 @@ write_rule_line(cJSON *rule, struct iris_description *p_iris,
 
     cJSON *group_array = cJSON_GetObjectItem(rule, "groups");
     int group_num = cJSON_GetArraySize(group_array);
-    int *clause_ids = ALLOC(int, group_num);
-    int clause_num = 0;
+    int *condition_ids = ALLOC(int, group_num);
+    int condition_num = 0;
     cJSON *group_obj = NULL;
 
 	cJSON_ArrayForEach(group_obj, group_array) {
-		item = cJSON_GetObjectItem(group_obj, "clause_index");
+		item = cJSON_GetObjectItem(group_obj, "condition_index");
 		if (item) {
             int i = 0;
-			int clause_index = item->valueint;
-			for (i = 0; i < clause_num; i++) {
-				if (clause_ids[i] == clause_index) {
+			int condition_index = item->valueint;
+			for (i = 0; i < condition_num; i++) {
+				if (condition_ids[i] == condition_index) {
 					break;
 				}
 			}
 
-			if (i == clause_num) {
-				clause_ids[clause_num] = clause_index;
-				clause_num++;
+			if (i == condition_num) {
+				condition_ids[condition_num] = condition_index;
+				condition_num++;
 			}			
 		}
 	}
-	FREE(clause_ids);
+	FREE(condition_ids);
 	
-	if (clause_num == 0) {
-		clause_num = group_num;
+	if (condition_num == 0) {
+		condition_num = group_num;
 	}
 
-	cJSON_AddNumberToObject(rule, "clause_num", clause_num);
+	cJSON_AddNumberToObject(rule, "condition_num", condition_num);
 
 	struct translate_command rule_cmd[MAX_COLUMN_NUM];
 	memset(rule_cmd, 0, sizeof(rule_cmd));
@@ -987,7 +987,7 @@ write_rule_line(cJSON *rule, struct iris_description *p_iris,
 	rule_cmd[cmd_cnt].json_type = cJSON_String;
 	cmd_cnt++;
 	
-	rule_cmd[cmd_cnt].json_string = "clause_num";
+	rule_cmd[cmd_cnt].json_string = "condition_num";
 	rule_cmd[cmd_cnt].json_type = cJSON_Number;
 	cmd_cnt++;
 

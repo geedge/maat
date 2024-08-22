@@ -77,7 +77,7 @@ int group2rule_runtime_update(void *g2c_runtime, void *g2c_schema,
                                  const char *table_name, const char *line,
                                  int valid_column);
 
-long long group2rule_runtime_not_clause_count(void *g2c_runtime);
+long long group2rule_runtime_not_condition_count(void *g2c_runtime);
 
 long long group2rule_runtime_rule_count(void *g2c_runtime);
 

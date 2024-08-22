@@ -149,12 +149,12 @@ int write_json_to_redis(const char *json_filename, char *redis_ip, int redis_por
 
 int rule_table_set_line(struct maat *maat_inst, const char *table_name,
                            enum maat_operation op, long long rule_id,
-                           const char *user_region, int clause_num,
+                           const char *user_region, int condition_num,
                            int expire_after)
 {
     char table_line[1024 * 16] = {0};
     sprintf(table_line, "%lld\t0\t0\t0\t0\t0\t%s\t%d\t%d\t0.0", 
-            rule_id, user_region, clause_num, op);
+            rule_id, user_region, condition_num, op);
 
     struct maat_cmd_line line_rule;
     line_rule.rule_id = rule_id;
@@ -165,21 +165,21 @@ int rule_table_set_line(struct maat *maat_inst, const char *table_name,
     return maat_cmd_set_line(maat_inst, &line_rule);
 }
 
-#define TO_GROUP2X_KEY(group_id, parent_id, clause_index) \
-        (((unsigned long)group_id<<32|parent_id) + clause_index)
+#define TO_GROUP2X_KEY(group_id, parent_id, condition_index) \
+        (((unsigned long)group_id<<32|parent_id) + condition_index)
 
 int group2rule_table_set_line(struct maat *maat_inst, const char *table_name,
                                  enum maat_operation op, long long group_id,
                                  long long rule_id, int not_flag,
-                                 const char *attribute_name, int clause_index,
+                                 const char *attribute_name, int condition_index,
                                  int expire_after)
 {
     char table_line[128] = {0};
     sprintf(table_line, "%lld\t%lld\t%d\t%s\t%d\t%d", 
-            group_id, rule_id, not_flag, attribute_name, clause_index, op);
+            group_id, rule_id, not_flag, attribute_name, condition_index, op);
 
     struct maat_cmd_line line_rule;
-    line_rule.rule_id = TO_GROUP2X_KEY(group_id, rule_id, clause_index);
+    line_rule.rule_id = TO_GROUP2X_KEY(group_id, rule_id, condition_index);
     line_rule.table_line = table_line;
     line_rule.table_name = table_name;
     line_rule.expire_after = expire_after;

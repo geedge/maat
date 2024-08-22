@@ -15,13 +15,13 @@ int write_json_to_iris(const char* json_fn, char *iris_path, size_t path_sz,
 
 int rule_table_set_line(struct maat *maat_inst, const char *table_name,
                            enum maat_operation op, long long rule_id,
-                           const char *user_region, int clause_num,
+                           const char *user_region, int condition_num,
                            int expire_after);
 
 int group2rule_table_set_line(struct maat *maat_inst, const char *table_name,
                                  enum maat_operation op, long long group_id,
                                  long long rule_id, int not_flag,
-                                 const char *attribute_name, int clause_index,
+                                 const char *attribute_name, int condition_index,
                                  int expire_after);
 
 int group2group_table_set_line(struct maat *maat_inst, const char *table_name,

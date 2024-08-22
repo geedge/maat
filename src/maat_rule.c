@@ -28,17 +28,17 @@
 
 #define MODULE_RULE	 module_name_str("maat.rule")
 
-#define MAX_NOT_CLAUSE_NUM   8
+#define MAX_NOT_CONDITION_NUM   8
 
-enum clause_not_flag {
-    CLAUSE_NOT_FLAG_UNSET = 0,
-    CLAUSE_NOT_FLAG_SET
+enum condition_not_flag {
+    CONDITION_NOT_FLAG_UNSET = 0,
+    CONDITION_NOT_FLAG_SET
 };
 
 struct rule_schema {
     int rule_id_column;
     int rule_tag_column;
-    int declared_clause_num_column;
+    int declared_condition_num_column;
     int table_id;
     struct table_manager *ref_tbl_mgr;
     struct log_handle *logger;
@@ -49,14 +49,14 @@ struct group2rule_schema {
     int rule_id_column;
     int not_flag_column;
     int attribute_name_column;
-    int clause_index_column;
+    int condition_index_column;
     int asso_rule_table_id; //asso is abbreviation for associated
     int table_id;
     struct table_manager *ref_tbl_mgr;
 };
 
 struct rule_item {
-    int declared_clause_num;
+    int declared_condition_num;
     long long rule_id;
     char *table_line;
     size_t table_line_len;
@@ -67,25 +67,25 @@ struct group2rule_item {
     long long rule_id;
     int not_flag;
     int attribute_id;
-    int clause_index;
+    int condition_index;
 };
 
-struct clause_query_key {
+struct condition_query_key {
 	long long group_id;
     int attribute_id;
     int not_flag;
 };
 
-struct clause_id_kv {
-    struct clause_query_key key;
-    UT_array *clause_ids;
+struct condition_id_kv {
+    struct condition_query_key key;
+    UT_array *condition_ids;
     UT_hash_handle hh;
 };
 
-struct table_clause {
+struct table_condition {
     int attribute_id;
-    int actual_clause_num;
-    UT_array *clause_ids;
+    int actual_condition_num;
+    UT_array *condition_ids;
     UT_array *group_ids;
     UT_hash_handle hh;
 };
@@ -101,8 +101,8 @@ struct rule_runtime {
 	struct bool_matcher *bm;
     struct rcu_hash_table *cfg_hash;     // <rule_id, struct maat_rule>
     struct maat_runtime *ref_maat_rt;
-    struct clause_id_kv *clause_id_kv_hash;     //store clause_ids(not_flag == 0)
-    struct clause_id_kv *not_clause_id_kv_hash; //store NOT_clause_ids(not_flag == 1)
+    struct condition_id_kv *condition_id_kv_hash;     //store condition_ids(not_flag == 0)
+    struct condition_id_kv *not_condition_id_kv_hash; //store NOT_condition_ids(not_flag == 1)
     struct bool_expr_match *expr_match_buff;
     struct maat_garbage_bin *ref_garbage_bin;
     struct log_handle *logger;
@@ -113,41 +113,41 @@ struct rule_runtime {
 };
 
 struct group2rule_runtime {
-    long long not_clause_cnt;
+    long long not_condition_cnt;
     long long rule_num;
     long long update_err_cnt;
     struct rule_runtime *ref_rule_rt;
-    struct table_clause *tbl_not_clause_hash; //each attribute's not clause number <= MAX_NOT_CLAUSE_NUM
+    struct table_condition *tbl_not_condition_hash; //each attribute's not condition number <= MAX_NOT_CONDITION_NUM
 };
 
-struct clause_literal {
+struct condition_literal {
     long long group_ids[MAX_GROUP_CNT];
     int group_cnt;
     int attribute_id;
 };
 
-struct rule_clause {
-	long long clause_id;
-    UT_array *literals; //struct clause_literal
+struct rule_condition {
+	long long condition_id;
+    UT_array *literals; //struct condition_literal
 	char not_flag;      // 1 byte
 	char in_use;        // 1 byte
     char pad[6];        // for 8 bytes alignment
 };
 
 struct rule_sort_para {
-	int declared_clause_num;
+	int declared_condition_num;
 	long long rule_id;
 };
 
 #define MAAT_RULE_MAGIC	0x4a5b6c7d
 struct maat_rule {
 	uint32_t magic_num;
-    int actual_clause_num;
-	int declared_clause_num;
+    int actual_condition_num;
+	int declared_condition_num;
     int table_id;
     long long rule_id;
     void *user_data; // rule_item
-	struct rule_clause clauses[MAX_ITEMS_PER_BOOL_EXPR];
+	struct rule_condition conditions[MAX_ITEMS_PER_BOOL_EXPR];
 };
 
 struct internal_hit_path {
@@ -155,7 +155,7 @@ struct internal_hit_path {
 	long long group_id;
 	int Nth_scan;
 	int attribute_id;
-    int NOT_flag; // 1 means NOT clause
+    int NOT_flag; // 1 means NOT condition
 };
 
 struct rule2table_id {
@@ -169,10 +169,10 @@ struct rule_state {
     time_t rule_rt_version;
 
 	UT_array *internal_hit_paths;
-	UT_array *all_hit_clauses;
-	UT_array *this_scan_hit_clauses;
-	UT_array *this_scan_hit_not_clauses;
-    UT_array *exclude_not_clauses;
+	UT_array *all_hit_conditions;
+	UT_array *this_scan_hit_conditions;
+	UT_array *this_scan_hit_not_conditions;
+    UT_array *exclude_not_conditions;
     UT_array *direct_hit_groups;
     UT_array *indirect_hit_groups;
     UT_array *last_hit_groups;
@@ -180,8 +180,8 @@ struct rule_state {
     struct table_group *hit_not_tbl_groups;
 };
 
-UT_icd ut_clause_id_icd = {sizeof(long long), NULL, NULL, NULL};
-UT_icd ut_clause_literal_icd = {sizeof(struct clause_literal), NULL, NULL, NULL};
+UT_icd ut_condition_id_icd = {sizeof(long long), NULL, NULL, NULL};
+UT_icd ut_condition_literal_icd = {sizeof(struct condition_literal), NULL, NULL, NULL};
 UT_icd ut_rule_group_id_icd = {sizeof(long long), NULL, NULL, NULL};
 UT_icd ut_maat_hit_group_icd = {sizeof(struct maat_hit_group), NULL, NULL, NULL};
 UT_icd ut_hit_path_icd = {sizeof(struct internal_hit_path), NULL, NULL, NULL};
@@ -195,23 +195,23 @@ static struct maat_rule *maat_rule_new(long long rule_id)
 	rule->rule_id = rule_id;
 
     for(int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {	
-		utarray_new(rule->clauses[i].literals, &ut_clause_literal_icd);
-		rule->clauses[i].in_use = 0;
-        rule->clauses[i].clause_id = 0;
+		utarray_new(rule->conditions[i].literals, &ut_condition_literal_icd);
+		rule->conditions[i].in_use = 0;
+        rule->conditions[i].condition_id = 0;
 	}
 
 	return rule;
 }
 
 static int maat_rule_set(struct maat_rule *rule, int table_id,
-                            int declared_clause_num, void *user_data)
+                            int declared_condition_num, void *user_data)
 {
     if (NULL == rule) {
         return -1;
     }
 
     rule->table_id = table_id;
-    rule->declared_clause_num = declared_clause_num;
+    rule->declared_condition_num = declared_condition_num;
     rule->user_data = user_data;
 
     return 0;
@@ -281,22 +281,22 @@ rule_item_new(const char *table_line, struct rule_schema *schema,
     }
     rule_item->rule_id = atoll(table_line + column_offset);
 
-    ret = get_column_pos(table_line, schema->declared_clause_num_column,
+    ret = get_column_pos(table_line, schema->declared_condition_num_column,
                          &column_offset, &column_len);
     if (ret < 0) {
         log_fatal(logger, MODULE_RULE,
-                  "[%s:%d] table: <%s> has no clause_num in line:%s",
+                  "[%s:%d] table: <%s> has no condition_num in line:%s",
                   __FUNCTION__, __LINE__, table_name, table_line);
 		goto error;
     }
 
-    rule_item->declared_clause_num = atoi(table_line + column_offset);
-    if (rule_item->declared_clause_num < 0 ||
-        rule_item->declared_clause_num > MAX_NOT_CLAUSE_NUM) {
+    rule_item->declared_condition_num = atoi(table_line + column_offset);
+    if (rule_item->declared_condition_num < 0 ||
+        rule_item->declared_condition_num > MAX_NOT_CONDITION_NUM) {
         log_fatal(logger, MODULE_RULE,
-                  "[%s:%d] table: <%s> clause_num:%d exceed maximum:%d in line:%s",
-                  __FUNCTION__, __LINE__, table_name, rule_item->declared_clause_num,
-                  MAX_NOT_CLAUSE_NUM, table_line);
+                  "[%s:%d] table: <%s> condition_num:%d exceed maximum:%d in line:%s",
+                  __FUNCTION__, __LINE__, table_name, rule_item->declared_condition_num,
+                  MAX_NOT_CONDITION_NUM, table_line);
 		goto error;
     }
 
@@ -312,7 +312,7 @@ error:
 
 static void rule_item_free(struct rule_item *item)
 {
-    item->declared_clause_num = 0;
+    item->declared_condition_num = 0;
 
     if (item->table_line != NULL) {
         FREE(item->table_line);
@@ -323,7 +323,7 @@ static void rule_item_free(struct rule_item *item)
 
 static void maat_rule_free(struct maat_rule *rule)
 {
-	struct rule_clause *clause = NULL;
+	struct rule_condition *condition = NULL;
 
 	if (rule->user_data != NULL) {
 		rule_item_free(rule->user_data);
@@ -331,15 +331,15 @@ static void maat_rule_free(struct maat_rule *rule)
 	}
 
 	for (int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
-		clause = rule->clauses + i;
+		condition = rule->conditions + i;
 
-        if (clause->literals != NULL) {
-            utarray_free(clause->literals);
-            clause->literals = NULL;
+        if (condition->literals != NULL) {
+            utarray_free(condition->literals);
+            condition->literals = NULL;
         }
 		
-		clause->in_use = 0;
-        clause->clause_id = 0;
+		condition->in_use = 0;
+        condition->condition_id = 0;
 	}
 
 	rule->magic_num = 0;
@@ -393,12 +393,12 @@ void *rule_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         schema->rule_tag_column = custom_item->valueint;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "clause_num");
+    custom_item = cJSON_GetObjectItem(item, "condition_num");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        schema->declared_clause_num_column = custom_item->valueint;
+        schema->declared_condition_num_column = custom_item->valueint;
     } else {
         log_fatal(logger, MODULE_RULE, 
-                  "[%s:%d] table: <%s> schema has no clause_num column",
+                  "[%s:%d] table: <%s> schema has no condition_num column",
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -489,12 +489,12 @@ void *group2rule_schema_new(cJSON *json, struct table_manager *tbl_mgr,
         goto error;
     }
 
-    custom_item = cJSON_GetObjectItem(item, "clause_index");
+    custom_item = cJSON_GetObjectItem(item, "condition_index");
     if (custom_item != NULL && custom_item->type == cJSON_Number) {
-        g2c_schema->clause_index_column = custom_item->valueint;
+        g2c_schema->condition_index_column = custom_item->valueint;
     } else {
          log_fatal(logger, MODULE_RULE, 
-                  "[%s:%d] table: <%s> schema has no clause_index column", 
+                  "[%s:%d] table: <%s> schema has no condition_index column", 
                   __FUNCTION__, __LINE__, table_name);
         goto error;
     }
@@ -533,33 +533,33 @@ void *rule_runtime_new(void *rule_schema, size_t max_thread_num,
                                         max_thread_num * MAX_HIT_RULE_NUM);
     rule_rt->version = time(NULL);
     rule_rt->cfg_hash = rcu_hash_new(rcu_rule_cfg_free, NULL, RULE_GC_TIMEOUT_S);
-    rule_rt->clause_id_kv_hash = NULL;
-    rule_rt->not_clause_id_kv_hash = NULL;
+    rule_rt->condition_id_kv_hash = NULL;
+    rule_rt->not_condition_id_kv_hash = NULL;
     rule_rt->logger = logger;
     rule_rt->ref_garbage_bin = garbage_bin;
 
     return rule_rt;
 }
 
-static void clause_id_kv_hash_free(struct clause_id_kv *hash)
+static void condition_id_kv_hash_free(struct condition_id_kv *hash)
 {
-    struct clause_id_kv *clause_id_kv = NULL, *tmp_clause_id_kv = NULL;
+    struct condition_id_kv *condition_id_kv = NULL, *tmp_condition_id_kv = NULL;
 
-    HASH_ITER(hh, hash, clause_id_kv, tmp_clause_id_kv) {
-        HASH_DEL(hash, clause_id_kv);
-        if (clause_id_kv->clause_ids != NULL) {
-            utarray_free(clause_id_kv->clause_ids);
-            clause_id_kv->clause_ids = NULL;
+    HASH_ITER(hh, hash, condition_id_kv, tmp_condition_id_kv) {
+        HASH_DEL(hash, condition_id_kv);
+        if (condition_id_kv->condition_ids != NULL) {
+            utarray_free(condition_id_kv->condition_ids);
+            condition_id_kv->condition_ids = NULL;
         }
         
-        FREE(clause_id_kv);
+        FREE(condition_id_kv);
     }
     assert(hash == NULL);
 }
 
-static void garbage_clause_id_kv_hash_free(void *hash, void *arg)
+static void garbage_condition_id_kv_hash_free(void *hash, void *arg)
 {
-    clause_id_kv_hash_free((struct clause_id_kv *)hash);
+    condition_id_kv_hash_free((struct condition_id_kv *)hash);
 }
 
 void rule_runtime_free(void *rule_runtime)
@@ -580,14 +580,14 @@ void rule_runtime_free(void *rule_runtime)
         rule_rt->cfg_hash = NULL;
     }
     
-    if (rule_rt->clause_id_kv_hash != NULL) {
-        clause_id_kv_hash_free(rule_rt->clause_id_kv_hash);
-        rule_rt->clause_id_kv_hash = NULL;
+    if (rule_rt->condition_id_kv_hash != NULL) {
+        condition_id_kv_hash_free(rule_rt->condition_id_kv_hash);
+        rule_rt->condition_id_kv_hash = NULL;
     }
 
-    if (rule_rt->not_clause_id_kv_hash != NULL) {
-        clause_id_kv_hash_free(rule_rt->not_clause_id_kv_hash);
-        rule_rt->not_clause_id_kv_hash = NULL;
+    if (rule_rt->not_condition_id_kv_hash != NULL) {
+        condition_id_kv_hash_free(rule_rt->not_condition_id_kv_hash);
+        rule_rt->not_condition_id_kv_hash = NULL;
     }
 
     if (rule_rt->expr_match_buff != NULL) {
@@ -620,7 +620,7 @@ void *group2rule_runtime_new(void *g2c_schema, size_t max_thread_num,
     struct group2rule_runtime *g2c_rt =
         ALLOC(struct group2rule_runtime, 1);
 
-    g2c_rt->tbl_not_clause_hash = NULL;
+    g2c_rt->tbl_not_condition_hash = NULL;
 
     return g2c_rt;
 }
@@ -642,14 +642,14 @@ void group2rule_runtime_free(void *g2c_runtime)
     struct group2rule_runtime *g2c_rt =
         (struct group2rule_runtime *)g2c_runtime;
 
-    if (g2c_rt->tbl_not_clause_hash != NULL) {
-        struct table_clause *not_clause = NULL, *tmp_not_clause = NULL;
-        HASH_ITER(hh, g2c_rt->tbl_not_clause_hash, not_clause, tmp_not_clause) {
-            HASH_DEL(g2c_rt->tbl_not_clause_hash, not_clause);
-            FREE(not_clause);
+    if (g2c_rt->tbl_not_condition_hash != NULL) {
+        struct table_condition *not_condition = NULL, *tmp_not_condition = NULL;
+        HASH_ITER(hh, g2c_rt->tbl_not_condition_hash, not_condition, tmp_not_condition) {
+            HASH_DEL(g2c_rt->tbl_not_condition_hash, not_condition);
+            FREE(not_condition);
         }
     }
-    assert(g2c_rt->tbl_not_clause_hash == NULL);
+    assert(g2c_rt->tbl_not_condition_hash == NULL);
 
     FREE(g2c_runtime);
 }
@@ -742,8 +742,8 @@ group2rule_item_new(const char *line, struct group2rule_schema *g2c_schema,
     }
 
     g2c_item->not_flag = atoi(line + column_offset);
-    if (g2c_item->not_flag != CLAUSE_NOT_FLAG_SET && 
-        g2c_item->not_flag != CLAUSE_NOT_FLAG_UNSET) {
+    if (g2c_item->not_flag != CONDITION_NOT_FLAG_SET && 
+        g2c_item->not_flag != CONDITION_NOT_FLAG_UNSET) {
         log_fatal(logger, MODULE_RULE,
 				  "[%s:%d] g2c table:<%s>  NOT_flag:%d is illegal in line:%s ",
 				  __FUNCTION__, __LINE__, table_name, g2c_item->not_flag, line);
@@ -781,21 +781,21 @@ group2rule_item_new(const char *line, struct group2rule_schema *g2c_schema,
         }
     }
    
-    ret = get_column_pos(line, g2c_schema->clause_index_column, &column_offset,
+    ret = get_column_pos(line, g2c_schema->condition_index_column, &column_offset,
                          &column_len);
     if (ret < 0) {
         log_fatal(logger, MODULE_RULE,
-                  "[%s:%d] g2c table:<%s> has no clause_index in line:%s",
+                  "[%s:%d] g2c table:<%s> has no condition_index in line:%s",
                   __FUNCTION__, __LINE__, table_name, line);
         goto error;
     }
 
-    g2c_item->clause_index = atoi(line + column_offset);
-    if (g2c_item->clause_index < 0 || g2c_item->clause_index >= MAX_NOT_CLAUSE_NUM) {
+    g2c_item->condition_index = atoi(line + column_offset);
+    if (g2c_item->condition_index < 0 || g2c_item->condition_index >= MAX_NOT_CONDITION_NUM) {
         log_fatal(logger, MODULE_RULE,
-                  "[%s:%d] g2c table:<%s> clause_index:%d exceed maximum:%d in line:%s",
-                  __FUNCTION__, __LINE__, table_name, g2c_item->clause_index,
-                  MAX_NOT_CLAUSE_NUM, line);
+                  "[%s:%d] g2c table:<%s> condition_index:%d exceed maximum:%d in line:%s",
+                  __FUNCTION__, __LINE__, table_name, g2c_item->condition_index,
+                  MAX_NOT_CONDITION_NUM, line);
         goto error;
     }
 
@@ -819,10 +819,10 @@ static inline int compare_group_id(const void *a, const void *b)
 	}
 }
 
-static void rule_clause_add_literal(struct rule_clause *clause,
+static void rule_condition_add_literal(struct rule_condition *condition,
                                        struct group2rule_item *g2c_item)
 {
-    struct clause_literal tmp_literal;
+    struct condition_literal tmp_literal;
     tmp_literal.attribute_id = g2c_item->attribute_id;
     tmp_literal.group_cnt = utarray_len(g2c_item->group_ids);
     utarray_sort(g2c_item->group_ids, compare_group_id);
@@ -830,33 +830,33 @@ static void rule_clause_add_literal(struct rule_clause *clause,
     for (size_t i = 0; i < utarray_len(g2c_item->group_ids); i++) {
         tmp_literal.group_ids[i] = *(long long *)utarray_eltptr(g2c_item->group_ids, i);
     }
-    utarray_push_back(clause->literals, &tmp_literal);
+    utarray_push_back(condition->literals, &tmp_literal);
 }
 
-void rule_clause_remove_literal(struct rule_clause *clause,
+void rule_condition_remove_literal(struct rule_condition *condition,
                                    struct group2rule_item *g2c_item)
 {
-    struct clause_literal *tmp_literal = NULL;
+    struct condition_literal *tmp_literal = NULL;
 
-    for (size_t i = 0; i < utarray_len(clause->literals); i++) {
-        tmp_literal = (struct clause_literal *)utarray_eltptr(clause->literals, i);
+    for (size_t i = 0; i < utarray_len(condition->literals); i++) {
+        tmp_literal = (struct condition_literal *)utarray_eltptr(condition->literals, i);
         if (tmp_literal->attribute_id == g2c_item->attribute_id) {
-            size_t remove_idx = utarray_eltidx(clause->literals, tmp_literal);
-            utarray_erase(clause->literals, remove_idx, 1);
+            size_t remove_idx = utarray_eltidx(condition->literals, tmp_literal);
+            utarray_erase(condition->literals, remove_idx, 1);
             break; 
         }
     } 
 }
 
-static int maat_rule_clause_find_literal(struct maat_rule *rule,
+static int maat_rule_condition_find_literal(struct maat_rule *rule,
                                             struct group2rule_item *g2c_item)
 {
-    struct rule_clause *clause = rule->clauses + g2c_item->clause_index;
-    struct clause_literal *tmp_literal = NULL;
+    struct rule_condition *condition = rule->conditions + g2c_item->condition_index;
+    struct condition_literal *tmp_literal = NULL;
     int found = 0;
 
-    for (size_t i = 0; i < utarray_len(clause->literals); i++) {
-        tmp_literal = (struct clause_literal *)utarray_eltptr(clause->literals, i);
+    for (size_t i = 0; i < utarray_len(condition->literals); i++) {
+        tmp_literal = (struct condition_literal *)utarray_eltptr(condition->literals, i);
         if (tmp_literal->attribute_id == g2c_item->attribute_id) {
             found = 1;
         }
@@ -865,31 +865,31 @@ static int maat_rule_clause_find_literal(struct maat_rule *rule,
     return found;
 }
 
-static void maat_rule_clause_add_literal(struct maat_rule *rule,
+static void maat_rule_condition_add_literal(struct maat_rule *rule,
                                             struct group2rule_item *g2c_item)
 {
-    struct rule_clause *clause = rule->clauses + g2c_item->clause_index;
+    struct rule_condition *condition = rule->conditions + g2c_item->condition_index;
 
-    clause->not_flag = g2c_item->not_flag;
+    condition->not_flag = g2c_item->not_flag;
 
-    if (0 == clause->in_use) {
-        clause->in_use = 1;
-        rule->actual_clause_num++;
+    if (0 == condition->in_use) {
+        condition->in_use = 1;
+        rule->actual_condition_num++;
     }
 
-    rule_clause_add_literal(clause, g2c_item);
+    rule_condition_add_literal(condition, g2c_item);
 }
 
-static void maat_rule_clause_remove_literal(struct maat_rule *rule,
+static void maat_rule_condition_remove_literal(struct maat_rule *rule,
                                                struct group2rule_item *g2c_item)
 {
-    struct rule_clause *clause = rule->clauses + g2c_item->clause_index;
+    struct rule_condition *condition = rule->conditions + g2c_item->condition_index;
 
-    rule_clause_remove_literal(clause, g2c_item);
-    if (0 == utarray_len(clause->literals)) {
-        clause->in_use = 0;
-        clause->clause_id = 0;
-        rule->actual_clause_num--;
+    rule_condition_remove_literal(condition, g2c_item);
+    if (0 == utarray_len(condition->literals)) {
+        condition->in_use = 0;
+        condition->condition_id = 0;
+        rule->actual_condition_num--;
     }
 }
 
@@ -902,9 +902,9 @@ maat_rule_bool_matcher_new(struct rule_runtime *rule_rt,
     }
 
     size_t i = 0, j = 0, idx = 0;
-    int has_clause_num = 0;
+    int has_condition_num = 0;
 
-    // STEP 1, update clause_id of each rule
+    // STEP 1, update condition_id of each rule
     void **data_array = NULL;
     struct maat_rule *iter_rule = NULL;
     size_t node_cnt = rcu_updating_hash_list(rule_rt->cfg_hash, &data_array);
@@ -912,50 +912,50 @@ maat_rule_bool_matcher_new(struct rule_runtime *rule_rt,
 
     for (idx = 0; idx < node_cnt; idx++) {
         iter_rule = (struct maat_rule *)data_array[idx];
-        has_clause_num = 0;
+        has_condition_num = 0;
         for (i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
-            struct rule_clause *clause = iter_rule->clauses + i;
-            if (!clause->in_use) {
+            struct rule_condition *condition = iter_rule->conditions + i;
+            if (!condition->in_use) {
                 continue;
             }
 
-            has_clause_num++;
-            if (0 == clause->clause_id) {
-                clause->clause_id =
-                    maat_runtime_get_sequence(rule_rt->ref_maat_rt, "clause_id");
+            has_condition_num++;
+            if (0 == condition->condition_id) {
+                condition->condition_id =
+                    maat_runtime_get_sequence(rule_rt->ref_maat_rt, "condition_id");
             }
         }
-        assert(has_clause_num == iter_rule->actual_clause_num);
+        assert(has_condition_num == iter_rule->actual_condition_num);
     }
 
-    // STEP 2, serial rule clause states to a bool expression array
+    // STEP 2, serial rule condition states to a bool expression array
     size_t expr_cnt = 0;
     struct bool_expr *bool_expr_array = ALLOC(struct bool_expr, node_cnt);
 
     for (idx = 0; idx < node_cnt; idx++) {
         iter_rule = (struct maat_rule *)data_array[idx];
         for (i = 0, j = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
-            if (iter_rule->clauses[i].in_use) {
+            if (iter_rule->conditions[i].in_use) {
 // TODO:mytest need to delete
 #if 0
-                struct clause_literal *tmp_cl = NULL;
-				for(tmp_cl = (struct clause_literal *)utarray_front(iter_rule->clauses[i].literals); tmp_cl !=NULL; 
-                    tmp_cl = (struct clause_literal *)utarray_next(iter_rule->clauses[i].literals, tmp_cl)) {
+                struct condition_literal *tmp_cl = NULL;
+				for(tmp_cl = (struct condition_literal *)utarray_front(iter_rule->conditions[i].literals); tmp_cl !=NULL; 
+                    tmp_cl = (struct condition_literal *)utarray_next(iter_rule->conditions[i].literals, tmp_cl)) {
                     for (size_t it = 0; it < tmp_cl->group_cnt; it++) {
-                        printf("<before bool_matcher_new> rule_rt:%p rule_id:%lld, clause_id:%llu, clause_query_key{%lld: %d, %d}\n", 
-							rule_rt, iter_rule->rule_id, iter_rule->clauses[i].clause_id, tmp_cl->group_ids[it],
-                            tmp_cl->attribute_id, iter_rule->clauses[i].not_flag);
+                        printf("<before bool_matcher_new> rule_rt:%p rule_id:%lld, condition_id:%llu, condition_query_key{%lld: %d, %d}\n", 
+							rule_rt, iter_rule->rule_id, iter_rule->conditions[i].condition_id, tmp_cl->group_ids[it],
+                            tmp_cl->attribute_id, iter_rule->conditions[i].not_flag);
                     }
   				}
 #endif
-                bool_expr_array[expr_cnt].items[j].item_id = iter_rule->clauses[i].clause_id;
+                bool_expr_array[expr_cnt].items[j].item_id = iter_rule->conditions[i].condition_id;
                 bool_expr_array[expr_cnt].items[j].not_flag = 0;
                 j++;
             }
         }
 
         // some rule may have zero groups, e.g. default policy.
-        if (j == (size_t)iter_rule->declared_clause_num && j > 0) {
+        if (j == (size_t)iter_rule->declared_condition_num && j > 0) {
             bool_expr_array[expr_cnt].expr_id = iter_rule->rule_id;
             bool_expr_array[expr_cnt].user_tag = iter_rule;
             bool_expr_array[expr_cnt].item_num = j;
@@ -989,7 +989,7 @@ maat_rule_bool_matcher_new(struct rule_runtime *rule_rt,
     return bm;
 }
 
-static inline int compare_clause_id(const void *a, const void *b)
+static inline int compare_condition_id(const void *a, const void *b)
 {
 	long long ret = *(const long long *)a - *(const long long *)b;
 
@@ -1032,90 +1032,90 @@ static inline int compare_rule_id(const void *a, const void *b)
 }
 
 /**
- * @brief build <clause_query_key, clause_id_array> hash for clause or not_clause
+ * @brief build <condition_query_key, condition_id_array> hash for condition or not_condition
  * 
  * @param rule_rt: rule runtime handle
- * @param not_flag: specify whether to build clause or NOT_clause hash for rule runtime
- *                  0 -> clause hash
- *                  1 -> NOT_clause hash
+ * @param not_flag: specify whether to build condition or NOT_condition hash for rule runtime
+ *                  0 -> condition hash
+ *                  1 -> NOT_condition hash
  * 
- * @retval generated clause_id_kv_hash
+ * @retval generated condition_id_kv_hash
 */
-static struct clause_id_kv *
-build_clause_id_kv_hash(struct rule_runtime *rule_rt, int not_flag)
+static struct condition_id_kv *
+build_condition_id_kv_hash(struct rule_runtime *rule_rt, int not_flag)
 {
     if (NULL == rule_rt) {
         return NULL;
     }
 
     void **data_array = NULL;
-    struct clause_id_kv *clause_id_kv_hash = NULL;
+    struct condition_id_kv *condition_id_kv_hash = NULL;
     size_t rule_cnt = rcu_updating_hash_list(rule_rt->cfg_hash, &data_array);
 
     for (size_t idx = 0; idx < rule_cnt; idx++) {
         struct maat_rule *rule = (struct maat_rule *)data_array[idx];
         for (size_t i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
-            struct rule_clause *clause = rule->clauses + i;
-            if (!clause->in_use) {
+            struct rule_condition *condition = rule->conditions + i;
+            if (!condition->in_use) {
                 continue;
             }
 
             if (0 == not_flag) {
-                if (CLAUSE_NOT_FLAG_SET == clause->not_flag) {
+                if (CONDITION_NOT_FLAG_SET == condition->not_flag) {
                     continue;
                 }
             } else {
-                if (CLAUSE_NOT_FLAG_UNSET == clause->not_flag) {
+                if (CONDITION_NOT_FLAG_UNSET == condition->not_flag) {
                     continue;
                 }
             }
 
-            struct clause_literal *tmp_cl = NULL;
-            for (size_t j = 0; j < utarray_len(clause->literals); j++) {
-                tmp_cl = (struct clause_literal *)utarray_eltptr(clause->literals, j);
+            struct condition_literal *tmp_cl = NULL;
+            for (size_t j = 0; j < utarray_len(condition->literals); j++) {
+                tmp_cl = (struct condition_literal *)utarray_eltptr(condition->literals, j);
 
                 for (size_t k = 0; k < tmp_cl->group_cnt; k++) {
-                    struct clause_query_key key =
-                        {tmp_cl->group_ids[k], tmp_cl->attribute_id, clause->not_flag};
-                    struct clause_id_kv *clause_id_kv = NULL;
+                    struct condition_query_key key =
+                        {tmp_cl->group_ids[k], tmp_cl->attribute_id, condition->not_flag};
+                    struct condition_id_kv *condition_id_kv = NULL;
                     
-                    HASH_FIND(hh, clause_id_kv_hash, &key, sizeof(struct clause_query_key),
-                              clause_id_kv);
-                    if (NULL == clause_id_kv) {
-                        clause_id_kv = ALLOC(struct clause_id_kv, 1);
-                        clause_id_kv->key = key;
-                        utarray_new(clause_id_kv->clause_ids, &ut_clause_id_icd);
-                        HASH_ADD_KEYPTR(hh, clause_id_kv_hash, &clause_id_kv->key,
-                                        sizeof(clause_id_kv->key), clause_id_kv);
+                    HASH_FIND(hh, condition_id_kv_hash, &key, sizeof(struct condition_query_key),
+                              condition_id_kv);
+                    if (NULL == condition_id_kv) {
+                        condition_id_kv = ALLOC(struct condition_id_kv, 1);
+                        condition_id_kv->key = key;
+                        utarray_new(condition_id_kv->condition_ids, &ut_condition_id_icd);
+                        HASH_ADD_KEYPTR(hh, condition_id_kv_hash, &condition_id_kv->key,
+                                        sizeof(condition_id_kv->key), condition_id_kv);
                     }
 
-                    if (utarray_find(clause_id_kv->clause_ids, &(clause->clause_id),
-                                     compare_clause_id)) {
+                    if (utarray_find(condition_id_kv->condition_ids, &(condition->condition_id),
+                                     compare_condition_id)) {
                         continue;
                     }
-                    utarray_push_back(clause_id_kv->clause_ids, &(clause->clause_id));
-                    utarray_sort(clause_id_kv->clause_ids, compare_clause_id);
+                    utarray_push_back(condition_id_kv->condition_ids, &(condition->condition_id));
+                    utarray_sort(condition_id_kv->condition_ids, compare_condition_id);
                 }
             }
         }
     }
 
     FREE(data_array);
-    return clause_id_kv_hash;
+    return condition_id_kv_hash;
 }
 
 static int
-maat_rule_has_clause(struct maat_rule *rule, long long clause_id)
+maat_rule_has_condition(struct maat_rule *rule, long long condition_id)
 {
-	struct rule_clause *clause = NULL;
+	struct rule_condition *condition = NULL;
 
 	for (size_t i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
-		clause = rule->clauses + i;
-		if (!clause->in_use) {
+		condition = rule->conditions + i;
+		if (!condition->in_use) {
 			continue;
 		}
 
-		if (clause->clause_id == clause_id) {
+		if (condition->condition_id == condition_id) {
 			return 1;
 		}
 	}
@@ -1131,21 +1131,21 @@ rule_state_if_new_hit_rule(struct rule_state *rule_state,
 	size_t r_in_c_cnt = 0;
 	int ret = 0;
 
-	long long new_hit_clause_id = 0;
+	long long new_hit_condition_id = 0;
     if (0 == rule_state->this_scan_not_logic) {
-        for (i = 0; i < utarray_len(rule_state->this_scan_hit_clauses); i++) {
-		    new_hit_clause_id =
-                *(long long*)utarray_eltptr(rule_state->this_scan_hit_clauses, i);
-		    ret = maat_rule_has_clause(rule, new_hit_clause_id);
+        for (i = 0; i < utarray_len(rule_state->this_scan_hit_conditions); i++) {
+		    new_hit_condition_id =
+                *(long long*)utarray_eltptr(rule_state->this_scan_hit_conditions, i);
+		    ret = maat_rule_has_condition(rule, new_hit_condition_id);
 		    if (ret) {
 			    r_in_c_cnt++;
 		    }
 	    }
     } else {
-        for (i = 0; i < utarray_len(rule_state->this_scan_hit_not_clauses); i++) {
-		    new_hit_clause_id =
-                *(long long*)utarray_eltptr(rule_state->this_scan_hit_not_clauses, i);
-		    ret = maat_rule_has_clause(rule, new_hit_clause_id);
+        for (i = 0; i < utarray_len(rule_state->this_scan_hit_not_conditions); i++) {
+		    new_hit_condition_id =
+                *(long long*)utarray_eltptr(rule_state->this_scan_hit_not_conditions, i);
+		    ret = maat_rule_has_condition(rule, new_hit_condition_id);
 		    if (ret) {
 			    r_in_c_cnt++;
 		    }
@@ -1184,30 +1184,30 @@ maat_rule_bool_matcher_match(struct rule_runtime *rule_rt,
     }
 
     if (NULL == rule_rt->bm ||
-        0 == utarray_len(rule_state->all_hit_clauses) ||
+        0 == utarray_len(rule_state->all_hit_conditions) ||
         rule_state->rule_rt_version != rule_rt->version) {
         return 0;
     }
 
 	//TODO:mytest need to delete
 	#if 0
-	unsigned long long *p = utarray_eltptr(rule_state->all_hit_clauses, 0);
-	for (p = (unsigned long long *)utarray_front(rule_state->all_hit_clauses); p != NULL; 
-         p = (unsigned long long *)utarray_next(rule_state->all_hit_clauses, p)) {
-		printf("before bool_matcher_match rule_rt:%p rule_state clause_id:%llu\n",  rule_rt, *p);
+	unsigned long long *p = utarray_eltptr(rule_state->all_hit_conditions, 0);
+	for (p = (unsigned long long *)utarray_front(rule_state->all_hit_conditions); p != NULL; 
+         p = (unsigned long long *)utarray_next(rule_state->all_hit_conditions, p)) {
+		printf("before bool_matcher_match rule_rt:%p rule_state condition_id:%llu\n",  rule_rt, *p);
 	}
 	#endif
 	
 	int bool_match_ret =
         bool_matcher_match(rule_rt->bm, 
-                          (unsigned long long *)utarray_eltptr(rule_state->all_hit_clauses, 0),
-						  utarray_len(rule_state->all_hit_clauses), 
+                          (unsigned long long *)utarray_eltptr(rule_state->all_hit_conditions, 0),
+						  utarray_len(rule_state->all_hit_conditions), 
                           expr_match, MAX_HIT_RULE_NUM);
 	for (int i = 0; i < bool_match_ret && ud_result_cnt < ud_array_size; i++) {
 		rule = (struct maat_rule *)expr_match[i].user_tag;
 		assert(rule->magic_num == MAAT_RULE_MAGIC);
 		assert((unsigned long long)rule->rule_id == expr_match[i].expr_id);
-		if (0 == rule->actual_clause_num) {
+		if (0 == rule->actual_condition_num) {
 			continue;
 		}
 
@@ -1230,7 +1230,7 @@ static struct rule_item *rule_item_clone(struct rule_item *item)
     struct rule_item *new_item = ALLOC(struct rule_item, 1);
 
     new_item->rule_id = item->rule_id;
-    new_item->declared_clause_num = item->declared_clause_num;
+    new_item->declared_condition_num = item->declared_condition_num;
     new_item->table_line_len = item->table_line_len;
     new_item->table_line = ALLOC(char, new_item->table_line_len + 1);
     memcpy(new_item->table_line, item->table_line, new_item->table_line_len);
@@ -1245,23 +1245,23 @@ maat_rule_clone(struct maat_rule *rule, int deep_copy)
 
     new_rule->magic_num = rule->magic_num;
     new_rule->rule_id = rule->rule_id;
-    new_rule->actual_clause_num = rule->actual_clause_num;
-    new_rule->declared_clause_num = rule->declared_clause_num;
+    new_rule->actual_condition_num = rule->actual_condition_num;
+    new_rule->declared_condition_num = rule->declared_condition_num;
     if (1 == deep_copy && rule->user_data != NULL) {
         new_rule->user_data =
             rule_item_clone((struct rule_item *)rule->user_data);
     }
 
-    struct clause_literal *tmp_literal = NULL;
+    struct condition_literal *tmp_literal = NULL;
     for (size_t i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
-        new_rule->clauses[i].clause_id = rule->clauses[i].clause_id;
-        new_rule->clauses[i].in_use = rule->clauses[i].in_use;
-        new_rule->clauses[i].not_flag = rule->clauses[i].not_flag;
-        utarray_new(new_rule->clauses[i].literals, &ut_clause_literal_icd);
-        for (size_t j = 0; j < utarray_len(rule->clauses[i].literals); j++) {
+        new_rule->conditions[i].condition_id = rule->conditions[i].condition_id;
+        new_rule->conditions[i].in_use = rule->conditions[i].in_use;
+        new_rule->conditions[i].not_flag = rule->conditions[i].not_flag;
+        utarray_new(new_rule->conditions[i].literals, &ut_condition_literal_icd);
+        for (size_t j = 0; j < utarray_len(rule->conditions[i].literals); j++) {
             tmp_literal =
-                (struct clause_literal *)utarray_eltptr(rule->clauses[i].literals, j);
-            utarray_push_back(new_rule->clauses[i].literals, tmp_literal);
+                (struct condition_literal *)utarray_eltptr(rule->conditions[i].literals, j);
+            utarray_push_back(new_rule->conditions[i].literals, tmp_literal);
         }
     }
 
@@ -1280,23 +1280,23 @@ static int maat_add_group_to_rule(struct rcu_hash_table *hash_tbl,
     if (1 == updating_flag) {
         rule = rcu_updating_hash_find(hash_tbl, (char *)&rule_id, sizeof(long long));
         if (rule != NULL) {
-            ret = maat_rule_clause_find_literal(rule, g2c_item);
+            ret = maat_rule_condition_find_literal(rule, g2c_item);
             if (ret > 0) {
                 log_fatal(logger, MODULE_RULE,
-                          "[%s:%d]rule:%lld clause(index:%d) already has attribute_id:%d's "
+                          "[%s:%d]rule:%lld condition(index:%d) already has attribute_id:%d's "
                           "literal, can't add again", __FUNCTION__, __LINE__, rule->rule_id,
-                          g2c_item->clause_index, g2c_item->attribute_id);
+                          g2c_item->condition_index, g2c_item->attribute_id);
                 return -1;
             }
             /* rule found in updating hash(added by rule runtime), it can
              * be modified directly */
-            maat_rule_clause_add_literal(rule, g2c_item);
+            maat_rule_condition_add_literal(rule, g2c_item);
         } else {
             /* rule neither in effective hash nor in updating hash, so new one */
             rule = maat_rule_new(rule_id);
             assert(rule != NULL);
 
-            maat_rule_clause_add_literal(rule, g2c_item);
+            maat_rule_condition_add_literal(rule, g2c_item);
             rcu_hash_add(hash_tbl, (char *)&rule_id, sizeof(long long), rule);
         }
     } else {
@@ -1311,12 +1311,12 @@ static int maat_add_group_to_rule(struct rcu_hash_table *hash_tbl,
                 can only be deleted but not modified
                 before delete it, we need to make a copy for further use
             *********************************************************************/
-            ret = maat_rule_clause_find_literal(rule, g2c_item);
+            ret = maat_rule_condition_find_literal(rule, g2c_item);
             if (ret > 0) {
                 log_fatal(logger, MODULE_RULE,
-                          "[%s:%d]rule:%lld clause(index:%d) already has attribute_id:%d's "
+                          "[%s:%d]rule:%lld condition(index:%d) already has attribute_id:%d's "
                           "literal, can't add again", __FUNCTION__, __LINE__, rule->rule_id,
-                          g2c_item->clause_index, g2c_item->attribute_id);
+                          g2c_item->condition_index, g2c_item->attribute_id);
                 return -1;
             }
 
@@ -1326,13 +1326,13 @@ static int maat_add_group_to_rule(struct rcu_hash_table *hash_tbl,
             /* delete rule from rcu hash */
             rcu_hash_del(hash_tbl, (char *)&rule_id, sizeof(long long));
 
-            maat_rule_clause_add_literal(copy_rule, g2c_item);
+            maat_rule_condition_add_literal(copy_rule, g2c_item);
             rcu_hash_add(hash_tbl, (char *)&rule_id, sizeof(long long), copy_rule);
         } else {
             rule = maat_rule_new(rule_id);
             assert(rule != NULL);
 
-            maat_rule_clause_add_literal(rule, g2c_item);
+            maat_rule_condition_add_literal(rule, g2c_item);
             rcu_hash_add(hash_tbl, (char *)&rule_id, sizeof(long long), rule);
         }
     }
@@ -1354,23 +1354,23 @@ static int maat_remove_group_from_rule(struct rcu_hash_table *hash_tbl,
                                          sizeof(long long));
         if (NULL == rule) {
             log_fatal(logger, MODULE_RULE,
-                      "[%s:%d] Remove clause(index:%d) from rule %lld failed,"
+                      "[%s:%d] Remove condition(index:%d) from rule %lld failed,"
                       "rule not existed.", __FUNCTION__, __LINE__,
-                      g2c_item->clause_index, rule_id);
+                      g2c_item->condition_index, rule_id);
             return -1;
         } else {
-            ret = maat_rule_clause_find_literal(rule, g2c_item);
+            ret = maat_rule_condition_find_literal(rule, g2c_item);
             if (0 == ret) {
                 log_fatal(logger, MODULE_RULE,
-                          "[%s:%d]rule:%lld clause(index:%d) has no attribute_id:%d's "
+                          "[%s:%d]rule:%lld condition(index:%d) has no attribute_id:%d's "
                           "literal, can't be removed", __FUNCTION__, __LINE__,
-                          rule->rule_id, g2c_item->clause_index, g2c_item->attribute_id);
+                          rule->rule_id, g2c_item->condition_index, g2c_item->attribute_id);
                 return -1;
             }
 
             /* rule found in updating hash, it can be modified directly */
-            maat_rule_clause_remove_literal(rule, g2c_item);
-            if (0 == rule->actual_clause_num && NULL == rule->user_data) {
+            maat_rule_condition_remove_literal(rule, g2c_item);
+            if (0 == rule->actual_condition_num && NULL == rule->user_data) {
                 rcu_hash_del(hash_tbl, (char *)&rule_id, sizeof(long long));
             } 
         }
@@ -1378,12 +1378,12 @@ static int maat_remove_group_from_rule(struct rcu_hash_table *hash_tbl,
         //find in effetive hash
         rule = rcu_hash_find(hash_tbl, (char *)&rule_id, sizeof(long long));
         if (rule != NULL) {
-            ret = maat_rule_clause_find_literal(rule, g2c_item);
+            ret = maat_rule_condition_find_literal(rule, g2c_item);
             if (0 == ret) {
                 log_fatal(logger, MODULE_RULE,
-                          "[%s:%d]rule:%lld clause(index:%d) has no attribute_id:%d's "
+                          "[%s:%d]rule:%lld condition(index:%d) has no attribute_id:%d's "
                           "literal, can't be removed", __FUNCTION__, __LINE__,
-                          rule->rule_id, g2c_item->clause_index, g2c_item->attribute_id);
+                          rule->rule_id, g2c_item->condition_index, g2c_item->attribute_id);
                 return -1;
             }
 
@@ -1401,18 +1401,18 @@ static int maat_remove_group_from_rule(struct rcu_hash_table *hash_tbl,
 
             /* delete rule from rcu hash */
             rcu_hash_del(hash_tbl, (char *)&rule_id, sizeof(long long));
-            maat_rule_clause_remove_literal(copy_rule, g2c_item);
+            maat_rule_condition_remove_literal(copy_rule, g2c_item);
 
-            if (0 == copy_rule->actual_clause_num && NULL == copy_rule->user_data) {
+            if (0 == copy_rule->actual_condition_num && NULL == copy_rule->user_data) {
                 maat_rule_free(copy_rule);
             } else {
                 rcu_hash_add(hash_tbl, (char *)&rule_id, sizeof(long long), copy_rule);
             }
         } else {
             log_fatal(logger, MODULE_RULE,
-                      "[%s:%d] Remove clause(index:%d) from rule_id %lld failed,"
+                      "[%s:%d] Remove condition(index:%d) from rule_id %lld failed,"
                       "rule is not existed.", __FUNCTION__, __LINE__, 
-                      g2c_item->clause_index, rule_id);
+                      g2c_item->condition_index, rule_id);
             return -1;
         }
     }
@@ -1425,10 +1425,10 @@ struct rule_state *rule_state_new(void)
     struct rule_state *rule_state = ALLOC(struct rule_state, 1);
 
 	utarray_new(rule_state->internal_hit_paths, &ut_hit_path_icd);
-	utarray_new(rule_state->all_hit_clauses, &ut_clause_id_icd);
-	utarray_new(rule_state->this_scan_hit_clauses, &ut_clause_id_icd);
-	utarray_new(rule_state->this_scan_hit_not_clauses, &ut_clause_id_icd);
-    utarray_new(rule_state->exclude_not_clauses, &ut_clause_id_icd);
+	utarray_new(rule_state->all_hit_conditions, &ut_condition_id_icd);
+	utarray_new(rule_state->this_scan_hit_conditions, &ut_condition_id_icd);
+	utarray_new(rule_state->this_scan_hit_not_conditions, &ut_condition_id_icd);
+    utarray_new(rule_state->exclude_not_conditions, &ut_condition_id_icd);
     utarray_new(rule_state->direct_hit_groups, &ut_maat_hit_group_icd);
     utarray_new(rule_state->indirect_hit_groups, &ut_maat_hit_group_icd);
     utarray_new(rule_state->last_hit_groups, &ut_maat_hit_group_icd);
@@ -1472,10 +1472,10 @@ void rule_state_reset(struct rule_state *rule_state)
     rule_state->rule_rt_version = 0;
 
     utarray_clear(rule_state->internal_hit_paths);
-    utarray_clear(rule_state->all_hit_clauses);
-    utarray_clear(rule_state->this_scan_hit_clauses);
-    utarray_clear(rule_state->this_scan_hit_not_clauses);
-    utarray_clear(rule_state->exclude_not_clauses);
+    utarray_clear(rule_state->all_hit_conditions);
+    utarray_clear(rule_state->this_scan_hit_conditions);
+    utarray_clear(rule_state->this_scan_hit_not_conditions);
+    utarray_clear(rule_state->exclude_not_conditions);
     utarray_clear(rule_state->direct_hit_groups);
     utarray_clear(rule_state->indirect_hit_groups);
     utarray_clear(rule_state->last_hit_groups);
@@ -1502,32 +1502,32 @@ void rule_state_free(struct rule_state *rule_state,
         rule_state->internal_hit_paths = NULL;
     }
     
-    if (rule_state->all_hit_clauses != NULL) {
-        free_bytes += utarray_size(rule_state->all_hit_clauses) *
+    if (rule_state->all_hit_conditions != NULL) {
+        free_bytes += utarray_size(rule_state->all_hit_conditions) *
                       sizeof(long long);
-        utarray_free(rule_state->all_hit_clauses);
-        rule_state->all_hit_clauses = NULL;
+        utarray_free(rule_state->all_hit_conditions);
+        rule_state->all_hit_conditions = NULL;
     }
 	
-    if (rule_state->this_scan_hit_clauses != NULL) {
-        free_bytes += utarray_size(rule_state->this_scan_hit_clauses) *
+    if (rule_state->this_scan_hit_conditions != NULL) {
+        free_bytes += utarray_size(rule_state->this_scan_hit_conditions) *
                       sizeof(long long);
-        utarray_free(rule_state->this_scan_hit_clauses);
-        rule_state->this_scan_hit_clauses = NULL;
+        utarray_free(rule_state->this_scan_hit_conditions);
+        rule_state->this_scan_hit_conditions = NULL;
     }
 	
-    if (rule_state->this_scan_hit_not_clauses != NULL) {
-        free_bytes += utarray_size(rule_state->this_scan_hit_not_clauses) *
+    if (rule_state->this_scan_hit_not_conditions != NULL) {
+        free_bytes += utarray_size(rule_state->this_scan_hit_not_conditions) *
                       sizeof(long long);
-        utarray_free(rule_state->this_scan_hit_not_clauses);
-        rule_state->this_scan_hit_not_clauses = NULL;
+        utarray_free(rule_state->this_scan_hit_not_conditions);
+        rule_state->this_scan_hit_not_conditions = NULL;
     }
 
-    if (rule_state->exclude_not_clauses != NULL) {
-        free_bytes += utarray_size(rule_state->exclude_not_clauses) *
+    if (rule_state->exclude_not_conditions != NULL) {
+        free_bytes += utarray_size(rule_state->exclude_not_conditions) *
                       sizeof(long long);
-        utarray_free(rule_state->exclude_not_clauses);
-        rule_state->exclude_not_clauses = NULL;
+        utarray_free(rule_state->exclude_not_conditions);
+        rule_state->exclude_not_conditions = NULL;
     }
 
     if (rule_state->direct_hit_groups != NULL) {
@@ -1586,23 +1586,23 @@ rule_state_add_internal_hit_path(struct rule_state *rule_state,
 	utarray_push_back(rule_state->internal_hit_paths, &new_path);
 }
 
-static int maat_rule_has_clause_query_key(struct maat_rule *rule,
-                                             struct clause_query_key *key)
+static int maat_rule_has_condition_query_key(struct maat_rule *rule,
+                                             struct condition_query_key *key)
 {
 	for (int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
-		struct rule_clause *clause = rule->clauses+i;
-		if(!clause->in_use) {
+		struct rule_condition *condition = rule->conditions+i;
+		if(!condition->in_use) {
 			continue;
 		}
 
-        struct clause_literal *tmp_cl = NULL;
-        for (size_t j = 0; j < utarray_len(clause->literals); j++) {
-            tmp_cl = (struct clause_literal *)utarray_eltptr(clause->literals, j);
+        struct condition_literal *tmp_cl = NULL;
+        for (size_t j = 0; j < utarray_len(condition->literals); j++) {
+            tmp_cl = (struct condition_literal *)utarray_eltptr(condition->literals, j);
             if (tmp_cl->attribute_id != key->attribute_id) {
                 continue;
             }
 
-            if (clause->not_flag != key->not_flag) {
+            if (condition->not_flag != key->not_flag) {
                 continue;
             }
 
@@ -1619,22 +1619,22 @@ static int maat_rule_has_clause_query_key(struct maat_rule *rule,
 }
 
 static size_t
-maat_rule_get_hit_clause_index(struct maat_rule *rule, 
+maat_rule_get_hit_condition_index(struct maat_rule *rule, 
                                   int attribute_id, long long hit_group_id,
-                                  int *clause_idx_array, size_t array_size)
+                                  int *condition_idx_array, size_t array_size)
 {
-    size_t hit_clause_cnt = 0;
-    struct rule_clause *tmp_clause = NULL;
+    size_t hit_condition_cnt = 0;
+    struct rule_condition *tmp_condition = NULL;
 
     for (int i = 0; i < MAX_ITEMS_PER_BOOL_EXPR; i++) {
-        tmp_clause = &rule->clauses[i];
-        if (!tmp_clause->in_use) {
+        tmp_condition = &rule->conditions[i];
+        if (!tmp_condition->in_use) {
             continue;
         }
 
-        struct clause_literal *tmp_cl = NULL;
-        for (size_t j = 0; j < utarray_len(tmp_clause->literals); j++) {
-            tmp_cl = (struct clause_literal *)utarray_eltptr(tmp_clause->literals, j);
+        struct condition_literal *tmp_cl = NULL;
+        for (size_t j = 0; j < utarray_len(tmp_condition->literals); j++) {
+            tmp_cl = (struct condition_literal *)utarray_eltptr(tmp_condition->literals, j);
             if (tmp_cl->attribute_id != attribute_id) {
                 continue;
             }
@@ -1643,13 +1643,13 @@ maat_rule_get_hit_clause_index(struct maat_rule *rule,
                                               tmp_cl->group_cnt, sizeof(long long),
                                               compare_group_id);
             if (tmp_group_id != NULL) {
-                clause_idx_array[hit_clause_cnt++] = i;
+                condition_idx_array[hit_condition_cnt++] = i;
                 break;
             }
         }
     }
 
-    return hit_clause_cnt;
+    return hit_condition_cnt;
 }
 
 static int
@@ -1672,9 +1672,9 @@ void populate_hit_path_with_rule(struct maat_hit_path *hit_path_array,
 {
     size_t i = 0;
     size_t idx = array_idx;
-    size_t n_clause_index = 0;
+    size_t n_condition_index = 0;
     size_t new_hit_path_cnt = *n_new_hit_path;
-    int clause_index_array[MAX_ITEMS_PER_BOOL_EXPR] = {0};
+    int condition_index_array[MAX_ITEMS_PER_BOOL_EXPR] = {0};
 
     if (hit_path_array[idx].top_group_id < 0) {
         hit_path_array[idx].top_group_id = hit_path_array[idx].sub_group_id;
@@ -1683,36 +1683,36 @@ void populate_hit_path_with_rule(struct maat_hit_path *hit_path_array,
     struct maat_hit_path tmp_path;
     if (hit_path_array[idx].rule_id < 0) {
         hit_path_array[idx].rule_id = rule->rule_id;
-        // find out which clause in rule hit
-        n_clause_index =
-            maat_rule_get_hit_clause_index(rule, hit_path_array[idx].attribute_id,
+        // find out which condition in rule hit
+        n_condition_index =
+            maat_rule_get_hit_condition_index(rule, hit_path_array[idx].attribute_id,
                                               hit_path_array[idx].top_group_id,
-                                              clause_index_array,
+                                              condition_index_array,
                                               MAX_ITEMS_PER_BOOL_EXPR);
-        hit_path_array[idx].clause_index = clause_index_array[0];
-        if (n_clause_index > 1) {
-            for (i = 1; i < n_clause_index; i++) {
+        hit_path_array[idx].condition_index = condition_index_array[0];
+        if (n_condition_index > 1) {
+            for (i = 1; i < n_condition_index; i++) {
                 tmp_path = hit_path_array[idx];
-                tmp_path.clause_index = clause_index_array[i];
+                tmp_path.condition_index = condition_index_array[i];
                 hit_path_array[n_hit_path + new_hit_path_cnt] = tmp_path;
                 new_hit_path_cnt++;
             }
         }
     } else {
-        // means same clause_query_id hit more than one rule_id
+        // means same condition_query_id hit more than one rule_id
         tmp_path = hit_path_array[idx];
         tmp_path.rule_id = rule->rule_id;
         if (!maat_rule_is_hit_path_existed(hit_path_array, n_hit_path + new_hit_path_cnt, &tmp_path)) {
             hit_path_array[n_hit_path + new_hit_path_cnt] = tmp_path;
             new_hit_path_cnt++;
-            n_clause_index =
-                maat_rule_get_hit_clause_index(rule, tmp_path.attribute_id, tmp_path.top_group_id,
-                                                  clause_index_array, MAX_ITEMS_PER_BOOL_EXPR);
-            hit_path_array[n_hit_path + new_hit_path_cnt - 1].clause_index = clause_index_array[0];
-            if (n_clause_index > 1) {
-                for (i = 1; i < n_clause_index; i++) {
+            n_condition_index =
+                maat_rule_get_hit_condition_index(rule, tmp_path.attribute_id, tmp_path.top_group_id,
+                                                  condition_index_array, MAX_ITEMS_PER_BOOL_EXPR);
+            hit_path_array[n_hit_path + new_hit_path_cnt - 1].condition_index = condition_index_array[0];
+            if (n_condition_index > 1) {
+                for (i = 1; i < n_condition_index; i++) {
                     tmp_path = hit_path_array[n_hit_path + new_hit_path_cnt - 1];
-                    tmp_path.clause_index = clause_index_array[i];
+                    tmp_path.condition_index = condition_index_array[i];
                     hit_path_array[n_hit_path + new_hit_path_cnt] = tmp_path;
                     new_hit_path_cnt++;
                 }
@@ -1731,7 +1731,7 @@ size_t rule_runtime_get_hit_paths(struct rule_runtime *rule_rt, int thread_id,
     /* assign hit_path_array[].rule_id */
     size_t n_new_hit_path = 0;
     struct maat_rule *rule = NULL;
-    struct clause_query_key key = {0, 0, 0};
+    struct condition_query_key key = {0, 0, 0};
     struct bool_expr_match *expr_match = rule_rt->expr_match_buff + 
                                          (thread_id * MAX_HIT_RULE_NUM);
     assert(thread_id >= 0);
@@ -1742,14 +1742,14 @@ size_t rule_runtime_get_hit_paths(struct rule_runtime *rule_rt, int thread_id,
 
     int bool_match_ret =
         bool_matcher_match(rule_rt->bm, 
-                          (unsigned long long *)utarray_eltptr(rule_state->all_hit_clauses, 0),
-						  utarray_len(rule_state->all_hit_clauses), expr_match, MAX_HIT_RULE_NUM);
+                          (unsigned long long *)utarray_eltptr(rule_state->all_hit_conditions, 0),
+						  utarray_len(rule_state->all_hit_conditions), expr_match, MAX_HIT_RULE_NUM);
 
 	for (int idx = 0; idx < bool_match_ret; idx++) {
         rule = (struct maat_rule *)expr_match[idx].user_tag;
 		assert(rule->magic_num == MAAT_RULE_MAGIC);
 		assert((unsigned long long)rule->rule_id == expr_match[idx].expr_id);
-		if (0 == rule->actual_clause_num || NULL == rule->user_data) {
+		if (0 == rule->actual_condition_num || NULL == rule->user_data) {
 			continue;
 		}
 
@@ -1762,7 +1762,7 @@ size_t rule_runtime_get_hit_paths(struct rule_runtime *rule_rt, int thread_id,
 
 			key.attribute_id = hit_path_array[j].attribute_id;
             key.not_flag = hit_path_array[j].NOT_flag;
-			if (maat_rule_has_clause_query_key(rule, &key)) {
+			if (maat_rule_has_condition_query_key(rule, &key)) {
                 populate_hit_path_with_rule(hit_path_array, j, n_hit_path,
                                                &n_new_hit_path, rule);
 			}
@@ -1809,83 +1809,83 @@ rule_state_add_indirect_hit_groups(struct rule_state *rule_state,
 }
 
 static void
-rule_state_add_hit_clauses(struct rule_state *rule_state,
-                              UT_array *clause_id_array)
+rule_state_add_hit_conditions(struct rule_state *rule_state,
+                              UT_array *condition_id_array)
 {
     size_t i = 0;
-    long long *clause_id = NULL;
-    size_t new_clause_idx = utarray_len(rule_state->this_scan_hit_clauses);
+    long long *condition_id = NULL;
+    size_t new_condition_idx = utarray_len(rule_state->this_scan_hit_conditions);
 
-    for (i = 0; i < utarray_len(clause_id_array); i++) {
-        clause_id = (long long *)utarray_eltptr(clause_id_array, i);
-        if (utarray_find(rule_state->all_hit_clauses, clause_id, compare_clause_id)) {
+    for (i = 0; i < utarray_len(condition_id_array); i++) {
+        condition_id = (long long *)utarray_eltptr(condition_id_array, i);
+        if (utarray_find(rule_state->all_hit_conditions, condition_id, compare_condition_id)) {
             continue;
         }
-        utarray_push_back(rule_state->this_scan_hit_clauses, clause_id);
+        utarray_push_back(rule_state->this_scan_hit_conditions, condition_id);
     }
 
-    if ((utarray_len(rule_state->this_scan_hit_clauses) - new_clause_idx) > 0) {
-        utarray_reserve(rule_state->all_hit_clauses,
-                        utarray_len(rule_state->this_scan_hit_clauses) - new_clause_idx);
+    if ((utarray_len(rule_state->this_scan_hit_conditions) - new_condition_idx) > 0) {
+        utarray_reserve(rule_state->all_hit_conditions,
+                        utarray_len(rule_state->this_scan_hit_conditions) - new_condition_idx);
 
-        for (i = new_clause_idx; i < utarray_len(rule_state->this_scan_hit_clauses); i++) {
-            clause_id = (long long *)utarray_eltptr(rule_state->this_scan_hit_clauses, i);
-            utarray_push_back(rule_state->all_hit_clauses, clause_id);
+        for (i = new_condition_idx; i < utarray_len(rule_state->this_scan_hit_conditions); i++) {
+            condition_id = (long long *)utarray_eltptr(rule_state->this_scan_hit_conditions, i);
+            utarray_push_back(rule_state->all_hit_conditions, condition_id);
         }
-        utarray_sort(rule_state->all_hit_clauses, compare_clause_id);
+        utarray_sort(rule_state->all_hit_conditions, compare_condition_id);
     }
 }
 
 static void
-rule_state_add_exclude_not_clauses(struct rule_state *rule_state,
-                                      UT_array *clause_id_array)
+rule_state_add_exclude_not_conditions(struct rule_state *rule_state,
+                                      UT_array *condition_id_array)
 {
-    for (size_t i = 0; i < utarray_len(clause_id_array); i++) {
-        long long *clause_id = (long long *)utarray_eltptr(clause_id_array, i);
-        if (utarray_find(rule_state->exclude_not_clauses, clause_id,
-                         compare_clause_id)) {
+    for (size_t i = 0; i < utarray_len(condition_id_array); i++) {
+        long long *condition_id = (long long *)utarray_eltptr(condition_id_array, i);
+        if (utarray_find(rule_state->exclude_not_conditions, condition_id,
+                         compare_condition_id)) {
             continue;
         }
-        utarray_push_back(rule_state->exclude_not_clauses, clause_id);
+        utarray_push_back(rule_state->exclude_not_conditions, condition_id);
     }
-    utarray_sort(rule_state->exclude_not_clauses, compare_clause_id);
+    utarray_sort(rule_state->exclude_not_conditions, compare_condition_id);
 }
 
 static void
-rule_state_add_hit_not_clauses(struct rule_state *rule_state,
-                                  UT_array *clause_id_array)
+rule_state_add_hit_not_conditions(struct rule_state *rule_state,
+                                  UT_array *condition_id_array)
 {
     size_t i = 0;
-    long long *clause_id = NULL;
-    size_t new_clause_idx = utarray_len(rule_state->this_scan_hit_not_clauses);
+    long long *condition_id = NULL;
+    size_t new_condition_idx = utarray_len(rule_state->this_scan_hit_not_conditions);
 
-    for (i = 0; i < utarray_len(clause_id_array); i++) {
-        clause_id = (long long *)utarray_eltptr(clause_id_array, i);
-        if (utarray_find(rule_state->all_hit_clauses, clause_id, compare_clause_id)) {
+    for (i = 0; i < utarray_len(condition_id_array); i++) {
+        condition_id = (long long *)utarray_eltptr(condition_id_array, i);
+        if (utarray_find(rule_state->all_hit_conditions, condition_id, compare_condition_id)) {
             continue;
         }
 
-        if (utarray_find(rule_state->exclude_not_clauses, clause_id, compare_clause_id)) {
+        if (utarray_find(rule_state->exclude_not_conditions, condition_id, compare_condition_id)) {
             continue;
         }
 
-        utarray_push_back(rule_state->this_scan_hit_not_clauses, clause_id);
+        utarray_push_back(rule_state->this_scan_hit_not_conditions, condition_id);
     }
 
-    if ((utarray_len(rule_state->this_scan_hit_not_clauses) - new_clause_idx) > 0) {
-        utarray_reserve(rule_state->all_hit_clauses,
-                        utarray_len(rule_state->this_scan_hit_not_clauses) - new_clause_idx);
+    if ((utarray_len(rule_state->this_scan_hit_not_conditions) - new_condition_idx) > 0) {
+        utarray_reserve(rule_state->all_hit_conditions,
+                        utarray_len(rule_state->this_scan_hit_not_conditions) - new_condition_idx);
 
-        for (i = new_clause_idx; i < utarray_len(rule_state->this_scan_hit_not_clauses); i++) {
-            clause_id = (long long *)utarray_eltptr(rule_state->this_scan_hit_not_clauses, i);
-            utarray_push_back(rule_state->all_hit_clauses, clause_id);
+        for (i = new_condition_idx; i < utarray_len(rule_state->this_scan_hit_not_conditions); i++) {
+            condition_id = (long long *)utarray_eltptr(rule_state->this_scan_hit_not_conditions, i);
+            utarray_push_back(rule_state->all_hit_conditions, condition_id);
         }
-        utarray_sort(rule_state->all_hit_clauses, compare_clause_id);
+        utarray_sort(rule_state->all_hit_conditions, compare_condition_id);
     }
 }
 
 static void
-rule_state_update_hit_clauses(struct rule_state *rule_state,
+rule_state_update_hit_conditions(struct rule_state *rule_state,
                                  struct rule_runtime *rule_rt,
                                  long long group_id, int attribute_id)
 {
@@ -1893,18 +1893,18 @@ rule_state_update_hit_clauses(struct rule_state *rule_state,
         return;
     }
 
-    struct clause_query_key key = {group_id, attribute_id, 0};
-    struct clause_id_kv *clause_id_kv = NULL;
+    struct condition_query_key key = {group_id, attribute_id, 0};
+    struct condition_id_kv *condition_id_kv = NULL;
 
-    HASH_FIND(hh, rule_rt->clause_id_kv_hash, &key, sizeof(key), clause_id_kv);
-    if (clause_id_kv != NULL) {
-        rule_state_add_hit_clauses(rule_state, clause_id_kv->clause_ids);
+    HASH_FIND(hh, rule_rt->condition_id_kv_hash, &key, sizeof(key), condition_id_kv);
+    if (condition_id_kv != NULL) {
+        rule_state_add_hit_conditions(rule_state, condition_id_kv->condition_ids);
     }
 
     key.not_flag = 1;
-    HASH_FIND(hh, rule_rt->not_clause_id_kv_hash, &key, sizeof(key), clause_id_kv);
-    if (clause_id_kv != NULL) {
-        rule_state_add_exclude_not_clauses(rule_state, clause_id_kv->clause_ids);
+    HASH_FIND(hh, rule_rt->not_condition_id_kv_hash, &key, sizeof(key), condition_id_kv);
+    if (condition_id_kv != NULL) {
+        rule_state_add_exclude_not_conditions(rule_state, condition_id_kv->condition_ids);
     }
 }
 
@@ -1937,14 +1937,14 @@ rule_state_cache_hit_not_groups(struct rule_state *rule_state,
         }
     }
 
-    struct clause_id_kv *clause_id_kv = NULL, *tmp_clause_id_kv = NULL;
-    HASH_ITER(hh, rule_rt->not_clause_id_kv_hash, clause_id_kv, tmp_clause_id_kv) {
-        if (clause_id_kv->key.attribute_id != attribute_id) {
+    struct condition_id_kv *condition_id_kv = NULL, *tmp_condition_id_kv = NULL;
+    HASH_ITER(hh, rule_rt->not_condition_id_kv_hash, condition_id_kv, tmp_condition_id_kv) {
+        if (condition_id_kv->key.attribute_id != attribute_id) {
             continue;
         }
 
         long long *tmp_group_id =
-            bsearch(&(clause_id_kv->key.group_id), hit_group_ids,
+            bsearch(&(condition_id_kv->key.group_id), hit_group_ids,
                     n_hit_group_id, sizeof(long long), compare_group_id);
         if (tmp_group_id != NULL) {
             continue;
@@ -1957,9 +1957,9 @@ rule_state_cache_hit_not_groups(struct rule_state *rule_state,
             HASH_ADD_INT(rule_state->hit_not_tbl_groups, attribute_id, tbl_group);
         }
 
-        if (!utarray_find(tbl_group->group_ids, &(clause_id_kv->key.group_id),
+        if (!utarray_find(tbl_group->group_ids, &(condition_id_kv->key.group_id),
                           compare_group_id)) {
-            utarray_push_back(tbl_group->group_ids, &(clause_id_kv->key.group_id));
+            utarray_push_back(tbl_group->group_ids, &(condition_id_kv->key.group_id));
         }
     }
 
@@ -2017,12 +2017,12 @@ rule_runtime_add_rule(struct rule_runtime *rule_rt,
            ******************************************************************/
 
             /* rule has group2rule_table info, so set rule_table info */
-            maat_rule_set(rule, table_id, rule_item->declared_clause_num, rule_item);
+            maat_rule_set(rule, table_id, rule_item->declared_condition_num, rule_item);
         } else {
             // rule neither in effective hash nor in updating hash
             rule = maat_rule_new(rule_item->rule_id);
             assert(rule != NULL);
-            maat_rule_set(rule, table_id, rule_item->declared_clause_num, rule_item);
+            maat_rule_set(rule, table_id, rule_item->declared_condition_num, rule_item);
             rcu_hash_add(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long), rule);
         }
     } else {
@@ -2044,13 +2044,13 @@ rule_runtime_add_rule(struct rule_runtime *rule_rt,
             rcu_hash_del(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long));
 
             /* copy_rule has group2rule_table info, so set rule_table info */
-            maat_rule_set(copy_rule, table_id, rule_item->declared_clause_num, rule_item);
+            maat_rule_set(copy_rule, table_id, rule_item->declared_condition_num, rule_item);
             /* add copy_rule to rcu hash */
             rcu_hash_add(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long), copy_rule);
         } else {
             rule = maat_rule_new(rule_item->rule_id);
             assert(rule != NULL);
-            maat_rule_set(rule, table_id, rule_item->declared_clause_num, rule_item);
+            maat_rule_set(rule, table_id, rule_item->declared_condition_num, rule_item);
             rcu_hash_add(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long), rule);
         }
     }
@@ -2093,7 +2093,7 @@ static void rule_runtime_del_rule(struct rule_runtime *rule_rt,
                 rule->user_data = NULL;
             }
 
-            if (0 == rule->actual_clause_num) {
+            if (0 == rule->actual_condition_num) {
                 rcu_hash_del(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long));
             }
         }
@@ -2116,7 +2116,7 @@ static void rule_runtime_del_rule(struct rule_runtime *rule_rt,
             /* delete rule from rcu hash */
             rcu_hash_del(rule_rt->cfg_hash, (char *)&rule_id, sizeof(long long));
 
-            if (0 == copy_rule->actual_clause_num) {
+            if (0 == copy_rule->actual_condition_num) {
                 maat_rule_free(copy_rule);
             } else {
                 rcu_hash_add(rule_rt->cfg_hash, (char *)&rule_id, 
@@ -2171,36 +2171,36 @@ int rule_runtime_update(void *rule_runtime, void *rule_schema,
     return 0;
 }
 
-static int validate_table_not_clause(struct group2rule_runtime *g2c_rt,
+static int validate_table_not_condition(struct group2rule_runtime *g2c_rt,
                                      struct table_manager *tbl_mgr, int table_id,
                                      int is_valid, struct log_handle *logger)
 {
-    struct table_clause *not_clause = NULL;
-    HASH_FIND_INT(g2c_rt->tbl_not_clause_hash, &table_id, not_clause);
+    struct table_condition *not_condition = NULL;
+    HASH_FIND_INT(g2c_rt->tbl_not_condition_hash, &table_id, not_condition);
 
     if (0 == is_valid) {
         //delete
-        if (NULL == not_clause || 0 == not_clause->actual_clause_num) {
+        if (NULL == not_condition || 0 == not_condition->actual_condition_num) {
             return 0;
         } else {
-            not_clause->actual_clause_num--;
+            not_condition->actual_condition_num--;
         }
     } else {
         //add
-        if (NULL == not_clause) {
-            not_clause = ALLOC(struct table_clause, 1);
-            not_clause->attribute_id = table_id;
-            not_clause->actual_clause_num++;
-            HASH_ADD_INT(g2c_rt->tbl_not_clause_hash, attribute_id, not_clause);
+        if (NULL == not_condition) {
+            not_condition = ALLOC(struct table_condition, 1);
+            not_condition->attribute_id = table_id;
+            not_condition->actual_condition_num++;
+            HASH_ADD_INT(g2c_rt->tbl_not_condition_hash, attribute_id, not_condition);
         } else {
-            if (not_clause->actual_clause_num >= MAX_NOT_CLAUSE_NUM) {
+            if (not_condition->actual_condition_num >= MAX_NOT_CONDITION_NUM) {
                 const char *table_name = table_manager_get_table_name(tbl_mgr, table_id);
                 log_fatal(logger, MODULE_RULE,
-                          "[%s:%d]table:<%s> NOT clause num exceed maximum:%d",
-                          __FUNCTION__, __LINE__, table_name, MAX_NOT_CLAUSE_NUM);
+                          "[%s:%d]table:<%s> NOT condition num exceed maximum:%d",
+                          __FUNCTION__, __LINE__, table_name, MAX_NOT_CONDITION_NUM);
                 return -1;
             }
-            not_clause->actual_clause_num++;
+            not_condition->actual_condition_num++;
         }
     }
     
@@ -2238,12 +2238,12 @@ int group2rule_runtime_update(void *g2c_runtime, void *g2c_schema,
     }
 
     if (1 == g2c_item->not_flag) {
-        ret = validate_table_not_clause(g2c_rt, schema->ref_tbl_mgr,
+        ret = validate_table_not_condition(g2c_rt, schema->ref_tbl_mgr,
                                         g2c_item->attribute_id, is_valid,
                                         rule_rt->logger);
         if (ret < 0) {
             log_fatal(rule_rt->logger, MODULE_RULE,
-                      "[%s:%d]validate NOT clause failed, abandon config:%s",
+                      "[%s:%d]validate NOT condition failed, abandon config:%s",
                       __FUNCTION__, __LINE__, line);
             goto next;
         }
@@ -2255,7 +2255,7 @@ int group2rule_runtime_update(void *g2c_runtime, void *g2c_schema,
                                              rule_rt->logger);
         if (0 == ret) {
             if (g2c_item->not_flag) {
-                g2c_rt->not_clause_cnt--;
+                g2c_rt->not_condition_cnt--;
             }
             g2c_rt->rule_num--;
         } else {
@@ -2267,7 +2267,7 @@ int group2rule_runtime_update(void *g2c_runtime, void *g2c_schema,
                                         rule_rt->logger);
         if (0 == ret) {
             if (g2c_item->not_flag) {
-                g2c_rt->not_clause_cnt++;
+                g2c_rt->not_condition_cnt++;
             }
             g2c_rt->rule_num++;
         } else {
@@ -2280,7 +2280,7 @@ next:
     return ret;
 }
 
-long long group2rule_runtime_not_clause_count(void *g2c_runtime)
+long long group2rule_runtime_not_condition_count(void *g2c_runtime)
 {
      if (NULL == g2c_runtime) {
         return 0;
@@ -2289,7 +2289,7 @@ long long group2rule_runtime_not_clause_count(void *g2c_runtime)
     struct group2rule_runtime *g2c_rt =
         (struct group2rule_runtime *)g2c_runtime;
 
-    return g2c_rt->not_clause_cnt;
+    return g2c_rt->not_condition_cnt;
 }
 
 long long group2rule_runtime_rule_count(void *g2c_runtime)
@@ -2355,16 +2355,16 @@ int rule_runtime_commit(void *rule_runtime, const char *table_name,
                  maat_rt_version, time_elapse_ms);
     }
 
-    struct clause_id_kv *old_clause_id_kv_hash = NULL;
-    struct clause_id_kv *new_clause_id_kv_hash = NULL;
-    struct clause_id_kv *old_not_clause_id_kv_hash = NULL;
-    struct clause_id_kv *new_not_clause_id_kv_hash = NULL;
+    struct condition_id_kv *old_condition_id_kv_hash = NULL;
+    struct condition_id_kv *new_condition_id_kv_hash = NULL;
+    struct condition_id_kv *old_not_condition_id_kv_hash = NULL;
+    struct condition_id_kv *new_not_condition_id_kv_hash = NULL;
 
-    new_clause_id_kv_hash = build_clause_id_kv_hash(rule_rt, 0);
-    new_not_clause_id_kv_hash = build_clause_id_kv_hash(rule_rt, 1);
+    new_condition_id_kv_hash = build_condition_id_kv_hash(rule_rt, 0);
+    new_not_condition_id_kv_hash = build_condition_id_kv_hash(rule_rt, 1);
 
-    old_clause_id_kv_hash = rule_rt->clause_id_kv_hash;
-    old_not_clause_id_kv_hash = rule_rt->not_clause_id_kv_hash;
+    old_condition_id_kv_hash = rule_rt->condition_id_kv_hash;
+    old_not_condition_id_kv_hash = rule_rt->not_condition_id_kv_hash;
     old_bool_matcher = rule_rt->bm;
 
     /*
@@ -2383,16 +2383,16 @@ int rule_runtime_commit(void *rule_runtime, const char *table_name,
     */
 
     rule_rt->bm = new_bool_matcher;
-    rule_rt->clause_id_kv_hash = new_clause_id_kv_hash;
-    rule_rt->not_clause_id_kv_hash = new_not_clause_id_kv_hash;
+    rule_rt->condition_id_kv_hash = new_condition_id_kv_hash;
+    rule_rt->not_condition_id_kv_hash = new_not_condition_id_kv_hash;
     rcu_hash_commit(rule_rt->cfg_hash); //after commit, old cfg still available within RULE_GC_TIMEOUT_S.
 
     maat_garbage_bagging(rule_rt->ref_garbage_bin, old_bool_matcher, NULL,
                         garbage_bool_matcher_free);
-    maat_garbage_bagging(rule_rt->ref_garbage_bin, old_clause_id_kv_hash, NULL,
-                        garbage_clause_id_kv_hash_free);
-    maat_garbage_bagging(rule_rt->ref_garbage_bin, old_not_clause_id_kv_hash, NULL,
-                        garbage_clause_id_kv_hash_free);
+    maat_garbage_bagging(rule_rt->ref_garbage_bin, old_condition_id_kv_hash, NULL,
+                        garbage_condition_id_kv_hash_free);
+    maat_garbage_bagging(rule_rt->ref_garbage_bin, old_not_condition_id_kv_hash, NULL,
+                        garbage_condition_id_kv_hash_free);
 
     rule_rt->rule_num = rcu_hash_count(rule_rt->cfg_hash);
 
@@ -2427,8 +2427,8 @@ static int rule_sort_para_compare(const struct rule_sort_para *a,
                                      const struct rule_sort_para *b)
 {
 	//If rule rule's execute sequences are not specified or equal.
-	if (a->declared_clause_num != b->declared_clause_num) {
-		return (a->declared_clause_num - b->declared_clause_num);
+	if (a->declared_condition_num != b->declared_condition_num) {
+		return (a->declared_condition_num - b->declared_condition_num);
 	} else {
 		return (b->rule_id - a->rule_id);
 	}
@@ -2438,7 +2438,7 @@ static void rule_sort_para_set(struct rule_sort_para *para,
                                   const struct rule_item *item)
 {
 	para->rule_id = item->rule_id;
-	para->declared_clause_num = item->declared_clause_num;
+	para->declared_condition_num = item->declared_condition_num;
 }
 
 static int compare_rule_item(const void *a, const void *b)
@@ -2459,7 +2459,7 @@ int rule_runtime_match(struct rule_runtime *rule_rt, long long *rule_ids,
     struct rule_state *rule_state = state->rule_state;
     struct rule_item *rule_items[rule_ids_size];
     
-    // all hit clause_id -> rule_id
+    // all hit condition_id -> rule_id
     size_t bool_match_ret =
         maat_rule_bool_matcher_match(rule_rt, rule_state,
                                         state->thread_id,
@@ -2486,7 +2486,7 @@ int rule_state_update(struct rule_state *rule_state, struct maat *maat_inst,
     long long hit_group_ids[MAX_HIT_GROUP_NUM];
     struct maat_hit_group hit_group;
 
-    utarray_clear(rule_state->this_scan_hit_clauses);
+    utarray_clear(rule_state->this_scan_hit_conditions);
     rule_state->this_scan_not_logic = 0;
     rule_state->Nth_scan = Nth_scan;
 
@@ -2526,7 +2526,7 @@ int rule_state_update(struct rule_state *rule_state, struct maat *maat_inst,
                                               super_group_cnt, attribute_id);
     }
 
-    /* update hit clause */
+    /* update hit condition */
     int rule_table_id = table_manager_get_default_rule_table_id(maat_inst->tbl_mgr);
     if (custom_rule_tbl_id > 0) {
         rule_table_id = custom_rule_tbl_id;
@@ -2543,7 +2543,7 @@ int rule_state_update(struct rule_state *rule_state, struct maat *maat_inst,
     }
 
     for (i = 0; i < hit_cnt; i++) {
-        rule_state_update_hit_clauses(rule_state, rule_rt,
+        rule_state_update_hit_conditions(rule_state, rule_rt,
                                          hit_group_ids[i], attribute_id);
     }
 
@@ -2572,7 +2572,7 @@ void rule_state_not_logic_update(struct rule_state *rule_state,
 
     rule_state->this_scan_not_logic = 1;
     rule_state->Nth_scan = Nth_scan;
-    utarray_clear(rule_state->this_scan_hit_not_clauses);
+    utarray_clear(rule_state->this_scan_hit_not_conditions);
 
     struct table_group *tbl_group = NULL;
     HASH_FIND(hh, rule_state->hit_not_tbl_groups, &attribute_id, sizeof(int), tbl_group);
@@ -2580,17 +2580,17 @@ void rule_state_not_logic_update(struct rule_state *rule_state,
         return;
     }
 
-    struct clause_id_kv *clause_id_kv = NULL;
+    struct condition_id_kv *condition_id_kv = NULL;
     for (size_t i = 0; i < utarray_len(tbl_group->group_ids); i++) {
         long long *group_id = utarray_eltptr(tbl_group->group_ids, i);
-        struct clause_query_key key = {*group_id, attribute_id, 1};
+        struct condition_query_key key = {*group_id, attribute_id, 1};
         
-        HASH_FIND(hh, rule_rt->not_clause_id_kv_hash, &key, sizeof(key), clause_id_kv);
-        if (NULL == clause_id_kv) {
+        HASH_FIND(hh, rule_rt->not_condition_id_kv_hash, &key, sizeof(key), condition_id_kv);
+        if (NULL == condition_id_kv) {
             continue;
         }
 
-        rule_state_add_hit_not_clauses(rule_state, clause_id_kv->clause_ids);
+        rule_state_add_hit_not_conditions(rule_state, condition_id_kv->condition_ids);
         if (1 == maat_inst->opts.hit_path_on) {
             rule_state_add_internal_hit_path(rule_state, -1, *group_id,
                                                 attribute_id, 1, Nth_scan);
@@ -2714,7 +2714,7 @@ size_t rule_state_get_internal_hit_paths(struct rule_state *rule_state,
             tmp_path.top_group_id = *p;
             tmp_path.attribute_id = internal_path->attribute_id;
             tmp_path.NOT_flag = internal_path->NOT_flag;
-            tmp_path.clause_index = -1;
+            tmp_path.condition_index = -1;
             tmp_path.rule_id = -1;
 
             /* check if internal_path is duplicated from hit_path_array[]

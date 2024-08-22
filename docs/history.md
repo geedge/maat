@@ -11,7 +11,7 @@
 | v3.1.1 | 2020-9-27 | Add explanation for creating attributes on multiple different types of physical tables | Zheng Chao  |
 | v3.1.0 | 2020-9-18 | Add FQDN callback table | Zheng Chao  |
 | v3.0.4 | 2020-8-17 | Add extended numerical domain configuration interval_plus  | Zheng Chao  |
-| v3.0   | 2020-6-29 | Maat 3.0, support clauses, original grouping table split into grouping relationship table and grouping compilation table | Zheng Chao  |
+| v3.0   | 2020-6-29 | Maat 3.0, support conditions, original grouping table split into grouping relationship table and grouping compilation table | Zheng Chao  |
 | v2.8   | 2020-3-13 | Support composite tables   | Zheng Chao  |
 | v2.8   | 2020-2-11 | Support Hit Path  | Zheng Chao  |
 | v2.8   | 2020-2-4  | Support sorting strategies by Evaluation Order  | Zheng Chao  |

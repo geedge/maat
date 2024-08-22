@@ -48,7 +48,7 @@ Table schema is stored in a json file(such as table_info.conf), which is loaded 
         "custom": {
             "rule_id":1,
             "tags":6,
-            "clause_num":9
+            "condition_num":9
         }
     },
     {
@@ -62,7 +62,7 @@ Table schema is stored in a json file(such as table_info.conf), which is loaded 
             "rule_id":2,
             "not_flag":4,
             "attribute_name":5,
-            "clause_index":6
+            "condition_index":6
         }
     },
     {

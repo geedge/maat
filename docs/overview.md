@@ -24,11 +24,11 @@ The physical tables are mainly divided into three categories: the item table, gr
 
 ### 1.2 Configuration relationship
 
-As shown in the diagram below, maat organizes and abstracts configurations using terms such as item, group, literal, clause, rule, etc., allowing users to flexibly configure various policies. The term "literal" is an internal concept in maat and is not visible to external users.
+As shown in the diagram below, maat organizes and abstracts configurations using terms such as item, group, literal, condition, rule, etc., allowing users to flexibly configure various policies. The term "literal" is an internal concept in maat and is not visible to external users.
 
 In addition, groups support nesting. For more detailed information, please refer to [group hierarchy](./group_hierarchy.md).
 
-If we define literal_id = {attribute_id, group_id}, then a literal is composed of one or more literal_ids. The multiple literal_ids that form the same clause have a logical “OR” relationship. The multiple clauses that form the same rule have a logical “AND” relationship, and there can be a maximum of 8 clauses within the same rule. In addition, the clause itself supports logical "NOT".
+If we define literal_id = {attribute_id, group_id}, then a literal is composed of one or more literal_ids. The multiple literal_ids that form the same condition have a logical “OR” relationship. The multiple conditions that form the same rule have a logical “AND” relationship, and there can be a maximum of 8 conditions within the same rule. In addition, the condition itself supports logical "NOT".
 
 <img src="./imgs/rule_diagram.png" width="800" height="450" > 
 

@@ -245,7 +245,7 @@ Describe the specific policy, one maat instance can has multiple rule tables wit
 | **rule_id** | LONG LONG      | primary key, rule id |
 | **tags**       | VARCHAR2(1024) | default 0，means no tag |
 | **is_valid**   | INT            | 0(invalid)，1(valid)  |
-| **clause_num** | INT            | no more than 8 clauses |
+| **condition_num** | INT            | no more than 8 conditions |
 
 ### 1.3 <a name='Group2RuleTable'></a> group2rule table
 
@@ -256,9 +256,9 @@ Describe the relationship between group and rule.
 | **group_ids**     | VARCHAR(256)  | group ids are separated by commas(g1,g2,g3) |
 | **rule_id**    | LONG LONG     | rule id |
 | **is_valid**      | INT           | 0(invalid), 1(valid) |
-| **not_flag**      | INT           | logical 'NOT', identify a NOT clause, 0(no) 1(yes) |
+| **not_flag**      | INT           | logical 'NOT', identify a NOT condition, 0(no) 1(yes) |
 | **attribute** | VARCHAR2(256) | attribute name, NOT NULL |
-| **Nth_clause**    | INT           | the clause seq in (conjunctive normal form)CNF, from 0 to 7. groups with the same clause ID are logical 'OR' |
+| **Nth_condition**    | INT           | the condition seq in (conjunctive normal form)CNF, from 0 to 7. groups with the same condition ID are logical 'OR' |
 
 NOTE: If group_id is invalid in xx_item table, it must be marked as invalid in this table.
 
@@ -441,25 +441,25 @@ The `group2group_runtime` is a runtime that is built based on the reference rela
 
 In addition to the rule table, there is also the group2rule table in the table schema. However, from a runtime perspective, the configurations of these two tables together constitute rule_runtime. This means that there is no standalone group2rule_runtime. Rule_runtime is the most complex among all runtime types because it serves multiple functions.
 
-**Note:** This will involve the terminology of [clause](./terminology.md#clause).
+**Note:** This will involve the terminology of [condition](./terminology.md#condition).
 
-1. For expressions without NOT-clauses, returning the matched rule_id:
+1. For expressions without NOT-conditions, returning the matched rule_id:
 
-    * rule1 = clause1 & clause2 = {attribute1, g1} & {attribute2, g2}
+    * rule1 = condition1 & condition2 = {attribute1, g1} & {attribute2, g2}
 
-    * rule2 = clause1 & clause2 = {attribute1, g2} & {attribute2, g3}
+    * rule2 = condition1 & condition2 = {attribute1, g2} & {attribute2, g3}
 
     Given the matched attribute_id and group_id, all matching rule_ids can be provided. For example, if scanning attribute1 matches g2 and attribute2 matches g3, rule_runtime will return the matched rule_id 2.
 
-2. For expressions with NOT-clauses, returning the matched rule_id:
+2. For expressions with NOT-conditions, returning the matched rule_id:
 
-    * rule3 = clause1 & !clause2 = {attribute1, g1} & !{attribute2, g2}
+    * rule3 = condition1 & !condition2 = {attribute1, g1} & !{attribute2, g2}
 
-    * rule4 = !clause1 & clause2 = !{attribute1, g2} & {attribute2, g3}
+    * rule4 = !condition1 & condition2 = !{attribute1, g2} & {attribute2, g3}
 
     If scanning attribute1 matches g1 and attribute2 matches g3, rule_runtime will return the matched rule_id 4.
 
-3. If a rule_id is matched, the full hit path can be obtained: **item_id -> group_id ->** {super_group_id} -> clause{**attribute_id, not_flag, clause_index} -> rule_id**. If the matched group is not referenced by a rule, a half hit path can be obtained: **item_id -> group_id** -> {super_group_id}.
+3. If a rule_id is matched, the full hit path can be obtained: **item_id -> group_id ->** {super_group_id} -> condition{**attribute_id, not_flag, condition_index} -> rule_id**. If the matched group is not referenced by a rule, a half hit path can be obtained: **item_id -> group_id** -> {super_group_id}.
 
 4. Getting the matched group_ids and the count of hit groups.
 
@@ -469,13 +469,13 @@ The internal structure of rule_runtime is as follows, including the control plan
 
 * **Control plane**
 
-Rule runtime loads the rule table and group2rule table configurations into memory, assigning a unique clause_id to all clauses of each rule. The following three parts are constructed based on the clause_id:
+Rule runtime loads the rule table and group2rule table configurations into memory, assigning a unique condition_id to all conditions of each rule. The following three parts are constructed based on the condition_id:
 
-1. All clause_ids under the same rule are used to construct AND expressions, and all rule AND expressions are used to build a bool_matcher.
+1. All condition_ids under the same rule are used to construct AND expressions, and all rule AND expressions are used to build a bool_matcher.
 
-2. For not_flag=0 (clauses), a `clause_id hash` is built, key:{group_id, attribute_id, not_flag}, value:clause_id.
+2. For not_flag=0 (conditions), a `condition_id hash` is built, key:{group_id, attribute_id, not_flag}, value:condition_id.
 
-3. For not_flag=1 (NOT-clauses), a `NOT_clause_id hash` is built, key:{group_id, attribute_id, not_flag}, value:clause_id.
+3. For not_flag=1 (NOT-conditions), a `NOT_condition_id hash` is built, key:{group_id, attribute_id, not_flag}, value:condition_id.
 
 * **Data Plane**
 
@@ -485,18 +485,18 @@ On the data plane, services are provided externally through the maat API, primar
 
 * The hit item_id and group_id form a half-hit path.
 
-* The group_id that is hit and the scanned `attribute_id` form the key {group_id, attribute_id, 0}. This key is used to find the `hit clause_ids` in the clause_id hash.
+* The group_id that is hit and the scanned `attribute_id` form the key {group_id, attribute_id, 0}. This key is used to find the `hit condition_ids` in the condition_id hash.
 
-* Use the key {group_id, attribute_id, 1} to search for NOT_clause_ids in the NOT_clause_id hash and cache them as `exclude clause_ids`. These clause_ids need to be removed from all clause_ids that are eventually hit. This is because the scan hit {group_id, attribute_id, 0} => clause_id, leading to the deduction that {group_id, attribute_id, 1} => NOT_clause_id does not hit.
+* Use the key {group_id, attribute_id, 1} to search for NOT_condition_ids in the NOT_condition_id hash and cache them as `exclude condition_ids`. These condition_ids need to be removed from all condition_ids that are eventually hit. This is because the scan hit {group_id, attribute_id, 0} => condition_id, leading to the deduction that {group_id, attribute_id, 1} => NOT_condition_id does not hit.
 
-* Identify the group_ids in attribute_id table that appear in the NOT_clause and add them to the `NOT_clause_group` set. Ensure that this set does not contain any group_id that was hit during scanning. If any such group_id is present, remove it from the set to form the final `NOT_clause_group` for the attribute_id table.
+* Identify the group_ids in attribute_id table that appear in the NOT_condition and add them to the `NOT_condition_group` set. Ensure that this set does not contain any group_id that was hit during scanning. If any such group_id is present, remove it from the set to form the final `NOT_condition_group` for the attribute_id table.
 
-* Use the hit clause_ids to determine if there are any hit rule_ids. If there are, populate the half-hit path which will become full-hit path.
+* Use the hit condition_ids to determine if there are any hit rule_ids. If there are, populate the half-hit path which will become full-hit path.
 
-2. **maat_scan_not_logic**: This interface is used to activate NOT-clause logic.
+2. **maat_scan_not_logic**: This interface is used to activate NOT-condition logic.
 
-* Traverse the `NOT_clause_group` of `attribute_id`. For each `group_id`, form a key `{group_id, attribute_id, 1}` to obtain the `NOT_clause_id`. If it is in the `exclude clause_ids` set, ignore it; otherwise, add it to the `all hit clause_ids` set as a hit `NOT_clause_id`, and record the half-hit path of the NOT-clause.
+* Traverse the `NOT_condition_group` of `attribute_id`. For each `group_id`, form a key `{group_id, attribute_id, 1}` to obtain the `NOT_condition_id`. If it is in the `exclude condition_ids` set, ignore it; otherwise, add it to the `all hit condition_ids` set as a hit `NOT_condition_id`, and record the half-hit path of the NOT-condition.
 
-* Use the `all hit clause_ids` to calculate if there are any newly hit rule_ids. If there are, populate the half-hit path of the NOT-clause which will become full-hit path.
+* Use the `all hit condition_ids` to calculate if there are any newly hit rule_ids. If there are, populate the half-hit path of the NOT-condition which will become full-hit path.
 
 3. **xx_get_hit_path**: This interface is used to retrieve the hit path.

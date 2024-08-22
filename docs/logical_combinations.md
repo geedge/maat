@@ -33,7 +33,7 @@ Before showing how to configure the specific rules, we need some raw materials (
 
 ## AND logic
 
-`Note`: Each rule supports a maximum of 8 clauses, which are connected by the logical 'AND' relationship, with clause index ranging from 0 to 7.
+`Note`: Each rule supports a maximum of 8 conditions, which are connected by the logical 'AND' relationship, with condition index ranging from 0 to 7.
 
 * case1: Deny hosts with source IP addresses in the range of 192.168.1.11 to 192.168.1.20 from accessing the website www.baidu.com.
 
@@ -41,8 +41,8 @@ Before showing how to configure the specific rules, we need some raw materials (
     * www.baidu.com => group_id(201)
 
 ```bash
-rule(rule) = clause1 & clause2
-              = {attribute1, group1, clause_index1} & {attribute2, group2, clause_index2}
+rule(rule) = condition1 & condition2
+              = {attribute1, group1, condition_index1} & {attribute2, group2, condition_index2}
               = {2, 211, 1} & {1, 201, 2}
 ```
 
@@ -52,19 +52,19 @@ rule(rule) = clause1 & clause2
     * 端口80 ~ 80 => group_id(221)
 
 ```bash
-rule(rule) = clause1 & clause2
-              = {attribute1, group1, clause_index1} & {attribute2, group2, clause_index2}
+rule(rule) = condition1 & condition2
+              = {attribute1, group1, condition_index1} & {attribute2, group2, condition_index2}
               = {2, 211, 1} & {3, 221, 2}
 ```
 
 The JSON configuration for the logical `AND` can be referenced at [unit_test Json configuration](../test/maat_json.json) with rule_id=152.
 
-group_name: "152_mail_addr" and group_name: "interval_group_refered" are two clauses of this rule, with a logical `AND` relationship between them.
+group_name: "152_mail_addr" and group_name: "interval_group_refered" are two conditions of this rule, with a logical `AND` relationship between them.
 
 
 ## OR logic
 
-`Note`: Multiple groups under the same clause have a logical 'OR' relationship.
+`Note`: Multiple groups under the same condition have a logical 'OR' relationship.
 
 * case1： Deny hosts with source IP addresses in the range of 192.168.1.11 to 192.168.1.30 from accessing the website www.baidu.com.
 
@@ -73,8 +73,8 @@ group_name: "152_mail_addr" and group_name: "interval_group_refered" are two cla
     * www.baidu.com => group_id(201)
 
 ```bash
-rule(rule) = clause1 & clause2
-              = {attribute1, (group1 | group2), clause_index1} & {attribute2, group3, clause_index2}
+rule(rule) = condition1 & condition2
+              = {attribute1, (group1 | group2), condition_index1} & {attribute2, group3, condition_index2}
               = {2, (211 | 212), 1} & {1, 201, 2}
 ```
 
@@ -85,8 +85,8 @@ rule(rule) = clause1 & clause2
     * port 443 ~ 443 => group_id(222)
 
 ```bash
-rule(rule) = clause1 & clause2
-              = {attribute1, group1, clause_index1} & {attribute2, (group2 | group3), clause_index2}
+rule(rule) = condition1 & condition2
+              = {attribute1, group1, condition_index1} & {attribute2, (group2 | group3), condition_index2}
               = {2, 211, 1} & {3, (221 | 222), 2}
 ```
 
@@ -97,7 +97,7 @@ group_name: "152_mail_addr" contains two regions(items) with a logical `OR` rela
 
 ## NOT logic
 
-`Note`: Only clauses can support NOT-logic.
+`Note`: Only conditions can support NOT-logic.
 
 * case1: Hosts with source ip addresses ranging from 192.168.1.11 to 192.168.1.20 are allowed to access websites other than www.baidu.com.
 
@@ -105,8 +105,8 @@ group_name: "152_mail_addr" contains two regions(items) with a logical `OR` rela
     * www.baidu.com => group_id(201)
 
 ```bash
-rule(rule) = clause1 & !clause2
-              = {attribute1, group1, clause_index1} & !{attribute2, group2, clause_index2}
+rule(rule) = condition1 & !condition2
+              = {attribute1, group1, condition_index1} & !{attribute2, group2, condition_index2}
               = {2, 211, 1} & !{1, 201, 2}
 ```
 
@@ -117,14 +117,14 @@ rule(rule) = clause1 & !clause2
     * port 443 ~ 443 => group_id(222)
 
 ```bash
-rule(rule) = clause1 & !clause2
-              = {attribute1, group1, clause_index1} & !{attribute2, (group2 | group3), clause_index2}
+rule(rule) = condition1 & !condition2
+              = {attribute1, group1, condition_index1} & !{attribute2, (group2 | group3), condition_index2}
               = {2, 211, 1} & !{3, (221 | 222), 2}
 ```
 
 The JSON configuration for the logical `OR` can be referenced at [unit_test Json configuration](../test/maat_json.json) with rule_id=145.
 
-The group_name: "123_IP_group" is a NOT clause of this rule.
+The group_name: "123_IP_group" is a NOT condition of this rule.
 
 
 ## Group exclude
@@ -147,8 +147,8 @@ super_group1 = group1 exclude group2
 
 And then configure the rule.
 ```bash
-rule(rule) = clause1 & clause2
-              = {attribute1, super_group1, clause_index1} & {attribute2, group2, clause_index2}
+rule(rule) = condition1 & condition2
+              = {attribute1, super_group1, condition_index1} & {attribute2, group2, condition_index2}
               = {2, (210 exclude 211), 1} & {1, 201, 2}
 ```
 
@@ -166,8 +166,8 @@ super_group2 = group2 exclude group3
 
 And then configure the rule.
 ```bash
-rule(rule) = clause1 & clause2
-              = {attribute1, group1, clause_index1} & {attribute2, super_group2, clause_index2}
+rule(rule) = condition1 & condition2
+              = {attribute1, group1, condition_index1} & {attribute2, super_group2, condition_index2}
               = {2, 211, 1} & {1, (202 exclude 201), 2}
 ```
 
